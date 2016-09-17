@@ -161,7 +161,7 @@ func register(name, usage string, fn func(*File, ast.Node), types ...ast.Node) {
 
 // Usage is a replacement usage function for the flags package.
 func Usage() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage of vet:\n")
 	fmt.Fprintf(os.Stderr, "\tvet [flags] directory...\n")
 	fmt.Fprintf(os.Stderr, "\tvet [flags] files... # Must be a single package\n")
 	fmt.Fprintf(os.Stderr, "By default, -all is set and all non-experimental checks are run.\n")
