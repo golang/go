@@ -1260,8 +1260,6 @@ func funccompile(n *Node) {
 	compile(n)
 	Curfn = nil
 	Pc = nil
-	continpc = nil
-	breakpc = nil
 	funcdepth = 0
 	dclcontext = PEXTERN
 	if nerrors != 0 {

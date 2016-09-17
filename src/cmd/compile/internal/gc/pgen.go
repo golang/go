@@ -372,11 +372,7 @@ func compile(fn *Node) {
 		return
 	}
 
-	continpc = nil
-	breakpc = nil
-
-	pl := newplist()
-	pl.Name = Linksym(Curfn.Func.Nname.Sym)
+	newplist()
 
 	setlineno(Curfn)
 
