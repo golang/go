@@ -113,13 +113,11 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
 		elfshnum = SHN_UNDEF
 	} else {
 		if xo.Sect == nil {
-			ctxt.Cursym = x
-			ctxt.Diag("missing section in putelfsym")
+			Errorf(x, "missing section in putelfsym")
 			return
 		}
 		if xo.Sect.Elfsect == nil {
-			ctxt.Cursym = x
-			ctxt.Diag("missing ELF section in putelfsym")
+			Errorf(x, "missing ELF section in putelfsym")
 			return
 		}
 		elfshnum = xo.Sect.Elfsect.shnum

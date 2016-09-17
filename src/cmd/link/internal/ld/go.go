@@ -311,7 +311,7 @@ func adddynlib(ctxt *Link, lib string) {
 		}
 		Elfwritedynent(ctxt, Linklookup(ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, s, lib)))
 	} else {
-		ctxt.Diag("adddynlib: unsupported binary format")
+		Errorf(nil, "adddynlib: unsupported binary format")
 	}
 }
 
@@ -323,11 +323,11 @@ func Adddynsym(ctxt *Link, s *Symbol) {
 	if Iself {
 		Elfadddynsym(ctxt, s)
 	} else if Headtype == obj.Hdarwin {
-		ctxt.Diag("adddynsym: missed symbol %s (%s)", s.Name, s.Extname)
+		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname)
 	} else if Headtype == obj.Hwindows {
 		// already taken care of
 	} else {
-		ctxt.Diag("adddynsym: unsupported binary format")
+		Errorf(s, "adddynsym: unsupported binary format")
 	}
 }
 

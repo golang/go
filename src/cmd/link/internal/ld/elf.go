@@ -1055,13 +1055,13 @@ func elfwriteshdrs() uint32 {
 	return uint32(ehdr.shnum) * ELF32SHDRSIZE
 }
 
-func elfsetstring(ctxt *Link, s string, off int) {
+func elfsetstring(s *Symbol, str string, off int) {
 	if nelfstr >= len(elfstr) {
-		ctxt.Diag("too many elf strings")
+		Errorf(s, "too many elf strings")
 		errorexit()
 	}
 
-	elfstr[nelfstr].s = s
+	elfstr[nelfstr].s = str
 	elfstr[nelfstr].off = off
 	nelfstr++
 }
@@ -1080,10 +1080,10 @@ func elfwritephdrs() uint32 {
 	return uint32(ehdr.phnum) * ELF32PHDRSIZE
 }
 
-func newElfPhdr(ctxt *Link) *ElfPhdr {
+func newElfPhdr() *ElfPhdr {
 	e := new(ElfPhdr)
 	if ehdr.phnum >= NSECT {
-		ctxt.Diag("too many phdrs")
+		Errorf(nil, "too many phdrs")
 	} else {
 		phdr[ehdr.phnum] = e
 		ehdr.phnum++
@@ -1096,12 +1096,12 @@ func newElfPhdr(ctxt *Link) *ElfPhdr {
 	return e
 }
 
-func newElfShdr(ctxt *Link, name int64) *ElfShdr {
+func newElfShdr(name int64) *ElfShdr {
 	e := new(ElfShdr)
 	e.name = uint32(name)
 	e.shnum = int(ehdr.shnum)
 	if ehdr.shnum >= NSECT {
-		ctxt.Diag("too many shdrs")
+		Errorf(nil, "too many shdrs")
 	} else {
 		shdr[ehdr.shnum] = e
 		ehdr.shnum++
@@ -1217,7 +1217,7 @@ func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
 }
 
 func elfwriteinterp(ctxt *Link) int {
-	sh := elfshname(ctxt, ".interp")
+	sh := elfshname(".interp")
 	Cseek(int64(sh.off))
 	coutbuf.WriteString(interp)
 	Cput(0)
@@ -1239,8 +1239,8 @@ func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int, alloc bool) int
 	return int(n)
 }
 
-func elfwritenotehdr(ctxt *Link, str string, namesz uint32, descsz uint32, tag uint32) *ElfShdr {
-	sh := elfshname(ctxt, str)
+func elfwritenotehdr(str string, namesz uint32, descsz uint32, tag uint32) *ElfShdr {
+	sh := elfshname(str)
 
 	// Write Elf_Note header.
 	Cseek(int64(sh.off))
@@ -1267,9 +1267,9 @@ func elfnetbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
 	return elfnote(sh, startva, resoff, n, true)
 }
 
-func elfwritenetbsdsig(ctxt *Link) int {
+func elfwritenetbsdsig() int {
 	// Write Elf_Note header.
-	sh := elfwritenotehdr(ctxt, ".note.netbsd.ident", ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG)
+	sh := elfwritenotehdr(".note.netbsd.ident", ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG)
 
 	if sh == nil {
 		return 0
@@ -1299,9 +1299,9 @@ func elfopenbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
 	return elfnote(sh, startva, resoff, n, true)
 }
 
-func elfwriteopenbsdsig(ctxt *Link) int {
+func elfwriteopenbsdsig() int {
 	// Write Elf_Note header.
-	sh := elfwritenotehdr(ctxt, ".note.openbsd.ident", ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG)
+	sh := elfwritenotehdr(".note.openbsd.ident", ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG)
 
 	if sh == nil {
 		return 0
@@ -1360,8 +1360,8 @@ func elfgobuildid(sh *ElfShdr, startva uint64, resoff uint64) int {
 	return elfnote(sh, startva, resoff, n, true)
 }
 
-func elfwritebuildinfo(ctxt *Link) int {
-	sh := elfwritenotehdr(ctxt, ".note.gnu.build-id", ELF_NOTE_BUILDINFO_NAMESZ, uint32(len(buildinfo)), ELF_NOTE_BUILDINFO_TAG)
+func elfwritebuildinfo() int {
+	sh := elfwritenotehdr(".note.gnu.build-id", ELF_NOTE_BUILDINFO_NAMESZ, uint32(len(buildinfo)), ELF_NOTE_BUILDINFO_TAG)
 	if sh == nil {
 		return 0
 	}
@@ -1374,8 +1374,8 @@ func elfwritebuildinfo(ctxt *Link) int {
 	return int(sh.size)
 }
 
-func elfwritegobuildid(ctxt *Link) int {
-	sh := elfwritenotehdr(ctxt, ".note.go.buildid", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(*flagBuildid)), ELF_NOTE_GOBUILDID_TAG)
+func elfwritegobuildid() int {
+	sh := elfwritenotehdr(".note.go.buildid", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(*flagBuildid)), ELF_NOTE_GOBUILDID_TAG)
 	if sh == nil {
 		return 0
 	}
@@ -1579,7 +1579,7 @@ func elfdynhash(ctxt *Link) {
 }
 
 func elfphload(ctxt *Link, seg *Segment) *ElfPhdr {
-	ph := newElfPhdr(ctxt)
+	ph := newElfPhdr()
 	ph.type_ = PT_LOAD
 	if seg.Rwx&4 != 0 {
 		ph.flags |= PF_R
@@ -1601,7 +1601,7 @@ func elfphload(ctxt *Link, seg *Segment) *ElfPhdr {
 }
 
 func elfphrelro(ctxt *Link, seg *Segment) {
-	ph := newElfPhdr(ctxt)
+	ph := newElfPhdr()
 	ph.type_ = PT_GNU_RELRO
 	ph.vaddr = seg.Vaddr
 	ph.paddr = seg.Vaddr
@@ -1611,7 +1611,7 @@ func elfphrelro(ctxt *Link, seg *Segment) {
 	ph.align = uint64(*FlagRound)
 }
 
-func elfshname(ctxt *Link, name string) *ElfShdr {
+func elfshname(name string) *ElfShdr {
 	var off int
 	var sh *ElfShdr
 
@@ -1625,24 +1625,23 @@ func elfshname(ctxt *Link, name string) *ElfShdr {
 				}
 			}
 
-			sh = newElfShdr(ctxt, int64(off))
+			sh = newElfShdr(int64(off))
 			return sh
 		}
 	}
 
-	ctxt.Diag("cannot find elf name %s", name)
-	errorexit()
+	Exitf("cannot find elf name %s", name)
 	return nil
 }
 
-func elfshalloc(ctxt *Link, sect *Section) *ElfShdr {
-	sh := elfshname(ctxt, sect.Name)
+func elfshalloc(sect *Section) *ElfShdr {
+	sh := elfshname(sect.Name)
 	sect.Elfsect = sh
 	return sh
 }
 
-func elfshbits(ctxt *Link, sect *Section) *ElfShdr {
-	sh := elfshalloc(ctxt, sect)
+func elfshbits(sect *Section) *ElfShdr {
+	sh := elfshalloc(sect)
 	// If this section has already been set up as a note, we assume type_ and
 	// flags are already correct, but the other fields still need filling in.
 	if sh.type_ == SHT_NOTE {
@@ -1654,7 +1653,7 @@ func elfshbits(ctxt *Link, sect *Section) *ElfShdr {
 			// list note). The real fix is probably to define new values
 			// for Symbol.Type corresponding to mapped and unmapped notes
 			// and handle them in dodata().
-			ctxt.Diag("sh.type_ == SHT_NOTE in elfshbits when linking internally")
+			Errorf(nil, "sh.type_ == SHT_NOTE in elfshbits when linking internally")
 		}
 		sh.addralign = uint64(sect.Align)
 		sh.size = sect.Length
@@ -1717,13 +1716,13 @@ func elfshreloc(ctxt *Link, sect *Section) *ElfShdr {
 		typ = SHT_REL
 	}
 
-	sh := elfshname(ctxt, elfRelType+sect.Name)
+	sh := elfshname(elfRelType + sect.Name)
 	sh.type_ = uint32(typ)
 	sh.entsize = uint64(SysArch.RegSize) * 2
 	if typ == SHT_RELA {
 		sh.entsize += uint64(SysArch.RegSize)
 	}
-	sh.link = uint32(elfshname(ctxt, ".symtab").shnum)
+	sh.link = uint32(elfshname(".symtab").shnum)
 	sh.info = uint32(sect.Elfsect.shnum)
 	sh.off = sect.Reloff
 	sh.size = sect.Rellen
@@ -1768,14 +1767,17 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 				continue
 			}
 			if r.Xsym == nil {
-				ctxt.Diag("missing xsym in relocation")
+				Errorf(sym, "missing xsym in relocation")
 				continue
 			}
 			if r.Xsym.ElfsymForReloc() == 0 {
-				ctxt.Diag("reloc %d to non-elf symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
+				Errorf(sym, "reloc %d to non-elf symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
+			}
+			if !r.Xsym.Attr.Reachable() {
+				Errorf(sym, "unreachable reloc %v target %v", r.Type, r.Xsym.Name)
 			}
 			if Thearch.Elfreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
-				ctxt.Diag("unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
+				Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
 			}
 		}
 	}
@@ -2102,11 +2104,11 @@ func (ctxt *Link) doelf() {
 
 // Do not write DT_NULL.  elfdynhash will finish it.
 func shsym(ctxt *Link, sh *ElfShdr, s *Symbol) {
-	addr := Symaddr(ctxt, s)
+	addr := Symaddr(s)
 	if sh.flags&SHF_ALLOC != 0 {
 		sh.addr = uint64(addr)
 	}
-	sh.off = uint64(datoff(ctxt, addr))
+	sh.off = uint64(datoff(s, addr))
 	sh.size = uint64(s.Size)
 }
 
@@ -2121,22 +2123,22 @@ func phsh(ph *ElfPhdr, sh *ElfShdr) {
 
 func Asmbelfsetup(ctxt *Link) {
 	/* This null SHdr must appear before all others */
-	elfshname(ctxt, "")
+	elfshname("")
 
 	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
-		elfshalloc(ctxt, sect)
+		elfshalloc(sect)
 	}
 	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
-		elfshalloc(ctxt, sect)
+		elfshalloc(sect)
 	}
 	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
-		elfshalloc(ctxt, sect)
+		elfshalloc(sect)
 	}
 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
-		elfshalloc(ctxt, sect)
+		elfshalloc(sect)
 	}
 	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
-		elfshalloc(ctxt, sect)
+		elfshalloc(sect)
 	}
 }
 
@@ -2174,17 +2176,17 @@ func Asmbelf(ctxt *Link, symo int64) {
 		eh.phentsize = 0
 
 		if Buildmode == BuildmodeShared {
-			sh := elfshname(ctxt, ".note.go.pkg-list")
+			sh := elfshname(".note.go.pkg-list")
 			sh.type_ = SHT_NOTE
-			sh = elfshname(ctxt, ".note.go.abihash")
+			sh = elfshname(".note.go.abihash")
 			sh.type_ = SHT_NOTE
 			sh.flags = SHF_ALLOC
-			sh = elfshname(ctxt, ".note.go.deps")
+			sh = elfshname(".note.go.deps")
 			sh.type_ = SHT_NOTE
 		}
 
 		if *flagBuildid != "" {
-			sh := elfshname(ctxt, ".note.go.buildid")
+			sh := elfshname(".note.go.buildid")
 			sh.type_ = SHT_NOTE
 			sh.flags = SHF_ALLOC
 		}
@@ -2193,7 +2195,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 	}
 
 	/* program header info */
-	pph = newElfPhdr(ctxt)
+	pph = newElfPhdr()
 
 	pph.type_ = PT_PHDR
 	pph.flags = PF_R
@@ -2218,7 +2220,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 
 	if !*FlagD { /* -d suppresses dynamic loader format */
 		/* interpreter */
-		sh := elfshname(ctxt, ".interp")
+		sh := elfshname(".interp")
 
 		sh.type_ = SHT_PROGBITS
 		sh.flags = SHF_ALLOC
@@ -2247,7 +2249,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 
 		resoff -= int64(elfinterp(sh, uint64(startva), uint64(resoff), interpreter))
 
-		ph := newElfPhdr(ctxt)
+		ph := newElfPhdr()
 		ph.type_ = PT_INTERP
 		ph.flags = PF_R
 		phsh(ph, sh)
@@ -2258,26 +2260,26 @@ func Asmbelf(ctxt *Link, symo int64) {
 		var sh *ElfShdr
 		switch Headtype {
 		case obj.Hnetbsd:
-			sh = elfshname(ctxt, ".note.netbsd.ident")
+			sh = elfshname(".note.netbsd.ident")
 			resoff -= int64(elfnetbsdsig(sh, uint64(startva), uint64(resoff)))
 
 		case obj.Hopenbsd:
-			sh = elfshname(ctxt, ".note.openbsd.ident")
+			sh = elfshname(".note.openbsd.ident")
 			resoff -= int64(elfopenbsdsig(sh, uint64(startva), uint64(resoff)))
 		}
 
-		pnote = newElfPhdr(ctxt)
+		pnote = newElfPhdr()
 		pnote.type_ = PT_NOTE
 		pnote.flags = PF_R
 		phsh(pnote, sh)
 	}
 
 	if len(buildinfo) > 0 {
-		sh := elfshname(ctxt, ".note.gnu.build-id")
+		sh := elfshname(".note.gnu.build-id")
 		resoff -= int64(elfbuildinfo(sh, uint64(startva), uint64(resoff)))
 
 		if pnote == nil {
-			pnote = newElfPhdr(ctxt)
+			pnote = newElfPhdr()
 			pnote.type_ = PT_NOTE
 			pnote.flags = PF_R
 		}
@@ -2286,10 +2288,10 @@ func Asmbelf(ctxt *Link, symo int64) {
 	}
 
 	if *flagBuildid != "" {
-		sh := elfshname(ctxt, ".note.go.buildid")
+		sh := elfshname(".note.go.buildid")
 		resoff -= int64(elfgobuildid(sh, uint64(startva), uint64(resoff)))
 
-		pnote := newElfPhdr(ctxt)
+		pnote := newElfPhdr()
 		pnote.type_ = PT_NOTE
 		pnote.flags = PF_R
 		phsh(pnote, sh)
@@ -2309,7 +2311,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 
 	/* Dynamic linking sections */
 	if !*FlagD {
-		sh := elfshname(ctxt, ".dynsym")
+		sh := elfshname(".dynsym")
 		sh.type_ = SHT_DYNSYM
 		sh.flags = SHF_ALLOC
 		if elf64 {
@@ -2318,79 +2320,79 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = ELF32SYMSIZE
 		}
 		sh.addralign = uint64(SysArch.RegSize)
-		sh.link = uint32(elfshname(ctxt, ".dynstr").shnum)
+		sh.link = uint32(elfshname(".dynstr").shnum)
 
 		// sh->info = index of first non-local symbol (number of local symbols)
 		shsym(ctxt, sh, Linklookup(ctxt, ".dynsym", 0))
 
-		sh = elfshname(ctxt, ".dynstr")
+		sh = elfshname(".dynstr")
 		sh.type_ = SHT_STRTAB
 		sh.flags = SHF_ALLOC
 		sh.addralign = 1
 		shsym(ctxt, sh, Linklookup(ctxt, ".dynstr", 0))
 
 		if elfverneed != 0 {
-			sh := elfshname(ctxt, ".gnu.version")
+			sh := elfshname(".gnu.version")
 			sh.type_ = SHT_GNU_VERSYM
 			sh.flags = SHF_ALLOC
 			sh.addralign = 2
-			sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
+			sh.link = uint32(elfshname(".dynsym").shnum)
 			sh.entsize = 2
 			shsym(ctxt, sh, Linklookup(ctxt, ".gnu.version", 0))
 
-			sh = elfshname(ctxt, ".gnu.version_r")
+			sh = elfshname(".gnu.version_r")
 			sh.type_ = SHT_GNU_VERNEED
 			sh.flags = SHF_ALLOC
 			sh.addralign = uint64(SysArch.RegSize)
 			sh.info = uint32(elfverneed)
-			sh.link = uint32(elfshname(ctxt, ".dynstr").shnum)
+			sh.link = uint32(elfshname(".dynstr").shnum)
 			shsym(ctxt, sh, Linklookup(ctxt, ".gnu.version_r", 0))
 		}
 
 		if elfRelType == ".rela" {
-			sh := elfshname(ctxt, ".rela.plt")
+			sh := elfshname(".rela.plt")
 			sh.type_ = SHT_RELA
 			sh.flags = SHF_ALLOC
 			sh.entsize = ELF64RELASIZE
 			sh.addralign = uint64(SysArch.RegSize)
-			sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
-			sh.info = uint32(elfshname(ctxt, ".plt").shnum)
+			sh.link = uint32(elfshname(".dynsym").shnum)
+			sh.info = uint32(elfshname(".plt").shnum)
 			shsym(ctxt, sh, Linklookup(ctxt, ".rela.plt", 0))
 
-			sh = elfshname(ctxt, ".rela")
+			sh = elfshname(".rela")
 			sh.type_ = SHT_RELA
 			sh.flags = SHF_ALLOC
 			sh.entsize = ELF64RELASIZE
 			sh.addralign = 8
-			sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
+			sh.link = uint32(elfshname(".dynsym").shnum)
 			shsym(ctxt, sh, Linklookup(ctxt, ".rela", 0))
 		} else {
-			sh := elfshname(ctxt, ".rel.plt")
+			sh := elfshname(".rel.plt")
 			sh.type_ = SHT_REL
 			sh.flags = SHF_ALLOC
 			sh.entsize = ELF32RELSIZE
 			sh.addralign = 4
-			sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
+			sh.link = uint32(elfshname(".dynsym").shnum)
 			shsym(ctxt, sh, Linklookup(ctxt, ".rel.plt", 0))
 
-			sh = elfshname(ctxt, ".rel")
+			sh = elfshname(".rel")
 			sh.type_ = SHT_REL
 			sh.flags = SHF_ALLOC
 			sh.entsize = ELF32RELSIZE
 			sh.addralign = 4
-			sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
+			sh.link = uint32(elfshname(".dynsym").shnum)
 			shsym(ctxt, sh, Linklookup(ctxt, ".rel", 0))
 		}
 
 		if eh.machine == EM_PPC64 {
-			sh := elfshname(ctxt, ".glink")
+			sh := elfshname(".glink")
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_EXECINSTR
 			sh.addralign = 4
 			shsym(ctxt, sh, Linklookup(ctxt, ".glink", 0))
 		}
 
-		sh = elfshname(ctxt, ".plt")
+		sh = elfshname(".plt")
 		sh.type_ = SHT_PROGBITS
 		sh.flags = SHF_ALLOC + SHF_EXECINSTR
 		if eh.machine == EM_X86_64 {
@@ -2413,14 +2415,14 @@ func Asmbelf(ctxt *Link, symo int64) {
 		// On ppc64, .got comes from the input files, so don't
 		// create it here, and .got.plt is not used.
 		if eh.machine != EM_PPC64 {
-			sh := elfshname(ctxt, ".got")
+			sh := elfshname(".got")
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_WRITE
 			sh.entsize = uint64(SysArch.RegSize)
 			sh.addralign = uint64(SysArch.RegSize)
 			shsym(ctxt, sh, Linklookup(ctxt, ".got", 0))
 
-			sh = elfshname(ctxt, ".got.plt")
+			sh = elfshname(".got.plt")
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_WRITE
 			sh.entsize = uint64(SysArch.RegSize)
@@ -2428,24 +2430,24 @@ func Asmbelf(ctxt *Link, symo int64) {
 			shsym(ctxt, sh, Linklookup(ctxt, ".got.plt", 0))
 		}
 
-		sh = elfshname(ctxt, ".hash")
+		sh = elfshname(".hash")
 		sh.type_ = SHT_HASH
 		sh.flags = SHF_ALLOC
 		sh.entsize = 4
 		sh.addralign = uint64(SysArch.RegSize)
-		sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
+		sh.link = uint32(elfshname(".dynsym").shnum)
 		shsym(ctxt, sh, Linklookup(ctxt, ".hash", 0))
 
 		/* sh and PT_DYNAMIC for .dynamic section */
-		sh = elfshname(ctxt, ".dynamic")
+		sh = elfshname(".dynamic")
 
 		sh.type_ = SHT_DYNAMIC
 		sh.flags = SHF_ALLOC + SHF_WRITE
 		sh.entsize = 2 * uint64(SysArch.RegSize)
 		sh.addralign = uint64(SysArch.RegSize)
-		sh.link = uint32(elfshname(ctxt, ".dynstr").shnum)
+		sh.link = uint32(elfshname(".dynstr").shnum)
 		shsym(ctxt, sh, Linklookup(ctxt, ".dynamic", 0))
-		ph := newElfPhdr(ctxt)
+		ph := newElfPhdr()
 		ph.type_ = PT_DYNAMIC
 		ph.flags = PF_R + PF_W
 		phsh(ph, sh)
@@ -2464,7 +2466,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 				}
 			}
 			if tlssize != 0 {
-				ph := newElfPhdr(ctxt)
+				ph := newElfPhdr()
 				ph.type_ = PT_TLS
 				ph.flags = PF_R
 				ph.memsz = tlssize
@@ -2474,19 +2476,19 @@ func Asmbelf(ctxt *Link, symo int64) {
 	}
 
 	if Headtype == obj.Hlinux {
-		ph := newElfPhdr(ctxt)
+		ph := newElfPhdr()
 		ph.type_ = PT_GNU_STACK
 		ph.flags = PF_W + PF_R
 		ph.align = uint64(SysArch.RegSize)
 
-		ph = newElfPhdr(ctxt)
+		ph = newElfPhdr()
 		ph.type_ = PT_PAX_FLAGS
 		ph.flags = 0x2a00 // mprotect, randexec, emutramp disabled
 		ph.align = uint64(SysArch.RegSize)
 	}
 
 elfobj:
-	sh := elfshname(ctxt, ".shstrtab")
+	sh := elfshname(".shstrtab")
 	sh.type_ = SHT_STRTAB
 	sh.addralign = 1
 	shsym(ctxt, sh, Linklookup(ctxt, ".shstrtab", 0))
@@ -2494,24 +2496,24 @@ elfobj:
 
 	// put these sections early in the list
 	if !*FlagS {
-		elfshname(ctxt, ".symtab")
-		elfshname(ctxt, ".strtab")
+		elfshname(".symtab")
+		elfshname(".strtab")
 	}
 
 	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
-		elfshbits(ctxt, sect)
+		elfshbits(sect)
 	}
 	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
-		elfshbits(ctxt, sect)
+		elfshbits(sect)
 	}
 	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
-		elfshbits(ctxt, sect)
+		elfshbits(sect)
 	}
 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
-		elfshbits(ctxt, sect)
+		elfshbits(sect)
 	}
 	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
-		elfshbits(ctxt, sect)
+		elfshbits(sect)
 	}
 
 	if Linkmode == LinkExternal {
@@ -2536,7 +2538,7 @@ elfobj:
 			}
 		}
 		// add a .note.GNU-stack section to mark the stack as non-executable
-		sh := elfshname(ctxt, ".note.GNU-stack")
+		sh := elfshname(".note.GNU-stack")
 
 		sh.type_ = SHT_PROGBITS
 		sh.addralign = 1
@@ -2544,16 +2546,16 @@ elfobj:
 	}
 
 	if !*FlagS {
-		sh := elfshname(ctxt, ".symtab")
+		sh := elfshname(".symtab")
 		sh.type_ = SHT_SYMTAB
 		sh.off = uint64(symo)
 		sh.size = uint64(Symsize)
 		sh.addralign = uint64(SysArch.RegSize)
 		sh.entsize = 8 + 2*uint64(SysArch.RegSize)
-		sh.link = uint32(elfshname(ctxt, ".strtab").shnum)
+		sh.link = uint32(elfshname(".strtab").shnum)
 		sh.info = uint32(elfglobalsymndx)
 
-		sh = elfshname(ctxt, ".strtab")
+		sh = elfshname(".strtab")
 		sh.type_ = SHT_STRTAB
 		sh.off = uint64(symo) + uint64(Symsize)
 		sh.size = uint64(len(Elfstrdat))
@@ -2616,21 +2618,21 @@ elfobj:
 	}
 	if Linkmode != LinkExternal {
 		if Headtype == obj.Hnetbsd {
-			a += int64(elfwritenetbsdsig(ctxt))
+			a += int64(elfwritenetbsdsig())
 		}
 		if Headtype == obj.Hopenbsd {
-			a += int64(elfwriteopenbsdsig(ctxt))
+			a += int64(elfwriteopenbsdsig())
 		}
 		if len(buildinfo) > 0 {
-			a += int64(elfwritebuildinfo(ctxt))
+			a += int64(elfwritebuildinfo())
 		}
 		if *flagBuildid != "" {
-			a += int64(elfwritegobuildid(ctxt))
+			a += int64(elfwritegobuildid())
 		}
 	}
 
 	if a > elfreserve {
-		ctxt.Diag("ELFRESERVE too small: %d > %d", a, elfreserve)
+		Errorf(nil, "ELFRESERVE too small: %d > %d", a, elfreserve)
 	}
 }
 

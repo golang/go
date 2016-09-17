@@ -379,7 +379,7 @@ var nexport int
 
 func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
 	if pensect == 16 {
-		ctxt.Diag("too many sections")
+		Errorf(nil, "too many sections")
 		errorexit()
 	}
 
@@ -400,19 +400,19 @@ func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SE
 
 func chksectoff(ctxt *Link, h *IMAGE_SECTION_HEADER, off int64) {
 	if off != int64(h.PointerToRawData) {
-		ctxt.Diag("%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(off))
+		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(off))
 		errorexit()
 	}
 }
 
 func chksectseg(ctxt *Link, h *IMAGE_SECTION_HEADER, s *Segment) {
 	if s.Vaddr-PEBASE != uint64(h.VirtualAddress) {
-		ctxt.Diag("%s.VirtualAddress = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
+		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
 		errorexit()
 	}
 
 	if s.Fileoff != uint64(h.PointerToRawData) {
-		ctxt.Diag("%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
+		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
 		errorexit()
 	}
 }
@@ -505,7 +505,7 @@ func initdynimport(ctxt *Link) *Dll {
 			var err error
 			m.argsize, err = strconv.Atoi(s.Extname[i+1:])
 			if err != nil {
-				ctxt.Diag("failed to parse stdcall decoration: %v", err)
+				Errorf(s, "failed to parse stdcall decoration: %v", err)
 			}
 			m.argsize *= SysArch.PtrSize
 			s.Extname = s.Extname[:i]
@@ -686,7 +686,7 @@ func initdynexport(ctxt *Link) {
 			continue
 		}
 		if nexport+1 > len(dexport) {
-			ctxt.Diag("pe dynexport table is full")
+			Errorf(s, "pe dynexport table is full")
 			errorexit()
 		}
 
@@ -798,15 +798,15 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol) int {
 				continue
 			}
 			if r.Xsym == nil {
-				ctxt.Diag("missing xsym in relocation")
+				Errorf(sym, "missing xsym in relocation")
 				continue
 			}
 
 			if r.Xsym.Dynid < 0 {
-				ctxt.Diag("reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
+				Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
 			}
-			if !Thearch.PEreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-PEBASE)) {
-				ctxt.Diag("unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
+			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-PEBASE)) {
+				Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
 			}
 
 			relocs++
@@ -969,7 +969,7 @@ func writePESymTableRecords(ctxt *Link) int {
 		} else if type_ == UndefinedSym {
 			typ = IMAGE_SYM_DTYPE_FUNCTION
 		} else {
-			ctxt.Diag("addpesym %#x", addr)
+			Errorf(s, "addpesym %#x", addr)
 		}
 
 		// write COFF symbol table record
@@ -1049,7 +1049,7 @@ func addpesymtable(ctxt *Link) {
 
 func setpersrc(ctxt *Link, sym *Symbol) {
 	if rsrcsym != nil {
-		ctxt.Diag("too many .rsrc sections")
+		Errorf(sym, "too many .rsrc sections")
 	}
 
 	rsrcsym = sym

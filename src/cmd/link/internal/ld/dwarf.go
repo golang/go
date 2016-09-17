@@ -56,7 +56,7 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 	ls := s.(*Symbol)
 	switch size {
 	default:
-		c.linkctxt.Diag("invalid size %d in adddwarfref\n", size)
+		Errorf(ls, "invalid size %d in adddwarfref\n", size)
 		fallthrough
 	case SysArch.PtrSize:
 		Addaddr(c.linkctxt, ls, t.(*Symbol))
@@ -220,7 +220,7 @@ func adddwarfref(ctxt *Link, s *Symbol, t *Symbol, size int) int64 {
 	var result int64
 	switch size {
 	default:
-		ctxt.Diag("invalid size %d in adddwarfref\n", size)
+		Errorf(s, "invalid size %d in adddwarfref\n", size)
 		fallthrough
 	case SysArch.PtrSize:
 		result = Addaddr(ctxt, s, t)
@@ -335,7 +335,7 @@ func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) {
 		return
 	}
 	if def == nil {
-		ctxt.Diag("dwarf: bad def in dotypedef")
+		Errorf(nil, "dwarf: bad def in dotypedef")
 	}
 
 	sym := Linklookup(ctxt, dtolsym(def.Sym).Name+"..def", 0)
@@ -359,7 +359,7 @@ func defgotype(ctxt *Link, gotype *Symbol) *Symbol {
 	}
 
 	if !strings.HasPrefix(gotype.Name, "type.") {
-		ctxt.Diag("dwarf: type name doesn't start with \"type.\": %s", gotype.Name)
+		Errorf(gotype, "dwarf: type name doesn't start with \"type.\"")
 		return mustFind(ctxt, "<unspecified>")
 	}
 
@@ -526,7 +526,7 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_BARE_PTRTYPE, name, 0)
 
 	default:
-		ctxt.Diag("dwarf: definition of unknown kind %d: %s", kind, gotype.Name)
+		Errorf(gotype, "dwarf: definition of unknown kind %d", kind)
 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_TYPEDECL, name, 0)
 		newrefattr(die, dwarf.DW_AT_type, mustFind(ctxt, "<unspecified>"))
 	}
@@ -1535,8 +1535,7 @@ func dwarfaddpeheaders(ctxt *Link) {
 		h := newPEDWARFSection(ctxt, sect.Name, int64(sect.Length))
 		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
 		if uint64(h.PointerToRawData) != fileoff {
-			ctxt.Diag("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
-			errorexit()
+			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
 		}
 	}
 }
