@@ -1759,8 +1759,6 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 		if sym.Value >= int64(eaddr) {
 			break
 		}
-		ctxt.Cursym = sym
-
 		for ri := 0; ri < len(sym.R); ri++ {
 			r := &sym.R[ri]
 			if r.Done != 0 {

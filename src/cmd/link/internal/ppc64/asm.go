@@ -242,7 +242,6 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 
 func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	targ := r.Sym
-	ctxt.Cursym = s
 
 	switch r.Type {
 	default:
@@ -898,7 +897,6 @@ func asmb(ctxt *ld.Link) {
 		}
 	}
 
-	ctxt.Cursym = nil
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f header\n", obj.Cputime())
 	}

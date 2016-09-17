@@ -999,8 +999,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 
 	var pcfile Pciter
 	var pcline Pciter
-	for _, ctxt.Cursym = range ctxt.Textp {
-		s := ctxt.Cursym
+	for _, s := range ctxt.Textp {
 
 		epc = s.Value + s.Size
 		epcs = s
@@ -1152,8 +1151,7 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 
 	var deltaBuf []byte
 	var pcsp Pciter
-	for _, ctxt.Cursym = range ctxt.Textp {
-		s := ctxt.Cursym
+	for _, s := range ctxt.Textp {
 		if s.FuncInfo == nil {
 			continue
 		}

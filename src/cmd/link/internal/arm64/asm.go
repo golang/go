@@ -499,7 +499,6 @@ func asmb(ctxt *ld.Link) {
 		}
 	}
 
-	ctxt.Cursym = nil
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f header\n", obj.Cputime())
 	}

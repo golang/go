@@ -189,7 +189,6 @@ type Link struct {
 	Shlibs    []Shlib
 	Tlsoffset int
 
-	Cursym      *Symbol
 	Version     int
 	Textp       []*Symbol
 	Filesyms    []*Symbol
