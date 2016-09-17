@@ -1742,7 +1742,6 @@ var optab =
 	{obj.ATYPE, nil, 0, [23]uint8{}},
 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
 	{obj.APCDATA, ypcdata, Px, [23]uint8{0, 0}},
-	{obj.ACHECKNIL, nil, 0, [23]uint8{}},
 	{obj.AVARDEF, nil, 0, [23]uint8{}},
 	{obj.AVARKILL, nil, 0, [23]uint8{}},
 	{obj.ADUFFCOPY, yduff, Px, [23]uint8{0xe8}},

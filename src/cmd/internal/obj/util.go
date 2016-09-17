@@ -472,7 +472,6 @@ func (a As) String() string {
 var Anames = []string{
 	"XXX",
 	"CALL",
-	"CHECKNIL",
 	"DUFFCOPY",
 	"DUFFZERO",
 	"END",

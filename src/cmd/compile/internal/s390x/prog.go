@@ -24,7 +24,6 @@ var progtable = [s390x.ALAST & obj.AMask]obj.ProgInfo{
 	obj.APCDATA & obj.AMask:   {Flags: gc.Pseudo},
 	obj.AUNDEF & obj.AMask:    {Flags: gc.Break},
 	obj.AUSEFIELD & obj.AMask: {Flags: gc.OK},
-	obj.ACHECKNIL & obj.AMask: {Flags: gc.LeftRead},
 	obj.AVARDEF & obj.AMask:   {Flags: gc.Pseudo | gc.RightWrite},
 	obj.AVARKILL & obj.AMask:  {Flags: gc.Pseudo | gc.RightWrite},
 	obj.AVARLIVE & obj.AMask:  {Flags: gc.Pseudo | gc.LeftRead},

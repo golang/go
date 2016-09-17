@@ -271,7 +271,6 @@ type As int16
 const (
 	AXXX As = iota
 	ACALL
-	ACHECKNIL
 	ADUFFCOPY
 	ADUFFZERO
 	AEND
