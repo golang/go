@@ -148,7 +148,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	return
 }
 
-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	var v uint32
 
 	rs := r.Xsym
@@ -158,7 +158,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	// UNSIGNED relocation at all.
 	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_CALLARM64 || r.Type == obj.R_ADDRARM64 || r.Type == obj.R_ADDR {
 		if rs.Dynid < 0 {
-			ctxt.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
 			return -1
 		}
 
@@ -167,7 +167,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	} else {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ctxt.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
 			return -1
 		}
 	}
@@ -181,7 +181,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 
 	case obj.R_CALLARM64:
 		if r.Xadd != 0 {
-			ctxt.Diag("ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", rs.Name, r.Xadd)
+			ld.Errorf(s, "ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", rs.Name, r.Xadd)
 		}
 
 		v |= 1 << 24 // pc-relative bit
@@ -252,7 +252,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			// add + R_ADDRARM64.
 			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == obj.STEXT && ctxt.DynlinkingGo() {
 				if o2&0xffc00000 != 0xf9400000 {
-					ctxt.Diag("R_ARM64_GOTPCREL against unexpected instruction %x", o2)
+					ld.Errorf(s, "R_ARM64_GOTPCREL against unexpected instruction %x", o2)
 				}
 				o2 = 0x91000000 | (o2 & 0x000003ff)
 				r.Type = obj.R_ADDRARM64
@@ -271,12 +271,12 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			rs := r.Sym
 			r.Xadd = r.Add
 			for rs.Outer != nil {
-				r.Xadd += ld.Symaddr(ctxt, rs) - ld.Symaddr(ctxt, rs.Outer)
+				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
 				rs = rs.Outer
 			}
 
 			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
-				ctxt.Diag("missing section for %s", rs.Name)
+				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
 
@@ -330,13 +330,13 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		return 0
 
 	case obj.R_GOTOFF:
-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
+		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
 		return 0
 
 	case obj.R_ADDRARM64:
-		t := ld.Symaddr(ctxt, r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
+		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
 		if t >= 1<<32 || t < -1<<32 {
-			ctxt.Diag("program too large, address relocation distance = %d", t)
+			ld.Errorf(s, "program too large, address relocation distance = %d", t)
 		}
 
 		var o0, o1 uint32
@@ -363,21 +363,21 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	case obj.R_ARM64_TLS_LE:
 		r.Done = 0
 		if ld.Headtype != obj.Hlinux {
-			ctxt.Diag("TLS reloc on unsupported OS %s", ld.Headtype)
+			ld.Errorf(s, "TLS reloc on unsupported OS %v", ld.Headtype)
 		}
 		// The TCB is two pointers. This is not documented anywhere, but is
 		// de facto part of the ABI.
 		v := r.Sym.Value + int64(2*ld.SysArch.PtrSize)
 		if v < 0 || v >= 32678 {
-			ctxt.Diag("TLS offset out of range %d", v)
+			ld.Errorf(s, "TLS offset out of range %d", v)
 		}
 		*val |= v << 5
 		return 0
 
 	case obj.R_CALLARM64:
-		t := (ld.Symaddr(ctxt, r.Sym) + r.Add) - (s.Value + int64(r.Off))
+		t := (ld.Symaddr(r.Sym) + r.Add) - (s.Value + int64(r.Off))
 		if t >= 1<<27 || t < -1<<27 {
-			ctxt.Diag("program too large, call relocation distance = %d", t)
+			ld.Errorf(s, "program too large, call relocation distance = %d", t)
 		}
 		*val |= (t >> 2) & 0x03ffffff
 		return 0

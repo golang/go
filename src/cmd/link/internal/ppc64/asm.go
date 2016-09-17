@@ -247,7 +247,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	switch r.Type {
 	default:
 		if r.Type >= 256 {
-			ctxt.Diag("unexpected relocation type %d", r.Type)
+			ld.Errorf(s, "unexpected relocation type %d", r.Type)
 			return false
 		}
 
@@ -264,7 +264,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 		if targ.Type == obj.SDYNIMPORT {
 			// Should have been handled in elfsetupplt
-			ctxt.Diag("unexpected R_PPC64_REL24 for dyn import")
+			ld.Errorf(s, "unexpected R_PPC64_REL24 for dyn import")
 		}
 
 		return true
@@ -274,7 +274,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		r.Add += 4
 
 		if targ.Type == obj.SDYNIMPORT {
-			ctxt.Diag("unexpected R_PPC_REL32 for dyn import")
+			ld.Errorf(s, "unexpected R_PPC_REL32 for dyn import")
 		}
 
 		return true
@@ -443,7 +443,7 @@ func elfsetupplt(ctxt *ld.Link) {
 	}
 }
 
-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	return -1
 }
 
@@ -458,7 +458,7 @@ func symtoc(ctxt *ld.Link, s *ld.Symbol) int64 {
 	}
 
 	if toc == nil {
-		ctxt.Diag("TOC-relative relocation in object without .TOC.")
+		ld.Errorf(s, "TOC-relative relocation in object without .TOC.")
 		return 0
 	}
 
@@ -482,9 +482,9 @@ func archrelocaddr(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	// instruction (it is an error in this case if the low 2 bits of the address
 	// are non-zero).
 
-	t := ld.Symaddr(ctxt, r.Sym) + r.Add
+	t := ld.Symaddr(r.Sym) + r.Add
 	if t < 0 || t >= 1<<31 {
-		ctxt.Diag("relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(ctxt, r.Sym))
+		ld.Errorf(s, "relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
 	}
 	if t&0x8000 != 0 {
 		t += 0x10000
@@ -498,7 +498,7 @@ func archrelocaddr(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	case obj.R_ADDRPOWER_DS:
 		o1 |= (uint32(t) >> 16) & 0xffff
 		if t&3 != 0 {
-			ctxt.Diag("bad DS reloc for %s: %d", s.Name, ld.Symaddr(ctxt, r.Sym))
+			ld.Errorf(s, "bad DS reloc for %s: %d", s.Name, ld.Symaddr(r.Sym))
 		}
 		o2 |= uint32(t) & 0xfffc
 
@@ -539,12 +539,12 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			rs := r.Sym
 			r.Xadd = r.Add
 			for rs.Outer != nil {
-				r.Xadd += ld.Symaddr(ctxt, rs) - ld.Symaddr(ctxt, rs.Outer)
+				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
 				rs = rs.Outer
 			}
 
 			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
-				ctxt.Diag("missing section for %s", rs.Name)
+				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
 
@@ -564,7 +564,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		return 0
 
 	case obj.R_GOTOFF:
-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
+		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
 		return 0
 
 	case obj.R_ADDRPOWER, obj.R_ADDRPOWER_DS:
@@ -573,21 +573,21 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	case obj.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
 
-		t := ld.Symaddr(ctxt, r.Sym) + r.Add - (s.Value + int64(r.Off))
+		t := ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
 		if t&3 != 0 {
-			ctxt.Diag("relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
+			ld.Errorf(s, "relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
 		}
 		if int64(int32(t<<6)>>6) != t {
 			// TODO(austin) This can happen if text > 32M.
 			// Add a call trampoline to .text in that case.
-			ctxt.Diag("relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
+			ld.Errorf(s, "relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
 		}
 
 		*val |= int64(uint32(t) &^ 0xfc000003)
 		return 0
 
 	case obj.R_POWER_TOC: // S + A - .TOC.
-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - symtoc(ctxt, s)
+		*val = ld.Symaddr(r.Sym) + r.Add - symtoc(ctxt, s)
 
 		return 0
 
@@ -598,7 +598,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		// Specification".
 		v := r.Sym.Value - 0x7000
 		if int64(int16(v)) != v {
-			ctxt.Diag("TLS offset out of range %d", v)
+			ld.Errorf(s, "TLS offset out of range %d", v)
 		}
 		*val = (*val &^ 0xffff) | (v & 0xffff)
 		return 0
@@ -610,7 +610,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 	switch r.Variant & ld.RV_TYPE_MASK {
 	default:
-		ctxt.Diag("unexpected relocation variant %d", r.Variant)
+		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)
 		fallthrough
 
 	case ld.RV_NONE:
@@ -685,7 +685,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 			o1 = uint32(ld.Le16(s.P[r.Off:]))
 		}
 		if t&3 != 0 {
-			ctxt.Diag("relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
+			ld.Errorf(s, "relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
 		}
 		if (r.Variant&ld.RV_CHECK_OVERFLOW != 0) && int64(int16(t)) != t {
 			goto overflow
@@ -694,7 +694,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 	}
 
 overflow:
-	ctxt.Diag("relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
+	ld.Errorf(s, "relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
 	return t
 }
 
@@ -739,7 +739,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_PPC64_JMP_SLOT))
 		ld.Adduint64(ctxt, rela, 0)
 	} else {
-		ctxt.Diag("addpltsym: unsupported binary format")
+		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
 

@@ -119,7 +119,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	switch r.Type {
 	default:
 		if r.Type >= 256 {
-			ctxt.Diag("unexpected relocation type %d", r.Type)
+			ld.Errorf(s, "unexpected relocation type %d", r.Type)
 			return false
 		}
 
@@ -193,7 +193,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 	case 256 + ld.R_ARM_ABS32:
 		if targ.Type == obj.SDYNIMPORT {
-			ctxt.Diag("unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ.Name)
+			ld.Errorf(s, "unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = obj.R_ADDR
 		return true
@@ -327,14 +327,14 @@ func elfsetupplt(ctxt *ld.Link) {
 	}
 }
 
-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	var v uint32
 
 	rs := r.Xsym
 
 	if r.Type == obj.R_PCREL {
 		if rs.Type == obj.SHOSTOBJ {
-			ctxt.Diag("pc-relative relocation of external symbol is not supported")
+			ld.Errorf(s, "pc-relative relocation of external symbol is not supported")
 			return -1
 		}
 		if r.Siz != 4 {
@@ -356,15 +356,15 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 		o2 |= 2 << 28 // size = 4
 
 		ld.Thearch.Lput(o1)
-		ld.Thearch.Lput(uint32(ld.Symaddr(ctxt, rs)))
+		ld.Thearch.Lput(uint32(ld.Symaddr(rs)))
 		ld.Thearch.Lput(o2)
-		ld.Thearch.Lput(uint32(ctxt.Cursym.Value + int64(r.Off)))
+		ld.Thearch.Lput(uint32(s.Value + int64(r.Off)))
 		return 0
 	}
 
 	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_CALLARM {
 		if rs.Dynid < 0 {
-			ctxt.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
 			return -1
 		}
 
@@ -373,7 +373,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	} else {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ctxt.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
 			return -1
 		}
 	}
@@ -427,12 +427,12 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			}
 			r.Xadd *= 4
 			for rs.Outer != nil {
-				r.Xadd += ld.Symaddr(ctxt, rs) - ld.Symaddr(ctxt, rs.Outer)
+				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
 				rs = rs.Outer
 			}
 
 			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
-				ctxt.Diag("missing section for %s", rs.Name)
+				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
 
@@ -442,7 +442,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			// we need to compensate that by removing the instruction's address
 			// from addend.
 			if ld.Headtype == obj.Hdarwin {
-				r.Xadd -= ld.Symaddr(ctxt, s) + int64(r.Off)
+				r.Xadd -= ld.Symaddr(s) + int64(r.Off)
 			}
 
 			*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32(r.Xadd/4))))
@@ -458,30 +458,30 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		return 0
 
 	case obj.R_GOTOFF:
-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
+		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
 		return 0
 
 		// The following three arch specific relocations are only for generation of
 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
 	case obj.R_PLT0: // add ip, pc, #0xXX00000
-		if ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got.plt", 0)) < ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".plt", 0)) {
-			ctxt.Diag(".got.plt should be placed after .plt section.")
+		if ld.Symaddr(ld.Linklookup(ctxt, ".got.plt", 0)) < ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0)) {
+			ld.Errorf(s, ".got.plt should be placed after .plt section.")
 		}
-		*val = 0xe28fc600 + (0xff & (int64(uint32(ld.Symaddr(ctxt, r.Sym)-(ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add)) >> 20))
+		*val = 0xe28fc600 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add)) >> 20))
 		return 0
 
 	case obj.R_PLT1: // add ip, ip, #0xYY000
-		*val = 0xe28cca00 + (0xff & (int64(uint32(ld.Symaddr(ctxt, r.Sym)-(ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add+4)) >> 12))
+		*val = 0xe28cca00 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add+4)) >> 12))
 
 		return 0
 
 	case obj.R_PLT2: // ldr pc, [ip, #0xZZZ]!
-		*val = 0xe5bcf000 + (0xfff & int64(uint32(ld.Symaddr(ctxt, r.Sym)-(ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add+8)))
+		*val = 0xe5bcf000 + (0xfff & int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add+8)))
 
 		return 0
 
 	case obj.R_CALLARM: // bl XXXXXX or b YYYYYY
-		*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32((ld.Symaddr(ctxt, r.Sym)+int64((uint32(r.Add))*4)-(s.Value+int64(r.Off)))/4))))
+		*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32((ld.Symaddr(r.Sym)+int64((uint32(r.Add))*4)-(s.Value+int64(r.Off)))/4))))
 
 		return 0
 	}
@@ -544,7 +544,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 
 		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_ARM_JUMP_SLOT))
 	} else {
-		ctxt.Diag("addpltsym: unsupported binary format")
+		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
 
@@ -560,7 +560,7 @@ func addgotsyminternal(ctxt *ld.Link, s *ld.Symbol) {
 
 	if ld.Iself {
 	} else {
-		ctxt.Diag("addgotsyminternal: unsupported binary format")
+		ld.Errorf(s, "addgotsyminternal: unsupported binary format")
 	}
 }
 
@@ -579,7 +579,7 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 		ld.Addaddrplus(ctxt, rel, got, int64(s.Got))
 		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_ARM_GLOB_DAT))
 	} else {
-		ctxt.Diag("addgotsym: unsupported binary format")
+		ld.Errorf(s, "addgotsym: unsupported binary format")
 	}
 }
 

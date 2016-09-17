@@ -169,17 +169,17 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	switch r.Type {
 	default:
 		if r.Type >= 256 {
-			ctxt.Diag("unexpected relocation type %d", r.Type)
+			ld.Errorf(s, "unexpected relocation type %d", r.Type)
 			return false
 		}
 
 		// Handle relocations found in ELF object files.
 	case 256 + ld.R_386_PC32:
 		if targ.Type == obj.SDYNIMPORT {
-			ctxt.Diag("unexpected R_386_PC32 relocation for dynamic symbol %s", targ.Name)
+			ld.Errorf(s, "unexpected R_386_PC32 relocation for dynamic symbol %s", targ.Name)
 		}
 		if targ.Type == 0 || targ.Type == obj.SXREF {
-			ctxt.Diag("unknown symbol %s in pcrel", targ.Name)
+			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
 		}
 		r.Type = obj.R_PCREL
 		r.Add += 4
@@ -217,7 +217,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 				return true
 			}
 
-			ctxt.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
 			return false
 		}
 
@@ -239,7 +239,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 	case 256 + ld.R_386_32:
 		if targ.Type == obj.SDYNIMPORT {
-			ctxt.Diag("unexpected R_386_32 relocation for dynamic symbol %s", targ.Name)
+			ld.Errorf(s, "unexpected R_386_32 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = obj.R_ADDR
 		return true
@@ -247,7 +247,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	case 512 + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 0:
 		r.Type = obj.R_ADDR
 		if targ.Type == obj.SDYNIMPORT {
-			ctxt.Diag("unexpected reloc for dynamic symbol %s", targ.Name)
+			ld.Errorf(s, "unexpected reloc for dynamic symbol %s", targ.Name)
 		}
 		return true
 
@@ -268,7 +268,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			// have symbol
 			// turn MOVL of GOT entry into LEAL of symbol itself
 			if r.Off < 2 || s.P[r.Off-2] != 0x8b {
-				ctxt.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+				ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
 				return false
 			}
 
@@ -408,14 +408,14 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	return 0
 }
 
-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	var v uint32
 
 	rs := r.Xsym
 
 	if rs.Type == obj.SHOSTOBJ {
 		if rs.Dynid < 0 {
-			ctxt.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
 			return -1
 		}
 
@@ -424,7 +424,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	} else {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ctxt.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
 			return -1
 		}
 	}
@@ -464,13 +464,13 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	return 0
 }
 
-func pereloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
+func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	var v uint32
 
 	rs := r.Xsym
 
 	if rs.Dynid < 0 {
-		ctxt.Diag("reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
+		ld.Errorf(s, "reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
 		return false
 	}
 
@@ -504,7 +504,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		return 0
 
 	case obj.R_GOTOFF:
-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
+		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
 		return 0
 	}
 
@@ -599,7 +599,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		ld.Adduint8(ctxt, plt, 0x25)
 		ld.Addaddrplus(ctxt, plt, ld.Linklookup(ctxt, ".got", 0), int64(s.Got))
 	} else {
-		ctxt.Diag("addpltsym: unsupported binary format")
+		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
 
@@ -620,7 +620,7 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 	} else if ld.Headtype == obj.Hdarwin {
 		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(s.Dynid))
 	} else {
-		ctxt.Diag("addgotsym: unsupported binary format")
+		ld.Errorf(s, "addgotsym: unsupported binary format")
 	}
 }
 

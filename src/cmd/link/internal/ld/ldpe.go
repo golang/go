@@ -313,7 +313,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			rp.Off = int32(rva)
 			switch type_ {
 			default:
-				ctxt.Diag("%s: unknown relocation type %d;", pn, type_)
+				Errorf(rsect.sym, "%s: unknown relocation type %d;", pn, type_)
 				fallthrough
 
 			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
@@ -389,10 +389,10 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		} else if sym.sectnum > 0 && uint(sym.sectnum) <= peobj.nsect {
 			sect = &peobj.sect[sym.sectnum-1]
 			if sect.sym == nil {
-				ctxt.Diag("%s: %s sym == 0!", pn, s.Name)
+				Errorf(s, "%s: missing sect.sym", pn)
 			}
 		} else {
-			ctxt.Diag("%s: %s sectnum < 0!", pn, s.Name)
+			Errorf(s, "%s: sectnum < 0!", pn)
 		}
 
 		if sect == nil {
@@ -414,7 +414,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		s.Outer = sect.sym
 		if sect.sym.Type == obj.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
-				ctxt.Diag("%s: duplicate definition of %s", pn, s.Name)
+				Errorf(s, "%s: duplicate symbol definition", pn)
 			}
 			s.Attr |= AttrExternal
 		}
@@ -449,7 +449,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	return
 
 bad:
-	ctxt.Diag("%s: malformed pe file: %v", pn, err)
+	Errorf(nil, "%s: malformed pe file: %v", pn, err)
 }
 
 func pemap(peobj *PeObj, sect *PeSect) int {

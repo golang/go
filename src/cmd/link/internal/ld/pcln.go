@@ -300,7 +300,7 @@ func (ctxt *Link) pclntab() {
 				var it Pciter
 				for pciterinit(ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
 					if it.value < 1 || it.value > int32(len(ctxt.Filesyms)) {
-						ctxt.Diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
+						Errorf(ctxt.Cursym, "bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
 						errorexit()
 					}
 				}
@@ -339,7 +339,7 @@ func (ctxt *Link) pclntab() {
 		}
 
 		if off != end {
-			ctxt.Diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
+			Errorf(ctxt.Cursym, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
 			errorexit()
 		}
 
@@ -457,16 +457,16 @@ func (ctxt *Link) findfunctab() {
 	for i := int32(0); i < nbuckets; i++ {
 		base := indexes[i*SUBBUCKETS]
 		if base == NOIDX {
-			ctxt.Diag("hole in findfunctab")
+			Errorf(nil, "hole in findfunctab")
 		}
 		setuint32(ctxt, t, int64(i)*(4+SUBBUCKETS), uint32(base))
 		for j := int32(0); j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++ {
 			idx = indexes[i*SUBBUCKETS+j]
 			if idx == NOIDX {
-				ctxt.Diag("hole in findfunctab")
+				Errorf(nil, "hole in findfunctab")
 			}
 			if idx-base >= 256 {
-				ctxt.Diag("too many functions in a findfunc bucket! %d/%d %d %d", i, nbuckets, j, idx-base)
+				Errorf(nil, "too many functions in a findfunc bucket! %d/%d %d %d", i, nbuckets, j, idx-base)
 			}
 
 			setuint8(ctxt, t, int64(i)*(4+SUBBUCKETS)+4+int64(j), uint8(idx-base))
