@@ -315,6 +315,9 @@ func init() {
 		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},                  // ditto, sign extend to int64
 		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", typ: "UInt64", clobberFlags: true, faultOnNilArg0: true},   // load 8 bytes from arg0+auxint+aux. arg1=mem
 
+		{name: "MOVWBR", argLength: 1, reg: gp11, asm: "MOVWBR"}, // arg0 swap bytes
+		{name: "MOVDBR", argLength: 1, reg: gp11, asm: "MOVDBR"}, // arg0 swap bytes
+
 		{name: "MOVHBRload", argLength: 2, reg: gpload, asm: "MOVHBR", aux: "SymOff", typ: "UInt16", clobberFlags: true, faultOnNilArg0: true}, // load 2 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
 		{name: "MOVWBRload", argLength: 2, reg: gpload, asm: "MOVWBR", aux: "SymOff", typ: "UInt32", clobberFlags: true, faultOnNilArg0: true}, // load 4 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
 		{name: "MOVDBRload", argLength: 2, reg: gpload, asm: "MOVDBR", aux: "SymOff", typ: "UInt64", clobberFlags: true, faultOnNilArg0: true}, // load 8 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
@@ -386,6 +389,16 @@ func init() {
 		{name: "FlagEQ"}, // equal
 		{name: "FlagLT"}, // <
 		{name: "FlagGT"}, // >
+
+		// find leftmost one
+		{
+			name:         "FLOGR",
+			argLength:    1,
+			reg:          regInfo{inputs: gponly, outputs: []regMask{buildReg("R0")}, clobbers: buildReg("R1")},
+			asm:          "FLOGR",
+			typ:          "UInt64",
+			clobberFlags: true,
+		},
 
 		// store multiple
 		{

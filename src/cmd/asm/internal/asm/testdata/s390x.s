@@ -104,6 +104,7 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 	NEG	R1, R2                // b9030021
 	NEGW	R1                    // b9130011
 	NEGW	R1, R2                // b9130021
+	FLOGR	R2, R2                // b9830022
 
 	LAA	R1, R2, 524287(R3)    // eb213fff7ff8
 	LAAG	R4, R5, -524288(R6)   // eb54600080e8

@@ -255,6 +255,9 @@ const (
 	AMOVDLT
 	AMOVDNE
 
+	// find leftmost one
+	AFLOGR
+
 	// integer bitwise
 	AAND
 	AANDN
