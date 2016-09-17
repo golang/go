@@ -11,10 +11,7 @@ import (
 )
 
 type Plist struct {
-	Name    *LSym
 	Firstpc *Prog
-	Recur   int
-	Link    *Plist
 }
 
 /*
@@ -22,12 +19,7 @@ type Plist struct {
  */
 func Linknewplist(ctxt *Link) *Plist {
 	pl := new(Plist)
-	if ctxt.Plist == nil {
-		ctxt.Plist = pl
-	} else {
-		ctxt.Plast.Link = pl
-	}
-	ctxt.Plast = pl
+	ctxt.Plists = append(ctxt.Plists, pl)
 	return pl
 }
 
@@ -45,7 +37,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	var etext *Prog
 	var text []*LSym
 
-	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
+	for _, pl := range ctxt.Plists {
 		var plink *Prog
 		for p := pl.Firstpc; p != nil; p = plink {
 			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
@@ -182,8 +174,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	// Add to running list in ctxt.
 	ctxt.Text = append(ctxt.Text, text...)
 	ctxt.Data = append(ctxt.Data, gendwarf(ctxt, text)...)
-	ctxt.Plist = nil
-	ctxt.Plast = nil
+	ctxt.Plists = nil
 	ctxt.Curp = nil
 	if freeProgs {
 		ctxt.freeProgs()

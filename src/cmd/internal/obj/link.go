@@ -679,8 +679,7 @@ type Link struct {
 	Hash          map[SymVer]*LSym
 	LineHist      LineHist
 	Imports       []string
-	Plist         *Plist
-	Plast         *Plist
+	Plists        []*Plist
 	Sym_div       *LSym
 	Sym_divu      *LSym
 	Sym_mod       *LSym
