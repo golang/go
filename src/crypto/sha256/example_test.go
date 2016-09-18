@@ -7,6 +7,9 @@ package sha256_test
 import (
 	"crypto/sha256"
 	"fmt"
+	"io"
+	"log"
+	"os"
 )
 
 func ExampleSum256() {
@@ -20,4 +23,19 @@ func ExampleNew() {
 	h.Write([]byte("hello world\n"))
 	fmt.Printf("%x", h.Sum(nil))
 	// Output: a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447
+}
+
+func ExampleNew_file() {
+	f, err := os.Open("file.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%x", h.Sum(nil))
 }
