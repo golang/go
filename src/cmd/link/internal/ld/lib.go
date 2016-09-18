@@ -1937,11 +1937,11 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(SysArch.PtrSize)), a.Gotype)
 				continue
 			}
+			// Otherwise, off is addressing the saved program counter.
+			// Something underhanded is going on. Say nothing.
 		}
 	}
 
-	// Otherwise, off is addressing the saved program counter.
-	// Something underhanded is going on. Say nothing.
 	if ctxt.Debugvlog != 0 || *flagN {
 		ctxt.Logf("%5.2f symsize = %d\n", obj.Cputime(), uint32(Symsize))
 	}
