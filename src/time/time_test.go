@@ -840,6 +840,10 @@ var parseDurationTests = []struct {
 	{"9223372036s854ms775us807ns", true, (1<<63 - 1) * Nanosecond},
 	// large negative value
 	{"-9223372036854775807ns", true, -1<<63 + 1*Nanosecond},
+	// huge string; issue 15011.
+	{"0.100000000000000000000h", true, 6 * Minute},
+	// This value tests the first overflow check in leadingFraction.
+	{"0.830103483285477580700h", true, 49*Minute + 48*Second + 372539827*Nanosecond},
 
 	// errors
 	{"", false, 0},
