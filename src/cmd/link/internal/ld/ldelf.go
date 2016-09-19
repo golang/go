@@ -1070,7 +1070,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
 				// local names and hidden global names are unique
 				// and should only be referenced by their index, not name, so we
 				// don't bother to add them into the hash table
-				s = linknewsym(ctxt, sym.name, ctxt.Syms.Version)
+				s = ctxt.Syms.newsym(sym.name, ctxt.Syms.Version)
 
 				s.Type |= obj.SHIDDEN
 			}

@@ -132,16 +132,3 @@ func (ctxt *Link) computeTLSOffset() {
 	}
 
 }
-
-func linknewsym(ctxt *Link, name string, v int) *Symbol {
-	return ctxt.Syms.newsym(name, v)
-}
-
-func Linklookup(ctxt *Link, name string, v int) *Symbol {
-	return ctxt.Syms.Lookup(name, v)
-}
-
-// read-only lookup
-func Linkrlookup(ctxt *Link, name string, v int) *Symbol {
-	return ctxt.Syms.ROLookup(name, v)
-}
