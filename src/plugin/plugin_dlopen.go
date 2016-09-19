@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux,cgo
+// +build linux,cgo darwin,cgo
 
 package plugin
 
@@ -12,6 +12,8 @@ package plugin
 #include <limits.h>
 #include <stdlib.h>
 #include <stdint.h>
+
+#include <stdio.h>
 
 static uintptr_t pluginOpen(const char* path, char** err) {
 	void* h = dlopen(path, RTLD_NOW|RTLD_GLOBAL);
@@ -38,12 +40,18 @@ import (
 )
 
 func open(name string) (*Plugin, error) {
-	pluginsMu.Lock()
-	cRelName := C.CString(name)
-	cPath := C.realpath(cRelName, nil)
-	C.free(unsafe.Pointer(cRelName))
+	cPath := (*C.char)(C.malloc(C.PATH_MAX + 1))
 	defer C.free(unsafe.Pointer(cPath))
+
+	cRelName := C.CString(name)
+	if C.realpath(cRelName, cPath) == nil {
+		return nil, errors.New("plugin.Open(" + name + "): realpath failed")
+	}
+	C.free(unsafe.Pointer(cRelName))
+
 	path := C.GoString(cPath)
+
+	pluginsMu.Lock()
 	if p := plugins[path]; p != nil {
 		pluginsMu.Unlock()
 		<-p.loaded
@@ -61,6 +69,7 @@ func open(name string) (*Plugin, error) {
 	if len(name) > 3 && name[len(name)-3:] == ".so" {
 		name = name[:len(name)-3]
 	}
+
 	syms := lastmoduleinit()
 	if plugins == nil {
 		plugins = make(map[string]*Plugin)
