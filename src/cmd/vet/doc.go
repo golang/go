@@ -157,6 +157,8 @@ Flag: -shift
 
 Shifts equal to or longer than the variable's length.
 
+Struct tags
+
 Flag: -structtags
 
 Struct tags that do not follow the format understood by reflect.StructTag.Get.
