@@ -39,13 +39,15 @@ import (
 
 func linknew(arch *sys.Arch) *Link {
 	ctxt := &Link{
-		Hash: []map[string]*Symbol{
-			// preallocate about 2mb for hash of
-			// non static symbols
-			make(map[string]*Symbol, 100000),
+		Symbols: Symbols{
+			hash: []map[string]*Symbol{
+				// preallocate about 2mb for hash of
+				// non static symbols
+				make(map[string]*Symbol, 100000),
+			},
+			Allsym: make([]*Symbol, 0, 100000),
 		},
-		Allsym: make([]*Symbol, 0, 100000),
-		Arch:   arch,
+		Arch: arch,
 	}
 
 	if obj.GOARCH != arch.Name {
@@ -132,36 +134,14 @@ func (ctxt *Link) computeTLSOffset() {
 }
 
 func linknewsym(ctxt *Link, name string, v int) *Symbol {
-	batch := ctxt.SymbolBatch
-	if len(batch) == 0 {
-		batch = make([]Symbol, 1000)
-	}
-	s := &batch[0]
-	ctxt.SymbolBatch = batch[1:]
-
-	s.Dynid = -1
-	s.Plt = -1
-	s.Got = -1
-	s.Name = name
-	s.Version = int16(v)
-	ctxt.Allsym = append(ctxt.Allsym, s)
-
-	return s
+	return ctxt.newsym(name, v)
 }
 
 func Linklookup(ctxt *Link, name string, v int) *Symbol {
-	m := ctxt.Hash[v]
-	s := m[name]
-	if s != nil {
-		return s
-	}
-	s = linknewsym(ctxt, name, v)
-	s.Extname = s.Name
-	m[name] = s
-	return s
+	return ctxt.Lookup(name, v)
 }
 
 // read-only lookup
 func Linkrlookup(ctxt *Link, name string, v int) *Symbol {
-	return ctxt.Hash[v][name]
+	return ctxt.ROLookup(name, v)
 }
