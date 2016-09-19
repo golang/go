@@ -1148,6 +1148,13 @@ func (p *GCProg) AddSym(s *Symbol) {
 	// Things without pointers should be in SNOPTRDATA or SNOPTRBSS;
 	// everything we see should have pointers and should therefore have a type.
 	if typ == nil {
+		switch s.Name {
+		case "runtime.data", "runtime.edata", "runtime.bss", "runtime.ebss":
+			// Ignore special symbols that are sometimes laid out
+			// as real symbols. See comment about dyld on darwin in
+			// the address function.
+			return
+		}
 		Errorf(s, "missing Go type information for global symbol: size %d", s.Size)
 		return
 	}
@@ -1211,6 +1218,46 @@ var datap []*Symbol
 func (ctxt *Link) dodata() {
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f dodata\n", obj.Cputime())
+	}
+
+	if ctxt.DynlinkingGo() && Headtype == obj.Hdarwin {
+		// The values in moduledata are filled out by relocations
+		// pointing to the addresses of these special symbols.
+		// Typically these symbols have no size and are not laid
+		// out with their matching section.
+		//
+		// However on darwin, dyld will find the special symbol
+		// in the first loaded module, even though it is local.
+		//
+		// (An hypothesis, formed without looking in the dyld sources:
+		// these special symbols have no size, so their address
+		// matches a real symbol. The dynamic linker assumes we
+		// want the normal symbol with the same address and finds
+		// it in the other module.)
+		//
+		// To work around this we lay out the symbls whose
+		// addresses are vital for multi-module programs to work
+		// as normal symbols, and give them a little size.
+		bss := ctxt.Syms.Lookup("runtime.bss", 0)
+		bss.Size = 8
+		bss.Attr.Set(AttrSpecial, false)
+
+		ctxt.Syms.Lookup("runtime.ebss", 0).Attr.Set(AttrSpecial, false)
+
+		data := ctxt.Syms.Lookup("runtime.data", 0)
+		data.Size = 8
+		data.Attr.Set(AttrSpecial, false)
+
+		ctxt.Syms.Lookup("runtime.edata", 0).Attr.Set(AttrSpecial, false)
+
+		types := ctxt.Syms.Lookup("runtime.types", 0)
+		types.Type = obj.STYPE
+		types.Size = 8
+		types.Attr.Set(AttrSpecial, false)
+
+		etypes := ctxt.Syms.Lookup("runtime.etypes", 0)
+		etypes.Type = obj.SFUNCTAB
+		etypes.Attr.Set(AttrSpecial, false)
 	}
 
 	// Collect data symbols by type into data.
@@ -1779,8 +1826,9 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
 		syms = newSyms
 	}
 
-	symsSort := make([]dataSortKey, len(syms))
-	for i, s := range syms {
+	var head, tail *Symbol
+	symsSort := make([]dataSortKey, 0, len(syms))
+	for _, s := range syms {
 		if s.Attr.OnList() {
 			log.Fatalf("symbol %s listed multiple times", s.Name)
 		}
@@ -1794,7 +1842,21 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
 			Errorf(s, "symbol too large (%d bytes)", s.Size)
 		}
 
-		symsSort[i] = dataSortKey{
+		// If the usually-special section-marker symbols are being laid
+		// out as regular symbols, put them either at the beginning or
+		// end of their section.
+		if ctxt.DynlinkingGo() && Headtype == obj.Hdarwin {
+			switch s.Name {
+			case "runtime.text", "runtime.bss", "runtime.data", "runtime.types":
+				head = s
+				continue
+			case "runtime.etext", "runtime.ebss", "runtime.edata", "runtime.etypes":
+				tail = s
+				continue
+			}
+		}
+
+		key := dataSortKey{
 			size: s.Size,
 			name: s.Name,
 			sym:  s,
@@ -1806,22 +1868,32 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
 			// from input files. Both are type SELFGOT, so in that case
 			// we skip size comparison and fall through to the name
 			// comparison (conveniently, .got sorts before .toc).
-			symsSort[i].size = 0
+			key.size = 0
 		case obj.STYPELINK:
 			// Sort typelinks by the rtype.string field so the reflect
 			// package can binary search type links.
-			symsSort[i].name = string(decodetypeStr(s.R[0].Sym))
+			key.name = string(decodetypeStr(s.R[0].Sym))
 		}
+
+		symsSort = append(symsSort, key)
 	}
 
 	sort.Sort(bySizeAndName(symsSort))
 
+	off := 0
+	if head != nil {
+		syms[0] = head
+		off++
+	}
 	for i, symSort := range symsSort {
-		syms[i] = symSort.sym
+		syms[i+off] = symSort.sym
 		align := symalign(symSort.sym)
 		if maxAlign < align {
 			maxAlign = align
 		}
+	}
+	if tail != nil {
+		syms[len(syms)-1] = tail
 	}
 
 	if Iself && symn == obj.SELFROSECT {
@@ -1859,7 +1931,7 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
 // at the very beginning of the text segment.
 // This ``header'' is read by cmd/go.
 func (ctxt *Link) textbuildid() {
-	if Iself || *flagBuildid == "" {
+	if Iself || Buildmode == BuildmodePlugin || *flagBuildid == "" {
 		return
 	}
 
@@ -1887,7 +1959,19 @@ func (ctxt *Link) textaddress() {
 	sect := Segtext.Sect
 
 	sect.Align = int32(Funcalign)
-	ctxt.Syms.Lookup("runtime.text", 0).Sect = sect
+
+	text := ctxt.Syms.Lookup("runtime.text", 0)
+	text.Sect = sect
+
+	if ctxt.DynlinkingGo() && Headtype == obj.Hdarwin {
+		etext := ctxt.Syms.Lookup("runtime.etext", 0)
+		etext.Sect = sect
+
+		ctxt.Textp = append(ctxt.Textp, etext, nil)
+		copy(ctxt.Textp[1:], ctxt.Textp)
+		ctxt.Textp[0] = text
+	}
+
 	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
 		ctxt.Syms.Lookup(".text", 0).Sect = sect
 	}

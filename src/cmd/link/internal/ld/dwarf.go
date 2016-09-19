@@ -940,6 +940,9 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 	lang := dwarf.DW_LANG_Go
 
 	s := ctxt.Textp[0]
+	if ctxt.DynlinkingGo() && Headtype == obj.Hdarwin {
+		s = ctxt.Textp[1] // skip runtime.text
+	}
 
 	dwinfo = newdie(ctxt, &dwroot, dwarf.DW_ABRV_COMPUNIT, "go", 0)
 	newattr(dwinfo, dwarf.DW_AT_language, dwarf.DW_CLS_CONSTANT, int64(lang), 0)

@@ -352,8 +352,8 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
 
 	var msect *MachoSect
 	if sect.Rwx&1 == 0 && segname != "__DWARF" && (SysArch.Family == sys.ARM64 ||
-		(SysArch.Family == sys.AMD64 && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive)) ||
-		(SysArch.Family == sys.ARM && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive))) {
+		(SysArch.Family == sys.AMD64 && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive || Buildmode == BuildmodePlugin)) ||
+		(SysArch.Family == sys.ARM && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive || Buildmode == BuildmodePlugin))) {
 		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
 		// complains about absolute relocs in __TEXT, so if the section is not
 		// executable, put it in __DATA segment.
@@ -692,8 +692,13 @@ func machosymtab(ctxt *Link) {
 		s := sortsym[i]
 		Adduint32(ctxt, symtab, uint32(symstr.Size))
 
-		// Only add _ to C symbols. Go symbols have dot in the name.
-		if !strings.Contains(s.Extname, ".") {
+		// In normal buildmodes, only add _ to C symbols, as
+		// Go symbols have dot in the name.
+		//
+		// When dynamically linking, prefix all non-local
+		// symbols with _ as dlsym on darwin requires it to
+		// resolve any symbol.
+		if !strings.Contains(s.Extname, ".") || (ctxt.DynlinkingGo() && !s.Attr.Local()) {
 			Adduint8(ctxt, symstr, '_')
 		}
 
@@ -706,7 +711,7 @@ func machosymtab(ctxt *Link) {
 			Adduint16(ctxt, symtab, 0)                  // desc
 			adduintxx(ctxt, symtab, 0, SysArch.PtrSize) // no value
 		} else {
-			if s.Attr.CgoExport() {
+			if s.Attr.CgoExport() || (ctxt.DynlinkingGo() && !s.Attr.Local()) {
 				Adduint8(ctxt, symtab, 0x0f)
 			} else {
 				Adduint8(ctxt, symtab, 0x0e)
