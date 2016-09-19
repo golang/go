@@ -173,27 +173,22 @@ type Shlib struct {
 // Link holds the context for writing object code from a compiler
 // or for reading that input into the linker.
 type Link struct {
+	Symbols
+
 	Arch      *sys.Arch
 	Debugvlog int
 	Bso       *bufio.Writer
 
 	Loaded bool // set after all inputs have been loaded as symbols
 
-	// Symbol lookup based on name and indexed by version.
-	Hash []map[string]*Symbol
-
-	Allsym    []*Symbol
-	Tlsg      *Symbol
-	Libdir    []string
-	Library   []*Library
-	Shlibs    []Shlib
-	Tlsoffset int
-
-	Version     int
-	Textp       []*Symbol
-	Filesyms    []*Symbol
-	Moduledata  *Symbol
-	SymbolBatch []Symbol
+	Tlsg       *Symbol
+	Libdir     []string
+	Library    []*Library
+	Shlibs     []Shlib
+	Tlsoffset  int
+	Textp      []*Symbol
+	Filesyms   []*Symbol
+	Moduledata *Symbol
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
@@ -211,11 +206,6 @@ func (ctxt *Link) FixedFrameSize() int64 {
 	default:
 		return int64(ctxt.Arch.PtrSize)
 	}
-}
-
-func (l *Link) IncVersion() {
-	l.Version++
-	l.Hash = append(l.Hash, make(map[string]*Symbol))
 }
 
 func (l *Link) Logf(format string, args ...interface{}) {
