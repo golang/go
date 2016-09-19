@@ -5,6 +5,7 @@
 package sql
 
 import (
+	"context"
 	"database/sql/driver"
 	"errors"
 	"fmt"
@@ -1159,17 +1160,19 @@ func TestMaxOpenConnsOnBusy(t *testing.T) {
 
 	db.SetMaxOpenConns(3)
 
-	conn0, err := db.conn(cachedOrNewConn)
+	ctx := context.Background()
+
+	conn0, err := db.conn(ctx, cachedOrNewConn)
 	if err != nil {
 		t.Fatalf("db open conn fail: %v", err)
 	}
 
-	conn1, err := db.conn(cachedOrNewConn)
+	conn1, err := db.conn(ctx, cachedOrNewConn)
 	if err != nil {
 		t.Fatalf("db open conn fail: %v", err)
 	}
 
-	conn2, err := db.conn(cachedOrNewConn)
+	conn2, err := db.conn(ctx, cachedOrNewConn)
 	if err != nil {
 		t.Fatalf("db open conn fail: %v", err)
 	}
