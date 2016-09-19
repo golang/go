@@ -954,7 +954,12 @@ func (l *Link) hostlink() {
 
 	switch Headtype {
 	case obj.Hdarwin:
-		argv = append(argv, "-Wl,-no_pie,-headerpad,1144")
+		argv = append(argv, "-Wl,-headerpad,1144")
+		if l.DynlinkingGo() {
+			argv = append(argv, "-Wl,-flat_namespace")
+		} else {
+			argv = append(argv, "-Wl,-no_pie")
+		}
 	case obj.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
 	case obj.Hwindows:
@@ -986,11 +991,20 @@ func (l *Link) hostlink() {
 			// non-closeable: a dlclose will do nothing.
 			argv = append(argv, "-shared", "-Wl,-z,nodelete")
 		}
-	case BuildmodeShared, BuildmodePlugin:
+	case BuildmodeShared:
 		if UseRelro() {
 			argv = append(argv, "-Wl,-z,relro")
 		}
 		argv = append(argv, "-shared")
+	case BuildmodePlugin:
+		if Headtype == obj.Hdarwin {
+			argv = append(argv, "-dynamiclib")
+		} else {
+			if UseRelro() {
+				argv = append(argv, "-Wl,-z,relro")
+			}
+			argv = append(argv, "-shared")
+		}
 	}
 
 	if Iself && l.DynlinkingGo() {
