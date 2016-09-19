@@ -20,7 +20,6 @@ import (
 
 // TestAssembly checks to make sure the assembly generated for
 // functions contains certain expected instructions.
-// Note: this test will fail if -ssa=0.
 func TestAssembly(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	if runtime.GOOS == "windows" {
@@ -34,7 +33,7 @@ func TestAssembly(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	for _, test := range asmTests {
-		asm := compileToAsm(t, dir, test.arch, fmt.Sprintf(template, test.function))
+		asm := compileToAsm(t, dir, test.arch, test.os, fmt.Sprintf(template, test.function))
 		// Get rid of code for "".init. Also gets rid of type algorithms & other junk.
 		if i := strings.Index(asm, "\n\"\".init "); i >= 0 {
 			asm = asm[:i+1]
@@ -49,7 +48,7 @@ func TestAssembly(t *testing.T) {
 
 // compile compiles the package pkg for architecture arch and
 // returns the generated assembly.  dir is a scratch directory.
-func compileToAsm(t *testing.T, dir, arch, pkg string) string {
+func compileToAsm(t *testing.T, dir, goarch, goos, pkg string) string {
 	// Create source.
 	src := filepath.Join(dir, "test.go")
 	f, err := os.Create(src)
@@ -59,9 +58,27 @@ func compileToAsm(t *testing.T, dir, arch, pkg string) string {
 	f.Write([]byte(pkg))
 	f.Close()
 
+	// First, install any dependencies we need.  This builds the required export data
+	// for any packages that are imported.
+	// TODO: extract dependencies automatically?
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
-	cmd.Env = mergeEnvLists([]string{"GOARCH=" + arch}, os.Environ())
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", filepath.Join(dir, "encoding/binary.a"), "encoding/binary")
+	cmd.Env = mergeEnvLists([]string{"GOARCH=" + goarch, "GOOS=" + goos}, os.Environ())
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		panic(err)
+	}
+	if s := stdout.String(); s != "" {
+		panic(fmt.Errorf("Stdout = %s\nWant empty", s))
+	}
+	if s := stderr.String(); s != "" {
+		panic(fmt.Errorf("Stderr = %s\nWant empty", s))
+	}
+
+	// Now, compile the individual file for which we want to see the generated assembly.
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", dir, "-S", "-o", filepath.Join(dir, "out.o"), src)
+	cmd.Env = mergeEnvLists([]string{"GOARCH=" + goarch, "GOOS=" + goos}, os.Environ())
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -82,6 +99,8 @@ package main
 type asmTest struct {
 	// architecture to compile to
 	arch string
+	// os to compile to
+	os string
 	// function to compile
 	function string
 	// regexps that must match the generated assembly
@@ -89,18 +108,67 @@ type asmTest struct {
 }
 
 var asmTests = [...]asmTest{
-	{"amd64", `
+	{"amd64", "linux", `
 func f(x int) int {
 	return x * 64
 }
 `,
 		[]string{"\tSHLQ\t\\$6,"},
 	},
-	{"amd64", `
+	{"amd64", "linux", `
 func f(x int) int {
 	return x * 96
 }`,
 		[]string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
+	},
+	// Load-combining tests.
+	{"amd64", "linux", `
+import "encoding/binary"
+func f(b []byte) uint64 {
+	return binary.LittleEndian.Uint64(b)
+}
+`,
+		[]string{"\tMOVQ\t\\(.*\\),"},
+	},
+	{"amd64", "linux", `
+import "encoding/binary"
+func f(b []byte, i int) uint64 {
+	return binary.LittleEndian.Uint64(b[i:])
+}
+`,
+		[]string{"\tMOVQ\t\\(.*\\)\\(.*\\*1\\),"},
+	},
+	{"amd64", "linux", `
+import "encoding/binary"
+func f(b []byte) uint32 {
+	return binary.LittleEndian.Uint32(b)
+}
+`,
+		[]string{"\tMOVL\t\\(.*\\),"},
+	},
+	{"amd64", "linux", `
+import "encoding/binary"
+func f(b []byte, i int) uint32 {
+	return binary.LittleEndian.Uint32(b[i:])
+}
+`,
+		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
+	},
+	{"386", "linux", `
+import "encoding/binary"
+func f(b []byte) uint32 {
+	return binary.LittleEndian.Uint32(b)
+}
+`,
+		[]string{"\tMOVL\t\\(.*\\),"},
+	},
+	{"386", "linux", `
+import "encoding/binary"
+func f(b []byte, i int) uint32 {
+	return binary.LittleEndian.Uint32(b[i:])
+}
+`,
+		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
 	},
 }
 

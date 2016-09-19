@@ -1331,31 +1331,24 @@
   && clobber(s0)
   -> @mergePoint(b,x0,x1) (MOVWload [i] {s} p mem)
 
-(ORL o0:(ORL o1:(ORL
-                       x0:(MOVBload [i]   {s} p mem)
-    s0:(SHLLconst [8]  x1:(MOVBload [i+1] {s} p mem)))
-    s1:(SHLLconst [16] x2:(MOVBload [i+2] {s} p mem)))
-    s2:(SHLLconst [24] x3:(MOVBload [i+3] {s} p mem)))
+(ORL o0:(ORL
+                       x0:(MOVWload [i]   {s} p mem)
+    s0:(SHLLconst [16] x1:(MOVBload [i+2] {s} p mem)))
+    s1:(SHLLconst [24] x2:(MOVBload [i+3] {s} p mem)))
   && x0.Uses == 1
   && x1.Uses == 1
   && x2.Uses == 1
-  && x3.Uses == 1
   && s0.Uses == 1
   && s1.Uses == 1
-  && s2.Uses == 1
   && o0.Uses == 1
-  && o1.Uses == 1
-  && mergePoint(b,x0,x1,x2,x3) != nil
+  && mergePoint(b,x0,x1,x2) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(x2)
-  && clobber(x3)
   && clobber(s0)
   && clobber(s1)
-  && clobber(s2)
   && clobber(o0)
-  && clobber(o1)
-  -> @mergePoint(b,x0,x1,x2,x3) (MOVLload [i] {s} p mem)
+  -> @mergePoint(b,x0,x1,x2) (MOVLload [i] {s} p mem)
 
 (ORQ o0:(ORQ o1:(ORQ o2:(ORQ o3:(ORQ o4:(ORQ o5:(ORQ
                        x0:(MOVBload [i]   {s} p mem)
@@ -1422,31 +1415,24 @@
   && clobber(s0)
   -> @mergePoint(b,x0,x1) (MOVWloadidx1 <v.Type> [i] {s} p idx mem)
 
-(ORL o0:(ORL o1:(ORL
-                       x0:(MOVBloadidx1 [i]   {s} p idx mem)
-    s0:(SHLLconst [8]  x1:(MOVBloadidx1 [i+1] {s} p idx mem)))
-    s1:(SHLLconst [16] x2:(MOVBloadidx1 [i+2] {s} p idx mem)))
-    s2:(SHLLconst [24] x3:(MOVBloadidx1 [i+3] {s} p idx mem)))
+(ORL o0:(ORL
+                       x0:(MOVWloadidx1 [i]   {s} p idx mem)
+    s0:(SHLLconst [16] x1:(MOVBloadidx1 [i+2] {s} p idx mem)))
+    s1:(SHLLconst [24] x2:(MOVBloadidx1 [i+3] {s} p idx mem)))
   && x0.Uses == 1
   && x1.Uses == 1
   && x2.Uses == 1
-  && x3.Uses == 1
   && s0.Uses == 1
   && s1.Uses == 1
-  && s2.Uses == 1
   && o0.Uses == 1
-  && o1.Uses == 1
-  && mergePoint(b,x0,x1,x2,x3) != nil
+  && mergePoint(b,x0,x1,x2) != nil
   && clobber(x0)
   && clobber(x1)
   && clobber(x2)
-  && clobber(x3)
   && clobber(s0)
   && clobber(s1)
-  && clobber(s2)
   && clobber(o0)
-  && clobber(o1)
-  -> @mergePoint(b,x0,x1,x2,x3) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
+  -> @mergePoint(b,x0,x1,x2) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
 
 (ORQ o0:(ORQ o1:(ORQ o2:(ORQ o3:(ORQ o4:(ORQ o5:(ORQ
                        x0:(MOVBloadidx1 [i]   {s} p idx mem)
