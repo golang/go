@@ -196,21 +196,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		} else {
 			p.To.Name = obj.NAME_AUTO
 		}
-	case ssa.OpARMDIV,
-		ssa.OpARMDIVU,
-		ssa.OpARMMOD,
-		ssa.OpARMMODU:
-		// Note: for software division the assembler rewrite these
-		// instructions to sequence of instructions:
-		// - it puts numerator in R11 and denominator in g.m.divmod
-		//	and call (say) _udiv
-		// - _udiv saves R0-R3 on stack and call udiv, restores R0-R3
-		//	before return
-		// - udiv does the actual work
-		//TODO: set approperiate regmasks and call udiv directly?
-		// need to be careful for negative case
-		// Or, as soft div is already expensive, we don't care?
-		fallthrough
+	case ssa.OpARMUDIVrtcall:
+		p := gc.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = obj.Linklookup(gc.Ctxt, "udiv", 0)
 	case ssa.OpARMADD,
 		ssa.OpARMADC,
 		ssa.OpARMSUB,

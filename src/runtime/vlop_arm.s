@@ -107,6 +107,7 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
 	B	runtime·sigpanic(SB)
 
 // func udiv(n, d uint32) (q, r uint32)
+// compiler knowns the register usage of this function
 // Reference: 
 // Sloss, Andrew et. al; ARM System Developer's Guide: Designing and Optimizing System Software
 // Morgan Kaufmann; 1 edition (April 8, 2004), ISBN 978-1558608740
@@ -117,7 +118,7 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
 #define Ra	R11
 
 // Be careful: Ra == R11 will be used by the linker for synthesized instructions.
-TEXT udiv<>(SB),NOSPLIT,$-4
+TEXT udiv(SB),NOSPLIT,$-4
 	CLZ 	Rq, Rs // find normalizing shift
 	MOVW.S	Rq<<Rs, Ra
 	MOVW	$fast_udiv_tab<>-64(SB), RM
@@ -227,7 +228,7 @@ TEXT _divu(SB), NOSPLIT, $16-0
 	MOVW	RTMP, Rr		/* numerator */
 	MOVW	g_m(g), Rq
 	MOVW	m_divmod(Rq), Rq	/* denominator */
-	BL  	udiv<>(SB)
+	BL  	udiv(SB)
 	MOVW	Rq, RTMP
 	MOVW	4(R13), Rq
 	MOVW	8(R13), Rr
@@ -245,7 +246,7 @@ TEXT _modu(SB), NOSPLIT, $16-0
 	MOVW	RTMP, Rr		/* numerator */
 	MOVW	g_m(g), Rq
 	MOVW	m_divmod(Rq), Rq	/* denominator */
-	BL  	udiv<>(SB)
+	BL  	udiv(SB)
 	MOVW	Rr, RTMP
 	MOVW	4(R13), Rq
 	MOVW	8(R13), Rr
@@ -269,7 +270,7 @@ TEXT _div(SB),NOSPLIT,$16-0
 	BGE 	d2
 	RSB 	$0, Rq, Rq
 d0:
-	BL  	udiv<>(SB)  		/* none/both neg */
+	BL  	udiv(SB)  		/* none/both neg */
 	MOVW	Rq, RTMP
 	B		out1
 d1:
@@ -277,8 +278,8 @@ d1:
 	BGE 	d0
 	RSB 	$0, Rq, Rq
 d2:
-	BL  	udiv<>(SB)  		/* one neg */
-	RSB		$0, Rq, RTMP
+	BL  	udiv(SB)  		/* one neg */
+	RSB	$0, Rq, RTMP
 out1:
 	MOVW	4(R13), Rq
 	MOVW	8(R13), Rr
@@ -300,11 +301,11 @@ TEXT _mod(SB),NOSPLIT,$16-0
 	CMP 	$0, Rr
 	BGE 	m1
 	RSB 	$0, Rr, Rr
-	BL  	udiv<>(SB)  		/* neg numerator */
+	BL  	udiv(SB)  		/* neg numerator */
 	RSB 	$0, Rr, RTMP
 	B   	out
 m1:
-	BL  	udiv<>(SB)  		/* pos numerator */
+	BL  	udiv(SB)  		/* pos numerator */
 	MOVW	Rr, RTMP
 out:
 	MOVW	4(R13), Rq

@@ -138,10 +138,21 @@ func init() {
 		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},     // arg0 * arg1
 		{name: "HMUL", argLength: 2, reg: gp21, asm: "MULL", commutative: true},   // (arg0 * arg1) >> 32, signed
 		{name: "HMULU", argLength: 2, reg: gp21, asm: "MULLU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
-		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", clobberFlags: true},    // arg0 / arg1, signed, soft div clobbers flags
-		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", clobberFlags: true},  // arg0 / arg1, unsighed
-		{name: "MOD", argLength: 2, reg: gp21, asm: "MOD", clobberFlags: true},    // arg0 % arg1, signed
-		{name: "MODU", argLength: 2, reg: gp21, asm: "MODU", clobberFlags: true},  // arg0 % arg1, unsigned
+
+		// udiv runtime call for soft division
+		// output0 = arg0/arg1, output1 = arg0%arg1
+		// see ../../../../../runtime/vlop_arm.s
+		{
+			name:      "UDIVrtcall",
+			argLength: 2,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
+				outputs:  []regMask{buildReg("R0"), buildReg("R1")},
+				clobbers: buildReg("R2 R3"), // also clobbers R12 on NaCl (modified in ../config.go)
+			},
+			clobberFlags: true,
+			typ:          "(UInt32,UInt32)",
+		},
 
 		{name: "ADDS", argLength: 2, reg: gp21carry, asm: "ADD", commutative: true}, // arg0 + arg1, set carry flag
 		{name: "ADDSconst", argLength: 1, reg: gp11carry, asm: "ADD", aux: "Int32"}, // arg0 + auxInt, set carry flag
