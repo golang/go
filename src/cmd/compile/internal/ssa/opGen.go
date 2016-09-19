@@ -623,10 +623,7 @@ const (
 	OpARMMUL
 	OpARMHMUL
 	OpARMHMULU
-	OpARMDIV
-	OpARMDIVU
-	OpARMMOD
-	OpARMMODU
+	OpARMUDIVrtcall
 	OpARMADDS
 	OpARMADDSconst
 	OpARMADC
@@ -7367,62 +7364,18 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "DIV",
+		name:         "UDIVrtcall",
 		argLen:       2,
 		clobberFlags: true,
-		asm:          arm.ADIV,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{0, 2}, // R1
+				{1, 1}, // R0
 			},
+			clobbers: 12, // R2 R3
 			outputs: []outputInfo{
-				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-		},
-	},
-	{
-		name:         "DIVU",
-		argLen:       2,
-		clobberFlags: true,
-		asm:          arm.ADIVU,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-			},
-			outputs: []outputInfo{
-				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-		},
-	},
-	{
-		name:         "MOD",
-		argLen:       2,
-		clobberFlags: true,
-		asm:          arm.AMOD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-			},
-			outputs: []outputInfo{
-				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-		},
-	},
-	{
-		name:         "MODU",
-		argLen:       2,
-		clobberFlags: true,
-		asm:          arm.AMODU,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-			},
-			outputs: []outputInfo{
-				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 1}, // R0
+				{1, 2}, // R1
 			},
 		},
 	},
