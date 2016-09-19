@@ -425,7 +425,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 
 	rs := r.Xsym
 
-	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_PCREL {
+	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_PCREL || r.Type == obj.R_GOTPCREL {
 		if rs.Dynid < 0 {
 			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
 			return -1
@@ -456,6 +456,9 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	case obj.R_PCREL:
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_X86_64_RELOC_SIGNED << 28
+	case obj.R_GOTPCREL:
+		v |= 1 << 24 // pc-relative bit
+		v |= ld.MACHO_X86_64_RELOC_GOT_LOAD << 28
 	}
 
 	switch r.Siz {
