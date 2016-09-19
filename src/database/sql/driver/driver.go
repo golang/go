@@ -8,7 +8,10 @@
 // Most code should use package sql.
 package driver
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 // Value is a value that drivers must be able to handle.
 // It is either nil or an instance of one of these types:
@@ -65,6 +68,12 @@ type Execer interface {
 	Exec(query string, args []Value) (Result, error)
 }
 
+// ExecerContext is like execer, but must honor the context timeout and return
+// when the context is cancelled.
+type ExecerContext interface {
+	ExecContext(ctx context.Context, query string, args []Value) (Result, error)
+}
+
 // Queryer is an optional interface that may be implemented by a Conn.
 //
 // If a Conn does not implement Queryer, the sql package's DB.Query will
@@ -74,6 +83,12 @@ type Execer interface {
 // Query may return ErrSkip.
 type Queryer interface {
 	Query(query string, args []Value) (Rows, error)
+}
+
+// QueryerContext is like Queryer, but most honor the context timeout and return
+// when the context is cancelled.
+type QueryerContext interface {
+	QueryContext(ctx context.Context, query string, args []Value) (Rows, error)
 }
 
 // Conn is a connection to a database. It is not used concurrently
@@ -96,6 +111,23 @@ type Conn interface {
 
 	// Begin starts and returns a new transaction.
 	Begin() (Tx, error)
+}
+
+// ConnPrepareContext enhances the Conn interface with context.
+type ConnPrepareContext interface {
+	// PrepareContext returns a prepared statement, bound to this connection.
+	// context is for the preparation of the statement,
+	// it must not store the context within the statement itself.
+	PrepareContext(ctx context.Context, query string) (Stmt, error)
+}
+
+// ConnBeginContext enhances the Conn interface with context.
+type ConnBeginContext interface {
+	// BeginContext starts and returns a new transaction.
+	// the provided context should be used to roll the transaction back
+	// if it is cancelled. If there is an isolation level in context
+	// that is not supported by the driver an error must be returned.
+	BeginContext(ctx context.Context) (Tx, error)
 }
 
 // Result is the result of a query execution.
@@ -137,6 +169,18 @@ type Stmt interface {
 	// Query executes a query that may return rows, such as a
 	// SELECT.
 	Query(args []Value) (Rows, error)
+}
+
+// StmtExecContext enhances the Stmt interface by providing Exec with context.
+type StmtExecContext interface {
+	// ExecContext must honor the context timeout and return when it is cancelled.
+	ExecContext(ctx context.Context, args []Value) (Result, error)
+}
+
+// StmtQueryContext enhances the Stmt interface by providing Query with context.
+type StmtQueryContext interface {
+	// QueryContext must honor the context timeout and return when it is cancelled.
+	QueryContext(ctx context.Context, args []Value) (Rows, error)
 }
 
 // ColumnConverter may be optionally implemented by Stmt if the
