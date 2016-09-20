@@ -1690,7 +1690,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			op := s.ssaOp(OEQ, pt)
 			r := s.newValue2(op, Types[TBOOL], s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b))
 			i := s.newValue2(op, Types[TBOOL], s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b))
-			c := s.newValue2(ssa.OpAnd8, Types[TBOOL], r, i)
+			c := s.newValue2(ssa.OpAndB, Types[TBOOL], r, i)
 			switch n.Op {
 			case OEQ:
 				return c

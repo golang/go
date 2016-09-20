@@ -9,7 +9,6 @@ import (
 	"internal/testenv"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -49,12 +48,7 @@ func TestBreakContinue(t *testing.T) { runTest(t, "break.go") }
 func TestTypeAssertion(t *testing.T) { runTest(t, "assert.go") }
 
 // TestArithmetic tests that both backends have the same result for arithmetic expressions.
-func TestArithmetic(t *testing.T) {
-	if runtime.GOARCH == "386" {
-		t.Skip("legacy 386 compiler can't handle this test")
-	}
-	runTest(t, "arith.go")
-}
+func TestArithmetic(t *testing.T) { runTest(t, "arith.go") }
 
 // TestFP tests that both backends have the same result for floating point expressions.
 func TestFP(t *testing.T) { runTest(t, "fp.go") }
