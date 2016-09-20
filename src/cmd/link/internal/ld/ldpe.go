@@ -136,7 +136,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	var sect *PeSect
-	ctxt.Syms.IncVersion()
+	localSymVersion := ctxt.Syms.IncVersion()
 	base := f.Offset()
 
 	peobj := new(PeObj)
@@ -246,7 +246,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 
 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
+		s = ctxt.Syms.Lookup(name, localSymVersion)
 
 		switch sect.sh.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
@@ -300,7 +300,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			rva := Le32(symbuf[0:])
 			symindex := Le32(symbuf[4:])
 			type_ := Le16(symbuf[8:])
-			if err = readpesym(ctxt, peobj, int(symindex), &sym); err != nil {
+			if err = readpesym(ctxt, peobj, int(symindex), &sym, localSymVersion); err != nil {
 				goto bad
 			}
 			if sym.sym == nil {
@@ -371,7 +371,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			}
 		}
 
-		if err = readpesym(ctxt, peobj, i, &sym); err != nil {
+		if err = readpesym(ctxt, peobj, i, &sym, localSymVersion); err != nil {
 			goto bad
 		}
 
@@ -475,7 +475,7 @@ func issect(s *PeSym) bool {
 	return s.sclass == IMAGE_SYM_CLASS_STATIC && s.type_ == 0 && s.name[0] == '.'
 }
 
-func readpesym(ctxt *Link, peobj *PeObj, i int, y **PeSym) (err error) {
+func readpesym(ctxt *Link, peobj *PeObj, i int, y **PeSym, localSymVersion int) (err error) {
 	if uint(i) >= peobj.npesym || i < 0 {
 		err = fmt.Errorf("invalid pe symbol index")
 		return err
@@ -514,7 +514,7 @@ func readpesym(ctxt *Link, peobj *PeObj, i int, y **PeSym) (err error) {
 			s = ctxt.Syms.Lookup(name, 0)
 
 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
-			s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
+			s = ctxt.Syms.Lookup(name, localSymVersion)
 			s.Attr |= AttrDuplicateOK
 
 		default:

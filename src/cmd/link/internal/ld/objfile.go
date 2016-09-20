@@ -130,16 +130,17 @@ var emptyPkg = []byte(`"".`)
 
 // objReader reads Go object files.
 type objReader struct {
-	rd   *bufio.Reader
-	ctxt *Link
-	pkg  string
-	pn   string
-	// List of symbol references for the file being read.
-	dupSym *Symbol
+	rd              *bufio.Reader
+	ctxt            *Link
+	pkg             string
+	pn              string
+	dupSym          *Symbol
+	localSymVersion int
 
 	// rdBuf is used by readString and readSymName as scratch for reading strings.
 	rdBuf []byte
 
+	// List of symbol references for the file being read.
 	refs        []*Symbol
 	data        []byte
 	reloc       []Reloc
@@ -153,11 +154,12 @@ type objReader struct {
 func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	start := f.Offset()
 	r := &objReader{
-		rd:     f.Reader,
-		pkg:    pkg,
-		ctxt:   ctxt,
-		pn:     pn,
-		dupSym: &Symbol{Name: ".dup"},
+		rd:              f.Reader,
+		pkg:             pkg,
+		ctxt:            ctxt,
+		pn:              pn,
+		dupSym:          &Symbol{Name: ".dup"},
+		localSymVersion: ctxt.Syms.IncVersion(),
 	}
 	r.loadObjFile()
 	if f.Offset() != start+length {
@@ -166,8 +168,6 @@ func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string)
 }
 
 func (r *objReader) loadObjFile() {
-	// Increment context version, versions are used to differentiate static files in different packages
-	r.ctxt.Syms.IncVersion()
 
 	// Magic header
 	var buf [8]uint8
@@ -452,7 +452,7 @@ func (r *objReader) readRef() {
 		log.Fatalf("invalid symbol version %d", v)
 	}
 	if v == 1 {
-		v = r.ctxt.Syms.Version
+		v = r.localSymVersion
 	}
 	s := r.ctxt.Syms.Lookup(name, v)
 	r.refs = append(r.refs, s)

@@ -444,7 +444,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	var rp *Reloc
 	var name string
 
-	ctxt.Syms.IncVersion()
+	localSymVersion := ctxt.Syms.IncVersion()
 	base := f.Offset()
 	if _, err := io.ReadFull(f, hdr[:]); err != nil {
 		goto bad
@@ -587,7 +587,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 		name = fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
-		s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
+		s = ctxt.Syms.Lookup(name, localSymVersion)
 		if s.Type != 0 {
 			err = fmt.Errorf("duplicate %s/%s", sect.segname, sect.name)
 			goto bad
@@ -634,7 +634,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 		v := 0
 		if sym.type_&N_EXT == 0 {
-			v = ctxt.Syms.Version
+			v = localSymVersion
 		}
 		s = ctxt.Syms.Lookup(name, v)
 		if sym.type_&N_EXT == 0 {
