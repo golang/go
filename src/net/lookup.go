@@ -84,9 +84,39 @@ func lookupPortMap(network, service string) (port int, error error) {
 	return 0, &AddrError{Err: "unknown port", Addr: network + "/" + service}
 }
 
+// DefaultResolver is the resolver used by the package-level Lookup
+// functions and by Dialers without a specified Resolver.
+var DefaultResolver = &Resolver{}
+
+// A Resolver looks up names and numbers.
+//
+// A nil *Resolver is equivalent to a zero Resolver.
+type Resolver struct {
+	// PreferGo controls whether Go's built-in DNS resolver is preferred
+	// on platforms where it's available. It is equivalent to setting
+	// GODEBUG=netdns=go, but scoped to just this resolver.
+	PreferGo bool
+
+	// TODO(bradfitz): optional interface impl override hook
+	// TODO(bradfitz): Timeout time.Duration?
+}
+
+func (r *Resolver) lookupIPFunc() func(context.Context, string) ([]IPAddr, error) {
+	if r != nil && r.PreferGo {
+		return goLookupIP
+	}
+	return lookupIP
+}
+
 // LookupHost looks up the given host using the local resolver.
-// It returns an array of that host's addresses.
+// It returns a slice of that host's addresses.
 func LookupHost(host string) (addrs []string, err error) {
+	return DefaultResolver.LookupHost(context.Background(), host)
+}
+
+// LookupHost looks up the given host using the local resolver.
+// It returns a slice of that host's addresses.
+func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
 	// ParseIP, for example, does accept empty strings.
 	if host == "" {
@@ -95,75 +125,34 @@ func LookupHost(host string) (addrs []string, err error) {
 	if ip := ParseIP(host); ip != nil {
 		return []string{host}, nil
 	}
-	return lookupHost(context.Background(), host)
+	return lookupHost(ctx, host)
 }
 
 // LookupIP looks up host using the local resolver.
-// It returns an array of that host's IPv4 and IPv6 addresses.
-func LookupIP(host string) (ips []IP, err error) {
+// It returns a slice of that host's IPv4 and IPv6 addresses.
+func LookupIP(host string) ([]IP, error) {
+	addrs, err := DefaultResolver.LookupIPAddr(context.Background(), host)
+	if err != nil {
+		return nil, err
+	}
+	ips := make([]IP, len(addrs))
+	for i, ia := range addrs {
+		ips[i] = ia.IP
+	}
+	return ips, nil
+}
+
+// LookupIPAddr looks up host using the local resolver.
+// It returns a slice of that host's IPv4 and IPv6 addresses.
+func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
 	// ParseIP, for example, does accept empty strings.
 	if host == "" {
 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host}
 	}
 	if ip := ParseIP(host); ip != nil {
-		return []IP{ip}, nil
+		return []IPAddr{{IP: ip}}, nil
 	}
-	addrs, err := lookupIPMerge(context.Background(), host)
-	if err != nil {
-		return
-	}
-	ips = make([]IP, len(addrs))
-	for i, addr := range addrs {
-		ips[i] = addr.IP
-	}
-	return
-}
-
-var lookupGroup singleflight.Group
-
-// lookupIPMerge wraps lookupIP, but makes sure that for any given
-// host, only one lookup is in-flight at a time. The returned memory
-// is always owned by the caller.
-func lookupIPMerge(ctx context.Context, host string) (addrs []IPAddr, err error) {
-	addrsi, err, shared := lookupGroup.Do(host, func() (interface{}, error) {
-		return testHookLookupIP(ctx, lookupIP, host)
-	})
-	return lookupIPReturn(addrsi, err, shared)
-}
-
-// lookupIPReturn turns the return values from singleflight.Do into
-// the return values from LookupIP.
-func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error) {
-	if err != nil {
-		return nil, err
-	}
-	addrs := addrsi.([]IPAddr)
-	if shared {
-		clone := make([]IPAddr, len(addrs))
-		copy(clone, addrs)
-		addrs = clone
-	}
-	return addrs, nil
-}
-
-// ipAddrsEface returns an empty interface slice of addrs.
-func ipAddrsEface(addrs []IPAddr) []interface{} {
-	s := make([]interface{}, len(addrs))
-	for i, v := range addrs {
-		s[i] = v
-	}
-	return s
-}
-
-// lookupIPContext looks up a hostname with a context.
-//
-// TODO(bradfitz): rename this function. All the other
-// build-tag-specific lookupIP funcs also take a context now, so this
-// name is no longer great. Maybe make this lookupIPMerge and ditch
-// the other one, making its callers call this instead with a
-// context.Background().
-func lookupIPContext(ctx context.Context, host string) (addrs []IPAddr, err error) {
 	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
 	if trace != nil && trace.DNSStart != nil {
 		trace.DNSStart(host)
@@ -171,7 +160,7 @@ func lookupIPContext(ctx context.Context, host string) (addrs []IPAddr, err erro
 	// The underlying resolver func is lookupIP by default but it
 	// can be overridden by tests. This is needed by net/http, so it
 	// uses a context key instead of unexported variables.
-	resolverFunc := lookupIP
+	resolverFunc := r.lookupIPFunc()
 	if alt, _ := ctx.Value(nettrace.LookupIPAltResolverKey{}).(func(context.Context, string) ([]IPAddr, error)); alt != nil {
 		resolverFunc = alt
 	}
@@ -201,11 +190,46 @@ func lookupIPContext(ctx context.Context, host string) (addrs []IPAddr, err erro
 	}
 }
 
+// lookupGroup merges LookupIPAddr calls together for lookups
+// for the same host. The lookupGroup key is is the LookupIPAddr.host
+// argument.
+// The return values are ([]IPAddr, error).
+var lookupGroup singleflight.Group
+
+// lookupIPReturn turns the return values from singleflight.Do into
+// the return values from LookupIP.
+func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error) {
+	if err != nil {
+		return nil, err
+	}
+	addrs := addrsi.([]IPAddr)
+	if shared {
+		clone := make([]IPAddr, len(addrs))
+		copy(clone, addrs)
+		addrs = clone
+	}
+	return addrs, nil
+}
+
+// ipAddrsEface returns an empty interface slice of addrs.
+func ipAddrsEface(addrs []IPAddr) []interface{} {
+	s := make([]interface{}, len(addrs))
+	for i, v := range addrs {
+		s[i] = v
+	}
+	return s
+}
+
 // LookupPort looks up the port for the given network and service.
 func LookupPort(network, service string) (port int, err error) {
+	return DefaultResolver.LookupPort(context.Background(), network, service)
+}
+
+// LookupPort looks up the port for the given network and service.
+func (r *Resolver) LookupPort(ctx context.Context, network, service string) (port int, err error) {
 	port, needsLookup := parsePort(service)
 	if needsLookup {
-		port, err = lookupPort(context.Background(), network, service)
+		port, err = lookupPort(ctx, network, service)
 		if err != nil {
 			return 0, err
 		}
@@ -224,6 +248,14 @@ func LookupCNAME(name string) (cname string, err error) {
 	return lookupCNAME(context.Background(), name)
 }
 
+// LookupCNAME returns the canonical DNS host for the given name.
+// Callers that do not care about the canonical name can call
+// LookupHost or LookupIP directly; both take care of resolving
+// the canonical name as part of the lookup.
+func (r *Resolver) LookupCNAME(ctx context.Context, name string) (cname string, err error) {
+	return lookupCNAME(ctx, name)
+}
+
 // LookupSRV tries to resolve an SRV query of the given service,
 // protocol, and domain name. The proto is "tcp" or "udp".
 // The returned records are sorted by priority and randomized
@@ -237,23 +269,57 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 	return lookupSRV(context.Background(), service, proto, name)
 }
 
+// LookupSRV tries to resolve an SRV query of the given service,
+// protocol, and domain name. The proto is "tcp" or "udp".
+// The returned records are sorted by priority and randomized
+// by weight within a priority.
+//
+// LookupSRV constructs the DNS name to look up following RFC 2782.
+// That is, it looks up _service._proto.name. To accommodate services
+// publishing SRV records under non-standard names, if both service
+// and proto are empty strings, LookupSRV looks up name directly.
+func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
+	return lookupSRV(ctx, service, proto, name)
+}
+
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
-func LookupMX(name string) (mxs []*MX, err error) {
+func LookupMX(name string) ([]*MX, error) {
 	return lookupMX(context.Background(), name)
 }
 
+// LookupMX returns the DNS MX records for the given domain name sorted by preference.
+func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
+	return lookupMX(ctx, name)
+}
+
 // LookupNS returns the DNS NS records for the given domain name.
-func LookupNS(name string) (nss []*NS, err error) {
+func LookupNS(name string) ([]*NS, error) {
 	return lookupNS(context.Background(), name)
 }
 
+// LookupNS returns the DNS NS records for the given domain name.
+func (r *Resolver) LookupNS(ctx context.Context, name string) ([]*NS, error) {
+	return lookupNS(ctx, name)
+}
+
 // LookupTXT returns the DNS TXT records for the given domain name.
-func LookupTXT(name string) (txts []string, err error) {
+func LookupTXT(name string) ([]string, error) {
 	return lookupTXT(context.Background(), name)
+}
+
+// LookupTXT returns the DNS TXT records for the given domain name.
+func (r *Resolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	return lookupTXT(ctx, name)
 }
 
 // LookupAddr performs a reverse lookup for the given address, returning a list
 // of names mapping to that address.
 func LookupAddr(addr string) (names []string, err error) {
 	return lookupAddr(context.Background(), addr)
+}
+
+// LookupAddr performs a reverse lookup for the given address, returning a list
+// of names mapping to that address.
+func (r *Resolver) LookupAddr(ctx context.Context, addr string) (names []string, err error) {
+	return lookupAddr(ctx, addr)
 }

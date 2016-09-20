@@ -59,6 +59,9 @@ type Dialer struct {
 	// that do not support keep-alives ignore this field.
 	KeepAlive time.Duration
 
+	// Resolver optionally specifies an alternate resolver to use.
+	Resolver *Resolver
+
 	// Cancel is an optional channel whose closure indicates that
 	// the dial should be canceled. Not all types of dials support
 	// cancelation.
@@ -90,6 +93,13 @@ func (d *Dialer) deadline(ctx context.Context, now time.Time) (earliest time.Tim
 		earliest = minNonzeroTime(earliest, d)
 	}
 	return minNonzeroTime(earliest, d.Deadline)
+}
+
+func (d *Dialer) resolver() *Resolver {
+	if d.Resolver != nil {
+		return d.Resolver
+	}
+	return DefaultResolver
 }
 
 // partialDeadline returns the deadline to use for a single address,
@@ -156,7 +166,7 @@ func parseNetwork(ctx context.Context, net string) (afnet string, proto int, err
 // resolverAddrList resolves addr using hint and returns a list of
 // addresses. The result contains at least one address when error is
 // nil.
-func resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (addrList, error) {
+func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (addrList, error) {
 	afnet, _, err := parseNetwork(ctx, network)
 	if err != nil {
 		return nil, err
@@ -166,7 +176,6 @@ func resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (
 	}
 	switch afnet {
 	case "unix", "unixgram", "unixpacket":
-		// TODO(bradfitz): push down context
 		addr, err := ResolveUnixAddr(afnet, addr)
 		if err != nil {
 			return nil, err
@@ -176,7 +185,7 @@ func resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (
 		}
 		return addrList{addr}, nil
 	}
-	addrs, err := internetAddrList(ctx, afnet, addr)
+	addrs, err := r.internetAddrList(ctx, afnet, addr)
 	if err != nil || op != "dial" || hint == nil {
 		return addrs, err
 	}
@@ -326,7 +335,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		resolveCtx = context.WithValue(resolveCtx, nettrace.TraceKey{}, &shadow)
 	}
 
-	addrs, err := resolveAddrList(resolveCtx, "dial", network, address, d.LocalAddr)
+	addrs, err := d.resolver().resolveAddrList(resolveCtx, "dial", network, address, d.LocalAddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: nil, Addr: nil, Err: err}
 	}
@@ -525,7 +534,7 @@ func dialSingle(ctx context.Context, dp *dialParam, ra Addr) (c Conn, err error)
 // instead of just the interface with the given host address.
 // See Dial for more details about address syntax.
 func Listen(net, laddr string) (Listener, error) {
-	addrs, err := resolveAddrList(context.Background(), "listen", net, laddr, nil)
+	addrs, err := DefaultResolver.resolveAddrList(context.Background(), "listen", net, laddr, nil)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: nil, Err: err}
 	}
@@ -552,7 +561,7 @@ func Listen(net, laddr string) (Listener, error) {
 // instead of just the interface with the given host address.
 // See Dial for the syntax of laddr.
 func ListenPacket(net, laddr string) (PacketConn, error) {
-	addrs, err := resolveAddrList(context.Background(), "listen", net, laddr, nil)
+	addrs, err := DefaultResolver.resolveAddrList(context.Background(), "listen", net, laddr, nil)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: nil, Err: err}
 	}

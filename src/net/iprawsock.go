@@ -65,7 +65,7 @@ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	addrs, err := internetAddrList(context.Background(), afnet, addr)
+	addrs, err := DefaultResolver.internetAddrList(context.Background(), afnet, addr)
 	if err != nil {
 		return nil, err
 	}

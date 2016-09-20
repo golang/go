@@ -66,8 +66,14 @@ func lookupHost(ctx context.Context, name string) ([]string, error) {
 	return addrs, nil
 }
 
+// goLookupIP isn't a Pure Go implementation on Windows.
+// TODO(bradfitz): should it be? Not sure it can be. It's always used syscall.GetAddrInfoW.
+func goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+	return lookupIP(ctx, host)
+}
+
 func lookupIP(ctx context.Context, name string) ([]IPAddr, error) {
-	// TODO(bradfitz,brainman): use ctx?
+	// TODO(bradfitz,brainman): use ctx more. See TODO below.
 
 	type ret struct {
 		addrs []IPAddr

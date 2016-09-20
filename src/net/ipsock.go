@@ -190,7 +190,7 @@ func JoinHostPort(host, port string) string {
 // address or a DNS name, and returns a list of internet protocol
 // family addresses. The result contains at least one address when
 // error is nil.
-func internetAddrList(ctx context.Context, net, addr string) (addrList, error) {
+func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addrList, error) {
 	var (
 		err        error
 		host, port string
@@ -202,7 +202,7 @@ func internetAddrList(ctx context.Context, net, addr string) (addrList, error) {
 			if host, port, err = SplitHostPort(addr); err != nil {
 				return nil, err
 			}
-			if portnum, err = LookupPort(net, port); err != nil {
+			if portnum, err = r.LookupPort(ctx, net, port); err != nil {
 				return nil, err
 			}
 		}
@@ -238,7 +238,7 @@ func internetAddrList(ctx context.Context, net, addr string) (addrList, error) {
 		return addrList{inetaddr(IPAddr{IP: ip, Zone: zone})}, nil
 	}
 	// Try as a DNS name.
-	ips, err := lookupIPContext(ctx, host)
+	ips, err := r.LookupIPAddr(ctx, host)
 	if err != nil {
 		return nil, err
 	}

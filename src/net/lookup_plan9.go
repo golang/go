@@ -148,6 +148,8 @@ loop:
 	return
 }
 
+var goLookupIP = lookupIP
+
 func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
 	lits, err := lookupHost(ctx, host)
 	if err != nil {
