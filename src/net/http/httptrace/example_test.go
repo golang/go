@@ -6,6 +6,7 @@ package httptrace_test
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptrace"
 )
@@ -21,5 +22,8 @@ func Example() {
 		},
 	}
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
-	http.DefaultClient.Do(req)
+	_, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
