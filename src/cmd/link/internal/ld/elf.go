@@ -1216,7 +1216,7 @@ func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
 	return n
 }
 
-func elfwriteinterp(ctxt *Link) int {
+func elfwriteinterp() int {
 	sh := elfshname(".interp")
 	Cseek(int64(sh.off))
 	coutbuf.WriteString(interp)
@@ -1578,7 +1578,7 @@ func elfdynhash(ctxt *Link) {
 	Elfwritedynent(ctxt, s, DT_NULL, 0)
 }
 
-func elfphload(ctxt *Link, seg *Segment) *ElfPhdr {
+func elfphload(seg *Segment) *ElfPhdr {
 	ph := newElfPhdr()
 	ph.type_ = PT_LOAD
 	if seg.Rwx&4 != 0 {
@@ -1600,7 +1600,7 @@ func elfphload(ctxt *Link, seg *Segment) *ElfPhdr {
 	return ph
 }
 
-func elfphrelro(ctxt *Link, seg *Segment) {
+func elfphrelro(seg *Segment) {
 	ph := newElfPhdr()
 	ph.type_ = PT_GNU_RELRO
 	ph.vaddr = seg.Vaddr
@@ -1696,7 +1696,7 @@ func elfshbits(sect *Section) *ElfShdr {
 	return sh
 }
 
-func elfshreloc(ctxt *Link, sect *Section) *ElfShdr {
+func elfshreloc(sect *Section) *ElfShdr {
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab or notes.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
@@ -2101,7 +2101,7 @@ func (ctxt *Link) doelf() {
 }
 
 // Do not write DT_NULL.  elfdynhash will finish it.
-func shsym(ctxt *Link, sh *ElfShdr, s *Symbol) {
+func shsym(sh *ElfShdr, s *Symbol) {
 	addr := Symaddr(s)
 	if sh.flags&SHF_ALLOC != 0 {
 		sh.addr = uint64(addr)
@@ -2119,7 +2119,7 @@ func phsh(ph *ElfPhdr, sh *ElfShdr) {
 	ph.align = sh.addralign
 }
 
-func Asmbelfsetup(ctxt *Link) {
+func Asmbelfsetup() {
 	/* This null SHdr must appear before all others */
 	elfshname("")
 
@@ -2297,15 +2297,15 @@ func Asmbelf(ctxt *Link, symo int64) {
 
 	// Additions to the reserved area must be above this line.
 
-	elfphload(ctxt, &Segtext)
+	elfphload(&Segtext)
 	if Segrodata.Sect != nil {
-		elfphload(ctxt, &Segrodata)
+		elfphload(&Segrodata)
 	}
 	if Segrelrodata.Sect != nil {
-		elfphload(ctxt, &Segrelrodata)
-		elfphrelro(ctxt, &Segrelrodata)
+		elfphload(&Segrelrodata)
+		elfphrelro(&Segrelrodata)
 	}
-	elfphload(ctxt, &Segdata)
+	elfphload(&Segdata)
 
 	/* Dynamic linking sections */
 	if !*FlagD {
@@ -2321,13 +2321,13 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.link = uint32(elfshname(".dynstr").shnum)
 
 		// sh->info = index of first non-local symbol (number of local symbols)
-		shsym(ctxt, sh, ctxt.Syms.Lookup(".dynsym", 0))
+		shsym(sh, ctxt.Syms.Lookup(".dynsym", 0))
 
 		sh = elfshname(".dynstr")
 		sh.type_ = SHT_STRTAB
 		sh.flags = SHF_ALLOC
 		sh.addralign = 1
-		shsym(ctxt, sh, ctxt.Syms.Lookup(".dynstr", 0))
+		shsym(sh, ctxt.Syms.Lookup(".dynstr", 0))
 
 		if elfverneed != 0 {
 			sh := elfshname(".gnu.version")
@@ -2336,7 +2336,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.addralign = 2
 			sh.link = uint32(elfshname(".dynsym").shnum)
 			sh.entsize = 2
-			shsym(ctxt, sh, ctxt.Syms.Lookup(".gnu.version", 0))
+			shsym(sh, ctxt.Syms.Lookup(".gnu.version", 0))
 
 			sh = elfshname(".gnu.version_r")
 			sh.type_ = SHT_GNU_VERNEED
@@ -2344,7 +2344,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.addralign = uint64(SysArch.RegSize)
 			sh.info = uint32(elfverneed)
 			sh.link = uint32(elfshname(".dynstr").shnum)
-			shsym(ctxt, sh, ctxt.Syms.Lookup(".gnu.version_r", 0))
+			shsym(sh, ctxt.Syms.Lookup(".gnu.version_r", 0))
 		}
 
 		if elfRelType == ".rela" {
@@ -2355,7 +2355,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.addralign = uint64(SysArch.RegSize)
 			sh.link = uint32(elfshname(".dynsym").shnum)
 			sh.info = uint32(elfshname(".plt").shnum)
-			shsym(ctxt, sh, ctxt.Syms.Lookup(".rela.plt", 0))
+			shsym(sh, ctxt.Syms.Lookup(".rela.plt", 0))
 
 			sh = elfshname(".rela")
 			sh.type_ = SHT_RELA
@@ -2363,7 +2363,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = ELF64RELASIZE
 			sh.addralign = 8
 			sh.link = uint32(elfshname(".dynsym").shnum)
-			shsym(ctxt, sh, ctxt.Syms.Lookup(".rela", 0))
+			shsym(sh, ctxt.Syms.Lookup(".rela", 0))
 		} else {
 			sh := elfshname(".rel.plt")
 			sh.type_ = SHT_REL
@@ -2371,7 +2371,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = ELF32RELSIZE
 			sh.addralign = 4
 			sh.link = uint32(elfshname(".dynsym").shnum)
-			shsym(ctxt, sh, ctxt.Syms.Lookup(".rel.plt", 0))
+			shsym(sh, ctxt.Syms.Lookup(".rel.plt", 0))
 
 			sh = elfshname(".rel")
 			sh.type_ = SHT_REL
@@ -2379,7 +2379,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = ELF32RELSIZE
 			sh.addralign = 4
 			sh.link = uint32(elfshname(".dynsym").shnum)
-			shsym(ctxt, sh, ctxt.Syms.Lookup(".rel", 0))
+			shsym(sh, ctxt.Syms.Lookup(".rel", 0))
 		}
 
 		if eh.machine == EM_PPC64 {
@@ -2387,7 +2387,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_EXECINSTR
 			sh.addralign = 4
-			shsym(ctxt, sh, ctxt.Syms.Lookup(".glink", 0))
+			shsym(sh, ctxt.Syms.Lookup(".glink", 0))
 		}
 
 		sh = elfshname(".plt")
@@ -2408,7 +2408,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = 4
 		}
 		sh.addralign = sh.entsize
-		shsym(ctxt, sh, ctxt.Syms.Lookup(".plt", 0))
+		shsym(sh, ctxt.Syms.Lookup(".plt", 0))
 
 		// On ppc64, .got comes from the input files, so don't
 		// create it here, and .got.plt is not used.
@@ -2418,14 +2418,14 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.flags = SHF_ALLOC + SHF_WRITE
 			sh.entsize = uint64(SysArch.RegSize)
 			sh.addralign = uint64(SysArch.RegSize)
-			shsym(ctxt, sh, ctxt.Syms.Lookup(".got", 0))
+			shsym(sh, ctxt.Syms.Lookup(".got", 0))
 
 			sh = elfshname(".got.plt")
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_WRITE
 			sh.entsize = uint64(SysArch.RegSize)
 			sh.addralign = uint64(SysArch.RegSize)
-			shsym(ctxt, sh, ctxt.Syms.Lookup(".got.plt", 0))
+			shsym(sh, ctxt.Syms.Lookup(".got.plt", 0))
 		}
 
 		sh = elfshname(".hash")
@@ -2434,7 +2434,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.entsize = 4
 		sh.addralign = uint64(SysArch.RegSize)
 		sh.link = uint32(elfshname(".dynsym").shnum)
-		shsym(ctxt, sh, ctxt.Syms.Lookup(".hash", 0))
+		shsym(sh, ctxt.Syms.Lookup(".hash", 0))
 
 		/* sh and PT_DYNAMIC for .dynamic section */
 		sh = elfshname(".dynamic")
@@ -2444,7 +2444,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.entsize = 2 * uint64(SysArch.RegSize)
 		sh.addralign = uint64(SysArch.RegSize)
 		sh.link = uint32(elfshname(".dynstr").shnum)
-		shsym(ctxt, sh, ctxt.Syms.Lookup(".dynamic", 0))
+		shsym(sh, ctxt.Syms.Lookup(".dynamic", 0))
 		ph := newElfPhdr()
 		ph.type_ = PT_DYNAMIC
 		ph.flags = PF_R + PF_W
@@ -2489,7 +2489,7 @@ elfobj:
 	sh := elfshname(".shstrtab")
 	sh.type_ = SHT_STRTAB
 	sh.addralign = 1
-	shsym(ctxt, sh, ctxt.Syms.Lookup(".shstrtab", 0))
+	shsym(sh, ctxt.Syms.Lookup(".shstrtab", 0))
 	eh.shstrndx = uint16(sh.shnum)
 
 	// put these sections early in the list
@@ -2516,20 +2516,20 @@ elfobj:
 
 	if Linkmode == LinkExternal {
 		for sect := Segtext.Sect; sect != nil; sect = sect.Next {
-			elfshreloc(ctxt, sect)
+			elfshreloc(sect)
 		}
 		for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
-			elfshreloc(ctxt, sect)
+			elfshreloc(sect)
 		}
 		for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
-			elfshreloc(ctxt, sect)
+			elfshreloc(sect)
 		}
 		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
-			elfshreloc(ctxt, sect)
+			elfshreloc(sect)
 		}
 		for _, s := range dwarfp {
 			if len(s.R) > 0 || s.Type == obj.SDWARFINFO {
-				elfshreloc(ctxt, s.Sect)
+				elfshreloc(s.Sect)
 			}
 			if s.Type == obj.SDWARFINFO {
 				break
@@ -2612,7 +2612,7 @@ elfobj:
 	a += int64(elfwritephdrs())
 	a += int64(elfwriteshdrs())
 	if !*FlagD {
-		a += int64(elfwriteinterp(ctxt))
+		a += int64(elfwriteinterp())
 	}
 	if Linkmode != LinkExternal {
 		if Headtype == obj.Hnetbsd {
