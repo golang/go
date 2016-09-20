@@ -42,14 +42,14 @@ func gentext(ctxt *ld.Link) {
 	if !ctxt.DynlinkingGo() {
 		return
 	}
-	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
 	if addmoduledata.Type == obj.STEXT {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
 	}
 	addmoduledata.Attr |= ld.AttrReachable
-	initfunc := ld.Linklookup(ctxt, "go.link.addmoduledata", 0)
+	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
 	initfunc.Type = obj.STEXT
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
@@ -75,11 +75,11 @@ func gentext(ctxt *ld.Link) {
 	rel = ld.Addrel(initfunc)
 	rel.Off = 8
 	rel.Siz = 4
-	rel.Sym = ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
 	rel.Type = obj.R_CALLARM64 // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
 
 	ctxt.Textp = append(ctxt.Textp, initfunc)
-	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
+	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = obj.SINITARR
@@ -330,7 +330,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		return 0
 
 	case obj.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
+		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
 		return 0
 
 	case obj.R_ADDRARM64:
@@ -482,7 +482,7 @@ func asmb(ctxt *ld.Link) {
 			ld.Asmplan9sym(ctxt)
 			ld.Cflush()
 
-			sym := ld.Linklookup(ctxt, "pclntab", 0)
+			sym := ctxt.Syms.Lookup("pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
 				for i := 0; int32(i) < ld.Lcsize; i++ {

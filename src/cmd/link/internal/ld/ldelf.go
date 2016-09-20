@@ -702,7 +702,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 
 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s = Linklookup(ctxt, name, ctxt.Syms.Version)
+		s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
 		default:
@@ -1033,7 +1033,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
 		switch sym.bind {
 		case ElfSymBindGlobal:
 			if needSym != 0 {
-				s = Linklookup(ctxt, sym.name, 0)
+				s = ctxt.Syms.Lookup(sym.name, 0)
 
 				// for global scoped hidden symbols we should insert it into
 				// symbol hash table, but mark them as hidden.
@@ -1059,7 +1059,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
 				// We need to be able to look this up,
 				// so put it in the hash table.
 				if needSym != 0 {
-					s = Linklookup(ctxt, sym.name, ctxt.Syms.Version)
+					s = ctxt.Syms.Lookup(sym.name, ctxt.Syms.Version)
 					s.Type |= obj.SHIDDEN
 				}
 
@@ -1077,7 +1077,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
-				s = Linklookup(ctxt, sym.name, 0)
+				s = ctxt.Syms.Lookup(sym.name, 0)
 				if sym.other == 2 {
 					s.Type |= obj.SHIDDEN
 				}

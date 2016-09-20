@@ -167,7 +167,7 @@ func (ctxt *Link) DynlinkingGo() bool {
 	if !ctxt.Loaded {
 		panic("DynlinkingGo called before all symbols loaded")
 	}
-	canUsePlugins := Linkrlookup(ctxt, "plugin.Open", 0) != nil
+	canUsePlugins := ctxt.Syms.ROLookup("plugin.Open", 0) != nil
 	return Buildmode == BuildmodeShared || *FlagLinkshared || Buildmode == BuildmodePlugin || canUsePlugins
 }
 
@@ -391,11 +391,11 @@ func (ctxt *Link) findLibPath(libname string) string {
 func (ctxt *Link) loadlib() {
 	switch Buildmode {
 	case BuildmodeCShared, BuildmodePlugin:
-		s := Linklookup(ctxt, "runtime.islibrary", 0)
+		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
 		s.Attr |= AttrDuplicateOK
 		Adduint8(ctxt, s, 1)
 	case BuildmodeCArchive:
-		s := Linklookup(ctxt, "runtime.isarchive", 0)
+		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
 		s.Attr |= AttrDuplicateOK
 		Adduint8(ctxt, s, 1)
 	}
@@ -435,7 +435,7 @@ func (ctxt *Link) loadlib() {
 	determineLinkMode(ctxt)
 
 	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
-		toc := Linklookup(ctxt, ".TOC.", 0)
+		toc := ctxt.Syms.Lookup(".TOC.", 0)
 		toc.Type = obj.SDYNIMPORT
 	}
 
@@ -476,7 +476,7 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	tlsg := Linklookup(ctxt, "runtime.tlsg", 0)
+	tlsg := ctxt.Syms.Lookup("runtime.tlsg", 0)
 
 	// runtime.tlsg is used for external linking on platforms that do not define
 	// a variable to hold g in assembly (currently only intel).
@@ -491,10 +491,10 @@ func (ctxt *Link) loadlib() {
 
 	var moduledata *Symbol
 	if Buildmode == BuildmodePlugin {
-		moduledata = Linklookup(ctxt, "local.pluginmoduledata", 0)
+		moduledata = ctxt.Syms.Lookup("local.pluginmoduledata", 0)
 		moduledata.Attr |= AttrLocal
 	} else {
-		moduledata = Linklookup(ctxt, "runtime.firstmoduledata", 0)
+		moduledata = ctxt.Syms.Lookup("runtime.firstmoduledata", 0)
 	}
 	if moduledata.Type != 0 && moduledata.Type != obj.SDYNIMPORT {
 		// If the module (toolchain-speak for "executable or shared
@@ -507,14 +507,14 @@ func (ctxt *Link) loadlib() {
 		// In addition, on ARM, the runtime depends on the linker
 		// recording the value of GOARM.
 		if SysArch.Family == sys.ARM {
-			s := Linklookup(ctxt, "runtime.goarm", 0)
+			s := ctxt.Syms.Lookup("runtime.goarm", 0)
 			s.Type = obj.SRODATA
 			s.Size = 0
 			Adduint8(ctxt, s, uint8(obj.GOARM))
 		}
 
 		if obj.Framepointer_enabled(obj.GOOS, obj.GOARCH) {
-			s := Linklookup(ctxt, "runtime.framepointer_enabled", 0)
+			s := ctxt.Syms.Lookup("runtime.framepointer_enabled", 0)
 			s.Type = obj.SRODATA
 			s.Size = 0
 			Adduint8(ctxt, s, 1)
@@ -522,7 +522,7 @@ func (ctxt *Link) loadlib() {
 	} else {
 		// If OTOH the module does not contain the runtime package,
 		// create a local symbol for the moduledata.
-		moduledata = Linklookup(ctxt, "local.moduledata", 0)
+		moduledata = ctxt.Syms.Lookup("local.moduledata", 0)
 		moduledata.Attr |= AttrLocal
 	}
 	// In all cases way we mark the moduledata as noptrdata to hide it from
@@ -610,7 +610,7 @@ func (ctxt *Link) loadlib() {
 
 	if SysArch == sys.Arch386 {
 		if (Buildmode == BuildmodeCArchive && Iself) || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE || ctxt.DynlinkingGo() {
-			got := Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
+			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
 			got.Type = obj.SDYNIMPORT
 			got.Attr |= AttrReachable
 		}
@@ -1414,7 +1414,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
 		}
-		lsym := Linklookup(ctxt, elfsym.Name, 0)
+		lsym := ctxt.Syms.Lookup(elfsym.Name, 0)
 		// Because loadlib above loads all .a files before loading any shared
 		// libraries, any non-dynimport symbols we find that duplicate symbols
 		// already loaded should be ignored (the symbols from the .a files
@@ -1564,7 +1564,7 @@ func callsize(ctxt *Link) int {
 func (ctxt *Link) dostkcheck() {
 	var ch chain
 
-	morestack = Linklookup(ctxt, "runtime.morestack", 0)
+	morestack = ctxt.Syms.Lookup("runtime.morestack", 0)
 
 	// Every splitting function ensures that there are at least StackLimit
 	// bytes available below SP when the splitting prologue finishes.
@@ -1808,11 +1808,11 @@ const (
 func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *Symbol)) {
 	// These symbols won't show up in the first loop below because we
 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
-	s := Linklookup(ctxt, "runtime.text", 0)
+	s := ctxt.Syms.Lookup("runtime.text", 0)
 	if s.Type == obj.STEXT {
 		put(ctxt, s, s.Name, TextSym, s.Value, nil)
 	}
-	s = Linklookup(ctxt, "runtime.etext", 0)
+	s = ctxt.Syms.Lookup("runtime.etext", 0)
 	if s.Type == obj.STEXT {
 		put(ctxt, s, s.Name, TextSym, s.Value, nil)
 	}
@@ -1942,7 +1942,7 @@ func Symaddr(s *Symbol) int64 {
 }
 
 func (ctxt *Link) xdefine(p string, t obj.SymKind, v int64) {
-	s := Linklookup(ctxt, p, 0)
+	s := ctxt.Syms.Lookup(p, 0)
 	s.Type = t
 	s.Value = v
 	s.Attr |= AttrReachable
@@ -1966,7 +1966,7 @@ func Entryvalue(ctxt *Link) int64 {
 	if a[0] >= '0' && a[0] <= '9' {
 		return atolwhex(a)
 	}
-	s := Linklookup(ctxt, a, 0)
+	s := ctxt.Syms.Lookup(a, 0)
 	if s.Type == 0 {
 		return *FlagTextAddr
 	}

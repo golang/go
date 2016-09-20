@@ -331,14 +331,14 @@ func (ctxt *Link) symtab() {
 	ctxt.xdefine("runtime.esymtab", obj.SRODATA, 0)
 
 	// garbage collection symbols
-	s := Linklookup(ctxt, "runtime.gcdata", 0)
+	s := ctxt.Syms.Lookup("runtime.gcdata", 0)
 
 	s.Type = obj.SRODATA
 	s.Size = 0
 	s.Attr |= AttrReachable
 	ctxt.xdefine("runtime.egcdata", obj.SRODATA, 0)
 
-	s = Linklookup(ctxt, "runtime.gcbss", 0)
+	s = ctxt.Syms.Lookup("runtime.gcbss", 0)
 	s.Type = obj.SRODATA
 	s.Size = 0
 	s.Attr |= AttrReachable
@@ -348,21 +348,21 @@ func (ctxt *Link) symtab() {
 	var symtype *Symbol
 	var symtyperel *Symbol
 	if UseRelro() && (Buildmode == BuildmodeCArchive || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
-		s = Linklookup(ctxt, "type.*", 0)
+		s = ctxt.Syms.Lookup("type.*", 0)
 
 		s.Type = obj.STYPE
 		s.Size = 0
 		s.Attr |= AttrReachable
 		symtype = s
 
-		s = Linklookup(ctxt, "typerel.*", 0)
+		s = ctxt.Syms.Lookup("typerel.*", 0)
 
 		s.Type = obj.STYPERELRO
 		s.Size = 0
 		s.Attr |= AttrReachable
 		symtyperel = s
 	} else if !ctxt.DynlinkingGo() {
-		s = Linklookup(ctxt, "type.*", 0)
+		s = ctxt.Syms.Lookup("type.*", 0)
 
 		s.Type = obj.STYPE
 		s.Size = 0
@@ -372,7 +372,7 @@ func (ctxt *Link) symtab() {
 	}
 
 	groupSym := func(name string, t obj.SymKind) *Symbol {
-		s := Linklookup(ctxt, name, 0)
+		s := ctxt.Syms.Lookup(name, 0)
 		s.Type = t
 		s.Size = 0
 		s.Attr |= AttrLocal | AttrReachable
@@ -394,13 +394,13 @@ func (ctxt *Link) symtab() {
 		}
 	}
 
-	symtypelink := Linklookup(ctxt, "runtime.typelink", 0)
+	symtypelink := ctxt.Syms.Lookup("runtime.typelink", 0)
 	symtypelink.Type = obj.STYPELINK
 
-	symitablink := Linklookup(ctxt, "runtime.itablink", 0)
+	symitablink := ctxt.Syms.Lookup("runtime.itablink", 0)
 	symitablink.Type = obj.SITABLINK
 
-	symt = Linklookup(ctxt, "runtime.symtab", 0)
+	symt = ctxt.Syms.Lookup("runtime.symtab", 0)
 	symt.Attr |= AttrLocal
 	symt.Type = obj.SSYMTAB
 	symt.Size = 0
@@ -484,10 +484,10 @@ func (ctxt *Link) symtab() {
 	}
 
 	if Buildmode == BuildmodeShared {
-		abihashgostr := Linklookup(ctxt, "go.link.abihash."+filepath.Base(*flagOutfile), 0)
+		abihashgostr := ctxt.Syms.Lookup("go.link.abihash."+filepath.Base(*flagOutfile), 0)
 		abihashgostr.Attr |= AttrReachable
 		abihashgostr.Type = obj.SRODATA
-		hashsym := Linklookup(ctxt, "go.link.abihashbytes", 0)
+		hashsym := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
 		Addaddr(ctxt, abihashgostr, hashsym)
 		adduint(ctxt, abihashgostr, uint64(hashsym.Size))
 	}
@@ -498,49 +498,49 @@ func (ctxt *Link) symtab() {
 	// This code uses several global variables that are set by pcln.go:pclntab.
 	moduledata := ctxt.Moduledata
 	// The pclntab slice
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.pclntab", 0))
-	adduint(ctxt, moduledata, uint64(Linklookup(ctxt, "runtime.pclntab", 0).Size))
-	adduint(ctxt, moduledata, uint64(Linklookup(ctxt, "runtime.pclntab", 0).Size))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0))
+	adduint(ctxt, moduledata, uint64(ctxt.Syms.Lookup("runtime.pclntab", 0).Size))
+	adduint(ctxt, moduledata, uint64(ctxt.Syms.Lookup("runtime.pclntab", 0).Size))
 	// The ftab slice
-	Addaddrplus(ctxt, moduledata, Linklookup(ctxt, "runtime.pclntab", 0), int64(pclntabPclntabOffset))
+	Addaddrplus(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabPclntabOffset))
 	adduint(ctxt, moduledata, uint64(pclntabNfunc+1))
 	adduint(ctxt, moduledata, uint64(pclntabNfunc+1))
 	// The filetab slice
-	Addaddrplus(ctxt, moduledata, Linklookup(ctxt, "runtime.pclntab", 0), int64(pclntabFiletabOffset))
+	Addaddrplus(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabFiletabOffset))
 	adduint(ctxt, moduledata, uint64(len(ctxt.Filesyms))+1)
 	adduint(ctxt, moduledata, uint64(len(ctxt.Filesyms))+1)
 	// findfunctab
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.findfunctab", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.findfunctab", 0))
 	// minpc, maxpc
 	Addaddr(ctxt, moduledata, pclntabFirstFunc)
 	Addaddrplus(ctxt, moduledata, pclntabLastFunc, pclntabLastFunc.Size)
 	// pointers to specific parts of the module
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.text", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.etext", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.noptrdata", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.enoptrdata", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.data", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.edata", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.bss", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.ebss", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.noptrbss", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.enoptrbss", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.end", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.gcdata", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.gcbss", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.types", 0))
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.etypes", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.text", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.etext", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.noptrdata", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.enoptrdata", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.data", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.edata", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.bss", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.ebss", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.noptrbss", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.enoptrbss", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.end", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.gcdata", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.gcbss", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.types", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.etypes", 0))
 	// The typelinks slice
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.typelink", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.typelink", 0))
 	adduint(ctxt, moduledata, uint64(ntypelinks))
 	adduint(ctxt, moduledata, uint64(ntypelinks))
 	// The itablinks slice
-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.itablink", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.itablink", 0))
 	adduint(ctxt, moduledata, uint64(nitablinks))
 	adduint(ctxt, moduledata, uint64(nitablinks))
 	// The ptab slice
 	if Buildmode == BuildmodePlugin {
-		ptab := Linkrlookup(ctxt, "go.plugin.tabs", 0)
+		ptab := ctxt.Syms.ROLookup("go.plugin.tabs", 0)
 		ptab.Attr |= AttrReachable
 		ptab.Attr |= AttrLocal
 		ptab.Type = obj.SRODATA
@@ -564,7 +564,7 @@ func (ctxt *Link) symtab() {
 		}
 		addgostring(ctxt, moduledata, "go.link.thismodulename", thismodulename)
 
-		modulehashes := Linklookup(ctxt, "go.link.abihashes", 0)
+		modulehashes := ctxt.Syms.Lookup("go.link.abihashes", 0)
 		modulehashes.Attr |= AttrReachable
 		modulehashes.Attr |= AttrLocal
 		modulehashes.Type = obj.SRODATA
@@ -578,7 +578,7 @@ func (ctxt *Link) symtab() {
 			addgostring(ctxt, modulehashes, fmt.Sprintf("go.link.linkhash.%d", i), string(shlib.Hash))
 
 			// modulehashes[i].runtimehash
-			abihash := Linklookup(ctxt, "go.link.abihash."+modulename, 0)
+			abihash := ctxt.Syms.Lookup("go.link.abihash."+modulename, 0)
 			abihash.Attr |= AttrReachable
 			Addaddr(ctxt, modulehashes, abihash)
 		}
@@ -592,11 +592,11 @@ func (ctxt *Link) symtab() {
 	// When linking an object that does not contain the runtime we are
 	// creating the moduledata from scratch and it does not have a
 	// compiler-provided size, so read it from the type data.
-	moduledatatype := Linkrlookup(ctxt, "type.runtime.moduledata", 0)
+	moduledatatype := ctxt.Syms.ROLookup("type.runtime.moduledata", 0)
 	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype)
 	Symgrow(ctxt, moduledata, moduledata.Size)
 
-	lastmoduledatap := Linklookup(ctxt, "runtime.lastmoduledatap", 0)
+	lastmoduledatap := ctxt.Syms.Lookup("runtime.lastmoduledatap", 0)
 	if lastmoduledatap.Type != obj.SDYNIMPORT {
 		lastmoduledatap.Type = obj.SNOPTRDATA
 		lastmoduledatap.Size = 0 // overwrite existing value

@@ -246,7 +246,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 
 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s = Linklookup(ctxt, name, ctxt.Syms.Version)
+		s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
 
 		switch sect.sh.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
@@ -511,10 +511,10 @@ func readpesym(ctxt *Link, peobj *PeObj, i int, y **PeSym) (err error) {
 	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
 		switch sym.sclass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
-			s = Linklookup(ctxt, name, 0)
+			s = ctxt.Syms.Lookup(name, 0)
 
 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
-			s = Linklookup(ctxt, name, ctxt.Syms.Version)
+			s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
 			s.Attr |= AttrDuplicateOK
 
 		default:

@@ -454,7 +454,7 @@ func (r *objReader) readRef() {
 	if v == 1 {
 		v = r.ctxt.Syms.Version
 	}
-	s := Linklookup(r.ctxt, name, v)
+	s := r.ctxt.Syms.Lookup(name, v)
 	r.refs = append(r.refs, s)
 
 	if s == nil || v != 0 {

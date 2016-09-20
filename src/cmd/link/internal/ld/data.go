@@ -532,7 +532,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				r.Done = 0
 				r.Type = obj.R_ADDR
 
-				r.Xsym = Linkrlookup(ctxt, r.Sym.Sect.Name, 0)
+				r.Xsym = ctxt.Syms.ROLookup(r.Sym.Sect.Name, 0)
 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
 				o = r.Xadd
 				rs = r.Xsym
@@ -673,7 +673,7 @@ func (ctxt *Link) reloc() {
 
 func dynrelocsym(ctxt *Link, s *Symbol) {
 	if (Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui) && Linkmode != LinkExternal {
-		rel := Linklookup(ctxt, ".rel", 0)
+		rel := ctxt.Syms.Lookup(".rel", 0)
 		if s == rel {
 			return
 		}
@@ -987,12 +987,12 @@ func addstrdata1(ctxt *Link, arg string) {
 
 func addstrdata(ctxt *Link, name string, value string) {
 	p := fmt.Sprintf("%s.str", name)
-	sp := Linklookup(ctxt, p, 0)
+	sp := ctxt.Syms.Lookup(p, 0)
 
 	Addstring(ctxt, sp, value)
 	sp.Type = obj.SRODATA
 
-	s := Linklookup(ctxt, name, 0)
+	s := ctxt.Syms.Lookup(name, 0)
 	s.Size = 0
 	s.Attr |= AttrDuplicateOK
 	reachable := s.Attr.Reachable()
@@ -1037,7 +1037,7 @@ func Addstring(ctxt *Link, s *Symbol, str string) int64 {
 // addgostring adds str, as a Go string value, to s. symname is the name of the
 // symbol used to define the string data and must be unique per linked object.
 func addgostring(ctxt *Link, s *Symbol, symname, str string) {
-	sym := Linklookup(ctxt, symname, 0)
+	sym := ctxt.Syms.Lookup(symname, 0)
 	if sym.Type != obj.Sxxx {
 		Errorf(s, "duplicate symname in addgostring: %s", symname)
 	}
@@ -1052,7 +1052,7 @@ func addgostring(ctxt *Link, s *Symbol, symname, str string) {
 
 func addinitarrdata(ctxt *Link, s *Symbol) {
 	p := s.Name + ".ptr"
-	sp := Linklookup(ctxt, p, 0)
+	sp := ctxt.Syms.Lookup(p, 0)
 	sp.Type = obj.SINITARR
 	sp.Size = 0
 	sp.Attr |= AttrDuplicateOK
@@ -1114,7 +1114,7 @@ type GCProg struct {
 
 func (p *GCProg) Init(ctxt *Link, name string) {
 	p.ctxt = ctxt
-	p.sym = Linklookup(ctxt, name, 0)
+	p.sym = ctxt.Syms.Lookup(name, 0)
 	p.w.Init(p.writeByte(ctxt))
 	if debugGCProg {
 		fmt.Fprintf(os.Stderr, "ld: start GCProg %s\n", name)
@@ -1330,7 +1330,7 @@ func (ctxt *Link) dodata() {
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
 
 			// Resolve .TOC. symbol for this object file (ppc64)
-			toc = Linkrlookup(ctxt, ".TOC.", int(s.Version))
+			toc = ctxt.Syms.ROLookup(".TOC.", int(s.Version))
 			if toc != nil {
 				toc.Sect = sect
 				toc.Outer = s
@@ -1351,8 +1351,8 @@ func (ctxt *Link) dodata() {
 	sect.Align = dataMaxAlign[obj.SNOPTRDATA]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
-	Linklookup(ctxt, "runtime.noptrdata", 0).Sect = sect
-	Linklookup(ctxt, "runtime.enoptrdata", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.noptrdata", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.enoptrdata", 0).Sect = sect
 	for _, s := range data[obj.SNOPTRDATA] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
@@ -1390,8 +1390,8 @@ func (ctxt *Link) dodata() {
 	sect.Align = dataMaxAlign[obj.SDATA]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
-	Linklookup(ctxt, "runtime.data", 0).Sect = sect
-	Linklookup(ctxt, "runtime.edata", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.data", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.edata", 0).Sect = sect
 	var gc GCProg
 	gc.Init(ctxt, "runtime.gcdata")
 	for _, s := range data[obj.SDATA] {
@@ -1411,8 +1411,8 @@ func (ctxt *Link) dodata() {
 	sect.Align = dataMaxAlign[obj.SBSS]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
-	Linklookup(ctxt, "runtime.bss", 0).Sect = sect
-	Linklookup(ctxt, "runtime.ebss", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.bss", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.ebss", 0).Sect = sect
 	gc = GCProg{}
 	gc.Init(ctxt, "runtime.gcbss")
 	for _, s := range data[obj.SBSS] {
@@ -1431,8 +1431,8 @@ func (ctxt *Link) dodata() {
 	sect.Align = dataMaxAlign[obj.SNOPTRBSS]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
-	Linklookup(ctxt, "runtime.noptrbss", 0).Sect = sect
-	Linklookup(ctxt, "runtime.enoptrbss", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.noptrbss", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.enoptrbss", 0).Sect = sect
 	for _, s := range data[obj.SNOPTRBSS] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
@@ -1441,7 +1441,7 @@ func (ctxt *Link) dodata() {
 	}
 
 	sect.Length = uint64(datsize) - sect.Vaddr
-	Linklookup(ctxt, "runtime.end", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.end", 0).Sect = sect
 	checkdatsize(ctxt, datsize, obj.SNOPTRBSS)
 
 	if len(data[obj.STLSBSS]) > 0 {
@@ -1506,11 +1506,11 @@ func (ctxt *Link) dodata() {
 	sect = addsection(segro, ".rodata", 04)
 
 	sect.Vaddr = 0
-	Linklookup(ctxt, "runtime.rodata", 0).Sect = sect
-	Linklookup(ctxt, "runtime.erodata", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.rodata", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.erodata", 0).Sect = sect
 	if !UseRelro() {
-		Linklookup(ctxt, "runtime.types", 0).Sect = sect
-		Linklookup(ctxt, "runtime.etypes", 0).Sect = sect
+		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
+		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
 	}
 	for _, symn := range obj.ReadOnly {
 		align := dataMaxAlign[symn]
@@ -1590,8 +1590,8 @@ func (ctxt *Link) dodata() {
 		sect = addrelrosection("")
 
 		sect.Vaddr = 0
-		Linklookup(ctxt, "runtime.types", 0).Sect = sect
-		Linklookup(ctxt, "runtime.etypes", 0).Sect = sect
+		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
+		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
 		for _, symnro := range obj.ReadOnly {
 			symn := obj.RelROMap[symnro]
 			align := dataMaxAlign[symn]
@@ -1623,8 +1623,8 @@ func (ctxt *Link) dodata() {
 	sect.Align = dataMaxAlign[obj.STYPELINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
-	Linklookup(ctxt, "runtime.typelink", 0).Sect = sect
-	Linklookup(ctxt, "runtime.etypelink", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.typelink", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.etypelink", 0).Sect = sect
 	for _, s := range data[obj.STYPELINK] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
@@ -1640,8 +1640,8 @@ func (ctxt *Link) dodata() {
 	sect.Align = dataMaxAlign[obj.SITABLINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
-	Linklookup(ctxt, "runtime.itablink", 0).Sect = sect
-	Linklookup(ctxt, "runtime.eitablink", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.itablink", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.eitablink", 0).Sect = sect
 	for _, s := range data[obj.SITABLINK] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
@@ -1657,8 +1657,8 @@ func (ctxt *Link) dodata() {
 	sect.Align = dataMaxAlign[obj.SSYMTAB]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
-	Linklookup(ctxt, "runtime.symtab", 0).Sect = sect
-	Linklookup(ctxt, "runtime.esymtab", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.symtab", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.esymtab", 0).Sect = sect
 	for _, s := range data[obj.SSYMTAB] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
@@ -1674,8 +1674,8 @@ func (ctxt *Link) dodata() {
 	sect.Align = dataMaxAlign[obj.SPCLNTAB]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
-	Linklookup(ctxt, "runtime.pclntab", 0).Sect = sect
-	Linklookup(ctxt, "runtime.epclntab", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.pclntab", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.epclntab", 0).Sect = sect
 	for _, s := range data[obj.SPCLNTAB] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
@@ -1856,7 +1856,7 @@ func (ctxt *Link) textbuildid() {
 		return
 	}
 
-	sym := Linklookup(ctxt, "go.buildid", 0)
+	sym := ctxt.Syms.Lookup("go.buildid", 0)
 	sym.Attr |= AttrReachable
 	// The \xff is invalid UTF-8, meant to make it less likely
 	// to find one of these accidentally.
@@ -1880,10 +1880,10 @@ func (ctxt *Link) textaddress() {
 	sect := Segtext.Sect
 
 	sect.Align = int32(Funcalign)
-	Linklookup(ctxt, "runtime.text", 0).Sect = sect
-	Linklookup(ctxt, "runtime.etext", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.text", 0).Sect = sect
+	ctxt.Syms.Lookup("runtime.etext", 0).Sect = sect
 	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
-		Linklookup(ctxt, ".text", 0).Sect = sect
+		ctxt.Syms.Lookup(".text", 0).Sect = sect
 	}
 	va := uint64(*FlagTextAddr)
 	sect.Vaddr = va
@@ -2045,12 +2045,12 @@ func (ctxt *Link) address() {
 
 	var (
 		text     = Segtext.Sect
-		rodata   = Linklookup(ctxt, "runtime.rodata", 0).Sect
-		typelink = Linklookup(ctxt, "runtime.typelink", 0).Sect
-		itablink = Linklookup(ctxt, "runtime.itablink", 0).Sect
-		symtab   = Linklookup(ctxt, "runtime.symtab", 0).Sect
-		pclntab  = Linklookup(ctxt, "runtime.pclntab", 0).Sect
-		types    = Linklookup(ctxt, "runtime.types", 0).Sect
+		rodata   = ctxt.Syms.Lookup("runtime.rodata", 0).Sect
+		typelink = ctxt.Syms.Lookup("runtime.typelink", 0).Sect
+		itablink = ctxt.Syms.Lookup("runtime.itablink", 0).Sect
+		symtab   = ctxt.Syms.Lookup("runtime.symtab", 0).Sect
+		pclntab  = ctxt.Syms.Lookup("runtime.pclntab", 0).Sect
+		types    = ctxt.Syms.Lookup("runtime.types", 0).Sect
 	)
 
 	for _, s := range datap {
@@ -2072,8 +2072,8 @@ func (ctxt *Link) address() {
 	}
 
 	if Buildmode == BuildmodeShared {
-		s := Linklookup(ctxt, "go.link.abihashbytes", 0)
-		sectSym := Linklookup(ctxt, ".note.go.abihash", 0)
+		s := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
+		sectSym := ctxt.Syms.Lookup(".note.go.abihash", 0)
 		s.Sect = sectSym.Sect
 		s.Value = int64(sectSym.Sect.Vaddr + 16)
 	}
@@ -2092,15 +2092,15 @@ func (ctxt *Link) address() {
 	ctxt.xdefine("runtime.itablink", obj.SRODATA, int64(itablink.Vaddr))
 	ctxt.xdefine("runtime.eitablink", obj.SRODATA, int64(itablink.Vaddr+itablink.Length))
 
-	sym := Linklookup(ctxt, "runtime.gcdata", 0)
+	sym := ctxt.Syms.Lookup("runtime.gcdata", 0)
 	sym.Attr |= AttrLocal
 	ctxt.xdefine("runtime.egcdata", obj.SRODATA, Symaddr(sym)+sym.Size)
-	Linklookup(ctxt, "runtime.egcdata", 0).Sect = sym.Sect
+	ctxt.Syms.Lookup("runtime.egcdata", 0).Sect = sym.Sect
 
-	sym = Linklookup(ctxt, "runtime.gcbss", 0)
+	sym = ctxt.Syms.Lookup("runtime.gcbss", 0)
 	sym.Attr |= AttrLocal
 	ctxt.xdefine("runtime.egcbss", obj.SRODATA, Symaddr(sym)+sym.Size)
-	Linklookup(ctxt, "runtime.egcbss", 0).Sect = sym.Sect
+	ctxt.Syms.Lookup("runtime.egcbss", 0).Sect = sym.Sect
 
 	ctxt.xdefine("runtime.symtab", obj.SRODATA, int64(symtab.Vaddr))
 	ctxt.xdefine("runtime.esymtab", obj.SRODATA, int64(symtab.Vaddr+symtab.Length))
