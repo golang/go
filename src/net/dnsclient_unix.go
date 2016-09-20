@@ -456,8 +456,9 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
 
 // goLookupIP is the native Go implementation of LookupIP.
 // The libc versions are in cgo_*.go.
-func goLookupIP(ctx context.Context, name string) (addrs []IPAddr, err error) {
-	return goLookupIPOrder(ctx, name, hostLookupFilesDNS)
+func goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+	order := systemConf().hostLookupOrder(host)
+	return goLookupIPOrder(ctx, host, order)
 }
 
 func goLookupIPOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []IPAddr, err error) {

@@ -19,6 +19,10 @@ func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 
+func goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+	return nil, syscall.ENOPROTOOPT
+}
+
 func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
 	return nil, syscall.ENOPROTOOPT
 }

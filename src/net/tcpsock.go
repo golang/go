@@ -64,7 +64,7 @@ func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	addrs, err := internetAddrList(context.Background(), net, addr)
+	addrs, err := DefaultResolver.internetAddrList(context.Background(), net, addr)
 	if err != nil {
 		return nil, err
 	}
