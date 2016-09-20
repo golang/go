@@ -51,14 +51,14 @@ func gentext(ctxt *ld.Link) {
 	if !ctxt.DynlinkingGo() {
 		return
 	}
-	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
 	if addmoduledata.Type == obj.STEXT {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
 	}
 	addmoduledata.Attr |= ld.AttrReachable
-	initfunc := ld.Linklookup(ctxt, "go.link.addmoduledata", 0)
+	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
 	initfunc.Type = obj.STEXT
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
@@ -81,7 +81,7 @@ func gentext(ctxt *ld.Link) {
 	rel := ld.Addrel(initfunc)
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 4
-	rel.Sym = ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
 	rel.Type = obj.R_CALL
 	rel.Variant = ld.RV_390_DBL
 	rel.Add = 2 + int64(rel.Siz)
@@ -91,7 +91,7 @@ func gentext(ctxt *ld.Link) {
 	ld.Adduint32(ctxt, initfunc, 0)
 
 	ctxt.Textp = append(ctxt.Textp, initfunc)
-	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
+	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Type = obj.SINITARR
@@ -150,7 +150,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		r.Add += int64(r.Siz)
 		if targ.Type == obj.SDYNIMPORT {
 			addpltsym(ctxt, targ)
-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
+			r.Sym = ctxt.Syms.Lookup(".plt", 0)
 			r.Add += int64(targ.Plt)
 		}
 		return true
@@ -161,7 +161,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		r.Add += int64(r.Siz)
 		if targ.Type == obj.SDYNIMPORT {
 			addpltsym(ctxt, targ)
-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
+			r.Sym = ctxt.Syms.Lookup(".plt", 0)
 			r.Add += int64(targ.Plt)
 		}
 		return true
@@ -191,7 +191,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 	case 256 + ld.R_390_GOTPC:
 		r.Type = obj.R_PCREL
-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
+		r.Sym = ctxt.Syms.Lookup(".got", 0)
 		r.Add += int64(r.Siz)
 		return true
 
@@ -208,7 +208,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	case 256 + ld.R_390_GOTPCDBL:
 		r.Type = obj.R_PCREL
 		r.Variant = ld.RV_390_DBL
-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
+		r.Sym = ctxt.Syms.Lookup(".got", 0)
 		r.Add += int64(r.Siz)
 		return true
 
@@ -217,7 +217,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 		r.Type = obj.R_PCREL
 		r.Variant = ld.RV_390_DBL
-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
+		r.Sym = ctxt.Syms.Lookup(".got", 0)
 		r.Add += int64(targ.Got)
 		r.Add += int64(r.Siz)
 		return true
@@ -330,8 +330,8 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 }
 
 func elfsetupplt(ctxt *ld.Link) {
-	plt := ld.Linklookup(ctxt, ".plt", 0)
-	got := ld.Linklookup(ctxt, ".got", 0)
+	plt := ctxt.Syms.Lookup(".plt", 0)
+	got := ctxt.Syms.Lookup(".got", 0)
 	if plt.Size == 0 {
 		// stg     %r1,56(%r15)
 		ld.Adduint8(ctxt, plt, 0xe3)
@@ -372,7 +372,7 @@ func elfsetupplt(ctxt *ld.Link) {
 		ld.Adduint8(ctxt, plt, 0x00)
 
 		// assume got->size == 0 too
-		ld.Addaddrplus(ctxt, got, ld.Linklookup(ctxt, ".dynamic", 0), 0)
+		ld.Addaddrplus(ctxt, got, ctxt.Syms.Lookup(".dynamic", 0), 0)
 
 		ld.Adduint64(ctxt, got, 0)
 		ld.Adduint64(ctxt, got, 0)
@@ -394,7 +394,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		return 0
 
 	case obj.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
+		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
 		return 0
 	}
 
@@ -426,9 +426,9 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 	ld.Adddynsym(ctxt, s)
 
 	if ld.Iself {
-		plt := ld.Linklookup(ctxt, ".plt", 0)
-		got := ld.Linklookup(ctxt, ".got", 0)
-		rela := ld.Linklookup(ctxt, ".rela.plt", 0)
+		plt := ctxt.Syms.Lookup(".plt", 0)
+		got := ctxt.Syms.Lookup(".got", 0)
+		rela := ctxt.Syms.Lookup(".rela.plt", 0)
 		if plt.Size == 0 {
 			elfsetupplt(ctxt)
 		}
@@ -487,12 +487,12 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 	}
 
 	ld.Adddynsym(ctxt, s)
-	got := ld.Linklookup(ctxt, ".got", 0)
+	got := ctxt.Syms.Lookup(".got", 0)
 	s.Got = int32(got.Size)
 	ld.Adduint64(ctxt, got, 0)
 
 	if ld.Iself {
-		rela := ld.Linklookup(ctxt, ".rela", 0)
+		rela := ctxt.Syms.Lookup(".rela", 0)
 		ld.Addaddrplus(ctxt, rela, got, int64(s.Got))
 		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_390_GLOB_DAT))
 		ld.Adduint64(ctxt, rela, 0)

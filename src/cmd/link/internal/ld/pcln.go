@@ -208,7 +208,7 @@ var pclntabLastFunc *Symbol
 
 func (ctxt *Link) pclntab() {
 	funcdataBytes := int64(0)
-	ftab := Linklookup(ctxt, "runtime.pclntab", 0)
+	ftab := ctxt.Syms.Lookup("runtime.pclntab", 0)
 	ftab.Type = obj.SPCLNTAB
 	ftab.Attr |= AttrReachable
 
@@ -393,7 +393,7 @@ const (
 // findfunctab generates a lookup table to quickly find the containing
 // function for a pc. See src/runtime/symtab.go:findfunc for details.
 func (ctxt *Link) findfunctab() {
-	t := Linklookup(ctxt, "runtime.findfunctab", 0)
+	t := ctxt.Syms.Lookup("runtime.findfunctab", 0)
 	t.Type = obj.SRODATA
 	t.Attr |= AttrReachable
 	t.Attr |= AttrLocal

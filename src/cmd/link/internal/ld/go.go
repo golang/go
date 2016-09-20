@@ -187,7 +187,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
-			s = Linklookup(ctxt, local, 0)
+			s = ctxt.Syms.Lookup(local, 0)
 			if local != f[1] {
 			}
 			if s.Type == 0 || s.Type == obj.SXREF || s.Type == obj.SHOSTOBJ {
@@ -208,7 +208,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				goto err
 			}
 			local = f[1]
-			s = Linklookup(ctxt, local, 0)
+			s = ctxt.Syms.Lookup(local, 0)
 			s.Type = obj.SHOSTOBJ
 			s.Size = 0
 			continue
@@ -225,11 +225,11 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				remote = local
 			}
 			local = expandpkg(local, pkg)
-			s = Linklookup(ctxt, local, 0)
+			s = ctxt.Syms.Lookup(local, 0)
 
 			switch Buildmode {
 			case BuildmodeCShared, BuildmodeCArchive, BuildmodePlugin:
-				if s == Linklookup(ctxt, "main", 0) {
+				if s == ctxt.Syms.Lookup("main", 0) {
 					continue
 				}
 			}
@@ -305,11 +305,11 @@ func adddynlib(ctxt *Link, lib string) {
 	seenlib[lib] = true
 
 	if Iself {
-		s := Linklookup(ctxt, ".dynstr", 0)
+		s := ctxt.Syms.Lookup(".dynstr", 0)
 		if s.Size == 0 {
 			Addstring(ctxt, s, "")
 		}
-		Elfwritedynent(ctxt, Linklookup(ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, s, lib)))
+		Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, s, lib)))
 	} else {
 		Errorf(nil, "adddynlib: unsupported binary format")
 	}
@@ -355,7 +355,7 @@ func fieldtrack(ctxt *Link) {
 	if *flagFieldTrack == "" {
 		return
 	}
-	s := Linklookup(ctxt, *flagFieldTrack, 0)
+	s := ctxt.Syms.Lookup(*flagFieldTrack, 0)
 	if !s.Attr.Reachable() {
 		return
 	}

@@ -527,7 +527,7 @@ func initdynimport(ctxt *Link) *Dll {
 				if SysArch.Family == sys.I386 && m.argsize >= 0 {
 					dynName += fmt.Sprintf("@%d", m.argsize)
 				}
-				dynSym := Linklookup(ctxt, dynName, 0)
+				dynSym := ctxt.Syms.Lookup(dynName, 0)
 				dynSym.Attr |= AttrReachable
 				dynSym.Type = obj.SHOSTOBJ
 				r := Addrel(m.s)
@@ -538,7 +538,7 @@ func initdynimport(ctxt *Link) *Dll {
 			}
 		}
 	} else {
-		dynamic := Linklookup(ctxt, ".windynamic", 0)
+		dynamic := ctxt.Syms.Lookup(".windynamic", 0)
 		dynamic.Attr |= AttrReachable
 		dynamic.Type = obj.SWINDOWS
 		for d := dr; d != nil; d = d.next {
@@ -571,7 +571,7 @@ func peimporteddlls() []string {
 
 func addimports(ctxt *Link, datsect *IMAGE_SECTION_HEADER) {
 	startoff := coutbuf.Offset()
-	dynamic := Linklookup(ctxt, ".windynamic", 0)
+	dynamic := ctxt.Syms.Lookup(".windynamic", 0)
 
 	// skip import descriptor table (will write it later)
 	n := uint64(0)
@@ -868,7 +868,7 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 	}
 	data.NumberOfRelocations = uint16(n - 1)
 
-	dottext := Linklookup(ctxt, ".text", 0)
+	dottext := ctxt.Syms.Lookup(".text", 0)
 	ctors.NumberOfRelocations = 1
 	ctors.PointerToRelocations = uint32(coutbuf.Offset())
 	sectoff := ctors.VirtualAddress
@@ -887,7 +887,7 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 
 func (ctxt *Link) dope() {
 	/* relocation table */
-	rel := Linklookup(ctxt, ".rel", 0)
+	rel := ctxt.Syms.Lookup(".rel", 0)
 
 	rel.Attr |= AttrReachable
 	rel.Type = obj.SELFROSECT
@@ -1002,7 +1002,7 @@ func writePESymTableRecords(ctxt *Link) int {
 			}
 		}
 
-		s := Linklookup(ctxt, ".text", 0)
+		s := ctxt.Syms.Lookup(".text", 0)
 		if s.Type == obj.STEXT {
 			put(ctxt, s, s.Name, TextSym, s.Value, nil)
 		}
@@ -1111,7 +1111,7 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
 
 	Cseek(int64(c.PointerToRawData))
 	chksectoff(ctxt, c, coutbuf.Offset())
-	init_entry := Linklookup(ctxt, *flagEntrySymbol, 0)
+	init_entry := ctxt.Syms.Lookup(*flagEntrySymbol, 0)
 	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
 
 	switch obj.GOARCH {

@@ -59,8 +59,8 @@ func deadcode(ctxt *Link) {
 	d.init()
 	d.flood()
 
-	callSym := Linkrlookup(ctxt, "reflect.Value.Call", 0)
-	methSym := Linkrlookup(ctxt, "reflect.Value.Method", 0)
+	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", 0)
+	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", 0)
 	reflectSeen := false
 
 	if ctxt.DynlinkingGo() {
@@ -249,7 +249,7 @@ func (d *deadcodepass) init() {
 
 			// We don't keep the go.plugin.exports symbol,
 			// but we do keep the symbols it refers to.
-			exports := Linkrlookup(d.ctxt, "go.plugin.exports", 0)
+			exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
 			for _, r := range exports.R {
 				d.mark(r.Sym, nil)
 			}
@@ -263,7 +263,7 @@ func (d *deadcodepass) init() {
 	}
 
 	for _, name := range names {
-		d.mark(Linkrlookup(d.ctxt, name, 0), nil)
+		d.mark(d.ctxt.Syms.ROLookup(name, 0), nil)
 	}
 }
 

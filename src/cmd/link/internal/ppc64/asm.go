@@ -101,7 +101,7 @@ func genplt(ctxt *ld.Link) {
 			// Generate call stub
 			n := fmt.Sprintf("%s.%s", s.Name, r.Sym.Name)
 
-			stub := ld.Linklookup(ctxt, n, 0)
+			stub := ctxt.Syms.Lookup(n, 0)
 			if s.Attr.Reachable() {
 				stub.Attr |= ld.AttrReachable
 			}
@@ -124,12 +124,12 @@ func genplt(ctxt *ld.Link) {
 }
 
 func genaddmoduledata(ctxt *ld.Link) {
-	addmoduledata := ld.Linkrlookup(ctxt, "runtime.addmoduledata", 0)
+	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
 	if addmoduledata.Type == obj.STEXT {
 		return
 	}
 	addmoduledata.Attr |= ld.AttrReachable
-	initfunc := ld.Linklookup(ctxt, "go.link.addmoduledata", 0)
+	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
 	initfunc.Type = obj.STEXT
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
@@ -140,7 +140,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	rel := ld.Addrel(initfunc)
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 8
-	rel.Sym = ld.Linklookup(ctxt, ".TOC.", 0)
+	rel.Sym = ctxt.Syms.Lookup(".TOC.", 0)
 	rel.Type = obj.R_ADDRPOWER_PCREL
 	o(0x3c4c0000)
 	// addi r2, r2, .TOC.-func@l
@@ -153,7 +153,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	rel = ld.Addrel(initfunc)
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 8
-	rel.Sym = ld.Linklookup(ctxt, "local.moduledata", 0)
+	rel.Sym = ctxt.Syms.Lookup("local.moduledata", 0)
 	rel.Type = obj.R_ADDRPOWER_GOT
 	o(0x3c620000)
 	// ld r3, local.moduledata@got@l(r3)
@@ -177,7 +177,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	o(0x4e800020)
 
 	ctxt.Textp = append(ctxt.Textp, initfunc)
-	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
+	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = obj.SINITARR
@@ -203,7 +203,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 		log.Fatalf("gencallstub only implements case 1 calls")
 	}
 
-	plt := ld.Linklookup(ctxt, ".plt", 0)
+	plt := ctxt.Syms.Lookup(".plt", 0)
 
 	stub.Type = obj.STEXT
 
@@ -284,7 +284,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			// These happen in .toc sections
 			ld.Adddynsym(ctxt, targ)
 
-			rela := ld.Linklookup(ctxt, ".rela", 0)
+			rela := ctxt.Syms.Lookup(".rela", 0)
 			ld.Addaddrplus(ctxt, rela, s, int64(r.Off))
 			ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_PPC64_ADDR64))
 			ld.Adduint64(ctxt, rela, uint64(r.Add))
@@ -432,7 +432,7 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 }
 
 func elfsetupplt(ctxt *ld.Link) {
-	plt := ld.Linklookup(ctxt, ".plt", 0)
+	plt := ctxt.Syms.Lookup(".plt", 0)
 	if plt.Size == 0 {
 		// The dynamic linker stores the address of the
 		// dynamic resolver and the DSO identifier in the two
@@ -451,9 +451,9 @@ func symtoc(ctxt *ld.Link, s *ld.Symbol) int64 {
 	var toc *ld.Symbol
 
 	if s.Outer != nil {
-		toc = ld.Linkrlookup(ctxt, ".TOC.", int(s.Outer.Version))
+		toc = ctxt.Syms.ROLookup(".TOC.", int(s.Outer.Version))
 	} else {
-		toc = ld.Linkrlookup(ctxt, ".TOC.", int(s.Version))
+		toc = ctxt.Syms.ROLookup(".TOC.", int(s.Version))
 	}
 
 	if toc == nil {
@@ -563,7 +563,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		return 0
 
 	case obj.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
+		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
 		return 0
 
 	case obj.R_ADDRPOWER, obj.R_ADDRPOWER_DS:
@@ -705,8 +705,8 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 	ld.Adddynsym(ctxt, s)
 
 	if ld.Iself {
-		plt := ld.Linklookup(ctxt, ".plt", 0)
-		rela := ld.Linklookup(ctxt, ".rela.plt", 0)
+		plt := ctxt.Syms.Lookup(".plt", 0)
+		rela := ctxt.Syms.Lookup(".rela.plt", 0)
 		if plt.Size == 0 {
 			elfsetupplt(ctxt)
 		}
@@ -744,7 +744,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 
 // Generate the glink resolver stub if necessary and return the .glink section
 func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
-	glink := ld.Linklookup(ctxt, ".glink", 0)
+	glink := ctxt.Syms.Lookup(".glink", 0)
 	if glink.Size != 0 {
 		return glink
 	}
@@ -774,7 +774,7 @@ func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
 	r := ld.Addrel(glink)
 
 	r.Off = int32(glink.Size)
-	r.Sym = ld.Linklookup(ctxt, ".plt", 0)
+	r.Sym = ctxt.Syms.Lookup(".plt", 0)
 	r.Siz = 8
 	r.Type = obj.R_ADDRPOWER
 
@@ -795,7 +795,7 @@ func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
 
 	// Add DT_PPC64_GLINK .dynamic entry, which points to 32 bytes
 	// before the first symbol resolver stub.
-	s := ld.Linklookup(ctxt, ".dynamic", 0)
+	s := ctxt.Syms.Lookup(".dynamic", 0)
 
 	ld.Elfwritedynentsymplus(ctxt, s, ld.DT_PPC64_GLINK, glink, glink.Size-32)
 
@@ -885,7 +885,7 @@ func asmb(ctxt *ld.Link) {
 			ld.Asmplan9sym(ctxt)
 			ld.Cflush()
 
-			sym := ld.Linklookup(ctxt, "pclntab", 0)
+			sym := ctxt.Syms.Lookup("pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
 				for i := 0; int32(i) < ld.Lcsize; i++ {

@@ -300,32 +300,32 @@ func (ctxt *Link) domacho() {
 	}
 
 	// empirically, string table must begin with " \x00".
-	s := Linklookup(ctxt, ".machosymstr", 0)
+	s := ctxt.Syms.Lookup(".machosymstr", 0)
 
 	s.Type = obj.SMACHOSYMSTR
 	s.Attr |= AttrReachable
 	Adduint8(ctxt, s, ' ')
 	Adduint8(ctxt, s, '\x00')
 
-	s = Linklookup(ctxt, ".machosymtab", 0)
+	s = ctxt.Syms.Lookup(".machosymtab", 0)
 	s.Type = obj.SMACHOSYMTAB
 	s.Attr |= AttrReachable
 
 	if Linkmode != LinkExternal {
-		s := Linklookup(ctxt, ".plt", 0) // will be __symbol_stub
+		s := ctxt.Syms.Lookup(".plt", 0) // will be __symbol_stub
 		s.Type = obj.SMACHOPLT
 		s.Attr |= AttrReachable
 
-		s = Linklookup(ctxt, ".got", 0) // will be __nl_symbol_ptr
+		s = ctxt.Syms.Lookup(".got", 0) // will be __nl_symbol_ptr
 		s.Type = obj.SMACHOGOT
 		s.Attr |= AttrReachable
 		s.Align = 4
 
-		s = Linklookup(ctxt, ".linkedit.plt", 0) // indirect table for .plt
+		s = ctxt.Syms.Lookup(".linkedit.plt", 0) // indirect table for .plt
 		s.Type = obj.SMACHOINDIRECTPLT
 		s.Attr |= AttrReachable
 
-		s = Linklookup(ctxt, ".linkedit.got", 0) // indirect table for .got
+		s = ctxt.Syms.Lookup(".linkedit.got", 0) // indirect table for .got
 		s.Type = obj.SMACHOINDIRECTGOT
 		s.Attr |= AttrReachable
 	}
@@ -400,7 +400,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
 	if sect.Name == ".got" {
 		msect.name = "__nl_symbol_ptr"
 		msect.flag = 6                                                     /* section with nonlazy symbol pointers */
-		msect.res1 = uint32(Linklookup(ctxt, ".linkedit.plt", 0).Size / 4) /* offset into indirect symbol table */
+		msect.res1 = uint32(ctxt.Syms.Lookup(".linkedit.plt", 0).Size / 4) /* offset into indirect symbol table */
 	}
 
 	if sect.Name == ".init_array" {
@@ -541,10 +541,10 @@ func Asmbmacho(ctxt *Link) {
 
 	if !*FlagD {
 		// must match domacholink below
-		s1 := Linklookup(ctxt, ".machosymtab", 0)
-		s2 := Linklookup(ctxt, ".linkedit.plt", 0)
-		s3 := Linklookup(ctxt, ".linkedit.got", 0)
-		s4 := Linklookup(ctxt, ".machosymstr", 0)
+		s1 := ctxt.Syms.Lookup(".machosymtab", 0)
+		s2 := ctxt.Syms.Lookup(".linkedit.plt", 0)
+		s3 := ctxt.Syms.Lookup(".linkedit.got", 0)
+		s4 := ctxt.Syms.Lookup(".machosymstr", 0)
 
 		if Linkmode != LinkExternal {
 			ms := newMachoSeg("__LINKEDIT", 0)
@@ -685,8 +685,8 @@ func machosymorder(ctxt *Link) {
 }
 
 func machosymtab(ctxt *Link) {
-	symtab := Linklookup(ctxt, ".machosymtab", 0)
-	symstr := Linklookup(ctxt, ".machosymstr", 0)
+	symtab := ctxt.Syms.Lookup(".machosymtab", 0)
+	symstr := ctxt.Syms.Lookup(".machosymstr", 0)
 
 	for i := 0; i < nsortsym; i++ {
 		s := sortsym[i]
@@ -750,10 +750,10 @@ func machodysymtab(ctxt *Link) {
 	ml.data[11] = 0 /* nextrefsyms */
 
 	// must match domacholink below
-	s1 := Linklookup(ctxt, ".machosymtab", 0)
+	s1 := ctxt.Syms.Lookup(".machosymtab", 0)
 
-	s2 := Linklookup(ctxt, ".linkedit.plt", 0)
-	s3 := Linklookup(ctxt, ".linkedit.got", 0)
+	s2 := ctxt.Syms.Lookup(".linkedit.plt", 0)
+	s3 := ctxt.Syms.Lookup(".linkedit.got", 0)
 	ml.data[12] = uint32(linkoff + s1.Size)       /* indirectsymoff */
 	ml.data[13] = uint32((s2.Size + s3.Size) / 4) /* nindirectsyms */
 
@@ -767,11 +767,11 @@ func Domacholink(ctxt *Link) int64 {
 	machosymtab(ctxt)
 
 	// write data that will be linkedit section
-	s1 := Linklookup(ctxt, ".machosymtab", 0)
+	s1 := ctxt.Syms.Lookup(".machosymtab", 0)
 
-	s2 := Linklookup(ctxt, ".linkedit.plt", 0)
-	s3 := Linklookup(ctxt, ".linkedit.got", 0)
-	s4 := Linklookup(ctxt, ".machosymstr", 0)
+	s2 := ctxt.Syms.Lookup(".linkedit.plt", 0)
+	s3 := ctxt.Syms.Lookup(".linkedit.got", 0)
+	s4 := ctxt.Syms.Lookup(".machosymstr", 0)
 
 	// Force the linkedit section to end on a 16-byte
 	// boundary. This allows pure (non-cgo) Go binaries

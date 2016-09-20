@@ -82,7 +82,7 @@ var gdbscript string
 var dwarfp []*Symbol
 
 func writeabbrev(ctxt *Link, syms []*Symbol) []*Symbol {
-	s := Linklookup(ctxt, ".debug_abbrev", 0)
+	s := ctxt.Syms.Lookup(".debug_abbrev", 0)
 	s.Type = obj.SDWARFSECT
 	abbrevsym = s
 	Addbytes(ctxt, s, dwarf.GetAbbrev())
@@ -146,7 +146,7 @@ func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version in
 
 	if name != "" && (abbrev <= dwarf.DW_ABRV_VARIABLE || abbrev >= dwarf.DW_ABRV_NULLTYPE) {
 		if abbrev != dwarf.DW_ABRV_VARIABLE || version == 0 {
-			sym := Linklookup(ctxt, dwarf.InfoPrefix+name, version)
+			sym := ctxt.Syms.Lookup(dwarf.InfoPrefix+name, version)
 			sym.Attr |= AttrHidden
 			sym.Type = obj.SDWARFINFO
 			die.Sym = sym
@@ -173,7 +173,7 @@ func walktypedef(die *dwarf.DWDie) *dwarf.DWDie {
 }
 
 func walksymtypedef(ctxt *Link, s *Symbol) *Symbol {
-	if t := Linkrlookup(ctxt, s.Name+"..def", int(s.Version)); t != nil {
+	if t := ctxt.Syms.ROLookup(s.Name+"..def", int(s.Version)); t != nil {
 		return t
 	}
 	return s
@@ -200,7 +200,7 @@ var prefixBuf = []byte(dwarf.InfoPrefix)
 func find(ctxt *Link, name string) *Symbol {
 	n := append(prefixBuf, name...)
 	// The string allocation below is optimized away because it is only used in a map lookup.
-	s := Linkrlookup(ctxt, string(n), 0)
+	s := ctxt.Syms.ROLookup(string(n), 0)
 	prefixBuf = n[:len(dwarf.InfoPrefix)]
 	if s != nil && s.Type == obj.SDWARFINFO {
 		return s
@@ -312,7 +312,7 @@ func newabslocexprattr(die *dwarf.DWDie, addr int64, sym *Symbol) {
 
 // Lookup predefined types
 func lookupOrDiag(ctxt *Link, n string) *Symbol {
-	s := Linkrlookup(ctxt, n, 0)
+	s := ctxt.Syms.ROLookup(n, 0)
 	if s == nil || s.Size == 0 {
 		Exitf("dwarf: missing type: %s", n)
 	}
@@ -338,7 +338,7 @@ func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) {
 		Errorf(nil, "dwarf: bad def in dotypedef")
 	}
 
-	sym := Linklookup(ctxt, dtolsym(def.Sym).Name+"..def", 0)
+	sym := ctxt.Syms.Lookup(dtolsym(def.Sym).Name+"..def", 0)
 	sym.Attr |= AttrHidden
 	sym.Type = obj.SDWARFINFO
 	def.Sym = sym
@@ -658,7 +658,7 @@ const (
 func mkinternaltype(ctxt *Link, abbrev int, typename, keyname, valname string, f func(*dwarf.DWDie)) *Symbol {
 	name := mkinternaltypename(typename, keyname, valname)
 	symname := dwarf.InfoPrefix + name
-	s := Linkrlookup(ctxt, symname, 0)
+	s := ctxt.Syms.ROLookup(symname, 0)
 	if s != nil && s.Type == obj.SDWARFINFO {
 		return s
 	}
@@ -921,7 +921,7 @@ func getCompilationDir() string {
 func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 	if linesec == nil {
-		linesec = Linklookup(ctxt, ".debug_line", 0)
+		linesec = ctxt.Syms.Lookup(".debug_line", 0)
 	}
 	linesec.Type = obj.SDWARFSECT
 	linesec.R = linesec.R[:0]
@@ -1004,7 +1004,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 		epc = s.Value + s.Size
 		epcs = s
 
-		dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
+		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
 		dsym.Attr |= AttrHidden
 		dsym.Type = obj.SDWARFINFO
 		for _, r := range dsym.R {
@@ -1014,7 +1014,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 					continue
 				}
 				n := nameFromDIESym(r.Sym)
-				defgotype(ctxt, Linklookup(ctxt, "type."+n, 0))
+				defgotype(ctxt, ctxt.Syms.Lookup("type."+n, 0))
 			}
 		}
 		funcs = append(funcs, dsym)
@@ -1101,7 +1101,7 @@ func appendPCDeltaCFA(b []byte, deltapc, cfa int64) []byte {
 func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 	if framesec == nil {
-		framesec = Linklookup(ctxt, ".debug_frame", 0)
+		framesec = ctxt.Syms.Lookup(".debug_frame", 0)
 	}
 	framesec.Type = obj.SDWARFSECT
 	framesec.R = framesec.R[:0]
@@ -1222,7 +1222,7 @@ const (
 
 func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol) []*Symbol {
 	if infosec == nil {
-		infosec = Linklookup(ctxt, ".debug_info", 0)
+		infosec = ctxt.Syms.Lookup(".debug_info", 0)
 	}
 	infosec.R = infosec.R[:0]
 	infosec.Type = obj.SDWARFINFO
@@ -1230,7 +1230,7 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol) []*Symbol {
 	syms = append(syms, infosec)
 
 	if arangessec == nil {
-		arangessec = Linklookup(ctxt, ".dwarfaranges", 0)
+		arangessec = ctxt.Syms.Lookup(".dwarfaranges", 0)
 	}
 	arangessec.R = arangessec.R[:0]
 
@@ -1290,7 +1290,7 @@ func ispubtype(die *dwarf.DWDie) bool {
 }
 
 func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*Symbol) []*Symbol {
-	s := Linklookup(ctxt, sname, 0)
+	s := ctxt.Syms.Lookup(sname, 0)
 	s.Type = obj.SDWARFSECT
 	syms = append(syms, s)
 
@@ -1330,7 +1330,7 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*S
  *  because we need die->offs of dwarf.DW_globals.
  */
 func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
-	s := Linklookup(ctxt, ".debug_aranges", 0)
+	s := ctxt.Syms.Lookup(".debug_aranges", 0)
 	s.Type = obj.SDWARFSECT
 	// The first tuple is aligned to a multiple of the size of a single tuple
 	// (twice the size of an address)
@@ -1374,7 +1374,7 @@ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
 func writegdbscript(ctxt *Link, syms []*Symbol) []*Symbol {
 
 	if gdbscript != "" {
-		s := Linklookup(ctxt, ".debug_gdb_scripts", 0)
+		s := ctxt.Syms.Lookup(".debug_gdb_scripts", 0)
 		s.Type = obj.SDWARFSECT
 		syms = append(syms, s)
 		Adduint8(ctxt, s, 1) // magic 1 byte?
@@ -1512,13 +1512,13 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 	if Linkmode != LinkExternal {
 		return
 	}
-	sym := Linklookup(ctxt, ".debug_info", 0)
+	sym := ctxt.Syms.Lookup(".debug_info", 0)
 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
-	sym = Linklookup(ctxt, ".debug_abbrev", 0)
+	sym = ctxt.Syms.Lookup(".debug_abbrev", 0)
 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
-	sym = Linklookup(ctxt, ".debug_line", 0)
+	sym = ctxt.Syms.Lookup(".debug_line", 0)
 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
-	sym = Linklookup(ctxt, ".debug_frame", 0)
+	sym = ctxt.Syms.Lookup(".debug_frame", 0)
 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
 }
 
