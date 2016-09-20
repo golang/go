@@ -1060,7 +1060,7 @@ func addinitarrdata(ctxt *Link, s *Symbol) {
 }
 
 func dosymtype(ctxt *Link) {
-	for _, s := range ctxt.Allsym {
+	for _, s := range ctxt.Syms.Allsym {
 		if len(s.P) > 0 {
 			if s.Type == obj.SBSS {
 				s.Type = obj.SDATA
@@ -1208,7 +1208,7 @@ func (ctxt *Link) dodata() {
 
 	// Collect data symbols by type into data.
 	var data [obj.SXREF][]*Symbol
-	for _, s := range ctxt.Allsym {
+	for _, s := range ctxt.Syms.Allsym {
 		if !s.Attr.Reachable() || s.Attr.Special() {
 			continue
 		}

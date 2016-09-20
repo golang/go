@@ -210,7 +210,7 @@ func Main() {
 	ctxt.archive()
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f cpu time\n", obj.Cputime())
-		ctxt.Logf("%d symbols\n", len(ctxt.Allsym))
+		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
 		ctxt.Logf("%d liveness data\n", liveness)
 	}
 

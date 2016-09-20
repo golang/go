@@ -658,7 +658,7 @@ func (x machoscmp) Less(i, j int) bool {
 
 func machogenasmsym(ctxt *Link) {
 	genasmsym(ctxt, addsym)
-	for _, s := range ctxt.Allsym {
+	for _, s := range ctxt.Syms.Allsym {
 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
 			if s.Attr.Reachable() {
 				addsym(ctxt, s, "", DataSym, 0, nil)

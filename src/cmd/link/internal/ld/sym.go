@@ -39,7 +39,7 @@ import (
 
 func linknew(arch *sys.Arch) *Link {
 	ctxt := &Link{
-		Symbols: Symbols{
+		Syms: &Symbols{
 			hash: []map[string]*Symbol{
 				// preallocate about 2mb for hash of
 				// non static symbols
@@ -134,14 +134,14 @@ func (ctxt *Link) computeTLSOffset() {
 }
 
 func linknewsym(ctxt *Link, name string, v int) *Symbol {
-	return ctxt.newsym(name, v)
+	return ctxt.Syms.newsym(name, v)
 }
 
 func Linklookup(ctxt *Link, name string, v int) *Symbol {
-	return ctxt.Lookup(name, v)
+	return ctxt.Syms.Lookup(name, v)
 }
 
 // read-only lookup
 func Linkrlookup(ctxt *Link, name string, v int) *Symbol {
-	return ctxt.ROLookup(name, v)
+	return ctxt.Syms.ROLookup(name, v)
 }

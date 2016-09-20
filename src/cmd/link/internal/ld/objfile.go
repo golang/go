@@ -167,7 +167,7 @@ func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string)
 
 func (r *objReader) loadObjFile() {
 	// Increment context version, versions are used to differentiate static files in different packages
-	r.ctxt.IncVersion()
+	r.ctxt.Syms.IncVersion()
 
 	// Magic header
 	var buf [8]uint8
@@ -452,7 +452,7 @@ func (r *objReader) readRef() {
 		log.Fatalf("invalid symbol version %d", v)
 	}
 	if v == 1 {
-		v = r.ctxt.Version
+		v = r.ctxt.Syms.Version
 	}
 	s := Linklookup(r.ctxt, name, v)
 	r.refs = append(r.refs, s)
