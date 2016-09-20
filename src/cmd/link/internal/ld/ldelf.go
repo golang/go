@@ -445,7 +445,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		ctxt.Logf("%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 
-	ctxt.Syms.IncVersion()
+	localSymVersion := ctxt.Syms.IncVersion()
 	base := f.Offset()
 
 	var add uint64
@@ -702,7 +702,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 
 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
+		s = ctxt.Syms.Lookup(name, localSymVersion)
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
 		default:
@@ -741,7 +741,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	symbols = make([]*Symbol, elfobj.nsymtab)
 
 	for i := 1; i < elfobj.nsymtab; i++ {
-		if err = readelfsym(ctxt, elfobj, i, &sym, 1); err != nil {
+		if err = readelfsym(ctxt, elfobj, i, &sym, 1, localSymVersion); err != nil {
 			goto bad
 		}
 		symbols[i] = sym.sym
@@ -903,7 +903,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			if info>>32 == 0 { // absolute relocation, don't bother reading the null symbol
 				rp.Sym = nil
 			} else {
-				if err = readelfsym(ctxt, elfobj, int(info>>32), &sym, 0); err != nil {
+				if err = readelfsym(ctxt, elfobj, int(info>>32), &sym, 0, 0); err != nil {
 					goto bad
 				}
 				sym.sym = symbols[info>>32]
@@ -983,7 +983,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	return nil
 }
 
-func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
+func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, localSymVersion int) (err error) {
 	if i >= elfobj.nsymtab || i < 0 {
 		err = fmt.Errorf("invalid elf symbol index")
 		return err
@@ -1059,7 +1059,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
 				// We need to be able to look this up,
 				// so put it in the hash table.
 				if needSym != 0 {
-					s = ctxt.Syms.Lookup(sym.name, ctxt.Syms.Version)
+					s = ctxt.Syms.Lookup(sym.name, localSymVersion)
 					s.Type |= obj.SHIDDEN
 				}
 
@@ -1070,7 +1070,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
 				// local names and hidden global names are unique
 				// and should only be referenced by their index, not name, so we
 				// don't bother to add them into the hash table
-				s = ctxt.Syms.newsym(sym.name, ctxt.Syms.Version)
+				s = ctxt.Syms.newsym(sym.name, localSymVersion)
 
 				s.Type |= obj.SHIDDEN
 			}

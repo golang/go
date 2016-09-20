@@ -37,8 +37,6 @@ type Symbols struct {
 	hash []map[string]*Symbol
 
 	Allsym []*Symbol
-
-	Version int
 }
 
 func (syms *Symbols) newsym(name string, v int) *Symbol {
@@ -80,11 +78,7 @@ func (syms *Symbols) ROLookup(name string, v int) *Symbol {
 }
 
 // Allocate a new version (i.e. symbol namespace).
-//
-// TODO(mwhudson): This would feel more natural if it returned the new
-// version (or if we dropped Symbols.Version entirely and just
-// returned len(syms.hash))
-func (syms *Symbols) IncVersion() {
-	syms.Version++
+func (syms *Symbols) IncVersion() int {
 	syms.hash = append(syms.hash, make(map[string]*Symbol))
+	return len(syms.hash) - 1
 }
