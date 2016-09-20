@@ -383,10 +383,12 @@ func TestToNorm(t *testing.T) {
 	tmpVol := filepath.VolumeName(tmp)
 	tmpNoVol := tmp[len(tmpVol):]
 
+	replacer := strings.NewReplacer("{{tmp}}", tmp, "{{tmpvol}}", tmpVol, "{{tmpnovol}}", tmpNoVol)
+
 	for _, test := range testsDir {
-		wd := strings.Replace(strings.Replace(strings.Replace(test.wd, "{{tmp}}", tmp, -1), "{{tmpvol}}", tmpVol, -1), "{{tmpnovol}}", tmpNoVol, -1)
-		arg := strings.Replace(strings.Replace(strings.Replace(test.arg, "{{tmp}}", tmp, -1), "{{tmpvol}}", tmpVol, -1), "{{tmpnovol}}", tmpNoVol, -1)
-		want := strings.Replace(strings.Replace(strings.Replace(test.want, "{{tmp}}", tmp, -1), "{{tmpvol}}", tmpVol, -1), "{{tmpnovol}}", tmpNoVol, -1)
+		wd := replacer.Replace(test.wd)
+		arg := replacer.Replace(test.arg)
+		want := replacer.Replace(test.want)
 
 		if test.wd == "." {
 			err := os.Chdir(cwd)
