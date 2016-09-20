@@ -36,10 +36,10 @@ func (c dwctxt) AddInt(s dwarf.Sym, size int, i int64) {
 }
 func (c dwctxt) AddBytes(s dwarf.Sym, b []byte) {
 	ls := s.(*Symbol)
-	Addbytes(c.linkctxt, ls, b)
+	Addbytes(ls, b)
 }
 func (c dwctxt) AddString(s dwarf.Sym, v string) {
-	Addstring(c.linkctxt, s.(*Symbol), v)
+	Addstring(s.(*Symbol), v)
 }
 func (c dwctxt) SymValue(s dwarf.Sym) int64 {
 	return s.(*Symbol).Value
@@ -85,7 +85,7 @@ func writeabbrev(ctxt *Link, syms []*Symbol) []*Symbol {
 	s := ctxt.Syms.Lookup(".debug_abbrev", 0)
 	s.Type = obj.SDWARFSECT
 	abbrevsym = s
-	Addbytes(ctxt, s, dwarf.GetAbbrev())
+	Addbytes(s, dwarf.GetAbbrev())
 	return append(syms, s)
 }
 
@@ -977,7 +977,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 	Adduint8(ctxt, ls, 0)              // include_directories  (empty)
 
 	for _, f := range ctxt.Filesyms {
-		Addstring(ctxt, ls, f.Name)
+		Addstring(ls, f.Name)
 		Adduint8(ctxt, ls, 0)
 		Adduint8(ctxt, ls, 0)
 		Adduint8(ctxt, ls, 0)
@@ -1147,7 +1147,7 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 		Exitf("dwarf: cieReserve too small by %d bytes.", -pad)
 	}
 
-	Addbytes(ctxt, fs, zeros[:pad])
+	Addbytes(fs, zeros[:pad])
 
 	var deltaBuf []byte
 	var pcsp Pciter
@@ -1208,7 +1208,7 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 		}
 		Addaddr(ctxt, fs, s)
 		adduintxx(ctxt, fs, uint64(s.Size), SysArch.PtrSize) // address range
-		Addbytes(ctxt, fs, deltaBuf)
+		Addbytes(fs, deltaBuf)
 	}
 	return syms
 }
@@ -1314,7 +1314,7 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*S
 				fmt.Println("Missing sym for ", name)
 			}
 			adddwarfref(ctxt, s, dtolsym(die.Sym), 4)
-			Addstring(ctxt, s, name)
+			Addstring(s, name)
 		}
 
 		Adduint32(ctxt, s, 0)
@@ -1378,7 +1378,7 @@ func writegdbscript(ctxt *Link, syms []*Symbol) []*Symbol {
 		s.Type = obj.SDWARFSECT
 		syms = append(syms, s)
 		Adduint8(ctxt, s, 1) // magic 1 byte?
-		Addstring(ctxt, s, gdbscript)
+		Addstring(s, gdbscript)
 	}
 
 	return syms
@@ -1485,21 +1485,21 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *Symbol) {
 		return
 	}
 
-	Addstring(ctxt, shstrtab, ".debug_abbrev")
-	Addstring(ctxt, shstrtab, ".debug_aranges")
-	Addstring(ctxt, shstrtab, ".debug_frame")
-	Addstring(ctxt, shstrtab, ".debug_info")
-	Addstring(ctxt, shstrtab, ".debug_line")
-	Addstring(ctxt, shstrtab, ".debug_pubnames")
-	Addstring(ctxt, shstrtab, ".debug_pubtypes")
-	Addstring(ctxt, shstrtab, ".debug_gdb_scripts")
+	Addstring(shstrtab, ".debug_abbrev")
+	Addstring(shstrtab, ".debug_aranges")
+	Addstring(shstrtab, ".debug_frame")
+	Addstring(shstrtab, ".debug_info")
+	Addstring(shstrtab, ".debug_line")
+	Addstring(shstrtab, ".debug_pubnames")
+	Addstring(shstrtab, ".debug_pubtypes")
+	Addstring(shstrtab, ".debug_gdb_scripts")
 	if Linkmode == LinkExternal {
-		Addstring(ctxt, shstrtab, elfRelType+".debug_info")
-		Addstring(ctxt, shstrtab, elfRelType+".debug_aranges")
-		Addstring(ctxt, shstrtab, elfRelType+".debug_line")
-		Addstring(ctxt, shstrtab, elfRelType+".debug_frame")
-		Addstring(ctxt, shstrtab, elfRelType+".debug_pubnames")
-		Addstring(ctxt, shstrtab, elfRelType+".debug_pubtypes")
+		Addstring(shstrtab, elfRelType+".debug_info")
+		Addstring(shstrtab, elfRelType+".debug_aranges")
+		Addstring(shstrtab, elfRelType+".debug_line")
+		Addstring(shstrtab, elfRelType+".debug_frame")
+		Addstring(shstrtab, elfRelType+".debug_pubnames")
+		Addstring(shstrtab, elfRelType+".debug_pubtypes")
 	}
 }
 

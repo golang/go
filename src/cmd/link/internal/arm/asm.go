@@ -503,7 +503,7 @@ func addpltreloc(ctxt *ld.Link, plt *ld.Symbol, got *ld.Symbol, sym *ld.Symbol, 
 
 	plt.Attr |= ld.AttrReachable
 	plt.Size += 4
-	ld.Symgrow(ctxt, plt, plt.Size)
+	ld.Symgrow(plt, plt.Size)
 
 	return r
 }

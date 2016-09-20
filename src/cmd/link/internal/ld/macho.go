@@ -698,7 +698,7 @@ func machosymtab(ctxt *Link) {
 		}
 
 		// replace "·" as ".", because DTrace cannot handle it.
-		Addstring(ctxt, symstr, strings.Replace(s.Extname, "·", ".", -1))
+		Addstring(symstr, strings.Replace(s.Extname, "·", ".", -1))
 
 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
 			Adduint8(ctxt, symtab, 0x01)                // type N_EXT, external symbol

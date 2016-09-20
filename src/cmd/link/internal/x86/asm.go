@@ -41,7 +41,7 @@ func addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) {
 	s.Attr |= ld.AttrReachable
 	i := s.Size
 	s.Size += 4
-	ld.Symgrow(ctxt, s, s.Size)
+	ld.Symgrow(s, s.Size)
 	r := ld.Addrel(s)
 	r.Sym = t
 	r.Off = int32(i)
@@ -136,7 +136,7 @@ func gentext(ctxt *ld.Link) {
 	o(0x8d, 0x99)
 	i := initfunc.Size
 	initfunc.Size += 4
-	ld.Symgrow(ctxt, initfunc, initfunc.Size)
+	ld.Symgrow(initfunc, initfunc.Size)
 	r := ld.Addrel(initfunc)
 	r.Sym = ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
 	r.Off = int32(i)

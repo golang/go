@@ -307,9 +307,9 @@ func adddynlib(ctxt *Link, lib string) {
 	if Iself {
 		s := ctxt.Syms.Lookup(".dynstr", 0)
 		if s.Size == 0 {
-			Addstring(ctxt, s, "")
+			Addstring(s, "")
 		}
-		Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, s, lib)))
+		Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(s, lib)))
 	} else {
 		Errorf(nil, "adddynlib: unsupported binary format")
 	}

@@ -44,7 +44,7 @@ import (
 	"sync"
 )
 
-func Symgrow(ctxt *Link, s *Symbol, siz int64) {
+func Symgrow(s *Symbol, siz int64) {
 	if int64(int(siz)) != siz {
 		log.Fatalf("symgrow size %d too long", siz)
 	}
@@ -70,7 +70,7 @@ func setuintxx(ctxt *Link, s *Symbol, off int64, v uint64, wid int64) int64 {
 	s.Attr |= AttrReachable
 	if s.Size < off+wid {
 		s.Size = off + wid
-		Symgrow(ctxt, s, s.Size)
+		Symgrow(s, s.Size)
 	}
 
 	switch wid {
@@ -87,7 +87,7 @@ func setuintxx(ctxt *Link, s *Symbol, off int64, v uint64, wid int64) int64 {
 	return off + wid
 }
 
-func Addbytes(ctxt *Link, s *Symbol, bytes []byte) int64 {
+func Addbytes(s *Symbol, bytes []byte) int64 {
 	if s.Type == 0 {
 		s.Type = obj.SDATA
 	}
@@ -147,7 +147,7 @@ func Addaddrplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
 	s.Attr |= AttrReachable
 	i := s.Size
 	s.Size += int64(ctxt.Arch.PtrSize)
-	Symgrow(ctxt, s, s.Size)
+	Symgrow(s, s.Size)
 	r := Addrel(s)
 	r.Sym = t
 	r.Off = int32(i)
@@ -164,7 +164,7 @@ func Addpcrelplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
 	s.Attr |= AttrReachable
 	i := s.Size
 	s.Size += 4
-	Symgrow(ctxt, s, s.Size)
+	Symgrow(s, s.Size)
 	r := Addrel(s)
 	r.Sym = t
 	r.Off = int32(i)
@@ -188,7 +188,7 @@ func setaddrplus(ctxt *Link, s *Symbol, off int64, t *Symbol, add int64) int64 {
 	s.Attr |= AttrReachable
 	if off+int64(ctxt.Arch.PtrSize) > s.Size {
 		s.Size = off + int64(ctxt.Arch.PtrSize)
-		Symgrow(ctxt, s, s.Size)
+		Symgrow(s, s.Size)
 	}
 
 	r := Addrel(s)
@@ -211,7 +211,7 @@ func addsize(ctxt *Link, s *Symbol, t *Symbol) int64 {
 	s.Attr |= AttrReachable
 	i := s.Size
 	s.Size += int64(ctxt.Arch.PtrSize)
-	Symgrow(ctxt, s, s.Size)
+	Symgrow(s, s.Size)
 	r := Addrel(s)
 	r.Sym = t
 	r.Off = int32(i)
@@ -227,7 +227,7 @@ func addaddrplus4(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
 	s.Attr |= AttrReachable
 	i := s.Size
 	s.Size += 4
-	Symgrow(ctxt, s, s.Size)
+	Symgrow(s, s.Size)
 	r := Addrel(s)
 	r.Sym = t
 	r.Off = int32(i)
@@ -989,7 +989,7 @@ func addstrdata(ctxt *Link, name string, value string) {
 	p := fmt.Sprintf("%s.str", name)
 	sp := ctxt.Syms.Lookup(p, 0)
 
-	Addstring(ctxt, sp, value)
+	Addstring(sp, value)
 	sp.Type = obj.SRODATA
 
 	s := ctxt.Syms.Lookup(name, 0)
@@ -1019,7 +1019,7 @@ func (ctxt *Link) checkstrdata() {
 	}
 }
 
-func Addstring(ctxt *Link, s *Symbol, str string) int64 {
+func Addstring(s *Symbol, str string) int64 {
 	if s.Type == 0 {
 		s.Type = obj.SNOPTRDATA
 	}
