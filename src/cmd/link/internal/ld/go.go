@@ -334,7 +334,7 @@ func Adddynsym(ctxt *Link, s *Symbol) {
 func fieldtrack(ctxt *Link) {
 	// record field tracking references
 	var buf bytes.Buffer
-	for _, s := range ctxt.Allsym {
+	for _, s := range ctxt.Syms.Allsym {
 		if strings.HasPrefix(s.Name, "go.track.") {
 			s.Attr |= AttrSpecial // do not lay out in data segment
 			s.Attr |= AttrHidden

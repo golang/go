@@ -477,7 +477,7 @@ func initdynimport(ctxt *Link) *Dll {
 
 	dr = nil
 	var m *Imp
-	for _, s := range ctxt.Allsym {
+	for _, s := range ctxt.Syms.Allsym {
 		if !s.Attr.Reachable() || s.Type != obj.SDYNIMPORT {
 			continue
 		}
@@ -681,7 +681,7 @@ func (s byExtname) Less(i, j int) bool { return s[i].Extname < s[j].Extname }
 
 func initdynexport(ctxt *Link) {
 	nexport = 0
-	for _, s := range ctxt.Allsym {
+	for _, s := range ctxt.Syms.Allsym {
 		if !s.Attr.Reachable() || !s.Attr.CgoExportDynamic() {
 			continue
 		}

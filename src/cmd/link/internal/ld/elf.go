@@ -1462,7 +1462,7 @@ func elfdynhash(ctxt *Link) {
 	buckets := make([]uint32, nbucket)
 
 	var b int
-	for _, sy := range ctxt.Allsym {
+	for _, sy := range ctxt.Syms.Allsym {
 		if sy.Dynid <= 0 {
 			continue
 		}

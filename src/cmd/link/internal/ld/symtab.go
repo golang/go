@@ -413,7 +413,7 @@ func (ctxt *Link) symtab() {
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
 	// hide the specific symbols.
-	for _, s := range ctxt.Allsym {
+	for _, s := range ctxt.Syms.Allsym {
 		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != obj.SRODATA {
 			continue
 		}

@@ -445,7 +445,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		ctxt.Logf("%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 
-	ctxt.IncVersion()
+	ctxt.Syms.IncVersion()
 	base := f.Offset()
 
 	var add uint64
@@ -702,7 +702,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 
 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s = Linklookup(ctxt, name, ctxt.Version)
+		s = Linklookup(ctxt, name, ctxt.Syms.Version)
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
 		default:
@@ -1059,7 +1059,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
 				// We need to be able to look this up,
 				// so put it in the hash table.
 				if needSym != 0 {
-					s = Linklookup(ctxt, sym.name, ctxt.Version)
+					s = Linklookup(ctxt, sym.name, ctxt.Syms.Version)
 					s.Type |= obj.SHIDDEN
 				}
 
@@ -1070,7 +1070,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
 				// local names and hidden global names are unique
 				// and should only be referenced by their index, not name, so we
 				// don't bother to add them into the hash table
-				s = linknewsym(ctxt, sym.name, ctxt.Version)
+				s = linknewsym(ctxt, sym.name, ctxt.Syms.Version)
 
 				s.Type |= obj.SHIDDEN
 			}

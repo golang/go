@@ -173,7 +173,7 @@ type Shlib struct {
 // Link holds the context for writing object code from a compiler
 // or for reading that input into the linker.
 type Link struct {
-	Symbols
+	Syms *Symbols
 
 	Arch      *sys.Arch
 	Debugvlog int
