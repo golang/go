@@ -2788,9 +2788,15 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			sym = fn.Sym
 			break
 		}
+		// Make a name n2 for the function.
+		// fn.Sym might be sync.(*Mutex).Unlock.
+		// Make a PFUNC node out of that, then evaluate it.
+		// We get back an SSA value representing &sync.(*Mutex).Unlock·f.
+		// We can then pass that to defer or go.
 		n2 := newname(fn.Sym)
 		n2.Class = PFUNC
 		n2.Lineno = fn.Lineno
+		n2.Type = Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
 		closure = s.expr(n2)
 		// Note: receiver is already assigned in n.List, so we don't
 		// want to set it here.

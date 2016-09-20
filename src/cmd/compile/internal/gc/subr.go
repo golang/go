@@ -1141,6 +1141,9 @@ func ptrto(t *Type) *Type {
 	if Tptr == 0 {
 		Fatalf("ptrto: no tptr")
 	}
+	if t == nil {
+		Fatalf("ptrto: nil ptr")
+	}
 	// Reduce allocations by pre-creating common cases.
 	if !initPtrtoDone {
 		initPtrto()
