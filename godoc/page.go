@@ -6,6 +6,8 @@ package godoc
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
 )
 
@@ -36,6 +38,14 @@ func (p *Presentation) ServePage(w http.ResponseWriter, page Page) {
 
 func (p *Presentation) ServeError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
 	w.WriteHeader(http.StatusNotFound)
+	if perr, ok := err.(*os.PathError); ok {
+		rel, err := filepath.Rel(runtime.GOROOT(), perr.Path)
+		if err != nil {
+			perr.Path = "REDACTED"
+		} else {
+			perr.Path = filepath.Join("$GOROOT", rel)
+		}
+	}
 	p.ServePage(w, Page{
 		Title:    "File " + relpath,
 		Subtitle: relpath,
