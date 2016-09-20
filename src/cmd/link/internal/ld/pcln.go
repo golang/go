@@ -126,7 +126,7 @@ func addpctab(ctxt *Link, ftab *Symbol, off int32, d *Pcdata) int32 {
 	var start int32
 	if len(d.P) > 0 {
 		start = int32(len(ftab.P))
-		Addbytes(ctxt, ftab, d.P)
+		Addbytes(ftab, d.P)
 	}
 	return int32(setuint32(ctxt, ftab, int64(off), uint32(start)))
 }
@@ -134,7 +134,7 @@ func addpctab(ctxt *Link, ftab *Symbol, off int32, d *Pcdata) int32 {
 func ftabaddstring(ctxt *Link, ftab *Symbol, s string) int32 {
 	n := int32(len(s)) + 1
 	start := int32(len(ftab.P))
-	Symgrow(ctxt, ftab, int64(start)+int64(n)+1)
+	Symgrow(ftab, int64(start)+int64(n)+1)
 	copy(ftab.P[start:], s)
 	return start
 }
@@ -234,7 +234,7 @@ func (ctxt *Link) pclntab() {
 	}
 
 	pclntabNfunc = nfunc
-	Symgrow(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize)+4)
+	Symgrow(ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize)+4)
 	setuint32(ctxt, ftab, 0, 0xfffffffb)
 	setuint8(ctxt, ftab, 6, uint8(SysArch.MinLC))
 	setuint8(ctxt, ftab, 7, uint8(SysArch.PtrSize))
@@ -270,7 +270,7 @@ func (ctxt *Link) pclntab() {
 		if len(pcln.Funcdata) > 0 && (end&int32(SysArch.PtrSize-1) != 0) {
 			end += 4
 		}
-		Symgrow(ctxt, ftab, int64(end))
+		Symgrow(ftab, int64(end))
 
 		// entry uintptr
 		off = int32(setaddr(ctxt, ftab, int64(off), s))
@@ -357,7 +357,7 @@ func (ctxt *Link) pclntab() {
 	pclntabFiletabOffset = start
 	setuint32(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint32(start))
 
-	Symgrow(ctxt, ftab, int64(start)+(int64(len(ctxt.Filesyms))+1)*4)
+	Symgrow(ftab, int64(start)+(int64(len(ctxt.Filesyms))+1)*4)
 	setuint32(ctxt, ftab, int64(start), uint32(len(ctxt.Filesyms)+1))
 	for i := len(ctxt.Filesyms) - 1; i >= 0; i-- {
 		s := ctxt.Filesyms[i]
@@ -451,7 +451,7 @@ func (ctxt *Link) findfunctab() {
 	// allocate table
 	nbuckets := int32((max - min + BUCKETSIZE - 1) / BUCKETSIZE)
 
-	Symgrow(ctxt, t, 4*int64(nbuckets)+int64(n))
+	Symgrow(t, 4*int64(nbuckets)+int64(n))
 
 	// fill in table
 	for i := int32(0); i < nbuckets; i++ {

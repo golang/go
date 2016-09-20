@@ -521,7 +521,7 @@ func initdynimport(ctxt *Link) *Dll {
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
 				m.s.Type = obj.SDATA
-				Symgrow(ctxt, m.s, int64(SysArch.PtrSize))
+				Symgrow(m.s, int64(SysArch.PtrSize))
 				dynName := m.s.Extname
 				// only windows/386 requires stdcall decoration
 				if SysArch.Family == sys.I386 && m.argsize >= 0 {

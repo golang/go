@@ -594,7 +594,7 @@ func (ctxt *Link) symtab() {
 	// compiler-provided size, so read it from the type data.
 	moduledatatype := ctxt.Syms.ROLookup("type.runtime.moduledata", 0)
 	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype)
-	Symgrow(ctxt, moduledata, moduledata.Size)
+	Symgrow(moduledata, moduledata.Size)
 
 	lastmoduledatap := ctxt.Syms.Lookup("runtime.lastmoduledatap", 0)
 	if lastmoduledatap.Type != obj.SDYNIMPORT {

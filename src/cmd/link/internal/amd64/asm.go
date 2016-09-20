@@ -45,7 +45,7 @@ func Addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) int64 {
 	s.Attr |= ld.AttrReachable
 	i := s.Size
 	s.Size += 4
-	ld.Symgrow(ctxt, s, s.Size)
+	ld.Symgrow(s, s.Size)
 	r := ld.Addrel(s)
 	r.Sym = t
 	r.Off = int32(i)

@@ -1517,9 +1517,9 @@ func elfdynhash(ctxt *Link) {
 		for x = l.aux; x != nil; x = x.next {
 			j++
 		}
-		Adduint16(ctxt, s, uint16(j))                               // aux count
-		Adduint32(ctxt, s, uint32(Addstring(ctxt, dynstr, l.file))) // file string offset
-		Adduint32(ctxt, s, 16)                                      // offset from header to first aux
+		Adduint16(ctxt, s, uint16(j))                         // aux count
+		Adduint32(ctxt, s, uint32(Addstring(dynstr, l.file))) // file string offset
+		Adduint32(ctxt, s, 16)                                // offset from header to first aux
 		if l.next != nil {
 			Adduint32(ctxt, s, 16+uint32(j)*16) // offset from this header to next
 		} else {
@@ -1531,10 +1531,10 @@ func elfdynhash(ctxt *Link) {
 			i++
 
 			// aux struct
-			Adduint32(ctxt, s, elfhash(x.vers))                         // hash
-			Adduint16(ctxt, s, 0)                                       // flags
-			Adduint16(ctxt, s, uint16(x.num))                           // other - index we refer to this by
-			Adduint32(ctxt, s, uint32(Addstring(ctxt, dynstr, x.vers))) // version string offset
+			Adduint32(ctxt, s, elfhash(x.vers))                   // hash
+			Adduint16(ctxt, s, 0)                                 // flags
+			Adduint16(ctxt, s, uint16(x.num))                     // other - index we refer to this by
+			Adduint32(ctxt, s, uint32(Addstring(dynstr, x.vers))) // version string offset
 			if x.next != nil {
 				Adduint32(ctxt, s, 16) // offset from this aux to next
 			} else {
@@ -1840,12 +1840,12 @@ func (ctxt *Link) doelf() {
 	shstrtab.Type = obj.SELFROSECT
 	shstrtab.Attr |= AttrReachable
 
-	Addstring(ctxt, shstrtab, "")
-	Addstring(ctxt, shstrtab, ".text")
-	Addstring(ctxt, shstrtab, ".noptrdata")
-	Addstring(ctxt, shstrtab, ".data")
-	Addstring(ctxt, shstrtab, ".bss")
-	Addstring(ctxt, shstrtab, ".noptrbss")
+	Addstring(shstrtab, "")
+	Addstring(shstrtab, ".text")
+	Addstring(shstrtab, ".noptrdata")
+	Addstring(shstrtab, ".data")
+	Addstring(shstrtab, ".bss")
+	Addstring(shstrtab, ".noptrbss")
 
 	// generate .tbss section (except for OpenBSD where it's not supported)
 	// for dynamic internal linker or external linking, so that various
@@ -1853,56 +1853,56 @@ func (ctxt *Link) doelf() {
 	// see https://golang.org/issue/5200.
 	if Headtype != obj.Hopenbsd {
 		if !*FlagD || Linkmode == LinkExternal {
-			Addstring(ctxt, shstrtab, ".tbss")
+			Addstring(shstrtab, ".tbss")
 		}
 	}
 	if Headtype == obj.Hnetbsd {
-		Addstring(ctxt, shstrtab, ".note.netbsd.ident")
+		Addstring(shstrtab, ".note.netbsd.ident")
 	}
 	if Headtype == obj.Hopenbsd {
-		Addstring(ctxt, shstrtab, ".note.openbsd.ident")
+		Addstring(shstrtab, ".note.openbsd.ident")
 	}
 	if len(buildinfo) > 0 {
-		Addstring(ctxt, shstrtab, ".note.gnu.build-id")
+		Addstring(shstrtab, ".note.gnu.build-id")
 	}
 	if *flagBuildid != "" {
-		Addstring(ctxt, shstrtab, ".note.go.buildid")
+		Addstring(shstrtab, ".note.go.buildid")
 	}
-	Addstring(ctxt, shstrtab, ".elfdata")
-	Addstring(ctxt, shstrtab, ".rodata")
+	Addstring(shstrtab, ".elfdata")
+	Addstring(shstrtab, ".rodata")
 	// See the comment about data.rel.ro.FOO section names in data.go.
 	relro_prefix := ""
 	if UseRelro() {
-		Addstring(ctxt, shstrtab, ".data.rel.ro")
+		Addstring(shstrtab, ".data.rel.ro")
 		relro_prefix = ".data.rel.ro"
 	}
-	Addstring(ctxt, shstrtab, relro_prefix+".typelink")
-	Addstring(ctxt, shstrtab, relro_prefix+".itablink")
-	Addstring(ctxt, shstrtab, relro_prefix+".gosymtab")
-	Addstring(ctxt, shstrtab, relro_prefix+".gopclntab")
+	Addstring(shstrtab, relro_prefix+".typelink")
+	Addstring(shstrtab, relro_prefix+".itablink")
+	Addstring(shstrtab, relro_prefix+".gosymtab")
+	Addstring(shstrtab, relro_prefix+".gopclntab")
 
 	if Linkmode == LinkExternal {
 		*FlagD = true
 
-		Addstring(ctxt, shstrtab, elfRelType+".text")
-		Addstring(ctxt, shstrtab, elfRelType+".rodata")
-		Addstring(ctxt, shstrtab, elfRelType+relro_prefix+".typelink")
-		Addstring(ctxt, shstrtab, elfRelType+relro_prefix+".itablink")
-		Addstring(ctxt, shstrtab, elfRelType+relro_prefix+".gosymtab")
-		Addstring(ctxt, shstrtab, elfRelType+relro_prefix+".gopclntab")
-		Addstring(ctxt, shstrtab, elfRelType+".noptrdata")
-		Addstring(ctxt, shstrtab, elfRelType+".data")
+		Addstring(shstrtab, elfRelType+".text")
+		Addstring(shstrtab, elfRelType+".rodata")
+		Addstring(shstrtab, elfRelType+relro_prefix+".typelink")
+		Addstring(shstrtab, elfRelType+relro_prefix+".itablink")
+		Addstring(shstrtab, elfRelType+relro_prefix+".gosymtab")
+		Addstring(shstrtab, elfRelType+relro_prefix+".gopclntab")
+		Addstring(shstrtab, elfRelType+".noptrdata")
+		Addstring(shstrtab, elfRelType+".data")
 		if UseRelro() {
-			Addstring(ctxt, shstrtab, elfRelType+".data.rel.ro")
+			Addstring(shstrtab, elfRelType+".data.rel.ro")
 		}
 
 		// add a .note.GNU-stack section to mark the stack as non-executable
-		Addstring(ctxt, shstrtab, ".note.GNU-stack")
+		Addstring(shstrtab, ".note.GNU-stack")
 
 		if Buildmode == BuildmodeShared {
-			Addstring(ctxt, shstrtab, ".note.go.abihash")
-			Addstring(ctxt, shstrtab, ".note.go.pkg-list")
-			Addstring(ctxt, shstrtab, ".note.go.deps")
+			Addstring(shstrtab, ".note.go.abihash")
+			Addstring(shstrtab, ".note.go.pkg-list")
+			Addstring(shstrtab, ".note.go.deps")
 		}
 	}
 
@@ -1915,35 +1915,35 @@ func (ctxt *Link) doelf() {
 	}
 
 	if hasinitarr {
-		Addstring(ctxt, shstrtab, ".init_array")
-		Addstring(ctxt, shstrtab, elfRelType+".init_array")
+		Addstring(shstrtab, ".init_array")
+		Addstring(shstrtab, elfRelType+".init_array")
 	}
 
 	if !*FlagS {
-		Addstring(ctxt, shstrtab, ".symtab")
-		Addstring(ctxt, shstrtab, ".strtab")
+		Addstring(shstrtab, ".symtab")
+		Addstring(shstrtab, ".strtab")
 		dwarfaddshstrings(ctxt, shstrtab)
 	}
 
-	Addstring(ctxt, shstrtab, ".shstrtab")
+	Addstring(shstrtab, ".shstrtab")
 
 	if !*FlagD { /* -d suppresses dynamic loader format */
-		Addstring(ctxt, shstrtab, ".interp")
-		Addstring(ctxt, shstrtab, ".hash")
-		Addstring(ctxt, shstrtab, ".got")
+		Addstring(shstrtab, ".interp")
+		Addstring(shstrtab, ".hash")
+		Addstring(shstrtab, ".got")
 		if SysArch.Family == sys.PPC64 {
-			Addstring(ctxt, shstrtab, ".glink")
+			Addstring(shstrtab, ".glink")
 		}
-		Addstring(ctxt, shstrtab, ".got.plt")
-		Addstring(ctxt, shstrtab, ".dynamic")
-		Addstring(ctxt, shstrtab, ".dynsym")
-		Addstring(ctxt, shstrtab, ".dynstr")
-		Addstring(ctxt, shstrtab, elfRelType)
-		Addstring(ctxt, shstrtab, elfRelType+".plt")
+		Addstring(shstrtab, ".got.plt")
+		Addstring(shstrtab, ".dynamic")
+		Addstring(shstrtab, ".dynsym")
+		Addstring(shstrtab, ".dynstr")
+		Addstring(shstrtab, elfRelType)
+		Addstring(shstrtab, elfRelType+".plt")
 
-		Addstring(ctxt, shstrtab, ".plt")
-		Addstring(ctxt, shstrtab, ".gnu.version")
-		Addstring(ctxt, shstrtab, ".gnu.version_r")
+		Addstring(shstrtab, ".plt")
+		Addstring(shstrtab, ".gnu.version")
+		Addstring(shstrtab, ".gnu.version_r")
 
 		/* dynamic symbol table - first entry all zeros */
 		s := ctxt.Syms.Lookup(".dynsym", 0)
@@ -1962,7 +1962,7 @@ func (ctxt *Link) doelf() {
 		s.Type = obj.SELFROSECT
 		s.Attr |= AttrReachable
 		if s.Size == 0 {
-			Addstring(ctxt, s, "")
+			Addstring(s, "")
 		}
 		dynstr := s
 
@@ -2049,7 +2049,7 @@ func (ctxt *Link) doelf() {
 		}
 
 		if rpath.val != "" {
-			Elfwritedynent(ctxt, s, DT_RUNPATH, uint64(Addstring(ctxt, dynstr, rpath.val)))
+			Elfwritedynent(ctxt, s, DT_RUNPATH, uint64(Addstring(dynstr, rpath.val)))
 		}
 
 		if SysArch.Family == sys.PPC64 {
@@ -2642,7 +2642,7 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
 		d := ctxt.Syms.Lookup(".dynsym", 0)
 
 		name := s.Extname
-		Adduint32(ctxt, d, uint32(Addstring(ctxt, ctxt.Syms.Lookup(".dynstr", 0), name)))
+		Adduint32(ctxt, d, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
 
 		/* type */
 		t := STB_GLOBAL << 4
@@ -2675,7 +2675,7 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
 		Adduint64(ctxt, d, uint64(s.Size))
 
 		if SysArch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
-			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib)))
+			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib)))
 		}
 	} else {
 		s.Dynid = int32(Nelfsym)
@@ -2686,7 +2686,7 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
 		/* name */
 		name := s.Extname
 
-		Adduint32(ctxt, d, uint32(Addstring(ctxt, ctxt.Syms.Lookup(".dynstr", 0), name)))
+		Adduint32(ctxt, d, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
 
 		/* value */
 		if s.Type == obj.SDYNIMPORT {
