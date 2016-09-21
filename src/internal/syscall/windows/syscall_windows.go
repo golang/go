@@ -6,6 +6,10 @@ package windows
 
 import "syscall"
 
+const (
+	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
+)
+
 const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
 
 const (
@@ -136,6 +140,8 @@ func Rename(oldpath, newpath string) error {
 	}
 	return MoveFileEx(from, to, MOVEFILE_REPLACE_EXISTING)
 }
+
+const MB_ERR_INVALID_CHARS = 8
 
 //sys	GetACP() (acp uint32) = kernel32.GetACP
 //sys	GetConsoleCP() (ccp uint32) = kernel32.GetConsoleCP

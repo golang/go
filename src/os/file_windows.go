@@ -5,6 +5,7 @@
 package os
 
 import (
+	"errors"
 	"internal/syscall/windows"
 	"io"
 	"runtime"
@@ -28,7 +29,7 @@ type file struct {
 	// only for console io
 	isConsole bool
 	lastbits  []byte // first few bytes of the last incomplete rune in last write
-	readbuf   []rune // input console buffer
+	readbuf   []byte // last few bytes of the last read that did not fit in the user buffer
 }
 
 // Fd returns the Windows handle referencing the open file.
@@ -44,11 +45,15 @@ func (file *File) Fd() uintptr {
 // Unlike NewFile, it does not check that h is syscall.InvalidHandle.
 func newFile(h syscall.Handle, name string) *File {
 	f := &File{&file{fd: h, name: name}}
-	var m uint32
-	if syscall.GetConsoleMode(f.fd, &m) == nil {
-		f.isConsole = true
-	}
 	runtime.SetFinalizer(f.file, (*file).close)
+	return f
+}
+
+// newConsoleFile creates new File that will be used as console.
+func newConsoleFile(h syscall.Handle, name string) *File {
+	f := newFile(h, name)
+	f.isConsole = true
+	f.readbuf = make([]byte, 0, 4)
 	return f
 }
 
@@ -57,6 +62,10 @@ func NewFile(fd uintptr, name string) *File {
 	h := syscall.Handle(fd)
 	if h == syscall.InvalidHandle {
 		return nil
+	}
+	var m uint32
+	if syscall.GetConsoleMode(h, &m) == nil {
+		return newConsoleFile(h, name)
 	}
 	return newFile(h, name)
 }
@@ -191,59 +200,101 @@ func (file *file) close() error {
 	return err
 }
 
-// readConsole reads utf16 characters from console File,
-// encodes them into utf8 and stores them in buffer b.
-// It returns the number of utf8 bytes read and an error, if any.
-func (f *File) readConsole(b []byte) (n int, err error) {
-	if len(b) == 0 {
-		return 0, nil
-	}
-	if len(f.readbuf) == 0 {
-		numBytes := len(b)
-		// Windows  can't read bytes over max of int16.
-		// Some versions of Windows can read even less.
-		// See golang.org/issue/13697.
-		if numBytes > 10000 {
-			numBytes = 10000
-		}
-		mbytes := make([]byte, numBytes)
+var (
+	// These variables are used for testing readConsole.
+	getCP    = windows.GetConsoleCP
+	readFile = syscall.ReadFile
+)
+
+func resetGetConsoleCPAndReadFileFuncs() {
+	getCP = windows.GetConsoleCP
+	readFile = syscall.ReadFile
+}
+
+// copyReadConsoleBuffer copies data stored in f.readbuf into buf.
+// It adjusts f.readbuf accordingly and returns number of bytes copied.
+func (f *File) copyReadConsoleBuffer(buf []byte) (n int, err error) {
+	n = copy(buf, f.readbuf)
+	newsize := copy(f.readbuf, f.readbuf[n:])
+	f.readbuf = f.readbuf[:newsize]
+	return n, nil
+}
+
+// readOneUTF16FromConsole reads single character from console,
+// converts it into utf16 and return it to the caller.
+func (f *File) readOneUTF16FromConsole() (uint16, error) {
+	var buf [1]byte
+	mbytes := make([]byte, 0, 4)
+	cp := getCP()
+	for {
 		var nmb uint32
-		err := syscall.ReadFile(f.fd, mbytes, &nmb, nil)
+		err := readFile(f.fd, buf[:], &nmb, nil)
 		if err != nil {
 			return 0, err
 		}
-		if nmb > 0 {
-			var pmb *byte
-			if len(b) > 0 {
-				pmb = &mbytes[0]
-			}
-			ccp := windows.GetConsoleCP()
-			// Convert from 8-bit console encoding to UTF16.
-			// MultiByteToWideChar defaults to Unicode NFC form, which is the expected one.
-			nwc, err := windows.MultiByteToWideChar(ccp, 0, pmb, int32(nmb), nil, 0)
-			if err != nil {
-				return 0, err
-			}
-			wchars := make([]uint16, nwc)
-			pwc := &wchars[0]
-			nwc, err = windows.MultiByteToWideChar(ccp, 0, pmb, int32(nmb), pwc, nwc)
-			if err != nil {
-				return 0, err
-			}
-			f.readbuf = utf16.Decode(wchars[:nwc])
+		if nmb == 0 {
+			continue
 		}
+		mbytes = append(mbytes, buf[0])
+
+		// Convert from 8-bit console encoding to UTF16.
+		// MultiByteToWideChar defaults to Unicode NFC form, which is the expected one.
+		nwc, err := windows.MultiByteToWideChar(cp, windows.MB_ERR_INVALID_CHARS, &mbytes[0], int32(len(mbytes)), nil, 0)
+		if err != nil {
+			if err == windows.ERROR_NO_UNICODE_TRANSLATION {
+				continue
+			}
+			return 0, err
+		}
+		if nwc != 1 {
+			return 0, errors.New("MultiByteToWideChar returns " + itoa(int(nwc)) + " characters, but only 1 expected")
+		}
+		var wchars [1]uint16
+		nwc, err = windows.MultiByteToWideChar(cp, windows.MB_ERR_INVALID_CHARS, &mbytes[0], int32(len(mbytes)), &wchars[0], nwc)
+		if err != nil {
+			return 0, err
+		}
+		return wchars[0], nil
 	}
-	for i, r := range f.readbuf {
-		if utf8.RuneLen(r) > len(b) {
-			f.readbuf = f.readbuf[i:]
-			return n, nil
+}
+
+// readConsole reads utf16 characters from console File,
+// encodes them into utf8 and stores them in buffer buf.
+// It returns the number of utf8 bytes read and an error, if any.
+func (f *File) readConsole(buf []byte) (n int, err error) {
+	if len(buf) == 0 {
+		return 0, nil
+	}
+	if len(f.readbuf) > 0 {
+		return f.copyReadConsoleBuffer(buf)
+	}
+	wchar, err := f.readOneUTF16FromConsole()
+	if err != nil {
+		return 0, err
+	}
+	r := rune(wchar)
+	if utf16.IsSurrogate(r) {
+		wchar, err := f.readOneUTF16FromConsole()
+		if err != nil {
+			return 0, err
 		}
-		nr := utf8.EncodeRune(b, r)
-		b = b[nr:]
+		r = utf16.DecodeRune(r, rune(wchar))
+	}
+	if nr := utf8.RuneLen(r); nr > len(buf) {
+		start := len(f.readbuf)
+		for ; nr > 0; nr-- {
+			f.readbuf = append(f.readbuf, 0)
+		}
+		utf8.EncodeRune(f.readbuf[start:cap(f.readbuf)], r)
+	} else {
+		utf8.EncodeRune(buf, r)
+		buf = buf[nr:]
 		n += nr
 	}
-	f.readbuf = nil
-	return n, nil
+	if n > 0 {
+		return n, nil
+	}
+	return f.copyReadConsoleBuffer(buf)
 }
 
 // read reads up to len(b) bytes from the File.
