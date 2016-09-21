@@ -673,8 +673,6 @@ type Link struct {
 	Flag_optimize bool
 	Bso           *bufio.Writer
 	Pathname      string
-	Goroot        string
-	Goroot_final  string
 	Hash          map[SymVer]*LSym
 	LineHist      LineHist
 	Imports       []string

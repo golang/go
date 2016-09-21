@@ -42,8 +42,6 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt.Hash = make(map[SymVer]*LSym)
 	ctxt.Arch = arch
 	ctxt.Version = HistVersion
-	ctxt.Goroot = GOROOT
-	ctxt.Goroot_final = os.Getenv("GOROOT_FINAL")
 
 	var buf string
 	buf, _ = os.Getwd()
@@ -54,7 +52,6 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt.Pathname = buf
 
 	ctxt.LineHist.GOROOT = GOROOT
-	ctxt.LineHist.GOROOT_FINAL = ctxt.Goroot_final
 	ctxt.LineHist.Dir = ctxt.Pathname
 
 	ctxt.Headtype.Set(GOOS)
