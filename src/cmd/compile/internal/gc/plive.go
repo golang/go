@@ -549,6 +549,22 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 	bvresetall(varkill)
 	bvresetall(avarinit)
 
+	// A return instruction with a p.to is a tail return, which brings
+	// the stack pointer back up (if it ever went down) and then jumps
+	// to a new function entirely. That form of instruction must read
+	// all the parameters for correctness, and similarly it must not
+	// read the out arguments - they won't be set until the new
+	// function runs.
+	if (prog.As == obj.AJMP || prog.As == obj.ARET) && prog.To.Type == obj.TYPE_MEM && prog.To.Name == obj.NAME_EXTERN {
+		// This is a tail call. Ensure the arguments are still alive.
+		// See issue 16016.
+		for i, node := range vars {
+			if node.Class == PPARAM {
+				bvset(uevar, int32(i))
+			}
+		}
+	}
+
 	if prog.As == obj.ARET {
 		// Return instructions read all of the out arguments.
 		for i, node := range vars {
@@ -568,21 +584,6 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		}
 
 		return
-	}
-	// A return instruction with a p.to is a tail return, which brings
-	// the stack pointer back up (if it ever went down) and then jumps
-	// to a new function entirely. That form of instruction must read
-	// all the parameters for correctness, and similarly it must not
-	// read the out arguments - they won't be set until the new
-	// function runs.
-	if prog.As == obj.AJMP && prog.To.Type == obj.TYPE_MEM && prog.To.Name == obj.NAME_EXTERN {
-		// This is a tail call. Ensure the arguments are still alive.
-		// See issue 16016.
-		for i, node := range vars {
-			if node.Class == PPARAM {
-				bvset(uevar, int32(i))
-			}
-		}
 	}
 
 	if prog.As == obj.ATEXT {
