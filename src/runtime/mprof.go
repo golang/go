@@ -438,6 +438,12 @@ func record(r *MemProfileRecord, b *bucket) {
 	r.FreeBytes = int64(mp.free_bytes)
 	r.AllocObjects = int64(mp.allocs)
 	r.FreeObjects = int64(mp.frees)
+	if raceenabled {
+		racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(unsafe.Pointer(&r)), funcPC(MemProfile))
+	}
+	if msanenabled {
+		msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
+	}
 	copy(r.Stack0[:], b.stk())
 	for i := int(b.nstk); i < len(r.Stack0); i++ {
 		r.Stack0[i] = 0
@@ -480,6 +486,12 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 			r := &p[0]
 			r.Count = bp.count
 			r.Cycles = bp.cycles
+			if raceenabled {
+				racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(unsafe.Pointer(&p)), funcPC(BlockProfile))
+			}
+			if msanenabled {
+				msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
+			}
 			i := copy(r.Stack0[:], b.stk())
 			for ; i < len(r.Stack0); i++ {
 				r.Stack0[i] = 0
