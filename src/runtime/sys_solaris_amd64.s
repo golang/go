@@ -289,6 +289,14 @@ exit:
 	ADDQ    $184, SP
 	RET
 
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVL	sig+8(FP), DI
+	MOVQ	info+16(FP), SI
+	MOVQ	ctx+24(FP), DX
+	MOVQ	fn+0(FP), AX
+	CALL	AX
+	RET
+
 // Called from runtime·usleep (Go). Can be called on Go stack, on OS stack,
 // can also be called in cgo callback path without a g->m.
 TEXT runtime·usleep1(SB),NOSPLIT,$0
