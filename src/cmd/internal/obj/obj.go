@@ -31,7 +31,6 @@ type LineHist struct {
 	TrimPathPrefix    string      // remove leading TrimPath from recorded file names
 	PrintFilenameOnly bool        // ignore path when pretty-printing a line; internal use only
 	GOROOT            string      // current GOROOT
-	GOROOT_FINAL      string      // target GOROOT
 }
 
 // A LineStack is an entry in the recorded line history.
