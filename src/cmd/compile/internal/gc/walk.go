@@ -1482,7 +1482,7 @@ opswitch:
 		Fatalf("append outside assignment")
 
 	case OCOPY:
-		n = copyany(n, init, instrumenting)
+		n = copyany(n, init, instrumenting && !compiling_runtime)
 
 		// cannot use chanfn - closechan takes any, not chan any
 	case OCLOSE:
@@ -2957,7 +2957,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 		ln.Set(l)
 		nt := mkcall1(fn, Types[TINT], &ln, typename(l1.Type.Elem()), nptr1, nptr2)
 		l = append(ln.Slice(), nt)
-	} else if instrumenting {
+	} else if instrumenting && !compiling_runtime {
 		// rely on runtime to instrument copy.
 		// copy(s[len(l1):], l2)
 		nptr1 := nod(OSLICE, s, nil)
@@ -3050,7 +3050,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 
 	// General case, with no function calls left as arguments.
 	// Leave for gen, except that instrumentation requires old form.
-	if !instrumenting {
+	if !instrumenting || compiling_runtime {
 		return n
 	}
 
