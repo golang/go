@@ -107,7 +107,7 @@ type entry struct {
 	seqNum uint64
 }
 
-// Id returns the domain;path;name triple of e as an id.
+// id returns the domain;path;name triple of e as an id.
 func (e *entry) id() string {
 	return fmt.Sprintf("%s;%s;%s", e.Domain, e.Path, e.Name)
 }
