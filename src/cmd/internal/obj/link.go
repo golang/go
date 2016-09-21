@@ -703,8 +703,6 @@ type Link struct {
 	Mode          int
 	Cursym        *LSym
 	Version       int
-	Textp         *LSym
-	Etextp        *LSym
 	Errors        int
 
 	Framepointer_enabled bool
