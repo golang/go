@@ -8,7 +8,7 @@ go: mobile pkg dir change, recommend using go list in scripts (CL 24930, CL 2792
 
 Ports:
 
-
+dragonfly: go1.8 requires DragonFly BSD 4.4.4 or above (CL 29491)
 
 API additions and behavior changes:
 
