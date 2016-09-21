@@ -98,7 +98,7 @@ func (tr *Transformer) Transform(info *types.Info, pkg *types.Package, file *ast
 	if tr.nsubsts > 0 {
 		pkgs := make(map[string]*types.Package)
 		for obj := range tr.importedObjs {
-			pkgs[obj.Pkg().Path()] = obj.Pkg()
+			pkgs[vendorlessImportPath(obj.Pkg().Path())] = obj.Pkg()
 		}
 
 		for _, imp := range file.Imports {
@@ -343,4 +343,20 @@ func updateTypeInfo(info *types.Info, new, old ast.Expr) {
 	if tv, ok := info.Types[old]; ok {
 		info.Types[new] = tv
 	}
+}
+
+// vendorlessImportPath returns the devendorized version of the provided import path.
+// e.g. "foo/bar/vendor/a/b" => "a/b"
+//
+// This function is taken from fix.go in the golang.org/x/tools/imports
+// package.
+func vendorlessImportPath(ipath string) string {
+	// Devendorize for use in import statement.
+	if i := strings.LastIndex(ipath, "/vendor/"); i >= 0 {
+		return ipath[i+len("/vendor/"):]
+	}
+	if strings.HasPrefix(ipath, "vendor/") {
+		return ipath[len("vendor/"):]
+	}
+	return ipath
 }
