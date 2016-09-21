@@ -201,16 +201,21 @@ func minit() {
 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
 
 	// Initialize signal handling.
-
-	// On DragonFly a thread created by pthread_create inherits
-	// the signal stack of the creating thread. We always create
-	// a new signal stack here, to avoid having two Go threads
-	// using the same signal stack. This breaks the case of a
-	// thread created in C that calls sigaltstack and then calls a
-	// Go function, because we will lose track of the C code's
-	// sigaltstack, but it's the best we can do.
-	signalstack(&_g_.m.gsignal.stack)
-	_g_.m.newSigstack = true
+	var st sigaltstackt
+	sigaltstack(nil, &st)
+	if st.ss_flags&_SS_DISABLE != 0 {
+		signalstack(&_g_.m.gsignal.stack)
+		_g_.m.newSigstack = true
+	} else {
+		// Use existing signal stack.
+		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+		_g_.m.gsignal.stack.lo = stsp
+		_g_.m.gsignal.stack.hi = stsp + st.ss_size
+		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
+		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
+		_g_.m.gsignal.stackAlloc = st.ss_size
+		_g_.m.newSigstack = false
+	}
 
 	// restore signal mask from m.sigmask and unblock essential signals
 	nmask := _g_.m.sigmask
