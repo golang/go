@@ -57,7 +57,7 @@ func nametomib(name string) (mib []_C_int, err error) {
 }
 
 func direntIno(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Fileno), unsafe.Sizeof(Dirent{}.Fileno))
 }
 
 func direntReclen(buf []byte) (uint64, bool) {
@@ -65,7 +65,7 @@ func direntReclen(buf []byte) (uint64, bool) {
 	if !ok {
 		return 0, false
 	}
-	return (16 + namlen + 1 + 7) & ^7, true
+	return (16 + namlen + 1 + 7) & ^uint64(7), true
 }
 
 func direntNamlen(buf []byte) (uint64, bool) {
