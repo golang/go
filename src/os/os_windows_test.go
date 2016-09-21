@@ -5,6 +5,8 @@
 package os_test
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"internal/syscall/windows"
 	"internal/testenv"
@@ -543,5 +545,88 @@ func TestStatSymlinkLoop(t *testing.T) {
 	_, err = os.Stat("x")
 	if perr, ok := err.(*os.PathError); !ok || perr.Err != syscall.ELOOP {
 		t.Errorf("expected *PathError with ELOOP, got %T: %v\n", err, err)
+	}
+}
+
+func TestReadStdin(t *testing.T) {
+	defer os.ResetGetConsoleCPAndReadFileFuncs()
+
+	testConsole := os.NewConsoleFile(syscall.Stdin, "test")
+
+	var (
+		hiraganaA_CP932 = []byte{0x82, 0xa0}
+		hiraganaA_UTF8  = "\u3042"
+
+		tests = []struct {
+			cp     uint32
+			input  []byte
+			output string // always utf8
+		}{
+			{
+				cp:     437,
+				input:  []byte("abc"),
+				output: "abc",
+			},
+			{
+				cp:     850,
+				input:  []byte{0x84, 0x94, 0x81},
+				output: "äöü",
+			},
+			{
+				cp:     932,
+				input:  hiraganaA_CP932,
+				output: hiraganaA_UTF8,
+			},
+			{
+				cp:     932,
+				input:  bytes.Repeat(hiraganaA_CP932, 2),
+				output: strings.Repeat(hiraganaA_UTF8, 2),
+			},
+			{
+				cp:     932,
+				input:  append(bytes.Repeat(hiraganaA_CP932, 3), '.'),
+				output: strings.Repeat(hiraganaA_UTF8, 3) + ".",
+			},
+			{
+				cp:     932,
+				input:  append(append([]byte("hello"), hiraganaA_CP932...), []byte("world")...),
+				output: "hello" + hiraganaA_UTF8 + "world",
+			},
+			{
+				cp:     932,
+				input:  append(append([]byte("hello"), bytes.Repeat(hiraganaA_CP932, 5)...), []byte("world")...),
+				output: "hello" + strings.Repeat(hiraganaA_UTF8, 5) + "world",
+			},
+		}
+	)
+	for _, bufsize := range []int{1, 2, 3, 4, 5, 8, 10, 16, 20, 50, 100} {
+	nextTest:
+		for ti, test := range tests {
+			input := bytes.NewBuffer(test.input)
+			*os.ReadFileP = func(h syscall.Handle, buf []byte, done *uint32, o *syscall.Overlapped) error {
+				n, err := input.Read(buf)
+				*done = uint32(n)
+				return err
+			}
+			*os.GetCPP = func() uint32 {
+				return test.cp
+			}
+			var bigbuf []byte
+			for len(bigbuf) < len([]byte(test.output)) {
+				buf := make([]byte, bufsize)
+				n, err := testConsole.Read(buf)
+				if err != nil {
+					t.Errorf("test=%d bufsize=%d: read failed: %v", ti, bufsize, err)
+					continue nextTest
+				}
+				bigbuf = append(bigbuf, buf[:n]...)
+			}
+			have := hex.Dump(bigbuf)
+			expected := hex.Dump([]byte(test.output))
+			if have != expected {
+				t.Errorf("test=%d bufsize=%d: %q expected, but %q received", ti, bufsize, expected, have)
+				continue nextTest
+			}
+		}
 	}
 }
