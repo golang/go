@@ -1147,7 +1147,7 @@ func (l *Link) hostlink() {
 	}
 
 	if l.Debugvlog != 0 {
-		l.Logf("host link:")
+		l.Logf("%5.2f host link:", obj.Cputime())
 		for _, v := range argv {
 			l.Logf(" %q", v)
 		}
