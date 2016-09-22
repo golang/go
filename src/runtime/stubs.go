@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Should be a built-in for unsafe.Pointer?
 //go:nosplit
@@ -196,8 +199,10 @@ func setcallerpc(argp unsafe.Pointer, pc uintptr)
 //go:noescape
 func getcallerpc(argp unsafe.Pointer) uintptr
 
-//go:noescape
-func getcallersp(argp unsafe.Pointer) uintptr
+//go:nosplit
+func getcallersp(argp unsafe.Pointer) uintptr {
+	return uintptr(argp) - sys.MinFrameSize
+}
 
 //go:noescape
 func asmcgocall(fn, arg unsafe.Pointer) int32

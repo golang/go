@@ -521,11 +521,6 @@ setbar:
 	CALL	runtime·setNextBarrierPC(SB)
 	RET
 
-TEXT runtime·getcallersp(SB),NOSPLIT,$0-12
-	MOVL	argp+0(FP), AX
-	MOVL	AX, ret+8(FP)
-	RET
-
 // int64 runtime·cputicks(void)
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	RDTSC

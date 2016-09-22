@@ -731,12 +731,6 @@ setbar:
 	BL	runtime·setNextBarrierPC(SB)
 	RET
 
-TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
-	MOVD	argp+0(FP), R0
-	SUB	$8, R0
-	MOVD	R0, ret+8(FP)
-	RET
-
 TEXT runtime·abort(SB),NOSPLIT,$-8-0
 	B	(ZR)
 	UNDEF
