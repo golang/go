@@ -676,6 +676,44 @@ func TestParseRequestURI(t *testing.T) {
 	}
 }
 
+var stringURLTests = []struct {
+	url  URL
+	want string
+}{
+	// No leading slash on path should prepend slash on String() call
+	{
+		url: URL{
+			Scheme: "http",
+			Host:   "www.google.com",
+			Path:   "search",
+		},
+		want: "http://www.google.com/search",
+	},
+	// Relative path with first element containing ":" should be prepended with "./", golang.org/issue/17184
+	{
+		url: URL{
+			Path: "this:that",
+		},
+		want: "./this:that",
+	},
+	// Relative path with second element containing ":" should not be prepended with "./"
+	{
+		url: URL{
+			Path: "here/this:that",
+		},
+		want: "here/this:that",
+	},
+	// Non-relative path with first element containing ":" should not be prepended with "./"
+	{
+		url: URL{
+			Scheme: "http",
+			Host:   "www.google.com",
+			Path:   "this:that",
+		},
+		want: "http://www.google.com/this:that",
+	},
+}
+
 func TestURLString(t *testing.T) {
 	for _, tt := range urltests {
 		u, err := Parse(tt.in)
@@ -693,15 +731,10 @@ func TestURLString(t *testing.T) {
 		}
 	}
 
-	// No leading slash on path should prepend
-	// slash on String() call
-	noslash := URL{
-		Scheme: "http",
-		Host:   "www.google.com",
-		Path:   "search",
-	}
-	if got, want := noslash.String(), "http://www.google.com/search"; got != want {
-		t.Errorf("No slash\ngot  %q\nwant %q", got, want)
+	for _, tt := range stringURLTests {
+		if got := tt.url.String(); got != tt.want {
+			t.Errorf("%+v.String() = %q; want %q", tt.url, got, tt.want)
+		}
 	}
 }
 
