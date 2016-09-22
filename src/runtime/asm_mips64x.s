@@ -643,12 +643,6 @@ setbar:
 	JAL	runtime·setNextBarrierPC(SB)
 	RET
 
-TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
-	MOVV	argp+0(FP), R1
-	ADDV	$-8, R1
-	MOVV	R1, ret+8(FP)
-	RET
-
 TEXT runtime·abort(SB),NOSPLIT,$-8-0
 	MOVW	(R0), R0
 	UNDEF

@@ -825,11 +825,6 @@ setbar:
 	CALL	runtime·setNextBarrierPC(SB)
 	RET
 
-TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
-	MOVQ	argp+0(FP), AX
-	MOVQ	AX, ret+8(FP)
-	RET
-
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1

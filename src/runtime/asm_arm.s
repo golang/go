@@ -695,12 +695,6 @@ setbar:
 	BL	runtime·setNextBarrierPC(SB)
 	RET
 
-TEXT runtime·getcallersp(SB),NOSPLIT,$-4-8
-	MOVW	argp+0(FP), R0
-	MOVW	$-4(R0), R0
-	MOVW	R0, ret+4(FP)
-	RET
-
 TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
 

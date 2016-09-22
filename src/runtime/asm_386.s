@@ -808,11 +808,6 @@ setbar:
 	CALL	runtime·setNextBarrierPC(SB)
 	RET
 
-TEXT runtime·getcallersp(SB), NOSPLIT, $0-8
-	MOVL	argp+0(FP), AX
-	MOVL	AX, ret+4(FP)
-	RET
-
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	TESTL	$0x4000000, runtime·cpuid_edx(SB) // no sse2, no mfence
