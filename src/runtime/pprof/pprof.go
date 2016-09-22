@@ -99,6 +99,7 @@ import (
 //	heap         - a sampling of all heap allocations
 //	threadcreate - stack traces that led to the creation of new OS threads
 //	block        - stack traces that led to blocking on synchronization primitives
+//	mutex        - stack traces of holders of contended mutexes
 //
 // These predefined profiles maintain themselves and panic on an explicit
 // Add or Remove method call.
@@ -152,6 +153,12 @@ var blockProfile = &Profile{
 	write: writeBlock,
 }
 
+var mutexProfile = &Profile{
+	name:  "mutex",
+	count: countMutex,
+	write: writeMutex,
+}
+
 func lockProfiles() {
 	profiles.mu.Lock()
 	if profiles.m == nil {
@@ -161,6 +168,7 @@ func lockProfiles() {
 			"threadcreate": threadcreateProfile,
 			"heap":         heapProfile,
 			"block":        blockProfile,
+			"mutex":        mutexProfile,
 		}
 	}
 }
@@ -729,6 +737,12 @@ func countBlock() int {
 	return n
 }
 
+// countMutex returns the number of records in the mutex profile.
+func countMutex() int {
+	n, _ := runtime.MutexProfile(nil)
+	return n
+}
+
 // writeBlock writes the current blocking profile to w.
 func writeBlock(w io.Writer, debug int) error {
 	var p []runtime.BlockProfileRecord
@@ -754,6 +768,51 @@ func writeBlock(w io.Writer, debug int) error {
 
 	fmt.Fprintf(w, "--- contention:\n")
 	fmt.Fprintf(w, "cycles/second=%v\n", runtime_cyclesPerSecond())
+	for i := range p {
+		r := &p[i]
+		fmt.Fprintf(w, "%v %v @", r.Cycles, r.Count)
+		for _, pc := range r.Stack() {
+			fmt.Fprintf(w, " %#x", pc)
+		}
+		fmt.Fprint(w, "\n")
+		if debug > 0 {
+			printStackRecord(w, r.Stack(), true)
+		}
+	}
+
+	if tw != nil {
+		tw.Flush()
+	}
+	return b.Flush()
+}
+
+// writeMutex writes the current mutex profile to w.
+func writeMutex(w io.Writer, debug int) error {
+	// TODO(pjw): too much common code with writeBlock. FIX!
+	var p []runtime.BlockProfileRecord
+	n, ok := runtime.MutexProfile(nil)
+	for {
+		p = make([]runtime.BlockProfileRecord, n+50)
+		n, ok = runtime.MutexProfile(p)
+		if ok {
+			p = p[:n]
+			break
+		}
+	}
+
+	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
+
+	b := bufio.NewWriter(w)
+	var tw *tabwriter.Writer
+	w = b
+	if debug > 0 {
+		tw = tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
+		w = tw
+	}
+
+	fmt.Fprintf(w, "--- mutex:\n")
+	fmt.Fprintf(w, "cycles/second=%v\n", runtime_cyclesPerSecond())
+	fmt.Fprintf(w, "sampling period=%d\n", runtime.SetMutexProfileFraction(-1))
 	for i := range p {
 		r := &p[i]
 		fmt.Fprintf(w, "%v %v @", r.Cycles, r.Count)

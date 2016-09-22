@@ -13,6 +13,9 @@ import "unsafe"
 // library and should not be used directly.
 func runtime_Semacquire(s *uint32)
 
+// SemacquireMutex is like Semacquire, but for profiling contended Mutexes.
+func runtime_SemacquireMutex(*uint32)
+
 // Semrelease atomically increments *s and notifies a waiting goroutine
 // if one is blocked in Semacquire.
 // It is intended as a simple wakeup primitive for use by the synchronization

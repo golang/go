@@ -292,7 +292,7 @@ func StopTrace() {
 
 	// The world is started but we've set trace.shutdown, so new tracing can't start.
 	// Wait for the trace reader to flush pending buffers and stop.
-	semacquire(&trace.shutdownSema, false)
+	semacquire(&trace.shutdownSema, 0)
 	if raceenabled {
 		raceacquire(unsafe.Pointer(&trace.shutdownSema))
 	}

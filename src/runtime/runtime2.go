@@ -256,6 +256,7 @@ type sudog struct {
 	// The following fields are never accessed concurrently.
 	// waitlink is only accessed by g.
 
+	acquiretime int64
 	releasetime int64
 	ticket      uint32
 	waitlink    *sudog // g.waiting list

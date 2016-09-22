@@ -84,7 +84,7 @@ func (m *Mutex) Lock() {
 			if old&mutexLocked == 0 {
 				break
 			}
-			runtime_Semacquire(&m.sema)
+			runtime_SemacquireMutex(&m.sema)
 			awoke = true
 			iter = 0
 		}

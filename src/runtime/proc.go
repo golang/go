@@ -923,7 +923,7 @@ func restartg(gp *g) {
 // in panic or being exited, this may not reliably stop all
 // goroutines.
 func stopTheWorld(reason string) {
-	semacquire(&worldsema, false)
+	semacquire(&worldsema, 0)
 	getg().m.preemptoff = reason
 	systemstack(stopTheWorldWithSema)
 }
@@ -946,7 +946,7 @@ var worldsema uint32 = 1
 // preemption first and then should stopTheWorldWithSema on the system
 // stack:
 //
-//	semacquire(&worldsema, false)
+//	semacquire(&worldsema, 0)
 //	m.preemptoff = "reason"
 //	systemstack(stopTheWorldWithSema)
 //

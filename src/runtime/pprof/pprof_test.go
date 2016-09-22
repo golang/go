@@ -592,6 +592,42 @@ func blockCond() {
 	mu.Unlock()
 }
 
+func TestMutexProfile(t *testing.T) {
+	old := runtime.SetMutexProfileFraction(1)
+	defer runtime.SetMutexProfileFraction(old)
+	if old != 0 {
+		t.Fatalf("need MutexProfileRate 0, got %d", old)
+	}
+
+	blockMutex()
+
+	var w bytes.Buffer
+	Lookup("mutex").WriteTo(&w, 1)
+	prof := w.String()
+
+	if !strings.HasPrefix(prof, "--- mutex:\ncycles/second=") {
+		t.Errorf("Bad profile header:\n%v", prof)
+	}
+	prof = strings.Trim(prof, "\n")
+	lines := strings.Split(prof, "\n")
+	if len(lines) != 6 {
+		t.Errorf("expected 6 lines, got %d %q\n%s", len(lines), prof, prof)
+	}
+	if len(lines) < 6 {
+		return
+	}
+	// checking that the line is like "35258904 1 @ 0x48288d 0x47cd28 0x458931"
+	r2 := `^\d+ 1 @(?: 0x[[:xdigit:]]+)+`
+	//r2 := "^[0-9]+ 1 @ 0x[0-9a-f x]+$"
+	if ok, err := regexp.MatchString(r2, lines[3]); err != nil || !ok {
+		t.Errorf("%q didn't match %q", lines[3], r2)
+	}
+	r3 := "^#.*runtime/pprof_test.blockMutex.*$"
+	if ok, err := regexp.MatchString(r3, lines[5]); err != nil || !ok {
+		t.Errorf("%q didn't match %q", lines[5], r3)
+	}
+}
+
 func func1(c chan int) { <-c }
 func func2(c chan int) { <-c }
 func func3(c chan int) { <-c }

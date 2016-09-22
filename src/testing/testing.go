@@ -233,19 +233,21 @@ var (
 	outputDir = flag.String("test.outputdir", "", "write profiles to `dir`")
 
 	// Report as tests are run; default is silent for success.
-	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
-	count            = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
-	coverProfile     = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
-	match            = flag.String("test.run", "", "run only tests and examples matching `regexp`")
-	memProfile       = flag.String("test.memprofile", "", "write a memory profile to `file`")
-	memProfileRate   = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")
-	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
-	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
-	blockProfileRate = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
-	traceFile        = flag.String("test.trace", "", "write an execution trace to `file`")
-	timeout          = flag.Duration("test.timeout", 0, "fail test binary execution after duration `d` (0 means unlimited)")
-	cpuListStr       = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
-	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
+	chatty               = flag.Bool("test.v", false, "verbose: print additional output")
+	count                = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
+	coverProfile         = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
+	match                = flag.String("test.run", "", "run only tests and examples matching `regexp`")
+	memProfile           = flag.String("test.memprofile", "", "write a memory profile to `file`")
+	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")
+	cpuProfile           = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
+	blockProfile         = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
+	blockProfileRate     = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
+	mutexProfile         = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
+	mutexProfileFraction = flag.Int("test.mutexprofilefraction", 1, "if >= 0, calls runtime.SetMutexProfileFraction()")
+	traceFile            = flag.String("test.trace", "", "write an execution trace to `file`")
+	timeout              = flag.Duration("test.timeout", 0, "fail test binary execution after duration `d` (0 means unlimited)")
+	cpuListStr           = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+	parallel             = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
 
 	haveExamples bool // are there examples?
 
@@ -874,6 +876,9 @@ func before() {
 	if *blockProfile != "" && *blockProfileRate >= 0 {
 		runtime.SetBlockProfileRate(*blockProfileRate)
 	}
+	if *mutexProfile != "" && *mutexProfileFraction >= 0 {
+		runtime.SetMutexProfileFraction(*mutexProfileFraction)
+	}
 	if *coverProfile != "" && cover.Mode == "" {
 		fmt.Fprintf(os.Stderr, "testing: cannot use -test.coverprofile because test binary was not built with coverage enabled\n")
 		os.Exit(2)
@@ -908,6 +913,18 @@ func after() {
 			os.Exit(2)
 		}
 		if err = pprof.Lookup("block").WriteTo(f, 0); err != nil {
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
+			os.Exit(2)
+		}
+		f.Close()
+	}
+	if *mutexProfile != "" && *mutexProfileFraction >= 0 {
+		f, err := os.Create(toOutputDir(*mutexProfile))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+			os.Exit(2)
+		}
+		if err = pprof.Lookup("mutex").WriteTo(f, 0); err != nil {
 			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
 			os.Exit(2)
 		}
