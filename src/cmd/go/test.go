@@ -238,6 +238,15 @@ profile the tests during execution::
 	    To profile all memory allocations, use -test.memprofilerate=1
 	    and pass --alloc_space flag to the pprof tool.
 
+	-mutexprofile mutex.out
+	    Write a mutex contention profile to the specified file
+	    when all tests are complete.
+	    Writes test binary as -c would.
+
+	-mutexprofilefraction n
+ 	    Sample 1 in n stack traces of goroutines holding a
+	    contended mutex.
+
 	-outputdir directory
 	    Place output files from profiling in the specified directory,
 	    by default the directory in which "go test" is running.
