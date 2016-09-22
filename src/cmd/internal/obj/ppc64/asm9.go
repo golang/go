@@ -1371,6 +1371,12 @@ func buildop(ctxt *obj.Link) {
 			opset(AFCFIDUCC, r0)
 			opset(AFRES, r0)
 			opset(AFRESCC, r0)
+			opset(AFRIM, r0)
+			opset(AFRIMCC, r0)
+			opset(AFRIP, r0)
+			opset(AFRIPCC, r0)
+			opset(AFRIZ, r0)
+			opset(AFRIZCC, r0)
 			opset(AFRSQRTE, r0)
 			opset(AFRSQRTECC, r0)
 			opset(AFSQRT, r0)
@@ -3173,6 +3179,18 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 		return OPVCC(59, 24, 0, 0)
 	case AFRESCC:
 		return OPVCC(59, 24, 0, 1)
+	case AFRIM:
+		return OPVCC(63, 488, 0, 0)
+	case AFRIMCC:
+		return OPVCC(63, 488, 0, 1)
+	case AFRIP:
+		return OPVCC(63, 456, 0, 0)
+	case AFRIPCC:
+		return OPVCC(63, 456, 0, 1)
+	case AFRIZ:
+		return OPVCC(63, 424, 0, 0)
+	case AFRIZCC:
+		return OPVCC(63, 424, 0, 1)
 	case AFRSP:
 		return OPVCC(63, 12, 0, 0)
 	case AFRSPCC:
