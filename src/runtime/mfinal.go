@@ -226,8 +226,9 @@ func runfinq() {
 //
 // SetFinalizer(obj, nil) clears any finalizer associated with obj.
 //
-// The argument obj must be a pointer to an object allocated by
-// calling new or by taking the address of a composite literal.
+// The argument obj must be a pointer to an object allocated by calling
+// new, by taking the address of a composite literal, or by taking the
+// address of a local variable.
 // The argument finalizer must be a function that takes a single argument
 // to which obj's type can be assigned, and can have arbitrary ignored return
 // values. If either of these is not true, SetFinalizer aborts the
