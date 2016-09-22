@@ -362,8 +362,8 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
 // values could be used to ensure that a ciphertext for one purpose cannot be
 // used for another by an attacker. If not required it can be empty.
 //
-// The message must be no longer than the length of the public modulus less
-// twice the hash length plus 2.
+// The message must be no longer than the length of the public modulus minus
+// twice the hash length, minus a further 2.
 func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
 	if err := checkPub(pub); err != nil {
 		return nil, err
