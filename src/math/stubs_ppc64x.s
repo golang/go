@@ -36,15 +36,6 @@ TEXT ·Expm1(SB),NOSPLIT,$0
 TEXT ·Exp(SB),NOSPLIT,$0
 	BR ·exp(SB)
 
-TEXT ·Floor(SB),NOSPLIT,$0
-	BR ·floor(SB)
-
-TEXT ·Ceil(SB),NOSPLIT,$0
-	BR ·ceil(SB)
-
-TEXT ·Trunc(SB),NOSPLIT,$0
-	BR ·trunc(SB)
-
 TEXT ·Frexp(SB),NOSPLIT,$0
 	BR ·frexp(SB)
 
