@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -84,16 +85,21 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	argp := uintptr(unsafe.Pointer(&fn)) + unsafe.Sizeof(fn)
 	callerpc := getcallerpc(unsafe.Pointer(&siz))
 
-	systemstack(func() {
-		d := newdefer(siz)
-		if d._panic != nil {
-			throw("deferproc: d.panic != nil after newdefer")
-		}
-		d.fn = fn
-		d.pc = callerpc
-		d.sp = sp
-		memmove(add(unsafe.Pointer(d), unsafe.Sizeof(*d)), unsafe.Pointer(argp), uintptr(siz))
-	})
+	d := newdefer(siz)
+	if d._panic != nil {
+		throw("deferproc: d.panic != nil after newdefer")
+	}
+	d.fn = fn
+	d.pc = callerpc
+	d.sp = sp
+	switch siz {
+	case 0:
+		// Do nothing.
+	case sys.PtrSize:
+		*(*uintptr)(deferArgs(d)) = *(*uintptr)(unsafe.Pointer(argp))
+	default:
+		memmove(deferArgs(d), unsafe.Pointer(argp), uintptr(siz))
+	}
 
 	// deferproc returns 0 normally.
 	// a deferred func that stops a panic
@@ -175,22 +181,30 @@ func init() {
 
 // Allocate a Defer, usually using per-P pool.
 // Each defer must be released with freedefer.
-// Note: runs on g0 stack
+//
+// This must not grow the stack because there may be a frame without
+// stack map information when this is called.
+//
+//go:nosplit
 func newdefer(siz int32) *_defer {
 	var d *_defer
 	sc := deferclass(uintptr(siz))
-	mp := acquirem()
+	gp := getg()
 	if sc < uintptr(len(p{}.deferpool)) {
-		pp := mp.p.ptr()
+		pp := gp.m.p.ptr()
 		if len(pp.deferpool[sc]) == 0 && sched.deferpool[sc] != nil {
-			lock(&sched.deferlock)
-			for len(pp.deferpool[sc]) < cap(pp.deferpool[sc])/2 && sched.deferpool[sc] != nil {
-				d := sched.deferpool[sc]
-				sched.deferpool[sc] = d.link
-				d.link = nil
-				pp.deferpool[sc] = append(pp.deferpool[sc], d)
-			}
-			unlock(&sched.deferlock)
+			// Take the slow path on the system stack so
+			// we don't grow newdefer's stack.
+			systemstack(func() {
+				lock(&sched.deferlock)
+				for len(pp.deferpool[sc]) < cap(pp.deferpool[sc])/2 && sched.deferpool[sc] != nil {
+					d := sched.deferpool[sc]
+					sched.deferpool[sc] = d.link
+					d.link = nil
+					pp.deferpool[sc] = append(pp.deferpool[sc], d)
+				}
+				unlock(&sched.deferlock)
+			})
 		}
 		if n := len(pp.deferpool[sc]); n > 0 {
 			d = pp.deferpool[sc][n-1]
@@ -200,19 +214,24 @@ func newdefer(siz int32) *_defer {
 	}
 	if d == nil {
 		// Allocate new defer+args.
-		total := roundupsize(totaldefersize(uintptr(siz)))
-		d = (*_defer)(mallocgc(total, deferType, true))
+		systemstack(func() {
+			total := roundupsize(totaldefersize(uintptr(siz)))
+			d = (*_defer)(mallocgc(total, deferType, true))
+		})
 	}
 	d.siz = siz
-	gp := mp.curg
 	d.link = gp._defer
 	gp._defer = d
-	releasem(mp)
 	return d
 }
 
 // Free the given defer.
 // The defer cannot be used after this call.
+//
+// This must not grow the stack because there may be a frame without a
+// stack map when this is called.
+//
+//go:nosplit
 func freedefer(d *_defer) {
 	if d._panic != nil {
 		freedeferpanic()
@@ -222,31 +241,34 @@ func freedefer(d *_defer) {
 	}
 	sc := deferclass(uintptr(d.siz))
 	if sc < uintptr(len(p{}.deferpool)) {
-		mp := acquirem()
-		pp := mp.p.ptr()
+		pp := getg().m.p.ptr()
 		if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
 			// Transfer half of local cache to the central cache.
-			var first, last *_defer
-			for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
-				n := len(pp.deferpool[sc])
-				d := pp.deferpool[sc][n-1]
-				pp.deferpool[sc][n-1] = nil
-				pp.deferpool[sc] = pp.deferpool[sc][:n-1]
-				if first == nil {
-					first = d
-				} else {
-					last.link = d
+			//
+			// Take this slow path on the system stack so
+			// we don't grow freedefer's stack.
+			systemstack(func() {
+				var first, last *_defer
+				for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
+					n := len(pp.deferpool[sc])
+					d := pp.deferpool[sc][n-1]
+					pp.deferpool[sc][n-1] = nil
+					pp.deferpool[sc] = pp.deferpool[sc][:n-1]
+					if first == nil {
+						first = d
+					} else {
+						last.link = d
+					}
+					last = d
 				}
-				last = d
-			}
-			lock(&sched.deferlock)
-			last.link = sched.deferpool[sc]
-			sched.deferpool[sc] = first
-			unlock(&sched.deferlock)
+				lock(&sched.deferlock)
+				last.link = sched.deferpool[sc]
+				sched.deferpool[sc] = first
+				unlock(&sched.deferlock)
+			})
 		}
 		*d = _defer{}
 		pp.deferpool[sc] = append(pp.deferpool[sc], d)
-		releasem(mp)
 	}
 }
 
@@ -288,19 +310,23 @@ func deferreturn(arg0 uintptr) {
 	}
 
 	// Moving arguments around.
-	// Do not allow preemption here, because the garbage collector
-	// won't know the form of the arguments until the jmpdefer can
-	// flip the PC over to fn.
-	mp := acquirem()
-	memmove(unsafe.Pointer(&arg0), deferArgs(d), uintptr(d.siz))
+	//
+	// Everything called after this point must be recursively
+	// nosplit because the garbage collector won't know the form
+	// of the arguments until the jmpdefer can flip the PC over to
+	// fn.
+	switch d.siz {
+	case 0:
+		// Do nothing.
+	case sys.PtrSize:
+		*(*uintptr)(unsafe.Pointer(&arg0)) = *(*uintptr)(deferArgs(d))
+	default:
+		memmove(unsafe.Pointer(&arg0), deferArgs(d), uintptr(d.siz))
+	}
 	fn := d.fn
 	d.fn = nil
 	gp._defer = d.link
-	// Switch to systemstack merely to save nosplit stack space.
-	systemstack(func() {
-		freedefer(d)
-	})
-	releasem(mp)
+	freedefer(d)
 	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
 }
 
