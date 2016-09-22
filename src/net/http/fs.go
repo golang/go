@@ -90,7 +90,7 @@ func dirList(w ResponseWriter, f File) {
 		// part of the URL path, and not indicate the start of a query
 		// string or fragment.
 		url := url.URL{Path: name}
-		fmt.Fprintf(w, "<a href=\"./%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
+		fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
 	}
 	fmt.Fprintf(w, "</pre>\n")
 }
