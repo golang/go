@@ -2,80 +2,81 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Memory allocator, based on tcmalloc.
+// Memory allocator.
+//
+// This was originally based on tcmalloc, but has diverged quite a bit.
 // http://goog-perftools.sourceforge.net/doc/tcmalloc.html
 
 // The main allocator works in runs of pages.
 // Small allocation sizes (up to and including 32 kB) are
-// rounded to one of about 100 size classes, each of which
-// has its own free list of objects of exactly that size.
+// rounded to one of about 70 size classes, each of which
+// has its own free set of objects of exactly that size.
 // Any free page of memory can be split into a set of objects
-// of one size class, which are then managed using free list
-// allocators.
+// of one size class, which are then managed using a free bitmap.
 //
 // The allocator's data structures are:
 //
-//	FixAlloc: a free-list allocator for fixed-size objects,
+//	fixalloc: a free-list allocator for fixed-size off-heap objects,
 //		used to manage storage used by the allocator.
-//	MHeap: the malloc heap, managed at page (4096-byte) granularity.
-//	MSpan: a run of pages managed by the MHeap.
-//	MCentral: a shared free list for a given size class.
-//	MCache: a per-thread (in Go, per-P) cache for small objects.
-//	MStats: allocation statistics.
+//	mheap: the malloc heap, managed at page (8192-byte) granularity.
+//	mspan: a run of pages managed by the mheap.
+//	mcentral: collects all spans of a given size class.
+//	mcache: a per-P cache of mspans with free space.
+//	mstats: allocation statistics.
 //
 // Allocating a small object proceeds up a hierarchy of caches:
 //
 //	1. Round the size up to one of the small size classes
-//	   and look in the corresponding MCache free list.
-//	   If the list is not empty, allocate an object from it.
+//	   and look in the corresponding mspan in this P's mcache.
+//	   Scan the mspan's free bitmap to find a free slot.
+//	   If there is a free slot, allocate it.
 //	   This can all be done without acquiring a lock.
 //
-//	2. If the MCache free list is empty, replenish it by
-//	   taking a bunch of objects from the MCentral free list.
-//	   Moving a bunch amortizes the cost of acquiring the MCentral lock.
+//	2. If the mspan has no free slots, obtain a new mspan
+//	   from the mcentral's list of mspans of the required size
+//	   class that have free space.
+//	   Obtaining a whole span amortizes the cost of locking
+//	   the mcentral.
 //
-//	3. If the MCentral free list is empty, replenish it by
-//	   allocating a run of pages from the MHeap and then
-//	   chopping that memory into objects of the given size.
-//	   Allocating many objects amortizes the cost of locking
-//	   the heap.
+//	3. If the mcentral's mspan list is empty, obtain a run
+//	   of pages from the mheap to use for the mspan.
 //
-//	4. If the MHeap is empty or has no page runs large enough,
+//	4. If the mheap is empty or has no page runs large enough,
 //	   allocate a new group of pages (at least 1MB) from the
-//	   operating system.  Allocating a large run of pages
+//	   operating system. Allocating a large run of pages
 //	   amortizes the cost of talking to the operating system.
 //
-// Freeing a small object proceeds up the same hierarchy:
+// Sweeping an mspan and freeing objects on it proceeds up a similar
+// hierarchy:
 //
-//	1. Look up the size class for the object and add it to
-//	   the MCache free list.
+//	1. If the mspan is being swept in response to allocation, it
+//	   is returned to the mcache to satisfy the allocation.
 //
-//	2. If the MCache free list is too long or the MCache has
-//	   too much memory, return some to the MCentral free lists.
+//	2. Otherwise, if the mspan still has allocated objects in it,
+//	   it is placed on the mcentral free list for the mspan's size
+//	   class.
 //
-//	3. If all the objects in a given span have returned to
-//	   the MCentral list, return that span to the page heap.
+//	3. Otherwise, if all objects in the mspan are free, the mspan
+//	   is now "idle", so it is returned to the mheap and no longer
+//	   has a size class.
+//	   This may coalesce it with adjacent idle mspans.
 //
-//	4. If the heap has too much memory, return some to the
-//	   operating system.
+//	4. If an mspan remains idle for long enough, return its pages
+//	   to the operating system.
 //
-//	TODO(rsc): Step 4 is not implemented.
+// Allocating and freeing a large object uses the mheap
+// directly, bypassing the mcache and mcentral.
 //
-// Allocating and freeing a large object uses the page heap
-// directly, bypassing the MCache and MCentral free lists.
+// Free object slots in an mspan are zeroed only if mspan.needzero is
+// false. If needzero is true, objects are zeroed as they are
+// allocated. There are various benefits to delaying zeroing this way:
 //
-// The small objects on the MCache and MCentral free lists
-// may or may not be zeroed. They are zeroed if and only if
-// the second word of the object is zero. A span in the
-// page heap is zeroed unless s->needzero is set. When a span
-// is allocated to break into small objects, it is zeroed if needed
-// and s->needzero is set. There are two main benefits to delaying the
-// zeroing this way:
+//	1. Stack frame allocation can avoid zeroing altogether.
 //
-//	1. stack frames allocated from the small object lists
-//	   or the page heap can avoid zeroing altogether.
-//	2. the cost of zeroing when reusing a small object is
-//	   charged to the mutator, not the garbage collector.
+//	2. It exhibits better temporal locality, since the program is
+//	   probably about to write to the memory.
+//
+//	3. We don't zero pages that never get reused.
 
 package runtime
 
