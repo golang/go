@@ -1416,7 +1416,7 @@ func dumptypestructs() {
 			// }
 			nsym := dname(p.s.Name, "", nil, true)
 			ot = dsymptrOffLSym(s, ot, nsym, 0)
-			ot = dsymptrOffLSym(s, ot, Linksym(typesym(p.t)), 0)
+			ot = dsymptrOffLSym(s, ot, Linksym(dtypesym(p.t)), 0)
 		}
 		ggloblLSym(s, int32(ot), int16(obj.RODATA))
 

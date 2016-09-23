@@ -11,7 +11,10 @@ import "common"
 
 func F() int { return 17 }
 
+var FuncVar = func() {}
+
 func ReadCommonX() int {
+	FuncVar()
 	return common.X
 }
 
