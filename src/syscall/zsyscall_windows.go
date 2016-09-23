@@ -11,8 +11,12 @@ var _ unsafe.Pointer
 
 // Do the interface allocations only once for common
 // Errno values.
+const (
+	errnoERROR_IO_PENDING = 997
+)
+
 var (
-	errERROR_IO_PENDING error = Errno(ERROR_IO_PENDING)
+	errERROR_IO_PENDING error = Errno(errnoERROR_IO_PENDING)
 )
 
 // errnoErr returns common boxed Errno values, to prevent
@@ -21,7 +25,7 @@ func errnoErr(e Errno) error {
 	switch e {
 	case 0:
 		return nil
-	case ERROR_IO_PENDING:
+	case errnoERROR_IO_PENDING:
 		return errERROR_IO_PENDING
 	}
 	// TODO: add more here, after collecting data on the common
