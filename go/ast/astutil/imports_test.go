@@ -511,6 +511,25 @@ import "C"
 import "bufio"
 `,
 	},
+	{
+		name: `issue 17213 many single-import lines`,
+		pkg:  "fmt",
+		in: `package main
+
+import "bufio"
+import "bytes"
+import "errors"
+`,
+		out: `package main
+
+import (
+	"bufio"
+	"bytes"
+	"errors"
+	"fmt"
+)
+`,
+	},
 }
 
 func TestAddImport(t *testing.T) {
