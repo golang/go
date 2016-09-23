@@ -61,12 +61,24 @@ func main() {
 		log.Fatalf("plugin.Open(%q) failed: %v", subpPath, err)
 	}
 
+	funcVar, err := subp.Lookup("FuncVar")
+	if err != nil {
+		log.Fatalf(`sub/plugin1.Lookup("FuncVar") failed: %v`, err)
+	}
+	called := false
+	*funcVar.(*func()) = func() {
+		called = true
+	}
+
 	readFunc, err = subp.Lookup("ReadCommonX")
 	if err != nil {
 		log.Fatalf(`sub/plugin1.Lookup("ReadCommonX") failed: %v`, err)
 	}
 	if got := readFunc.(func() int)(); got != wantX {
 		log.Fatalf("sub/plugin1.ReadCommonX()=%d, want %d", got, wantX)
+	}
+	if !called {
+		log.Fatal("calling ReadCommonX did not call FuncVar")
 	}
 
 	subf, err := subp.Lookup("F")

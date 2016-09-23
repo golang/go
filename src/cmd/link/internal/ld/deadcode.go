@@ -290,6 +290,11 @@ func (d *deadcodepass) flood() {
 		}
 
 		if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' {
+			if len(s.P) == 0 {
+				// Probably a bug. The undefined symbol check
+				// later will give a better error than deadcode.
+				continue
+			}
 			if decodetypeKind(s)&kindMask == kindInterface {
 				for _, sig := range decodeIfaceMethods(d.ctxt.Arch, s) {
 					if d.ctxt.Debugvlog > 1 {
