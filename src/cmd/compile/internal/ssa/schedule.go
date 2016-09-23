@@ -97,7 +97,10 @@ func schedule(f *Func) {
 					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block, b=%s", b.String())
 				}
 				score[v.ID] = ScorePhi
-			case v.Op == OpAMD64LoweredNilCheck || v.Op == OpPPC64LoweredNilCheck || v.Op == OpARMLoweredNilCheck || v.Op == OpARM64LoweredNilCheck || v.Op == Op386LoweredNilCheck || v.Op == OpMIPS64LoweredNilCheck:
+			case v.Op == OpAMD64LoweredNilCheck || v.Op == OpPPC64LoweredNilCheck ||
+				v.Op == OpARMLoweredNilCheck || v.Op == OpARM64LoweredNilCheck ||
+				v.Op == Op386LoweredNilCheck || v.Op == OpMIPS64LoweredNilCheck ||
+				v.Op == OpS390XLoweredNilCheck:
 				// Nil checks must come before loads from the same address.
 				score[v.ID] = ScoreNilCheck
 			case v.Op == OpPhi:
