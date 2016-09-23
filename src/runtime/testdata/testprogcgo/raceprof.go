@@ -15,6 +15,7 @@ package main
 #include <signal.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <sched.h>
 
 struct cgoTracebackArg {
 	uintptr_t  context;
@@ -41,7 +42,7 @@ static void* raceprofThread(void* p) {
 
 	for (i = 0; i < 100; i++) {
 		pthread_kill(pthread_self(), SIGPROF);
-		pthread_yield();
+		sched_yield();
 	}
 	return 0;
 }
