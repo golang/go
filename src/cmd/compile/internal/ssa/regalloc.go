@@ -242,6 +242,9 @@ type regAllocState struct {
 	// mask of registers currently in use
 	used regMask
 
+	// mask of registers used in the current instruction
+	tmpused regMask
+
 	// current block we're working on
 	curBlock *Block
 
@@ -258,6 +261,10 @@ type regAllocState struct {
 
 	// spillLive[blockid] is the set of live spills at the end of each block
 	spillLive [][]ID
+
+	// a set of copies we generated to move things around, and
+	// whether it is used in shuffle. Unused copies will be deleted.
+	copies map[*Value]bool
 
 	loopnest *loopnest
 }
@@ -376,6 +383,21 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	}
 	if maxuse == -1 {
 		s.f.Fatalf("couldn't find register to spill")
+	}
+
+	// Try to move it around before kicking out, if there is a free register.
+	// We generate a Copy and record it. It will be deleted if never used.
+	v2 := s.regs[r].v
+	m := s.compatRegs(v2.Type) &^ s.used &^ s.tmpused &^ (regMask(1) << r)
+	if countRegs(s.values[v2.ID].regs) == 1 && m != 0 {
+		r2 := pickReg(m)
+		c := s.curBlock.NewValue1(v2.Line, OpCopy, v2.Type, s.regs[r].c)
+		s.copies[c] = false
+		if s.f.pass.debug > regDebug {
+			fmt.Printf("copy %s to %s : %s\n", v2, c, s.registers[r2].Name())
+		}
+		s.setOrig(c, v2)
+		s.assignReg(r2, v2, c)
 	}
 	s.freeReg(r)
 	return r
@@ -526,6 +548,7 @@ func (s *regAllocState) init(f *Func) {
 	s.regs = make([]regState, s.numRegs)
 	s.values = make([]valState, f.NumValues())
 	s.orig = make([]*Value, f.NumValues())
+	s.copies = make(map[*Value]bool)
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && !v.Type.IsTuple() {
@@ -627,6 +650,9 @@ func (s *regAllocState) setState(regs []endReg) {
 // compatRegs returns the set of registers which can store a type t.
 func (s *regAllocState) compatRegs(t Type) regMask {
 	var m regMask
+	if t.IsTuple() || t.IsFlags() {
+		return 0
+	}
 	if t.IsFloat() || t == TypeInt128 {
 		m = s.f.Config.fpRegMask
 	} else {
@@ -1163,7 +1189,8 @@ func (s *regAllocState) regalloc(f *Func) {
 				for _, r := range dinfo[idx].in[0] {
 					if r != noRegister && m>>r&1 != 0 {
 						m = regMask(1) << r
-						s.allocValToReg(v.Args[0], m, true, v.Line)
+						c := s.allocValToReg(v.Args[0], m, true, v.Line)
+						s.copies[c] = false
 						// Note: no update to args[0] so the instruction will
 						// use the original copy.
 						goto ok
@@ -1173,7 +1200,8 @@ func (s *regAllocState) regalloc(f *Func) {
 					for _, r := range dinfo[idx].in[1] {
 						if r != noRegister && m>>r&1 != 0 {
 							m = regMask(1) << r
-							s.allocValToReg(v.Args[1], m, true, v.Line)
+							c := s.allocValToReg(v.Args[1], m, true, v.Line)
+							s.copies[c] = false
 							args[0], args[1] = args[1], args[0]
 							goto ok
 						}
@@ -1184,21 +1212,24 @@ func (s *regAllocState) regalloc(f *Func) {
 					m &^= desired.avoid
 				}
 				// Save input 0 to a new register so we can clobber it.
-				s.allocValToReg(v.Args[0], m, true, v.Line)
-			ok:
+				c := s.allocValToReg(v.Args[0], m, true, v.Line)
+				s.copies[c] = false
 			}
 
+		ok:
 			// Now that all args are in regs, we're ready to issue the value itself.
 			// Before we pick a register for the output value, allow input registers
 			// to be deallocated. We do this here so that the output can use the
 			// same register as a dying input.
 			if !opcodeTable[v.Op].resultNotInArgs {
+				s.tmpused = s.nospill
 				s.nospill = 0
 				s.advanceUses(v) // frees any registers holding args that are no longer live
 			}
 
 			// Dump any registers which will be clobbered
 			s.freeRegs(regspec.clobbers)
+			s.tmpused |= regspec.clobbers
 
 			// Pick registers for outputs.
 			{
@@ -1250,6 +1281,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					r := s.allocReg(mask, v)
 					outRegs[out.idx] = r
 					used |= regMask(1) << r
+					s.tmpused |= regMask(1) << r
 				}
 				// Record register choices
 				if v.Type.IsTuple() {
@@ -1274,6 +1306,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.nospill = 0
 				s.advanceUses(v) // frees any registers holding args that are no longer live
 			}
+			s.tmpused = 0
 
 			// Issue the Value itself.
 			for i, a := range args {
@@ -1314,6 +1347,10 @@ func (s *regAllocState) regalloc(f *Func) {
 			// type-compatible register. If this turns out not to be true,
 			// we'll need to introduce a regspec for a block's control value.
 			b.Control = s.allocValToReg(v, s.compatRegs(v.Type), false, b.Line)
+			if b.Control != v {
+				v.Uses--
+				b.Control.Uses++
+			}
 			// Remove this use from the uses list.
 			vi := &s.values[v.ID]
 			u := vi.uses
@@ -1512,7 +1549,7 @@ func (s *regAllocState) regalloc(f *Func) {
 	for i := range s.values {
 		vi := s.values[i]
 		if vi.spillUsed {
-			if s.f.pass.debug > logSpills {
+			if s.f.pass.debug > logSpills && vi.spill.Op != OpArg {
 				s.f.Config.Warnl(vi.spill.Line, "spilled value at %v remains", vi.spill)
 			}
 			continue
@@ -1668,6 +1705,29 @@ sinking:
 			d.Values[0] = vspnew
 
 		}
+	}
+
+	// Erase any copies we never used
+	for c, used := range s.copies {
+		if !used && c.Uses == 0 {
+			if s.f.pass.debug > regDebug {
+				fmt.Printf("delete copied value %s\n", c.LongString())
+			}
+			c.Args[0].Uses--
+			f.freeValue(c)
+		}
+	}
+
+	for _, b := range f.Blocks {
+		i := 0
+		for _, v := range b.Values {
+			if v.Op == OpInvalid {
+				continue
+			}
+			b.Values[i] = v
+			i++
+		}
+		b.Values = b.Values[:i]
 	}
 
 	if f.pass.stats > 0 {
@@ -1904,6 +1964,10 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, line int32
 		// Note: if splice==nil then c will appear dead. This is
 		// non-SSA formed code, so be careful after this pass not to run
 		// deadcode elimination.
+		if _, ok := e.s.copies[occupant.c]; ok {
+			// The copy at occupant.c was used to avoid spill.
+			e.s.copies[occupant.c] = true
+		}
 		return true
 	}
 
