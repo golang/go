@@ -512,6 +512,42 @@ import "bufio"
 `,
 	},
 	{
+		name: `issue 17212 several single-import lines with shared prefix ending in a slash`,
+		pkg:  "net/http",
+		in: `package main
+
+import "bufio"
+import "net/url"
+`,
+		out: `package main
+
+import (
+	"bufio"
+	"net/http"
+	"net/url"
+)
+`,
+	},
+	{
+		name: `issue 17212 block imports lines with shared prefix ending in a slash`,
+		pkg:  "net/http",
+		in: `package main
+
+import (
+	"bufio"
+	"net/url"
+)
+`,
+		out: `package main
+
+import (
+	"bufio"
+	"net/http"
+	"net/url"
+)
+`,
+	},
+	{
 		name: `issue 17213 many single-import lines`,
 		pkg:  "fmt",
 		in: `package main
