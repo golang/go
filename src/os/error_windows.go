@@ -9,6 +9,7 @@ import "syscall"
 func isExist(err error) bool {
 	err = underlyingError(err)
 	return err == syscall.ERROR_ALREADY_EXISTS ||
+		err == syscall.ERROR_DIR_NOT_EMPTY ||
 		err == syscall.ERROR_FILE_EXISTS || err == ErrExist
 }
 
