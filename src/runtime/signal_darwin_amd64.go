@@ -60,5 +60,25 @@ func (c *sigctxt) fixsigcode(sig uint32) {
 			// SIGTRAP on something other than INT 3.
 			c.set_sigcode(_SI_USER)
 		}
+
+	case _SIGSEGV:
+		// x86-64 has 48-bit virtual addresses. The top 16 bits must echo bit 47.
+		// The hardware delivers a different kind of fault for a malformed address
+		// than it does for an attempt to access a valid but unmapped address.
+		// OS X 10.9.2 mishandles the malformed address case, making it look like
+		// a user-generated signal (like someone ran kill -SEGV ourpid).
+		// We pass user-generated signals to os/signal, or else ignore them.
+		// Doing that here - and returning to the faulting code - results in an
+		// infinite loop. It appears the best we can do is rewrite what the kernel
+		// delivers into something more like the truth. The address used below
+		// has very little chance of being the one that caused the fault, but it is
+		// malformed, it is clearly not a real pointer, and if it does get printed
+		// in real life, people will probably search for it and find this code.
+		// There are no Google hits for b01dfacedebac1e or 0xb01dfacedebac1e
+		// as I type this comment.
+		if c.sigcode() == _SI_USER {
+			c.set_sigcode(_SI_USER + 1)
+			c.set_sigaddr(0xb01dfacedebac1e)
+		}
 	}
 }
