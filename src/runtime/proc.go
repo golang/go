@@ -1438,7 +1438,7 @@ func oneNewExtraM() {
 	gp.lockedm = mp
 	gp.goid = int64(atomic.Xadd64(&sched.goidgen, 1))
 	if raceenabled {
-		gp.racectx = racegostart(funcPC(newextram))
+		gp.racectx = racegostart(funcPC(newextram) + sys.PCQuantum)
 	}
 	// put on allg for garbage collector
 	allgadd(gp)
