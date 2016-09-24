@@ -538,7 +538,7 @@ func orderstmt(n *Node, order *Order) {
 		ordermapassign(n, order)
 		cleantemp(t, order)
 
-		// Special: make sure key is addressable,
+	// Special: make sure key is addressable,
 	// and make sure OINDEXMAP is not copied out.
 	case OAS2MAPR:
 		t := marktemp(order)
@@ -556,7 +556,7 @@ func orderstmt(n *Node, order *Order) {
 		ordermapassign(n, order)
 		cleantemp(t, order)
 
-		// Special: avoid copy of func call n->rlist->n.
+	// Special: avoid copy of func call n->rlist->n.
 	case OAS2FUNC:
 		t := marktemp(order)
 
@@ -565,7 +565,7 @@ func orderstmt(n *Node, order *Order) {
 		ordermapassign(n, order)
 		cleantemp(t, order)
 
-		// Special: use temporary variables to hold result,
+	// Special: use temporary variables to hold result,
 	// so that assertI2Tetc can take address of temporary.
 	// No temporary for blank assignment.
 	case OAS2DOTTYPE:
@@ -600,7 +600,7 @@ func orderstmt(n *Node, order *Order) {
 
 		cleantemp(t, order)
 
-		// Special: use temporary variables to hold result,
+	// Special: use temporary variables to hold result,
 	// so that chanrecv can take address of temporary.
 	case OAS2RECV:
 		t := marktemp(order)
@@ -620,11 +620,11 @@ func orderstmt(n *Node, order *Order) {
 		n.List.Set([]*Node{tmp1, tmp2})
 		cleantemp(t, order)
 
-		// Special: does not save n onto out.
+	// Special: does not save n onto out.
 	case OBLOCK, OEMPTY:
 		orderstmtlist(n.List, order)
 
-		// Special: n->left is not an expression; save as is.
+	// Special: n->left is not an expression; save as is.
 	case OBREAK,
 		OCONTINUE,
 		ODCL,
@@ -637,7 +637,7 @@ func orderstmt(n *Node, order *Order) {
 		ORETJMP:
 		order.out = append(order.out, n)
 
-		// Special: handle call arguments.
+	// Special: handle call arguments.
 	case OCALLFUNC, OCALLINTER, OCALLMETH:
 		t := marktemp(order)
 
@@ -645,7 +645,7 @@ func orderstmt(n *Node, order *Order) {
 		order.out = append(order.out, n)
 		cleantemp(t, order)
 
-		// Special: order arguments to inner call but not call itself.
+	// Special: order arguments to inner call but not call itself.
 	case ODEFER, OPROC:
 		t := marktemp(order)
 
@@ -676,7 +676,7 @@ func orderstmt(n *Node, order *Order) {
 		order.out = append(order.out, n)
 		cleantemp(t, order)
 
-		// Clean temporaries from condition evaluation at
+	// Clean temporaries from condition evaluation at
 	// beginning of loop body and after for statement.
 	case OFOR:
 		t := marktemp(order)
@@ -690,7 +690,7 @@ func orderstmt(n *Node, order *Order) {
 		order.out = append(order.out, n)
 		cleantemp(t, order)
 
-		// Clean temporaries from condition at
+	// Clean temporaries from condition at
 	// beginning of both branches.
 	case OIF:
 		t := marktemp(order)
@@ -707,7 +707,7 @@ func orderstmt(n *Node, order *Order) {
 		n.Rlist.Set(orderblock(n.Rlist))
 		order.out = append(order.out, n)
 
-		// Special: argument will be converted to interface using convT2E
+	// Special: argument will be converted to interface using convT2E
 	// so make sure it is an addressable temporary.
 	case OPANIC:
 		t := marktemp(order)
@@ -932,7 +932,7 @@ func orderstmt(n *Node, order *Order) {
 		order.out = append(order.out, n)
 		poptemp(t, order)
 
-		// Special: value being sent is passed as a pointer; make it addressable.
+	// Special: value being sent is passed as a pointer; make it addressable.
 	case OSEND:
 		t := marktemp(order)
 
@@ -942,7 +942,7 @@ func orderstmt(n *Node, order *Order) {
 		order.out = append(order.out, n)
 		cleantemp(t, order)
 
-		// TODO(rsc): Clean temporaries more aggressively.
+	// TODO(rsc): Clean temporaries more aggressively.
 	// Note that because walkswitch will rewrite some of the
 	// switch into a binary search, this is not as easy as it looks.
 	// (If we ran that code here we could invoke orderstmt on
@@ -1010,7 +1010,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		orderexprlist(n.List, order)
 		orderexprlist(n.Rlist, order)
 
-		// Addition of strings turns into a function call.
+	// Addition of strings turns into a function call.
 	// Allocate a temporary to hold the strings.
 	// Fewer than 5 strings use direct runtime helpers.
 	case OADDSTR:
@@ -1085,7 +1085,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}
 
-		// concrete type (not interface) argument must be addressable
+	// concrete type (not interface) argument must be addressable
 	// temporary to pass to runtime.
 	case OCONVIFACE:
 		n.Left = orderexpr(n.Left, order, nil)

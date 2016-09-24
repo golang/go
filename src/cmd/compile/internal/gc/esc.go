@@ -716,7 +716,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			}
 		}
 
-		// Filter out the following special case.
+	// Filter out the following special case.
 	//
 	//	func (b *Buffer) Foo() {
 	//		n, m := ...
@@ -952,7 +952,7 @@ func esc(e *EscState, n *Node, up *Node) {
 					nE.Escloopdepth = leftE.Escloopdepth
 				}
 
-				// PPARAM is loop depth 1 always.
+			// PPARAM is loop depth 1 always.
 			// PPARAMOUT is loop depth 0 for writes
 			// but considered loop depth 1 for address-of,
 			// so that writing the address of one result
@@ -1148,7 +1148,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 			escflows(e, dst, src, e.stepAssign(step, originalDst, src, dstwhy))
 		}
 
-		// Might be pointer arithmetic, in which case
+	// Might be pointer arithmetic, in which case
 	// the operands flow into the result.
 	// TODO(rsc): Decide what the story is here. This is unsettling.
 	case OADD,

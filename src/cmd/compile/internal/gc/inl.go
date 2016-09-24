@@ -369,7 +369,7 @@ func inlnode(n *Node) *Node {
 		}
 		fallthrough
 
-		// TODO do them here (or earlier),
+	// TODO do them here (or earlier),
 	// so escape analysis can avoid more heapmoves.
 	case OCLOSURE:
 		return n
@@ -407,7 +407,7 @@ func inlnode(n *Node) *Node {
 			}
 		}
 
-		// if we just replaced arg in f(arg()) or return arg with an inlined call
+	// if we just replaced arg in f(arg()) or return arg with an inlined call
 	// and arg returns multiple values, glue as list
 	case ORETURN,
 		OCALLFUNC,
