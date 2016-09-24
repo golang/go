@@ -49,7 +49,7 @@ func (p *Presentation) ServeError(w http.ResponseWriter, r *http.Request, relpat
 	p.ServePage(w, Page{
 		Title:    "File " + relpath,
 		Subtitle: relpath,
-		Body:     applyTemplate(p.ErrorHTML, "errorHTML", err), // err may contain an absolute path!
+		Body:     applyTemplate(p.ErrorHTML, "errorHTML", err),
 		Share:    allowShare(r),
 	})
 }
