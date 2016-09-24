@@ -38,7 +38,7 @@ func sigaction(sig int32, new, old *sigactiont)
 func sigaltstack(new, old *sigaltstackt)
 
 //go:noescape
-func sigprocmask(mode int32, new, old *sigset)
+func sigprocmask(how int32, new, old *sigset)
 
 //go:noescape
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
@@ -222,21 +222,6 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
-//go:nosplit
-func msigsave(mp *m) {
-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
-}
-
-//go:nosplit
-func msigrestore(sigmask sigset) {
-	sigprocmask(_SIG_SETMASK, &sigmask, nil)
-}
-
-//go:nosplit
-func sigblock() {
-	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
-}
-
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
@@ -333,14 +318,8 @@ func signalstack(s *stack) {
 
 //go:nosplit
 //go:nowritebarrierrec
-func updatesigmask(m sigmask) {
-	var mask sigset
-	copy(mask.__bits[:], m[:])
-	sigprocmask(_SIG_SETMASK, &mask, nil)
-}
-
-func unblocksig(sig int32) {
-	var mask sigset
-	mask.__bits[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
-	sigprocmask(_SIG_UNBLOCK, &mask, nil)
+func sigmaskToSigset(m sigmask) sigset {
+	var set sigset
+	copy(set.__bits[:], m[:])
+	return set
 }

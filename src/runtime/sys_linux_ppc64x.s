@@ -183,7 +183,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	RET
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
-	MOVW	sig+0(FP), R3
+	MOVW	how+0(FP), R3
 	MOVD	new+8(FP), R4
 	MOVD	old+16(FP), R5
 	MOVW	size+24(FP), R6

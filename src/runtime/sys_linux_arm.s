@@ -365,7 +365,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	B	(R11)
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
-	MOVW	sig+0(FP), R0
+	MOVW	how+0(FP), R0
 	MOVW	new+4(FP), R1
 	MOVW	old+8(FP), R2
 	MOVW	size+12(FP), R3

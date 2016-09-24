@@ -420,3 +420,56 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	}
 	return true
 }
+
+// msigsave saves the current thread's signal mask into mp.sigmask.
+// This is used to preserve the non-Go signal mask when a non-Go
+// thread calls a Go function.
+// This is nosplit and nowritebarrierrec because it is called by needm
+// which may be called on a non-Go thread with no g available.
+//go:nosplit
+//go:nowritebarrierrec
+func msigsave(mp *m) {
+	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+}
+
+// msigrestore sets the current thread's signal mask to sigmask.
+// This is used to restore the non-Go signal mask when a non-Go thread
+// calls a Go function.
+// This is nosplit and nowritebarrierrec because it is called by dropm
+// after g has been cleared.
+//go:nosplit
+//go:nowritebarrierrec
+func msigrestore(sigmask sigset) {
+	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+}
+
+// sigblock blocks all signals in the current thread's signal mask.
+// This is used to block signals while setting up and tearing down g
+// when a non-Go thread calls a Go function.
+// The OS-specific code is expected to define sigset_all.
+// This is nosplit and nowritebarrierrec because it is called by needm
+// which may be called on a non-Go thread with no g available.
+//go:nosplit
+//go:nowritebarrierrec
+func sigblock() {
+	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
+}
+
+// updatesigmask sets the current thread's signal mask to m.
+// This is nosplit and nowritebarrierrec because it is called from
+// dieFromSignal, which can be called by sigfwdgo while running in the
+// signal handler, on the signal stack, with no g available.
+//go:nosplit
+//go:nowritebarrierrec
+func updatesigmask(m sigmask) {
+	set := sigmaskToSigset(m)
+	sigprocmask(_SIG_SETMASK, &set, nil)
+}
+
+// unblocksig removes sig from the current thread's signal mask.
+func unblocksig(sig int32) {
+	var m sigmask
+	m[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+	set := sigmaskToSigset(m)
+	sigprocmask(_SIG_UNBLOCK, &set, nil)
+}

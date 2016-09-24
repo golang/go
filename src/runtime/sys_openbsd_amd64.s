@@ -218,8 +218,8 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	mode+0(FP), DI		// arg 1 - how
+TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
+	MOVL	how+0(FP), DI		// arg 1 - how
 	MOVL	new+4(FP), SI		// arg 2 - set
 	MOVL	$48, AX			// sys_sigprocmask
 	SYSCALL

@@ -197,7 +197,7 @@ fallback:
 	RET
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
-	MOVL	sig+0(FP), DI
+	MOVL	how+0(FP), DI
 	MOVQ	new+8(FP), SI
 	MOVQ	old+16(FP), DX
 	MOVL	size+24(FP), R10

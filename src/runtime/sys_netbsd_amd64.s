@@ -207,7 +207,7 @@ TEXT runtime·getcontext(SB),NOSPLIT,$-8
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	mode+0(FP), DI		// arg 1 - how
+	MOVL	how+0(FP), DI		// arg 1 - how
 	MOVQ	new+8(FP), SI		// arg 2 - set
 	MOVQ	old+16(FP), DX		// arg 3 - oset
 	MOVL	$293, AX		// sys_sigprocmask

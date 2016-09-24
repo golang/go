@@ -43,6 +43,10 @@ func sigfillset(mask *uint64) {
 	*mask = ^uint64(0)
 }
 
-func sigcopyset(mask *sigset, m sigmask) {
-	copy((*mask)[:], m[:])
+//go:nosplit
+//go:nowritebarrierrec
+func sigmaskToSigset(m sigmask) sigset {
+	var set sigset
+	copy(set[:], m[:])
+	return set
 }
