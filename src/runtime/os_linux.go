@@ -148,9 +148,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	// Disable signals during clone, so that the new thread starts
 	// with signals disabled. It will enable them in minit.
 	var oset sigset
-	rtsigprocmask(_SIG_SETMASK, &sigset_all, &oset, int32(unsafe.Sizeof(oset)))
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
-	rtsigprocmask(_SIG_SETMASK, &oset, nil, int32(unsafe.Sizeof(oset)))
+	sigprocmask(_SIG_SETMASK, &oset, nil)
 
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
@@ -252,22 +252,6 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
-//go:nosplit
-func msigsave(mp *m) {
-	smask := &mp.sigmask
-	rtsigprocmask(_SIG_SETMASK, nil, smask, int32(unsafe.Sizeof(*smask)))
-}
-
-//go:nosplit
-func msigrestore(sigmask sigset) {
-	rtsigprocmask(_SIG_SETMASK, &sigmask, nil, int32(unsafe.Sizeof(sigmask)))
-}
-
-//go:nosplit
-func sigblock() {
-	rtsigprocmask(_SIG_SETMASK, &sigset_all, nil, int32(unsafe.Sizeof(sigset_all)))
-}
-
 func gettid() uint32
 
 // Called to initialize a new m (including the bootstrap m).
@@ -302,7 +286,7 @@ func minit() {
 			sigdelset(&nmask, i)
 		}
 	}
-	rtsigprocmask(_SIG_SETMASK, &nmask, nil, int32(unsafe.Sizeof(nmask)))
+	sigprocmask(_SIG_SETMASK, &nmask, nil)
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -363,7 +347,13 @@ func sigaltstack(new, old *sigaltstackt)
 func setitimer(mode int32, new, old *itimerval)
 
 //go:noescape
-func rtsigprocmask(sig uint32, new, old *sigset, size int32)
+func rtsigprocmask(how int32, new, old *sigset, size int32)
+
+//go:nosplit
+//go:nowritebarrierrec
+func sigprocmask(how int32, new, old *sigset) {
+	rtsigprocmask(how, new, old, int32(unsafe.Sizeof(*new)))
+}
 
 //go:noescape
 func getrlimit(kind int32, limit unsafe.Pointer) int32
@@ -440,18 +430,4 @@ func signalstack(s *stack) {
 		st.ss_flags = 0
 	}
 	sigaltstack(&st, nil)
-}
-
-//go:nosplit
-//go:nowritebarrierrec
-func updatesigmask(m sigmask) {
-	var mask sigset
-	sigcopyset(&mask, m)
-	rtsigprocmask(_SIG_SETMASK, &mask, nil, int32(unsafe.Sizeof(mask)))
-}
-
-func unblocksig(sig int32) {
-	var mask sigset
-	sigaddset(&mask, int(sig))
-	rtsigprocmask(_SIG_UNBLOCK, &mask, nil, int32(unsafe.Sizeof(mask)))
 }

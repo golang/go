@@ -173,21 +173,6 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
-//go:nosplit
-func msigsave(mp *m) {
-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
-}
-
-//go:nosplit
-func msigrestore(sigmask sigset) {
-	sigprocmask(_SIG_SETMASK, &sigmask, nil)
-}
-
-//go:nosplit
-func sigblock() {
-	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
-}
-
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
@@ -515,7 +500,7 @@ const (
 )
 
 //go:noescape
-func sigprocmask(how uint32, new, old *sigset)
+func sigprocmask(how int32, new, old *sigset)
 
 //go:noescape
 func sigaction(mode uint32, new *sigactiont, old *usigactiont)
@@ -593,12 +578,6 @@ func signalstack(s *stack) {
 
 //go:nosplit
 //go:nowritebarrierrec
-func updatesigmask(m sigmask) {
-	s := sigset(m[0])
-	sigprocmask(_SIG_SETMASK, &s, nil)
-}
-
-func unblocksig(sig int32) {
-	mask := sigset(1) << (uint32(sig) - 1)
-	sigprocmask(_SIG_UNBLOCK, &mask, nil)
+func sigmaskToSigset(m sigmask) sigset {
+	return sigset(m[0])
 }

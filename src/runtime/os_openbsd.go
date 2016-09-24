@@ -23,7 +23,20 @@ func sigaction(sig int32, new, old *sigactiont)
 func sigaltstack(new, old *stackt)
 
 //go:noescape
-func sigprocmask(mode int32, new sigset) sigset
+func obsdsigprocmask(how int32, new sigset) sigset
+
+//go:nosplit
+//go:nowritebarrierrec
+func sigprocmask(how int32, new, old *sigset) {
+	n := sigset(0)
+	if new != nil {
+		n = *new
+	}
+	r := obsdsigprocmask(how, n)
+	if old != nil {
+		*old = r
+	}
+}
 
 //go:noescape
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
@@ -57,10 +70,7 @@ const (
 
 type sigset uint32
 
-const (
-	sigset_none = sigset(0)
-	sigset_all  = ^sigset(0)
-)
+var sigset_all = ^sigset(0)
 
 // From OpenBSD's <sys/sysctl.h>
 const (
@@ -160,9 +170,10 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		tf_stack: uintptr(stk),
 	}
 
-	oset := sigprocmask(_SIG_SETMASK, sigset_all)
+	var oset sigset
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, funcPC(mstart))
-	sigprocmask(_SIG_SETMASK, oset)
+	sigprocmask(_SIG_SETMASK, &oset, nil)
 
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
@@ -199,21 +210,6 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
-//go:nosplit
-func msigsave(mp *m) {
-	mp.sigmask = sigprocmask(_SIG_BLOCK, 0)
-}
-
-//go:nosplit
-func msigrestore(sigmask sigset) {
-	sigprocmask(_SIG_SETMASK, sigmask)
-}
-
-//go:nosplit
-func sigblock() {
-	sigprocmask(_SIG_SETMASK, sigset_all)
-}
-
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
@@ -246,7 +242,7 @@ func minit() {
 			nmask &^= 1 << (uint32(i) - 1)
 		}
 	}
-	sigprocmask(_SIG_SETMASK, nmask)
+	sigprocmask(_SIG_SETMASK, &nmask, nil)
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -317,11 +313,6 @@ func signalstack(s *stack) {
 
 //go:nosplit
 //go:nowritebarrierrec
-func updatesigmask(m sigmask) {
-	sigprocmask(_SIG_SETMASK, sigset(m[0]))
-}
-
-func unblocksig(sig int32) {
-	mask := sigset(1) << (uint32(sig) - 1)
-	sigprocmask(_SIG_UNBLOCK, mask)
+func sigmaskToSigset(m sigmask) sigset {
+	return sigset(m[0])
 }

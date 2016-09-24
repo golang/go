@@ -187,7 +187,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-4
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
+TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$-4
 	MOVL	$48, AX			// sys_sigprocmask
 	INT	$0x80
 	JAE	2(PC)

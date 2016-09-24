@@ -198,8 +198,8 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 	MOVW.CS	R8, (R8)
 	RET
 
-TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW	mode+0(FP), R0		// arg 1 - mode
+TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
+	MOVW	how+0(FP), R0		// arg 1 - mode
 	MOVW	new+4(FP), R1		// arg 2 - new
 	MOVW	$48, R12		// sys_sigprocmask
 	SWI	$0

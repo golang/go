@@ -59,6 +59,10 @@ func sigfillset(mask *[2]uint64) {
 	(*mask)[0], (*mask)[1] = ^uint64(0), ^uint64(0)
 }
 
-func sigcopyset(mask *sigset, m sigmask) {
-	(*mask)[0] = uint64(m[0]) | uint64(m[1])<<32
+//go:nosplit
+//go:nowritebarrierrec
+func sigmaskToSigset(m sigmask) sigset {
+	var set sigset
+	set[0] = uint64(m[0]) | uint64(m[1])<<32
+	return set
 }

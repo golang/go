@@ -191,7 +191,7 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
 	MOVL	$175, AX		// syscall entry
-	MOVL	sig+0(FP), BX
+	MOVL	how+0(FP), BX
 	MOVL	new+4(FP), CX
 	MOVL	old+8(FP), DX
 	MOVL	size+12(FP), SI
