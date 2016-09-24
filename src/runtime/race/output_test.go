@@ -13,12 +13,17 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestOutput(t *testing.T) {
 	for _, test := range tests {
+		if test.goos != "" && test.goos != runtime.GOOS {
+			t.Logf("test %v runs only on %v, skipping: ", test.name, test.goos)
+			continue
+		}
 		dir, err := ioutil.TempDir("", "go-build")
 		if err != nil {
 			t.Fatalf("failed to create temp directory: %v", err)
@@ -67,11 +72,12 @@ func TestOutput(t *testing.T) {
 var tests = []struct {
 	name   string
 	run    string
+	goos   string
 	gorace string
 	source string
 	re     string
 }{
-	{"simple", "run", "atexit_sleep_ms=0", `
+	{"simple", "run", "", "atexit_sleep_ms=0", `
 package main
 import "time"
 func main() {
@@ -116,7 +122,7 @@ Found 1 data race\(s\)
 exit status 66
 `},
 
-	{"exitcode", "run", "atexit_sleep_ms=0 exitcode=13", `
+	{"exitcode", "run", "", "atexit_sleep_ms=0 exitcode=13", `
 package main
 func main() {
 	done := make(chan bool)
@@ -130,7 +136,7 @@ func main() {
 }
 `, `exit status 13`},
 
-	{"strip_path_prefix", "run", "atexit_sleep_ms=0 strip_path_prefix=/main.", `
+	{"strip_path_prefix", "run", "", "atexit_sleep_ms=0 strip_path_prefix=/main.", `
 package main
 func main() {
 	done := make(chan bool)
@@ -146,7 +152,7 @@ func main() {
       go:7 \+0x[0-9,a-f]+
 `},
 
-	{"halt_on_error", "run", "atexit_sleep_ms=0 halt_on_error=1", `
+	{"halt_on_error", "run", "", "atexit_sleep_ms=0 halt_on_error=1", `
 package main
 func main() {
 	done := make(chan bool)
@@ -163,7 +169,7 @@ func main() {
 exit status 66
 `},
 
-	{"test_fails_on_race", "test", "atexit_sleep_ms=0", `
+	{"test_fails_on_race", "test", "", "atexit_sleep_ms=0", `
 package main_test
 import "testing"
 func TestFail(t *testing.T) {
@@ -182,7 +188,7 @@ PASS
 Found 1 data race\(s\)
 FAIL`},
 
-	{"slicebytetostring_pc", "run", "atexit_sleep_ms=0", `
+	{"slicebytetostring_pc", "run", "", "atexit_sleep_ms=0", `
 package main
 func main() {
 	done := make(chan string)
@@ -198,4 +204,57 @@ func main() {
       .*/runtime/string\.go:.*
   main\.main\.func1\(\)
       .*/main.go:7`},
+
+	// Test for http://golang.org/issue/17190
+	{"external_cgo_thread", "run", "linux", "atexit_sleep_ms=0", `
+package main
+
+/*
+#include <pthread.h>
+typedef struct cb {
+        int foo;
+} cb;
+extern void goCallback();
+static inline void *threadFunc(void *p) {
+	goCallback();
+	return 0;
+}
+static inline void startThread(cb* c) {
+	pthread_t th;
+	pthread_create(&th, 0, threadFunc, 0);
+}
+*/
+import "C"
+
+import "time"
+
+var racy int
+
+//export goCallback
+func goCallback() {
+	racy++
+}
+
+func main() {
+	var c C.cb
+	C.startThread(&c)
+	time.Sleep(time.Second)
+	racy++
+}
+`, `==================
+WARNING: DATA RACE
+Read at 0x[0-9,a-f]+ by main goroutine:
+  main\.main\(\)
+      .*/main\.go:34 \+0x[0-9,a-f]+
+
+Previous write at 0x[0-9,a-f]+ by goroutine [0-9]:
+  main\.goCallback\(\)
+      .*/main\.go:27 \+0x[0-9,a-f]+
+  main._cgoexpwrap_[0-9a-z]+_goCallback\(\)
+      .*/_cgo_gotypes\.go:[0-9]+ \+0x[0-9,a-f]+
+
+Goroutine [0-9] \(running\) created at:
+  runtime\.newextram\(\)
+      .*/runtime/proc.go:[0-9]+ \+0x[0-9,a-f]+
+==================`},
 }
