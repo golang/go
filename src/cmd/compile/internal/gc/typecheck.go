@@ -1705,7 +1705,7 @@ OpSwitch:
 				n.SetVal(n.Left.Val())
 			}
 
-			// do not use stringtoarraylit.
+		// do not use stringtoarraylit.
 		// generated code and compiler memory footprint is better without it.
 		case OSTRARRAYBYTE:
 			break

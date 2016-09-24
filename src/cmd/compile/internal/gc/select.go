@@ -40,7 +40,7 @@ func typecheckselect(sel *Node) {
 			default:
 				yyerror("select case must be receive, send or assign recv")
 
-				// convert x = <-c into OSELRECV(x, <-c).
+			// convert x = <-c into OSELRECV(x, <-c).
 			// remove implicit conversions; the eventual assignment
 			// will reintroduce them.
 			case OAS:

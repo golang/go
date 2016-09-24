@@ -460,7 +460,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
 		return 0
 
-		// The following three arch specific relocations are only for generation of
+	// The following three arch specific relocations are only for generation of
 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
 	case obj.R_PLT0: // add ip, pc, #0xXX00000
 		if ld.Symaddr(ctxt.Syms.Lookup(".got.plt", 0)) < ld.Symaddr(ctxt.Syms.Lookup(".plt", 0)) {

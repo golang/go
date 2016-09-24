@@ -826,7 +826,7 @@ opswitch:
 		}
 		n = liststmt(append([]*Node{r}, ll...))
 
-		// x, y = <-c
+	// x, y = <-c
 	// orderstmt made sure x is addressable.
 	case OAS2RECV:
 		init.AppendNodes(&n.Ninit)
@@ -2654,7 +2654,7 @@ func vmatch1(l *Node, r *Node) bool {
 		case PPARAM, PAUTO:
 			break
 
-			// assignment to non-stack variable
+		// assignment to non-stack variable
 		// must be delayed if right has function calls.
 		default:
 			if r.Ullman >= UINF {

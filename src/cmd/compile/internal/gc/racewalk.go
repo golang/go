@@ -188,7 +188,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		instrumentnode(&n.Left, init, 0, 0)
 		goto ret
 
-		// Instrument dst argument of runtime.writebarrier* calls
+	// Instrument dst argument of runtime.writebarrier* calls
 	// as we do not instrument runtime code.
 	// typedslicecopy is instrumented in runtime.
 	case OCALLFUNC:

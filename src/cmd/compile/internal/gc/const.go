@@ -335,7 +335,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 			TUNSAFEPTR:
 			break
 
-			// A nil literal may be converted to uintptr
+		// A nil literal may be converted to uintptr
 		// if it is an unsafe.Pointer
 		case TUINTPTR:
 			if n.Type.Etype == TUNSAFEPTR {
@@ -851,7 +851,7 @@ func evconst(n *Node) {
 			goto illegal
 		}
 
-		// right must be unsigned.
+	// right must be unsigned.
 	// left can be ideal.
 	case OLSH, ORSH:
 		nr = defaultlit(nr, Types[TUINT])
@@ -994,7 +994,7 @@ func evconst(n *Node) {
 
 		v.U.(*Mpflt).Quo(rv.U.(*Mpflt))
 
-		// The default case above would print 'ideal % ideal',
+	// The default case above would print 'ideal % ideal',
 	// which is not quite an ideal error.
 	case OMOD_ | CTFLT_:
 		if n.Diag == 0 {
