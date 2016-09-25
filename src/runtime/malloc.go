@@ -903,6 +903,7 @@ var globalAlloc struct {
 // There is no associated free operation.
 // Intended for things like function/type/debug-related persistent data.
 // If align is 0, uses default align (currently 8).
+// The returned memory will be zeroed.
 //
 // Consider marking persistentalloc'd types go:notinheap.
 func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {

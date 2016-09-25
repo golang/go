@@ -77,7 +77,6 @@ func allocmcache() *mcache {
 	lock(&mheap_.lock)
 	c := (*mcache)(mheap_.cachealloc.alloc())
 	unlock(&mheap_.lock)
-	memclr(unsafe.Pointer(c), unsafe.Sizeof(*c))
 	for i := 0; i < _NumSizeClasses; i++ {
 		c.alloc[i] = &emptymspan
 	}
