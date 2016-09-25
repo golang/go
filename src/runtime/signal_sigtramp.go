@@ -33,7 +33,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	// If some non-Go code called sigaltstack, adjust.
 	sp := uintptr(unsafe.Pointer(&sig))
 	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
-		var st sigaltstackt
+		var st stackt
 		sigaltstack(nil, &st)
 		if st.ss_flags&_SS_DISABLE != 0 {
 			setg(nil)
@@ -44,11 +44,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			setg(nil)
 			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
 		}
-		g.m.gsignal.stack.lo = stsp
-		g.m.gsignal.stack.hi = stsp + st.ss_size
-		g.m.gsignal.stackguard0 = stsp + _StackGuard
-		g.m.gsignal.stackguard1 = stsp + _StackGuard
-		g.m.gsignal.stackAlloc = st.ss_size
+		setGsignalStack(&st)
 		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
 	}
 

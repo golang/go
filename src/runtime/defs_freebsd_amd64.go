@@ -110,13 +110,6 @@ type thrparam struct {
 	spare      [3]uintptr
 }
 
-type sigaltstackt struct {
-	ss_sp     *int8
-	ss_size   uint64
-	ss_flags  int32
-	pad_cgo_0 [4]byte
-}
-
 type sigset struct {
 	__bits [4]uint32
 }

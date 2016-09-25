@@ -525,6 +525,58 @@ func unblocksig(sig int32) {
 	sigprocmask(_SIG_UNBLOCK, &set, nil)
 }
 
+// minitSignalStack is called when initializing a new m to set the
+// alternate signal stack. If the alternate signal stack is not set
+// for the thread (the normal case) then set the alternate signal
+// stack to the gsignal stack. If the alternate signal stack is set
+// for the thread (the case when a non-Go thread sets the alternate
+// signal stack and then calls a Go function) then set the gsignal
+// stack to the alternate signal stack. Record which choice was made
+// in newSigstack, so that it can be undone in unminit.
+func minitSignalStack() {
+	_g_ := getg()
+	var st stackt
+	sigaltstack(nil, &st)
+	if st.ss_flags&_SS_DISABLE != 0 {
+		signalstack(&_g_.m.gsignal.stack)
+		_g_.m.newSigstack = true
+	} else {
+		setGsignalStack(&st)
+		_g_.m.newSigstack = false
+	}
+}
+
+// setGsignalStack sets the gsignal stack of the current m to an
+// alternate signal stack returned from the sigaltstack system call.
+// This is used when handling a signal if non-Go code has set the
+// alternate signal stack.
+//go:nosplit
+//go:nowritebarrierrec
+func setGsignalStack(st *stackt) {
+	g := getg()
+	stsp := uintptr(unsafe.Pointer(st.ss_sp))
+	g.m.gsignal.stack.lo = stsp
+	g.m.gsignal.stack.hi = stsp + st.ss_size
+	g.m.gsignal.stackguard0 = stsp + _StackGuard
+	g.m.gsignal.stackguard1 = stsp + _StackGuard
+	g.m.gsignal.stackAlloc = st.ss_size
+}
+
+// signalstack sets the current thread's alternate signal stack to s.
+// If s is nil, the current thread's alternate signal stack is disabled.
+//go:nosplit
+func signalstack(s *stack) {
+	var st stackt
+	if s == nil {
+		st.ss_flags = _SS_DISABLE
+	} else {
+		setSignalstackSP(&st, s.lo)
+		st.ss_size = s.hi - s.lo
+		st.ss_flags = 0
+	}
+	sigaltstack(&st, nil)
+}
+
 // setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
 //go:nosplit
 func setsigsegv(pc uintptr) {

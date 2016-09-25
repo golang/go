@@ -22,7 +22,7 @@ type mOS struct{}
 func lwp_create(param *lwpparams) int32
 
 //go:noescape
-func sigaltstack(new, old *sigaltstackt)
+func sigaltstack(new, old *stackt)
 
 //go:noescape
 func sigaction(sig int32, new, old *sigactiont)
@@ -185,22 +185,7 @@ func minit() {
 	// m.procid is a uint64, but lwp_start writes an int32. Fix it up.
 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
 
-	// Initialize signal handling.
-	var st sigaltstackt
-	sigaltstack(nil, &st)
-	if st.ss_flags&_SS_DISABLE != 0 {
-		signalstack(&_g_.m.gsignal.stack)
-		_g_.m.newSigstack = true
-	} else {
-		// Use existing signal stack.
-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
-		_g_.m.gsignal.stack.lo = stsp
-		_g_.m.gsignal.stack.hi = stsp + st.ss_size
-		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
-		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
-		_g_.m.gsignal.stackAlloc = st.ss_size
-		_g_.m.newSigstack = false
-	}
+	minitSignalStack()
 
 	// restore signal mask from m.sigmask and unblock essential signals
 	nmask := _g_.m.sigmask
@@ -292,17 +277,10 @@ func getsig(i int32) uintptr {
 	return sa.sa_sigaction
 }
 
+// setSignaltstackSP sets the ss_sp field of a stackt.
 //go:nosplit
-func signalstack(s *stack) {
-	var st sigaltstackt
-	if s == nil {
-		st.ss_flags = _SS_DISABLE
-	} else {
-		st.ss_sp = s.lo
-		st.ss_size = s.hi - s.lo
-		st.ss_flags = 0
-	}
-	sigaltstack(&st, nil)
+func setSignalstackSP(s *stackt, sp uintptr) {
+	s.ss_sp = sp
 }
 
 //go:nosplit

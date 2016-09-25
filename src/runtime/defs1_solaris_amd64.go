@@ -110,20 +110,13 @@ type semt struct {
 	sem_pad2  [2]uint64
 }
 
-type sigaltstackt struct {
-	ss_sp     *byte
-	ss_size   uint64
-	ss_flags  int32
-	pad_cgo_0 [4]byte
-}
-
 type sigset struct {
 	__sigbits [4]uint32
 }
 
 type stackt struct {
 	ss_sp     *byte
-	ss_size   uint64
+	ss_size   uintptr
 	ss_flags  int32
 	pad_cgo_0 [4]byte
 }

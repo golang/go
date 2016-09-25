@@ -35,7 +35,7 @@ func setitimer(mode int32, new, old *itimerval)
 func sigaction(sig int32, new, old *sigactiont)
 
 //go:noescape
-func sigaltstack(new, old *sigaltstackt)
+func sigaltstack(new, old *stackt)
 
 //go:noescape
 func sigprocmask(how int32, new, old *sigset)
@@ -303,17 +303,10 @@ func getsig(i int32) uintptr {
 	return sa.sa_sigaction
 }
 
+// setSignaltstackSP sets the ss_sp field of a stackt.
 //go:nosplit
-func signalstack(s *stack) {
-	var st sigaltstackt
-	if s == nil {
-		st.ss_flags = _SS_DISABLE
-	} else {
-		st.ss_sp = s.lo
-		st.ss_size = s.hi - s.lo
-		st.ss_flags = 0
-	}
-	sigaltstack(&st, nil)
+func setSignalstackSP(s *stackt, sp uintptr) {
+	s.ss_sp = sp
 }
 
 //go:nosplit
