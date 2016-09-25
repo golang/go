@@ -211,13 +211,21 @@ func sigpanic() {
 
 	switch g.sig {
 	case _SIGBUS:
-		if g.sigcode0 == _BUS_ADRERR && g.sigcode1 < 0x1000 || g.paniconfault {
+		if g.sigcode0 == _BUS_ADRERR && g.sigcode1 < 0x1000 {
+			panicmem()
+		}
+		// Support runtime/debug.SetPanicOnFault.
+		if g.paniconfault {
 			panicmem()
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
 		throw("fault")
 	case _SIGSEGV:
-		if (g.sigcode0 == 0 || g.sigcode0 == _SEGV_MAPERR || g.sigcode0 == _SEGV_ACCERR) && g.sigcode1 < 0x1000 || g.paniconfault {
+		if (g.sigcode0 == 0 || g.sigcode0 == _SEGV_MAPERR || g.sigcode0 == _SEGV_ACCERR) && g.sigcode1 < 0x1000 {
+			panicmem()
+		}
+		// Support runtime/debug.SetPanicOnFault.
+		if g.paniconfault {
 			panicmem()
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
