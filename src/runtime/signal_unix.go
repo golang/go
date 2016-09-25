@@ -196,6 +196,49 @@ func sigpipe() {
 	dieFromSignal(_SIGPIPE)
 }
 
+// sigpanic turns a synchronous signal into a run-time panic.
+// If the signal handler sees a synchronous panic, it arranges the
+// stack to look like the function where the signal occurred called
+// sigpanic, sets the signal's PC value to sigpanic, and returns from
+// the signal handler. The effect is that the program will act as
+// though the function that got the signal simply called sigpanic
+// instead.
+func sigpanic() {
+	g := getg()
+	if !canpanic(g) {
+		throw("unexpected signal during runtime execution")
+	}
+
+	switch g.sig {
+	case _SIGBUS:
+		if g.sigcode0 == _BUS_ADRERR && g.sigcode1 < 0x1000 || g.paniconfault {
+			panicmem()
+		}
+		print("unexpected fault address ", hex(g.sigcode1), "\n")
+		throw("fault")
+	case _SIGSEGV:
+		if (g.sigcode0 == 0 || g.sigcode0 == _SEGV_MAPERR || g.sigcode0 == _SEGV_ACCERR) && g.sigcode1 < 0x1000 || g.paniconfault {
+			panicmem()
+		}
+		print("unexpected fault address ", hex(g.sigcode1), "\n")
+		throw("fault")
+	case _SIGFPE:
+		switch g.sigcode0 {
+		case _FPE_INTDIV:
+			panicdivide()
+		case _FPE_INTOVF:
+			panicoverflow()
+		}
+		panicfloat()
+	}
+
+	if g.sig >= uint32(len(sigtable)) {
+		// can't happen: we looked up g.sig in sigtable to decide to call sigpanic
+		throw("unexpected signal value")
+	}
+	panic(errorString(sigtable[g.sig].name))
+}
+
 // dieFromSignal kills the program with a signal.
 // This provides the expected exit status for the shell.
 // This is only called with fatal signals expected to kill the process.
@@ -472,4 +515,14 @@ func unblocksig(sig int32) {
 	m[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
 	set := sigmaskToSigset(m)
 	sigprocmask(_SIG_UNBLOCK, &set, nil)
+}
+
+// setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
+//go:nosplit
+func setsigsegv(pc uintptr) {
+	g := getg()
+	g.sig = _SIGSEGV
+	g.sigpc = pc
+	g.sigcode0 = _SEGV_MAPERR
+	g.sigcode1 = 0 // TODO: emulate si_addr
 }
