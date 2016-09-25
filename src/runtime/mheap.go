@@ -406,6 +406,15 @@ func (h *mheap) init(spansStart, spansBytes uintptr) {
 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
 
+	// Don't zero mspan allocations. Background sweeping can
+	// inspect a span concurrently with allocating it, so it's
+	// important that the span's sweepgen survive across freeing
+	// and re-allocating a span to prevent background sweeping
+	// from improperly cas'ing it from 0.
+	//
+	// This is safe because mspan contains no heap pointers.
+	h.spanalloc.zero = false
+
 	// h->mapcache needs no init
 	for i := range h.free {
 		h.free[i].init()
@@ -1004,6 +1013,7 @@ func runtime_debug_freeOSMemory() {
 
 // Initialize a new span with the given start and npages.
 func (span *mspan) init(base uintptr, npages uintptr) {
+	// span is *not* zeroed.
 	span.next = nil
 	span.prev = nil
 	span.list = nil
