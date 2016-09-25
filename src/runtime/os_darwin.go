@@ -183,21 +183,7 @@ func minit() {
 	// The signal handler handles it directly.
 	// The sigaltstack assembly function does nothing.
 	if GOARCH != "arm" && GOARCH != "arm64" {
-		var st stackt
-		sigaltstack(nil, &st)
-		if st.ss_flags&_SS_DISABLE != 0 {
-			signalstack(&_g_.m.gsignal.stack)
-			_g_.m.newSigstack = true
-		} else {
-			// Use existing signal stack.
-			stsp := uintptr(unsafe.Pointer(st.ss_sp))
-			_g_.m.gsignal.stack.lo = stsp
-			_g_.m.gsignal.stack.hi = stsp + st.ss_size
-			_g_.m.gsignal.stackguard0 = stsp + _StackGuard
-			_g_.m.gsignal.stackguard1 = stsp + _StackGuard
-			_g_.m.gsignal.stackAlloc = st.ss_size
-			_g_.m.newSigstack = false
-		}
+		minitSignalStack()
 	}
 
 	// restore signal mask from m.sigmask and unblock essential signals
@@ -563,17 +549,10 @@ func getsig(i int32) uintptr {
 	return *(*uintptr)(unsafe.Pointer(&sa.__sigaction_u))
 }
 
+// setSignaltstackSP sets the ss_sp field of a stackt.
 //go:nosplit
-func signalstack(s *stack) {
-	var st stackt
-	if s == nil {
-		st.ss_flags = _SS_DISABLE
-	} else {
-		st.ss_sp = (*byte)(unsafe.Pointer(s.lo))
-		st.ss_size = s.hi - s.lo
-		st.ss_flags = 0
-	}
-	sigaltstack(&st, nil)
+func setSignalstackSP(s *stackt, sp uintptr) {
+	s.ss_sp = (*byte)(unsafe.Pointer(sp))
 }
 
 //go:nosplit

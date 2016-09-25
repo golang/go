@@ -168,7 +168,7 @@ type siginfo struct {
 	si_addr uint32
 }
 
-type sigaltstackt struct {
+type stackt struct {
 	ss_sp    *byte
 	ss_flags int32
 	ss_size  uintptr
@@ -208,7 +208,7 @@ type sigcontext struct {
 type ucontext struct {
 	uc_flags    uint32
 	uc_link     *ucontext
-	uc_stack    sigaltstackt
+	uc_stack    stackt
 	uc_mcontext sigcontext
 	uc_sigmask  uint32
 }

@@ -101,7 +101,7 @@ func (ts *timespec) set_nsec(x int32) {
 	ts.tv_nsec = x
 }
 
-type sigaltstackt struct {
+type stackt struct {
 	ss_sp    *byte
 	ss_flags int32
 	ss_size  uintptr
@@ -134,7 +134,7 @@ type sigcontext struct {
 type ucontext struct {
 	uc_flags    uint32
 	uc_link     *ucontext
-	uc_stack    sigaltstackt
+	uc_stack    stackt
 	uc_mcontext sigcontext
 	uc_sigmask  uint32
 	__unused    [31]int32

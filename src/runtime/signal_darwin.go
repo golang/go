@@ -77,11 +77,7 @@ func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Poi
 			setg(nil)
 			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
 		}
-		g.m.gsignal.stack.lo = stsp
-		g.m.gsignal.stack.hi = stsp + st.ss_size
-		g.m.gsignal.stackguard0 = stsp + _StackGuard
-		g.m.gsignal.stackguard1 = stsp + _StackGuard
-		g.m.gsignal.stackAlloc = st.ss_size
+		setGsignalStack(&st)
 		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
 	}
 
