@@ -573,6 +573,13 @@ func unblocksig(sig int32) {
 	sigprocmask(_SIG_UNBLOCK, &set, nil)
 }
 
+// minitSignals is called when initializing a new m to set the
+// thread's alternate signal stack and signal mask.
+func minitSignals() {
+	minitSignalStack()
+	minitSignalMask()
+}
+
 // minitSignalStack is called when initializing a new m to set the
 // alternate signal stack. If the alternate signal stack is not set
 // for the thread (the normal case) then set the alternate signal
@@ -592,6 +599,24 @@ func minitSignalStack() {
 		setGsignalStack(&st)
 		_g_.m.newSigstack = false
 	}
+}
+
+// minitSignalMask is called when initializing a new m to set the
+// thread's signal mask. When this is called all signals have been
+// blocked for the thread.  This starts with m.sigmask, which was set
+// either from initSigmask for a newly created thread or by calling
+// msigsave if this is a non-Go thread calling a Go function. It
+// removes all essential signals from the mask, thus causing those
+// signals to not be blocked. Then it sets the thread's signal mask.
+// After this is called the thread can receive signals.
+func minitSignalMask() {
+	nmask := getg().m.sigmask
+	for i := range sigtable {
+		if sigtable[i].flags&_SigUnblock != 0 {
+			sigdelset(&nmask, i)
+		}
+	}
+	sigprocmask(_SIG_SETMASK, &nmask, nil)
 }
 
 // setGsignalStack sets the gsignal stack of the current m to an

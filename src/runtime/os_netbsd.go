@@ -228,8 +228,6 @@ func minit() {
 	_g_ := getg()
 	_g_.m.procid = uint64(lwp_self())
 
-	// Initialize signal handling.
-
 	// On NetBSD a thread created by pthread_create inherits the
 	// signal stack of the creating thread. We always create a
 	// new signal stack here, to avoid having two Go threads using
@@ -240,14 +238,7 @@ func minit() {
 	signalstack(&_g_.m.gsignal.stack)
 	_g_.m.newSigstack = true
 
-	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := _g_.m.sigmask
-	for i := range sigtable {
-		if sigtable[i].flags&_SigUnblock != 0 {
-			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
-		}
-	}
-	sigprocmask(_SIG_SETMASK, &nmask, nil)
+	minitSignalMask()
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -315,6 +306,10 @@ func sigmaskToSigset(m sigmask) sigset {
 	var set sigset
 	copy(set.__bits[:], m[:])
 	return set
+}
+
+func sigdelset(mask *sigset, i int) {
+	mask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
 func (c *sigctxt) fixsigcode(sig uint32) {
