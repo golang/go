@@ -20,9 +20,6 @@ const (
 //go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
-//go:cgo_import_dynamic runtime._CryptAcquireContextW CryptAcquireContextW%5 "advapi32.dll"
-//go:cgo_import_dynamic runtime._CryptGenRandom CryptGenRandom%3 "advapi32.dll"
-//go:cgo_import_dynamic runtime._CryptReleaseContext CryptReleaseContext%2 "advapi32.dll"
 //go:cgo_import_dynamic runtime._DuplicateHandle DuplicateHandle%7 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ExitProcess ExitProcess%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
@@ -67,9 +64,6 @@ var (
 	_CreateIoCompletionPort,
 	_CreateThread,
 	_CreateWaitableTimerA,
-	_CryptAcquireContextW,
-	_CryptGenRandom,
-	_CryptReleaseContext,
 	_DuplicateHandle,
 	_ExitProcess,
 	_FreeEnvironmentStringsW,
@@ -110,6 +104,16 @@ var (
 	_GetQueuedCompletionStatusEx,
 	_LoadLibraryExW,
 	_ stdFunction
+
+	// Use RtlGenRandom to generate cryptographically random data.
+	// This approach has been recommended by Microsoft (see issue
+	// 15589 for details).
+	// The RtlGenRandom is not listed in advapi32.dll, instead
+	// RtlGenRandom function can be found by searching for SystemFunction036.
+	// Also some versions of Mingw cannot link to SystemFunction036
+	// when building executable as Cgo. So load SystemFunction036
+	// manually during runtime startup.
+	_RtlGenRandom stdFunction
 )
 
 // Function to be called by windows CreateThread
@@ -167,6 +171,13 @@ func loadOptionalSyscalls() {
 	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
 	_GetQueuedCompletionStatusEx = windowsFindfunc(k32, []byte("GetQueuedCompletionStatusEx\000"))
 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
+
+	var advapi32dll = []byte("advapi32.dll\000")
+	a32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&advapi32dll[0])))
+	if a32 == 0 {
+		throw("advapi32.dll not found")
+	}
+	_RtlGenRandom = windowsFindfunc(a32, []byte("SystemFunction036\000"))
 }
 
 //go:nosplit
@@ -273,17 +284,9 @@ func osinit() {
 
 //go:nosplit
 func getRandomData(r []byte) {
-	const (
-		prov_rsa_full       = 1
-		crypt_verifycontext = 0xF0000000
-	)
-	var handle uintptr
 	n := 0
-	if stdcall5(_CryptAcquireContextW, uintptr(unsafe.Pointer(&handle)), 0, 0, prov_rsa_full, crypt_verifycontext) != 0 {
-		if stdcall3(_CryptGenRandom, handle, uintptr(len(r)), uintptr(unsafe.Pointer(&r[0]))) != 0 {
-			n = len(r)
-		}
-		stdcall2(_CryptReleaseContext, handle, 0)
+	if stdcall2(_RtlGenRandom, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
+		n = len(r)
 	}
 	extendRandom(r, n)
 }

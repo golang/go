@@ -972,3 +972,41 @@ func BenchmarkOsYield(b *testing.B) {
 		runtime.OsYield()
 	}
 }
+
+func BenchmarkRunningGoProgram(b *testing.B) {
+	tmpdir, err := ioutil.TempDir("", "BenchmarkRunningGoProgram")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "main.go")
+	err = ioutil.WriteFile(src, []byte(benchmarkRunnigGoProgram), 0666)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "main.exe")
+	cmd := exec.Command("go", "build", "-o", exe, src)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		b.Fatalf("building main.exe failed: %v\n%s", err, out)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		cmd := exec.Command(exe)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			b.Fatalf("runing main.exe failed: %v\n%s", err, out)
+		}
+	}
+}
+
+const benchmarkRunnigGoProgram = `
+package main
+
+func main() {
+}
+`
