@@ -290,3 +290,6 @@ func sigmaskToSigset(m sigmask) sigset {
 	copy(set.__bits[:], m[:])
 	return set
 }
+
+func (c *sigctxt) fixsigcode(sig uint32) {
+}

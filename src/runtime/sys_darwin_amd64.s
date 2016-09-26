@@ -230,22 +230,18 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVQ BP, SP
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-12
-	MOVQ ctx+0(FP),        DI
-	MOVL infostyle+8(FP),  SI
+TEXT runtime·sigtramp(SB),NOSPLIT,$32
+	MOVL SI, 24(SP) // save infostyle for sigreturn below
+	MOVL DX, 0(SP)  // sig
+	MOVQ CX, 8(SP)  // info
+	MOVQ R8, 16(SP) // ctx
+	MOVQ $runtime·sigtrampgo(SB), AX
+	CALL AX
+	MOVQ 16(SP), DI // ctx
+	MOVL 24(SP), SI // infostyle
 	MOVL $(0x2000000+184), AX
 	SYSCALL
 	INT $3 // not reached
-
-TEXT runtime·sigtramp(SB),NOSPLIT,$32
-	MOVQ DI,  0(SP) // fn
-	MOVL SI,  8(SP) // infostyle
-	MOVL DX, 12(SP) // sig
-	MOVQ CX, 16(SP) // info
-	MOVQ R8, 24(SP) // ctx
-	MOVQ $runtime·sigtrampgo(SB), AX
-	CALL AX
-	INT $3 // not reached (see issue 16453)
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI		// arg 1 addr
