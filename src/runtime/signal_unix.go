@@ -619,6 +619,15 @@ func minitSignalMask() {
 	sigprocmask(_SIG_SETMASK, &nmask, nil)
 }
 
+// unminitSignals is called from dropm, via unminit, to undo the
+// effect of calling minit on a non-Go thread.
+//go:nosplit
+func unminitSignals() {
+	if getg().m.newSigstack {
+		signalstack(nil)
+	}
+}
+
 // setGsignalStack sets the gsignal stack of the current m to an
 // alternate signal stack returned from the sigaltstack system call.
 // This is used when handling a signal if non-Go code has set the
