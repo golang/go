@@ -317,7 +317,7 @@ type (
 		Fun      Expr      // function expression
 		Lparen   token.Pos // position of "("
 		Args     []Expr    // function arguments; or nil
-		Ellipsis token.Pos // position of "...", if any
+		Ellipsis token.Pos // position of "..." (token.NoPos if there is no "...")
 		Rparen   token.Pos // position of ")"
 	}
 
