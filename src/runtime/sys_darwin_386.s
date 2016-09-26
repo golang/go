@@ -265,17 +265,6 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVL	AX, SP
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$12-8
-	MOVL	ctx+0(FP), CX
-	MOVL	infostyle+4(FP), BX
-	MOVL	$0, 0(SP)	// "caller PC" - ignored
-	MOVL	CX, 4(SP)
-	MOVL	BX, 8(SP)
-	MOVL	$184, AX	// sigreturn(ucontext, infostyle)
-	INT	$0x80
-	MOVL	$0xf1, 0xf1  // crash
-	RET
-
 // Sigtramp's job is to call the actual signal handler.
 // It is called with the following arguments on the stack:
 //	0(SP)	"return address" - ignored
@@ -285,16 +274,12 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$12-8
 //	16(SP)	siginfo
 //	20(SP)	context
 TEXT runtime·sigtramp(SB),NOSPLIT,$20
-	MOVL	fn+0(FP), BX
-	MOVL	BX, 0(SP)
-	MOVL	infostyle+4(FP), BX
-	MOVL	BX, 4(SP)
 	MOVL	sig+8(FP), BX
-	MOVL	BX, 8(SP)
+	MOVL	BX, 0(SP)
 	MOVL	info+12(FP), BX
-	MOVL	BX, 12(SP)
+	MOVL	BX, 4(SP)
 	MOVL	ctx+16(FP), BX
-	MOVL	BX, 16(SP)
+	MOVL	BX, 8(SP)
 	CALL	runtime·sigtrampgo(SB)
 
 	// call sigreturn

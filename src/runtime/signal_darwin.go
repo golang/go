@@ -4,8 +4,6 @@
 
 package runtime
 
-import "unsafe"
-
 type sigTabT struct {
 	flags int32
 	name  string
@@ -44,47 +42,4 @@ var sigtable = [...]sigTabT{
 	/* 29 */ {_SigNotify, "SIGINFO: status request from keyboard"},
 	/* 30 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
 	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
-}
-
-//go:noescape
-func sigreturn(ctx unsafe.Pointer, infostyle uint32)
-
-//go:nosplit
-//go:nowritebarrierrec
-func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Pointer) {
-	if sigfwdgo(sig, info, ctx) {
-		sigreturn(ctx, infostyle)
-		return
-	}
-	g := getg()
-	if g == nil {
-		badsignal(uintptr(sig), &sigctxt{info, ctx})
-		sigreturn(ctx, infostyle)
-		return
-	}
-
-	// If some non-Go code called sigaltstack, adjust.
-	sp := uintptr(unsafe.Pointer(&sig))
-	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
-		var st stackt
-		sigaltstack(nil, &st)
-		if st.ss_flags&_SS_DISABLE != 0 {
-			setg(nil)
-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
-		}
-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
-		if sp < stsp || sp >= stsp+st.ss_size {
-			setg(nil)
-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
-		}
-		setGsignalStack(&st)
-		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
-	}
-
-	setg(g.m.gsignal)
-	c := &sigctxt{info, ctx}
-	c.fixsigcode(sig)
-	sighandler(sig, info, ctx, g)
-	setg(g)
-	sigreturn(ctx, infostyle)
 }

@@ -318,6 +318,9 @@ func sigmaskToSigset(m sigmask) sigset {
 	return set
 }
 
+func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
 //go:nosplit
 func semacreate(mp *m) {
 	if mp.waitsema != 0 {

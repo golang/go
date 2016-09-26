@@ -196,6 +196,54 @@ func sigpipe() {
 	dieFromSignal(_SIGPIPE)
 }
 
+// sigtrampgo is called from the signal handler function, sigtramp,
+// written in assembly code.
+// This is called by the signal handler, and the world may be stopped.
+//go:nosplit
+//go:nowritebarrierrec
+func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+	if sigfwdgo(sig, info, ctx) {
+		return
+	}
+	g := getg()
+	if g == nil {
+		if sig == _SIGPROF {
+			// Ignore profiling signals that arrive on
+			// non-Go threads. On some systems they will
+			// be handled directly by the signal handler,
+			// by calling sigprofNonGo, in which case we won't
+			// get here anyhow.
+			return
+		}
+		badsignal(uintptr(sig), &sigctxt{info, ctx})
+		return
+	}
+
+	// If some non-Go code called sigaltstack, adjust.
+	sp := uintptr(unsafe.Pointer(&sig))
+	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
+		var st stackt
+		sigaltstack(nil, &st)
+		if st.ss_flags&_SS_DISABLE != 0 {
+			setg(nil)
+			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+		}
+		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+		if sp < stsp || sp >= stsp+st.ss_size {
+			setg(nil)
+			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+		}
+		setGsignalStack(&st)
+		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+	}
+
+	setg(g.m.gsignal)
+	c := &sigctxt{info, ctx}
+	c.fixsigcode(sig)
+	sighandler(sig, info, ctx, g)
+	setg(g)
+}
+
 // sigpanic turns a synchronous signal into a run-time panic.
 // If the signal handler sees a synchronous panic, it arranges the
 // stack to look like the function where the signal occurred called

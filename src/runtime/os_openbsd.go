@@ -294,3 +294,6 @@ func setSignalstackSP(s *stackt, sp uintptr) {
 func sigmaskToSigset(m sigmask) sigset {
 	return sigset(m[0])
 }
+
+func (c *sigctxt) fixsigcode(sig uint32) {
+}

@@ -410,3 +410,6 @@ func getsig(i int32) uintptr {
 func setSignalstackSP(s *stackt, sp uintptr) {
 	s.ss_sp = (*byte)(unsafe.Pointer(sp))
 }
+
+func (c *sigctxt) fixsigcode(sig uint32) {
+}
