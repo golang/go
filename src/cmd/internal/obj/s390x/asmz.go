@@ -145,8 +145,8 @@ var optab = []Optab{
 	Optab{AADD, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
 	Optab{AADD, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
 	Optab{AADD, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
-	Optab{ASUB, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
-	Optab{ASUB, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
+	Optab{ASUB, C_LCON, C_REG, C_NONE, C_REG, 21, 0},
+	Optab{ASUB, C_LCON, C_NONE, C_NONE, C_REG, 21, 0},
 	Optab{AMULHD, C_REG, C_NONE, C_NONE, C_REG, 4, 0},
 	Optab{AMULHD, C_REG, C_REG, C_NONE, C_REG, 4, 0},
 	Optab{ADIVW, C_REG, C_REG, C_NONE, C_REG, 2, 0},
@@ -2976,41 +2976,13 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 		}
 		addrilreloc(ctxt, p.From.Sym, d)
 
-	case 22: // arithmetic op $constant [reg] reg
-		if p.From.Sym != nil {
-			ctxt.Diag("%v is not supported", p)
-		}
+	case 21: // subtract $constant [reg] reg
 		v := vregoff(ctxt, &p.From)
 		r := p.Reg
 		if r == 0 {
 			r = p.To.Reg
 		}
 		switch p.As {
-		default:
-		case AADD:
-			if r == p.To.Reg {
-				zRIL(_a, op_AGFI, uint32(p.To.Reg), uint32(v), asm)
-			} else if int64(int16(v)) == v {
-				zRIE(_d, op_AGHIK, uint32(p.To.Reg), uint32(r), uint32(v), 0, 0, 0, 0, asm)
-			} else {
-				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
-				zRIL(_a, op_AGFI, uint32(p.To.Reg), uint32(v), asm)
-			}
-		case AADDC:
-			if r != p.To.Reg {
-				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
-			}
-			zRIL(_a, op_ALGFI, uint32(p.To.Reg), uint32(v), asm)
-		case AADDW:
-			i2 := int32(v)
-			if r == p.To.Reg {
-				zRIL(_a, op_AFI, uint32(p.To.Reg), uint32(i2), asm)
-			} else if int32(int16(i2)) == i2 {
-				zRIE(_d, op_AHIK, uint32(p.To.Reg), uint32(r), uint32(i2), 0, 0, 0, 0, asm)
-			} else {
-				zRR(op_LR, uint32(p.To.Reg), uint32(r), asm)
-				zRIL(_a, op_AFI, uint32(p.To.Reg), uint32(i2), asm)
-			}
 		case ASUB:
 			zRIL(_a, op_LGFI, uint32(REGTMP), uint32(v), asm)
 			zRRF(op_SLGRK, uint32(REGTMP), 0, uint32(p.To.Reg), uint32(r), asm)
@@ -3024,15 +2996,51 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 				zRR(op_LR, uint32(p.To.Reg), uint32(r), asm)
 			}
 			zRIL(_a, op_SLFI, uint32(p.To.Reg), uint32(v), asm)
-		case AMULLW, AMULLD:
-			if r != p.To.Reg {
+		}
+
+	case 22: // add/multiply $constant [reg] reg
+		v := vregoff(ctxt, &p.From)
+		r := p.Reg
+		if r == 0 {
+			r = p.To.Reg
+		}
+		var opri, opril, oprie uint32
+		switch p.As {
+		case AADD:
+			opri = op_AGHI
+			opril = op_AGFI
+			oprie = op_AGHIK
+		case AADDC:
+			opril = op_ALGFI
+			oprie = op_ALGHSIK
+		case AADDW:
+			opri = op_AHI
+			opril = op_AFI
+			oprie = op_AHIK
+		case AMULLW:
+			opri = op_MHI
+			opril = op_MSFI
+		case AMULLD:
+			opri = op_MGHI
+			opril = op_MSGFI
+		}
+		if r != p.To.Reg && (oprie == 0 || int64(int16(v)) != v) {
+			switch p.As {
+			case AADD, AADDC, AMULLD:
 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
+			case AADDW, AMULLW:
+				zRR(op_LR, uint32(p.To.Reg), uint32(r), asm)
 			}
-			if int64(int16(v)) == v {
-				zRI(op_MGHI, uint32(p.To.Reg), uint32(v), asm)
+			r = p.To.Reg
+		}
+		if r == p.To.Reg {
+			if opri != 0 && int64(int16(v)) == v {
+				zRI(opri, uint32(p.To.Reg), uint32(v), asm)
 			} else {
-				zRIL(_a, op_MSGFI, uint32(p.To.Reg), uint32(v), asm)
+				zRIL(_a, opril, uint32(p.To.Reg), uint32(v), asm)
 			}
+		} else {
+			zRIE(_d, oprie, uint32(p.To.Reg), uint32(r), uint32(v), 0, 0, 0, 0, asm)
 		}
 
 	case 23: // logical op $constant [reg] reg

@@ -52,21 +52,23 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 
 	ADD	R1, R2                // b9e81022
 	ADD	R1, R2, R3            // b9e81032
-	ADD	$8192, R1             // c21800002000
+	ADD	$8192, R1             // a71b2000
 	ADD	$8192, R1, R2         // ec21200000d9
+	ADD	$32768, R1            // c21800008000
+	ADD	$32768, R1, R2        // b9040021c22800008000
 	ADDC	R1, R2                // b9ea1022
-	ADDC	$1, R1, R2            // b9040021c22a00000001
+	ADDC	$1, R1, R2            // ec21000100db
 	ADDC	R1, R2, R3            // b9ea1032
 	ADDW	R1, R2                // 1a21
 	ADDW	R1, R2, R3            // b9f81032
-	ADDW	$8192, R1             // c21900002000
+	ADDW	$8192, R1             // a71a2000
 	ADDW	$8192, R1, R2         // ec21200000d8
 	SUB	R3, R4                // b9090043
 	SUB	R3, R4, R5            // b9e93054
-	SUB	$8192, R3             // c238ffffe000
+	SUB	$8192, R3             // a73be000
 	SUB	$8192, R3, R4         // ec43e00000d9
 	SUBC	R1, R2                // b90b0021
-	SUBC	$1, R1, R2            // b9040021c22affffffff
+	SUBC	$1, R1, R2            // ec21ffff00db
 	SUBC	R2, R3, R4            // b9eb2043
 	SUBW	R3, R4                // 1b43
 	SUBW	R3, R4, R5            // b9f93054
@@ -74,10 +76,10 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 	SUBW	$8192, R1, R2         // 1821c22500002000
 	MULLW	R6, R7                // b91c0076
 	MULLW	R6, R7, R8            // b9040087b91c0086
-	MULLW	$8192, R6             // a76d2000
-	MULLW	$8192, R6, R7         // b9040076a77d2000
-	MULLW	$-65537, R8           // c280fffeffff
-	MULLW   $-65537, R8, R9       // b9040098c290fffeffff
+	MULLW	$8192, R6             // a76c2000
+	MULLW	$8192, R6, R7         // 1876a77c2000
+	MULLW	$-32769, R8           // c281ffff7fff
+	MULLW   $-32769, R8, R9       // 1898c291ffff7fff
 	MULLD	$-2147483648, R1      // c21080000000
 	MULLD   $-2147483648, R1, R2  // b9040021c22080000000
 	MULHD	R9, R8                // b90400b8b98600a9ebb9003f000ab98000b8b90900abebb8003f000ab98000b9b9e9b08a
