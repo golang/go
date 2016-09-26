@@ -1338,3 +1338,71 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 		}
 	}
 }
+
+func TestClientRedirectTypes(t *testing.T) {
+	defer afterTest(t)
+
+	tests := [...]struct {
+		broken       int // broken is bug number
+		method       string
+		serverStatus int
+		wantMethod   string // desired subsequent client method
+	}{
+		0: {method: "POST", serverStatus: 301, wantMethod: "GET"},
+		1: {method: "POST", serverStatus: 302, wantMethod: "GET"},
+		2: {method: "POST", serverStatus: 307, wantMethod: "POST", broken: 16840},
+
+		5: {method: "GET", serverStatus: 301, wantMethod: "GET"},
+		6: {method: "GET", serverStatus: 302, wantMethod: "GET"},
+		7: {method: "GET", serverStatus: 303, wantMethod: "GET"},
+		8: {method: "GET", serverStatus: 307, wantMethod: "GET"},
+		9: {method: "GET", serverStatus: 308, wantMethod: "GET"},
+
+		10: {method: "DELETE", serverStatus: 308, wantMethod: "DELETE", broken: 13994},
+	}
+
+	handlerc := make(chan HandlerFunc, 1)
+
+	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		h := <-handlerc
+		h(rw, req)
+	}))
+	defer ts.Close()
+
+	for i, tt := range tests {
+		if tt.broken != 0 {
+			t.Logf("#%d: skipping known broken test case. See Issue #%d", i, tt.broken)
+			continue
+		}
+
+		handlerc <- func(w ResponseWriter, r *Request) {
+			w.Header().Set("Location", ts.URL)
+			w.WriteHeader(tt.serverStatus)
+		}
+
+		req, err := NewRequest(tt.method, ts.URL, nil)
+		if err != nil {
+			t.Errorf("#%d: NewRequest: %v", i, err)
+			continue
+		}
+
+		c := &Client{}
+		c.CheckRedirect = func(req *Request, via []*Request) error {
+			if got, want := req.Method, tt.wantMethod; got != want {
+				return fmt.Errorf("#%d: got next method %q; want %q", i, got, want)
+			}
+			handlerc <- func(rw ResponseWriter, req *Request) {
+				// TODO: Check that the body is valid when we do 307 and 308 support
+			}
+			return nil
+		}
+
+		res, err := c.Do(req)
+		if err != nil {
+			t.Errorf("#%d: Response: %v", i, err)
+			continue
+		}
+
+		res.Body.Close()
+	}
+}
