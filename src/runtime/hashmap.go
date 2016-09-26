@@ -130,6 +130,9 @@ type hmap struct {
 
 // A bucket for a Go map.
 type bmap struct {
+	// tophash generally contains the top byte of the hash value
+	// for each key in this bucket. If tophash[0] < minTopHash,
+	// tophash[0] is a bucket evacuation state instead.
 	tophash [bucketCnt]uint8
 	// Followed by bucketCnt keys and then bucketCnt values.
 	// NOTE: packing all the keys together and then all the values together makes the
@@ -1079,6 +1082,8 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 		// Unlink the overflow buckets & clear key/value to help GC.
 		if h.flags&oldIterator == 0 {
 			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
+			// Preserve b.tophash because the evacuation
+			// state is maintained there.
 			memclr(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
 		}
 	}
