@@ -176,24 +176,13 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// Initialize signal handling.
-	_g_ := getg()
-
 	// The alternate signal stack is buggy on arm and arm64.
 	// The signal handler handles it directly.
 	// The sigaltstack assembly function does nothing.
 	if GOARCH != "arm" && GOARCH != "arm64" {
 		minitSignalStack()
 	}
-
-	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := _g_.m.sigmask
-	for i := range sigtable {
-		if sigtable[i].flags&_SigUnblock != 0 {
-			nmask &^= 1 << (uint32(i) - 1)
-		}
-	}
-	sigprocmask(_SIG_SETMASK, &nmask, nil)
+	minitSignalMask()
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -559,4 +548,8 @@ func setSignalstackSP(s *stackt, sp uintptr) {
 //go:nowritebarrierrec
 func sigmaskToSigset(m sigmask) sigset {
 	return sigset(m[0])
+}
+
+func sigdelset(mask *sigset, i int) {
+	*mask &^= 1 << (uint32(i) - 1)
 }

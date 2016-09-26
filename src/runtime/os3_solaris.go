@@ -207,19 +207,9 @@ func miniterrno()
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	_g_ := getg()
 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
 
-	minitSignalStack()
-
-	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := _g_.m.sigmask
-	for i := range sigtable {
-		if sigtable[i].flags&_SigUnblock != 0 {
-			nmask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
-		}
-	}
-	sigprocmask(_SIG_SETMASK, &nmask, nil)
+	minitSignals()
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -316,6 +306,10 @@ func sigmaskToSigset(m sigmask) sigset {
 	var set sigset
 	copy(set.__sigbits[:], m[:])
 	return set
+}
+
+func sigdelset(mask *sigset, i int) {
+	mask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
 func (c *sigctxt) fixsigcode(sig uint32) {

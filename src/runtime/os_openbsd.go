@@ -213,21 +213,11 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
-	_g_ := getg()
-
 	// m.procid is a uint64, but tfork writes an int32. Fix it up.
+	_g_ := getg()
 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
 
-	minitSignalStack()
-
-	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := _g_.m.sigmask
-	for i := range sigtable {
-		if sigtable[i].flags&_SigUnblock != 0 {
-			nmask &^= 1 << (uint32(i) - 1)
-		}
-	}
-	sigprocmask(_SIG_SETMASK, &nmask, nil)
+	minitSignals()
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -293,6 +283,10 @@ func setSignalstackSP(s *stackt, sp uintptr) {
 //go:nowritebarrierrec
 func sigmaskToSigset(m sigmask) sigset {
 	return sigset(m[0])
+}
+
+func sigdelset(mask *sigset, i int) {
+	*mask &^= 1 << (uint32(i) - 1)
 }
 
 func (c *sigctxt) fixsigcode(sig uint32) {

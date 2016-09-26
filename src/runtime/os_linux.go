@@ -257,22 +257,10 @@ func gettid() uint32
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	// Initialize signal handling.
-	_g_ := getg()
-
-	minitSignalStack()
+	minitSignals()
 
 	// for debuggers, in case cgo created the thread
-	_g_.m.procid = uint64(gettid())
-
-	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := _g_.m.sigmask
-	for i := range sigtable {
-		if sigtable[i].flags&_SigUnblock != 0 {
-			sigdelset(&nmask, i)
-		}
-	}
-	sigprocmask(_SIG_SETMASK, &nmask, nil)
+	getg().m.procid = uint64(gettid())
 }
 
 // Called from dropm to undo the effect of an minit.
