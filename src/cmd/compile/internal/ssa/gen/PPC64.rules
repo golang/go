@@ -639,3 +639,12 @@
 (MOVHstore [off] {sym} ptr (MOVHreg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
 (MOVHstore [off] {sym} ptr (MOVHZreg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
 
+(CMP x (MOVDconst [c])) && is16Bit(c) -> (CMPconst x [c])
+(CMP (MOVDconst [c]) y) && is16Bit(c) -> (InvertFlags (CMPconst y [c]))
+(CMPW x (MOVDconst [c])) && is16Bit(c) -> (CMPWconst x [c])
+(CMPW (MOVDconst [c]) y) && is16Bit(c) -> (InvertFlags (CMPWconst y [c]))
+
+(CMPU x (MOVDconst [c])) && isU16Bit(c) -> (CMPUconst x [c])
+(CMPU (MOVDconst [c]) y) && isU16Bit(c) -> (InvertFlags (CMPUconst y [c]))
+(CMPWU x (MOVDconst [c])) && isU16Bit(c) -> (CMPWUconst x [c])
+(CMPWU (MOVDconst [c]) y) && isU16Bit(c) -> (InvertFlags (CMPWUconst y [c]))
