@@ -813,7 +813,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 	case ssa.OpPPC64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
-		p := gc.Prog(ppc64.AMOVB)
+		p := gc.Prog(ppc64.AMOVBZ)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.From, v)
