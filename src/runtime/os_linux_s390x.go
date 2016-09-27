@@ -23,6 +23,8 @@ type rlimit struct {
 
 var sigset_all = sigset(^uint64(0))
 
+//go:nosplit
+//go:nowritebarrierrec
 func sigaddset(mask *sigset, i int) {
 	if i > 64 {
 		throw("unexpected signal greater than 64")
@@ -39,10 +41,4 @@ func sigdelset(mask *sigset, i int) {
 
 func sigfillset(mask *uint64) {
 	*mask = ^uint64(0)
-}
-
-//go:nosplit
-//go:nowritebarrierrec
-func sigmaskToSigset(m sigmask) sigset {
-	return sigset(uint64(m[0]) | uint64(m[1])<<32)
 }

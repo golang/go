@@ -544,8 +544,8 @@ func setSignalstackSP(s *stackt, sp uintptr) {
 
 //go:nosplit
 //go:nowritebarrierrec
-func sigmaskToSigset(m sigmask) sigset {
-	return sigset(m[0])
+func sigaddset(mask *sigset, i int) {
+	*mask |= 1 << (uint32(i) - 1)
 }
 
 func sigdelset(mask *sigset, i int) {

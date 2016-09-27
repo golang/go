@@ -36,11 +36,6 @@ const (
 // Signal forwarding is currently available only on Darwin and Linux.
 var fwdSig [_NSIG]uintptr
 
-// sigmask represents a general signal mask compatible with the GOOS
-// specific sigset types: the signal numbered x is represented by bit x-1
-// to match the representation expected by sigprocmask.
-type sigmask [(_NSIG + 31) / 32]uint32
-
 // channels for synchronizing signal mask updates with the signal mask
 // thread
 var (
@@ -302,7 +297,7 @@ func sigpanic() {
 //go:nowritebarrierrec
 func dieFromSignal(sig int32) {
 	setsig(sig, _SIG_DFL, false)
-	updatesigmask(sigmask{})
+	unblocksig(sig)
 	raise(sig)
 
 	// That should have killed us. On some systems, though, raise
@@ -401,28 +396,25 @@ func ensureSigM() {
 		// initially all signals except the essential. When signal.Notify()/Stop is called,
 		// sigenable/sigdisable in turn notify this thread to update its signal
 		// mask accordingly.
-		var sigBlocked sigmask
-		for i := range sigBlocked {
-			sigBlocked[i] = ^uint32(0)
-		}
+		sigBlocked := sigset_all
 		for i := range sigtable {
 			if sigtable[i].flags&_SigUnblock != 0 {
-				sigBlocked[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+				sigdelset(&sigBlocked, i)
 			}
 		}
-		updatesigmask(sigBlocked)
+		sigprocmask(_SIG_SETMASK, &sigBlocked, nil)
 		for {
 			select {
 			case sig := <-enableSigChan:
-				if b := sig - 1; sig > 0 {
-					sigBlocked[b/32] &^= (1 << (b & 31))
+				if sig > 0 {
+					sigdelset(&sigBlocked, int(sig))
 				}
 			case sig := <-disableSigChan:
-				if b := sig - 1; sig > 0 {
-					sigBlocked[b/32] |= (1 << (b & 31))
+				if sig > 0 {
+					sigaddset(&sigBlocked, int(sig))
 				}
 			}
-			updatesigmask(sigBlocked)
+			sigprocmask(_SIG_SETMASK, &sigBlocked, nil)
 			maskUpdatedChan <- struct{}{}
 		}
 	}()
@@ -554,22 +546,15 @@ func sigblock() {
 	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
 }
 
-// updatesigmask sets the current thread's signal mask to m.
+// unblocksig removes sig from the current thread's signal mask.
 // This is nosplit and nowritebarrierrec because it is called from
 // dieFromSignal, which can be called by sigfwdgo while running in the
 // signal handler, on the signal stack, with no g available.
 //go:nosplit
 //go:nowritebarrierrec
-func updatesigmask(m sigmask) {
-	set := sigmaskToSigset(m)
-	sigprocmask(_SIG_SETMASK, &set, nil)
-}
-
-// unblocksig removes sig from the current thread's signal mask.
 func unblocksig(sig int32) {
-	var m sigmask
-	m[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
-	set := sigmaskToSigset(m)
+	var set sigset
+	sigaddset(&set, int(sig))
 	sigprocmask(_SIG_UNBLOCK, &set, nil)
 }
 
