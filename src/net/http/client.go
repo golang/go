@@ -156,40 +156,6 @@ func (c *Client) send(req *Request, deadline time.Time) (*Response, error) {
 	return resp, nil
 }
 
-// Do sends an HTTP request and returns an HTTP response, following
-// policy (such as redirects, cookies, auth) as configured on the
-// client.
-//
-// An error is returned if caused by client policy (such as
-// CheckRedirect), or failure to speak HTTP (such as a network
-// connectivity problem). A non-2xx status code doesn't cause an
-// error.
-//
-// If the returned error is nil, the Response will contain a non-nil
-// Body which the user is expected to close. If the Body is not
-// closed, the Client's underlying RoundTripper (typically Transport)
-// may not be able to re-use a persistent TCP connection to the server
-// for a subsequent "keep-alive" request.
-//
-// The request Body, if non-nil, will be closed by the underlying
-// Transport, even on errors.
-//
-// On error, any Response can be ignored. A non-nil Response with a
-// non-nil error only occurs when CheckRedirect fails, and even then
-// the returned Response.Body is already closed.
-//
-// Generally Get, Post, or PostForm will be used instead of Do.
-func (c *Client) Do(req *Request) (*Response, error) {
-	method := valueOrDefault(req.Method, "GET")
-	if method == "GET" || method == "HEAD" {
-		return c.doFollowingRedirects(req, shouldRedirectGet)
-	}
-	if method == "POST" || method == "PUT" {
-		return c.doFollowingRedirects(req, shouldRedirectPost)
-	}
-	return c.send(req, c.deadline())
-}
-
 func (c *Client) deadline() time.Time {
 	if c.Timeout > 0 {
 		return time.Now().Add(c.Timeout)
@@ -351,26 +317,6 @@ func basicAuth(username, password string) string {
 	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
-// True if the specified HTTP status code is one for which the Get utility should
-// automatically redirect.
-func shouldRedirectGet(statusCode int) bool {
-	switch statusCode {
-	case StatusMovedPermanently, StatusFound, StatusSeeOther, StatusTemporaryRedirect:
-		return true
-	}
-	return false
-}
-
-// True if the specified HTTP status code is one for which the Post utility should
-// automatically redirect.
-func shouldRedirectPost(statusCode int) bool {
-	switch statusCode {
-	case StatusFound, StatusSeeOther:
-		return true
-	}
-	return false
-}
-
 // Get issues a GET to the specified URL. If the response is one of
 // the following redirect codes, Get follows the redirect, up to a
 // maximum of 10 redirects:
@@ -379,6 +325,7 @@ func shouldRedirectPost(statusCode int) bool {
 //    302 (Found)
 //    303 (See Other)
 //    307 (Temporary Redirect)
+//    308 (Permanent Redirect)
 //
 // An error is returned if there were too many redirects or if there
 // was an HTTP protocol error. A non-2xx response doesn't cause an
@@ -403,6 +350,7 @@ func Get(url string) (resp *Response, err error) {
 //    302 (Found)
 //    303 (See Other)
 //    307 (Temporary Redirect)
+//    308 (Permanent Redirect)
 //
 // An error is returned if the Client's CheckRedirect function fails
 // or if there was an HTTP protocol error. A non-2xx response doesn't
@@ -417,7 +365,7 @@ func (c *Client) Get(url string) (resp *Response, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.doFollowingRedirects(req, shouldRedirectGet)
+	return c.Do(req)
 }
 
 func alwaysFalse() bool { return false }
@@ -438,17 +386,56 @@ func (c *Client) checkRedirect(req *Request, via []*Request) error {
 	return fn(req, via)
 }
 
-func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) bool) (*Response, error) {
+// redirectBehavior describes what should happen when the
+// client encounters a 3xx status code from the server
+func redirectBehavior(reqMethod string, serverStatus int) (redirectMethod string, canRedirect bool) {
+	switch serverStatus {
+	case 301, 302, 303:
+		redirectMethod = "GET"
+		canRedirect = true
+	case 307, 308:
+		redirectMethod = reqMethod
+		canRedirect = true
+	}
+
+	return redirectMethod, canRedirect
+}
+
+// Do sends an HTTP request and returns an HTTP response, following
+// policy (such as redirects, cookies, auth) as configured on the
+// client.
+//
+// An error is returned if caused by client policy (such as
+// CheckRedirect), or failure to speak HTTP (such as a network
+// connectivity problem). A non-2xx status code doesn't cause an
+// error.
+//
+// If the returned error is nil, the Response will contain a non-nil
+// Body which the user is expected to close. If the Body is not
+// closed, the Client's underlying RoundTripper (typically Transport)
+// may not be able to re-use a persistent TCP connection to the server
+// for a subsequent "keep-alive" request.
+//
+// The request Body, if non-nil, will be closed by the underlying
+// Transport, even on errors.
+//
+// On error, any Response can be ignored. A non-nil Response with a
+// non-nil error only occurs when CheckRedirect fails, and even then
+// the returned Response.Body is already closed.
+//
+// Generally Get, Post, or PostForm will be used instead of Do.
+func (c *Client) Do(req *Request) (*Response, error) {
 	if req.URL == nil {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.URL")
 	}
 
 	var (
-		deadline    = c.deadline()
-		reqs        []*Request
-		resp        *Response
-		copyHeaders = c.makeHeadersCopier(req)
+		deadline       = c.deadline()
+		reqs           []*Request
+		resp           *Response
+		copyHeaders    = c.makeHeadersCopier(req)
+		redirectMethod string
 	)
 	uerr := func(err error) error {
 		req.closeBody()
@@ -479,7 +466,7 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 			}
 			ireq := reqs[0]
 			req = &Request{
-				Method:   ireq.Method,
+				Method:   redirectMethod,
 				Response: resp,
 				URL:      u,
 				Header:   make(Header),
@@ -491,10 +478,7 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 				if err != nil {
 					return nil, uerr(err)
 				}
-			}
-			if ireq.Method == "POST" || ireq.Method == "PUT" {
-				req.Method = "GET"
-				req.Body = nil // TODO: fix this when 307/308 support happens
+				req.ContentLength = ireq.ContentLength
 			}
 
 			// Copy original headers before setting the Referer,
@@ -540,7 +524,6 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 		}
 
 		reqs = append(reqs, req)
-
 		var err error
 		if resp, err = c.send(req, deadline); err != nil {
 			if !deadline.IsZero() && !time.Now().Before(deadline) {
@@ -552,9 +535,13 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 			return nil, uerr(err)
 		}
 
-		if !shouldRedirect(resp.StatusCode) {
+		var shouldRedirect bool
+		redirectMethod, shouldRedirect = redirectBehavior(req.Method, resp.StatusCode)
+		if !shouldRedirect {
 			return resp, nil
 		}
+
+		req.closeBody()
 	}
 }
 
@@ -657,7 +644,7 @@ func (c *Client) Post(url string, contentType string, body io.Reader) (resp *Res
 		return nil, err
 	}
 	req.Header.Set("Content-Type", contentType)
-	return c.doFollowingRedirects(req, shouldRedirectPost)
+	return c.Do(req)
 }
 
 // PostForm issues a POST to the specified URL, with data's keys and
@@ -694,6 +681,7 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
 //    302 (Found)
 //    303 (See Other)
 //    307 (Temporary Redirect)
+//    308 (Permanent Redirect)
 //
 // Head is a wrapper around DefaultClient.Head
 func Head(url string) (resp *Response, err error) {
@@ -708,12 +696,13 @@ func Head(url string) (resp *Response, err error) {
 //    302 (Found)
 //    303 (See Other)
 //    307 (Temporary Redirect)
+//    308 (Permanent Redirect)
 func (c *Client) Head(url string) (resp *Response, err error) {
 	req, err := NewRequest("HEAD", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	return c.doFollowingRedirects(req, shouldRedirectGet)
+	return c.Do(req)
 }
 
 // cancelTimerBody is an io.ReadCloser that wraps rc with two features:
