@@ -50,7 +50,8 @@ import (
 // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
 // to keep some browsers from misinterpreting JSON output as HTML.
 // Ampersand "&" is also escaped to "\u0026" for the same reason.
-// This escaping can be disabled using an Encoder with DisableHTMLEscaping.
+// This escaping can be disabled using an Encoder that had SetEscapeHTML(false)
+// called on it.
 //
 // Array and slice values encode as JSON arrays, except that
 // []byte encodes as a base64-encoded string, and a nil slice
