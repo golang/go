@@ -384,7 +384,41 @@ func loadProgram(ctxt *build.Context, pkgs map[string]bool) (*loader.Program, er
 	for pkg := range pkgs {
 		conf.ImportWithTests(pkg)
 	}
-	return conf.Load()
+
+	// Ideally we would just return conf.Load() here, but go/types
+	// reports certain "soft" errors that gc does not (Go issue 14596).
+	// As a workaround, we set AllowErrors=true and then duplicate
+	// the loader's error checking but allow soft errors.
+	// It would be nice if the loader API permitted "AllowErrors: soft".
+	conf.AllowErrors = true
+	prog, err := conf.Load()
+	var errpkgs []string
+	// Report hard errors in indirectly imported packages.
+	for _, info := range prog.AllPackages {
+		if containsHardErrors(info.Errors) {
+			errpkgs = append(errpkgs, info.Pkg.Path())
+		}
+	}
+	if errpkgs != nil {
+		var more string
+		if len(errpkgs) > 3 {
+			more = fmt.Sprintf(" and %d more", len(errpkgs)-3)
+			errpkgs = errpkgs[:3]
+		}
+		return nil, fmt.Errorf("couldn't load packages due to errors: %s%s",
+			strings.Join(errpkgs, ", "), more)
+	}
+	return prog, err
+}
+
+func containsHardErrors(errors []error) bool {
+	for _, err := range errors {
+		if err, ok := err.(types.Error); ok && err.Soft {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // requiresGlobalRename reports whether this renaming could potentially

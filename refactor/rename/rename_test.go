@@ -1061,6 +1061,29 @@ var _ = I(C(0)).(J)
 `,
 			},
 		},
+		// Progress after "soft" type errors (Go issue 14596).
+		{
+			ctxt: fakeContext(map[string][]string{
+				"main": {`package main
+
+func main() {
+	var unused, x int
+	print(x)
+}
+`,
+				},
+			}),
+			offset: "/go/src/main/0.go:#54", to: "y", // var x
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+func main() {
+	var unused, y int
+	print(y)
+}
+`,
+			},
+		},
 	} {
 		if test.ctxt != nil {
 			ctxt = test.ctxt
