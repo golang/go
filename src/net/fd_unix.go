@@ -29,6 +29,9 @@ type netFD struct {
 	laddr       Addr
 	raddr       Addr
 
+	// writev cache.
+	iovecs *[]syscall.Iovec
+
 	// wait server
 	pd pollDesc
 }

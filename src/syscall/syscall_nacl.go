@@ -296,3 +296,5 @@ func RouteRIB(facility, param int) ([]byte, error)                { return nil, 
 func ParseRoutingMessage(b []byte) ([]RoutingMessage, error)      { return nil, ENOSYS }
 func ParseRoutingSockaddr(msg RoutingMessage) ([]Sockaddr, error) { return nil, ENOSYS }
 func SysctlUint32(name string) (value uint32, err error)          { return 0, ENOSYS }
+
+type Iovec struct{} // dummy
