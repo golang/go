@@ -414,3 +414,38 @@ func TestZeroByteRead(t *testing.T) {
 		}
 	}
 }
+
+// withTCPConnPair sets up a TCP connection between two peers, then
+// runs peer1 and peer2 concurrently. withTCPConnPair returns when
+// both have completed.
+func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	errc := make(chan error, 2)
+	go func() {
+		c1, err := ln.Accept()
+		if err != nil {
+			errc <- err
+			return
+		}
+		defer c1.Close()
+		errc <- peer1(c1.(*TCPConn))
+	}()
+	go func() {
+		c2, err := Dial("tcp", ln.Addr().String())
+		if err != nil {
+			errc <- err
+			return
+		}
+		defer c2.Close()
+		errc <- peer2(c2.(*TCPConn))
+	}()
+	for i := 0; i < 2; i++ {
+		if err := <-errc; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
