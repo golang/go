@@ -624,7 +624,8 @@ func minitSignalMask() {
 //go:nosplit
 func unminitSignals() {
 	if getg().m.newSigstack {
-		signalstack(nil)
+		st := stackt{ss_flags: _SS_DISABLE}
+		sigaltstack(&st, nil)
 	}
 }
 
@@ -645,17 +646,10 @@ func setGsignalStack(st *stackt) {
 }
 
 // signalstack sets the current thread's alternate signal stack to s.
-// If s is nil, the current thread's alternate signal stack is disabled.
 //go:nosplit
 func signalstack(s *stack) {
-	var st stackt
-	if s == nil {
-		st.ss_flags = _SS_DISABLE
-	} else {
-		setSignalstackSP(&st, s.lo)
-		st.ss_size = s.hi - s.lo
-		st.ss_flags = 0
-	}
+	st := stackt{ss_size: s.hi - s.lo}
+	setSignalstackSP(&st, s.lo)
 	sigaltstack(&st, nil)
 }
 
