@@ -298,7 +298,7 @@ var pkgDeps = map[string][]string{
 		"context", "math/rand", "os", "sort", "syscall", "time",
 		"internal/nettrace",
 		"internal/syscall/windows", "internal/singleflight", "internal/race",
-		"golang_org/x/net/route",
+		"golang_org/x/net/lif", "golang_org/x/net/route",
 	},
 
 	// NET enables use of basic network-related packages.
