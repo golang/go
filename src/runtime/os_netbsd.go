@@ -192,7 +192,8 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 // At this point all signals are blocked, so there is no race.
 //go:nosplit
 func netbsdMstart() {
-	signalstack(nil)
+	st := stackt{ss_flags: _SS_DISABLE}
+	sigaltstack(&st, nil)
 	mstart()
 }
 
