@@ -47,6 +47,8 @@ type rlimit struct {
 
 var sigset_all = sigset{^uint64(0), ^uint64(0)}
 
+//go:nosplit
+//go:nowritebarrierrec
 func sigaddset(mask *sigset, i int) {
 	(*mask)[(i-1)/64] |= 1 << ((uint32(i) - 1) & 63)
 }
@@ -57,12 +59,4 @@ func sigdelset(mask *sigset, i int) {
 
 func sigfillset(mask *[2]uint64) {
 	(*mask)[0], (*mask)[1] = ^uint64(0), ^uint64(0)
-}
-
-//go:nosplit
-//go:nowritebarrierrec
-func sigmaskToSigset(m sigmask) sigset {
-	var set sigset
-	set[0] = uint64(m[0]) | uint64(m[1])<<32
-	return set
 }
