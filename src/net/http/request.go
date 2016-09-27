@@ -27,6 +27,8 @@ import (
 	"sync"
 
 	"golang_org/x/net/idna"
+	"golang_org/x/text/unicode/norm"
+	"golang_org/x/text/width"
 )
 
 const (
@@ -581,6 +583,19 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 	return nil
 }
 
+func idnaASCII(v string) (string, error) {
+	if isASCII(v) {
+		return v, nil
+	}
+	// The idna package doesn't do everything from
+	// https://tools.ietf.org/html/rfc5895 so we do it here.
+	// TODO(bradfitz): should the idna package do this instead?
+	v = strings.ToLower(v)
+	v = width.Fold.String(v)
+	v = norm.NFC.String(v)
+	return idna.ToASCII(v)
+}
+
 // cleanHost cleans up the host sent in request's Host header.
 //
 // It both strips anything after '/' or ' ', and puts the value
@@ -600,13 +615,13 @@ func cleanHost(in string) string {
 	}
 	host, port, err := net.SplitHostPort(in)
 	if err != nil { // input was just a host
-		a, err := idna.ToASCII(in)
+		a, err := idnaASCII(in)
 		if err != nil {
 			return in // garbage in, garbage out
 		}
 		return a
 	}
-	a, err := idna.ToASCII(host)
+	a, err := idnaASCII(host)
 	if err != nil {
 		return in // garbage in, garbage out
 	}
