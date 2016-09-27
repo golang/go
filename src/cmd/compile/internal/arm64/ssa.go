@@ -618,6 +618,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3 := gc.Prog(arm64.ABLE)
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
+	case ssa.OpARM64DUFFCOPY:
+		p := gc.Prog(obj.ADUFFCOPY)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
+		p.To.Offset = v.AuxInt
 	case ssa.OpARM64LoweredMove:
 		// MOVD.P	8(R16), Rtmp
 		// MOVD.P	Rtmp, 8(R17)

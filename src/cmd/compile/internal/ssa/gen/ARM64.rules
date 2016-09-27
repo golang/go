@@ -431,8 +431,14 @@
 		(OffPtr <src.Type> src [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%8])
 		(Move [MakeSizeAndAlign(SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%8, 1).Int64()] dst src mem))
 
+// medium move uses a duff device
+// 8 and 128 are magic constants, see runtime/mkduff.go
+(Move [s] dst src mem)
+	&& SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size() <= 8*128
+	&& !config.noDuffDevice ->
+	(DUFFCOPY [8 * (128 - int64(SizeAndAlign(s).Size()/8))] dst src mem)
+
 // large move uses a loop
-// DUFFCOPY is not implemented on ARM64 (TODO)
 (Move [s] dst src mem)
 	&& SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size()%8 == 0 ->
 	(LoweredMove

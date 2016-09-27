@@ -12470,6 +12470,24 @@ func rewriteValueARM64_OpMove(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size() <= 8*128 	&& !config.noDuffDevice
+	// result: (DUFFCOPY [8 * (128 - int64(SizeAndAlign(s).Size()/8))] dst src mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size() <= 8*128 && !config.noDuffDevice) {
+			break
+		}
+		v.reset(OpARM64DUFFCOPY)
+		v.AuxInt = 8 * (128 - int64(SizeAndAlign(s).Size()/8))
+		v.AddArg(dst)
+		v.AddArg(src)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
 	// cond: SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size()%8 == 0
 	// result: (LoweredMove 		dst 		src 		(ADDconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)]) 		mem)
 	for {
