@@ -499,6 +499,56 @@ func TestRowsColumns(t *testing.T) {
 	}
 }
 
+func TestRowsColumnTypes(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	rows, err := db.Query("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	tt, err := rows.ColumnTypes()
+	if err != nil {
+		t.Fatalf("ColumnTypes: %v", err)
+	}
+
+	types := make([]reflect.Type, len(tt))
+	for i, tp := range tt {
+		st := tp.ScanType()
+		if st == nil {
+			t.Errorf("scantype is null for column %q", tp.Name())
+			continue
+		}
+		types[i] = st
+	}
+	values := make([]interface{}, len(tt))
+	for i := range values {
+		values[i] = reflect.New(types[i]).Interface()
+	}
+	ct := 0
+	for rows.Next() {
+		err = rows.Scan(values...)
+		if err != nil {
+			t.Fatalf("failed to scan values in %v", err)
+		}
+		ct++
+		if ct == 0 {
+			if values[0].(string) != "Bob" {
+				t.Errorf("Expected Bob, got %v", values[0])
+			}
+			if values[1].(int) != 2 {
+				t.Errorf("Expected 2, got %v", values[1])
+			}
+		}
+	}
+	if ct != 3 {
+		t.Errorf("expected 3 rows, got %d", ct)
+	}
+
+	if err := rows.Close(); err != nil {
+		t.Errorf("error closing rows: %s", err)
+	}
+}
+
 func TestQueryRow(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
