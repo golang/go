@@ -809,6 +809,11 @@ func noteBodies(notes []*Note) []string {
 // ----------------------------------------------------------------------------
 // Predeclared identifiers
 
+// IsPredeclared reports whether s is a predeclared identifier.
+func IsPredeclared(s string) bool {
+	return predeclaredTypes[s] || predeclaredFuncs[s] || predeclaredConstants[s]
+}
+
 var predeclaredTypes = map[string]bool{
 	"bool":       true,
 	"byte":       true,
