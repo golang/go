@@ -208,7 +208,7 @@ func TestClientRedirects(t *testing.T) {
 			}
 		}
 		if n < 15 {
-			Redirect(w, r, fmt.Sprintf("/?n=%d", n+1), StatusFound)
+			Redirect(w, r, fmt.Sprintf("/?n=%d", n+1), StatusTemporaryRedirect)
 			return
 		}
 		fmt.Fprintf(w, "n=%d", n)
@@ -296,7 +296,7 @@ func TestClientRedirects(t *testing.T) {
 func TestClientRedirectContext(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		Redirect(w, r, "/", StatusFound)
+		Redirect(w, r, "/", StatusTemporaryRedirect)
 	}))
 	defer ts.Close()
 
@@ -320,7 +320,91 @@ func TestClientRedirectContext(t *testing.T) {
 	}
 }
 
+type redirectTest struct {
+	suffix       string
+	want         int // response code
+	redirectBody string
+}
+
 func TestPostRedirects(t *testing.T) {
+	postRedirectTests := []redirectTest{
+		{"/", 200, "first"},
+		{"/?code=301&next=302", 200, "c301"},
+		{"/?code=302&next=302", 200, "c302"},
+		{"/?code=303&next=301", 200, "c303wc301"}, // Issue 9348
+		{"/?code=304", 304, "c304"},
+		{"/?code=305", 305, "c305"},
+		{"/?code=307&next=303,308,302", 200, "c307"},
+		{"/?code=308&next=302,301", 200, "c308"},
+		{"/?code=404", 404, "c404"},
+	}
+
+	wantSegments := []string{
+		`POST / "first"`,
+		`POST /?code=301&next=302 "c301"`,
+		`GET /?code=302 "c301"`,
+		`GET / "c301"`,
+		`POST /?code=302&next=302 "c302"`,
+		`GET /?code=302 "c302"`,
+		`GET / "c302"`,
+		`POST /?code=303&next=301 "c303wc301"`,
+		`GET /?code=301 "c303wc301"`,
+		`GET / "c303wc301"`,
+		`POST /?code=304 "c304"`,
+		`POST /?code=305 "c305"`,
+		`POST /?code=307&next=303,308,302 "c307"`,
+		`POST /?code=303&next=308,302 "c307"`,
+		`GET /?code=308&next=302 "c307"`,
+		`GET /?code=302 "c307"`,
+		`GET / "c307"`,
+		`POST /?code=308&next=302,301 "c308"`,
+		`POST /?code=302&next=301 "c308"`,
+		`GET /?code=301 "c308"`,
+		`GET / "c308"`,
+		`POST /?code=404 "c404"`,
+	}
+	want := strings.Join(wantSegments, "\n")
+	testRedirectsByMethod(t, "POST", postRedirectTests, want)
+}
+
+func TestDeleteRedirects(t *testing.T) {
+	deleteRedirectTests := []redirectTest{
+		{"/", 200, "first"},
+		{"/?code=301&next=302,308", 200, "c301"},
+		{"/?code=302&next=302", 200, "c302"},
+		{"/?code=303", 200, "c303"},
+		{"/?code=307&next=301,308,303,302,304", 304, "c307"},
+		{"/?code=308&next=307", 200, "c308"},
+		{"/?code=404", 404, "c404"},
+	}
+
+	wantSegments := []string{
+		`DELETE / "first"`,
+		`DELETE /?code=301&next=302,308 "c301"`,
+		`GET /?code=302&next=308 "c301"`,
+		`GET /?code=308 "c301"`,
+		`GET / "c301"`,
+		`DELETE /?code=302&next=302 "c302"`,
+		`GET /?code=302 "c302"`,
+		`GET / "c302"`,
+		`DELETE /?code=303 "c303"`,
+		`GET / "c303"`,
+		`DELETE /?code=307&next=301,308,303,302,304 "c307"`,
+		`DELETE /?code=301&next=308,303,302,304 "c307"`,
+		`GET /?code=308&next=303,302,304 "c307"`,
+		`GET /?code=303&next=302,304 "c307"`,
+		`GET /?code=302&next=304 "c307"`,
+		`GET /?code=304 "c307"`,
+		`DELETE /?code=308&next=307 "c308"`,
+		`DELETE /?code=307 "c308"`,
+		`DELETE / "c308"`,
+		`DELETE /?code=404 "c404"`,
+	}
+	want := strings.Join(wantSegments, "\n")
+	testRedirectsByMethod(t, "DELETE", deleteRedirectTests, want)
+}
+
+func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, want string) {
 	defer afterTest(t)
 	var log struct {
 		sync.Mutex
@@ -329,29 +413,35 @@ func TestPostRedirects(t *testing.T) {
 	var ts *httptest.Server
 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		log.Lock()
-		fmt.Fprintf(&log.Buffer, "%s %s ", r.Method, r.RequestURI)
+		slurp, _ := ioutil.ReadAll(r.Body)
+		fmt.Fprintf(&log.Buffer, "%s %s %q\n", r.Method, r.RequestURI, slurp)
 		log.Unlock()
-		if v := r.URL.Query().Get("code"); v != "" {
+		urlQuery := r.URL.Query()
+		if v := urlQuery.Get("code"); v != "" {
+			location := ts.URL
+			if final := urlQuery.Get("next"); final != "" {
+				splits := strings.Split(final, ",")
+				first, rest := splits[0], splits[1:]
+				location = fmt.Sprintf("%s?code=%s", location, first)
+				if len(rest) > 0 {
+					location = fmt.Sprintf("%s&next=%s", location, strings.Join(rest, ","))
+				}
+			}
 			code, _ := strconv.Atoi(v)
 			if code/100 == 3 {
-				w.Header().Set("Location", ts.URL)
+				w.Header().Set("Location", location)
 			}
 			w.WriteHeader(code)
 		}
 	}))
 	defer ts.Close()
-	tests := []struct {
-		suffix string
-		want   int // response code
-	}{
-		{"/", 200},
-		{"/?code=301", 301},
-		{"/?code=302", 200},
-		{"/?code=303", 200},
-		{"/?code=404", 404},
-	}
-	for _, tt := range tests {
-		res, err := Post(ts.URL+tt.suffix, "text/plain", strings.NewReader("Some content"))
+
+	for _, tt := range table {
+		content := tt.redirectBody
+		req, _ := NewRequest(method, ts.URL+tt.suffix, strings.NewReader(content))
+		req.GetBody = func() (io.ReadCloser, error) { return ioutil.NopCloser(strings.NewReader(content)), nil }
+		res, err := DefaultClient.Do(req)
+
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -362,9 +452,12 @@ func TestPostRedirects(t *testing.T) {
 	log.Lock()
 	got := log.String()
 	log.Unlock()
-	want := "POST / POST /?code=301 POST /?code=302 GET / POST /?code=303 GET / POST /?code=404 "
+
+	got = strings.TrimSpace(got)
+	want = strings.TrimSpace(want)
+
 	if got != want {
-		t.Errorf("Log differs.\n Got: %q\nWant: %q", got, want)
+		t.Errorf("Log differs.\n Got:\n%s\nWant:\n%s\n", got, want)
 	}
 }
 
@@ -1439,22 +1532,45 @@ func TestClientRedirectTypes(t *testing.T) {
 	defer afterTest(t)
 
 	tests := [...]struct {
-		broken       int // broken is bug number
 		method       string
 		serverStatus int
 		wantMethod   string // desired subsequent client method
 	}{
 		0: {method: "POST", serverStatus: 301, wantMethod: "GET"},
 		1: {method: "POST", serverStatus: 302, wantMethod: "GET"},
-		2: {method: "POST", serverStatus: 307, wantMethod: "POST", broken: 16840},
+		2: {method: "POST", serverStatus: 303, wantMethod: "GET"},
+		3: {method: "POST", serverStatus: 307, wantMethod: "POST"},
+		4: {method: "POST", serverStatus: 308, wantMethod: "POST"},
 
-		5: {method: "GET", serverStatus: 301, wantMethod: "GET"},
-		6: {method: "GET", serverStatus: 302, wantMethod: "GET"},
-		7: {method: "GET", serverStatus: 303, wantMethod: "GET"},
-		8: {method: "GET", serverStatus: 307, wantMethod: "GET"},
-		9: {method: "GET", serverStatus: 308, wantMethod: "GET"},
+		5: {method: "HEAD", serverStatus: 301, wantMethod: "GET"},
+		6: {method: "HEAD", serverStatus: 302, wantMethod: "GET"},
+		7: {method: "HEAD", serverStatus: 303, wantMethod: "GET"},
+		8: {method: "HEAD", serverStatus: 307, wantMethod: "HEAD"},
+		9: {method: "HEAD", serverStatus: 308, wantMethod: "HEAD"},
 
-		10: {method: "DELETE", serverStatus: 308, wantMethod: "DELETE", broken: 13994},
+		10: {method: "GET", serverStatus: 301, wantMethod: "GET"},
+		11: {method: "GET", serverStatus: 302, wantMethod: "GET"},
+		12: {method: "GET", serverStatus: 303, wantMethod: "GET"},
+		13: {method: "GET", serverStatus: 307, wantMethod: "GET"},
+		14: {method: "GET", serverStatus: 308, wantMethod: "GET"},
+
+		15: {method: "DELETE", serverStatus: 301, wantMethod: "GET"},
+		16: {method: "DELETE", serverStatus: 302, wantMethod: "GET"},
+		17: {method: "DELETE", serverStatus: 303, wantMethod: "GET"},
+		18: {method: "DELETE", serverStatus: 307, wantMethod: "DELETE"},
+		19: {method: "DELETE", serverStatus: 308, wantMethod: "DELETE"},
+
+		20: {method: "PUT", serverStatus: 301, wantMethod: "GET"},
+		21: {method: "PUT", serverStatus: 302, wantMethod: "GET"},
+		22: {method: "PUT", serverStatus: 303, wantMethod: "GET"},
+		23: {method: "PUT", serverStatus: 307, wantMethod: "PUT"},
+		24: {method: "PUT", serverStatus: 308, wantMethod: "PUT"},
+
+		25: {method: "MADEUPMETHOD", serverStatus: 301, wantMethod: "GET"},
+		26: {method: "MADEUPMETHOD", serverStatus: 302, wantMethod: "GET"},
+		27: {method: "MADEUPMETHOD", serverStatus: 303, wantMethod: "GET"},
+		28: {method: "MADEUPMETHOD", serverStatus: 307, wantMethod: "MADEUPMETHOD"},
+		29: {method: "MADEUPMETHOD", serverStatus: 308, wantMethod: "MADEUPMETHOD"},
 	}
 
 	handlerc := make(chan HandlerFunc, 1)
@@ -1466,11 +1582,6 @@ func TestClientRedirectTypes(t *testing.T) {
 	defer ts.Close()
 
 	for i, tt := range tests {
-		if tt.broken != 0 {
-			t.Logf("#%d: skipping known broken test case. See Issue #%d", i, tt.broken)
-			continue
-		}
-
 		handlerc <- func(w ResponseWriter, r *Request) {
 			w.Header().Set("Location", ts.URL)
 			w.WriteHeader(tt.serverStatus)
