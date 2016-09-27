@@ -6,6 +6,7 @@ package http
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"golang_org/x/net/lex/httplex"
 )
@@ -40,4 +41,13 @@ func removeEmptyPort(host string) string {
 
 func isNotToken(r rune) bool {
 	return !httplex.IsTokenRune(r)
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
 }

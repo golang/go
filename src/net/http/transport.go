@@ -27,7 +27,6 @@ import (
 	"sync"
 	"time"
 
-	"golang_org/x/net/idna"
 	"golang_org/x/net/lex/httplex"
 )
 
@@ -1945,7 +1944,7 @@ var portMap = map[string]string{
 // canonicalAddr returns url.Host but always with a ":port" suffix
 func canonicalAddr(url *url.URL) string {
 	addr := url.Hostname()
-	if v, err := idna.ToASCII(addr); err == nil {
+	if v, err := idnaASCII(addr); err == nil {
 		addr = v
 	}
 	port := url.Port()
