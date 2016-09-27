@@ -10,10 +10,10 @@ import (
 	"time"
 )
 
-// BUG(mikio): On NaCl, Plan9 and Solaris, methods and functions
-// related to Interface are not implemented.
+// BUG(mikio): On NaCl and Plan9, methods and functions related to
+// Interface are not implemented.
 
-// BUG(mikio): On DragonFly BSD, NetBSD and OpenBSD, the
+// BUG(mikio): On DragonFly BSD, NetBSD, OpenBSD and Solaris, the
 // MulticastAddrs method of Interface is not implemented.
 
 var (
@@ -117,6 +117,10 @@ func InterfaceAddrs() ([]Addr, error) {
 }
 
 // InterfaceByIndex returns the interface specified by index.
+//
+// On Solaris, it returns one of the logical network interfaces
+// sharing the logical data link; for more precision use
+// InterfaceByName.
 func InterfaceByIndex(index int) (*Interface, error) {
 	if index <= 0 {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterfaceIndex}
