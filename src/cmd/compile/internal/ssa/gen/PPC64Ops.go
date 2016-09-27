@@ -288,7 +288,7 @@ func init() {
 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{ctxt}}},
 
 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, clobberFlags: true, nilCheck: true},
+		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
 
 		// Convert pointer to integer, takes a memory operand for ordering.
 		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},
