@@ -1224,6 +1224,8 @@ type Tx struct {
 	}
 }
 
+// ErrTxDone is returned by any operation that is performed on a transaction
+// that has already been committed or rolled back.
 var ErrTxDone = errors.New("sql: Transaction has already been committed or rolled back")
 
 func (tx *Tx) close(err error) {
