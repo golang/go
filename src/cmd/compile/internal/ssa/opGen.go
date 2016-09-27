@@ -993,6 +993,7 @@ const (
 	OpARM64GreaterEqualU
 	OpARM64DUFFZERO
 	OpARM64LoweredZero
+	OpARM64DUFFCOPY
 	OpARM64LoweredMove
 	OpARM64LoweredGetClosurePtr
 	OpARM64MOVDconvert
@@ -12321,6 +12322,20 @@ var opcodeTable = [...]opInfo{
 				{1, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
 			clobbers: 65536, // R16
+		},
+	},
+	{
+		name:           "DUFFCOPY",
+		auxType:        auxInt64,
+		argLen:         3,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 131072}, // R17
+				{1, 65536},  // R16
+			},
+			clobbers: 196608, // R16 R17
 		},
 	},
 	{

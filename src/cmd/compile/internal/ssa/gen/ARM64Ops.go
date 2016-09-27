@@ -376,6 +376,25 @@ func init() {
 			faultOnNilArg0: true,
 		},
 
+		// duffcopy
+		// arg0 = address of dst memory (in R17 aka arm64.REGRT2, changed as side effect)
+		// arg1 = address of src memory (in R16 aka arm64.REGRT1, changed as side effect)
+		// arg2 = mem
+		// auxint = offset into duffcopy code to start executing
+		// returns mem
+		// R16, R17 changed as side effect
+		{
+			name:      "DUFFCOPY",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R17"), buildReg("R16")},
+				clobbers: buildReg("R16 R17"),
+			},
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+		},
+
 		// large move
 		// arg0 = address of dst memory (in R17 aka arm64.REGRT2, changed as side effect)
 		// arg1 = address of src memory (in R16 aka arm64.REGRT1, changed as side effect)
