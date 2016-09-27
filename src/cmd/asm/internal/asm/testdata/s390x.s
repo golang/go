@@ -142,6 +142,8 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 	BLE	0(PC)                  // a7c40000
 	BGT	0(PC)                  // a7240000
 	BGE	0(PC)                  // a7a40000
+	BLTU	0(PC)                  // a7540000
+	BLEU	0(PC)                  // a7d40000
 
 	CMPBNE	R1, R2, 0(PC)          // ec1200007064
 	CMPBEQ	R3, R4, 0(PC)          // ec3400008064
