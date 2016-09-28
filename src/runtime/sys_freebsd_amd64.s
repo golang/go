@@ -14,8 +14,8 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVQ addr+0(FP), DI
 	MOVL mode+8(FP), SI
 	MOVL val+12(FP), DX
-	MOVQ ptr2+16(FP), R10
-	MOVQ ts+24(FP), R8
+	MOVQ uaddr1+16(FP), R10
+	MOVQ ut+24(FP), R8
 	MOVL $454, AX
 	SYSCALL
 	MOVL	AX, ret+32(FP)
