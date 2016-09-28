@@ -133,6 +133,7 @@ func init() {
 		gpstore      = regInfo{inputs: []regMask{ptrspsb, gpsp, 0}}
 		gpstoreconst = regInfo{inputs: []regMask{ptrspsb, 0}}
 		gpstoreidx   = regInfo{inputs: []regMask{ptrsp, ptrsp, gpsp, 0}}
+		gpstorebr    = regInfo{inputs: []regMask{ptrsp, gpsp, 0}}
 
 		gpmvc = regInfo{inputs: []regMask{ptrsp, ptrsp, 0}}
 
@@ -322,26 +323,32 @@ func init() {
 		{name: "MOVWBRload", argLength: 2, reg: gpload, asm: "MOVWBR", aux: "SymOff", typ: "UInt32", clobberFlags: true, faultOnNilArg0: true}, // load 4 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
 		{name: "MOVDBRload", argLength: 2, reg: gpload, asm: "MOVDBR", aux: "SymOff", typ: "UInt64", clobberFlags: true, faultOnNilArg0: true}, // load 8 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
 
-		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store byte in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true},       // store byte in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true},       // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true},       // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true},       // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVHBRstore", argLength: 3, reg: gpstorebr, asm: "MOVHBR", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem. Reverse bytes.
+		{name: "MOVWBRstore", argLength: 3, reg: gpstorebr, asm: "MOVWBR", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem. Reverse bytes.
+		{name: "MOVDBRstore", argLength: 3, reg: gpstorebr, asm: "MOVDBR", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem. Reverse bytes.
 
 		{name: "MVC", argLength: 3, reg: gpmvc, asm: "MVC", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, faultOnNilArg1: true}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size,off
 
 		// indexed loads/stores
 		// TODO(mundaym): add sign-extended indexed loads
-		{name: "MOVBZloadidx", argLength: 3, reg: gploadidx, asm: "MOVBZ", aux: "SymOff", clobberFlags: true},   // load a byte from arg0+arg1+auxint+aux. arg2=mem
-		{name: "MOVHZloadidx", argLength: 3, reg: gploadidx, asm: "MOVHZ", aux: "SymOff", clobberFlags: true},   // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem
-		{name: "MOVWZloadidx", argLength: 3, reg: gploadidx, asm: "MOVWZ", aux: "SymOff", clobberFlags: true},   // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem
-		{name: "MOVDloadidx", argLength: 3, reg: gploadidx, asm: "MOVD", aux: "SymOff", clobberFlags: true},     // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem
-		{name: "MOVHBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVHBR", aux: "SymOff", clobberFlags: true}, // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
-		{name: "MOVWBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVWBR", aux: "SymOff", clobberFlags: true}, // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
-		{name: "MOVDBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVDBR", aux: "SymOff", clobberFlags: true}, // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
-		{name: "MOVBstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVB", aux: "SymOff", clobberFlags: true},   // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
-		{name: "MOVHstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVH", aux: "SymOff", clobberFlags: true},   // store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
-		{name: "MOVWstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVW", aux: "SymOff", clobberFlags: true},   // store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
-		{name: "MOVDstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVD", aux: "SymOff", clobberFlags: true},   // store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVBZloadidx", argLength: 3, reg: gploadidx, asm: "MOVBZ", aux: "SymOff", clobberFlags: true},     // load a byte from arg0+arg1+auxint+aux. arg2=mem
+		{name: "MOVHZloadidx", argLength: 3, reg: gploadidx, asm: "MOVHZ", aux: "SymOff", clobberFlags: true},     // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem
+		{name: "MOVWZloadidx", argLength: 3, reg: gploadidx, asm: "MOVWZ", aux: "SymOff", clobberFlags: true},     // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem
+		{name: "MOVDloadidx", argLength: 3, reg: gploadidx, asm: "MOVD", aux: "SymOff", clobberFlags: true},       // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem
+		{name: "MOVHBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVHBR", aux: "SymOff", clobberFlags: true},   // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
+		{name: "MOVWBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVWBR", aux: "SymOff", clobberFlags: true},   // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
+		{name: "MOVDBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVDBR", aux: "SymOff", clobberFlags: true},   // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
+		{name: "MOVBstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVB", aux: "SymOff", clobberFlags: true},     // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVHstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVH", aux: "SymOff", clobberFlags: true},     // store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVWstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVW", aux: "SymOff", clobberFlags: true},     // store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVDstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVD", aux: "SymOff", clobberFlags: true},     // store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVHBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVHBR", aux: "SymOff", clobberFlags: true}, // store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem. Reverse bytes.
+		{name: "MOVWBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVWBR", aux: "SymOff", clobberFlags: true}, // store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem. Reverse bytes.
+		{name: "MOVDBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVDBR", aux: "SymOff", clobberFlags: true}, // store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem. Reverse bytes.
 
 		// For storeconst ops, the AuxInt field encodes both
 		// the value to store and an address offset of the store.
