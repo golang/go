@@ -23,6 +23,7 @@ package runtime
 #include <sys/mman.h>
 #include <sys/ucontext.h>
 #include <sys/umtx.h>
+#include <sys/_umtx.h>
 #include <sys/rtprio.h>
 #include <sys/thr.h>
 #include <sys/_sigset.h>
@@ -48,6 +49,8 @@ const (
 	SA_SIGINFO = C.SA_SIGINFO
 	SA_RESTART = C.SA_RESTART
 	SA_ONSTACK = C.SA_ONSTACK
+
+	CLOCK_MONOTONIC = C.CLOCK_MONOTONIC
 
 	UMTX_OP_WAIT_UINT         = C.UMTX_OP_WAIT_UINT
 	UMTX_OP_WAIT_UINT_PRIVATE = C.UMTX_OP_WAIT_UINT_PRIVATE
@@ -128,5 +131,7 @@ type Ucontext C.ucontext_t
 type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Itimerval C.struct_itimerval
+
+type Umtx_time C.struct__umtx_time
 
 type Kevent C.struct_kevent
