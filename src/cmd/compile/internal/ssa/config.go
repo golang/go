@@ -17,6 +17,7 @@ type Config struct {
 	arch            string                     // "amd64", etc.
 	IntSize         int64                      // 4 or 8
 	PtrSize         int64                      // 4 or 8
+	RegSize         int64                      // 4 or 8
 	lowerBlock      func(*Block, *Config) bool // lowering function
 	lowerValue      func(*Value, *Config) bool // lowering function
 	registers       []Register                 // machine registers
@@ -132,6 +133,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	case "amd64":
 		c.IntSize = 8
 		c.PtrSize = 8
+		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
 		c.registers = registersAMD64[:]
@@ -142,6 +144,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	case "amd64p32":
 		c.IntSize = 4
 		c.PtrSize = 4
+		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
 		c.registers = registersAMD64[:]
@@ -153,6 +156,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	case "386":
 		c.IntSize = 4
 		c.PtrSize = 4
+		c.RegSize = 4
 		c.lowerBlock = rewriteBlock386
 		c.lowerValue = rewriteValue386
 		c.registers = registers386[:]
@@ -163,6 +167,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	case "arm":
 		c.IntSize = 4
 		c.PtrSize = 4
+		c.RegSize = 4
 		c.lowerBlock = rewriteBlockARM
 		c.lowerValue = rewriteValueARM
 		c.registers = registersARM[:]
@@ -173,6 +178,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	case "arm64":
 		c.IntSize = 8
 		c.PtrSize = 8
+		c.RegSize = 8
 		c.lowerBlock = rewriteBlockARM64
 		c.lowerValue = rewriteValueARM64
 		c.registers = registersARM64[:]
@@ -187,6 +193,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	case "ppc64le":
 		c.IntSize = 8
 		c.PtrSize = 8
+		c.RegSize = 8
 		c.lowerBlock = rewriteBlockPPC64
 		c.lowerValue = rewriteValuePPC64
 		c.registers = registersPPC64[:]
@@ -199,6 +206,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	case "mips64", "mips64le":
 		c.IntSize = 8
 		c.PtrSize = 8
+		c.RegSize = 8
 		c.lowerBlock = rewriteBlockMIPS64
 		c.lowerValue = rewriteValueMIPS64
 		c.registers = registersMIPS64[:]
@@ -210,6 +218,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	case "s390x":
 		c.IntSize = 8
 		c.PtrSize = 8
+		c.RegSize = 8
 		c.lowerBlock = rewriteBlockS390X
 		c.lowerValue = rewriteValueS390X
 		c.registers = registersS390X[:]

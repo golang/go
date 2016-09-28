@@ -958,13 +958,15 @@
 	-> mem
 // nil checks just need to rewrite to something useless.
 // they will be deadcode eliminated soon afterwards.
-        //(NilCheck (Load (OffPtr [c] (SP)) mem) mem)
-        //        && mem.Op == OpStaticCall
-        //	&& isSameSym(mem.Aux, "runtime.newobject")
-        //	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
-        //	-> (Invalid)
-        //(NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
-        //        && mem.Op == OpStaticCall
-        //	&& isSameSym(mem.Aux, "runtime.newobject")
-        //	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
-        //	-> (Invalid)
+(NilCheck (Load (OffPtr [c] (SP)) mem) mem)
+	&& mem.Op == OpStaticCall
+	&& isSameSym(mem.Aux, "runtime.newobject")
+	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+	&& warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")
+	-> (Invalid)
+(NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
+	&& mem.Op == OpStaticCall
+	&& isSameSym(mem.Aux, "runtime.newobject")
+	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+	&& warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")
+	-> (Invalid)
