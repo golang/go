@@ -467,7 +467,7 @@ func badsignal2() {
 	exits(&_badsignal[0])
 }
 
-func raisebadsignal(sig int32) {
+func raisebadsignal(sig uint32) {
 	badsignal2()
 }
 

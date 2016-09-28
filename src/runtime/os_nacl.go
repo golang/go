@@ -45,7 +45,7 @@ func os_sigpipe() {
 	throw("too many writes on closed pipe")
 }
 
-func dieFromSignal(sig int32) {
+func dieFromSignal(sig uint32) {
 	exit(2)
 }
 
@@ -60,7 +60,7 @@ func sigpanic() {
 	panicmem()
 }
 
-func raiseproc(sig int32) {
+func raiseproc(sig uint32) {
 }
 
 // Stubs so tests can link correctly. These should never be called.
@@ -254,7 +254,7 @@ func badsignalgo(sig uintptr) {
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the
 		// Go code does not want to handle it.
-		raisebadsignal(int32(sig))
+		raisebadsignal(uint32(sig))
 	}
 }
 
@@ -267,7 +267,7 @@ func badsignal2() {
 
 var badsignal1 = []byte("runtime: signal received on thread not created by Go.\n")
 
-func raisebadsignal(sig int32) {
+func raisebadsignal(sig uint32) {
 	badsignal2()
 }
 

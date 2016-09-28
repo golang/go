@@ -488,8 +488,8 @@ func sigtramp(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Point
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 
-func raise(sig int32)
-func raiseproc(sig int32)
+func raise(sig uint32)
+func raiseproc(sig uint32)
 
 //extern SigTabTT runtime·sigtab[];
 
@@ -499,25 +499,22 @@ var sigset_all = ^sigset(0)
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsig(i int32, fn uintptr, restart bool) {
+func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
-	if restart {
-		sa.sa_flags |= _SA_RESTART
-	}
+	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = ^uint32(0)
 	sa.sa_tramp = unsafe.Pointer(funcPC(sigtramp)) // runtime·sigtramp's job is to call into real handler
 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn
-	sigaction(uint32(i), &sa, nil)
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsigstack(i int32) {
+func setsigstack(i uint32) {
 	var osa usigactiont
-	sigaction(uint32(i), nil, &osa)
+	sigaction(i, nil, &osa)
 	handler := *(*uintptr)(unsafe.Pointer(&osa.__sigaction_u))
-	if handler == 0 || handler == _SIG_DFL || handler == _SIG_IGN || osa.sa_flags&_SA_ONSTACK != 0 {
+	if osa.sa_flags&_SA_ONSTACK != 0 {
 		return
 	}
 	var sa sigactiont
@@ -525,14 +522,14 @@ func setsigstack(i int32) {
 	sa.sa_tramp = unsafe.Pointer(funcPC(sigtramp))
 	sa.sa_mask = osa.sa_mask
 	sa.sa_flags = osa.sa_flags | _SA_ONSTACK
-	sigaction(uint32(i), &sa, nil)
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func getsig(i int32) uintptr {
+func getsig(i uint32) uintptr {
 	var sa usigactiont
-	sigaction(uint32(i), nil, &sa)
+	sigaction(i, nil, &sa)
 	return *(*uintptr)(unsafe.Pointer(&sa.__sigaction_u))
 }
 

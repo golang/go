@@ -18,7 +18,7 @@ func thr_new(param *thrparam, size int32)
 func sigaltstack(new, old *stackt)
 
 //go:noescape
-func sigaction(sig int32, new, old *sigactiont)
+func sigaction(sig uint32, new, old *sigactiont)
 
 //go:noescape
 func sigprocmask(how int32, new, old *sigset)
@@ -31,8 +31,8 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
 
 //go:noescape
 func getrlimit(kind int32, limit unsafe.Pointer) int32
-func raise(sig int32)
-func raiseproc(sig int32)
+func raise(sig uint32)
+func raiseproc(sig uint32)
 
 //go:noescape
 func sys_umtx_op(addr *uint32, mode int32, val uint32, ptr2, ts *timespec) int32
@@ -224,12 +224,9 @@ type sigactiont struct {
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsig(i int32, fn uintptr, restart bool) {
+func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
-	if restart {
-		sa.sa_flags |= _SA_RESTART
-	}
+	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
 	if fn == funcPC(sighandler) {
 		fn = funcPC(sigtramp)
@@ -240,18 +237,15 @@ func setsig(i int32, fn uintptr, restart bool) {
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsigstack(i int32) {
+func setsigstack(i uint32) {
 	throw("setsigstack")
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func getsig(i int32) uintptr {
+func getsig(i uint32) uintptr {
 	var sa sigactiont
 	sigaction(i, nil, &sa)
-	if sa.sa_handler == funcPC(sigtramp) {
-		return funcPC(sighandler)
-	}
 	return sa.sa_handler
 }
 
