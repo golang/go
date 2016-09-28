@@ -370,6 +370,15 @@ func noteRule(s string) bool {
 	return true
 }
 
+// warnRule generates a compiler debug output with string s when
+// cond is true and the rule is fired.
+func warnRule(cond bool, v *Value, s string) bool {
+	if cond {
+		v.Block.Func.Config.Warnl(v.Line, "removed nil check")
+	}
+	return true
+}
+
 // logRule logs the use of the rule s. This will only be enabled if
 // rewrite rules were generated with the -log option, see gen/rulegen.go.
 func logRule(s string) {
