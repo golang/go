@@ -67,7 +67,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if flags&_SigKill != 0 {
-		dieFromSignal(int32(sig))
+		dieFromSignal(sig)
 	}
 
 	if flags&_SigThrow == 0 {

@@ -32,7 +32,7 @@ type mOS struct {
 func setitimer(mode int32, new, old *itimerval)
 
 //go:noescape
-func sigaction(sig int32, new, old *sigactiont)
+func sigaction(sig uint32, new, old *sigactiont)
 
 //go:noescape
 func sigaltstack(new, old *stackt)
@@ -45,8 +45,8 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
 
 func lwp_tramp()
 
-func raise(sig int32)
-func raiseproc(sig int32)
+func raise(sig uint32)
+func raiseproc(sig uint32)
 
 //go:noescape
 func getcontext(ctxt unsafe.Pointer)
@@ -262,12 +262,9 @@ type sigactiont struct {
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsig(i int32, fn uintptr, restart bool) {
+func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
-	if restart {
-		sa.sa_flags |= _SA_RESTART
-	}
+	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
 	if fn == funcPC(sighandler) {
 		fn = funcPC(sigtramp)
@@ -278,18 +275,15 @@ func setsig(i int32, fn uintptr, restart bool) {
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsigstack(i int32) {
+func setsigstack(i uint32) {
 	throw("setsigstack")
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func getsig(i int32) uintptr {
+func getsig(i uint32) uintptr {
 	var sa sigactiont
 	sigaction(i, nil, &sa)
-	if sa.sa_sigaction == funcPC(sigtramp) {
-		return funcPC(sighandler)
-	}
 	return sa.sa_sigaction
 }
 

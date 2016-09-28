@@ -205,7 +205,7 @@ func sigignore(sig uint32) {
 
 func badsignal2()
 
-func raisebadsignal(sig int32) {
+func raisebadsignal(sig uint32) {
 	badsignal2()
 }
 

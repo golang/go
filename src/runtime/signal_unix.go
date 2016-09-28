@@ -71,7 +71,7 @@ func initsig(preinit bool) {
 		return
 	}
 
-	for i := int32(0); i < _NSIG; i++ {
+	for i := uint32(0); i < _NSIG; i++ {
 		t := &sigtable[i]
 		if t.flags == 0 || t.flags&_SigDefault != 0 {
 			continue
@@ -88,13 +88,13 @@ func initsig(preinit bool) {
 		}
 
 		t.flags |= _SigHandling
-		setsig(i, funcPC(sighandler), true)
+		setsig(i, funcPC(sighandler))
 	}
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func sigInstallGoHandler(sig int32) bool {
+func sigInstallGoHandler(sig uint32) bool {
 	// For some signals, we respect an inherited SIG_IGN handler
 	// rather than insist on installing our own default handler.
 	// Even these signals can be fetched using the os/signal package.
@@ -131,8 +131,8 @@ func sigenable(sig uint32) {
 		<-maskUpdatedChan
 		if t.flags&_SigHandling == 0 {
 			t.flags |= _SigHandling
-			fwdSig[sig] = getsig(int32(sig))
-			setsig(int32(sig), funcPC(sighandler), true)
+			fwdSig[sig] = getsig(sig)
+			setsig(sig, funcPC(sighandler))
 		}
 	}
 }
@@ -151,9 +151,9 @@ func sigdisable(sig uint32) {
 		// If initsig does not install a signal handler for a
 		// signal, then to go back to the state before Notify
 		// we should remove the one we installed.
-		if !sigInstallGoHandler(int32(sig)) {
+		if !sigInstallGoHandler(sig) {
 			t.flags &^= _SigHandling
-			setsig(int32(sig), fwdSig[sig], true)
+			setsig(sig, fwdSig[sig])
 		}
 	}
 }
@@ -166,7 +166,7 @@ func sigignore(sig uint32) {
 	t := &sigtable[sig]
 	if t.flags&_SigNotify != 0 {
 		t.flags &^= _SigHandling
-		setsig(int32(sig), _SIG_IGN, true)
+		setsig(sig, _SIG_IGN)
 	}
 }
 
@@ -295,8 +295,8 @@ func sigpanic() {
 // This is only called with fatal signals expected to kill the process.
 //go:nosplit
 //go:nowritebarrierrec
-func dieFromSignal(sig int32) {
-	setsig(sig, _SIG_DFL, false)
+func dieFromSignal(sig uint32) {
+	setsig(sig, _SIG_DFL)
 	unblocksig(sig)
 	raise(sig)
 
@@ -316,7 +316,7 @@ func dieFromSignal(sig int32) {
 // raisebadsignal is called when a signal is received on a non-Go
 // thread, and the Go program does not want to handle it (that is, the
 // program has not called os/signal.Notify for the signal).
-func raisebadsignal(sig int32, c *sigctxt) {
+func raisebadsignal(sig uint32, c *sigctxt) {
 	if sig == _SIGPROF {
 		// Ignore profiling signals that arrive on non-Go threads.
 		return
@@ -338,7 +338,7 @@ func raisebadsignal(sig int32, c *sigctxt) {
 	// it. That means that we don't have to worry about blocking it
 	// again.
 	unblocksig(sig)
-	setsig(sig, handler, false)
+	setsig(sig, handler)
 
 	// If we're linked into a non-Go program we want to try to
 	// avoid modifying the original context in which the signal
@@ -359,7 +359,7 @@ func raisebadsignal(sig int32, c *sigctxt) {
 	// We may receive another instance of the signal before we
 	// restore the Go handler, but that is not so bad: we know
 	// that the Go program has been ignoring the signal.
-	setsig(sig, funcPC(sighandler), true)
+	setsig(sig, funcPC(sighandler))
 }
 
 func crash() {
@@ -448,7 +448,7 @@ func badsignalgo(sig uintptr, c *sigctxt) {
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the
 		// Go code does not want to handle it.
-		raisebadsignal(int32(sig), c)
+		raisebadsignal(uint32(sig), c)
 	}
 }
 
@@ -473,7 +473,7 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 		// at program startup, but the Go runtime has not yet
 		// been initialized.
 		if fwdFn == _SIG_DFL {
-			dieFromSignal(int32(sig))
+			dieFromSignal(sig)
 		} else {
 			sigfwd(fwdFn, sig, info, ctx)
 		}
@@ -552,7 +552,7 @@ func sigblock() {
 // signal handler, on the signal stack, with no g available.
 //go:nosplit
 //go:nowritebarrierrec
-func unblocksig(sig int32) {
+func unblocksig(sig uint32) {
 	var set sigset
 	sigaddset(&set, int(sig))
 	sigprocmask(_SIG_UNBLOCK, &set, nil)
