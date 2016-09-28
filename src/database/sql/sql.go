@@ -974,7 +974,8 @@ const maxBadConnRetries = 2
 // returned statement.
 // The caller must call the statement's Close method
 // when the statement is no longer needed.
-// Context is for the preparation of the statment, not for the execution of
+//
+// The provided context is for the preparation of the statment, not for the execution of
 // the statement.
 func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var stmt *Stmt
@@ -1148,6 +1149,7 @@ func (db *DB) queryConn(ctx context.Context, dc *driverConn, releaseConn func(er
 				releaseConn: releaseConn,
 				rowsi:       rowsi,
 			}
+			rows.initContextClose(ctx)
 			return rows, nil
 		}
 	}
@@ -1180,6 +1182,7 @@ func (db *DB) queryConn(ctx context.Context, dc *driverConn, releaseConn func(er
 		rowsi:       rowsi,
 		closeStmt:   si,
 	}
+	rows.initContextClose(ctx)
 	return rows, nil
 }
 
@@ -1364,7 +1367,8 @@ func (tx *Tx) Rollback() error {
 // be used once the transaction has been committed or rolled back.
 //
 // To use an existing prepared statement on this transaction, see Tx.Stmt.
-// Context will be used for the preparation of the context, not
+//
+// The provided context will be used for the preparation of the context, not
 // for the execution of the returned statement. The returned statement
 // will run in the transaction context.
 func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
@@ -1759,6 +1763,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 				rowsi: rowsi,
 				// releaseConn set below
 			}
+			rows.initContextClose(ctx)
 			s.db.addDep(s, rows)
 			rows.releaseConn = func(err error) {
 				releaseConn(err)
@@ -1899,10 +1904,28 @@ type Rows struct {
 	releaseConn func(error)
 	rowsi       driver.Rows
 
-	closed    bool
+	// closed value is 1 when the Rows is closed.
+	// Use atomic operations on value when checking value.
+	closed    int32
+	ctxClose  chan struct{} // closed when Rows is closed, may be null.
 	lastcols  []driver.Value
 	lasterr   error       // non-nil only if closed is true
 	closeStmt driver.Stmt // if non-nil, statement to Close on close
+}
+
+func (rs *Rows) initContextClose(ctx context.Context) {
+	if ctx.Done() == context.Background().Done() {
+		return
+	}
+
+	rs.ctxClose = make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			rs.Close()
+		case <-rs.ctxClose:
+		}
+	}()
 }
 
 // Next prepares the next result row for reading with the Scan method. It
@@ -1912,7 +1935,7 @@ type Rows struct {
 //
 // Every call to Scan, even the first one, must be preceded by a call to Next.
 func (rs *Rows) Next() bool {
-	if rs.closed {
+	if rs.isClosed() {
 		return false
 	}
 	if rs.lastcols == nil {
@@ -1939,7 +1962,7 @@ func (rs *Rows) Err() error {
 // Columns returns an error if the rows are closed, or if the rows
 // are from QueryRow and there was a deferred error.
 func (rs *Rows) Columns() ([]string, error) {
-	if rs.closed {
+	if rs.isClosed() {
 		return nil, errors.New("sql: Rows are closed")
 	}
 	if rs.rowsi == nil {
@@ -2000,7 +2023,7 @@ func (rs *Rows) Columns() ([]string, error) {
 // For scanning into *bool, the source may be true, false, 1, 0, or
 // string inputs parseable by strconv.ParseBool.
 func (rs *Rows) Scan(dest ...interface{}) error {
-	if rs.closed {
+	if rs.isClosed() {
 		return errors.New("sql: Rows are closed")
 	}
 	if rs.lastcols == nil {
@@ -2020,14 +2043,20 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 
 var rowsCloseHook func(*Rows, *error)
 
+func (rs *Rows) isClosed() bool {
+	return atomic.LoadInt32(&rs.closed) != 0
+}
+
 // Close closes the Rows, preventing further enumeration. If Next returns
 // false, the Rows are closed automatically and it will suffice to check the
 // result of Err. Close is idempotent and does not affect the result of Err.
 func (rs *Rows) Close() error {
-	if rs.closed {
+	if !atomic.CompareAndSwapInt32(&rs.closed, 0, 1) {
 		return nil
 	}
-	rs.closed = true
+	if rs.ctxClose != nil {
+		close(rs.ctxClose)
+	}
 	err := rs.rowsi.Close()
 	if fn := rowsCloseHook; fn != nil {
 		fn(rs, &err)
