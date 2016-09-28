@@ -14,6 +14,10 @@ func ctxDriverPrepare(ctx context.Context, ci driver.Conn, query string) (driver
 	if ciCtx, is := ci.(driver.ConnPrepareContext); is {
 		return ciCtx.PrepareContext(ctx, query)
 	}
+	if ctx.Done() == context.Background().Done() {
+		return ci.Prepare(query)
+	}
+
 	type R struct {
 		err   error
 		panic interface{}
@@ -50,6 +54,10 @@ func ctxDriverExec(ctx context.Context, execer driver.Execer, query string, darg
 	if execerCtx, is := execer.(driver.ExecerContext); is {
 		return execerCtx.ExecContext(ctx, query, dargs)
 	}
+	if ctx.Done() == context.Background().Done() {
+		return execer.Exec(query, dargs)
+	}
+
 	type R struct {
 		err   error
 		panic interface{}
@@ -86,6 +94,10 @@ func ctxDriverQuery(ctx context.Context, queryer driver.Queryer, query string, d
 	if queryerCtx, is := queryer.(driver.QueryerContext); is {
 		return queryerCtx.QueryContext(ctx, query, dargs)
 	}
+	if ctx.Done() == context.Background().Done() {
+		return queryer.Query(query, dargs)
+	}
+
 	type R struct {
 		err   error
 		panic interface{}
@@ -122,6 +134,10 @@ func ctxDriverStmtExec(ctx context.Context, si driver.Stmt, dargs []driver.Value
 	if siCtx, is := si.(driver.StmtExecContext); is {
 		return siCtx.ExecContext(ctx, dargs)
 	}
+	if ctx.Done() == context.Background().Done() {
+		return si.Exec(dargs)
+	}
+
 	type R struct {
 		err   error
 		panic interface{}
@@ -158,6 +174,10 @@ func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, dargs []driver.Valu
 	if siCtx, is := si.(driver.StmtQueryContext); is {
 		return siCtx.QueryContext(ctx, dargs)
 	}
+	if ctx.Done() == context.Background().Done() {
+		return si.Query(dargs)
+	}
+
 	type R struct {
 		err   error
 		panic interface{}
@@ -196,6 +216,10 @@ func ctxDriverBegin(ctx context.Context, ci driver.Conn) (driver.Tx, error) {
 	if ciCtx, is := ci.(driver.ConnBeginContext); is {
 		return ciCtx.BeginContext(ctx)
 	}
+	if ctx.Done() == context.Background().Done() {
+		return ci.Begin()
+	}
+
 	// TODO(kardianos): check the transaction level in ctx. If set and non-default
 	// then return an error here as the BeginContext driver value is not supported.
 
