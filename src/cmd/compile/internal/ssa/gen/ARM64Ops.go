@@ -514,6 +514,10 @@ func init() {
 		{name: "ULE"},
 		{name: "UGT"},
 		{name: "UGE"},
+		{name: "Z"},   // Control == 0 (take a register instead of flags)
+		{name: "NZ"},  // Control != 0
+		{name: "ZW"},  // Control == 0, 32-bit
+		{name: "NZW"}, // Control != 0, 32-bit
 	}
 
 	archs = append(archs, arch{

@@ -67,6 +67,10 @@ const (
 	BlockARM64ULE
 	BlockARM64UGT
 	BlockARM64UGE
+	BlockARM64Z
+	BlockARM64NZ
+	BlockARM64ZW
+	BlockARM64NZW
 
 	BlockMIPS64EQ
 	BlockMIPS64NE
@@ -160,6 +164,10 @@ var blockString = [...]string{
 	BlockARM64ULE: "ULE",
 	BlockARM64UGT: "UGT",
 	BlockARM64UGE: "UGE",
+	BlockARM64Z:   "Z",
+	BlockARM64NZ:  "NZ",
+	BlockARM64ZW:  "ZW",
+	BlockARM64NZW: "NZW",
 
 	BlockMIPS64EQ:  "EQ",
 	BlockMIPS64NE:  "NE",

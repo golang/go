@@ -15070,6 +15070,46 @@ func rewriteValueARM64_OpZeroExt8to64(v *Value, config *Config) bool {
 func rewriteBlockARM64(b *Block, config *Config) bool {
 	switch b.Kind {
 	case BlockARM64EQ:
+		// match: (EQ (CMPconst [0] x) yes no)
+		// cond:
+		// result: (Z x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			x := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64Z
+			b.SetControl(x)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ (CMPWconst [0] x) yes no)
+		// cond:
+		// result: (ZW x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			x := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64ZW
+			b.SetControl(x)
+			_ = yes
+			_ = no
+			return true
+		}
 		// match: (EQ (FlagEQ) yes no)
 		// cond:
 		// result: (First nil yes no)
@@ -15545,18 +15585,15 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
 		}
 		// match: (If cond yes no)
 		// cond:
-		// result: (NE (CMPconst [0] cond) yes no)
+		// result: (NZ cond yes no)
 		for {
 			v := b.Control
 			_ = v
 			cond := b.Control
 			yes := b.Succs[0]
 			no := b.Succs[1]
-			b.Kind = BlockARM64NE
-			v0 := b.NewValue0(v.Line, OpARM64CMPconst, TypeFlags)
-			v0.AuxInt = 0
-			v0.AddArg(cond)
-			b.SetControl(v0)
+			b.Kind = BlockARM64NZ
+			b.SetControl(cond)
 			_ = yes
 			_ = no
 			return true
@@ -15763,9 +15800,9 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
 			return true
 		}
 	case BlockARM64NE:
-		// match: (NE (CMPconst [0] (Equal cc)) yes no)
+		// match: (NE (CMPconst [0] x) yes no)
 		// cond:
-		// result: (EQ cc yes no)
+		// result: (NZ x yes no)
 		for {
 			v := b.Control
 			if v.Op != OpARM64CMPconst {
@@ -15774,231 +15811,31 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
 			if v.AuxInt != 0 {
 				break
 			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpARM64Equal {
-				break
-			}
-			cc := v_0.Args[0]
+			x := v.Args[0]
 			yes := b.Succs[0]
 			no := b.Succs[1]
-			b.Kind = BlockARM64EQ
-			b.SetControl(cc)
+			b.Kind = BlockARM64NZ
+			b.SetControl(x)
 			_ = yes
 			_ = no
 			return true
 		}
-		// match: (NE (CMPconst [0] (NotEqual cc)) yes no)
+		// match: (NE (CMPWconst [0] x) yes no)
 		// cond:
-		// result: (NE cc yes no)
+		// result: (NZW x yes no)
 		for {
 			v := b.Control
-			if v.Op != OpARM64CMPconst {
+			if v.Op != OpARM64CMPWconst {
 				break
 			}
 			if v.AuxInt != 0 {
 				break
 			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpARM64NotEqual {
-				break
-			}
-			cc := v_0.Args[0]
+			x := v.Args[0]
 			yes := b.Succs[0]
 			no := b.Succs[1]
-			b.Kind = BlockARM64NE
-			b.SetControl(cc)
-			_ = yes
-			_ = no
-			return true
-		}
-		// match: (NE (CMPconst [0] (LessThan cc)) yes no)
-		// cond:
-		// result: (LT cc yes no)
-		for {
-			v := b.Control
-			if v.Op != OpARM64CMPconst {
-				break
-			}
-			if v.AuxInt != 0 {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpARM64LessThan {
-				break
-			}
-			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
-			b.Kind = BlockARM64LT
-			b.SetControl(cc)
-			_ = yes
-			_ = no
-			return true
-		}
-		// match: (NE (CMPconst [0] (LessThanU cc)) yes no)
-		// cond:
-		// result: (ULT cc yes no)
-		for {
-			v := b.Control
-			if v.Op != OpARM64CMPconst {
-				break
-			}
-			if v.AuxInt != 0 {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpARM64LessThanU {
-				break
-			}
-			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
-			b.Kind = BlockARM64ULT
-			b.SetControl(cc)
-			_ = yes
-			_ = no
-			return true
-		}
-		// match: (NE (CMPconst [0] (LessEqual cc)) yes no)
-		// cond:
-		// result: (LE cc yes no)
-		for {
-			v := b.Control
-			if v.Op != OpARM64CMPconst {
-				break
-			}
-			if v.AuxInt != 0 {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpARM64LessEqual {
-				break
-			}
-			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
-			b.Kind = BlockARM64LE
-			b.SetControl(cc)
-			_ = yes
-			_ = no
-			return true
-		}
-		// match: (NE (CMPconst [0] (LessEqualU cc)) yes no)
-		// cond:
-		// result: (ULE cc yes no)
-		for {
-			v := b.Control
-			if v.Op != OpARM64CMPconst {
-				break
-			}
-			if v.AuxInt != 0 {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpARM64LessEqualU {
-				break
-			}
-			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
-			b.Kind = BlockARM64ULE
-			b.SetControl(cc)
-			_ = yes
-			_ = no
-			return true
-		}
-		// match: (NE (CMPconst [0] (GreaterThan cc)) yes no)
-		// cond:
-		// result: (GT cc yes no)
-		for {
-			v := b.Control
-			if v.Op != OpARM64CMPconst {
-				break
-			}
-			if v.AuxInt != 0 {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpARM64GreaterThan {
-				break
-			}
-			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
-			b.Kind = BlockARM64GT
-			b.SetControl(cc)
-			_ = yes
-			_ = no
-			return true
-		}
-		// match: (NE (CMPconst [0] (GreaterThanU cc)) yes no)
-		// cond:
-		// result: (UGT cc yes no)
-		for {
-			v := b.Control
-			if v.Op != OpARM64CMPconst {
-				break
-			}
-			if v.AuxInt != 0 {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpARM64GreaterThanU {
-				break
-			}
-			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
-			b.Kind = BlockARM64UGT
-			b.SetControl(cc)
-			_ = yes
-			_ = no
-			return true
-		}
-		// match: (NE (CMPconst [0] (GreaterEqual cc)) yes no)
-		// cond:
-		// result: (GE cc yes no)
-		for {
-			v := b.Control
-			if v.Op != OpARM64CMPconst {
-				break
-			}
-			if v.AuxInt != 0 {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpARM64GreaterEqual {
-				break
-			}
-			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
-			b.Kind = BlockARM64GE
-			b.SetControl(cc)
-			_ = yes
-			_ = no
-			return true
-		}
-		// match: (NE (CMPconst [0] (GreaterEqualU cc)) yes no)
-		// cond:
-		// result: (UGE cc yes no)
-		for {
-			v := b.Control
-			if v.Op != OpARM64CMPconst {
-				break
-			}
-			if v.AuxInt != 0 {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpARM64GreaterEqualU {
-				break
-			}
-			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
-			b.Kind = BlockARM64UGE
-			b.SetControl(cc)
+			b.Kind = BlockARM64NZW
+			b.SetControl(x)
 			_ = yes
 			_ = no
 			return true
@@ -16097,6 +15934,259 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
 			no := b.Succs[1]
 			b.Kind = BlockARM64NE
 			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+	case BlockARM64NZ:
+		// match: (NZ (Equal cc) yes no)
+		// cond:
+		// result: (EQ cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64Equal {
+				break
+			}
+			cc := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64EQ
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NZ (NotEqual cc) yes no)
+		// cond:
+		// result: (NE cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64NotEqual {
+				break
+			}
+			cc := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64NE
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NZ (LessThan cc) yes no)
+		// cond:
+		// result: (LT cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64LessThan {
+				break
+			}
+			cc := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64LT
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NZ (LessThanU cc) yes no)
+		// cond:
+		// result: (ULT cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64LessThanU {
+				break
+			}
+			cc := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64ULT
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NZ (LessEqual cc) yes no)
+		// cond:
+		// result: (LE cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64LessEqual {
+				break
+			}
+			cc := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64LE
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NZ (LessEqualU cc) yes no)
+		// cond:
+		// result: (ULE cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64LessEqualU {
+				break
+			}
+			cc := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64ULE
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NZ (GreaterThan cc) yes no)
+		// cond:
+		// result: (GT cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64GreaterThan {
+				break
+			}
+			cc := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64GT
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NZ (GreaterThanU cc) yes no)
+		// cond:
+		// result: (UGT cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64GreaterThanU {
+				break
+			}
+			cc := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64UGT
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NZ (GreaterEqual cc) yes no)
+		// cond:
+		// result: (GE cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64GreaterEqual {
+				break
+			}
+			cc := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64GE
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NZ (GreaterEqualU cc) yes no)
+		// cond:
+		// result: (UGE cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64GreaterEqualU {
+				break
+			}
+			cc := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockARM64UGE
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NZ (MOVDconst [0]) yes no)
+		// cond:
+		// result: (First nil no yes)
+		for {
+			v := b.Control
+			if v.Op != OpARM64MOVDconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			b.swapSuccessors()
+			_ = no
+			_ = yes
+			return true
+		}
+		// match: (NZ (MOVDconst [c]) yes no)
+		// cond: c != 0
+		// result: (First nil yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64MOVDconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c != 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			_ = yes
+			_ = no
+			return true
+		}
+	case BlockARM64NZW:
+		// match: (NZW (MOVDconst [c]) yes no)
+		// cond: int32(c) == 0
+		// result: (First nil no yes)
+		for {
+			v := b.Control
+			if v.Op != OpARM64MOVDconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(int32(c) == 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			b.swapSuccessors()
+			_ = no
+			_ = yes
+			return true
+		}
+		// match: (NZW (MOVDconst [c]) yes no)
+		// cond: int32(c) != 0
+		// result: (First nil yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64MOVDconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(int32(c) != 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
 			_ = yes
 			_ = no
 			return true
@@ -16501,6 +16591,89 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
 			b.SetControl(cmp)
 			_ = yes
 			_ = no
+			return true
+		}
+	case BlockARM64Z:
+		// match: (Z (MOVDconst [0]) yes no)
+		// cond:
+		// result: (First nil yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64MOVDconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (Z (MOVDconst [c]) yes no)
+		// cond: c != 0
+		// result: (First nil no yes)
+		for {
+			v := b.Control
+			if v.Op != OpARM64MOVDconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c != 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			b.swapSuccessors()
+			_ = no
+			_ = yes
+			return true
+		}
+	case BlockARM64ZW:
+		// match: (ZW (MOVDconst [c]) yes no)
+		// cond: int32(c) == 0
+		// result: (First nil yes no)
+		for {
+			v := b.Control
+			if v.Op != OpARM64MOVDconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(int32(c) == 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (ZW (MOVDconst [c]) yes no)
+		// cond: int32(c) != 0
+		// result: (First nil no yes)
+		for {
+			v := b.Control
+			if v.Op != OpARM64MOVDconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(int32(c) != 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			b.swapSuccessors()
+			_ = no
+			_ = yes
 			return true
 		}
 	}
