@@ -1359,6 +1359,9 @@ const (
 	OpS390XMOVHstore
 	OpS390XMOVWstore
 	OpS390XMOVDstore
+	OpS390XMOVHBRstore
+	OpS390XMOVWBRstore
+	OpS390XMOVDBRstore
 	OpS390XMVC
 	OpS390XMOVBZloadidx
 	OpS390XMOVHZloadidx
@@ -1371,6 +1374,9 @@ const (
 	OpS390XMOVHstoreidx
 	OpS390XMOVWstoreidx
 	OpS390XMOVDstoreidx
+	OpS390XMOVHBRstoreidx
+	OpS390XMOVWBRstoreidx
+	OpS390XMOVDBRstoreidx
 	OpS390XMOVBstoreconst
 	OpS390XMOVHstoreconst
 	OpS390XMOVWstoreconst
@@ -17189,6 +17195,48 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "MOVHBRstore",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		asm:            s390x.AMOVHBR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+				{1, 37887}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+			},
+		},
+	},
+	{
+		name:           "MOVWBRstore",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		asm:            s390x.AMOVWBR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+				{1, 37887}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+			},
+		},
+	},
+	{
+		name:           "MOVDBRstore",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		asm:            s390x.AMOVDBR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+				{1, 37887}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+			},
+		},
+	},
+	{
 		name:           "MVC",
 		auxType:        auxSymValAndOff,
 		argLen:         3,
@@ -17363,6 +17411,48 @@ var opcodeTable = [...]opInfo{
 		argLen:       4,
 		clobberFlags: true,
 		asm:          s390x.AMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+				{1, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+				{2, 37887}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+			},
+		},
+	},
+	{
+		name:         "MOVHBRstoreidx",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		asm:          s390x.AMOVHBR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+				{1, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+				{2, 37887}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+			},
+		},
+	},
+	{
+		name:         "MOVWBRstoreidx",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		asm:          s390x.AMOVWBR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+				{1, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+				{2, 37887}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+			},
+		},
+	},
+	{
+		name:         "MOVDBRstoreidx",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		asm:          s390x.AMOVDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
