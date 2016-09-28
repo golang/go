@@ -22,6 +22,7 @@ crypto/x509: support PSS signatures (CL 24743)
 net/http: make Transport retry non-idempotent requests if no bytes written (CL 27117)
 net: support "option ndots:0" in resolv.conf (CL 24901)
 net: use libresolv rules for ndots range and validation (CL 24901)
+testing: add Name method to *T and *B
 runtime: fix map iterator concurrent map check (CL 23711)
 
 Optimizations:
