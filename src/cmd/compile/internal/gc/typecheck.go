@@ -1185,11 +1185,12 @@ OpSwitch:
 
 	// call and call like
 	case OCALL:
+		n.Left = typecheck(n.Left, Erv|Etype|Ecall)
+		n.Diag |= n.Left.Diag
 		l := n.Left
 
 		if l.Op == ONAME {
-			r := unsafenmagic(n)
-			if r != nil {
+			if r := unsafenmagic(n); r != nil {
 				if n.Isddd {
 					yyerror("invalid use of ... with builtin %v", l)
 				}
@@ -1197,25 +1198,22 @@ OpSwitch:
 				n = typecheck1(n, top)
 				return n
 			}
-		}
 
-		n.Left = typecheck(n.Left, Erv|Etype|Ecall)
-		n.Diag |= n.Left.Diag
-		l = n.Left
-		if l.Op == ONAME && l.Etype != 0 {
-			// TODO(marvin): Fix Node.EType type union.
-			if n.Isddd && Op(l.Etype) != OAPPEND {
-				yyerror("invalid use of ... with builtin %v", l)
+			if l.Etype != 0 {
+				// TODO(marvin): Fix Node.EType type union.
+				if n.Isddd && Op(l.Etype) != OAPPEND {
+					yyerror("invalid use of ... with builtin %v", l)
+				}
+
+				// builtin: OLEN, OCAP, etc.
+				// TODO(marvin): Fix Node.EType type union.
+				n.Op = Op(l.Etype)
+
+				n.Left = n.Right
+				n.Right = nil
+				n = typecheck1(n, top)
+				return n
 			}
-
-			// builtin: OLEN, OCAP, etc.
-			// TODO(marvin): Fix Node.EType type union.
-			n.Op = Op(l.Etype)
-
-			n.Left = n.Right
-			n.Right = nil
-			n = typecheck1(n, top)
-			return n
 		}
 
 		n.Left = defaultlit(n.Left, nil)
