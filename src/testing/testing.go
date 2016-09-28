@@ -372,6 +372,7 @@ type TB interface {
 	Fatalf(format string, args ...interface{})
 	Log(args ...interface{})
 	Logf(format string, args ...interface{})
+	Name() string
 	Skip(args ...interface{})
 	SkipNow()
 	Skipf(format string, args ...interface{})
@@ -403,6 +404,11 @@ type T struct {
 }
 
 func (c *common) private() {}
+
+// Name returns the name of the running test or benchmark.
+func (c *common) Name() string {
+	return c.name
+}
 
 // Fail marks the function as having failed but continues execution.
 func (c *common) Fail() {
