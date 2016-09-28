@@ -365,7 +365,20 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 }
 
 // Repeat returns a new byte slice consisting of count copies of b.
+//
+// It panics if count is negative or if
+// the result of (len(b) * count) overflows.
 func Repeat(b []byte, count int) []byte {
+	// Since we cannot return an error on overflow,
+	// we should panic if the repeat will generate
+	// an overflow.
+	// See Issue golang.org/issue/16237.
+	if count < 0 {
+		panic("bytes: negative Repeat count")
+	} else if count > 0 && len(b)*count/count != len(b) {
+		panic("bytes: Repeat count causes overflow")
+	}
+
 	nb := make([]byte, len(b)*count)
 	bp := copy(nb, b)
 	for bp < len(nb) {
