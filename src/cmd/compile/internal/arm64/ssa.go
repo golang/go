@@ -761,6 +761,10 @@ var blockJump = map[ssa.BlockKind]struct {
 	ssa.BlockARM64UGE: {arm64.ABHS, arm64.ABLO},
 	ssa.BlockARM64UGT: {arm64.ABHI, arm64.ABLS},
 	ssa.BlockARM64ULE: {arm64.ABLS, arm64.ABHI},
+	ssa.BlockARM64Z:   {arm64.ACBZ, arm64.ACBNZ},
+	ssa.BlockARM64NZ:  {arm64.ACBNZ, arm64.ACBZ},
+	ssa.BlockARM64ZW:  {arm64.ACBZW, arm64.ACBNZW},
+	ssa.BlockARM64NZW: {arm64.ACBNZW, arm64.ACBZW},
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
@@ -807,7 +811,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		ssa.BlockARM64LT, ssa.BlockARM64GE,
 		ssa.BlockARM64LE, ssa.BlockARM64GT,
 		ssa.BlockARM64ULT, ssa.BlockARM64UGT,
-		ssa.BlockARM64ULE, ssa.BlockARM64UGE:
+		ssa.BlockARM64ULE, ssa.BlockARM64UGE,
+		ssa.BlockARM64Z, ssa.BlockARM64NZ,
+		ssa.BlockARM64ZW, ssa.BlockARM64NZW:
 		jmp := blockJump[b.Kind]
 		var p *obj.Prog
 		switch next {
@@ -826,6 +832,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			q := gc.Prog(obj.AJMP)
 			q.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+		}
+		if !b.Control.Type.IsFlags() {
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = b.Control.Reg()
 		}
 
 	default:

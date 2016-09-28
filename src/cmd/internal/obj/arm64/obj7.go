@@ -481,6 +481,10 @@ func relinv(a obj.As) obj.As {
 		return ACBNZ
 	case ACBNZ:
 		return ACBZ
+	case ACBZW:
+		return ACBNZW
+	case ACBNZW:
+		return ACBZW
 	}
 
 	log.Fatalf("unknown relation: %s", Anames[a-obj.ABaseARM64])
