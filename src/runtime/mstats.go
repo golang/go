@@ -71,7 +71,7 @@ type mstats struct {
 
 	// Statistics about garbage collector.
 	// Protected by mheap or stopping the world during GC.
-	next_gc         uint64 // goal heap_live for when next GC ends
+	next_gc         uint64 // goal heap_live for when next GC ends; ^0 if disabled
 	last_gc         uint64 // last gc (in absolute time)
 	pause_total_ns  uint64
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
