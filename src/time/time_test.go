@@ -943,8 +943,11 @@ func TestLoadFixed(t *testing.T) {
 	// but Go and most other systems use "east is positive".
 	// So GMT+1 corresponds to -3600 in the Go zone, not +3600.
 	name, offset := Now().In(loc).Zone()
-	if name != "GMT+1" || offset != -1*60*60 {
-		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q, %d", name, offset, "GMT+1", -1*60*60)
+	// The zone abbreviation is "-01" since tzdata-2016g, and "GMT+1"
+	// on earlier versions; we accept both. (Issue #17276).
+	if !(name == "GMT+1" || name == "-01") || offset != -1*60*60 {
+		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q or %q, %d",
+			name, offset, "GMT+1", "-01", -1*60*60)
 	}
 }
 
