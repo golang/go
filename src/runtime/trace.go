@@ -1006,5 +1006,10 @@ func traceHeapAlloc() {
 }
 
 func traceNextGC() {
-	traceEvent(traceEvNextGC, -1, memstats.next_gc)
+	if memstats.next_gc == ^uint64(0) {
+		// Heap-based triggering is disabled.
+		traceEvent(traceEvNextGC, -1, 0)
+	} else {
+		traceEvent(traceEvNextGC, -1, memstats.next_gc)
+	}
 }

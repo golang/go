@@ -187,6 +187,9 @@ func gcinit() {
 	//   goal = marked * (1 + GOGC/100)
 	//        = trigger / (1 + triggerRatio) * (1 + GOGC/100)
 	memstats.next_gc = uint64(float64(memstats.gc_trigger) / (1 + gcController.triggerRatio) * (1 + float64(gcpercent)/100))
+	if gcpercent < 0 {
+		memstats.next_gc = ^uint64(0)
+	}
 	work.startSema = 1
 	work.markDoneSema = 1
 }
@@ -434,6 +437,9 @@ func (c *gcControllerState) startCycle() {
 	// Re-compute the heap goal for this cycle in case something
 	// changed. This is the same calculation we use elsewhere.
 	memstats.next_gc = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
+	if gcpercent < 0 {
+		memstats.next_gc = ^uint64(0)
+	}
 
 	// Ensure that the heap goal is at least a little larger than
 	// the current live heap size. This may not be the case if GC
@@ -1658,6 +1664,9 @@ func gcMark(start_time int64) {
 	// The next GC cycle should finish before the allocated heap
 	// has grown by GOGC/100.
 	memstats.next_gc = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
+	if gcpercent < 0 {
+		memstats.next_gc = ^uint64(0)
+	}
 	if memstats.next_gc < memstats.gc_trigger {
 		memstats.next_gc = memstats.gc_trigger
 	}
