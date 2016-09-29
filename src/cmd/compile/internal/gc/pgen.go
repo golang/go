@@ -17,14 +17,12 @@ import (
 var makefuncdatasym_nsym int
 
 func makefuncdatasym(nameprefix string, funcdatakind int64) *Sym {
-	var nod Node
-
 	sym := lookupN(nameprefix, makefuncdatasym_nsym)
 	makefuncdatasym_nsym++
 	pnod := newname(sym)
 	pnod.Class = PEXTERN
-	Nodconst(&nod, Types[TINT32], funcdatakind)
-	Gins(obj.AFUNCDATA, &nod, pnod)
+	p := Gins(obj.AFUNCDATA, nil, pnod)
+	Addrconst(&p.From, funcdatakind)
 	return sym
 }
 
@@ -376,13 +374,11 @@ func compile(fn *Node) {
 
 	setlineno(Curfn)
 
-	var nod1 Node
-	Nodconst(&nod1, Types[TINT32], 0)
 	nam := Curfn.Func.Nname
 	if isblank(nam) {
 		nam = nil
 	}
-	ptxt := Gins(obj.ATEXT, nam, &nod1)
+	ptxt := Gins(obj.ATEXT, nam, nil)
 	ptxt.From3 = new(obj.Addr)
 	if fn.Func.Dupok {
 		ptxt.From3.Offset |= obj.DUPOK
@@ -432,8 +428,7 @@ func compile(fn *Node) {
 		}
 		switch n.Class {
 		case PAUTO, PPARAM, PPARAMOUT:
-			Nodconst(&nod1, Types[TUINTPTR], n.Type.Width)
-			p := Gins(obj.ATYPE, n, &nod1)
+			p := Gins(obj.ATYPE, n, nil)
 			p.From.Gotype = Linksym(ngotype(n))
 		}
 	}

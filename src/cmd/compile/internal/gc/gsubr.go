@@ -177,72 +177,45 @@ func Naddr(a *obj.Addr, n *Node) {
 		return
 	}
 
-	switch n.Op {
-	default:
-		a := a // copy to let escape into Ctxt.Dconv
+	if n.Op != ONAME {
 		Debug['h'] = 1
 		Dump("naddr", n)
 		Fatalf("naddr: bad %v %v", n.Op, Ctxt.Dconv(a))
-
-	case ONAME:
-		a.Offset = n.Xoffset
-		s := n.Sym
-		a.Node = n.Orig
-
-		//if(a->node >= (Node*)&n)
-		//	fatal("stack node");
-		if s == nil {
-			s = lookup(".noname")
-		}
-		if n.Name.Method && n.Type != nil && n.Type.Sym != nil && n.Type.Sym.Pkg != nil {
-			s = Pkglookup(s.Name, n.Type.Sym.Pkg)
-		}
-
-		a.Type = obj.TYPE_MEM
-		switch n.Class {
-		default:
-			Fatalf("naddr: ONAME class %v %d\n", n.Sym, n.Class)
-
-		case PEXTERN, PFUNC:
-			a.Name = obj.NAME_EXTERN
-
-		case PAUTO:
-			a.Name = obj.NAME_AUTO
-
-		case PPARAM, PPARAMOUT:
-			a.Name = obj.NAME_PARAM
-		}
-
-		a.Sym = Linksym(s)
-
-	case OLITERAL:
-		switch u := n.Val().U.(type) {
-		default:
-			Fatalf("naddr: const %L", n.Type)
-
-		case *Mpflt:
-			a.Type = obj.TYPE_FCONST
-			a.Val = u.Float64()
-
-		case *Mpint:
-			a.Sym = nil
-			a.Type = obj.TYPE_CONST
-			a.Offset = u.Int64()
-
-		case string:
-			datagostring(u, a)
-
-		case bool:
-			a.Sym = nil
-			a.Type = obj.TYPE_CONST
-			a.Offset = int64(obj.Bool2int(u))
-
-		case *NilVal:
-			a.Sym = nil
-			a.Type = obj.TYPE_CONST
-			a.Offset = 0
-		}
 	}
+
+	a.Offset = n.Xoffset
+	s := n.Sym
+	a.Node = n.Orig
+
+	if s == nil {
+		Fatalf("naddr: nil sym %v", n)
+	}
+	if n.Name.Method && n.Type != nil && n.Type.Sym != nil && n.Type.Sym.Pkg != nil {
+		Fatalf("naddr: weird method %v", n)
+	}
+
+	a.Type = obj.TYPE_MEM
+	switch n.Class {
+	default:
+		Fatalf("naddr: ONAME class %v %d\n", n.Sym, n.Class)
+
+	case PEXTERN, PFUNC:
+		a.Name = obj.NAME_EXTERN
+
+	case PAUTO:
+		a.Name = obj.NAME_AUTO
+
+	case PPARAM, PPARAMOUT:
+		a.Name = obj.NAME_PARAM
+	}
+
+	a.Sym = Linksym(s)
+}
+
+func Addrconst(a *obj.Addr, v int64) {
+	a.Sym = nil
+	a.Type = obj.TYPE_CONST
+	a.Offset = v
 }
 
 func newplist() *obj.Plist {
