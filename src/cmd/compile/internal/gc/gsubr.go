@@ -52,13 +52,6 @@ func Prog(as obj.As) *obj.Prog {
 	return p
 }
 
-func Afunclit(a *obj.Addr, n *Node) {
-	if a.Type == obj.TYPE_ADDR && a.Name == obj.NAME_EXTERN {
-		a.Type = obj.TYPE_MEM
-		a.Sym = Linksym(n.Sym)
-	}
-}
-
 func Clearp(p *obj.Prog) {
 	obj.Nopout(p)
 	p.As = obj.AEND
@@ -210,7 +203,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		default:
 			Fatalf("naddr: ONAME class %v %d\n", n.Sym, n.Class)
 
-		case PEXTERN:
+		case PEXTERN, PFUNC:
 			a.Name = obj.NAME_EXTERN
 
 		case PAUTO:
@@ -218,11 +211,6 @@ func Naddr(a *obj.Addr, n *Node) {
 
 		case PPARAM, PPARAMOUT:
 			a.Name = obj.NAME_PARAM
-
-		case PFUNC:
-			a.Name = obj.NAME_EXTERN
-			a.Type = obj.TYPE_ADDR
-			s = funcsym(s)
 		}
 
 		a.Sym = Linksym(s)
