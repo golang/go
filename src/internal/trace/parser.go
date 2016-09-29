@@ -56,6 +56,7 @@ const (
 	TimerP   // depicts timer unblocks
 	NetpollP // depicts network unblocks
 	SyscallP // depicts returns from syscalls
+	GCP      // depicts GC state
 )
 
 // Parse parses, post-processes and verifies the trace.
@@ -548,6 +549,8 @@ func postProcessTrace(ver int, events []*Event) error {
 				return fmt.Errorf("previous GC is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
 			}
 			evGC = ev
+			// Attribute this to the global GC state.
+			ev.P = GCP
 		case EvGCDone:
 			if evGC == nil {
 				return fmt.Errorf("bogus GC end (offset %v, time %v)", ev.Off, ev.Ts)
