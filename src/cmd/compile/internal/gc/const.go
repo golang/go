@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"cmd/compile/internal/big"
 	"cmd/internal/obj"
 	"strings"
 )
@@ -119,33 +118,6 @@ func (n *Node) Int64() int64 {
 		Fatalf("Int(%v)", n)
 	}
 	return n.Val().U.(*Mpint).Int64()
-}
-
-// SetInt sets n's value to i.
-// n must be an integer constant.
-func (n *Node) SetInt(i int64) {
-	if !Isconst(n, CTINT) {
-		Fatalf("SetInt(%v)", n)
-	}
-	n.Val().U.(*Mpint).SetInt64(i)
-}
-
-// SetBigInt sets n's value to x.
-// n must be an integer constant.
-func (n *Node) SetBigInt(x *big.Int) {
-	if !Isconst(n, CTINT) {
-		Fatalf("SetBigInt(%v)", n)
-	}
-	n.Val().U.(*Mpint).Val.Set(x)
-}
-
-// Bool returns n as an bool.
-// n must be an boolean constant.
-func (n *Node) Bool() bool {
-	if !Isconst(n, CTBOOL) {
-		Fatalf("Int(%v)", n)
-	}
-	return n.Val().U.(bool)
 }
 
 // truncate float literal fv to 32-bit or 64-bit precision
