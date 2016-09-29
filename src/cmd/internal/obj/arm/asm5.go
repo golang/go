@@ -1155,8 +1155,10 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 }
 
 func aconsize(ctxt *obj.Link) int {
-	t := int(immrot(uint32(ctxt.Instoffset)))
-	if t != 0 {
+	if t := int(immrot(uint32(ctxt.Instoffset))); t != 0 {
+		return C_RACON
+	}
+	if t := int(immrot(uint32(-ctxt.Instoffset))); t != 0 {
 		return C_RACON
 	}
 	return C_LACON
@@ -1537,11 +1539,15 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	case 3: /* add R<<[IR],[R],R */
 		o1 = mov(ctxt, p)
 
-	case 4: /* add $I,[R],R */
+	case 4: /* MOVW $off(R), R -> add $off,[R],R */
 		aclass(ctxt, &p.From)
-
-		o1 = oprrr(ctxt, AADD, int(p.Scond))
-		o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
+		if ctxt.Instoffset < 0 {
+			o1 = oprrr(ctxt, ASUB, int(p.Scond))
+			o1 |= uint32(immrot(uint32(-ctxt.Instoffset)))
+		} else {
+			o1 = oprrr(ctxt, AADD, int(p.Scond))
+			o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
+		}
 		r := int(p.From.Reg)
 		if r == 0 {
 			r = int(o.param)
