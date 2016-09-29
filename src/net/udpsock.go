@@ -15,7 +15,7 @@ import (
 // BUG(mikio): On Windows, the File method of UDPConn is not
 // implemented.
 
-// BUG(mikio): On NaCl and Plan 9, the ListenMulticastUDP function is
+// BUG(mikio): On NaCl the ListenMulticastUDP function is
 // not implemented.
 
 // UDPAddr represents the address of a UDP end point.
