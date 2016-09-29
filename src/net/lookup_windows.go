@@ -43,7 +43,7 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
 	select {
 	case r := <-ch:
 		if r.err != nil {
-			if proto, ok := protocols[name]; ok {
+			if proto, err := lookupProtocolMap(name); err == nil {
 				return proto, nil
 			}
 			r.err = &DNSError{Err: r.err.Error(), Name: name}
@@ -150,6 +150,9 @@ func lookupPort(ctx context.Context, network, service string) (int, error) {
 	var result *syscall.AddrinfoW
 	e := syscall.GetAddrInfoW(nil, syscall.StringToUTF16Ptr(service), &hints, &result)
 	if e != nil {
+		if port, err := lookupPortMap(network, service); err == nil {
+			return port, nil
+		}
 		return 0, &DNSError{Err: os.NewSyscallError("getaddrinfow", e).Error(), Name: network + "/" + service}
 	}
 	defer syscall.FreeAddrInfoW(result)
