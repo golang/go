@@ -1026,16 +1026,15 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 		case obj.NAME_AUTO:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset
-			t := int(immaddr(int32(ctxt.Instoffset)))
-			if t != 0 {
+			if t := immaddr(int32(ctxt.Instoffset)); t != 0 {
 				if immhalf(int32(ctxt.Instoffset)) {
-					if immfloat(int32(t)) {
+					if immfloat(t) {
 						return C_HFAUTO
 					}
 					return C_HAUTO
 				}
 
-				if immfloat(int32(t)) {
+				if immfloat(t) {
 					return C_FAUTO
 				}
 				return C_SAUTO
@@ -1045,16 +1044,15 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 		case obj.NAME_PARAM:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + 4
-			t := int(immaddr(int32(ctxt.Instoffset)))
-			if t != 0 {
+			if t := immaddr(int32(ctxt.Instoffset)); t != 0 {
 				if immhalf(int32(ctxt.Instoffset)) {
-					if immfloat(int32(t)) {
+					if immfloat(t) {
 						return C_HFAUTO
 					}
 					return C_HAUTO
 				}
 
-				if immfloat(int32(t)) {
+				if immfloat(t) {
 					return C_FAUTO
 				}
 				return C_SAUTO
@@ -1064,20 +1062,18 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 		case obj.NAME_NONE:
 			ctxt.Instoffset = a.Offset
-			t := int(immaddr(int32(ctxt.Instoffset)))
-			if t != 0 {
+			if t := immaddr(int32(ctxt.Instoffset)); t != 0 {
 				if immhalf(int32(ctxt.Instoffset)) { /* n.b. that it will also satisfy immrot */
-					if immfloat(int32(t)) {
+					if immfloat(t) {
 						return C_HFOREG
 					}
 					return C_HOREG
 				}
 
-				if immfloat(int32(t)) {
+				if immfloat(t) {
 					return C_FOREG /* n.b. that it will also satisfy immrot */
 				}
-				t := int(immrot(uint32(ctxt.Instoffset)))
-				if t != 0 {
+				if immrot(uint32(ctxt.Instoffset)) != 0 {
 					return C_SROREG
 				}
 				if immhalf(int32(ctxt.Instoffset)) {
@@ -1086,8 +1082,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 				return C_SOREG
 			}
 
-			t = int(immrot(uint32(ctxt.Instoffset)))
-			if t != 0 {
+			if immrot(uint32(ctxt.Instoffset)) != 0 {
 				return C_ROREG
 			}
 			return C_LOREG
@@ -1116,12 +1111,10 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 				return aconsize(ctxt)
 			}
 
-			t := int(immrot(uint32(ctxt.Instoffset)))
-			if t != 0 {
+			if immrot(uint32(ctxt.Instoffset)) != 0 {
 				return C_RCON
 			}
-			t = int(immrot(^uint32(ctxt.Instoffset)))
-			if t != 0 {
+			if immrot(^uint32(ctxt.Instoffset)) != 0 {
 				return C_NCON
 			}
 			return C_LCON
@@ -1155,10 +1148,10 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 }
 
 func aconsize(ctxt *obj.Link) int {
-	if t := int(immrot(uint32(ctxt.Instoffset))); t != 0 {
+	if immrot(uint32(ctxt.Instoffset)) != 0 {
 		return C_RACON
 	}
-	if t := int(immrot(uint32(-ctxt.Instoffset))); t != 0 {
+	if immrot(uint32(-ctxt.Instoffset)) != 0 {
 		return C_RACON
 	}
 	return C_LACON
