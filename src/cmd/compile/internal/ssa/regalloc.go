@@ -1707,14 +1707,24 @@ sinking:
 		}
 	}
 
-	// Erase any copies we never used
-	for c, used := range s.copies {
-		if !used && c.Uses == 0 {
-			if s.f.pass.debug > regDebug {
-				fmt.Printf("delete copied value %s\n", c.LongString())
+	// Erase any copies we never used.
+	// Also, an unused copy might be the only use of another copy,
+	// so continue erasing until we reach a fixed point.
+	for {
+		progress := false
+		for c, used := range s.copies {
+			if !used && c.Uses == 0 {
+				if s.f.pass.debug > regDebug {
+					fmt.Printf("delete copied value %s\n", c.LongString())
+				}
+				c.Args[0].Uses--
+				f.freeValue(c)
+				delete(s.copies, c)
+				progress = true
 			}
-			c.Args[0].Uses--
-			f.freeValue(c)
+		}
+		if !progress {
+			break
 		}
 	}
 
