@@ -36,7 +36,7 @@ func defframe(ptxt *obj.Prog) {
 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
 			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
 		}
-		if lo != hi && n.Xoffset+n.Type.Width == lo-int64(2*gc.Widthptr) {
+		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthptr) {
 			// merge with range we already have
 			lo = n.Xoffset
 
