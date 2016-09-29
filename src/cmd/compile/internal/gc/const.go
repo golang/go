@@ -112,19 +112,6 @@ func (v Val) Interface() interface{} {
 
 type NilVal struct{}
 
-// IntLiteral returns the Node's literal value as an integer.
-func (n *Node) IntLiteral() (x int64, ok bool) {
-	switch {
-	case n == nil:
-		return
-	case Isconst(n, CTINT):
-		return n.Int64(), true
-	case Isconst(n, CTBOOL):
-		return int64(obj.Bool2int(n.Bool())), true
-	}
-	return
-}
-
 // Int64 returns n as an int64.
 // n must be an integer or rune constant.
 func (n *Node) Int64() int64 {
