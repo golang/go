@@ -362,7 +362,7 @@ func generateTrace(params *traceParams) ViewerData {
 			if ctx.gtrace {
 				continue
 			}
-			ctx.emitSlice(ev, "MARK")
+			ctx.emitSlice(ev, "MARK TERMINATION")
 		case trace.EvGCScanDone:
 		case trace.EvGCSweepStart:
 			ctx.emitSlice(ev, "SWEEP")
