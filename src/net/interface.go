@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// BUG(mikio): On NaCl and Plan9, methods and functions related to
+// BUG(mikio): On NaCl, methods and functions related to
 // Interface are not implemented.
 
 // BUG(mikio): On DragonFly BSD, NetBSD, OpenBSD and Solaris, the
