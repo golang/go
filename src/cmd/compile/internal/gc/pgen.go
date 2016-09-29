@@ -383,7 +383,6 @@ func compile(fn *Node) {
 		nam = nil
 	}
 	ptxt := Gins(obj.ATEXT, nam, &nod1)
-	Afunclit(&ptxt.From, Curfn.Func.Nname)
 	ptxt.From3 = new(obj.Addr)
 	if fn.Func.Dupok {
 		ptxt.From3.Offset |= obj.DUPOK
