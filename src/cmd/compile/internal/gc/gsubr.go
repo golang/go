@@ -98,11 +98,11 @@ func fixautoused(p *obj.Prog) {
 		}
 
 		if p.From.Name == obj.NAME_AUTO && p.From.Node != nil {
-			p.From.Offset += stkdelta[p.From.Node.(*Node)]
+			p.From.Offset += p.From.Node.(*Node).Xoffset
 		}
 
 		if p.To.Name == obj.NAME_AUTO && p.To.Node != nil {
-			p.To.Offset += stkdelta[p.To.Node.(*Node)]
+			p.To.Offset += p.To.Node.(*Node).Xoffset
 		}
 
 		lp = &p.Link

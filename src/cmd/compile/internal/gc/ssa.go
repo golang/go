@@ -4374,12 +4374,13 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 		a.Name = obj.NAME_PARAM
 		a.Node = n
 		a.Sym = Linksym(n.Orig.Sym)
-		a.Offset += n.Xoffset // TODO: why do I have to add this here?  I don't for auto variables.
+		a.Offset += n.Xoffset
 	case *ssa.AutoSymbol:
 		n := sym.Node.(*Node)
 		a.Name = obj.NAME_AUTO
 		a.Node = n
 		a.Sym = Linksym(n.Sym)
+		// TODO: a.Offset += n.Xoffset once frame offsets for autos are computed during SSA
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
 	}
