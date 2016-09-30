@@ -1164,6 +1164,30 @@ func TestUnknownAuthorityError(t *testing.T) {
 	}
 }
 
+var nameConstraintTests = []struct {
+	constraint, domain string
+	shouldMatch        bool
+}{
+	{"", "anything.com", true},
+	{"example.com", "example.com", true},
+	{"example.com", "ExAmPle.coM", true},
+	{"example.com", "exampl1.com", false},
+	{"example.com", "www.ExAmPle.coM", true},
+	{"example.com", "notexample.com", false},
+	{".example.com", "example.com", false},
+	{".example.com", "www.example.com", true},
+	{".example.com", "www..example.com", false},
+}
+
+func TestNameConstraints(t *testing.T) {
+	for i, test := range nameConstraintTests {
+		result := matchNameConstraint(test.domain, test.constraint)
+		if result != test.shouldMatch {
+			t.Errorf("unexpected result for test #%d: domain=%s, constraint=%s, result=%t", i, test.domain, test.constraint, result)
+		}
+	}
+}
+
 const selfSignedWithCommonName = `-----BEGIN CERTIFICATE-----
 MIIDCjCCAfKgAwIBAgIBADANBgkqhkiG9w0BAQsFADAaMQswCQYDVQQKEwJjYTEL
 MAkGA1UEAxMCY2EwHhcNMTYwODI4MTcwOTE4WhcNMjEwODI3MTcwOTE4WjAcMQsw
