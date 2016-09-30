@@ -106,13 +106,12 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 
 	/*
 	 * Lock g to m to ensure we stay on the same stack if we do a
-	 * cgo callback. Add entry to defer stack in case of panic.
+	 * cgo callback. In case of panic, unwindm calls endcgo.
 	 */
 	lockOSThread()
 	mp := getg().m
 	mp.ncgocall++
 	mp.ncgo++
-	defer endcgo(mp)
 
 	// Reset traceback.
 	mp.cgoCallers[0] = 0
@@ -132,6 +131,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	errno := asmcgocall(fn, arg)
 	exitsyscall(0)
 
+	endcgo(mp)
 	return errno
 }
 
@@ -314,6 +314,16 @@ func unwindm(restore *bool) {
 	case "arm64":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
 	}
+
+	// Call endcgo to do the accounting that cgocall will not have a
+	// chance to do during an unwind.
+	//
+	// In the case where a a Go call originates from C, ncgo is 0
+	// and there is no matching cgocall to end.
+	if mp.ncgo > 0 {
+		endcgo(mp)
+	}
+
 	releasem(mp)
 }
 
