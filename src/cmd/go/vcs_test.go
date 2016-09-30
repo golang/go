@@ -229,6 +229,45 @@ func TestIsSecure(t *testing.T) {
 	}
 }
 
+func TestIsSecureGitAllowProtocol(t *testing.T) {
+	tests := []struct {
+		vcs    *vcsCmd
+		url    string
+		secure bool
+	}{
+		// Same as TestIsSecure to verify same behavior.
+		{vcsGit, "http://example.com/foo.git", false},
+		{vcsGit, "https://example.com/foo.git", true},
+		{vcsBzr, "http://example.com/foo.bzr", false},
+		{vcsBzr, "https://example.com/foo.bzr", true},
+		{vcsSvn, "http://example.com/svn", false},
+		{vcsSvn, "https://example.com/svn", true},
+		{vcsHg, "http://example.com/foo.hg", false},
+		{vcsHg, "https://example.com/foo.hg", true},
+		{vcsGit, "user@server:path/to/repo.git", false},
+		{vcsGit, "user@server:", false},
+		{vcsGit, "server:repo.git", false},
+		{vcsGit, "server:path/to/repo.git", false},
+		{vcsGit, "example.com:path/to/repo.git", false},
+		{vcsGit, "path/that/contains/a:colon/repo.git", false},
+		{vcsHg, "ssh://user@example.com/path/to/repo.hg", true},
+		// New behavior.
+		{vcsGit, "ssh://user@example.com/foo.git", false},
+		{vcsGit, "foo://example.com/bar.git", true},
+		{vcsHg, "foo://example.com/bar.hg", false},
+		{vcsSvn, "foo://example.com/svn", false},
+		{vcsBzr, "foo://example.com/bar.bzr", false},
+	}
+
+	os.Setenv("GIT_ALLOW_PROTOCOL", "https:foo")
+	for _, test := range tests {
+		secure := test.vcs.isSecure(test.url)
+		if secure != test.secure {
+			t.Errorf("%s isSecure(%q) = %t; want %t", test.vcs, test.url, secure, test.secure)
+		}
+	}
+}
+
 func TestMatchGoImport(t *testing.T) {
 	tests := []struct {
 		imports []metaImport

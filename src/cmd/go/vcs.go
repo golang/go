@@ -41,7 +41,7 @@ type vcsCmd struct {
 	resolveRepo func(v *vcsCmd, rootDir, remoteRepo string) (realRepo string, err error)
 }
 
-var isSecureScheme = map[string]bool{
+var defaultSecureScheme = map[string]bool{
 	"https":   true,
 	"git+ssh": true,
 	"bzr+ssh": true,
@@ -55,7 +55,25 @@ func (v *vcsCmd) isSecure(repo string) bool {
 		// If repo is not a URL, it's not secure.
 		return false
 	}
-	return isSecureScheme[u.Scheme]
+	return v.isSecureScheme(u.Scheme)
+}
+
+func (v *vcsCmd) isSecureScheme(scheme string) bool {
+	switch v.cmd {
+	case "git":
+		// GIT_ALLOW_PROTOCOL is an environment variable defined by Git. It is a
+		// colon-separated list of schemes that are allowed to be used with git
+		// fetch/clone. Any scheme not mentioned will be considered insecure.
+		if allow := os.Getenv("GIT_ALLOW_PROTOCOL"); allow != "" {
+			for _, s := range strings.Split(allow, ":") {
+				if s == scheme {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	return defaultSecureScheme[scheme]
 }
 
 // A tagCmd describes a command to list available tags
@@ -612,7 +630,7 @@ func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsP
 				match["repo"] = scheme + "://" + match["repo"]
 			} else {
 				for _, scheme := range vcs.scheme {
-					if security == secure && !isSecureScheme[scheme] {
+					if security == secure && !vcs.isSecureScheme(scheme) {
 						continue
 					}
 					if vcs.ping(scheme, match["repo"]) == nil {

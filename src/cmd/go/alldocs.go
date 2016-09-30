@@ -1127,6 +1127,10 @@
 // 		Whether the linker should use external linking mode
 // 		when using -linkmode=auto with code that uses cgo.
 // 		Set to 0 to disable external linking mode, 1 to enable it.
+// 	GIT_ALLOW_PROTOCOL
+// 		Defined by Git. A colon-separated list of schemes that are allowed to be used
+// 		with git fetch/clone. If set, any scheme not explicitly mentioned will be
+// 		considered insecure by 'go get'.
 //
 //
 // Import path syntax
@@ -1225,6 +1229,11 @@
 // When a version control system supports multiple protocols,
 // each is tried in turn when downloading.  For example, a Git
 // download tries https://, then git+ssh://.
+//
+// By default, downloads are restricted to known secure protocols
+// (e.g. https, ssh). To override this setting for Git downloads, the
+// GIT_ALLOW_PROTOCOL environment variable can be set (For more details see:
+// 'go help environment').
 //
 // If the import path is not a known code hosting site and also lacks a
 // version control qualifier, the go tool attempts to fetch the import
