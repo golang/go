@@ -59,37 +59,17 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 			return nil, fmt.Errorf("http: Request.ContentLength=%d with nil Body", rr.ContentLength)
 		}
 		t.Method = valueOrDefault(rr.Method, "GET")
-		t.Body = rr.Body
-		t.BodyCloser = rr.Body
-		t.ContentLength = rr.ContentLength
 		t.Close = rr.Close
 		t.TransferEncoding = rr.TransferEncoding
 		t.Trailer = rr.Trailer
 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
-		if t.Body != nil && len(t.TransferEncoding) == 0 && atLeastHTTP11 {
-			if t.ContentLength == 0 {
-				// Test to see if it's actually zero or just unset.
-				var buf [1]byte
-				n, rerr := io.ReadFull(t.Body, buf[:])
-				if rerr != nil && rerr != io.EOF {
-					t.ContentLength = -1
-					t.Body = errorReader{rerr}
-				} else if n == 1 {
-					// Oh, guess there is data in this Body Reader after all.
-					// The ContentLength field just wasn't set.
-					// Stich the Body back together again, re-attaching our
-					// consumed byte.
-					t.ContentLength = -1
-					t.Body = io.MultiReader(bytes.NewReader(buf[:]), t.Body)
-				} else {
-					// Body is actually empty.
-					t.Body = nil
-					t.BodyCloser = nil
-				}
-			}
-			if t.ContentLength < 0 {
-				t.TransferEncoding = []string{"chunked"}
-			}
+
+		t.Body, t.ContentLength = rr.bodyAndLength()
+		if t.Body != nil {
+			t.BodyCloser = rr.Body
+		}
+		if t.ContentLength < 0 && len(t.TransferEncoding) == 0 && atLeastHTTP11 {
+			t.TransferEncoding = []string{"chunked"}
 		}
 	case *Response:
 		t.IsResponse = true
