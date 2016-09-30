@@ -2264,9 +2264,7 @@ func (srv *Server) Serve(l net.Listener) error {
 		return err
 	}
 
-	// TODO: allow changing base context? can't imagine concrete
-	// use cases yet.
-	baseCtx := context.Background()
+	baseCtx := context.Background() // base is always background, per Issue 16220
 	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
 	ctx = context.WithValue(ctx, LocalAddrContextKey, l.Addr())
 	for {
