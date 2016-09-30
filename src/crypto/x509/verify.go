@@ -87,6 +87,10 @@ func (h HostnameError) Error() string {
 			valid = c.Subject.CommonName
 		}
 	}
+
+	if len(valid) == 0 {
+		return "x509: certificate is not valid for any names, but wanted to match " + h.Host
+	}
 	return "x509: certificate is valid for " + valid + ", not " + h.Host
 }
 
