@@ -72,6 +72,7 @@ func instrument(fn *Node) {
 		fn.Func.Enter.Prepend(nd)
 		nd = mkcall("racefuncexit", nil, nil)
 		fn.Func.Exit.Append(nd)
+		fn.Func.Dcl = append(fn.Func.Dcl, &nodpc)
 	}
 
 	if Debug['W'] != 0 {

@@ -459,6 +459,9 @@ func (f *Func) idom() []*Block {
 	}
 	return f.cachedIdom
 }
+func (f *Func) Idom() []*Block {
+	return f.idom()
+}
 
 // sdom returns a sparse tree representing the dominator relationships
 // among the blocks of f.
