@@ -71,7 +71,7 @@ func (a *Mpint) SetFloat(b *Mpflt) int {
 func (a *Mpint) Add(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mpaddfixfix")
+			yyerror("ovf in Mpint Add")
 		}
 		a.SetOverflow()
 		return
@@ -87,7 +87,7 @@ func (a *Mpint) Add(b *Mpint) {
 func (a *Mpint) Sub(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mpsubfixfix")
+			yyerror("ovf in Mpint Sub")
 		}
 		a.SetOverflow()
 		return
@@ -103,7 +103,7 @@ func (a *Mpint) Sub(b *Mpint) {
 func (a *Mpint) Mul(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mpmulfixfix")
+			yyerror("ovf in Mpint Mul")
 		}
 		a.SetOverflow()
 		return
@@ -119,7 +119,7 @@ func (a *Mpint) Mul(b *Mpint) {
 func (a *Mpint) Quo(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mpdivfixfix")
+			yyerror("ovf in Mpint Quo")
 		}
 		a.SetOverflow()
 		return
@@ -136,7 +136,7 @@ func (a *Mpint) Quo(b *Mpint) {
 func (a *Mpint) Rem(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mpmodfixfix")
+			yyerror("ovf in Mpint Rem")
 		}
 		a.SetOverflow()
 		return
@@ -153,7 +153,7 @@ func (a *Mpint) Rem(b *Mpint) {
 func (a *Mpint) Or(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mporfixfix")
+			yyerror("ovf in Mpint Or")
 		}
 		a.SetOverflow()
 		return
@@ -165,7 +165,7 @@ func (a *Mpint) Or(b *Mpint) {
 func (a *Mpint) And(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mpandfixfix")
+			yyerror("ovf in Mpint And")
 		}
 		a.SetOverflow()
 		return
@@ -177,7 +177,7 @@ func (a *Mpint) And(b *Mpint) {
 func (a *Mpint) AndNot(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mpandnotfixfix")
+			yyerror("ovf in Mpint AndNot")
 		}
 		a.SetOverflow()
 		return
@@ -189,7 +189,7 @@ func (a *Mpint) AndNot(b *Mpint) {
 func (a *Mpint) Xor(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mpxorfixfix")
+			yyerror("ovf in Mpint Xor")
 		}
 		a.SetOverflow()
 		return
@@ -201,7 +201,7 @@ func (a *Mpint) Xor(b *Mpint) {
 func (a *Mpint) Lsh(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mplshfixfix")
+			yyerror("ovf in Mpint Lsh")
 		}
 		a.SetOverflow()
 		return
@@ -228,7 +228,7 @@ func (a *Mpint) Lsh(b *Mpint) {
 func (a *Mpint) Rsh(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in mprshfixfix")
+			yyerror("ovf in Mpint Rsh")
 		}
 		a.SetOverflow()
 		return
