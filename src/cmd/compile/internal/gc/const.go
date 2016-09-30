@@ -4,10 +4,7 @@
 
 package gc
 
-import (
-	"cmd/internal/obj"
-	"strings"
-)
+import "strings"
 
 // Ctype describes the constant kind of an "ideal" (untyped) constant.
 type Ctype int8
@@ -1499,91 +1496,6 @@ func nonnegintconst(n *Node) int64 {
 	}
 
 	return vi.Int64()
-}
-
-// convert x to type et and back to int64
-// for sign extension and truncation.
-func iconv(x int64, et EType) int64 {
-	switch et {
-	case TINT8:
-		x = int64(int8(x))
-
-	case TUINT8:
-		x = int64(uint8(x))
-
-	case TINT16:
-		x = int64(int16(x))
-
-	case TUINT16:
-		x = int64(uint64(x))
-
-	case TINT32:
-		x = int64(int32(x))
-
-	case TUINT32:
-		x = int64(uint32(x))
-
-	case TINT64, TUINT64:
-		break
-	}
-
-	return x
-}
-
-// Convconst converts constant node n to type t and
-// places the result in con.
-func (n *Node) Convconst(con *Node, t *Type) {
-	tt := Simsimtype(t)
-
-	// copy the constant for conversion
-	Nodconst(con, Types[TINT8], 0)
-
-	con.Type = t
-	con.SetVal(n.Val())
-
-	if isInt[tt] {
-		con.SetVal(Val{new(Mpint)})
-		var i int64
-		switch n.Val().Ctype() {
-		default:
-			Fatalf("convconst ctype=%d %L", n.Val().Ctype(), t)
-
-		case CTINT, CTRUNE:
-			i = n.Int64()
-
-		case CTBOOL:
-			i = int64(obj.Bool2int(n.Val().U.(bool)))
-
-		case CTNIL:
-			i = 0
-		}
-
-		i = iconv(i, tt)
-		con.Val().U.(*Mpint).SetInt64(i)
-		return
-	}
-
-	if isFloat[tt] {
-		con.SetVal(toflt(con.Val()))
-		if con.Val().Ctype() != CTFLT {
-			Fatalf("convconst ctype=%d %v", con.Val().Ctype(), t)
-		}
-		if tt == TFLOAT32 {
-			con.SetVal(Val{truncfltlit(con.Val().U.(*Mpflt), t)})
-		}
-		return
-	}
-
-	if isComplex[tt] {
-		con.SetVal(tocplx(con.Val()))
-		if tt == TCOMPLEX64 {
-			con.Val().U.(*Mpcplx).Real = *truncfltlit(&con.Val().U.(*Mpcplx).Real, Types[TFLOAT32])
-			con.Val().U.(*Mpcplx).Imag = *truncfltlit(&con.Val().U.(*Mpcplx).Imag, Types[TFLOAT32])
-		}
-		return
-	}
-
-	Fatalf("convconst %L constant", t)
 }
 
 // complex multiply v *= rv
