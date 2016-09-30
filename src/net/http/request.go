@@ -1227,11 +1227,19 @@ func (r *Request) bodyAndLength() (body io.Reader, contentLen int64) {
 	if r.ContentLength != 0 {
 		return body, r.ContentLength
 	}
-	// Don't try to sniff the bytes if they're using a custom
-	// transfer encoding (or specified chunked themselves), and
-	// don't sniff if they're not using HTTP/1.1 and can't chunk
-	// anyway.
-	if len(r.TransferEncoding) != 0 || !r.ProtoAtLeast(1, 1) {
+
+	// Don't try to sniff the request body if,
+	// * they're using a custom transfer encoding (or specified
+	//   chunked themselves)
+	// * they're not using HTTP/1.1 and can't chunk anyway (even
+	//   though this is basically irrelevant, since this package
+	//   only sends minimum 1.1 requests)
+	// * they're sending an "Expect: 100-continue" request, because
+	//   they might get denied or redirected and try to use the same
+	//   body elsewhere, so we shoudn't consume it.
+	if len(r.TransferEncoding) != 0 ||
+		!r.ProtoAtLeast(1, 1) ||
+		r.Header.Get("Expect") == "100-continue" {
 		return body, -1
 	}
 
