@@ -3481,27 +3481,36 @@ func TestTransportMaxIdleConns(t *testing.T) {
 	}
 }
 
-func TestTransportIdleConnTimeout(t *testing.T) {
+func TestTransportIdleConnTimeout_h1(t *testing.T) { testTransportIdleConnTimeout(t, h1Mode) }
+func TestTransportIdleConnTimeout_h2(t *testing.T) { testTransportIdleConnTimeout(t, h2Mode) }
+func testTransportIdleConnTimeout(t *testing.T, h2 bool) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
 	defer afterTest(t)
 
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	const timeout = 1 * time.Second
+
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		// No body for convenience.
 	}))
-	defer ts.Close()
-
-	const timeout = 1 * time.Second
-	tr := &Transport{
-		IdleConnTimeout: timeout,
-	}
+	defer cst.close()
+	tr := cst.tr
+	tr.IdleConnTimeout = timeout
 	defer tr.CloseIdleConnections()
 	c := &Client{Transport: tr}
 
+	idleConns := func() []string {
+		if h2 {
+			return tr.IdleConnStrsForTesting_h2()
+		} else {
+			return tr.IdleConnStrsForTesting()
+		}
+	}
+
 	var conn string
 	doReq := func(n int) {
-		req, _ := NewRequest("GET", ts.URL, nil)
+		req, _ := NewRequest("GET", cst.ts.URL, nil)
 		req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
 			PutIdleConn: func(err error) {
 				if err != nil {
@@ -3514,7 +3523,7 @@ func TestTransportIdleConnTimeout(t *testing.T) {
 			t.Fatal(err)
 		}
 		res.Body.Close()
-		conns := tr.IdleConnStrsForTesting()
+		conns := idleConns()
 		if len(conns) != 1 {
 			t.Fatalf("req %v: unexpected number of idle conns: %q", n, conns)
 		}
@@ -3530,7 +3539,7 @@ func TestTransportIdleConnTimeout(t *testing.T) {
 		time.Sleep(timeout / 2)
 	}
 	time.Sleep(timeout * 3 / 2)
-	if got := tr.IdleConnStrsForTesting(); len(got) != 0 {
+	if got := idleConns(); len(got) != 0 {
 		t.Errorf("idle conns = %q; want none", got)
 	}
 }
