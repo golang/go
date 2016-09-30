@@ -290,8 +290,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
-	MOVQ	new+8(SP), DI		// arg 1 - nss
-	MOVQ	old+16(SP), SI		// arg 2 - oss
+	MOVQ	new+0(FP), DI		// arg 1 - nss
+	MOVQ	old+8(FP), SI		// arg 2 - oss
 	MOVQ	$281, AX		// sys___sigaltstack14
 	SYSCALL
 	JCC	2(PC)

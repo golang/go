@@ -379,8 +379,8 @@ nog:
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$186, AX	// sigaltstack
-	MOVL	new+4(SP), BX
-	MOVL	old+8(SP), CX
+	MOVL	new+0(FP), BX
+	MOVL	old+4(FP), CX
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
