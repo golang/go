@@ -1005,52 +1005,42 @@
   -> (MOVDstore [i-4] {s} p w0 mem)
 
 (MOVBstoreidx [i] {s} p idx w x:(MOVBstoreidx [i-1] {s} p idx (SRDconst [8] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVHstoreidx [i-1] {s} p idx w mem)
 (MOVBstoreidx [i] {s} p idx w0:(SRDconst [j] w) x:(MOVBstoreidx [i-1] {s} p idx (SRDconst [j+8] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVHstoreidx [i-1] {s} p idx w0 mem)
 (MOVBstoreidx [i] {s} p idx w x:(MOVBstoreidx [i-1] {s} p idx (SRWconst [8] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVHstoreidx [i-1] {s} p idx w mem)
 (MOVBstoreidx [i] {s} p idx w0:(SRWconst [j] w) x:(MOVBstoreidx [i-1] {s} p idx (SRWconst [j+8] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVHstoreidx [i-1] {s} p idx w0 mem)
 (MOVHstoreidx [i] {s} p idx w x:(MOVHstoreidx [i-2] {s} p idx (SRDconst [16] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstoreidx [i-2] {s} p idx w mem)
 (MOVHstoreidx [i] {s} p idx w0:(SRDconst [j] w) x:(MOVHstoreidx [i-2] {s} p idx (SRDconst [j+16] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstoreidx [i-2] {s} p idx w0 mem)
 (MOVHstoreidx [i] {s} p idx w x:(MOVHstoreidx [i-2] {s} p idx (SRWconst [16] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstoreidx [i-2] {s} p idx w mem)
 (MOVHstoreidx [i] {s} p idx w0:(SRWconst [j] w) x:(MOVHstoreidx [i-2] {s} p idx (SRWconst [j+16] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstoreidx [i-2] {s} p idx w0 mem)
 (MOVWstoreidx [i] {s} p idx w x:(MOVWstoreidx [i-4] {s} p idx (SRDconst [32] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVDstoreidx [i-4] {s} p idx w mem)
 (MOVWstoreidx [i] {s} p idx w0:(SRDconst [j] w) x:(MOVWstoreidx [i-4] {s} p idx (SRDconst [j+32] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVDstoreidx [i-4] {s} p idx w0 mem)
@@ -1079,83 +1069,67 @@
   && clobber(x)
   -> (MOVHBRstore [i-1] {s} p w0 mem)
 (MOVHBRstore [i] {s} p (SRDconst [16] w) x:(MOVHBRstore [i-2] {s} p w mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWBRstore [i-2] {s} p w mem)
 (MOVHBRstore [i] {s} p (SRDconst [j] w) x:(MOVHBRstore [i-2] {s} p w0:(SRDconst [j-16] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWBRstore [i-2] {s} p w0 mem)
 (MOVHBRstore [i] {s} p (SRWconst [16] w) x:(MOVHBRstore [i-2] {s} p w mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWBRstore [i-2] {s} p w mem)
 (MOVHBRstore [i] {s} p (SRWconst [j] w) x:(MOVHBRstore [i-2] {s} p w0:(SRWconst [j-16] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWBRstore [i-2] {s} p w0 mem)
 (MOVWBRstore [i] {s} p (SRDconst [32] w) x:(MOVWBRstore [i-4] {s} p w mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVDBRstore [i-4] {s} p w mem)
 (MOVWBRstore [i] {s} p (SRDconst [j] w) x:(MOVWBRstore [i-4] {s} p w0:(SRDconst [j-32] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVDBRstore [i-4] {s} p w0 mem)
 
 (MOVBstoreidx [i] {s} p idx (SRDconst [8] w) x:(MOVBstoreidx [i-1] {s} p idx w mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVHBRstoreidx [i-1] {s} p idx w mem)
 (MOVBstoreidx [i] {s} p idx (SRDconst [j] w) x:(MOVBstoreidx [i-1] {s} p idx w0:(SRDconst [j-8] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVHBRstoreidx [i-1] {s} p idx w0 mem)
 (MOVBstoreidx [i] {s} p idx (SRWconst [8] w) x:(MOVBstoreidx [i-1] {s} p idx w mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVHBRstoreidx [i-1] {s} p idx w mem)
 (MOVBstoreidx [i] {s} p idx (SRWconst [j] w) x:(MOVBstoreidx [i-1] {s} p idx w0:(SRWconst [j-8] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVHBRstoreidx [i-1] {s} p idx w0 mem)
 (MOVHBRstoreidx [i] {s} p idx (SRDconst [16] w) x:(MOVHBRstoreidx [i-2] {s} p idx w mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWBRstoreidx [i-2] {s} p idx w mem)
 (MOVHBRstoreidx [i] {s} p idx (SRDconst [j] w) x:(MOVHBRstoreidx [i-2] {s} p idx w0:(SRDconst [j-16] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWBRstoreidx [i-2] {s} p idx w0 mem)
 (MOVHBRstoreidx [i] {s} p idx (SRWconst [16] w) x:(MOVHBRstoreidx [i-2] {s} p idx w mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWBRstoreidx [i-2] {s} p idx w mem)
 (MOVHBRstoreidx [i] {s} p idx (SRWconst [j] w) x:(MOVHBRstoreidx [i-2] {s} p idx w0:(SRWconst [j-16] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVWBRstoreidx [i-2] {s} p idx w0 mem)
 (MOVWBRstoreidx [i] {s} p idx (SRDconst [32] w) x:(MOVWBRstoreidx [i-4] {s} p idx w mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVDBRstoreidx [i-4] {s} p idx w mem)
 (MOVWBRstoreidx [i] {s} p idx (SRDconst [j] w) x:(MOVWBRstoreidx [i-4] {s} p idx w0:(SRDconst [j-32] w) mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && clobber(x)
   -> (MOVDBRstoreidx [i-4] {s} p idx w0 mem)
@@ -1258,7 +1232,6 @@
 // b[0] | b[1]<<8 -> load 16-bit, reverse bytes
 (ORW                 x0:(MOVBZloadidx [i]   {s} p idx mem)
     s0:(SLWconst [8] x1:(MOVBZloadidx [i+1] {s} p idx mem)))
-  && p.Op != OpSB
   && x0.Uses == 1
   && x1.Uses == 1
   && s0.Uses == 1
@@ -1272,7 +1245,6 @@
 (ORW o0:(ORW z0:(MOVHZreg x0:(MOVHBRloadidx [i] {s} p idx mem))
     s0:(SLWconst [16] x1:(MOVBZloadidx [i+2] {s} p idx mem)))
     s1:(SLWconst [24] x2:(MOVBZloadidx [i+3] {s} p idx mem)))
-  && p.Op != OpSB
   && z0.Uses == 1
   && x0.Uses == 1
   && x1.Uses == 1
@@ -1300,7 +1272,6 @@
     s4:(SLDconst [40] x5:(MOVBZloadidx [i+5] {s} p idx mem)))
     s5:(SLDconst [48] x6:(MOVBZloadidx [i+6] {s} p idx mem)))
     s6:(SLDconst [56] x7:(MOVBZloadidx [i+7] {s} p idx mem)))
-  && p.Op != OpSB
   && x0.Uses == 1
   && x1.Uses == 1
   && x2.Uses == 1
@@ -1440,7 +1411,6 @@
 // b[1] | b[0]<<8 -> load 16-bit
 (ORW                 x0:(MOVBZloadidx [i]   {s} p idx mem)
     s0:(SLWconst [8] x1:(MOVBZloadidx [i-1] {s} p idx mem)))
-  && p.Op != OpSB
   && x0.Uses == 1
   && x1.Uses == 1
   && s0.Uses == 1
@@ -1454,7 +1424,6 @@
 (ORW o0:(ORW x0:(MOVHZloadidx [i] {s} p idx mem)
     s0:(SLWconst [16] x1:(MOVBZloadidx [i-1] {s} p idx mem)))
     s1:(SLWconst [24] x2:(MOVBZloadidx [i-2] {s} p idx mem)))
-  && p.Op != OpSB
   && x0.Uses == 1
   && x1.Uses == 1
   && x2.Uses == 1
@@ -1480,7 +1449,6 @@
     s4:(SLDconst [40] x5:(MOVBZloadidx [i-5] {s} p idx mem)))
     s5:(SLDconst [48] x6:(MOVBZloadidx [i-6] {s} p idx mem)))
     s6:(SLDconst [56] x7:(MOVBZloadidx [i-7] {s} p idx mem)))
-  && p.Op != OpSB
   && x0.Uses == 1
   && x1.Uses == 1
   && x2.Uses == 1
@@ -1535,19 +1503,16 @@
   && clobber(x)
   -> (STM2 [i-4] {s} p w0 w1 mem)
 (MOVWstore [i] {s} p w2 x:(STM2 [i-8] {s} p w0 w1 mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && is20Bit(i-8)
   && clobber(x)
   -> (STM3 [i-8] {s} p w0 w1 w2 mem)
 (MOVWstore [i] {s} p w3 x:(STM3 [i-12] {s} p w0 w1 w2 mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && is20Bit(i-12)
   && clobber(x)
   -> (STM4 [i-12] {s} p w0 w1 w2 w3 mem)
 (STM2 [i] {s} p w2 w3 x:(STM2 [i-8] {s} p w0 w1 mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && is20Bit(i-8)
   && clobber(x)
@@ -1560,19 +1525,16 @@
   && clobber(x)
   -> (STMG2 [i-8] {s} p w0 w1 mem)
 (MOVDstore [i] {s} p w2 x:(STMG2 [i-16] {s} p w0 w1 mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && is20Bit(i-16)
   && clobber(x)
   -> (STMG3 [i-16] {s} p w0 w1 w2 mem)
 (MOVDstore [i] {s} p w3 x:(STMG3 [i-24] {s} p w0 w1 w2 mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && is20Bit(i-24)
   && clobber(x)
   -> (STMG4 [i-24] {s} p w0 w1 w2 w3 mem)
 (STMG2 [i] {s} p w2 w3 x:(STMG2 [i-16] {s} p w0 w1 mem))
-  && p.Op != OpSB
   && x.Uses == 1
   && is20Bit(i-16)
   && clobber(x)
