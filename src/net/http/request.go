@@ -1215,3 +1215,42 @@ func (r *Request) isReplayable() bool {
 	}
 	return false
 }
+
+// bodyAndLength reports the request's body and content length, with
+// the difference from r.ContentLength being that 0 means actually
+// zero, and -1 means unknown.
+func (r *Request) bodyAndLength() (body io.Reader, contentLen int64) {
+	body = r.Body
+	if body == nil {
+		return nil, 0
+	}
+	if r.ContentLength != 0 {
+		return body, r.ContentLength
+	}
+	// Don't try to sniff the bytes if they're using a custom
+	// transfer encoding (or specified chunked themselves), and
+	// don't sniff if they're not using HTTP/1.1 and can't chunk
+	// anyway.
+	if len(r.TransferEncoding) != 0 || !r.ProtoAtLeast(1, 1) {
+		return body, -1
+	}
+
+	// Test to see if it's actually zero or just unset.
+	var buf [1]byte
+	n, err := io.ReadFull(body, buf[:])
+	if err != nil && err != io.EOF {
+		return errorReader{err}, -1
+	}
+
+	if n == 1 {
+		// Oh, guess there is data in this Body Reader after all.
+		// The ContentLength field just wasn't set.
+		// Stich the Body back together again, re-attaching our
+		// consumed byte.
+		// TODO(bradfitz): switch to stitchByteAndReader
+		return io.MultiReader(bytes.NewReader(buf[:]), body), -1
+	}
+
+	// Body is actually empty.
+	return nil, 0
+}
