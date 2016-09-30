@@ -523,6 +523,7 @@
 (ADD (MOVDconst [c]) x) && is32Bit(c) -> (ADDconst [c] x)
 (ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
 (ADDconst [c] (ADDconst [d] x)) && is32Bit(c+d) -> (ADDconst [c+d] x)
+(ADDconst [c] (MOVDaddr [d] {sym} x)) -> (MOVDaddr [c+d] {sym} x)
 (ADDconst [0] x) -> x
 (ANDconst [-1] x) -> x
 (ANDconst [0] _) -> (MOVDconst [0])
@@ -599,6 +600,16 @@
     (MOVHstorezero [off1+off2] {sym} x mem)
 (MOVBstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) ->
     (MOVBstorezero [off1+off2] {sym} x mem)
+
+// Fold symbols into storezero
+(MOVDstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2) ->
+    (MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
+(MOVWstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2) ->
+    (MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
+(MOVHstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2) ->
+    (MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
+(MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2) ->
+    (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
