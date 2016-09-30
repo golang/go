@@ -637,15 +637,19 @@ func (c *Config) BuildNameToCertificate() {
 	}
 }
 
-// writeKeyLog logs client random and master secret if logging enabled
-// by setting KeyLogWriter.
+// writeKeyLog logs client random and master secret if logging was enabled by
+// setting c.KeyLogWriter.
 func (c *Config) writeKeyLog(clientRandom, masterSecret []byte) error {
 	if c.KeyLogWriter == nil {
 		return nil
 	}
+
+	logLine := []byte(fmt.Sprintf("CLIENT_RANDOM %x %x\n", clientRandom, masterSecret))
+
 	writerMutex.Lock()
-	_, err := fmt.Fprintf(c.KeyLogWriter, "CLIENT_RANDOM %x %x\n", clientRandom, masterSecret)
+	_, err := c.KeyLogWriter.Write(logLine)
 	writerMutex.Unlock()
+
 	return err
 }
 

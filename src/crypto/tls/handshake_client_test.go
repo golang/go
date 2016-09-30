@@ -728,45 +728,55 @@ func TestLRUClientSessionCache(t *testing.T) {
 	}
 }
 
-func TestHandshakeClientKeyLog(t *testing.T) {
-	config := testConfig.Clone()
-	buf := &bytes.Buffer{}
-	config.KeyLogWriter = buf
+func TestKeyLog(t *testing.T) {
+	var serverBuf, clientBuf bytes.Buffer
 
-	// config.Rand is zero reader, so client random is all-0
-	var zeroRandom = strings.Repeat("0", 64)
+	clientConfig := testConfig.Clone()
+	clientConfig.KeyLogWriter = &clientBuf
 
-	test := &clientTest{
-		name:    "KeyLogWriter",
-		command: []string{"openssl", "s_server"},
-		config:  config,
-		validate: func(state ConnectionState) error {
-			var format, clientRandom, masterSecret string
-			if _, err := fmt.Fscanf(buf, "%s %s %s\n", &format, &clientRandom, &masterSecret); err != nil {
-				return fmt.Errorf("failed to parse KeyLogWriter: " + err.Error())
-			}
-			if format != "CLIENT_RANDOM" {
-				return fmt.Errorf("got key log format %q, wanted CLIENT_RANDOM", format)
-			}
-			if clientRandom != zeroRandom {
-				return fmt.Errorf("got key log client random %q, wanted %q", clientRandom, zeroRandom)
-			}
+	serverConfig := testConfig.Clone()
+	serverConfig.KeyLogWriter = &serverBuf
 
-			// Master secret is random from server; check length only
-			if len(masterSecret) != 96 {
-				return fmt.Errorf("got wrong length master secret in key log %v, want 96", len(masterSecret))
-			}
+	c, s := net.Pipe()
+	done := make(chan bool)
 
-			// buf should contain no more lines
-			var trailingGarbage string
-			if _, err := fmt.Fscanln(buf, &trailingGarbage); err == nil {
-				return fmt.Errorf("expected exactly one key in log, got trailing garbage %q", trailingGarbage)
-			}
+	go func() {
+		defer close(done)
 
-			return nil
-		},
+		if err := Server(s, serverConfig).Handshake(); err != nil {
+			t.Errorf("server: %s", err)
+			return
+		}
+		s.Close()
+	}()
+
+	if err := Client(c, clientConfig).Handshake(); err != nil {
+		t.Fatalf("client: %s", err)
 	}
-	runClientTestTLS10(t, test)
+
+	c.Close()
+	<-done
+
+	checkKeylogLine := func(side, loggedLine string) {
+		if len(loggedLine) == 0 {
+			t.Fatalf("%s: no keylog line was produced", side)
+		}
+		const expectedLen = 13 /* "CLIENT_RANDOM" */ +
+			1 /* space */ +
+			32*2 /* hex client nonce */ +
+			1 /* space */ +
+			48*2 /* hex master secret */ +
+			1 /* new line */
+		if len(loggedLine) != expectedLen {
+			t.Fatalf("%s: keylog line has incorrect length (want %d, got %d): %q", side, expectedLen, len(loggedLine), loggedLine)
+		}
+		if !strings.HasPrefix(loggedLine, "CLIENT_RANDOM "+strings.Repeat("0", 64)+" ") {
+			t.Fatalf("%s: keylog line has incorrect structure or nonce: %q", side, loggedLine)
+		}
+	}
+
+	checkKeylogLine("client", string(clientBuf.Bytes()))
+	checkKeylogLine("server", string(serverBuf.Bytes()))
 }
 
 func TestHandshakeClientALPNMatch(t *testing.T) {
