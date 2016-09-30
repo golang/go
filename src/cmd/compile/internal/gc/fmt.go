@@ -286,7 +286,7 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	}
 
 	if c == 0 && n.Xoffset != BADWIDTH {
-		fmt.Fprintf(s, " x(%d%+d)", n.Xoffset, stkdelta[n])
+		fmt.Fprintf(s, " x(%d)", n.Xoffset)
 	}
 
 	if n.Class != 0 {
