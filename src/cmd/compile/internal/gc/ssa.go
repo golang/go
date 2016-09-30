@@ -80,6 +80,7 @@ func buildssa(fn *Node) *ssa.Func {
 	// Allocate starting values
 	s.labels = map[string]*ssaLabel{}
 	s.labeledNodes = map[*Node]*ssaLabel{}
+	s.fwdVars = map[*Node]*ssa.Value{}
 	s.startmem = s.entryNewValue0(ssa.OpInitMem, ssa.TypeMem)
 	s.sp = s.entryNewValue0(ssa.OpSP, Types[TUINTPTR]) // TODO: use generic pointer type (unsafe.Pointer?) instead
 	s.sb = s.entryNewValue0(ssa.OpSB, Types[TUINTPTR])
@@ -112,6 +113,21 @@ func buildssa(fn *Node) *ssa.Func {
 		default:
 			s.Fatalf("local variable with class %s unimplemented", classnames[n.Class])
 		}
+	}
+
+	// Populate arguments.
+	for _, n := range fn.Func.Dcl {
+		if n.Class != PPARAM {
+			continue
+		}
+		var v *ssa.Value
+		if s.canSSA(n) {
+			v = s.newValue0A(ssa.OpArg, n.Type, n)
+		} else {
+			// Not SSAable. Load it.
+			v = s.newValue2(ssa.OpLoad, n.Type, s.decladdrs[n], s.startmem)
+		}
+		s.vars[n] = v
 	}
 
 	// Convert the AST-based IR to the SSA-based IR
@@ -151,16 +167,7 @@ func buildssa(fn *Node) *ssa.Func {
 		return nil
 	}
 
-	prelinkNumvars := s.f.NumValues()
-	sparseDefState := s.locatePotentialPhiFunctions(fn)
-
-	// Link up variable uses to variable definitions
-	s.linkForwardReferences(sparseDefState)
-
-	if ssa.BuildStats > 0 {
-		s.f.LogStat("build", s.f.NumBlocks(), "blocks", prelinkNumvars, "vars_before",
-			s.f.NumValues(), "vars_after", prelinkNumvars*s.f.NumBlocks(), "ssa_phi_loc_cutoff_score")
-	}
+	s.insertPhis()
 
 	// Don't carry reference this around longer than necessary
 	s.exitCode = Nodes{}
@@ -197,7 +204,13 @@ type state struct {
 
 	// variable assignments in the current block (map from variable symbol to ssa value)
 	// *Node is the unique identifier (an ONAME Node) for the variable.
+	// TODO: keep a single varnum map, then make all of these maps slices instead?
 	vars map[*Node]*ssa.Value
+
+	// fwdVars are variables that are used before they are defined in the current block.
+	// This map exists just to coalesce multiple references into a single FwdRef op.
+	// *Node is the unique identifier (an ONAME Node) for the variable.
+	fwdVars map[*Node]*ssa.Value
 
 	// all defined variables at the end of each block. Indexed by block ID.
 	defvars []map[*Node]*ssa.Value
@@ -220,11 +233,11 @@ type state struct {
 	// Used to deduplicate panic calls.
 	panics map[funcLine]*ssa.Block
 
-	// list of FwdRef values.
-	fwdRefs []*ssa.Value
-
 	// list of PPARAMOUT (return) variables.
 	returns []*Node
+
+	// A dummy value used during phi construction.
+	placeholder *ssa.Value
 
 	cgoUnsafeArgs bool
 	noWB          bool
@@ -292,6 +305,9 @@ func (s *state) startBlock(b *ssa.Block) {
 	}
 	s.curBlock = b
 	s.vars = map[*Node]*ssa.Value{}
+	for n := range s.fwdVars {
+		delete(s.fwdVars, n)
+	}
 }
 
 // endBlock marks the end of generating code for the current block.
@@ -2951,9 +2967,8 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
 			if v != nil {
 				return v, false
 			}
-			if n.String() == ".fp" {
-				// Special arg that points to the frame pointer.
-				// (Used by the race detector, others?)
+			if n == nodfp {
+				// Special arg that points to the frame pointer (Used by ORECOVER).
 				aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
 				return s.entryNewValue1A(ssa.OpAddr, t, aux, s.sp), false
 			}
@@ -3971,130 +3986,28 @@ func (s *state) checkgoto(from *Node, to *Node) {
 // variable returns the value of a variable at the current location.
 func (s *state) variable(name *Node, t ssa.Type) *ssa.Value {
 	v := s.vars[name]
-	if v == nil {
-		v = s.newValue0A(ssa.OpFwdRef, t, name)
-		s.fwdRefs = append(s.fwdRefs, v)
-		s.vars[name] = v
-		s.addNamedValue(name, v)
+	if v != nil {
+		return v
 	}
+	v = s.fwdVars[name]
+	if v != nil {
+		return v
+	}
+
+	if s.curBlock == s.f.Entry {
+		// No variable should be live at entry.
+		s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, name, v)
+	}
+	// Make a FwdRef, which records a value that's live on block input.
+	// We'll find the matching definition as part of insertPhis.
+	v = s.newValue0A(ssa.OpFwdRef, t, name)
+	s.fwdVars[name] = v
+	s.addNamedValue(name, v)
 	return v
 }
 
 func (s *state) mem() *ssa.Value {
 	return s.variable(&memVar, ssa.TypeMem)
-}
-
-func (s *state) linkForwardReferences(dm *sparseDefState) {
-
-	// Build SSA graph. Each variable on its first use in a basic block
-	// leaves a FwdRef in that block representing the incoming value
-	// of that variable. This function links that ref up with possible definitions,
-	// inserting Phi values as needed. This is essentially the algorithm
-	// described by Braun, Buchwald, Hack, Leißa, Mallon, and Zwinkau:
-	// http://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
-	// Differences:
-	//   - We use FwdRef nodes to postpone phi building until the CFG is
-	//     completely built. That way we can avoid the notion of "sealed"
-	//     blocks.
-	//   - Phi optimization is a separate pass (in ../ssa/phielim.go).
-	for len(s.fwdRefs) > 0 {
-		v := s.fwdRefs[len(s.fwdRefs)-1]
-		s.fwdRefs = s.fwdRefs[:len(s.fwdRefs)-1]
-		s.resolveFwdRef(v, dm)
-	}
-}
-
-// resolveFwdRef modifies v to be the variable's value at the start of its block.
-// v must be a FwdRef op.
-func (s *state) resolveFwdRef(v *ssa.Value, dm *sparseDefState) {
-	b := v.Block
-	name := v.Aux.(*Node)
-	v.Aux = nil
-	if b == s.f.Entry {
-		// Live variable at start of function.
-		if s.canSSA(name) {
-			if strings.HasPrefix(name.Sym.Name, "autotmp_") {
-				// It's likely that this is an uninitialized variable in the entry block.
-				s.Fatalf("Treating auto as if it were arg, func %s, node %v, value %v", b.Func.Name, name, v)
-			}
-			v.Op = ssa.OpArg
-			v.Aux = name
-			return
-		}
-		// Not SSAable. Load it.
-		addr := s.decladdrs[name]
-		if addr == nil {
-			// TODO: closure args reach here.
-			s.Fatalf("unhandled closure arg %v at entry to function %s", name, b.Func.Name)
-		}
-		if _, ok := addr.Aux.(*ssa.ArgSymbol); !ok {
-			s.Fatalf("variable live at start of function %s is not an argument %v", b.Func.Name, name)
-		}
-		v.Op = ssa.OpLoad
-		v.AddArgs(addr, s.startmem)
-		return
-	}
-	if len(b.Preds) == 0 {
-		// This block is dead; we have no predecessors and we're not the entry block.
-		// It doesn't matter what we use here as long as it is well-formed.
-		v.Op = ssa.OpUnknown
-		return
-	}
-	// Find variable value on each predecessor.
-	var argstore [4]*ssa.Value
-	args := argstore[:0]
-	for _, e := range b.Preds {
-		p := e.Block()
-		p = dm.FindBetterDefiningBlock(name, p) // try sparse improvement on p
-		args = append(args, s.lookupVarOutgoing(p, v.Type, name, v.Line))
-	}
-
-	// Decide if we need a phi or not. We need a phi if there
-	// are two different args (which are both not v).
-	var w *ssa.Value
-	for _, a := range args {
-		if a == v {
-			continue // self-reference
-		}
-		if a == w {
-			continue // already have this witness
-		}
-		if w != nil {
-			// two witnesses, need a phi value
-			v.Op = ssa.OpPhi
-			v.AddArgs(args...)
-			return
-		}
-		w = a // save witness
-	}
-	if w == nil {
-		s.Fatalf("no witness for reachable phi %s", v)
-	}
-	// One witness. Make v a copy of w.
-	v.Op = ssa.OpCopy
-	v.AddArg(w)
-}
-
-// lookupVarOutgoing finds the variable's value at the end of block b.
-func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name *Node, line int32) *ssa.Value {
-	for {
-		if v, ok := s.defvars[b.ID][name]; ok {
-			return v
-		}
-		// The variable is not defined by b and we haven't looked it up yet.
-		// If b has exactly one predecessor, loop to look it up there.
-		// Otherwise, give up and insert a new FwdRef and resolve it later.
-		if len(b.Preds) != 1 {
-			break
-		}
-		b = b.Preds[0].Block()
-	}
-	// Generate a FwdRef for the variable and return that.
-	v := b.NewValue0A(line, ssa.OpFwdRef, t, name)
-	s.fwdRefs = append(s.fwdRefs, v)
-	s.defvars[b.ID][name] = v
-	s.addNamedValue(name, v)
-	return v
 }
 
 func (s *state) addNamedValue(n *Node, v *ssa.Value) {
