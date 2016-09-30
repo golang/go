@@ -154,6 +154,31 @@ const (
 	rootCertificate
 )
 
+func matchNameConstraint(domain, constraint string) bool {
+	// The meaning of zero length constraints is not specified, but this
+	// code follows NSS and accepts them as valid for everything.
+	if len(constraint) == 0 {
+		return true
+	}
+
+	if len(domain) < len(constraint) {
+		return false
+	}
+
+	prefixLen := len(domain) - len(constraint)
+	if !strings.EqualFold(domain[prefixLen:], constraint) {
+		return false
+	}
+
+	if prefixLen == 0 {
+		return true
+	}
+
+	isSubdomain := domain[prefixLen-1] == '.'
+	constraintHasLeadingDot := constraint[0] == '.'
+	return isSubdomain != constraintHasLeadingDot
+}
+
 // isValid performs validity checks on the c.
 func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
 	now := opts.CurrentTime
@@ -166,12 +191,9 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 
 	if len(c.PermittedDNSDomains) > 0 {
 		ok := false
-		for _, domain := range c.PermittedDNSDomains {
-			if opts.DNSName == domain ||
-				(strings.HasSuffix(opts.DNSName, domain) &&
-					len(opts.DNSName) >= 1+len(domain) &&
-					opts.DNSName[len(opts.DNSName)-len(domain)-1] == '.') {
-				ok = true
+		for _, constraint := range c.PermittedDNSDomains {
+			ok = matchNameConstraint(opts.DNSName, constraint)
+			if ok {
 				break
 			}
 		}
