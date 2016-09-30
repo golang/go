@@ -4118,6 +4118,10 @@ func (sc *http2serverConn) processHeaders(f *http2MetaHeadersFrame) error {
 		handler = http2new400Handler(err)
 	}
 
+	if sc.hs.ReadTimeout != 0 {
+		sc.conn.SetReadDeadline(time.Time{})
+	}
+
 	go sc.runHandler(rw, req, handler)
 	return nil
 }
@@ -5507,6 +5511,10 @@ func http2bodyAndLength(req *Request) (body io.Reader, contentLen int64) {
 	}
 	if req.ContentLength != 0 {
 		return req.Body, req.ContentLength
+	}
+
+	if req.Header.Get("Expect") == "100-continue" {
+		return req.Body, -1
 	}
 
 	// We have a body but a zero content length. Test to see if

@@ -1234,3 +1234,39 @@ func (x noteCloseConn) Close() error {
 	x.closeFunc()
 	return x.Conn.Close()
 }
+
+type testErrorReader struct{ t *testing.T }
+
+func (r testErrorReader) Read(p []byte) (n int, err error) {
+	r.t.Error("unexpected Read call")
+	return 0, io.EOF
+}
+
+func TestNoSniffExpectRequestBody_h1(t *testing.T) { testNoSniffExpectRequestBody(t, h1Mode) }
+func TestNoSniffExpectRequestBody_h2(t *testing.T) { testNoSniffExpectRequestBody(t, h2Mode) }
+
+func testNoSniffExpectRequestBody(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(StatusUnauthorized)
+	}))
+	defer cst.close()
+
+	// Set ExpectContinueTimeout non-zero so RoundTrip won't try to write it.
+	cst.tr.ExpectContinueTimeout = 10 * time.Second
+
+	req, err := NewRequest("POST", cst.ts.URL, testErrorReader{t})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.ContentLength = 0 // so transport is tempted to sniff it
+	req.Header.Set("Expect", "100-continue")
+	res, err := cst.tr.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != StatusUnauthorized {
+		t.Errorf("status code = %v; want %v", res.StatusCode, StatusUnauthorized)
+	}
+}
