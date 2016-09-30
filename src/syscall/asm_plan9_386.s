@@ -29,8 +29,8 @@ TEXT	·Syscall(SB),NOSPLIT,$0-32
 	MOVSL
 	MOVSL
 	INT	$64
-	MOVL	AX, r1+20(SP)
-	MOVL	$0, r2+24(SP)
+	MOVL	AX, r1+16(FP)
+	MOVL	$0, r2+20(FP)
 	CMPL	AX, $-1
 	JNE	ok3
 
@@ -44,7 +44,7 @@ ok3:
 	LEAL	runtime·emptystring(SB), SI	
 	
 copyresult3:
-	LEAL	err+28(SP), DI
+	LEAL	err+24(FP), DI
 
 	CLD
 	MOVSL
@@ -67,8 +67,8 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-44
 	MOVSL
 	MOVSL
 	INT	$64
-	MOVL	AX, r1+32(SP)
-	MOVL	$0, r2+36(SP)
+	MOVL	AX, r1+28(FP)
+	MOVL	$0, r2+32(FP)
 	CMPL	AX, $-1
 	JNE	ok4
 	
@@ -82,7 +82,7 @@ ok4:
 	LEAL	runtime·emptystring(SB), SI
 	
 copyresult4:
-	LEAL	err+40(SP), DI
+	LEAL	err+36(FP), DI
 
 	CLD
 	MOVSL
@@ -101,9 +101,9 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVSL
 	MOVSL
 	INT	$64
-	MOVL	AX, r1+20(SP)
-	MOVL	AX, r2+24(SP)
-	MOVL	AX, err+28(SP)
+	MOVL	AX, r1+16(FP)
+	MOVL	AX, r2+20(FP)
+	MOVL	AX, err+24(FP)
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
@@ -119,17 +119,17 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVSL
 	MOVSL
 	INT	$64
-	MOVL	AX, r1+32(SP)
-	MOVL	AX, r2+36(SP)
-	MOVL	AX, err+40(SP)		
+	MOVL	AX, r1+28(FP)
+	MOVL	AX, r2+32(FP)
+	MOVL	AX, err+36(FP)
 	RET
 
 #define SYS_SEEK 39	/* from zsysnum_plan9_386.go */
 
 //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
 TEXT ·seek(SB),NOSPLIT,$0-36
-	LEAL	newoffset+24(SP), AX
-	MOVL	AX, placeholder+4(SP)
+	LEAL	newoffset+20(FP), AX
+	MOVL	AX, placeholder+0(FP)
 	
 	MOVL	$SYS_SEEK, AX	// syscall entry
 	INT	$64
@@ -149,7 +149,7 @@ ok6:
 	LEAL	runtime·emptystring(SB), SI
 	
 copyresult6:
-	LEAL	err+32(SP), DI
+	LEAL	err+28(FP), DI
 
 	CLD
 	MOVSL
