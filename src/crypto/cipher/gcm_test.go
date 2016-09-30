@@ -8,7 +8,11 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"encoding/hex"
+	"errors"
+	"io"
+	"reflect"
 	"testing"
 )
 
@@ -271,6 +275,160 @@ func TestTagFailureOverwrite(t *testing.T) {
 	for i := range dst {
 		if dst[i] != 0 {
 			t.Fatal("Failed Open didn't zero dst buffer")
+		}
+	}
+}
+
+func TestGCMCounterWrap(t *testing.T) {
+	// Test that the last 32-bits of the counter wrap correctly.
+	tests := []struct {
+		nonce, tag string
+	}{
+		{"0fa72e25", "37e1948cdfff09fbde0c40ad99fee4a7"},   // counter: 7eb59e4d961dad0dfdd75aaffffffff0
+		{"afe05cc1", "438f3aa9fee5e54903b1927bca26bbdf"},   // counter: 75d492a7e6e6bfc979ad3a8ffffffff4
+		{"9ffecbef", "7b88ca424df9703e9e8611071ec7e16e"},   // counter: c8bb108b0ecdc71747b9d57ffffffff5
+		{"ffc3e5b3", "38d49c86e0abe853ac250e66da54c01a"},   // counter: 706414d2de9b36ab3b900a9ffffffff6
+		{"cfdd729d", "e08402eaac36a1a402e09b1bd56500e8"},   // counter: cd0b96fe36b04e750584e56ffffffff7
+		{"010ae3d486", "5405bb490b1f95d01e2ba735687154bc"}, // counter: e36c18e69406c49722808104fffffff8
+		{"01b1107a9d", "939a585f342e01e17844627492d44dbf"}, // counter: e6d56eaf9127912b6d62c6dcffffffff
+	}
+	key, err := aes.NewCipher(make([]byte, 16))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plaintext := make([]byte, 16*17+1)
+	for i, test := range tests {
+		nonce, _ := hex.DecodeString(test.nonce)
+		want, _ := hex.DecodeString(test.tag)
+		aead, err := cipher.NewGCMWithNonceSize(key, len(nonce))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := aead.Seal(nil, nonce, plaintext, nil)
+		if !bytes.Equal(got[len(plaintext):], want) {
+			t.Errorf("test[%v]: got: %x, want: %x", i, got[len(plaintext):], want)
+		}
+		_, err = aead.Open(nil, nonce, got, nil)
+		if err != nil {
+			t.Errorf("test[%v]: authentication failed", i)
+		}
+	}
+}
+
+var _ cipher.Block = (*wrapper)(nil)
+
+type wrapper struct {
+	block cipher.Block
+}
+
+func (w *wrapper) BlockSize() int          { return w.block.BlockSize() }
+func (w *wrapper) Encrypt(dst, src []byte) { w.block.Encrypt(dst, src) }
+func (w *wrapper) Decrypt(dst, src []byte) { w.block.Decrypt(dst, src) }
+
+// wrap wraps the Block interface so that it does not fulfill
+// any optimizing interfaces such as gcmAble.
+func wrap(b cipher.Block) cipher.Block {
+	return &wrapper{b}
+}
+
+func TestGCMAsm(t *testing.T) {
+	// Create a new pair of AEADs, one using the assembly implementation
+	// and one using the generic Go implementation.
+	newAESGCM := func(key []byte) (asm, generic cipher.AEAD, err error) {
+		block, err := aes.NewCipher(key[:])
+		if err != nil {
+			return nil, nil, err
+		}
+		asm, err = cipher.NewGCM(block)
+		if err != nil {
+			return nil, nil, err
+		}
+		generic, err = cipher.NewGCM(wrap(block))
+		if err != nil {
+			return nil, nil, err
+		}
+		return asm, generic, nil
+	}
+
+	// check for assembly implementation
+	var key [16]byte
+	asm, generic, err := newAESGCM(key[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.TypeOf(asm) == reflect.TypeOf(generic) {
+		t.Skipf("no assembly implementation of GCM")
+	}
+
+	// generate permutations
+	type pair struct{ align, length int }
+	lengths := []int{0, 8192, 8193, 8208}
+	keySizes := []int{16, 24, 32}
+	alignments := []int{0, 1, 2, 3}
+	if testing.Short() {
+		keySizes = []int{16}
+		alignments = []int{1}
+	}
+	perms := make([]pair, 0)
+	for _, l := range lengths {
+		for _, a := range alignments {
+			if a != 0 && l == 0 {
+				continue
+			}
+			perms = append(perms, pair{align: a, length: l})
+		}
+	}
+
+	// run test for all permutations
+	test := func(ks int, pt, ad []byte) error {
+		key := make([]byte, ks)
+		if _, err := io.ReadFull(rand.Reader, key); err != nil {
+			return err
+		}
+		asm, generic, err := newAESGCM(key)
+		if err != nil {
+			return err
+		}
+		if _, err := io.ReadFull(rand.Reader, pt); err != nil {
+			return err
+		}
+		if _, err := io.ReadFull(rand.Reader, ad); err != nil {
+			return err
+		}
+		nonce := make([]byte, 12)
+		if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+			return err
+		}
+		want := generic.Seal(nil, nonce, pt, ad)
+		got := asm.Seal(nil, nonce, pt, ad)
+		if !bytes.Equal(want, got) {
+			return errors.New("incorrect Seal output")
+		}
+		got, err = asm.Open(nil, nonce, want, ad)
+		if err != nil {
+			return errors.New("authentication failed")
+		}
+		if !bytes.Equal(pt, got) {
+			return errors.New("incorrect Open output")
+		}
+		return nil
+	}
+	for _, a := range perms {
+		ad := make([]byte, a.align+a.length)
+		ad = ad[a.align:]
+		for _, p := range perms {
+			pt := make([]byte, p.align+p.length)
+			pt = pt[p.align:]
+			for _, ks := range keySizes {
+				if err := test(ks, pt, ad); err != nil {
+					t.Error(err)
+					t.Errorf("	key size: %v", ks)
+					t.Errorf("	plaintext alignment: %v", p.align)
+					t.Errorf("	plaintext length: %v", p.length)
+					t.Errorf("	additionalData alignment: %v", a.align)
+					t.Fatalf("	additionalData length: %v", a.length)
+				}
+			}
 		}
 	}
 }
