@@ -12,7 +12,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_setgroups setgroups "libc.so"
 //go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
 //go:cgo_import_dynamic libc_accept accept "libsocket.so"
-//go:cgo_import_dynamic libc_sendmsg sendmsg "libsocket.so"
+//go:cgo_import_dynamic libc___xnet_sendmsg __xnet_sendmsg "libsocket.so"
 //go:cgo_import_dynamic libc_Access access "libc.so"
 //go:cgo_import_dynamic libc_Adjtime adjtime "libc.so"
 //go:cgo_import_dynamic libc_Chdir chdir "libc.so"
@@ -40,7 +40,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_Kill kill "libc.so"
 //go:cgo_import_dynamic libc_Lchown lchown "libc.so"
 //go:cgo_import_dynamic libc_Link link "libc.so"
-//go:cgo_import_dynamic libc_listen listen "libsocket.so"
+//go:cgo_import_dynamic libc___xnet_listen __xnet_listen "libsocket.so"
 //go:cgo_import_dynamic libc_Lstat lstat "libc.so"
 //go:cgo_import_dynamic libc_Mkdir mkdir "libc.so"
 //go:cgo_import_dynamic libc_Mknod mknod "libc.so"
@@ -75,27 +75,27 @@ import "unsafe"
 //go:cgo_import_dynamic libc_Umask umask "libc.so"
 //go:cgo_import_dynamic libc_Unlink unlink "libc.so"
 //go:cgo_import_dynamic libc_Utimes utimes "libc.so"
-//go:cgo_import_dynamic libc_bind bind "libsocket.so"
-//go:cgo_import_dynamic libc_connect connect "libsocket.so"
+//go:cgo_import_dynamic libc___xnet_bind __xnet_bind "libsocket.so"
+//go:cgo_import_dynamic libc___xnet_connect __xnet_connect "libsocket.so"
 //go:cgo_import_dynamic libc_mmap mmap "libc.so"
 //go:cgo_import_dynamic libc_munmap munmap "libc.so"
-//go:cgo_import_dynamic libc_sendto sendto "libsocket.so"
-//go:cgo_import_dynamic libc_socket socket "libsocket.so"
-//go:cgo_import_dynamic libc_socketpair socketpair "libsocket.so"
+//go:cgo_import_dynamic libc___xnet_sendto __xnet_sendto "libsocket.so"
+//go:cgo_import_dynamic libc___xnet_socket __xnet_socket "libsocket.so"
+//go:cgo_import_dynamic libc___xnet_socketpair __xnet_socketpair "libsocket.so"
 //go:cgo_import_dynamic libc_write write "libc.so"
-//go:cgo_import_dynamic libc_getsockopt getsockopt "libsocket.so"
+//go:cgo_import_dynamic libc___xnet_getsockopt __xnet_getsockopt "libsocket.so"
 //go:cgo_import_dynamic libc_getpeername getpeername "libsocket.so"
 //go:cgo_import_dynamic libc_getsockname getsockname "libsocket.so"
 //go:cgo_import_dynamic libc_setsockopt setsockopt "libsocket.so"
 //go:cgo_import_dynamic libc_recvfrom recvfrom "libsocket.so"
-//go:cgo_import_dynamic libc_recvmsg recvmsg "libsocket.so"
+//go:cgo_import_dynamic libc___xnet_recvmsg __xnet_recvmsg "libsocket.so"
 
 //go:linkname libc_Getcwd libc_Getcwd
 //go:linkname libc_getgroups libc_getgroups
 //go:linkname libc_setgroups libc_setgroups
 //go:linkname libc_fcntl libc_fcntl
 //go:linkname libc_accept libc_accept
-//go:linkname libc_sendmsg libc_sendmsg
+//go:linkname libc___xnet_sendmsg libc___xnet_sendmsg
 //go:linkname libc_Access libc_Access
 //go:linkname libc_Adjtime libc_Adjtime
 //go:linkname libc_Chdir libc_Chdir
@@ -123,7 +123,7 @@ import "unsafe"
 //go:linkname libc_Kill libc_Kill
 //go:linkname libc_Lchown libc_Lchown
 //go:linkname libc_Link libc_Link
-//go:linkname libc_listen libc_listen
+//go:linkname libc___xnet_listen libc___xnet_listen
 //go:linkname libc_Lstat libc_Lstat
 //go:linkname libc_Mkdir libc_Mkdir
 //go:linkname libc_Mknod libc_Mknod
@@ -158,20 +158,20 @@ import "unsafe"
 //go:linkname libc_Umask libc_Umask
 //go:linkname libc_Unlink libc_Unlink
 //go:linkname libc_Utimes libc_Utimes
-//go:linkname libc_bind libc_bind
-//go:linkname libc_connect libc_connect
+//go:linkname libc___xnet_bind libc___xnet_bind
+//go:linkname libc___xnet_connect libc___xnet_connect
 //go:linkname libc_mmap libc_mmap
 //go:linkname libc_munmap libc_munmap
-//go:linkname libc_sendto libc_sendto
-//go:linkname libc_socket libc_socket
-//go:linkname libc_socketpair libc_socketpair
+//go:linkname libc___xnet_sendto libc___xnet_sendto
+//go:linkname libc___xnet_socket libc___xnet_socket
+//go:linkname libc___xnet_socketpair libc___xnet_socketpair
 //go:linkname libc_write libc_write
-//go:linkname libc_getsockopt libc_getsockopt
+//go:linkname libc___xnet_getsockopt libc___xnet_getsockopt
 //go:linkname libc_getpeername libc_getpeername
 //go:linkname libc_getsockname libc_getsockname
 //go:linkname libc_setsockopt libc_setsockopt
 //go:linkname libc_recvfrom libc_recvfrom
-//go:linkname libc_recvmsg libc_recvmsg
+//go:linkname libc___xnet_recvmsg libc___xnet_recvmsg
 
 type libcFunc uintptr
 
@@ -181,7 +181,7 @@ var (
 	libc_setgroups,
 	libc_fcntl,
 	libc_accept,
-	libc_sendmsg,
+	libc___xnet_sendmsg,
 	libc_Access,
 	libc_Adjtime,
 	libc_Chdir,
@@ -209,7 +209,7 @@ var (
 	libc_Kill,
 	libc_Lchown,
 	libc_Link,
-	libc_listen,
+	libc___xnet_listen,
 	libc_Lstat,
 	libc_Mkdir,
 	libc_Mknod,
@@ -244,20 +244,20 @@ var (
 	libc_Umask,
 	libc_Unlink,
 	libc_Utimes,
-	libc_bind,
-	libc_connect,
+	libc___xnet_bind,
+	libc___xnet_connect,
 	libc_mmap,
 	libc_munmap,
-	libc_sendto,
-	libc_socket,
-	libc_socketpair,
+	libc___xnet_sendto,
+	libc___xnet_socket,
+	libc___xnet_socketpair,
 	libc_write,
-	libc_getsockopt,
+	libc___xnet_getsockopt,
 	libc_getpeername,
 	libc_getsockname,
 	libc_setsockopt,
 	libc_recvfrom,
-	libc_recvmsg libcFunc
+	libc___xnet_recvmsg libcFunc
 )
 
 func Getcwd(buf []byte) (n int, err error) {
@@ -309,7 +309,7 @@ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
 }
 
 func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_sendmsg)), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc___xnet_sendmsg)), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -575,7 +575,7 @@ func Link(path string, link string) (err error) {
 }
 
 func Listen(s int, backlog int) (err error) {
-	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_listen)), 2, uintptr(s), uintptr(backlog), 0, 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc___xnet_listen)), 2, uintptr(s), uintptr(backlog), 0, 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -968,7 +968,7 @@ func Utimes(path string, times *[2]Timeval) (err error) {
 }
 
 func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
-	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_bind)), 3, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc___xnet_bind)), 3, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -976,7 +976,7 @@ func bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
 }
 
 func connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) {
-	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_connect)), 3, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc___xnet_connect)), 3, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -1005,7 +1005,7 @@ func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (
 	if len(buf) > 0 {
 		_p0 = &buf[0]
 	}
-	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_sendto)), 6, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc___xnet_sendto)), 6, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -1013,7 +1013,7 @@ func sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (
 }
 
 func socket(domain int, typ int, proto int) (fd int, err error) {
-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_socket)), 3, uintptr(domain), uintptr(typ), uintptr(proto), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc___xnet_socket)), 3, uintptr(domain), uintptr(typ), uintptr(proto), 0, 0, 0)
 	fd = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -1022,7 +1022,7 @@ func socket(domain int, typ int, proto int) (fd int, err error) {
 }
 
 func socketpair(domain int, typ int, proto int, fd *[2]int32) (err error) {
-	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_socketpair)), 4, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
+	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc___xnet_socketpair)), 4, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -1043,7 +1043,7 @@ func write(fd int, p []byte) (n int, err error) {
 }
 
 func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
-	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_getsockopt)), 5, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc___xnet_getsockopt)), 5, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -1088,7 +1088,7 @@ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockl
 }
 
 func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_recvmsg)), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc___xnet_recvmsg)), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
