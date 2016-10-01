@@ -12,7 +12,7 @@ func Sleep(d Duration)
 func runtimeNano() int64
 
 // Interface to timers implemented in package runtime.
-// Must be in sync with ../runtime/runtime.h:/^struct.Timer$
+// Must be in sync with ../runtime/time.go:/^type timer
 type runtimeTimer struct {
 	i      int
 	when   int64
