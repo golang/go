@@ -125,12 +125,6 @@ func TestFcntlFlock(t *testing.T) {
 // "-test.run=^TestPassFD$" and an environment variable used to signal
 // that the test should become the child process instead.
 func TestPassFD(t *testing.T) {
-	switch runtime.GOOS {
-	case "solaris":
-		// TODO(aram): Figure out why ReadMsgUnix is returning empty message.
-		t.Skip("skipping test on solaris, see issue 7402")
-	}
-
 	testenv.MustHaveExec(t)
 
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
