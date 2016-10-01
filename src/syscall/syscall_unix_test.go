@@ -126,9 +126,6 @@ func TestFcntlFlock(t *testing.T) {
 // that the test should become the child process instead.
 func TestPassFD(t *testing.T) {
 	switch runtime.GOOS {
-	case "dragonfly":
-		// TODO(jsing): Figure out why sendmsg is returning EINVAL.
-		t.Skip("skipping test on dragonfly")
 	case "solaris":
 		// TODO(aram): Figure out why ReadMsgUnix is returning empty message.
 		t.Skip("skipping test on solaris, see issue 7402")
