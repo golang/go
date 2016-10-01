@@ -131,11 +131,13 @@ func rightShift(a *decimal, k uint) {
 	}
 	a.dp -= r - 1
 
+	var mask uint = (1 << k) - 1
+
 	// Pick up a digit, put down a digit.
 	for ; r < a.nd; r++ {
 		c := uint(a.d[r])
 		dig := n >> k
-		n -= dig << k
+		n &= mask
 		a.d[w] = byte(dig + '0')
 		w++
 		n = n*10 + c - '0'
@@ -144,7 +146,7 @@ func rightShift(a *decimal, k uint) {
 	// Put down extra digits.
 	for n > 0 {
 		dig := n >> k
-		n -= dig << k
+		n &= mask
 		if w < len(a.d) {
 			a.d[w] = byte(dig + '0')
 			w++
