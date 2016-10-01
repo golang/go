@@ -208,6 +208,9 @@ var ftoaBenches = []struct {
 	{"64Fixed2", 123.456, 'e', 3, 64},
 	{"64Fixed3", 1.23456e+78, 'e', 3, 64},
 	{"64Fixed4", 1.23456e-78, 'e', 3, 64},
+
+	// Trigger slow path (see issue #15672).
+	{"Slowpath64", 622666234635.3213e-320, 'e', -1, 64},
 }
 
 func BenchmarkFormatFloat(b *testing.B) {
