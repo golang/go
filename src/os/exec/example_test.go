@@ -6,6 +6,7 @@ package exec_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"log"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 func ExampleLookPath() {
@@ -122,4 +124,14 @@ func ExampleCmd_CombinedOutput() {
 		log.Fatal(err)
 	}
 	fmt.Printf("%s\n", stdoutStderr)
+}
+
+func ExampleCommandContext() {
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	if err := exec.CommandContext(ctx, "sleep", "5").Run(); err != nil {
+		// This will fail after 100 milliseconds. The 5 second sleep
+		// will be interrupted.
+	}
 }
