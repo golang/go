@@ -137,8 +137,9 @@ type Conn interface {
 	//
 	// A deadline is an absolute time after which I/O operations
 	// fail with a timeout (see type Error) instead of
-	// blocking. The deadline applies to all future I/O, not just
-	// the immediately following call to Read or Write.
+	// blocking. The deadline applies to all future and pending
+	// I/O, not just the immediately following call to Read or
+	// Write.
 	//
 	// An idle timeout can be implemented by repeatedly extending
 	// the deadline after successful Read or Write calls.
@@ -146,11 +147,13 @@ type Conn interface {
 	// A zero value for t means I/O operations will not time out.
 	SetDeadline(t time.Time) error
 
-	// SetReadDeadline sets the deadline for future Read calls.
+	// SetReadDeadline sets the deadline for future Read calls
+	// and any currently-blocked Read call.
 	// A zero value for t means Read will not time out.
 	SetReadDeadline(t time.Time) error
 
-	// SetWriteDeadline sets the deadline for future Write calls.
+	// SetWriteDeadline sets the deadline for future Write calls
+	// and any currently-blocked Write call.
 	// Even if write times out, it may return n > 0, indicating that
 	// some of the data was successfully written.
 	// A zero value for t means Write will not time out.
