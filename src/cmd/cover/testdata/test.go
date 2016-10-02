@@ -246,3 +246,15 @@ func testFunctionLiteral() {
 	}) {
 	}
 }
+
+// This comment shouldn't appear in generated go code.
+func haha() {
+	// Needed for cover to add counter increment here.
+	_ = 42
+}
+
+// Some someFunction.
+//
+//go:nosplit
+func someFunction() {
+}
