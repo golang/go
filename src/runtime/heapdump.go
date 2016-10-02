@@ -474,7 +474,7 @@ func dumpobjs() {
 			throw("freemark array doesn't have enough entries")
 		}
 
-		for freeIndex := s.freeindex; freeIndex < s.nelems; freeIndex++ {
+		for freeIndex := uintptr(0); freeIndex < s.nelems; freeIndex++ {
 			if s.isFree(freeIndex) {
 				freemark[freeIndex] = true
 			}

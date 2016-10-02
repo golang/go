@@ -264,7 +264,11 @@ func (s *mspan) nextFreeIndex() uintptr {
 	return result
 }
 
+// isFree returns whether the index'th object in s is unallocated.
 func (s *mspan) isFree(index uintptr) bool {
+	if index < s.freeindex {
+		return false
+	}
 	whichByte := index / 8
 	whichBit := index % 8
 	byteVal := *addb(s.allocBits, whichByte)
