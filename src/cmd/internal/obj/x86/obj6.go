@@ -1113,11 +1113,23 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
 	}
 
+	// Now we are at the end of the function, but logically
+	// we are still in function prologue. We need to fix the
+	// SP data and PCDATA.
 	spfix := obj.Appendp(ctxt, last)
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	call := obj.Appendp(ctxt, spfix)
+	pcdata := obj.Appendp(ctxt, spfix)
+	pcdata.Lineno = ctxt.Cursym.Text.Lineno
+	pcdata.Mode = ctxt.Cursym.Text.Mode
+	pcdata.As = obj.APCDATA
+	pcdata.From.Type = obj.TYPE_CONST
+	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+	pcdata.To.Type = obj.TYPE_CONST
+	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+
+	call := obj.Appendp(ctxt, pcdata)
 	call.Lineno = ctxt.Cursym.Text.Lineno
 	call.Mode = ctxt.Cursym.Text.Mode
 	call.As = obj.ACALL
