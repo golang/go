@@ -240,6 +240,18 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(f, n.Assign)
 			return nil
 		}
+	case *ast.CommentGroup:
+		var list []*ast.Comment
+		// Drop all but the //go: comments, some of which are semantically important.
+		// We drop all others because they can appear in places that cause our counters
+		// to appear in syntactically incorrect places. //go: appears at the beginning of
+		// the line and is syntactically safe.
+		for _, c := range n.List {
+			if strings.HasPrefix(c.Text, "//go:") && f.fset.Position(c.Slash).Column == 1 {
+				list = append(list, c)
+			}
+		}
+		n.List = list
 	}
 	return f
 }
@@ -348,7 +360,8 @@ func annotate(name string) {
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}
-	parsedFile.Comments = trimComments(parsedFile, fset)
+	// Remove comments. Or else they interfere with new AST.
+	parsedFile.Comments = nil
 
 	file := &File{
 		fset:    fset,
@@ -372,26 +385,6 @@ func annotate(name string) {
 	// After printing the source tree, add some declarations for the counters etc.
 	// We could do this by adding to the tree, but it's easier just to print the text.
 	file.addVariables(fd)
-}
-
-// trimComments drops all but the //go: comments, some of which are semantically important.
-// We drop all others because they can appear in places that cause our counters
-// to appear in syntactically incorrect places. //go: appears at the beginning of
-// the line and is syntactically safe.
-func trimComments(file *ast.File, fset *token.FileSet) []*ast.CommentGroup {
-	var comments []*ast.CommentGroup
-	for _, group := range file.Comments {
-		var list []*ast.Comment
-		for _, comment := range group.List {
-			if strings.HasPrefix(comment.Text, "//go:") && fset.Position(comment.Slash).Column == 1 {
-				list = append(list, comment)
-			}
-		}
-		if list != nil {
-			comments = append(comments, &ast.CommentGroup{List: list})
-		}
-	}
-	return comments
 }
 
 func (f *File) print(w io.Writer) {
