@@ -25,11 +25,12 @@ func addvarint(ctxt *Link, d *Pcdata, val uint32) {
 // where func is the function, val is the current value, p is the instruction being
 // considered, and arg can be used to further parameterize valfunc.
 func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) {
-	// To debug a specific function, uncomment second line and change name.
+	// To debug a specific function, uncomment lines and change name.
 	dbg := 0
 
-	//dbg = strcmp(func->name, "main.main") == 0;
-	//dbg = strcmp(desc, "pctofile") == 0;
+	//if func_.Name == "main.main" || desc == "pctospadj" {
+	//	dbg = 1
+	//}
 
 	ctxt.Debugpcln += int32(dbg)
 
@@ -214,9 +215,15 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	npcdata := 0
 	nfuncdata := 0
 	for p := cursym.Text; p != nil; p = p.Link {
-		if p.As == APCDATA && p.From.Offset >= int64(npcdata) {
+		// Find the highest ID of any used PCDATA table. This ignores PCDATA table
+		// that consist entirely of "-1", since that's the assumed default value.
+		//   From.Offset is table ID
+		//   To.Offset is data
+		if p.As == APCDATA && p.From.Offset >= int64(npcdata) && p.To.Offset != -1 { // ignore -1 as we start at -1, if we only see -1, nothing changed
 			npcdata = int(p.From.Offset + 1)
 		}
+		// Find the highest ID of any FUNCDATA table.
+		//   From.Offset is table ID
 		if p.As == AFUNCDATA && p.From.Offset >= int64(nfuncdata) {
 			nfuncdata = int(p.From.Offset + 1)
 		}
@@ -243,7 +250,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 			havefunc[p.From.Offset/32] |= 1 << uint64(p.From.Offset%32)
 		}
 
-		if p.As == APCDATA {
+		if p.As == APCDATA && p.To.Offset != -1 {
 			havepc[p.From.Offset/32] |= 1 << uint64(p.From.Offset%32)
 		}
 	}

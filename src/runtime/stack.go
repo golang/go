@@ -602,7 +602,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 			}
 			if minp <= p && p < maxp {
 				if stackDebug >= 3 {
-					print("adjust ptr ", p, " ", funcname(f), "\n")
+					print("adjust ptr ", hex(p), " ", funcname(f), "\n")
 				}
 				if useCAS {
 					ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
@@ -957,7 +957,6 @@ func newstack() {
 	thisg.m.morebuf.lr = 0
 	thisg.m.morebuf.sp = 0
 	thisg.m.morebuf.g = 0
-	rewindmorestack(&gp.sched)
 
 	// NOTE: stackguard0 may change underfoot, if another thread
 	// is about to try to preempt gp. Read it just once and use that same
