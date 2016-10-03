@@ -231,7 +231,7 @@ func runfinq() {
 // address of a local variable.
 // The argument finalizer must be a function that takes a single argument
 // to which obj's type can be assigned, and can have arbitrary ignored return
-// values. If either of these is not true, SetFinalizer aborts the
+// values. If either of these is not true, SetFinalizer may abort the
 // program.
 //
 // Finalizers are run in dependency order: if A points at B, both have
