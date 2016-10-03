@@ -262,12 +262,6 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
 		}
 	}
 
-	// To satisfy toolstash -cmp, preserve the unsorted
-	// declaration order so we can emit the ATYPE instructions in
-	// the same order.
-	// TODO(mdempsky): Remove in followup CL.
-	Curfn.Func.UnsortedDcls = append([]*Node(nil), Curfn.Func.Dcl...)
-
 	if f.Config.NeedsFpScratch {
 		scratchFpMem = temp(Types[TUINT64])
 		scratchFpMem.Used = scratchUsed
@@ -432,18 +426,13 @@ func compile(fn *Node) {
 		}
 	}
 
-	for _, n := range fn.Func.UnsortedDcls {
+	for _, n := range fn.Func.Dcl {
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
 		}
 		switch n.Class {
 		case PAUTO:
 			if !n.Used {
-				// Hacks to appease toolstash -cmp.
-				// TODO(mdempsky): Remove in followup CL.
-				pcloc++
-				Pc.Pc++
-				Linksym(ngotype(n))
 				continue
 			}
 			fallthrough
