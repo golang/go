@@ -156,6 +156,10 @@ func filterType(typ Expr, f Filter, export bool) bool {
 
 func filterSpec(spec Spec, f Filter, export bool) bool {
 	switch s := spec.(type) {
+	case *AliasSpec:
+		if f(s.Name.Name) {
+			return true
+		}
 	case *ValueSpec:
 		s.Names = filterIdentList(s.Names, f)
 		if len(s.Names) > 0 {
