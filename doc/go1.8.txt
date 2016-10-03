@@ -5,6 +5,8 @@ compile: SSA for 386, arm, arm64, ppc64le, ... (many CLs)
 yacc: "go tool yacc" is removed. now at golang.org/x/tools/cmd/goyacc (CL 27324, CL 27325)
 go: -buildmode=c-archive now builds PIC on ELF (CL 24180)
 go: mobile pkg dir change, recommend using go list in scripts (CL 24930, CL 27929)
+go, dist: can set default pkg-config tool using PKG_CONFIG env var (CL 29991)
+go: can set secure/insecure GIT schemes using GIT_ALLOW_PROTOCOL env var (CL 30135)
 
 Ports:
 
