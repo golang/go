@@ -28,7 +28,7 @@ const debugPhi = false
 // of the appropriate phi or definition.
 // TODO: make this part of cmd/compile/internal/ssa somehow?
 func (s *state) insertPhis() {
-	if len(s.f.Blocks) <= smallBlocks && false {
+	if len(s.f.Blocks) <= smallBlocks {
 		sps := simplePhiState{s: s, f: s.f, defvars: s.defvars}
 		sps.insertPhis()
 		return
