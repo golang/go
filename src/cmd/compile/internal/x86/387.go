@@ -120,7 +120,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		switch v.Op {
 		case ssa.Op386ADDSS, ssa.Op386SUBSS, ssa.Op386MULSS, ssa.Op386DIVSS:
 			p := gc.Prog(x86.AFSTCW)
-			scratch387(s, &p.To)
+			s.AddrScratch(&p.To)
 			p = gc.Prog(x86.AFLDCW)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
@@ -148,7 +148,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		switch v.Op {
 		case ssa.Op386ADDSS, ssa.Op386SUBSS, ssa.Op386MULSS, ssa.Op386DIVSS:
 			p := gc.Prog(x86.AFLDCW)
-			scratch387(s, &p.From)
+			s.AddrScratch(&p.From)
 		}
 
 		return true
@@ -167,7 +167,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p = gc.Prog(x86.AMOVL)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x86.REG_AX
-		scratch387(s, &p.To)
+		s.AddrScratch(&p.To)
 
 		// Move status word into AX.
 		p = gc.Prog(x86.AFSTSW)
@@ -179,7 +179,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 
 		// Restore AX.
 		p = gc.Prog(x86.AMOVL)
-		scratch387(s, &p.From)
+		s.AddrScratch(&p.From)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_AX
 
@@ -201,9 +201,9 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p := gc.Prog(x86.AMOVL)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
-		scratch387(s, &p.To)
+		s.AddrScratch(&p.To)
 		p = gc.Prog(x86.AFMOVL)
-		scratch387(s, &p.From)
+		s.AddrScratch(&p.From)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_F0
 		popAndSave(s, v)
@@ -214,7 +214,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 
 		// Save control word.
 		p := gc.Prog(x86.AFSTCW)
-		scratch387(s, &p.To)
+		s.AddrScratch(&p.To)
 		p.To.Offset += 4
 
 		// Load control word which truncates (rounds towards zero).
@@ -227,15 +227,15 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p = gc.Prog(x86.AFMOVLP)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x86.REG_F0
-		scratch387(s, &p.To)
+		s.AddrScratch(&p.To)
 		p = gc.Prog(x86.AMOVL)
-		scratch387(s, &p.From)
+		s.AddrScratch(&p.From)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
 		// Restore control word.
 		p = gc.Prog(x86.AFLDCW)
-		scratch387(s, &p.From)
+		s.AddrScratch(&p.From)
 		p.From.Offset += 4
 		return true
 
@@ -251,9 +251,9 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p := gc.Prog(x86.AFMOVFP)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x86.REG_F0
-		scratch387(s, &p.To)
+		s.AddrScratch(&p.To)
 		p = gc.Prog(x86.AFMOVF)
-		scratch387(s, &p.From)
+		s.AddrScratch(&p.From)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_F0
 		popAndSave(s, v)
@@ -265,17 +265,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		}
 		// Load+push the value we need.
 		p := gc.Prog(loadPush(v.Type))
-		n, off := gc.AutoVar(v.Args[0])
-		p.From.Type = obj.TYPE_MEM
-		p.From.Node = n
-		p.From.Sym = gc.Linksym(n.Sym)
-		p.From.Offset = off
-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
-			p.From.Name = obj.NAME_PARAM
-			p.From.Offset += n.Xoffset
-		} else {
-			p.From.Name = obj.NAME_AUTO
-		}
+		gc.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_F0
 		// Move the value to its assigned register.
@@ -297,17 +287,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p := gc.Prog(op)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x86.REG_F0
-		n, off := gc.AutoVar(v)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Node = n
-		p.To.Sym = gc.Linksym(n.Sym)
-		p.To.Offset = off
-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
-			p.To.Name = obj.NAME_PARAM
-			p.To.Offset += n.Xoffset
-		} else {
-			p.To.Name = obj.NAME_AUTO
-		}
+		gc.AddrAuto(&p.To, v)
 		return true
 
 	case ssa.OpCopy:
@@ -374,13 +354,4 @@ func flush387(s *gc.SSAGenState) {
 		p.To.Reg = x86.REG_F0
 		delete(s.SSEto387, k)
 	}
-}
-
-// scratch387 initializes a to the scratch location used by some 387 rewrites.
-func scratch387(s *gc.SSAGenState, a *obj.Addr) {
-	a.Type = obj.TYPE_MEM
-	a.Name = obj.NAME_AUTO
-	a.Node = s.ScratchFpMem
-	a.Sym = gc.Linksym(s.ScratchFpMem.Sym)
-	a.Reg = x86.REG_SP
 }

@@ -4083,9 +4083,9 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	if Thearch.Use387 {
 		s.SSEto387 = map[int16]int16{}
 	}
-	if f.Config.NeedsFpScratch {
-		s.ScratchFpMem = temp(Types[TUINT64])
-	}
+
+	s.ScratchFpMem = scratchFpMem
+	scratchFpMem = nil
 
 	// Emit basic blocks
 	for i, b := range f.Blocks {
@@ -4170,9 +4170,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 			}
 		}
 	}
-
-	// Allocate stack frame
-	allocauto(ptxt)
 
 	// Generate gc bitmaps.
 	liveness(Curfn, ptxt, gcargs, gclocals)
@@ -4287,7 +4284,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 		a.Name = obj.NAME_AUTO
 		a.Node = n
 		a.Sym = Linksym(n.Sym)
-		// TODO: a.Offset += n.Xoffset once frame offsets for autos are computed during SSA
+		a.Offset += n.Xoffset
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
 	}
@@ -4407,6 +4404,28 @@ func AutoVar(v *ssa.Value) (*Node, int64) {
 		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
 	}
 	return loc.N.(*Node), loc.Off
+}
+
+func AddrAuto(a *obj.Addr, v *ssa.Value) {
+	n, off := AutoVar(v)
+	a.Type = obj.TYPE_MEM
+	a.Node = n
+	a.Sym = Linksym(n.Sym)
+	a.Offset = n.Xoffset + off
+	if n.Class == PPARAM || n.Class == PPARAMOUT {
+		a.Name = obj.NAME_PARAM
+	} else {
+		a.Name = obj.NAME_AUTO
+	}
+}
+
+func (s *SSAGenState) AddrScratch(a *obj.Addr) {
+	a.Type = obj.TYPE_MEM
+	a.Name = obj.NAME_AUTO
+	a.Node = s.ScratchFpMem
+	a.Sym = Linksym(s.ScratchFpMem.Sym)
+	a.Reg = int16(Thearch.REGSP)
+	a.Offset = s.ScratchFpMem.Xoffset
 }
 
 // fieldIdx finds the index of the field referred to by the ODOT node n.

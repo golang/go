@@ -61,6 +61,8 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
 func (DummyFrontend) Line(line int32) string {
 	return "unknown.go:0"
 }
+func (DummyFrontend) AllocFrame(f *Func) {
+}
 
 func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
 func (d DummyFrontend) Log() bool                            { return true }

@@ -131,17 +131,6 @@ func storeByType(t ssa.Type) obj.As {
 	panic("bad store type")
 }
 
-// scratchFpMem initializes an Addr (field of a Prog)
-// to reference the scratchpad memory for movement between
-// F and G registers for FP conversions.
-func scratchFpMem(s *gc.SSAGenState, a *obj.Addr) {
-	a.Type = obj.TYPE_MEM
-	a.Name = obj.NAME_AUTO
-	a.Node = s.ScratchFpMem
-	a.Sym = gc.Linksym(s.ScratchFpMem.Sym)
-	a.Reg = ppc64.REGSP
-}
-
 func ssaGenISEL(v *ssa.Value, cr int64, r1, r2 int16) {
 	r := v.Reg()
 	p := gc.Prog(ppc64.AISEL)
@@ -191,11 +180,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p := gc.Prog(ppc64.AFMOVD)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
-			scratchFpMem(s, &p.To)
+			s.AddrScratch(&p.To)
 			p = gc.Prog(ppc64.AMOVD)
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = y
-			scratchFpMem(s, &p.From)
+			s.AddrScratch(&p.From)
 		}
 	case ssa.OpPPC64Xi2f64:
 		{
@@ -204,11 +193,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p := gc.Prog(ppc64.AMOVD)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
-			scratchFpMem(s, &p.To)
+			s.AddrScratch(&p.To)
 			p = gc.Prog(ppc64.AFMOVD)
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = y
-			scratchFpMem(s, &p.From)
+			s.AddrScratch(&p.From)
 		}
 
 	case ssa.OpPPC64LoweredGetClosurePtr:
@@ -217,37 +206,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 	case ssa.OpLoadReg:
 		loadOp := loadByType(v.Type)
-		n, off := gc.AutoVar(v.Args[0])
 		p := gc.Prog(loadOp)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Node = n
-		p.From.Sym = gc.Linksym(n.Sym)
-		p.From.Offset = off
-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
-			p.From.Name = obj.NAME_PARAM
-			p.From.Offset += n.Xoffset
-		} else {
-			p.From.Name = obj.NAME_AUTO
-		}
+		gc.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
 	case ssa.OpStoreReg:
 		storeOp := storeByType(v.Type)
-		n, off := gc.AutoVar(v)
 		p := gc.Prog(storeOp)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
-		p.To.Type = obj.TYPE_MEM
-		p.To.Node = n
-		p.To.Sym = gc.Linksym(n.Sym)
-		p.To.Offset = off
-		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
-			p.To.Name = obj.NAME_PARAM
-			p.To.Offset += n.Xoffset
-		} else {
-			p.To.Name = obj.NAME_AUTO
-		}
+		gc.AddrAuto(&p.To, v)
 
 	case ssa.OpPPC64DIVD:
 		// For now,

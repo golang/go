@@ -271,20 +271,21 @@ type Param struct {
 
 // Func holds Node fields used only with function-like nodes.
 type Func struct {
-	Shortname  *Node
-	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
-	Exit       Nodes
-	Cvars      Nodes   // closure params
-	Dcl        []*Node // autodcl for this func/closure
-	Inldcl     Nodes   // copy of dcl for use in inlining
-	Closgen    int
-	Outerfunc  *Node // outer function (for closure)
-	FieldTrack map[*Sym]struct{}
-	Ntype      *Node // signature
-	Top        int   // top context (Ecall, Eproc, etc)
-	Closure    *Node // OCLOSURE <-> ODCLFUNC
-	FCurfn     *Node
-	Nname      *Node
+	Shortname    *Node
+	Enter        Nodes // for example, allocate and initialize memory for escaping parameters
+	Exit         Nodes
+	Cvars        Nodes   // closure params
+	Dcl          []*Node // autodcl for this func/closure
+	UnsortedDcls []*Node // autodcl for this func/closure
+	Inldcl       Nodes   // copy of dcl for use in inlining
+	Closgen      int
+	Outerfunc    *Node // outer function (for closure)
+	FieldTrack   map[*Sym]struct{}
+	Ntype        *Node // signature
+	Top          int   // top context (Ecall, Eproc, etc)
+	Closure      *Node // OCLOSURE <-> ODCLFUNC
+	FCurfn       *Node
+	Nname        *Node
 
 	Inl     Nodes // copy of the body for use in inlining
 	InlCost int32
