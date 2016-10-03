@@ -395,6 +395,53 @@ func TestMultiResultSetQuery(t *testing.T) {
 	}
 }
 
+func TestQueryNamedParam(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	prepares0 := numPrepares(t, db)
+	rows, err := db.Query(
+		// Ensure the name and age parameters only match on placeholder name, not position.
+		"SELECT|people|age,name|name=?name,age=?age",
+		Param("?age", 2),
+		Param("?name", "Bob"),
+	)
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	type row struct {
+		age  int
+		name string
+	}
+	got := []row{}
+	for rows.Next() {
+		var r row
+		err = rows.Scan(&r.age, &r.name)
+		if err != nil {
+			t.Fatalf("Scan: %v", err)
+		}
+		got = append(got, r)
+	}
+	err = rows.Err()
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+	want := []row{
+		{age: 2, name: "Bob"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
+	}
+
+	// And verify that the final rows.Next() call, which hit EOF,
+	// also closed the rows connection.
+	if n := db.numFreeConns(); n != 1 {
+		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
+	}
+	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+		t.Errorf("executed %d Prepare statements; want 1", prepares)
+	}
+}
+
 func TestByteOwnership(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)

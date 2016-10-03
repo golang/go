@@ -24,6 +24,16 @@ import (
 //   time.Time
 type Value interface{}
 
+// NamedValue holds both the value name and value.
+// The Ordinal is the position of the parameter starting from one and is always set.
+// If the Name is not empty it should be used for the parameter identifier and
+// not the ordinal position.
+type NamedValue struct {
+	Name    string
+	Ordinal int
+	Value   Value
+}
+
 // Driver is the interface that must be implemented by a database
 // driver.
 type Driver interface {
@@ -71,7 +81,7 @@ type Execer interface {
 // ExecerContext is like execer, but must honor the context timeout and return
 // when the context is cancelled.
 type ExecerContext interface {
-	ExecContext(ctx context.Context, query string, args []Value) (Result, error)
+	ExecContext(ctx context.Context, query string, args []NamedValue) (Result, error)
 }
 
 // Queryer is an optional interface that may be implemented by a Conn.
@@ -88,7 +98,7 @@ type Queryer interface {
 // QueryerContext is like Queryer, but most honor the context timeout and return
 // when the context is cancelled.
 type QueryerContext interface {
-	QueryContext(ctx context.Context, query string, args []Value) (Rows, error)
+	QueryContext(ctx context.Context, query string, args []NamedValue) (Rows, error)
 }
 
 // Conn is a connection to a database. It is not used concurrently
@@ -174,13 +184,13 @@ type Stmt interface {
 // StmtExecContext enhances the Stmt interface by providing Exec with context.
 type StmtExecContext interface {
 	// ExecContext must honor the context timeout and return when it is cancelled.
-	ExecContext(ctx context.Context, args []Value) (Result, error)
+	ExecContext(ctx context.Context, args []NamedValue) (Result, error)
 }
 
 // StmtQueryContext enhances the Stmt interface by providing Query with context.
 type StmtQueryContext interface {
 	// QueryContext must honor the context timeout and return when it is cancelled.
-	QueryContext(ctx context.Context, args []Value) (Rows, error)
+	QueryContext(ctx context.Context, args []NamedValue) (Rows, error)
 }
 
 // ColumnConverter may be optionally implemented by Stmt if the

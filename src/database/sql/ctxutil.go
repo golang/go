@@ -50,9 +50,13 @@ func ctxDriverPrepare(ctx context.Context, ci driver.Conn, query string) (driver
 	}
 }
 
-func ctxDriverExec(ctx context.Context, execer driver.Execer, query string, dargs []driver.Value) (driver.Result, error) {
+func ctxDriverExec(ctx context.Context, execer driver.Execer, query string, nvdargs []driver.NamedValue) (driver.Result, error) {
 	if execerCtx, is := execer.(driver.ExecerContext); is {
-		return execerCtx.ExecContext(ctx, query, dargs)
+		return execerCtx.ExecContext(ctx, query, nvdargs)
+	}
+	dargs, err := namedValueToValue(nvdargs)
+	if err != nil {
+		return nil, err
 	}
 	if ctx.Done() == context.Background().Done() {
 		return execer.Exec(query, dargs)
@@ -90,9 +94,13 @@ func ctxDriverExec(ctx context.Context, execer driver.Execer, query string, darg
 	}
 }
 
-func ctxDriverQuery(ctx context.Context, queryer driver.Queryer, query string, dargs []driver.Value) (driver.Rows, error) {
+func ctxDriverQuery(ctx context.Context, queryer driver.Queryer, query string, nvdargs []driver.NamedValue) (driver.Rows, error) {
 	if queryerCtx, is := queryer.(driver.QueryerContext); is {
-		return queryerCtx.QueryContext(ctx, query, dargs)
+		return queryerCtx.QueryContext(ctx, query, nvdargs)
+	}
+	dargs, err := namedValueToValue(nvdargs)
+	if err != nil {
+		return nil, err
 	}
 	if ctx.Done() == context.Background().Done() {
 		return queryer.Query(query, dargs)
@@ -130,9 +138,13 @@ func ctxDriverQuery(ctx context.Context, queryer driver.Queryer, query string, d
 	}
 }
 
-func ctxDriverStmtExec(ctx context.Context, si driver.Stmt, dargs []driver.Value) (driver.Result, error) {
+func ctxDriverStmtExec(ctx context.Context, si driver.Stmt, nvdargs []driver.NamedValue) (driver.Result, error) {
 	if siCtx, is := si.(driver.StmtExecContext); is {
-		return siCtx.ExecContext(ctx, dargs)
+		return siCtx.ExecContext(ctx, nvdargs)
+	}
+	dargs, err := namedValueToValue(nvdargs)
+	if err != nil {
+		return nil, err
 	}
 	if ctx.Done() == context.Background().Done() {
 		return si.Exec(dargs)
@@ -170,9 +182,13 @@ func ctxDriverStmtExec(ctx context.Context, si driver.Stmt, dargs []driver.Value
 	}
 }
 
-func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, dargs []driver.Value) (driver.Rows, error) {
+func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, nvdargs []driver.NamedValue) (driver.Rows, error) {
 	if siCtx, is := si.(driver.StmtQueryContext); is {
-		return siCtx.QueryContext(ctx, dargs)
+		return siCtx.QueryContext(ctx, nvdargs)
+	}
+	dargs, err := namedValueToValue(nvdargs)
+	if err != nil {
+		return nil, err
 	}
 	if ctx.Done() == context.Background().Done() {
 		return si.Query(dargs)
@@ -252,4 +268,15 @@ func ctxDriverBegin(ctx context.Context, ci driver.Conn) (driver.Tx, error) {
 		}
 		return r.txi, r.err
 	}
+}
+
+func namedValueToValue(named []driver.NamedValue) ([]driver.Value, error) {
+	dargs := make([]driver.Value, len(named))
+	for n, param := range named {
+		if len(param.Name) > 0 {
+			return nil, errors.New("sql: driver does not support the use of Named Parameters")
+		}
+		dargs[n] = param.Value
+	}
+	return dargs, nil
 }

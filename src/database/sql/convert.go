@@ -21,8 +21,8 @@ var errNilPtr = errors.New("destination pointer is nil") // embedded in descript
 // Stmt.Query into driver Values.
 //
 // The statement ds may be nil, if no statement is available.
-func driverArgs(ds *driverStmt, args []interface{}) ([]driver.Value, error) {
-	dargs := make([]driver.Value, len(args))
+func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error) {
+	nvargs := make([]driver.NamedValue, len(args))
 	var si driver.Stmt
 	if ds != nil {
 		si = ds.si
@@ -33,16 +33,27 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.Value, error) {
 	if !ok {
 		for n, arg := range args {
 			var err error
-			dargs[n], err = driver.DefaultParameterConverter.ConvertValue(arg)
+			nvargs[n].Ordinal = n + 1
+			if np, ok := arg.(NamedParam); ok {
+				arg = np.Value
+				nvargs[n].Name = np.Name
+			}
+			nvargs[n].Value, err = driver.DefaultParameterConverter.ConvertValue(arg)
+
 			if err != nil {
 				return nil, fmt.Errorf("sql: converting Exec argument #%d's type: %v", n, err)
 			}
 		}
-		return dargs, nil
+		return nvargs, nil
 	}
 
 	// Let the Stmt convert its own arguments.
 	for n, arg := range args {
+		nvargs[n].Ordinal = n + 1
+		if np, ok := arg.(NamedParam); ok {
+			arg = np.Value
+			nvargs[n].Name = np.Name
+		}
 		// First, see if the value itself knows how to convert
 		// itself to a driver type. For example, a NullString
 		// struct changing into a string or nil.
@@ -66,18 +77,18 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.Value, error) {
 		// same error.
 		var err error
 		ds.Lock()
-		dargs[n], err = cc.ColumnConverter(n).ConvertValue(arg)
+		nvargs[n].Value, err = cc.ColumnConverter(n).ConvertValue(arg)
 		ds.Unlock()
 		if err != nil {
 			return nil, fmt.Errorf("sql: converting argument #%d's type: %v", n, err)
 		}
-		if !driver.IsValue(dargs[n]) {
+		if !driver.IsValue(nvargs[n].Value) {
 			return nil, fmt.Errorf("sql: driver ColumnConverter error converted %T to unsupported type %T",
-				arg, dargs[n])
+				arg, nvargs[n].Value)
 		}
 	}
 
-	return dargs, nil
+	return nvargs, nil
 }
 
 // convertAssign copies to dest the value in src, converting it if possible.

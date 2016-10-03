@@ -67,6 +67,27 @@ func Drivers() []string {
 	return list
 }
 
+// NamedParam may be passed into query parameter arguments to associate
+// a named placeholder with a value.
+type NamedParam struct {
+	// Name of the parameter placeholder. If empty the ordinal position in the
+	// argument list will be used.
+	Name string
+
+	// Value of the parameter. It may be assigned the same value types as
+	// the query arguments.
+	Value interface{}
+}
+
+// Param provides a more concise way to create NamedParam values.
+func Param(name string, value interface{}) NamedParam {
+	// This method exists because the go1compat promise
+	// doesn't guarantee that structs don't grow more fields,
+	// so unkeyed struct literals are a vet error. Thus, we don't
+	// want to encourage sql.NamedParam{name, value}.
+	return NamedParam{Name: name, Value: value}
+}
+
 // RawBytes is a byte slice that holds a reference to memory owned by
 // the database itself. After a Scan into a RawBytes, the slice is only
 // valid until the next call to Next, Scan, or Close.
@@ -1064,7 +1085,7 @@ func (db *DB) exec(ctx context.Context, query string, args []interface{}, strate
 	}()
 
 	if execer, ok := dc.ci.(driver.Execer); ok {
-		var dargs []driver.Value
+		var dargs []driver.NamedValue
 		dargs, err = driverArgs(nil, args)
 		if err != nil {
 			return nil, err
