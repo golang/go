@@ -2239,14 +2239,14 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 	}
 
 	// dst and src have same underlying type.
-	if haveIdenticalUnderlyingType(dst, src) {
+	if haveIdenticalUnderlyingType(dst, src, false) {
 		return cvtDirect
 	}
 
 	// dst and src are unnamed pointer types with same underlying base type.
 	if dst.Kind() == Ptr && dst.Name() == "" &&
 		src.Kind() == Ptr && src.Name() == "" &&
-		haveIdenticalUnderlyingType(dst.Elem().common(), src.Elem().common()) {
+		haveIdenticalUnderlyingType(dst.Elem().common(), src.Elem().common(), false) {
 		return cvtDirect
 	}
 

@@ -3098,6 +3098,9 @@ func ReadWriterV(x io.ReadWriter) Value {
 }
 
 type Empty struct{}
+type MyStruct struct {
+	x int "tag"
+}
 type MyString string
 type MyBytes []byte
 type MyRunes []int32
@@ -3408,6 +3411,35 @@ var convertTests = []struct {
 	{V([]byte{}), V(MyBytes{})},
 	{V((func())(nil)), V(MyFunc(nil))},
 	{V((MyFunc)(nil)), V((func())(nil))},
+
+	// structs with different tags
+	{V(struct {
+		x int "foo"
+	}{}), V(struct {
+		x int "bar"
+	}{})},
+
+	{V(struct {
+		x int "bar"
+	}{}), V(struct {
+		x int "foo"
+	}{})},
+
+	{V(MyStruct{}), V(struct {
+		x int "foo"
+	}{})},
+
+	{V(struct {
+		x int "foo"
+	}{}), V(MyStruct{})},
+
+	{V(MyStruct{}), V(struct {
+		x int "bar"
+	}{})},
+
+	{V(struct {
+		x int "bar"
+	}{}), V(MyStruct{})},
 
 	// can convert *byte and *MyByte
 	{V((*byte)(nil)), V((*MyByte)(nil))},
