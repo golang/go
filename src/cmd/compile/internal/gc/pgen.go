@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"fmt"
@@ -93,6 +94,11 @@ func gvardefx(n *Node, as obj.As) {
 
 	switch n.Class {
 	case PAUTO, PPARAM, PPARAMOUT:
+		if !n.Used {
+			Prog(obj.ANOP)
+			return
+		}
+
 		if as == obj.AVARLIVE {
 			Gins(as, n, nil)
 		} else {
@@ -214,14 +220,11 @@ func (s byStackVar) Len() int           { return len(s) }
 func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
 func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-// TODO(lvd) find out where the PAUTO/OLITERAL nodes come from.
-func allocauto(ptxt *obj.Prog) {
+var scratchFpMem *Node
+
+func (s *ssaExport) AllocFrame(f *ssa.Func) {
 	Stksize = 0
 	stkptrsize = 0
-
-	if len(Curfn.Func.Dcl) == 0 {
-		return
-	}
 
 	// Mark the PAUTO's unused.
 	for _, ln := range Curfn.Func.Dcl {
@@ -230,37 +233,60 @@ func allocauto(ptxt *obj.Prog) {
 		}
 	}
 
-	markautoused(ptxt)
+	for _, l := range f.RegAlloc {
+		if ls, ok := l.(ssa.LocalSlot); ok {
+			ls.N.(*Node).Used = true
+		}
+
+	}
+
+	scratchUsed := false
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			switch a := v.Aux.(type) {
+			case *ssa.ArgSymbol:
+				a.Node.(*Node).Used = true
+			case *ssa.AutoSymbol:
+				a.Node.(*Node).Used = true
+			}
+
+			// TODO(mdempsky): Encode in opcodeTable
+			// whether an Op requires scratch memory.
+			switch v.Op {
+			case ssa.Op386UCOMISS, ssa.Op386UCOMISD,
+				ssa.Op386ADDSS, ssa.Op386SUBSS, ssa.Op386MULSS, ssa.Op386DIVSS,
+				ssa.Op386CVTSD2SS, ssa.Op386CVTSL2SS, ssa.Op386CVTSL2SD, ssa.Op386CVTTSD2SL, ssa.Op386CVTTSS2SL,
+				ssa.OpPPC64Xf2i64, ssa.OpPPC64Xi2f64:
+				scratchUsed = true
+			}
+		}
+	}
+
+	// To satisfy toolstash -cmp, preserve the unsorted
+	// declaration order so we can emit the ATYPE instructions in
+	// the same order.
+	// TODO(mdempsky): Remove in followup CL.
+	Curfn.Func.UnsortedDcls = append([]*Node(nil), Curfn.Func.Dcl...)
+
+	if f.Config.NeedsFpScratch {
+		scratchFpMem = temp(Types[TUINT64])
+		scratchFpMem.Used = scratchUsed
+	}
 
 	sort.Sort(byStackVar(Curfn.Func.Dcl))
 
-	// Unused autos are at the end, chop 'em off.
-	n := Curfn.Func.Dcl[0]
-	if n.Class == PAUTO && n.Op == ONAME && !n.Used {
-		// No locals used at all
-		Curfn.Func.Dcl = nil
-
-		fixautoused(ptxt)
-		return
-	}
-
-	for i := 1; i < len(Curfn.Func.Dcl); i++ {
-		n = Curfn.Func.Dcl[i]
-		if n.Class == PAUTO && n.Op == ONAME && !n.Used {
+	// Reassign stack offsets of the locals that are used.
+	for i, n := range Curfn.Func.Dcl {
+		if n.Op != ONAME || n.Class != PAUTO {
+			continue
+		}
+		if !n.Used {
 			Curfn.Func.Dcl = Curfn.Func.Dcl[:i]
 			break
 		}
-	}
-
-	// Reassign stack offsets of the locals that are still there.
-	var w int64
-	for _, n := range Curfn.Func.Dcl {
-		if n.Class != PAUTO || n.Op != ONAME {
-			continue
-		}
 
 		dowidth(n.Type)
-		w = n.Type.Width
+		w := n.Type.Width
 		if w >= Thearch.MAXWIDTH || w < 0 {
 			Fatalf("bad width")
 		}
@@ -282,8 +308,6 @@ func allocauto(ptxt *obj.Prog) {
 
 	Stksize = Rnd(Stksize, int64(Widthreg))
 	stkptrsize = Rnd(stkptrsize, int64(Widthreg))
-
-	fixautoused(ptxt)
 }
 
 func compile(fn *Node) {
@@ -408,12 +432,22 @@ func compile(fn *Node) {
 		}
 	}
 
-	for _, n := range fn.Func.Dcl {
+	for _, n := range fn.Func.UnsortedDcls {
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
 		}
 		switch n.Class {
-		case PAUTO, PPARAM, PPARAMOUT:
+		case PAUTO:
+			if !n.Used {
+				// Hacks to appease toolstash -cmp.
+				// TODO(mdempsky): Remove in followup CL.
+				pcloc++
+				Pc.Pc++
+				Linksym(ngotype(n))
+				continue
+			}
+			fallthrough
+		case PPARAM, PPARAMOUT:
 			p := Gins(obj.ATYPE, n, nil)
 			p.From.Gotype = Linksym(ngotype(n))
 		}

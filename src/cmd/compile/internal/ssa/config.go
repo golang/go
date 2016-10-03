@@ -117,6 +117,9 @@ type Frontend interface {
 
 	// Line returns a string describing the given line number.
 	Line(int32) string
+
+	// AllocFrame assigns frame offsets to all live auto variables.
+	AllocFrame(f *Func)
 }
 
 // interface used to hold *gc.Node. We'd use *gc.Node directly but

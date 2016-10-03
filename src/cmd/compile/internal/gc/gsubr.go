@@ -75,40 +75,6 @@ func Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset in
 	return q
 }
 
-// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
-func fixautoused(p *obj.Prog) {
-	for lp := &p; ; {
-		p = *lp
-		if p == nil {
-			break
-		}
-		if p.As == obj.ATYPE && p.From.Node != nil && p.From.Name == obj.NAME_AUTO && !((p.From.Node).(*Node)).Used {
-			*lp = p.Link
-			continue
-		}
-
-		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL || p.As == obj.AVARLIVE) && p.To.Node != nil && !((p.To.Node).(*Node)).Used {
-			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
-			// VARDEFs are interspersed with other code, and a jump might be using the
-			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
-			// the no-ops.
-			obj.Nopout(p)
-
-			continue
-		}
-
-		if p.From.Name == obj.NAME_AUTO && p.From.Node != nil {
-			p.From.Offset += p.From.Node.(*Node).Xoffset
-		}
-
-		if p.To.Name == obj.NAME_AUTO && p.To.Node != nil {
-			p.To.Offset += p.To.Node.(*Node).Xoffset
-		}
-
-		lp = &p.Link
-	}
-}
-
 func ggloblnod(nam *Node) {
 	s := Linksym(nam.Sym)
 	s.Gotype = Linksym(ngotype(nam))
@@ -151,23 +117,6 @@ func isfat(t *Type) bool {
 	}
 
 	return false
-}
-
-// Sweep the prog list to mark any used nodes.
-func markautoused(p *obj.Prog) {
-	for ; p != nil; p = p.Link {
-		if p.As == obj.ATYPE || p.As == obj.AVARDEF || p.As == obj.AVARKILL {
-			continue
-		}
-
-		if p.From.Node != nil {
-			((p.From.Node).(*Node)).Used = true
-		}
-
-		if p.To.Node != nil {
-			((p.To.Node).(*Node)).Used = true
-		}
-	}
 }
 
 // Naddr rewrites a to refer to n.
