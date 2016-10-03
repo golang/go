@@ -221,12 +221,16 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 		sigaltstack(nil, &st)
 		if st.ss_flags&_SS_DISABLE != 0 {
 			setg(nil)
-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+			needm(0)
+			noSignalStack(sig)
+			dropm()
 		}
 		stsp := uintptr(unsafe.Pointer(st.ss_sp))
 		if sp < stsp || sp >= stsp+st.ss_size {
 			setg(nil)
-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+			needm(0)
+			sigNotOnStack(sig)
+			dropm()
 		}
 		setGsignalStack(&st)
 		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
@@ -422,7 +426,7 @@ func ensureSigM() {
 
 // This is called when we receive a signal when there is no signal stack.
 // This can only happen if non-Go code calls sigaltstack to disable the
-// signal stack. This is called via cgocallback to establish a stack.
+// signal stack.
 func noSignalStack(sig uint32) {
 	println("signal", sig, "received on thread with no signal stack")
 	throw("non-Go code disabled sigaltstack")
@@ -441,15 +445,13 @@ func sigNotOnStack(sig uint32) {
 //go:norace
 //go:nowritebarrierrec
 func badsignal(sig uintptr, c *sigctxt) {
-	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig)+unsafe.Sizeof(c), 0)
-}
-
-func badsignalgo(sig uintptr, c *sigctxt) {
+	needm(0)
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the
 		// Go code does not want to handle it.
 		raisebadsignal(uint32(sig), c)
 	}
+	dropm()
 }
 
 //go:noescape

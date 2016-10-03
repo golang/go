@@ -287,7 +287,7 @@ func getsig(i uint32) uintptr {
 // setSignaltstackSP sets the ss_sp field of a stackt.
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
-	s.ss_sp = (*byte)(unsafe.Pointer(sp))
+	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
 }
 
 //go:nosplit

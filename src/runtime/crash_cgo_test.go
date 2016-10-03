@@ -319,3 +319,32 @@ func TestRaceProf(t *testing.T) {
 		t.Errorf("expected %q got %s", want, got)
 	}
 }
+
+func TestRaceSignal(t *testing.T) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+
+	testenv.MustHaveGoRun(t)
+
+	// This test requires building various packages with -race, so
+	// it's somewhat slow.
+	if testing.Short() {
+		t.Skip("skipping test in -short mode")
+	}
+
+	exe, err := buildTestProg(t, "testprogcgo", "-race")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := testEnv(exec.Command(exe, "CgoRaceSignal")).CombinedOutput()
+	if err != nil {
+		t.Logf("%s\n", got)
+		t.Fatal(err)
+	}
+	want := "OK\n"
+	if string(got) != want {
+		t.Errorf("expected %q got %s", want, got)
+	}
+}
