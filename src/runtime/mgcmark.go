@@ -1294,6 +1294,13 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 			throw("setCheckmarked and isCheckmarked disagree")
 		}
 	} else {
+		if debug.gccheckmark > 0 && span.isFree(objIndex) {
+			print("runtime: marking free object ", hex(obj), " found at *(", hex(base), "+", hex(off), ")\n")
+			gcDumpObject("base", base, off)
+			gcDumpObject("obj", obj, ^uintptr(0))
+			throw("marking free object")
+		}
+
 		// If marked we have nothing to do.
 		if mbits.isMarked() {
 			return
