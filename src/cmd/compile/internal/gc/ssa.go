@@ -667,7 +667,7 @@ func (s *state) stmt(n *Node) {
 				r = s.expr(rhs)
 			}
 		}
-		if rhs != nil && rhs.Op == OAPPEND {
+		if rhs != nil && rhs.Op == OAPPEND && needwritebarrier(n.Left, rhs) {
 			// The frontend gets rid of the write barrier to enable the special OAPPEND
 			// handling above, but since this is not a special case, we need it.
 			// TODO: just add a ptr graying to the end of growslice?
