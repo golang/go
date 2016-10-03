@@ -274,6 +274,9 @@ func (check *Checker) collectObjects() {
 							check.declare(fileScope, nil, obj, token.NoPos)
 						}
 
+					case *ast.AliasSpec:
+						check.errorf(s.Name.Pos(), "cannot handle alias declarations yet")
+
 					case *ast.ValueSpec:
 						switch d.Tok {
 						case token.CONST:
