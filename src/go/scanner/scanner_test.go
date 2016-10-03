@@ -121,6 +121,7 @@ var tokens = [...]elt{
 	{token.LAND, "&&", operator},
 	{token.LOR, "||", operator},
 	{token.ARROW, "<-", operator},
+	{token.ALIAS, "=>", operator},
 	{token.INC, "++", operator},
 	{token.DEC, "--", operator},
 
