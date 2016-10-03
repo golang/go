@@ -69,18 +69,19 @@ func (x *operand) convertibleTo(conf *Config, T Type) bool {
 		return true
 	}
 
-	// "x's type and T have identical underlying types"
+	// "x's type and T have identical underlying types if tags are ignored"
 	V := x.typ
 	Vu := V.Underlying()
 	Tu := T.Underlying()
-	if Identical(Vu, Tu) {
+	if IdenticalIgnoreTags(Vu, Tu) {
 		return true
 	}
 
-	// "x's type and T are unnamed pointer types and their pointer base types have identical underlying types"
+	// "x's type and T are unnamed pointer types and their pointer base types
+	// have identical underlying types if tags are ignored"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if Identical(V.base.Underlying(), T.base.Underlying()) {
+			if IdenticalIgnoreTags(V.base.Underlying(), T.base.Underlying()) {
 				return true
 			}
 		}
