@@ -111,19 +111,22 @@ func growslice(et *_type, old slice, cap int) slice {
 		}
 	}
 
-	var lenmem, capmem uintptr
+	var lenmem, newlenmem, capmem uintptr
 	const ptrSize = unsafe.Sizeof((*byte)(nil))
 	switch et.size {
 	case 1:
 		lenmem = uintptr(old.len)
+		newlenmem = uintptr(cap)
 		capmem = roundupsize(uintptr(newcap))
 		newcap = int(capmem)
 	case ptrSize:
 		lenmem = uintptr(old.len) * ptrSize
+		newlenmem = uintptr(cap) * ptrSize
 		capmem = roundupsize(uintptr(newcap) * ptrSize)
 		newcap = int(capmem / ptrSize)
 	default:
 		lenmem = uintptr(old.len) * et.size
+		newlenmem = uintptr(cap) * et.size
 		capmem = roundupsize(uintptr(newcap) * et.size)
 		newcap = int(capmem / et.size)
 	}
@@ -136,7 +139,9 @@ func growslice(et *_type, old slice, cap int) slice {
 	if et.kind&kindNoPointers != 0 {
 		p = mallocgc(capmem, nil, false)
 		memmove(p, old.array, lenmem)
-		memclr(add(p, lenmem), capmem-lenmem)
+		// The append() that calls growslice is going to overwrite from old.len to cap (which will be the new length).
+		// Only clear the part that will not be overwritten.
+		memclr(add(p, newlenmem), capmem-newlenmem)
 	} else {
 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
 		p = mallocgc(capmem, et, true)
