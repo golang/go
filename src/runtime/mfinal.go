@@ -182,6 +182,11 @@ func runfinq() {
 				if f.fint == nil {
 					throw("missing type in runfinq")
 				}
+				// frame is effectively uninitialized
+				// memory. That means we have to clear
+				// it before writing to it to avoid
+				// confusing the write barrier.
+				*(*[2]uintptr)(frame) = [2]uintptr{}
 				switch f.fint.kind & kindMask {
 				case kindPtr:
 					// direct use of pointer
