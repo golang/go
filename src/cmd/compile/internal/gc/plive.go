@@ -545,9 +545,9 @@ func isfunny(n *Node) bool {
 // initialized, because any use of a variable must come after its
 // initialization.
 func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarinit bvec) {
-	bvresetall(uevar)
-	bvresetall(varkill)
-	bvresetall(avarinit)
+	uevar.Clear()
+	varkill.Clear()
+	avarinit.Clear()
 
 	// A return instruction with a p.to is a tail return, which brings
 	// the stack pointer back up (if it ever went down) and then jumps
@@ -560,7 +560,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		// See issue 16016.
 		for i, node := range vars {
 			if node.Class == PPARAM {
-				bvset(uevar, int32(i))
+				uevar.Set(int32(i))
 			}
 		}
 	}
@@ -578,7 +578,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 			// non-tail-call return instructions; see note below for details.
 			case PPARAMOUT:
 				if !node.Addrtaken && prog.To.Type == obj.TYPE_NONE {
-					bvset(uevar, int32(i))
+					uevar.Set(int32(i))
 				}
 			}
 		}
@@ -593,9 +593,9 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 			switch node.Class {
 			case PPARAM:
 				if node.Addrtaken {
-					bvset(avarinit, int32(i))
+					avarinit.Set(int32(i))
 				}
-				bvset(varkill, int32(i))
+				varkill.Set(int32(i))
 			}
 		}
 
@@ -610,14 +610,14 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 			n := from.Node.(*Node)
 			if pos := liveIndex(n, vars); pos >= 0 {
 				if n.Addrtaken {
-					bvset(avarinit, pos)
+					avarinit.Set(pos)
 				} else {
 					if info.Flags&(LeftRead|LeftAddr) != 0 {
-						bvset(uevar, pos)
+						uevar.Set(pos)
 					}
 					if info.Flags&LeftWrite != 0 {
 						if !isfat(n.Type) {
-							bvset(varkill, pos)
+							varkill.Set(pos)
 						}
 					}
 				}
@@ -631,9 +631,9 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 			n := from.Node.(*Node)
 			if pos := liveIndex(n, vars); pos >= 0 {
 				if n.Addrtaken {
-					bvset(avarinit, pos)
+					avarinit.Set(pos)
 				} else {
-					bvset(uevar, pos)
+					uevar.Set(pos)
 				}
 			}
 		}
@@ -646,10 +646,10 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 			if pos := liveIndex(n, vars); pos >= 0 {
 				if n.Addrtaken {
 					if prog.As != obj.AVARKILL {
-						bvset(avarinit, pos)
+						avarinit.Set(pos)
 					}
 					if prog.As == obj.AVARDEF || prog.As == obj.AVARKILL {
-						bvset(varkill, pos)
+						varkill.Set(pos)
 					}
 				} else {
 					// RightRead is a read, obviously.
@@ -661,11 +661,11 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 					// having the RightAddr bit set keeps the registerizer from
 					// trying to substitute a register for the memory location.
 					if (info.Flags&RightRead != 0) || info.Flags&(RightAddr|RightWrite) == RightAddr {
-						bvset(uevar, pos)
+						uevar.Set(pos)
 					}
 					if info.Flags&RightWrite != 0 {
 						if !isfat(n.Type) || prog.As == obj.AVARDEF {
-							bvset(varkill, pos)
+							varkill.Set(pos)
 						}
 					}
 				}
@@ -719,14 +719,10 @@ func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node) *Liv
 }
 
 func printeffects(p *obj.Prog, uevar bvec, varkill bvec, avarinit bvec) {
-	fmt.Printf("effects of %v", p)
-	fmt.Printf("\nuevar: ")
-	bvprint(uevar)
-	fmt.Printf("\nvarkill: ")
-	bvprint(varkill)
-	fmt.Printf("\navarinit: ")
-	bvprint(avarinit)
-	fmt.Printf("\n")
+	fmt.Printf("effects of %v\n", p)
+	fmt.Println("uevar:", uevar)
+	fmt.Println("varkill:", varkill)
+	fmt.Println("avarinit:", avarinit)
 }
 
 // Pretty print a variable node. Uses Pascal like conventions for pointers and
@@ -748,7 +744,7 @@ func printnode(node *Node) {
 func printvars(name string, bv bvec, vars []*Node) {
 	fmt.Printf("%s:", name)
 	for i, node := range vars {
-		if bvget(bv, int32(i)) != 0 {
+		if bv.Get(int32(i)) {
 			printnode(node)
 		}
 	}
@@ -786,8 +782,7 @@ func livenessprintblock(lv *Liveness, bb *BasicBlock) {
 		if prog.As == obj.APCDATA && prog.From.Offset == obj.PCDATA_StackMapIndex {
 			pos := int32(prog.To.Offset)
 			live := lv.livepointers[pos]
-			fmt.Printf(" ")
-			bvprint(live)
+			fmt.Printf(" %s", live.String())
 		}
 
 		fmt.Printf("\n")
@@ -913,7 +908,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv bvec) {
 		if *xoffset&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer
+		bv.Set(int32(*xoffset / int64(Widthptr))) // pointer
 		*xoffset += t.Width
 
 	case TSTRING:
@@ -921,7 +916,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv bvec) {
 		if *xoffset&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bvset(bv, int32(*xoffset/int64(Widthptr))) //pointer in first slot
+		bv.Set(int32(*xoffset / int64(Widthptr))) //pointer in first slot
 		*xoffset += t.Width
 
 	case TINTER:
@@ -931,8 +926,8 @@ func onebitwalktype1(t *Type, xoffset *int64, bv bvec) {
 		if *xoffset&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
 		}
-		bvset(bv, int32(*xoffset/int64(Widthptr)))   // pointer in first slot
-		bvset(bv, int32(*xoffset/int64(Widthptr)+1)) // pointer in second slot
+		bv.Set(int32(*xoffset / int64(Widthptr)))   // pointer in first slot
+		bv.Set(int32(*xoffset/int64(Widthptr) + 1)) // pointer in second slot
 		*xoffset += t.Width
 
 	case TSLICE:
@@ -940,7 +935,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv bvec) {
 		if *xoffset&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
 		}
-		bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
+		bv.Set(int32(*xoffset / int64(Widthptr))) // pointer in first slot (BitsPointer)
 		*xoffset += t.Width
 
 	case TARRAY:
@@ -981,7 +976,7 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
 	var xoffset int64
 
 	for i := int32(0); ; i++ {
-		i = bvnext(liveout, i)
+		i = liveout.Next(i)
 		if i < 0 {
 			break
 		}
@@ -1040,22 +1035,22 @@ func livenessprologue(lv *Liveness) {
 			if debuglive >= 3 {
 				printeffects(p, uevar, varkill, avarinit)
 			}
-			bvor(bb.varkill, bb.varkill, varkill)
-			bvandnot(bb.uevar, bb.uevar, varkill)
-			bvor(bb.uevar, bb.uevar, uevar)
+			bb.varkill.Or(bb.varkill, varkill)
+			bb.uevar.AndNot(bb.uevar, varkill)
+			bb.uevar.Or(bb.uevar, uevar)
 		}
 
 		// Walk the block instructions forward to update avarinit bits.
 		// avarinit describes the effect at the end of the block, not the beginning.
-		bvresetall(varkill)
+		varkill.Clear()
 
 		for p := bb.first; ; p = p.Link {
 			progeffects(p, lv.vars, uevar, varkill, avarinit)
 			if debuglive >= 3 {
 				printeffects(p, uevar, varkill, avarinit)
 			}
-			bvandnot(bb.avarinit, bb.avarinit, varkill)
-			bvor(bb.avarinit, bb.avarinit, avarinit)
+			bb.avarinit.AndNot(bb.avarinit, varkill)
+			bb.avarinit.Or(bb.avarinit, avarinit)
 			if p == bb.last {
 				break
 			}
@@ -1078,41 +1073,41 @@ func livenesssolve(lv *Liveness) {
 	// avarinitany says the addressed var is initialized along some path reaching the block exit.
 	for i, bb := range lv.cfg {
 		if i == 0 {
-			bvcopy(bb.avarinitall, bb.avarinit)
+			bb.avarinitall.Copy(bb.avarinit)
 		} else {
-			bvresetall(bb.avarinitall)
-			bvnot(bb.avarinitall)
+			bb.avarinitall.Clear()
+			bb.avarinitall.Not()
 		}
-		bvcopy(bb.avarinitany, bb.avarinit)
+		bb.avarinitany.Copy(bb.avarinit)
 	}
 
 	for change := true; change; {
 		change = false
 		for _, bb := range lv.cfg {
-			bvresetall(any)
-			bvresetall(all)
+			any.Clear()
+			all.Clear()
 			for j, pred := range bb.pred {
 				if j == 0 {
-					bvcopy(any, pred.avarinitany)
-					bvcopy(all, pred.avarinitall)
+					any.Copy(pred.avarinitany)
+					all.Copy(pred.avarinitall)
 				} else {
-					bvor(any, any, pred.avarinitany)
-					bvand(all, all, pred.avarinitall)
+					any.Or(any, pred.avarinitany)
+					all.And(all, pred.avarinitall)
 				}
 			}
 
-			bvandnot(any, any, bb.varkill)
-			bvandnot(all, all, bb.varkill)
-			bvor(any, any, bb.avarinit)
-			bvor(all, all, bb.avarinit)
-			if !bveq(any, bb.avarinitany) {
+			any.AndNot(any, bb.varkill)
+			all.AndNot(all, bb.varkill)
+			any.Or(any, bb.avarinit)
+			all.Or(all, bb.avarinit)
+			if !any.Eq(bb.avarinitany) {
 				change = true
-				bvcopy(bb.avarinitany, any)
+				bb.avarinitany.Copy(any)
 			}
 
-			if !bveq(all, bb.avarinitall) {
+			if !all.Eq(bb.avarinitall) {
 				change = true
-				bvcopy(bb.avarinitall, all)
+				bb.avarinitall.Copy(all)
 			}
 		}
 	}
@@ -1133,14 +1128,14 @@ func livenesssolve(lv *Liveness) {
 			// if it is live on input to some successor.
 			//
 			// out[b] = \bigcup_{s \in succ[b]} in[s]
-			bvresetall(newliveout)
+			newliveout.Clear()
 			for _, succ := range bb.succ {
-				bvor(newliveout, newliveout, succ.livein)
+				newliveout.Or(newliveout, succ.livein)
 			}
 
-			if !bveq(bb.liveout, newliveout) {
+			if !bb.liveout.Eq(newliveout) {
 				change = true
-				bvcopy(bb.liveout, newliveout)
+				bb.liveout.Copy(newliveout)
 			}
 
 			// A variable is live on input to this block
@@ -1148,9 +1143,9 @@ func livenesssolve(lv *Liveness) {
 			// not set by the code in this block.
 			//
 			// in[b] = uevar[b] \cup (out[b] \setminus varkill[b])
-			bvandnot(newlivein, bb.liveout, bb.varkill)
+			newlivein.AndNot(bb.liveout, bb.varkill)
 
-			bvor(bb.livein, newlivein, bb.uevar)
+			bb.livein.Or(newlivein, bb.uevar)
 		}
 	}
 }
@@ -1161,14 +1156,14 @@ func islive(n *Node, args bvec, locals bvec) bool {
 	switch n.Class {
 	case PPARAM, PPARAMOUT:
 		for i := 0; int64(i) < n.Type.Width/int64(Widthptr); i++ {
-			if bvget(args, int32(n.Xoffset/int64(Widthptr)+int64(i))) != 0 {
+			if args.Get(int32(n.Xoffset/int64(Widthptr) + int64(i))) {
 				return true
 			}
 		}
 
 	case PAUTO:
 		for i := 0; int64(i) < n.Type.Width/int64(Widthptr); i++ {
-			if bvget(locals, int32((n.Xoffset+stkptrsize)/int64(Widthptr)+int64(i))) != 0 {
+			if locals.Get(int32((n.Xoffset+stkptrsize)/int64(Widthptr) + int64(i))) {
 				return true
 			}
 		}
@@ -1208,17 +1203,17 @@ func livenessepilogue(lv *Liveness) {
 		// Compute avarinitany and avarinitall for entry to block.
 		// This duplicates information known during livenesssolve
 		// but avoids storing two more vectors for each block.
-		bvresetall(any)
+		any.Clear()
 
-		bvresetall(all)
+		all.Clear()
 		for j := 0; j < len(bb.pred); j++ {
 			pred := bb.pred[j]
 			if j == 0 {
-				bvcopy(any, pred.avarinitany)
-				bvcopy(all, pred.avarinitall)
+				any.Copy(pred.avarinitany)
+				all.Copy(pred.avarinitall)
 			} else {
-				bvor(any, any, pred.avarinitany)
-				bvand(all, all, pred.avarinitall)
+				any.Or(any, pred.avarinitany)
+				all.And(all, pred.avarinitall)
 			}
 		}
 
@@ -1227,24 +1222,24 @@ func livenessepilogue(lv *Liveness) {
 		// Seed the maps with information about the addrtaken variables.
 		for p := bb.first; ; p = p.Link {
 			progeffects(p, lv.vars, uevar, varkill, avarinit)
-			bvandnot(any, any, varkill)
-			bvandnot(all, all, varkill)
-			bvor(any, any, avarinit)
-			bvor(all, all, avarinit)
+			any.AndNot(any, varkill)
+			all.AndNot(all, varkill)
+			any.Or(any, avarinit)
+			all.Or(all, avarinit)
 
 			if issafepoint(p) {
 				// Annotate ambiguously live variables so that they can
 				// be zeroed at function entry.
 				// livein and liveout are dead here and used as temporaries.
-				bvresetall(livein)
+				livein.Clear()
 
-				bvandnot(liveout, any, all)
-				if !bvisempty(liveout) {
+				liveout.AndNot(any, all)
+				if !liveout.IsEmpty() {
 					for pos := int32(0); pos < liveout.n; pos++ {
-						if bvget(liveout, pos) == 0 {
+						if !liveout.Get(pos) {
 							continue
 						}
-						bvset(all, pos) // silence future warnings in this block
+						all.Set(pos) // silence future warnings in this block
 						n := lv.vars[pos]
 						if !n.Name.Needzero {
 							n.Name.Needzero = true
@@ -1307,7 +1302,7 @@ func livenessepilogue(lv *Liveness) {
 			Fatalf("livenessepilogue")
 		}
 
-		bvcopy(livein, bb.liveout)
+		livein.Copy(bb.liveout)
 		var next *obj.Prog
 		for p := bb.last; p != nil; p = next {
 			next = p.Opt.(*obj.Prog) // splicebefore modifies p.opt
@@ -1315,9 +1310,9 @@ func livenessepilogue(lv *Liveness) {
 			// Propagate liveness information
 			progeffects(p, lv.vars, uevar, varkill, avarinit)
 
-			bvcopy(liveout, livein)
-			bvandnot(livein, liveout, varkill)
-			bvor(livein, livein, uevar)
+			liveout.Copy(livein)
+			livein.AndNot(liveout, varkill)
+			livein.Or(livein, uevar)
 			if debuglive >= 3 && issafepoint(p) {
 				fmt.Printf("%v\n", p)
 				printvars("uevar", uevar, lv.vars)
@@ -1335,7 +1330,7 @@ func livenessepilogue(lv *Liveness) {
 				// input parameters.
 				if p.As == obj.ATEXT {
 					for j := int32(0); j < liveout.n; j++ {
-						if bvget(liveout, j) == 0 {
+						if !liveout.Get(j) {
 							continue
 						}
 						n := lv.vars[j]
@@ -1353,7 +1348,7 @@ func livenessepilogue(lv *Liveness) {
 
 				// Mark pparamout variables (as described above)
 				if p.As == obj.ACALL {
-					bvor(locals, locals, pparamout)
+					locals.Or(locals, pparamout)
 				}
 
 				// Show live pointer bitmaps.
@@ -1505,7 +1500,7 @@ func livenesscompact(lv *Liveness) {
 			}
 			jlocal := lv.livepointers[j]
 			jarg := lv.argslivepointers[j]
-			if bveq(local, jlocal) && bveq(arg, jarg) {
+			if local.Eq(jlocal) && arg.Eq(jarg) {
 				remap[i] = j
 				goto Next
 			}
@@ -1548,7 +1543,7 @@ func livenesscompact(lv *Liveness) {
 func printbitset(printed bool, name string, vars []*Node, bits bvec) bool {
 	started := false
 	for i, n := range vars {
-		if bvget(bits, int32(i)) == 0 {
+		if !bits.Get(int32(i)) {
 			continue
 		}
 		if !started {

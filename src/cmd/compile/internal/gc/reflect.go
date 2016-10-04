@@ -1639,7 +1639,7 @@ func fillptrmask(t *Type, ptrmask []byte) {
 
 	nptr := typeptrdata(t) / int64(Widthptr)
 	for i := int64(0); i < nptr; i++ {
-		if bvget(vec, int32(i)) == 1 {
+		if vec.Get(int32(i)) {
 			ptrmask[i/8] |= 1 << (uint(i) % 8)
 		}
 	}
