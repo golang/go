@@ -131,8 +131,8 @@ func buildssa(fn *Node) *ssa.Func {
 	}
 
 	// Convert the AST-based IR to the SSA-based IR
-	s.stmts(fn.Func.Enter)
-	s.stmts(fn.Nbody)
+	s.stmtList(fn.Func.Enter)
+	s.stmtList(fn.Nbody)
 
 	// fallthrough to exit
 	if s.curBlock != nil {
@@ -481,20 +481,14 @@ func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
 	return s.constInt32(t, int32(c))
 }
 
-func (s *state) stmts(a Nodes) {
-	for _, x := range a.Slice() {
-		s.stmt(x)
-	}
-}
-
-// ssaStmtList converts the statement n to SSA and adds it to s.
+// stmtList converts the statement list n to SSA and adds it to s.
 func (s *state) stmtList(l Nodes) {
 	for _, n := range l.Slice() {
 		s.stmt(n)
 	}
 }
 
-// ssaStmt converts the statement n to SSA and adds it to s.
+// stmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n *Node) {
 	s.pushLine(n.Lineno)
 	defer s.popLine()
@@ -737,7 +731,7 @@ func (s *state) stmt(n *Node) {
 		}
 
 		s.startBlock(bThen)
-		s.stmts(n.Nbody)
+		s.stmtList(n.Nbody)
 		if b := s.endBlock(); b != nil {
 			b.AddEdgeTo(bEnd)
 		}
@@ -847,7 +841,7 @@ func (s *state) stmt(n *Node) {
 
 		// generate body
 		s.startBlock(bBody)
-		s.stmts(n.Nbody)
+		s.stmtList(n.Nbody)
 
 		// tear down continue/break
 		s.continueTo = prevContinue
@@ -886,7 +880,7 @@ func (s *state) stmt(n *Node) {
 		}
 
 		// generate body code
-		s.stmts(n.Nbody)
+		s.stmtList(n.Nbody)
 
 		s.breakTo = prevBreak
 		if lab != nil {
@@ -940,7 +934,7 @@ func (s *state) exit() *ssa.Block {
 
 	// Run exit code. Typically, this code copies heap-allocated PPARAMOUT
 	// variables back to the stack.
-	s.stmts(s.exitCode)
+	s.stmtList(s.exitCode)
 
 	// Store SSAable PPARAMOUT variables back to stack locations.
 	for _, n := range s.returns {
