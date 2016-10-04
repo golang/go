@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	cmpDepth = 4
+	cmpDepth = 1
 )
 
 // cse does common-subexpression elimination on the Function.
