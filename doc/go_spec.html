@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 19, 2016",
+	"Subtitle": "Version of October 27, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -1726,8 +1726,12 @@ the left is bound to the value of the <i>n</i>th expression on the
 right.
 </p>
 
+<p>
+For constant <i>aliases</i>, see the section on <a href="#Alias_declarations">alias declarations</a>.
+</p>
+
 <pre class="ebnf">
-ConstDecl      = "const" ( ConstSpec | "(" { ConstSpec ";" } ")" ) .
+ConstDecl      = "const" ( ConstSpec | AliasSpec | "(" { ( ConstSpec | AliasSpec ) ";" } ")" ) .
 ConstSpec      = IdentifierList [ [ Type ] "=" ExpressionList ] .
 
 IdentifierList = identifier { "," identifier } .
@@ -1846,8 +1850,12 @@ and operations defined for the existing type are also defined for the new type.
 The new type is <a href="#Type_identity">different</a> from the existing type.
 </p>
 
+<p>
+For type <i>aliases</i>, see the section on <a href="#Alias_declarations">alias declarations</a>.
+</p>
+
 <pre class="ebnf">
-TypeDecl     = "type" ( TypeSpec | "(" { TypeSpec ";" } ")" ) .
+TypeDecl     = "type" ( TypeSpec | AliasSpec | "(" { ( TypeSpec | AliasSpec ) ";" } ")" ) .
 TypeSpec     = identifier Type .
 </pre>
 
@@ -1928,8 +1936,12 @@ A variable declaration creates one or more variables, binds corresponding
 identifiers to them, and gives each a type and an initial value.
 </p>
 
+<p>
+For variable <i>aliases</i>, see the section on <a href="#Alias_declarations">alias declarations</a>.
+</p>
+
 <pre class="ebnf">
-VarDecl     = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
+VarDecl     = "var" ( VarSpec | AliasSpec | "(" { ( VarSpec | AliasSpec ) ";" } ")" ) .
 VarSpec     = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
 </pre>
 
@@ -1976,6 +1988,7 @@ inside a <a href="#Function_declarations">function body</a> if the variable is
 never used.
 </p>
 
+
 <h3 id="Short_variable_declarations">Short variable declarations</h3>
 
 <p>
@@ -2006,7 +2019,7 @@ _, y, _ := coord(p)  // coord() returns three values; only interested in y coord
 <p>
 Unlike regular variable declarations, a short variable declaration may <i>redeclare</i>
 variables provided they were originally declared earlier in the same block
-(or the parameter lists if the block is the function body) with the same type, 
+(or the parameter lists if the block is the function body) with the same type,
 and at least one of the non-<a href="#Blank_identifier">blank</a> variables is new.
 As a consequence, redeclaration can only appear in a multi-variable short declaration.
 Redeclaration does not introduce a new variable; it just assigns a new value to the original.
@@ -2034,8 +2047,12 @@ A function declaration binds an identifier, the <i>function name</i>,
 to a function.
 </p>
 
+<p>
+For function <i>aliases</i>, see the section on <a href="#Alias_declarations">alias declarations</a>.
+</p>
+
 <pre class="ebnf">
-FunctionDecl = "func" FunctionName ( Function | Signature ) .
+FunctionDecl = "func" ( FunctionName ( Function | Signature ) ) | AliasSpec .
 FunctionName = identifier .
 Function     = Signature FunctionBody .
 FunctionBody = Block .
@@ -2145,6 +2162,52 @@ func(p *Point, factor float64)
 
 <p>
 However, a function declared this way is not a method.
+</p>
+
+
+<h3 id="Alias_declarations">Alias declarations</h3>
+
+<p>
+An alias declaration binds an identifier, the <i>alias</i>, to a
+<a href="#Constant_declarations">constant</a>,
+<a href="#Type_declarations">type</a>,
+<a href="#Variable_declarations">variable</a>, or
+<a href="#Function_declarations">function</a>
+denoted by a <a href="#Qualified_identifiers">qualified identifier</a> and
+declared in a different package.
+</p>
+
+<pre class="ebnf">
+AliasSpec = identifier "=&gt;" QualifiedIdent .
+</pre>
+
+<p>
+The effect of referring to a constant, type, variable, or function by an alias
+is indistinguishable from referring to it by its original name.
+For example, the type denoted by a type alias and the aliased type are
+<a href="#Type_identity">identical</a>.
+</p>
+
+<p>
+An alias declaration may appear only as a form of constant, type, variable,
+or function declaration at the package level, and the aliased entity must be
+a constant, type, variable, or function respectively. Alias declarations inside
+functions are not permitted.
+</p>
+
+<pre>
+const (
+	G  =  6.67408e-11      // regular and alias declarations may be grouped
+	Pi =&gt; math.Pi          // same effect as: Pi = math.Pi
+)
+
+type Struct =&gt; types.Struct    // re-export of types.Struct
+
+func sin =&gt; math.Sin           // non-exported shortcut for frequently used function
+</pre>
+
+<p>
+An alias declaration may not refer to package <a href="#Package_unsafe">unsafe</a>.
 </p>
 
 
