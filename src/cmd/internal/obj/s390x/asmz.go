@@ -162,10 +162,9 @@ var optab = []Optab{
 	Optab{AAND, C_REG, C_NONE, C_NONE, C_REG, 6, 0},
 	Optab{AAND, C_LCON, C_NONE, C_NONE, C_REG, 23, 0},
 	Optab{AAND, C_LCON, C_REG, C_NONE, C_REG, 23, 0},
-	Optab{AOR, C_REG, C_REG, C_NONE, C_REG, 6, 0},
-	Optab{AOR, C_REG, C_NONE, C_NONE, C_REG, 6, 0},
-	Optab{AOR, C_LCON, C_NONE, C_NONE, C_REG, 23, 0},
-	Optab{AOR, C_LCON, C_REG, C_NONE, C_REG, 23, 0},
+	Optab{AANDW, C_REG, C_REG, C_NONE, C_REG, 6, 0},
+	Optab{AANDW, C_REG, C_NONE, C_NONE, C_REG, 6, 0},
+	Optab{AANDW, C_LCON, C_NONE, C_NONE, C_REG, 24, 0},
 	Optab{ASLD, C_REG, C_NONE, C_NONE, C_REG, 7, 0},
 	Optab{ASLD, C_REG, C_REG, C_NONE, C_REG, 7, 0},
 	Optab{ASLD, C_SCON, C_REG, C_NONE, C_REG, 7, 0},
@@ -393,7 +392,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym) {
 	ctxt.Cursym = cursym
 	ctxt.Autosize = int32(p.To.Offset)
 
-	if oprange[AANDN&obj.AMask] == nil {
+	if oprange[AORW&obj.AMask] == nil {
 		buildop(ctxt)
 	}
 
@@ -838,11 +837,6 @@ func buildop(ctxt *obj.Link) {
 			opset(ASTMY, r)
 		case ALMG:
 			opset(ALMY, r)
-		case AAND:
-			opset(AANDN, r)
-			opset(ANAND, r)
-			opset(ANOR, r)
-			opset(AORN, r)
 		case AADDME:
 			opset(AADDZE, r)
 			opset(ASUBME, r)
@@ -888,8 +882,12 @@ func buildop(ctxt *obj.Link) {
 		case AFCMPO:
 			opset(AFCMPU, r)
 			opset(ACEBR, r)
-		case AOR:
+		case AAND:
+			opset(AOR, r)
 			opset(AXOR, r)
+		case AANDW:
+			opset(AORW, r)
+			opset(AXORW, r)
 		case ASLD:
 			opset(ASRD, r)
 			opset(ASLW, r)
@@ -2767,74 +2765,35 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 		zI(op_SVC, 0, asm)
 
 	case 6: // logical op reg [reg] reg
-		if p.To.Reg == 0 {
-			ctxt.Diag("literal operation on R0\n%v", p)
-		}
-
+		var oprr, oprre, oprrf uint32
 		switch p.As {
-		case AAND, AOR, AXOR:
-			var opcode1, opcode2 uint32
-			switch p.As {
-			default:
-			case AAND:
-				opcode1 = op_NGR
-				opcode2 = op_NGRK
-			case AOR:
-				opcode1 = op_OGR
-				opcode2 = op_OGRK
-			case AXOR:
-				opcode1 = op_XGR
-				opcode2 = op_XGRK
-			}
-
-			r := int(p.Reg)
-			if r == 0 {
-				zRRE(opcode1, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+		case AAND:
+			oprre = op_NGR
+			oprrf = op_NGRK
+		case AANDW:
+			oprr = op_NR
+			oprrf = op_NRK
+		case AOR:
+			oprre = op_OGR
+			oprrf = op_OGRK
+		case AORW:
+			oprr = op_OR
+			oprrf = op_ORK
+		case AXOR:
+			oprre = op_XGR
+			oprrf = op_XGRK
+		case AXORW:
+			oprr = op_XR
+			oprrf = op_XRK
+		}
+		if p.Reg == 0 {
+			if oprr != 0 {
+				zRR(oprr, uint32(p.To.Reg), uint32(p.From.Reg), asm)
 			} else {
-				zRRF(opcode2, uint32(r), 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+				zRRE(oprre, uint32(p.To.Reg), uint32(p.From.Reg), asm)
 			}
-
-		case AANDN, AORN:
-			var opcode1, opcode2 uint32
-			switch p.As {
-			default:
-			case AANDN:
-				opcode1 = op_NGR
-				opcode2 = op_NGRK
-			case AORN:
-				opcode1 = op_OGR
-				opcode2 = op_OGRK
-			}
-
-			r := int(p.Reg)
-			if r == 0 {
-				zRRE(op_LCGR, uint32(p.To.Reg), uint32(p.To.Reg), asm)
-				zRRE(opcode1, uint32(p.To.Reg), uint32(p.From.Reg), asm)
-			} else {
-				zRRE(op_LCGR, REGTMP, uint32(r), asm)
-				zRRF(opcode2, REGTMP, 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
-			}
-
-		case ANAND, ANOR:
-			var opcode1, opcode2 uint32
-			switch p.As {
-			default:
-			case ANAND:
-				opcode1 = op_NGR
-				opcode2 = op_NGRK
-			case ANOR:
-				opcode1 = op_OGR
-				opcode2 = op_OGRK
-			}
-
-			r := int(p.Reg)
-			if r == 0 {
-				zRRE(opcode1, uint32(p.To.Reg), uint32(p.From.Reg), asm)
-			} else {
-				zRRF(opcode2, uint32(r), 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
-			}
-
-			zRRE(op_LCGR, uint32(p.To.Reg), uint32(p.To.Reg), asm)
+		} else {
+			zRRF(oprrf, uint32(p.Reg), 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
 		}
 
 	case 7: // shift/rotate reg [reg] reg
@@ -3043,7 +3002,8 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 			zRIE(_d, oprie, uint32(p.To.Reg), uint32(r), uint32(v), 0, 0, 0, 0, asm)
 		}
 
-	case 23: // logical op $constant [reg] reg
+	case 23: // 64-bit logical op $constant [reg] reg
+		// TODO(mundaym): remove the optional register and merge with case 24.
 		v := vregoff(ctxt, &p.From)
 		var opcode uint32
 		r := p.Reg
@@ -3093,6 +3053,29 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 			}
 			zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
 			zRRF(opcode, uint32(r), 0, uint32(p.To.Reg), REGTMP, asm)
+		}
+
+	case 24: // 32-bit logical op $constant reg
+		v := vregoff(ctxt, &p.From)
+		switch p.As {
+		case AANDW:
+			if uint32(v&0xffff0000) == 0xffff0000 {
+				zRI(op_NILL, uint32(p.To.Reg), uint32(v), asm)
+			} else if uint32(v&0x0000ffff) == 0x0000ffff {
+				zRI(op_NILH, uint32(p.To.Reg), uint32(v)>>16, asm)
+			} else {
+				zRIL(_a, op_NILF, uint32(p.To.Reg), uint32(v), asm)
+			}
+		case AORW:
+			if uint32(v&0xffff0000) == 0 {
+				zRI(op_OILL, uint32(p.To.Reg), uint32(v), asm)
+			} else if uint32(v&0x0000ffff) == 0 {
+				zRI(op_OILH, uint32(p.To.Reg), uint32(v)>>16, asm)
+			} else {
+				zRIL(_a, op_OILF, uint32(p.To.Reg), uint32(v), asm)
+			}
+		case AXORW:
+			zRIL(_a, op_XILF, uint32(p.To.Reg), uint32(v), asm)
 		}
 
 	case 26: // MOVD $offset(base)(index), reg
