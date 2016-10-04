@@ -636,7 +636,7 @@ func (me *mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 			e.error(&MarshalerError{v.Type(), err})
 		}
 	}
-	sort.Sort(byString(sv))
+	sort.Slice(sv, func(i, j int) bool { return sv[i].s < sv[j].s })
 
 	for i, kv := range sv {
 		if i > 0 {
@@ -835,15 +835,6 @@ func (w *reflectWithString) resolve() error {
 	panic("unexpected map key type")
 }
 
-// byString is a slice of reflectWithString where the reflect.Value is either
-// a string or an encoding.TextMarshaler.
-// It implements the methods to sort by string.
-type byString []reflectWithString
-
-func (sv byString) Len() int           { return len(sv) }
-func (sv byString) Swap(i, j int)      { sv[i], sv[j] = sv[j], sv[i] }
-func (sv byString) Less(i, j int) bool { return sv[i].s < sv[j].s }
-
 // NOTE: keep in sync with stringBytes below.
 func (e *encodeState) string(s string, escapeHTML bool) int {
 	len0 := e.Len()
@@ -1017,28 +1008,6 @@ func fillField(f field) field {
 	return f
 }
 
-// byName sorts field by name, breaking ties with depth,
-// then breaking ties with "name came from json tag", then
-// breaking ties with index sequence.
-type byName []field
-
-func (x byName) Len() int { return len(x) }
-
-func (x byName) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-
-func (x byName) Less(i, j int) bool {
-	if x[i].name != x[j].name {
-		return x[i].name < x[j].name
-	}
-	if len(x[i].index) != len(x[j].index) {
-		return len(x[i].index) < len(x[j].index)
-	}
-	if x[i].tag != x[j].tag {
-		return x[i].tag
-	}
-	return byIndex(x).Less(i, j)
-}
-
 // byIndex sorts field by index sequence.
 type byIndex []field
 
@@ -1156,7 +1125,22 @@ func typeFields(t reflect.Type) []field {
 		}
 	}
 
-	sort.Sort(byName(fields))
+	sort.Slice(fields, func(i, j int) bool {
+		x := fields
+		// sort field by name, breaking ties with depth, then
+		// breaking ties with "name came from json tag", then
+		// breaking ties with index sequence.
+		if x[i].name != x[j].name {
+			return x[i].name < x[j].name
+		}
+		if len(x[i].index) != len(x[j].index) {
+			return len(x[i].index) < len(x[j].index)
+		}
+		if x[i].tag != x[j].tag {
+			return x[i].tag
+		}
+		return byIndex(x).Less(i, j)
+	})
 
 	// Delete all fields that are hidden by the Go rules for embedded fields,
 	// except that fields with JSON tags are promoted.
