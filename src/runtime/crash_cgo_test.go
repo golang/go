@@ -311,6 +311,10 @@ func TestCgoPprofThread(t *testing.T) {
 	testCgoPprof(t, "", "CgoPprofThread")
 }
 
+func TestCgoPprofThreadNoTraceback(t *testing.T) {
+	testCgoPprof(t, "", "CgoPprofThreadNoTraceback")
+}
+
 func TestRaceProf(t *testing.T) {
 	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)

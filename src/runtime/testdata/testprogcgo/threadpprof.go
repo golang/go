@@ -80,11 +80,19 @@ import (
 
 func init() {
 	register("CgoPprofThread", CgoPprofThread)
+	register("CgoPprofThreadNoTraceback", CgoPprofThreadNoTraceback)
 }
 
 func CgoPprofThread() {
 	runtime.SetCgoTraceback(0, unsafe.Pointer(C.pprofCgoThreadTraceback), nil, nil)
+	pprofThread()
+}
 
+func CgoPprofThreadNoTraceback() {
+	pprofThread()
+}
+
+func pprofThread() {
 	f, err := ioutil.TempFile("", "prof")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

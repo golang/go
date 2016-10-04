@@ -3194,7 +3194,8 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 var sigprofCallers cgoCallers
 var sigprofCallersUse uint32
 
-// Called if we receive a SIGPROF signal on a non-Go thread.
+// sigprofNonGo is called if we receive a SIGPROF signal on a non-Go thread,
+// and the signal handler collected a stack trace in sigprofCallers.
 // When this is called, sigprofCallersUse will be non-zero.
 // g is nil, and what we can do is very limited.
 //go:nosplit
@@ -3207,15 +3208,39 @@ func sigprofNonGo() {
 		}
 
 		// Simple cas-lock to coordinate with setcpuprofilerate.
-		if atomic.Cas(&prof.lock, 0, 1) {
-			if prof.hz != 0 {
-				cpuprof.addNonGo(sigprofCallers[:n])
-			}
-			atomic.Store(&prof.lock, 0)
+		for !atomic.Cas(&prof.lock, 0, 1) {
+			osyield()
 		}
+		if prof.hz != 0 {
+			cpuprof.addNonGo(sigprofCallers[:n])
+		}
+		atomic.Store(&prof.lock, 0)
 	}
 
 	atomic.Store(&sigprofCallersUse, 0)
+}
+
+// sigprofNonGoPC is called when a profiling signal arrived on a
+// non-Go thread and we have a single PC value, not a stack trace.
+// g is nil, and what we can do is very limited.
+//go:nosplit
+//go:nowritebarrierrec
+func sigprofNonGoPC(pc uintptr) {
+	if prof.hz != 0 {
+		pc := []uintptr{
+			pc,
+			funcPC(_ExternalCode) + sys.PCQuantum,
+		}
+
+		// Simple cas-lock to coordinate with setcpuprofilerate.
+		for !atomic.Cas(&prof.lock, 0, 1) {
+			osyield()
+		}
+		if prof.hz != 0 {
+			cpuprof.addNonGo(pc)
+		}
+		atomic.Store(&prof.lock, 0)
+	}
 }
 
 // Reports whether a function will set the SP
