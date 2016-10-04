@@ -54,8 +54,13 @@ type mheap struct {
 	// For free spans, only the lowest and highest pages map to the span itself.
 	// Internal pages map to an arbitrary span.
 	// For pages that have never been allocated, spans entries are nil.
-	spans        []*mspan
-	spans_mapped uintptr // bytes mapped starting at &spans[0]
+	//
+	// This is backed by a reserved region of the address space so
+	// it can grow without moving. The memory up to len(spans) is
+	// mapped. cap(spans) indicates the total reserved memory.
+	spans []*mspan
+
+	_ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	pagesInUse        uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
@@ -406,7 +411,7 @@ func (h *mheap) init(spansStart, spansBytes uintptr) {
 
 	sp := (*slice)(unsafe.Pointer(&h.spans))
 	sp.array = unsafe.Pointer(spansStart)
-	sp.len = int(spansBytes / sys.PtrSize)
+	sp.len = 0
 	sp.cap = int(spansBytes / sys.PtrSize)
 }
 
@@ -424,11 +429,13 @@ func (h *mheap) mapSpans(arena_used uintptr) {
 	n -= h.arena_start
 	n = n / _PageSize * sys.PtrSize
 	n = round(n, physPageSize)
-	if h.spans_mapped >= n {
+	need := n / unsafe.Sizeof(h.spans[0])
+	have := uintptr(len(h.spans))
+	if have >= need {
 		return
 	}
-	sysMap(add(unsafe.Pointer(&h.spans[0]), h.spans_mapped), n-h.spans_mapped, h.arena_reserved, &memstats.other_sys)
-	h.spans_mapped = n
+	h.spans = h.spans[:need]
+	sysMap(unsafe.Pointer(&h.spans[have]), (need-have)*unsafe.Sizeof(h.spans[0]), h.arena_reserved, &memstats.other_sys)
 }
 
 // Sweeps spans in list until reclaims at least npages into heap.
@@ -890,7 +897,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 			h.spanalloc.free(unsafe.Pointer(t))
 		}
 	}
-	if (p+s.npages)*sys.PtrSize < h.spans_mapped {
+	if (p + s.npages) < uintptr(len(h.spans)) {
 		t := h.spans[p+s.npages]
 		if t != nil && t.state == _MSpanFree {
 			s.npages += t.npages
