@@ -260,12 +260,11 @@ const (
 
 	// integer bitwise
 	AAND
-	AANDN
-	ANAND
-	ANOR
+	AANDW
 	AOR
-	AORN
+	AORW
 	AXOR
+	AXORW
 	ASLW
 	ASLD
 	ASRW

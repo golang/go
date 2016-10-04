@@ -208,20 +208,20 @@ func init() {
 		{name: "MODDU", argLength: 2, reg: gp21, asm: "MODDU", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
 		{name: "MODWU", argLength: 2, reg: gp21, asm: "MODWU", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
 
-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true, clobberFlags: true},                      // arg0 & arg1
-		{name: "ANDW", argLength: 2, reg: gp21, asm: "AND", commutative: true, clobberFlags: true},                     // arg0 & arg1
-		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64", resultInArg0: true, clobberFlags: true},  // arg0 & auxint
-		{name: "ANDWconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 & auxint
+		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true, clobberFlags: true},                       // arg0 & arg1
+		{name: "ANDW", argLength: 2, reg: gp21, asm: "ANDW", commutative: true, clobberFlags: true},                     // arg0 & arg1
+		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64", resultInArg0: true, clobberFlags: true},   // arg0 & auxint
+		{name: "ANDWconst", argLength: 1, reg: gp11, asm: "ANDW", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 & auxint
 
-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true, clobberFlags: true},                      // arg0 | arg1
-		{name: "ORW", argLength: 2, reg: gp21, asm: "OR", commutative: true, clobberFlags: true},                     // arg0 | arg1
-		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64", resultInArg0: true, clobberFlags: true},  // arg0 | auxint
-		{name: "ORWconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 | auxint
+		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true, clobberFlags: true},                       // arg0 | arg1
+		{name: "ORW", argLength: 2, reg: gp21, asm: "ORW", commutative: true, clobberFlags: true},                     // arg0 | arg1
+		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64", resultInArg0: true, clobberFlags: true},   // arg0 | auxint
+		{name: "ORWconst", argLength: 1, reg: gp11, asm: "ORW", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 | auxint
 
-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true, clobberFlags: true},                      // arg0 ^ arg1
-		{name: "XORW", argLength: 2, reg: gp21, asm: "XOR", commutative: true, clobberFlags: true},                     // arg0 ^ arg1
-		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64", resultInArg0: true, clobberFlags: true},  // arg0 ^ auxint
-		{name: "XORWconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 ^ auxint
+		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true, clobberFlags: true},                       // arg0 ^ arg1
+		{name: "XORW", argLength: 2, reg: gp21, asm: "XORW", commutative: true, clobberFlags: true},                     // arg0 ^ arg1
+		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64", resultInArg0: true, clobberFlags: true},   // arg0 ^ auxint
+		{name: "XORWconst", argLength: 1, reg: gp11, asm: "XORW", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 ^ auxint
 
 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},   // arg0 compare to arg1
 		{name: "CMPW", argLength: 2, reg: gp2flags, asm: "CMPW", typ: "Flags"}, // arg0 compare to arg1

@@ -16023,7 +16023,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		clobberFlags: true,
-		asm:          s390x.AAND,
+		asm:          s390x.AANDW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -16056,7 +16056,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
-		asm:          s390x.AAND,
+		asm:          s390x.AANDW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -16087,7 +16087,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		clobberFlags: true,
-		asm:          s390x.AOR,
+		asm:          s390x.AORW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -16120,7 +16120,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
-		asm:          s390x.AOR,
+		asm:          s390x.AORW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -16151,7 +16151,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		clobberFlags: true,
-		asm:          s390x.AXOR,
+		asm:          s390x.AXORW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -16184,7 +16184,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
-		asm:          s390x.AXOR,
+		asm:          s390x.AXORW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
