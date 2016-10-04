@@ -90,7 +90,7 @@ func TestCover(t *testing.T) {
 	if got, err := regexp.MatchString(".*\n//go:nosplit\nfunc someFunction().*", string(file)); err != nil || !got {
 		t.Errorf("misplaced compiler directive: got=(%v, %v); want=(true; nil)", got, err)
 	}
-	// No other comments should be present in generaed code.
+	// No other comments should be present in generated code.
 	c := ".*// This comment shouldn't appear in generated go code.*"
 	if got, err := regexp.MatchString(c, string(file)); err != nil || got {
 		t.Errorf("non compiler directive comment %q found. got=(%v, %v); want=(false; nil)", c, got, err)
