@@ -336,7 +336,7 @@ func (m markBits) clearMarkedNonAtomic() {
 // markBitsForSpan returns the markBits for the span base address base.
 func markBitsForSpan(base uintptr) (mbits markBits) {
 	if base < mheap_.arena_start || base >= mheap_.arena_used {
-		throw("heapBitsForSpan: base out of range")
+		throw("markBitsForSpan: base out of range")
 	}
 	mbits = markBitsForAddr(base)
 	if mbits.mask != 1 {
