@@ -1731,6 +1731,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		usesScratch:  true,
 		asm:          x86.AADDSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1762,6 +1763,7 @@ var opcodeTable = [...]opInfo{
 		name:         "SUBSS",
 		argLen:       2,
 		resultInArg0: true,
+		usesScratch:  true,
 		asm:          x86.ASUBSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1793,6 +1795,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		usesScratch:  true,
 		asm:          x86.AMULSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1824,6 +1827,7 @@ var opcodeTable = [...]opInfo{
 		name:         "DIVSS",
 		argLen:       2,
 		resultInArg0: true,
+		usesScratch:  true,
 		asm:          x86.ADIVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2674,9 +2678,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "UCOMISS",
-		argLen: 2,
-		asm:    x86.AUCOMISS,
+		name:        "UCOMISS",
+		argLen:      2,
+		usesScratch: true,
+		asm:         x86.AUCOMISS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -2685,9 +2690,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "UCOMISD",
-		argLen: 2,
-		asm:    x86.AUCOMISD,
+		name:        "UCOMISD",
+		argLen:      2,
+		usesScratch: true,
+		asm:         x86.AUCOMISD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -3386,9 +3392,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTTSD2SL",
-		argLen: 1,
-		asm:    x86.ACVTTSD2SL,
+		name:        "CVTTSD2SL",
+		argLen:      1,
+		usesScratch: true,
+		asm:         x86.ACVTTSD2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -3399,9 +3406,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTTSS2SL",
-		argLen: 1,
-		asm:    x86.ACVTTSS2SL,
+		name:        "CVTTSS2SL",
+		argLen:      1,
+		usesScratch: true,
+		asm:         x86.ACVTTSS2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -3412,9 +3420,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTSL2SS",
-		argLen: 1,
-		asm:    x86.ACVTSL2SS,
+		name:        "CVTSL2SS",
+		argLen:      1,
+		usesScratch: true,
+		asm:         x86.ACVTSL2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -3425,9 +3434,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTSL2SD",
-		argLen: 1,
-		asm:    x86.ACVTSL2SD,
+		name:        "CVTSL2SD",
+		argLen:      1,
+		usesScratch: true,
+		asm:         x86.ACVTSL2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -3438,9 +3448,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTSD2SS",
-		argLen: 1,
-		asm:    x86.ACVTSD2SS,
+		name:        "CVTSD2SS",
+		argLen:      1,
+		usesScratch: true,
+		asm:         x86.ACVTSD2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -14426,8 +14437,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "Xf2i64",
-		argLen: 1,
+		name:        "Xf2i64",
+		argLen:      1,
+		usesScratch: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
@@ -14438,8 +14450,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "Xi2f64",
-		argLen: 1,
+		name:        "Xi2f64",
+		argLen:      1,
+		usesScratch: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -19428,8 +19441,9 @@ var opcodeTable = [...]opInfo{
 	},
 }
 
-func (o Op) Asm() obj.As    { return opcodeTable[o].asm }
-func (o Op) String() string { return opcodeTable[o].name }
+func (o Op) Asm() obj.As       { return opcodeTable[o].asm }
+func (o Op) String() string    { return opcodeTable[o].name }
+func (o Op) UsesScratch() bool { return opcodeTable[o].usesScratch }
 
 var registers386 = [...]Register{
 	{0, x86.REG_AX, "AX"},

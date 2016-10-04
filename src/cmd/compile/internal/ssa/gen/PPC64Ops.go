@@ -209,8 +209,8 @@ func init() {
 		// There are optimizations that should apply -- (Xi2f64 (MOVWload (not-ADD-ptr+offset) ) ) could use
 		// the word-load instructions.  (Xi2f64 (MOVDload ptr )) can be (FMOVDload ptr)
 
-		{name: "Xf2i64", argLength: 1, reg: fpgp, typ: "Int64"},   // move 64 bits of F register into G register
-		{name: "Xi2f64", argLength: 1, reg: gpfp, typ: "Float64"}, // move 64 bits of G register into F register
+		{name: "Xf2i64", argLength: 1, reg: fpgp, typ: "Int64", usesScratch: true},   // move 64 bits of F register into G register
+		{name: "Xi2f64", argLength: 1, reg: gpfp, typ: "Float64", usesScratch: true}, // move 64 bits of G register into F register
 
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},               // arg0&arg1
 		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                // arg0&^arg1

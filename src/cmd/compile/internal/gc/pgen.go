@@ -250,14 +250,8 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
 				a.Node.(*Node).Used = true
 			}
 
-			// TODO(mdempsky): Encode in opcodeTable
-			// whether an Op requires scratch memory.
-			switch v.Op {
-			case ssa.Op386UCOMISS, ssa.Op386UCOMISD,
-				ssa.Op386ADDSS, ssa.Op386SUBSS, ssa.Op386MULSS, ssa.Op386DIVSS,
-				ssa.Op386CVTSD2SS, ssa.Op386CVTSL2SS, ssa.Op386CVTSL2SD, ssa.Op386CVTTSD2SL, ssa.Op386CVTTSS2SL,
-				ssa.OpPPC64Xf2i64, ssa.OpPPC64Xi2f64:
-				scratchUsed = true
+			if !scratchUsed {
+				scratchUsed = v.Op.UsesScratch()
 			}
 		}
 	}
