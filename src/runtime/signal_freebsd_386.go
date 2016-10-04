@@ -11,16 +11,23 @@ type sigctxt struct {
 	ctxt unsafe.Pointer
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func (c *sigctxt) regs() *mcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
-func (c *sigctxt) eax() uint32     { return c.regs().mc_eax }
-func (c *sigctxt) ebx() uint32     { return c.regs().mc_ebx }
-func (c *sigctxt) ecx() uint32     { return c.regs().mc_ecx }
-func (c *sigctxt) edx() uint32     { return c.regs().mc_edx }
-func (c *sigctxt) edi() uint32     { return c.regs().mc_edi }
-func (c *sigctxt) esi() uint32     { return c.regs().mc_esi }
-func (c *sigctxt) ebp() uint32     { return c.regs().mc_ebp }
-func (c *sigctxt) esp() uint32     { return c.regs().mc_esp }
-func (c *sigctxt) eip() uint32     { return c.regs().mc_eip }
+
+func (c *sigctxt) eax() uint32 { return c.regs().mc_eax }
+func (c *sigctxt) ebx() uint32 { return c.regs().mc_ebx }
+func (c *sigctxt) ecx() uint32 { return c.regs().mc_ecx }
+func (c *sigctxt) edx() uint32 { return c.regs().mc_edx }
+func (c *sigctxt) edi() uint32 { return c.regs().mc_edi }
+func (c *sigctxt) esi() uint32 { return c.regs().mc_esi }
+func (c *sigctxt) ebp() uint32 { return c.regs().mc_ebp }
+func (c *sigctxt) esp() uint32 { return c.regs().mc_esp }
+
+//go:nosplit
+//go:nowritebarrierrec
+func (c *sigctxt) eip() uint32 { return c.regs().mc_eip }
+
 func (c *sigctxt) eflags() uint32  { return c.regs().mc_eflags }
 func (c *sigctxt) cs() uint32      { return c.regs().mc_cs }
 func (c *sigctxt) fs() uint32      { return c.regs().mc_fs }

@@ -51,7 +51,10 @@ func dumpregs(c *sigctxt) {
 	print("hi   ", hex(c.hi()), "\n")
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
+
 func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
 func (c *sigctxt) siglr() uintptr { return uintptr(c.link()) }
 func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
