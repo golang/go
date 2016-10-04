@@ -1738,12 +1738,11 @@ func gcCopySpans() {
 	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
 	lock(&mheap_.lock)
 	// Free the old cached mark array if necessary.
-	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
+	if work.spans != nil && &work.spans[0] != &mheap_.allspans[0] {
 		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
 	}
 	// Cache the current array for sweeping.
-	mheap_.gcspans = mheap_.allspans
-	work.spans = h_allspans
+	work.spans = mheap_.allspans
 	unlock(&mheap_.lock)
 }
 
