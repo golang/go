@@ -1327,7 +1327,7 @@ func gcDumpObject(label string, obj, off uintptr) {
 	k := obj >> _PageShift
 	x := k
 	x -= mheap_.arena_start >> _PageShift
-	s := h_spans[x]
+	s := mheap_.spans[x]
 	print(label, "=", hex(obj), " k=", hex(k))
 	if s == nil {
 		print(" s=nil\n")

@@ -420,7 +420,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 	}
 	p := uintptr(v) >> pageShift
 	q := p - arena_start>>pageShift
-	s = *(**mspan)(add(unsafe.Pointer(mheap_.spans), q*sys.PtrSize))
+	s = mheap_.spans[q]
 	if s == nil {
 		return
 	}
