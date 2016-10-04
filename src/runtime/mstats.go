@@ -528,8 +528,7 @@ func updatememstats(stats *gcstats) {
 
 	// Scan all spans and count number of alive objects.
 	lock(&mheap_.lock)
-	for i := uint32(0); i < mheap_.nspan; i++ {
-		s := mheap_.allspans[i]
+	for _, s := range mheap_.allspans {
 		if s.state != mSpanInUse {
 			continue
 		}
