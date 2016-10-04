@@ -4420,6 +4420,9 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
 }
 
 func (s *SSAGenState) AddrScratch(a *obj.Addr) {
+	if s.ScratchFpMem == nil {
+		panic("no scratch memory available; forgot to declare usesScratch for Op?")
+	}
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_AUTO
 	a.Node = s.ScratchFpMem

@@ -33,6 +33,7 @@ type opInfo struct {
 	nilCheck          bool // this op is a nil check on arg0
 	faultOnNilArg0    bool // this op will fault if arg0 is nil (and aux encodes a small offset)
 	faultOnNilArg1    bool // this op will fault if arg1 is nil (and aux encodes a small offset)
+	usesScratch       bool // this op requires scratch memory space
 }
 
 type inputInfo struct {
