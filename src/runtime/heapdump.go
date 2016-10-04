@@ -437,9 +437,7 @@ func dumproots() {
 	dumpfields(firstmoduledata.gcbssmask)
 
 	// MSpan.types
-	allspans := mheap_.allspans
-	for spanidx := uint32(0); spanidx < mheap_.nspan; spanidx++ {
-		s := allspans[spanidx]
+	for _, s := range mheap_.allspans {
 		if s.state == _MSpanInUse {
 			// Finalizers
 			for sp := s.specials; sp != nil; sp = sp.next {
@@ -462,8 +460,7 @@ func dumproots() {
 var freemark [_PageSize / 8]bool
 
 func dumpobjs() {
-	for i := uintptr(0); i < uintptr(mheap_.nspan); i++ {
-		s := mheap_.allspans[i]
+	for _, s := range mheap_.allspans {
 		if s.state != _MSpanInUse {
 			continue
 		}
@@ -608,9 +605,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 
 func dumpmemprof() {
 	iterate_memprof(dumpmemprof_callback)
-	allspans := mheap_.allspans
-	for spanidx := uint32(0); spanidx < mheap_.nspan; spanidx++ {
-		s := allspans[spanidx]
+	for _, s := range mheap_.allspans {
 		if s.state != _MSpanInUse {
 			continue
 		}
@@ -631,8 +626,7 @@ var dumphdr = []byte("go1.7 heap dump\n")
 
 func mdump() {
 	// make sure we're done sweeping
-	for i := uintptr(0); i < uintptr(mheap_.nspan); i++ {
-		s := mheap_.allspans[i]
+	for _, s := range mheap_.allspans {
 		if s.state == _MSpanInUse {
 			s.ensureSwept()
 		}
