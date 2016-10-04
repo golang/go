@@ -33,14 +33,28 @@ type mheap struct {
 	freelarge mSpanList                // free lists length >= _MaxMHeapList
 	busy      [_MaxMHeapList]mSpanList // busy lists of large objects of given length
 	busylarge mSpanList                // busy lists of large objects length >= _MaxMHeapList
-	allspans  **mspan                  // all spans out there
-	gcspans   **mspan                  // copy of allspans referenced by gc marker or sweeper
-	nspan     uint32
-	sweepgen  uint32 // sweep generation, see comment in mspan
-	sweepdone uint32 // all spans are swept
+	sweepgen  uint32                   // sweep generation, see comment in mspan
+	sweepdone uint32                   // all spans are swept
+
+	// allspans is a slice of all mspans ever created. Each mspan
+	// appears exactly once.
+	//
+	// The memory for allspans is manually managed and can be
+	// reallocated and move as the heap grows.
+	//
+	// In general, allspans is protected by mheap_.lock, which
+	// prevents concurrent access as well as freeing the backing
+	// store. Accesses during STW might not hold the lock, but
+	// must ensure that allocation cannot happen around the
+	// access (since that may free the backing store).
+	allspans []*mspan // all spans out there
+	nspan    uint32
+
 	// span lookup
 	spans        **mspan
 	spans_mapped uintptr
+
+	_ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	pagesInUse        uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
@@ -233,8 +247,6 @@ func (s *mspan) layout() (size, n, total uintptr) {
 	return
 }
 
-var h_allspans []*mspan // TODO: make this h.allspans once mheap can be defined in Go
-
 // h_spans is a lookup table to map virtual address page IDs to *mspan.
 // For allocated spans, their pages map to the span itself.
 // For free spans, only the lowest and highest pages map to the span itself. Internal
@@ -245,10 +257,10 @@ var h_spans []*mspan // TODO: make this h.spans once mheap can be defined in Go
 func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 	h := (*mheap)(vh)
 	s := (*mspan)(p)
-	if len(h_allspans) >= cap(h_allspans) {
+	if len(h.allspans) >= cap(h.allspans) {
 		n := 64 * 1024 / sys.PtrSize
-		if n < cap(h_allspans)*3/2 {
-			n = cap(h_allspans) * 3 / 2
+		if n < cap(h.allspans)*3/2 {
+			n = cap(h.allspans) * 3 / 2
 		}
 		var new []*mspan
 		sp := (*slice)(unsafe.Pointer(&new))
@@ -256,21 +268,21 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 		if sp.array == nil {
 			throw("runtime: cannot allocate memory")
 		}
-		sp.len = len(h_allspans)
+		sp.len = len(h.allspans)
 		sp.cap = n
-		if len(h_allspans) > 0 {
-			copy(new, h_allspans)
-			// Don't free the old array if it's referenced by sweep.
-			// See the comment in mgc.go.
-			if h.allspans != mheap_.gcspans {
-				sysFree(unsafe.Pointer(h.allspans), uintptr(cap(h_allspans))*sys.PtrSize, &memstats.other_sys)
-			}
+		if len(h.allspans) > 0 {
+			copy(new, h.allspans)
 		}
-		h_allspans = new
-		h.allspans = (**mspan)(sp.array)
+		oldAllspans := h.allspans
+		h.allspans = new
+		// Don't free the old array if it's referenced by sweep.
+		// See the comment in mgc.go.
+		if len(oldAllspans) != 0 && &oldAllspans[0] != &work.spans[0] {
+			sysFree(unsafe.Pointer(&oldAllspans[0]), uintptr(cap(oldAllspans))*unsafe.Sizeof(oldAllspans[0]), &memstats.other_sys)
+		}
 	}
-	h_allspans = append(h_allspans, s)
-	h.nspan = uint32(len(h_allspans))
+	h.allspans = append(h.allspans, s)
+	h.nspan = uint32(len(h.allspans))
 }
 
 // inheap reports whether b is a pointer into a (potentially dead) heap object.

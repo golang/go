@@ -231,7 +231,7 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 
 	pagesInUse = uintptr(mheap_.pagesInUse)
 
-	for _, s := range h_allspans {
+	for _, s := range mheap_.allspans {
 		if s.state == mSpanInUse {
 			counted += s.npages
 		}
