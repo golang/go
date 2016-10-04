@@ -77,7 +77,7 @@ func dirList(w ResponseWriter, f File) {
 		Error(w, "Error reading directory", StatusInternalServerError)
 		return
 	}
-	sort.Sort(byName(dirs))
+	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, "<pre>\n")
@@ -647,9 +647,3 @@ func sumRangesSize(ranges []httpRange) (size int64) {
 	}
 	return
 }
-
-type byName []os.FileInfo
-
-func (s byName) Len() int           { return len(s) }
-func (s byName) Less(i, j int) bool { return s[i].Name() < s[j].Name() }
-func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

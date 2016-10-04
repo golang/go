@@ -147,24 +147,6 @@ func hasDotSuffix(s, suffix string) bool {
 	return len(s) > len(suffix) && s[len(s)-len(suffix)-1] == '.' && s[len(s)-len(suffix):] == suffix
 }
 
-// byPathLength is a []entry sort.Interface that sorts according to RFC 6265
-// section 5.4 point 2: by longest path and then by earliest creation time.
-type byPathLength []entry
-
-func (s byPathLength) Len() int { return len(s) }
-
-func (s byPathLength) Less(i, j int) bool {
-	if len(s[i].Path) != len(s[j].Path) {
-		return len(s[i].Path) > len(s[j].Path)
-	}
-	if !s[i].Creation.Equal(s[j].Creation) {
-		return s[i].Creation.Before(s[j].Creation)
-	}
-	return s[i].seqNum < s[j].seqNum
-}
-
-func (s byPathLength) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
 // Cookies implements the Cookies method of the http.CookieJar interface.
 //
 // It returns an empty slice if the URL's scheme is not HTTP or HTTPS.
@@ -221,7 +203,18 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 		}
 	}
 
-	sort.Sort(byPathLength(selected))
+	// sort according to RFC 6265 section 5.4 point 2: by longest
+	// path and then by earliest creation time.
+	sort.Slice(selected, func(i, j int) bool {
+		s := selected
+		if len(s[i].Path) != len(s[j].Path) {
+			return len(s[i].Path) > len(s[j].Path)
+		}
+		if !s[i].Creation.Equal(s[j].Creation) {
+			return s[i].Creation.Before(s[j].Creation)
+		}
+		return s[i].seqNum < s[j].seqNum
+	})
 	for _, e := range selected {
 		cookies = append(cookies, &http.Cookie{Name: e.Name, Value: e.Value})
 	}

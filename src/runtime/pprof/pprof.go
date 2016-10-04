@@ -207,15 +207,9 @@ func Profiles() []*Profile {
 		all = append(all, p)
 	}
 
-	sort.Sort(byName(all))
+	sort.Slice(all, func(i, j int) bool { return all[i].name < all[j].name })
 	return all
 }
-
-type byName []*Profile
-
-func (x byName) Len() int           { return len(x) }
-func (x byName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byName) Less(i, j int) bool { return x[i].name < x[j].name }
 
 // Name returns this profile's name, which can be passed to Lookup to reobtain the profile.
 func (p *Profile) Name() string {
@@ -435,12 +429,6 @@ func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
 
 // Interface to system profiles.
 
-type byInUseBytes []runtime.MemProfileRecord
-
-func (x byInUseBytes) Len() int           { return len(x) }
-func (x byInUseBytes) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byInUseBytes) Less(i, j int) bool { return x[i].InUseBytes() > x[j].InUseBytes() }
-
 // WriteHeapProfile is shorthand for Lookup("heap").WriteTo(w, 0).
 // It is preserved for backwards compatibility.
 func WriteHeapProfile(w io.Writer) error {
@@ -476,7 +464,7 @@ func writeHeap(w io.Writer, debug int) error {
 		// Profile grew; try again.
 	}
 
-	sort.Sort(byInUseBytes(p))
+	sort.Slice(p, func(i, j int) bool { return p[i].InUseBytes() > p[j].InUseBytes() })
 
 	b := bufio.NewWriter(w)
 	var tw *tabwriter.Writer
@@ -735,12 +723,6 @@ func StopCPUProfile() {
 	<-cpu.done
 }
 
-type byCycles []runtime.BlockProfileRecord
-
-func (x byCycles) Len() int           { return len(x) }
-func (x byCycles) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byCycles) Less(i, j int) bool { return x[i].Cycles > x[j].Cycles }
-
 // countBlock returns the number of records in the blocking profile.
 func countBlock() int {
 	n, _ := runtime.BlockProfile(nil)
@@ -760,7 +742,7 @@ func writeBlock(w io.Writer, debug int) error {
 		}
 	}
 
-	sort.Sort(byCycles(p))
+	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
 
 	b := bufio.NewWriter(w)
 	var tw *tabwriter.Writer
