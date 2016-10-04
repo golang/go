@@ -1974,7 +1974,7 @@ func TestExp(t *testing.T) {
 
 func testExp(t *testing.T, Exp func(float64) float64, name string) {
 	for i := 0; i < len(vf); i++ {
-		if f := Exp(vf[i]); !close(exp[i], f) {
+		if f := Exp(vf[i]); !veryclose(exp[i], f) {
 			t.Errorf("%s(%g) = %g, want %g", name, vf[i], f, exp[i])
 		}
 	}
