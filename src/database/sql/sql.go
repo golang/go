@@ -1499,7 +1499,7 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 		}
 		var resi driver.Result
 		withLock(dc, func() {
-			resi, err = execer.Exec(query, dargs)
+			resi, err = ctxDriverExec(ctx, execer, query, dargs)
 		})
 		if err == nil {
 			return driverResult{dc, resi}, nil
@@ -1511,7 +1511,7 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 
 	var si driver.Stmt
 	withLock(dc, func() {
-		si, err = dc.ci.Prepare(query)
+		si, err = ctxDriverPrepare(ctx, dc.ci, query)
 	})
 	if err != nil {
 		return nil, err
