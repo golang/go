@@ -2161,7 +2161,11 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		}
 		capaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(array_cap), addr)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
-		s.insertWBstore(pt, addr, r[0], n.Lineno, 0)
+		if isStackAddr(addr) {
+			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
+		} else {
+			s.insertWBstore(pt, addr, r[0], n.Lineno, 0)
+		}
 		// load the value we just stored to avoid having to spill it
 		s.vars[&ptrVar] = s.newValue2(ssa.OpLoad, pt, addr, s.mem())
 		s.vars[&lenVar] = r[1] // avoid a spill in the fast path
@@ -2359,7 +2363,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
 			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
 			return
 		}
-		if wb {
+		if wb && !isStackAddr(addr) {
 			s.insertWBmove(t, addr, right, line, rightIsVolatile)
 			return
 		}
@@ -2367,7 +2371,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
 		return
 	}
 	// Treat as a store.
-	if wb {
+	if wb && !isStackAddr(addr) {
 		if skip&skipPtr != 0 {
 			// Special case: if we don't write back the pointers, don't bother
 			// doing the write barrier check.
@@ -3257,6 +3261,20 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 	call.AuxInt = off
 
 	return res
+}
+
+// isStackAddr returns whether v is known to be an address of a stack slot
+func isStackAddr(v *ssa.Value) bool {
+	for v.Op == ssa.OpOffPtr || v.Op == ssa.OpAddPtr || v.Op == ssa.OpPtrIndex || v.Op == ssa.OpCopy {
+		v = v.Args[0]
+	}
+	switch v.Op {
+	case ssa.OpSP:
+		return true
+	case ssa.OpAddr:
+		return v.Args[0].Op == ssa.OpSP
+	}
+	return false
 }
 
 // insertWBmove inserts the assignment *left = *right including a write barrier.
