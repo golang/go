@@ -360,7 +360,7 @@ func mallocinit() {
 	// To overcome this we ask for PageSize more and round up the pointer.
 	p1 := round(p, _PageSize)
 
-	mheap_.spans = (**mspan)(unsafe.Pointer(p1))
+	spansStart := p1
 	mheap_.bitmap = p1 + spansSize + bitmapSize
 	if sys.PtrSize == 4 {
 		// Set arena_start such that we can accept memory
@@ -379,7 +379,7 @@ func mallocinit() {
 	}
 
 	// Initialize the rest of the allocator.
-	mheap_.init(spansSize)
+	mheap_.init(spansStart, spansSize)
 	_g_ := getg()
 	_g_.m.mcache = allocmcache()
 }

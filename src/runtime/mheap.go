@@ -49,9 +49,13 @@ type mheap struct {
 	// access (since that may free the backing store).
 	allspans []*mspan // all spans out there
 
-	// span lookup
-	spans        **mspan
-	spans_mapped uintptr
+	// spans is a lookup table to map virtual address page IDs to *mspan.
+	// For allocated spans, their pages map to the span itself.
+	// For free spans, only the lowest and highest pages map to the span itself.
+	// Internal pages map to an arbitrary span.
+	// For pages that have never been allocated, spans entries are nil.
+	spans        []*mspan
+	spans_mapped uintptr // bytes mapped starting at &spans[0]
 
 	// Proportional sweep
 	pagesInUse        uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
@@ -244,13 +248,6 @@ func (s *mspan) layout() (size, n, total uintptr) {
 	return
 }
 
-// h_spans is a lookup table to map virtual address page IDs to *mspan.
-// For allocated spans, their pages map to the span itself.
-// For free spans, only the lowest and highest pages map to the span itself. Internal
-// pages map to an arbitrary span.
-// For pages that have never been allocated, h_spans entries are nil.
-var h_spans []*mspan // TODO: make this h.spans once mheap can be defined in Go
-
 func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 	h := (*mheap)(vh)
 	s := (*mspan)(p)
@@ -291,7 +288,7 @@ func inheap(b uintptr) bool {
 		return false
 	}
 	// Not a beginning of a block, consult span table to find the block beginning.
-	s := h_spans[(b-mheap_.arena_start)>>_PageShift]
+	s := mheap_.spans[(b-mheap_.arena_start)>>_PageShift]
 	if s == nil || b < s.base() || b >= s.limit || s.state != mSpanInUse {
 		return false
 	}
@@ -306,7 +303,7 @@ func inHeapOrStack(b uintptr) bool {
 		return false
 	}
 	// Not a beginning of a block, consult span table to find the block beginning.
-	s := h_spans[(b-mheap_.arena_start)>>_PageShift]
+	s := mheap_.spans[(b-mheap_.arena_start)>>_PageShift]
 	if s == nil || b < s.base() {
 		return false
 	}
@@ -336,7 +333,7 @@ func spanOf(p uintptr) *mspan {
 // that p points into the heap (that is, mheap_.arena_start <= p <
 // mheap_.arena_used).
 func spanOfUnchecked(p uintptr) *mspan {
-	return h_spans[(p-mheap_.arena_start)>>_PageShift]
+	return mheap_.spans[(p-mheap_.arena_start)>>_PageShift]
 }
 
 func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
@@ -389,7 +386,7 @@ func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
 }
 
 // Initialize the heap.
-func (h *mheap) init(spans_size uintptr) {
+func (h *mheap) init(spansStart, spansBytes uintptr) {
 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
@@ -407,10 +404,10 @@ func (h *mheap) init(spans_size uintptr) {
 		h.central[i].mcentral.init(int32(i))
 	}
 
-	sp := (*slice)(unsafe.Pointer(&h_spans))
-	sp.array = unsafe.Pointer(h.spans)
-	sp.len = int(spans_size / sys.PtrSize)
-	sp.cap = int(spans_size / sys.PtrSize)
+	sp := (*slice)(unsafe.Pointer(&h.spans))
+	sp.array = unsafe.Pointer(spansStart)
+	sp.len = int(spansBytes / sys.PtrSize)
+	sp.cap = int(spansBytes / sys.PtrSize)
 }
 
 // mHeap_MapSpans makes sure that the spans are mapped
@@ -430,7 +427,7 @@ func (h *mheap) mapSpans(arena_used uintptr) {
 	if h.spans_mapped >= n {
 		return
 	}
-	sysMap(add(unsafe.Pointer(h.spans), h.spans_mapped), n-h.spans_mapped, h.arena_reserved, &memstats.other_sys)
+	sysMap(add(unsafe.Pointer(&h.spans[0]), h.spans_mapped), n-h.spans_mapped, h.arena_reserved, &memstats.other_sys)
 	h.spans_mapped = n
 }
 
@@ -582,15 +579,15 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
 		traceHeapAlloc()
 	}
 
-	// h_spans is accessed concurrently without synchronization
+	// h.spans is accessed concurrently without synchronization
 	// from other threads. Hence, there must be a store/store
-	// barrier here to ensure the writes to h_spans above happen
+	// barrier here to ensure the writes to h.spans above happen
 	// before the caller can publish a pointer p to an object
 	// allocated from s. As soon as this happens, the garbage
 	// collector running on another processor could read p and
-	// look up s in h_spans. The unlock acts as the barrier to
+	// look up s in h.spans. The unlock acts as the barrier to
 	// order these writes. On the read side, the data dependency
-	// between p and the index in h_spans orders the reads.
+	// between p and the index in h.spans orders the reads.
 	unlock(&h.lock)
 	return s
 }
@@ -686,10 +683,10 @@ HaveSpan:
 		s.npages = npage
 		p := (t.base() - h.arena_start) >> _PageShift
 		if p > 0 {
-			h_spans[p-1] = s
+			h.spans[p-1] = s
 		}
-		h_spans[p] = t
-		h_spans[p+t.npages-1] = t
+		h.spans[p] = t
+		h.spans[p+t.npages-1] = t
 		t.needzero = s.needzero
 		s.state = _MSpanStack // prevent coalescing with s
 		t.state = _MSpanStack
@@ -700,7 +697,7 @@ HaveSpan:
 
 	p := (s.base() - h.arena_start) >> _PageShift
 	for n := uintptr(0); n < npage; n++ {
-		h_spans[p+n] = s
+		h.spans[p+n] = s
 	}
 
 	memstats.heap_inuse += uint64(npage << _PageShift)
@@ -766,7 +763,7 @@ func (h *mheap) grow(npage uintptr) bool {
 	s.init(uintptr(v), ask>>_PageShift)
 	p := (s.base() - h.arena_start) >> _PageShift
 	for i := p; i < p+s.npages; i++ {
-		h_spans[i] = s
+		h.spans[i] = s
 	}
 	atomic.Store(&s.sweepgen, h.sweepgen)
 	s.state = _MSpanInUse
@@ -781,7 +778,7 @@ func (h *mheap) grow(npage uintptr) bool {
 func (h *mheap) lookup(v unsafe.Pointer) *mspan {
 	p := uintptr(v)
 	p -= h.arena_start
-	return h_spans[p>>_PageShift]
+	return h.spans[p>>_PageShift]
 }
 
 // Look up the span at the given address.
@@ -795,7 +792,7 @@ func (h *mheap) lookupMaybe(v unsafe.Pointer) *mspan {
 	if uintptr(v) < h.arena_start || uintptr(v) >= h.arena_used {
 		return nil
 	}
-	s := h_spans[(uintptr(v)-h.arena_start)>>_PageShift]
+	s := h.spans[(uintptr(v)-h.arena_start)>>_PageShift]
 	if s == nil || uintptr(v) < s.base() || uintptr(v) >= uintptr(unsafe.Pointer(s.limit)) || s.state != _MSpanInUse {
 		return nil
 	}
@@ -880,26 +877,26 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 	// Coalesce with earlier, later spans.
 	p := (s.base() - h.arena_start) >> _PageShift
 	if p > 0 {
-		t := h_spans[p-1]
+		t := h.spans[p-1]
 		if t != nil && t.state == _MSpanFree {
 			s.startAddr = t.startAddr
 			s.npages += t.npages
 			s.npreleased = t.npreleased // absorb released pages
 			s.needzero |= t.needzero
 			p -= t.npages
-			h_spans[p] = s
+			h.spans[p] = s
 			h.freeList(t.npages).remove(t)
 			t.state = _MSpanDead
 			h.spanalloc.free(unsafe.Pointer(t))
 		}
 	}
 	if (p+s.npages)*sys.PtrSize < h.spans_mapped {
-		t := h_spans[p+s.npages]
+		t := h.spans[p+s.npages]
 		if t != nil && t.state == _MSpanFree {
 			s.npages += t.npages
 			s.npreleased += t.npreleased
 			s.needzero |= t.needzero
-			h_spans[p+s.npages-1] = s
+			h.spans[p+s.npages-1] = s
 			h.freeList(t.npages).remove(t)
 			t.state = _MSpanDead
 			h.spanalloc.free(unsafe.Pointer(t))
