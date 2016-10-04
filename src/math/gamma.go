@@ -93,6 +93,9 @@ var _gamS = [...]float64{
 // Gamma function computed by Stirling's formula.
 // The polynomial is valid for 33 <= x <= 172.
 func stirling(x float64) float64 {
+	if x > 171.625 {
+		return Inf(1)
+	}
 	const (
 		SqrtTwoPi   = 2.506628274631000502417
 		MaxStirling = 143.01608
@@ -130,8 +133,6 @@ func Gamma(x float64) float64 {
 			return Inf(-1)
 		}
 		return Inf(1)
-	case x < -170.5674972726612 || x > 171.61447887182298:
-		return Inf(1)
 	}
 	q := Abs(x)
 	p := Floor(q)
@@ -139,8 +140,11 @@ func Gamma(x float64) float64 {
 		if x >= 0 {
 			return stirling(x)
 		}
+		// Note: x is negative but (checked above) not a negative integer,
+		// so x must be small enough to be in range for conversion to int64.
+		// If |x| were >= 2⁶³ it would have to be an integer.
 		signgam := 1
-		if ip := int(p); ip&1 == 0 {
+		if ip := int64(p); ip&1 == 0 {
 			signgam = -1
 		}
 		z := q - p
