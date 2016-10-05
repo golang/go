@@ -61,6 +61,8 @@ func TestExpandPatterns(t *testing.T) {
 		{"...", "encoding encoding/hex encoding/json encoding/xml fmt"},
 		{"encoding/... -encoding/xml", "encoding encoding/hex encoding/json"},
 		{"... -encoding/...", "fmt"},
+		{"encoding", "encoding"},
+		{"encoding/", "encoding"},
 	} {
 		var pkgs []string
 		for pkg := range buildutil.ExpandPatterns(ctxt, strings.Fields(test.patterns)) {

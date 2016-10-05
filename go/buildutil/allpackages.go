@@ -137,6 +137,9 @@ func allPackages(ctxt *build.Context, root string, ch chan<- item) {
 //
 // 	encoding/... -encoding/xml
 //
+// A trailing slash in a pattern is ignored.  (Path components of Go
+// package names are separated by slash, not the platform's path separator.)
+//
 func ExpandPatterns(ctxt *build.Context, patterns []string) map[string]bool {
 	// TODO(adonovan): support other features of 'go list':
 	// - "std"/"cmd"/"all" meta-packages
@@ -187,7 +190,7 @@ func ExpandPatterns(ctxt *build.Context, patterns []string) map[string]bool {
 			}
 		} else {
 			// single package
-			doPkg(arg, neg)
+			doPkg(strings.TrimSuffix(arg, "/"), neg)
 		}
 	}
 
