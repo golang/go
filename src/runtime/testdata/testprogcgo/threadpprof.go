@@ -53,6 +53,18 @@ void pprofCgoThreadTraceback(void* parg) {
 int getCPUHogThreadCount() {
 	return __sync_add_and_fetch(&cpuHogThreadCount, 0);
 }
+
+static void* cpuHogDriver(void* arg __attribute__ ((unused))) {
+	while (1) {
+		cpuHogThread();
+	}
+	return 0;
+}
+
+void runCPUHogThread() {
+	pthread_t tid;
+	pthread_create(&tid, 0, cpuHogDriver, 0);
+}
 */
 import "C"
 
@@ -83,6 +95,8 @@ func CgoPprofThread() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+
+	C.runCPUHogThread()
 
 	t0 := time.Now()
 	for C.getCPUHogThreadCount() < 2 && time.Since(t0) < time.Second {

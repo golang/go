@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// We only build this file with the tag "threadprof", since it starts
+// a thread running a busy loop at constructor time.
+
 // +build !plan9,!windows
+// +build threadprof
 
 package main
 
@@ -21,6 +25,7 @@ static void *thread1(void *p) {
 	spinlock = 0;
 	return NULL;
 }
+
 __attribute__((constructor)) void issue9456() {
 	pthread_t tid;
 	pthread_create(&tid, 0, thread1, NULL);
