@@ -80,6 +80,7 @@ func main() {
 		} else {
 			log.Print("assembly failed")
 		}
+		out.Close()
 		os.Remove(*flags.OutputFile)
 		os.Exit(1)
 	}
