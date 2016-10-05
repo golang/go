@@ -229,9 +229,14 @@ func is16Bit(n int64) bool {
 	return n == int64(int16(n))
 }
 
-// is16Bit reports whether n can be represented as an unsigned 16 bit integer.
+// isU16Bit reports whether n can be represented as an unsigned 16 bit integer.
 func isU16Bit(n int64) bool {
 	return n == int64(uint16(n))
+}
+
+// isU32Bit reports whether n can be represented as an unsigned 32 bit integer.
+func isU32Bit(n int64) bool {
+	return n == int64(uint32(n))
 }
 
 // is20Bit reports whether n can be represented as a signed 20 bit integer.
