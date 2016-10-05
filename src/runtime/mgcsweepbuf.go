@@ -129,5 +129,50 @@ func (b *gcSweepBuf) pop() *mspan {
 	top, bottom := cursor/gcSweepBlockEntries, cursor%gcSweepBlockEntries
 	blockp := (**gcSweepBlock)(add(b.spine, sys.PtrSize*uintptr(top)))
 	block := *blockp
-	return block.spans[bottom]
+	s := block.spans[bottom]
+	// Clear the pointer for block(i).
+	block.spans[bottom] = nil
+	return s
+}
+
+// numBlocks returns the number of blocks in buffer b. numBlocks is
+// safe to call concurrently with any other operation. Spans that have
+// been pushed prior to the call to numBlocks are guaranteed to appear
+// in some block in the range [0, numBlocks()), assuming there are no
+// intervening pops. Spans that are pushed after the call may also
+// appear in these blocks.
+func (b *gcSweepBuf) numBlocks() int {
+	return int((atomic.Load(&b.index) + gcSweepBlockEntries - 1) / gcSweepBlockEntries)
+}
+
+// block returns the spans in the i'th block of buffer b. block is
+// safe to call concurrently with push.
+func (b *gcSweepBuf) block(i int) []*mspan {
+	// Perform bounds check before loading spine address since
+	// push ensures the allocated length is at least spineLen.
+	if i < 0 || uintptr(i) >= atomic.Loaduintptr(&b.spineLen) {
+		throw("block index out of range")
+	}
+
+	// Get block i.
+	spine := atomic.Loadp(unsafe.Pointer(&b.spine))
+	blockp := add(spine, sys.PtrSize*uintptr(i))
+	block := (*gcSweepBlock)(atomic.Loadp(blockp))
+
+	// Slice the block if necessary.
+	cursor := uintptr(atomic.Load(&b.index))
+	top, bottom := cursor/gcSweepBlockEntries, cursor%gcSweepBlockEntries
+	var spans []*mspan
+	if uintptr(i) < top {
+		spans = block.spans[:]
+	} else {
+		spans = block.spans[:bottom]
+	}
+
+	// push may have reserved a slot but not filled it yet, so
+	// trim away unused entries.
+	for len(spans) > 0 && spans[len(spans)-1] == nil {
+		spans = spans[:len(spans)-1]
+	}
+	return spans
 }
