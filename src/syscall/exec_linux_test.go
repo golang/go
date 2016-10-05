@@ -162,6 +162,12 @@ func TestUnshare(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	orig, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	origLines := strings.Split(strings.TrimSpace(string(orig)), "\n")
+
 	cmd := exec.Command("cat", path)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Unshareflags: syscall.CLONE_NEWNET,
@@ -178,8 +184,8 @@ func TestUnshare(t *testing.T) {
 	}
 
 	lines := strings.Split(sout, "\n")
-	if len(lines) != 3 {
-		t.Fatalf("Expected 3 lines of output, got %d", len(lines))
+	if len(lines) >= len(origLines) {
+		t.Fatalf("Got %d lines of output, want <%d", len(lines), len(origLines))
 	}
 }
 
