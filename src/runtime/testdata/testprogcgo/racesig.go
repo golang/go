@@ -31,7 +31,7 @@ static void* signalThread(void* p) {
 	for (i = 0; i < 100; i++) {
 		for (j = 0; j < ALLOCERS; j++) {
 			if (pthread_kill(pt[j], SIGCHLD) < 0) {
-				return;
+				return NULL;
 			}
 		}
 		usleep(1);
