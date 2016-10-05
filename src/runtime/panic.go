@@ -376,6 +376,11 @@ func Goexit() {
 // Used when crashing with panicking.
 // This must match types handled by printany.
 func preprintpanics(p *_panic) {
+	defer func() {
+		if recover() != nil {
+			throw("panic while printing panic value")
+		}
+	}()
 	for p != nil {
 		switch v := p.arg.(type) {
 		case error:

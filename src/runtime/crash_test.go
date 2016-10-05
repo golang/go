@@ -444,6 +444,13 @@ func TestPanicDeadlockSyscall(t *testing.T) {
 	testPanicDeadlock(t, "SyscallInPanic", "1\n2\npanic: 3\n\n")
 }
 
+func TestPanicLoop(t *testing.T) {
+	output := runTestProg(t, "testprog", "PanicLoop")
+	if want := "panic while printing panic value"; !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}
+
 func TestMemPprof(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 
