@@ -815,7 +815,9 @@ var work struct {
 	// mode is the concurrency mode of the current GC cycle.
 	mode gcMode
 
-	// Copy of mheap.allspans for marker or sweeper.
+	// Snapshot of mheap.allspans for marker or sweeper created by
+	// gcCopySpans. Unlike allspans, this does not change except
+	// at controlled GC transition points.
 	spans []*mspan
 
 	// totaltime is the CPU nanoseconds spent in GC since the
