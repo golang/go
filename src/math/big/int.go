@@ -361,7 +361,8 @@ func (x *Int) Uint64() uint64 {
 }
 
 // SetString sets z to the value of s, interpreted in the given base,
-// and returns z and a boolean indicating success. If SetString fails,
+// and returns z and a boolean indicating success. The entire string
+// (not just a prefix) must be valid for success. If SetString fails,
 // the value of z is undefined but the returned value is nil.
 //
 // The base argument must be 0 or a value between 2 and MaxBase. If the base
@@ -371,12 +372,11 @@ func (x *Int) Uint64() uint64 {
 //
 func (z *Int) SetString(s string, base int) (*Int, bool) {
 	r := strings.NewReader(s)
-	_, _, err := z.scan(r, base)
-	if err != nil {
+	if _, _, err := z.scan(r, base); err != nil {
 		return nil, false
 	}
-	_, err = r.ReadByte()
-	if err != io.EOF {
+	// entire string must have been consumed
+	if _, err := r.ReadByte(); err != io.EOF {
 		return nil, false
 	}
 	return z, true // err == io.EOF => scan consumed all of s

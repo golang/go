@@ -14,7 +14,9 @@ import (
 
 // SetString sets z to the value of s and returns z and a boolean indicating
 // success. s must be a floating-point number of the same format as accepted
-// by Parse, with base argument 0.
+// by Parse, with base argument 0. The entire string (not just a prefix) must
+// be valid for success. If the operation failed, the value of z is undefined
+// but the returned value is nil.
 func (z *Float) SetString(s string) (*Float, bool) {
 	if f, _, err := z.Parse(s, 0); err == nil {
 		return f, true
@@ -212,6 +214,7 @@ func (z *Float) pow5(n uint64) *Float {
 //
 // It sets z to the (possibly rounded) value of the corresponding floating-
 // point value, and returns z, the actual base b, and an error err, if any.
+// The entire string (not just a prefix) must be consumed for success.
 // If z's precision is 0, it is changed to 64 before rounding takes effect.
 // The number must be of the form:
 //
