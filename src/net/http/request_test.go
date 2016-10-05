@@ -30,8 +30,8 @@ func TestQuery(t *testing.T) {
 }
 
 func TestPostQuery(t *testing.T) {
-	req, _ := NewRequest("POST", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&empty=not&orphan=nope",
-		strings.NewReader("z=post&both=y&prio=2&orphan&empty="))
+	req, _ := NewRequest("POST", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&empty=not",
+		strings.NewReader("z=post&both=y&prio=2&empty="))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
 
 	if q := req.FormValue("q"); q != "foo" {
@@ -57,27 +57,12 @@ func TestPostQuery(t *testing.T) {
 	}
 	if empty := req.FormValue("empty"); empty != "" {
 		t.Errorf(`req.FormValue("empty") = %q, want "" (from body)`, empty)
-	}
-	if orphan := req.FormValue("orphan"); orphan != "" {
-		t.Errorf(`req.FormValue("orphan") = %q, want "" (from body)`, orphan)
-	}
-}
-
-func BenchmarkPostQuery(b *testing.B) {
-	req, _ := NewRequest("POST", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&empty=not&orphan=nope",
-		strings.NewReader("z=post&both=y&prio=2&orphan&empty="))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		req.PostForm = nil
-		req.ParseForm()
 	}
 }
 
 func TestPatchQuery(t *testing.T) {
-	req, _ := NewRequest("PATCH", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&empty=not&orphan=nope",
-		strings.NewReader("z=post&both=y&prio=2&orphan&empty="))
+	req, _ := NewRequest("PATCH", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&empty=not",
+		strings.NewReader("z=post&both=y&prio=2&empty="))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
 
 	if q := req.FormValue("q"); q != "foo" {
@@ -103,9 +88,6 @@ func TestPatchQuery(t *testing.T) {
 	}
 	if empty := req.FormValue("empty"); empty != "" {
 		t.Errorf(`req.FormValue("empty") = %q, want "" (from body)`, empty)
-	}
-	if orphan := req.FormValue("orphan"); orphan != "" {
-		t.Errorf(`req.FormValue("orphan") = %q, want "" (from body)`, orphan)
 	}
 }
 
