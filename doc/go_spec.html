@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 4, 2016",
+	"Subtitle": "Version of October 6, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -2286,8 +2286,10 @@ For array and slice literals the following rules apply:
 	<li>Each element has an associated integer index marking
 	    its position in the array.
 	</li>
-	<li>An element with a key uses the key as its index; the
-	    key must be a constant integer expression.
+	<li>An element with a key uses the key as its index. The
+	    key must be a non-negative constant representable by
+	    a value of type <code>int</code>; and if it is typed
+	    it must be of integer type.
 	</li>
 	<li>An element without a key uses the previous element's index plus one.
 	    If the first element has no key, its index is zero.
