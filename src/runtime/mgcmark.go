@@ -77,7 +77,13 @@ func gcMarkRootPrepare() {
 		// above invariants for objects that get finalizers
 		// after concurrent mark. In STW GC, this will happen
 		// during mark termination.
-		work.nSpanRoots = (len(work.spans) + rootBlockSpans - 1) / rootBlockSpans
+		//
+		// We're only interested in scanning the in-use spans,
+		// which will all be swept at this point. More spans
+		// may be added to this list during concurrent GC, but
+		// we only care about spans that were allocated before
+		// this mark phase.
+		work.nSpanRoots = mheap_.sweepSpans[mheap_.sweepgen/2%2].numBlocks()
 
 		// On the first markroot, we need to scan all Gs. Gs
 		// may be created after this point, but it's okay that
@@ -332,18 +338,14 @@ func markrootSpans(gcw *gcWork, shard int) {
 	}
 
 	sg := mheap_.sweepgen
-	startSpan := shard * rootBlockSpans
-	endSpan := (shard + 1) * rootBlockSpans
-	if endSpan > len(work.spans) {
-		endSpan = len(work.spans)
-	}
+	spans := mheap_.sweepSpans[mheap_.sweepgen/2%2].block(shard)
 	// Note that work.spans may not include spans that were
 	// allocated between entering the scan phase and now. This is
 	// okay because any objects with finalizers in those spans
 	// must have been allocated and given finalizers after we
 	// entered the scan phase, so addfinalizer will have ensured
 	// the above invariants for them.
-	for _, s := range work.spans[startSpan:endSpan] {
+	for _, s := range spans {
 		if s.state != mSpanInUse {
 			continue
 		}
