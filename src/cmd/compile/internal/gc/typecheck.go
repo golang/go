@@ -340,18 +340,16 @@ OpSwitch:
 
 	case OTARRAY:
 		ok |= Etype
-		var t *Type
-		l := n.Left
-		r := n.Right
-		r = typecheck(r, Etype)
+		r := typecheck(n.Right, Etype)
 		if r.Type == nil {
 			n.Type = nil
 			return n
 		}
 
-		if l == nil {
+		var t *Type
+		if n.Left == nil {
 			t = typSlice(r.Type)
-		} else if l.Op == ODDD {
+		} else if n.Left.Op == ODDD {
 			t = typDDDArray(r.Type)
 			if top&Ecomplit == 0 && n.Diag == 0 {
 				t.Broke = true
@@ -359,17 +357,9 @@ OpSwitch:
 				yyerror("use of [...] array outside of array literal")
 			}
 		} else {
-			n.Left = typecheck(n.Left, Erv)
+			n.Left = indexlit(typecheck(n.Left, Erv))
 			l := n.Left
-			var v Val
-			switch consttype(l) {
-			case CTINT, CTRUNE:
-				v = l.Val()
-
-			case CTFLT:
-				v = toint(l.Val())
-
-			default:
+			if consttype(l) != CTINT {
 				if l.Type != nil && l.Type.IsInteger() && l.Op != OLITERAL {
 					yyerror("non-constant array bound %v", l)
 				} else {
@@ -379,11 +369,13 @@ OpSwitch:
 				return n
 			}
 
+			v := l.Val()
 			if doesoverflow(v, Types[TINT]) {
 				yyerror("array bound is too large")
 				n.Type = nil
 				return n
 			}
+
 			bound := v.U.(*Mpint).Int64()
 			if bound < 0 {
 				yyerror("array bound must be non-negative")
