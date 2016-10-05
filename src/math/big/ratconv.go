@@ -36,8 +36,9 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
 
 // SetString sets z to the value of s and returns z and a boolean indicating
 // success. s can be given as a fraction "a/b" or as a floating-point number
-// optionally followed by an exponent. If the operation failed, the value of
-// z is undefined but the returned value is nil.
+// optionally followed by an exponent. The entire string (not just a prefix)
+// must be valid for success. If the operation failed, the value of z is un-
+// defined but the returned value is nil.
 func (z *Rat) SetString(s string) (*Rat, bool) {
 	if len(s) == 0 {
 		return nil, false
@@ -49,9 +50,13 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		if _, ok := z.a.SetString(s[:sep], 0); !ok {
 			return nil, false
 		}
-		s = s[sep+1:]
+		r := strings.NewReader(s[sep+1:])
 		var err error
-		if z.b.abs, _, _, err = z.b.abs.scan(strings.NewReader(s), 0, false); err != nil {
+		if z.b.abs, _, _, err = z.b.abs.scan(r, 0, false); err != nil {
+			return nil, false
+		}
+		// entire string must have been consumed
+		if _, err = r.ReadByte(); err != io.EOF {
 			return nil, false
 		}
 		if len(z.b.abs) == 0 {

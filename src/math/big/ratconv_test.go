@@ -50,6 +50,10 @@ var setStringTests = []StringTest{
 	{"204211327800791583.81095", "4084226556015831676219/20000", true},
 	{"0e9999999999", "0", true}, // issue #16176
 	{in: "1/0"},
+	{in: "4/3/2"}, // issue 17001
+	{in: "4/3/"},
+	{in: "4/3."},
+	{in: "4/"},
 }
 
 // These are not supported by fmt.Fscanf.
@@ -59,6 +63,7 @@ var setStringTests2 = []StringTest{
 	{"-010.", "-10", true},
 	{"0x10/0x20", "1/2", true},
 	{"0b1000/3", "8/3", true},
+	{in: "4/3x"},
 	// TODO(gri) add more tests
 }
 
