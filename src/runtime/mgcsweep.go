@@ -20,10 +20,12 @@ type sweepdata struct {
 	parked  bool
 	started bool
 
-	spanidx uint32 // background sweeper position
-
 	nbgsweep    uint32
 	npausesweep uint32
+
+	// pacertracegen is the sweepgen at which the last pacer trace
+	// "sweep finished" message was printed.
+	pacertracegen uint32
 }
 
 //go:nowritebarrier
@@ -91,18 +93,23 @@ func sweepone() uintptr {
 	_g_.m.locks++
 	sg := mheap_.sweepgen
 	for {
-		idx := atomic.Xadd(&sweep.spanidx, 1) - 1
-		if idx >= uint32(len(work.spans)) {
+		s := mheap_.sweepSpans[1-sg/2%2].pop()
+		if s == nil {
 			mheap_.sweepdone = 1
 			_g_.m.locks--
-			if debug.gcpacertrace > 0 && idx == uint32(len(work.spans)) {
+			if debug.gcpacertrace > 0 && atomic.Cas(&sweep.pacertracegen, sg-2, sg) {
 				print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
 			}
 			return ^uintptr(0)
 		}
-		s := work.spans[idx]
 		if s.state != mSpanInUse {
-			s.sweepgen = sg
+			// This can happen if direct sweeping already
+			// swept this span, but in that case the sweep
+			// generation should always be up-to-date.
+			if s.sweepgen != sg {
+				print("runtime: bad span s.state=", s.state, " s.sweepgen=", s.sweepgen, " sweepgen=", sg, "\n")
+				throw("non in-use span in unswept list")
+			}
 			continue
 		}
 		if s.sweepgen != sg-2 || !atomic.Cas(&s.sweepgen, sg-2, sg-1) {
@@ -110,6 +117,9 @@ func sweepone() uintptr {
 		}
 		npages := s.npages
 		if !s.sweep(false) {
+			// Span is still in-use, so this returned no
+			// pages to the heap and the span needs to
+			// move to the swept in-use list.
 			npages = 0
 		}
 		_g_.m.locks--
@@ -347,6 +357,11 @@ func (s *mspan) sweep(preserve bool) bool {
 		c.local_nlargefree++
 		c.local_largefree += size
 		res = true
+	}
+	if !res {
+		// The span has been swept and is still in-use, so put
+		// it on the swept in-use list.
+		mheap_.sweepSpans[sweepgen/2%2].push(s)
 	}
 	if trace.enabled {
 		traceGCSweepDone()

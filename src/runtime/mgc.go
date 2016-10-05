@@ -1684,7 +1684,12 @@ func gcSweep(mode gcMode) {
 	lock(&mheap_.lock)
 	mheap_.sweepgen += 2
 	mheap_.sweepdone = 0
-	sweep.spanidx = 0
+	if mheap_.sweepSpans[mheap_.sweepgen/2%2].index != 0 {
+		// We should have drained this list during the last
+		// sweep phase. We certainly need to start this phase
+		// with an empty swept list.
+		throw("non-empty swept list")
+	}
 	unlock(&mheap_.lock)
 
 	if !_ConcurrentSweep || mode == gcForceBlockMode {
