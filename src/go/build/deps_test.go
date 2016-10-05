@@ -396,7 +396,7 @@ var pkgDeps = map[string][]string{
 		"runtime/debug",
 	},
 	"net/http/internal":  {"L4"},
-	"net/http/httptrace": {"context", "internal/nettrace", "net", "reflect", "time"},
+	"net/http/httptrace": {"context", "crypto/tls", "internal/nettrace", "net", "reflect", "time"},
 
 	// HTTP-using packages.
 	"expvar":             {"L4", "OS", "encoding/json", "net/http"},

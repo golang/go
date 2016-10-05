@@ -8,6 +8,7 @@ package httptrace
 
 import (
 	"context"
+	"crypto/tls"
 	"internal/nettrace"
 	"net"
 	"reflect"
@@ -118,6 +119,16 @@ type ClientTrace struct {
 	// If net.Dialer.DualStack ("Happy Eyeballs") support is
 	// enabled, this may be called multiple times.
 	ConnectDone func(network, addr string, err error)
+
+	// TLSHandshakeStart is called when the TLS handshake is started. When
+	// connecting to a HTTPS site via a HTTP proxy, the handshake happens after
+	// the CONNECT request is processed by the proxy.
+	TLSHandshakeStart func()
+
+	// TLSHandshakeDone is called after the TLS handshake with either the
+	// successful handshake's connection state, or a non-nil error on handshake
+	// failure.
+	TLSHandshakeDone func(tls.ConnectionState, error)
 
 	// WroteHeaders is called after the Transport has written
 	// the request headers.
