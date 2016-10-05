@@ -159,9 +159,9 @@ var DeadlineExceeded error = deadlineExceededError{}
 
 type deadlineExceededError struct{}
 
-func (deadlineExceededError) Error() string { return "context deadline exceeded" }
-
-func (deadlineExceededError) Timeout() bool { return true }
+func (deadlineExceededError) Error() string   { return "context deadline exceeded" }
+func (deadlineExceededError) Timeout() bool   { return true }
+func (deadlineExceededError) Temporary() bool { return true }
 
 // An emptyCtx is never canceled, has no values, and has no deadline. It is not
 // struct{}, since vars of this type must have distinct addresses.
