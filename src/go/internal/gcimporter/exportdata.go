@@ -8,7 +8,6 @@ package gcimporter
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -29,7 +28,7 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
 	s := strings.TrimSpace(string(hdr[16+12+6+6+8:][:10]))
 	size, err = strconv.Atoi(s)
 	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
-		err = errors.New("invalid archive header")
+		err = fmt.Errorf("invalid archive header")
 		return
 	}
 	name = strings.TrimSpace(string(hdr[:16]))
@@ -46,6 +45,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 	// Read first line to make sure this is an object file.
 	line, err := r.ReadSlice('\n')
 	if err != nil {
+		err = fmt.Errorf("can't find export data (%v)", err)
 		return
 	}
 
@@ -58,13 +58,14 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 
 		// First entry should be __.PKGDEF.
 		if name != "__.PKGDEF" {
-			err = errors.New("go archive is missing __.PKGDEF")
+			err = fmt.Errorf("go archive is missing __.PKGDEF")
 			return
 		}
 
 		// Read first line of __.PKGDEF data, so that line
 		// is once again the first line of the input.
 		if line, err = r.ReadSlice('\n'); err != nil {
+			err = fmt.Errorf("can't find export data (%v)", err)
 			return
 		}
 	}
@@ -72,7 +73,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 	// Now at __.PKGDEF in archive or still at beginning of file.
 	// Either way, line should begin with "go object ".
 	if !strings.HasPrefix(string(line), "go object ") {
-		err = errors.New("not a go object file")
+		err = fmt.Errorf("not a Go object file")
 		return
 	}
 
@@ -80,6 +81,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 	// Begins after first line starting with $$.
 	for line[0] != '$' {
 		if line, err = r.ReadSlice('\n'); err != nil {
+			err = fmt.Errorf("can't find export data (%v)", err)
 			return
 		}
 	}
