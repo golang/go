@@ -955,6 +955,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		writeErrCh:    make(chan error, 1),
 		writeLoopDone: make(chan struct{}),
 	}
+	trace := httptrace.ContextClientTrace(ctx)
 	tlsDial := t.DialTLS != nil && cm.targetScheme == "https" && cm.proxyURL == nil
 	if tlsDial {
 		var err error
@@ -968,11 +969,20 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		if tc, ok := pconn.conn.(*tls.Conn); ok {
 			// Handshake here, in case DialTLS didn't. TLSNextProto below
 			// depends on it for knowing the connection state.
+			if trace != nil && trace.TLSHandshakeStart != nil {
+				trace.TLSHandshakeStart()
+			}
 			if err := tc.Handshake(); err != nil {
 				go pconn.conn.Close()
+				if trace != nil && trace.TLSHandshakeDone != nil {
+					trace.TLSHandshakeDone(tls.ConnectionState{}, err)
+				}
 				return nil, err
 			}
 			cs := tc.ConnectionState()
+			if trace != nil && trace.TLSHandshakeDone != nil {
+				trace.TLSHandshakeDone(cs, nil)
+			}
 			pconn.tlsState = &cs
 		}
 	} else {
@@ -1042,6 +1052,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 			})
 		}
 		go func() {
+			if trace != nil && trace.TLSHandshakeStart != nil {
+				trace.TLSHandshakeStart()
+			}
 			err := tlsConn.Handshake()
 			if timer != nil {
 				timer.Stop()
@@ -1050,6 +1063,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		}()
 		if err := <-errc; err != nil {
 			plainConn.Close()
+			if trace != nil && trace.TLSHandshakeDone != nil {
+				trace.TLSHandshakeDone(tls.ConnectionState{}, err)
+			}
 			return nil, err
 		}
 		if !cfg.InsecureSkipVerify {
@@ -1059,6 +1075,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 			}
 		}
 		cs := tlsConn.ConnectionState()
+		if trace != nil && trace.TLSHandshakeDone != nil {
+			trace.TLSHandshakeDone(cs, nil)
+		}
 		pconn.tlsState = &cs
 		pconn.conn = tlsConn
 	}

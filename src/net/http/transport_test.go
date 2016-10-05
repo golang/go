@@ -3288,6 +3288,12 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 			close(gotWroteReqEvent)
 		},
 	}
+	if h2 {
+		trace.TLSHandshakeStart = func() { logf("tls handshake start") }
+		trace.TLSHandshakeDone = func(s tls.ConnectionState, err error) {
+			logf("tls handshake done. ConnectionState = %v \n err = %v", s, err)
+		}
+	}
 	if noHooks {
 		// zero out all func pointers, trying to get some path to crash
 		*trace = httptrace.ClientTrace{}
@@ -3339,7 +3345,10 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	wantOnceOrMore("connected to tcp " + addrStr + " = <nil>")
 	wantOnce("Reused:false WasIdle:false IdleTime:0s")
 	wantOnce("first response byte")
-	if !h2 {
+	if h2 {
+		wantOnce("tls handshake start")
+		wantOnce("tls handshake done")
+	} else {
 		wantOnce("PutIdleConn = <nil>")
 	}
 	wantOnce("Wait100Continue")
@@ -3408,6 +3417,55 @@ func TestTransportEventTraceRealDNS(t *testing.T) {
 	}
 	if t.Failed() {
 		t.Errorf("Output:\n%s", got)
+	}
+}
+
+// Test the httptrace.TLSHandshake{Start,Done} hooks with a https http1
+// connections. The http2 test is done in TestTransportEventTrace_h2
+func TestTLSHandshakeTrace(t *testing.T) {
+	defer afterTest(t)
+	s := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	defer s.Close()
+
+	var mu sync.Mutex
+	var start, done bool
+	trace := &httptrace.ClientTrace{
+		TLSHandshakeStart: func() {
+			mu.Lock()
+			defer mu.Unlock()
+			start = true
+		},
+		TLSHandshakeDone: func(s tls.ConnectionState, err error) {
+			mu.Lock()
+			defer mu.Unlock()
+			done = true
+			if err != nil {
+				t.Fatal("Expected error to be nil but was:", err)
+			}
+		},
+	}
+
+	tr := &Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	req, err := NewRequest("GET", s.URL, nil)
+	if err != nil {
+		t.Fatal("Unable to construct test request:", err)
+	}
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+
+	r, err := c.Do(req)
+	if err != nil {
+		t.Fatal("Unexpected error making request:", err)
+	}
+	r.Body.Close()
+	mu.Lock()
+	defer mu.Unlock()
+	if !start {
+		t.Fatal("Expected TLSHandshakeStart to be called, but wasn't")
+	}
+	if !done {
+		t.Fatal("Expected TLSHandshakeDone to be called, but wasnt't")
 	}
 }
 
