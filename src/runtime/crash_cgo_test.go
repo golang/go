@@ -100,9 +100,18 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 		// ppc64 (issue #8912)
 		t.Skipf("no external linking on ppc64")
 	}
-	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSIGPROF")
-	want := "OK\n"
-	if got != want {
+
+	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := testEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
+	if err != nil {
+		t.Fatalf("exit status: %v\n%s", err, got)
+	}
+
+	if want := "OK\n"; string(got) != want {
 		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }
@@ -113,9 +122,19 @@ func TestCgoExternalThreadSignal(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
-	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSignal")
-	want := "OK\n"
-	if got != want {
+
+	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := testEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
+	if err != nil {
+		t.Fatalf("exit status: %v\n%s", err, got)
+	}
+
+	want := []byte("OK\n")
+	if !bytes.Equal(got, want) {
 		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }
