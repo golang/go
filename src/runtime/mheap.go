@@ -60,6 +60,17 @@ type mheap struct {
 	// mapped. cap(spans) indicates the total reserved memory.
 	spans []*mspan
 
+	// sweepSpans contains two mspan stacks: one of swept in-use
+	// spans, and one of unswept in-use spans. These two trade
+	// roles on each GC cycle. Since the sweepgen increases by 2
+	// on each cycle, this means the swept spans are in
+	// sweepSpans[sweepgen/2%2] and the unswept spans are in
+	// sweepSpans[1-sweepgen/2%2]. Sweeping pops spans from the
+	// unswept stack and pushes spans that are still in-use on the
+	// swept stack. Likewise, allocating an in-use span pushes it
+	// on the swept stack.
+	sweepSpans [2]gcSweepBuf
+
 	_ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
@@ -546,6 +557,7 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
 		// Record span info, because gc needs to be
 		// able to map interior pointer to containing span.
 		atomic.Store(&s.sweepgen, h.sweepgen)
+		h.sweepSpans[h.sweepgen/2%2].push(s) // Add to swept in-use list.
 		s.state = _MSpanInUse
 		s.allocCount = 0
 		s.sizeclass = uint8(sizeclass)
