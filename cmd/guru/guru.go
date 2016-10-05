@@ -173,32 +173,35 @@ func importQueryPackage(pos string, conf *loader.Config) (string, error) {
 
 	_, importPath, err := guessImportPath(filename, conf.Build)
 	if err != nil {
-		return "", err // can't find GOPATH dir
-	}
+		// Can't find GOPATH dir.
+		// Treat the query file as its own package.
+		importPath = "command-line-arguments"
+		conf.CreateFromFilenames(importPath, filename)
+	} else {
+		// Check that it's possible to load the queried package.
+		// (e.g. guru tests contain different 'package' decls in same dir.)
+		// Keep consistent with logic in loader/util.go!
+		cfg2 := *conf.Build
+		cfg2.CgoEnabled = false
+		bp, err := cfg2.Import(importPath, "", 0)
+		if err != nil {
+			return "", err // no files for package
+		}
 
-	// Check that it's possible to load the queried package.
-	// (e.g. guru tests contain different 'package' decls in same dir.)
-	// Keep consistent with logic in loader/util.go!
-	cfg2 := *conf.Build
-	cfg2.CgoEnabled = false
-	bp, err := cfg2.Import(importPath, "", 0)
-	if err != nil {
-		return "", err // no files for package
-	}
-
-	switch pkgContainsFile(bp, filename) {
-	case 'T':
-		conf.ImportWithTests(importPath)
-	case 'X':
-		conf.ImportWithTests(importPath)
-		importPath += "_test" // for TypeCheckFuncBodies
-	case 'G':
-		conf.Import(importPath)
-	default:
-		// This happens for ad-hoc packages like
-		// $GOROOT/src/net/http/triv.go.
-		return "", fmt.Errorf("package %q doesn't contain file %s",
-			importPath, filename)
+		switch pkgContainsFile(bp, filename) {
+		case 'T':
+			conf.ImportWithTests(importPath)
+		case 'X':
+			conf.ImportWithTests(importPath)
+			importPath += "_test" // for TypeCheckFuncBodies
+		case 'G':
+			conf.Import(importPath)
+		default:
+			// This happens for ad-hoc packages like
+			// $GOROOT/src/net/http/triv.go.
+			return "", fmt.Errorf("package %q doesn't contain file %s",
+				importPath, filename)
+		}
 	}
 
 	conf.TypeCheckFuncBodies = func(p string) bool { return p == importPath }
