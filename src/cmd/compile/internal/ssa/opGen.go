@@ -442,6 +442,8 @@ const (
 	OpAMD64DIVQU
 	OpAMD64DIVLU
 	OpAMD64DIVWU
+	OpAMD64MULQU2
+	OpAMD64DIVQU2
 	OpAMD64ANDQ
 	OpAMD64ANDL
 	OpAMD64ANDQconst
@@ -1443,6 +1445,8 @@ const (
 	OpHmul32u
 	OpHmul64
 	OpHmul64u
+	OpMul32uhilo
+	OpMul64uhilo
 	OpAvg64u
 	OpDiv8
 	OpDiv8u
@@ -1452,6 +1456,7 @@ const (
 	OpDiv32u
 	OpDiv64
 	OpDiv64u
+	OpDiv128u
 	OpMod8
 	OpMod8u
 	OpMod16
@@ -1702,7 +1707,6 @@ const (
 	OpAdd32withcarry
 	OpSub32carry
 	OpSub32withcarry
-	OpMul32uhilo
 	OpSignmask
 	OpZeromask
 	OpCvt32Uto32F
@@ -4897,6 +4901,39 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{0, 1}, // AX
+				{1, 4}, // DX
+			},
+		},
+	},
+	{
+		name:         "MULQU2",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AMULQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // AX
+				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{0, 4}, // DX
+				{1, 1}, // AX
+			},
+		},
+	},
+	{
+		name:         "DIVQU2",
+		argLen:       3,
+		clobberFlags: true,
+		asm:          x86.ADIVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4},     // DX
+				{1, 1},     // AX
+				{2, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			outputs: []outputInfo{
 				{0, 1}, // AX
@@ -17960,6 +17997,16 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Mul32uhilo",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Mul64uhilo",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "Avg64u",
 		argLen:  2,
 		generic: true,
@@ -18002,6 +18049,11 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "Div64u",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Div128u",
+		argLen:  3,
 		generic: true,
 	},
 	{
@@ -19311,11 +19363,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "Sub32withcarry",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "Mul32uhilo",
-		argLen:  2,
 		generic: true,
 	},
 	{

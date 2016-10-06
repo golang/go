@@ -394,6 +394,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpCvt64to64F(v, config)
 	case OpDeferCall:
 		return rewriteValueAMD64_OpDeferCall(v, config)
+	case OpDiv128u:
+		return rewriteValueAMD64_OpDiv128u(v, config)
 	case OpDiv16:
 		return rewriteValueAMD64_OpDiv16(v, config)
 	case OpDiv16u:
@@ -612,6 +614,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpMul64(v, config)
 	case OpMul64F:
 		return rewriteValueAMD64_OpMul64F(v, config)
+	case OpMul64uhilo:
+		return rewriteValueAMD64_OpMul64uhilo(v, config)
 	case OpMul8:
 		return rewriteValueAMD64_OpMul8(v, config)
 	case OpNeg16:
@@ -14268,6 +14272,23 @@ func rewriteValueAMD64_OpDeferCall(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpDiv128u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div128u xhi xlo y)
+	// cond:
+	// result: (DIVQU2 xhi xlo y)
+	for {
+		xhi := v.Args[0]
+		xlo := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpAMD64DIVQU2)
+		v.AddArg(xhi)
+		v.AddArg(xlo)
+		v.AddArg(y)
+		return true
+	}
+}
 func rewriteValueAMD64_OpDiv16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -16662,6 +16683,21 @@ func rewriteValueAMD64_OpMul64F(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpAMD64MULSD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMul64uhilo(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul64uhilo x y)
+	// cond:
+	// result: (MULQU2 x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64MULQU2)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true

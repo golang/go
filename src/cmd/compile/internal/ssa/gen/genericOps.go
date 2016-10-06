@@ -58,6 +58,9 @@ var genericOps = []opData{
 	{name: "Hmul64", argLength: 2},
 	{name: "Hmul64u", argLength: 2},
 
+	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)"}, // arg0 * arg1, returns (hi, lo)
+	{name: "Mul64uhilo", argLength: 2, typ: "(UInt64,UInt64)"}, // arg0 * arg1, returns (hi, lo)
+
 	// Weird special instruction for strength reduction of divides.
 	{name: "Avg64u", argLength: 2}, // (uint64(arg0) + uint64(arg1)) / 2, correct to all 64 bits.
 
@@ -69,6 +72,7 @@ var genericOps = []opData{
 	{name: "Div32u", argLength: 2},
 	{name: "Div64", argLength: 2},
 	{name: "Div64u", argLength: 2},
+	{name: "Div128u", argLength: 3}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
 
 	{name: "Mod8", argLength: 2},  // arg0 % arg1, signed
 	{name: "Mod8u", argLength: 2}, // arg0 % arg1, unsigned
@@ -423,8 +427,6 @@ var genericOps = []opData{
 
 	{name: "Sub32carry", argLength: 2, typ: "(UInt32,Flags)"}, // arg0 - arg1, returns (value, carry)
 	{name: "Sub32withcarry", argLength: 3},                    // arg0 - arg1 - arg2, arg2=carry (0 or 1)
-
-	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)"}, // arg0 * arg1, returns (hi, lo)
 
 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
