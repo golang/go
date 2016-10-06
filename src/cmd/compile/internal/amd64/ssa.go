@@ -303,6 +303,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			m.To.Reg = x86.REG_DX
 		}
 
+	case ssa.OpAMD64MULQU2:
+		// Arg[0] is already in AX as it's the only register we allow
+		// results hi in DX, lo in AX
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+
+	case ssa.OpAMD64DIVQU2:
+		// Arg[0], Arg[1] are already in Dx, AX, as they're the only registers we allow
+		// results q in AX, r in DX
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[2].Reg()
+
 	case ssa.OpAMD64AVGQU:
 		// compute (x+y)/2 unsigned.
 		// Do a 64-bit add, the overflow goes into the carry.

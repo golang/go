@@ -545,6 +545,22 @@ func (s *state) stmt(n *Node) {
 		s.assign(n.List.Second(), resok, false, false, n.Lineno, 0, false)
 		return
 
+	case OAS2FUNC:
+		// We come here only when it is an intrinsic call returning two values.
+		if !isIntrinsicCall(n.Rlist.First()) {
+			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", n.Rlist.First())
+		}
+		v := s.intrinsicCall(n.Rlist.First())
+		v1 := s.newValue1(ssa.OpSelect0, n.List.First().Type, v)
+		v2 := s.newValue1(ssa.OpSelect1, n.List.Second().Type, v)
+		// Make a fake node to mimic loading return value, ONLY for write barrier test.
+		// This is future-proofing against non-scalar 2-result intrinsics.
+		// Currently we only have scalar ones, which result in no write barrier.
+		fakeret := &Node{Op: OINDREG, Reg: int16(Thearch.REGSP)}
+		s.assign(n.List.First(), v1, needwritebarrier(n.List.First(), fakeret), false, n.Lineno, 0, false)
+		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second(), fakeret), false, n.Lineno, 0, false)
+		return
+
 	case ODCL:
 		if n.Left.Class == PAUTOHEAP {
 			Fatalf("DCL %v", n)
@@ -2483,23 +2499,15 @@ type sizedIntrinsicKey struct {
 }
 
 // disableForInstrumenting returns nil when instrumenting, fn otherwise
-func disableForInstrumenting(fn func(*state, *Node) *ssa.Value) func(*state, *Node) *ssa.Value {
+func disableForInstrumenting(fn intrinsicBuilder) intrinsicBuilder {
 	if instrumenting {
 		return nil
 	}
 	return fn
 }
 
-// enableForRuntime returns fn when compiling runtime, nil otherwise
-func enableForRuntime(fn func(*state, *Node) *ssa.Value) func(*state, *Node) *ssa.Value {
-	if compiling_runtime {
-		return fn
-	}
-	return nil
-}
-
 // enableOnArch returns fn on given archs, nil otherwise
-func enableOnArch(fn func(*state, *Node) *ssa.Value, archs ...sys.ArchFamily) func(*state, *Node) *ssa.Value {
+func enableOnArch(fn intrinsicBuilder, archs ...sys.ArchFamily) intrinsicBuilder {
 	if Thearch.LinkArch.InFamily(archs...) {
 		return fn
 	}
@@ -2513,9 +2521,7 @@ func intrinsicInit() {
 	// initial set of intrinsics.
 	i.std = map[intrinsicKey]intrinsicBuilder{
 		/******** runtime ********/
-		intrinsicKey{"", "slicebytetostringtmp"}: enableForRuntime(disableForInstrumenting(func(s *state, n *Node) *ssa.Value {
-			// pkg name left empty because intrinsification only should apply
-			// inside the runtime package when non instrumented.
+		intrinsicKey{"runtime", "slicebytetostringtmp"}: disableForInstrumenting(func(s *state, n *Node) *ssa.Value {
 			// Compiler frontend optimizations emit OARRAYBYTESTRTMP nodes
 			// for the backend instead of slicebytetostringtmp calls
 			// when not instrumenting.
@@ -2523,7 +2529,7 @@ func intrinsicInit() {
 			ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), slice)
 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
 			return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
-		})),
+		}),
 		intrinsicKey{"runtime", "KeepAlive"}: func(s *state, n *Node) *ssa.Value {
 			data := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), s.intrinsicFirstArg(n))
 			s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, data, s.mem())
@@ -2717,6 +2723,16 @@ func intrinsicInit() {
 		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd"}]
 	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "AddUintptr", 8}] =
 		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd64"}]
+
+	/******** math/big ********/
+	i.intSized[sizedIntrinsicKey{"math/big", "mulWW", 8}] =
+		enableOnArch(func(s *state, n *Node) *ssa.Value {
+			return s.newValue2(ssa.OpMul64uhilo, ssa.MakeTuple(Types[TUINT64], Types[TUINT64]), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1))
+		}, sys.AMD64)
+	i.intSized[sizedIntrinsicKey{"math/big", "divWW", 8}] =
+		enableOnArch(func(s *state, n *Node) *ssa.Value {
+			return s.newValue3(ssa.OpDiv128u, ssa.MakeTuple(Types[TUINT64], Types[TUINT64]), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.intrinsicArg(n, 2))
+		}, sys.AMD64)
 }
 
 // findIntrinsic returns a function which builds the SSA equivalent of the
@@ -2732,6 +2748,9 @@ func findIntrinsic(sym *Sym) intrinsicBuilder {
 		intrinsicInit()
 	}
 	pkg := sym.Pkg.Path
+	if sym.Pkg == localpkg {
+		pkg = myimportpath
+	}
 	fn := sym.Name
 	f := intrinsics.std[intrinsicKey{pkg, fn}]
 	if f != nil {

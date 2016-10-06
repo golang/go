@@ -813,13 +813,18 @@ opswitch:
 		}
 		n = liststmt(ll)
 
-		// a,b,... = fn()
+	// a,b,... = fn()
 	case OAS2FUNC:
 		init.AppendNodes(&n.Ninit)
 
 		r := n.Rlist.First()
 		walkexprlistsafe(n.List.Slice(), init)
 		r = walkexpr(r, init)
+
+		if isIntrinsicCall(r) {
+			n.Rlist.Set1(r)
+			break
+		}
 
 		ll := ascompatet(n.Op, n.List, r.Type, 0, init)
 		for i, n := range ll {

@@ -49,6 +49,9 @@
 (Hmul8   x y) -> (HMULB  x y)
 (Hmul8u  x y) -> (HMULBU x y)
 
+(Mul64uhilo x y) -> (MULQU2 x y)
+(Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)
+
 (Avg64u x y) -> (AVGQU x y)
 
 (Mod64  x y) -> (Select1 (DIVQ  x y))
