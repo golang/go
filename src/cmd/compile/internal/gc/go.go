@@ -274,7 +274,7 @@ var writearchive bool
 
 var Nacl bool
 
-var Pc *obj.Prog
+var pc *obj.Prog
 
 var nodfp *Node
 

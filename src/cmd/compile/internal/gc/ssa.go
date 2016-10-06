@@ -4052,7 +4052,7 @@ type SSAGenState struct {
 
 // Pc returns the current Prog.
 func (s *SSAGenState) Pc() *obj.Prog {
-	return Pc
+	return pc
 }
 
 // SetLineno sets the current source line number.
@@ -4077,7 +4077,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		valueProgs = make(map[*obj.Prog]*ssa.Value, f.NumValues())
 		blockProgs = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
 		f.Logf("genssa %s\n", f.Name)
-		blockProgs[Pc] = f.Blocks[0]
+		blockProgs[pc] = f.Blocks[0]
 	}
 
 	if Thearch.Use387 {
@@ -4089,14 +4089,14 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 
 	// Emit basic blocks
 	for i, b := range f.Blocks {
-		s.bstart[b.ID] = Pc
+		s.bstart[b.ID] = pc
 		// Emit values in block
 		Thearch.SSAMarkMoves(&s, b)
 		for _, v := range b.Values {
-			x := Pc
+			x := pc
 			Thearch.SSAGenValue(&s, v)
 			if logProgs {
-				for ; x != Pc; x = x.Link {
+				for ; x != pc; x = x.Link {
 					valueProgs[x] = v
 				}
 			}
@@ -4110,10 +4110,10 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 			// line numbers for otherwise empty blocks.
 			next = f.Blocks[i+1]
 		}
-		x := Pc
+		x := pc
 		Thearch.SSAGenBlock(&s, b, next)
 		if logProgs {
-			for ; x != Pc; x = x.Link {
+			for ; x != pc; x = x.Link {
 				blockProgs[x] = b
 			}
 		}
