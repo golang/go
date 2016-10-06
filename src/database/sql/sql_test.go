@@ -319,6 +319,82 @@ func TestQueryContext(t *testing.T) {
 	}
 }
 
+func TestMultiResultSetQuery(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	prepares0 := numPrepares(t, db)
+	rows, err := db.Query("SELECT|people|age,name|;SELECT|people|name|")
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	type row1 struct {
+		age  int
+		name string
+	}
+	type row2 struct {
+		name string
+	}
+	got1 := []row1{}
+	for rows.Next() {
+		var r row1
+		err = rows.Scan(&r.age, &r.name)
+		if err != nil {
+			t.Fatalf("Scan: %v", err)
+		}
+		got1 = append(got1, r)
+	}
+	err = rows.Err()
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+	want1 := []row1{
+		{age: 1, name: "Alice"},
+		{age: 2, name: "Bob"},
+		{age: 3, name: "Chris"},
+	}
+	if !reflect.DeepEqual(got1, want1) {
+		t.Errorf("mismatch.\n got1: %#v\nwant: %#v", got1, want1)
+	}
+
+	if !rows.NextResultSet() {
+		t.Errorf("expected another result set")
+	}
+
+	got2 := []row2{}
+	for rows.Next() {
+		var r row2
+		err = rows.Scan(&r.name)
+		if err != nil {
+			t.Fatalf("Scan: %v", err)
+		}
+		got2 = append(got2, r)
+	}
+	err = rows.Err()
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+	want2 := []row2{
+		{name: "Alice"},
+		{name: "Bob"},
+		{name: "Chris"},
+	}
+	if !reflect.DeepEqual(got2, want2) {
+		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got2, want2)
+	}
+	if rows.NextResultSet() {
+		t.Errorf("expected no more result sets")
+	}
+
+	// And verify that the final rows.Next() call, which hit EOF,
+	// also closed the rows connection.
+	if n := db.numFreeConns(); n != 1 {
+		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
+	}
+	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+		t.Errorf("executed %d Prepare statements; want 1", prepares)
+	}
+}
+
 func TestByteOwnership(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)

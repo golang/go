@@ -213,6 +213,22 @@ type Rows interface {
 	Next(dest []Value) error
 }
 
+// RowsNextResultSet extends the Rows interface by providing a way to signal
+// the driver to advance to the next result set.
+type RowsNextResultSet interface {
+	Rows
+
+	// HasNextResultSet is called at the end of the current result set and
+	// reports whether there is another result set after the current one.
+	HasNextResultSet() bool
+
+	// NextResultSet advances the driver to the next result set even
+	// if there are remaining rows in the current result set.
+	//
+	// NextResultSet should return io.EOF when there are no more result sets.
+	NextResultSet() error
+}
+
 // Tx is a transaction.
 type Tx interface {
 	Commit() error
