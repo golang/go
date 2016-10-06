@@ -1943,6 +1943,47 @@ func (rs *Rows) Next() bool {
 	}
 	rs.lasterr = rs.rowsi.Next(rs.lastcols)
 	if rs.lasterr != nil {
+		// Close the connection if there is a driver error.
+		if rs.lasterr != io.EOF {
+			rs.Close()
+			return false
+		}
+		nextResultSet, ok := rs.rowsi.(driver.RowsNextResultSet)
+		if !ok {
+			rs.Close()
+			return false
+		}
+		// The driver is at the end of the current result set.
+		// Test to see if there is another result set after the current one.
+		// Only close Rows if there is no futher result sets to read.
+		if !nextResultSet.HasNextResultSet() {
+			rs.Close()
+		}
+		return false
+	}
+	return true
+}
+
+// NextResultSet prepares the next result set for reading. It returns true if
+// there is further result sets, or false if there is no further result set
+// or if there is an error advancing to it. The Err method should be consulted
+// to distinguish between the two cases.
+//
+// After calling NextResultSet, the Next method should always be called before
+// scanning. If there are further result sets they may not have rows in the result
+// set.
+func (rs *Rows) NextResultSet() bool {
+	if rs.isClosed() {
+		return false
+	}
+	rs.lastcols = nil
+	nextResultSet, ok := rs.rowsi.(driver.RowsNextResultSet)
+	if !ok {
+		rs.Close()
+		return false
+	}
+	rs.lasterr = nextResultSet.NextResultSet()
+	if rs.lasterr != nil {
 		rs.Close()
 		return false
 	}
@@ -2047,7 +2088,8 @@ func (rs *Rows) isClosed() bool {
 	return atomic.LoadInt32(&rs.closed) != 0
 }
 
-// Close closes the Rows, preventing further enumeration. If Next returns
+// Close closes the Rows, preventing further enumeration. If Next and
+// NextResultSet both return
 // false, the Rows are closed automatically and it will suffice to check the
 // result of Err. Close is idempotent and does not affect the result of Err.
 func (rs *Rows) Close() error {
