@@ -28,8 +28,13 @@ type sweepdata struct {
 	pacertracegen uint32
 }
 
+// finishsweep_m ensures that all spans are swept.
+//
+// The world must be stopped. This ensures there are no sweeps in
+// progress.
+//
 //go:nowritebarrier
-func finishsweep_m(stw bool) {
+func finishsweep_m() {
 	// Sweeping must be complete before marking commences, so
 	// sweep any unswept spans. If this is a concurrent GC, there
 	// shouldn't be any spans left to sweep, so this should finish
@@ -39,20 +44,6 @@ func finishsweep_m(stw bool) {
 		sweep.npausesweep++
 	}
 
-	// There may be some other spans being swept concurrently that
-	// we need to wait for. If finishsweep_m is done with the world stopped
-	// this is not required because the STW must have waited for sweeps.
-	//
-	// TODO(austin): As of this writing, we always pass true for stw.
-	// Consider removing this code.
-	if !stw {
-		sg := mheap_.sweepgen
-		for _, s := range work.spans {
-			if s.sweepgen != sg && s.state == _MSpanInUse {
-				s.ensureSwept()
-			}
-		}
-	}
 	nextMarkBitArenaEpoch()
 }
 

@@ -285,9 +285,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 		}
 		oldAllspans := h.allspans
 		h.allspans = new
-		// Don't free the old array if it's referenced by sweep.
-		// See the comment in mgc.go.
-		if len(oldAllspans) != 0 && &oldAllspans[0] != &work.spans[0] {
+		if len(oldAllspans) != 0 {
 			sysFree(unsafe.Pointer(&oldAllspans[0]), uintptr(cap(oldAllspans))*unsafe.Sizeof(oldAllspans[0]), &memstats.other_sys)
 		}
 	}
