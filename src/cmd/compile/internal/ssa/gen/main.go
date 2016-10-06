@@ -31,6 +31,7 @@ type arch struct {
 	fpregmask       regMask
 	specialregmask  regMask
 	framepointerreg int8
+	linkreg         int8
 	generic         bool
 }
 
@@ -295,6 +296,7 @@ func genOp() {
 		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
 		fmt.Fprintf(w, "var specialRegMask%s = regMask(%d)\n", a.name, a.specialregmask)
 		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
+		fmt.Fprintf(w, "var linkReg%s = int8(%d)\n", a.name, a.linkreg)
 	}
 
 	// gofmt result
