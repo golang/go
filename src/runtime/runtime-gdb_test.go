@@ -23,6 +23,9 @@ func checkGdbEnvironment(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		t.Skip("gdb does not work on darwin")
 	}
+	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64" {
+		t.Skip("skipping gdb tests on linux/ppc64; see golang.org/issue/17366")
+	}
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
 	}
