@@ -3506,6 +3506,9 @@ func copytype(n *Node, t *Type) {
 	embedlineno := n.Type.ForwardType().Embedlineno
 	l := n.Type.ForwardType().Copyto
 
+	ptrTo := n.Type.ptrTo
+	sliceOf := n.Type.sliceOf
+
 	// TODO(mdempsky): Fix Type rekinding.
 	*n.Type = *t
 
@@ -3519,6 +3522,8 @@ func copytype(n *Node, t *Type) {
 	t.allMethods = Fields{}
 	t.nod = nil
 	t.Deferwidth = false
+	t.ptrTo = ptrTo
+	t.sliceOf = sliceOf
 
 	// Update nodes waiting on this type.
 	for _, n := range l {
