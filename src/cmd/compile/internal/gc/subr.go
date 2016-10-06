@@ -1122,24 +1122,6 @@ func typehash(t *Type) uint32 {
 	return binary.LittleEndian.Uint32(h[:4])
 }
 
-var initPtrtoDone bool
-
-var (
-	ptrToUint8  *Type
-	ptrToAny    *Type
-	ptrToString *Type
-	ptrToBool   *Type
-	ptrToInt32  *Type
-)
-
-func initPtrto() {
-	ptrToUint8 = typPtr(Types[TUINT8])
-	ptrToAny = typPtr(Types[TANY])
-	ptrToString = typPtr(Types[TSTRING])
-	ptrToBool = typPtr(Types[TBOOL])
-	ptrToInt32 = typPtr(Types[TINT32])
-}
-
 // ptrto returns the Type *t.
 // The returned struct must not be modified.
 func ptrto(t *Type) *Type {
@@ -1148,23 +1130,6 @@ func ptrto(t *Type) *Type {
 	}
 	if t == nil {
 		Fatalf("ptrto: nil ptr")
-	}
-	// Reduce allocations by pre-creating common cases.
-	if !initPtrtoDone {
-		initPtrto()
-		initPtrtoDone = true
-	}
-	switch t {
-	case Types[TUINT8]:
-		return ptrToUint8
-	case Types[TINT32]:
-		return ptrToInt32
-	case Types[TANY]:
-		return ptrToAny
-	case Types[TSTRING]:
-		return ptrToString
-	case Types[TBOOL]:
-		return ptrToBool
 	}
 	return typPtr(t)
 }
