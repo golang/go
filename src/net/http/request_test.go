@@ -29,9 +29,9 @@ func TestQuery(t *testing.T) {
 	}
 }
 
-func TestPostQuery(t *testing.T) {
-	req, _ := NewRequest("POST", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&empty=not",
-		strings.NewReader("z=post&both=y&prio=2&empty="))
+func TestParseFormQuery(t *testing.T) {
+	req, _ := NewRequest("POST", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&orphan=nope&empty=not",
+		strings.NewReader("z=post&both=y&prio=2&=nokey&orphan;empty=&"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
 
 	if q := req.FormValue("q"); q != "foo" {
@@ -55,39 +55,30 @@ func TestPostQuery(t *testing.T) {
 	if prio := req.FormValue("prio"); prio != "2" {
 		t.Errorf(`req.FormValue("prio") = %q, want "2" (from body)`, prio)
 	}
-	if empty := req.FormValue("empty"); empty != "" {
+	if orphan := req.Form["orphan"]; !reflect.DeepEqual(orphan, []string{"", "nope"}) {
+		t.Errorf(`req.FormValue("orphan") = %q, want "" (from body)`, orphan)
+	}
+	if empty := req.Form["empty"]; !reflect.DeepEqual(empty, []string{"", "not"}) {
 		t.Errorf(`req.FormValue("empty") = %q, want "" (from body)`, empty)
+	}
+	if nokey := req.Form[""]; !reflect.DeepEqual(nokey, []string{"nokey"}) {
+		t.Errorf(`req.FormValue("nokey") = %q, want "nokey" (from body)`, nokey)
 	}
 }
 
-func TestPatchQuery(t *testing.T) {
-	req, _ := NewRequest("PATCH", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&empty=not",
-		strings.NewReader("z=post&both=y&prio=2&empty="))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
-
-	if q := req.FormValue("q"); q != "foo" {
-		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
-	}
-	if z := req.FormValue("z"); z != "post" {
-		t.Errorf(`req.FormValue("z") = %q, want "post"`, z)
-	}
-	if bq, found := req.PostForm["q"]; found {
-		t.Errorf(`req.PostForm["q"] = %q, want no entry in map`, bq)
-	}
-	if bz := req.PostFormValue("z"); bz != "post" {
-		t.Errorf(`req.PostFormValue("z") = %q, want "post"`, bz)
-	}
-	if qs := req.Form["q"]; !reflect.DeepEqual(qs, []string{"foo", "bar"}) {
-		t.Errorf(`req.Form["q"] = %q, want ["foo", "bar"]`, qs)
-	}
-	if both := req.Form["both"]; !reflect.DeepEqual(both, []string{"y", "x"}) {
-		t.Errorf(`req.Form["both"] = %q, want ["y", "x"]`, both)
-	}
-	if prio := req.FormValue("prio"); prio != "2" {
-		t.Errorf(`req.FormValue("prio") = %q, want "2" (from body)`, prio)
-	}
-	if empty := req.FormValue("empty"); empty != "" {
-		t.Errorf(`req.FormValue("empty") = %q, want "" (from body)`, empty)
+// Tests that we only parse the form automatically for certain methods.
+func TestParseFormQueryMethods(t *testing.T) {
+	for _, method := range []string{"POST", "PATCH", "PUT", "FOO"} {
+		req, _ := NewRequest(method, "http://www.google.com/search",
+			strings.NewReader("foo=bar"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
+		want := "bar"
+		if method == "FOO" {
+			want = ""
+		}
+		if got := req.FormValue("foo"); got != want {
+			t.Errorf(`for method %s, FormValue("foo") = %q; want %q`, method, got, want)
+		}
 	}
 }
 
