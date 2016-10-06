@@ -153,7 +153,6 @@ var optab = []Optab{
 	Optab{ADIVW, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
 	Optab{ASUB, C_REG, C_REG, C_NONE, C_REG, 10, 0},
 	Optab{ASUB, C_REG, C_NONE, C_NONE, C_REG, 10, 0},
-	Optab{AADDME, C_REG, C_NONE, C_NONE, C_REG, 47, 0},
 	Optab{ANEG, C_REG, C_NONE, C_NONE, C_REG, 47, 0},
 	Optab{ANEG, C_NONE, C_NONE, C_NONE, C_REG, 47, 0},
 
@@ -837,10 +836,6 @@ func buildop(ctxt *obj.Link) {
 			opset(ASTMY, r)
 		case ALMG:
 			opset(ALMY, r)
-		case AADDME:
-			opset(AADDZE, r)
-			opset(ASUBME, r)
-			opset(ASUBZE, r)
 		case ABEQ:
 			opset(ABGE, r)
 			opset(ABGT, r)
@@ -3232,49 +3227,15 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 			*asm = append(*asm, uint8(wd))
 		}
 
-	case 47: // arithmetic op (carry) reg [reg] reg
+	case 47: // negate [reg] reg
 		r := p.From.Reg
+		if r == 0 {
+			r = p.To.Reg
+		}
 		switch p.As {
-		default:
-		case AADDME:
-			if p.To.Reg == p.From.Reg {
-				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
-				r = REGTMP
-			}
-			zRIL(_a, op_LGFI, uint32(p.To.Reg), 0xffffffff, asm) // p.To.Reg <- -1
-			zRRE(op_ALCGR, uint32(p.To.Reg), uint32(r), asm)
-		case AADDZE:
-			if p.To.Reg == p.From.Reg {
-				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
-				r = REGTMP
-			}
-			zRI(op_LGHI, uint32(p.To.Reg), 0, asm)
-			zRRE(op_ALCGR, uint32(p.To.Reg), uint32(r), asm)
-		case ASUBME:
-			if p.To.Reg == p.From.Reg {
-				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
-				r = REGTMP
-			}
-			zRIL(_a, op_LGFI, uint32(p.To.Reg), 0xffffffff, asm) // p.To.Reg <- -1
-			zRRE(op_SLBGR, uint32(p.To.Reg), uint32(r), asm)
-		case ASUBZE:
-			if p.To.Reg == p.From.Reg {
-				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
-				r = REGTMP
-			}
-			zRI(op_LGHI, uint32(p.To.Reg), 0, asm)
-			zRRE(op_SLBGR, uint32(p.To.Reg), uint32(r), asm)
 		case ANEG:
-			r := p.From.Reg
-			if r == 0 {
-				r = p.To.Reg
-			}
 			zRRE(op_LCGR, uint32(p.To.Reg), uint32(r), asm)
 		case ANEGW:
-			r := p.From.Reg
-			if r == 0 {
-				r = p.To.Reg
-			}
 			zRRE(op_LCGFR, uint32(p.To.Reg), uint32(r), asm)
 		}
 
