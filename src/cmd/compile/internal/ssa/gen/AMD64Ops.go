@@ -588,5 +588,6 @@ func init() {
 		gpregmask:       gp,
 		fpregmask:       fp,
 		framepointerreg: int8(num["BP"]),
+		linkreg:         -1, // not used
 	})
 }

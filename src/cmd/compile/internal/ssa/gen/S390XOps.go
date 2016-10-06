@@ -91,7 +91,7 @@ func init() {
 		r0 = buildReg("R0")
 
 		// R10 and R11 are reserved by the assembler.
-		gp   = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12")
+		gp   = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14")
 		gpsp = gp | sp
 
 		// R0 is considered to contain the value 0 in address calculations.
@@ -547,5 +547,6 @@ func init() {
 		gpregmask:       gp,
 		fpregmask:       fp,
 		framepointerreg: -1, // not used
+		linkreg:         int8(num["R14"]),
 	})
 }

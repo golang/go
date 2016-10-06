@@ -526,5 +526,6 @@ func init() {
 		gpregmask:       gp,
 		fpregmask:       fp,
 		framepointerreg: -1, // not used
+		linkreg:         -1, // not used
 	})
 }

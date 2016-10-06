@@ -460,6 +460,18 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, line
 	return c
 }
 
+// isLeaf reports whether f performs any calls.
+func isLeaf(f *Func) bool {
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if opcodeTable[v.Op].call {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func (s *regAllocState) init(f *Func) {
 	s.f = f
 	s.registers = f.Config.registers
@@ -508,6 +520,12 @@ func (s *regAllocState) init(f *Func) {
 		switch s.f.Config.arch {
 		case "ppc64le": // R2 already reserved.
 			s.allocatable &^= 1 << 12 // R12
+		}
+	}
+	if s.f.Config.LinkReg != -1 {
+		if isLeaf(f) {
+			// Leaf functions don't save/restore the link register.
+			s.allocatable &^= 1 << uint(s.f.Config.LinkReg)
 		}
 	}
 	if s.f.Config.ctxt.Flag_dynlink {

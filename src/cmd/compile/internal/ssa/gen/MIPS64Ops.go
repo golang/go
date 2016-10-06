@@ -376,5 +376,6 @@ func init() {
 		fpregmask:       fp,
 		specialregmask:  hi | lo,
 		framepointerreg: -1, // not used
+		linkreg:         -1, // not used
 	})
 }
