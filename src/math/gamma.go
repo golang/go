@@ -91,10 +91,15 @@ var _gamS = [...]float64{
 }
 
 // Gamma function computed by Stirling's formula.
-// The polynomial is valid for 33 <= x <= 172.
-func stirling(x float64) float64 {
-	if x > 171.625 {
-		return Inf(1)
+// The pair of results must be multiplied together to get the actual answer.
+// The multiplication is left to the caller so that, if careful, the caller can avoid
+// infinity for 172 <= x <= 180.
+// The polynomial is valid for 33 <= x <= 172; larger values are only used
+// in reciprocal and produce denormalized floats. The lower precision there
+// masks any imprecision in the polynomial.
+func stirling(x float64) (float64, float64) {
+	if x > 200 {
+		return Inf(1), 1
 	}
 	const (
 		SqrtTwoPi   = 2.506628274631000502417
@@ -102,15 +107,15 @@ func stirling(x float64) float64 {
 	)
 	w := 1 / x
 	w = 1 + w*((((_gamS[0]*w+_gamS[1])*w+_gamS[2])*w+_gamS[3])*w+_gamS[4])
-	y := Exp(x)
+	y1 := Exp(x)
+	y2 := 1.0
 	if x > MaxStirling { // avoid Pow() overflow
 		v := Pow(x, 0.5*x-0.25)
-		y = v * (v / y)
+		y1, y2 = v, v/y1
 	} else {
-		y = Pow(x, x-0.5) / y
+		y1 = Pow(x, x-0.5) / y1
 	}
-	y = SqrtTwoPi * y * w
-	return y
+	return y1, SqrtTwoPi * w * y2
 }
 
 // Gamma returns the Gamma function of x.
@@ -138,7 +143,8 @@ func Gamma(x float64) float64 {
 	p := Floor(q)
 	if q > 33 {
 		if x >= 0 {
-			return stirling(x)
+			y1, y2 := stirling(x)
+			return y1 * y2
 		}
 		// Note: x is negative but (checked above) not a negative integer,
 		// so x must be small enough to be in range for conversion to int64.
@@ -156,7 +162,14 @@ func Gamma(x float64) float64 {
 		if z == 0 {
 			return Inf(signgam)
 		}
-		z = Pi / (Abs(z) * stirling(q))
+		sq1, sq2 := stirling(q)
+		absz := Abs(z)
+		d := absz * sq1 * sq2
+		if IsInf(d, 0) {
+			z = Pi / absz / sq1 / sq2
+		} else {
+			z = Pi / d
+		}
 		return float64(signgam) * z
 	}
 

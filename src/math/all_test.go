@@ -1235,9 +1235,9 @@ var vfgamma = [][2]float64{
 	{-100.5, -3.3536908198076787e-159},
 	{-160.5, -5.255546447007829e-286},
 	{-170.5, -3.3127395215386074e-308},
-	{-171.5, 0},               // TODO: 1.9316265431712e-310
-	{-176.5, Copysign(0, -1)}, // TODO: -1.196e-321
-	{-177.5, 0},               // TODO: 5e-324
+	{-171.5, 1.9316265431712e-310},
+	{-176.5, -1.196e-321},
+	{-177.5, 5e-324},
 	{-178.5, Copysign(0, -1)},
 	{-179.5, 0},
 	{-201.0001, 0},
@@ -1802,6 +1802,12 @@ var logbBC = []float64{
 }
 
 func tolerance(a, b, e float64) bool {
+	// Multiplying by e here can underflow denormal values to zero.
+	// Check a==b so that at least if a and b are small and identical
+	// we say they match.
+	if a == b {
+		return true
+	}
 	d := a - b
 	if d < 0 {
 		d = -d
