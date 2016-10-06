@@ -538,40 +538,9 @@ retry:
 		// there wasn't enough work to do anyway, so we might
 		// as well let background marking take care of the
 		// work that is available.
-		lock(&work.assistQueue.lock)
-
-		// If the GC cycle is over, just return. This is the
-		// likely path if we completed above. We do this
-		// under the lock to prevent a GC cycle from ending
-		// between this check and queuing the assist.
-		if atomic.Load(&gcBlackenEnabled) == 0 {
-			unlock(&work.assistQueue.lock)
-			return
-		}
-
-		oldHead, oldTail := work.assistQueue.head, work.assistQueue.tail
-		if oldHead == 0 {
-			work.assistQueue.head.set(gp)
-		} else {
-			oldTail.ptr().schedlink.set(gp)
-		}
-		work.assistQueue.tail.set(gp)
-		gp.schedlink.set(nil)
-		// Recheck for background credit now that this G is in
-		// the queue, but can still back out. This avoids a
-		// race in case background marking has flushed more
-		// credit since we checked above.
-		if atomic.Loadint64(&gcController.bgScanCredit) > 0 {
-			work.assistQueue.head = oldHead
-			work.assistQueue.tail = oldTail
-			if oldTail != 0 {
-				oldTail.ptr().schedlink.set(nil)
-			}
-			unlock(&work.assistQueue.lock)
+		if !gcParkAssist() {
 			goto retry
 		}
-		// Park for real.
-		goparkunlock(&work.assistQueue.lock, "GC assist wait", traceEvGoBlock, 2)
 
 		// At this point either background GC has satisfied
 		// this G's assist debt, or the GC cycle is over.
@@ -587,6 +556,50 @@ func gcWakeAllAssists() {
 	work.assistQueue.head.set(nil)
 	work.assistQueue.tail.set(nil)
 	unlock(&work.assistQueue.lock)
+}
+
+// gcParkAssist puts the current goroutine on the assist queue and parks.
+//
+// gcParkAssist returns whether the assist is now satisfied. If it
+// returns false, the caller must retry the assist.
+//
+//go:nowritebarrier
+func gcParkAssist() bool {
+	lock(&work.assistQueue.lock)
+	// If the GC cycle finished while we were getting the lock,
+	// exit the assist. The cycle can't finish while we hold the
+	// lock.
+	if atomic.Load(&gcBlackenEnabled) == 0 {
+		unlock(&work.assistQueue.lock)
+		return true
+	}
+
+	gp := getg()
+	oldHead, oldTail := work.assistQueue.head, work.assistQueue.tail
+	if oldHead == 0 {
+		work.assistQueue.head.set(gp)
+	} else {
+		oldTail.ptr().schedlink.set(gp)
+	}
+	work.assistQueue.tail.set(gp)
+	gp.schedlink.set(nil)
+
+	// Recheck for background credit now that this G is in
+	// the queue, but can still back out. This avoids a
+	// race in case background marking has flushed more
+	// credit since we checked above.
+	if atomic.Loadint64(&gcController.bgScanCredit) > 0 {
+		work.assistQueue.head = oldHead
+		work.assistQueue.tail = oldTail
+		if oldTail != 0 {
+			oldTail.ptr().schedlink.set(nil)
+		}
+		unlock(&work.assistQueue.lock)
+		return false
+	}
+	// Park.
+	goparkunlock(&work.assistQueue.lock, "GC assist wait", traceEvGoBlock, 2)
+	return true
 }
 
 // gcFlushBgCredit flushes scanWork units of background scan work
