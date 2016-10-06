@@ -349,12 +349,12 @@ var scanfTests = []ScanfTest{
 	{"X%dX", " X27X ", &intVal, nil}, // input does not match format
 
 	{"X%dX\n", "X27X", &intVal, 27},
-	{"X%dX\n", "X27X ", &intVal, nil}, // newline in format does not match input
+	{"X%dX \n", "X27X ", &intVal, 27},
 	{"X%dX\n", "X27X\n", &intVal, 27},
 	{"X%dX\n", "X27X \n", &intVal, 27},
 
 	{"X%dX \n", "X27X", &intVal, 27},
-	{"X%dX \n", "X27X ", &intVal, nil}, // newline in format does not match input
+	{"X%dX \n", "X27X ", &intVal, 27},
 	{"X%dX \n", "X27X\n", &intVal, 27},
 	{"X%dX \n", "X27X \n", &intVal, 27},
 
@@ -363,7 +363,7 @@ var scanfTests = []ScanfTest{
 	{"X %c", "X!", &runeVal, nil},  // expected space in input to match format
 	{"X %c", "X\n", &runeVal, nil}, // newline in input does not match format
 	{"X %c", "X !", &runeVal, '!'},
-	{"X %c", "X \n", &runeVal, nil}, // newline in input does not match format
+	{"X %c", "X \n", &runeVal, '\n'},
 
 	{" X%dX", "X27X", &intVal, nil},  // expected space in input to match format
 	{" X%dX", "X27X ", &intVal, nil}, // expected space in input to match format
@@ -381,7 +381,7 @@ var scanfTests = []ScanfTest{
 	{" X%dX ", " X27X ", &intVal, 27},
 
 	{"%d\nX", "27\nX", &intVal, 27},
-	{"%dX\n X", "27X\n X", &intVal, nil}, // input does not match format
+	{"%dX\n X", "27X\n X", &intVal, 27},
 }
 
 var overflowTests = []ScanTest{
@@ -1230,18 +1230,18 @@ func TestScanfNewlineMatchFormat(t *testing.T) {
 		{"space vs newline no-percent 0001", "1\n2", "1\n 2", 0, true},
 		{"space vs newline no-percent 0010", "1\n2", "1 \n2", 0, true},
 		{"space vs newline no-percent 0011", "1\n2", "1 \n 2", 0, true},
-		{"space vs newline no-percent 0100", "1\n 2", "1\n2", 0, false},   // fails: space after nl in input but not pattern
-		{"space vs newline no-percent 0101", "1\n 2", "1\n2 ", 0, false},  // fails: space after nl in input but not pattern
-		{"space vs newline no-percent 0110", "1\n 2", "1 \n2", 0, false},  // fails: space after nl in input but not pattern
-		{"space vs newline no-percent 0111", "1\n 2", "1 \n 2", 0, false}, // fails: hard to explain
+		{"space vs newline no-percent 0100", "1\n 2", "1\n2", 0, false},  // fails: space after nl in input but not pattern
+		{"space vs newline no-percent 0101", "1\n 2", "1\n2 ", 0, false}, // fails: space after nl in input but not pattern
+		{"space vs newline no-percent 0110", "1\n 2", "1 \n2", 0, false}, // fails: space after nl in input but not pattern
+		{"space vs newline no-percent 0111", "1\n 2", "1 \n 2", 0, true},
 		{"space vs newline no-percent 1000", "1 \n2", "1\n2", 0, true},
 		{"space vs newline no-percent 1001", "1 \n2", "1\n 2", 0, true},
 		{"space vs newline no-percent 1010", "1 \n2", "1 \n2", 0, true},
 		{"space vs newline no-percent 1011", "1 \n2", "1 \n 2", 0, true},
-		{"space vs newline no-percent 1100", "1 \n 2", "1\n2", 0, false},   // fails: space after nl in input but not pattern
-		{"space vs newline no-percent 1101", "1 \n 2", "1\n 2", 0, false},  // fails: hard to explain
-		{"space vs newline no-percent 1110", "1 \n 2", "1 \n2", 0, false},  // fails: space after nl in input but not pattern
-		{"space vs newline no-percent 1111", "1 \n 2", "1 \n 2", 0, false}, // fails: hard to explain
+		{"space vs newline no-percent 1100", "1 \n 2", "1\n2", 0, false}, // fails: space after nl in input but not pattern
+		{"space vs newline no-percent 1101", "1 \n 2", "1\n 2", 0, true},
+		{"space vs newline no-percent 1110", "1 \n 2", "1 \n2", 0, false}, // fails: space after nl in input but not pattern
+		{"space vs newline no-percent 1111", "1 \n 2", "1 \n 2", 0, true},
 	}
 	for _, test := range tests {
 		var n int
