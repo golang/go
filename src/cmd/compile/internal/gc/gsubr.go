@@ -38,10 +38,10 @@ import (
 func Prog(as obj.As) *obj.Prog {
 	var p *obj.Prog
 
-	p = Pc
-	Pc = Ctxt.NewProg()
-	Clearp(Pc)
-	p.Link = Pc
+	p = pc
+	pc = Ctxt.NewProg()
+	Clearp(pc)
+	p.Link = pc
 
 	if lineno == 0 && Debug['K'] != 0 {
 		Warn("prog: line 0")
@@ -170,9 +170,9 @@ func Addrconst(a *obj.Addr, v int64) {
 func newplist() *obj.Plist {
 	pl := obj.Linknewplist(Ctxt)
 
-	Pc = Ctxt.NewProg()
-	Clearp(Pc)
-	pl.Firstpc = Pc
+	pc = Ctxt.NewProg()
+	Clearp(pc)
+	pl.Firstpc = pc
 
 	return pl
 }

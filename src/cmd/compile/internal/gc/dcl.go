@@ -1259,7 +1259,7 @@ func funccompile(n *Node) {
 	funcdepth = n.Func.Depth + 1
 	compile(n)
 	Curfn = nil
-	Pc = nil
+	pc = nil
 	funcdepth = 0
 	dclcontext = PEXTERN
 	if nerrors != 0 {
