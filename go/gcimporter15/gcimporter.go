@@ -15,6 +15,10 @@
 // standard library's go/importer package, specifically customizable
 // package data lookup. This package should be deleted once that
 // functionality becomes available in the standard library.
+//
+// Deprecated: this package will be deleted in October 2017.
+// New code should use golang.org/x/tools/go/gcexportdata.
+//
 package gcimporter // import "golang.org/x/tools/go/gcimporter15"
 
 import (
