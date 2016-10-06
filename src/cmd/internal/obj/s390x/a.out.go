@@ -209,9 +209,7 @@ const (
 	// integer arithmetic
 	AADD = obj.ABaseS390X + obj.A_ARCHSPECIFIC + iota
 	AADDC
-	AADDME
 	AADDE
-	AADDZE
 	AADDW
 	ADIVW
 	ADIVWU
@@ -227,10 +225,8 @@ const (
 	AMULHDU
 	ASUB
 	ASUBC
-	ASUBME
 	ASUBV
 	ASUBE
-	ASUBZE
 	ASUBW
 	ANEG
 	ANEGW

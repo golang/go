@@ -80,11 +80,7 @@ func IsS390xCMP(op obj.As) bool {
 // one of the NEG-like instructions that require special handling.
 func IsS390xNEG(op obj.As) bool {
 	switch op {
-	case s390x.AADDME,
-		s390x.AADDZE,
-		s390x.ANEG,
-		s390x.ASUBME,
-		s390x.ASUBZE:
+	case s390x.ANEG, s390x.ANEGW:
 		return true
 	}
 	return false
