@@ -568,6 +568,14 @@
 (MOVWZreg x:(MOVHZreg _)) -> x
 (MOVWZreg x:(MOVWZreg _)) -> x
 
+// fold extensions into constants
+(MOVBreg (MOVDconst [c])) -> (MOVDconst [int64(int8(c))])
+(MOVBZreg (MOVDconst [c])) -> (MOVDconst [int64(uint8(c))])
+(MOVHreg (MOVDconst [c])) -> (MOVDconst [int64(int16(c))])
+(MOVHZreg (MOVDconst [c])) -> (MOVDconst [int64(uint16(c))])
+(MOVWreg (MOVDconst [c])) -> (MOVDconst [int64(int32(c))])
+(MOVWZreg (MOVDconst [c])) -> (MOVDconst [int64(uint32(c))])
+
 // sign extended loads
 // Note: The combined instruction must end up in the same block
 // as the original load. If not, we end up making a value with
