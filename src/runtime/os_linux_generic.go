@@ -5,6 +5,7 @@
 // +build !mips64
 // +build !mips64le
 // +build !s390x
+// +build !ppc64
 // +build linux
 
 package runtime
