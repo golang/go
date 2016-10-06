@@ -4,7 +4,8 @@
 
 // Package time provides functionality for measuring and displaying time.
 //
-// The calendrical calculations always assume a Gregorian calendar.
+// The calendrical calculations always assume a Gregorian calendar, with
+// no leap seconds.
 package time
 
 import "errors"
