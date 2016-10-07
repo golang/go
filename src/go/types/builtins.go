@@ -632,7 +632,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 func makeSig(res Type, args ...Type) *Signature {
 	list := make([]*Var, len(args))
 	for i, param := range args {
-		list[i] = NewVar(token.NoPos, nil, "", defaultType(param))
+		list[i] = NewVar(token.NoPos, nil, "", Default(param))
 	}
 	params := NewTuple(list...)
 	var result *Tuple
