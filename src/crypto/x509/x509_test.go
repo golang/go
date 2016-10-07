@@ -1457,3 +1457,10 @@ func TestMultipleRDN(t *testing.T) {
 		t.Errorf("got serial number of %q, but want %q", cert.Subject.SerialNumber, want)
 	}
 }
+
+func TestSystemCertPool(t *testing.T) {
+	_, err := SystemCertPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
