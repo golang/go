@@ -1302,7 +1302,6 @@ const (
 	OpS390XCMPWUconst
 	OpS390XFCMPS
 	OpS390XFCMP
-	OpS390XTESTB
 	OpS390XSLD
 	OpS390XSLW
 	OpS390XSLDconst
@@ -16301,16 +16300,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
-			},
-		},
-	},
-	{
-		name:   "TESTB",
-		argLen: 1,
-		asm:    s390x.AAND,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 37887}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
 			},
 		},
 	},

@@ -3288,7 +3288,13 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 				ctxt.Diag("%v overflows a uint32", v)
 			}
 		}
-		zRIL(_a, zopril(ctxt, p.As), uint32(p.From.Reg), uint32(regoff(ctxt, &p.To)), asm)
+		if p.As == ACMP && int64(int16(v)) == v {
+			zRI(op_CGHI, uint32(p.From.Reg), uint32(v), asm)
+		} else if p.As == ACMPW && int64(int16(v)) == v {
+			zRI(op_CHI, uint32(p.From.Reg), uint32(v), asm)
+		} else {
+			zRIL(_a, zopril(ctxt, p.As), uint32(p.From.Reg), uint32(v), asm)
+		}
 
 	case 72: // mov $constant/$addr mem
 		v := regoff(ctxt, &p.From)

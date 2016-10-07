@@ -164,10 +164,14 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 	MVC	$256, 8192(R1), 8192(R2) // MVC 8192(R1), $256, 8192(R2) // b90400a2c2a800002000b90400b1c2b800002000d2ffa000b000
 
 	CMP	R1, R2                 // b9200012
+	CMP	R3, $32767             // a73f7fff
+	CMP	R3, $32768             // c23c00008000
 	CMP	R3, $-2147483648       // c23c80000000
 	CMPU	R4, R5                 // b9210045
 	CMPU	R6, $4294967295        // c26effffffff
 	CMPW	R7, R8                 // 1978
+	CMPW	R9, $-32768            // a79e8000
+	CMPW	R9, $-32769            // c29dffff7fff
 	CMPW	R9, $-2147483648       // c29d80000000
 	CMPWU	R1, R2                 // 1512
 	CMPWU	R3, $4294967295        // c23fffffffff
