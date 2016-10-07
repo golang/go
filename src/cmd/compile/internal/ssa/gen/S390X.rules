@@ -409,7 +409,7 @@
 (If (MOVDGTnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no) -> (GTF cmp yes no)
 (If (MOVDGEnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no) -> (GEF cmp yes no)
 
-(If cond yes no) -> (NE (TESTB cond) yes no)
+(If cond yes no) -> (NE (CMPWconst [0] (MOVBZreg cond)) yes no)
 
 // ***************************
 // Above: lowering rules
@@ -417,15 +417,26 @@
 // ***************************
 // TODO: Should the optimizations be a separate pass?
 
-// Fold boolean tests into blocks
-(NE (TESTB (MOVDLT (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (LT cmp yes no)
-(NE (TESTB (MOVDLE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (LE cmp yes no)
-(NE (TESTB (MOVDGT (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (GT cmp yes no)
-(NE (TESTB (MOVDGE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (GE cmp yes no)
-(NE (TESTB (MOVDEQ (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (EQ cmp yes no)
-(NE (TESTB (MOVDNE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (NE cmp yes no)
-(NE (TESTB (MOVDGTnoinv (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (GTF cmp yes no)
-(NE (TESTB (MOVDGEnoinv (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (GEF cmp yes no)
+// Fold sign extensions into conditional moves of constants.
+// Designed to remove the MOVBZreg inserted by the If lowering.
+(MOVBZreg x:(MOVDLT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+(MOVBZreg x:(MOVDLE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+(MOVBZreg x:(MOVDGT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+(MOVBZreg x:(MOVDGE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+(MOVBZreg x:(MOVDEQ (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+(MOVBZreg x:(MOVDNE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+(MOVBZreg x:(MOVDGTnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+(MOVBZreg x:(MOVDGEnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+
+// Fold boolean tests into blocks.
+(NE (CMPWconst [0] (MOVDLT (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (LT cmp yes no)
+(NE (CMPWconst [0] (MOVDLE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (LE cmp yes no)
+(NE (CMPWconst [0] (MOVDGT (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (GT cmp yes no)
+(NE (CMPWconst [0] (MOVDGE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (GE cmp yes no)
+(NE (CMPWconst [0] (MOVDEQ (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (EQ cmp yes no)
+(NE (CMPWconst [0] (MOVDNE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (NE cmp yes no)
+(NE (CMPWconst [0] (MOVDGTnoinv (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (GTF cmp yes no)
+(NE (CMPWconst [0] (MOVDGEnoinv (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (GEF cmp yes no)
 
 // Fold constants into instructions.
 (ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)

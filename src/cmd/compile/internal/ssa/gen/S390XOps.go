@@ -237,8 +237,6 @@ func init() {
 		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "CEBR", typ: "Flags"}, // arg0 compare to arg1, f32
 		{name: "FCMP", argLength: 2, reg: fp2flags, asm: "FCMPU", typ: "Flags"}, // arg0 compare to arg1, f64
 
-		{name: "TESTB", argLength: 1, reg: gp1flags, asm: "AND", typ: "Flags"}, // (arg0 & 0xFF) compare to 0
-
 		{name: "SLD", argLength: 2, reg: sh21, asm: "SLD"},                    // arg0 << arg1, shift amount is mod 64
 		{name: "SLW", argLength: 2, reg: sh21, asm: "SLW"},                    // arg0 << arg1, shift amount is mod 32
 		{name: "SLDconst", argLength: 1, reg: gp11, asm: "SLD", aux: "Int64"}, // arg0 << auxint, shift amount 0-63

@@ -311,13 +311,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpS390XCMP, ssa.OpS390XCMPW, ssa.OpS390XCMPU, ssa.OpS390XCMPWU:
 		opregreg(v.Op.Asm(), v.Args[1].Reg(), v.Args[0].Reg())
-	case ssa.OpS390XTESTB:
-		p := gc.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0xFF
-		p.Reg = v.Args[0].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = s390x.REGTMP
 	case ssa.OpS390XFCMPS, ssa.OpS390XFCMP:
 		opregreg(v.Op.Asm(), v.Args[1].Reg(), v.Args[0].Reg())
 	case ssa.OpS390XCMPconst, ssa.OpS390XCMPWconst, ssa.OpS390XCMPUconst, ssa.OpS390XCMPWUconst:
