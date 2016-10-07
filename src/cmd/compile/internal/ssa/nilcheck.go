@@ -10,15 +10,7 @@ func nilcheckelim(f *Func) {
 	// A nil check is redundant if the same nil check was successful in a
 	// dominating block. The efficacy of this pass depends heavily on the
 	// efficacy of the cse pass.
-	idom := f.idom()
-	domTree := make([][]*Block, f.NumBlocks())
-
-	// Create a block ID -> [dominees] mapping
-	for _, b := range f.Blocks {
-		if dom := idom[b.ID]; dom != nil {
-			domTree[dom.ID] = append(domTree[dom.ID], b)
-		}
-	}
+	sdom := f.sdom()
 
 	// TODO: Eliminate more nil checks.
 	// We can recursively remove any chain of fixed offset calculations,
@@ -128,7 +120,7 @@ func nilcheckelim(f *Func) {
 			b.Values = b.Values[:i]
 
 			// Add all dominated blocks to the work list.
-			for _, w := range domTree[node.block.ID] {
+			for w := sdom[node.block.ID].child; w != nil; w = sdom[w.ID].sibling {
 				work = append(work, bp{op: Work, block: w})
 			}
 
