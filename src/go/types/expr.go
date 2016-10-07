@@ -541,7 +541,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 			if !t.Empty() {
 				goto Error
 			}
-			target = defaultType(x.typ)
+			target = Default(x.typ)
 		}
 	case *Pointer, *Signature, *Slice, *Map, *Chan:
 		if !x.isNil() {
@@ -605,8 +605,8 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 		// time will be materialized. Update the expression trees.
 		// If the current types are untyped, the materialized type
 		// is the respective default type.
-		check.updateExprType(x.expr, defaultType(x.typ), true)
-		check.updateExprType(y.expr, defaultType(y.typ), true)
+		check.updateExprType(x.expr, Default(x.typ), true)
+		check.updateExprType(y.expr, Default(y.typ), true)
 	}
 
 	// spec: "Comparison operators compare two operands and yield

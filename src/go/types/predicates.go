@@ -291,11 +291,11 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	return false
 }
 
-// defaultType returns the default "typed" type for an "untyped" type;
+// Default returns the default "typed" type for an "untyped" type;
 // it returns the incoming type for all other types. The default type
 // for untyped nil is untyped nil.
 //
-func defaultType(typ Type) Type {
+func Default(typ Type) Type {
 	if t, ok := typ.(*Basic); ok {
 		switch t.kind {
 		case UntypedBool:
