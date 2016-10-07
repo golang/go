@@ -1,4 +1,3 @@
-// +build !amd64
 // errorcheck -0 -live -wb=0
 
 // Copyright 2014 The Go Authors. All rights reserved.
