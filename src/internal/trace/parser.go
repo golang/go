@@ -28,12 +28,13 @@ type Event struct {
 	StkID uint64    // unique stack ID
 	Stk   []*Frame  // stack trace (can be empty)
 	Args  [3]uint64 // event-type-specific arguments
+	SArgs []string  // event-type-specific string args
 	// linked event (can be nil), depends on event type:
 	// for GCStart: the GCStop
 	// for GCScanStart: the GCScanDone
 	// for GCSweepStart: the GCSweepDone
 	// for GoCreate: first GoStart of the created goroutine
-	// for GoStart: the associated GoEnd, GoBlock or other blocking event
+	// for GoStart/GoStartLabel: the associated GoEnd, GoBlock or other blocking event
 	// for GoSched/GoPreempt: the next GoStart
 	// for GoBlock and other blocking events: the unblock event
 	// for GoUnblock: the associated GoStart
@@ -126,7 +127,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 		return
 	}
 	switch ver {
-	case 1005, 1007:
+	case 1005, 1007, 1008:
 		break
 	default:
 		err = fmt.Errorf("unsupported trace file version %v.%v (update Go toolchain) %v", ver/1000, ver%1000, ver)
@@ -363,9 +364,12 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 				}
 			}
 			switch raw.typ {
-			case EvGoStart, EvGoStartLocal:
+			case EvGoStart, EvGoStartLocal, EvGoStartLabel:
 				lastG = e.Args[0]
 				e.G = lastG
+				if raw.typ == EvGoStartLabel {
+					e.SArgs = []string{strings[e.Args[2]]}
+				}
 			case EvGCStart, EvGCDone, EvGCScanStart, EvGCScanDone:
 				e.G = 0
 			case EvGoEnd, EvGoStop, EvGoSched, EvGoPreempt,
@@ -599,7 +603,7 @@ func postProcessTrace(ver int, events []*Event) error {
 				return fmt.Errorf("g %v already exists (offset %v, time %v)", ev.Args[0], ev.Off, ev.Ts)
 			}
 			gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev, evCreate: ev}
-		case EvGoStart:
+		case EvGoStart, EvGoStartLabel:
 			if g.state != gRunnable {
 				return fmt.Errorf("g %v is not runnable before start (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
 			}
@@ -890,7 +894,8 @@ const (
 	EvGoStartLocal   = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
 	EvGoUnblockLocal = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
 	EvGoSysExitLocal = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
-	EvCount          = 41
+	EvGoStartLabel   = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
+	EvCount          = 42
 )
 
 var EventDescriptions = [EvCount]struct {
@@ -940,4 +945,5 @@ var EventDescriptions = [EvCount]struct {
 	EvGoStartLocal:   {"GoStartLocal", 1007, false, []string{"g"}},
 	EvGoUnblockLocal: {"GoUnblockLocal", 1007, true, []string{"g"}},
 	EvGoSysExitLocal: {"GoSysExitLocal", 1007, false, []string{"g", "ts"}},
+	EvGoStartLabel:   {"GoStartLabel", 1008, false, []string{"g", "seq", "label"}},
 }

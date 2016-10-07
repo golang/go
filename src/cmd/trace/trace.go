@@ -371,11 +371,15 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		case trace.EvGCSweepStart:
 			ctx.emitSlice(ev, "SWEEP")
 		case trace.EvGCSweepDone:
-		case trace.EvGoStart:
+		case trace.EvGoStart, trace.EvGoStartLabel:
 			ctx.grunnable--
 			ctx.grunning++
 			ctx.emitGoroutineCounters(ev)
-			ctx.emitSlice(ev, gnames[ev.G])
+			if ev.Type == trace.EvGoStartLabel {
+				ctx.emitSlice(ev, ev.SArgs[0])
+			} else {
+				ctx.emitSlice(ev, gnames[ev.G])
+			}
 		case trace.EvGoCreate:
 			ctx.gcount++
 			ctx.grunnable++
