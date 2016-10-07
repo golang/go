@@ -14,6 +14,7 @@ var (
 	ErrPermission = errors.New("permission denied")
 	ErrExist      = errors.New("file already exists")
 	ErrNotExist   = errors.New("file does not exist")
+	ErrClosed     = errors.New("file already closed")
 )
 
 // PathError records an error and the operation and file path that caused it.

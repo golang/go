@@ -193,7 +193,7 @@ func (file *file) close() error {
 	if e != nil {
 		err = &PathError{"close", file.name, e}
 	}
-	file.fd = syscall.InvalidHandle // so it can't be closed again
+	file.fd = badFd // so it can't be closed again
 
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(file, nil)
@@ -575,3 +575,5 @@ func Symlink(oldname, newname string) error {
 	}
 	return nil
 }
+
+const badFd = syscall.InvalidHandle

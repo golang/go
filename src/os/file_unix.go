@@ -128,7 +128,7 @@ func (f *File) Close() error {
 }
 
 func (file *file) close() error {
-	if file == nil || file.fd < 0 {
+	if file == nil || file.fd == badFd {
 		return syscall.EINVAL
 	}
 	var err error

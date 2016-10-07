@@ -95,8 +95,8 @@ func (e *LinkError) Error() string {
 // It returns the number of bytes read and an error, if any.
 // EOF is signaled by a zero count with err set to io.EOF.
 func (f *File) Read(b []byte) (n int, err error) {
-	if f == nil {
-		return 0, ErrInvalid
+	if err := f.checkValid("read"); err != nil {
+		return 0, err
 	}
 	n, e := f.read(b)
 	if n == 0 && len(b) > 0 && e == nil {
@@ -113,8 +113,8 @@ func (f *File) Read(b []byte) (n int, err error) {
 // ReadAt always returns a non-nil error when n < len(b).
 // At end of file, that error is io.EOF.
 func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
-	if f == nil {
-		return 0, ErrInvalid
+	if err := f.checkValid("read"); err != nil {
+		return 0, err
 	}
 	for len(b) > 0 {
 		m, e := f.pread(b, off)
@@ -136,8 +136,8 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 // It returns the number of bytes written and an error, if any.
 // Write returns a non-nil error when n != len(b).
 func (f *File) Write(b []byte) (n int, err error) {
-	if f == nil {
-		return 0, ErrInvalid
+	if err := f.checkValid("write"); err != nil {
+		return 0, err
 	}
 	n, e := f.write(b)
 	if n < 0 {
@@ -159,8 +159,8 @@ func (f *File) Write(b []byte) (n int, err error) {
 // It returns the number of bytes written and an error, if any.
 // WriteAt returns a non-nil error when n != len(b).
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
-	if f == nil {
-		return 0, ErrInvalid
+	if err := f.checkValid("write"); err != nil {
+		return 0, err
 	}
 	for len(b) > 0 {
 		m, e := f.pwrite(b, off)
@@ -181,8 +181,8 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 // It returns the new offset and an error, if any.
 // The behavior of Seek on a file opened with O_APPEND is not specified.
 func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
-	if f == nil {
-		return 0, ErrInvalid
+	if err := f.checkValid("seek"); err != nil {
+		return 0, err
 	}
 	r, e := f.seek(offset, whence)
 	if e == nil && f.dirinfo != nil && r != 0 {
@@ -197,9 +197,6 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 // WriteString is like Write, but writes the contents of string s rather than
 // a slice of bytes.
 func (f *File) WriteString(s string) (n int, err error) {
-	if f == nil {
-		return 0, ErrInvalid
-	}
 	return f.Write([]byte(s))
 }
 
@@ -233,8 +230,8 @@ func Chdir(dir string) error {
 // which must be a directory.
 // If there is an error, it will be of type *PathError.
 func (f *File) Chdir() error {
-	if f == nil {
-		return ErrInvalid
+	if err := f.checkValid("chdir"); err != nil {
+		return err
 	}
 	if e := syscall.Fchdir(f.fd); e != nil {
 		return &PathError{"chdir", f.name, e}
@@ -277,4 +274,16 @@ func fixCount(n int, err error) (int, error) {
 		n = 0
 	}
 	return n, err
+}
+
+// checkValid checks whether f is valid for use.
+// If not, it returns an appropriate error, perhaps incorporating the operation name op.
+func (f *File) checkValid(op string) error {
+	if f == nil {
+		return ErrInvalid
+	}
+	if f.fd == badFd {
+		return &PathError{op, f.name, ErrClosed}
+	}
+	return nil
 }
