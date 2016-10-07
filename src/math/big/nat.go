@@ -542,16 +542,21 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
 	return
 }
 
-// getNat returns a nat of len n. The contents may not be zero.
-func getNat(n int) nat {
-	var z nat
+// getNat returns a *nat of len n. The contents may not be zero.
+// The pool holds *nat to avoid allocation when converting to interface{}.
+func getNat(n int) *nat {
+	var z *nat
 	if v := natPool.Get(); v != nil {
-		z = v.(nat)
+		z = v.(*nat)
 	}
-	return z.make(n)
+	if z == nil {
+		z = new(nat)
+	}
+	*z = z.make(n)
+	return z
 }
 
-func putNat(x nat) {
+func putNat(x *nat) {
 	natPool.Put(x)
 }
 
@@ -575,7 +580,8 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	}
 	q = z.make(m + 1)
 
-	qhatv := getNat(n + 1)
+	qhatvp := getNat(n + 1)
+	qhatv := *qhatvp
 	if alias(u, uIn) || alias(u, v) {
 		u = nil // u is an alias for uIn or v - cannot reuse
 	}
@@ -583,36 +589,40 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	u.clear() // TODO(gri) no need to clear if we allocated a new u
 
 	// D1.
-	var v1 nat
+	var v1p *nat
 	shift := nlz(v[n-1])
 	if shift > 0 {
 		// do not modify v, it may be used by another goroutine simultaneously
-		v1 = getNat(n)
+		v1p = getNat(n)
+		v1 := *v1p
 		shlVU(v1, v, shift)
 		v = v1
 	}
 	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
 
 	// D2.
+	vn1 := v[n-1]
 	for j := m; j >= 0; j-- {
 		// D3.
 		qhat := Word(_M)
-		if u[j+n] != v[n-1] {
+		if ujn := u[j+n]; ujn != vn1 {
 			var rhat Word
-			qhat, rhat = divWW(u[j+n], u[j+n-1], v[n-1])
+			qhat, rhat = divWW(ujn, u[j+n-1], vn1)
 
 			// x1 | x2 = q̂v_{n-2}
-			x1, x2 := mulWW(qhat, v[n-2])
+			vn2 := v[n-2]
+			x1, x2 := mulWW(qhat, vn2)
 			// test if q̂v_{n-2} > br̂ + u_{j+n-2}
-			for greaterThan(x1, x2, rhat, u[j+n-2]) {
+			ujn2 := u[j+n-2]
+			for greaterThan(x1, x2, rhat, ujn2) {
 				qhat--
 				prevRhat := rhat
-				rhat += v[n-1]
+				rhat += vn1
 				// v[n-1] >= 0, so this tests for overflow.
 				if rhat < prevRhat {
 					break
 				}
-				x1, x2 = mulWW(qhat, v[n-2])
+				x1, x2 = mulWW(qhat, vn2)
 			}
 		}
 
@@ -628,10 +638,10 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 
 		q[j] = qhat
 	}
-	if v1 != nil {
-		putNat(v1)
+	if v1p != nil {
+		putNat(v1p)
 	}
-	putNat(qhatv)
+	putNat(qhatvp)
 
 	q = q.norm()
 	shrVU(u, u, shift)
