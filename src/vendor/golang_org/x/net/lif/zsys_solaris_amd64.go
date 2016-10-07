@@ -11,7 +11,7 @@ const (
 	sysSOCK_DGRAM = 0x1
 )
 
-type sysSockaddrStorage struct {
+type sockaddrStorage struct {
 	Family     uint16
 	X_ss_pad1  [6]int8
 	X_ss_align float64
@@ -72,14 +72,14 @@ type sysLifnum struct {
 	Count     int32
 }
 
-type sysLifreq struct {
+type lifreq struct {
 	Name   [32]int8
 	Lifru1 [4]byte
 	Type   uint32
 	Lifru  [336]byte
 }
 
-type sysLifconf struct {
+type lifconf struct {
 	Family    uint16
 	Pad_cgo_0 [2]byte
 	Flags     int32
@@ -88,7 +88,7 @@ type sysLifconf struct {
 	Lifcu     [8]byte
 }
 
-type sysLifIfinfoReq struct {
+type lifIfinfoReq struct {
 	Maxhops      uint8
 	Pad_cgo_0    [3]byte
 	Reachtime    uint32

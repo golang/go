@@ -25,7 +25,7 @@ type Link struct {
 }
 
 func (ll *Link) fetch(s uintptr) {
-	var lifr sysLifreq
+	var lifr lifreq
 	for i := 0; i < len(ll.Name); i++ {
 		lifr.Name[i] = int8(ll.Name[i])
 	}
@@ -71,7 +71,7 @@ func Links(af int, name string) ([]Link, error) {
 func links(eps []endpoint, name string) ([]Link, error) {
 	var lls []Link
 	lifn := sysLifnum{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
-	lifc := sysLifconf{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
+	lifc := lifconf{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
 	for _, ep := range eps {
 		lifn.Family = uint16(ep.af)
 		ioc := int64(sysSIOCGLIFNUM)
@@ -91,7 +91,7 @@ func links(eps []endpoint, name string) ([]Link, error) {
 		}
 		nb := make([]byte, 32) // see LIFNAMSIZ in net/if.h
 		for i := 0; i < int(lifn.Count); i++ {
-			lifr := (*sysLifreq)(unsafe.Pointer(&b[i*sizeofLifreq]))
+			lifr := (*lifreq)(unsafe.Pointer(&b[i*sizeofLifreq]))
 			for i := 0; i < 32; i++ {
 				if lifr.Name[i] == 0 {
 					nb = nb[:i]

@@ -56,7 +56,7 @@ func Addrs(af int, name string) ([]Addr, error) {
 	}
 	var as []Addr
 	for _, ll := range lls {
-		var lifr sysLifreq
+		var lifr lifreq
 		for i := 0; i < len(ll.Name); i++ {
 			lifr.Name[i] = int8(ll.Name[i])
 		}
@@ -66,7 +66,7 @@ func Addrs(af int, name string) ([]Addr, error) {
 			if err != nil {
 				continue
 			}
-			sa := (*sysSockaddrStorage)(unsafe.Pointer(&lifr.Lifru[0]))
+			sa := (*sockaddrStorage)(unsafe.Pointer(&lifr.Lifru[0]))
 			l := int(littleEndian.Uint32(lifr.Lifru1[:4]))
 			if l == 0 {
 				continue

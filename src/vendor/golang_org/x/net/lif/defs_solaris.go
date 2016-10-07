@@ -26,7 +26,7 @@ const (
 	sysSOCK_DGRAM = C.SOCK_DGRAM
 )
 
-type sysSockaddrStorage C.struct_sockaddr_storage
+type sockaddrStorage C.struct_sockaddr_storage
 
 const (
 	sysLIFC_NOXMIT          = C.LIFC_NOXMIT
@@ -77,11 +77,11 @@ const (
 
 type sysLifnum C.struct_lifnum
 
-type sysLifreq C.struct_lifreq
+type lifreq C.struct_lifreq
 
-type sysLifconf C.struct_lifconf
+type lifconf C.struct_lifconf
 
-type sysLifIfinfoReq C.struct_lif_ifinfo_req
+type lifIfinfoReq C.struct_lif_ifinfo_req
 
 const (
 	sysIFT_IPV4 = C.IFT_IPV4
