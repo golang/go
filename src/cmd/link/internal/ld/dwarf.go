@@ -879,32 +879,104 @@ func finddebugruntimepath(s *Symbol) {
 }
 
 /*
- * Generate short opcodes when possible, long ones when necessary.
+ * Generate a sequence of opcodes that is as short as possible.
  * See section 6.2.5
  */
 const (
-	LINE_BASE   = -1
-	LINE_RANGE  = 4
+	LINE_BASE   = -4
+	LINE_RANGE  = 10
+	PC_RANGE    = (255 - OPCODE_BASE) / LINE_RANGE
 	OPCODE_BASE = 10
 )
 
-func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *Symbol, deltaPC int64, deltaLC int64) {
-	if LINE_BASE <= deltaLC && deltaLC < LINE_BASE+LINE_RANGE {
-		var opcode int64 = OPCODE_BASE + (deltaLC - LINE_BASE) + (LINE_RANGE * deltaPC)
-		if OPCODE_BASE <= opcode && opcode < 256 {
-			Adduint8(linkctxt, s, uint8(opcode))
-			return
+func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *Symbol, deltaPC uint64, deltaLC int64) {
+	// Choose a special opcode that minimizes the number of bytes needed to
+	// encode the remaining PC delta and LC delta.
+	var opcode int64
+	if deltaLC < LINE_BASE {
+		if deltaPC >= PC_RANGE {
+			opcode = OPCODE_BASE + (LINE_RANGE * PC_RANGE)
+		} else {
+			opcode = OPCODE_BASE + (LINE_RANGE * int64(deltaPC))
+		}
+	} else if deltaLC < LINE_BASE+LINE_RANGE {
+		if deltaPC >= PC_RANGE {
+			opcode = OPCODE_BASE + (deltaLC - LINE_BASE) + (LINE_RANGE * PC_RANGE)
+			if opcode > 255 {
+				opcode -= LINE_RANGE
+			}
+		} else {
+			opcode = OPCODE_BASE + (deltaLC - LINE_BASE) + (LINE_RANGE * int64(deltaPC))
+		}
+	} else {
+		if deltaPC <= PC_RANGE {
+			opcode = OPCODE_BASE + (LINE_RANGE - 1) + (LINE_RANGE * int64(deltaPC))
+			if opcode > 255 {
+				opcode = 255
+			}
+		} else {
+			// Use opcode 249 (pc+=23, lc+=5) or 255 (pc+=24, lc+=1).
+			//
+			// Let x=deltaPC-PC_RANGE.  If we use opcode 255, x will be the remaining
+			// deltaPC that we need to encode separately before emitting 255.  If we
+			// use opcode 249, we will need to encode x+1.  If x+1 takes one more
+			// byte to encode than x, then we use opcode 255.
+			//
+			// In all other cases x and x+1 take the same number of bytes to encode,
+			// so we use opcode 249, which may save us a byte in encoding deltaLC,
+			// for similar reasons.
+			switch deltaPC - PC_RANGE {
+			// PC_RANGE is the largest deltaPC we can encode in one byte, using
+			// DW_LNS_const_add_pc.
+			//
+			// (1<<16)-1 is the largest deltaPC we can encode in three bytes, using
+			// DW_LNS_fixed_advance_pc.
+			//
+			// (1<<(7n))-1 is the largest deltaPC we can encode in n+1 bytes for
+			// n=1,3,4,5,..., using DW_LNS_advance_pc.
+			case PC_RANGE, (1 << 7) - 1, (1 << 16) - 1, (1 << 21) - 1, (1 << 28) - 1,
+				(1 << 35) - 1, (1 << 42) - 1, (1 << 49) - 1, (1 << 56) - 1, (1 << 63) - 1:
+				opcode = 255
+			default:
+				opcode = OPCODE_BASE + LINE_RANGE*PC_RANGE - 1 // 249
+			}
+		}
+	}
+	if opcode < OPCODE_BASE || opcode > 255 {
+		panic(fmt.Sprintf("produced invalid special opcode %d", opcode))
+	}
+
+	// Subtract from deltaPC and deltaLC the amounts that the opcode will add.
+	deltaPC -= uint64((opcode - OPCODE_BASE) / LINE_RANGE)
+	deltaLC -= int64((opcode-OPCODE_BASE)%LINE_RANGE + LINE_BASE)
+
+	// Encode deltaPC.
+	if deltaPC != 0 {
+		if deltaPC <= PC_RANGE {
+			// Adjust the opcode so that we can use the 1-byte DW_LNS_const_add_pc
+			// instruction.
+			opcode -= LINE_RANGE * int64(PC_RANGE-deltaPC)
+			if opcode < OPCODE_BASE {
+				panic(fmt.Sprintf("produced invalid special opcode %d", opcode))
+			}
+			Adduint8(linkctxt, s, dwarf.DW_LNS_const_add_pc)
+		} else if (1<<14) <= deltaPC && deltaPC < (1<<16) {
+			Adduint8(linkctxt, s, dwarf.DW_LNS_fixed_advance_pc)
+			Adduint16(linkctxt, s, uint16(deltaPC))
+		} else {
+			Adduint8(linkctxt, s, dwarf.DW_LNS_advance_pc)
+			dwarf.Uleb128put(ctxt, s, int64(deltaPC))
 		}
 	}
 
-	if deltaPC != 0 {
-		Adduint8(linkctxt, s, dwarf.DW_LNS_advance_pc)
-		dwarf.Sleb128put(ctxt, s, deltaPC)
+	// Encode deltaLC.
+	if deltaLC != 0 {
+		Adduint8(linkctxt, s, dwarf.DW_LNS_advance_line)
+		dwarf.Sleb128put(ctxt, s, deltaLC)
 	}
 
-	Adduint8(linkctxt, s, dwarf.DW_LNS_advance_line)
-	dwarf.Sleb128put(ctxt, s, deltaLC)
-	Adduint8(linkctxt, s, dwarf.DW_LNS_copy)
+	// Output the special opcode.
+	Adduint8(linkctxt, s, uint8(opcode))
 }
 
 /*
@@ -1048,7 +1120,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 				file = int(pcfile.value)
 			}
 
-			putpclcdelta(ctxt, dwarfctxt, ls, s.Value+int64(pcline.pc)-pc, int64(pcline.value)-int64(line))
+			putpclcdelta(ctxt, dwarfctxt, ls, uint64(s.Value+int64(pcline.pc)-pc), int64(pcline.value)-int64(line))
 
 			pc = s.Value + int64(pcline.pc)
 			line = int(pcline.value)
