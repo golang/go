@@ -130,21 +130,21 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 // Close closes the File, rendering it unusable for I/O.
 // It returns an error, if any.
 func (f *File) Close() error {
-	if f == nil {
-		return ErrInvalid
+	if err := f.checkValid("close"); err != nil {
+		return err
 	}
 	return f.file.close()
 }
 
 func (file *file) close() error {
-	if file == nil || file.fd < 0 {
+	if file == nil || file.fd == badFd {
 		return ErrInvalid
 	}
 	var err error
 	if e := syscall.Close(file.fd); e != nil {
 		err = &PathError{"close", file.name, e}
 	}
-	file.fd = -1 // so it can't be closed again
+	file.fd = badFd // so it can't be closed again
 
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(file, nil)

@@ -229,6 +229,28 @@ func TestRead0(t *testing.T) {
 	}
 }
 
+// Reading a closed file should should return ErrClosed error
+func TestReadClosed(t *testing.T) {
+	path := sfdir + "/" + sfname
+	file, err := Open(path)
+	if err != nil {
+		t.Fatal("open failed:", err)
+	}
+	file.Close() // close immediately
+
+	b := make([]byte, 100)
+	_, err = file.Read(b)
+
+	e, ok := err.(*PathError)
+	if !ok {
+		t.Fatalf("Read: %T(%v), want PathError", e, e)
+	}
+
+	if e.Err != ErrClosed {
+		t.Errorf("Read: %v, want PathError(ErrClosed)", e)
+	}
+}
+
 func testReaddirnames(dir string, contents []string, t *testing.T) {
 	file, err := Open(dir)
 	if err != nil {
