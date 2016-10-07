@@ -1436,8 +1436,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		}
 		s.endRegs[b.ID] = regList
 
-		// Check. TODO: remove
-		{
+		if checkEnabled {
 			liveSet.clear()
 			for _, x := range s.live[b.ID] {
 				liveSet.add(x.ID)
