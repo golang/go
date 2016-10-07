@@ -60,7 +60,8 @@ const (
 	traceEvGoStartLocal   = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
 	traceEvGoUnblockLocal = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
 	traceEvGoSysExitLocal = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
-	traceEvCount          = 41
+	traceEvGoStartLabel   = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
+	traceEvCount          = 42
 )
 
 const (
@@ -116,10 +117,15 @@ var trace struct {
 	stackTab      traceStackTable // maps stack traces to unique ids
 
 	// Dictionary for traceEvString.
-	// Currently this is used only for func/file:line info after tracing session,
-	// so we assume single-threaded access.
+	//
+	// Currently this is used only at trace setup and for
+	// func/file:line info after tracing session, so we assume
+	// single-threaded access.
 	strings   map[string]uint64
 	stringSeq uint64
+
+	// markWorkerLabels maps gcMarkWorkerMode to string ID.
+	markWorkerLabels [len(gcMarkWorkerModeStrings)]uint64
 
 	bufLock mutex       // protects buf
 	buf     traceBufPtr // global trace buffer, used when running without a p
@@ -231,6 +237,18 @@ func StartTrace() error {
 	trace.seqGC = 0
 	_g_.m.startingtrace = false
 	trace.enabled = true
+
+	// Register runtime goroutine labels.
+	_, pid, bufp := traceAcquireBuffer()
+	buf := (*bufp).ptr()
+	if buf == nil {
+		buf = traceFlush(0).ptr()
+		(*bufp).set(buf)
+	}
+	for i, label := range gcMarkWorkerModeStrings[:] {
+		trace.markWorkerLabels[i], buf = traceString(buf, label)
+	}
+	traceReleaseBuffer(pid)
 
 	unlock(&trace.bufLock)
 
@@ -361,7 +379,7 @@ func ReadTrace() []byte {
 		trace.headerWritten = true
 		trace.lockOwner = nil
 		unlock(&trace.lock)
-		return []byte("go 1.7 trace\x00\x00\x00\x00")
+		return []byte("go 1.8 trace\x00\x00\x00\x00")
 	}
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
@@ -932,7 +950,9 @@ func traceGoStart() {
 	_g_ := getg().m.curg
 	_p_ := _g_.m.p
 	_g_.traceseq++
-	if _g_.tracelastp == _p_ {
+	if _g_ == _p_.ptr().gcBgMarkWorker.ptr() {
+		traceEvent(traceEvGoStartLabel, -1, uint64(_g_.goid), _g_.traceseq, trace.markWorkerLabels[_p_.ptr().gcMarkWorkerMode])
+	} else if _g_.tracelastp == _p_ {
 		traceEvent(traceEvGoStartLocal, -1, uint64(_g_.goid))
 	} else {
 		_g_.tracelastp = _p_

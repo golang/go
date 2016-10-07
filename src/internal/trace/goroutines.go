@@ -48,7 +48,7 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 			g := &GDesc{ID: ev.Args[0], CreationTime: ev.Ts, gdesc: new(gdesc)}
 			g.blockSchedTime = ev.Ts
 			gs[g.ID] = g
-		case EvGoStart:
+		case EvGoStart, EvGoStartLabel:
 			g := gs[ev.G]
 			if g.PC == 0 {
 				g.PC = ev.Stk[0].PC

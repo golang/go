@@ -150,7 +150,7 @@ func stateTransition(ev *Event) (g uint64, init, next gState) {
 		g = ev.G
 		init = gState{1, gRunnable}
 		next = gState{2, gWaiting}
-	case EvGoStart:
+	case EvGoStart, EvGoStartLabel:
 		g = ev.G
 		init = gState{ev.Args[1], gRunnable}
 		next = gState{ev.Args[1] + 1, gRunning}
