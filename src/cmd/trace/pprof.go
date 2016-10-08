@@ -62,7 +62,7 @@ func pprofBlock(w io.Writer) error {
 	for _, ev := range events {
 		switch ev.Type {
 		case trace.EvGoBlockSend, trace.EvGoBlockRecv, trace.EvGoBlockSelect,
-			trace.EvGoBlockSync, trace.EvGoBlockCond:
+			trace.EvGoBlockSync, trace.EvGoBlockCond, trace.EvGoBlockGC:
 		default:
 			continue
 		}

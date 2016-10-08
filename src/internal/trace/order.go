@@ -165,7 +165,8 @@ func stateTransition(ev *Event) (g uint64, init, next gState) {
 		init = gState{noseq, gRunnable}
 		next = gState{seqinc, gRunning}
 	case EvGoBlock, EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect,
-		EvGoBlockSync, EvGoBlockCond, EvGoBlockNet, EvGoSleep, EvGoSysBlock:
+		EvGoBlockSync, EvGoBlockCond, EvGoBlockNet, EvGoSleep,
+		EvGoSysBlock, EvGoBlockGC:
 		g = ev.G
 		init = gState{noseq, gRunning}
 		next = gState{noseq, gWaiting}

@@ -83,6 +83,10 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
 			g := gs[ev.G]
 			g.ExecTime += ev.Ts - g.lastStartTime
 			g.blockNetTime = ev.Ts
+		case EvGoBlockGC:
+			g := gs[ev.G]
+			g.ExecTime += ev.Ts - g.lastStartTime
+			g.blockGCTime = ev.Ts
 		case EvGoUnblock:
 			g := gs[ev.Args[0]]
 			if g.blockNetTime != 0 {
