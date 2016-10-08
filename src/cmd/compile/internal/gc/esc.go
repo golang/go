@@ -472,8 +472,28 @@ func escAnalyze(all []*Node, recursive bool) {
 
 	// visit the upstream of each dst, mark address nodes with
 	// addrescapes, mark parameters unsafe
+	escapes := make([]uint16, len(e.dsts))
+	for i, n := range e.dsts {
+		escapes[i] = n.Esc
+	}
 	for _, n := range e.dsts {
 		escflood(e, n)
+	}
+	for {
+		done := true
+		for i, n := range e.dsts {
+			if n.Esc != escapes[i] {
+				done = false
+				if Debug['m'] > 2 {
+					Warnl(n.Lineno, "Reflooding %v %S", e.curfnSym(n), n)
+				}
+				escapes[i] = n.Esc
+				escflood(e, n)
+			}
+		}
+		if done {
+			break
+		}
 	}
 
 	// for all top level functions, tag the typenodes corresponding to the param nodes
@@ -1801,6 +1821,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 	}
 
 	leaks = level.int() <= 0 && level.guaranteedDereference() <= 0 && dstE.Escloopdepth < modSrcLoopdepth
+	leaks = leaks || level.int() <= 0 && dst.Esc&EscMask == EscHeap
 
 	osrcesc = src.Esc
 	switch src.Op {
