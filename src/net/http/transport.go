@@ -991,7 +991,8 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		conn, err := t.dial(ctx, "tcp", cm.addr())
 		if err != nil {
 			if cm.proxyURL != nil {
-				err = fmt.Errorf("http: error connecting to proxy %s: %v", cm.proxyURL, err)
+				// Return a typed error, per Issue 16997:
+				err = &net.OpError{Op: "proxyconnect", Net: "tcp", Err: err}
 			}
 			return nil, err
 		}
