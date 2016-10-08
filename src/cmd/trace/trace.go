@@ -257,8 +257,7 @@ type traceContext struct {
 	heapAlloc uint64
 	nextGC    uint64
 	gcount    uint64
-	grunnable uint64
-	grunning  uint64
+	gstates   [gStateCount]uint64
 	insyscall uint64
 	prunning  uint64
 }
@@ -267,6 +266,17 @@ type frameNode struct {
 	id       int
 	children map[uint64]frameNode
 }
+
+type gState int
+
+const (
+	gDead gState = iota
+	gRunnable
+	gRunning
+	gWaiting
+
+	gStateCount
+)
 
 type ViewerData struct {
 	Events   []*ViewerEvent         `json:"traceEvents"`
@@ -318,6 +328,19 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 	ctx.data.TimeUnit = "ns"
 	maxProc := 0
 	gnames := make(map[uint64]string)
+	gstates := make(map[uint64]gState)
+	// Since we make many calls to setGState, we record a sticky
+	// error in setGStateErr and check it after every event.
+	var setGStateErr error
+	setGState := func(ev *trace.Event, g uint64, oldState, newState gState) {
+		if gstates[g] != oldState && setGStateErr == nil {
+			setGStateErr = fmt.Errorf("expected G %d to be in state %d, but got state %d", g, oldState, newState)
+		}
+		ctx.gstates[gstates[g]]--
+		ctx.gstates[newState]++
+		gstates[g] = newState
+		ctx.emitGoroutineCounters(ev)
+	}
 	for _, ev := range ctx.events {
 		// Handle trace.EvGoStart separately, because we need the goroutine name
 		// even if ignore the event otherwise.
@@ -372,9 +395,7 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			ctx.emitSlice(ev, "SWEEP")
 		case trace.EvGCSweepDone:
 		case trace.EvGoStart, trace.EvGoStartLabel:
-			ctx.grunnable--
-			ctx.grunning++
-			ctx.emitGoroutineCounters(ev)
+			setGState(ev, ev.G, gRunnable, gRunning)
 			if ev.Type == trace.EvGoStartLabel {
 				ctx.emitSlice(ev, ev.SArgs[0])
 			} else {
@@ -382,44 +403,36 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			}
 		case trace.EvGoCreate:
 			ctx.gcount++
-			ctx.grunnable++
-			ctx.emitGoroutineCounters(ev)
+			setGState(ev, ev.Args[0], gDead, gRunnable)
 			ctx.emitArrow(ev, "go")
 		case trace.EvGoEnd:
 			ctx.gcount--
-			ctx.grunning--
-			ctx.emitGoroutineCounters(ev)
+			setGState(ev, ev.G, gRunning, gDead)
 		case trace.EvGoUnblock:
-			ctx.grunnable++
-			ctx.emitGoroutineCounters(ev)
+			setGState(ev, ev.Args[0], gWaiting, gRunnable)
 			ctx.emitArrow(ev, "unblock")
 		case trace.EvGoSysCall:
 			ctx.emitInstant(ev, "syscall")
 		case trace.EvGoSysExit:
-			ctx.grunnable++
-			ctx.emitGoroutineCounters(ev)
+			setGState(ev, ev.G, gWaiting, gRunnable)
 			ctx.insyscall--
 			ctx.emitThreadCounters(ev)
 			ctx.emitArrow(ev, "sysexit")
 		case trace.EvGoSysBlock:
-			ctx.grunning--
-			ctx.emitGoroutineCounters(ev)
+			setGState(ev, ev.G, gRunning, gWaiting)
 			ctx.insyscall++
 			ctx.emitThreadCounters(ev)
 		case trace.EvGoSched, trace.EvGoPreempt:
-			ctx.grunnable++
-			ctx.grunning--
-			ctx.emitGoroutineCounters(ev)
+			setGState(ev, ev.G, gRunning, gRunnable)
 		case trace.EvGoStop,
 			trace.EvGoSleep, trace.EvGoBlock, trace.EvGoBlockSend, trace.EvGoBlockRecv,
 			trace.EvGoBlockSelect, trace.EvGoBlockSync, trace.EvGoBlockCond, trace.EvGoBlockNet:
-			ctx.grunning--
-			ctx.emitGoroutineCounters(ev)
+			setGState(ev, ev.G, gRunning, gWaiting)
 		case trace.EvGoWaiting:
-			ctx.grunnable-- // cancels out the effect of EvGoCreate at the beginning
-			ctx.emitGoroutineCounters(ev)
+			setGState(ev, ev.G, gRunnable, gWaiting)
 		case trace.EvGoInSyscall:
-			ctx.grunnable-- // cancels out the effect of EvGoCreate at the beginning
+			// Cancel out the effect of EvGoCreate at the beginning.
+			setGState(ev, ev.G, gRunnable, gWaiting)
 			ctx.insyscall++
 			ctx.emitThreadCounters(ev)
 		case trace.EvHeapAlloc:
@@ -429,8 +442,11 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			ctx.nextGC = ev.Args[0]
 			ctx.emitHeapCounters(ev)
 		}
-		if ctx.grunnable < 0 || ctx.grunning < 0 || ctx.insyscall < 0 {
-			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.grunnable, ctx.grunning, ctx.insyscall)
+		if setGStateErr != nil {
+			return ctx.data, setGStateErr
+		}
+		if ctx.gstates[gRunnable] < 0 || ctx.gstates[gRunning] < 0 || ctx.insyscall < 0 {
+			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.gstates[gRunnable], ctx.gstates[gRunning], ctx.insyscall)
 		}
 	}
 
@@ -528,7 +544,7 @@ func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
 	if ctx.gtrace {
 		return
 	}
-	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{ctx.grunning, ctx.grunnable}})
+	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{ctx.gstates[gRunning], ctx.gstates[gRunnable]}})
 }
 
 type threadCountersArg struct {
