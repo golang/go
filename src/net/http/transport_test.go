@@ -963,6 +963,48 @@ func TestTransportProxy(t *testing.T) {
 	}
 }
 
+// Issue 16997: test transport dial preserves typed errors
+func TestTransportDialPreservesNetOpProxyError(t *testing.T) {
+	defer afterTest(t)
+
+	var errDial = errors.New("some dial error")
+
+	tr := &Transport{
+		Proxy: func(*Request) (*url.URL, error) {
+			return url.Parse("http://proxy.fake.tld/")
+		},
+		Dial: func(string, string) (net.Conn, error) {
+			return nil, errDial
+		},
+	}
+	defer tr.CloseIdleConnections()
+
+	c := &Client{Transport: tr}
+	req, _ := NewRequest("GET", "http://fake.tld", nil)
+	res, err := c.Do(req)
+	if err == nil {
+		res.Body.Close()
+		t.Fatal("wanted a non-nil error")
+	}
+
+	uerr, ok := err.(*url.Error)
+	if !ok {
+		t.Fatalf("got %T, want *url.Error", err)
+	}
+	oe, ok := uerr.Err.(*net.OpError)
+	if !ok {
+		t.Fatalf("url.Error.Err =  %T; want *net.OpError", uerr.Err)
+	}
+	want := &net.OpError{
+		Op:  "proxyconnect",
+		Net: "tcp",
+		Err: errDial, // original error, unwrapped.
+	}
+	if !reflect.DeepEqual(oe, want) {
+		t.Errorf("Got error %#v; want %#v", oe, want)
+	}
+}
+
 // TestTransportGzipRecursive sends a gzip quine and checks that the
 // client gets the same value back. This is more cute than anything,
 // but checks that we don't recurse forever, and checks that
