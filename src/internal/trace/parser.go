@@ -375,7 +375,7 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 			case EvGoEnd, EvGoStop, EvGoSched, EvGoPreempt,
 				EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
 				EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet,
-				EvGoSysBlock:
+				EvGoSysBlock, EvGoBlockGC:
 				lastG = 0
 			case EvGoSysExit, EvGoWaiting, EvGoInSyscall:
 				e.G = e.Args[0]
@@ -687,7 +687,7 @@ func postProcessTrace(ver int, events []*Event) error {
 			g.state = gRunnable
 			g.ev = ev
 		case EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
-			EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet:
+			EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet, EvGoBlockGC:
 			if err := checkRunning(p, g, ev, false); err != nil {
 				return err
 			}
@@ -895,7 +895,8 @@ const (
 	EvGoUnblockLocal = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
 	EvGoSysExitLocal = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
 	EvGoStartLabel   = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
-	EvCount          = 42
+	EvGoBlockGC      = 42 // goroutine blocks on GC assist [timestamp, stack]
+	EvCount          = 43
 )
 
 var EventDescriptions = [EvCount]struct {
@@ -946,4 +947,5 @@ var EventDescriptions = [EvCount]struct {
 	EvGoUnblockLocal: {"GoUnblockLocal", 1007, true, []string{"g"}},
 	EvGoSysExitLocal: {"GoSysExitLocal", 1007, false, []string{"g", "ts"}},
 	EvGoStartLabel:   {"GoStartLabel", 1008, false, []string{"g", "seq", "label"}},
+	EvGoBlockGC:      {"GoBlockGC", 1008, true, []string{}},
 }

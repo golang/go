@@ -274,6 +274,7 @@ const (
 	gRunnable
 	gRunning
 	gWaiting
+	gWaitingGC
 
 	gStateCount
 )
@@ -333,6 +334,10 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 	// error in setGStateErr and check it after every event.
 	var setGStateErr error
 	setGState := func(ev *trace.Event, g uint64, oldState, newState gState) {
+		if oldState == gWaiting && gstates[g] == gWaitingGC {
+			// For checking, gWaiting counts as any gWaiting*.
+			oldState = gstates[g]
+		}
 		if gstates[g] != oldState && setGStateErr == nil {
 			setGStateErr = fmt.Errorf("expected G %d to be in state %d, but got state %d", g, oldState, newState)
 		}
@@ -428,6 +433,8 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			trace.EvGoSleep, trace.EvGoBlock, trace.EvGoBlockSend, trace.EvGoBlockRecv,
 			trace.EvGoBlockSelect, trace.EvGoBlockSync, trace.EvGoBlockCond, trace.EvGoBlockNet:
 			setGState(ev, ev.G, gRunning, gWaiting)
+		case trace.EvGoBlockGC:
+			setGState(ev, ev.G, gRunning, gWaitingGC)
 		case trace.EvGoWaiting:
 			setGState(ev, ev.G, gRunnable, gWaiting)
 		case trace.EvGoInSyscall:
@@ -536,15 +543,16 @@ func (ctx *traceContext) emitHeapCounters(ev *trace.Event) {
 }
 
 type goroutineCountersArg struct {
-	Running  uint64
-	Runnable uint64
+	Running   uint64
+	Runnable  uint64
+	GCWaiting uint64
 }
 
 func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
 	if ctx.gtrace {
 		return
 	}
-	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{ctx.gstates[gRunning], ctx.gstates[gRunnable]}})
+	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{ctx.gstates[gRunning], ctx.gstates[gRunnable], ctx.gstates[gWaitingGC]}})
 }
 
 type threadCountersArg struct {
