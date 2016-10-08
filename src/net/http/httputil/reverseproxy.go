@@ -260,9 +260,37 @@ func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
 	if p.BufferPool != nil {
 		buf = p.BufferPool.Get()
 	}
-	io.CopyBuffer(dst, src, buf)
+	p.copyBuffer(dst, src, buf)
 	if p.BufferPool != nil {
 		p.BufferPool.Put(buf)
+	}
+}
+
+func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, error) {
+	if len(buf) == 0 {
+		buf = make([]byte, 32*1024)
+	}
+	var written int64
+	for {
+		nr, rerr := src.Read(buf)
+		if rerr != nil && rerr != io.EOF {
+			p.logf("httputil: ReverseProxy read error during body copy: %v", rerr)
+		}
+		if nr > 0 {
+			nw, werr := dst.Write(buf[:nr])
+			if nw > 0 {
+				written += int64(nw)
+			}
+			if werr != nil {
+				return written, werr
+			}
+			if nr != nw {
+				return written, io.ErrShortWrite
+			}
+		}
+		if rerr != nil {
+			return written, rerr
+		}
 	}
 }
 
