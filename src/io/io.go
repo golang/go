@@ -402,11 +402,10 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 				break
 			}
 		}
-		if er == EOF {
-			break
-		}
 		if er != nil {
-			err = er
+			if er != EOF {
+				err = er
+			}
 			break
 		}
 	}
