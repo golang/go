@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -579,5 +580,46 @@ func TestReverseProxy_NilBody(t *testing.T) {
 	defer res.Body.Close()
 	if res.StatusCode != 502 {
 		t.Errorf("status code = %v; want 502 (Gateway Error)", res.Status)
+	}
+}
+
+// Issue 16659: log errors from short read
+func TestReverseProxy_CopyBuffer(t *testing.T) {
+	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		out := "this call was relayed by the reverse proxy"
+		// Coerce a wrong content length to induce io.UnexpectedEOF
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(out)*2))
+		fmt.Fprintln(w, out)
+	}))
+	defer backendServer.Close()
+
+	rpURL, err := url.Parse(backendServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var proxyLog bytes.Buffer
+	rproxy := NewSingleHostReverseProxy(rpURL)
+	rproxy.ErrorLog = log.New(&proxyLog, "", log.Lshortfile)
+	frontendProxy := httptest.NewServer(rproxy)
+	defer frontendProxy.Close()
+
+	resp, err := http.Get(frontendProxy.URL)
+	if err != nil {
+		t.Fatalf("failed to reach proxy: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if _, err := ioutil.ReadAll(resp.Body); err == nil {
+		t.Fatalf("want non-nil error")
+	}
+	expected := []string{
+		"EOF",
+		"read",
+	}
+	for _, phrase := range expected {
+		if !bytes.Contains(proxyLog.Bytes(), []byte(phrase)) {
+			t.Errorf("expected log to contain phrase %q", phrase)
+		}
 	}
 }
