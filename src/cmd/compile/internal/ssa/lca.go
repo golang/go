@@ -30,7 +30,7 @@ type lcaRangeBlock struct {
 }
 
 func makeLCArange(f *Func) *lcaRange {
-	dom := f.idom()
+	dom := f.Idom()
 
 	// Build tree
 	blocks := make([]lcaRangeBlock, f.NumBlocks())

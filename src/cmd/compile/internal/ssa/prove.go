@@ -463,7 +463,7 @@ func prove(f *Func) {
 	})
 
 	ft := newFactsTable()
-	idom := f.idom()
+	idom := f.Idom()
 	sdom := f.sdom()
 
 	// DFS on the dominator tree.
