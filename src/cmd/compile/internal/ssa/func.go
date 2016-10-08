@@ -451,23 +451,20 @@ func (f *Func) postorder() []*Block {
 	return f.cachedPostorder
 }
 
-// idom returns a map from block ID to the immediate dominator of that block.
+// Idom returns a map from block ID to the immediate dominator of that block.
 // f.Entry.ID maps to nil. Unreachable blocks map to nil as well.
-func (f *Func) idom() []*Block {
+func (f *Func) Idom() []*Block {
 	if f.cachedIdom == nil {
 		f.cachedIdom = dominators(f)
 	}
 	return f.cachedIdom
-}
-func (f *Func) Idom() []*Block {
-	return f.idom()
 }
 
 // sdom returns a sparse tree representing the dominator relationships
 // among the blocks of f.
 func (f *Func) sdom() SparseTree {
 	if f.cachedSdom == nil {
-		f.cachedSdom = newSparseTree(f, f.idom())
+		f.cachedSdom = newSparseTree(f, f.Idom())
 	}
 	return f.cachedSdom
 }

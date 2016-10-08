@@ -56,7 +56,7 @@ func tighten(f *Func) {
 
 	// Grab loop information.
 	// We use this to make sure we don't tighten a value into a (deeper) loop.
-	idom := f.idom()
+	idom := f.Idom()
 	loops := f.loopnest()
 	loops.calculateDepths()
 
