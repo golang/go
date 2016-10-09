@@ -76,19 +76,16 @@ var optab = []Optab{
 	Optab{AMOVBZ, C_DCON, C_NONE, C_NONE, C_REG, 3, 0},
 
 	// store constant
-	Optab{AMOVD, C_SYMADDR, C_NONE, C_NONE, C_ADDR, 73, 0},
 	Optab{AMOVD, C_LCON, C_NONE, C_NONE, C_ADDR, 73, 0},
 	Optab{AMOVW, C_LCON, C_NONE, C_NONE, C_ADDR, 73, 0},
 	Optab{AMOVWZ, C_LCON, C_NONE, C_NONE, C_ADDR, 73, 0},
 	Optab{AMOVBZ, C_LCON, C_NONE, C_NONE, C_ADDR, 73, 0},
 	Optab{AMOVB, C_LCON, C_NONE, C_NONE, C_ADDR, 73, 0},
-	Optab{AMOVD, C_SYMADDR, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
 	Optab{AMOVD, C_LCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
 	Optab{AMOVW, C_LCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
 	Optab{AMOVWZ, C_LCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
 	Optab{AMOVB, C_LCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
 	Optab{AMOVBZ, C_LCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
-	Optab{AMOVD, C_SYMADDR, C_NONE, C_NONE, C_LOREG, 72, 0},
 	Optab{AMOVD, C_LCON, C_NONE, C_NONE, C_LOREG, 72, 0},
 	Optab{AMOVW, C_LCON, C_NONE, C_NONE, C_LOREG, 72, 0},
 	Optab{AMOVWZ, C_LCON, C_NONE, C_NONE, C_LOREG, 72, 0},
@@ -3296,7 +3293,7 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 			zRIL(_a, zopril(ctxt, p.As), uint32(p.From.Reg), uint32(v), asm)
 		}
 
-	case 72: // mov $constant/$addr mem
+	case 72: // mov $constant mem
 		v := regoff(ctxt, &p.From)
 		d := regoff(ctxt, &p.To)
 		r := p.To.Reg
@@ -3304,23 +3301,7 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 		if r == 0 {
 			r = o.param
 		}
-		if p.From.Sym != nil {
-			zRIL(_b, op_LARL, REGTMP, 0, asm)
-			if v&0x1 != 0 {
-				v -= 1
-				zRX(op_LA, REGTMP, REGTMP, 0, 1, asm)
-			}
-			addrilreloc(ctxt, p.From.Sym, int64(v))
-			if d < -DISP20/2 || d >= DISP20/2 {
-				zRIL(_a, op_LGFI, REGTMP2, uint32(d), asm)
-				if x != 0 {
-					zRRE(op_AGR, REGTMP2, uint32(x), asm)
-				}
-				d = 0
-				x = REGTMP2
-			}
-			zRXY(zopstore(ctxt, p.As), REGTMP, uint32(x), uint32(r), uint32(d), asm)
-		} else if int32(int16(v)) == v && x == 0 {
+		if int32(int16(v)) == v && x == 0 {
 			if d < 0 || d >= DISP12 {
 				if r == REGTMP || r == REGTMP2 {
 					zRIL(_a, op_AGFI, uint32(r), uint32(d), asm)
@@ -3374,16 +3355,7 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 		}
 		zRIL(_b, op_LARL, REGTMP, uint32(d), asm)
 		addrilreloc(ctxt, p.To.Sym, int64(d))
-		if p.From.Sym != nil {
-			zRIL(_b, op_LARL, REGTMP2, 0, asm)
-			a := uint32(0)
-			if v&0x1 != 0 {
-				v -= 1
-				zRX(op_LA, REGTMP2, REGTMP2, 0, 1, asm)
-			}
-			addrilrelocoffset(ctxt, p.From.Sym, int64(v), sizeRIL)
-			zRXY(zopstore(ctxt, p.As), REGTMP2, 0, REGTMP, a, asm)
-		} else if int32(int16(v)) == v {
+		if int32(int16(v)) == v {
 			var opcode uint32
 			switch p.As {
 			case AMOVD:
