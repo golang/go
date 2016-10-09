@@ -659,6 +659,14 @@ func (p *pp) printArg(arg interface{}, verb rune) {
 	case []byte:
 		p.fmtBytes(f, verb, "[]byte")
 	case reflect.Value:
+		// Handle extractable values with special methods
+		// since printValue does not handle them at depth 0.
+		if f.IsValid() && f.CanInterface() {
+			p.arg = f.Interface()
+			if p.handleMethods(verb) {
+				return
+			}
+		}
 		p.printValue(f, verb, 0)
 	default:
 		// If the type is not simple, it might have methods.
