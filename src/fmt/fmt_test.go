@@ -605,7 +605,10 @@ var fmtTests = []struct {
 	{"%x", I(23), `3c32333e`},
 	{"%#x", I(23), `0x3c32333e`},
 	{"%# x", I(23), `0x3c 0x32 0x33 0x3e`},
-	{"%d", I(23), `23`}, // Stringer applies only to string formats.
+	// Stringer applies only to string formats.
+	{"%d", I(23), `23`},
+	// Stringer applies to the extracted value.
+	{"%s", reflect.ValueOf(I(23)), `<23>`},
 
 	// go syntax
 	{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
