@@ -960,7 +960,7 @@ func (z nat) expNN(x, y, m nat) nat {
 	// (x^2...x^15) but then reduces the number of multiply-reduces by a
 	// third. Even for a 32-bit exponent, this reduces the number of
 	// operations. Uses Montgomery method for odd moduli.
-	if len(x) > 1 && len(y) > 1 && len(m) > 0 {
+	if x.cmp(natOne) > 0 && len(y) > 1 && len(m) > 0 {
 		if m[0]&1 == 1 {
 			return z.expNNMontgomery(x, y, m)
 		}
