@@ -406,6 +406,7 @@ func gcAssistAlloc(gp *g) {
 		return
 	}
 
+retry:
 	// Compute the amount of scan work we need to do to make the
 	// balance positive. When the required amount of work is low,
 	// we over-assist to build up credit for future allocations
@@ -417,7 +418,6 @@ func gcAssistAlloc(gp *g) {
 		debtBytes = int64(gcController.assistBytesPerWork * float64(scanWork))
 	}
 
-retry:
 	// Steal as much credit as we can from the background GC's
 	// scan credit. This is racy and may drop the background
 	// credit below 0 if two mutators steal at the same time. This
