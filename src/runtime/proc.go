@@ -1554,7 +1554,7 @@ func unlockextra(mp *m) {
 // Create a new m. It will start off with a call to fn, or else the scheduler.
 // fn needs to be static and not a heap allocated closure.
 // May run with m.p==nil, so write barriers are not allowed.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func newm(fn func(), _p_ *p) {
 	mp := allocm(_p_, fn)
 	mp.nextp.set(_p_)
@@ -1618,7 +1618,7 @@ func mspinning() {
 // May run with m.p==nil, so write barriers are not allowed.
 // If spinning is set, the caller has incremented nmspinning and startm will
 // either decrement nmspinning or set m.spinning in the newly started M.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func startm(_p_ *p, spinning bool) {
 	lock(&sched.lock)
 	if _p_ == nil {
@@ -1663,7 +1663,7 @@ func startm(_p_ *p, spinning bool) {
 
 // Hands off P from syscall or locked M.
 // Always runs without a P, so write barriers are not allowed.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func handoffp(_p_ *p) {
 	// handoffp must start an M in any situation where
 	// findrunnable would return a G to run on _p_.
@@ -1756,7 +1756,7 @@ func stoplockedm() {
 
 // Schedules the locked m to run the locked gp.
 // May run during STW, so write barriers are not allowed.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func startlockedm(gp *g) {
 	_g_ := getg()
 
@@ -1806,6 +1806,11 @@ func gcstopm() {
 // If inheritTime is true, gp inherits the remaining time in the
 // current time slice. Otherwise, it starts a new time slice.
 // Never returns.
+//
+// Write barriers are allowed because this is called immediately after
+// acquiring a P in several places.
+//
+//go:yeswritebarrierrec
 func execute(gp *g, inheritTime bool) {
 	_g_ := getg()
 
@@ -2262,7 +2267,7 @@ func goexit0(gp *g) {
 }
 
 //go:nosplit
-//go:nowritebarrier
+//go:nowritebarrierrec
 func save(pc, sp uintptr) {
 	_g_ := getg()
 
@@ -2634,6 +2639,8 @@ func exitsyscallfast_pidle() bool {
 
 // exitsyscall slow path on g0.
 // Failed to acquire P, enqueue gp as runnable.
+//
+//go:nowritebarrierrec
 func exitsyscall0(gp *g) {
 	_g_ := getg()
 
@@ -3474,7 +3481,13 @@ func procresize(nprocs int32) *p {
 }
 
 // Associate p and the current m.
+//
+// This function is allowed to have write barriers even if the caller
+// isn't because it immediately acquires _p_.
+//
+//go:yeswritebarrierrec
 func acquirep(_p_ *p) {
+	// Do the part that isn't allowed to have write barriers.
 	acquirep1(_p_)
 
 	// have p; write barriers now allowed
@@ -3486,8 +3499,11 @@ func acquirep(_p_ *p) {
 	}
 }
 
-// May run during STW, so write barriers are not allowed.
-//go:nowritebarrier
+// acquirep1 is the first step of acquirep, which actually acquires
+// _p_. This is broken out so we can disallow write barriers for this
+// part, since we don't yet have a P.
+//
+//go:nowritebarrierrec
 func acquirep1(_p_ *p) {
 	_g_ := getg()
 
@@ -3925,7 +3941,7 @@ func schedtrace(detailed bool) {
 // Put mp on midle list.
 // Sched must be locked.
 // May run during STW, so write barriers are not allowed.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func mput(mp *m) {
 	mp.schedlink = sched.midle
 	sched.midle.set(mp)
@@ -3936,7 +3952,7 @@ func mput(mp *m) {
 // Try to get an m from midle list.
 // Sched must be locked.
 // May run during STW, so write barriers are not allowed.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func mget() *m {
 	mp := sched.midle.ptr()
 	if mp != nil {
@@ -3949,7 +3965,7 @@ func mget() *m {
 // Put gp on the global runnable queue.
 // Sched must be locked.
 // May run during STW, so write barriers are not allowed.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func globrunqput(gp *g) {
 	gp.schedlink = 0
 	if sched.runqtail != 0 {
@@ -3964,7 +3980,7 @@ func globrunqput(gp *g) {
 // Put gp at the head of the global runnable queue.
 // Sched must be locked.
 // May run during STW, so write barriers are not allowed.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func globrunqputhead(gp *g) {
 	gp.schedlink = sched.runqhead
 	sched.runqhead.set(gp)
@@ -4024,7 +4040,7 @@ func globrunqget(_p_ *p, max int32) *g {
 // Put p to on _Pidle list.
 // Sched must be locked.
 // May run during STW, so write barriers are not allowed.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func pidleput(_p_ *p) {
 	if !runqempty(_p_) {
 		throw("pidleput: P has non-empty run queue")
@@ -4037,7 +4053,7 @@ func pidleput(_p_ *p) {
 // Try get a p from _Pidle list.
 // Sched must be locked.
 // May run during STW, so write barriers are not allowed.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func pidleget() *p {
 	_p_ := sched.pidle.ptr()
 	if _p_ != nil {
