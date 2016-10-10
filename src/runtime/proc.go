@@ -1275,8 +1275,10 @@ type cgothreadstart struct {
 // Can use p for allocation context if needed.
 // fn is recorded as the new m's m.mstartfn.
 //
-// This function it known to the compiler to inhibit the
-// go:nowritebarrierrec annotation because it uses P for allocation.
+// This function is allowed to have write barriers even if the caller
+// isn't because it borrows _p_.
+//
+//go:yeswritebarrierrec
 func allocm(_p_ *p, fn func()) *m {
 	_g_ := getg()
 	_g_.m.locks++ // disable GC because it can be called from sysmon
@@ -2459,7 +2461,11 @@ func entersyscallblock_handoff() {
 // Arrange for it to run on a cpu again.
 // This is called only from the go syscall library, not
 // from the low-level system calls used by the runtime.
+//
+// Write barriers are not allowed because our P may have been stolen.
+//
 //go:nosplit
+//go:nowritebarrierrec
 func exitsyscall(dummy int32) {
 	_g_ := getg()
 
@@ -2552,22 +2558,7 @@ func exitsyscallfast() bool {
 	// Try to re-acquire the last P.
 	if _g_.m.p != 0 && _g_.m.p.ptr().status == _Psyscall && atomic.Cas(&_g_.m.p.ptr().status, _Psyscall, _Prunning) {
 		// There's a cpu for us, so we can run.
-		_g_.m.mcache = _g_.m.p.ptr().mcache
-		_g_.m.p.ptr().m.set(_g_.m)
-		if _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
-			if trace.enabled {
-				// The p was retaken and then enter into syscall again (since _g_.m.syscalltick has changed).
-				// traceGoSysBlock for this syscall was already emitted,
-				// but here we effectively retake the p from the new syscall running on the same p.
-				systemstack(func() {
-					// Denote blocking of the new syscall.
-					traceGoSysBlock(_g_.m.p.ptr())
-					// Denote completion of the current syscall.
-					traceGoSysExit(0)
-				})
-			}
-			_g_.m.p.ptr().syscalltick++
-		}
+		exitsyscallfast_reacquired()
 		return true
 	}
 
@@ -2595,6 +2586,35 @@ func exitsyscallfast() bool {
 		}
 	}
 	return false
+}
+
+// exitsyscallfast_reacquired is the exitsyscall path on which this G
+// has successfully reacquired the P it was running on before the
+// syscall.
+//
+// This function is allowed to have write barriers because exitsyscall
+// has acquired a P at this point.
+//
+//go:yeswritebarrierrec
+//go:nosplit
+func exitsyscallfast_reacquired() {
+	_g_ := getg()
+	_g_.m.mcache = _g_.m.p.ptr().mcache
+	_g_.m.p.ptr().m.set(_g_.m)
+	if _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
+		if trace.enabled {
+			// The p was retaken and then enter into syscall again (since _g_.m.syscalltick has changed).
+			// traceGoSysBlock for this syscall was already emitted,
+			// but here we effectively retake the p from the new syscall running on the same p.
+			systemstack(func() {
+				// Denote blocking of the new syscall.
+				traceGoSysBlock(_g_.m.p.ptr())
+				// Denote completion of the current syscall.
+				traceGoSysExit(0)
+			})
+		}
+		_g_.m.p.ptr().syscalltick++
+	}
 }
 
 func exitsyscallfast_pidle() bool {

@@ -3312,7 +3312,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
 	// }
 
 	if s.noWB {
-		s.Fatalf("write barrier prohibited")
+		s.Error("write barrier prohibited")
 	}
 	if s.WBLineno == 0 {
 		s.WBLineno = left.Line
@@ -3377,7 +3377,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32, skip 
 	// }
 
 	if s.noWB {
-		s.Fatalf("write barrier prohibited")
+		s.Error("write barrier prohibited")
 	}
 	if s.WBLineno == 0 {
 		s.WBLineno = left.Line
