@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 	"testing/quick"
 )
@@ -1452,4 +1453,45 @@ func TestIssue2607(t *testing.T) {
 	// This code sequence used to hang.
 	n := NewInt(10)
 	n.Rand(rand.New(rand.NewSource(9)), n)
+}
+
+func TestSqrt(t *testing.T) {
+	root := 0
+	r := new(Int)
+	for i := 0; i < 10000; i++ {
+		if (root+1)*(root+1) <= i {
+			root++
+		}
+		n := NewInt(int64(i))
+		r.SetInt64(-2)
+		r.Sqrt(n)
+		if r.Cmp(NewInt(int64(root))) != 0 {
+			t.Errorf("Sqrt(%v) = %v, want %v", n, r, root)
+		}
+	}
+
+	for i := 0; i < 1000; i += 10 {
+		n, _ := new(Int).SetString("1"+strings.Repeat("0", i), 10)
+		r := new(Int).Sqrt(n)
+		root, _ := new(Int).SetString("1"+strings.Repeat("0", i/2), 10)
+		if r.Cmp(root) != 0 {
+			t.Errorf("Sqrt(1e%d) = %v, want 1e%d", i, r, i/2)
+		}
+	}
+
+	// Test aliasing.
+	r.SetInt64(100)
+	r.Sqrt(r)
+	if r.Int64() != 10 {
+		t.Errorf("Sqrt(100) = %v, want 10 (aliased output)", r.Int64())
+	}
+}
+
+func BenchmarkSqrt(b *testing.B) {
+	n, _ := new(Int).SetString("1"+strings.Repeat("0", 1001), 10)
+	b.ResetTimer()
+	t := new(Int)
+	for i := 0; i < b.N; i++ {
+		t.Sqrt(n)
+	}
 }
