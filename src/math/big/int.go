@@ -550,19 +550,6 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
 	return z.Lsh(u, k)
 }
 
-// ProbablyPrime performs n Miller-Rabin tests to check whether x is prime.
-// If x is prime, it returns true.
-// If x is not prime, it returns false with probability at least 1 - ¼ⁿ.
-//
-// It is not suitable for judging primes that an adversary may have crafted
-// to fool this test.
-func (x *Int) ProbablyPrime(n int) bool {
-	if n <= 0 {
-		panic("non-positive n for ProbablyPrime")
-	}
-	return !x.neg && x.abs.probablyPrime(n)
-}
-
 // Rand sets z to a pseudo-random number in [0, n) and returns z.
 func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	z.neg = false
