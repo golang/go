@@ -1317,7 +1317,7 @@ func checknowritebarrierrec() {
 	visitBottomUp(xtop, func(list []*Node, recursive bool) {
 		// Functions with write barriers have depth 0.
 		for _, n := range list {
-			if n.Func.WBLineno != 0 {
+			if n.Func.WBLineno != 0 && n.Func.Pragma&Yeswritebarrierrec == 0 {
 				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBLineno}
 			}
 		}
@@ -1329,6 +1329,12 @@ func checknowritebarrierrec() {
 		for _ = range list {
 			c.stable = false
 			for _, n := range list {
+				if n.Func.Pragma&Yeswritebarrierrec != 0 {
+					// Don't propagate write
+					// barrier up to a
+					// yeswritebarrierrec function.
+					continue
+				}
 				if n.Func.WBLineno == 0 {
 					c.curfn = n
 					c.visitcodelist(n.Nbody)
@@ -1391,9 +1397,6 @@ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
 		fn = n.Left.Sym.Def
 	}
 	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
-		return
-	}
-	if (compiling_runtime || fn.Sym.Pkg == Runtimepkg) && fn.Sym.Name == "allocm" {
 		return
 	}
 	defn := fn.Name.Defn
