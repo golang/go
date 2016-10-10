@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+var floatZero Float
+
 // SetString sets z to the value of s and returns z and a boolean indicating
 // success. s must be a floating-point number of the same format as accepted
 // by Parse, with base argument 0. The entire string (not just a prefix) must
@@ -275,4 +277,17 @@ func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
 // and rounding mode.
 func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b int, err error) {
 	return new(Float).SetPrec(prec).SetMode(mode).Parse(s, base)
+}
+
+var _ fmt.Scanner = &floatZero // *Float must implement fmt.Scanner
+
+// Scan is a support routine for fmt.Scanner; it sets z to the value of
+// the scanned number. It accepts formats whose verbs are supported by
+// fmt.Scan for floating point values, which are:
+// 'b' (binary), 'e', 'E', 'f', 'F', 'g' and 'G'.
+// Scan doesn't handle ±Inf.
+func (z *Float) Scan(s fmt.ScanState, ch rune) error {
+	s.SkipSpace()
+	_, _, err := z.scan(byteReader{s}, 0)
+	return err
 }

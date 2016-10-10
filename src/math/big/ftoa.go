@@ -376,6 +376,8 @@ func min(x, y int) int {
 	return y
 }
 
+var _ fmt.Formatter = &floatZero // *Float must implement fmt.Formatter
+
 // Format implements fmt.Formatter. It accepts all the regular
 // formats for floating-point numbers ('b', 'e', 'E', 'f', 'F',
 // 'g', 'G') as well as 'p' and 'v'. See (*Float).Text for the
