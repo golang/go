@@ -924,3 +924,14 @@ func (z *Int) Not(x *Int) *Int {
 	z.neg = true // z cannot be zero if x is positive
 	return z
 }
+
+// Sqrt sets z to ⌊√x⌋, the largest integer such that z² ≤ x, and returns z.
+// It panics if x is negative.
+func (z *Int) Sqrt(x *Int) *Int {
+	if x.neg {
+		panic("square root of negative number")
+	}
+	z.neg = false
+	z.abs = z.abs.sqrt(x.abs)
+	return z
+}
