@@ -5,6 +5,7 @@
 package big
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"strconv"
@@ -1495,12 +1496,14 @@ func TestFloatQuo(t *testing.T) {
 	}
 }
 
+var long = flag.Bool("long", false, "run very long tests")
+
 // TestFloatQuoSmoke tests all divisions x/y for values x, y in the range [-n, +n];
 // it serves as a smoke test for basic correctness of division.
 func TestFloatQuoSmoke(t *testing.T) {
-	n := 1000
-	if testing.Short() {
-		n = 10
+	n := 10
+	if *long {
+		n = 1000
 	}
 
 	const dprec = 3         // max. precision variation

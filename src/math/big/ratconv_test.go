@@ -144,7 +144,7 @@ func TestFloatString(t *testing.T) {
 }
 
 // Test inputs to Rat.SetString. The prefix "long:" causes the test
-// to be skipped in --test.short mode.  (The threshold is about 500us.)
+// to be skipped except in -long mode.  (The threshold is about 500us.)
 var float64inputs = []string{
 	// Constants plundered from strconv/testfp.txt.
 
@@ -350,7 +350,7 @@ func isFinite(f float64) bool {
 func TestFloat32SpecialCases(t *testing.T) {
 	for _, input := range float64inputs {
 		if strings.HasPrefix(input, "long:") {
-			if testing.Short() {
+			if !*long {
 				continue
 			}
 			input = input[len("long:"):]
@@ -406,7 +406,7 @@ func TestFloat32SpecialCases(t *testing.T) {
 func TestFloat64SpecialCases(t *testing.T) {
 	for _, input := range float64inputs {
 		if strings.HasPrefix(input, "long:") {
-			if testing.Short() {
+			if !*long {
 				continue
 			}
 			input = input[len("long:"):]
