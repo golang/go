@@ -382,9 +382,9 @@ func TestFloat32Distribution(t *testing.T) {
 		9,
 		11,
 	}
-	var winc, einc = uint64(1), 1 // soak test (~1.5s on x86-64)
+	var winc, einc = uint64(5), 15 // quick test (~60ms on x86-64)
 	if testing.Short() {
-		winc, einc = 5, 15 // quick test (~60ms on x86-64)
+		winc, einc = uint64(1), 1 // soak test (~1.5s on x86-64)
 	}
 
 	for _, sign := range "+-" {
@@ -430,9 +430,9 @@ func TestFloat64Distribution(t *testing.T) {
 		9,
 		11,
 	}
-	var winc, einc = uint64(1), 1 // soak test (~75s on x86-64)
-	if testing.Short() {
-		winc, einc = 10, 500 // quick test (~12ms on x86-64)
+	var winc, einc = uint64(10), 500 // quick test (~12ms on x86-64)
+	if *long {
+		winc, einc = uint64(1), 1 // soak test (~75s on x86-64)
 	}
 
 	for _, sign := range "+-" {
