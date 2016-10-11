@@ -122,15 +122,14 @@ var mSpanStateNames = []string{
 
 // mSpanList heads a linked list of spans.
 //
-// Linked list structure is based on BSD's "tail queue" data structure.
 type mSpanList struct {
-	first *mspan  // first span in list, or nil if none
-	last  **mspan // last span's next field, or first if none
+	first *mspan // first span in list, or nil if none
+	last  *mspan // last span in list, or nil if none
 }
 
 type mspan struct {
 	next *mspan     // next span in list, or nil if none
-	prev **mspan    // previous span's next field, or list head's first field if none
+	prev *mspan     // previous span in list, or nil if none
 	list *mSpanList // For debugging. TODO: Remove.
 
 	startAddr     uintptr   // address of first byte of span aka s.base()
@@ -997,28 +996,30 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 }
 
 func (span *mspan) inList() bool {
-	return span.prev != nil
+	return span.list != nil
 }
 
 // Initialize an empty doubly-linked list.
 func (list *mSpanList) init() {
 	list.first = nil
-	list.last = &list.first
+	list.last = nil
 }
 
 func (list *mSpanList) remove(span *mspan) {
-	if span.prev == nil || span.list != list {
+	if span.list != list {
 		println("runtime: failed MSpanList_Remove", span, span.prev, span.list, list)
 		throw("MSpanList_Remove")
 	}
-	if span.next != nil {
-		span.next.prev = span.prev
+	if list.first == span {
+		list.first = span.next
 	} else {
-		// TODO: After we remove the span.list != list check above,
-		// we could at least still check list.last == &span.next here.
-		list.last = span.prev
+		span.prev.next = span.next
 	}
-	*span.prev = span.next
+	if list.last == span {
+		list.last = span.prev
+	} else {
+		span.next.prev = span.prev
+	}
 	span.next = nil
 	span.prev = nil
 	span.list = nil
@@ -1035,12 +1036,14 @@ func (list *mSpanList) insert(span *mspan) {
 	}
 	span.next = list.first
 	if list.first != nil {
-		list.first.prev = &span.next
+		// The list contains at least one span; link it in.
+		// The last span in the list doesn't change.
+		list.first.prev = span
 	} else {
-		list.last = &span.next
+		// The list contains no spans, so this is also the last span.
+		list.last = span
 	}
 	list.first = span
-	span.prev = &list.first
 	span.list = list
 }
 
@@ -1049,10 +1052,15 @@ func (list *mSpanList) insertBack(span *mspan) {
 		println("failed MSpanList_InsertBack", span, span.next, span.prev, span.list)
 		throw("MSpanList_InsertBack")
 	}
-	span.next = nil
 	span.prev = list.last
-	*list.last = span
-	list.last = &span.next
+	if list.last != nil {
+		// The list contains at least one span.
+		list.last.next = span
+	} else {
+		// The list contains no spans, so this is also the first span.
+		list.first = span
+	}
+	list.last = span
 	span.list = list
 }
 
