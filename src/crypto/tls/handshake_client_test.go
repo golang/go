@@ -412,7 +412,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
 		childProcess.Process.Kill()
 		childProcess.Wait()
 		if len(recordingConn.flows) < 3 {
-			childProcess.Stdout.(*bytes.Buffer).WriteTo(os.Stdout)
+			os.Stdout.Write(childProcess.Stdout.(*opensslOutputSink).all)
 			t.Fatalf("Client connection didn't work")
 		}
 		recordingConn.WriteTo(out)
