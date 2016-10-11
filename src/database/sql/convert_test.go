@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -387,5 +388,87 @@ func TestUserDefinedBytes(t *testing.T) {
 	convertAssign(&u, v)
 	if &u[0] == &v[0] {
 		t.Fatal("userDefinedBytes got potentially dirty driver memory")
+	}
+}
+
+type Valuer_V string
+
+func (v Valuer_V) Value() (driver.Value, error) {
+	return strings.ToUpper(string(v)), nil
+}
+
+type Valuer_P string
+
+func (p *Valuer_P) Value() (driver.Value, error) {
+	if p == nil {
+		return "nil-to-str", nil
+	}
+	return strings.ToUpper(string(*p)), nil
+}
+
+func TestDriverArgs(t *testing.T) {
+	var nilValuerVPtr *Valuer_V
+	var nilValuerPPtr *Valuer_P
+	var nilStrPtr *string
+	tests := []struct {
+		args []interface{}
+		want []driver.NamedValue
+	}{
+		0: {
+			args: []interface{}{Valuer_V("foo")},
+			want: []driver.NamedValue{
+				driver.NamedValue{
+					Ordinal: 1,
+					Value:   "FOO",
+				},
+			},
+		},
+		1: {
+			args: []interface{}{nilValuerVPtr},
+			want: []driver.NamedValue{
+				driver.NamedValue{
+					Ordinal: 1,
+					Value:   nil,
+				},
+			},
+		},
+		2: {
+			args: []interface{}{nilValuerPPtr},
+			want: []driver.NamedValue{
+				driver.NamedValue{
+					Ordinal: 1,
+					Value:   "nil-to-str",
+				},
+			},
+		},
+		3: {
+			args: []interface{}{"plain-str"},
+			want: []driver.NamedValue{
+				driver.NamedValue{
+					Ordinal: 1,
+					Value:   "plain-str",
+				},
+			},
+		},
+		4: {
+			args: []interface{}{nilStrPtr},
+			want: []driver.NamedValue{
+				driver.NamedValue{
+					Ordinal: 1,
+					Value:   nil,
+				},
+			},
+		},
+	}
+	for i, tt := range tests {
+		ds := new(driverStmt)
+		got, err := driverArgs(ds, tt.args)
+		if err != nil {
+			t.Errorf("test[%d]: %v", i, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("test[%d]: got %v, want %v", i, got, tt.want)
+		}
 	}
 }

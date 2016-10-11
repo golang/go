@@ -208,13 +208,35 @@ type defaultConverter struct{}
 
 var _ ValueConverter = defaultConverter{}
 
+var valuerReflectType = reflect.TypeOf((*Valuer)(nil)).Elem()
+
+// callValuerValue returns vr.Value(), with one exception:
+// If vr.Value is an auto-generated method on a pointer type and the
+// pointer is nil, it would panic at runtime in the panicwrap
+// method. Treat it like nil instead.
+// Issue 8415.
+//
+// This is so people can implement driver.Value on value types and
+// still use nil pointers to those types to mean nil/NULL, just like
+// string/*string.
+//
+// This function is mirrored in the database/sql package.
+func callValuerValue(vr Valuer) (v Value, err error) {
+	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
+		rv.IsNil() &&
+		rv.Type().Elem().Implements(valuerReflectType) {
+		return nil, nil
+	}
+	return vr.Value()
+}
+
 func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
 	if IsValue(v) {
 		return v, nil
 	}
 
-	if svi, ok := v.(Valuer); ok {
-		sv, err := svi.Value()
+	if vr, ok := v.(Valuer); ok {
+		sv, err := callValuerValue(vr)
 		if err != nil {
 			return nil, err
 		}
