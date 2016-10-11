@@ -176,8 +176,8 @@ func genaddmoduledata(ctxt *ld.Link) {
 	// blr
 	o(0x4e800020)
 
-	ctxt.Textp = append(ctxt.Textp, initfunc)
 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+	ctxt.Textp = append(ctxt.Textp, initfunc)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = obj.SINITARR
@@ -513,6 +513,69 @@ func archrelocaddr(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	return 0
 }
 
+// resolve direct jump relocation r in s, and add trampoline if necessary
+func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
+
+	t := ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
+	switch r.Type {
+	case obj.R_CALLPOWER:
+
+		// If branch offset is too far then create a trampoline.
+
+		if int64(int32(t<<6)>>6) != t || (*ld.FlagDebugTramp > 1 && s.File != r.Sym.File) {
+			var tramp *ld.Symbol
+			for i := 0; ; i++ {
+
+				// Using r.Add as part of the name is significant in functions like duffzero where the call
+				// target is at some offset within the function.  Calls to duff+8 and duff+256 must appear as
+				// distinct trampolines.
+
+				name := r.Sym.Name
+				if r.Add == 0 {
+					name = name + fmt.Sprintf("-tramp%d", i)
+				} else {
+					name = name + fmt.Sprintf("%+x-tramp%d", r.Add, i)
+				}
+
+				// Look up the trampoline in case it already exists
+
+				tramp = ctxt.Syms.Lookup(name, int(r.Sym.Version))
+				if tramp.Value == 0 {
+					break
+				}
+
+				t = ld.Symaddr(tramp) + r.Add - (s.Value + int64(r.Off))
+
+				// If the offset of the trampoline that has been found is within range, use it.
+				if int64(int32(t<<6)>>6) == t {
+					break
+				}
+			}
+			if tramp.Type == 0 {
+				ctxt.AddTramp(tramp)
+				tramp.Size = 16 // 4 instructions
+				tramp.P = make([]byte, tramp.Size)
+				t = ld.Symaddr(r.Sym) + r.Add
+				f := t & 0xffff0000
+				o1 := uint32(0x3fe00000 | (f >> 16)) // lis r31,trampaddr hi (r31 is temp reg)
+				f = t & 0xffff
+				o2 := uint32(0x63ff0000 | f) // ori r31,trampaddr lo
+				o3 := uint32(0x7fe903a6)     // mtctr
+				o4 := uint32(0x4e800420)     // bctr
+				ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
+				ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
+				ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
+				ld.SysArch.ByteOrder.PutUint32(tramp.P[12:], o4)
+			}
+			r.Sym = tramp
+			r.Add = 0 // This was folded into the trampoline target address
+			r.Done = 0
+		}
+	default:
+		ld.Errorf(s, "trampoline called with non-jump reloc: %v", r.Type)
+	}
+}
+
 func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
@@ -573,15 +636,15 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		// Bits 6 through 29 = (S + A - P) >> 2
 
 		t := ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
+
 		if t&3 != 0 {
 			ld.Errorf(s, "relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
 		}
-		if int64(int32(t<<6)>>6) != t {
-			// TODO(austin) This can happen if text > 32M.
-			// Add a call trampoline to .text in that case.
-			ld.Errorf(s, "relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
-		}
+		// If branch offset is too far then create a trampoline.
 
+		if int64(int32(t<<6)>>6) != t {
+			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
+		}
 		*val |= int64(uint32(t) &^ 0xfc000003)
 		return 0
 
