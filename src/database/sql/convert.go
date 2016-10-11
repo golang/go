@@ -57,8 +57,8 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
 		// First, see if the value itself knows how to convert
 		// itself to a driver type. For example, a NullString
 		// struct changing into a string or nil.
-		if svi, ok := arg.(driver.Valuer); ok {
-			sv, err := svi.Value()
+		if vr, ok := arg.(driver.Valuer); ok {
+			sv, err := callValuerValue(vr)
 			if err != nil {
 				return nil, fmt.Errorf("sql: argument index %d from Value: %v", n, err)
 			}
@@ -340,4 +340,26 @@ func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
 		return append(buf, s...), true
 	}
 	return
+}
+
+var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+
+// callValuerValue returns vr.Value(), with one exception:
+// If vr.Value is an auto-generated method on a pointer type and the
+// pointer is nil, it would panic at runtime in the panicwrap
+// method. Treat it like nil instead.
+// Issue 8415.
+//
+// This is so people can implement driver.Value on value types and
+// still use nil pointers to those types to mean nil/NULL, just like
+// string/*string.
+//
+// This function is mirrored in the database/sql/driver package.
+func callValuerValue(vr driver.Valuer) (v driver.Value, err error) {
+	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
+		rv.IsNil() &&
+		rv.Type().Elem().Implements(valuerReflectType) {
+		return nil, nil
+	}
+	return vr.Value()
 }
