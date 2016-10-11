@@ -13,9 +13,11 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 )
 
 // TLS reference tests run a connection against a reference implementation
@@ -35,7 +37,52 @@ import (
 // generate fresh random numbers, large parts of the reference connection will
 // always change.
 
-var update = flag.Bool("update", false, "update golden files on disk")
+var (
+	update = flag.Bool("update", false, "update golden files on disk")
+
+	opensslVersionTestOnce sync.Once
+	opensslVersionTestErr  error
+)
+
+func checkOpenSSLVersion(t *testing.T) {
+	opensslVersionTestOnce.Do(testOpenSSLVersion)
+	if opensslVersionTestErr != nil {
+		t.Fatal(opensslVersionTestErr)
+	}
+}
+
+func testOpenSSLVersion() {
+	// This test ensures that the version of OpenSSL looks reasonable
+	// before updating the test data.
+
+	if !*update {
+		return
+	}
+
+	openssl := exec.Command("openssl", "version")
+	output, err := openssl.CombinedOutput()
+	if err != nil {
+		opensslVersionTestErr = err
+		return
+	}
+
+	version := string(output)
+	if strings.HasPrefix(version, "OpenSSL 1.1.0") {
+		return
+	}
+
+	println("***********************************************")
+	println("")
+	println("You need to build OpenSSL 1.1.0 from source in order")
+	println("to update the test data.")
+	println("")
+	println("Configure it with:")
+	println("./Configure enable-weak-ssl-ciphers enable-ssl3 enable-ssl3-method -static linux-x86_64")
+	println("and then add the apps/ directory at the front of your PATH.")
+	println("***********************************************")
+
+	opensslVersionTestErr = errors.New("version of OpenSSL does not appear to be suitable for updating test data")
+}
 
 // recordingConn is a net.Conn that records the traffic that passes through it.
 // WriteTo can be used to produce output that can be later be loaded with
