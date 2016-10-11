@@ -537,6 +537,19 @@ func TestHandshakeClientECDHEECDSAAES128CBCSHA256(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
+func TestHandshakeClientX25519(t *testing.T) {
+	config := testConfig.Clone()
+	config.CurvePreferences = []CurveID{X25519}
+
+	test := &clientTest{
+		name:    "X25519-ECDHE-RSA-AES-GCM",
+		command: []string{"openssl", "s_server", "-cipher", "ECDHE-RSA-AES128-GCM-SHA256"},
+		config:  config,
+	}
+
+	runClientTestTLS12(t, test)
+}
+
 func TestHandshakeClientCertRSA(t *testing.T) {
 	config := testConfig.Clone()
 	cert, _ := X509KeyPair([]byte(clientCertificatePEM), []byte(clientKeyPEM))
