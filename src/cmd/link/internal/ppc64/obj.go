@@ -58,6 +58,7 @@ func Init() {
 	ld.Thearch.Elfreloc1 = elfreloc1
 	ld.Thearch.Elfsetupplt = elfsetupplt
 	ld.Thearch.Gentext = gentext
+	ld.Thearch.Trampoline = trampoline
 	ld.Thearch.Machoreloc1 = machoreloc1
 	if ld.SysArch == sys.ArchPPC64LE {
 		ld.Thearch.Lput = ld.Lputl
