@@ -93,7 +93,7 @@ func mapaccess2_fast32(mapType *byte, hmap map[any]any, key any) (val *any, pres
 func mapaccess2_fast64(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
 func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
 func mapaccess2_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any, pres bool)
-func mapassign1(mapType *byte, hmap map[any]any, key *any, val *any)
+func mapassign(mapType *byte, hmap map[any]any, key *any) (val *any)
 func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
 func mapdelete(mapType *byte, hmap map[any]any, key *any)
 func mapiternext(hiter *any)
