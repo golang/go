@@ -4,15 +4,11 @@
 
 package syscall
 
-func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
-
 func NsecToTimespec(nsec int64) (ts Timespec) {
 	ts.Sec = int64(nsec / 1e9)
 	ts.Nsec = int32(nsec % 1e9)
 	return
 }
-
-func TimevalToNsec(tv Timeval) int64 { return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
 
 func NsecToTimeval(nsec int64) (tv Timeval) {
 	nsec += 999 // round up to microsecond
