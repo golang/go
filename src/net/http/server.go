@@ -1318,7 +1318,9 @@ func (w *response) WriteString(data string) (n int, err error) {
 // either dataB or dataS is non-zero.
 func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err error) {
 	if w.conn.hijacked() {
-		w.conn.server.logf("http: response.Write on hijacked connection")
+		if lenData > 0 {
+			w.conn.server.logf("http: response.Write on hijacked connection")
+		}
 		return 0, ErrHijacked
 	}
 	if !w.wroteHeader {

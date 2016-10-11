@@ -2252,6 +2252,51 @@ func testHandlerPanic(t *testing.T, withHijack, h2 bool, panicValue interface{})
 	}
 }
 
+type terrorWriter struct{ t *testing.T }
+
+func (w terrorWriter) Write(p []byte) (int, error) {
+	w.t.Errorf("%s", p)
+	return len(p), nil
+}
+
+// Issue 16456: allow writing 0 bytes on hijacked conn to test hijack
+// without any log spam.
+func TestServerWriteHijackZeroBytes(t *testing.T) {
+	defer afterTest(t)
+	done := make(chan struct{})
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		defer close(done)
+		w.(Flusher).Flush()
+		conn, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Errorf("Hijack: %v", err)
+			return
+		}
+		defer conn.Close()
+		_, err = w.Write(nil)
+		if err != ErrHijacked {
+			t.Errorf("Write error = %v; want ErrHijacked", err)
+		}
+	}))
+	ts.Config.ErrorLog = log.New(terrorWriter{t}, "Unexpected write: ", 0)
+	ts.Start()
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout")
+	}
+}
+
 func TestServerNoDate_h1(t *testing.T)        { testServerNoHeader(t, h1Mode, "Date") }
 func TestServerNoDate_h2(t *testing.T)        { testServerNoHeader(t, h2Mode, "Date") }
 func TestServerNoContentType_h1(t *testing.T) { testServerNoHeader(t, h1Mode, "Content-Type") }
