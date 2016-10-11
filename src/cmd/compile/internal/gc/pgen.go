@@ -157,15 +157,11 @@ func emitptrargsmap() {
 		onebitwalktype1(Curfn.Type.Params(), &xoffset, bv)
 	}
 
-	for j := 0; int32(j) < bv.n; j += 32 {
-		off = duint32(sym, off, bv.b[j/32])
-	}
+	off = dbvec(sym, off, bv)
 	if Curfn.Type.Results().NumFields() > 0 {
 		xoffset = 0
 		onebitwalktype1(Curfn.Type.Results(), &xoffset, bv)
-		for j := 0; int32(j) < bv.n; j += 32 {
-			off = duint32(sym, off, bv.b[j/32])
-		}
+		off = dbvec(sym, off, bv)
 	}
 
 	ggloblsym(sym, int32(off), obj.RODATA|obj.LOCAL)
