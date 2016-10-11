@@ -481,20 +481,19 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
 	return v, true
 }
 
-func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
+// Like mapaccess, but allocates a slot for the key if it is not present in the map.
+func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if h == nil {
 		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
-		pc := funcPC(mapassign1)
+		pc := funcPC(mapassign)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
-		raceReadObjectPC(t.elem, val, callerpc, pc)
 	}
 	if msanenabled {
 		msanread(key, t.key.size)
-		msanread(val, t.elem.size)
 	}
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map writes")
@@ -521,35 +520,29 @@ again:
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
-	var insertv unsafe.Pointer
+	var val unsafe.Pointer
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				if b.tophash[i] == empty && inserti == nil {
 					inserti = &b.tophash[i]
 					insertk = add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
-					insertv = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
 				}
 				continue
 			}
 			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
-			k2 := k
 			if t.indirectkey {
-				k2 = *((*unsafe.Pointer)(k2))
+				k = *((*unsafe.Pointer)(k))
 			}
-			if !alg.equal(key, k2) {
+			if !alg.equal(key, k) {
 				continue
 			}
 			// already have a mapping for key. Update it.
 			if t.needkeyupdate {
-				typedmemmove(t.key, k2, key)
+				typedmemmove(t.key, k, key)
 			}
-			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
-			v2 := v
-			if t.indirectvalue {
-				v2 = *((*unsafe.Pointer)(v2))
-			}
-			typedmemmove(t.elem, v2, val)
+			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
 			goto done
 		}
 		ovf := b.overflow(t)
@@ -574,7 +567,7 @@ again:
 		h.setoverflow(t, b, newb)
 		inserti = &newb.tophash[0]
 		insertk = add(unsafe.Pointer(newb), dataOffset)
-		insertv = add(insertk, bucketCnt*uintptr(t.keysize))
+		val = add(insertk, bucketCnt*uintptr(t.keysize))
 	}
 
 	// store new key/value at insert position
@@ -585,11 +578,9 @@ again:
 	}
 	if t.indirectvalue {
 		vmem := newobject(t.elem)
-		*(*unsafe.Pointer)(insertv) = vmem
-		insertv = vmem
+		*(*unsafe.Pointer)(val) = vmem
 	}
 	typedmemmove(t.key, insertk, key)
-	typedmemmove(t.elem, insertv, val)
 	*inserti = top
 	h.count++
 
@@ -598,6 +589,10 @@ done:
 		throw("concurrent map writes")
 	}
 	h.flags &^= hashWriting
+	if t.indirectvalue {
+		val = *((*unsafe.Pointer)(val))
+	}
+	return val
 }
 
 func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
@@ -1128,7 +1123,8 @@ func reflect_mapaccess(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 
 //go:linkname reflect_mapassign reflect.mapassign
 func reflect_mapassign(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
-	mapassign1(t, h, key, val)
+	p := mapassign(t, h, key)
+	typedmemmove(t.elem, p, val)
 }
 
 //go:linkname reflect_mapdelete reflect.mapdelete

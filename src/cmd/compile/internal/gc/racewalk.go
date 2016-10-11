@@ -474,8 +474,8 @@ func isartificial(n *Node) bool {
 func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 	n := *np
 
-	//print("callinstr for %+N [ %O ] etype=%E class=%d\n",
-	//	  n, n->op, n->type ? n->type->etype : -1, n->class);
+	//fmt.Printf("callinstr for %v [ %v ] etype=%v class=%v\n",
+	//	n, n.Op, n.Type.Etype, n.Class)
 
 	if skip != 0 || n.Type == nil || n.Type.Etype >= TIDEAL {
 		return false

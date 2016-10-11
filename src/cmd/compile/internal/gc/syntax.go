@@ -52,7 +52,7 @@ type Node struct {
 	Op        Op
 	Ullman    uint8 // sethi/ullman number
 	Addable   bool  // addressable
-	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN
+	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
 	Bounded   bool  // bounds check unnecessary
 	NonNil    bool  // guaranteed to be non-nil
 	Class     Class // PPARAM, PAUTO, PEXTERN, etc

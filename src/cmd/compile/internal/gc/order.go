@@ -188,9 +188,9 @@ func isaddrokay(n *Node) bool {
 	return islvalue(n) && (n.Op != ONAME || n.Class == PEXTERN || istemp(n))
 }
 
-// Orderaddrtemp ensures that *np is okay to pass by address to runtime routines.
-// If the original argument *np is not okay, orderaddrtemp creates a tmp, emits
-// tmp = *np, and then sets *np to the tmp variable.
+// Orderaddrtemp ensures that n is okay to pass by address to runtime routines.
+// If the original argument n is not okay, orderaddrtemp creates a tmp, emits
+// tmp = n, and then returns tmp.
 func orderaddrtemp(n *Node, order *Order) *Node {
 	if isaddrokay(n) {
 		return n
@@ -395,13 +395,8 @@ func ordercall(n *Node, order *Order) {
 }
 
 // Ordermapassign appends n to order->out, introducing temporaries
-// to make sure that all map assignments have the form m[k] = x,
-// where x is addressable.
-// (Orderexpr has already been called on n, so we know k is addressable.)
-//
-// If n is m[k] = x where x is not addressable, the rewrite is:
-//	tmp = x
-//	m[k] = tmp
+// to make sure that all map assignments have the form m[k] = x.
+// (Note: orderexpr has already been called on n, so we know k is addressable.)
 //
 // If n is the multiple assignment form ..., m[k], ... = ..., the rewrite is
 //	t1 = m
@@ -428,7 +423,7 @@ func ordermapassign(n *Node, order *Order) {
 		// We call writebarrierfat only for values > 4 pointers long. See walk.go.
 		// TODO(mdempsky): writebarrierfat doesn't exist anymore, but removing that
 		// logic causes net/http's tests to become flaky; see CL 21242.
-		if (n.Left.Op == OINDEXMAP || (needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr))) && !isaddrokay(n.Right) {
+		if needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr) && !isaddrokay(n.Right) {
 			m := n.Left
 			n.Left = ordertemp(m.Type, order, false)
 			a := nod(OAS, m, n.Left)
@@ -1061,8 +1056,14 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		// key must be addressable
 	case OINDEXMAP:
 		n.Left = orderexpr(n.Left, order, nil)
-
 		n.Right = orderexpr(n.Right, order, nil)
+		needCopy := false
+
+		if n.Etype == 0 && instrumenting {
+			// Race detector needs the copy so it can
+			// call treecopy on the result.
+			needCopy = true
+		}
 
 		// For x = m[string(k)] where k is []byte, the allocation of
 		// backing bytes for the string can be avoided by reusing
@@ -1076,12 +1077,13 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		// conversion (by the ordercopyexpr a few lines below).
 		if n.Etype == 0 && n.Right.Op == OARRAYBYTESTR {
 			n.Right.Op = OARRAYBYTESTRTMP
+			needCopy = true
 		}
 
+		// Map calls need to take the address of the key.
 		n.Right = orderaddrtemp(n.Right, order)
-		if n.Etype == 0 {
-			// use of value (not being assigned);
-			// make copy in temporary.
+
+		if needCopy {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}
 

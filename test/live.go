@@ -268,32 +268,33 @@ var m2 map[[2]string]*byte
 var x2 [2]string
 var bp *byte
 
-func f17a() {
-	// value temporary only
+func f17a(p *byte) { // ERROR "live at entry to f17a: p$"
 	if b {
-		m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+		m2[x2] = p // ERROR "live at call to mapassign: p$"
 	}
-	m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
-	m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+	m2[x2] = p // ERROR "live at call to mapassign: p$"
+	m2[x2] = p // ERROR "live at call to mapassign: p$"
 }
 
-func f17b() {
-	// key temporary only
+func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
+	// key temporary
 	if b {
-		m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+		m2s["x"] = p // ERROR "live at call to mapassign: p autotmp_[0-9]+$"
 	}
-	m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
-	m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+	m2s["x"] = p // ERROR "live at call to mapassign: p autotmp_[0-9]+$"
+	m2s["x"] = p // ERROR "live at call to mapassign: p autotmp_[0-9]+$"
 }
 
 func f17c() {
 	// key and value temporaries
 	if b {
-		m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+		m2s["x"] = f17d() // ERROR "live at call to f17d: autotmp_[0-9]+$" "live at call to mapassign: autotmp_[0-9]+ autotmp_[0-9]+$"
 	}
-	m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
-	m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+	m2s["x"] = f17d() // ERROR "live at call to f17d: autotmp_[0-9]+$" "live at call to mapassign: autotmp_[0-9]+ autotmp_[0-9]+$"
+	m2s["x"] = f17d() // ERROR "live at call to f17d: autotmp_[0-9]+$" "live at call to mapassign: autotmp_[0-9]+ autotmp_[0-9]+$"
 }
+
+func f17d() *byte
 
 func g18() [2]string
 
@@ -360,10 +361,10 @@ func f24() {
 	// key temporary for map access using array literal key.
 	// value temporary too.
 	if b {
-		m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+		m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign: autotmp_[0-9]+$"
 	}
-	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
-	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign: autotmp_[0-9]+$"
+	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign: autotmp_[0-9]+$"
 }
 
 // defer should not cause spurious ambiguously live variables
