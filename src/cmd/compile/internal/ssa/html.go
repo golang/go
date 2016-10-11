@@ -274,9 +274,10 @@ function toggle_visibility(id) {
 <div id="help">
 
 <p>
-Click on a value or block to toggle highlighting of that value/block and its uses.
-Values and blocks are highlighted by ID, which may vary across passes.
-(TODO: Fix this.)
+Click on a value or block to toggle highlighting of that value/block
+and its uses.  (Values and blocks are highlighted by ID, and IDs of
+dead items may be reused, so not all highlights necessarily correspond
+to the clicked item.)
 </p>
 
 <p>
