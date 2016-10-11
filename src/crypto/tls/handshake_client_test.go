@@ -77,7 +77,7 @@ func newOpensslOutputSink() *opensslOutputSink {
 
 // opensslEndOfHandshake is a message that the “openssl s_server” tool will
 // print when a handshake completes if run with “-state”.
-const opensslEndOfHandshake = "SSL_accept:SSLv3 write finished A"
+const opensslEndOfHandshake = "SSL_accept:SSLv3/TLS write finished"
 
 func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
 	o.line = append(o.line, data...)
@@ -276,6 +276,8 @@ func (test *clientTest) loadData() (flows [][]byte, err error) {
 }
 
 func (test *clientTest) run(t *testing.T, write bool) {
+	checkOpenSSLVersion(t)
+
 	var clientConn, serverConn net.Conn
 	var recordingConn *recordingConn
 	var childProcess *exec.Cmd
@@ -542,7 +544,7 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 
 	test := &clientTest{
 		name:    "ClientCert-RSA-RSA",
-		command: []string{"openssl", "s_server", "-cipher", "RC4-SHA", "-verify", "1"},
+		command: []string{"openssl", "s_server", "-cipher", "AES128", "-verify", "1"},
 		config:  config,
 	}
 
@@ -578,7 +580,7 @@ func TestHandshakeClientCertECDSA(t *testing.T) {
 
 	test := &clientTest{
 		name:    "ClientCert-ECDSA-RSA",
-		command: []string{"openssl", "s_server", "-cipher", "RC4-SHA", "-verify", "1"},
+		command: []string{"openssl", "s_server", "-cipher", "AES128", "-verify", "1"},
 		config:  config,
 	}
 
@@ -793,27 +795,6 @@ func TestHandshakeClientALPNMatch(t *testing.T) {
 			// The server's preferences should override the client.
 			if state.NegotiatedProtocol != "proto1" {
 				return fmt.Errorf("Got protocol %q, wanted proto1", state.NegotiatedProtocol)
-			}
-			return nil
-		},
-	}
-	runClientTestTLS12(t, test)
-}
-
-func TestHandshakeClientALPNNoMatch(t *testing.T) {
-	config := testConfig.Clone()
-	config.NextProtos = []string{"proto3"}
-
-	test := &clientTest{
-		name: "ALPN-NoMatch",
-		// Note that this needs OpenSSL 1.0.2 because that is the first
-		// version that supports the -alpn flag.
-		command: []string{"openssl", "s_server", "-alpn", "proto1,proto2"},
-		config:  config,
-		validate: func(state ConnectionState) error {
-			// There's no overlap so OpenSSL will not select a protocol.
-			if state.NegotiatedProtocol != "" {
-				return fmt.Errorf("Got protocol %q, wanted ''", state.NegotiatedProtocol)
 			}
 			return nil
 		},

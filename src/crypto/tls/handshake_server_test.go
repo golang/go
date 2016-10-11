@@ -558,6 +558,8 @@ func (test *serverTest) loadData() (flows [][]byte, err error) {
 }
 
 func (test *serverTest) run(t *testing.T, write bool) {
+	checkOpenSSLVersion(t)
+
 	var clientConn, serverConn net.Conn
 	var recordingConn *recordingConn
 	var childProcess *exec.Cmd
@@ -925,13 +927,13 @@ func TestResumption(t *testing.T) {
 
 	test := &serverTest{
 		name:    "IssueTicket",
-		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_out", sessionFilePath},
+		command: []string{"openssl", "s_client", "-cipher", "AES128-SHA", "-sess_out", sessionFilePath},
 	}
 	runServerTestTLS12(t, test)
 
 	test = &serverTest{
 		name:    "Resume",
-		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_in", sessionFilePath},
+		command: []string{"openssl", "s_client", "-cipher", "AES128-SHA", "-sess_in", sessionFilePath},
 	}
 	runServerTestTLS12(t, test)
 }
@@ -944,7 +946,7 @@ func TestResumptionDisabled(t *testing.T) {
 
 	test := &serverTest{
 		name:    "IssueTicketPreDisable",
-		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_out", sessionFilePath},
+		command: []string{"openssl", "s_client", "-cipher", "AES128-SHA", "-sess_out", sessionFilePath},
 		config:  config,
 	}
 	runServerTestTLS12(t, test)
@@ -953,7 +955,7 @@ func TestResumptionDisabled(t *testing.T) {
 
 	test = &serverTest{
 		name:    "ResumeDisabled",
-		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_in", sessionFilePath},
+		command: []string{"openssl", "s_client", "-cipher", "AES128-SHA", "-sess_in", sessionFilePath},
 		config:  config,
 	}
 	runServerTestTLS12(t, test)
@@ -1058,14 +1060,14 @@ func TestClientAuth(t *testing.T) {
 
 	test := &serverTest{
 		name:    "ClientAuthRequestedNotGiven",
-		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "RC4-SHA"},
+		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA"},
 		config:  config,
 	}
 	runServerTestTLS12(t, test)
 
 	test = &serverTest{
 		name:              "ClientAuthRequestedAndGiven",
-		command:           []string{"openssl", "s_client", "-no_ticket", "-cipher", "RC4-SHA", "-cert", certPath, "-key", keyPath},
+		command:           []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA", "-cert", certPath, "-key", keyPath},
 		config:            config,
 		expectedPeerCerts: []string{clientCertificatePEM},
 	}
@@ -1073,7 +1075,7 @@ func TestClientAuth(t *testing.T) {
 
 	test = &serverTest{
 		name:              "ClientAuthRequestedAndECDSAGiven",
-		command:           []string{"openssl", "s_client", "-no_ticket", "-cipher", "RC4-SHA", "-cert", ecdsaCertPath, "-key", ecdsaKeyPath},
+		command:           []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA", "-cert", ecdsaCertPath, "-key", ecdsaKeyPath},
 		config:            config,
 		expectedPeerCerts: []string{clientECDSACertificatePEM},
 	}
