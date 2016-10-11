@@ -272,14 +272,10 @@ func duintptr(s *Sym, off int, v uint64) int {
 }
 
 func dbvec(s *Sym, off int, bv bvec) int {
-	for j := 0; int32(j) < bv.n; j += 32 {
+	// Runtime reads the bitmaps as byte arrays. Oblige.
+	for j := 0; int32(j) < bv.n; j += 8 {
 		word := bv.b[j/32]
-
-		// Runtime reads the bitmaps as byte arrays. Oblige.
-		off = duint8(s, off, uint8(word))
-		off = duint8(s, off, uint8(word>>8))
-		off = duint8(s, off, uint8(word>>16))
-		off = duint8(s, off, uint8(word>>24))
+		off = duint8(s, off, uint8(word>>(uint(j)%32)))
 	}
 	return off
 }
