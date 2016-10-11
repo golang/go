@@ -20,9 +20,7 @@ package cgo
 #cgo !android,linux LDFLAGS: -lpthread
 #cgo netbsd LDFLAGS: -lpthread
 #cgo openbsd LDFLAGS: -lpthread
-// we must explicitly link msvcrt, because runtime needs ntdll, and ntdll
-// exports some incompatible libc functions. See golang.org/issue/12030.
-#cgo windows LDFLAGS: -lmsvcrt -lm -mthreads
+#cgo windows LDFLAGS: -lm -mthreads
 
 #cgo CFLAGS: -Wall -Werror
 

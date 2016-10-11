@@ -33,7 +33,6 @@ const (
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
-//go:cgo_import_dynamic runtime._NtWaitForSingleObject NtWaitForSingleObject%3 "ntdll.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
@@ -77,7 +76,6 @@ var (
 	_GetThreadContext,
 	_LoadLibraryW,
 	_LoadLibraryA,
-	_NtWaitForSingleObject,
 	_ResumeThread,
 	_SetConsoleCtrlHandler,
 	_SetErrorMode,
@@ -114,6 +112,11 @@ var (
 	// when building executable as Cgo. So load SystemFunction036
 	// manually during runtime startup.
 	_RtlGenRandom stdFunction
+
+	// Load ntdll.dll manually during startup, otherwise Mingw
+	// links wrong printf function to cgo executable (see issue
+	// 12030 for details).
+	_NtWaitForSingleObject stdFunction
 )
 
 // Function to be called by windows CreateThread
@@ -178,6 +181,13 @@ func loadOptionalSyscalls() {
 		throw("advapi32.dll not found")
 	}
 	_RtlGenRandom = windowsFindfunc(a32, []byte("SystemFunction036\000"))
+
+	var ntdll = []byte("ntdll.dll\000")
+	n32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&ntdll[0])))
+	if n32 == 0 {
+		throw("ntdll.dll not found")
+	}
+	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
 }
 
 //go:nosplit
