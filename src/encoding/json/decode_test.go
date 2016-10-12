@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"image"
 	"math"
+	"math/big"
 	"net"
 	"reflect"
 	"strconv"
@@ -1524,40 +1525,148 @@ func TestInterfaceSet(t *testing.T) {
 	}
 }
 
+type NullTest struct {
+	Bool      bool
+	Int       int
+	Int8      int8
+	Int16     int16
+	Int32     int32
+	Int64     int64
+	Uint      uint
+	Uint8     uint8
+	Uint16    uint16
+	Uint32    uint32
+	Uint64    uint64
+	Float32   float32
+	Float64   float64
+	String    string
+	PBool     *bool
+	Map       map[string]string
+	Slice     []string
+	Interface interface{}
+
+	PRaw    *RawMessage
+	PTime   *time.Time
+	PBigInt *big.Int
+	PText   *MustNotUnmarshalText
+	PBuffer *bytes.Buffer // has methods, just not relevant ones
+	PStruct *struct{}
+
+	Raw    RawMessage
+	Time   time.Time
+	BigInt big.Int
+	Text   MustNotUnmarshalText
+	Buffer bytes.Buffer
+	Struct struct{}
+}
+
+type NullTestStrings struct {
+	Bool      bool              `json:",string"`
+	Int       int               `json:",string"`
+	Int8      int8              `json:",string"`
+	Int16     int16             `json:",string"`
+	Int32     int32             `json:",string"`
+	Int64     int64             `json:",string"`
+	Uint      uint              `json:",string"`
+	Uint8     uint8             `json:",string"`
+	Uint16    uint16            `json:",string"`
+	Uint32    uint32            `json:",string"`
+	Uint64    uint64            `json:",string"`
+	Float32   float32           `json:",string"`
+	Float64   float64           `json:",string"`
+	String    string            `json:",string"`
+	PBool     *bool             `json:",string"`
+	Map       map[string]string `json:",string"`
+	Slice     []string          `json:",string"`
+	Interface interface{}       `json:",string"`
+
+	PRaw    *RawMessage           `json:",string"`
+	PTime   *time.Time            `json:",string"`
+	PBigInt *big.Int              `json:",string"`
+	PText   *MustNotUnmarshalText `json:",string"`
+	PBuffer *bytes.Buffer         `json:",string"`
+	PStruct *struct{}             `json:",string"`
+
+	Raw    RawMessage           `json:",string"`
+	Time   time.Time            `json:",string"`
+	BigInt big.Int              `json:",string"`
+	Text   MustNotUnmarshalText `json:",string"`
+	Buffer bytes.Buffer         `json:",string"`
+	Struct struct{}             `json:",string"`
+}
+
 // JSON null values should be ignored for primitives and string values instead of resulting in an error.
 // Issue 2540
 func TestUnmarshalNulls(t *testing.T) {
-	jsonData := []byte(`{
-		"Bool"    : null,
-		"Int"     : null,
-		"Int8"    : null,
-		"Int16"   : null,
-		"Int32"   : null,
-		"Int64"   : null,
-		"Uint"    : null,
-		"Uint8"   : null,
-		"Uint16"  : null,
-		"Uint32"  : null,
-		"Uint64"  : null,
-		"Float32" : null,
-		"Float64" : null,
-		"String"  : null}`)
+	// Unmarshal docs:
+	// The JSON null value unmarshals into an interface, map, pointer, or slice
+	// by setting that Go value to nil. Because null is often used in JSON to mean
+	// ``not present,'' unmarshaling a JSON null into any other Go type has no effect
+	// on the value and produces no error.
 
-	nulls := All{
-		Bool:    true,
-		Int:     2,
-		Int8:    3,
-		Int16:   4,
-		Int32:   5,
-		Int64:   6,
-		Uint:    7,
-		Uint8:   8,
-		Uint16:  9,
-		Uint32:  10,
-		Uint64:  11,
-		Float32: 12.1,
-		Float64: 13.1,
-		String:  "14"}
+	jsonData := []byte(`{
+				"Bool"    : null,
+				"Int"     : null,
+				"Int8"    : null,
+				"Int16"   : null,
+				"Int32"   : null,
+				"Int64"   : null,
+				"Uint"    : null,
+				"Uint8"   : null,
+				"Uint16"  : null,
+				"Uint32"  : null,
+				"Uint64"  : null,
+				"Float32" : null,
+				"Float64" : null,
+				"String"  : null,
+				"PBool": null,
+				"Map": null,
+				"Slice": null,
+				"Interface": null,
+				"PRaw": null,
+				"PTime": null,
+				"PBigInt": null,
+				"PText": null,
+				"PBuffer": null,
+				"PStruct": null,
+				"Raw": null,
+				"Time": null,
+				"BigInt": null,
+				"Text": null,
+				"Buffer": null,
+				"Struct": null
+			}`)
+	nulls := NullTest{
+		Bool:      true,
+		Int:       2,
+		Int8:      3,
+		Int16:     4,
+		Int32:     5,
+		Int64:     6,
+		Uint:      7,
+		Uint8:     8,
+		Uint16:    9,
+		Uint32:    10,
+		Uint64:    11,
+		Float32:   12.1,
+		Float64:   13.1,
+		String:    "14",
+		PBool:     new(bool),
+		Map:       map[string]string{},
+		Slice:     []string{},
+		Interface: new(MustNotUnmarshalJSON),
+		PRaw:      new(RawMessage),
+		PTime:     new(time.Time),
+		PBigInt:   new(big.Int),
+		PText:     new(MustNotUnmarshalText),
+		PStruct:   new(struct{}),
+		PBuffer:   new(bytes.Buffer),
+		Raw:       RawMessage("123"),
+		Time:      time.Unix(123456789, 0),
+		BigInt:    *big.NewInt(123),
+	}
+
+	before := nulls.Time.String()
 
 	err := Unmarshal(jsonData, &nulls)
 	if err != nil {
@@ -1566,9 +1675,61 @@ func TestUnmarshalNulls(t *testing.T) {
 	if !nulls.Bool || nulls.Int != 2 || nulls.Int8 != 3 || nulls.Int16 != 4 || nulls.Int32 != 5 || nulls.Int64 != 6 ||
 		nulls.Uint != 7 || nulls.Uint8 != 8 || nulls.Uint16 != 9 || nulls.Uint32 != 10 || nulls.Uint64 != 11 ||
 		nulls.Float32 != 12.1 || nulls.Float64 != 13.1 || nulls.String != "14" {
-
 		t.Errorf("Unmarshal of null values affected primitives")
 	}
+
+	if nulls.PBool != nil {
+		t.Errorf("Unmarshal of null did not clear nulls.PBool")
+	}
+	if nulls.Map != nil {
+		t.Errorf("Unmarshal of null did not clear nulls.Map")
+	}
+	if nulls.Slice != nil {
+		t.Errorf("Unmarshal of null did not clear nulls.Slice")
+	}
+	if nulls.Interface != nil {
+		t.Errorf("Unmarshal of null did not clear nulls.Interface")
+	}
+	if nulls.PRaw != nil {
+		t.Errorf("Unmarshal of null did not clear nulls.PRaw")
+	}
+	if nulls.PTime != nil {
+		t.Errorf("Unmarshal of null did not clear nulls.PTime")
+	}
+	if nulls.PBigInt != nil {
+		t.Errorf("Unmarshal of null did not clear nulls.PBigInt")
+	}
+	if nulls.PText != nil {
+		t.Errorf("Unmarshal of null did not clear nulls.PText")
+	}
+	if nulls.PBuffer != nil {
+		t.Errorf("Unmarshal of null did not clear nulls.PBuffer")
+	}
+	if nulls.PStruct != nil {
+		t.Errorf("Unmarshal of null did not clear nulls.PStruct")
+	}
+
+	if string(nulls.Raw) != "null" {
+		t.Errorf("Unmarshal of RawMessage null did not record null: %v", string(nulls.Raw))
+	}
+	if nulls.Time.String() != before {
+		t.Errorf("Unmarshal of time.Time null set time to %v", nulls.Time.String())
+	}
+	if nulls.BigInt.String() != "123" {
+		t.Errorf("Unmarshal of big.Int null set int to %v", nulls.BigInt.String())
+	}
+}
+
+type MustNotUnmarshalJSON struct{}
+
+func (x MustNotUnmarshalJSON) UnmarshalJSON(data []byte) error {
+	return errors.New("MustNotUnmarshalJSON was used")
+}
+
+type MustNotUnmarshalText struct{}
+
+func (x MustNotUnmarshalText) UnmarshalText(text []byte) error {
+	return errors.New("MustNotUnmarshalText was used")
 }
 
 func TestStringKind(t *testing.T) {
@@ -1807,7 +1968,7 @@ var invalidUnmarshalTextTests = []struct {
 	{nil, "json: Unmarshal(nil)"},
 	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
 	{(*int)(nil), "json: Unmarshal(nil *int)"},
-	{new(net.IP), "json: cannot unmarshal string into Go value of type *net.IP"},
+	{new(net.IP), "json: cannot unmarshal number into Go value of type *net.IP"},
 }
 
 func TestInvalidUnmarshalText(t *testing.T) {
