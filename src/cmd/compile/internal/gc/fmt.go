@@ -330,8 +330,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " esc(%d)", n.Esc)
 	}
 
-	if e, ok := n.Opt().(*NodeEscState); ok && e.Escloopdepth != 0 {
-		fmt.Fprintf(s, " ld(%d)", e.Escloopdepth)
+	if e, ok := n.Opt().(*NodeEscState); ok && e.Loopdepth != 0 {
+		fmt.Fprintf(s, " ld(%d)", e.Loopdepth)
 	}
 
 	if c == 0 && n.Typecheck != 0 {
