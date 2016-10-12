@@ -486,13 +486,6 @@ func walkexpr(n *Node, init *Nodes) *Node {
 		init.AppendNodes(&n.Ninit)
 	}
 
-	// annoying case - not typechecked
-	if n.Op == OKEY {
-		n.Left = walkexpr(n.Left, init)
-		n.Right = walkexpr(n.Right, init)
-		return n
-	}
-
 	lno := setlineno(n)
 
 	if Debug['w'] > 1 {
@@ -4100,6 +4093,7 @@ func candiscard(n *Node) bool {
 		OGT,
 		OGE,
 		OKEY,
+		OSTRUCTKEY,
 		OLEN,
 		OMUL,
 		OLSH,

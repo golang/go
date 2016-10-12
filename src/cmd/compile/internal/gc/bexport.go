@@ -1154,8 +1154,8 @@ func (p *exporter) elemList(list Nodes) {
 		if p.trace {
 			p.tracef("\n")
 		}
-		p.fieldSym(n.Left.Sym, false)
-		p.expr(n.Right)
+		p.fieldSym(n.Sym, false)
+		p.expr(n.Left)
 	}
 }
 
@@ -1266,6 +1266,9 @@ func (p *exporter) expr(n *Node) {
 	case OKEY:
 		p.op(OKEY)
 		p.exprsOrNil(n.Left, n.Right)
+
+	// case OSTRUCTKEY:
+	//	unreachable - handled in case OSTRUCTLIT by elemList
 
 	// case OCALLPART:
 	//	unimplemented - handled by default case

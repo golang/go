@@ -33,12 +33,11 @@ type Node struct {
 	Sym *Sym        // various
 	E   interface{} // Opt or Val, see methods below
 
-	// Various. Usually an offset into a struct. For example, ONAME nodes
-	// that refer to local variables use it to identify their stack frame
-	// position. ODOT, ODOTPTR, and OINDREG use it to indicate offset
-	// relative to their base address. ONAME nodes on the left side of an
-	// OKEY within an OSTRUCTLIT use it to store the named field's offset.
-	// OXCASE and OXFALL use it to validate the use of fallthrough.
+	// Various. Usually an offset into a struct. For example:
+	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
+	// - ODOT, ODOTPTR, and OINDREG use it to indicate offset relative to their base address.
+	// - OSTRUCTKEY uses it to store the named field's offset.
+	// - OXCASE and OXFALL use it to validate the use of fallthrough.
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
@@ -484,6 +483,9 @@ const (
 	OGETG   // runtime.getg() (read g pointer)
 
 	OEND
+
+	// TODO(mdempsky): Hack to appease toolstash; move up next to OKEY.
+	OSTRUCTKEY // Sym:Left (key:value in struct literal, after type checking)
 )
 
 // Nodes is a pointer to a slice of *Node.

@@ -315,11 +315,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		n.SetSliceBounds(low, high, max)
 		goto ret
 
-	case OKEY:
-		instrumentnode(&n.Left, init, 0, 0)
-		instrumentnode(&n.Right, init, 0, 0)
-		goto ret
-
 	case OADDR:
 		instrumentnode(&n.Left, init, 0, 1)
 		goto ret

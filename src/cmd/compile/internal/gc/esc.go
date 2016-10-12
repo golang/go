@@ -633,12 +633,6 @@ func (e *EscState) esc(n *Node, parent *Node) {
 	if n == nil {
 		return
 	}
-	if n.Type == structkey {
-		// This is the left side of x:y in a struct literal.
-		// x is syntax, not an expression.
-		// See #14405.
-		return
-	}
 
 	lno := setlineno(n)
 
@@ -905,7 +899,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 		// Link values to struct.
 	case OSTRUCTLIT:
 		for _, n6 := range n.List.Slice() {
-			e.escassignNilWhy(n, n6.Right, "struct literal element")
+			e.escassignNilWhy(n, n6.Left, "struct literal element")
 		}
 
 	case OPTRLIT:

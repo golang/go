@@ -2504,7 +2504,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 
 func nokeys(l Nodes) bool {
 	for _, n := range l.Slice() {
-		if n.Op == OKEY {
+		if n.Op == OKEY || n.Op == OSTRUCTKEY {
 			return false
 		}
 	}
@@ -2737,11 +2737,7 @@ func (nl Nodes) retsigerr() string {
 }
 
 // type check composite
-func fielddup(n *Node, hash map[string]bool) {
-	if n.Op != ONAME {
-		Fatalf("fielddup: not ONAME")
-	}
-	name := n.Sym.Name
+func fielddup(name string, hash map[string]bool) {
 	if hash[name] {
 		yyerror("duplicate field name in struct literal: %s", name)
 		return
@@ -2838,11 +2834,6 @@ func pushtype(n *Node, t *Type) {
 		}
 	}
 }
-
-// Marker type so esc, fmt, and sinit can recognize the LHS of an OKEY node
-// in a struct literal.
-// TODO(mdempsky): Find a nicer solution.
-var structkey = typ(Txxx)
 
 // The result of typecheckcomplit MUST be assigned back to n, e.g.
 // 	n.Left = typecheckcomplit(n.Left)
@@ -3029,10 +3020,8 @@ func typecheckcomplit(n *Node) *Node {
 				}
 				// No pushtype allowed here. Must name fields for that.
 				n1 = assignconv(n1, f.Type, "field value")
-				n1 = nod(OKEY, newname(f.Sym), n1)
-				n1.Left.Type = structkey
-				n1.Left.Xoffset = f.Offset
-				n1.Left.Typecheck = 1
+				n1 = nodSym(OSTRUCTKEY, n1, f.Sym)
+				n1.Xoffset = f.Offset
 				ls[i1] = n1
 				f = it.Next()
 			}
@@ -3047,7 +3036,38 @@ func typecheckcomplit(n *Node) *Node {
 			ls := n.List.Slice()
 			for i, l := range ls {
 				setlineno(l)
-				if l.Op != OKEY {
+
+				if l.Op == OKEY {
+					key := l.Left
+
+					l.Op = OSTRUCTKEY
+					l.Left = l.Right
+					l.Right = nil
+
+					// An OXDOT uses the Sym field to hold
+					// the field to the right of the dot,
+					// so s will be non-nil, but an OXDOT
+					// is never a valid struct literal key.
+					if key.Sym == nil || key.Op == OXDOT {
+						yyerror("invalid field name %v in struct initializer", key)
+						l.Left = typecheck(l.Left, Erv)
+						continue
+					}
+
+					// Sym might have resolved to name in other top-level
+					// package, because of import dot. Redirect to correct sym
+					// before we do the lookup.
+					s := key.Sym
+					if s.Pkg != localpkg && exportname(s.Name) {
+						s1 := lookup(s.Name)
+						if s1.Origpkg == s.Pkg {
+							s = s1
+						}
+					}
+					l.Sym = s
+				}
+
+				if l.Op != OSTRUCTKEY {
 					if bad == 0 {
 						yyerror("mixture of field:value and value initializers")
 					}
@@ -3056,46 +3076,17 @@ func typecheckcomplit(n *Node) *Node {
 					continue
 				}
 
-				s := l.Left.Sym
-
-				// An OXDOT uses the Sym field to hold
-				// the field to the right of the dot,
-				// so s will be non-nil, but an OXDOT
-				// is never a valid struct literal key.
-				if s == nil || l.Left.Op == OXDOT {
-					yyerror("invalid field name %v in struct initializer", l.Left)
-					l.Right = typecheck(l.Right, Erv)
-					continue
-				}
-
-				// Sym might have resolved to name in other top-level
-				// package, because of import dot. Redirect to correct sym
-				// before we do the lookup.
-				if s.Pkg != localpkg && exportname(s.Name) {
-					s1 := lookup(s.Name)
-					if s1.Origpkg == s.Pkg {
-						s = s1
-					}
-				}
-
-				f := lookdot1(nil, s, t, t.Fields(), 0)
+				f := lookdot1(nil, l.Sym, t, t.Fields(), 0)
 				if f == nil {
-					yyerror("unknown %v field '%v' in struct literal", t, s)
+					yyerror("unknown %v field '%v' in struct literal", t, l.Sym)
 					continue
 				}
-
-				l.Left = newname(s)
-				l.Left.Type = structkey
-				l.Left.Xoffset = f.Offset
-				l.Left.Typecheck = 1
-				s = f.Sym
-				fielddup(newname(s), hash)
-				r = l.Right
+				fielddup(f.Sym.Name, hash)
+				l.Xoffset = f.Offset
 
 				// No pushtype allowed here. Tried and rejected.
-				r = typecheck(r, Erv)
-
-				l.Right = assignconv(r, f.Type, "field value")
+				l.Left = typecheck(l.Left, Erv)
+				l.Left = assignconv(l.Left, f.Type, "field value")
 			}
 		}
 
