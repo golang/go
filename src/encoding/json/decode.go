@@ -34,6 +34,13 @@ import (
 // the value pointed at by the pointer. If the pointer is nil, Unmarshal
 // allocates a new value for it to point to.
 //
+// To unmarshal JSON into a value implementing the Unmarshaler interface,
+// Unmarshal calls that value's UnmarshalJSON method, including
+// when the input is a JSON null.
+// Otherwise, if the value implements encoding.TextUnmarshaler
+// and the input is a JSON quoted string, Unmarshal calls that value's
+// UnmarshalText method with the unquoted form of the string.
+//
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
 // keys to the keys used by Marshal (either the struct field name or its tag),
 // preferring an exact match but also accepting a case-insensitive match.
@@ -102,6 +109,9 @@ func Unmarshal(data []byte, v interface{}) error {
 // The input can be assumed to be a valid encoding of
 // a JSON value. UnmarshalJSON must copy the JSON data
 // if it wishes to retain the data after returning.
+//
+// By convention, to approximate the behavior of Unmarshal itself,
+// Unmarshalers implement UnmarshalJSON([]byte("null")) as a no-op.
 type Unmarshaler interface {
 	UnmarshalJSON([]byte) error
 }
@@ -458,8 +468,10 @@ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler,
 			if u, ok := v.Interface().(Unmarshaler); ok {
 				return u, nil, reflect.Value{}
 			}
-			if u, ok := v.Interface().(encoding.TextUnmarshaler); ok {
-				return nil, u, reflect.Value{}
+			if !decodingNull {
+				if u, ok := v.Interface().(encoding.TextUnmarshaler); ok {
+					return nil, u, reflect.Value{}
+				}
 			}
 		}
 		v = v.Elem()
@@ -814,8 +826,8 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 		return
 	}
-	wantptr := item[0] == 'n' // null
-	u, ut, pv := d.indirect(v, wantptr)
+	isNull := item[0] == 'n' // null
+	u, ut, pv := d.indirect(v, isNull)
 	if u != nil {
 		err := u.UnmarshalJSON(item)
 		if err != nil {
@@ -828,7 +840,16 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			if fromQuoted {
 				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 			} else {
-				d.saveError(&UnmarshalTypeError{Value: "string", Type: v.Type(), Offset: int64(d.off)})
+				var val string
+				switch item[0] {
+				case 'n':
+					val = "null"
+				case 't', 'f':
+					val = "bool"
+				default:
+					val = "number"
+				}
+				d.saveError(&UnmarshalTypeError{Value: val, Type: v.Type(), Offset: int64(d.off)})
 			}
 			return
 		}

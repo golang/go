@@ -70,5 +70,9 @@ func (x *Int) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (z *Int) UnmarshalJSON(text []byte) error {
+	// Ignore null, like in the main JSON package.
+	if string(text) == "null" {
+		return nil
+	}
 	return z.UnmarshalText(text)
 }

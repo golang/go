@@ -950,6 +950,10 @@ func (t Time) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements the json.Unmarshaler interface.
 // The time is expected to be a quoted string in RFC 3339 format.
 func (t *Time) UnmarshalJSON(data []byte) error {
+	// Ignore null, like in the main JSON package.
+	if string(data) == "null" {
+		return nil
+	}
 	// Fractional seconds are handled implicitly by Parse.
 	var err error
 	*t, err = Parse(`"`+RFC3339+`"`, string(data))
