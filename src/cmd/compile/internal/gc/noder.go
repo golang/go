@@ -188,6 +188,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
 
 func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 	name := typedcl0(p.name(decl.Name))
+	name.Name.Param.Pragma = Pragma(decl.Pragma)
 
 	var typ *Node
 	if decl.Type != nil {

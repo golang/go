@@ -12,8 +12,8 @@ import (
 
 type Mode uint
 
-// A Pragma value is a set of flags that augment a function
-// declaration. Callers may assign meaning to the flags as
+// A Pragma value is a set of flags that augment a function or
+// type declaration. Callers may assign meaning to the flags as
 // appropriate.
 type Pragma uint16
 

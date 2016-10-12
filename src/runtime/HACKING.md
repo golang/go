@@ -47,3 +47,36 @@ functions that release the P or may run without a P and
 `go:yeswritebarrierrec` is used when code re-acquires an active P.
 Since these are function-level annotations, code that releases or
 acquires a P may need to be split across two functions.
+
+go:notinheap
+------------
+
+`go:notinheap` applies to type declarations. It indicates that a type
+must never be heap allocated. Specifically, pointers to this type must
+always fail the `runtime.inheap` check. The type may be used for
+global variables, for stack variables, or for objects in unmanaged
+memory (e.g., allocated with `sysAlloc`, `persistentalloc`, or
+`fixalloc`). Specifically:
+
+1. `new(T)`, `make([]T)`, `append([]T, ...)` and implicit heap
+   allocation of T are disallowed. (Though implicit allocations are
+   disallowed in the runtime anyway.)
+
+2. A pointer to a regular type (other than `unsafe.Pointer`) cannot be
+   converted to a pointer to a `go:notinheap` type, even if they have
+   the same underlying type.
+
+3. Any type that contains a `go:notinheap` type is itself
+   `go:notinheap`. Structs and arrays are `go:notinheap` if their
+   elements are. Maps and channels of `go:notinheap` types are
+   disallowed. To keep things explicit, any type declaration where the
+   type is implicitly `go:notinheap` must be explicitly marked
+   `go:notinheap` as well.
+
+4. Write barriers on pointers to `go:notinheap` types can be omitted.
+
+The last point is the real benefit of `go:notinheap`. The runtime uses
+it for low-level internal structures to avoid memory barriers in the
+scheduler and the memory allocator where they are illegal or simply
+inefficient. This mechanism is reasonably safe and does not compromise
+the readability of the runtime.

@@ -160,6 +160,7 @@ type Type struct {
 	Deferwidth bool
 	Broke      bool  // broken type definition.
 	Align      uint8 // the required alignment of this type, in bytes
+	NotInHeap  bool  // type cannot be heap allocated
 }
 
 // MapType contains Type fields specific to maps.
@@ -414,6 +415,7 @@ func typArray(elem *Type, bound int64) *Type {
 	}
 	t := typ(TARRAY)
 	t.Extra = &ArrayType{Elem: elem, Bound: bound}
+	t.NotInHeap = elem.NotInHeap
 	return t
 }
 
@@ -436,6 +438,7 @@ func typSlice(elem *Type) *Type {
 func typDDDArray(elem *Type) *Type {
 	t := typ(TARRAY)
 	t.Extra = &ArrayType{Elem: elem, Bound: -1}
+	t.NotInHeap = elem.NotInHeap
 	return t
 }
 
@@ -822,6 +825,17 @@ func (t *Type) FieldSlice() []*Field {
 
 // SetFields sets struct/interface type t's fields/methods to fields.
 func (t *Type) SetFields(fields []*Field) {
+	for _, f := range fields {
+		// If type T contains a field F with a go:notinheap
+		// type, then T must also be go:notinheap. Otherwise,
+		// you could heap allocate T and then get a pointer F,
+		// which would be a heap pointer to a go:notinheap
+		// type.
+		if f.Type != nil && f.Type.NotInHeap {
+			t.NotInHeap = true
+			break
+		}
+	}
 	t.Fields().Set(fields)
 }
 

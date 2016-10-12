@@ -479,6 +479,7 @@ func (p *parser) typedcl() []*Node {
 	}
 
 	name := typedcl0(p.sym())
+	name.Name.Param.Pragma = p.pragma
 
 	typ := p.try_ntype()
 	// handle case where type is missing

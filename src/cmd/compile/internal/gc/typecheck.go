@@ -403,6 +403,12 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
+		if l.Type.NotInHeap {
+			yyerror("go:notinheap map key not allowed")
+		}
+		if r.Type.NotInHeap {
+			yyerror("go:notinheap map value not allowed")
+		}
 		n.Op = OTYPE
 		n.Type = typMap(l.Type, r.Type)
 
@@ -427,6 +433,9 @@ OpSwitch:
 		if l.Type == nil {
 			n.Type = nil
 			return n
+		}
+		if l.Type.NotInHeap {
+			yyerror("chan of go:notinheap type not allowed")
 		}
 		t := typChan(l.Type, ChanDir(n.Etype)) // TODO(marvin): Fix Node.EType type union.
 		n.Op = OTYPE
@@ -2087,6 +2096,12 @@ OpSwitch:
 		ok |= Etop
 		n.Left = typecheck(n.Left, Etype)
 		checkwidth(n.Left.Type)
+		if n.Left.Type != nil && n.Left.Type.NotInHeap && n.Left.Name.Param.Pragma&NotInHeap == 0 {
+			// The type contains go:notinheap types, so it
+			// must be marked as such (alternatively, we
+			// could silently propagate go:notinheap).
+			yyerror("type %v must be go:notinheap", n.Left.Type)
+		}
 		break OpSwitch
 	}
 
@@ -3515,6 +3530,11 @@ func copytype(n *Node, t *Type) {
 	t.Deferwidth = false
 	t.ptrTo = ptrTo
 	t.sliceOf = sliceOf
+
+	// Propagate go:notinheap pragma from the Name to the Type.
+	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma&NotInHeap != 0 {
+		t.NotInHeap = true
+	}
 
 	// Update nodes waiting on this type.
 	for _, n := range l {
