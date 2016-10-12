@@ -40,6 +40,10 @@ type bucketType int
 //
 // Per-call-stack profiling information.
 // Lookup by hashing call stack into a linked-list hash table.
+//
+// No heap pointers.
+//
+//go:notinheap
 type bucket struct {
 	next    *bucket
 	allnext *bucket
