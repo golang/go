@@ -851,13 +851,25 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 
 	switch c := item[0]; c {
 	case 'n': // null
+		// The main parser checks that only true and false can reach here,
+		// but if this was a quoted string input, it could be anything.
+		if fromQuoted && string(item) != "null" {
+			d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+			break
+		}
 		switch v.Kind() {
 		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
 			v.Set(reflect.Zero(v.Type()))
 			// otherwise, ignore null for primitives/string
 		}
 	case 't', 'f': // true, false
-		value := c == 't'
+		value := item[0] == 't'
+		// The main parser checks that only true and false can reach here,
+		// but if this was a quoted string input, it could be anything.
+		if fromQuoted && string(item) != "true" && string(item) != "false" {
+			d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+			break
+		}
 		switch v.Kind() {
 		default:
 			if fromQuoted {
