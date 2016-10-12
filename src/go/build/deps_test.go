@@ -333,7 +333,9 @@ var pkgDeps = map[string][]string{
 		"crypto/sha1",
 		"crypto/sha256",
 		"crypto/sha512",
+		"golang_org/x/crypto/chacha20poly1305",
 		"golang_org/x/crypto/curve25519",
+		"golang_org/x/crypto/poly1305",
 	},
 
 	// Random byte, number generation.

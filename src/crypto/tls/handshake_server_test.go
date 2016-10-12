@@ -40,6 +40,12 @@ var testConfig *Config
 func allCipherSuites() []uint16 {
 	ids := make([]uint16, len(cipherSuites))
 	for i, suite := range cipherSuites {
+		// Skip ChaCha20-Poly1305 cipher suites until they are enabled
+		// by default.
+		switch suite.id {
+		case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305:
+			continue
+		}
 		ids[i] = suite.id
 	}
 

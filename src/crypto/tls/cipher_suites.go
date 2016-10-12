@@ -14,6 +14,8 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"hash"
+
+	"golang_org/x/crypto/chacha20poly1305"
 )
 
 // a keyAgreement implements the client and server side of a TLS key agreement
@@ -75,7 +77,9 @@ type cipherSuite struct {
 
 var cipherSuites = []*cipherSuite{
 	// Ciphersuite order is chosen so that ECDHE comes before plain RSA and
-	// GCM is top preference.
+	// AEADs are the top preference.
+	{TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305, 32, 0, 12, ecdheRSAKA, suiteECDHE | suiteTLS12 | suiteDefaultOff, nil, nil, aeadChaCha20Poly1305},
+	{TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305, 32, 0, 12, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12 | suiteDefaultOff, nil, nil, aeadChaCha20Poly1305},
 	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12 | suiteSHA384, nil, nil, aeadAESGCM},
@@ -145,6 +149,15 @@ type macFunction interface {
 	MAC(digestBuf, seq, header, data, extra []byte) []byte
 }
 
+type aead interface {
+	cipher.AEAD
+
+	// explicitIVLen returns the number of bytes used by the explicit nonce
+	// that is included in the record. This is eight for older AEADs and
+	// zero for modern ones.
+	explicitNonceLen() int
+}
+
 // fixedNonceAEAD wraps an AEAD and prefixes a fixed portion of the nonce to
 // each call.
 type fixedNonceAEAD struct {
@@ -155,8 +168,9 @@ type fixedNonceAEAD struct {
 	aead                 cipher.AEAD
 }
 
-func (f *fixedNonceAEAD) NonceSize() int { return 8 }
-func (f *fixedNonceAEAD) Overhead() int  { return f.aead.Overhead() }
+func (f *fixedNonceAEAD) NonceSize() int        { return 8 }
+func (f *fixedNonceAEAD) Overhead() int         { return f.aead.Overhead() }
+func (f *fixedNonceAEAD) explicitNonceLen() int { return 8 }
 
 func (f *fixedNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte {
 	copy(f.sealNonce[len(f.sealNonce)-8:], nonce)
@@ -166,6 +180,41 @@ func (f *fixedNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []by
 func (f *fixedNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]byte, error) {
 	copy(f.openNonce[len(f.openNonce)-8:], nonce)
 	return f.aead.Open(out, f.openNonce, plaintext, additionalData)
+}
+
+// xoredNonceAEAD wraps an AEAD by XORing in a fixed pattern to the nonce
+// before each call.
+type xorNonceAEAD struct {
+	nonceMask [12]byte
+	aead      cipher.AEAD
+}
+
+func (f *xorNonceAEAD) NonceSize() int        { return 8 }
+func (f *xorNonceAEAD) Overhead() int         { return f.aead.Overhead() }
+func (f *xorNonceAEAD) explicitNonceLen() int { return 0 }
+
+func (f *xorNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte {
+	for i, b := range nonce {
+		f.nonceMask[4+i] ^= b
+	}
+	result := f.aead.Seal(out, f.nonceMask[:], plaintext, additionalData)
+	for i, b := range nonce {
+		f.nonceMask[4+i] ^= b
+	}
+
+	return result
+}
+
+func (f *xorNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]byte, error) {
+	for i, b := range nonce {
+		f.nonceMask[4+i] ^= b
+	}
+	result, err := f.aead.Open(out, f.nonceMask[:], plaintext, additionalData)
+	for i, b := range nonce {
+		f.nonceMask[4+i] ^= b
+	}
+
+	return result, err
 }
 
 func aeadAESGCM(key, fixedNonce []byte) cipher.AEAD {
@@ -183,6 +232,17 @@ func aeadAESGCM(key, fixedNonce []byte) cipher.AEAD {
 	copy(nonce2, fixedNonce)
 
 	return &fixedNonceAEAD{nonce1, nonce2, aead}
+}
+
+func aeadChaCha20Poly1305(key, fixedNonce []byte) cipher.AEAD {
+	aead, err := chacha20poly1305.New(key)
+	if err != nil {
+		panic(err)
+	}
+
+	ret := &xorNonceAEAD{aead: aead}
+	copy(ret.nonceMask[:], fixedNonce)
+	return ret
 }
 
 // ssl30MAC implements the SSLv3 MAC function, as defined in
@@ -330,6 +390,8 @@ const (
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 uint16 = 0xc02b
 	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384   uint16 = 0xc030
 	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 uint16 = 0xc02c
+	TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305    uint16 = 0xcca8
+	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305  uint16 = 0xcca9
 
 	// TLS_FALLBACK_SCSV isn't a standard cipher suite but an indicator
 	// that the client is doing version fallback. See
