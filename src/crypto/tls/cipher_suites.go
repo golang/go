@@ -161,11 +161,9 @@ type aead interface {
 // fixedNonceAEAD wraps an AEAD and prefixes a fixed portion of the nonce to
 // each call.
 type fixedNonceAEAD struct {
-	// sealNonce and openNonce are buffers where the larger nonce will be
-	// constructed. Since a seal and open operation may be running
-	// concurrently, there is a separate buffer for each.
-	sealNonce, openNonce []byte
-	aead                 cipher.AEAD
+	// nonce contains the fixed part of the nonce in the first four bytes.
+	nonce [12]byte
+	aead  cipher.AEAD
 }
 
 func (f *fixedNonceAEAD) NonceSize() int        { return 8 }
@@ -173,13 +171,13 @@ func (f *fixedNonceAEAD) Overhead() int         { return f.aead.Overhead() }
 func (f *fixedNonceAEAD) explicitNonceLen() int { return 8 }
 
 func (f *fixedNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte {
-	copy(f.sealNonce[len(f.sealNonce)-8:], nonce)
-	return f.aead.Seal(out, f.sealNonce, plaintext, additionalData)
+	copy(f.nonce[4:], nonce)
+	return f.aead.Seal(out, f.nonce[:], plaintext, additionalData)
 }
 
 func (f *fixedNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]byte, error) {
-	copy(f.openNonce[len(f.openNonce)-8:], nonce)
-	return f.aead.Open(out, f.openNonce, plaintext, additionalData)
+	copy(f.nonce[4:], nonce)
+	return f.aead.Open(out, f.nonce[:], plaintext, additionalData)
 }
 
 // xoredNonceAEAD wraps an AEAD by XORing in a fixed pattern to the nonce
@@ -227,11 +225,9 @@ func aeadAESGCM(key, fixedNonce []byte) cipher.AEAD {
 		panic(err)
 	}
 
-	nonce1, nonce2 := make([]byte, 12), make([]byte, 12)
-	copy(nonce1, fixedNonce)
-	copy(nonce2, fixedNonce)
-
-	return &fixedNonceAEAD{nonce1, nonce2, aead}
+	ret := &fixedNonceAEAD{aead: aead}
+	copy(ret.nonce[:], fixedNonce)
+	return ret
 }
 
 func aeadChaCha20Poly1305(key, fixedNonce []byte) cipher.AEAD {
