@@ -434,6 +434,20 @@ func TestSimpleFold(t *testing.T) {
 	}
 }
 
+func TestSimpleFoldPanic(t *testing.T) {
+	got := func() (r interface{}) {
+		defer func() { r = recover() }()
+		SimpleFold(-1)
+		return nil
+	}()
+	want := "unicode: negative rune is disallowed"
+
+	s, _ := got.(string)
+	if s != want {
+		t.Errorf("SimpleFold(-1) should panic, got: %q, want: %q", got, want)
+	}
+}
+
 // Running 'go test -calibrate' runs the calibration to find a plausible
 // cutoff point for linear search of a range list vs. binary search.
 // We create a fake table and then time how long it takes to do a
