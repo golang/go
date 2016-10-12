@@ -432,19 +432,9 @@ func TestSimpleFold(t *testing.T) {
 			r = out
 		}
 	}
-}
 
-func TestSimpleFoldPanic(t *testing.T) {
-	got := func() (r interface{}) {
-		defer func() { r = recover() }()
-		SimpleFold(-1)
-		return nil
-	}()
-	want := "unicode: negative rune is disallowed"
-
-	s, _ := got.(string)
-	if s != want {
-		t.Errorf("SimpleFold(-1) should panic, got: %q, want: %q", got, want)
+	if r := SimpleFold(-42); r != -42 {
+		t.Errorf("SimpleFold(-42) = %v, want -42", r)
 	}
 }
 
