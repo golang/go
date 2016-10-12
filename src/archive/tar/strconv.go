@@ -156,12 +156,11 @@ func (p *parser) parseOctal(b []byte) int64 {
 	return int64(x)
 }
 
-// Encode x as an octal ASCII string and write it into b with leading zeros.
 func (f *formatter) formatOctal(b []byte, x int64) {
 	s := strconv.FormatInt(x, 8)
-	// leading zeros, but leave room for a NUL.
-	for len(s)+1 < len(b) {
-		s = "0" + s
+	// Add leading zeros, but leave room for a NUL.
+	if n := len(b) - len(s) - 1; n > 0 {
+		s = strings.Repeat("0", n) + s
 	}
 	f.formatString(b, s)
 }
