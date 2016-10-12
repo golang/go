@@ -277,7 +277,7 @@ func testWeb(t *testing.T, withIndex bool) {
 		{
 			path: "/cmd/compile/internal/amd64/",
 			match: []string{
-				`href="/src/cmd/compile/internal/amd64/reg.go"`,
+				`href="/src/cmd/compile/internal/amd64/prog.go"`,
 			},
 		},
 	}
