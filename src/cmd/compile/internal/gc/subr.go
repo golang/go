@@ -863,6 +863,16 @@ func convertop(src *Type, dst *Type, why *string) Op {
 		return 0
 	}
 
+	// Conversions from regular to go:notinheap are not allowed
+	// (unless it's unsafe.Pointer). This is a runtime-specific
+	// rule.
+	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap && !src.Elem().NotInHeap {
+		if why != nil {
+			*why = fmt.Sprintf(":\n\t%v is go:notinheap, but %v is not", dst.Elem(), src.Elem())
+		}
+		return 0
+	}
+
 	// 1. src can be assigned to dst.
 	op := assignop(src, dst, why)
 	if op != 0 {

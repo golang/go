@@ -266,6 +266,11 @@ type Param struct {
 	// and x.Innermost/Outer means x.Name.Param.Innermost/Outer.
 	Innermost *Node
 	Outer     *Node
+
+	// OTYPE pragmas
+	//
+	// TODO: Should Func pragmas also be stored on the Name?
+	Pragma Pragma
 }
 
 // Func holds Node fields used only with function-like nodes.

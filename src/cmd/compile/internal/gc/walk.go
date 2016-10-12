@@ -773,6 +773,9 @@ opswitch:
 		case OAPPEND:
 			// x = append(...)
 			r := n.Right
+			if r.Type.Elem().NotInHeap {
+				yyerror("%v is go:notinheap; heap allocation disallowed", r.Type.Elem())
+			}
 			if r.Isddd {
 				r = appendslice(r, init) // also works for append(slice, string).
 			} else {
@@ -1546,6 +1549,10 @@ opswitch:
 			// When len and cap can fit into int, use makeslice instead of
 			// makeslice64, which is faster and shorter on 32 bit platforms.
 
+			if t.Elem().NotInHeap {
+				yyerror("%v is go:notinheap; heap allocation disallowed", t.Elem())
+			}
+
 			len, cap := l, r
 
 			fnname := "makeslice64"
@@ -2146,6 +2153,9 @@ func walkprint(nn *Node, init *Nodes) *Node {
 }
 
 func callnew(t *Type) *Node {
+	if t.NotInHeap {
+		yyerror("%v is go:notinheap; heap allocation disallowed", t)
+	}
 	dowidth(t)
 	fn := syslook("newobject")
 	fn = substArgTypes(fn, t)
@@ -2214,6 +2224,12 @@ func needwritebarrier(l *Node, r *Node) bool {
 
 	// No write barrier for implicit zeroing.
 	if r == nil {
+		return false
+	}
+
+	// No write barrier if this is a pointer to a go:notinheap
+	// type, since the write barrier's inheap(ptr) check will fail.
+	if l.Type.IsPtr() && l.Type.Elem().NotInHeap {
 		return false
 	}
 

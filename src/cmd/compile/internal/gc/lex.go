@@ -64,6 +64,7 @@ func plan9quote(s string) string {
 type Pragma syntax.Pragma
 
 const (
+	// Func pragmas.
 	Nointerface    Pragma = 1 << iota
 	Noescape              // func parameters don't escape
 	Norace                // func must not have race detector annotations
@@ -72,13 +73,15 @@ const (
 	CgoUnsafeArgs         // treat a pointer to one arg as a pointer to them all
 	UintptrEscapes        // pointers converted to uintptr escape
 
-	// Runtime-only pragmas.
+	// Runtime-only func pragmas.
 	// See ../../../../runtime/README.md for detailed descriptions.
-
 	Systemstack        // func must run on system stack
 	Nowritebarrier     // emit compiler error instead of write barrier
 	Nowritebarrierrec  // error on write barrier in this or recursive callees
 	Yeswritebarrierrec // cancels Nowritebarrierrec in this function and callees
+
+	// Runtime-only type pragmas
+	NotInHeap // values of this type must not be heap allocated
 )
 
 func pragmaValue(verb string) Pragma {
@@ -130,6 +133,8 @@ func pragmaValue(verb string) Pragma {
 		// in the argument list.
 		// Used in syscall/dll_windows.go.
 		return UintptrEscapes
+	case "go:notinheap":
+		return NotInHeap
 	}
 	return 0
 }

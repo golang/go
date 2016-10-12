@@ -381,6 +381,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 		p.advance(_Semi, _Rparen)
 	}
 	d.Group = group
+	d.Pragma = p.pragma
 
 	return d
 }
