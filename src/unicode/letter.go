@@ -320,6 +320,7 @@ type foldPair struct {
 // the Unicode-defined simple case folding. Among the code points
 // equivalent to rune (including rune itself), SimpleFold returns the
 // smallest rune > r if one exists, or else the smallest rune >= 0.
+// If r is not a valid Unicode code point, SimpleFold(r) returns r.
 //
 // For example:
 //	SimpleFold('A') = 'a'
@@ -331,9 +332,11 @@ type foldPair struct {
 //
 //	SimpleFold('1') = '1'
 //
+//	SimpleFold(-2) = -2
+//
 func SimpleFold(r rune) rune {
-	if r < 0 {
-		panic("unicode: negative rune is disallowed")
+	if r < 0 || r > MaxRune {
+		return r
 	}
 
 	if int(r) < len(asciiFold) {
