@@ -48,6 +48,10 @@ go	src=..
 								x86asm
 									testdata
 										+
+							ppc64
+								ppc64asm
+									testdata
+										+
 		archive
 			tar
 				testdata
