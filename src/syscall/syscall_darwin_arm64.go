@@ -6,17 +6,12 @@ package syscall
 
 import "unsafe"
 
-func NsecToTimespec(nsec int64) (ts Timespec) {
-	ts.Sec = nsec / 1e9
-	ts.Nsec = nsec % 1e9
-	return
+func setTimespec(sec, nsec int64) Timespec {
+	return Timespec{Sec: int64(sec), Nsec: int64(nsec)}
 }
 
-func NsecToTimeval(nsec int64) (tv Timeval) {
-	nsec += 999 // round up to microsecond
-	tv.Usec = int32(nsec % 1e9 / 1e3)
-	tv.Sec = int64(nsec / 1e9)
-	return
+func setTimeval(sec, usec int64) Timeval {
+	return Timeval{Sec: int64(sec), Usec: int32(usec)}
 }
 
 //sysnb	gettimeofday(tp *Timeval) (sec int64, usec int32, err error)
