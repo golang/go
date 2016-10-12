@@ -201,6 +201,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 			// Internal linking does not support TLS_IE.
 			return true, "buildmode=pie"
 		}
+	case BuildmodePlugin:
+		return true, "buildmode=plugin"
 	case BuildmodeShared:
 		return true, "buildmode=shared"
 	}
