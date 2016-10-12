@@ -379,6 +379,10 @@ type unmarshalTest struct {
 	golden    bool
 }
 
+type B struct {
+	B bool `json:",string"`
+}
+
 var unmarshalTests = []unmarshalTest{
 	// basic types
 	{in: `true`, ptr: new(bool), out: true},
@@ -778,6 +782,16 @@ var unmarshalTests = []unmarshalTest{
 			Offset: 30,
 		},
 	},
+
+	// issue 15146.
+	// invalid inputs in wrongStringTests below.
+	{in: `{"B":"true"}`, ptr: new(B), out: B{true}, golden: true},
+	{in: `{"B":"false"}`, ptr: new(B), out: B{false}, golden: true},
+	{in: `{"B": "maybe"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "maybe" into bool`)},
+	{in: `{"B": "tru"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "tru" into bool`)},
+	{in: `{"B": "False"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "False" into bool`)},
+	{in: `{"B": "null"}`, ptr: new(B), out: B{false}},
+	{in: `{"B": "nul"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "nul" into bool`)},
 }
 
 func TestMarshal(t *testing.T) {
