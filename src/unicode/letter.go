@@ -332,6 +332,10 @@ type foldPair struct {
 //	SimpleFold('1') = '1'
 //
 func SimpleFold(r rune) rune {
+	if r < 0 {
+		panic("unicode: negative rune is disallowed")
+	}
+
 	if int(r) < len(asciiFold) {
 		return rune(asciiFold[r])
 	}
