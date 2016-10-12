@@ -92,10 +92,12 @@ func ExampleConfig_FromArgs() {
 
 // This example creates and type-checks a single package (without tests)
 // from a list of filenames, and loads all of its dependencies.
+// (The input files are actually only a small part of the math/cmplx package.)
 func ExampleConfig_CreateFromFilenames() {
 	var conf loader.Config
-	filename := filepath.Join(runtime.GOROOT(), "src/container/heap/heap.go")
-	conf.CreateFromFilenames("container/heap", filename)
+	conf.CreateFromFilenames("math/cmplx",
+		filepath.Join(runtime.GOROOT(), "src/math/cmplx/abs.go"),
+		filepath.Join(runtime.GOROOT(), "src/math/cmplx/sin.go"))
 	prog, err := conf.Load()
 	if err != nil {
 		log.Fatal(err)
@@ -103,10 +105,10 @@ func ExampleConfig_CreateFromFilenames() {
 
 	printProgram(prog)
 	// Output:
-	// created: [container/heap]
+	// created: [math/cmplx]
 	// imported: []
-	// initial: [container/heap]
-	// all: [container/heap sort]
+	// initial: [math/cmplx]
+	// all: [math math/cmplx unsafe]
 }
 
 // In the examples below, for stability, the chosen packages are
