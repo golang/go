@@ -550,6 +550,34 @@ func TestHandshakeClientX25519(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
+func TestHandshakeClientECDHERSAChaCha20(t *testing.T) {
+	config := testConfig.Clone()
+	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305}
+
+	test := &clientTest{
+		name:    "ECDHE-RSA-CHACHA20-POLY1305",
+		command: []string{"openssl", "s_server", "-cipher", "ECDHE-RSA-CHACHA20-POLY1305"},
+		config:  config,
+	}
+
+	runClientTestTLS12(t, test)
+}
+
+func TestHandshakeClientECDHEECDSAChaCha20(t *testing.T) {
+	config := testConfig.Clone()
+	config.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305}
+
+	test := &clientTest{
+		name:    "ECDHE-ECDSA-CHACHA20-POLY1305",
+		command: []string{"openssl", "s_server", "-cipher", "ECDHE-ECDSA-CHACHA20-POLY1305"},
+		config:  config,
+		cert:    testECDSACertificate,
+		key:     testECDSAPrivateKey,
+	}
+
+	runClientTestTLS12(t, test)
+}
+
 func TestHandshakeClientCertRSA(t *testing.T) {
 	config := testConfig.Clone()
 	cert, _ := X509KeyPair([]byte(clientCertificatePEM), []byte(clientKeyPEM))

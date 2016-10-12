@@ -285,13 +285,17 @@ func (hc *halfConn) decrypt(b *block) (ok bool, prefixLen int, alertValue alert)
 		switch c := hc.cipher.(type) {
 		case cipher.Stream:
 			c.XORKeyStream(payload, payload)
-		case cipher.AEAD:
-			explicitIVLen = 8
+		case aead:
+			explicitIVLen = c.explicitNonceLen()
 			if len(payload) < explicitIVLen {
 				return false, 0, alertBadRecordMAC
 			}
-			nonce := payload[:8]
-			payload = payload[8:]
+			nonce := payload[:explicitIVLen]
+			payload = payload[explicitIVLen:]
+
+			if len(nonce) == 0 {
+				nonce = hc.seq[:]
+			}
 
 			copy(hc.additionalData[:], hc.seq[:])
 			copy(hc.additionalData[8:], b.data[:3])
@@ -398,10 +402,13 @@ func (hc *halfConn) encrypt(b *block, explicitIVLen int) (bool, alert) {
 		switch c := hc.cipher.(type) {
 		case cipher.Stream:
 			c.XORKeyStream(payload, payload)
-		case cipher.AEAD:
+		case aead:
 			payloadLen := len(b.data) - recordHeaderLen - explicitIVLen
 			b.resize(len(b.data) + c.Overhead())
 			nonce := b.data[recordHeaderLen : recordHeaderLen+explicitIVLen]
+			if len(nonce) == 0 {
+				nonce = hc.seq[:]
+			}
 			payload := b.data[recordHeaderLen+explicitIVLen:]
 			payload = payload[:payloadLen]
 
@@ -859,15 +866,16 @@ func (c *Conn) writeRecordLocked(typ recordType, data []byte) (int, error) {
 			}
 		}
 		if explicitIVLen == 0 {
-			if _, ok := c.out.cipher.(cipher.AEAD); ok {
-				explicitIVLen = 8
+			if c, ok := c.out.cipher.(aead); ok {
+				explicitIVLen = c.explicitNonceLen()
+
 				// The AES-GCM construction in TLS has an
 				// explicit nonce so that the nonce can be
 				// random. However, the nonce is only 8 bytes
 				// which is too small for a secure, random
 				// nonce. Therefore we use the sequence number
 				// as the nonce.
-				explicitIVIsSeq = true
+				explicitIVIsSeq = explicitIVLen > 0
 			}
 		}
 		m := len(data)
