@@ -140,7 +140,7 @@ func waitForServerReady(t *testing.T, addr string) {
 	waitForServer(t,
 		fmt.Sprintf("http://%v/", addr),
 		"The Go Programming Language",
-		5*time.Second)
+		15*time.Second)
 }
 
 func waitForSearchReady(t *testing.T, addr string) {
