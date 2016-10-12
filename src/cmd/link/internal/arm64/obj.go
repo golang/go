@@ -80,7 +80,7 @@ func archinit(ctxt *ld.Link) {
 		ld.HEADR = 32
 
 		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 4128
+			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
 		}
 		if *ld.FlagDataAddr == -1 {
 			*ld.FlagDataAddr = 0
