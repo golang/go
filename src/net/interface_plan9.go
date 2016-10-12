@@ -132,7 +132,7 @@ func interfaceCount() (int, error) {
 // network interfaces. Otherwise it returns addresses for a specific
 // interface.
 func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
-	ifcs := []Interface{}
+	var ifcs []Interface
 	if ifi == nil {
 		var err error
 		ifcs, err = interfaceTable(0)
@@ -177,8 +177,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 		if !ok {
 			return nil, errors.New("cannot parse network mask for interface: " + status)
 		}
-		mask := CIDRMask(int(pfxlen), 128)
-
+		var mask IPMask
 		if ip.To4() != nil { // IPv4 or IPv6 IPv4-mapped address
 			mask = CIDRMask(pfxlen-8*len(v4InV6Prefix), 8*IPv4len)
 		}
