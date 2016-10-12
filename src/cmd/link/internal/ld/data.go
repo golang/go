@@ -591,7 +591,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			// to the start of the first text section, even if there are multiple.
 
 			if r.Sym.Sect.Name == ".text" {
-				o = Symaddr(r.Sym) - int64(Segtext.Vaddr) + r.Add
+				o = Symaddr(r.Sym) - int64(Segtext.Sect.Vaddr) + r.Add
 			} else {
 				o = Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr) + r.Add
 			}
