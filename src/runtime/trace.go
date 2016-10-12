@@ -134,6 +134,8 @@ type traceBufHeader struct {
 }
 
 // traceBuf is per-P tracing buffer.
+//
+//go:notinheap
 type traceBuf struct {
 	traceBufHeader
 	arr [64<<10 - unsafe.Sizeof(traceBufHeader{})]byte // underlying buffer for traceBufHeader.buf
@@ -144,6 +146,8 @@ type traceBuf struct {
 // allocated from the GC'd heap, so this is safe, and are often
 // manipulated in contexts where write barriers are not allowed, so
 // this is necessary.
+//
+// TODO: Since traceBuf is now go:notinheap, this isn't necessary.
 type traceBufPtr uintptr
 
 func (tp traceBufPtr) ptr() *traceBuf   { return (*traceBuf)(unsafe.Pointer(tp)) }
@@ -828,11 +832,14 @@ type traceAlloc struct {
 // traceAllocBlock is allocated from non-GC'd memory, so it must not
 // contain heap pointers. Writes to pointers to traceAllocBlocks do
 // not need write barriers.
+//
+//go:notinheap
 type traceAllocBlock struct {
 	next traceAllocBlockPtr
 	data [64<<10 - sys.PtrSize]byte
 }
 
+// TODO: Since traceAllocBlock is now go:notinheap, this isn't necessary.
 type traceAllocBlockPtr uintptr
 
 func (p traceAllocBlockPtr) ptr() *traceAllocBlock   { return (*traceAllocBlock)(unsafe.Pointer(p)) }

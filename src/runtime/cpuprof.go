@@ -68,6 +68,7 @@ type cpuprofEntry struct {
 	stack [maxCPUProfStack]uintptr
 }
 
+//go:notinheap
 type cpuProfile struct {
 	on     bool    // profiling is on
 	wait   note    // goroutine waits here

@@ -11,6 +11,8 @@ import "unsafe"
 //
 // mcaches are allocated from non-GC'd memory, so any heap pointers
 // must be specially handled.
+//
+//go:notinheap
 type mcache struct {
 	// The following members are accessed on every malloc,
 	// so they are grouped here for better caching.

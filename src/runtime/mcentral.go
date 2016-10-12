@@ -15,6 +15,8 @@ package runtime
 import "runtime/internal/atomic"
 
 // Central list of free objects of a given size.
+//
+//go:notinheap
 type mcentral struct {
 	lock      mutex
 	sizeclass int32

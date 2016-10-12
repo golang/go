@@ -22,6 +22,11 @@ const minPhysPageSize = 4096
 // Main malloc heap.
 // The heap itself is the "free[]" and "large" arrays,
 // but all the other global data is here too.
+//
+// mheap must not be heap-allocated because it contains mSpanLists,
+// which must not be heap-allocated.
+//
+//go:notinheap
 type mheap struct {
 	lock      mutex
 	free      [_MaxMHeapList]mSpanList // free lists of given length
@@ -122,11 +127,13 @@ var mSpanStateNames = []string{
 
 // mSpanList heads a linked list of spans.
 //
+//go:notinheap
 type mSpanList struct {
 	first *mspan // first span in list, or nil if none
 	last  *mspan // last span in list, or nil if none
 }
 
+//go:notinheap
 type mspan struct {
 	next *mspan     // next span in list, or nil if none
 	prev *mspan     // previous span in list, or nil if none
@@ -1073,6 +1080,7 @@ const (
 	// if that happens.
 )
 
+//go:notinheap
 type special struct {
 	next   *special // linked list in span
 	offset uint16   // span offset of object
@@ -1170,12 +1178,17 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 }
 
 // The described object has a finalizer set for it.
+//
+// specialfinalizer is allocated from non-GC'd memory, so any heap
+// pointers must be specially handled.
+//
+//go:notinheap
 type specialfinalizer struct {
 	special special
-	fn      *funcval
+	fn      *funcval // May be a heap pointer.
 	nret    uintptr
-	fint    *_type
-	ot      *ptrtype
+	fint    *_type   // May be a heap pointer, but always live.
+	ot      *ptrtype // May be a heap pointer, but always live.
 }
 
 // Adds a finalizer to the object p. Returns true if it succeeded.
@@ -1230,6 +1243,8 @@ func removefinalizer(p unsafe.Pointer) {
 }
 
 // The described object is being heap profiled.
+//
+//go:notinheap
 type specialprofile struct {
 	special special
 	b       *bucket
@@ -1277,6 +1292,7 @@ type gcBitsHeader struct {
 	next uintptr // *gcBits triggers recursive type bug. (issue 14620)
 }
 
+//go:notinheap
 type gcBits struct {
 	// gcBitsHeader // side step recursive type bug (issue 14620) by including fields by hand.
 	free uintptr // free is the index into bits of the next free byte.

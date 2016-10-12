@@ -28,6 +28,8 @@ const (
 // A wbufptr holds a workbuf*, but protects it from write barriers.
 // workbufs never live on the heap, so write barriers are unnecessary.
 // Write barriers on workbuf pointers may also be dangerous in the GC.
+//
+// TODO: Since workbuf is now go:notinheap, this isn't necessary.
 type wbufptr uintptr
 
 func wbufptrOf(w *workbuf) wbufptr {
@@ -279,6 +281,7 @@ type workbufhdr struct {
 	nobj int
 }
 
+//go:notinheap
 type workbuf struct {
 	workbufhdr
 	// account for the above fields
