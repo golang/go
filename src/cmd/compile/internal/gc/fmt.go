@@ -1272,6 +1272,9 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 		}
 		fmt.Fprint(s, ":")
 
+	case OSTRUCTKEY:
+		fmt.Fprintf(s, "%v:%v", n.Sym, n.Left)
+
 	case OCALLPART:
 		n.Left.exprfmt(s, nprec)
 		if n.Right == nil || n.Right.Sym == nil {

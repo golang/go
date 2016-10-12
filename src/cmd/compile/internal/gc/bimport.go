@@ -804,7 +804,8 @@ func (p *importer) elemList() []*Node {
 	c := p.int()
 	list := make([]*Node, c)
 	for i := range list {
-		list[i] = nod(OKEY, mkname(p.fieldSym()), p.expr())
+		s := p.fieldSym()
+		list[i] = nodSym(OSTRUCTKEY, p.expr(), s)
 	}
 	return list
 }
@@ -896,6 +897,9 @@ func (p *importer) node() *Node {
 	case OKEY:
 		left, right := p.exprsOrNil()
 		return nod(OKEY, left, right)
+
+	// case OSTRUCTKEY:
+	//	unreachable - handled in case OSTRUCTLIT by elemList
 
 	// case OCALLPART:
 	//	unimplemented
