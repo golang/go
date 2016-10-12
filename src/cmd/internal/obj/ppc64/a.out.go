@@ -213,6 +213,43 @@ const (
 	NOSCHED = 1 << 9
 )
 
+// Values for use in branch instruction BC
+// BC B0,BI,label
+// BO is type of branch + likely bits described below
+// BI is CR value + branch type
+// ex: BEQ CR2,label is BC 12,10,label
+//   12 = BO_BCR
+//   10 = BI_CR2 + BI_EQ
+
+const (
+	BI_CR0 = 0
+	BI_CR1 = 4
+	BI_CR2 = 8
+	BI_CR3 = 12
+	BI_CR4 = 16
+	BI_CR5 = 20
+	BI_CR6 = 24
+	BI_CR7 = 28
+	BI_LT  = 0
+	BI_GT  = 1
+	BI_EQ  = 2
+	BI_OVF = 3
+)
+
+// Values for the BO field.  Add the branch type to
+// the likely bits, if a likely setting is known.
+// If branch likely or unlikely is not known, don't set it.
+// e.g. branch on cr+likely = 15
+
+const (
+	BO_BCTR     = 16 // branch on ctr value
+	BO_BCR      = 12 // branch on cr value
+	BO_BCRBCTR  = 8  // branch on ctr and cr value
+	BO_NOTBCR   = 4  // branch on not cr value
+	BO_UNLIKELY = 2  // value for unlikely
+	BO_LIKELY   = 3  // value for likely
+)
+
 // Bit settings from the CR
 
 const (

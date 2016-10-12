@@ -2137,12 +2137,35 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		16: /* bc bo,bi,sbra */
 		a := 0
 
+		r := int(p.Reg)
+
 		if p.From.Type == obj.TYPE_CONST {
 			a = int(regoff(ctxt, &p.From))
-		}
-		r := int(p.Reg)
-		if r == 0 {
-			r = 0
+		} else if p.From.Type == obj.TYPE_REG {
+			if r != 0 {
+				ctxt.Diag("unexpected register setting for branch with CR: %d\n", r)
+			}
+			// BI values for the CR
+			switch p.From.Reg {
+			case REG_CR0:
+				r = BI_CR0
+			case REG_CR1:
+				r = BI_CR1
+			case REG_CR2:
+				r = BI_CR2
+			case REG_CR3:
+				r = BI_CR3
+			case REG_CR4:
+				r = BI_CR4
+			case REG_CR5:
+				r = BI_CR5
+			case REG_CR6:
+				r = BI_CR6
+			case REG_CR7:
+				r = BI_CR7
+			default:
+				ctxt.Diag("unrecognized register: expecting CR\n")
+			}
 		}
 		v := int32(0)
 		if p.Pcond != nil {
