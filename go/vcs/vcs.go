@@ -347,7 +347,7 @@ func FromDir(dir, srcRoot string) (vcs *Cmd, root string, err error) {
 	origDir := dir
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
-			if fi, err := os.Stat(filepath.Join(dir, "."+vcs.Cmd)); err == nil && fi.IsDir() {
+			if _, err := os.Stat(filepath.Join(dir, "."+vcs.Cmd)); err == nil {
 				return vcs, filepath.ToSlash(dir[len(srcRoot)+1:]), nil
 			}
 		}
