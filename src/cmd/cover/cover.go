@@ -481,10 +481,35 @@ func (f *File) addCounters(pos, blockEnd token.Pos, list []ast.Stmt, extendToClo
 		var last int
 		end := blockEnd
 		for last = 0; last < len(list); last++ {
-			end = f.statementBoundary(list[last])
-			if f.endsBasicSourceBlock(list[last]) {
-				extendToClosingBrace = false // Block is broken up now.
+			stmt := list[last]
+			end = f.statementBoundary(stmt)
+			if f.endsBasicSourceBlock(stmt) {
+				// If it is a labeled statement, we need to place a counter between
+				// the label and its statement because it may be the target of a goto
+				// and thus start a basic block. That is, given
+				//	foo: stmt
+				// we need to create
+				//	foo: ; stmt
+				// and mark the label as a block-terminating statement.
+				// The result will then be
+				//	foo: COUNTER[n]++; stmt
+				// However, we can't do this if the labeled statement is already
+				// a control statement, such as a labeled for.
+				if label, isLabel := stmt.(*ast.LabeledStmt); isLabel && !f.isControl(label.Stmt) {
+					newLabel := *label
+					newLabel.Stmt = &ast.EmptyStmt{
+						Semicolon: label.Stmt.Pos(),
+						Implicit:  true,
+					}
+					end = label.Pos() // Previous block ends before the label.
+					list[last] = &newLabel
+					// Open a gap and drop in the old statement, now without a label.
+					list = append(list, nil)
+					copy(list[last+1:], list[last:])
+					list[last+1] = label.Stmt
+				}
 				last++
+				extendToClosingBrace = false // Block is broken up now.
 				break
 			}
 		}
@@ -603,7 +628,7 @@ func (f *File) endsBasicSourceBlock(s ast.Stmt) bool {
 	case *ast.IfStmt:
 		return true
 	case *ast.LabeledStmt:
-		return f.endsBasicSourceBlock(s.Stmt)
+		return true // A goto may branch here, starting a new basic block.
 	case *ast.RangeStmt:
 		return true
 	case *ast.SwitchStmt:
@@ -625,6 +650,16 @@ func (f *File) endsBasicSourceBlock(s ast.Stmt) bool {
 	}
 	found, _ := hasFuncLiteral(s)
 	return found
+}
+
+// isControl reports whether s is a control statement that, if labeled, cannot be
+// separated from its label.
+func (f *File) isControl(s ast.Stmt) bool {
+	switch s.(type) {
+	case *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.SelectStmt, *ast.TypeSwitchStmt:
+		return true
+	}
+	return false
 }
 
 // funcLitFinder implements the ast.Visitor pattern to find the location of any
