@@ -435,10 +435,9 @@ func (ctxt *Link) symtab() {
 		return s
 	}
 	var (
-		symgostring    = groupSym("go.string.*", obj.SGOSTRING)
-		symgostringhdr = groupSym("go.string.hdr.*", obj.SGOSTRINGHDR)
-		symgofunc      = groupSym("go.func.*", obj.SGOFUNC)
-		symgcbits      = groupSym("runtime.gcbits.*", obj.SGCBITS)
+		symgostring = groupSym("go.string.*", obj.SGOSTRING)
+		symgofunc   = groupSym("go.func.*", obj.SGOFUNC)
+		symgcbits   = groupSym("runtime.gcbits.*", obj.SGCBITS)
 	)
 
 	var symgofuncrel *Symbol
@@ -508,10 +507,6 @@ func (ctxt *Link) symtab() {
 			s.Type = obj.SGOSTRING
 			s.Attr |= AttrHidden
 			s.Outer = symgostring
-			if strings.HasPrefix(s.Name, "go.string.hdr.") {
-				s.Type = obj.SGOSTRINGHDR
-				s.Outer = symgostringhdr
-			}
 
 		case strings.HasPrefix(s.Name, "runtime.gcbits."):
 			s.Type = obj.SGCBITS

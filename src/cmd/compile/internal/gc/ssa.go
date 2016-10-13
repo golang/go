@@ -4525,7 +4525,7 @@ func (s *ssaExport) TypeBytePtr() ssa.Type { return ptrto(Types[TUINT8]) }
 // is the data component of a global string constant containing s.
 func (*ssaExport) StringData(s string) interface{} {
 	// TODO: is idealstring correct?  It might not matter...
-	_, data := stringsym(s)
+	data := stringsym(s)
 	return &ssa.ExternSymbol{Typ: idealstring, Sym: data}
 }
 

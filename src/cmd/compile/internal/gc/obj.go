@@ -280,18 +280,7 @@ func dbvec(s *Sym, off int, bv bvec) int {
 	return off
 }
 
-// stringConstantSyms holds the pair of symbols we create for a
-// constant string.
-type stringConstantSyms struct {
-	hdr  *obj.LSym // string header
-	data *obj.LSym // actual string data
-}
-
-// stringConstants maps from the symbol name we use for the string
-// contents to the pair of linker symbols for that string.
-var stringConstants = make(map[string]stringConstantSyms, 100)
-
-func stringsym(s string) (hdr, data *obj.LSym) {
+func stringsym(s string) (data *obj.LSym) {
 	var symname string
 	if len(s) > 100 {
 		// Huge strings are hashed to avoid long names in object files.
@@ -308,33 +297,15 @@ func stringsym(s string) (hdr, data *obj.LSym) {
 	const prefix = "go.string."
 	symdataname := prefix + symname
 
-	// All the strings have the same prefix, so ignore it for map
-	// purposes, but use a slice of the symbol name string to
-	// reduce long-term memory overhead.
-	key := symdataname[len(prefix):]
-
-	if syms, ok := stringConstants[key]; ok {
-		return syms.hdr, syms.data
-	}
-
-	symhdrname := "go.string.hdr." + symname
-
-	symhdr := obj.Linklookup(Ctxt, symhdrname, 0)
 	symdata := obj.Linklookup(Ctxt, symdataname, 0)
 
-	stringConstants[key] = stringConstantSyms{symhdr, symdata}
+	if !symdata.Seenglobl {
+		// string data
+		off := dsnameLSym(symdata, 0, s)
+		ggloblLSym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+	}
 
-	// string header
-	off := 0
-	off = dsymptrLSym(symhdr, off, symdata, 0)
-	off = duintxxLSym(symhdr, off, uint64(len(s)), Widthint)
-	ggloblLSym(symhdr, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
-
-	// string data
-	off = dsnameLSym(symdata, 0, s)
-	ggloblLSym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
-
-	return symhdr, symdata
+	return symdata
 }
 
 var slicebytes_gen int
@@ -355,14 +326,6 @@ func slicebytes(nam *Node, s string, len int) {
 	off = dsymptr(nam.Sym, off, sym, 0)
 	off = duintxx(nam.Sym, off, uint64(len), Widthint)
 	duintxx(nam.Sym, off, uint64(len), Widthint)
-}
-
-func datagostring(sval string, a *obj.Addr) {
-	symhdr, _ := stringsym(sval)
-	a.Type = obj.TYPE_MEM
-	a.Name = obj.NAME_EXTERN
-	a.Sym = symhdr
-	a.Offset = 0
 }
 
 func dsname(s *Sym, off int, t string) int {
@@ -465,7 +428,7 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
 
 func gdatastring(nam *Node, sval string) {
 	s := Linksym(nam.Sym)
-	_, symdata := stringsym(sval)
+	symdata := stringsym(sval)
 	s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
 	s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthint, int64(len(sval)))
 }
