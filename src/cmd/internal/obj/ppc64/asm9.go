@@ -1513,6 +1513,7 @@ func buildop(ctxt *obj.Link) {
 
 		case AMOVHBR:
 			opset(AMOVWBR, r0)
+			opset(AMOVDBR, r0)
 
 		case ASLBMFEE:
 			opset(ASLBMFEV, r0)
@@ -3923,6 +3924,8 @@ func oploadx(ctxt *obj.Link, a obj.As) uint32 {
 		return OPVCC(31, 790, 0, 0) /* lhbrx */
 	case AMOVWBR:
 		return OPVCC(31, 534, 0, 0) /* lwbrx */
+	case AMOVDBR:
+		return OPVCC(31, 532, 0, 0) /* ldbrx */
 	case AMOVHZ:
 		return OPVCC(31, 279, 0, 0) /* lhzx */
 	case AMOVHZU:

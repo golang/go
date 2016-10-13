@@ -125,6 +125,7 @@ var Anames = []string{
 	"LSW",
 	"LWAR",
 	"LWSYNC",
+	"MOVDBR",
 	"MOVWBR",
 	"MOVB",
 	"MOVBU",
