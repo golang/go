@@ -475,30 +475,6 @@ func nodbool(b bool) *Node {
 	return c
 }
 
-func aindex(b *Node, t *Type) *Type {
-	hasbound := false
-	var bound int64
-	b = typecheck(b, Erv)
-	if b != nil {
-		switch consttype(b) {
-		default:
-			yyerror("array bound must be an integer expression")
-
-		case CTINT, CTRUNE:
-			hasbound = true
-			bound = b.Int64()
-			if bound < 0 {
-				yyerror("array bound must be non negative")
-			}
-		}
-	}
-
-	if !hasbound {
-		return typSlice(t)
-	}
-	return typArray(t, bound)
-}
-
 // treecopy recursively copies n, with the exception of
 // ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
 // Copies of iota ONONAME nodes are assigned the current
