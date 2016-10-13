@@ -218,7 +218,9 @@ func makeclosure(func_ *Node) *Node {
 	xfunc.Func.Nname.Name.Funcdepth = func_.Func.Depth
 	xfunc.Func.Depth = func_.Func.Depth
 	xfunc.Func.Endlineno = func_.Func.Endlineno
-	makefuncsym(xfunc.Func.Nname.Sym)
+	if Ctxt.Flag_dynlink {
+		makefuncsym(xfunc.Func.Nname.Sym)
+	}
 
 	xfunc.Nbody.Set(func_.Nbody.Slice())
 	xfunc.Func.Dcl = append(func_.Func.Dcl, xfunc.Func.Dcl...)
