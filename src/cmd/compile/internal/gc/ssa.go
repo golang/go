@@ -2188,7 +2188,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		}
 		capaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(array_cap), addr)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
-		if isStackAddr(addr) {
+		if ssa.IsStackAddr(addr) {
 			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
 		} else {
 			s.insertWBstore(pt, addr, r[0], n.Lineno, 0)
@@ -2390,7 +2390,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
 			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
 			return
 		}
-		if wb && !isStackAddr(addr) {
+		if wb && !ssa.IsStackAddr(addr) {
 			s.insertWBmove(t, addr, right, line, rightIsVolatile)
 			return
 		}
@@ -2398,7 +2398,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
 		return
 	}
 	// Treat as a store.
-	if wb && !isStackAddr(addr) {
+	if wb && !ssa.IsStackAddr(addr) {
 		if skip&skipPtr != 0 {
 			// Special case: if we don't write back the pointers, don't bother
 			// doing the write barrier check.
@@ -3289,20 +3289,6 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 	return res
 }
 
-// isStackAddr returns whether v is known to be an address of a stack slot
-func isStackAddr(v *ssa.Value) bool {
-	for v.Op == ssa.OpOffPtr || v.Op == ssa.OpAddPtr || v.Op == ssa.OpPtrIndex || v.Op == ssa.OpCopy {
-		v = v.Args[0]
-	}
-	switch v.Op {
-	case ssa.OpSP:
-		return true
-	case ssa.OpAddr:
-		return v.Args[0].Op == ssa.OpSP
-	}
-	return false
-}
-
 // insertWBmove inserts the assignment *left = *right including a write barrier.
 // t is the type being assigned.
 func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightIsVolatile bool) {
@@ -3318,53 +3304,24 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
 	if s.WBLineno == 0 {
 		s.WBLineno = left.Line
 	}
-	bThen := s.f.NewBlock(ssa.BlockPlain)
-	bElse := s.f.NewBlock(ssa.BlockPlain)
-	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
-	aux := &ssa.ExternSymbol{Typ: Types[TBOOL], Sym: syslook("writeBarrier").Sym}
-	flagaddr := s.newValue1A(ssa.OpAddr, ptrto(Types[TUINT32]), aux, s.sb)
-	// Load word, test word, avoiding partial register write from load byte.
-	flag := s.newValue2(ssa.OpLoad, Types[TUINT32], flagaddr, s.mem())
-	flag = s.newValue2(ssa.OpNeq32, Types[TBOOL], flag, s.constInt32(Types[TUINT32], 0))
-	b := s.endBlock()
-	b.Kind = ssa.BlockIf
-	b.Likely = ssa.BranchUnlikely
-	b.SetControl(flag)
-	b.AddEdgeTo(bThen)
-	b.AddEdgeTo(bElse)
-
-	s.startBlock(bThen)
-
-	if !rightIsVolatile {
-		// Issue typedmemmove call.
-		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}, s.sb)
-		s.rtcall(typedmemmove, true, nil, taddr, left, right)
+	var op ssa.Op
+	if rightIsVolatile {
+		op = ssa.OpMoveWBVolatile
 	} else {
-		// Copy to temp location if the source is volatile (will be clobbered by
-		// a function call).  Marshaling the args to typedmemmove might clobber the
-		// value we're trying to move.
-		tmp := temp(t)
-		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, tmp, s.mem())
-		tmpaddr, _ := s.addr(tmp, true)
-		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), tmpaddr, right, s.mem())
-		// Issue typedmemmove call.
-		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}, s.sb)
-		s.rtcall(typedmemmove, true, nil, taddr, left, tmpaddr)
-		// Mark temp as dead.
-		s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, tmp, s.mem())
+		op = ssa.OpMoveWB
 	}
-	s.endBlock().AddEdgeTo(bEnd)
+	move := s.newValue3I(op, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
+	move.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}
+	s.vars[&memVar] = move
 
-	s.startBlock(bElse)
-	s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
-	s.endBlock().AddEdgeTo(bEnd)
-
-	s.startBlock(bEnd)
-
-	if Debug_wb > 0 {
-		Warnl(line, "write barrier")
-	}
+	// WB ops will be expanded to branches at writebarrier phase.
+	// To make it easy, we put WB ops at the end of a block, so
+	// that it does not need to split a block into two parts when
+	// expanding WB ops.
+	b := s.f.NewBlock(ssa.BlockPlain)
+	s.endBlock().AddEdgeTo(b)
+	s.startBlock(b)
 }
 
 // insertWBstore inserts the assignment *left = right including a write barrier.
@@ -3384,38 +3341,15 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32, skip 
 		s.WBLineno = left.Line
 	}
 	s.storeTypeScalars(t, left, right, skip)
-
-	bThen := s.f.NewBlock(ssa.BlockPlain)
-	bElse := s.f.NewBlock(ssa.BlockPlain)
-	bEnd := s.f.NewBlock(ssa.BlockPlain)
-
-	aux := &ssa.ExternSymbol{Typ: Types[TBOOL], Sym: syslook("writeBarrier").Sym}
-	flagaddr := s.newValue1A(ssa.OpAddr, ptrto(Types[TUINT32]), aux, s.sb)
-	// Load word, test word, avoiding partial register write from load byte.
-	flag := s.newValue2(ssa.OpLoad, Types[TUINT32], flagaddr, s.mem())
-	flag = s.newValue2(ssa.OpNeq32, Types[TBOOL], flag, s.constInt32(Types[TUINT32], 0))
-	b := s.endBlock()
-	b.Kind = ssa.BlockIf
-	b.Likely = ssa.BranchUnlikely
-	b.SetControl(flag)
-	b.AddEdgeTo(bThen)
-	b.AddEdgeTo(bElse)
-
-	// Issue write barriers for pointer writes.
-	s.startBlock(bThen)
 	s.storeTypePtrsWB(t, left, right)
-	s.endBlock().AddEdgeTo(bEnd)
 
-	// Issue regular stores for pointer writes.
-	s.startBlock(bElse)
-	s.storeTypePtrs(t, left, right)
-	s.endBlock().AddEdgeTo(bEnd)
-
-	s.startBlock(bEnd)
-
-	if Debug_wb > 0 {
-		Warnl(line, "write barrier")
-	}
+	// WB ops will be expanded to branches at writebarrier phase.
+	// To make it easy, we put WB ops at the end of a block, so
+	// that it does not need to split a block into two parts when
+	// expanding WB ops.
+	b := s.f.NewBlock(ssa.BlockPlain)
+	s.endBlock().AddEdgeTo(b)
+	s.startBlock(b)
 }
 
 // do *left = right for all scalar (non-pointer) parts of t.
@@ -3492,21 +3426,22 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 	}
 }
 
-// do *left = right with a write barrier for all pointer parts of t.
+// do *left = right for all pointer parts of t, with write barriers if necessary.
 func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
 	switch {
 	case t.IsPtrShaped():
-		s.rtcall(writebarrierptr, true, nil, left, right)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
 	case t.IsString():
 		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), right)
-		s.rtcall(writebarrierptr, true, nil, left, ptr)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
 	case t.IsSlice():
 		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), right)
-		s.rtcall(writebarrierptr, true, nil, left, ptr)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
 	case t.IsInterface():
+		// itab field is treated as a scalar.
 		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
 		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TUINT8]), s.config.PtrSize, left)
-		s.rtcall(writebarrierptr, true, nil, idataAddr, idata)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
 		for i := 0; i < n; i++ {
@@ -4688,6 +4623,14 @@ func (e *ssaExport) Warnl(line int32, fmt_ string, args ...interface{}) {
 
 func (e *ssaExport) Debug_checknil() bool {
 	return Debug_checknil != 0
+}
+
+func (e *ssaExport) Debug_wb() bool {
+	return Debug_wb != 0
+}
+
+func (e *ssaExport) Syslook(name string) interface{} {
+	return syslook(name).Sym
 }
 
 func (n *Node) Typ() ssa.Type {

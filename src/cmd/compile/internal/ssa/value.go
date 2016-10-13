@@ -151,6 +151,12 @@ func (v *Value) auxString() string {
 			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
+	case auxSymSizeAndAlign:
+		s := ""
+		if v.Aux != nil {
+			s = fmt.Sprintf(" {%v}", v.Aux)
+		}
+		return s + fmt.Sprintf(" [%s]", SizeAndAlign(v.AuxInt))
 	}
 	return ""
 }

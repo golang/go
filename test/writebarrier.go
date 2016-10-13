@@ -211,3 +211,11 @@ func f21(x *int) {
 	y21.x = &z21              // no barrier
 	y21 = struct{ x *int }{x} // ERROR "write barrier"
 }
+
+func f22(x *int) (y *int) {
+	// pointer write on stack should have no write barrier.
+	// this is a case that the frontend failed to eliminate.
+	p := &y
+	*p = x // no barrier
+	return
+}
