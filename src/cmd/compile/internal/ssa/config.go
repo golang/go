@@ -92,8 +92,9 @@ type Logger interface {
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
 	Warnl(line int32, fmt_ string, args ...interface{})
 
-	// Fowards the Debug_checknil flag from gc
+	// Fowards the Debug flags from gc
 	Debug_checknil() bool
+	Debug_wb() bool
 }
 
 type Frontend interface {
@@ -121,6 +122,10 @@ type Frontend interface {
 
 	// AllocFrame assigns frame offsets to all live auto variables.
 	AllocFrame(f *Func)
+
+	// Syslook returns a symbol of the runtime function/variable with the
+	// given name.
+	Syslook(string) interface{} // returns *gc.Sym
 }
 
 // interface used to hold *gc.Node. We'd use *gc.Node directly but
@@ -314,6 +319,7 @@ func (c *Config) Log() bool                                          { return c.
 func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fatalf(line, msg, args...) }
 func (c *Config) Warnl(line int32, msg string, args ...interface{})  { c.fe.Warnl(line, msg, args...) }
 func (c *Config) Debug_checknil() bool                               { return c.fe.Debug_checknil() }
+func (c *Config) Debug_wb() bool                                     { return c.fe.Debug_wb() }
 
 func (c *Config) logDebugHashMatch(evname, name string) {
 	file := c.logfiles[evname]
