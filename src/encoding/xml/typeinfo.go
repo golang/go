@@ -151,7 +151,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		switch mode := finfo.flags & fMode; mode {
 		case 0:
 			finfo.flags |= fElement
-		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny:
+		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny, fAny | fAttr:
 			if f.Name == "XMLName" || tag != "" && mode != fAttr {
 				valid = false
 			}

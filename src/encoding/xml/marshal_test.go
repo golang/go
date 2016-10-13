@@ -199,6 +199,17 @@ type AttrTest struct {
 	Bytes []byte  `xml:",attr"`
 }
 
+type AttrsTest struct {
+	Attrs []Attr  `xml:",any,attr"`
+	Int   int     `xml:",attr"`
+	Named int     `xml:"int,attr"`
+	Float float64 `xml:",attr"`
+	Uint8 uint8   `xml:",attr"`
+	Bool  bool    `xml:",attr"`
+	Str   string  `xml:",attr"`
+	Bytes []byte  `xml:",attr"`
+}
+
 type OmitAttrTest struct {
 	Int   int     `xml:",attr,omitempty"`
 	Named int     `xml:"int,attr,omitempty"`
@@ -379,7 +390,7 @@ var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
 	contentsAttr = "lorem ipsum"
-	empty = ""
+	empty        = ""
 )
 
 // Unless explicitly stated as such (or *Plain), all of the
@@ -830,6 +841,53 @@ var marshalTests = []struct {
 			` Bool="false" Str="" Bytes=""></AttrTest>`,
 	},
 	{
+		Value: &AttrsTest{
+			Attrs: []Attr{
+				{Name: Name{Local: "Answer"}, Value: "42"},
+				{Name: Name{Local: "Int"}, Value: "8"},
+				{Name: Name{Local: "int"}, Value: "9"},
+				{Name: Name{Local: "Float"}, Value: "23.5"},
+				{Name: Name{Local: "Uint8"}, Value: "255"},
+				{Name: Name{Local: "Bool"}, Value: "true"},
+				{Name: Name{Local: "Str"}, Value: "str"},
+				{Name: Name{Local: "Bytes"}, Value: "byt"},
+			},
+		},
+		ExpectXML:   `<AttrsTest Answer="42" Int="8" int="9" Float="23.5" Uint8="255" Bool="true" Str="str" Bytes="byt" Int="0" int="0" Float="0" Uint8="0" Bool="false" Str="" Bytes=""></AttrsTest>`,
+		MarshalOnly: true,
+	},
+	{
+		Value: &AttrsTest{
+			Attrs: []Attr{
+				{Name: Name{Local: "Answer"}, Value: "42"},
+			},
+			Int:   8,
+			Named: 9,
+			Float: 23.5,
+			Uint8: 255,
+			Bool:  true,
+			Str:   "str",
+			Bytes: []byte("byt"),
+		},
+		ExpectXML: `<AttrsTest Answer="42" Int="8" int="9" Float="23.5" Uint8="255" Bool="true" Str="str" Bytes="byt"></AttrsTest>`,
+	},
+	{
+		Value: &AttrsTest{
+			Attrs: []Attr{
+				{Name: Name{Local: "Int"}, Value: "0"},
+				{Name: Name{Local: "int"}, Value: "0"},
+				{Name: Name{Local: "Float"}, Value: "0"},
+				{Name: Name{Local: "Uint8"}, Value: "0"},
+				{Name: Name{Local: "Bool"}, Value: "false"},
+				{Name: Name{Local: "Str"}},
+				{Name: Name{Local: "Bytes"}},
+			},
+			Bytes: []byte{},
+		},
+		ExpectXML:   `<AttrsTest Int="0" int="0" Float="0" Uint8="0" Bool="false" Str="" Bytes="" Int="0" int="0" Float="0" Uint8="0" Bool="false" Str="" Bytes=""></AttrsTest>`,
+		MarshalOnly: true,
+	},
+	{
 		Value: &OmitAttrTest{
 			Int:   8,
 			Named: 9,
@@ -872,7 +930,7 @@ var marshalTests = []struct {
 			Bool:  true,
 			Str:   "str",
 			Bytes: []byte("byt"),
-			PStr:   &empty,
+			PStr:  &empty,
 			Ptr:   &PresenceTest{},
 		},
 		ExpectXML: `<OmitFieldTest>` +
@@ -1102,7 +1160,7 @@ type AttrParent struct {
 }
 
 type BadAttr struct {
-	Name []string `xml:"name,attr"`
+	Name map[string]string `xml:"name,attr"`
 }
 
 var marshalErrorTests = []struct {
@@ -1138,8 +1196,8 @@ var marshalErrorTests = []struct {
 		Err:   `xml: X>Y chain not valid with attr flag`,
 	},
 	{
-		Value: BadAttr{[]string{"X", "Y"}},
-		Err:   `xml: unsupported type: []string`,
+		Value: BadAttr{map[string]string{"X": "Y"}},
+		Err:   `xml: unsupported type: map[string]string`,
 	},
 }
 
