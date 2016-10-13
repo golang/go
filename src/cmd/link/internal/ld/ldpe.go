@@ -8,7 +8,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
-	"cmd/link/internal/pe"
+	"debug/pe"
 	"errors"
 	"fmt"
 	"io"

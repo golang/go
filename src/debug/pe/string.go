@@ -28,7 +28,7 @@ func readStringTable(fh *FileHeader, r io.ReadSeeker) (StringTable, error) {
 		return nil, nil
 	}
 	offset := fh.PointerToSymbolTable + COFFSymbolSize*fh.NumberOfSymbols
-	_, err := r.Seek(int64(offset), io.SeekStart)
+	_, err := r.Seek(int64(offset), seekStart)
 	if err != nil {
 		return nil, fmt.Errorf("fail to seek to string table: %v", err)
 	}
