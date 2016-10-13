@@ -593,6 +593,22 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 		val = val.Elem()
 	}
 
+	// Walk slices.
+	if val.Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
+		n := val.Len()
+		for i := 0; i < n; i++ {
+			if err := p.marshalAttr(start, name, val.Index(i)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if val.Type() == attrType {
+		start.Attr = append(start.Attr, val.Interface().(Attr))
+		return nil
+	}
+
 	s, b, err := p.marshalSimple(val.Type(), val)
 	if err != nil {
 		return err
