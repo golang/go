@@ -1547,7 +1547,7 @@ opswitch:
 			}
 			// var arr [r]T
 			// n = arr[:l]
-			t = aindex(r, t.Elem()) // [r]T
+			t = typArray(t.Elem(), nonnegintconst(r)) // [r]T
 			var_ := temp(t)
 			a := nod(OAS, var_, nil) // zero temp
 			a = typecheck(a, Etop)
@@ -1585,7 +1585,7 @@ opswitch:
 	case ORUNESTR:
 		a := nodnil()
 		if n.Esc == EscNone {
-			t := aindex(nodintconst(4), Types[TUINT8])
+			t := typArray(Types[TUINT8], 4)
 			var_ := temp(t)
 			a = nod(OADDR, var_, nil)
 		}
@@ -1597,7 +1597,7 @@ opswitch:
 		a := nodnil()
 		if n.Esc == EscNone {
 			// Create temporary buffer for string on stack.
-			t := aindex(nodintconst(tmpstringbufsize), Types[TUINT8])
+			t := typArray(Types[TUINT8], tmpstringbufsize)
 
 			a = nod(OADDR, temp(t), nil)
 		}
@@ -1623,7 +1623,7 @@ opswitch:
 
 		if n.Esc == EscNone {
 			// Create temporary buffer for string on stack.
-			t := aindex(nodintconst(tmpstringbufsize), Types[TUINT8])
+			t := typArray(Types[TUINT8], tmpstringbufsize)
 
 			a = nod(OADDR, temp(t), nil)
 		}
@@ -1636,7 +1636,7 @@ opswitch:
 
 		if n.Esc == EscNone {
 			// Create temporary buffer for slice on stack.
-			t := aindex(nodintconst(tmpstringbufsize), Types[TUINT8])
+			t := typArray(Types[TUINT8], tmpstringbufsize)
 
 			a = nod(OADDR, temp(t), nil)
 		}
@@ -1653,7 +1653,7 @@ opswitch:
 
 		if n.Esc == EscNone {
 			// Create temporary buffer for slice on stack.
-			t := aindex(nodintconst(tmpstringbufsize), Types[TINT32])
+			t := typArray(Types[TINT32], tmpstringbufsize)
 
 			a = nod(OADDR, temp(t), nil)
 		}
@@ -2840,7 +2840,7 @@ func addstr(n *Node, init *Nodes) *Node {
 		// Don't allocate the buffer if the result won't fit.
 		if sz < tmpstringbufsize {
 			// Create temporary buffer for result string on stack.
-			t := aindex(nodintconst(tmpstringbufsize), Types[TUINT8])
+			t := typArray(Types[TUINT8], tmpstringbufsize)
 
 			buf = nod(OADDR, temp(t), nil)
 		}
