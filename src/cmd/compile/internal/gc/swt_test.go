@@ -5,7 +5,7 @@
 package gc
 
 import (
-	"cmd/compile/internal/big"
+	"math/big"
 	"testing"
 )
 

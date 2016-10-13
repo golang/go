@@ -5,8 +5,8 @@
 package gc
 
 import (
-	"cmd/compile/internal/big"
 	"fmt"
+	"math/big"
 )
 
 // implements integer arithmetic

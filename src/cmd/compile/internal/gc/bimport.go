@@ -10,7 +10,7 @@ package gc
 
 import (
 	"bufio"
-	"cmd/compile/internal/big"
+	"math/big"
 	"encoding/binary"
 	"fmt"
 	"strconv"

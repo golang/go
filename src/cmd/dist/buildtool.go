@@ -18,49 +18,60 @@ import (
 
 // bootstrapDirs is a list of directories holding code that must be
 // compiled with a Go 1.4 toolchain to produce the bootstrapTargets.
-// All directories in this list are relative to and must be below $GOROOT/src/cmd.
-// The list is assumed to have two kinds of entries: names without slashes,
-// which are commands, and entries beginning with internal/, which are
-// packages supporting the commands.
+// All directories in this list are relative to and must be below $GOROOT/src.
+//
+// The list has have two kinds of entries: names beginning with cmd/ with
+// no other slashes, which are commands, and other paths, which are packages
+// supporting the commands. Packages in the standard library can be listed
+// if a newer copy needs to be substituted for the Go 1.4 copy when used
+// by the command packages.
+// These will be imported during bootstrap as bootstrap/name, like bootstrap/math/big.
 var bootstrapDirs = []string{
-	"asm",
-	"asm/internal/arch",
-	"asm/internal/asm",
-	"asm/internal/flags",
-	"asm/internal/lex",
-	"compile",
-	"compile/internal/amd64",
-	"compile/internal/arm",
-	"compile/internal/arm64",
-	"compile/internal/big",
-	"compile/internal/gc",
-	"compile/internal/mips64",
-	"compile/internal/ppc64",
-	"compile/internal/s390x",
-	"compile/internal/ssa",
-	"compile/internal/syntax",
-	"compile/internal/x86",
-	"internal/bio",
-	"internal/gcprog",
-	"internal/dwarf",
-	"internal/obj",
-	"internal/obj/arm",
-	"internal/obj/arm64",
-	"internal/obj/mips",
-	"internal/obj/ppc64",
-	"internal/obj/s390x",
-	"internal/obj/x86",
-	"internal/sys",
-	"link",
-	"link/internal/amd64",
-	"link/internal/arm",
-	"link/internal/arm64",
-	"link/internal/pe",
-	"link/internal/ld",
-	"link/internal/mips64",
-	"link/internal/ppc64",
-	"link/internal/s390x",
-	"link/internal/x86",
+	"cmd/asm",
+	"cmd/asm/internal/arch",
+	"cmd/asm/internal/asm",
+	"cmd/asm/internal/flags",
+	"cmd/asm/internal/lex",
+	"cmd/compile",
+	"cmd/compile/internal/amd64",
+	"cmd/compile/internal/arm",
+	"cmd/compile/internal/arm64",
+	"cmd/compile/internal/gc",
+	"cmd/compile/internal/mips64",
+	"cmd/compile/internal/ppc64",
+	"cmd/compile/internal/s390x",
+	"cmd/compile/internal/ssa",
+	"cmd/compile/internal/syntax",
+	"cmd/compile/internal/x86",
+	"cmd/internal/bio",
+	"cmd/internal/gcprog",
+	"cmd/internal/dwarf",
+	"cmd/internal/obj",
+	"cmd/internal/obj/arm",
+	"cmd/internal/obj/arm64",
+	"cmd/internal/obj/mips",
+	"cmd/internal/obj/ppc64",
+	"cmd/internal/obj/s390x",
+	"cmd/internal/obj/x86",
+	"cmd/internal/sys",
+	"cmd/link",
+	"cmd/link/internal/amd64",
+	"cmd/link/internal/arm",
+	"cmd/link/internal/arm64",
+	"cmd/link/internal/ld",
+	"cmd/link/internal/mips64",
+	"cmd/link/internal/pe",
+	"cmd/link/internal/ppc64",
+	"cmd/link/internal/s390x",
+	"cmd/link/internal/x86",
+	"math/big",
+}
+
+// File suffixes that use build tags introduced since Go 1.4.
+// These must not be copied into the bootstrap build directory.
+var ignoreSuffixes = []string{
+	"_arm64.s",
+	"_arm64.go",
 }
 
 func bootstrapBuildTools() {
@@ -84,10 +95,16 @@ func bootstrapBuildTools() {
 
 	// Copy source code into $GOROOT/pkg/bootstrap and rewrite import paths.
 	for _, dir := range bootstrapDirs {
-		src := pathf("%s/src/cmd/%s", goroot, dir)
+		src := pathf("%s/src/%s", goroot, dir)
 		dst := pathf("%s/%s", base, dir)
 		xmkdirall(dst)
+	Dir:
 		for _, name := range xreaddirfiles(src) {
+			for _, suf := range ignoreSuffixes {
+				if strings.HasSuffix(name, suf) {
+					continue Dir
+				}
+			}
 			srcFile := pathf("%s/%s", src, name)
 			text := readfile(srcFile)
 			text = bootstrapFixImports(text, srcFile)
@@ -122,10 +139,14 @@ func bootstrapBuildTools() {
 	// Run Go 1.4 to build binaries. Use -gcflags=-l to disable inlining to
 	// workaround bugs in Go 1.4's compiler. See discussion thread:
 	// https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
-	run(workspace, ShowOutput|CheckExit, pathf("%s/bin/go", goroot_bootstrap), "install", "-gcflags=-l", "-v", "bootstrap/...")
+	run(workspace, ShowOutput|CheckExit, pathf("%s/bin/go", goroot_bootstrap), "install", "-gcflags=-l", "-v", "bootstrap/cmd/...")
 
 	// Copy binaries into tool binary directory.
 	for _, name := range bootstrapDirs {
+		if !strings.HasPrefix(name, "cmd/") {
+			continue
+		}
+		name = name[len("cmd/"):]
 		if !strings.Contains(name, "/") {
 			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), writeExec)
 		}
@@ -148,7 +169,14 @@ func bootstrapFixImports(text, srcFile string) string {
 		}
 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
 			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
-			lines[i] = strings.Replace(line, `"cmd/`, `"bootstrap/`, -1)
+			line = strings.Replace(line, `"cmd/`, `"bootstrap/cmd/`, -1)
+			for _, dir := range bootstrapDirs {
+				if strings.HasPrefix(dir, "cmd/") {
+					continue
+				}
+				line = strings.Replace(line, `"`+dir+`"`, `"bootstrap/`+dir+`"`, -1)
+			}
+			lines[i] = line
 		}
 	}
 
