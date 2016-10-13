@@ -2810,7 +2810,20 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 		prepGoExitFrame(sp)
 		spArg += sys.MinFrameSize
 	}
-	memmove(unsafe.Pointer(spArg), unsafe.Pointer(argp), uintptr(narg))
+	if narg > 0 {
+		memmove(unsafe.Pointer(spArg), unsafe.Pointer(argp), uintptr(narg))
+		// This is a stack-to-stack copy. If write barriers
+		// are enabled and the source stack is grey (the
+		// destination is always black), then perform a
+		// barrier copy.
+		if writeBarrier.needed && !_g_.m.curg.gcscandone {
+			f := findfunc(fn.fn)
+			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+			// We're in the prologue, so it's always stack map index 0.
+			bv := stackmapdata(stkmap, 0)
+			bulkBarrierBitmap(spArg, uintptr(narg), 0, bv.bytedata)
+		}
+	}
 
 	memclrNoHeapPointers(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
 	newg.sched.sp = sp
