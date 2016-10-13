@@ -1,6 +1,6 @@
 package main
 
-// Regression test for oracle crash
+// Regression test for guru crash
 // https://code.google.com/p/go/issues/detail?id=6605
 //
 // Using reflection, methods may be called on types that are not the

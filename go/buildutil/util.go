@@ -53,8 +53,6 @@ func ParseFile(fset *token.FileSet, ctxt *build.Context, displayPath func(string
 // The '...Files []string' fields of the resulting build.Package are not
 // populated (build.FindOnly mode).
 //
-// TODO(adonovan): call this from oracle when the tree thaws.
-//
 func ContainingPackage(ctxt *build.Context, dir, filename string) (*build.Package, error) {
 	if !IsAbsPath(ctxt, filename) {
 		filename = JoinPath(ctxt, dir, filename)

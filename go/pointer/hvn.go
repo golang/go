@@ -76,7 +76,7 @@ package pointer
 //
 // PERFORMANCE
 //
-// In two benchmarks (oracle and godoc), HVN eliminates about two thirds
+// In two benchmarks (guru and godoc), HVN eliminates about two thirds
 // of nodes, the majority accounted for by non-pointers: nodes of
 // non-pointer type, pointers that remain nil, formal parameters of dead
 // functions, nodes of untracked types, etc.  It also reduces the number

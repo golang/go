@@ -90,7 +90,7 @@ syntactic constructs that can instantiate it:
     etc
     + all INSTANTIATIONS of all S defined as struct{t T} or [n]T
 (Potentially a lot of information.)
-(Add this to oracle too.)
+(Add this to guru too.)
 
 
 Optimisations

@@ -2,7 +2,7 @@ This subrepository holds the source for various packages and tools that support
 the Go programming language.
 
 Some of the tools, godoc and vet for example, are included in binary Go distributions.
-Others, including the Go oracle and the test coverage tool, can be fetched with "go get".
+Others, including the Go guru and the test coverage tool, can be fetched with "go get".
 
 Packages include a type-checker for Go and an implementation of the
 Static Single Assignment form (SSA) representation for Go programs.
