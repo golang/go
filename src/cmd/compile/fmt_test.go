@@ -506,9 +506,7 @@ func formatReplace(in string, f func(i int, s string) string) string {
 
 // blacklistedPackages is the set of packages which can
 // be ignored.
-var blacklistedPackages = map[string]bool{
-	"cmd/compile/internal/big": true,
-}
+var blacklistedPackages = map[string]bool{}
 
 // blacklistedFunctions is the set of functions which may have
 // format-like arguments but which don't do any formatting and
@@ -537,7 +535,7 @@ func init() {
 // To print out a new table, run: go test -run Formats -v.
 var knownFormats = map[string]string{
 	"*bytes.Buffer %s":                                "",
-	"*cmd/compile/internal/big.Int %#x":               "",
+	"*math/big.Int %#x":                               "",
 	"*cmd/compile/internal/gc.Bits %v":                "",
 	"*cmd/compile/internal/gc.Field %p":               "",
 	"*cmd/compile/internal/gc.Field %v":               "",

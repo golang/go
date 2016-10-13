@@ -132,7 +132,7 @@ package gc
 import (
 	"bufio"
 	"bytes"
-	"cmd/compile/internal/big"
+	"math/big"
 	"encoding/binary"
 	"fmt"
 	"sort"

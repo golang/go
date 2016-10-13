@@ -5,9 +5,9 @@
 package gc
 
 import (
-	"cmd/compile/internal/big"
 	"fmt"
 	"math"
+	"math/big"
 )
 
 // implements float arithmetic
