@@ -49,6 +49,10 @@ type Int struct {
 	i int64
 }
 
+func (v *Int) Value() int64 {
+	return atomic.LoadInt64(&v.i)
+}
+
 func (v *Int) String() string {
 	return strconv.FormatInt(atomic.LoadInt64(&v.i), 10)
 }
@@ -64,6 +68,10 @@ func (v *Int) Set(value int64) {
 // Float is a 64-bit float variable that satisfies the Var interface.
 type Float struct {
 	f uint64
+}
+
+func (v *Float) Value() float64 {
+	return math.Float64frombits(atomic.LoadUint64(&v.f))
 }
 
 func (v *Float) String() string {
@@ -219,6 +227,14 @@ type String struct {
 	s  string
 }
 
+func (v *String) Value() string {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	return v.s
+}
+
+// String implements the Val interface. To get the unquoted string
+// use Value.
 func (v *String) String() string {
 	v.mu.RLock()
 	s := v.s
@@ -236,6 +252,10 @@ func (v *String) Set(value string) {
 // Func implements Var by calling the function
 // and formatting the returned value using JSON.
 type Func func() interface{}
+
+func (f Func) Value() interface{} {
+	return f()
+}
 
 func (f Func) String() string {
 	v, _ := json.Marshal(f())

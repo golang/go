@@ -7,13 +7,12 @@ package expvar
 import (
 	"bytes"
 	"encoding/json"
-	"math"
 	"net"
 	"net/http/httptest"
+	"reflect"
 	"runtime"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"testing"
 )
 
@@ -58,6 +57,10 @@ func TestInt(t *testing.T) {
 	if reqs.i != -2 {
 		t.Errorf("reqs.i = %v, want -2", reqs.i)
 	}
+
+	if v, want := reqs.Value(), int64(-2); v != want {
+		t.Errorf("reqs.Value() = %q, want %q", v, want)
+	}
 }
 
 func BenchmarkIntAdd(b *testing.B) {
@@ -80,10 +83,6 @@ func BenchmarkIntSet(b *testing.B) {
 	})
 }
 
-func (v *Float) val() float64 {
-	return math.Float64frombits(atomic.LoadUint64(&v.f))
-}
-
 func TestFloat(t *testing.T) {
 	RemoveAll()
 	reqs := NewFloat("requests-float")
@@ -96,8 +95,8 @@ func TestFloat(t *testing.T) {
 
 	reqs.Add(1.5)
 	reqs.Add(1.25)
-	if v := reqs.val(); v != 2.75 {
-		t.Errorf("reqs.val() = %v, want 2.75", v)
+	if v := reqs.Value(); v != 2.75 {
+		t.Errorf("reqs.Value() = %v, want 2.75", v)
 	}
 
 	if s := reqs.String(); s != "2.75" {
@@ -105,8 +104,8 @@ func TestFloat(t *testing.T) {
 	}
 
 	reqs.Add(-2)
-	if v := reqs.val(); v != 0.75 {
-		t.Errorf("reqs.val() = %v, want 0.75", v)
+	if v := reqs.Value(); v != 0.75 {
+		t.Errorf("reqs.Value() = %v, want 0.75", v)
 	}
 }
 
@@ -146,6 +145,10 @@ func TestString(t *testing.T) {
 		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
 	}
 
+	if s, want := name.Value(), "Mike"; s != want {
+		t.Errorf("from %q, name.Value() = %q, want %q", name.s, s, want)
+	}
+
 	// Make sure we produce safe JSON output.
 	name.Set(`<`)
 	if s, want := name.String(), "\"\\u003c\""; s != want {
@@ -177,7 +180,7 @@ func TestMapCounter(t *testing.T) {
 	if x := colors.m["blue"].(*Int).i; x != 4 {
 		t.Errorf("colors.m[\"blue\"] = %v, want 4", x)
 	}
-	if x := colors.m[`green "midori"`].(*Float).val(); x != 4.125 {
+	if x := colors.m[`green "midori"`].(*Float).Value(); x != 4.125 {
 		t.Errorf("colors.m[`green \"midori\"] = %v, want 4.125", x)
 	}
 
@@ -241,6 +244,9 @@ func TestFunc(t *testing.T) {
 	f := Func(func() interface{} { return x })
 	if s, exp := f.String(), `["a","b"]`; s != exp {
 		t.Errorf(`f.String() = %q, want %q`, s, exp)
+	}
+	if v := f.Value(); !reflect.DeepEqual(v, x) {
+		t.Errorf(`f.Value() = %q, want %q`, v, x)
 	}
 
 	x = 17
