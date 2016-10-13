@@ -526,7 +526,7 @@ func funchdr(n *Node) {
 		Fatalf("funchdr: dclcontext = %d", dclcontext)
 	}
 
-	if importpkg == nil && n.Func.Nname != nil {
+	if Ctxt.Flag_dynlink && importpkg == nil && n.Func.Nname != nil {
 		makefuncsym(n.Func.Nname.Sym)
 	}
 
@@ -1318,6 +1318,11 @@ func funcsym(s *Sym) *Sym {
 	}
 
 	s1 := Pkglookup(s.Name+"·f", s.Pkg)
+	if !Ctxt.Flag_dynlink && s1.Def == nil {
+		s1.Def = newfuncname(s1)
+		s1.Def.Func.Shortname = newname(s)
+		funcsyms = append(funcsyms, s1.Def)
+	}
 	s.Fsym = s1
 	return s1
 }
