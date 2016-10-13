@@ -256,13 +256,15 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
 	MOVD	g_m(g), R8
 	MOVD	m_g0(R8), R4
 	CMP	g, R4
-	BNE	2(PC)
+	BNE	3(PC)
+	BL	runtime·badmorestackg0(SB)
 	B	runtime·abort(SB)
 
 	// Cannot grow signal stack (m->gsignal).
 	MOVD	m_gsignal(R8), R4
 	CMP	g, R4
-	BNE	2(PC)
+	BNE	3(PC)
+	BL	runtime·badmorestackgsignal(SB)
 	B	runtime·abort(SB)
 
 	// Called from f.

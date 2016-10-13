@@ -331,13 +331,15 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	MOVQ	g_m(BX), BX
 	MOVQ	m_g0(BX), SI
 	CMPQ	g(CX), SI
-	JNE	2(PC)
+	JNE	3(PC)
+	CALL	runtime·badmorestackg0(SB)
 	INT	$3
 
 	// Cannot grow signal stack (m->gsignal).
 	MOVQ	m_gsignal(BX), SI
 	CMPQ	g(CX), SI
-	JNE	2(PC)
+	JNE	3(PC)
+	CALL	runtime·badmorestackgsignal(SB)
 	INT	$3
 
 	// Called from f.

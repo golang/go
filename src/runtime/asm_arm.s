@@ -281,12 +281,16 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	MOVW	g_m(g), R8
 	MOVW	m_g0(R8), R4
 	CMP	g, R4
-	BL.EQ	runtime·abort(SB)
+	BNE	3(PC)
+	BL	runtime·badmorestackg0(SB)
+	B	runtime·abort(SB)
 
 	// Cannot grow signal stack (m->gsignal).
 	MOVW	m_gsignal(R8), R4
 	CMP	g, R4
-	BL.EQ	runtime·abort(SB)
+	BNE	3(PC)
+	BL	runtime·badmorestackgsignal(SB)
+	B	runtime·abort(SB)
 
 	// Called from f.
 	// Set g->sched to context in f.

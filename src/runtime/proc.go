@@ -381,6 +381,24 @@ func badreflectcall() {
 	panic(plainError("arg size to reflect.call more than 1GB"))
 }
 
+var badmorestackg0Msg = "fatal: morestack on g0\n"
+
+//go:nosplit
+//go:nowritebarrierrec
+func badmorestackg0() {
+	sp := stringStructOf(&badmorestackg0Msg)
+	write(2, sp.str, int32(sp.len))
+}
+
+var badmorestackgsignalMsg = "fatal: morestack on gsignal\n"
+
+//go:nosplit
+//go:nowritebarrierrec
+func badmorestackgsignal() {
+	sp := stringStructOf(&badmorestackgsignalMsg)
+	write(2, sp.str, int32(sp.len))
+}
+
 func lockedOSThread() bool {
 	gp := getg()
 	return gp.lockedm != nil && gp.m.lockedg != nil

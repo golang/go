@@ -231,12 +231,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVV	g_m(g), R7
 	MOVV	m_g0(R7), R8
-	BNE	g, R8, 2(PC)
+	BNE	g, R8, 3(PC)
+	JAL	runtime·badmorestackg0(SB)
 	JAL	runtime·abort(SB)
 
 	// Cannot grow signal stack (m->gsignal).
 	MOVV	m_gsignal(R7), R8
-	BNE	g, R8, 2(PC)
+	BNE	g, R8, 3(PC)
+	JAL	runtime·badmorestackgsignal(SB)
 	JAL	runtime·abort(SB)
 
 	// Called from f.
