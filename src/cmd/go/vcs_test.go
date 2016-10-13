@@ -102,7 +102,7 @@ func TestRepoRootForImportPath(t *testing.T) {
 			"git.openstack.org/openstack/swift.git",
 			&repoRoot{
 				vcs:  vcsGit,
-				repo: "https://git.openstack.org/openstack/swift",
+				repo: "https://git.openstack.org/openstack/swift.git",
 			},
 		},
 		{
@@ -174,11 +174,23 @@ func TestFromDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	for _, vcs := range vcsList {
+	for j, vcs := range vcsList {
 		dir := filepath.Join(tempDir, "example.com", vcs.name, "."+vcs.cmd)
-		err := os.MkdirAll(dir, 0755)
-		if err != nil {
-			t.Fatal(err)
+		if j&1 == 0 {
+			err := os.MkdirAll(dir, 0755)
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			err := os.MkdirAll(filepath.Dir(dir), 0755)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f, err := os.Create(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.Close()
 		}
 
 		want := repoRoot{
