@@ -1,8 +1,0 @@
--------- @whicherrs localerrs --------
-this error may point to these globals:
-	errVar
-this error may contain these constants:
-	constErr
-this error may contain these dynamic types:
-	errType
-
