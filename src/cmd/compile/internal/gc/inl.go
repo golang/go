@@ -248,10 +248,6 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 	}
 
 	(*budget)--
-	// TODO(mdempsky): Hack to appease toolstash; remove.
-	if n.Op == OSTRUCTKEY {
-		(*budget)--
-	}
 
 	return *budget < 0 || ishairy(n.Left, budget, reason) || ishairy(n.Right, budget, reason) ||
 		ishairylist(n.List, budget, reason) || ishairylist(n.Rlist, budget, reason) ||
