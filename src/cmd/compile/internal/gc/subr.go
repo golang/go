@@ -367,13 +367,6 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
 		n.Name.Param = new(Param)
 	case OLABEL, OPACK:
 		n.Name = new(Name)
-	case ODCLFIELD:
-		if nleft != nil {
-			n.Name = nleft.Name
-		} else {
-			n.Name = new(Name)
-			n.Name.Param = new(Param)
-		}
 	}
 	if n.Name != nil {
 		n.Name.Curfn = Curfn
