@@ -639,40 +639,29 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 
 	// We need to rewrite this call.
 	//
-	// We are going to rewrite C.f(p) to C.f(_cgoCheckPointer(p)).
-	// If the call to C.f is deferred, that will check p at the
-	// point of the defer statement, not when the function is called, so
-	// rewrite to func(_cgo0 ptype) { C.f(_cgoCheckPointer(_cgo0)) }(p)
-
+	// We are going to rewrite C.f(p) to
+	//    func (_cgo0 ptype) {
+	//            _cgoCheckPointer(_cgo0)
+	//            C.f(_cgo0)
+	//    }(p)
+	// Using a function literal like this lets us do correct
+	// argument type checking, and works correctly if the call is
+	// deferred.
 	needsUnsafe := false
-	var dargs []ast.Expr
-	if call.Deferred {
-		dargs = make([]ast.Expr, len(name.FuncType.Params))
-	}
+	params := make([]*ast.Field, len(name.FuncType.Params))
+	args := make([]ast.Expr, len(name.FuncType.Params))
+	var stmts []ast.Stmt
 	for i, param := range name.FuncType.Params {
+		// params is going to become the parameters of the
+		// function literal.
+		// args is going to become the list of arguments to the
+		// function literal.
+		// nparam is the parameter of the function literal that
+		// corresponds to param.
+
 		origArg := call.Call.Args[i]
-		darg := origArg
-
-		if call.Deferred {
-			dargs[i] = darg
-			darg = ast.NewIdent(fmt.Sprintf("_cgo%d", i))
-			call.Call.Args[i] = darg
-		}
-
-		if !p.needsPointerCheck(f, param.Go, origArg) {
-			continue
-		}
-
-		c := &ast.CallExpr{
-			Fun: ast.NewIdent("_cgoCheckPointer"),
-			Args: []ast.Expr{
-				darg,
-			},
-		}
-
-		// Add optional additional arguments for an address
-		// expression.
-		c.Args = p.checkAddrArgs(f, c.Args, origArg)
+		args[i] = origArg
+		nparam := ast.NewIdent(fmt.Sprintf("_cgo%d", i))
 
 		// The Go version of the C type might use unsafe.Pointer,
 		// but the file might not import unsafe.
@@ -682,69 +671,90 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 			needsUnsafe = true
 		}
 
-		// In order for the type assertion to succeed, we need
-		// it to match the actual type of the argument. The
-		// only type we have is the type of the function
-		// parameter. We know that the argument type must be
-		// assignable to the function parameter type, or the
-		// code would not compile, but there is nothing
-		// requiring that the types be exactly the same. Add a
-		// type conversion to the argument so that the type
-		// assertion will succeed.
-		c.Args[0] = &ast.CallExpr{
-			Fun: ptype,
+		params[i] = &ast.Field{
+			Names: []*ast.Ident{nparam},
+			Type:  ptype,
+		}
+
+		call.Call.Args[i] = nparam
+
+		if !p.needsPointerCheck(f, param.Go, origArg) {
+			continue
+		}
+
+		// Run the cgo pointer checks on nparam.
+
+		// Change the function literal to call the real function
+		// with the parameter passed through _cgoCheckPointer.
+		c := &ast.CallExpr{
+			Fun: ast.NewIdent("_cgoCheckPointer"),
 			Args: []ast.Expr{
-				c.Args[0],
+				nparam,
 			},
 		}
 
-		call.Call.Args[i] = &ast.TypeAssertExpr{
-			X:    c,
-			Type: ptype,
+		// Add optional additional arguments for an address
+		// expression.
+		c.Args = p.checkAddrArgs(f, c.Args, origArg)
+
+		stmt := &ast.ExprStmt{
+			X: c,
 		}
+		stmts = append(stmts, stmt)
 	}
 
-	if call.Deferred {
-		params := make([]*ast.Field, len(name.FuncType.Params))
-		for i, param := range name.FuncType.Params {
-			ptype := p.rewriteUnsafe(param.Go)
-			if ptype != param.Go {
-				needsUnsafe = true
-			}
-			params[i] = &ast.Field{
-				Names: []*ast.Ident{
-					ast.NewIdent(fmt.Sprintf("_cgo%d", i)),
-				},
-				Type: ptype,
-			}
+	fcall := &ast.CallExpr{
+		Fun:  call.Call.Fun,
+		Args: call.Call.Args,
+	}
+	ftype := &ast.FuncType{
+		Params: &ast.FieldList{
+			List: params,
+		},
+	}
+	var fbody ast.Stmt
+	if name.FuncType.Result == nil {
+		fbody = &ast.ExprStmt{
+			X: fcall,
 		}
-
-		dbody := &ast.CallExpr{
-			Fun:  call.Call.Fun,
-			Args: call.Call.Args,
+	} else {
+		fbody = &ast.ReturnStmt{
+			Results: []ast.Expr{fcall},
 		}
-		call.Call.Fun = &ast.FuncLit{
-			Type: &ast.FuncType{
-				Params: &ast.FieldList{
-					List: params,
-				},
-			},
-			Body: &ast.BlockStmt{
-				List: []ast.Stmt{
-					&ast.ExprStmt{
-						X: dbody,
-					},
+		rtype := p.rewriteUnsafe(name.FuncType.Result.Go)
+		if rtype != name.FuncType.Result.Go {
+			needsUnsafe = true
+		}
+		ftype.Results = &ast.FieldList{
+			List: []*ast.Field{
+				&ast.Field{
+					Type: rtype,
 				},
 			},
 		}
-		call.Call.Args = dargs
-		call.Call.Lparen = token.NoPos
-		call.Call.Rparen = token.NoPos
+	}
+	call.Call.Fun = &ast.FuncLit{
+		Type: ftype,
+		Body: &ast.BlockStmt{
+			List: append(stmts, fbody),
+		},
+	}
+	call.Call.Args = args
+	call.Call.Lparen = token.NoPos
+	call.Call.Rparen = token.NoPos
 
-		// There is a Ref pointing to the old call.Call.Fun.
-		for _, ref := range f.Ref {
-			if ref.Expr == &call.Call.Fun {
-				ref.Expr = &dbody.Fun
+	// There is a Ref pointing to the old call.Call.Fun.
+	for _, ref := range f.Ref {
+		if ref.Expr == &call.Call.Fun {
+			ref.Expr = &fcall.Fun
+
+			// If this call expects two results, we have to
+			// adjust the results of the  function we generated.
+			if ref.Context == "call2" {
+				ftype.Results.List = append(ftype.Results.List,
+					&ast.Field{
+						Type: ast.NewIdent("error"),
+					})
 			}
 		}
 	}
