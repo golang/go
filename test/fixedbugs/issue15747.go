@@ -22,15 +22,16 @@ func f1(q *Q, xx []byte) interface{} { // ERROR "live at entry to f1: xx" "live 
 	// xx was live for the first two prints but then it switched to &xx
 	// being live. We should not see plain xx again.
 	if b {
-		global = &xx // ERROR "live at call to writebarrierptr: &xx[^x]*$"
+		global = &xx // ERROR "live at call to writebarrierptr: &xx$"
 	}
-	xx, _, err := f2(xx, 5) // ERROR "live at call to newobject:( d)? &xx( odata.ptr)?" "live at call to writebarrierptr: (e|err.data err.type)$"
+	xx, _, err := f2(xx, 5) // ERROR "live at call to writebarrierptr: err.data err.type$" "live at call to f2: &xx$"
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+//go:noinline
 func f2(d []byte, n int) (odata, res []byte, e interface{}) { // ERROR "live at entry to f2: d"
 	if n > len(d) {
 		return d, nil, &T{M: "hello"} // ERROR "live at call to newobject: d"
