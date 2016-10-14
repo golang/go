@@ -370,10 +370,10 @@ var racecgosync uint64 // represents possible synchronization in C code
 // pointers.)
 
 // cgoCheckPointer checks if the argument contains a Go pointer that
-// points to a Go pointer, and panics if it does. It returns the pointer.
-func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
+// points to a Go pointer, and panics if it does.
+func cgoCheckPointer(ptr interface{}, args ...interface{}) {
 	if debug.cgocheck == 0 {
-		return ptr
+		return
 	}
 
 	ep := (*eface)(unsafe.Pointer(&ptr))
@@ -386,7 +386,7 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
 			p = *(*unsafe.Pointer)(p)
 		}
 		if !cgoIsGoPointer(p) {
-			return ptr
+			return
 		}
 		aep := (*eface)(unsafe.Pointer(&args[0]))
 		switch aep._type.kind & kindMask {
@@ -397,7 +397,7 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
 			}
 			pt := (*ptrtype)(unsafe.Pointer(t))
 			cgoCheckArg(pt.elem, p, true, false, cgoCheckPointerFail)
-			return ptr
+			return
 		case kindSlice:
 			// Check the slice rather than the pointer.
 			ep = aep
@@ -415,7 +415,6 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
 	}
 
 	cgoCheckArg(t, ep.data, t.kind&kindDirectIface == 0, top, cgoCheckPointerFail)
-	return ptr
 }
 
 const cgoCheckPointerFail = "cgo argument has Go pointer to Go pointer"

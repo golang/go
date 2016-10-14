@@ -186,6 +186,7 @@ func testCallbackCallers(t *testing.T) {
 		"runtime.asmcgocall",
 		"runtime.cgocall",
 		"test._Cfunc_callback",
+		"test.nestedCall.func1",
 		"test.nestedCall",
 		"test.testCallbackCallers",
 		"test.TestCallbackCallers",
