@@ -240,6 +240,9 @@ func (t *Template) Clone() (*Template, error) {
 	ret.set[ret.Name()] = ret
 	for _, x := range textClone.Templates() {
 		name := x.Name()
+		if name == ret.Name() {
+			continue
+		}
 		src := t.set[name]
 		if src == nil || src.escapeErr != nil {
 			return nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", t.Name())
