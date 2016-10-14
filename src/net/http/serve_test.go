@@ -4202,13 +4202,11 @@ func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, h2 bool) {
 	}
 }
 
+// Tests that the Request.Context available to the Handler is canceled
+// if the peer closes their TCP connection. This requires that the server
+// is always blocked in a Read call so it notices the EOF from the client.
+// See issues 15927 and 15224.
 func TestServerRequestContextCancel_ConnClose(t *testing.T) {
-	// Currently the context is not canceled when the connection
-	// is closed because we're not reading from the connection
-	// until after ServeHTTP for the previous handler is done.
-	// Until the server code is modified to always be in a read
-	// (Issue 15224), this test doesn't work yet.
-	t.Skip("TODO(bradfitz): this test doesn't yet work; golang.org/issue/15224")
 	defer afterTest(t)
 	inHandler := make(chan struct{})
 	handlerDone := make(chan struct{})
@@ -4237,7 +4235,7 @@ func TestServerRequestContextCancel_ConnClose(t *testing.T) {
 
 	select {
 	case <-handlerDone:
-	case <-time.After(3 * time.Second):
+	case <-time.After(4 * time.Second):
 		t.Fatalf("timeout waiting to see ServeHTTP exit")
 	}
 }
