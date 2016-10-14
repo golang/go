@@ -18,176 +18,6 @@ import (
 	"time"
 )
 
-type writerTestEntry struct {
-	header   *Header
-	contents string
-}
-
-type writerTest struct {
-	file    string // filename of expected output
-	entries []*writerTestEntry
-}
-
-var writerTests = []*writerTest{
-	// The writer test file was produced with this command:
-	// tar (GNU tar) 1.26
-	//   ln -s small.txt link.txt
-	//   tar -b 1 --format=ustar -c -f writer.tar small.txt small2.txt link.txt
-	{
-		file: "testdata/writer.tar",
-		entries: []*writerTestEntry{
-			{
-				header: &Header{
-					Name:     "small.txt",
-					Mode:     0640,
-					Uid:      73025,
-					Gid:      5000,
-					Size:     5,
-					ModTime:  time.Unix(1246508266, 0),
-					Typeflag: '0',
-					Uname:    "dsymonds",
-					Gname:    "eng",
-				},
-				contents: "Kilts",
-			},
-			{
-				header: &Header{
-					Name:     "small2.txt",
-					Mode:     0640,
-					Uid:      73025,
-					Gid:      5000,
-					Size:     11,
-					ModTime:  time.Unix(1245217492, 0),
-					Typeflag: '0',
-					Uname:    "dsymonds",
-					Gname:    "eng",
-				},
-				contents: "Google.com\n",
-			},
-			{
-				header: &Header{
-					Name:     "link.txt",
-					Mode:     0777,
-					Uid:      1000,
-					Gid:      1000,
-					Size:     0,
-					ModTime:  time.Unix(1314603082, 0),
-					Typeflag: '2',
-					Linkname: "small.txt",
-					Uname:    "strings",
-					Gname:    "strings",
-				},
-				// no contents
-			},
-		},
-	},
-	// The truncated test file was produced using these commands:
-	//   dd if=/dev/zero bs=1048576 count=16384 > /tmp/16gig.txt
-	//   tar -b 1 -c -f- /tmp/16gig.txt | dd bs=512 count=8 > writer-big.tar
-	{
-		file: "testdata/writer-big.tar",
-		entries: []*writerTestEntry{
-			{
-				header: &Header{
-					Name:     "tmp/16gig.txt",
-					Mode:     0640,
-					Uid:      73025,
-					Gid:      5000,
-					Size:     16 << 30,
-					ModTime:  time.Unix(1254699560, 0),
-					Typeflag: '0',
-					Uname:    "dsymonds",
-					Gname:    "eng",
-				},
-				// fake contents
-				contents: strings.Repeat("\x00", 4<<10),
-			},
-		},
-	},
-	// The truncated test file was produced using these commands:
-	//   dd if=/dev/zero bs=1048576 count=16384 > (longname/)*15 /16gig.txt
-	//   tar -b 1 -c -f- (longname/)*15 /16gig.txt | dd bs=512 count=8 > writer-big-long.tar
-	{
-		file: "testdata/writer-big-long.tar",
-		entries: []*writerTestEntry{
-			{
-				header: &Header{
-					Name:     strings.Repeat("longname/", 15) + "16gig.txt",
-					Mode:     0644,
-					Uid:      1000,
-					Gid:      1000,
-					Size:     16 << 30,
-					ModTime:  time.Unix(1399583047, 0),
-					Typeflag: '0',
-					Uname:    "guillaume",
-					Gname:    "guillaume",
-				},
-				// fake contents
-				contents: strings.Repeat("\x00", 4<<10),
-			},
-		},
-	},
-	// This file was produced using gnu tar 1.17
-	// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
-	{
-		file: "testdata/ustar.tar",
-		entries: []*writerTestEntry{
-			{
-				header: &Header{
-					Name:     strings.Repeat("longname/", 15) + "file.txt",
-					Mode:     0644,
-					Uid:      0765,
-					Gid:      024,
-					Size:     06,
-					ModTime:  time.Unix(1360135598, 0),
-					Typeflag: '0',
-					Uname:    "shane",
-					Gname:    "staff",
-				},
-				contents: "hello\n",
-			},
-		},
-	},
-	// This file was produced using gnu tar 1.26
-	// echo "Slartibartfast" > file.txt
-	// ln file.txt hard.txt
-	// tar -b 1 --format=ustar -c -f hardlink.tar file.txt hard.txt
-	{
-		file: "testdata/hardlink.tar",
-		entries: []*writerTestEntry{
-			{
-				header: &Header{
-					Name:     "file.txt",
-					Mode:     0644,
-					Uid:      1000,
-					Gid:      100,
-					Size:     15,
-					ModTime:  time.Unix(1425484303, 0),
-					Typeflag: '0',
-					Uname:    "vbatts",
-					Gname:    "users",
-				},
-				contents: "Slartibartfast\n",
-			},
-			{
-				header: &Header{
-					Name:     "hard.txt",
-					Mode:     0644,
-					Uid:      1000,
-					Gid:      100,
-					Size:     0,
-					ModTime:  time.Unix(1425484303, 0),
-					Typeflag: '1',
-					Linkname: "file.txt",
-					Uname:    "vbatts",
-					Gname:    "users",
-				},
-				// no contents
-			},
-		},
-	},
-}
-
 // Render byte array in a two-character hexadecimal string, spaced for easy visual inspection.
 func bytestr(offset int, b []byte) string {
 	const rowLen = 32
@@ -227,9 +57,158 @@ func bytediff(a []byte, b []byte) string {
 }
 
 func TestWriter(t *testing.T) {
+	type entry struct {
+		header   *Header
+		contents string
+	}
+
+	vectors := []struct {
+		file    string // filename of expected output
+		entries []*entry
+	}{{
+		// The writer test file was produced with this command:
+		// tar (GNU tar) 1.26
+		//   ln -s small.txt link.txt
+		//   tar -b 1 --format=ustar -c -f writer.tar small.txt small2.txt link.txt
+		file: "testdata/writer.tar",
+		entries: []*entry{{
+			header: &Header{
+				Name:     "small.txt",
+				Mode:     0640,
+				Uid:      73025,
+				Gid:      5000,
+				Size:     5,
+				ModTime:  time.Unix(1246508266, 0),
+				Typeflag: '0',
+				Uname:    "dsymonds",
+				Gname:    "eng",
+			},
+			contents: "Kilts",
+		}, {
+			header: &Header{
+				Name:     "small2.txt",
+				Mode:     0640,
+				Uid:      73025,
+				Gid:      5000,
+				Size:     11,
+				ModTime:  time.Unix(1245217492, 0),
+				Typeflag: '0',
+				Uname:    "dsymonds",
+				Gname:    "eng",
+			},
+			contents: "Google.com\n",
+		}, {
+			header: &Header{
+				Name:     "link.txt",
+				Mode:     0777,
+				Uid:      1000,
+				Gid:      1000,
+				Size:     0,
+				ModTime:  time.Unix(1314603082, 0),
+				Typeflag: '2',
+				Linkname: "small.txt",
+				Uname:    "strings",
+				Gname:    "strings",
+			},
+			// no contents
+		}},
+	}, {
+		// The truncated test file was produced using these commands:
+		//   dd if=/dev/zero bs=1048576 count=16384 > /tmp/16gig.txt
+		//   tar -b 1 -c -f- /tmp/16gig.txt | dd bs=512 count=8 > writer-big.tar
+		file: "testdata/writer-big.tar",
+		entries: []*entry{{
+			header: &Header{
+				Name:     "tmp/16gig.txt",
+				Mode:     0640,
+				Uid:      73025,
+				Gid:      5000,
+				Size:     16 << 30,
+				ModTime:  time.Unix(1254699560, 0),
+				Typeflag: '0',
+				Uname:    "dsymonds",
+				Gname:    "eng",
+			},
+			// fake contents
+			contents: strings.Repeat("\x00", 4<<10),
+		}},
+	}, {
+		// The truncated test file was produced using these commands:
+		//   dd if=/dev/zero bs=1048576 count=16384 > (longname/)*15 /16gig.txt
+		//   tar -b 1 -c -f- (longname/)*15 /16gig.txt | dd bs=512 count=8 > writer-big-long.tar
+		file: "testdata/writer-big-long.tar",
+		entries: []*entry{{
+			header: &Header{
+				Name:     strings.Repeat("longname/", 15) + "16gig.txt",
+				Mode:     0644,
+				Uid:      1000,
+				Gid:      1000,
+				Size:     16 << 30,
+				ModTime:  time.Unix(1399583047, 0),
+				Typeflag: '0',
+				Uname:    "guillaume",
+				Gname:    "guillaume",
+			},
+			// fake contents
+			contents: strings.Repeat("\x00", 4<<10),
+		}},
+	}, {
+		// This file was produced using gnu tar 1.17
+		// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
+		file: "testdata/ustar.tar",
+		entries: []*entry{{
+			header: &Header{
+				Name:     strings.Repeat("longname/", 15) + "file.txt",
+				Mode:     0644,
+				Uid:      0765,
+				Gid:      024,
+				Size:     06,
+				ModTime:  time.Unix(1360135598, 0),
+				Typeflag: '0',
+				Uname:    "shane",
+				Gname:    "staff",
+			},
+			contents: "hello\n",
+		}},
+	}, {
+		// This file was produced using gnu tar 1.26
+		// echo "Slartibartfast" > file.txt
+		// ln file.txt hard.txt
+		// tar -b 1 --format=ustar -c -f hardlink.tar file.txt hard.txt
+		file: "testdata/hardlink.tar",
+		entries: []*entry{{
+			header: &Header{
+				Name:     "file.txt",
+				Mode:     0644,
+				Uid:      1000,
+				Gid:      100,
+				Size:     15,
+				ModTime:  time.Unix(1425484303, 0),
+				Typeflag: '0',
+				Uname:    "vbatts",
+				Gname:    "users",
+			},
+			contents: "Slartibartfast\n",
+		}, {
+			header: &Header{
+				Name:     "hard.txt",
+				Mode:     0644,
+				Uid:      1000,
+				Gid:      100,
+				Size:     0,
+				ModTime:  time.Unix(1425484303, 0),
+				Typeflag: '1',
+				Linkname: "file.txt",
+				Uname:    "vbatts",
+				Gname:    "users",
+			},
+			// no contents
+		}},
+	}}
+
 testLoop:
-	for i, test := range writerTests {
-		expected, err := ioutil.ReadFile(test.file)
+	for i, v := range vectors {
+		expected, err := ioutil.ReadFile(v.file)
 		if err != nil {
 			t.Errorf("test %d: Unexpected error: %v", i, err)
 			continue
@@ -238,7 +217,7 @@ testLoop:
 		buf := new(bytes.Buffer)
 		tw := NewWriter(iotest.TruncateWriter(buf, 4<<10)) // only catch the first 4 KB
 		big := false
-		for j, entry := range test.entries {
+		for j, entry := range v.entries {
 			big = big || entry.header.Size > 1<<10
 			if err := tw.WriteHeader(entry.header); err != nil {
 				t.Errorf("test %d, entry %d: Failed writing header: %v", i, j, err)
@@ -575,9 +554,9 @@ func TestWriteAfterClose(t *testing.T) {
 }
 
 func TestSplitUSTARPath(t *testing.T) {
-	var sr = strings.Repeat
+	sr := strings.Repeat
 
-	var vectors = []struct {
+	vectors := []struct {
 		input  string // Input path
 		prefix string // Expected output prefix
 		suffix string // Expected output suffix
