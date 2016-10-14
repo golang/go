@@ -4121,7 +4121,7 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 		v2 := uint32(p.From3.Reg)
 		v3 := uint32(p.From.Reg)
 		v4 := uint32(p.Reg)
-		zVRRe(op, v1, v2, v3, m5, m6, v4, asm)
+		zVRRe(op, v1, v2, v3, m6, m5, v4, asm)
 
 	case 122: // VRR-f LOAD VRS FROM GRS DISJOINT
 		op, _, _ := vop(p.As)

@@ -323,7 +323,10 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 	VERIMB	$2, V31, V1, V2         // VERIMB  V31, V1, $2, V2         // e72f10020472
 	VSEL	V1, V2, V3, V4          // VSEL    V2, V3, V1, V4          // e7412000308d
 	VGFMAH	V21, V31, V24, V0       // VGFMAH  V31, V24, V21, V0       // e705f10087bc
-	WFMSDB	V2, V25, V24, V31       // WFMSDB  V25, V24, V2, V31       // e7f298038b8e
+	VFMADB	V16, V8, V9, V10        // VFMADB  V8, V9, V16, V10        // e7a08300948f
+	WFMADB	V17, V18, V19, V20      // WFMADB  V18, V19, V17, V20      // e74123083f8f
+	VFMSDB	V2, V25, V24, V31       // VFMSDB  V25, V24, V2, V31       // e7f293008b8e
+	WFMSDB	V31, V2, V3, V4         // WFMSDB  V2, V3, V31, V4         // e74f2308348e
 	VPERM	V31, V0, V2, V3         // VPERM   V0, V2, V31, V3         // e73f0000248c
 	VPDI	$1, V2, V31, V1         // VPDI    V2, V31, $1, V1         // e712f0001284
 	VLEG	$1, (R3), V1            // VLEG    (R3), $1, V1            // e71030001002
