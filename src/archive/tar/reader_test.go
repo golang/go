@@ -18,17 +18,15 @@ import (
 	"time"
 )
 
-type untarTest struct {
-	file    string    // Test input file
-	headers []*Header // Expected output headers
-	chksums []string  // MD5 checksum of files, leave as nil if not checked
-	err     error     // Expected error to occur
-}
-
-var gnuTarTest = &untarTest{
-	file: "testdata/gnu.tar",
-	headers: []*Header{
-		{
+func TestReader(t *testing.T) {
+	vectors := []struct {
+		file    string    // Test input file
+		headers []*Header // Expected output headers
+		chksums []string  // MD5 checksum of files, leave as nil if not checked
+		err     error     // Expected error to occur
+	}{{
+		file: "testdata/gnu.tar",
+		headers: []*Header{{
 			Name:     "small.txt",
 			Mode:     0640,
 			Uid:      73025,
@@ -38,8 +36,7 @@ var gnuTarTest = &untarTest{
 			Typeflag: '0',
 			Uname:    "dsymonds",
 			Gname:    "eng",
-		},
-		{
+		}, {
 			Name:     "small2.txt",
 			Mode:     0640,
 			Uid:      73025,
@@ -49,18 +46,14 @@ var gnuTarTest = &untarTest{
 			Typeflag: '0',
 			Uname:    "dsymonds",
 			Gname:    "eng",
+		}},
+		chksums: []string{
+			"e38b27eaccb4391bdec553a7f3ae6b2f",
+			"c65bd2e50a56a2138bf1716f2fd56fe9",
 		},
-	},
-	chksums: []string{
-		"e38b27eaccb4391bdec553a7f3ae6b2f",
-		"c65bd2e50a56a2138bf1716f2fd56fe9",
-	},
-}
-
-var sparseTarTest = &untarTest{
-	file: "testdata/sparse-formats.tar",
-	headers: []*Header{
-		{
+	}, {
+		file: "testdata/sparse-formats.tar",
+		headers: []*Header{{
 			Name:     "sparse-gnu",
 			Mode:     420,
 			Uid:      1000,
@@ -73,8 +66,7 @@ var sparseTarTest = &untarTest{
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-		},
-		{
+		}, {
 			Name:     "sparse-posix-0.0",
 			Mode:     420,
 			Uid:      1000,
@@ -87,8 +79,7 @@ var sparseTarTest = &untarTest{
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-		},
-		{
+		}, {
 			Name:     "sparse-posix-0.1",
 			Mode:     420,
 			Uid:      1000,
@@ -101,8 +92,7 @@ var sparseTarTest = &untarTest{
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-		},
-		{
+		}, {
 			Name:     "sparse-posix-1.0",
 			Mode:     420,
 			Uid:      1000,
@@ -115,8 +105,7 @@ var sparseTarTest = &untarTest{
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-		},
-		{
+		}, {
 			Name:     "end",
 			Mode:     420,
 			Uid:      1000,
@@ -129,115 +118,95 @@ var sparseTarTest = &untarTest{
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
+		}},
+		chksums: []string{
+			"6f53234398c2449fe67c1812d993012f",
+			"6f53234398c2449fe67c1812d993012f",
+			"6f53234398c2449fe67c1812d993012f",
+			"6f53234398c2449fe67c1812d993012f",
+			"b0061974914468de549a2af8ced10316",
 		},
-	},
-	chksums: []string{
-		"6f53234398c2449fe67c1812d993012f",
-		"6f53234398c2449fe67c1812d993012f",
-		"6f53234398c2449fe67c1812d993012f",
-		"6f53234398c2449fe67c1812d993012f",
-		"b0061974914468de549a2af8ced10316",
-	},
-}
-
-var untarTests = []*untarTest{
-	gnuTarTest,
-	sparseTarTest,
-	{
+	}, {
 		file: "testdata/star.tar",
-		headers: []*Header{
-			{
-				Name:       "small.txt",
-				Mode:       0640,
-				Uid:        73025,
-				Gid:        5000,
-				Size:       5,
-				ModTime:    time.Unix(1244592783, 0),
-				Typeflag:   '0',
-				Uname:      "dsymonds",
-				Gname:      "eng",
-				AccessTime: time.Unix(1244592783, 0),
-				ChangeTime: time.Unix(1244592783, 0),
-			},
-			{
-				Name:       "small2.txt",
-				Mode:       0640,
-				Uid:        73025,
-				Gid:        5000,
-				Size:       11,
-				ModTime:    time.Unix(1244592783, 0),
-				Typeflag:   '0',
-				Uname:      "dsymonds",
-				Gname:      "eng",
-				AccessTime: time.Unix(1244592783, 0),
-				ChangeTime: time.Unix(1244592783, 0),
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:       "small.txt",
+			Mode:       0640,
+			Uid:        73025,
+			Gid:        5000,
+			Size:       5,
+			ModTime:    time.Unix(1244592783, 0),
+			Typeflag:   '0',
+			Uname:      "dsymonds",
+			Gname:      "eng",
+			AccessTime: time.Unix(1244592783, 0),
+			ChangeTime: time.Unix(1244592783, 0),
+		}, {
+			Name:       "small2.txt",
+			Mode:       0640,
+			Uid:        73025,
+			Gid:        5000,
+			Size:       11,
+			ModTime:    time.Unix(1244592783, 0),
+			Typeflag:   '0',
+			Uname:      "dsymonds",
+			Gname:      "eng",
+			AccessTime: time.Unix(1244592783, 0),
+			ChangeTime: time.Unix(1244592783, 0),
+		}},
+	}, {
 		file: "testdata/v7.tar",
-		headers: []*Header{
-			{
-				Name:     "small.txt",
-				Mode:     0444,
-				Uid:      73025,
-				Gid:      5000,
-				Size:     5,
-				ModTime:  time.Unix(1244593104, 0),
-				Typeflag: '\x00',
-			},
-			{
-				Name:     "small2.txt",
-				Mode:     0444,
-				Uid:      73025,
-				Gid:      5000,
-				Size:     11,
-				ModTime:  time.Unix(1244593104, 0),
-				Typeflag: '\x00',
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:     "small.txt",
+			Mode:     0444,
+			Uid:      73025,
+			Gid:      5000,
+			Size:     5,
+			ModTime:  time.Unix(1244593104, 0),
+			Typeflag: '\x00',
+		}, {
+			Name:     "small2.txt",
+			Mode:     0444,
+			Uid:      73025,
+			Gid:      5000,
+			Size:     11,
+			ModTime:  time.Unix(1244593104, 0),
+			Typeflag: '\x00',
+		}},
+	}, {
 		file: "testdata/pax.tar",
-		headers: []*Header{
-			{
-				Name:       "a/123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
-				Mode:       0664,
-				Uid:        1000,
-				Gid:        1000,
-				Uname:      "shane",
-				Gname:      "shane",
-				Size:       7,
-				ModTime:    time.Unix(1350244992, 23960108),
-				ChangeTime: time.Unix(1350244992, 23960108),
-				AccessTime: time.Unix(1350244992, 23960108),
-				Typeflag:   TypeReg,
-			},
-			{
-				Name:       "a/b",
-				Mode:       0777,
-				Uid:        1000,
-				Gid:        1000,
-				Uname:      "shane",
-				Gname:      "shane",
-				Size:       0,
-				ModTime:    time.Unix(1350266320, 910238425),
-				ChangeTime: time.Unix(1350266320, 910238425),
-				AccessTime: time.Unix(1350266320, 910238425),
-				Typeflag:   TypeSymlink,
-				Linkname:   "123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:       "a/123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
+			Mode:       0664,
+			Uid:        1000,
+			Gid:        1000,
+			Uname:      "shane",
+			Gname:      "shane",
+			Size:       7,
+			ModTime:    time.Unix(1350244992, 23960108),
+			ChangeTime: time.Unix(1350244992, 23960108),
+			AccessTime: time.Unix(1350244992, 23960108),
+			Typeflag:   TypeReg,
+		}, {
+			Name:       "a/b",
+			Mode:       0777,
+			Uid:        1000,
+			Gid:        1000,
+			Uname:      "shane",
+			Gname:      "shane",
+			Size:       0,
+			ModTime:    time.Unix(1350266320, 910238425),
+			ChangeTime: time.Unix(1350266320, 910238425),
+			AccessTime: time.Unix(1350266320, 910238425),
+			Typeflag:   TypeSymlink,
+			Linkname:   "123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
+		}},
+	}, {
 		file: "testdata/pax-bad-hdr-file.tar",
 		err:  ErrHeader,
-	},
-	{
+	}, {
 		file: "testdata/pax-bad-mtime-file.tar",
 		err:  ErrHeader,
-	},
-	{
+	}, {
 		file: "testdata/pax-pos-size-file.tar",
 		headers: []*Header{{
 			Name:     "foo",
@@ -253,157 +222,133 @@ var untarTests = []*untarTest{
 		chksums: []string{
 			"0afb597b283fe61b5d4879669a350556",
 		},
-	},
-	{
+	}, {
 		file: "testdata/nil-uid.tar", // golang.org/issue/5290
-		headers: []*Header{
-			{
-				Name:     "P1050238.JPG.log",
-				Mode:     0664,
-				Uid:      0,
-				Gid:      0,
-				Size:     14,
-				ModTime:  time.Unix(1365454838, 0),
-				Typeflag: TypeReg,
-				Linkname: "",
-				Uname:    "eyefi",
-				Gname:    "eyefi",
-				Devmajor: 0,
-				Devminor: 0,
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:     "P1050238.JPG.log",
+			Mode:     0664,
+			Uid:      0,
+			Gid:      0,
+			Size:     14,
+			ModTime:  time.Unix(1365454838, 0),
+			Typeflag: TypeReg,
+			Linkname: "",
+			Uname:    "eyefi",
+			Gname:    "eyefi",
+			Devmajor: 0,
+			Devminor: 0,
+		}},
+	}, {
 		file: "testdata/xattrs.tar",
-		headers: []*Header{
-			{
-				Name:       "small.txt",
-				Mode:       0644,
-				Uid:        1000,
-				Gid:        10,
-				Size:       5,
-				ModTime:    time.Unix(1386065770, 448252320),
-				Typeflag:   '0',
-				Uname:      "alex",
-				Gname:      "wheel",
-				AccessTime: time.Unix(1389782991, 419875220),
-				ChangeTime: time.Unix(1389782956, 794414986),
-				Xattrs: map[string]string{
-					"user.key":  "value",
-					"user.key2": "value2",
-					// Interestingly, selinux encodes the terminating null inside the xattr
-					"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
-				},
+		headers: []*Header{{
+			Name:       "small.txt",
+			Mode:       0644,
+			Uid:        1000,
+			Gid:        10,
+			Size:       5,
+			ModTime:    time.Unix(1386065770, 448252320),
+			Typeflag:   '0',
+			Uname:      "alex",
+			Gname:      "wheel",
+			AccessTime: time.Unix(1389782991, 419875220),
+			ChangeTime: time.Unix(1389782956, 794414986),
+			Xattrs: map[string]string{
+				"user.key":  "value",
+				"user.key2": "value2",
+				// Interestingly, selinux encodes the terminating null inside the xattr
+				"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
 			},
-			{
-				Name:       "small2.txt",
-				Mode:       0644,
-				Uid:        1000,
-				Gid:        10,
-				Size:       11,
-				ModTime:    time.Unix(1386065770, 449252304),
-				Typeflag:   '0',
-				Uname:      "alex",
-				Gname:      "wheel",
-				AccessTime: time.Unix(1389782991, 419875220),
-				ChangeTime: time.Unix(1386065770, 449252304),
-				Xattrs: map[string]string{
-					"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
-				},
+		}, {
+			Name:       "small2.txt",
+			Mode:       0644,
+			Uid:        1000,
+			Gid:        10,
+			Size:       11,
+			ModTime:    time.Unix(1386065770, 449252304),
+			Typeflag:   '0',
+			Uname:      "alex",
+			Gname:      "wheel",
+			AccessTime: time.Unix(1389782991, 419875220),
+			ChangeTime: time.Unix(1386065770, 449252304),
+			Xattrs: map[string]string{
+				"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
 			},
-		},
-	},
-	{
+		}},
+	}, {
 		// Matches the behavior of GNU, BSD, and STAR tar utilities.
 		file: "testdata/gnu-multi-hdrs.tar",
-		headers: []*Header{
-			{
-				Name:     "GNU2/GNU2/long-path-name",
-				Linkname: "GNU4/GNU4/long-linkpath-name",
-				ModTime:  time.Unix(0, 0),
-				Typeflag: '2',
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:     "GNU2/GNU2/long-path-name",
+			Linkname: "GNU4/GNU4/long-linkpath-name",
+			ModTime:  time.Unix(0, 0),
+			Typeflag: '2',
+		}},
+	}, {
 		// GNU tar file with atime and ctime fields set.
 		// Created with the GNU tar v1.27.1.
 		//	tar --incremental -S -cvf gnu-incremental.tar test2
 		file: "testdata/gnu-incremental.tar",
-		headers: []*Header{
-			{
-				Name:       "test2/",
-				Mode:       16877,
-				Uid:        1000,
-				Gid:        1000,
-				Size:       14,
-				ModTime:    time.Unix(1441973427, 0),
-				Typeflag:   'D',
-				Uname:      "rawr",
-				Gname:      "dsnet",
-				AccessTime: time.Unix(1441974501, 0),
-				ChangeTime: time.Unix(1441973436, 0),
-			},
-			{
-				Name:       "test2/foo",
-				Mode:       33188,
-				Uid:        1000,
-				Gid:        1000,
-				Size:       64,
-				ModTime:    time.Unix(1441973363, 0),
-				Typeflag:   '0',
-				Uname:      "rawr",
-				Gname:      "dsnet",
-				AccessTime: time.Unix(1441974501, 0),
-				ChangeTime: time.Unix(1441973436, 0),
-			},
-			{
-				Name:       "test2/sparse",
-				Mode:       33188,
-				Uid:        1000,
-				Gid:        1000,
-				Size:       536870912,
-				ModTime:    time.Unix(1441973427, 0),
-				Typeflag:   'S',
-				Uname:      "rawr",
-				Gname:      "dsnet",
-				AccessTime: time.Unix(1441991948, 0),
-				ChangeTime: time.Unix(1441973436, 0),
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:       "test2/",
+			Mode:       16877,
+			Uid:        1000,
+			Gid:        1000,
+			Size:       14,
+			ModTime:    time.Unix(1441973427, 0),
+			Typeflag:   'D',
+			Uname:      "rawr",
+			Gname:      "dsnet",
+			AccessTime: time.Unix(1441974501, 0),
+			ChangeTime: time.Unix(1441973436, 0),
+		}, {
+			Name:       "test2/foo",
+			Mode:       33188,
+			Uid:        1000,
+			Gid:        1000,
+			Size:       64,
+			ModTime:    time.Unix(1441973363, 0),
+			Typeflag:   '0',
+			Uname:      "rawr",
+			Gname:      "dsnet",
+			AccessTime: time.Unix(1441974501, 0),
+			ChangeTime: time.Unix(1441973436, 0),
+		}, {
+			Name:       "test2/sparse",
+			Mode:       33188,
+			Uid:        1000,
+			Gid:        1000,
+			Size:       536870912,
+			ModTime:    time.Unix(1441973427, 0),
+			Typeflag:   'S',
+			Uname:      "rawr",
+			Gname:      "dsnet",
+			AccessTime: time.Unix(1441991948, 0),
+			ChangeTime: time.Unix(1441973436, 0),
+		}},
+	}, {
 		// Matches the behavior of GNU and BSD tar utilities.
 		file: "testdata/pax-multi-hdrs.tar",
-		headers: []*Header{
-			{
-				Name:     "bar",
-				Linkname: "PAX4/PAX4/long-linkpath-name",
-				ModTime:  time.Unix(0, 0),
-				Typeflag: '2',
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:     "bar",
+			Linkname: "PAX4/PAX4/long-linkpath-name",
+			ModTime:  time.Unix(0, 0),
+			Typeflag: '2',
+		}},
+	}, {
 		file: "testdata/neg-size.tar",
 		err:  ErrHeader,
-	},
-	{
+	}, {
 		file: "testdata/issue10968.tar",
 		err:  ErrHeader,
-	},
-	{
+	}, {
 		file: "testdata/issue11169.tar",
 		err:  ErrHeader,
-	},
-	{
+	}, {
 		file: "testdata/issue12435.tar",
 		err:  ErrHeader,
-	},
-}
+	}}
 
-func TestReader(t *testing.T) {
-	for i, v := range untarTests {
+	for i, v := range vectors {
 		f, err := os.Open(v.file)
 		if err != nil {
 			t.Errorf("file %s, test %d: unexpected error: %v", v.file, i, err)
@@ -513,7 +458,7 @@ func TestPartialRead(t *testing.T) {
 }
 
 func TestSparseFileReader(t *testing.T) {
-	var vectors = []struct {
+	vectors := []struct {
 		realSize   int64         // Real size of the output file
 		sparseMap  []sparseEntry // Input sparse map
 		sparseData string        // Input compact data
@@ -636,9 +581,11 @@ func TestSparseFileReader(t *testing.T) {
 		r := bytes.NewReader([]byte(v.sparseData))
 		rfr := &regFileReader{r: r, nb: int64(len(v.sparseData))}
 
-		var sfr *sparseFileReader
-		var err error
-		var buf []byte
+		var (
+			sfr *sparseFileReader
+			err error
+			buf []byte
+		)
 
 		sfr, err = newSparseFileReader(rfr, v.sparseMap, v.realSize)
 		if err != nil {
@@ -734,7 +681,7 @@ func TestReadGNUSparseMap0x1(t *testing.T) {
 		big3 = fmt.Sprintf("%d", (int64(maxInt) / 3))
 	)
 
-	var vectors = []struct {
+	vectors := []struct {
 		extHdrs   map[string]string // Input data
 		sparseMap []sparseEntry     // Expected sparse entries to be outputted
 		err       error             // Expected errors that may be raised
@@ -800,12 +747,12 @@ func TestReadGNUSparseMap0x1(t *testing.T) {
 }
 
 func TestReadGNUSparseMap1x0(t *testing.T) {
-	var sp = []sparseEntry{{1, 2}, {3, 4}}
+	sp := []sparseEntry{{1, 2}, {3, 4}}
 	for i := 0; i < 98; i++ {
 		sp = append(sp, sparseEntry{54321, 12345})
 	}
 
-	var vectors = []struct {
+	vectors := []struct {
 		input     string        // Input data
 		sparseMap []sparseEntry // Expected sparse entries to be outputted
 		cnt       int           // Expected number of bytes read
@@ -880,8 +827,7 @@ func TestReadGNUSparseMap1x0(t *testing.T) {
 }
 
 func TestUninitializedRead(t *testing.T) {
-	test := gnuTarTest
-	f, err := os.Open(test.file)
+	f, err := os.Open("testdata/gnu.tar")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -923,7 +869,7 @@ func TestReadTruncation(t *testing.T) {
 	data2 += strings.Repeat("\x00", 10*512)
 	trash := strings.Repeat("garbage ", 64) // Exactly 512 bytes
 
-	var vectors = []struct {
+	vectors := []struct {
 		input string // Input stream
 		cnt   int    // Expected number of headers read
 		err   error  // Expected error outcome
@@ -1056,7 +1002,7 @@ func TestReadHeaderOnly(t *testing.T) {
 		t.Fatalf("len(hdrs): got %d, want %d", len(hdrs), 16)
 	}
 	for i := 0; i < 8; i++ {
-		var hdr1, hdr2 = hdrs[i+0], hdrs[i+8]
+		hdr1, hdr2 := hdrs[i+0], hdrs[i+8]
 		hdr1.Size, hdr2.Size = 0, 0
 		if !reflect.DeepEqual(*hdr1, *hdr2) {
 			t.Errorf("incorrect header:\ngot  %+v\nwant %+v", *hdr1, *hdr2)

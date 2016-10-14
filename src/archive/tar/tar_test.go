@@ -135,190 +135,178 @@ type headerRoundTripTest struct {
 }
 
 func TestHeaderRoundTrip(t *testing.T) {
-	golden := []headerRoundTripTest{
+	vectors := []headerRoundTripTest{{
 		// regular file.
-		{
-			h: &Header{
-				Name:     "test.txt",
-				Mode:     0644 | c_ISREG,
-				Size:     12,
-				ModTime:  time.Unix(1360600916, 0),
-				Typeflag: TypeReg,
-			},
-			fm: 0644,
+		h: &Header{
+			Name:     "test.txt",
+			Mode:     0644 | c_ISREG,
+			Size:     12,
+			ModTime:  time.Unix(1360600916, 0),
+			Typeflag: TypeReg,
 		},
+		fm: 0644,
+	}, {
 		// symbolic link.
-		{
-			h: &Header{
-				Name:     "link.txt",
-				Mode:     0777 | c_ISLNK,
-				Size:     0,
-				ModTime:  time.Unix(1360600852, 0),
-				Typeflag: TypeSymlink,
-			},
-			fm: 0777 | os.ModeSymlink,
+		h: &Header{
+			Name:     "link.txt",
+			Mode:     0777 | c_ISLNK,
+			Size:     0,
+			ModTime:  time.Unix(1360600852, 0),
+			Typeflag: TypeSymlink,
 		},
+		fm: 0777 | os.ModeSymlink,
+	}, {
 		// character device node.
-		{
-			h: &Header{
-				Name:     "dev/null",
-				Mode:     0666 | c_ISCHR,
-				Size:     0,
-				ModTime:  time.Unix(1360578951, 0),
-				Typeflag: TypeChar,
-			},
-			fm: 0666 | os.ModeDevice | os.ModeCharDevice,
+		h: &Header{
+			Name:     "dev/null",
+			Mode:     0666 | c_ISCHR,
+			Size:     0,
+			ModTime:  time.Unix(1360578951, 0),
+			Typeflag: TypeChar,
 		},
+		fm: 0666 | os.ModeDevice | os.ModeCharDevice,
+	}, {
 		// block device node.
-		{
-			h: &Header{
-				Name:     "dev/sda",
-				Mode:     0660 | c_ISBLK,
-				Size:     0,
-				ModTime:  time.Unix(1360578954, 0),
-				Typeflag: TypeBlock,
-			},
-			fm: 0660 | os.ModeDevice,
+		h: &Header{
+			Name:     "dev/sda",
+			Mode:     0660 | c_ISBLK,
+			Size:     0,
+			ModTime:  time.Unix(1360578954, 0),
+			Typeflag: TypeBlock,
 		},
+		fm: 0660 | os.ModeDevice,
+	}, {
 		// directory.
-		{
-			h: &Header{
-				Name:     "dir/",
-				Mode:     0755 | c_ISDIR,
-				Size:     0,
-				ModTime:  time.Unix(1360601116, 0),
-				Typeflag: TypeDir,
-			},
-			fm: 0755 | os.ModeDir,
+		h: &Header{
+			Name:     "dir/",
+			Mode:     0755 | c_ISDIR,
+			Size:     0,
+			ModTime:  time.Unix(1360601116, 0),
+			Typeflag: TypeDir,
 		},
+		fm: 0755 | os.ModeDir,
+	}, {
 		// fifo node.
-		{
-			h: &Header{
-				Name:     "dev/initctl",
-				Mode:     0600 | c_ISFIFO,
-				Size:     0,
-				ModTime:  time.Unix(1360578949, 0),
-				Typeflag: TypeFifo,
-			},
-			fm: 0600 | os.ModeNamedPipe,
+		h: &Header{
+			Name:     "dev/initctl",
+			Mode:     0600 | c_ISFIFO,
+			Size:     0,
+			ModTime:  time.Unix(1360578949, 0),
+			Typeflag: TypeFifo,
 		},
+		fm: 0600 | os.ModeNamedPipe,
+	}, {
 		// setuid.
-		{
-			h: &Header{
-				Name:     "bin/su",
-				Mode:     0755 | c_ISREG | c_ISUID,
-				Size:     23232,
-				ModTime:  time.Unix(1355405093, 0),
-				Typeflag: TypeReg,
-			},
-			fm: 0755 | os.ModeSetuid,
+		h: &Header{
+			Name:     "bin/su",
+			Mode:     0755 | c_ISREG | c_ISUID,
+			Size:     23232,
+			ModTime:  time.Unix(1355405093, 0),
+			Typeflag: TypeReg,
 		},
+		fm: 0755 | os.ModeSetuid,
+	}, {
 		// setguid.
-		{
-			h: &Header{
-				Name:     "group.txt",
-				Mode:     0750 | c_ISREG | c_ISGID,
-				Size:     0,
-				ModTime:  time.Unix(1360602346, 0),
-				Typeflag: TypeReg,
-			},
-			fm: 0750 | os.ModeSetgid,
+		h: &Header{
+			Name:     "group.txt",
+			Mode:     0750 | c_ISREG | c_ISGID,
+			Size:     0,
+			ModTime:  time.Unix(1360602346, 0),
+			Typeflag: TypeReg,
 		},
+		fm: 0750 | os.ModeSetgid,
+	}, {
 		// sticky.
-		{
-			h: &Header{
-				Name:     "sticky.txt",
-				Mode:     0600 | c_ISREG | c_ISVTX,
-				Size:     7,
-				ModTime:  time.Unix(1360602540, 0),
-				Typeflag: TypeReg,
-			},
-			fm: 0600 | os.ModeSticky,
+		h: &Header{
+			Name:     "sticky.txt",
+			Mode:     0600 | c_ISREG | c_ISVTX,
+			Size:     7,
+			ModTime:  time.Unix(1360602540, 0),
+			Typeflag: TypeReg,
 		},
+		fm: 0600 | os.ModeSticky,
+	}, {
 		// hard link.
-		{
-			h: &Header{
-				Name:     "hard.txt",
-				Mode:     0644 | c_ISREG,
-				Size:     0,
-				Linkname: "file.txt",
-				ModTime:  time.Unix(1360600916, 0),
-				Typeflag: TypeLink,
-			},
-			fm: 0644,
+		h: &Header{
+			Name:     "hard.txt",
+			Mode:     0644 | c_ISREG,
+			Size:     0,
+			Linkname: "file.txt",
+			ModTime:  time.Unix(1360600916, 0),
+			Typeflag: TypeLink,
 		},
+		fm: 0644,
+	}, {
 		// More information.
-		{
-			h: &Header{
-				Name:     "info.txt",
-				Mode:     0600 | c_ISREG,
-				Size:     0,
-				Uid:      1000,
-				Gid:      1000,
-				ModTime:  time.Unix(1360602540, 0),
-				Uname:    "slartibartfast",
-				Gname:    "users",
-				Typeflag: TypeReg,
-			},
-			fm: 0600,
+		h: &Header{
+			Name:     "info.txt",
+			Mode:     0600 | c_ISREG,
+			Size:     0,
+			Uid:      1000,
+			Gid:      1000,
+			ModTime:  time.Unix(1360602540, 0),
+			Uname:    "slartibartfast",
+			Gname:    "users",
+			Typeflag: TypeReg,
 		},
-	}
+		fm: 0600,
+	}}
 
-	for i, g := range golden {
-		fi := g.h.FileInfo()
+	for i, v := range vectors {
+		fi := v.h.FileInfo()
 		h2, err := FileInfoHeader(fi, "")
 		if err != nil {
 			t.Error(err)
 			continue
 		}
 		if strings.Contains(fi.Name(), "/") {
-			t.Errorf("FileInfo of %q contains slash: %q", g.h.Name, fi.Name())
+			t.Errorf("FileInfo of %q contains slash: %q", v.h.Name, fi.Name())
 		}
-		name := path.Base(g.h.Name)
+		name := path.Base(v.h.Name)
 		if fi.IsDir() {
 			name += "/"
 		}
 		if got, want := h2.Name, name; got != want {
 			t.Errorf("i=%d: Name: got %v, want %v", i, got, want)
 		}
-		if got, want := h2.Size, g.h.Size; got != want {
+		if got, want := h2.Size, v.h.Size; got != want {
 			t.Errorf("i=%d: Size: got %v, want %v", i, got, want)
 		}
-		if got, want := h2.Uid, g.h.Uid; got != want {
+		if got, want := h2.Uid, v.h.Uid; got != want {
 			t.Errorf("i=%d: Uid: got %d, want %d", i, got, want)
 		}
-		if got, want := h2.Gid, g.h.Gid; got != want {
+		if got, want := h2.Gid, v.h.Gid; got != want {
 			t.Errorf("i=%d: Gid: got %d, want %d", i, got, want)
 		}
-		if got, want := h2.Uname, g.h.Uname; got != want {
+		if got, want := h2.Uname, v.h.Uname; got != want {
 			t.Errorf("i=%d: Uname: got %q, want %q", i, got, want)
 		}
-		if got, want := h2.Gname, g.h.Gname; got != want {
+		if got, want := h2.Gname, v.h.Gname; got != want {
 			t.Errorf("i=%d: Gname: got %q, want %q", i, got, want)
 		}
-		if got, want := h2.Linkname, g.h.Linkname; got != want {
+		if got, want := h2.Linkname, v.h.Linkname; got != want {
 			t.Errorf("i=%d: Linkname: got %v, want %v", i, got, want)
 		}
-		if got, want := h2.Typeflag, g.h.Typeflag; got != want {
-			t.Logf("%#v %#v", g.h, fi.Sys())
+		if got, want := h2.Typeflag, v.h.Typeflag; got != want {
+			t.Logf("%#v %#v", v.h, fi.Sys())
 			t.Errorf("i=%d: Typeflag: got %q, want %q", i, got, want)
 		}
-		if got, want := h2.Mode, g.h.Mode; got != want {
+		if got, want := h2.Mode, v.h.Mode; got != want {
 			t.Errorf("i=%d: Mode: got %o, want %o", i, got, want)
 		}
-		if got, want := fi.Mode(), g.fm; got != want {
+		if got, want := fi.Mode(), v.fm; got != want {
 			t.Errorf("i=%d: fi.Mode: got %o, want %o", i, got, want)
 		}
-		if got, want := h2.AccessTime, g.h.AccessTime; got != want {
+		if got, want := h2.AccessTime, v.h.AccessTime; got != want {
 			t.Errorf("i=%d: AccessTime: got %v, want %v", i, got, want)
 		}
-		if got, want := h2.ChangeTime, g.h.ChangeTime; got != want {
+		if got, want := h2.ChangeTime, v.h.ChangeTime; got != want {
 			t.Errorf("i=%d: ChangeTime: got %v, want %v", i, got, want)
 		}
-		if got, want := h2.ModTime, g.h.ModTime; got != want {
+		if got, want := h2.ModTime, v.h.ModTime; got != want {
 			t.Errorf("i=%d: ModTime: got %v, want %v", i, got, want)
 		}
-		if sysh, ok := fi.Sys().(*Header); !ok || sysh != g.h {
+		if sysh, ok := fi.Sys().(*Header); !ok || sysh != v.h {
 			t.Errorf("i=%d: Sys didn't return original *Header", i)
 		}
 	}
