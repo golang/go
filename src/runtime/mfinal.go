@@ -19,7 +19,7 @@ import (
 type finblock struct {
 	alllink *finblock
 	next    *finblock
-	cnt     int32
+	cnt     uint32
 	_       int32
 	fin     [(_FinBlockSize - 2*sys.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
 }
@@ -72,7 +72,7 @@ var finalizer1 = [...]byte{
 
 func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot *ptrtype) {
 	lock(&finlock)
-	if finq == nil || finq.cnt == int32(len(finq.fin)) {
+	if finq == nil || finq.cnt == uint32(len(finq.fin)) {
 		if finc == nil {
 			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gc_sys))
 			finc.alllink = allfin
@@ -99,7 +99,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 		finq = block
 	}
 	f := &finq.fin[finq.cnt]
-	finq.cnt++
+	atomic.Xadd(&finq.cnt, +1) // Sync with markroots
 	f.fn = fn
 	f.nret = nret
 	f.fint = fint
@@ -112,7 +112,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 //go:nowritebarrier
 func iterate_finq(callback func(*funcval, unsafe.Pointer, uintptr, *_type, *ptrtype)) {
 	for fb := allfin; fb != nil; fb = fb.alllink {
-		for i := int32(0); i < fb.cnt; i++ {
+		for i := uint32(0); i < fb.cnt; i++ {
 			f := &fb.fin[i]
 			callback(f.fn, f.arg, f.nret, f.fint, f.ot)
 		}
@@ -208,11 +208,14 @@ func runfinq() {
 				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz))
 				fingRunning = false
 
-				// drop finalizer queue references to finalized object
+				// Drop finalizer queue heap references
+				// before hiding them from markroot.
+				// This also ensures these will be
+				// clear if we reuse the finalizer.
 				f.fn = nil
 				f.arg = nil
 				f.ot = nil
-				fb.cnt = i - 1
+				atomic.Store(&fb.cnt, i-1)
 			}
 			next := fb.next
 			lock(&finlock)
