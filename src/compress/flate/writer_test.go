@@ -75,7 +75,7 @@ func TestWriteError(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewWriter: level %d: %v", l, err)
 			}
-			n, err := io.CopyBuffer(w, bytes.NewBuffer(in), copyBuffer)
+			n, err := io.CopyBuffer(w, struct{ io.Reader }{bytes.NewBuffer(in)}, copyBuffer)
 			if err == nil {
 				t.Fatalf("Level %d: Expected an error, writer was %#v", l, ew)
 			}
@@ -142,7 +142,7 @@ func testDeterministic(i int, t *testing.T) {
 	}
 	// Use a very small prime sized buffer.
 	cbuf := make([]byte, 787)
-	_, err = io.CopyBuffer(w, br, cbuf)
+	_, err = io.CopyBuffer(w, struct{ io.Reader }{br}, cbuf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func testDeterministic(i int, t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = io.CopyBuffer(w2, br2, cbuf)
+	_, err = io.CopyBuffer(w2, struct{ io.Reader }{br2}, cbuf)
 	if err != nil {
 		t.Fatal(err)
 	}

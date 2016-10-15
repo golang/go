@@ -521,10 +521,10 @@ func (d *compressor) fillStore(b []byte) int {
 }
 
 func (d *compressor) store() {
-	if d.windowEnd > 0 {
+	if d.windowEnd > 0 && (d.windowEnd == maxStoreBlockSize || d.sync) {
 		d.err = d.writeStoredBlock(d.window[:d.windowEnd])
+		d.windowEnd = 0
 	}
-	d.windowEnd = 0
 }
 
 // storeHuff compresses and stores the currently added data
