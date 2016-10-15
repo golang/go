@@ -520,7 +520,7 @@ func (w *huffmanBitWriter) writeBlockDynamic(tokens []token, eof bool, input []b
 	// the literalEncoding and the offsetEncoding.
 	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, w.offsetEncoding)
 	w.codegenEncoding.generate(w.codegenFreq[:], 7)
-	size, numCodegens := w.dynamicSize(w.literalEncoding, huffOffset, 0)
+	size, numCodegens := w.dynamicSize(w.literalEncoding, w.offsetEncoding, 0)
 
 	// Store bytes, if we don't get a reasonable improvement.
 	if ssize, storable := w.storedSize(input); storable && ssize < (size+size>>4) {
