@@ -15,7 +15,7 @@ import (
 
 func TestCloseRead(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
