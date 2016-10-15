@@ -55,6 +55,8 @@
 
 		package server
 
+		import "errors"
+
 		type Args struct {
 			A, B int
 		}
