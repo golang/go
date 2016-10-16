@@ -263,7 +263,6 @@ func TestDirectoryJunction(t *testing.T) {
 				t.addPrintName("")
 				return createMountPoint(link, &t)
 			},
-			issueNo: 16145,
 		},
 	}
 	output, _ := osexec.Command("cmd", "/c", "mklink", "/?").Output()
@@ -396,10 +395,104 @@ func TestDirectorySymbolicLink(t *testing.T) {
 				t.addPrintNameNoNUL(filepath.Base(target))
 				return createSymbolicLink(link, &t, true)
 			},
-			issueNo: 15978,
 		},
 	)
 	testDirLinks(t, tests)
+}
+
+func TestNetworkSymbolicLink(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	dir, err := ioutil.TempDir("", "TestNetworkSymbolicLink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	oldwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Chdir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(oldwd)
+
+	shareName := "GoSymbolicLinkTestShare" // hope no conflictions
+	sharePath := filepath.Join(dir, shareName)
+	testDir := "TestDir"
+
+	err = os.MkdirAll(filepath.Join(sharePath, testDir), 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wShareName, err := syscall.UTF16PtrFromString(shareName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wSharePath, err := syscall.UTF16PtrFromString(sharePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := windows.SHARE_INFO_2{
+		Netname:     wShareName,
+		Type:        windows.STYPE_DISKTREE,
+		Remark:      nil,
+		Permissions: 0,
+		MaxUses:     1,
+		CurrentUses: 0,
+		Path:        wSharePath,
+		Passwd:      nil,
+	}
+
+	err = windows.NetShareAdd(nil, 2, (*byte)(unsafe.Pointer(&p)), nil)
+	if err != nil {
+		if err == syscall.ERROR_ACCESS_DENIED {
+			t.Skip("you don't have enough privileges to add network share")
+		}
+		t.Fatal(err)
+	}
+	defer func() {
+		err := windows.NetShareDel(nil, wShareName, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	UNCPath := `\\localhost\` + shareName + `\`
+
+	fi1, err := os.Stat(sharePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fi2, err := os.Stat(UNCPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(fi1, fi2) {
+		t.Fatalf("%q and %q should be the same directory, but not", sharePath, UNCPath)
+	}
+
+	target := filepath.Join(UNCPath, testDir)
+	link := "link"
+
+	err = os.Symlink(target, link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(link)
+
+	got, err := os.Readlink(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got != target {
+		t.Errorf(`os.Readlink("%s"): got %v, want %v`, link, got, target)
+	}
 }
 
 func TestStartProcessAttr(t *testing.T) {

@@ -38,6 +38,7 @@ func errnoErr(e syscall.Errno) error {
 var (
 	modiphlpapi = syscall.NewLazyDLL(sysdll.Add("iphlpapi.dll"))
 	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
+	modnetapi32 = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
 	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
 
 	procGetAdaptersAddresses  = modiphlpapi.NewProc("GetAdaptersAddresses")
@@ -47,6 +48,8 @@ var (
 	procGetConsoleCP          = modkernel32.NewProc("GetConsoleCP")
 	procMultiByteToWideChar   = modkernel32.NewProc("MultiByteToWideChar")
 	procGetCurrentThread      = modkernel32.NewProc("GetCurrentThread")
+	procNetShareAdd           = modnetapi32.NewProc("NetShareAdd")
+	procNetShareDel           = modnetapi32.NewProc("NetShareDel")
 	procImpersonateSelf       = modadvapi32.NewProc("ImpersonateSelf")
 	procRevertToSelf          = modadvapi32.NewProc("RevertToSelf")
 	procOpenThreadToken       = modadvapi32.NewProc("OpenThreadToken")
@@ -120,6 +123,22 @@ func GetCurrentThread() (pseudoHandle syscall.Handle, err error) {
 		} else {
 			err = syscall.EINVAL
 		}
+	}
+	return
+}
+
+func NetShareAdd(serverName *uint16, level uint32, buf *byte, parmErr *uint16) (neterr error) {
+	r0, _, _ := syscall.Syscall6(procNetShareAdd.Addr(), 4, uintptr(unsafe.Pointer(serverName)), uintptr(level), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(parmErr)), 0, 0)
+	if r0 != 0 {
+		neterr = syscall.Errno(r0)
+	}
+	return
+}
+
+func NetShareDel(serverName *uint16, netName *uint16, reserved uint32) (neterr error) {
+	r0, _, _ := syscall.Syscall(procNetShareDel.Addr(), 3, uintptr(unsafe.Pointer(serverName)), uintptr(unsafe.Pointer(netName)), uintptr(reserved))
+	if r0 != 0 {
+		neterr = syscall.Errno(r0)
 	}
 	return
 }
