@@ -40,7 +40,9 @@ var (
 
 	// ErrHijacked is returned by ResponseWriter.Write calls when
 	// the underlying connection has been hijacked using the
-	// Hijacker interfaced.
+	// Hijacker interface. A zero-byte write on a hijacked
+	// connection will return ErrHijacked without any other side
+	// effects.
 	ErrHijacked = errors.New("http: connection has been hijacked")
 
 	// ErrContentLength is returned by ResponseWriter.Write calls
