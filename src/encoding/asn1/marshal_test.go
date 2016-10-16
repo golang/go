@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 )
@@ -163,6 +164,29 @@ func TestMarshal(t *testing.T) {
 		if !bytes.Equal(out, data) {
 			t.Errorf("#%d got: %x want %x\n\t%q\n\t%q", i, data, out, data, out)
 
+		}
+	}
+}
+
+type marshalErrTest struct {
+	in  interface{}
+	err string
+}
+
+var marshalErrTests = []marshalErrTest{
+	{bigIntStruct{nil}, "empty integer"},
+}
+
+func TestMarshalError(t *testing.T) {
+	for i, test := range marshalErrTests {
+		_, err := Marshal(test.in)
+		if err == nil {
+			t.Errorf("#%d should fail, but success", i)
+			continue
+		}
+
+		if !strings.Contains(err.Error(), test.err) {
+			t.Errorf("#%d got: %v want %v", i, err, test.err)
 		}
 	}
 }
