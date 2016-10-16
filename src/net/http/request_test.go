@@ -365,18 +365,68 @@ func TestFormFileOrder(t *testing.T) {
 
 var readRequestErrorTests = []struct {
 	in  string
-	err error
+	err string
+
+	header Header
 }{
-	{"GET / HTTP/1.1\r\nheader:foo\r\n\r\n", nil},
-	{"GET / HTTP/1.1\r\nheader:foo\r\n", io.ErrUnexpectedEOF},
-	{"", io.EOF},
+	0: {"GET / HTTP/1.1\r\nheader:foo\r\n\r\n", "", Header{"Header": {"foo"}}},
+	1: {"GET / HTTP/1.1\r\nheader:foo\r\n", io.ErrUnexpectedEOF.Error(), nil},
+	2: {"", io.EOF.Error(), nil},
+	3: {
+		in:  "HEAD / HTTP/1.1\r\nContent-Length:4\r\n\r\n",
+		err: "http: method cannot contain a Content-Length",
+	},
+	4: {
+		in:     "HEAD / HTTP/1.1\r\n\r\n",
+		header: Header{},
+	},
+
+	// Multiple Content-Length values should either be
+	// deduplicated if same or reject otherwise
+	// See Issue 16490.
+	5: {
+		in:  "POST / HTTP/1.1\r\nContent-Length: 10\r\nContent-Length: 0\r\n\r\nGopher hey\r\n",
+		err: "cannot contain multiple Content-Length headers",
+	},
+	6: {
+		in:  "POST / HTTP/1.1\r\nContent-Length: 10\r\nContent-Length: 6\r\n\r\nGopher\r\n",
+		err: "cannot contain multiple Content-Length headers",
+	},
+	7: {
+		in:     "PUT / HTTP/1.1\r\nContent-Length: 6 \r\nContent-Length: 6\r\nContent-Length:6\r\n\r\nGopher\r\n",
+		err:    "",
+		header: Header{"Content-Length": {"6"}},
+	},
+	8: {
+		in:  "PUT / HTTP/1.1\r\nContent-Length: 1\r\nContent-Length: 6 \r\n\r\n",
+		err: "cannot contain multiple Content-Length headers",
+	},
+	9: {
+		in:  "POST / HTTP/1.1\r\nContent-Length:\r\nContent-Length: 3\r\n\r\n",
+		err: "cannot contain multiple Content-Length headers",
+	},
+	10: {
+		in:     "HEAD / HTTP/1.1\r\nContent-Length:0\r\nContent-Length: 0\r\n\r\n",
+		header: Header{"Content-Length": {"0"}},
+	},
 }
 
 func TestReadRequestErrors(t *testing.T) {
 	for i, tt := range readRequestErrorTests {
-		_, err := ReadRequest(bufio.NewReader(strings.NewReader(tt.in)))
-		if err != tt.err {
-			t.Errorf("%d. got error = %v; want %v", i, err, tt.err)
+		req, err := ReadRequest(bufio.NewReader(strings.NewReader(tt.in)))
+		if err == nil {
+			if tt.err != "" {
+				t.Errorf("#%d: got nil err; want %q", i, tt.err)
+			}
+
+			if !reflect.DeepEqual(tt.header, req.Header) {
+				t.Errorf("#%d: gotHeader: %q wantHeader: %q", i, req.Header, tt.header)
+			}
+			continue
+		}
+
+		if tt.err == "" || !strings.Contains(err.Error(), tt.err) {
+			t.Errorf("%d: got error = %v; want %v", i, err, tt.err)
 		}
 	}
 }
