@@ -132,7 +132,11 @@ func TestParseBigInt(t *testing.T) {
 			if ret.String() != test.base10 {
 				t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
 			}
-			e := makeBigInt(ret)
+			e, err := makeBigInt(ret)
+			if err != nil {
+				t.Errorf("%d: err=%q", i, err)
+				continue
+			}
 			result := make([]byte, e.Len())
 			e.Encode(result)
 			if !bytes.Equal(result, test.in) {

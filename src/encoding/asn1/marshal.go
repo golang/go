@@ -150,7 +150,11 @@ func appendBase128Int(dst []byte, n int64) []byte {
 	return dst
 }
 
-func makeBigInt(n *big.Int) encoder {
+func makeBigInt(n *big.Int) (encoder, error) {
+	if n == nil {
+		return nil, StructuralError{"empty integer"}
+	}
+
 	if n.Sign() < 0 {
 		// A negative number has to be converted to two's-complement
 		// form. So we'll invert and subtract 1. If the
@@ -163,20 +167,20 @@ func makeBigInt(n *big.Int) encoder {
 			bytes[i] ^= 0xff
 		}
 		if len(bytes) == 0 || bytes[0]&0x80 == 0 {
-			return multiEncoder([]encoder{byteFFEncoder, bytesEncoder(bytes)})
+			return multiEncoder([]encoder{byteFFEncoder, bytesEncoder(bytes)}), nil
 		}
-		return bytesEncoder(bytes)
+		return bytesEncoder(bytes), nil
 	} else if n.Sign() == 0 {
 		// Zero is written as a single 0 zero rather than no bytes.
-		return byte00Encoder
+		return byte00Encoder, nil
 	} else {
 		bytes := n.Bytes()
 		if len(bytes) > 0 && bytes[0]&0x80 != 0 {
 			// We'll have to pad this with 0x00 in order to stop it
 			// looking like a negative number.
-			return multiEncoder([]encoder{byte00Encoder, bytesEncoder(bytes)})
+			return multiEncoder([]encoder{byte00Encoder, bytesEncoder(bytes)}), nil
 		}
-		return bytesEncoder(bytes)
+		return bytesEncoder(bytes), nil
 	}
 }
 
@@ -409,7 +413,7 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 	case objectIdentifierType:
 		return makeObjectIdentifier(value.Interface().(ObjectIdentifier))
 	case bigIntType:
-		return makeBigInt(value.Interface().(*big.Int)), nil
+		return makeBigInt(value.Interface().(*big.Int))
 	}
 
 	switch v := value; v.Kind() {
