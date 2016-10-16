@@ -70,6 +70,8 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 // word in the passed-in argument frame.
 func makeFuncStub()
 
+// This type is partially duplicated as runtime.reflectMethodValue.
+// Any changes should be reflected in both.
 type methodValue struct {
 	fn     uintptr
 	stack  *bitVector // stack bitmap for args - offset known to runtime
