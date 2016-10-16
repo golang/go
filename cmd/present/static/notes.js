@@ -38,6 +38,8 @@ function initNotes() {
   // Check if section is valid before retrieving Notes.
   if (section) {
     formattedNotes = formatNotes(section.Notes);
+  } else if (curSlide == 0) {
+    formattedNotes = formatNotes(titleNotes);
   }
 
   // Hack to apply css. Requires existing html on notesWindow.
@@ -99,7 +101,9 @@ function updateNotes() {
 
   if (section && section.Notes) {
     el.innerHTML = formatNotes(section.Notes);
-  } else {
+  } else if (destSlide == 0) {
+    el.innerHTML = formatNotes(titleNotes);
+  }  else {
     el.innerHTML = '';
   }
 };
