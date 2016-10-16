@@ -473,8 +473,29 @@ func (t *transferReader) fixTransferEncoding() error {
 // function is not a method, because ultimately it should be shared by
 // ReadResponse and ReadRequest.
 func fixLength(isResponse bool, status int, requestMethod string, header Header, te []string) (int64, error) {
-	contentLens := header["Content-Length"]
 	isRequest := !isResponse
+	contentLens := header["Content-Length"]
+
+	// Hardening against HTTP request smuggling
+	if len(contentLens) > 1 {
+		// Per RFC 7230 Section 3.3.2, prevent multiple
+		// Content-Length headers if they differ in value.
+		// If there are dups of the value, remove the dups.
+		// See Issue 16490.
+		first := strings.TrimSpace(contentLens[0])
+		for _, ct := range contentLens[1:] {
+			if first != strings.TrimSpace(ct) {
+				return 0, fmt.Errorf("http: message cannot contain multiple Content-Length headers; got %q", contentLens)
+			}
+		}
+
+		// deduplicate Content-Length
+		header.Del("Content-Length")
+		header.Add("Content-Length", first)
+
+		contentLens = header["Content-Length"]
+	}
+
 	// Logic based on response type or status
 	if noBodyExpected(requestMethod) {
 		// For HTTP requests, as part of hardening against request
@@ -492,11 +513,6 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 	switch status {
 	case 204, 304:
 		return 0, nil
-	}
-
-	if len(contentLens) > 1 {
-		// harden against HTTP request smuggling. See RFC 7230.
-		return 0, errors.New("http: message cannot contain multiple Content-Length headers")
 	}
 
 	// Logic based on Transfer-Encoding
@@ -519,7 +535,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 		header.Del("Content-Length")
 	}
 
-	if !isResponse {
+	if isRequest {
 		// RFC 2616 neither explicitly permits nor forbids an
 		// entity-body on a GET request so we permit one if
 		// declared, but we default to 0 here (not -1 below)
