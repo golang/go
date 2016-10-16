@@ -107,7 +107,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 			}
 			frame.fn = f
 			frame.argp = uintptr(deferArgs(d))
-			frame.arglen, frame.argmap = getArgInfo(&frame, f, true)
+			frame.arglen, frame.argmap = getArgInfo(&frame, f, true, fn)
 		}
 		frame.continpc = frame.pc
 		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
@@ -339,7 +339,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// metadata recorded by f's caller.
 		if callback != nil || printing {
 			frame.argp = frame.fp + sys.MinFrameSize
-			frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil)
+			frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil, nil)
 		}
 
 		// Determine frame's 'continuation PC', where it can continue.
@@ -546,19 +546,48 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	return n
 }
 
-func getArgInfo(frame *stkframe, f *_func, needArgMap bool) (arglen uintptr, argmap *bitvector) {
+// reflectMethodValue is a partial duplicate of reflect.methodValue.
+type reflectMethodValue struct {
+	fn    uintptr
+	stack *bitvector // args bitmap
+}
+
+// getArgInfo returns the argument frame information for a call to f
+// with call frame frame.
+//
+// This is used for both actual calls with active stack frames and for
+// deferred calls that are not yet executing. If this is an actual
+// call, ctxt must be nil (getArgInfo will retrieve what it needs from
+// the active stack frame). If this is a deferred call, ctxt must be
+// the function object that was deferred.
+func getArgInfo(frame *stkframe, f *_func, needArgMap bool, ctxt *funcval) (arglen uintptr, argmap *bitvector) {
 	arglen = uintptr(f.args)
 	if needArgMap && f.args == _ArgsSizeUnknown {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
 		switch funcname(f) {
 		case "reflect.makeFuncStub", "reflect.methodValueCall":
-			arg0 := frame.sp + sys.MinFrameSize
-			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
-			if fn[0] != f.entry {
+			// These take a *reflect.methodValue as their
+			// context register.
+			var mv *reflectMethodValue
+			if ctxt != nil {
+				// This is not an actual call, but a
+				// deferred call. The function value
+				// is itself the *reflect.methodValue.
+				mv = (*reflectMethodValue)(unsafe.Pointer(ctxt))
+			} else {
+				// This is a real call that took the
+				// *reflect.methodValue as its context
+				// register and immediately saved it
+				// to 0(SP). Get the methodValue from
+				// 0(SP).
+				arg0 := frame.sp + sys.MinFrameSize
+				mv = *(**reflectMethodValue)(unsafe.Pointer(arg0))
+			}
+			if mv.fn != f.entry {
 				print("runtime: confused by ", funcname(f), "\n")
 				throw("reflect mismatch")
 			}
-			bv := (*bitvector)(unsafe.Pointer(fn[1]))
+			bv := mv.stack
 			arglen = uintptr(bv.n * sys.PtrSize)
 			argmap = bv
 		}
