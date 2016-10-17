@@ -101,6 +101,26 @@ func TestCatStdin(t *testing.T) {
 	}
 }
 
+func TestEchoFileRace(t *testing.T) {
+	cmd := helperCommand(t, "echo")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatalf("StdinPipe: %v", err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	wrote := make(chan bool)
+	go func() {
+		defer close(wrote)
+		fmt.Fprint(stdin, "echo\n")
+	}()
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	<-wrote
+}
+
 func TestCatGoodAndBadFile(t *testing.T) {
 	// Testing combined output and error values.
 	bs, err := helperCommand(t, "cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
