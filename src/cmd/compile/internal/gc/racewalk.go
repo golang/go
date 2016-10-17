@@ -145,36 +145,21 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		goto ret
 
 	case OBLOCK:
-		var out []*Node
 		ls := n.List.Slice()
-		for i := 0; i < len(ls); i++ {
-			switch ls[i].Op {
-			case OCALLFUNC, OCALLMETH, OCALLINTER:
-				instrumentnode(&ls[i], &ls[i].Ninit, 0, 0)
-				out = append(out, ls[i])
-				// Scan past OAS nodes copying results off stack.
-				// Those must not be instrumented, because the
-				// instrumentation calls will smash the results.
-				// The assignments are to temporaries, so they cannot
-				// be involved in races and need not be instrumented.
-				for i+1 < len(ls) && ls[i+1].Op == OAS && iscallret(ls[i+1].Right) {
-					i++
-					out = append(out, ls[i])
-				}
-			default:
-				var outn Nodes
-				outn.Set(out)
-				instrumentnode(&ls[i], &outn, 0, 0)
-				if ls[i].Op != OAS && ls[i].Op != OASWB && ls[i].Op != OAS2FUNC || ls[i].Ninit.Len() == 0 {
-					out = append(outn.Slice(), ls[i])
-				} else {
-					// Splice outn onto end of ls[i].Ninit
-					ls[i].Ninit.AppendNodes(&outn)
-					out = append(out, ls[i])
-				}
+		afterCall := false
+		for i := range ls {
+			op := ls[i].Op
+			// Scan past OAS nodes copying results off stack.
+			// Those must not be instrumented, because the
+			// instrumentation calls will smash the results.
+			// The assignments are to temporaries, so they cannot
+			// be involved in races and need not be instrumented.
+			if afterCall && op == OAS && iscallret(ls[i].Right) {
+				continue
 			}
+			instrumentnode(&ls[i], &ls[i].Ninit, 0, 0)
+			afterCall = (op == OCALLFUNC || op == OCALLMETH || op == OCALLINTER)
 		}
-		n.List.Set(out)
 		goto ret
 
 	case ODEFER:
