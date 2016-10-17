@@ -506,21 +506,6 @@ func ifacedcl(n *Node) {
 	if isblank(n.Left) {
 		yyerror("methods must have a unique non-blank name")
 	}
-
-	n.Func = new(Func)
-	n.Func.FCurfn = Curfn
-	dclcontext = PPARAM
-
-	funcstart(n)
-	funcargs(n.Right)
-
-	// funcbody is normally called after the parser has
-	// seen the body of a function but since an interface
-	// field declaration does not have a body, we must
-	// call it now to pop the current declaration context.
-	dclcontext = PAUTO
-
-	funcbody(n)
 }
 
 // declare the function proper
