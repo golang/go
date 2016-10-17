@@ -182,6 +182,7 @@ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 const (
 	_AT_NULL   = 0  // End of vector
 	_AT_PAGESZ = 6  // System physical page size
+	_AT_HWCAP  = 16 // hardware capability bit vector
 	_AT_RANDOM = 25 // introduced in 2.6.29
 )
 

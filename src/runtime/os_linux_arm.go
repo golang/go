@@ -8,7 +8,6 @@ import "unsafe"
 
 const (
 	_AT_PLATFORM = 15 //  introduced in at least 2.6.11
-	_AT_HWCAP    = 16 // introduced in at least 2.6.11
 
 	_HWCAP_VFP   = 1 << 6  // introduced in at least 2.6.11
 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
