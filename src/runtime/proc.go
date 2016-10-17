@@ -1449,6 +1449,7 @@ func oneNewExtraM() {
 	gp.syscallsp = gp.sched.sp
 	gp.stktopsp = gp.sched.sp
 	gp.gcscanvalid = true // fresh G, so no dequeueRescan necessary
+	gp.gcscandone = true
 	gp.gcRescan = -1
 	// malg returns status as Gidle, change to Gsyscall before adding to allg
 	// where GC will see it.
