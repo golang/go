@@ -2992,3 +2992,21 @@ func TestGoGetUpdateWithWildcard(t *testing.T) {
 	const notExpectedPkgPath = "src/github.com/tmwh/go-get-issue-14450-c-dependency/e"
 	tg.mustNotExist(tg.path(notExpectedPkgPath))
 }
+
+func TestGoEnv(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOARCH", "arm")
+	tg.run("env", "GOARCH")
+	tg.grepStdout("^arm$", "GOARCH not honored")
+
+	tg.run("env", "GCCGO")
+	tg.grepStdout(".", "GCCGO unexpectedly empty")
+
+	tg.run("env", "CGO_CFLAGS")
+	tg.grepStdout(".", "default CGO_CFLAGS unexpectedly empty")
+
+	tg.setenv("CGO_CFLAGS", "-foobar")
+	tg.run("env", "CGO_CFLAGS")
+	tg.grepStdout("^-foobar$", "CGO_CFLAGS not honored")
+}

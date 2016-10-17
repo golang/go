@@ -1100,6 +1100,9 @@
 // 	CGO_CXXFLAGS
 // 		Flags that cgo will pass to the compiler when compiling
 // 		C++ code.
+// 	CGO_FFLAGS
+// 		Flags that cgo will pass to the compiler when compiling
+// 		Fortran code.
 // 	CGO_LDFLAGS
 // 		Flags that cgo will pass to the compiler when linking.
 // 	CXX
