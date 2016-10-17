@@ -232,12 +232,22 @@ func ctxDriverBegin(ctx context.Context, ci driver.Conn) (driver.Tx, error) {
 	if ciCtx, is := ci.(driver.ConnBeginContext); is {
 		return ciCtx.BeginContext(ctx)
 	}
+
 	if ctx.Done() == context.Background().Done() {
 		return ci.Begin()
 	}
 
-	// TODO(kardianos): check the transaction level in ctx. If set and non-default
+	// Check the transaction level in ctx. If set and non-default
 	// then return an error here as the BeginContext driver value is not supported.
+	if level, ok := driver.IsolationFromContext(ctx); ok && level != driver.IsolationLevel(LevelDefault) {
+		return nil, errors.New("sql: driver does not support non-default isolation level")
+	}
+
+	// Check for a read-only parameter in ctx. If a read-only transaction is
+	// requested return an error as the BeginContext driver value is not supported.
+	if ro := driver.ReadOnlyFromContext(ctx); ro {
+		return nil, errors.New("sql: driver does not support read-only transactions")
+	}
 
 	type R struct {
 		err   error
