@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"math"
 	"math/rand"
 	"net"
@@ -456,91 +455,6 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 	<-closeReturned
 	if err := tconn.Close(); err != errClosed {
 		t.Errorf("Close error = %v; want errClosed", err)
-	}
-}
-
-func TestConnCloseWrite(t *testing.T) {
-	ln := newLocalListener(t)
-	defer ln.Close()
-
-	go func() {
-		sconn, err := ln.Accept()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		serverConfig := testConfig.Clone()
-		srv := Server(sconn, serverConfig)
-		if err := srv.Handshake(); err != nil {
-			t.Fatalf("handshake: %v", err)
-		}
-		defer srv.Close()
-
-		data, err := ioutil.ReadAll(srv)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(data) > 0 {
-			t.Errorf("Read data = %q; want nothing", data)
-		}
-
-		if err = srv.CloseWrite(); err != nil {
-			t.Errorf("server CloseWrite: %v", err)
-		}
-	}()
-
-	clientConfig := testConfig.Clone()
-	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = conn.Handshake(); err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-
-	if err = conn.CloseWrite(); err != nil {
-		t.Errorf("client CloseWrite: %v", err)
-	}
-
-	if _, err := conn.Write([]byte{0}); err != errShutdown {
-		t.Errorf("CloseWrite error = %v; want errShutdown", err)
-	}
-
-	data, err := ioutil.ReadAll(conn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(data) > 0 {
-		t.Errorf("Read data = %q; want nothing", data)
-	}
-
-	// test CloseWrite called before handshake finished
-
-	ln2 := newLocalListener(t)
-	defer ln2.Close()
-
-	go func() {
-		sconn, err := ln2.Accept()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		serverConfig := testConfig.Clone()
-		srv := Server(sconn, serverConfig)
-
-		srv.Handshake()
-		srv.Close()
-	}()
-
-	netConn, err := net.Dial("tcp", ln2.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	conn = Client(netConn, clientConfig)
-
-	if err = conn.CloseWrite(); err != errEarlyCloseWrite {
-		t.Errorf("CloseWrite error = %v; want errEarlyCloseWrite", err)
 	}
 }
 
