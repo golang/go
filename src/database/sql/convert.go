@@ -17,6 +17,13 @@ import (
 
 var errNilPtr = errors.New("destination pointer is nil") // embedded in descriptive error
 
+func describeNamedValue(nv *driver.NamedValue) string {
+	if len(nv.Name) == 0 {
+		return fmt.Sprintf("$%d", nv.Ordinal)
+	}
+	return fmt.Sprintf("with name %q", nv.Name)
+}
+
 // driverArgs converts arguments from callers of Stmt.Exec and
 // Stmt.Query into driver Values.
 //
@@ -33,15 +40,16 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
 	if !ok {
 		for n, arg := range args {
 			var err error
-			nvargs[n].Ordinal = n + 1
+			nv := &nvargs[n]
+			nv.Ordinal = n + 1
 			if np, ok := arg.(NamedParam); ok {
 				arg = np.Value
 				nvargs[n].Name = np.Name
 			}
-			nvargs[n].Value, err = driver.DefaultParameterConverter.ConvertValue(arg)
+			nv.Value, err = driver.DefaultParameterConverter.ConvertValue(arg)
 
 			if err != nil {
-				return nil, fmt.Errorf("sql: converting Exec argument #%d's type: %v", n, err)
+				return nil, fmt.Errorf("sql: converting Exec argument %s type: %v", describeNamedValue(nv), err)
 			}
 		}
 		return nvargs, nil
@@ -49,10 +57,11 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
 
 	// Let the Stmt convert its own arguments.
 	for n, arg := range args {
-		nvargs[n].Ordinal = n + 1
+		nv := &nvargs[n]
+		nv.Ordinal = n + 1
 		if np, ok := arg.(NamedParam); ok {
 			arg = np.Value
-			nvargs[n].Name = np.Name
+			nv.Name = np.Name
 		}
 		// First, see if the value itself knows how to convert
 		// itself to a driver type. For example, a NullString
@@ -60,10 +69,10 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
 		if vr, ok := arg.(driver.Valuer); ok {
 			sv, err := callValuerValue(vr)
 			if err != nil {
-				return nil, fmt.Errorf("sql: argument index %d from Value: %v", n, err)
+				return nil, fmt.Errorf("sql: argument %s from Value: %v", describeNamedValue(nv), err)
 			}
 			if !driver.IsValue(sv) {
-				return nil, fmt.Errorf("sql: argument index %d: non-subset type %T returned from Value", n, sv)
+				return nil, fmt.Errorf("sql: argument %s: non-subset type %T returned from Value", describeNamedValue(nv), sv)
 			}
 			arg = sv
 		}
@@ -77,14 +86,14 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
 		// same error.
 		var err error
 		ds.Lock()
-		nvargs[n].Value, err = cc.ColumnConverter(n).ConvertValue(arg)
+		nv.Value, err = cc.ColumnConverter(n).ConvertValue(arg)
 		ds.Unlock()
 		if err != nil {
-			return nil, fmt.Errorf("sql: converting argument #%d's type: %v", n, err)
+			return nil, fmt.Errorf("sql: converting argument %s type: %v", describeNamedValue(nv), err)
 		}
-		if !driver.IsValue(nvargs[n].Value) {
-			return nil, fmt.Errorf("sql: driver ColumnConverter error converted %T to unsupported type %T",
-				arg, nvargs[n].Value)
+		if !driver.IsValue(nv.Value) {
+			return nil, fmt.Errorf("sql: for argument %s, driver ColumnConverter error converted %T to unsupported type %T",
+				describeNamedValue(nv), arg, nv.Value)
 		}
 	}
 
