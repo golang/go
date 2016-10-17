@@ -853,7 +853,7 @@ loop32a:
 	BNE	cmpne		// further compare for LT or GT
 	MOVD	16(R5),R9	// get next pair of doublewords
 	MOVD	16(R6),R10
-	CMPU	R4,R15		// bytes match?
+	CMPU	R14,R15		// bytes match?
 	MOVD	$8,R16		// set up for cmpne
 	BNE	cmpne		// further compare for LT or GT
 	MOVD	24(R5),R14	// get next pair of doublewords
