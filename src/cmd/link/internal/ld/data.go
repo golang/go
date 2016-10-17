@@ -330,9 +330,6 @@ func trampoline(ctxt *Link, s *Symbol) {
 	if Thearch.Trampoline == nil {
 		return // no need or no support of trampolines on this arch
 	}
-	if Linkmode == LinkExternal {
-		return // currently only support internal linking
-	}
 
 	for ri := range s.R {
 		r := &s.R[ri]
