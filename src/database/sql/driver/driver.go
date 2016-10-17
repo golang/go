@@ -10,6 +10,7 @@ package driver
 
 import (
 	"context"
+	"database/sql/internal"
 	"errors"
 	"reflect"
 )
@@ -132,12 +133,40 @@ type ConnPrepareContext interface {
 	PrepareContext(ctx context.Context, query string) (Stmt, error)
 }
 
+// IsolationLevel is the transaction isolation level stored in Context.
+//
+// This type should be considered identical to sql.IsolationLevel along
+// with any values defined on it.
+type IsolationLevel int
+
+// IsolationFromContext extracts the isolation level from a Context.
+func IsolationFromContext(ctx context.Context) (level IsolationLevel, ok bool) {
+	level, ok = ctx.Value(internal.IsolationLevelKey{}).(IsolationLevel)
+	return level, ok
+}
+
+// ReadOnlyFromContext extracts the read-only property from a Context.
+// When readonly is true the transaction must be set to read-only
+// or return an error.
+func ReadOnlyFromContext(ctx context.Context) (readonly bool) {
+	readonly, _ = ctx.Value(internal.ReadOnlyKey{}).(bool)
+	return readonly
+}
+
 // ConnBeginContext enhances the Conn interface with context.
 type ConnBeginContext interface {
 	// BeginContext starts and returns a new transaction.
-	// the provided context should be used to roll the transaction back
-	// if it is cancelled. If there is an isolation level in context
-	// that is not supported by the driver an error must be returned.
+	// The provided context should be used to roll the transaction back
+	// if it is cancelled.
+	//
+	// This must call IsolationFromContext to determine if there is a set
+	// isolation level. If the driver does not support setting the isolation
+	// level and one is set or if there is a set isolation level
+	// but the set level is not supported, an error must be returned.
+	//
+	// This must also call ReadOnlyFromContext to determine if the read-only
+	// value is true to either set the read-only transaction property if supported
+	// or return an error if it is not supported.
 	BeginContext(ctx context.Context) (Tx, error)
 }
 
