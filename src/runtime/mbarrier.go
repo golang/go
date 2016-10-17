@@ -331,3 +331,24 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 	}
 	return typedslicecopy(elemType, dst, src)
 }
+
+// typedmemclr clears the typed memory at ptr with type typ. The
+// memory at ptr must already be type-safe.
+//
+// If the caller knows that typ has pointers, it can alternatively
+// call memclrHasPointers.
+//
+//go:nosplit
+func typedmemclr(typ *_type, ptr unsafe.Pointer) {
+	memclr(ptr, typ.size)
+}
+
+// memclrHasPointers clears n bytes of typed memory starting at ptr.
+// The caller must ensure that the type of the object at ptr has
+// pointers, usually by checking typ.kind&kindNoPointers. However, ptr
+// does not have to point to the start of the allocation.
+//
+//go:nosplit
+func memclrHasPointers(ptr unsafe.Pointer, n uintptr) {
+	memclr(ptr, n)
+}

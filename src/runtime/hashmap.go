@@ -637,9 +637,17 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 			if !alg.equal(key, k2) {
 				continue
 			}
-			memclr(k, uintptr(t.keysize))
+			if t.indirectkey {
+				*(*unsafe.Pointer)(k) = nil
+			} else {
+				typedmemclr(t.key, k)
+			}
 			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*uintptr(t.keysize) + i*uintptr(t.valuesize))
-			memclr(v, uintptr(t.valuesize))
+			if t.indirectvalue {
+				*(*unsafe.Pointer)(v) = nil
+			} else {
+				typedmemclr(t.elem, v)
+			}
 			b.tophash[i] = empty
 			h.count--
 			goto done
@@ -1079,7 +1087,11 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.
-			memclr(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
+			if t.bucket.kind&kindNoPointers == 0 {
+				memclrHasPointers(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
+			} else {
+				memclr(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
+			}
 		}
 	}
 
