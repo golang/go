@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"sort"
 )
 
@@ -85,7 +86,8 @@ func mkzcgo(dir, file string) {
 			"\n"+
 			"package build\n"+
 			"\n"+
-			"var cgoEnabled = map[string]bool{\n")
+			"const defaultCGO_ENABLED = %q\n\n"+
+			"var cgoEnabled = map[string]bool{\n", os.Getenv("CGO_ENABLED"))
 	for _, plat := range list {
 		fmt.Fprintf(&buf, "\t%q: true,\n", plat)
 	}
