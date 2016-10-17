@@ -11,33 +11,6 @@ import (
 	"path/filepath"
 )
 
-// funcpctab writes to dst a pc-value table mapping the code in func to the values
-// returned by valfunc parameterized by arg. The invocation of valfunc to update the
-// current value is, for each p,
-//
-//	val = valfunc(func, val, p, 0, arg);
-//	record val as value at p->pc;
-//	val = valfunc(func, val, p, 1, arg);
-//
-// where func is the function, val is the current value, p is the instruction being
-// considered, and arg can be used to further parameterize valfunc.
-
-// pctofileline computes either the file number (arg == 0)
-// or the line number (arg == 1) to use at p.
-// Because p->lineno applies to p, phase == 0 (before p)
-// takes care of the update.
-
-// pctospadj computes the sp adjustment in effect.
-// It is oldval plus any adjustment made by p itself.
-// The adjustment by p takes effect only after p, so we
-// apply the change during phase == 1.
-
-// pctopcdata computes the pcdata value in effect at p.
-// A PCDATA instruction sets the value in effect at future
-// non-PCDATA instructions.
-// Since PCDATA instructions have no width in the final code,
-// it does not matter which phase we use for the update.
-
 // iteration over encoded pcdata tables.
 
 func getvarint(pp *[]byte) uint32 {
@@ -95,10 +68,6 @@ func pciterinit(ctxt *Link, it *Pciter, d *Pcdata) {
 	it.pcscale = uint32(ctxt.Arch.MinLC)
 	pciternext(it)
 }
-
-// Copyright 2013 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 func addvarint(d *Pcdata, val uint32) {
 	n := int32(0)
