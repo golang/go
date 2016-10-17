@@ -4,7 +4,10 @@
 
 package big
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestDecimalString(t *testing.T) {
 	for _, test := range []struct {
@@ -114,5 +117,18 @@ func BenchmarkDecimalConversion(b *testing.B) {
 			d.init(natOne, shift)
 			sink = d.String()
 		}
+	}
+}
+
+func BenchmarkFloatString(b *testing.B) {
+	x := new(Float)
+	for _, prec := range []uint{1e2, 1e3, 1e4, 1e5} {
+		x.SetPrec(prec).SetRat(NewRat(1, 3))
+		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				sink = x.String()
+			}
+		})
 	}
 }
