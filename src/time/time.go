@@ -50,9 +50,16 @@ type Time struct {
 	// loc specifies the Location that should be used to
 	// determine the minute, hour, month, day, and year
 	// that correspond to this Time.
-	// Only the zero Time has a nil Location.
-	// In that case it is interpreted to mean UTC.
+	// The nil location means UTC.
+	// All UTC times are represented with loc==nil, never loc==&utcLoc.
 	loc *Location
+}
+
+func (t *Time) setLoc(loc *Location) {
+	if loc == &utcLoc {
+		loc = nil
+	}
+	t.loc = loc
 }
 
 // After reports whether the time instant t is after u.
@@ -788,13 +795,13 @@ func Now() Time {
 
 // UTC returns t with the location set to UTC.
 func (t Time) UTC() Time {
-	t.loc = UTC
+	t.setLoc(&utcLoc)
 	return t
 }
 
 // Local returns t with the location set to local time.
 func (t Time) Local() Time {
-	t.loc = Local
+	t.setLoc(Local)
 	return t
 }
 
@@ -805,7 +812,7 @@ func (t Time) In(loc *Location) Time {
 	if loc == nil {
 		panic("time: missing Location in call to Time.In")
 	}
-	t.loc = loc
+	t.setLoc(loc)
 	return t
 }
 
@@ -846,7 +853,7 @@ const timeBinaryVersion byte = 1
 func (t Time) MarshalBinary() ([]byte, error) {
 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
 
-	if t.Location() == &utcLoc {
+	if t.Location() == UTC {
 		offsetMin = -1
 	} else {
 		_, offset := t.Zone()
@@ -907,11 +914,11 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
 
 	if offset == -1*60 {
-		t.loc = &utcLoc
+		t.setLoc(&utcLoc)
 	} else if _, localoff, _, _, _ := Local.lookup(t.sec + internalToUnix); offset == localoff {
-		t.loc = Local
+		t.setLoc(Local)
 	} else {
-		t.loc = FixedZone("", offset)
+		t.setLoc(FixedZone("", offset))
 	}
 
 	return nil
@@ -1104,7 +1111,9 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 		unix -= int64(offset)
 	}
 
-	return Time{unix + unixToInternal, int32(nsec), loc}
+	t := Time{unix + unixToInternal, int32(nsec), nil}
+	t.setLoc(loc)
+	return t
 }
 
 // Truncate returns the result of rounding t down to a multiple of d (since the zero time).

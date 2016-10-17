@@ -1117,6 +1117,8 @@ var defaultLocTests = []struct {
 
 	{"Truncate", func(t1, t2 Time) bool { return t1.Truncate(Hour).Equal(t2.Truncate(Hour)) }},
 	{"Round", func(t1, t2 Time) bool { return t1.Round(Hour).Equal(t2.Round(Hour)) }},
+	
+	{"== Time{}", func(t1, t2 Time) bool { return (t1==Time{}) == (t2==Time{}) }},
 }
 
 func TestDefaultLoc(t *testing.T) {
@@ -1126,7 +1128,7 @@ func TestDefaultLoc(t *testing.T) {
 		t1 := Time{}
 		t2 := Time{}.UTC()
 		if !tt.f(t1, t2) {
-			t.Errorf("Default fail on fuction: %s", tt.name)
+			t.Errorf("Time{} and Time{}.UTC() behave differently for %s", tt.name)
 		}
 	}
 }
@@ -1211,5 +1213,20 @@ func BenchmarkDay(b *testing.B) {
 	t := Now()
 	for i := 0; i < b.N; i++ {
 		_ = t.Day()
+	}
+}
+
+func TestMarshalBinaryZeroTime(t *testing.T) {
+	t0 := Time{}
+	enc, err := t0.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t1 := Now() // not zero
+	if err := t1.UnmarshalBinary(enc); err != nil {
+		t.Fatal(err)
+	}
+	if t1 != t0 {
+		t.Errorf("t0=%#v\nt1=%#v\nwant identical structures", t0, t1)
 	}
 }
