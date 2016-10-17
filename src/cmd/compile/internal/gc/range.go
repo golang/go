@@ -393,11 +393,13 @@ func memclrrange(n, v1, v2, a *Node) bool {
 		return false
 	}
 
+	// TODO: Use memclrHasPointers if there are pointers.
+
 	// Convert to
 	// if len(a) != 0 {
 	// 	hp = &a[0]
 	// 	hn = len(a)*sizeof(elem(a))
-	// 	memclr(hp, hn)
+	// 	memclrNoHeapPointers(hp, hn)
 	// 	i = len(a) - 1
 	// }
 	n.Op = OIF
@@ -423,8 +425,8 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	tmp = conv(tmp, Types[TUINTPTR])
 	n.Nbody.Append(nod(OAS, hn, tmp))
 
-	// memclr(hp, hn)
-	fn := mkcall("memclr", nil, nil, hp, hn)
+	// memclrNoHeapPointers(hp, hn)
+	fn := mkcall("memclrNoHeapPointers", nil, nil, hp, hn)
 
 	n.Nbody.Append(fn)
 

@@ -6,8 +6,8 @@
 
 #include "textflag.h"
 
-// void runtime·memclr(void*, uintptr)
-TEXT runtime·memclr(SB), NOSPLIT|NOFRAME, $0-16
+// void runtime·memclrNoHeapPointers(void*, uintptr)
+TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD ptr+0(FP), R3
 	MOVD n+8(FP), R4
 

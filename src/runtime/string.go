@@ -249,7 +249,7 @@ func rawbyteslice(size int) (b []byte) {
 	cap := roundupsize(uintptr(size))
 	p := mallocgc(cap, nil, false)
 	if cap != uintptr(size) {
-		memclr(add(p, uintptr(size)), cap-uintptr(size))
+		memclrNoHeapPointers(add(p, uintptr(size)), cap-uintptr(size))
 	}
 
 	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, int(cap)}
@@ -264,7 +264,7 @@ func rawruneslice(size int) (b []rune) {
 	mem := roundupsize(uintptr(size) * 4)
 	p := mallocgc(mem, nil, false)
 	if mem != uintptr(size)*4 {
-		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
+		memclrNoHeapPointers(add(p, uintptr(size)*4), mem-uintptr(size)*4)
 	}
 
 	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, int(mem / 4)}

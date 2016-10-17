@@ -236,7 +236,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
 	SUBQ	$m__size, SP		// space for M
 	MOVQ	SP, 0(SP)
 	MOVQ	$m__size, 8(SP)
-	CALL	runtime·memclr(SB)	// smashes AX,BX,CX, maybe BP
+	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX, maybe BP
 
 	LEAQ	m_tls(SP), CX
 	MOVQ	CX, 0x28(GS)
@@ -247,7 +247,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
 
 	MOVQ	SP, 0(SP)
 	MOVQ	$g__size, 8(SP)
-	CALL	runtime·memclr(SB)	// smashes AX,BX,CX, maybe BP
+	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX, maybe BP
 	LEAQ	g__size(SP), BX
 	MOVQ	BX, g_m(SP)
 

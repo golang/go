@@ -317,7 +317,7 @@ func semacreate(mp *m) {
 	// here because it could cause a deadlock.
 	_g_.m.libcall.fn = uintptr(unsafe.Pointer(&libc_malloc))
 	_g_.m.libcall.n = 1
-	memclr(unsafe.Pointer(&_g_.m.scratch), uintptr(len(_g_.m.scratch.v)))
+	_g_.m.scratch = mscratch{}
 	_g_.m.scratch.v[0] = unsafe.Sizeof(*sem)
 	_g_.m.libcall.args = uintptr(unsafe.Pointer(&_g_.m.scratch))
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_g_.m.libcall))
@@ -337,7 +337,7 @@ func semasleep(ns int64) int32 {
 
 		_m_.libcall.fn = uintptr(unsafe.Pointer(&libc_sem_reltimedwait_np))
 		_m_.libcall.n = 2
-		memclr(unsafe.Pointer(&_m_.scratch), uintptr(len(_m_.scratch.v)))
+		_m_.scratch = mscratch{}
 		_m_.scratch.v[0] = _m_.waitsema
 		_m_.scratch.v[1] = uintptr(unsafe.Pointer(&_m_.ts))
 		_m_.libcall.args = uintptr(unsafe.Pointer(&_m_.scratch))
@@ -353,7 +353,7 @@ func semasleep(ns int64) int32 {
 	for {
 		_m_.libcall.fn = uintptr(unsafe.Pointer(&libc_sem_wait))
 		_m_.libcall.n = 1
-		memclr(unsafe.Pointer(&_m_.scratch), uintptr(len(_m_.scratch.v)))
+		_m_.scratch = mscratch{}
 		_m_.scratch.v[0] = _m_.waitsema
 		_m_.libcall.args = uintptr(unsafe.Pointer(&_m_.scratch))
 		asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_m_.libcall))

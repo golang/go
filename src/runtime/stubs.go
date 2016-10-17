@@ -60,20 +60,24 @@ func badsystemstack() {
 	throw("systemstack called from unexpected goroutine")
 }
 
-// memclr clears n bytes starting at ptr.
+// memclrNoHeapPointers clears n bytes starting at ptr.
 //
-// Usually you should use typedmemclr. memclr should be used only when
-// the caller knows that *ptr contains no heap pointers or to
-// initialize memory to a type-safe state when allocation reuses dead
-// memory.
+// Usually you should use typedmemclr. memclrNoHeapPointers should be
+// used only when the caller knows that *ptr contains no heap pointers
+// because either:
+//
+// 1. *ptr is initialized memory and its type is pointer-free.
+//
+// 2. *ptr is uninitialized memory (e.g., memory that's being reused
+//    for a new allocation) and hence contains only "junk".
 //
 // in memclr_*.s
 //go:noescape
-func memclr(ptr unsafe.Pointer, n uintptr)
+func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
-//go:linkname reflect_memclr reflect.memclr
-func reflect_memclr(ptr unsafe.Pointer, n uintptr) {
-	memclr(ptr, n)
+//go:linkname reflect_memclrNoHeapPointers reflect.memclrNoHeapPointers
+func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
+	memclrNoHeapPointers(ptr, n)
 }
 
 // memmove copies n bytes from "from" to "to".

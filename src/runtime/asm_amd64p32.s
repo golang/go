@@ -484,7 +484,7 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	MOVL	0, AX
 	RET
 
-TEXT runtime·memclr(SB),NOSPLIT,$0-8
+TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-8
 	MOVL	ptr+0(FP), DI
 	MOVL	n+4(FP), CX
 	MOVQ	CX, BX

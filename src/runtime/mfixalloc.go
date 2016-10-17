@@ -72,7 +72,7 @@ func (f *fixalloc) alloc() unsafe.Pointer {
 		f.list = f.list.next
 		f.inuse += f.size
 		if f.zero {
-			memclr(v, f.size)
+			memclrNoHeapPointers(v, f.size)
 		}
 		return v
 	}

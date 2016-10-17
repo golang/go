@@ -155,7 +155,11 @@ var Int32Hash = int32Hash
 var Int64Hash = int64Hash
 var EfaceHash = efaceHash
 var IfaceHash = ifaceHash
-var MemclrBytes = memclrBytes
+
+func MemclrBytes(b []byte) {
+	s := (*slice)(unsafe.Pointer(&b))
+	memclrNoHeapPointers(s.array, uintptr(s.len))
+}
 
 var HashLoad = &hashLoad
 

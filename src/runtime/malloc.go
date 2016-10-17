@@ -682,7 +682,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			}
 			x = unsafe.Pointer(v)
 			if needzero && span.needzero != 0 {
-				memclr(unsafe.Pointer(v), size)
+				memclrNoHeapPointers(unsafe.Pointer(v), size)
 			}
 		}
 	} else {

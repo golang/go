@@ -1090,7 +1090,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 			if t.bucket.kind&kindNoPointers == 0 {
 				memclrHasPointers(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
 			} else {
-				memclr(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
+				memclrNoHeapPointers(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
 			}
 		}
 	}

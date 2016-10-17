@@ -113,6 +113,7 @@ func writebarrierptr(dst *any, src any)
 
 // *byte is really *runtime.Type
 func typedmemmove(typ *byte, dst *any, src *any)
+func typedmemclr(typ *byte, dst *any)
 func typedslicecopy(typ *byte, dst any, src any) int
 
 func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
@@ -131,7 +132,8 @@ func makeslice(typ *byte, len int, cap int) (ary []any)
 func makeslice64(typ *byte, len int64, cap int64) (ary []any)
 func growslice(typ *byte, old []any, cap int) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
-func memclr(ptr *byte, length uintptr)
+func memclrNoHeapPointers(ptr *byte, length uintptr)
+func memclrHasPointers(ptr *byte, length uintptr)
 
 func memequal(x, y *any, size uintptr) bool
 func memequal8(x, y *any) bool
