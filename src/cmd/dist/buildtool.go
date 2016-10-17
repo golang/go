@@ -139,7 +139,9 @@ func bootstrapBuildTools() {
 	// Run Go 1.4 to build binaries. Use -gcflags=-l to disable inlining to
 	// workaround bugs in Go 1.4's compiler. See discussion thread:
 	// https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
-	run(workspace, ShowOutput|CheckExit, pathf("%s/bin/go", goroot_bootstrap), "install", "-gcflags=-l", "-v", "bootstrap/cmd/...")
+	// Use the math_big_pure_go build tag to disable the assembly in math/big
+	// which may contain unsupported instructions.
+	run(workspace, ShowOutput|CheckExit, pathf("%s/bin/go", goroot_bootstrap), "install", "-gcflags=-l", "-tags=math_big_pure_go", "-v", "bootstrap/cmd/...")
 
 	// Copy binaries into tool binary directory.
 	for _, name := range bootstrapDirs {
