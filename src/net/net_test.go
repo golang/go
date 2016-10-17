@@ -457,6 +457,9 @@ func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
 // See golang.org/cl/30164 which documented this. The net/http package
 // depends on this.
 func TestReadTimeoutUnblocksRead(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skipf("not supported on %s; see golang.org/issue/17477", runtime.GOOS)
+	}
 	serverDone := make(chan struct{})
 	server := func(cs *TCPConn) error {
 		defer close(serverDone)
