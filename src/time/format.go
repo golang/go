@@ -1021,12 +1021,12 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		// If that zone was in effect at the given time, use it.
 		name, offset, _, _, _ := local.lookup(t.sec + internalToUnix)
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
-			t.loc = local
+			t.setLoc(local)
 			return t, nil
 		}
 
 		// Otherwise create fake zone to record offset.
-		t.loc = FixedZone(zoneName, zoneOffset)
+		t.setLoc(FixedZone(zoneName, zoneOffset))
 		return t, nil
 	}
 
@@ -1037,7 +1037,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		offset, _, ok := local.lookupName(zoneName, t.sec+internalToUnix)
 		if ok {
 			t.sec -= int64(offset)
-			t.loc = local
+			t.setLoc(local)
 			return t, nil
 		}
 
@@ -1046,7 +1046,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
 			offset *= 3600
 		}
-		t.loc = FixedZone(zoneName, offset)
+		t.setLoc(FixedZone(zoneName, offset))
 		return t, nil
 	}
 
