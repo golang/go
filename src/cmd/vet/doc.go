@@ -84,14 +84,14 @@ Flag: -copylocks
 
 Locks that are erroneously passed by value.
 
-Tests, benchmarks and documentation examples
+Tests and documentation examples
 
 Flag: -tests
 
 Mistakes involving tests including functions with incorrect names or signatures
 and example tests that document identifiers not in the package.
 
-Failure to call the cancelation function returned by context.WithCancel.
+Failure to call the cancelation function returned by WithCancel
 
 Flag: -lostcancel
 
@@ -136,8 +136,6 @@ complains about arguments that look like format descriptor strings.
 
 It also checks for errors such as using a Writer as the first argument of
 Printf.
-
-Struct tags
 
 Range loop variables
 
