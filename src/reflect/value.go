@@ -440,6 +440,8 @@ func (v Value) call(op string, in []Value) []Value {
 
 	var ret []Value
 	if nout == 0 {
+		// This is untyped because the frame is really a
+		// stack, even though it's a heap object.
 		memclr(args, frametype.size)
 		framePool.Put(args)
 	} else {
@@ -644,6 +646,8 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 		retOffset,
 		frametype.size-retOffset)
 
+	// This is untyped because the frame is really a stack, even
+	// though it's a heap object.
 	memclr(args, frametype.size)
 	framePool.Put(args)
 }

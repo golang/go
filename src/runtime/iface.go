@@ -222,7 +222,7 @@ func assertI2T(t *_type, i iface, r unsafe.Pointer) {
 func assertI2T2(t *_type, i iface, r unsafe.Pointer) bool {
 	tab := i.tab
 	if tab == nil || tab._type != t {
-		memclr(r, t.size)
+		typedmemclr(t, r)
 		return false
 	}
 	if isDirectIface(t) {
@@ -257,7 +257,7 @@ func assertE2T2(t *_type, e eface, r unsafe.Pointer) bool {
 		GC()
 	}
 	if e._type != t {
-		memclr(r, t.size)
+		typedmemclr(t, r)
 		return false
 	}
 	if isDirectIface(t) {

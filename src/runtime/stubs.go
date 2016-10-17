@@ -61,6 +61,12 @@ func badsystemstack() {
 }
 
 // memclr clears n bytes starting at ptr.
+//
+// Usually you should use typedmemclr. memclr should be used only when
+// the caller knows that *ptr contains no heap pointers or to
+// initialize memory to a type-safe state when allocation reuses dead
+// memory.
+//
 // in memclr_*.s
 //go:noescape
 func memclr(ptr unsafe.Pointer, n uintptr)

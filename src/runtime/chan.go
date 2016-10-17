@@ -334,7 +334,7 @@ func closechan(c *hchan) {
 			break
 		}
 		if sg.elem != nil {
-			memclr(sg.elem, uintptr(c.elemsize))
+			typedmemclr(c.elemtype, sg.elem)
 			sg.elem = nil
 		}
 		if sg.releasetime != 0 {
@@ -443,7 +443,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 		}
 		unlock(&c.lock)
 		if ep != nil {
-			memclr(ep, uintptr(c.elemsize))
+			typedmemclr(c.elemtype, ep)
 		}
 		return true, false
 	}
@@ -467,7 +467,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 		if ep != nil {
 			typedmemmove(c.elemtype, ep, qp)
 		}
-		memclr(qp, uintptr(c.elemsize))
+		typedmemclr(c.elemtype, qp)
 		c.recvx++
 		if c.recvx == c.dataqsiz {
 			c.recvx = 0

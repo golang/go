@@ -518,7 +518,7 @@ bufrecv:
 	if cas.elem != nil {
 		typedmemmove(c.elemtype, cas.elem, qp)
 	}
-	memclr(qp, uintptr(c.elemsize))
+	typedmemclr(c.elemtype, qp)
 	c.recvx++
 	if c.recvx == c.dataqsiz {
 		c.recvx = 0
@@ -564,7 +564,7 @@ rclose:
 		*cas.receivedp = false
 	}
 	if cas.elem != nil {
-		memclr(cas.elem, uintptr(c.elemsize))
+		typedmemclr(c.elemtype, cas.elem)
 	}
 	if raceenabled {
 		raceacquire(unsafe.Pointer(c))
