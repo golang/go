@@ -631,7 +631,7 @@ func mdump() {
 			s.ensureSwept()
 		}
 	}
-	memclr(unsafe.Pointer(&typecache), unsafe.Sizeof(typecache))
+	memclrNoHeapPointers(unsafe.Pointer(&typecache), unsafe.Sizeof(typecache))
 	dwrite(unsafe.Pointer(&dumphdr[0]), uintptr(len(dumphdr)))
 	dumpparams()
 	dumpitabs()

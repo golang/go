@@ -629,7 +629,7 @@ func (h *mheap) alloc(npage uintptr, sizeclass int32, large bool, needzero bool)
 
 	if s != nil {
 		if needzero && s.needzero != 0 {
-			memclr(unsafe.Pointer(s.base()), s.npages<<_PageShift)
+			memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
 		}
 		s.needzero = 0
 	}
@@ -1418,7 +1418,7 @@ func newArena() *gcBits {
 	} else {
 		result = gcBitsArenas.free
 		gcBitsArenas.free = gcBitsArenas.free.next
-		memclr(unsafe.Pointer(result), gcBitsChunkBytes)
+		memclrNoHeapPointers(unsafe.Pointer(result), gcBitsChunkBytes)
 	}
 	result.next = nil
 	// If result.bits is not 8 byte aligned adjust index so

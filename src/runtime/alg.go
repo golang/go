@@ -275,12 +275,6 @@ func ifaceHash(i interface {
 	return algarray[alg_INTER].hash(noescape(unsafe.Pointer(&i)), seed)
 }
 
-// Testing adapter for memclr
-func memclrBytes(b []byte) {
-	s := (*slice)(unsafe.Pointer(&b))
-	memclr(s.array, uintptr(s.len))
-}
-
 const hashRandomBytes = sys.PtrSize / 4 * 64
 
 // used in asm_{386,amd64}.s to seed the hash function

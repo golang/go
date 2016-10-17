@@ -436,7 +436,7 @@ func stackfree(stk stack, n uintptr) {
 	}
 	if stackDebug >= 1 {
 		println("stackfree", v, n)
-		memclr(v, n) // for testing, clobber stack data
+		memclrNoHeapPointers(v, n) // for testing, clobber stack data
 	}
 	if debug.efence != 0 || stackFromSystem != 0 {
 		if debug.efence != 0 || stackFaultOnFree != 0 {

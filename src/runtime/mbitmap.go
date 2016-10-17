@@ -742,7 +742,7 @@ func (h heapBits) initSpan(s *mspan) {
 		}
 		return
 	}
-	memclr(unsafe.Pointer(subtractb(h.bitp, nbyte-1)), nbyte)
+	memclrNoHeapPointers(unsafe.Pointer(subtractb(h.bitp, nbyte-1)), nbyte)
 }
 
 // initCheckmarkSpan initializes a span for being checkmarked.
@@ -1433,7 +1433,7 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
 	}
 	endProg := unsafe.Pointer(subtractb(h.bitp, (totalBits+3)/4))
 	endAlloc := unsafe.Pointer(subtractb(h.bitp, allocSize/heapBitmapScale))
-	memclr(add(endAlloc, 1), uintptr(endProg)-uintptr(endAlloc))
+	memclrNoHeapPointers(add(endAlloc, 1), uintptr(endProg)-uintptr(endAlloc))
 }
 
 // progToPointerMask returns the 1-bit pointer mask output by the GC program prog.

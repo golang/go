@@ -30,7 +30,7 @@
 #define N	R12
 #define TMP	R12				/* N and TMP don't overlap */
 
-TEXT runtime·memclr(SB),NOSPLIT,$0-8
+TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-8
 	MOVW	ptr+0(FP), TO
 	MOVW	n+4(FP), N
 	MOVW	$0, R0

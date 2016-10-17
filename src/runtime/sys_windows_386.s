@@ -192,7 +192,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	SUBL	$m__size, SP		// space for M
 	MOVL	SP, 0(SP)
 	MOVL	$m__size, 4(SP)
-	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX
 
 	LEAL	m_tls(SP), CX
 	MOVL	CX, 0x14(FS)
@@ -203,7 +203,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 	MOVL	SP, 0(SP)
 	MOVL	$g__size, 4(SP)
-	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX
 	LEAL	g__size(SP), BX
 	MOVL	BX, g_m(SP)
 
