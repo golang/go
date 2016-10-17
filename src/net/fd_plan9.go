@@ -128,7 +128,7 @@ func (fd *netFD) Close() error {
 		// "write /net/tcp/39/listen: inappropriate use of fd"
 		// But without it, Reads on dead conns hang forever.
 		// See Issue 9554.
-		fd.ctl.WriteString("hangup")
+		fd.ctl.WriteString("close")
 	}
 	err := fd.ctl.Close()
 	if fd.data != nil {
