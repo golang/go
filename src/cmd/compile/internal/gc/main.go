@@ -673,9 +673,9 @@ func findpkg(name string) (file string, ok bool) {
 	return "", false
 }
 
-// loadsys loads the definitions for the low-level runtime and unsafe functions,
+// loadsys loads the definitions for the low-level runtime functions,
 // so that the compiler can generate calls to them,
-// but does not make the names "runtime" or "unsafe" visible as packages.
+// but does not make them visible to user code.
 func loadsys() {
 	if Debug['A'] != 0 {
 		return
@@ -685,7 +685,28 @@ func loadsys() {
 	iota_ = -1000000
 
 	importpkg = Runtimepkg
-	Import(bufio.NewReader(strings.NewReader(runtimeimport)))
+	typecheckok = true
+	defercheckwidth()
+
+	typs := runtimeTypes()
+	for _, d := range runtimeDecls {
+		sym := Pkglookup(d.name, importpkg)
+		typ := typs[d.typ]
+		switch d.tag {
+		case funcTag:
+			importsym(sym, ONAME)
+			n := newfuncname(sym)
+			n.Type = typ
+			declare(n, PFUNC)
+		case varTag:
+			importvar(sym, typ)
+		default:
+			Fatalf("unhandled declaration tag %v", d.tag)
+		}
+	}
+
+	typecheckok = false
+	resumecheckwidth()
 	importpkg = nil
 }
 
