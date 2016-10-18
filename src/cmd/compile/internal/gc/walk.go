@@ -686,7 +686,7 @@ opswitch:
 
 		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" &&
 			(n.Left.Sym.Pkg.Path == "math" || n.Left.Sym.Pkg == localpkg && myimportpath == "math") {
-			if Thearch.LinkArch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
+			if Thearch.LinkArch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X) {
 				n.Op = OSQRT
 				n.Left = n.List.First()
 				n.List.Set(nil)
@@ -1018,7 +1018,7 @@ opswitch:
 		n = walkexpr(n, init)
 
 	case OCONV, OCONVNOP:
-		if Thearch.LinkArch.Family == sys.ARM {
+		if Thearch.LinkArch.Family == sys.ARM || Thearch.LinkArch.Family == sys.MIPS {
 			if n.Left.Type.IsFloat() {
 				if n.Type.Etype == TINT64 {
 					n = mkcall("float64toint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
@@ -3277,7 +3277,7 @@ func samecheap(a *Node, b *Node) bool {
 // The result of walkrotate MUST be assigned back to n, e.g.
 // 	n.Left = walkrotate(n.Left)
 func walkrotate(n *Node) *Node {
-	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.PPC64) {
+	if Thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.PPC64) {
 		return n
 	}
 
