@@ -230,22 +230,22 @@ var (
 	// "go test", the binary always runs in the source directory for the package;
 	// this flag lets "go test" tell the binary to write the files in the directory where
 	// the "go test" command is run.
-	outputDir = flag.String("test.outputdir", "", "directory in which to write profiles")
+	outputDir = flag.String("test.outputdir", "", "write profiles to `dir`")
 
 	// Report as tests are run; default is silent for success.
 	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
 	count            = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
-	coverProfile     = flag.String("test.coverprofile", "", "write a coverage profile to the named file after execution")
-	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
-	memProfile       = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
-	memProfileRate   = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
-	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
-	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to the named file after execution")
-	blockProfileRate = flag.Int("test.blockprofilerate", 1, "if >= 0, calls runtime.SetBlockProfileRate()")
-	traceFile        = flag.String("test.trace", "", "write an execution trace to the named file after execution")
-	timeout          = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
-	cpuListStr       = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
-	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
+	coverProfile     = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
+	match            = flag.String("test.run", "", "run only tests and examples matching `regexp`")
+	memProfile       = flag.String("test.memprofile", "", "write a memory profile to `file`")
+	memProfileRate   = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")
+	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
+	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
+	blockProfileRate = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
+	traceFile        = flag.String("test.trace", "", "write an execution trace to `file`")
+	timeout          = flag.Duration("test.timeout", 0, "fail test binary execution after duration `d` (0 means unlimited)")
+	cpuListStr       = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
 
 	haveExamples bool // are there examples?
 

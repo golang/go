@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-var matchBenchmarks = flag.String("test.bench", "", "regular expression per path component to select benchmarks to run")
-var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
+var matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
+var benchTime = flag.Duration("test.benchtime", 1*time.Second, "run each benchmark for duration `d`")
 var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
 
 // Global lock to ensure only one benchmark runs at a time.
