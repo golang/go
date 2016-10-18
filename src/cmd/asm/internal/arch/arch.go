@@ -415,7 +415,7 @@ func archMips64() *Arch {
 	}
 	for i, s := range mips.Anames {
 		if obj.As(i) >= obj.A_ARCHSPECIFIC {
-			instructions[s] = obj.As(i) + obj.ABaseMIPS64
+			instructions[s] = obj.As(i) + obj.ABaseMIPS
 		}
 	}
 	// Annoying alias.
