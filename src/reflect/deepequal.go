@@ -142,8 +142,9 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 //
 // Interface values are deeply equal if they hold deeply equal concrete values.
 //
-// Map values are deeply equal if they are the same map object
-// or if they have the same length and their corresponding keys
+// Map values are deeply equal when all of the following are true:
+// they are both nil or both non-nil, they have the same length,
+// and either they are the same map object or their corresponding keys
 // (matched using Go equality) map to deeply equal values.
 //
 // Pointer values are deeply equal if they are equal using Go's == operator
