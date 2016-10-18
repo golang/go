@@ -313,12 +313,6 @@ OpSwitch:
 			n.Used = true
 		}
 
-		if top&Ecall == 0 && isunsafebuiltin(n) {
-			yyerror("%v is not an expression, must be called", n)
-			n.Type = nil
-			return n
-		}
-
 		ok |= Erv
 		break OpSwitch
 
@@ -1190,31 +1184,19 @@ OpSwitch:
 		n.Diag |= n.Left.Diag
 		l := n.Left
 
-		if l.Op == ONAME {
-			if r := unsafenmagic(n); r != nil {
-				if n.Isddd {
-					yyerror("invalid use of ... with builtin %v", l)
-				}
-				n = r
-				n = typecheck1(n, top)
-				return n
+		if l.Op == ONAME && l.Etype != 0 {
+			// TODO(marvin): Fix Node.EType type union.
+			if n.Isddd && Op(l.Etype) != OAPPEND {
+				yyerror("invalid use of ... with builtin %v", l)
 			}
 
-			if l.Etype != 0 {
-				// TODO(marvin): Fix Node.EType type union.
-				if n.Isddd && Op(l.Etype) != OAPPEND {
-					yyerror("invalid use of ... with builtin %v", l)
-				}
-
-				// builtin: OLEN, OCAP, etc.
-				// TODO(marvin): Fix Node.EType type union.
-				n.Op = Op(l.Etype)
-
-				n.Left = n.Right
-				n.Right = nil
-				n = typecheck1(n, top)
-				return n
-			}
+			// builtin: OLEN, OCAP, etc.
+			// TODO(marvin): Fix Node.EType type union.
+			n.Op = Op(l.Etype)
+			n.Left = n.Right
+			n.Right = nil
+			n = typecheck1(n, top)
+			return n
 		}
 
 		n.Left = defaultlit(n.Left, nil)
@@ -1310,6 +1292,21 @@ OpSwitch:
 		}
 
 		n.Type = l.Type.Results()
+
+		break OpSwitch
+
+	case OALIGNOF, OOFFSETOF, OSIZEOF:
+		ok |= Erv
+		if !onearg(n, "%v", n.Op) {
+			n.Type = nil
+			return n
+		}
+
+		// any side effects disappear; ignore init
+		var r Node
+		Nodconst(&r, Types[TUINTPTR], evalunsafe(n))
+		r.Orig = n
+		n = &r
 
 		break OpSwitch
 

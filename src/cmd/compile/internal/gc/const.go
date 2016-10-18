@@ -1657,19 +1657,8 @@ func isgoconst(n *Node) bool {
 			return true
 		}
 
-		// Only constant calls are unsafe.Alignof, Offsetof, and Sizeof.
-	case OCALL:
-		l := n.Left
-
-		for l.Op == OPAREN {
-			l = l.Left
-		}
-		if l.Op != ONAME || l.Sym.Pkg != unsafepkg {
-			break
-		}
-		if l.Sym.Name == "Alignof" || l.Sym.Name == "Offsetof" || l.Sym.Name == "Sizeof" {
-			return true
-		}
+	case OALIGNOF, OOFFSETOF, OSIZEOF:
+		return true
 	}
 
 	//dump("nonconst", n);

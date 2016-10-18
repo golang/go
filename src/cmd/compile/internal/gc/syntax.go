@@ -427,6 +427,9 @@ const (
 	OREAL      // real(Left)
 	OIMAG      // imag(Left)
 	OCOMPLEX   // complex(Left, Right)
+	OALIGNOF   // unsafe.Alignof(Left)
+	OOFFSETOF  // unsafe.Offsetof(Left)
+	OSIZEOF    // unsafe.Sizeof(Left)
 
 	// statements
 	OBLOCK    // { List } (block of code)

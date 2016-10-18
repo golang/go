@@ -4,8 +4,8 @@
 
 // +build ignore
 
-// Generate builtin.go from builtin/runtime.go and builtin/unsafe.go.
-// Run this after changing builtin/runtime.go and builtin/unsafe.go
+// Generate builtin.go from builtin/runtime.go.
+// Run this after changing builtin/runtime.go
 // or after changing the export metadata format in the compiler.
 // Either way, you need to have a working compiler binary first.
 // See bexport.go for how to make an export metadata format change.
@@ -33,7 +33,6 @@ func main() {
 	fmt.Fprintln(&b, "package gc")
 
 	mkbuiltin(&b, "runtime")
-	mkbuiltin(&b, "unsafe")
 
 	var err error
 	if *stdout {

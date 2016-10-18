@@ -686,8 +686,6 @@ func loadsys() {
 
 	importpkg = Runtimepkg
 	Import(bufio.NewReader(strings.NewReader(runtimeimport)))
-	importpkg = unsafepkg
-	Import(bufio.NewReader(strings.NewReader(unsafeimport)))
 	importpkg = nil
 }
 

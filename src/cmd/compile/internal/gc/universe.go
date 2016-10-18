@@ -63,6 +63,15 @@ var builtinFuncs = [...]struct {
 	{"recover", ORECOVER},
 }
 
+var unsafeFuncs = [...]struct {
+	name string
+	op   Op
+}{
+	{"Alignof", OALIGNOF},
+	{"Offsetof", OOFFSETOF},
+	{"Sizeof", OSIZEOF},
+}
+
 // initUniverse initializes the universe block.
 func initUniverse() {
 	lexinit()
@@ -94,6 +103,13 @@ func lexinit() {
 	for _, s := range builtinFuncs {
 		// TODO(marvin): Fix Node.EType type union.
 		s2 := Pkglookup(s.name, builtinpkg)
+		s2.Def = nod(ONAME, nil, nil)
+		s2.Def.Sym = s2
+		s2.Def.Etype = EType(s.op)
+	}
+
+	for _, s := range unsafeFuncs {
+		s2 := Pkglookup(s.name, unsafepkg)
 		s2.Def = nod(ONAME, nil, nil)
 		s2.Def.Sym = s2
 		s2.Def.Etype = EType(s.op)
