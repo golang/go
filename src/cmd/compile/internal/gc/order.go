@@ -423,7 +423,7 @@ func ordermapassign(n *Node, order *Order) {
 		// We call writebarrierfat only for values > 4 pointers long. See walk.go.
 		// TODO(mdempsky): writebarrierfat doesn't exist anymore, but removing that
 		// logic causes net/http's tests to become flaky; see CL 21242.
-		if needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr) && !isaddrokay(n.Right) {
+		if needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr) && n.Right != nil && !isaddrokay(n.Right) {
 			m := n.Left
 			n.Left = ordertemp(m.Type, order, false)
 			a := nod(OAS, m, n.Left)
