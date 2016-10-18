@@ -7,7 +7,12 @@
 package sync_test
 
 import (
+	"fmt"
+	"internal/testenv"
+	"os"
+	"os/exec"
 	"runtime"
+	"strings"
 	. "sync"
 	"testing"
 )
@@ -71,17 +76,98 @@ func TestMutex(t *testing.T) {
 	}
 }
 
-func TestMutexPanic(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatalf("unlock of unlocked mutex did not panic")
-		}
-	}()
+var misuseTests = []struct {
+	name string
+	f    func()
+}{
+	{
+		"Mutex.Unlock",
+		func() {
+			var mu Mutex
+			mu.Unlock()
+		},
+	},
+	{
+		"Mutex.Unlock2",
+		func() {
+			var mu Mutex
+			mu.Lock()
+			mu.Unlock()
+			mu.Unlock()
+		},
+	},
+	{
+		"RWMutex.Unlock",
+		func() {
+			var mu RWMutex
+			mu.Unlock()
+		},
+	},
+	{
+		"RWMutex.Unlock2",
+		func() {
+			var mu RWMutex
+			mu.RLock()
+			mu.Unlock()
+		},
+	},
+	{
+		"RWMutex.Unlock3",
+		func() {
+			var mu RWMutex
+			mu.Lock()
+			mu.Unlock()
+			mu.Unlock()
+		},
+	},
+	{
+		"RWMutex.RUnlock",
+		func() {
+			var mu RWMutex
+			mu.RUnlock()
+		},
+	},
+	{
+		"RWMutex.RUnlock2",
+		func() {
+			var mu RWMutex
+			mu.Lock()
+			mu.RUnlock()
+		},
+	},
+	{
+		"RWMutex.RUnlock3",
+		func() {
+			var mu RWMutex
+			mu.RLock()
+			mu.RUnlock()
+			mu.RUnlock()
+		},
+	},
+}
 
-	var mu Mutex
-	mu.Lock()
-	mu.Unlock()
-	mu.Unlock()
+func init() {
+	if len(os.Args) == 3 && os.Args[1] == "TESTMISUSE" {
+		for _, test := range misuseTests {
+			if test.name == os.Args[2] {
+				test.f()
+				fmt.Printf("test completed\n")
+				os.Exit(0)
+			}
+		}
+		fmt.Printf("unknown test\n")
+		os.Exit(0)
+	}
+}
+
+func TestMutexMisuse(t *testing.T) {
+	testenv.MustHaveExec(t)
+	for _, test := range misuseTests {
+		out, err := exec.Command(os.Args[0], "TESTMISUSE", test.name).CombinedOutput()
+		if err == nil || !strings.Contains(string(out), "unlocked") {
+			t.Errorf("%s: did not find failure with message about unlocked lock: %s\n%s\n", test.name, err, out)
+		}
+	}
 }
 
 func BenchmarkMutexUncontended(b *testing.B) {

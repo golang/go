@@ -576,6 +576,11 @@ func dopanic(unused int) {
 	*(*int)(nil) = 0
 }
 
+//go:linkname sync_throw sync.throw
+func sync_throw(s string) {
+	throw(s)
+}
+
 //go:nosplit
 func throw(s string) {
 	print("fatal error: ", s, "\n")
