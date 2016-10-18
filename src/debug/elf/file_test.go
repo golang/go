@@ -511,6 +511,44 @@ var relocationTests = []relocationTest{
 		},
 	},
 	{
+		"testdata/go-relocation-test-gcc492-mipsle.obj",
+		[]relocationTestEntry{
+			{0, &dwarf.Entry{
+				Offset:   0xb,
+				Tag:      dwarf.TagCompileUnit,
+				Children: true,
+				Field: []dwarf.Field{
+					{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 -mel -march=mips2 -mtune=mips32 -mllsc -mno-shared -mabi=32 -g", Class: dwarf.ClassString},
+					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
+					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+					{Attr: dwarf.AttrHighpc, Val: int64(0x58), Class: dwarf.ClassConstant},
+					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+				},
+			}},
+		},
+	},
+	{
+		"testdata/go-relocation-test-gcc540-mips.obj",
+		[]relocationTestEntry{
+			{0, &dwarf.Entry{
+				Offset:   0xb,
+				Tag:      dwarf.TagCompileUnit,
+				Children: true,
+				Field: []dwarf.Field{
+					{Attr: dwarf.AttrProducer, Val: "GNU C11 5.4.0 20160609 -meb -mips32 -mtune=mips32r2 -mfpxx -mllsc -mno-shared -mabi=32 -g -gdwarf-2", Class: dwarf.ClassString},
+					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+					{Attr: dwarf.AttrHighpc, Val: uint64(0x5c), Class: dwarf.ClassAddress},
+					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+				},
+			}},
+		},
+	},
+	{
 		"testdata/go-relocation-test-gcc493-mips64le.obj",
 		[]relocationTestEntry{
 			{0, &dwarf.Entry{
