@@ -1,9 +1,9 @@
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // +build linux
-// +build mips64 mips64le
+// +build mips mipsle
 
 package runtime
 
@@ -24,13 +24,13 @@ func archauxv(tag, val uintptr) {
 func cputicks() int64 {
 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
-	// randomNumber provides better seeding of fastrand.
+	// randomNumber provides better seeding of fastrand1.
 	return nanotime() + int64(randomNumber)
 }
 
 const (
 	_SS_DISABLE  = 2
-	_NSIG        = 129
+	_NSIG        = 128 + 1
 	_SI_USER     = 0
 	_SIG_BLOCK   = 1
 	_SIG_UNBLOCK = 2
@@ -38,25 +38,25 @@ const (
 	_RLIMIT_AS   = 6
 )
 
-type sigset [2]uint64
+type sigset [4]uint32
 
 type rlimit struct {
 	rlim_cur uintptr
 	rlim_max uintptr
 }
 
-var sigset_all = sigset{^uint64(0), ^uint64(0)}
+var sigset_all = sigset{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}
 
 //go:nosplit
 //go:nowritebarrierrec
 func sigaddset(mask *sigset, i int) {
-	(*mask)[(i-1)/64] |= 1 << ((uint32(i) - 1) & 63)
+	(*mask)[(i-1)/32] |= 1 << ((uint32(i) - 1) & 31)
 }
 
 func sigdelset(mask *sigset, i int) {
-	(*mask)[(i-1)/64] &^= 1 << ((uint32(i) - 1) & 63)
+	(*mask)[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
-func sigfillset(mask *[2]uint64) {
-	(*mask)[0], (*mask)[1] = ^uint64(0), ^uint64(0)
+func sigfillset(mask *[4]uint32) {
+	(*mask)[0], (*mask)[1], (*mask)[2], (*mask)[3] = ^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)
 }
