@@ -818,3 +818,23 @@ func BenchmarkMatchParallelCopied(b *testing.B) {
 		}
 	})
 }
+
+var sink string
+
+func BenchmarkQuoteMetaAll(b *testing.B) {
+	s := string(specialBytes)
+	b.SetBytes(int64(len(s)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sink = QuoteMeta(s)
+	}
+}
+
+func BenchmarkQuoteMetaNone(b *testing.B) {
+	s := "abcdefghijklmnopqrstuvwxyz"
+	b.SetBytes(int64(len(s)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sink = QuoteMeta(s)
+	}
+}
