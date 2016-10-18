@@ -800,6 +800,16 @@ var unescapeTests = []EscapeTest{
 		"",
 		EscapeError("%zz"),
 	},
+	{
+		"a+b",
+		"a b",
+		nil,
+	},
+	{
+		"a%20b",
+		"a b",
+		nil,
+	},
 }
 
 func TestUnescape(t *testing.T) {
@@ -808,10 +818,33 @@ func TestUnescape(t *testing.T) {
 		if actual != tt.out || (err != nil) != (tt.err != nil) {
 			t.Errorf("QueryUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err)
 		}
+
+		in := tt.in
+		out := tt.out
+		if strings.Contains(tt.in, "+") {
+			in = strings.Replace(tt.in, "+", "%20", -1)
+			actual, err := PathUnescape(in)
+			if actual != tt.out || (err != nil) != (tt.err != nil) {
+				t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", in, actual, err, tt.out, tt.err)
+			}
+			if tt.err == nil {
+				s, err := QueryUnescape(strings.Replace(tt.in, "+", "XXX", -1))
+				if err != nil {
+					continue
+				}
+				in = tt.in
+				out = strings.Replace(s, "XXX", "+", -1)
+			}
+		}
+
+		actual, err = PathUnescape(in)
+		if actual != out || (err != nil) != (tt.err != nil) {
+			t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", in, actual, err, out, tt.err)
+		}
 	}
 }
 
-var escapeTests = []EscapeTest{
+var queryEscapeTests = []EscapeTest{
 	{
 		"",
 		"",
@@ -839,8 +872,8 @@ var escapeTests = []EscapeTest{
 	},
 }
 
-func TestEscape(t *testing.T) {
-	for _, tt := range escapeTests {
+func TestQueryEscape(t *testing.T) {
+	for _, tt := range queryEscapeTests {
 		actual := QueryEscape(tt.in)
 		if tt.out != actual {
 			t.Errorf("QueryEscape(%q) = %q, want %q", tt.in, actual, tt.out)
@@ -850,6 +883,54 @@ func TestEscape(t *testing.T) {
 		roundtrip, err := QueryUnescape(actual)
 		if roundtrip != tt.in || err != nil {
 			t.Errorf("QueryUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
+		}
+	}
+}
+
+var pathEscapeTests = []EscapeTest{
+	{
+		"",
+		"",
+		nil,
+	},
+	{
+		"abc",
+		"abc",
+		nil,
+	},
+	{
+		"abc+def",
+		"abc+def",
+		nil,
+	},
+	{
+		"one two",
+		"one%20two",
+		nil,
+	},
+	{
+		"10%",
+		"10%25",
+		nil,
+	},
+	{
+		" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;",
+		"%20%3F&=%23+%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09:%2F@$%27%28%29%2A%2C%3B",
+		nil,
+	},
+}
+
+func TestPathEscape(t *testing.T) {
+	for _, tt := range pathEscapeTests {
+		actual := PathEscape(tt.in)
+		if tt.out != actual {
+			t.Errorf("PathEscape(%q) = %q, want %q", tt.in, actual, tt.out)
+		}
+
+		// for bonus points, verify that escape:unescape is an identity.
+		roundtrip, err := PathUnescape(actual)
+		if roundtrip != tt.in || err != nil {
+			t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
 		}
 	}
 }
