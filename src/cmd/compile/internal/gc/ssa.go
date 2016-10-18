@@ -686,7 +686,7 @@ func (s *state) stmt(n *Node) {
 		}
 		var r *ssa.Value
 		var isVolatile bool
-		needwb := n.Op == OASWB && rhs != nil
+		needwb := n.Op == OASWB
 		deref := !canSSAType(t)
 		if deref {
 			if rhs == nil {
@@ -2390,12 +2390,12 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
 	}
 	if deref {
 		// Treat as a mem->mem move.
-		if right == nil {
-			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
-			return
-		}
 		if wb && !ssa.IsStackAddr(addr) {
 			s.insertWBmove(t, addr, right, line, rightIsVolatile)
+			return
+		}
+		if right == nil {
+			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
 			return
 		}
 		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), addr, right, s.mem())
@@ -3295,11 +3295,20 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 
 // insertWBmove inserts the assignment *left = *right including a write barrier.
 // t is the type being assigned.
+// If right == nil, then we're zeroing *left.
 func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightIsVolatile bool) {
 	// if writeBarrier.enabled {
 	//   typedmemmove(&t, left, right)
 	// } else {
 	//   *left = *right
+	// }
+	//
+	// or
+	//
+	// if writeBarrier.enabled {
+	//   typedmemclr(&t, left)
+	// } else {
+	//   *left = zeroValue
 	// }
 
 	if s.noWB {
@@ -3309,15 +3318,20 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
 		s.WBLineno = left.Line
 	}
 
-	var op ssa.Op
-	if rightIsVolatile {
-		op = ssa.OpMoveWBVolatile
+	var val *ssa.Value
+	if right == nil {
+		val = s.newValue2I(ssa.OpZeroWB, ssa.TypeMem, sizeAlignAuxInt(t), left, s.mem())
 	} else {
-		op = ssa.OpMoveWB
+		var op ssa.Op
+		if rightIsVolatile {
+			op = ssa.OpMoveWBVolatile
+		} else {
+			op = ssa.OpMoveWB
+		}
+		val = s.newValue3I(op, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
 	}
-	move := s.newValue3I(op, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
-	move.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}
-	s.vars[&memVar] = move
+	val.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}
+	s.vars[&memVar] = val
 
 	// WB ops will be expanded to branches at writebarrier phase.
 	// To make it easy, we put WB ops at the end of a block, so

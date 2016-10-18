@@ -28,7 +28,7 @@ import "fmt"
 // number of blocks as fuse merges blocks introduced in this phase.
 func writebarrier(f *Func) {
 	var sb, sp, wbaddr *Value
-	var writebarrierptr, typedmemmove interface{} // *gc.Sym
+	var writebarrierptr, typedmemmove, typedmemclr interface{} // *gc.Sym
 	var storeWBs, others []*Value
 	var wbs *sparseSet
 	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no WB stores
@@ -42,6 +42,9 @@ func writebarrier(f *Func) {
 						v.Op = OpStore
 					case OpMoveWB, OpMoveWBVolatile:
 						v.Op = OpMove
+						v.Aux = nil
+					case OpZeroWB:
+						v.Op = OpZero
 						v.Aux = nil
 					}
 					continue
@@ -69,6 +72,7 @@ func writebarrier(f *Func) {
 					wbaddr = f.Entry.NewValue1A(initln, OpAddr, f.Config.fe.TypeUInt32().PtrTo(), wbsym, sb)
 					writebarrierptr = f.Config.fe.Syslook("writebarrierptr")
 					typedmemmove = f.Config.fe.Syslook("typedmemmove")
+					typedmemclr = f.Config.fe.Syslook("typedmemclr")
 
 					wbs = f.newSparseSet(f.NumValues())
 					defer f.retSparseSet(wbs)
@@ -82,7 +86,7 @@ func writebarrier(f *Func) {
 				others = others[:0]
 				wbs.clear()
 				for _, w := range b.Values[i:] {
-					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile {
+					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile || w.Op == OpZeroWB {
 						storeWBs = append(storeWBs, w)
 						wbs.add(w.ID)
 					} else {
@@ -92,7 +96,7 @@ func writebarrier(f *Func) {
 
 				// make sure that no value in this block depends on WB stores
 				for _, w := range b.Values {
-					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile {
+					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile || w.Op == OpZeroWB {
 						continue
 					}
 					for _, a := range w.Args {
@@ -136,10 +140,10 @@ func writebarrier(f *Func) {
 				memThen := mem
 				memElse := mem
 				for _, w := range storeWBs {
+					var val *Value
 					ptr := w.Args[0]
-					val := w.Args[1]
 					siz := w.AuxInt
-					typ := w.Aux // only non-nil for MoveWB, MoveWBVolatile
+					typ := w.Aux // only non-nil for MoveWB, MoveWBVolatile, ZeroWB
 
 					var op Op
 					var fn interface{} // *gc.Sym
@@ -147,16 +151,25 @@ func writebarrier(f *Func) {
 					case OpStoreWB:
 						op = OpStore
 						fn = writebarrierptr
+						val = w.Args[1]
 					case OpMoveWB, OpMoveWBVolatile:
 						op = OpMove
 						fn = typedmemmove
+						val = w.Args[1]
+					case OpZeroWB:
+						op = OpZero
+						fn = typedmemclr
 					}
 
 					// then block: emit write barrier call
 					memThen = wbcall(line, bThen, fn, typ, ptr, val, memThen, sp, sb, w.Op == OpMoveWBVolatile)
 
 					// else block: normal store
-					memElse = bElse.NewValue3I(line, op, TypeMem, siz, ptr, val, memElse)
+					if op == OpZero {
+						memElse = bElse.NewValue2I(line, op, TypeMem, siz, ptr, memElse)
+					} else {
+						memElse = bElse.NewValue3I(line, op, TypeMem, siz, ptr, val, memElse)
+					}
 				}
 
 				// merge memory
@@ -226,10 +239,12 @@ func wbcall(line int32, b *Block, fn interface{}, typ interface{}, ptr, val, mem
 	mem = b.NewValue3I(line, OpStore, TypeMem, ptr.Type.Size(), arg, ptr, mem)
 	off += ptr.Type.Size()
 
-	off = round(off, val.Type.Alignment())
-	arg = b.NewValue1I(line, OpOffPtr, val.Type.PtrTo(), off, sp)
-	mem = b.NewValue3I(line, OpStore, TypeMem, val.Type.Size(), arg, val, mem)
-	off += val.Type.Size()
+	if val != nil {
+		off = round(off, val.Type.Alignment())
+		arg = b.NewValue1I(line, OpOffPtr, val.Type.PtrTo(), off, sp)
+		mem = b.NewValue3I(line, OpStore, TypeMem, val.Type.Size(), arg, val, mem)
+		off += val.Type.Size()
+	}
 	off = round(off, config.PtrSize)
 
 	// issue call
