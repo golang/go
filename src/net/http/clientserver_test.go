@@ -468,7 +468,7 @@ func TestH12_RequestContentLength_Known_NonZero(t *testing.T) {
 }
 
 func TestH12_RequestContentLength_Known_Zero(t *testing.T) {
-	h12requestContentLength(t, func() io.Reader { return strings.NewReader("") }, 0)
+	h12requestContentLength(t, func() io.Reader { return nil }, 0)
 }
 
 func TestH12_RequestContentLength_Unknown(t *testing.T) {
