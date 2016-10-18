@@ -69,7 +69,8 @@ func (f Flags) String() string {
 	return s
 }
 
-// Addrs returns interface addresses for a specific interface.
+// Addrs returns a list of unicast interface addresses for a specific
+// interface.
 func (ifi *Interface) Addrs() ([]Addr, error) {
 	if ifi == nil {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterface}
@@ -81,8 +82,8 @@ func (ifi *Interface) Addrs() ([]Addr, error) {
 	return ifat, err
 }
 
-// MulticastAddrs returns multicast, joined group addresses for
-// a specific interface.
+// MulticastAddrs returns a list of multicast, joined group addresses
+// for a specific interface.
 func (ifi *Interface) MulticastAddrs() ([]Addr, error) {
 	if ifi == nil {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterface}
@@ -106,8 +107,11 @@ func Interfaces() ([]Interface, error) {
 	return ift, nil
 }
 
-// InterfaceAddrs returns a list of the system's network interface
+// InterfaceAddrs returns a list of the system's unicast interface
 // addresses.
+//
+// The returned list does not identify the associated interface; use
+// Interfaces and Interface.Addrs for more detail.
 func InterfaceAddrs() ([]Addr, error) {
 	ifat, err := interfaceAddrTable(nil)
 	if err != nil {
