@@ -363,8 +363,13 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 			sparseMap.WriteString(value)
 			sparseMap.Write([]byte{','})
 		} else {
-			// Normal key. Set the value in the headers map.
-			headers[keyStr] = value
+			// According to PAX specification, a value is stored only if it is
+			// non-empty. Otherwise, the key is deleted.
+			if len(value) > 0 {
+				headers[key] = value
+			} else {
+				delete(headers, key)
+			}
 		}
 	}
 	if sparseMap.Len() != 0 {
