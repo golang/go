@@ -546,6 +546,12 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		Errorf(nil, "%s: elf %s unimplemented", pn, SysArch.Name)
 		return
 
+	case sys.MIPS:
+		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass32 {
+			Errorf(nil, "%s: elf object but not mips", pn)
+			return
+		}
+
 	case sys.MIPS64:
 		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass64 {
 			Errorf(nil, "%s: elf object but not mips64", pn)
