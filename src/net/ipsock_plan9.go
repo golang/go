@@ -213,7 +213,7 @@ func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *
 		f.Close()
 		return nil, err
 	}
-	return newFD(proto, name, f, data, laddr, raddr)
+	return newFD(proto, name, nil, f, data, laddr, raddr)
 }
 
 func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err error) {
@@ -232,11 +232,11 @@ func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err er
 		f.Close()
 		return nil, err
 	}
-	return newFD(proto, name, f, nil, laddr, nil)
+	return newFD(proto, name, nil, f, nil, laddr, nil)
 }
 
 func (fd *netFD) netFD() (*netFD, error) {
-	return newFD(fd.net, fd.n, fd.ctl, fd.data, fd.laddr, fd.raddr)
+	return newFD(fd.net, fd.n, fd.listen, fd.ctl, fd.data, fd.laddr, fd.raddr)
 }
 
 func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
@@ -245,27 +245,34 @@ func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
 		return nil, err
 	}
 	defer fd.readUnlock()
-	f, err := os.Open(fd.dir + "/listen")
+	listen, err := os.Open(fd.dir + "/listen")
 	if err != nil {
 		return nil, err
 	}
 	var buf [16]byte
-	n, err := f.Read(buf[:])
+	n, err := listen.Read(buf[:])
 	if err != nil {
-		f.Close()
+		listen.Close()
 		return nil, err
 	}
 	name := string(buf[:n])
+	ctl, err := os.OpenFile(netdir+"/"+fd.net+"/"+name+"/ctl", os.O_RDWR, 0)
+	if err != nil {
+		listen.Close()
+		return nil, err
+	}
 	data, err := os.OpenFile(netdir+"/"+fd.net+"/"+name+"/data", os.O_RDWR, 0)
 	if err != nil {
-		f.Close()
+		listen.Close()
+		ctl.Close()
 		return nil, err
 	}
 	raddr, err := readPlan9Addr(fd.net, netdir+"/"+fd.net+"/"+name+"/remote")
 	if err != nil {
+		listen.Close()
+		ctl.Close()
 		data.Close()
-		f.Close()
 		return nil, err
 	}
-	return newFD(fd.net, name, f, data, fd.laddr, raddr)
+	return newFD(fd.net, name, listen, ctl, data, fd.laddr, raddr)
 }
