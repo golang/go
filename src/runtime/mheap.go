@@ -141,19 +141,19 @@ var mheap_ mheap
 type mSpanState uint8
 
 const (
-	_MSpanInUse mSpanState = iota // allocated for garbage collected heap
-	_MSpanStack                   // allocated for use by stack allocator
+	_MSpanDead  mSpanState = iota
+	_MSpanInUse            // allocated for garbage collected heap
+	_MSpanStack            // allocated for use by stack allocator
 	_MSpanFree
-	_MSpanDead
 )
 
 // mSpanStateNames are the names of the span states, indexed by
 // mSpanState.
 var mSpanStateNames = []string{
+	"_MSpanDead",
 	"_MSpanInUse",
 	"_MSpanStack",
 	"_MSpanFree",
-	"_MSpanDead",
 }
 
 // mSpanList heads a linked list of spans.
