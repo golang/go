@@ -7,6 +7,7 @@ package atomic_test
 import (
 	"runtime"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"testing"
 	"unsafe"
 )
@@ -51,13 +52,13 @@ func TestXadduintptr(t *testing.T) {
 // Tests that xadduintptr correctly updates 64-bit values. The place where
 // we actually do so is mstats.go, functions mSysStat{Inc,Dec}.
 func TestXadduintptrOnUint64(t *testing.T) {
-	/*	if runtime.BigEndian != 0 {
+	if sys.BigEndian != 0 {
 		// On big endian architectures, we never use xadduintptr to update
 		// 64-bit values and hence we skip the test.  (Note that functions
 		// mSysStat{Inc,Dec} in mstats.go have explicit checks for
 		// big-endianness.)
-		return
-	}*/
+		t.Skip("skip xadduintptr on big endian architecture")
+	}
 	const inc = 100
 	val := uint64(0)
 	atomic.Xadduintptr((*uintptr)(unsafe.Pointer(&val)), inc)
