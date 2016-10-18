@@ -946,18 +946,22 @@ func Elfinit(ctxt *Link) {
 		ehdr.shentsize = ELF64SHDRSIZE /* Must be ELF64SHDRSIZE */
 
 	// 32-bit architectures
-	case sys.ARM:
-		// we use EABI on linux/arm, freebsd/arm, netbsd/arm.
-		if Headtype == obj.Hlinux || Headtype == obj.Hfreebsd || Headtype == obj.Hnetbsd {
-			// We set a value here that makes no indication of which
-			// float ABI the object uses, because this is information
-			// used by the dynamic linker to compare executables and
-			// shared libraries -- so it only matters for cgo calls, and
-			// the information properly comes from the object files
-			// produced by the host C compiler. parseArmAttributes in
-			// ldelf.go reads that information and updates this field as
-			// appropriate.
-			ehdr.flags = 0x5000002 // has entry point, Version5 EABI
+	case sys.ARM, sys.MIPS:
+		if SysArch.Family == sys.ARM {
+			// we use EABI on linux/arm, freebsd/arm, netbsd/arm.
+			if Headtype == obj.Hlinux || Headtype == obj.Hfreebsd || Headtype == obj.Hnetbsd {
+				// We set a value here that makes no indication of which
+				// float ABI the object uses, because this is information
+				// used by the dynamic linker to compare executables and
+				// shared libraries -- so it only matters for cgo calls, and
+				// the information properly comes from the object files
+				// produced by the host C compiler. parseArmAttributes in
+				// ldelf.go reads that information and updates this field as
+				// appropriate.
+				ehdr.flags = 0x5000002 // has entry point, Version5 EABI
+			}
+		} else if SysArch.Family == sys.MIPS {
+			ehdr.flags = 0x50000000 /* MIPS 32 */
 		}
 		fallthrough
 	default:
