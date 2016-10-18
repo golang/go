@@ -855,7 +855,13 @@ func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (er
 		matched := false
 		n := len(out)
 		for _, errmsg := range errmsgs {
-			if we.re.MatchString(errmsg) {
+			// Assume errmsg says "file:line: foo".
+			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
+			text := errmsg
+			if i := strings.Index(text, " "); i >= 0 {
+				text = text[i+1:]
+			}
+			if we.re.MatchString(text) {
 				matched = true
 			} else {
 				out = append(out, errmsg)
