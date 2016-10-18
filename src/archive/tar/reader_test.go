@@ -1072,6 +1072,8 @@ func TestParsePAX(t *testing.T) {
 			map[string]string{"GNU.sparse.map": "0,1,2,3"}, true},
 		{"13 key1=haha\n13 key2=nana\n13 key3=kaka\n",
 			map[string]string{"key1": "haha", "key2": "nana", "key3": "kaka"}, true},
+		{"13 key1=val1\n13 key2=val2\n8 key1=\n",
+			map[string]string{"key2": "val2"}, true},
 	}
 
 	for i, v := range vectors {
