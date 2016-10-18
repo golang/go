@@ -435,6 +435,11 @@ func runTest(cmd *Command, args []string) {
 	testStreamOutput = len(pkgArgs) == 0 || testBench ||
 		(testShowPass && (len(pkgs) == 1 || buildP == 1))
 
+	// For 'go test -i -o x.test', we want to build x.test. Imply -c to make the logic easier.
+	if buildI && testO != "" {
+		testC = true
+	}
+
 	var b builder
 	b.init()
 
