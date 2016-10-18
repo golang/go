@@ -441,9 +441,6 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 }
 
 func TestTransportRemovesDeadIdleConnections(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see https://golang.org/issue/15464")
-	}
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		io.WriteString(w, r.RemoteAddr)
