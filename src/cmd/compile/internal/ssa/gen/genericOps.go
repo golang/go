@@ -320,7 +320,7 @@ var genericOps = []opData{
 	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Int64"},                  // Store arg1 to arg0. arg2=memory, auxint=size.  Returns memory.
 	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign"},         // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory.
 	{name: "MoveWBVolatile", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory. Src is volatile, i.e. needs to move to a temp space before calling typedmemmove.
-	// maybe we'll need a ZeroWB for the new barrier
+	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "SymSizeAndAlign"},         // arg0=destptr, arg1=mem, auxint=size+alignment, aux=symbol-of-type. Returns memory.
 
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated

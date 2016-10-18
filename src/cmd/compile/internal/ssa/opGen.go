@@ -1658,6 +1658,7 @@ const (
 	OpStoreWB
 	OpMoveWB
 	OpMoveWBVolatile
+	OpZeroWB
 	OpClosureCall
 	OpStaticCall
 	OpDeferCall
@@ -19402,6 +19403,12 @@ var opcodeTable = [...]opInfo{
 		name:    "MoveWBVolatile",
 		auxType: auxSymSizeAndAlign,
 		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ZeroWB",
+		auxType: auxSymSizeAndAlign,
+		argLen:  2,
 		generic: true,
 	},
 	{
