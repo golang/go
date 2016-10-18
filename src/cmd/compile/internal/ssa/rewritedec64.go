@@ -199,12 +199,12 @@ func rewriteValuedec64_OpArg(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Arg {n} [off])
-	// cond: is64BitInt(v.Type) && v.Type.IsSigned()
+	// cond: is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned()
 	// result: (Int64Make     (Arg <config.fe.TypeInt32()> {n} [off+4])     (Arg <config.fe.TypeUInt32()> {n} [off]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
-		if !(is64BitInt(v.Type) && v.Type.IsSigned()) {
+		if !(is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned()) {
 			break
 		}
 		v.reset(OpInt64Make)
@@ -219,12 +219,12 @@ func rewriteValuedec64_OpArg(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Arg {n} [off])
-	// cond: is64BitInt(v.Type) && !v.Type.IsSigned()
+	// cond: is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned()
 	// result: (Int64Make     (Arg <config.fe.TypeUInt32()> {n} [off+4])     (Arg <config.fe.TypeUInt32()> {n} [off]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
-		if !(is64BitInt(v.Type) && !v.Type.IsSigned()) {
+		if !(is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned()) {
 			break
 		}
 		v.reset(OpInt64Make)
@@ -234,6 +234,46 @@ func rewriteValuedec64_OpArg(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeUInt32())
 		v1.AuxInt = off
+		v1.Aux = n
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Arg {n} [off])
+	// cond: is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned()
+	// result: (Int64Make     (Arg <config.fe.TypeInt32()> {n} [off])     (Arg <config.fe.TypeUInt32()> {n} [off+4]))
+	for {
+		off := v.AuxInt
+		n := v.Aux
+		if !(is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned()) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeInt32())
+		v0.AuxInt = off
+		v0.Aux = n
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeUInt32())
+		v1.AuxInt = off + 4
+		v1.Aux = n
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Arg {n} [off])
+	// cond: is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned()
+	// result: (Int64Make     (Arg <config.fe.TypeUInt32()> {n} [off])     (Arg <config.fe.TypeUInt32()> {n} [off+4]))
+	for {
+		off := v.AuxInt
+		n := v.Aux
+		if !(is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned()) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeUInt32())
+		v0.AuxInt = off
+		v0.Aux = n
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeUInt32())
+		v1.AuxInt = off + 4
 		v1.Aux = n
 		v.AddArg(v1)
 		return true
@@ -744,13 +784,13 @@ func rewriteValuedec64_OpLoad(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Load <t> ptr mem)
-	// cond: is64BitInt(t) && t.IsSigned()
+	// cond: is64BitInt(t) && !config.BigEndian && t.IsSigned()
 	// result: (Int64Make 		(Load <config.fe.TypeInt32()> (OffPtr <config.fe.TypeInt32().PtrTo()> [4] ptr) mem) 		(Load <config.fe.TypeUInt32()> ptr mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(is64BitInt(t) && t.IsSigned()) {
+		if !(is64BitInt(t) && !config.BigEndian && t.IsSigned()) {
 			break
 		}
 		v.reset(OpInt64Make)
@@ -768,13 +808,13 @@ func rewriteValuedec64_OpLoad(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is64BitInt(t) && !t.IsSigned()
+	// cond: is64BitInt(t) && !config.BigEndian && !t.IsSigned()
 	// result: (Int64Make 		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem) 		(Load <config.fe.TypeUInt32()> ptr mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(is64BitInt(t) && !t.IsSigned()) {
+		if !(is64BitInt(t) && !config.BigEndian && !t.IsSigned()) {
 			break
 		}
 		v.reset(OpInt64Make)
@@ -789,6 +829,54 @@ func rewriteValuedec64_OpLoad(v *Value, config *Config) bool {
 		v2.AddArg(ptr)
 		v2.AddArg(mem)
 		v.AddArg(v2)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: is64BitInt(t) && config.BigEndian && t.IsSigned()
+	// result: (Int64Make 		(Load <config.fe.TypeInt32()> ptr mem) 		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem))
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is64BitInt(t) && config.BigEndian && t.IsSigned()) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeInt32())
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeUInt32())
+		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeUInt32().PtrTo())
+		v2.AuxInt = 4
+		v2.AddArg(ptr)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: is64BitInt(t) && config.BigEndian && !t.IsSigned()
+	// result: (Int64Make 		(Load <config.fe.TypeUInt32()> ptr mem) 		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem))
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is64BitInt(t) && config.BigEndian && !t.IsSigned()) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeUInt32())
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeUInt32())
+		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeUInt32().PtrTo())
+		v2.AuxInt = 4
+		v2.AddArg(ptr)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
 		return true
 	}
 	return false
@@ -2387,7 +2475,7 @@ func rewriteValuedec64_OpStore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Store [8] dst (Int64Make hi lo) mem)
-	// cond:
+	// cond: !config.BigEndian
 	// result: (Store [4] 		(OffPtr <hi.Type.PtrTo()> [4] dst) 		hi 		(Store [4] dst lo mem))
 	for {
 		if v.AuxInt != 8 {
@@ -2401,6 +2489,9 @@ func rewriteValuedec64_OpStore(v *Value, config *Config) bool {
 		hi := v_1.Args[0]
 		lo := v_1.Args[1]
 		mem := v.Args[2]
+		if !(!config.BigEndian) {
+			break
+		}
 		v.reset(OpStore)
 		v.AuxInt = 4
 		v0 := b.NewValue0(v.Line, OpOffPtr, hi.Type.PtrTo())
@@ -2412,6 +2503,39 @@ func rewriteValuedec64_OpStore(v *Value, config *Config) bool {
 		v1.AuxInt = 4
 		v1.AddArg(dst)
 		v1.AddArg(lo)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Store [8] dst (Int64Make hi lo) mem)
+	// cond: config.BigEndian
+	// result: (Store [4] 		(OffPtr <lo.Type.PtrTo()> [4] dst) 		lo 		(Store [4] dst hi mem))
+	for {
+		if v.AuxInt != 8 {
+			break
+		}
+		dst := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpInt64Make {
+			break
+		}
+		hi := v_1.Args[0]
+		lo := v_1.Args[1]
+		mem := v.Args[2]
+		if !(config.BigEndian) {
+			break
+		}
+		v.reset(OpStore)
+		v.AuxInt = 4
+		v0 := b.NewValue0(v.Line, OpOffPtr, lo.Type.PtrTo())
+		v0.AuxInt = 4
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v.AddArg(lo)
+		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
+		v1.AuxInt = 4
+		v1.AddArg(dst)
+		v1.AddArg(hi)
 		v1.AddArg(mem)
 		v.AddArg(v1)
 		return true

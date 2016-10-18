@@ -184,6 +184,8 @@ func nilcheckelim2(f *Func) {
 					if v.Aux != nil || off < 0 || off >= minZeroPage {
 						continue
 					}
+				case auxInt32:
+					// Mips uses this auxType for atomic add constant. It does not affect the effective address.
 				case auxInt64:
 					// ARM uses this auxType for duffcopy/duffzero/alignment info.
 					// It does not affect the effective address.
