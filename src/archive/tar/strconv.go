@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-const maxNanoSecondIntSize = 9
-
 func isASCII(s string) bool {
 	for _, c := range s {
 		if c >= 0x80 {
@@ -165,40 +163,41 @@ func (f *formatter) formatOctal(b []byte, x int64) {
 	f.formatString(b, s)
 }
 
-// parsePAXTime takes a string of the form %d.%d as described in
-// the PAX specification.
-func parsePAXTime(t string) (time.Time, error) {
-	buf := []byte(t)
-	pos := bytes.IndexByte(buf, '.')
-	var seconds, nanoseconds int64
-	var err error
-	if pos == -1 {
-		seconds, err = strconv.ParseInt(t, 10, 0)
-		if err != nil {
-			return time.Time{}, err
-		}
-	} else {
-		seconds, err = strconv.ParseInt(string(buf[:pos]), 10, 0)
-		if err != nil {
-			return time.Time{}, err
-		}
-		nanoBuf := string(buf[pos+1:])
-		// Pad as needed before converting to a decimal.
-		// For example .030 -> .030000000 -> 30000000 nanoseconds
-		if len(nanoBuf) < maxNanoSecondIntSize {
-			// Right pad
-			nanoBuf += strings.Repeat("0", maxNanoSecondIntSize-len(nanoBuf))
-		} else if len(nanoBuf) > maxNanoSecondIntSize {
-			// Right truncate
-			nanoBuf = nanoBuf[:maxNanoSecondIntSize]
-		}
-		nanoseconds, err = strconv.ParseInt(nanoBuf, 10, 0)
-		if err != nil {
-			return time.Time{}, err
-		}
+// parsePAXTime takes a string of the form %d.%d as described in the PAX
+// specification. Note that this implementation allows for negative timestamps,
+// which is allowed for by the PAX specification, but not always portable.
+func parsePAXTime(s string) (time.Time, error) {
+	const maxNanoSecondDigits = 9
+
+	// Split string into seconds and sub-seconds parts.
+	ss, sn := s, ""
+	if pos := strings.IndexByte(s, '.'); pos >= 0 {
+		ss, sn = s[:pos], s[pos+1:]
 	}
-	ts := time.Unix(seconds, nanoseconds)
-	return ts, nil
+
+	// Parse the seconds.
+	secs, err := strconv.ParseInt(ss, 10, 64)
+	if err != nil {
+		return time.Time{}, ErrHeader
+	}
+	if len(sn) == 0 {
+		return time.Unix(secs, 0), nil // No sub-second values
+	}
+
+	// Parse the nanoseconds.
+	if strings.Trim(sn, "0123456789") != "" {
+		return time.Time{}, ErrHeader
+	}
+	if len(sn) < maxNanoSecondDigits {
+		sn += strings.Repeat("0", maxNanoSecondDigits-len(sn)) // Right pad
+	} else {
+		sn = sn[:maxNanoSecondDigits] // Right truncate
+	}
+	nsecs, _ := strconv.ParseInt(sn, 10, 64) // Must succeed
+	if len(ss) > 0 && ss[0] == '-' {
+		return time.Unix(secs, -1*int64(nsecs)), nil // Negative correction
+	}
+	return time.Unix(secs, int64(nsecs)), nil
 }
 
 // TODO(dsnet): Implement formatPAXTime.

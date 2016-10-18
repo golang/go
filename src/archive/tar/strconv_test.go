@@ -156,20 +156,82 @@ func TestFormatNumeric(t *testing.T) {
 }
 
 func TestParsePAXTime(t *testing.T) {
-	timestamps := map[string]time.Time{
-		"1350244992.023960108":  time.Unix(1350244992, 23960108), // The common case
-		"1350244992.02396010":   time.Unix(1350244992, 23960100), // Lower precision value
-		"1350244992.0239601089": time.Unix(1350244992, 23960108), // Higher precision value
-		"1350244992":            time.Unix(1350244992, 0),        // Low precision value
+	vectors := []struct {
+		in   string
+		want time.Time
+		ok   bool
+	}{
+		{"1350244992.023960108", time.Unix(1350244992, 23960108), true},
+		{"1350244992.02396010", time.Unix(1350244992, 23960100), true},
+		{"1350244992.0239601089", time.Unix(1350244992, 23960108), true},
+		{"1350244992.3", time.Unix(1350244992, 300000000), true},
+		{"1350244992", time.Unix(1350244992, 0), true},
+		{"-1.000000001", time.Unix(-1, -1e0+0e0), true},
+		{"-1.000001", time.Unix(-1, -1e3+0e0), true},
+		{"-1.001000", time.Unix(-1, -1e6+0e0), true},
+		{"-1", time.Unix(-1, -0e0+0e0), true},
+		{"-1.999000", time.Unix(-1, -1e9+1e6), true},
+		{"-1.999999", time.Unix(-1, -1e9+1e3), true},
+		{"-1.999999999", time.Unix(-1, -1e9+1e0), true},
+		{"0.000000001", time.Unix(0, 1e0+0e0), true},
+		{"0.000001", time.Unix(0, 1e3+0e0), true},
+		{"0.001000", time.Unix(0, 1e6+0e0), true},
+		{"0", time.Unix(0, 0e0), true},
+		{"0.999000", time.Unix(0, 1e9-1e6), true},
+		{"0.999999", time.Unix(0, 1e9-1e3), true},
+		{"0.999999999", time.Unix(0, 1e9-1e0), true},
+		{"1.000000001", time.Unix(+1, +1e0-0e0), true},
+		{"1.000001", time.Unix(+1, +1e3-0e0), true},
+		{"1.001000", time.Unix(+1, +1e6-0e0), true},
+		{"1", time.Unix(+1, +0e0-0e0), true},
+		{"1.999000", time.Unix(+1, +1e9-1e6), true},
+		{"1.999999", time.Unix(+1, +1e9-1e3), true},
+		{"1.999999999", time.Unix(+1, +1e9-1e0), true},
+		{"-1350244992.023960108", time.Unix(-1350244992, -23960108), true},
+		{"-1350244992.02396010", time.Unix(-1350244992, -23960100), true},
+		{"-1350244992.0239601089", time.Unix(-1350244992, -23960108), true},
+		{"-1350244992.3", time.Unix(-1350244992, -300000000), true},
+		{"-1350244992", time.Unix(-1350244992, 0), true},
+		{"", time.Time{}, false},
+		{"0", time.Unix(0, 0), true},
+		{"1.", time.Unix(1, 0), true},
+		{"0.0", time.Unix(0, 0), true},
+		{".5", time.Time{}, false},
+		{"-1.3", time.Unix(-1, -3e8), true},
+		{"-1.0", time.Unix(-1, -0e0), true},
+		{"-0.0", time.Unix(-0, -0e0), true},
+		{"-0.1", time.Unix(-0, -1e8), true},
+		{"-0.01", time.Unix(-0, -1e7), true},
+		{"-0.99", time.Unix(-0, -99e7), true},
+		{"-0.98", time.Unix(-0, -98e7), true},
+		{"-1.1", time.Unix(-1, -1e8), true},
+		{"-1.01", time.Unix(-1, -1e7), true},
+		{"-2.99", time.Unix(-2, -99e7), true},
+		{"-5.98", time.Unix(-5, -98e7), true},
+		{"-", time.Time{}, false},
+		{"+", time.Time{}, false},
+		{"-1.-1", time.Time{}, false},
+		{"99999999999999999999999999999999999999999999999", time.Time{}, false},
+		{"0.123456789abcdef", time.Time{}, false},
+		{"foo", time.Time{}, false},
+		{"\x00", time.Time{}, false},
+		{"𝟵𝟴𝟳𝟲𝟱.𝟰𝟯𝟮𝟭𝟬", time.Time{}, false}, // Unicode numbers (U+1D7EC to U+1D7F5)
+		{"98765﹒43210", time.Time{}, false}, // Unicode period (U+FE52)
 	}
 
-	for input, expected := range timestamps {
-		ts, err := parsePAXTime(input)
-		if err != nil {
-			t.Fatal(err)
+	for _, v := range vectors {
+		ts, err := parsePAXTime(v.in)
+		ok := (err == nil)
+		if v.ok != ok {
+			if v.ok {
+				t.Errorf("parsePAXTime(%q): got parsing failure, want success", v.in)
+			} else {
+				t.Errorf("parsePAXTime(%q): got parsing success, want failure", v.in)
+			}
 		}
-		if !ts.Equal(expected) {
-			t.Fatalf("Time parsing failure %s %s", ts, expected)
+		if ok && !ts.Equal(v.want) {
+			t.Errorf("parsePAXTime(%q): got (%ds %dns), want (%ds %dns)",
+				v.in, ts.Unix(), ts.Nanosecond(), v.want.Unix(), v.want.Nanosecond())
 		}
 	}
 }
