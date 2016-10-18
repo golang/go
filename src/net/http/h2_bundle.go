@@ -5448,31 +5448,17 @@ func http2checkConnHeaders(req *Request) error {
 	return nil
 }
 
-func http2bodyAndLength(req *Request) (body io.Reader, contentLen int64) {
-	body = req.Body
-	if body == nil {
-		return nil, 0
+// actualContentLength returns a sanitized version of
+// req.ContentLength, where 0 actually means zero (not unknown) and -1
+// means unknown.
+func http2actualContentLength(req *Request) int64 {
+	if req.Body == nil {
+		return 0
 	}
 	if req.ContentLength != 0 {
-		return req.Body, req.ContentLength
+		return req.ContentLength
 	}
-
-	// We have a body but a zero content length. Test to see if
-	// it's actually zero or just unset.
-	var buf [1]byte
-	n, rerr := body.Read(buf[:])
-	if rerr != nil && rerr != io.EOF {
-		return http2errorReader{rerr}, -1
-	}
-	if n == 1 {
-
-		if rerr == io.EOF {
-			return bytes.NewReader(buf[:]), 1
-		}
-		return io.MultiReader(bytes.NewReader(buf[:]), body), -1
-	}
-
-	return nil, 0
+	return -1
 }
 
 func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
@@ -5493,8 +5479,9 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 		return nil, http2errClientConnUnusable
 	}
 
-	body, contentLen := http2bodyAndLength(req)
+	body := req.Body
 	hasBody := body != nil
+	contentLen := http2actualContentLength(req)
 
 	// TODO(bradfitz): this is a copy of the logic in net/http. Unify somewhere?
 	var requestedGzip bool
