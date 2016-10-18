@@ -721,7 +721,8 @@ opswitch:
 			break
 		}
 
-		if n.Right == nil || iszero(n.Right) && !instrumenting {
+		if n.Right == nil {
+			// TODO(austin): Check all "implicit zeroing"
 			break
 		}
 
@@ -2255,15 +2256,18 @@ func needwritebarrier(l *Node, r *Node) bool {
 		return false
 	}
 
-	// No write barrier for implicit zeroing.
-	if r == nil {
-		return false
-	}
-
 	// No write barrier if this is a pointer to a go:notinheap
 	// type, since the write barrier's inheap(ptr) check will fail.
 	if l.Type.IsPtr() && l.Type.Elem().NotInHeap {
 		return false
+	}
+
+	// Implicit zeroing is still zeroing, so it needs write
+	// barriers. In practice, these are all to stack variables
+	// (even if isstack isn't smart enough to figure that out), so
+	// they'll be eliminated by the backend.
+	if r == nil {
+		return true
 	}
 
 	// Ignore no-op conversions when making decision.
@@ -2273,31 +2277,17 @@ func needwritebarrier(l *Node, r *Node) bool {
 		r = r.Left
 	}
 
-	// No write barrier for zeroing or initialization to constant.
-	if iszero(r) || r.Op == OLITERAL {
-		return false
-	}
-
-	// No write barrier for storing static (read-only) data.
-	if r.Op == ONAME && strings.HasPrefix(r.Sym.Name, "statictmp_") {
-		return false
-	}
+	// TODO: We can eliminate write barriers if we know *both* the
+	// current and new content of the slot must already be shaded.
+	// We know a pointer is shaded if it's nil, or points to
+	// static data, a global (variable or function), or the stack.
+	// The nil optimization could be particularly useful for
+	// writes to just-allocated objects. Unfortunately, knowing
+	// the "current" value of the slot requires flow analysis.
 
 	// No write barrier for storing address of stack values,
 	// which are guaranteed only to be written to the stack.
 	if r.Op == OADDR && isstack(r.Left) {
-		return false
-	}
-
-	// No write barrier for storing address of global, which
-	// is live no matter what.
-	if r.Op == OADDR && r.Left.isGlobal() {
-		return false
-	}
-
-	// No write barrier for storing global function, which is live
-	// no matter what.
-	if r.Op == ONAME && r.Class == PFUNC {
 		return false
 	}
 
