@@ -600,11 +600,22 @@ func special(b byte) bool {
 // inside the argument text; the returned string is a regular expression matching
 // the literal text. For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
 func QuoteMeta(s string) string {
-	b := make([]byte, 2*len(s))
-
 	// A byte loop is correct because all metacharacters are ASCII.
-	j := 0
-	for i := 0; i < len(s); i++ {
+	var i int
+	for i = 0; i < len(s); i++ {
+		if special(s[i]) {
+			break
+		}
+	}
+	// No meta characters found, so return original string.
+	if i >= len(s) {
+		return s
+	}
+
+	b := make([]byte, 2*len(s)-i)
+	copy(b, s[:i])
+	j := i
+	for ; i < len(s); i++ {
 		if special(s[i]) {
 			b[j] = '\\'
 			j++
@@ -612,7 +623,7 @@ func QuoteMeta(s string) string {
 		b[j] = s[i]
 		j++
 	}
-	return string(b[0:j])
+	return string(b[:j])
 }
 
 // The number of capture values in the program may correspond
