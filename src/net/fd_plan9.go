@@ -17,11 +17,11 @@ type netFD struct {
 	fdmu fdMutex
 
 	// immutable until Close
-	net          string
-	n            string
-	dir          string
-	ctl, data    *os.File
-	laddr, raddr Addr
+	net               string
+	n                 string
+	dir               string
+	listen, ctl, data *os.File
+	laddr, raddr      Addr
 }
 
 var (
@@ -32,8 +32,16 @@ func sysInit() {
 	netdir = "/net"
 }
 
-func newFD(net, name string, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
-	return &netFD{net: net, n: name, dir: netdir + "/" + net + "/" + name, ctl: ctl, data: data, laddr: laddr, raddr: raddr}, nil
+func newFD(net, name string, listen, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
+	return &netFD{
+		net:    net,
+		n:      name,
+		dir:    netdir + "/" + net + "/" + name,
+		listen: listen,
+		ctl:    ctl, data: data,
+		laddr: laddr,
+		raddr: raddr,
+	}, nil
 }
 
 func (fd *netFD) init() error {
@@ -64,8 +72,14 @@ func (fd *netFD) destroy() {
 			err = err1
 		}
 	}
+	if fd.listen != nil {
+		if err1 := fd.listen.Close(); err1 != nil && err == nil {
+			err = err1
+		}
+	}
 	fd.ctl = nil
 	fd.data = nil
+	fd.listen = nil
 }
 
 func (fd *netFD) Read(b []byte) (n int, err error) {
@@ -124,11 +138,10 @@ func (fd *netFD) Close() error {
 	}
 	if fd.net == "tcp" {
 		// The following line is required to unblock Reads.
-		// For some reason, WriteString returns an error:
-		// "write /net/tcp/39/listen: inappropriate use of fd"
-		// But without it, Reads on dead conns hang forever.
-		// See Issue 9554.
-		fd.ctl.WriteString("close")
+		_, err := fd.ctl.WriteString("close")
+		if err != nil {
+			return err
+		}
 	}
 	err := fd.ctl.Close()
 	if fd.data != nil {
@@ -136,8 +149,14 @@ func (fd *netFD) Close() error {
 			err = err1
 		}
 	}
+	if fd.listen != nil {
+		if err1 := fd.listen.Close(); err1 != nil && err == nil {
+			err = err1
+		}
+	}
 	fd.ctl = nil
 	fd.data = nil
+	fd.listen = nil
 	return err
 }
 
