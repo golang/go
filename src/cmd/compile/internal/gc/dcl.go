@@ -372,6 +372,14 @@ func typenod(t *Type) *Node {
 	return t.nod
 }
 
+func anonfield(typ *Type) *Node {
+	return nod(ODCLFIELD, nil, typenod(typ))
+}
+
+func namedfield(s string, typ *Type) *Node {
+	return nod(ODCLFIELD, newname(lookup(s)), typenod(typ))
+}
+
 // oldname returns the Node that declares symbol s in the current scope.
 // If no such Node currently exists, an ONONAME Node is returned instead.
 func oldname(s *Sym) *Node {

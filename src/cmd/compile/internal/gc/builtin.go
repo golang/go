@@ -2,104 +2,247 @@
 
 package gc
 
-const runtimeimport = "" +
-	"version 2\n\n\x00\x00\x01\rruntime\x00\t\x11newobject\x00\x02\x17\"\vt" +
-	"yp·2\x00\x00\x01\x17:\x00\t\x13panicindex\x00\x00\x00\t\x13panicslice\x00\x00" +
-	"\x00\t\x15panicdivide\x00\x00\x00\t\x11throwinit\x00\x00\x00\t\x11panicwr" +
-	"ap\x00\x05 \x00 \x00 \x00\x00\t\rgopanic\x00\x01\x1b\x00\x00\x00\x00\t\x11gorecover\x00\x01" +
-	"\x17\b\x00\x01\x1b\x00\x00\x00\t\x11printbool\x00\x01\x00\x00\x00\t\x13printfloat\x00\x01\x1a\x00" +
-	"\x00\t\x0fprintint\x00\x01\n\x00\x00\t\x0fprinthex\x00\x01\x14\x00\x00\t\x11printui" +
-	"nt\x00\x01\x14\x00\x00\t\x17printcomplex\x00\x01\x1e\x00\x00\t\x15printstring\x00" +
-	"\x01 \x00\x00\t\x17printpointer\x00\x01:\x00\x00\t\x13printiface\x00\x01:\x00\x00" +
-	"\t\x13printeface\x00\x01:\x00\x00\t\x13printslice\x00\x01:\x00\x00\t\rprin" +
-	"tnl\x00\x00\x00\t\rprintsp\x00\x00\x00\t\x11printlock\x00\x00\x00\t\x15printu" +
-	"nlock\x00\x00\x00\t\x19concatstring2\x00\x05\x17\x0f@\"\x00 \x00 \x00\x01 \x00\t\x19c" +
-	"oncatstring3\x00\a\x17\x0f@\"\x00 \x00 \x00 \x00\x01 \x00\t\x19concatstri" +
-	"ng4\x00\t\x17\x0f@\"\x00 \x00 \x00 \x00 \x00\x01 \x00\t\x19concatstring5\x00\v\x17\x0f" +
-	"@\"\x00 \x00 \x00 \x00 \x00 \x00\x01 \x00\t\x19concatstrings\x00\x03\x17\x0f@\"\x00\x11 " +
-	"\x00\x01 \x00\t\x11cmpstring\x00\x03 \x00 \x00\x01\x02\x00\t\x0feqstring\x00\x03 \x00 \x00" +
-	"\x01\x00\x00\t\x11intstring\x00\x03\x17\x0f\b\"\x00\n\x00\x01 \x00\t!slicebytetos" +
-	"tring\x00\x03\x17\x0f@\"\x00\x11\"\x00\x01 \x00\t'slicebytetostringtmp" +
-	"\x00\x01\x11\"\x00\x01 \x00\t!slicerunetostring\x00\x03\x17\x0f@\"\x00\x11|S\x00\x01 " +
-	"\x00\t!stringtoslicebyte\x00\x03\x17\x0f@\"\x00 \x00\x01\x11\"\x00\t'strin" +
-	"gtoslicebytetmp\x00\x01 \x00\x01\x11\"\x00\t!stringtosliceru" +
-	"ne\x00\x03\x17\x0f@|S\x00 \x00\x01\x11|S\x00\t\x13decoderune\x00\x03 \x00\x02\x00\x04|S\rr" +
-	"etv·1\x00\x00\x02\rretk·2\x00\x00\t\x11slicecopy\x00\x06:\tto·2\x00" +
-	"\x00:\tfr·3\x00\x00\x16\vwid·4\x00\x1bunsafe-uintptr\x01\x02\x00\t\x1ds" +
-	"licestringcopy\x00\x04:X\x00\x00:Z\x00\x00\x01\x02\x00\t\rconvI2E\x00\x02:\r" +
-	"elem·2\x00\x00\x02:\vret·1\x00\x00\t\rconvI2I\x00\x04\x17\"\x06\x00\x00:\rel" +
-	"em·3\x00\x00\x02:f\x00\x00\t\rconvT2E\x00\x04\x17\"\x06\x00\x00\x17:j\x00\x00\x02:f\x00\x00\t\r" +
-	"convT2I\x00\x04\x17\"\vtab·2\x00\x00\x17:j\x00\x00\x02:f\x00\x00\t\x11assertE2" +
-	"E\x00\x06\x17\"\vtyp·1\x00\x00:\x0fiface·2\x00\x00\x17:\vret·3\x00\x00\x00\t\x13" +
-	"assertE2E2\x00\x06\x17\"\x06\x00\x00:\x0fiface·3\x00\x00\x17:\vret·4\x00\x00" +
-	"\x01\x00\x00\t\x11assertE2I\x00\x06\x17\"t\x00\x00:v\x00\x00\x17:x\x00\x00\x00\t\x13assertE" +
-	"2I2\x00\x06\x17\"\x06\x00\x00:||\x00\x00\x17:~\x00\x00\x01\x00\x00\t\x11assertE2T\x00\x06\x17\"t\x00" +
-	"\x00:v\x00\x00\x17:x\x00\x00\x00\t\x13assertE2T2\x00\x06\x17\"\x06\x00\x00:||\x00\x00\x17:~\x00\x00" +
-	"\x01\x00\x00\t\x11assertI2E\x00\x06\x17\"t\x00\x00:v\x00\x00\x17:x\x00\x00\x00\t\x13assertI" +
-	"2E2\x00\x06\x17\"\x06\x00\x00:||\x00\x00\x17:~\x00\x00\x01\x00\x00\t\x11assertI2I\x00\x06\x17\"t\x00" +
-	"\x00:v\x00\x00\x17:x\x00\x00\x00\t\x13assertI2I2\x00\x06\x17\"\x06\x00\x00:||\x00\x00\x17:~\x00\x00" +
-	"\x01\x00\x00\t\x11assertI2T\x00\x06\x17\"t\x00\x00:v\x00\x00\x17:x\x00\x00\x00\t\x13assertI" +
-	"2T2\x00\x06\x17\"\x06\x00\x00:||\x00\x00\x17:~\x00\x00\x01\x00\x00\t\x17panicdottype\x00\x06\x17" +
-	"\"\rhave·1\x00\x00\x17\"\rwant·2\x00\x00\x17\"||\x00\x00\x00\t\rifaceeq\x00" +
-	"\x04:\ti1·2\x00\x00:\ti2·3\x00\x00\x02\x00f\x00\x00\t\refaceeq\x00\x04:\x9c\x01\x00\x00" +
-	":\x9e\x01\x00\x00\x02\x00f\x00\x00\t\rmakemap\x00\b\x17\"\x13mapType·2\x00\x00\n\rhi" +
-	"nt·3\x00\x00\x17:\x11mapbuf·4\x00\x00\x17:\x17bucketbuf·5\x00\x00\x02\x1d" +
-	"::\rhmap·1\x00\x00\t\x13mapaccess1\x00\x06\x17\"\xa4\x01\x00\x00\x1d::\rhmap" +
-	"·3\x00\x00\x17:\vkey·4\x00\x00\x02\x17:\vval·1\x00\x00\t!mapaccess1" +
-	"_fast32\x00\x06\x17\"\xa4\x01\x00\x00\x1d::\xb0\x01\x00\x00:\xb2\x01\x00\x00\x02\x17:\xb4\x01\x00\x00\t!mapa" +
-	"ccess1_fast64\x00\x06\x17\"\xa4\x01\x00\x00\x1d::\xb0\x01\x00\x00:\xb2\x01\x00\x00\x02\x17:\xb4\x01\x00\x00" +
-	"\t#mapaccess1_faststr\x00\x06\x17\"\xa4\x01\x00\x00\x1d::\xb0\x01\x00\x00:\xb2\x01\x00\x00" +
-	"\x02\x17:\xb4\x01\x00\x00\t\x1bmapaccess1_fat\x00\b\x17\"\xa4\x01\x00\x00\x1d::\xb0\x01\x00\x00\x17:" +
-	"\xb2\x01\x00\x00\x17\"\rzero·5\x00\x00\x02\x17:\xb4\x01\x00\x00\t\x13mapaccess2\x00\x06\x17\"\x13" +
-	"mapType·3\x00\x00\x1d::\rhmap·4\x00\x00\x17:\vkey·5\x00\x00\x04\x17:\xb4" +
-	"\x01\x00\x00\x00\rpres·2\x00\x00\t!mapaccess2_fast32\x00\x06\x17\"\xc2\x01\x00" +
-	"\x00\x1d::\xc4\x01\x00\x00:\xc6\x01\x00\x00\x04\x17:\xb4\x01\x00\x00\x00\xc8\x01\x00\x00\t!mapaccess2_fa" +
-	"st64\x00\x06\x17\"\xc2\x01\x00\x00\x1d::\xc4\x01\x00\x00:\xc6\x01\x00\x00\x04\x17:\xb4\x01\x00\x00\x00\xc8\x01\x00\x00\t#ma" +
-	"paccess2_faststr\x00\x06\x17\"\xc2\x01\x00\x00\x1d::\xc4\x01\x00\x00:\xc6\x01\x00\x00\x04\x17:\xb4" +
-	"\x01\x00\x00\x00\xc8\x01\x00\x00\t\x1bmapaccess2_fat\x00\b\x17\"\xc2\x01\x00\x00\x1d::\xc4\x01\x00\x00\x17" +
-	":\xc6\x01\x00\x00\x17\"\rzero·6\x00\x00\x04\x17:\xb4\x01\x00\x00\x00\xc8\x01\x00\x00\t\x11mapassign" +
-	"\x00\x06\x17\"\xa4\x01\x00\x00\x1d::\xb0\x01\x00\x00\x17:\xb2\x01\x00\x00\x02\x17:\xb4\x01\x00\x00\t\x15mapiterini" +
-	"t\x00\x06\x17\"\x13mapType·1\x00\x00\x1d::\rhmap·2\x00\x00\x17:\x0fhiter\xc2" +
-	"\xb73\x00\x00\x00\t\x11mapdelete\x00\x06\x17\"\xd8\x01\x00\x00\x1d::\xda\x01\x00\x00\x17:\vkey·3" +
-	"\x00\x00\x00\t\x15mapiternext\x00\x02\x17:\x0fhiter·1\x00\x00\x00\t\x0fmakech" +
-	"an\x00\x04\x17\"\x15chanType·2\x00\x00\n\xa6\x01\x00\x00\x02\x1f\x06:\x0fhchan·1\x00\x00" +
-	"\t\x11chanrecv1\x00\x06\x17\"\x15chanType·1\x00\x00\x1f\x02:\x0fhchan·" +
-	"2\x00\x00\x17:j\x00\x00\x00\t\x11chanrecv2\x00\x06\x17\"\xe8\x01\x00\x00\x1f\x02:\x0fhchan·3" +
-	"\x00\x00\x17:\relem·4\x00\x00\x01\x00\x00\t\x11chansend1\x00\x06\x17\"\xee\x01\x00\x00\x1f\x04:\xf0" +
-	"\x01\x00\x00\x17:j\x00\x00\x00\t\x11closechan\x00\x02:\xea\x01\x00\x00\x00\a\x17writeBarri" +
-	"er\x00\x15\x06\renabled\x00\x00\x00\vneeded\x00\x00\x00\x05cgo\x00\x00\x00\t\x1dwrite" +
-	"barrierptr\x00\x04\x17:\vdst·1\x00\x00:\vsrc·2\x00\x00\x00\t\x17type" +
-	"dmemmove\x00\x06\x17\"t\x00\x00\x17:\vdst·2\x00\x00\x17:\vsrc·3\x00\x00\x00\t\x1b" +
-	"typedslicecopy\x00\x06\x17\"\x06\x00\x00:\vdst·3\x00\x00:\vsrc·4\x00" +
-	"\x00\x01\x02\x00\t\x17selectnbsend\x00\x06\x17\"\xe8\x01\x00\x00\x1f\x04:\xf4\x01\x00\x00\x17:\xf6\x01\x00\x00\x01" +
-	"\x00\x00\t\x17selectnbrecv\x00\x06\x17\"\xe8\x01\x00\x00\x17:j\x00\x00\x1f\x02:\x0fhchan·" +
-	"4\x00\x00\x01\x00\x00\t\x19selectnbrecv2\x00\b\x17\"\xe8\x01\x00\x00\x17:j\x00\x00\x17\x00\x15rec" +
-	"eived·4\x00\x00\x1f\x02:\x0fhchan·5\x00\x00\x01\x00\x00\t\x11newselect\x00\x06" +
-	"\x17\"\vsel·1\x00\x00\n\x13selsize·2\x00\x00\b\rsize·3\x00\x00\x00\t\x13s" +
-	"electsend\x00\x06\x17\"\vsel·2\x00\x00\x1f\x04:\xf4\x01\x00\x00\x17:\xf6\x01\x00\x00\x02\x00\x15se" +
-	"lected·1\x00\x00\t\x13selectrecv\x00\x06\x17\"\xac\x02\x00\x00\x1f\x02:\xf4\x01\x00\x00\x17:" +
-	"\xf6\x01\x00\x00\x02\x00\xae\x02\x00\x00\t\x15selectrecv2\x00\b\x17\"\xac\x02\x00\x00\x1f\x02:\xf4\x01\x00\x00\x17:" +
-	"\xf6\x01\x00\x00\x17\x00\x15received·5\x00\x00\x02\x00\xae\x02\x00\x00\t\x19selectdefaul" +
-	"t\x00\x02\x17\"\xac\x02\x00\x00\x02\x00\xae\x02\x00\x00\t\x0fselectgo\x00\x02\x17\"\xa4\x02\x00\x00\x00\t\tbloc" +
-	"k\x00\x00\x00\t\x11makeslice\x00\x06\x17\"\x06\x00\x00\x02\vlen·3\x00\x00\x02\vcap·4" +
-	"\x00\x00\x02\x11:\vary·1\x00\x00\t\x15makeslice64\x00\x06\x17\"\x06\x00\x00\n\xbe\x02\x00\x00\n" +
-	"\xc0\x02\x00\x00\x02\x11:\xc2\x02\x00\x00\t\x11growslice\x00\x06\x17\"\x06\x00\x00\x11:\vold·3\x00\x00" +
-	"\x02\xc0\x02\x00\x00\x02\x11:\xc2\x02\x00\x00\t\rmemmove\x00\x06\x17:\tto·1\x00\x00\x17:\vfrm\xc2" +
-	"\xb72\x00\x00\x16\x11length·3\x00^\x00\t\vmemclr\x00\x04\x17\"\vptr·1\x00\x00\x16" +
-	"\x11length·2\x00^\x00\t\x0fmemequal\x00\x06\x17:\ax·2\x00\x00\x17:\ay·" +
-	"3\x00\x00\x16\rsize·4\x00^\x01\x00\x00\t\x11memequal8\x00\x04\x17:\xda\x02\x00\x00\x17:\xdc\x02" +
-	"\x00\x00\x01\x00\x00\t\x13memequal16\x00\x04\x17:\xda\x02\x00\x00\x17:\xdc\x02\x00\x00\x01\x00\x00\t\x13meme" +
-	"qual32\x00\x04\x17:\xda\x02\x00\x00\x17:\xdc\x02\x00\x00\x01\x00\x00\t\x13memequal64\x00\x04\x17:\xda" +
-	"\x02\x00\x00\x17:\xdc\x02\x00\x00\x01\x00\x00\t\x15memequal128\x00\x04\x17:\xda\x02\x00\x00\x17:\xdc\x02\x00\x00\x01" +
-	"\x00\x00\t\x0fint64div\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64div\x00\x03\x14\x00\x14\x00\x01\x14" +
-	"\x00\t\x0fint64mod\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64mod\x00\x03\x14\x00\x14\x00\x01\x14\x00" +
-	"\t\x1bfloat64toint64\x00\x01\x1a\x00\x01\n\x00\t\x1dfloat64touint64" +
-	"\x00\x01\x1a\x00\x01\x14\x00\t\x1dfloat64touint32\x00\x01\x1a\x00\x01\x12\x00\t\x1bint64to" +
-	"float64\x00\x01\n\x00\x01\x1a\x00\t\x1duint64tofloat64\x00\x01\x14\x00\x01\x1a\x00\t\x1d" +
-	"uint32tofloat64\x00\x01\x12\x00\x01\x1a\x00\t\x19complex128div\x00\x04\x1e" +
-	"\vnum·2\x00\x00\x1e\vden·3\x00\x00\x02\x1e\vquo·1\x00\x00\t\x19racefunc" +
-	"enter\x00\x01\x16^\x00\t\x17racefuncexit\x00\x00\x00\t\x0fraceread\x00\x01\x16" +
-	"^\x00\t\x11racewrite\x00\x01\x16^\x00\t\x19racereadrange\x00\x04\x16\radd" +
-	"r·1\x00^\x16\rsize·2\x00^\x00\t\x1bracewriterange\x00\x04\x16\x90\x03\x00" +
-	"^\x16\x92\x03\x00^\x00\t\x0fmsanread\x00\x04\x16\x90\x03\x00^\x16\x92\x03\x00^\x00\t\x11msanwrit" +
-	"e\x00\x04\x16\x90\x03\x00^\x16\x92\x03\x00^\x00\v\xf6\x01\v\x00\x01\x00\n$$\n"
+var runtimeDecls = [...]struct {
+	name string
+	tag  int
+	typ  int
+}{
+	{"newobject", funcTag, 4},
+	{"panicindex", funcTag, 5},
+	{"panicslice", funcTag, 5},
+	{"panicdivide", funcTag, 5},
+	{"throwinit", funcTag, 5},
+	{"panicwrap", funcTag, 7},
+	{"gopanic", funcTag, 9},
+	{"gorecover", funcTag, 12},
+	{"printbool", funcTag, 14},
+	{"printfloat", funcTag, 16},
+	{"printint", funcTag, 18},
+	{"printhex", funcTag, 20},
+	{"printuint", funcTag, 20},
+	{"printcomplex", funcTag, 22},
+	{"printstring", funcTag, 23},
+	{"printpointer", funcTag, 24},
+	{"printiface", funcTag, 24},
+	{"printeface", funcTag, 24},
+	{"printslice", funcTag, 24},
+	{"printnl", funcTag, 5},
+	{"printsp", funcTag, 5},
+	{"printlock", funcTag, 5},
+	{"printunlock", funcTag, 5},
+	{"concatstring2", funcTag, 27},
+	{"concatstring3", funcTag, 28},
+	{"concatstring4", funcTag, 29},
+	{"concatstring5", funcTag, 30},
+	{"concatstrings", funcTag, 32},
+	{"cmpstring", funcTag, 34},
+	{"eqstring", funcTag, 35},
+	{"intstring", funcTag, 38},
+	{"slicebytetostring", funcTag, 40},
+	{"slicebytetostringtmp", funcTag, 41},
+	{"slicerunetostring", funcTag, 44},
+	{"stringtoslicebyte", funcTag, 45},
+	{"stringtoslicebytetmp", funcTag, 46},
+	{"stringtoslicerune", funcTag, 49},
+	{"decoderune", funcTag, 50},
+	{"slicecopy", funcTag, 52},
+	{"slicestringcopy", funcTag, 53},
+	{"convI2E", funcTag, 54},
+	{"convI2I", funcTag, 55},
+	{"convT2E", funcTag, 56},
+	{"convT2I", funcTag, 56},
+	{"assertE2E", funcTag, 57},
+	{"assertE2E2", funcTag, 58},
+	{"assertE2I", funcTag, 57},
+	{"assertE2I2", funcTag, 58},
+	{"assertE2T", funcTag, 57},
+	{"assertE2T2", funcTag, 58},
+	{"assertI2E", funcTag, 57},
+	{"assertI2E2", funcTag, 58},
+	{"assertI2I", funcTag, 57},
+	{"assertI2I2", funcTag, 58},
+	{"assertI2T", funcTag, 57},
+	{"assertI2T2", funcTag, 58},
+	{"panicdottype", funcTag, 59},
+	{"ifaceeq", funcTag, 60},
+	{"efaceeq", funcTag, 60},
+	{"makemap", funcTag, 62},
+	{"mapaccess1", funcTag, 63},
+	{"mapaccess1_fast32", funcTag, 64},
+	{"mapaccess1_fast64", funcTag, 64},
+	{"mapaccess1_faststr", funcTag, 64},
+	{"mapaccess1_fat", funcTag, 65},
+	{"mapaccess2", funcTag, 66},
+	{"mapaccess2_fast32", funcTag, 67},
+	{"mapaccess2_fast64", funcTag, 67},
+	{"mapaccess2_faststr", funcTag, 67},
+	{"mapaccess2_fat", funcTag, 68},
+	{"mapassign", funcTag, 63},
+	{"mapiterinit", funcTag, 69},
+	{"mapdelete", funcTag, 69},
+	{"mapiternext", funcTag, 70},
+	{"makechan", funcTag, 72},
+	{"chanrecv1", funcTag, 74},
+	{"chanrecv2", funcTag, 75},
+	{"chansend1", funcTag, 77},
+	{"closechan", funcTag, 24},
+	{"writeBarrier", varTag, 78},
+	{"writebarrierptr", funcTag, 79},
+	{"typedmemmove", funcTag, 80},
+	{"typedslicecopy", funcTag, 81},
+	{"selectnbsend", funcTag, 82},
+	{"selectnbrecv", funcTag, 83},
+	{"selectnbrecv2", funcTag, 85},
+	{"newselect", funcTag, 86},
+	{"selectsend", funcTag, 82},
+	{"selectrecv", funcTag, 75},
+	{"selectrecv2", funcTag, 87},
+	{"selectdefault", funcTag, 88},
+	{"selectgo", funcTag, 89},
+	{"block", funcTag, 5},
+	{"makeslice", funcTag, 91},
+	{"makeslice64", funcTag, 92},
+	{"growslice", funcTag, 93},
+	{"memmove", funcTag, 94},
+	{"memclr", funcTag, 95},
+	{"memequal", funcTag, 96},
+	{"memequal8", funcTag, 97},
+	{"memequal16", funcTag, 97},
+	{"memequal32", funcTag, 97},
+	{"memequal64", funcTag, 97},
+	{"memequal128", funcTag, 97},
+	{"int64div", funcTag, 98},
+	{"uint64div", funcTag, 99},
+	{"int64mod", funcTag, 98},
+	{"uint64mod", funcTag, 99},
+	{"float64toint64", funcTag, 100},
+	{"float64touint64", funcTag, 101},
+	{"float64touint32", funcTag, 103},
+	{"int64tofloat64", funcTag, 104},
+	{"uint64tofloat64", funcTag, 105},
+	{"uint32tofloat64", funcTag, 106},
+	{"complex128div", funcTag, 107},
+	{"racefuncenter", funcTag, 108},
+	{"racefuncexit", funcTag, 5},
+	{"raceread", funcTag, 108},
+	{"racewrite", funcTag, 108},
+	{"racereadrange", funcTag, 109},
+	{"racewriterange", funcTag, 109},
+	{"msanread", funcTag, 109},
+	{"msanwrite", funcTag, 109},
+}
+
+func runtimeTypes() []*Type {
+	var typs [110]*Type
+	typs[0] = bytetype
+	typs[1] = typPtr(typs[0])
+	typs[2] = Types[TANY]
+	typs[3] = typPtr(typs[2])
+	typs[4] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[3])})
+	typs[5] = functype(nil, nil, nil)
+	typs[6] = Types[TSTRING]
+	typs[7] = functype(nil, []*Node{anonfield(typs[6]), anonfield(typs[6]), anonfield(typs[6])}, nil)
+	typs[8] = Types[TINTER]
+	typs[9] = functype(nil, []*Node{anonfield(typs[8])}, nil)
+	typs[10] = Types[TINT32]
+	typs[11] = typPtr(typs[10])
+	typs[12] = functype(nil, []*Node{anonfield(typs[11])}, []*Node{anonfield(typs[8])})
+	typs[13] = Types[TBOOL]
+	typs[14] = functype(nil, []*Node{anonfield(typs[13])}, nil)
+	typs[15] = Types[TFLOAT64]
+	typs[16] = functype(nil, []*Node{anonfield(typs[15])}, nil)
+	typs[17] = Types[TINT64]
+	typs[18] = functype(nil, []*Node{anonfield(typs[17])}, nil)
+	typs[19] = Types[TUINT64]
+	typs[20] = functype(nil, []*Node{anonfield(typs[19])}, nil)
+	typs[21] = Types[TCOMPLEX128]
+	typs[22] = functype(nil, []*Node{anonfield(typs[21])}, nil)
+	typs[23] = functype(nil, []*Node{anonfield(typs[6])}, nil)
+	typs[24] = functype(nil, []*Node{anonfield(typs[2])}, nil)
+	typs[25] = typArray(typs[0], 32)
+	typs[26] = typPtr(typs[25])
+	typs[27] = functype(nil, []*Node{anonfield(typs[26]), anonfield(typs[6]), anonfield(typs[6])}, []*Node{anonfield(typs[6])})
+	typs[28] = functype(nil, []*Node{anonfield(typs[26]), anonfield(typs[6]), anonfield(typs[6]), anonfield(typs[6])}, []*Node{anonfield(typs[6])})
+	typs[29] = functype(nil, []*Node{anonfield(typs[26]), anonfield(typs[6]), anonfield(typs[6]), anonfield(typs[6]), anonfield(typs[6])}, []*Node{anonfield(typs[6])})
+	typs[30] = functype(nil, []*Node{anonfield(typs[26]), anonfield(typs[6]), anonfield(typs[6]), anonfield(typs[6]), anonfield(typs[6]), anonfield(typs[6])}, []*Node{anonfield(typs[6])})
+	typs[31] = typSlice(typs[6])
+	typs[32] = functype(nil, []*Node{anonfield(typs[26]), anonfield(typs[31])}, []*Node{anonfield(typs[6])})
+	typs[33] = Types[TINT]
+	typs[34] = functype(nil, []*Node{anonfield(typs[6]), anonfield(typs[6])}, []*Node{anonfield(typs[33])})
+	typs[35] = functype(nil, []*Node{anonfield(typs[6]), anonfield(typs[6])}, []*Node{anonfield(typs[13])})
+	typs[36] = typArray(typs[0], 4)
+	typs[37] = typPtr(typs[36])
+	typs[38] = functype(nil, []*Node{anonfield(typs[37]), anonfield(typs[17])}, []*Node{anonfield(typs[6])})
+	typs[39] = typSlice(typs[0])
+	typs[40] = functype(nil, []*Node{anonfield(typs[26]), anonfield(typs[39])}, []*Node{anonfield(typs[6])})
+	typs[41] = functype(nil, []*Node{anonfield(typs[39])}, []*Node{anonfield(typs[6])})
+	typs[42] = runetype
+	typs[43] = typSlice(typs[42])
+	typs[44] = functype(nil, []*Node{anonfield(typs[26]), anonfield(typs[43])}, []*Node{anonfield(typs[6])})
+	typs[45] = functype(nil, []*Node{anonfield(typs[26]), anonfield(typs[6])}, []*Node{anonfield(typs[39])})
+	typs[46] = functype(nil, []*Node{anonfield(typs[6])}, []*Node{anonfield(typs[39])})
+	typs[47] = typArray(typs[42], 32)
+	typs[48] = typPtr(typs[47])
+	typs[49] = functype(nil, []*Node{anonfield(typs[48]), anonfield(typs[6])}, []*Node{anonfield(typs[43])})
+	typs[50] = functype(nil, []*Node{anonfield(typs[6]), anonfield(typs[33])}, []*Node{anonfield(typs[42]), anonfield(typs[33])})
+	typs[51] = Types[TUINTPTR]
+	typs[52] = functype(nil, []*Node{anonfield(typs[2]), anonfield(typs[2]), anonfield(typs[51])}, []*Node{anonfield(typs[33])})
+	typs[53] = functype(nil, []*Node{anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[33])})
+	typs[54] = functype(nil, []*Node{anonfield(typs[2])}, []*Node{anonfield(typs[2])})
+	typs[55] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2])}, []*Node{anonfield(typs[2])})
+	typs[56] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, []*Node{anonfield(typs[2])})
+	typs[57] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[3])}, nil)
+	typs[58] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[3])}, []*Node{anonfield(typs[13])})
+	typs[59] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[1])}, nil)
+	typs[60] = functype(nil, []*Node{anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[13])})
+	typs[61] = typMap(typs[2], typs[2])
+	typs[62] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[17]), anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[61])})
+	typs[63] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[3])}, []*Node{anonfield(typs[3])})
+	typs[64] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[2])}, []*Node{anonfield(typs[3])})
+	typs[65] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[3]), anonfield(typs[1])}, []*Node{anonfield(typs[3])})
+	typs[66] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[3])}, []*Node{anonfield(typs[3]), anonfield(typs[13])})
+	typs[67] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[2])}, []*Node{anonfield(typs[3]), anonfield(typs[13])})
+	typs[68] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[3]), anonfield(typs[1])}, []*Node{anonfield(typs[3]), anonfield(typs[13])})
+	typs[69] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[3])}, nil)
+	typs[70] = functype(nil, []*Node{anonfield(typs[3])}, nil)
+	typs[71] = typChan(typs[2], Cboth)
+	typs[72] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[17])}, []*Node{anonfield(typs[71])})
+	typs[73] = typChan(typs[2], Crecv)
+	typs[74] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[73]), anonfield(typs[3])}, nil)
+	typs[75] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[73]), anonfield(typs[3])}, []*Node{anonfield(typs[13])})
+	typs[76] = typChan(typs[2], Csend)
+	typs[77] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[76]), anonfield(typs[3])}, nil)
+	typs[78] = tostruct([]*Node{namedfield("enabled", typs[13]), namedfield("needed", typs[13]), namedfield("cgo", typs[13])})
+	typs[79] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[2])}, nil)
+	typs[80] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
+	typs[81] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[33])})
+	typs[82] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[76]), anonfield(typs[3])}, []*Node{anonfield(typs[13])})
+	typs[83] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[73])}, []*Node{anonfield(typs[13])})
+	typs[84] = typPtr(typs[13])
+	typs[85] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[84]), anonfield(typs[73])}, []*Node{anonfield(typs[13])})
+	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[17]), anonfield(typs[10])}, nil)
+	typs[87] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[73]), anonfield(typs[3]), anonfield(typs[84])}, []*Node{anonfield(typs[13])})
+	typs[88] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[13])})
+	typs[89] = functype(nil, []*Node{anonfield(typs[1])}, nil)
+	typs[90] = typSlice(typs[2])
+	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[33]), anonfield(typs[33])}, []*Node{anonfield(typs[90])})
+	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[90])})
+	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[90]), anonfield(typs[33])}, []*Node{anonfield(typs[90])})
+	typs[94] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[51])}, nil)
+	typs[95] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[51])}, nil)
+	typs[96] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[51])}, []*Node{anonfield(typs[13])})
+	typs[97] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[13])})
+	typs[98] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
+	typs[99] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
+	typs[100] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[17])})
+	typs[101] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[19])})
+	typs[102] = Types[TUINT32]
+	typs[103] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[102])})
+	typs[104] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[15])})
+	typs[105] = functype(nil, []*Node{anonfield(typs[19])}, []*Node{anonfield(typs[15])})
+	typs[106] = functype(nil, []*Node{anonfield(typs[102])}, []*Node{anonfield(typs[15])})
+	typs[107] = functype(nil, []*Node{anonfield(typs[21]), anonfield(typs[21])}, []*Node{anonfield(typs[21])})
+	typs[108] = functype(nil, []*Node{anonfield(typs[51])}, nil)
+	typs[109] = functype(nil, []*Node{anonfield(typs[51]), anonfield(typs[51])}, nil)
+	return typs[:]
+}
