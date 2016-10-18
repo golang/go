@@ -7,8 +7,10 @@ package gc
 import (
 	"bytes"
 	"internal/testenv"
+	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -37,6 +39,56 @@ func doTest(t *testing.T, filename string, kind string) {
 	}
 	if s := stderr.String(); strings.Contains(s, "SSA unimplemented") {
 		t.Errorf("Unimplemented message found in stderr:\n%s", s)
+	}
+}
+
+// runGenTest runs a test-generator, then runs the generated test.
+// Generated test can either fail in compilation or execution.
+// The environment variable parameter(s) is passed to the run
+// of the generated test.
+func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
+	testenv.MustHaveGoRun(t)
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command("go", "run", filepath.Join("testdata", filename))
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
+	}
+	// Write stdout into a temporary file
+	tmpdir, ok := ioutil.TempDir("", tmpname)
+	if ok != nil {
+		t.Fatalf("Failed to create temporary directory")
+	}
+
+	rungo := filepath.Join(tmpdir, "run.go")
+	ok = ioutil.WriteFile(rungo, stdout.Bytes(), 0600)
+	if ok != nil {
+		t.Fatalf("Failed to create temporary file " + rungo)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	cmd = exec.Command("go", "run", "-gcflags", "-d=ssa/check/on", rungo)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.Env = append(cmd.Env, ev...)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
+	}
+	if s := stderr.String(); s != "" {
+		t.Errorf("Stderr = %s\nWant empty", s)
+	}
+	if s := stdout.String(); s != "" {
+		t.Errorf("Stdout = %s\nWant empty", s)
+	}
+
+}
+
+func TestGenFlowGraph(t *testing.T) {
+	runGenTest(t, "flowgraph_generator1.go", "ssa_fg_tmp1")
+	if runtime.GOOS != "windows" {
+		runGenTest(t, "flowgraph_generator1.go", "ssa_fg_tmp2", "GO_SSA_PHI_LOC_CUTOFF=0")
 	}
 }
 
