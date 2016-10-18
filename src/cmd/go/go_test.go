@@ -1703,6 +1703,16 @@ func TestGoTestDashOWritesBinary(t *testing.T) {
 	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
 }
 
+func TestGoTestDashIDashOWritesBinary(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.run("test", "-v", "-i", "-o", tg.path("myerrors.test"+exeSuffix), "errors")
+	tg.grepBothNot("PASS|FAIL", "test should not have run")
+	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
+}
+
 // Issue 4568.
 func TestSymlinksList(t *testing.T) {
 	switch runtime.GOOS {
