@@ -139,24 +139,39 @@ func (c YCbCr) RGBA() (uint32, uint32, uint32, uint32) {
 	yy1 := int32(c.Y) * 0x10100 // Convert 0x12 to 0x121200.
 	cb1 := int32(c.Cb) - 128
 	cr1 := int32(c.Cr) - 128
-	r := (yy1 + 91881*cr1) >> 8
-	g := (yy1 - 22554*cb1 - 46802*cr1) >> 8
-	b := (yy1 + 116130*cb1) >> 8
-	if r < 0 {
-		r = 0
-	} else if r > 0xffff {
-		r = 0xffff
+
+	// The bit twiddling below is equivalent to
+	//
+	// r := (yy1 + 91881*cr1) >> 8
+	// if r < 0 {
+	//     r = 0
+	// } else if r > 0xff {
+	//     r = 0xffff
+	// }
+	//
+	// but uses fewer branches and is faster.
+	// The code below to compute g and b uses a similar pattern.
+	r := yy1 + 91881*cr1
+	if uint32(r)&0xff000000 == 0 {
+		r >>= 8
+	} else {
+		r = ^(r >> 31) & 0xffff
 	}
-	if g < 0 {
-		g = 0
-	} else if g > 0xffff {
-		g = 0xffff
+
+	g := yy1 - 22554*cb1 - 46802*cr1
+	if uint32(g)&0xff000000 == 0 {
+		g >>= 8
+	} else {
+		g = ^(g >> 31) & 0xffff
 	}
-	if b < 0 {
-		b = 0
-	} else if b > 0xffff {
-		b = 0xffff
+
+	b := yy1 + 116130*cb1
+	if uint32(b)&0xff000000 == 0 {
+		b >>= 8
+	} else {
+		b = ^(b >> 31) & 0xffff
 	}
+
 	return uint32(r), uint32(g), uint32(b), 0xffff
 }
 
@@ -184,23 +199,37 @@ func (c NYCbCrA) RGBA() (uint32, uint32, uint32, uint32) {
 	yy1 := int32(c.Y) * 0x10100 // Convert 0x12 to 0x121200.
 	cb1 := int32(c.Cb) - 128
 	cr1 := int32(c.Cr) - 128
-	r := (yy1 + 91881*cr1) >> 8
-	g := (yy1 - 22554*cb1 - 46802*cr1) >> 8
-	b := (yy1 + 116130*cb1) >> 8
-	if r < 0 {
-		r = 0
-	} else if r > 0xffff {
-		r = 0xffff
+
+	// The bit twiddling below is equivalent to
+	//
+	// r := (yy1 + 91881*cr1) >> 8
+	// if r < 0 {
+	//     r = 0
+	// } else if r > 0xff {
+	//     r = 0xffff
+	// }
+	//
+	// but uses fewer branches and is faster.
+	// The code below to compute g and b uses a similar pattern.
+	r := yy1 + 91881*cr1
+	if uint32(r)&0xff000000 == 0 {
+		r >>= 8
+	} else {
+		r = ^(r >> 31) & 0xffff
 	}
-	if g < 0 {
-		g = 0
-	} else if g > 0xffff {
-		g = 0xffff
+
+	g := yy1 - 22554*cb1 - 46802*cr1
+	if uint32(g)&0xff000000 == 0 {
+		g >>= 8
+	} else {
+		g = ^(g >> 31) & 0xffff
 	}
-	if b < 0 {
-		b = 0
-	} else if b > 0xffff {
-		b = 0xffff
+
+	b := yy1 + 116130*cb1
+	if uint32(b)&0xff000000 == 0 {
+		b >>= 8
+	} else {
+		b = ^(b >> 31) & 0xffff
 	}
 
 	// The second part of this method applies the alpha.
