@@ -4,126 +4,71 @@
 
 package gc
 
-// unsafenmagic rewrites calls to package unsafe's functions into constants.
-func unsafenmagic(nn *Node) *Node {
-	fn := nn.Left
-	args := nn.List
-
-	if safemode || fn == nil || fn.Op != ONAME {
-		return nil
-	}
-	s := fn.Sym
-	if s == nil {
-		return nil
-	}
-	if s.Pkg != unsafepkg {
-		return nil
-	}
-
-	if args.Len() == 0 {
-		yyerror("missing argument for %v", s)
-		return nil
-	}
-
-	r := args.First()
-
-	var v int64
-	switch s.Name {
-	case "Alignof", "Sizeof":
-		r = typecheck(r, Erv)
-		r = defaultlit(r, nil)
-		tr := r.Type
+// evalunsafe evaluates a package unsafe operation and returns the result.
+func evalunsafe(n *Node) int64 {
+	switch n.Op {
+	case OALIGNOF, OSIZEOF:
+		n.Left = typecheck(n.Left, Erv)
+		n.Left = defaultlit(n.Left, nil)
+		tr := n.Left.Type
 		if tr == nil {
-			goto bad
+			yyerror("invalid expression %v", n)
+			return 0
 		}
 		dowidth(tr)
-		if s.Name == "Alignof" {
-			v = int64(tr.Align)
-		} else {
-			v = tr.Width
+		if n.Op == OALIGNOF {
+			return int64(tr.Align)
 		}
+		return tr.Width
 
-	case "Offsetof":
+	case OOFFSETOF:
 		// must be a selector.
-		if r.Op != OXDOT {
-			goto bad
+		if n.Left.Op != OXDOT {
+			yyerror("invalid expression %v", n)
+			return 0
 		}
 
 		// Remember base of selector to find it back after dot insertion.
 		// Since r->left may be mutated by typechecking, check it explicitly
 		// first to track it correctly.
-		r.Left = typecheck(r.Left, Erv)
-		base := r.Left
+		n.Left.Left = typecheck(n.Left.Left, Erv)
+		base := n.Left.Left
 
-		r = typecheck(r, Erv)
-		switch r.Op {
+		n.Left = typecheck(n.Left, Erv)
+		switch n.Left.Op {
 		case ODOT, ODOTPTR:
 			break
 		case OCALLPART:
-			yyerror("invalid expression %v: argument is a method value", nn)
-			goto ret
+			yyerror("invalid expression %v: argument is a method value", n)
+			return 0
 		default:
-			goto bad
+			yyerror("invalid expression %v", n)
+			return 0
 		}
 
 		// Sum offsets for dots until we reach base.
-		for r1 := r; r1 != base; r1 = r1.Left {
-			switch r1.Op {
+		var v int64
+		for r := n.Left; r != base; r = r.Left {
+			switch r.Op {
 			case ODOTPTR:
 				// For Offsetof(s.f), s may itself be a pointer,
 				// but accessing f must not otherwise involve
 				// indirection via embedded pointer types.
-				if r1.Left != base {
-					yyerror("invalid expression %v: selector implies indirection of embedded %v", nn, r1.Left)
-					goto ret
+				if r.Left != base {
+					yyerror("invalid expression %v: selector implies indirection of embedded %v", n, r.Left)
+					return 0
 				}
 				fallthrough
 			case ODOT:
-				v += r1.Xoffset
+				v += r.Xoffset
 			default:
-				Dump("unsafenmagic", r)
-				Fatalf("impossible %#v node after dot insertion", r1.Op)
-				goto bad
+				Dump("unsafenmagic", n.Left)
+				Fatalf("impossible %#v node after dot insertion", r.Op)
 			}
 		}
-
-	default:
-		return nil
+		return v
 	}
 
-	if args.Len() > 1 {
-		yyerror("extra arguments for %v", s)
-	}
-	goto ret
-
-bad:
-	yyerror("invalid expression %v", nn)
-
-ret:
-	// any side effects disappear; ignore init
-	var val Val
-	val.U = new(Mpint)
-	val.U.(*Mpint).SetInt64(v)
-	n := nod(OLITERAL, nil, nil)
-	n.Orig = nn
-	n.SetVal(val)
-	n.Type = Types[TUINTPTR]
-	nn.Type = Types[TUINTPTR]
-	return n
-}
-
-func isunsafebuiltin(n *Node) bool {
-	if n == nil || n.Op != ONAME || n.Sym == nil || n.Sym.Pkg != unsafepkg {
-		return false
-	}
-	if n.Sym.Name == "Sizeof" {
-		return true
-	}
-	if n.Sym.Name == "Offsetof" {
-		return true
-	}
-	if n.Sym.Name == "Alignof" {
-		return true
-	}
-	return false
+	Fatalf("unexpected op %v", n.Op)
+	return 0
 }
