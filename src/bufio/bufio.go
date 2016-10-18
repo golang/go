@@ -206,10 +206,18 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 			}
 			return n, b.readErr()
 		}
-		b.fill() // buffer is empty
-		if b.r == b.w {
+		// One read.
+		// Do not use b.fill, which will loop.
+		b.r = 0
+		b.w = 0
+		n, b.err = b.rd.Read(b.buf)
+		if n < 0 {
+			panic(errNegativeRead)
+		}
+		if n == 0 {
 			return 0, b.readErr()
 		}
+		b.w += n
 	}
 
 	// copy as much as we can
