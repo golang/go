@@ -828,6 +828,37 @@ func TestRenameFailed(t *testing.T) {
 	}
 }
 
+func TestRenameToDirFailed(t *testing.T) {
+	defer chtmpdir(t)()
+	from, to := "renamefrom", "renameto"
+
+	Remove(from)
+	Remove(to)
+	Mkdir(from, 0777)
+	Mkdir(to, 0777)
+
+	err := Rename(from, to)
+	switch err := err.(type) {
+	case *LinkError:
+		if err.Op != "rename" {
+			t.Errorf("rename %q, %q: err.Op: want %q, got %q", from, to, "rename", err.Op)
+		}
+		if err.Old != from {
+			t.Errorf("rename %q, %q: err.Old: want %q, got %q", from, to, from, err.Old)
+		}
+		if err.New != to {
+			t.Errorf("rename %q, %q: err.New: want %q, got %q", from, to, to, err.New)
+		}
+	case nil:
+		t.Errorf("rename %q, %q: expected error, got nil", from, to)
+
+		// cleanup whatever was placed in "renameto"
+		Remove(to)
+	default:
+		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
+	}
+}
+
 func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 	r, w, err := Pipe()
 	if err != nil {
