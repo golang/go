@@ -457,7 +457,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			aoffset = 0
 			autosize = int32(textstksiz)
 
-			if p.Mark&LEAF != 0 && autosize == 0 && p.From3.Offset&obj.NOFRAME == 0 {
+			if p.Mark&LEAF != 0 && autosize == 0 {
 				// A leaf function with no locals has no frame.
 				p.From3.Offset |= obj.NOFRAME
 			}
@@ -466,6 +466,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// If there is a stack frame at all, it includes
 				// space to save the LR.
 				autosize += int32(ctxt.FixedFrameSize())
+			}
+
+			if p.Mark&LEAF != 0 && autosize < obj.StackSmall {
+				// A leaf function with a small stack can be marked
+				// NOSPLIT, avoiding a stack check.
+				p.From3.Offset |= obj.NOSPLIT
 			}
 
 			p.To.Offset = int64(autosize)
