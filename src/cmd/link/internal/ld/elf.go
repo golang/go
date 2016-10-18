@@ -2199,7 +2199,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 	switch SysArch.Family {
 	default:
 		Exitf("unknown architecture in asmbelf: %v", SysArch.Family)
-	case sys.MIPS64:
+	case sys.MIPS, sys.MIPS64:
 		eh.machine = EM_MIPS
 	case sys.ARM:
 		eh.machine = EM_ARM
