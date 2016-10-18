@@ -19,6 +19,7 @@ import (
 	"log"
 	"net"
 	. "net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
@@ -1293,6 +1294,101 @@ func TestClientCopyHeadersOnRedirect(t *testing.T) {
 	}
 	if got := res.Header.Get("Result"); got != "ok" {
 		t.Errorf("result = %q; want ok", got)
+	}
+}
+
+// Issue 17494: cookies should be altered when Client follows redirects.
+func TestClientAltersCookiesOnRedirect(t *testing.T) {
+	cookieMap := func(cs []*Cookie) map[string][]string {
+		m := make(map[string][]string)
+		for _, c := range cs {
+			m[c.Name] = append(m[c.Name], c.Value)
+		}
+		return m
+	}
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		var want map[string][]string
+		got := cookieMap(r.Cookies())
+
+		c, _ := r.Cookie("Cycle")
+		switch c.Value {
+		case "0":
+			want = map[string][]string{
+				"Cookie1": []string{"OldValue1a", "OldValue1b"},
+				"Cookie2": []string{"OldValue2"},
+				"Cookie3": []string{"OldValue3a", "OldValue3b"},
+				"Cookie4": []string{"OldValue4"},
+				"Cycle":   []string{"0"},
+			}
+			SetCookie(w, &Cookie{Name: "Cycle", Value: "1", Path: "/"})
+			SetCookie(w, &Cookie{Name: "Cookie2", Path: "/", MaxAge: -1}) // Delete cookie from Header
+			Redirect(w, r, "/", StatusFound)
+		case "1":
+			want = map[string][]string{
+				"Cookie1": []string{"OldValue1a", "OldValue1b"},
+				"Cookie3": []string{"OldValue3a", "OldValue3b"},
+				"Cookie4": []string{"OldValue4"},
+				"Cycle":   []string{"1"},
+			}
+			SetCookie(w, &Cookie{Name: "Cycle", Value: "2", Path: "/"})
+			SetCookie(w, &Cookie{Name: "Cookie3", Value: "NewValue3", Path: "/"}) // Modify cookie in Header
+			SetCookie(w, &Cookie{Name: "Cookie4", Value: "NewValue4", Path: "/"}) // Modify cookie in Jar
+			Redirect(w, r, "/", StatusFound)
+		case "2":
+			want = map[string][]string{
+				"Cookie1": []string{"OldValue1a", "OldValue1b"},
+				"Cookie3": []string{"NewValue3"},
+				"Cookie4": []string{"NewValue4"},
+				"Cycle":   []string{"2"},
+			}
+			SetCookie(w, &Cookie{Name: "Cycle", Value: "3", Path: "/"})
+			SetCookie(w, &Cookie{Name: "Cookie5", Value: "NewValue5", Path: "/"}) // Insert cookie into Jar
+			Redirect(w, r, "/", StatusFound)
+		case "3":
+			want = map[string][]string{
+				"Cookie1": []string{"OldValue1a", "OldValue1b"},
+				"Cookie3": []string{"NewValue3"},
+				"Cookie4": []string{"NewValue4"},
+				"Cookie5": []string{"NewValue5"},
+				"Cycle":   []string{"3"},
+			}
+			// Don't redirect to ensure the loop ends.
+		default:
+			t.Errorf("unexpected redirect cycle")
+			return
+		}
+
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("redirect %s, Cookie = %v, want %v", c.Value, got, want)
+		}
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	jar, _ := cookiejar.New(nil)
+	c := &Client{
+		Transport: tr,
+		Jar:       jar,
+	}
+
+	u, _ := url.Parse(ts.URL)
+	req, _ := NewRequest("GET", ts.URL, nil)
+	req.AddCookie(&Cookie{Name: "Cookie1", Value: "OldValue1a"})
+	req.AddCookie(&Cookie{Name: "Cookie1", Value: "OldValue1b"})
+	req.AddCookie(&Cookie{Name: "Cookie2", Value: "OldValue2"})
+	req.AddCookie(&Cookie{Name: "Cookie3", Value: "OldValue3a"})
+	req.AddCookie(&Cookie{Name: "Cookie3", Value: "OldValue3b"})
+	jar.SetCookies(u, []*Cookie{&Cookie{Name: "Cookie4", Value: "OldValue4", Path: "/"}})
+	jar.SetCookies(u, []*Cookie{&Cookie{Name: "Cycle", Value: "0", Path: "/"}})
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatal(res.Status)
 	}
 }
 

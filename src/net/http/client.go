@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -444,10 +445,10 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 	}
 
 	var (
-		deadline = c.deadline()
-		reqs     []*Request
-		resp     *Response
-		ireqhdr  = req.Header.clone()
+		deadline    = c.deadline()
+		reqs        []*Request
+		resp        *Response
+		copyHeaders = c.makeHeadersCopier(req)
 	)
 	uerr := func(err error) error {
 		req.closeBody()
@@ -495,17 +496,13 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 				req.Method = "GET"
 				req.Body = nil // TODO: fix this when 307/308 support happens
 			}
-			// Copy the initial request's Header values
-			// (at least the safe ones).  Do this before
-			// setting the Referer, in case the user set
-			// Referer on their first request. If they
-			// really want to override, they can do it in
+
+			// Copy original headers before setting the Referer,
+			// in case the user set Referer on their first request.
+			// If they really want to override, they can do it in
 			// their CheckRedirect func.
-			for k, vv := range ireqhdr {
-				if shouldCopyHeaderOnRedirect(k, ireq.URL, u) {
-					req.Header[k] = vv
-				}
-			}
+			copyHeaders(req)
+
 			// Add the Referer header from the most recent
 			// request URL to the new one, if it's not https->http:
 			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL); ref != "" {
@@ -558,6 +555,70 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 		if !shouldRedirect(resp.StatusCode) {
 			return resp, nil
 		}
+	}
+}
+
+// makeHeadersCopier makes a function that copies headers from the
+// initial Request, ireq. For every redirect, this function must be called
+// so that it can copy headers into the upcoming Request.
+func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
+	// The headers to copy are from the very initial request.
+	// We use a closured callback to keep a reference to these original headers.
+	var (
+		ireqhdr  = ireq.Header.clone()
+		icookies map[string][]*Cookie
+	)
+	if c.Jar != nil && ireq.Header.Get("Cookie") != "" {
+		icookies = make(map[string][]*Cookie)
+		for _, c := range ireq.Cookies() {
+			icookies[c.Name] = append(icookies[c.Name], c)
+		}
+	}
+
+	preq := ireq // The previous request
+	return func(req *Request) {
+		// If Jar is present and there was some initial cookies provided
+		// via the request header, then we may need to alter the initial
+		// cookies as we follow redirects since each redirect may end up
+		// modifying a pre-existing cookie.
+		//
+		// Since cookies already set in the request header do not contain
+		// information about the original domain and path, the logic below
+		// assumes any new set cookies override the original cookie
+		// regardless of domain or path.
+		//
+		// See https://golang.org/issue/17494
+		if c.Jar != nil && icookies != nil {
+			var changed bool
+			resp := req.Response // The response that caused the upcoming redirect
+			for _, c := range resp.Cookies() {
+				if _, ok := icookies[c.Name]; ok {
+					delete(icookies, c.Name)
+					changed = true
+				}
+			}
+			if changed {
+				ireqhdr.Del("Cookie")
+				var ss []string
+				for _, cs := range icookies {
+					for _, c := range cs {
+						ss = append(ss, c.Name+"="+c.Value)
+					}
+				}
+				sort.Strings(ss) // Ensure deterministic headers
+				ireqhdr.Set("Cookie", strings.Join(ss, "; "))
+			}
+		}
+
+		// Copy the initial request's Header values
+		// (at least the safe ones).
+		for k, vv := range ireqhdr {
+			if shouldCopyHeaderOnRedirect(k, preq.URL, req.URL) {
+				req.Header[k] = vv
+			}
+		}
+
+		preq = req // Update previous Request with the current request
 	}
 }
 
@@ -625,7 +686,7 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }
 
-// Head issues a HEAD to the specified URL.  If the response is one of
+// Head issues a HEAD to the specified URL. If the response is one of
 // the following redirect codes, Head follows the redirect, up to a
 // maximum of 10 redirects:
 //
@@ -639,7 +700,7 @@ func Head(url string) (resp *Response, err error) {
 	return DefaultClient.Head(url)
 }
 
-// Head issues a HEAD to the specified URL.  If the response is one of the
+// Head issues a HEAD to the specified URL. If the response is one of the
 // following redirect codes, Head follows the redirect after calling the
 // Client's CheckRedirect function:
 //
