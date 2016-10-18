@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This file encapsulates some of the odd characteristics of the
-// 64-bit MIPS (MIPS64) instruction set, to minimize its interaction
+// MIPS (MIPS64) instruction set, to minimize its interaction
 // with the core of the assembler.
 
 package arch
@@ -13,7 +13,7 @@ import (
 	"cmd/internal/obj/mips"
 )
 
-func jumpMIPS64(word string) bool {
+func jumpMIPS(word string) bool {
 	switch word {
 	case "BEQ", "BFPF", "BFPT", "BGEZ", "BGEZAL", "BGTZ", "BLEZ", "BLTZ", "BLTZAL", "BNE", "JMP", "JAL", "CALL":
 		return true
@@ -21,9 +21,9 @@ func jumpMIPS64(word string) bool {
 	return false
 }
 
-// IsMIPS64CMP reports whether the op (as defined by an mips.A* constant) is
+// IsMIPSCMP reports whether the op (as defined by an mips.A* constant) is
 // one of the CMP instructions that require special handling.
-func IsMIPS64CMP(op obj.As) bool {
+func IsMIPSCMP(op obj.As) bool {
 	switch op {
 	case mips.ACMPEQF, mips.ACMPEQD, mips.ACMPGEF, mips.ACMPGED,
 		mips.ACMPGTF, mips.ACMPGTD:
@@ -32,9 +32,9 @@ func IsMIPS64CMP(op obj.As) bool {
 	return false
 }
 
-// IsMIPS64MUL reports whether the op (as defined by an mips.A* constant) is
+// IsMIPSMUL reports whether the op (as defined by an mips.A* constant) is
 // one of the MUL/DIV/REM instructions that require special handling.
-func IsMIPS64MUL(op obj.As) bool {
+func IsMIPSMUL(op obj.As) bool {
 	switch op {
 	case mips.AMUL, mips.AMULU, mips.AMULV, mips.AMULVU,
 		mips.ADIV, mips.ADIVU, mips.ADIVV, mips.ADIVVU,
