@@ -9,30 +9,56 @@
 (Int64Hi (Int64Make hi _)) -> hi
 (Int64Lo (Int64Make _ lo)) -> lo
 
-// Assuming little endian (we don't support big endian 32-bit architecture yet)
-(Load <t> ptr mem) && is64BitInt(t) && t.IsSigned() ->
+
+(Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && t.IsSigned() ->
 	(Int64Make
 		(Load <config.fe.TypeInt32()> (OffPtr <config.fe.TypeInt32().PtrTo()> [4] ptr) mem)
 		(Load <config.fe.TypeUInt32()> ptr mem))
-(Load <t> ptr mem) && is64BitInt(t) && !t.IsSigned() ->
+
+(Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && !t.IsSigned() ->
 	(Int64Make
 		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem)
 		(Load <config.fe.TypeUInt32()> ptr mem))
 
-(Store [8] dst (Int64Make hi lo) mem) ->
+(Load <t> ptr mem) && is64BitInt(t) && config.BigEndian && t.IsSigned() ->
+	(Int64Make
+		(Load <config.fe.TypeInt32()> ptr mem)
+		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem))
+
+(Load <t> ptr mem) && is64BitInt(t) && config.BigEndian && !t.IsSigned() ->
+	(Int64Make
+		(Load <config.fe.TypeUInt32()> ptr mem)
+		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem))
+
+(Store [8] dst (Int64Make hi lo) mem) && !config.BigEndian ->
 	(Store [4]
 		(OffPtr <hi.Type.PtrTo()> [4] dst)
 		hi
 		(Store [4] dst lo mem))
 
-(Arg {n} [off]) && is64BitInt(v.Type) && v.Type.IsSigned() ->
+(Store [8] dst (Int64Make hi lo) mem) && config.BigEndian ->
+	(Store [4]
+		(OffPtr <lo.Type.PtrTo()> [4] dst)
+		lo
+		(Store [4] dst hi mem))
+
+(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() ->
   (Int64Make
     (Arg <config.fe.TypeInt32()> {n} [off+4])
     (Arg <config.fe.TypeUInt32()> {n} [off]))
-(Arg {n} [off]) && is64BitInt(v.Type) && !v.Type.IsSigned() ->
+(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() ->
   (Int64Make
     (Arg <config.fe.TypeUInt32()> {n} [off+4])
     (Arg <config.fe.TypeUInt32()> {n} [off]))
+
+(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() ->
+  (Int64Make
+    (Arg <config.fe.TypeInt32()> {n} [off])
+    (Arg <config.fe.TypeUInt32()> {n} [off+4]))
+(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() ->
+  (Int64Make
+    (Arg <config.fe.TypeUInt32()> {n} [off])
+    (Arg <config.fe.TypeUInt32()> {n} [off+4]))
 
 (Add64 x y) ->
 	(Int64Make

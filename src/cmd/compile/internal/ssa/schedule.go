@@ -88,7 +88,7 @@ func schedule(f *Func) {
 			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpPPC64LoweredGetClosurePtr ||
 				v.Op == OpARMLoweredGetClosurePtr || v.Op == OpARM64LoweredGetClosurePtr ||
 				v.Op == Op386LoweredGetClosurePtr || v.Op == OpMIPS64LoweredGetClosurePtr ||
-				v.Op == OpS390XLoweredGetClosurePtr:
+				v.Op == OpS390XLoweredGetClosurePtr || v.Op == OpMIPSLoweredGetClosurePtr:
 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
 				// context register is not stomped. GetLoweredClosurePtr should only appear
 				// in the entry block where there are no phi functions, so there is no
@@ -100,7 +100,7 @@ func schedule(f *Func) {
 			case v.Op == OpAMD64LoweredNilCheck || v.Op == OpPPC64LoweredNilCheck ||
 				v.Op == OpARMLoweredNilCheck || v.Op == OpARM64LoweredNilCheck ||
 				v.Op == Op386LoweredNilCheck || v.Op == OpMIPS64LoweredNilCheck ||
-				v.Op == OpS390XLoweredNilCheck:
+				v.Op == OpS390XLoweredNilCheck || v.Op == OpMIPSLoweredNilCheck:
 				// Nil checks must come before loads from the same address.
 				score[v.ID] = ScoreNilCheck
 			case v.Op == OpPhi:
