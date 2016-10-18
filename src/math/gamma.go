@@ -133,6 +133,8 @@ func Gamma(x float64) float64 {
 	switch {
 	case isNegInt(x) || IsInf(x, -1) || IsNaN(x):
 		return NaN()
+	case IsInf(x, 1):
+		return Inf(1)
 	case x == 0:
 		if Signbit(x) {
 			return Inf(-1)
