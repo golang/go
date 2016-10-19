@@ -344,12 +344,11 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 	sbuf := string(buf)
 
 	// For GNU PAX sparse format 0.0 support.
-	// This function transforms the sparse format 0.0 headers into sparse format 0.1 headers.
-	var sparseMap bytes.Buffer
+	// This function transforms the sparse format 0.0 headers into format 0.1
+	// headers since 0.0 headers were not PAX compliant.
+	var sparseMap []string
 
-	headers := make(map[string]string)
-	// Each record is constructed as
-	//     "%d %s=%s\n", length, keyword, value
+	extHdrs := make(map[string]string)
 	for len(sbuf) > 0 {
 		key, value, residual, err := parsePAXRecord(sbuf)
 		if err != nil {
@@ -357,27 +356,29 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 		}
 		sbuf = residual
 
-		keyStr := key
-		if keyStr == paxGNUSparseOffset || keyStr == paxGNUSparseNumBytes {
-			// GNU sparse format 0.0 special key. Write to sparseMap instead of using the headers map.
-			sparseMap.WriteString(value)
-			sparseMap.Write([]byte{','})
-		} else {
+		switch key {
+		case paxGNUSparseOffset, paxGNUSparseNumBytes:
+			// Validate sparse header order and value.
+			if (len(sparseMap)%2 == 0 && key != paxGNUSparseOffset) ||
+				(len(sparseMap)%2 == 1 && key != paxGNUSparseNumBytes) ||
+				strings.Contains(value, ",") {
+				return nil, ErrHeader
+			}
+			sparseMap = append(sparseMap, value)
+		default:
 			// According to PAX specification, a value is stored only if it is
 			// non-empty. Otherwise, the key is deleted.
 			if len(value) > 0 {
-				headers[key] = value
+				extHdrs[key] = value
 			} else {
-				delete(headers, key)
+				delete(extHdrs, key)
 			}
 		}
 	}
-	if sparseMap.Len() != 0 {
-		// Add sparse info to headers, chopping off the extra comma
-		sparseMap.Truncate(sparseMap.Len() - 1)
-		headers[paxGNUSparseMap] = sparseMap.String()
+	if len(sparseMap) > 0 {
+		extHdrs[paxGNUSparseMap] = strings.Join(sparseMap, ",")
 	}
-	return headers, nil
+	return extHdrs, nil
 }
 
 // skipUnread skips any unread bytes in the existing file entry, as well as any
