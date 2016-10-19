@@ -33,8 +33,9 @@ var escapeOK = fmt.Errorf("template escaped correctly")
 
 // nameSpace is the data structure shared by all templates in an association.
 type nameSpace struct {
-	mu  sync.Mutex
-	set map[string]*Template
+	mu      sync.Mutex
+	set     map[string]*Template
+	escaped bool
 }
 
 // Templates returns a slice of the templates associated with t, including t
@@ -74,10 +75,25 @@ func (t *Template) Option(opt ...string) *Template {
 	return t
 }
 
+// checkCanParse checks whether it is OK to parse templates.
+// If not, it returns an error.
+func (t *Template) checkCanParse() error {
+	if t == nil {
+		return nil
+	}
+	t.nameSpace.mu.Lock()
+	defer t.nameSpace.mu.Unlock()
+	if t.nameSpace.escaped {
+		return fmt.Errorf("html/template: cannot Parse after Execute")
+	}
+	return nil
+}
+
 // escape escapes all associated templates.
 func (t *Template) escape() error {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
+	t.nameSpace.escaped = true
 	if t.escapeErr == nil {
 		if t.Tree == nil {
 			return fmt.Errorf("template: %q is an incomplete or empty template%s", t.Name(), t.DefinedTemplates())
@@ -124,6 +140,7 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) 
 func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err error) {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
+	t.nameSpace.escaped = true
 	tmpl = t.set[name]
 	if tmpl == nil {
 		return nil, fmt.Errorf("html/template: %q is undefined", name)
@@ -155,21 +172,22 @@ func (t *Template) DefinedTemplates() string {
 // define additional templates associated with t and are removed from the
 // definition of t itself.
 //
+// Templates can be redefined in successive calls to Parse,
+// before the first use of Execute on t or any associated template.
 // A template definition with a body containing only white space and comments
-// is considered empty and is not recorded as the template's body.
-// Each template can be given a non-empty definition at most once.
-// That is, Parse may be called multiple times to parse definitions of templates
-// to associate with t, but at most one such call can include a non-empty body for
-// t itself, and each named associated template can be given at most one
-// non-empty definition.
+// is considered empty and will not replace an existing template's body.
+// This allows using Parse to add new named template definitions without
+// overwriting the main template body.
 func (t *Template) Parse(text string) (*Template, error) {
-	t.nameSpace.mu.Lock()
-	t.escapeErr = nil
-	t.nameSpace.mu.Unlock()
+	if err := t.checkCanParse(); err != nil {
+		return nil, err
+	}
+
 	ret, err := t.text.Parse(text)
 	if err != nil {
 		return nil, err
 	}
+
 	// In general, all the named templates might have changed underfoot.
 	// Regardless, some new ones may have been defined.
 	// The template.Template set has been updated; update ours.
@@ -180,11 +198,7 @@ func (t *Template) Parse(text string) (*Template, error) {
 		tmpl := t.set[name]
 		if tmpl == nil {
 			tmpl = t.new(name)
-		} else if tmpl.escapeErr != nil {
-			return nil, fmt.Errorf("html/template: cannot redefine %q after it has executed", name)
 		}
-		// Restore our record of this text/template to its unescaped original state.
-		tmpl.escapeErr = nil
 		tmpl.text = v
 		tmpl.Tree = v.Tree
 	}
@@ -194,13 +208,14 @@ func (t *Template) Parse(text string) (*Template, error) {
 // AddParseTree creates a new template with the name and parse tree
 // and associates it with t.
 //
-// It returns an error if t has already been executed.
+// It returns an error if t or any associated template has already been executed.
 func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
+	if err := t.checkCanParse(); err != nil {
+		return nil, err
+	}
+
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
-	if t.escapeErr != nil {
-		return nil, fmt.Errorf("html/template: cannot AddParseTree to %q after it has executed", t.Name())
-	}
 	text, err := t.text.AddParseTree(name, tree)
 	if err != nil {
 		return nil, err
@@ -368,6 +383,8 @@ func ParseFiles(filenames ...string) (*Template, error) {
 //
 // When parsing multiple files with the same name in different directories,
 // the last one mentioned will be the one that results.
+//
+// ParseFiles returns an error if t or any associated template has already been executed.
 func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
 	return parseFiles(t, filenames...)
 }
@@ -375,6 +392,10 @@ func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
 // parseFiles is the helper for the method and function. If the argument
 // template is nil, it is created from the first file.
 func parseFiles(t *Template, filenames ...string) (*Template, error) {
+	if err := t.checkCanParse(); err != nil {
+		return nil, err
+	}
+
 	if len(filenames) == 0 {
 		// Not really a problem, but be consistent.
 		return nil, fmt.Errorf("html/template: no files named in call to ParseFiles")
@@ -429,12 +450,17 @@ func ParseGlob(pattern string) (*Template, error) {
 //
 // When parsing multiple files with the same name in different directories,
 // the last one mentioned will be the one that results.
+//
+// ParseGlob returns an error if t or any associated template has already been executed.
 func (t *Template) ParseGlob(pattern string) (*Template, error) {
 	return parseGlob(t, pattern)
 }
 
 // parseGlob is the implementation of the function and method ParseGlob.
 func parseGlob(t *Template, pattern string) (*Template, error) {
+	if err := t.checkCanParse(); err != nil {
+		return nil, err
+	}
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
