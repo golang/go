@@ -4,7 +4,7 @@
 
 // Package plugin implements loading and symbol resolution of Go plugins.
 //
-// Currently plugins only work on Linux.
+// Currently plugins only work on Linux and Darwin.
 //
 // A plugin is a Go main package with exported functions and variables that
 // has been built with:
@@ -24,6 +24,8 @@ type Plugin struct {
 }
 
 // Open opens a Go plugin.
+// If a path has already been opened, then the existing *Plugin is returned.
+// It is safe for concurrent use by multiple goroutines.
 func Open(path string) (*Plugin, error) {
 	return open(path)
 }
@@ -31,6 +33,7 @@ func Open(path string) (*Plugin, error) {
 // Lookup searches for a symbol named symName in plugin p.
 // A symbol is any exported variable or function.
 // It reports an error if the symbol is not found.
+// It is safe for concurrent use by multiple goroutines.
 func (p *Plugin) Lookup(symName string) (Symbol, error) {
 	return lookup(p, symName)
 }
