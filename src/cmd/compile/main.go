@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/arm"
 	"cmd/compile/internal/arm64"
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/mips"
 	"cmd/compile/internal/mips64"
 	"cmd/compile/internal/ppc64"
 	"cmd/compile/internal/s390x"
@@ -36,6 +37,8 @@ func main() {
 		arm.Init()
 	case "arm64":
 		arm64.Init()
+	case "mips", "mipsle":
+		mips.Init()
 	case "mips64", "mips64le":
 		mips64.Init()
 	case "ppc64", "ppc64le":
