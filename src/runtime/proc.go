@@ -2175,8 +2175,8 @@ top:
 func dropg() {
 	_g_ := getg()
 
-	_g_.m.curg.m = nil
-	_g_.m.curg = nil
+	setMNoWB(&_g_.m.curg.m, nil)
+	setGNoWB(&_g_.m.curg, nil)
 }
 
 func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
