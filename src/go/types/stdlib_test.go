@@ -140,6 +140,7 @@ func TestStdTest(t *testing.T) {
 	}
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+		"alias2.go",      // excluded until we can handle alias declarations
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 		"sigchld.go",     // don't work on Windows; testTestDir should consult build tags
 	)
