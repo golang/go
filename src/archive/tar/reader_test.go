@@ -326,6 +326,53 @@ var untarTests = []*untarTest{
 		},
 	},
 	{
+		// GNU tar file with atime and ctime fields set.
+		// Created with the GNU tar v1.27.1.
+		//	tar --incremental -S -cvf gnu-incremental.tar test2
+		file: "testdata/gnu-incremental.tar",
+		headers: []*Header{
+			{
+				Name:       "test2/",
+				Mode:       16877,
+				Uid:        1000,
+				Gid:        1000,
+				Size:       14,
+				ModTime:    time.Unix(1441973427, 0),
+				Typeflag:   'D',
+				Uname:      "rawr",
+				Gname:      "dsnet",
+				AccessTime: time.Unix(1441974501, 0),
+				ChangeTime: time.Unix(1441973436, 0),
+			},
+			{
+				Name:       "test2/foo",
+				Mode:       33188,
+				Uid:        1000,
+				Gid:        1000,
+				Size:       64,
+				ModTime:    time.Unix(1441973363, 0),
+				Typeflag:   '0',
+				Uname:      "rawr",
+				Gname:      "dsnet",
+				AccessTime: time.Unix(1441974501, 0),
+				ChangeTime: time.Unix(1441973436, 0),
+			},
+			{
+				Name:       "test2/sparse",
+				Mode:       33188,
+				Uid:        1000,
+				Gid:        1000,
+				Size:       536870912,
+				ModTime:    time.Unix(1441973427, 0),
+				Typeflag:   'S',
+				Uname:      "rawr",
+				Gname:      "dsnet",
+				AccessTime: time.Unix(1441991948, 0),
+				ChangeTime: time.Unix(1441973436, 0),
+			},
+		},
+	},
+	{
 		// Matches the behavior of GNU and BSD tar utilities.
 		file: "testdata/pax-multi-hdrs.tar",
 		headers: []*Header{
