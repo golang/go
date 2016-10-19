@@ -399,6 +399,11 @@ func badmorestackgsignal() {
 	write(2, sp.str, int32(sp.len))
 }
 
+//go:nosplit
+func badctxt() {
+	throw("ctxt != 0")
+}
+
 func lockedOSThread() bool {
 	gp := getg()
 	return gp.lockedm != nil && gp.m.lockedg != nil
@@ -2285,6 +2290,12 @@ func goexit0(gp *g) {
 	schedule()
 }
 
+// save updates getg().sched to refer to pc and sp so that a following
+// gogo will restore pc and sp.
+//
+// save must not have write barriers because invoking a write barrier
+// can clobber getg().sched.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func save(pc, sp uintptr) {
@@ -2294,8 +2305,13 @@ func save(pc, sp uintptr) {
 	_g_.sched.sp = sp
 	_g_.sched.lr = 0
 	_g_.sched.ret = 0
-	_g_.sched.ctxt = nil
 	_g_.sched.g = guintptr(unsafe.Pointer(_g_))
+	// We need to ensure ctxt is zero, but can't have a write
+	// barrier here. However, it should always already be zero.
+	// Assert that.
+	if _g_.sched.ctxt != nil {
+		badctxt()
+	}
 }
 
 // The goroutine g is about to enter a system call.
