@@ -229,3 +229,15 @@ func TestTemplateCloneLookup(t *testing.T) {
 		t.Error("after Clone, tmpl.Lookup(tmpl.Name()) != tmpl")
 	}
 }
+
+func TestCloneGrowth(t *testing.T) {
+	tmpl := Must(New("root").Parse(`<title>{{block "B". }}Arg{{end}}</title>`))
+	tmpl = Must(tmpl.Clone())
+	Must(tmpl.Parse(`{{define "B"}}Text{{end}}`))
+	for i := 0; i < 10; i++ {
+		tmpl.Execute(ioutil.Discard, nil)
+	}
+	if len(tmpl.DefinedTemplates()) > 200 {
+		t.Fatalf("too many templates: %v", len(tmpl.DefinedTemplates()))
+	}
+}
