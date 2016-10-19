@@ -1067,13 +1067,20 @@ func TestParsePAX(t *testing.T) {
 		{"30 mtime=1350244992.023960108\n", map[string]string{"mtime": "1350244992.023960108"}, true},
 		{"3 somelongkey=\n", nil, false},
 		{"50 tooshort=\n", nil, false},
-		{"23 GNU.sparse.offset=0\n25 GNU.sparse.numbytes=1\n" +
-			"23 GNU.sparse.offset=2\n25 GNU.sparse.numbytes=3\n",
-			map[string]string{"GNU.sparse.map": "0,1,2,3"}, true},
 		{"13 key1=haha\n13 key2=nana\n13 key3=kaka\n",
 			map[string]string{"key1": "haha", "key2": "nana", "key3": "kaka"}, true},
 		{"13 key1=val1\n13 key2=val2\n8 key1=\n",
 			map[string]string{"key2": "val2"}, true},
+		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=2\n" +
+			"23 GNU.sparse.offset=1\n25 GNU.sparse.numbytes=2\n" +
+			"23 GNU.sparse.offset=3\n25 GNU.sparse.numbytes=4\n",
+			map[string]string{paxGNUSparseSize: "10", paxGNUSparseNumBlocks: "2", paxGNUSparseMap: "1,2,3,4"}, true},
+		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=1\n" +
+			"25 GNU.sparse.numbytes=2\n23 GNU.sparse.offset=1\n",
+			nil, false},
+		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=1\n" +
+			"25 GNU.sparse.offset=1,2\n25 GNU.sparse.numbytes=2\n",
+			nil, false},
 	}
 
 	for i, v := range vectors {
