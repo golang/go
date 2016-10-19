@@ -201,6 +201,7 @@ func Main() {
 	ctxt.textaddress()
 	ctxt.pclntab()
 	ctxt.findfunctab()
+	ctxt.typelink()
 	ctxt.symtab()
 	ctxt.dodata()
 	ctxt.address()

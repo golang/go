@@ -110,11 +110,10 @@ func deadcode(ctxt *Link) {
 	}
 
 	if Buildmode != BuildmodeShared {
-		// Keep a typelink or itablink if the symbol it points at is being kept.
-		// (When BuildmodeShared, always keep typelinks and itablinks.)
+		// Keep a itablink if the symbol it points at is being kept.
+		// (When BuildmodeShared, always keep itablinks.)
 		for _, s := range ctxt.Syms.Allsym {
-			if strings.HasPrefix(s.Name, "go.typelink.") ||
-				strings.HasPrefix(s.Name, "go.itablink.") {
+			if strings.HasPrefix(s.Name, "go.itablink.") {
 				s.Attr.Set(AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
 			}
 		}

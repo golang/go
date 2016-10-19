@@ -52,7 +52,9 @@
 //	- type [int]
 //	- name & version [symref index]
 //	- flags [int]
-//		1 dupok
+//		1<<0 dupok
+//		1<<1 local
+//		1<<2 add to typelink table
 //	- size [int]
 //	- gotype [symref index]
 //	- p [data block]
@@ -394,6 +396,9 @@ func (w *objWriter) writeSym(s *LSym) {
 	}
 	if s.Local {
 		flags |= 1 << 1
+	}
+	if s.MakeTypelink {
+		flags |= 1 << 2
 	}
 	w.writeInt(flags)
 	w.writeInt(s.Size)

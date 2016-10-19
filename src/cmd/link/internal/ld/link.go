@@ -105,6 +105,7 @@ const (
 	AttrOnList
 	AttrLocal
 	AttrReflectMethod
+	AttrMakeTypelink
 )
 
 func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
@@ -119,6 +120,7 @@ func (a Attribute) Hidden() bool           { return a&AttrHidden != 0 }
 func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
 func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
 func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }
+func (a Attribute) MakeTypelink() bool     { return a&AttrMakeTypelink != 0 }
 
 func (a Attribute) CgoExport() bool {
 	return a.CgoExportDynamic() || a.CgoExportStatic()

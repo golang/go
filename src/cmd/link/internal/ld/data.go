@@ -1717,15 +1717,10 @@ func (ctxt *Link) dodata() {
 	sect.Align = dataMaxAlign[obj.STYPELINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
-	ctxt.Syms.Lookup("runtime.typelink", 0).Sect = sect
-	ctxt.Syms.Lookup("runtime.etypelink", 0).Sect = sect
-	for _, s := range data[obj.STYPELINK] {
-		datsize = aligndatsize(datsize, s)
-		s.Sect = sect
-		s.Type = obj.SRODATA
-		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		datsize += s.Size
-	}
+	typelink := ctxt.Syms.Lookup("runtime.typelink", 0)
+	typelink.Sect = sect
+	typelink.Type = obj.RODATA
+	datsize += typelink.Size
 	checkdatsize(ctxt, datsize, obj.STYPELINK)
 	sect.Length = uint64(datsize) - sect.Vaddr
 
@@ -1909,10 +1904,6 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
 			// we skip size comparison and fall through to the name
 			// comparison (conveniently, .got sorts before .toc).
 			key.size = 0
-		case obj.STYPELINK:
-			// Sort typelinks by the rtype.string field so the reflect
-			// package can binary search type links.
-			key.name = string(decodetypeStr(s.R[0].Sym))
 		}
 
 		symsSort = append(symsSort, key)
@@ -2235,7 +2226,6 @@ func (ctxt *Link) address() {
 	var (
 		text     = Segtext.Sect
 		rodata   = ctxt.Syms.Lookup("runtime.rodata", 0).Sect
-		typelink = ctxt.Syms.Lookup("runtime.typelink", 0).Sect
 		itablink = ctxt.Syms.Lookup("runtime.itablink", 0).Sect
 		symtab   = ctxt.Syms.Lookup("runtime.symtab", 0).Sect
 		pclntab  = ctxt.Syms.Lookup("runtime.pclntab", 0).Sect
@@ -2291,8 +2281,6 @@ func (ctxt *Link) address() {
 	ctxt.xdefine("runtime.erodata", obj.SRODATA, int64(rodata.Vaddr+rodata.Length))
 	ctxt.xdefine("runtime.types", obj.SRODATA, int64(types.Vaddr))
 	ctxt.xdefine("runtime.etypes", obj.SRODATA, int64(types.Vaddr+types.Length))
-	ctxt.xdefine("runtime.typelink", obj.SRODATA, int64(typelink.Vaddr))
-	ctxt.xdefine("runtime.etypelink", obj.SRODATA, int64(typelink.Vaddr+typelink.Length))
 	ctxt.xdefine("runtime.itablink", obj.SRODATA, int64(itablink.Vaddr))
 	ctxt.xdefine("runtime.eitablink", obj.SRODATA, int64(itablink.Vaddr+itablink.Length))
 
