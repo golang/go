@@ -1409,32 +1409,11 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
 		return true
 
 	case OLITERAL:
-		break
-	}
-
-	switch nr.Type.Etype {
-	default:
-		return false
-
-	case TBOOL, TINT8, TUINT8, TINT16, TUINT16,
-		TINT32, TUINT32, TINT64, TUINT64,
-		TINT, TUINT, TUINTPTR, TUNSAFEPTR,
-		TPTR32, TPTR64,
-		TFLOAT32, TFLOAT64:
 		if !reportOnly {
 			gdata(&nam, nr, int(nr.Type.Width))
 		}
-
-	case TCOMPLEX64, TCOMPLEX128:
-		if !reportOnly {
-			gdatacomplex(&nam, nr.Val().U.(*Mpcplx))
-		}
-
-	case TSTRING:
-		if !reportOnly {
-			gdatastring(&nam, nr.Val().U.(string))
-		}
+		return true
 	}
 
-	return true
+	return false
 }
