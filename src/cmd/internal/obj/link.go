@@ -330,6 +330,9 @@ type LSym struct {
 	Seenglobl bool
 	Onlist    bool
 
+	// MakeTypelink means that the type should have an entry in the typelink table.
+	MakeTypelink bool
+
 	// ReflectMethod means the function may call reflect.Type.Method or
 	// reflect.Type.MethodByName. Matching is imprecise (as reflect.Type
 	// can be used through a custom interface), so ReflectMethod may be

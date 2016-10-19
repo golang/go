@@ -54,7 +54,9 @@ package ld
 //	- type [int]
 //	- name & version [symref index]
 //	- flags [int]
-//		1 dupok
+//		1<<0 dupok
+//		1<<1 local
+//		1<<2 add to typelink table
 //	- size [int]
 //	- gotype [symref index]
 //	- p [data block]
@@ -264,6 +266,7 @@ func (r *objReader) readSym() {
 	flags := r.readInt()
 	dupok := flags&1 != 0
 	local := flags&2 != 0
+	makeTypelink := flags&4 != 0
 	size := r.readInt()
 	typ := r.readSymIndex()
 	data := r.readData()
@@ -315,6 +318,7 @@ overwrite:
 		s.Size = int64(size)
 	}
 	s.Attr.Set(AttrLocal, local)
+	s.Attr.Set(AttrMakeTypelink, makeTypelink)
 	if typ != nil {
 		s.Gotype = typ
 	}

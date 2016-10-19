@@ -937,11 +937,6 @@ func tracksym(t *Type, f *Field) *Sym {
 	return Pkglookup(t.tconv(FmtLeft)+"."+f.Sym.Name, trackpkg)
 }
 
-func typelinkLSym(t *Type) *obj.LSym {
-	name := "go.typelink." + t.tconv(FmtLeft) // complete, unambiguous type name
-	return obj.Linklookup(Ctxt, name, 0)
-}
-
 func typesymprefix(prefix string, t *Type) *Sym {
 	p := prefix + "." + t.tconv(FmtLeft)
 	s := Pkglookup(p, typepkg)
@@ -1338,8 +1333,6 @@ ok:
 	ot = dextratypeData(s, ot, t)
 	ggloblsym(s, int32(ot), int16(dupok|obj.RODATA))
 
-	// generate typelink.foo pointing at s = type.foo.
-	//
 	// The linker will leave a table of all the typelinks for
 	// types in the binary, so the runtime can find them.
 	//
@@ -1357,11 +1350,7 @@ ok:
 			keep = true
 		}
 	}
-	if keep {
-		slink := typelinkLSym(t)
-		dsymptrOffLSym(slink, 0, Linksym(s), 0)
-		ggloblLSym(slink, 4, int16(dupok|obj.RODATA))
-	}
+	s.Lsym.MakeTypelink = keep
 
 	return s
 }
