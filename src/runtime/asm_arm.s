@@ -294,10 +294,10 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 
 	// Called from f.
 	// Set g->sched to context in f.
-	MOVW	R7, (g_sched+gobuf_ctxt)(g)
 	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	LR, (g_sched+gobuf_pc)(g)
 	MOVW	R3, (g_sched+gobuf_lr)(g)
+	// newstack will fill gobuf.ctxt.
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -310,6 +310,9 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
 	MOVW	m_g0(R8), R0
 	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), R13
+	MOVW	$0, R0
+	MOVW.W	R0, -8(R13)	// create a call frame on g0
+	MOVW	R7, 4(R13)	// ctxt argument
 	BL	runtime·newstack(SB)
 
 	// Not reached, but make sure the return PC from the call to newstack
