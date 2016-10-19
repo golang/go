@@ -457,6 +457,26 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 	hdr.Typeflag = v7.TypeFlag()[0]
 	hdr.Linkname = p.parseString(v7.LinkName())
 
+	// The atime and ctime fields are often left unused. Some versions of Go
+	// had a bug in the tar.Writer where it would output an invalid tar file
+	// in certain rare situations because the logic incorrectly believed that
+	// the old GNU format had a prefix field. This is wrong and leads to
+	// an outputted file that actually mangles the atime and ctime fields.
+	//
+	// In order to continue reading tar files created by a buggy writer, we
+	// try to parse the atime and ctime fields, but just return the zero value
+	// of time.Time when we cannot parse them.
+	//
+	// See https://golang.org/issues/12594
+	tryParseTime := func(b []byte) time.Time {
+		var p parser
+		n := p.parseNumeric(b)
+		if b[0] != 0x00 && p.err == nil {
+			return time.Unix(n, 0)
+		}
+		return time.Time{}
+	}
+
 	// Unpack format specific fields.
 	if format > formatV7 {
 		ustar := tr.blk.USTAR()
@@ -469,9 +489,7 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 
 		var prefix string
 		switch format {
-		case formatUSTAR, formatGNU:
-			// TODO(dsnet): Do not use the prefix field for the GNU format!
-			// See golang.org/issues/12594
+		case formatUSTAR:
 			ustar := tr.blk.USTAR()
 			prefix = p.parseString(ustar.Prefix())
 		case formatSTAR:
@@ -479,6 +497,10 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 			prefix = p.parseString(star.Prefix())
 			hdr.AccessTime = time.Unix(p.parseNumeric(star.AccessTime()), 0)
 			hdr.ChangeTime = time.Unix(p.parseNumeric(star.ChangeTime()), 0)
+		case formatGNU:
+			gnu := tr.blk.GNU()
+			hdr.AccessTime = tryParseTime(gnu.AccessTime())
+			hdr.ChangeTime = tryParseTime(gnu.ChangeTime())
 		}
 		if len(prefix) > 0 {
 			hdr.Name = prefix + "/" + hdr.Name
