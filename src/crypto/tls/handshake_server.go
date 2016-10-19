@@ -19,19 +19,20 @@ import (
 // serverHandshakeState contains details of a server handshake in progress.
 // It's discarded once the handshake has completed.
 type serverHandshakeState struct {
-	c               *Conn
-	clientHello     *clientHelloMsg
-	hello           *serverHelloMsg
-	suite           *cipherSuite
-	ellipticOk      bool
-	ecdsaOk         bool
-	rsaDecryptOk    bool
-	rsaSignOk       bool
-	sessionState    *sessionState
-	finishedHash    finishedHash
-	masterSecret    []byte
-	certsFromClient [][]byte
-	cert            *Certificate
+	c                     *Conn
+	clientHello           *clientHelloMsg
+	hello                 *serverHelloMsg
+	suite                 *cipherSuite
+	ellipticOk            bool
+	ecdsaOk               bool
+	rsaDecryptOk          bool
+	rsaSignOk             bool
+	sessionState          *sessionState
+	finishedHash          finishedHash
+	masterSecret          []byte
+	certsFromClient       [][]byte
+	cert                  *Certificate
+	cachedClientHelloInfo *ClientHelloInfo
 }
 
 // serverHandshake performs a TLS handshake as a server.
@@ -123,15 +124,8 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 		return false, unexpectedMessageError(hs.clientHello, msg)
 	}
 
-	clientHelloInfo := &ClientHelloInfo{
-		CipherSuites:    hs.clientHello.cipherSuites,
-		ServerName:      hs.clientHello.serverName,
-		SupportedCurves: hs.clientHello.supportedCurves,
-		SupportedPoints: hs.clientHello.supportedPoints,
-	}
-
 	if c.config.GetConfigForClient != nil {
-		if newConfig, err := c.config.GetConfigForClient(clientHelloInfo); err != nil {
+		if newConfig, err := c.config.GetConfigForClient(hs.clientHelloInfo()); err != nil {
 			c.sendAlert(alertInternalError)
 			return false, err
 		} else if newConfig != nil {
@@ -223,7 +217,7 @@ Curves:
 		}
 	}
 
-	hs.cert, err = c.config.getCertificate(clientHelloInfo)
+	hs.cert, err = c.config.getCertificate(hs.clientHelloInfo())
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return false, err
@@ -811,4 +805,38 @@ func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites 
 		}
 	}
 	return false
+}
+
+// suppVersArray is the backing array of ClientHelloInfo.SupportedVersions
+var suppVersArray = [...]uint16{VersionTLS12, VersionTLS11, VersionTLS10, VersionSSL30}
+
+func (hs *serverHandshakeState) clientHelloInfo() *ClientHelloInfo {
+	if hs.cachedClientHelloInfo != nil {
+		return hs.cachedClientHelloInfo
+	}
+
+	var supportedVersions []uint16
+	if hs.clientHello.vers > VersionTLS12 {
+		supportedVersions = suppVersArray[:]
+	} else if hs.clientHello.vers >= VersionSSL30 {
+		supportedVersions = suppVersArray[VersionTLS12-hs.clientHello.vers:]
+	}
+
+	signatureSchemes := make([]uint16, 0, len(hs.clientHello.signatureAndHashes))
+	for _, sah := range hs.clientHello.signatureAndHashes {
+		signatureSchemes = append(signatureSchemes, uint16(sah.hash)<<8+uint16(sah.signature))
+	}
+
+	hs.cachedClientHelloInfo = &ClientHelloInfo{
+		CipherSuites:      hs.clientHello.cipherSuites,
+		ServerName:        hs.clientHello.serverName,
+		SupportedCurves:   hs.clientHello.supportedCurves,
+		SupportedPoints:   hs.clientHello.supportedPoints,
+		SignatureSchemes:  signatureSchemes,
+		SupportedProtos:   hs.clientHello.alpnProtocols,
+		SupportedVersions: supportedVersions,
+		Conn:              hs.c.conn,
+	}
+
+	return hs.cachedClientHelloInfo
 }

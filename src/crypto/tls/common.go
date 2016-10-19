@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -238,6 +239,32 @@ type ClientHelloInfo struct {
 	// is being used (see
 	// http://tools.ietf.org/html/rfc4492#section-5.1.2).
 	SupportedPoints []uint8
+
+	// SignatureSchemes lists the signature and hash schemes that the client
+	// is willing to verify. SignatureSchemes is set only if the Signature
+	// Algorithms Extension is being used (see
+	// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1).
+	SignatureSchemes []uint16
+
+	// SupportedProtos lists the application protocols supported by the client.
+	// SupportedProtos is set only if the Application-Layer Protocol
+	// Negotiation Extension is being used (see
+	// https://tools.ietf.org/html/rfc7301#section-3.1).
+	//
+	// Servers can select a protocol by setting Config.NextProtos in a
+	// GetConfigForClient return value.
+	SupportedProtos []string
+
+	// SupportedVersions lists the TLS versions supported by the client.
+	// For TLS versions less than 1.3, this is extrapolated from the max
+	// version advertised by the client, so values other than the greatest
+	// might be rejected if used.
+	SupportedVersions []uint16
+
+	// Conn is the underlying net.Conn for the connection. Do not read
+	// from, or write to, this connection; that will cause the TLS
+	// connection to fail.
+	Conn net.Conn
 }
 
 // RenegotiationSupport enumerates the different levels of support for TLS
