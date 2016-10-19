@@ -2904,14 +2904,8 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
 	defer res.Body.Close()
 
 	want := []string{
-		// Because Request.ContentLength = 0, the body is sniffed for 1 byte to determine whether there's content.
-		// That explains the initial "num0" being split into "n" and "um0".
-		// The first byte is included with the request headers Write. Perhaps in the future
-		// we will want to flush the headers out early if the first byte of the request body is
-		// taking a long time to arrive. But not yet.
 		"POST / HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: x\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n" +
-			"1\r\nn\r\n",
-		"4\r\num0\n\r\n",
+			"5\r\nnum0\n\r\n",
 		"5\r\nnum1\n\r\n",
 		"5\r\nnum2\n\r\n",
 		"0\r\n\r\n",

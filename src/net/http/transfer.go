@@ -64,7 +64,8 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 		t.Trailer = rr.Trailer
 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
 
-		t.Body, t.ContentLength = rr.bodyAndLength()
+		t.Body = rr.Body
+		t.ContentLength = rr.outgoingLength()
 		if t.Body != nil {
 			t.BodyCloser = rr.Body
 		}
