@@ -239,6 +239,15 @@ func setMNoWB(mp **m, new *m) {
 
 type gobuf struct {
 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
+	//
+	// ctxt is unusual with respect to GC: it may be a
+	// heap-allocated funcval so write require a write barrier,
+	// but gobuf needs to be cleared from assembly. We take
+	// advantage of the fact that the only path that uses a
+	// non-nil ctxt is morestack. As a result, gogo is the only
+	// place where it may not already be nil, so gogo uses an
+	// explicit write barrier. Everywhere else that resets the
+	// gobuf asserts that ctxt is already nil.
 	sp   uintptr
 	pc   uintptr
 	g    guintptr
