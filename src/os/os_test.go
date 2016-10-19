@@ -836,6 +836,8 @@ func TestRenameToDirFailed(t *testing.T) {
 	Remove(to)
 	Mkdir(from, 0777)
 	Mkdir(to, 0777)
+	defer Remove(from)
+	defer Remove(to)
 
 	err := Rename(from, to)
 	switch err := err.(type) {
