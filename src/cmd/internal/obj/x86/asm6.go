@@ -56,7 +56,7 @@ const (
 	//
 	LoopAlign  = 16
 	MaxLoopPad = 0
-	FuncAlign  = 16
+	funcAlign  = 16
 )
 
 type Optab struct {

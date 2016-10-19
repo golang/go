@@ -38,7 +38,7 @@ import (
 
 // instruction layout.
 const (
-	FuncAlign = 16
+	funcAlign = 16
 )
 
 type Optab struct {
@@ -433,8 +433,8 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	cursym.Size = int64(len(buffer))
-	if cursym.Size%FuncAlign != 0 {
-		cursym.Size += FuncAlign - (cursym.Size % FuncAlign)
+	if cursym.Size%funcAlign != 0 {
+		cursym.Size += funcAlign - (cursym.Size % funcAlign)
 	}
 	cursym.Grow(cursym.Size)
 	copy(cursym.P, buffer)

@@ -31,13 +31,13 @@
 package x86
 
 const (
-	MaxAlign  = 32 // max data alignment
-	MinAlign  = 1  // min data alignment
-	FuncAlign = 16
+	maxAlign  = 32 // max data alignment
+	minAlign  = 1  // min data alignment
+	funcAlign = 16
 )
 
 /* Used by ../internal/ld/dwarf.go */
 const (
-	DWARFREGSP = 4
-	DWARFREGLR = 8
+	dwarfRegSP = 4
+	dwarfRegLR = 8
 )
