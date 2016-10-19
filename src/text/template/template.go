@@ -186,13 +186,11 @@ func (t *Template) Lookup(name string) *Template {
 // define additional templates associated with t and are removed from the
 // definition of t itself.
 //
+// Templates can be redefined in successive calls to Parse.
 // A template definition with a body containing only white space and comments
-// is considered empty and is not recorded as the template's body.
-// Each template can be given a non-empty definition at most once.
-// That is, Parse may be called multiple times to parse definitions of templates
-// to associate with t, but at most one such call can include a non-empty body for
-// t itself, and each named associated template can be given at most one
-// non-empty definition.
+// is considered empty and will not replace an existing template's body.
+// This allows using Parse to add new named template definitions without
+// overwriting the main template body.
 func (t *Template) Parse(text string) (*Template, error) {
 	t.init()
 	t.muFuncs.RLock()
