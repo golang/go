@@ -122,13 +122,29 @@ TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	g, gobuf_g(R3)
 	MOVD	R0, gobuf_lr(R3)
 	MOVD	R0, gobuf_ret(R3)
-	MOVD	R0, gobuf_ctxt(R3)
+	// Assert ctxt is zero. See func save.
+	MOVD	gobuf_ctxt(R3), R3
+	CMP	R0, R3
+	BEQ	2(PC)
+	BL	runtime·badctxt(SB)
 	RET
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
+TEXT runtime·gogo(SB), NOSPLIT, $16-8
 	MOVD	buf+0(FP), R5
+
+	// If ctxt is not nil, invoke deletion barrier before overwriting.
+	MOVD	gobuf_ctxt(R5), R3
+	CMP	R0, R3
+	BEQ	nilctxt
+	MOVD	$gobuf_ctxt(R5), R3
+	MOVD	R3, FIXED_FRAME+0(R1)
+	MOVD	R0, FIXED_FRAME+8(R1)
+	BL	runtime·writebarrierptr_prewrite(SB)
+	MOVD	buf+0(FP), R5
+
+nilctxt:
 	MOVD	gobuf_g(R5), g	// make sure g is not nil
 	BL	runtime·save_g(SB)
 
@@ -497,7 +513,11 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R1, (g_sched+gobuf_sp)(g)
 	MOVD	R0, (g_sched+gobuf_lr)(g)
 	MOVD	R0, (g_sched+gobuf_ret)(g)
-	MOVD	R0, (g_sched+gobuf_ctxt)(g)
+	// Assert ctxt is zero. See func save.
+	MOVD	(g_sched+gobuf_ctxt)(g), R31
+	CMP	R0, R31
+	BEQ	2(PC)
+	BL	runtime·badctxt(SB)
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
