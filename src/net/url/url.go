@@ -1025,3 +1025,19 @@ func portOnly(hostport string) string {
 	}
 	return hostport[colon+len(":"):]
 }
+
+// Marshaling interface implementations.
+// Would like to implement MarshalText/UnmarshalText but that will change the JSON representation of URLs.
+
+func (u *URL) MarshalBinary() (text []byte, err error) {
+	return []byte(u.String()), nil
+}
+
+func (u *URL) UnmarshalBinary(text []byte) error {
+	u1, err := Parse(string(text))
+	if err != nil {
+		return err
+	}
+	*u = *u1
+	return nil
+}
