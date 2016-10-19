@@ -181,9 +181,18 @@ func (t *Template) Lookup(name string) *Template {
 	return t.tmpl[name]
 }
 
-// Parse defines the template by parsing the text. Nested template definitions will be
-// associated with the top-level template t. Parse may be called multiple times
-// to parse definitions of templates to associate with t.
+// Parse parses text as a template body for t.
+// Named template definitions ({{define ...}} or {{block ...}} statements) in text
+// define additional templates associated with t and are removed from the
+// definition of t itself.
+//
+// A template definition with a body containing only white space and comments
+// is considered empty and is not recorded as the template's body.
+// Each template can be given a non-empty definition at most once.
+// That is, Parse may be called multiple times to parse definitions of templates
+// to associate with t, but at most one such call can include a non-empty body for
+// t itself, and each named associated template can be given at most one
+// non-empty definition.
 func (t *Template) Parse(text string) (*Template, error) {
 	t.init()
 	t.muFuncs.RLock()

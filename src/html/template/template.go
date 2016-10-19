@@ -150,19 +150,23 @@ func (t *Template) DefinedTemplates() string {
 	return t.text.DefinedTemplates()
 }
 
-// Parse parses a string into a template. Nested template definitions
-// will be associated with the top-level template t. Parse may be
-// called multiple times to parse definitions of templates to associate
-// with t. It is an error if a resulting template is non-empty (contains
-// content other than template definitions) and would replace a
-// non-empty template with the same name.  (In multiple calls to Parse
-// with the same receiver template, only one call can contain text
-// other than space, comments, and template definitions.)
-func (t *Template) Parse(src string) (*Template, error) {
+// Parse parses text as a template body for t.
+// Named template definitions ({{define ...}} or {{block ...}} statements) in text
+// define additional templates associated with t and are removed from the
+// definition of t itself.
+//
+// A template definition with a body containing only white space and comments
+// is considered empty and is not recorded as the template's body.
+// Each template can be given a non-empty definition at most once.
+// That is, Parse may be called multiple times to parse definitions of templates
+// to associate with t, but at most one such call can include a non-empty body for
+// t itself, and each named associated template can be given at most one
+// non-empty definition.
+func (t *Template) Parse(text string) (*Template, error) {
 	t.nameSpace.mu.Lock()
 	t.escapeErr = nil
 	t.nameSpace.mu.Unlock()
-	ret, err := t.text.Parse(src)
+	ret, err := t.text.Parse(text)
 	if err != nil {
 		return nil, err
 	}
