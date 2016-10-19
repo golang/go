@@ -717,3 +717,20 @@ func TestLookupProtocol_Minimal(t *testing.T) {
 	}
 
 }
+
+func TestLookupNonLDH(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("skip on nacl")
+	}
+	// "LDH" stands for letters, digits, and hyphens and is the usual
+	// description of standard DNS names.
+	// This test is checking that other kinds of names are reported
+	// as not found, not reported as invalid names.
+	addrs, err := LookupHost("!!!.###.bogus..domain.")
+	if err == nil {
+		t.Fatalf("lookup succeeded: %v", addrs)
+	}
+	if !strings.HasSuffix(err.Error(), errNoSuchHost.Error()) {
+		t.Fatalf("lookup error = %v, want %v", err, errNoSuchHost)
+	}
+}
