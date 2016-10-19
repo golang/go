@@ -171,13 +171,19 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) 
 // execution stops, but partial results may already have been written to
 // the output writer.
 // A template may be executed safely in parallel.
+//
+// If data is a reflect.Value, the template applies to the concrete
+// value that the reflect.Value holds, as in fmt.Print.
 func (t *Template) Execute(wr io.Writer, data interface{}) error {
 	return t.execute(wr, data)
 }
 
 func (t *Template) execute(wr io.Writer, data interface{}) (err error) {
 	defer errRecover(&err)
-	value := reflect.ValueOf(data)
+	value, ok := data.(reflect.Value)
+	if !ok {
+		value = reflect.ValueOf(data)
+	}
 	state := &state{
 		tmpl: t,
 		wr:   wr,
@@ -596,8 +602,9 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 }
 
 var (
-	errorType       = reflect.TypeOf((*error)(nil)).Elem()
-	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
+	errorType        = reflect.TypeOf((*error)(nil)).Elem()
+	fmtStringerType  = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
+	reflectValueType = reflect.TypeOf((*reflect.Value)(nil)).Elem()
 )
 
 // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
@@ -661,7 +668,11 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 		s.at(node)
 		s.errorf("error calling %s: %s", name, result[1].Interface().(error))
 	}
-	return result[0]
+	v := result[0]
+	if v.Type() == reflectValueType {
+		v = v.Interface().(reflect.Value)
+	}
+	return v
 }
 
 // canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
@@ -669,6 +680,8 @@ func canBeNil(typ reflect.Type) bool {
 	switch typ.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
 		return true
+	case reflect.Struct:
+		return typ == reflectValueType
 	}
 	return false
 }
@@ -681,6 +694,9 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
 			return reflect.Zero(typ)
 		}
 		s.errorf("invalid value; expected %s", typ)
+	}
+	if typ == reflectValueType && value.Type() != typ {
+		return reflect.ValueOf(value)
 	}
 	if typ != nil && !value.Type().AssignableTo(typ) {
 		if value.Kind() == reflect.Interface && !value.IsNil() {
@@ -742,6 +758,10 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 	case reflect.Interface:
 		if typ.NumMethod() == 0 {
 			return s.evalEmptyInterface(dot, n)
+		}
+	case reflect.Struct:
+		if typ == reflectValueType {
+			return reflect.ValueOf(s.evalEmptyInterface(dot, n))
 		}
 	case reflect.String:
 		return s.evalString(typ, n)

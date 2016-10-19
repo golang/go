@@ -21,6 +21,12 @@ import (
 // which the second has type error. In that case, if the second (error)
 // return value evaluates to non-nil during execution, execution terminates and
 // Execute returns that error.
+//
+// When template execution invokes a function with an argument list, that list
+// must be assignable to the function's parameter types. Functions meant to
+// apply to arguments of arbitrary type can use parameters of type interface{} or
+// of type reflect.Value. Similarly, functions meant to return a result of arbitrary
+// type can return interface{} or reflect.Value.
 type FuncMap map[string]interface{}
 
 var builtins = FuncMap{
@@ -144,16 +150,15 @@ func prepareArg(value reflect.Value, argType reflect.Type) (reflect.Value, error
 // index returns the result of indexing its first argument by the following
 // arguments. Thus "index x 1 2 3" is, in Go syntax, x[1][2][3]. Each
 // indexed item must be a map, slice, or array.
-func index(item interface{}, indices ...interface{}) (interface{}, error) {
-	v := reflect.ValueOf(item)
+func index(item reflect.Value, indices ...reflect.Value) (reflect.Value, error) {
+	v := item
 	if !v.IsValid() {
-		return nil, fmt.Errorf("index of untyped nil")
+		return reflect.Value{}, fmt.Errorf("index of untyped nil")
 	}
-	for _, i := range indices {
-		index := reflect.ValueOf(i)
+	for _, index := range indices {
 		var isNil bool
 		if v, isNil = indirect(v); isNil {
-			return nil, fmt.Errorf("index of nil pointer")
+			return reflect.Value{}, fmt.Errorf("index of nil pointer")
 		}
 		switch v.Kind() {
 		case reflect.Array, reflect.Slice, reflect.String:
@@ -164,18 +169,18 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 				x = int64(index.Uint())
 			case reflect.Invalid:
-				return nil, fmt.Errorf("cannot index slice/array with nil")
+				return reflect.Value{}, fmt.Errorf("cannot index slice/array with nil")
 			default:
-				return nil, fmt.Errorf("cannot index slice/array with type %s", index.Type())
+				return reflect.Value{}, fmt.Errorf("cannot index slice/array with type %s", index.Type())
 			}
 			if x < 0 || x >= int64(v.Len()) {
-				return nil, fmt.Errorf("index out of range: %d", x)
+				return reflect.Value{}, fmt.Errorf("index out of range: %d", x)
 			}
 			v = v.Index(int(x))
 		case reflect.Map:
 			index, err := prepareArg(index, v.Type().Key())
 			if err != nil {
-				return nil, err
+				return reflect.Value{}, err
 			}
 			if x := v.MapIndex(index); x.IsValid() {
 				v = x
@@ -186,10 +191,10 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
 			// the loop holds invariant: v.IsValid()
 			panic("unreachable")
 		default:
-			return nil, fmt.Errorf("can't index item of type %s", v.Type())
+			return reflect.Value{}, fmt.Errorf("can't index item of type %s", v.Type())
 		}
 	}
-	return v.Interface(), nil
+	return v, nil
 }
 
 // Length
@@ -215,33 +220,32 @@ func length(item interface{}) (int, error) {
 
 // call returns the result of evaluating the first argument as a function.
 // The function must return 1 result, or 2 results, the second of which is an error.
-func call(fn interface{}, args ...interface{}) (interface{}, error) {
-	v := reflect.ValueOf(fn)
+func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
+	v := fn
 	if !v.IsValid() {
-		return nil, fmt.Errorf("call of nil")
+		return reflect.Value{}, fmt.Errorf("call of nil")
 	}
 	typ := v.Type()
 	if typ.Kind() != reflect.Func {
-		return nil, fmt.Errorf("non-function of type %s", typ)
+		return reflect.Value{}, fmt.Errorf("non-function of type %s", typ)
 	}
 	if !goodFunc(typ) {
-		return nil, fmt.Errorf("function called with %d args; should be 1 or 2", typ.NumOut())
+		return reflect.Value{}, fmt.Errorf("function called with %d args; should be 1 or 2", typ.NumOut())
 	}
 	numIn := typ.NumIn()
 	var dddType reflect.Type
 	if typ.IsVariadic() {
 		if len(args) < numIn-1 {
-			return nil, fmt.Errorf("wrong number of args: got %d want at least %d", len(args), numIn-1)
+			return reflect.Value{}, fmt.Errorf("wrong number of args: got %d want at least %d", len(args), numIn-1)
 		}
 		dddType = typ.In(numIn - 1).Elem()
 	} else {
 		if len(args) != numIn {
-			return nil, fmt.Errorf("wrong number of args: got %d want %d", len(args), numIn)
+			return reflect.Value{}, fmt.Errorf("wrong number of args: got %d want %d", len(args), numIn)
 		}
 	}
 	argv := make([]reflect.Value, len(args))
-	for i, arg := range args {
-		value := reflect.ValueOf(arg)
+	for i, value := range args {
 		// Compute the expected type. Clumsy because of variadics.
 		var argType reflect.Type
 		if !typ.IsVariadic() || i < numIn-1 {
@@ -252,26 +256,26 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
 
 		var err error
 		if argv[i], err = prepareArg(value, argType); err != nil {
-			return nil, fmt.Errorf("arg %d: %s", i, err)
+			return reflect.Value{}, fmt.Errorf("arg %d: %s", i, err)
 		}
 	}
 	result := v.Call(argv)
 	if len(result) == 2 && !result[1].IsNil() {
-		return result[0].Interface(), result[1].Interface().(error)
+		return result[0], result[1].Interface().(error)
 	}
-	return result[0].Interface(), nil
+	return result[0], nil
 }
 
 // Boolean logic.
 
-func truth(a interface{}) bool {
-	t, _ := IsTrue(a)
+func truth(arg reflect.Value) bool {
+	t, _ := isTrue(arg)
 	return t
 }
 
 // and computes the Boolean AND of its arguments, returning
 // the first false argument it encounters, or the last argument.
-func and(arg0 interface{}, args ...interface{}) interface{} {
+func and(arg0 reflect.Value, args ...reflect.Value) reflect.Value {
 	if !truth(arg0) {
 		return arg0
 	}
@@ -286,7 +290,7 @@ func and(arg0 interface{}, args ...interface{}) interface{} {
 
 // or computes the Boolean OR of its arguments, returning
 // the first true argument it encounters, or the last argument.
-func or(arg0 interface{}, args ...interface{}) interface{} {
+func or(arg0 reflect.Value, args ...reflect.Value) reflect.Value {
 	if truth(arg0) {
 		return arg0
 	}
@@ -300,7 +304,7 @@ func or(arg0 interface{}, args ...interface{}) interface{} {
 }
 
 // not returns the Boolean negation of its argument.
-func not(arg interface{}) bool {
+func not(arg reflect.Value) bool {
 	return !truth(arg)
 }
 
@@ -345,8 +349,8 @@ func basicKind(v reflect.Value) (kind, error) {
 }
 
 // eq evaluates the comparison a == b || a == c || ...
-func eq(arg1 interface{}, arg2 ...interface{}) (bool, error) {
-	v1 := reflect.ValueOf(arg1)
+func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
+	v1 := arg1
 	k1, err := basicKind(v1)
 	if err != nil {
 		return false, err
@@ -354,8 +358,7 @@ func eq(arg1 interface{}, arg2 ...interface{}) (bool, error) {
 	if len(arg2) == 0 {
 		return false, errNoComparison
 	}
-	for _, arg := range arg2 {
-		v2 := reflect.ValueOf(arg)
+	for _, v2 := range arg2 {
 		k2, err := basicKind(v2)
 		if err != nil {
 			return false, err
@@ -397,20 +400,18 @@ func eq(arg1 interface{}, arg2 ...interface{}) (bool, error) {
 }
 
 // ne evaluates the comparison a != b.
-func ne(arg1, arg2 interface{}) (bool, error) {
+func ne(arg1, arg2 reflect.Value) (bool, error) {
 	// != is the inverse of ==.
 	equal, err := eq(arg1, arg2)
 	return !equal, err
 }
 
 // lt evaluates the comparison a < b.
-func lt(arg1, arg2 interface{}) (bool, error) {
-	v1 := reflect.ValueOf(arg1)
+func lt(v1, v2 reflect.Value) (bool, error) {
 	k1, err := basicKind(v1)
 	if err != nil {
 		return false, err
 	}
-	v2 := reflect.ValueOf(arg2)
 	k2, err := basicKind(v2)
 	if err != nil {
 		return false, err
@@ -446,7 +447,7 @@ func lt(arg1, arg2 interface{}) (bool, error) {
 }
 
 // le evaluates the comparison <= b.
-func le(arg1, arg2 interface{}) (bool, error) {
+func le(arg1, arg2 reflect.Value) (bool, error) {
 	// <= is < or ==.
 	lessThan, err := lt(arg1, arg2)
 	if lessThan || err != nil {
@@ -456,7 +457,7 @@ func le(arg1, arg2 interface{}) (bool, error) {
 }
 
 // gt evaluates the comparison a > b.
-func gt(arg1, arg2 interface{}) (bool, error) {
+func gt(arg1, arg2 reflect.Value) (bool, error) {
 	// > is the inverse of <=.
 	lessOrEqual, err := le(arg1, arg2)
 	if err != nil {
@@ -466,7 +467,7 @@ func gt(arg1, arg2 interface{}) (bool, error) {
 }
 
 // ge evaluates the comparison a >= b.
-func ge(arg1, arg2 interface{}) (bool, error) {
+func ge(arg1, arg2 reflect.Value) (bool, error) {
 	// >= is the inverse of <.
 	lessThan, err := lt(arg1, arg2)
 	if err != nil {
