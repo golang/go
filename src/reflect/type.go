@@ -160,7 +160,11 @@ type Type interface {
 	// that satisfies the match function and a boolean indicating if
 	// the field was found.
 	//
-	// If multiple fields match the func, they cancel each other
+	// FieldByNameFunc considers the fields in the struct itself
+	// and then the fields in any anonymous structs, in breadth first order,
+	// stopping at the shallowest nesting depth containing one or more
+	// fields satisfying the match function. If multiple fields at that depth
+	// satisfy the match function, they cancel each other
 	// and FieldByNameFunc returns no match.
 	// This behavior mirrors Go's handling of name lookup in
 	// structs containing anonymous fields.
