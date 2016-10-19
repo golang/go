@@ -925,7 +925,10 @@ func round2(x int32) int32 {
 //
 // g->atomicstatus will be Grunning or Gscanrunning upon entry.
 // If the GC is trying to stop this g then it will set preemptscan to true.
-func newstack() {
+//
+// ctxt is the value of the context register on morestack. newstack
+// will write it to g.sched.ctxt.
+func newstack(ctxt unsafe.Pointer) {
 	thisg := getg()
 	// TODO: double check all gp. shouldn't be getg().
 	if thisg.m.morebuf.g.ptr().stackguard0 == stackFork {
@@ -937,8 +940,13 @@ func newstack() {
 		traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g.ptr())
 		throw("runtime: wrong goroutine in newstack")
 	}
+
+	gp := thisg.m.curg
+	// Write ctxt to gp.sched. We do this here instead of in
+	// morestack so it has the necessary write barrier.
+	gp.sched.ctxt = ctxt
+
 	if thisg.m.curg.throwsplit {
-		gp := thisg.m.curg
 		// Update syscallsp, syscallpc in case traceback uses them.
 		morebuf := thisg.m.morebuf
 		gp.syscallsp = morebuf.sp
@@ -951,7 +959,6 @@ func newstack() {
 		throw("runtime: stack split at bad time")
 	}
 
-	gp := thisg.m.curg
 	morebuf := thisg.m.morebuf
 	thisg.m.morebuf.pc = 0
 	thisg.m.morebuf.lr = 0
@@ -1001,14 +1008,6 @@ func newstack() {
 		print("runtime: gp=", gp, ", gp->status=", hex(readgstatus(gp)), "\n ")
 		print("runtime: split stack overflow: ", hex(sp), " < ", hex(gp.stack.lo), "\n")
 		throw("runtime: split stack overflow")
-	}
-
-	if gp.sched.ctxt != nil {
-		// morestack wrote sched.ctxt on its way in here,
-		// without a write barrier. Run the write barrier now.
-		// It is not possible to be preempted between then
-		// and now, so it's okay.
-		writebarrierptr_nostore((*uintptr)(unsafe.Pointer(&gp.sched.ctxt)), uintptr(gp.sched.ctxt))
 	}
 
 	if preempt {

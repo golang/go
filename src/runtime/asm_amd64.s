@@ -358,15 +358,17 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	MOVQ	SI, (g_sched+gobuf_g)(SI)
 	LEAQ	8(SP), AX // f's SP
 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
-	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
 	MOVQ	BP, (g_sched+gobuf_bp)(SI)
+	// newstack will fill gobuf.ctxt.
 
 	// Call newstack on m->g0's stack.
 	MOVQ	m_g0(BX), BX
 	MOVQ	BX, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(BX), SP
+	PUSHQ	DX	// ctxt argument
 	CALL	runtime·newstack(SB)
 	MOVQ	$0, 0x1003	// crash if newstack returns
+	POPQ	DX	// keep balance check happy
 	RET
 
 // morestack but not preserving ctxt.
