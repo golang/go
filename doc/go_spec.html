@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 18, 2016",
+	"Subtitle": "Version of October 19, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -3116,13 +3116,16 @@ known to be <code>T</code> in a correct program.
 </p>
 
 <pre>
-var x interface{} = 7  // x has dynamic type int and value 7
-i := x.(int)           // i has type int and value 7
+var x interface{} = 7          // x has dynamic type int and value 7
+i := x.(int)                   // i has type int and value 7
 
 type I interface { m() }
-var y I
-s := y.(string)        // illegal: string does not implement I (missing method m)
-r := y.(io.Reader)     // r has type io.Reader and y must implement both I and io.Reader
+
+func f(y I) {
+	s := y.(string)        // illegal: string does not implement I (missing method m)
+	r := y.(io.Reader)     // r has type io.Reader and the dynamic type of y must implement both I and io.Reader
+	…
+}
 </pre>
 
 <p>
