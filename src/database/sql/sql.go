@@ -814,6 +814,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 	}
 	// Check if the context is expired.
 	if err := ctx.Err(); err != nil {
+		db.mu.Unlock()
 		return nil, err
 	}
 	lifetime := db.maxLifetime
