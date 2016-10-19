@@ -5,6 +5,10 @@
 package url
 
 import (
+	"bytes"
+	encodingPkg "encoding"
+	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -1622,5 +1626,56 @@ func TestURLPort(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("Port for Host %q = %q; want %q", tt.host, got, tt.want)
 		}
+	}
+}
+
+var _ encodingPkg.BinaryMarshaler = (*URL)(nil)
+var _ encodingPkg.BinaryUnmarshaler = (*URL)(nil)
+
+func TestJSON(t *testing.T) {
+	u, err := Parse("https://www.google.com/x?y=z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js, err := json.Marshal(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// If only we could implement TextMarshaler/TextUnmarshaler,
+	// this would work:
+	//
+	// if string(js) != strconv.Quote(u.String()) {
+	// 	t.Errorf("json encoding: %s\nwant: %s\n", js, strconv.Quote(u.String()))
+	// }
+
+	u1 := new(URL)
+	err = json.Unmarshal(js, u1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u1.String() != u.String() {
+		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
+	}
+}
+
+func TestGob(t *testing.T) {
+	u, err := Parse("https://www.google.com/x?y=z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var w bytes.Buffer
+	err = gob.NewEncoder(&w).Encode(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u1 := new(URL)
+	err = gob.NewDecoder(&w).Decode(u1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u1.String() != u.String() {
+		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
 	}
 }
