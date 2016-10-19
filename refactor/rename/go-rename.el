@@ -21,6 +21,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'compile)
 (require 'go-mode)
 (require 'thingatpt)
@@ -67,7 +68,7 @@ the `gorename' tool. With FORCE, call `gorename' with the
         (message "Command: %s:" args)
         (message "Running gorename...")
         ;; Use dynamic binding to modify/restore the environment
-        (setq success (zerop (let ((process-environment (list* goroot-env gopath-env process-environment)))
+        (setq success (zerop (let ((process-environment (cl-list* goroot-env gopath-env process-environment)))
           (apply #'call-process args))))
       (insert "\n")
       (compilation-mode)
