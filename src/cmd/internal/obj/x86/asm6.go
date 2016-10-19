@@ -866,6 +866,10 @@ var yvex_vpbroadcast = []ytab{
 	{Yxm, Ynone, Yyr, Zvex_rm_v_r, 2},
 }
 
+var yvex_vpbroadcast_sd = []ytab{
+	{Yxm, Ynone, Yyr, Zvex_rm_v_r, 2},
+}
+
 var ymmxmm0f38 = []ytab{
 	{Ymm, Ynone, Ymr, Zlitm_r, 3},
 	{Yxm, Ynone, Yxr, Zlitm_r, 5},
@@ -1630,6 +1634,9 @@ var optab =
 	{APSHUFD, yxshuf, Pq, [23]uint8{0x70, 0}},
 	{APCLMULQDQ, yxshuf, Pq, [23]uint8{0x3a, 0x44, 0}},
 	{APCMPESTRI, yxshuf, Pq, [23]uint8{0x3a, 0x61, 0}},
+	{AMOVDDUP, yxm, Pf2, [23]uint8{0x12}},
+	{AMOVSHDUP, yxm, Pf3, [23]uint8{0x16}},
+	{AMOVSLDUP, yxm, Pf3, [23]uint8{0x12}},
 
 	{AANDNL, yvex_r3, Pvex, [23]uint8{VEX_LZ_0F38_W0, 0xF2}},
 	{AANDNQ, yvex_r3, Pvex, [23]uint8{VEX_LZ_0F38_W1, 0xF2}},
@@ -1678,6 +1685,11 @@ var optab =
 	{AVPERM2I128, yvex_yyi4, Pvex, [23]uint8{VEX_256_66_0F3A_WIG, 0x46}},
 	{ARORXL, yvex_ri3, Pvex, [23]uint8{VEX_LZ_F2_0F3A_W0, 0xf0}},
 	{ARORXQ, yvex_ri3, Pvex, [23]uint8{VEX_LZ_F2_0F3A_W1, 0xf0}},
+	{AVBROADCASTSD, yvex_vpbroadcast_sd, Pvex, [23]uint8{VEX_256_66_0F38_W0, 0x19}},
+	{AVBROADCASTSS, yvex_vpbroadcast, Pvex, [23]uint8{VEX_128_66_0F38_W0, 0x18, VEX_256_66_0F38_W0, 0x18}},
+	{AVMOVDDUP, yvex_xy2, Pvex, [23]uint8{VEX_128_F2_0F_WIG, 0x12, VEX_256_F2_0F_WIG, 0x12}},
+	{AVMOVSHDUP, yvex_xy2, Pvex, [23]uint8{VEX_128_F3_0F_WIG, 0x16, VEX_256_F3_0F_WIG, 0x16}},
+	{AVMOVSLDUP, yvex_xy2, Pvex, [23]uint8{VEX_128_F3_0F_WIG, 0x12, VEX_256_F3_0F_WIG, 0x12}},
 
 	{AXACQUIRE, ynone, Px, [23]uint8{0xf2}},
 	{AXRELEASE, ynone, Px, [23]uint8{0xf3}},
@@ -3379,7 +3391,8 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				log.Fatalf("asmins bad table %v", p)
 			}
 			op = int(o.op[z])
-			if op == 0x0f {
+			// In vex case 0x0f is actually VEX_256_F2_0F_WIG
+			if op == 0x0f && o.prefix != Pvex {
 				ctxt.AsmBuf.Put1(byte(op))
 				z++
 				op = int(o.op[z])
