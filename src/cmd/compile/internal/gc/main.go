@@ -943,6 +943,8 @@ func mkpackage(pkgname string) {
 					s.Def.Name.Pack.Used = true
 				}
 
+				// TODO(gri) This will also affect exported aliases.
+				// Need to fix this.
 				s.Def = nil
 				continue
 			}
