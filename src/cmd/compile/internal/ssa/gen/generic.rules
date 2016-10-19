@@ -749,6 +749,8 @@
 // a more comprehensive set.
 (SliceLen (SliceMake _ (Const64 <t> [c]) _)) -> (Const64 <t> [c])
 (SliceCap (SliceMake _ _ (Const64 <t> [c]))) -> (Const64 <t> [c])
+(SliceLen (SliceMake _ (Const32 <t> [c]) _)) -> (Const32 <t> [c])
+(SliceCap (SliceMake _ _ (Const32 <t> [c]))) -> (Const32 <t> [c])
 (SlicePtr (SliceMake (SlicePtr x) _ _)) -> (SlicePtr x)
 (SliceLen (SliceMake _ (SliceLen x) _)) -> (SliceLen x)
 (SliceCap (SliceMake _ _ (SliceCap x))) -> (SliceCap x)

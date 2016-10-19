@@ -9656,6 +9656,25 @@ func rewriteValuegeneric_OpSliceCap(v *Value, config *Config) bool {
 		v.AuxInt = c
 		return true
 	}
+	// match: (SliceCap (SliceMake _ _ (Const32 <t> [c])))
+	// cond:
+	// result: (Const32 <t> [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSliceMake {
+			break
+		}
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != OpConst32 {
+			break
+		}
+		t := v_0_2.Type
+		c := v_0_2.AuxInt
+		v.reset(OpConst32)
+		v.Type = t
+		v.AuxInt = c
+		return true
+	}
 	// match: (SliceCap (SliceMake _ _ (SliceCap x)))
 	// cond:
 	// result: (SliceCap x)
@@ -9710,6 +9729,25 @@ func rewriteValuegeneric_OpSliceLen(v *Value, config *Config) bool {
 		t := v_0_1.Type
 		c := v_0_1.AuxInt
 		v.reset(OpConst64)
+		v.Type = t
+		v.AuxInt = c
+		return true
+	}
+	// match: (SliceLen (SliceMake _ (Const32 <t> [c]) _))
+	// cond:
+	// result: (Const32 <t> [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSliceMake {
+			break
+		}
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		t := v_0_1.Type
+		c := v_0_1.AuxInt
+		v.reset(OpConst32)
 		v.Type = t
 		v.AuxInt = c
 		return true

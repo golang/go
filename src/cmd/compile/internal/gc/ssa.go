@@ -670,9 +670,18 @@ func (s *state) stmt(n *Node) {
 				// If the slice can be SSA'd, it'll be on the stack,
 				// so there will be no write barriers,
 				// so there's no need to attempt to prevent them.
-				if samesafeexpr(n.Left, rhs.List.First()) && !s.canSSA(n.Left) {
-					s.append(rhs, true)
-					return
+				if samesafeexpr(n.Left, rhs.List.First()) {
+					if !s.canSSA(n.Left) {
+						if Debug_append > 0 {
+							Warnl(n.Lineno, "append: len-only update")
+						}
+						s.append(rhs, true)
+						return
+					} else {
+						if Debug_append > 0 { // replicating old diagnostic message
+							Warnl(n.Lineno, "append: len-only update (in local slice)")
+						}
+					}
 				}
 			}
 		}
