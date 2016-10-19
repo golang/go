@@ -161,7 +161,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		case urlPartUnknown:
 			return context{
 				state: stateError,
-				err:   errorf(ErrAmbigContext, n, n.Line, "%s appears in an ambiguous URL context", n),
+				err:   errorf(ErrAmbigContext, n, n.Line, "%s appears in an ambiguous context within a URL", n),
 			}
 		default:
 			panic(c.urlPart.String())

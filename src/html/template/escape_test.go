@@ -903,7 +903,7 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
-			"z:1:47: {{.H}} appears in an ambiguous URL context",
+			"z:1:47: {{.H}} appears in an ambiguous context within a URL",
 		},
 		{
 			`<a onclick="alert('Hello \`,
