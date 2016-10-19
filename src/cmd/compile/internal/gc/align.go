@@ -227,12 +227,9 @@ func dowidth(t *Type) {
 		}
 		w = 1 // anything will do
 
-	// dummy type; should be replaced before use.
 	case TANY:
-		if Debug['A'] == 0 {
-			Fatalf("dowidth any")
-		}
-		w = 1 // anything will do
+		// dummy type; should be replaced before use.
+		Fatalf("dowidth any")
 
 	case TSTRING:
 		if sizeof_String == 0 {

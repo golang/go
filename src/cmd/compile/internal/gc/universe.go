@@ -27,7 +27,6 @@ var basicTypes = [...]struct {
 	{"complex128", TCOMPLEX128},
 	{"bool", TBOOL},
 	{"string", TSTRING},
-	{"any", TANY},
 }
 
 var typedefs = [...]struct {
@@ -117,6 +116,7 @@ func lexinit() {
 
 	idealstring = typ(TSTRING)
 	idealbool = typ(TBOOL)
+	Types[TANY] = typ(TANY)
 
 	s := Pkglookup("true", builtinpkg)
 	s.Def = nodbool(true)
@@ -461,7 +461,7 @@ func finishUniverse() {
 	// package block rather than emitting a redeclared symbol error.
 
 	for _, s := range builtinpkg.Syms {
-		if s.Def == nil || (s.Name == "any" && Debug['A'] == 0) {
+		if s.Def == nil {
 			continue
 		}
 		s1 := lookup(s.Name)

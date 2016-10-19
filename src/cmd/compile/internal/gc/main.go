@@ -152,7 +152,6 @@ func Main() {
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
 	obj.Flagcount("%", "debug non-static initializers", &Debug['%'])
-	obj.Flagcount("A", "for bootstrapping, allow 'any' type", &Debug['A'])
 	obj.Flagcount("B", "disable bounds checking", &Debug['B'])
 	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
 	obj.Flagcount("E", "debug symbol export", &Debug['E'])
@@ -677,10 +676,6 @@ func findpkg(name string) (file string, ok bool) {
 // so that the compiler can generate calls to them,
 // but does not make them visible to user code.
 func loadsys() {
-	if Debug['A'] != 0 {
-		return
-	}
-
 	block = 1
 	iota_ = -1000000
 

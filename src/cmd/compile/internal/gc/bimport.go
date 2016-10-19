@@ -10,9 +10,9 @@ package gc
 
 import (
 	"bufio"
-	"math/big"
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 )
