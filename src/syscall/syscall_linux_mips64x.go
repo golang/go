@@ -15,7 +15,8 @@ const (
 	// to support older kernels, we have to use getdents for mips64.
 	// Also note that struct dirent is different for these two.
 	// Lookup linux_dirent{,64} in kernel source code for details.
-	_SYS_getdents = SYS_GETDENTS
+	_SYS_getdents  = SYS_GETDENTS
+	_SYS_setgroups = SYS_SETGROUPS
 )
 
 //sys	Dup2(oldfd int, newfd int) (err error)
