@@ -34,6 +34,30 @@ func rewriteValueS390X(v *Value, config *Config) bool {
 		return rewriteValueS390X_OpAnd8(v, config)
 	case OpAndB:
 		return rewriteValueS390X_OpAndB(v, config)
+	case OpAtomicAdd32:
+		return rewriteValueS390X_OpAtomicAdd32(v, config)
+	case OpAtomicAdd64:
+		return rewriteValueS390X_OpAtomicAdd64(v, config)
+	case OpAtomicCompareAndSwap32:
+		return rewriteValueS390X_OpAtomicCompareAndSwap32(v, config)
+	case OpAtomicCompareAndSwap64:
+		return rewriteValueS390X_OpAtomicCompareAndSwap64(v, config)
+	case OpAtomicExchange32:
+		return rewriteValueS390X_OpAtomicExchange32(v, config)
+	case OpAtomicExchange64:
+		return rewriteValueS390X_OpAtomicExchange64(v, config)
+	case OpAtomicLoad32:
+		return rewriteValueS390X_OpAtomicLoad32(v, config)
+	case OpAtomicLoad64:
+		return rewriteValueS390X_OpAtomicLoad64(v, config)
+	case OpAtomicLoadPtr:
+		return rewriteValueS390X_OpAtomicLoadPtr(v, config)
+	case OpAtomicStore32:
+		return rewriteValueS390X_OpAtomicStore32(v, config)
+	case OpAtomicStore64:
+		return rewriteValueS390X_OpAtomicStore64(v, config)
+	case OpAtomicStorePtrNoWB:
+		return rewriteValueS390X_OpAtomicStorePtrNoWB(v, config)
 	case OpAvg64u:
 		return rewriteValueS390X_OpAvg64u(v, config)
 	case OpBswap32:
@@ -612,6 +636,10 @@ func rewriteValueS390X(v *Value, config *Config) bool {
 		return rewriteValueS390X_OpS390XXORWconst(v, config)
 	case OpS390XXORconst:
 		return rewriteValueS390X_OpS390XXORconst(v, config)
+	case OpSelect0:
+		return rewriteValueS390X_OpSelect0(v, config)
+	case OpSelect1:
+		return rewriteValueS390X_OpSelect1(v, config)
 	case OpSignExt16to32:
 		return rewriteValueS390X_OpSignExt16to32(v, config)
 	case OpSignExt16to64:
@@ -873,6 +901,214 @@ func rewriteValueS390X_OpAndB(v *Value, config *Config) bool {
 		v.reset(OpS390XANDW)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicAdd32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicAdd32 ptr val mem)
+	// cond:
+	// result: (AddTupleFirst32 (LAA ptr val mem) val)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpS390XAddTupleFirst32)
+		v0 := b.NewValue0(v.Line, OpS390XLAA, MakeTuple(config.fe.TypeUInt32(), TypeMem))
+		v0.AddArg(ptr)
+		v0.AddArg(val)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(val)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicAdd64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicAdd64 ptr val mem)
+	// cond:
+	// result: (AddTupleFirst64 (LAAG ptr val mem) val)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpS390XAddTupleFirst64)
+		v0 := b.NewValue0(v.Line, OpS390XLAAG, MakeTuple(config.fe.TypeUInt64(), TypeMem))
+		v0.AddArg(ptr)
+		v0.AddArg(val)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(val)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicCompareAndSwap32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
+	// cond:
+	// result: (LoweredAtomicCas32 ptr old new_ mem)
+	for {
+		ptr := v.Args[0]
+		old := v.Args[1]
+		new_ := v.Args[2]
+		mem := v.Args[3]
+		v.reset(OpS390XLoweredAtomicCas32)
+		v.AddArg(ptr)
+		v.AddArg(old)
+		v.AddArg(new_)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicCompareAndSwap64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicCompareAndSwap64 ptr old new_ mem)
+	// cond:
+	// result: (LoweredAtomicCas64 ptr old new_ mem)
+	for {
+		ptr := v.Args[0]
+		old := v.Args[1]
+		new_ := v.Args[2]
+		mem := v.Args[3]
+		v.reset(OpS390XLoweredAtomicCas64)
+		v.AddArg(ptr)
+		v.AddArg(old)
+		v.AddArg(new_)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicExchange32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicExchange32 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicExchange32 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpS390XLoweredAtomicExchange32)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicExchange64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicExchange64 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicExchange64 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpS390XLoweredAtomicExchange64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicLoad32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicLoad32 ptr mem)
+	// cond:
+	// result: (MOVWZatomicload ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpS390XMOVWZatomicload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicLoad64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicLoad64 ptr mem)
+	// cond:
+	// result: (MOVDatomicload ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpS390XMOVDatomicload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicLoadPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicLoadPtr ptr mem)
+	// cond:
+	// result: (MOVDatomicload ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpS390XMOVDatomicload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicStore32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicStore32 ptr val mem)
+	// cond:
+	// result: (MOVWatomicstore ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpS390XMOVWatomicstore)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicStore64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicStore64 ptr val mem)
+	// cond:
+	// result: (MOVDatomicstore ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpS390XMOVDatomicstore)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicStorePtrNoWB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicStorePtrNoWB ptr val mem)
+	// cond:
+	// result: (MOVDatomicstore ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpS390XMOVDatomicstore)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
 		return true
 	}
 }
@@ -16760,6 +16996,78 @@ func rewriteValueS390X_OpS390XXORconst(v *Value, config *Config) bool {
 		d := v_0.AuxInt
 		v.reset(OpS390XMOVDconst)
 		v.AuxInt = c ^ d
+		return true
+	}
+	return false
+}
+func rewriteValueS390X_OpSelect0(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Select0 <t> (AddTupleFirst32 tuple val))
+	// cond:
+	// result: (ADDW val (Select0 <t> tuple))
+	for {
+		t := v.Type
+		v_0 := v.Args[0]
+		if v_0.Op != OpS390XAddTupleFirst32 {
+			break
+		}
+		tuple := v_0.Args[0]
+		val := v_0.Args[1]
+		v.reset(OpS390XADDW)
+		v.AddArg(val)
+		v0 := b.NewValue0(v.Line, OpSelect0, t)
+		v0.AddArg(tuple)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Select0 <t> (AddTupleFirst64 tuple val))
+	// cond:
+	// result: (ADD val (Select0 <t> tuple))
+	for {
+		t := v.Type
+		v_0 := v.Args[0]
+		if v_0.Op != OpS390XAddTupleFirst64 {
+			break
+		}
+		tuple := v_0.Args[0]
+		val := v_0.Args[1]
+		v.reset(OpS390XADD)
+		v.AddArg(val)
+		v0 := b.NewValue0(v.Line, OpSelect0, t)
+		v0.AddArg(tuple)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueS390X_OpSelect1(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Select1     (AddTupleFirst32 tuple _  ))
+	// cond:
+	// result: (Select1 tuple)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpS390XAddTupleFirst32 {
+			break
+		}
+		tuple := v_0.Args[0]
+		v.reset(OpSelect1)
+		v.AddArg(tuple)
+		return true
+	}
+	// match: (Select1     (AddTupleFirst64 tuple _  ))
+	// cond:
+	// result: (Select1 tuple)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpS390XAddTupleFirst64 {
+			break
+		}
+		tuple := v_0.Args[0]
+		v.reset(OpSelect1)
+		v.AddArg(tuple)
 		return true
 	}
 	return false

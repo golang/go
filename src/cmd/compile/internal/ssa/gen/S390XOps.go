@@ -135,6 +135,7 @@ func init() {
 		gpstoreconst = regInfo{inputs: []regMask{ptrspsb, 0}}
 		gpstoreidx   = regInfo{inputs: []regMask{ptrsp, ptrsp, gpsp, 0}}
 		gpstorebr    = regInfo{inputs: []regMask{ptrsp, gpsp, 0}}
+		gpstorelaa   = regInfo{inputs: []regMask{ptrspsb, gpsp, 0}, outputs: gponly}
 
 		gpmvc = regInfo{inputs: []regMask{ptrsp, ptrsp, 0}}
 
@@ -152,6 +153,15 @@ func init() {
 
 		fpstore    = regInfo{inputs: []regMask{ptrspsb, fp, 0}}
 		fpstoreidx = regInfo{inputs: []regMask{ptrsp, ptrsp, fp, 0}}
+
+		// LoweredAtomicCas may overwrite arg1, so force it to R0 for now.
+		cas = regInfo{inputs: []regMask{ptrsp, r0, gpsp, 0}, outputs: []regMask{gp, 0}, clobbers: r0}
+
+		// LoweredAtomicExchange overwrites the output before executing
+		// CS{,G}, so the output register must not be the same as the
+		// input register. For now we just force the output register to
+		// R0.
+		exchange = regInfo{inputs: []regMask{ptrsp, gpsp &^ r0, 0}, outputs: []regMask{r0, 0}}
 	)
 
 	var S390Xops = []opData{
@@ -407,6 +417,54 @@ func init() {
 		{name: "FlagEQ"}, // equal
 		{name: "FlagLT"}, // <
 		{name: "FlagGT"}, // >
+
+		// Atomic loads. These are just normal loads but return <value,memory> tuples
+		// so they can be properly ordered with other loads.
+		// load from arg0+auxint+aux.  arg1=mem.
+		{name: "MOVWZatomicload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", faultOnNilArg0: true},
+		{name: "MOVDatomicload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", faultOnNilArg0: true},
+
+		// Atomic stores. These are just normal stores.
+		// store arg1 to arg0+auxint+aux. arg2=mem.
+		{name: "MOVWatomicstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true},
+		{name: "MOVDatomicstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true},
+
+		// Atomic adds.
+		// *(arg0+auxint+aux) += arg1.  arg2=mem.
+		// Returns a tuple of <old contents of *(arg0+auxint+aux), memory>.
+		{name: "LAA", argLength: 3, reg: gpstorelaa, asm: "LAA", typ: "(UInt32,Mem)", aux: "SymOff", faultOnNilArg0: true},
+		{name: "LAAG", argLength: 3, reg: gpstorelaa, asm: "LAAG", typ: "(UInt64,Mem)", aux: "SymOff", faultOnNilArg0: true},
+		{name: "AddTupleFirst32", argLength: 2}, // arg0=tuple <x,y>.  Returns <x+arg1,y>.
+		{name: "AddTupleFirst64", argLength: 2}, // arg0=tuple <x,y>.  Returns <x+arg1,y>.
+
+		// Compare and swap.
+		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
+		// if *(arg0+auxint+aux) == arg1 {
+		//   *(arg0+auxint+aux) = arg2
+		//   return (true, memory)
+		// } else {
+		//   return (false, memory)
+		// }
+		// Note that these instructions also return the old value in arg1, but we ignore it.
+		// TODO: have these return flags instead of bool.  The current system generates:
+		//    CS ...
+		//    MOVD  $0, ret
+		//    BNE   2(PC)
+		//    MOVD  $1, ret
+		//    CMPW  ret, $0
+		//    BNE ...
+		// instead of just
+		//    CS ...
+		//    BEQ ...
+		// but we can't do that because memory-using ops can't generate flags yet
+		// (flagalloc wants to move flag-generating instructions around).
+		{name: "LoweredAtomicCas32", argLength: 4, reg: cas, asm: "CS", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicCas64", argLength: 4, reg: cas, asm: "CSG", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
+
+		// Lowered atomic swaps, emulated using compare-and-swap.
+		// store arg1 to arg0+auxint+aux, arg2=mem.
+		{name: "LoweredAtomicExchange32", argLength: 3, reg: exchange, asm: "CS", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicExchange64", argLength: 3, reg: exchange, asm: "CSG", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
 
 		// find leftmost one
 		{

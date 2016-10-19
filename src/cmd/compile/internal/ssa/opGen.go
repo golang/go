@@ -1417,6 +1417,18 @@ const (
 	OpS390XFlagEQ
 	OpS390XFlagLT
 	OpS390XFlagGT
+	OpS390XMOVWZatomicload
+	OpS390XMOVDatomicload
+	OpS390XMOVWatomicstore
+	OpS390XMOVDatomicstore
+	OpS390XLAA
+	OpS390XLAAG
+	OpS390XAddTupleFirst32
+	OpS390XAddTupleFirst64
+	OpS390XLoweredAtomicCas32
+	OpS390XLoweredAtomicCas64
+	OpS390XLoweredAtomicExchange32
+	OpS390XLoweredAtomicExchange64
 	OpS390XFLOGR
 	OpS390XSTMG2
 	OpS390XSTMG3
@@ -17932,6 +17944,182 @@ var opcodeTable = [...]opInfo{
 		name:   "FlagGT",
 		argLen: 0,
 		reg:    regInfo{},
+	},
+	{
+		name:           "MOVWZatomicload",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		asm:            s390x.AMOVWZ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:           "MOVDatomicload",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		asm:            s390x.AMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:           "MOVWatomicstore",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		asm:            s390x.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+			},
+		},
+	},
+	{
+		name:           "MOVDatomicstore",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		asm:            s390x.AMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+			},
+		},
+	},
+	{
+		name:           "LAA",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		asm:            s390x.ALAA,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+			},
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:           "LAAG",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		asm:            s390x.ALAAG,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+				{1, 54271},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+			},
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:   "AddTupleFirst32",
+		argLen: 2,
+		reg:    regInfo{},
+	},
+	{
+		name:   "AddTupleFirst64",
+		argLen: 2,
+		reg:    regInfo{},
+	},
+	{
+		name:           "LoweredAtomicCas32",
+		auxType:        auxSymOff,
+		argLen:         4,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		asm:            s390x.ACS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1},     // R0
+				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+			},
+			clobbers: 1, // R0
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicCas64",
+		auxType:        auxSymOff,
+		argLen:         4,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		asm:            s390x.ACSG,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1},     // R0
+				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{2, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+			},
+			clobbers: 1, // R0
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicExchange32",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		asm:            s390x.ACS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 1}, // R0
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicExchange64",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		asm:            s390x.ACSG,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{1, 54270}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 1}, // R0
+			},
+		},
 	},
 	{
 		name:         "FLOGR",
