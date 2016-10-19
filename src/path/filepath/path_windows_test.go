@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -412,4 +413,11 @@ func TestToNorm(t *testing.T) {
 			t.Errorf("toNorm(%s) returns %s, but %s expected (wd=%s)\n", arg, got, want, wd)
 		}
 	}
+}
+
+func TestUNC(t *testing.T) {
+	// Test that this doesn't go into an infinite recursion.
+	// See golang.org/issue/15879.
+	defer debug.SetMaxStack(debug.SetMaxStack(1e6))
+	filepath.Glob(`\\?\c:\*`)
 }
