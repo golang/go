@@ -112,7 +112,7 @@ var trace struct {
 	empty         traceBufPtr // stack of empty buffers
 	fullHead      traceBufPtr // queue of full buffers
 	fullTail      traceBufPtr
-	reader        *g              // goroutine that called ReadTrace, or nil
+	reader        guintptr        // goroutine that called ReadTrace, or nil
 	stackTab      traceStackTable // maps stack traces to unique ids
 
 	// Dictionary for traceEvString.
@@ -313,7 +313,7 @@ func StopTrace() {
 	if trace.fullHead != 0 || trace.fullTail != 0 {
 		throw("trace: non-empty full trace buffer")
 	}
-	if trace.reading != 0 || trace.reader != nil {
+	if trace.reading != 0 || trace.reader != 0 {
 		throw("trace: reading after shutdown")
 	}
 	for trace.empty != 0 {
@@ -341,7 +341,7 @@ func ReadTrace() []byte {
 	lock(&trace.lock)
 	trace.lockOwner = getg()
 
-	if trace.reader != nil {
+	if trace.reader != 0 {
 		// More than one goroutine reads trace. This is bad.
 		// But we rather do not crash the program because of tracing,
 		// because tracing can be enabled at runtime on prod servers.
@@ -365,7 +365,7 @@ func ReadTrace() []byte {
 	}
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
-		trace.reader = getg()
+		trace.reader.set(getg())
 		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock, 2)
 		lock(&trace.lock)
 	}
@@ -419,16 +419,16 @@ func ReadTrace() []byte {
 
 // traceReader returns the trace reader that should be woken up, if any.
 func traceReader() *g {
-	if trace.reader == nil || (trace.fullHead == 0 && !trace.shutdown) {
+	if trace.reader == 0 || (trace.fullHead == 0 && !trace.shutdown) {
 		return nil
 	}
 	lock(&trace.lock)
-	if trace.reader == nil || (trace.fullHead == 0 && !trace.shutdown) {
+	if trace.reader == 0 || (trace.fullHead == 0 && !trace.shutdown) {
 		unlock(&trace.lock)
 		return nil
 	}
-	gp := trace.reader
-	trace.reader = nil
+	gp := trace.reader.ptr()
+	trace.reader.set(nil)
 	unlock(&trace.lock)
 	return gp
 }
