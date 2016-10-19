@@ -953,7 +953,7 @@ func Unlink(path string) (err error) {
 	return
 }
 
-func Utimes(path string, times *[2]Timeval) (err error) {
+func utimes(path string, times *[2]Timeval) (err error) {
 	var _p0 *byte
 	_p0, err = BytePtrFromString(path)
 	if err != nil {

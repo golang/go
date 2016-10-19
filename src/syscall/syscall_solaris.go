@@ -279,7 +279,7 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 		tv[i].Sec = ts[i].Sec
 		tv[i].Usec = ts[i].Nsec / 1000
 	}
-	return Utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
@@ -494,7 +494,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 //sys	Ftruncate(fd int, length int64) (err error)
 //sys	Umask(newmask int) (oldmask int)
 //sys	Unlink(path string) (err error)
-//sys	Utimes(path string, times *[2]Timeval) (err error)
+//sys	utimes(path string, times *[2]Timeval) (err error)
 //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) = libsocket.__xnet_bind
 //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) = libsocket.__xnet_connect
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
@@ -526,4 +526,11 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
 		err = e1
 	}
 	return
+}
+
+func Utimes(path string, tv []Timeval) error {
+	if len(tv) != 2 {
+		return EINVAL
+	}
+	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
