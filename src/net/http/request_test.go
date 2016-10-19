@@ -497,18 +497,22 @@ func TestNewRequestContentLength(t *testing.T) {
 		{bytes.NewReader([]byte("123")), 3},
 		{bytes.NewBuffer([]byte("1234")), 4},
 		{strings.NewReader("12345"), 5},
+		{strings.NewReader(""), 0},
 		// Not detected:
-		{struct{ io.Reader }{strings.NewReader("xyz")}, 0},
-		{io.NewSectionReader(strings.NewReader("x"), 0, 6), 0},
-		{readByte(io.NewSectionReader(strings.NewReader("xy"), 0, 6)), 0},
+		{struct{ io.Reader }{strings.NewReader("xyz")}, -1},
+		{io.NewSectionReader(strings.NewReader("x"), 0, 6), -1},
+		{readByte(io.NewSectionReader(strings.NewReader("xy"), 0, 6)), -1},
 	}
-	for _, tt := range tests {
+	for i, tt := range tests {
 		req, err := NewRequest("POST", "http://localhost/", tt.r)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if req.ContentLength != tt.want {
-			t.Errorf("ContentLength(%T) = %d; want %d", tt.r, req.ContentLength, tt.want)
+			t.Errorf("test[%d]: ContentLength(%T) = %d; want %d", i, tt.r, req.ContentLength, tt.want)
+		}
+		if (req.ContentLength == 0) != (req.Body == nil) {
+			t.Errorf("test[%d]: ContentLength = %d but Body non-nil is %v", i, req.ContentLength, req.Body != nil)
 		}
 	}
 }
@@ -667,11 +671,31 @@ func TestStarRequest(t *testing.T) {
 	if err != nil {
 		return
 	}
+	if req.ContentLength != 0 {
+		t.Errorf("ContentLength = %d; want 0", req.ContentLength)
+	}
+	if req.Body == nil {
+		t.Errorf("Body = nil; want non-nil")
+	}
+
+	// Request.Write has Client semantics for Body/ContentLength,
+	// where ContentLength 0 means unknown if Body is non-nil, and
+	// thus chunking will happen unless we change semantics and
+	// signal that we want to serialize it as exactly zero.  The
+	// only way to do that for outbound requests is with a nil
+	// Body:
+	clientReq := *req
+	clientReq.Body = nil
+
 	var out bytes.Buffer
-	if err := req.Write(&out); err != nil {
+	if err := clientReq.Write(&out); err != nil {
 		t.Fatal(err)
 	}
-	back, err := ReadRequest(bufio.NewReader(&out))
+
+	if strings.Contains(out.String(), "chunked") {
+		t.Error("wrote chunked request; want no body")
+	}
+	back, err := ReadRequest(bufio.NewReader(bytes.NewReader(out.Bytes())))
 	if err != nil {
 		t.Fatal(err)
 	}
