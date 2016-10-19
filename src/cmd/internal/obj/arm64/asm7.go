@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	FuncAlign = 16
+	funcAlign = 16
 )
 
 const (
@@ -633,7 +633,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 		}
 	}
 
-	c += -c & (FuncAlign - 1)
+	c += -c & (funcAlign - 1)
 	cursym.Size = c
 
 	/*
@@ -806,7 +806,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		ctxt.Elitrl.Link = q
 	}
 	ctxt.Elitrl = q
-	pool.size = -pool.size & (FuncAlign - 1)
+	pool.size = -pool.size & (funcAlign - 1)
 	pool.size += uint32(sz)
 	p.Pcond = q
 }

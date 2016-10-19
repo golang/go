@@ -40,7 +40,7 @@ import (
 // Instruction layout.
 
 const (
-	FuncAlign = 8
+	funcAlign = 8
 )
 
 const (
@@ -569,7 +569,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 		cursym.Size = c
 	}
 
-	c += -c & (FuncAlign - 1)
+	c += -c & (funcAlign - 1)
 	cursym.Size = c
 
 	/*

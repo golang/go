@@ -63,13 +63,13 @@ package arm
 // THE SOFTWARE.
 
 const (
-	MaxAlign  = 8 // max data alignment
-	MinAlign  = 1 // min data alignment
-	FuncAlign = 4 // single-instruction alignment
+	maxAlign  = 8 // max data alignment
+	minAlign  = 1 // min data alignment
+	funcAlign = 4 // single-instruction alignment
 )
 
 /* Used by ../internal/ld/dwarf.go */
 const (
-	DWARFREGSP = 13
-	DWARFREGLR = 14
+	dwarfRegSP = 13
+	dwarfRegLR = 14
 )

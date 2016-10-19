@@ -62,13 +62,13 @@ package ppc64
 // THE SOFTWARE.
 
 const (
-	MaxAlign  = 32 // max data alignment
-	MinAlign  = 1  // min data alignment
-	FuncAlign = 8
+	maxAlign  = 32 // max data alignment
+	minAlign  = 1  // min data alignment
+	funcAlign = 8
 )
 
 /* Used by ../internal/ld/dwarf.go */
 const (
-	DWARFREGSP = 1
-	DWARFREGLR = 65
+	dwarfRegSP = 1
+	dwarfRegLR = 65
 )
