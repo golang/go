@@ -321,9 +321,6 @@ func compile(fn *Node) {
 			return
 		}
 
-		if Debug['A'] != 0 {
-			return
-		}
 		emitptrargsmap()
 		return
 	}

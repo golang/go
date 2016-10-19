@@ -132,9 +132,9 @@ package gc
 import (
 	"bufio"
 	"bytes"
-	"math/big"
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"sort"
 	"strings"
 )
@@ -204,14 +204,11 @@ type exporter struct {
 // export writes the exportlist for localpkg to out and returns the number of bytes written.
 func export(out *bufio.Writer, trace bool) int {
 	p := exporter{
-		out:      out,
-		strIndex: map[string]int{"": 0}, // empty string is mapped to 0
-		pkgIndex: make(map[*Pkg]int),
-		typIndex: make(map[*Type]int),
-		// don't emit pos info for builtin packages
-		// (not needed and avoids path name diffs in builtin.go between
-		// Windows and non-Windows machines, exposed via builtin_test.go)
-		posInfoFormat: Debug['A'] == 0,
+		out:           out,
+		strIndex:      map[string]int{"": 0}, // empty string is mapped to 0
+		pkgIndex:      make(map[*Pkg]int),
+		typIndex:      make(map[*Type]int),
+		posInfoFormat: true,
 		trace:         trace,
 	}
 

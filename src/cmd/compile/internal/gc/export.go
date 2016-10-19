@@ -82,8 +82,7 @@ func autoexport(n *Node, ctxt Class) {
 		return
 	}
 
-	// -A is for cmd/gc/mkbuiltin script, so export everything
-	if Debug['A'] != 0 || exportname(n.Sym.Name) || initname(n.Sym.Name) {
+	if exportname(n.Sym.Name) || initname(n.Sym.Name) {
 		exportsym(n)
 	}
 	if asmhdr != "" && n.Sym.Pkg == localpkg && n.Sym.Flags&SymAsm == 0 {
@@ -271,7 +270,7 @@ func importsym(s *Sym, op Op) {
 
 	// mark the symbol so it is not reexported
 	if s.Def == nil {
-		if Debug['A'] != 0 || exportname(s.Name) || initname(s.Name) {
+		if exportname(s.Name) || initname(s.Name) {
 			s.Flags |= SymExport
 		} else {
 			s.Flags |= SymPackage // package scope

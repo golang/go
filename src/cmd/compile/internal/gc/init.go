@@ -75,11 +75,6 @@ func anyinit(n []*Node) bool {
 }
 
 func fninit(n []*Node) {
-	if Debug['A'] != 0 {
-		// sys.go or unsafe.go during compiler build
-		return
-	}
-
 	nf := initfix(n)
 	if !anyinit(nf) {
 		return
