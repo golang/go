@@ -1151,6 +1151,12 @@ struct.  If the interface value holds a pointer, copying the interface value
 makes a copy of the pointer, but again not the data it points to.
 </p>
 
+<p>
+Note that this discussion is about the semantics of the operations.
+Actual implementations may apply optimizations to avoid copying
+as long as the optimizations do not change the semantics.
+</p>
+
 <h3 id="pointer_to_interface">
 When should I use a pointer to an interface?</h3>
 
