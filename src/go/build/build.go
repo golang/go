@@ -1072,10 +1072,14 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
 	}
 
 	// Look for +build comments to accept or reject the file.
-	if !ctxt.shouldBuild(data, allTags, binaryOnly) && !ctxt.UseAllFiles {
+	var sawBinaryOnly bool
+	if !ctxt.shouldBuild(data, allTags, &sawBinaryOnly) && !ctxt.UseAllFiles {
 		return
 	}
 
+	if binaryOnly != nil && sawBinaryOnly {
+		*binaryOnly = true
+	}
 	match = true
 	return
 }
@@ -1119,9 +1123,8 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
 //
 // marks the file as applicable only on Windows and Linux.
 //
-// If shouldBuild finds a //go:binary-only-package comment in a file that
-// should be built, it sets *binaryOnly to true. Otherwise it does
-// not change *binaryOnly.
+// If shouldBuild finds a //go:binary-only-package comment in the file,
+// it sets *binaryOnly to true. Otherwise it does not change *binaryOnly.
 //
 func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binaryOnly *bool) bool {
 	sawBinaryOnly := false
