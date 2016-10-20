@@ -19,7 +19,10 @@ GLOBL poly1305_init_constants_armv6<>(SB), 8, $20
 // Warning: the linker may use R11 to synthesize certain instructions. Please
 // take care and verify that no synthetic instructions use it.
 
-TEXT poly1305_init_ext_armv6<>(SB), NOSPLIT|NOFRAME, $0
+TEXT poly1305_init_ext_armv6<>(SB), NOSPLIT, $0
+	// Needs 32 bytes of stack and 64 bytes of space pointed to by R0.
+	// (It might look like it's only 60 bytes of space but the final
+	// four bytes will be written by another function.)
 	MOVM.DB.W [R4-R11], (R13)
 	MOVM.IA.W (R1), [R2-R5]
 	MOVW      $poly1305_init_constants_armv6<>(SB), R7
@@ -59,7 +62,8 @@ TEXT poly1305_init_ext_armv6<>(SB), NOSPLIT|NOFRAME, $0
 	MOVBU (offset+3)(Rsrc), Rtmp; \
 	MOVBU Rtmp, (offset+3)(Rdst)
 
-TEXT poly1305_blocks_armv6<>(SB), NOSPLIT|NOFRAME, $0
+TEXT poly1305_blocks_armv6<>(SB), NOSPLIT, $0
+	// Needs 36 + 128 bytes of stack.
 	MOVM.DB.W [R4, R5, R6, R7, R8, R9, g, R11, R14], (R13)
 	SUB       $128, R13
 	MOVW      R0, 36(R13)
@@ -212,7 +216,8 @@ poly1305_blocks_armv6_done:
 	MOVHUP_UNALIGNED(Rsrc, Rdst, Rtmp); \
 	MOVHUP_UNALIGNED(Rsrc, Rdst, Rtmp)
 
-TEXT poly1305_finish_ext_armv6<>(SB), NOSPLIT | NOFRAME, $0
+TEXT poly1305_finish_ext_armv6<>(SB), NOSPLIT, $0
+	// Needs 36 + 16 bytes of stack.
 	MOVM.DB.W [R4, R5, R6, R7, R8, R9, g, R11, R14], (R13)
 	SUB       $16, R13, R13
 	MOVW      R0, R5
@@ -364,15 +369,32 @@ poly1305_finish_ext_armv6_noremaining:
 	RET
 
 // func poly1305_auth_armv6(out *[16]byte, m *byte, mlen uint32, key *[32]key)
-TEXT ·poly1305_auth_armv6(SB), $280-16
+TEXT ·poly1305_auth_armv6(SB), $228-16
+	// The value 228, just above, is the sum of 64 (the size of the context
+	// structure) and 164 (the amount of stack that |poly1305_blocks_armv6|
+	// needs).
+	//
+	// At this point, the stack pointer (R13) has been moved down. It
+	// points to the saved link register and there's 228 bytes of free
+	// space above it.
 	MOVW out+0(FP), R4
 	MOVW m+4(FP), R5
 	MOVW mlen+8(FP), R6
 	MOVW key+12(FP), R7
 
-	MOVW  R13, R8
-	BIC   $63, R13
-	SUB   $64, R13, R13
+	// We need to keep a 64-byte structure on the stack and have enough
+	// space for |poly1305_blocks_armv6| (which needs 164 bytes of stack
+	// space). This assembly code was written for a C-based world where
+	// code just assumes that sufficient stack is available below the
+	// current stack pointer. So the structure is kept at the highest
+	// addresses of the frame and the stack for other functions exists just
+	// below it.
+	//
+	// (In ARM, R13 points at the value currently at the top of the stack,
+	// so the structure address and stack pointer are the same value.)
+	//
+	// We add 168, not 164, because the link register is saved at *R13.
+	ADD   $168, R13, R13
 	MOVW  R13, R0
 	MOVW  R7, R1
 	BL    poly1305_init_ext_armv6<>(SB)
@@ -390,5 +412,5 @@ poly1305_auth_armv6_noblocks:
 	MOVW R6, R2
 	MOVW R4, R3
 	BL   poly1305_finish_ext_armv6<>(SB)
-	MOVW R8, R13
+	SUB  $168, R13, R13
 	RET
