@@ -455,9 +455,13 @@ func ticketKeyFromBytes(b [32]byte) (key ticketKey) {
 	return key
 }
 
-// Clone returns a shallow clone of c.
-// Only the exported fields are copied.
+// Clone returns a shallow clone of c. It is safe to clone a Config that is
+// being used concurrently by a TLS client or server.
 func (c *Config) Clone() *Config {
+	// Running serverInit ensures that it's safe to read
+	// SessionTicketsDisabled.
+	c.serverInitOnce.Do(c.serverInit)
+
 	var sessionTicketKeys []ticketKey
 	c.mutex.RLock()
 	sessionTicketKeys = c.sessionTicketKeys

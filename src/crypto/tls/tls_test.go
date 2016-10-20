@@ -508,6 +508,10 @@ func TestClone(t *testing.T) {
 	}
 
 	c2 := c1.Clone()
+	// DeepEqual also compares unexported fields, thus c2 needs to have run
+	// serverInit in order to be DeepEqual to c1. Cloning it and discarding
+	// the result is sufficient.
+	c2.Clone()
 
 	if !reflect.DeepEqual(&c1, c2) {
 		t.Errorf("clone failed to copy a field")
