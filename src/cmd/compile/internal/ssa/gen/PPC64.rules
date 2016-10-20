@@ -361,10 +361,10 @@
 (NE (CMPWconst [0] (LessEqual cc)) yes no) -> (LE cc yes no)
 (NE (CMPWconst [0] (GreaterThan cc)) yes no) -> (GT cc yes no)
 (NE (CMPWconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
-// (NE (CMPWconst [0] (FLessThan cc)) yes no) -> (FLT cc yes no)
-// (NE (CMPWconst [0] (FLessEqual cc)) yes no) -> (FLE cc yes no)
-// (NE (CMPWconst [0] (FGreaterThan cc)) yes no) -> (FGT cc yes no)
-// (NE (CMPWconst [0] (FGreaterEqual cc)) yes no) -> (FGE cc yes no)
+(NE (CMPWconst [0] (FLessThan cc)) yes no) -> (FLT cc yes no)
+(NE (CMPWconst [0] (FLessEqual cc)) yes no) -> (FLE cc yes no)
+(NE (CMPWconst [0] (FGreaterThan cc)) yes no) -> (FGT cc yes no)
+(NE (CMPWconst [0] (FGreaterEqual cc)) yes no) -> (FGE cc yes no)
 
 // Elide compares of bit tests // TODO need to make both CC and result of ANDCC available.
 (EQ (CMPconst [0] (ANDconst [c] x)) yes no) -> (EQ (ANDCCconst [c] x) yes no)
