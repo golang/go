@@ -17,6 +17,8 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
 	b1 := int32(b)
 
 	// yy is in range [0,0xff].
+	//
+	// Note that 19595 + 38470 + 7471 equals 65536.
 	yy := (19595*r1 + 38470*g1 + 7471*b1 + 1<<15) >> 16
 
 	// The bit twiddling below is equivalent to
@@ -32,6 +34,8 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
 	// Note that the uint8 type conversion in the return
 	// statement will convert ^int32(0) to 0xff.
 	// The code below to compute cr uses a similar pattern.
+	//
+	// Note that -11056 - 21712 + 32768 equals 0.
 	cb := -11056*r1 - 21712*g1 + 32768*b1 + 257<<15
 	if uint32(cb)&0xff000000 == 0 {
 		cb >>= 16
@@ -39,6 +43,7 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
 		cb = ^(cb >> 31)
 	}
 
+	// Note that 32768 - 27440 - 5328 equals 0.
 	cr := 32768*r1 - 27440*g1 - 5328*b1 + 257<<15
 	if uint32(cr)&0xff000000 == 0 {
 		cr >>= 16
