@@ -30,7 +30,7 @@ type Pkg struct {
 // an object declared within a package, but Syms are also used to name internal
 // synthesized objects.
 //
-// As a special exception, field and method names that are exported use the Sym
+// As an exception, field and method names that are exported use the Sym
 // associated with localpkg instead of the package that declared them. This
 // allows using Sym pointer equality to test for Go identifier uniqueness when
 // handling selector expressions.
@@ -42,7 +42,7 @@ type Sym struct {
 
 	// saved and restored by dcopy
 	Pkg        *Pkg
-	Name       string // variable name
+	Name       string // object name
 	Def        *Node  // definition: ONAME OTYPE OPACK or OLITERAL
 	Block      int32  // blocknumber to catch redeclaration
 	Lastlineno int32  // last declaration for diagnostic

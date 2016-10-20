@@ -3660,9 +3660,8 @@ func typecheckdef(n *Node) *Node {
 	default:
 		Fatalf("typecheckdef %v", n.Op)
 
-		// not really syms
-	case OGOTO, OLABEL:
-		break
+	case OGOTO, OLABEL, OPACK:
+		// nothing to do here
 
 	case OLITERAL:
 		if n.Name.Param.Ntype != nil {
@@ -3770,10 +3769,6 @@ func typecheckdef(n *Node) *Node {
 		if Curfn != nil {
 			resumecheckwidth()
 		}
-
-		// nothing to see here
-	case OPACK:
-		break
 	}
 
 ret:
