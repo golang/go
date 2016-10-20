@@ -10584,6 +10584,102 @@ func rewriteBlockPPC64(b *Block, config *Config) bool {
 			_ = no
 			return true
 		}
+		// match: (NE (CMPWconst [0] (FLessThan cc)) yes no)
+		// cond:
+		// result: (FLT cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64FLessThan {
+				break
+			}
+			cc := v_0.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockPPC64FLT
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (CMPWconst [0] (FLessEqual cc)) yes no)
+		// cond:
+		// result: (FLE cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64FLessEqual {
+				break
+			}
+			cc := v_0.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockPPC64FLE
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (CMPWconst [0] (FGreaterThan cc)) yes no)
+		// cond:
+		// result: (FGT cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64FGreaterThan {
+				break
+			}
+			cc := v_0.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockPPC64FGT
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (CMPWconst [0] (FGreaterEqual cc)) yes no)
+		// cond:
+		// result: (FGE cc yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64FGreaterEqual {
+				break
+			}
+			cc := v_0.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockPPC64FGE
+			b.SetControl(cc)
+			_ = yes
+			_ = no
+			return true
+		}
 		// match: (NE (CMPconst [0] (ANDconst [c] x)) yes no)
 		// cond:
 		// result: (NE (ANDCCconst [c] x) yes no)
