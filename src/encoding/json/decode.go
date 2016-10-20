@@ -70,8 +70,8 @@ import (
 //
 // To unmarshal a JSON object into a map, Unmarshal first establishes a map to
 // use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
-// reuses the existing map, keeping existing entries. Unmarshal then stores key-
-// value pairs from the JSON object into the map. The map's key type must
+// reuses the existing map, keeping existing entries. Unmarshal then stores
+// key-value pairs from the JSON object into the map. The map's key type must
 // either be a string, an integer, or implement encoding.TextUnmarshaler.
 //
 // If a JSON value is not appropriate for a given target type,
