@@ -2485,22 +2485,6 @@ type errorReader struct {
 
 func (e errorReader) Read(p []byte) (int, error) { return 0, e.err }
 
-type plan9SleepReader struct{}
-
-func (plan9SleepReader) Read(p []byte) (int, error) {
-	if runtime.GOOS == "plan9" {
-		// After the fix to unblock TCP Reads in
-		// https://golang.org/cl/15941, this sleep is required
-		// on plan9 to make sure TCP Writes before an
-		// immediate TCP close go out on the wire. On Plan 9,
-		// it seems that a hangup of a TCP connection with
-		// queued data doesn't send the queued data first.
-		// https://golang.org/issue/9554
-		time.Sleep(50 * time.Millisecond)
-	}
-	return 0, io.EOF
-}
-
 type closerFunc func() error
 
 func (f closerFunc) Close() error { return f() }
@@ -2595,7 +2579,7 @@ func TestTransportClosesBodyOnError(t *testing.T) {
 		io.Reader
 		io.Closer
 	}{
-		io.MultiReader(io.LimitReader(neverEnding('x'), 1<<20), plan9SleepReader{}, errorReader{fakeErr}),
+		io.MultiReader(io.LimitReader(neverEnding('x'), 1<<20), errorReader{fakeErr}),
 		closerFunc(func() error {
 			select {
 			case didClose <- true:
