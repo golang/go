@@ -615,8 +615,10 @@ func (p *Package) rewriteCalls(f *File) bool {
 	return needsUnsafe
 }
 
-// rewriteCall rewrites one call to add pointer checks. We replace
-// each pointer argument x with _cgoCheckPointer(x).(T).
+// rewriteCall rewrites one call to add pointer checks.
+// If any pointer checks are required, we rewrite the call into a
+// function literal that calls _cgoCheckPointer for each pointer
+// argument and then calls the original function.
 // This returns whether the package needs to import unsafe as _cgo_unsafe.
 func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 	// Avoid a crash if the number of arguments is
