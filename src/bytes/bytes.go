@@ -160,10 +160,19 @@ func IndexRune(s []byte, r rune) int {
 // point in common.
 func IndexAny(s []byte, chars string) int {
 	if len(chars) > 0 {
-		var r rune
+		if len(s) > 8 {
+			if as, isASCII := makeASCIISet(chars); isASCII {
+				for i, c := range s {
+					if as.contains(c) {
+						return i
+					}
+				}
+				return -1
+			}
+		}
 		var width int
 		for i := 0; i < len(s); i += width {
-			r = rune(s[i])
+			r := rune(s[i])
 			if r < utf8.RuneSelf {
 				width = 1
 			} else {
@@ -185,11 +194,21 @@ func IndexAny(s []byte, chars string) int {
 // there is no code point in common.
 func LastIndexAny(s []byte, chars string) int {
 	if len(chars) > 0 {
+		if len(s) > 8 {
+			if as, isASCII := makeASCIISet(chars); isASCII {
+				for i := len(s) - 1; i >= 0; i-- {
+					if as.contains(s[i]) {
+						return i
+					}
+				}
+				return -1
+			}
+		}
 		for i := len(s); i > 0; {
-			r, size := utf8.DecodeLastRune(s[0:i])
+			r, size := utf8.DecodeLastRune(s[:i])
 			i -= size
-			for _, ch := range chars {
-				if r == ch {
+			for _, c := range chars {
+				if r == c {
 					return i
 				}
 			}
@@ -573,7 +592,43 @@ func lastIndexFunc(s []byte, f func(r rune) bool, truth bool) int {
 	return -1
 }
 
+// asciiSet is a 32-byte value, where each bit represents the presence of a
+// given ASCII character in the set. The 128-bits of the lower 16 bytes,
+// starting with the least-significant bit of the lowest word to the
+// most-significant bit of the highest word, map to the full range of all
+// 128 ASCII characters. The 128-bits of the upper 16 bytes will be zeroed,
+// ensuring that any non-ASCII character will be reported as not in the set.
+type asciiSet [8]uint32
+
+// makeASCIISet creates a set of ASCII characters and reports whether all
+// characters in chars are ASCII.
+func makeASCIISet(chars string) (as asciiSet, ok bool) {
+	for i := 0; i < len(chars); i++ {
+		c := chars[i]
+		if c >= utf8.RuneSelf {
+			return as, false
+		}
+		as[c>>5] |= 1 << uint(c&31)
+	}
+	return as, true
+}
+
+// contains reports whether c is inside the set.
+func (as *asciiSet) contains(c byte) bool {
+	return (as[c>>5] & (1 << uint(c&31))) != 0
+}
+
 func makeCutsetFunc(cutset string) func(r rune) bool {
+	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
+		return func(r rune) bool {
+			return r == rune(cutset[0])
+		}
+	}
+	if as, isASCII := makeASCIISet(cutset); isASCII {
+		return func(r rune) bool {
+			return r < utf8.RuneSelf && as.contains(byte(r))
+		}
+	}
 	return func(r rune) bool {
 		for _, c := range cutset {
 			if c == r {
