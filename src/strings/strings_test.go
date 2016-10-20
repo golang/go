@@ -152,10 +152,15 @@ var indexAnyTests = []IndexTest{
 	{"aaa", "a", 0},
 	{"abc", "xyz", -1},
 	{"abc", "xcz", 2},
-	{"a☺b☻c☹d", "uvw☻xyz", 2 + len("☺")},
+	{"ab☺c", "x☺yz", 2},
+	{"a☺b☻c☹d", "cx", len("a☺b☻")},
+	{"a☺b☻c☹d", "uvw☻xyz", len("a☺b")},
 	{"aRegExp*", ".(|)*+?^$[]", 7},
 	{dots + dots + dots, " ", -1},
+	{"012abcba210", "\xffb", 4},
+	{"012\x80bcb\x80210", "\xffb", 3},
 }
+
 var lastIndexAnyTests = []IndexTest{
 	{"", "", -1},
 	{"", "a", -1},
@@ -165,9 +170,13 @@ var lastIndexAnyTests = []IndexTest{
 	{"aaa", "a", 2},
 	{"abc", "xyz", -1},
 	{"abc", "ab", 1},
-	{"a☺b☻c☹d", "uvw☻xyz", 2 + len("☺")},
+	{"ab☺c", "x☺yz", 2},
+	{"a☺b☻c☹d", "cx", len("a☺b☻")},
+	{"a☺b☻c☹d", "uvw☻xyz", len("a☺b")},
 	{"a.RegExp*", ".(|)*+?^$[]", 8},
 	{dots + dots + dots, " ", -1},
+	{"012abcba210", "\xffb", 6},
+	{"012\x80bcb\x80210", "\xffb", 7},
 }
 
 // Execute f on each test case.  funcName should be the name of f; it's used
@@ -668,6 +677,9 @@ var trimTests = []struct {
 	{"Trim", "* listitem", " *", "listitem"},
 	{"Trim", `"quote"`, `"`, "quote"},
 	{"Trim", "\u2C6F\u2C6F\u0250\u0250\u2C6F\u2C6F", "\u2C6F", "\u0250\u0250"},
+	{"Trim", "\x80test\xff", "\xff", "test"},
+	{"Trim", " Ġ ", " ", "Ġ"},
+	{"Trim", " Ġİ0", "0 ", "Ġİ"},
 	//empty string tests
 	{"Trim", "abba", "", "abba"},
 	{"Trim", "", "123", ""},
@@ -1485,5 +1497,33 @@ func BenchmarkSplit3(b *testing.B) {
 func BenchmarkRepeat(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Repeat("-", 80)
+	}
+}
+
+func BenchmarkIndexAnyASCII(b *testing.B) {
+	x := Repeat("#", 4096) // Never matches set
+	cs := "0123456789abcdef"
+	for k := 1; k <= 4096; k <<= 4 {
+		for j := 1; j <= 16; j <<= 1 {
+			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					IndexAny(x[:k], cs[:j])
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkTrimASCII(b *testing.B) {
+	cs := "0123456789abcdef"
+	for k := 1; k <= 4096; k <<= 4 {
+		for j := 1; j <= 16; j <<= 1 {
+			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+				x := Repeat(cs[:j], k) // Always matches set
+				for i := 0; i < b.N; i++ {
+					Trim(x[:k], cs[:j])
+				}
+			})
+		}
 	}
 }
