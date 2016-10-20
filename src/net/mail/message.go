@@ -92,7 +92,8 @@ func init() {
 	}
 }
 
-func parseDate(date string) (time.Time, error) {
+// ParseDate parses an RFC 5322 date string.
+func ParseDate(date string) (time.Time, error) {
 	for _, layout := range dateLayouts {
 		t, err := time.Parse(layout, date)
 		if err == nil {
@@ -119,7 +120,7 @@ func (h Header) Date() (time.Time, error) {
 	if hdr == "" {
 		return time.Time{}, ErrHeaderNotPresent
 	}
-	return parseDate(hdr)
+	return ParseDate(hdr)
 }
 
 // AddressList parses the named header field as a list of addresses.
