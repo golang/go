@@ -503,6 +503,19 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 		if viaRequest {
 			return nil, errors.New("invalid URI for request")
 		}
+
+		// Avoid confusion with malformed schemes, like cache_object:foo/bar.
+		// See golang.org/issue/16822.
+		//
+		// RFC 3986, §3.3:
+		// In addition, a URI reference (Section 4.1) may be a relative-path reference,
+		// in which case the first path segment cannot contain a colon (":") character.
+		colon := strings.Index(rest, ":")
+		slash := strings.Index(rest, "/")
+		if colon >= 0 && (slash < 0 || colon < slash) {
+			// First path segment has colon. Not allowed in relative URL.
+			return nil, errors.New("first path segment in URL cannot contain colon")
+		}
 	}
 
 	if (url.Scheme != "" || !viaRequest && !strings.HasPrefix(rest, "///")) && strings.HasPrefix(rest, "//") {
