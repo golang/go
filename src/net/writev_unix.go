@@ -49,6 +49,10 @@ func (fd *netFD) writeBuffers(v *Buffers) (n int64, err error) {
 				continue
 			}
 			iovecs = append(iovecs, syscall.Iovec{Base: &chunk[0]})
+			if fd.isStream && len(chunk) > 1<<30 {
+				iovecs[len(iovecs)-1].SetLen(1 << 30)
+				break // continue chunk on next writev
+			}
 			iovecs[len(iovecs)-1].SetLen(len(chunk))
 			if len(iovecs) == maxVec {
 				break
@@ -63,7 +67,7 @@ func (fd *netFD) writeBuffers(v *Buffers) (n int64, err error) {
 			uintptr(fd.sysfd),
 			uintptr(unsafe.Pointer(&iovecs[0])),
 			uintptr(len(iovecs)))
-		if wrote < 0 {
+		if wrote == ^uintptr(0) {
 			wrote = 0
 		}
 		testHookDidWritev(int(wrote))

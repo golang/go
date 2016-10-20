@@ -239,6 +239,7 @@ type netFD struct {
 	sysfd         syscall.Handle
 	family        int
 	sotype        int
+	isStream      bool
 	isConnected   bool
 	skipSyncNotif bool
 	net           string
@@ -257,7 +258,7 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 		return nil, initErr
 	}
 	onceStartServer.Do(startServer)
-	return &netFD{sysfd: sysfd, family: family, sotype: sotype, net: net}, nil
+	return &netFD{sysfd: sysfd, family: family, sotype: sotype, net: net, isStream: sotype == syscall.SOCK_STREAM}, nil
 }
 
 func (fd *netFD) init() error {

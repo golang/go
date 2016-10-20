@@ -22,6 +22,7 @@ type netFD struct {
 	dir               string
 	listen, ctl, data *os.File
 	laddr, raddr      Addr
+	isStream          bool
 }
 
 var (
