@@ -24,6 +24,7 @@ type netFD struct {
 	sysfd       int
 	family      int
 	sotype      int
+	isStream    bool
 	isConnected bool
 	net         string
 	laddr       Addr
@@ -40,7 +41,7 @@ func sysInit() {
 }
 
 func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
-	return &netFD{sysfd: sysfd, family: family, sotype: sotype, net: net}, nil
+	return &netFD{sysfd: sysfd, family: family, sotype: sotype, net: net, isStream: sotype == syscall.SOCK_STREAM}, nil
 }
 
 func (fd *netFD) init() error {
@@ -238,6 +239,9 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 	if err := fd.pd.prepareRead(); err != nil {
 		return 0, err
 	}
+	if fd.isStream && len(p) > 1<<30 {
+		p = p[:1<<30]
+	}
 	for {
 		n, err = syscall.Read(fd.sysfd, p)
 		if err != nil {
@@ -321,7 +325,11 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
 	}
 	for {
 		var n int
-		n, err = syscall.Write(fd.sysfd, p[nn:])
+		max := len(p)
+		if fd.isStream && max-nn > 1<<30 {
+			max = nn + 1<<30
+		}
+		n, err = syscall.Write(fd.sysfd, p[nn:max])
 		if n > 0 {
 			nn += n
 		}
