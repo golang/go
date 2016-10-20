@@ -2980,6 +2980,16 @@ func TestBinaryOnlyPackages(t *testing.T) {
 
 	tg.run("run", tg.path("src/p3/p3.go"))
 	tg.grepStdout("hello from p1", "did not see message from p1")
+
+	tg.tempFile("src/p4/p4.go", `package main`)
+	tg.tempFile("src/p4/p4not.go", `//go:binary-only-package
+
+		// +build asdf
+
+		package main
+	`)
+	tg.run("list", "-f", "{{.BinaryOnly}}", "p4")
+	tg.grepStdout("false", "did not see BinaryOnly=false for p4")
 }
 
 // Issue 16050.
