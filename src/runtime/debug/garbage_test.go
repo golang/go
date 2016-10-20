@@ -114,3 +114,16 @@ func TestSetGCPercent(t *testing.T) {
 		t.Errorf("SetGCPercent(123); SetGCPercent(x) = %d, want 123", new)
 	}
 }
+
+func TestSetMaxThreadsOvf(t *testing.T) {
+	// Verify that a big threads count will not overflow the int32
+	// maxmcount variable, causing a panic (see Issue 16076).
+	//
+	// This can only happen when ints are 64 bits, since on platforms
+	// with 32 bit ints SetMaxThreads (which takes an int parameter)
+	// cannot be given anything that will overflow an int32.
+	//
+	// Call SetMaxThreads with 1<<31, but only on 64 bit systems.
+	nt := SetMaxThreads(1 << (30 + ^uint(0)>>63))
+	SetMaxThreads(nt) // restore previous value
+}
