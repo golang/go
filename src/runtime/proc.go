@@ -4294,7 +4294,11 @@ func runqsteal(_p_, p2 *p, stealRunNextG bool) *g {
 func setMaxThreads(in int) (out int) {
 	lock(&sched.lock)
 	out = int(sched.maxmcount)
-	sched.maxmcount = int32(in)
+	if in > 0x7fffffff { // MaxInt32
+		sched.maxmcount = 0x7fffffff
+	} else {
+		sched.maxmcount = int32(in)
+	}
 	checkmcount()
 	unlock(&sched.lock)
 	return
