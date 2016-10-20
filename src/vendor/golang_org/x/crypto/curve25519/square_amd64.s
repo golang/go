@@ -8,23 +8,10 @@
 // +build amd64,!gccgo,!appengine
 
 // func square(out, in *[5]uint64)
-TEXT ·square(SB),7,$96-16
+TEXT ·square(SB),7,$0-16
 	MOVQ out+0(FP), DI
 	MOVQ in+8(FP), SI
 
-	MOVQ SP,R11
-	MOVQ $31,CX
-	NOTQ CX
-	ANDQ CX,SP
-	ADDQ $32, SP
-
-	MOVQ R11,0(SP)
-	MOVQ R12,8(SP)
-	MOVQ R13,16(SP)
-	MOVQ R14,24(SP)
-	MOVQ R15,32(SP)
-	MOVQ BX,40(SP)
-	MOVQ BP,48(SP)
 	MOVQ 0(SI),AX
 	MULQ 0(SI)
 	MOVQ AX,CX
@@ -140,14 +127,4 @@ TEXT ·square(SB),7,$96-16
 	MOVQ R9,16(DI)
 	MOVQ AX,24(DI)
 	MOVQ R10,32(DI)
-	MOVQ 0(SP),R11
-	MOVQ 8(SP),R12
-	MOVQ 16(SP),R13
-	MOVQ 24(SP),R14
-	MOVQ 32(SP),R15
-	MOVQ 40(SP),BX
-	MOVQ 48(SP),BP
-	MOVQ R11,SP
-	MOVQ DI,AX
-	MOVQ SI,DX
 	RET
