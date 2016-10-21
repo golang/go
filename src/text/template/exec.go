@@ -541,6 +541,9 @@ func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd 
 // value of the pipeline, if any.
 func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, args []parse.Node, final, receiver reflect.Value) reflect.Value {
 	if !receiver.IsValid() {
+		if s.tmpl.option.missingKey == mapError { // Treat invalid value as missing map key.
+			s.errorf("nil data; no entry for key %q", fieldName)
+		}
 		return zero
 	}
 	typ := receiver.Type()

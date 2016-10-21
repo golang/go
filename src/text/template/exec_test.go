@@ -1142,6 +1142,12 @@ func TestMissingMapKey(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected error; got none")
 	}
+	// same Option, but now a nil interface: ask for an error
+	err = tmpl.Execute(&b, nil)
+	t.Log(err)
+	if err == nil {
+		t.Errorf("expected error for nil-interface; got none")
+	}
 }
 
 // Test that the error message for multiline unterminated string
