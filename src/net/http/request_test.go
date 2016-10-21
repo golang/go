@@ -784,6 +784,47 @@ func TestMaxBytesReaderStickyError(t *testing.T) {
 	}
 }
 
+// verify that NewRequest sets Request.GetBody and that it works
+func TestNewRequestGetBody(t *testing.T) {
+	tests := []struct {
+		r io.Reader
+	}{
+		{r: strings.NewReader("hello")},
+		{r: bytes.NewReader([]byte("hello"))},
+		{r: bytes.NewBuffer([]byte("hello"))},
+	}
+	for i, tt := range tests {
+		req, err := NewRequest("POST", "http://foo.tld/", tt.r)
+		if err != nil {
+			t.Errorf("test[%d]: %v", i, err)
+			continue
+		}
+		if req.Body == nil {
+			t.Errorf("test[%d]: Body = nil", i)
+			continue
+		}
+		if req.GetBody == nil {
+			t.Errorf("test[%d]: GetBody = nil", i)
+			continue
+		}
+		slurp1, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			t.Errorf("test[%d]: ReadAll(Body) = %v", i, err)
+		}
+		newBody, err := req.GetBody()
+		if err != nil {
+			t.Errorf("test[%d]: GetBody = %v", i, err)
+		}
+		slurp2, err := ioutil.ReadAll(newBody)
+		if err != nil {
+			t.Errorf("test[%d]: ReadAll(GetBody()) = %v", i, err)
+		}
+		if string(slurp1) != string(slurp2) {
+			t.Errorf("test[%d]: Body %q != GetBody %q", i, slurp1, slurp2)
+		}
+	}
+}
+
 func testMissingFile(t *testing.T, req *Request) {
 	f, fh, err := req.FormFile("missing")
 	if f != nil {

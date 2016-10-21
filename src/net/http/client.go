@@ -485,8 +485,15 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 				Cancel:   ireq.Cancel,
 				ctx:      ireq.ctx,
 			}
+			if ireq.GetBody != nil {
+				req.Body, err = ireq.GetBody()
+				if err != nil {
+					return nil, uerr(err)
+				}
+			}
 			if ireq.Method == "POST" || ireq.Method == "PUT" {
 				req.Method = "GET"
+				req.Body = nil // TODO: fix this when 307/308 support happens
 			}
 			// Copy the initial request's Header values
 			// (at least the safe ones).  Do this before
