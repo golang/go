@@ -373,13 +373,11 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 	case *syntax.SelectorExpr:
 		// parser.new_dotname
 		obj := p.expr(expr.X)
-		sel := p.name(expr.Sel)
 		if obj.Op == OPACK {
-			s := restrictlookup(sel.Name, obj.Name.Pkg)
 			obj.Used = true
-			return oldname(s)
+			return oldname(restrictlookup(expr.Sel.Value, obj.Name.Pkg))
 		}
-		return p.setlineno(expr, nodSym(OXDOT, obj, sel))
+		return p.setlineno(expr, nodSym(OXDOT, obj, p.name(expr.Sel)))
 	case *syntax.IndexExpr:
 		return p.nod(expr, OINDEX, p.expr(expr.X), p.expr(expr.Index))
 	case *syntax.SliceExpr:
@@ -535,7 +533,6 @@ func (p *noder) packname(expr syntax.Expr) *Sym {
 		return name
 	case *syntax.SelectorExpr:
 		name := p.name(expr.X.(*syntax.Name))
-		s := p.name(expr.Sel)
 		var pkg *Pkg
 		if name.Def == nil || name.Def.Op != OPACK {
 			yyerror("%v is not a package", name)
@@ -544,7 +541,7 @@ func (p *noder) packname(expr syntax.Expr) *Sym {
 			name.Def.Used = true
 			pkg = name.Def.Name.Pkg
 		}
-		return restrictlookup(s.Name, pkg)
+		return restrictlookup(expr.Sel.Value, pkg)
 	}
 	panic(fmt.Sprintf("unexpected packname: %#v", expr))
 }
