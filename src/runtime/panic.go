@@ -168,6 +168,10 @@ func testdefersizes() {
 // immediately after the _defer header in memory.
 //go:nosplit
 func deferArgs(d *_defer) unsafe.Pointer {
+	if d.siz == 0 {
+		// Avoid pointer past the defer allocation.
+		return nil
+	}
 	return add(unsafe.Pointer(d), unsafe.Sizeof(*d))
 }
 
