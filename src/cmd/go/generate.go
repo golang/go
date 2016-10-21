@@ -136,6 +136,8 @@ func init() {
 }
 
 func runGenerate(cmd *Command, args []string) {
+	ignoreImports = true
+
 	if generateRunFlag != "" {
 		var err error
 		generateRunRE, err = regexp.Compile(generateRunFlag)

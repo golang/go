@@ -24,6 +24,8 @@ import (
 	"unicode"
 )
 
+var ignoreImports bool // control whether we ignore imports in packages
+
 // A Package describes a single package found in a directory.
 type Package struct {
 	// Note: These fields are part of the go command's public API.
@@ -181,6 +183,11 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.TestImports = pp.TestImports
 	p.XTestGoFiles = pp.XTestGoFiles
 	p.XTestImports = pp.XTestImports
+	if ignoreImports {
+		p.Imports = nil
+		p.TestImports = nil
+		p.XTestImports = nil
+	}
 }
 
 // isStandardImportPath reports whether $GOROOT/src/path should be considered
