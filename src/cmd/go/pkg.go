@@ -341,50 +341,52 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 		importPath = path
 	}
 
-	if p := packageCache[importPath]; p != nil {
-		if perr := disallowInternal(srcDir, p, stk); perr != p {
-			return perr
+	p := packageCache[importPath]
+	if p != nil {
+		p = reusePackage(p, stk)
+	} else {
+		p = new(Package)
+		p.local = isLocal
+		p.ImportPath = importPath
+		packageCache[importPath] = p
+
+		// Load package.
+		// Import always returns bp != nil, even if an error occurs,
+		// in order to return partial information.
+		//
+		// TODO: After Go 1, decide when to pass build.AllowBinary here.
+		// See issue 3268 for mistakes to avoid.
+		buildMode := build.ImportComment
+		if mode&useVendor == 0 || path != origPath {
+			// Not vendoring, or we already found the vendored path.
+			buildMode |= build.IgnoreVendor
 		}
-		if mode&useVendor != 0 {
-			if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
-				return perr
+		bp, err := buildContext.Import(path, srcDir, buildMode)
+		bp.ImportPath = importPath
+		if gobin != "" {
+			bp.BinDir = gobin
+		}
+		if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
+			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
+			err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
+		}
+		p.load(stk, bp, err)
+		if p.Error != nil && p.Error.Pos == "" && len(importPos) > 0 {
+			pos := importPos[0]
+			pos.Filename = shortPath(pos.Filename)
+			p.Error.Pos = pos.String()
+		}
+
+		if origPath != cleanImport(origPath) {
+			p.Error = &PackageError{
+				ImportStack: stk.copy(),
+				Err:         fmt.Sprintf("non-canonical import path: %q should be %q", origPath, pathpkg.Clean(origPath)),
 			}
+			p.Incomplete = true
 		}
-		return reusePackage(p, stk)
 	}
 
-	p := new(Package)
-	p.local = isLocal
-	p.ImportPath = importPath
-	packageCache[importPath] = p
-
-	// Load package.
-	// Import always returns bp != nil, even if an error occurs,
-	// in order to return partial information.
-	//
-	// TODO: After Go 1, decide when to pass build.AllowBinary here.
-	// See issue 3268 for mistakes to avoid.
-	buildMode := build.ImportComment
-	if mode&useVendor == 0 || path != origPath {
-		// Not vendoring, or we already found the vendored path.
-		buildMode |= build.IgnoreVendor
-	}
-	bp, err := buildContext.Import(path, srcDir, buildMode)
-	bp.ImportPath = importPath
-	if gobin != "" {
-		bp.BinDir = gobin
-	}
-	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
-		!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
-		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
-	}
-	p.load(stk, bp, err)
-	if p.Error != nil && p.Error.Pos == "" && len(importPos) > 0 {
-		pos := importPos[0]
-		pos.Filename = shortPath(pos.Filename)
-		p.Error.Pos = pos.String()
-	}
-
+	// Checked on every import because the rules depend on the code doing the importing.
 	if perr := disallowInternal(srcDir, p, stk); perr != p {
 		return perr
 	}
@@ -394,12 +396,32 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 		}
 	}
 
-	if origPath != cleanImport(origPath) {
-		p.Error = &PackageError{
+	if p.Name == "main" && parent != nil && parent.Dir != p.Dir {
+		perr := *p
+		perr.Error = &PackageError{
 			ImportStack: stk.copy(),
-			Err:         fmt.Sprintf("non-canonical import path: %q should be %q", origPath, pathpkg.Clean(origPath)),
+			Err:         fmt.Sprintf("import %q is a program, not an importable package", path),
 		}
-		p.Incomplete = true
+		if len(importPos) > 0 {
+			pos := importPos[0]
+			pos.Filename = shortPath(pos.Filename)
+			perr.Error.Pos = pos.String()
+		}
+		return &perr
+	}
+
+	if p.local && parent != nil && !parent.local {
+		perr := *p
+		perr.Error = &PackageError{
+			ImportStack: stk.copy(),
+			Err:         fmt.Sprintf("local import %q in non-local package", path),
+		}
+		if len(importPos) > 0 {
+			pos := importPos[0]
+			pos.Filename = shortPath(pos.Filename)
+			perr.Error.Pos = pos.String()
+		}
+		return &perr
 	}
 
 	return p
@@ -445,7 +467,7 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 		root = expandPath(root)
 	}
 
-	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || parent.ImportPath != "command-line-arguments" && filepath.Join(root, parent.ImportPath) != dir {
+	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || parent.ImportPath != "command-line-arguments" && !parent.local && filepath.Join(root, parent.ImportPath) != dir {
 		fatalf("unexpected directory layout:\n"+
 			"	import path: %s\n"+
 			"	root: %s\n"+
@@ -974,7 +996,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		// The same import path could produce an error or not,
 		// depending on what tries to import it.
 		// Prefer to record entries with errors, so we can report them.
-		if deps[path] == nil || p1.Error != nil {
+		p0 := deps[path]
+		if p0 == nil || p1.Error != nil && (p0.Error == nil || len(p0.Error.ImportStack) > len(p1.Error.ImportStack)) {
 			deps[path] = p1
 		}
 	}
@@ -984,28 +1007,6 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			continue
 		}
 		p1 := loadImport(path, p.Dir, p, stk, p.build.ImportPos[path], useVendor)
-		if p1.Name == "main" {
-			p.Error = &PackageError{
-				ImportStack: stk.copy(),
-				Err:         fmt.Sprintf("import %q is a program, not an importable package", path),
-			}
-			pos := p.build.ImportPos[path]
-			if len(pos) > 0 {
-				p.Error.Pos = pos[0].String()
-			}
-		}
-		if p1.local {
-			if !p.local && p.Error == nil {
-				p.Error = &PackageError{
-					ImportStack: stk.copy(),
-					Err:         fmt.Sprintf("local import %q in non-local package", path),
-				}
-				pos := p.build.ImportPos[path]
-				if len(pos) > 0 {
-					p.Error.Pos = pos[0].String()
-				}
-			}
-		}
 		if p.Standard && p.Error == nil && !p1.Standard && p1.Error == nil {
 			p.Error = &PackageError{
 				ImportStack: stk.copy(),
