@@ -50,7 +50,6 @@ func (f *File) Disasm() (*Disasm, error) {
 	}
 
 	goarch := f.GOARCH()
-	println("GOARCH", goarch)
 	disasm := disasms[goarch]
 	byteOrder := byteOrders[goarch]
 	if disasm == nil || byteOrder == nil {
