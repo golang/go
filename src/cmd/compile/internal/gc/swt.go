@@ -600,18 +600,21 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 	if !s.exprname.Type.IsInterface() {
 		seen := make(map[interface{}]*Node)
 		for _, c := range cc {
-			// Can't check for duplicates that aren't constants, per the spec. Issue 15896.
-			// Don't check for duplicate bools. Although the spec allows it,
-			// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
-			// (2) it would disallow useful things like
-			//       case GOARCH == "arm" && GOARM == "5":
-			//       case GOARCH == "arm":
-			//     which would both evaluate to false for non-ARM compiles.
-			if ct := consttype(c.node.Left); ct < 0 || ct == CTBOOL {
-				continue
-			}
-			if c.node.Left != nil {
+			switch {
+			case c.node.Left != nil:
 				// Single constant.
+
+				// Can't check for duplicates that aren't constants, per the spec. Issue 15896.
+				// Don't check for duplicate bools. Although the spec allows it,
+				// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
+				// (2) it would disallow useful things like
+				//       case GOARCH == "arm" && GOARM == "5":
+				//       case GOARCH == "arm":
+				//     which would both evaluate to false for non-ARM compiles.
+				if ct := consttype(c.node.Left); ct < 0 || ct == CTBOOL {
+					continue
+				}
+
 				val := c.node.Left.Val().Interface()
 				prev, dup := seen[val]
 				if !dup {
@@ -619,10 +622,9 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 					continue
 				}
 				setlineno(c.node)
-				yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
-				continue
-			}
-			if c.node.List.Len() == 2 {
+				yyerror("duplicate case %#v in switch\n\tprevious case at %v", val, prev.Line())
+
+			case c.node.List.Len() == 2:
 				// Range of integers.
 				low := c.node.List.Index(0).Int64()
 				high := c.node.List.Index(1).Int64()
@@ -633,11 +635,12 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 						continue
 					}
 					setlineno(c.node)
-					yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
+					yyerror("duplicate case %d in switch\n\tprevious case at %v", i, prev.Line())
 				}
-				continue
+
+			default:
+				Fatalf("bad caseClause node in checkDupCases: %v", c.node)
 			}
-			Fatalf("bad caseClause node in checkDupCases: %v", c.node)
 		}
 		return
 	}
