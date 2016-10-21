@@ -215,19 +215,21 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 	heapBitsBulkBarrier(uintptr(dst), size&^(sys.PtrSize-1))
 }
 
-// callwritebarrier is invoked at the end of reflectcall, to execute
-// write barrier operations to record the fact that a call's return
-// values have just been copied to frame, starting at retoffset
-// and continuing to framesize. The entire frame (not just the return
-// values) is described by typ. Because the copy has already
-// happened, we call writebarrierptr_nostore, and this is nosplit so
-// the copy and write barrier appear atomic to GC.
+// reflectcallmove is invoked by reflectcall to copy the return values
+// out of the stack and into the heap, invoking the necessary write
+// barriers. dst, src, and size describe the return value area to
+// copy. typ describes the entire frame (not just the return values).
+// typ may be nil, which indicates write barriers are not needed.
+//
+// It must be nosplit and must only call nosplit functions because the
+// stack map of reflectcall is wrong.
+//
 //go:nosplit
-func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
-	if !writeBarrier.needed || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < sys.PtrSize {
-		return
+func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
+	memmove(dst, src, size)
+	if writeBarrier.needed && typ != nil && typ.kind&kindNoPointers == 0 && size >= sys.PtrSize {
+		heapBitsBulkBarrier(uintptr(dst), size)
 	}
-	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize-retoffset)
 }
 
 //go:nosplit

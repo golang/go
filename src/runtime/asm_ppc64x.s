@@ -363,8 +363,6 @@ TEXT reflect·call(SB), NOSPLIT, $0-0
 
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWZ argsize+24(FP), R3
-	// NOTE(rsc): No call16, because CALLFN needs four words
-	// of argument space to invoke callwritebarrier.
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -418,33 +416,27 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	BL	(CTR);				\
 	MOVD	24(R1), R2;			\
 	/* copy return values back */		\
-	MOVD	arg+16(FP), R3;			\
-	MOVWZ	n+24(FP), R4;			\
-	MOVWZ	retoffset+28(FP), R6;		\
-	MOVD	R1, R5;				\
-	ADD	R6, R5; 			\
-	ADD	R6, R3;				\
-	SUB	R6, R4;				\
-	ADD	$(FIXED_FRAME-1), R5;			\
-	SUB	$1, R3;				\
-	ADD	R5, R4;				\
-loop:						\
-	CMP	R5, R4;				\
-	BEQ	end;				\
-	MOVBZU	1(R5), R6;			\
-	MOVBZU	R6, 1(R3);			\
-	BR	loop;				\
-end:						\
-	/* execute write barrier updates */	\
 	MOVD	argtype+0(FP), R7;		\
 	MOVD	arg+16(FP), R3;			\
 	MOVWZ	n+24(FP), R4;			\
 	MOVWZ	retoffset+28(FP), R6;		\
-	MOVD	R7, FIXED_FRAME+0(R1);			\
-	MOVD	R3, FIXED_FRAME+8(R1);			\
-	MOVD	R4, FIXED_FRAME+16(R1);			\
-	MOVD	R6, FIXED_FRAME+24(R1);			\
-	BL	runtime·callwritebarrier(SB);	\
+	ADD	$FIXED_FRAME, R1, R5;		\
+	ADD	R6, R5; 			\
+	ADD	R6, R3;				\
+	SUB	R6, R4;				\
+	BL	callRet<>(SB);			\
+	RET
+
+// callRet copies return values back at the end of call*. This is a
+// separate function so it can allocate stack space for the arguments
+// to reflectcallmove. It does not follow the Go ABI; it expects its
+// arguments in registers.
+TEXT callRet<>(SB), NOSPLIT, $32-0
+	MOVD	R7, FIXED_FRAME+0(R1)
+	MOVD	R3, FIXED_FRAME+8(R1)
+	MOVD	R5, FIXED_FRAME+16(R1)
+	MOVD	R4, FIXED_FRAME+24(R1)
+	BL	runtime·reflectcallmove(SB)
 	RET
 
 CALLFN(·call32, 32)

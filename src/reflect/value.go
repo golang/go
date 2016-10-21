@@ -447,7 +447,7 @@ func (v Value) call(op string, in []Value) []Value {
 		// because the Values returned by this function contain pointers to the args object,
 		// and will thus keep the args object alive indefinitely.
 		memclr(args, retOffset)
-		// Copy return values out of args.
+		// Wrap Values around return values in args.
 		ret = make([]Value, nout)
 		off = retOffset
 		for i := 0; i < nout; i++ {
