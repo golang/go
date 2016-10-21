@@ -88,7 +88,7 @@
 (Com32 x) -> (NOTW x)
 (Com16 x) -> (NOTW x)
 (Com8  x) -> (NOTW x)
-(NOT x) && true -> (XORconst [-1] x)
+(NOT x) && true -> (XOR (MOVDconst [-1]) x)
 (NOTW x) && true -> (XORWconst [-1] x)
 
 // Lowering boolean ops
@@ -480,21 +480,25 @@
 (MULLW x (MOVDconst [c])) -> (MULLWconst [c] x)
 (MULLW (MOVDconst [c]) x) -> (MULLWconst [c] x)
 
-(AND x (MOVDconst [c])) && is32Bit(c) -> (ANDconst [c] x)
-(AND (MOVDconst [c]) x) && is32Bit(c) -> (ANDconst [c] x)
+// NILF instructions leave the high 32 bits unchanged which is
+// equivalent to the leftmost 32 bits being set.
+// TODO(mundaym): modify the assembler to accept 64-bit values
+// and use isU32Bit(^c).
+(AND x (MOVDconst [c])) && is32Bit(c) && c < 0 -> (ANDconst [c] x)
+(AND (MOVDconst [c]) x) && is32Bit(c) && c < 0 -> (ANDconst [c] x)
 (ANDW x (MOVDconst [c])) -> (ANDWconst [c] x)
 (ANDW (MOVDconst [c]) x) -> (ANDWconst [c] x)
 
 (ANDWconst [c] (ANDWconst [d] x)) -> (ANDWconst [c & d] x)
 (ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c & d] x)
 
-(OR x (MOVDconst [c])) && is32Bit(c) -> (ORconst [c] x)
-(OR (MOVDconst [c]) x) && is32Bit(c) -> (ORconst [c] x)
+(OR x (MOVDconst [c])) && isU32Bit(c) -> (ORconst [c] x)
+(OR (MOVDconst [c]) x) && isU32Bit(c) -> (ORconst [c] x)
 (ORW x (MOVDconst [c])) -> (ORWconst [c] x)
 (ORW (MOVDconst [c]) x) -> (ORWconst [c] x)
 
-(XOR x (MOVDconst [c])) && is32Bit(c) -> (XORconst [c] x)
-(XOR (MOVDconst [c]) x) && is32Bit(c) -> (XORconst [c] x)
+(XOR x (MOVDconst [c])) && isU32Bit(c) -> (XORconst [c] x)
+(XOR (MOVDconst [c]) x) && isU32Bit(c) -> (XORconst [c] x)
 (XORW x (MOVDconst [c])) -> (XORWconst [c] x)
 (XORW (MOVDconst [c]) x) -> (XORWconst [c] x)
 
@@ -521,10 +525,15 @@
 (CMPWU x (MOVDconst [c])) -> (CMPWUconst x [int64(uint32(c))])
 (CMPWU (MOVDconst [c]) x) -> (InvertFlags (CMPWUconst x [int64(uint32(c))]))
 
-// Using MOVBZreg instead of AND is cheaper.
-(ANDconst [0xFF] x) -> (MOVBZreg x)
-(ANDconst [0xFFFF] x) -> (MOVHZreg x)
-(ANDconst [0xFFFFFFFF] x) -> (MOVWZreg x)
+// Using MOV{W,H,B}Zreg instead of AND is cheaper.
+(AND (MOVDconst [0xFF]) x) -> (MOVBZreg x)
+(AND x (MOVDconst [0xFF])) -> (MOVBZreg x)
+(AND (MOVDconst [0xFFFF]) x) -> (MOVHZreg x)
+(AND x (MOVDconst [0xFFFF])) -> (MOVHZreg x)
+(AND (MOVDconst [0xFFFFFFFF]) x) -> (MOVWZreg x)
+(AND x (MOVDconst [0xFFFFFFFF])) -> (MOVWZreg x)
+(ANDWconst [0xFF] x) -> (MOVBZreg x)
+(ANDWconst [0xFFFF] x) -> (MOVHZreg x)
 
 // strength reduction
 (MULLDconst [-1] x) -> (NEG x)
@@ -637,21 +646,6 @@
 (MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
 (MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
 (MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
-
-// Fold extensions and ANDs together.
-(MOVBZreg (ANDWconst [c] x)) -> (ANDconst [c & 0xff] x)
-(MOVHZreg (ANDWconst [c] x)) -> (ANDconst [c & 0xffff] x)
-(MOVWZreg (ANDWconst [c] x)) -> (ANDconst [c & 0xffffffff] x)
-(MOVBreg (ANDWconst [c] x)) && c & 0x80 == 0 -> (ANDconst [c & 0x7f] x)
-(MOVHreg (ANDWconst [c] x)) && c & 0x8000 == 0 -> (ANDconst [c & 0x7fff] x)
-(MOVWreg (ANDWconst [c] x)) && c & 0x80000000 == 0 -> (ANDconst [c & 0x7fffffff] x)
-
-(MOVBZreg (ANDconst [c] x)) -> (ANDconst [c & 0xff] x)
-(MOVHZreg (ANDconst [c] x)) -> (ANDconst [c & 0xffff] x)
-(MOVWZreg (ANDconst [c] x)) -> (ANDconst [c & 0xffffffff] x)
-(MOVBreg (ANDconst [c] x)) && c & 0x80 == 0 -> (ANDconst [c & 0x7f] x)
-(MOVHreg (ANDconst [c] x)) && c & 0x8000 == 0 -> (ANDconst [c & 0x7fff] x)
-(MOVWreg (ANDconst [c] x)) && c & 0x80000000 == 0 -> (ANDconst [c & 0x7fffffff] x)
 
 // Don't extend before storing
 (MOVWstore [off] {sym} ptr (MOVWreg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
@@ -951,14 +945,15 @@
 (NEGW (MOVDconst [c])) -> (MOVDconst [int64(int32(-c))])
 (MULLDconst [c] (MOVDconst [d])) -> (MOVDconst [c*d])
 (MULLWconst [c] (MOVDconst [d])) -> (MOVDconst [int64(int32(c*d))])
+(AND (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c&d])
 (ANDconst [c] (MOVDconst [d])) -> (MOVDconst [c&d])
 (ANDWconst [c] (MOVDconst [d])) -> (MOVDconst [c&d])
+(OR (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c|d])
 (ORconst [c] (MOVDconst [d])) -> (MOVDconst [c|d])
 (ORWconst [c] (MOVDconst [d])) -> (MOVDconst [c|d])
+(XOR (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c^d])
 (XORconst [c] (MOVDconst [d])) -> (MOVDconst [c^d])
 (XORWconst [c] (MOVDconst [d])) -> (MOVDconst [c^d])
-(NOT (MOVDconst [c])) -> (MOVDconst [^c])
-(NOTW (MOVDconst [c])) -> (MOVDconst [^c])
 
 // generic simplifications
 // TODO: more of this
