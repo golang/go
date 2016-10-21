@@ -841,6 +841,13 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	case reflect.Struct:
 		structType := fieldType
 
+		for i := 0; i < structType.NumField(); i++ {
+			if structType.Field(i).PkgPath != "" {
+				err = StructuralError{"struct contains unexported fields"}
+				return
+			}
+		}
+
 		if structType.NumField() > 0 &&
 			structType.Field(0).Type == rawContentsType {
 			bytes := bytes[initOffset:offset]
