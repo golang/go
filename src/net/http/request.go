@@ -151,6 +151,14 @@ type Request struct {
 	// Handler does not need to.
 	Body io.ReadCloser
 
+	// GetBody defines an optional func to return a new copy of
+	// Body. It used for client requests when a redirect requires
+	// reading the body more than once. Use of GetBody still
+	// requires setting Body.
+	//
+	// For server requests it is unused.
+	GetBody func() (io.ReadCloser, error)
+
 	// ContentLength records the length of the associated content.
 	// The value -1 indicates that the length is unknown.
 	// Values >= 0 indicate that the given number of bytes may
@@ -738,10 +746,25 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 		switch v := body.(type) {
 		case *bytes.Buffer:
 			req.ContentLength = int64(v.Len())
+			buf := v.Bytes()
+			req.GetBody = func() (io.ReadCloser, error) {
+				r := bytes.NewReader(buf)
+				return ioutil.NopCloser(r), nil
+			}
 		case *bytes.Reader:
 			req.ContentLength = int64(v.Len())
+			snapshot := *v
+			req.GetBody = func() (io.ReadCloser, error) {
+				r := snapshot
+				return ioutil.NopCloser(&r), nil
+			}
 		case *strings.Reader:
 			req.ContentLength = int64(v.Len())
+			snapshot := *v
+			req.GetBody = func() (io.ReadCloser, error) {
+				r := snapshot
+				return ioutil.NopCloser(&r), nil
+			}
 		default:
 			req.ContentLength = -1 // unknown
 		}
@@ -751,6 +774,7 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 		// to set the Body to nil.
 		if req.ContentLength == 0 {
 			req.Body = nil
+			req.GetBody = nil
 		}
 	}
 
