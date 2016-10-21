@@ -371,6 +371,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	MOVL	(DX), AX;			\
 	CALL	AX;				\
 	/* copy return values back */		\
+	MOVL	argtype+0(FP), DX;		\
 	MOVL	argptr+8(FP), DI;		\
 	MOVL	argsize+12(FP), CX;		\
 	MOVL	retoffset+16(FP), BX;		\
@@ -378,17 +379,19 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	ADDL	BX, DI;				\
 	ADDL	BX, SI;				\
 	SUBL	BX, CX;				\
-	REP;MOVSB;				\
-	/* execute write barrier updates */	\
-	MOVL	argtype+0(FP), DX;		\
-	MOVL	argptr+8(FP), DI;		\
-	MOVL	argsize+12(FP), CX;		\
-	MOVL	retoffset+16(FP), BX;		\
-	MOVL	DX, 0(SP);			\
-	MOVL	DI, 4(SP);			\
-	MOVL	CX, 8(SP);			\
-	MOVL	BX, 12(SP);			\
-	CALL	runtime·callwritebarrier(SB);	\
+	CALL	callRet<>(SB);			\
+	RET
+
+// callRet copies return values back at the end of call*. This is a
+// separate function so it can allocate stack space for the arguments
+// to reflectcallmove. It does not follow the Go ABI; it expects its
+// arguments in registers.
+TEXT callRet<>(SB), NOSPLIT, $16-0
+	MOVL	DX, 0(SP)
+	MOVL	DI, 4(SP)
+	MOVL	SI, 8(SP)
+	MOVL	CX, 12(SP)
+	CALL	runtime·reflectcallmove(SB)
 	RET
 
 CALLFN(·call16, 16)

@@ -406,6 +406,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(R0);				\
 	/* copy return values back */		\
+	MOVW	argtype+0(FP), R4;		\
 	MOVW	argptr+8(FP), R0;		\
 	MOVW	argsize+12(FP), R2;		\
 	MOVW	retoffset+16(FP), R3;		\
@@ -413,24 +414,19 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
 	ADD	R3, R1;				\
 	ADD	R3, R0;				\
 	SUB	R3, R2;				\
-loop:						\
-	CMP	$0, R2;				\
-	B.EQ	end;				\
-	MOVBU.P	1(R1), R5;			\
-	MOVBU.P R5, 1(R0);			\
-	SUB	$1, R2, R2;			\
-	B	loop;				\
-end:						\
-	/* execute write barrier updates */	\
-	MOVW	argtype+0(FP), R1;		\
-	MOVW	argptr+8(FP), R0;		\
-	MOVW	argsize+12(FP), R2;		\
-	MOVW	retoffset+16(FP), R3;		\
-	MOVW	R1, 4(R13);			\
-	MOVW	R0, 8(R13);			\
-	MOVW	R2, 12(R13);			\
-	MOVW	R3, 16(R13);			\
-	BL	runtime·callwritebarrier(SB);	\
+	BL	callRet<>(SB);			\
+	RET
+
+// callRet copies return values back at the end of call*. This is a
+// separate function so it can allocate stack space for the arguments
+// to reflectcallmove. It does not follow the Go ABI; it expects its
+// arguments in registers.
+TEXT callRet<>(SB), NOSPLIT, $16-0
+	MOVW	R4, 4(R13)
+	MOVW	R0, 8(R13)
+	MOVW	R1, 12(R13)
+	MOVW	R2, 16(R13)
+	BL	runtime·reflectcallmove(SB)
 	RET	
 
 CALLFN(·call16, 16)

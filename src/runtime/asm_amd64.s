@@ -416,8 +416,6 @@ TEXT reflect·call(SB), NOSPLIT, $0-0
 
 TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	MOVLQZX argsize+24(FP), CX
-	// NOTE(rsc): No call16, because CALLFN needs four words
-	// of argument space to invoke callwritebarrier.
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -460,24 +458,28 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-32;		\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	CALL	(DX);				\
 	/* copy return values back */		\
+	MOVQ	argtype+0(FP), DX;		\
 	MOVQ	argptr+16(FP), DI;		\
 	MOVLQZX	argsize+24(FP), CX;		\
-	MOVLQZX retoffset+28(FP), BX;		\
+	MOVLQZX	retoffset+28(FP), BX;		\
 	MOVQ	SP, SI;				\
 	ADDQ	BX, DI;				\
 	ADDQ	BX, SI;				\
 	SUBQ	BX, CX;				\
-	REP;MOVSB;				\
-	/* execute write barrier updates */	\
-	MOVQ	argtype+0(FP), DX;		\
-	MOVQ	argptr+16(FP), DI;		\
-	MOVLQZX	argsize+24(FP), CX;		\
-	MOVLQZX retoffset+28(FP), BX;		\
-	MOVQ	DX, 0(SP);			\
-	MOVQ	DI, 8(SP);			\
-	MOVQ	CX, 16(SP);			\
-	MOVQ	BX, 24(SP);			\
-	CALL	runtime·callwritebarrier(SB);	\
+	CALL	callRet<>(SB);			\
+	RET
+
+// callRet copies return values back at the end of call*. This is a
+// separate function so it can allocate stack space for the arguments
+// to reflectcallmove. It does not follow the Go ABI; it expects its
+// arguments in registers.
+TEXT callRet<>(SB), NOSPLIT, $32-0
+	NO_LOCAL_POINTERS
+	MOVQ	DX, 0(SP)
+	MOVQ	DI, 8(SP)
+	MOVQ	SI, 16(SP)
+	MOVQ	CX, 24(SP)
+	CALL	runtime·reflectcallmove(SB)
 	RET
 
 CALLFN(·call32, 32)
