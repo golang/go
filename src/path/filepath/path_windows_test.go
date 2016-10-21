@@ -337,10 +337,10 @@ func TestToNorm(t *testing.T) {
 		{`{{tmp}}\test`, `{{tmpvol}}FOO\BAR`, `{{tmpvol}}foo\bar`},
 
 		// test relative paths begin with '\'
-		{".", `{{tmpnovol}}\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
-		{".", `{{tmpnovol}}\.\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
-		{".", `{{tmpnovol}}\test\..\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
-		{".", `{{tmpnovol}}\TEST\FOO\BAR`, `{{tmpnovol}}\test\foo\bar`},
+		{"{{tmp}}", `{{tmpnovol}}\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+		{"{{tmp}}", `{{tmpnovol}}\.\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+		{"{{tmp}}", `{{tmpnovol}}\test\..\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+		{"{{tmp}}", `{{tmpnovol}}\TEST\FOO\BAR`, `{{tmpnovol}}\test\foo\bar`},
 
 		// test relative paths begin without '\'
 		{`{{tmp}}\test`, ".", `.`},
@@ -355,7 +355,6 @@ func TestToNorm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	defer func() {
 		err := os.Chdir(cwd)
 		if err != nil {
