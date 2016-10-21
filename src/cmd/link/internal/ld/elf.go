@@ -945,11 +945,10 @@ func Elfinit(ctxt *Link) {
 		ehdr.phentsize = ELF64PHDRSIZE /* Must be ELF64PHDRSIZE */
 		ehdr.shentsize = ELF64SHDRSIZE /* Must be ELF64SHDRSIZE */
 
-	// we use EABI on both linux/arm and freebsd/arm.
 	// 32-bit architectures
 	case sys.ARM:
-		// we use EABI on both linux/arm and freebsd/arm.
-		if Headtype == obj.Hlinux || Headtype == obj.Hfreebsd {
+		// we use EABI on linux/arm, freebsd/arm, netbsd/arm.
+		if Headtype == obj.Hlinux || Headtype == obj.Hfreebsd || Headtype == obj.Hnetbsd {
 			// We set a value here that makes no indication of which
 			// float ABI the object uses, because this is information
 			// used by the dynamic linker to compare executables and
