@@ -54,8 +54,8 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
 	}
 }
 
-func lookupHost(ctx context.Context, name string) ([]string, error) {
-	ips, err := lookupIP(ctx, name)
+func (r *Resolver) lookupHost(ctx context.Context, name string) ([]string, error) {
+	ips, err := r.lookupIP(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -66,13 +66,7 @@ func lookupHost(ctx context.Context, name string) ([]string, error) {
 	return addrs, nil
 }
 
-// goLookupIP isn't a Pure Go implementation on Windows.
-// TODO(bradfitz): should it be? Not sure it can be. It's always used syscall.GetAddrInfoW.
-func goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
-	return lookupIP(ctx, host)
-}
-
-func lookupIP(ctx context.Context, name string) ([]IPAddr, error) {
+func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error) {
 	// TODO(bradfitz,brainman): use ctx more. See TODO below.
 
 	type ret struct {
@@ -131,7 +125,11 @@ func lookupIP(ctx context.Context, name string) ([]IPAddr, error) {
 	}
 }
 
-func lookupPort(ctx context.Context, network, service string) (int, error) {
+func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
+	if r.PreferGo {
+		return lookupPortMap(network, service)
+	}
+
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
@@ -171,7 +169,7 @@ func lookupPort(ctx context.Context, network, service string) (int, error) {
 	return 0, &DNSError{Err: syscall.EINVAL.Error(), Name: network + "/" + service}
 }
 
-func lookupCNAME(ctx context.Context, name string) (string, error) {
+func (*Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
@@ -192,7 +190,7 @@ func lookupCNAME(ctx context.Context, name string) (string, error) {
 	return absDomainName([]byte(cname)), nil
 }
 
-func lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
+func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
@@ -218,7 +216,7 @@ func lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV
 	return absDomainName([]byte(target)), srvs, nil
 }
 
-func lookupMX(ctx context.Context, name string) ([]*MX, error) {
+func (*Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
@@ -238,7 +236,7 @@ func lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	return mxs, nil
 }
 
-func lookupNS(ctx context.Context, name string) ([]*NS, error) {
+func (*Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
@@ -257,7 +255,7 @@ func lookupNS(ctx context.Context, name string) ([]*NS, error) {
 	return nss, nil
 }
 
-func lookupTXT(ctx context.Context, name string) ([]string, error) {
+func (*Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
@@ -279,7 +277,7 @@ func lookupTXT(ctx context.Context, name string) ([]string, error) {
 	return txts, nil
 }
 
-func lookupAddr(ctx context.Context, addr string) ([]string, error) {
+func (*Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()

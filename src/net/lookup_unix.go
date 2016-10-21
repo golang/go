@@ -48,9 +48,9 @@ func lookupProtocol(_ context.Context, name string) (int, error) {
 	return lookupProtocolMap(name)
 }
 
-func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	order := systemConf().hostLookupOrder(host)
-	if order == hostLookupCgo {
+	if !r.PreferGo && order == hostLookupCgo {
 		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
 			return addrs, err
 		}
@@ -60,7 +60,10 @@ func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	return goLookupHostOrder(ctx, host, order)
 }
 
-func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+	if r.PreferGo {
+		return goLookupIP(ctx, host)
+	}
 	order := systemConf().hostLookupOrder(host)
 	if order == hostLookupCgo {
 		if addrs, err, ok := cgoLookupIP(ctx, host); ok {
@@ -72,13 +75,13 @@ func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
 	return goLookupIPOrder(ctx, host, order)
 }
 
-func lookupPort(ctx context.Context, network, service string) (int, error) {
+func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
 	// TODO: use the context if there ever becomes a need. Related
 	// is issue 15321. But port lookup generally just involves
 	// local files, and the os package has no context support. The
 	// files might be on a remote filesystem, though. This should
 	// probably race goroutines if ctx != context.Background().
-	if systemConf().canUseCgo() {
+	if !r.PreferGo && systemConf().canUseCgo() {
 		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
 			return port, err
 		}
@@ -86,8 +89,8 @@ func lookupPort(ctx context.Context, network, service string) (int, error) {
 	return goLookupPort(network, service)
 }
 
-func lookupCNAME(ctx context.Context, name string) (string, error) {
-	if systemConf().canUseCgo() {
+func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
+	if !r.PreferGo && systemConf().canUseCgo() {
 		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
 			return cname, err
 		}
@@ -95,7 +98,7 @@ func lookupCNAME(ctx context.Context, name string) (string, error) {
 	return goLookupCNAME(ctx, name)
 }
 
-func lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
+func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
 	var target string
 	if service == "" && proto == "" {
 		target = name
@@ -115,7 +118,7 @@ func lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV
 	return cname, srvs, nil
 }
 
-func lookupMX(ctx context.Context, name string) ([]*MX, error) {
+func (*Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	_, rrs, err := lookup(ctx, name, dnsTypeMX)
 	if err != nil {
 		return nil, err
@@ -129,7 +132,7 @@ func lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	return mxs, nil
 }
 
-func lookupNS(ctx context.Context, name string) ([]*NS, error) {
+func (*Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
 	_, rrs, err := lookup(ctx, name, dnsTypeNS)
 	if err != nil {
 		return nil, err
@@ -141,7 +144,7 @@ func lookupNS(ctx context.Context, name string) ([]*NS, error) {
 	return nss, nil
 }
 
-func lookupTXT(ctx context.Context, name string) ([]string, error) {
+func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
 	_, rrs, err := lookup(ctx, name, dnsTypeTXT)
 	if err != nil {
 		return nil, err
@@ -153,8 +156,8 @@ func lookupTXT(ctx context.Context, name string) ([]string, error) {
 	return txts, nil
 }
 
-func lookupAddr(ctx context.Context, addr string) ([]string, error) {
-	if systemConf().canUseCgo() {
+func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
+	if !r.PreferGo && systemConf().canUseCgo() {
 		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
 			return ptrs, err
 		}
