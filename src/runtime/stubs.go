@@ -96,6 +96,9 @@ var hashLoad = loadFactor
 // in asm_*.s
 func fastrand() uint32
 
+//go:linkname sync_fastrand sync.fastrand
+func sync_fastrand() uint32 { return fastrand() }
+
 // in asm_*.s
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool
