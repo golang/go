@@ -1759,6 +1759,27 @@ func TestSymlinksVendor(t *testing.T) {
 	tg.run("install")
 }
 
+// Issue 15201.
+func TestSymlinksVendor15201(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping symlink test on %s", runtime.GOOS)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempDir("gopath/src/x/y/_vendor/src/x")
+	tg.must(os.Symlink("../../..", tg.path("gopath/src/x/y/_vendor/src/x/y")))
+	tg.tempFile("gopath/src/x/y/w/w.go", "package w\nimport \"x/y/z\"\n")
+	tg.must(os.Symlink("../_vendor/src", tg.path("gopath/src/x/y/w/vendor")))
+	tg.tempFile("gopath/src/x/y/z/z.go", "package z\n")
+
+	tg.setenv("GOPATH", tg.path("gopath/src/x/y/_vendor")+string(filepath.ListSeparator)+tg.path("gopath"))
+	tg.cd(tg.path("gopath/src"))
+	tg.run("list", "./...")
+}
+
 func TestSymlinksInternal(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
