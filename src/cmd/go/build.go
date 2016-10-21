@@ -470,6 +470,11 @@ func runBuild(cmd *Command, args []string) {
 		*buildO += exeSuffix
 	}
 
+	// Special case -o /dev/null by not writing at all.
+	if *buildO == os.DevNull {
+		*buildO = ""
+	}
+
 	// sanity check some often mis-used options
 	switch buildContext.Compiler {
 	case "gccgo":
