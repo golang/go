@@ -30,9 +30,13 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 	}
 
 	// if depth > 10 { panic("deepValueEqual") }	// for debugging
+
+	// We want to avoid putting more in the visited map than we need to.
+	// For any possible reference cycle that might be encountered,
+	// hard(t) needs to return true for at least one of the types in the cycle.
 	hard := func(k Kind) bool {
 		switch k {
-		case Array, Map, Slice, Struct:
+		case Map, Slice, Ptr, Interface:
 			return true
 		}
 		return false
