@@ -528,6 +528,9 @@ type repoRoot struct {
 	// root is the import path corresponding to the root of the
 	// repository
 	root string
+
+	// isCustom is true for custom import paths (those defined by HTML meta tags)
+	isCustom bool
 }
 
 var httpPrefixRE = regexp.MustCompile(`^https?:`)
@@ -713,9 +716,10 @@ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRo
 		return nil, fmt.Errorf("%s: invalid repo root %q; no scheme", urlStr, mmi.RepoRoot)
 	}
 	rr := &repoRoot{
-		vcs:  vcsByCmd(mmi.VCS),
-		repo: mmi.RepoRoot,
-		root: mmi.Prefix,
+		vcs:      vcsByCmd(mmi.VCS),
+		repo:     mmi.RepoRoot,
+		root:     mmi.Prefix,
+		isCustom: true,
 	}
 	if rr.vcs == nil {
 		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, mmi.VCS)
