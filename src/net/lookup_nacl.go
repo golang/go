@@ -15,42 +15,38 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
 	return lookupProtocolMap(name)
 }
 
-func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 
-func goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+func (*Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 
-func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
-	return nil, syscall.ENOPROTOOPT
-}
-
-func lookupPort(ctx context.Context, network, service string) (port int, err error) {
+func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
 	return goLookupPort(network, service)
 }
 
-func lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
 	return "", syscall.ENOPROTOOPT
 }
 
-func lookupSRV(ctx context.Context, service, proto, name string) (cname string, srvs []*SRV, err error) {
+func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, srvs []*SRV, err error) {
 	return "", nil, syscall.ENOPROTOOPT
 }
 
-func lookupMX(ctx context.Context, name string) (mxs []*MX, err error) {
+func (*Resolver) lookupMX(ctx context.Context, name string) (mxs []*MX, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 
-func lookupNS(ctx context.Context, name string) (nss []*NS, err error) {
+func (*Resolver) lookupNS(ctx context.Context, name string) (nss []*NS, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 
-func lookupTXT(ctx context.Context, name string) (txts []string, err error) {
+func (*Resolver) lookupTXT(ctx context.Context, name string) (txts []string, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 
-func lookupAddr(ctx context.Context, addr string) (ptrs []string, err error) {
+func (*Resolver) lookupAddr(ctx context.Context, addr string) (ptrs []string, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
