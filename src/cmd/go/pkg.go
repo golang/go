@@ -970,6 +970,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	// Build list of imported packages and full dependency list.
 	imports := make([]*Package, 0, len(p.Imports))
 	deps := make(map[string]*Package)
+	save := func(path string, p1 *Package) {
+		// The same import path could produce an error or not,
+		// depending on what tries to import it.
+		// Prefer to record entries with errors, so we can report them.
+		if deps[path] == nil || p1.Error != nil {
+			deps[path] = p1
+		}
+	}
+
 	for i, path := range importPaths {
 		if path == "C" {
 			continue
@@ -1013,15 +1022,11 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		if i < len(p.Imports) {
 			p.Imports[i] = path
 		}
-		deps[path] = p1
+
+		save(path, p1)
 		imports = append(imports, p1)
 		for _, dep := range p1.deps {
-			// The same import path could produce an error or not,
-			// depending on what tries to import it.
-			// Prefer to record entries with errors, so we can report them.
-			if deps[dep.ImportPath] == nil || dep.Error != nil {
-				deps[dep.ImportPath] = dep
-			}
+			save(dep.ImportPath, dep)
 		}
 		if p1.Incomplete {
 			p.Incomplete = true
