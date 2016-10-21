@@ -344,12 +344,15 @@ OpSwitch:
 		if n.Left == nil {
 			t = typSlice(r.Type)
 		} else if n.Left.Op == ODDD {
-			t = typDDDArray(r.Type)
-			if top&Ecomplit == 0 && n.Diag == 0 {
-				t.Broke = true
-				n.Diag = 1
-				yyerror("use of [...] array outside of array literal")
+			if top&Ecomplit == 0 {
+				if n.Diag == 0 {
+					n.Diag = 1
+					yyerror("use of [...] array outside of array literal")
+				}
+				n.Type = nil
+				return n
 			}
+			t = typDDDArray(r.Type)
 		} else {
 			n.Left = indexlit(typecheck(n.Left, Erv))
 			l := n.Left
