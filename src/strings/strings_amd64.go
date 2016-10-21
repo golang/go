@@ -29,14 +29,48 @@ func Index(s, sep string) int {
 		return 0
 	case n == 1:
 		return IndexByte(s, sep[0])
-	case n <= shortStringLen:
-		return indexShortStr(s, sep)
 	case n == len(s):
 		if sep == s {
 			return 0
 		}
 		return -1
 	case n > len(s):
+		return -1
+	case n <= shortStringLen:
+		// Use brute force when s and sep both are small
+		if len(s) <= 64 {
+			return indexShortStr(s, sep)
+		}
+		c := sep[0]
+		i := 0
+		t := s[:len(s)-n+1]
+		fails := 0
+		for i < len(t) {
+			if t[i] != c {
+				// IndexByte skips 16/32 bytes per iteration,
+				// so it's faster than indexShortStr.
+				o := IndexByte(t[i:], c)
+				if o < 0 {
+					return -1
+				}
+				i += o
+			}
+			if s[i:i+n] == sep {
+				return i
+			}
+			fails++
+			i++
+			// Switch to indexShortStr when IndexByte produces too many false positives.
+			// Too many means more that 1 error per 8 characters.
+			// Allow some errors in the beginning.
+			if fails > (i+16)/8 {
+				r := indexShortStr(s[i:], sep)
+				if r >= 0 {
+					return r + i
+				}
+				return -1
+			}
+		}
 		return -1
 	}
 	// Rabin-Karp search
