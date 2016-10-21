@@ -68,9 +68,8 @@ func WithClientTrace(ctx context.Context, trace *ClientTrace) context.Context {
 
 // ClientTrace is a set of hooks to run at various stages of an outgoing
 // HTTP request. Any particular hook may be nil. Functions may be
-// called concurrently from different goroutines, starting after the
-// call to Transport.RoundTrip and ending either when RoundTrip
-// returns an error, or when the Response.Body is closed.
+// called concurrently from different goroutines and some may be called
+// after the request has completed or failed.
 type ClientTrace struct {
 	// GetConn is called before a connection is created or
 	// retrieved from an idle pool. The hostPort is the
