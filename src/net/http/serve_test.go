@@ -2050,23 +2050,6 @@ func TestTimeoutHandlerEmptyResponse(t *testing.T) {
 	}
 }
 
-// Verifies we don't path.Clean() on the wrong parts in redirects.
-func TestRedirectMunging(t *testing.T) {
-	req, _ := NewRequest("GET", "http://example.com/", nil)
-
-	resp := httptest.NewRecorder()
-	Redirect(resp, req, "/foo?next=http://bar.com/", 302)
-	if g, e := resp.Header().Get("Location"), "/foo?next=http://bar.com/"; g != e {
-		t.Errorf("Location header was %q; want %q", g, e)
-	}
-
-	resp = httptest.NewRecorder()
-	Redirect(resp, req, "http://localhost:8080/_ah/login?continue=http://localhost:8080/", 302)
-	if g, e := resp.Header().Get("Location"), "http://localhost:8080/_ah/login?continue=http://localhost:8080/"; g != e {
-		t.Errorf("Location header was %q; want %q", g, e)
-	}
-}
-
 func TestRedirectBadPath(t *testing.T) {
 	// This used to crash. It's not valid input (bad path), but it
 	// shouldn't crash.
@@ -2085,7 +2068,7 @@ func TestRedirectBadPath(t *testing.T) {
 }
 
 // Test different URL formats and schemes
-func TestRedirectURLFormat(t *testing.T) {
+func TestRedirect(t *testing.T) {
 	req, _ := NewRequest("GET", "http://example.com/qux/", nil)
 
 	var tests = []struct {
@@ -2108,6 +2091,14 @@ func TestRedirectURLFormat(t *testing.T) {
 		{"../quux/foobar.com/baz", "/quux/foobar.com/baz"},
 		// incorrect number of slashes
 		{"///foobar.com/baz", "/foobar.com/baz"},
+
+		// Verifies we don't path.Clean() on the wrong parts in redirects:
+		{"/foo?next=http://bar.com/", "/foo?next=http://bar.com/"},
+		{"http://localhost:8080/_ah/login?continue=http://localhost:8080/",
+			"http://localhost:8080/_ah/login?continue=http://localhost:8080/"},
+
+		{"/фубар", "/%d1%84%d1%83%d0%b1%d0%b0%d1%80"},
+		{"http://foo.com/фубар", "http://foo.com/%d1%84%d1%83%d0%b1%d0%b0%d1%80"},
 	}
 
 	for _, tt := range tests {

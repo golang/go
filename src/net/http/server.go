@@ -1890,7 +1890,7 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
 		}
 	}
 
-	w.Header().Set("Location", urlStr)
+	w.Header().Set("Location", hexEscapeNonASCII(urlStr))
 	w.WriteHeader(code)
 
 	// RFC 2616 recommends that a short note "SHOULD" be included in the
