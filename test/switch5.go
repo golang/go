@@ -90,3 +90,12 @@ func f6() int {
 	}
 	return 2
 }
+
+// Ensure duplicates in ranges are detected (issue #17517).
+func f7(a int) {
+	switch a {
+	case 0:
+	case 0, 1: // ERROR "duplicate case 0"
+	case 1, 2, 3, 4: // ERROR "duplicate case 1"
+	}
+}
