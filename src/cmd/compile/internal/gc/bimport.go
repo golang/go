@@ -330,7 +330,7 @@ func (p *importer) obj(tag int) {
 		params := p.paramList()
 		result := p.paramList()
 
-		sig := functype(nil, params, result)
+		sig := functypefield(nil, params, result)
 		importsym(sym, ONAME)
 		if sym.Def != nil && sym.Def.Op == ONAME {
 			// function was imported before (via another import)
@@ -465,8 +465,15 @@ func (p *importer) typ() *Type {
 			result := p.paramList()
 			nointerface := p.bool()
 
-			n := methodname(newname(sym), recv[0].Right)
-			n.Type = functype(recv[0], params, result)
+			base := recv[0].Type
+			star := false
+			if base.IsPtr() {
+				base = base.Elem()
+				star = true
+			}
+
+			n := methodname0(sym, star, base.Sym)
+			n.Type = functypefield(recv[0], params, result)
 			checkwidth(n.Type)
 			addmethod(sym, n.Type, false, nointerface)
 			p.funcList = append(p.funcList, n)
@@ -506,7 +513,8 @@ func (p *importer) typ() *Type {
 
 	case structTag:
 		t = p.newtyp(TSTRUCT)
-		tostruct0(t, p.fieldList())
+		t.SetFields(p.fieldList())
+		checkwidth(t)
 
 	case pointerTag:
 		t = p.newtyp(Tptr)
@@ -516,14 +524,15 @@ func (p *importer) typ() *Type {
 		t = p.newtyp(TFUNC)
 		params := p.paramList()
 		result := p.paramList()
-		functype0(t, nil, params, result)
+		functypefield0(t, nil, params, result)
 
 	case interfaceTag:
 		t = p.newtyp(TINTER)
 		if p.int() != 0 {
 			formatErrorf("unexpected embedded interface")
 		}
-		tointerface0(t, p.methodList())
+		t.SetFields(p.methodList())
+		checkwidth(t)
 
 	case mapTag:
 		t = p.newtyp(TMAP)
@@ -555,9 +564,9 @@ func (p *importer) qualifiedName() *Sym {
 }
 
 // parser.go:hidden_structdcl_list
-func (p *importer) fieldList() (fields []*Node) {
+func (p *importer) fieldList() (fields []*Field) {
 	if n := p.int(); n > 0 {
-		fields = make([]*Node, n)
+		fields = make([]*Field, n)
 		for i := range fields {
 			fields[i] = p.field()
 		}
@@ -566,37 +575,35 @@ func (p *importer) fieldList() (fields []*Node) {
 }
 
 // parser.go:hidden_structdcl
-func (p *importer) field() *Node {
+func (p *importer) field() *Field {
 	p.pos()
 	sym := p.fieldName()
 	typ := p.typ()
 	note := p.string()
 
-	var n *Node
-	if sym.Name != "" {
-		n = nod(ODCLFIELD, newname(sym), typenod(typ))
-	} else {
+	f := newField()
+	if sym.Name == "" {
 		// anonymous field - typ must be T or *T and T must be a type name
 		s := typ.Sym
 		if s == nil && typ.IsPtr() {
 			s = typ.Elem().Sym // deref
 		}
-		pkg := importpkg
-		if sym != nil {
-			pkg = sym.Pkg
-		}
-		n = embedded(s, pkg)
-		n.Right = typenod(typ)
+		sym = sym.Pkg.Lookup(s.Name)
+		f.Embedded = 1
 	}
-	n.SetVal(Val{U: note})
 
-	return n
+	f.Sym = sym
+	f.Nname = newname(sym)
+	f.Type = typ
+	f.Note = note
+
+	return f
 }
 
 // parser.go:hidden_interfacedcl_list
-func (p *importer) methodList() (methods []*Node) {
+func (p *importer) methodList() (methods []*Field) {
 	if n := p.int(); n > 0 {
-		methods = make([]*Node, n)
+		methods = make([]*Field, n)
 		for i := range methods {
 			methods[i] = p.method()
 		}
@@ -605,12 +612,17 @@ func (p *importer) methodList() (methods []*Node) {
 }
 
 // parser.go:hidden_interfacedcl
-func (p *importer) method() *Node {
+func (p *importer) method() *Field {
 	p.pos()
 	sym := p.fieldName()
 	params := p.paramList()
 	result := p.paramList()
-	return nod(ODCLFIELD, newname(sym), typenod(functype(fakethis(), params, result)))
+
+	f := newField()
+	f.Sym = sym
+	f.Nname = newname(sym)
+	f.Type = functypefield(fakethisfield(), params, result)
+	return f
 }
 
 // parser.go:sym,hidden_importsym
@@ -632,7 +644,7 @@ func (p *importer) fieldName() *Sym {
 }
 
 // parser.go:ohidden_funarg_list
-func (p *importer) paramList() []*Node {
+func (p *importer) paramList() []*Field {
 	i := p.int()
 	if i == 0 {
 		return nil
@@ -644,26 +656,22 @@ func (p *importer) paramList() []*Node {
 		named = false
 	}
 	// i > 0
-	n := make([]*Node, i)
-	for i := range n {
-		n[i] = p.param(named)
+	fs := make([]*Field, i)
+	for i := range fs {
+		fs[i] = p.param(named)
 	}
-	return n
+	return fs
 }
 
 // parser.go:hidden_funarg
-func (p *importer) param(named bool) *Node {
-	typ := p.typ()
-
-	isddd := false
-	if typ.Etype == TDDDFIELD {
+func (p *importer) param(named bool) *Field {
+	f := newField()
+	f.Type = p.typ()
+	if f.Type.Etype == TDDDFIELD {
 		// TDDDFIELD indicates wrapped ... slice type
-		typ = typSlice(typ.DDDField())
-		isddd = true
+		f.Type = typSlice(f.Type.DDDField())
+		f.Isddd = true
 	}
-
-	n := nod(ODCLFIELD, nil, typenod(typ))
-	n.Isddd = isddd
 
 	if named {
 		name := p.string()
@@ -676,14 +684,15 @@ func (p *importer) param(named bool) *Node {
 		if name != "_" {
 			pkg = p.pkg()
 		}
-		n.Left = newname(pkg.Lookup(name))
+		f.Sym = pkg.Lookup(name)
+		f.Nname = newname(f.Sym)
 	}
 
 	// TODO(gri) This is compiler-specific (escape info).
 	// Move into compiler-specific section eventually?
-	n.SetVal(Val{U: p.string()})
+	f.Note = p.string()
 
-	return n
+	return f
 }
 
 func (p *importer) value(typ *Type) (x Val) {
