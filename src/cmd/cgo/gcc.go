@@ -651,19 +651,19 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 	// deferred.
 	needsUnsafe := false
 	params := make([]*ast.Field, len(name.FuncType.Params))
-	args := make([]ast.Expr, len(name.FuncType.Params))
+	nargs := make([]ast.Expr, len(name.FuncType.Params))
 	var stmts []ast.Stmt
 	for i, param := range name.FuncType.Params {
 		// params is going to become the parameters of the
 		// function literal.
-		// args is going to become the list of arguments to the
-		// function literal.
+		// nargs is going to become the list of arguments made
+		// by the call within the function literal.
 		// nparam is the parameter of the function literal that
 		// corresponds to param.
 
 		origArg := call.Call.Args[i]
-		args[i] = origArg
 		nparam := ast.NewIdent(fmt.Sprintf("_cgo%d", i))
+		nargs[i] = nparam
 
 		// The Go version of the C type might use unsafe.Pointer,
 		// but the file might not import unsafe.
@@ -677,8 +677,6 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 			Names: []*ast.Ident{nparam},
 			Type:  ptype,
 		}
-
-		call.Call.Args[i] = nparam
 
 		if !p.needsPointerCheck(f, param.Go, origArg) {
 			continue
@@ -707,7 +705,7 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 
 	fcall := &ast.CallExpr{
 		Fun:  call.Call.Fun,
-		Args: call.Call.Args,
+		Args: nargs,
 	}
 	ftype := &ast.FuncType{
 		Params: &ast.FieldList{
@@ -741,7 +739,6 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 			List: append(stmts, fbody),
 		},
 	}
-	call.Call.Args = args
 	call.Call.Lparen = token.NoPos
 	call.Call.Rparen = token.NoPos
 
