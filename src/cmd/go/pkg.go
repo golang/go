@@ -394,7 +394,24 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 		}
 	}
 
+	if origPath != cleanImport(origPath) {
+		p.Error = &PackageError{
+			ImportStack: stk.copy(),
+			Err:         fmt.Sprintf("non-canonical import path: %q should be %q", origPath, pathpkg.Clean(origPath)),
+		}
+		p.Incomplete = true
+	}
+
 	return p
+}
+
+func cleanImport(path string) string {
+	orig := path
+	path = pathpkg.Clean(path)
+	if strings.HasPrefix(orig, "./") && path != ".." && path != "." && !strings.HasPrefix(path, "../") {
+		path = "./" + path
+	}
+	return path
 }
 
 var isDirCache = map[string]bool{}
