@@ -62,6 +62,9 @@ Go library.
 - "cmd" expands to the Go repository's commands and their
 internal libraries.
 
+Import paths beginning with "cmd/" only match source code in
+the Go repository.
+
 An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
 strings containing slashes.  Such a pattern expands to all package
