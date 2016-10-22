@@ -307,6 +307,9 @@ func (r *Resolver) LookupTXT(ctx context.Context, name string) ([]string, error)
 
 // LookupAddr performs a reverse lookup for the given address, returning a list
 // of names mapping to that address.
+//
+// When using the host C library resolver, at most one result will be
+// returned. To bypass the host resolver, use a custom Resolver.
 func LookupAddr(addr string) (names []string, err error) {
 	return DefaultResolver.lookupAddr(context.Background(), addr)
 }
