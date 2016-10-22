@@ -1776,7 +1776,7 @@ func registerOnHitEOF(rc io.ReadCloser, fn func()) {
 // requestBodyRemains reports whether future calls to Read
 // on rc might yield more data.
 func requestBodyRemains(rc io.ReadCloser) bool {
-	if rc == eofReader {
+	if rc == NoBody {
 		return false
 	}
 	switch v := rc.(type) {
@@ -2702,24 +2702,6 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	}
 }
 
-type eofReaderWithWriteTo struct{}
-
-func (eofReaderWithWriteTo) WriteTo(io.Writer) (int64, error) { return 0, nil }
-func (eofReaderWithWriteTo) Read([]byte) (int, error)         { return 0, io.EOF }
-
-// eofReader is a non-nil io.ReadCloser that always returns EOF.
-// It has a WriteTo method so io.Copy won't need a buffer.
-var eofReader = &struct {
-	eofReaderWithWriteTo
-	io.Closer
-}{
-	eofReaderWithWriteTo{},
-	ioutil.NopCloser(nil),
-}
-
-// Verify that an io.Copy from an eofReader won't require a buffer.
-var _ io.WriterTo = eofReader
-
 // initNPNRequest is an HTTP handler that initializes certain
 // uninitialized fields in its *Request. Such partially-initialized
 // Requests come from NPN protocol handlers.
@@ -2734,7 +2716,7 @@ func (h initNPNRequest) ServeHTTP(rw ResponseWriter, req *Request) {
 		*req.TLS = h.c.ConnectionState()
 	}
 	if req.Body == nil {
-		req.Body = eofReader
+		req.Body = NoBody
 	}
 	if req.RemoteAddr == "" {
 		req.RemoteAddr = h.c.RemoteAddr().String()
