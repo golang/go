@@ -33,6 +33,10 @@ const goToolsVersion = "6698ca2900e2"
 var goroot string
 
 func main() {
+	// Go 1.4 will never have new API, and the code below has bit-rotted.
+	fmt.Println("Skipping cmd/api checks")
+	return
+
 	log.SetFlags(0)
 	goroot = os.Getenv("GOROOT") // should be set by run.{bash,bat}
 	if goroot == "" {
