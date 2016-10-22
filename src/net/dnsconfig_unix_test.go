@@ -10,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -181,6 +182,58 @@ func TestDNSDefaultSearch(t *testing.T) {
 		got := dnsDefaultSearch()
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("dnsDefaultSearch with hostname %q and error %+v = %q, wanted %q", tt.name, tt.err, got, tt.want)
+		}
+	}
+}
+
+func TestDNSNameLength(t *testing.T) {
+	origGetHostname := getHostname
+	defer func() { getHostname = origGetHostname }()
+	getHostname = func() (string, error) { return "host.domain.local", nil }
+
+	var char63 = ""
+	for i := 0; i < 63; i++ {
+		char63 += "a"
+	}
+	longDomain := strings.Repeat(char63+".", 5) + "example"
+
+	for _, tt := range dnsReadConfigTests {
+		conf := dnsReadConfig(tt.name)
+		if conf.err != nil {
+			t.Fatal(conf.err)
+		}
+
+		var shortestSuffix int
+		for _, suffix := range tt.want.search {
+			if shortestSuffix == 0 || len(suffix) < shortestSuffix {
+				shortestSuffix = len(suffix)
+			}
+		}
+
+		// Test a name that will be maximally long when prefixing the shortest
+		// suffix (accounting for the intervening dot).
+		longName := longDomain[len(longDomain)-254+1+shortestSuffix:]
+		if longName[0] == '.' || longName[1] == '.' {
+			longName = "aa." + longName[3:]
+		}
+		for _, fqdn := range conf.nameList(longName) {
+			if len(fqdn) > 254 {
+				t.Errorf("got %d; want less than or equal to 254", len(fqdn))
+			}
+		}
+
+		// Now test a name that's too long for suffixing.
+		unsuffixable := "a." + longName[1:]
+		unsuffixableResults := conf.nameList(unsuffixable)
+		if len(unsuffixableResults) != 1 {
+			t.Errorf("suffixed names %v; want []", unsuffixableResults[1:])
+		}
+
+		// Now test a name that's too long for DNS.
+		tooLong := "a." + longDomain
+		tooLongResults := conf.nameList(tooLong)
+		if tooLongResults != nil {
+			t.Errorf("suffixed names %v; want nil", tooLongResults)
 		}
 	}
 }
