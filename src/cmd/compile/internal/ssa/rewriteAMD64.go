@@ -1409,6 +1409,30 @@ func rewriteValueAMD64_OpAMD64ANDLconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ANDLconst [0xFF] x)
+	// cond:
+	// result: (MOVBQZX x)
+	for {
+		if v.AuxInt != 0xFF {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64MOVBQZX)
+		v.AddArg(x)
+		return true
+	}
+	// match: (ANDLconst [0xFFFF] x)
+	// cond:
+	// result: (MOVWQZX x)
+	for {
+		if v.AuxInt != 0xFFFF {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64MOVWQZX)
+		v.AddArg(x)
+		return true
+	}
 	// match: (ANDLconst [c] _)
 	// cond: int32(c)==0
 	// result: (MOVLconst [0])
