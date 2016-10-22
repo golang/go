@@ -14,12 +14,12 @@ const (
 	tableShift = 32 - tableBits // Right-shift to get the tableBits most significant bits of a uint32.
 )
 
-func load32(b []byte, i int) uint32 {
+func load32(b []byte, i int32) uint32 {
 	b = b[i : i+4 : len(b)] // Help the compiler eliminate bounds checks on the next line.
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
 
-func load64(b []byte, i int) uint64 {
+func load64(b []byte, i int32) uint64 {
 	b = b[i : i+8 : len(b)] // Help the compiler eliminate bounds checks on the next line.
 	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
 		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
@@ -38,31 +38,49 @@ const (
 	minNonLiteralBlockSize = 1 + 1 + inputMargin
 )
 
-func encodeBestSpeed(dst []token, src []byte) []token {
+type tableEntry struct {
+	val    uint32 // Value at destination
+	offset int32
+}
+
+// deflateFast maintains the table for matches,
+// and the previous byte block for cross block matching.
+type deflateFast struct {
+	table [tableSize]tableEntry
+	prev  []byte // Previous block, zero length if unknown.
+	cur   int32  // Current match offset.
+}
+
+func newDeflateFast() *deflateFast {
+	return &deflateFast{cur: maxStoreBlockSize, prev: make([]byte, 0, maxStoreBlockSize)}
+}
+
+// encode encodes a block given in src and encodes tokens
+// to dst and returns the result.
+func (e *deflateFast) encode(dst []token, src []byte) []token {
+	// Ensure that e.cur doesn't wrap.
+	if e.cur > 1<<30 {
+		*e = deflateFast{cur: maxStoreBlockSize, prev: e.prev[:0]}
+	}
+
 	// This check isn't in the Snappy implementation, but there, the caller
 	// instead of the callee handles this case.
 	if len(src) < minNonLiteralBlockSize {
+		e.cur += maxStoreBlockSize
+		e.prev = e.prev[:0]
 		return emitLiteral(dst, src)
 	}
-
-	// Initialize the hash table.
-	//
-	// The table element type is uint16, as s < sLimit and sLimit < len(src)
-	// and len(src) <= maxStoreBlockSize and maxStoreBlockSize == 65535.
-	var table [tableSize]uint16
 
 	// sLimit is when to stop looking for offset/length copies. The inputMargin
 	// lets us use a fast path for emitLiteral in the main loop, while we are
 	// looking for copies.
-	sLimit := len(src) - inputMargin
+	sLimit := int32(len(src) - inputMargin)
 
 	// nextEmit is where in src the next emitLiteral should start from.
-	nextEmit := 0
-
-	// The encoded form must start with a literal, as there are no previous
-	// bytes to copy, so we start looking for hash matches at s == 1.
-	s := 1
-	nextHash := hash(load32(src, s))
+	nextEmit := int32(0)
+	s := int32(0)
+	cv := load32(src, s)
+	nextHash := hash(cv)
 
 	for {
 		// Copied from the C++ snappy implementation:
@@ -80,10 +98,10 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 		// The "skip" variable keeps track of how many bytes there are since
 		// the last match; dividing it by 32 (ie. right-shifting by five) gives
 		// the number of bytes to move ahead for each iteration.
-		skip := 32
+		skip := int32(32)
 
 		nextS := s
-		candidate := 0
+		var candidate tableEntry
 		for {
 			s = nextS
 			bytesBetweenHashLookups := skip >> 5
@@ -92,13 +110,19 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 			if nextS > sLimit {
 				goto emitRemainder
 			}
-			candidate = int(table[nextHash&tableMask])
-			table[nextHash&tableMask] = uint16(s)
-			nextHash = hash(load32(src, nextS))
-			// TODO: < should be <=, and add a test for that.
-			if s-candidate < maxMatchOffset && load32(src, s) == load32(src, candidate) {
-				break
+			candidate = e.table[nextHash&tableMask]
+			now := load32(src, nextS)
+			e.table[nextHash&tableMask] = tableEntry{offset: s + e.cur, val: cv}
+			nextHash = hash(now)
+
+			offset := s - (candidate.offset - e.cur)
+			// TODO: >= should be >, and add a test for that.
+			if offset >= maxMatchOffset || cv != candidate.val {
+				// Out of range or not matched.
+				cv = now
+				continue
 			}
+			break
 		}
 
 		// A 4-byte match has been found. We'll later see if more than 4 bytes
@@ -117,22 +141,16 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 		for {
 			// Invariant: we have a 4-byte match at s, and no need to emit any
 			// literal bytes prior to s.
-			base := s
 
 			// Extend the 4-byte match as long as possible.
 			//
-			// This is an inlined version of Snappy's:
-			//	s = extendMatch(src, candidate+4, s+4)
 			s += 4
-			s1 := base + maxMatchLength
-			if s1 > len(src) {
-				s1 = len(src)
-			}
-			for i := candidate + 4; s < s1 && src[i] == src[s]; i, s = i+1, s+1 {
-			}
+			t := candidate.offset - e.cur + 4
+			l := e.matchLen(s, t, src)
 
-			// matchToken is flate's equivalent of Snappy's emitCopy.
-			dst = append(dst, matchToken(uint32(s-base-baseMatchLength), uint32(base-candidate-baseMatchOffset)))
+			// matchToken is flate's equivalent of Snappy's emitCopy. (length,offset)
+			dst = append(dst, matchToken(uint32(l+4-baseMatchLength), uint32(s-t-baseMatchOffset)))
+			s += l
 			nextEmit = s
 			if s >= sLimit {
 				goto emitRemainder
@@ -145,14 +163,18 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 			// are faster as one load64 call (with some shifts) instead of
 			// three load32 calls.
 			x := load64(src, s-1)
-			prevHash := hash(uint32(x >> 0))
-			table[prevHash&tableMask] = uint16(s - 1)
-			currHash := hash(uint32(x >> 8))
-			candidate = int(table[currHash&tableMask])
-			table[currHash&tableMask] = uint16(s)
+			prevHash := hash(uint32(x))
+			e.table[prevHash&tableMask] = tableEntry{offset: e.cur + s - 1, val: uint32(x)}
+			x >>= 8
+			currHash := hash(uint32(x))
+			candidate = e.table[currHash&tableMask]
+			e.table[currHash&tableMask] = tableEntry{offset: e.cur + s, val: uint32(x)}
+
+			offset := s - (candidate.offset - e.cur)
 			// TODO: >= should be >, and add a test for that.
-			if s-candidate >= maxMatchOffset || uint32(x>>8) != load32(src, candidate) {
-				nextHash = hash(uint32(x >> 16))
+			if offset >= maxMatchOffset || uint32(x) != candidate.val {
+				cv = uint32(x >> 8)
+				nextHash = hash(cv)
 				s++
 				break
 			}
@@ -160,15 +182,91 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 	}
 
 emitRemainder:
-	if nextEmit < len(src) {
+	if int(nextEmit) < len(src) {
 		dst = emitLiteral(dst, src[nextEmit:])
 	}
+	e.cur += int32(len(src))
+	e.prev = e.prev[:len(src)]
+	copy(e.prev, src)
 	return dst
 }
 
 func emitLiteral(dst []token, lit []byte) []token {
 	for _, v := range lit {
-		dst = append(dst, token(v))
+		dst = append(dst, literalToken(uint32(v)))
 	}
 	return dst
+}
+
+// matchLen returns the match length between src[s:] and src[t:].
+// t can be negative to indicate the match is starting in e.prev.
+// We assume that src[s-4:s] and src[t-4:t] already match.
+func (e *deflateFast) matchLen(s, t int32, src []byte) int32 {
+	s1 := int(s) + maxMatchLength - 4
+	if s1 > len(src) {
+		s1 = len(src)
+	}
+
+	// If we are inside the current block
+	if t >= 0 {
+		b := src[t:]
+		a := src[s:s1]
+		b = b[:len(a)]
+		// Extend the match to be as long as possible.
+		for i := range a {
+			if a[i] != b[i] {
+				return int32(i)
+			}
+		}
+		return int32(len(a))
+	}
+
+	// We found a match in the previous block.
+	tp := int32(len(e.prev)) + t
+	if tp < 0 {
+		return 0
+	}
+
+	// Extend the match to be as long as possible.
+	a := src[s:s1]
+	b := e.prev[tp:]
+	if len(b) > len(a) {
+		b = b[:len(a)]
+	}
+	a = a[:len(b)]
+	for i := range b {
+		if a[i] != b[i] {
+			return int32(i)
+		}
+	}
+
+	// If we reached our limit, we matched everything we are
+	// allowed to in the previous block and we return.
+	n := int32(len(b))
+	if int(s+n) == s1 {
+		return n
+	}
+
+	// Continue looking for more matches in the current block.
+	a = src[s+n : s1]
+	b = src[:len(a)]
+	for i := range a {
+		if a[i] != b[i] {
+			return int32(i) + n
+		}
+	}
+	return int32(len(a)) + n
+}
+
+// Reset resets the encoding history.
+// This ensures that no matches are made to the previous block.
+func (e *deflateFast) reset() {
+	e.prev = e.prev[:0]
+	// Bump the offset, so all matches will fail distance check.
+	e.cur += maxMatchOffset
+
+	// Protect against e.cur wraparound.
+	if e.cur > 1<<30 {
+		*e = deflateFast{cur: maxStoreBlockSize, prev: e.prev[:0]}
+	}
 }
