@@ -511,7 +511,7 @@ func TestNewRequestContentLength(t *testing.T) {
 		if req.ContentLength != tt.want {
 			t.Errorf("test[%d]: ContentLength(%T) = %d; want %d", i, tt.r, req.ContentLength, tt.want)
 		}
-		if (req.ContentLength == 0) != (req.Body == nil) {
+		if (req.ContentLength == 0) != (req.Body == NoBody) {
 			t.Errorf("test[%d]: ContentLength = %d but Body non-nil is %v", i, req.ContentLength, req.Body != nil)
 		}
 	}

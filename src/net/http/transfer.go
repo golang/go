@@ -367,12 +367,12 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	switch {
 	case chunked(t.TransferEncoding):
 		if noBodyExpected(t.RequestMethod) {
-			t.Body = eofReader
+			t.Body = NoBody
 		} else {
 			t.Body = &body{src: internal.NewChunkedReader(r), hdr: msg, r: r, closing: t.Close}
 		}
 	case realLength == 0:
-		t.Body = eofReader
+		t.Body = NoBody
 	case realLength > 0:
 		t.Body = &body{src: io.LimitReader(r, realLength), closing: t.Close}
 	default:
@@ -382,7 +382,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 			t.Body = &body{src: r, closing: t.Close}
 		} else {
 			// Persistent connection (i.e. HTTP/1.1)
-			t.Body = eofReader
+			t.Body = NoBody
 		}
 	}
 

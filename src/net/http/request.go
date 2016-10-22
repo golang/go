@@ -771,10 +771,14 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 		// For client requests, Request.ContentLength of 0
 		// means either actually 0, or unknown. The only way
 		// to explicitly say that the ContentLength is zero is
-		// to set the Body to nil.
+		// to set the Body to nil. But turns out too much code
+		// depends on NewRequest returning a non-nil Body,
+		// so we use a well-known ReadCloser variable instead
+		// and have the http package also treat that sentinel
+		// variable to mean explicitly zero.
 		if req.ContentLength == 0 {
-			req.Body = nil
-			req.GetBody = nil
+			req.Body = NoBody
+			req.GetBody = func() (io.ReadCloser, error) { return NoBody, nil }
 		}
 	}
 
@@ -1252,7 +1256,7 @@ func (r *Request) isReplayable() bool {
 // outgoingLength reports the Content-Length of this outgoing (Client) request.
 // It maps 0 into -1 (unknown) when the Body is non-nil.
 func (r *Request) outgoingLength() int64 {
-	if r.Body == nil {
+	if r.Body == nil || r.Body == NoBody {
 		return 0
 	}
 	if r.ContentLength != 0 {

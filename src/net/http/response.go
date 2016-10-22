@@ -261,7 +261,7 @@ func (r *Response) Write(w io.Writer) error {
 		if n == 0 {
 			// Reset it to a known zero reader, in case underlying one
 			// is unhappy being read repeatedly.
-			r1.Body = eofReader
+			r1.Body = NoBody
 		} else {
 			r1.ContentLength = -1
 			r1.Body = struct {
