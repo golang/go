@@ -158,7 +158,9 @@ type Transport struct {
 	// ExpectContinueTimeout, if non-zero, specifies the amount of
 	// time to wait for a server's first response headers after fully
 	// writing the request headers if the request has an
-	// "Expect: 100-continue" header. Zero means no timeout.
+	// "Expect: 100-continue" header. Zero means no timeout and
+	// causes the body to be sent immediately, without
+	// waiting for the server to approve.
 	// This time does not include the time to send the request header.
 	ExpectContinueTimeout time.Duration
 
