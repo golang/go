@@ -84,9 +84,10 @@ type compressor struct {
 	bulkHasher func([]byte, []uint32)
 
 	// compression algorithm
-	fill func(*compressor, []byte) int // copy data to window
-	step func(*compressor)             // process window
-	sync bool                          // requesting flush
+	fill      func(*compressor, []byte) int // copy data to window
+	step      func(*compressor)             // process window
+	sync      bool                          // requesting flush
+	bestSpeed *deflateFast                  // Encoder for BestSpeed
 
 	// Input hash chains
 	// hashHead[hashValue] contains the largest inputIndex with the specified hash value
@@ -346,12 +347,13 @@ func (d *compressor) encSpeed() {
 				d.err = d.w.err
 			}
 			d.windowEnd = 0
+			d.bestSpeed.reset()
 			return
 		}
 
 	}
 	// Encode the block.
-	d.tokens = encodeBestSpeed(d.tokens[:0], d.window[:d.windowEnd])
+	d.tokens = d.bestSpeed.encode(d.tokens[:0], d.window[:d.windowEnd])
 
 	// If we removed less than 1/16th, Huffman compress the block.
 	if len(d.tokens) > d.windowEnd-(d.windowEnd>>4) {
@@ -584,6 +586,7 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
 		d.window = make([]byte, maxStoreBlockSize)
 		d.fill = (*compressor).fillStore
 		d.step = (*compressor).encSpeed
+		d.bestSpeed = newDeflateFast()
 		d.tokens = make([]token, maxStoreBlockSize)
 	case level == DefaultCompression:
 		level = 6
@@ -609,6 +612,7 @@ func (d *compressor) reset(w io.Writer) {
 	case BestSpeed:
 		d.windowEnd = 0
 		d.tokens = d.tokens[:0]
+		d.bestSpeed.reset()
 	default:
 		d.chainHead = -1
 		for i := range d.hashHead {
