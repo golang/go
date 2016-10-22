@@ -631,7 +631,9 @@
 (CMPB x (MOVLconst [c])) -> (CMPBconst x [int64(int8(c))])
 (CMPB (MOVLconst [c]) x) -> (InvertFlags (CMPBconst x [int64(int8(c))]))
 
-// Using MOVBQZX instead of ANDQ is cheaper.
+// Using MOVZX instead of AND is cheaper.
+(ANDLconst [0xFF] x) -> (MOVBQZX x)
+(ANDLconst [0xFFFF] x) -> (MOVWQZX x)
 (ANDQconst [0xFF] x) -> (MOVBQZX x)
 (ANDQconst [0xFFFF] x) -> (MOVWQZX x)
 (ANDQconst [0xFFFFFFFF] x) -> (MOVLQZX x)
