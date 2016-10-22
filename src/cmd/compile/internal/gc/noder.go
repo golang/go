@@ -90,11 +90,6 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
 			lastConstGroup = decl.Group
 
 		case *syntax.TypeDecl:
-			// TODO(gri) remove this notation - we're not going to use it after all
-			if decl.Alias {
-				yyerror("type aliases using = not supported")
-				break
-			}
 			l = append(l, p.typeDecl(decl))
 
 		case *syntax.FuncDecl:

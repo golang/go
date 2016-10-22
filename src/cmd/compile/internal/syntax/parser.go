@@ -322,7 +322,8 @@ func (p *parser) aliasDecl(tok token, name *Name, group *Group) Decl {
 	d := new(AliasDecl)
 	d.initFrom(&name.node)
 
-	p.want(_Rarrow)
+	// lhs identifier and "=>" have been consumed already
+
 	d.Tok = tok
 	d.Name = name
 	d.Orig = p.dotname(p.name())
@@ -338,7 +339,7 @@ func (p *parser) constDecl(group *Group) Decl {
 	}
 
 	name := p.name()
-	if p.tok == _Rarrow {
+	if p.got(_Rarrow) {
 		return p.aliasDecl(Const, name, group)
 	}
 
@@ -364,7 +365,8 @@ func (p *parser) typeDecl(group *Group) Decl {
 	}
 
 	name := p.name()
-	if p.tok == _Rarrow {
+	// permit both: type T => p.T and: type T = p.T for now
+	if p.got(_Rarrow) || p.got(_Assign) {
 		return p.aliasDecl(Type, name, group)
 	}
 
@@ -372,9 +374,6 @@ func (p *parser) typeDecl(group *Group) Decl {
 	d.initFrom(&name.node)
 
 	d.Name = name
-	// accept "type T = p.T" for now so we can experiment
-	// with a type-alias only approach as well
-	d.Alias = p.got(_Assign)
 	d.Type = p.tryType()
 	if d.Type == nil {
 		p.syntax_error("in type declaration")
@@ -393,7 +392,7 @@ func (p *parser) varDecl(group *Group) Decl {
 	}
 
 	name := p.name()
-	if p.tok == _Rarrow {
+	if p.got(_Rarrow) {
 		return p.aliasDecl(Var, name, group)
 	}
 
@@ -449,7 +448,7 @@ func (p *parser) funcDecl() Decl {
 	}
 
 	name := p.name()
-	if recv == nil && p.tok == _Rarrow {
+	if recv == nil && p.got(_Rarrow) {
 		return p.aliasDecl(Func, name, nil)
 	}
 
