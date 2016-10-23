@@ -126,7 +126,7 @@ func gcMarkRootCheck() {
 
 	lock(&allglock)
 	// Check that stacks have been scanned.
-	if gcphase == _GCmarktermination {
+	if gcphase == _GCmarktermination && debug.gcrescanstacks > 0 {
 		for i := 0; i < len(allgs); i++ {
 			gp := allgs[i]
 			if !(gp.gcscandone && gp.gcscanvalid) && readgstatus(gp) != _Gdead {
@@ -888,6 +888,15 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 // gp.gcscanvalid. The caller must own gp and ensure that gp isn't
 // already on the rescan list.
 func queueRescan(gp *g) {
+	if debug.gcrescanstacks == 0 {
+		// Clear gcscanvalid to keep assertions happy.
+		//
+		// TODO: Remove gcscanvalid entirely when we remove
+		// stack rescanning.
+		gp.gcscanvalid = false
+		return
+	}
+
 	if gcphase == _GCoff {
 		gp.gcscanvalid = false
 		return
@@ -917,6 +926,10 @@ func queueRescan(gp *g) {
 // dequeueRescan removes gp from the stack rescan list, if gp is on
 // the rescan list. The caller must own gp.
 func dequeueRescan(gp *g) {
+	if debug.gcrescanstacks == 0 {
+		return
+	}
+
 	if gp.gcRescan == -1 {
 		return
 	}

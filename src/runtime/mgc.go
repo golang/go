@@ -1600,7 +1600,7 @@ func gcMark(start_time int64) {
 	work.ndone = 0
 	work.nproc = uint32(gcprocs())
 
-	if work.full == 0 && work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots+work.nRescanRoots == 0 {
+	if debug.gcrescanstacks == 0 && work.full == 0 && work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots+work.nRescanRoots == 0 {
 		// There's no work on the work queue and no root jobs
 		// that can produce work, so don't bother entering the
 		// getfull() barrier.
