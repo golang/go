@@ -809,12 +809,11 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		// defer returns in R3:
 		// 0 if we should continue executing
 		// 1 if we should jump to deferreturn call
-		p := gc.Prog(s390x.AAND)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0xFFFFFFFF
-		p.Reg = s390x.REG_R3
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = s390x.REG_R3
+		p := gc.Prog(s390x.ACMPW)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = s390x.REG_R3
+		p.To.Type = obj.TYPE_CONST
+		p.To.Offset = 0
 		p = gc.Prog(s390x.ABNE)
 		p.To.Type = obj.TYPE_BRANCH
 		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})

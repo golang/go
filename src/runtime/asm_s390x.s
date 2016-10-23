@@ -918,12 +918,14 @@ notfoundr0:
 
 vectorimpl:
 	//if the address is not 16byte aligned, use loop for the header
-	AND	$15, R3, R8
+	MOVD	R3, R8
+	AND	$15, R8
 	CMPBGT	R8, $0, notaligned
 
 aligned:
 	ADD	R6, R4, R8
-	AND	$-16, R8, R7
+	MOVD	R8, R7
+	AND	$-16, R7
 	// replicate c across V17
 	VLVGB	$0, R5, V19
 	VREPB	$0, V19, V17
@@ -944,7 +946,8 @@ vectorloop:
 	RET
 
 notaligned:
-	AND	$-16, R3, R8
+	MOVD	R3, R8
+	AND	$-16, R8
 	ADD     $16, R8
 notalignedloop:
 	CMPBEQ	R3, R8, aligned

@@ -141,7 +141,8 @@ TEXT ·Or8(SB), NOSPLIT, $0-9
 	MOVD    ptr+0(FP), R3
 	MOVBZ   val+8(FP), R4
 	// Calculate shift.
-	AND	$3, R3, R5
+	MOVD	R3, R5
+	AND	$3, R5
 	XOR	$3, R5 // big endian - flip direction
 	SLD	$3, R5 // MUL $8, R5
 	SLD	R5, R4
@@ -159,7 +160,8 @@ TEXT ·And8(SB), NOSPLIT, $0-9
 	MOVD    ptr+0(FP), R3
 	MOVBZ   val+8(FP), R4
 	// Calculate shift.
-	AND	$3, R3, R5
+	MOVD	R3, R5
+	AND	$3, R5
 	XOR	$3, R5 // big endian - flip direction
 	SLD	$3, R5 // MUL $8, R5
 	OR	$-256, R4 // create 0xffffffffffffffxx
