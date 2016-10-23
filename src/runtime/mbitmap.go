@@ -553,6 +553,10 @@ func (h heapBits) setCheckmarked(size uintptr) {
 // src, dst, and size must be pointer-aligned.
 // The range [dst, dst+size) must lie within a single object.
 //
+// As a special case, src == 0 indicates that this is being used for a
+// memclr. bulkBarrierPreWrite will pass 0 for the src of each write
+// barrier.
+//
 // Callers should call bulkBarrierPreWrite immediately before
 // calling memmove(dst, src, size). This function is marked nosplit
 // to avoid being preempted; the GC must not stop the goroutine
@@ -618,13 +622,23 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 	}
 
 	h := heapBitsForAddr(dst)
-	for i := uintptr(0); i < size; i += sys.PtrSize {
-		if h.isPointer() {
-			dstx := (*uintptr)(unsafe.Pointer(dst + i))
-			srcx := (*uintptr)(unsafe.Pointer(src + i))
-			writebarrierptr_prewrite1(dstx, *srcx)
+	if src == 0 {
+		for i := uintptr(0); i < size; i += sys.PtrSize {
+			if h.isPointer() {
+				dstx := (*uintptr)(unsafe.Pointer(dst + i))
+				writebarrierptr_prewrite1(dstx, 0)
+			}
+			h = h.next()
 		}
-		h = h.next()
+	} else {
+		for i := uintptr(0); i < size; i += sys.PtrSize {
+			if h.isPointer() {
+				dstx := (*uintptr)(unsafe.Pointer(dst + i))
+				srcx := (*uintptr)(unsafe.Pointer(src + i))
+				writebarrierptr_prewrite1(dstx, *srcx)
+			}
+			h = h.next()
+		}
 	}
 }
 
@@ -653,8 +667,12 @@ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
 		}
 		if *bits&mask != 0 {
 			dstx := (*uintptr)(unsafe.Pointer(dst + i))
-			srcx := (*uintptr)(unsafe.Pointer(src + i))
-			writebarrierptr_prewrite1(dstx, *srcx)
+			if src == 0 {
+				writebarrierptr_prewrite1(dstx, 0)
+			} else {
+				srcx := (*uintptr)(unsafe.Pointer(src + i))
+				writebarrierptr_prewrite1(dstx, *srcx)
+			}
 		}
 		mask <<= 1
 	}
