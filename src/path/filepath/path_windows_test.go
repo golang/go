@@ -352,6 +352,28 @@ func TestToNorm(t *testing.T) {
 		{`{{tmp}}\test`, `FOO\BAR`, `foo\bar`},
 	}
 
+	tmp, err := ioutil.TempDir("", "testToNorm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err := os.RemoveAll(tmp)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// ioutil.TempDir might return "non-canonical" name.
+	ctmp, err := filepath.EvalSymlinks(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.MkdirAll(strings.Replace(testPath, "{{tmp}}", ctmp, -1), 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -363,27 +385,14 @@ func TestToNorm(t *testing.T) {
 		}
 	}()
 
-	tmp, err := ioutil.TempDir("", "testToNorm")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-
-	// ioutil.TempDir might return "non-canonical" name.
-	tmp, err = filepath.EvalSymlinks(tmp)
-	if err != nil {
-		t.Fatal(err)
+	tmpVol := filepath.VolumeName(ctmp)
+	if len(tmpVol) != 2 {
+		t.Fatalf("unexpected temp volume name %q", tmpVol)
 	}
 
-	err = os.MkdirAll(strings.Replace(testPath, "{{tmp}}", tmp, -1), 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmpNoVol := ctmp[len(tmpVol):]
 
-	tmpVol := filepath.VolumeName(tmp)
-	tmpNoVol := tmp[len(tmpVol):]
-
-	replacer := strings.NewReplacer("{{tmp}}", tmp, "{{tmpvol}}", tmpVol, "{{tmpnovol}}", tmpNoVol)
+	replacer := strings.NewReplacer("{{tmp}}", ctmp, "{{tmpvol}}", tmpVol, "{{tmpnovol}}", tmpNoVol)
 
 	for _, test := range testsDir {
 		wd := replacer.Replace(test.wd)
