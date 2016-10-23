@@ -7,7 +7,6 @@ package os_test
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"internal/syscall/windows"
 	"internal/testenv"
 	"io/ioutil"
@@ -274,7 +273,7 @@ func TestDirectoryJunction(t *testing.T) {
 				mklink: func(link, target string) error {
 					output, err := osexec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
 					if err != nil {
-						fmt.Errorf("failed to run mklink %v %v: %v %q", link, target, err, output)
+						t.Errorf("failed to run mklink %v %v: %v %q", link, target, err, output)
 					}
 					return nil
 				},
@@ -346,7 +345,7 @@ func TestDirectorySymbolicLink(t *testing.T) {
 				mklink: func(link, target string) error {
 					output, err := osexec.Command("cmd", "/c", "mklink", "/D", link, target).CombinedOutput()
 					if err != nil {
-						fmt.Errorf("failed to run mklink %v %v: %v %q", link, target, err, output)
+						t.Errorf("failed to run mklink %v %v: %v %q", link, target, err, output)
 					}
 					return nil
 				},

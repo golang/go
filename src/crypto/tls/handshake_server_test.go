@@ -1253,18 +1253,18 @@ func TestGetConfigForClient(t *testing.T) {
 
 		if len(test.errorSubstring) == 0 {
 			if serverErr != nil || clientErr != nil {
-				t.Errorf("%#d: expected no error but got serverErr: %q, clientErr: %q", i, serverErr, clientErr)
+				t.Errorf("test[%d]: expected no error but got serverErr: %q, clientErr: %q", i, serverErr, clientErr)
 			}
 			if test.verify != nil {
 				if err := test.verify(configReturned); err != nil {
-					t.Errorf("#%d: verify returned error: %v", i, err)
+					t.Errorf("test[%d]: verify returned error: %v", i, err)
 				}
 			}
 		} else {
 			if serverErr == nil {
-				t.Errorf("%#d: expected error containing %q but got no error", i, test.errorSubstring)
+				t.Errorf("test[%d]: expected error containing %q but got no error", i, test.errorSubstring)
 			} else if !strings.Contains(serverErr.Error(), test.errorSubstring) {
-				t.Errorf("%#d: expected error to contain %q but it was %q", i, test.errorSubstring, serverErr)
+				t.Errorf("test[%d]: expected error to contain %q but it was %q", i, test.errorSubstring, serverErr)
 			}
 		}
 	}

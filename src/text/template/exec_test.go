@@ -1326,7 +1326,7 @@ func TestAddrOfIndex(t *testing.T) {
 		var buf bytes.Buffer
 		err := tmpl.Execute(&buf, reflect.ValueOf([]V{{1}}))
 		if err != nil {
-			t.Fatal("%s: Execute: %v", text, err)
+			t.Fatalf("%s: Execute: %v", text, err)
 		}
 		if buf.String() != "<1>" {
 			t.Fatalf("%s: template output = %q, want %q", text, buf, "<1>")
