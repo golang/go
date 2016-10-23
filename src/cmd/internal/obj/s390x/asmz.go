@@ -161,7 +161,6 @@ var optab = []Optab{
 	Optab{AAND, C_REG, C_REG, C_NONE, C_REG, 6, 0},
 	Optab{AAND, C_REG, C_NONE, C_NONE, C_REG, 6, 0},
 	Optab{AAND, C_LCON, C_NONE, C_NONE, C_REG, 23, 0},
-	Optab{AAND, C_LCON, C_REG, C_NONE, C_REG, 23, 0},
 	Optab{AAND, C_LOREG, C_NONE, C_NONE, C_REG, 12, 0},
 	Optab{AAND, C_LAUTO, C_NONE, C_NONE, C_REG, 12, REGSP},
 	Optab{AANDW, C_REG, C_REG, C_NONE, C_REG, 6, 0},
@@ -3063,57 +3062,37 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 			zRIE(_d, oprie, uint32(p.To.Reg), uint32(r), uint32(v), 0, 0, 0, 0, asm)
 		}
 
-	case 23: // 64-bit logical op $constant [reg] reg
-		// TODO(mundaym): remove the optional register and merge with case 24.
+	case 23: // 64-bit logical op $constant reg
+		// TODO(mundaym): merge with case 24.
 		v := vregoff(ctxt, &p.From)
-		var opcode uint32
-		r := p.Reg
-		if r == 0 {
-			r = p.To.Reg
-		}
-		if r == p.To.Reg {
-			switch p.As {
-			default:
-				ctxt.Diag("%v is not supported", p)
-			case AAND:
-				if v >= 0 { // needs zero extend
-					zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
-					zRRE(op_NGR, uint32(p.To.Reg), REGTMP, asm)
-				} else if int64(int16(v)) == v {
-					zRI(op_NILL, uint32(p.To.Reg), uint32(v), asm)
-				} else { //  r.To.Reg & 0xffffffff00000000 & uint32(v)
-					zRIL(_a, op_NILF, uint32(p.To.Reg), uint32(v), asm)
-				}
-			case AOR:
-				if int64(uint32(v)) != v { // needs sign extend
-					zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
-					zRRE(op_OGR, uint32(p.To.Reg), REGTMP, asm)
-				} else if int64(uint16(v)) == v {
-					zRI(op_OILL, uint32(p.To.Reg), uint32(v), asm)
-				} else {
-					zRIL(_a, op_OILF, uint32(p.To.Reg), uint32(v), asm)
-				}
-			case AXOR:
-				if int64(uint32(v)) != v { // needs sign extend
-					zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
-					zRRE(op_XGR, uint32(p.To.Reg), REGTMP, asm)
-				} else {
-					zRIL(_a, op_XILF, uint32(p.To.Reg), uint32(v), asm)
-				}
+		switch p.As {
+		default:
+			ctxt.Diag("%v is not supported", p)
+		case AAND:
+			if v >= 0 { // needs zero extend
+				zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
+				zRRE(op_NGR, uint32(p.To.Reg), REGTMP, asm)
+			} else if int64(int16(v)) == v {
+				zRI(op_NILL, uint32(p.To.Reg), uint32(v), asm)
+			} else { //  r.To.Reg & 0xffffffff00000000 & uint32(v)
+				zRIL(_a, op_NILF, uint32(p.To.Reg), uint32(v), asm)
 			}
-		} else {
-			switch p.As {
-			default:
-				ctxt.Diag("%v is not supported", p)
-			case AAND:
-				opcode = op_NGRK
-			case AOR:
-				opcode = op_OGRK
-			case AXOR:
-				opcode = op_XGRK
+		case AOR:
+			if int64(uint32(v)) != v { // needs sign extend
+				zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
+				zRRE(op_OGR, uint32(p.To.Reg), REGTMP, asm)
+			} else if int64(uint16(v)) == v {
+				zRI(op_OILL, uint32(p.To.Reg), uint32(v), asm)
+			} else {
+				zRIL(_a, op_OILF, uint32(p.To.Reg), uint32(v), asm)
 			}
-			zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
-			zRRF(opcode, uint32(r), 0, uint32(p.To.Reg), REGTMP, asm)
+		case AXOR:
+			if int64(uint32(v)) != v { // needs sign extend
+				zRIL(_a, op_LGFI, REGTMP, uint32(v), asm)
+				zRRE(op_XGR, uint32(p.To.Reg), REGTMP, asm)
+			} else {
+				zRIL(_a, op_XILF, uint32(p.To.Reg), uint32(v), asm)
+			}
 		}
 
 	case 24: // 32-bit logical op $constant reg
