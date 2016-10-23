@@ -4778,3 +4778,57 @@ func TestConcurrentServerServe(t *testing.T) {
 		go func() { srv.Serve(ln2) }()
 	}
 }
+
+func TestServerIdleTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	defer afterTest(t)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		io.Copy(ioutil.Discard, r.Body)
+		io.WriteString(w, r.RemoteAddr)
+	}))
+	ts.Config.ReadHeaderTimeout = 1 * time.Second
+	ts.Config.IdleTimeout = 2 * time.Second
+	ts.Start()
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	get := func() string {
+		res, err := c.Get(ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		slurp, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(slurp)
+	}
+
+	a1, a2 := get(), get()
+	if a1 != a2 {
+		t.Fatalf("did requests on different connections")
+	}
+	time.Sleep(3 * time.Second)
+	a3 := get()
+	if a2 == a3 {
+		t.Fatal("request three unexpectedly on same connection")
+	}
+
+	// And test that ReadHeaderTimeout still works:
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo.com\r\n"))
+	time.Sleep(2 * time.Second)
+	if _, err := io.CopyN(ioutil.Discard, conn, 1); err == nil {
+		t.Fatal("copy byte succeeded; want err")
+	}
+}
