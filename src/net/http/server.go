@@ -237,7 +237,6 @@ type conn struct {
 	r *connReader
 
 	// bufr reads from r.
-	// Users of bufr must hold mu.
 	bufr *bufio.Reader
 
 	// bufw writes to checkConnErrorWriter{c}, which populates werr on error.
@@ -247,10 +246,10 @@ type conn struct {
 	// on this connection, if any.
 	lastMethod string
 
-	// mu guards hijackedv, use of bufr, (*response).closeNotifyCh.
-	mu sync.Mutex
-
 	curReq atomic.Value // of *response (which has a Request in it)
+
+	// mu guards hijackedv
+	mu sync.Mutex
 
 	// hijackedv is whether this connection has been hijacked
 	// by a Handler with the Hijacker interface.
@@ -426,7 +425,7 @@ type response struct {
 
 	// closeNotifyCh is the channel returned by CloseNotify.
 	// TODO(bradfitz): this is currently (for Go 1.8) always
-	// non-nil. Make this lazily-created again as it used to be.
+	// non-nil. Make this lazily-created again as it used to be?
 	closeNotifyCh  chan bool
 	didCloseNotify int32 // atomic (only 0->1 winner should send)
 }
@@ -847,9 +846,18 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		return nil, ErrHijacked
 	}
 
-	if d := c.server.ReadTimeout; d != 0 {
-		c.rwc.SetReadDeadline(time.Now().Add(d))
+	var (
+		wholeReqDeadline time.Time // or zero if none
+		hdrDeadline      time.Time // or zero if none
+	)
+	t0 := time.Now()
+	if d := c.server.readHeaderTimeout(); d != 0 {
+		hdrDeadline = t0.Add(d)
 	}
+	if d := c.server.ReadTimeout; d != 0 {
+		wholeReqDeadline = t0.Add(d)
+	}
+	c.rwc.SetReadDeadline(hdrDeadline)
 	if d := c.server.WriteTimeout; d != 0 {
 		defer func() {
 			c.rwc.SetWriteDeadline(time.Now().Add(d))
@@ -857,14 +865,12 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	}
 
 	c.r.setReadLimit(c.server.initialReadLimitSize())
-	c.mu.Lock() // while using bufr
 	if c.lastMethod == "POST" {
 		// RFC 2616 section 4.1 tolerance for old buggy clients.
 		peek, _ := c.bufr.Peek(4) // ReadRequest will get err below
 		c.bufr.Discard(numLeadingCRorLF(peek))
 	}
 	req, err := readRequest(c.bufr, keepHostHeader)
-	c.mu.Unlock()
 	if err != nil {
 		if c.r.hitReadLimit() {
 			return nil, errTooLarge
@@ -908,6 +914,11 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	req.TLS = c.tlsState
 	if body, ok := req.Body.(*body); ok {
 		body.doEarlyClose = true
+	}
+
+	// Adjust the read deadline if necessary.
+	if !hdrDeadline.Equal(wholeReqDeadline) {
+		c.rwc.SetReadDeadline(wholeReqDeadline)
 	}
 
 	w = &response{
@@ -1710,6 +1721,14 @@ func (c *conn) serve(ctx context.Context) {
 		}
 		c.setState(c.rwc, StateIdle)
 		c.curReq.Store((*response)(nil))
+
+		if d := c.server.idleTimeout(); d != 0 {
+			c.rwc.SetReadDeadline(time.Now().Add(d))
+			if _, err := c.bufr.Peek(4); err != nil {
+				return
+			}
+		}
+		c.rwc.SetReadDeadline(time.Time{})
 	}
 }
 
@@ -2168,11 +2187,36 @@ func Serve(l net.Listener, handler Handler) error {
 // A Server defines parameters for running an HTTP server.
 // The zero value for Server is a valid configuration.
 type Server struct {
-	Addr         string        // TCP address to listen on, ":http" if empty
-	Handler      Handler       // handler to invoke, http.DefaultServeMux if nil
-	ReadTimeout  time.Duration // maximum duration before timing out read of the request
-	WriteTimeout time.Duration // maximum duration before timing out write of the response
-	TLSConfig    *tls.Config   // optional TLS config, used by ListenAndServeTLS
+	Addr      string      // TCP address to listen on, ":http" if empty
+	Handler   Handler     // handler to invoke, http.DefaultServeMux if nil
+	TLSConfig *tls.Config // optional TLS config, used by ListenAndServeTLS
+
+	// ReadTimeout is the maximum duration for reading the entire
+	// request, including the body.
+	//
+	// Because ReadTimeout does not let Handlers make per-request
+	// decisions on each request body's acceptable deadline or
+	// upload rate, most users will prefer to use
+	// ReadHeaderTimeout. It is valid to use them both.
+	ReadTimeout time.Duration
+
+	// ReadHeaderTimeout is the amount of time allowed to read
+	// request headers. The connection's read deadline is reset
+	// after reading the headers and the Handler can decide what
+	// is considered too slow for the body.
+	ReadHeaderTimeout time.Duration
+
+	// WriteTimeout is the maximum duration before timing out
+	// writes of the response. It is reset whenever a new
+	// request's header is read. Like ReadTimeout, it does not
+	// let Handlers make decisions on a per-request basis.
+	WriteTimeout time.Duration
+
+	// IdleTimeout is the maximum amount of time to wait for the
+	// next request when keep-alives are enabled. If IdleTimeout
+	// is zero, the value of ReadTimeout is used. If both are
+	// zero, there is no timeout.
+	IdleTimeout time.Duration
 
 	// MaxHeaderBytes controls the maximum number of bytes the
 	// server will read parsing the request header's keys and
@@ -2364,6 +2408,20 @@ func (srv *Server) Serve(l net.Listener) error {
 		c.setState(c.rwc, StateNew) // before Serve can return
 		go c.serve(ctx)
 	}
+}
+
+func (s *Server) idleTimeout() time.Duration {
+	if s.IdleTimeout != 0 {
+		return s.IdleTimeout
+	}
+	return s.ReadTimeout
+}
+
+func (s *Server) readHeaderTimeout() time.Duration {
+	if s.ReadHeaderTimeout != 0 {
+		return s.ReadHeaderTimeout
+	}
+	return s.ReadTimeout
 }
 
 func (s *Server) doKeepAlives() bool {
