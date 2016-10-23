@@ -98,7 +98,7 @@ func ExampleReader_Multistream() {
 			log.Fatal(err)
 		}
 
-		fmt.Println("\n")
+		fmt.Print("\n\n")
 
 		err = zr.Reset(&buf)
 		if err == io.EOF {

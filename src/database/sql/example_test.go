@@ -45,7 +45,7 @@ func ExampleDB_QueryRow() {
 	}
 }
 
-func ExampleDB_QueryMultipleResultSets() {
+func ExampleDB_Query_multipleResultSets() {
 	age := 27
 	q := `
 create temp table uid (id bigint); -- Create temp table for queries.
