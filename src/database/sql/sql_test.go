@@ -267,6 +267,7 @@ func TestQueryContext(t *testing.T) {
 	prepares0 := numPrepares(t, db)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	rows, err := db.QueryContext(ctx, "SELECT|people|age,name|")
 	if err != nil {
