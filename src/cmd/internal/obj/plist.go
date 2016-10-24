@@ -69,7 +69,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				a.Asym = p.From.Sym
 				a.Aoffset = int32(p.From.Offset)
 				a.Name = int16(p.From.Name)
-				a.Gotype = p.From.Gotype
+				a.Gotype = p.To.Sym
 				a.Link = curtext.Autom
 				curtext.Autom = a
 				continue

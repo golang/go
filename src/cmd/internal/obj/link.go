@@ -160,7 +160,6 @@ type Addr struct {
 	Class  int8
 	Offset int64
 	Sym    *LSym
-	Gotype *LSym
 
 	// argument value:
 	//	for TYPE_SCONST, a string
