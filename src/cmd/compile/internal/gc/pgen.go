@@ -425,7 +425,9 @@ func compile(fn *Node) {
 			fallthrough
 		case PPARAM, PPARAMOUT:
 			p := Gins(obj.ATYPE, n, nil)
-			p.From.Gotype = Linksym(ngotype(n))
+			p.To.Type = obj.TYPE_MEM
+			p.To.Name = obj.NAME_EXTERN
+			p.To.Sym = Linksym(ngotype(n))
 		}
 	}
 
