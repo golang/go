@@ -750,38 +750,54 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				if ctxt.Autosize == 0 {
 					break
 				}
-				aoffset = 0
 			}
 
+			// Frame is non-empty. Make sure to save link register, even if
+			// it is a leaf function, so that traceback works.
 			q = p
 			if ctxt.Autosize > aoffset {
-				q = ctxt.NewProg()
-				q.As = ASUB
+				// Frame size is too large for a MOVD.W instruction.
+				// Store link register before decrementing SP, so if a signal comes
+				// during the execution of the function prologue, the traceback
+				// code will not see a half-updated stack frame.
+				q = obj.Appendp(ctxt, q)
 				q.Lineno = p.Lineno
+				q.As = ASUB
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(ctxt.Autosize) - int64(aoffset)
+				q.From.Offset = int64(ctxt.Autosize)
+				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REGSP
-				q.Spadj = int32(q.From.Offset)
-				q.Link = p.Link
-				p.Link = q
-				if cursym.Text.Mark&LEAF != 0 {
-					break
-				}
-			}
+				q.To.Reg = REGTMP
 
-			q1 = ctxt.NewProg()
-			q1.As = AMOVD
-			q1.Lineno = p.Lineno
-			q1.From.Type = obj.TYPE_REG
-			q1.From.Reg = REGLINK
-			q1.To.Type = obj.TYPE_MEM
-			q1.Scond = C_XPRE
-			q1.To.Offset = int64(-aoffset)
-			q1.To.Reg = REGSP
-			q1.Link = q.Link
-			q1.Spadj = aoffset
-			q.Link = q1
+				q = obj.Appendp(ctxt, q)
+				q.Lineno = p.Lineno
+				q.As = AMOVD
+				q.From.Type = obj.TYPE_REG
+				q.From.Reg = REGLINK
+				q.To.Type = obj.TYPE_MEM
+				q.To.Reg = REGTMP
+
+				q1 = obj.Appendp(ctxt, q)
+				q1.Lineno = p.Lineno
+				q1.As = AMOVD
+				q1.From.Type = obj.TYPE_REG
+				q1.From.Reg = REGTMP
+				q1.To.Type = obj.TYPE_REG
+				q1.To.Reg = REGSP
+				q1.Spadj = ctxt.Autosize
+			} else {
+				// small frame, update SP and save LR in a single MOVD.W instruction
+				q1 = obj.Appendp(ctxt, q)
+				q1.As = AMOVD
+				q1.Lineno = p.Lineno
+				q1.From.Type = obj.TYPE_REG
+				q1.From.Reg = REGLINK
+				q1.To.Type = obj.TYPE_MEM
+				q1.Scond = C_XPRE
+				q1.To.Offset = int64(-aoffset)
+				q1.To.Reg = REGSP
+				q1.Spadj = aoffset
+			}
 
 			if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
