@@ -4471,6 +4471,24 @@ func rewriteValuePPC64_OpPPC64ADDconst(v *Value, config *Config) bool {
 func rewriteValuePPC64_OpPPC64AND(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (AND x (XORconst [-1] y))
+	// cond:
+	// result: (ANDN x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64XORconst {
+			break
+		}
+		if v_1.AuxInt != -1 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpPPC64ANDN)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	// match: (AND (MOVDconst [c]) (MOVDconst [d]))
 	// cond:
 	// result: (MOVDconst [c&d])
