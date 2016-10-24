@@ -1461,14 +1461,25 @@ func gcBgMarkWorker(_p_ *p) {
 			throw("work.nwait was > work.nproc")
 		}
 
-		switch _p_.gcMarkWorkerMode {
-		default:
-			throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
-		case gcMarkWorkerDedicatedMode:
-			gcDrain(&_p_.gcw, gcDrainNoBlock|gcDrainFlushBgCredit)
-		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
-			gcDrain(&_p_.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
-		}
+		systemstack(func() {
+			// Mark our goroutine preemptible so its stack
+			// can be scanned. This lets two mark workers
+			// scan each other (otherwise, they would
+			// deadlock). We must not modify anything on
+			// the G stack. However, stack shrinking is
+			// disabled for mark workers, so it is safe to
+			// read from the G stack.
+			casgstatus(gp, _Grunning, _Gwaiting)
+			switch _p_.gcMarkWorkerMode {
+			default:
+				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
+			case gcMarkWorkerDedicatedMode:
+				gcDrain(&_p_.gcw, gcDrainNoBlock|gcDrainFlushBgCredit)
+			case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
+				gcDrain(&_p_.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
+			}
+			casgstatus(gp, _Gwaiting, _Grunning)
+		})
 
 		// If we are nearing the end of mark, dispose
 		// of the cache promptly. We must do this

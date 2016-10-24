@@ -221,24 +221,13 @@ func markroot(gcw *gcWork, i uint32) {
 			gp.waitsince = work.tstart
 		}
 
-		if gcphase != _GCmarktermination && gp.startpc == gcBgMarkWorkerPC && readgstatus(gp) != _Gdead {
-			// GC background workers may be
-			// non-preemptible, so we may deadlock if we
-			// try to scan them during a concurrent phase.
-			// They also have tiny stacks, so just ignore
-			// them until mark termination.
-			gp.gcscandone = true
-			queueRescan(gp)
-			break
-		}
-
 		// scang must be done on the system stack in case
 		// we're trying to scan our own stack.
 		systemstack(func() {
 			// If this is a self-scan, put the user G in
 			// _Gwaiting to prevent self-deadlock. It may
-			// already be in _Gwaiting if this is mark
-			// termination.
+			// already be in _Gwaiting if this is a mark
+			// worker or we're in mark termination.
 			userG := getg().m.curg
 			selfScan := gp == userG && readgstatus(userG) == _Grunning
 			if selfScan {
