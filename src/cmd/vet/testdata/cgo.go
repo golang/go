@@ -51,4 +51,6 @@ func CgoTests() {
 	var st2 struct{ i int }
 	C.f(*(*unsafe.Pointer)(unsafe.Pointer(&st2)))
 	C.f(unsafe.Pointer(&st2))
+
+	C.CBytes([]byte("hello"))
 }
