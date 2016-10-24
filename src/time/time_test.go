@@ -915,6 +915,7 @@ func TestCountMallocs(t *testing.T) {
 }
 
 func TestLoadFixed(t *testing.T) {
+	t.Skip("skipping test for Go 1.4; Issue 17545")
 	// Issue 4064: handle locations without any zone transitions.
 	loc, err := LoadLocation("Etc/GMT+1")
 	if err != nil {
