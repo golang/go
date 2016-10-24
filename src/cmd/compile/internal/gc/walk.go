@@ -3561,7 +3561,10 @@ func walkinrange(n *Node, init *Nodes) *Node {
 	cmp.Lineno = n.Lineno
 	cmp = addinit(cmp, l.Ninit.Slice())
 	cmp = addinit(cmp, r.Ninit.Slice())
+	// Typecheck the AST rooted at cmp...
 	cmp = typecheck(cmp, Erv)
+	// ...but then reset cmp's type to match n's type.
+	cmp.Type = n.Type
 	cmp = walkexpr(cmp, init)
 	return cmp
 }
