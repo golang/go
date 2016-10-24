@@ -122,6 +122,9 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
+		if stringsHasSuffix(err.Error(), "dns failure") {
+			err = errNoSuchHost
+		}
 		return
 	}
 loop:
