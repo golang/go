@@ -408,7 +408,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if autosize != 0 {
+				// Make sure to save link register for non-empty frame, even if
+				// it is a leaf function, so that traceback works.
+				// Store link register before decrementing SP, so if a signal comes
+				// during the execution of the function prologue, the traceback
+				// code will not see a half-updated stack frame.
 				q = obj.Appendp(ctxt, p)
+				q.As = AMOVD
+				q.From.Type = obj.TYPE_REG
+				q.From.Reg = REG_LR
+				q.To.Type = obj.TYPE_MEM
+				q.To.Reg = REGSP
+				q.To.Offset = int64(-autosize)
+
+				q = obj.Appendp(ctxt, q)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_ADDR
 				q.From.Offset = int64(-autosize)
@@ -427,14 +440,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				cursym.Set(obj.AttrLeaf, true)
 				break
 			}
-
-			q = obj.Appendp(ctxt, q)
-			q.As = AMOVD
-			q.From.Type = obj.TYPE_REG
-			q.From.Reg = REG_LR
-			q.To.Type = obj.TYPE_MEM
-			q.To.Reg = REGSP
-			q.To.Offset = 0
 
 			if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame

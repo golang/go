@@ -445,16 +445,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	autosize := int32(0)
-	var aoffset int
-	var mov obj.As
 	var p1 *obj.Prog
 	var p2 *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
 		case obj.ATEXT:
-			mov = AMOVD
-			aoffset = 0
 			autosize = int32(textstksiz)
 
 			if p.Mark&LEAF != 0 && autosize == 0 {
@@ -520,11 +516,49 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if autosize != 0 {
-				/* use MOVDU to adjust R1 when saving R31, if autosize is small */
+				// Make sure to save link register for non-empty frame, even if
+				// it is a leaf function, so that traceback works.
 				if cursym.Text.Mark&LEAF == 0 && autosize >= -BIG && autosize <= BIG {
-					mov = AMOVDU
-					aoffset = int(-autosize)
+					// Use MOVDU to adjust R1 when saving R31, if autosize is small.
+					q = obj.Appendp(ctxt, q)
+					q.As = AMOVD
+					q.Lineno = p.Lineno
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REG_LR
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REGTMP
+
+					q = obj.Appendp(ctxt, q)
+					q.As = AMOVDU
+					q.Lineno = p.Lineno
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REGTMP
+					q.To.Type = obj.TYPE_MEM
+					q.To.Offset = int64(-autosize)
+					q.To.Reg = REGSP
+					q.Spadj = int32(autosize)
 				} else {
+					// Frame size is too large for a MOVDU instruction.
+					// Store link register before decrementing SP, so if a signal comes
+					// during the execution of the function prologue, the traceback
+					// code will not see a half-updated stack frame.
+					q = obj.Appendp(ctxt, q)
+					q.As = AMOVD
+					q.Lineno = p.Lineno
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REG_LR
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REG_R29 // REGTMP may be used to synthesize large offset in the next instruction
+
+					q = obj.Appendp(ctxt, q)
+					q.As = AMOVD
+					q.Lineno = p.Lineno
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REG_R29
+					q.To.Type = obj.TYPE_MEM
+					q.To.Offset = int64(-autosize)
+					q.To.Reg = REGSP
+
 					q = obj.Appendp(ctxt, q)
 					q.As = AADD
 					q.Lineno = p.Lineno
@@ -544,26 +578,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if cursym.Text.Mark&LEAF != 0 {
 				cursym.Set(obj.AttrLeaf, true)
 				break
-			}
-
-			q = obj.Appendp(ctxt, q)
-			q.As = AMOVD
-			q.Lineno = p.Lineno
-			q.From.Type = obj.TYPE_REG
-			q.From.Reg = REG_LR
-			q.To.Type = obj.TYPE_REG
-			q.To.Reg = REGTMP
-
-			q = obj.Appendp(ctxt, q)
-			q.As = mov
-			q.Lineno = p.Lineno
-			q.From.Type = obj.TYPE_REG
-			q.From.Reg = REGTMP
-			q.To.Type = obj.TYPE_MEM
-			q.To.Offset = int64(aoffset)
-			q.To.Reg = REGSP
-			if q.As == AMOVDU {
-				q.Spadj = int32(-aoffset)
 			}
 
 			if ctxt.Flag_shared {
