@@ -1122,6 +1122,11 @@ func shrinkstack(gp *g) {
 	if debug.gcshrinkstackoff > 0 {
 		return
 	}
+	if gp.startpc == gcBgMarkWorkerPC {
+		// We're not allowed to shrink the gcBgMarkWorker
+		// stack (see gcBgMarkWorker for explanation).
+		return
+	}
 
 	oldsize := gp.stackAlloc
 	newsize := oldsize / 2
