@@ -304,7 +304,7 @@ var tests = []test{
 
 	// Interface.
 	{
-		"type",
+		"interface type",
 		[]string{p, `ExportedInterface`},
 		[]string{
 			`Comment about exported interface`, // Include comment.
@@ -324,7 +324,7 @@ var tests = []test{
 	},
 	// Interface -u with unexported methods.
 	{
-		"type with unexported methods and -u",
+		"interface type with unexported methods and -u",
 		[]string{"-u", p, `ExportedInterface`},
 		[]string{
 			`Comment about exported interface`, // Include comment.
@@ -337,6 +337,19 @@ var tests = []test{
 		},
 		[]string{
 			`Has unexported methods`,
+		},
+	},
+
+	// Interface method.
+	{
+		"interface method",
+		[]string{p, `ExportedInterface.ExportedMethod`},
+		[]string{
+			`Comment before exported method.*\n.*ExportedMethod\(\)` +
+				`.*Comment on line with exported method`,
+		},
+		[]string{
+			`Comment about exported interface.`,
 		},
 	},
 
