@@ -1463,9 +1463,15 @@ const cMallocDefGo = `
 var __cgofn__cgoPREFIX_Cfunc__Cmalloc byte
 var _cgoPREFIX_Cfunc__Cmalloc = unsafe.Pointer(&__cgofn__cgoPREFIX_Cfunc__Cmalloc)
 
+//go:linkname runtime_throw runtime.throw
+func runtime_throw(string)
+
 //go:cgo_unsafe_args
 func _cgo_cmalloc(p0 uint64) (r1 unsafe.Pointer) {
 	_cgo_runtime_cgocall(_cgoPREFIX_Cfunc__Cmalloc, uintptr(unsafe.Pointer(&p0)))
+	if r1 == nil {
+		runtime_throw("runtime: C malloc failed")
+	}
 	return
 }
 `

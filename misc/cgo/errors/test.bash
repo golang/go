@@ -59,5 +59,15 @@ if ! go run ptr.go; then
 	exit 1
 fi
 
+# The malloc.go test should crash.
+rm -f malloc.out
+if go run malloc.go >malloc.out 2>&1; then
+	echo "`go run malloc.go` succeeded unexpectedly"
+	cat malloc.out
+	rm -f malloc.out
+	exit 1
+fi
+rm -f malloc.out
+
 rm -rf errs _obj
 exit 0
