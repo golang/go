@@ -266,7 +266,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
-			p.From.Sym.Local = true
+			p.From.Sym.Set(obj.AttrLocal, true)
 			p.From.Offset = 0
 		}
 
@@ -306,7 +306,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
-			p.From.Sym.Local = true
+			p.From.Sym.Set(obj.AttrLocal, true)
 			p.From.Offset = 0
 		}
 	}
@@ -379,12 +379,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
 	// internally defined symbols.
-	if p.As == lea && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+	if p.As == lea && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
 		// $LEA sym, Rx becomes $MOV $sym, Rx which will be rewritten below
 		p.As = mov
 		p.From.Type = obj.TYPE_ADDR
 	}
-	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
 		// $MOV $sym, Rx becomes $MOV sym@GOT, Rx
 		// $MOV $sym+<off>, Rx becomes $MOV sym@GOT, Rx; $LEA <off>(Rx), Rx
 		// On 386 only, more complicated things like PUSHL $sym become $MOV sym@GOT, CX; PUSHL CX
@@ -430,12 +430,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	// MOVx sym, Ry becomes $MOV sym@GOT, R15; MOVx (R15), Ry
 	// MOVx Ry, sym becomes $MOV sym@GOT, R15; MOVx Ry, (R15)
 	// An addition may be inserted between the two MOVs if there is an offset.
-	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
-		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
 		}
 		source = &p.From
-	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 		source = &p.To
 	} else {
 		return
@@ -445,7 +445,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 		// to a PLT, so make sure the GOT pointer is loaded into BX.
 		// RegTo2 is set on the replacement call insn to stop it being
 		// processed when it is in turn passed to progedit.
-		if p.Mode == 64 || (p.To.Sym != nil && p.To.Sym.Local) || p.RegTo2 != 0 {
+		if p.Mode == 64 || (p.To.Sym != nil && p.To.Sym.Local()) || p.RegTo2 != 0 {
 			return
 		}
 		p1 := obj.Appendp(ctxt, p)
@@ -564,7 +564,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
 	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
 	q.To.Type = obj.TYPE_MEM
 	q.To.Name = obj.NAME_EXTERN
-	q.To.Sym.Local = true
+	q.To.Sym.Set(obj.AttrLocal, true)
 	r.As = p.As
 	r.Scond = p.Scond
 	r.From = p.From
@@ -1014,7 +1014,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.From.Reg = REG_SP
 		indir_cx(ctxt, p, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if ctxt.Cursym.Cfunc {
+		if ctxt.Cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 	} else if framesize <= obj.StackBig {
@@ -1036,7 +1036,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.From.Reg = REG_AX
 		indir_cx(ctxt, p, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if ctxt.Cursym.Cfunc {
+		if ctxt.Cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 	} else {
@@ -1060,7 +1060,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.As = mov
 		indir_cx(ctxt, p, &p.From)
 		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if ctxt.Cursym.Cfunc {
+		if ctxt.Cursym.CFunc() {
 			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 		p.To.Type = obj.TYPE_REG
@@ -1137,7 +1137,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	call.To.Name = obj.NAME_EXTERN
 	morestack := "runtime.morestack"
 	switch {
-	case ctxt.Cursym.Cfunc:
+	case ctxt.Cursym.CFunc():
 		morestack = "runtime.morestackc"
 	case ctxt.Cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
 		morestack = "runtime.morestack_noctxt"

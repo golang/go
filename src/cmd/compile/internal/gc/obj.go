@@ -299,7 +299,7 @@ func stringsym(s string) (data *obj.LSym) {
 
 	symdata := obj.Linklookup(Ctxt, symdataname, 0)
 
-	if !symdata.Seenglobl {
+	if !symdata.SeenGlobl() {
 		// string data
 		off := dsnameLSym(symdata, 0, s)
 		ggloblLSym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)

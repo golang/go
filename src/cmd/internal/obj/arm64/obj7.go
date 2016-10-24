@@ -57,7 +57,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	p.From.Type = obj.TYPE_MEM
 	p.From.Reg = REGG
 	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-	if ctxt.Cursym.Cfunc {
+	if ctxt.Cursym.CFunc() {
 		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
@@ -205,7 +205,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	call.To.Type = obj.TYPE_BRANCH
 	morestack := "runtime.morestack"
 	switch {
-	case ctxt.Cursym.Cfunc:
+	case ctxt.Cursym.CFunc():
 		morestack = "runtime.morestackc"
 	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
 		morestack = "runtime.morestack_noctxt"
@@ -267,7 +267,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			s.Size = 4
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
-			p.From.Sym.Local = true
+			p.From.Sym.Set(obj.AttrLocal, true)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
@@ -280,7 +280,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
-			p.From.Sym.Local = true
+			p.From.Sym.Set(obj.AttrLocal, true)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
@@ -361,7 +361,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
 	// internally defined symbols.
-	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
 		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
 		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; ADD <off>, Rx
 		if p.As != AMOVD {
@@ -388,12 +388,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	// MOVx sym, Ry becomes MOVD sym@GOT, REGTMP; MOVx (REGTMP), Ry
 	// MOVx Ry, sym becomes MOVD sym@GOT, REGTMP; MOVD Ry, (REGTMP)
 	// An addition may be inserted between the two MOVs if there is an offset.
-	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
-		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
 		}
 		source = &p.From
-	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 		source = &p.To
 	} else {
 		return
@@ -746,7 +746,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				aoffset = 0xF0
 			}
 			if cursym.Text.Mark&LEAF != 0 {
-				cursym.Leaf = true
+				cursym.Set(obj.AttrLeaf, true)
 				if ctxt.Autosize == 0 {
 					break
 				}

@@ -94,7 +94,7 @@ func ggloblsym(s *Sym, width int32, flags int16) {
 
 func ggloblLSym(s *obj.LSym, width int32, flags int16) {
 	if flags&obj.LOCAL != 0 {
-		s.Local = true
+		s.Set(obj.AttrLocal, true)
 		flags &^= obj.LOCAL
 	}
 	Ctxt.Globl(s, int64(width), int(flags))
