@@ -1295,7 +1295,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 	if err != nil {
 		t.Fatal(err)
 	}
-	bugs := filepath.Join(root, "bugs")
+	bugs := filepath.Join(root, "fixedbugs")
 	ken := filepath.Join(root, "ken")
 	seenBugs := false
 	seenKen := false
@@ -1310,7 +1310,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 			return filepath.SkipDir
 		case ken:
 			if !seenBugs {
-				t.Fatal("filepath.Walk out of order - ken before bugs")
+				t.Fatal("filepath.Walk out of order - ken before fixedbugs")
 			}
 			seenKen = true
 		}
