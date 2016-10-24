@@ -222,12 +222,12 @@ func (z *Float) pow5(n uint64) *Float {
 //
 //	number   = [ sign ] [ prefix ] mantissa [ exponent ] | infinity .
 //	sign     = "+" | "-" .
-//      prefix   = "0" ( "x" | "X" | "b" | "B" ) .
+//	prefix   = "0" ( "x" | "X" | "b" | "B" ) .
 //	mantissa = digits | digits "." [ digits ] | "." digits .
 //	exponent = ( "E" | "e" | "p" ) [ sign ] digits .
 //	digits   = digit { digit } .
 //	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
-//      infinity = [ sign ] ( "inf" | "Inf" ) .
+//	infinity = [ sign ] ( "inf" | "Inf" ) .
 //
 // The base argument must be 0, 2, 10, or 16. Providing an invalid base
 // argument will lead to a run-time panic.
