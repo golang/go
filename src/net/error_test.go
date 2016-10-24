@@ -521,6 +521,10 @@ third:
 	if isPlatformError(nestedErr) {
 		return nil
 	}
+	switch nestedErr {
+	case os.ErrClosed: // for Plan 9
+		return nil
+	}
 	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
 }
 
