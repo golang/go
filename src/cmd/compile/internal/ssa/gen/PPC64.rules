@@ -267,6 +267,9 @@
 (OrB x y) -> (OR x y)
 (Not x) -> (XORconst [1] x)
 
+// Use ANDN for AND x NOT y
+(AND x (XORconst [-1] y)) -> (ANDN x y)
+
 // Lowering comparisons
 (EqB x y)  -> (ANDconst [1] (EQV x y))
 // Sign extension dependence on operand sign sets up for sign/zero-extension elision later
