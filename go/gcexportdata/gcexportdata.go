@@ -25,6 +25,7 @@ package gcexportdata // import "golang.org/x/tools/go/gcexportdata"
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"go/token"
 	"go/types"
@@ -76,6 +77,13 @@ func Read(in io.Reader, fset *token.FileSet, imports map[string]*types.Package, 
 	if err != nil {
 		return nil, fmt.Errorf("reading export data for %q: %v", path, err)
 	}
+
+	// The App Engine Go runtime v1.6 uses the old export data format.
+	// TODO(adonovan): delete once v1.7 has been around for a while.
+	if bytes.HasPrefix(data, []byte("package ")) {
+		return gcimporter.ImportData(imports, path, path, bytes.NewReader(data))
+	}
+
 	_, pkg, err := gcimporter.BImportData(fset, imports, data, path)
 	return pkg, err
 }
