@@ -335,6 +335,7 @@ func stackalloc(n uint32) (stack, []stkbar) {
 	// Compute the size of stack barrier array.
 	maxstkbar := gcMaxStackBarriers(int(n))
 	nstkbar := unsafe.Sizeof(stkbar{}) * uintptr(maxstkbar)
+	var stkbarSlice slice
 
 	if debug.efence != 0 || stackFromSystem != 0 {
 		v := sysAlloc(round(uintptr(n), _PageSize), &memstats.stacks_sys)
@@ -342,7 +343,9 @@ func stackalloc(n uint32) (stack, []stkbar) {
 			throw("out of memory (stackalloc)")
 		}
 		top := uintptr(n) - nstkbar
-		stkbarSlice := slice{add(v, top), 0, maxstkbar}
+		if maxstkbar != 0 {
+			stkbarSlice = slice{add(v, top), 0, maxstkbar}
+		}
 		return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
 	}
 
@@ -410,7 +413,9 @@ func stackalloc(n uint32) (stack, []stkbar) {
 		print("  allocated ", v, "\n")
 	}
 	top := uintptr(n) - nstkbar
-	stkbarSlice := slice{add(v, top), 0, maxstkbar}
+	if maxstkbar != 0 {
+		stkbarSlice = slice{add(v, top), 0, maxstkbar}
+	}
 	return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
 }
 
