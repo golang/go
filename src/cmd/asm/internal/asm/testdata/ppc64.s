@@ -594,6 +594,15 @@ label1:
 //	}
 	RLWMI	R1, R2, 4, 5, R3 // RLWMI	R1, R2, $201326592, R3
 
+
+// opcodes added with constant shift counts, not masks
+
+	RLDICR	$3, R2, $24, R4
+
+	RLDICL	$1, R2, $61, R6
+
+	RLDIMI  $7, R2, $52, R7
+
 //
 // load/store multiple
 //
