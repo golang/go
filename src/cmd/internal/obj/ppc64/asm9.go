@@ -139,6 +139,8 @@ var optab = []Optab{
 	{ARLDC, C_SCON, C_REG, C_LCON, C_REG, 29, 4, 0},
 	{ARLDCL, C_SCON, C_REG, C_LCON, C_REG, 29, 4, 0},
 	{ARLDCL, C_REG, C_REG, C_LCON, C_REG, 14, 4, 0},
+	{ARLDICL, C_REG, C_REG, C_LCON, C_REG, 14, 4, 0},
+	{ARLDICL, C_SCON, C_REG, C_LCON, C_REG, 14, 4, 0},
 	{ARLDCL, C_REG, C_NONE, C_LCON, C_REG, 14, 4, 0},
 	{AFADD, C_FREG, C_NONE, C_NONE, C_FREG, 2, 4, 0},
 	{AFADD, C_FREG, C_FREG, C_NONE, C_FREG, 2, 4, 0},
@@ -1484,6 +1486,8 @@ func buildop(ctxt *obj.Link) {
 
 		case ARLDMI:
 			opset(ARLDMICC, r0)
+			opset(ARLDIMI, r0)
+			opset(ARLDIMICC, r0)
 
 		case ARLDC:
 			opset(ARLDCCC, r0)
@@ -1492,6 +1496,11 @@ func buildop(ctxt *obj.Link) {
 			opset(ARLDCR, r0)
 			opset(ARLDCLCC, r0)
 			opset(ARLDCRCC, r0)
+
+		case ARLDICL:
+			opset(ARLDICLCC, r0)
+			opset(ARLDICR, r0)
+			opset(ARLDICRCC, r0)
 
 		case AFMOVD:
 			opset(AFMOVDCC, r0)
@@ -2107,21 +2116,33 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(p.To.Reg)
 		}
 		d := vregoff(ctxt, p.From3)
-		var mask [2]uint8
-		maskgen64(ctxt, p, mask[:], uint64(d))
 		var a int
 		switch p.As {
+
+		// These opcodes expect a mask operand that has to be converted into the
+		// appropriate operand.  The way these were defined, not all valid masks are possible.
+		// Left here for compatibility in case they were used or generated.
 		case ARLDCL, ARLDCLCC:
+			var mask [2]uint8
+			maskgen64(ctxt, p, mask[:], uint64(d))
+
 			a = int(mask[0]) /* MB */
 			if mask[1] != 63 {
 				ctxt.Diag("invalid mask for rotate: %x (end != bit 63)\n%v", uint64(d), p)
 			}
 
 		case ARLDCR, ARLDCRCC:
+			var mask [2]uint8
+			maskgen64(ctxt, p, mask[:], uint64(d))
+
 			a = int(mask[1]) /* ME */
 			if mask[0] != 0 {
 				ctxt.Diag("invalid mask for rotate: %x (start != 0)\n%v", uint64(d), p)
 			}
+
+		// These opcodes use a shift count like the ppc64 asm, no mask conversion done
+		case ARLDICR, ARLDICRCC, ARLDICL, ARLDICLCC:
+			a = int(d)
 
 		default:
 			ctxt.Diag("unexpected op in rldc case\n%v", p)
@@ -2403,18 +2424,32 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		v := regoff(ctxt, &p.From)
 
 		d := vregoff(ctxt, p.From3)
-		var mask [2]uint8
-		maskgen64(ctxt, p, mask[:], uint64(d))
-		if int32(mask[1]) != (63 - v) {
-			ctxt.Diag("invalid mask for shift: %x (shift %d)\n%v", uint64(d), v, p)
-		}
-		o1 = AOP_RRR(opirr(ctxt, p.As), uint32(p.Reg), uint32(p.To.Reg), (uint32(v) & 0x1F))
-		o1 |= (uint32(mask[0]) & 31) << 6
-		if v&0x20 != 0 {
-			o1 |= 1 << 1
-		}
-		if mask[0]&0x20 != 0 {
-			o1 |= 1 << 5 /* mb[5] is top bit */
+
+		// Original opcodes had mask operands which had to be converted to a shift count as expected by
+		// the ppc64 asm.
+		switch p.As {
+		case ARLDMI, ARLDMICC:
+			var mask [2]uint8
+			maskgen64(ctxt, p, mask[:], uint64(d))
+			if int32(mask[1]) != (63 - v) {
+				ctxt.Diag("invalid mask for shift: %x (shift %d)\n%v", uint64(d), v, p)
+			}
+			o1 = AOP_RRR(opirr(ctxt, p.As), uint32(p.Reg), uint32(p.To.Reg), (uint32(v) & 0x1F))
+			o1 |= (uint32(mask[0]) & 31) << 6
+			if v&0x20 != 0 {
+				o1 |= 1 << 1
+			}
+			if mask[0]&0x20 != 0 {
+				o1 |= 1 << 5 /* mb[5] is top bit */
+			}
+
+		// Opcodes with shift count operands.
+		case ARLDIMI, ARLDIMICC:
+			o1 = AOP_RRR(opirr(ctxt, p.As), uint32(p.Reg), uint32(p.To.Reg), (uint32(v) & 0x1F))
+			o1 |= (uint32(d) & 31) << 6
+			if v&0x20 != 0 {
+				o1 |= 1 << 1
+			}
 		}
 
 	case 31: /* dword */
@@ -3340,6 +3375,15 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 	case ARLDCR:
 		return OPVCC(30, 9, 0, 0)
 
+	case ARLDICL:
+		return OPVCC(30, 0, 0, 0)
+	case ARLDICLCC:
+		return OPVCC(30, 0, 0, 1)
+	case ARLDICR:
+		return OPVCC(30, 0, 0, 0) | 2<<1 // rldicr
+	case ARLDICRCC:
+		return OPVCC(30, 0, 0, 1) | 2<<1 // rldicr.
+
 	case ASYSCALL:
 		return OPVCC(17, 1, 0, 0)
 
@@ -3771,7 +3815,10 @@ func opirr(ctxt *obj.Link, a obj.As) uint32 {
 		return OPVCC(30, 0, 0, 0) | 3<<2 /* rldimi */
 	case ARLDMICC:
 		return OPVCC(30, 0, 0, 1) | 3<<2
-
+	case ARLDIMI:
+		return OPVCC(30, 0, 0, 0) | 3<<2 /* rldimi */
+	case ARLDIMICC:
+		return OPVCC(30, 0, 0, 1) | 3<<2
 	case ARLWNM:
 		return OPVCC(21, 0, 0, 0) /* rlwinm */
 	case ARLWNMCC:
