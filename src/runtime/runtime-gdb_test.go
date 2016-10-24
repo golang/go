@@ -68,14 +68,18 @@ func checkGdbPython(t *testing.T) {
 const helloSource = `
 package main
 import "fmt"
+var gslice []string
 func main() {
 	mapvar := make(map[string]string,5)
 	mapvar["abc"] = "def"
 	mapvar["ghi"] = "jkl"
 	strvar := "abc"
 	ptrvar := &strvar
-	fmt.Println("hi") // line 10
+	slicevar := make([]string, 0, 16)
+	slicevar = append(slicevar, mapvar["abc"])
+	fmt.Println("hi") // line 12
 	_ = ptrvar
+	gslice = slicevar
 }
 `
 
@@ -119,6 +123,9 @@ func TestGdbPython(t *testing.T) {
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN print strvar\n",
 		"-ex", "print strvar",
+		"-ex", "echo END\n",
+		"-ex", "echo BEGIN info locals\n",
+		"-ex", "info locals",
 		"-ex", "echo END\n",
 		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
 		"-ex", "echo BEGIN goroutine 2 bt\n",
@@ -166,6 +173,15 @@ func TestGdbPython(t *testing.T) {
 	strVarRe := regexp.MustCompile(`\Q = "abc"\E$`)
 	if bl := blocks["print strvar"]; !strVarRe.MatchString(bl) {
 		t.Fatalf("print strvar failed: %s", bl)
+	}
+
+	// Issue 16338: ssa decompose phase can split a structure into
+	// a collection of scalar vars holding the fields. In such cases
+	// the DWARF variable location expression should be of the
+	// form "var.field" and not just "field".
+	infoLocalsRe := regexp.MustCompile(`^slicevar.len = `)
+	if bl := blocks["info locals"]; !infoLocalsRe.MatchString(bl) {
+		t.Fatalf("info locals failed: %s", bl)
 	}
 
 	btGoroutineRe := regexp.MustCompile(`^#0\s+runtime.+at`)

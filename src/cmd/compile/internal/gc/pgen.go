@@ -423,6 +423,7 @@ func compile(fn *Node) {
 			fallthrough
 		case PPARAM, PPARAMOUT:
 			p := Gins(obj.ATYPE, n, nil)
+			p.From.Sym = obj.Linklookup(Ctxt, n.Sym.Name, 0)
 			p.To.Type = obj.TYPE_MEM
 			p.To.Name = obj.NAME_EXTERN
 			p.To.Sym = Linksym(ngotype(n))
