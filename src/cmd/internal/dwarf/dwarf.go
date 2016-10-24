@@ -588,11 +588,6 @@ func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size 
 		}
 		names[n] = true
 
-		// Drop the package prefix from locals and arguments.
-		if i := strings.LastIndex(n, "."); i >= 0 {
-			n = n[i+1:]
-		}
-
 		Uleb128put(ctxt, s, int64(v.Abbrev))
 		putattr(ctxt, s, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
 		loc := append(encbuf[:0], DW_OP_call_frame_cfa)
