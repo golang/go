@@ -1077,9 +1077,9 @@ func makefuncsym(s *types.Sym) {
 	if s.IsBlank() {
 		return
 	}
-	if compiling_runtime && (s.Name == "getg" || s.Name == "getclosureptr") {
-		// runtime.getg() and getclosureptr are not real functions and so do not
-		// get funcsyms.
+	if compiling_runtime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc") {
+		// runtime.getg(), getclosureptr(), and getcallerpc() are
+		// not real functions and so do not get funcsyms.
 		return
 	}
 	if _, existed := s.Pkg.LookupOK(funcsymname(s)); !existed {

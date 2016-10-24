@@ -559,12 +559,6 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	MOVL	0, AX
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$8-12
-	MOVL	argp+0(FP),AX		// addr of first arg
-	MOVL	-8(AX),AX		// get calling pc
-	MOVL	AX, ret+8(FP)
-	RET
-
 // int64 runtime·cputicks(void)
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	RDTSC

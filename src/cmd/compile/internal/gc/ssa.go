@@ -2584,6 +2584,11 @@ func init() {
 		},
 		all...)
 
+	addF("runtime", "getcallerpc",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
+		}, sys.AMD64, sys.I386)
+
 	/******** runtime/internal/sys ********/
 	addF("runtime/internal/sys", "Ctz32",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
@@ -2614,7 +2619,6 @@ func init() {
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
-
 	addF("runtime/internal/atomic", "Load64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], s.mem())
