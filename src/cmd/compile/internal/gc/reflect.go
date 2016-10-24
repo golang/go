@@ -1350,7 +1350,7 @@ ok:
 			keep = true
 		}
 	}
-	s.Lsym.MakeTypelink = keep
+	s.Lsym.Set(obj.AttrMakeTypelink, keep)
 
 	return s
 }

@@ -1684,7 +1684,7 @@ func onebitwritesymbol(arr []bvec, sym *Sym) {
 	duint32(sym, 0, uint32(i)) // number of bitmaps
 	ls := Linksym(sym)
 	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
-	ls.Dupok = true
+	ls.Set(obj.AttrDuplicateOK, true)
 	sv := obj.SymVer{Name: ls.Name, Version: 0}
 	ls2, ok := Ctxt.Hash[sv]
 	if ok {

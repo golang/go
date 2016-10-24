@@ -387,7 +387,7 @@ func compile(fn *Node) {
 		ptxt.From3.Offset |= obj.REFLECTMETHOD
 	}
 	if fn.Func.Pragma&Systemstack != 0 {
-		ptxt.From.Sym.Cfunc = true
+		ptxt.From.Sym.Set(obj.AttrCFunc, true)
 	}
 
 	// Clumsy but important.

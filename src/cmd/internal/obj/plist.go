@@ -86,20 +86,20 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				if s.Text != nil {
 					log.Fatalf("duplicate TEXT for %s", s.Name)
 				}
-				if s.Onlist {
+				if s.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
-				s.Onlist = true
+				s.Set(AttrOnList, true)
 				text = append(text, s)
 				flag := int(p.From3Offset())
 				if flag&DUPOK != 0 {
-					s.Dupok = true
+					s.Set(AttrDuplicateOK, true)
 				}
 				if flag&NOSPLIT != 0 {
-					s.Nosplit = true
+					s.Set(AttrNoSplit, true)
 				}
 				if flag&REFLECTMETHOD != 0 {
-					s.ReflectMethod = true
+					s.Set(AttrReflectMethod, true)
 				}
 				s.Type = STEXT
 				s.Text = p
@@ -182,21 +182,21 @@ func flushplist(ctxt *Link, freeProgs bool) {
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
-	if s.Seenglobl {
+	if s.SeenGlobl() {
 		fmt.Printf("duplicate %v\n", s)
 	}
-	s.Seenglobl = true
-	if s.Onlist {
+	s.Set(AttrSeenGlobl, true)
+	if s.OnList() {
 		log.Fatalf("symbol %s listed multiple times", s.Name)
 	}
-	s.Onlist = true
+	s.Set(AttrOnList, true)
 	ctxt.Data = append(ctxt.Data, s)
 	s.Size = size
 	if s.Type == 0 || s.Type == SXREF {
 		s.Type = SBSS
 	}
 	if flag&DUPOK != 0 {
-		s.Dupok = true
+		s.Set(AttrDuplicateOK, true)
 	}
 	if flag&RODATA != 0 {
 		s.Type = SRODATA
