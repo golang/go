@@ -120,9 +120,9 @@ func tanSeries(z complex128) float64 {
 	rn := 0.0
 	d := 0.0
 	for {
-		rn += 1
+		rn++
 		f *= rn
-		rn += 1
+		rn++
 		f *= rn
 		x2 *= x
 		y2 *= y
@@ -130,9 +130,9 @@ func tanSeries(z complex128) float64 {
 		t /= f
 		d += t
 
-		rn += 1
+		rn++
 		f *= rn
-		rn += 1
+		rn++
 		f *= rn
 		x2 *= x
 		y2 *= y
