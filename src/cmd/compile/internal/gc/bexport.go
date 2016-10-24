@@ -1185,9 +1185,6 @@ func (p *exporter) expr(n *Node) {
 	// case ODDDARG:
 	//	unimplemented - handled by default case
 
-	// case OREGISTER:
-	//	unimplemented - handled by default case
-
 	case OLITERAL:
 		if n.Val().Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
 			p.expr(n.Orig)

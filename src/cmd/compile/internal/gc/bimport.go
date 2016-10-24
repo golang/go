@@ -837,9 +837,6 @@ func (p *importer) node() *Node {
 	// case ODDDARG:
 	//	unimplemented
 
-	// case OREGISTER:
-	//	unimplemented
-
 	case OLITERAL:
 		typ := p.typ()
 		n := nodlit(p.value(typ))

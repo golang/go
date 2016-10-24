@@ -403,7 +403,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OCHECKNIL,   // always followed by a read.
 		OCLOSUREVAR, // immutable pointer to captured variable
 		ODOTMETH,    // either part of CALLMETH or CALLPART (lowered to PTRLIT)
-		OINDREG,     // at this stage, only n(SP) nodes from nodarg
+		OINDREGSP,   // at this stage, only n(SP) nodes from nodarg
 		ODCL,        // declarations (without value) cannot be races
 		ODCLCONST,
 		ODCLTYPE,

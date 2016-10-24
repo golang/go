@@ -556,7 +556,7 @@ func (s *state) stmt(n *Node) {
 		// Make a fake node to mimic loading return value, ONLY for write barrier test.
 		// This is future-proofing against non-scalar 2-result intrinsics.
 		// Currently we only have scalar ones, which result in no write barrier.
-		fakeret := &Node{Op: OINDREG, Reg: int16(Thearch.REGSP)}
+		fakeret := &Node{Op: OINDREGSP}
 		s.assign(n.List.First(), v1, needwritebarrier(n.List.First(), fakeret), false, n.Lineno, 0, false)
 		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second(), fakeret), false, n.Lineno, 0, false)
 		return
@@ -1921,11 +1921,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// Note we know the volatile result is false because you can't write &f() in Go.
 		return a
 
-	case OINDREG:
-		if int(n.Reg) != Thearch.REGSP {
-			s.Fatalf("OINDREG of non-SP register %s in expr: %v", obj.Rconv(int(n.Reg)), n)
-			return nil
-		}
+	case OINDREGSP:
 		addr := s.entryNewValue1I(ssa.OpOffPtr, ptrto(n.Type), n.Xoffset, s.sp)
 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
 
@@ -3018,13 +3014,9 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
 			s.Fatalf("variable address class %v not implemented", classnames[n.Class])
 			return nil, false
 		}
-	case OINDREG:
-		// indirect off a register
+	case OINDREGSP:
+		// indirect off REGSP
 		// used for storing/loading arguments/returns to/from callees
-		if int(n.Reg) != Thearch.REGSP {
-			s.Fatalf("OINDREG of non-SP register %s in addr: %v", obj.Rconv(int(n.Reg)), n)
-			return nil, false
-		}
 		return s.entryNewValue1I(ssa.OpOffPtr, t, n.Xoffset, s.sp), true
 	case OINDEX:
 		if n.Left.Type.IsSlice() {

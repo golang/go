@@ -1160,7 +1160,7 @@ func ullmancalc(n *Node) {
 	}
 
 	switch n.Op {
-	case OREGISTER, OLITERAL, ONAME:
+	case OLITERAL, ONAME:
 		ul = 1
 		if n.Class == PAUTOHEAP {
 			ul++

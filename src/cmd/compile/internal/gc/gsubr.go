@@ -279,8 +279,7 @@ func nodarg(t interface{}, fp int) *Node {
 		Fatalf("bad fp")
 
 	case 0: // preparing arguments for call
-		n.Op = OINDREG
-		n.Reg = int16(Thearch.REGSP)
+		n.Op = OINDREGSP
 		n.Xoffset += Ctxt.FixedFrameSize()
 
 	case 1: // reading arguments inside call
