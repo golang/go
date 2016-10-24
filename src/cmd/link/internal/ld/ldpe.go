@@ -117,9 +117,14 @@ func (f *peBiobuf) ReadAt(p []byte, off int64) (int, error) {
 	return n, nil
 }
 
-// TODO(brainman): remove 'goto bad' everywhere inside ldpe
-
 func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
+	err := ldpeError(ctxt, input, pkg, length, pn)
+	if err != nil {
+		Errorf(nil, "%s: malformed pe file: %v", pn, err)
+	}
+}
+
+func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) error {
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f ldpe %s\n", obj.Cputime(), pn)
 	}
@@ -128,8 +133,6 @@ func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 
 	sectsyms := make(map[*pe.Section]*Symbol)
 	sectdata := make(map[*pe.Section][]byte)
-
-	var err error
 
 	// Some input files are archives containing multiple of
 	// object files, and pe.NewFile seeks to the start of
@@ -140,7 +143,7 @@ func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 	// TODO: replace pe.NewFile with pe.Load (grep for "add Load function" in debug/pe for details)
 	f, err := pe.NewFile(sr)
 	if err != nil {
-		goto bad
+		return err
 	}
 	defer f.Close()
 
@@ -158,10 +161,9 @@ func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 
-		data, err2 := sect.Data()
-		if err2 != nil {
-			err = err2
-			goto bad
+		data, err := sect.Data()
+		if err != nil {
+			return err
 		}
 		sectdata[sect] = data
 
@@ -182,8 +184,7 @@ func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 			s.Type = obj.STEXT
 
 		default:
-			err = fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
-			goto bad
+			return fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
 		}
 
 		s.P = data
@@ -215,22 +216,19 @@ func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 		for j, r := range rsect.Relocs {
 			rp := &rs[j]
 			if int(r.SymbolTableIndex) >= len(f.COFFSymbols) {
-				err = fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
-				goto bad
+				return fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
-			gosym, err2 := readpesym(ctxt, f, pesym, sectsyms, localSymVersion)
-			if err2 != nil {
-				err = err2
-				goto bad
+			gosym, err := readpesym(ctxt, f, pesym, sectsyms, localSymVersion)
+			if err != nil {
+				return err
 			}
 			if gosym == nil {
-				name, err2 := pesym.FullName(f.StringTable)
-				if err2 != nil {
+				name, err := pesym.FullName(f.StringTable)
+				if err != nil {
 					name = string(pesym.Name[:])
 				}
-				err = fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
-				goto bad
+				return fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
 			}
 
 			rp.Sym = gosym
@@ -284,10 +282,9 @@ func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 
 		numaux = int(pesym.NumberOfAuxSymbols)
 
-		name, err2 := pesym.FullName(f.StringTable)
-		if err2 != nil {
-			err = err2
-			goto bad
+		name, err := pesym.FullName(f.StringTable)
+		if err != nil {
+			return err
 		}
 		if name == "" {
 			continue
@@ -309,10 +306,9 @@ func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 			}
 		}
 
-		s, err2 := readpesym(ctxt, f, pesym, sectsyms, localSymVersion)
-		if err2 != nil {
-			err = err2
-			goto bad
+		s, err := readpesym(ctxt, f, pesym, sectsyms, localSymVersion)
+		if err != nil {
+			return err
 		}
 
 		if pesym.SectionNumber == 0 { // extern
@@ -335,7 +331,7 @@ func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 		}
 
 		if sect == nil {
-			return
+			return nil
 		}
 
 		if s.Outer != nil {
@@ -386,10 +382,7 @@ func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 		}
 	}
 
-	return
-
-bad:
-	Errorf(nil, "%s: malformed pe file: %v", pn, err)
+	return nil
 }
 
 func issect(s *pe.COFFSymbol) bool {
