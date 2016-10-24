@@ -546,7 +546,7 @@ func (h heapBits) setCheckmarked(size uintptr) {
 	atomic.Or8(h.bitp, bitScan<<(heapBitsShift+h.shift))
 }
 
-// bulkBarrierPreWrite executes writebarrierptr_prewrite
+// bulkBarrierPreWrite executes writebarrierptr_prewrite1
 // for every pointer slot in the memory range [src, src+size),
 // using pointer/scalar information from [dst, dst+size).
 // This executes the write barriers necessary before a memmove.
@@ -557,6 +557,8 @@ func (h heapBits) setCheckmarked(size uintptr) {
 // calling memmove(dst, src, size). This function is marked nosplit
 // to avoid being preempted; the GC must not stop the goroutine
 // between the memmove and the execution of the barriers.
+// The caller is also responsible for cgo pointer checks if this
+// may be writing Go pointers into non-Go memory.
 //
 // The pointer bitmap is not maintained for allocations containing
 // no pointers at all; any caller of bulkBarrierPreWrite must first
@@ -620,7 +622,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 		if h.isPointer() {
 			dstx := (*uintptr)(unsafe.Pointer(dst + i))
 			srcx := (*uintptr)(unsafe.Pointer(src + i))
-			writebarrierptr_prewrite(dstx, *srcx)
+			writebarrierptr_prewrite1(dstx, *srcx)
 		}
 		h = h.next()
 	}
@@ -652,7 +654,7 @@ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
 		if *bits&mask != 0 {
 			dstx := (*uintptr)(unsafe.Pointer(dst + i))
 			srcx := (*uintptr)(unsafe.Pointer(src + i))
-			writebarrierptr_prewrite(dstx, *srcx)
+			writebarrierptr_prewrite1(dstx, *srcx)
 		}
 		mask <<= 1
 	}
