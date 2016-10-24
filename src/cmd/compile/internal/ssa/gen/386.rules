@@ -383,6 +383,7 @@
 (NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
 (GetG mem) -> (LoweredGetG mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
+(GetCallerPC) -> (LoweredGetCallerPC)
 (Addr {sym} base) -> (LEAL {sym} base)
 
 // block rewrites

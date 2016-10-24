@@ -200,7 +200,9 @@ func publicationBarrier()
 // getcallersp returns the stack pointer (SP) of its caller's caller.
 // For both, the argp must be a pointer to the caller's first function argument.
 // The implementation may or may not use argp, depending on
-// the architecture.
+// the architecture. The implementation may be a compiler
+// intrinsic; there is not necessarily code implementing this
+// on every platform.
 //
 // For example:
 //

@@ -849,12 +849,6 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 	INT	$3
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
-	MOVL	argp+0(FP),AX		// addr of first arg
-	MOVL	-4(AX),AX		// get calling pc
-	MOVL	AX, ret+4(FP)
-	RET
-
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	CMPB	runtime·support_sse2(SB), $1

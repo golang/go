@@ -329,6 +329,8 @@ func rewriteValue386(v *Value) bool {
 		return rewriteValue386_OpGeq8_0(v)
 	case OpGeq8U:
 		return rewriteValue386_OpGeq8U_0(v)
+	case OpGetCallerPC:
+		return rewriteValue386_OpGetCallerPC_0(v)
 	case OpGetClosurePtr:
 		return rewriteValue386_OpGetClosurePtr_0(v)
 	case OpGetG:
@@ -15049,6 +15051,15 @@ func rewriteValue386_OpGeq8U_0(v *Value) bool {
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGetCallerPC_0(v *Value) bool {
+	// match: (GetCallerPC)
+	// cond:
+	// result: (LoweredGetCallerPC)
+	for {
+		v.reset(Op386LoweredGetCallerPC)
 		return true
 	}
 }

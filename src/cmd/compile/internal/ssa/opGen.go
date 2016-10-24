@@ -396,6 +396,7 @@ const (
 	Op386InvertFlags
 	Op386LoweredGetG
 	Op386LoweredGetClosurePtr
+	Op386LoweredGetCallerPC
 	Op386LoweredNilCheck
 	Op386MOVLconvert
 	Op386FlagEQ
@@ -653,6 +654,7 @@ const (
 	OpAMD64InvertFlags
 	OpAMD64LoweredGetG
 	OpAMD64LoweredGetClosurePtr
+	OpAMD64LoweredGetCallerPC
 	OpAMD64LoweredNilCheck
 	OpAMD64MOVQconvert
 	OpAMD64MOVLconvert
@@ -1905,6 +1907,7 @@ const (
 	OpNilCheck
 	OpGetG
 	OpGetClosurePtr
+	OpGetCallerPC
 	OpPtrIndex
 	OpOffPtr
 	OpSliceMake
@@ -4283,6 +4286,15 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 4}, // DX
+			},
+		},
+	},
+	{
+		name:   "LoweredGetCallerPC",
+		argLen: 0,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -7911,6 +7923,15 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 4}, // DX
+			},
+		},
+	},
+	{
+		name:   "LoweredGetCallerPC",
+		argLen: 0,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -22831,6 +22852,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "GetClosurePtr",
+		argLen:  0,
+		generic: true,
+	},
+	{
+		name:    "GetCallerPC",
 		argLen:  0,
 		generic: true,
 	},

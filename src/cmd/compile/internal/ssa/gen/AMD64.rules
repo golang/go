@@ -482,6 +482,7 @@
 (NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
 (GetG mem) -> (LoweredGetG mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
+(GetCallerPC) -> (LoweredGetCallerPC)
 (Addr {sym} base) && config.PtrSize == 8 -> (LEAQ {sym} base)
 (Addr {sym} base) && config.PtrSize == 4 -> (LEAL {sym} base)
 
