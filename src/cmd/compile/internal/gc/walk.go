@@ -128,8 +128,8 @@ func adjustargs(n *Node, adjust int) {
 			continue
 		}
 
-		if lhs.Op != OINDREG {
-			yyerror("call argument store does not use OINDREG")
+		if lhs.Op != OINDREGSP {
+			yyerror("call argument store does not use OINDREGSP")
 		}
 
 		// can't really check this in machine-indep code.
@@ -512,7 +512,7 @@ opswitch:
 
 	case OTYPE,
 		ONONAME,
-		OINDREG,
+		OINDREGSP,
 		OEMPTY,
 		OGETG:
 
@@ -2166,7 +2166,7 @@ func callnew(t *Type) *Node {
 
 func iscallret(n *Node) bool {
 	n = outervalue(n)
-	return n.Op == OINDREG && n.Reg == int16(Thearch.REGSP)
+	return n.Op == OINDREGSP
 }
 
 func isstack(n *Node) bool {
@@ -2182,8 +2182,8 @@ func isstack(n *Node) bool {
 	}
 
 	switch n.Op {
-	case OINDREG:
-		return n.Reg == int16(Thearch.REGSP)
+	case OINDREGSP:
+		return true
 
 	case ONAME:
 		switch n.Class {

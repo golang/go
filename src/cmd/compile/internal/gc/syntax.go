@@ -35,16 +35,13 @@ type Node struct {
 
 	// Various. Usually an offset into a struct. For example:
 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
-	// - ODOT, ODOTPTR, and OINDREG use it to indicate offset relative to their base address.
+	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
 	// - OSTRUCTKEY uses it to store the named field's offset.
 	// - OXCASE and OXFALL use it to validate the use of fallthrough.
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
 	Lineno int32
-
-	// OREGISTER, OINDREG
-	Reg int16
 
 	Esc uint16 // EscXXX
 
@@ -472,10 +469,7 @@ const (
 	OCHECKNIL   // emit code to ensure pointer/interface not nil
 	OVARKILL    // variable is dead
 	OVARLIVE    // variable is alive
-
-	// thearch-specific registers
-	OREGISTER // a register, such as AX.
-	OINDREG   // offset plus indirect of a register, such as 8(SP).
+	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
 
 	// arch-specific opcodes
 	OCMP    // compare: ACMP.

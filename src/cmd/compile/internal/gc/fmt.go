@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"cmd/internal/obj"
 	"fmt"
 	"strconv"
 	"strings"
@@ -1138,9 +1137,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 	case ODDDARG:
 		fmt.Fprint(s, "... argument")
 
-	case OREGISTER:
-		fmt.Fprint(s, obj.Rconv(int(n.Reg)))
-
 	case OLITERAL: // this is a bit of a mess
 		if fmtmode == FErr {
 			if n.Orig != nil && n.Orig != n {
@@ -1511,8 +1507,8 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag) {
 	default:
 		fmt.Fprintf(s, "%v%j", n.Op, n)
 
-	case OREGISTER, OINDREG:
-		fmt.Fprintf(s, "%v-%v%j", n.Op, obj.Rconv(int(n.Reg)), n)
+	case OINDREGSP:
+		fmt.Fprintf(s, "%v-SP%j", n.Op, n)
 
 	case OLITERAL:
 		fmt.Fprintf(s, "%v-%v%j", n.Op, n.Val(), n)
