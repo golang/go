@@ -51,7 +51,8 @@ func ExampleRead() {
 	fmt.Printf("Package members:    %s...\n", pkg.Scope().Names()[:5])
 	println := pkg.Scope().Lookup("Println")
 	posn := fset.Position(println.Pos())
-	posn.Line = 123 // make example deterministic
+	posn.Line = 123                                 // make example deterministic
+	posn.Filename = filepath.ToSlash(posn.Filename) // make example deterministic
 	fmt.Printf("Println type:       %s\n", println.Type())
 	fmt.Printf("Println location:   %s\n", posn)
 
