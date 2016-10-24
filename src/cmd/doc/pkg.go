@@ -755,11 +755,48 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 	}
 	found := false
 	for _, typ := range types {
-		for _, meth := range typ.Methods {
-			if match(method, meth.Name) {
-				decl := meth.Decl
-				decl.Body = nil
-				pkg.emit(meth.Doc, decl)
+		if len(typ.Methods) > 0 {
+			for _, meth := range typ.Methods {
+				if match(method, meth.Name) {
+					decl := meth.Decl
+					decl.Body = nil
+					pkg.emit(meth.Doc, decl)
+					found = true
+				}
+			}
+			continue
+		}
+		// Type may be an interface. The go/doc package does not attach
+		// an interface's methods to the doc.Type. We need to dig around.
+		spec := pkg.findTypeSpec(typ.Decl, typ.Name)
+		inter, ok := spec.Type.(*ast.InterfaceType)
+		if !ok {
+			// Not an interface type.
+			// TODO? Maybe handle struct fields here.
+			continue
+		}
+		for _, iMethod := range inter.Methods.List {
+			// This is an interface, so there can be only one name.
+			// TODO: Anonymous methods (embedding)
+			if len(iMethod.Names) == 0 {
+				continue
+			}
+			name := iMethod.Names[0].Name
+			if match(method, name) {
+				// pkg.oneLineField(iMethod, 0)
+				if iMethod.Doc != nil {
+					for _, comment := range iMethod.Doc.List {
+						doc.ToText(&pkg.buf, comment.Text, "", indent, indentedWidth)
+					}
+				}
+				s := pkg.oneLineNode(iMethod.Type)
+				// Hack: s starts "func" but there is no name present.
+				// We could instead build a FuncDecl but it's not worthwhile.
+				lineComment := ""
+				if iMethod.Comment != nil {
+					lineComment = fmt.Sprintf("  %s", iMethod.Comment.List[0].Text)
+				}
+				pkg.Printf("func %s%s%s\n", name, s[4:], lineComment)
 				found = true
 			}
 		}
