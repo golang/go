@@ -152,7 +152,7 @@
 (OrB x y) -> (OR x y)
 (EqB x y) -> (XOR (MOVVconst [1]) (XOR <config.fe.TypeBool()> x y))
 (NeqB x y) -> (XOR x y)
-(Not x) -> (XOR (MOVVconst [1]) x)
+(Not x) -> (XORconst [1] x)
 
 // constants
 (Const64 [val]) -> (MOVVconst [val])
@@ -163,6 +163,8 @@
 (Const64F [val]) -> (MOVDconst [val])
 (ConstNil) -> (MOVVconst [0])
 (ConstBool [b]) -> (MOVVconst [b])
+
+(Slicemask <t> x) -> (NORconst [0] (SRAVconst <t> (SUBVconst <t> x [1]) [63]))
 
 // truncations
 // Because we ignore high parts of registers, truncates are just copies.

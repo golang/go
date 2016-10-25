@@ -101,7 +101,8 @@
 (ZeroExt16to32 x) -> (MOVWLZX x)
 
 (Signmask x) -> (SARLconst x [31])
-(Zeromask <t> x) -> (XORLconst [-1] (SBBLcarrymask <t> (CMPL x (MOVLconst [1]))))
+(Zeromask <t> x) -> (XORLconst [-1] (SBBLcarrymask <t> (CMPLconst x [1])))
+(Slicemask <t> x) -> (XORLconst [-1] (SARLconst <t> (SUBLconst <t> x [1]) [31]))
 
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.

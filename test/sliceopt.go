@@ -43,10 +43,11 @@ func s1(x **[]int, xs **string, i, j int) {
 	z = (**x)[i:0:j] // ERROR "Disproved IsSliceInBounds$"
 	z = (**x)[0:i:j] // ERROR "Proved boolean IsSliceInBounds$"
 	z = (**x)[0:]    // ERROR "slice: omit slice operation$"
-	z = (**x)[2:8]   // ERROR "Disproved Eq(32|64)$"
-	z = (**x)[2:2]   // ERROR "Disproved Eq(32|64)$" "Proved boolean IsSliceInBounds$"
-	z = (**x)[0:i]   // ERROR "Proved boolean IsSliceInBounds$"
-	z = (**x)[2:i:8] // ERROR "Disproved IsSliceInBounds$" "Proved IsSliceInBounds$" "Proved boolean IsSliceInBounds$"
+	z = (**x)[2:8]   // ERROR "Proved slicemask not needed$"
+	println(z)
+	z = (**x)[2:2]
+	z = (**x)[0:i]
+	z = (**x)[2:i:8] // ERROR "Disproved IsSliceInBounds$" "Proved IsSliceInBounds$"
 	z = (**x)[i:2:i] // ERROR "Proved IsSliceInBounds$" "Proved boolean IsSliceInBounds$"
 
 	z = z[0:i] // ERROR "Proved boolean IsSliceInBounds"

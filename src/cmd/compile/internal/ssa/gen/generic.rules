@@ -602,6 +602,11 @@
 (Trunc32to16 (And32 (Const32 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc32to16 x)
 (Trunc16to8  (And16 (Const16 [y]) x)) && y&0xFF == 0xFF -> (Trunc16to8 x)
 
+(Slicemask (Const32 [x])) && x > 0 -> (Const32 [-1])
+(Slicemask (Const32 [0]))          -> (Const32 [0])
+(Slicemask (Const64 [x])) && x > 0 -> (Const64 [-1])
+(Slicemask (Const64 [0]))          -> (Const64 [0])
+
 // Rewrite AND of consts as shifts if possible, slightly faster for 64 bit operands
 // leading zeros can be shifted left, then right
 (And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 && nto(y) >= 32

@@ -207,6 +207,7 @@
 
 (Signmask x) -> (SRAconst x [31])
 (Zeromask x) -> (SRAconst (RSBshiftRL <config.fe.TypeInt32()> x x [1]) [31]) // sign bit of uint32(x)>>1 - x
+(Slicemask <t> x) -> (MVN (SRAconst <t> (SUBconst <t> x [1]) [31]))
 
 // float <-> int conversion
 (Cvt32to32F x) -> (MOVWF x)

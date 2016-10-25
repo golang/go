@@ -652,6 +652,8 @@ func rewriteValueS390X(v *Value, config *Config) bool {
 		return rewriteValueS390X_OpSignExt8to32(v, config)
 	case OpSignExt8to64:
 		return rewriteValueS390X_OpSignExt8to64(v, config)
+	case OpSlicemask:
+		return rewriteValueS390X_OpSlicemask(v, config)
 	case OpSqrt:
 		return rewriteValueS390X_OpSqrt(v, config)
 	case OpStaticCall:
@@ -17063,6 +17065,29 @@ func rewriteValueS390X_OpSignExt8to64(v *Value, config *Config) bool {
 		x := v.Args[0]
 		v.reset(OpS390XMOVBreg)
 		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueS390X_OpSlicemask(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Slicemask <t> x)
+	// cond:
+	// result: (XOR (MOVDconst [-1]) (SRADconst <t> (SUBconst <t> x [1]) [63]))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpS390XXOR)
+		v0 := b.NewValue0(v.Line, OpS390XMOVDconst, config.fe.TypeUInt64())
+		v0.AuxInt = -1
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpS390XSRADconst, t)
+		v1.AuxInt = 63
+		v2 := b.NewValue0(v.Line, OpS390XSUBconst, t)
+		v2.AuxInt = 1
+		v2.AddArg(x)
+		v1.AddArg(v2)
+		v.AddArg(v1)
 		return true
 	}
 }
