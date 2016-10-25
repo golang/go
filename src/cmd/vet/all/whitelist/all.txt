@@ -1,5 +1,9 @@
 // Non-platform-specific vet whitelist. See readme.txt for details.
 
+// Issue 17580 (remove when fixed)
+cmd/go/go_test.go: +build comment must appear before package clause and be followed by a blank line
+
+
 // Real problems that we can't fix.
 
 // This is a bad WriteTo signature. Errors are being ignored!

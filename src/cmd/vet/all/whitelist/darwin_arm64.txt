@@ -11,3 +11,4 @@ runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyon
 runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 8(RSP) points beyond argument frame
 runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyond argument frame
 runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyond argument frame
+runtime/asm_arm64.s: [arm64] sigreturn: function sigreturn missing Go declaration
