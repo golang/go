@@ -3432,3 +3432,21 @@ func TestMatchesOnlySubtestParallelIsOK(t *testing.T) {
 	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
 	tg.grepBoth(okPattern, "go test did not say ok")
 }
+
+func TestLinkXImportPathEscape(t *testing.T) {
+	// golang.org/issue/16710
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	exe := "./linkx" + exeSuffix
+	tg.creatingTemp(exe)
+	tg.run("build", "-o", exe, "-ldflags", "-X=my.pkg.Text=linkXworked", "my.pkg/main")
+	out, err := exec.Command(exe).CombinedOutput()
+	if err != nil {
+		tg.t.Fatal(err)
+	}
+	if string(out) != "linkXworked\n" {
+		tg.t.Log(string(out))
+		tg.t.Fatal(`incorrect output: expected "linkXworked\n"`)
+	}
+}
