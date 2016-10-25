@@ -56,7 +56,7 @@ func noted(mode int32) int32
 func nsec(*int64) int64
 
 //go:noescape
-func sigtramp(ureg, msg unsafe.Pointer)
+func sigtramp(ureg, note unsafe.Pointer)
 
 func setfpmasks()
 
