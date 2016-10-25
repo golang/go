@@ -25,7 +25,7 @@ import (
 
 var (
 	verbose = flag.Bool("v", false, "verbose")
-	tags    = flag.String("tags", "", "comma-separated list of build tags to apply when parsing")
+	tags    = flag.String("tags", "", "space-separated list of build tags to apply when parsing")
 	tagList = []string{} // exploded version of tags flag; set in main
 )
 
@@ -208,7 +208,10 @@ func main() {
 		}
 	}
 
-	tagList = strings.Split(*tags, ",")
+	// Accept space-separated tags because that matches
+	// the go command's other subcommands.
+	// Accept commas because go tool vet traditionally has.
+	tagList = strings.Fields(strings.Replace(*tags, ",", " ", -1))
 
 	initPrintFlags()
 	initUnusedFlags()

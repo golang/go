@@ -128,21 +128,24 @@ func run(c *exec.Cmd, t *testing.T) bool {
 // TestTags verifies that the -tags argument controls which files to check.
 func TestTags(t *testing.T) {
 	Build(t)
-	args := []string{
-		"-tags=testtag",
-		"-v", // We're going to look at the files it examines.
-		"testdata/tagtest",
-	}
-	cmd := exec.Command("./"+binary, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// file1 has testtag and file2 has !testtag.
-	if !bytes.Contains(output, []byte(filepath.Join("tagtest", "file1.go"))) {
-		t.Error("file1 was excluded, should be included")
-	}
-	if bytes.Contains(output, []byte(filepath.Join("tagtest", "file2.go"))) {
-		t.Error("file2 was included, should be excluded")
+	for _, tag := range []string{"testtag", "x testtag y", "x,testtag,y"} {
+		t.Logf("-tags=%s", tag)
+		args := []string{
+			"-tags=" + tag,
+			"-v", // We're going to look at the files it examines.
+			"testdata/tagtest",
+		}
+		cmd := exec.Command("./"+binary, args...)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatal(err)
+		}
+		// file1 has testtag and file2 has !testtag.
+		if !bytes.Contains(output, []byte(filepath.Join("tagtest", "file1.go"))) {
+			t.Error("file1 was excluded, should be included")
+		}
+		if bytes.Contains(output, []byte(filepath.Join("tagtest", "file2.go"))) {
+			t.Error("file2 was included, should be excluded")
+		}
 	}
 }
