@@ -3798,32 +3798,22 @@ func checkmake(t *Type, arg string, n *Node) bool {
 		return false
 	}
 
-	if n.Op == OLITERAL {
-		switch n.Val().Ctype() {
-		case CTINT, CTRUNE, CTFLT, CTCPLX:
-			n.SetVal(toint(n.Val()))
-			if n.Val().U.(*Mpint).CmpInt64(0) < 0 {
-				yyerror("negative %s argument in make(%v)", arg, t)
-				return false
-			}
-
-			if n.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
-				yyerror("%s argument too large in make(%v)", arg, t)
-				return false
-			}
-
-			// Delay defaultlit until after we've checked range, to avoid
-			// a redundant "constant NNN overflows int" error.
-			n = defaultlit(n, Types[TINT])
-
-			return true
-
-		default:
-			break
+	// Do range checks for constants before defaultlit
+	// to avoid redundant "constant NNN overflows int" errors.
+	switch consttype(n) {
+	case CTINT, CTRUNE, CTFLT, CTCPLX:
+		n.SetVal(toint(n.Val()))
+		if n.Val().U.(*Mpint).CmpInt64(0) < 0 {
+			yyerror("negative %s argument in make(%v)", arg, t)
+			return false
+		}
+		if n.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+			yyerror("%s argument too large in make(%v)", arg, t)
+			return false
 		}
 	}
 
-	// Defaultlit still necessary for non-constant: n might be 1<<k.
+	// defaultlit is necessary for non-constants too: n might be 1.1<<k.
 	n = defaultlit(n, Types[TINT])
 
 	return true
