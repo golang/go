@@ -533,6 +533,9 @@ func dialSingle(ctx context.Context, dp *dialParam, ra Addr) (c Conn, err error)
 // If host is omitted, as in ":8080", Listen listens on all available interfaces
 // instead of just the interface with the given host address.
 // See Dial for more details about address syntax.
+//
+// Listening on a hostname is not recommended because this creates a socket
+// for at most one of its IP addresses.
 func Listen(net, laddr string) (Listener, error) {
 	addrs, err := DefaultResolver.resolveAddrList(context.Background(), "listen", net, laddr, nil)
 	if err != nil {
@@ -560,6 +563,9 @@ func Listen(net, laddr string) (Listener, error) {
 // If host is omitted, as in ":8080", ListenPacket listens on all available interfaces
 // instead of just the interface with the given host address.
 // See Dial for the syntax of laddr.
+//
+// Listening on a hostname is not recommended because this creates a socket
+// for at most one of its IP addresses.
 func ListenPacket(net, laddr string) (PacketConn, error) {
 	addrs, err := DefaultResolver.resolveAddrList(context.Background(), "listen", net, laddr, nil)
 	if err != nil {
