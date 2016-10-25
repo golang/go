@@ -230,7 +230,7 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0-4
 	MOVW	R0, 0(R0)		// not reached
 	RET
 
-//func sigtramp(ureg, msg unsafe.Pointer)
+//func sigtramp(ureg, note unsafe.Pointer)
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-8
 	// check that g and m exist
 	CMP	$0, g
@@ -242,7 +242,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-8
 
 	// save args
 	MOVW	ureg+0(FP), R1
-	MOVW	msg+4(FP), R2
+	MOVW	note+4(FP), R2
 
 	// change stack
 	MOVW	m_gsignal(R0), R3

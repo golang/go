@@ -11,7 +11,7 @@
 // func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr)
 TEXT	·Syscall(SB),NOSPLIT,$0-28
 	BL		runtime·entersyscall(SB)
-	MOVW	syscall+0(FP), R12
+	MOVW	trap+0(FP), R12
 	MOVW	a1+4(FP), R0
 	MOVW	a2+8(FP), R1
 	MOVW	a3+12(FP), R2
@@ -21,20 +21,20 @@ TEXT	·Syscall(SB),NOSPLIT,$0-28
 	MOVW	R1, r1+16(FP)	// r1
 	MOVW	$0, R2
 	MOVW	R2, r2+20(FP)	// r2
-	MOVW	R0, errno+24(FP)	// errno
+	MOVW	R0, err+24(FP)	// err
 	BL		runtime·exitsyscall(SB)
 	RET
 ok:
 	MOVW	R0, r1+16(FP) // r1
 	MOVW	R1, r2+20(FP)	// r2
 	MOVW	$0, R0
-	MOVW	R0, errno+24(FP)	// errno
+	MOVW	R0, err+24(FP)	// err
 	BL		runtime·exitsyscall(SB)
 	RET
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr)
 TEXT ·RawSyscall(SB),NOSPLIT,$0-28
-	MOVW	syscall+0(FP), R12	// syscall entry
+	MOVW	trap+0(FP), R12	// syscall entry
 	MOVW	a1+4(FP), R0
 	MOVW	a2+8(FP), R1
 	MOVW	a3+12(FP), R2
@@ -44,19 +44,19 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVW	R1, r1+16(FP)	// r1
 	MOVW	$0, R2
 	MOVW	R2, r2+20(FP)	// r2
-	MOVW	R0, errno+24(FP)	// errno
+	MOVW	R0, err+24(FP)	// err
 	RET
 ok1:
 	MOVW	R0, r1+16(FP) // r1
 	MOVW	R1, r2+20(FP)	// r2
 	MOVW	$0, R0
-	MOVW	R0, errno+24(FP)	// errno
+	MOVW	R0, err+24(FP)	// err
 	RET
 
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	BL		runtime·entersyscall(SB)
-	MOVW	syscall+0(FP), R12	// syscall entry
+	MOVW	trap+0(FP), R12	// syscall entry
 	MOVW	a1+4(FP), R0
 	MOVW	a2+8(FP), R1
 	MOVW	a3+12(FP), R2
@@ -69,14 +69,14 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	MOVW	R1, r1+28(FP)	// r1
 	MOVW	$0, R2
 	MOVW	R2, r2+32(FP)	// r2
-	MOVW	R0, errno+36(FP)	// errno
+	MOVW	R0, err+36(FP)	// err
 	BL		runtime·exitsyscall(SB)
 	RET
 ok6:
 	MOVW	R0, r1+28(FP) // r1
 	MOVW	R1, r2+32(FP)	// r2
 	MOVW	$0, R0
-	MOVW	R0, errno+36(FP)	// errno
+	MOVW	R0, err+36(FP)	// err
 	BL		runtime·exitsyscall(SB)
 	RET
 
@@ -95,19 +95,19 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVW	R1, r1+28(FP)	// r1
 	MOVW	$0, R2
 	MOVW	R2, r2+32(FP)	// r2
-	MOVW	R0, errno+36(FP)	// errno
+	MOVW	R0, err+36(FP)	// err
 	RET
 ok2:
 	MOVW	R0, r1+28(FP) // r1
 	MOVW	R1, r2+32(FP)	// r2
 	MOVW	$0, R0
-	MOVW	R0, errno+36(FP)	// errno
+	MOVW	R0, err+36(FP)	// err
 	RET
 
 // Actually Syscall7.
 TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	BL runtime·entersyscall(SB)
-	MOVW	syscall+0(FP), R12	// syscall entry
+	MOVW	num+0(FP), R12	// syscall entry
 	MOVW	a1+4(FP), R0
 	MOVW	a2+8(FP), R1
 	MOVW	a3+12(FP), R2
@@ -121,13 +121,13 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	MOVW	R1, r1+40(FP)	// r1
 	MOVW	$0, R2
 	MOVW	R2, r2+44(FP)	// r2
-	MOVW	R0, errno+48(FP)	// errno
+	MOVW	R0, err+48(FP)	// err
 	BL		runtime·exitsyscall(SB)
 	RET
 ok9:
 	MOVW	R0, r1+40(FP) // r1
 	MOVW	R1, r2+44(FP)	// r2
 	MOVW	$0, R0
-	MOVW	R0, errno+48(FP)	// errno
+	MOVW	R0, err+48(FP)	// err
 	BL	runtime·exitsyscall(SB)
 	RET
