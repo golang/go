@@ -86,10 +86,10 @@ func Import(in *bufio.Reader) {
 
 	// read version specific flags - extend as necessary
 	switch p.version {
-	// case 3:
+	// case 4:
 	// 	...
 	//	fallthrough
-	case 2, 1:
+	case 3, 2, 1:
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.bool()
 		p.posInfoFormat = p.bool()
@@ -307,26 +307,35 @@ func idealType(typ *Type) *Type {
 }
 
 func (p *importer) obj(tag int) {
+	var alias *Sym
+	if tag == aliasTag {
+		p.pos()
+		alias = importpkg.Lookup(p.string())
+		alias.Flags |= SymAlias
+		tag = p.tagOrIndex()
+	}
+
+	var sym *Sym
 	switch tag {
 	case constTag:
 		p.pos()
-		sym := p.qualifiedName()
+		sym = p.qualifiedName()
 		typ := p.typ()
 		val := p.value(typ)
 		importconst(sym, idealType(typ), nodlit(val))
 
 	case typeTag:
-		p.typ()
+		sym = p.typ().Sym
 
 	case varTag:
 		p.pos()
-		sym := p.qualifiedName()
+		sym = p.qualifiedName()
 		typ := p.typ()
 		importvar(sym, typ)
 
 	case funcTag:
 		p.pos()
-		sym := p.qualifiedName()
+		sym = p.qualifiedName()
 		params := p.paramList()
 		result := p.paramList()
 
@@ -356,6 +365,11 @@ func (p *importer) obj(tag int) {
 
 	default:
 		formatErrorf("unexpected object (tag = %d)", tag)
+	}
+
+	if alias != nil {
+		alias.Def = sym.Def
+		importsym(alias, sym.Def.Op)
 	}
 }
 

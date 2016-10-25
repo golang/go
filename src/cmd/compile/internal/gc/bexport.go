@@ -9,10 +9,12 @@
 1) Export data encoding principles:
 
 The export data is a serialized description of the graph of exported
-"objects": constants, types, variables, and functions. In general,
-types - but also objects referred to from inlined function bodies -
-can be reexported and so we need to know which package they are coming
-from. Therefore, packages are also part of the export graph.
+"objects": constants, types, variables, and functions. Aliases may be
+directly reexported, and unaliased types may be indirectly reexported
+(as part of the type of a directly exorted object). More generally,
+objects referred to from inlined function bodies can be reexported.
+We need to know which package declares these reexported objects, and
+therefore packages are also part of the export graph.
 
 The roots of the graph are two lists of objects. The 1st list (phase 1,
 see Export) contains all objects that are exported at the package level.
@@ -30,9 +32,9 @@ function bodies. The format of this representation is compiler specific.
 
 The graph is serialized in in-order fashion, starting with the roots.
 Each object in the graph is serialized by writing its fields sequentially.
-If the field is a pointer to another object, that object is serialized,
-recursively. Otherwise the field is written. Non-pointer fields are all
-encoded as integer or string values.
+If the field is a pointer to another object, that object is serialized in
+place, recursively. Otherwise the field is written in place. Non-pointer
+fields are all encoded as integer or string values.
 
 Some objects (packages, types) may be referred to more than once. When
 reaching an object that was not serialized before, an integer _index_
@@ -43,7 +45,7 @@ If the object was already serialized, the encoding is simply the object
 index >= 0. An importer can trivially determine if an object needs to
 be read in for the first time (tag < 0) and entered into the respective
 object table, or if the object was seen already (index >= 0), in which
-case the index is used to look up the object in a table.
+case the index is used to look up the object in the respective table.
 
 Before exporting or importing, the type tables are populated with the
 predeclared types (int, string, error, unsafe.Pointer, etc.). This way
@@ -59,7 +61,7 @@ format. These strings are followed by version-specific encoding options.
 That format encoding is no longer used but is supported to avoid spurious
 errors when importing old installed package files.)
 
-The header is followed by the package object for the exported package,
+This header is followed by the package object for the exported package,
 two lists of objects, and the list of inlined function bodies.
 
 The encoding of objects is straight-forward: Constants, variables, and
@@ -69,6 +71,8 @@ same type was imported before via another import, the importer must use
 the previously imported type pointer so that we have exactly one version
 (i.e., one pointer) for each named type (and read but discard the current
 type encoding). Unnamed types simply encode their respective fields.
+Aliases are encoded starting with their name followed by the original
+(aliased) object.
 
 In the encoding, some lists start with the list length. Some lists are
 terminated with an end marker (usually for lists where we may not know
@@ -101,30 +105,8 @@ compatibility with both the last release of the compiler, and with the
 corresponding compiler at tip. That change is necessarily more involved,
 as it must switch based on the version number in the export data file.
 
-It is recommended to turn on debugFormat when working on format changes
-as it will help finding encoding/decoding inconsistencies quickly.
-
-Special care must be taken to update builtin.go when the export format
-changes: builtin.go contains the export data obtained by compiling the
-builtin/runtime.go and builtin/unsafe.go files; those compilations in
-turn depend on importing the data in builtin.go. Thus, when the export
-data format changes, the compiler must be able to import the data in
-builtin.go even if its format has not yet changed. Proceed in several
-steps as follows:
-
-- Change the exporter to use the new format, and use a different version
-  string as well.
-- Update the importer accordingly, but accept both the old and the new
-  format depending on the version string.
-- all.bash should pass at this point.
-- Run mkbuiltin.go: this will create a new builtin.go using the new
-  export format.
-- go test -run Builtin should pass at this point.
-- Remove importer support for the old export format and (maybe) revert
-  the version string again (it's only needed to mark the transition).
-- all.bash should still pass.
-
-Don't forget to set debugFormat to false.
+It is recommended to turn on debugFormat temporarily when working on format
+changes as it will help finding encoding/decoding inconsistencies quickly.
 */
 
 package gc
@@ -158,7 +140,11 @@ const debugFormat = false // default: false
 const forceObjFileStability = true
 
 // Current export format version. Increase with each format change.
-const exportVersion = 2
+// 3: added aliasTag and export of aliases
+// 2: removed unused bool in ODCL export
+// 1: header format change (more regular), export package for _ struct fields
+// 0: Go1.7 encoding
+const exportVersion = 3
 
 // exportInlined enables the export of inlined function bodies and related
 // dependencies. The compiler should work w/o any loss of functionality with
@@ -364,6 +350,11 @@ func export(out *bufio.Writer, trace bool) int {
 		if p.trace {
 			p.tracef("\n")
 		}
+
+		if sym.Flags&SymAlias != 0 {
+			Fatalf("exporter: unexpected alias %v in inlined function body", sym)
+		}
+
 		p.obj(sym)
 		objcount++
 	}
@@ -455,16 +446,44 @@ func unidealType(typ *Type, val Val) *Type {
 }
 
 func (p *exporter) obj(sym *Sym) {
+	if sym.Flags&SymAlias != 0 {
+		p.tag(aliasTag)
+		p.pos(nil) // TODO(gri) fix position information
+		// Aliases can only be exported from the package that
+		// declares them (aliases to aliases are resolved to the
+		// original object, and so are uses of aliases in inlined
+		// exported function bodies). Thus, we only need the alias
+		// name without package qualification.
+		if sym.Pkg != localpkg {
+			Fatalf("exporter: export of non-local alias: %v", sym)
+		}
+		p.string(sym.Name)
+		sym = sym.Def.Sym // original object
+		// fall through to export original
+		// Multiple aliases to the same original will cause that
+		// original to be exported multiple times (issue #17636).
+		// TODO(gri) fix this
+	}
+
+	if sym != sym.Def.Sym {
+		Fatalf("exporter: exported object %v is not original %v", sym, sym.Def.Sym)
+	}
+
+	if sym.Flags&SymAlias != 0 {
+		Fatalf("exporter: original object %v marked as alias", sym)
+	}
+
 	// Exported objects may be from different packages because they
-	// may be re-exported as depencies when exporting inlined function
-	// bodies. Thus, exported object names must be fully qualified.
+	// may be re-exported via an exported alias or as dependencies in
+	// exported inlined function bodies. Thus, exported object names
+	// must be fully qualified.
 	//
-	// TODO(gri) This can only happen if exportInlined is enabled
-	// (default), and during phase 2 of object export. Objects exported
-	// in phase 1 (compiler-indendepent objects) are by definition only
-	// the objects from the current package and not pulled in via inlined
-	// function bodies. In that case the package qualifier is not needed.
-	// Possible space optimization.
+	// (This can only happen for aliased objects or during phase 2
+	// (exportInlined enabled) of object export. Unaliased Objects
+	// exported in phase 1 (compiler-indendepent objects) are by
+	// definition only the objects from the current package and not
+	// pulled in via inlined function bodies. In that case the package
+	// qualifier is not needed. Possible space optimization.)
 
 	n := sym.Def
 	switch n.Op {
@@ -1780,6 +1799,9 @@ const (
 	stringTag
 	nilTag
 	unknownTag // not used by gc (only appears in packages with errors)
+
+	// Aliases
+	aliasTag
 )
 
 // Debugging support.
@@ -1815,6 +1837,9 @@ var tagString = [...]string{
 	-stringTag:   "string",
 	-nilTag:      "nil",
 	-unknownTag:  "unknown",
+
+	// Aliases
+	-aliasTag: "alias",
 }
 
 // untype returns the "pseudo" untyped type for a Ctype (import/export use only).

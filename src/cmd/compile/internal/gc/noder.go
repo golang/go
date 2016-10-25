@@ -174,7 +174,11 @@ func (p *noder) aliasDecl(decl *syntax.AliasDecl) {
 	}
 	pkg.Used = true
 
+	// Resolve original entity
 	orig := oldname(restrictlookup(qident.Sel.Value, pkg.Name.Pkg))
+	if orig.Sym.Flags&SymAlias != 0 {
+		Fatalf("original %v marked as alias", orig.Sym)
+	}
 
 	// An alias declaration must not refer to package unsafe.
 	if orig.Sym.Pkg == unsafepkg {
@@ -222,16 +226,16 @@ func (p *noder) aliasDecl(decl *syntax.AliasDecl) {
 		redeclare(asym, "in alias declaration")
 		return
 	}
+	asym.Flags |= SymAlias
 	asym.Def = orig
 	asym.Block = block
 	asym.Lastlineno = lineno
 
 	if exportname(asym.Name) {
-		yyerror("cannot export alias %v: not yet implemented", asym)
 		// TODO(gri) newname(asym) is only needed to satisfy exportsym
 		// (and indirectly, exportlist). We should be able to just
 		// collect the Syms, eventually.
-		// exportsym(newname(asym))
+		exportsym(newname(asym))
 	}
 }
 
