@@ -177,9 +177,6 @@ var ignorePathPrefixes = [...]string{
 	"cmd/go/testdata/",
 	"cmd/vet/testdata/",
 	"go/printer/testdata/",
-	// cmd/compile/internal/big is a vendored copy of math/big.
-	// Ignore it so that we only have to deal with math/big issues once.
-	"cmd/compile/internal/big/",
 }
 
 func vetPlatforms(pp []platform) {
