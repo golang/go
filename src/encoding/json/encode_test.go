@@ -293,6 +293,44 @@ type BugX struct {
 	BugB
 }
 
+// Issue 16042. Even if a nil interface value is passed in
+// as long as it implements MarshalJSON, it should be marshaled.
+type nilMarshaler string
+
+func (nm *nilMarshaler) MarshalJSON() ([]byte, error) {
+	if nm == nil {
+		return Marshal("0zenil0")
+	}
+	return Marshal("zenil:" + string(*nm))
+}
+
+// Issue 16042.
+func TestNilMarshal(t *testing.T) {
+	testCases := []struct {
+		v    interface{}
+		want string
+	}{
+		{v: nil, want: `null`},
+		{v: new(float64), want: `0`},
+		{v: []interface{}(nil), want: `null`},
+		{v: []string(nil), want: `null`},
+		{v: map[string]string(nil), want: `null`},
+		{v: []byte(nil), want: `null`},
+		{v: struct{ M string }{"gopher"}, want: `{"M":"gopher"}`},
+		{v: struct{ M Marshaler }{}, want: `{"M":null}`},
+		{v: struct{ M Marshaler }{(*nilMarshaler)(nil)}, want: `{"M":"0zenil0"}`},
+		{v: struct{ M interface{} }{(*nilMarshaler)(nil)}, want: `{"M":null}`},
+	}
+
+	for _, tt := range testCases {
+		out, err := Marshal(tt.v)
+		if err != nil || string(out) != tt.want {
+			t.Errorf("Marshal(%#v) = %#q, %#v, want %#q, nil", tt.v, out, err, tt.want)
+			continue
+		}
+	}
+}
+
 // Issue 5245.
 func TestEmbeddedBug(t *testing.T) {
 	v := BugB{
