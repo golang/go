@@ -88,21 +88,24 @@ func findEnv(env []envVar, name string) string {
 	return ""
 }
 
-func runEnv(cmd *Command, args []string) {
-	env := mkEnv()
-	// Add these environment variables here so they do not leak
-	// into child processes.
+// extraEnvVars returns environment variables that should not leak into child processes.
+func extraEnvVars() []envVar {
 	var b builder
 	b.init()
 	cppflags, cflags, cxxflags, fflags, ldflags := b.cflags(&Package{})
-	env = append(env,
-		envVar{"PKG_CONFIG", b.pkgconfigCmd()},
-		envVar{"CGO_CFLAGS", strings.Join(cflags, " ")},
-		envVar{"CGO_CPPFLAGS", strings.Join(cppflags, " ")},
-		envVar{"CGO_CXXFLAGS", strings.Join(cxxflags, " ")},
-		envVar{"CGO_FFLAGS", strings.Join(fflags, " ")},
-		envVar{"CGO_LDFLAGS", strings.Join(ldflags, " ")},
-	)
+	return []envVar{
+		{"PKG_CONFIG", b.pkgconfigCmd()},
+		{"CGO_CFLAGS", strings.Join(cflags, " ")},
+		{"CGO_CPPFLAGS", strings.Join(cppflags, " ")},
+		{"CGO_CXXFLAGS", strings.Join(cxxflags, " ")},
+		{"CGO_FFLAGS", strings.Join(fflags, " ")},
+		{"CGO_LDFLAGS", strings.Join(ldflags, " ")},
+	}
+}
+
+func runEnv(cmd *Command, args []string) {
+	env := mkEnv()
+	env = append(env, extraEnvVars()...)
 	if len(args) > 0 {
 		for _, name := range args {
 			fmt.Printf("%s\n", findEnv(env, name))
