@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-const objdumpPath = "/usr/local/bin/powerpc64-unknown-linux-gnu-objdump"
+const objdumpPath = "/usr/bin/objdump"
 
 func testObjdump(t *testing.T, generate func(func([]byte))) {
 	if testing.Short() {

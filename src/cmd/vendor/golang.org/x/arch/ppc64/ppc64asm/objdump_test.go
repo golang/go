@@ -12,7 +12,10 @@ import (
 
 func TestObjdumpPowerTestdata(t *testing.T) { testObjdump(t, testdataCases(t)) }
 func TestObjdumpPowerManual(t *testing.T)   { testObjdump(t, hexCases(t, objdumpManualTests)) }
-func TestObjdumpPowerRandom(t *testing.T)   { testObjdump(t, randomCases(t)) }
+
+// Disable this for now since generating all possible bit combinations within a word
+// generates lots of ppc64x instructions not possible with golang so not worth supporting..
+//func TestObjdumpPowerRandom(t *testing.T)   { testObjdump(t, randomCases(t)) }
 
 // objdumpManualTests holds test cases that will be run by TestObjdumpARMManual.
 // If you are debugging a few cases that turned up in a longer run, it can be useful

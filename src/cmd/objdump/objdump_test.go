@@ -54,7 +54,7 @@ var ppcNeed = []string{
 	"fmthello.go:6",
 	"TEXT main.main(SB)",
 	"BR main.main(SB)",
-	"BL fmt.Println(SB)",
+	"CALL fmt.Println(SB)",
 	"RET",
 }
 
@@ -143,7 +143,7 @@ func TestDisasmExtld(t *testing.T) {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 	switch runtime.GOARCH {
-	case "ppc64", "ppc64le":
+	case "ppc64":
 		t.Skipf("skipping on %s, no support for external linking, issue 9038", runtime.GOARCH)
 	case "arm64":
 		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
