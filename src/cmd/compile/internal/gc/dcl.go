@@ -988,34 +988,30 @@ func embedded(s *Sym, pkg *Pkg) *Node {
 	return n
 }
 
+// thisT is the singleton type used for interface method receivers.
+var thisT *Type
+
 func fakethis() *Node {
-	n := nod(ODCLFIELD, nil, typenod(ptrto(typ(TSTRUCT))))
-	return n
+	if thisT == nil {
+		thisT = ptrto(typ(TSTRUCT))
+	}
+	return nod(ODCLFIELD, nil, typenod(thisT))
 }
 
 func fakethisfield() *Field {
+	if thisT == nil {
+		thisT = ptrto(typ(TSTRUCT))
+	}
 	f := newField()
-	f.Type = ptrto(typ(TSTRUCT))
+	f.Type = thisT
 	return f
 }
 
 // Is this field a method on an interface?
-// Those methods have an anonymous *struct{} as the receiver.
+// Those methods have thisT as the receiver.
 // (See fakethis above.)
 func isifacemethod(f *Type) bool {
-	rcvr := f.Recv()
-	if rcvr.Sym != nil {
-		return false
-	}
-	t := rcvr.Type
-	if !t.IsPtr() {
-		return false
-	}
-	t = t.Elem()
-	if t.Sym != nil || !t.IsStruct() || t.NumFields() != 0 {
-		return false
-	}
-	return true
+	return f.Recv().Type == thisT
 }
 
 // turn a parsed function declaration into a type
