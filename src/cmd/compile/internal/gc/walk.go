@@ -410,16 +410,14 @@ func walkexprlistcheap(s []*Node, init *Nodes) {
 	}
 }
 
-// Build name of function: convI2E etc.
+// Build name of function for interface conversion.
 // Not all names are possible
-// (e.g., we'll never generate convE2E or convE2I).
+// (e.g., we'll never generate convE2E or convE2I or convI2E).
 func convFuncName(from, to *Type) string {
 	tkind := to.iet()
 	switch from.iet() {
 	case 'I':
 		switch tkind {
-		case 'E':
-			return "convI2E"
 		case 'I':
 			return "convI2I"
 		}
@@ -1077,6 +1075,34 @@ opswitch:
 			l.Type = n.Type
 			l.Typecheck = n.Typecheck
 			n = l
+			break
+		}
+
+		// Implement interface to empty interface conversion.
+		// tmp = i.itab
+		// if tmp != nil {
+		//    tmp = tmp.type
+		// }
+		// e = iface{tmp, i.data}
+		if n.Type.IsEmptyInterface() && n.Left.Type.IsInterface() && !n.Left.Type.IsEmptyInterface() {
+			// Evaluate the input interface.
+			c := temp(n.Left.Type)
+			init.Append(nod(OAS, c, n.Left))
+
+			// Get the itab out of the interface.
+			tmp := temp(ptrto(Types[TUINT8]))
+			init.Append(nod(OAS, tmp, typecheck(nod(OITAB, c, nil), Erv)))
+
+			// Get the type out of the itab.
+			nif := nod(OIF, typecheck(nod(ONE, tmp, nodnil()), Erv), nil)
+			nif.Nbody.Set1(nod(OAS, tmp, itabType(tmp)))
+			init.Append(nif)
+
+			// Build the result.
+			e := nod(OEFACE, tmp, ifaceData(c, ptrto(Types[TUINT8])))
+			e.Type = n.Type // assign type manually, typecheck doesn't understand OEFACE.
+			e.Typecheck = 1
+			n = e
 			break
 		}
 
