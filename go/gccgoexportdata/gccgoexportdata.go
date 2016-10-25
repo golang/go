@@ -5,9 +5,9 @@
 // Package gccgoexportdata provides functions for reading export data
 // files containing type information produced by the gccgo compiler.
 //
-// This package is a stop-gap until gccgo uses the same export data
-// format as gc.  Once that occurs, this package will be deprecated and
-// eventually deleted.
+// This package is a stop-gap until such time as gccgo uses the same
+// export data format as gc; see Go issue 17573. Once that occurs, this
+// package will be deprecated and eventually deleted.
 package gccgoexportdata
 
 // TODO(adonovan): add Find, Write, Importer to the API,
@@ -117,6 +117,6 @@ func firstSection(a []byte) ([]byte, error) {
 // resulting package into this map entry.
 //
 // On return, the state of the reader is undefined.
-func Read(in io.Reader, fset *token.FileSet, imports map[string]*types.Package, path string) (*types.Package, error) {
+func Read(in io.Reader, _ *token.FileSet, imports map[string]*types.Package, path string) (*types.Package, error) {
 	return gccgoimporter.Parse(in, imports, path)
 }
