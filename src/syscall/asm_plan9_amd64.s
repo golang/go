@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
-// so that go vet can check that they are correct.
-
 #include "textflag.h"
 #include "funcdata.h"
 
@@ -21,8 +18,8 @@ TEXT	·Syscall(SB),NOSPLIT,$0-64
 	CALL	runtime·entersyscall(SB)
 	MOVQ	trap+0(FP), BP	// syscall entry
 	// slide args down on top of system call number
-	LEAQ	16(SP), SI
-	LEAQ	8(SP), DI
+	LEAQ	a1+8(FP), SI
+	LEAQ	trap+0(FP), DI
 	CLD
 	MOVSQ
 	MOVSQ
@@ -56,8 +53,8 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-88
 	CALL	runtime·entersyscall(SB)
 	MOVQ	trap+0(FP), BP	// syscall entry
 	// slide args down on top of system call number
-	LEAQ	16(SP), SI
-	LEAQ	8(SP), DI
+	LEAQ	a1+8(FP), SI
+	LEAQ	trap+0(FP), DI
 	CLD
 	MOVSQ
 	MOVSQ
@@ -93,8 +90,8 @@ copyresult4:
 TEXT ·RawSyscall(SB),NOSPLIT,$0-56
 	MOVQ	trap+0(FP), BP	// syscall entry
 	// slide args down on top of system call number
-	LEAQ	16(SP), SI
-	LEAQ	8(SP), DI
+	LEAQ	a1+8(FP), SI
+	LEAQ	trap+0(FP), DI
 	CLD
 	MOVSQ
 	MOVSQ
@@ -108,8 +105,8 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
 	MOVQ	trap+0(FP), BP	// syscall entry
 	// slide args down on top of system call number
-	LEAQ	16(SP), SI
-	LEAQ	8(SP), DI
+	LEAQ	a1+8(FP), SI
+	LEAQ	trap+0(FP), DI
 	CLD
 	MOVSQ
 	MOVSQ
