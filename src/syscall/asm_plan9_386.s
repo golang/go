@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
-// so that go vet can check that they are correct.
-
 #include "textflag.h"
 #include "funcdata.h"
 
@@ -22,8 +19,8 @@ TEXT	·Syscall(SB),NOSPLIT,$0-32
 	CALL	runtime·entersyscall(SB)
 	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL	8(SP), SI
-	LEAL	4(SP), DI
+	LEAL	a1+4(FP), SI
+	LEAL	trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -57,8 +54,8 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-44
 	CALL	runtime·entersyscall(SB)
 	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL	8(SP), SI
-	LEAL	4(SP), DI
+	LEAL	a1+4(FP), SI
+	LEAL	trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -94,8 +91,8 @@ copyresult4:
 TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL	8(SP), SI
-	LEAL	4(SP), DI
+	LEAL	a1+4(FP), SI
+	LEAL	trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -109,8 +106,8 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL	8(SP), SI
-	LEAL	4(SP), DI
+	LEAL	a1+4(FP), SI
+	LEAL	trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
