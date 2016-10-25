@@ -386,7 +386,6 @@ const (
 	OINDEXMAP  // Left[Right] (index of map)
 	OKEY       // Left:Right (key:value in struct/array/map literal, or slice index pair)
 	OSTRUCTKEY // Sym:Left (key:value in struct literal, after type checking)
-	OIDATA     // data word of an interface value in Left; TODO: move next to OITAB once it is easier to regenerate the binary blob in builtin.go (issues 15835, 15839)
 	OLEN       // len(Left)
 	OMAKE      // make(List) (before type checking converts to one of the following)
 	OMAKECHAN  // make(Type, Left) (type is chan)
@@ -463,6 +462,7 @@ const (
 	OINLCALL    // intermediary representation of an inlined call.
 	OEFACE      // itable and data words of an empty-interface value.
 	OITAB       // itable word of an interface value.
+	OIDATA      // data word of an interface value in Left
 	OSPTR       // base pointer of a slice or string.
 	OCLOSUREVAR // variable reference at beginning of closure function
 	OCFUNC      // reference to c function pointer (not go func value)
