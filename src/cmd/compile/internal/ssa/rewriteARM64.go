@@ -660,6 +660,8 @@ func rewriteValueARM64(v *Value, config *Config) bool {
 		return rewriteValueARM64_OpSignExt8to32(v, config)
 	case OpSignExt8to64:
 		return rewriteValueARM64_OpSignExt8to64(v, config)
+	case OpSlicemask:
+		return rewriteValueARM64_OpSlicemask(v, config)
 	case OpSqrt:
 		return rewriteValueARM64_OpSqrt(v, config)
 	case OpStaticCall:
@@ -14256,6 +14258,26 @@ func rewriteValueARM64_OpSignExt8to64(v *Value, config *Config) bool {
 		x := v.Args[0]
 		v.reset(OpARM64MOVBreg)
 		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_OpSlicemask(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Slicemask <t> x)
+	// cond:
+	// result: (MVN (SRAconst <t> (SUBconst <t> x [1]) [63]))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpARM64MVN)
+		v0 := b.NewValue0(v.Line, OpARM64SRAconst, t)
+		v0.AuxInt = 63
+		v1 := b.NewValue0(v.Line, OpARM64SUBconst, t)
+		v1.AuxInt = 1
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 }

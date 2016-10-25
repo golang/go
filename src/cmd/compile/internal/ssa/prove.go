@@ -568,6 +568,44 @@ func updateRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r 
 // simplifyBlock simplifies block known the restrictions in ft.
 // Returns which branch must always be taken.
 func simplifyBlock(ft *factsTable, b *Block) branch {
+	for _, v := range b.Values {
+		if v.Op != OpSlicemask {
+			continue
+		}
+		add := v.Args[0]
+		if add.Op != OpAdd64 && add.Op != OpAdd32 {
+			continue
+		}
+		// Note that the arg of slicemask was originally a sub, but
+		// was rewritten to an add by generic.rules (if the thing
+		// being subtracted was a constant).
+		x := add.Args[0]
+		y := add.Args[1]
+		if x.Op == OpConst64 || x.Op == OpConst32 {
+			x, y = y, x
+		}
+		if y.Op != OpConst64 && y.Op != OpConst32 {
+			continue
+		}
+		// slicemask(x + y)
+		// if x is larger than -y (y is negative), then slicemask is -1.
+		lim, ok := ft.limits[x.ID]
+		if !ok {
+			continue
+		}
+		if lim.umin > uint64(-y.AuxInt) {
+			if v.Args[0].Op == OpAdd64 {
+				v.reset(OpConst64)
+			} else {
+				v.reset(OpConst32)
+			}
+			if b.Func.pass.debug > 0 {
+				b.Func.Config.Warnl(v.Line, "Proved slicemask not needed")
+			}
+			v.AuxInt = -1
+		}
+	}
+
 	if b.Kind != BlockIf {
 		return unknown
 	}

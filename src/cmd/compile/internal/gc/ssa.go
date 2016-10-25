@@ -295,7 +295,6 @@ var (
 	typVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "typ"}}
 	idataVar  = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "idata"}}
 	okVar     = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ok"}}
-	deltaVar  = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "delta"}}
 )
 
 // startBlock sets the current block we're generating code in to b.
@@ -3516,19 +3515,17 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	}
 
 	// Generate the following code assuming that indexes are in bounds.
-	// The conditional is to make sure that we don't generate a slice
+	// The masking is to make sure that we don't generate a slice
 	// that points to the next object in memory.
-	// rlen = j-i
-	// rcap = k-i
-	// delta = i*elemsize
-	// if rcap == 0 {
-	//    delta = 0
-	// }
-	// rptr = p+delta
+	// rlen = j - i
+	// rcap = k - i
+	// delta = i * elemsize
+	// rptr = p + delta&mask(rcap)
 	// result = (SliceMake rptr rlen rcap)
+	// where mask(x) is 0 if x==0 and -1 if x>0.
 	subOp := s.ssaOp(OSUB, Types[TINT])
-	eqOp := s.ssaOp(OEQ, Types[TINT])
 	mulOp := s.ssaOp(OMUL, Types[TINT])
+	andOp := s.ssaOp(OAND, Types[TINT])
 	rlen := s.newValue2(subOp, Types[TINT], j, i)
 	var rcap *ssa.Value
 	switch {
@@ -3543,38 +3540,21 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 		rcap = s.newValue2(subOp, Types[TINT], k, i)
 	}
 
-	// delta = # of elements to offset pointer by.
-	s.vars[&deltaVar] = i
-
-	// Generate code to set delta=0 if the resulting capacity is zero.
-	if !((i.Op == ssa.OpConst64 && i.AuxInt == 0) ||
-		(i.Op == ssa.OpConst32 && int32(i.AuxInt) == 0)) {
-		cmp := s.newValue2(eqOp, Types[TBOOL], rcap, zero)
-
-		b := s.endBlock()
-		b.Kind = ssa.BlockIf
-		b.Likely = ssa.BranchUnlikely
-		b.SetControl(cmp)
-
-		// Generate block which zeros the delta variable.
-		nz := s.f.NewBlock(ssa.BlockPlain)
-		b.AddEdgeTo(nz)
-		s.startBlock(nz)
-		s.vars[&deltaVar] = zero
-		s.endBlock()
-
-		// All done.
-		merge := s.f.NewBlock(ssa.BlockPlain)
-		b.AddEdgeTo(merge)
-		nz.AddEdgeTo(merge)
-		s.startBlock(merge)
-
-		// TODO: use conditional moves somehow?
+	var rptr *ssa.Value
+	if (i.Op == ssa.OpConst64 || i.Op == ssa.OpConst32) && i.AuxInt == 0 {
+		// No pointer arithmetic necessary.
+		rptr = ptr
+	} else {
+		// delta = # of bytes to offset pointer by.
+		delta := s.newValue2(mulOp, Types[TINT], i, s.constInt(Types[TINT], elemtype.Width))
+		// If we're slicing to the point where the capacity is zero,
+		// zero out the delta.
+		mask := s.newValue1(ssa.OpSlicemask, Types[TINT], rcap)
+		delta = s.newValue2(andOp, Types[TINT], delta, mask)
+		// Compute rptr = ptr + delta
+		rptr = s.newValue2(ssa.OpAddPtr, ptrtype, ptr, delta)
 	}
 
-	// Compute rptr = ptr + delta * elemsize
-	rptr := s.newValue2(ssa.OpAddPtr, ptrtype, ptr, s.newValue2(mulOp, Types[TINT], s.variable(&deltaVar, Types[TINT]), s.constInt(Types[TINT], elemtype.Width)))
-	delete(s.vars, &deltaVar)
 	return rptr, rlen, rcap
 }
 

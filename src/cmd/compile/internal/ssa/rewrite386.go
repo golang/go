@@ -540,6 +540,8 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpSignExt8to32(v, config)
 	case OpSignmask:
 		return rewriteValue386_OpSignmask(v, config)
+	case OpSlicemask:
+		return rewriteValue386_OpSlicemask(v, config)
 	case OpSqrt:
 		return rewriteValue386_OpSqrt(v, config)
 	case OpStaticCall:
@@ -12432,6 +12434,27 @@ func rewriteValue386_OpSignmask(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValue386_OpSlicemask(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Slicemask <t> x)
+	// cond:
+	// result: (XORLconst [-1] (SARLconst <t> (SUBLconst <t> x [1]) [31]))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(Op386XORLconst)
+		v.AuxInt = -1
+		v0 := b.NewValue0(v.Line, Op386SARLconst, t)
+		v0.AuxInt = 31
+		v1 := b.NewValue0(v.Line, Op386SUBLconst, t)
+		v1.AuxInt = 1
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValue386_OpSqrt(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -13088,18 +13111,16 @@ func rewriteValue386_OpZeromask(v *Value, config *Config) bool {
 	_ = b
 	// match: (Zeromask <t> x)
 	// cond:
-	// result: (XORLconst [-1] (SBBLcarrymask <t> (CMPL x (MOVLconst [1]))))
+	// result: (XORLconst [-1] (SBBLcarrymask <t> (CMPLconst x [1])))
 	for {
 		t := v.Type
 		x := v.Args[0]
 		v.reset(Op386XORLconst)
 		v.AuxInt = -1
 		v0 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v1 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v1 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
+		v1.AuxInt = 1
 		v1.AddArg(x)
-		v2 := b.NewValue0(v.Line, Op386MOVLconst, config.fe.TypeUInt32())
-		v2.AuxInt = 1
-		v1.AddArg(v2)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true

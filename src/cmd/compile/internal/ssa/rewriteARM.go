@@ -684,6 +684,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpSignExt8to32(v, config)
 	case OpSignmask:
 		return rewriteValueARM_OpSignmask(v, config)
+	case OpSlicemask:
+		return rewriteValueARM_OpSlicemask(v, config)
 	case OpSqrt:
 		return rewriteValueARM_OpSqrt(v, config)
 	case OpStaticCall:
@@ -16527,6 +16529,26 @@ func rewriteValueARM_OpSignmask(v *Value, config *Config) bool {
 		v.reset(OpARMSRAconst)
 		v.AuxInt = 31
 		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpSlicemask(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Slicemask <t> x)
+	// cond:
+	// result: (MVN (SRAconst <t> (SUBconst <t> x [1]) [31]))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpARMMVN)
+		v0 := b.NewValue0(v.Line, OpARMSRAconst, t)
+		v0.AuxInt = 31
+		v1 := b.NewValue0(v.Line, OpARMSUBconst, t)
+		v1.AuxInt = 1
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 }
