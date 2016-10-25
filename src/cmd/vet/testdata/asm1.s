@@ -306,3 +306,10 @@ TEXT ·f15271(SB), NOSPLIT, $0-4
     // Return them.
     PEXTRD $0, X0, x+0(FP)
     RET
+
+// issue 17584
+TEXT ·f17584(SB), NOSPLIT, $12
+	MOVSS	x+0(FP), X0
+	MOVSS	y_real+4(FP), X0
+	MOVSS	y_imag+8(FP), X0
+	RET

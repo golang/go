@@ -42,3 +42,4 @@ func noptr(x int)
 func wrapper(x int)
 
 func f15271() (x uint32)
+func f17584(x float32, y complex64)
