@@ -481,7 +481,7 @@ func clobber(v *Value) bool {
 //     noteRule("note to self: rule of interest matched")
 // and that message will print when the rule matches.
 func noteRule(s string) bool {
-	println(s)
+	fmt.Println(s)
 	return true
 }
 
@@ -489,7 +489,7 @@ func noteRule(s string) bool {
 // cond is true and the rule is fired.
 func warnRule(cond bool, v *Value, s string) bool {
 	if cond {
-		v.Block.Func.Config.Warnl(v.Line, "removed nil check")
+		v.Block.Func.Config.Warnl(v.Line, s)
 	}
 	return true
 }
