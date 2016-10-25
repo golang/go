@@ -51,10 +51,9 @@ func ExampleRead() {
 	fmt.Printf("Package members:    %s...\n", pkg.Scope().Names()[:5])
 	println := pkg.Scope().Lookup("Println")
 	posn := fset.Position(println.Pos())
-	posn.Line = 123                                 // make example deterministic
-	posn.Filename = filepath.ToSlash(posn.Filename) // make example deterministic
+	posn.Line = 123 // make example deterministic
 	fmt.Printf("Println type:       %s\n", println.Type())
-	fmt.Printf("Println location:   %s\n", posn)
+	fmt.Printf("Println location:   %s\n", slashify(posn))
 
 	// Output:
 	//
@@ -95,7 +94,7 @@ const TwoPi = 2 * math.Pi
 		pi.Name(),
 		pi.Type(),
 		pi.(*types.Const).Val(),
-		fset.Position(pi.Pos()))
+		slashify(fset.Position(pi.Pos())))
 
 	// object in source package
 	twopi := pkg.Scope().Lookup("TwoPi")
@@ -103,10 +102,15 @@ const TwoPi = 2 * math.Pi
 		twopi.Name(),
 		twopi.Type(),
 		twopi.(*types.Const).Val(),
-		fset.Position(twopi.Pos()))
+		slashify(fset.Position(twopi.Pos())))
 
 	// Output:
 	//
 	// const math.Pi untyped float = 3.14159 // $GOROOT/src/math/const.go:11:1
 	// const TwoPi untyped float = 6.28319 // twopi.go:5:7
+}
+
+func slashify(posn token.Position) token.Position {
+	posn.Filename = filepath.ToSlash(posn.Filename) // for MS Windows portability
+	return posn
 }
