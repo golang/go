@@ -1111,16 +1111,16 @@ func TestVerifyPeerCertificate(t *testing.T) {
 			},
 			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
 				if clientErr != nil {
-					t.Errorf("#%d: client handshake failed: %v", testNo, clientErr)
+					t.Errorf("test[%d]: client handshake failed: %v", testNo, clientErr)
 				}
 				if serverErr != nil {
-					t.Errorf("#%d: server handshake failed: %v", testNo, serverErr)
+					t.Errorf("test[%d]: server handshake failed: %v", testNo, serverErr)
 				}
 				if !clientCalled {
-					t.Error("#%d: client did not call callback", testNo)
+					t.Errorf("test[%d]: client did not call callback", testNo)
 				}
 				if !serverCalled {
-					t.Error("#%d: server did not call callback", testNo)
+					t.Errorf("test[%d]: server did not call callback", testNo)
 				}
 			},
 		},
@@ -1177,13 +1177,13 @@ func TestVerifyPeerCertificate(t *testing.T) {
 			},
 			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
 				if clientErr != nil {
-					t.Errorf("#%d: client handshake failed: %v", testNo, clientErr)
+					t.Errorf("test[%d]: client handshake failed: %v", testNo, clientErr)
 				}
 				if serverErr != nil {
-					t.Errorf("#%d: server handshake failed: %v", testNo, serverErr)
+					t.Errorf("test[%d]: server handshake failed: %v", testNo, serverErr)
 				}
 				if !clientCalled {
-					t.Error("#%d: client did not call callback", testNo)
+					t.Errorf("test[%d]: client did not call callback", testNo)
 				}
 			},
 		},
