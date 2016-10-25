@@ -46,7 +46,7 @@ func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token
 
 	if err := validateStructTag(tag); err != nil {
 		raw, _ := strconv.Unquote(field.Tag.Value) // field.Tag.Value is known to be a quoted string
-		f.Badf(field.Pos(), "struct field tag %q not compatible with reflect.StructTag.Get: %s", raw, err)
+		f.Badf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", raw, err)
 	}
 
 	for _, key := range checkTagDups {
@@ -91,6 +91,7 @@ var (
 	errTagSyntax      = errors.New("bad syntax for struct tag pair")
 	errTagKeySyntax   = errors.New("bad syntax for struct tag key")
 	errTagValueSyntax = errors.New("bad syntax for struct tag value")
+	errTagSpace       = errors.New("key:\"value\" pairs not separated by spaces")
 )
 
 // validateStructTag parses the struct tag and returns an error if it is not
@@ -99,7 +100,13 @@ var (
 func validateStructTag(tag string) error {
 	// This code is based on the StructTag.Get code in package reflect.
 
-	for tag != "" {
+	n := 0
+	for ; tag != ""; n++ {
+		if n > 0 && tag != "" && tag[0] != ' ' {
+			// More restrictive than reflect, but catches likely mistakes
+			// like `x:"foo",y:"bar"`, which parses as `x:"foo" ,y:"bar"` with second key ",y".
+			return errTagSpace
+		}
 		// Skip leading space.
 		i := 0
 		for i < len(tag) && tag[i] == ' ' {
