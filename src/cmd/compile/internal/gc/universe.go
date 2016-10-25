@@ -374,32 +374,16 @@ func typeinit() {
 }
 
 func makeErrorInterface() *Type {
-	rcvr := typ(TSTRUCT)
-	rcvr.StructType().Funarg = FunargRcvr
 	field := newField()
-	field.Type = ptrto(typ(TSTRUCT))
-	rcvr.SetFields([]*Field{field})
-
-	in := typ(TSTRUCT)
-	in.StructType().Funarg = FunargParams
-
-	out := typ(TSTRUCT)
-	out.StructType().Funarg = FunargResults
-	field = newField()
 	field.Type = Types[TSTRING]
-	out.SetFields([]*Field{field})
+	f := functypefield(fakethisfield(), nil, []*Field{field})
 
-	f := typ(TFUNC)
-	f.FuncType().Receiver = rcvr
-	f.FuncType().Results = out
-	f.FuncType().Params = in
-
-	t := typ(TINTER)
 	field = newField()
 	field.Sym = lookup("Error")
 	field.Type = f
-	t.SetFields([]*Field{field})
 
+	t := typ(TINTER)
+	t.SetFields([]*Field{field})
 	return t
 }
 
