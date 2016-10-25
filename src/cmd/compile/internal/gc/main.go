@@ -27,8 +27,6 @@ var imported_unsafe bool
 
 var (
 	buildid string
-
-	flag_newparser bool
 )
 
 var (
@@ -181,7 +179,6 @@ func Main() {
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
 	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
-	flag.BoolVar(&flag_newparser, "newparser", true, "use new parser")
 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
 	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
@@ -320,11 +317,7 @@ func Main() {
 		block = 1
 		iota_ = -1000000
 		imported_unsafe = false
-		if flag_newparser {
-			parseFile(infile)
-		} else {
-			oldParseFile(infile)
-		}
+		parseFile(infile)
 		if nsyntaxerrors != 0 {
 			errorexit()
 		}
