@@ -139,7 +139,9 @@ func tanSeries(z complex128) float64 {
 		t = y2 - x2
 		t /= f
 		d += t
-		if math.Abs(t/d) <= MACHEP {
+		if !(math.Abs(t/d) > MACHEP) {
+			// Caution: Use ! and > instead of <= for correct behavior if t/d is NaN.
+			// See issue 17577.
 			break
 		}
 	}

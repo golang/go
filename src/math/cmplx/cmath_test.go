@@ -759,6 +759,14 @@ func TestTanh(t *testing.T) {
 	}
 }
 
+// See issue 17577
+func TestInfiniteLoopIntanSeries(t *testing.T) {
+	want := Inf()
+	if got := Cot(0); got != want {
+		t.Errorf("Cot(0): got %g, want %g", got, want)
+	}
+}
+
 func BenchmarkAbs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Abs(complex(2.5, 3.5))
