@@ -576,19 +576,32 @@ func cachestats() {
 	}
 }
 
+// flushmcache flushes the mcache of allp[i].
+//
+// The world must be stopped.
+//
+//go:nowritebarrier
+func flushmcache(i int) {
+	p := allp[i]
+	if p == nil {
+		return
+	}
+	c := p.mcache
+	if c == nil {
+		return
+	}
+	c.releaseAll()
+	stackcache_clear(c)
+}
+
+// flushallmcaches flushes the mcaches of all Ps.
+//
+// The world must be stopped.
+//
 //go:nowritebarrier
 func flushallmcaches() {
-	for i := 0; ; i++ {
-		p := allp[i]
-		if p == nil {
-			break
-		}
-		c := p.mcache
-		if c == nil {
-			continue
-		}
-		c.releaseAll()
-		stackcache_clear(c)
+	for i := 0; i < int(gomaxprocs); i++ {
+		flushmcache(i)
 	}
 }
 

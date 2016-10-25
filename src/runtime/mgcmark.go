@@ -14,7 +14,6 @@ import (
 
 const (
 	fixedRootFinalizers = iota
-	fixedRootFlushCaches
 	fixedRootFreeGStacks
 	fixedRootCount
 
@@ -45,6 +44,12 @@ const (
 //
 //go:nowritebarrier
 func gcMarkRootPrepare() {
+	if gcphase == _GCmarktermination {
+		work.nFlushCacheRoots = int(gomaxprocs)
+	} else {
+		work.nFlushCacheRoots = 0
+	}
+
 	// Compute how many data and BSS root blocks there are.
 	nBlocks := func(bytes uintptr) int {
 		return int((bytes + rootBlockBytes - 1) / rootBlockBytes)
@@ -108,7 +113,7 @@ func gcMarkRootPrepare() {
 	}
 
 	work.markrootNext = 0
-	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots + work.nRescanRoots)
+	work.markrootJobs = uint32(fixedRootCount + work.nFlushCacheRoots + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots + work.nRescanRoots)
 }
 
 // gcMarkRootCheck checks that all roots have been scanned. It is
@@ -156,7 +161,8 @@ var oneptrmask = [...]uint8{1}
 func markroot(gcw *gcWork, i uint32) {
 	// TODO(austin): This is a bit ridiculous. Compute and store
 	// the bases in gcMarkRootPrepare instead of the counts.
-	baseData := uint32(fixedRootCount)
+	baseFlushCache := uint32(fixedRootCount)
+	baseData := baseFlushCache + uint32(work.nFlushCacheRoots)
 	baseBSS := baseData + uint32(work.nDataRoots)
 	baseSpans := baseBSS + uint32(work.nBSSRoots)
 	baseStacks := baseSpans + uint32(work.nSpanRoots)
@@ -165,6 +171,9 @@ func markroot(gcw *gcWork, i uint32) {
 
 	// Note: if you add a case here, please also update heapdump.go:dumproots.
 	switch {
+	case baseFlushCache <= i && i < baseData:
+		flushmcache(int(i - baseFlushCache))
+
 	case baseData <= i && i < baseBSS:
 		for datap := &firstmoduledata; datap != nil; datap = datap.next {
 			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-baseData))
@@ -178,11 +187,6 @@ func markroot(gcw *gcWork, i uint32) {
 	case i == fixedRootFinalizers:
 		for fb := allfin; fb != nil; fb = fb.alllink {
 			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), uintptr(fb.cnt)*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw)
-		}
-
-	case i == fixedRootFlushCaches:
-		if gcphase == _GCmarktermination { // Do not flush mcaches during concurrent phase.
-			flushallmcaches()
 		}
 
 	case i == fixedRootFreeGStacks:

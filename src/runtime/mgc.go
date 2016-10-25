@@ -787,6 +787,7 @@ var work struct {
 	alldone note
 
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
+	nFlushCacheRoots                                             int
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots, nRescanRoots int
 
 	// markrootDone indicates that roots have been marked at least
