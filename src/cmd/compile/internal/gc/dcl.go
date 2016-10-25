@@ -487,23 +487,6 @@ func colasdefn(left []*Node, defn *Node) {
 	}
 }
 
-func colas(left, right []*Node, lno int32) *Node {
-	n := nod(OAS, nil, nil) // assume common case
-	n.Colas = true
-	n.Lineno = lno     // set before calling colasdefn for correct error line
-	colasdefn(left, n) // modifies left, call before using left[0] in common case
-	if len(left) == 1 && len(right) == 1 {
-		// common case
-		n.Left = left[0]
-		n.Right = right[0]
-	} else {
-		n.Op = OAS2
-		n.List.Set(left)
-		n.Rlist.Set(right)
-	}
-	return n
-}
-
 // declare the arguments in an
 // interface field declaration.
 func ifacedcl(n *Node) {
