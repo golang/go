@@ -50,7 +50,7 @@ func f => before.f // ERROR "before is not a package"
 var v => after.m   // ERROR "after is not a package"
 func f => after.m  // ERROR "after is not a package"
 
-// TODO(gri) fix error printing - should not print a qualified identifier...
+// TODO(gri) fix error printing - should print correct qualified identifier...
 var _ => Default.ARCH // ERROR "build.Default is not a package"
 
 // aliases may not refer to package unsafe
@@ -77,11 +77,11 @@ func sin1 => math.Pi // ERROR "math.Pi is not a function"
 // alias reference to a package marks package as used
 func _ => fmt.Println
 
-// TODO(gri) aliased cannot be exported yet - fix this
-const Pi => math.Pi      // ERROR "cannot export alias Pi"
-type Writer => io.Writer // ERROR "cannot export alias Writer"
-var Def => build.Default // ERROR "cannot export alias Def"
-func Sin => math.Sin     // ERROR "cannot export alias Sin"
+// re-exported aliases
+const Pi => math.Pi
+type Writer => io.Writer
+var Def => build.Default
+func Sin => math.Sin
 
 // type aliases denote identical types
 type myPackage => build.Package

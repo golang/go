@@ -63,6 +63,7 @@ const (
 	SymSiggen
 	SymAsm
 	SymAlgGen
+	SymAlias // alias, original is Sym.Def.Sym
 )
 
 // The Class of a variable/function describes the "storage class"

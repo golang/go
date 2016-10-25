@@ -928,7 +928,7 @@ func mkpackage(pkgname string) {
 				continue
 			}
 
-			if s.Def.Sym != s {
+			if s.Def.Sym != s && s.Flags&SymAlias == 0 {
 				// throw away top-level name left over
 				// from previous import . "x"
 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
@@ -936,8 +936,6 @@ func mkpackage(pkgname string) {
 					s.Def.Name.Pack.Used = true
 				}
 
-				// TODO(gri) This will also affect exported aliases.
-				// Need to fix this.
 				s.Def = nil
 				continue
 			}
