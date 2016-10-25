@@ -1053,7 +1053,12 @@ func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
 	// These nodes do not carry line numbers.
 	// Introduce a wrapper node to give them the correct line.
 	switch x.Op {
-	case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
+	case OTYPE, OLITERAL:
+		if x.Sym == nil {
+			break
+		}
+		fallthrough
+	case ONAME, ONONAME, OPACK:
 		x = p.nod(n, OPAREN, x, nil)
 		x.Implicit = true
 	}
