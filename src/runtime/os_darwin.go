@@ -414,7 +414,10 @@ func semasleep1(ns int64) int32 {
 		if r == 0 {
 			break
 		}
-		if r == _KERN_ABORTED { // interrupted
+		// Note: We don't know how this call (with no timeout) can get _KERN_OPERATION_TIMED_OUT,
+		// but it does reliably, though at a very low rate, on OS X 10.8, 10.9, 10.10, and 10.11.
+		// See golang.org/issue/17161.
+		if r == _KERN_ABORTED || r == _KERN_OPERATION_TIMED_OUT { // interrupted
 			continue
 		}
 		macherror(r, "semaphore_wait")
