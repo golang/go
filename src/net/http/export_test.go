@@ -24,6 +24,7 @@ var (
 	ExportErrRequestCanceled     = errRequestCanceled
 	ExportErrRequestCanceledConn = errRequestCanceledConn
 	ExportServeFile              = serveFile
+	ExportScanETag               = scanETag
 	ExportHttp2ConfigureServer   = http2ConfigureServer
 )
 

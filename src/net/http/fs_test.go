@@ -784,8 +784,9 @@ func TestServeContent(t *testing.T) {
 			wantStatus:      200,
 		},
 		"not_modified_modtime": {
-			file:    "testdata/style.css",
-			modtime: htmlModTime,
+			file:      "testdata/style.css",
+			serveETag: `"foo"`, // Last-Modified sent only when no ETag
+			modtime:   htmlModTime,
 			reqHeader: map[string]string{
 				"If-Modified-Since": htmlModTime.UTC().Format(TimeFormat),
 			},
@@ -794,6 +795,7 @@ func TestServeContent(t *testing.T) {
 		"not_modified_modtime_with_contenttype": {
 			file:             "testdata/style.css",
 			serveContentType: "text/css", // explicit content type
+			serveETag:        `"foo"`,    // Last-Modified sent only when no ETag
 			modtime:          htmlModTime,
 			reqHeader: map[string]string{
 				"If-Modified-Since": htmlModTime.UTC().Format(TimeFormat),
@@ -810,11 +812,20 @@ func TestServeContent(t *testing.T) {
 		},
 		"not_modified_etag_no_seek": {
 			content:   panicOnSeek{nil}, // should never be called
-			serveETag: `"foo"`,
+			serveETag: `W/"foo"`,        // If-None-Match uses weak ETag comparison
 			reqHeader: map[string]string{
-				"If-None-Match": `"foo"`,
+				"If-None-Match": `"baz", W/"foo"`,
 			},
 			wantStatus: 304,
+		},
+		"if_none_match_mismatch": {
+			file:      "testdata/style.css",
+			serveETag: `"foo"`,
+			reqHeader: map[string]string{
+				"If-None-Match": `"Foo"`,
+			},
+			wantStatus:      200,
+			wantContentType: "text/css; charset=utf-8",
 		},
 		"range_good": {
 			file:      "testdata/style.css",
@@ -825,6 +836,27 @@ func TestServeContent(t *testing.T) {
 			wantStatus:       StatusPartialContent,
 			wantContentType:  "text/css; charset=utf-8",
 			wantContentRange: "bytes 0-4/8",
+		},
+		"range_match": {
+			file:      "testdata/style.css",
+			serveETag: `"A"`,
+			reqHeader: map[string]string{
+				"Range":    "bytes=0-4",
+				"If-Range": `"A"`,
+			},
+			wantStatus:       StatusPartialContent,
+			wantContentType:  "text/css; charset=utf-8",
+			wantContentRange: "bytes 0-4/8",
+		},
+		"range_match_weak_etag": {
+			file:      "testdata/style.css",
+			serveETag: `W/"A"`,
+			reqHeader: map[string]string{
+				"Range":    "bytes=0-4",
+				"If-Range": `W/"A"`,
+			},
+			wantStatus:      200,
+			wantContentType: "text/css; charset=utf-8",
 		},
 		"range_no_overlap": {
 			file:      "testdata/style.css",
@@ -877,6 +909,62 @@ func TestServeContent(t *testing.T) {
 			modtime:         time.Unix(0, 0),
 			wantStatus:      StatusOK,
 			wantContentType: "text/html; charset=utf-8",
+		},
+		"ifmatch_matches": {
+			file:      "testdata/style.css",
+			serveETag: `"A"`,
+			reqHeader: map[string]string{
+				"If-Match": `"Z", "A"`,
+			},
+			wantStatus:      200,
+			wantContentType: "text/css; charset=utf-8",
+		},
+		"ifmatch_star": {
+			file:      "testdata/style.css",
+			serveETag: `"A"`,
+			reqHeader: map[string]string{
+				"If-Match": `*`,
+			},
+			wantStatus:      200,
+			wantContentType: "text/css; charset=utf-8",
+		},
+		"ifmatch_failed": {
+			file:      "testdata/style.css",
+			serveETag: `"A"`,
+			reqHeader: map[string]string{
+				"If-Match": `"B"`,
+			},
+			wantStatus:      412,
+			wantContentType: "text/plain; charset=utf-8",
+		},
+		"ifmatch_fails_on_weak_etag": {
+			file:      "testdata/style.css",
+			serveETag: `W/"A"`,
+			reqHeader: map[string]string{
+				"If-Match": `W/"A"`,
+			},
+			wantStatus:      412,
+			wantContentType: "text/plain; charset=utf-8",
+		},
+		"if_unmodified_since_true": {
+			file:    "testdata/style.css",
+			modtime: htmlModTime,
+			reqHeader: map[string]string{
+				"If-Unmodified-Since": htmlModTime.UTC().Format(TimeFormat),
+			},
+			wantStatus:      200,
+			wantContentType: "text/css; charset=utf-8",
+			wantLastMod:     htmlModTime.UTC().Format(TimeFormat),
+		},
+		"if_unmodified_since_false": {
+			file:    "testdata/style.css",
+			modtime: htmlModTime,
+			reqHeader: map[string]string{
+				"If-Unmodified-Since": htmlModTime.Add(-2 * time.Second).UTC().Format(TimeFormat),
+			},
+			wantStatus:      412,
+			wantContentType: "text/plain; charset=utf-8",
+			wantLastMod:     htmlModTime.UTC().Format(TimeFormat),
 		},
 	}
 	for testName, tt := range tests {
@@ -1108,3 +1196,26 @@ func (d fileServerCleanPathDir) Open(path string) (File, error) {
 }
 
 type panicOnSeek struct{ io.ReadSeeker }
+
+func Test_scanETag(t *testing.T) {
+	tests := []struct {
+		in         string
+		wantETag   string
+		wantRemain string
+	}{
+		{`W/"etag-1"`, `W/"etag-1"`, ""},
+		{`"etag-2"`, `"etag-2"`, ""},
+		{`"etag-1", "etag-2"`, `"etag-1"`, `, "etag-2"`},
+		{"", "", ""},
+		{"", "", ""},
+		{"W/", "", ""},
+		{`W/"truc`, "", ""},
+		{`w/"case-sensitive"`, "", ""},
+	}
+	for _, test := range tests {
+		etag, remain := ExportScanETag(test.in)
+		if etag != test.wantETag || remain != test.wantRemain {
+			t.Errorf("scanETag(%q)=%q %q, want %q %q", test.in, etag, remain, test.wantETag, test.wantRemain)
+		}
+	}
+}
