@@ -264,16 +264,6 @@ func assertE2T2(t *_type, e eface, r unsafe.Pointer) bool {
 	return true
 }
 
-func convI2E(i iface) (r eface) {
-	tab := i.tab
-	if tab == nil {
-		return
-	}
-	r._type = tab._type
-	r.data = i.data
-	return
-}
-
 func assertI2E(inter *interfacetype, i iface, r *eface) {
 	tab := i.tab
 	if tab == nil {
