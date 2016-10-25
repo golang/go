@@ -156,38 +156,70 @@ const (
 	V29
 	V30
 	V31
-	V32
-	V33
-	V34
-	V35
-	V36
-	V37
-	V38
-	V39
-	V40
-	V41
-	V42
-	V43
-	V44
-	V45
-	V46
-	V47
-	V48
-	V49
-	V50
-	V51
-	V52
-	V53
-	V54
-	V55
-	V56
-	V57
-	V58
-	V59
-	V60
-	V61
-	V62
-	V63
+	VS0
+	VS1
+	VS2
+	VS3
+	VS4
+	VS5
+	VS6
+	VS7
+	VS8
+	VS9
+	VS10
+	VS11
+	VS12
+	VS13
+	VS14
+	VS15
+	VS16
+	VS17
+	VS18
+	VS19
+	VS20
+	VS21
+	VS22
+	VS23
+	VS24
+	VS25
+	VS26
+	VS27
+	VS28
+	VS29
+	VS30
+	VS31
+	VS32
+	VS33
+	VS34
+	VS35
+	VS36
+	VS37
+	VS38
+	VS39
+	VS40
+	VS41
+	VS42
+	VS43
+	VS44
+	VS45
+	VS46
+	VS47
+	VS48
+	VS49
+	VS50
+	VS51
+	VS52
+	VS53
+	VS54
+	VS55
+	VS56
+	VS57
+	VS58
+	VS59
+	VS60
+	VS61
+	VS62
+	VS63
 )
 
 func (Reg) IsArg() {}
@@ -197,10 +229,12 @@ func (r Reg) String() string {
 		return fmt.Sprintf("r%d", int(r-R0))
 	case F0 <= r && r <= F31:
 		return fmt.Sprintf("f%d", int(r-F0))
-	case V0 <= r && r <= V63:
+	case V0 <= r && r <= V31:
 		return fmt.Sprintf("v%d", int(r-V0))
+	case VS0 <= r && r <= VS63:
+		return fmt.Sprintf("vs%d", int(r-VS0))
 	default:
-		return fmt.Sprint("Reg(%d)", int(r))
+		return fmt.Sprintf("Reg(%d)", int(r))
 	}
 }
 

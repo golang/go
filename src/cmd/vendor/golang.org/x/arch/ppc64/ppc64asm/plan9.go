@@ -148,16 +148,25 @@ var revCondMap = map[string]string{
 
 // plan9OpMap maps an Op to its Plan 9 mnemonics, if different than its GNU mnemonics.
 var plan9OpMap = map[Op]string{
-	LBZ: "MOVBZ", STB: "MOVB",
+	LWARX: "LWAR", STWCX_: "STWCCC",
+	LDARX: "LDAR", STDCX_: "STDCCC",
+	LHARX: "LHAR", STHCX_: "STHCCC",
+	LBARX: "LBAR", STBCX_: "STBCCC",
+	ADDI: "ADD",
+	ADD_: "ADDCC",
+	LBZ:  "MOVBZ", STB: "MOVB",
 	LBZU: "MOVBZU", STBU: "MOVBU", // TODO(minux): indexed forms are not handled
 	LHZ: "MOVHZ", LHA: "MOVH", STH: "MOVH",
 	LHZU: "MOVHZU", STHU: "MOVHU",
+	LI:  "MOVD",
+	LIS: "ADDIS",
 	LWZ: "MOVWZ", LWA: "MOVW", STW: "MOVW",
 	LWZU: "MOVWZU", STWU: "MOVWU",
 	LD: "MOVD", STD: "MOVD",
 	LDU: "MOVDU", STDU: "MOVDU",
-	MTSPR: "MOV", MFSPR: "MOV", // the width is ambiguous for SPRs
+	MTSPR: "MOVD", MFSPR: "MOVD", // the width is ambiguous for SPRs
 	B:     "BR",
+	BL:    "CALL",
 	CMPLD: "CMPU", CMPLW: "CMPWU",
 	CMPD: "CMP", CMPW: "CMPW",
 }

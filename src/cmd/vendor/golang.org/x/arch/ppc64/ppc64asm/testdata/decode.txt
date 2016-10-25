@@ -13,7 +13,7 @@ c61bb730|	gnu	lfsu f16,-18640(r27)
 a9a912c1|	gnu	lha r13,4801(r9)
 ebb24fd1|	gnu	ldu r29,20432(r18)
 b1ce0612|	gnu	sth r14,1554(r14)
-f3d74322|	gnu	xvcvdpuxws v30,v40
+f3c04322|	gnu	xvcvdpuxws vs30,vs40
 945c62a2|	gnu	stwu r2,25250(r28)
 9c8156e3|	gnu	stbu r4,22243(r1)
 f91b9c7a|	gnu	stq r8,-25480(r27)
