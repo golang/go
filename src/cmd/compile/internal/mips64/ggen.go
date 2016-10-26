@@ -67,10 +67,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
 			p = gc.Appendpp(p, mips.AMOVV, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, 8+frame+lo+i)
 		}
-		// TODO(dfc): https://golang.org/issue/12108
-		// If DUFFZERO is used inside a tail call (see genwrapper) it will
-		// overwrite the link register.
-	} else if false && cnt <= int64(128*gc.Widthptr) {
+	} else if cnt <= int64(128*gc.Widthptr) {
 		p = gc.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, mips.REGRT1, 0)
 		p.Reg = mips.REGSP
 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
