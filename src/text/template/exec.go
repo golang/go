@@ -190,7 +190,7 @@ func (t *Template) execute(wr io.Writer, data interface{}) (err error) {
 		vars: []variable{{"$", value}},
 	}
 	if t.Tree == nil || t.Root == nil {
-		state.errorf("%q is an incomplete or empty template%s", t.Name(), t.DefinedTemplates())
+		state.errorf("%q is an incomplete or empty template", t.Name())
 	}
 	state.walk(value, t.Root)
 	return
