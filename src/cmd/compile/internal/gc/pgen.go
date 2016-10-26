@@ -303,8 +303,6 @@ func compile(fn *Node) {
 		panicslice = Sysfunc("panicslice")
 		panicdivide = Sysfunc("panicdivide")
 		growslice = Sysfunc("growslice")
-		writebarrierptr = Sysfunc("writebarrierptr")
-		typedmemmove = Sysfunc("typedmemmove")
 		panicdottype = Sysfunc("panicdottype")
 	}
 

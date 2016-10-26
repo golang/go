@@ -380,7 +380,4 @@ var panicdivide *Node
 
 var growslice *Node
 
-var writebarrierptr *Node
-var typedmemmove *Node
-
 var panicdottype *Node
