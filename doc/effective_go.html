@@ -245,15 +245,15 @@ func Compile(str string) (*Regexp, error) {
 </pre>
 
 <p>
-If the name always begins the comment, the output of <code>godoc</code>
-can usefully be run through <code>grep</code>.
+If every doc comment begins with the name of the item it describes,
+the output of <code>godoc</code> can usefully be run through <code>grep</code>.
 Imagine you couldn't remember the name "Compile" but were looking for
 the parsing function for regular expressions, so you ran
 the command,
 </p>
 
 <pre>
-$ godoc regexp | grep parse
+$ godoc regexp | grep -i parse
 </pre>
 
 <p>
