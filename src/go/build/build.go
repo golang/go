@@ -340,6 +340,11 @@ const (
 	// See golang.org/s/go15vendor for more information.
 	//
 	// Setting IgnoreVendor ignores vendor directories.
+	//
+	// In contrast to the package's ImportPath,
+	// the returned package's Imports, TestImports, and XTestImports
+	// are always the exact import paths from the source files:
+	// Import makes no attempt to resolve or check those paths.
 	IgnoreVendor
 )
 
@@ -385,15 +390,15 @@ type Package struct {
 	CgoPkgConfig []string // Cgo pkg-config directives
 
 	// Dependency information
-	Imports   []string                    // imports from GoFiles, CgoFiles
+	Imports   []string                    // import paths from GoFiles, CgoFiles
 	ImportPos map[string][]token.Position // line information for Imports
 
 	// Test information
 	TestGoFiles    []string                    // _test.go files in package
-	TestImports    []string                    // imports from TestGoFiles
+	TestImports    []string                    // import paths from TestGoFiles
 	TestImportPos  map[string][]token.Position // line information for TestImports
 	XTestGoFiles   []string                    // _test.go files outside package
-	XTestImports   []string                    // imports from XTestGoFiles
+	XTestImports   []string                    // import paths from XTestGoFiles
 	XTestImportPos map[string][]token.Position // line information for XTestImports
 }
 
