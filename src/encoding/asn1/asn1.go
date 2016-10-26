@@ -976,7 +976,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // The following tags on struct fields have special meaning to Unmarshal:
 //
 //	application	specifies that a APPLICATION tag is used
-//	default:x	sets the default value for optional integer fields
+//	default:x	sets the default value for optional integer fields (only used if optional is also present)
 //	explicit	specifies that an additional, explicit tag wraps the implicit one
 //	optional	marks the field as ASN.1 OPTIONAL
 //	set		causes a SET, rather than a SEQUENCE type to be expected
