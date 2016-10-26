@@ -4,7 +4,7 @@
 
 // Package quick implements utility functions to help with black box testing.
 //
-// The package is frozen and not accepting new features.
+// The testing/quick package is frozen and is not accepting new features.
 package quick
 
 import (
