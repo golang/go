@@ -317,9 +317,6 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	case EscHeap:
 		fmt.Fprint(s, " esc(h)")
 
-	case EscScope:
-		fmt.Fprint(s, " esc(s)")
-
 	case EscNone:
 		fmt.Fprint(s, " esc(no)")
 
