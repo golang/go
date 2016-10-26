@@ -10,6 +10,7 @@ import (
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -619,6 +620,61 @@ uintptr_t cfunc(callback f, uintptr_t n) {
 	want := result{r: 100, err: 333}
 	if got := <-c; got != want {
 		t.Errorf("got %d want %d", got, want)
+	}
+}
+
+func TestFloatArgs(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
+	}
+
+	const src = `
+#include <stdint.h>
+#include <windows.h>
+
+uintptr_t cfunc(uintptr_t a, double b, float c, double d) {
+	if (a == 1 && b == 2.2 && c == 3.3f && d == 4.4e44) {
+		return 1;
+	}
+	return 0;
+}
+`
+	tmpdir, err := ioutil.TempDir("", "TestFloatArgs")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	srcname := "mydll.c"
+	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outname := "mydll.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, outname)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+
+	proc := dll.MustFindProc("cfunc")
+
+	r, _, err := proc.Call(
+		1,
+		uintptr(math.Float64bits(2.2)),
+		uintptr(math.Float32bits(3.3)),
+		uintptr(math.Float64bits(4.4e44)),
+	)
+	if r != 1 {
+		t.Errorf("got %d want 1 (err=%v)", r, err)
 	}
 }
 
