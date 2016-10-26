@@ -717,6 +717,7 @@ var errors = []struct {
 	{"078.", token.FLOAT, 0, "078.", ""},
 	{"07801234567.", token.FLOAT, 0, "07801234567.", ""},
 	{"078e0", token.FLOAT, 0, "078e0", ""},
+	{"0E", token.FLOAT, 0, "0E", "illegal floating-point exponent"}, // issue 17621
 	{"078", token.INT, 0, "078", "illegal octal number"},
 	{"07800000009", token.INT, 0, "07800000009", "illegal octal number"},
 	{"0x", token.INT, 0, "0x", "illegal hexadecimal number"},
