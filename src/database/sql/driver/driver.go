@@ -69,6 +69,17 @@ var ErrSkip = errors.New("driver: skip fast-path; continue as if unimplemented")
 // you shouldn't return ErrBadConn.
 var ErrBadConn = errors.New("driver: bad connection")
 
+// Pinger is an optional interface that may be implemented by a Conn.
+//
+// If a Conn does not implement Pinger, the sql package's DB.Ping and
+// DB.PingContext will check if there is at least one Conn available.
+//
+// If Conn.Ping returns ErrBadConn, DB.Ping and DB.PingContext will remove
+// the Conn from pool.
+type Pinger interface {
+	Ping(ctx context.Context) error
+}
+
 // Execer is an optional interface that may be implemented by a Conn.
 //
 // If a Conn does not implement Execer, the sql package's DB.Exec will
