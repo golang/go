@@ -932,7 +932,7 @@ func TestMessageForExecuteEmpty(t *testing.T) {
 		t.Fatal("expected second error")
 	}
 	got = err.Error()
-	want = `template: empty: "empty" is an incomplete or empty template; defined templates are: "secondary"`
+	want = `template: empty: "empty" is an incomplete or empty template`
 	if got != want {
 		t.Errorf("expected error %s got %s", want, got)
 	}
