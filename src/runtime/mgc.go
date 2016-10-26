@@ -786,6 +786,16 @@ var work struct {
 	ndone   uint32
 	alldone note
 
+	// helperDrainBlock indicates that GC mark termination helpers
+	// should pass gcDrainBlock to gcDrain to block in the
+	// getfull() barrier. Otherwise, they should pass gcDrainNoBlock.
+	//
+	// TODO: This is a temporary fallback to support
+	// debug.gcrescanstacks > 0 and to work around some known
+	// races. Remove this when we remove the debug option and fix
+	// the races.
+	helperDrainBlock bool
+
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
 	nFlushCacheRoots                                             int
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots, nRescanRoots int
@@ -1590,6 +1600,31 @@ func gcMark(start_time int64) {
 	work.ndone = 0
 	work.nproc = uint32(gcprocs())
 
+	if work.full == 0 && work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots+work.nRescanRoots == 0 {
+		// There's no work on the work queue and no root jobs
+		// that can produce work, so don't bother entering the
+		// getfull() barrier.
+		//
+		// With the hybrid barrier enabled, this will be the
+		// situation the vast majority of the time after
+		// concurrent mark. However, we still need a fallback
+		// for STW GC and because there are some known races
+		// that occasionally leave work around for mark
+		// termination.
+		//
+		// We're still hedging our bets here: if we do
+		// accidentally produce some work, we'll still process
+		// it, just not necessarily in parallel.
+		//
+		// TODO(austin): When we eliminate
+		// debug.gcrescanstacks: fix the races, and remove
+		// work draining from mark termination so we don't
+		// need the fallback path.
+		work.helperDrainBlock = false
+	} else {
+		work.helperDrainBlock = true
+	}
+
 	if trace.enabled {
 		traceGCScanStart()
 	}
@@ -1602,7 +1637,11 @@ func gcMark(start_time int64) {
 	gchelperstart()
 
 	gcw := &getg().m.p.ptr().gcw
-	gcDrain(gcw, gcDrainBlock)
+	if work.helperDrainBlock {
+		gcDrain(gcw, gcDrainBlock)
+	} else {
+		gcDrain(gcw, gcDrainNoBlock)
+	}
 	gcw.dispose()
 
 	if debug.gccheckmark > 0 {
@@ -1838,7 +1877,11 @@ func gchelper() {
 	// Parallel mark over GC roots and heap
 	if gcphase == _GCmarktermination {
 		gcw := &_g_.m.p.ptr().gcw
-		gcDrain(gcw, gcDrainBlock) // blocks in getfull
+		if work.helperDrainBlock {
+			gcDrain(gcw, gcDrainBlock) // blocks in getfull
+		} else {
+			gcDrain(gcw, gcDrainNoBlock)
+		}
 		gcw.dispose()
 	}
 
