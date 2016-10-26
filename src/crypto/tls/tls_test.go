@@ -584,7 +584,7 @@ func TestClone(t *testing.T) {
 		case "Rand":
 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
 			continue
-		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate":
+		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "GetClientCertificate":
 			// DeepEqual can't compare functions.
 			continue
 		case "Certificates":
