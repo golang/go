@@ -516,12 +516,10 @@ func ValidString(s string) bool {
 // Code points that are out of range or a surrogate half are illegal.
 func ValidRune(r rune) bool {
 	switch {
-	case r < 0:
-		return false
-	case surrogateMin <= r && r <= surrogateMax:
-		return false
-	case r > MaxRune:
-		return false
+	case 0 <= r && r < surrogateMin:
+		return true
+	case surrogateMax < r && r <= MaxRune:
+		return true
 	}
-	return true
+	return false
 }
