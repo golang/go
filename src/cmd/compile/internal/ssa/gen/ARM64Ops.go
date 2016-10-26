@@ -60,8 +60,8 @@ var regNamesARM64 = []string{
 	// R27 = REGTMP not used in regalloc
 	"g",   // aka R28
 	"R29", // frame pointer, not used
-	// R30 = REGLINK not used in regalloc
-	"SP", // aka R31
+	"R30", // aka REGLINK
+	"SP",  // aka R31
 
 	"F0",
 	"F1",
@@ -123,7 +123,7 @@ func init() {
 
 	// Common individual register masks
 	var (
-		gp         = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26")
+		gp         = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30")
 		gpg        = gp | buildReg("g")
 		gpsp       = gp | buildReg("SP")
 		gpspg      = gpg | buildReg("SP")
@@ -350,7 +350,7 @@ func init() {
 			argLength: 2,
 			reg: regInfo{
 				inputs:   []regMask{gp},
-				clobbers: buildReg("R16"),
+				clobbers: buildReg("R16 R30"),
 			},
 			faultOnNilArg0: true,
 		},
@@ -389,7 +389,7 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R17"), buildReg("R16")},
-				clobbers: buildReg("R16 R17"),
+				clobbers: buildReg("R16 R17 R30"),
 			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
@@ -530,6 +530,6 @@ func init() {
 		gpregmask:       gp,
 		fpregmask:       fp,
 		framepointerreg: -1, // not used
-		linkreg:         -1, // not used
+		linkreg:         int8(num["R30"]),
 	})
 }
