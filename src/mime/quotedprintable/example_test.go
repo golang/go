@@ -15,7 +15,7 @@ import (
 func ExampleNewReader() {
 	for _, s := range []string{
 		`=48=65=6C=6C=6F=2C=20=47=6F=70=68=65=72=73=21`,
-		`invalid escape: =B`,
+		`invalid escape: <b style="font-size: 200%">hello</b>`,
 		"Hello, Gophers! This symbol will be unescaped: =3D and this will be written in =\r\none line.",
 	} {
 		b, err := ioutil.ReadAll(quotedprintable.NewReader(strings.NewReader(s)))
@@ -23,7 +23,7 @@ func ExampleNewReader() {
 	}
 	// Output:
 	// Hello, Gophers! <nil>
-	// invalid escape:  unexpected EOF
+	// invalid escape: <b style="font-size: 200%">hello</b> <nil>
 	// Hello, Gophers! This symbol will be unescaped: = and this will be written in one line. <nil>
 }
 

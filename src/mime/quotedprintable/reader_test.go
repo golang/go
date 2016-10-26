@@ -30,7 +30,7 @@ func TestReader(t *testing.T) {
 		{in: "foo bar=3d", want: "foo bar="}, // lax.
 		{in: "foo bar=\n", want: "foo bar"},
 		{in: "foo bar\n", want: "foo bar\n"}, // somewhat lax.
-		{in: "foo bar=0", want: "foo bar", err: io.ErrUnexpectedEOF},
+		{in: "foo bar=0", want: "foo bar=0"}, // lax
 		{in: "foo bar=0D=0A", want: "foo bar\r\n"},
 		{in: " A B        \r\n C ", want: " A B\r\n C"},
 		{in: " A B =\r\n C ", want: " A B  C"},
@@ -194,13 +194,10 @@ func TestExhaustive(t *testing.T) {
 	}
 	sort.Strings(outcomes)
 	got := strings.Join(outcomes, "\n")
-	want := `OK: 21576
-invalid bytes after =: 3397
-quotedprintable: invalid hex byte 0x0a: 1400
-quotedprintable: invalid hex byte 0x0d: 2700
-quotedprintable: invalid hex byte 0x20: 2490
-quotedprintable: invalid hex byte 0x3d: 440
-unexpected EOF: 3122`
+	want := `OK: 28934
+invalid bytes after =: 3949
+quotedprintable: invalid hex byte 0x0d: 2048
+unexpected EOF: 194`
 	if got != want {
 		t.Errorf("Got:\n%s\nWant:\n%s", got, want)
 	}
