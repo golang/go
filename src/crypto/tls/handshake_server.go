@@ -822,9 +822,9 @@ func (hs *serverHandshakeState) clientHelloInfo() *ClientHelloInfo {
 		supportedVersions = suppVersArray[VersionTLS12-hs.clientHello.vers:]
 	}
 
-	signatureSchemes := make([]uint16, 0, len(hs.clientHello.signatureAndHashes))
+	signatureSchemes := make([]SignatureScheme, 0, len(hs.clientHello.signatureAndHashes))
 	for _, sah := range hs.clientHello.signatureAndHashes {
-		signatureSchemes = append(signatureSchemes, uint16(sah.hash)<<8+uint16(sah.signature))
+		signatureSchemes = append(signatureSchemes, SignatureScheme(sah.hash)<<8+SignatureScheme(sah.signature))
 	}
 
 	hs.cachedClientHelloInfo = &ClientHelloInfo{
