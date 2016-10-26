@@ -1315,21 +1315,21 @@ func TestClientAltersCookiesOnRedirect(t *testing.T) {
 		switch c.Value {
 		case "0":
 			want = map[string][]string{
-				"Cookie1": []string{"OldValue1a", "OldValue1b"},
-				"Cookie2": []string{"OldValue2"},
-				"Cookie3": []string{"OldValue3a", "OldValue3b"},
-				"Cookie4": []string{"OldValue4"},
-				"Cycle":   []string{"0"},
+				"Cookie1": {"OldValue1a", "OldValue1b"},
+				"Cookie2": {"OldValue2"},
+				"Cookie3": {"OldValue3a", "OldValue3b"},
+				"Cookie4": {"OldValue4"},
+				"Cycle":   {"0"},
 			}
 			SetCookie(w, &Cookie{Name: "Cycle", Value: "1", Path: "/"})
 			SetCookie(w, &Cookie{Name: "Cookie2", Path: "/", MaxAge: -1}) // Delete cookie from Header
 			Redirect(w, r, "/", StatusFound)
 		case "1":
 			want = map[string][]string{
-				"Cookie1": []string{"OldValue1a", "OldValue1b"},
-				"Cookie3": []string{"OldValue3a", "OldValue3b"},
-				"Cookie4": []string{"OldValue4"},
-				"Cycle":   []string{"1"},
+				"Cookie1": {"OldValue1a", "OldValue1b"},
+				"Cookie3": {"OldValue3a", "OldValue3b"},
+				"Cookie4": {"OldValue4"},
+				"Cycle":   {"1"},
 			}
 			SetCookie(w, &Cookie{Name: "Cycle", Value: "2", Path: "/"})
 			SetCookie(w, &Cookie{Name: "Cookie3", Value: "NewValue3", Path: "/"}) // Modify cookie in Header
@@ -1337,21 +1337,21 @@ func TestClientAltersCookiesOnRedirect(t *testing.T) {
 			Redirect(w, r, "/", StatusFound)
 		case "2":
 			want = map[string][]string{
-				"Cookie1": []string{"OldValue1a", "OldValue1b"},
-				"Cookie3": []string{"NewValue3"},
-				"Cookie4": []string{"NewValue4"},
-				"Cycle":   []string{"2"},
+				"Cookie1": {"OldValue1a", "OldValue1b"},
+				"Cookie3": {"NewValue3"},
+				"Cookie4": {"NewValue4"},
+				"Cycle":   {"2"},
 			}
 			SetCookie(w, &Cookie{Name: "Cycle", Value: "3", Path: "/"})
 			SetCookie(w, &Cookie{Name: "Cookie5", Value: "NewValue5", Path: "/"}) // Insert cookie into Jar
 			Redirect(w, r, "/", StatusFound)
 		case "3":
 			want = map[string][]string{
-				"Cookie1": []string{"OldValue1a", "OldValue1b"},
-				"Cookie3": []string{"NewValue3"},
-				"Cookie4": []string{"NewValue4"},
-				"Cookie5": []string{"NewValue5"},
-				"Cycle":   []string{"3"},
+				"Cookie1": {"OldValue1a", "OldValue1b"},
+				"Cookie3": {"NewValue3"},
+				"Cookie4": {"NewValue4"},
+				"Cookie5": {"NewValue5"},
+				"Cycle":   {"3"},
 			}
 			// Don't redirect to ensure the loop ends.
 		default:
@@ -1380,8 +1380,8 @@ func TestClientAltersCookiesOnRedirect(t *testing.T) {
 	req.AddCookie(&Cookie{Name: "Cookie2", Value: "OldValue2"})
 	req.AddCookie(&Cookie{Name: "Cookie3", Value: "OldValue3a"})
 	req.AddCookie(&Cookie{Name: "Cookie3", Value: "OldValue3b"})
-	jar.SetCookies(u, []*Cookie{&Cookie{Name: "Cookie4", Value: "OldValue4", Path: "/"}})
-	jar.SetCookies(u, []*Cookie{&Cookie{Name: "Cycle", Value: "0", Path: "/"}})
+	jar.SetCookies(u, []*Cookie{{Name: "Cookie4", Value: "OldValue4", Path: "/"}})
+	jar.SetCookies(u, []*Cookie{{Name: "Cycle", Value: "0", Path: "/"}})
 	res, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
