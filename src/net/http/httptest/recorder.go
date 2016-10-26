@@ -29,8 +29,8 @@ type ResponseRecorder struct {
 	// automatic Content-Type), use the Result method.
 	HeaderMap http.Header
 
-	// Body is the buffer that a Handler's Write calls are sent to.
-	// If nil, the Writes are silently discard.
+	// Body is the buffer to which the Handler's Write calls are sent.
+	// If nil, the Writes are silently discarded.
 	Body *bytes.Buffer
 
 	// Flushed is whether the Handler called Flush.
