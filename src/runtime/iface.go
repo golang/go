@@ -138,6 +138,10 @@ func additab(m *itab, locked, canfail bool) {
 		throw("invalid itab locking")
 	}
 	h := itabhash(inter, typ)
+	if m == hash[h] {
+		println("duplicate itab for", typ.string(), "and", inter.typ.string())
+		throw("duplicate itabs")
+	}
 	m.link = hash[h]
 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
 }
