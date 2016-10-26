@@ -31,6 +31,10 @@ func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	if d.Mode&syscall.DMTMP != 0 {
 		fs.mode |= ModeTemporary
 	}
+	// Consider all files not served by #M as device files.
+	if d.Type != 'M' {
+		fs.mode |= ModeDevice
+	}
 	return fs
 }
 
