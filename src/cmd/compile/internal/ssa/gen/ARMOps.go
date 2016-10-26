@@ -87,7 +87,7 @@ func init() {
 
 	// Common individual register masks
 	var (
-		gp         = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12")
+		gp         = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14")
 		gpg        = gp | buildReg("g")
 		gpsp       = gp | buildReg("SP")
 		gpspg      = gpg | buildReg("SP")
@@ -148,7 +148,7 @@ func init() {
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
 				outputs:  []regMask{buildReg("R0"), buildReg("R1")},
-				clobbers: buildReg("R2 R3"), // also clobbers R12 on NaCl (modified in ../config.go)
+				clobbers: buildReg("R2 R3 R14"), // also clobbers R12 on NaCl (modified in ../config.go)
 			},
 			clobberFlags: true,
 			typ:          "(UInt32,UInt32)",
@@ -406,7 +406,7 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
-				clobbers: buildReg("R1"),
+				clobbers: buildReg("R1 R14"),
 			},
 			faultOnNilArg0: true,
 		},
@@ -423,7 +423,7 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R2"), buildReg("R1")},
-				clobbers: buildReg("R0 R1 R2"),
+				clobbers: buildReg("R0 R1 R2 R14"),
 			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
@@ -526,6 +526,6 @@ func init() {
 		gpregmask:       gp,
 		fpregmask:       fp,
 		framepointerreg: -1, // not used
-		linkreg:         -1, // not used
+		linkreg:         int8(num["R14"]),
 	})
 }
