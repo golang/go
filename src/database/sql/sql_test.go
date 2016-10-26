@@ -2581,6 +2581,50 @@ func TestBadDriver(t *testing.T) {
 	db.Exec("ignored")
 }
 
+type pingDriver struct {
+	fails bool
+}
+
+type pingConn struct {
+	badConn
+	driver *pingDriver
+}
+
+var pingError = errors.New("Ping failed")
+
+func (pc pingConn) Ping(ctx context.Context) error {
+	if pc.driver.fails {
+		return pingError
+	}
+	return nil
+}
+
+var _ driver.Pinger = pingConn{}
+
+func (pd *pingDriver) Open(name string) (driver.Conn, error) {
+	return pingConn{driver: pd}, nil
+}
+
+func TestPing(t *testing.T) {
+	driver := &pingDriver{}
+	Register("ping", driver)
+
+	db, err := Open("ping", "ignored")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := db.Ping(); err != nil {
+		t.Errorf("err was %#v, expected nil", err)
+		return
+	}
+
+	driver.fails = true
+	if err := db.Ping(); err != pingError {
+		t.Errorf("err was %#v, expected pingError", err)
+	}
+}
+
 func BenchmarkConcurrentDBExec(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentDBExecTest)
