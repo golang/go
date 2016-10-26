@@ -348,12 +348,9 @@ func (e *EscState) track(n *Node) {
 // EscNever which is sticky, eX < eY means that eY is more exposed
 // than eX, and hence replaces it in a conservative analysis.
 const (
-	EscUnknown = iota
-	EscNone    // Does not escape to heap, result, or parameters.
-	EscReturn  // Is returned or reachable from returned.
-	EscScope   // Allocated in an inner loop scope, assigned to an outer loop scope,
-	// which allows the construction of non-escaping but arbitrarily large linked
-	// data structures (i.e., not eligible for allocation in a fixed-size stack frame).
+	EscUnknown        = iota
+	EscNone           // Does not escape to heap, result, or parameters.
+	EscReturn         // Is returned or reachable from returned.
 	EscHeap           // Reachable from the heap
 	EscNever          // By construction will not escape.
 	EscBits           = 3
@@ -366,10 +363,10 @@ const (
 // escMax returns the maximum of an existing escape value
 // (and its additional parameter flow flags) and a new escape type.
 func escMax(e, etype uint16) uint16 {
-	if e&EscMask >= EscScope {
+	if e&EscMask >= EscHeap {
 		// normalize
 		if e&^EscMask != 0 {
-			Fatalf("Escape information had unexpected return encoding bits (w/ EscScope, EscHeap, EscNever), e&EscMask=%v", e&EscMask)
+			Fatalf("Escape information had unexpected return encoding bits (w/ EscHeap, EscNever), e&EscMask=%v", e&EscMask)
 		}
 	}
 	if e&EscMask > etype {
@@ -1284,9 +1281,6 @@ func describeEscape(em uint16) string {
 	if em&EscMask == EscReturn {
 		s = "EscReturn"
 	}
-	if em&EscMask == EscScope {
-		s = "EscScope"
-	}
 	if em&EscContentEscapes != 0 {
 		if s != "" {
 			s += " "
@@ -1812,7 +1806,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 	var osrcesc uint16 // used to prevent duplicate error messages
 
 	dstE := e.nodeEscState(dst)
-	if funcOutputAndInput(dst, src) && src.Esc&EscMask < EscScope && dst.Esc != EscHeap {
+	if funcOutputAndInput(dst, src) && src.Esc&EscMask < EscHeap && dst.Esc != EscHeap {
 		// This case handles:
 		// 1. return in
 		// 2. return &in
@@ -1836,7 +1830,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 	// If parameter content escapes to heap, set EscContentEscapes
 	// Note minor confusion around escape from pointer-to-struct vs escape from struct
 	if dst.Esc == EscHeap &&
-		src.Op == ONAME && src.Class == PPARAM && src.Esc&EscMask < EscScope &&
+		src.Op == ONAME && src.Class == PPARAM && src.Esc&EscMask < EscHeap &&
 		level.int() > 0 {
 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 		if Debug['m'] != 0 {
@@ -1851,7 +1845,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 	osrcesc = src.Esc
 	switch src.Op {
 	case ONAME:
-		if src.Class == PPARAM && (leaks || dstE.Loopdepth < 0) && src.Esc&EscMask < EscScope {
+		if src.Class == PPARAM && (leaks || dstE.Loopdepth < 0) && src.Esc&EscMask < EscHeap {
 			if level.guaranteedDereference() > 0 {
 				src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 				if Debug['m'] != 0 {
@@ -1866,9 +1860,8 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 					}
 				}
 			} else {
-				src.Esc = EscScope
+				src.Esc = EscHeap
 				if Debug['m'] != 0 {
-
 					if Debug['m'] <= 2 {
 						Warnl(src.Lineno, "leaking param: %S", src)
 						step.describe(src)
@@ -2105,8 +2098,7 @@ func (e *EscState) esctag(fn *Node) {
 				}
 			}
 
-		case EscHeap, // touched by escflood, moved to heap
-			EscScope: // touched by escflood, value leaves scope
+		case EscHeap: // touched by escflood, moved to heap
 		}
 	}
 }
