@@ -106,6 +106,7 @@
 package ssa
 
 import (
+	"cmd/internal/obj"
 	"fmt"
 	"unsafe"
 )
@@ -525,6 +526,12 @@ func (s *regAllocState) init(f *Func) {
 	if s.f.Config.LinkReg != -1 {
 		if isLeaf(f) {
 			// Leaf functions don't save/restore the link register.
+			s.allocatable &^= 1 << uint(s.f.Config.LinkReg)
+		}
+		if s.f.Config.arch == "arm" && obj.GOARM == 5 {
+			// On ARMv5 we insert softfloat calls at each FP instruction.
+			// This clobbers LR almost everywhere. Disable allocating LR
+			// on ARMv5.
 			s.allocatable &^= 1 << uint(s.f.Config.LinkReg)
 		}
 	}
