@@ -8,7 +8,7 @@
 // The package is using the Elastic Tabstops algorithm described at
 // http://nickgravgaard.com/elastictabstops/index.html.
 //
-// The package is frozen and not accepting new features.
+// The text/tabwriter package is frozen and is not accepting new features.
 package tabwriter
 
 import (
