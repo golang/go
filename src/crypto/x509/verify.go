@@ -346,8 +346,16 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 
 func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain []*Certificate, opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	possibleRoots, failedRoot, rootErr := opts.Roots.findVerifiedParents(c)
+nextRoot:
 	for _, rootNum := range possibleRoots {
 		root := opts.Roots.certs[rootNum]
+
+		for _, cert := range currentChain {
+			if cert.Equal(root) {
+				continue nextRoot
+			}
+		}
+
 		err = root.isValid(rootCertificate, currentChain, opts)
 		if err != nil {
 			continue
@@ -360,7 +368,7 @@ nextIntermediate:
 	for _, intermediateNum := range possibleIntermediates {
 		intermediate := opts.Intermediates.certs[intermediateNum]
 		for _, cert := range currentChain {
-			if cert == intermediate {
+			if cert.Equal(intermediate) {
 				continue nextIntermediate
 			}
 		}
