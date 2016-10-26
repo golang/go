@@ -104,10 +104,6 @@ var verifyTests = []verifyTest{
 
 		expectedChains: [][]string{
 			{"Google", "Google Internet Authority", "GeoTrust"},
-			// TODO(agl): this is ok, but it would be nice if the
-			//            chain building didn't visit the same SPKI
-			//            twice.
-			{"Google", "Google Internet Authority", "GeoTrust", "GeoTrust"},
 		},
 		// CAPI doesn't build the chain with the duplicated GeoTrust
 		// entry so the results don't match. Thus we skip this test
@@ -130,12 +126,8 @@ var verifyTests = []verifyTest{
 		roots:         []string{startComRoot},
 		currentTime:   1302726541,
 
-		// Skip when using systemVerify, since Windows
-		// can only return a single chain to us (for now).
-		systemSkip: true,
 		expectedChains: [][]string{
 			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
-			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority", "StartCom Certification Authority"},
 		},
 	},
 	{
