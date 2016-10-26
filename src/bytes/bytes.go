@@ -399,20 +399,20 @@ func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
 
 // ToUpperSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
 // upper case, giving priority to the special casing rules.
-func ToUpperSpecial(_case unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return _case.ToUpper(r) }, s)
+func ToUpperSpecial(c unicode.SpecialCase, s []byte) []byte {
+	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
 }
 
 // ToLowerSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
 // lower case, giving priority to the special casing rules.
-func ToLowerSpecial(_case unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return _case.ToLower(r) }, s)
+func ToLowerSpecial(c unicode.SpecialCase, s []byte) []byte {
+	return Map(func(r rune) rune { return c.ToLower(r) }, s)
 }
 
 // ToTitleSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
 // title case, giving priority to the special casing rules.
-func ToTitleSpecial(_case unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return _case.ToTitle(r) }, s)
+func ToTitleSpecial(c unicode.SpecialCase, s []byte) []byte {
+	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
