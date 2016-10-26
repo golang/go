@@ -185,15 +185,6 @@ var lastIndexAnyTests = []BinOpTest{
 	{dots + dots + dots, " ", -1},
 }
 
-var indexRuneTests = []BinOpTest{
-	{"", "a", -1},
-	{"", "☺", -1},
-	{"foo", "☹", -1},
-	{"foo", "o", 1},
-	{"foo☺bar", "☺", 3},
-	{"foo☺☻☹bar", "☹", 9},
-}
-
 // Execute f on each test case.  funcName should be the name of f; it's used
 // in failure reports.
 func runIndexTests(t *testing.T, f func(s, sep []byte) int, funcName string, testCases []BinOpTest) {
@@ -348,17 +339,42 @@ func TestIndexByteSmall(t *testing.T) {
 }
 
 func TestIndexRune(t *testing.T) {
-	for _, tt := range indexRuneTests {
-		a := []byte(tt.a)
-		r, _ := utf8.DecodeRuneInString(tt.b)
-		pos := IndexRune(a, r)
-		if pos != tt.i {
-			t.Errorf(`IndexRune(%q, '%c') = %v`, tt.a, r, pos)
+	tests := []struct {
+		in   string
+		rune rune
+		want int
+	}{
+		{"", 'a', -1},
+		{"", '☺', -1},
+		{"foo", '☹', -1},
+		{"foo", 'o', 1},
+		{"foo☺bar", '☺', 3},
+		{"foo☺☻☹bar", '☹', 9},
+		{"a A x", 'A', 2},
+		{"some_text=some_value", '=', 9},
+		{"☺a", 'a', 3},
+		{"a☻☺b", '☺', 4},
+
+		// RuneError should match any invalid UTF-8 byte sequence.
+		{"�", '�', 0},
+		{"\xff", '�', 0},
+		{"☻x�", '�', len("☻x")},
+		{"☻x\xe2\x98", '�', len("☻x")},
+		{"☻x\xe2\x98�", '�', len("☻x")},
+		{"☻x\xe2\x98x", '�', len("☻x")},
+
+		// Invalid rune values should never match.
+		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", -1, -1},
+		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", 0xD800, -1}, // Surrogate pair
+		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", utf8.MaxRune + 1, -1},
+	}
+	for _, tt := range tests {
+		if got := IndexRune([]byte(tt.in), tt.rune); got != tt.want {
+			t.Errorf("IndexRune(%q, %d) = %v; want %v", tt.in, tt.rune, got, tt.want)
 		}
 	}
 
 	haystack := []byte("test世界")
-
 	allocs := testing.AllocsPerRun(1000, func() {
 		if i := IndexRune(haystack, 's'); i != 2 {
 			t.Fatalf("'s' at %d; want 2", i)
@@ -368,7 +384,7 @@ func TestIndexRune(t *testing.T) {
 		}
 	})
 	if allocs != 0 {
-		t.Errorf(`expected no allocations, got %f`, allocs)
+		t.Errorf("expected no allocations, got %f", allocs)
 	}
 }
 

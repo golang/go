@@ -240,21 +240,39 @@ func TestIndexRandom(t *testing.T) {
 	}
 }
 
-var indexRuneTests = []struct {
-	s    string
-	rune rune
-	out  int
-}{
-	{"a A x", 'A', 2},
-	{"some_text=some_value", '=', 9},
-	{"☺a", 'a', 3},
-	{"a☻☺b", '☺', 4},
-}
-
 func TestIndexRune(t *testing.T) {
-	for _, test := range indexRuneTests {
-		if actual := IndexRune(test.s, test.rune); actual != test.out {
-			t.Errorf("IndexRune(%q,%d)= %v; want %v", test.s, test.rune, actual, test.out)
+	tests := []struct {
+		in   string
+		rune rune
+		want int
+	}{
+		{"", 'a', -1},
+		{"", '☺', -1},
+		{"foo", '☹', -1},
+		{"foo", 'o', 1},
+		{"foo☺bar", '☺', 3},
+		{"foo☺☻☹bar", '☹', 9},
+		{"a A x", 'A', 2},
+		{"some_text=some_value", '=', 9},
+		{"☺a", 'a', 3},
+		{"a☻☺b", '☺', 4},
+
+		// RuneError should match any invalid UTF-8 byte sequence.
+		{"�", '�', 0},
+		{"\xff", '�', 0},
+		{"☻x�", '�', len("☻x")},
+		{"☻x\xe2\x98", '�', len("☻x")},
+		{"☻x\xe2\x98�", '�', len("☻x")},
+		{"☻x\xe2\x98x", '�', len("☻x")},
+
+		// Invalid rune values should never match.
+		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", -1, -1},
+		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", 0xD800, -1}, // Surrogate pair
+		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", utf8.MaxRune + 1, -1},
+	}
+	for _, tt := range tests {
+		if got := IndexRune(tt.in, tt.rune); got != tt.want {
+			t.Errorf("IndexRune(%q, %d) = %v; want %v", tt.in, tt.rune, got, tt.want)
 		}
 	}
 
@@ -267,9 +285,8 @@ func TestIndexRune(t *testing.T) {
 			t.Fatalf("'世' at %d; want 4", i)
 		}
 	})
-
 	if allocs != 0 {
-		t.Errorf(`expected no allocations, got %f`, allocs)
+		t.Errorf("expected no allocations, got %f", allocs)
 	}
 }
 
