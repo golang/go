@@ -346,6 +346,9 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 		// quoted-string
 		debug.Printf("consumeAddrSpec: parsing quoted-string")
 		localPart, err = p.consumeQuotedString()
+		if localPart == "" {
+			err = errors.New("mail: empty quoted string in addr-spec")
+		}
 	} else {
 		// dot-atom
 		debug.Printf("consumeAddrSpec: parsing dot-atom")
@@ -463,9 +466,6 @@ Loop:
 		i += size
 	}
 	p.s = p.s[i+1:]
-	if len(qsb) == 0 {
-		return "", errors.New("mail: empty quoted-string")
-	}
 	return string(qsb), nil
 }
 

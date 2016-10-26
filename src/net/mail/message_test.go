@@ -315,6 +315,16 @@ func TestAddressParsing(t *testing.T) {
 				},
 			},
 		},
+		// Issue 14866
+		{
+			`"" <emptystring@example.com>`,
+			[]*Address{
+				{
+					Name:    "",
+					Address: "emptystring@example.com",
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		if len(test.exp) == 1 {
