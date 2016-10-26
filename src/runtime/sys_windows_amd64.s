@@ -45,6 +45,14 @@ loadregs:
 	MOVQ	8(SI), DX
 	MOVQ	16(SI), R8
 	MOVQ	24(SI), R9
+	// Floating point arguments are passed in the XMM
+	// registers. Set them here in case any of the arguments
+	// are floating point values. For details see
+	//	https://msdn.microsoft.com/en-us/library/zthk2dkh.aspx
+	MOVQ	CX, X0
+	MOVQ	DX, X1
+	MOVQ	R8, X2
+	MOVQ	R9, X3
 
 	// Call stdcall function.
 	CALL	AX
