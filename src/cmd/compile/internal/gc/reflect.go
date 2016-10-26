@@ -1395,11 +1395,11 @@ func dumptypestructs() {
 		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
 		// at runtime the itab will contain pointers to types, other itabs and
 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
-		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR))
+		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR|obj.LOCAL))
 
 		ilink := Pkglookup(i.t.tconv(FmtLeft)+","+i.itype.tconv(FmtLeft), itablinkpkg)
 		dsymptr(ilink, 0, i.sym, 0)
-		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
+		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA|obj.LOCAL))
 	}
 
 	// process ptabs
