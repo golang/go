@@ -2902,7 +2902,6 @@ func typecheckcomplit(n *Node) *Node {
 		t = t.Elem()
 	}
 
-	var r *Node
 	switch t.Etype {
 	default:
 		yyerror("invalid type for composite literal: %v", t)
@@ -2921,24 +2920,20 @@ func typecheckcomplit(n *Node) *Node {
 
 		var length, i int64
 		checkBounds := t.IsArray() && !t.isDDDArray()
-		for i2, n2 := range n.List.Slice() {
-			l := n2
+		nl := n.List.Slice()
+		for i2, l := range nl {
 			setlineno(l)
-			if l.Op != OKEY {
-				l = nod(OKEY, nodintconst(int64(i)), l)
-				l.Left.Type = Types[TINT]
-				l.Left.Typecheck = 1
-				n.List.SetIndex(i2, l)
-			}
-
-			l.Left = typecheck(l.Left, Erv)
-			evconst(l.Left)
-
-			i = nonnegintconst(l.Left)
-			if i < 0 && l.Left.Diag == 0 {
-				yyerror("index must be non-negative integer constant")
-				l.Left.Diag = 1
-				i = -(1 << 30) // stay negative for a while
+			vp := &nl[i2]
+			if l.Op == OKEY {
+				l.Left = typecheck(l.Left, Erv)
+				evconst(l.Left)
+				i = nonnegintconst(l.Left)
+				if i < 0 && l.Left.Diag == 0 {
+					yyerror("index must be non-negative integer constant")
+					l.Left.Diag = 1
+					i = -(1 << 30) // stay negative for a while
+				}
+				vp = &l.Right
 			}
 
 			if i >= 0 && indices != nil {
@@ -2949,6 +2944,12 @@ func typecheckcomplit(n *Node) *Node {
 				}
 			}
 
+			r := *vp
+			pushtype(r, t.Elem())
+			r = typecheck(r, Erv)
+			r = defaultlit(r, t.Elem())
+			*vp = assignconv(r, t.Elem(), "array or slice literal")
+
 			i++
 			if i > length {
 				length = i
@@ -2958,12 +2959,6 @@ func typecheckcomplit(n *Node) *Node {
 					checkBounds = false
 				}
 			}
-
-			r = l.Right
-			pushtype(r, t.Elem())
-			r = typecheck(r, Erv)
-			r = defaultlit(r, t.Elem())
-			l.Right = assignconv(r, t.Elem(), "array or slice literal")
 		}
 
 		if t.isDDDArray() {
@@ -2978,9 +2973,7 @@ func typecheckcomplit(n *Node) *Node {
 
 	case TMAP:
 		hash := make(map[uint32][]*Node)
-		var l *Node
-		for i3, n3 := range n.List.Slice() {
-			l = n3
+		for i3, l := range n.List.Slice() {
 			setlineno(l)
 			if l.Op != OKEY {
 				n.List.SetIndex(i3, typecheck(n.List.Index(i3), Erv))
@@ -2988,7 +2981,7 @@ func typecheckcomplit(n *Node) *Node {
 				continue
 			}
 
-			r = l.Left
+			r := l.Left
 			pushtype(r, t.Key())
 			r = typecheck(r, Erv)
 			r = defaultlit(r, t.Key())
@@ -3015,7 +3008,6 @@ func typecheckcomplit(n *Node) *Node {
 			// simple list of variables
 			f, it := iterFields(t)
 
-			var s *Sym
 			ls := n.List.Slice()
 			for i1, n1 := range ls {
 				setlineno(n1)
@@ -3029,7 +3021,7 @@ func typecheckcomplit(n *Node) *Node {
 					continue
 				}
 
-				s = f.Sym
+				s := f.Sym
 				if s != nil && !exportname(s.Name) && s.Pkg != localpkg {
 					yyerror("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
 				}

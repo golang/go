@@ -383,7 +383,7 @@ const (
 	OIND       // *Left
 	OINDEX     // Left[Right] (index of array or slice)
 	OINDEXMAP  // Left[Right] (index of map)
-	OKEY       // Left:Right (key:value in struct/array/map literal, or slice index pair)
+	OKEY       // Left:Right (key:value in struct/array/map literal)
 	OSTRUCTKEY // Sym:Left (key:value in struct literal, after type checking)
 	OLEN       // len(Left)
 	OMAKE      // make(List) (before type checking converts to one of the following)
