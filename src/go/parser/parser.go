@@ -2343,8 +2343,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
 	}
 
 	ident := p.parseIdent()
-	// permit both: type T => p.T and: type T = p.T for now
-	if p.tok == token.ALIAS || p.tok == token.ASSIGN {
+	if p.tok == token.ALIAS {
 		p.next()
 		return p.parseAliasSpec(doc, ast.Typ, ident)
 	}

@@ -47,7 +47,7 @@ var valids = []string{
 	`package p; var _ = map[P]int{P{}:0, {}:1}`,
 	`package p; var _ = map[*P]int{&P{}:0, {}:1}`,
 	`package p; const c => p.C; var x => X; type T => p.T; func F => p.F`,
-	`package p; var (_ int; x => p.X; y => Y); type (t => T; t1 = p.T1)`,
+	`package p; var (_ int; x => p.X; y => Y); type (t => T; t1 => p.T1)`,
 }
 
 func TestValid(t *testing.T) {

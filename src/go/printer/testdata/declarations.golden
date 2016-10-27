@@ -1015,8 +1015,6 @@ type c => p.C
 type (
 	s	struct{}
 	a	=> A
-	b	=> A
-	c	=> foo
 	ddd	=> p.Foo
 )
 
