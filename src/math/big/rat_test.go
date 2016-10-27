@@ -383,7 +383,7 @@ func TestFloat32Distribution(t *testing.T) {
 		11,
 	}
 	var winc, einc = uint64(5), 15 // quick test (~60ms on x86-64)
-	if testing.Short() {
+	if *long {
 		winc, einc = uint64(1), 1 // soak test (~1.5s on x86-64)
 	}
 
