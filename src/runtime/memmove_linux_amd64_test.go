@@ -40,7 +40,7 @@ func TestMemmoveOverflow(t *testing.T) {
 		_, _, errno := syscall.Syscall6(syscall.SYS_MMAP,
 			base+off, 65536, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED|syscall.MAP_FIXED, tmp.Fd(), 0)
 		if errno != 0 {
-			t.Fatalf("could not map a page at requested 0x%x: %s", base+off, errno)
+			t.Skipf("could not map a page at requested 0x%x: %s", base+off, errno)
 		}
 		defer syscall.Syscall(syscall.SYS_MUNMAP, base+off, 65536, 0)
 	}
