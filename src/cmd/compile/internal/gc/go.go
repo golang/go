@@ -47,14 +47,10 @@ type Sym struct {
 	Block      int32  // blocknumber to catch redeclaration
 	Lastlineno int32  // last declaration for diagnostic
 
-	Label   *Label // corresponding label (ephemeral)
-	Origpkg *Pkg   // original package for . import
+	Label   *Node // corresponding label (ephemeral)
+	Origpkg *Pkg  // original package for . import
 	Lsym    *obj.LSym
 	Fsym    *Sym // funcsym
-}
-
-type Label struct {
-	Def *Node
 }
 
 type SymFlags uint8
