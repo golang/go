@@ -709,7 +709,11 @@ func (d *decoder) parseChunk() error {
 		d.stage = dsSeenPLTE
 		return d.parsePLTE(length)
 	case "tRNS":
-		if d.stage != dsSeenPLTE {
+		if cbPaletted(d.cb) {
+			if d.stage != dsSeenPLTE {
+				return chunkOrderError
+			}
+		} else if d.stage != dsSeenIHDR {
 			return chunkOrderError
 		}
 		d.stage = dsSeentRNS
