@@ -589,9 +589,10 @@ func (e *EscState) escfunc(fn *Node) {
 // Mark labels that have no backjumps to them as not increasing e.loopdepth.
 // Walk hasn't generated (goto|label).Left.Sym.Label yet, so we'll cheat
 // and set it to one of the following two. Then in esc we'll clear it again.
-var looping Label
-
-var nonlooping Label
+var (
+	looping    Node
+	nonlooping Node
+)
 
 func (e *EscState) escloopdepthlist(l Nodes) {
 	for _, n := range l.Slice() {

@@ -3841,7 +3841,7 @@ func markbreak(n *Node, implicit *Node) {
 		} else {
 			lab := n.Left.Sym.Label
 			if lab != nil {
-				lab.Def.SetHasBreak(true)
+				lab.SetHasBreak(true)
 			}
 		}
 
@@ -3872,9 +3872,7 @@ func markbreaklist(l Nodes, implicit *Node) {
 		if n.Op == OLABEL && i+1 < len(s) && n.Name.Defn == s[i+1] {
 			switch n.Name.Defn.Op {
 			case OFOR, OSWITCH, OTYPESW, OSELECT, ORANGE:
-				lab := new(Label)
-				lab.Def = n.Name.Defn
-				n.Left.Sym.Label = lab
+				n.Left.Sym.Label = n.Name.Defn
 				markbreak(n.Name.Defn, n.Name.Defn)
 				n.Left.Sym.Label = nil
 				i++
