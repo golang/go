@@ -439,7 +439,7 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
 	if s.baseMask != 0 {
 		// optimize for power of 2 sized objects.
 		base = s.base()
-		base = base + (p-base)&s.baseMask
+		base = base + (p-base)&uintptr(s.baseMask)
 		objIndex = (base - s.base()) >> s.divShift
 		// base = p & s.baseMask is faster for small spans,
 		// but doesn't work for large spans.
@@ -448,7 +448,7 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
 		base = s.base()
 		if p-base >= s.elemsize {
 			// n := (p - base) / s.elemsize, using division by multiplication
-			objIndex = uintptr(uint64(p-base) >> s.divShift * uint64(s.divMul) >> s.divShift2)
+			objIndex = uintptr(p-base) >> s.divShift * uintptr(s.divMul) >> s.divShift2
 			base += objIndex * s.elemsize
 		}
 	}
