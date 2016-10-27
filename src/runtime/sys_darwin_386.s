@@ -200,7 +200,7 @@ systime:
 	MOVL	AX, 4(SP)
 	MOVL	$0, 8(SP)	// time zone pointer
 	MOVL	$0, 12(SP)	// required as of Sierra; Issue 16570
-	MOVL	$116, AX
+	MOVL	$116, AX // SYS_GETTIMEOFDAY
 	INT	$0x80
 	CMPL	AX, $0
 	JNE	inreg

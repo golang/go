@@ -161,7 +161,7 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-4
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), NOSPLIT, $32
-	MOVL	$232, AX
+	MOVL	$232, AX // clock_gettime
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)	// CLOCK_REALTIME
 	MOVL	BX, 8(SP)

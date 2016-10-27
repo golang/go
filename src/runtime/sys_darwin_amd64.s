@@ -158,7 +158,7 @@ systime:
 	MOVQ	SP, DI
 	MOVQ	$0, SI
 	MOVQ	$0, DX  // required as of Sierra; Issue 16570
-	MOVL	$(0x2000000+116), AX
+	MOVL	$(0x2000000+116), AX // gettimeofday
 	SYSCALL
 	CMPQ	AX, $0
 	JNE	inreg
