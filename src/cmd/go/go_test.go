@@ -3161,7 +3161,7 @@ func TestIssue17119(t *testing.T) {
 func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.runFail("test", "-bench", ".", "./testdata/src/benchfatal")
+	tg.runFail("test", "-run", "^$", "-bench", ".", "./testdata/src/benchfatal")
 	tg.grepBothNot("^ok", "test passed unexpectedly")
 	tg.grepBoth("FAIL.*benchfatal", "test did not run everything")
 }
@@ -3357,11 +3357,12 @@ func TestMatchesNoTestsDoesNotOverrideBuildFailure(t *testing.T) {
 	tg.grepBoth("FAIL", "go test did not say FAIL")
 }
 
-func TestMatchesNoBenchmarks(t *testing.T) {
+func TestMatchesNoBenchmarksIsOK(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.run("test", "-bench", "ThisWillNotMatch", "testdata/standalone_benchmark_test.go")
-	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+	tg.run("test", "-run", "^$", "-bench", "ThisWillNotMatch", "testdata/standalone_benchmark_test.go")
+	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+	tg.grepBoth(okPattern, "go test did not say ok")
 }
 
 func TestMatchesOnlyExampleIsOK(t *testing.T) {
@@ -3375,7 +3376,7 @@ func TestMatchesOnlyExampleIsOK(t *testing.T) {
 func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.run("test", "-bench", ".", "testdata/standalone_test.go")
+	tg.run("test", "-run", "^$", "-bench", ".", "testdata/standalone_benchmark_test.go")
 	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
 	tg.grepBoth(okPattern, "go test did not say ok")
 }
