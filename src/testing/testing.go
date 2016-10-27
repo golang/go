@@ -772,7 +772,7 @@ func (m *M) Run() int {
 	haveExamples = len(m.examples) > 0
 	testRan, testOk := runTests(m.matchString, m.tests)
 	exampleRan, exampleOk := runExamples(m.matchString, m.examples)
-	if !testRan && !exampleRan {
+	if !testRan && !exampleRan && *matchBenchmarks == "" {
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 	}
 	if !testOk || !exampleOk || !runBenchmarks(m.matchString, m.benchmarks) {
