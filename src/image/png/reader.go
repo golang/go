@@ -259,7 +259,25 @@ func (d *decoder) parsePLTE(length uint32) error {
 func (d *decoder) parsetRNS(length uint32) error {
 	switch d.cb {
 	case cbG1, cbG2, cbG4, cbG8, cbG16:
-		return UnsupportedError("grayscale transparency")
+		if length != 2 {
+			return FormatError("bad tRNS length")
+		}
+		n, err := io.ReadFull(d.r, d.tmp[:length])
+		if err != nil {
+			return err
+		}
+		d.crc.Write(d.tmp[:n])
+
+		copy(d.transparent[:], d.tmp[:length])
+		switch d.cb {
+		case cbG1:
+			d.transparent[1] *= 0xff
+		case cbG2:
+			d.transparent[1] *= 0x55
+		case cbG4:
+			d.transparent[1] *= 0x11
+		}
+		d.useTransparent = true
 
 	case cbTC8, cbTC16:
 		if length != 6 {
@@ -413,8 +431,13 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 	switch d.cb {
 	case cbG1, cbG2, cbG4, cbG8:
 		bitsPerPixel = d.depth
-		gray = image.NewGray(image.Rect(0, 0, width, height))
-		img = gray
+		if d.useTransparent {
+			nrgba = image.NewNRGBA(image.Rect(0, 0, width, height))
+			img = nrgba
+		} else {
+			gray = image.NewGray(image.Rect(0, 0, width, height))
+			img = gray
+		}
 	case cbGA8:
 		bitsPerPixel = 16
 		nrgba = image.NewNRGBA(image.Rect(0, 0, width, height))
@@ -438,8 +461,13 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		img = nrgba
 	case cbG16:
 		bitsPerPixel = 16
-		gray16 = image.NewGray16(image.Rect(0, 0, width, height))
-		img = gray16
+		if d.useTransparent {
+			nrgba64 = image.NewNRGBA64(image.Rect(0, 0, width, height))
+			img = nrgba64
+		} else {
+			gray16 = image.NewGray16(image.Rect(0, 0, width, height))
+			img = gray16
+		}
 	case cbGA16:
 		bitsPerPixel = 32
 		nrgba64 = image.NewNRGBA64(image.Rect(0, 0, width, height))
@@ -512,27 +540,75 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		// Convert from bytes to colors.
 		switch d.cb {
 		case cbG1:
-			for x := 0; x < width; x += 8 {
-				b := cdat[x/8]
-				for x2 := 0; x2 < 8 && x+x2 < width; x2++ {
-					gray.SetGray(x+x2, y, color.Gray{(b >> 7) * 0xff})
-					b <<= 1
+			if d.useTransparent {
+				ty := d.transparent[1]
+				for x := 0; x < width; x += 8 {
+					b := cdat[x/8]
+					for x2 := 0; x2 < 8 && x+x2 < width; x2++ {
+						ycol := (b >> 7) * 0xff
+						acol := uint8(0xff)
+						if ycol == ty {
+							acol = 0x00
+						}
+						nrgba.SetNRGBA(x+x2, y, color.NRGBA{ycol, ycol, ycol, acol})
+						b <<= 1
+					}
+				}
+			} else {
+				for x := 0; x < width; x += 8 {
+					b := cdat[x/8]
+					for x2 := 0; x2 < 8 && x+x2 < width; x2++ {
+						gray.SetGray(x+x2, y, color.Gray{(b >> 7) * 0xff})
+						b <<= 1
+					}
 				}
 			}
 		case cbG2:
-			for x := 0; x < width; x += 4 {
-				b := cdat[x/4]
-				for x2 := 0; x2 < 4 && x+x2 < width; x2++ {
-					gray.SetGray(x+x2, y, color.Gray{(b >> 6) * 0x55})
-					b <<= 2
+			if d.useTransparent {
+				ty := d.transparent[1]
+				for x := 0; x < width; x += 4 {
+					b := cdat[x/4]
+					for x2 := 0; x2 < 4 && x+x2 < width; x2++ {
+						ycol := (b >> 6) * 0x55
+						acol := uint8(0xff)
+						if ycol == ty {
+							acol = 0x00
+						}
+						nrgba.SetNRGBA(x+x2, y, color.NRGBA{ycol, ycol, ycol, acol})
+						b <<= 2
+					}
+				}
+			} else {
+				for x := 0; x < width; x += 4 {
+					b := cdat[x/4]
+					for x2 := 0; x2 < 4 && x+x2 < width; x2++ {
+						gray.SetGray(x+x2, y, color.Gray{(b >> 6) * 0x55})
+						b <<= 2
+					}
 				}
 			}
 		case cbG4:
-			for x := 0; x < width; x += 2 {
-				b := cdat[x/2]
-				for x2 := 0; x2 < 2 && x+x2 < width; x2++ {
-					gray.SetGray(x+x2, y, color.Gray{(b >> 4) * 0x11})
-					b <<= 4
+			if d.useTransparent {
+				ty := d.transparent[1]
+				for x := 0; x < width; x += 2 {
+					b := cdat[x/2]
+					for x2 := 0; x2 < 2 && x+x2 < width; x2++ {
+						ycol := (b >> 4) * 0x11
+						acol := uint8(0xff)
+						if ycol == ty {
+							acol = 0x00
+						}
+						nrgba.SetNRGBA(x+x2, y, color.NRGBA{ycol, ycol, ycol, acol})
+						b <<= 4
+					}
+				}
+			} else {
+				for x := 0; x < width; x += 2 {
+					b := cdat[x/2]
+					for x2 := 0; x2 < 2 && x+x2 < width; x2++ {
+						gray.SetGray(x+x2, y, color.Gray{(b >> 4) * 0x11})
+						b <<= 4
+					}
 				}
 			}
 		case cbG8:
@@ -551,7 +627,7 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 					r := cdat[j+0]
 					g := cdat[j+1]
 					b := cdat[j+2]
-					a := byte(0xff)
+					a := uint8(0xff)
 					if r == tr && g == tg && b == tb {
 						a = 0x00
 					}
@@ -625,9 +701,21 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 			copy(nrgba.Pix[pixOffset:], cdat)
 			pixOffset += nrgba.Stride
 		case cbG16:
-			for x := 0; x < width; x++ {
-				ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
-				gray16.SetGray16(x, y, color.Gray16{ycol})
+			if d.useTransparent {
+				ty := uint16(d.transparent[0])<<8 | uint16(d.transparent[1])
+				for x := 0; x < width; x++ {
+					ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
+					acol := uint16(0xffff)
+					if ycol == ty {
+						acol = 0x0000
+					}
+					nrgba64.SetNRGBA64(x, y, color.NRGBA64{ycol, ycol, ycol, acol})
+				}
+			} else {
+				for x := 0; x < width; x++ {
+					ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
+					gray16.SetGray16(x, y, color.Gray16{ycol})
+				}
 			}
 		case cbGA16:
 			for x := 0; x < width; x++ {

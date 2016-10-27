@@ -39,15 +39,15 @@ var filenames = []string{
 	"basn4a16",
 	"basn6a08",
 	"basn6a16",
-	//"ftbbn0g01", // TODO: grayscale transparency.
-	//"ftbbn0g02", // TODO: grayscale transparency.
-	//"ftbbn0g04", // TODO: grayscale transparency.
+	"ftbbn0g01",
+	"ftbbn0g02",
+	"ftbbn0g04",
 	"ftbbn2c16",
 	"ftbbn3p08",
 	"ftbgn2c16",
 	"ftbgn3p08",
 	"ftbrn2c08",
-	//"ftbwn0g16", // TODO: grayscale transparency.
+	"ftbwn0g16",
 	"ftbwn3p08",
 	"ftbyn3p08",
 	"ftp0n0g08",
@@ -96,6 +96,14 @@ var fakebKGDs = map[string]string{
 	"ftbyn3p08": "bKGD {index: 245}\n",
 }
 
+// fakegAMAs maps from filenames to fake gAMA chunks for our approximation to
+// the sng command-line tool. Package png doesn't keep that metadata when
+// png.Decode returns an image.Image.
+var fakegAMAs = map[string]string{
+	"ftbbn0g01": "",
+	"ftbbn0g02": "gAMA {0.45455}\n",
+}
+
 // fakeIHDRUsings maps from filenames to fake IHDR "using" lines for our
 // approximation to the sng command-line tool. The PNG model is that
 // transparency (in the tRNS chunk) is separate to the color/grayscale/palette
@@ -106,9 +114,13 @@ var fakebKGDs = map[string]string{
 // can't otherwise discriminate PNG's "IHDR says color (with no alpha) but tRNS
 // says alpha" and "IHDR says color with alpha".
 var fakeIHDRUsings = map[string]string{
+	"ftbbn0g01": "    using grayscale;\n",
+	"ftbbn0g02": "    using grayscale;\n",
+	"ftbbn0g04": "    using grayscale;\n",
 	"ftbbn2c16": "    using color;\n",
 	"ftbgn2c16": "    using color;\n",
 	"ftbrn2c08": "    using color;\n",
+	"ftbwn0g16": "    using grayscale;\n",
 }
 
 // An approximation of the sng command-line tool.
@@ -163,7 +175,11 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 	// We fake a gAMA chunk. The test files have a gAMA chunk but the go PNG
 	// parser ignores it (the PNG spec section 11.3 says "Ancillary chunks may
 	// be ignored by a decoder").
-	io.WriteString(w, "gAMA {1.0000}\n")
+	if s, ok := fakegAMAs[filename]; ok {
+		io.WriteString(w, s)
+	} else {
+		io.WriteString(w, "gAMA {1.0000}\n")
+	}
 
 	// Write the PLTE and tRNS (if applicable).
 	useTransparent := false
@@ -209,14 +225,28 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 			if c.A == 0 {
 				useTransparent = true
 				io.WriteString(w, "tRNS {\n")
-				fmt.Fprintf(w, "    red: %d; green: %d; blue: %d;\n", c.R, c.G, c.B)
+				switch filename {
+				case "ftbbn0g01", "ftbbn0g02", "ftbbn0g04":
+					// The standard image package doesn't have a "gray with
+					// alpha" type. Instead, we use an image.NRGBA.
+					fmt.Fprintf(w, "    gray: %d;\n", c.R)
+				default:
+					fmt.Fprintf(w, "    red: %d; green: %d; blue: %d;\n", c.R, c.G, c.B)
+				}
 				io.WriteString(w, "}\n")
 			}
 		case color.NRGBA64:
 			if c.A == 0 {
 				useTransparent = true
 				io.WriteString(w, "tRNS {\n")
-				fmt.Fprintf(w, "    red: %d; green: %d; blue: %d;\n", c.R, c.G, c.B)
+				switch filename {
+				case "ftbwn0g16":
+					// The standard image package doesn't have a "gray16 with
+					// alpha" type. Instead, we use an image.NRGBA64.
+					fmt.Fprintf(w, "    gray: %d;\n", c.R)
+				default:
+					fmt.Fprintf(w, "    red: %d; green: %d; blue: %d;\n", c.R, c.G, c.B)
+				}
 				io.WriteString(w, "}\n")
 			}
 		}
@@ -249,19 +279,29 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 		case cm == color.NRGBAModel:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
 				nrgba := png.At(x, y).(color.NRGBA)
-				if useTransparent {
-					fmt.Fprintf(w, "%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B)
-				} else {
-					fmt.Fprintf(w, "%02x%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B, nrgba.A)
+				switch filename {
+				case "ftbbn0g01", "ftbbn0g02", "ftbbn0g04":
+					fmt.Fprintf(w, "%02x", nrgba.R)
+				default:
+					if useTransparent {
+						fmt.Fprintf(w, "%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B)
+					} else {
+						fmt.Fprintf(w, "%02x%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B, nrgba.A)
+					}
 				}
 			}
 		case cm == color.NRGBA64Model:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
 				nrgba64 := png.At(x, y).(color.NRGBA64)
-				if useTransparent {
-					fmt.Fprintf(w, "%04x%04x%04x ", nrgba64.R, nrgba64.G, nrgba64.B)
-				} else {
-					fmt.Fprintf(w, "%04x%04x%04x%04x ", nrgba64.R, nrgba64.G, nrgba64.B, nrgba64.A)
+				switch filename {
+				case "ftbwn0g16":
+					fmt.Fprintf(w, "%04x ", nrgba64.R)
+				default:
+					if useTransparent {
+						fmt.Fprintf(w, "%04x%04x%04x ", nrgba64.R, nrgba64.G, nrgba64.B)
+					} else {
+						fmt.Fprintf(w, "%04x%04x%04x%04x ", nrgba64.R, nrgba64.G, nrgba64.B, nrgba64.A)
+					}
 				}
 			}
 		case cpm != nil:
