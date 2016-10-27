@@ -83,6 +83,7 @@ func cse(f *Func) {
 	// non-equivalent arguments.  Repeat until we can't find any
 	// more splits.
 	var splitPoints []int
+	byArgClass := new(partitionByArgClass) // reuseable partitionByArgClass to reduce allocations
 	for {
 		changed := false
 
@@ -92,7 +93,9 @@ func cse(f *Func) {
 			e := partition[i]
 
 			// Sort by eq class of arguments.
-			sort.Sort(partitionByArgClass{e, valueEqClass})
+			byArgClass.a = e
+			byArgClass.eqClass = valueEqClass
+			sort.Sort(byArgClass)
 
 			// Find split points.
 			splitPoints = append(splitPoints[:0], 0)
@@ -147,8 +150,11 @@ func cse(f *Func) {
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
 	rewrite := make([]*Value, f.NumValues())
+	byDom := new(partitionByDom) // reusable partitionByDom to reduce allocs
 	for _, e := range partition {
-		sort.Sort(partitionByDom{e, sdom})
+		byDom.a = e
+		byDom.sdom = sdom
+		sort.Sort(byDom)
 		for i := 0; i < len(e)-1; i++ {
 			// e is sorted by domorder, so a maximal dominant element is first in the slice
 			v := e[i]
