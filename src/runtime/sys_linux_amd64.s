@@ -219,11 +219,16 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-36
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
-	MOVL	sig+8(FP), DI
+	MOVQ	fn+0(FP),    AX
+	MOVL	sig+8(FP),   DI
 	MOVQ	info+16(FP), SI
-	MOVQ	ctx+24(FP), DX
-	MOVQ	fn+0(FP), AX
+	MOVQ	ctx+24(FP),  DX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP     // alignment for x86_64 ABI
 	CALL	AX
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$24

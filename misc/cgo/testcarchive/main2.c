@@ -7,8 +7,10 @@
 
 #include <setjmp.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -46,10 +48,21 @@ static void ioHandler(int signo, siginfo_t* info, void* ctxt) {
 static jmp_buf jmp;
 static char* nullPointer;
 
+// An arbitrary function which requires proper stack alignment; see
+// http://golang.org/issue/17641.
+static void callWithVarargs(void* dummy, ...) {
+	va_list args;
+	va_start(args, dummy);
+	va_end(args);
+}
+
 // Signal handler for SIGSEGV on a C thread.
 static void segvHandler(int signo, siginfo_t* info, void* ctxt) {
 	sigset_t mask;
 	int i;
+
+	// Call an arbitrary function that requires the stack to be properly aligned.
+	callWithVarargs("dummy arg", 3.1415);
 
 	if (sigemptyset(&mask) < 0) {
 		die("sigemptyset");
