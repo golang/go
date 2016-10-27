@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -206,9 +207,10 @@ func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
 // typically use variables of type Listener instead of assuming Unix
 // domain sockets.
 type UnixListener struct {
-	fd     *netFD
-	path   string
-	unlink bool
+	fd         *netFD
+	path       string
+	unlink     bool
+	unlinkOnce sync.Once
 }
 
 func (ln *UnixListener) ok() bool { return ln != nil && ln.fd != nil }

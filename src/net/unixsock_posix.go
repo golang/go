@@ -173,9 +173,12 @@ func (ln *UnixListener) close() error {
 	// is at least compatible with the auto-remove
 	// sequence in ListenUnix. It's only non-Go
 	// programs that can mess us up.
-	if ln.path[0] != '@' && ln.unlink {
-		syscall.Unlink(ln.path)
-	}
+	// Even if there are racy calls to Close, we want to unlink only for the first one.
+	ln.unlinkOnce.Do(func() {
+		if ln.path[0] != '@' && ln.unlink {
+			syscall.Unlink(ln.path)
+		}
+	})
 	return ln.fd.Close()
 }
 
