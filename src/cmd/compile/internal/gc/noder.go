@@ -214,8 +214,12 @@ func (p *noder) aliasDecl(decl *syntax.AliasDecl) {
 		return
 	}
 
-	// don't declare blank aliases
-	if decl.Name.Value == "_" {
+	// handle special cases
+	switch decl.Name.Value {
+	case "_":
+		return // don't declare blank aliases
+	case "init":
+		yyerror("cannot declare init - must be non-alias function declaration")
 		return
 	}
 
