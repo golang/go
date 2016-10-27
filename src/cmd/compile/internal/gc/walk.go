@@ -819,12 +819,13 @@ opswitch:
 			n.Rlist.Set1(r)
 			break
 		}
+		init.Append(r)
 
-		ll := ascompatet(n.Op, n.List, r.Type, 0, init)
+		ll := ascompatet(n.Op, n.List, r.Type)
 		for i, n := range ll {
 			ll[i] = applywritebarrier(n)
 		}
-		n = liststmt(append([]*Node{r}, ll...))
+		n = liststmt(ll)
 
 	// x, y = <-c
 	// orderstmt made sure x is addressable.
@@ -1848,10 +1849,10 @@ func fncall(l *Node, rt *Type) bool {
 // check assign type list to
 // a expression list. called in
 //	expr-list = func()
-func ascompatet(op Op, nl Nodes, nr *Type, fp int, init *Nodes) []*Node {
+func ascompatet(op Op, nl Nodes, nr *Type) []*Node {
 	r, saver := iterFields(nr)
 
-	var nn, mm []*Node
+	var nn, mm Nodes
 	var ullmanOverflow bool
 	var i int
 	for i = 0; i < nl.Len(); i++ {
@@ -1871,20 +1872,20 @@ func ascompatet(op Op, nl Nodes, nr *Type, fp int, init *Nodes) []*Node {
 			tmp := temp(r.Type)
 			tmp = typecheck(tmp, Erv)
 			a := nod(OAS, l, tmp)
-			a = convas(a, init)
-			mm = append(mm, a)
+			a = convas(a, &mm)
+			mm.Append(a)
 			l = tmp
 		}
 
-		a := nod(OAS, l, nodarg(r, fp))
-		a = convas(a, init)
+		a := nod(OAS, l, nodarg(r, 0))
+		a = convas(a, &nn)
 		ullmancalc(a)
 		if a.Ullman >= UINF {
 			Dump("ascompatet ucount", a)
 			ullmanOverflow = true
 		}
 
-		nn = append(nn, a)
+		nn.Append(a)
 		r = saver.Next()
 	}
 
@@ -1895,7 +1896,7 @@ func ascompatet(op Op, nl Nodes, nr *Type, fp int, init *Nodes) []*Node {
 	if ullmanOverflow {
 		Fatalf("ascompatet: too many function calls evaluating parameters")
 	}
-	return append(nn, mm...)
+	return append(nn.Slice(), mm.Slice()...)
 }
 
 // package all the arguments that match a ... T parameter into a []T.
