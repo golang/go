@@ -9,6 +9,7 @@
 package p
 
 import (
+	"flag"
 	"fmt" // use at most once (to test "imported but not used" error)
 	"go/build"
 	. "go/build"
@@ -74,13 +75,19 @@ func _ => math.Sin
 func sin => math.Sin
 func sin1 => math.Pi // ERROR "math.Pi is not a function"
 
+// aliases may not be called init
+func init => flag.Parse // ERROR "cannot declare init"
+
 // alias reference to a package marks package as used
 func _ => fmt.Println
 
 // re-exported aliases
 const Pi => math.Pi
+
 type Writer => io.Writer
+
 var Def => build.Default
+
 func Sin => math.Sin
 
 // type aliases denote identical types
