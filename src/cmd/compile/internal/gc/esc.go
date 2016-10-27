@@ -18,7 +18,7 @@ import (
 // The algorithm (known as Tarjan's algorithm) for doing that is taken from
 // Sedgewick, Algorithms, Second Edition, p. 482, with two adaptations.
 //
-// First, a hidden closure function (n.Func.FCurfn != nil) cannot be the
+// First, a hidden closure function (n.Func.IsHiddenClosure) cannot be the
 // root of a connected component. Refusing to use it as a root
 // forces it into the component of the function in which it appears.
 // This is more convenient for escape analysis.
@@ -58,7 +58,7 @@ func visitBottomUp(list []*Node, analyze func(list []*Node, recursive bool)) {
 	v.analyze = analyze
 	v.nodeID = make(map[*Node]uint32)
 	for _, n := range list {
-		if n.Op == ODCLFUNC && n.Func.FCurfn == nil {
+		if n.Op == ODCLFUNC && !n.Func.IsHiddenClosure {
 			v.visit(n)
 		}
 	}
@@ -78,7 +78,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 
 	v.stack = append(v.stack, n)
 	min = v.visitcodelist(n.Nbody, min)
-	if (min == id || min == id+1) && n.Func.FCurfn == nil {
+	if (min == id || min == id+1) && !n.Func.IsHiddenClosure {
 		// This node is the root of a strongly connected component.
 
 		// The original min passed to visitcodelist was v.nodeID[n]+1.
