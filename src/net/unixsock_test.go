@@ -9,6 +9,7 @@ package net
 import (
 	"bytes"
 	"internal/testenv"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"runtime"
@@ -443,4 +444,15 @@ func TestUnixUnlink(t *testing.T) {
 	if _, err := os.Stat(name); err == nil {
 		t.Fatal("closing unix listener did not remove unix socket")
 	}
+	if err := ioutil.WriteFile(name, []byte("hello world"), 0666); err != nil {
+		t.Fatalf("cannot recreate socket file: %v", err)
+	}
+	if _, err := os.Stat(name); err != nil {
+		t.Fatal("recreating unix listener as file failed: %v", err)
+	}
+	l.Close()
+	if _, err := os.Stat(name); err != nil {
+		t.Fatalf("second close of unix socket did second remove: %v", err)
+	}
+	os.Remove(name)
 }
