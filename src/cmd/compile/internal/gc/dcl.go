@@ -474,7 +474,7 @@ func colasdefn(left []*Node, defn *Node) {
 
 		if n.Sym.Flags&SymUniq == 0 {
 			yyerrorl(defn.Lineno, "%v repeated on left side of :=", n.Sym)
-			n.Diag++
+			n.Diag = true
 			nerr++
 			continue
 		}
