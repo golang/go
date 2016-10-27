@@ -167,7 +167,6 @@ type Name struct {
 	Pack      *Node  // real package for import . names
 	Pkg       *Pkg   // pkg for OPACK nodes
 	Heapaddr  *Node  // temp holding heap address of param (could move to Param?)
-	Inlvar    *Node  // ONAME substitute while inlining (could move to Param?)
 	Defn      *Node  // initializing assignment
 	Curfn     *Node  // function for local variables
 	Param     *Param // additional fields for ONAME
