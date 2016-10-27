@@ -251,3 +251,10 @@ func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addr
 	}
 	return filterAddrList(filter, ips, inetaddr)
 }
+
+func loopbackIP(net string) IP {
+	if net != "" && net[len(net)-1] == '6' {
+		return IPv6loopback
+	}
+	return IP{127, 0, 0, 1}
+}
