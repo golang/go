@@ -234,7 +234,8 @@ type mspan struct {
 	// h->sweepgen is incremented by 2 after every GC
 
 	sweepgen    uint32
-	divMul      uint32     // for divide by elemsize - divMagic.mul
+	divMul      uint16     // for divide by elemsize - divMagic.mul
+	baseMask    uint16     // if non-0, elemsize is a power of 2, & this will get object allocation base
 	allocCount  uint16     // capacity - number of objects in freelist
 	sizeclass   uint8      // size class
 	incache     bool       // being used by an mcache
@@ -248,7 +249,6 @@ type mspan struct {
 	limit       uintptr    // end of data in span
 	speciallock mutex      // guards specials list
 	specials    *special   // linked list of special records sorted by offset.
-	baseMask    uintptr    // if non-0, elemsize is a power of 2, & this will get object allocation base
 }
 
 func (s *mspan) base() uintptr {
