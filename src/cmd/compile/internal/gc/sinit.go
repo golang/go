@@ -621,11 +621,13 @@ func getdyn(n *Node, top bool) initGenType {
 
 	var mode initGenType
 	for _, n1 := range n.List.Slice() {
-		value := n1.Right
-		if n.Op == OSTRUCTLIT {
-			value = n1.Left
+		switch n1.Op {
+		case OKEY:
+			n1 = n1.Right
+		case OSTRUCTKEY:
+			n1 = n1.Left
 		}
-		mode |= getdyn(value, false)
+		mode |= getdyn(n1, false)
 		if mode == initDynamic|initConst {
 			break
 		}
@@ -640,10 +642,10 @@ func isStaticCompositeLiteral(n *Node) bool {
 		return false
 	case OARRAYLIT:
 		for _, r := range n.List.Slice() {
-			if r.Op != OKEY {
-				Fatalf("isStaticCompositeLiteral: rhs not OKEY: %v", r)
+			if r.Op == OKEY {
+				r = r.Right
 			}
-			if r.Left.Op != OLITERAL || !isStaticCompositeLiteral(r.Right) {
+			if !isStaticCompositeLiteral(r) {
 				return false
 			}
 		}
@@ -700,11 +702,15 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 	var splitnode func(*Node) (a *Node, value *Node)
 	switch n.Op {
 	case OARRAYLIT, OSLICELIT:
+		var k int64
 		splitnode = func(r *Node) (*Node, *Node) {
-			if r.Op != OKEY {
-				Fatalf("fixedlit: rhs not OKEY: %v", r)
+			if r.Op == OKEY {
+				k = nonnegintconst(r.Left)
+				r = r.Right
 			}
-			return nod(OINDEX, var_, r.Left), r.Right
+			a := nod(OINDEX, var_, nodintconst(k))
+			k++
+			return a, r
 		}
 	case OSTRUCTLIT:
 		splitnode = func(r *Node) (*Node, *Node) {
@@ -733,9 +739,6 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 		}
 
 		islit := isliteral(value)
-		if n.Op == OARRAYLIT {
-			islit = islit && isliteral(r.Left)
-		}
 		if (kind == initKindStatic && !islit) || (kind == initKindDynamic && islit) {
 			continue
 		}
@@ -863,14 +866,16 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	}
 
 	// put dynamics into array (5)
+	var index int64
 	for _, r := range n.List.Slice() {
-		if r.Op != OKEY {
-			Fatalf("slicelit: rhs not OKEY: %v", r)
+		value := r
+		if r.Op == OKEY {
+			index = nonnegintconst(r.Left)
+			value = r.Right
 		}
-		index := r.Left
-		value := r.Right
-		a := nod(OINDEX, vauto, index)
+		a := nod(OINDEX, vauto, nodintconst(index))
 		a.Bounded = true
+		index++
 
 		// TODO need to check bounds?
 
@@ -883,7 +888,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			continue
 		}
 
-		if isliteral(index) && isliteral(value) {
+		if isliteral(value) {
 			continue
 		}
 
@@ -1237,12 +1242,14 @@ func initplan(n *Node) {
 		Fatalf("initplan")
 
 	case OARRAYLIT, OSLICELIT:
+		var k int64
 		for _, a := range n.List.Slice() {
-			index := nonnegintconst(a.Left)
-			if a.Op != OKEY || index < 0 {
-				Fatalf("initplan fixedlit")
+			if a.Op == OKEY {
+				k = nonnegintconst(a.Left)
+				a = a.Right
 			}
-			addvalue(p, index*n.Type.Elem().Width, a.Right)
+			addvalue(p, k*n.Type.Elem().Width, a)
+			k++
 		}
 
 	case OSTRUCTLIT:
@@ -1308,7 +1315,10 @@ func iszero(n *Node) bool {
 
 	case OARRAYLIT:
 		for _, n1 := range n.List.Slice() {
-			if !iszero(n1.Right) {
+			if n1.Op == OKEY {
+				n1 = n1.Right
+			}
+			if !iszero(n1) {
 				return false
 			}
 		}
