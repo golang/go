@@ -55,6 +55,23 @@ func TestProhibitionaryDialArg(t *testing.T) {
 	}
 }
 
+func TestDialLocal(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	_, port, err := SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := Dial("tcp", JoinHostPort("", port))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
+}
+
 func TestDialTimeoutFDLeak(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":

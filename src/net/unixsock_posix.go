@@ -94,6 +94,10 @@ func (a *UnixAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return &syscall.SockaddrUnix{Name: a.Name}, nil
 }
 
+func (a *UnixAddr) toLocal(net string) sockaddr {
+	return a
+}
+
 func (c *UnixConn) readFrom(b []byte) (int, *UnixAddr, error) {
 	var addr *UnixAddr
 	n, sa, err := c.fd.readFrom(b)
