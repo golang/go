@@ -11,7 +11,7 @@
 The export data is a serialized description of the graph of exported
 "objects": constants, types, variables, and functions. Aliases may be
 directly reexported, and unaliased types may be indirectly reexported
-(as part of the type of a directly exorted object). More generally,
+(as part of the type of a directly exported object). More generally,
 objects referred to from inlined function bodies can be reexported.
 We need to know which package declares these reexported objects, and
 therefore packages are also part of the export graph.

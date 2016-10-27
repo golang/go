@@ -365,8 +365,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 	}
 
 	name := p.name()
-	// permit both: type T => p.T and: type T = p.T for now
-	if p.got(_Rarrow) || p.got(_Assign) {
+	if p.got(_Rarrow) {
 		return p.aliasDecl(Type, name, group)
 	}
 
