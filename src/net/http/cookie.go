@@ -168,7 +168,7 @@ func (c *Cookie) String() string {
 			log.Printf("net/http: invalid Cookie.Domain %q; dropping domain attribute", c.Domain)
 		}
 	}
-	if c.Expires.Unix() > 0 {
+	if validCookieExpires(c.Expires) {
 		b.WriteString("; Expires=")
 		b2 := b.Bytes()
 		b.Reset()
@@ -244,6 +244,12 @@ func validCookieDomain(v string) bool {
 		return true
 	}
 	return false
+}
+
+// validCookieExpires returns whether v is a valid cookie expires-value.
+func validCookieExpires(t time.Time) bool {
+	// IETF RFC 6265 Section 5.1.1.5, the year must not be less than 1601
+	return t.Year() >= 1601
 }
 
 // isCookieDomainName returns whether s is a valid domain name or a valid
