@@ -114,8 +114,11 @@ func newblock(prog *obj.Prog) *BasicBlock {
 	result.mark = UNVISITED
 	result.first = prog
 	result.last = prog
-	result.pred = make([]*BasicBlock, 0, 2)
-	result.succ = make([]*BasicBlock, 0, 2)
+	// We want two 0-len slices with capacity 2.
+	// Carve them out of a single allocation.
+	blocks := make([]*BasicBlock, 4)
+	result.pred = blocks[0:][:0:2]
+	result.succ = blocks[2:][:0:2]
 	return result
 }
 
