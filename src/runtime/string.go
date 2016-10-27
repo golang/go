@@ -147,18 +147,6 @@ func stringtoslicebyte(buf *tmpBuf, s string) []byte {
 	return b
 }
 
-func stringtoslicebytetmp(s string) []byte {
-	// Return a slice referring to the actual string bytes.
-	// This is only for use by internal compiler optimizations
-	// that know that the slice won't be mutated.
-	// The only such case today is:
-	// for i, c := range []byte(str)
-
-	str := stringStructOf(&s)
-	ret := slice{array: str.str, len: str.len, cap: str.len}
-	return *(*[]byte)(unsafe.Pointer(&ret))
-}
-
 func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
 	// two passes.
 	// unlike slicerunetostring, no race because strings are immutable.

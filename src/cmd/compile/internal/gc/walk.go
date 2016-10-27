@@ -1660,9 +1660,15 @@ opswitch:
 
 		n = mkcall("stringtoslicebyte", n.Type, init, a, conv(n.Left, Types[TSTRING]))
 
-		// stringtoslicebytetmp(string) []byte;
 	case OSTRARRAYBYTETMP:
-		n = mkcall("stringtoslicebytetmp", n.Type, init, conv(n.Left, Types[TSTRING]))
+		// []byte(string) conversion that creates a slice
+		// referring to the actual string bytes.
+		// This conversion is handled later by the backend and
+		// is only for use by internal compiler optimizations
+		// that know that the slice won't be mutated.
+		// The only such case today is:
+		// for i, c := range []byte(string)
+		n.Left = walkexpr(n.Left, init)
 
 		// stringtoslicerune(*[32]rune, string) []rune
 	case OSTRARRAYRUNE:

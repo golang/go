@@ -314,6 +314,10 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		instrumentnode(&n.Left, init, 0, 0)
 		goto ret
 
+	case OSTRARRAYBYTETMP:
+		instrumentnode(&n.Left, init, 0, 0)
+		goto ret
+
 		// should not appear in AST by now
 	case OSEND,
 		ORECV,
