@@ -531,12 +531,13 @@ func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
 	return n
 }
 
-func tinlvar(t *Field) *Node {
+func tinlvar(t *Field, inlvars map[*Node]*Node) *Node {
 	if t.Nname != nil && !isblank(t.Nname) {
-		if t.Nname.Name.Inlvar == nil {
+		inlvar := inlvars[t.Nname]
+		if inlvar == nil {
 			Fatalf("missing inlvar for %v\n", t.Nname)
 		}
-		return t.Nname.Name.Inlvar
+		return inlvar
 	}
 
 	return typecheck(nblank, Erv|Easgn)
@@ -559,6 +560,8 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	if fn == Curfn || fn.Name.Defn == Curfn {
 		return n
 	}
+
+	inlvars := make(map[*Node]*Node)
 
 	if Debug['l'] < 2 {
 		typecheckinl(fn)
@@ -600,9 +603,9 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 			continue
 		}
 		if ln.Op == ONAME {
-			ln.Name.Inlvar = typecheck(inlvar(ln), Erv)
+			inlvars[ln] = typecheck(inlvar(ln), Erv)
 			if ln.Class == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class == PPARAM {
-				ninit.Append(nod(ODCL, ln.Name.Inlvar, nil))
+				ninit.Append(nod(ODCL, inlvars[ln], nil))
 			}
 		}
 	}
@@ -613,7 +616,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		if t != nil && t.Nname != nil && !isblank(t.Nname) {
 			m = inlvar(t.Nname)
 			m = typecheck(m, Erv)
-			t.Nname.Name.Inlvar = m
+			inlvars[t.Nname] = m
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
@@ -629,7 +632,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		// method call with a receiver.
 		t := fn.Type.Recv()
 
-		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
+		if t != nil && t.Nname != nil && !isblank(t.Nname) && inlvars[t.Nname] == nil {
 			Fatalf("missing inlvar for %v\n", t.Nname)
 		}
 		if n.Left.Left == nil {
@@ -638,7 +641,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		if t == nil {
 			Fatalf("method call unknown receiver type: %+v", n)
 		}
-		as := nod(OAS, tinlvar(t), n.Left.Left)
+		as := nod(OAS, tinlvar(t, inlvars), n.Left.Left)
 		if as != nil {
 			as = typecheck(as, Etop)
 			ninit.Append(as)
@@ -698,13 +701,13 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		// append receiver inlvar to LHS.
 		t := fn.Type.Recv()
 
-		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
+		if t != nil && t.Nname != nil && !isblank(t.Nname) && inlvars[t.Nname] == nil {
 			Fatalf("missing inlvar for %v\n", t.Nname)
 		}
 		if t == nil {
 			Fatalf("method call unknown receiver type: %+v", n)
 		}
-		as.List.Append(tinlvar(t))
+		as.List.Append(tinlvar(t, inlvars))
 		li++
 	}
 
@@ -718,7 +721,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		var i int
 		for _, t := range fn.Type.Params().Fields().Slice() {
 			if variadic && t.Isddd {
-				vararg = tinlvar(t)
+				vararg = tinlvar(t, inlvars)
 				for i = 0; i < varargcount && li < n.List.Len(); i++ {
 					m = argvar(varargtype, i)
 					varargs = append(varargs, m)
@@ -728,7 +731,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 				break
 			}
 
-			as.List.Append(tinlvar(t))
+			as.List.Append(tinlvar(t, inlvars))
 		}
 	} else {
 		// match arguments except final variadic (unless the call is dotted itself)
@@ -740,14 +743,14 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 			if variadic && t.Isddd {
 				break
 			}
-			as.List.Append(tinlvar(t))
+			as.List.Append(tinlvar(t, inlvars))
 			t = it.Next()
 			li++
 		}
 
 		// match varargcount arguments with variadic parameters.
 		if variadic && t != nil && t.Isddd {
-			vararg = tinlvar(t)
+			vararg = tinlvar(t, inlvars)
 			var i int
 			for i = 0; i < varargcount && li < n.List.Len(); i++ {
 				m = argvar(varargtype, i)
@@ -803,6 +806,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	subst := inlsubst{
 		retlabel: retlabel,
 		retvars:  retvars,
+		inlvars:  inlvars,
 	}
 
 	body := subst.list(fn.Func.Inl)
@@ -909,6 +913,8 @@ type inlsubst struct {
 
 	// Temporary result variables.
 	retvars []*Node
+
+	inlvars map[*Node]*Node
 }
 
 // list inlines a list of nodes.
@@ -931,11 +937,11 @@ func (subst *inlsubst) node(n *Node) *Node {
 
 	switch n.Op {
 	case ONAME:
-		if n.Name.Inlvar != nil { // These will be set during inlnode
+		if inlvar := subst.inlvars[n]; inlvar != nil { // These will be set during inlnode
 			if Debug['m'] > 2 {
-				fmt.Printf("substituting name %+v  ->  %+v\n", n, n.Name.Inlvar)
+				fmt.Printf("substituting name %+v  ->  %+v\n", n, inlvar)
 			}
-			return n.Name.Inlvar
+			return inlvar
 		}
 
 		if Debug['m'] > 2 {
