@@ -519,7 +519,7 @@ func (e *AddrError) Error() string {
 	}
 	s := e.Err
 	if e.Addr != "" {
-		s += " " + e.Addr
+		s = "address " + e.Addr + ": " + s
 	}
 	return s
 }

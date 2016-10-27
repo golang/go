@@ -230,7 +230,7 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
 		}
 	}
 	if len(naddrs) == 0 {
-		return nil, errNoSuitableAddress
+		return nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: hint.String()}
 	}
 	return naddrs, nil
 }
