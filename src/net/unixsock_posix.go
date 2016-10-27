@@ -190,6 +190,18 @@ func (ln *UnixListener) file() (*os.File, error) {
 	return f, nil
 }
 
+// SetUnlinkOnClose sets whether the underlying socket file should be removed
+// from the file system when the listener is closed.
+//
+// The default behavior is to unlink the socket file only when package net created it.
+// That is, when the listener and the underlying socket file were created by a call to
+// Listen or ListenUnix, then by default closing the listener will remove the socket file.
+// but if the listener was created by a call to FileListener to use an already existing
+// socket file, then by default closing the listener will not remove the socket file.
+func (l *UnixListener) SetUnlinkOnClose(unlink bool) {
+	l.unlink = unlink
+}
+
 func listenUnix(ctx context.Context, network string, laddr *UnixAddr) (*UnixListener, error) {
 	fd, err := unixSocket(ctx, network, laddr, nil, "listen")
 	if err != nil {
