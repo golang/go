@@ -113,6 +113,11 @@ type decoder struct {
 	idatLength    uint32
 	tmp           [3 * 256]byte
 	interlace     int
+
+	// useTransparent and transparent are used for grayscale and truecolor
+	// transparency, as opposed to palette transparency.
+	useTransparent bool
+	transparent    [6]byte
 }
 
 // A FormatError reports that the input is not a valid PNG.
@@ -252,20 +257,33 @@ func (d *decoder) parsePLTE(length uint32) error {
 }
 
 func (d *decoder) parsetRNS(length uint32) error {
-	if length > 256 {
-		return FormatError("bad tRNS length")
-	}
-	n, err := io.ReadFull(d.r, d.tmp[:length])
-	if err != nil {
-		return err
-	}
-	d.crc.Write(d.tmp[:n])
 	switch d.cb {
-	case cbG8, cbG16:
+	case cbG1, cbG2, cbG4, cbG8, cbG16:
 		return UnsupportedError("grayscale transparency")
+
 	case cbTC8, cbTC16:
-		return UnsupportedError("truecolor transparency")
+		if length != 6 {
+			return FormatError("bad tRNS length")
+		}
+		n, err := io.ReadFull(d.r, d.tmp[:length])
+		if err != nil {
+			return err
+		}
+		d.crc.Write(d.tmp[:n])
+
+		copy(d.transparent[:], d.tmp[:length])
+		d.useTransparent = true
+
 	case cbP1, cbP2, cbP4, cbP8:
+		if length > 256 {
+			return FormatError("bad tRNS length")
+		}
+		n, err := io.ReadFull(d.r, d.tmp[:length])
+		if err != nil {
+			return err
+		}
+		d.crc.Write(d.tmp[:n])
+
 		if len(d.palette) < n {
 			d.palette = d.palette[:n]
 		}
@@ -273,7 +291,8 @@ func (d *decoder) parsetRNS(length uint32) error {
 			rgba := d.palette[i].(color.RGBA)
 			d.palette[i] = color.NRGBA{rgba.R, rgba.G, rgba.B, d.tmp[i]}
 		}
-	case cbGA8, cbGA16, cbTCA8, cbTCA16:
+
+	default:
 		return FormatError("tRNS, color type mismatch")
 	}
 	return d.verifyChecksum()
@@ -366,7 +385,7 @@ func (d *decoder) decode() (image.Image, error) {
 
 // readImagePass reads a single image pass, sized according to the pass number.
 func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image.Image, error) {
-	var bitsPerPixel int = 0
+	bitsPerPixel := 0
 	pixOffset := 0
 	var (
 		gray     *image.Gray
@@ -402,8 +421,13 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		img = nrgba
 	case cbTC8:
 		bitsPerPixel = 24
-		rgba = image.NewRGBA(image.Rect(0, 0, width, height))
-		img = rgba
+		if d.useTransparent {
+			nrgba = image.NewNRGBA(image.Rect(0, 0, width, height))
+			img = nrgba
+		} else {
+			rgba = image.NewRGBA(image.Rect(0, 0, width, height))
+			img = rgba
+		}
 	case cbP1, cbP2, cbP4, cbP8:
 		bitsPerPixel = d.depth
 		paletted = image.NewPaletted(image.Rect(0, 0, width, height), d.palette)
@@ -422,8 +446,13 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		img = nrgba64
 	case cbTC16:
 		bitsPerPixel = 48
-		rgba64 = image.NewRGBA64(image.Rect(0, 0, width, height))
-		img = rgba64
+		if d.useTransparent {
+			nrgba64 = image.NewNRGBA64(image.Rect(0, 0, width, height))
+			img = nrgba64
+		} else {
+			rgba64 = image.NewRGBA64(image.Rect(0, 0, width, height))
+			img = rgba64
+		}
 	case cbTCA16:
 		bitsPerPixel = 64
 		nrgba64 = image.NewNRGBA64(image.Rect(0, 0, width, height))
@@ -515,16 +544,37 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				nrgba.SetNRGBA(x, y, color.NRGBA{ycol, ycol, ycol, cdat[2*x+1]})
 			}
 		case cbTC8:
-			pix, i, j := rgba.Pix, pixOffset, 0
-			for x := 0; x < width; x++ {
-				pix[i+0] = cdat[j+0]
-				pix[i+1] = cdat[j+1]
-				pix[i+2] = cdat[j+2]
-				pix[i+3] = 0xff
-				i += 4
-				j += 3
+			if d.useTransparent {
+				pix, i, j := nrgba.Pix, pixOffset, 0
+				tr, tg, tb := d.transparent[1], d.transparent[3], d.transparent[5]
+				for x := 0; x < width; x++ {
+					r := cdat[j+0]
+					g := cdat[j+1]
+					b := cdat[j+2]
+					a := byte(0xff)
+					if r == tr && g == tg && b == tb {
+						a = 0x00
+					}
+					pix[i+0] = r
+					pix[i+1] = g
+					pix[i+2] = b
+					pix[i+3] = a
+					i += 4
+					j += 3
+				}
+				pixOffset += nrgba.Stride
+			} else {
+				pix, i, j := rgba.Pix, pixOffset, 0
+				for x := 0; x < width; x++ {
+					pix[i+0] = cdat[j+0]
+					pix[i+1] = cdat[j+1]
+					pix[i+2] = cdat[j+2]
+					pix[i+3] = 0xff
+					i += 4
+					j += 3
+				}
+				pixOffset += rgba.Stride
 			}
-			pixOffset += rgba.Stride
 		case cbP1:
 			for x := 0; x < width; x += 8 {
 				b := cdat[x/8]
@@ -586,11 +636,27 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				nrgba64.SetNRGBA64(x, y, color.NRGBA64{ycol, ycol, ycol, acol})
 			}
 		case cbTC16:
-			for x := 0; x < width; x++ {
-				rcol := uint16(cdat[6*x+0])<<8 | uint16(cdat[6*x+1])
-				gcol := uint16(cdat[6*x+2])<<8 | uint16(cdat[6*x+3])
-				bcol := uint16(cdat[6*x+4])<<8 | uint16(cdat[6*x+5])
-				rgba64.SetRGBA64(x, y, color.RGBA64{rcol, gcol, bcol, 0xffff})
+			if d.useTransparent {
+				tr := uint16(d.transparent[0])<<8 | uint16(d.transparent[1])
+				tg := uint16(d.transparent[2])<<8 | uint16(d.transparent[3])
+				tb := uint16(d.transparent[4])<<8 | uint16(d.transparent[5])
+				for x := 0; x < width; x++ {
+					rcol := uint16(cdat[6*x+0])<<8 | uint16(cdat[6*x+1])
+					gcol := uint16(cdat[6*x+2])<<8 | uint16(cdat[6*x+3])
+					bcol := uint16(cdat[6*x+4])<<8 | uint16(cdat[6*x+5])
+					acol := uint16(0xffff)
+					if rcol == tr && gcol == tg && bcol == tb {
+						acol = 0x0000
+					}
+					nrgba64.SetNRGBA64(x, y, color.NRGBA64{rcol, gcol, bcol, acol})
+				}
+			} else {
+				for x := 0; x < width; x++ {
+					rcol := uint16(cdat[6*x+0])<<8 | uint16(cdat[6*x+1])
+					gcol := uint16(cdat[6*x+2])<<8 | uint16(cdat[6*x+3])
+					bcol := uint16(cdat[6*x+4])<<8 | uint16(cdat[6*x+5])
+					rgba64.SetRGBA64(x, y, color.RGBA64{rcol, gcol, bcol, 0xffff})
+				}
 			}
 		case cbTCA16:
 			for x := 0; x < width; x++ {
