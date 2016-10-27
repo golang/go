@@ -110,6 +110,30 @@ func testslice2() {
 	}
 }
 
+// test that range over []byte(string) only evaluates
+// the expression after "range" once.
+
+func makenumstring() string {
+	nmake++
+	return "\x01\x02\x03\x04\x05"
+}
+
+func testslice3() {
+	s := byte(0)
+	nmake = 0
+	for _, v := range []byte(makenumstring()) {
+		s += v
+	}
+	if nmake != 1 {
+		println("range called makenumstring", nmake, "times")
+		panic("fail")
+	}
+	if s != 15 {
+		println("wrong sum ranging over []byte(makenumstring)", s)
+		panic("fail")
+	}
+}
+
 // test that range over array only evaluates
 // the expression after "range" once.
 
@@ -392,6 +416,7 @@ func main() {
 	testslice()
 	testslice1()
 	testslice2()
+	testslice3()
 	teststring()
 	teststring1()
 	teststring2()

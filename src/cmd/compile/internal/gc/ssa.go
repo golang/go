@@ -1428,6 +1428,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), slice)
 		len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
 		return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
+	case OSTRARRAYBYTETMP:
+		str := s.expr(n.Left)
+		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), str)
+		len := s.newValue1(ssa.OpStringLen, Types[TINT], str)
+		return s.newValue3(ssa.OpSliceMake, n.Type, ptr, len, len)
 	case OCFUNC:
 		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: n.Left.Sym})
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
