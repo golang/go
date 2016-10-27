@@ -722,6 +722,10 @@ func TestLookupNonLDH(t *testing.T) {
 	if runtime.GOOS == "nacl" {
 		t.Skip("skip on nacl")
 	}
+	if fixup := forceGoDNS(); fixup != nil {
+		defer fixup()
+	}
+
 	// "LDH" stands for letters, digits, and hyphens and is the usual
 	// description of standard DNS names.
 	// This test is checking that other kinds of names are reported
