@@ -170,9 +170,41 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 	formatNumeric(ustar.DevMajor(), hdr.Devmajor, paxNone)
 	formatNumeric(ustar.DevMinor(), hdr.Devminor, paxNone)
 
+	// TODO(dsnet): The logic surrounding the prefix field is broken when trying
+	// to encode the header as GNU format. The challenge with the current logic
+	// is that we are unsure what format we are using at any given moment until
+	// we have processed *all* of the fields. The problem is that by the time
+	// all fields have been processed, some work has already been done to handle
+	// each field under the assumption that it is for one given format or
+	// another. In some situations, this causes the Writer to be confused and
+	// encode a prefix field when the format being used is GNU. Thus, producing
+	// an invalid tar file.
+	//
+	// As a short-term fix, we disable the logic to use the prefix field, which
+	// will force the badly generated GNU files to become encoded as being
+	// the PAX format.
+	//
+	// As an alternative fix, we could hard-code preferPax to be true. However,
+	// this is problematic for the following reasons:
+	//	* The preferPax functionality is not tested at all.
+	//	* This can result in headers that try to use both the GNU and PAX
+	//	features at the same time, which is also wrong.
+	//
+	// The proper fix for this is to use a two-pass method:
+	//	* The first pass simply determines what set of formats can possibly
+	//	encode the given header.
+	//	* The second pass actually encodes the header as that given format
+	//	without worrying about violating the format.
+	//
+	// See the following:
+	//	https://golang.org/issue/12594
+	//	https://golang.org/issue/17630
+	//	https://golang.org/issue/9683
+	const usePrefix = false
+
 	// try to use a ustar header when only the name is too long
 	_, paxPathUsed := paxHeaders[paxPath]
-	if !tw.preferPax && len(paxHeaders) == 1 && paxPathUsed {
+	if usePrefix && !tw.preferPax && len(paxHeaders) == 1 && paxPathUsed {
 		prefix, suffix, ok := splitUSTARPath(hdr.Name)
 		if ok {
 			// Since we can encode in USTAR format, disable PAX header.

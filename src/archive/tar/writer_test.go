@@ -133,9 +133,13 @@ func TestWriter(t *testing.T) {
 			contents: strings.Repeat("\x00", 4<<10),
 		}},
 	}, {
-		// The truncated test file was produced using these commands:
-		//   dd if=/dev/zero bs=1048576 count=16384 > (longname/)*15 /16gig.txt
-		//   tar -b 1 -c -f- (longname/)*15 /16gig.txt | dd bs=512 count=8 > writer-big-long.tar
+		// This truncated file was produced using this library.
+		// It was verified to work with GNU tar 1.27.1 and BSD tar 3.1.2.
+		//  dd if=/dev/zero bs=1G count=16 >> writer-big-long.tar
+		//  gnutar -xvf writer-big-long.tar
+		//  bsdtar -xvf writer-big-long.tar
+		//
+		// This file is in PAX format.
 		file: "testdata/writer-big-long.tar",
 		entries: []*entry{{
 			header: &Header{
@@ -153,9 +157,15 @@ func TestWriter(t *testing.T) {
 			contents: strings.Repeat("\x00", 4<<10),
 		}},
 	}, {
-		// This file was produced using gnu tar 1.17
-		// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
-		file: "testdata/ustar.tar",
+		// TODO(dsnet): The Writer output should match the following file.
+		// To fix an issue (see https://golang.org/issue/12594), we disabled
+		// prefix support, which alters the generated output.
+		/*
+			// This file was produced using gnu tar 1.17
+			// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
+			file: "testdata/ustar.tar"
+		*/
+		file: "testdata/ustar.issue12594.tar", // This is a valid tar file, but not expected
 		entries: []*entry{{
 			header: &Header{
 				Name:     strings.Repeat("longname/", 15) + "file.txt",
@@ -583,6 +593,55 @@ func TestSplitUSTARPath(t *testing.T) {
 		if prefix != v.prefix || suffix != v.suffix || ok != v.ok {
 			t.Errorf("splitUSTARPath(%q):\ngot  (%q, %q, %v)\nwant (%q, %q, %v)",
 				v.input, prefix, suffix, ok, v.prefix, v.suffix, v.ok)
+		}
+	}
+}
+
+// TestIssue12594 tests that the Writer does not attempt to populate the prefix
+// field when encoding a header in the GNU format. The prefix field is valid
+// in USTAR and PAX, but not GNU.
+func TestIssue12594(t *testing.T) {
+	names := []string{
+		"0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/28/29/30/file.txt",
+		"0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/28/29/30/31/32/33/file.txt",
+		"0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/28/29/30/31/32/333/file.txt",
+		"0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/28/29/30/31/32/33/34/35/36/37/38/39/40/file.txt",
+		"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/file.txt",
+		"/home/support/.openoffice.org/3/user/uno_packages/cache/registry/com.sun.star.comp.deployment.executable.PackageRegistryBackend",
+	}
+
+	for i, name := range names {
+		var b bytes.Buffer
+
+		tw := NewWriter(&b)
+		if err := tw.WriteHeader(&Header{
+			Name: name,
+			Uid:  1 << 25, // Prevent USTAR format
+		}); err != nil {
+			t.Errorf("test %d, unexpected WriteHeader error: %v", i, err)
+		}
+		if err := tw.Close(); err != nil {
+			t.Errorf("test %d, unexpected Close error: %v", i, err)
+		}
+
+		// The prefix field should never appear in the GNU format.
+		var blk block
+		copy(blk[:], b.Bytes())
+		prefix := string(blk.USTAR().Prefix())
+		if i := strings.IndexByte(prefix, 0); i >= 0 {
+			prefix = prefix[:i] // Truncate at the NUL terminator
+		}
+		if blk.GetFormat() == formatGNU && len(prefix) > 0 && strings.HasPrefix(name, prefix) {
+			t.Errorf("test %d, found prefix in GNU format: %s", i, prefix)
+		}
+
+		tr := NewReader(&b)
+		hdr, err := tr.Next()
+		if err != nil {
+			t.Errorf("test %d, unexpected Next error: %v", i, err)
+		}
+		if hdr.Name != name {
+			t.Errorf("test %d, hdr.Name = %s, want %s", i, hdr.Name, name)
 		}
 	}
 }
