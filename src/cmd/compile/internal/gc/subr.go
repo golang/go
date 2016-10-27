@@ -361,7 +361,7 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
 	switch op {
 	case OCLOSURE, ODCLFUNC:
 		n.Func = new(Func)
-		n.Func.FCurfn = Curfn
+		n.Func.IsHiddenClosure = Curfn != nil
 	case ONAME:
 		n.Name = new(Name)
 		n.Name.Param = new(Param)

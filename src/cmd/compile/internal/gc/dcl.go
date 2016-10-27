@@ -347,7 +347,7 @@ func newname(s *Sym) *Node {
 func newfuncname(s *Sym) *Node {
 	n := newname(s)
 	n.Func = new(Func)
-	n.Func.FCurfn = Curfn
+	n.Func.IsHiddenClosure = Curfn != nil
 	return n
 }
 
