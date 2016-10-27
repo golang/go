@@ -55,7 +55,7 @@ type Node struct {
 	Class     Class // PPARAM, PAUTO, PEXTERN, etc
 	Embedded  uint8 // ODCLFIELD embedded type
 	Colas     bool  // OAS resulting from :=
-	Diag      uint8 // already printed error about this
+	Diag      bool  // already printed error about this
 	Noescape  bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
 	Walkdef   uint8 // tracks state during typecheckdef; 2 == loop detected
 	Typecheck uint8 // tracks state during typechecking; 2 == loop detected

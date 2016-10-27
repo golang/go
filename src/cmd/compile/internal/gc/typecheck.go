@@ -345,8 +345,8 @@ OpSwitch:
 			t = typSlice(r.Type)
 		} else if n.Left.Op == ODDD {
 			if top&Ecomplit == 0 {
-				if n.Diag == 0 {
-					n.Diag = 1
+				if !n.Diag {
+					n.Diag = true
 					yyerror("use of [...] array outside of array literal")
 				}
 				n.Type = nil
@@ -1184,7 +1184,10 @@ OpSwitch:
 	// call and call like
 	case OCALL:
 		n.Left = typecheck(n.Left, Erv|Etype|Ecall)
-		n.Diag |= n.Left.Diag
+		if n.Left.Diag {
+			n.Diag = true
+		}
+
 		l := n.Left
 
 		if l.Op == ONAME && l.Etype != 0 {
@@ -1209,7 +1212,7 @@ OpSwitch:
 				if !l.Type.Broke {
 					yyerror("invalid use of ... in type conversion to %v", l.Type)
 				}
-				n.Diag = 1
+				n.Diag = true
 			}
 
 			// pick off before type-checking arguments
@@ -1685,9 +1688,9 @@ OpSwitch:
 		var why string
 		n.Op = convertop(t, n.Type, &why)
 		if n.Op == 0 {
-			if n.Diag == 0 && !n.Type.Broke {
+			if !n.Diag && !n.Type.Broke {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
-				n.Diag = 1
+				n.Diag = true
 			}
 
 			n.Op = OCONV
@@ -1992,7 +1995,7 @@ OpSwitch:
 	case ODEFER:
 		ok |= Etop
 		n.Left = typecheck(n.Left, Etop|Erv)
-		if n.Left.Diag == 0 {
+		if !n.Left.Diag {
 			checkdefergo(n)
 		}
 		break OpSwitch
@@ -2142,9 +2145,9 @@ OpSwitch:
 	}
 
 	if (top&Etop != 0) && top&(Ecall|Erv|Etype) == 0 && ok&Etop == 0 {
-		if n.Diag == 0 {
+		if !n.Diag {
 			yyerror("%v evaluated but not used", n)
-			n.Diag = 1
+			n.Diag = true
 		}
 
 		n.Type = nil
@@ -2241,11 +2244,10 @@ func checkdefergo(n *Node) {
 		return
 	}
 
-	if n.Diag == 0 {
+	if !n.Diag {
 		// The syntax made sure it was a call, so this must be
 		// a conversion.
-		n.Diag = 1
-
+		n.Diag = true
 		yyerror("%s requires function call, not conversion", what)
 	}
 }
@@ -2686,7 +2688,7 @@ out:
 	return
 
 notenough:
-	if n == nil || n.Diag == 0 {
+	if n == nil || !n.Diag {
 		if call != nil {
 			// call is the expression being called, not the overall call.
 			// Method expressions have the form T.M, and the compiler has
@@ -2700,7 +2702,7 @@ notenough:
 			yyerror("not enough arguments to %v\n\thave %s\n\twant %v", op, nl.retsigerr(isddd), tstruct)
 		}
 		if n != nil {
-			n.Diag = 1
+			n.Diag = true
 		}
 	}
 
@@ -2938,9 +2940,9 @@ func typecheckcomplit(n *Node) *Node {
 				l.Left = typecheck(l.Left, Erv)
 				evconst(l.Left)
 				i = nonnegintconst(l.Left)
-				if i < 0 && l.Left.Diag == 0 {
+				if i < 0 && !l.Left.Diag {
 					yyerror("index must be non-negative integer constant")
-					l.Left.Diag = 1
+					l.Left.Diag = true
 					i = -(1 << 30) // stay negative for a while
 				}
 				vp = &l.Right
@@ -3565,13 +3567,13 @@ func typecheckdeftype(n *Node) {
 	n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
 	t := n.Name.Param.Ntype.Type
 	if t == nil {
-		n.Diag = 1
+		n.Diag = true
 		n.Type = nil
 		goto ret
 	}
 
 	if n.Type == nil {
-		n.Diag = 1
+		n.Diag = true
 		goto ret
 	}
 
@@ -3625,8 +3627,8 @@ func typecheckdef(n *Node) *Node {
 	setlineno(n)
 
 	if n.Op == ONONAME {
-		if n.Diag == 0 {
-			n.Diag = 1
+		if !n.Diag {
+			n.Diag = true
 			if n.Lineno != 0 {
 				lineno = n.Lineno
 			}
@@ -3674,7 +3676,7 @@ func typecheckdef(n *Node) *Node {
 			n.Type = n.Name.Param.Ntype.Type
 			n.Name.Param.Ntype = nil
 			if n.Type == nil {
-				n.Diag = 1
+				n.Diag = true
 				goto ret
 			}
 		}
@@ -3694,9 +3696,9 @@ func typecheckdef(n *Node) *Node {
 		}
 
 		if e.Type != nil && e.Op != OLITERAL || !isgoconst(e) {
-			if e.Diag == 0 {
+			if !e.Diag {
 				yyerror("const initializer %v is not a constant", e)
-				e.Diag = 1
+				e.Diag = true
 			}
 
 			goto ret
@@ -3725,7 +3727,7 @@ func typecheckdef(n *Node) *Node {
 			n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
 			n.Type = n.Name.Param.Ntype.Type
 			if n.Type == nil {
-				n.Diag = 1
+				n.Diag = true
 				goto ret
 			}
 		}

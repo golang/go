@@ -971,9 +971,10 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	}
 
 	old := n
-	old.Diag++ // silence errors about n; we'll issue one below
+	od := old.Diag
+	old.Diag = true // silence errors about n; we'll issue one below
 	n = defaultlit(n, t)
-	old.Diag--
+	old.Diag = od
 	if t.Etype == TBLANK {
 		return n
 	}
@@ -1490,7 +1491,9 @@ func dotpath(s *Sym, t *Type, save **Field, ignorecase bool) (path []Dlist, ambi
 // modify the tree with missing type names.
 func adddot(n *Node) *Node {
 	n.Left = typecheck(n.Left, Etype|Erv)
-	n.Diag |= n.Left.Diag
+	if n.Left.Diag {
+		n.Diag = true
+	}
 	t := n.Left.Type
 	if t == nil {
 		return n
