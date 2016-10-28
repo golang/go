@@ -966,7 +966,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		throw("gcDrain phase incorrect")
 	}
 
-	gp := getg()
+	gp := getg().m.curg
 	preemptible := flags&gcDrainUntilPreempt != 0
 	blocking := flags&(gcDrainUntilPreempt|gcDrainNoBlock) == 0
 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
