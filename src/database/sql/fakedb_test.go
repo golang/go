@@ -39,6 +39,9 @@ var _ = log.Printf
 // Any of these can be preceded by PANIC|<method>|, to cause the
 // named method on fakeStmt to panic.
 //
+// Any of these can be proceeded by WAIT|<duration>|, to cause the
+// named method on fakeStmt to sleep for the specified duration.
+//
 // Multiple of these can be combined when separated with a semicolon.
 //
 // When opening a fakeDriver's database, it starts empty with no
@@ -119,6 +122,7 @@ type fakeStmt struct {
 	cmd   string
 	table string
 	panic string
+	wait  time.Duration
 
 	next *fakeStmt // used for returning multiple results.
 
@@ -526,13 +530,27 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 		if firstStmt == nil {
 			firstStmt = stmt
 		}
-		if len(parts) >= 3 && parts[0] == "PANIC" {
-			stmt.panic = parts[1]
-			parts = parts[2:]
+		if len(parts) >= 3 {
+			switch parts[0] {
+			case "PANIC":
+				stmt.panic = parts[1]
+				parts = parts[2:]
+			case "WAIT":
+				wait, err := time.ParseDuration(parts[1])
+				if err != nil {
+					return nil, errf("expected section after WAIT to be a duration, got %q %v", parts[1], err)
+				}
+				parts = parts[2:]
+				stmt.wait = wait
+			}
 		}
 		cmd := parts[0]
 		stmt.cmd = cmd
 		parts = parts[1:]
+
+		if stmt.wait > 0 {
+			time.Sleep(stmt.wait)
+		}
 
 		c.incrStat(&c.stmtsMade)
 		var err error
@@ -617,6 +635,16 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	err := checkSubsetTypes(args)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.wait > 0 {
+		time.Sleep(s.wait)
+	}
+
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 
 	db := s.c.db
