@@ -12,7 +12,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVL	argc+0(FP), AX
 	MOVL	argv+4(FP), BX
 	MOVL	SP, CX
-	SUBL	$128, SP		// plenty of scratch
+	SUBL	$128, CX		// plenty of scratch
 	ANDL	$~15, CX
 	MOVL	CX, SP
 
