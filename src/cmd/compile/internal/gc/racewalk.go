@@ -437,7 +437,7 @@ func isartificial(n *Node) bool {
 		}
 
 		// autotmp's are always local
-		if strings.HasPrefix(n.Sym.Name, "autotmp_") {
+		if n.IsAutoTmp() {
 			return true
 		}
 

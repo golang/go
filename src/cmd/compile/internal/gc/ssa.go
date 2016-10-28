@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"html"
 	"os"
-	"strings"
 
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
@@ -3987,8 +3986,8 @@ func (s *state) addNamedValue(n *Node, v *ssa.Value) {
 		// Don't track our dummy nodes (&memVar etc.).
 		return
 	}
-	if strings.HasPrefix(n.Sym.Name, "autotmp_") {
-		// Don't track autotmp_ variables.
+	if n.IsAutoTmp() {
+		// Don't track temporary variables.
 		return
 	}
 	if n.Class == PPARAMOUT {
@@ -4569,6 +4568,7 @@ func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 }
 
 // namedAuto returns a new AUTO variable with the given name and type.
+// These are exposed to the debugger.
 func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
 	t := typ.(*Type)
 	s := &Sym{Name: name, Pkg: localpkg}

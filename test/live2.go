@@ -20,20 +20,20 @@ type T40 struct {
 
 func newT40() *T40 {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret"
+	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret$"
 	return &ret
 }
 
 func bad40() {
-	t := newT40() // ERROR "live at call to makemap: autotmp_.* ret"
-	printnl()     // ERROR "live at call to printnl: autotmp_.* ret"
+	t := newT40() // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
+	printnl()     // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
 	_ = t
 }
 
 func good40() {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: autotmp_.* ret"
+	ret.m = make(map[int]int) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
 	t := &ret
-	printnl() // ERROR "live at call to printnl: autotmp_.* ret"
+	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
 	_ = t
 }
