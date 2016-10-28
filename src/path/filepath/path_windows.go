@@ -106,7 +106,11 @@ func splitList(path string) []string {
 }
 
 func abs(path string) (string, error) {
-	return syscall.FullPath(path)
+	fullPath, err := syscall.FullPath(path)
+	if err != nil {
+		return "", err
+	}
+	return Clean(fullPath), nil
 }
 
 func join(elem []string) string {
