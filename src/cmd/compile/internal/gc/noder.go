@@ -52,7 +52,7 @@ func (p *noder) file(file *syntax.File) {
 func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
 	var lastConstGroup *syntax.Group
 	var lastConstRHS []*Node
-	var iotaVal int32
+	var iotaVal int64
 
 	for _, decl := range decls {
 		p.lineno(decl)

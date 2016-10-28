@@ -504,9 +504,7 @@ func treecopy(n *Node, lineno int32) *Node {
 			if lineno != 0 {
 				m.Lineno = lineno
 			}
-			m.Name = new(Name)
-			*m.Name = *n.Name
-			m.Name.Iota = iota_
+			m.SetIota(iota_)
 			return &m
 		}
 		return n

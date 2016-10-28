@@ -38,6 +38,7 @@ type Node struct {
 	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
 	// - OSTRUCTKEY uses it to store the named field's offset.
 	// - OXCASE and OXFALL use it to validate the use of fallthrough.
+	// - ONONAME uses it to store the current value of iota, see Node.Iota
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
@@ -162,6 +163,14 @@ func (n *Node) SetOpt(x interface{}) {
 	n.E = x
 }
 
+func (n *Node) Iota() int64 {
+	return n.Xoffset
+}
+
+func (n *Node) SetIota(x int64) {
+	n.Xoffset = x
+}
+
 // Name holds Node fields used only by named nodes (ONAME, OPACK, OLABEL, some OLITERAL).
 type Name struct {
 	Pack      *Node  // real package for import . names
@@ -172,7 +181,6 @@ type Name struct {
 	Param     *Param // additional fields for ONAME
 	Decldepth int32  // declaration loop depth, increased for every loop or label
 	Vargen    int32  // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-	Iota      int32  // value if this name is iota
 	Funcdepth int32
 	Method    bool // OCALLMETH name
 	Readonly  bool
