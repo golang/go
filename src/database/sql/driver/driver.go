@@ -87,12 +87,21 @@ type Pinger interface {
 // statement.
 //
 // Exec may return ErrSkip.
+//
+// Deprecated: Drivers should implement ExecerContext instead (or additionally).
 type Execer interface {
 	Exec(query string, args []Value) (Result, error)
 }
 
-// ExecerContext is like execer, but must honor the context timeout and return
-// when the context is cancelled.
+// ExecerContext is an optional interface that may be implemented by a Conn.
+//
+// If a Conn does not implement ExecerContext, the sql package's DB.Exec will
+// first prepare a query, execute the statement, and then close the
+// statement.
+//
+// ExecerContext may return ErrSkip.
+//
+// ExecerContext must honor the context timeout and return when the context is canceled.
 type ExecerContext interface {
 	ExecContext(ctx context.Context, query string, args []NamedValue) (Result, error)
 }
@@ -104,12 +113,21 @@ type ExecerContext interface {
 // statement.
 //
 // Query may return ErrSkip.
+//
+// Deprecated: Drivers should implement QueryerContext instead (or additionally).
 type Queryer interface {
 	Query(query string, args []Value) (Rows, error)
 }
 
-// QueryerContext is like Queryer, but most honor the context timeout and return
-// when the context is cancelled.
+// QueryerContext is an optional interface that may be implemented by a Conn.
+//
+// If a Conn does not implement QueryerContext, the sql package's DB.Query will
+// first prepare a query, execute the statement, and then close the
+// statement.
+//
+// QueryerContext may return ErrSkip.
+//
+// QueryerContext must honor the context timeout and return when the context is canceled.
 type QueryerContext interface {
 	QueryContext(ctx context.Context, query string, args []NamedValue) (Rows, error)
 }
@@ -133,6 +151,8 @@ type Conn interface {
 	Close() error
 
 	// Begin starts and returns a new transaction.
+	//
+	// Deprecated: Drivers should implement ConnBeginContext instead (or additionally).
 	Begin() (Tx, error)
 }
 
@@ -167,8 +187,8 @@ func ReadOnlyFromContext(ctx context.Context) (readonly bool) {
 // ConnBeginContext enhances the Conn interface with context.
 type ConnBeginContext interface {
 	// BeginContext starts and returns a new transaction.
-	// The provided context should be used to roll the transaction back
-	// if it is cancelled.
+	// If the context is canceled by the user the sql package will
+	// call Tx.Rollback before discarding and closing the connection.
 	//
 	// This must call IsolationFromContext to determine if there is a set
 	// isolation level. If the driver does not support setting the isolation
@@ -215,22 +235,32 @@ type Stmt interface {
 
 	// Exec executes a query that doesn't return rows, such
 	// as an INSERT or UPDATE.
+	//
+	// Deprecated: Drivers should implement StmtExecContext instead (or additionally).
 	Exec(args []Value) (Result, error)
 
 	// Query executes a query that may return rows, such as a
 	// SELECT.
+	//
+	// Deprecated: Drivers should implement StmtQueryContext instead (or additionally).
 	Query(args []Value) (Rows, error)
 }
 
 // StmtExecContext enhances the Stmt interface by providing Exec with context.
 type StmtExecContext interface {
-	// ExecContext must honor the context timeout and return when it is cancelled.
+	// ExecContext executes a query that doesn't return rows, such
+	// as an INSERT or UPDATE.
+	//
+	// ExecContext must honor the context timeout and return when it is canceled.
 	ExecContext(ctx context.Context, args []NamedValue) (Result, error)
 }
 
 // StmtQueryContext enhances the Stmt interface by providing Query with context.
 type StmtQueryContext interface {
-	// QueryContext must honor the context timeout and return when it is cancelled.
+	// QueryContext executes a query that may return rows, such as a
+	// SELECT.
+	//
+	// QueryContext must honor the context timeout and return when it is canceled.
 	QueryContext(ctx context.Context, args []NamedValue) (Rows, error)
 }
 
