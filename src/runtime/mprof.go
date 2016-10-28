@@ -346,6 +346,9 @@ func SetMutexProfileFraction(rate int) int {
 
 //go:linkname mutexevent sync.event
 func mutexevent(cycles int64, skip int) {
+	if cycles < 0 {
+		cycles = 0
+	}
 	rate := int64(atomic.Load64(&mutexprofilerate))
 	// TODO(pjw): measure impact of always calling fastrand vs using something
 	// like malloc.go:nextSample()
