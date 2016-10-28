@@ -102,10 +102,17 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 
 	// read version specific flags - extend as necessary
 	switch p.version {
-	// case 3:
+	// case 4:
 	// 	...
 	//	fallthrough
-	case 2, 1:
+	case 3, 2, 1:
+		// Support for Go 1.8 type aliases will be added very
+		// soon (Oct 2016).  In the meantime, we make a
+		// best-effort attempt to read v3 export data, failing
+		// if we encounter a type alias.  This allows the
+		// automated builders to make progress since
+		// type aliases are not yet used in practice.
+		// TODO(gri): add support for type aliases.
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.int() != 0
 		p.posInfoFormat = p.int() != 0
