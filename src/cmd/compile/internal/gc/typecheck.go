@@ -3095,7 +3095,7 @@ func typecheckcomplit(n *Node) *Node {
 
 				f := lookdot1(nil, l.Sym, t, t.Fields(), 0)
 				if f == nil {
-					yyerror("unknown %v field '%v' in struct literal", t, l.Sym)
+					yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
 					continue
 				}
 				fielddup(f.Sym.Name, hash)
