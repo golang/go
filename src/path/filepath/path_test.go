@@ -1061,13 +1061,16 @@ var absTestDirs = []string{
 var absTests = []string{
 	".",
 	"b",
+	"b/",
 	"../a",
 	"../a/b",
 	"../a/b/./c/../../.././a",
+	"../a/b/./c/../../.././a/",
 	"$",
 	"$/.",
 	"$/a/../a/b",
 	"$/a/b/c/../../.././a",
+	"$/a/b/c/../../.././a/",
 }
 
 func TestAbs(t *testing.T) {
@@ -1132,7 +1135,7 @@ func TestAbs(t *testing.T) {
 		if !filepath.IsAbs(abspath) {
 			t.Errorf("Abs(%q)=%q, not an absolute path", path, abspath)
 		}
-		if filepath.IsAbs(path) && abspath != filepath.Clean(path) {
+		if filepath.IsAbs(abspath) && abspath != filepath.Clean(abspath) {
 			t.Errorf("Abs(%q)=%q, isn't clean", path, abspath)
 		}
 	}
