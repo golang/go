@@ -6,8 +6,10 @@ package trace_test
 
 import (
 	"bytes"
+	"flag"
 	"internal/trace"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"runtime"
@@ -15,6 +17,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+)
+
+var (
+	saveTraces = flag.Bool("savetraces", false, "save traces collected by tests")
 )
 
 func TestTraceStartStop(t *testing.T) {
@@ -31,6 +37,7 @@ func TestTraceStartStop(t *testing.T) {
 	if size != buf.Len() {
 		t.Fatalf("trace writes after stop: %v -> %v", size, buf.Len())
 	}
+	saveTrace(t, buf, "TestTraceStartStop")
 }
 
 func TestTraceDoubleStart(t *testing.T) {
@@ -52,6 +59,7 @@ func TestTrace(t *testing.T) {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
 	Stop()
+	saveTrace(t, buf, "TestTrace")
 	_, err := trace.Parse(buf, "")
 	if err == trace.ErrTimeOrder {
 		t.Skipf("skipping trace: %v", err)
@@ -233,6 +241,7 @@ func TestTraceStress(t *testing.T) {
 	runtime.GOMAXPROCS(procs)
 
 	Stop()
+	saveTrace(t, buf, "TestTraceStress")
 	trace := buf.Bytes()
 	parseTrace(t, buf)
 	testBrokenTimestamps(t, trace)
@@ -376,6 +385,7 @@ func TestTraceStressStartStop(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 		Stop()
+		saveTrace(t, buf, "TestTraceStressStartStop")
 		trace := buf.Bytes()
 		parseTrace(t, buf)
 		testBrokenTimestamps(t, trace)
@@ -436,6 +446,7 @@ func TestTraceFutileWakeup(t *testing.T) {
 	done.Wait()
 
 	Stop()
+	saveTrace(t, buf, "TestTraceFutileWakeup")
 	events, _ := parseTrace(t, buf)
 	// Check that (1) trace does not contain EvFutileWakeup events and
 	// (2) there are no consecutive EvGoBlock/EvGCStart/EvGoBlock events
@@ -462,5 +473,14 @@ func TestTraceFutileWakeup(t *testing.T) {
 		default:
 			delete(gs, ev.G)
 		}
+	}
+}
+
+func saveTrace(t *testing.T, buf *bytes.Buffer, name string) {
+	if !*saveTraces {
+		return
+	}
+	if err := ioutil.WriteFile(name+".trace", buf.Bytes(), 0600); err != nil {
+		t.Errorf("failed to write trace file: %s", err)
 	}
 }

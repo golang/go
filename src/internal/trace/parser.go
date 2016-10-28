@@ -128,6 +128,8 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 	}
 	switch ver {
 	case 1005, 1007, 1008:
+		// Note: When adding a new version, add canned traces
+		// from the old version to the test suite using mkcanned.bash.
 		break
 	default:
 		err = fmt.Errorf("unsupported trace file version %v.%v (update Go toolchain) %v", ver/1000, ver%1000, ver)
