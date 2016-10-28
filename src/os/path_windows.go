@@ -127,3 +127,66 @@ func dirname(path string) string {
 	}
 	return vol + dir
 }
+
+// fixLongPath returns the extended-length (\\?\-prefixed) form of
+// path if possible, in order to avoid the default 260 character file
+// path limit imposed by Windows.  If path is not easily converted to
+// the extended-length form (for example, if path is a relative path
+// or contains .. elements), fixLongPath returns path unmodified.
+func fixLongPath(path string) string {
+	// The extended form begins with \\?\, as in
+	// \\?\c:\windows\foo.txt or \\?\UNC\server\share\foo.txt.
+	// The extended form disables evaluation of . and .. path
+	// elements and disables the interpretation of / as equivalent
+	// to \.  The conversion here rewrites / to \ and elides
+	// . elements as well as trailing or duplicate separators. For
+	// simplicity it avoids the conversion entirely for relative
+	// paths or paths containing .. elements.  For now,
+	// \\server\share paths are not converted to
+	// \\?\UNC\server\share paths because the rules for doing so
+	// are less well-specified.
+	//
+	// For details of \\?\ paths, see:
+	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
+	if len(path) == 0 || (len(path) >= 2 && path[:2] == `\\`) {
+		// Don't canonicalize UNC paths.
+		return path
+	}
+	if !isAbs(path) {
+		// Relative path
+		return path
+	}
+
+	const prefix = `\\?`
+
+	pathbuf := make([]byte, len(prefix)+len(path)+len(`\`))
+	copy(pathbuf, prefix)
+	n := len(path)
+	r, w := 0, len(prefix)
+	for r < n {
+		switch {
+		case IsPathSeparator(path[r]):
+			// empty block
+			r++
+		case path[r] == '.' && (r+1 == n || IsPathSeparator(path[r+1])):
+			// /./
+			r++
+		case r+1 < n && path[r] == '.' && path[r+1] == '.' && (r+2 == n || IsPathSeparator(path[r+2])):
+			// /../ is currently unhandled
+			return path
+		default:
+			pathbuf[w] = '\\'
+			w++
+			for ; r < n && !IsPathSeparator(path[r]); r++ {
+				pathbuf[w] = path[r]
+				w++
+			}
+		}
+	}
+	// A drive's root directory needs a trailing \
+	if w == len(`\\?\c:`) {
+		pathbuf[w] = '\\'
+		w++
+	}
+	return string(pathbuf[:w])
+}

@@ -18,7 +18,7 @@ func sigpipe() // implemented in package runtime
 func Readlink(name string) (string, error) {
 	for len := 128; ; len *= 2 {
 		b := make([]byte, len)
-		n, e := fixCount(syscall.Readlink(name, b))
+		n, e := fixCount(syscall.Readlink(fixLongPath(name), b))
 		if e != nil {
 			return "", &PathError{"readlink", name, e}
 		}
@@ -134,7 +134,7 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	var utimes [2]syscall.Timespec
 	utimes[0] = syscall.NsecToTimespec(atime.UnixNano())
 	utimes[1] = syscall.NsecToTimespec(mtime.UnixNano())
-	if e := syscall.UtimesNano(name, utimes[0:]); e != nil {
+	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
 		return &PathError{"chtimes", name, e}
 	}
 	return nil

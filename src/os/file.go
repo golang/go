@@ -203,7 +203,7 @@ func (f *File) WriteString(s string) (n int, err error) {
 // Mkdir creates a new directory with the specified name and permission bits.
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
-	e := syscall.Mkdir(name, syscallMode(perm))
+	e := syscall.Mkdir(fixLongPath(name), syscallMode(perm))
 
 	if e != nil {
 		return &PathError{"mkdir", name, e}
