@@ -85,6 +85,9 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
+	case *Alias:
+		// aliases cannot be recursive - no need to track dependencies
+		check.aliasDecl(obj, d)
 	default:
 		unreachable()
 	}
@@ -327,6 +330,85 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
 		check.later(obj.name, decl, sig, fdecl.Body)
 	}
+}
+
+func (check *Checker) aliasDecl(obj *Alias, decl *declInfo) {
+	assert(obj.typ == nil)
+
+	// alias declarations cannot use iota
+	assert(check.iota == nil)
+
+	// assume alias is invalid to start with
+	obj.typ = Typ[Invalid]
+
+	// rhs must be package-qualified identifer pkg.sel (see also call.go: checker.selector)
+	// TODO(gri) factor this code out and share with checker.selector
+	rhs := decl.init
+	var pkg *Package
+	var sel *ast.Ident
+	if sexpr, ok := rhs.(*ast.SelectorExpr); ok {
+		if ident, ok := sexpr.X.(*ast.Ident); ok {
+			_, obj := check.scope.LookupParent(ident.Name, check.pos)
+			if pname, _ := obj.(*PkgName); pname != nil {
+				assert(pname.pkg == check.pkg)
+				check.recordUse(ident, pname)
+				pname.used = true
+				pkg = pname.imported
+				sel = sexpr.Sel
+			}
+		}
+	}
+	if pkg == nil {
+		check.errorf(rhs.Pos(), "invalid alias: %v is not a package-qualified identifier", rhs)
+		return
+	}
+
+	// qualified identifier must denote an exported object
+	orig := pkg.scope.Lookup(sel.Name)
+	if orig == nil || !orig.Exported() {
+		if !pkg.fake {
+			check.errorf(rhs.Pos(), "%s is not exported by package %s", sel.Name, pkg.name)
+		}
+		return
+	}
+	check.recordUse(sel, orig)
+
+	// An alias declaration must not refer to package unsafe.
+	if orig.Pkg() == Unsafe {
+		check.errorf(rhs.Pos(), "invalid alias: %s refers to package unsafe (%v)", obj.Name(), orig)
+		return
+	}
+
+	// The original must be of the same kind as the alias declaration.
+	var why string
+	switch obj.kind {
+	case token.CONST:
+		if _, ok := orig.(*Const); !ok {
+			why = "constant"
+		}
+	case token.TYPE:
+		if _, ok := orig.(*TypeName); !ok {
+			why = "type"
+		}
+	case token.VAR:
+		if _, ok := orig.(*Var); !ok {
+			why = "variable"
+		}
+	case token.FUNC:
+		if _, ok := orig.(*Func); !ok {
+			why = "function"
+		}
+	default:
+		unreachable()
+	}
+	if why != "" {
+		check.errorf(rhs.Pos(), "invalid alias: %v is not a %s", orig, why)
+		return
+	}
+
+	// alias is valid
+	obj.typ = orig.Type()
+	obj.orig = orig
 }
 
 func (check *Checker) declStmt(decl ast.Decl) {
