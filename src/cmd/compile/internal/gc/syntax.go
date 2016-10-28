@@ -189,7 +189,6 @@ func (n *Node) SetIota(x int64) {
 type Name struct {
 	Pack      *Node  // real package for import . names
 	Pkg       *Pkg   // pkg for OPACK nodes
-	Heapaddr  *Node  // temp holding heap address of param (could move to Param?)
 	Defn      *Node  // initializing assignment
 	Curfn     *Node  // function for local variables
 	Param     *Param // additional fields for ONAME, OTYPE
@@ -205,7 +204,8 @@ type Name struct {
 }
 
 type Param struct {
-	Ntype *Node
+	Ntype    *Node
+	Heapaddr *Node // temp holding heap address of param
 
 	// ONAME PAUTOHEAP
 	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
