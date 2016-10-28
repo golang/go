@@ -62,19 +62,12 @@ func convT2E(typ *byte, elem *any) (ret any)
 func convT2I(tab *byte, elem *any) (ret any)
 
 // interface type assertions  x.(T)
-func assertE2E(typ *byte, iface any, ret *any)
-func assertE2E2(typ *byte, iface any, ret *any) bool
-func assertE2I(typ *byte, iface any, ret *any)
-func assertE2I2(typ *byte, iface any, ret *any) bool
-func assertE2T(typ *byte, iface any, ret *any)
-func assertE2T2(typ *byte, iface any, ret *any) bool
-func assertI2E(typ *byte, iface any, ret *any)
-func assertI2E2(typ *byte, iface any, ret *any) bool
-func assertI2I(typ *byte, iface any, ret *any)
-func assertI2I2(typ *byte, iface any, ret *any) bool
-func assertI2T(typ *byte, iface any, ret *any)
-func assertI2T2(typ *byte, iface any, ret *any) bool
+func assertE2I(typ *byte, iface any) (ret any)
+func assertE2I2(typ *byte, iface any) (ret any, b bool)
+func assertI2I(typ *byte, iface any) (ret any)
+func assertI2I2(typ *byte, iface any) (ret any, b bool)
 func panicdottype(have, want, iface *byte)
+func panicnildottype(want *byte)
 
 func ifaceeq(i1 any, i2 any) (ret bool)
 func efaceeq(i1 any, i2 any) (ret bool)

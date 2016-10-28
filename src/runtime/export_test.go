@@ -217,9 +217,6 @@ func BenchSetType(n int, x interface{}) {
 
 const PtrSize = sys.PtrSize
 
-var TestingAssertE2I2GC = &testingAssertE2I2GC
-var TestingAssertE2T2GC = &testingAssertE2T2GC
-
 var ForceGCPeriod = &forcegcperiod
 
 // SetTracebackEnv is like runtime/debug.SetTraceback, but it raises

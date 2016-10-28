@@ -318,6 +318,15 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		instrumentnode(&n.Left, init, 0, 0)
 		goto ret
 
+	case OAS2DOTTYPE:
+		instrumentnode(&n.Left, init, 1, 0)
+		instrumentnode(&n.Right, init, 0, 0)
+		goto ret
+
+	case ODOTTYPE, ODOTTYPE2:
+		instrumentnode(&n.Left, init, 0, 0)
+		goto ret
+
 		// should not appear in AST by now
 	case OSEND,
 		ORECV,
@@ -345,9 +354,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		// lowered to call
 		OCMPSTR,
 		OADDSTR,
-		ODOTTYPE,
-		ODOTTYPE2,
-		OAS2DOTTYPE,
 		OCALLPART,
 		// lowered to PTRLIT
 		OCLOSURE,  // lowered to PTRLIT

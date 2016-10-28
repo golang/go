@@ -730,34 +730,6 @@ opswitch:
 		default:
 			n.Right = walkexpr(n.Right, init)
 
-		case ODOTTYPE:
-			// TODO(rsc): The isfat is for consistency with componentgen and orderexpr.
-			// It needs to be removed in all three places.
-			// That would allow inlining x.(struct{*int}) the same as x.(*int).
-			if isdirectiface(n.Right.Type) && !isfat(n.Right.Type) && !instrumenting {
-				// handled directly during cgen
-				n.Right = walkexpr(n.Right, init)
-				break
-			}
-
-			// x = i.(T); n.Left is x, n.Right.Left is i.
-			// orderstmt made sure x is addressable.
-			n.Right.Left = walkexpr(n.Right.Left, init)
-
-			n1 := nod(OADDR, n.Left, nil)
-			r := n.Right // i.(T)
-
-			if Debug_typeassert > 0 {
-				Warn("type assertion not inlined")
-			}
-
-			fn := syslook(assertFuncName(r.Left.Type, r.Type, false))
-			fn = substArgTypes(fn, r.Left.Type, r.Type)
-
-			n = mkcall1(fn, nil, init, typename(r.Type), r.Left, n1)
-			n = walkexpr(n, init)
-			break opswitch
-
 		case ORECV:
 			// x = <-c; n.Left is x, n.Right.Left is c.
 			// orderstmt made sure x is addressable.
@@ -935,112 +907,11 @@ opswitch:
 		n = mkcall1(mapfndel("mapdelete", t), nil, init, typename(t), map_, key)
 
 	case OAS2DOTTYPE:
-		e := n.Rlist.First() // i.(T)
-
-		// TODO(rsc): The isfat is for consistency with componentgen and orderexpr.
-		// It needs to be removed in all three places.
-		// That would allow inlining x.(struct{*int}) the same as x.(*int).
-		if isdirectiface(e.Type) && !isfat(e.Type) && !instrumenting {
-			// handled directly during gen.
-			walkexprlistsafe(n.List.Slice(), init)
-			e.Left = walkexpr(e.Left, init)
-			break
-		}
-
-		// res, ok = i.(T)
-		// orderstmt made sure a is addressable.
-		init.AppendNodes(&n.Ninit)
-
 		walkexprlistsafe(n.List.Slice(), init)
+		e := n.Rlist.First() // i.(T)
 		e.Left = walkexpr(e.Left, init)
-		t := e.Type    // T
-		from := e.Left // i
-
-		oktype := Types[TBOOL]
-		ok := n.List.Second()
-		if !isblank(ok) {
-			oktype = ok.Type
-		}
-		if !oktype.IsBoolean() {
-			Fatalf("orderstmt broken: got %L, want boolean", oktype)
-		}
-
-		fromKind := from.Type.iet()
-		toKind := t.iet()
-
-		res := n.List.First()
-		scalar := !haspointers(res.Type)
-
-		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
-		// This is faster and shorter and allows the corresponding assertX2X2
-		// routines to skip nil checks on their last argument.
-		// Also avoid runtime calls for converting interfaces to scalar concrete types.
-		if isblank(res) || (scalar && toKind == 'T') {
-			var fast *Node
-			switch toKind {
-			case 'T':
-				tab := nod(OITAB, from, nil)
-				if fromKind == 'E' {
-					typ := nod(OCONVNOP, typename(t), nil)
-					typ.Type = ptrto(Types[TUINTPTR])
-					fast = nod(OEQ, tab, typ)
-					break
-				}
-				fast = nod(OANDAND,
-					nod(ONE, nodnil(), tab),
-					nod(OEQ, itabType(tab), typename(t)),
-				)
-			case 'E':
-				tab := nod(OITAB, from, nil)
-				fast = nod(ONE, nodnil(), tab)
-			}
-			if fast != nil {
-				if isblank(res) {
-					if Debug_typeassert > 0 {
-						Warn("type assertion (ok only) inlined")
-					}
-					n = nod(OAS, ok, fast)
-					n = typecheck(n, Etop)
-				} else {
-					if Debug_typeassert > 0 {
-						Warn("type assertion (scalar result) inlined")
-					}
-					n = nod(OIF, ok, nil)
-					n.Likely = 1
-					if isblank(ok) {
-						n.Left = fast
-					} else {
-						n.Ninit.Set1(nod(OAS, ok, fast))
-					}
-					n.Nbody.Set1(nod(OAS, res, ifaceData(from, res.Type)))
-					n.Rlist.Set1(nod(OAS, res, nil))
-					n = typecheck(n, Etop)
-				}
-				break
-			}
-		}
-
-		var resptr *Node // &res
-		if isblank(res) {
-			resptr = nodnil()
-		} else {
-			resptr = nod(OADDR, res, nil)
-		}
-		resptr.Etype = 1 // addr does not escape
-
-		if Debug_typeassert > 0 {
-			Warn("type assertion not inlined")
-		}
-		fn := syslook(assertFuncName(from.Type, t, true))
-		fn = substArgTypes(fn, from.Type, t)
-		call := mkcall1(fn, oktype, init, typename(t), from, resptr)
-		n = nod(OAS, ok, call)
-		n = typecheck(n, Etop)
 
 	case ODOTTYPE, ODOTTYPE2:
-		if !isdirectiface(n.Type) || isfat(n.Type) {
-			Fatalf("walkexpr ODOTTYPE") // should see inside OAS only
-		}
 		n.Left = walkexpr(n.Left, init)
 
 	case OCONVIFACE:
