@@ -164,7 +164,7 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Impo
 		if err != nil {
 			return
 		}
-		_, err = reader.Seek(0, io.SeekStart)
+		_, err = reader.Seek(0, 0) // 0 bytes after start (use 0, io.SeekStart when we drop Go 1.6)
 		if err != nil {
 			return
 		}
