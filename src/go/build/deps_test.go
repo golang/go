@@ -170,14 +170,12 @@ var pkgDeps = map[string][]string{
 	"log": {"L1", "os", "fmt", "time"},
 
 	// Packages used by testing must be low-level (L2+fmt).
-	"regexp":                            {"L2", "regexp/syntax"},
-	"regexp/syntax":                     {"L2"},
-	"runtime/debug":                     {"L2", "fmt", "io/ioutil", "os", "time"},
-	"runtime/pprof/internal/profile":    {"L2"},
-	"runtime/pprof/internal/protopprof": {"L2", "fmt", "runtime/pprof/internal/profile", "os", "time"},
-	"runtime/pprof":                     {"L2", "fmt", "runtime/pprof/internal/profile", "runtime/pprof/internal/protopprof", "time"},
-	"runtime/trace":                     {"L0"},
-	"text/tabwriter":                    {"L2"},
+	"regexp":         {"L2", "regexp/syntax"},
+	"regexp/syntax":  {"L2"},
+	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
+	"runtime/pprof":  {"L2", "fmt", "os", "text/tabwriter"},
+	"runtime/trace":  {"L0"},
+	"text/tabwriter": {"L2"},
 
 	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":   {"L2", "log"},
