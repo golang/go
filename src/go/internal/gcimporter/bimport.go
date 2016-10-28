@@ -222,22 +222,33 @@ func (p *importer) declare(obj types.Object) {
 }
 
 func (p *importer) obj(tag int) {
+	var aliasPos token.Pos
+	var aliasName string
+	if tag == aliasTag {
+		aliasPos = p.pos()
+		aliasName = p.string()
+		tag = p.tagOrIndex()
+	}
+
+	var obj types.Object
 	switch tag {
 	case constTag:
 		pos := p.pos()
 		pkg, name := p.qualifiedName()
 		typ := p.typ(nil)
 		val := p.value()
-		p.declare(types.NewConst(pos, pkg, name, typ, val))
+		obj = types.NewConst(pos, pkg, name, typ, val)
+		p.declare(obj)
 
 	case typeTag:
-		_ = p.typ(nil)
+		obj = p.typ(nil).(*types.Named).Obj()
 
 	case varTag:
 		pos := p.pos()
 		pkg, name := p.qualifiedName()
 		typ := p.typ(nil)
-		p.declare(types.NewVar(pos, pkg, name, typ))
+		obj = types.NewVar(pos, pkg, name, typ)
+		p.declare(obj)
 
 	case funcTag:
 		pos := p.pos()
@@ -245,10 +256,15 @@ func (p *importer) obj(tag int) {
 		params, isddd := p.paramList()
 		result, _ := p.paramList()
 		sig := types.NewSignature(nil, params, result, isddd)
-		p.declare(types.NewFunc(pos, pkg, name, sig))
+		obj = types.NewFunc(pos, pkg, name, sig)
+		p.declare(obj)
 
 	default:
 		errorf("unexpected object tag %d", tag)
+	}
+
+	if aliasName != "" {
+		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, 0, obj))
 	}
 }
 
@@ -845,7 +861,11 @@ const (
 	fractionTag // not used by gc
 	complexTag
 	stringTag
+	nilTag     // only used by gc (appears in exported inlined function bodies)
 	unknownTag // not used by gc (only appears in packages with errors)
+
+	// Aliases
+	aliasTag
 )
 
 var predeclared = []types.Type{

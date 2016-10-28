@@ -9,6 +9,8 @@ package exports
 
 import (
 	"go/ast"
+	"go/build"
+	"math"
 )
 
 // Issue 3682: Correctly read dotted identifiers from export data.
@@ -25,6 +27,10 @@ const (
 	C5     = 1234i
 	C6     = "foo\n"
 	C7     = `bar\n`
+)
+
+const (
+	C8 => math.Pi
 )
 
 type (
@@ -75,9 +81,19 @@ type (
 	T28 func(T28) T28
 )
 
+type (
+	T29 => ast.File
+	T30 => build.Context
+)
+
 var (
 	V0 int
-	V1 = -991.0
+	V1         = -991.0
+	V2 float32 = 1.2
+)
+
+var (
+	V3 => build.Default
 )
 
 func F1()         {}
@@ -87,3 +103,7 @@ func F4() float32 { return 0 }
 func F5(a, b, c int, u, v, w struct{ x, y T1 }, more ...interface{}) (p, q, r chan<- T10)
 
 func (p *T1) M1()
+
+func F6 => math.Sin
+func F7 => ast.IsExported
+func F8 => build.Import
