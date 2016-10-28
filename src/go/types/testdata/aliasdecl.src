@@ -4,7 +4,108 @@
 
 package aliasdecl
 
-import "math"
+import (
+	"flag"
+	"fmt" // use at most once (to test "imported but not used" error)
+	"go/build"
+	. "go/build"
+	"io"
+	"math"
+	"unsafe"
+)
 
-const _ = math.Pi
-const c /* ERROR "cannot handle alias declarations yet" */ => math.Pi
+// helper
+var before struct {
+	f int
+}
+
+// aliases must refer to package-qualified identifiers
+type _ => _ /* ERROR "_ is not a package-qualified identifier" */
+type t1 => _ /* ERROR "_ is not a package-qualified identifier" */
+
+const _ => iota /* ERROR "iota is not a package-qualified identifier" */
+type _ => int   /* ERROR "int is not a package-qualified identifier" */
+
+const c => iota /* ERROR "iota is not a package-qualified identifier" */
+type t2 => int   /* ERROR "int is not a package-qualified identifier" */
+
+// dot-imported identifiers are not qualified identifiers
+// TODO(gri) fix error printing - should not print a qualified identifier...
+var _ => Default /* ERROR "Default is not a package-qualified identifier" */
+
+// qualified identifiers must start with a package
+var _ => before /* ERROR "before.f is not a package-qualified identifier" */ .f
+func _ => before /* ERROR "before.f is not a package-qualified identifier" */ .f
+var _ => after /* ERROR "after.m is not a package-qualified identifier" */ .m
+func _ => after /* ERROR "after.m is not a package-qualified identifier" */ .m
+
+var v1 => before /* ERROR "before.f is not a package-qualified identifier" */ .f
+func f1 => before /* ERROR "before.f is not a package-qualified identifier" */ .f
+var v2 => after /* ERROR "after.m is not a package-qualified identifier" */ .m
+func f2 => after /* ERROR "after.m is not a package-qualified identifier" */ .m
+
+// TODO(gri) fix error printing - should print correct qualified identifier...
+var _ => Default /* ERROR "Default.ARCH is not a package-qualified identifier" */ .ARCH
+var _ Context // use dot-imported package go/build
+
+// aliases may not refer to package unsafe
+type ptr => unsafe /* ERROR "refers to package unsafe" */ .Pointer
+func size => unsafe /* ERROR "refers to package unsafe" */ .Sizeof
+
+// aliases must refer to entities of the same kind
+const _ => math.Pi
+const pi => math.Pi
+const pi1 => math /* ERROR "math.Sin.* is not a constant" */ .Sin
+
+type _ => io.Writer
+type writer => io.Writer
+type writer1 => math /* ERROR "math.Sin.* is not a type" */ .Sin
+
+var _ => build.Default
+var def => build.Default
+var def1 => build /* ERROR "build.Import.* is not a variable" */ .Import
+
+func _ => math.Sin
+func sin => math.Sin
+func sin1 => math /* ERROR "math.Pi.* is not a function" */ .Pi
+
+// using an incorrectly declared alias should not lead to more errors
+const _ = pi1
+type _ writer1
+var _ def1 = 0
+var _ = sin1
+
+// aliases may not be called init
+func init /* ERROR "cannot declare init" */ => flag.Parse
+func _ => flag.Parse // use package flag
+
+// alias reference to a package marks package as used
+func _ => fmt.Println
+
+// re-exported aliases
+const Pi => math.Pi
+
+type Writer => io.Writer
+
+var Def => build.Default
+
+func Sin => math.Sin
+
+// const aliases may appear in "iota" context
+// (this verifies a type-checker internal assertion)
+const (
+	_ = iota
+	pi2 => math.Pi
+)
+
+// type aliases denote identical types
+type myPackage => build.Package
+
+var pkg myPackage
+var _ build.Package = pkg   // valid assignment
+var _ *build.Package = &pkg // valid assignment
+
+// helper
+type after struct{}
+
+func (after) m() {}

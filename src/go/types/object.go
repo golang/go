@@ -152,8 +152,7 @@ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.V
 }
 
 func (obj *Const) Val() constant.Value { return obj.val }
-
-func (*Const) isDependency() {} // a constant may be a dependency of an initialization expression
+func (*Const) isDependency()           {} // a constant may be a dependency of an initialization expression
 
 // A TypeName represents a declared type.
 type TypeName struct {
@@ -186,10 +185,8 @@ func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool
 }
 
 func (obj *Var) Anonymous() bool { return obj.anonymous }
-
-func (obj *Var) IsField() bool { return obj.isField }
-
-func (*Var) isDependency() {} // a variable may be a dependency of an initialization expression
+func (obj *Var) IsField() bool   { return obj.isField }
+func (*Var) isDependency()       {} // a variable may be a dependency of an initialization expression
 
 // A Func represents a declared function, concrete method, or abstract
 // (interface) method. Its Type() is always a *Signature.
@@ -215,11 +212,22 @@ func (obj *Func) FullName() string {
 	return buf.String()
 }
 
-func (obj *Func) Scope() *Scope {
-	return obj.typ.(*Signature).scope
+func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+func (*Func) isDependency()     {} // a function may be a dependency of an initialization expression
+
+// An Alias represents a declared alias.
+type Alias struct {
+	object
+	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC
+	orig Object      // aliased constant, type, variable, or function
 }
 
-func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
+func NewAlias(pos token.Pos, pkg *Package, name string, kind token.Token, orig Object) *Alias {
+	return &Alias{object{pos: pos, pkg: pkg, name: name}, kind, orig}
+}
+
+func (obj *Alias) Kind() token.Token { return obj.kind }
+func (obj *Alias) Orig() Object      { return obj.orig }
 
 // A Label represents a declared label.
 type Label struct {
@@ -278,6 +286,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 			WriteSignature(buf, typ.(*Signature), qf)
 		}
 		return
+
+	case *Alias:
+		buf.WriteString("alias")
 
 	case *Label:
 		buf.WriteString("label")

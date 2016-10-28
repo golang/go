@@ -275,21 +275,24 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// so we don't need a "package" mode for operands: package names
 	// can only appear in qualified identifiers which are mapped to
 	// selector expressions.
+	// (see also decl.go: checker.aliasDecl)
+	// TODO(gri) factor this code out and share with checker.aliasDecl
 	if ident, ok := e.X.(*ast.Ident); ok {
 		_, obj := check.scope.LookupParent(ident.Name, check.pos)
-		if pkg, _ := obj.(*PkgName); pkg != nil {
-			assert(pkg.pkg == check.pkg)
-			check.recordUse(ident, pkg)
-			pkg.used = true
-			exp := pkg.imported.scope.Lookup(sel)
+		if pname, _ := obj.(*PkgName); pname != nil {
+			assert(pname.pkg == check.pkg)
+			check.recordUse(ident, pname)
+			pname.used = true
+			pkg := pname.imported
+			exp := pkg.scope.Lookup(sel)
 			if exp == nil {
-				if !pkg.imported.fake {
-					check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
+				if !pkg.fake {
+					check.errorf(e.Pos(), "%s not declared by package %s", sel, pkg.name)
 				}
 				goto Error
 			}
 			if !exp.Exported() {
-				check.errorf(e.Pos(), "%s not exported by package %s", sel, ident)
+				check.errorf(e.Pos(), "%s not exported by package %s", sel, pkg.name)
 				// ok to continue
 			}
 			check.recordUse(e.Sel, exp)
