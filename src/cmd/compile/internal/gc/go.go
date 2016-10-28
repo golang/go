@@ -217,7 +217,7 @@ var dclcontext Class // PEXTERN/PAUTO
 
 var statuniqgen int // name generator for static temps
 
-var iota_ int32
+var iota_ int64
 
 var lastconst []*Node
 

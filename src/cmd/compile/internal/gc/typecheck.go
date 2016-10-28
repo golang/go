@@ -35,8 +35,8 @@ func resolve(n *Node) *Node {
 		if r != nil {
 			if r.Op != OIOTA {
 				n = r
-			} else if n.Name.Iota >= 0 {
-				n = nodintconst(int64(n.Name.Iota))
+			} else if n.Iota() >= 0 {
+				n = nodintconst(n.Iota())
 			}
 		}
 	}
