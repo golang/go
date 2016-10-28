@@ -90,7 +90,7 @@ func Lstat(name string) (FileInfo, error) {
 		return &devNullStat, nil
 	}
 	fs := &fileStat{name: basename(name)}
-	namep, e := syscall.UTF16PtrFromString(name)
+	namep, e := syscall.UTF16PtrFromString(fixLongPath(name))
 	if e != nil {
 		return nil, &PathError{"Lstat", name, e}
 	}

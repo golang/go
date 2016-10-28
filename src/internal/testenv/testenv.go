@@ -153,6 +153,22 @@ func MustHaveSymlink(t *testing.T) {
 	}
 }
 
+// HasLink reports whether the current system can use os.Link.
+func HasLink() bool {
+	// From Android release M (Marshmallow), hard linking files is blocked
+	// and an attempt to call link() on a file will return EACCES.
+	// - https://code.google.com/p/android-developer-preview/issues/detail?id=3150
+	return runtime.GOOS != "plan9" && runtime.GOOS != "android"
+}
+
+// MustHaveLink reports whether the current system can use os.Link.
+// If not, MustHaveLink calls t.Skip with an explanation.
+func MustHaveLink(t *testing.T) {
+	if !HasLink() {
+		t.Skipf("skipping test: hardlinks are not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
 var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
 
 func SkipFlaky(t *testing.T, issue int) {

@@ -86,7 +86,7 @@ const DevNull = "NUL"
 func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
 
 func openFile(name string, flag int, perm FileMode) (file *File, err error) {
-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+	r, e := syscall.Open(fixLongPath(name), flag|syscall.O_CLOEXEC, syscallMode(perm))
 	if e != nil {
 		return nil, e
 	}
@@ -95,10 +95,13 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
 
 func openDir(name string) (file *File, err error) {
 	var mask string
-	if len(name) == 2 && name[1] == ':' { // it is a drive letter, like C:
-		mask = name + `*`
+
+	path := fixLongPath(name)
+
+	if len(path) == 2 && path[1] == ':' || (len(path) > 0 && path[len(path)-1] == '\\') { // it is a drive letter, like C:
+		mask = path + `*`
 	} else {
-		mask = name + `\*`
+		mask = path + `\*`
 	}
 	maskp, e := syscall.UTF16PtrFromString(mask)
 	if e != nil {
@@ -114,11 +117,11 @@ func openDir(name string) (file *File, err error) {
 			return nil, e
 		}
 		var fa syscall.Win32FileAttributeData
-		namep, e := syscall.UTF16PtrFromString(name)
+		pathp, e := syscall.UTF16PtrFromString(path)
 		if e != nil {
 			return nil, e
 		}
-		e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+		e = syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
 		if e != nil {
 			return nil, e
 		}
@@ -127,7 +130,7 @@ func openDir(name string) (file *File, err error) {
 		}
 		d.isempty = true
 	}
-	d.path = name
+	d.path = path
 	if !isAbs(d.path) {
 		d.path, e = syscall.FullPath(d.path)
 		if e != nil {
@@ -439,7 +442,7 @@ func Truncate(name string, size int64) error {
 // Remove removes the named file or directory.
 // If there is an error, it will be of type *PathError.
 func Remove(name string) error {
-	p, e := syscall.UTF16PtrFromString(name)
+	p, e := syscall.UTF16PtrFromString(fixLongPath(name))
 	if e != nil {
 		return &PathError{"remove", name, e}
 	}
@@ -476,7 +479,7 @@ func Remove(name string) error {
 }
 
 func rename(oldname, newname string) error {
-	e := windows.Rename(oldname, newname)
+	e := windows.Rename(fixLongPath(oldname), fixLongPath(newname))
 	if e != nil {
 		return &LinkError{"rename", oldname, newname, e}
 	}
@@ -521,11 +524,11 @@ func TempDir() string {
 // Link creates newname as a hard link to the oldname file.
 // If there is an error, it will be of type *LinkError.
 func Link(oldname, newname string) error {
-	n, err := syscall.UTF16PtrFromString(newname)
+	n, err := syscall.UTF16PtrFromString(fixLongPath(newname))
 	if err != nil {
 		return &LinkError{"link", oldname, newname, err}
 	}
-	o, err := syscall.UTF16PtrFromString(oldname)
+	o, err := syscall.UTF16PtrFromString(fixLongPath(oldname))
 	if err != nil {
 		return &LinkError{"link", oldname, newname, err}
 	}
@@ -556,11 +559,11 @@ func Symlink(oldname, newname string) error {
 	fi, err := Lstat(destpath)
 	isdir := err == nil && fi.IsDir()
 
-	n, err := syscall.UTF16PtrFromString(newname)
+	n, err := syscall.UTF16PtrFromString(fixLongPath(newname))
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
-	o, err := syscall.UTF16PtrFromString(oldname)
+	o, err := syscall.UTF16PtrFromString(fixLongPath(oldname))
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}

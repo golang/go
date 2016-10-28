@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+// fixLongPath is a noop on non-Windows platforms.
+func fixLongPath(path string) string {
+	return path
+}
+
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
 // can overwrite this data, which could cause the finalizer
