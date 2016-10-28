@@ -109,16 +109,22 @@ func newblock(prog *obj.Prog) *BasicBlock {
 	if prog == nil {
 		Fatalf("newblock: prog cannot be nil")
 	}
-	result := new(BasicBlock)
+	// type block allows us to allocate a BasicBlock
+	// and its pred/succ slice together.
+	type block struct {
+		result BasicBlock
+		pred   [2]*BasicBlock
+		succ   [2]*BasicBlock
+	}
+	b := new(block)
+
+	result := &b.result
 	result.rpo = -1
 	result.mark = UNVISITED
 	result.first = prog
 	result.last = prog
-	// We want two 0-len slices with capacity 2.
-	// Carve them out of a single allocation.
-	blocks := make([]*BasicBlock, 4)
-	result.pred = blocks[0:][:0:2]
-	result.succ = blocks[2:][:0:2]
+	result.pred = b.pred[:0]
+	result.succ = b.succ[:0]
 	return result
 }
 
