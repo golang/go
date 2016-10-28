@@ -2692,12 +2692,12 @@ notenough:
 			// Method expressions have the form T.M, and the compiler has
 			// rewritten those to ONAME nodes but left T in Left.
 			if call.Op == ONAME && call.Left != nil && call.Left.Op == OTYPE {
-				yyerror("not enough arguments in call to method expression %v, got %s want %v", call, nl.retsigerr(), tstruct)
+				yyerror("not enough arguments in call to method expression %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
 			} else {
-				yyerror("not enough arguments in call to %v, got %s want %v", call, nl.retsigerr(), tstruct)
+				yyerror("not enough arguments in call to %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
 			}
 		} else {
-			yyerror("not enough arguments to %v, got %s want %v", op, nl.retsigerr(), tstruct)
+			yyerror("not enough arguments to %v\n\thave %s\n\twant %v", op, nl.retsigerr(isddd), tstruct)
 		}
 		if n != nil {
 			n.Diag = 1
@@ -2708,9 +2708,9 @@ notenough:
 
 toomany:
 	if call != nil {
-		yyerror("too many arguments in call to %v, got %s want %v", call, nl.retsigerr(), tstruct)
+		yyerror("too many arguments in call to %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
 	} else {
-		yyerror("too many arguments to %v, got %s want %v", op, nl.retsigerr(), tstruct)
+		yyerror("too many arguments to %v\n\thave %s\n\twant %v", op, nl.retsigerr(isddd), tstruct)
 	}
 	goto out
 }
@@ -2738,17 +2738,27 @@ func (t *Type) sigrepr() string {
 
 // retsigerr returns the signature of the types
 // at the respective return call site of a function.
-func (nl Nodes) retsigerr() string {
+func (nl Nodes) retsigerr(isddd bool) string {
 	if nl.Len() < 1 {
 		return "()"
 	}
 
 	var typeStrings []string
-	for _, n := range nl.Slice() {
-		typeStrings = append(typeStrings, n.Type.sigrepr())
+	if nl.Len() == 1 && nl.First().Type != nil && nl.First().Type.IsFuncArgStruct() {
+		for _, f := range nl.First().Type.Fields().Slice() {
+			typeStrings = append(typeStrings, f.Type.sigrepr())
+		}
+	} else {
+		for _, n := range nl.Slice() {
+			typeStrings = append(typeStrings, n.Type.sigrepr())
+		}
 	}
 
-	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
+	ddd := ""
+	if isddd {
+		ddd = "..."
+	}
+	return fmt.Sprintf("(%s%s)", strings.Join(typeStrings, ", "), ddd)
 }
 
 // type check composite
