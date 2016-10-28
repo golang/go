@@ -9,7 +9,6 @@ package dwarf
 
 import (
 	"fmt"
-	"strings"
 )
 
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
@@ -577,9 +576,6 @@ func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size 
 	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
 	names := make(map[string]bool)
 	for v := vars; v != nil; v = v.Link {
-		if strings.Contains(v.Name, ".autotmp_") {
-			continue
-		}
 		var n string
 		if names[v.Name] {
 			n = fmt.Sprintf("%s#%d", v.Name, len(names))

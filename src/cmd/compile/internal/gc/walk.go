@@ -2208,7 +2208,7 @@ func isstack(n *Node) bool {
 
 	// If n is *autotmp and autotmp = &foo, replace n with foo.
 	// We introduce such temps when initializing struct literals.
-	if n.Op == OIND && n.Left.Op == ONAME && strings.HasPrefix(n.Left.Sym.Name, "autotmp_") {
+	if n.Op == OIND && n.Left.Op == ONAME && n.Left.IsAutoTmp() {
 		defn := n.Left.Name.Defn
 		if defn != nil && defn.Op == OAS && defn.Right.Op == OADDR {
 			n = defn.Right.Left

@@ -19,10 +19,10 @@ func f(uintptr) // ERROR "f assuming arg#1 is unsafe uintptr"
 
 func g() {
 	var t int
-	f(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to f: autotmp" "g &t does not escape"
+	f(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to f: .?autotmp" "g &t does not escape"
 }
 
 func h() {
 	var v int
-	syscall.Syscall(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to Syscall: autotmp" "h &v does not escape"
+	syscall.Syscall(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to Syscall: .?autotmp" "h &v does not escape"
 }
