@@ -979,6 +979,7 @@ func itabname(t, itype *Type) *Node {
 		Fatalf("itabname(%v, %v)", t, itype)
 	}
 	s := Pkglookup(t.tconv(FmtLeft)+","+itype.tconv(FmtLeft), itabpkg)
+	Linksym(s).Set(obj.AttrLocal, true)
 	if s.Def == nil {
 		n := newname(s)
 		n.Type = Types[TUINT8]
