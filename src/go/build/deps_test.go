@@ -173,6 +173,7 @@ var pkgDeps = map[string][]string{
 	"regexp":                            {"L2", "regexp/syntax"},
 	"regexp/syntax":                     {"L2"},
 	"runtime/debug":                     {"L2", "fmt", "io/ioutil", "os", "time"},
+	"runtime/pprof/internal/gzip0":      {"L2"},
 	"runtime/pprof/internal/profile":    {"L2"},
 	"runtime/pprof/internal/protopprof": {"L2", "fmt", "runtime/pprof/internal/profile", "os", "time"},
 	"runtime/pprof":                     {"L2", "fmt", "runtime/pprof/internal/profile", "runtime/pprof/internal/protopprof", "time", "text/tabwriter"},
