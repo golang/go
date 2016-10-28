@@ -52,6 +52,11 @@ type ReverseProxy struct {
 	// get byte slices for use by io.CopyBuffer when
 	// copying HTTP response bodies.
 	BufferPool BufferPool
+
+	// ModifyResponse is an optional function that
+	// modifies the Response from the backend.
+	// If it returns an error, the proxy returns a StatusBadGateway error.
+	ModifyResponse func(*http.Response) error
 }
 
 // A BufferPool is an interface for getting and returning temporary
@@ -214,6 +219,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	for _, h := range hopHeaders {
 		res.Header.Del(h)
+	}
+
+	if p.ModifyResponse != nil {
+		if err := p.ModifyResponse(res); err != nil {
+			p.logf("http: proxy error: %v", err)
+			rw.WriteHeader(http.StatusBadGateway)
+			return
+		}
 	}
 
 	copyHeader(rw.Header(), res.Header)
