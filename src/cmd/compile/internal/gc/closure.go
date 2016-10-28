@@ -347,7 +347,7 @@ func transformclosure(xfunc *Node) {
 				addr := newname(lookupf("&%s", v.Sym.Name))
 				addr.Type = ptrto(v.Type)
 				addr.Class = PPARAM
-				v.Name.Heapaddr = addr
+				v.Name.Param.Heapaddr = addr
 				fld.Nname = addr
 			}
 
@@ -405,7 +405,7 @@ func transformclosure(xfunc *Node) {
 				addr.Used = true
 				addr.Name.Curfn = xfunc
 				xfunc.Func.Dcl = append(xfunc.Func.Dcl, addr)
-				v.Name.Heapaddr = addr
+				v.Name.Param.Heapaddr = addr
 				if v.Name.Byval {
 					cv = nod(OADDR, cv, nil)
 				}

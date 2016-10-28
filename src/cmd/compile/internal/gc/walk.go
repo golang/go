@@ -231,7 +231,7 @@ func walkstmt(n *Node) *Node {
 			if prealloc[v] == nil {
 				prealloc[v] = callnew(v.Type)
 			}
-			nn := nod(OAS, v.Name.Heapaddr, prealloc[v])
+			nn := nod(OAS, v.Name.Param.Heapaddr, prealloc[v])
 			nn.Colas = true
 			nn = typecheck(nn, Etop)
 			return walkstmt(nn)
@@ -314,7 +314,7 @@ func walkstmt(n *Node) *Node {
 				}
 				if cl == PPARAMOUT {
 					if ln.isParamStackCopy() {
-						ln = walkexpr(typecheck(nod(OIND, ln.Name.Heapaddr, nil), Erv), nil)
+						ln = walkexpr(typecheck(nod(OIND, ln.Name.Param.Heapaddr, nil), Erv), nil)
 					}
 					rl = append(rl, ln)
 				}
@@ -463,7 +463,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 	}
 
 	if n.Op == ONAME && n.Class == PAUTOHEAP {
-		nn := nod(OIND, n.Name.Heapaddr, nil)
+		nn := nod(OIND, n.Name.Param.Heapaddr, nil)
 		nn = typecheck(nn, Erv)
 		nn = walkexpr(nn, init)
 		nn.Left.NonNil = true
