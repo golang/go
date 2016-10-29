@@ -150,18 +150,27 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
 		}
 
 		var wantSum int
-		var wantMinCalls int
 		switch runtime.GOOS {
 		case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
+			var wantMinCalls int
 			wantSum = want.Len()
 			v := chunks
 			for v > 0 {
 				wantMinCalls++
 				v -= 1024
 			}
-		}
-		if len(writeLog.log) < wantMinCalls {
-			t.Errorf("write calls = %v < wanted min %v", len(writeLog.log), wantMinCalls)
+			if len(writeLog.log) < wantMinCalls {
+				t.Errorf("write calls = %v < wanted min %v", len(writeLog.log), wantMinCalls)
+			}
+		case "windows":
+			var wantCalls int
+			wantSum = want.Len()
+			if wantSum > 0 {
+				wantCalls = 1 // windows will always do 1 syscall, unless sending empty buffer
+			}
+			if len(writeLog.log) != wantCalls {
+				t.Errorf("write calls = %v; want %v", len(writeLog.log), wantCalls)
+			}
 		}
 		if gotSum != wantSum {
 			t.Errorf("writev call sum  = %v; want %v", gotSum, wantSum)
@@ -171,6 +180,10 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
 }
 
 func TestWritevError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping the test: windows does not have problem sending large chunks of data")
+	}
+
 	ln, err := newLocalListener("tcp")
 	if err != nil {
 		t.Fatal(err)

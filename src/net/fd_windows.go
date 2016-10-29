@@ -96,6 +96,7 @@ type operation struct {
 	rsan   int32
 	handle syscall.Handle
 	flags  uint32
+	bufs   []syscall.WSABuf
 }
 
 func (o *operation) InitBuf(buf []byte) {
@@ -104,6 +105,30 @@ func (o *operation) InitBuf(buf []byte) {
 	if len(buf) != 0 {
 		o.buf.Buf = &buf[0]
 	}
+}
+
+func (o *operation) InitBufs(buf *Buffers) {
+	if o.bufs == nil {
+		o.bufs = make([]syscall.WSABuf, 0, len(*buf))
+	} else {
+		o.bufs = o.bufs[:0]
+	}
+	for _, b := range *buf {
+		var p *byte
+		if len(b) > 0 {
+			p = &b[0]
+		}
+		o.bufs = append(o.bufs, syscall.WSABuf{uint32(len(b)), p})
+	}
+}
+
+// ClearBufs clears all pointers to Buffers parameter captured
+// by InitBufs, so it can be released by garbage collector.
+func (o *operation) ClearBufs() {
+	for i := range o.bufs {
+		o.bufs[i].Buf = nil
+	}
+	o.bufs = o.bufs[:0]
 }
 
 // ioSrv executes net IO requests.
@@ -482,6 +507,42 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 		err = os.NewSyscallError("wsasend", err)
 	}
 	return n, err
+}
+
+func (c *conn) writeBuffers(v *Buffers) (int64, error) {
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	n, err := c.fd.writeBuffers(v)
+	if err != nil {
+		return n, &OpError{Op: "WSASend", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return n, nil
+}
+
+func (fd *netFD) writeBuffers(buf *Buffers) (int64, error) {
+	if len(*buf) == 0 {
+		return 0, nil
+	}
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	o := &fd.wop
+	o.InitBufs(buf)
+	n, err := wsrv.ExecIO(o, "WSASend", func(o *operation) error {
+		return syscall.WSASend(o.fd.sysfd, &o.bufs[0], uint32(len(*buf)), &o.qty, 0, &o.o, nil)
+	})
+	o.ClearBufs()
+	if _, ok := err.(syscall.Errno); ok {
+		err = os.NewSyscallError("wsasend", err)
+	}
+	testHookDidWritev(n)
+	buf.consume(int64(n))
+	return int64(n), err
 }
 
 func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
