@@ -3113,7 +3113,6 @@ func typecheckcomplit(n *Node) *Node {
 	}
 
 	if nerr != nerrors {
-		n.Type = nil
 		return n
 	}
 
