@@ -798,3 +798,62 @@ func TestBestSpeedMatch(t *testing.T) {
 		}
 	}
 }
+
+func TestBestSpeedMaxMatchOffset(t *testing.T) {
+	const abc, xyz = "abcdefgh", "stuvwxyz"
+	for _, matchBefore := range []bool{false, true} {
+		for _, extra := range []int{0, inputMargin - 1, inputMargin, inputMargin + 1, 2 * inputMargin} {
+			for offsetAdj := -5; offsetAdj <= +5; offsetAdj++ {
+				report := func(desc string, err error) {
+					t.Errorf("matchBefore=%t, extra=%d, offsetAdj=%d: %s%v",
+						matchBefore, extra, offsetAdj, desc, err)
+				}
+
+				offset := maxMatchOffset + offsetAdj
+
+				// Make src to be a []byte of the form
+				//	"%s%s%s%s%s" % (abc, zeros0, xyzMaybe, abc, zeros1)
+				// where:
+				//	zeros0 is approximately maxMatchOffset zeros.
+				//	xyzMaybe is either xyz or the empty string.
+				//	zeros1 is between 0 and 30 zeros.
+				// The difference between the two abc's will be offset, which
+				// is maxMatchOffset plus or minus a small adjustment.
+				src := make([]byte, offset+len(abc)+extra)
+				copy(src, abc)
+				if !matchBefore {
+					copy(src[offset-len(xyz):], xyz)
+				}
+				copy(src[offset:], abc)
+
+				buf := new(bytes.Buffer)
+				w, err := NewWriter(buf, BestSpeed)
+				if err != nil {
+					report("NewWriter: ", err)
+					continue
+				}
+				if _, err := w.Write(src); err != nil {
+					report("Write: ", err)
+					continue
+				}
+				if err := w.Close(); err != nil {
+					report("Writer.Close: ", err)
+					continue
+				}
+
+				r := NewReader(buf)
+				dst, err := ioutil.ReadAll(r)
+				r.Close()
+				if err != nil {
+					report("ReadAll: ", err)
+					continue
+				}
+
+				if !bytes.Equal(dst, src) {
+					report("", fmt.Errorf("bytes differ after round-tripping"))
+					continue
+				}
+			}
+		}
+	}
+}
