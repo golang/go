@@ -477,17 +477,14 @@ func schedinit() {
 	gcinit()
 
 	sched.lastpoll = uint64(nanotime())
-	procs := int(ncpu)
+	procs := ncpu
+	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
+		procs = n
+	}
 	if procs > _MaxGomaxprocs {
 		procs = _MaxGomaxprocs
 	}
-	if n := atoi(gogetenv("GOMAXPROCS")); n > 0 {
-		if n > _MaxGomaxprocs {
-			n = _MaxGomaxprocs
-		}
-		procs = n
-	}
-	if procresize(int32(procs)) != nil {
+	if procresize(procs) != nil {
 		throw("unknown runnable goroutine during bootstrap")
 	}
 

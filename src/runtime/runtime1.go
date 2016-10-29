@@ -375,11 +375,15 @@ func parsedebugvars() {
 		// is int, not int32, and should only be updated
 		// if specified in GODEBUG.
 		if key == "memprofilerate" {
-			MemProfileRate = atoi(value)
+			if n, ok := atoi(value); ok {
+				MemProfileRate = n
+			}
 		} else {
 			for _, v := range dbgvars {
 				if v.name == key {
-					*v.value = int32(atoi(value))
+					if n, ok := atoi32(value); ok {
+						*v.value = n
+					}
 				}
 			}
 		}
@@ -422,7 +426,10 @@ func setTraceback(level string) {
 	case "crash":
 		t = 2<<tracebackShift | tracebackAll | tracebackCrash
 	default:
-		t = uint32(atoi(level))<<tracebackShift | tracebackAll
+		t = tracebackAll
+		if n, ok := atoi(level); ok && n == int(uint32(n)) {
+			t |= uint32(n) << tracebackShift
+		}
 	}
 	// when C owns the process, simply exit'ing the process on fatal errors
 	// and panics is surprising. Be louder and abort instead.
