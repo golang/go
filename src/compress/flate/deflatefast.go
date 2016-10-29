@@ -55,7 +55,7 @@ func newDeflateFast() *deflateFast {
 	return &deflateFast{cur: maxStoreBlockSize, prev: make([]byte, 0, maxStoreBlockSize)}
 }
 
-// encode encodes a block given in src and encodes tokens
+// encode encodes a block given in src and appends tokens
 // to dst and returns the result.
 func (e *deflateFast) encode(dst []token, src []byte) []token {
 	// Ensure that e.cur doesn't wrap.
@@ -116,8 +116,7 @@ func (e *deflateFast) encode(dst []token, src []byte) []token {
 			nextHash = hash(now)
 
 			offset := s - (candidate.offset - e.cur)
-			// TODO: >= should be >, and add a test for that.
-			if offset >= maxMatchOffset || cv != candidate.val {
+			if offset > maxMatchOffset || cv != candidate.val {
 				// Out of range or not matched.
 				cv = now
 				continue
@@ -171,8 +170,7 @@ func (e *deflateFast) encode(dst []token, src []byte) []token {
 			e.table[currHash&tableMask] = tableEntry{offset: e.cur + s, val: uint32(x)}
 
 			offset := s - (candidate.offset - e.cur)
-			// TODO: >= should be >, and add a test for that.
-			if offset >= maxMatchOffset || uint32(x) != candidate.val {
+			if offset > maxMatchOffset || uint32(x) != candidate.val {
 				cv = uint32(x >> 8)
 				nextHash = hash(cv)
 				s++
