@@ -238,10 +238,9 @@ type Msghdr struct {
 }
 
 type Cmsghdr struct {
-	Len          uint32
-	Level        int32
-	Type         int32
-	X__cmsg_data [0]uint8
+	Len   uint32
+	Level int32
+	Type  int32
 }
 
 type Inet4Pktinfo struct {
