@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 )
 
 // Per golang.org/issue/14937, check that every .gz file
@@ -16,8 +15,12 @@ func TestGZIPFilesHaveZeroMTimes(t *testing.T) {
 	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in short mode")
 	}
+	goroot, err := filepath.EvalSymlinks(runtime.GOROOT())
+	if err != nil {
+		t.Fatal("error evaluating GOROOT: ", err)
+	}
 	var files []string
-	err := filepath.Walk(runtime.GOROOT(), func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(goroot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -53,7 +56,7 @@ func checkZeroMTime(t *testing.T, path string) {
 		return
 	}
 	defer gz.Close()
-	if !gz.ModTime.Equal(time.Unix(0, 0)) {
+	if !gz.ModTime.IsZero() {
 		t.Errorf("gzip file %s has non-zero mtime (%s)", path, gz.ModTime)
 	}
 }
