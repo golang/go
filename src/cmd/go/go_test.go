@@ -99,6 +99,7 @@ func TestMain(m *testing.M) {
 	// Don't let these environment variables confuse the test.
 	os.Unsetenv("GOBIN")
 	os.Unsetenv("GOPATH")
+	os.Setenv("HOME", "/test-go-home-does-not-exist")
 
 	r := m.Run()
 
@@ -135,15 +136,7 @@ func testgo(t *testing.T) *testgoData {
 		t.Skip("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
-	tg := &testgoData{t: t}
-
-	// Hide user's local .gitconfig from git invocations.
-	// In particular, people using Github 2FA may configure
-	// https://github.com/ to redirect to ssh://git@github.com/
-	// using an insteadOf configuration, and that will break various
-	// of our tests.
-	tg.setenv("HOME", "/test-go-home-does-not-exist")
-	return tg
+	return &testgoData{t: t}
 }
 
 // must gives a fatal error if err is not nil.
@@ -2569,7 +2562,6 @@ func TestImportLocal(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 
-	// Importing package main from that package main's test should work.
 	tg.tempFile("src/dir/x/x.go", `package x
 		var X int
 	`)
