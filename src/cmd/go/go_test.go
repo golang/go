@@ -99,6 +99,12 @@ func TestMain(m *testing.M) {
 	// Don't let these environment variables confuse the test.
 	os.Unsetenv("GOBIN")
 	os.Unsetenv("GOPATH")
+	if home, ccacheDir := os.Getenv("HOME"), os.Getenv("CCACHE_DIR"); home != "" && ccacheDir == "" {
+		// On some systems the default C compiler is ccache.
+		// Setting HOME to a non-existent directory will break
+		// those systems.  Set CCACHE_DIR to cope.  Issue 17668.
+		os.Setenv("CCACHE_DIR", filepath.Join(home, ".ccache"))
+	}
 	os.Setenv("HOME", "/test-go-home-does-not-exist")
 
 	r := m.Run()
@@ -2536,6 +2542,7 @@ func TestImportMain(t *testing.T) {
 		var _ = xmain.X
 		func TestFoo(t *testing.T) {}
 	`)
+	tg.creatingTemp("p4" + exeSuffix)
 	tg.run("build", "p4")
 	tg.runFail("test", "p4")
 	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
@@ -2550,6 +2557,7 @@ func TestImportMain(t *testing.T) {
 		var _ = xmain.X
 		func TestFoo(t *testing.T) {}
 	`)
+	tg.creatingTemp("p5" + exeSuffix)
 	tg.run("build", "p5")
 	tg.runFail("test", "p5")
 	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
