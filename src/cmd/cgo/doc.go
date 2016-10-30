@@ -326,6 +326,9 @@ The following options are available when running cgo directly:
 		Write out input file in Go syntax replacing C package
 		names with real values. Used to generate files in the
 		syscall package when bootstrapping a new target.
+	-srcdir directory
+		Find the Go input files, listed on the command line,
+		in directory.
 	-objdir directory
 		Put all generated files in directory.
 	-importpath string
