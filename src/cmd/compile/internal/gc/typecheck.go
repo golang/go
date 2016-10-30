@@ -3415,6 +3415,12 @@ out:
 
 // type check function definition
 func typecheckfunc(n *Node) {
+	for _, ln := range n.Func.Dcl {
+		if ln.Op == ONAME && (ln.Class == PPARAM || ln.Class == PPARAMOUT) {
+			ln.Name.Decldepth = 1
+		}
+	}
+
 	n.Func.Nname = typecheck(n.Func.Nname, Erv|Easgn)
 	t := n.Func.Nname.Type
 	if t == nil {
@@ -3425,12 +3431,6 @@ func typecheckfunc(n *Node) {
 	rcvr := t.Recv()
 	if rcvr != nil && n.Func.Shortname != nil {
 		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Pragma&Nointerface != 0)
-	}
-
-	for _, ln := range n.Func.Dcl {
-		if ln.Op == ONAME && (ln.Class == PPARAM || ln.Class == PPARAMOUT) {
-			ln.Name.Decldepth = 1
-		}
 	}
 }
 
