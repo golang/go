@@ -521,6 +521,10 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 		throw("nwait > work.nprocs")
 	}
 
+	// gcDrainN requires the caller to be preemptible.
+	casgstatus(gp, _Grunning, _Gwaiting)
+	gp.waitreason = "GC assist marking"
+
 	// drain own cached work first in the hopes that it
 	// will be more cache friendly.
 	gcw := &getg().m.p.ptr().gcw
@@ -530,6 +534,8 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 	if gcBlackenPromptly {
 		gcw.dispose()
 	}
+
+	casgstatus(gp, _Gwaiting, _Grunning)
 
 	// Record that we did this much scan work.
 	//
@@ -1083,7 +1089,13 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 // buffer. Otherwise, it will perform at least n units of work, but
 // may perform more because scanning is always done in whole object
 // increments. It returns the amount of scan work performed.
+//
+// The caller goroutine must be in a preemptible state (e.g.,
+// _Gwaiting) to prevent deadlocks during stack scanning. As a
+// consequence, this must be called on the system stack.
+//
 //go:nowritebarrier
+//go:systemstack
 func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 	if !writeBarrier.needed {
 		throw("gcDrainN phase incorrect")
@@ -1111,6 +1123,18 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 		}
 
 		if b == 0 {
+			// Try to do a root job.
+			//
+			// TODO: Assists should get credit for this
+			// work.
+			if work.markrootNext < work.markrootJobs {
+				job := atomic.Xadd(&work.markrootNext, +1) - 1
+				if job < work.markrootJobs {
+					markroot(gcw, job)
+					continue
+				}
+			}
+			// No heap or root jobs.
 			break
 		}
 		scanobject(b, gcw)
