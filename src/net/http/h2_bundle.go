@@ -2982,10 +2982,6 @@ func (s *http2Server) maxConcurrentStreams() uint32 {
 	return http2defaultMaxStreams
 }
 
-// List of funcs for ConfigureServer to run. Both h1 and h2 are guaranteed
-// to be non-nil.
-var http2configServerFuncs []func(h1 *Server, h2 *http2Server) error
-
 // ConfigureServer adds HTTP/2 support to a net/http Server.
 //
 // The configuration conf may be nil.
@@ -3512,6 +3508,11 @@ func (sc *http2serverConn) serve() {
 		sc.idleTimerCh = sc.idleTimer.C
 	}
 
+	var gracefulShutdownCh <-chan struct{}
+	if sc.hs != nil {
+		gracefulShutdownCh = http2h1ServerShutdownChan(sc.hs)
+	}
+
 	go sc.readFrames()
 
 	settingsTimer := time.NewTimer(http2firstSettingsTimeout)
@@ -3539,6 +3540,9 @@ func (sc *http2serverConn) serve() {
 		case <-settingsTimer.C:
 			sc.logf("timeout waiting for SETTINGS frames from %v", sc.conn.RemoteAddr())
 			return
+		case <-gracefulShutdownCh:
+			gracefulShutdownCh = nil
+			sc.goAwayIn(http2ErrCodeNo, 0)
 		case <-sc.shutdownTimerCh:
 			sc.vlogf("GOAWAY close timer fired; closing conn from %v", sc.conn.RemoteAddr())
 			return
@@ -3547,6 +3551,10 @@ func (sc *http2serverConn) serve() {
 			sc.goAway(http2ErrCodeNo)
 		case fn := <-sc.testHookCh:
 			fn(loopNum)
+		}
+
+		if sc.inGoAway && sc.curClientStreams == 0 && !sc.needToSendGoAway && !sc.writingFrame {
+			return
 		}
 	}
 }
@@ -3803,7 +3811,7 @@ func (sc *http2serverConn) scheduleFrameWrite() {
 			sc.startFrameWrite(http2FrameWriteRequest{write: http2writeSettingsAck{}})
 			continue
 		}
-		if !sc.inGoAway {
+		if !sc.inGoAway || sc.goAwayCode == http2ErrCodeNo {
 			if wr, ok := sc.writeSched.Pop(); ok {
 				sc.startFrameWrite(wr)
 				continue
@@ -3821,14 +3829,23 @@ func (sc *http2serverConn) scheduleFrameWrite() {
 
 func (sc *http2serverConn) goAway(code http2ErrCode) {
 	sc.serveG.check()
+	var forceCloseIn time.Duration
+	if code != http2ErrCodeNo {
+		forceCloseIn = 250 * time.Millisecond
+	} else {
+
+		forceCloseIn = 1 * time.Second
+	}
+	sc.goAwayIn(code, forceCloseIn)
+}
+
+func (sc *http2serverConn) goAwayIn(code http2ErrCode, forceCloseIn time.Duration) {
+	sc.serveG.check()
 	if sc.inGoAway {
 		return
 	}
-	if code != http2ErrCodeNo {
-		sc.shutDownIn(250 * time.Millisecond)
-	} else {
-
-		sc.shutDownIn(1 * time.Second)
+	if forceCloseIn != 0 {
+		sc.shutDownIn(forceCloseIn)
 	}
 	sc.inGoAway = true
 	sc.needToSendGoAway = true
@@ -5263,6 +5280,31 @@ var http2badTrailer = map[string]bool{
 	"Transfer-Encoding":   true,
 	"Www-Authenticate":    true,
 }
+
+// h1ServerShutdownChan returns a channel that will be closed when the
+// provided *http.Server wants to shut down.
+//
+// This is a somewhat hacky way to get at http1 innards. It works
+// when the http2 code is bundled into the net/http package in the
+// standard library. The alternatives ended up making the cmd/go tool
+// depend on http Servers. This is the lightest option for now.
+// This is tested via the TestServeShutdown* tests in net/http.
+func http2h1ServerShutdownChan(hs *Server) <-chan struct{} {
+	if fn := http2testh1ServerShutdownChan; fn != nil {
+		return fn(hs)
+	}
+	var x interface{} = hs
+	type I interface {
+		getDoneChan() <-chan struct{}
+	}
+	if hs, ok := x.(I); ok {
+		return hs.getDoneChan()
+	}
+	return nil
+}
+
+// optional test hook for h1ServerShutdownChan.
+var http2testh1ServerShutdownChan func(hs *Server) <-chan struct{}
 
 const (
 	// transportDefaultConnFlow is how many connection-level flow control
