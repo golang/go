@@ -72,8 +72,17 @@ TEXT ·Sincos(SB),NOSPLIT,$0
 TEXT ·Sin(SB),NOSPLIT,$0
 	BR ·sin(SB)
 
+TEXT ·Sinh(SB),NOSPLIT,$0
+	BR ·sinh(SB)
+
 TEXT ·Cos(SB),NOSPLIT,$0
 	BR ·cos(SB)
 
+TEXT ·Cosh(SB),NOSPLIT,$0
+	BR ·cosh(SB)
+
 TEXT ·Tan(SB),NOSPLIT,$0
 	BR ·tan(SB)
+
+TEXT ·Tanh(SB),NOSPLIT,$0
+	BR ·tanh(SB)
