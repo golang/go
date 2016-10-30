@@ -87,6 +87,12 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	return
 }
 
+func (t *Transport) IdleConnKeyCountForTesting() int {
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	return len(t.idleConn)
+}
+
 func (t *Transport) IdleConnStrsForTesting() []string {
 	var ret []string
 	t.idleMu.Lock()

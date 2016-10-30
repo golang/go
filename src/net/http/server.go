@@ -248,6 +248,8 @@ type conn struct {
 
 	curReq atomic.Value // of *response (which has a Request in it)
 
+	curState atomic.Value // of ConnectionState
+
 	// mu guards hijackedv
 	mu sync.Mutex
 
@@ -1586,9 +1588,28 @@ func validNPN(proto string) bool {
 }
 
 func (c *conn) setState(nc net.Conn, state ConnState) {
-	if hook := c.server.ConnState; hook != nil {
+	srv := c.server
+	switch state {
+	case StateNew:
+		srv.trackConn(c, true)
+	case StateHijacked, StateClosed:
+		srv.trackConn(c, false)
+	}
+	c.curState.Store(connStateInterface[state])
+	if hook := srv.ConnState; hook != nil {
 		hook(nc, state)
 	}
+}
+
+// connStateInterface is an array of the interface{} versions of
+// ConnState values, so we can use them in atomic.Values later without
+// paying the cost of shoving their integers in an interface{}.
+var connStateInterface = [...]interface{}{
+	StateNew:      StateNew,
+	StateActive:   StateActive,
+	StateIdle:     StateIdle,
+	StateHijacked: StateHijacked,
+	StateClosed:   StateClosed,
 }
 
 // badRequestError is a literal string (used by in the server in HTML,
@@ -2247,8 +2268,120 @@ type Server struct {
 	ErrorLog *log.Logger
 
 	disableKeepAlives int32     // accessed atomically.
+	inShutdown        int32     // accessed atomically (non-zero means we're in Shutdown)
 	nextProtoOnce     sync.Once // guards setupHTTP2_* init
 	nextProtoErr      error     // result of http2.ConfigureServer if used
+
+	mu         sync.Mutex
+	listeners  map[net.Listener]struct{}
+	activeConn map[*conn]struct{}
+	doneChan   chan struct{}
+}
+
+func (s *Server) getDoneChan() <-chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.getDoneChanLocked()
+}
+
+func (s *Server) getDoneChanLocked() chan struct{} {
+	if s.doneChan == nil {
+		s.doneChan = make(chan struct{})
+	}
+	return s.doneChan
+}
+
+func (s *Server) closeDoneChanLocked() {
+	ch := s.getDoneChanLocked()
+	select {
+	case <-ch:
+		// Already closed. Don't close again.
+	default:
+		// Safe to close here. We're the only closer, guarded
+		// by s.mu.
+		close(ch)
+	}
+}
+
+// Close immediately closes all active net.Listeners and connections,
+// regardless of their state. For a graceful shutdown, use Shutdown.
+func (s *Server) Close() error {
+	s.mu.Lock()
+	defer s.mu.Lock()
+	s.closeDoneChanLocked()
+	err := s.closeListenersLocked()
+	for c := range s.activeConn {
+		c.rwc.Close()
+		delete(s.activeConn, c)
+	}
+	return err
+}
+
+// shutdownPollInterval is how often we poll for quiescence
+// during Server.Shutdown. This is lower during tests, to
+// speed up tests.
+// Ideally we could find a solution that doesn't involve polling,
+// but which also doesn't have a high runtime cost (and doesn't
+// involve any contentious mutexes), but that is left as an
+// exercise for the reader.
+var shutdownPollInterval = 500 * time.Millisecond
+
+// Shutdown gracefully shuts down the server without interrupting any
+// active connections. Shutdown works by first closing all open
+// listeners, then closing all idle connections, and then waiting
+// indefinitely for connections to return to idle and then shut down.
+// If the provided context expires before the shutdown is complete,
+// then the context's error is returned.
+func (s *Server) Shutdown(ctx context.Context) error {
+	atomic.AddInt32(&s.inShutdown, 1)
+	defer atomic.AddInt32(&s.inShutdown, -1)
+
+	s.mu.Lock()
+	lnerr := s.closeListenersLocked()
+	s.closeDoneChanLocked()
+	s.mu.Unlock()
+
+	ticker := time.NewTicker(shutdownPollInterval)
+	defer ticker.Stop()
+	for {
+		if s.closeIdleConns() {
+			return lnerr
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+// closeIdleConns closes all idle connections and reports whether the
+// server is quiescent.
+func (s *Server) closeIdleConns() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	quiescent := true
+	for c := range s.activeConn {
+		st, ok := c.curState.Load().(ConnState)
+		if !ok || st != StateIdle {
+			quiescent = false
+			continue
+		}
+		c.rwc.Close()
+		delete(s.activeConn, c)
+	}
+	return quiescent
+}
+
+func (s *Server) closeListenersLocked() error {
+	var err error
+	for ln := range s.listeners {
+		if cerr := ln.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+		delete(s.listeners, ln)
+	}
+	return err
 }
 
 // A ConnState represents the state of a client connection to a server.
@@ -2361,6 +2494,8 @@ func (srv *Server) shouldConfigureHTTP2ForServe() bool {
 	return strSliceContains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
 }
 
+var ErrServerClosed = errors.New("http: Server closed")
+
 // Serve accepts incoming connections on the Listener l, creating a
 // new service goroutine for each. The service goroutines read requests and
 // then call srv.Handler to reply to them.
@@ -2370,7 +2505,8 @@ func (srv *Server) shouldConfigureHTTP2ForServe() bool {
 // srv.TLSConfig is non-nil and doesn't include the string "h2" in
 // Config.NextProtos, HTTP/2 support is not enabled.
 //
-// Serve always returns a non-nil error.
+// Serve always returns a non-nil error. After Shutdown or Close, the
+// returned error is ErrServerClosed.
 func (srv *Server) Serve(l net.Listener) error {
 	defer l.Close()
 	if fn := testHookServerServe; fn != nil {
@@ -2382,12 +2518,20 @@ func (srv *Server) Serve(l net.Listener) error {
 		return err
 	}
 
+	srv.trackListener(l, true)
+	defer srv.trackListener(l, false)
+
 	baseCtx := context.Background() // base is always background, per Issue 16220
 	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
 	ctx = context.WithValue(ctx, LocalAddrContextKey, l.Addr())
 	for {
 		rw, e := l.Accept()
 		if e != nil {
+			select {
+			case <-srv.getDoneChan():
+				return ErrServerClosed
+			default:
+			}
 			if ne, ok := e.(net.Error); ok && ne.Temporary() {
 				if tempDelay == 0 {
 					tempDelay = 5 * time.Millisecond
@@ -2410,6 +2554,37 @@ func (srv *Server) Serve(l net.Listener) error {
 	}
 }
 
+func (s *Server) trackListener(ln net.Listener, add bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.listeners == nil {
+		s.listeners = make(map[net.Listener]struct{})
+	}
+	if add {
+		// If the *Server is being reused after a previous
+		// Close or Shutdown, reset its doneChan:
+		if len(s.listeners) == 0 && len(s.activeConn) == 0 {
+			s.doneChan = nil
+		}
+		s.listeners[ln] = struct{}{}
+	} else {
+		delete(s.listeners, ln)
+	}
+}
+
+func (s *Server) trackConn(c *conn, add bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.activeConn == nil {
+		s.activeConn = make(map[*conn]struct{})
+	}
+	if add {
+		s.activeConn[c] = struct{}{}
+	} else {
+		delete(s.activeConn, c)
+	}
+}
+
 func (s *Server) idleTimeout() time.Duration {
 	if s.IdleTimeout != 0 {
 		return s.IdleTimeout
@@ -2425,7 +2600,11 @@ func (s *Server) readHeaderTimeout() time.Duration {
 }
 
 func (s *Server) doKeepAlives() bool {
-	return atomic.LoadInt32(&s.disableKeepAlives) == 0
+	return atomic.LoadInt32(&s.disableKeepAlives) == 0 && !s.shuttingDown()
+}
+
+func (s *Server) shuttingDown() bool {
+	return atomic.LoadInt32(&s.inShutdown) != 0
 }
 
 // SetKeepAlivesEnabled controls whether HTTP keep-alives are enabled.
@@ -2435,9 +2614,21 @@ func (s *Server) doKeepAlives() bool {
 func (srv *Server) SetKeepAlivesEnabled(v bool) {
 	if v {
 		atomic.StoreInt32(&srv.disableKeepAlives, 0)
-	} else {
-		atomic.StoreInt32(&srv.disableKeepAlives, 1)
+		return
 	}
+	atomic.StoreInt32(&srv.disableKeepAlives, 1)
+
+	// Close idle HTTP/1 conns:
+	srv.closeIdleConns()
+
+	// Close HTTP/2 conns, as soon as they become idle, but reset
+	// the chan so future conns (if the listener is still active)
+	// still work and don't get a GOAWAY immediately, before their
+	// first request:
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+	srv.closeDoneChanLocked() // closes http2 conns
+	srv.doneChan = nil
 }
 
 func (s *Server) logf(format string, args ...interface{}) {
