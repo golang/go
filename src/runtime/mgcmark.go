@@ -391,7 +391,6 @@ func markrootSpans(gcw *gcWork, shard int) {
 // gp must be the calling user gorountine.
 //
 // This must be called with preemption enabled.
-//go:nowritebarrier
 func gcAssistAlloc(gp *g) {
 	// Don't assist in non-preemptible contexts. These are
 	// generally fragile and won't allow the assist to block.
@@ -442,72 +441,14 @@ retry:
 	}
 
 	// Perform assist work
-	completed := false
 	systemstack(func() {
-		if atomic.Load(&gcBlackenEnabled) == 0 {
-			// The gcBlackenEnabled check in malloc races with the
-			// store that clears it but an atomic check in every malloc
-			// would be a performance hit.
-			// Instead we recheck it here on the non-preemptable system
-			// stack to determine if we should preform an assist.
-
-			// GC is done, so ignore any remaining debt.
-			gp.gcAssistBytes = 0
-			return
-		}
-		// Track time spent in this assist. Since we're on the
-		// system stack, this is non-preemptible, so we can
-		// just measure start and end time.
-		startTime := nanotime()
-
-		decnwait := atomic.Xadd(&work.nwait, -1)
-		if decnwait == work.nproc {
-			println("runtime: work.nwait =", decnwait, "work.nproc=", work.nproc)
-			throw("nwait > work.nprocs")
-		}
-
-		// drain own cached work first in the hopes that it
-		// will be more cache friendly.
-		gcw := &getg().m.p.ptr().gcw
-		workDone := gcDrainN(gcw, scanWork)
-		// If we are near the end of the mark phase
-		// dispose of the gcw.
-		if gcBlackenPromptly {
-			gcw.dispose()
-		}
-
-		// Record that we did this much scan work.
-		//
-		// Back out the number of bytes of assist credit that
-		// this scan work counts for. The "1+" is a poor man's
-		// round-up, to ensure this adds credit even if
-		// assistBytesPerWork is very low.
-		gp.gcAssistBytes += 1 + int64(gcController.assistBytesPerWork*float64(workDone))
-
-		// If this is the last worker and we ran out of work,
-		// signal a completion point.
-		incnwait := atomic.Xadd(&work.nwait, +1)
-		if incnwait > work.nproc {
-			println("runtime: work.nwait=", incnwait,
-				"work.nproc=", work.nproc,
-				"gcBlackenPromptly=", gcBlackenPromptly)
-			throw("work.nwait > work.nproc")
-		}
-
-		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
-			// This has reached a background completion
-			// point.
-			completed = true
-		}
-		duration := nanotime() - startTime
-		_p_ := gp.m.p.ptr()
-		_p_.gcAssistTime += duration
-		if _p_.gcAssistTime > gcAssistTimeSlack {
-			atomic.Xaddint64(&gcController.assistTime, _p_.gcAssistTime)
-			_p_.gcAssistTime = 0
-		}
+		gcAssistAlloc1(gp, scanWork)
+		// The user stack may have moved, so this can't touch
+		// anything on it until it returns from systemstack.
 	})
 
+	completed := gp.param != nil
+	gp.param = nil
 	if completed {
 		gcMarkDone()
 	}
@@ -540,6 +481,87 @@ retry:
 
 		// At this point either background GC has satisfied
 		// this G's assist debt, or the GC cycle is over.
+	}
+}
+
+// gcAssistAlloc1 is the part of gcAssistAlloc that runs on the system
+// stack. This is a separate function to make it easier to see that
+// we're not capturing anything from the user stack, since the user
+// stack may move while we're in this function.
+//
+// gcAssistAlloc1 indicates whether this assist completed the mark
+// phase by setting gp.param to non-nil. This can't be communicated on
+// the stack since it may move.
+//
+//go:systemstack
+func gcAssistAlloc1(gp *g, scanWork int64) {
+	// Clear the flag indicating that this assist completed the
+	// mark phase.
+	gp.param = nil
+
+	if atomic.Load(&gcBlackenEnabled) == 0 {
+		// The gcBlackenEnabled check in malloc races with the
+		// store that clears it but an atomic check in every malloc
+		// would be a performance hit.
+		// Instead we recheck it here on the non-preemptable system
+		// stack to determine if we should preform an assist.
+
+		// GC is done, so ignore any remaining debt.
+		gp.gcAssistBytes = 0
+		return
+	}
+	// Track time spent in this assist. Since we're on the
+	// system stack, this is non-preemptible, so we can
+	// just measure start and end time.
+	startTime := nanotime()
+
+	decnwait := atomic.Xadd(&work.nwait, -1)
+	if decnwait == work.nproc {
+		println("runtime: work.nwait =", decnwait, "work.nproc=", work.nproc)
+		throw("nwait > work.nprocs")
+	}
+
+	// drain own cached work first in the hopes that it
+	// will be more cache friendly.
+	gcw := &getg().m.p.ptr().gcw
+	workDone := gcDrainN(gcw, scanWork)
+	// If we are near the end of the mark phase
+	// dispose of the gcw.
+	if gcBlackenPromptly {
+		gcw.dispose()
+	}
+
+	// Record that we did this much scan work.
+	//
+	// Back out the number of bytes of assist credit that
+	// this scan work counts for. The "1+" is a poor man's
+	// round-up, to ensure this adds credit even if
+	// assistBytesPerWork is very low.
+	gp.gcAssistBytes += 1 + int64(gcController.assistBytesPerWork*float64(workDone))
+
+	// If this is the last worker and we ran out of work,
+	// signal a completion point.
+	incnwait := atomic.Xadd(&work.nwait, +1)
+	if incnwait > work.nproc {
+		println("runtime: work.nwait=", incnwait,
+			"work.nproc=", work.nproc,
+			"gcBlackenPromptly=", gcBlackenPromptly)
+		throw("work.nwait > work.nproc")
+	}
+
+	if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+		// This has reached a background completion point. Set
+		// gp.param to a non-nil value to indicate this. It
+		// doesn't matter what we set it to (it just has to be
+		// a valid pointer).
+		gp.param = unsafe.Pointer(gp)
+	}
+	duration := nanotime() - startTime
+	_p_ := gp.m.p.ptr()
+	_p_.gcAssistTime += duration
+	if _p_.gcAssistTime > gcAssistTimeSlack {
+		atomic.Xaddint64(&gcController.assistTime, _p_.gcAssistTime)
+		_p_.gcAssistTime = 0
 	}
 }
 
