@@ -21,6 +21,9 @@ TEXT ·Atan(SB),NOSPLIT,$0
 TEXT ·Exp2(SB),NOSPLIT,$0
 	B ·exp2(SB)
 
+TEXT ·Cosh(SB),NOSPLIT,$0
+	B ·cosh(SB)
+
 TEXT ·Expm1(SB),NOSPLIT,$0
 	B ·expm1(SB)
 
@@ -60,8 +63,14 @@ TEXT ·Sincos(SB),NOSPLIT,$0
 TEXT ·Sin(SB),NOSPLIT,$0
 	B ·sin(SB)
 
+TEXT ·Sinh(SB),NOSPLIT,$0
+	B ·sinh(SB)
+
 TEXT ·Cos(SB),NOSPLIT,$0
 	B ·cos(SB)
 
 TEXT ·Tan(SB),NOSPLIT,$0
 	B ·tan(SB)
+
+TEXT ·Tanh(SB),NOSPLIT,$0
+	B ·tanh(SB)
