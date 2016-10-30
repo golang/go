@@ -15,13 +15,15 @@ goos=$(go env GOOS)
 goarch=$(go env GOARCH)
 
 function cleanup() {
-	rm -f plugin1.so host pkg
+	rm -rf plugin1.so host pkg sub
 }
 trap cleanup EXIT
 
-rm -rf pkg
+rm -rf pkg sub
+mkdir sub
 
 GOPATH=$(pwd) go build -buildmode=plugin plugin1
+GOPATH=$(pwd) go build -buildmode=plugin -o=sub/plugin1.so sub/plugin1
 GOPATH=$(pwd) go build host
 
 LD_LIBRARY_PATH=$(pwd) ./host

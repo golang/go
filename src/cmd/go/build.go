@@ -2546,6 +2546,9 @@ func (gcToolchain) ld(b *builder, root *action, out string, allactions []*action
 	if root.p.omitDWARF {
 		ldflags = append(ldflags, "-w")
 	}
+	if buildBuildmode == "plugin" {
+		ldflags = append(ldflags, "-pluginpath", root.p.ImportPath)
+	}
 
 	// If the user has not specified the -extld option, then specify the
 	// appropriate linker. In case of C++ code, use the compiler named

@@ -9,17 +9,10 @@ import "C"
 
 import "common"
 
-func F() int { return 3 }
+func F() int { return 17 }
 
 func ReadCommonX() int {
 	return common.X
-}
-
-var Seven int
-
-func init() {
-	Seven = 7
-	common.X *= Seven
 }
 
 func main() {

@@ -18,9 +18,9 @@ package plugin
 
 // Plugin is a loaded Go plugin.
 type Plugin struct {
-	name   string
-	loaded chan struct{} // closed when loaded
-	syms   map[string]interface{}
+	pluginpath string
+	loaded     chan struct{} // closed when loaded
+	syms       map[string]interface{}
 }
 
 // Open opens a Go plugin.

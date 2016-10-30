@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 	"plugin"
 
 	"common"
@@ -36,15 +37,51 @@ func main() {
 		log.Fatalf(`Lookup("Seven") failed: %v`, err)
 	}
 	if got, want := *seven.(*int), 7; got != want {
-		log.Fatalf("via lookup plugin1.Seven=%d, want %d", got, want)
+		log.Fatalf("plugin1.Seven=%d, want %d", got, want)
 	}
 
 	readFunc, err := p.Lookup("ReadCommonX")
 	if err != nil {
-		log.Fatalf(`Lookup("ReadCommonX") failed: %v`, err)
+		log.Fatalf(`plugin1.Lookup("ReadCommonX") failed: %v`, err)
 	}
 	if got := readFunc.(func() int)(); got != wantX {
-		log.Fatalf("via lookup plugin1.ReadCommonX()=%d, want %d", got, wantX)
+		log.Fatalf("plugin1.ReadCommonX()=%d, want %d", got, wantX)
+	}
+
+	// sub/plugin1.so is a different plugin with the same name as
+	// the already loaded plugin. It also depends on common. Test
+	// that we can load the different plugin, it is actually
+	// different, and that it sees the same common package.
+	subpPath, err := filepath.Abs("sub/plugin1.so")
+	if err != nil {
+		log.Fatalf("filepath.Abs(%q) failed: %v", subpPath, err)
+	}
+	subp, err := plugin.Open(subpPath)
+	if err != nil {
+		log.Fatalf("plugin.Open(%q) failed: %v", subpPath, err)
+	}
+
+	readFunc, err = subp.Lookup("ReadCommonX")
+	if err != nil {
+		log.Fatalf(`sub/plugin1.Lookup("ReadCommonX") failed: %v`, err)
+	}
+	if got := readFunc.(func() int)(); got != wantX {
+		log.Fatalf("sub/plugin1.ReadCommonX()=%d, want %d", got, wantX)
+	}
+
+	subf, err := subp.Lookup("F")
+	if err != nil {
+		log.Fatalf(`sub/plugin1.Lookup("F") failed: %v`, err)
+	}
+	if gotf := subf.(func() int)(); gotf != 17 {
+		log.Fatalf(`sub/plugin1.F()=%d, want 17`, gotf)
+	}
+	f, err := p.Lookup("F")
+	if err != nil {
+		log.Fatalf(`plugin1.Lookup("F") failed: %v`, err)
+	}
+	if gotf := f.(func() int)(); gotf != 3 {
+		log.Fatalf(`plugin1.F()=%d, want 17`, gotf)
 	}
 
 	fmt.Println("PASS")
