@@ -207,6 +207,6 @@ func TestWritevError(t *testing.T) {
 		buffers[i] = buf
 	}
 	if _, err := buffers.WriteTo(c1); err == nil {
-		t.Fatalf("Buffers.WriteTo(closed conn) succeeded, want error", err)
+		t.Fatal("Buffers.WriteTo(closed conn) succeeded, want error")
 	}
 }
