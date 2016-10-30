@@ -603,6 +603,12 @@ func (ctxt *Link) symtab() {
 		adduint(ctxt, moduledata, 0)
 		adduint(ctxt, moduledata, 0)
 	}
+	if Buildmode == BuildmodePlugin {
+		addgostring(ctxt, moduledata, "go.link.thispluginpath", *flagPluginPath)
+	} else {
+		adduint(ctxt, moduledata, 0)
+		adduint(ctxt, moduledata, 0)
+	}
 	if len(ctxt.Shlibs) > 0 {
 		thismodulename := filepath.Base(*flagOutfile)
 		switch Buildmode {

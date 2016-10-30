@@ -49,10 +49,10 @@ func open(name string) (*Plugin, error) {
 	}
 	C.free(unsafe.Pointer(cRelName))
 
-	path := C.GoString(cPath)
+	filepath := C.GoString(cPath)
 
 	pluginsMu.Lock()
-	if p := plugins[path]; p != nil {
+	if p := plugins[filepath]; p != nil {
 		pluginsMu.Unlock()
 		<-p.loaded
 		return p, nil
@@ -65,26 +65,25 @@ func open(name string) (*Plugin, error) {
 	}
 	// TODO(crawshaw): look for plugin note, confirm it is a Go plugin
 	// and it was built with the correct toolchain.
-	// TODO(crawshaw): get full plugin name from note.
 	if len(name) > 3 && name[len(name)-3:] == ".so" {
 		name = name[:len(name)-3]
 	}
 
-	syms := lastmoduleinit()
+	pluginpath, syms := lastmoduleinit()
 	if plugins == nil {
 		plugins = make(map[string]*Plugin)
 	}
 	// This function can be called from the init function of a plugin.
 	// Drop a placeholder in the map so subsequent opens can wait on it.
 	p := &Plugin{
-		name:   name,
-		loaded: make(chan struct{}),
-		syms:   syms,
+		pluginpath: pluginpath,
+		loaded:     make(chan struct{}),
+		syms:       syms,
 	}
-	plugins[path] = p
+	plugins[filepath] = p
 	pluginsMu.Unlock()
 
-	initStr := C.CString(name + ".init")
+	initStr := C.CString(pluginpath + ".init")
 	initFuncPC := C.pluginLookup(h, initStr, &cErr)
 	C.free(unsafe.Pointer(initStr))
 	if initFuncPC != nil {
@@ -101,7 +100,7 @@ func open(name string) (*Plugin, error) {
 			symName = symName[1:]
 		}
 
-		cname := C.CString(name + "." + symName)
+		cname := C.CString(pluginpath + "." + symName)
 		p := C.pluginLookup(h, cname, &cErr)
 		C.free(unsafe.Pointer(cname))
 		if p == nil {
@@ -123,7 +122,7 @@ func lookup(p *Plugin, symName string) (Symbol, error) {
 	if s := p.syms[symName]; s != nil {
 		return s, nil
 	}
-	return nil, errors.New("plugin: symbol " + symName + " not found in plugin " + p.name)
+	return nil, errors.New("plugin: symbol " + symName + " not found in plugin " + p.pluginpath)
 }
 
 var (
@@ -131,4 +130,5 @@ var (
 	plugins   map[string]*Plugin
 )
 
-func lastmoduleinit() map[string]interface{} // in package runtime
+// lastmoduleinit is defined in package runtime
+func lastmoduleinit() (pluginpath string, syms map[string]interface{})

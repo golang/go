@@ -37,7 +37,6 @@ import (
 	"flag"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -59,6 +58,7 @@ var (
 	flagBuildid = flag.String("buildid", "", "record `id` as Go toolchain build id")
 
 	flagOutfile    = flag.String("o", "", "write output to `file`")
+	flagPluginPath = flag.String("pluginpath", "", "full path name for plugin")
 	FlagLinkshared = flag.Bool("linkshared", false, "link against installed Go shared libraries")
 
 	flagInstallSuffix = flag.String("installsuffix", "", "set package directory `suffix`")
@@ -175,8 +175,7 @@ func Main() {
 			addlibpath(ctxt, "command line", "command line", file, pkgpath, "")
 		}
 	case BuildmodePlugin:
-		pluginName := strings.TrimSuffix(filepath.Base(flag.Arg(0)), ".a")
-		addlibpath(ctxt, "command line", "command line", flag.Arg(0), pluginName, "")
+		addlibpath(ctxt, "command line", "command line", flag.Arg(0), *flagPluginPath, "")
 	default:
 		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
 	}
