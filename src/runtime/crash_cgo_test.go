@@ -271,11 +271,10 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
 
-	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1", "-symbolize=force", exe, fn))
+	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1", exe, fn))
 
 	found := false
 	for i, e := range cmd.Env {
