@@ -310,6 +310,14 @@ func fprintf(w io.Writer, fset *token.FileSet, pos interface{}, format string, a
 	case token.Pos:
 		start = pos
 		end = start
+	case *types.PkgName:
+		// The Pos of most PkgName objects does not coincide with an identifier,
+		// so we suppress the usual start+len(name) heuristic for types.Objects.
+		start = pos.Pos()
+		end = start
+	case types.Object:
+		start = pos.Pos()
+		end = start + token.Pos(len(pos.Name())) // heuristic
 	case interface {
 		Pos() token.Pos
 	}:
