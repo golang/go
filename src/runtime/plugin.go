@@ -19,7 +19,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
 		throw("runtime: plugin already initialized")
 	}
 
-	for pmd := &firstmoduledata; pmd != md; pmd = pmd.next {
+	for _, pmd := range activeModules() {
 		if pmd.pluginpath == md.pluginpath {
 			println("plugin: plugin", md.pluginpath, "already loaded")
 			throw("plugin: plugin already loaded")
@@ -43,9 +43,8 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
 	}
 
 	// Initialize the freshly loaded module.
+	modulesinit()
 	typelinksinit()
-	md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
-	md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
 
 	lock(&ifaceLock)
 	for _, i := range md.itablinks {

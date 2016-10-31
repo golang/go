@@ -465,8 +465,9 @@ func schedinit() {
 	mallocinit()
 	mcommoninit(_g_.m)
 	alginit()       // maps must not be used before this call
-	typelinksinit() // uses maps
-	itabsinit()
+	modulesinit()   // provides activeModules
+	typelinksinit() // uses maps, activeModules
+	itabsinit()     // uses activeModules
 
 	msigsave(_g_.m)
 	initSigmask = _g_.m.sigmask
@@ -474,7 +475,7 @@ func schedinit() {
 	goargs()
 	goenvs()
 	parsedebugvars()
-	gcinit()
+	gcinit() // requires modulesinit
 
 	sched.lastpoll = uint64(nanotime())
 	procs := ncpu

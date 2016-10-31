@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -233,6 +234,52 @@ var pinnedTypemaps []map[typeOff]*_type
 
 var firstmoduledata moduledata  // linker symbol
 var lastmoduledatap *moduledata // linker symbol
+var modulesSlice unsafe.Pointer // see activeModules
+
+// activeModules returns a slice of active modules.
+//
+// A module is active once its gcdatamask and gcbssmask have been
+// assembled and it is usable by the GC.
+func activeModules() []*moduledata {
+	p := (*[]*moduledata)(atomic.Loadp(unsafe.Pointer(&modulesSlice)))
+	if p == nil {
+		return nil
+	}
+	return *p
+}
+
+// modulesinit creates the active modules slice out of all loaded modules.
+//
+// When a module is first loaded by the dynamic linker, an .init_array
+// function (written by cmd/link) is invoked to call addmoduledata,
+// appending to the module to the linked list that starts with
+// firstmoduledata.
+//
+// There are two times this can happen in the lifecycle of a Go
+// program. First, if compiled with -linkshared, a number of modules
+// built with -buildmode=shared can be loaded at program initialization.
+// Second, a Go program can load a module while running that was built
+// with -buildmode=plugin.
+//
+// After loading, this function is called which initializes the
+// moduledata so it is usable by the GC and creates a new activeModules
+// list.
+//
+// Only one goroutine may call modulesinit at a time.
+func modulesinit() {
+	oldNum := len(activeModules())
+	modules := new([]*moduledata)
+	num := 0
+	for md := &firstmoduledata; md != nil; md = md.next {
+		*modules = append(*modules, md)
+		num++
+		if num > oldNum {
+			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
+			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
+		}
+	}
+	atomicstorep(unsafe.Pointer(&modulesSlice), unsafe.Pointer(modules))
+}
 
 type functab struct {
 	entry   uintptr

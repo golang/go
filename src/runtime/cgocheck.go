@@ -108,7 +108,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 	}
 
 	// The type has a GC program. Try to find GC bits somewhere else.
-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+	for _, datap := range activeModules() {
 		if cgoInRange(src, datap.data, datap.edata) {
 			doff := uintptr(src) - datap.data
 			cgoCheckBits(add(src, -doff), datap.gcdatamask.bytedata, off+doff, size)

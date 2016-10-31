@@ -471,9 +471,9 @@ func typelinksinit() {
 	}
 	typehash := make(map[uint32][]*_type, len(firstmoduledata.typelinks))
 
-	prev := &firstmoduledata
-	md := firstmoduledata.next
-	for md != nil {
+	modules := activeModules()
+	prev := modules[0]
+	for _, md := range modules[1:] {
 		// Collect types from the previous module into typehash.
 	collect:
 		for _, tl := range prev.typelinks {
@@ -513,7 +513,6 @@ func typelinksinit() {
 		}
 
 		prev = md
-		md = md.next
 	}
 }
 

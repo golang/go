@@ -606,13 +606,13 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 
 		// If dst is a global, use the data or BSS bitmaps to
 		// execute write barriers.
-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		for _, datap := range activeModules() {
 			if datap.data <= dst && dst < datap.edata {
 				bulkBarrierBitmap(dst, src, size, dst-datap.data, datap.gcdatamask.bytedata)
 				return
 			}
 		}
-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		for _, datap := range activeModules() {
 			if datap.bss <= dst && dst < datap.ebss {
 				bulkBarrierBitmap(dst, src, size, dst-datap.bss, datap.gcbssmask.bytedata)
 				return
@@ -1852,7 +1852,7 @@ func getgcmask(ep interface{}) (mask []byte) {
 	p := e.data
 	t := e._type
 	// data or bss
-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+	for _, datap := range activeModules() {
 		// data
 		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
 			bitmap := datap.gcdatamask.bytedata
