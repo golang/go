@@ -578,6 +578,14 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 		return p
 	}
 
+	// The generated 'testmain' package is allowed to access testing/internal/...,
+	// as if it were generated into the testing directory tree
+	// (it's actually in a temporary directory outside any Go tree).
+	// This cleans up a former kludge in passing functionality to the testing package.
+	if strings.HasPrefix(p.ImportPath, "testing/internal") && len(*stk) >= 2 && (*stk)[len(*stk)-2] == "testmain" {
+		return p
+	}
+
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
 	// with a name given on the command line, not an
