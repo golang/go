@@ -23,9 +23,9 @@ import (
 
 	"cmd/internal/pprof/commands"
 	"cmd/internal/pprof/plugin"
-	"cmd/internal/pprof/profile"
 	"cmd/internal/pprof/report"
 	"cmd/internal/pprof/tempfile"
+	"internal/pprof/profile"
 )
 
 // PProf acquires a profile, and symbolizes it using a profile

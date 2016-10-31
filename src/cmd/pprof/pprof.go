@@ -19,9 +19,9 @@ import (
 	"cmd/internal/pprof/driver"
 	"cmd/internal/pprof/fetch"
 	"cmd/internal/pprof/plugin"
-	"cmd/internal/pprof/profile"
 	"cmd/internal/pprof/symbolizer"
 	"cmd/internal/pprof/symbolz"
+	"internal/pprof/profile"
 )
 
 func main() {
