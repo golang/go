@@ -27,7 +27,7 @@ type importer struct {
 	data    []byte
 	path    string
 	buf     []byte // for reading strings
-	version int
+	version int    // export format version
 
 	// object lists
 	strList       []string         // in order of appearance
@@ -106,13 +106,6 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 	// 	...
 	//	fallthrough
 	case 3, 2, 1:
-		// Support for Go 1.8 type aliases will be added very
-		// soon (Oct 2016).  In the meantime, we make a
-		// best-effort attempt to read v3 export data, failing
-		// if we encounter a type alias.  This allows the
-		// automated builders to make progress since
-		// type aliases are not yet used in practice.
-		// TODO(gri): add support for type aliases.
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.int() != 0
 		p.posInfoFormat = p.int() != 0
@@ -193,7 +186,7 @@ func (p *importer) pkg() *types.Package {
 
 	// we should never see an empty package name
 	if name == "" {
-		panic("empty package name in import")
+		errorf("empty package name in import")
 	}
 
 	// an empty path denotes the package we are currently importing;
@@ -218,37 +211,81 @@ func (p *importer) pkg() *types.Package {
 	return pkg
 }
 
-func (p *importer) declare(obj types.Object) {
+// objTag returns the tag value for each object kind.
+// obj must not be a *types.Alias.
+func objTag(obj types.Object) int {
+	switch obj.(type) {
+	case *types.Const:
+		return constTag
+	case *types.TypeName:
+		return typeTag
+	case *types.Var:
+		return varTag
+	case *types.Func:
+		return funcTag
+	// Aliases are not exported multiple times, thus we should not see them here.
+	default:
+		errorf("unexpected object: %v (%T)", obj, obj)
+		panic("unreachable")
+	}
+}
+func sameObj(a, b types.Object) bool {
+	// Because unnamed types are not canonicalized, we cannot simply compare types for
+	// (pointer) identity.
+	// Ideally we'd check equality of constant values as well, but this is good enough.
+	return objTag(a) == objTag(b) && types.Identical(a.Type(), b.Type())
+}
+
+func (p *importer) declare(obj types.Object) types.Object {
 	pkg := obj.Pkg()
 	if alt := pkg.Scope().Insert(obj); alt != nil {
-		// This could only trigger if we import a (non-type) object a second time.
-		// This should never happen because 1) we only import a package once; and
-		// b) we ignore compiler-specific export data which may contain functions
-		// whose inlined function bodies refer to other functions that were already
-		// imported.
-		// (See also the comment in cmd/compile/internal/gc/bimport.go importer.obj,
-		// switch case importing functions).
-		errorf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", alt, obj)
+		// This can only trigger if we import a (non-type) object a second time.
+		// Excluding aliases, this cannot happen because 1) we only import a package
+		// once; and b) we ignore compiler-specific export data which may contain
+		// functions whose inlined function bodies refer to other functions that
+		// were already imported.
+		// However, if a package exports multiple aliases referring to the same
+		// original object, that object is currently exported multiple times.
+		// Check for that specific case and accept it if the aliases correspond
+		// (see also the comment in cmd/compile/internal/gc/bimport.go, method
+		// importer.obj, switch case importing functions).
+		// Note that the original itself cannot be an alias.
+		// TODO(gri) We can avoid doing this once objects are exported only once
+		// per package again (issue #17636).
+		if !sameObj(obj, alt) {
+			errorf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", alt, obj)
+		}
+		obj = alt // use object that was imported first
 	}
+	return obj
 }
 
 func (p *importer) obj(tag int) {
+	var aliasPos token.Pos
+	var aliasName string
+	if tag == aliasTag {
+		aliasPos = p.pos()
+		aliasName = p.string()
+		tag = p.tagOrIndex()
+	}
+
+	var obj types.Object
 	switch tag {
 	case constTag:
 		pos := p.pos()
 		pkg, name := p.qualifiedName()
 		typ := p.typ(nil)
 		val := p.value()
-		p.declare(types.NewConst(pos, pkg, name, typ, val))
+		obj = p.declare(types.NewConst(pos, pkg, name, typ, val))
 
 	case typeTag:
-		_ = p.typ(nil)
+		obj = p.typ(nil).(*types.Named).Obj()
 
 	case varTag:
 		pos := p.pos()
 		pkg, name := p.qualifiedName()
 		typ := p.typ(nil)
-		p.declare(types.NewVar(pos, pkg, name, typ))
+		obj = p.declare(types.NewVar(pos, pkg, name, typ))
 
 	case funcTag:
 		pos := p.pos()
@@ -256,10 +293,14 @@ func (p *importer) obj(tag int) {
 		params, isddd := p.paramList()
 		result, _ := p.paramList()
 		sig := types.NewSignature(nil, params, result, isddd)
-		p.declare(types.NewFunc(pos, pkg, name, sig))
+		obj = p.declare(types.NewFunc(pos, pkg, name, sig))
 
 	default:
 		errorf("unexpected object tag %d", tag)
+	}
+
+	if aliasName != "" {
+		p.declare(newAlias(aliasPos, p.pkgList[0], aliasName, obj))
 	}
 }
 
@@ -469,7 +510,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 
 		// no embedded interfaces with gc compiler
 		if p.int() != 0 {
-			panic("unexpected embedded interface")
+			errorf("unexpected embedded interface")
 		}
 
 		t := types.NewInterface(p.methodList(parent), nil)
@@ -544,7 +585,7 @@ func (p *importer) field(parent *types.Package) *types.Var {
 		case *types.Named:
 			name = typ.Obj().Name()
 		default:
-			panic("anonymous field expected")
+			errorf("anonymous field expected")
 		}
 		anonymous = true
 	}
@@ -623,7 +664,7 @@ func (p *importer) param(named bool) (*types.Var, bool) {
 	if named {
 		name = p.string()
 		if name == "" {
-			panic("expected named parameter")
+			errorf("expected named parameter")
 		}
 		if name != "_" {
 			pkg = p.pkg()
@@ -727,7 +768,7 @@ func (p *importer) tagOrIndex() int {
 func (p *importer) int() int {
 	x := p.int64()
 	if int64(int(x)) != x {
-		panic("exported integer too large")
+		errorf("exported integer too large")
 	}
 	return int(x)
 }
@@ -814,7 +855,7 @@ func (p *importer) rawByte() byte {
 		case '|':
 			// nothing to do
 		default:
-			panic("unexpected escape sequence in export data")
+			errorf("unexpected escape sequence in export data")
 		}
 	}
 	p.data = p.data[r:]
@@ -856,7 +897,11 @@ const (
 	fractionTag // not used by gc
 	complexTag
 	stringTag
+	nilTag     // only used by gc (appears in exported inlined function bodies)
 	unknownTag // not used by gc (only appears in packages with errors)
+
+	// Aliases
+	aliasTag
 )
 
 var predeclared = []types.Type{
