@@ -112,7 +112,6 @@ func (r *normReader) Read(p []byte) (int, error) {
 			}
 		}
 	}
-	panic("should not reach here")
 }
 
 // Reader returns a new reader that implements Read
