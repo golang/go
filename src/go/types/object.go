@@ -350,6 +350,7 @@ func (obj *Const) String() string    { return ObjectString(obj, nil) }
 func (obj *TypeName) String() string { return ObjectString(obj, nil) }
 func (obj *Var) String() string      { return ObjectString(obj, nil) }
 func (obj *Func) String() string     { return ObjectString(obj, nil) }
+func (obj *Alias) String() string    { return ObjectString(obj, nil) }
 func (obj *Label) String() string    { return ObjectString(obj, nil) }
 func (obj *Builtin) String() string  { return ObjectString(obj, nil) }
 func (obj *Nil) String() string      { return ObjectString(obj, nil) }
