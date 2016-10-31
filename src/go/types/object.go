@@ -218,16 +218,17 @@ func (*Func) isDependency()     {} // a function may be a dependency of an initi
 // An Alias represents a declared alias.
 type Alias struct {
 	object
-	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC
-	orig Object      // aliased constant, type, variable, or function
+	orig Object      // aliased constant, type, variable, or function; never an alias
+	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC (type-checking internal use only)
 }
 
-func NewAlias(pos token.Pos, pkg *Package, name string, kind token.Token, orig Object) *Alias {
-	return &Alias{object{pos: pos, pkg: pkg, name: name}, kind, orig}
+func NewAlias(pos token.Pos, pkg *Package, name string, orig Object) *Alias {
+	return &Alias{object{pos: pos, pkg: pkg, name: name}, orig, token.ILLEGAL}
 }
 
-func (obj *Alias) Kind() token.Token { return obj.kind }
-func (obj *Alias) Orig() Object      { return obj.orig }
+// Orig returns the aliased object, or nil if there was an error.
+// The returned object is never an Alias.
+func (obj *Alias) Orig() Object { return obj.orig }
 
 // A Label represents a declared label.
 type Label struct {
