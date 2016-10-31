@@ -12,8 +12,6 @@ package gc
 // Semicolons are inserted by the lexer. The parser uses one-token look-ahead
 // to handle optional commas and semicolons before a closing ) or } .
 
-const trace = false // if set, parse tracing can be enabled with -x
-
 func mkname(sym *Sym) *Node {
 	n := oldname(sym)
 	if n.Name != nil && n.Name.Pack != nil {

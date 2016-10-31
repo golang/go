@@ -30,10 +30,7 @@
 
 package gc
 
-import (
-	"cmd/internal/obj"
-	"fmt"
-)
+import "cmd/internal/obj"
 
 func Prog(as obj.As) *obj.Prog {
 	var p *obj.Prog
@@ -314,9 +311,5 @@ func Gins(as obj.As, f, t *Node) *obj.Prog {
 	p := Prog(as)
 	Naddr(&p.From, f)
 	Naddr(&p.To, t)
-
-	if Debug['g'] != 0 {
-		fmt.Printf("%v\n", p)
-	}
 	return p
 }
