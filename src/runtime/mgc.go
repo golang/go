@@ -176,10 +176,6 @@ func gcinit() {
 	}
 
 	_ = setGCPercent(readgogc())
-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		datap.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
-		datap.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
-	}
 	memstats.gc_trigger = heapminimum
 	// Compute the goal heap size based on the trigger:
 	//   trigger = marked * (1 + triggerRatio)

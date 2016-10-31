@@ -148,8 +148,8 @@ func additab(m *itab, locked, canfail bool) {
 
 func itabsinit() {
 	lock(&ifaceLock)
-	for m := &firstmoduledata; m != nil; m = m.next {
-		for _, i := range m.itablinks {
+	for _, md := range activeModules() {
+		for _, i := range md.itablinks {
 			additab(i, true, false)
 		}
 	}
