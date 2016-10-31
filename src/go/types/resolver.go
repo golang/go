@@ -275,7 +275,8 @@ func (check *Checker) collectObjects() {
 						}
 
 					case *ast.AliasSpec:
-						obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, d.Tok, nil)
+						obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, nil)
+						obj.kind = d.Tok
 						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, init: s.Orig})
 
 					case *ast.ValueSpec:

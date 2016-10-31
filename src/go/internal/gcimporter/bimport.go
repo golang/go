@@ -264,7 +264,7 @@ func (p *importer) obj(tag int) {
 	}
 
 	if aliasName != "" {
-		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, 0, obj))
+		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, obj))
 	}
 }
 
