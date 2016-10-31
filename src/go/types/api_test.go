@@ -1295,3 +1295,86 @@ func f(x int) { y := x; print(y) }
 		}
 	}
 }
+
+func TestAliases(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	const src = `
+package p
+
+import(
+	"go/build"
+	"go/types"
+)
+
+// Defs
+const Invalid => types.Invalid
+type Struct => types.Struct
+var Default => build.Default
+func Implements => types.Implements
+
+// Uses
+const _ = Invalid
+var _ types.Struct = Struct{} // types must be identical
+var _ build.Context = Default
+var _ = Implements(nil, nil)
+`
+
+	info := Info{
+		Defs: make(map[*ast.Ident]Object),
+		Uses: make(map[*ast.Ident]Object),
+	}
+	mustTypecheck(t, "Aliases", src, &info)
+
+	// verify Defs
+	defs := map[string]string{
+		"Invalid":    "types.Invalid",
+		"Struct":     "types.Struct",
+		"Default":    "build.Default",
+		"Implements": "types.Implements",
+	}
+
+	for ident, obj := range info.Defs {
+		if alias, ok := obj.(*Alias); ok {
+			if want := defs[ident.Name]; want != "" {
+				orig := alias.Orig()
+				if got := orig.Pkg().Name() + "." + orig.Name(); got != want {
+					t.Errorf("%v: got %v, want %v", ident, got, want)
+				}
+				delete(defs, ident.Name) // mark as found
+			} else {
+				t.Errorf("unexpected alias def of %v", ident)
+			}
+		}
+	}
+
+	if len(defs) != 0 {
+		t.Errorf("missing aliases: %v", defs)
+	}
+
+	// verify Uses
+	uses := map[string]string{
+		"Invalid":    "types.Invalid",
+		"Struct":     "types.Struct",
+		"Default":    "build.Default",
+		"Implements": "types.Implements",
+	}
+
+	for ident, obj := range info.Uses {
+		if alias, ok := obj.(*Alias); ok {
+			if want := uses[ident.Name]; want != "" {
+				orig := alias.Orig()
+				if got := orig.Pkg().Name() + "." + orig.Name(); got != want {
+					t.Errorf("%v: got %v, want %v", ident, got, want)
+				}
+				delete(uses, ident.Name) // mark as found
+			} else {
+				t.Errorf("unexpected alias use of %v", ident)
+			}
+		}
+	}
+
+	if len(uses) != 0 {
+		t.Errorf("missing aliases: %v", defs)
+	}
+}
