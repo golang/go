@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"cmd/internal/pprof/commands"
-	"cmd/internal/pprof/plugin"
+	"cmd/pprof/internal/commands"
+	"cmd/pprof/internal/plugin"
 	"internal/pprof/profile"
 )
 

@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 
-	"cmd/internal/pprof/plugin"
+	"cmd/pprof/internal/plugin"
 )
 
 // printSource prints an annotated source listing, include all

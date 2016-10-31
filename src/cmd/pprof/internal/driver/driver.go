@@ -21,10 +21,10 @@ import (
 	"sync"
 	"time"
 
-	"cmd/internal/pprof/commands"
-	"cmd/internal/pprof/plugin"
-	"cmd/internal/pprof/report"
-	"cmd/internal/pprof/tempfile"
+	"cmd/pprof/internal/commands"
+	"cmd/pprof/internal/plugin"
+	"cmd/pprof/internal/report"
+	"cmd/pprof/internal/tempfile"
 	"internal/pprof/profile"
 )
 
