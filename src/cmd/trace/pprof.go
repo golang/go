@@ -8,8 +8,8 @@ package main
 
 import (
 	"bufio"
-	"cmd/internal/pprof/profile"
 	"fmt"
+	"internal/pprof/profile"
 	"internal/trace"
 	"io"
 	"io/ioutil"

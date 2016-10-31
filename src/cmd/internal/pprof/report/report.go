@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"cmd/internal/pprof/plugin"
-	"cmd/internal/pprof/profile"
+	"internal/pprof/profile"
 )
 
 // Generate generates a report as directed by the Report.

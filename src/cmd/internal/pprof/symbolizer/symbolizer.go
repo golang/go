@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"cmd/internal/pprof/plugin"
-	"cmd/internal/pprof/profile"
+	"internal/pprof/profile"
 )
 
 // Symbolize adds symbol and line number information to all locations

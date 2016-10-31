@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"cmd/internal/pprof/plugin"
-	"cmd/internal/pprof/profile"
+	"internal/pprof/profile"
 )
 
 // FetchProfile reads from a data source (network, file) and generates a

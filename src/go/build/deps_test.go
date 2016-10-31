@@ -257,6 +257,7 @@ var pkgDeps = map[string][]string{
 	"index/suffixarray":        {"L4", "regexp"},
 	"internal/singleflight":    {"sync"},
 	"internal/trace":           {"L4", "OS"},
+	"internal/pprof/profile":   {"L4", "OS", "compress/gzip", "regexp"},
 	"math/big":                 {"L4"},
 	"mime":                     {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
 	"mime/quotedprintable":     {"L4"},
