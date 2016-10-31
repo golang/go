@@ -222,6 +222,15 @@ type modulehash struct {
 	runtimehash  *string
 }
 
+// pinnedTypemaps are the map[typeOff]*_type from the moduledata objects.
+//
+// These typemap objects are allocated at run time on the heap, but the
+// only direct reference to them is in the moduledata, created by the
+// linker and marked SNOPTRDATA so it is ignored by the GC.
+//
+// To make sure the map isn't collected, we keep a second reference here.
+var pinnedTypemaps []map[typeOff]*_type
+
 var firstmoduledata moduledata  // linker symbol
 var lastmoduledatap *moduledata // linker symbol
 

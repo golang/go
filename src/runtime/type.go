@@ -497,7 +497,9 @@ func typelinksinit() {
 			// If any of this module's typelinks match a type from a
 			// prior module, prefer that prior type by adding the offset
 			// to this module's typemap.
-			md.typemap = make(map[typeOff]*_type, len(md.typelinks))
+			tm := make(map[typeOff]*_type, len(md.typelinks))
+			pinnedTypemaps = append(pinnedTypemaps, tm)
+			md.typemap = tm
 			for _, tl := range md.typelinks {
 				t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
 				for _, candidate := range typehash[t.hash] {
