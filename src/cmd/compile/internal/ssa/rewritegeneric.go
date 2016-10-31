@@ -32,8 +32,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpAnd8(v, config)
 	case OpArg:
 		return rewriteValuegeneric_OpArg(v, config)
-	case OpArrayIndex:
-		return rewriteValuegeneric_OpArrayIndex(v, config)
+	case OpArraySelect:
+		return rewriteValuegeneric_OpArraySelect(v, config)
 	case OpCom16:
 		return rewriteValuegeneric_OpCom16(v, config)
 	case OpCom32:
@@ -110,6 +110,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpGreater8(v, config)
 	case OpGreater8U:
 		return rewriteValuegeneric_OpGreater8U(v, config)
+	case OpIMake:
+		return rewriteValuegeneric_OpIMake(v, config)
 	case OpIsInBounds:
 		return rewriteValuegeneric_OpIsInBounds(v, config)
 	case OpIsSliceInBounds:
@@ -1607,31 +1609,69 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 		v.AddArg(v3)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpArrayIndex(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ArrayIndex <t> [0] x:(Load ptr mem))
-	// cond:
-	// result: @x.Block (Load <t> ptr mem)
+	// match: (Arg <t>)
+	// cond: t.IsArray() && t.NumElem() == 0
+	// result: (ArrayMake0)
 	for {
 		t := v.Type
+		if !(t.IsArray() && t.NumElem() == 0) {
+			break
+		}
+		v.reset(OpArrayMake0)
+		return true
+	}
+	// match: (Arg <t> {n} [off])
+	// cond: t.IsArray() && t.NumElem() == 1 && config.fe.CanSSA(t)
+	// result: (ArrayMake1 (Arg <t.ElemType()> {n} [off]))
+	for {
+		t := v.Type
+		off := v.AuxInt
+		n := v.Aux
+		if !(t.IsArray() && t.NumElem() == 1 && config.fe.CanSSA(t)) {
+			break
+		}
+		v.reset(OpArrayMake1)
+		v0 := b.NewValue0(v.Line, OpArg, t.ElemType())
+		v0.AuxInt = off
+		v0.Aux = n
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpArraySelect(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ArraySelect (ArrayMake1 x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpArrayMake1 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (ArraySelect [0] (Load ptr mem))
+	// cond:
+	// result: (Load ptr mem)
+	for {
 		if v.AuxInt != 0 {
 			break
 		}
-		x := v.Args[0]
-		if x.Op != OpLoad {
+		v_0 := v.Args[0]
+		if v_0.Op != OpLoad {
 			break
 		}
-		ptr := x.Args[0]
-		mem := x.Args[1]
-		b = x.Block
-		v0 := b.NewValue0(v.Line, OpLoad, t)
-		v.reset(OpCopy)
-		v.AddArg(v0)
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
+		ptr := v_0.Args[0]
+		mem := v_0.Args[1]
+		v.reset(OpLoad)
+		v.AddArg(ptr)
+		v.AddArg(mem)
 		return true
 	}
 	return false
@@ -3101,6 +3141,41 @@ func rewriteValuegeneric_OpGreater8U(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValuegeneric_OpIMake(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IMake typ (StructMake1 val))
+	// cond:
+	// result: (IMake typ val)
+	for {
+		typ := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpStructMake1 {
+			break
+		}
+		val := v_1.Args[0]
+		v.reset(OpIMake)
+		v.AddArg(typ)
+		v.AddArg(val)
+		return true
+	}
+	// match: (IMake typ (ArrayMake1 val))
+	// cond:
+	// result: (IMake typ val)
+	for {
+		typ := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpArrayMake1 {
+			break
+		}
+		val := v_1.Args[0]
+		v.reset(OpIMake)
+		v.AddArg(typ)
+		v.AddArg(val)
+		return true
+	}
+	return false
+}
 func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -3980,6 +4055,34 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		v5.AddArg(v6)
 		v5.AddArg(mem)
 		v.AddArg(v5)
+		return true
+	}
+	// match: (Load <t> _ _)
+	// cond: t.IsArray() && t.NumElem() == 0
+	// result: (ArrayMake0)
+	for {
+		t := v.Type
+		if !(t.IsArray() && t.NumElem() == 0) {
+			break
+		}
+		v.reset(OpArrayMake0)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: t.IsArray() && t.NumElem() == 1 && config.fe.CanSSA(t)
+	// result: (ArrayMake1 (Load <t.ElemType()> ptr mem))
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsArray() && t.NumElem() == 1 && config.fe.CanSSA(t)) {
+			break
+		}
+		v.reset(OpArrayMake1)
+		v0 := b.NewValue0(v.Line, OpLoad, t.ElemType())
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
 		return true
 	}
 	return false
@@ -10289,6 +10392,39 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v0.Aux = x
 		v0.AddArg(mem)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (Store _ (ArrayMake0) mem)
+	// cond:
+	// result: mem
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpArrayMake0 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Store [size] dst (ArrayMake1 e) mem)
+	// cond:
+	// result: (Store [size] dst e mem)
+	for {
+		size := v.AuxInt
+		dst := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpArrayMake1 {
+			break
+		}
+		e := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpStore)
+		v.AuxInt = size
+		v.AddArg(dst)
+		v.AddArg(e)
+		v.AddArg(mem)
 		return true
 	}
 	return false

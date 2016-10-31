@@ -253,6 +253,21 @@ func decomposeUser(f *Func) {
 			}
 			delete(f.NamedValues, name)
 			newNames = append(newNames, fnames...)
+		case t.IsArray():
+			if t.NumElem() == 0 {
+				// TODO(khr): Not sure what to do here.  Probably nothing.
+				// Names for empty arrays aren't important.
+				break
+			}
+			if t.NumElem() != 1 {
+				f.Fatalf("array not of size 1")
+			}
+			elemName := f.Config.fe.SplitArray(name)
+			for _, v := range f.NamedValues[name] {
+				e := v.Block.NewValue1I(v.Line, OpArraySelect, t.ElemType(), 0, v)
+				f.NamedValues[elemName] = append(f.NamedValues[elemName], e)
+			}
+
 		default:
 			f.Names[i] = name
 			i++
@@ -266,10 +281,13 @@ func decomposeUserPhi(v *Value) {
 	switch {
 	case v.Type.IsStruct():
 		decomposeStructPhi(v)
+	case v.Type.IsArray():
+		decomposeArrayPhi(v)
 	}
-	// TODO: Arrays of length 1?
 }
 
+// decomposeStructPhi replaces phi-of-struct with structmake(phi-for-each-field),
+// and then recursively decomposes the phis for each field.
 func decomposeStructPhi(v *Value) {
 	t := v.Type
 	n := t.NumFields()
@@ -287,10 +305,30 @@ func decomposeStructPhi(v *Value) {
 
 	// Recursively decompose phis for each field.
 	for _, f := range fields[:n] {
-		if f.Type.IsStruct() {
-			decomposeStructPhi(f)
-		}
+		decomposeUserPhi(f)
 	}
+}
+
+// decomposeArrayPhi replaces phi-of-array with arraymake(phi-of-array-element),
+// and then recursively decomposes the element phi.
+func decomposeArrayPhi(v *Value) {
+	t := v.Type
+	if t.NumElem() == 0 {
+		v.reset(OpArrayMake0)
+		return
+	}
+	if t.NumElem() != 1 {
+		v.Fatalf("SSAable array must have no more than 1 element")
+	}
+	elem := v.Block.NewValue0(v.Line, OpPhi, t.ElemType())
+	for _, a := range v.Args {
+		elem.AddArg(a.Block.NewValue1I(v.Line, OpArraySelect, t.ElemType(), 0, a))
+	}
+	v.reset(OpArrayMake1)
+	v.AddArg(elem)
+
+	// Recursively decompose elem phi.
+	decomposeUserPhi(elem)
 }
 
 // MaxStruct is the maximum number of fields a struct

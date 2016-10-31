@@ -373,9 +373,8 @@ var genericOps = []opData{
 	{name: "GetClosurePtr"},      // get closure pointer from dedicated register
 
 	// Indexing operations
-	{name: "ArrayIndex", aux: "Int64", argLength: 1}, // arg0=array, auxint=index. Returns a[i]
-	{name: "PtrIndex", argLength: 2},                 // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
-	{name: "OffPtr", argLength: 1, aux: "Int64"},     // arg0 + auxint (arg0 and result are pointers)
+	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+	{name: "OffPtr", argLength: 1, aux: "Int64"}, // arg0 + auxint (arg0 and result are pointers)
 
 	// Slices
 	{name: "SliceMake", argLength: 3},                // arg0=ptr, arg1=len, arg2=cap
@@ -405,6 +404,11 @@ var genericOps = []opData{
 	{name: "StructMake3", argLength: 3},                // arg0..2=field0..2.  Returns struct.
 	{name: "StructMake4", argLength: 4},                // arg0..3=field0..3.  Returns struct.
 	{name: "StructSelect", argLength: 1, aux: "Int64"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
+
+	// Arrays
+	{name: "ArrayMake0"},                              // Returns array with 0 elements
+	{name: "ArrayMake1", argLength: 1},                // Returns array with 1 element
+	{name: "ArraySelect", argLength: 1, aux: "Int64"}, // arg0=array, auxint=index. Returns a[i].
 
 	// Spill&restore ops for the register allocator. These are
 	// semantically identical to OpCopy; they do not take/return

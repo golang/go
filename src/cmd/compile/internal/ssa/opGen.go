@@ -1698,7 +1698,6 @@ const (
 	OpNilCheck
 	OpGetG
 	OpGetClosurePtr
-	OpArrayIndex
 	OpPtrIndex
 	OpOffPtr
 	OpSliceMake
@@ -1720,6 +1719,9 @@ const (
 	OpStructMake3
 	OpStructMake4
 	OpStructSelect
+	OpArrayMake0
+	OpArrayMake1
+	OpArraySelect
 	OpStoreReg
 	OpLoadReg
 	OpFwdRef
@@ -19617,12 +19619,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ArrayIndex",
-		auxType: auxInt64,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "PtrIndex",
 		argLen:  2,
 		generic: true,
@@ -19725,6 +19721,22 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "StructSelect",
+		auxType: auxInt64,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ArrayMake0",
+		argLen:  0,
+		generic: true,
+	},
+	{
+		name:    "ArrayMake1",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ArraySelect",
 		auxType: auxInt64,
 		argLen:  1,
 		generic: true,

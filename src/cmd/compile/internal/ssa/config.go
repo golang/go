@@ -115,6 +115,7 @@ type Frontend interface {
 	SplitSlice(LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
 	SplitComplex(LocalSlot) (LocalSlot, LocalSlot)
 	SplitStruct(LocalSlot, int) LocalSlot
+	SplitArray(LocalSlot) LocalSlot              // array must be length 1
 	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
 
 	// Line returns a string describing the given line number.

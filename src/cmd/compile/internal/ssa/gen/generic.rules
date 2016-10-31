@@ -668,7 +668,6 @@
 
 // indexing operations
 // Note: bounds check has already been done
-(ArrayIndex <t> [0] x:(Load ptr mem)) -> @x.Block (Load <t> ptr mem)
 (PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.ElemType().Size()])))
 (PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.ElemType().Size()])))
 
@@ -736,11 +735,29 @@
         f1
         (Store [t.FieldType(0).Size()] dst f0 mem))))
 
+(IMake typ (StructMake1 val)) -> (IMake typ val)
+
 // un-SSAable values use mem->mem copies
 (Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) ->
 	(Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src mem)
 (Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) ->
 	(Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src (VarDef {x} mem))
+
+// array ops
+(ArraySelect (ArrayMake1 x)) -> x
+
+(Load <t> _ _) && t.IsArray() && t.NumElem() == 0 ->
+  (ArrayMake0)
+
+(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && config.fe.CanSSA(t) ->
+  (ArrayMake1 (Load <t.ElemType()> ptr mem))
+
+(Store _ (ArrayMake0) mem) -> mem
+(Store [size] dst (ArrayMake1 e) mem) -> (Store [size] dst e mem)
+
+(ArraySelect [0] (Load ptr mem)) -> (Load ptr mem)
+
+(IMake typ (ArrayMake1 val)) -> (IMake typ val)
 
 // string ops
 // Decomposing StringMake and lowering of StringPtr and StringLen
@@ -849,6 +866,11 @@
     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])
     (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)])
     (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
+
+(Arg <t>) && t.IsArray() && t.NumElem() == 0 ->
+  (ArrayMake0)
+(Arg <t> {n} [off]) && t.IsArray() && t.NumElem() == 1 && config.fe.CanSSA(t) ->
+  (ArrayMake1 (Arg <t.ElemType()> {n} [off]))
 
 // strength reduction of divide by a constant.
 // Note: frontend does <=32 bits. We only need to do 64 bits here.
