@@ -33,6 +33,14 @@ const (
 	// This must be > _MaxSmallSize so that the object base is the
 	// span base.
 	maxObletBytes = 128 << 10
+
+	// idleCheckThreshold specifies how many units of work to do
+	// between run queue checks in an idle worker. Assuming a scan
+	// rate of 1 MB/ms, this is ~100 µs. Lower values have higher
+	// overhead in the scan loop (the scheduler check may perform
+	// a syscall, so its overhead is nontrivial). Higher values
+	// make the system less responsive to incoming work.
+	idleCheckThreshold = 100000
 )
 
 // gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
@@ -991,6 +999,7 @@ const (
 	gcDrainUntilPreempt gcDrainFlags = 1 << iota
 	gcDrainNoBlock
 	gcDrainFlushBgCredit
+	gcDrainIdle
 
 	// gcDrainBlock means neither gcDrainUntilPreempt or
 	// gcDrainNoBlock. It is the default, but callers should use
@@ -1003,6 +1012,9 @@ const (
 //
 // If flags&gcDrainUntilPreempt != 0, gcDrain returns when g.preempt
 // is set. This implies gcDrainNoBlock.
+//
+// If flags&gcDrainIdle != 0, gcDrain returns when there is other work
+// to do. This implies gcDrainNoBlock.
 //
 // If flags&gcDrainNoBlock != 0, gcDrain returns as soon as it is
 // unable to get more work. Otherwise, it will block until all
@@ -1020,8 +1032,14 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 
 	gp := getg().m.curg
 	preemptible := flags&gcDrainUntilPreempt != 0
-	blocking := flags&(gcDrainUntilPreempt|gcDrainNoBlock) == 0
+	blocking := flags&(gcDrainUntilPreempt|gcDrainIdle|gcDrainNoBlock) == 0
 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
+	idle := flags&gcDrainIdle != 0
+
+	initScanWork := gcw.scanWork
+	// idleCheck is the scan work at which to perform the next
+	// idle check with the scheduler.
+	idleCheck := initScanWork + idleCheckThreshold
 
 	// Drain root marking jobs.
 	if work.markrootNext < work.markrootJobs {
@@ -1031,10 +1049,11 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 				break
 			}
 			markroot(gcw, job)
+			if idle && pollWork() {
+				goto done
+			}
 		}
 	}
-
-	initScanWork := gcw.scanWork
 
 	// Drain heap marking jobs.
 	for !(preemptible && gp.preempt) {
@@ -1071,7 +1090,15 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 				gcFlushBgCredit(gcw.scanWork - initScanWork)
 				initScanWork = 0
 			}
+			idleCheck -= gcw.scanWork
 			gcw.scanWork = 0
+
+			if idle && idleCheck <= 0 {
+				idleCheck += idleCheckThreshold
+				if pollWork() {
+					break
+				}
+			}
 		}
 	}
 
@@ -1079,6 +1106,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	// point because we must preserve the condition that the work
 	// buffers are empty.
 
+done:
 	// Flush remaining scan work credit.
 	if gcw.scanWork > 0 {
 		atomic.Xaddint64(&gcController.scanWork, gcw.scanWork)

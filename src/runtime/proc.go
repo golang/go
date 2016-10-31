@@ -2053,6 +2053,27 @@ stop:
 	goto top
 }
 
+// pollWork returns true if there is non-background work this P could
+// be doing. This is a fairly lightweight check to be used for
+// background work loops, like idle GC. It checks a subset of the
+// conditions checked by the actual scheduler.
+func pollWork() bool {
+	if sched.runqsize != 0 {
+		return true
+	}
+	p := getg().m.p.ptr()
+	if !runqempty(p) {
+		return true
+	}
+	if netpollinited() && sched.lastpoll != 0 {
+		if gp := netpoll(false); gp != nil {
+			injectglist(gp)
+			return true
+		}
+	}
+	return false
+}
+
 func resetspinning() {
 	_g_ := getg()
 	if !_g_.m.spinning {
