@@ -97,11 +97,13 @@ type IsolationLevel int
 
 // Various isolation levels that drivers may support in BeginContext.
 // If a driver does not support a given isolation level an error may be returned.
+//
+// See https://en.wikipedia.org/wiki/Isolation_(database_systems)#Isolation_levels.
 const (
 	LevelDefault IsolationLevel = iota
-	LevelReadUncommited
-	LevelReadCommited
-	LevelWriteCommited
+	LevelReadUncommitted
+	LevelReadCommitted
+	LevelWriteCommitted
 	LevelRepeatableRead
 	LevelSnapshot
 	LevelSerializable
