@@ -43,7 +43,7 @@ type Node struct {
 	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
 	// - OSTRUCTKEY uses it to store the named field's offset.
 	// - OXCASE and OXFALL use it to validate the use of fallthrough.
-	// - ONONAME uses it to store the current value of iota, see Node.Iota
+	// - Named OLITERALs use it to to store their ambient iota value.
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 

@@ -36,8 +36,11 @@ func resolve(n *Node) *Node {
 		if r != nil {
 			if r.Op != OIOTA {
 				n = r
-			} else if n.Iota() >= 0 {
-				n = nodintconst(n.Iota())
+			} else if len(typecheckdefstack) > 0 {
+				x := typecheckdefstack[len(typecheckdefstack)-1]
+				if x.Op == OLITERAL {
+					n = nodintconst(x.Iota())
+				}
 			}
 		}
 	}
