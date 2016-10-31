@@ -1429,6 +1429,4 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
 		}
 		return true
 	}
-
-	return false
 }
