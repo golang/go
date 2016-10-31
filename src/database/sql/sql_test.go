@@ -1438,7 +1438,11 @@ func TestPendingConnsAfterErr(t *testing.T) {
 		tryOpen = maxOpen*2 + 2
 	)
 
-	db := newTestDB(t, "people")
+	// No queries will be run.
+	db, err := Open("test", fakeDBName)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
 	defer closeDB(t, db)
 	defer func() {
 		for k, v := range db.lastPut {
@@ -1450,29 +1454,29 @@ func TestPendingConnsAfterErr(t *testing.T) {
 	db.SetMaxIdleConns(0)
 
 	errOffline := errors.New("db offline")
+
 	defer func() { setHookOpenErr(nil) }()
 
 	errs := make(chan error, tryOpen)
 
-	unblock := make(chan struct{})
+	var opening sync.WaitGroup
+	opening.Add(tryOpen)
+
 	setHookOpenErr(func() error {
-		<-unblock // block until all connections are in flight
+		// Wait for all connections to enqueue.
+		opening.Wait()
 		return errOffline
 	})
 
-	var opening sync.WaitGroup
-	opening.Add(tryOpen)
 	for i := 0; i < tryOpen; i++ {
 		go func() {
 			opening.Done() // signal one connection is in flight
-			_, err := db.Exec("INSERT|people|name=Julia,age=19")
+			_, err := db.Exec("will never run")
 			errs <- err
 		}()
 	}
 
-	opening.Wait()                    // wait for all workers to begin running
-	time.Sleep(10 * time.Millisecond) // make extra sure all workers are blocked
-	close(unblock)                    // let all workers proceed
+	opening.Wait() // wait for all workers to begin running
 
 	const timeout = 5 * time.Second
 	to := time.NewTimer(timeout)
@@ -1487,6 +1491,24 @@ func TestPendingConnsAfterErr(t *testing.T) {
 			}
 		case <-to.C:
 			t.Fatalf("orphaned connection request(s), still waiting after %v", timeout)
+		}
+	}
+
+	// Wait a reasonable time for the database to close all connections.
+	tick := time.NewTicker(3 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-tick.C:
+			db.mu.Lock()
+			if db.numOpen == 0 {
+				db.mu.Unlock()
+				return
+			}
+			db.mu.Unlock()
+		case <-to.C:
+			// Closing the database will check for numOpen and fail the test.
+			return
 		}
 	}
 }
