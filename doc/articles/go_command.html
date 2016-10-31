@@ -164,14 +164,14 @@ red-black tree.  We can install both with the "<code>go get</code>"
 subcommand:</p>
 
 <pre>
-$ go get code.google.com/p/codesearch/index
+$ go get github.com/google/codesearch/index
 $ go get github.com/petar/GoLLRB/llrb
 $
 </pre>
 
 <p>Both of these projects are now downloaded and installed into our
 <code>$GOPATH</code> directory. The one tree now contains the two directories
-<code>src/code.google.com/p/codesearch/index/</code> and
+<code>src/github.com/google/codesearch/index/</code> and
 <code>src/github.com/petar/GoLLRB/llrb/</code>, along with the compiled
 packages (in <code>pkg/</code>) for those libraries and their dependencies.</p>
 
@@ -185,12 +185,12 @@ the pattern "<code>./...</code>" means start in the current directory
 
 <pre>
 $ go list ./...
-code.google.com/p/codesearch/cmd/cgrep
-code.google.com/p/codesearch/cmd/cindex
-code.google.com/p/codesearch/cmd/csearch
-code.google.com/p/codesearch/index
-code.google.com/p/codesearch/regexp
-code.google.com/p/codesearch/sparse
+github.com/google/codesearch/cmd/cgrep
+github.com/google/codesearch/cmd/cindex
+github.com/google/codesearch/cmd/csearch
+github.com/google/codesearch/index
+github.com/google/codesearch/regexp
+github.com/google/codesearch/sparse
 github.com/petar/GoLLRB/example
 github.com/petar/GoLLRB/llrb
 $
@@ -200,12 +200,12 @@ $
 
 <pre>
 $ go test ./...
-?       code.google.com/p/codesearch/cmd/cgrep   [no test files]
-?       code.google.com/p/codesearch/cmd/cindex  [no test files]
-?       code.google.com/p/codesearch/cmd/csearch [no test files]
-ok      code.google.com/p/codesearch/index       0.239s
-ok      code.google.com/p/codesearch/regexp      0.021s
-?       code.google.com/p/codesearch/sparse      [no test files]
+?   	github.com/google/codesearch/cmd/cgrep	[no test files]
+?   	github.com/google/codesearch/cmd/cindex	[no test files]
+?   	github.com/google/codesearch/cmd/csearch	[no test files]
+ok  	github.com/google/codesearch/index	0.203s
+ok  	github.com/google/codesearch/regexp	0.017s
+?   	github.com/google/codesearch/sparse	[no test files]
 ?       github.com/petar/GoLLRB/example          [no test files]
 ok      github.com/petar/GoLLRB/llrb             0.231s
 $
@@ -215,18 +215,18 @@ $
 current directory:</p>
 
 <pre>
-$ cd $GOPATH/src/code.google.com/p/codesearch/regexp
+$ cd $GOPATH/src/github.com/google/codesearch/regexp
 $ go list
-code.google.com/p/codesearch/regexp
+github.com/google/codesearch/regexp
 $ go test -v
-=== RUN TestNstateEnc
---- PASS: TestNstateEnc (0.00 seconds)
-=== RUN TestMatch
---- PASS: TestMatch (0.01 seconds)
-=== RUN TestGrep
---- PASS: TestGrep (0.00 seconds)
+=== RUN   TestNstateEnc
+--- PASS: TestNstateEnc (0.00s)
+=== RUN   TestMatch
+--- PASS: TestMatch (0.00s)
+=== RUN   TestGrep
+--- PASS: TestGrep (0.00s)
 PASS
-ok      code.google.com/p/codesearch/regexp     0.021s
+ok  	github.com/google/codesearch/regexp	0.018s
 $ go install
 $
 </pre>

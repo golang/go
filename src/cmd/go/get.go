@@ -197,7 +197,7 @@ var downloadCache = map[string]bool{}
 
 // downloadRootCache records the version control repository
 // root directories we have already considered during the download.
-// For example, all the packages in the code.google.com/p/codesearch repo
+// For example, all the packages in the github.com/google/codesearch repo
 // share the same root (the directory for that path), and we only need
 // to run the hg commands to consider each repository once.
 var downloadRootCache = map[string]bool{}
