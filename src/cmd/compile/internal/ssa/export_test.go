@@ -58,6 +58,9 @@ func (d DummyFrontend) SplitInt64(s LocalSlot) (LocalSlot, LocalSlot) {
 func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
 	return LocalSlot{s.N, s.Type.FieldType(i), s.Off + s.Type.FieldOff(i)}
 }
+func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
+	return LocalSlot{s.N, s.Type.ElemType(), s.Off}
+}
 func (DummyFrontend) Line(line int32) string {
 	return "unknown.go:0"
 }

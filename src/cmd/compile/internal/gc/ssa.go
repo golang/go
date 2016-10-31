@@ -1974,7 +1974,22 @@ func (s *state) expr(n *Node) *ssa.Value {
 			p, _ := s.addr(n, false)
 			return s.newValue2(ssa.OpLoad, n.Left.Type.Elem(), p, s.mem())
 		case n.Left.Type.IsArray():
-			// TODO: fix when we can SSA arrays of length 1.
+			if bound := n.Left.Type.NumElem(); bound <= 1 {
+				// SSA can handle arrays of length at most 1.
+				a := s.expr(n.Left)
+				i := s.expr(n.Right)
+				if bound == 0 {
+					// Bounds check will never succeed.  Might as well
+					// use constants for the bounds check.
+					z := s.constInt(Types[TINT], 0)
+					s.boundsCheck(z, z)
+					// The return value won't be live, return junk.
+					return s.newValue0(ssa.OpUnknown, n.Type)
+				}
+				i = s.extendIndex(i, panicindex)
+				s.boundsCheck(i, s.constInt(Types[TINT], bound))
+				return s.newValue1I(ssa.OpArraySelect, n.Type, 0, a)
+			}
 			p, _ := s.addr(n, false)
 			return s.newValue2(ssa.OpLoad, n.Left.Type.Elem(), p, s.mem())
 		default:
@@ -2017,32 +2032,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OEFACE:
 		tab := s.expr(n.Left)
 		data := s.expr(n.Right)
-		// The frontend allows putting things like struct{*byte} in
-		// the data portion of an eface. But we don't want struct{*byte}
-		// as a register type because (among other reasons) the liveness
-		// analysis is confused by the "fat" variables that result from
-		// such types being spilled.
-		// So here we ensure that we are selecting the underlying pointer
-		// when we build an eface.
-		// TODO: get rid of this now that structs can be SSA'd?
-		for !data.Type.IsPtrShaped() {
-			switch {
-			case data.Type.IsArray():
-				data = s.newValue1I(ssa.OpArrayIndex, data.Type.ElemType(), 0, data)
-			case data.Type.IsStruct():
-				for i := data.Type.NumFields() - 1; i >= 0; i-- {
-					f := data.Type.FieldType(i)
-					if f.Size() == 0 {
-						// eface type could also be struct{p *byte; q [0]int}
-						continue
-					}
-					data = s.newValue1I(ssa.OpStructSelect, f, int64(i), data)
-					break
-				}
-			default:
-				s.Fatalf("type being put into an eface isn't a pointer")
-			}
-		}
 		return s.newValue2(ssa.OpIMake, n.Type, tab, data)
 
 	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR:
@@ -2377,6 +2366,30 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
 			// TODO: do we need to update named values here?
 			return
 		}
+		if left.Op == OINDEX && left.Left.Type.IsArray() {
+			// We're assigning to an element of an ssa-able array.
+			// a[i] = v
+			t := left.Left.Type
+			n := t.NumElem()
+
+			i := s.expr(left.Right) // index
+			if n == 0 {
+				// The bounds check must fail.  Might as well
+				// ignore the actual index and just use zeros.
+				z := s.constInt(Types[TINT], 0)
+				s.boundsCheck(z, z)
+				return
+			}
+			if n != 1 {
+				s.Fatalf("assigning to non-1-length array")
+			}
+			// Rewrite to a = [1]{v}
+			i = s.extendIndex(i, panicindex)
+			s.boundsCheck(i, s.constInt(Types[TINT], 1))
+			v := s.newValue1(ssa.OpArrayMake1, t, right)
+			s.assign(left.Left, v, false, false, line, 0, rightIsVolatile)
+			return
+		}
 		// Update variable assignment.
 		s.vars[left] = right
 		s.addNamedValue(left, right)
@@ -2475,6 +2488,13 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 			v.AddArg(s.zeroVal(t.FieldType(i).(*Type)))
 		}
 		return v
+	case t.IsArray():
+		switch t.NumElem() {
+		case 0:
+			return s.entryNewValue0(ssa.OpArrayMake0, t)
+		case 1:
+			return s.entryNewValue1(ssa.OpArrayMake1, t, s.zeroVal(t.Elem()))
+		}
 	}
 	s.Fatalf("zero for type %v not implemented", t)
 	return nil
@@ -3071,7 +3091,7 @@ func (s *state) canSSA(n *Node) bool {
 	if Debug['N'] != 0 {
 		return false
 	}
-	for n.Op == ODOT {
+	for n.Op == ODOT || (n.Op == OINDEX && n.Left.Type.IsArray()) {
 		n = n.Left
 	}
 	if n.Op != ONAME {
@@ -3123,11 +3143,15 @@ func canSSAType(t *Type) bool {
 	}
 	switch t.Etype {
 	case TARRAY:
-		// We can't do arrays because dynamic indexing is
+		// We can't do larger arrays because dynamic indexing is
 		// not supported on SSA variables.
-		// TODO: maybe allow if length is <=1?  All indexes
-		// are constant?  Might be good for the arrays
-		// introduced by the compiler for variadic functions.
+		// TODO: allow if all indexes are constant.
+		if t.NumElem() == 0 {
+			return true
+		}
+		if t.NumElem() == 1 {
+			return canSSAType(t.Elem())
+		}
 		return false
 	case TSTRUCT:
 		if t.NumFields() > ssa.MaxStruct {
@@ -3406,6 +3430,10 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
 			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypeScalars(ft.(*Type), addr, val, 0)
 		}
+	case t.IsArray() && t.NumElem() == 0:
+		// nothing
+	case t.IsArray() && t.NumElem() == 1:
+		s.storeTypeScalars(t.Elem(), left, s.newValue1I(ssa.OpArraySelect, t.Elem(), 0, right), 0)
 	default:
 		s.Fatalf("bad write barrier type %v", t)
 	}
@@ -3438,6 +3466,10 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypePtrs(ft.(*Type), addr, val)
 		}
+	case t.IsArray() && t.NumElem() == 0:
+		// nothing
+	case t.IsArray() && t.NumElem() == 1:
+		s.storeTypePtrs(t.Elem(), left, s.newValue1I(ssa.OpArraySelect, t.Elem(), 0, right))
 	default:
 		s.Fatalf("bad write barrier type %v", t)
 	}
@@ -3470,6 +3502,10 @@ func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
 			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypePtrsWB(ft.(*Type), addr, val)
 		}
+	case t.IsArray() && t.NumElem() == 0:
+		// nothing
+	case t.IsArray() && t.NumElem() == 1:
+		s.storeTypePtrsWB(t.Elem(), left, s.newValue1I(ssa.OpArraySelect, t.Elem(), 0, right))
 	default:
 		s.Fatalf("bad write barrier type %v", t)
 	}
@@ -4565,6 +4601,20 @@ func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 		return ssa.LocalSlot{N: x, Type: ft, Off: 0}
 	}
 	return ssa.LocalSlot{N: n, Type: ft, Off: name.Off + st.FieldOff(i)}
+}
+
+func (e *ssaExport) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
+	n := name.N.(*Node)
+	at := name.Type
+	if at.NumElem() != 1 {
+		Fatalf("bad array size")
+	}
+	et := at.ElemType()
+	if n.Class == PAUTO && !n.Addrtaken {
+		x := e.namedAuto(n.Sym.Name+"[0]", et)
+		return ssa.LocalSlot{N: x, Type: et, Off: 0}
+	}
+	return ssa.LocalSlot{N: n, Type: et, Off: name.Off}
 }
 
 // namedAuto returns a new AUTO variable with the given name and type.
