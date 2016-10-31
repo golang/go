@@ -84,5 +84,13 @@ func main() {
 		log.Fatalf(`plugin1.F()=%d, want 17`, gotf)
 	}
 
+	// plugin2 has no exported symbols, only an init function.
+	if _, err := plugin.Open("plugin2.so"); err != nil {
+		log.Fatalf("plugin.Open failed: %v", err)
+	}
+	if got, want := common.X, 2; got != want {
+		log.Fatalf("after loading plugin2, common.X=%d, want %d", got, want)
+	}
+
 	fmt.Println("PASS")
 }
