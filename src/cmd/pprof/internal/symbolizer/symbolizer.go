@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"cmd/internal/pprof/plugin"
+	"cmd/pprof/internal/plugin"
 	"internal/pprof/profile"
 )
 
