@@ -252,8 +252,10 @@ func (d *deadcodepass) init() {
 			// We don't keep the go.plugin.exports symbol,
 			// but we do keep the symbols it refers to.
 			exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
-			for _, r := range exports.R {
-				d.mark(r.Sym, nil)
+			if exports != nil {
+				for _, r := range exports.R {
+					d.mark(r.Sym, nil)
+				}
 			}
 		}
 		for _, name := range markextra {
