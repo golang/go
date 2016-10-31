@@ -44,10 +44,10 @@ func open(name string) (*Plugin, error) {
 	defer C.free(unsafe.Pointer(cPath))
 
 	cRelName := C.CString(name)
+	defer C.free(unsafe.Pointer(cRelName))
 	if C.realpath(cRelName, cPath) == nil {
 		return nil, errors.New("plugin.Open(" + name + "): realpath failed")
 	}
-	C.free(unsafe.Pointer(cRelName))
 
 	filepath := C.GoString(cPath)
 
