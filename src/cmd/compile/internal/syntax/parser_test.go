@@ -155,3 +155,10 @@ func verifyPrint(filename string, ast1 *File) {
 		panic("not equal")
 	}
 }
+
+func TestIssue17697(t *testing.T) {
+	_, err := ReadBytes(nil, nil, nil, 0) // return with parser error, don't panic
+	if err == nil {
+		t.Errorf("no error reported")
+	}
+}

@@ -5,6 +5,7 @@
 package syntax
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -52,18 +53,31 @@ func ReadBytes(src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*
 	return Read(&bytesReader{src}, errh, pragh, mode)
 }
 
-func Read(src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
+func Read(src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (ast *File, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			if msg, ok := p.(parserError); ok {
+				err = errors.New(string(msg))
+				return
+			}
+			panic(p)
+		}
+	}()
+
 	var p parser
 	p.init(src, errh, pragh)
-
 	p.next()
-	ast := p.file()
+	ast = p.file()
 
+	// TODO(gri) This isn't quite right: Even if there's an error handler installed
+	//           we should report an error if parsing found syntax errors. This also
+	//           requires updating the noder's ReadFile call.
 	if errh == nil && p.nerrors > 0 {
-		return nil, fmt.Errorf("%d syntax errors", p.nerrors)
+		ast = nil
+		err = fmt.Errorf("%d syntax errors", p.nerrors)
 	}
 
-	return ast, nil
+	return
 }
 
 func Write(w io.Writer, n *File) error {
