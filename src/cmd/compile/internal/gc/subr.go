@@ -476,28 +476,13 @@ func treecopy(n *Node, pos src.XPos) *Node {
 		}
 		return &m
 
-	case ONONAME:
-		if n.Sym == lookup("iota") {
-			// Not sure yet whether this is the real iota,
-			// but make a copy of the Node* just in case,
-			// so that all the copies of this const definition
-			// don't have the same iota value.
-			m := *n
-			if pos.IsKnown() {
-				m.Pos = pos
-			}
-			m.SetIota(iota_)
-			return &m
-		}
-		return n
-
 	case OPACK:
 		// OPACK nodes are never valid in const value declarations,
 		// but allow them like any other declared symbol to avoid
 		// crashing (golang.org/issue/11361).
 		fallthrough
 
-	case ONAME, OLITERAL, OTYPE:
+	case ONAME, ONONAME, OLITERAL, OTYPE:
 		return n
 
 	}

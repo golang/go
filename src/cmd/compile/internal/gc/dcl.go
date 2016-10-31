@@ -288,7 +288,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 
 // declare constants from grammar
 // new_name_list [[type] = expr_list]
-func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
+func constiter(vl []*Node, t *Node, cl []*Node, iotaVal int64) []*Node {
 	var lno src.XPos // default is to leave line number alone in listtreecopy
 	if len(cl) == 0 {
 		if t != nil {
@@ -301,31 +301,29 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 		lastconst = cl
 		lasttype = t
 	}
-	clcopy := listtreecopy(cl, lno)
 
 	var vv []*Node
-	for _, v := range vl {
-		if len(clcopy) == 0 {
+	for i, v := range vl {
+		if i >= len(cl) {
 			yyerror("missing value in const declaration")
 			break
 		}
 
-		c := clcopy[0]
-		clcopy = clcopy[1:]
+		c := treecopy(cl[i], lno)
 
 		v.Op = OLITERAL
 		declare(v, dclcontext)
 
 		v.Name.Param.Ntype = t
 		v.Name.Defn = c
+		v.SetIota(iotaVal)
 
 		vv = append(vv, nod(ODCLCONST, v, nil))
 	}
 
-	if len(clcopy) != 0 {
+	if len(cl) > len(vl) {
 		yyerror("extra expression in const declaration")
 	}
-	iota_ += 1
 	return vv
 }
 
@@ -401,9 +399,7 @@ func oldname(s *Sym) *Node {
 		// Maybe a top-level declaration will come along later to
 		// define s. resolve will check s.Def again once all input
 		// source has been processed.
-		n = newnoname(s)
-		n.SetIota(iota_) // save current iota value in const declarations
-		return n
+		return newnoname(s)
 	}
 
 	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != funcdepth {

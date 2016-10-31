@@ -85,7 +85,6 @@ type linkname struct {
 
 func (p *noder) node() {
 	block = 1
-	iota_ = -1000000
 	imported_unsafe = false
 
 	p.lineno(p.file.PkgName)
@@ -134,22 +133,18 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
 		case *syntax.ConstDecl:
 			// Tricky to handle golang.org/issue/15550 correctly.
 
-			prevIota := iota_
-
 			if decl.Group == nil || decl.Group != lastConstGroup {
 				iotaVal = 0
 				lastConstRHS = nil
 			}
 
-			iota_ = iotaVal
 			lastconst = lastConstRHS
 
-			l = append(l, p.constDecl(decl)...)
+			l = append(l, p.constDecl(decl, iotaVal)...)
 
 			lastConstRHS = lastconst
 			lastconst = nil
 
-			iota_ = prevIota
 			iotaVal++
 
 			lastConstGroup = decl.Group
@@ -227,7 +222,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 	return variter(names, typ, exprs)
 }
 
-func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
+func (p *noder) constDecl(decl *syntax.ConstDecl, iotaVal int64) []*Node {
 	names := p.declNames(decl.NameList)
 	typ := p.typeExprOrNil(decl.Type)
 
@@ -236,7 +231,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
 		exprs = p.exprList(decl.Values)
 	}
 
-	return constiter(names, typ, exprs)
+	return constiter(names, typ, exprs, iotaVal)
 }
 
 func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
