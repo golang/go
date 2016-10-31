@@ -287,21 +287,32 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
 	goready(gp, 4)
 }
 
+// Sends and receives on unbuffered or empty-buffered channels are the
+// only operations where one running goroutine writes to the stack of
+// another running goroutine. The GC assumes that stack writes only
+// happen when the goroutine is running and are only done by that
+// goroutine. Using a write barrier is sufficient to make up for
+// violating that assumption, but the write barrier has to work.
+// typedmemmove will call bulkBarrierPreWrite, but the target bytes
+// are not in the heap, so that will not help. We arrange to call
+// memmove and typeBitsBulkBarrier instead.
+
 func sendDirect(t *_type, sg *sudog, src unsafe.Pointer) {
-	// Send on an unbuffered or empty-buffered channel is the only operation
-	// in the entire runtime where one goroutine
-	// writes to the stack of another goroutine. The GC assumes that
-	// stack writes only happen when the goroutine is running and are
-	// only done by that goroutine. Using a write barrier is sufficient to
-	// make up for violating that assumption, but the write barrier has to work.
-	// typedmemmove will call bulkBarrierPreWrite, but the target bytes
-	// are not in the heap, so that will not help. We arrange to call
-	// memmove and typeBitsBulkBarrier instead.
+	// src is on our stack, dst is a slot on another stack.
 
 	// Once we read sg.elem out of sg, it will no longer
 	// be updated if the destination's stack gets copied (shrunk).
 	// So make sure that no preemption points can happen between read & use.
 	dst := sg.elem
+	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.size)
+	memmove(dst, src, t.size)
+}
+
+func recvDirect(t *_type, sg *sudog, dst unsafe.Pointer) {
+	// dst is on our stack or the heap, src is on another stack.
+	// The channel is locked, so src will not move during this
+	// operation.
+	src := sg.elem
 	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.size)
 	memmove(dst, src, t.size)
 }
@@ -536,9 +547,7 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
 		}
 		if ep != nil {
 			// copy data from sender
-			// ep points to our own stack or heap, so nothing
-			// special (ala sendDirect) needed here.
-			typedmemmove(c.elemtype, ep, sg.elem)
+			recvDirect(c.elemtype, sg, ep)
 		}
 	} else {
 		// Queue is full. Take the item at the
