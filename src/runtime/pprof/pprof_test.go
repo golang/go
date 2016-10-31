@@ -8,6 +8,7 @@ package pprof_test
 
 import (
 	"bytes"
+	"fmt"
 	"internal/testenv"
 	"math/big"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func cpuHogger(f func(), dur time.Duration) {
@@ -84,14 +86,42 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 	})
 }
 
-func parseProfile(t *testing.T, prof bytes.Buffer, f func(*ProfileTest)) {
-	//parse proto to profile struct
-	r := bytes.NewReader(prof.Bytes())
-	p, err := Parse(r)
-	if err != nil {
-		t.Fatalf("can't parse pprof profile: %v", err)
+func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []uintptr)) {
+	// Convert []byte to []uintptr.
+	l := len(valBytes)
+	if i := bytes.Index(valBytes, []byte("\nMAPPED_LIBRARIES:\n")); i >= 0 {
+		l = i
 	}
-	f(p)
+	l /= int(unsafe.Sizeof(uintptr(0)))
+	val := *(*[]uintptr)(unsafe.Pointer(&valBytes))
+	val = val[:l]
+
+	// 5 for the header, 3 for the trailer.
+	if l < 5+3 {
+		t.Logf("profile too short: %#x", val)
+		if badOS[runtime.GOOS] {
+			t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
+			return
+		}
+		t.FailNow()
+	}
+
+	hd, val, tl := val[:5], val[5:l-3], val[l-3:]
+	if hd[0] != 0 || hd[1] != 3 || hd[2] != 0 || hd[3] != 1e6/100 || hd[4] != 0 {
+		t.Fatalf("unexpected header %#x", hd)
+	}
+
+	if tl[0] != 0 || tl[1] != 1 || tl[2] != 0 {
+		t.Fatalf("malformed end-of-data marker %#x", tl)
+	}
+
+	for len(val) > 0 {
+		if len(val) < 2 || val[0] < 1 || val[1] < 1 || uintptr(len(val)) < 2+val[1] {
+			t.Fatalf("malformed profile.  leftover: %#x", val)
+		}
+		f(val[0], val[2:2+val[1]])
+		val = val[2+val[1]:]
+	}
 }
 
 func testCPUProfile(t *testing.T, need []string, f func(dur time.Duration)) {
@@ -163,23 +193,21 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
 	ok = true
 
 	// Check that profile is well formed and contains need.
-	var have []string
+	have := make([]uintptr, len(need))
 	var samples uintptr
-	parseProfile(t, prof, func(p *ProfileTest) {
-		for s := range p.Sample {
-			samples += (uintptr)(p.Sample[s].Value[0])
-		}
-		for i := range p.Function {
-			f := p.Function[i]
+	parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
+		samples += count
+		for _, pc := range stk {
+			f := runtime.FuncForPC(pc)
 			if f == nil {
 				continue
 			}
 			for i, name := range need {
-				if strings.Contains(f.Name, name) {
-					have = append(have, need[i])
+				if strings.Contains(f.Name(), name) {
+					have[i] += count
 				}
 			}
-			if strings.Contains(f.Name, "stackBarrier") {
+			if strings.Contains(f.Name(), "stackBarrier") {
 				// The runtime should have unwound this.
 				t.Fatalf("profile includes stackBarrier")
 			}
@@ -204,8 +232,26 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
 	if len(need) == 0 {
 		return ok
 	}
-	if len(have) != len(need) {
-		return !ok
+
+	var total uintptr
+	for i, name := range need {
+		total += have[i]
+		t.Logf("%s: %d\n", name, have[i])
+	}
+	if total == 0 {
+		t.Logf("no samples in expected functions")
+		ok = false
+	}
+	// We'd like to check a reasonable minimum, like
+	// total / len(have) / smallconstant, but this test is
+	// pretty flaky (see bug 7095).  So we'll just test to
+	// make sure we got at least one sample.
+	min := uintptr(1)
+	for i, name := range need {
+		if have[i] < min {
+			t.Logf("%s has %d samples out of %d, want at least %d, ideally %d", name, have[i], total, min, total/uintptr(len(have)))
+			ok = false
+		}
 	}
 	return ok
 }
@@ -270,7 +316,33 @@ func TestGoroutineSwitch(t *testing.T) {
 
 		// Read profile to look for entries for runtime.gogo with an attempt at a traceback.
 		// The special entry
-		parseProfile(t, prof, func(p *ProfileTest) {})
+		parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
+			// An entry with two frames with 'System' in its top frame
+			// exists to record a PC without a traceback. Those are okay.
+			if len(stk) == 2 {
+				f := runtime.FuncForPC(stk[1])
+				if f != nil && (f.Name() == "runtime._System" || f.Name() == "runtime._ExternalCode" || f.Name() == "runtime._GC") {
+					return
+				}
+			}
+
+			// Otherwise, should not see runtime.gogo.
+			// The place we'd see it would be the inner most frame.
+			f := runtime.FuncForPC(stk[0])
+			if f != nil && f.Name() == "runtime.gogo" {
+				var buf bytes.Buffer
+				for _, pc := range stk {
+					f := runtime.FuncForPC(pc)
+					if f == nil {
+						fmt.Fprintf(&buf, "%#x ?:0\n", pc)
+					} else {
+						file, line := f.FileLine(pc)
+						fmt.Fprintf(&buf, "%#x %s:%d\n", pc, file, line)
+					}
+				}
+				t.Fatalf("found profile entry for runtime.gogo:\n%s", buf.String())
+			}
+		})
 	}
 }
 
@@ -365,41 +437,74 @@ func TestBlockProfile(t *testing.T) {
 	type TestCase struct {
 		name string
 		f    func()
-		re   []string
+		re   string
 	}
 	tests := [...]TestCase{
-		{"chan recv", blockChanRecv, []string{`runtime\.chanrecv1`, `.*/src/runtime/chan.go`, `runtime/pprof_test\.blockChanRecv`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
-		{"chan send", blockChanSend, []string{`runtime\.chansend1`, `.*/src/runtime/chan.go`, `runtime/pprof_test\.blockChanSend`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
-		{"chan close", blockChanClose, []string{`runtime\.chanrecv1`, `.*/src/runtime/chan.go`, `runtime/pprof_test\.blockChanClose`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
-		{"select recv async", blockSelectRecvAsync, []string{`runtime\.selectgo`, `.*/src/runtime/select.go`, `runtime/pprof_test\.blockSelectRecvAsync`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
-		{"select send sync", blockSelectSendSync, []string{`runtime\.selectgo`, `.*/src/runtime/select.go`, `runtime/pprof_test\.blockSelectSendSync`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
-		{"mutex", blockMutex, []string{`sync\.\(\*Mutex\)\.Lock`, `.*/src/sync/mutex\.go`, `runtime/pprof_test\.blockMutex`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
-		{"cond", blockCond, []string{`sync\.\(\*Cond\)\.Wait`, `.*/src/sync/cond\.go`, `runtime/pprof_test\.blockCond`, `.*/src/runtime/pprof/pprof_test.go`, `runtime/pprof_test\.TestBlockProfile`, `.*/src/runtime/pprof/pprof_test.go`}},
+		{"chan recv", blockChanRecv, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanRecv\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"chan send", blockChanSend, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime\.chansend1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanSend\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"chan close", blockChanClose, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanClose\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"select recv async", blockSelectRecvAsync, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/runtime/select.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectRecvAsync\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"select send sync", blockSelectSendSync, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/runtime/select.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectSendSync\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"mutex", blockMutex, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9,a-f]+	.*/src/sync/mutex\.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockMutex\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+`},
+		{"cond", blockCond, `
+[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	sync\.\(\*Cond\)\.Wait\+0x[0-9,a-f]+	.*/src/sync/cond\.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.blockCond\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+`},
 	}
 
 	runtime.SetBlockProfileRate(1)
 	defer runtime.SetBlockProfileRate(0)
 	for _, test := range tests {
 		test.f()
-		var prof bytes.Buffer
-		Lookup("block").WriteTo(&prof, 1)
+	}
+	var w bytes.Buffer
+	Lookup("block").WriteTo(&w, 1)
+	prof := w.String()
 
-		parseProfile(t, prof, func(p *ProfileTest) {
-			for n := 0; n < len(test.re); n += 2 {
-				found := false
-				for i := range p.Function {
-					f := p.Function[i]
-					t.Log(f.Name, f.Filename)
-					if !regexp.MustCompile(strings.Replace(test.re[n], "\t", "\t+", -1)).MatchString(f.Name) || !regexp.MustCompile(strings.Replace(test.re[n+1], "\t", "\t+", -1)).MatchString(f.Filename) {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Fatalf("have not found expected function %s from file %s", test.re[n], test.re[n+1])
-				}
-			}
-		})
+	if !strings.HasPrefix(prof, "--- contention:\ncycles/second=") {
+		t.Fatalf("Bad profile header:\n%v", prof)
+	}
+
+	if strings.HasSuffix(prof, "#\t0x0\n\n") {
+		t.Errorf("Useless 0 suffix:\n%v", prof)
+	}
+
+	for _, test := range tests {
+		if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
+			t.Fatalf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
+		}
 	}
 }
 
@@ -546,18 +651,26 @@ func TestGoroutineCounts(t *testing.T) {
 	}
 	time.Sleep(10 * time.Millisecond) // let goroutines block on channel
 
-	var prof bytes.Buffer
-	Lookup("goroutine").WriteTo(&prof, 1)
+	var w bytes.Buffer
+	Lookup("goroutine").WriteTo(&w, 1)
+	prof := w.String()
 
-	parseProfile(t, prof, func(p *ProfileTest) {
-		if len(p.Sample) < 4 {
-			t.Errorf("few samples, got %v", len(p.Sample))
-		}
-		if p.Sample[0].Value[0] != 50 || p.Sample[1].Value[0] != 40 || p.Sample[2].Value[0] != 10 || p.Sample[3].Value[0] != 1 {
-			t.Errorf("expected sorted goroutine counts:\n 50, 40, 10, 1\ngot:\n", p.Sample[0].Value[0], p.Sample[1].Value[0], p.Sample[2].Value[0], p.Sample[3].Value[0])
-		}
-	})
+	if !containsInOrder(prof, "\n50 @ ", "\n40 @", "\n10 @", "\n1 @") {
+		t.Errorf("expected sorted goroutine counts:\n%s", prof)
+	}
+
 	close(c)
 
 	time.Sleep(10 * time.Millisecond) // let goroutines exit
+}
+
+func containsInOrder(s string, all ...string) bool {
+	for _, t := range all {
+		i := strings.Index(s, t)
+		if i < 0 {
+			return false
+		}
+		s = s[i+len(t):]
+	}
+	return true
 }
