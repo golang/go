@@ -1150,3 +1150,18 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
 
 	return 0
 }
+
+func mkname(sym *Sym) *Node {
+	n := oldname(sym)
+	if n.Name != nil && n.Name.Pack != nil {
+		n.Name.Pack.Used = true
+	}
+	return n
+}
+
+func unparen(x *Node) *Node {
+	for x.Op == OPAREN {
+		x = x.Left
+	}
+	return x
+}
