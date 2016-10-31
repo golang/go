@@ -624,6 +624,14 @@ func (c *gcControllerState) endCycle() {
 //
 //go:nowritebarrier
 func (c *gcControllerState) enlistWorker() {
+	// If there are idle Ps, wake one so it will run an idle worker.
+	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
+		wakep()
+		return
+	}
+
+	// There are no idle Ps. If we need more dedicated workers,
+	// try to preempt a running P so it will switch to a worker.
 	if c.dedicatedMarkWorkersNeeded <= 0 {
 		return
 	}

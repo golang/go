@@ -99,6 +99,7 @@ func (w *gcWork) init() {
 // obj must point to the beginning of a heap object or an oblet.
 //go:nowritebarrier
 func (w *gcWork) put(obj uintptr) {
+	flushed := false
 	wbuf := w.wbuf1.ptr()
 	if wbuf == nil {
 		w.init()
@@ -111,11 +112,20 @@ func (w *gcWork) put(obj uintptr) {
 			putfull(wbuf)
 			wbuf = getempty()
 			w.wbuf1 = wbufptrOf(wbuf)
+			flushed = true
 		}
 	}
 
 	wbuf.obj[wbuf.nobj] = obj
 	wbuf.nobj++
+
+	// If we put a buffer on full, let the GC controller know so
+	// it can encourage more workers to run. We delay this until
+	// the end of put so that w is in a consistent state, since
+	// enlistWorker may itself manipulate w.
+	if flushed && gcphase == _GCmark {
+		gcController.enlistWorker()
+	}
 }
 
 // putFast does a put and returns true if it can be done quickly
@@ -263,6 +273,12 @@ func (w *gcWork) balance() {
 		w.wbuf2 = wbufptrOf(getempty())
 	} else if wbuf := w.wbuf1.ptr(); wbuf.nobj > 4 {
 		w.wbuf1 = wbufptrOf(handoff(wbuf))
+	} else {
+		return
+	}
+	// We flushed a buffer to the full list, so wake a worker.
+	if gcphase == _GCmark {
+		gcController.enlistWorker()
 	}
 }
 
@@ -337,12 +353,6 @@ func putempty(b *workbuf) {
 func putfull(b *workbuf) {
 	b.checknonempty()
 	lfstackpush(&work.full, &b.node)
-
-	// We just made more work available. Let the GC controller
-	// know so it can encourage more workers to run.
-	if gcphase == _GCmark {
-		gcController.enlistWorker()
-	}
 }
 
 // trygetfull tries to get a full or partially empty workbuffer.

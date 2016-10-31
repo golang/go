@@ -2023,6 +2023,26 @@ stop:
 		}
 	}
 
+	// Check for idle-priority GC work again.
+	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(nil) {
+		lock(&sched.lock)
+		_p_ = pidleget()
+		if _p_ != nil && _p_.gcBgMarkWorker == 0 {
+			pidleput(_p_)
+			_p_ = nil
+		}
+		unlock(&sched.lock)
+		if _p_ != nil {
+			acquirep(_p_)
+			if wasSpinning {
+				_g_.m.spinning = true
+				atomic.Xadd(&sched.nmspinning, 1)
+			}
+			// Go back to idle GC check.
+			goto stop
+		}
+	}
+
 	// poll network
 	if netpollinited() && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
 		if _g_.m.p != 0 {
