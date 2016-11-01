@@ -44,6 +44,7 @@ func TestStdLib(t *testing.T) {
 
 	results := make(chan parseResult)
 	go func() {
+		defer close(results)
 		for _, dir := range []string{
 			runtime.GOROOT(),
 			//"/Users/gri/src",
@@ -54,7 +55,8 @@ func TestStdLib(t *testing.T) {
 				}
 				ast, err := ReadFile(filename, nil, nil, 0)
 				if err != nil {
-					t.Fatal(err)
+					t.Error(err)
+					return
 				}
 				if *verify {
 					verifyPrint(filename, ast)
@@ -62,7 +64,6 @@ func TestStdLib(t *testing.T) {
 				results <- parseResult{filename, ast.Lines}
 			})
 		}
-		close(results)
 	}()
 
 	var count, lines int
