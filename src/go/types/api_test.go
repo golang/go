@@ -1308,12 +1308,14 @@ package b
 import (
 	"./testdata/alias"
 	a "./testdata/alias"
-	// "math" // TODO(gri) does not work yet - fix importer (issue #17726)
+	"math"
 )
 
 const (
-	c1 = alias.Pi
-	c2 => a.Pi
+	c1 = alias.Pi1
+	c2 => a.Pi1
+	c3 => a.Pi2
+	c4 => math.Pi
 )
 
 var (
@@ -1331,7 +1333,8 @@ func f1 => alias.Sin
 func f2 => a.Sin
 
 func _() {
-	assert(c1 == c2 && c1 == alias.Pi && c2 == a.Pi)
+	assert(c1 == alias.Pi1 && c2 == a.Pi1 && c3 == a.Pi2 && c4 == math.Pi)
+	assert(c2 == c2 && c2 == c3 && c3 == c4)
 	v1 = v2 // must be assignable
 	var _ *t1 = new(t2) // must be assignable
 	var _ t2 = alias.Default
