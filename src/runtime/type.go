@@ -199,11 +199,11 @@ func (t *_type) nameOff(off nameOff) name {
 	return resolveNameOff(unsafe.Pointer(t), off)
 }
 
-func (t *_type) typeOff(off typeOff) *_type {
+func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
 	if off == 0 {
 		return nil
 	}
-	base := uintptr(unsafe.Pointer(t))
+	base := uintptr(ptrInModule)
 	var md *moduledata
 	for next := &firstmoduledata; next != nil; next = next.next {
 		if base >= next.types && base < next.etypes {
@@ -233,6 +233,10 @@ func (t *_type) typeOff(off typeOff) *_type {
 		throw("runtime: type offset out of range")
 	}
 	return (*_type)(unsafe.Pointer(res))
+}
+
+func (t *_type) typeOff(off typeOff) *_type {
+	return resolveTypeOff(unsafe.Pointer(t), off)
 }
 
 func (t *_type) textOff(off textOff) unsafe.Pointer {
@@ -596,15 +600,19 @@ func typesEqual(t, v *_type) bool {
 		for i := range it.mhdr {
 			tm := &it.mhdr[i]
 			vm := &iv.mhdr[i]
-			tname := it.typ.nameOff(tm.name)
-			vname := iv.typ.nameOff(vm.name)
+			// Note the mhdr array can be relocated from
+			// another module. See #17724.
+			tname := resolveNameOff(unsafe.Pointer(tm), tm.name)
+			vname := resolveNameOff(unsafe.Pointer(vm), vm.name)
 			if tname.name() != vname.name() {
 				return false
 			}
 			if tname.pkgPath() != vname.pkgPath() {
 				return false
 			}
-			if !typesEqual(it.typ.typeOff(tm.ityp), iv.typ.typeOff(vm.ityp)) {
+			tityp := resolveTypeOff(unsafe.Pointer(tm), tm.ityp)
+			vityp := resolveTypeOff(unsafe.Pointer(vm), vm.ityp)
+			if !typesEqual(tityp, vityp) {
 				return false
 			}
 		}
