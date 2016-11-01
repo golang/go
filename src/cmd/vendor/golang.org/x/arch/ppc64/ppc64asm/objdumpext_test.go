@@ -14,6 +14,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -24,6 +25,9 @@ const objdumpPath = "/usr/bin/objdump"
 func testObjdump(t *testing.T, generate func(func([]byte))) {
 	if testing.Short() {
 		t.Skip("skipping objdump test in short mode")
+	}
+	if runtime.GOARCH != "ppc64le" && runtime.GOARCH != "ppc64" {
+		t.Skip("skipping; test requires host tool objdump for ppc64 or ppc64le")
 	}
 	if _, err := os.Stat(objdumpPath); err != nil {
 		t.Skip(err)
