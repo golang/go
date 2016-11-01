@@ -11,7 +11,8 @@ import (
 	"math"
 )
 
-const Pi => math.Pi
+const Pi1 => math.Pi
+const Pi2 => math.Pi // cause the same object to be exported multiple times (issue 17726)
 
 var Default => build.Default
 
