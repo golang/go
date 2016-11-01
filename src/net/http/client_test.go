@@ -1185,10 +1185,12 @@ func TestClientTimeout_h1(t *testing.T) { testClientTimeout(t, h1Mode) }
 func TestClientTimeout_h2(t *testing.T) { testClientTimeout(t, h2Mode) }
 
 func testClientTimeout(t *testing.T, h2 bool) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
+	setParallel(t)
 	defer afterTest(t)
+	testDone := make(chan struct{})
+
+	const timeout = 100 * time.Millisecond
+
 	sawRoot := make(chan bool, 1)
 	sawSlow := make(chan bool, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1201,16 +1203,22 @@ func testClientTimeout(t *testing.T, h2 bool) {
 			w.Write([]byte("Hello"))
 			w.(Flusher).Flush()
 			sawSlow <- true
-			time.Sleep(2 * time.Second)
+			select {
+			case <-testDone:
+			case <-time.After(timeout * 10):
+			}
 			return
 		}
 	}))
 	defer cst.close()
-	const timeout = 500 * time.Millisecond
+	defer close(testDone)
 	cst.c.Timeout = timeout
 
 	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
+		if strings.Contains(err.Error(), "Client.Timeout") {
+			t.Skip("host too slow to get fast resource in 100ms")
+		}
 		t.Fatal(err)
 	}
 
@@ -1260,11 +1268,9 @@ func TestClientTimeout_Headers_h2(t *testing.T) { testClientTimeout_Headers(t, h
 
 // Client.Timeout firing before getting to the body
 func testClientTimeout_Headers(t *testing.T, h2 bool) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
+	setParallel(t)
 	defer afterTest(t)
-	donec := make(chan bool)
+	donec := make(chan bool, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		<-donec
 	}))
@@ -1278,9 +1284,10 @@ func testClientTimeout_Headers(t *testing.T, h2 bool) {
 	// doesn't know this, so synchronize explicitly.
 	defer func() { donec <- true }()
 
-	cst.c.Timeout = 500 * time.Millisecond
-	_, err := cst.c.Get(cst.ts.URL)
+	cst.c.Timeout = 5 * time.Millisecond
+	res, err := cst.c.Get(cst.ts.URL)
 	if err == nil {
+		res.Body.Close()
 		t.Fatal("got response from Get; expected error")
 	}
 	if _, ok := err.(*url.Error); !ok {
@@ -1295,6 +1302,36 @@ func testClientTimeout_Headers(t *testing.T, h2 bool) {
 	}
 	if got := ne.Error(); !strings.Contains(got, "Client.Timeout exceeded") {
 		t.Errorf("error string = %q; missing timeout substring", got)
+	}
+}
+
+// Issue 16094: if Client.Timeout is set but not hit, a Timeout error shouldn't be
+// returned.
+func TestClientTimeoutCancel(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	testDone := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.(Flusher).Flush()
+		<-testDone
+	}))
+	defer cst.close()
+	defer close(testDone)
+
+	cst.c.Timeout = 1 * time.Hour
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	req.Cancel = ctx.Done()
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	_, err = io.Copy(ioutil.Discard, res.Body)
+	if err != ExportErrRequestCanceled {
+		t.Fatal("error = %v; want errRequestCanceled")
 	}
 }
 
@@ -1317,10 +1354,10 @@ func testClientRedirectEatsBody(t *testing.T, h2 bool) {
 		t.Fatal(err)
 	}
 	_, err = ioutil.ReadAll(res.Body)
+	res.Body.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
-	res.Body.Close()
 
 	var first string
 	select {
