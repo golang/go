@@ -191,7 +191,6 @@ type Name struct {
 	Decldepth int32  // declaration loop depth, increased for every loop or label
 	Vargen    int32  // unique name for ONAME within a function.  Function outputs are numbered starting at one.
 	Funcdepth int32
-	Method    bool // OCALLMETH name
 	Readonly  bool
 	Captured  bool // is the variable captured by a closure
 	Byval     bool // is the variable captured by value or by reference

@@ -136,9 +136,6 @@ func Naddr(a *obj.Addr, n *Node) {
 	if s == nil {
 		Fatalf("naddr: nil sym %v", n)
 	}
-	if n.Name.Method && n.Type != nil && n.Type.Sym != nil && n.Type.Sym.Pkg != nil {
-		Fatalf("naddr: weird method %v", n)
-	}
 
 	a.Type = obj.TYPE_MEM
 	switch n.Class {
