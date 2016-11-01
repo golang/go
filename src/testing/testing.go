@@ -283,6 +283,13 @@ func Short() bool {
 	return *short
 }
 
+// CoverMode reports what the test coverage mode is set to. The
+// values are "set", "count", or "atomic". The return value will be
+// empty if test coverage is not enabled.
+func CoverMode() string {
+	return cover.Mode
+}
+
 // Verbose reports whether the -test.v flag is set.
 func Verbose() bool {
 	return *chatty
