@@ -421,32 +421,6 @@ func TestStringBytes(t *testing.T) {
 	}
 }
 
-func TestIssue6458(t *testing.T) {
-	type Foo struct {
-		M RawMessage
-	}
-	x := Foo{RawMessage(`"foo"`)}
-
-	b, err := Marshal(&x)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := `{"M":"foo"}`; string(b) != want {
-		t.Errorf("Marshal(&x) = %#q; want %#q", b, want)
-	}
-
-	b, err = Marshal(x)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Until Go 1.8, this generated `{"M":"ImZvbyI="}`.
-	// See https://github.com/golang/go/issues/14493#issuecomment-255857318
-	if want := `{"M":"foo"}`; string(b) != want {
-		t.Errorf("Marshal(x) = %#q; want %#q", b, want)
-	}
-}
-
 func TestIssue10281(t *testing.T) {
 	type Foo struct {
 		N Number
@@ -721,12 +695,102 @@ func TestMarshalFloat(t *testing.T) {
 }
 
 func TestMarshalRawMessageValue(t *testing.T) {
-	const val = "\"some value\""
-	b, err := Marshal(RawMessage(val))
-	if err != nil {
-		t.Fatal(err)
+	type (
+		T1 struct {
+			M RawMessage `json:",omitempty"`
+		}
+		T2 struct {
+			M *RawMessage `json:",omitempty"`
+		}
+	)
+
+	var (
+		rawNil   = RawMessage(nil)
+		rawEmpty = RawMessage([]byte{})
+		rawText  = RawMessage([]byte(`"foo"`))
+	)
+
+	tests := []struct {
+		in   interface{}
+		want string
+		ok   bool
+	}{
+		// Test with nil RawMessage.
+		{rawNil, "null", true},
+		{&rawNil, "null", true},
+		{[]interface{}{rawNil}, "[null]", true},
+		{&[]interface{}{rawNil}, "[null]", true},
+		{[]interface{}{&rawNil}, "[null]", true},
+		{&[]interface{}{&rawNil}, "[null]", true},
+		{struct{ M RawMessage }{rawNil}, `{"M":null}`, true},
+		{&struct{ M RawMessage }{rawNil}, `{"M":null}`, true},
+		{struct{ M *RawMessage }{&rawNil}, `{"M":null}`, true},
+		{&struct{ M *RawMessage }{&rawNil}, `{"M":null}`, true},
+		{map[string]interface{}{"M": rawNil}, `{"M":null}`, true},
+		{&map[string]interface{}{"M": rawNil}, `{"M":null}`, true},
+		{map[string]interface{}{"M": &rawNil}, `{"M":null}`, true},
+		{&map[string]interface{}{"M": &rawNil}, `{"M":null}`, true},
+		{T1{rawNil}, "{}", true},
+		{T2{&rawNil}, `{"M":null}`, true},
+		{&T1{rawNil}, "{}", true},
+		{&T2{&rawNil}, `{"M":null}`, true},
+
+		// Test with empty, but non-nil, RawMessage.
+		{rawEmpty, "", false},
+		{&rawEmpty, "", false},
+		{[]interface{}{rawEmpty}, "", false},
+		{&[]interface{}{rawEmpty}, "", false},
+		{[]interface{}{&rawEmpty}, "", false},
+		{&[]interface{}{&rawEmpty}, "", false},
+		{struct{ X RawMessage }{rawEmpty}, "", false},
+		{&struct{ X RawMessage }{rawEmpty}, "", false},
+		{struct{ X *RawMessage }{&rawEmpty}, "", false},
+		{&struct{ X *RawMessage }{&rawEmpty}, "", false},
+		{map[string]interface{}{"nil": rawEmpty}, "", false},
+		{&map[string]interface{}{"nil": rawEmpty}, "", false},
+		{map[string]interface{}{"nil": &rawEmpty}, "", false},
+		{&map[string]interface{}{"nil": &rawEmpty}, "", false},
+		{T1{rawEmpty}, "{}", true},
+		{T2{&rawEmpty}, "", false},
+		{&T1{rawEmpty}, "{}", true},
+		{&T2{&rawEmpty}, "", false},
+
+		// Test with RawMessage with some text.
+		//
+		// The tests below marked with Issue6458 used to generate "ImZvbyI=" instead "foo".
+		// This behavior was intentionally changed in Go 1.8.
+		// See https://github.com/golang/go/issues/14493#issuecomment-255857318
+		{rawText, `"foo"`, true}, // Issue6458
+		{&rawText, `"foo"`, true},
+		{[]interface{}{rawText}, `["foo"]`, true},  // Issue6458
+		{&[]interface{}{rawText}, `["foo"]`, true}, // Issue6458
+		{[]interface{}{&rawText}, `["foo"]`, true},
+		{&[]interface{}{&rawText}, `["foo"]`, true},
+		{struct{ M RawMessage }{rawText}, `{"M":"foo"}`, true}, // Issue6458
+		{&struct{ M RawMessage }{rawText}, `{"M":"foo"}`, true},
+		{struct{ M *RawMessage }{&rawText}, `{"M":"foo"}`, true},
+		{&struct{ M *RawMessage }{&rawText}, `{"M":"foo"}`, true},
+		{map[string]interface{}{"M": rawText}, `{"M":"foo"}`, true},  // Issue6458
+		{&map[string]interface{}{"M": rawText}, `{"M":"foo"}`, true}, // Issue6458
+		{map[string]interface{}{"M": &rawText}, `{"M":"foo"}`, true},
+		{&map[string]interface{}{"M": &rawText}, `{"M":"foo"}`, true},
+		{T1{rawText}, `{"M":"foo"}`, true}, // Issue6458
+		{T2{&rawText}, `{"M":"foo"}`, true},
+		{&T1{rawText}, `{"M":"foo"}`, true},
+		{&T2{&rawText}, `{"M":"foo"}`, true},
 	}
-	if string(b) != val {
-		t.Errorf("got %q; want %q", b, val)
+
+	for i, tt := range tests {
+		b, err := Marshal(tt.in)
+		if ok := (err == nil); ok != tt.ok {
+			if err != nil {
+				t.Errorf("test %d, unexpected failure: %v", i, err)
+			} else {
+				t.Errorf("test %d, unexpected success", i)
+			}
+		}
+		if got := string(b); got != tt.want {
+			t.Errorf("test %d, Marshal(%#v) = %q, want %q", i, tt.in, got, tt.want)
+		}
 	}
 }
