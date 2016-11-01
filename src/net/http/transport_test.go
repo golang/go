@@ -3446,6 +3446,24 @@ func TestTransportEventTraceRealDNS(t *testing.T) {
 	}
 }
 
+// Issue 14353: port can only contain digits.
+func TestTransportRejectsAlphaPort(t *testing.T) {
+	res, err := Get("http://dummy.tld:123foo/bar")
+	if err == nil {
+		res.Body.Close()
+		t.Fatal("unexpected sucess")
+	}
+	ue, ok := err.(*url.Error)
+	if !ok {
+		t.Fatalf("got %#v; want *url.Error", err)
+	}
+	got := ue.Err.Error()
+	want := `invalid URL port "123foo"`
+	if got != want {
+		t.Errorf("got error %q; want %q", got, want)
+	}
+}
+
 // Test the httptrace.TLSHandshake{Start,Done} hooks with a https http1
 // connections. The http2 test is done in TestTransportEventTrace_h2
 func TestTLSHandshakeTrace(t *testing.T) {
