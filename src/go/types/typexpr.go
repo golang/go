@@ -46,14 +46,11 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 	}
 
 	// An alias stands for the original object; use that one instead.
+	// TODO(gri) We should be able to factor out the Typ[Invalid] test.
 	if alias, _ := obj.(*Alias); alias != nil {
-		if typ == Typ[Invalid] {
+		obj = original(obj)
+		if obj == nil || typ == Typ[Invalid] {
 			return
-		}
-		obj = alias.orig
-		// Aliases always refer to non-alias originals.
-		if _, ok := obj.(*Alias); ok {
-			panic("original is an alias")
 		}
 		assert(typ == obj.Type())
 	}
