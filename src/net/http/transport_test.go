@@ -3777,6 +3777,52 @@ func testTransportIDNA(t *testing.T, h2 bool) {
 	}
 }
 
+// Issue 13290: send User-Agent in proxy CONNECT
+func TestTransportProxyConnectHeader(t *testing.T) {
+	defer afterTest(t)
+	reqc := make(chan *Request, 1)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method != "CONNECT" {
+			t.Errorf("method = %q; want CONNECT", r.Method)
+		}
+		reqc <- r
+		c, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Errorf("Hijack: %v", err)
+			return
+		}
+		c.Close()
+	}))
+	defer ts.Close()
+	tr := &Transport{
+		ProxyConnectHeader: Header{
+			"User-Agent": {"foo"},
+			"Other":      {"bar"},
+		},
+		Proxy: func(r *Request) (*url.URL, error) {
+			return url.Parse(ts.URL)
+		},
+	}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	res, err := c.Get("https://dummy.tld/") // https to force a CONNECT
+	if err == nil {
+		res.Body.Close()
+		t.Errorf("unexpected success")
+	}
+	select {
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout")
+	case r := <-reqc:
+		if got, want := r.Header.Get("User-Agent"), "foo"; got != want {
+			t.Errorf("CONNECT request User-Agent = %q; want %q", got, want)
+		}
+		if got, want := r.Header.Get("Other"), "bar"; got != want {
+			t.Errorf("CONNECT request Other = %q; want %q", got, want)
+		}
+	}
+}
+
 var errFakeRoundTrip = errors.New("fake roundtrip")
 
 type funcRoundTripper func()
