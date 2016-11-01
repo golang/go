@@ -2797,7 +2797,7 @@ func (tools gccgoToolchain) link(b *builder, root *action, out string, allaction
 			if !apackagePathsSeen[a.p.ImportPath] {
 				apackagePathsSeen[a.p.ImportPath] = true
 				target := a.target
-				if len(a.p.CgoFiles) > 0 {
+				if len(a.p.CgoFiles) > 0 || a.p.usesSwig() {
 					target, err = readAndRemoveCgoFlags(target)
 					if err != nil {
 						return
