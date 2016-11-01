@@ -47,7 +47,6 @@ func TestStdLib(t *testing.T) {
 		defer close(results)
 		for _, dir := range []string{
 			runtime.GOROOT(),
-			//"/Users/gri/src",
 		} {
 			walkDirs(t, dir, func(filename string) {
 				if debug {
@@ -100,7 +99,7 @@ func walkDirs(t *testing.T, dir string, action func(string)) {
 			}
 		} else if fi.IsDir() && fi.Name() != "testdata" {
 			path := filepath.Join(dir, fi.Name())
-			if !strings.Contains(path, "go/test") {
+			if !strings.HasSuffix(path, "/test") {
 				dirs = append(dirs, path)
 			}
 		}
