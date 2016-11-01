@@ -294,7 +294,7 @@ func TestIndexRune(t *testing.T) {
 			t.Fatalf("'世' at %d; want 4", i)
 		}
 	})
-	if allocs != 0 {
+	if allocs != 0 && testing.CoverMode() == "" {
 		t.Errorf("expected no allocations, got %f", allocs)
 	}
 }
