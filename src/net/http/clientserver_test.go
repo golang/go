@@ -1270,3 +1270,34 @@ func testNoSniffExpectRequestBody(t *testing.T, h2 bool) {
 		t.Errorf("status code = %v; want %v", res.StatusCode, StatusUnauthorized)
 	}
 }
+
+func TestServerUndeclaredTrailers_h1(t *testing.T) { testServerUndeclaredTrailers(t, h1Mode) }
+func TestServerUndeclaredTrailers_h2(t *testing.T) { testServerUndeclaredTrailers(t, h2Mode) }
+func testServerUndeclaredTrailers(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Foo", "Bar")
+		w.Header().Set("Trailer:Foo", "Baz")
+		w.(Flusher).Flush()
+		w.Header().Add("Trailer:Foo", "Baz2")
+		w.Header().Set("Trailer:Bar", "Quux")
+	}))
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	delete(res.Header, "Date")
+	delete(res.Header, "Content-Type")
+
+	if want := (Header{"Foo": {"Bar"}}); !reflect.DeepEqual(res.Header, want) {
+		t.Errorf("Header = %#v; want %#v", res.Header, want)
+	}
+	if want := (Header{"Foo": {"Baz", "Baz2"}, "Bar": {"Quux"}}); !reflect.DeepEqual(res.Trailer, want) {
+		t.Errorf("Trailer = %#v; want %#v", res.Trailer, want)
+	}
+}
