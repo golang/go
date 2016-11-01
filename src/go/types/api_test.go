@@ -12,6 +12,9 @@ import (
 	"go/parser"
 	"go/token"
 	"internal/testenv"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -1300,6 +1303,69 @@ func TestAliases(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	const src = `
+package b
+
+import (
+	"./testdata/alias"
+	a "./testdata/alias"
+	// "math" // TODO(gri) does not work yet - fix importer (issue #17726)
+)
+
+const (
+	c1 = alias.Pi
+	c2 => a.Pi
+)
+
+var (
+	v1 => alias.Default
+	v2 => a.Default
+	v3 = f1
+)
+
+type (
+	t1 => alias.Context
+	t2 => a.Context
+)
+
+func f1 => alias.Sin
+func f2 => a.Sin
+
+func _() {
+	assert(c1 == c2 && c1 == alias.Pi && c2 == a.Pi)
+	v1 = v2 // must be assignable
+	var _ *t1 = new(t2) // must be assignable
+	var _ t2 = alias.Default
+	f1(1) // must be callable
+	f2(1)
+	_ = alias.Sin(1)
+	_ = a.Sin(1)
+}
+`
+
+	if out := compile(t, "testdata", "alias.go"); out != "" {
+		defer os.Remove(out)
+	}
+
+	DefPredeclaredTestFuncs() // declare assert built-in for testing
+	mustTypecheck(t, "Aliases", src, nil)
+}
+
+func compile(t *testing.T, dirname, filename string) string {
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", filename)
+	cmd.Dir = dirname
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("%s", out)
+		t.Fatalf("go tool compile %s failed: %s", filename, err)
+	}
+	// filename should end with ".go"
+	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
+}
+
+func TestAliasDefUses(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	const src = `
 package p
 
 import(
@@ -1324,7 +1390,7 @@ var _ = Implements(nil, nil)
 		Defs: make(map[*ast.Ident]Object),
 		Uses: make(map[*ast.Ident]Object),
 	}
-	mustTypecheck(t, "Aliases", src, &info)
+	mustTypecheck(t, "TestAliasDefUses", src, &info)
 
 	// verify Defs
 	defs := map[string]string{
