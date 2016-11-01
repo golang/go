@@ -1937,9 +1937,12 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
 				return nil
 			}
 
-			// Remember the C spelling, in case the struct
-			// has __attribute__((unavailable)) on it. See issue 2888.
-			t.Typedef = dt.Name
+			// For a struct/union/class, remember the C spelling,
+			// in case it has __attribute__((unavailable)).
+			// See issue 2888.
+			if isStructUnionClass(t.Go) {
+				t.Typedef = dt.Name
+			}
 		}
 	}
 	return t
