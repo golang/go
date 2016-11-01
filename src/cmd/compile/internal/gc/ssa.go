@@ -4399,13 +4399,14 @@ func KeepAlive(v *ssa.Value) {
 	if !v.Args[0].Type.IsPtrShaped() {
 		v.Fatalf("keeping non-pointer alive %v", v.Args[0])
 	}
-	n, off := AutoVar(v.Args[0])
+	n, _ := AutoVar(v.Args[0])
 	if n == nil {
 		v.Fatalf("KeepAlive with non-spilled value %s %s", v, v.Args[0])
 	}
-	if off != 0 {
-		v.Fatalf("KeepAlive with non-zero offset spill location %v:%d", n, off)
-	}
+	// Note: KeepAlive arg may be a small part of a larger variable n.  We keep the
+	// whole variable n alive at this point. (Typically, this happens when
+	// we are requested to keep the idata portion of an interface{} alive, and
+	// we end up keeping the whole interface{} alive.  That's ok.)
 	Gvarlive(n)
 }
 
