@@ -207,6 +207,7 @@ func TestRecorder(t *testing.T) {
 				w.Header().Set("Trailer-A", "valuea")
 				w.Header().Set("Trailer-C", "valuec")
 				w.Header().Set("Trailer-NotDeclared", "should be omitted")
+				w.Header().Set("Trailer:Trailer-D", "with prefix")
 			},
 			check(
 				hasStatus(200),
@@ -216,6 +217,7 @@ func TestRecorder(t *testing.T) {
 				hasTrailer("Trailer-A", "valuea"),
 				hasTrailer("Trailer-C", "valuec"),
 				hasNotTrailers("Non-Trailer", "Trailer-B", "Trailer-NotDeclared"),
+				hasTrailer("Trailer-D", "with prefix"),
 			),
 		},
 		{

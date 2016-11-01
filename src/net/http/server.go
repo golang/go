@@ -87,11 +87,25 @@ type Handler interface {
 // has returned.
 type ResponseWriter interface {
 	// Header returns the header map that will be sent by
-	// WriteHeader. Changing the header after a call to
-	// WriteHeader (or Write) has no effect unless the modified
-	// headers were declared as trailers by setting the
-	// "Trailer" header before the call to WriteHeader (see example).
-	// To suppress implicit response headers, set their value to nil.
+	// WriteHeader. The Header map also is the mechanism with which
+	// Handlers can set HTTP trailers.
+	//
+	// Changing the header map after a call to WriteHeader (or
+	// Write) has no effect unless the modified headers are
+	// trailers.
+	//
+	// There are two ways to set Trailers. The preferred way is to
+	// predeclare in the headers which trailers you will later
+	// send by setting the "Trailer" header to the names of the
+	// trailer keys which will come later. In this case, those
+	// keys of the Header map are treated as if they were
+	// trailers. See the example. The second way, for trailer
+	// keys not known to the Handler until after the first Write,
+	// is to prefix the Header map keys with the TrailerPrefix
+	// constant value. See TrailerPrefix.
+	//
+	// To suppress implicit response headers (such as "Date"), set
+	// their value to nil.
 	Header() Header
 
 	// Write writes the data to the connection as part of an HTTP reply.
@@ -358,13 +372,7 @@ func (cw *chunkWriter) close() {
 		bw := cw.res.conn.bufw // conn's bufio writer
 		// zero chunk to mark EOF
 		bw.WriteString("0\r\n")
-		if len(cw.res.trailers) > 0 {
-			trailers := make(Header)
-			for _, h := range cw.res.trailers {
-				if vv := cw.res.handlerHeader[h]; len(vv) > 0 {
-					trailers[h] = vv
-				}
-			}
+		if trailers := cw.res.finalTrailers(); trailers != nil {
 			trailers.Write(bw) // the writer handles noting errors
 		}
 		// final blank line after the trailers (whether
@@ -430,6 +438,43 @@ type response struct {
 	// non-nil. Make this lazily-created again as it used to be?
 	closeNotifyCh  chan bool
 	didCloseNotify int32 // atomic (only 0->1 winner should send)
+}
+
+// TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
+// that, if present, signals that the map entry is actually for
+// the response trailers, and not the response headers. The prefix
+// is stripped after the ServeHTTP call finishes and the values are
+// sent in the trailers.
+//
+// This mechanism is intended only for trailers that are not known
+// prior to the headers being written. If the set of trailers is fixed
+// or known before the header is written, the normal Go trailers mechanism
+// is preferred:
+//    https://golang.org/pkg/net/http/#ResponseWriter
+//    https://golang.org/pkg/net/http/#example_ResponseWriter_trailers
+const TrailerPrefix = "Trailer:"
+
+// finalTrailers is called after the Handler exits and returns a non-nil
+// value if the Handler set any trailers.
+func (w *response) finalTrailers() Header {
+	var t Header
+	for k, vv := range w.handlerHeader {
+		if strings.HasPrefix(k, TrailerPrefix) {
+			if t == nil {
+				t = make(Header)
+			}
+			t[strings.TrimPrefix(k, TrailerPrefix)] = vv
+		}
+	}
+	for _, k := range w.trailers {
+		if t == nil {
+			t = make(Header)
+		}
+		for _, v := range w.handlerHeader[k] {
+			t.Add(k, v)
+		}
+	}
+	return t
 }
 
 type atomicBool int32
@@ -1105,7 +1150,17 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	}
 	var setHeader extraHeader
 
+	// Don't write out the fake "Trailer:foo" keys. See TrailerPrefix.
 	trailers := false
+	for k := range cw.header {
+		if strings.HasPrefix(k, TrailerPrefix) {
+			if excludeHeader == nil {
+				excludeHeader = make(map[string]bool)
+			}
+			excludeHeader[k] = true
+			trailers = true
+		}
+	}
 	for _, v := range cw.header["Trailer"] {
 		trailers = true
 		foreachHeaderElement(v, cw.res.declareTrailer)
