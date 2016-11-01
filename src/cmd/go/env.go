@@ -40,7 +40,7 @@ func mkEnv() []envVar {
 		{"GOHOSTARCH", runtime.GOARCH},
 		{"GOHOSTOS", runtime.GOOS},
 		{"GOOS", goos},
-		{"GOPATH", os.Getenv("GOPATH")},
+		{"GOPATH", buildContext.GOPATH},
 		{"GORACE", os.Getenv("GORACE")},
 		{"GOROOT", goroot},
 		{"GOTOOLDIR", toolDir},

@@ -417,6 +417,10 @@ func downloadPackage(p *Package) error {
 		if list[0] == goroot {
 			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: 'go help gopath'")
 		}
+		if _, err := os.Stat(filepath.Join(list[0], "src/cmd/go/alldocs.go")); err == nil {
+			return fmt.Errorf("cannot download, %s is a GOROOT, not a GOPATH. For more details see: 'go help gopath'", list[0])
+		}
+		p.build.Root = list[0]
 		p.build.SrcRoot = filepath.Join(list[0], "src")
 		p.build.PkgRoot = filepath.Join(list[0], "pkg")
 	}
@@ -445,11 +449,19 @@ func downloadPackage(p *Package) error {
 		if _, err := os.Stat(root); err == nil {
 			return fmt.Errorf("%s exists but %s does not - stale checkout?", root, meta)
 		}
+
+		_, err := os.Stat(p.build.Root)
+		gopathExisted := err == nil
+
 		// Some version control tools require the parent of the target to exist.
 		parent, _ := filepath.Split(root)
 		if err = os.MkdirAll(parent, 0777); err != nil {
 			return err
 		}
+		if buildV && !gopathExisted && p.build.Root == buildContext.GOPATH {
+			fmt.Fprintf(os.Stderr, "created GOPATH=%s; see 'go help gopath'\n", p.build.Root)
+		}
+
 		if err = vcs.create(root, repo); err != nil {
 			return err
 		}
