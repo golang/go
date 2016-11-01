@@ -15,3 +15,9 @@ func newAlias(pos token.Pos, pkg *types.Package, name string, orig types.Object)
 	errorf("unexpected alias in non-Go1.8 export data: %s.%s => %v", pkg.Name(), name, orig)
 	panic("unreachable")
 }
+
+func original(obj types.Object) types.Object {
+	return obj // don't know about aliases
+}
+
+const testfile = "exports17.go"

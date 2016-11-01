@@ -173,6 +173,17 @@ func (p *exporter) pkg(pkg *types.Package, emptypath bool) {
 }
 
 func (p *exporter) obj(obj types.Object) {
+	if orig := original(obj); orig != obj {
+		if orig == nil {
+			// invalid alias - don't export for now (issue 17731)
+			return
+		}
+		p.tag(aliasTag)
+		p.pos(obj)
+		p.string(obj.Name())
+		obj = orig
+	}
+
 	switch obj := obj.(type) {
 	case *types.Const:
 		p.tag(constTag)

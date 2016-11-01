@@ -35,14 +35,16 @@ func TestImportTestdataNewExport(t *testing.T) {
 		return
 	}
 
-	if outFn := compileNewExport(t, "testdata", "exports.go"); outFn != "" {
+	if outFn := compileNewExport(t, "testdata", testfile); outFn != "" {
 		defer os.Remove(outFn)
 	}
 
-	if pkg := testPath(t, "./testdata/exports", "."); pkg != nil {
+	// filename should end with ".go"
+	filename := testfile[:len(testfile)-3]
+	if pkg := testPath(t, "./testdata/"+filename, "."); pkg != nil {
 		// The package's Imports list must include all packages
-		// explicitly imported by exports.go, plus all packages
-		// referenced indirectly via exported objects in exports.go.
+		// explicitly imported by testfile, plus all packages
+		// referenced indirectly via exported objects in testfile.
 		want := `[package ast ("go/ast") package token ("go/token")]`
 		got := fmt.Sprint(pkg.Imports())
 		if got != want {
