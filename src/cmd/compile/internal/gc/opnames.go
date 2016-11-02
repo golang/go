@@ -163,7 +163,6 @@ var opnames = []string{
 	ORETJMP:          "RETJMP",
 	OPS:              "PS",
 	OPC:              "PC",
-	OSQRT:            "SQRT",
 	OGETG:            "GETG",
 	OEND:             "END",
 }

@@ -961,9 +961,6 @@ func (s *state) stmt(n *Node) {
 		p := s.expr(n.Left)
 		s.nilCheck(p)
 
-	case OSQRT:
-		s.expr(n.Left)
-
 	default:
 		s.Fatalf("unhandled stmt %v", n.Op)
 	}
@@ -1213,8 +1210,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OLROT, TUINT16}: ssa.OpLrot16,
 	opAndType{OLROT, TUINT32}: ssa.OpLrot32,
 	opAndType{OLROT, TUINT64}: ssa.OpLrot64,
-
-	opAndType{OSQRT, TFLOAT64}: ssa.OpSqrt,
 }
 
 func (s *state) concreteEtype(t *Type) EType {
@@ -1953,7 +1948,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
 		}
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
-	case ONOT, OCOM, OSQRT:
+	case ONOT, OCOM:
 		a := s.expr(n.Left)
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
 	case OIMAG, OREAL:
@@ -2698,6 +2693,11 @@ func intrinsicInit() {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, ssa.TypeMem, args[0], args[1], s.mem())
 			return nil
 		}, sys.AMD64, sys.ARM64, sys.MIPS),
+
+		/******** math ********/
+		intrinsicKey{"math", "Sqrt"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpSqrt, Types[TFLOAT64], args[0])
+		}, sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X),
 	}
 
 	// aliases internal to runtime/internal/atomic
