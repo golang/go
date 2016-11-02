@@ -3035,8 +3035,6 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 		s.TLSConfig.NextProtos = append(s.TLSConfig.NextProtos, http2NextProtoTLS)
 	}
 
-	s.TLSConfig.NextProtos = append(s.TLSConfig.NextProtos, "h2-14")
-
 	if s.TLSNextProto == nil {
 		s.TLSNextProto = map[string]func(*Server, *tls.Conn, Handler){}
 	}
@@ -3050,7 +3048,6 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 		})
 	}
 	s.TLSNextProto[http2NextProtoTLS] = protoHandler
-	s.TLSNextProto["h2-14"] = protoHandler
 	return nil
 }
 
@@ -5474,6 +5471,7 @@ type http2clientStream struct {
 	bytesRemain int64     // -1 means unknown; owned by transportResponseBody.Read
 	readErr     error     // sticky read error; owned by transportResponseBody.Read
 	stopReqBody error     // if non-nil, stop writing req body; guarded by cc.mu
+	didReset    bool      // whether we sent a RST_STREAM to the server; guarded by cc.mu
 
 	peerReset chan struct{} // closed on peer reset
 	resetErr  error         // populated before peerReset is closed
@@ -5501,12 +5499,23 @@ func (cs *http2clientStream) awaitRequestCancel(req *Request) {
 	}
 	select {
 	case <-req.Cancel:
+		cs.cancelStream()
 		cs.bufPipe.CloseWithError(http2errRequestCanceled)
-		cs.cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
 	case <-ctx.Done():
+		cs.cancelStream()
 		cs.bufPipe.CloseWithError(ctx.Err())
-		cs.cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
 	case <-cs.done:
+	}
+}
+
+func (cs *http2clientStream) cancelStream() {
+	cs.cc.mu.Lock()
+	didReset := cs.didReset
+	cs.didReset = true
+	cs.cc.mu.Unlock()
+
+	if !didReset {
+		cs.cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
 	}
 }
 
@@ -6853,9 +6862,10 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 			cc.bw.Flush()
 			cc.wmu.Unlock()
 		}
+		didReset := cs.didReset
 		cc.mu.Unlock()
 
-		if len(data) > 0 {
+		if len(data) > 0 && !didReset {
 			if _, err := cs.bufPipe.Write(data); err != nil {
 				rl.endStreamError(cs, err)
 				return err
