@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !go1.8
+// +build go1.8
 
 // Package satisfy inspects the type-checked ASTs of Go packages and
 // reports the set of discovered type constraints of the form (lhs, rhs

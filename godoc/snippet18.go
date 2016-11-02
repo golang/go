@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !go1.8
+// +build go1.8
 
 // This file contains the infrastructure to create a code
 // snippet for search results.
