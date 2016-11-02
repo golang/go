@@ -87,6 +87,7 @@ func (f *File) ReadGo(name string) {
 			if cg != nil {
 				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), name)
 				f.Preamble += commentText(cg) + "\n"
+				f.Preamble += "#line 1 \"cgo-generated-wrapper\"\n"
 			}
 		}
 	}
