@@ -219,11 +219,18 @@ func (*Func) isDependency()     {} // a function may be a dependency of an initi
 type Alias struct {
 	object
 	orig Object      // aliased constant, type, variable, or function; never an alias
-	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC (type-checking internal use only)
+	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC (only needed during resolve phase)
 }
 
 func NewAlias(pos token.Pos, pkg *Package, name string, orig Object) *Alias {
-	return &Alias{object{pos: pos, pkg: pkg, name: name}, orig, token.ILLEGAL}
+	var typ Type = Typ[Invalid]
+	if orig != nil {
+		typ = orig.Type()
+	}
+	// No need to set a valid Alias.kind - that field is only used during identifier
+	// resolution (1st type-checker pass). We could store the field outside but it's
+	// easier to keep it here.
+	return &Alias{object{nil, pos, pkg, name, typ, 0, token.NoPos}, orig, token.ILLEGAL}
 }
 
 // Orig returns the aliased object, or nil if there was an error.
