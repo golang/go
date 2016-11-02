@@ -63,6 +63,9 @@ type exporter struct {
 	pkgIndex map[*types.Package]int
 	typIndex map[types.Type]int
 
+	// track objects that we've reexported already
+	reexported map[types.Object]bool
+
 	// position encoding
 	posInfoFormat bool
 	prevFile      string
@@ -81,6 +84,7 @@ func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 		strIndex:      map[string]int{"": 0}, // empty string is mapped to 0
 		pkgIndex:      make(map[*types.Package]int),
 		typIndex:      make(map[types.Type]int),
+		reexported:    make(map[types.Object]bool),
 		posInfoFormat: true, // TODO(gri) might become a flag, eventually
 	}
 
@@ -178,10 +182,17 @@ func (p *exporter) obj(obj types.Object) {
 			// invalid alias - don't export for now (issue 17731)
 			return
 		}
+
+		if !p.reexported[orig] {
+			p.obj(orig)
+			p.reexported[orig] = true
+		}
+
 		p.tag(aliasTag)
 		p.pos(obj)
 		p.string(obj.Name())
-		obj = orig
+		p.qualifiedName(orig)
+		return
 	}
 
 	switch obj := obj.(type) {

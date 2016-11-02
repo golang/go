@@ -12,8 +12,8 @@ func newAlias => types.NewAlias
 
 // TODO(gri) Consider exporting this functionality from go/types (issue 17730).
 func original(obj types.Object) types.Object {
-	if orig, ok := obj.(*types.Alias); ok {
-		return orig
+	if alias, ok := obj.(*types.Alias); ok {
+		return alias.Orig()
 	}
 	return obj
 }
