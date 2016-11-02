@@ -97,6 +97,16 @@ type Resolver struct {
 	// GODEBUG=netdns=go, but scoped to just this resolver.
 	PreferGo bool
 
+	// StrictErrors controls the behavior of temporary errors
+	// (including timeout, socket errors, and SERVFAIL) when using
+	// Go's built-in resolver. For a query composed of multiple
+	// sub-queries (such as an A+AAAA address lookup, or walking the
+	// DNS search list), this option causes such errors to abort the
+	// whole query instead of returning a partial result. This is
+	// not enabled by default because it may affect compatibility
+	// with resolvers that process AAAA queries incorrectly.
+	StrictErrors bool
+
 	// TODO(bradfitz): optional interface impl override hook
 	// TODO(bradfitz): Timeout time.Duration?
 }
