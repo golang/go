@@ -41,10 +41,15 @@ func exportsym(n *Node) {
 	}
 
 	n.Sym.Flags |= SymExport
-
 	if Debug['E'] != 0 {
 		fmt.Printf("export symbol %v\n", n.Sym)
 	}
+
+	// Ensure original object is on exportlist before aliases.
+	if n.Sym.Flags&SymAlias != 0 {
+		exportlist = append(exportlist, n.Sym.Def)
+	}
+
 	exportlist = append(exportlist, n)
 }
 

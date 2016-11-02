@@ -221,10 +221,11 @@ func objTag(obj types.Object) int {
 		return funcTag
 	// Aliases are not exported multiple times, thus we should not see them here.
 	default:
-		errorf("unexpected object: %v (%T)", obj, obj)
+		errorf("unexpected object: %v (%T)", obj, obj) // panics
 		panic("unreachable")
 	}
 }
+
 func sameObj(a, b types.Object) bool {
 	// Because unnamed types are not canonicalized, we cannot simply compare types for
 	// (pointer) identity.
@@ -232,7 +233,7 @@ func sameObj(a, b types.Object) bool {
 	return objTag(a) == objTag(b) && types.Identical(a.Type(), b.Type())
 }
 
-func (p *importer) declare(obj types.Object) types.Object {
+func (p *importer) declare(obj types.Object) {
 	pkg := obj.Pkg()
 	if alt := pkg.Scope().Insert(obj); alt != nil {
 		// This can only trigger if we import a (non-type) object a second time.
@@ -240,48 +241,33 @@ func (p *importer) declare(obj types.Object) types.Object {
 		// once; and b) we ignore compiler-specific export data which may contain
 		// functions whose inlined function bodies refer to other functions that
 		// were already imported.
-		// However, if a package exports multiple aliases referring to the same
-		// original object, that object is currently exported multiple times.
-		// Check for that specific case and accept it if the aliases correspond
-		// (see also the comment in cmd/compile/internal/gc/bimport.go, method
-		// importer.obj, switch case importing functions).
+		// However, aliases require reexporting the original object, so we need
+		// to allow it (see also the comment in cmd/compile/internal/gc/bimport.go,
+		// method importer.obj, switch case importing functions).
 		// Note that the original itself cannot be an alias.
-		// TODO(gri) We can avoid doing this once objects are exported only once
-		// per package again (issue #17636).
 		if !sameObj(obj, alt) {
-			errorf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", alt, obj)
+			errorf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", obj, alt)
 		}
-		obj = alt // use object that was imported first
 	}
-	return obj
 }
 
 func (p *importer) obj(tag int) {
-	var aliasPos token.Pos
-	var aliasName string
-	if tag == aliasTag {
-		aliasPos = p.pos()
-		aliasName = p.string()
-		tag = p.tagOrIndex()
-	}
-
-	var obj types.Object
 	switch tag {
 	case constTag:
 		pos := p.pos()
 		pkg, name := p.qualifiedName()
 		typ := p.typ(nil)
 		val := p.value()
-		obj = p.declare(types.NewConst(pos, pkg, name, typ, val))
+		p.declare(types.NewConst(pos, pkg, name, typ, val))
 
 	case typeTag:
-		obj = p.typ(nil).(*types.Named).Obj()
+		p.typ(nil)
 
 	case varTag:
 		pos := p.pos()
 		pkg, name := p.qualifiedName()
 		typ := p.typ(nil)
-		obj = p.declare(types.NewVar(pos, pkg, name, typ))
+		p.declare(types.NewVar(pos, pkg, name, typ))
 
 	case funcTag:
 		pos := p.pos()
@@ -289,14 +275,17 @@ func (p *importer) obj(tag int) {
 		params, isddd := p.paramList()
 		result, _ := p.paramList()
 		sig := types.NewSignature(nil, params, result, isddd)
-		obj = p.declare(types.NewFunc(pos, pkg, name, sig))
+		p.declare(types.NewFunc(pos, pkg, name, sig))
+
+	case aliasTag:
+		aliasPos := p.pos()
+		aliasName := p.string()
+		pkg, name := p.qualifiedName()
+		obj := pkg.Scope().Lookup(name)
+		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, obj))
 
 	default:
 		errorf("unexpected object tag %d", tag)
-	}
-
-	if aliasName != "" {
-		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, obj))
 	}
 }
 
@@ -549,7 +538,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		return t
 
 	default:
-		errorf("unexpected type tag %d", i)
+		errorf("unexpected type tag %d", i) // panics
 		panic("unreachable")
 	}
 }
@@ -700,7 +689,7 @@ func (p *importer) value() constant.Value {
 	case unknownTag:
 		return constant.MakeUnknown()
 	default:
-		errorf("unexpected value tag %d", tag)
+		errorf("unexpected value tag %d", tag) // panics
 		panic("unreachable")
 	}
 }

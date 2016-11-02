@@ -307,35 +307,26 @@ func idealType(typ *Type) *Type {
 }
 
 func (p *importer) obj(tag int) {
-	var alias *Sym
-	if tag == aliasTag {
-		p.pos()
-		alias = importpkg.Lookup(p.string())
-		alias.Flags |= SymAlias
-		tag = p.tagOrIndex()
-	}
-
-	var sym *Sym
 	switch tag {
 	case constTag:
 		p.pos()
-		sym = p.qualifiedName()
+		sym := p.qualifiedName()
 		typ := p.typ()
 		val := p.value(typ)
 		importconst(sym, idealType(typ), nodlit(val))
 
 	case typeTag:
-		sym = p.typ().Sym
+		p.typ()
 
 	case varTag:
 		p.pos()
-		sym = p.qualifiedName()
+		sym := p.qualifiedName()
 		typ := p.typ()
 		importvar(sym, typ)
 
 	case funcTag:
 		p.pos()
-		sym = p.qualifiedName()
+		sym := p.qualifiedName()
 		params := p.paramList()
 		result := p.paramList()
 
@@ -363,13 +354,19 @@ func (p *importer) obj(tag int) {
 			}
 		}
 
+	case aliasTag:
+		p.pos()
+		alias := importpkg.Lookup(p.string())
+		orig := p.qualifiedName()
+
+		// Although the protocol allows the alias to precede the original,
+		// this never happens in files produced by gc.
+		alias.Flags |= SymAlias
+		alias.Def = orig.Def
+		importsym(alias, orig.Def.Op)
+
 	default:
 		formatErrorf("unexpected object (tag = %d)", tag)
-	}
-
-	if alias != nil {
-		alias.Def = sym.Def
-		importsym(alias, sym.Def.Op)
 	}
 }
 
