@@ -429,6 +429,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 	var b bytes.Buffer
 	b.WriteString(f.Preamble)
 	b.WriteString(builtinProlog)
+	b.WriteString("#line 1 \"cgo-dwarf-inference\"\n")
 	for i, n := range names {
 		fmt.Fprintf(&b, "__typeof__(%s) *__cgo__%d;\n", n.C, i)
 		if n.Kind == "const" {
