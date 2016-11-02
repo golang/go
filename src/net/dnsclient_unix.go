@@ -200,6 +200,11 @@ func tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype uint16) 
 				if nerr, ok := err.(Error); ok && nerr.Timeout() {
 					lastErr.(*DNSError).IsTimeout = true
 				}
+				// Set IsTemporary for socket-level errors. Note that this flag
+				// may also be used to indicate a SERVFAIL response.
+				if _, ok := err.(*OpError); ok {
+					lastErr.(*DNSError).IsTemporary = true
+				}
 				continue
 			}
 			// libresolv continues to the next server when it receives
@@ -314,7 +319,7 @@ func (conf *resolverConfig) releaseSema() {
 	<-conf.ch
 }
 
-func lookup(ctx context.Context, name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
+func (r *Resolver) lookup(ctx context.Context, name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
 	if !isDomainName(name) {
 		// We used to use "invalid domain name" as the error,
 		// but that is a detail of the specific lookup mechanism.
@@ -330,6 +335,11 @@ func lookup(ctx context.Context, name string, qtype uint16) (cname string, rrs [
 	for _, fqdn := range conf.nameList(name) {
 		cname, rrs, err = tryOneName(ctx, conf, fqdn, qtype)
 		if err == nil {
+			break
+		}
+		if nerr, ok := err.(Error); ok && nerr.Temporary() && r.StrictErrors {
+			// If we hit a temporary error with StrictErrors enabled,
+			// stop immediately instead of trying more names.
 			break
 		}
 	}
@@ -432,11 +442,11 @@ func (o hostLookupOrder) String() string {
 // Normally we let cgo use the C library resolver instead of
 // depending on our lookup code, so that Go and C get the same
 // answers.
-func goLookupHost(ctx context.Context, name string) (addrs []string, err error) {
-	return goLookupHostOrder(ctx, name, hostLookupFilesDNS)
+func (r *Resolver) goLookupHost(ctx context.Context, name string) (addrs []string, err error) {
+	return r.goLookupHostOrder(ctx, name, hostLookupFilesDNS)
 }
 
-func goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []string, err error) {
+func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []string, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
 		// Use entries from /etc/hosts if they match.
 		addrs = lookupStaticHost(name)
@@ -444,7 +454,7 @@ func goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder) 
 			return
 		}
 	}
-	ips, _, err := goLookupIPCNAMEOrder(ctx, name, order)
+	ips, _, err := r.goLookupIPCNAMEOrder(ctx, name, order)
 	if err != nil {
 		return
 	}
@@ -470,13 +480,13 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
 
 // goLookupIP is the native Go implementation of LookupIP.
 // The libc versions are in cgo_*.go.
-func goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+func (r *Resolver) goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
 	order := systemConf().hostLookupOrder(host)
-	addrs, _, err = goLookupIPCNAMEOrder(ctx, host, order)
+	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, host, order)
 	return
 }
 
-func goLookupIPCNAMEOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []IPAddr, cname string, err error) {
+func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []IPAddr, cname string, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
 		addrs = goLookupIPFiles(name)
 		if len(addrs) > 0 || order == hostLookupFiles {
@@ -506,11 +516,16 @@ func goLookupIPCNAMEOrder(ctx context.Context, name string, order hostLookupOrde
 				lane <- racer{cname, rrs, err}
 			}(qtype)
 		}
+		hitStrictError := false
 		for range qtypes {
 			racer := <-lane
 			if racer.error != nil {
-				// Prefer error for original name.
-				if lastErr == nil || fqdn == name+"." {
+				if nerr, ok := racer.error.(Error); ok && nerr.Temporary() && r.StrictErrors {
+					// This error will abort the nameList loop.
+					hitStrictError = true
+					lastErr = racer.error
+				} else if lastErr == nil || fqdn == name+"." {
+					// Prefer error for original name.
 					lastErr = racer.error
 				}
 				continue
@@ -519,6 +534,13 @@ func goLookupIPCNAMEOrder(ctx context.Context, name string, order hostLookupOrde
 			if cname == "" {
 				cname = racer.cname
 			}
+		}
+		if hitStrictError {
+			// If either family hit an error with StrictErrors enabled,
+			// discard all addresses. This ensures that network flakiness
+			// cannot turn a dualstack hostname IPv4/IPv6-only.
+			addrs = nil
+			break
 		}
 		if len(addrs) > 0 {
 			break
@@ -543,9 +565,9 @@ func goLookupIPCNAMEOrder(ctx context.Context, name string, order hostLookupOrde
 }
 
 // goLookupCNAME is the native Go (non-cgo) implementation of LookupCNAME.
-func goLookupCNAME(ctx context.Context, host string) (cname string, err error) {
+func (r *Resolver) goLookupCNAME(ctx context.Context, host string) (cname string, err error) {
 	order := systemConf().hostLookupOrder(host)
-	_, cname, err = goLookupIPCNAMEOrder(ctx, host, order)
+	_, cname, err = r.goLookupIPCNAMEOrder(ctx, host, order)
 	return
 }
 
@@ -554,7 +576,7 @@ func goLookupCNAME(ctx context.Context, host string) (cname string, err error) {
 // only if cgoLookupPTR is the stub in cgo_stub.go).
 // Normally we let cgo use the C library resolver instead of depending
 // on our lookup code, so that Go and C get the same answers.
-func goLookupPTR(ctx context.Context, addr string) ([]string, error) {
+func (r *Resolver) goLookupPTR(ctx context.Context, addr string) ([]string, error) {
 	names := lookupStaticAddr(addr)
 	if len(names) > 0 {
 		return names, nil
@@ -563,7 +585,7 @@ func goLookupPTR(ctx context.Context, addr string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, rrs, err := lookup(ctx, arpa, dnsTypePTR)
+	_, rrs, err := r.lookup(ctx, arpa, dnsTypePTR)
 	if err != nil {
 		return nil, err
 	}
