@@ -176,6 +176,7 @@ go/build: do not record go:binary-only-package if build tags not satisfied (CL 3
 go/doc: add IsPredeclared function (CL 29870)
 go/doc: allow ToHTML to properly handle URLs containing semicolons (CL 25385)
 go/internal/gcimporter: fail gracefully on export format skew (CL 27816)
+go/token: fix race in FileSet.PositionFor. (CL 25345)
 go/types: expose Default function, which converts untyped T to T (CL 30715)
 go/types: handle imported aliases (CL 32534)
 go/types: match cmd/compile's alignment for complex64 (CL 31939)
