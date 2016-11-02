@@ -11,13 +11,18 @@ import (
 	"go/types"
 )
 
-func newAlias(pos token.Pos, pkg *types.Package, name string, orig types.Object) types.Object {
-	errorf("unexpected alias in non-Go1.8 export data: %s.%s => %v", pkg.Name(), name, orig)
+type types_Alias struct {
+	types.Object
+	dummy int
+} // satisfies types.Object but will never be encountered
+
+func types_NewAlias(pos token.Pos, pkg *types.Package, name string, orig types.Object) types.Object {
+	errorf("unexpected alias in non-Go1.8 export data: %s.%s => %v", pkg.Name(), name, orig) // panics
 	panic("unreachable")
 }
 
-func original(obj types.Object) types.Object {
-	return obj // don't know about aliases
+func original(types.Object) types.Object {
+	panic("unreachable")
 }
 
 const testfile = "exports17.go"

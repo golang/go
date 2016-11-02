@@ -8,7 +8,9 @@ package gcimporter
 
 import "go/types"
 
-func newAlias => types.NewAlias
+type types_Alias => types.Alias
+
+func types_NewAlias => types.NewAlias
 
 // TODO(gri) Consider exporting this functionality from go/types (issue 17730).
 func original(obj types.Object) types.Object {

@@ -177,24 +177,6 @@ func (p *exporter) pkg(pkg *types.Package, emptypath bool) {
 }
 
 func (p *exporter) obj(obj types.Object) {
-	if orig := original(obj); orig != obj {
-		if orig == nil {
-			// invalid alias - don't export for now (issue 17731)
-			return
-		}
-
-		if !p.reexported[orig] {
-			p.obj(orig)
-			p.reexported[orig] = true
-		}
-
-		p.tag(aliasTag)
-		p.pos(obj)
-		p.string(obj.Name())
-		p.qualifiedName(orig)
-		return
-	}
-
 	switch obj := obj.(type) {
 	case *types.Const:
 		p.tag(constTag)
@@ -220,6 +202,20 @@ func (p *exporter) obj(obj types.Object) {
 		sig := obj.Type().(*types.Signature)
 		p.paramList(sig.Params(), sig.Variadic())
 		p.paramList(sig.Results(), false)
+
+	case *types_Alias:
+		// make sure the original is exported before the alias
+		// (if the alias declaration was invalid, orig will be nil)
+		orig := original(obj)
+		if orig != nil && !p.reexported[orig] {
+			p.obj(orig)
+			p.reexported[orig] = true
+		}
+
+		p.tag(aliasTag)
+		p.pos(obj)
+		p.string(obj.Name())
+		p.qualifiedName(orig)
 
 	default:
 		log.Fatalf("gcimporter: unexpected object %v (%T)", obj, obj)
@@ -280,6 +276,10 @@ func commonPrefixLen(a, b string) int {
 }
 
 func (p *exporter) qualifiedName(obj types.Object) {
+	if obj == nil {
+		p.string("")
+		return
+	}
 	p.string(obj.Name())
 	p.pkg(obj.Pkg(), false)
 }
