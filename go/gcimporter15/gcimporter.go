@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.5
+// +build go1.6
 
-// This file is a copy of $GOROOT/src/go/internal/gcimporter/gcimporter.go, tagged for go1.5,
+// This file is a copy of $GOROOT/src/go/internal/gcimporter/gcimporter.go, tagged for go1.6,
 // and minimally adjusted to make it build.
 
 // Package gcimporter15 provides various functions for reading
@@ -399,7 +399,7 @@ func (p *parser) getPkg(id, name string) *types.Package {
 		// package exists already and we have an expected package name;
 		// make sure names match or set package name if necessary
 		if pname := pkg.Name(); pname == "" {
-			setName(pkg, name)
+			pkg.SetName(name)
 		} else if pname != name {
 			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", id, pname, name)
 		}
