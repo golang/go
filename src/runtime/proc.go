@@ -475,7 +475,7 @@ func schedinit() {
 	goargs()
 	goenvs()
 	parsedebugvars()
-	gcinit() // requires modulesinit
+	gcinit()
 
 	sched.lastpoll = uint64(nanotime())
 	procs := ncpu

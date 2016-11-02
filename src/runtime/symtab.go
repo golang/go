@@ -267,13 +267,10 @@ func activeModules() []*moduledata {
 //
 // Only one goroutine may call modulesinit at a time.
 func modulesinit() {
-	oldNum := len(activeModules())
 	modules := new([]*moduledata)
-	num := 0
 	for md := &firstmoduledata; md != nil; md = md.next {
 		*modules = append(*modules, md)
-		num++
-		if num > oldNum {
+		if md.gcdatamask == (bitvector{}) {
 			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
 			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
 		}
