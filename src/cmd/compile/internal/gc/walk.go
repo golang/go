@@ -652,16 +652,6 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 		walkexprlist(n.List.Slice(), init)
 
-		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" &&
-			(n.Left.Sym.Pkg.Path == "math" || n.Left.Sym.Pkg == localpkg && myimportpath == "math") {
-			if Thearch.LinkArch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X) {
-				n.Op = OSQRT
-				n.Left = n.List.First()
-				n.List.Set(nil)
-				break opswitch
-			}
-		}
-
 		ll := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
 		n.List.Set(reorder1(ll))
 

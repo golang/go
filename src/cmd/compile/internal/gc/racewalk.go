@@ -187,8 +187,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OPLUS,
 		OREAL,
 		OIMAG,
-		OCOM,
-		OSQRT:
+		OCOM:
 		instrumentnode(&n.Left, init, wr, 0)
 		goto ret
 
