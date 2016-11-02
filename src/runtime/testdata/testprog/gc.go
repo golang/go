@@ -98,11 +98,25 @@ func GCFairness2() {
 	// If the scheduling rules change, this may not be enough time
 	// to let all goroutines run, but for now we cycle through
 	// them rapidly.
+	//
+	// OpenBSD's scheduler makes every usleep() take at least
+	// 20ms, so we need a long time to ensure all goroutines have
+	// run. If they haven't run after 30ms, give it another 1000ms
+	// and check again.
 	time.Sleep(30 * time.Millisecond)
+	var fail bool
 	for i := range count {
 		if atomic.LoadInt64(&count[i]) == 0 {
-			fmt.Printf("goroutine %d did not run\n", i)
-			return
+			fail = true
+		}
+	}
+	if fail {
+		time.Sleep(1 * time.Second)
+		for i := range count {
+			if atomic.LoadInt64(&count[i]) == 0 {
+				fmt.Printf("goroutine %d did not run\n", i)
+				return
+			}
 		}
 	}
 	fmt.Println("OK")
