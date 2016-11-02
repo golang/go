@@ -458,19 +458,16 @@ func (p *exporter) obj(sym *Sym) {
 			Fatalf("exporter: export of non-local alias: %v", sym)
 		}
 		p.string(sym.Name)
-		sym = sym.Def.Sym // original object
-		// fall through to export original
-		// Multiple aliases to the same original will cause that
-		// original to be exported multiple times (issue #17636).
-		// TODO(gri) fix this
+		orig := sym.Def.Sym
+		if orig.Flags&SymAlias != 0 {
+			Fatalf("exporter: original object %v marked as alias", sym)
+		}
+		p.qualifiedName(orig)
+		return
 	}
 
 	if sym != sym.Def.Sym {
 		Fatalf("exporter: exported object %v is not original %v", sym, sym.Def.Sym)
-	}
-
-	if sym.Flags&SymAlias != 0 {
-		Fatalf("exporter: original object %v marked as alias", sym)
 	}
 
 	// Exported objects may be from different packages because they
