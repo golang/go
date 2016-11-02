@@ -77,6 +77,7 @@ var (
 	asmArchMips64LE = asmArch{"mips64le", size88, false, "R29", true}
 	asmArchPpc64    = asmArch{"ppc64", size88, true, "R1", true}
 	asmArchPpc64LE  = asmArch{"ppc64le", size88, false, "R1", true}
+	asmArchS390X    = asmArch{"s390x", size88, true, "R15", true}
 
 	arches = []*asmArch{
 		&asmArch386,
@@ -88,6 +89,7 @@ var (
 		&asmArchMips64LE,
 		&asmArchPpc64,
 		&asmArchPpc64LE,
+		&asmArchS390X,
 	}
 )
 
@@ -646,6 +648,17 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 			case "MOVW", "MOVWU", "MOVF":
 				src = 4
 			case "MOVV", "MOVD":
+				src = 8
+			}
+		case "s390x":
+			switch op {
+			case "MOVB", "MOVBZ":
+				src = 1
+			case "MOVH", "MOVHZ":
+				src = 2
+			case "MOVW", "MOVWZ", "FMOVS":
+				src = 4
+			case "MOVD", "FMOVD":
 				src = 8
 			}
 		}
