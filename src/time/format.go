@@ -42,6 +42,13 @@ import "errors"
 //	Z07:00 Z or ±hh:mm
 //	Z07    Z or ±hh
 //
+// The recognized day of week formats are "Mon" and "Monday".
+// The recognized month formats are "Jan" and "January".
+//
+// Text in the format string that is not recognized as part of the reference
+// time is echoed verbatim during Format and expected to appear verbatim
+// in the input to Parse.
+//
 // The executable example for time.Format demonstrates the working
 // of the layout string in detail and is a good reference.
 //
