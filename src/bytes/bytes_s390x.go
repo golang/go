@@ -32,6 +32,13 @@ func Index(s, sep []byte) int {
 		return 0
 	case n == 1:
 		return IndexByte(s, sep[0])
+	case n == len(s):
+		if Equal(sep, s) {
+			return 0
+		}
+		return -1
+	case n > len(s):
+		return -1
 	case n <= shortStringLen:
 		// Use brute force when s and sep both are small
 		if len(s) <= 64 {
@@ -67,13 +74,6 @@ func Index(s, sep []byte) int {
 				return -1
 			}
 		}
-		return -1
-	case n == len(s):
-		if Equal(sep, s) {
-			return 0
-		}
-		return -1
-	case n > len(s):
 		return -1
 	}
 	// Rabin-Karp search
