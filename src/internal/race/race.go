@@ -48,3 +48,7 @@ func ReadRange(addr unsafe.Pointer, len int) {
 func WriteRange(addr unsafe.Pointer, len int) {
 	runtime.RaceWriteRange(addr, len)
 }
+
+func Errors() int {
+	return runtime.RaceErrors()
+}

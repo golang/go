@@ -20,6 +20,12 @@ func RaceWriteRange(addr unsafe.Pointer, len int)
 func RaceSemacquire(s *uint32)
 func RaceSemrelease(s *uint32)
 
+func RaceErrors() int {
+	var n uint64
+	racecall(&__tsan_report_count, uintptr(unsafe.Pointer(&n)), 0, 0, 0)
+	return int(n)
+}
+
 // private interface for the runtime
 const raceenabled = true
 
