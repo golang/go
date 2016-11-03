@@ -119,6 +119,11 @@ func startPlan9(ctx context.Context, net string, addr Addr) (ctl *os.File, dest,
 		return
 	}
 
+	if port > 65535 {
+		err = InvalidAddrError("port should be < 65536")
+		return
+	}
+
 	clone, dest, err := queryCS1(ctx, proto, ip, port)
 	if err != nil {
 		return
