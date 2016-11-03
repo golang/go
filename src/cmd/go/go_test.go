@@ -2828,6 +2828,26 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
 	}
 }
 
+func TestGoTestRaceFailures(t *testing.T) {
+	if !canRace {
+		t.Skip("skipping because race detector not supported")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+
+	tg.run("test", "testrace")
+
+	tg.runFail("test", "-race", "testrace")
+	tg.grepStdout("FAIL: TestRace", "TestRace did not fail")
+	tg.grepBothNot("PASS", "something passed")
+
+	tg.runFail("test", "-race", "testrace", "-run", "XXX", "-bench", ".")
+	tg.grepStdout("FAIL: BenchmarkRace", "BenchmarkRace did not fail")
+	tg.grepBothNot("PASS", "something passed")
+}
+
 func TestGoTestImportErrorStack(t *testing.T) {
 	const out = `package testdep/p1 (test)
 	imports testdep/p2

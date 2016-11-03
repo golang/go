@@ -184,8 +184,8 @@ func TestFail(t *testing.T) {
 }
 `, `
 ==================
-PASS
-Found 1 data race\(s\)
+--- FAIL: TestFail \(0.00s\)
+.*testing.go:.*: race detected during execution of test
 FAIL`},
 
 	{"slicebytetostring_pc", "run", "", "atexit_sleep_ms=0", `
