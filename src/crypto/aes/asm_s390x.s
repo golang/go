@@ -41,20 +41,20 @@ notfound:
 	MOVB	$0, ret+0(FP)
 	RET
 
-// func cryptBlocks(function code, key, dst, src *byte, length int)
+// func cryptBlocks(c code, key, dst, src *byte, length int)
 TEXT ·cryptBlocks(SB),NOSPLIT,$0-40
 	MOVD	key+8(FP), R1
 	MOVD	dst+16(FP), R2
 	MOVD	src+24(FP), R4
 	MOVD	length+32(FP), R5
-	MOVD	function+0(FP), R0
+	MOVD	c+0(FP), R0
 loop:
 	WORD	$0xB92E0024 // cipher message (KM)
 	BVS	loop        // branch back if interrupted
 	XOR	R0, R0
 	RET
 
-// func cryptBlocksChain(function code, iv, key, dst, src *byte, length int)
+// func cryptBlocksChain(c code, iv, key, dst, src *byte, length int)
 TEXT ·cryptBlocksChain(SB),NOSPLIT,$48-48
 	LA	params-48(SP), R1
 	MOVD	iv+8(FP), R8
@@ -64,7 +64,7 @@ TEXT ·cryptBlocksChain(SB),NOSPLIT,$48-48
 	MOVD	dst+24(FP), R2
 	MOVD	src+32(FP), R4
 	MOVD	length+40(FP), R5
-	MOVD	function+0(FP), R0
+	MOVD	c+0(FP), R0
 loop:
 	WORD	$0xB92F0024       // cipher message with chaining (KMC)
 	BVS	loop              // branch back if interrupted
