@@ -3957,7 +3957,7 @@ func (sc *http2serverConn) processPing(f *http2PingFrame) error {
 
 		return http2ConnectionError(http2ErrCodeProtocol)
 	}
-	if sc.inGoAway {
+	if sc.inGoAway && sc.goAwayCode != http2ErrCodeNo {
 		return nil
 	}
 	sc.writeFrame(http2FrameWriteRequest{write: http2writePingAck{f}})
@@ -3966,9 +3966,6 @@ func (sc *http2serverConn) processPing(f *http2PingFrame) error {
 
 func (sc *http2serverConn) processWindowUpdate(f *http2WindowUpdateFrame) error {
 	sc.serveG.check()
-	if sc.inGoAway {
-		return nil
-	}
 	switch {
 	case f.StreamID != 0:
 		state, st := sc.state(f.StreamID)
@@ -3994,9 +3991,6 @@ func (sc *http2serverConn) processWindowUpdate(f *http2WindowUpdateFrame) error 
 
 func (sc *http2serverConn) processResetStream(f *http2RSTStreamFrame) error {
 	sc.serveG.check()
-	if sc.inGoAway {
-		return nil
-	}
 
 	state, st := sc.state(f.StreamID)
 	if state == http2stateIdle {
@@ -4047,9 +4041,6 @@ func (sc *http2serverConn) processSettings(f *http2SettingsFrame) error {
 
 			return http2ConnectionError(http2ErrCodeProtocol)
 		}
-		return nil
-	}
-	if sc.inGoAway {
 		return nil
 	}
 	if err := f.ForeachSetting(sc.processSetting); err != nil {
@@ -4108,7 +4099,7 @@ func (sc *http2serverConn) processSettingInitialWindowSize(val uint32) error {
 
 func (sc *http2serverConn) processData(f *http2DataFrame) error {
 	sc.serveG.check()
-	if sc.inGoAway {
+	if sc.inGoAway && sc.goAwayCode != http2ErrCodeNo {
 		return nil
 	}
 	data := f.Data()
