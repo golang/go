@@ -1785,7 +1785,6 @@ func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []
 	}
 
 	tslice := typSlice(l.Type.Elem())
-	tslice.Noalg = true
 
 	var n *Node
 	if len(lr0) == 0 {

@@ -928,7 +928,14 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 }
 
 func typesym(t *Type) *Sym {
-	return Pkglookup(t.tconv(FmtLeft), typepkg)
+	name := t.tconv(FmtLeft)
+
+	// Use a separate symbol name for Noalg types for #17752.
+	if a, bad := algtype1(t); a == ANOEQ && bad.Noalg {
+		name = "noalg." + name
+	}
+
+	return Pkglookup(name, typepkg)
 }
 
 // tracksym returns the symbol for tracking use of field/method f, assumed
