@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !go1.8
-
 // Stringer is a tool to automate the creation of methods that satisfy the fmt.Stringer
 // interface. Given the name of a (signed or unsigned) integer type T that has constants
 // defined, stringer will create a new self-contained Go source file implementing
@@ -401,7 +399,10 @@ func (f *File) genDecl(node ast.Node) bool {
 	// If the type and value are both missing, we carry down the type (and value,
 	// but the "go/types" package takes care of that).
 	for _, spec := range decl.Specs {
-		vspec := spec.(*ast.ValueSpec) // Guaranteed to succeed as this is CONST.
+		if spec, ok := spec.(*ast.AliasSpec); ok {
+			log.Fatalf("can't handle constant alias %s", spec.Name.Name)
+		}
+		vspec := spec.(*ast.ValueSpec)
 		if vspec.Type == nil && len(vspec.Values) > 0 {
 			// "X = 1". With no type but a value, the constant is untyped.
 			// Skip this vspec and reset the remembered type.
