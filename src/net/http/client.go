@@ -537,6 +537,34 @@ func (c *Client) Do(req *Request) (*Response, error) {
 
 		var shouldRedirect bool
 		redirectMethod, shouldRedirect = redirectBehavior(req.Method, resp.StatusCode)
+
+		// Treat 307 and 308 specially, since they're new in
+		// Go 1.8, and they also require re-sending the
+		// request body.
+		//
+		// TODO: move this logic into func redirectBehavior?
+		// It would need to take a bunch more things then.
+		switch resp.StatusCode {
+		case 307, 308:
+			loc := resp.Header.Get("Location")
+			if loc == "" {
+				// 308s have been observed in the wild being served
+				// without Location headers. Since Go 1.7 and earlier
+				// didn't follow these codes, just stop here instead
+				// of returning an error.
+				shouldRedirect = false
+				break
+			}
+			ireq := reqs[0]
+			if ireq.GetBody == nil && ireq.outgoingLength() != 0 {
+				// We had a request body, and 307/308 require
+				// re-sending it, but GetBody is not defined. So just
+				// return this response to the user instead of an
+				// error, like we did in Go 1.7 and earlier.
+				shouldRedirect = false
+			}
+		}
+
 		if !shouldRedirect {
 			return resp, nil
 		}

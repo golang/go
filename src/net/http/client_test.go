@@ -499,6 +499,57 @@ func TestClientRedirectUseResponse(t *testing.T) {
 	}
 }
 
+// Issue 17773: don't follow a 308 (or 307) if the response doesn't
+// have a Location header.
+func TestClientRedirect308NoLocation(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Foo", "Bar")
+		w.WriteHeader(308)
+	}))
+	defer ts.Close()
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != 308 {
+		t.Errorf("status = %d; want %d", res.StatusCode, 308)
+	}
+	if got := res.Header.Get("Foo"); got != "Bar" {
+		t.Errorf("Foo header = %q; want Bar", got)
+	}
+}
+
+// Don't follow a 307/308 if we can't resent the request body.
+func TestClientRedirect308NoGetBody(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	const fakeURL = "https://localhost:1234/" // won't be hit
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Location", fakeURL)
+		w.WriteHeader(308)
+	}))
+	defer ts.Close()
+	req, err := NewRequest("POST", ts.URL, strings.NewReader("some body"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.GetBody = nil // so it can't rewind.
+	res, err := DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != 308 {
+		t.Errorf("status = %d; want %d", res.StatusCode, 308)
+	}
+	if got := res.Header.Get("Location"); got != fakeURL {
+		t.Errorf("Location header = %q; want %q", got, fakeURL)
+	}
+}
+
 var expectedCookies = []*Cookie{
 	{Name: "ChocolateChip", Value: "tasty"},
 	{Name: "First", Value: "Hit"},
