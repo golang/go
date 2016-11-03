@@ -598,6 +598,8 @@
 //         SwigFiles      []string // .swig files
 //         SwigCXXFiles   []string // .swigcxx files
 //         SysoFiles      []string // .syso object files to add to archive
+//         TestGoFiles    []string // _test.go files in package
+//         XTestGoFiles   []string // _test.go files outside package
 //
 //         // Cgo directives
 //         CgoCFLAGS    []string // cgo: flags for C compiler
@@ -608,19 +610,22 @@
 //         CgoPkgConfig []string // cgo: pkg-config names
 //
 //         // Dependency information
-//         Imports []string // import paths used by this package
-//         Deps    []string // all (recursively) imported dependencies
+//         Imports      []string // import paths used by this package
+//         Deps         []string // all (recursively) imported dependencies
+//         TestImports  []string // imports from TestGoFiles
+//         XTestImports []string // imports from XTestGoFiles
 //
 //         // Error information
 //         Incomplete bool            // this package or a dependency has an error
 //         Error      *PackageError   // error loading package
 //         DepsErrors []*PackageError // errors loading dependencies
-//
-//         TestGoFiles  []string // _test.go files in package
-//         TestImports  []string // imports from TestGoFiles
-//         XTestGoFiles []string // _test.go files outside package
-//         XTestImports []string // imports from XTestGoFiles
 //     }
+//
+// Packages stored in vendor directories report an ImportPath that includes the
+// path to the vendor directory (for example, "d/vendor/p" instead of "p"),
+// so that the ImportPath uniquely identifies a given copy of a package.
+// The Imports, Deps, TestImports, and XTestImports lists also contain these
+// expanded imports paths. See golang.org/s/go15vendor for more about vendoring.
 //
 // The error information, if any, is
 //
@@ -1343,6 +1348,9 @@
 // - "cmd" expands to the Go repository's commands and their
 // internal libraries.
 //
+// Import paths beginning with "cmd/" only match source code in
+// the Go repository.
+//
 // An import path is a pattern if it includes one or more "..." wildcards,
 // each of which can match any string, including the empty string and
 // strings containing slashes.  Such a pattern expands to all package
@@ -1499,6 +1507,15 @@
 // 	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
 // 	    To profile all memory allocations, use -test.memprofilerate=1
 // 	    and pass --alloc_space flag to the pprof tool.
+//
+// 	-mutexprofile mutex.out
+// 	    Write a mutex contention profile to the specified file
+// 	    when all tests are complete.
+// 	    Writes test binary as -c would.
+//
+// 	-mutexprofilefraction n
+//  	    Sample 1 in n stack traces of goroutines holding a
+// 	    contended mutex.
 //
 // 	-outputdir directory
 // 	    Place output files from profiling in the specified directory,
