@@ -44,6 +44,7 @@ func runBug(cmd *Command, args []string) {
 	for _, e := range env {
 		fmt.Fprintf(&buf, "%s=\"%s\"\n", e.name, e.value)
 	}
+	printGoDetails(&buf)
 	printOSDetails(&buf)
 	printCDetails(&buf)
 	fmt.Fprintln(&buf, "```")
@@ -71,6 +72,11 @@ A link on play.golang.org is best.
 
 
 `
+
+func printGoDetails(w io.Writer) {
+	printCmdOut(w, "GOROOT/bin/go version: ", filepath.Join(runtime.GOROOT(), "bin/go"), "version")
+	printCmdOut(w, "GOROOT/bin/go tool compile -v: ", filepath.Join(runtime.GOROOT(), "bin/go"), "tool", "compile", "-V")
+}
 
 func printOSDetails(w io.Writer) {
 	switch runtime.GOOS {
