@@ -1913,7 +1913,7 @@ func TestGoGetDashTIssue8181(t *testing.T) {
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("get", "-v", "-t", "github.com/rsc/go-get-issue-8181/a", "github.com/rsc/go-get-issue-8181/b")
 	tg.run("list", "...")
-	tg.grepStdout("x/build/cmd/cl", "missing expected x/build/cmd/cl")
+	tg.grepStdout("x/build/gerrit", "missing expected x/build/gerrit")
 }
 
 func TestIssue11307(t *testing.T) {
