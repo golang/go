@@ -1183,7 +1183,7 @@ func ullmancalc(n *Node) {
 			goto out
 		}
 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR,
-		OIND, ODOTPTR, ODOTTYPE, ODIV:
+		OIND, ODOTPTR, ODOTTYPE, ODIV, OMOD:
 		// These ops might panic, make sure they are done
 		// before we start marshaling args for a call. See issue 16760.
 		ul = UINF
