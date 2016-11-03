@@ -427,6 +427,8 @@ func addNames(names map[string]bool, decl ast.Decl) {
 			switch s := spec.(type) {
 			case *ast.TypeSpec:
 				names[s.Name.Name] = true
+			case *ast.AliasSpec:
+				names[s.Name.Name] = true
 			case *ast.ValueSpec:
 				for _, id := range s.Names {
 					names[id.Name] = true

@@ -542,6 +542,10 @@ func (x *Indexer) visitSpec(kind SpotKind, spec ast.Spec) {
 			}
 		}
 
+	case *ast.AliasSpec:
+		x.visitIdent(kind, n.Name)
+		ast.Walk(x, n.Orig)
+
 	case *ast.ValueSpec:
 		for _, n := range n.Names {
 			x.visitIdent(kind, n)

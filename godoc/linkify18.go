@@ -158,6 +158,8 @@ func identModesFor(node ast.Node) map[*ast.Ident]identMode {
 			if name := n.Name; name != nil {
 				m[name] = identDef
 			}
+		case *ast.AliasSpec:
+			m[n.Name] = identVal
 		case *ast.ValueSpec:
 			for _, n := range n.Names {
 				m[n] = identVal

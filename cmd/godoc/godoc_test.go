@@ -259,7 +259,7 @@ func testWeb(t *testing.T, withIndex bool) {
 			},
 		},
 		{
-			path: "/search?q=notwithstanding",
+			path: "/search?q=ListenAndServe",
 			match: []string{
 				"/src",
 			},

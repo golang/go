@@ -42,6 +42,10 @@ func findSpec(list []ast.Spec, id *ast.Ident) ast.Spec {
 			if s.Name == id {
 				return s
 			}
+		case *ast.AliasSpec:
+			if s.Name == id {
+				return s
+			}
 		case *ast.ValueSpec:
 			for _, n := range s.Names {
 				if n == id {
