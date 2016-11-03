@@ -246,6 +246,18 @@ func testFunctionLiteral() {
 		check(LINE, 2)
 	}) {
 	}
+
+	x := 2
+	switch x {
+	case func() int { check(LINE, 1); return 1 }():
+		check(LINE, 0)
+		panic("2=1")
+	case func() int { check(LINE, 1); return 2 }():
+		check(LINE, 1)
+	case func() int { check(LINE, 0); return 3 }():
+		check(LINE, 0)
+		panic("2=3")
+	}
 }
 
 func testGoto() {
