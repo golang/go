@@ -2717,15 +2717,13 @@ func TestImportLocal(t *testing.T) {
 func TestGoGetInsecure(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	t.Skip("golang.org/issue/15410")
-
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("."))
 	tg.failSSH()
 
-	const repo = "wh3rd.net/git.git"
+	const repo = "insecure.go-get-issue-15410.appspot.com/pkg/p"
 
 	// Try go get -d of HTTP-only repo (should fail).
 	tg.runFail("get", "-d", repo)
@@ -2769,7 +2767,7 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("."))
 
-	const repo = "wh3rd.net/repo"
+	const repo = "insecure.go-get-issue-15410.appspot.com/pkg/p"
 	tg.runFail("get", "-d", repo)
 	tg.run("get", "-d", "-insecure", repo)
 }
