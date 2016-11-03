@@ -1216,7 +1216,7 @@ func TestIssue11457(t *testing.T) {
 	tg.parallel()
 	tg.tempDir("src")
 	tg.setenv("GOPATH", tg.path("."))
-	const importPath = "github.com/rsc/go-get-issue-11457"
+	const importPath = "rsc.io/go-get-issue-11457"
 	tg.run("get", "-d", "-u", importPath)
 	repoDir := tg.path("src/" + importPath)
 	tg.runGit(repoDir, "remote", "set-url", "origin", "git@github.com:rsc/go-get-issue-11457")
