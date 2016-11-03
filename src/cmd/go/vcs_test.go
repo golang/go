@@ -271,6 +271,7 @@ func TestIsSecureGitAllowProtocol(t *testing.T) {
 		{vcsBzr, "foo://example.com/bar.bzr", false},
 	}
 
+	defer os.Unsetenv("GIT_ALLOW_PROTOCOL")
 	os.Setenv("GIT_ALLOW_PROTOCOL", "https:foo")
 	for _, test := range tests {
 		secure := test.vcs.isSecure(test.url)
