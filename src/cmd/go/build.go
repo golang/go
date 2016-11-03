@@ -3433,10 +3433,12 @@ func (b *builder) collect(p *Package, obj, ofile string, cgoLDFLAGS, outObj []st
 		// skip "-framework X" on Darwin
 		case goos == "darwin" && f == "-framework":
 			i++
-		// skip "*.{dylib,so,dll}"
+		// skip "*.{dylib,so,dll,o,a}"
 		case strings.HasSuffix(f, ".dylib"),
 			strings.HasSuffix(f, ".so"),
-			strings.HasSuffix(f, ".dll"):
+			strings.HasSuffix(f, ".dll"),
+			strings.HasSuffix(f, ".o"),
+			strings.HasSuffix(f, ".a"):
 		// Remove any -fsanitize=foo flags.
 		// Otherwise the compiler driver thinks that we are doing final link
 		// and links sanitizer runtime into the object file. But we are not doing
