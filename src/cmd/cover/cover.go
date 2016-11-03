@@ -168,13 +168,13 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 			case *ast.CaseClause: // switch
 				for _, n := range n.List {
 					clause := n.(*ast.CaseClause)
-					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body, false)
+					clause.Body = f.addCounters(clause.Colon+1, clause.End(), clause.Body, false)
 				}
 				return f
 			case *ast.CommClause: // select
 				for _, n := range n.List {
 					clause := n.(*ast.CommClause)
-					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body, false)
+					clause.Body = f.addCounters(clause.Colon+1, clause.End(), clause.Body, false)
 				}
 				return f
 			}
