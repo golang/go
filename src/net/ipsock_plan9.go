@@ -193,6 +193,9 @@ func dialPlan9(ctx context.Context, net string, laddr, raddr Addr) (fd *netFD, e
 }
 
 func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *netFD, err error) {
+	if isWildcard(raddr) {
+		raddr = toLocal(raddr, net)
+	}
 	f, dest, proto, name, err := startPlan9(ctx, net, raddr)
 	if err != nil {
 		return nil, err
@@ -275,4 +278,29 @@ func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
 		return nil, err
 	}
 	return newFD(fd.net, name, listen, ctl, data, fd.laddr, raddr)
+}
+
+func isWildcard(a Addr) bool {
+	var wildcard bool
+	switch a := a.(type) {
+	case *TCPAddr:
+		wildcard = a.isWildcard()
+	case *UDPAddr:
+		wildcard = a.isWildcard()
+	case *IPAddr:
+		wildcard = a.isWildcard()
+	}
+	return wildcard
+}
+
+func toLocal(a Addr, net string) Addr {
+	switch a := a.(type) {
+	case *TCPAddr:
+		a.IP = loopbackIP(net)
+	case *UDPAddr:
+		a.IP = loopbackIP(net)
+	case *IPAddr:
+		a.IP = loopbackIP(net)
+	}
+	return a
 }
