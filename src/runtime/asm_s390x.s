@@ -1008,7 +1008,7 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
 TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET
 
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0

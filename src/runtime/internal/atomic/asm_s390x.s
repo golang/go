@@ -69,7 +69,7 @@ TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
 	BR	·Xadd64(SB)
 
 // func Xaddint64(ptr *int64, delta int64) int64
-TEXT ·Xaddint64(SB), NOSPLIT, $0-16
+TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 	BR	·Xadd64(SB)
 
 // func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
