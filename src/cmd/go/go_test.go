@@ -2106,11 +2106,16 @@ func TestCoverageWithCgo(t *testing.T) {
 		t.Skip("skipping because cgo not enabled")
 	}
 
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-short", "-cover", "./testdata/cgocover")
-	data := tg.getStdout() + tg.getStderr()
-	checkCoverage(tg, data)
+	for _, dir := range []string{"cgocover", "cgocover2", "cgocover3", "cgocover4"} {
+		t.Run(dir, func(t *testing.T) {
+			tg := testgo(t)
+			defer tg.cleanup()
+			tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+			tg.run("test", "-short", "-cover", dir)
+			data := tg.getStdout() + tg.getStderr()
+			checkCoverage(tg, data)
+		})
+	}
 }
 
 func TestCgoDependsOnSyscall(t *testing.T) {

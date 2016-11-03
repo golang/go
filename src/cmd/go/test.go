@@ -867,7 +867,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if len(ptest.GoFiles) > 0 {
+	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
 		pmain.imports = append(pmain.imports, ptest)
 		t.ImportTest = true
 	}
