@@ -161,7 +161,7 @@ func doMain() error {
 			}
 		} else {
 			// Otherwise, run the main packages.
-			mains := ssautil.MainPackages(initpkgs)
+			mains = ssautil.MainPackages(initpkgs)
 			if len(mains) == 0 {
 				return fmt.Errorf("no main package")
 			}
