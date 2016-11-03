@@ -17,7 +17,8 @@ func parseFile(filename string) {
 	p := noder{baseline: lexlineno}
 	file, err := syntax.ReadFile(filename, p.error, p.pragma, 0)
 	if err != nil {
-		Fatalf("syntax.ReadFile %s: %v", filename, err)
+		fmt.Printf("parse %s: %v\n", filename, err)
+		errorexit()
 	}
 
 	p.file(file)
