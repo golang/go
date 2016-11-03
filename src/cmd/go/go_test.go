@@ -2201,6 +2201,51 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 	tg.run("build", "origin")
 }
 
+func TestCgoPkgConfig(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.run("env", "PKG_CONFIG")
+	if _, err := exec.LookPath(strings.TrimSpace(tg.getStdout())); err != nil {
+		t.Skip("skipping because pkg-config could not be found")
+	}
+
+	// OpenBSD's pkg-config is strict about whitespace and only
+	// supports backslash-escaped whitespace. It does not support
+	// quotes, which the normal freedesktop.org pkg-config does
+	// support. See http://man.openbsd.org/pkg-config.1
+	tg.tempFile("foo.pc", `
+Name: foo
+Description: The foo library
+Version: 1.0.0
+Cflags: -Dhello=10 -Dworld=+32 -DDEFINED_FROM_PKG_CONFIG=hello\ world
+`)
+	tg.tempFile("foo.go", `package main
+
+/*
+#cgo pkg-config: foo
+int value() {
+	return DEFINED_FROM_PKG_CONFIG;
+}
+*/
+import "C"
+import "os"
+
+func main() {
+	if C.value() != 42 {
+		println("value() =", C.value(), "wanted 42")
+		os.Exit(1)
+	}
+}
+`)
+	tg.setenv("PKG_CONFIG_PATH", tg.path("."))
+	tg.run("run", tg.path("foo.go"))
+}
+
 // "go test -c -test.bench=XXX errors" should not hang
 func TestIssue6480(t *testing.T) {
 	tg := testgo(t)

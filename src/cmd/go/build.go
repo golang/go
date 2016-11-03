@@ -1635,6 +1635,39 @@ func (b *builder) pkgconfigCmd() string {
 	return envList("PKG_CONFIG", defaultPkgConfig)[0]
 }
 
+// splitPkgConfigOutput parses the pkg-config output into a slice of
+// flags. pkg-config always uses \ to escape special characters.
+func splitPkgConfigOutput(out []byte) []string {
+	if len(out) == 0 {
+		return nil
+	}
+	var flags []string
+	flag := make([]byte, len(out))
+	r, w := 0, 0
+	for r < len(out) {
+		switch out[r] {
+		case ' ', '\t', '\r', '\n':
+			if w > 0 {
+				flags = append(flags, string(flag[:w]))
+			}
+			w = 0
+		case '\\':
+			r++
+			fallthrough
+		default:
+			if r < len(out) {
+				flag[w] = out[r]
+				w++
+			}
+		}
+		r++
+	}
+	if w > 0 {
+		flags = append(flags, string(flag[:w]))
+	}
+	return flags
+}
+
 // Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
 func (b *builder) getPkgConfigFlags(p *Package) (cflags, ldflags []string, err error) {
 	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
@@ -1647,7 +1680,7 @@ func (b *builder) getPkgConfigFlags(p *Package) (cflags, ldflags []string, err e
 			return
 		}
 		if len(out) > 0 {
-			cflags = strings.Fields(string(out))
+			cflags = splitPkgConfigOutput(out)
 		}
 		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.pkgconfigCmd(), "--libs", pkgs)
 		if err != nil {

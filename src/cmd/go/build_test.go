@@ -6,6 +6,7 @@ package main
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -21,5 +22,23 @@ func TestRemoveDevNull(t *testing.T) {
 	_, err = os.Lstat(os.DevNull)
 	if err != nil {
 		t.Errorf("mayberemovefile(%s) did remove it; oops", os.DevNull)
+	}
+}
+
+func TestSplitPkgConfigOutput(t *testing.T) {
+	for _, test := range []struct {
+		in   []byte
+		want []string
+	}{
+		{[]byte(`-r:foo -L/usr/white\ space/lib -lfoo\ bar -lbar\ baz`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
+		{[]byte(`-lextra\ fun\ arg\\`), []string{`-lextra fun arg\`}},
+		{[]byte(`broken flag\`), []string{"broken", "flag"}},
+		{[]byte("\textra     whitespace\r\n"), []string{"extra", "whitespace"}},
+		{[]byte("     \r\n      "), nil},
+	} {
+		got := splitPkgConfigOutput(test.in)
+		if !reflect.DeepEqual(got, test.want) {
+			t.Errorf("splitPkgConfigOutput(%v) = %v; want %v", test.in, got, test.want)
+		}
 	}
 }
