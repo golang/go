@@ -4875,6 +4875,9 @@ func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
 	}) {
 		t.Fatalf("idle count before SetKeepAlivesEnabled called = %v; want 1", idle0)
 	}
+	if !waitCondition(2*time.Second, 10*time.Millisecond, ts.Config.ExportAllConnsIdle) {
+		t.Fatalf("test server has active conns")
+	}
 
 	ts.Config.SetKeepAlivesEnabled(false)
 
