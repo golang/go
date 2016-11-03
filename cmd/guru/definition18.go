@@ -177,6 +177,10 @@ func findPackageMember(ctxt *build.Context, fset *token.FileSet, srcdir, pkg, me
 						if spec.Name.Name == member {
 							return token.TYPE, spec.Name.Pos(), nil
 						}
+					case *ast.AliasSpec:
+						if spec.Name.Name == member {
+							return decl.Tok, spec.Name.Pos(), nil
+						}
 					}
 				}
 			case *ast.FuncDecl:

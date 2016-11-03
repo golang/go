@@ -64,7 +64,7 @@ func callees(q *Query) error {
 	// e.g.  f := func(){}; f().
 	switch funexpr := unparen(e.Fun).(type) {
 	case *ast.Ident:
-		switch obj := qpos.info.Uses[funexpr].(type) {
+		switch obj := original(qpos.info.Uses[funexpr]).(type) {
 		case *types.Builtin:
 			// Reject calls to built-ins.
 			return fmt.Errorf("this is a call to the built-in '%s' operator", obj.Name())
@@ -82,7 +82,7 @@ func callees(q *Query) error {
 			// qualified identifier.
 			// May refer to top level function variable
 			// or to top level function.
-			callee := qpos.info.Uses[funexpr.Sel]
+			callee := original(qpos.info.Uses[funexpr.Sel])
 			if obj, ok := callee.(*types.Func); ok {
 				q.Output(lprog.Fset, &calleesTypesResult{
 					site:   e,
@@ -257,3 +257,11 @@ type byFuncPos []*ssa.Function
 func (a byFuncPos) Len() int           { return len(a) }
 func (a byFuncPos) Less(i, j int) bool { return a[i].Pos() < a[j].Pos() }
 func (a byFuncPos) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+// TODO(adonovan): use types.Original when available.
+func original(obj types.Object) types.Object {
+	if alias, ok := obj.(*types.Alias); ok {
+		return alias.Orig()
+	}
+	return obj
+}

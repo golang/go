@@ -19,7 +19,7 @@ import of package "lib"
 	var   Var    int
 
 -------- @describe ref-const --------
-reference to const lib.Const untyped int
+reference to const lib.Const untyped int of value 3
 defined here
 
 -------- @describe ref-func --------

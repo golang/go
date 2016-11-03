@@ -30,16 +30,16 @@ import of package "unsafe"
 reference to built-in type float64
 
 -------- @describe const-ref-iota --------
-reference to const iota untyped int of constant value 0
+reference to const iota untyped int of value 0
 
 -------- @describe const-def-pi --------
-definition of const pi untyped float
+definition of const pi untyped float of value 3.141
 
 -------- @describe const-def-pie --------
-definition of const pie cake
+definition of const pie cake of value 3.141
 
 -------- @describe const-ref-pi --------
-reference to const pi untyped float of constant value 3.141
+reference to const pi untyped float of value 3.141
 defined here
 
 -------- @describe func-def-main --------
@@ -143,13 +143,13 @@ Methods:
 	method (I) f()
 
 -------- @describe const-local-pi --------
-definition of const localpi untyped float
+definition of const localpi untyped float of value 3.141
 
 -------- @describe const-local-pie --------
-definition of const localpie cake
+definition of const localpie cake of value 3.141
 
 -------- @describe const-ref-localpi --------
-reference to const localpi untyped float of constant value 3.141
+reference to const localpi untyped float of value 3.141
 defined here
 
 -------- @describe type-def-T --------
@@ -162,10 +162,10 @@ defined as int
 No methods.
 
 -------- @describe const-expr --------
-binary * operation of constant value 6
+binary * operation of value 6
 
 -------- @describe const-expr2 --------
-binary - operation of constant value -2
+binary - operation of value -2
 
 -------- @describe map-lookup,ok --------
 index expression of type (*int, bool)

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !go1.8
-
 package main
 
 import (
@@ -27,6 +25,12 @@ import (
 
 // Referrers reports all identifiers that resolve to the same object
 // as the queried identifier, within any package in the workspace.
+//
+// Go 1.8 aliases are not treated specially.  A referrers query on an
+// object will report declarations of aliases of that object, but not
+// uses of those aliases; for that, a second query is needed.
+// Similarly, a query on an alias will report all uses of the alias but
+// not of the original object.
 func referrers(q *Query) error {
 	fset := token.NewFileSet()
 	lconf := loader.Config{Fset: fset, Build: q.Build}

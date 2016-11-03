@@ -159,6 +159,11 @@ func findInterestingNode(pkginfo *loader.PackageInfo, path []ast.Node) ([]ast.No
 			}
 			return path, actionUnknown // uninteresting
 
+		case *ast.AliasSpec:
+			// Descend to alias name.
+			path = append([]ast.Node{n.Name}, path...)
+			continue
+
 		case *ast.TypeSpec:
 			// Descend to type name.
 			path = append([]ast.Node{n.Name}, path...)
@@ -217,7 +222,7 @@ func findInterestingNode(pkginfo *loader.PackageInfo, path []ast.Node) ([]ast.No
 			continue
 
 		case *ast.Ident:
-			switch pkginfo.ObjectOf(n).(type) {
+			switch original(pkginfo.ObjectOf(n)).(type) {
 			case *types.PkgName:
 				return path, actionPackage
 
@@ -334,6 +339,9 @@ func describeValue(qpos *queryPos, path []ast.Node) (*describeValueResult, error
 		t = types.Typ[types.Invalid]
 	}
 	constVal := qpos.info.Types[expr].Value
+	if c, ok := original(obj).(*types.Const); ok {
+		constVal = c.Val()
+	}
 
 	return &describeValueResult{
 		qpos:     qpos,
@@ -351,7 +359,7 @@ type describeValueResult struct {
 	expr     ast.Expr     // query node
 	typ      types.Type   // type of expression
 	constVal exact.Value  // value of expression, if constant
-	obj      types.Object // var/func/const object, if expr was Ident
+	obj      types.Object // var/func/const object, if expr was Ident, or alias to same
 	methods  []*types.Selection
 	fields   []describeField
 }
@@ -359,21 +367,24 @@ type describeValueResult struct {
 func (r *describeValueResult) PrintPlain(printf printfFunc) {
 	var prefix, suffix string
 	if r.constVal != nil {
-		suffix = fmt.Sprintf(" of constant value %s", constValString(r.constVal))
-	}
-	switch obj := r.obj.(type) {
-	case *types.Func:
-		if recv := obj.Type().(*types.Signature).Recv(); recv != nil {
-			if _, ok := recv.Type().Underlying().(*types.Interface); ok {
-				prefix = "interface method "
-			} else {
-				prefix = "method "
-			}
-		}
+		suffix = fmt.Sprintf(" of value %s", r.constVal)
 	}
 
 	// Describe the expression.
 	if r.obj != nil {
+		switch obj := r.obj.(type) {
+		case *types.Func:
+			if recv := obj.Type().(*types.Signature).Recv(); recv != nil {
+				if _, ok := recv.Type().Underlying().(*types.Interface); ok {
+					prefix = "interface method "
+				} else {
+					prefix = "method "
+				}
+			}
+		case *types.Alias:
+			prefix = tokenOf(obj.Orig()) + " "
+		}
+
 		if r.obj.Pos() == r.expr.Pos() {
 			// defining ident
 			printf(r.expr, "definition of %s%s%s", prefix, r.qpos.objectString(r.obj), suffix)
@@ -436,6 +447,8 @@ func describeType(qpos *queryPos, path []ast.Node) (*describeTypeResult, error) 
 			isDef := t.Obj().Pos() == n.Pos() // see caveats at isDef above
 			if isDef {
 				description = "definition of "
+			} else if _, ok := qpos.info.ObjectOf(n).(*types.Alias); ok {
+				description = "alias of "
 			} else {
 				description = "reference to "
 			}
@@ -659,25 +672,21 @@ func (r *describePackageResult) PrintPlain(printf printfFunc) {
 	}
 }
 
-// Helper function to adjust go1.5 numeric go/constant formatting.
-// Can be removed once we give up compatibility with go1.5.
-func constValString(v exact.Value) string {
-	if v.Kind() == exact.Float {
-		// In go1.5, go/constant floating-point values are printed
-		// as fractions. Make them appear as floating-point numbers.
-		f, _ := exact.Float64Val(v)
-		return fmt.Sprintf("%g", f)
-	}
-	return v.String()
-}
-
 func formatMember(obj types.Object, maxname int) string {
 	qualifier := types.RelativeTo(obj.Pkg())
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%-5s %-*s", tokenOf(obj), maxname, obj.Name())
 	switch obj := obj.(type) {
+	case *types.Alias:
+		buf.WriteString(" => ")
+		if orig := obj.Orig(); orig != nil {
+			fmt.Fprintf(&buf, "%s.%s", orig.Pkg().Name(), orig.Name())
+		} else {
+			buf.WriteByte('?')
+		}
+
 	case *types.Const:
-		fmt.Fprintf(&buf, " %s = %s", types.TypeString(obj.Type(), qualifier), constValString(obj.Val()))
+		fmt.Fprintf(&buf, " %s = %s", types.TypeString(obj.Type(), qualifier), obj.Val())
 
 	case *types.Func:
 		fmt.Fprintf(&buf, " %s", types.TypeString(obj.Type(), qualifier))
@@ -714,7 +723,7 @@ func (r *describePackageResult) JSON(fset *token.FileSet) []byte {
 		var val string
 		switch mem := mem.obj.(type) {
 		case *types.Const:
-			val = constValString(mem.Val())
+			val = mem.Val().String()
 		case *types.TypeName:
 			typ = typ.Underlying()
 		}
@@ -739,7 +748,7 @@ func (r *describePackageResult) JSON(fset *token.FileSet) []byte {
 }
 
 func tokenOf(o types.Object) string {
-	switch o.(type) {
+	switch o := o.(type) {
 	case *types.Func:
 		return "func"
 	case *types.Var:
@@ -756,6 +765,11 @@ func tokenOf(o types.Object) string {
 		return "nil"
 	case *types.Label:
 		return "label"
+	case *types.Alias:
+		if o.Orig() == nil {
+			return "alias"
+		}
+		return tokenOf(o.Orig())
 	}
 	panic(o)
 }

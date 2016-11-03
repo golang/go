@@ -334,6 +334,9 @@ func describeValue(qpos *queryPos, path []ast.Node) (*describeValueResult, error
 		t = types.Typ[types.Invalid]
 	}
 	constVal := qpos.info.Types[expr].Value
+	if c, ok := obj.(*types.Const); ok {
+		constVal = c.Val()
+	}
 
 	return &describeValueResult{
 		qpos:     qpos,
@@ -359,7 +362,7 @@ type describeValueResult struct {
 func (r *describeValueResult) PrintPlain(printf printfFunc) {
 	var prefix, suffix string
 	if r.constVal != nil {
-		suffix = fmt.Sprintf(" of constant value %s", constValString(r.constVal))
+		suffix = fmt.Sprintf(" of value %s", r.constVal)
 	}
 	switch obj := r.obj.(type) {
 	case *types.Func:
@@ -659,25 +662,13 @@ func (r *describePackageResult) PrintPlain(printf printfFunc) {
 	}
 }
 
-// Helper function to adjust go1.5 numeric go/constant formatting.
-// Can be removed once we give up compatibility with go1.5.
-func constValString(v exact.Value) string {
-	if v.Kind() == exact.Float {
-		// In go1.5, go/constant floating-point values are printed
-		// as fractions. Make them appear as floating-point numbers.
-		f, _ := exact.Float64Val(v)
-		return fmt.Sprintf("%g", f)
-	}
-	return v.String()
-}
-
 func formatMember(obj types.Object, maxname int) string {
 	qualifier := types.RelativeTo(obj.Pkg())
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%-5s %-*s", tokenOf(obj), maxname, obj.Name())
 	switch obj := obj.(type) {
 	case *types.Const:
-		fmt.Fprintf(&buf, " %s = %s", types.TypeString(obj.Type(), qualifier), constValString(obj.Val()))
+		fmt.Fprintf(&buf, " %s = %s", types.TypeString(obj.Type(), qualifier), obj.Val())
 
 	case *types.Func:
 		fmt.Fprintf(&buf, " %s", types.TypeString(obj.Type(), qualifier))
@@ -714,7 +705,7 @@ func (r *describePackageResult) JSON(fset *token.FileSet) []byte {
 		var val string
 		switch mem := mem.obj.(type) {
 		case *types.Const:
-			val = constValString(mem.Val())
+			val = mem.Val().String()
 		case *types.TypeName:
 			typ = typ.Underlying()
 		}
