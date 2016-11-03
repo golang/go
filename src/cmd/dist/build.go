@@ -57,6 +57,8 @@ var okgoarch = []string{
 	"amd64p32",
 	"arm",
 	"arm64",
+	"mips",
+	"mipsle",
 	"mips64",
 	"mips64le",
 	"ppc64",
