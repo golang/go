@@ -102,7 +102,7 @@ func (h HostnameError) Error() string {
 
 // UnknownAuthorityError results when the certificate issuer is unknown
 type UnknownAuthorityError struct {
-	cert *Certificate
+	Cert *Certificate
 	// hintErr contains an error that may be helpful in determining why an
 	// authority wasn't found.
 	hintErr error
