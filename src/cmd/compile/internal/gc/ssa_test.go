@@ -16,9 +16,11 @@ import (
 // TODO: move all these tests elsewhere?
 // Perhaps teach test/run.go how to run them with a new action verb.
 func runTest(t *testing.T, filename string) {
+	t.Parallel()
 	doTest(t, filename, "run")
 }
 func buildTest(t *testing.T, filename string) {
+	t.Parallel()
 	doTest(t, filename, "build")
 }
 func doTest(t *testing.T, filename string, kind string) {
