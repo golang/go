@@ -105,7 +105,7 @@ func (w whitelist) load(goos string, goarch string) {
 	// Look up whether goarch is a 32-bit or 64-bit architecture.
 	archbits, ok := nbits[goarch]
 	if !ok {
-		log.Fatal("unknown bitwidth for arch %q", goarch)
+		log.Fatalf("unknown bitwidth for arch %q", goarch)
 	}
 
 	// Look up whether goarch has a shared arch suffix,
@@ -197,10 +197,6 @@ func vetPlatforms(pp []platform) {
 }
 
 func (p platform) vet(ncpus int) {
-	if p.arch == "s390x" {
-		// TODO: reinstate when s390x gets vet support (issue 15454)
-		return
-	}
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
 
@@ -329,6 +325,7 @@ var nbits = map[string]int{
 	"mips64le": 64,
 	"ppc64":    64,
 	"ppc64le":  64,
+	"s390x":    64,
 }
 
 // archAsmX maps architectures to the suffix usually used for their assembly files,
