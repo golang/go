@@ -28,6 +28,9 @@ import (
 	"internal/pprof/profile"
 )
 
+// cpuProfileHandler is the Go pprof CPU profile handler URL.
+const cpuProfileHandler = "/debug/pprof/profile"
+
 // PProf acquires a profile, and symbolizes it using a profile
 // manager. Then it generates a report formatted according to the
 // options selected through the flags package.
@@ -160,10 +163,10 @@ func adjustURL(source string, sec int, ui plugin.UI) (adjusted, host string, dur
 	switch strings.ToLower(url.Path) {
 	case "", "/":
 		// Apply default /profilez.
-		url.Path = "/profilez"
+		url.Path = cpuProfileHandler
 	case "/protoz":
 		// Rewrite to /profilez?type=proto
-		url.Path = "/profilez"
+		url.Path = cpuProfileHandler
 		values.Set("type", "proto")
 	}
 
