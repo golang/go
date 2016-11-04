@@ -16,6 +16,7 @@ import (
 // TestMemmoveOverflow maps 3GB of memory and calls memmove on
 // the corresponding slice.
 func TestMemmoveOverflow(t *testing.T) {
+	t.Parallel()
 	// Create a temporary file.
 	tmp, err := ioutil.TempFile("", "go-memmovetest")
 	if err != nil {

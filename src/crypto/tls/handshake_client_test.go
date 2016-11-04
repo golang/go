@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -420,7 +421,26 @@ func (test *clientTest) run(t *testing.T, write bool) {
 	}
 }
 
+var (
+	didParMu sync.Mutex
+	didPar   = map[*testing.T]bool{}
+)
+
+// setParallel calls t.Parallel once. If you call it twice, it would
+// panic.
+func setParallel(t *testing.T) {
+	didParMu.Lock()
+	v := didPar[t]
+	didPar[t] = true
+	didParMu.Unlock()
+	if !v {
+		t.Parallel()
+	}
+}
+
 func runClientTestForVersion(t *testing.T, template *clientTest, prefix, option string) {
+	setParallel(t)
+
 	test := *template
 	test.name = prefix + test.name
 	if len(test.command) == 0 {
@@ -1356,6 +1376,7 @@ func TestAlertFlushing(t *testing.T) {
 }
 
 func TestHandshakeRace(t *testing.T) {
+	t.Parallel()
 	// This test races a Read and Write to try and complete a handshake in
 	// order to provide some evidence that there are no races or deadlocks
 	// in the handshake locking.

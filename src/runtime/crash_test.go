@@ -401,6 +401,7 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 }
 
 func TestNetpollDeadlock(t *testing.T) {
+	t.Parallel()
 	output := runTestProg(t, "testprognet", "NetpollDeadlock")
 	want := "done\n"
 	if !strings.HasSuffix(output, want) {
@@ -409,6 +410,7 @@ func TestNetpollDeadlock(t *testing.T) {
 }
 
 func TestPanicTraceback(t *testing.T) {
+	t.Parallel()
 	output := runTestProg(t, "testprog", "PanicTraceback")
 	want := "panic: hello"
 	if !strings.HasPrefix(output, want) {

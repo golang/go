@@ -125,6 +125,7 @@ func TestMultipartSlowInput(t *testing.T) {
 }
 
 func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
+	t.Parallel()
 	reader := NewReader(r, "MyBoundary")
 	buf := new(bytes.Buffer)
 
@@ -755,6 +756,7 @@ func partsFromReader(r *Reader) ([]headerBody, error) {
 }
 
 func TestParseAllSizes(t *testing.T) {
+	t.Parallel()
 	const maxSize = 5 << 10
 	var buf bytes.Buffer
 	body := strings.Repeat("a", maxSize)

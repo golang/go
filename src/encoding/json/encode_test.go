@@ -378,6 +378,7 @@ func TestDuplicatedFieldDisappears(t *testing.T) {
 }
 
 func TestStringBytes(t *testing.T) {
+	t.Parallel()
 	// Test that encodeState.stringBytes and encodeState.string use the same encoding.
 	var r []rune
 	for i := '\u0000'; i <= unicode.MaxRune; i++ {
@@ -616,6 +617,7 @@ var badFloatREs = []*regexp.Regexp{
 }
 
 func TestMarshalFloat(t *testing.T) {
+	t.Parallel()
 	nfail := 0
 	test := func(f float64, bits int) {
 		vf := interface{}(f)

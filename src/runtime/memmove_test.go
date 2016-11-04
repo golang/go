@@ -13,6 +13,7 @@ import (
 )
 
 func TestMemmove(t *testing.T) {
+	t.Parallel()
 	size := 256
 	if testing.Short() {
 		size = 128 + 16
@@ -51,6 +52,7 @@ func TestMemmove(t *testing.T) {
 }
 
 func TestMemmoveAlias(t *testing.T) {
+	t.Parallel()
 	size := 256
 	if testing.Short() {
 		size = 128 + 16
@@ -85,6 +87,7 @@ func TestMemmoveAlias(t *testing.T) {
 }
 
 func TestMemmoveLarge0x180000(t *testing.T) {
+	t.Parallel()
 	if race.Enabled {
 		t.Skip("skipping large memmove test under race detector")
 	}
@@ -92,6 +95,7 @@ func TestMemmoveLarge0x180000(t *testing.T) {
 }
 
 func TestMemmoveOverlapLarge0x120000(t *testing.T) {
+	t.Parallel()
 	if race.Enabled {
 		t.Skip("skipping large memmove test under race detector")
 	}
