@@ -5913,3 +5913,15 @@ func TestSwapper(t *testing.T) {
 		}
 	}
 }
+
+func TestInaccessibleField(t *testing.T) {
+	var b Buffer
+	var localBuffer struct {
+		buf []byte
+	}
+	lv := ValueOf(&localBuffer).Elem()
+	rv := ValueOf(b)
+	shouldPanic(func() {
+		lv.Set(rv)
+	})
+}
