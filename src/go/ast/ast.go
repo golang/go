@@ -818,7 +818,7 @@ func (*RangeStmt) stmtNode()      {}
 // constant, type, or variable declaration.
 //
 type (
-	// The Spec type stands for any of *ImportSpec, *AliasSpec, *ValueSpec, or *TypeSpec.
+	// The Spec type stands for any of *ImportSpec, *ValueSpec, and *TypeSpec.
 	Spec interface {
 		Node
 		specNode()
@@ -831,14 +831,6 @@ type (
 		Path    *BasicLit     // import path
 		Comment *CommentGroup // line comments; or nil
 		EndPos  token.Pos     // end of spec (overrides Path.Pos if nonzero)
-	}
-
-	// An AliasSpec node represents a constant, type, variable, or function alias.
-	AliasSpec struct {
-		Doc     *CommentGroup // associated documentation; or nil
-		Name    *Ident        // alias name
-		Orig    Expr          // original (possibly qualified) name
-		Comment *CommentGroup // line comments; or nil
 	}
 
 	// A ValueSpec node represents a constant or variable declaration
@@ -869,7 +861,6 @@ func (s *ImportSpec) Pos() token.Pos {
 	}
 	return s.Path.Pos()
 }
-func (s *AliasSpec) Pos() token.Pos { return s.Name.Pos() }
 func (s *ValueSpec) Pos() token.Pos { return s.Names[0].Pos() }
 func (s *TypeSpec) Pos() token.Pos  { return s.Name.Pos() }
 
@@ -879,7 +870,7 @@ func (s *ImportSpec) End() token.Pos {
 	}
 	return s.Path.End()
 }
-func (s *AliasSpec) End() token.Pos { return s.Orig.End() }
+
 func (s *ValueSpec) End() token.Pos {
 	if n := len(s.Values); n > 0 {
 		return s.Values[n-1].End()
@@ -895,7 +886,6 @@ func (s *TypeSpec) End() token.Pos { return s.Type.End() }
 // assigned to a Spec.
 //
 func (*ImportSpec) specNode() {}
-func (*AliasSpec) specNode()  {}
 func (*ValueSpec) specNode()  {}
 func (*TypeSpec) specNode()   {}
 
@@ -911,22 +901,20 @@ type (
 	}
 
 	// A GenDecl node (generic declaration node) represents an import,
-	// constant, type, or variable declaration, or a function alias
-	// declaration. A valid Lparen position (Lparen.Line > 0) indicates
-	// a parenthesized declaration.
+	// constant, type or variable declaration. A valid Lparen position
+	// (Lparen.Line > 0) indicates a parenthesized declaration.
 	//
 	// Relationship between Tok value and Specs element type:
 	//
 	//	token.IMPORT  *ImportSpec
-	//	token.CONST   *ValueSpec or *AliasSpec
-	//	token.TYPE    *TypeSpec  or *AliasSpec
-	//	token.VAR     *ValueSpec or *AliasSpec
-	//	token.FUNC                  *AliasSpec
+	//	token.CONST   *ValueSpec
+	//	token.TYPE    *TypeSpec
+	//	token.VAR     *ValueSpec
 	//
 	GenDecl struct {
 		Doc    *CommentGroup // associated documentation; or nil
 		TokPos token.Pos     // position of Tok
-		Tok    token.Token   // IMPORT, CONST, TYPE, VAR, FUNC (alias decl only)
+		Tok    token.Token   // IMPORT, CONST, TYPE, VAR
 		Lparen token.Pos     // position of '(', if any
 		Specs  []Spec
 		Rparen token.Pos // position of ')', if any

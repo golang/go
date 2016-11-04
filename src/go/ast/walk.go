@@ -297,16 +297,6 @@ func Walk(v Visitor, node Node) {
 			Walk(v, n.Comment)
 		}
 
-	case *AliasSpec:
-		if n.Doc != nil {
-			Walk(v, n.Doc)
-		}
-		Walk(v, n.Name)
-		Walk(v, n.Orig)
-		if n.Comment != nil {
-			Walk(v, n.Comment)
-		}
-
 	case *ValueSpec:
 		if n.Doc != nil {
 			Walk(v, n.Doc)
