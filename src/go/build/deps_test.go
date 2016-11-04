@@ -93,7 +93,7 @@ var pkgDeps = map[string][]string{
 	// L3 adds reflection and some basic utility packages
 	// and interface definitions, but nothing that makes
 	// system calls.
-	"crypto":              {"L2", "hash"},          // interfaces
+	"crypto":              {"L2", "hash"}, // interfaces
 	"crypto/cipher":       {"L2", "crypto/subtle"},
 	"crypto/subtle":       {},
 	"encoding/base32":     {"L2"},
@@ -171,13 +171,14 @@ var pkgDeps = map[string][]string{
 	"log": {"L1", "os", "fmt", "time"},
 
 	// Packages used by testing must be low-level (L2+fmt).
-	"regexp":                       {"L2", "regexp/syntax"},
-	"regexp/syntax":                {"L2"},
-	"runtime/debug":                {"L2", "fmt", "io/ioutil", "os", "time"},
-	"runtime/pprof/internal/gzip0": {"L2"},
-	"runtime/pprof":                {"L2", "fmt", "os", "text/tabwriter"},
-	"runtime/trace":                {"L0"},
-	"text/tabwriter":               {"L2"},
+	"regexp":                            {"L2", "regexp/syntax"},
+	"regexp/syntax":                     {"L2"},
+	"runtime/debug":                     {"L2", "fmt", "io/ioutil", "os", "time"},
+	"runtime/pprof/internal/gzip0":      {"L2"},
+	"runtime/pprof/internal/protopprof": {"L2", "fmt", "internal/pprof/profile", "os", "time"},
+	"runtime/pprof":                     {"L2", "fmt", "os", "text/tabwriter"},
+	"runtime/trace":                     {"L0"},
+	"text/tabwriter":                    {"L2"},
 
 	"testing":          {"L2", "context", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":   {"L2", "log"},
