@@ -325,10 +325,15 @@ func isRuntimeDepPkg(pkg string) bool {
 }
 
 // detect too-far jumps in function s, and add trampolines if necessary
-// (currently only ARM supports trampoline insertion)
+// ARM supports trampoline insertion for internal and external linking
+// PPC64 & PPC64LE support trampoline insertion for internal linking only
 func trampoline(ctxt *Link, s *Symbol) {
 	if Thearch.Trampoline == nil {
 		return // no need or no support of trampolines on this arch
+	}
+
+	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
+		return
 	}
 
 	for ri := range s.R {
