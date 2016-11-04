@@ -84,6 +84,7 @@ func main() {
 `
 
 func TestGdbPython(t *testing.T) {
+	t.Parallel()
 	checkGdbEnvironment(t)
 	checkGdbVersion(t)
 	checkGdbPython(t)
@@ -218,6 +219,7 @@ func main() {
 // TestGdbBacktrace tests that gdb can unwind the stack correctly
 // using only the DWARF debug info.
 func TestGdbBacktrace(t *testing.T) {
+	t.Parallel()
 	checkGdbEnvironment(t)
 	checkGdbVersion(t)
 

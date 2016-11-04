@@ -99,6 +99,7 @@ var keyPairTests = []struct {
 }
 
 func TestX509KeyPair(t *testing.T) {
+	t.Parallel()
 	var pem []byte
 	for _, test := range keyPairTests {
 		pem = []byte(test.cert + test.key)

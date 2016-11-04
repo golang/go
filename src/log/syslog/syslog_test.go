@@ -134,6 +134,7 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 }
 
 func TestWithSimulated(t *testing.T) {
+	t.Parallel()
 	msg := "Test 123"
 	var transport []string
 	for _, n := range []string{"unix", "unixgram", "udp", "tcp"} {
@@ -262,6 +263,7 @@ func check(t *testing.T, in, out string) {
 }
 
 func TestWrite(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		pri Priority
 		pre string

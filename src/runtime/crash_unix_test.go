@@ -37,6 +37,8 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	checkStaleRuntime(t)
 
+	t.Parallel()
+
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)

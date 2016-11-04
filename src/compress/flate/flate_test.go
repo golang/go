@@ -281,6 +281,7 @@ func TestTruncatedStreams(t *testing.T) {
 //
 // See https://github.com/google/go-github/pull/317 for background.
 func TestReaderEarlyEOF(t *testing.T) {
+	t.Parallel()
 	testSizes := []int{
 		1, 2, 3, 4, 5, 6, 7, 8,
 		100, 1000, 10000, 100000,

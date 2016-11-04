@@ -342,6 +342,7 @@ func testToFromWithLimit(t *testing.T, input []byte, name string, limit [11]int)
 }
 
 func TestDeflateInflate(t *testing.T) {
+	t.Parallel()
 	for i, h := range deflateInflateTests {
 		testToFromWithLimit(t, h.in, fmt.Sprintf("#%d", i), [11]int{})
 	}
@@ -376,6 +377,7 @@ var deflateInflateStringTests = []deflateInflateStringTest{
 }
 
 func TestDeflateInflateString(t *testing.T) {
+	t.Parallel()
 	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in short mode")
 	}
@@ -463,6 +465,7 @@ func TestRegression2508(t *testing.T) {
 }
 
 func TestWriterReset(t *testing.T) {
+	t.Parallel()
 	for level := 0; level <= 9; level++ {
 		if testing.Short() && level > 1 {
 			break
@@ -559,6 +562,7 @@ func testResetOutput(t *testing.T, newWriter func(w io.Writer) (*Writer, error))
 // compressor.encSpeed method (0, 16, 128), as well as near maxStoreBlockSize
 // (65535).
 func TestBestSpeed(t *testing.T) {
+	t.Parallel()
 	abc := make([]byte, 128)
 	for i := range abc {
 		abc[i] = byte(i)
@@ -648,6 +652,7 @@ func (w *failWriter) Write(b []byte) (int, error) {
 }
 
 func TestWriterPersistentError(t *testing.T) {
+	t.Parallel()
 	d, err := ioutil.ReadFile("../testdata/Mark.Twain-Tom.Sawyer.txt")
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
@@ -684,6 +689,7 @@ func TestWriterPersistentError(t *testing.T) {
 }
 
 func TestBestSpeedMatch(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		previous, current []byte
 		t, s, want        int32
@@ -800,6 +806,7 @@ func TestBestSpeedMatch(t *testing.T) {
 }
 
 func TestBestSpeedMaxMatchOffset(t *testing.T) {
+	t.Parallel()
 	const abc, xyz = "abcdefgh", "stuvwxyz"
 	for _, matchBefore := range []bool{false, true} {
 		for _, extra := range []int{0, inputMargin - 1, inputMargin, inputMargin + 1, 2 * inputMargin} {
