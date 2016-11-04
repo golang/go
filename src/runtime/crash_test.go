@@ -141,7 +141,6 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	cmd.Dir = "testdata/" + binary
 	out, err := testEnv(cmd).CombinedOutput()
 	if err != nil {
-		exe = ""
 		target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
 		testprog.target[name] = target
 		return "", target.err
