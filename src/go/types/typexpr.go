@@ -633,8 +633,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 	// current field typ and tag
 	var typ Type
 	var tag string
-	// anonymous != nil indicates an anonymous field.
-	add := func(field *ast.Field, ident *ast.Ident, anonymous *TypeName, pos token.Pos) {
+	add := func(field *ast.Field, ident *ast.Ident, anonymous bool, pos token.Pos) {
 		if tag != "" && tags == nil {
 			tags = make([]string, len(fields))
 		}
@@ -643,14 +642,11 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 		}
 
 		name := ident.Name
-		fld := NewField(pos, check.pkg, name, typ, anonymous != nil)
+		fld := NewField(pos, check.pkg, name, typ, anonymous)
 		// spec: "Within a struct, non-blank field names must be unique."
 		if name == "_" || check.declareInSet(&fset, pos, fld) {
 			fields = append(fields, fld)
 			check.recordDef(ident, fld)
-		}
-		if anonymous != nil {
-			check.recordUse(ident, anonymous)
 		}
 	}
 
@@ -660,7 +656,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 		if len(f.Names) > 0 {
 			// named fields
 			for _, name := range f.Names {
-				add(f, name, nil, name.Pos())
+				add(f, name, false, name.Pos())
 			}
 		} else {
 			// anonymous field
@@ -678,7 +674,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 					check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
 					continue
 				}
-				add(f, name, Universe.Lookup(t.name).(*TypeName), pos)
+				add(f, name, true, pos)
 
 			case *Named:
 				// spec: "An embedded type must be specified as a type name
@@ -700,7 +696,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 						continue
 					}
 				}
-				add(f, name, t.obj, pos)
+				add(f, name, true, pos)
 
 			default:
 				check.invalidAST(pos, "anonymous field type %s must be named", typ)
