@@ -589,6 +589,7 @@ var readResponseCloseInMiddleTests = []struct {
 // reading only part of its contents advances the read to the end of
 // the request, right up until the next request.
 func TestReadResponseCloseInMiddle(t *testing.T) {
+	t.Parallel()
 	for _, test := range readResponseCloseInMiddleTests {
 		fatalf := func(format string, args ...interface{}) {
 			args = append([]interface{}{test.chunked, test.compressed}, args...)

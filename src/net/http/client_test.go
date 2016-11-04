@@ -197,6 +197,7 @@ func TestPostFormRequestFormat(t *testing.T) {
 }
 
 func TestClientRedirects(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	var ts *httptest.Server
 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -294,6 +295,7 @@ func TestClientRedirects(t *testing.T) {
 }
 
 func TestClientRedirectContext(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		Redirect(w, r, "/", StatusTemporaryRedirect)
@@ -462,6 +464,7 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
 }
 
 func TestClientRedirectUseResponse(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	const body = "Hello, world."
 	var ts *httptest.Server
@@ -811,6 +814,7 @@ func TestClientWrites(t *testing.T) {
 }
 
 func TestClientInsecureTransport(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Write([]byte("Hello"))
@@ -1269,6 +1273,7 @@ func testClientTimeout_Headers(t *testing.T, h2 bool) {
 func TestClientRedirectEatsBody_h1(t *testing.T) { testClientRedirectEatsBody(t, h1Mode) }
 func TestClientRedirectEatsBody_h2(t *testing.T) { testClientRedirectEatsBody(t, h2Mode) }
 func testClientRedirectEatsBody(t *testing.T, h2 bool) {
+	setParallel(t)
 	defer afterTest(t)
 	saw := make(chan string, 2)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1580,6 +1585,7 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 }
 
 func TestClientRedirectTypes(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 
 	tests := [...]struct {

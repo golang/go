@@ -18,6 +18,7 @@ import (
 )
 
 func TestNextProtoUpgrade(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "path=%s,proto=", r.URL.Path)
