@@ -22,8 +22,7 @@ const (
 	_IncOp
 	_Assign
 	_Define
-	_Larrow
-	_Rarrow
+	_Arrow
 	_Star
 
 	// delimitors
@@ -70,12 +69,6 @@ const (
 )
 
 const (
-	// for AliasDecl
-	Const = _Const
-	Type  = _Type
-	Var   = _Var
-	Func  = _Func
-
 	// for BranchStmt
 	Break       = _Break
 	Continue    = _Continue
@@ -101,8 +94,7 @@ var tokstrings = [...]string{
 	_IncOp:    "opop",
 	_Assign:   "=",
 	_Define:   ":=",
-	_Larrow:   "<-",
-	_Rarrow:   "=>",
+	_Arrow:    "<-",
 	_Star:     "*",
 
 	// delimitors

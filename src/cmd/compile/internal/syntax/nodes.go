@@ -25,21 +25,14 @@ func (n *node) Line() uint32 {
 	return n.line
 }
 
-// TODO(gri) clean up init/initFrom once we have a good file pos story
 func (n *node) init(p *parser) {
 	n.pos = uint32(p.pos)
 	n.line = uint32(p.line)
 }
 
-func (n *node) initFrom(a *node) {
-	n.pos = a.pos
-	n.line = a.line
-}
-
 // ----------------------------------------------------------------------------
 // Files
 
-// package PkgName; DeclList[0], DeclList[1], ...
 type File struct {
 	PkgName  *Name
 	DeclList []Decl
@@ -56,8 +49,6 @@ type (
 		aDecl()
 	}
 
-	//              Path
-	// LocalPkgName Path
 	ImportDecl struct {
 		LocalPkgName *Name // including "."; nil means no rename present
 		Path         *BasicLit
@@ -65,18 +56,6 @@ type (
 		decl
 	}
 
-	// Name => Orig
-	AliasDecl struct {
-		Tok   token // Const, Type, Var, or Func
-		Name  *Name
-		Orig  Expr
-		Group *Group // nil means not part of a group
-		decl
-	}
-
-	// NameList
-	// NameList      = Values
-	// NameList Type = Values
 	ConstDecl struct {
 		NameList []*Name
 		Type     Expr   // nil means no type
@@ -85,7 +64,6 @@ type (
 		decl
 	}
 
-	// Name Type
 	TypeDecl struct {
 		Name   *Name
 		Type   Expr
@@ -94,9 +72,6 @@ type (
 		decl
 	}
 
-	// NameList Type
-	// NameList Type = Values
-	// NameList      = Values
 	VarDecl struct {
 		NameList []*Name
 		Type     Expr   // nil means no type
@@ -105,10 +80,6 @@ type (
 		decl
 	}
 
-	// func          Name Type { Body }
-	// func          Name Type
-	// func Receiver Name Type { Body }
-	// func Receiver Name Type
 	FuncDecl struct {
 		Attr    map[string]bool // go:attr map
 		Recv    *Field          // nil means regular function
@@ -448,8 +419,6 @@ func (simpleStmt) aSimpleStmt() {}
 // ----------------------------------------------------------------------------
 // Comments
 
-// TODO(gri) Consider renaming to CommentPos, CommentPlacement, etc.
-//           Kind = Above doesn't make much sense.
 type CommentKind uint
 
 const (

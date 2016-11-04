@@ -229,7 +229,7 @@ redo:
 			goto assignop
 		}
 		if c == '-' {
-			s.tok = _Larrow
+			s.tok = _Arrow
 			break
 		}
 		s.ungetr()
@@ -253,14 +253,9 @@ redo:
 		s.tok = _Operator
 
 	case '=':
-		c = s.getr()
-		if c == '=' {
+		if s.getr() == '=' {
 			s.op, s.prec = Eql, precCmp
 			s.tok = _Operator
-			break
-		}
-		if c == '>' {
-			s.tok = _Rarrow
 			break
 		}
 		s.ungetr()
