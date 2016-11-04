@@ -187,10 +187,10 @@ func checkPackagePath(t *testing.T, c *Corpus, ix *Index) {
 	want := map[string]map[string]bool{}
 	if c.IndexDocs || c.IndexGoCode || c.IndexFullText {
 		want = map[string]map[string]bool{
-			"foo": map[string]bool{
+			"foo": {
 				"foo": true,
 			},
-			"bar": map[string]bool{
+			"bar": {
 				"bar":       true,
 				"other/bar": true,
 			},
@@ -207,13 +207,13 @@ func checkExports(t *testing.T, c *Corpus, ix *Index) {
 	want := map[string]map[string]SpotKind{}
 	if c.IndexGoCode {
 		want = map[string]map[string]SpotKind{
-			"foo": map[string]SpotKind{
+			"foo": {
 				"Pi":   ConstDecl,
 				"Foos": VarDecl,
 				"Foo":  TypeDecl,
 				"New":  FuncDecl,
 			},
-			"other/bar": map[string]SpotKind{
+			"other/bar": {
 				"X": FuncDecl,
 			},
 		}
@@ -229,26 +229,26 @@ func checkIdents(t *testing.T, c *Corpus, ix *Index) {
 	want := map[SpotKind]map[string][]Ident{}
 	if c.IndexDocs {
 		want = map[SpotKind]map[string][]Ident{
-			PackageClause: map[string][]Ident{
-				"bar": []Ident{
+			PackageClause: {
+				"bar": {
 					{"bar", "bar", "bar", "Package bar is another example to test races."},
 					{"other/bar", "bar", "bar", "Package bar is another bar package."},
 				},
-				"foo":   []Ident{{"foo", "foo", "foo", "Package foo is an example."}},
-				"other": []Ident{{"other/bar", "bar", "bar", "Package bar is another bar package."}},
+				"foo":   {{"foo", "foo", "foo", "Package foo is an example."}},
+				"other": {{"other/bar", "bar", "bar", "Package bar is another bar package."}},
 			},
-			ConstDecl: map[string][]Ident{
-				"Pi": []Ident{{"foo", "foo", "Pi", ""}},
+			ConstDecl: {
+				"Pi": {{"foo", "foo", "Pi", ""}},
 			},
-			VarDecl: map[string][]Ident{
-				"Foos": []Ident{{"foo", "foo", "Foos", ""}},
+			VarDecl: {
+				"Foos": {{"foo", "foo", "Foos", ""}},
 			},
-			TypeDecl: map[string][]Ident{
-				"Foo": []Ident{{"foo", "foo", "Foo", "Foo is stuff."}},
+			TypeDecl: {
+				"Foo": {{"foo", "foo", "Foo", "Foo is stuff."}},
 			},
-			FuncDecl: map[string][]Ident{
-				"New": []Ident{{"foo", "foo", "New", ""}},
-				"X":   []Ident{{"other/bar", "bar", "X", ""}},
+			FuncDecl: {
+				"New": {{"foo", "foo", "New", ""}},
+				"X":   {{"other/bar", "bar", "X", ""}},
 			},
 		}
 	}
