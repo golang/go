@@ -154,7 +154,7 @@ func (b *builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 
 	// All edges from e.X to done carry the short-circuit value.
 	var edges []Value
-	for _ = range done.Preds {
+	for range done.Preds {
 		edges = append(edges, short)
 	}
 

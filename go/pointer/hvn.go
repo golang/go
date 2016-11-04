@@ -533,7 +533,7 @@ func (h *hvn) markIndirectNodes() {
 		if tArray, ok := h.a.nodes[id].typ.(*types.Array); ok {
 			// Mark the array element nodes indirect.
 			// (Skip past the identity field.)
-			for _ = range h.a.flatten(tArray.Elem()) {
+			for range h.a.flatten(tArray.Elem()) {
 				id++
 				h.markIndirect(onodeid(id), "array elem")
 			}
