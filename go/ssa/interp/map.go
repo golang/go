@@ -113,3 +113,11 @@ func (m *hashmap) len() int {
 	}
 	return 0
 }
+
+// entries returns a rangeable map of entries.
+func (m *hashmap) entries() map[int]*entry {
+	if m != nil {
+		return m.table
+	}
+	return nil
+}

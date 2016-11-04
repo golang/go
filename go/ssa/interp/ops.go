@@ -1098,7 +1098,7 @@ func rangeIter(x value, t types.Type) iter {
 		// reflect.(Value).MapKeys machinery.
 		it := make(mapIter)
 		go func() {
-			for _, e := range x.table {
+			for _, e := range x.entries() {
 				for e != nil {
 					it <- [2]value{e.key, e.value}
 					e = e.next
