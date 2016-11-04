@@ -441,6 +441,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 }
 
 func TestTransportRemovesDeadIdleConnections(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		io.WriteString(w, r.RemoteAddr)
@@ -697,6 +698,7 @@ var roundTripTests = []struct {
 
 // Test that the modification made to the Request by the RoundTripper is cleaned up
 func TestRoundTripGzip(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	const responseBody = "test response body"
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
@@ -755,6 +757,7 @@ func TestRoundTripGzip(t *testing.T) {
 }
 
 func TestTransportGzip(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	const testString = "The test string aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	const nRandBytes = 1024 * 1024
@@ -853,6 +856,7 @@ func TestTransportGzip(t *testing.T) {
 // If a request has Expect:100-continue header, the request blocks sending body until the first response.
 // Premature consumption of the request body should not be occurred.
 func TestTransportExpect100Continue(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
@@ -1077,7 +1081,7 @@ func waitNumGoroutine(nmax int) int {
 
 // tests that persistent goroutine connections shut down when no longer desired.
 func TestTransportPersistConnLeak(t *testing.T) {
-	setParallel(t)
+	// Not parallel: counts goroutines
 	defer afterTest(t)
 	gotReqCh := make(chan bool)
 	unblockCh := make(chan bool)
@@ -1141,7 +1145,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 // golang.org/issue/4531: Transport leaks goroutines when
 // request.ContentLength is explicitly short
 func TestTransportPersistConnLeakShortBody(t *testing.T) {
-	setParallel(t)
+	// Not parallel: measures goroutines.
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 	}))
@@ -1237,6 +1241,7 @@ func TestIssue3644(t *testing.T) {
 // Test that a client receives a server's reply, even if the server doesn't read
 // the entire request body.
 func TestIssue3595(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	const deniedMsg = "sorry, denied."
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1285,6 +1290,7 @@ func TestChunkedNoContent(t *testing.T) {
 }
 
 func TestTransportConcurrency(t *testing.T) {
+	// Not parallel: uses global test hooks.
 	defer afterTest(t)
 	maxProcs, numReqs := 16, 500
 	if testing.Short() {
@@ -1345,6 +1351,7 @@ func TestTransportConcurrency(t *testing.T) {
 }
 
 func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+	setParallel(t)
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
@@ -1409,6 +1416,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 }
 
 func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
+	setParallel(t)
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
@@ -1930,6 +1938,7 @@ func TestTransportEmptyMethod(t *testing.T) {
 }
 
 func TestTransportSocketLateBinding(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 
 	mux := NewServeMux()
@@ -2194,6 +2203,7 @@ func TestProxyFromEnvironment(t *testing.T) {
 }
 
 func TestIdleConnChannelLeak(t *testing.T) {
+	// Not parallel: uses global test hooks.
 	var mu sync.Mutex
 	var n int
 
@@ -2425,6 +2435,7 @@ func (c byteFromChanReader) Read(p []byte) (n int, err error) {
 // questionable state.
 // golang.org/issue/7569
 func TestTransportNoReuseAfterEarlyResponse(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	var sconn struct {
 		sync.Mutex
@@ -2653,6 +2664,8 @@ func TestTransportClosesBodyOnError(t *testing.T) {
 }
 
 func TestTransportDialTLS(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
 	var mu sync.Mutex // guards following
 	var gotReq, didDial bool
 
@@ -3170,6 +3183,7 @@ func TestTransportReuseConnection_Gzip_ContentLength(t *testing.T) {
 
 // Make sure we re-use underlying TCP connection for gzipped responses too.
 func testTransportReuseConnection_Gzip(t *testing.T, chunked bool) {
+	setParallel(t)
 	defer afterTest(t)
 	addr := make(chan string, 2)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -3205,6 +3219,7 @@ func testTransportReuseConnection_Gzip(t *testing.T, chunked bool) {
 }
 
 func TestTransportResponseHeaderLength(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.URL.Path == "/long" {
@@ -3643,6 +3658,7 @@ func testTransportIdleConnTimeout(t *testing.T, h2 bool) {
 // know the successful tls.Dial from DialTLS will need to go into the
 // idle pool. Then we give it a of time to explode.
 func TestIdleConnH2Crash(t *testing.T) {
+	setParallel(t)
 	cst := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		// nothing
 	}))

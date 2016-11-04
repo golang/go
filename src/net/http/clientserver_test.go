@@ -170,6 +170,7 @@ func (tt h12Compare) reqFunc() reqFunc {
 }
 
 func (tt h12Compare) run(t *testing.T) {
+	setParallel(t)
 	cst1 := newClientServerTest(t, false, HandlerFunc(tt.Handler), tt.Opts...)
 	defer cst1.close()
 	cst2 := newClientServerTest(t, true, HandlerFunc(tt.Handler), tt.Opts...)
@@ -938,6 +939,7 @@ func testStarRequest(t *testing.T, method string, h2 bool) {
 
 // Issue 13957
 func TestTransportDiscardsUnneededConns(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "Hello, %v", r.RemoteAddr)
@@ -1022,6 +1024,7 @@ func TestTransportGCRequest_Body_h2(t *testing.T)   { testTransportGCRequest(t, 
 func TestTransportGCRequest_NoBody_h1(t *testing.T) { testTransportGCRequest(t, h1Mode, false) }
 func TestTransportGCRequest_NoBody_h2(t *testing.T) { testTransportGCRequest(t, h2Mode, false) }
 func testTransportGCRequest(t *testing.T, h2, body bool) {
+	setParallel(t)
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ioutil.ReadAll(r.Body)
@@ -1068,6 +1071,7 @@ func TestTransportRejectsInvalidHeaders_h2(t *testing.T) {
 	testTransportRejectsInvalidHeaders(t, h2Mode)
 }
 func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
+	setParallel(t)
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "Handler saw headers: %q", r.Header)
@@ -1200,6 +1204,7 @@ func TestH12_AutoGzipWithDumpResponse(t *testing.T) {
 func TestCloseIdleConnections_h1(t *testing.T) { testCloseIdleConnections(t, h1Mode) }
 func TestCloseIdleConnections_h2(t *testing.T) { testCloseIdleConnections(t, h2Mode) }
 func testCloseIdleConnections(t *testing.T, h2 bool) {
+	setParallel(t)
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("X-Addr", r.RemoteAddr)

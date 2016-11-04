@@ -68,6 +68,7 @@ var ServeFileRangeTests = []struct {
 }
 
 func TestServeFile(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		ServeFile(w, r, "testdata/file")
@@ -1064,6 +1065,7 @@ func TestServeContentErrorMessages(t *testing.T) {
 
 // verifies that sendfile is being used on Linux
 func TestLinuxSendfile(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	if runtime.GOOS != "linux" {
 		t.Skip("skipping; linux-only test")
