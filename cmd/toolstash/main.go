@@ -121,7 +121,7 @@
 // contain the substring ``devel''. The VERSION file must be created before
 // building either version of the toolchain.
 //
-package main // import "rsc.io/toolstash"
+package main // import "golang.org/x/tools/cmd/toolstash"
 
 import (
 	"bufio"
