@@ -240,7 +240,7 @@ func (r *calleesTypesResult) JSON(fset *token.FileSet) []byte {
 		Desc: "static function call",
 	}
 	j.Callees = []*serial.Callee{
-		&serial.Callee{
+		{
 			Name: r.callee.FullName(),
 			Pos:  fset.Position(r.callee.Pos()).String(),
 		},
