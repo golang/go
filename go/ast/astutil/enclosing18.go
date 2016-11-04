@@ -200,11 +200,6 @@ func childrenOf(n ast.Node) []ast.Node {
 
 	// Then add fake Nodes for bare tokens.
 	switch n := n.(type) {
-	case *ast.AliasSpec:
-		// TODO(adonovan): AliasSpec.{Doc,Comment}?
-		// Guess position of "=>" assuming well-formattedness.
-		children = append(children, tok(n.Orig.Pos()-token.Pos(len("=> ")), len("=>")))
-
 	case *ast.ArrayType:
 		children = append(children,
 			tok(n.Lbrack, len("[")),
@@ -628,8 +623,7 @@ func NodeDescription(n ast.Node) string {
 		return fmt.Sprintf("unary %s operation", n.Op)
 	case *ast.ValueSpec:
 		return "value specification"
-	case *ast.AliasSpec:
-		return "alias specification"
+
 	}
 	panic(fmt.Sprintf("unexpected node type: %T", n))
 }
