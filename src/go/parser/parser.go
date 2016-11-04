@@ -542,18 +542,18 @@ func (p *parser) parseIdent() *ast.Ident {
 	return &ast.Ident{NamePos: pos, Name: name}
 }
 
-func (p *parser) parseIdentList(first *ast.Ident) []*ast.Ident {
+func (p *parser) parseIdentList() (list []*ast.Ident) {
 	if p.trace {
 		defer un(trace(p, "IdentList"))
 	}
 
-	list := []*ast.Ident{first}
+	list = append(list, p.parseIdent())
 	for p.tok == token.COMMA {
 		p.next()
 		list = append(list, p.parseIdent())
 	}
 
-	return list
+	return
 }
 
 // ----------------------------------------------------------------------------
@@ -640,10 +640,11 @@ func (p *parser) parseTypeName() ast.Expr {
 	// don't resolve ident yet - it may be a parameter or field name
 
 	if p.tok == token.PERIOD {
-		// ident must be a package name
+		// ident is a package name
 		p.next()
 		p.resolve(ident)
-		return &ast.SelectorExpr{X: ident, Sel: p.parseIdent()}
+		sel := p.parseIdent()
+		return &ast.SelectorExpr{X: ident, Sel: sel}
 	}
 
 	return ident
@@ -841,7 +842,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 		}
 		p.next()
 		for p.tok != token.RPAREN && p.tok != token.EOF {
-			idents := p.parseIdentList(p.parseIdent())
+			idents := p.parseIdentList()
 			typ := p.parseVarType(ellipsisOk)
 			field := &ast.Field{Names: idents, Type: typ}
 			params = append(params, field)
@@ -1169,6 +1170,16 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 	return &ast.BadExpr{From: pos, To: p.pos}
 }
 
+func (p *parser) parseSelector(x ast.Expr) ast.Expr {
+	if p.trace {
+		defer un(trace(p, "Selector"))
+	}
+
+	sel := p.parseIdent()
+
+	return &ast.SelectorExpr{X: x, Sel: sel}
+}
+
 func (p *parser) parseTypeAssertion(x ast.Expr) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "TypeAssertion"))
@@ -1463,7 +1474,7 @@ L:
 			}
 			switch p.tok {
 			case token.IDENT:
-				x = &ast.SelectorExpr{X: p.checkExprOrType(x), Sel: p.parseIdent()}
+				x = p.parseSelector(p.checkExprOrType(x))
 			case token.LPAREN:
 				x = p.parseTypeAssertion(p.checkExpr(x))
 			default:
@@ -2256,51 +2267,13 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	return spec
 }
 
-// AliasSpec = identifier "=>" [ PackageName "." ] identifier .
-func (p *parser) parseAliasSpec(doc *ast.CommentGroup, kind ast.ObjKind, ident *ast.Ident) ast.Spec {
-	// no tracing since this is already called from a parse(Value/Type)Spec or parseFuncDecl
-
-	// lhs identifier and "=>" have been consumed already
-
-	var orig ast.Expr = p.parseIdent()
-	if p.tok == token.PERIOD {
-		// orig must be a package name
-		p.next()
-		p.resolve(orig)
-		orig = &ast.SelectorExpr{X: orig, Sel: p.parseIdent()}
-	}
-
-	p.expectSemi() // call before accessing p.linecomment
-
-	spec := &ast.AliasSpec{
-		Doc:     doc,
-		Name:    ident,
-		Orig:    orig,
-		Comment: p.lineComment,
-	}
-	p.declare(spec, nil, p.topScope, kind, ident)
-
-	return spec
-}
-
 func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, keyword.String()+"Spec"))
 	}
 
-	kind := ast.Con
-	if keyword == token.VAR {
-		kind = ast.Var
-	}
-
 	pos := p.pos
-	ident := p.parseIdent()
-	if p.tok == token.ALIAS {
-		p.next()
-		return p.parseAliasSpec(doc, kind, ident)
-	}
-
-	idents := p.parseIdentList(ident)
+	idents := p.parseIdentList()
 	typ := p.tryType()
 	var values []ast.Expr
 	// always permit optional initialization for more tolerant parsing
@@ -2332,6 +2305,10 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota
 		Values:  values,
 		Comment: p.lineComment,
 	}
+	kind := ast.Con
+	if keyword == token.VAR {
+		kind = ast.Var
+	}
 	p.declare(spec, iota, p.topScope, kind, idents...)
 
 	return spec
@@ -2343,10 +2320,6 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
 	}
 
 	ident := p.parseIdent()
-	if p.tok == token.ALIAS {
-		p.next()
-		return p.parseAliasSpec(doc, ast.Typ, ident)
-	}
 
 	// Go spec: The scope of a type identifier declared inside a function begins
 	// at the identifier in the TypeSpec and ends at the end of the innermost
@@ -2393,7 +2366,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 	}
 }
 
-func (p *parser) parseFuncDecl() ast.Decl {
+func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	if p.trace {
 		defer un(trace(p, "FunctionDecl"))
 	}
@@ -2408,15 +2381,6 @@ func (p *parser) parseFuncDecl() ast.Decl {
 	}
 
 	ident := p.parseIdent()
-	if recv == nil && p.tok == token.ALIAS {
-		p.next()
-		return &ast.GenDecl{
-			Doc:    doc,
-			TokPos: pos,
-			Tok:    token.FUNC,
-			Specs:  []ast.Spec{p.parseAliasSpec(nil, ast.Fun, ident)},
-		}
-	}
 
 	params, results := p.parseSignature(scope)
 
