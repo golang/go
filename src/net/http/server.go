@@ -262,7 +262,7 @@ type conn struct {
 
 	curReq atomic.Value // of *response (which has a Request in it)
 
-	curState atomic.Value // of ConnectionState
+	curState atomic.Value // of ConnState
 
 	// mu guards hijackedv
 	mu sync.Mutex
