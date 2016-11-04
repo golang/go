@@ -254,10 +254,19 @@ type traceContext struct {
 	frameTree frameNode
 	frameSeq  int
 	arrowSeq  uint64
+	gcount    uint64
+
+	heapStats, prevHeapStats     heapStats
+	threadStats, prevThreadStats threadStats
+	gstates, prevGstates         [gStateCount]uint64
+}
+
+type heapStats struct {
 	heapAlloc uint64
 	nextGC    uint64
-	gcount    uint64
-	gstates   [gStateCount]uint64
+}
+
+type threadStats struct {
 	insyscall uint64
 	prunning  uint64
 }
@@ -344,12 +353,12 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		ctx.gstates[gstates[g]]--
 		ctx.gstates[newState]++
 		gstates[g] = newState
-		ctx.emitGoroutineCounters(ev)
 	}
 	for _, ev := range ctx.events {
-		// Handle trace.EvGoStart separately, because we need the goroutine name
-		// even if ignore the event otherwise.
-		if ev.Type == trace.EvGoStart {
+		// Handle state transitions before we filter out events.
+		switch ev.Type {
+		case trace.EvGoStart, trace.EvGoStartLabel:
+			setGState(ev, ev.G, gRunnable, gRunning)
 			if _, ok := gnames[ev.G]; !ok {
 				if len(ev.Stk) > 0 {
 					gnames[ev.G] = fmt.Sprintf("G%v %s", ev.G, ev.Stk[0].Fn)
@@ -357,6 +366,48 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 					gnames[ev.G] = fmt.Sprintf("G%v", ev.G)
 				}
 			}
+		case trace.EvProcStart:
+			ctx.threadStats.prunning++
+		case trace.EvProcStop:
+			ctx.threadStats.prunning--
+		case trace.EvGoCreate:
+			ctx.gcount++
+			setGState(ev, ev.Args[0], gDead, gRunnable)
+		case trace.EvGoEnd:
+			ctx.gcount--
+			setGState(ev, ev.G, gRunning, gDead)
+		case trace.EvGoUnblock:
+			setGState(ev, ev.Args[0], gWaiting, gRunnable)
+		case trace.EvGoSysExit:
+			setGState(ev, ev.G, gWaiting, gRunnable)
+			ctx.threadStats.insyscall--
+		case trace.EvGoSysBlock:
+			setGState(ev, ev.G, gRunning, gWaiting)
+			ctx.threadStats.insyscall++
+		case trace.EvGoSched, trace.EvGoPreempt:
+			setGState(ev, ev.G, gRunning, gRunnable)
+		case trace.EvGoStop,
+			trace.EvGoSleep, trace.EvGoBlock, trace.EvGoBlockSend, trace.EvGoBlockRecv,
+			trace.EvGoBlockSelect, trace.EvGoBlockSync, trace.EvGoBlockCond, trace.EvGoBlockNet:
+			setGState(ev, ev.G, gRunning, gWaiting)
+		case trace.EvGoBlockGC:
+			setGState(ev, ev.G, gRunning, gWaitingGC)
+		case trace.EvGoWaiting:
+			setGState(ev, ev.G, gRunnable, gWaiting)
+		case trace.EvGoInSyscall:
+			// Cancel out the effect of EvGoCreate at the beginning.
+			setGState(ev, ev.G, gRunnable, gWaiting)
+			ctx.threadStats.insyscall++
+		case trace.EvHeapAlloc:
+			ctx.heapStats.heapAlloc = ev.Args[0]
+		case trace.EvNextGC:
+			ctx.heapStats.nextGC = ev.Args[0]
+		}
+		if setGStateErr != nil {
+			return ctx.data, setGStateErr
+		}
+		if ctx.gstates[gRunnable] < 0 || ctx.gstates[gRunning] < 0 || ctx.threadStats.insyscall < 0 {
+			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.gstates[gRunnable], ctx.gstates[gRunning], ctx.threadStats.insyscall)
 		}
 
 		// Ignore events that are from uninteresting goroutines
@@ -372,20 +423,17 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			maxProc = ev.P
 		}
 
+		// Emit trace objects.
 		switch ev.Type {
 		case trace.EvProcStart:
 			if ctx.gtrace {
 				continue
 			}
-			ctx.prunning++
-			ctx.emitThreadCounters(ev)
 			ctx.emitInstant(ev, "proc start")
 		case trace.EvProcStop:
 			if ctx.gtrace {
 				continue
 			}
-			ctx.prunning--
-			ctx.emitThreadCounters(ev)
 			ctx.emitInstant(ev, "proc stop")
 		case trace.EvGCStart:
 			ctx.emitSlice(ev, "GC")
@@ -399,62 +447,23 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 		case trace.EvGCSweepStart:
 			ctx.emitSlice(ev, "SWEEP")
 		case trace.EvGCSweepDone:
-		case trace.EvGoStart, trace.EvGoStartLabel:
-			setGState(ev, ev.G, gRunnable, gRunning)
-			if ev.Type == trace.EvGoStartLabel {
-				ctx.emitSlice(ev, ev.SArgs[0])
-			} else {
-				ctx.emitSlice(ev, gnames[ev.G])
-			}
+		case trace.EvGoStart:
+			ctx.emitSlice(ev, gnames[ev.G])
+		case trace.EvGoStartLabel:
+			ctx.emitSlice(ev, ev.SArgs[0])
 		case trace.EvGoCreate:
-			ctx.gcount++
-			setGState(ev, ev.Args[0], gDead, gRunnable)
 			ctx.emitArrow(ev, "go")
-		case trace.EvGoEnd:
-			ctx.gcount--
-			setGState(ev, ev.G, gRunning, gDead)
 		case trace.EvGoUnblock:
-			setGState(ev, ev.Args[0], gWaiting, gRunnable)
 			ctx.emitArrow(ev, "unblock")
 		case trace.EvGoSysCall:
 			ctx.emitInstant(ev, "syscall")
 		case trace.EvGoSysExit:
-			setGState(ev, ev.G, gWaiting, gRunnable)
-			ctx.insyscall--
-			ctx.emitThreadCounters(ev)
 			ctx.emitArrow(ev, "sysexit")
-		case trace.EvGoSysBlock:
-			setGState(ev, ev.G, gRunning, gWaiting)
-			ctx.insyscall++
-			ctx.emitThreadCounters(ev)
-		case trace.EvGoSched, trace.EvGoPreempt:
-			setGState(ev, ev.G, gRunning, gRunnable)
-		case trace.EvGoStop,
-			trace.EvGoSleep, trace.EvGoBlock, trace.EvGoBlockSend, trace.EvGoBlockRecv,
-			trace.EvGoBlockSelect, trace.EvGoBlockSync, trace.EvGoBlockCond, trace.EvGoBlockNet:
-			setGState(ev, ev.G, gRunning, gWaiting)
-		case trace.EvGoBlockGC:
-			setGState(ev, ev.G, gRunning, gWaitingGC)
-		case trace.EvGoWaiting:
-			setGState(ev, ev.G, gRunnable, gWaiting)
-		case trace.EvGoInSyscall:
-			// Cancel out the effect of EvGoCreate at the beginning.
-			setGState(ev, ev.G, gRunnable, gWaiting)
-			ctx.insyscall++
-			ctx.emitThreadCounters(ev)
-		case trace.EvHeapAlloc:
-			ctx.heapAlloc = ev.Args[0]
-			ctx.emitHeapCounters(ev)
-		case trace.EvNextGC:
-			ctx.nextGC = ev.Args[0]
-			ctx.emitHeapCounters(ev)
 		}
-		if setGStateErr != nil {
-			return ctx.data, setGStateErr
-		}
-		if ctx.gstates[gRunnable] < 0 || ctx.gstates[gRunning] < 0 || ctx.insyscall < 0 {
-			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.gstates[gRunnable], ctx.gstates[gRunning], ctx.insyscall)
-		}
+		// Emit any counter updates.
+		ctx.emitThreadCounters(ev)
+		ctx.emitHeapCounters(ev)
+		ctx.emitGoroutineCounters(ev)
 	}
 
 	ctx.data.footer = len(ctx.data.Events)
@@ -535,11 +544,15 @@ func (ctx *traceContext) emitHeapCounters(ev *trace.Event) {
 	if ctx.gtrace {
 		return
 	}
-	diff := uint64(0)
-	if ctx.nextGC > ctx.heapAlloc {
-		diff = ctx.nextGC - ctx.heapAlloc
+	if ctx.prevHeapStats == ctx.heapStats {
+		return
 	}
-	ctx.emit(&ViewerEvent{Name: "Heap", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &heapCountersArg{ctx.heapAlloc, diff}})
+	diff := uint64(0)
+	if ctx.heapStats.nextGC > ctx.heapStats.heapAlloc {
+		diff = ctx.heapStats.nextGC - ctx.heapStats.heapAlloc
+	}
+	ctx.emit(&ViewerEvent{Name: "Heap", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &heapCountersArg{ctx.heapStats.heapAlloc, diff}})
+	ctx.prevHeapStats = ctx.heapStats
 }
 
 type goroutineCountersArg struct {
@@ -552,7 +565,11 @@ func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
 	if ctx.gtrace {
 		return
 	}
+	if ctx.prevGstates == ctx.gstates {
+		return
+	}
 	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{ctx.gstates[gRunning], ctx.gstates[gRunnable], ctx.gstates[gWaitingGC]}})
+	ctx.prevGstates = ctx.gstates
 }
 
 type threadCountersArg struct {
@@ -564,7 +581,11 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
 	if ctx.gtrace {
 		return
 	}
-	ctx.emit(&ViewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{ctx.prunning, ctx.insyscall}})
+	if ctx.prevThreadStats == ctx.threadStats {
+		return
+	}
+	ctx.emit(&ViewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{ctx.threadStats.prunning, ctx.threadStats.insyscall}})
+	ctx.prevThreadStats = ctx.threadStats
 }
 
 func (ctx *traceContext) emitInstant(ev *trace.Event, name string) {
