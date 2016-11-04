@@ -51,7 +51,7 @@ func (p *Plugin) Lookup(symName string) (Symbol, error) {
 //
 //	var V int
 //
-//	func F() { fmt.Println("Hello, number %d", V) }
+//	func F() { fmt.Printf("Hello, number %d\n", V) }
 //
 // may be loaded with the Open function and then the exported package
 // symbols V and F can be accessed
