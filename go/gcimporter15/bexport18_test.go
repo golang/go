@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.8
+// Alias-related code. Keep for now.
+// +build ignore
 
 package gcimporter_test
 
@@ -16,7 +17,7 @@ import (
 	gcimporter "golang.org/x/tools/go/gcimporter15"
 )
 
-func TestInvalidAlias(t *testing.T) {
+func disabledTestInvalidAlias(t *testing.T) {
 	// parse and typecheck
 	const src = "package p; func InvalidAlias => foo.f"
 	fset1 := token.NewFileSet()

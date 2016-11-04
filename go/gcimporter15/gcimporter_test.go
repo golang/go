@@ -130,6 +130,8 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 	return
 }
 
+const testfile = "exports.go"
+
 func TestImportTestdata(t *testing.T) {
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {

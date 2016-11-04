@@ -203,19 +203,20 @@ func (p *exporter) obj(obj types.Object) {
 		p.paramList(sig.Params(), sig.Variadic())
 		p.paramList(sig.Results(), false)
 
-	case *types_Alias:
-		// make sure the original is exported before the alias
-		// (if the alias declaration was invalid, orig will be nil)
-		orig := original(obj)
-		if orig != nil && !p.reexported[orig] {
-			p.obj(orig)
-			p.reexported[orig] = true
-		}
+	// Alias-related code. Keep for now.
+	// case *types_Alias:
+	// 	// make sure the original is exported before the alias
+	// 	// (if the alias declaration was invalid, orig will be nil)
+	// 	orig := original(obj)
+	// 	if orig != nil && !p.reexported[orig] {
+	// 		p.obj(orig)
+	// 		p.reexported[orig] = true
+	// 	}
 
-		p.tag(aliasTag)
-		p.pos(obj)
-		p.string(obj.Name())
-		p.qualifiedName(orig)
+	// 	p.tag(aliasTag)
+	// 	p.pos(obj)
+	// 	p.string(obj.Name())
+	// 	p.qualifiedName(orig)
 
 	default:
 		log.Fatalf("gcimporter: unexpected object %v (%T)", obj, obj)
