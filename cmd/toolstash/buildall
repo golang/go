@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Usage: buildall [-e] [-nocmp] [-work]
+#
+# Builds everything (std) for every GOOS/GOARCH combination but installs nothing.
+#
+# By default, runs the builds with -toolexec 'toolstash -cmp', to test that the
+# toolchain is producing bit identical output to a previous known good toolchain.
+#
+# Options:
+#	-e: stop at first failure
+#	-nocmp: turn off toolstash -cmp; just check that ordinary builds succeed
+#	-work: pass -work to go command
+
+sete=false
+if [ "$1" = "-e" ]; then
+	sete=true
+	shift
+fi
+
+cmp=true
+if [ "$1" = "-nocmp" ]; then
+	cmp=false
+	shift
+fi
+
+work=""
+if [ "$1" = "-work" ]; then
+	work="-work"
+	shift
+fi
+
+cd $(go env GOROOT)/src
+go install cmd/compile cmd/link cmd/asm || exit 1
+pattern="$1"
+if [ "$pattern" = "" ]; then
+	pattern=.
+fi
+
+# put linux, nacl first in the target list to get all the architectures up front.
+targets="$((ls runtime | 9 sed -n 's/^rt0_(.*)_(.*)\.s/\1-\2/p'; echo linux-386-387) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
+	$(ls runtime | 9 sed -n 's/^rt0_(.*)_(.*)\.s/\1-\2/p' | egrep -v 'android-arm|darwin-arm' | egrep "$pattern" | egrep -v 'linux|nacl')"
+if [ "$sete" = true ]; then
+	set -e
+fi
+for target in $targets
+do
+	echo $target
+	export GOOS=$(echo $target | sed 's/-.*//')
+	export GOARCH=$(echo $target | sed 's/.*-//')
+	unset GO386
+	if [ "$GOARCH" = "387" ]; then
+		export GOARCH=386
+		export GO386=387
+	fi
+	if $cmp; then
+		go build $work -a -toolexec 'toolstash -cmp' std cmd
+	else
+		go build $work -a std
+	fi
+done
