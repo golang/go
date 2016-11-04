@@ -12,9 +12,6 @@ import (
 	"go/parser"
 	"go/token"
 	"internal/testenv"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -1299,6 +1296,8 @@ func f(x int) { y := x; print(y) }
 	}
 }
 
+// Alias-related code. Keep for now.
+/*
 func TestAliases(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
@@ -1447,3 +1446,4 @@ var _ = Implements(nil, nil)
 		t.Errorf("missing aliases: %v", defs)
 	}
 }
+*/

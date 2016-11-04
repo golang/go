@@ -85,9 +85,10 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
-	case *Alias:
-		// aliases cannot be recursive - no need to track dependencies
-		check.aliasDecl(obj, d)
+	// Alias-related code. Keep for now.
+	// case *Alias:
+	// 	// aliases cannot be recursive - no need to track dependencies
+	// 	check.aliasDecl(obj, d)
 	default:
 		unreachable()
 	}
@@ -337,17 +338,17 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 // but it may be nil.
 func original(obj Object) Object {
 	// an alias stands for the original object; use that one instead
-	if alias, _ := obj.(*Alias); alias != nil {
+	if alias, _ := obj.(*disabledAlias); alias != nil {
 		obj = alias.orig
 		// aliases always refer to non-alias originals
-		if _, ok := obj.(*Alias); ok {
+		if _, ok := obj.(*disabledAlias); ok {
 			panic("original is an alias")
 		}
 	}
 	return obj
 }
 
-func (check *Checker) aliasDecl(obj *Alias, decl *declInfo) {
+func (check *Checker) aliasDecl(obj *disabledAlias, decl *declInfo) {
 	assert(obj.typ == nil)
 
 	// alias declarations cannot use iota
