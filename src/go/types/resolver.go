@@ -274,11 +274,12 @@ func (check *Checker) collectObjects() {
 							check.declare(fileScope, nil, obj, token.NoPos)
 						}
 
-					case *ast.AliasSpec:
-						obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, nil)
-						obj.typ = nil // unresolved
-						obj.kind = d.Tok
-						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, init: s.Orig})
+					// Alias-related code. Keep for now.
+					// case *ast.AliasSpec:
+					// 	obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, nil)
+					// 	obj.typ = nil // unresolved
+					// 	obj.kind = d.Tok
+					// 	check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, init: s.Orig})
 
 					case *ast.ValueSpec:
 						switch d.Tok {

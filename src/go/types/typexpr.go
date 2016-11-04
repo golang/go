@@ -45,15 +45,16 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 		delete(check.unusedDotImports[scope], pkg)
 	}
 
+	// Alias-related code. Keep for now.
 	// An alias stands for the original object; use that one instead.
 	// TODO(gri) We should be able to factor out the Typ[Invalid] test.
-	if alias, _ := obj.(*Alias); alias != nil {
-		obj = original(obj)
-		if obj == nil || typ == Typ[Invalid] {
-			return
-		}
-		assert(typ == obj.Type())
-	}
+	// if alias, _ := obj.(*Alias); alias != nil {
+	// 	obj = original(obj)
+	// 	if obj == nil || typ == Typ[Invalid] {
+	// 		return
+	// 	}
+	// 	assert(typ == obj.Type())
+	// }
 
 	switch obj := obj.(type) {
 	case *PkgName:

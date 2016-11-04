@@ -284,7 +284,11 @@ func (p *importer) obj(tag int) {
 		if pkg, name := p.qualifiedName(); pkg != nil {
 			orig = pkg.Scope().Lookup(name)
 		}
-		p.declare(types.NewAlias(pos, p.pkgList[0], name, orig))
+		// Alias-related code. Keep for now.
+		_ = pos
+		_ = name
+		_ = orig
+		// p.declare(types.NewAlias(pos, p.pkgList[0], name, orig))
 
 	default:
 		errorf("unexpected object tag %d", tag)
