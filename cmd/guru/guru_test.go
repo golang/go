@@ -230,7 +230,6 @@ func TestGuru(t *testing.T) {
 		"testdata/src/reflection/main.go",
 		"testdata/src/what/main.go",
 		"testdata/src/whicherrs/main.go",
-		"testdata/src/alias/main.go", // Go 1.8 only
 		// JSON:
 		// TODO(adonovan): most of these are very similar; combine them.
 		"testdata/src/calls-json/main.go",
@@ -246,10 +245,6 @@ func TestGuru(t *testing.T) {
 		if filename == "testdata/src/referrers/main.go" && runtime.GOOS == "plan9" {
 			// Disable this test on plan9 since it expects a particular
 			// wording for a "no such file or directory" error.
-			continue
-		}
-		if filename == "testdata/src/alias/main.go" &&
-			!strings.Contains(fmt.Sprint(build.Default.ReleaseTags), "go1.8") {
 			continue
 		}
 
