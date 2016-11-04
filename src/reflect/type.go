@@ -1680,6 +1680,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 		if len(t.fields) != len(v.fields) {
 			return false
 		}
+		allExported := true
 		for i := range t.fields {
 			tf := &t.fields[i]
 			vf := &v.fields[i]
@@ -1695,6 +1696,15 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 			if tf.offset != vf.offset {
 				return false
 			}
+			allExported = allExported && tf.name.isExported()
+		}
+		if !allExported && t.pkgPath.name() != v.pkgPath.name() {
+			// An unexported field of a struct is not
+			// visible outside of the package that defines
+			// it, so the package path is implicitly part
+			// of the definition of any struct with an
+			// unexported field.
+			return false
 		}
 		return true
 	}
