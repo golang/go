@@ -362,6 +362,11 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 	// associate methods with the receiver type, if any
 	if fun.Recv != nil {
 		// method
+		if len(fun.Recv.List) == 0 {
+			// should not happen (incorrect AST); (See issue 17788)
+			// don't show this method
+			return
+		}
 		recvTypeName, imp := baseTypeName(fun.Recv.List[0].Type)
 		if imp {
 			// should not happen (incorrect AST);
