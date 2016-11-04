@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !go1.8
-
 // Bundle creates a single-source-file version of a source package
 // suitable for inclusion in a particular target package.
 //
