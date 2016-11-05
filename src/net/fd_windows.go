@@ -118,7 +118,7 @@ func (o *operation) InitBufs(buf *Buffers) {
 		if len(b) > 0 {
 			p = &b[0]
 		}
-		o.bufs = append(o.bufs, syscall.WSABuf{uint32(len(b)), p})
+		o.bufs = append(o.bufs, syscall.WSABuf{Len: uint32(len(b)), Buf: p})
 	}
 }
 
