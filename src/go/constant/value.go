@@ -936,6 +936,9 @@ func match(x, y Value) (_, _ Value) {
 // BinaryOp returns the result of the binary expression x op y.
 // The operation must be defined for the operands. If one of the
 // operands is Unknown, the result is Unknown.
+// BinaryOp doesn't handle comparisons or shifts; use Compare
+// or Shift instead.
+//
 // To force integer division of Int operands, use op == token.QUO_ASSIGN
 // instead of token.QUO; the result is guaranteed to be Int in this case.
 // Division by zero leads to a run-time panic.
