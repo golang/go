@@ -1,7 +1,6 @@
 package testdata
 
 import (
-	"runtime"
 	"sync"
 	"sync/atomic"
 )
@@ -157,11 +156,3 @@ func AtomicTypesCheck() {
 	vP := &vX
 	vZ := &atomic.Value{}
 }
-
-// ensure we don't crash when we encounter aliases; issue 17755
-
-var _ => runtime.MemProfileRate
-
-const _ => runtime.Compiler
-
-type _ => sync.Mutex

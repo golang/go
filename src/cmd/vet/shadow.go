@@ -188,7 +188,8 @@ func checkShadowDecl(f *File, d *ast.GenDecl) {
 	for _, spec := range d.Specs {
 		valueSpec, ok := spec.(*ast.ValueSpec)
 		if !ok {
-			continue
+			f.Badf(spec.Pos(), "invalid AST: var GenDecl not ValueSpec")
+			return
 		}
 		// Don't complain about deliberate redeclarations of the form
 		//	var i = i

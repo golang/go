@@ -61,10 +61,7 @@ func checkCopyLocksGenDecl(f *File, gd *ast.GenDecl) {
 		return
 	}
 	for _, spec := range gd.Specs {
-		valueSpec, ok := spec.(*ast.ValueSpec)
-		if !ok {
-			continue
-		}
+		valueSpec := spec.(*ast.ValueSpec)
 		for i, x := range valueSpec.Values {
 			if path := lockPathRhs(f, x); path != nil {
 				f.Badf(x.Pos(), "variable declaration copies lock value to %v: %v", valueSpec.Names[i].Name, path)
