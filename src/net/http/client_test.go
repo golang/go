@@ -67,11 +67,13 @@ func (w chanWriter) Write(p []byte) (n int, err error) {
 }
 
 func TestClient(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewServer(robotsTxtHandler)
 	defer ts.Close()
 
-	r, err := Get(ts.URL)
+	c := &Client{Transport: &Transport{DisableKeepAlives: true}}
+	r, err := c.Get(ts.URL)
 	var b []byte
 	if err == nil {
 		b, err = pedanticReadAll(r.Body)
@@ -111,6 +113,7 @@ func (t *recordingTransport) RoundTrip(req *Request) (resp *Response, err error)
 }
 
 func TestGetRequestFormat(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
@@ -216,7 +219,10 @@ func TestClientRedirects(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := &Client{}
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+
+	c := &Client{Transport: tr}
 	_, err := c.Get(ts.URL)
 	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Get, expected error %q, got %q", e, g)
@@ -302,14 +308,20 @@ func TestClientRedirectContext(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+
 	ctx, cancel := context.WithCancel(context.Background())
-	c := &Client{CheckRedirect: func(req *Request, via []*Request) error {
-		cancel()
-		if len(via) > 2 {
-			return errors.New("too many redirects")
-		}
-		return nil
-	}}
+	c := &Client{
+		Transport: tr,
+		CheckRedirect: func(req *Request, via []*Request) error {
+			cancel()
+			if len(via) > 2 {
+				return errors.New("too many redirects")
+			}
+			return nil
+		},
+	}
 	req, _ := NewRequest("GET", ts.URL, nil)
 	req = req.WithContext(ctx)
 	_, err := c.Do(req)
@@ -479,12 +491,18 @@ func TestClientRedirectUseResponse(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := &Client{CheckRedirect: func(req *Request, via []*Request) error {
-		if req.Response == nil {
-			t.Error("expected non-nil Request.Response")
-		}
-		return ErrUseLastResponse
-	}}
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+
+	c := &Client{
+		Transport: tr,
+		CheckRedirect: func(req *Request, via []*Request) error {
+			if req.Response == nil {
+				t.Error("expected non-nil Request.Response")
+			}
+			return ErrUseLastResponse
+		},
+	}
 	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -625,12 +643,16 @@ func (j *TestJar) Cookies(u *url.URL) []*Cookie {
 }
 
 func TestRedirectCookiesJar(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	var ts *httptest.Server
 	ts = httptest.NewServer(echoCookiesRedirectHandler)
 	defer ts.Close()
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
 	c := &Client{
-		Jar: new(TestJar),
+		Transport: tr,
+		Jar:       new(TestJar),
 	}
 	u, _ := url.Parse(ts.URL)
 	c.Jar.SetCookies(u, []*Cookie{expectedCookies[0]})
@@ -1045,6 +1067,7 @@ func testClientHeadContentLength(t *testing.T, h2 bool) {
 }
 
 func TestEmptyPasswordAuth(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	gopher := "gopher"
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1065,7 +1088,9 @@ func TestEmptyPasswordAuth(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	c := &Client{}
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
 	req, err := NewRequest("GET", ts.URL, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -1638,6 +1663,9 @@ func TestClientRedirectTypes(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+
 	for i, tt := range tests {
 		handlerc <- func(w ResponseWriter, r *Request) {
 			w.Header().Set("Location", ts.URL)
@@ -1650,7 +1678,7 @@ func TestClientRedirectTypes(t *testing.T) {
 			continue
 		}
 
-		c := &Client{}
+		c := &Client{Transport: tr}
 		c.CheckRedirect = func(req *Request, via []*Request) error {
 			if got, want := req.Method, tt.wantMethod; got != want {
 				return fmt.Errorf("#%d: got next method %q; want %q", i, got, want)
