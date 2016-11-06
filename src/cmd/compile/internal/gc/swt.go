@@ -659,9 +659,7 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 		}
 		n := c.node.Left
 		tv := typeVal{
-			// n.Type.tconv(FmtLeft | FmtUnsigned) here serves to completely describe the type.
-			// See the comments in func typehash.
-			typ: n.Type.tconv(FmtLeft | FmtUnsigned),
+			typ: n.Type.LongString(),
 			val: n.Val().Interface(),
 		}
 		prev, dup := seen[tv]

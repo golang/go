@@ -1086,14 +1086,9 @@ func syslook(name string) *Node {
 	return s.Def
 }
 
-// typehash computes a hash value for type t to use in type switch
-// statements.
+// typehash computes a hash value for type t to use in type switch statements.
 func typehash(t *Type) uint32 {
-	// t.tconv(FmtLeft | FmtUnsigned) already contains all the necessary logic
-	// to generate a representation that completely describes the type, so using
-	// it here avoids duplicating that code.
-	// See the comments in exprSwitch.checkDupCases.
-	p := t.tconv(FmtLeft | FmtUnsigned)
+	p := t.LongString()
 
 	// Using MD5 is overkill, but reduces accidental collisions.
 	h := md5.Sum([]byte(p))
