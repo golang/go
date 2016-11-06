@@ -155,7 +155,7 @@ type ArbitraryType int
 //	var s string
 //	hdr := (*reflect.StringHeader)(unsafe.Pointer(&s)) // case 1
 //	hdr.Data = uintptr(unsafe.Pointer(p))              // case 6 (this case)
-//	hdr.Len = uintptr(n)
+//	hdr.Len = n
 //
 // In this usage hdr.Data is really an alternate way to refer to the underlying
 // pointer in the slice header, not a uintptr variable itself.
@@ -168,7 +168,7 @@ type ArbitraryType int
 //	// INVALID: a directly-declared header will not hold Data as a reference.
 //	var hdr reflect.StringHeader
 //	hdr.Data = uintptr(unsafe.Pointer(p))
-//	hdr.Len = uintptr(n)
+//	hdr.Len = n
 //	s := *(*string)(unsafe.Pointer(&hdr)) // p possibly already lost
 //
 type Pointer *ArbitraryType
