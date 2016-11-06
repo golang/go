@@ -181,10 +181,11 @@ If the Go runtime sees an existing signal handler for the SIGCANCEL or
 SIGSETXID signals (which are used only on GNU/Linux), it will turn on
 the SA_ONSTACK flag and otherwise keep the signal handler.
 
-For the synchronous signals, the Go runtime will install a signal
-handler. It will save any existing signal handler. If a synchronous
-signal arrives while executing non-Go code, the Go runtime will invoke
-the existing signal handler instead of the Go signal handler.
+For the synchronous signals and SIGPIPE, the Go runtime will install a
+signal handler. It will save any existing signal handler. If a
+synchronous signal arrives while executing non-Go code, the Go runtime
+will invoke the existing signal handler instead of the Go signal
+handler.
 
 Go code built with -buildmode=c-archive or -buildmode=c-shared will
 not install any other signal handlers by default. If there is an
