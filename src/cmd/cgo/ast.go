@@ -297,7 +297,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 
 	// everything else just recurs
 	default:
-		error_(token.NoPos, "unexpected type %T in walk", x, visit)
+		error_(token.NoPos, "unexpected type %T in walk", x)
 		panic("unexpected type")
 
 	case nil:
