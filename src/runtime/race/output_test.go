@@ -184,7 +184,7 @@ func TestFail(t *testing.T) {
 }
 `, `
 ==================
---- FAIL: TestFail \(0.00s\)
+--- FAIL: TestFail \(0...s\)
 .*testing.go:.*: race detected during execution of test
 FAIL`},
 
