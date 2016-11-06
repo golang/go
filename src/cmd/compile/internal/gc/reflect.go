@@ -875,7 +875,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 
 	exported := false
-	p := t.tconv(FmtLeft | FmtUnsigned)
+	p := t.LongString()
 	// If we're writing out type T,
 	// we are very likely to write out type *T as well.
 	// Use the string "*T"[1:] for "T", so that the two
@@ -940,7 +940,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 }
 
 func typesym(t *Type) *Sym {
-	name := t.tconv(FmtLeft)
+	name := t.ShortString()
 
 	// Use a separate symbol name for Noalg types for #17752.
 	if a, bad := algtype1(t); a == ANOEQ && bad.Noalg() {
@@ -953,11 +953,11 @@ func typesym(t *Type) *Sym {
 // tracksym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
 func tracksym(t *Type, f *Field) *Sym {
-	return Pkglookup(t.tconv(FmtLeft)+"."+f.Sym.Name, trackpkg)
+	return Pkglookup(t.ShortString()+"."+f.Sym.Name, trackpkg)
 }
 
 func typesymprefix(prefix string, t *Type) *Sym {
-	p := prefix + "." + t.tconv(FmtLeft)
+	p := prefix + "." + t.ShortString()
 	s := Pkglookup(p, typepkg)
 
 	//print("algsym: %s -> %+S\n", p, s);
@@ -996,7 +996,7 @@ func itabname(t, itype *Type) *Node {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
 		Fatalf("itabname(%v, %v)", t, itype)
 	}
-	s := Pkglookup(t.tconv(FmtLeft)+","+itype.tconv(FmtLeft), itabpkg)
+	s := Pkglookup(t.ShortString()+","+itype.ShortString(), itabpkg)
 	if s.Def == nil {
 		n := newname(s)
 		n.Type = Types[TUINT8]
@@ -1420,7 +1420,7 @@ func dumptypestructs() {
 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
 		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR))
 
-		ilink := Pkglookup(i.t.tconv(FmtLeft)+","+i.itype.tconv(FmtLeft), itablinkpkg)
+		ilink := Pkglookup(i.t.ShortString()+","+i.itype.ShortString(), itablinkpkg)
 		dsymptr(ilink, 0, i.sym, 0)
 		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
 	}
