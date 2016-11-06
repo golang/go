@@ -256,7 +256,7 @@ var classnames = []string{
 func (n *Node) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v', 'S', 'L':
-		n.Nconv(s, fmtFlag(s, verb))
+		n.nconv(s, fmtFlag(s, verb))
 
 	case 'j':
 		n.jconv(s, fmtFlag(s, verb))
@@ -1731,7 +1731,7 @@ func (n *Node) String() string {
 
 // "%L"  suffix with "(type %T)" where possible
 // "%+S" in debug mode, don't recurse, no multiline output
-func (n *Node) Nconv(s fmt.State, flag FmtFlag) {
+func (n *Node) nconv(s fmt.State, flag FmtFlag) {
 	if n == nil {
 		fmt.Fprint(s, "<N>")
 		return
