@@ -635,6 +635,7 @@ func TestProgramNameInCrashMessages(t *testing.T) {
 func TestBrokenTestsWithoutTestFunctionsAllFail(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.runFail("test", "./testdata/src/badtest/...")
 	tg.grepBothNot("^ok", "test passed unexpectedly")
 	tg.grepBoth("FAIL.*badtest/badexec", "test did not run everything")
@@ -750,6 +751,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 func TestGoListStandard(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.cd(runtime.GOROOT() + "/src")
 	tg.run("list", "-f", "{{if not .Standard}}{{.ImportPath}}{{end}}", "./...")
 	stdout := tg.getStdout()
@@ -774,6 +776,7 @@ func TestGoListStandard(t *testing.T) {
 func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.tempFile("src/mycmd/main.go", `package main; func main(){}`)
 	tg.setenv("GOPATH", tg.path("."))
 	tg.cd(tg.path("src/mycmd"))
@@ -865,6 +868,7 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
 func TestWildcardMatchesSyntaxErrorDirs(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.tempFile("src/mypkg/x.go", `package mypkg`)
 	tg.tempFile("src/mypkg/y.go", `pkg mypackage`)
 	tg.setenv("GOPATH", tg.path("."))
@@ -1021,6 +1025,7 @@ func copyBad(tg *testgoData) {
 func TestBadImportsEasy(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	copyBad(tg)
 	testLocalEasy(tg, badDirName)
 }
@@ -1292,6 +1297,7 @@ func TestRelativeImportsGoTestDashI(t *testing.T) {
 func TestRelativeImportsInCommandLinePackage(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	files, err := filepath.Glob("./testdata/testimport/*.go")
 	tg.must(err)
 	tg.run(append([]string{"test"}, files...)...)
@@ -1300,6 +1306,7 @@ func TestRelativeImportsInCommandLinePackage(t *testing.T) {
 func TestNonCanonicalImportPaths(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("build", "canonical/d")
 	tg.grepStderr("package canonical/d", "did not report canonical/d")
@@ -1554,6 +1561,7 @@ func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
 func TestGoListHasAConsistentOrder(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.run("list", "std")
 	first := tg.getStdout()
 	tg.run("list", "std")
@@ -1565,6 +1573,7 @@ func TestGoListHasAConsistentOrder(t *testing.T) {
 func TestGoListStdDoesNotIncludeCommands(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.run("list", "std")
 	tg.grepStdoutNot("cmd/", "go list std shows commands")
 }
@@ -1572,6 +1581,7 @@ func TestGoListStdDoesNotIncludeCommands(t *testing.T) {
 func TestGoListCmdOnlyShowsCommands(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.run("list", "cmd")
 	out := strings.TrimSpace(tg.getStdout())
 	for _, line := range strings.Split(out, "\n") {
@@ -1585,6 +1595,7 @@ func TestGoListCmdOnlyShowsCommands(t *testing.T) {
 func TestGoListDedupsPackages(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.run("list", "xtestonly", "./testdata/src/xtestonly/...")
 	got := strings.TrimSpace(tg.getStdout())
@@ -1598,6 +1609,7 @@ func TestGoListDedupsPackages(t *testing.T) {
 func TestUnsuccessfulGoInstallShouldMentionMissingPackage(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.runFail("install", "foo/quxx")
 	if tg.grepCountBoth(`cannot find package "foo/quxx" in any of`) != 1 {
 		t.Error(`go install foo/quxx expected error: .*cannot find package "foo/quxx" in any of`)
@@ -1607,6 +1619,7 @@ func TestUnsuccessfulGoInstallShouldMentionMissingPackage(t *testing.T) {
 func TestGOROOTSearchFailureReporting(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.runFail("install", "foo/quxx")
 	if tg.grepCountBoth(regexp.QuoteMeta(filepath.Join("foo", "quxx"))+` \(from \$GOROOT\)$`) != 1 {
 		t.Error(`go install foo/quxx expected error: .*foo/quxx (from $GOROOT)`)
@@ -1616,6 +1629,7 @@ func TestGOROOTSearchFailureReporting(t *testing.T) {
 func TestMultipleGOPATHEntriesReportedSeparately(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	sep := string(filepath.ListSeparator)
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata", "a")+sep+filepath.Join(tg.pwd(), "testdata", "b"))
 	tg.runFail("install", "foo/quxx")
@@ -1628,6 +1642,7 @@ func TestMultipleGOPATHEntriesReportedSeparately(t *testing.T) {
 func TestMentionGOPATHInFirstGOPATHEntry(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	sep := string(filepath.ListSeparator)
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata", "a")+sep+filepath.Join(tg.pwd(), "testdata", "b"))
 	tg.runFail("install", "foo/quxx")
@@ -1640,6 +1655,7 @@ func TestMentionGOPATHInFirstGOPATHEntry(t *testing.T) {
 func TestMentionGOPATHNotOnSecondEntry(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	sep := string(filepath.ListSeparator)
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata", "a")+sep+filepath.Join(tg.pwd(), "testdata", "b"))
 	tg.runFail("install", "foo/quxx")
@@ -1652,6 +1668,7 @@ func TestMentionGOPATHNotOnSecondEntry(t *testing.T) {
 func TestMissingGOPATHIsReported(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.setenv("GOPATH", "")
 	tg.runFail("install", "foo/quxx")
 	if tg.grepCountBoth(`\(\$GOPATH not set\. For more details see: 'go help gopath'\)$`) != 1 {
@@ -1702,6 +1719,7 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.makeTempdir()
 	tg.cd(tg.path("."))
 	tg.run("test", "-cpuprofile", "errors.prof", "errors")
@@ -1711,6 +1729,7 @@ func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
 func TestGoTestCpuprofileDashOControlsBinaryLocation(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.makeTempdir()
 	tg.cd(tg.path("."))
 	tg.run("test", "-cpuprofile", "errors.prof", "-o", "myerrors.test"+exeSuffix, "errors")
@@ -1754,6 +1773,7 @@ func TestSymlinksList(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.tempDir("src")
 	tg.must(os.Symlink(tg.path("."), tg.path("src/dir1")))
 	tg.tempFile("src/dir1/p.go", "package p")
@@ -1774,6 +1794,7 @@ func TestSymlinksVendor(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.tempDir("gopath/src/dir1/vendor/v")
 	tg.tempFile("gopath/src/dir1/p.go", "package main\nimport _ `v`\nfunc main(){}")
 	tg.tempFile("gopath/src/dir1/vendor/v/v.go", "package v")
@@ -2110,6 +2131,7 @@ func TestCoverageWithCgo(t *testing.T) {
 	for _, dir := range []string{"cgocover", "cgocover2", "cgocover3", "cgocover4"} {
 		t.Run(dir, func(t *testing.T) {
 			tg := testgo(t)
+			tg.parallel()
 			defer tg.cleanup()
 			tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 			tg.run("test", "-short", "-cover", dir)
@@ -2183,6 +2205,7 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 func TestIssue6480(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.makeTempdir()
 	tg.cd(tg.path("."))
 	tg.run("test", "-c", "-test.bench=XXX", "errors")
@@ -2213,8 +2236,7 @@ func main() { C.f() }`)
 }
 
 func TestListTemplateContextFunction(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
+	t.Parallel()
 	for _, tt := range []struct {
 		v    string
 		want string
@@ -2230,14 +2252,20 @@ func TestListTemplateContextFunction(t *testing.T) {
 		{"ReleaseTags", ""},
 		{"InstallSuffix", ""},
 	} {
-		tmpl := "{{context." + tt.v + "}}"
-		tg.run("list", "-f", tmpl)
-		if tt.want == "" {
-			continue
-		}
-		if got := strings.TrimSpace(tg.getStdout()); got != tt.want {
-			t.Errorf("go list -f %q: got %q; want %q", tmpl, got, tt.want)
-		}
+		tt := tt
+		t.Run(tt.v, func(t *testing.T) {
+			tg := testgo(t)
+			tg.parallel()
+			defer tg.cleanup()
+			tmpl := "{{context." + tt.v + "}}"
+			tg.run("list", "-f", tmpl)
+			if tt.want == "" {
+				return
+			}
+			if got := strings.TrimSpace(tg.getStdout()); got != tt.want {
+				t.Errorf("go list -f %q: got %q; want %q", tmpl, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -2488,6 +2516,7 @@ func TestGoGetHTTPS404(t *testing.T) {
 // See golang.org/issue/4210 and golang.org/issue/17475.
 func TestImportMain(t *testing.T) {
 	tg := testgo(t)
+	tg.parallel()
 	defer tg.cleanup()
 
 	// Importing package main from that package main's test should work.
@@ -2574,6 +2603,7 @@ func TestImportMain(t *testing.T) {
 // See golang.org/issue/17475.
 func TestImportLocal(t *testing.T) {
 	tg := testgo(t)
+	tg.parallel()
 	defer tg.cleanup()
 
 	tg.tempFile("src/dir/x/x.go", `package x
@@ -2790,6 +2820,7 @@ func TestGoRunDirs(t *testing.T) {
 
 func TestGoInstallPkgdir(t *testing.T) {
 	tg := testgo(t)
+	tg.parallel()
 	defer tg.cleanup()
 	tg.makeTempdir()
 	pkg := tg.path(".")
@@ -2834,6 +2865,7 @@ func TestGoTestRaceFailures(t *testing.T) {
 	}
 
 	tg := testgo(t)
+	tg.parallel()
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 
@@ -3112,6 +3144,7 @@ func TestIssue13655(t *testing.T) {
 // For issue 14337.
 func TestParallelTest(t *testing.T) {
 	tg := testgo(t)
+	tg.parallel()
 	defer tg.cleanup()
 	tg.makeTempdir()
 	const testSrc = `package package_test
@@ -3177,6 +3210,7 @@ func TestIssue17119(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("build", "dupload")
 	tg.grepBothNot("duplicate load|internal error", "internal error")
@@ -3185,6 +3219,7 @@ func TestIssue17119(t *testing.T) {
 func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.runFail("test", "-run", "^$", "-bench", ".", "./testdata/src/benchfatal")
 	tg.grepBothNot("^ok", "test passed unexpectedly")
 	tg.grepBoth("FAIL.*benchfatal", "test did not run everything")
@@ -3193,6 +3228,7 @@ func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
 func TestBinaryOnlyPackages(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("."))
 
@@ -3321,6 +3357,7 @@ func TestGoGetUpdateWithWildcard(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("."))
 	const aPkgImportPath = "github.com/tmwh/go-get-issue-14450/a"
@@ -3344,6 +3381,7 @@ func TestGoGetUpdateWithWildcard(t *testing.T) {
 
 func TestGoEnv(t *testing.T) {
 	tg := testgo(t)
+	tg.parallel()
 	defer tg.cleanup()
 	tg.setenv("GOARCH", "arm")
 	tg.run("env", "GOARCH")
@@ -3368,6 +3406,7 @@ const (
 func TestMatchesNoTests(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.run("test", "-run", "ThisWillNotMatch", "testdata/standalone_test.go")
 	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
 }
@@ -3375,6 +3414,7 @@ func TestMatchesNoTests(t *testing.T) {
 func TestMatchesNoTestsDoesNotOverrideBuildFailure(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("test", "-run", "ThisWillNotMatch", "syntaxerror")
 	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
@@ -3384,6 +3424,7 @@ func TestMatchesNoTestsDoesNotOverrideBuildFailure(t *testing.T) {
 func TestMatchesNoBenchmarksIsOK(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.run("test", "-run", "^$", "-bench", "ThisWillNotMatch", "testdata/standalone_benchmark_test.go")
 	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
 	tg.grepBoth(okPattern, "go test did not say ok")
@@ -3392,6 +3433,7 @@ func TestMatchesNoBenchmarksIsOK(t *testing.T) {
 func TestMatchesOnlyExampleIsOK(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.run("test", "-run", "Example", "testdata/example1_test.go")
 	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
 	tg.grepBoth(okPattern, "go test did not say ok")
@@ -3400,6 +3442,7 @@ func TestMatchesOnlyExampleIsOK(t *testing.T) {
 func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.run("test", "-run", "^$", "-bench", ".", "testdata/standalone_benchmark_test.go")
 	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
 	tg.grepBoth(okPattern, "go test did not say ok")
@@ -3408,6 +3451,7 @@ func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
 func TestMatchesOnlyTestIsOK(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	// TODO: tg.parallel()
 	tg.run("test", "-run", "Test", "testdata/standalone_test.go")
 	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
 	tg.grepBoth(okPattern, "go test did not say ok")
@@ -3462,6 +3506,7 @@ func TestLinkXImportPathEscape(t *testing.T) {
 	// golang.org/issue/16710
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	exe := "./linkx" + exeSuffix
 	tg.creatingTemp(exe)
