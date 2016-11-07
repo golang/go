@@ -135,7 +135,8 @@ type Config struct {
 // be incomplete.
 type Info struct {
 	// Types maps expressions to their types, and for constant
-	// expressions, their values. Invalid expressions are omitted.
+	// expressions, also their values. Invalid expressions are
+	// omitted.
 	//
 	// For (possibly parenthesized) identifiers denoting built-in
 	// functions, the recorded signatures are call-site specific:
@@ -143,9 +144,13 @@ type Info struct {
 	// an argument-specific signature. Otherwise, the recorded type
 	// is invalid.
 	//
-	// Identifiers on the lhs of declarations (i.e., the identifiers
-	// which are being declared) are collected in the Defs map.
-	// Identifiers denoting packages are collected in the Uses maps.
+	// The Types map does not record the type of every identifier,
+	// only those that appear where an arbitrary expression is
+	// permitted. For instance, the identifier f in a selector
+	// expression x.f is found only in the Selections map, the
+	// identifier z in a variable declaration 'var z int' is found
+	// only in the Defs map, and identifiers denoting packages in
+	// qualified identifiers are collected in the Uses map.
 	Types map[ast.Expr]TypeAndValue
 
 	// Defs maps identifiers to the objects they define (including
