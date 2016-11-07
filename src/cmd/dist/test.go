@@ -809,7 +809,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 	case "android-arm",
 		"dragonfly-386", "dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm", "linux-s390x",
+		"linux-386", "linux-amd64", "linux-arm", "linux-ppc64le", "linux-s390x",
 		"netbsd-386", "netbsd-amd64":
 
 		cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
