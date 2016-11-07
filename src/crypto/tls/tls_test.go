@@ -668,6 +668,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 				panic(fmt.Errorf("accept: %v", err))
 			}
 			serverConfig := testConfig.Clone()
+			serverConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
@@ -681,6 +682,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 
 	b.SetBytes(totalBytes)
 	clientConfig := testConfig.Clone()
+	clientConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 
 	buf := make([]byte, bufsize)
