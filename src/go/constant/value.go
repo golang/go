@@ -848,6 +848,8 @@ Error:
 
 func ord(x Value) int {
 	switch x.(type) {
+	default:
+		return -1 // force invalid value into "x position" in match
 	case unknownVal:
 		return 0
 	case boolVal, stringVal:
@@ -862,8 +864,6 @@ func ord(x Value) int {
 		return 5
 	case complexVal:
 		return 6
-	default:
-		panic("unreachable")
 	}
 }
 
@@ -880,9 +880,6 @@ func match(x, y Value) (_, _ Value) {
 	// ord(x) <= ord(y)
 
 	switch x := x.(type) {
-	case unknownVal:
-		return x, x
-
 	case boolVal, stringVal, complexVal:
 		return x, y
 
@@ -921,6 +918,7 @@ func match(x, y Value) (_, _ Value) {
 		case complexVal:
 			return vtoc(x), y
 		}
+
 	case floatVal:
 		switch y := y.(type) {
 		case floatVal:
@@ -930,7 +928,7 @@ func match(x, y Value) (_, _ Value) {
 		}
 	}
 
-	panic("unreachable")
+	return x, x // force unknown and invalid values into "x position" in callers of match
 }
 
 // BinaryOp returns the result of the binary expression x op y.
@@ -1171,7 +1169,7 @@ func cmpZero(x int, op token.Token) bool {
 	case token.GEQ:
 		return x >= 0
 	}
-	panic("unreachable")
+	panic(fmt.Sprintf("invalid comparison %v %s 0", x, op))
 }
 
 // Compare returns the result of the comparison x op y.
