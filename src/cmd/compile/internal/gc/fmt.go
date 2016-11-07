@@ -1589,10 +1589,8 @@ func (s *Sym) sconv(flag FmtFlag) string {
 		return "_"
 	}
 
-	sf := flag
 	sm := setfmode(&flag)
 	str := s.symfmt(flag)
-	flag = sf
 	fmtmode = sm
 	return str
 }
@@ -1626,10 +1624,10 @@ func fldconv(f *Field, flag FmtFlag) string {
 		return "<T>"
 	}
 
-	sf := flag
+	unsigned := flag&FmtUnsigned != 0
 	sm := setfmode(&flag)
 
-	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
+	if fmtmode == FTypeId && unsigned {
 		fmtpkgpfx++
 	}
 	if fmtpkgpfx != 0 {
@@ -1687,11 +1685,10 @@ func fldconv(f *Field, flag FmtFlag) string {
 		str += " " + strconv.Quote(f.Note)
 	}
 
-	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
+	if fmtmode == FTypeId && unsigned {
 		fmtpkgpfx--
 	}
 
-	flag = sf
 	fmtmode = sm
 	return str
 }
@@ -1719,10 +1716,10 @@ func (t *Type) tconv(flag FmtFlag) string {
 	}
 
 	t.Trecur++
-	sf := flag
+	unsigned := flag&FmtUnsigned != 0
 	sm := setfmode(&flag)
 
-	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
+	if fmtmode == FTypeId && unsigned {
 		fmtpkgpfx++
 	}
 	if fmtpkgpfx != 0 {
@@ -1731,11 +1728,10 @@ func (t *Type) tconv(flag FmtFlag) string {
 
 	str := t.typefmt(flag)
 
-	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
+	if fmtmode == FTypeId && unsigned {
 		fmtpkgpfx--
 	}
 
-	flag = sf
 	fmtmode = sm
 	t.Trecur--
 	return str
@@ -1753,7 +1749,6 @@ func (n *Node) nconv(s fmt.State, flag FmtFlag) {
 		return
 	}
 
-	sf := flag
 	sm := setfmode(&flag)
 
 	switch fmtmode {
@@ -1769,7 +1764,6 @@ func (n *Node) nconv(s fmt.State, flag FmtFlag) {
 		Fatalf("unhandled %%N mode: %d", fmtmode)
 	}
 
-	flag = sf
 	fmtmode = sm
 }
 
@@ -1794,7 +1788,6 @@ func (l Nodes) hconv(s fmt.State, flag FmtFlag) {
 		return
 	}
 
-	sf := flag
 	sm := setfmode(&flag)
 	sep := "; "
 	if fmtmode == FDbg {
@@ -1810,7 +1803,6 @@ func (l Nodes) hconv(s fmt.State, flag FmtFlag) {
 		}
 	}
 
-	flag = sf
 	fmtmode = sm
 }
 
