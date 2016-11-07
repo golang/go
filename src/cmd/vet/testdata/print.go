@@ -128,8 +128,10 @@ func PrintfTests() {
 	fmt.Printf("%t", stringerarrayv)           // ERROR "arg stringerarrayv for printf verb %t of wrong type"
 	fmt.Printf("%t", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %t of wrong type"
 	fmt.Printf("%q", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %q of wrong type"
-	fmt.Printf("%d", Formatter(true))          // correct (the type is responsible for formatting)
-	fmt.Printf("%s", nonemptyinterface)        // correct (the dynamic type of nonemptyinterface may be a stringer)
+	fmt.Printf("%d", Formatter(true))          // ERROR "arg Formatter\(true\) for printf verb %d of wrong type: testdata.Formatter"
+	fmt.Printf("%z", FormatterVal(true))       // correct (the type is responsible for formatting)
+	fmt.Printf("%d", FormatterVal(true))       // correct (the type is responsible for formatting)
+	fmt.Printf("%s", nonemptyinterface)        // correct (the type is responsible for formatting)
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
 	fmt.Println()                              // not an error
 	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
@@ -414,6 +416,12 @@ func (p *recursivePtrStringer) String() string {
 type Formatter bool
 
 func (*Formatter) Format(fmt.State, rune) {
+}
+
+// Formatter with value receiver
+type FormatterVal bool
+
+func (FormatterVal) Format(fmt.State, rune) {
 }
 
 type RecursiveSlice []RecursiveSlice
