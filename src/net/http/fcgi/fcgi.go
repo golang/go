@@ -3,8 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // Package fcgi implements the FastCGI protocol.
+//
+// The protocol is not an official standard and the original
+// documentation is no longer online. See the Internet Archive's
+// mirror at: https://web.archive.org/web/20150420080736/http://www.fastcgi.com/drupal/node/6?q=node/22
+//
 // Currently only the responder role is supported.
-// The protocol is defined at http://www.fastcgi.com/drupal/node/6?q=node/22
 package fcgi
 
 // This file defines the raw protocol and some utilities used by the child and
