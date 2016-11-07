@@ -113,8 +113,7 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 		}
 	}
 	// If the type implements fmt.Formatter, we have nothing to check.
-	// formatterTyp may be nil - be conservative and check for Format method in that case.
-	if formatterType != nil && types.Implements(typ, formatterType) || f.hasMethod(typ, "Format") {
+	if f.isFormatter(typ) {
 		return true
 	}
 	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?

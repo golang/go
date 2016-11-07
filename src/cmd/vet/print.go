@@ -192,6 +192,12 @@ func isStringer(f *File, d *ast.FuncDecl) bool {
 		f.pkg.types[d.Type.Results.List[0].Type].Type == types.Typ[types.String]
 }
 
+// isFormatter reports whether t satisfies fmt.Formatter.
+// Unlike fmt.Stringer, it's impossible to satisfy fmt.Formatter without importing fmt.
+func (f *File) isFormatter(t types.Type) bool {
+	return formatterType != nil && types.Implements(t, formatterType)
+}
+
 // formatState holds the parsed representation of a printf directive such as "%3.*[4]d".
 // It is constructed by parsePrintfVerb.
 type formatState struct {
@@ -423,8 +429,6 @@ const (
 )
 
 // printVerbs identifies which flags are known to printf for each verb.
-// TODO: A type that implements Formatter may do what it wants, and vet
-// will complain incorrectly.
 var printVerbs = []printVerb{
 	// '-' is a width modifier, always valid.
 	// '.' is a precision for float, max width for strings.
@@ -466,7 +470,16 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 			break
 		}
 	}
-	if !found {
+
+	// Does current arg implement fmt.Formatter?
+	formatter := false
+	if state.argNum < len(call.Args) {
+		if tv, ok := f.pkg.types[call.Args[state.argNum]]; ok {
+			formatter = f.isFormatter(tv.Type)
+		}
+	}
+
+	if !found && !formatter {
 		f.Badf(call.Pos(), "unrecognized printf verb %q", state.verb)
 		return false
 	}
@@ -494,7 +507,7 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 			return false
 		}
 	}
-	if state.verb == '%' {
+	if state.verb == '%' || formatter {
 		return true
 	}
 	argNum := state.argNums[len(state.argNums)-1]
