@@ -109,13 +109,13 @@ var ArchMIPS = &Arch{
 }
 
 var ArchMIPSLE = &Arch{
-        Name:      "mipsle",
-        Family:    MIPS,
-        ByteOrder: binary.LittleEndian,
-        IntSize:   4,
-        PtrSize:   4,
-        RegSize:   4,
-        MinLC:     4,
+	Name:      "mipsle",
+	Family:    MIPS,
+	ByteOrder: binary.LittleEndian,
+	IntSize:   4,
+	PtrSize:   4,
+	RegSize:   4,
+	MinLC:     4,
 }
 
 var ArchMIPS64 = &Arch{
