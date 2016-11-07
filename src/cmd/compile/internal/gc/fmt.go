@@ -433,11 +433,7 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprint(s, strconv.Quote(u))
 
 	case bool:
-		t := "false"
-		if u {
-			t = "true"
-		}
-		fmt.Fprint(s, t)
+		fmt.Fprint(s, u)
 
 	case *NilVal:
 		fmt.Fprint(s, "nil")
