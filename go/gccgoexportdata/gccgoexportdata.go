@@ -30,10 +30,11 @@ import (
 // CompilerInfo executes the specified gccgo compiler and returns
 // information about it: its version (e.g. "4.8.0"), its target triple
 // (e.g. "x86_64-unknown-linux-gnu"), and the list of directories it
-// searches to find standard packages.
-func CompilerInfo(gccgo string) (version, triple string, dirs []string, err error) {
+// searches to find standard packages. The given arguments are passed
+// directly to calls to the specified gccgo compiler.
+func CompilerInfo(gccgo string, args ...string) (version, triple string, dirs []string, err error) {
 	var inst gccgoimporter.GccgoInstallation
-	err = inst.InitFromDriver(gccgo)
+	err = inst.InitFromDriver(gccgo, args...)
 	if err == nil {
 		version = inst.GccVersion
 		triple = inst.TargetTriple
