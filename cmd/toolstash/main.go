@@ -457,7 +457,7 @@ func skipVersion(b1, b2 *bufio.Reader, file1, file2 string) bool {
 	for {
 		c1, err1 := b1.ReadByte()
 		if err1 == io.EOF {
-			log.Fatalf("reading %s: unexpected EOF", file1, err1)
+			log.Fatalf("reading %s: unexpected EOF", file1)
 		}
 		if err1 != nil {
 			log.Fatalf("reading %s: %v", file1, err1)
@@ -469,7 +469,7 @@ func skipVersion(b1, b2 *bufio.Reader, file1, file2 string) bool {
 	for {
 		c2, err2 := b2.ReadByte()
 		if err2 == io.EOF {
-			log.Fatalf("reading %s: unexpected EOF", file2, err2)
+			log.Fatalf("reading %s: unexpected EOF", file2)
 		}
 		if err2 != nil {
 			log.Fatalf("reading %s: %v", file2, err2)
