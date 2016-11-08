@@ -484,3 +484,37 @@ func TestBlock(t *testing.T) {
 		t.Errorf("inner template = %q, want %q", g, w)
 	}
 }
+
+func TestLineNum(t *testing.T) {
+	const count = 100
+	text := strings.Repeat("{{printf 1234}}\n", count)
+	tree, err := New("bench").Parse(text, "", "", make(map[string]*Tree), builtins)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Check the line numbers. Each line is an action containing a template, followed by text.
+	// That's two nodes per line.
+	nodes := tree.Root.Nodes
+	for i := 0; i < len(nodes); i += 2 {
+		line := 1 + i/2
+		// Action first.
+		action := nodes[i].(*ActionNode)
+		if action.Line != line {
+			t.Fatalf("line %d: action is line %d", line, action.Line)
+		}
+		pipe := action.Pipe
+		if pipe.Line != line {
+			t.Fatalf("line %d: pipe is line %d", line, pipe.Line)
+		}
+	}
+}
+
+func BenchmarkParseLarge(b *testing.B) {
+	text := strings.Repeat("{{1234}}\n", 10000)
+	for i := 0; i < b.N; i++ {
+		_, err := New("bench").Parse(text, "", "", make(map[string]*Tree), builtins)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

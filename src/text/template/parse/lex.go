@@ -13,9 +13,10 @@ import (
 
 // item represents a token or text string returned from the scanner.
 type item struct {
-	typ itemType // The type of this item.
-	pos Pos      // The starting position, in bytes, of this item in the input string.
-	val string   // The value of this item.
+	typ  itemType // The type of this item.
+	pos  Pos      // The starting position, in bytes, of this item in the input string.
+	val  string   // The value of this item.
+	line int      // The line number at the start of this item.
 }
 
 func (i item) String() string {
@@ -116,6 +117,7 @@ type lexer struct {
 	lastPos    Pos       // position of most recent item returned by nextItem
 	items      chan item // channel of scanned items
 	parenDepth int       // nesting depth of ( ) exprs
+	line       int       // 1+number of newlines seen
 }
 
 // next returns the next rune in the input.
@@ -127,6 +129,9 @@ func (l *lexer) next() rune {
 	r, w := utf8.DecodeRuneInString(l.input[l.pos:])
 	l.width = Pos(w)
 	l.pos += l.width
+	if r == '\n' {
+		l.line++
+	}
 	return r
 }
 
@@ -140,11 +145,20 @@ func (l *lexer) peek() rune {
 // backup steps back one rune. Can only be called once per call of next.
 func (l *lexer) backup() {
 	l.pos -= l.width
+	// Correct newline count.
+	if l.width == 1 && l.input[l.pos] == '\n' {
+		l.line--
+	}
 }
 
 // emit passes an item back to the client.
 func (l *lexer) emit(t itemType) {
-	l.items <- item{t, l.start, l.input[l.start:l.pos]}
+	l.items <- item{t, l.start, l.input[l.start:l.pos], l.line}
+	// Some items contain text internally. If so, count their newlines.
+	switch t {
+	case itemText, itemRawString, itemLeftDelim, itemRightDelim:
+		l.line += strings.Count(l.input[l.start:l.pos], "\n")
+	}
 	l.start = l.pos
 }
 
@@ -169,17 +183,10 @@ func (l *lexer) acceptRun(valid string) {
 	l.backup()
 }
 
-// lineNumber reports which line we're on, based on the position of
-// the previous item returned by nextItem. Doing it this way
-// means we don't have to worry about peek double counting.
-func (l *lexer) lineNumber() int {
-	return 1 + strings.Count(l.input[:l.lastPos], "\n")
-}
-
 // errorf returns an error token and terminates the scan by passing
 // back a nil pointer that will be the next state, terminating l.nextItem.
 func (l *lexer) errorf(format string, args ...interface{}) stateFn {
-	l.items <- item{itemError, l.start, fmt.Sprintf(format, args...)}
+	l.items <- item{itemError, l.start, fmt.Sprintf(format, args...), l.line}
 	return nil
 }
 
@@ -212,6 +219,7 @@ func lex(name, input, left, right string) *lexer {
 		leftDelim:  left,
 		rightDelim: right,
 		items:      make(chan item),
+		line:       1,
 	}
 	go l.run()
 	return l
@@ -602,10 +610,14 @@ Loop:
 
 // lexRawQuote scans a raw quoted string.
 func lexRawQuote(l *lexer) stateFn {
+	startLine := l.line
 Loop:
 	for {
 		switch l.next() {
 		case eof:
+			// Restore line number to location of opening quote.
+			// We will error out so it's ok just to overwrite the field.
+			l.line = startLine
 			return l.errorf("unterminated raw quoted string")
 		case '`':
 			break Loop
