@@ -698,17 +698,10 @@ func LastIndexFunc(s string, f func(rune) bool) int {
 // truth==false, the sense of the predicate function is
 // inverted.
 func indexFunc(s string, f func(rune) bool, truth bool) int {
-	start := 0
-	for start < len(s) {
-		wid := 1
-		r := rune(s[start])
-		if r >= utf8.RuneSelf {
-			r, wid = utf8.DecodeRuneInString(s[start:])
-		}
+	for i, r := range s {
 		if f(r) == truth {
-			return start
+			return i
 		}
-		start += wid
 	}
 	return -1
 }
