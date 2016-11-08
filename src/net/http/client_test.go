@@ -251,11 +251,14 @@ func TestClientRedirects(t *testing.T) {
 	var checkErr error
 	var lastVia []*Request
 	var lastReq *Request
-	c = &Client{CheckRedirect: func(req *Request, via []*Request) error {
-		lastReq = req
-		lastVia = via
-		return checkErr
-	}}
+	c = &Client{
+		Transport: tr,
+		CheckRedirect: func(req *Request, via []*Request) error {
+			lastReq = req
+			lastVia = via
+			return checkErr
+		},
+	}
 	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatalf("Get error: %v", err)
