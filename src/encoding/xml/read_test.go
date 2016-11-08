@@ -733,3 +733,22 @@ func TestMalformedComment(t *testing.T) {
 		}
 	}
 }
+
+type IXField struct {
+	Five        int      `xml:"five"`
+	NotInnerXML []string `xml:",innerxml"`
+}
+
+// Issue 15600. ",innerxml" on a field that can't hold it.
+func TestInvalidInnerXMLType(t *testing.T) {
+	v := new(IXField)
+	if err := Unmarshal([]byte(`<tag><five>5</five><innertag/></tag>`), v); err != nil {
+		t.Errorf("Unmarshal failed: got %v", err)
+	}
+	if v.Five != 5 {
+		t.Errorf("Five = %v, want 5", v.Five)
+	}
+	if v.NotInnerXML != nil {
+		t.Errorf("NotInnerXML = %v, want nil", v.NotInnerXML)
+	}
+}
