@@ -582,7 +582,9 @@ Loop:
 	case reflect.String:
 		t.SetString(string(saveXMLData))
 	case reflect.Slice:
-		t.Set(reflect.ValueOf(saveXMLData))
+		if t.Type().Elem().Kind() == reflect.Uint8 {
+			t.Set(reflect.ValueOf(saveXMLData))
+		}
 	}
 
 	return nil
