@@ -9,14 +9,20 @@ package ssa
 // CreateTestMainPackage synthesizes a main package that runs all the
 // tests of the supplied packages.
 // It is closely coupled to $GOROOT/src/cmd/go/test.go and $GOROOT/src/testing.
+//
+// TODO(adonovan): this file no longer needs to live in the ssa package.
+// Move it to ssautil.
 
 import (
+	"bytes"
+	"fmt"
 	"go/ast"
-	"go/token"
+	"go/parser"
 	"go/types"
 	"log"
 	"os"
 	"strings"
+	"text/template"
 )
 
 // FindTests returns the Test, Benchmark, and Example functions
@@ -77,11 +83,25 @@ func isTestSig(f *Function, prefix string, sig *types.Signature) bool {
 	return isTest(f.Name(), prefix) && types.Identical(f.Signature, sig)
 }
 
-// If non-nil, testMainStartBodyHook is called immediately after
-// startBody for main.init and main.main, making it easy for users to
-// add custom imports and initialization steps for proprietary build
-// systems that don't exactly follow 'go test' conventions.
-var testMainStartBodyHook func(*Function)
+// Given the type of one of the three slice parameters of testing.Main,
+// returns the function type.
+func funcField(slice types.Type) *types.Signature {
+	return slice.(*types.Slice).Elem().Underlying().(*types.Struct).Field(1).Type().(*types.Signature)
+}
+
+// isTest tells whether name looks like a test (or benchmark, according to prefix).
+// It is a Test (say) if there is a character after Test that is not a lower-case letter.
+// We don't want TesticularCancer.
+// Plundered from $GOROOT/src/cmd/go/test.go
+func isTest(name, prefix string) bool {
+	if !strings.HasPrefix(name, prefix) {
+		return false
+	}
+	if len(name) == len(prefix) { // "Test" is ok
+		return true
+	}
+	return ast.IsExported(name[len(prefix):])
+}
 
 // CreateTestMainPackage creates and returns a synthetic "testmain"
 // package for the specified package if it defines tests, benchmarks or
@@ -96,113 +116,28 @@ func (prog *Program) CreateTestMainPackage(pkg *Package) *Package {
 		log.Fatal("Package does not belong to Program")
 	}
 
-	tests, benchmarks, examples, testMainFunc := FindTests(pkg)
+	// Template data
+	var data struct {
+		Pkg                         *Package
+		Tests, Benchmarks, Examples []*Function
+		Main                        *Function
+		Go18                        bool
+	}
+	data.Pkg = pkg
 
-	if testMainFunc == nil && tests == nil && benchmarks == nil && examples == nil {
+	// Enumerate tests.
+	data.Tests, data.Benchmarks, data.Examples, data.Main = FindTests(pkg)
+	if data.Main == nil &&
+		data.Tests == nil && data.Benchmarks == nil && data.Examples == nil {
 		return nil
 	}
 
-	testmain := &Package{
-		Prog:    prog,
-		Members: make(map[string]Member),
-		values:  make(map[types.Object]Value),
-		Pkg:     types.NewPackage(pkg.Pkg.Path()+"$testmain", "main"),
-	}
-
-	// Build package's init function.
-	init := &Function{
-		name:      "init",
-		Signature: new(types.Signature),
-		Synthetic: "package initializer",
-		Pkg:       testmain,
-		Prog:      prog,
-	}
-	init.startBody()
-
-	if testMainStartBodyHook != nil {
-		testMainStartBodyHook(init)
-	}
-
-	// Initialize package under test.
-	var v Call
-	v.Call.Value = pkg.init
-	v.setType(types.NewTuple())
-	init.emit(&v)
-	init.emit(new(Return))
-	init.finishBody()
-	testmain.init = init
-	testmain.Pkg.MarkComplete()
-	testmain.Members[init.name] = init
-
-	// Create main *types.Func and *Function
-	mainFunc := types.NewFunc(token.NoPos, testmain.Pkg, "main", new(types.Signature))
-	memberFromObject(testmain, mainFunc, nil)
-	main := testmain.Func("main")
-	main.Synthetic = "test main function"
-
-	main.startBody()
-
-	if testMainStartBodyHook != nil {
-		testMainStartBodyHook(main)
-	}
-
+	// Synthesize source for testmain package.
+	path := pkg.Pkg.Path() + "$testmain"
+	tmpl := testmainTmpl
 	if testingPkg := prog.ImportedPackage("testing"); testingPkg != nil {
-		testingMain := testingPkg.Func("Main")
-		testingMainParams := testingMain.Signature.Params()
-
-		// The generated code is as if compiled from this:
-		//
-		// func main() {
-		//      match      := func(_, _ string) (bool, error) { return true, nil }
-		//      tests      := []testing.InternalTest{{"TestFoo", TestFoo}, ...}
-		//      benchmarks := []testing.InternalBenchmark{...}
-		//      examples   := []testing.InternalExample{...}
-		//	if TestMain is defined {
-		// 		m := testing.MainStart(match, tests, benchmarks, examples)
-		// 		return TestMain(m)
-		// 	} else {
-		// 		return testing.Main(match, tests, benchmarks, examples)
-		// 	}
-		// }
-
-		matcher := &Function{
-			name:      "matcher",
-			Signature: testingMainParams.At(0).Type().(*types.Signature),
-			Synthetic: "test matcher predicate",
-			parent:    main,
-			Pkg:       testmain,
-			Prog:      prog,
-		}
-		main.AnonFuncs = append(main.AnonFuncs, matcher)
-		matcher.startBody()
-		matcher.emit(&Return{Results: []Value{vTrue, nilConst(types.Universe.Lookup("error").Type())}})
-		matcher.finishBody()
-
-		var c Call
-		c.Call.Args = []Value{
-			matcher,
-			testMainSlice(main, tests, testingMainParams.At(1).Type()),
-			testMainSlice(main, benchmarks, testingMainParams.At(2).Type()),
-			testMainSlice(main, examples, testingMainParams.At(3).Type()),
-		}
-		if testMainFunc != nil {
-			// Emit: m := testing.MainStart(matcher, tests, benchmarks, examples).
-			// (Main and MainStart have the same parameters.)
-			mainStart := testingPkg.Func("MainStart")
-			c.Call.Value = mainStart
-			c.setType(mainStart.Signature.Results().At(0).Type()) // *testing.M
-			m := main.emit(&c)
-
-			// Emit: return TestMain(m)
-			var c2 Call
-			c2.Call.Value = testMainFunc
-			c2.Call.Args = []Value{m}
-			emitTailCall(main, &c2)
-		} else {
-			// Emit: return testing.Main(matcher, tests, benchmarks, examples)
-			c.Call.Value = testingMain
-			emitTailCall(main, &c)
-		}
+		// In Go 1.8, testing.MainStart's first argument is an interface, not a func.
+		data.Go18 = types.IsInterface(testingPkg.Func("MainStart").Signature.Params().At(0).Type())
 	} else {
 		// The program does not import "testing", but FindTests
 		// returned non-nil, which must mean there were Examples
@@ -213,105 +148,119 @@ func (prog *Program) CreateTestMainPackage(pkg *Package) *Package {
 		// "Output:" comments.
 		// (We should not execute an Example that has no
 		// "Output:" comment, but it's impossible to tell here.)
-		for _, eg := range examples {
-			var c Call
-			c.Call.Value = eg
-			c.setType(types.NewTuple())
-			main.emit(&c)
-		}
-		main.emit(&Return{})
-		main.currentBlock = nil
+		tmpl = examplesOnlyTmpl
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		log.Fatalf("internal error expanding template for %s: %v", path, err)
+	}
+	if false { // debugging
+		fmt.Fprintln(os.Stderr, buf.String())
 	}
 
-	main.finishBody()
-
-	testmain.Members["main"] = main
-
-	if prog.mode&PrintPackages != 0 {
-		printMu.Lock()
-		testmain.WriteTo(os.Stdout)
-		printMu.Unlock()
+	// Parse and type-check the testmain package.
+	f, err := parser.ParseFile(prog.Fset, path+".go", &buf, parser.Mode(0))
+	if err != nil {
+		log.Fatalf("internal error parsing %s: %v", path, err)
+	}
+	conf := types.Config{
+		DisableUnusedImportCheck: true,
+		Importer:                 importer{pkg},
+	}
+	files := []*ast.File{f}
+	info := &types.Info{
+		Types:      make(map[ast.Expr]types.TypeAndValue),
+		Defs:       make(map[*ast.Ident]types.Object),
+		Uses:       make(map[*ast.Ident]types.Object),
+		Implicits:  make(map[ast.Node]types.Object),
+		Scopes:     make(map[ast.Node]*types.Scope),
+		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+	}
+	testmainPkg, err := conf.Check(path, prog.Fset, files, info)
+	if err != nil {
+		log.Fatalf("internal error type-checking %s: %v", path, err)
 	}
 
-	if prog.mode&SanityCheckFunctions != 0 {
-		sanityCheckPackage(testmain)
-	}
-
-	prog.packages[testmain.Pkg] = testmain
-
+	// Create and build SSA code.
+	testmain := prog.CreatePackage(testmainPkg, files, info, false)
+	testmain.SetDebugMode(false)
+	testmain.Build()
+	testmain.Func("main").Synthetic = "test main function"
+	testmain.Func("init").Synthetic = "package initializer"
 	return testmain
 }
 
-// testMainSlice emits to fn code to construct a slice of type slice
-// (one of []testing.Internal{Test,Benchmark,Example}) for all
-// functions in testfuncs.  It returns the slice value.
-//
-func testMainSlice(fn *Function, testfuncs []*Function, slice types.Type) Value {
-	if testfuncs == nil {
-		return nilConst(slice)
-	}
-
-	tElem := slice.(*types.Slice).Elem()
-	tPtrString := types.NewPointer(tString)
-	tPtrElem := types.NewPointer(tElem)
-	tPtrFunc := types.NewPointer(funcField(slice))
-
-	// TODO(adonovan): fix: populate the
-	// testing.InternalExample.Output field correctly so that tests
-	// work correctly under the interpreter.  This requires that we
-	// do this step using ASTs, not *ssa.Functions---quite a
-	// redesign.  See also the fake runExample in go/ssa/interp.
-
-	// Emit: array = new [n]testing.InternalTest
-	tArray := types.NewArray(tElem, int64(len(testfuncs)))
-	array := emitNew(fn, tArray, token.NoPos)
-	array.Comment = "test main"
-	for i, testfunc := range testfuncs {
-		// Emit: pitem = &array[i]
-		ia := &IndexAddr{X: array, Index: intConst(int64(i))}
-		ia.setType(tPtrElem)
-		pitem := fn.emit(ia)
-
-		// Emit: pname = &pitem.Name
-		fa := &FieldAddr{X: pitem, Field: 0} // .Name
-		fa.setType(tPtrString)
-		pname := fn.emit(fa)
-
-		// Emit: *pname = "testfunc"
-		emitStore(fn, pname, stringConst(testfunc.Name()), token.NoPos)
-
-		// Emit: pfunc = &pitem.F
-		fa = &FieldAddr{X: pitem, Field: 1} // .F
-		fa.setType(tPtrFunc)
-		pfunc := fn.emit(fa)
-
-		// Emit: *pfunc = testfunc
-		emitStore(fn, pfunc, testfunc, token.NoPos)
-	}
-
-	// Emit: slice array[:]
-	sl := &Slice{X: array}
-	sl.setType(slice)
-	return fn.emit(sl)
+// An implementation of types.Importer for an already loaded SSA program.
+type importer struct {
+	pkg *Package // package under test; may be non-importable
 }
 
-// Given the type of one of the three slice parameters of testing.Main,
-// returns the function type.
-func funcField(slice types.Type) *types.Signature {
-	return slice.(*types.Slice).Elem().Underlying().(*types.Struct).Field(1).Type().(*types.Signature)
+func (imp importer) Import(path string) (*types.Package, error) {
+	if p := imp.pkg.Prog.ImportedPackage(path); p != nil {
+		return p.Pkg, nil
+	}
+	if path == imp.pkg.Pkg.Path() {
+		return imp.pkg.Pkg, nil
+	}
+	return nil, fmt.Errorf("not found") // can't happen
 }
 
-// Plundered from $GOROOT/src/cmd/go/test.go
+var testmainTmpl = template.Must(template.New("testmain").Parse(`
+package main
 
-// isTest tells whether name looks like a test (or benchmark, according to prefix).
-// It is a Test (say) if there is a character after Test that is not a lower-case letter.
-// We don't want TesticularCancer.
-func isTest(name, prefix string) bool {
-	if !strings.HasPrefix(name, prefix) {
-		return false
+import "io"
+import "os"
+import "testing"
+import p {{printf "%q" .Pkg.Pkg.Path}}
+
+{{if .Go18}}
+type deps struct{}
+
+func (deps) MatchString(pat, str string) (bool, error) { return true, nil }
+func (deps) StartCPUProfile(io.Writer) error { return nil }
+func (deps) StopCPUProfile() {}
+func (deps) WriteHeapProfile(io.Writer) error { return nil }
+func (deps) WriteProfileTo(string, io.Writer, int) error { return nil }
+
+var match deps
+{{else}}
+func match(_, _ string) (bool, error) { return true, nil }
+{{end}}
+
+func main() {
+	tests := []testing.InternalTest{
+{{range .Tests}}
+		{ {{printf "%q" .Name}}, p.{{.Name}} },
+{{end}}
 	}
-	if len(name) == len(prefix) { // "Test" is ok
-		return true
+	benchmarks := []testing.InternalBenchmark{
+{{range .Benchmarks}}
+		{ {{printf "%q" .Name}}, p.{{.Name}} },
+{{end}}
 	}
-	return ast.IsExported(name[len(prefix):])
+	examples := []testing.InternalExample{
+{{range .Examples}}
+		{Name: {{printf "%q" .Name}}, F: p.{{.Name}}},
+{{end}}
+	}
+	m := testing.MainStart(match, tests, benchmarks, examples)
+{{with .Main}}
+	p.{{.Name}}(m)
+{{else}}
+	os.Exit(m.Run())
+{{end}}
 }
+
+`))
+
+var examplesOnlyTmpl = template.Must(template.New("examples").Parse(`
+package main
+
+import p {{printf "%q" .Pkg.Pkg.Path}}
+
+func main() {
+{{range .Examples}}
+	p.{{.Name}}()
+{{end}}
+}
+`))
