@@ -1703,11 +1703,11 @@ func TestReadAtEOF(t *testing.T) {
 
 func TestLongPath(t *testing.T) {
 	tmpdir := newDir("TestLongPath", t)
-	defer func() {
-		if err := RemoveAll(tmpdir); err != nil {
+	defer func(d string) {
+		if err := RemoveAll(d); err != nil {
 			t.Fatalf("RemoveAll failed: %v", err)
 		}
-	}()
+	}(tmpdir)
 	for len(tmpdir) < 400 {
 		tmpdir += "/dir3456789"
 	}
@@ -1751,7 +1751,7 @@ func TestLongPath(t *testing.T) {
 			}
 		}
 		if err := Truncate(tmpdir+"/bar.txt", 0); err != nil {
-			t.Fatalf("Truncate failed: %v")
+			t.Fatalf("Truncate failed: %v", err)
 		}
 	}
 }
