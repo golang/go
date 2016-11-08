@@ -162,7 +162,9 @@ func TestTranslateCPUProfileWithSamples(t *testing.T) {
 		t.Fatalf("Cannot parse /proc/self/maps")
 	}
 	if len(mprof.Mapping) < 2 {
-		t.Fatalf("Less than two mappings")
+		// It is possible for a binary to only have 1 executable
+		// region of memory.
+		t.Skipf("need 2 or more mappings, got %v", len(mprof.Mapping))
 	}
 	address1 := mprof.Mapping[0].Start
 	address2 := mprof.Mapping[1].Start
