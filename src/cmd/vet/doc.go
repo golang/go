@@ -84,12 +84,12 @@ Flag: -copylocks
 
 Locks that are erroneously passed by value.
 
-Tests and documentation examples
+HTTP responses used incorrectly
 
-Flag: -tests
+Flag: -httpresponse
 
-Mistakes involving tests including functions with incorrect names or signatures
-and example tests that document identifiers not in the package.
+Mistakes deferring a function call on an HTTP response before
+checking whether the error returned with the response was nil.
 
 Failure to call the cancelation function returned by WithCancel
 
@@ -161,6 +161,13 @@ Flag: -structtags
 
 Struct tags that do not follow the format understood by reflect.StructTag.Get.
 Well-known encoding struct tags (json, xml) used with unexported fields.
+
+Tests and documentation examples
+
+Flag: -tests
+
+Mistakes involving tests including functions with incorrect names or signatures
+and example tests that document identifiers not in the package.
 
 Unreachable code
 
