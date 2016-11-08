@@ -6,23 +6,40 @@ package os_test
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
 func TestFixLongPath(t *testing.T) {
+	// 248 is long enough to trigger the longer-than-248 checks in
+	// fixLongPath, but short enough not to make a path component
+	// longer than 255, which is illegal on Windows. (which
+	// doesn't really matter anyway, since this is purely a string
+	// function we're testing, and it's not actually being used to
+	// do a system call)
+	veryLong := "l" + strings.Repeat("o", 248) + "ng"
 	for _, test := range []struct{ in, want string }{
-		{`C:\foo.txt`, `\\?\C:\foo.txt`},
-		{`C:/foo.txt`, `\\?\C:\foo.txt`},
-		{`C:\foo\\bar\.\baz\\`, `\\?\C:\foo\bar\baz`},
-		{`C:\`, `\\?\C:\`}, // drives must have a trailing slash
+		// Short; unchanged:
+		{`C:\short.txt`, `C:\short.txt`},
+		{`C:\`, `C:\`},
+		{`C:`, `C:`},
+		// The "long" substring is replaced by a looooooong
+		// string which triggers the rewriting. Except in the
+		// cases below where it doesn't.
+		{`C:\long\foo.txt`, `\\?\C:\long\foo.txt`},
+		{`C:/long/foo.txt`, `\\?\C:\long\foo.txt`},
+		{`C:\long\foo\\bar\.\baz\\`, `\\?\C:\long\foo\bar\baz`},
 		{`\\unc\path`, `\\unc\path`},
-		{`foo.txt`, `foo.txt`},
-		{`C:foo.txt`, `C:foo.txt`},
-		{`c:\foo\..\bar\baz`, `c:\foo\..\bar\baz`},
-		{`\\?\c:\windows\foo.txt`, `\\?\c:\windows\foo.txt`},
-		{`\\?\c:\windows/foo.txt`, `\\?\c:\windows/foo.txt`},
+		{`long.txt`, `long.txt`},
+		{`C:long.txt`, `C:long.txt`},
+		{`c:\long\..\bar\baz`, `c:\long\..\bar\baz`},
+		{`\\?\c:\long\foo.txt`, `\\?\c:\long\foo.txt`},
+		{`\\?\c:\long/foo.txt`, `\\?\c:\long/foo.txt`},
 	} {
-		if got := os.FixLongPath(test.in); got != test.want {
+		in := strings.Replace(test.in, "long", veryLong, -1)
+		want := strings.Replace(test.want, "long", veryLong, -1)
+		if got := os.FixLongPath(in); got != want {
+			got = strings.Replace(got, veryLong, "long", -1)
 			t.Errorf("fixLongPath(%q) = %q; want %q", test.in, got, test.want)
 		}
 	}

@@ -129,26 +129,40 @@ func dirname(path string) string {
 }
 
 // fixLongPath returns the extended-length (\\?\-prefixed) form of
-// path if possible, in order to avoid the default 260 character file
-// path limit imposed by Windows.  If path is not easily converted to
+// path when needed, in order to avoid the default 260 character file
+// path limit imposed by Windows. If path is not easily converted to
 // the extended-length form (for example, if path is a relative path
-// or contains .. elements), fixLongPath returns path unmodified.
+// or contains .. elements), or is short enough, fixLongPath returns
+// path unmodified.
+//
+// See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
 func fixLongPath(path string) string {
+	// Do nothing (and don't allocate) if the path is "short".
+	// Empirically (at least on the Windows Server 2013 builder),
+	// the kernel is arbitrarily okay with <= 248 bytes. That
+	// matches what the docs above say:
+	// "When using an API to create a directory, the specified
+	// path cannot be so long that you cannot append an 8.3 file
+	// name (that is, the directory name cannot exceed MAX_PATH
+	// minus 12)." Since MAX_PATH is 260, 260 - 12 = 248.
+	if len(path) <= 248 {
+		// Don't fix. (This is how Go 1.7 and earlier worked,
+		// not automatically generating the \\?\ form)
+		return path
+	}
+
 	// The extended form begins with \\?\, as in
 	// \\?\c:\windows\foo.txt or \\?\UNC\server\share\foo.txt.
 	// The extended form disables evaluation of . and .. path
 	// elements and disables the interpretation of / as equivalent
-	// to \.  The conversion here rewrites / to \ and elides
+	// to \. The conversion here rewrites / to \ and elides
 	// . elements as well as trailing or duplicate separators. For
 	// simplicity it avoids the conversion entirely for relative
-	// paths or paths containing .. elements.  For now,
+	// paths or paths containing .. elements. For now,
 	// \\server\share paths are not converted to
 	// \\?\UNC\server\share paths because the rules for doing so
 	// are less well-specified.
-	//
-	// For details of \\?\ paths, see:
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
-	if len(path) == 0 || (len(path) >= 2 && path[:2] == `\\`) {
+	if len(path) >= 2 && path[:2] == `\\` {
 		// Don't canonicalize UNC paths.
 		return path
 	}
