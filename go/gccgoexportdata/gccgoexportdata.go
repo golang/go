@@ -74,17 +74,14 @@ func NewReader(r io.Reader) (io.Reader, error) {
 	return sec.Open(), nil
 }
 
-// firstSection returns the contents of the first non-empty section of the archive file.
+// firstSection returns the contents of the first regular file in an ELF
+// archive (http://www.sco.com/developers/devspecs/gabi41.pdf, §7.2).
 func firstSection(a []byte) ([]byte, error) {
 	for len(a) >= 60 {
 		var hdr []byte
 		hdr, a = a[:60], a[60:]
 
-		modeStr := string(string(hdr[40:48]))
-		mode, err := strconv.Atoi(strings.TrimSpace(modeStr))
-		if err != nil {
-			return nil, fmt.Errorf("invalid mode: %q", modeStr)
-		}
+		name := strings.TrimSpace(string(hdr[:16]))
 
 		sizeStr := string(hdr[48:58])
 		size, err := strconv.Atoi(strings.TrimSpace(sizeStr))
@@ -92,16 +89,25 @@ func firstSection(a []byte) ([]byte, error) {
 			return nil, fmt.Errorf("invalid size: %q", sizeStr)
 		}
 
-		var payload []byte
-		payload, a = a[:size], a[size:]
+		if len(a) < size {
+			return nil, fmt.Errorf("invalid section size: %d", size)
+		}
 
-		if mode == 0 {
-			continue // skip "/"
+		// The payload is padded to an even number of bytes.
+		var payload []byte
+		payload, a = a[:size], a[size+size&1:]
+
+		// Skip special files:
+		//   "/"           archive symbol table
+		//   "/SYM64/"     archive symbol table on e.g. s390x
+		//   "//"          archive string table (if any filename is >15 bytes)
+		if name == "/" || name == "/SYM64/" || name == "//" {
+			continue
 		}
 
 		return payload, nil
 	}
-	return nil, fmt.Errorf("archive has no non-empty sections")
+	return nil, fmt.Errorf("archive has no regular sections")
 }
 
 // Read reads export data from in, decodes it, and returns type
