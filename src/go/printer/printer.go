@@ -712,6 +712,16 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (wroteNewline, dropped
 	return
 }
 
+// containsLinebreak reports whether the whitespace buffer contains any line breaks.
+func (p *printer) containsLinebreak() bool {
+	for _, ch := range p.wsbuf {
+		if ch == newline || ch == formfeed {
+			return true
+		}
+	}
+	return false
+}
+
 // intersperseComments consumes all comments that appear before the next token
 // tok and prints it together with the buffered whitespace (i.e., the whitespace
 // that needs to be written before the next token). A heuristic is used to mix
@@ -730,23 +740,31 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	}
 
 	if last != nil {
-		// if the last comment is a /*-style comment and the next item
+		// If the last comment is a /*-style comment and the next item
 		// follows on the same line but is not a comma, and not a "closing"
 		// token immediately following its corresponding "opening" token,
-		// add an extra blank for separation unless explicitly disabled
+		// add an extra separator unless explicitly disabled. Use a blank
+		// as separator unless we have pending linebreaks and they are not
+		// disabled, in which case we want a linebreak (issue 15137).
+		needsLinebreak := false
 		if p.mode&noExtraBlank == 0 &&
 			last.Text[1] == '*' && p.lineFor(last.Pos()) == next.Line &&
 			tok != token.COMMA &&
 			(tok != token.RPAREN || p.prevOpen == token.LPAREN) &&
 			(tok != token.RBRACK || p.prevOpen == token.LBRACK) {
-			p.writeByte(' ', 1)
+			if p.containsLinebreak() && p.mode&noExtraLinebreak == 0 {
+				needsLinebreak = true
+			} else {
+				p.writeByte(' ', 1)
+			}
 		}
-		// ensure that there is a line break after a //-style comment,
-		// before a closing '}' unless explicitly disabled, or at eof
-		needsLinebreak :=
-			last.Text[1] == '/' ||
-				tok == token.RBRACE && p.mode&noExtraLinebreak == 0 ||
-				tok == token.EOF
+		// Ensure that there is a line break after a //-style comment,
+		// before EOF, and before a closing '}' unless explicitly disabled.
+		if last.Text[1] == '/' ||
+			tok == token.EOF ||
+			tok == token.RBRACE && p.mode&noExtraLinebreak == 0 {
+			needsLinebreak = true
+		}
 		return p.writeCommentSuffix(needsLinebreak)
 	}
 
