@@ -116,7 +116,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 			fmt.Fprintln(out, filename)
 		}
 		if *write {
-			err = ioutil.WriteFile(filename, res, 0644)
+			err = writeFile(filename, res, 0644)
 			if err != nil {
 				return err
 			}
@@ -234,4 +234,36 @@ func diff(b1, b2 []byte) (data []byte, err error) {
 	}
 	return
 
+}
+
+// writeFile is a drop-in replacement for ioutil.WriteFile;
+// but writeFile writes data to a temporary file first and
+// only upon success renames that file to filename.
+// TODO(gri) This can be removed if #17869 is accepted and
+// implemented.
+func writeFile(filename string, data []byte, perm os.FileMode) error {
+	// open temp file
+	f, err := ioutil.TempFile(filepath.Dir(filename), "tmp")
+	if err != nil {
+		return err
+	}
+	err = f.Chmod(perm)
+	if err != nil {
+		return err
+	}
+	tmpname := f.Name()
+
+	// write data to temp file
+	n, err := f.Write(data)
+	if err == nil && n < len(data) {
+		err = io.ErrShortWrite
+	}
+	if err1 := f.Close(); err == nil {
+		err = err1
+	}
+	if err != nil {
+		return err
+	}
+
+	return os.Rename(tmpname, filename)
 }
