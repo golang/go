@@ -219,11 +219,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 				goto childerror
 			}
 		}
-		_, _, err1 = RawSyscall(SYS_SETGID, uintptr(cred.Gid), 0, 0)
+		_, _, err1 = RawSyscall(sys_SETGID, uintptr(cred.Gid), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
-		_, _, err1 = RawSyscall(SYS_SETUID, uintptr(cred.Uid), 0, 0)
+		_, _, err1 = RawSyscall(sys_SETUID, uintptr(cred.Uid), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
