@@ -6,6 +6,7 @@ package gc
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -14,18 +15,21 @@ import (
 )
 
 func parseFile(filename string) {
-	p := noder{baseline: lexlineno}
-	file, err := syntax.ReadFile(filename, p.error, p.pragma, 0)
+	src, err := os.Open(filename)
 	if err != nil {
-		fmt.Printf("parse %s: %v\n", filename, err)
+		fmt.Println(err)
 		errorexit()
 	}
+	defer src.Close()
+
+	p := noder{baseline: lexlineno}
+	file, _ := syntax.Parse(src, p.error, p.pragma, 0) // errors are tracked via p.error
 
 	p.file(file)
 
 	if !imported_unsafe {
 		for _, x := range p.linknames {
-			p.error(0, x, "//go:linkname only allowed in Go files that import \"unsafe\"")
+			p.error(syntax.Error{0, x, "//go:linkname only allowed in Go files that import \"unsafe\""})
 		}
 	}
 
@@ -1003,8 +1007,16 @@ func (p *noder) lineno(n syntax.Node) {
 	lineno = p.baseline + l - 1
 }
 
-func (p *noder) error(_, line int, msg string) {
-	yyerrorl(p.baseline+int32(line)-1, "%s", msg)
+func (p *noder) error(err error) {
+	line := p.baseline
+	var msg string
+	if err, ok := err.(syntax.Error); ok {
+		line += int32(err.Line) - 1
+		msg = err.Msg
+	} else {
+		msg = err.Error()
+	}
+	yyerrorl(line, "%s", msg)
 }
 
 func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
@@ -1020,7 +1032,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
 			break
 		}
 		if n > 1e8 {
-			p.error(pos, line, "line number out of range")
+			p.error(syntax.Error{pos, line, "line number out of range"})
 			errorexit()
 		}
 		if n <= 0 {
@@ -1036,7 +1048,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
 
 		f := strings.Fields(text)
 		if len(f) != 3 {
-			p.error(pos, line, "usage: //go:linkname localname linkname")
+			p.error(syntax.Error{pos, line, "usage: //go:linkname localname linkname"})
 			break
 		}
 		lookup(f[1]).Linkname = f[2]

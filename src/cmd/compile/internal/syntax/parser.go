@@ -24,27 +24,16 @@ type parser struct {
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
 	indent []byte // tracing support
-
-	nerrors int // error count
 }
 
 type parserError string // for error recovery if no error handler was installed
 
 func (p *parser) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
-	p.scanner.init(src, func(pos, line int, msg string) {
-		p.nerrors++
-		if !debug && errh != nil {
-			errh(pos, line, msg)
-			return
-		}
-		panic(parserError(fmt.Sprintf("%d: %s\n", line, msg)))
-	}, pragh)
+	p.scanner.init(src, errh, pragh)
 
 	p.fnest = 0
 	p.xnest = 0
 	p.indent = nil
-
-	p.nerrors = 0
 }
 
 func (p *parser) got(tok token) bool {
@@ -76,7 +65,7 @@ func (p *parser) syntax_error_at(pos, line int, msg string) {
 		defer p.trace("syntax_error (" + msg + ")")()
 	}
 
-	if p.tok == _EOF && p.nerrors > 0 {
+	if p.tok == _EOF && p.first != nil {
 		return // avoid meaningless follow-up errors
 	}
 
@@ -207,7 +196,7 @@ func (p *parser) file() *File {
 	p.want(_Semi)
 
 	// don't bother continuing if package clause has errors
-	if p.nerrors > 0 {
+	if p.first != nil {
 		return nil
 	}
 

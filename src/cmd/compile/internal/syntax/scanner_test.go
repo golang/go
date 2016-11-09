@@ -322,21 +322,22 @@ func TestScanErrors(t *testing.T) {
 	} {
 		var s scanner
 		nerrors := 0
-		s.init(&bytesReader{[]byte(test.src)}, func(pos, line int, msg string) {
+		s.init(&bytesReader{[]byte(test.src)}, func(err error) {
 			nerrors++
 			// only check the first error
+			e := err.(Error) // we know it's an Error
 			if nerrors == 1 {
-				if msg != test.msg {
-					t.Errorf("%q: got msg = %q; want %q", test.src, msg, test.msg)
+				if e.Msg != test.msg {
+					t.Errorf("%q: got msg = %q; want %q", test.src, e.Msg, test.msg)
 				}
-				if pos != test.pos {
-					t.Errorf("%q: got pos = %d; want %d", test.src, pos, test.pos)
+				if e.Pos != test.pos {
+					t.Errorf("%q: got pos = %d; want %d", test.src, e.Pos, test.pos)
 				}
-				if line != test.line {
-					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line)
+				if e.Line != test.line {
+					t.Errorf("%q: got line = %d; want %d", test.src, e.Line, test.line)
 				}
 			} else if nerrors > 1 {
-				t.Errorf("%q: got unexpected %q at pos = %d, line = %d", test.src, msg, pos, line)
+				t.Errorf("%q: got unexpected %q at pos = %d, line = %d", test.src, e.Msg, e.Pos, e.Line)
 			}
 		}, nil)
 
