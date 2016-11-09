@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Plan 9 directory marshalling. See intro(5).
+// Plan 9 directory marshaling. See intro(5).
 
 package syscall
 

@@ -28,7 +28,7 @@ func TestOffCurve(t *testing.T) {
 	b := Marshal(p224, x, y)
 	x1, y1 := Unmarshal(p224, b)
 	if x1 != nil || y1 != nil {
-		t.Errorf("FAIL: unmarshalling a point not on the curve succeeded")
+		t.Errorf("FAIL: unmarshaling a point not on the curve succeeded")
 	}
 }
 

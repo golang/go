@@ -59,7 +59,7 @@ func (z *Int) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// The JSON marshallers are only here for API backward compatibility
+// The JSON marshalers are only here for API backward compatibility
 // (programs that explicitly look for these two methods). JSON works
 // fine with the TextMarshaler only.
 

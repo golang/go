@@ -24,10 +24,10 @@ const (
 
 // Marshal returns the XML encoding of v.
 //
-// Marshal handles an array or slice by marshalling each of the elements.
-// Marshal handles a pointer by marshalling the value it points at or, if the
+// Marshal handles an array or slice by marshaling each of the elements.
+// Marshal handles a pointer by marshaling the value it points at or, if the
 // pointer is nil, by writing nothing. Marshal handles an interface value by
-// marshalling the value it contains or, if the interface value is nil, by
+// marshaling the value it contains or, if the interface value is nil, by
 // writing nothing. Marshal handles all other data by writing one or more XML
 // elements containing the data.
 //
@@ -36,9 +36,9 @@ const (
 //     - the value of the XMLName field of type Name
 //     - the tag of the struct field used to obtain the data
 //     - the name of the struct field used to obtain the data
-//     - the name of the marshalled type
+//     - the name of the marshaled type
 //
-// The XML element for a struct contains marshalled elements for each of the
+// The XML element for a struct contains marshaled elements for each of the
 // exported fields of the struct, with these exceptions:
 //     - the XMLName field, described above, is omitted.
 //     - a field with tag "-" is omitted.
@@ -51,9 +51,9 @@ const (
 //     - a field with tag ",cdata" is written as character data
 //       wrapped in one or more <![CDATA[ ... ]]> tags, not as an XML element.
 //     - a field with tag ",innerxml" is written verbatim, not subject
-//       to the usual marshalling procedure.
+//       to the usual marshaling procedure.
 //     - a field with tag ",comment" is written as an XML comment, not
-//       subject to the usual marshalling procedure. It must not contain
+//       subject to the usual marshaling procedure. It must not contain
 //       the "--" string within it.
 //     - a field with a tag including the "omitempty" option is omitted
 //       if the field value is empty. The empty values are false, 0, any

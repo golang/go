@@ -705,7 +705,7 @@ func TestUnmarshalIntoInterface(t *testing.T) {
 	}
 	pea, ok := pod.Pea.(*Pea)
 	if !ok {
-		t.Fatalf("unmarshalled into wrong type: have %T want *Pea", pod.Pea)
+		t.Fatalf("unmarshaled into wrong type: have %T want *Pea", pod.Pea)
 	}
 	have, want := pea.Cotelydon, "Green stuff"
 	if have != want {

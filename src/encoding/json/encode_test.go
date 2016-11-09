@@ -501,7 +501,7 @@ func TestEncodePointerString(t *testing.T) {
 		t.Fatalf("Unmarshal: %v", err)
 	}
 	if back.N == nil {
-		t.Fatalf("Unmarshalled nil N field")
+		t.Fatalf("Unmarshaled nil N field")
 	}
 	if *back.N != 42 {
 		t.Fatalf("*N = %d; want 42", *back.N)
@@ -632,7 +632,7 @@ func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
 
 var re = regexp.MustCompile
 
-// syntactic checks on form of marshalled floating point numbers.
+// syntactic checks on form of marshaled floating point numbers.
 var badFloatREs = []*regexp.Regexp{
 	re(`p`),                     // no binary exponential notation
 	re(`^\+`),                   // no leading + sign
