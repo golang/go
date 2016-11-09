@@ -22,7 +22,7 @@ var src = flag.String("src", "parser.go", "source file to parse")
 var verify = flag.Bool("verify", false, "verify idempotent printing")
 
 func TestParse(t *testing.T) {
-	_, err := ReadFile(*src, nil, nil, 0)
+	_, err := ParseFile(*src, nil, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestStdLib(t *testing.T) {
 				if debug {
 					fmt.Printf("parsing %s\n", filename)
 				}
-				ast, err := ReadFile(filename, nil, nil, 0)
+				ast, err := ParseFile(filename, nil, nil, 0)
 				if err != nil {
 					t.Error(err)
 					return
@@ -133,7 +133,7 @@ func verifyPrint(filename string, ast1 *File) {
 		panic(err)
 	}
 
-	ast2, err := ReadBytes(buf1.Bytes(), nil, nil, 0)
+	ast2, err := ParseBytes(buf1.Bytes(), nil, nil, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -157,8 +157,28 @@ func verifyPrint(filename string, ast1 *File) {
 }
 
 func TestIssue17697(t *testing.T) {
-	_, err := ReadBytes(nil, nil, nil, 0) // return with parser error, don't panic
+	_, err := ParseBytes(nil, nil, nil, 0) // return with parser error, don't panic
 	if err == nil {
 		t.Errorf("no error reported")
+	}
+}
+
+func TestParseFile(t *testing.T) {
+	_, err := ParseFile("", nil, nil, 0)
+	if err == nil {
+		t.Error("missing io error")
+	}
+
+	var first error
+	_, err = ParseFile("", func(err error) {
+		if first == nil {
+			first = err
+		}
+	}, nil, 0)
+	if err == nil || first == nil {
+		t.Error("missing io error")
+	}
+	if err != first {
+		t.Error("got %v; want first error %v", err, first)
 	}
 }

@@ -5,7 +5,6 @@
 package syntax
 
 import (
-	"fmt"
 	"io"
 	"unicode/utf8"
 )
@@ -16,8 +15,9 @@ import (
 //        suf     r0  r            w
 
 type source struct {
-	src  io.Reader
-	errh ErrorHandler
+	src   io.Reader
+	errh  ErrorHandler
+	first error // first error encountered
 
 	// source buffer
 	buf         [4 << 10]byte
@@ -34,6 +34,7 @@ type source struct {
 func (s *source) init(src io.Reader, errh ErrorHandler) {
 	s.src = src
 	s.errh = errh
+	s.first = nil
 
 	s.buf[0] = utf8.RuneSelf // terminate with sentinel
 	s.offs = 0
@@ -50,11 +51,14 @@ func (s *source) error(msg string) {
 }
 
 func (s *source) error_at(pos, line int, msg string) {
-	if s.errh != nil {
-		s.errh(pos, line, msg)
-		return
+	err := Error{pos, line, msg}
+	if s.first == nil {
+		s.first = err
 	}
-	panic(fmt.Sprintf("%d: %s", line, msg))
+	if s.errh == nil {
+		panic(s.first)
+	}
+	s.errh(err)
 }
 
 // pos0 returns the byte position of the last character read.
