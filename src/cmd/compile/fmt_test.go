@@ -211,6 +211,28 @@ func TestFormats(t *testing.T) {
 		fmt.Println("}")
 	}
 
+	// check that knownFormats is up to date
+	if !testing.Verbose() && !*update {
+		var mismatch bool
+		for s := range foundFormats {
+			if _, ok := knownFormats[s]; !ok {
+				mismatch = true
+				break
+			}
+		}
+		if !mismatch {
+			for s := range knownFormats {
+				if _, ok := foundFormats[s]; !ok {
+					mismatch = true
+					break
+				}
+			}
+		}
+		if mismatch {
+			t.Errorf("knownFormats is out of date; please run with -v to regenerate")
+		}
+	}
+
 	// all format strings of calls must be in the formatStrings set (self-verification)
 	for _, p := range callSites {
 		if lit, ok := p.arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
@@ -535,8 +557,6 @@ func init() {
 // To print out a new table, run: go test -run Formats -v.
 var knownFormats = map[string]string{
 	"*bytes.Buffer %s":                                "",
-	"*math/big.Int %#x":                               "",
-	"*cmd/compile/internal/gc.Bits %v":                "",
 	"*cmd/compile/internal/gc.Field %p":               "",
 	"*cmd/compile/internal/gc.Field %v":               "",
 	"*cmd/compile/internal/gc.Mpflt %v":               "",
@@ -575,6 +595,7 @@ var knownFormats = map[string]string{
 	"*cmd/internal/obj.Prog %p":                       "",
 	"*cmd/internal/obj.Prog %s":                       "",
 	"*cmd/internal/obj.Prog %v":                       "",
+	"*math/big.Int %#x":                               "",
 	"[16]byte %x":                                     "",
 	"[]*cmd/compile/internal/gc.Node %v":              "",
 	"[]*cmd/compile/internal/gc.Sig %#v":              "",
@@ -584,7 +605,6 @@ var knownFormats = map[string]string{
 	"[]cmd/compile/internal/ssa.Edge %v":              "",
 	"[]cmd/compile/internal/ssa.ID %v":                "",
 	"[]string %v":                                     "",
-	"bool %t":                                         "",
 	"bool %v":                                         "",
 	"byte %02x":                                       "",
 	"byte %08b":                                       "",
@@ -609,17 +629,17 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/gc.Val %T":                  "",
 	"cmd/compile/internal/gc.Val %v":                  "",
 	"cmd/compile/internal/gc.initKind %d":             "",
-	"cmd/compile/internal/ssa.BlockKind %s":           "",
 	"cmd/compile/internal/ssa.BranchPrediction %d":    "",
 	"cmd/compile/internal/ssa.Edge %v":                "",
-	"cmd/compile/internal/ssa.GCNode %s":              "",
+	"cmd/compile/internal/ssa.GCNode %v":              "",
 	"cmd/compile/internal/ssa.ID %d":                  "",
-	"cmd/compile/internal/ssa.LocalSlot %s":           "",
+	"cmd/compile/internal/ssa.LocalSlot %v":           "",
 	"cmd/compile/internal/ssa.Location %v":            "",
 	"cmd/compile/internal/ssa.Op %s":                  "",
 	"cmd/compile/internal/ssa.Op %v":                  "",
 	"cmd/compile/internal/ssa.SizeAndAlign %s":        "",
 	"cmd/compile/internal/ssa.Type %s":                "",
+	"cmd/compile/internal/ssa.Type %v":                "",
 	"cmd/compile/internal/ssa.ValAndOff %s":           "",
 	"cmd/compile/internal/ssa.markKind %d":            "",
 	"cmd/compile/internal/ssa.rbrank %d":              "",
@@ -640,23 +660,17 @@ var knownFormats = map[string]string{
 	"float64 %.6g":                                    "",
 	"float64 %g":                                      "",
 	"fmt.Stringer %T":                                 "",
-	"int %#x":                                         "",
 	"int %-12d":                                       "",
-	"int %-2d":                                        "",
 	"int %-6d":                                        "",
 	"int %-8o":                                        "",
-	"int %2d":                                         "",
 	"int %5d":                                         "",
 	"int %6d":                                         "",
 	"int %c":                                          "",
 	"int %d":                                          "",
 	"int %v":                                          "",
 	"int %x":                                          "",
-	"int16 %2d":                                       "",
 	"int16 %d":                                        "",
 	"int16 %x":                                        "",
-	"int32 %4d":                                       "",
-	"int32 %5d":                                       "",
 	"int32 %d":                                        "",
 	"int32 %v":                                        "",
 	"int32 %x":                                        "",
@@ -677,7 +691,6 @@ var knownFormats = map[string]string{
 	"reflect.Type %s":  "",
 	"rune %#U":         "",
 	"rune %c":          "",
-	"rune %d":          "",
 	"string %-16s":     "",
 	"string %.*s":      "",
 	"string %q":        "",
@@ -685,18 +698,14 @@ var knownFormats = map[string]string{
 	"string %v":        "",
 	"time.Duration %d": "",
 	"time.Duration %v": "",
-	"uint %.4d":        "",
 	"uint %04x":        "",
 	"uint %d":          "",
-	"uint %v":          "",
 	"uint16 %d":        "",
 	"uint16 %v":        "",
 	"uint16 %x":        "",
-	"uint32 %#x":       "",
 	"uint32 %08x":      "",
 	"uint32 %d":        "",
 	"uint32 %x":        "",
-	"uint64 %#x":       "",
 	"uint64 %016x":     "",
 	"uint64 %08x":      "",
 	"uint64 %d":        "",
