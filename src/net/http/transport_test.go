@@ -3667,12 +3667,12 @@ func TestIdleConnH2Crash(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	gotErr := make(chan bool, 1)
+	sawDoErr := make(chan bool, 1)
+	testDone := make(chan struct{})
+	defer close(testDone)
 
 	cst.tr.IdleConnTimeout = 5 * time.Millisecond
 	cst.tr.DialTLS = func(network, addr string) (net.Conn, error) {
-		cancel()
-		<-gotErr
 		c, err := tls.Dial(network, addr, &tls.Config{
 			InsecureSkipVerify: true,
 			NextProtos:         []string{"h2"},
@@ -3686,6 +3686,17 @@ func TestIdleConnH2Crash(t *testing.T) {
 			c.Close()
 			return nil, errors.New("bogus")
 		}
+
+		cancel()
+
+		failTimer := time.NewTimer(5 * time.Second)
+		defer failTimer.Stop()
+		select {
+		case <-sawDoErr:
+		case <-testDone:
+		case <-failTimer.C:
+			t.Error("timeout in DialTLS, waiting too long for cst.c.Do to fail")
+		}
 		return c, nil
 	}
 
@@ -3696,7 +3707,7 @@ func TestIdleConnH2Crash(t *testing.T) {
 		res.Body.Close()
 		t.Fatal("unexpected success")
 	}
-	gotErr <- true
+	sawDoErr <- true
 
 	// Wait for the explosion.
 	time.Sleep(cst.tr.IdleConnTimeout * 10)
