@@ -14,7 +14,7 @@ import "fmt"
 func f(x float64) float64 {
 	// y is allocated to X0
 	y := x + 5
-	// marshals z before y.  Marshalling z
+	// marshals z before y.  Marshaling z
 	// calls DUFFCOPY.
 	return g(z, y)
 }

@@ -1755,8 +1755,8 @@ func TestStringKind(t *testing.T) {
 	}
 }
 
-// Custom types with []byte as underlying type could not be marshalled
-// and then unmarshalled.
+// Custom types with []byte as underlying type could not be marshaled
+// and then unmarshaled.
 // Issue 8962.
 func TestByteKind(t *testing.T) {
 	type byteKind []byte

@@ -69,7 +69,7 @@ const (
 )
 
 // A dnsStruct describes how to iterate over its fields to emulate
-// reflective marshalling.
+// reflective marshaling.
 type dnsStruct interface {
 	// Walk iterates over fields of a structure and calls f
 	// with a reference to that field, the name of the field

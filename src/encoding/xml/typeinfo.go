@@ -48,7 +48,7 @@ var tinfoLock sync.RWMutex
 var nameType = reflect.TypeOf(Name{})
 
 // getTypeInfo returns the typeInfo structure with details necessary
-// for marshalling and unmarshalling typ.
+// for marshaling and unmarshaling typ.
 func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 	tinfoLock.RLock()
 	tinfo, ok := tinfoMap[typ]
@@ -214,7 +214,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 	}
 
 	// If the field type has an XMLName field, the names must match
-	// so that the behavior of both marshalling and unmarshalling
+	// so that the behavior of both marshaling and unmarshaling
 	// is straightforward and unambiguous.
 	if finfo.flags&fElement != 0 {
 		ftyp := f.Type
@@ -334,7 +334,7 @@ Loop:
 	return nil
 }
 
-// A TagPathError represents an error in the unmarshalling process
+// A TagPathError represents an error in the unmarshaling process
 // caused by the use of field tags with conflicting paths.
 type TagPathError struct {
 	Struct       reflect.Type

@@ -162,14 +162,14 @@ func jsValEscaper(args ...interface{}) string {
 		// a division operator it is not turned into a line comment:
 		//     x/{{y}}
 		// turning into
-		//     x//* error marshalling y:
+		//     x//* error marshaling y:
 		//          second line of error message */null
 		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.Error(), "*/", "* /", -1))
 	}
 
 	// TODO: maybe post-process output to prevent it from containing
 	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
-	// in case custom marshallers produce output containing those.
+	// in case custom marshalers produce output containing those.
 
 	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
 	if len(b) == 0 {

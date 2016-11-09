@@ -1966,7 +1966,7 @@ func newRawAttributes(attributes []pkix.AttributeTypeAndValueSET) ([]asn1.RawVal
 		return nil, err
 	}
 	if len(rest) != 0 {
-		return nil, errors.New("x509: failed to unmarshall raw CSR Attributes")
+		return nil, errors.New("x509: failed to unmarshal raw CSR Attributes")
 	}
 	return rawAttributes, nil
 }

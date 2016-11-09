@@ -396,7 +396,7 @@ var (
 // Unless explicitly stated as such (or *Plain), all of the
 // tests below are two-way tests. When introducing new tests,
 // please try to make them two-way as well to ensure that
-// marshalling and unmarshalling are as symmetrical as feasible.
+// marshaling and unmarshaling are as symmetrical as feasible.
 var marshalTests = []struct {
 	Value         interface{}
 	ExpectXML     string
