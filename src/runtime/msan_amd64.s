@@ -62,12 +62,16 @@ TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
 TEXT	msancall<>(SB), NOSPLIT, $0-0
 	get_tls(R12)
 	MOVQ	g(R12), R14
+	MOVQ	SP, R12		// callee-saved, preserved across the CALL
+	CMPQ	R14, $0
+	JE	call	// no g; still on a system stack
+
 	MOVQ	g_m(R14), R13
 	// Switch to g0 stack.
-	MOVQ	SP, R12		// callee-saved, preserved across the CALL
 	MOVQ	m_g0(R13), R10
 	CMPQ	R10, R14
 	JE	call	// already on g0
+
 	MOVQ	(g_sched+gobuf_sp)(R10), SP
 call:
 	ANDQ	$~15, SP	// alignment for gcc ABI

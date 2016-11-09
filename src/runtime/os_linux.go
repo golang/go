@@ -312,9 +312,6 @@ func sigtramp(sig uint32, info *siginfo, ctx unsafe.Pointer)
 func cgoSigtramp()
 
 //go:noescape
-func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
-
-//go:noescape
 func sigaltstack(new, old *stackt)
 
 //go:noescape
