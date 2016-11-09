@@ -442,11 +442,18 @@ func findfunc(pc uintptr) *_func {
 
 	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
 	idx := ffb.idx + uint32(ffb.subbuckets[i])
+
+	// If the idx is beyond the end of the ftab, set it to the end of the table and search backward.
+	// This situation can occur if multiple text sections are generated to handle large text sections
+	// and the linker has inserted jump tables between them.
+
+	if idx >= uint32(len(datap.ftab)) {
+		idx = uint32(len(datap.ftab) - 1)
+	}
 	if pc < datap.ftab[idx].entry {
 
-		// If there are multiple text sections then the buckets for the secondary
-		// text sections will be off because the addresses in those text sections
-		// were relocated to higher addresses.  Search back to find it.
+		// With multiple text sections, the idx might reference a function address that
+		// is higher than the pc being searched, so search backward until the matching address is found.
 
 		for datap.ftab[idx].entry > pc && idx > 0 {
 			idx--
