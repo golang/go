@@ -39,21 +39,40 @@ const (
 // is either not present in the request or not a file field.
 var ErrMissingFile = errors.New("http: no such file")
 
-// HTTP request parsing errors.
+// ProtocolError represents an HTTP protocol error.
+//
+// Deprecated: Not all errors in the http package related to protocol errors
+// are of type ProtocolError.
 type ProtocolError struct {
 	ErrorString string
 }
 
-func (err *ProtocolError) Error() string { return err.ErrorString }
+func (pe *ProtocolError) Error() string { return pe.ErrorString }
 
 var (
-	ErrHeaderTooLong        = &ProtocolError{"header too long"}
-	ErrShortBody            = &ProtocolError{"entity body too short"}
-	ErrNotSupported         = &ProtocolError{"feature not supported"}
-	ErrUnexpectedTrailer    = &ProtocolError{"trailer header without chunked transfer encoding"}
+	// ErrNotSupported is returned by the Push method of Pusher
+	// implementations to indicate that HTTP/2 Push support is not
+	// available.
+	ErrNotSupported = &ProtocolError{"feature not supported"}
+
+	// ErrUnexpectedTrailer is returned by the Transport when a server
+	// replies with a Trailer header, but without a chunked reply.
+	ErrUnexpectedTrailer = &ProtocolError{"trailer header without chunked transfer encoding"}
+
+	// ErrMissingBoundary is returned by Request.MultipartReader when the
+	// request's Content-Type does not include a "boundary" parameter.
+	ErrMissingBoundary = &ProtocolError{"no multipart boundary param in Content-Type"}
+
+	// ErrNotMultipart is returned by Request.MultipartReader when the
+	// request's Content-Type is not multipart/form-data.
+	ErrNotMultipart = &ProtocolError{"request Content-Type isn't multipart/form-data"}
+
+	// Deprecated: ErrHeaderTooLong is not used.
+	ErrHeaderTooLong = &ProtocolError{"header too long"}
+	// Deprecated: ErrShortBody is not used.
+	ErrShortBody = &ProtocolError{"entity body too short"}
+	// Deprecated: ErrMissingContentLength is not used.
 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
-	ErrNotMultipart         = &ProtocolError{"request Content-Type isn't multipart/form-data"}
-	ErrMissingBoundary      = &ProtocolError{"no multipart boundary param in Content-Type"}
 )
 
 type badStringError struct {
