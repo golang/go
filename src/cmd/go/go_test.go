@@ -2575,6 +2575,7 @@ func TestImportMain(t *testing.T) {
 		func TestFoo(t *testing.T) {}
 	`)
 	tg.setenv("GOPATH", tg.path("."))
+	tg.creatingTemp("x")
 	tg.run("build", "x")
 	tg.run("test", "x")
 
