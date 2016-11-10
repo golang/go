@@ -913,23 +913,25 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		importPaths = append(importPaths, "syscall")
 	}
 
-	// Currently build modes c-shared, pie (on systems that do not
-	// support PIE with internal linking mode), plugin, and
-	// -linkshared force external linking mode, as of course does
-	// -ldflags=-linkmode=external. External linking mode forces
-	// an import of runtime/cgo.
-	pieCgo := buildBuildmode == "pie" && (buildContext.GOOS != "linux" || buildContext.GOARCH != "amd64")
-	linkmodeExternal := false
-	for i, a := range buildLdflags {
-		if a == "-linkmode=external" {
-			linkmodeExternal = true
+	if buildContext.CgoEnabled && p.Name == "main" && !p.Goroot {
+		// Currently build modes c-shared, pie (on systems that do not
+		// support PIE with internal linking mode), plugin, and
+		// -linkshared force external linking mode, as of course does
+		// -ldflags=-linkmode=external. External linking mode forces
+		// an import of runtime/cgo.
+		pieCgo := buildBuildmode == "pie" && (buildContext.GOOS != "linux" || buildContext.GOARCH != "amd64")
+		linkmodeExternal := false
+		for i, a := range buildLdflags {
+			if a == "-linkmode=external" {
+				linkmodeExternal = true
+			}
+			if a == "-linkmode" && i+1 < len(buildLdflags) && buildLdflags[i+1] == "external" {
+				linkmodeExternal = true
+			}
 		}
-		if a == "-linkmode" && i+1 < len(buildLdflags) && buildLdflags[i+1] == "external" {
-			linkmodeExternal = true
+		if buildBuildmode == "c-shared" || buildBuildmode == "plugin" || pieCgo || buildLinkshared || linkmodeExternal {
+			importPaths = append(importPaths, "runtime/cgo")
 		}
-	}
-	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildBuildmode == "plugin" || pieCgo || buildLinkshared || linkmodeExternal) {
-		importPaths = append(importPaths, "runtime/cgo")
 	}
 
 	// Everything depends on runtime, except runtime, its internal
