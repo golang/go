@@ -2345,8 +2345,9 @@ func TestCgoPkgConfig(t *testing.T) {
 	tg.parallel()
 
 	tg.run("env", "PKG_CONFIG")
-	if _, err := exec.LookPath(strings.TrimSpace(tg.getStdout())); err != nil {
-		t.Skip("skipping because pkg-config could not be found")
+	pkgConfig := strings.TrimSpace(tg.getStdout())
+	if out, err := exec.Command(pkgConfig, "--atleast-pkgconfig-version", "0.24").CombinedOutput(); err != nil {
+		t.Skipf("%s --atleast-pkgconfig-version 0.24: %v\n%s", pkgConfig, err, out)
 	}
 
 	// OpenBSD's pkg-config is strict about whitespace and only
