@@ -1200,9 +1200,9 @@ func testClientTimeout(t *testing.T, h2 bool) {
 			return
 		}
 		if r.URL.Path == "/slow" {
+			sawSlow <- true
 			w.Write([]byte("Hello"))
 			w.(Flusher).Flush()
-			sawSlow <- true
 			select {
 			case <-testDone:
 			case <-time.After(timeout * 10):
