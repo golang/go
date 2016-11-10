@@ -240,6 +240,16 @@ func Gosched() {
 	mcall(gosched_m)
 }
 
+var alwaysFalse bool
+
+// goschedguarded does nothing, but is written in a way that guarantees a preemption check in its prologue.
+// Calls to this function are inserted by the compiler in otherwise uninterruptible loops (see insertLoopReschedChecks).
+func goschedguarded() {
+	if alwaysFalse {
+		goschedguarded()
+	}
+}
+
 // Puts the current goroutine into a waiting state and calls unlockf.
 // If unlockf returns false, the goroutine is resumed.
 // unlockf must not access this G's stack, as it may be moved between

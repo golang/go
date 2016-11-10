@@ -21,6 +21,7 @@ func panicwrap(string, string, string)
 
 func gopanic(interface{})
 func gorecover(*int32) interface{}
+func goschedguarded()
 
 func printbool(bool)
 func printfloat(float64)

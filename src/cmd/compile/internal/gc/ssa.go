@@ -64,6 +64,9 @@ func buildssa(fn *Node) *ssa.Func {
 	s.config = initssa()
 	s.f = s.config.NewFunc()
 	s.f.Name = name
+	if fn.Func.Pragma&Nosplit != 0 {
+		s.f.NoSplit = true
+	}
 	s.exitCode = fn.Func.Exit
 	s.panics = map[funcLine]*ssa.Block{}
 	s.config.DebugTest = s.config.DebugHashMatch("GOSSAHASH", name)
