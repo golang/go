@@ -44,7 +44,8 @@ For control over proxies, TLS configuration, keep-alives,
 compression, and other settings, create a Transport:
 
 	tr := &http.Transport{
-		TLSClientConfig:    &tls.Config{RootCAs: pool},
+		MaxIdleConns:       10,
+		IdleConnTimeout:    30 * time.Second,
 		DisableCompression: true,
 	}
 	client := &http.Client{Transport: tr}
