@@ -9,6 +9,7 @@ package pprof_test
 import (
 	"bytes"
 	"fmt"
+	"internal/pprof/profile"
 	"internal/testenv"
 	"math/big"
 	"os"
@@ -20,7 +21,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"unsafe"
 )
 
 func cpuHogger(f func(), dur time.Duration) {
@@ -87,40 +87,17 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 }
 
 func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []uintptr)) {
-	// Convert []byte to []uintptr.
-	l := len(valBytes)
-	if i := bytes.Index(valBytes, []byte("\nMAPPED_LIBRARIES:\n")); i >= 0 {
-		l = i
+	p, err := profile.Parse(bytes.NewReader(valBytes))
+	if err != nil {
+		t.Fatal(err)
 	}
-	l /= int(unsafe.Sizeof(uintptr(0)))
-	val := *(*[]uintptr)(unsafe.Pointer(&valBytes))
-	val = val[:l]
-
-	// 5 for the header, 3 for the trailer.
-	if l < 5+3 {
-		t.Logf("profile too short: %#x", val)
-		if badOS[runtime.GOOS] {
-			t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
-			return
+	for _, sample := range p.Sample {
+		count := uintptr(sample.Value[0])
+		stk := make([]uintptr, len(sample.Location))
+		for i := range sample.Location {
+			stk[i] = uintptr(sample.Location[i].Address)
 		}
-		t.FailNow()
-	}
-
-	hd, val, tl := val[:5], val[5:l-3], val[l-3:]
-	if hd[0] != 0 || hd[1] != 3 || hd[2] != 0 || hd[3] != 1e6/100 || hd[4] != 0 {
-		t.Fatalf("unexpected header %#x", hd)
-	}
-
-	if tl[0] != 0 || tl[1] != 1 || tl[2] != 0 {
-		t.Fatalf("malformed end-of-data marker %#x", tl)
-	}
-
-	for len(val) > 0 {
-		if len(val) < 2 || val[0] < 1 || val[1] < 1 || uintptr(len(val)) < 2+val[1] {
-			t.Fatalf("malformed profile.  leftover: %#x", val)
-		}
-		f(val[0], val[2:2+val[1]])
-		val = val[2+val[1]:]
+		f(count, stk)
 	}
 }
 
@@ -673,4 +650,24 @@ func containsInOrder(s string, all ...string) bool {
 		s = s[i+len(t):]
 	}
 	return true
+}
+
+// Tests that the profiler outputs a parsable protobuf Profile profile.
+func TestCPUProfileParse(t *testing.T) {
+
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	var buf bytes.Buffer
+
+	if err := StartCPUProfile(&buf); err != nil {
+		t.Fatalf("Profile failed: Could not enable CPU profiling: %s\n", err)
+	}
+	time.Sleep(5 * time.Second)
+	StopCPUProfile()
+
+	runtime.ReadMemStats(&after)
+	_, err := profile.Parse(&buf)
+	if err != nil {
+		t.Fatalf("Could not parse Profile profile: %v", err)
+	}
 }

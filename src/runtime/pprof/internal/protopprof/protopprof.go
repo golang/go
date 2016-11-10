@@ -49,7 +49,6 @@ func TranslateCPUProfile(b []byte, startTime time.Time) (*profile.Profile, error
 		}
 		count := data[0]
 		nstk := data[1]
-		fmt.Printf("count:%v nstk: %v\n", count, nstk)
 		if uintptr(len(data)) < 2+nstk {
 			return nil, fmt.Errorf("truncated profile")
 		}
