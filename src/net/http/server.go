@@ -2362,7 +2362,7 @@ func (s *Server) closeDoneChanLocked() {
 // regardless of their state. For a graceful shutdown, use Shutdown.
 func (s *Server) Close() error {
 	s.mu.Lock()
-	defer s.mu.Lock()
+	defer s.mu.Unlock()
 	s.closeDoneChanLocked()
 	err := s.closeListenersLocked()
 	for c := range s.activeConn {

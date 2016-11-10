@@ -4988,3 +4988,10 @@ func testServerShutdown(t *testing.T, h2 bool) {
 		t.Fatal("second request should fail. server should be shut down")
 	}
 }
+
+// Issue 17878: tests that we can call Close twice.
+func TestServerCloseDeadlock(t *testing.T) {
+	var s Server
+	s.Close()
+	s.Close()
+}
