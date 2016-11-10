@@ -1702,9 +1702,13 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		c.ptrs[dt.Type] = append(c.ptrs[dt.Type], t)
 
 	case *dwarf.QualType:
-		// Ignore qualifier.
-		t = c.Type(dt.Type, pos)
-		c.m[dtype] = t
+		t1 := c.Type(dt.Type, pos)
+		t.Size = t1.Size
+		t.Align = t1.Align
+		t.Go = t1.Go
+		t.EnumValues = nil
+		t.Typedef = ""
+		t.C.Set("%s "+dt.Qual, t1.C)
 		return t
 
 	case *dwarf.StructType:
