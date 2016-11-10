@@ -2359,8 +2359,15 @@ func (s *Server) closeDoneChanLocked() {
 	}
 }
 
-// Close immediately closes all active net.Listeners and connections,
-// regardless of their state. For a graceful shutdown, use Shutdown.
+// Close immediately closes all active net.Listeners and any
+// connections in state StateNew, StateActive, or StateIdle. For a
+// graceful shutdown, use Shutdown.
+//
+// Close does not attempt to close (and does not even know about)
+// any hijacked connections, such as WebSockets.
+//
+// Close returns any error returned from closing the Server's
+// underlying Listener(s).
 func (s *Server) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -2388,6 +2395,11 @@ var shutdownPollInterval = 500 * time.Millisecond
 // indefinitely for connections to return to idle and then shut down.
 // If the provided context expires before the shutdown is complete,
 // then the context's error is returned.
+//
+// Shutdown does not attempt to close nor wait for hijacked
+// connections such as WebSockets. The caller of Shutdown should
+// separately notify such long-lived connections of shutdown and wait
+// for them to close, if desired.
 func (s *Server) Shutdown(ctx context.Context) error {
 	atomic.AddInt32(&s.inShutdown, 1)
 	defer atomic.AddInt32(&s.inShutdown, -1)
