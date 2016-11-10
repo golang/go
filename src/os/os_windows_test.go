@@ -691,33 +691,38 @@ func TestReadStdin(t *testing.T) {
 			},
 		}
 	)
-	for _, bufsize := range []int{1, 2, 3, 4, 5, 8, 10, 16, 20, 50, 100} {
-	nextTest:
-		for ti, test := range tests {
-			input := bytes.NewBuffer(test.input)
-			*os.ReadFileP = func(h syscall.Handle, buf []byte, done *uint32, o *syscall.Overlapped) error {
-				n, err := input.Read(buf)
-				*done = uint32(n)
-				return err
-			}
-			*os.GetCPP = func() uint32 {
-				return test.cp
-			}
-			var bigbuf []byte
-			for len(bigbuf) < len([]byte(test.output)) {
-				buf := make([]byte, bufsize)
-				n, err := testConsole.Read(buf)
-				if err != nil {
-					t.Errorf("test=%d bufsize=%d: read failed: %v", ti, bufsize, err)
+	for _, consoleReadBufSize := range []int{1, 2, 3, 4, 5, 8, 10, 16, 20, 50, 100} {
+		for _, readFileBufSize := range []int{1, 2, 3, 10, 16, 100, 1000} {
+		nextTest:
+			for ti, test := range tests {
+				input := bytes.NewBuffer(test.input)
+				*os.ReadFileP = func(h syscall.Handle, buf []byte, done *uint32, o *syscall.Overlapped) error {
+					if len(buf) > readFileBufSize {
+						buf = buf[:readFileBufSize]
+					}
+					n, err := input.Read(buf)
+					*done = uint32(n)
+					return err
+				}
+				*os.GetCPP = func() uint32 {
+					return test.cp
+				}
+				var bigbuf []byte
+				for len(bigbuf) < len([]byte(test.output)) {
+					buf := make([]byte, consoleReadBufSize)
+					n, err := testConsole.Read(buf)
+					if err != nil {
+						t.Errorf("test=%d bufsizes=%d,%d: read failed: %v", ti, consoleReadBufSize, readFileBufSize, err)
+						continue nextTest
+					}
+					bigbuf = append(bigbuf, buf[:n]...)
+				}
+				have := hex.Dump(bigbuf)
+				expected := hex.Dump([]byte(test.output))
+				if have != expected {
+					t.Errorf("test=%d bufsizes=%d,%d: %q expected, but %q received", ti, consoleReadBufSize, readFileBufSize, expected, have)
 					continue nextTest
 				}
-				bigbuf = append(bigbuf, buf[:n]...)
-			}
-			have := hex.Dump(bigbuf)
-			expected := hex.Dump([]byte(test.output))
-			if have != expected {
-				t.Errorf("test=%d bufsize=%d: %q expected, but %q received", ti, bufsize, expected, have)
-				continue nextTest
 			}
 		}
 	}
