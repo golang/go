@@ -1189,9 +1189,6 @@ func testInterruptWithPanic(t *testing.T, h2 bool, panicValue interface{}) {
 		if gotLog == "" {
 			return
 		}
-		if h2 {
-			t.Skip("TODO: make http2.Server respect ErrAbortHandler")
-		}
 		t.Fatalf("want no log output; got: %s", gotLog)
 	}
 	if gotLog == "" {

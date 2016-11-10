@@ -2184,6 +2184,10 @@ func http2configureServer18(h1 *Server, h2 *http2Server) error {
 	return nil
 }
 
+func http2shouldLogPanic(panicValue interface{}) bool {
+	return panicValue != nil && panicValue != ErrAbortHandler
+}
+
 var http2DebugGoroutines = os.Getenv("DEBUG_HTTP2_GOROUTINES") == "1"
 
 type http2goroutineLock uint64
@@ -4534,15 +4538,17 @@ func (sc *http2serverConn) runHandler(rw *http2responseWriter, req *Request, han
 		rw.rws.stream.cancelCtx()
 		if didPanic {
 			e := recover()
-			// Same as net/http:
-			const size = 64 << 10
-			buf := make([]byte, size)
-			buf = buf[:runtime.Stack(buf, false)]
 			sc.writeFrameFromHandler(http2FrameWriteRequest{
 				write:  http2handlerPanicRST{rw.rws.stream.id},
 				stream: rw.rws.stream,
 			})
-			sc.logf("http2: panic serving %v: %v\n%s", sc.conn.RemoteAddr(), e, buf)
+
+			if http2shouldLogPanic(e) {
+				const size = 64 << 10
+				buf := make([]byte, size)
+				buf = buf[:runtime.Stack(buf, false)]
+				sc.logf("http2: panic serving %v: %v\n%s", sc.conn.RemoteAddr(), e, buf)
+			}
 			return
 		}
 		rw.handlerDone()
