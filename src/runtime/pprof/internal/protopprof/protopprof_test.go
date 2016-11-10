@@ -8,36 +8,13 @@ import (
 	"bytes"
 	"fmt"
 	"internal/pprof/profile"
-	"io"
 	"io/ioutil"
 	"reflect"
 	"runtime"
-	"runtime/pprof"
 	"testing"
 	"time"
 	"unsafe"
 )
-
-// Profile collects a CPU utilization profile and
-// writes it to w as a compressed profile.proto. It's used by
-// TestProfileParse.
-func Profile(w io.Writer, seconds int) error {
-	var buf bytes.Buffer
-	// Collect the CPU profile in legacy format in buf.
-	startTime := time.Now()
-	if err := pprof.StartCPUProfile(&buf); err != nil {
-		return fmt.Errorf("Could not enable CPU profiling: %s\n", err)
-	}
-	time.Sleep(time.Duration(seconds) * time.Second)
-	pprof.StopCPUProfile()
-
-	const untagged = false
-	p, err := TranslateCPUProfile(buf.Bytes(), startTime)
-	if err != nil {
-		return err
-	}
-	return p.Write(w)
-}
 
 // Helper function to initialize empty cpu profile with sampling period provided.
 func createEmptyProfileWithPeriod(t *testing.T, periodMs uint64) bytes.Buffer {
@@ -83,21 +60,6 @@ func createProfileWithTwoSamples(t *testing.T, periodMs uintptr, count1 uintptr,
 		}
 	}
 	return *buf
-}
-
-// Tests that server creates a cpu profile handler that outputs a parsable Profile profile.
-func TestCPUProfileParse(t *testing.T) {
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	var buf bytes.Buffer
-	if err := Profile(&buf, 30); err != nil {
-		t.Fatalf("Profile failed: %v", err)
-	}
-	runtime.ReadMemStats(&after)
-	_, err := profile.Parse(&buf)
-	if err != nil {
-		t.Fatalf("Could not parse Profile profile: %v", err)
-	}
 }
 
 // Tests TranslateCPUProfile parses correct sampling period in an otherwise empty cpu profile.

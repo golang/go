@@ -74,12 +74,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"runtime"
+	"runtime/pprof/internal/protopprof"
 	"sort"
 	"strings"
 	"sync"
 	"text/tabwriter"
+	"time"
 )
 
 // BUG(rsc): Profiles are only as good as the kernel support used to generate them.
@@ -670,49 +671,29 @@ func StartCPUProfile(w io.Writer) error {
 }
 
 func profileWriter(w io.Writer) {
+	startTime := time.Now()
+	// This will buffer the entire profile into buf and then
+	// translate it into a profile.Profile structure. This will
+	// create two copies of all the data in the profile in memory.
+	// TODO(matloob): Convert each chunk of the proto output and
+	// stream it out instead of converting the entire profile.
+	var buf bytes.Buffer
 	for {
 		data := runtime.CPUProfile()
 		if data == nil {
 			break
 		}
-		w.Write(data)
+		buf.Write(data)
 	}
 
-	// We are emitting the legacy profiling format, which permits
-	// a memory map following the CPU samples. The memory map is
-	// simply a copy of the GNU/Linux /proc/self/maps file. The
-	// profiler uses the memory map to map PC values in shared
-	// libraries to a shared library in the filesystem, in order
-	// to report the correct function and, if the shared library
-	// has debug info, file/line. This is particularly useful for
-	// PIE (position independent executables) as on ELF systems a
-	// PIE is simply an executable shared library.
-	//
-	// Because the profiling format expects the memory map in
-	// GNU/Linux format, we only do this on GNU/Linux for now. To
-	// add support for profiling PIE on other ELF-based systems,
-	// it may be necessary to map the system-specific mapping
-	// information to the GNU/Linux format. For a reasonably
-	// portable C++ version, see the FillProcSelfMaps function in
-	// https://github.com/gperftools/gperftools/blob/master/src/base/sysinfo.cc
-	//
-	// The code that parses this mapping for the pprof tool is
-	// ParseMemoryMap in cmd/internal/pprof/legacy_profile.go, but
-	// don't change that code, as similar code exists in other
-	// (non-Go) pprof readers. Change this code so that that code works.
-	//
-	// We ignore errors reading or copying the memory map; the
-	// profile is likely usable without it, and we have no good way
-	// to report errors.
-	if runtime.GOOS == "linux" {
-		f, err := os.Open("/proc/self/maps")
-		if err == nil {
-			io.WriteString(w, "\nMAPPED_LIBRARIES:\n")
-			io.Copy(w, f)
-			f.Close()
-		}
+	profile, err := protopprof.TranslateCPUProfile(buf.Bytes(), startTime)
+	if err != nil {
+		// The runtime should never produce an invalid or truncated profile.
+		// It drops records that can't fit into its log buffers.
+		panic(fmt.Errorf("could not translate binary profile to proto format: %v", err))
 	}
 
+	profile.Write(w)
 	cpu.done <- true
 }
 
