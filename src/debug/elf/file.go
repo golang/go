@@ -1021,7 +1021,7 @@ func (f *File) applyRelocationsSPARC64(dst []byte, rels []byte) error {
 	for b.Len() > 0 {
 		binary.Read(b, f.ByteOrder, &rela)
 		symNo := rela.Info >> 32
-		t := R_SPARC(rela.Info & 0xffff)
+		t := R_SPARC(rela.Info & 0xff)
 
 		if symNo == 0 || symNo > uint64(len(symbols)) {
 			continue
