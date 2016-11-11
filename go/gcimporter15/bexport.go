@@ -39,7 +39,11 @@ const debugFormat = false // default: false
 const trace = false // default: false
 
 // Current export format version. Increase with each format change.
-const exportVersion = 1
+// 3: added aliasTag and export of aliases
+// 2: removed unused bool in ODCL export (compiler only)
+// 1: header format change (more regular), export package for _ struct fields
+// 0: Go1.7 encoding
+const exportVersion = 3
 
 // trackAllTypes enables cycle tracking for all types, not just named
 // types. The existing compiler invariants assume that unnamed types
