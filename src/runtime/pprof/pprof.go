@@ -73,6 +73,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/pprof/profile"
 	"io"
 	"runtime"
 	"runtime/pprof/internal/protopprof"
@@ -340,17 +341,8 @@ type countProfile interface {
 }
 
 // printCountProfile prints a countProfile at the specified debug level.
+// The profile will be in compressed proto format unless debug is nonzero.
 func printCountProfile(w io.Writer, debug int, name string, p countProfile) error {
-	b := bufio.NewWriter(w)
-	var tw *tabwriter.Writer
-	w = b
-	if debug > 0 {
-		tw = tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
-		w = tw
-	}
-
-	fmt.Fprintf(w, "%s profile: total %d\n", name, p.Len())
-
 	// Build count of each stack.
 	var buf bytes.Buffer
 	key := func(stk []uintptr) string {
@@ -376,17 +368,37 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 
 	sort.Sort(&keysByCount{keys, count})
 
-	for _, k := range keys {
-		fmt.Fprintf(w, "%d %s\n", count[k], k)
-		if debug > 0 {
-			printStackRecord(w, p.Stack(index[k]), false)
+	if debug > 0 {
+		// Print debug profile in legacy format
+		tw := tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
+		fmt.Fprintf(tw, "%s profile: total %d\n", name, p.Len())
+		for _, k := range keys {
+			fmt.Fprintf(tw, "%d %s\n", count[k], k)
+			printStackRecord(tw, p.Stack(index[k]), false)
 		}
+		return tw.Flush()
 	}
 
-	if tw != nil {
-		tw.Flush()
+	// Output profile in protobuf form.
+	prof := &profile.Profile{
+		PeriodType: &profile.ValueType{Type: name, Unit: "count"},
+		Period:     1,
+		Sample:     make([]*profile.Sample, 0, len(keys)),
+		SampleType: []*profile.ValueType{{Type: name, Unit: "count"}},
 	}
-	return b.Flush()
+	for _, k := range keys {
+		stk := p.Stack(index[k])
+		c := count[k]
+		locs := make([]*profile.Location, len(stk))
+		for i, addr := range stk {
+			locs[i] = &profile.Location{Address: uint64(addr) - 1}
+		}
+		prof.Sample = append(prof.Sample, &profile.Sample{
+			Location: locs,
+			Value:    []int64{int64(c)},
+		})
+	}
+	return prof.Write(w)
 }
 
 // keysByCount sorts keys with higher counts first, breaking ties by key string order.
