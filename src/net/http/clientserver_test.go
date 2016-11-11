@@ -1161,7 +1161,6 @@ func testInterruptWithPanic(t *testing.T, h2 bool, panicValue interface{}) {
 	defer afterTest(t)
 
 	var errorLog lockedBytesBuffer
-
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		io.WriteString(w, msg)
 		w.(Flusher).Flush()
@@ -1182,20 +1181,30 @@ func testInterruptWithPanic(t *testing.T, h2 bool, panicValue interface{}) {
 	if err == nil {
 		t.Errorf("client read all successfully; want some error")
 	}
+	logOutput := func() string {
+		errorLog.Lock()
+		defer errorLog.Unlock()
+		return errorLog.String()
+	}
 	wantStackLogged := panicValue != nil && panicValue != ErrAbortHandler
-	errorLog.Lock()
-	gotLog := errorLog.String()
-	if !wantStackLogged {
-		if gotLog == "" {
-			return
+
+	if err := waitErrCondition(5*time.Second, 10*time.Millisecond, func() error {
+		gotLog := logOutput()
+		if !wantStackLogged {
+			if gotLog == "" {
+				return nil
+			}
+			return fmt.Errorf("want no log output; got: %s", gotLog)
 		}
-		t.Fatalf("want no log output; got: %s", gotLog)
-	}
-	if gotLog == "" {
-		t.Fatalf("wanted a stack trace logged; got nothing")
-	}
-	if !strings.Contains(gotLog, "created by ") && strings.Count(gotLog, "\n") < 6 {
-		t.Errorf("output doesn't look like a panic stack trace. Got: %s", gotLog)
+		if gotLog == "" {
+			return fmt.Errorf("wanted a stack trace logged; got nothing")
+		}
+		if !strings.Contains(gotLog, "created by ") && strings.Count(gotLog, "\n") < 6 {
+			return fmt.Errorf("output doesn't look like a panic stack trace. Got: %s", gotLog)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 }
 

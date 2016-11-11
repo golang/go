@@ -134,3 +134,16 @@ func waitCondition(waitFor, checkEvery time.Duration, fn func() bool) bool {
 	}
 	return false
 }
+
+// waitErrCondition is like waitCondition but with errors instead of bools.
+func waitErrCondition(waitFor, checkEvery time.Duration, fn func() error) error {
+	deadline := time.Now().Add(waitFor)
+	var err error
+	for time.Now().Before(deadline) {
+		if err = fn(); err == nil {
+			return nil
+		}
+		time.Sleep(checkEvery)
+	}
+	return err
+}
