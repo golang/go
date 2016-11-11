@@ -679,11 +679,29 @@ func TestGoroutineCounts(t *testing.T) {
 	time.Sleep(10 * time.Millisecond) // let goroutines block on channel
 
 	var w bytes.Buffer
-	Lookup("goroutine").WriteTo(&w, 1)
+	goroutineProf := Lookup("goroutine")
+
+	// Check debug profile
+	goroutineProf.WriteTo(&w, 1)
 	prof := w.String()
 
 	if !containsInOrder(prof, "\n50 @ ", "\n40 @", "\n10 @", "\n1 @") {
 		t.Errorf("expected sorted goroutine counts:\n%s", prof)
+	}
+
+	// Check proto profile
+	w.Reset()
+	goroutineProf.WriteTo(&w, 0)
+	p, err := profile.Parse(&w)
+	if err != nil {
+		t.Errorf("error parsing protobuf profile: %v", err)
+	}
+	if err := p.CheckValid(); err != nil {
+		t.Errorf("protobuf profile is invalid: %v", err)
+	}
+	if !containsCounts(p, []int64{50, 40, 10, 1}) {
+		t.Errorf("expected count profile to contain goroutines with counts %v, got %v",
+			[]int64{50, 40, 10, 1}, p)
 	}
 
 	close(c)
@@ -698,6 +716,26 @@ func containsInOrder(s string, all ...string) bool {
 			return false
 		}
 		s = s[i+len(t):]
+	}
+	return true
+}
+
+func containsCounts(prof *profile.Profile, counts []int64) bool {
+	m := make(map[int64]int)
+	for _, c := range counts {
+		m[c]++
+	}
+	for _, s := range prof.Sample {
+		// The count is the single value in the sample
+		if len(s.Value) != 1 {
+			return false
+		}
+		m[s.Value[0]]--
+	}
+	for _, n := range m {
+		if n > 0 {
+			return false
+		}
 	}
 	return true
 }
