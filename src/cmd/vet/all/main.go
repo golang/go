@@ -321,6 +321,8 @@ var nbits = map[string]int{
 	"amd64p32": 32,
 	"arm":      32,
 	"arm64":    64,
+	"mips":     32,
+	"mipsle":   32,
 	"mips64":   64,
 	"mips64le": 64,
 	"ppc64":    64,
