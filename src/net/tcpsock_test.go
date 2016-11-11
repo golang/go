@@ -467,6 +467,11 @@ func TestTCPConcurrentAccept(t *testing.T) {
 
 func TestTCPReadWriteAllocs(t *testing.T) {
 	switch runtime.GOOS {
+	case "plan9":
+		// The implementation of asynchronous cancelable
+		// I/O on Plan 9 allocates memory.
+		// See net/fd_io_plan9.go.
+		t.Skipf("not supported on %s", runtime.GOOS)
 	case "nacl":
 		// NaCl needs to allocate pseudo file descriptor
 		// stuff. See syscall/fd_nacl.go.
