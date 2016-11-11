@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.6
-
 // Binary package export.
 // This file was derived from $GOROOT/src/cmd/compile/internal/gc/bexport.go;
 // see that file for specification of the format.

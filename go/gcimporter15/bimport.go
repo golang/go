@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.6
-
-// This file is a copy of $GOROOT/src/go/internal/gcimporter/bimport.go, tagged for go1.6.
+// This file is a copy of $GOROOT/src/go/internal/gcimporter/bimport.go.
 
 package gcimporter
 
@@ -292,7 +290,7 @@ func (p *importer) obj(tag int) {
 		_ = pos
 		_ = name
 		_ = orig
-		// p.declare(types_NewAlias(pos, p.pkgList[0], name, orig))
+		// p.declare(types.NewAlias(pos, p.pkgList[0], name, orig))
 
 	default:
 		errorf("unexpected object tag %d", tag)

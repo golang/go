@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.6
-
-// This file is a copy of $GOROOT/src/go/internal/gcimporter/exportdata.go, tagged for go1.6.
+// This file is a copy of $GOROOT/src/go/internal/gcimporter/exportdata.go.
 
 // This file implements FindExportData.
 

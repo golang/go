@@ -2,19 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.6
-
-// This file is a copy of $GOROOT/src/go/internal/gcimporter/gcimporter.go, tagged for go1.6,
-// and minimally adjusted to make it build.
+// This file is a copy of $GOROOT/src/go/internal/gcimporter/gcimporter.go,
+// but it also contains the original source-based importer code for Go1.6.
+// Once we stop supporting 1.6, we can remove that code.
 
 // Package gcimporter15 provides various functions for reading
 // gc-generated object files that can be used to implement the
 // Importer interface defined by the Go 1.5 standard library package.
-//
-// This package serves as a stop-gap for missing features in the
-// standard library's go/importer package, specifically customizable
-// package data lookup. This package should be deleted once that
-// functionality becomes available in the standard library.
 //
 // Deprecated: this package will be deleted in October 2017.
 // New code should use golang.org/x/tools/go/gcexportdata.

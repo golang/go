@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.6
-
-// This file is a copy of $GOROOT/src/go/internal/gcimporter/gcimporter_test.go, tagged for go1.6,
-// and minimally adjusted to make it build with code from (std lib) internal/testenv copied.
+// This file is a copy of $GOROOT/src/go/internal/gcimporter/gcimporter_test.go,
+// adjusted to make it build with code from (std lib) internal/testenv copied.
 
 package gcimporter
 
