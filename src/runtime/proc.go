@@ -3112,7 +3112,12 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	}
 
 	// Profiling runs concurrently with GC, so it must not allocate.
-	mp.mallocing++
+	// Set a trap in case the code does allocate.
+	// Note that on windows, one thread takes profiles of all the
+	// other threads, so mp is usually not getg().m.
+	// In fact mp may not even be stopped.
+	// See golang.org/issue/17165.
+	getg().m.mallocing++
 
 	// Define that a "user g" is a user-created goroutine, and a "system g"
 	// is one that is m->g0 or m->gsignal.
@@ -3262,7 +3267,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		}
 		atomic.Store(&prof.lock, 0)
 	}
-	mp.mallocing--
+	getg().m.mallocing--
 }
 
 // If the signal handler receives a SIGPROF signal on a non-Go thread,
