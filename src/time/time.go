@@ -603,21 +603,21 @@ func (d Duration) Nanoseconds() int64 { return int64(d) }
 func (d Duration) Seconds() float64 {
 	sec := d / Second
 	nsec := d % Second
-	return float64(sec) + float64(nsec)*1e-9
+	return float64(sec) + float64(nsec)/1e9
 }
 
 // Minutes returns the duration as a floating point number of minutes.
 func (d Duration) Minutes() float64 {
 	min := d / Minute
 	nsec := d % Minute
-	return float64(min) + float64(nsec)*(1e-9/60)
+	return float64(min) + float64(nsec)/(60*1e9)
 }
 
 // Hours returns the duration as a floating point number of hours.
 func (d Duration) Hours() float64 {
 	hour := d / Hour
 	nsec := d % Hour
-	return float64(hour) + float64(nsec)*(1e-9/60/60)
+	return float64(hour) + float64(nsec)/(60*60*1e9)
 }
 
 // Add returns the time t+d.
