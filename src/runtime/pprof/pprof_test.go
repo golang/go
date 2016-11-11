@@ -651,23 +651,3 @@ func containsInOrder(s string, all ...string) bool {
 	}
 	return true
 }
-
-// Tests that the profiler outputs a parsable protobuf Profile profile.
-func TestCPUProfileParse(t *testing.T) {
-
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	var buf bytes.Buffer
-
-	if err := StartCPUProfile(&buf); err != nil {
-		t.Fatalf("Profile failed: Could not enable CPU profiling: %s\n", err)
-	}
-	time.Sleep(5 * time.Second)
-	StopCPUProfile()
-
-	runtime.ReadMemStats(&after)
-	_, err := profile.Parse(&buf)
-	if err != nil {
-		t.Fatalf("Could not parse Profile profile: %v", err)
-	}
-}
