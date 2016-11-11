@@ -142,6 +142,7 @@ func init() {
 		"syscall.RawSyscall":               ext۰syscall۰RawSyscall,
 		"syscall.Read":                     ext۰syscall۰Read,
 		"syscall.ReadDirent":               ext۰syscall۰ReadDirent,
+		"syscall.Readlink":                 ext۰syscall۰Readlink,
 		"syscall.Stat":                     ext۰syscall۰Stat,
 		"syscall.Write":                    ext۰syscall۰Write,
 		"syscall.runtime_envs":             ext۰runtime۰environ,
@@ -483,6 +484,13 @@ func ext۰syscall۰Getwd(fr *frame, args []value) value {
 
 func ext۰syscall۰Getpid(fr *frame, args []value) value {
 	return syscall.Getpid()
+}
+
+func ext۰syscall۰Readlink(fr *frame, args []value) value {
+	path := args[0].(string)
+	buf := valueToBytes(args[1])
+	n, err := syscall.Readlink(path, buf)
+	return tuple{n, wrapError(err)}
 }
 
 func valueToBytes(v value) []byte {
