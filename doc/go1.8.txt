@@ -8,7 +8,7 @@ Hybrid barrier. <100us GC pauses.
 
 Language:
 
-Alias declarations?
+When explicitly converting structs, tags are ignored for structural type identity (CL 24190).
 
 Tools:
 
@@ -396,7 +396,7 @@ image/color: improve speed of RGBA methods (CL 31773)
 image/draw: optimize drawFillOver as drawFillSrc for opaque fills (CL 28790)
 math/big: avoid allocation in float.{Add, Sub} when there's no aliasing (CL 23568)
 math/big: make division faster (CL 30613)
-math/big: slightly faster float->decimal conversion (CL 31250)
+math/big: 10%-20% faster float->decimal conversion (CL 31250, CL 31275)
 math/big: use array instead of slice for deBruijn lookups (CL 26663)
 math/big: uses SIMD for some math big functions on s390x (CL 32211)
 math: speed up Gamma(+Inf) (CL 31370)
