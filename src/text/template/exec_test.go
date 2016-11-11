@@ -1329,7 +1329,80 @@ func TestAddrOfIndex(t *testing.T) {
 			t.Fatalf("%s: Execute: %v", text, err)
 		}
 		if buf.String() != "<1>" {
-			t.Fatalf("%s: template output = %q, want %q", text, buf, "<1>")
+			t.Fatalf("%s: template output = %q, want %q", text, &buf, "<1>")
+		}
+	}
+}
+
+func TestInterfaceValues(t *testing.T) {
+	// golang.org/issue/17714.
+	// Before index worked on reflect.Values, interface values
+	// were always implicitly promoted to the underlying value,
+	// except that nil interfaces were promoted to the zero reflect.Value.
+	// Eliminating a round trip to interface{} and back to reflect.Value
+	// eliminated this promotion, breaking these cases.
+	tests := []struct {
+		text string
+		out  string
+	}{
+		{`{{index .Nil 1}}`, "ERROR: index of untyped nil"},
+		{`{{index .Slice 2}}`, "2"},
+		{`{{index .Slice .Two}}`, "2"},
+		{`{{call .Nil 1}}`, "ERROR: call of nil"},
+		{`{{call .PlusOne 1}}`, "2"},
+		{`{{call .PlusOne .One}}`, "2"},
+		{`{{and (index .Slice 0) true}}`, "0"},
+		{`{{and .Zero true}}`, "0"},
+		{`{{and (index .Slice 1) false}}`, "false"},
+		{`{{and .One false}}`, "false"},
+		{`{{or (index .Slice 0) false}}`, "false"},
+		{`{{or .Zero false}}`, "false"},
+		{`{{or (index .Slice 1) true}}`, "1"},
+		{`{{or .One true}}`, "1"},
+		{`{{not (index .Slice 0)}}`, "true"},
+		{`{{not .Zero}}`, "true"},
+		{`{{not (index .Slice 1)}}`, "false"},
+		{`{{not .One}}`, "false"},
+		{`{{eq (index .Slice 0) .Zero}}`, "true"},
+		{`{{eq (index .Slice 1) .One}}`, "true"},
+		{`{{ne (index .Slice 0) .Zero}}`, "false"},
+		{`{{ne (index .Slice 1) .One}}`, "false"},
+		{`{{ge (index .Slice 0) .One}}`, "false"},
+		{`{{ge (index .Slice 1) .Zero}}`, "true"},
+		{`{{gt (index .Slice 0) .One}}`, "false"},
+		{`{{gt (index .Slice 1) .Zero}}`, "true"},
+		{`{{le (index .Slice 0) .One}}`, "true"},
+		{`{{le (index .Slice 1) .Zero}}`, "false"},
+		{`{{lt (index .Slice 0) .One}}`, "true"},
+		{`{{lt (index .Slice 1) .Zero}}`, "false"},
+	}
+
+	for _, tt := range tests {
+		tmpl := Must(New("tmpl").Parse(tt.text))
+		var buf bytes.Buffer
+		err := tmpl.Execute(&buf, map[string]interface{}{
+			"PlusOne": func(n int) int {
+				return n + 1
+			},
+			"Slice": []int{0, 1, 2, 3},
+			"One":   1,
+			"Two":   2,
+			"Nil":   nil,
+			"Zero":  0,
+		})
+		if strings.HasPrefix(tt.out, "ERROR:") {
+			e := strings.TrimSpace(strings.TrimPrefix(tt.out, "ERROR:"))
+			if err == nil || !strings.Contains(err.Error(), e) {
+				t.Errorf("%s: Execute: %v, want error %q", tt.text, err, e)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: Execute: %v", tt.text, err)
+			continue
+		}
+		if buf.String() != tt.out {
+			t.Errorf("%s: template output = %q, want %q", tt.text, &buf, tt.out)
 		}
 	}
 }

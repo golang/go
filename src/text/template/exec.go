@@ -874,6 +874,20 @@ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
 	return v, false
 }
 
+// indirectInterface returns the concrete value in an interface value,
+// or else the zero reflect.Value.
+// That is, if v represents the interface value x, the result is the same as reflect.ValueOf(x):
+// the fact that x was an interface value is forgotten.
+func indirectInterface(v reflect.Value) reflect.Value {
+	if v.Kind() != reflect.Interface {
+		return v
+	}
+	if v.IsNil() {
+		return reflect.Value{}
+	}
+	return v.Elem()
+}
+
 // printValue writes the textual representation of the value to the output of
 // the template.
 func (s *state) printValue(n parse.Node, v reflect.Value) {
