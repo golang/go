@@ -29,7 +29,7 @@ func parseFile(filename string) {
 
 	if !imported_unsafe {
 		for _, x := range p.linknames {
-			p.error(syntax.Error{0, x, "//go:linkname only allowed in Go files that import \"unsafe\""})
+			p.error(syntax.Error{Line: x, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
 		}
 	}
 
@@ -1032,7 +1032,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
 			break
 		}
 		if n > 1e8 {
-			p.error(syntax.Error{pos, line, "line number out of range"})
+			p.error(syntax.Error{Pos: pos, Line: line, Msg: "line number out of range"})
 			errorexit()
 		}
 		if n <= 0 {
@@ -1048,7 +1048,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
 
 		f := strings.Fields(text)
 		if len(f) != 3 {
-			p.error(syntax.Error{pos, line, "usage: //go:linkname localname linkname"})
+			p.error(syntax.Error{Pos: pos, Line: line, Msg: "usage: //go:linkname localname linkname"})
 			break
 		}
 		lookup(f[1]).Linkname = f[2]

@@ -179,6 +179,6 @@ func TestParseFile(t *testing.T) {
 		t.Error("missing io error")
 	}
 	if err != first {
-		t.Error("got %v; want first error %v", err, first)
+		t.Errorf("got %v; want first error %v", err, first)
 	}
 }
