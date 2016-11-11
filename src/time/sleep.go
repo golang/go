@@ -55,7 +55,7 @@ type Timer struct {
 // Stop does not close the channel, to prevent a read from the channel succeeding
 // incorrectly.
 //
-// To prevent the timer firing after a call to Stop,
+// To prevent a timer created with NewTimer from firing after a call to Stop,
 // check the return value and drain the channel.
 // For example, assuming the program has not received from t.C already:
 //
@@ -65,6 +65,12 @@ type Timer struct {
 //
 // This cannot be done concurrent to other receives from the Timer's
 // channel.
+//
+// For a timer created with AfterFunc(d, f), if t.Stop returns false, then the timer
+// has already expired and the function f has been started in its own goroutine;
+// Stop does not wait for f to complete before returning.
+// If the caller needs to know whether f is completed, it must coordinate
+// with f explicitly.
 func (t *Timer) Stop() bool {
 	if t.r.f == nil {
 		panic("time: Stop called on uninitialized Timer")
