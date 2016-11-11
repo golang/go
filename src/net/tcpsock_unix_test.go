@@ -15,7 +15,7 @@ import (
 )
 
 // See golang.org/issue/14548.
-func TestTCPSupriousConnSetupCompletion(t *testing.T) {
+func TestTCPSpuriousConnSetupCompletion(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -57,7 +57,7 @@ func TestTCPSupriousConnSetupCompletion(t *testing.T) {
 			c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
 			if err != nil {
 				if perr := parseDialError(err); perr != nil {
-					t.Errorf("#%d: %v", i, err)
+					t.Errorf("#%d: %v (original error: %v)", i, perr, err)
 				}
 				return
 			}
