@@ -500,6 +500,19 @@ func deref(typ types.Type) types.Type {
 //
 func (p *parser) parseField(parent *types.Package) (*types.Var, string) {
 	pkg, name := p.parseName(parent, true)
+
+	if name == "_" {
+		// Blank fields should be package-qualified because they
+		// are unexported identifiers, but gc does not qualify them.
+		// Assuming that the ident belongs to the current package
+		// causes types to change during re-exporting, leading
+		// to spurious "can't assign A to B" errors from go/types.
+		// As a workaround, pretend all blank fields belong
+		// to the same unique dummy package.
+		const blankpkg = "<_>"
+		pkg = p.getPkg(blankpkg, blankpkg)
+	}
+
 	typ := p.parseType(parent)
 	anonymous := false
 	if name == "" {
