@@ -264,7 +264,13 @@ func defaultGOPATH() string {
 		env = "home"
 	}
 	if home := os.Getenv(env); home != "" {
-		return filepath.Join(home, "go")
+		def := filepath.Join(home, "go")
+		if def == runtime.GOROOT() {
+			// Don't set the default GOPATH to GOROOT,
+			// as that will trigger warnings from the go tool.
+			return ""
+		}
+		return def
 	}
 	return ""
 }
