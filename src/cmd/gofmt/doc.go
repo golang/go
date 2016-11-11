@@ -32,8 +32,8 @@ The flags are:
 	-w
 		Do not print reformatted sources to standard output.
 		If a file's formatting is different from gofmt's, overwrite it
-		with gofmt's version. If an error occured during overwriting,
-		the orginal file is restored from an automatic backup.
+		with gofmt's version. If an error occurred during overwriting,
+		the original file is restored from an automatic backup.
 
 Debugging support:
 	-cpuprofile filename

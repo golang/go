@@ -359,7 +359,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
 				}
 
 				if expected := i + 1; client.handshakes != expected {
-					t.Errorf("client should have recorded %d handshakes, but believes that %d have occured", expected, client.handshakes)
+					t.Errorf("client should have recorded %d handshakes, but believes that %d have occurred", expected, client.handshakes)
 				}
 			}()
 

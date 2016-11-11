@@ -115,7 +115,7 @@ NextCipherSuite:
 
 	// Session resumption is not allowed if renegotiating because
 	// renegotiation is primarily used to allow a client to send a client
-	// certificate, which would be skipped if session resumption occured.
+	// certificate, which would be skipped if session resumption occurred.
 	if sessionCache != nil && c.handshakes == 0 {
 		// Try to resume a previously negotiated TLS session, if
 		// available.
