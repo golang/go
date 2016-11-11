@@ -1003,6 +1003,21 @@ func TestDurationNanoseconds(t *testing.T) {
 	}
 }
 
+var secDurationTests = []struct {
+	d    Duration
+	want float64
+}{
+	{Duration(300000000), 0.3},
+}
+
+func TestDurationSeconds(t *testing.T) {
+	for _, tt := range secDurationTests {
+		if got := tt.d.Seconds(); got != tt.want {
+			t.Errorf("d.Seconds() = %g; want: %g", got, tt.want)
+		}
+	}
+}
+
 var minDurationTests = []struct {
 	d    Duration
 	want float64
@@ -1011,6 +1026,7 @@ var minDurationTests = []struct {
 	{Duration(-1), -1 / 60e9},
 	{Duration(1), 1 / 60e9},
 	{Duration(60000000000), 1},
+	{Duration(3000), 5e-8},
 }
 
 func TestDurationMinutes(t *testing.T) {
@@ -1029,6 +1045,7 @@ var hourDurationTests = []struct {
 	{Duration(-1), -1 / 3600e9},
 	{Duration(1), 1 / 3600e9},
 	{Duration(3600000000000), 1},
+	{Duration(36), 1e-11},
 }
 
 func TestDurationHours(t *testing.T) {
