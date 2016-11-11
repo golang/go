@@ -7,9 +7,16 @@ package net
 import (
 	"io"
 	"os"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
+
+type atomicBool int32
+
+func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
+func (b *atomicBool) setFalse()   { atomic.StoreInt32((*int32)(b), 0) }
+func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
 
 // Network file descriptor.
 type netFD struct {
@@ -23,6 +30,14 @@ type netFD struct {
 	listen, ctl, data *os.File
 	laddr, raddr      Addr
 	isStream          bool
+
+	// deadlines
+	raio      *asyncIO
+	waio      *asyncIO
+	rtimer    *time.Timer
+	wtimer    *time.Timer
+	rtimedout atomicBool // set true when read deadline has been reached
+	wtimedout atomicBool // set true when write deadline has been reached
 }
 
 var (
@@ -84,6 +99,9 @@ func (fd *netFD) destroy() {
 }
 
 func (fd *netFD) Read(b []byte) (n int, err error) {
+	if fd.rtimedout.isSet() {
+		return 0, errTimeout
+	}
 	if !fd.ok() || fd.data == nil {
 		return 0, syscall.EINVAL
 	}
@@ -94,9 +112,14 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
-	n, err = fd.data.Read(b)
+	fd.raio = newAsyncIO(fd.data.Read, b)
+	n, err = fd.raio.Wait()
+	fd.raio = nil
 	if isHangup(err) {
 		err = io.EOF
+	}
+	if isInterrupted(err) {
+		err = errTimeout
 	}
 	if fd.net == "udp" && err == io.EOF {
 		n = 0
@@ -106,6 +129,9 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
 }
 
 func (fd *netFD) Write(b []byte) (n int, err error) {
+	if fd.wtimedout.isSet() {
+		return 0, errTimeout
+	}
 	if !fd.ok() || fd.data == nil {
 		return 0, syscall.EINVAL
 	}
@@ -113,7 +139,13 @@ func (fd *netFD) Write(b []byte) (n int, err error) {
 		return 0, err
 	}
 	defer fd.writeUnlock()
-	return fd.data.Write(b)
+	fd.waio = newAsyncIO(fd.data.Write, b)
+	n, err = fd.waio.Wait()
+	fd.waio = nil
+	if isInterrupted(err) {
+		err = errTimeout
+	}
+	return
 }
 
 func (fd *netFD) closeRead() error {
@@ -185,15 +217,74 @@ func (fd *netFD) file(f *os.File, s string) (*os.File, error) {
 }
 
 func (fd *netFD) setDeadline(t time.Time) error {
-	return syscall.EPLAN9
+	return setDeadlineImpl(fd, t, 'r'+'w')
 }
 
 func (fd *netFD) setReadDeadline(t time.Time) error {
-	return syscall.EPLAN9
+	return setDeadlineImpl(fd, t, 'r')
 }
 
 func (fd *netFD) setWriteDeadline(t time.Time) error {
-	return syscall.EPLAN9
+	return setDeadlineImpl(fd, t, 'w')
+}
+
+func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
+	d := t.Sub(time.Now())
+	if mode == 'r' || mode == 'r'+'w' {
+		fd.rtimedout.setFalse()
+	}
+	if mode == 'w' || mode == 'r'+'w' {
+		fd.wtimedout.setFalse()
+	}
+	if t.IsZero() || d < 0 {
+		// Stop timer
+		if mode == 'r' || mode == 'r'+'w' {
+			if fd.rtimer != nil {
+				fd.rtimer.Stop()
+			}
+			fd.rtimer = nil
+		}
+		if mode == 'w' || mode == 'r'+'w' {
+			if fd.wtimer != nil {
+				fd.wtimer.Stop()
+			}
+			fd.wtimer = nil
+		}
+	} else {
+		// Interrupt I/O operation once timer has expired
+		if mode == 'r' || mode == 'r'+'w' {
+			fd.rtimer = time.AfterFunc(d, func() {
+				fd.rtimedout.setTrue()
+				if fd.raio != nil {
+					fd.raio.Cancel()
+				}
+			})
+		}
+		if mode == 'w' || mode == 'r'+'w' {
+			fd.wtimer = time.AfterFunc(d, func() {
+				fd.wtimedout.setTrue()
+				if fd.waio != nil {
+					fd.waio.Cancel()
+				}
+			})
+		}
+	}
+	if !t.IsZero() && d < 0 {
+		// Interrupt current I/O operation
+		if mode == 'r' || mode == 'r'+'w' {
+			fd.rtimedout.setTrue()
+			if fd.raio != nil {
+				fd.raio.Cancel()
+			}
+		}
+		if mode == 'w' || mode == 'r'+'w' {
+			fd.wtimedout.setTrue()
+			if fd.waio != nil {
+				fd.waio.Cancel()
+			}
+		}
+	}
+	return nil
 }
 
 func setReadBuffer(fd *netFD, bytes int) error {
@@ -206,4 +297,8 @@ func setWriteBuffer(fd *netFD, bytes int) error {
 
 func isHangup(err error) bool {
 	return err != nil && stringsHasSuffix(err.Error(), "Hangup")
+}
+
+func isInterrupted(err error) bool {
+	return err != nil && stringsHasSuffix(err.Error(), "interrupted")
 }

@@ -13,6 +13,7 @@ type mOS struct {
 	waitsemacount uint32
 	notesig       *int8
 	errstr        *byte
+	ignoreHangup  bool
 }
 
 func closefd(fd int32) int32
