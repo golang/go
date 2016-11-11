@@ -1117,8 +1117,8 @@ var defaultLocTests = []struct {
 
 	{"Truncate", func(t1, t2 Time) bool { return t1.Truncate(Hour).Equal(t2.Truncate(Hour)) }},
 	{"Round", func(t1, t2 Time) bool { return t1.Round(Hour).Equal(t2.Round(Hour)) }},
-	
-	{"== Time{}", func(t1, t2 Time) bool { return (t1==Time{}) == (t2==Time{}) }},
+
+	{"== Time{}", func(t1, t2 Time) bool { return (t1 == Time{}) == (t2 == Time{}) }},
 }
 
 func TestDefaultLoc(t *testing.T) {
@@ -1228,5 +1228,12 @@ func TestMarshalBinaryZeroTime(t *testing.T) {
 	}
 	if t1 != t0 {
 		t.Errorf("t0=%#v\nt1=%#v\nwant identical structures", t0, t1)
+	}
+}
+
+// Issue 17720: Zero value of time.Month fails to print
+func TestZeroMonthString(t *testing.T) {
+	if got, want := Month(0).String(), "%!Month(0)"; got != want {
+		t.Errorf("zero month = %q; want %q", got, want)
 	}
 }

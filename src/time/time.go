@@ -114,7 +114,18 @@ var months = [...]string{
 }
 
 // String returns the English name of the month ("January", "February", ...).
-func (m Month) String() string { return months[m-1] }
+func (m Month) String() string {
+	if January <= m && m <= December {
+		return months[m-1]
+	}
+	const prefix = "%!Month("
+	buf := make([]byte, 20+len(prefix)+1)
+	buf[len(buf)-1] = ')'
+	n := fmtInt(buf[:len(buf)-1], uint64(m))
+	n -= len(prefix)
+	copy(buf[n:], prefix)
+	return string(buf[n:])
+}
 
 // A Weekday specifies a day of the week (Sunday = 0, ...).
 type Weekday int
