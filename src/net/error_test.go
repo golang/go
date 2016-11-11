@@ -97,7 +97,8 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case errCanceled, errClosing, errMissingAddress, errNoSuitableAddress:
+	case errCanceled, errClosing, errMissingAddress, errNoSuitableAddress,
+		context.DeadlineExceeded, context.Canceled:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
