@@ -18,6 +18,7 @@ var hextable = [16]byte{
 }
 
 // EncodedLen returns the length of an encoding of n source bytes.
+// Specifically, it returns n * 2.
 func EncodedLen(n int) int { return n * 2 }
 
 // Encode encodes src into EncodedLen(len(src))
@@ -43,6 +44,8 @@ func (e InvalidByteError) Error() string {
 	return fmt.Sprintf("encoding/hex: invalid byte: %#U", rune(e))
 }
 
+// DecodedLen returns the length of a decoding of x source bytes.
+// Specifically, it returns x / 2.
 func DecodedLen(x int) int { return x / 2 }
 
 // Decode decodes src into DecodedLen(len(src)) bytes,
