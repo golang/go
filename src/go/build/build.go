@@ -155,6 +155,7 @@ func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
 	return hasSubdir(rootSym, dirSym)
 }
 
+// hasSubdir reports if dir is within root by performing lexical analysis only.
 func hasSubdir(root, dir string) (rel string, ok bool) {
 	const sep = string(filepath.Separator)
 	root = filepath.Clean(root)
@@ -527,6 +528,10 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		}
 		if !ctxt.isAbsPath(path) {
 			p.Dir = ctxt.joinPath(srcDir, path)
+		}
+		if !ctxt.isDir(p.Dir) {
+			// package was not found
+			return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
 		}
 		// Determine canonical import path, if any.
 		// Exclude results where the import path would include /testdata/.
