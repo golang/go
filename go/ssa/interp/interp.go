@@ -604,6 +604,8 @@ func doRecover(caller *frame) value {
 		caller.caller.panicking = false
 		p := caller.caller.panic
 		caller.caller.panic = nil
+
+		// TODO(adonovan): support runtime.Goexit.
 		switch p := p.(type) {
 		case targetPanic:
 			// The target program explicitly called panic().
@@ -665,6 +667,11 @@ func deleteBodies(pkg *ssa.Package, except ...string) {
 // The SSA program must include the "runtime" package.
 //
 func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename string, args []string) (exitCode int) {
+	if syswrite == nil {
+		fmt.Fprintln(os.Stderr, "Interpret: unsupported platform.")
+		return 1
+	}
+
 	i := &interpreter{
 		prog:       mainpkg.Prog,
 		globals:    make(map[ssa.Value]*value),

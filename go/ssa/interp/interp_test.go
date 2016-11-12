@@ -4,7 +4,7 @@
 
 // +build go1.5
 
-// +build !android,!windows,!plan9
+// +build linux darwin
 
 package interp_test
 

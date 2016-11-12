@@ -933,6 +933,8 @@ func write(fd int, b []byte) (int, error) {
 	return syswrite(fd, b)
 }
 
+var syswrite func(int, []byte) (int, error) // set on darwin/linux only
+
 // callBuiltin interprets a call to builtin fn with arguments args,
 // returning its result.
 func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value) value {

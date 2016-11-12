@@ -16,7 +16,6 @@ import (
 	"runtime"
 	"strings"
 	"sync/atomic"
-	"syscall"
 	"time"
 	"unsafe"
 
@@ -30,11 +29,11 @@ type externalFn func(fr *frame, args []value) value
 // We have not captured that correctly here.
 
 // Key strings are from Function.String().
-var externals map[string]externalFn
+var externals = make(map[string]externalFn)
 
 func init() {
 	// That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
-	externals = map[string]externalFn{
+	for k, v := range map[string]externalFn{
 		"(*sync.Pool).Get":                 ext۰sync۰Pool۰Get,
 		"(*sync.Pool).Put":                 ext۰nop,
 		"(reflect.Value).Bool":             ext۰reflect۰Value۰Bool,
@@ -86,9 +85,9 @@ func init() {
 		"math.Log":                         ext۰math۰Log,
 		"math.Min":                         ext۰math۰Min,
 		"math.hasSSE4":                     ext۰math۰hasSSE4,
-		"os.Pipe":                          ext۰os۰Pipe,
 		"os.runtime_args":                  ext۰os۰runtime_args,
 		"os.runtime_beforeExit":            ext۰nop,
+		"os/signal.init":                   ext۰nop,
 		"reflect.New":                      ext۰reflect۰New,
 		"reflect.SliceOf":                  ext۰reflect۰SliceOf,
 		"reflect.TypeOf":                   ext۰reflect۰TypeOf,
@@ -130,25 +129,11 @@ func init() {
 		"sync/atomic.LoadUint32":           ext۰atomic۰LoadUint32,
 		"sync/atomic.StoreInt32":           ext۰atomic۰StoreInt32,
 		"sync/atomic.StoreUint32":          ext۰atomic۰StoreUint32,
-		"syscall.Close":                    ext۰syscall۰Close,
-		"syscall.Exit":                     ext۰syscall۰Exit,
-		"syscall.Fstat":                    ext۰syscall۰Fstat,
-		"syscall.Getpid":                   ext۰syscall۰Getpid,
-		"syscall.Getwd":                    ext۰syscall۰Getwd,
-		"syscall.Kill":                     ext۰syscall۰Kill,
-		"syscall.Lstat":                    ext۰syscall۰Lstat,
-		"syscall.Open":                     ext۰syscall۰Open,
-		"syscall.ParseDirent":              ext۰syscall۰ParseDirent,
-		"syscall.RawSyscall":               ext۰syscall۰RawSyscall,
-		"syscall.Read":                     ext۰syscall۰Read,
-		"syscall.ReadDirent":               ext۰syscall۰ReadDirent,
-		"syscall.Readlink":                 ext۰syscall۰Readlink,
-		"syscall.Stat":                     ext۰syscall۰Stat,
-		"syscall.Write":                    ext۰syscall۰Write,
-		"syscall.runtime_envs":             ext۰runtime۰environ,
 		"testing.runExample":               ext۰testing۰runExample,
 		"time.Sleep":                       ext۰time۰Sleep,
 		"time.now":                         ext۰time۰now,
+	} {
+		externals[k] = v
 	}
 }
 
@@ -471,26 +456,6 @@ func ext۰time۰now(fr *frame, args []value) value {
 func ext۰time۰Sleep(fr *frame, args []value) value {
 	time.Sleep(time.Duration(args[0].(int64)))
 	return nil
-}
-
-func ext۰syscall۰Exit(fr *frame, args []value) value {
-	panic(exitPanic(args[0].(int)))
-}
-
-func ext۰syscall۰Getwd(fr *frame, args []value) value {
-	s, err := syscall.Getwd()
-	return tuple{s, wrapError(err)}
-}
-
-func ext۰syscall۰Getpid(fr *frame, args []value) value {
-	return syscall.Getpid()
-}
-
-func ext۰syscall۰Readlink(fr *frame, args []value) value {
-	path := args[0].(string)
-	buf := valueToBytes(args[1])
-	n, err := syscall.Readlink(path, buf)
-	return tuple{n, wrapError(err)}
 }
 
 func valueToBytes(v value) []byte {
