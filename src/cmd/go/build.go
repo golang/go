@@ -2580,7 +2580,11 @@ func (gcToolchain) ld(b *builder, root *action, out string, allactions []*action
 		ldflags = append(ldflags, "-w")
 	}
 	if buildBuildmode == "plugin" {
-		ldflags = append(ldflags, "-pluginpath", root.p.ImportPath)
+		pluginpath := root.p.ImportPath
+		if pluginpath == "command-line-arguments" {
+			pluginpath = "plugin/unnamed-" + root.p.buildID
+		}
+		ldflags = append(ldflags, "-pluginpath", pluginpath)
 	}
 
 	// If the user has not specified the -extld option, then specify the
