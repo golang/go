@@ -23,6 +23,9 @@ type COFFSymbol struct {
 }
 
 func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
+	if fh.PointerToSymbolTable == 0 {
+		return nil, nil
+	}
 	if fh.NumberOfSymbols <= 0 {
 		return nil, nil
 	}
