@@ -9,6 +9,7 @@ import (
 	"log"
 	"path/filepath"
 	"plugin"
+	"strings"
 
 	"common"
 )
@@ -102,6 +103,14 @@ func main() {
 	}
 	if got, want := common.X, 2; got != want {
 		log.Fatalf("after loading plugin2, common.X=%d, want %d", got, want)
+	}
+
+	_, err = plugin.Open("plugin-mismatch.so")
+	if err == nil {
+		log.Fatal(`plugin.Open("plugin-mismatch.so"): should have failed`)
+	}
+	if s := err.Error(); !strings.Contains(s, "different version") {
+		log.Fatalf(`plugin.Open("plugin-mismatch.so"): error does not mention "different version": %v`, s)
 	}
 
 	fmt.Println("PASS")

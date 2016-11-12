@@ -69,7 +69,11 @@ func open(name string) (*Plugin, error) {
 		name = name[:len(name)-3]
 	}
 
-	pluginpath, syms := lastmoduleinit()
+	pluginpath, syms, mismatchpkg := lastmoduleinit()
+	if mismatchpkg != "" {
+		pluginsMu.Unlock()
+		return nil, errors.New("plugin.Open: plugin was built with a different version of package " + mismatchpkg)
+	}
 	if plugins == nil {
 		plugins = make(map[string]*Plugin)
 	}
@@ -131,4 +135,4 @@ var (
 )
 
 // lastmoduleinit is defined in package runtime
-func lastmoduleinit() (pluginpath string, syms map[string]interface{})
+func lastmoduleinit() (pluginpath string, syms map[string]interface{}, mismatchpkg string)

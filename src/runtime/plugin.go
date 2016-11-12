@@ -7,7 +7,7 @@ package runtime
 import "unsafe"
 
 //go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
-func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
+func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatchpkg string) {
 	md := firstmoduledata.next
 	if md == nil {
 		throw("runtime: no plugin module data")
@@ -39,6 +39,11 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
 			println("\tmd.data-edata=", hex(md.data), "-", hex(md.edata))
 			println("\tmd.types-etypes=", hex(md.types), "-", hex(md.etypes))
 			throw("plugin: new module data overlaps with previous moduledata")
+		}
+	}
+	for _, pkghash := range md.pkghashes {
+		if pkghash.linktimehash != *pkghash.runtimehash {
+			return "", nil, pkghash.modulename
 		}
 	}
 
@@ -74,7 +79,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
 		}
 		syms[name] = val
 	}
-	return md.pluginpath, syms
+	return md.pluginpath, syms, ""
 }
 
 // inRange reports whether v0 or v1 are in the range [r0, r1].

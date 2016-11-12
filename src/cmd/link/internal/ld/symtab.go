@@ -530,6 +530,20 @@ func (ctxt *Link) symtab() {
 		Addaddr(ctxt, abihashgostr, hashsym)
 		adduint(ctxt, abihashgostr, uint64(hashsym.Size))
 	}
+	if Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
+		for _, l := range ctxt.Library {
+			s := ctxt.Syms.Lookup("go.link.pkghashbytes."+l.Pkg, 0)
+			s.Attr |= AttrReachable
+			s.Type = obj.SRODATA
+			s.Size = int64(len(l.hash))
+			s.P = []byte(l.hash)
+			str := ctxt.Syms.Lookup("go.link.pkghash."+l.Pkg, 0)
+			str.Attr |= AttrReachable
+			str.Type = obj.SRODATA
+			Addaddr(ctxt, str, s)
+			adduint(ctxt, str, uint64(len(l.hash)))
+		}
+	}
 
 	nsections := textsectionmap(ctxt)
 
@@ -604,7 +618,28 @@ func (ctxt *Link) symtab() {
 	}
 	if Buildmode == BuildmodePlugin {
 		addgostring(ctxt, moduledata, "go.link.thispluginpath", *flagPluginPath)
+
+		pkghashes := ctxt.Syms.Lookup("go.link.pkghashes", 0)
+		pkghashes.Attr |= AttrReachable
+		pkghashes.Attr |= AttrLocal
+		pkghashes.Type = obj.SRODATA
+
+		for i, l := range ctxt.Library {
+			// pkghashes[i].name
+			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkgname.%d", i), l.Pkg)
+			// pkghashes[i].linktimehash
+			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.hash))
+			// pkghashes[i].runtimehash
+			hash := ctxt.Syms.ROLookup("go.link.pkghash."+l.Pkg, 0)
+			Addaddr(ctxt, pkghashes, hash)
+		}
+		Addaddr(ctxt, moduledata, pkghashes)
+		adduint(ctxt, moduledata, uint64(len(ctxt.Library)))
+		adduint(ctxt, moduledata, uint64(len(ctxt.Library)))
 	} else {
+		adduint(ctxt, moduledata, 0) // pluginpath
+		adduint(ctxt, moduledata, 0)
+		adduint(ctxt, moduledata, 0) // pkghashes slice
 		adduint(ctxt, moduledata, 0)
 		adduint(ctxt, moduledata, 0)
 	}
