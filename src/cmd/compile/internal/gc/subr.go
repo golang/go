@@ -58,6 +58,8 @@ func (x byLineno) Len() int           { return len(x) }
 func (x byLineno) Less(i, j int) bool { return x[i].lineno < x[j].lineno }
 func (x byLineno) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
+// flusherrors sorts errors seen so far by line number, prints them to stdout,
+// and empties the errors array.
 func flusherrors() {
 	Ctxt.Bso.Flush()
 	if len(errors) == 0 {
