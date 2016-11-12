@@ -119,8 +119,12 @@ var linkobj string
 
 var bout *bio.Writer
 
+// nerrors is the number of compiler errors reported
+// since the last call to saveerrors.
 var nerrors int
 
+// nsavederrors is the total number of compiler errors
+// reported before the last call to saveerrors.
 var nsavederrors int
 
 var nsyntaxerrors int

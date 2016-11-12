@@ -98,6 +98,9 @@ func supportsDynlink(arch *sys.Arch) bool {
 var timings Timings
 var benchfile string
 
+// Main parses flags and Go source files specified in the command-line
+// arguments, type-checks the parsed Go package, compiles functions to machine
+// code, and finally writes the compiled package definition to disk.
 func Main() {
 	timings.Start("fe", "init")
 
@@ -483,6 +486,7 @@ func Main() {
 		errorexit()
 	}
 
+	// Write object data to disk.
 	timings.Start("be", "dumpobj")
 	dumpobj()
 	if asmhdr != "" {
