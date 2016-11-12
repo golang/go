@@ -16,7 +16,6 @@ import (
 	"net/http"
 	"net/http/internal"
 	"os"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -294,15 +293,6 @@ func (s *Server) closeConn(c net.Conn) { s.closeConnChan(c, nil) }
 // closeConnChan is like closeConn, but takes an optional channel to receive a value
 // when the goroutine closing c is done.
 func (s *Server) closeConnChan(c net.Conn, done chan<- struct{}) {
-	if runtime.GOOS == "plan9" {
-		// Go's Plan 9 net package isn't great at unblocking reads when
-		// their underlying TCP connections are closed. Don't trust
-		// that that the ConnState state machine will get to
-		// StateClosed. Instead, just go there directly. Plan 9 may leak
-		// resources if the syscall doesn't end up returning. Oh well.
-		s.forgetConn(c)
-	}
-
 	c.Close()
 	if done != nil {
 		done <- struct{}{}
