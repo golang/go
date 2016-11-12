@@ -720,7 +720,7 @@ func objfile(ctxt *Link, lib *Library) {
 		goto out
 	}
 
-	if Buildmode == BuildmodeShared {
+	if Buildmode == BuildmodeShared || Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
 		before := f.Offset()
 		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
 		if _, err := io.ReadFull(f, pkgdefBytes); err != nil {

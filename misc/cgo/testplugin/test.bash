@@ -24,6 +24,7 @@ mkdir sub
 
 GOPATH=$(pwd) go build -buildmode=plugin plugin1
 GOPATH=$(pwd) go build -buildmode=plugin plugin2
+GOPATH=$(pwd)/altpath go build -buildmode=plugin plugin-mismatch
 GOPATH=$(pwd) go build -buildmode=plugin -o=sub/plugin1.so sub/plugin1
 GOPATH=$(pwd) go build host
 

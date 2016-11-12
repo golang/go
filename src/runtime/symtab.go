@@ -202,7 +202,9 @@ type moduledata struct {
 
 	ptab []ptabEntry
 
-	pluginpath   string
+	pluginpath string
+	pkghashes  []modulehash
+
 	modulename   string
 	modulehashes []modulehash
 
@@ -213,10 +215,18 @@ type moduledata struct {
 	next *moduledata
 }
 
+// A modulehash is used to compare the ABI of a new module or a
+// package in a new module with the loaded program.
+//
 // For each shared library a module links against, the linker creates an entry in the
 // moduledata.modulehashes slice containing the name of the module, the abi hash seen
 // at link time and a pointer to the runtime abi hash. These are checked in
 // moduledataverify1 below.
+//
+// For each loaded plugin, the the pkghashes slice has a modulehash of the
+// newly loaded package that can be used to check the plugin's version of
+// a package against any previously loaded version of the package.
+// This is done in plugin.lastmoduleinit.
 type modulehash struct {
 	modulename   string
 	linktimehash string
