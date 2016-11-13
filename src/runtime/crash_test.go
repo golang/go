@@ -418,7 +418,7 @@ func TestPanicTraceback(t *testing.T) {
 	}
 
 	// Check functions in the traceback.
-	fns := []string{"panic", "main.pt1.func1", "panic", "main.pt2.func1", "panic", "main.pt2", "main.pt1"}
+	fns := []string{"main.pt1.func1", "panic", "main.pt2.func1", "panic", "main.pt2", "main.pt1"}
 	for _, fn := range fns {
 		re := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(fn) + `\(.*\n`)
 		idx := re.FindStringIndex(output)

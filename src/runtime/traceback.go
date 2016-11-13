@@ -380,7 +380,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			}
 		}
 		if printing {
-			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp) {
+			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0) {
 				// Print during crash.
 				//	main(0x1, 0x2, 0x3)
 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
@@ -632,7 +632,7 @@ func printcreatedby(gp *g) {
 	// Show what created goroutine, except main goroutine (goid 1).
 	pc := gp.gopc
 	f := findfunc(pc)
-	if f != nil && showframe(f, gp) && gp.goid != 1 {
+	if f != nil && showframe(f, gp, false) && gp.goid != 1 {
 		print("created by ", funcname(f), "\n")
 		tracepc := pc // back up to CALL instruction for funcline.
 		if pc > f.entry {
@@ -712,7 +712,7 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
 	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, &pcbuf[0], len(pcbuf), nil, nil, 0)
 }
 
-func showframe(f *_func, gp *g) bool {
+func showframe(f *_func, gp *g, firstFrame bool) bool {
 	g := getg()
 	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
@@ -720,10 +720,12 @@ func showframe(f *_func, gp *g) bool {
 	level, _, _ := gotraceback()
 	name := funcname(f)
 
-	// Special case: always show runtime.gopanic frame, so that we can
-	// see where a panic started in the middle of a stack trace.
+	// Special case: always show runtime.gopanic frame
+	// in the middle of a stack trace, so that we can
+	// see the boundary between ordinary code and
+	// panic-induced deferred code.
 	// See golang.org/issue/5832.
-	if name == "runtime.gopanic" {
+	if name == "runtime.gopanic" && !firstFrame {
 		return true
 	}
 
