@@ -1,7 +1,7 @@
 package main
 
 import (
-	_"dupload/p2"
+	_ "dupload/p2"
 	_ "p"
 )
 
