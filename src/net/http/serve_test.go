@@ -2470,7 +2470,7 @@ func TestClientWriteShutdown(t *testing.T) {
 	}
 	err = conn.(*net.TCPConn).CloseWrite()
 	if err != nil {
-		t.Fatalf("Dial: %v", err)
+		t.Fatalf("CloseWrite: %v", err)
 	}
 	donec := make(chan bool)
 	go func() {
