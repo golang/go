@@ -305,11 +305,6 @@ var readTimeoutTests = []struct {
 }
 
 func TestReadTimeout(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
-
 	handler := func(ls *localServer, ln Listener) {
 		c, err := ln.Accept()
 		if err != nil {
@@ -435,7 +430,7 @@ var readFromTimeoutTests = []struct {
 
 func TestReadFromTimeout(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "nacl":
 		t.Skipf("not supported on %s", runtime.GOOS) // see golang.org/issue/8916
 	}
 
@@ -508,11 +503,6 @@ var writeTimeoutTests = []struct {
 
 func TestWriteTimeout(t *testing.T) {
 	t.Parallel()
-
-	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
 
 	ln, err := newLocalListener("tcp")
 	if err != nil {
@@ -629,7 +619,7 @@ func TestWriteToTimeout(t *testing.T) {
 	t.Parallel()
 
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "nacl":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -681,11 +671,6 @@ func TestWriteToTimeout(t *testing.T) {
 func TestReadTimeoutFluctuation(t *testing.T) {
 	t.Parallel()
 
-	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
-
 	ln, err := newLocalListener("tcp")
 	if err != nil {
 		t.Fatal(err)
@@ -718,11 +703,6 @@ func TestReadTimeoutFluctuation(t *testing.T) {
 
 func TestReadFromTimeoutFluctuation(t *testing.T) {
 	t.Parallel()
-
-	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
 
 	c1, err := newLocalPacketListener("udp")
 	if err != nil {
@@ -829,11 +809,6 @@ func (b neverEnding) Read(p []byte) (int, error) {
 }
 
 func testVariousDeadlines(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
-
 	type result struct {
 		n   int64
 		err error
@@ -1030,7 +1005,7 @@ func TestReadWriteDeadlineRace(t *testing.T) {
 	t.Parallel()
 
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "nacl":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
