@@ -251,7 +251,7 @@ func TestDialAddrError(t *testing.T) {
 		operr := err.(*OpError).Err
 		aerr, ok := operr.(*AddrError)
 		if !ok {
-			t.Errorf("%s: %v is %#T, want *AddrError", op, err, operr)
+			t.Errorf("%s: %v is %T, want *AddrError", op, err, operr)
 			continue
 		}
 		want := tt.lit

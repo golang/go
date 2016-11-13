@@ -1064,7 +1064,7 @@ func testChtimes(t *testing.T, name string) {
 	}
 
 	if !pmt.Before(mt) {
-		t.Errorf("ModTime didn't go backwards; was=%d, after=%d", mt, pmt)
+		t.Errorf("ModTime didn't go backwards; was=%v, after=%v", mt, pmt)
 	}
 }
 

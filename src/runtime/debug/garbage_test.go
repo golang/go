@@ -80,7 +80,7 @@ func TestReadGCStats(t *testing.T) {
 	for i := 0; i < n; i++ {
 		dt := stats.PauseEnd[i]
 		if dt.UnixNano() != int64(mstats.PauseEnd[off]) {
-			t.Errorf("stats.PauseEnd[%d] = %d, want %d", i, dt, mstats.PauseEnd[off])
+			t.Errorf("stats.PauseEnd[%d] = %d, want %d", i, dt.UnixNano(), mstats.PauseEnd[off])
 		}
 		off = (off + len(mstats.PauseEnd) - 1) % len(mstats.PauseEnd)
 	}
