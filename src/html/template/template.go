@@ -259,9 +259,6 @@ func (t *Template) Clone() (*Template, error) {
 	ret.set[ret.Name()] = ret
 	for _, x := range textClone.Templates() {
 		name := x.Name()
-		if name == ret.Name() {
-			continue
-		}
 		src := t.set[name]
 		if src == nil || src.escapeErr != nil {
 			return nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", t.Name())
@@ -274,7 +271,8 @@ func (t *Template) Clone() (*Template, error) {
 			ret.nameSpace,
 		}
 	}
-	return ret, nil
+	// Return the template associated with the name of this template.
+	return ret.set[ret.Name()], nil
 }
 
 // New allocates a new HTML template with the given name.
