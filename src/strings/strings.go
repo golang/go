@@ -383,40 +383,61 @@ func Map(mapping func(rune) rune, s string) string {
 	// In the worst case, the string can grow when mapped, making
 	// things unpleasant. But it's so rare we barge in assuming it's
 	// fine. It could also shrink but that falls out naturally.
-	maxbytes := len(s) // length of b
-	nbytes := 0        // number of bytes encoded in b
+
 	// The output buffer b is initialized on demand, the first
 	// time a character differs.
 	var b []byte
+	// nbytes is the number of bytes encoded in b.
+	var nbytes int
 
 	for i, c := range s {
 		r := mapping(c)
-		if b == nil {
-			if r == c {
-				continue
-			}
-			b = make([]byte, maxbytes)
-			nbytes = copy(b, s[:i])
+		if r == c {
+			continue
 		}
+
+		b = make([]byte, len(s)+utf8.UTFMax)
+		nbytes = copy(b, s[:i])
 		if r >= 0 {
-			wid := 1
-			if r >= utf8.RuneSelf {
-				wid = utf8.RuneLen(r)
+			if r <= utf8.RuneSelf {
+				b[nbytes] = byte(r)
+				nbytes++
+			} else {
+				nbytes += utf8.EncodeRune(b[nbytes:], r)
 			}
-			if nbytes+wid > maxbytes {
-				// Grow the buffer.
-				maxbytes = maxbytes*2 + utf8.UTFMax
-				nb := make([]byte, maxbytes)
-				copy(nb, b[0:nbytes])
-				b = nb
-			}
-			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], r)
 		}
+		i += utf8.RuneLen(c)
+		s = s[i:]
+		break
 	}
+
 	if b == nil {
 		return s
 	}
-	return string(b[0:nbytes])
+
+	for _, c := range s {
+		r := mapping(c)
+
+		// common case
+		if (0 <= r && r <= utf8.RuneSelf) && nbytes < len(b) {
+			b[nbytes] = byte(r)
+			nbytes++
+			continue
+		}
+
+		// b is not big enough or r is not a ASCII rune.
+		if r >= 0 {
+			if nbytes+utf8.UTFMax >= len(b) {
+				// Grow the buffer.
+				nb := make([]byte, 2*len(b))
+				copy(nb, b[:nbytes])
+				b = nb
+			}
+			nbytes += utf8.EncodeRune(b[nbytes:], r)
+		}
+	}
+
+	return string(b[:nbytes])
 }
 
 // Repeat returns a new string consisting of count copies of the string s.

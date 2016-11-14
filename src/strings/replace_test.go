@@ -540,3 +540,44 @@ func BenchmarkByteByteMap(b *testing.B) {
 		Map(fn, str)
 	}
 }
+
+var mapdata = []struct{ name, data string }{
+	{"ASCII", "a b c d e f g h i j k l m n o p q r s t u v w x y z"},
+	{"Greek", "α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ ς σ τ υ φ χ ψ ω"},
+}
+
+func BenchmarkMap(b *testing.B) {
+	mapidentity := func(r rune) rune {
+		return r
+	}
+
+	b.Run("identity", func(b *testing.B) {
+		for _, md := range mapdata {
+			b.Run(md.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					Map(mapidentity, md.data)
+				}
+			})
+		}
+	})
+
+	mapchange := func(r rune) rune {
+		if 'a' <= r && r <= 'z' {
+			return r + 'A' - 'a'
+		}
+		if 'α' <= r && r <= 'ω' {
+			return r + 'Α' - 'α'
+		}
+		return r
+	}
+
+	b.Run("change", func(b *testing.B) {
+		for _, md := range mapdata {
+			b.Run(md.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					Map(mapchange, md.data)
+				}
+			})
+		}
+	})
+}
