@@ -802,6 +802,11 @@ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 		if !top {
 			return true
 		}
+		// Check whether this is a pointer to a C union (or class)
+		// type that contains a pointer.
+		if unionWithPointer[t.X] {
+			return true
+		}
 		return p.hasPointer(f, t.X, false)
 	case *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.ChanType:
 		return true
@@ -1418,6 +1423,10 @@ var tagGen int
 var typedef = make(map[string]*Type)
 var goIdent = make(map[string]*ast.Ident)
 
+// unionWithPointer is true for a Go type that represents a C union (or class)
+// that may contain a pointer. This is used for cgo pointer checking
+var unionWithPointer = make(map[ast.Expr]bool)
+
 func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.ptrSize = ptrSize
 	c.intSize = intSize
@@ -1706,6 +1715,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		t.Size = t1.Size
 		t.Align = t1.Align
 		t.Go = t1.Go
+		if unionWithPointer[t1.Go] {
+			unionWithPointer[t.Go] = true
+		}
 		t.EnumValues = nil
 		t.Typedef = ""
 		t.C.Set("%s "+dt.Qual, t1.C)
@@ -1740,6 +1752,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		switch dt.Kind {
 		case "class", "union":
 			t.Go = c.Opaque(t.Size)
+			if c.dwarfHasPointer(dt, pos) {
+				unionWithPointer[t.Go] = true
+			}
 			if t.C.Empty() {
 				t.C.Set("__typeof__(unsigned char[%d])", t.Size)
 			}
@@ -1782,6 +1797,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		goIdent[name.Name] = name
 		sub := c.Type(dt.Type, pos)
 		t.Go = name
+		if unionWithPointer[sub.Go] {
+			unionWithPointer[t.Go] = true
+		}
 		t.Size = sub.Size
 		t.Align = sub.Align
 		oldType := typedef[name.Name]
@@ -2161,6 +2179,44 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	}
 	expr = &ast.StructType{Fields: &ast.FieldList{List: fld}}
 	return
+}
+
+// dwarfHasPointer returns whether the DWARF type dt contains a pointer.
+func (c *typeConv) dwarfHasPointer(dt dwarf.Type, pos token.Pos) bool {
+	switch dt := dt.(type) {
+	default:
+		fatalf("%s: unexpected type: %s", lineno(pos), dt)
+		return false
+
+	case *dwarf.AddrType, *dwarf.BoolType, *dwarf.CharType, *dwarf.EnumType,
+		*dwarf.FloatType, *dwarf.ComplexType, *dwarf.FuncType,
+		*dwarf.IntType, *dwarf.UcharType, *dwarf.UintType, *dwarf.VoidType:
+
+		return false
+
+	case *dwarf.ArrayType:
+		return c.dwarfHasPointer(dt.Type, pos)
+
+	case *dwarf.PtrType:
+		return true
+
+	case *dwarf.QualType:
+		return c.dwarfHasPointer(dt.Type, pos)
+
+	case *dwarf.StructType:
+		for _, f := range dt.Field {
+			if c.dwarfHasPointer(f.Type, pos) {
+				return true
+			}
+		}
+		return false
+
+	case *dwarf.TypedefType:
+		if dt.Name == "_GoString_" || dt.Name == "_GoBytes_" {
+			return true
+		}
+		return c.dwarfHasPointer(dt.Type, pos)
+	}
 }
 
 func upper(s string) string {
