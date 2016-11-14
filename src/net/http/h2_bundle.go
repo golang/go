@@ -3549,7 +3549,7 @@ func (sc *http2serverConn) serve() {
 			return
 		case <-gracefulShutdownCh:
 			gracefulShutdownCh = nil
-			sc.goAwayIn(http2ErrCodeNo, 0)
+			sc.startGracefulShutdown()
 		case <-sc.shutdownTimerCh:
 			sc.vlogf("GOAWAY close timer fired; closing conn from %v", sc.conn.RemoteAddr())
 			return
@@ -3834,6 +3834,13 @@ func (sc *http2serverConn) scheduleFrameWrite() {
 	sc.inFrameScheduleLoop = false
 }
 
+// startGracefulShutdown sends a GOAWAY with ErrCodeNo to tell the
+// client we're gracefully shutting down. The connection isn't closed
+// until all current streams are done.
+func (sc *http2serverConn) startGracefulShutdown() {
+	sc.goAwayIn(http2ErrCodeNo, 0)
+}
+
 func (sc *http2serverConn) goAway(code http2ErrCode) {
 	sc.serveG.check()
 	var forceCloseIn time.Duration
@@ -4028,12 +4035,15 @@ func (sc *http2serverConn) closeStream(st *http2stream, err error) {
 	} else {
 		sc.curClientStreams--
 	}
-	if sc.curClientStreams+sc.curPushedStreams == 0 {
-		sc.setConnState(StateIdle)
-	}
 	delete(sc.streams, st.id)
-	if len(sc.streams) == 0 && sc.srv.IdleTimeout != 0 {
-		sc.idleTimer.Reset(sc.srv.IdleTimeout)
+	if len(sc.streams) == 0 {
+		sc.setConnState(StateIdle)
+		if sc.srv.IdleTimeout != 0 {
+			sc.idleTimer.Reset(sc.srv.IdleTimeout)
+		}
+		if http2h1ServerKeepAlivesDisabled(sc.hs) {
+			sc.startGracefulShutdown()
+		}
 	}
 	if p := st.body; p != nil {
 
@@ -4177,7 +4187,7 @@ func (sc *http2serverConn) processGoAway(f *http2GoAwayFrame) error {
 	} else {
 		sc.vlogf("http2: received GOAWAY %+v, starting graceful shutdown", f)
 	}
-	sc.goAwayIn(http2ErrCodeNo, 0)
+	sc.startGracefulShutdown()
 
 	sc.pushEnabled = false
 	return nil
@@ -5181,7 +5191,7 @@ func (sc *http2serverConn) startPush(msg http2startPushRequest) {
 		}
 
 		if sc.maxPushPromiseID+2 >= 1<<31 {
-			sc.goAwayIn(http2ErrCodeNo, 0)
+			sc.startGracefulShutdown()
 			return 0, http2ErrPushLimitReached
 		}
 		sc.maxPushPromiseID += 2
@@ -5325,6 +5335,20 @@ func http2h1ServerShutdownChan(hs *Server) <-chan struct{} {
 
 // optional test hook for h1ServerShutdownChan.
 var http2testh1ServerShutdownChan func(hs *Server) <-chan struct{}
+
+// h1ServerKeepAlivesDisabled reports whether hs has its keep-alives
+// disabled. See comments on h1ServerShutdownChan above for why
+// the code is written this way.
+func http2h1ServerKeepAlivesDisabled(hs *Server) bool {
+	var x interface{} = hs
+	type I interface {
+		doKeepAlives() bool
+	}
+	if hs, ok := x.(I); ok {
+		return !hs.doKeepAlives()
+	}
+	return false
+}
 
 const (
 	// transportDefaultConnFlow is how many connection-level flow control

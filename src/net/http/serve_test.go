@@ -4992,3 +4992,29 @@ func TestServerCloseDeadlock(t *testing.T) {
 	s.Close()
 	s.Close()
 }
+
+// Issue 17717: tests that Server.SetKeepAlivesEnabled is respected by
+// both HTTP/1 and HTTP/2.
+func TestServerKeepAlivesEnabled_h1(t *testing.T) { testServerKeepAlivesEnabled(t, h1Mode) }
+func TestServerKeepAlivesEnabled_h2(t *testing.T) { testServerKeepAlivesEnabled(t, h2Mode) }
+func testServerKeepAlivesEnabled(t *testing.T, h2 bool) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "%v", r.RemoteAddr)
+	}))
+	defer cst.close()
+	srv := cst.ts.Config
+	srv.SetKeepAlivesEnabled(false)
+	a := cst.getURL(cst.ts.URL)
+	if !waitCondition(2*time.Second, 10*time.Millisecond, srv.ExportAllConnsIdle) {
+		t.Fatalf("test server has active conns")
+	}
+	b := cst.getURL(cst.ts.URL)
+	if a == b {
+		t.Errorf("got same connection between first and second requests")
+	}
+	if !waitCondition(2*time.Second, 10*time.Millisecond, srv.ExportAllConnsIdle) {
+		t.Fatalf("test server has active conns")
+	}
+}
