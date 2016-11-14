@@ -7,6 +7,7 @@ package template
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"sync"
 	"testing"
@@ -239,5 +240,25 @@ func TestCloneGrowth(t *testing.T) {
 	}
 	if len(tmpl.DefinedTemplates()) > 200 {
 		t.Fatalf("too many templates: %v", len(tmpl.DefinedTemplates()))
+	}
+}
+
+// https://golang.org/issue/17735
+func TestCloneRedefinedName(t *testing.T) {
+	const base = `
+{{ define "a" -}}<title>{{ template "b" . -}}</title>{{ end -}}
+{{ define "b" }}{{ end -}}
+`
+	const page = `{{ template "a" . }}`
+
+	t1 := Must(New("a").Parse(base))
+
+	for i := 0; i < 2; i++ {
+		t2 := Must(t1.Clone())
+		t2 = Must(t2.New(fmt.Sprintf("%d", i)).Parse(page))
+		err := t2.Execute(ioutil.Discard, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
