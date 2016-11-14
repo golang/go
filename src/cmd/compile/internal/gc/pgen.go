@@ -427,9 +427,8 @@ func compile(fn *Node) {
 			}
 			fallthrough
 		case PPARAM, PPARAMOUT:
-			if n.IsAutoTmp() { // skip debugging info for temporaries
-				continue
-			}
+			// The symbol is excluded later from debugging info if its name begins ".autotmp_", but the type is still necessary.
+			// See bugs #17644 and #17830 and cmd/internal/dwarf/dwarf.go
 			p := Gins(obj.ATYPE, n, nil)
 			p.From.Sym = obj.Linklookup(Ctxt, n.Sym.Name, 0)
 			p.To.Type = obj.TYPE_MEM

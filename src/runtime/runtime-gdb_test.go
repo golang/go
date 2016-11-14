@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -272,6 +273,75 @@ func TestGdbBacktrace(t *testing.T) {
 		if found := re.Find(got) != nil; !found {
 			t.Errorf("could not find '%v' in backtrace", s)
 			t.Fatalf("gdb output:\n%v", string(got))
+		}
+	}
+}
+
+const autotmpTypeSource = `
+package main
+
+type astruct struct {
+	a, b int
+}
+
+func main() {
+	var iface interface{} = map[string]astruct{}
+	var iface2 interface{} = []astruct{}
+	println(iface, iface2)
+}
+`
+
+// TestGdbAutotmpTypes ensures that types of autotmp variables appear in .debug_info
+// See bug #17830.
+func TestGdbAutotmpTypes(t *testing.T) {
+	t.Parallel()
+	checkGdbEnvironment(t)
+	checkGdbVersion(t)
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Build the source code.
+	src := filepath.Join(dir, "main.go")
+	err = ioutil.WriteFile(src, []byte(autotmpTypeSource), 0644)
+	if err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", "a.exe")
+	cmd.Dir = dir
+	out, err := testEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("building source %v\n%s", err, out)
+	}
+
+	// Execute gdb commands.
+	args := []string{"-nx", "-batch",
+		"-ex", "set startup-with-shell off",
+		"-ex", "break main.main",
+		"-ex", "run",
+		"-ex", "step",
+		"-ex", "info types astruct",
+		filepath.Join(dir, "a.exe"),
+	}
+	got, _ := exec.Command("gdb", args...).CombinedOutput()
+
+	sgot := string(got)
+
+	// Check that the backtrace matches the source code.
+	types := []string{
+		"struct []main.astruct;",
+		"struct bucket<string,main.astruct>;",
+		"struct hash<string,main.astruct>;",
+		"struct main.astruct;",
+		"typedef struct hash<string,main.astruct> * map[string]main.astruct;",
+	}
+	for _, name := range types {
+		if !strings.Contains(sgot, name) {
+			t.Errorf("could not find %s in 'info typrs astruct' output", name)
+			t.Fatalf("gdb output:\n%v", sgot)
 		}
 	}
 }
