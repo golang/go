@@ -599,7 +599,19 @@ func relocsym(ctxt *Link, s *Symbol) {
 			}
 
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
-		case obj.R_CALL, obj.R_GOTPCREL, obj.R_PCREL:
+		case obj.R_GOTPCREL:
+			if ctxt.DynlinkingGo() && Headtype == obj.Hdarwin && r.Sym != nil && r.Sym.Type != obj.SCONST {
+				r.Done = 0
+				r.Xadd = r.Add
+				r.Xadd -= int64(r.Siz) // relative to address after the relocated chunk
+				r.Xsym = r.Sym
+
+				o = r.Xadd
+				o += int64(r.Siz)
+				break
+			}
+			fallthrough
+		case obj.R_CALL, obj.R_PCREL:
 			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != obj.SCONST && (r.Sym.Sect != s.Sect || r.Type == obj.R_GOTPCREL) {
 				r.Done = 0
 
