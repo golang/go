@@ -44,6 +44,19 @@ func (t *clientServerTest) close() {
 	t.ts.Close()
 }
 
+func (t *clientServerTest) getURL(u string) string {
+	res, err := t.c.Get(u)
+	if err != nil {
+		t.t.Fatal(err)
+	}
+	defer res.Body.Close()
+	slurp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.t.Fatal(err)
+	}
+	return string(slurp)
+}
+
 func (t *clientServerTest) scheme() string {
 	if t.h2 {
 		return "https"
