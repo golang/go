@@ -1424,7 +1424,7 @@ var typedef = make(map[string]*Type)
 var goIdent = make(map[string]*ast.Ident)
 
 // unionWithPointer is true for a Go type that represents a C union (or class)
-// that may contain a pointer. This is used for cgo pointer checking
+// that may contain a pointer. This is used for cgo pointer checking.
 var unionWithPointer = make(map[ast.Expr]bool)
 
 func (c *typeConv) Init(ptrSize, intSize int64) {
