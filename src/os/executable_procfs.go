@@ -14,7 +14,7 @@ import (
 // We query the executable path at init time to avoid the problem of
 // readlink returns a path appended with " (deleted)" when the original
 // binary gets deleted.
-var executablePath, executablePathErr = func () (string, error) {
+var executablePath, executablePathErr = func() (string, error) {
 	var procfn string
 	switch runtime.GOOS {
 	default:
