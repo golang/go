@@ -17,9 +17,17 @@ func ReadCommonX() int {
 
 var Seven int
 
+func call(fn func()) {
+	fn()
+}
+
+func g() {
+	common.X *= Seven
+}
+
 func init() {
 	Seven = 7
-	common.X *= Seven
+	call(g)
 }
 
 func main() {
