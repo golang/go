@@ -258,7 +258,6 @@ $(document).ready(function() {
   <span class="filename">{{.Filename}}</span>
   {{if .Size}}<span class="size">({{.PrettySize}})</span>{{end}}
 </div>
-<div class="checksum">{{.ChecksumType}}: {{.PrettyChecksum}}</div>
 </a>
 {{end}}
 `
