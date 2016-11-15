@@ -115,6 +115,7 @@ func setExitStatus(n int) {
 }
 
 var origEnv []string
+var newEnv []envVar
 
 func main() {
 	_ = go11tag
@@ -164,7 +165,8 @@ func main() {
 	// but in practice there might be skew
 	// This makes sure we all agree.
 	origEnv = os.Environ()
-	for _, env := range mkEnv() {
+	newEnv = mkEnv()
+	for _, env := range newEnv {
 		if os.Getenv(env.name) != env.value {
 			os.Setenv(env.name, env.value)
 		}

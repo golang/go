@@ -104,7 +104,7 @@ func extraEnvVars() []envVar {
 }
 
 func runEnv(cmd *Command, args []string) {
-	env := mkEnv()
+	env := newEnv
 	env = append(env, extraEnvVars()...)
 	if len(args) > 0 {
 		for _, name := range args {

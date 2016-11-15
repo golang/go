@@ -39,7 +39,7 @@ func runBug(cmd *Command, args []string) {
 	fmt.Fprint(&buf, "#### System details\n\n")
 	fmt.Fprintln(&buf, "```")
 	fmt.Fprintf(&buf, "go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
-	env := mkEnv()
+	env := newEnv
 	env = append(env, extraEnvVars()...)
 	for _, e := range env {
 		fmt.Fprintf(&buf, "%s=\"%s\"\n", e.name, e.value)

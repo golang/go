@@ -3586,6 +3586,12 @@ func TestGoEnv(t *testing.T) {
 	tg.setenv("CGO_CFLAGS", "-foobar")
 	tg.run("env", "CGO_CFLAGS")
 	tg.grepStdout("^-foobar$", "CGO_CFLAGS not honored")
+
+	tg.setenv("CC", "gcc -fmust -fgo -ffaster")
+	tg.run("env", "CC")
+	tg.grepStdout("gcc", "CC not found")
+	tg.run("env", "GOGCCFLAGS")
+	tg.grepStdout("-ffaster", "CC arguments not found")
 }
 
 const (
