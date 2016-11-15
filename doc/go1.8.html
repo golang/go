@@ -1,0 +1,270 @@
+<!--{
+	"Title": "Go 1.8 Release Notes",
+	"Path":  "/doc/go1.8",
+	"Template": true
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.8</h2>
+
+<p><strong>
+Go 1.8 is not yet released. These are work-in-progress
+release notes. Go 1.8 is expected to be released in February 2017.
+</strong></p>
+
+<p>
+The latest Go release, version 1.8, arrives six months after <a href="go1.7">Go 1.7</a>.
+Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+There is one minor change to the language specification.
+As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<p>
+The release <a href="#ports">adds support for 32-bit MIPS</a>,
+<a href="#compiler">updates the compiler back end</a> to generate more efficient code,
+produces smaller binaries (TODO: link/numbers),
+<a href="#gc">reduces GC pauses</a> by eliminating stop-the-world stack rescanning,
+<a href="#h2push">adds HTTP/2 Push support</a>,
+<a href="#httpshutdown">adds HTTP graceful shutdown</a>,
+and <a href="#sort">simplifies sorting slices</a>.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+When explicitly converting structs, tags are now ignored for structural type identity.
+See <a href="https://golang.org/cl/24190">change 24190</a> for details.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<p>
+Go now supports 32-bit MIPS on Linux for both big-endian
+(<code>linux/mips</code>) and little-endian machines
+(<code>linux/mipsle</code>).
+</p>
+
+<p>
+Go now requires DragonFly BSD 4.4.4 or later.
+</p>
+
+<p>
+The Plan 9 port's networking support is now much more complete
+and matches the behavior of Unix and Windows with respect to deadlines
+and cancelation.
+</p>
+
+
+<h3 id="known_issues">Known Issues</h3>
+
+<p>
+There are some instabilities on FreeBSD that are known but not understood.
+These can lead to program crashes in rare cases.
+See
+<a href="https://golang.org/issue/15658">issue 15658</a>
+and <a href="https://golang.org/issue/16396">issue 16396</a>.
+Any help in solving these FreeBSD-specific issues would be appreciated.
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<h3 id="cmd_asm">Assembler</h3>
+
+<p>
+For 64-bit x86 systems, the following instructions have been added:
+<code>VBROADCASTSD</code>,
+<code>BROADCASTSS</code>,
+<code>MOVDDUP</code>,
+<code>MOVSHDUP</code>,
+<code>MOVSLDUP</code>,
+<code>VMOVDDUP</code>,
+<code>VMOVSHDUP</code>,
+and <code>VMOVSLDUP</code>.</p>
+
+<p>
+For 64-bit PPC systems, the common vector scalar instructions have been
+added. See <a href="https://golang.org/cl/30510">change 30510</a>.
+</p>
+
+<h3 id="tool_yacc">Yacc</h3>
+
+<p>
+The <code>yacc</code> (previously available via
+“<code>go</code> <code>tool</code> <code>yacc</code>”)
+has been removed. As of Go 1.7 it was no longer used by the Go compiler.
+It has moved to the “tools” repo and is and is available via
+<code>go get <a href="https://godoc.org/golang.org/x/tools/cmd/goyacc">golang.org/x/tools/cmd/goyacc</a></code>.
+</p>
+
+<h3 id="compiler">Compiler Toolchain</h3>
+
+<p>
+Go 1.7 introduced a new compiler back end for 64-bit x86 systems.
+In Go 1.8, that back end has been developed further and is now used for
+all architectures.
+</p>
+
+<p>
+The new back end, based on
+<a href="https://en.wikipedia.org/wiki/Static_single_assignment_form">SSA</a>,
+generates more compact, more efficient code
+and provides a better platform for optimizations
+such as bounds check elimination.
+The new back end reduces the CPU time required by
+<a href="https://golang.org/test/bench/go1/">our benchmark programs</a> by N-M%.
+TODO: ARM binary size & perf numbers.
+</p>
+
+<p>
+The temporary <code>-ssa=0</code> flag introduced in Go 1.7 to disable
+the new backend has been removed in Go 1.8.
+</p>
+
+<p>
+The compiler and linker have been optimized and run faster in this
+release than in Go 1.7, although they are still slower than we would
+like and will continue to be optimized in future releases.
+</p>
+
+<p>
+Due to changes across the compiler toolchain and standard library,
+binaries built with this release should typically be smaller than binaries
+built with Go 1.7, sometimes by as much as TODO numbers.
+</p>
+
+
+<h3 id="cmd_cgo">Cgo</h3>
+
+<p>TODO</p>
+
+<h3 id="gccgo">Gccgo</h3>
+
+<p>TODO</p>
+
+<h3 id="cmd_go">Go command</h3>
+
+<p>
+The <a href="/cmd/go/"><code>go</code></a> command's basic operation
+is unchanged, but there are a number of changes worth noting.
+</p>
+
+<p>
+A new “<code>go</code> <code>bug</code>” command helps users file bug reports.
+</p>
+
+
+<h2 id="performance">Performance</h2>
+
+<p>
+As always, the changes are so general and varied that precise statements
+about performance are difficult to make.
+Most programs should run a bit faster,
+due to speedups in the garbage collector and
+optimizations in the core library.
+</p>
+
+<p>
+There have been significant optimizations bringing more than 10% improvements
+to implementations in the
+TODO TODO:
+<a href="/pkg/foo/"><code>foo</code></a>,
+<a href="/pkg/bar/"><code>bar</code></a>,
+and
+<a href="/pkg/quux/"><code>quux</code></a>
+packages.
+</p>
+
+<h3 id="gc">Garbage Collector</h3>
+
+<p>
+Garbage collection pauses should be significantly shorter than they
+were in Go 1.7, often as low as 10 microseconds and usually under 100
+microseconds.
+See the
+<a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md">
+document on eliminating stop-the-world stack re-scanning</a> for details.
+More work remains for Go 1.9.
+</p>
+
+<h3 id="defer">Defer</h3>
+
+<p><code>defer</code> calls are now about twice as fast.</p>
+
+<h3 id="cgoperf">Cgo</h3>
+
+<p>Calls from Go into C are now TODO% faster.</p>
+
+<h2 id="library">Core library</h2>
+
+<h3 id="examples">Examples</h3>
+
+<p>
+Many examples have been added to the documentation across many packages.
+</p>
+
+<h3 id="sort">Sort</h3>
+
+<p>
+The <a href="/pkg/sort/">sort</a> package
+now includes a convenience function
+<a href="/pkg/sort/#Slice"><code>sort.Slice</code></a> to sort a
+slice given a <em>less</em> function.
+
+In many cases this means that writing a new sorter type is not
+necessary.
+</p>
+
+<p>
+Also new are
+<a href="/pkg/sort/#SliceStable"><code>sort.SliceStable</code></a> and
+<a href="/pkg/sort/#SliceIsSorted"><code>sort.SliceIsSorted</code></a>.
+</p>
+
+<h3 id="h2push">HTTP/2 Push</h3>
+
+<p>
+The <a href="/pkg/net/http/">net/http</a> package now includes a
+mechanism to
+send HTTP/2 server pushes from a
+<a href="/pkg/net/http/#Handler"><code>Handler</code></a>.
+Similar to the existing <code>Flusher</code> and <code>Hijacker</code>
+interfaces, an HTTP/2
+<a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter</code></a>
+now implements the new
+<a href="/pkg/net/http/#Pusher"><code>Pusher</code></a> interface.
+</p>
+
+<h3 id="httpshutdown">HTTP Server Graceful Shutdown</h3>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+As always, there are various minor changes and updates to the library,
+made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+in mind.
+</p>
+
+<dl id="foo"><dt><a href="/pkg/foo/">foo</a></dt>
+
+<dd>
+<p>
+</p>
+</dd></dl>
+
+<dl id="bar"><dt><a href="/pkg/bar/">bar</a></dt>
+
+<dd>
+<p>
+</p>
+</dd></dl>
