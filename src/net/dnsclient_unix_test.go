@@ -668,12 +668,14 @@ func TestIgnoreDNSForgeries(t *testing.T) {
 		b := make([]byte, 512)
 		n, err := s.Read(b)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 
 		msg := &dnsMsg{}
 		if !msg.Unpack(b[:n]) {
-			t.Fatal("invalid DNS query")
+			t.Error("invalid DNS query")
+			return
 		}
 
 		s.Write([]byte("garbage DNS response packet"))
@@ -682,7 +684,8 @@ func TestIgnoreDNSForgeries(t *testing.T) {
 		msg.id++ // make invalid ID
 		b, ok := msg.Pack()
 		if !ok {
-			t.Fatal("failed to pack DNS response")
+			t.Error("failed to pack DNS response")
+			return
 		}
 		s.Write(b)
 
@@ -701,7 +704,8 @@ func TestIgnoreDNSForgeries(t *testing.T) {
 
 		b, ok = msg.Pack()
 		if !ok {
-			t.Fatal("failed to pack DNS response")
+			t.Error("failed to pack DNS response")
+			return
 		}
 		s.Write(b)
 	}()

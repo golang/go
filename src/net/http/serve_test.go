@@ -2468,7 +2468,7 @@ func TestClientWriteShutdown(t *testing.T) {
 		defer close(donec)
 		bs, err := ioutil.ReadAll(conn)
 		if err != nil {
-			t.Fatalf("ReadAll: %v", err)
+			t.Errorf("ReadAll: %v", err)
 		}
 		got := string(bs)
 		if got != "" {
@@ -2620,7 +2620,8 @@ func TestCloseNotifier(t *testing.T) {
 	go func() {
 		_, err = fmt.Fprintf(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 		<-diec
 		conn.Close()
@@ -2662,7 +2663,8 @@ func TestCloseNotifierPipelined(t *testing.T) {
 		const req = "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n"
 		_, err = io.WriteString(conn, req+req) // two requests
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 		<-diec
 		conn.Close()

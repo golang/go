@@ -137,7 +137,7 @@ func TestRace(t *testing.T) {
 		x = 1
 		c.Wait()
 		if x != 2 {
-			t.Fatal("want 2")
+			t.Error("want 2")
 		}
 		x = 3
 		c.Signal()
@@ -165,7 +165,7 @@ func TestRace(t *testing.T) {
 			if x == 2 {
 				c.Wait()
 				if x != 3 {
-					t.Fatal("want 3")
+					t.Error("want 3")
 				}
 				break
 			}

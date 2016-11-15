@@ -432,7 +432,7 @@ func TestExtraFilesFDShuffle(t *testing.T) {
 		buf := make([]byte, 512)
 		n, err := stderr.Read(buf)
 		if err != nil {
-			t.Fatalf("Read: %s", err)
+			t.Errorf("Read: %s", err)
 			ch <- err.Error()
 		} else {
 			ch <- string(buf[:n])

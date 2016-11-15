@@ -269,7 +269,8 @@ func TestTraceStressStartStop(t *testing.T) {
 
 		rp, wp, err := os.Pipe()
 		if err != nil {
-			t.Fatalf("failed to create pipe: %v", err)
+			t.Errorf("failed to create pipe: %v", err)
+			return
 		}
 		defer func() {
 			rp.Close()
@@ -345,7 +346,8 @@ func TestTraceStressStartStop(t *testing.T) {
 		// A bit of network.
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
-			t.Fatalf("listen failed: %v", err)
+			t.Errorf("listen failed: %v", err)
+			return
 		}
 		defer ln.Close()
 		go func() {
@@ -360,7 +362,8 @@ func TestTraceStressStartStop(t *testing.T) {
 		}()
 		c, err := net.Dial("tcp", ln.Addr().String())
 		if err != nil {
-			t.Fatalf("dial failed: %v", err)
+			t.Errorf("dial failed: %v", err)
+			return
 		}
 		var tmp [1]byte
 		c.Read(tmp[:])

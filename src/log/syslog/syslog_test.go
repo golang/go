@@ -369,7 +369,8 @@ func TestConcurrentReconnect(t *testing.T) {
 			defer wg.Done()
 			w, err := Dial(net, addr, LOG_USER|LOG_ERR, "tag")
 			if err != nil {
-				t.Fatalf("syslog.Dial() failed: %v", err)
+				t.Errorf("syslog.Dial() failed: %v", err)
+				return
 			}
 			defer w.Close()
 			for i := 0; i < M; i++ {

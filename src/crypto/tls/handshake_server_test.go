@@ -206,7 +206,8 @@ func TestRenegotiationExtension(t *testing.T) {
 		buf = make([]byte, 1024)
 		n, err := c.Read(buf)
 		if err != nil {
-			t.Fatalf("Server read returned error: %s", err)
+			t.Errorf("Server read returned error: %s", err)
+			return
 		}
 		buf = buf[:n]
 		c.Close()
