@@ -188,7 +188,10 @@ func cse(f *Func) {
 	for _, b := range f.Blocks {
 	out:
 		for _, v := range b.Values {
-			if rewrite[v.ID] != nil {
+			// New values are created when selectors are copied to
+			// a new block. We can safely ignore those new values,
+			// since they have already been copied (issue 17918).
+			if int(v.ID) >= len(rewrite) || rewrite[v.ID] != nil {
 				continue
 			}
 			if v.Op != OpSelect0 && v.Op != OpSelect1 {
