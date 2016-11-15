@@ -7681,6 +7681,10 @@ type http2FrameWriteRequest struct {
 // 0 is used for non-stream frames such as PING and SETTINGS.
 func (wr http2FrameWriteRequest) StreamID() uint32 {
 	if wr.stream == nil {
+		if se, ok := wr.write.(http2StreamError); ok {
+
+			return se.StreamID
+		}
 		return 0
 	}
 	return wr.stream.id
@@ -7754,17 +7758,13 @@ func (wr http2FrameWriteRequest) Consume(n int32) (http2FrameWriteRequest, http2
 
 // String is for debugging only.
 func (wr http2FrameWriteRequest) String() string {
-	var streamID uint32
-	if wr.stream != nil {
-		streamID = wr.stream.id
-	}
 	var des string
 	if s, ok := wr.write.(fmt.Stringer); ok {
 		des = s.String()
 	} else {
 		des = fmt.Sprintf("%T", wr.write)
 	}
-	return fmt.Sprintf("[FrameWriteRequest stream=%d, ch=%v, writer=%v]", streamID, wr.done != nil, des)
+	return fmt.Sprintf("[FrameWriteRequest stream=%d, ch=%v, writer=%v]", wr.StreamID(), wr.done != nil, des)
 }
 
 // writeQueue is used by implementations of WriteScheduler.
