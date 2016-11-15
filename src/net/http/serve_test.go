@@ -4907,9 +4907,6 @@ func get(t *testing.T, c *Client, url string) string {
 // Tests that calls to Server.SetKeepAlivesEnabled(false) closes any
 // currently-open connections.
 func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("skipping on nacl; see golang.org/issue/17695")
-	}
 	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
