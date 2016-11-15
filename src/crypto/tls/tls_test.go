@@ -295,12 +295,14 @@ func TestTLSUniqueMatches(t *testing.T) {
 		for i := 0; i < 2; i++ {
 			sconn, err := ln.Accept()
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
+				return
 			}
 			serverConfig := testConfig.Clone()
 			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
-				t.Fatal(err)
+				t.Error(err)
+				return
 			}
 			serverTLSUniques <- srv.ConnectionState().TLSUnique
 		}

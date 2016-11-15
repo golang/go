@@ -2514,7 +2514,8 @@ func TestConnectionLeak(t *testing.T) {
 	go func() {
 		r, err := db.Query("SELECT|people|name|")
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 		r.Close()
 		wg.Done()
