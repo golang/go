@@ -497,3 +497,22 @@ func TestReadTimeoutUnblocksRead(t *testing.T) {
 	}
 	withTCPConnPair(t, client, server)
 }
+
+// Issue 17695: verify that a blocked Read is woken up by a Close.
+func TestCloseUnblocksRead(t *testing.T) {
+	t.Parallel()
+	server := func(cs *TCPConn) error {
+		// Give the client time to get stuck in a Read:
+		time.Sleep(20 * time.Millisecond)
+		cs.Close()
+		return nil
+	}
+	client := func(ss *TCPConn) error {
+		n, err := ss.Read([]byte{0})
+		if n != 0 || err != io.EOF {
+			return fmt.Errorf("Read = %v, %v; want 0, EOF", n, err)
+		}
+		return nil
+	}
+	withTCPConnPair(t, client, server)
+}
