@@ -462,6 +462,9 @@ func shouldTraverse(dir string, fi os.FileInfo) bool {
 	if !ts.IsDir() {
 		return false
 	}
+	if skipDir(ts) {
+		return false
+	}
 
 	realParent, err := filepath.EvalSymlinks(dir)
 	if err != nil {

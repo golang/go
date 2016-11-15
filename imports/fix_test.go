@@ -889,6 +889,40 @@ var (
 			t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, output)
 		}
 	})
+
+	// Add a .goimportsignore and ensure it is respected.
+	if err := ioutil.WriteFile(newGoPath+"/src/.goimportsignore", []byte("x/mypkg\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	withEmptyGoPath(func() {
+		build.Default.GOPATH = newGoPath
+
+		input := `package p
+
+var (
+	_ = fmt.Print
+	_ = mypkg.Foo
+)
+`
+		output := `package p
+
+import "fmt"
+
+var (
+	_ = fmt.Print
+	_ = mypkg.Foo
+)
+`
+		buf, err := Process(newGoPath+"/src/myotherpkg/toformat.go", []byte(input), &Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := string(buf); got != output {
+			t.Fatalf("ignored results differ\nGOT:\n%s\nWANT:\n%s\n", got, output)
+		}
+	})
+
 }
 
 // Test for correctly identifying the name of a vendored package when it
