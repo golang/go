@@ -601,7 +601,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 			o = oplook(ctxt, p)
 
 			/* very large branches */
-			if o.type_ == 7 && p.Pcond != nil {
+			if (o.type_ == 7 || o.type_ == 39) && p.Pcond != nil { // 7: BEQ and like, 39: CBZ and like
 				otxt := p.Pcond.Pc - c
 				if otxt <= -(1<<18)+10 || otxt >= (1<<18)-10 {
 					q := ctxt.NewProg()
