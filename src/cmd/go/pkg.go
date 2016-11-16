@@ -586,6 +586,11 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 		return p
 	}
 
+	// We can't check standard packages with gccgo.
+	if buildContext.Compiler == "gccgo" && p.Standard {
+		return p
+	}
+
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
 	// with a name given on the command line, not an
@@ -1634,7 +1639,7 @@ func computeBuildID(p *Package) {
 	// Include the content of runtime/internal/sys/zversion.go in the hash
 	// for package runtime. This will give package runtime a
 	// different build ID in each Go release.
-	if p.Standard && p.ImportPath == "runtime/internal/sys" {
+	if p.Standard && p.ImportPath == "runtime/internal/sys" && buildContext.Compiler != "gccgo" {
 		data, err := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
 		if err != nil {
 			fatalf("go: %s", err)
