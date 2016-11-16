@@ -1260,7 +1260,9 @@ func (l *Link) hostlink() {
 
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
-	} else if l.Debugvlog != 0 && len(out) > 0 {
+	} else if len(out) > 0 {
+		// always print external output even if the command is successful, so that we don't
+		// swallow linker warnings (see https://golang.org/issue/17935).
 		l.Logf("%s", out)
 	}
 
