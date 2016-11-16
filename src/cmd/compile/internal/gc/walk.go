@@ -433,38 +433,6 @@ func convFuncName(from, to *Type) string {
 	panic("unreachable")
 }
 
-// Build name of function: assertI2E etc.
-// If with2suffix is true, the form ending in "2" is returned".
-func assertFuncName(from, to *Type, with2suffix bool) string {
-	l := len("assertX2X2")
-	if !with2suffix {
-		l--
-	}
-	tkind := to.iet()
-	switch from.iet() {
-	case 'E':
-		switch tkind {
-		case 'I':
-			return "assertE2I2"[:l]
-		case 'E':
-			return "assertE2E2"[:l]
-		case 'T':
-			return "assertE2T2"[:l]
-		}
-	case 'I':
-		switch tkind {
-		case 'I':
-			return "assertI2I2"[:l]
-		case 'E':
-			return "assertI2E2"[:l]
-		case 'T':
-			return "assertI2T2"[:l]
-		}
-	}
-	Fatalf("unknown assert func %c2%c", from.iet(), to.iet())
-	panic("unreachable")
-}
-
 // The result of walkexpr MUST be assigned back to n, e.g.
 // 	n.Left = walkexpr(n.Left, init)
 func walkexpr(n *Node, init *Nodes) *Node {
@@ -2097,11 +2065,6 @@ func isstack(n *Node) bool {
 	}
 
 	return false
-}
-
-func (n *Node) isGlobal() bool {
-	n = outervalue(n)
-	return n.Op == ONAME && n.Class == PEXTERN
 }
 
 // Do we need a write barrier for the assignment l = r?

@@ -11,9 +11,6 @@ const (
 	switchKindExpr  = iota // switch a {...} or switch 5 {...}
 	switchKindTrue         // switch true {...} or switch {...}
 	switchKindFalse        // switch false {...}
-
-	// type switch
-	switchKindType // switch a.(type) {...}
 )
 
 const (
