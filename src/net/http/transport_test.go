@@ -3460,7 +3460,7 @@ func TestTransportRejectsAlphaPort(t *testing.T) {
 	res, err := Get("http://dummy.tld:123foo/bar")
 	if err == nil {
 		res.Body.Close()
-		t.Fatal("unexpected sucess")
+		t.Fatal("unexpected success")
 	}
 	ue, ok := err.(*url.Error)
 	if !ok {
