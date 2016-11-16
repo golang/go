@@ -408,17 +408,19 @@ func (dc *driverConn) Close() error {
 }
 
 func (dc *driverConn) finalClose() error {
-	dc.Lock()
+	var err error
+	withLock(dc, func() {
+		defer func() { // In case si.Close panics.
+			dc.openStmt = nil
+			dc.finalClosed = true
+			err = dc.ci.Close()
+			dc.ci = nil
+		}()
 
-	for si := range dc.openStmt {
-		si.Close()
-	}
-	dc.openStmt = nil
-
-	err := dc.ci.Close()
-	dc.ci = nil
-	dc.finalClosed = true
-	dc.Unlock()
+		for si := range dc.openStmt {
+			si.Close()
+		}
+	})
 
 	dc.db.mu.Lock()
 	dc.db.numOpen--
