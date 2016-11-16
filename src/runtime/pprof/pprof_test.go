@@ -8,9 +8,12 @@ package pprof_test
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"internal/pprof/profile"
 	"internal/testenv"
+	"io"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"os/exec"
@@ -343,8 +346,49 @@ func TestMathBigDivide(t *testing.T) {
 	})
 }
 
+func slurpString(r io.Reader) string {
+	slurp, _ := ioutil.ReadAll(r)
+	return string(slurp)
+}
+
+func getLinuxKernelConfig() string {
+	if f, err := os.Open("/proc/config"); err == nil {
+		defer f.Close()
+		return slurpString(f)
+	}
+	if f, err := os.Open("/proc/config.gz"); err == nil {
+		defer f.Close()
+		r, err := gzip.NewReader(f)
+		if err != nil {
+			return ""
+		}
+		return slurpString(r)
+	}
+	if f, err := os.Open("/boot/config"); err == nil {
+		defer f.Close()
+		return slurpString(f)
+	}
+	uname, _ := exec.Command("uname, -r").Output()
+	if len(uname) > 0 {
+		if f, err := os.Open("/boot/config-" + string(uname)); err == nil {
+			defer f.Close()
+			return slurpString(f)
+		}
+	}
+	return ""
+}
+
+func haveLinuxHiresTimers() bool {
+	config := getLinuxKernelConfig()
+	return strings.Contains(config, "CONFIG_HIGH_RES_TIMERS=y")
+}
+
 func TestStackBarrierProfiling(t *testing.T) {
-	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") || runtime.GOOS == "openbsd" || runtime.GOOS == "solaris" || runtime.GOOS == "dragonfly" || runtime.GOOS == "freebsd" {
+	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") ||
+		runtime.GOOS == "openbsd" ||
+		runtime.GOOS == "solaris" ||
+		runtime.GOOS == "dragonfly" ||
+		runtime.GOOS == "freebsd" {
 		// This test currently triggers a large number of
 		// usleep(100)s. These kernels/arches have poor
 		// resolution timers, so this gives up a whole
@@ -355,6 +399,12 @@ func TestStackBarrierProfiling(t *testing.T) {
 		// profiling signals and fails.
 		t.Skipf("low resolution timers inhibit profiling signals (golang.org/issue/13405)")
 		return
+	}
+
+	if runtime.GOOS == "linux" && strings.HasPrefix(runtime.GOARCH, "mips") {
+		if !haveLinuxHiresTimers() {
+			t.Skipf("low resolution timers inhibit profiling signals (golang.org/issue/13405, golang.org/issue/17936)")
+		}
 	}
 
 	if !strings.Contains(os.Getenv("GODEBUG"), "gcstackbarrierall=1") {
