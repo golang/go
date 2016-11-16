@@ -1177,10 +1177,19 @@ func testInterruptWithPanic(t *testing.T, h2 bool, panicValue interface{}) {
 	const msg = "hello"
 	defer afterTest(t)
 
+	testDone := make(chan struct{})
+	defer close(testDone)
+
 	var errorLog lockedBytesBuffer
+	gotHeaders := make(chan bool, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		io.WriteString(w, msg)
 		w.(Flusher).Flush()
+
+		select {
+		case <-gotHeaders:
+		case <-testDone:
+		}
 		panic(panicValue)
 	}), func(ts *httptest.Server) {
 		ts.Config.ErrorLog = log.New(&errorLog, "", 0)
@@ -1190,6 +1199,7 @@ func testInterruptWithPanic(t *testing.T, h2 bool, panicValue interface{}) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	gotHeaders <- true
 	defer res.Body.Close()
 	slurp, err := ioutil.ReadAll(res.Body)
 	if string(slurp) != msg {
