@@ -354,6 +354,11 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 
 	raise(sig)
 
+	// Give the signal a chance to be delivered.
+	// In almost all real cases the program is about to crash,
+	// so sleeping here is not a waste of time.
+	usleep(1000)
+
 	// If the signal didn't cause the program to exit, restore the
 	// Go signal handler and carry on.
 	//
