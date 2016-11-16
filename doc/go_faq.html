@@ -769,6 +769,29 @@ for i, v := range t {
 }
 </pre>
 
+<h3 id="convert_slice_with_same_underlying_type">
+Can I convert []T1 to []T2 if T1 and T2 have the same underlying type?</h3>
+
+This last line of this code sample does not compile.
+
+<pre>
+type T1 int
+type T2 int
+var t1 T1
+var x = T2(t1) // OK
+var st1 []T1
+var sx = ([]T2)(st1) // NOT OK
+</pre>
+
+<p>
+In Go, types are closely tied to methods, in that every named type has
+a (possibly empty) method set.
+The general rule is that you can change the name of the type being
+converted (and thus possibly change its method set) but you can't
+change the name (and method set) of elements of a composite type.
+Go requires you to be explicit about type conversions.
+</p>
+
 <h3 id="nil_error">
 Why is my nil error value not equal to nil?
 </h3>
