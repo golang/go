@@ -670,8 +670,8 @@ func TestTCPSelfConnect(t *testing.T) {
 // Test that >32-bit reads work on 64-bit systems.
 // On 32-bit systems this tests that maxint reads work.
 func TestTCPBig(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode")
+	if !*testTCPBig {
+		t.Skip("test disabled; use -tcpbig to enable")
 	}
 
 	for _, writev := range []bool{false, true} {
