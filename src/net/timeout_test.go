@@ -5,7 +5,6 @@
 package net
 
 import (
-	"context"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -165,13 +164,14 @@ func TestAcceptTimeout(t *testing.T) {
 	}
 	defer ln.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	var wg sync.WaitGroup
 	for i, tt := range acceptTimeoutTests {
 		if tt.timeout < 0 {
+			wg.Add(1)
 			go func() {
-				var d Dialer
-				c, err := d.DialContext(ctx, ln.Addr().Network(), ln.Addr().String())
+				defer wg.Done()
+				d := Dialer{Timeout: 100 * time.Millisecond}
+				c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
 				if err != nil {
 					t.Error(err)
 					return
@@ -198,13 +198,14 @@ func TestAcceptTimeout(t *testing.T) {
 				}
 				if err == nil {
 					c.Close()
-					time.Sleep(tt.timeout / 3)
+					time.Sleep(10 * time.Millisecond)
 					continue
 				}
 				break
 			}
 		}
 	}
+	wg.Wait()
 }
 
 func TestAcceptTimeoutMustReturn(t *testing.T) {
