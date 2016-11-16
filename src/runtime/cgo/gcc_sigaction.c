@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <signal.h>
 
 // go_sigaction_t is a C version of the sigactiont struct from
@@ -19,12 +20,21 @@ typedef struct {
 	uint64_t mask;
 } go_sigaction_t;
 
+// SA_RESTORER is part of the kernel interface.
+// This is GNU/Linux i386/amd64 specific.
+#ifndef SA_RESTORER
+#define SA_RESTORER 0x4000000
+#endif
+
 int32_t
 x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *oldgoact) {
 	int32_t ret;
 	struct sigaction act;
 	struct sigaction oldact;
 	int i;
+
+	memset(&act, 0, sizeof act);
+	memset(&oldact, 0, sizeof oldact);
 
 	if (goact) {
 		if (goact->flags & SA_SIGINFO) {
@@ -38,7 +48,7 @@ x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *ol
 				sigaddset(&act.sa_mask, i+1);
 			}
 		}
-		act.sa_flags = goact->flags;
+		act.sa_flags = goact->flags & ~SA_RESTORER;
 	}
 
 	ret = sigaction(signum, goact ? &act : NULL, oldgoact ? &oldact : NULL);
