@@ -176,8 +176,6 @@ func TestAcceptTimeout(t *testing.T) {
 					t.Error(err)
 					return
 				}
-				var b [1]byte
-				c.Read(b[:])
 				c.Close()
 			}()
 		}
