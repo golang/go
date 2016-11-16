@@ -224,10 +224,11 @@ func (s *phiState) insertVarPhis(n int, var_ *Node, defs []*ssa.Block, typ ssa.T
 				fmt.Printf("  processing %s\n", b)
 			}
 
+			currentRootLevel := s.level[currentRoot.ID]
 			for _, e := range b.Succs {
 				c := e.Block()
 				// TODO: if the variable is dead at c, skip it.
-				if s.level[c.ID] > s.level[currentRoot.ID] {
+				if s.level[c.ID] > currentRootLevel {
 					// a D-edge, or an edge whose target is in currentRoot's subtree.
 					continue
 				}
