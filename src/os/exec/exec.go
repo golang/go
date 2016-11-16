@@ -579,6 +579,13 @@ func (c *closeOnce) Write(b []byte) (int, error) {
 	return n, err
 }
 
+func (c *closeOnce) WriteString(s string) (int, error) {
+	c.writers.RLock()
+	n, err := c.File.WriteString(s)
+	c.writers.RUnlock()
+	return n, err
+}
+
 // StdoutPipe returns a pipe that will be connected to the command's
 // standard output when the command starts.
 //
