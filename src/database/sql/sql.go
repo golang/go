@@ -1436,8 +1436,8 @@ func (tx *Tx) Rollback() error {
 
 // Prepare creates a prepared statement for use within a transaction.
 //
-// The returned statement operates within the transaction and can no longer
-// be used once the transaction has been committed or rolled back.
+// The returned statement operates within the transaction and will be closed
+// when the transaction has been committed or rolled back.
 //
 // To use an existing prepared statement on this transaction, see Tx.Stmt.
 //
@@ -1506,8 +1506,8 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 //  ...
 //  res, err := tx.StmtContext(ctx, updateMoney).Exec(123.45, 98293203)
 //
-// The returned statement operates within the transaction and can no longer
-// be used once the transaction has been committed or rolled back.
+// The returned statement operates within the transaction and will be closed
+// when the transaction has been committed or rolled back.
 func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 	// TODO(bradfitz): optimize this. Currently this re-prepares
 	// each time. This is fine for now to illustrate the API but
@@ -1551,8 +1551,8 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 //  ...
 //  res, err := tx.Stmt(updateMoney).Exec(123.45, 98293203)
 //
-// The returned statement operates within the transaction and can no longer
-// be used once the transaction has been committed or rolled back.
+// The returned statement operates within the transaction and will be closed
+// when the transaction has been committed or rolled back.
 func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 	return tx.StmtContext(context.Background(), stmt)
 }
