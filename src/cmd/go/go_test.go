@@ -6,7 +6,6 @@ package main_test
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"go/build"
 	"go/format"
@@ -67,8 +66,6 @@ func init() {
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
-	flag.Parse()
-
 	if canRun {
 		args := []string{"build", "-tags", "testgo", "-o", "testgo" + exeSuffix}
 		if race.Enabled {

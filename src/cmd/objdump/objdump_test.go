@@ -21,7 +21,6 @@ import (
 var tmp, exe string // populated by buildObjdump
 
 func TestMain(m *testing.M) {
-	flag.Parse()
 	if !testenv.HasGoBuild() {
 		return
 	}
