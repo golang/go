@@ -1476,6 +1476,19 @@ func base(dt dwarf.Type) dwarf.Type {
 	return dt
 }
 
+// unqual strips away qualifiers from a DWARF type.
+// In general we don't care about top-level qualifiers.
+func unqual(dt dwarf.Type) dwarf.Type {
+	for {
+		if d, ok := dt.(*dwarf.QualType); ok {
+			dt = d.Type
+		} else {
+			break
+		}
+	}
+	return dt
+}
+
 // Map from dwarf text names to aliases we use in package "C".
 var dwarfToName = map[string]string{
 	"long int":               "long",
@@ -1930,7 +1943,7 @@ func isStructUnionClass(x ast.Expr) bool {
 // FuncArg returns a Go type with the same memory layout as
 // dtype when used as the type of a C function argument.
 func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
-	t := c.Type(dtype, pos)
+	t := c.Type(unqual(dtype), pos)
 	switch dt := dtype.(type) {
 	case *dwarf.ArrayType:
 		// Arrays are passed implicitly as pointers in C.
@@ -1994,7 +2007,7 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
 	if _, ok := dtype.ReturnType.(*dwarf.VoidType); ok {
 		gr = []*ast.Field{{Type: c.goVoid}}
 	} else if dtype.ReturnType != nil {
-		r = c.Type(dtype.ReturnType, pos)
+		r = c.Type(unqual(dtype.ReturnType), pos)
 		gr = []*ast.Field{{Type: r.Go}}
 	}
 	return &FuncType{
