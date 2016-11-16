@@ -151,6 +151,7 @@ var acceptTimeoutTests = []struct {
 }
 
 func TestAcceptTimeout(t *testing.T) {
+	t.Skip("flaky test; golang.org/issue/17948")
 	t.Parallel()
 
 	switch runtime.GOOS {
