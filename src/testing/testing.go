@@ -196,7 +196,7 @@
 // A simple implementation of TestMain is:
 //
 //	func TestMain(m *testing.M) {
-//		flag.Parse()
+//		// call flag.Parse() here if TestMain uses flags
 //		os.Exit(m.Run())
 //	}
 //
