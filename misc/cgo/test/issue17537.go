@@ -20,7 +20,7 @@ int I17537(S17537 *p);
 #define I17537(p) ((p)->i)
 
 // Calling this function used to fail without the cast.
-int F17537(const char **p) {
+const int F17537(const char **p) {
 	return **p;
 }
 */
