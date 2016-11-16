@@ -6,7 +6,6 @@ package main_test
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -24,7 +23,6 @@ const (
 
 // We implement TestMain so remove the test binary when all is done.
 func TestMain(m *testing.M) {
-	flag.Parse()
 	result := m.Run()
 	os.Remove(binary)
 	os.Exit(result)
