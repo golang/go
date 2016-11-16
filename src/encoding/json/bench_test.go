@@ -221,3 +221,14 @@ func BenchmarkIssue10335(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkUnmapped(b *testing.B) {
+	b.ReportAllocs()
+	var s struct{}
+	j := []byte(`{"s": "hello", "y": 2, "o": {"x": 0}, "a": [1, 99, {"x": 1}]}`)
+	for n := 0; n < b.N; n++ {
+		if err := Unmarshal(j, &s); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
