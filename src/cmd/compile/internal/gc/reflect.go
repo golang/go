@@ -494,26 +494,31 @@ func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *Pkg) int {
 }
 
 // isExportedField reports whether a struct field is exported.
-func isExportedField(ft *Field) bool {
+// It also returns the package to use for PkgPath for an unexported field.
+func isExportedField(ft *Field) (bool, *Pkg) {
 	if ft.Sym != nil && ft.Embedded == 0 {
-		return exportname(ft.Sym.Name)
+		return exportname(ft.Sym.Name), ft.Sym.Pkg
 	} else {
 		if ft.Type.Sym != nil &&
 			(ft.Type.Sym.Pkg == builtinpkg || !exportname(ft.Type.Sym.Name)) {
-			return false
+			return false, ft.Type.Sym.Pkg
 		} else {
-			return true
+			return true, nil
 		}
 	}
 }
 
 // dnameField dumps a reflect.name for a struct field.
-func dnameField(s *Sym, ot int, ft *Field) int {
+func dnameField(s *Sym, ot int, spkg *Pkg, ft *Field) int {
 	var name string
 	if ft.Sym != nil && ft.Embedded == 0 {
 		name = ft.Sym.Name
 	}
-	nsym := dname(name, ft.Note, nil, isExportedField(ft))
+	isExported, fpkg := isExportedField(ft)
+	if isExported || fpkg == spkg {
+		fpkg = nil
+	}
+	nsym := dname(name, ft.Note, fpkg, isExported)
 	return dsymptrLSym(Linksym(s), ot, nsym, 0)
 }
 
@@ -1332,7 +1337,7 @@ ok:
 
 		for _, f := range t.Fields().Slice() {
 			// ../../../../runtime/type.go:/structField
-			ot = dnameField(s, ot, f)
+			ot = dnameField(s, ot, pkg, f)
 			ot = dsymptr(s, ot, dtypesym(f.Type), 0)
 			ot = duintptr(s, ot, uint64(f.Offset))
 		}

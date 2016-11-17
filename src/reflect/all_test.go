@@ -2325,25 +2325,39 @@ func TestFieldPkgPath(t *testing.T) {
 		unexported string
 		OtherPkgFields
 	}{})
-	for _, test := range []struct {
+
+	type pkgpathTest struct {
 		index     []int
 		pkgPath   string
 		anonymous bool
-	}{
+	}
+
+	checkPkgPath := func(name string, s []pkgpathTest) {
+		for _, test := range s {
+			f := typ.FieldByIndex(test.index)
+			if got, want := f.PkgPath, test.pkgPath; got != want {
+				t.Errorf("%s: Field(%d).PkgPath = %q, want %q", name, test.index, got, want)
+			}
+			if got, want := f.Anonymous, test.anonymous; got != want {
+				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
+			}
+		}
+	}
+
+	checkPkgPath("testStruct", []pkgpathTest{
 		{[]int{0}, "", false},             // Exported
 		{[]int{1}, "reflect_test", false}, // unexported
 		{[]int{2}, "", true},              // OtherPkgFields
 		{[]int{2, 0}, "", false},          // OtherExported
 		{[]int{2, 1}, "reflect", false},   // otherUnexported
-	} {
-		f := typ.FieldByIndex(test.index)
-		if got, want := f.PkgPath, test.pkgPath; got != want {
-			t.Errorf("Field(%d).PkgPath = %q, want %q", test.index, got, want)
-		}
-		if got, want := f.Anonymous, test.anonymous; got != want {
-			t.Errorf("Field(%d).Anonymous = %v, want %v", test.index, got, want)
-		}
-	}
+	})
+
+	type localOtherPkgFields OtherPkgFields
+	typ = TypeOf(localOtherPkgFields{})
+	checkPkgPath("localOtherPkgFields", []pkgpathTest{
+		{[]int{0}, "", false},        // OtherExported
+		{[]int{1}, "reflect", false}, // otherUnexported
+	})
 }
 
 func TestVariadicType(t *testing.T) {
