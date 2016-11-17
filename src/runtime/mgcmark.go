@@ -106,26 +106,32 @@ func gcMarkRootCheck() {
 
 	lock(&allglock)
 	// Check that stacks have been scanned.
+	var gp *g
 	if gcphase == _GCmarktermination {
 		for i := 0; i < len(allgs); i++ {
-			gp := allgs[i]
+			gp = allgs[i]
 			if !(gp.gcscandone && gp.gcscanvalid) && readgstatus(gp) != _Gdead {
-				println("gp", gp, "goid", gp.goid,
-					"status", readgstatus(gp),
-					"gcscandone", gp.gcscandone,
-					"gcscanvalid", gp.gcscanvalid)
-				throw("scan missed a g")
+				goto fail
 			}
 		}
 	} else {
 		for i := 0; i < work.nStackRoots; i++ {
-			gp := allgs[i]
+			gp = allgs[i]
 			if !gp.gcscandone {
-				throw("scan missed a g")
+				goto fail
 			}
 		}
 	}
 	unlock(&allglock)
+	return
+
+fail:
+	println("gp", gp, "goid", gp.goid,
+		"status", readgstatus(gp),
+		"gcscandone", gp.gcscandone,
+		"gcscanvalid", gp.gcscanvalid)
+	unlock(&allglock) // Avoid self-deadlock with traceback.
+	throw("scan missed a g")
 }
 
 // ptrmask for an allocation containing a single pointer.
