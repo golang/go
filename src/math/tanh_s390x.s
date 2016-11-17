@@ -102,7 +102,7 @@ L2:
 L3:
 	FADD    F4, F2
 	FMOVD   tanhrodataL18<>+80(SB), F4
-	FMADD   F4, F2, F0, F0
+	FMADD   F4, F2, F0
 	FMOVD   tanhrodataL18<>+72(SB), F1
 	WFMDB   V0, V0, V3
 	FMOVD   tanhrodataL18<>+64(SB), F2
@@ -154,7 +154,7 @@ L15:
 L16:
 	FADD    F6, F2
 	FMOVD   tanhrodataL18<>+8(SB), F0
-	FMADD   F4, F2, F0, F0
+	FMADD   F4, F2, F0
 	FMOVD   tanhrodataL18<>+0(SB), F4
 	FNEG    F0, F0
 	WFMADB  V0, V2, V4, V0

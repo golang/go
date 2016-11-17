@@ -140,7 +140,7 @@ L4:
 	WORD    $0x68331000     //ld %f3,0(%r3,%r1)
 	WFMADB  V0, V4, V3, V0
 	FMOVD   log10rodataL19<>+24(SB), F4
-	FMADD   F4, F2, F0, F0
+	FMADD   F4, F2, F0
 	FMOVD   F0, ret+8(FP)
 	RET
 

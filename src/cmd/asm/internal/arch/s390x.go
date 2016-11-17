@@ -48,24 +48,6 @@ func jumpS390x(word string) bool {
 	return false
 }
 
-// IsS390xRLD reports whether the op (as defined by an s390x.A* constant) is
-// one of the RLD-like instructions that require special handling.
-// The FMADD-like instructions behave similarly.
-func IsS390xRLD(op obj.As) bool {
-	switch op {
-	case s390x.AFMADD,
-		s390x.AFMADDS,
-		s390x.AFMSUB,
-		s390x.AFMSUBS,
-		s390x.AFNMADD,
-		s390x.AFNMADDS,
-		s390x.AFNMSUB,
-		s390x.AFNMSUBS:
-		return true
-	}
-	return false
-}
-
 // IsS390xCMP reports whether the op (as defined by an s390x.A* constant) is
 // one of the CMP instructions that require special handling.
 func IsS390xCMP(op obj.As) bool {
