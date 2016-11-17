@@ -5,6 +5,7 @@
 package tls
 
 import (
+	"bytes"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -259,4 +260,48 @@ func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 		s.certificates[i] = randomBytes(rand.Intn(10)+1, rand)
 	}
 	return reflect.ValueOf(s)
+}
+
+func TestRejectEmptySCTList(t *testing.T) {
+	// https://tools.ietf.org/html/rfc6962#section-3.3.1 specifies that
+	// empty SCT lists are invalid.
+
+	var random [32]byte
+	sct := []byte{0x42, 0x42, 0x42, 0x42}
+	serverHello := serverHelloMsg{
+		vers:   VersionTLS12,
+		random: random[:],
+		scts:   [][]byte{sct},
+	}
+	serverHelloBytes := serverHello.marshal()
+
+	var serverHelloCopy serverHelloMsg
+	if !serverHelloCopy.unmarshal(serverHelloBytes) {
+		t.Fatal("Failed to unmarshal initial message")
+	}
+
+	// Change serverHelloBytes so that the SCT list is empty
+	i := bytes.Index(serverHelloBytes, sct)
+	if i < 0 {
+		t.Fatal("Cannot find SCT in ServerHello")
+	}
+
+	var serverHelloEmptySCT []byte
+	serverHelloEmptySCT = append(serverHelloEmptySCT, serverHelloBytes[:i-6]...)
+	// Append the extension length and SCT list length for an empty list.
+	serverHelloEmptySCT = append(serverHelloEmptySCT, []byte{0, 2, 0, 0}...)
+	serverHelloEmptySCT = append(serverHelloEmptySCT, serverHelloBytes[i+4:]...)
+
+	// Update the handshake message length.
+	serverHelloEmptySCT[1] = byte((len(serverHelloEmptySCT) - 4) >> 16)
+	serverHelloEmptySCT[2] = byte((len(serverHelloEmptySCT) - 4) >> 8)
+	serverHelloEmptySCT[3] = byte(len(serverHelloEmptySCT) - 4)
+
+	// Update the extensions length
+	serverHelloEmptySCT[42] = byte((len(serverHelloEmptySCT) - 44) >> 8)
+	serverHelloEmptySCT[43] = byte((len(serverHelloEmptySCT) - 44))
+
+	if serverHelloCopy.unmarshal(serverHelloEmptySCT) {
+		t.Fatal("Unmarshaled ServerHello with empty SCT list")
+	}
 }

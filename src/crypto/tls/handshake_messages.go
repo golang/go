@@ -802,11 +802,8 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 			}
 			l := int(d[0])<<8 | int(d[1])
 			d = d[2:]
-			if len(d) != l {
+			if len(d) != l || l == 0 {
 				return false
-			}
-			if l == 0 {
-				continue
 			}
 
 			m.scts = make([][]byte, 0, 3)
