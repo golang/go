@@ -21,6 +21,7 @@ import (
 	"io"
 	"log"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/buildutil"
@@ -254,6 +255,53 @@ func parseQueryPos(lprog *loader.Program, pos string, needExact bool) (*queryPos
 }
 
 // ---------- Utilities ----------
+
+// loadWithSoftErrors calls lconf.Load, suppressing "soft" errors.  (See Go issue 16530.)
+// TODO(adonovan): Once the loader has an option to allow soft errors,
+// replace calls to loadWithSoftErrors with loader calls with that parameter.
+func loadWithSoftErrors(lconf *loader.Config) (*loader.Program, error) {
+	lconf.AllowErrors = true
+
+	// Ideally we would just return conf.Load() here, but go/types
+	// reports certain "soft" errors that gc does not (Go issue 14596).
+	// As a workaround, we set AllowErrors=true and then duplicate
+	// the loader's error checking but allow soft errors.
+	// It would be nice if the loader API permitted "AllowErrors: soft".
+	prog, err := lconf.Load()
+	if err != nil {
+		return nil, err
+	}
+	var errpkgs []string
+	// Report hard errors in indirectly imported packages.
+	for _, info := range prog.AllPackages {
+		if containsHardErrors(info.Errors) {
+			errpkgs = append(errpkgs, info.Pkg.Path())
+		} else {
+			// Enable SSA construction for packages containing only soft errors.
+			info.TransitivelyErrorFree = true
+		}
+	}
+	if errpkgs != nil {
+		var more string
+		if len(errpkgs) > 3 {
+			more = fmt.Sprintf(" and %d more", len(errpkgs)-3)
+			errpkgs = errpkgs[:3]
+		}
+		return nil, fmt.Errorf("couldn't load packages due to errors: %s%s",
+			strings.Join(errpkgs, ", "), more)
+	}
+	return prog, err
+}
+
+func containsHardErrors(errors []error) bool {
+	for _, err := range errors {
+		if err, ok := err.(types.Error); ok && err.Soft {
+			continue
+		}
+		return true
+	}
+	return false
+}
 
 // allowErrors causes type errors to be silently ignored.
 // (Not suitable if SSA construction follows.)

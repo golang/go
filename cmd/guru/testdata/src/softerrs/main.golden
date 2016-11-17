@@ -1,0 +1,8 @@
+-------- @callers softerrs-callers-f --------
+softerrs.f is called from these 1 sites:
+	static function call from softerrs.main
+
+-------- @describe softerrs-describe-f --------
+reference to func f()
+defined here
+

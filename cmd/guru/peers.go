@@ -31,7 +31,7 @@ func peers(q *Query) error {
 	}
 
 	// Load/parse/type-check the program.
-	lprog, err := lconf.Load()
+	lprog, err := loadWithSoftErrors(&lconf)
 	if err != nil {
 		return err
 	}
