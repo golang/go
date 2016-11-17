@@ -368,9 +368,9 @@ func getLinuxKernelConfig() string {
 		defer f.Close()
 		return slurpString(f)
 	}
-	uname, _ := exec.Command("uname, -r").Output()
+	uname, _ := exec.Command("uname", "-r").Output()
 	if len(uname) > 0 {
-		if f, err := os.Open("/boot/config-" + string(uname)); err == nil {
+		if f, err := os.Open("/boot/config-" + strings.TrimSpace(string(uname))); err == nil {
 			defer f.Close()
 			return slurpString(f)
 		}
