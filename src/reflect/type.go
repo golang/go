@@ -1226,8 +1226,10 @@ func (t *structType) Field(i int) (f StructField) {
 		f.Anonymous = true
 	}
 	if !p.name.isExported() {
-		// Fields never have an import path in their name.
-		f.PkgPath = t.pkgPath.name()
+		f.PkgPath = p.name.pkgPath()
+		if f.PkgPath == "" {
+			f.PkgPath = t.pkgPath.name()
+		}
 	}
 	if tag := p.name.tag(); tag != "" {
 		f.Tag = StructTag(tag)
@@ -1680,7 +1682,6 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 		if len(t.fields) != len(v.fields) {
 			return false
 		}
-		allExported := true
 		for i := range t.fields {
 			tf := &t.fields[i]
 			vf := &v.fields[i]
@@ -1696,15 +1697,19 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 			if tf.offset != vf.offset {
 				return false
 			}
-			allExported = allExported && tf.name.isExported()
-		}
-		if !allExported && t.pkgPath.name() != v.pkgPath.name() {
-			// An unexported field of a struct is not
-			// visible outside of the package that defines
-			// it, so the package path is implicitly part
-			// of the definition of any struct with an
-			// unexported field.
-			return false
+			if !tf.name.isExported() {
+				tp := tf.name.pkgPath()
+				if tp == "" {
+					tp = t.pkgPath.name()
+				}
+				vp := vf.name.pkgPath()
+				if vp == "" {
+					vp = v.pkgPath.name()
+				}
+				if tp != vp {
+					return false
+				}
+			}
 		}
 		return true
 	}
