@@ -43,10 +43,10 @@ func createProfileWithTwoSamples(t *testing.T, periodMs uintptr, count1 uintptr,
 	// Mock the sample header produced by cpu profiler. Write a sample
 	// period of 2000 microseconds, followed by no samples.
 	buf := new(bytes.Buffer)
-	words := []uint64{0, 3, 0, uint64(periodMs), 0, uint64(count1), 2,
-		uint64(address1), uint64(address1 + 2),
-		uint64(count2), 2, uint64(address2), uint64(address2 + 2),
-		0, uint64(1), 0}
+	words := []uintptr{0, 3, 0, uintptr(periodMs), 0, uintptr(count1), 2,
+		uintptr(address1), uintptr(address1 + 2),
+		uintptr(count2), 2, uintptr(address2), uintptr(address2 + 2),
+		0, 1, 0}
 	for _, n := range words {
 		var err error
 		switch unsafe.Sizeof(int(0)) {
