@@ -182,11 +182,11 @@ L20:
 	FMOVD   sinhrodataL21<>+8(SB), F0
 	FADD    F6, F2
 	MOVD    $sinhe9<>+0(SB), R2
-	FMSUB   F0, F2, F4, F4
+	FMSUB   F0, F2, F4
 	FMOVD   0(R2), F1
 	FMOVD   sinhrodataL21<>+0(SB), F3
 	MOVD    $sinhe7<>+0(SB), R2
-	FMADD   F3, F2, F4, F4
+	FMADD   F3, F2, F4
 	FMOVD   0(R2), F0
 	MOVD    $sinhe8<>+0(SB), R2
 	WFMDB   V4, V4, V2

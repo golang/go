@@ -281,8 +281,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			AFMUL,
 			AFNABS,
 			AFNEG,
-			AFNMADD,
-			AFNMSUB,
 			ALEDBR,
 			ALDEBR,
 			AFSUB:
