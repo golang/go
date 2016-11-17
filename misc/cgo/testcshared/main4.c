@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
 		ts.tv_nsec = 1000000;
 		nanosleep(&ts, NULL);
 		i++;
-		if (i > 100000) {
+		if (i > 5000) {
 			fprintf(stderr, "looping too long waiting for signal\n");
 			exit(EXIT_FAILURE);
 		}

@@ -79,7 +79,7 @@ static void* thread1(void* arg __attribute__ ((unused))) {
 		ts.tv_nsec = 1000000;
 		nanosleep(&ts, NULL);
 		i++;
-		if (i > 100000) {
+		if (i > 5000) {
 			fprintf(stderr, "looping too long waiting for signal\n");
 			exit(EXIT_FAILURE);
 		}
@@ -136,7 +136,7 @@ static void* thread2(void* arg __attribute__ ((unused))) {
 		ts.tv_nsec = 1000000;
 		nanosleep(&ts, NULL);
 		i++;
-		if (i > 100000) {
+		if (i > 5000) {
 			fprintf(stderr, "looping too long waiting for signal\n");
 			exit(EXIT_FAILURE);
 		}
