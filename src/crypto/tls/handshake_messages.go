@@ -813,7 +813,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 				}
 				sctLen := int(d[0])<<8 | int(d[1])
 				d = d[2:]
-				if len(d) < sctLen {
+				if sctLen == 0 || len(d) < sctLen {
 					return false
 				}
 				m.scts = append(m.scts, d[:sctLen])

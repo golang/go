@@ -305,3 +305,21 @@ func TestRejectEmptySCTList(t *testing.T) {
 		t.Fatal("Unmarshaled ServerHello with empty SCT list")
 	}
 }
+
+func TestRejectEmptySCT(t *testing.T) {
+	// Not only must the SCT list be non-empty, but the SCT elements must
+	// not be zero length.
+
+	var random [32]byte
+	serverHello := serverHelloMsg{
+		vers:   VersionTLS12,
+		random: random[:],
+		scts:   [][]byte{nil},
+	}
+	serverHelloBytes := serverHello.marshal()
+
+	var serverHelloCopy serverHelloMsg
+	if serverHelloCopy.unmarshal(serverHelloBytes) {
+		t.Fatal("Unmarshaled ServerHello with zero-length SCT")
+	}
+}
