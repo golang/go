@@ -105,7 +105,7 @@ status=0
 
 # test0: exported symbols in shared lib are accessible.
 # TODO(iant): using _shared here shouldn't really be necessary.
-$(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c libgo.$libext
+$(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c ./libgo.$libext
 binpush testp
 
 output=$(run LD_LIBRARY_PATH=. ./testp)
