@@ -254,3 +254,8 @@ func f7() (*Struct, float64) {
 	p := &t.Y    // ERROR "removed nil check"
 	return t, *p // ERROR "removed nil check"
 }
+
+// make sure to remove nil check for memory move (issue #18003)
+func f8(t *[8]int) [8]int {
+	return *t // ERROR "removed nil check"
+}

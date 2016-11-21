@@ -373,6 +373,7 @@ func init() {
 				clobbers: buildReg("DI CX"),
 				// Note: CX is only clobbered when dynamic linking.
 			},
+			faultOnNilArg0: true,
 		},
 
 		// arg0 = address of memory to zero
@@ -387,6 +388,7 @@ func init() {
 				inputs:   []regMask{buildReg("DI"), buildReg("CX"), buildReg("AX")},
 				clobbers: buildReg("DI CX"),
 			},
+			faultOnNilArg0: true,
 		},
 
 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                             // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
@@ -408,7 +410,9 @@ func init() {
 				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
 				clobbers: buildReg("DI SI CX"), // uses CX as a temporary
 			},
-			clobberFlags: true,
+			clobberFlags:   true,
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
 		},
 
 		// arg0 = destination pointer
@@ -423,6 +427,8 @@ func init() {
 				inputs:   []regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")},
 				clobbers: buildReg("DI SI CX"),
 			},
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
 		},
 
 		// (InvertFlags (CMPL a b)) == (CMPL b a)

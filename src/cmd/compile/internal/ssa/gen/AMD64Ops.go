@@ -421,7 +421,8 @@ func init() {
 				inputs:   []regMask{buildReg("DI"), buildReg("X0")},
 				clobbers: buildReg("DI"),
 			},
-			clobberFlags: true,
+			clobberFlags:   true,
+			faultOnNilArg0: true,
 		},
 		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", aux: "Int128", rematerializeable: true},
 
@@ -437,6 +438,7 @@ func init() {
 				inputs:   []regMask{buildReg("DI"), buildReg("CX"), buildReg("AX")},
 				clobbers: buildReg("DI CX"),
 			},
+			faultOnNilArg0: true,
 		},
 
 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                             // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
@@ -458,7 +460,9 @@ func init() {
 				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
 				clobbers: buildReg("DI SI X0"), // uses X0 as a temporary
 			},
-			clobberFlags: true,
+			clobberFlags:   true,
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
 		},
 
 		// arg0 = destination pointer
@@ -473,6 +477,8 @@ func init() {
 				inputs:   []regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")},
 				clobbers: buildReg("DI SI CX"),
 			},
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
 		},
 
 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
