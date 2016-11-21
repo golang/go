@@ -1188,9 +1188,7 @@ func TestClientTimeout_h2(t *testing.T) { testClientTimeout(t, h2Mode) }
 func testClientTimeout(t *testing.T, h2 bool) {
 	setParallel(t)
 	defer afterTest(t)
-	testDone := make(chan struct{})
-
-	const timeout = 100 * time.Millisecond
+	testDone := make(chan struct{}) // closed in defer below
 
 	sawRoot := make(chan bool, 1)
 	sawSlow := make(chan bool, 1)
@@ -1204,21 +1202,22 @@ func testClientTimeout(t *testing.T, h2 bool) {
 			sawSlow <- true
 			w.Write([]byte("Hello"))
 			w.(Flusher).Flush()
-			select {
-			case <-testDone:
-			case <-time.After(timeout * 10):
-			}
+			<-testDone
 			return
 		}
 	}))
 	defer cst.close()
-	defer close(testDone)
+	defer close(testDone) // before cst.close, to unblock /slow handler
+
+	// 200ms should be long enough to get a normal request (the /
+	// handler), but not so long that it makes the test slow.
+	const timeout = 200 * time.Millisecond
 	cst.c.Timeout = timeout
 
 	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		if strings.Contains(err.Error(), "Client.Timeout") {
-			t.Skip("host too slow to get fast resource in 100ms")
+			t.Skipf("host too slow to get fast resource in %v", timeout)
 		}
 		t.Fatal(err)
 	}
@@ -1244,7 +1243,7 @@ func testClientTimeout(t *testing.T, h2 bool) {
 		res.Body.Close()
 	}()
 
-	const failTime = timeout * 2
+	const failTime = 5 * time.Second
 	select {
 	case err := <-errc:
 		if err == nil {
