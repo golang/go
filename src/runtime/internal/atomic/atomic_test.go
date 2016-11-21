@@ -87,8 +87,8 @@ func TestUnaligned64(t *testing.T) {
 		if unsafe.Sizeof(int(0)) != 4 {
 			t.Skip("test only runs on 32-bit systems")
 		}
-	case "amd64p32", "mips", "mipsle":
-		// amd64p32 and mips can handle unaligned atomics.
+	case "amd64p32":
+		// amd64p32 can handle unaligned atomics.
 		t.Skipf("test not needed on %v", runtime.GOARCH)
 	}
 
