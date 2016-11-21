@@ -485,15 +485,16 @@ func writeHeap(w io.Writer, debug int) error {
 		// Profile grew; try again.
 	}
 
+	if debug == 0 {
+		pp := protopprof.EncodeMemProfile(p, int64(runtime.MemProfileRate), time.Now())
+		return pp.Write(w)
+	}
+
 	sort.Slice(p, func(i, j int) bool { return p[i].InUseBytes() > p[j].InUseBytes() })
 
 	b := bufio.NewWriter(w)
-	var tw *tabwriter.Writer
-	w = b
-	if debug > 0 {
-		tw = tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
-		w = tw
-	}
+	tw := tabwriter.NewWriter(b, 1, 8, 1, '\t', 0)
+	w = tw
 
 	var total runtime.MemProfileRecord
 	for i := range p {
@@ -521,9 +522,7 @@ func writeHeap(w io.Writer, debug int) error {
 			fmt.Fprintf(w, " %#x", pc)
 		}
 		fmt.Fprintf(w, "\n")
-		if debug > 0 {
-			printStackRecord(w, r.Stack(), false)
-		}
+		printStackRecord(w, r.Stack(), false)
 	}
 
 	// Print memstats information too.
@@ -557,9 +556,7 @@ func writeHeap(w io.Writer, debug int) error {
 	fmt.Fprintf(w, "# NumGC = %d\n", s.NumGC)
 	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
 
-	if tw != nil {
-		tw.Flush()
-	}
+	tw.Flush()
 	return b.Flush()
 }
 
