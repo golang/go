@@ -25,7 +25,11 @@ func spinUnlock(state *uint32)
 
 //go:nosplit
 func lockAndCheck(addr *uint64) {
-	//  force dereference before taking lock
+	// ensure 8-byte alignement
+	if uintptr(unsafe.Pointer(addr))&7 != 0 {
+		addr = nil
+	}
+	// force dereference before taking lock
 	_ = *addr
 
 	spinLock(&lock.state)
