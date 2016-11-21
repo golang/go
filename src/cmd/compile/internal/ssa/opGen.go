@@ -4071,9 +4071,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "DUFFZERO",
-		auxType: auxInt64,
-		argLen:  3,
+		name:           "DUFFZERO",
+		auxType:        auxInt64,
+		argLen:         3,
+		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -4083,8 +4084,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "REPSTOSL",
-		argLen: 4,
+		name:           "REPSTOSL",
+		argLen:         4,
+		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -4152,10 +4154,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "DUFFCOPY",
-		auxType:      auxInt64,
-		argLen:       3,
-		clobberFlags: true,
+		name:           "DUFFCOPY",
+		auxType:        auxInt64,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -4165,8 +4169,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "REPMOVSL",
-		argLen: 4,
+		name:           "REPMOVSL",
+		argLen:         4,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -7062,10 +7068,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "DUFFZERO",
-		auxType:      auxInt64,
-		argLen:       3,
-		clobberFlags: true,
+		name:           "DUFFZERO",
+		auxType:        auxInt64,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128},   // DI
@@ -7086,8 +7093,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "REPSTOSQ",
-		argLen: 4,
+		name:           "REPSTOSQ",
+		argLen:         4,
+		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -7155,10 +7163,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "DUFFCOPY",
-		auxType:      auxInt64,
-		argLen:       3,
-		clobberFlags: true,
+		name:           "DUFFCOPY",
+		auxType:        auxInt64,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -7168,8 +7178,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "REPMOVSQ",
-		argLen: 4,
+		name:           "REPMOVSQ",
+		argLen:         4,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -19714,10 +19726,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "LoweredMove",
-		auxType:      auxInt64,
-		argLen:       4,
-		clobberFlags: true,
+		name:           "LoweredMove",
+		auxType:        auxInt64,
+		argLen:         4,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},     // R1
@@ -19728,10 +19742,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "LoweredZero",
-		auxType:      auxInt64,
-		argLen:       3,
-		clobberFlags: true,
+		name:           "LoweredZero",
+		auxType:        auxInt64,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},     // R1
