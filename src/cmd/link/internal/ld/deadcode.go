@@ -308,6 +308,12 @@ func (d *deadcodepass) flood() {
 			if r.Sym == nil {
 				continue
 			}
+			if r.Type == obj.R_WEAKADDROFF {
+				// An R_WEAKADDROFF relocation is not reason
+				// enough to mark the pointed-to symbol as
+				// reachable.
+				continue
+			}
 			if r.Type != obj.R_METHODOFF {
 				d.mark(r.Sym, s)
 				continue

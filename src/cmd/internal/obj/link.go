@@ -538,6 +538,11 @@ const (
 	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
 	R_ADDROFF
+	// R_WEAKADDROFF resolves just like R_ADDROFF but is a weak relocation.
+	// A weak relocation does not make the symbol it refers to reachable,
+	// and is only honored by the linker if the symbol is in some other way
+	// reachable.
+	R_WEAKADDROFF
 	R_SIZE
 	R_CALL
 	R_CALLARM

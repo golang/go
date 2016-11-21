@@ -413,7 +413,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				Errorf(s, "unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
 			}
 		}
-		if r.Sym != nil && r.Sym.Type != obj.STLSBSS && !r.Sym.Attr.Reachable() {
+		if r.Sym != nil && r.Sym.Type != obj.STLSBSS && r.Type != obj.R_WEAKADDROFF && !r.Sym.Attr.Reachable() {
 			Errorf(s, "unreachable sym in relocation: %s", r.Sym.Name)
 		}
 
@@ -588,6 +588,11 @@ func relocsym(ctxt *Link, s *Symbol) {
 			}
 			o = Symaddr(r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
 
+		case obj.R_WEAKADDROFF:
+			if !r.Sym.Attr.Reachable() {
+				continue
+			}
+			fallthrough
 		case obj.R_ADDROFF:
 			// The method offset tables using this relocation expect the offset to be relative
 			// to the start of the first text section, even if there are multiple.
@@ -748,6 +753,9 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
 				continue
 			}
 			if !targ.Attr.Reachable() {
+				if r.Type == obj.R_WEAKADDROFF {
+					continue
+				}
 				Errorf(s, "dynamic relocation to unreachable symbol %s", targ.Name)
 			}
 			if r.Sym.Plt == -2 && r.Sym.Got != -2 { // make dynimport JMP table for PE object files.
