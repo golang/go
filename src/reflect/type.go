@@ -2674,6 +2674,7 @@ func StructOf(fields []StructField) Type {
 	typ.size = size
 	typ.align = typalign
 	typ.fieldAlign = typalign
+	typ.ptrToThis = 0
 	if len(methods) > 0 {
 		typ.tflag |= tflagUncommon
 	}

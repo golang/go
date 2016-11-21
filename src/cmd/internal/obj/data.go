@@ -145,6 +145,22 @@ func (s *LSym) WriteOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
 	r.Add = roff
 }
 
+// WriteWeakOff writes a weak 4 byte offset to rsym+roff into s at offset off.
+// After linking the 4 bytes stored at s+off will be
+// rsym+roff-(start of section that s is in).
+func (s *LSym) WriteWeakOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
+	s.prepwrite(ctxt, off, 4)
+	r := Addrel(s)
+	r.Off = int32(off)
+	if int64(r.Off) != off {
+		ctxt.Diag("WriteOff: off overflow %d in %s", off, s.Name)
+	}
+	r.Siz = 4
+	r.Sym = rsym
+	r.Type = R_WEAKADDROFF
+	r.Add = roff
+}
+
 // WriteString writes a string of size siz into s at offset off.
 func (s *LSym) WriteString(ctxt *Link, off int64, siz int, str string) {
 	if siz < len(str) {

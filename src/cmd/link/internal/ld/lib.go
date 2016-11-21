@@ -2033,7 +2033,7 @@ func undefsym(ctxt *Link, s *Symbol) {
 		if r.Sym.Type == obj.Sxxx || r.Sym.Type == obj.SXREF {
 			Errorf(s, "undefined: %q", r.Sym.Name)
 		}
-		if !r.Sym.Attr.Reachable() {
+		if !r.Sym.Attr.Reachable() && r.Type != obj.R_WEAKADDROFF {
 			Errorf(s, "relocation target %q", r.Sym.Name)
 		}
 	}

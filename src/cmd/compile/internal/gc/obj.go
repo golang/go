@@ -354,6 +354,12 @@ func dsymptrOffLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	return off
 }
 
+func dsymptrWeakOffLSym(s *obj.LSym, off int, x *obj.LSym) int {
+	s.WriteWeakOff(Ctxt, int64(off), x, 0)
+	off += 4
+	return off
+}
+
 func gdata(nam *Node, nr *Node, wid int) {
 	if nam.Op != ONAME {
 		Fatalf("gdata nam op %v", nam.Op)
