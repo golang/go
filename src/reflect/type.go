@@ -2400,6 +2400,7 @@ func StructOf(fields []StructField) Type {
 		hasGCProg = false // records whether a struct-field type has a GCProg
 	)
 
+	lastzero := uintptr(0)
 	repr = append(repr, "struct {"...)
 	for i, field := range fields {
 		if field.Type == nil {
@@ -2570,7 +2571,20 @@ func StructOf(fields []StructField) Type {
 		}
 		size = f.offset + ft.size
 
+		if ft.size == 0 {
+			lastzero = size
+		}
+
 		fs[i] = f
+	}
+
+	if size > 0 && lastzero == size {
+		// This is a non-zero sized struct that ends in a
+		// zero-sized field. We add an extra byte of padding,
+		// to ensure that taking the address of the final
+		// zero-sized field can't manufacture a poitner to the
+		// next object in the heap. See issue 9401.
+		size++
 	}
 
 	var typ *structType
