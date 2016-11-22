@@ -2582,7 +2582,7 @@ func StructOf(fields []StructField) Type {
 		// This is a non-zero sized struct that ends in a
 		// zero-sized field. We add an extra byte of padding,
 		// to ensure that taking the address of the final
-		// zero-sized field can't manufacture a poitner to the
+		// zero-sized field can't manufacture a pointer to the
 		// next object in the heap. See issue 9401.
 		size++
 	}
