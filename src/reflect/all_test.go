@@ -4059,6 +4059,38 @@ func TestStructOf(t *testing.T) {
 		}
 	}
 
+	// Check size and alignment with a trailing zero-sized field.
+	st = StructOf([]StructField{
+		{
+			Name: "F1",
+			Type: TypeOf(byte(0)),
+		},
+		{
+			Name: "F2",
+			Type: TypeOf([0]*byte{}),
+		},
+	})
+	stt = TypeOf(struct {
+		G1 byte
+		G2 [0]*byte
+	}{})
+	if st.Size() != stt.Size() {
+		t.Errorf("constructed zero-padded struct size = %v, want %v", st.Size(), stt.Size())
+	}
+	if st.Align() != stt.Align() {
+		t.Errorf("constructed zero-padded struct align = %v, want %v", st.Align(), stt.Align())
+	}
+	if st.FieldAlign() != stt.FieldAlign() {
+		t.Errorf("constructed zero-padded struct field align = %v, want %v", st.FieldAlign(), stt.FieldAlign())
+	}
+	for i := 0; i < st.NumField(); i++ {
+		o1 := st.Field(i).Offset
+		o2 := stt.Field(i).Offset
+		if o1 != o2 {
+			t.Errorf("constructed zero-padded struct field %v offset = %v, want %v", i, o1, o2)
+		}
+	}
+
 	// check duplicate names
 	shouldPanic(func() {
 		StructOf([]StructField{
