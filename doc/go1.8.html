@@ -33,7 +33,6 @@ We expect almost all Go programs to continue to compile and run as before.
 <p>
 The release <a href="#ports">adds support for 32-bit MIPS</a>,
 <a href="#compiler">updates the compiler back end</a> to generate more efficient code,
-produces smaller binaries (TODO: link/numbers),
 <a href="#gc">reduces GC pauses</a> by eliminating stop-the-world stack rescanning,
 <a href="#h2push">adds HTTP/2 Push support</a>,
 <a href="#httpshutdown">adds HTTP graceful shutdown</a>,
@@ -268,6 +267,7 @@ More work remains for Go 1.9.
 
 <h3 id="defer">Defer</h3>
 
+<!-- CL 29656, CL 29656 -->
 <p><code>defer</code> calls are now about twice as fast.</p>
 
 <h3 id="cgoperf">Cgo</h3>
@@ -327,7 +327,7 @@ in mind.
 <dl id="archive_tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
   <dd>
 
-    <p>
+    <p> <!-- CL 28471, CL 31440, CL 31441, CL 31444, CL 28418, CL 31439 -->
       The tar implementation corrects many bugs in corner cases of the file format.
       The <a href="/pkg/archive/tar/#Reader"><code>Reader</code></a> is now able to process tar files in the PAX format with entries larger than 8GB.
       The <a href="/pkg/archive/tar/#Writer"><code>Writer</code></a> no longer produces invalid tar files in some situations involving long pathnames.
@@ -336,11 +336,24 @@ in mind.
   </dd>
 </dl>
 
+<dl id="archive_zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
+  <dd>
+
+    <p> <!-- CL 18274 -->
+      The zip <code>Reader</code> now supports modification times in
+      the NTFS, UNIX, and Extended Time Stamp metadata fields.
+      <!-- CL 30811 -->
+      When writing zip files, the Extended Time Stamp field is written
+      if TODO: validate implementation.
+    </p>
+
+  </dd>
+</dl>
 
 <dl id="compress_flate"><dt><a href="/pkg/compress/flate/">compress/flate</a></dt>
   <dd>
 
-    <p>
+    <p> <!-- CL 31640, CL 31174, CL 32149 -->
       There have been some minor fixes to the encoder to improve the
       compression ratio in certain situations. As a result, the exact
       encoded output of DEFLATE may be different from Go 1.7. Since
@@ -355,6 +368,11 @@ in mind.
       the size of the input buffer to the
       <a href="/pkg/compress/flate/#Writer.Write"><code>Write</code></a>
       method.
+    </p>
+
+    <p> <!-- CL 28216 -->
+      The decoder, upon encountering an error, now returns any
+      buffered data it had uncompressed along with the error.
     </p>
 
   </dd>
@@ -393,12 +411,78 @@ in mind.
   </dd>
 </dl>
 
-<dl id="encoding_binary"><dt><a href="/pkg/encoding/">encoding/binary</a></dt>
+<dl id="debug_pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+  <dd>
+    <p> <!-- CL 22720, CL 27212, CL 22181, CL 22332, CL 22336, Issue 15345 -->
+      TODO: describe Issue 15345 and CL 22181, CL 22332, CL 22336
+      <pre>pkg debug/pe, method (*COFFSymbol) FullName(StringTable) (string, error)
+pkg debug/pe, method (StringTable) String(uint32) (string, error)
+pkg debug/pe, type File struct, COFFSymbols []COFFSymbol
+pkg debug/pe, type File struct, StringTable StringTable
+pkg debug/pe, type Reloc struct
+pkg debug/pe, type Reloc struct, SymbolTableIndex uint32
+pkg debug/pe, type Reloc struct, Type uint16
+pkg debug/pe, type Reloc struct, VirtualAddress uint32
+pkg debug/pe, type Section struct, Relocs []Reloc
+pkg debug/pe, type StringTable []uint8</pre>
+      </p>
+  </dd>
+</dl>
+
+<dl id="encoding_base64"><dt><a href="/pkg/encoding/base64/">encoding/base64</a></dt>
+  <dd>
+    <p> <!-- CL 24964 -->
+      The new <a href="/pkg/encoding/base64/#Encoding.Strict"><code>Encoding.Strict</code></a> method returns an <code>Encoding</code> that causes the decoder to return an error when the trailing padding bits are not zero.
+    </p>
+  </dd>
+</dl>
+
+<dl id="encoding_binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
   <dd>
     <p> <!-- CL 28514 -->
       The package now supports boolean values.
       TODO: add docs in encoding/binary package, then link to package docs
       here.
+    </p>
+  </dd>
+</dl>
+
+<dl id="encoding_json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+  <dd>
+
+    <p> <!-- CL 18692  -->
+      <a href="/pkg/encoding/json/#UnmarshalTypeError"><code>UnmarshalTypeError</code></a>
+      now includes the struct and field name.
+    </p>
+
+    <p> <!-- CL 31932 -->
+      A <code>nil</code> <a href="/pkg/encoding/json/#Marshaler"><code>Marshaler</code></a>
+      now marshals as a JSON "<code>null</code>" value.
+    </p>
+
+    <p> <!-- CL 21811 -->
+      A <a href="/pkg/encoding/json/#RawMessage"><code>RawMessage</code></a> value now
+      marshals the same as its pointer type.
+    </p>
+
+    <p> <!-- CL 30371 -->
+      Numbers are now formatted in the same floating point format as they are in ES6.
+    </p>
+
+    <p> <!-- CL 30944 -->
+      Implementations
+      of <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>
+      are now called with the literal "<code>null</code>" and can
+      decide what to do with it.
+    </p>
+
+  </dd>
+</dl>
+
+<dl id="encoding_pem"><dt><a href="/pkg/encoding/pem/">encoding/pem</a></dt>
+  <dd>
+    <p> <!-- CL 27391 -->
+      The PEM decoder is now strict about the format of the ending line.
     </p>
   </dd>
 </dl>
@@ -422,6 +506,7 @@ in mind.
       </p>
   </dd>
 </dl>
+
 
 <dl id="image_png"><dt><a href="/pkg/image/png/">image/png</a></dt>
   <dd>
@@ -512,7 +597,8 @@ in mind.
       <a href="/pkg/net/url/#PathEscape"><code>PathEscape</code></a>
       and
       <a href="/pkg/net/url/#PathUnescape"><code>PathUnescape</code></a>
-      deal with path escaping.</p>
+      are similar to the query escaping and unescaping functions but
+      don't treat spaces specially.</p>
 
     <p> <!-- CL 28933 --> The new methods
       <a href="/pkg/net/url/#URL.Hostname"><code>URL.Hostname</code></a>
@@ -579,6 +665,12 @@ in mind.
     <p> <!-- CL 33429 -->
       <code>Parse</code> now validates days that are too small, in
       addition to days that are too large.
+    </p>
+
+    <p> <!-- CL 33029 -->
+      The <code>tzdata</code> database has been updated to version
+      2016i for systems that don't already have a local time zone
+      database.
     </p>
 
     <p>
