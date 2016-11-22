@@ -524,6 +524,138 @@ type U int
 `,
 			},
 		},
+		// Rename package-level func plus doc
+		{
+			ctxt: main(`package main
+
+// Foo is a no-op.
+// Calling Foo does nothing.
+func Foo() {
+}
+`),
+			from: "main.Foo", to: "FooBar",
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+// FooBar is a no-op.
+// Calling FooBar does nothing.
+func FooBar() {
+}
+`,
+			},
+		},
+		// Rename method plus doc
+		{
+			ctxt: main(`package main
+
+type Foo struct{}
+
+// Bar does nothing.
+func (Foo) Bar() {
+}
+`),
+			from: "main.Foo.Bar", to: "Baz",
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type Foo struct{}
+
+// Baz does nothing.
+func (Foo) Baz() {
+}
+`,
+			},
+		},
+		// Rename type spec plus doc
+		{
+			ctxt: main(`package main
+
+type (
+	// Test but not Testing.
+	Test struct{}
+)
+`),
+			from: "main.Test", to: "Type",
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type (
+	// Type but not Testing.
+	Type struct{}
+)
+`,
+			},
+		},
+		// Rename type in gen decl plus doc
+		{
+			ctxt: main(`package main
+
+// T is a test type.
+type T struct{}
+`),
+			from: "main.T", to: "Type",
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+// Type is a test type.
+type Type struct{}
+`,
+			},
+		},
+		// Rename value spec with doc
+		{
+			ctxt: main(`package main
+
+const (
+	// C is the speed of light.
+	C = 2.998e8
+)
+`),
+			from: "main.C", to: "Lightspeed",
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+const (
+	// Lightspeed is the speed of light.
+	Lightspeed = 2.998e8
+)
+`,
+			},
+		},
+		// Rename value inside gen decl with doc
+		{
+			ctxt: main(`package main
+
+var out *string
+`),
+			from: "main.out", to: "discard",
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+var discard *string
+`,
+			},
+		},
+		// Rename field plus doc
+		{
+			ctxt: main(`package main
+
+type Struct struct {
+	// Field is a struct field.
+	Field string
+}
+`),
+			from: "main.Struct.Field", to: "Foo",
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+type Struct struct {
+	// Foo is a struct field.
+	Foo string
+}
+`,
+			},
+		},
 		// Label renamings.
 		{
 			ctxt: main(`package main

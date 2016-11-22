@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -163,7 +164,7 @@ type renamer struct {
 	iprog              *loader.Program
 	objsToUpdate       map[types.Object]bool
 	hadConflicts       bool
-	to                 string
+	from, to           string
 	satisfyConstraints map[satisfy.Constraint]bool
 	packages           map[*types.Package]*loader.PackageInfo // subset of iprog.AllPackages to inspect
 	msets              typeutil.MethodSetCache
@@ -314,6 +315,7 @@ func Main(ctxt *build.Context, offsetFlag, fromFlag, to string) error {
 	r := renamer{
 		iprog:        iprog,
 		objsToUpdate: make(map[types.Object]bool),
+		from:         spec.fromName,
 		to:           to,
 		packages:     make(map[*types.Package]*loader.PackageInfo),
 	}
@@ -454,6 +456,8 @@ func (r *renamer) update() error {
 	// token.File captures this distinction; filename does not.
 	var nidents int
 	var filesToUpdate = make(map[*token.File]bool)
+
+	docRegexp := regexp.MustCompile(`\b` + r.from + `\b`)
 	for _, info := range r.packages {
 		// Mutate the ASTs and note the filenames.
 		for id, obj := range info.Defs {
@@ -461,8 +465,15 @@ func (r *renamer) update() error {
 				nidents++
 				id.Name = r.to
 				filesToUpdate[r.iprog.Fset.File(id.Pos())] = true
+				// Perform the rename in doc comments too.
+				if doc := r.docComment(id); doc != nil {
+					for _, comment := range doc.List {
+						comment.Text = docRegexp.ReplaceAllString(comment.Text, r.to)
+					}
+				}
 			}
 		}
+
 		for id, obj := range info.Uses {
 			if r.objsToUpdate[obj] {
 				nidents++
@@ -509,6 +520,35 @@ func (r *renamer) update() error {
 	}
 	if nerrs > 0 {
 		return fmt.Errorf("failed to rewrite %d file%s", nerrs, plural(nerrs))
+	}
+	return nil
+}
+
+// docComment returns the doc for an identifier.
+func (r *renamer) docComment(id *ast.Ident) *ast.CommentGroup {
+	_, nodes, _ := r.iprog.PathEnclosingInterval(id.Pos(), id.End())
+	for _, node := range nodes {
+		switch decl := node.(type) {
+		case *ast.FuncDecl:
+			return decl.Doc
+		case *ast.Field:
+			return decl.Doc
+		case *ast.GenDecl:
+			return decl.Doc
+		// For {Type,Value}Spec, if the doc on the spec is absent,
+		// search for the enclosing GenDecl
+		case *ast.TypeSpec:
+			if decl.Doc != nil {
+				return decl.Doc
+			}
+		case *ast.ValueSpec:
+			if decl.Doc != nil {
+				return decl.Doc
+			}
+		case *ast.Ident:
+		default:
+			return nil
+		}
 	}
 	return nil
 }
