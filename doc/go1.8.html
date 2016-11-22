@@ -116,7 +116,7 @@ added. See <a href="https://golang.org/cl/30510">change 30510</a>.
 The <code>yacc</code> (previously available via
 “<code>go</code> <code>tool</code> <code>yacc</code>”)
 has been removed. As of Go 1.7 it was no longer used by the Go compiler.
-It has moved to the “tools” repo and is and is available via
+It has moved to the “tools” repository and is and is available via
 <code>go get <a href="https://godoc.org/golang.org/x/tools/cmd/goyacc">golang.org/x/tools/cmd/goyacc</a></code>.
 </p>
 
@@ -229,7 +229,7 @@ A new “<code>go</code> <code>bug</code>” command helps users file bug report
 
 <p> <!-- CL 28972 -->
   The runtime's <a href="/pkg/runtime/#MemStats"><code>MemStats</code></a>
-  type has been more throroughly documented.
+  type has been more thoroughly documented.
 </p>
 
 <h2 id="performance">Performance</h2>
@@ -329,8 +329,10 @@ in mind.
 
     <p> <!-- CL 28471, CL 31440, CL 31441, CL 31444, CL 28418, CL 31439 -->
       The tar implementation corrects many bugs in corner cases of the file format.
-      The <a href="/pkg/archive/tar/#Reader"><code>Reader</code></a> is now able to process tar files in the PAX format with entries larger than 8GB.
-      The <a href="/pkg/archive/tar/#Writer"><code>Writer</code></a> no longer produces invalid tar files in some situations involving long pathnames.
+      The <a href="/pkg/archive/tar/#Reader"><code>Reader</code></a>
+      is now able to process tar files in the PAX format with entries larger than 8GB.
+      The <a href="/pkg/archive/tar/#Writer"><code>Writer</code></a>
+      no longer produces invalid tar files in some situations involving long pathnames.
     </p>
 
   </dd>
@@ -356,8 +358,8 @@ in mind.
     <p> <!-- CL 31640, CL 31174, CL 32149 -->
       There have been some minor fixes to the encoder to improve the
       compression ratio in certain situations. As a result, the exact
-      encoded output of DEFLATE may be different from Go 1.7. Since
-      DEFLATE is the underlying compression of gzip, ping, zlib, and zip,
+      encoded output of <code>DEFLATE</code> may be different from Go 1.7. Since
+      DEFLATE is the underlying compression of gzip, png, zlib, and zip,
       those formats may have changed outputs.
     </p>
 
@@ -394,16 +396,17 @@ in mind.
       Similarly,
       the <a href="/pkg/compress/gzip/#Reader"><code>Reader</code></a>
       now updates the <code>Header.ModTime</code> field only if the
-      encoded MTIME field is non-zero.
+      encoded <code>MTIME</code> field is non-zero.
     </p>
 
   </dd>
 </dl>
 
-<dl id="archive_tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
+<dl id="context"><dt><a href="/pkg/context/">context</a></dt>
   <dd>
     <p> <!-- CL 30370 -->
-      The <code>DeadlineExceeded</code> error now implements
+      The <a href="/pkg/context#DeadlineExceeded"><code>DeadlineExceeded</code></a>
+      error now implements
       <a href="/pkg/net/#Error"><code>net.Error</code></a>
       and reports true for both the <code>Timeout</code> and
       <code>Temporary</code> methods.
