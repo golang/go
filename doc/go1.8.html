@@ -43,8 +43,15 @@ and <a href="#sort">simplifies sorting slices</a>.
 <h2 id="language">Changes to the language</h2>
 
 <p>
-When explicitly converting structs, tags are now ignored for structural type identity.
-See <a href="https://golang.org/cl/24190">change 24190</a> for details.
+  When explicitly converting structs, tags are now ignored for structural type identity.
+  See <a href="https://golang.org/cl/24190">change 24190</a> for details.
+</p>
+
+<p> <!-- CL 17711 -->
+  The language specification now only requires that implementations
+  support up to 16-bit exponents in constants.  This does not affect
+  either the <code>gc</code> or <code>gccgo</code> compilers, both of
+  which still support 32-bit exponents.
 </p>
 
 <h2 id="ports">Ports</h2>
@@ -56,7 +63,7 @@ Go now supports 32-bit MIPS on Linux for both big-endian
 </p>
 
 <p>
-Go now requires DragonFly BSD 4.4.4 or later.
+Go now requires DragonFly BSD 4.4.4 or later. <!-- CL 29491 -->
 </p>
 
 <p>
@@ -65,16 +72,23 @@ and matches the behavior of Unix and Windows with respect to deadlines
 and cancelation.
 </p>
 
+<p>
+  Go 1.8 now only supports OS X 10.8 or later. This is likely the last
+  Go release to continue supporting 10.8. Compiling Go or running
+  binaries on older OS X versions is untested.
+</p>
+
 
 <h3 id="known_issues">Known Issues</h3>
 
 <p>
-There are some instabilities on FreeBSD that are known but not understood.
+There are some instabilities on FreeBSD and NetBSD that are known but not understood.
 These can lead to program crashes in rare cases.
 See
-<a href="https://golang.org/issue/15658">issue 15658</a>
-and <a href="https://golang.org/issue/16396">issue 16396</a>.
-Any help in solving these FreeBSD-specific issues would be appreciated.
+<a href="https://golang.org/issue/15658">issue 15658</a>,
+<a href="https://golang.org/issue/16396">issue 16396</a>, and
+<a href="https://golang.org/issue/16511">issue 16511</a>.
+Any help in solving these issues would be appreciated.
 </p>
 
 <h2 id="tools">Tools</h2>
@@ -99,7 +113,7 @@ added. See <a href="https://golang.org/cl/30510">change 30510</a>.
 
 <h3 id="tool_yacc">Yacc</h3>
 
-<p>
+<p> <!-- CL 27324, CL 27325 -->
 The <code>yacc</code> (previously available via
 “<code>go</code> <code>tool</code> <code>yacc</code>”)
 has been removed. As of Go 1.7 it was no longer used by the Go compiler.
@@ -132,15 +146,22 @@ the new backend has been removed in Go 1.8.
 </p>
 
 <p>
-The compiler and linker have been optimized and run faster in this
-release than in Go 1.7, although they are still slower than we would
-like and will continue to be optimized in future releases.
+  In addition to enabling the new compiler back end for all systems,
+  Go 1.8 also introduces a new compiler front end. The new compiler
+  front end should not be noticeable to users is the foundation for
+  future performance work.
 </p>
 
 <p>
-Due to changes across the compiler toolchain and standard library,
-binaries built with this release should typically be smaller than binaries
-built with Go 1.7, sometimes by as much as TODO numbers.
+  The compiler and linker have been optimized and run faster in this
+  release than in Go 1.7, although they are still slower than we would
+  like and will continue to be optimized in future releases.
+</p>
+
+<p>
+  Due to changes across the compiler toolchain and standard library,
+  binaries built with this release should typically be smaller than
+  binaries built with Go 1.7, sometimes by as much as TODO numbers.
 </p>
 
 
@@ -165,17 +186,51 @@ A new “<code>go</code> <code>bug</code>” command helps users file bug report
 
 <h3 id="cmd_doc">Go doc</h3>
 
-<p>
+<p> <!-- CL 25419 -->
   The “<code>go</code> <code>doc</code>” command
   now groups constants and variables with their type,
   following the behavior of
   <a href="/cmd/godoc/"><code>godoc</code></a>.
 </p>
 
-<p>
+<p> <!-- CL 25420 -->
   In order to improve the readability of the <code>doc</code>'s
   output, each summary of the first-level items is guaranteed to
   occupy a single line.
+</p>
+
+<p> <!-- CL 31852 -->
+  Documentation for interface methods is now only shown when requested
+  explicitly.
+</p>
+
+<h3 id="plugin">Plug-ins</h3>
+
+<p>
+  Go now supports a “<code>plugin</code>” build mode for generating
+  plug-ins written in Go, and a
+  new <a href="/pkg/plugin/"><code>plugin</code></a> package for
+  loading such plug-ins at run time. Plug-ins support is only currently
+  available on Linux and Darwin.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<h3 id="liveness">Argument Liveness</h3>
+
+<p>
+  <!-- Issue 15843 --> The garbage collector no longer considers
+  arguments live throughout the entirety of a function. For more
+  information, and for how to force a variable to remain live, see
+  the <a href="/pkg/runtime/#KeepAlive"><code>runtime.KeepAlive</code></a>
+  function added in Go 1.7.
+</p>
+
+<h3 id="memstats">MemStats Documentation</h3>
+
+<p> <!-- CL 28972 -->
+  The runtime's <a href="/pkg/runtime/#MemStats"><code>MemStats</code></a>
+  type has been more throroughly documented.
 </p>
 
 <h2 id="performance">Performance</h2>
@@ -185,7 +240,7 @@ As always, the changes are so general and varied that precise statements
 about performance are difficult to make.
 Most programs should run a bit faster,
 due to speedups in the garbage collector and
-optimizations in the core library.
+optimizations in the standard library.
 </p>
 
 <p>
@@ -219,20 +274,20 @@ More work remains for Go 1.9.
 
 <p>Calls from Go into C are now TODO% faster.</p>
 
-<h2 id="library">Core library</h2>
+<h2 id="library">Standard library</h2>
 
 <h3 id="examples">Examples</h3>
 
 <p>
-Many examples have been added to the documentation across many packages.
+Examples have been added to the documentation across many packages.
 </p>
 
-<h3 id="sort">Sort</h3>
+<h3 id="sortslice">Sort</h3>
 
 <p>
 The <a href="/pkg/sort/">sort</a> package
 now includes a convenience function
-<a href="/pkg/sort/#Slice"><code>sort.Slice</code></a> to sort a
+<a href="/pkg/sort/#Slice"><code>Slice</code></a> to sort a
 slice given a <em>less</em> function.
 
 In many cases this means that writing a new sorter type is not
@@ -241,8 +296,8 @@ necessary.
 
 <p>
 Also new are
-<a href="/pkg/sort/#SliceStable"><code>sort.SliceStable</code></a> and
-<a href="/pkg/sort/#SliceIsSorted"><code>sort.SliceIsSorted</code></a>.
+<a href="/pkg/sort/#SliceStable"><code>SliceStable</code></a> and
+<a href="/pkg/sort/#SliceIsSorted"><code>SliceIsSorted</code></a>.
 </p>
 
 <h3 id="h2push">HTTP/2 Push</h3>
@@ -327,4 +382,256 @@ in mind.
   </dd>
 </dl>
 
+<dl id="archive_tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
+  <dd>
+    <p> <!-- CL 30370 -->
+      The <code>DeadlineExceeded</code> error now implements
+      <a href="/pkg/net/#Error"><code>net.Error</code></a>
+      and reports true for both the <code>Timeout</code> and
+      <code>Temporary</code> methods.
+    </p>
+  </dd>
+</dl>
 
+<dl id="encoding_binary"><dt><a href="/pkg/encoding/">encoding/binary</a></dt>
+  <dd>
+    <p> <!-- CL 28514 -->
+      The package now supports boolean values.
+      TODO: add docs in encoding/binary package, then link to package docs
+      here.
+    </p>
+  </dd>
+</dl>
+
+<dl id="expvar"><dt><a href="/pkg/expvar/">expvar</a></dt>
+  <dd>
+    <p> <!-- CL 30917 -->
+      The new methods
+      <a href="/pkg/expvar/#Int.Value"><code>Int.Value</code></a>,
+      <a href="/pkg/expvar/#String.Value"><code>String.Value</code></a>,
+      <a href="/pkg/expvar/#Float.Value"><code>Float.Value</code></a>, and
+      <a href="/pkg/expvar/#Func.Value"><code>Func.Value</code></a>
+      report the current value of an exported variable.
+    </p>
+
+    <p> <!-- CL 24722 -->
+      The new
+      function <a href="/pkg/expvar/#Handler"><code>Handler</code></a>
+      returns the package's HTTP handler, to enable installing it in
+      non-standard locations.
+      </p>
+  </dd>
+</dl>
+
+<dl id="image_png"><dt><a href="/pkg/image/png/">image/png</a></dt>
+  <dd>
+    <p> <!-- CL 32143, CL 32140 -->
+      The PNG decoder now supports truecolor and grayscale transparency.
+    </p>
+    <p> <!-- CL 29872 -->
+      The PNG encoder is now faster and creates smaller output
+      when encoding paletted images.
+      </p>
+  </dd>
+</dl>
+
+<dl id="math_rand"><dt><a href="/pkg/math/rand/">math/rand</a></dt>
+  <dd>
+
+    <p>
+      There is a new
+      method <a href="/pkg/math/rand/#Rand.Uint64"><code>Rand.Uint64</code></a>
+      to return <code>uint64</code> values. <!-- CL 27253 -->
+    </p>
+
+  </dd>
+</dl>
+
+<dl id="mime_quotedprintable"><dt><a href="/pkg/mime/quotedprintable/">mime/quotedprintable</a></dt>
+  <dd>
+
+    <p>
+      The package's parsing has been relaxed in two ways to accept
+      more input seen in the wild. First, it now accepts
+      a <code>=</code> sign even if it's not followed by two hex
+      digits. <!-- CL 32174 -->
+
+      Second, it accepts a trailing soft line-break at the end of a
+      message. <!-- CL 27530 -->. That is, the final byte of the
+      message may be a <code>=</code> sign and it will now be ignored.
+    </p>
+
+  </dd>
+</dl>
+
+
+<dl id="net_http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+
+    <p>
+      TODO
+    </p>
+
+  </dd>
+</dl>
+
+<dl id="net_mail"><dt><a href="/pkg/net/mail/">net/mail</a></dt>
+  <dd>
+
+    <p> <!-- CL 32176 -->
+      Empty quoted strings are now allowed in the name part of an
+      address. That is, this is now a legal address:
+      <code>"" &lt;gopher@example.com&gt;</code>
+    </p>
+
+    <p> <!-- CL 31581 -->
+      The <a href="/pkg/net/mail/#ParseDate"><code>ParseDate</code></a>
+      function has been exported.
+    </p>
+    
+  </dd>
+</dl>
+
+<dl id="net_smtp"><dt><a href="/pkg/net/smtp/">net/smtp</a></dt>
+  <dd>
+
+    <p> <!-- CL 33143 -->
+      If implementations of the <a href="/pkg/net/smtp/#Auth"><code>Auth</code></a>
+      interface return an empty <code>toServer</code> value, the package
+      no longer sends trailing whitespace after the SMTP <code>AUTH</code>
+      command, which some servers rejected.
+    </p>
+
+  </dd>
+</dl>
+
+<dl id="net_url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+
+    <p> <!-- CL 31322 --> The new functions
+      <a href="/pkg/net/url/#PathEscape"><code>PathEscape</code></a>
+      and
+      <a href="/pkg/net/url/#PathUnescape"><code>PathUnescape</code></a>
+      deal with path escaping.</p>
+
+    <p> <!-- CL 28933 --> The new methods
+      <a href="/pkg/net/url/#URL.Hostname"><code>URL.Hostname</code></a>
+      and
+      <a href="/pkg/net/url/#URL.Port"><code>URL.Port</code></a>
+      are accessors to the hostname and port fields of a URL
+      and deal with the case where the port may or may not be present.
+    </p>
+
+    <p> <!-- CL 28343 --> The existing method
+      <a href="/pkg/net/url/#URL.ResolveReference"><code>URL.ResolveReference</code></a>
+      now properly handles paths with escaped bytes without losing
+      the escaping.
+    </p>
+
+    <p> <!-- CL 31467 -->
+      The <code>URL</code> type now implements
+      <a href="/pkg/encoding/#BinaryMarshaler"><code>encoding.BinaryMarshaler</code></a> and
+      <a href="/pkg/encoding/#BinaryUnmarshaler"><code>encoding.BinaryUnmarshaler</code></a>.
+    </p>
+
+    <p> <!-- CL 29610, CL 31582 -->
+      <code>Parse</code> now rejects relative URLs containing a "<code>:</code>" in
+      the first path segment. Such paths should be prefixed with "<code>./</code>".
+      The <code>URL.String</code> method now prepends "<code>./</code>" to such paths.
+    </p>
+
+  </dd>
+</dl>
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p> <!-- CL 30088 -->
+      The new function
+      <a href="/pkg/reflect/#Swapper"><code>Swapper</code></a> was
+      added to support
+      the <a href="#sortslice">new <code>sort.Slice</code>
+      support</a>.
+    </p>
+  </dd>
+</dl>
+
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p> <!-- CL 31210 -->
+      The <a href="/pkg/strconv/#Unquote"><code>Unquote</code></a>
+      function now strips carriage returns (<code>\r</code>) in
+      backquoted raw strings.
+    </p>
+  </dd>
+</dl>
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+
+    <p> <!-- CL 20118 --> The new function
+      <a href="/pkg/time/#Until"><code>Until</code></a> complements
+      the analogous <code>Since</code> function.
+    </p>
+
+    <p> <!-- CL 29338 --> <code>ParseDuration</code> now accepts long fractional parts.</p>
+
+    <p> <!-- CL 33429 -->
+      <code>Parse</code> now validates days that are too small, in
+      addition to days that are too large.
+    </p>
+
+    <p>
+  </dd>
+</dl>
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 29970 -->
+      The new method
+      <a href="/pkg/testing/#T.Name"><code>T.Name</code></a>
+      (and <code>B.Name</code>) returns the name of the current
+      test or benchmark.
+    </p>
+
+    <p><!-- CL 31724 -->
+      The new method
+      <a href="/pkg/testing/#T.Context"><code>T.Context</code></a>
+      (and <code>B.Context</code>) returns
+      a <a href="/pkg/context/#Context"><code>Context</code></a> for
+      the current running test or benchmark.
+    </p>
+
+    <p><!-- CL 32483 -->
+      The new function
+      <a href="/pkg/testing/#CoverMode"><code>CoverMode</code></a>
+      reports what the test coverage mode is set to.
+    </p>
+
+    <p><!-- CL 32615 -->
+      Tests and benchmarks are now marked as failed if the race
+      detector is enabled and a data race occurs during execution.
+    </p>
+   
+  </dd>
+</dl>
+
+<dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
+  <dd>
+    <p><!-- CL 30935 -->
+      <code>SimpleFold</code> now returns its argument unchanged
+      if the provided input was an invalid rune.
+    </p>
+  </dd>
+</dl>
+                             
+
+
+
+<dl id="foo"><dt><a href="/pkg/foo/">foo</a></dt>
+  <dd>
+    <p> <!-- CL nnn -->
+
+    </p>
+  </dd>
+</dl>
