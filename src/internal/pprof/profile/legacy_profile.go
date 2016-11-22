@@ -686,10 +686,19 @@ func scaleHeapSample(count, size, rate int64) (int64, int64) {
 // the runtime might write a serialized Profile directly making this unnecessary.)
 func parseContention(b []byte) (*Profile, error) {
 	r := bytes.NewBuffer(b)
-	l, err := r.ReadString('\n')
-	if err != nil {
-		return nil, errUnrecognized
+	var l string
+	var err error
+	for {
+		// Skip past comments and empty lines seeking a real header.
+		l, err = r.ReadString('\n')
+		if err != nil {
+			return nil, err
+		}
+		if !isSpaceOrComment(l) {
+			break
+		}
 	}
+
 	if strings.HasPrefix(l, "--- contentionz ") {
 		return parseCppContention(r)
 	} else if strings.HasPrefix(l, "--- mutex:") {
@@ -728,6 +737,9 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
 			if l == "" {
 				break
 			}
+		}
+		if isSpaceOrComment(l) {
+			continue
 		}
 
 		if l = strings.TrimSpace(l); l == "" {
@@ -773,32 +785,34 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
 
 	locs := make(map[uint64]*Location)
 	for {
-		if l = strings.TrimSpace(l); strings.HasPrefix(l, "---") {
-			break
-		}
-		value, addrs, err := parseContentionSample(l, p.Period, cpuHz)
-		if err != nil {
-			return nil, err
-		}
-		var sloc []*Location
-		for _, addr := range addrs {
-			// Addresses from stack traces point to the next instruction after
-			// each call. Adjust by -1 to land somewhere on the actual call.
-			addr--
-			loc := locs[addr]
-			if locs[addr] == nil {
-				loc = &Location{
-					Address: addr,
-				}
-				p.Location = append(p.Location, loc)
-				locs[addr] = loc
+		if !isSpaceOrComment(l) {
+			if l = strings.TrimSpace(l); strings.HasPrefix(l, "---") {
+				break
 			}
-			sloc = append(sloc, loc)
+			value, addrs, err := parseContentionSample(l, p.Period, cpuHz)
+			if err != nil {
+				return nil, err
+			}
+			var sloc []*Location
+			for _, addr := range addrs {
+				// Addresses from stack traces point to the next instruction after
+				// each call. Adjust by -1 to land somewhere on the actual call.
+				addr--
+				loc := locs[addr]
+				if locs[addr] == nil {
+					loc = &Location{
+						Address: addr,
+					}
+					p.Location = append(p.Location, loc)
+					locs[addr] = loc
+				}
+				sloc = append(sloc, loc)
+			}
+			p.Sample = append(p.Sample, &Sample{
+				Value:    value,
+				Location: sloc,
+			})
 		}
-		p.Sample = append(p.Sample, &Sample{
-			Value:    value,
-			Location: sloc,
-		})
 
 		if l, err = r.ReadString('\n'); err != nil {
 			if err != io.EOF {
