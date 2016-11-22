@@ -224,6 +224,7 @@ var dayOutOfRangeTests = []struct {
 	{"Thu Nov 31 21:00:57 2010", false},
 	{"Thu Dec 31 21:00:57 2010", true},
 	{"Thu Dec 32 21:00:57 2010", false},
+	{"Thu Dec 00 21:00:57 2010", false},
 }
 
 func TestParseDayOutOfRange(t *testing.T) {
