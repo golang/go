@@ -163,6 +163,20 @@ is unchanged, but there are a number of changes worth noting.
 A new “<code>go</code> <code>bug</code>” command helps users file bug reports.
 </p>
 
+<h3 id="cmd_doc">Go doc</h3>
+
+<p>
+  The “<code>go</code> <code>doc</code>” command
+  now groups constants and variables with their type,
+  following the behavior of
+  <a href="/cmd/godoc/"><code>godoc</code></a>.
+</p>
+
+<p>
+  In order to improve the readability of the <code>doc</code>'s
+  output, each summary of the first-level items is guaranteed to
+  occupy a single line.
+</p>
 
 <h2 id="performance">Performance</h2>
 
@@ -255,16 +269,62 @@ made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
 in mind.
 </p>
 
-<dl id="foo"><dt><a href="/pkg/foo/">foo</a></dt>
+<dl id="archive_tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
+  <dd>
 
-<dd>
-<p>
-</p>
-</dd></dl>
+    <p>
+      The tar implementation corrects many bugs in corner cases of the file format.
+      The <a href="/pkg/archive/tar/#Reader"><code>Reader</code></a> is now able to process tar files in the PAX format with entries larger than 8GB.
+      The <a href="/pkg/archive/tar/#Writer"><code>Writer</code></a> no longer produces invalid tar files in some situations involving long pathnames.
+    </p>
 
-<dl id="bar"><dt><a href="/pkg/bar/">bar</a></dt>
+  </dd>
+</dl>
 
-<dd>
-<p>
-</p>
-</dd></dl>
+
+<dl id="compress_flate"><dt><a href="/pkg/compress/flate/">compress/flate</a></dt>
+  <dd>
+
+    <p>
+      There have been some minor fixes to the encoder to improve the
+      compression ratio in certain situations. As a result, the exact
+      encoded output of DEFLATE may be different from Go 1.7. Since
+      DEFLATE is the underlying compression of gzip, ping, zlib, and zip,
+      those formats may have changed outputs.
+    </p>
+
+    <p>
+      The encoder, when operating in
+      <a href="/pkg/compress/flate/#NoCompression"><code>NoCompression</code></a>
+      mode, now produces a consistent output that is not dependent on
+      the size of the input buffer to the
+      <a href="/pkg/compress/flate/#Writer.Write"><code>Write</code></a>
+      method.
+    </p>
+
+  </dd>
+</dl>
+
+
+<dl id="compress_gzip"><dt><a href="/pkg/compress/gzip/">compress/gzip</a></dt>
+  <dd>
+
+    <p>
+      The <a href="/pkg/compress/gzip/#Writer"><code>Writer</code></a>
+      now encodes a zero <code>MTIME</code> field when
+      the <a href="/pkg/compress/gzip/#Header"><code>Header.ModTime</code></a>
+      field is the zero value.
+
+      In previous releases of Go, the <code>Writer</code> would encode
+      a non-sensible value.
+
+      Similarly,
+      the <a href="/pkg/compress/gzip/#Reader"><code>Reader</code></a>
+      now updates the <code>Header.ModTime</code> field only if the
+      encoded MTIME field is non-zero.
+    </p>
+
+  </dd>
+</dl>
+
+
