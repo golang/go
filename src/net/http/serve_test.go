@@ -620,13 +620,16 @@ func TestIdentityResponse(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
+	c := &Client{Transport: new(Transport)}
+	defer closeClient(c)
+
 	// Note: this relies on the assumption (which is true) that
 	// Get sends HTTP/1.1 or greater requests. Otherwise the
 	// server wouldn't have the choice to send back chunked
 	// responses.
 	for _, te := range []string{"", "identity"} {
 		url := ts.URL + "/?te=" + te
-		res, err := Get(url)
+		res, err := c.Get(url)
 		if err != nil {
 			t.Fatalf("error with Get of %s: %v", url, err)
 		}
@@ -645,7 +648,7 @@ func TestIdentityResponse(t *testing.T) {
 
 	// Verify that ErrContentLength is returned
 	url := ts.URL + "/?overwrite=1"
-	res, err := Get(url)
+	res, err := c.Get(url)
 	if err != nil {
 		t.Fatalf("error with Get of %s: %v", url, err)
 	}
@@ -968,7 +971,10 @@ func TestIdentityResponseHeaders(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	res, err := Get(ts.URL)
+	c := &Client{Transport: new(Transport)}
+	defer closeClient(c)
+
+	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatalf("Get error: %v", err)
 	}
@@ -1910,6 +1916,9 @@ func TestTimeoutHandlerRace(t *testing.T) {
 	ts := httptest.NewServer(TimeoutHandler(delayHi, 20*time.Millisecond, ""))
 	defer ts.Close()
 
+	c := &Client{Transport: new(Transport)}
+	defer closeClient(c)
+
 	var wg sync.WaitGroup
 	gate := make(chan bool, 10)
 	n := 50
@@ -1923,7 +1932,7 @@ func TestTimeoutHandlerRace(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			defer func() { <-gate }()
-			res, err := Get(fmt.Sprintf("%s/%d", ts.URL, rand.Intn(50)))
+			res, err := c.Get(fmt.Sprintf("%s/%d", ts.URL, rand.Intn(50)))
 			if err == nil {
 				io.Copy(ioutil.Discard, res.Body)
 				res.Body.Close()
@@ -1951,13 +1960,15 @@ func TestTimeoutHandlerRaceHeader(t *testing.T) {
 	if testing.Short() {
 		n = 10
 	}
+	c := &Client{Transport: new(Transport)}
+	defer closeClient(c)
 	for i := 0; i < n; i++ {
 		gate <- true
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			defer func() { <-gate }()
-			res, err := Get(ts.URL)
+			res, err := c.Get(ts.URL)
 			if err != nil {
 				t.Error(err)
 				return
@@ -2036,11 +2047,15 @@ func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
 	timeout := 300 * time.Millisecond
 	ts := httptest.NewServer(TimeoutHandler(handler, timeout, ""))
 	defer ts.Close()
+
+	c := &Client{Transport: new(Transport)}
+	defer closeClient(c)
+
 	// Issue was caused by the timeout handler starting the timer when
 	// was created, not when the request. So wait for more than the timeout
 	// to ensure that's not the case.
 	time.Sleep(2 * timeout)
-	res, err := Get(ts.URL)
+	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2061,7 +2076,10 @@ func TestTimeoutHandlerEmptyResponse(t *testing.T) {
 	ts := httptest.NewServer(TimeoutHandler(handler, timeout, ""))
 	defer ts.Close()
 
-	res, err := Get(ts.URL)
+	c := &Client{Transport: new(Transport)}
+	defer closeClient(c)
+
+	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2342,7 +2360,10 @@ func TestStripPrefix(t *testing.T) {
 	ts := httptest.NewServer(StripPrefix("/foo", h))
 	defer ts.Close()
 
-	res, err := Get(ts.URL + "/foo/bar")
+	c := &Client{Transport: new(Transport)}
+	defer closeClient(c)
+
+	res, err := c.Get(ts.URL + "/foo/bar")
 	if err != nil {
 		t.Fatal(err)
 	}

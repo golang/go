@@ -151,3 +151,7 @@ func waitErrCondition(waitFor, checkEvery time.Duration, fn func() error) error 
 	}
 	return err
 }
+
+func closeClient(c *http.Client) {
+	c.Transport.(*http.Transport).CloseIdleConnections()
+}
