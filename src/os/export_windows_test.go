@@ -7,9 +7,7 @@ package os
 // Export for testing.
 
 var (
-	NewConsoleFile                    = newConsoleFile
-	GetCPP                            = &getCP
-	ReadFileP                         = &readFile
-	ResetGetConsoleCPAndReadFileFuncs = resetGetConsoleCPAndReadFileFuncs
-	FixLongPath                       = fixLongPath
+	FixLongPath     = fixLongPath
+	NewConsoleFile  = newConsoleFile
+	ReadConsoleFunc = &readConsole
 )

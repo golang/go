@@ -5,19 +5,21 @@
 package os_test
 
 import (
-	"bytes"
-	"encoding/hex"
+	"fmt"
 	"internal/syscall/windows"
 	"internal/testenv"
+	"io"
 	"io/ioutil"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
 	"syscall"
 	"testing"
+	"unicode/utf16"
 	"unsafe"
 )
 
@@ -641,88 +643,70 @@ func TestStatSymlinkLoop(t *testing.T) {
 }
 
 func TestReadStdin(t *testing.T) {
-	defer os.ResetGetConsoleCPAndReadFileFuncs()
+	old := *os.ReadConsoleFunc
+	defer func() {
+		*os.ReadConsoleFunc = old
+	}()
 
 	testConsole := os.NewConsoleFile(syscall.Stdin, "test")
 
-	var (
-		hiraganaA_CP932 = []byte{0x82, 0xa0}
-		hiraganaA_UTF8  = "\u3042"
+	var tests = []string{
+		"abc",
+		"äöü",
+		"\u3042",
+		"“hi”™",
+		"hello\x1aworld",
+		"\U0001F648\U0001F649\U0001F64A",
+	}
 
-		tests = []struct {
-			cp     uint32
-			input  []byte
-			output string // always utf8
-		}{
-			{
-				cp:     437,
-				input:  []byte("abc"),
-				output: "abc",
-			},
-			{
-				cp:     850,
-				input:  []byte{0x84, 0x94, 0x81},
-				output: "äöü",
-			},
-			{
-				cp:     932,
-				input:  hiraganaA_CP932,
-				output: hiraganaA_UTF8,
-			},
-			{
-				cp:     932,
-				input:  bytes.Repeat(hiraganaA_CP932, 2),
-				output: strings.Repeat(hiraganaA_UTF8, 2),
-			},
-			{
-				cp:     932,
-				input:  append(bytes.Repeat(hiraganaA_CP932, 3), '.'),
-				output: strings.Repeat(hiraganaA_UTF8, 3) + ".",
-			},
-			{
-				cp:     932,
-				input:  append(append([]byte("hello"), hiraganaA_CP932...), []byte("world")...),
-				output: "hello" + hiraganaA_UTF8 + "world",
-			},
-			{
-				cp:     932,
-				input:  append(append([]byte("hello"), bytes.Repeat(hiraganaA_CP932, 5)...), []byte("world")...),
-				output: "hello" + strings.Repeat(hiraganaA_UTF8, 5) + "world",
-			},
-		}
-	)
-	for _, consoleReadBufSize := range []int{1, 2, 3, 4, 5, 8, 10, 16, 20, 50, 100} {
-		for _, readFileBufSize := range []int{1, 2, 3, 10, 16, 100, 1000} {
-		nextTest:
-			for ti, test := range tests {
-				input := bytes.NewBuffer(test.input)
-				*os.ReadFileP = func(h syscall.Handle, buf []byte, done *uint32, o *syscall.Overlapped) error {
-					if len(buf) > readFileBufSize {
-						buf = buf[:readFileBufSize]
+	for _, consoleSize := range []int{1, 2, 3, 10, 16, 100, 1000} {
+		for _, readSize := range []int{1, 2, 3, 4, 5, 8, 10, 16, 20, 50, 100} {
+			for _, s := range tests {
+				t.Run(fmt.Sprintf("c%d/r%d/%s", consoleSize, readSize, s), func(t *testing.T) {
+					s16 := utf16.Encode([]rune(s))
+					*os.ReadConsoleFunc = func(h syscall.Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) error {
+						if inputControl != nil {
+							t.Fatalf("inputControl not nil")
+						}
+						n := int(toread)
+						if n > consoleSize {
+							n = consoleSize
+						}
+						n = copy((*[10000]uint16)(unsafe.Pointer(buf))[:n], s16)
+						s16 = s16[n:]
+						*read = uint32(n)
+						t.Logf("read %d -> %d", toread, *read)
+						return nil
 					}
-					n, err := input.Read(buf)
-					*done = uint32(n)
-					return err
-				}
-				*os.GetCPP = func() uint32 {
-					return test.cp
-				}
-				var bigbuf []byte
-				for len(bigbuf) < len([]byte(test.output)) {
-					buf := make([]byte, consoleReadBufSize)
-					n, err := testConsole.Read(buf)
-					if err != nil {
-						t.Errorf("test=%d bufsizes=%d,%d: read failed: %v", ti, consoleReadBufSize, readFileBufSize, err)
-						continue nextTest
+
+					var all []string
+					var buf []byte
+					chunk := make([]byte, readSize)
+					for {
+						n, err := testConsole.Read(chunk)
+						buf = append(buf, chunk[:n]...)
+						if err == io.EOF {
+							all = append(all, string(buf))
+							if len(all) >= 5 {
+								break
+							}
+							buf = buf[:0]
+						} else if err != nil {
+							t.Fatalf("reading %q: error: %v", s, err)
+						}
+						if len(buf) >= 2000 {
+							t.Fatalf("reading %q: stuck in loop: %q", s, buf)
+						}
 					}
-					bigbuf = append(bigbuf, buf[:n]...)
-				}
-				have := hex.Dump(bigbuf)
-				expected := hex.Dump([]byte(test.output))
-				if have != expected {
-					t.Errorf("test=%d bufsizes=%d,%d: %q expected, but %q received", ti, consoleReadBufSize, readFileBufSize, expected, have)
-					continue nextTest
-				}
+
+					want := strings.Split(s, "\x1a")
+					for len(want) < 5 {
+						want = append(want, "")
+					}
+					if !reflect.DeepEqual(all, want) {
+						t.Errorf("reading %q:\nhave %x\nwant %x", s, all, want)
+					}
+				})
 			}
 		}
 	}
