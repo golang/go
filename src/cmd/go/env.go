@@ -62,13 +62,11 @@ func mkEnv() []envVar {
 		env = append(env, envVar{"GO386", os.Getenv("GO386")})
 	}
 
-	if goos != "plan9" {
-		cmd := b.gccCmd(".")
-		env = append(env, envVar{"CC", cmd[0]})
-		env = append(env, envVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
-		cmd = b.gxxCmd(".")
-		env = append(env, envVar{"CXX", cmd[0]})
-	}
+	cmd := b.gccCmd(".")
+	env = append(env, envVar{"CC", cmd[0]})
+	env = append(env, envVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
+	cmd = b.gxxCmd(".")
+	env = append(env, envVar{"CXX", cmd[0]})
 
 	if buildContext.CgoEnabled {
 		env = append(env, envVar{"CGO_ENABLED", "1"})
