@@ -256,6 +256,7 @@ runtime: sleep on CLOCK_MONOTONIC in futexsleep1 on freebsd (CL 30154)
 runtime: use RtlGenRandom instead of CryptGenRandom (CL 29700)
 runtime: use clock_gettime(CLOCK_REALTIME) for nanosecond-precision time.now on arm64, mips64x (CL 32177)
 runtime: use correct system page size on all arches (CL 25022)
+runtime: handle SIGPIPE in c-archive and c-shared programs (CL 32796)
 
 syscall: Clearenv now unsets env vars on Windows (CL 33168)
 syscall: add bounds checking and error returns to ParseNetlinkMessage (CL 26990)
