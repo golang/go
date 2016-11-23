@@ -1282,6 +1282,11 @@ func reflect_mapiterkey(it *hiter) unsafe.Pointer {
 	return it.key
 }
 
+//go:linkname reflect_mapitervalue reflect.mapitervalue
+func reflect_mapitervalue(it *hiter) unsafe.Pointer {
+	return it.value
+}
+
 //go:linkname reflect_maplen reflect.maplen
 func reflect_maplen(h *hmap) int {
 	if h == nil {
