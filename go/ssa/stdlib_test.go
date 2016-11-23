@@ -95,7 +95,7 @@ func TestStdlib(t *testing.T) {
 
 	// Keep iprog reachable until after we've measured memory usage.
 	if len(iprog.AllPackages) == 0 {
-		print() // unreachable
+		panic("unreachable")
 	}
 
 	allFuncs := ssautil.AllFunctions(prog)
