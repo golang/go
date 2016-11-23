@@ -95,6 +95,17 @@ and cancelation.
   binaries on older OS X versions is untested.
 </p>
 
+<p>
+  Go 1.8 will be the last release to support Linux on ARMv5E and ARMv6 processors:
+  Go 1.9 will likely require the ARMv6K (as found in the Raspberry Pi 1) or later.
+  To identify whether a Linux system is ARMv6K or later, run <code>go tool dist -check-armv6k</code>
+  (to facilitate testing, it is also possible to just copy the dist command to the
+  system without installing a full copy of Go 1.8)
+  and if the program terminates with output "ARMv6K supported." then the system
+  implements ARMv6K or later.
+  Go on non-Linux ARM systems already requires ARMv6K or later.
+</p>
+
 
 <h3 id="known_issues">Known Issues</h3>
 
