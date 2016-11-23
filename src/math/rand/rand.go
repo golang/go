@@ -23,10 +23,13 @@ type Source interface {
 	Seed(seed int64)
 }
 
-// A source64 represents a Source, which is also a source
-// of uniformly-distributed pseudo-random uint64 values in
-// the range [0, 1<<64).
-type source64 interface {
+// A Source64 is a Source that can also generate
+// uniformly-distributed pseudo-random uint64 values in
+// the range [0, 1<<64) directly.
+// If a Rand r's underlying Source s implements Source64,
+// then r.Uint64 returns the result of one call to s.Uint64
+// instead of making two calls to s.Int63.
+type Source64 interface {
 	Source
 	Uint64() uint64
 }
@@ -43,7 +46,7 @@ func NewSource(seed int64) Source {
 // A Rand is a source of random numbers.
 type Rand struct {
 	src Source
-	s64 source64 // non-nil if src is source64
+	s64 Source64 // non-nil if src is source64
 
 	// readVal contains remainder of 63-bit integer used for bytes
 	// generation during most recent Read call.
@@ -58,7 +61,7 @@ type Rand struct {
 // New returns a new Rand that uses random values from src
 // to generate other random values.
 func New(src Source) *Rand {
-	s64, _ := src.(source64)
+	s64, _ := src.(Source64)
 	return &Rand{src: src, s64: s64}
 }
 
@@ -229,7 +232,7 @@ func read(p []byte, int63 func() int64, readVal *int64, readPos *int8) (n int, e
  * Top-level convenience functions
  */
 
-var globalRand = New(&lockedSource{src: NewSource(1).(source64)})
+var globalRand = New(&lockedSource{src: NewSource(1).(Source64)})
 
 // Seed uses the provided seed value to initialize the default Source to a
 // deterministic state. If Seed is not called, the generator behaves as
@@ -312,7 +315,7 @@ func ExpFloat64() float64 { return globalRand.ExpFloat64() }
 
 type lockedSource struct {
 	lk  sync.Mutex
-	src source64
+	src Source64
 }
 
 func (r *lockedSource) Int63() (n int64) {
