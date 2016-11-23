@@ -27,13 +27,18 @@ import (
 type Value interface{}
 
 // NamedValue holds both the value name and value.
-// The Ordinal is the position of the parameter starting from one and is always set.
-// If the Name is not empty it should be used for the parameter identifier and
-// not the ordinal position.
 type NamedValue struct {
-	Name    string
+	// If the Name is not empty it should be used for the parameter identifier and
+	// not the ordinal position.
+	//
+	// Name will not have a symbol prefix.
+	Name string
+
+	// Ordinal position of the parameter starting from one and is always set.
 	Ordinal int
-	Value   Value
+
+	// Value is the parameter value.
+	Value Value
 }
 
 // Driver is the interface that must be implemented by a database

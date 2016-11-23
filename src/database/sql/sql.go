@@ -76,6 +76,8 @@ type NamedArg struct {
 
 	// Name of the parameter placeholder. If empty the ordinal position in the
 	// argument list will be used.
+	//
+	// Name must omit any symbol prefix.
 	Name string
 
 	// Value of the parameter. It may be assigned the same value types as
