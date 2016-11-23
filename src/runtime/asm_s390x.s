@@ -1305,13 +1305,9 @@ found:
 // However, since this function is only called once per loaded module
 // performance is unimportant.
 TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
-	// Save R6-R15, F0, F2, F4 and F6 in the
-	// register save area of the calling function
+	// Save R6-R15 in the register save area of the calling function.
+	// Don't bother saving F8-F15 as we aren't doing any calls.
 	STMG	R6, R15, 48(R15)
-	FMOVD	F0, 128(R15)
-	FMOVD	F2, 136(R15)
-	FMOVD	F4, 144(R15)
-	FMOVD	F6, 152(R15)
 
 	// append the argument (passed in R2, as per the ELF ABI) to the
 	// moduledata linked list.
@@ -1319,12 +1315,8 @@ TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R2, moduledata_next(R1)
 	MOVD	R2, runtime·lastmoduledatap(SB)
 
-	// Restore R6-R15, F0, F2, F4 and F6
+	// Restore R6-R15.
 	LMG	48(R15), R6, R15
-	FMOVD	F0, 128(R15)
-	FMOVD	F2, 136(R15)
-	FMOVD	F4, 144(R15)
-	FMOVD	F6, 152(R15)
 	RET
 
 TEXT ·checkASM(SB),NOSPLIT,$0-1
