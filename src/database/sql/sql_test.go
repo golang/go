@@ -486,8 +486,8 @@ func TestQueryNamedArg(t *testing.T) {
 	rows, err := db.Query(
 		// Ensure the name and age parameters only match on placeholder name, not position.
 		"SELECT|people|age,name|name=?name,age=?age",
-		Named("?age", 2),
-		Named("?name", "Bob"),
+		Named("age", 2),
+		Named("name", "Bob"),
 	)
 	if err != nil {
 		t.Fatalf("Query: %v", err)
