@@ -179,8 +179,6 @@ func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
 		}
 	}
 
-	hasDot := byteIndex(hostname, '.') != -1
-
 	// Canonicalize the hostname by removing any trailing dot.
 	if stringsHasSuffix(hostname, ".") {
 		hostname = hostname[:len(hostname)-1]
@@ -220,10 +218,14 @@ func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
 	var first string
 	for _, src := range srcs {
 		if src.source == "myhostname" {
-			if hostname == "" || hasDot {
-				continue
+			if isLocalhost(hostname) || isGateway(hostname) {
+				return fallbackOrder
 			}
-			return fallbackOrder
+			hn, err := getHostname()
+			if err != nil || stringsEqualFold(hostname, hn) {
+				return fallbackOrder
+			}
+			continue
 		}
 		if src.source == "files" || src.source == "dns" {
 			if !src.standardCriteria() {
@@ -305,4 +307,16 @@ func goDebugNetDNS() (dnsMode string, debugLevel int) {
 	}
 	parsePart(goDebug)
 	return
+}
+
+// isLocalhost reports whether h should be considered a "localhost"
+// name for the myhostname NSS module.
+func isLocalhost(h string) bool {
+	return stringsEqualFold(h, "localhost") || stringsEqualFold(h, "localhost.localdomain") || stringsHasSuffixFold(h, ".localhost") || stringsHasSuffixFold(h, ".localhost.localdomain")
+}
+
+// isGateway reports whether h should be considered a "gateway"
+// name for the myhostname NSS module.
+func isGateway(h string) bool {
+	return stringsEqualFold(h, "gateway")
 }
