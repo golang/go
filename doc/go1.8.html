@@ -422,6 +422,65 @@ in mind.
   </dd>
 </dl>
 
+<dl id="database_sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p>
+	  The package now supports <code>context.Context</code>. There are new methods
+	  ending in <code>Context</code> such as
+	  <a href="/pkg/database/sql/#DB.QueryContext"><code>DB.QueryContext</code></a> and
+	  <a href="/pkg/database/sql/#DB.PrepareContext"><code>DB.PrepareContext</code></a>
+	  that support <code>Context</code>. By using the new <code>Context</code> methods it ensures
+	  connections are closed and returned to the connection pool when the
+	  request is done. It also enables canceling in-progress queries
+	  should the driver support it. Finally, using the <code>Context</code>
+	  methods allows the database pool to cancel waiting for the next
+	  available connection.
+    </p>
+    <p>
+      The <a href="/pkg/database/sql#IsolationLevel"><code>IsolationLevel</code></a>
+	  can now be set when starting a transaction by setting the isolation level
+	  on the <code>Context</code> then passing that <code>Context</code> to
+	  <a href="/pkg/database/sql#DB.BeginContext"><code>DB.BeginContext</code></a>.
+	  An error will be returned if an isolation level is selected that the driver
+	  does not support. A read-only attribute may also be set on the transaction
+	  with <a href="/pkg/database/sql/#ReadOnlyContext"><code>ReadOnlyContext</code></a>
+	</p>
+	<p>
+      Queries now expose the SQL column type information for drivers that support it.
+	  Rows can return <a href="/pkg/database/sql#Rows.ColumnTypes"><code>ColumnTypes</code></a>
+	  which can include SQL type information, column type lengths, and the Go type.
+    </p>
+	<p>
+      Multiple result sets are now supported on Rows. After
+	  <a href="/pkg/database/sql/#Rows.Next"><code>Rows.Next</code></a> returns false
+	  <a href="/pkg/database/sql/#Rows.NextResultSet"><code>Rows.NextResultSet</code></a>
+	  may be called to advance to the next result set. The existing <code>Rows</code>
+	  should be continued to be used after it advances to the next result set.
+    </p>
+	<p>
+	  <a href="/pkg/database/sql/#NamedParam"><code>NamedParam</code></a> may be used
+	  as query arguments. The new function <a href="/pkg/database/sql/#Param"><code>Param</code></a>
+	  helps create a <a href="/pkg/database/sql/#NamedParam"><code>NamedParam</code></a>
+	  more succinctly.
+	<p>
+	  Drivers that support the new <a href="/pkg/database/sql/driver/#Pinger"><code>Pinger</code></a>
+	  interface can now check if the server is still alive when the the
+	  <a href="/pkg/database/sql/#DB.Ping"><code>DB.Ping</code></a>
+	  or <a href="/pkg/database/sql/#DB.PingContext"><code>DB.PingContext</code></a>
+	  is called.
+	</p>
+    <p>
+	  The new <code>Context</code> query methods work for all drivers, but
+	  <code>Context</code> cancelation is not responsive unless the driver has been
+	  updated to used them. The other features require driver support in
+	  <a href="/pkg/database/sql/driver"><code>database/sql/driver</code></a>.
+	  Driver authors should review the new interfaces. Users of existing
+	  driver should review the driver documentation to see what
+	  it supports and any system specific documentation on each feature.
+	</p>
+  </dd>
+</dl>
+
 <dl id="debug_pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
   <dd>
     <p> <!-- CL 22720, CL 27212, CL 22181, CL 22332, CL 22336, Issue 15345 -->
@@ -746,6 +805,16 @@ pkg debug/pe, type StringTable []uint8</pre>
       The <code>URL.String</code> method now prepends "<code>./</code>" to such paths.
     </p>
 
+  </dd>
+</dl>
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p>
+      The new function
+      <a href="/pkg/os/#Executable"><code>Executable</code></a> returns
+	  the running executable path name.
+    </p>
   </dd>
 </dl>
 
