@@ -314,7 +314,15 @@ now implements the new
 <a href="/pkg/net/http/#Pusher"><code>Pusher</code></a> interface.
 </p>
 
-<h3 id="httpshutdown">HTTP Server Graceful Shutdown</h3>
+<h3 id="http_shutdown">HTTP Server Graceful Shutdown</h3>
+
+<p> <!-- CL 32329 -->
+  The HTTP Server now has support for graceful shutdown using the new
+  <a href="/pkg/net/http/#Server.Shutdown"><code>Server.Shutdown</code></a>
+  method. The related and more abrupt
+  <a href="/pkg/net/http/#Server.Close"><code>Server.Close</code></a>
+  is also new.
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -556,9 +564,118 @@ pkg debug/pe, type StringTable []uint8</pre>
 <dl id="net_http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
 
+    <p>Server changes:</p>
+    <ul>
+      <li>The server now supports graceful shutdown support, <a href="#http_shutdown">mentioned above</a>.</li>
+
+      <li> <!-- CL 32024 -->
+        The <a href="/pkg/net/http/#Server"><code>Server</code></a> now
+        has new configuration options
+        <code>ReadHeaderTimeout</code> and <code>IdleTimeout</code>.
+        The previously ill-defined <code>WriteTimeout</code> is now
+        documented.
+      </li>
+
+      <li> <!-- CL 32014 -->
+        <a href="/pkg/net/http/#FileServer"><code>FileServer</code></a>
+        and
+        <a href="/pkg/net/http/#ServeContent"><code>ServeContent</code></a>
+        now support HTTP <code>If-Match</code> conditional requests,
+        in addition to the previous <code>If-None-Match</code>
+        support.
+      </li>
+
+      <li> <!-- CL 27950 -->
+        The server now logs bad requests.
+      </li>
+    </ul>
+
     <p>
-      TODO
+      There are several additions to what a server's <code>Handler</code> can do:
     </p>
+
+    <ul>
+      <li><!-- CL 31173 -->
+        The <a href="/pkg/context/#Context"><code>Context</code></a>
+        returned
+        by <a href="/pkg/net/http/#Request.Context"><code>Request.Context</code></a>
+        is canceled if the underlying <code>net.Conn</code>
+        closes. For instance, if the user closes their browser in the
+        middle of a slow request, the <code>Handler</code> can now
+        detect that the user is gone. This complements the
+        existing <a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
+        support.
+      </li>
+
+      <li><!-- CL 32479 --> There is now a second way to serve trailers
+        for when the trailer name is not known before the headers are
+        written (via a call to
+        to <code>ResponseWriter.WriteHeader</code>). The old way
+        continues to work, but when the trailer is only known after the
+        header has been written, see the
+        new <a href="/pkg/net/http/#TrailerPrefix"><code>TrailerPrefix</code></a>.</li>
+
+      <li><!-- CL 33099 -->
+        A <code>Handler</code> now has a supported mechanism to abort a
+        response: panicking with
+        <a href="/pkg/net/http/#ErrAbortHandler"><code>ErrAbortHandler</code></a>.
+      </li>
+
+      <li><!-- CL 30812 -->
+        There is now a supported mechanism to test whether a
+        <code>ResponseWriter</code> has been hijacked: <code>Write</code> zero bytes to it.
+        While this previously returned
+        <a href="/pkg/net/http/#ErrHijacked"><code>ErrHijacked</code></a>, now
+        it also does so without spamming the server's error log.
+      </li>
+
+    </ul>
+
+    <p>Client &amp; Transport changes:</p>
+    <ul>
+      <li><!-- CL 28930 -->
+        The <code>Client</code> now copies request headers on redirect.
+      </li>
+
+      <li><!-- CL 29072 -->
+        The <code>Transport</code> now supports international domain names.
+      </li>
+
+      <li><!-- CL 31733, CL 29852 -->
+        The <code>Client</code> now supports 307 and 308 redirects.
+        If the redirect involves re-sending the request body,
+        the request must have the new
+        <a href="/pkg/net/http/#Request"><code>Request.GetBody</code></a>
+        field defined.
+        <a href="pkg/net/http/#NewRequest"><code>NewRequest</code></a>
+        sets <code>Request.GetBody</code> automatically for common
+        body types.
+      </li>
+
+      <li><!-- CL 32482 -->
+        The <code>Transport</code> now rejects requests for URLs with
+        ports containing non-digit characters.
+      </li>
+
+      <li><!-- CL 27117 -->
+        The <code>Transport</code> will now retry non-idempotent
+        requests if no bytes were written before a network failure.
+      </li>
+
+      <li><!-- CL 32481 -->
+        The
+        new <a href="/pkg/net/http/#Transport"><code>Transport.ProxyConnectHeader</code></a>
+        allows configuration of header values to send to a proxy
+        during a <code>CONNECT</code> request.
+      </li>
+
+      <li> <!-- CL 28077 -->
+        The <a href="/pkg/net/http/#DefaultTransport"><code>DefaultTransport.Dialer</code></a>
+        now enables <code>DualStack</code> ("Happy Eyeballs") support,
+        to use IPv4 as a backup if it looks like IPv6 might be
+        failing.
+      </li>
+    </ul>
 
   </dd>
 </dl>
