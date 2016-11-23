@@ -334,20 +334,26 @@ func stringsHasSuffix(s, suffix string) bool {
 // stringsHasSuffixFold reports whether s ends in suffix,
 // ASCII-case-insensitively.
 func stringsHasSuffixFold(s, suffix string) bool {
-	if len(suffix) > len(s) {
-		return false
-	}
-	for i := 0; i < len(suffix); i++ {
-		if lowerASCII(suffix[i]) != lowerASCII(s[len(s)-len(suffix)+i]) {
-			return false
-		}
-	}
-	return true
+	return len(s) >= len(suffix) && stringsEqualFold(s[len(s)-len(suffix):], suffix)
 }
 
 // stringsHasPrefix is strings.HasPrefix. It reports whether s begins with prefix.
 func stringsHasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+// stringsEqualFold is strings.EqualFold, ASCII only. It reports whether s and t
+// are equal, ASCII-case-insensitively.
+func stringsEqualFold(s, t string) bool {
+	if len(s) != len(t) {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if lowerASCII(s[i]) != lowerASCII(t[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func readFull(r io.Reader) (all []byte, err error) {
