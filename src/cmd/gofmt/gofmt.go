@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"runtime/pprof"
 	"strings"
 )
@@ -252,6 +253,8 @@ func diff(b1, b2 []byte) (data []byte, err error) {
 
 }
 
+const chmodSupported = runtime.GOOS != "windows"
+
 // backupFile writes data to a new file named filename<number> with permissions perm,
 // with <number randomly chosen such that the file name is unique. backupFile returns
 // the chosen file name.
@@ -262,11 +265,13 @@ func backupFile(filename string, data []byte, perm os.FileMode) (string, error) 
 		return "", err
 	}
 	bakname := f.Name()
-	err = f.Chmod(perm)
-	if err != nil {
-		f.Close()
-		os.Remove(bakname)
-		return bakname, err
+	if chmodSupported {
+		err = f.Chmod(perm)
+		if err != nil {
+			f.Close()
+			os.Remove(bakname)
+			return bakname, err
+		}
 	}
 
 	// write data to backup file
