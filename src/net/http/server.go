@@ -2405,14 +2405,14 @@ func (s *Server) closeDoneChanLocked() {
 //
 // Close returns any error returned from closing the Server's
 // underlying Listener(s).
-func (s *Server) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.closeDoneChanLocked()
-	err := s.closeListenersLocked()
-	for c := range s.activeConn {
+func (srv *Server) Close() error {
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+	srv.closeDoneChanLocked()
+	err := srv.closeListenersLocked()
+	for c := range srv.activeConn {
 		c.rwc.Close()
-		delete(s.activeConn, c)
+		delete(srv.activeConn, c)
 	}
 	return err
 }
@@ -2437,19 +2437,19 @@ var shutdownPollInterval = 500 * time.Millisecond
 // connections such as WebSockets. The caller of Shutdown should
 // separately notify such long-lived connections of shutdown and wait
 // for them to close, if desired.
-func (s *Server) Shutdown(ctx context.Context) error {
-	atomic.AddInt32(&s.inShutdown, 1)
-	defer atomic.AddInt32(&s.inShutdown, -1)
+func (srv *Server) Shutdown(ctx context.Context) error {
+	atomic.AddInt32(&srv.inShutdown, 1)
+	defer atomic.AddInt32(&srv.inShutdown, -1)
 
-	s.mu.Lock()
-	lnerr := s.closeListenersLocked()
-	s.closeDoneChanLocked()
-	s.mu.Unlock()
+	srv.mu.Lock()
+	lnerr := srv.closeListenersLocked()
+	srv.closeDoneChanLocked()
+	srv.mu.Unlock()
 
 	ticker := time.NewTicker(shutdownPollInterval)
 	defer ticker.Stop()
 	for {
-		if s.closeIdleConns() {
+		if srv.closeIdleConns() {
 			return lnerr
 		}
 		select {
