@@ -35,9 +35,27 @@ fi
 ./make.bash || exit 1
 GOROOT="$(cd .. && pwd)"
 
+gettargets() {
+    ../bin/go tool dist list | sed -e 's|/|-|'
+    echo linux-386-387
+    echo linux-arm-arm5
+}
+
+selectedtargets() {
+    gettargets | egrep -v 'android-arm|darwin-arm' | egrep "$pattern"
+}
+
 # put linux, nacl first in the target list to get all the architectures up front.
-targets="$((../bin/go tool dist list | sed -n 's/^\(.*\)\/\(.*\)/\1-\2/p'; echo linux-386-387 linux-arm-arm5) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
-$(../bin/go tool dist list | sed -n 's/^\(.*\)\/\(.*\)/\1-\2/p' | egrep -v 'android-arm|darwin-arm' | egrep "$pattern" | egrep -v 'linux|nacl')"
+linux_nacl_targets() {
+    selectedtargets | egrep 'linux|nacl' | sort
+}
+
+non_linux_nacl_targets() {
+    selectedtargets | egrep -v 'linux|nacl' | sort
+}
+
+# Note words in $targets are separated by both newlines and spaces.
+targets="$(linux_nacl_targets) $(non_linux_nacl_targets)"
 
 failed=false
 for target in $targets
