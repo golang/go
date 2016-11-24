@@ -72,6 +72,8 @@ func Drivers() []string {
 // NamedParam may be passed into query parameter arguments to associate
 // a named placeholder with a value.
 type NamedParam struct {
+	_Named_Fields_Required struct{}
+
 	// Name of the parameter placeholder. If empty the ordinal position in the
 	// argument list will be used.
 	Name string
