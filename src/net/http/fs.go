@@ -116,8 +116,8 @@ func dirList(w ResponseWriter, f File) {
 // The content's Seek method must work: ServeContent uses
 // a seek to the end of the content to determine its size.
 //
-// If the caller has set w's ETag header, ServeContent uses it to
-// handle requests using If-Match, If-None-Match, or If-Range.
+// If the caller has set w's ETag header formatted per RFC 7232, section 2.3,
+// ServeContent uses it to handle requests using If-Match, If-None-Match, or If-Range.
 //
 // Note that *os.File implements the io.ReadSeeker interface.
 func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
