@@ -10,7 +10,6 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"errors"
-	"flag"
 	"fmt"
 	"go/build"
 	"io"
@@ -166,7 +165,6 @@ func TestMain(m *testing.M) {
 	// That won't work if GOBIN is set.
 	os.Unsetenv("GOBIN")
 
-	flag.Parse()
 	exitCode, err := testMain(m)
 	if err != nil {
 		log.Fatal(err)
