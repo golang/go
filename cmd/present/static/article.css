@@ -31,15 +31,14 @@ h1, h2, h3, h4 {
 	font-weight: bold;
 }
 h1 {
-	font-size: 24px;
-}
-h2 {
-	font-size: 20px;
-	background: #E0EBF5;
+	font-size: 18px;
 	padding: 2px 5px;
 }
+h2 {
+	font-size: 16px;
+}
 h3 {
-	font-size: 20px;
+	font-size: 16px;
 }
 h3, h4 {
 	margin: 20px 5px;
@@ -49,17 +48,19 @@ h4 {
 }
 
 div#heading {
-	float: left;
 	margin: 0 0 10px 0;
 	padding: 21px 0;
 	font-size: 20px;
+	font-weight: bold;
+}
+
+div#heading .author {
+	padding-top: 10px;
+	font-size: 14px;
 	font-weight: normal;
 }
 
 div#topbar {
-	background: #E0EBF5;
-	height: 64px;
-	overflow: hidden;
 }
 
 body {
@@ -89,19 +90,23 @@ div#footer {
 }
 
 .author p {
-	margin: 20, 0, 0, 0px;
+	margin: 0;
+	padding: 0 20px;
 }
 
 div.code,
 div.output {
-	margin: 20px;
-	padding: 10px;
+	margin: 20px 20px 20px 40px;
 	-webkit-border-radius: 5px;
 	-moz-border-radius: 5px;
 	border-radius: 5px;
 }
 
-div.code { background: #e9e9e9; }
+div.output {
+	padding: 10px;
+}
+
+div.code { background: white; }
 div.output { background: black; }
 div.output .stdout { color: #e6e6e6; }
 div.output .stderr { color: rgb(244, 74, 63); }
@@ -120,7 +125,9 @@ div.output .buttons {
 	margin: 0px 10px;
 	padding: 10px;
 	border: 1px solid #e5ecf9; 
-	background-color: white;
+	background-color: #eee;
+	box-shadow: 3px 3px 2px #888888;
+
 	max-width: 33%;
 
 	-webkit-border-radius: 5px;
@@ -128,9 +135,27 @@ div.output .buttons {
 	border-radius: 5px;
 }
 
+#tochead {
+	font-weight: bold;
+	font-variant: small-caps;
+	font-size: 100%;
+	text-align: center;
+	padding-bottom: 5px;
+}
+
 #toc ul, #toc a {
 	list-style-type: none;
-	padding-left: 10px;
+	padding-left: 0px;
 	color: black;
 	margin: 0px;
+}
+
+ul.toc-inner a {
+	padding-left: 10px !important;
+}
+
+@media print {
+	.no-print, .no-print * {
+		display: none !important;
+	}
 }
