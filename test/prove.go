@@ -451,6 +451,18 @@ func f14(p, q *int, a []int) {
 	useInt(a[i2+j]) // ERROR "Proved boolean IsInBounds$"
 }
 
+func f15(s []int, x int) {
+	useSlice(s[x:])
+	useSlice(s[:x]) // ERROR "Proved IsSliceInBounds$"
+}
+
+func f16(s []int) []int {
+	if len(s) >= 10 {
+		return s[:10] // ERROR "Proved non-negative bounds IsSliceInBounds$"
+	}
+	return nil
+}
+
 //go:noinline
 func useInt(a int) {
 }

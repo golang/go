@@ -50,7 +50,7 @@ func f5(a []int) {
 	if len(a) > 5 {
 		useInt(a[5])
 		useSlice(a[6:])
-		useSlice(a[:6]) // ERROR "Found IsSliceInBounds$"
+		useSlice(a[:6])
 	}
 }
 
