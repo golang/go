@@ -273,7 +273,7 @@ func f11c(a []int, i int) {
 
 func f11d(a []int, i int) {
 	useInt(a[2*i+7])
-	useInt(a[2*i+7])
+	useInt(a[2*i+7]) // ERROR "Proved boolean IsInBounds$"
 }
 
 func f12(a []int, b int) {
@@ -436,6 +436,19 @@ func f13i(a uint) int {
 		return 2
 	}
 	return 3
+}
+
+func f14(p, q *int, a []int) {
+	// This crazy ordering usually gives i1 the lowest value ID,
+	// j the middle value ID, and i2 the highest value ID.
+	// That used to confuse CSE because it ordered the args
+	// of the two + ops below differently.
+	// That in turn foiled bounds check elimination.
+	i1 := *p
+	j := *q
+	i2 := *p
+	useInt(a[i1+j])
+	useInt(a[i2+j]) // ERROR "Proved boolean IsInBounds$"
 }
 
 //go:noinline
