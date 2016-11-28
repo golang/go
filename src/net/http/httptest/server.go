@@ -235,7 +235,7 @@ func (s *Server) CloseClientConnections() {
 	nconn := len(s.conns)
 	ch := make(chan struct{}, nconn)
 	for c := range s.conns {
-		s.closeConnChan(c, ch)
+		go s.closeConnChan(c, ch)
 	}
 	s.mu.Unlock()
 
