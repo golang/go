@@ -19,7 +19,7 @@ var executablePath, executablePathErr = func() (string, error) {
 	switch runtime.GOOS {
 	default:
 		return "", errors.New("Executable not implemented for " + runtime.GOOS)
-	case "linux":
+	case "linux", "android":
 		procfn = "/proc/self/exe"
 	case "netbsd":
 		procfn = "/proc/curproc/exe"
