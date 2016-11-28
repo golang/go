@@ -200,6 +200,10 @@ func sysargs(argc int32, argv **byte) {
 
 	// now argv+n is auxv
 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	sysauxv(auxv[:])
+}
+
+func sysauxv(auxv []uintptr) {
 	for i := 0; auxv[i] != _AT_NULL; i += 2 {
 		tag, val := auxv[i], auxv[i+1]
 		switch tag {
