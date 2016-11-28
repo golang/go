@@ -46,7 +46,7 @@ a:hover,
 .permalink {
 	display: none;
 }
-h2:hover .permalink, h3:hover .permalink {
+:hover > .permalink {
 	display: inline;
 }
 

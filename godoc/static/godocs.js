@@ -305,9 +305,36 @@ function updateVersionTags() {
   }
 }
 
+function addPermalinks() {
+  function addPermalink(source, parent) {
+    var id = source.attr("id");
+    if (id == "" || id.indexOf("tmp_") === 0) {
+      // Auto-generated permalink.
+      return;
+    }
+    if (parent.find("> .permalink").length) {
+      // Already attached.
+      return;
+    }
+    parent.append(" ").append($("<a class='permalink'>&#xb6;</a>").attr("href", "#" + id));
+  }
+
+  $("#page .container").find("h2[id], h3[id]").each(function() {
+    var el = $(this);
+    addPermalink(el, el);
+  });
+
+  $("#page .container").find("dl[id]").each(function() {
+    var el = $(this);
+    // Add the anchor to the "dt" element.
+    addPermalink(el, el.find("> dt").first());
+  });
+}
+
 $(document).ready(function() {
   bindSearchEvents();
   generateTOC();
+  addPermalinks();
   bindToggles(".toggle");
   bindToggles(".toggleVisible");
   bindToggleLinks(".exampleLink", "example_");
