@@ -7,6 +7,7 @@ package pprof_test
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"regexp"
 	"runtime"
 	. "runtime/pprof"
@@ -42,6 +43,17 @@ func allocatePersistent1K() {
 	}
 }
 
+// Allocate transient memory using reflect.Call.
+
+func allocateReflectTransient() {
+	memSink = make([]byte, 2<<20)
+}
+
+func allocateReflect() {
+	rv := reflect.ValueOf(allocateReflectTransient)
+	rv.Call(nil)
+}
+
 var memoryProfilerRun = 0
 
 func TestMemoryProfiler(t *testing.T) {
@@ -61,6 +73,7 @@ func TestMemoryProfiler(t *testing.T) {
 	allocateTransient1M()
 	allocateTransient2M()
 	allocatePersistent1K()
+	allocateReflect()
 	memSink = nil
 
 	runtime.GC() // materialize stats
@@ -73,18 +86,22 @@ func TestMemoryProfiler(t *testing.T) {
 
 	tests := []string{
 		fmt.Sprintf(`%v: %v \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:40
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:63
+#	0x[0-9,a-f]+	runtime/pprof_test\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:41
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:75
 `, 32*memoryProfilerRun, 1024*memoryProfilerRun, 32*memoryProfilerRun, 1024*memoryProfilerRun),
 
 		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient1M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:21
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:61
+#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient1M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:22
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:73
 `, (1<<10)*memoryProfilerRun, (1<<20)*memoryProfilerRun),
 
 		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:27
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:62
+#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:28
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:74
+`, memoryProfilerRun, (2<<20)*memoryProfilerRun),
+
+		fmt.Sprintf(`0: 0 \[%v: %v\] @( 0x[0-9,a-f]+)+
+#	0x[0-9,a-f]+	runtime/pprof_test\.allocateReflectTransient\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:49
 `, memoryProfilerRun, (2<<20)*memoryProfilerRun),
 	}
 

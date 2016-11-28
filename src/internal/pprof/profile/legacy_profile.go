@@ -1224,6 +1224,8 @@ var allocSkipRxStr = strings.Join([]string{
 	// Preserve Go runtime frames that appear in the middle/bottom of
 	// the stack.
 	`runtime\.panic`,
+	`runtime\.reflectcall`,
+	`runtime\.call[0-9]*`,
 }, `|`)
 
 var cpuProfilerRxStr = strings.Join([]string{
