@@ -13,6 +13,8 @@ package loader_test
 import (
 	"fmt"
 	"go/build"
+	"go/constant"
+	"go/types"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -475,6 +477,60 @@ func TestVendorCwd(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestVendorCwdIssue16580(t *testing.T) {
+	// Regression test for Go issue 16580.
+	// Import decls in "created" packages were vendor-resolved
+	// w.r.t. cwd, not the parent directory of the package's files.
+	ctxt := fakeContext(map[string]string{
+		"a":          ``, // mkdir a
+		"a/vendor":   ``, // mkdir a/vendor
+		"a/vendor/b": `package b; const X = true`,
+		"b":          `package b; const X = false`,
+	})
+	for _, test := range []struct {
+		filename, cwd string
+		want          bool // expected value of b.X; depends on filename, not on cwd
+	}{
+		{filename: "c.go", cwd: "/go/src", want: false},
+		{filename: "c.go", cwd: "/go/src/a", want: false},
+		{filename: "c.go", cwd: "/go/src/a/b", want: false},
+		{filename: "c.go", cwd: "/go/src/a/vendor/b", want: false},
+
+		{filename: "/go/src/a/c.go", cwd: "/go/src", want: true},
+		{filename: "/go/src/a/c.go", cwd: "/go/src/a", want: true},
+		{filename: "/go/src/a/c.go", cwd: "/go/src/a/b", want: true},
+		{filename: "/go/src/a/c.go", cwd: "/go/src/a/vendor/b", want: true},
+
+		{filename: "/go/src/c/c.go", cwd: "/go/src", want: false},
+		{filename: "/go/src/c/c.go", cwd: "/go/src/a", want: false},
+		{filename: "/go/src/c/c.go", cwd: "/go/src/a/b", want: false},
+		{filename: "/go/src/c/c.go", cwd: "/go/src/a/vendor/b", want: false},
+	} {
+		conf := loader.Config{
+			Cwd:   test.cwd,
+			Build: ctxt,
+		}
+		f, err := conf.ParseFile(test.filename, `package dummy; import "b"; const X = b.X`)
+		if err != nil {
+			t.Fatal(f)
+		}
+		conf.CreateFromFiles("dummy", f)
+
+		prog, err := conf.Load()
+		if err != nil {
+			t.Errorf("%+v: Load failed: %v", test, err)
+			continue
+		}
+
+		x := constant.BoolVal(prog.Created[0].Pkg.Scope().Lookup("X").(*types.Const).Val())
+		if x != test.want {
+			t.Errorf("%+v: b.X = %t", test, x)
+		}
+	}
+
+	// TODO(adonovan): also test imports within XTestGoFiles.
 }
 
 // TODO(adonovan): more Load tests:

@@ -17,6 +17,7 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -132,6 +133,8 @@ type Config struct {
 // Files are processed first, but typically only one of Files and
 // Filenames is provided.  The path needn't be globally unique.
 //
+// For vendoring purposes, the package's directory is the one that
+// contains the first file.
 type PkgSpec struct {
 	Path      string      // package path ("" => use package declaration)
 	Files     []*ast.File // ASTs of already-parsed files
@@ -586,9 +589,8 @@ func (conf *Config) Load() (*Program, error) {
 		imp.addFiles(info, files, false)
 	}
 
-	createPkg := func(path string, files []*ast.File, errs []error) {
-		// TODO(adonovan): fix: use dirname of files, not cwd.
-		info := imp.newPackageInfo(path, conf.Cwd)
+	createPkg := func(path, dir string, files []*ast.File, errs []error) {
+		info := imp.newPackageInfo(path, dir)
 		for _, err := range errs {
 			info.appendError(err)
 		}
@@ -613,14 +615,19 @@ func (conf *Config) Load() (*Program, error) {
 				path = "(unnamed)"
 			}
 		}
-		createPkg(path, files, errs)
+
+		dir := "."
+		if len(files) > 0 && files[0].Pos().IsValid() {
+			dir = filepath.Dir(conf.fset().File(files[0].Pos()).Name())
+		}
+		createPkg(path, dir, files, errs)
 	}
 
 	// Create external test packages.
 	sort.Sort(byImportPath(xtestPkgs))
 	for _, bp := range xtestPkgs {
 		files, errs := imp.conf.parsePackageFiles(bp, 'x')
-		createPkg(bp.ImportPath+"_test", files, errs)
+		createPkg(bp.ImportPath+"_test", bp.Dir, files, errs)
 	}
 
 	// -- finishing up (sequential) ----------------------------------------
