@@ -257,6 +257,8 @@ again:
 	B	foo(SB) // JMP foo(SB)
 	BL	foo(SB) // CALL foo(SB)
 	BEQ	2(PC)
+	TBZ	$1, R1, 2(PC)
+	TBNZ	$2, R2, 2(PC)
 	JMP	foo(SB)
 	CALL	foo(SB)
 

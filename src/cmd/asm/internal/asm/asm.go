@@ -390,6 +390,18 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			}
 			break
 		}
+		if p.arch.Family == sys.ARM64 {
+			// Special 3-operand jumps.
+			// a[0] must be immediate constant; a[1] is a register.
+			if a[0].Type != obj.TYPE_CONST {
+				p.errorf("%s: expected immediate constant; found %s", op, obj.Dconv(prog, &a[0]))
+				return
+			}
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			target = &a[2]
+			break
+		}
 
 		fallthrough
 	default:
