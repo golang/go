@@ -16,7 +16,6 @@ TEXT	foo(SB), 7, $-8
 //		outcode($1, &$2, $4, &$6);
 //	}
 // imsr comes from the old 7a, we only support immediates and registers
-// at the moment, no shifted registers.
 	ADDW	$1, R2, R3
 	ADDW	R1, R2, R3
 	ADDW	R1, ZR, R3
@@ -24,6 +23,10 @@ TEXT	foo(SB), 7, $-8
 	ADD	R1, R2, R3
 	ADD	R1, ZR, R3
 	ADD	$1, R2, R3
+	ADD	R1>>11, R2, R3
+	ADD	R1<<22, R2, R3
+	ADD	R1->33, R2, R3
+	AND	R1@>33, R2, R3
 
 //	LTYPE1 imsr ',' spreg ','
 //	{
@@ -37,6 +40,10 @@ TEXT	foo(SB), 7, $-8
 	ADDW	R1, R2
 	ADD	$1, R2
 	ADD	R1, R2
+	ADD	R1>>11, R2
+	ADD	R1<<22, R2
+	ADD	R1->33, R2
+	AND	R1@>33, R2
 
 //
 // CLS
@@ -118,7 +125,9 @@ TEXT	foo(SB), 7, $-8
 //	}
 	CMP	$3, R2
 	CMP	R1, R2
-
+	CMP	R1->11, R2
+	CMP	R1>>22, R2
+	CMP	R1<<33, R2
 //
 // CBZ
 //
