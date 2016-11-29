@@ -72,6 +72,14 @@ func TestFont(t *testing.T) {
 			`Visit <a href="http://golang.org" target="_blank">golang.org</a> now`},
 		{"my talk ([[http://talks.golang.org/][slides here]])",
 			`my talk (<a href="http://talks.golang.org/" target="_blank">slides here</a>)`},
+		{"Markup—_especially_italic_text_—can easily be overused.",
+			`Markup—<i>especially italic text</i>—can easily be overused.`},
+		{"`go`get`'s codebase", // ascii U+0027 ' before s
+			`<code>go get</code>'s codebase`},
+		{"`go`get`’s codebase", // unicode right single quote U+2019 ’ before s
+			`<code>go get</code>’s codebase`},
+		{"a_variable_name",
+			`a_variable_name`},
 	}
 	for _, test := range tests {
 		out := font(test.in)

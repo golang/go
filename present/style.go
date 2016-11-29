@@ -52,16 +52,16 @@ Word:
 			words[w] = link
 			continue Word
 		}
-		const punctuation = `.,;:()!?—–'"`
 		const marker = "_*`"
 		// Initial punctuation is OK but must be peeled off.
 		first := strings.IndexAny(word, marker)
 		if first == -1 {
 			continue Word
 		}
-		// Is the marker prefixed only by punctuation?
-		for _, r := range word[:first] {
-			if !strings.ContainsRune(punctuation, r) {
+		// Opening marker must be at the beginning of the token or else preceded by punctuation.
+		if first != 0 {
+			r, _ := utf8.DecodeLastRuneInString(word[:first])
+			if !unicode.IsPunct(r) {
 				continue Word
 			}
 		}
@@ -81,17 +81,18 @@ Word:
 			open += "<code>"
 			close = "</code>"
 		}
-		// Terminal punctuation is OK but must be peeled off.
+		// Closing marker must be at the end of the token or else followed by punctuation.
 		last := strings.LastIndex(word, word[:1])
 		if last == 0 {
 			continue Word
 		}
-		head, tail := word[:last+1], word[last+1:]
-		for _, r := range tail {
-			if !strings.ContainsRune(punctuation, r) {
+		if last+1 != len(word) {
+			r, _ := utf8.DecodeRuneInString(word[last+1:])
+			if !unicode.IsPunct(r) {
 				continue Word
 			}
 		}
+		head, tail := word[:last+1], word[last+1:]
 		b.Reset()
 		b.WriteString(open)
 		var wid int

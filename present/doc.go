@@ -77,14 +77,22 @@ Fonts:
 Within the input for plain text or lists, text bracketed by font
 markers will be presented in italic, bold, or program font.
 Marker characters are _ (italic), * (bold) and ` (program font).
-Unmatched markers appear as plain text.
-Within marked text, a single marker character becomes a space
-and a doubled single marker quotes the marker character.
+An opening marker must be preceded by a space or punctuation
+character or else be at start of a line; similarly, a closing
+marker must be followed by a space or punctuation character or
+else be at the end of a line. Unmatched markers appear as plain text.
+There must be no spaces between markers. Within marked text,
+a single marker character becomes a space and a doubled single
+marker quotes the marker character.
+
+at the beginning of a line or
+else be preceded by a space or punctuation; similarly a closing
+marker must be at the end of the lineo
 
 	_italic_
 	*bold*
 	`program`
-	_this_is_all_italic_
+	Markup—_especially_italic_text_—can easily be overused.
 	_Why_use_scoped__ptr_? Use plain ***ptr* instead.
 
 Inline links:
