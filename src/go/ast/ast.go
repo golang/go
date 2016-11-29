@@ -902,7 +902,7 @@ type (
 
 	// A GenDecl node (generic declaration node) represents an import,
 	// constant, type or variable declaration. A valid Lparen position
-	// (Lparen.Line > 0) indicates a parenthesized declaration.
+	// (Lparen.IsValid()) indicates a parenthesized declaration.
 	//
 	// Relationship between Tok value and Specs element type:
 	//
