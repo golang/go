@@ -35,7 +35,8 @@ The release <a href="#ports">adds support for 32-bit MIPS</a>,
 <a href="#compiler">updates the compiler back end</a> to generate more efficient code,
 <a href="#gc">reduces GC pauses</a> by eliminating stop-the-world stack rescanning,
 <a href="#h2push">adds HTTP/2 Push support</a>,
-<a href="#httpshutdown">adds HTTP graceful shutdown</a>,
+<a href="#http_shutdown">adds HTTP graceful shutdown</a>,
+<a href="#more_context">more context support</a>,
 and <a href="#sort">simplifies sorting slices</a>.
 </p>
 
@@ -43,7 +44,7 @@ and <a href="#sort">simplifies sorting slices</a>.
 
 <p>
   When explicitly converting structs, tags are now ignored for structural type identity.
-  See <a href="/ref/spec#Conversions">language specification</a> for details.
+  See the <a href="/ref/spec#Conversions">language specification</a> for details.
 </p>
 
 <p> <!-- CL 17711 -->
@@ -74,7 +75,7 @@ and cancelation.
 
 <p>
   Go 1.8 now only supports OS X 10.8 or later. This is likely the last
-  Go release to continue supporting 10.8. Compiling Go or running
+  Go release to support 10.8. Compiling Go or running
   binaries on older OS X versions is untested.
 </p>
 
@@ -229,7 +230,7 @@ see improvements closer to the 32-bit ARM numbers.
 <p>
   In addition to enabling the new compiler back end for all systems,
   Go 1.8 also introduces a new compiler front end. The new compiler
-  front end should not be noticeable to users is the foundation for
+  front end should not be noticeable to users but is the foundation for
   future performance work.
 </p>
 
@@ -252,14 +253,15 @@ see improvements closer to the 32-bit ARM numbers.
 <h3 id="cmd_go">Go command</h3>
 
 <p>
-The <a href="/cmd/go/"><code>go</code></a> command's basic operation
-is unchanged, but there are a number of changes worth noting.
+The <a href="/cmd/go/"><code>go</code> command</a>'s basic operation
+is unchanged, but there is one addition worth noting.
 </p>
 
 <p>
-  A new
+  The new
   “<a href="/cmd/go/#hdr-Print_information_for_bug_reports"><code>go</code>
-   <code>bug</code></a>” command helps users file bug reports.
+   <code>bug</code></a>” starts a bug report on GitHub, prefilled
+  with information about the current system.
 </p>
 
 <h3 id="cmd_doc">Go doc</h3>
@@ -274,14 +276,15 @@ is unchanged, but there are a number of changes worth noting.
 </p>
 
 <p> <!-- CL 25420 -->
-  In order to improve the readability of the <code>doc</code>'s
+  In order to improve the readability of <code>doc</code>'s
   output, each summary of the first-level items is guaranteed to
   occupy a single line.
 </p>
 
 <p> <!-- CL 31852 -->
-  Documentation for interface methods is now only shown when requested
-  explicitly.
+  Documentation for a specific method in an interface definition can
+  now be requested, as in
+  “<code>go</code> <code>doc</code> <code>net.Conn.SetDeadline</code>”.
 </p>
 
 <h3 id="plugin">Plugins</h3>
@@ -307,10 +310,14 @@ is unchanged, but there are a number of changes worth noting.
 </p>
 
 <p>
-  <i>Updating:</i> Users of finalizers should see the example
-  in the <a href="/pkg/runtime/#KeepAlive"><code>KeepAlive</code> documentation</a>
-  to see where a call to <code>KeepAlive</code> might be needed.
-  </p>
+  <i>Updating:</i>
+  Code that sets a finalizer on an allocated object may need to add
+  calls to <code>runtime.KeepAlive</code> in functions or methods
+  using that object.
+  Read the
+  <a href="/pkg/runtime/#KeepAlive"><code>KeepAlive</code>
+  documentation</a> and its example for more details.
+</p>
 
 <h3 id="memstats">MemStats Documentation</h3>
 
@@ -344,8 +351,8 @@ packages.
 
 <p>
   Garbage collection pauses should be significantly shorter than they
-  were in Go 1.7, often as low as 10 microseconds and usually under 100
-  microseconds.
+  were in Go 1.7, usually under 100 microseconds and often as low as
+  10 microseconds.
   See the
   <a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md"
      >document on eliminating stop-the-world stack re-scanning</a>
@@ -357,7 +364,7 @@ packages.
 <!-- CL 29656, CL 29656 -->
 <p>
   The overhead of <a href="/ref/spec/#Defer_statements">deferred
-  function calls</a> has been reduced by half.
+  function calls</a> has been reduced by about half.
 </p>
 
 <h3 id="cgoperf">Cgo</h3>
@@ -409,10 +416,32 @@ now implements the new
 <p> <!-- CL 32329 -->
   The HTTP Server now has support for graceful shutdown using the new
   <a href="/pkg/net/http/#Server.Shutdown"><code>Server.Shutdown</code></a>
-  method. The related and more abrupt
+  method and abrupt shutdown using the new
   <a href="/pkg/net/http/#Server.Close"><code>Server.Close</code></a>
-  is also new.
+  method.
 </p>
+
+<h3 id="more_context">More Context Support</h3>
+
+<p>
+  Continuing <a href="/doc/go1.7#context">Go 1.7's adoption</a>
+  of <a href="/pkg/context/#Context"><code>context.Context</code></a>
+  into the standard library, Go 1.8 adds more context support
+  to existing packages:
+</p>
+
+<ul>
+  <li>The new <a href="/pkg/net/http/#Server.Shutdown"><code>Server.Shutdown</code></a>
+    takes a context argument.</li>
+  <li>There have been <a href="#database_sql">significant additions</a> to the
+    <a href="/pkg/database/sql/">database/sql</a> package with context support.</li>
+  <li>The new <a href="/pkg/testing/#T.Context"><code>T.Context</code></a>
+    method in the <a href="/pkg/testing/">testing</a> package now returns a context for
+    the active test or benchmark.</li>
+  <li>All nine of the new <code>Lookup</code> methods on the new
+    <a href="/pkg/net/#Resolver"><code>net.Resolver</code></a> now
+    take a context.</li>
+  </ul>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -493,8 +522,8 @@ in mind.
 
       Similarly,
       the <a href="/pkg/compress/gzip/#Reader"><code>Reader</code></a>
-      now updates the <code>Header.ModTime</code> field only if the
-      encoded <code>MTIME</code> field is non-zero.
+      now reports a zero encoded <code>MTIME</code> field as a zero
+      <code>Header.ModTime</code>.
     </p>
 
   </dd>
@@ -519,12 +548,11 @@ in mind.
 	  ending in <code>Context</code> such as
 	  <a href="/pkg/database/sql/#DB.QueryContext"><code>DB.QueryContext</code></a> and
 	  <a href="/pkg/database/sql/#DB.PrepareContext"><code>DB.PrepareContext</code></a>
-	  that support <code>Context</code>. By using the new <code>Context</code> methods it ensures
+	  that take context arguments. Using the new <code>Context</code> methods ensures that
 	  connections are closed and returned to the connection pool when the
-	  request is done. It also enables canceling in-progress queries
-	  should the driver support it. Finally, using the <code>Context</code>
-	  methods allows the database pool to cancel waiting for the next
-	  available connection.
+	  request is done; enables canceling in-progress queries
+	  should the driver support that; and allows the database
+	  pool to cancel waiting for the next available connection.
     </p>
     <p>
       The <a href="/pkg/database/sql#IsolationLevel"><code>IsolationLevel</code></a>
@@ -541,8 +569,9 @@ in mind.
 	  which can include SQL type information, column type lengths, and the Go type.
     </p>
 	<p>
-      Multiple result sets are now supported on Rows. After
-	  <a href="/pkg/database/sql/#Rows.Next"><code>Rows.Next</code></a> returns false
+          A <a href="/pkg/database/sql/#Rows"><code>Rows</code></a>
+          can now represent multiple result sets. After
+	  <a href="/pkg/database/sql/#Rows.Next"><code>Rows.Next</code></a> returns false,
 	  <a href="/pkg/database/sql/#Rows.NextResultSet"><code>Rows.NextResultSet</code></a>
 	  may be called to advance to the next result set. The existing <code>Rows</code>
 	  should be continued to be used after it advances to the next result set.
@@ -553,11 +582,14 @@ in mind.
 	  helps create a <a href="/pkg/database/sql/#NamedParam"><code>NamedParam</code></a>
 	  more succinctly.
 	<p>
-	  Drivers that support the new <a href="/pkg/database/sql/driver/#Pinger"><code>Pinger</code></a>
-	  interface can now check if the server is still alive when the the
+          If a driver supports the new
+          <a href="/pkg/database/sql/driver/#Pinger"><code>Pinger</code></a>
+          interface, the <code>DB</code>'s
 	  <a href="/pkg/database/sql/#DB.Ping"><code>DB.Ping</code></a>
-	  or <a href="/pkg/database/sql/#DB.PingContext"><code>DB.PingContext</code></a>
-	  is called.
+	  and
+          <a href="/pkg/database/sql/#DB.PingContext"><code>DB.PingContext</code></a>
+          methods will use that interface to check whether a
+          database connection is still valid.
 	</p>
     <p>
 	  The new <code>Context</code> query methods work for all drivers, but
@@ -619,8 +651,8 @@ pkg debug/pe, type StringTable []uint8</pre>
     </p>
 
     <p> <!-- CL 31932 -->
-      A <code>nil</code> <a href="/pkg/encoding/json/#Marshaler"><code>Marshaler</code></a>
-      now marshals as a JSON "<code>null</code>" value.
+      A nil <a href="/pkg/encoding/json/#Marshaler"><code>Marshaler</code></a>
+      now marshals as a JSON <code>null</code> value.
     </p>
 
     <p> <!-- CL 21811 -->
@@ -629,17 +661,20 @@ pkg debug/pe, type StringTable []uint8</pre>
     </p>
 
     <p> <!-- CL 30371 -->
-      Marshal encodes floating-point numbers using the same format as in ES6,
+      <a href="/pkg/encoding/json/#Marshal"><code>Marshal</code></a>
+      encodes floating-point numbers using the same format as in ES6,
       preferring decimal (not exponential) notation for a wider range of values.
       In particular, all floating-point integers up to 2<sup>64</sup> format the
       same as the equivalent <code>int64</code> representation.
     </p>
 
     <p> <!-- CL 30944 -->
-      Implementations
+
+      In previous versions of Go, unmarshaling a JSON <code>null</code> into an
       of <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>
-      are now called with the literal "<code>null</code>" and can
-      decide how to handle it.
+      was considered a no-op; now the <code>Unmarshaler</code>'s
+      <code>UnmarshalJSON</code> method is called with the JSON literal
+      <code>null</code> and can define the semantics of that case.
     </p>
 
   </dd>
@@ -695,12 +730,13 @@ pkg debug/pe, type StringTable []uint8</pre>
 
     <p><!-- CL 27253, CL 33456 -->
       The new <a href="/pkg/math/rand/#Rand.Uint64"><code>Rand.Uint64</code></a>
-      method returns <code>uint64</code> values.  The
-      new <a href="/pkg/math/rand/#Rand.Source64"><code>Rand.Source64</code></a>
+      method returns <code>uint64</code> values. The
+      new <a href="/pkg/math/rand/#Source64"><code>Source64</code></a>
       interface describes sources capable of generating such values
       directly; otherwise the <code>Rand.Uint64</code> method
       constructs a <code>uint64</code> from two calls
-      to <code>Rand.Source</code>'s <code>Int63</code> method.
+      to <a href="/pkg/math/rand/#Source"><code>Source</code></a>'s
+      <code>Int63</code> method.
     </p>
 
   </dd>
@@ -713,13 +749,15 @@ pkg debug/pe, type StringTable []uint8</pre>
       The
       <a href="/pkg/mime/quotedprintable/#Reader"><code>Reader</code></a>'s
       parsing has been relaxed in two ways to accept
-      more input seen in the wild. First, it now accepts
-      a <code>=</code> sign even if it's not followed by two hex
-      digits. <!-- CL 32174 -->
+      more input seen in the wild.
 
-      Second, it accepts a trailing soft line-break at the end of a
-      message. <!-- CL 27530 --> That is, the final byte of the
-      message may be a <code>=</code> sign and it will now be ignored.
+      <!-- CL 32174 -->
+      First, it accepts an equals sign (<code>=</code>) not followed
+      by two hex digits as a literal equal sign.
+
+      <!-- CL 27530 -->
+      Second, it silently ignores a trailing equals sign at the end of
+      an encoded input.
     </p>
 
   </dd>
@@ -926,8 +964,8 @@ pkg debug/pe, type StringTable []uint8</pre>
       <a href="/pkg/net/url/#URL.Hostname"><code>URL.Hostname</code></a>
       and
       <a href="/pkg/net/url/#URL.Port"><code>URL.Port</code></a>
-      are accessors to the hostname and port fields of a URL
-      and deal with the case where the port may or may not be present.
+      return the hostname and port fields of a URL,
+      correctly handling the case where the port may not be present.
     </p>
 
     <p> <!-- CL 28343 --> The existing method
@@ -961,7 +999,7 @@ pkg debug/pe, type StringTable []uint8</pre>
     <p>
       The new function
       <a href="/pkg/os/#Executable"><code>Executable</code></a> returns
-	  the running executable path name.
+      the path name of the running executable.
     </p>
   </dd>
 </dl>
