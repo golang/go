@@ -541,6 +541,122 @@ in mind.
   </dd>
 </dl>
 
+<dl id="crypto_tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p> <!-- CL 25159, CL 31318 -->
+      The new method
+      <a href="/pkg/crypto/tls/#Conn.CloseWrite"><code>Conn.CloseWrite</code></a>
+      allows TLS connections to be half closed.
+    </p>
+
+    <p> <!-- CL 28075 -->
+      The new method
+      <a href="/pkg/crypto/tls/#Config.Clone"><code>Config.Clone</code></a>
+      clones a TLS configuration.
+    </p>
+
+    <p>
+      <!-- CL 30790 -->
+      The new <a href="/pkg/crypto/tls/#Config.GetConfigForClient"><code>Config.GetConfigForClient</code></a> (TODO: make link work)
+      callback allows selecting a configuration for a client dynamically, based
+      on the client's
+      <a href="/pkg/crypto/tls/#ClientHelloInfo"><code>ClientHelloInfo</code></a>.
+
+      <!-- CL 31391, CL 32119 -->
+      The <a href="/pkg/crypto/tls/#ClientHelloInfo"><code>ClientHelloInfo</code></a>
+      struct now has new
+      fields <code>Conn</code>, <code>SignatureSchemes</code> (using
+      the new
+      type <a href="/kg/crypto/tls/#SignatureScheme"><code>SignatureScheme</code></a>),
+      <code>SupportedProtos</code>, and <code>SupportedVersions</code>.
+    </p>
+
+    <p> <!-- CL 32115 -->
+      The new <a href="/pkg/crypto/tls/#Config.GetClientCertificate"><code>Config.GetClientCertificate</code></a> (TODO: make link work)
+      callback allows selecting a client certificate based on the server's
+      TLS <code>CertificateRequest</code> message, represented by the new
+      <a href="/pkg/crypto/tls/#CertificateRequestInfo"><code>CertificateRequestInfo</code></a>.
+    </p>
+
+    <p> <!-- CL 27434 -->
+      The new
+      <a href="/pkg/crypto/tls/#Config.KeyLogWriter"><code>Config.KeyLogWriter</code></a>
+      (TODO: make link work) allows debugging TLS connections
+      in <a href="https://www.wireshark.org/">WireShark</a> and
+      similar tools.
+    </p>
+
+    <p> <!-- CL 32115 -->
+      The new
+      <a href="/pkg/crypto/tls/#Config.VerifyPeerCertificate"><code>Config.VerifyPeerCertificate</code></a>
+      (TODO: make link work)
+      callback allows additional validation of a peer's presented certificate.
+    </p>
+
+    <p> <!-- CL 18130 -->
+      The <code>crypto/tls</code> package now implements basic
+      countermeasures against CBC padding oracles. There should be
+      no explicit secret-dependent timings, but it does not attempt to
+      normalize memory accesses to prevent cache timing leaks.
+    </p>
+
+    <p>
+      The <code>crypto/tls</code> package now supports
+      X25519 and <!-- CL 30824, CL 30825 -->
+      ChaCha20-Poly1305.  <!-- CL 30957, CL 30958 -->
+      ChaCha20-Poly1305 is now prioritized unless <!-- CL 32871 -->
+      AES-GCM when hardware support is present.
+    </p>
+
+    <p> <!-- CL 27315 -->
+      AES-128-CBC cipher suites with SHA-256 are also
+      now supported.
+    </p>
+    
+  </dd>
+</dl>
+
+<dl id="crypto_x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p> <!-- CL 30578 -->
+      <a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>
+      is now implemented on Windows.
+    </p>
+
+    <p> <!-- CL 24743 -->
+      PSS signatures are now supported.
+    </p>
+
+    <p> <!-- CL 32644 -->
+      <a href="/pkg/crypto/x509/#UnknownAuthorityError"><code>UnknownAuthorityError</code></a>
+      now has a <code>Cert</code> field, reporting the untrusted
+      certificate.
+    </p>
+
+    <p>
+      Certificate validation is more permissive in a few cases and
+      stricter in a few other cases.
+    <!--
+crypto/x509: allow a leaf certificate to be specified directly as root (CL 27393)
+crypto/x509: check that the issuer name matches the issuer's subject name (CL 23571)
+crypto/x509: don't accept a root that already appears in a chain. (CL 32121)
+crypto/x509: fix name constraints handling (CL 30155)
+crypto/x509: parse all names in an RDN (CL 30810)
+crypto/x509: recognise ISO OID for RSA+SHA1 (CL 27394)
+crypto/x509: require a NULL parameters for RSA public keys (CL 16166, CL 27312)
+crypto/x509: return error for missing SerialNumber (CL 27238)
+-->
+    </p>
+
+    <p><!-- CL 30375 -->
+      Root certificates will now also be looked for
+      at <code>/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem</code>
+      on Linux, to support RHEL and CentOS.
+    </p>
+    
+  </dd>
+</dl>
+    
 <dl id="database_sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
     <p>
@@ -725,6 +841,29 @@ pkg debug/pe, type StringTable []uint8</pre>
   </dd>
 </dl>
 
+<dl id="math_big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- CL 30706 -->
+      The new method
+      <a href="/pkg/math/big/#Int.Sqrt"><code>Int.Sqrt</code></a>
+      calculates ⌊√x⌋.
+    </p>
+
+    <p>
+      The new method
+      <a href="/pkg/math/big/#Float.Scan"><code>Float.Scan</code></a>
+      is a support routine for
+      <a href="/pkg/fmt/#Scanner"><code>fmt.Scanner</code></a>.
+    </p>
+
+    <p>
+      <a href="/pkg/math/big/#Int.ModInverse"><code>Int.ModInverse</code></a>
+      now supports negative numbers.
+    </p>
+    
+  </dd>
+</dl>
+
 <dl id="math_rand"><dt><a href="/pkg/math/rand/">math/rand</a></dt>
   <dd>
 
@@ -739,6 +878,23 @@ pkg debug/pe, type StringTable []uint8</pre>
       <code>Int63</code> method.
     </p>
 
+  </dd>
+</dl>
+
+<dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
+  <dd>
+    <p> <!-- CL 32175 -->
+    <a href="/pkg/mime/#ParseMediaType"><code>ParseMediaType</code></a>
+    now preserves unnecessary backslash escapes as literals,
+    in order to support MSIE.
+    When MSIE sends a full file path (in "intranet mode"), it does not
+    escape backslashes: <code>"C:\dev\go\foo.txt"</code>, not
+    <code>"C:\\dev\\go\\foo.txt"</code>.
+    If we see an unnecessary backslash escape, we now assume it is from MSIE
+    and intended as a literal backslash.
+    No known MIME generators emit unnecessary backslash escapes
+    for simple token characters like numbers and letters.
+    </p>
   </dd>
 </dl>
 
