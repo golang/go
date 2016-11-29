@@ -137,6 +137,8 @@ const (
 	ElfSymTypeFunc    = 2
 	ElfSymTypeSection = 3
 	ElfSymTypeFile    = 4
+	ElfSymTypeCommon  = 5
+	ElfSymTypeTLS     = 6
 )
 
 const (
@@ -751,10 +753,10 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			goto bad
 		}
 		symbols[i] = sym.sym
-		if sym.type_ != ElfSymTypeFunc && sym.type_ != ElfSymTypeObject && sym.type_ != ElfSymTypeNone {
+		if sym.type_ != ElfSymTypeFunc && sym.type_ != ElfSymTypeObject && sym.type_ != ElfSymTypeNone && sym.type_ != ElfSymTypeCommon {
 			continue
 		}
-		if sym.shndx == ElfSymShnCommon {
+		if sym.shndx == ElfSymShnCommon || sym.type_ == ElfSymTypeCommon {
 			s = sym.sym
 			if uint64(s.Size) < sym.size {
 				s.Size = int64(sym.size)
@@ -1035,7 +1037,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
 	case ElfSymTypeSection:
 		s = elfobj.sect[sym.shndx].sym
 
-	case ElfSymTypeObject, ElfSymTypeFunc, ElfSymTypeNone:
+	case ElfSymTypeObject, ElfSymTypeFunc, ElfSymTypeNone, ElfSymTypeCommon:
 		switch sym.bind {
 		case ElfSymBindGlobal:
 			if needSym != 0 {
