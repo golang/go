@@ -43,12 +43,12 @@ and <a href="#sort">simplifies sorting slices</a>.
 
 <p>
   When explicitly converting structs, tags are now ignored for structural type identity.
-  See <a href="https://golang.org/cl/24190">change 24190</a> for details.
+  See <a href="/ref/spec#Conversions">language specification</a> for details.
 </p>
 
 <p> <!-- CL 17711 -->
   The language specification now only requires that implementations
-  support up to 16-bit exponents in constants.  This does not affect
+  support up to 16-bit exponents in floating-point constants.  This does not affect
   either the <code>gc</code> or <code>gccgo</code> compilers, both of
   which still support 32-bit exponents.
 </p>
@@ -107,17 +107,96 @@ and <code>VMOVSLDUP</code>.</p>
 
 <p>
 For 64-bit PPC systems, the common vector scalar instructions have been
-added. See <a href="https://golang.org/cl/30510">change 30510</a>.
+added:
+<code>LXS</code>,
+<code>LXSDX</code>,
+<code>LXSI</code>,
+<code>LXSIWAX</code>,
+<code>LXSIWZX</code>,
+<code>LXV</code>,
+<code>LXVD2X</code>,
+<code>LXVDSX</code>,
+<code>LXVW4X</code>,
+<code>MFVSR</code>,
+<code>MFVSRD</code>,
+<code>MFVSRWZ</code>,
+<code>MTVSR</code>,
+<code>MTVSRD</code>,
+<code>MTVSRWA</code>,
+<code>MTVSRWZ</code>,
+<code>STXS</code>,
+<code>STXSDX</code>,
+<code>STXSI</code>,
+<code>STXSIWX</code>,
+<code>STXV</code>,
+<code>STXVD2X</code>,
+<code>STXVW4X</code>,
+<code>XSCV</code>,
+<code>XSCVDPSP</code>,
+<code>XSCVDPSPN</code>,
+<code>XSCVDPSXDS</code>,
+<code>XSCVDPSXWS</code>,
+<code>XSCVDPUXDS</code>,
+<code>XSCVDPUXWS</code>,
+<code>XSCVSPDP</code>,
+<code>XSCVSPDPN</code>,
+<code>XSCVSXDDP</code>,
+<code>XSCVSXDSP</code>,
+<code>XSCVUXDDP</code>,
+<code>XSCVUXDSP</code>,
+<code>XSCVX</code>,
+<code>XSCVXP</code>,
+<code>XVCV</code>,
+<code>XVCVDPSP</code>,
+<code>XVCVDPSXDS</code>,
+<code>XVCVDPSXWS</code>,
+<code>XVCVDPUXDS</code>,
+<code>XVCVDPUXWS</code>,
+<code>XVCVSPDP</code>,
+<code>XVCVSPSXDS</code>,
+<code>XVCVSPSXWS</code>,
+<code>XVCVSPUXDS</code>,
+<code>XVCVSPUXWS</code>,
+<code>XVCVSXDDP</code>,
+<code>XVCVSXDSP</code>,
+<code>XVCVSXWDP</code>,
+<code>XVCVSXWSP</code>,
+<code>XVCVUXDDP</code>,
+<code>XVCVUXDSP</code>,
+<code>XVCVUXWDP</code>,
+<code>XVCVUXWSP</code>,
+<code>XVCVX</code>,
+<code>XVCVXP</code>,
+<code>XXLAND</code>,
+<code>XXLANDC</code>,
+<code>XXLANDQ</code>,
+<code>XXLEQV</code>,
+<code>XXLNAND</code>,
+<code>XXLNOR</code>,
+<code>XXLOR</code>,
+<code>XXLORC</code>,
+<code>XXLORQ</code>,
+<code>XXLXOR</code>,
+<code>XXMRG</code>,
+<code>XXMRGHW</code>,
+<code>XXMRGLW</code>,
+<code>XXPERM</code>,
+<code>XXPERMDI</code>,
+<code>XXSEL</code>,
+<code>XXSI</code>,
+<code>XXSLDWI</code>,
+<code>XXSPLT</code>, and 
+<code>XXSPLTW</code>.
 </p>
 
 <h3 id="tool_yacc">Yacc</h3>
 
 <p> <!-- CL 27324, CL 27325 -->
-The <code>yacc</code> (previously available via
+The <code>yacc</code> tool (previously available via
 “<code>go</code> <code>tool</code> <code>yacc</code>”)
 has been removed. As of Go 1.7 it was no longer used by the Go compiler.
 It has moved to the “tools” repository and is and is available via
-<code>go get <a href="https://godoc.org/golang.org/x/tools/cmd/goyacc">golang.org/x/tools/cmd/goyacc</a></code>.
+<code>go</code> <code>get</code> <code><a href="https://godoc.org/golang.org/x/tools/cmd/goyacc">golang.org/x/tools/cmd/goyacc</a></code>.
 </p>
 
 <h3 id="compiler">Compiler Toolchain</h3>
@@ -140,8 +219,8 @@ TODO: ARM binary size & perf numbers.
 </p>
 
 <p>
-The temporary <code>-ssa=0</code> flag introduced in Go 1.7 to disable
-the new backend has been removed in Go 1.8.
+  The temporary <code>-ssa=0</code> compiler flag introduced in Go 1.7
+  to disable the new backend has been removed in Go 1.8.
 </p>
 
 <p>
@@ -180,13 +259,17 @@ is unchanged, but there are a number of changes worth noting.
 </p>
 
 <p>
-A new “<code>go</code> <code>bug</code>” command helps users file bug reports.
+  A new
+  “<a href="/cmd/go/#hdr-Print_information_for_bug_reports"><code>go</code>
+   <code>bug</code></a>” command helps users file bug reports.
 </p>
 
 <h3 id="cmd_doc">Go doc</h3>
 
 <p> <!-- CL 25419 -->
-  The “<code>go</code> <code>doc</code>” command
+  The
+  “<a href="/cmd/go/#hdr-Show_documentation_for_package_or_symbol"><code>go</code>
+   <code>doc</code></a>” command
   now groups constants and variables with their type,
   following the behavior of
   <a href="/cmd/godoc/"><code>godoc</code></a>.
@@ -203,14 +286,14 @@ A new “<code>go</code> <code>bug</code>” command helps users file bug report
   explicitly.
 </p>
 
-<h3 id="plugin">Plug-ins</h3>
+<h3 id="plugin">Plugins</h3>
 
 <p>
   Go now supports a “<code>plugin</code>” build mode for generating
-  plug-ins written in Go, and a
+  plugins written in Go, and a
   new <a href="/pkg/plugin/"><code>plugin</code></a> package for
-  loading such plug-ins at run time. Plug-ins support is only currently
-  available on Linux and Darwin.
+  loading such plugins at run time. Plugin support is only currently
+  available on Linux and macOS.
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -256,19 +339,22 @@ packages.
 <h3 id="gc">Garbage Collector</h3>
 
 <p>
-Garbage collection pauses should be significantly shorter than they
-were in Go 1.7, often as low as 10 microseconds and usually under 100
-microseconds.
-See the
-<a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md">
-document on eliminating stop-the-world stack re-scanning</a> for details.
-More work remains for Go 1.9.
+  Garbage collection pauses should be significantly shorter than they
+  were in Go 1.7, often as low as 10 microseconds and usually under 100
+  microseconds.
+  See the
+  <a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md"
+     >document on eliminating stop-the-world stack re-scanning</a>
+  for details.  More work remains for Go 1.9.
 </p>
 
 <h3 id="defer">Defer</h3>
 
 <!-- CL 29656, CL 29656 -->
-<p><code>defer</code> calls are now about twice as fast.</p>
+<p>
+  The overhead of <a href="/ref/spec/#Defer_statements">deferred
+  function calls</a> has been reduced by half.
+</p>
 
 <h3 id="cgoperf">Cgo</h3>
 
@@ -375,7 +461,7 @@ in mind.
       The encoder, when operating in
       <a href="/pkg/compress/flate/#NoCompression"><code>NoCompression</code></a>
       mode, now produces a consistent output that is not dependent on
-      the size of the input buffer to the
+      the size of the slices passed to the
       <a href="/pkg/compress/flate/#Writer.Write"><code>Write</code></a>
       method.
     </p>
@@ -399,7 +485,7 @@ in mind.
       field is the zero value.
 
       In previous releases of Go, the <code>Writer</code> would encode
-      a non-sensible value.
+      a nonsensical value.
 
       Similarly,
       the <a href="/pkg/compress/gzip/#Reader"><code>Reader</code></a>
@@ -502,7 +588,10 @@ pkg debug/pe, type StringTable []uint8</pre>
 <dl id="encoding_base64"><dt><a href="/pkg/encoding/base64/">encoding/base64</a></dt>
   <dd>
     <p> <!-- CL 24964 -->
-      The new <a href="/pkg/encoding/base64/#Encoding.Strict"><code>Encoding.Strict</code></a> method returns an <code>Encoding</code> that causes the decoder to return an error when the trailing padding bits are not zero.
+      The new
+      <a href="/pkg/encoding/base64/#Encoding.Strict"><code>Encoding.Strict</code></a>
+      method returns an <code>Encoding</code> that causes the decoder
+      to return an error when the trailing padding bits are not zero.
     </p>
   </dd>
 </dl>
@@ -536,14 +625,17 @@ pkg debug/pe, type StringTable []uint8</pre>
     </p>
 
     <p> <!-- CL 30371 -->
-      Numbers are now formatted in the same floating point format as they are in ES6.
+      Marshal encodes floating-point numbers using the same format as in ES6,
+      preferring decimal (not exponential) notation for a wider range of values.
+      In particular, all floating-point integers up to 2<sup>64</sup> format the
+      same as the equivalent <code>int64</code> representation.
     </p>
 
     <p> <!-- CL 30944 -->
       Implementations
       of <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>
       are now called with the literal "<code>null</code>" and can
-      decide what to do with it.
+      decide how to handle it.
     </p>
 
   </dd>
@@ -593,10 +685,14 @@ pkg debug/pe, type StringTable []uint8</pre>
 <dl id="math_rand"><dt><a href="/pkg/math/rand/">math/rand</a></dt>
   <dd>
 
-    <p>
-      There is a new
-      method <a href="/pkg/math/rand/#Rand.Uint64"><code>Rand.Uint64</code></a>
-      to return <code>uint64</code> values. <!-- CL 27253 -->
+    <p><!-- CL 27253, CL 33456 -->
+      The new <a href="/pkg/math/rand/#Rand.Uint64"><code>Rand.Uint64</code></a>
+      method returns <code>uint64</code> values.  The
+      new <a href="/pkg/math/rand/#Rand.Source64"><code>Rand.Source64</code></a>
+      interface describes sources capable of generating such values
+      directly; otherwise the <code>Rand.Uint64</code> method
+      constructs a <code>uint64</code> from two calls
+      to <code>Rand.Source</code>'s <code>Int63</code> method.
     </p>
 
   </dd>
@@ -628,11 +724,10 @@ pkg debug/pe, type StringTable []uint8</pre>
       <li>The server now supports graceful shutdown support, <a href="#http_shutdown">mentioned above</a>.</li>
 
       <li> <!-- CL 32024 -->
-        The <a href="/pkg/net/http/#Server"><code>Server</code></a> now
-        has new configuration options
-        <code>ReadHeaderTimeout</code> and <code>IdleTimeout</code>.
-        The previously ill-defined <code>WriteTimeout</code> is now
-        documented.
+        The <a href="/pkg/net/http/#Server"><code>Server</code></a>
+        adds configuration options
+        <code>ReadHeaderTimeout</code> and <code>IdleTimeout</code>
+        and documents <code>WriteTimeout</code>.
       </li>
 
       <li> <!-- CL 32014 -->
@@ -666,26 +761,28 @@ pkg debug/pe, type StringTable []uint8</pre>
         support.
       </li>
 
-      <li><!-- CL 32479 --> There is now a second way to serve trailers
-        for when the trailer name is not known before the headers are
-        written (via a call to
-        to <code>ResponseWriter.WriteHeader</code>). The old way
-        continues to work, but when the trailer is only known after the
-        header has been written, see the
-        new <a href="/pkg/net/http/#TrailerPrefix"><code>TrailerPrefix</code></a>.</li>
+      <li><!-- CL 32479 -->
+        To serve trailers known after the header has been written,
+        see the new
+        <a href="/pkg/net/http/#TrailerPrefix"><code>TrailerPrefix</code></a>
+        mechanism.
+      </li>
 
       <li><!-- CL 33099 -->
-        A <code>Handler</code> now has a supported mechanism to abort a
-        response: panicking with
+        A <code>Handler</code> can now abort a response by panicking
+        with the error
         <a href="/pkg/net/http/#ErrAbortHandler"><code>ErrAbortHandler</code></a>.
       </li>
 
       <li><!-- CL 30812 -->
-        There is now a supported mechanism to test whether a
-        <code>ResponseWriter</code> has been hijacked: <code>Write</code> zero bytes to it.
-        While this previously returned
-        <a href="/pkg/net/http/#ErrHijacked"><code>ErrHijacked</code></a>, now
-        it also does so without spamming the server's error log.
+        A <code>Write</code> of zero bytes to a
+        <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter</code></a>
+        is now defined as a
+        way to test whether a <code>ResponseWriter</code> has been hijacked:
+        if so, the <code>Write</code> returns
+        <a href="/pkg/net/http/#ErrHijacked"><code>ErrHijacked</code></a>
+        without printing an error
+        to the server's error log.
       </li>
 
     </ul>
@@ -693,16 +790,23 @@ pkg debug/pe, type StringTable []uint8</pre>
     <p>Client &amp; Transport changes:</p>
     <ul>
       <li><!-- CL 28930 -->
-        The <code>Client</code> now copies request headers on redirect.
+        The <a href="/pkg/net/http/#Client"><code>Client</code></a>
+        now copies most request headers on redirect. Authentication-specific
+        headers are only sent to the same origin or subdomains thereof.
+        Cookies are not sent again, unless they were set explicitly.
+        TODO: verify this, and link to docs once https://github.com/golang/go/issues/18096
+        is fixed.
       </li>
 
       <li><!-- CL 29072 -->
-        The <code>Transport</code> now supports international domain names.
+        The <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
+        now supports international domain names. Consequently, so do
+        <a href="/pkg/net/http/#Get">Get</a> and other helpers.
       </li>
 
       <li><!-- CL 31733, CL 29852 -->
         The <code>Client</code> now supports 307 and 308 redirects.
-        If the redirect involves re-sending the request body,
+        If the redirect requires resending the request body,
         the request must have the new
         <a href="/pkg/net/http/#Request"><code>Request.GetBody</code></a>
         field defined.
@@ -730,7 +834,7 @@ pkg debug/pe, type StringTable []uint8</pre>
 
       <li> <!-- CL 28077 -->
         The <a href="/pkg/net/http/#DefaultTransport"><code>DefaultTransport.Dialer</code></a>
-        now enables <code>DualStack</code> ("Happy Eyeballs") support,
+        now enables <code>DualStack</code> ("<a href="https://tools.ietf.org/html/rfc6555">Happy Eyeballs</a>") support,
         to use IPv4 as a backup if it looks like IPv6 might be
         failing.
       </li>
@@ -743,14 +847,22 @@ pkg debug/pe, type StringTable []uint8</pre>
   <dd>
 
     <p> <!-- CL 32176 -->
-      Empty quoted strings are now allowed in the name part of an
-      address. That is, this is now a legal address:
-      <code>"" &lt;gopher@example.com&gt;</code>
+      Empty quoted strings are once again allowed in the name part of
+      an address. That is, Go 1.4 and earlier accepted
+      <code>"" &lt;gopher@example.com&gt;</code>,
+      but Go 1.5 introduced a bug that rejected this address.
+      The address is recognized again.
     </p>
 
     <p> <!-- CL 31581 -->
-      The <a href="/pkg/net/mail/#ParseDate"><code>ParseDate</code></a>
-      function has been exported.
+      The
+      <a href="/pkg/net/mail/#Header.Date"><code>Header.Date</code></a>
+      method has always provided a way to parse
+      the <code>Date:</code> header.
+      A new function
+      <a href="/pkg/net/mail/#ParseDate"><code>ParseDate</code></a>
+      allows parsing dates found in other
+      header lines, such as the <code>Resent-Date:</code> header.
     </p>
     
   </dd>
@@ -760,10 +872,12 @@ pkg debug/pe, type StringTable []uint8</pre>
   <dd>
 
     <p> <!-- CL 33143 -->
-      If implementations of the <a href="/pkg/net/smtp/#Auth"><code>Auth</code></a>
-      interface return an empty <code>toServer</code> value, the package
-      no longer sends trailing whitespace after the SMTP <code>AUTH</code>
-      command, which some servers rejected.
+      If an implementation of
+      the <a href="/pkg/net/smtp/#Auth"><code>Auth</code></a>
+      interface's <code>Start</code> method returns an
+      empty <code>toServer</code> value, the package no longer sends
+      trailing whitespace in the SMTP <code>AUTH</code> command,
+      which some servers rejected.
     </p>
 
   </dd>
@@ -777,7 +891,7 @@ pkg debug/pe, type StringTable []uint8</pre>
       and
       <a href="/pkg/net/url/#PathUnescape"><code>PathUnescape</code></a>
       are similar to the query escaping and unescaping functions but
-      don't treat spaces specially.</p>
+      for path elements.</p>
 
     <p> <!-- CL 28933 --> The new methods
       <a href="/pkg/net/url/#URL.Hostname"><code>URL.Hostname</code></a>
@@ -796,13 +910,18 @@ pkg debug/pe, type StringTable []uint8</pre>
     <p> <!-- CL 31467 -->
       The <code>URL</code> type now implements
       <a href="/pkg/encoding/#BinaryMarshaler"><code>encoding.BinaryMarshaler</code></a> and
-      <a href="/pkg/encoding/#BinaryUnmarshaler"><code>encoding.BinaryUnmarshaler</code></a>.
+      <a href="/pkg/encoding/#BinaryUnmarshaler"><code>encoding.BinaryUnmarshaler</code></a>,
+      making it possible to process URLs in <a href="/pkg/encoding/gob/">gob data</a>.
     </p>
 
     <p> <!-- CL 29610, CL 31582 -->
-      <code>Parse</code> now rejects relative URLs containing a "<code>:</code>" in
-      the first path segment. Such paths should be prefixed with "<code>./</code>".
-      The <code>URL.String</code> method now prepends "<code>./</code>" to such paths.
+      Following RFC 3986,
+      <a href="/pkg/net/url/#Parse"><code>Parse</code></a>
+      now rejects URLs like <code>this_that:other/thing</code> instead of
+      interpreting them as relative paths (<code>this_that</code> is not a valid scheme).
+      To force interpretation as a relative path,
+      such URLs should be prefixed with <code>"./"</code>.
+      The <code>URL.String</code> method now inserts this prefix as needed.
     </p>
 
   </dd>
@@ -823,9 +942,7 @@ pkg debug/pe, type StringTable []uint8</pre>
     <p> <!-- CL 30088 -->
       The new function
       <a href="/pkg/reflect/#Swapper"><code>Swapper</code></a> was
-      added to support
-      the <a href="#sortslice">new <code>sort.Slice</code>
-      support</a>.
+      added to support <a href="#sortslice"><code>sort.Slice</code></a>.
     </p>
   </dd>
 </dl>
@@ -836,7 +953,8 @@ pkg debug/pe, type StringTable []uint8</pre>
     <p> <!-- CL 31210 -->
       The <a href="/pkg/strconv/#Unquote"><code>Unquote</code></a>
       function now strips carriage returns (<code>\r</code>) in
-      backquoted raw strings.
+      backquoted raw strings, following the
+      <a href="/ref/spec#String_literals">Go language semantics</a>.
     </p>
   </dd>
 </dl>
@@ -849,7 +967,10 @@ pkg debug/pe, type StringTable []uint8</pre>
       the analogous <code>Since</code> function.
     </p>
 
-    <p> <!-- CL 29338 --> <code>ParseDuration</code> now accepts long fractional parts.</p>
+    <p> <!-- CL 29338 -->
+      <a href="/pkg/time/#ParseDuration"><code>ParseDuration</code></a>
+      now accepts long fractional parts.
+    </p>
 
     <p> <!-- CL 33429 -->
       <code>Parse</code> now validates days that are too small, in
@@ -886,12 +1007,14 @@ pkg debug/pe, type StringTable []uint8</pre>
     <p><!-- CL 32483 -->
       The new function
       <a href="/pkg/testing/#CoverMode"><code>CoverMode</code></a>
-      reports what the test coverage mode is set to.
+      reports the test coverage mode.
     </p>
 
     <p><!-- CL 32615 -->
       Tests and benchmarks are now marked as failed if the race
       detector is enabled and a data race occurs during execution.
+      Previously, individual test cases would appear to pass,
+      and only the overall execution of the test binary would fail.
     </p>
    
   </dd>
@@ -902,17 +1025,7 @@ pkg debug/pe, type StringTable []uint8</pre>
     <p><!-- CL 30935 -->
       <code>SimpleFold</code> now returns its argument unchanged
       if the provided input was an invalid rune.
-    </p>
-  </dd>
-</dl>
-                             
-
-
-
-<dl id="foo"><dt><a href="/pkg/foo/">foo</a></dt>
-  <dd>
-    <p> <!-- CL nnn -->
-
+      Previously, the implementation failed with an index bounds check panic.
     </p>
   </dd>
 </dl>
