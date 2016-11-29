@@ -967,6 +967,13 @@ pkg debug/pe, type StringTable []uint8</pre>
       they implement the documented semantics. TODO: https://golang.org/cl/18097
     </p>
 
+    <p><!-- CL 32099 -->
+      The new method
+      <a href="/pkg/net/#UnixListener.SetUnlinkOnClose"><code>UnixListener.SetUnlinkOnClose</code></a>
+      sets whether the underlying socket file should be removed from the file system when
+      the listener is closed.
+    </p>
+
     <p>TODO: many other net changes</p>
 
   </dd>
