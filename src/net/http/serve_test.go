@@ -400,9 +400,9 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
 	}
 
 	for _, tt := range serveMuxTests2 {
-		tries := 1
+		tries := 1 // expect at most 1 redirection if redirOk is true.
 		turl := tt.url
-		for tries > 0 {
+		for {
 			u, e := url.Parse(turl)
 			if e != nil {
 				t.Fatal(e)
