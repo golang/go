@@ -34,6 +34,25 @@ import (
 // A Client is higher-level than a RoundTripper (such as Transport)
 // and additionally handles HTTP details such as cookies and
 // redirects.
+//
+// When following redirects, the Client will forward all headers set on the
+// initial Request except:
+//
+//	* when forwarding sensitive headers like "Authorization",
+//	  "WWW-Authenticate", and "Cookie" to untrusted targets.
+//	  These headers will be ignored when following a redirect to a domain
+//	  that is not a subdomain match or exact match of the initial domain.
+//	  For example, a redirect from "foo.com" to either "foo.com" or "sub.foo.com"
+//	  will forward the sensitive headers, but a redirect to "bar.com" will not.
+//
+//	* when forwarding the "Cookie" header with a non-nil cookie Jar.
+//	  Since each redirect may mutate the state of the cookie jar,
+//	  a redirect may possibly alter a cookie set in the initial request.
+//	  When forwarding the "Cookie" header, any mutated cookies will be omitted,
+//	  with the expectation that the Jar will insert those mutated cookies
+//	  with the updated values (assuming the origin matches).
+//	  If Jar is nil, the initial cookies are forwarded without change.
+//
 type Client struct {
 	// Transport specifies the mechanism by which individual
 	// HTTP requests are made.
@@ -57,8 +76,14 @@ type Client struct {
 	CheckRedirect func(req *Request, via []*Request) error
 
 	// Jar specifies the cookie jar.
-	// If Jar is nil, cookies are not sent in requests and ignored
-	// in responses.
+	//
+	// The Jar is used to insert relevant cookies into every
+	// outbound Request and is updated with the cookie values
+	// of every inbound Response. The Jar is consulted for every
+	// redirect that the Client follows.
+	//
+	// If Jar is nil, cookies are only sent if they are explicitly
+	// set on the Request.
 	Jar CookieJar
 
 	// Timeout specifies a time limit for requests made by this
