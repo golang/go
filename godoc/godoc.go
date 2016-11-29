@@ -190,11 +190,92 @@ func (p *Presentation) node_htmlFunc(info *PageInfo, node interface{}, linkify b
 	var buf2 bytes.Buffer
 	if n, _ := node.(ast.Node); n != nil && linkify && p.DeclLinks {
 		LinkifyText(&buf2, buf1.Bytes(), n)
+		if st, name := isStructTypeDecl(n); st != nil {
+			addStructFieldIDAttributes(&buf2, name, st)
+		}
 	} else {
 		FormatText(&buf2, buf1.Bytes(), -1, true, "", nil)
 	}
 
 	return buf2.String()
+}
+
+// isStructTypeDecl checks whether n is a struct declaration.
+// It either returns a non-nil StructType and its name, or zero values.
+func isStructTypeDecl(n ast.Node) (st *ast.StructType, name string) {
+	gd, ok := n.(*ast.GenDecl)
+	if !ok || gd.Tok != token.TYPE {
+		return nil, ""
+	}
+	if gd.Lparen > 0 {
+		// Parenthesized type. Who does that, anyway?
+		// TODO: Reportedly gri does. Fix this to handle that too.
+		return nil, ""
+	}
+	if len(gd.Specs) != 1 {
+		return nil, ""
+	}
+	ts, ok := gd.Specs[0].(*ast.TypeSpec)
+	if !ok {
+		return nil, ""
+	}
+	st, ok = ts.Type.(*ast.StructType)
+	if !ok {
+		return nil, ""
+	}
+	return st, ts.Name.Name
+}
+
+// addStructFieldIDAttributes modifies the contents of buf such that
+// all struct fields of the named struct have <span id='name.Field'>
+// in them, so people can link to /#Struct.Field.
+func addStructFieldIDAttributes(buf *bytes.Buffer, name string, st *ast.StructType) {
+	if st.Fields == nil {
+		return
+	}
+
+	v := buf.Bytes()
+	buf.Reset()
+
+	for _, f := range st.Fields.List {
+		if len(f.Names) == 0 {
+			continue
+		}
+		fieldName := f.Names[0].Name
+		commentStart := []byte("// " + fieldName + " ")
+		if bytes.Contains(v, commentStart) {
+			// For fields with a doc string of the
+			// conventional form, we put the new span into
+			// the comment instead of the field.
+			// The "conventional" form is a complete sentence
+			// per https://golang.org/s/style#comment-sentences like:
+			//
+			//    // Foo is an optional Fooer to foo the foos.
+			//    Foo Fooer
+			//
+			// In this case, we want the #StructName.Foo
+			// link to make the browser go to the comment
+			// line "Foo is an optional Fooer" instead of
+			// the "Foo Fooer" line, which could otherwise
+			// obscure the docs above the browser's "fold".
+			//
+			// TODO: do this better, so it works for all
+			// comments, including unconventional ones.
+			v = bytes.Replace(v, commentStart, []byte(`<span id="`+name+"."+fieldName+`">// `+fieldName+" </span>"), 1)
+		} else {
+			rx := regexp.MustCompile(`(?m)^\s*` + fieldName + `\b`)
+			var matched bool
+			v = rx.ReplaceAllFunc(v, func(sub []byte) []byte {
+				if matched {
+					return sub
+				}
+				matched = true
+				return []byte(`<span id="` + name + "." + fieldName + `">` + string(sub) + "</span>")
+			})
+		}
+	}
+
+	buf.Write(v)
 }
 
 func comment_htmlFunc(comment string) string {
