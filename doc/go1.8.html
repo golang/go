@@ -244,7 +244,36 @@ see improvements closer to the 32-bit ARM numbers.
 
 <h3 id="cmd_cgo">Cgo</h3>
 
-<p>TODO</p>
+<p> <!-- CL 29991 -->
+The environment variable <code>PKG_CONFIG</code> may now be used to
+set the program to run to handle <code>#cgo pkg-config</code>
+directives.  The default is <code>pkg-config</code>, the program
+always used by earlier releases.  This is intended to make it easier
+to cross-compile
+<a href="/cmd/cgo/">cgo</a> code.
+</p>
+
+<p> <!-- CL 32354 -->
+The <a href="/cmd/cgo/">cgo</a> tool now supports a <code>-srcdir</code>
+option, which is used by the <a href="/cmd/go/">go</a> command.
+</p>
+
+<p> <!-- CL 31768, 31811 -->
+If <a href="/cmd/cgo/">cgo</a> code calls <code>C.malloc</code>, and
+<code>malloc</code> returns <code>NULL</code>, the program will now
+crash with an out of memory error.
+<code>C.malloc</code> will never return <code>nil</code>.
+Unlike most C functions, <code>C.malloc</code> may not be used in a
+two-result form returning an errno value.
+</p>
+
+<p> <!-- CL 33237 -->
+If <a href="/cmd/cgo/">cgo</a> is used to call a C function passing a
+pointer to a C union, and if the C union can contain any pointer
+values, and if <a href="/cmd/cgo/#hdr-Passing_pointers">cgo pointer
+checking</a> is enabled (as it is by default), the union value is now
+checked for Go pointers.
+</p>
 
 <h3 id="gccgo">Gccgo</h3>
 

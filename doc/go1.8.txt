@@ -13,12 +13,6 @@ go: can set secure/insecure GIT schemes using GIT_ALLOW_PROTOCOL env var (CL 301
 
 API additions and behavior changes:
 
-cmd/cgo: add #line directives to avoid printing bogus references to Go source files (CL 32613)
-cmd/cgo: add -srcdir option (CL 32354)
-cmd/cgo: don't ignore qualifiers, don't cast to void* (CL 33097)
-cmd/cgo: fix line info in _cgo_gotypes.go (CL 29713)
-cmd/cgo: throw if C.malloc returns nil (CL 31768)
-
 cmd/compile, runtime, etc: get rid of constant FP registers (CL 28095)
 cmd/compile, runtime: add go:yeswritebarrierrec pragma (CL 30938)
 cmd/compile/internal/gc: add runtime/trace support (CL 25354)
@@ -50,7 +44,6 @@ cmd/go: make bug subcommand open the browser (CL 29210)
 cmd/go: make go test -i -o x.test actually write x.test (CL 31352)
 cmd/go: print more env variables in "go env" (CL 31330)
 cmd/go: referee another vendor vs symlink fight (CL 31665)
-cmd/go: use cgo -srcdir when using SWIG (CL 32485)
 
 cmd/internal/obj, cmd/link: darwin dynlink support (CL 29393)
 cmd/internal/objfile: add ppc64/ppc64le disassembler support (CL 9682)
