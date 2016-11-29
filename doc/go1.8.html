@@ -49,7 +49,8 @@ and <a href="#sort">simplifies sorting slices</a>.
 <p> <!-- CL 17711 -->
   The language specification now only requires that implementations
   support up to 16-bit exponents in floating-point constants.  This does not affect
-  either the <code>gc</code> or <code>gccgo</code> compilers, both of
+  either the “<a href="/cmd/compile/"><code>gc</code></a>” or
+  <code>gccgo</code> compilers, both of
   which still support 32-bit exponents.
 </p>
 
@@ -214,8 +215,10 @@ generates more compact, more efficient code
 and provides a better platform for optimizations
 such as bounds check elimination.
 The new back end reduces the CPU time required by
-<a href="https://golang.org/test/bench/go1/">our benchmark programs</a> by N-M%.
-TODO: ARM binary size & perf numbers.
+<a href="https://golang.org/test/bench/go1/">our benchmark programs</a> by 20-30%
+on 32-bit ARM systems. For 64-bit x86 systems, which already used the SSA backend in
+Go 1.7, the gains are a more modest 0-10%. Other architectures will likely
+see improvements closer to the 32-bit ARM numbers.
 </p>
 
 <p>
@@ -234,14 +237,9 @@ TODO: ARM binary size & perf numbers.
   The compiler and linker have been optimized and run faster in this
   release than in Go 1.7, although they are still slower than we would
   like and will continue to be optimized in future releases.
+  Compared to the previous release, Go 1.8 is
+  <a href="https://dave.cheney.net/2016/11/19/go-1-8-toolchain-improvements">about 15% faster</a>.
 </p>
-
-<p>
-  Due to changes across the compiler toolchain and standard library,
-  binaries built with this release should typically be smaller than
-  binaries built with Go 1.7, sometimes by as much as TODO numbers.
-</p>
-
 
 <h3 id="cmd_cgo">Cgo</h3>
 
@@ -308,6 +306,12 @@ is unchanged, but there are a number of changes worth noting.
   function added in Go 1.7.
 </p>
 
+<p>
+  <i>Updating:</i> Users of finalizers should see the example
+  in the <a href="/pkg/runtime/#KeepAlive"><code>KeepAlive</code> documentation</a>
+  to see where a call to <code>KeepAlive</code> might be needed.
+  </p>
+
 <h3 id="memstats">MemStats Documentation</h3>
 
 <p> <!-- CL 28972 -->
@@ -358,7 +362,7 @@ packages.
 
 <h3 id="cgoperf">Cgo</h3>
 
-<p>Calls from Go into C are now TODO% faster.</p>
+<p>The overhead of calls from Go into C has been reduced by about half.</p>
 
 <h2 id="library">Standard library</h2>
 
@@ -644,7 +648,8 @@ pkg debug/pe, type StringTable []uint8</pre>
 <dl id="encoding_pem"><dt><a href="/pkg/encoding/pem/">encoding/pem</a></dt>
   <dd>
     <p> <!-- CL 27391 -->
-      The PEM decoder is now strict about the format of the ending line.
+      <a href="/pkg/encoding/pem/#Decode"><code>Decode</code></a>
+      is now strict about the format of the ending line.
     </p>
   </dd>
 </dl>
@@ -673,10 +678,13 @@ pkg debug/pe, type StringTable []uint8</pre>
 <dl id="image_png"><dt><a href="/pkg/image/png/">image/png</a></dt>
   <dd>
     <p> <!-- CL 32143, CL 32140 -->
-      The PNG decoder now supports truecolor and grayscale transparency.
+      <a href="/pkg/image/png/#Decode"><code>Decode</code></a>
+      (and <code>DecodeConfig</code>)
+      now supports True Color and grayscale transparency.
     </p>
     <p> <!-- CL 29872 -->
-      The PNG encoder is now faster and creates smaller output
+      <a href="/pkg/image/png/#Encoder"><code>Encoder</code></a>
+      is now faster and creates smaller output
       when encoding paletted images.
       </p>
   </dd>
@@ -702,19 +710,38 @@ pkg debug/pe, type StringTable []uint8</pre>
   <dd>
 
     <p>
-      The package's parsing has been relaxed in two ways to accept
+      The
+      <a href="/pkg/mime/quotedprintable/#Reader"><code>Reader</code></a>'s
+      parsing has been relaxed in two ways to accept
       more input seen in the wild. First, it now accepts
       a <code>=</code> sign even if it's not followed by two hex
       digits. <!-- CL 32174 -->
 
       Second, it accepts a trailing soft line-break at the end of a
-      message. <!-- CL 27530 -->. That is, the final byte of the
+      message. <!-- CL 27530 --> That is, the final byte of the
       message may be a <code>=</code> sign and it will now be ignored.
     </p>
 
   </dd>
 </dl>
 
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    
+    <p><!-- CL 30164, CL 33473 -->
+      The <a href="/pkg/net/#Conn"><code>Conn</code></a> documentation
+      has been updated to clarify expectations of an interface
+      implementation. Updates in the <code>net/http</code> packages
+      depend on implementations obeying the documentation.
+    </p>
+    <p><i>Updating:</i> implementations of the <code>Conn</code> interface should verify
+      they implement the documented semantics. TODO: https://golang.org/cl/18097
+    </p>
+
+    <p>TODO: many other net changes</p>
+
+  </dd>
+</dl>
 
 <dl id="net_http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
@@ -758,7 +785,9 @@ pkg debug/pe, type StringTable []uint8</pre>
         middle of a slow request, the <code>Handler</code> can now
         detect that the user is gone. This complements the
         existing <a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
-        support.
+        support. This functionality requires that the underlying
+        <a href="/pkg/net/#Conn"><code>net.Conn</code></a> implements
+        <a href="#net">recently-clarified interface documentation</a>.
       </li>
 
       <li><!-- CL 32479 -->
@@ -794,7 +823,7 @@ pkg debug/pe, type StringTable []uint8</pre>
         now copies most request headers on redirect. Authentication-specific
         headers are only sent to the same origin or subdomains thereof.
         Cookies are not sent again, unless they were set explicitly.
-        TODO: verify this, and link to docs once https://github.com/golang/go/issues/18096
+        TODO: verify this, and link to docs once https://golang.org/issue/18096
         is fixed.
       </li>
 
@@ -973,8 +1002,10 @@ pkg debug/pe, type StringTable []uint8</pre>
     </p>
 
     <p> <!-- CL 33429 -->
-      <code>Parse</code> now validates days that are too small, in
-      addition to days that are too large.
+      <a href="/pkg/time/#Parse"><code>Parse</code></a>
+      now rejects dates before the start of a month, such as June 0;
+      it already rejected dates beyond the end of the month, such as
+      June 31 and July 32.
     </p>
 
     <p> <!-- CL 33029 -->
