@@ -1763,7 +1763,6 @@ func (c *conn) serve(ctx context.Context) {
 				// while they're still writing their
 				// request. Undefined behavior.
 				const publicErr = "431 Request Header Fields Too Large"
-				c.server.logf("http: %s", publicErr)
 				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
 				c.closeWriteAndWait()
 				return
@@ -1777,7 +1776,6 @@ func (c *conn) serve(ctx context.Context) {
 				publicErr = publicErr + ": " + string(v)
 			}
 
-			c.server.logf("http: %s", publicErr)
 			fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
 			return
 		}
