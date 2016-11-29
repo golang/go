@@ -1809,24 +1809,19 @@ func (p *parser) commClause() *CommClause {
 	switch p.tok {
 	case _Case:
 		p.next()
-		lhs := p.exprList()
+		c.Comm = p.simpleStmt(nil, false)
 
-		if _, ok := lhs.(*ListExpr); !ok && p.tok == _Arrow {
-			// lhs <- x
-		} else {
-			// lhs
-			// lhs = <-x
-			// lhs := <-x
-			if p.tok == _Assign || p.tok == _Define {
-				// TODO(gri) check that lhs has at most 2 entries
-			} else if p.tok == _Colon {
-				// TODO(gri) check that lhs has at most 1 entry
-			} else {
-				panic("unimplemented")
-			}
-		}
-
-		c.Comm = p.simpleStmt(lhs, false)
+		// The syntax restricts the possible simple statements here to:
+		//
+		//     lhs <- x (send statement)
+		//     <-x
+		//     lhs = <-x
+		//     lhs := <-x
+		//
+		// All these (and more) are recognized by simpleStmt and invalid
+		// syntax trees are flagged later, during type checking.
+		// TODO(gri) eventually may want to restrict valid syntax trees
+		// here.
 
 	case _Default:
 		p.next()
