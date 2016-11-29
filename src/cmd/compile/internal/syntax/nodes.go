@@ -14,7 +14,8 @@ type Node interface {
 }
 
 type node struct {
-	doc  *Comment // nil means no comment(s) attached
+	// commented out for now since not yet used
+	// doc  *Comment // nil means no comment(s) attached
 	pos  uint32
 	line uint32
 }
