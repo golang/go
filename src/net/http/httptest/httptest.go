@@ -36,7 +36,7 @@ import (
 // NewRequest panics on error for ease of use in testing, where a
 // panic is acceptable.
 //
-// To generate an client HTTP request instead of a server request, see
+// To generate a client HTTP request instead of a server request, see
 // the NewRequest function in the net/http package.
 func NewRequest(method, target string, body io.Reader) *http.Request {
 	if method == "" {
