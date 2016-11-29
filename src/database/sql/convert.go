@@ -42,7 +42,7 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
 			var err error
 			nv := &nvargs[n]
 			nv.Ordinal = n + 1
-			if np, ok := arg.(NamedParam); ok {
+			if np, ok := arg.(NamedArg); ok {
 				arg = np.Value
 				nvargs[n].Name = np.Name
 			}
@@ -59,7 +59,7 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
 	for n, arg := range args {
 		nv := &nvargs[n]
 		nv.Ordinal = n + 1
-		if np, ok := arg.(NamedParam); ok {
+		if np, ok := arg.(NamedArg); ok {
 			arg = np.Value
 			nv.Name = np.Name
 		}

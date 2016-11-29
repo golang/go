@@ -468,15 +468,15 @@ func TestMultiResultSetQuery(t *testing.T) {
 	}
 }
 
-func TestQueryNamedParam(t *testing.T) {
+func TestQueryNamedArg(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 	prepares0 := numPrepares(t, db)
 	rows, err := db.Query(
 		// Ensure the name and age parameters only match on placeholder name, not position.
 		"SELECT|people|age,name|name=?name,age=?age",
-		Param("?age", 2),
-		Param("?name", "Bob"),
+		Named("?age", 2),
+		Named("?name", "Bob"),
 	)
 	if err != nil {
 		t.Fatalf("Query: %v", err)

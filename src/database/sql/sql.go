@@ -69,9 +69,9 @@ func Drivers() []string {
 	return list
 }
 
-// NamedParam may be passed into query parameter arguments to associate
-// a named placeholder with a value.
-type NamedParam struct {
+// A NamedArg used as an argument to Query or Exec
+// binds to the corresponding named parameter in the SQL statement.
+type NamedArg struct {
 	_Named_Fields_Required struct{}
 
 	// Name of the parameter placeholder. If empty the ordinal position in the
@@ -83,13 +83,24 @@ type NamedParam struct {
 	Value interface{}
 }
 
-// Param provides a more concise way to create NamedParam values.
-func Param(name string, value interface{}) NamedParam {
+// Named provides a more concise way to create NamedArg values.
+//
+// Example usage:
+//
+//     db.ExecContext(ctx, `
+//         delete from Invoice
+//         where
+//             TimeCreated < @end
+//             and TimeCreated >= @start;`,
+//         sql.Named("start", startTime),
+//         sql.Named("end", endTime),
+//     )
+func Named(name string, value interface{}) NamedArg {
 	// This method exists because the go1compat promise
 	// doesn't guarantee that structs don't grow more fields,
 	// so unkeyed struct literals are a vet error. Thus, we don't
-	// want to encourage sql.NamedParam{name, value}.
-	return NamedParam{Name: name, Value: value}
+	// want to allow sql.NamedArg{name, value}.
+	return NamedArg{Name: name, Value: value}
 }
 
 // IsolationLevel is the transaction isolation level stored in Context.
