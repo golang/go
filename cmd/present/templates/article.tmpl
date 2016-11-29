@@ -31,13 +31,13 @@
       <div class="container">
         <div id="heading">{{.Title}}
           {{with .Subtitle}}{{.}}{{end}}
-        {{if .Authors}}
-          {{range .Authors}}
-            <div class="author">
-              {{range .Elem}}{{elem $.Template .}}{{end}}
-            </div>
+          {{if .Authors}}
+            {{range .Authors}}
+              <div class="author">
+                {{range .Elem}}{{elem $.Template .}}{{end}}
+              </div>
+            {{end}}
           {{end}}
-        {{end}}
         </div>
       </div>
     </div>
