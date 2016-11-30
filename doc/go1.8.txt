@@ -18,17 +18,6 @@ cmd/compile/internal/syntax: fast Go syntax trees, initial commit (CL 27195)
 cmd/compile: add compiler phase timing (CL 24462)
 cmd/compile: add inline explainer (CL 22782)
 cmd/compile: enable flag-specified dump of specific phase+function (CL 23044)
-cmd/compile: remove -A flag (CL 31497)
-
-cmd/cover: Fix compiler directives handling (CL 30161)
-cmd/cover: change covered block for switch/select case to exclude expression (CL 32612)
-cmd/cover: handle gotos (CL 30977)
-
-cmd/dist, go/build: make CGO_ENABLED during make.bash sticky (CL 31141)
-cmd/dist: enable plugin test on darwin/amd64 (CL 29396)
-cmd/dist: test PIE internal linking on linux/amd64 (CL 28545)
-
-cmd/fix: add golang.org/x/net/context fix (CL 28872)
 
 cmd/internal/obj, cmd/link: darwin dynlink support (CL 29393)
 cmd/internal/objfile: add ppc64/ppc64le disassembler support (CL 9682)
@@ -47,28 +36,6 @@ cmd/link: remove the -shared flag (CL 28852)
 cmd/link: split large elf text sections on ppc64x (CL 27790)
 cmd/link: trampoline support for external linking on ARM (CL 31143)
 cmd/objdump: implement objdump of .o files (CL 24818)
-
-cmd/pprof: add options to skip tls verification (CL 33157)
-cmd/pprof: don't print binary outputs in interactive mode (CL 31123)
-cmd/pprof: instruction-level granularity in callgrind output (CL 23781)
-
-cmd/trace: add option to output pprof files (CL 23324)
-cmd/trace: fix a runnable goroutine count bug (CL 25552)
-cmd/trace: move process-wide GC events to their own row (CL 30017)
-internal/trace: fix analysis of EvGoWaiting/EvGoInSyscall events (CL 25572)
-
-cmd/vet: accept space-separated tag lists for compatibility with cmd/go (CL 32030)
-cmd/vet: allow ^& uintptr arithmetic (CL 27156)
-cmd/vet: allow any printf verb with any interface (CL 27127)
-cmd/vet: check for copying of array of locks (CL 24340)
-cmd/vet: check for duplicate json, xml struct field tags (CL 16704)
-cmd/vet: detect defer resp.Body.Close() before error check (CL 32911)
-cmd/vet: diagnose non-space-separated struct tag like `json:"x",xml:"y"` (CL 32031)
-cmd/vet: improve asmdecl parameter handling (CL 27150)
-cmd/vet: properly handle indexed arguments in printf (CL 24391)
-cmd/vet: skip printf check for non-constant format string during failed import (CL 29014)
-
-encoding/xml: prevent omitempty from omitting non-nil pointers to empty values (CL 15684)
 
 fmt: document and adjust Scanf space handling to eliminate a few paradoxes (CL 30611)
 
