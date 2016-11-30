@@ -825,6 +825,16 @@ func TestNewRequestGetBody(t *testing.T) {
 	}
 }
 
+func TestNewRequestNoBody(t *testing.T) {
+	req, err := NewRequest("GET", "http://foo.com/", NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.ContentLength != 0 {
+		t.Errorf("ContentLength = %d; want 0", req.ContentLength)
+	}
+}
+
 func testMissingFile(t *testing.T, req *Request) {
 	f, fh, err := req.FormFile("missing")
 	if f != nil {
