@@ -64,6 +64,21 @@ func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int, errCer
 	return
 }
 
+func (s *CertPool) contains(cert *Certificate) bool {
+	if s == nil {
+		return false
+	}
+
+	candidates := s.byName[string(cert.RawSubject)]
+	for _, c := range candidates {
+		if s.certs[c].Equal(cert) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // AddCert adds a certificate to a pool.
 func (s *CertPool) AddCert(cert *Certificate) {
 	if cert == nil {

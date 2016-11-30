@@ -73,10 +73,11 @@ int useOldCode() {
 //
 // On success it returns 0 and fills pemRoots with a CFDataRef that contains the extracted root
 // certificates of the system. On failure, the function returns -1.
+// Additionally, it fills untrustedPemRoots with certs that must be removed from pemRoots.
 //
-// Note: The CFDataRef returned in pemRoots must be released (using CFRelease) after
-// we've consumed its content.
-int FetchPEMRoots(CFDataRef *pemRoots) {
+// Note: The CFDataRef returned in pemRoots and untrustedPemRoots must
+// be released (using CFRelease) after we've consumed its content.
+int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 	if (useOldCode()) {
 		return FetchPEMRoots_MountainLion(pemRoots);
 	}
@@ -93,22 +94,68 @@ int FetchPEMRoots(CFDataRef *pemRoots) {
 		return -1;
 	}
 
+	// kSecTrustSettingsResult is defined as CFSTR("kSecTrustSettingsResult"),
+	// but the Go linker's internal linking mode can't handle CFSTR relocations.
+	// Create our own dynamic string instead and release it below.
+	CFStringRef policy = CFStringCreateWithCString(NULL, "kSecTrustSettingsResult", kCFStringEncodingUTF8);
+
 	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
+	CFMutableDataRef combinedUntrustedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
 	for (int i = 0; i < numDomains; i++) {
 		CFArrayRef certs = NULL;
-		// Only get certificates from domain that are trusted
 		OSStatus err = SecTrustSettingsCopyCertificates(domains[i], &certs);
 		if (err != noErr) {
 			continue;
 		}
 
-		int numCerts = CFArrayGetCount(certs);
+		CFIndex numCerts = CFArrayGetCount(certs);
 		for (int j = 0; j < numCerts; j++) {
 			CFDataRef data = NULL;
 			CFErrorRef errRef = NULL;
+			CFArrayRef trustSettings = NULL;
 			SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(certs, j);
 			if (cert == NULL) {
 				continue;
+			}
+			// We only want trusted certs.
+			int untrusted = 0;
+			if (i != 0) {
+				// Certs found in the system domain are always trusted. If the user
+				// configures "Never Trust" on such a cert, it will also be found in the
+				// admin or user domain, causing it to be added to untrustedPemRoots. The
+				// Go code will then clean this up.
+
+				// Trust may be stored in any of the domains. According to Apple's
+				// SecTrustServer.c, "user trust settings overrule admin trust settings",
+				// so take the last trust settings array we find.
+				// Skip the system domain since it is always trusted.
+				for (int k = 1; k < numDomains; k++) {
+					CFArrayRef domainTrustSettings = NULL;
+					err = SecTrustSettingsCopyTrustSettings(cert, domains[k], &domainTrustSettings);
+					if (err == errSecSuccess && domainTrustSettings != NULL) {
+						if (trustSettings) {
+							CFRelease(trustSettings);
+						}
+						trustSettings = domainTrustSettings;
+					}
+				}
+				if (trustSettings == NULL) {
+					// "this certificate must be verified to a known trusted certificate"; aka not a root.
+					continue;
+				}
+				for (CFIndex k = 0; k < CFArrayGetCount(trustSettings); k++) {
+					CFNumberRef cfNum;
+					CFDictionaryRef tSetting = (CFDictionaryRef)CFArrayGetValueAtIndex(trustSettings, k);
+					if (CFDictionaryGetValueIfPresent(tSetting, policy, (const void**)&cfNum)){
+						SInt32 result = 0;
+						CFNumberGetValue(cfNum, kCFNumberSInt32Type, &result);
+						// TODO: The rest of the dictionary specifies conditions for evaluation.
+						if (result == kSecTrustSettingsResultDeny) {
+							untrusted = 1;
+						}
+					}
+				}
+				CFRelease(trustSettings);
 			}
 			// We only want to add Root CAs, so make sure Subject and Issuer Name match
 			CFDataRef subjectName = SecCertificateCopyNormalizedSubjectContent(cert, &errRef);
@@ -138,13 +185,16 @@ int FetchPEMRoots(CFDataRef *pemRoots) {
 			}
 
 			if (data != NULL) {
-				CFDataAppendBytes(combinedData, CFDataGetBytePtr(data), CFDataGetLength(data));
+				CFMutableDataRef appendTo = untrusted ? combinedUntrustedData : combinedData;
+				CFDataAppendBytes(appendTo, CFDataGetBytePtr(data), CFDataGetLength(data));
 				CFRelease(data);
 			}
 		}
 		CFRelease(certs);
 	}
+	CFRelease(policy);
 	*pemRoots = combinedData;
+	*untrustedPemRoots = combinedUntrustedData;
 	return 0;
 }
 */
@@ -158,7 +208,8 @@ func loadSystemRoots() (*CertPool, error) {
 	roots := NewCertPool()
 
 	var data C.CFDataRef = nil
-	err := C.FetchPEMRoots(&data)
+	var untrustedData C.CFDataRef = nil
+	err := C.FetchPEMRoots(&data, &untrustedData)
 	if err == -1 {
 		// TODO: better error message
 		return nil, errors.New("crypto/x509: failed to load darwin system roots with cgo")
@@ -167,5 +218,19 @@ func loadSystemRoots() (*CertPool, error) {
 	defer C.CFRelease(C.CFTypeRef(data))
 	buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
 	roots.AppendCertsFromPEM(buf)
-	return roots, nil
+	if untrustedData == nil {
+		return roots, nil
+	}
+	defer C.CFRelease(C.CFTypeRef(untrustedData))
+	buf = C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(untrustedData)), C.int(C.CFDataGetLength(untrustedData)))
+	untrustedRoots := NewCertPool()
+	untrustedRoots.AppendCertsFromPEM(buf)
+
+	trustedRoots := NewCertPool()
+	for _, c := range roots.certs {
+		if !untrustedRoots.contains(c) {
+			trustedRoots.AddCert(c)
+		}
+	}
+	return trustedRoots, nil
 }
