@@ -78,6 +78,10 @@ func Read(in io.Reader, fset *token.FileSet, imports map[string]*types.Package, 
 		return nil, fmt.Errorf("reading export data for %q: %v", path, err)
 	}
 
+	if bytes.HasPrefix(data, []byte("!<arch>")) {
+		return nil, fmt.Errorf("can't read export data for %q directly from an archive file (call gcexportdata.NewReader first to extract export data)", path)
+	}
+
 	// The App Engine Go runtime v1.6 uses the old export data format.
 	// TODO(adonovan): delete once v1.7 has been around for a while.
 	if bytes.HasPrefix(data, []byte("package ")) {
