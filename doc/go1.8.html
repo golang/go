@@ -372,13 +372,30 @@ optimizations in the standard library.
 </p>
 
 <p>
-There have been significant optimizations bringing more than 10% improvements
-to implementations in the
-TODO TODO:
-<a href="/pkg/foo/"><code>foo</code></a>,
-<a href="/pkg/bar/"><code>bar</code></a>,
-and
-<a href="/pkg/quux/"><code>quux</code></a>
+There have been optimizations to implementations in the
+<a href="/pkg/bytes/"><code>bytes</code></a>,
+<a href="/pkg/crypto/aes/"><code>crypto/aes</code></a>,
+<a href="/pkg/crypto/cipher/"><code>crypto/cipher</code></a>,
+<a href="/pkg/crypto/elliptic/"><code>crypto/elliptic</code></a>,
+<a href="/pkg/crypto/sha256/"><code>crypto/sha256</code></a>,
+<a href="/pkg/crypto/sha512/"><code>crypto/sha512</code></a>,
+<a href="/pkg/encoding/asn1/"><code>encoding/asn1</code></a>,
+<a href="/pkg/encoding/csv/"><code>encoding/csv</code></a>,
+<a href="/pkg/encoding/hex/"><code>encoding/hex</code></a>,
+<a href="/pkg/encoding/json/"><code>encoding/json</code></a>,
+<a href="/pkg/hash/crc32/"><code>hash/crc32</code></a>,
+<a href="/pkg/image/color/"><code>image/color</code></a>,
+<a href="/pkg/image/draw/"><code>image/draw</code></a>,
+<a href="/pkg/math/"><code>math</code></a>,
+<a href="/pkg/math/big/"><code>math/big</code></a>,
+<a href="/pkg/reflect/"><code>reflect</code></a>,
+<a href="/pkg/regexp/"><code>regexp</code></a>,
+<a href="/pkg/runtime/"><code>runtime</code></a>,
+<a href="/pkg/strconv/"><code>strconv</code></a>,
+<a href="/pkg/strings/"><code>strings</code></a>,
+<a href="/pkg/syscall/"><code>syscall</code></a>,
+<a href="/pkg/text/template/"><code>text/template</code></a>, and
+<a href="/pkg/unicode/utf8/"><code>unicode/utf8</code></a>,
 packages.
 </p>
 
@@ -483,7 +500,8 @@ now implements the new
 <p>
 As always, there are various minor changes and updates to the library,
 made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
-in mind.
+in mind. The follow sections list the user visible changes and additions.
+Optimizations and bug fixes are not listed.
 </p>
 
 <dl id="archive_tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
@@ -840,6 +858,16 @@ pkg debug/pe, type StringTable []uint8</pre>
   </dd>
 </dl>
 
+<dl id="encoding_xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
+  <dd>
+    <p> <!-- CL 30946 -->
+      <a href="/pkg/encoding/xml/#Unmarshal"><code>Unmarshal</code></a>
+      now has wildcard support for collecting all attributes using
+      the new <code>",any,attr"</code> struct tag.
+    </p>
+  </dd>
+</dl>
+
 <dl id="expvar"><dt><a href="/pkg/expvar/">expvar</a></dt>
   <dd>
     <p> <!-- CL 30917 -->
@@ -860,6 +888,14 @@ pkg debug/pe, type StringTable []uint8</pre>
   </dd>
 </dl>
 
+<dl id="go_doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
+  <dd>
+    <p><!-- CL 29870 -->
+      The new <a href="/pkg/go/doc/#IsPredeclared"><code>IsPredeclared</code></a>
+      function reports whether a string is a predeclared identifier.
+    </p>
+  </dd>
+</dl>
 
 <dl id="image_png"><dt><a href="/pkg/image/png/">image/png</a></dt>
   <dd>
@@ -974,7 +1010,29 @@ pkg debug/pe, type StringTable []uint8</pre>
       the listener is closed.
     </p>
 
-    <p>TODO: many other net changes</p>
+    <p><!-- CL 29951 -->
+      The new <a href="/pkg/net/#Buffers"><code>Buffers</code></a> types permits
+      more efficiently writing to the network from multiple discontiguous buffers
+      in memory. On certain machines, for certain types of connections,
+      this is optimized into an OS-specific batch write operation (such as <code>writev</code>).
+    </p>
+
+    <p><!-- CL 29440 -->
+      The new <a href="/pkg/net/#Resolver"><code>Resolver</code></a> looks up names and numbers
+      and supports <a href="/pkg/context/#Context"><code>context.Context</code></a>.
+      The <a href="/pkg/net/#Dialer"><code>Dialer</code></a> now has an optional
+      <a href="/pkg/net/#Dialer.Resolver"><code>Resolver</code> field</a>.
+    </p>
+
+    <p><!-- CL 29892 -->
+      <a href="/pkg/net/#Interfaces"><code>Interfaces</code></a> is now supported on Solaris.
+    </p>
+
+    <p><!-- CL 29233, CL 24901 -->
+      The Go DNS resolver now supports <code>resolv.conf</code>'s "<code>rotate</code>"
+      and "<code>option ndots:0</code>" options. The "<code>ndots</code>" option is
+      now respected in the same way as <code>libresolve</code>.
+    </p>
 
   </dd>
 </dl>
@@ -1108,6 +1166,30 @@ pkg debug/pe, type StringTable []uint8</pre>
   </dd>
 </dl>
 
+<dl id="net_http_httptrace"><dt><a href="/pkg/net/http/httptrace/">net/http/httptrace</a></dt>
+  <dd>
+    <p> <!-- CL 30359 -->
+    There is now support for tracing a client request's TLS handshakes with
+    the new
+    <a href="/pkg/net/http/httptrace/#ClientTrace.TLSHandshakeStart"><code>ClientTrace.TLSHandshakeStart</code></a>
+    and
+    <a href="/pkg/net/http/httptrace/#ClientTrace.TLSHandshakeDone"><code>ClientTrace.TLSHandshakeDone</code></a>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="net_http_httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p> <!-- CL 32356 -->
+    The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
+    has a new optional hook,
+    <a href="/pkg/net/http/httputil/#ReverseProxy.ModifyResponse"><code>ModifyResponse</code></a>,
+    for modifying the response from the backend before proxying it to the client.
+    </p>
+    
+  </dd>
+</dl>
+
 <dl id="net_mail"><dt><a href="/pkg/net/mail/">net/mail</a></dt>
   <dd>
 
@@ -1202,6 +1284,22 @@ pkg debug/pe, type StringTable []uint8</pre>
   </dd>
 </dl>
 
+<dl id="path_filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
+  <dd>
+    <p>
+    <p>A number of bugs and corner cases on Windows were fixed:
+      <a href="/pkg/path/filepath/#Abs"><code>Abs</code></a> now calls <code>Clean</code> paths as documented,
+      <a href="/pkg/path/filepath/#Glob"><code>Glob</code></a> now matches
+      "<code>\\?\c:\*</code>",
+      <a href="/pkg/path/filepath/#EvalSymlinks"><code>EvalSymlinks</code></a> now
+      correctly handles "<code>C:.</code>", and
+      <a href="/pkg/path/filepath/#Clean"><code>Clean</code></a> now properlys handles a leading "<code>..</code>"
+      in the path.
+    <p>
+
+  </dd>
+</dl>
+
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p> <!-- CL 30088 -->
@@ -1221,6 +1319,20 @@ pkg debug/pe, type StringTable []uint8</pre>
       backquoted raw strings, following the
       <a href="/ref/spec#String_literals">Go language semantics</a>.
     </p>
+  </dd>
+</dl>
+
+<dl id="text_template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p> <!-- CL 31462 -->
+      <a href="/pkg/text/template/#Template.Execute"><code>Template.Execute</code></a>
+      can now take a
+      <a href="/pkg/reflect/#Value"><code>reflect.Value</code></a> as its data
+      argument, and
+      <a href="/pkg/text/template/#FuncMap"><code>FuncMap</code></a>
+      functions can also accept and return <code>reflect.Value</code>.
+    </p>
+
   </dd>
 </dl>
 
