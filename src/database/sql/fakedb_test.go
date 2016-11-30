@@ -511,6 +511,10 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (*fakeStmt, err
 var hookPrepareBadConn func() bool
 
 func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
+	panic("use PrepareContext")
+}
+
+func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
 	c.numPrepare++
 	if c.db == nil {
 		panic("nil c.db; conn = " + fmt.Sprintf("%#v", c))
@@ -549,7 +553,13 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 		parts = parts[1:]
 
 		if stmt.wait > 0 {
-			time.Sleep(stmt.wait)
+			wait := time.NewTimer(stmt.wait)
+			select {
+			case <-wait.C:
+			case <-ctx.Done():
+				wait.Stop()
+				return nil, ctx.Err()
+			}
 		}
 
 		c.incrStat(&c.stmtsMade)
