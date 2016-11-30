@@ -82,15 +82,6 @@ go/types: match cmd/compile's alignment for complex64 (CL 31939)
 
 html/template: check "type" attribute in <script> (CL 14336)
 
-os, syscall: fix incorrect offset calculation in Readlink on windows (CL 31118)
-os: add ErrClosed, return for use of closed File (CL 30614)
-os: consider only files from #M as regular on Plan 9 (CL 32152)
-os: don't let File.Readdir return an empty slice and nil error (CL 28056)
-os: make IsExist report true on ERROR_DIR_NOT_EMPTY on Windows (CL 29753)
-os: make Windows readConsole handle input and output correctly (CL 29493)
-os: reject Rename("old", "new") where new is a directory (CL 31358)
-os: use extended-length paths on Windows when possible (CL 32451)
-
 runtime, cmd/trace: annotate different mark worker types (CL 30702)
 runtime, runtime/cgo: revert CL 18814; don't drop signal stack in new thread on dragonfly (CL 29971)
 runtime/pprof: output CPU profiles in pprof protobuf format (CL 33071)

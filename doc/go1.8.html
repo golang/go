@@ -1281,6 +1281,59 @@ pkg debug/pe, type StringTable []uint8</pre>
       <a href="/pkg/os/#Executable"><code>Executable</code></a> returns
       the path name of the running executable.
     </p>
+
+    <p> <!-- CL 30614 -->
+      An attempt to call a method on
+      an <a href="/pkg/os/#File"><code>os.File</code></a> that has
+      already been closed will now return the new error
+      value <a href="/pkg/os/#ErrClosed"><code>os.ErrClosed</code></a>.
+      Previously it returned a system-specific error such
+      as <code>syscall.EBADF</code>.
+    </p>
+
+    <p> <!-- CL 31358 -->
+      On Unix systems, <a href="/pkg/os/#Rename"><code>os.Rename</code></a>
+      will now return an error when used to rename a directory to an
+      existing empty directory.
+      Previously it would fail when renaming to a non-empty directory
+      but succeed when renaming to an empty directory.
+      This makes the behavior on Unix correspond to that on other systems.
+    </p>
+
+    <p> <!-- CL 32451 -->
+      On Windows, long absolute paths are now transparently converted to
+      extended-length paths (paths that start with <code>\\?\</code>).
+      This permits the package to work with files whose path names are
+      longer than 260 characters.
+    </p>
+
+    <p> <!-- CL 29753 -->
+      On Windows, <a href="/pkg/os/#IsExist"><code>os.IsExist</code></a>
+      will now return <code>true</code> for the system
+      error <code>ERROR_DIR_NOT_EMPTY</code>.
+      This roughly corresponds to the existing handling of the Unix
+      error <code>ENOTEMPTY</code>.
+    </p>
+
+    <p> <!-- CL 32152 -->
+      On Plan 9, files that are not served by <code>#M</code> will now
+      have <a href="/pkg/os/#ModeDevice"><code>ModeDevice</code></a> set in
+      the value returned
+      by <a href="/pkg/os/#FileInfo"><code>FileInfo.Mode</code></a>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="os_signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
+  <dd>
+    <p> <!-- CL 32796 -->
+      In a Go library built with <code>-buildmode=c-archive</code>
+      or <code>c-shared</code>, when C code calls a Go function,
+      the <code>SIGPIPE</code> signal will be treated as usual for Go code.
+      In particular, when <code>SIGPIPE</code> is triggered by a write
+      to a closed Go network connection, it will not cause the program
+      to exit.
+    </p>
   </dd>
 </dl>
 
