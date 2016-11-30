@@ -38,7 +38,7 @@ The release <a href="#ports">adds support for 32-bit MIPS</a>,
 <a href="#http_shutdown">adds HTTP graceful shutdown</a>,
 <a href="#more_context">adds more context support</a>,
 <a href="#mutex_prof">enables profiling mutexes</a>,
-and <a href="#sort">simplifies sorting slices</a>.
+and <a href="#sort_slice">simplifies sorting slices</a>.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -339,17 +339,23 @@ We expect that the next release, GCC 7, will contain the Go 1.8
 version of gccgo.
 </p>
 
-<h3 id="cmd_go">Go command</h3>
+<h3 id="gopath">Default GOPATH</h3>
 
 <p>
-The <a href="/cmd/go/"><code>go</code> command</a>'s basic operation
-is unchanged, but there is one addition worth noting.
+  The
+  <a href="/cmd/go/#hdr-GOPATH_environment_variable"><code>GOPATH</code>
+  environment variable</a> now has a default value if it
+  is unset. It defaults to
+  <code>$HOME/go</code> on Unix and
+  <code>%USERPROFILE%/go</code> on Windows.
 </p>
+
+<h3 id="go_bug">Go bug</h3>
 
 <p>
   The new
   “<a href="/cmd/go/#hdr-Print_information_for_bug_reports"><code>go</code>
-   <code>bug</code></a>” starts a bug report on GitHub, prefilled
+   <code>bug</code></a>” command starts a bug report on GitHub, prefilled
   with information about the current system.
 </p>
 
@@ -485,7 +491,7 @@ packages.
 Examples have been added to the documentation across many packages.
 </p>
 
-<h3 id="sortslice">Sort</h3>
+<h3 id="sort_slice">Sort</h3>
 
 <p>
 The <a href="/pkg/sort/">sort</a> package
