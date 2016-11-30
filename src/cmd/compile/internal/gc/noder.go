@@ -41,7 +41,7 @@ func parseFile(filename string) {
 // noder transforms package syntax's AST into a Nod tree.
 type noder struct {
 	baseline  int32
-	linknames []int // tracks //go:linkname lines
+	linknames []uint // tracks //go:linkname lines
 }
 
 func (p *noder) file(file *syntax.File) {
@@ -986,7 +986,7 @@ func (p *noder) nod(orig syntax.Node, op Op, left, right *Node) *Node {
 }
 
 func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
-	l := src_.Line()
+	l := src_.Pos().Line()
 	if l == 0 {
 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
 		return dst
@@ -999,7 +999,7 @@ func (p *noder) lineno(n syntax.Node) {
 	if n == nil {
 		return
 	}
-	l := n.Line()
+	l := n.Pos().Line()
 	if l == 0 {
 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
 		return
@@ -1019,7 +1019,7 @@ func (p *noder) error(err error) {
 	yyerrorl(src.MakePos(line), "%s", msg)
 }
 
-func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
+func (p *noder) pragma(line uint, text string) syntax.Pragma {
 	switch {
 	case strings.HasPrefix(text, "line "):
 		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
@@ -1033,7 +1033,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
 			break
 		}
 		if n > 1e8 {
-			p.error(syntax.Error{Pos: pos, Line: line, Msg: "line number out of range"})
+			p.error(syntax.Error{Line: line, Msg: "line number out of range"})
 			errorexit()
 		}
 		if n <= 0 {
@@ -1049,7 +1049,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
 
 		f := strings.Fields(text)
 		if len(f) != 3 {
-			p.error(syntax.Error{Pos: pos, Line: line, Msg: "usage: //go:linkname localname linkname"})
+			p.error(syntax.Error{Line: line, Msg: "usage: //go:linkname localname linkname"})
 			break
 		}
 		lookup(f[1]).Linkname = f[2]
