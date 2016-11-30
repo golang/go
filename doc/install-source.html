@@ -430,7 +430,7 @@ to override the defaults.
 <ul>
 <li><code>$GOROOT</code>
 <p>
-The root of the Go tree, often <code>$HOME/go</code>.
+The root of the Go tree, often <code>$HOME/go1.X</code>.
 Its value is built into the tree when it is compiled, and
 defaults to the parent of the directory where <code>all.bash</code> was run.
 There is no need to set this unless you want to switch between multiple
@@ -632,7 +632,7 @@ something like this:
 </p>
 
 <pre>
-export GOROOT=$HOME/go
+export GOROOT=$HOME/go1.X
 export GOARCH=amd64
 export GOOS=linux
 </pre>

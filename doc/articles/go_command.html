@@ -97,13 +97,14 @@ a tool like the go command to look at an unfamiliar import path and
 deduce where to obtain the source code.</p>
 
 <p>Second, the place to store sources in the local file system is derived
-in a known way from the import path.  Specifically, the first choice
-is <code>$GOPATH/src/&lt;import-path&gt;</code>.  If <code>$GOPATH</code> is
-unset, the go command will fall back to storing source code alongside the
-standard Go packages, in <code>$GOROOT/src/&lt;import-path&gt;</code>.
+in a known way from the import path, specifically
+<code>$GOPATH/src/&lt;import-path&gt;</code>.
+If unset, <code>$GOPATH</code> defaults to a subdirectory
+named <code>go</code> in the user's home directory.
 If <code>$GOPATH</code> is set to a list of paths, the go command tries
 <code>&lt;dir&gt;/src/&lt;import-path&gt;</code> for each of the directories in
-that list.</p>
+that list.
+</p>
 
 <p>Each of those trees contains, by convention, a top-level directory named
 "<code>bin</code>", for holding compiled executables, and a top-level directory
@@ -137,28 +138,13 @@ to the use of a specific tool chain.</p>
 
 <h2>Getting started with the go command</h2>
 
-<p>Finally, a quick tour of how to use the go command, to supplement
-the information in <a href="/doc/code.html">How to Write Go Code</a>,
-which you might want to read first.  Assuming you want
-to keep your source code separate from the Go distribution source
-tree, the first step is to set <code>$GOPATH</code>, the one piece of global
-configuration that the go command needs.  The <code>$GOPATH</code> can be a
-list of directories, but by far the most common usage should be to set it to a
-single directory.  In particular, you do not need a separate entry in
-<code>$GOPATH</code> for each of your projects.  One <code>$GOPATH</code> can
-support many projects.</p>
+<p>Finally, a quick tour of how to use the go command.
+As mentioned above, the default <code>$GOPATH</code> on Unix is <code>$HOME/go</code>.
+We'll store our programs there.
+To use a different location, you can set <code>$GOPATH</code>;
+see <a href="/doc/code.html">How to Write Go Code</a> for details.
 
-<p>Here’s an example.  Let’s say we decide to keep our Go code in the directory
-<code>$HOME/mygo</code>.  We need to create that directory and set
-<code>$GOPATH</code> accordingly.</p>
-
-<pre>
-$ mkdir $HOME/mygo
-$ export GOPATH=$HOME/mygo
-$
-</pre>
-
-<p>Into this directory, we now add some source code.  Suppose we want to use
+<p>We first add some source code.  Suppose we want to use
 the indexing library from the codesearch project along with a left-leaning
 red-black tree.  We can install both with the "<code>go get</code>"
 subcommand:</p>
@@ -169,8 +155,8 @@ $ go get github.com/petar/GoLLRB/llrb
 $
 </pre>
 
-<p>Both of these projects are now downloaded and installed into our
-<code>$GOPATH</code> directory. The one tree now contains the two directories
+<p>Both of these projects are now downloaded and installed into <code>$HOME/go</code>,
+which contains the two directories
 <code>src/github.com/google/codesearch/index/</code> and
 <code>src/github.com/petar/GoLLRB/llrb/</code>, along with the compiled
 packages (in <code>pkg/</code>) for those libraries and their dependencies.</p>
@@ -184,6 +170,7 @@ the pattern "<code>./...</code>" means start in the current directory
 ("<code>...</code>"):</p>
 
 <pre>
+$ cd $HOME/go/src
 $ go list ./...
 github.com/google/codesearch/cmd/cgrep
 github.com/google/codesearch/cmd/cindex
@@ -215,7 +202,7 @@ $
 current directory:</p>
 
 <pre>
-$ cd $GOPATH/src/github.com/google/codesearch/regexp
+$ cd github.com/google/codesearch/regexp
 $ go list
 github.com/google/codesearch/regexp
 $ go test -v
@@ -243,9 +230,6 @@ the name of the directory where we kept source code, and we probably wouldn't
 pick such a long name, but that ability would require additional configuration
 and complexity in the tool. Typing an extra directory name or two is a small
 price to pay for the increased simplicity and power.</p>
-
-<p>As the example shows, it’s fine to work with packages from many different
-projects at once within a single <code>$GOPATH</code> root directory.</p>
 
 <h2>Limitations</h2>
 

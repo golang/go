@@ -120,22 +120,22 @@ We will discuss the distinction <a href="#PackageNames">later</a>.
 
 <p>
 The <code>GOPATH</code> environment variable specifies the location of your
-workspace. It is likely the only environment variable you'll need to set
-when developing Go code.
+workspace. It defaults to a directory named <code>go</code> inside your home directory,
+so <code>$HOME/go</code> on Unix,
+<code>$home/go</code> on Plan 9,
+and <code>%USERPROFILE%\go</code> (usually <code>C:\Users\YourName\go</code>) on Windows.
+If you would like to work in a different location, you will need to set
+<code>GOPATH</code> to the path to that directory.
+(Another common setup is to set <code>GOPATH=$HOME</code>.)
+Note that <code>GOPATH</code> must <b>not</b> be the
+same path as your Go installation.
 </p>
 
 <p>
-To get started, create a workspace directory and set <code>GOPATH</code>
-accordingly. Your workspace can be located wherever you like, but we'll use
-<code>$HOME/work</code> in this document. Note that this must <b>not</b> be the
-same path as your Go installation.
-(Another common setup is to set <code>GOPATH=$HOME</code>.)
+The command <code>go</code> <code>env</code> <code>GOPATH</code>
+prints the effective current <code>GOPATH</code>;
+it prints the default location if the environment variable is unset.
 </p>
-
-<pre>
-$ <b>mkdir $HOME/work</b>
-$ <b>export GOPATH=$HOME/work</b>
-</pre>
 
 <p>
 For convenience, add the workspace's <code>bin</code> subdirectory
@@ -143,7 +143,20 @@ to your <code>PATH</code>:
 </p>
 
 <pre>
-$ <b>export PATH=$PATH:$GOPATH/bin</b>
+$ <b>export PATH=$PATH:$(go env GOPATH)/bin</b>
+</pre>
+
+<p>
+The scripts in the rest of this document use <code>$GOPATH</code>
+instead of <code>$(go env GOPATH)</code> for brevity.
+To make the scripts run as written
+if you have not set GOPATH,
+you can substitute $HOME/go in those commands
+or else run:
+</p>
+
+<pre>
+$ <b>export GOPATH=$(go env GOPATH)</b>
 </pre>
 
 <p>
