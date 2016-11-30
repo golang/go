@@ -36,7 +36,8 @@ The release <a href="#ports">adds support for 32-bit MIPS</a>,
 <a href="#gc">reduces GC pauses</a> by eliminating stop-the-world stack rescanning,
 <a href="#h2push">adds HTTP/2 Push support</a>,
 <a href="#http_shutdown">adds HTTP graceful shutdown</a>,
-<a href="#more_context">more context support</a>,
+<a href="#more_context">adds more context support</a>,
+<a href="#mutex_prof">enables profiling mutexes</a>,
 and <a href="#sort">simplifies sorting slices</a>.
 </p>
 
@@ -64,7 +65,7 @@ Go now supports 32-bit MIPS on Linux for both big-endian
 </p>
 
 <p>
-Go now requires DragonFly BSD 4.4.4 or later. <!-- CL 29491 -->
+Go now requires DragonFly BSD 4.4.4 or later. <!-- CL 29491, CL 29971 -->
 </p>
 
 <p>
@@ -223,6 +224,10 @@ It has moved to the “tools” repository and is and is available via
 
 <p>
   TODO: more. proto? standalone profiles with symbols?
+<pre>
+runtime/pprof: output CPU profiles in pprof protobuf format (CL 33071)
+runtime/pprof: write profiles in protobuf format. (CL 32257)
+</pre>
 </p>
 
 <h3 id="tool_trace">Trace</h3>
@@ -233,6 +238,7 @@ cmd/trace: add option to output pprof files (CL 23324)
 cmd/trace: fix a runnable goroutine count bug (CL 25552)
 cmd/trace: move process-wide GC events to their own row (CL 30017)
 internal/trace: fix analysis of EvGoWaiting/EvGoInSyscall events (CL 25572)
+cmd/trace: annotate different mark worker types (CL 30702)
 </pre>
 
 <h3 id="tool_vet">Vet</h3>
@@ -542,6 +548,25 @@ now implements the new
     <a href="/pkg/net/#Resolver"><code>net.Resolver</code></a> now
     take a context.</li>
   </ul>
+
+<h3 id="mutex_prof">Mutex Contention Profiling</h3>
+
+<p>
+  The runtime and tools now support profiling contended mutexes.
+</p>
+
+<p>
+  Most users will want to use the new <code>-mutexprofile</code>
+  flag with <a href="/cmd/go/#hdr-Description_of_testing_flags"><code>go</code> <code>test</code></a>,
+  and then use <a href="/cmd/pprof/">pprof</a> on the resultant file.
+</p>
+
+<p>
+  Lower-level support is also available via the new
+  <a href="/pkg/runtime/#MutexProfile"><code>MutexProfile</code></a>
+  and
+  <a href="/pkg/runtime/#SetMutexProfileFraction"><code>SetMutexProfileFraction</code></a>.
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -936,11 +961,50 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
   </dd>
 </dl>
 
+<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
+  <dd>
+    <p><!-- CL 30611 -->
+      <a href="/pkg/fmt/#Scanf"><code>Scanf</code></a>,
+      <a href="/pkg/fmt/#Fscanf"><code>Fscanf</code></a>, and
+      <a href="/pkg/fmt/#Sscanf"><code>Sscanf</code></a> now
+      handle spaces differently and more consistently than
+      previous releases. See the
+      <a href="/pkg/fmt/#hdr-Scanning">scanning documentation</a>
+      for details.
+    </p>
+  </dd>
+</dl>
+
 <dl id="go_doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
   <dd>
     <p><!-- CL 29870 -->
       The new <a href="/pkg/go/doc/#IsPredeclared"><code>IsPredeclared</code></a>
       function reports whether a string is a predeclared identifier.
+    </p>
+  </dd>
+</dl>
+
+<dl id="go_types"><dt><a href="/pkg/go/types/">go/types</a></dt>
+  <dd>
+    <p><!-- CL 30715 -->
+      The new function
+      <a href="/pkg/go/types/#Default"><code>Default</code></a>
+      returns the default "typed" type for an "untyped" type.
+    </p>
+
+    <p><!-- CL 31939 -->
+      The alignment of <code>complex64</code> now matches
+      the <a href="/cmd/compile/">Go compiler</a>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="html_template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 14336 -->
+      The package now validates
+      the <code>"type"</code> attribute on
+      a <code>&lt;script&gt;</code> tag.
     </p>
   </dd>
 </dl>
@@ -1411,7 +1475,6 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
   </dd>
 </dl>
 
-
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
     <p> <!-- CL 31210 -->
@@ -1420,6 +1483,29 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       backquoted raw strings, following the
       <a href="/ref/spec#String_literals">Go language semantics</a>.
     </p>
+  </dd>
+</dl>
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p> <!-- CL 25050, CL 25022 -->
+      The <a href="/pkg/syscall/#Getpagesize"><code>Getpagesize</code></a>
+      now returns the system's size, rather than a constant value.
+      Previously it always returned 4KB.
+    </p>
+
+    <p> <!-- CL 31446 -->
+      The signature
+      of <a href="/pkg/syscall/#Utimes"><code>Utimes</code></a> has
+      changed on Solaris to match all the other Unix systems'
+      signature. Portable code should continue to use
+      <a href="/pkg/os/#Chtimes"><code>os.Chtimes</code></a> instead.
+    </p>
+
+    <p> <!-- CL 32319 -->
+      The <code>X__cmsg_data</code> field has been removed from
+      <a href="/pkg/syscall/#Cmsghdr"><code>Cmsghdr</code></a>.
+      </p>
   </dd>
 </dl>
 
