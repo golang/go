@@ -201,6 +201,56 @@ It has moved to the “tools” repository and is and is available via
 <code>go</code> <code>get</code> <code><a href="https://godoc.org/golang.org/x/tools/cmd/goyacc">golang.org/x/tools/cmd/goyacc</a></code>.
 </p>
 
+<h3 id="tool_fix">Fix</h3>
+
+<p> <!-- CL 28872 -->
+  The <code>fix</code> tool has a new “<code>context</code>”
+  fix to change imports from “<code>golang.org/x/net/context</code>”
+  to “<a href="/pkg/context/"><code>context</code></a>”.
+</p>
+
+<h3 id="tool_pprof">Pprof</h3>
+
+<p> <!-- CL 33157 -->
+  The <code>pprof</code> tool can now profile TLS servers
+  and skip certificate validation by using the "<code>https+insecure</code>"
+  URL scheme.
+</p>
+
+<p> <!-- CL 23781 -->
+  The callgrind output now has instruction-level granularity.
+</p>
+
+<p>
+  TODO: more. proto? standalone profiles with symbols?
+</p>
+
+<h3 id="tool_trace">Trace</h3>
+
+<p>TODO:</p>
+<pre>
+cmd/trace: add option to output pprof files (CL 23324)
+cmd/trace: fix a runnable goroutine count bug (CL 25552)
+cmd/trace: move process-wide GC events to their own row (CL 30017)
+internal/trace: fix analysis of EvGoWaiting/EvGoInSyscall events (CL 25572)
+</pre>
+
+<h3 id="tool_vet">Vet</h3>
+
+<p>TODO:</p>
+<pre>
+cmd/vet: accept space-separated tag lists for compatibility with cmd/go (CL 32030)
+cmd/vet: allow ^& uintptr arithmetic (CL 27156)
+cmd/vet: allow any printf verb with any interface (CL 27127)
+cmd/vet: check for copying of array of locks (CL 24340)
+cmd/vet: check for duplicate json, xml struct field tags (CL 16704)
+cmd/vet: detect defer resp.Body.Close() before error check (CL 32911)
+cmd/vet: diagnose non-space-separated struct tag like `json:"x",xml:"y"` (CL 32031)
+cmd/vet: improve asmdecl parameter handling (CL 27150)
+cmd/vet: properly handle indexed arguments in printf (CL 24391)
+cmd/vet: skip printf check for non-constant format string during failed import (CL 29014)
+</pre>
+
 <h3 id="compiler">Compiler Toolchain</h3>
 
 <p>
