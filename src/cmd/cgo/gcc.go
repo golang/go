@@ -713,15 +713,7 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 			List: params,
 		},
 	}
-	var fbody ast.Stmt
-	if name.FuncType.Result == nil {
-		fbody = &ast.ExprStmt{
-			X: fcall,
-		}
-	} else {
-		fbody = &ast.ReturnStmt{
-			Results: []ast.Expr{fcall},
-		}
+	if name.FuncType.Result != nil {
 		rtype := p.rewriteUnsafe(name.FuncType.Result.Go)
 		if rtype != name.FuncType.Result.Go {
 			needsUnsafe = true
@@ -734,6 +726,45 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 			},
 		}
 	}
+
+	// There is a Ref pointing to the old call.Call.Fun.
+	for _, ref := range f.Ref {
+		if ref.Expr == &call.Call.Fun {
+			ref.Expr = &fcall.Fun
+
+			// If this call expects two results, we have to
+			// adjust the results of the function we generated.
+			if ref.Context == "call2" {
+				if ftype.Results == nil {
+					// An explicit void argument
+					// looks odd but it seems to
+					// be how cgo has worked historically.
+					ftype.Results = &ast.FieldList{
+						List: []*ast.Field{
+							&ast.Field{
+								Type: ast.NewIdent("_Ctype_void"),
+							},
+						},
+					}
+				}
+				ftype.Results.List = append(ftype.Results.List,
+					&ast.Field{
+						Type: ast.NewIdent("error"),
+					})
+			}
+		}
+	}
+
+	var fbody ast.Stmt
+	if ftype.Results == nil {
+		fbody = &ast.ExprStmt{
+			X: fcall,
+		}
+	} else {
+		fbody = &ast.ReturnStmt{
+			Results: []ast.Expr{fcall},
+		}
+	}
 	call.Call.Fun = &ast.FuncLit{
 		Type: ftype,
 		Body: &ast.BlockStmt{
@@ -742,22 +773,6 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
 	}
 	call.Call.Lparen = token.NoPos
 	call.Call.Rparen = token.NoPos
-
-	// There is a Ref pointing to the old call.Call.Fun.
-	for _, ref := range f.Ref {
-		if ref.Expr == &call.Call.Fun {
-			ref.Expr = &fcall.Fun
-
-			// If this call expects two results, we have to
-			// adjust the results of the  function we generated.
-			if ref.Context == "call2" {
-				ftype.Results.List = append(ftype.Results.List,
-					&ast.Field{
-						Type: ast.NewIdent("error"),
-					})
-			}
-		}
-	}
 
 	return needsUnsafe
 }
