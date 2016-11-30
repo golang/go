@@ -54,14 +54,6 @@ func lookupUserId(uid string) (*User, error) {
 	return nil, errors.New("user: LookupId requires cgo")
 }
 
-func lookupGroup(groupname string) (*Group, error) {
-	return nil, errors.New("user: LookupGroup requires cgo")
-}
-
-func lookupGroupId(string) (*Group, error) {
-	return nil, errors.New("user: LookupGroupId requires cgo")
-}
-
 func listGroups(*User) ([]string, error) {
 	return nil, errors.New("user: GroupIds requires cgo")
 }
