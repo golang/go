@@ -24,6 +24,17 @@ func init() {
 		c  *driverConn
 	}
 	freedFrom := make(map[dbConn]string)
+	var mu sync.Mutex
+	getFreedFrom := func(c dbConn) string {
+		mu.Lock()
+		defer mu.Unlock()
+		return freedFrom[c]
+	}
+	setFreedFrom := func(c dbConn, s string) {
+		mu.Lock()
+		defer mu.Unlock()
+		freedFrom[c] = s
+	}
 	putConnHook = func(db *DB, c *driverConn) {
 		idx := -1
 		for i, v := range db.freeConn {
@@ -36,10 +47,10 @@ func init() {
 			// print before panic, as panic may get lost due to conflicting panic
 			// (all goroutines asleep) elsewhere, since we might not unlock
 			// the mutex in freeConn here.
-			println("double free of conn. conflicts are:\nA) " + freedFrom[dbConn{db, c}] + "\n\nand\nB) " + stack())
+			println("double free of conn. conflicts are:\nA) " + getFreedFrom(dbConn{db, c}) + "\n\nand\nB) " + stack())
 			panic("double free of conn.")
 		}
-		freedFrom[dbConn{db, c}] = stack()
+		setFreedFrom(dbConn{db, c}, stack())
 	}
 }
 
@@ -344,7 +355,7 @@ func TestQueryContextWait(t *testing.T) {
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
 	// after this and close the rows and return an error.
-	_, err := db.QueryContext(ctx, "WAIT|30ms|SELECT|people|age,name|")
+	_, err := db.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
 	if err != context.DeadlineExceeded {
 		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
 	}
@@ -372,7 +383,7 @@ func TestTxContextWait(t *testing.T) {
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
 	// after this and close the rows and return an error.
-	_, err = tx.QueryContext(ctx, "WAIT|30ms|SELECT|people|age,name|")
+	_, err = tx.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
 	if err != context.DeadlineExceeded {
 		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
 	}
