@@ -104,10 +104,8 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 		racereleasemerge(unsafe.Pointer(&racecgosync))
 	}
 
-	/*
-	 * Lock g to m to ensure we stay on the same stack if we do a
-	 * cgo callback. In case of panic, unwindm calls endcgo.
-	 */
+	// Lock g to m to ensure we stay on the same stack if we do a
+	// cgo callback. In case of panic, unwindm calls endcgo.
 	lockOSThread()
 	mp := getg().m
 	mp.ncgocall++
@@ -116,17 +114,15 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	// Reset traceback.
 	mp.cgoCallers[0] = 0
 
-	/*
-	 * Announce we are entering a system call
-	 * so that the scheduler knows to create another
-	 * M to run goroutines while we are in the
-	 * foreign code.
-	 *
-	 * The call to asmcgocall is guaranteed not to
-	 * split the stack and does not allocate memory,
-	 * so it is safe to call while "in a system call", outside
-	 * the $GOMAXPROCS accounting.
-	 */
+	// Announce we are entering a system call
+	// so that the scheduler knows to create another
+	// M to run goroutines while we are in the
+	// foreign code.
+	//
+	// The call to asmcgocall is guaranteed not to
+	// split the stack and does not allocate memory,
+	// so it is safe to call while "in a system call", outside
+	// the $GOMAXPROCS accounting.
 	entersyscall(0)
 	errno := asmcgocall(fn, arg)
 	exitsyscall(0)
