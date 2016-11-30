@@ -54,6 +54,3 @@ runtime: pass windows float syscall args via XMM (CL 32173)
 runtime: print sigcode on signal crash (CL 32183)
 runtime: record current PC for SIGPROF on non-Go thread (CL 30252)
 runtime: sleep on CLOCK_MONOTONIC in futexsleep1 on freebsd (CL 30154)
-
-syscall: fix Send{msg,msgN}, Recvmsg and control message handling on solaris (CL 30171)
-syscall: remove X__cmsg_data from Cmsghdr (CL 32319)
