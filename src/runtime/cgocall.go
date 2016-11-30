@@ -120,12 +120,30 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	// foreign code.
 	//
 	// The call to asmcgocall is guaranteed not to
-	// split the stack and does not allocate memory,
+	// grow the stack and does not allocate memory,
 	// so it is safe to call while "in a system call", outside
 	// the $GOMAXPROCS accounting.
+	//
+	// fn may call back into Go code, in which case we'll exit the
+	// "system call", run the Go code (which may grow the stack),
+	// and then re-enter the "system call" reusing the PC and SP
+	// saved by entersyscall here.
 	entersyscall(0)
 	errno := asmcgocall(fn, arg)
 	exitsyscall(0)
+
+	// From the garbage collector's perspective, time can move
+	// backwards in the sequence above. If there's a callback into
+	// Go code, GC will see this function at the call to
+	// asmcgocall. When the Go call later returns to C, the
+	// syscall PC/SP is rolled back and the GC sees this function
+	// back at the call to entersyscall. Normally, fn and arg
+	// would be live at entersyscall and dead at asmcgocall, so if
+	// time moved backwards, GC would see these arguments as dead
+	// and then live. Prevent these undead arguments from crashing
+	// GC by forcing them to stay live across this time warp.
+	KeepAlive(fn)
+	KeepAlive(arg)
 
 	endcgo(mp)
 	return errno
