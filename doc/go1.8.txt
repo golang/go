@@ -33,18 +33,6 @@ cmd/dist: test PIE internal linking on linux/amd64 (CL 28545)
 
 cmd/fix: add golang.org/x/net/context fix (CL 28872)
 
-cmd/go, testing: indicate when no tests are run (CL 22341)
-cmd/go: add bug command (CL 28485)
-cmd/go: add distribution-specific info for Linux to bug command (CL 28581)
-cmd/go: apply import restrictions to test code too (CL 31821)
-cmd/go: diagnose non-canonical import paths before compilation (CL 31668)
-cmd/go: enable -buildmode=plugin on darwin/amd64 (CL 29395)
-cmd/go: for -msan build runtime/cgo with -fsanitize=memory (CL 24855)
-cmd/go: make bug subcommand open the browser (CL 29210)
-cmd/go: make go test -i -o x.test actually write x.test (CL 31352)
-cmd/go: print more env variables in "go env" (CL 31330)
-cmd/go: referee another vendor vs symlink fight (CL 31665)
-
 cmd/internal/obj, cmd/link: darwin dynlink support (CL 29393)
 cmd/internal/objfile: add ppc64/ppc64le disassembler support (CL 9682)
 cmd/link, cmd/go: delay linking of mingwex and mingw32 until very end (CL 26670)
