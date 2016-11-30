@@ -39,7 +39,7 @@ func TestStdLib(t *testing.T) {
 
 	type parseResult struct {
 		filename string
-		lines    int
+		lines    uint
 	}
 
 	results := make(chan parseResult)
@@ -65,7 +65,7 @@ func TestStdLib(t *testing.T) {
 		}
 	}()
 
-	var count, lines int
+	var count, lines uint
 	for res := range results {
 		count++
 		lines += res.lines

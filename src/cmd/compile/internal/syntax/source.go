@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file implements source, a buffered rune reader
+// which is specialized for the needs of the Go scanner:
+// Contiguous sequences of runes (literals) are extracted
+// directly as []byte without the need to re-encode the
+// runes in UTF-8 (as would be necessary with bufio.Reader).
+
 package syntax
 
 import (
@@ -23,7 +29,8 @@ type source struct {
 	buf         [4 << 10]byte
 	offs        int   // source offset of buf
 	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
-	line0, line int   // previous/current line
+	line0, line uint  // previous/current line
+	col0, col   uint  // previous/current column
 	err         error // pending io error
 
 	// literal buffer
@@ -40,6 +47,7 @@ func (s *source) init(src io.Reader, errh ErrorHandler) {
 	s.offs = 0
 	s.r0, s.r, s.w = 0, 0, 0
 	s.line0, s.line = 1, 1
+	s.col0, s.col = 1, 1
 	s.err = nil
 
 	s.lit = s.lit[:0]
@@ -47,11 +55,11 @@ func (s *source) init(src io.Reader, errh ErrorHandler) {
 }
 
 func (s *source) error(msg string) {
-	s.error_at(s.pos0(), s.line0, msg)
+	s.error_at(s.line0, s.col0, msg)
 }
 
-func (s *source) error_at(pos, line int, msg string) {
-	err := Error{pos, line, msg}
+func (s *source) error_at(line, col uint, msg string) {
+	err := Error{line, col, msg}
 	if s.first == nil {
 		s.first = err
 	}
@@ -61,18 +69,24 @@ func (s *source) error_at(pos, line int, msg string) {
 	s.errh(err)
 }
 
-// pos0 returns the byte position of the last character read.
-func (s *source) pos0() int {
-	return s.offs + s.r0
+// ungetr ungets the most recently read rune.
+func (s *source) ungetr() {
+	s.r, s.line, s.col = s.r0, s.line0, s.col0
 }
 
-func (s *source) ungetr() {
-	s.r, s.line = s.r0, s.line0
+// ungetr2 is like ungetr but enables a 2nd ungetr.
+// It must not be called if one of the runes seen
+// was a newline.
+func (s *source) ungetr2() {
+	s.ungetr()
+	// line must not have changed
+	s.r0--
+	s.col0--
 }
 
 func (s *source) getr() rune {
 redo:
-	s.r0, s.line0 = s.r, s.line
+	s.r0, s.line0, s.col0 = s.r, s.line, s.col
 
 	// We could avoid at least one test that is always taken in the
 	// for loop below by duplicating the common case code (ASCII)
@@ -88,12 +102,14 @@ redo:
 	// (invariant: s.buf[s.w] == utf8.RuneSelf)
 	if b := s.buf[s.r]; b < utf8.RuneSelf {
 		s.r++
+		s.col++
 		if b == 0 {
 			s.error("invalid NUL character")
 			goto redo
 		}
 		if b == '\n' {
 			s.line++
+			s.col = 1
 		}
 		return rune(b)
 	}
@@ -109,6 +125,7 @@ redo:
 	// uncommon case: not ASCII
 	r, w := utf8.DecodeRune(s.buf[s.r:s.w])
 	s.r += w
+	s.col++
 
 	if r == utf8.RuneError && w == 1 {
 		s.error("invalid UTF-8 encoding")

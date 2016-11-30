@@ -54,11 +54,11 @@ func (p *parser) want(tok token) {
 
 // syntax_error reports a syntax error at the current line.
 func (p *parser) syntax_error(msg string) {
-	p.syntax_error_at(p.pos, p.line, msg)
+	p.syntax_error_at(p.line, p.col, msg)
 }
 
 // Like syntax_error, but reports error at given line rather than current lexer line.
-func (p *parser) syntax_error_at(pos, line int, msg string) {
+func (p *parser) syntax_error_at(line, col uint, msg string) {
 	if trace {
 		defer p.trace("syntax_error (" + msg + ")")()
 	}
@@ -77,7 +77,7 @@ func (p *parser) syntax_error_at(pos, line int, msg string) {
 		msg = ", " + msg
 	default:
 		// plain error - we don't care about current token
-		p.error_at(pos, line, "syntax error: "+msg)
+		p.error_at(line, col, "syntax error: "+msg)
 		return
 	}
 
@@ -99,7 +99,7 @@ func (p *parser) syntax_error_at(pos, line int, msg string) {
 		tok = tokstring(p.tok)
 	}
 
-	p.error_at(pos, line, "syntax error: unexpected "+tok+msg)
+	p.error_at(line, col, "syntax error: unexpected "+tok+msg)
 }
 
 // The stopset contains keywords that start a statement.
@@ -428,7 +428,7 @@ func (p *parser) funcDecl() *FuncDecl {
 	f.Body = p.funcBody()
 
 	f.Pragma = p.pragma
-	f.EndLine = uint32(p.line)
+	f.EndLine = p.line
 
 	// TODO(gri) deal with function properties
 	// if noescape && body != nil {
@@ -651,7 +651,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 			f.init(p)
 			f.Type = t
 			f.Body = p.funcBody()
-			f.EndLine = uint32(p.line)
+			f.EndLine = p.line
 			p.xnest--
 			p.fnest--
 			return f
@@ -872,7 +872,7 @@ func (p *parser) complitexpr() *CompositeLit {
 		}
 	}
 
-	x.EndLine = uint32(p.line)
+	x.EndLine = p.line
 	p.xnest--
 	p.want(_Rbrace)
 
@@ -1562,7 +1562,7 @@ func (p *parser) labeledStmt(label *Name) Stmt {
 		s.Stmt = p.stmt()
 		if s.Stmt == missing_stmt {
 			// report error at line of ':' token
-			p.syntax_error_at(int(label.pos), int(label.line), "missing statement after label")
+			p.syntax_error_at(label.Pos().Line(), label.Pos().Col(), "missing statement after label")
 			// we are already at the end of the labeled statement - no need to advance
 			return missing_stmt
 		}

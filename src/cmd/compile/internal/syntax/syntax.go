@@ -15,10 +15,9 @@ type Mode uint
 
 // Error describes a syntax error. Error implements the error interface.
 type Error struct {
-	// TODO(gri) decide what we really need here
-	Pos  int // byte offset from file start
-	Line int // line (starting with 1)
-	Msg  string
+	// TODO(gri) Line, Col should be replaced with Pos, eventually.
+	Line, Col uint
+	Msg       string
 }
 
 func (err Error) Error() string {
@@ -38,7 +37,7 @@ type Pragma uint16
 // A PragmaHandler is used to process //line and //go: directives as
 // they're scanned. The returned Pragma value will be unioned into the
 // next FuncDecl node.
-type PragmaHandler func(pos, line int, text string) Pragma
+type PragmaHandler func(line uint, text string) Pragma
 
 // Parse parses a single Go source file from src and returns the corresponding
 // syntax tree. If there are syntax errors, Parse will return the first error

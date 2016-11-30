@@ -18,7 +18,7 @@ type scanner struct {
 	pragma Pragma
 
 	// current token, valid after calling next()
-	pos, line int
+	line, col uint
 	tok       token
 	lit       string   // valid if tok is _Name or _Literal
 	kind      LitKind  // valid if tok is _Literal
@@ -46,7 +46,7 @@ redo:
 	}
 
 	// token start
-	s.pos, s.line = s.source.pos0(), s.source.line0
+	s.line, s.col = s.source.line0, s.source.col0
 
 	if isLetter(c) || c >= utf8.RuneSelf && (unicode.IsLetter(c) || s.isCompatRune(c, true)) {
 		s.ident()
@@ -114,8 +114,7 @@ redo:
 	case '.':
 		c = s.getr()
 		if isDigit(c) {
-			s.ungetr()
-			s.source.r0-- // make sure '.' is part of literal (line cannot have changed)
+			s.ungetr2()
 			s.number('.')
 			break
 		}
@@ -125,8 +124,7 @@ redo:
 				s.tok = _DotDotDot
 				break
 			}
-			s.ungetr()
-			s.source.r0-- // make next ungetr work (line cannot have changed)
+			s.ungetr2()
 		}
 		s.ungetr()
 		s.tok = _Dot
@@ -460,7 +458,7 @@ func (s *scanner) stdString() {
 			break
 		}
 		if r < 0 {
-			s.error_at(s.pos, s.line, "string not terminated")
+			s.error_at(s.line, s.col, "string not terminated")
 			break
 		}
 	}
@@ -480,7 +478,7 @@ func (s *scanner) rawString() {
 			break
 		}
 		if r < 0 {
-			s.error_at(s.pos, s.line, "string not terminated")
+			s.error_at(s.line, s.col, "string not terminated")
 			break
 		}
 	}
@@ -559,7 +557,7 @@ func (s *scanner) lineComment() {
 		}
 		r = s.getr()
 	}
-	s.pragma |= s.pragh(0, s.line, strings.TrimSuffix(string(s.stopLit()), "\r"))
+	s.pragma |= s.pragh(s.line, strings.TrimSuffix(string(s.stopLit()), "\r"))
 	return
 
 skip:
@@ -580,7 +578,7 @@ func (s *scanner) fullComment() {
 			}
 		}
 		if r < 0 {
-			s.error_at(s.pos, s.line, "comment not terminated")
+			s.error_at(s.line, s.col, "comment not terminated")
 			return
 		}
 	}
