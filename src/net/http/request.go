@@ -785,7 +785,9 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 				return ioutil.NopCloser(&r), nil
 			}
 		default:
-			req.ContentLength = -1 // unknown
+			if body != NoBody {
+				req.ContentLength = -1 // unknown
+			}
 		}
 		// For client requests, Request.ContentLength of 0
 		// means either actually 0, or unknown. The only way
