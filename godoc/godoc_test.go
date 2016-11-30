@@ -130,10 +130,13 @@ func TestStructFieldsIDAttributes(t *testing.T) {
 package foo
 
 type T struct {
-     NoDoc string
+	NoDoc string
 
-     // Doc has a comment.
-     Doc string
+	// Doc has a comment.
+	Doc string
+
+	// Opt, if non-nil, is an option.
+	Opt *int
 }
 `)
 	fset := token.NewFileSet()
@@ -147,12 +150,15 @@ type T struct {
 	}
 	got := p.node_htmlFunc(pi, genDecl, true)
 	want := `type T struct {
-<span id="T.NoDoc">NoDoc</span> <a href="/pkg/builtin/#string">string</a>
+<span id="T.NoDoc"></span>NoDoc <a href="/pkg/builtin/#string">string</a>
 
-<span class="comment"><span id="T.Doc">// Doc </span>has a comment.</span>
+<span id="T.Doc"></span><span class="comment">// Doc has a comment.</span>
 Doc <a href="/pkg/builtin/#string">string</a>
+
+<span id="T.Opt"></span><span class="comment">// Opt, if non-nil, is an option.</span>
+Opt *<a href="/pkg/builtin/#int">int</a>
 }`
 	if got != want {
-		t.Errorf(" got: %q\nwant: %q\n", got, want)
+		t.Errorf("got: %s\n\nwant: %s\n", got, want)
 	}
 }

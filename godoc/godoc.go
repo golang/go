@@ -233,49 +233,94 @@ func addStructFieldIDAttributes(buf *bytes.Buffer, name string, st *ast.StructTy
 	if st.Fields == nil {
 		return
 	}
-
-	v := buf.Bytes()
-	buf.Reset()
-
+	var scratch bytes.Buffer
 	for _, f := range st.Fields.List {
 		if len(f.Names) == 0 {
 			continue
 		}
 		fieldName := f.Names[0].Name
-		commentStart := []byte("// " + fieldName + " ")
-		if bytes.Contains(v, commentStart) {
-			// For fields with a doc string of the
-			// conventional form, we put the new span into
-			// the comment instead of the field.
-			// The "conventional" form is a complete sentence
-			// per https://golang.org/s/style#comment-sentences like:
-			//
-			//    // Foo is an optional Fooer to foo the foos.
-			//    Foo Fooer
-			//
-			// In this case, we want the #StructName.Foo
-			// link to make the browser go to the comment
-			// line "Foo is an optional Fooer" instead of
-			// the "Foo Fooer" line, which could otherwise
-			// obscure the docs above the browser's "fold".
-			//
-			// TODO: do this better, so it works for all
-			// comments, including unconventional ones.
-			v = bytes.Replace(v, commentStart, []byte(`<span id="`+name+"."+fieldName+`">// `+fieldName+" </span>"), 1)
-		} else {
-			rx := regexp.MustCompile(`(?m)^\s*` + fieldName + `\b`)
-			var matched bool
-			v = rx.ReplaceAllFunc(v, func(sub []byte) []byte {
-				if matched {
-					return sub
-				}
-				matched = true
-				return []byte(`<span id="` + name + "." + fieldName + `">` + string(sub) + "</span>")
-			})
+		scratch.Reset()
+		var added bool
+		foreachLine(buf.Bytes(), func(line []byte) {
+			if !added && isLineForStructFieldID(line, fieldName) {
+				added = true
+				fmt.Fprintf(&scratch, `<span id="%s.%s"></span>`, name, fieldName)
+			}
+			scratch.Write(line)
+		})
+		buf.Reset()
+		buf.Write(scratch.Bytes())
+	}
+}
+
+// foreachLine calls fn for each line of in, where a line includes
+// the trailing "\n", except on the last line, if it doesn't exist.
+func foreachLine(in []byte, fn func(line []byte)) {
+	for len(in) > 0 {
+		nl := bytes.IndexByte(in, '\n')
+		if nl == -1 {
+			fn(in)
+			return
+		}
+		fn(in[:nl+1])
+		in = in[nl+1:]
+	}
+}
+
+// commentPrefix is the line prefix for comments after they've been HTMLified.
+var commentPrefix = []byte(`<span class="comment">// `)
+
+// isLineForStructFieldID reports whether line is a line we should
+// add a <span id="#StructName.FieldName"> to. Only the fieldName is provided.
+func isLineForStructFieldID(line []byte, fieldName string) bool {
+	line = bytes.TrimSpace(line)
+
+	// For fields with a doc string of the
+	// conventional form, we put the new span into
+	// the comment instead of the field.
+	// The "conventional" form is a complete sentence
+	// per https://golang.org/s/style#comment-sentences like:
+	//
+	//    // Foo is an optional Fooer to foo the foos.
+	//    Foo Fooer
+	//
+	// In this case, we want the #StructName.Foo
+	// link to make the browser go to the comment
+	// line "Foo is an optional Fooer" instead of
+	// the "Foo Fooer" line, which could otherwise
+	// obscure the docs above the browser's "fold".
+	//
+	// TODO: do this better, so it works for all
+	// comments, including unconventional ones.
+	// For comments
+	if bytes.HasPrefix(line, commentPrefix) {
+		if matchesIdentBoundary(line[len(commentPrefix):], fieldName) {
+			return true
 		}
 	}
+	return matchesIdentBoundary(line, fieldName)
+}
 
-	buf.Write(v)
+// matchesIdentBoundary reports whether line matches /^ident\b/.
+// A boundary is considered either none, or an ASCII non-alphanum.
+func matchesIdentBoundary(line []byte, ident string) bool {
+	if len(line) < len(ident) {
+		return false
+	}
+	if string(line[:len(ident)]) != ident {
+		return false
+	}
+	rest := line[len(ident):]
+	return len(rest) == 0 || !isASCIIWordChar(rest[0])
+}
+
+// isASCIIWordChar reports whether b is an ASCII "word"
+// character. (Matching /\w/ in ASCII mode)
+func isASCIIWordChar(b byte) bool {
+	return 'a' <= b && b <= 'z' ||
+		'A' <= b && b <= 'Z' ||
+		'0' <= b && b <= '0' ||
+		b == '_'
 }
 
 func comment_htmlFunc(comment string) string {
