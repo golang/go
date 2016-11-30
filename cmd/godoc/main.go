@@ -310,6 +310,14 @@ func main() {
 			go analysis.Run(pointerAnalysis, &corpus.Analysis)
 		}
 
+		if serveAutoCertHook != nil {
+			go func() {
+				if err := serveAutoCertHook(handler); err != nil {
+					log.Fatalf("ListenAndServe TLS: %v", err)
+				}
+			}()
+		}
+
 		// Start http server.
 		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
 			log.Fatalf("ListenAndServe %s: %v", *httpAddr, err)
@@ -327,3 +335,7 @@ func main() {
 		log.Print(err)
 	}
 }
+
+// serveAutoCertHook if non-nil specifies a function to listen on port 443.
+// See autocert.go.
+var serveAutoCertHook func(http.Handler) error
