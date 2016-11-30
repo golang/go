@@ -237,19 +237,17 @@ internal/trace: fix analysis of EvGoWaiting/EvGoInSyscall events (CL 25572)
 
 <h3 id="tool_vet">Vet</h3>
 
-<p>TODO:</p>
-<pre>
-cmd/vet: accept space-separated tag lists for compatibility with cmd/go (CL 32030)
-cmd/vet: allow ^& uintptr arithmetic (CL 27156)
-cmd/vet: allow any printf verb with any interface (CL 27127)
-cmd/vet: check for copying of array of locks (CL 24340)
-cmd/vet: check for duplicate json, xml struct field tags (CL 16704)
-cmd/vet: detect defer resp.Body.Close() before error check (CL 32911)
-cmd/vet: diagnose non-space-separated struct tag like `json:"x",xml:"y"` (CL 32031)
-cmd/vet: improve asmdecl parameter handling (CL 27150)
-cmd/vet: properly handle indexed arguments in printf (CL 24391)
-cmd/vet: skip printf check for non-constant format string during failed import (CL 29014)
-</pre>
+<p>Vet is stricter in some ways and looser others which
+  caused false positives.</p>
+
+<p>Vet now checks copying of array of locks,
+  duplicate JSON and XML struct field tags,
+  non-space-separated struct tags,
+  deferred calls to HTTP <code>Response.Body.Close</code>
+  before checking errors,
+  indexed arguments in <code>Printf</code>,
+  and improves existing checks.</p>
+</p>
 
 <h3 id="compiler">Compiler Toolchain</h3>
 
@@ -660,7 +658,7 @@ Optimizations and bug fixes are not listed.
 
     <p>
       <!-- CL 30790 -->
-      The new <a href="/pkg/crypto/tls/#Config.GetConfigForClient"><code>Config.GetConfigForClient</code></a> (TODO: make link work)
+      The new <a href="/pkg/crypto/tls/#Config.GetConfigForClient"><code>Config.GetConfigForClient</code></a>
       callback allows selecting a configuration for a client dynamically, based
       on the client's
       <a href="/pkg/crypto/tls/#ClientHelloInfo"><code>ClientHelloInfo</code></a>.
@@ -675,7 +673,7 @@ Optimizations and bug fixes are not listed.
     </p>
 
     <p> <!-- CL 32115 -->
-      The new <a href="/pkg/crypto/tls/#Config.GetClientCertificate"><code>Config.GetClientCertificate</code></a> (TODO: make link work)
+      The new <a href="/pkg/crypto/tls/#Config.GetClientCertificate"><code>Config.GetClientCertificate</code></a>
       callback allows selecting a client certificate based on the server's
       TLS <code>CertificateRequest</code> message, represented by the new
       <a href="/pkg/crypto/tls/#CertificateRequestInfo"><code>CertificateRequestInfo</code></a>.
@@ -684,7 +682,7 @@ Optimizations and bug fixes are not listed.
     <p> <!-- CL 27434 -->
       The new
       <a href="/pkg/crypto/tls/#Config.KeyLogWriter"><code>Config.KeyLogWriter</code></a>
-      (TODO: make link work) allows debugging TLS connections
+      allows debugging TLS connections
       in <a href="https://www.wireshark.org/">WireShark</a> and
       similar tools.
     </p>
@@ -692,7 +690,6 @@ Optimizations and bug fixes are not listed.
     <p> <!-- CL 32115 -->
       The new
       <a href="/pkg/crypto/tls/#Config.VerifyPeerCertificate"><code>Config.VerifyPeerCertificate</code></a>
-      (TODO: make link work)
       callback allows additional validation of a peer's presented certificate.
     </p>
 
@@ -825,17 +822,18 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 <dl id="debug_pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
   <dd>
     <p> <!-- CL 22720, CL 27212, CL 22181, CL 22332, CL 22336, Issue 15345 -->
-      TODO: describe Issue 15345 and CL 22181, CL 22332, CL 22336
-      <pre>pkg debug/pe, method (*COFFSymbol) FullName(StringTable) (string, error)
-pkg debug/pe, method (StringTable) String(uint32) (string, error)
-pkg debug/pe, type File struct, COFFSymbols []COFFSymbol
-pkg debug/pe, type File struct, StringTable StringTable
-pkg debug/pe, type Reloc struct
-pkg debug/pe, type Reloc struct, SymbolTableIndex uint32
-pkg debug/pe, type Reloc struct, Type uint16
-pkg debug/pe, type Reloc struct, VirtualAddress uint32
-pkg debug/pe, type Section struct, Relocs []Reloc
-pkg debug/pe, type StringTable []uint8</pre>
+      The package has been fleshed out and is now used by <a href="/cmd/link/">the Go linker</a>.
+      New are
+      <a href="/pkg/debug/pe/#Reloc"><code>Reloc</code></a>,
+      <a href="/pkg/debug/pe/#Section"><code>Section</code></a>,
+      <a href="/pkg/debug/pe/#StringTable"><code>StringTable</code></a>,
+      the method
+      <a href="/pkg/debug/pe/#COFFSymbol.FullName"><code>COFFSymbol.FullName</code></a>,
+      and
+      <a href="/pkg/debug/pe/#File"><code>File</code></a>
+      fields
+      <a href="/pkg/debug/pe/#File.COFFSymbols"><code>COFFSymbols</code></a> and
+      <a href="/pkg/debug/pe/#File.StringTable"><code>StringTable</code></a>.
       </p>
   </dd>
 </dl>
@@ -1050,7 +1048,9 @@ pkg debug/pe, type StringTable []uint8</pre>
       depend on implementations obeying the documentation.
     </p>
     <p><i>Updating:</i> implementations of the <code>Conn</code> interface should verify
-      they implement the documented semantics. TODO: https://golang.org/cl/18097
+      they implement the documented semantics. The
+      <a href="https://godoc.org/golang.org/x/net/nettest">golang.org/x/net/nettest</a>
+      package will exercise a <code>Conn</code> and validate it behaves properly.
     </p>
 
     <p><!-- CL 32099 -->
@@ -1164,11 +1164,9 @@ pkg debug/pe, type StringTable []uint8</pre>
     <ul>
       <li><!-- CL 28930 -->
         The <a href="/pkg/net/http/#Client"><code>Client</code></a>
-        now copies most request headers on redirect. Authentication-specific
-        headers are only sent to the same origin or subdomains thereof.
-        Cookies are not sent again, unless they were set explicitly.
-        TODO: verify this, and link to docs once https://golang.org/issue/18096
-        is fixed.
+        now copies most request headers on redirect. See
+        <a href="/pkg/net/http/#Client">the documentation</a>
+        on the <code>Client</code> type for details.
       </li>
 
       <li><!-- CL 29072 -->
