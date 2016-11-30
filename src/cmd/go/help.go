@@ -291,7 +291,8 @@ On Plan 9, the value is a list.
 
 If the environment variable is unset, GOPATH defaults
 to a subdirectory named "go" in the user's home directory
-($HOME/go on Unix, %USERPROFILE%\go on Windows).
+($HOME/go on Unix, %USERPROFILE%\go on Windows),
+unless that directory holds a Go distribution.
 Run "go env GOPATH" to see the current GOPATH.
 
 Each directory listed in GOPATH must have a prescribed structure:
