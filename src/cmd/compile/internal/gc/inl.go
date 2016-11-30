@@ -107,6 +107,12 @@ func caninl(fn *Node) {
 		return
 	}
 
+	// If marked "go:cgo_unsafe_args", don't inline
+	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
+		reason = "marked go:cgo_unsafe_args"
+		return
+	}
+
 	// If fn has no body (is defined outside of Go), cannot inline it.
 	if fn.Nbody.Len() == 0 {
 		reason = "no function body"
