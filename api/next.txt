@@ -74,7 +74,6 @@ pkg database/sql, const LevelSnapshot IsolationLevel
 pkg database/sql, const LevelWriteCommitted = 3
 pkg database/sql, const LevelWriteCommitted IsolationLevel
 pkg database/sql, func IsolationContext(context.Context, IsolationLevel) context.Context
-pkg database/sql, func Param(string, interface{}) NamedParam
 pkg database/sql, func ReadOnlyContext(context.Context) context.Context
 pkg database/sql, method (*ColumnType) DatabaseTypeName() string
 pkg database/sql, method (*ColumnType) DecimalSize() (int64, int64, bool)
@@ -100,9 +99,6 @@ pkg database/sql, method (*Tx) QueryRowContext(context.Context, string, ...inter
 pkg database/sql, method (*Tx) StmtContext(context.Context, *Stmt) *Stmt
 pkg database/sql, type ColumnType struct
 pkg database/sql, type IsolationLevel int
-pkg database/sql, type NamedParam struct
-pkg database/sql, type NamedParam struct, Name string
-pkg database/sql, type NamedParam struct, Value interface{}
 pkg database/sql/driver, func IsolationFromContext(context.Context) (IsolationLevel, bool)
 pkg database/sql/driver, func ReadOnlyFromContext(context.Context) bool
 pkg database/sql/driver, type ConnBeginContext interface { BeginContext }
@@ -253,3 +249,11 @@ pkg testing, method (*T) Name() string
 pkg testing, type TB interface, Context() context.Context
 pkg testing, type TB interface, Name() string
 pkg time, func Until(Time) Duration
+pkg database/sql, func Named(string, interface{}) NamedArg
+pkg database/sql, type NamedArg struct
+pkg database/sql, type NamedArg struct, Name string
+pkg database/sql, type NamedArg struct, Value interface{}
+pkg math/rand, type Source64 interface { Int63, Seed, Uint64 }
+pkg math/rand, type Source64 interface, Int63() int64
+pkg math/rand, type Source64 interface, Seed(int64)
+pkg math/rand, type Source64 interface, Uint64() uint64
