@@ -273,6 +273,59 @@ func TestAnonymousNonstruct(t *testing.T) {
 	}
 }
 
+type unexportedIntType int
+
+type MyStructWithUnexportedIntType struct {
+	unexportedIntType
+}
+
+func TestAnonymousNonstructWithUnexportedType(t *testing.T) {
+	a := MyStructWithUnexportedIntType{11}
+	const want = `{}`
+
+	b, err := Marshal(a)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if got := string(b); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+type MyStructContainingUnexportedStruct struct {
+	unexportedStructType1
+	unexportedIntType
+}
+
+type unexportedStructType1 struct {
+	ExportedIntType1
+	unexportedIntType
+	unexportedStructType2
+}
+
+type unexportedStructType2 struct {
+	ExportedIntType2
+	unexportedIntType
+}
+
+type ExportedIntType1 int
+type ExportedIntType2 int
+
+func TestUnexportedAnonymousStructWithExportedType(t *testing.T) {
+	s2 := unexportedStructType2{3, 4}
+	s1 := unexportedStructType1{1, 2, s2}
+	a := MyStructContainingUnexportedStruct{s1, 6}
+	const want = `{"ExportedIntType1":1,"ExportedIntType2":3}`
+
+	b, err := Marshal(a)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if got := string(b); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 type BugA struct {
 	S string
 }
