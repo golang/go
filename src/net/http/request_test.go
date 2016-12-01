@@ -498,10 +498,14 @@ func TestNewRequestContentLength(t *testing.T) {
 		{bytes.NewBuffer([]byte("1234")), 4},
 		{strings.NewReader("12345"), 5},
 		{strings.NewReader(""), 0},
-		// Not detected:
-		{struct{ io.Reader }{strings.NewReader("xyz")}, -1},
-		{io.NewSectionReader(strings.NewReader("x"), 0, 6), -1},
-		{readByte(io.NewSectionReader(strings.NewReader("xy"), 0, 6)), -1},
+		{NoBody, 0},
+
+		// Not detected. During Go 1.8 we tried to make these set to -1, but
+		// due to Issue 18117, we keep these returning 0, even though they're
+		// unknown.
+		{struct{ io.Reader }{strings.NewReader("xyz")}, 0},
+		{io.NewSectionReader(strings.NewReader("x"), 0, 6), 0},
+		{readByte(io.NewSectionReader(strings.NewReader("xy"), 0, 6)), 0},
 	}
 	for i, tt := range tests {
 		req, err := NewRequest("POST", "http://localhost/", tt.r)
@@ -510,9 +514,6 @@ func TestNewRequestContentLength(t *testing.T) {
 		}
 		if req.ContentLength != tt.want {
 			t.Errorf("test[%d]: ContentLength(%T) = %d; want %d", i, tt.r, req.ContentLength, tt.want)
-		}
-		if (req.ContentLength == 0) != (req.Body == NoBody) {
-			t.Errorf("test[%d]: ContentLength = %d but Body non-nil is %v", i, req.ContentLength, req.Body != nil)
 		}
 	}
 }
@@ -822,16 +823,6 @@ func TestNewRequestGetBody(t *testing.T) {
 		if string(slurp1) != string(slurp2) {
 			t.Errorf("test[%d]: Body %q != GetBody %q", i, slurp1, slurp2)
 		}
-	}
-}
-
-func TestNewRequestNoBody(t *testing.T) {
-	req, err := NewRequest("GET", "http://foo.com/", NoBody)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if req.ContentLength != 0 {
-		t.Errorf("ContentLength = %d; want 0", req.ContentLength)
 	}
 }
 
