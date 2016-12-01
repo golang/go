@@ -4875,6 +4875,314 @@ func rewriteValueAMD64_OpAMD64MOVBstoreidx1(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (MOVBstoreidx1 [i] {s} p idx w   x2:(MOVBstoreidx1 [i-1] {s} p idx (SHRLconst [8] w)   x1:(MOVBstoreidx1 [i-2] {s} p idx (SHRLconst [16] w)   x0:(MOVBstoreidx1 [i-3] {s} p idx (SHRLconst [24] w) mem))))
+	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && clobber(x0)   && clobber(x1)   && clobber(x2)
+	// result: (MOVLstoreidx1 [i-3] {s} p idx (BSWAPL <w.Type> w) mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		p := v.Args[0]
+		idx := v.Args[1]
+		w := v.Args[2]
+		x2 := v.Args[3]
+		if x2.Op != OpAMD64MOVBstoreidx1 {
+			break
+		}
+		if x2.AuxInt != i-1 {
+			break
+		}
+		if x2.Aux != s {
+			break
+		}
+		if p != x2.Args[0] {
+			break
+		}
+		if idx != x2.Args[1] {
+			break
+		}
+		x2_2 := x2.Args[2]
+		if x2_2.Op != OpAMD64SHRLconst {
+			break
+		}
+		if x2_2.AuxInt != 8 {
+			break
+		}
+		if w != x2_2.Args[0] {
+			break
+		}
+		x1 := x2.Args[3]
+		if x1.Op != OpAMD64MOVBstoreidx1 {
+			break
+		}
+		if x1.AuxInt != i-2 {
+			break
+		}
+		if x1.Aux != s {
+			break
+		}
+		if p != x1.Args[0] {
+			break
+		}
+		if idx != x1.Args[1] {
+			break
+		}
+		x1_2 := x1.Args[2]
+		if x1_2.Op != OpAMD64SHRLconst {
+			break
+		}
+		if x1_2.AuxInt != 16 {
+			break
+		}
+		if w != x1_2.Args[0] {
+			break
+		}
+		x0 := x1.Args[3]
+		if x0.Op != OpAMD64MOVBstoreidx1 {
+			break
+		}
+		if x0.AuxInt != i-3 {
+			break
+		}
+		if x0.Aux != s {
+			break
+		}
+		if p != x0.Args[0] {
+			break
+		}
+		if idx != x0.Args[1] {
+			break
+		}
+		x0_2 := x0.Args[2]
+		if x0_2.Op != OpAMD64SHRLconst {
+			break
+		}
+		if x0_2.AuxInt != 24 {
+			break
+		}
+		if w != x0_2.Args[0] {
+			break
+		}
+		mem := x0.Args[3]
+		if !(x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && clobber(x0) && clobber(x1) && clobber(x2)) {
+			break
+		}
+		v.reset(OpAMD64MOVLstoreidx1)
+		v.AuxInt = i - 3
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v0 := b.NewValue0(v.Pos, OpAMD64BSWAPL, w.Type)
+		v0.AddArg(w)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} p idx w   x6:(MOVBstoreidx1 [i-1] {s} p idx (SHRQconst [8] w)   x5:(MOVBstoreidx1 [i-2] {s} p idx (SHRQconst [16] w)   x4:(MOVBstoreidx1 [i-3] {s} p idx (SHRQconst [24] w)   x3:(MOVBstoreidx1 [i-4] {s} p idx (SHRQconst [32] w)   x2:(MOVBstoreidx1 [i-5] {s} p idx (SHRQconst [40] w)   x1:(MOVBstoreidx1 [i-6] {s} p idx (SHRQconst [48] w)   x0:(MOVBstoreidx1 [i-7] {s} p idx (SHRQconst [56] w) mem))))))))
+	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && x3.Uses == 1   && x4.Uses == 1   && x5.Uses == 1   && x6.Uses == 1   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(x3)   && clobber(x4)   && clobber(x5)   && clobber(x6)
+	// result: (MOVQstoreidx1 [i-7] {s} p idx (BSWAPQ <w.Type> w) mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		p := v.Args[0]
+		idx := v.Args[1]
+		w := v.Args[2]
+		x6 := v.Args[3]
+		if x6.Op != OpAMD64MOVBstoreidx1 {
+			break
+		}
+		if x6.AuxInt != i-1 {
+			break
+		}
+		if x6.Aux != s {
+			break
+		}
+		if p != x6.Args[0] {
+			break
+		}
+		if idx != x6.Args[1] {
+			break
+		}
+		x6_2 := x6.Args[2]
+		if x6_2.Op != OpAMD64SHRQconst {
+			break
+		}
+		if x6_2.AuxInt != 8 {
+			break
+		}
+		if w != x6_2.Args[0] {
+			break
+		}
+		x5 := x6.Args[3]
+		if x5.Op != OpAMD64MOVBstoreidx1 {
+			break
+		}
+		if x5.AuxInt != i-2 {
+			break
+		}
+		if x5.Aux != s {
+			break
+		}
+		if p != x5.Args[0] {
+			break
+		}
+		if idx != x5.Args[1] {
+			break
+		}
+		x5_2 := x5.Args[2]
+		if x5_2.Op != OpAMD64SHRQconst {
+			break
+		}
+		if x5_2.AuxInt != 16 {
+			break
+		}
+		if w != x5_2.Args[0] {
+			break
+		}
+		x4 := x5.Args[3]
+		if x4.Op != OpAMD64MOVBstoreidx1 {
+			break
+		}
+		if x4.AuxInt != i-3 {
+			break
+		}
+		if x4.Aux != s {
+			break
+		}
+		if p != x4.Args[0] {
+			break
+		}
+		if idx != x4.Args[1] {
+			break
+		}
+		x4_2 := x4.Args[2]
+		if x4_2.Op != OpAMD64SHRQconst {
+			break
+		}
+		if x4_2.AuxInt != 24 {
+			break
+		}
+		if w != x4_2.Args[0] {
+			break
+		}
+		x3 := x4.Args[3]
+		if x3.Op != OpAMD64MOVBstoreidx1 {
+			break
+		}
+		if x3.AuxInt != i-4 {
+			break
+		}
+		if x3.Aux != s {
+			break
+		}
+		if p != x3.Args[0] {
+			break
+		}
+		if idx != x3.Args[1] {
+			break
+		}
+		x3_2 := x3.Args[2]
+		if x3_2.Op != OpAMD64SHRQconst {
+			break
+		}
+		if x3_2.AuxInt != 32 {
+			break
+		}
+		if w != x3_2.Args[0] {
+			break
+		}
+		x2 := x3.Args[3]
+		if x2.Op != OpAMD64MOVBstoreidx1 {
+			break
+		}
+		if x2.AuxInt != i-5 {
+			break
+		}
+		if x2.Aux != s {
+			break
+		}
+		if p != x2.Args[0] {
+			break
+		}
+		if idx != x2.Args[1] {
+			break
+		}
+		x2_2 := x2.Args[2]
+		if x2_2.Op != OpAMD64SHRQconst {
+			break
+		}
+		if x2_2.AuxInt != 40 {
+			break
+		}
+		if w != x2_2.Args[0] {
+			break
+		}
+		x1 := x2.Args[3]
+		if x1.Op != OpAMD64MOVBstoreidx1 {
+			break
+		}
+		if x1.AuxInt != i-6 {
+			break
+		}
+		if x1.Aux != s {
+			break
+		}
+		if p != x1.Args[0] {
+			break
+		}
+		if idx != x1.Args[1] {
+			break
+		}
+		x1_2 := x1.Args[2]
+		if x1_2.Op != OpAMD64SHRQconst {
+			break
+		}
+		if x1_2.AuxInt != 48 {
+			break
+		}
+		if w != x1_2.Args[0] {
+			break
+		}
+		x0 := x1.Args[3]
+		if x0.Op != OpAMD64MOVBstoreidx1 {
+			break
+		}
+		if x0.AuxInt != i-7 {
+			break
+		}
+		if x0.Aux != s {
+			break
+		}
+		if p != x0.Args[0] {
+			break
+		}
+		if idx != x0.Args[1] {
+			break
+		}
+		x0_2 := x0.Args[2]
+		if x0_2.Op != OpAMD64SHRQconst {
+			break
+		}
+		if x0_2.AuxInt != 56 {
+			break
+		}
+		if w != x0_2.Args[0] {
+			break
+		}
+		mem := x0.Args[3]
+		if !(x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6)) {
+			break
+		}
+		v.reset(OpAMD64MOVQstoreidx1)
+		v.AuxInt = i - 7
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v0 := b.NewValue0(v.Pos, OpAMD64BSWAPQ, w.Type)
+		v0.AddArg(w)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
 	// match: (MOVBstoreidx1 [i] {s} p idx (SHRQconst [8] w) x:(MOVBstoreidx1 [i-1] {s} p idx w mem))
 	// cond: x.Uses == 1   && clobber(x)
 	// result: (MOVWstoreidx1 [i-1] {s} p idx w mem)

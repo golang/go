@@ -183,6 +183,14 @@ func f(b []byte, v uint64) {
 	},
 	{"amd64", "linux", `
 import "encoding/binary"
+func f(b []byte, i int, v uint64) {
+	binary.BigEndian.PutUint64(b[i:], v)
+}
+`,
+		[]string{"\tBSWAPQ\t"},
+	},
+	{"amd64", "linux", `
+import "encoding/binary"
 func f(b []byte) uint32 {
 	return binary.BigEndian.Uint32(b)
 }
@@ -201,6 +209,14 @@ func f(b []byte, i int) uint32 {
 import "encoding/binary"
 func f(b []byte, v uint32) {
 	binary.BigEndian.PutUint32(b, v)
+}
+`,
+		[]string{"\tBSWAPL\t"},
+	},
+	{"amd64", "linux", `
+import "encoding/binary"
+func f(b []byte, i int, v uint32) {
+	binary.BigEndian.PutUint32(b[i:], v)
 }
 `,
 		[]string{"\tBSWAPL\t"},

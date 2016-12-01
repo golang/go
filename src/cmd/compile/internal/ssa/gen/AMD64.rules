@@ -1732,6 +1732,18 @@
   && clobber(x2)
   -> (MOVLstore [i-3] {s} p (BSWAPL <w.Type> w) mem)
 
+(MOVBstoreidx1 [i] {s} p idx w
+  x2:(MOVBstoreidx1 [i-1] {s} p idx (SHRLconst [8] w)
+  x1:(MOVBstoreidx1 [i-2] {s} p idx (SHRLconst [16] w)
+  x0:(MOVBstoreidx1 [i-3] {s} p idx (SHRLconst [24] w) mem))))
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && x2.Uses == 1
+  && clobber(x0)
+  && clobber(x1)
+  && clobber(x2)
+  -> (MOVLstoreidx1 [i-3] {s} p idx (BSWAPL <w.Type> w) mem)
+
 (MOVBstore [i] {s} p w
   x6:(MOVBstore [i-1] {s} p (SHRQconst [8] w)
   x5:(MOVBstore [i-2] {s} p (SHRQconst [16] w)
@@ -1755,6 +1767,30 @@
   && clobber(x5)
   && clobber(x6)
   -> (MOVQstore [i-7] {s} p (BSWAPQ <w.Type> w) mem)
+
+(MOVBstoreidx1 [i] {s} p idx w
+  x6:(MOVBstoreidx1 [i-1] {s} p idx (SHRQconst [8] w)
+  x5:(MOVBstoreidx1 [i-2] {s} p idx (SHRQconst [16] w)
+  x4:(MOVBstoreidx1 [i-3] {s} p idx (SHRQconst [24] w)
+  x3:(MOVBstoreidx1 [i-4] {s} p idx (SHRQconst [32] w)
+  x2:(MOVBstoreidx1 [i-5] {s} p idx (SHRQconst [40] w)
+  x1:(MOVBstoreidx1 [i-6] {s} p idx (SHRQconst [48] w)
+  x0:(MOVBstoreidx1 [i-7] {s} p idx (SHRQconst [56] w) mem))))))))
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && x2.Uses == 1
+  && x3.Uses == 1
+  && x4.Uses == 1
+  && x5.Uses == 1
+  && x6.Uses == 1
+  && clobber(x0)
+  && clobber(x1)
+  && clobber(x2)
+  && clobber(x3)
+  && clobber(x4)
+  && clobber(x5)
+  && clobber(x6)
+  -> (MOVQstoreidx1 [i-7] {s} p idx (BSWAPQ <w.Type> w) mem)
 
 // Combine constant stores into larger (unaligned) stores.
 (MOVBstoreconst [c] {s} p x:(MOVBstoreconst [a] {s} p mem))
