@@ -7,6 +7,7 @@
 package syscall_test
 
 import (
+	"runtime"
 	"syscall"
 	"testing"
 )
@@ -28,7 +29,11 @@ func TestGetfsstat(t *testing.T) {
 	empty := syscall.Statfs_t{}
 	for _, stat := range data {
 		if stat == empty {
-			t.Fatal("an empty Statfs_t struct was returned")
+			if runtime.GOOS == "darwin" {
+				t.Logf("ignoring empty Statfs_t")
+			} else {
+				t.Fatal("an empty Statfs_t struct was returned")
+			}
 		}
 	}
 }
