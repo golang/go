@@ -44,9 +44,24 @@ and <a href="#sort_slice">simplifies sorting slices</a>.
 <h2 id="language">Changes to the language</h2>
 
 <p>
-  When explicitly converting structs, tags are now ignored for structural type identity.
-  See the <a href="/ref/spec#Conversions">language specification</a> for details.
+  When explicitly converting a value from one struct type to another, as of Go 1. 8 the tags are ignored.
+  Thus two structs that differ only in their tags may be converted from one to the other:
 </p>
+
+<pre>
+func example() {
+	type T1 struct {
+		X int `json:"foo"`
+	}
+	type T2 struct {
+		X int `json:"bar"`
+	}
+	var v1 T1
+	var v2 T2
+	v1 = T1(v2) // now legal
+}
+</pre>
+
 
 <p> <!-- CL 17711 -->
   The language specification now only requires that implementations
@@ -65,7 +80,7 @@ Go now supports 32-bit MIPS on Linux for both big-endian
 </p>
 
 <p>
-Go now requires DragonFly BSD 4.4.4 or later. <!-- CL 29491, CL 29971 -->
+On DragonFly BSD, Go now requires DragonFly 4.4.4 or later. <!-- CL 29491, CL 29971 -->
 </p>
 
 <p>
@@ -195,11 +210,11 @@ added:
 <h3 id="tool_yacc">Yacc</h3>
 
 <p> <!-- CL 27324, CL 27325 -->
-The <code>yacc</code> tool (previously available via
+The <code>yacc</code> tool (previously available by running
 “<code>go</code> <code>tool</code> <code>yacc</code>”)
 has been removed. As of Go 1.7 it was no longer used by the Go compiler.
-It has moved to the “tools” repository and is and is available via
-<code>go</code> <code>get</code> <code><a href="https://godoc.org/golang.org/x/tools/cmd/goyacc">golang.org/x/tools/cmd/goyacc</a></code>.
+It has moved to the “tools” repository and is now available at
+<code><a href="https://godoc.org/golang.org/x/tools/cmd/goyacc">golang.org/x/tools/cmd/goyacc</a></code>.
 </p>
 
 <h3 id="tool_fix">Fix</h3>
@@ -243,8 +258,8 @@ cmd/trace: annotate different mark worker types (CL 30702)
 
 <h3 id="tool_vet">Vet</h3>
 
-<p>Vet is stricter in some ways and looser others which
-  caused false positives.</p>
+<p>Vet is stricter in some ways and looser where it
+  previously caused false positives.</p>
 
 <p>Vet now checks copying of array of locks,
   duplicate JSON and XML struct field tags,
@@ -265,7 +280,7 @@ all architectures.
 
 <p>
 The new back end, based on
-<a href="https://en.wikipedia.org/wiki/Static_single_assignment_form">SSA</a>,
+<a href="https://en.wikipedia.org/wiki/Static_single_assignment_form">static single assignment form</a> (SSA),
 generates more compact, more efficient code
 and provides a better platform for optimizations
 such as bounds check elimination.
@@ -605,7 +620,7 @@ Optimizations and bug fixes are not listed.
       the NTFS, UNIX, and Extended Time Stamp metadata fields.
       <!-- CL 30811 -->
       When writing zip files, the Extended Time Stamp field is written
-      if TODO: validate implementation.
+      for files with non-zero modification times.
     </p>
 
   </dd>
@@ -808,7 +823,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 	  <a href="/pkg/database/sql#DB.BeginContext"><code>DB.BeginContext</code></a>.
 	  An error will be returned if an isolation level is selected that the driver
 	  does not support. A read-only attribute may also be set on the transaction
-	  with <a href="/pkg/database/sql/#ReadOnlyContext"><code>ReadOnlyContext</code></a>
+	  with <a href="/pkg/database/sql/#ReadOnlyContext"><code>ReadOnlyContext</code></a>.
 	</p>
 	<p>
       Queries now expose the SQL column type information for drivers that support it.
@@ -821,7 +836,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 	  <a href="/pkg/database/sql/#Rows.Next"><code>Rows.Next</code></a> returns false,
 	  <a href="/pkg/database/sql/#Rows.NextResultSet"><code>Rows.NextResultSet</code></a>
 	  may be called to advance to the next result set. The existing <code>Rows</code>
-	  should be continued to be used after it advances to the next result set.
+	  should continue to be used after it advances to the next result set.
     </p>
 	<p>
 	  <a href="/pkg/database/sql/#NamedParam"><code>NamedParam</code></a> may be used
@@ -841,7 +856,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
     <p>
 	  The new <code>Context</code> query methods work for all drivers, but
 	  <code>Context</code> cancelation is not responsive unless the driver has been
-	  updated to used them. The other features require driver support in
+	  updated to use them. The other features require driver support in
 	  <a href="/pkg/database/sql/driver"><code>database/sql/driver</code></a>.
 	  Driver authors should review the new interfaces. Users of existing
 	  driver should review the driver documentation to see what
@@ -883,9 +898,10 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 <dl id="encoding_binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
   <dd>
     <p> <!-- CL 28514 -->
-      The package now supports boolean values.
-      TODO: add docs in encoding/binary package, then link to package docs
-      here.
+      <a href="/pkg/encoding/binary/#Read"><code>Read</code></a>
+      and
+      <a href="/pkg/encoding/binary/#Write"><code>Write</code></a>
+      now support booleans.
     </p>
   </dd>
 </dl>
@@ -1460,8 +1476,8 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       "<code>\\?\c:\*</code>",
       <a href="/pkg/path/filepath/#EvalSymlinks"><code>EvalSymlinks</code></a> now
       correctly handles "<code>C:.</code>", and
-      <a href="/pkg/path/filepath/#Clean"><code>Clean</code></a> now properlys handles a leading "<code>..</code>"
-      in the path.
+      <a href="/pkg/path/filepath/#Clean"><code>Clean</code></a> now properly
+      handles a leading "<code>..</code>" in the path.
     <p>
 
   </dd>
