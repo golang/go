@@ -7,7 +7,7 @@
 //
 // Numbers are translated by reading and writing fixed-size values.
 // A fixed-size value is either a fixed-size arithmetic
-// type (int8, uint8, int16, float32, complex64, ...)
+// type (bool, int8, uint8, int16, float32, complex64, ...)
 // or an array or struct containing only fixed-size values.
 //
 // The varint functions encode and decode single integer values using
@@ -147,6 +147,8 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // of fixed-size values.
 // Bytes read from r are decoded using the specified byte order
 // and written to successive fields of the data.
+// When decoding boolean values, a zero byte is decoded as false, and
+// any other non-zero byte is decoded as true.
 // When reading into structs, the field data for fields with
 // blank (_) field names is skipped; i.e., blank field names
 // may be used for padding.
@@ -249,6 +251,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 // Write writes the binary representation of data into w.
 // Data must be a fixed-size value or a slice of fixed-size
 // values, or a pointer to such data.
+// Boolean values encode as one byte: 1 for true, and 0 for false.
 // Bytes written to w are encoded using the specified byte order
 // and read from successive fields of the data.
 // When writing structs, zero values are written for fields
