@@ -500,3 +500,27 @@ func BenchmarkWriteSlice1000Int32s(b *testing.B) {
 	}
 	b.StopTimer()
 }
+
+func BenchmarkPutUint16(b *testing.B) {
+	buf := [2]byte{}
+	b.SetBytes(2)
+	for i := 0; i < b.N; i++ {
+		BigEndian.PutUint16(buf[:], uint16(i))
+	}
+}
+
+func BenchmarkPutUint32(b *testing.B) {
+	buf := [4]byte{}
+	b.SetBytes(4)
+	for i := 0; i < b.N; i++ {
+		BigEndian.PutUint32(buf[:], uint32(i))
+	}
+}
+
+func BenchmarkPutUint64(b *testing.B) {
+	buf := [8]byte{}
+	b.SetBytes(8)
+	for i := 0; i < b.N; i++ {
+		BigEndian.PutUint64(buf[:], uint64(i))
+	}
+}

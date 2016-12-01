@@ -221,6 +221,38 @@ func f(b []byte, i int, v uint32) {
 `,
 		[]string{"\tBSWAPL\t"},
 	},
+	{"amd64", "linux", `
+import "encoding/binary"
+func f(b []byte) uint16 {
+	return binary.BigEndian.Uint16(b)
+}
+`,
+		[]string{"\tROLW\t\\$8,"},
+	},
+	{"amd64", "linux", `
+import "encoding/binary"
+func f(b []byte, i int) uint16 {
+	return binary.BigEndian.Uint16(b[i:])
+}
+`,
+		[]string{"\tROLW\t\\$8,"},
+	},
+	{"amd64", "linux", `
+import "encoding/binary"
+func f(b []byte, v uint16) {
+	binary.BigEndian.PutUint16(b, v)
+}
+`,
+		[]string{"\tROLW\t\\$8,"},
+	},
+	{"amd64", "linux", `
+import "encoding/binary"
+func f(b []byte, i int, v uint16) {
+	binary.BigEndian.PutUint16(b[i:], v)
+}
+`,
+		[]string{"\tROLW\t\\$8,"},
+	},
 	{"386", "linux", `
 import "encoding/binary"
 func f(b []byte) uint32 {
