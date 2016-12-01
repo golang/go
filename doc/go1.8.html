@@ -950,7 +950,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
     <p> <!-- CL 30944 -->
 
       In previous versions of Go, unmarshaling a JSON <code>null</code> into an
-      of <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>
+      <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>
       was considered a no-op; now the <code>Unmarshaler</code>'s
       <code>UnmarshalJSON</code> method is called with the JSON literal
       <code>null</code> and can define the semantics of that case.
