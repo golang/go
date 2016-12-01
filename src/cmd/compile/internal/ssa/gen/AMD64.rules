@@ -1558,58 +1558,72 @@
   && clobber(o5)
   -> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVQloadidx1 <v.Type> [i] {s} p idx mem)
 
-// Combine byte loads + shifts into larger (unaligned) loads + bswap
-(ORL o1:(ORL o0:(ORL
+// Combine 2 byte loads + shifts into (unaligned) word load + rolw 8
+(ORL
                        x0:(MOVBload [i] {s} p mem)
     s0:(SHLLconst [8]  x1:(MOVBload [i-1] {s} p mem)))
-    s1:(SHLLconst [16] x2:(MOVBload [i-2] {s} p mem)))
-    s2:(SHLLconst [24] x3:(MOVBload [i-3] {s} p mem)))
   && x0.Uses == 1
   && x1.Uses == 1
-  && x2.Uses == 1
-  && x3.Uses == 1
   && s0.Uses == 1
-  && s1.Uses == 1
-  && s2.Uses == 1
-  && o0.Uses == 1
-  && o1.Uses == 1
-  && mergePoint(b,x0,x1,x2,x3) != nil
+  && mergePoint(b,x0,x1) != nil
   && clobber(x0)
   && clobber(x1)
-  && clobber(x2)
-  && clobber(x3)
   && clobber(s0)
-  && clobber(s1)
-  && clobber(s2)
-  && clobber(o0)
-  && clobber(o1)
-  -> @mergePoint(b,x0,x1,x2,x3) (BSWAPL <v.Type> (MOVLload [i-3] {s} p mem))
+  -> @mergePoint(b,x0,x1) (ROLWconst <v.Type> [8] (MOVWload [i-1] {s} p mem))
 
-(ORL o1:(ORL o0:(ORL
+(ORL
                        x0:(MOVBloadidx1 [i] {s} p idx mem)
     s0:(SHLLconst [8]  x1:(MOVBloadidx1 [i-1] {s} p idx mem)))
-    s1:(SHLLconst [16] x2:(MOVBloadidx1 [i-2] {s} p idx mem)))
-    s2:(SHLLconst [24] x3:(MOVBloadidx1 [i-3] {s} p idx mem)))
   && x0.Uses == 1
   && x1.Uses == 1
+  && s0.Uses == 1
+  && mergePoint(b,x0,x1) != nil
+  && clobber(x0)
+  && clobber(x1)
+  && clobber(s0)
+  -> @mergePoint(b,x0,x1) (ROLWconst <v.Type> [8] (MOVWloadidx1 <v.Type> [i-1] {s} p idx mem))
+
+// Combine byte loads + shifts into larger (unaligned) loads + bswap
+// (for L version first 2 bytes loads are matched as result of above 2-bytes load+shift rewrite)
+(ORL o1:(ORL o0:(ROLWconst [8] x01:(MOVWload [i1] {s} p mem))
+    s1:(SHLLconst [16] x2:(MOVBload [i1-1] {s} p mem)))
+    s2:(SHLLconst [24] x3:(MOVBload [i1-2] {s} p mem)))
+  && x01.Uses == 1
   && x2.Uses == 1
   && x3.Uses == 1
-  && s0.Uses == 1
   && s1.Uses == 1
   && s2.Uses == 1
   && o0.Uses == 1
   && o1.Uses == 1
-  && mergePoint(b,x0,x1,x2,x3) != nil
-  && clobber(x0)
-  && clobber(x1)
+  && mergePoint(b,x01,x2,x3) != nil
+  && clobber(x01)
   && clobber(x2)
   && clobber(x3)
-  && clobber(s0)
   && clobber(s1)
   && clobber(s2)
   && clobber(o0)
   && clobber(o1)
-  -> @mergePoint(b,x0,x1,x2,x3) (BSWAPL <v.Type> (MOVLloadidx1 <v.Type> [i-3] {s} p idx mem))
+  -> @mergePoint(b,x01,x2,x3) (BSWAPL <v.Type> (MOVLload [i1-2] {s} p mem))
+
+(ORL o1:(ORL o0:(ROLWconst [8] x01:(MOVWloadidx1 [i1] {s} p idx mem))
+    s1:(SHLLconst [16] x2:(MOVBloadidx1 [i1-1] {s} p idx mem)))
+    s2:(SHLLconst [24] x3:(MOVBloadidx1 [i1-2] {s} p idx mem)))
+  && x01.Uses == 1
+  && x2.Uses == 1
+  && x3.Uses == 1
+  && s1.Uses == 1
+  && s2.Uses == 1
+  && o0.Uses == 1
+  && o1.Uses == 1
+  && mergePoint(b,x01,x2,x3) != nil
+  && clobber(x01)
+  && clobber(x2)
+  && clobber(x3)
+  && clobber(s1)
+  && clobber(s2)
+  && clobber(o0)
+  && clobber(o1)
+  -> @mergePoint(b,x01,x2,x3) (BSWAPL <v.Type> (MOVLloadidx1 <v.Type> [i1-2] {s} p idx mem))
 
 (ORQ o5:(ORQ o4:(ORQ o3:(ORQ o2:(ORQ o1:(ORQ o0:(ORQ
                        x0:(MOVBload [i] {s} p mem)
@@ -1718,6 +1732,19 @@
   && clobber(o4)
   && clobber(o5)
   -> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (BSWAPQ <v.Type> (MOVQloadidx1 <v.Type> [i-7] {s} p idx mem))
+
+// Combine 2 byte stores + shift into rolw 8 + word store
+(MOVBstore [i] {s} p w
+  x0:(MOVBstore [i-1] {s} p (SHRWconst [8] w) mem))
+  && x0.Uses == 1
+  && clobber(x0)
+  -> (MOVWstore [i-1] {s} p (ROLWconst <w.Type> [8] w) mem)
+
+(MOVBstoreidx1 [i] {s} p idx w
+  x0:(MOVBstoreidx1 [i-1] {s} p idx (SHRWconst [8] w) mem))
+  && x0.Uses == 1
+  && clobber(x0)
+  -> (MOVWstoreidx1 [i-1] {s} p idx (ROLWconst <w.Type> [8] w) mem)
 
 // Combine stores + shifts into bswap and larger (unaligned) stores
 (MOVBstore [i] {s} p w
