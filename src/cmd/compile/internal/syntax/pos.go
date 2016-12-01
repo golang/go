@@ -6,10 +6,11 @@
 
 package syntax
 
-import "fmt"
+import "strconv"
 
 // A Pos encodes a source position consisting of a (line, column) number pair
-// and a position base.
+// and a position base. A zero Pos is a ready to use "unknown" position (empty
+// filename, and unknown line and column number).
 //
 // The (line, column) values refer to a position in a file independent of any
 // position base ("absolute" position). They start at 1, and they are unknown
@@ -33,47 +34,36 @@ func MakePos(base *PosBase, line, col uint) Pos {
 }
 
 // Filename returns the name of the actual file containing this position.
-func (p *Pos) Filename() string {
-	if b := p.base; b != nil {
-		return b.pos.RelFilename()
-	}
-	return ""
-}
+func (p *Pos) Filename() string { return p.base.Pos().RelFilename() }
 
 // Base returns the position base.
 func (p *Pos) Base() *PosBase { return p.base }
 
 // RelFilename returns the filename recorded with the position's base.
-func (p *Pos) RelFilename() string {
-	if b := p.base; b != nil {
-		return b.filename
-	}
-	return ""
-}
+func (p *Pos) RelFilename() string { return p.base.Filename() }
 
 // RelLine returns the line number relative to the positions's base.
-func (p *Pos) RelLine() uint {
-	var line0 uint
-	if b := p.base; b != nil {
-		line0 = b.line - p.base.pos.Line()
-	}
-	return line0 + p.Line()
-}
+func (p *Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
 
 func (p *Pos) String() string {
 	b := p.base
 
-	if b == nil {
-		return p.lico.String()
-	}
-
-	if b == b.pos.base {
-		// base is file base
-		return fmt.Sprintf("%s:%s", b.filename, p.lico.String())
+	if b == b.Pos().base {
+		// base is file base (incl. nil)
+		return posString(b.Filename(), p.Line(), p.Col())
 	}
 
 	// base is relative
-	return fmt.Sprintf("%s:%s[%s]", b.filename, licoString(p.RelLine(), p.Col()), b.pos.String())
+	return posString(b.Filename(), p.RelLine(), p.Col()) + "[" + b.Pos().String() + "]"
+}
+
+// posString formats a (filename, line, col) tuple as a printable position.
+func posString(filename string, line, col uint) string {
+	s := filename + ":" + strconv.FormatUint(uint64(line), 10)
+	if col != 0 {
+		s += ":" + strconv.FormatUint(uint64(col), 10)
+	}
+	return s
 }
 
 // ----------------------------------------------------------------------------
@@ -91,9 +81,12 @@ type PosBase struct {
 
 // NewFileBase returns a new *PosBase for a file with the given filename.
 func NewFileBase(filename string) *PosBase {
-	base := &PosBase{filename: filename}
-	base.pos = MakePos(base, 0, 0)
-	return base
+	if filename != "" {
+		base := &PosBase{filename: filename}
+		base.pos = MakePos(base, 0, 0)
+		return base
+	}
+	return nil
 }
 
 // NewLinePragmaBase returns a new *PosBase for a line pragma of the form
@@ -106,7 +99,7 @@ func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
 var noPos Pos
 
 // Pos returns the position at which base is located.
-// If b == nil, the result is the empty position.
+// If b == nil, the result is the zero position.
 func (b *PosBase) Pos() *Pos {
 	if b != nil {
 		return &b.pos
@@ -144,29 +137,21 @@ type lico uint32
 // information as line numbers grow bigger; similar to what gcc
 // does.)
 const (
-	lineW, lineM = 24, 1<<lineW - 1
-	colW, colM   = 32 - lineW, 1<<colW - 1
+	lineBits, lineMax = 24, 1<<lineBits - 1
+	colBits, colMax   = 32 - lineBits, 1<<colBits - 1
 )
 
 func makeLico(line, col uint) lico {
-	if line > lineM {
+	if line > lineMax {
 		// cannot represent line, use max. line so we have some information
-		line = lineM
+		line = lineMax
 	}
-	if col > colM {
+	if col > colMax {
 		// cannot represent column, use 0 to indicate unknown column
 		col = 0
 	}
-	return lico(line<<colW | col)
+	return lico(line<<colBits | col)
 }
 
-func (x lico) Line() uint     { return uint(x) >> colW }
-func (x lico) Col() uint      { return uint(x) & colM }
-func (x lico) String() string { return licoString(x.Line(), x.Col()) }
-
-func licoString(line, col uint) string {
-	if col == 0 {
-		return fmt.Sprintf("%d", line)
-	}
-	return fmt.Sprintf("%d:%d", line, col)
-}
+func (x lico) Line() uint { return uint(x) >> colBits }
+func (x lico) Col() uint  { return uint(x) & colMax }

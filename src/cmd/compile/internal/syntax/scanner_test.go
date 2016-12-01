@@ -323,7 +323,7 @@ func TestScanErrors(t *testing.T) {
 		{`//line foo:123abc`, "invalid line number: 123abc", 1, 12},
 		{`/**///line foo:x`, "invalid line number: x", 1, 16},
 		{`//line foo:0`, "invalid line number: 0", 1, 12},
-		{fmt.Sprintf(`//line foo:%d`, lineM+1), fmt.Sprintf("invalid line number: %d", lineM+1), 1, 12},
+		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), 1, 12},
 
 		// former problem cases
 		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 1},

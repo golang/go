@@ -577,7 +577,7 @@ func (s *scanner) lineComment() {
 		}
 		nstr := text[i+1:]
 		n, err := strconv.Atoi(nstr)
-		if err != nil || n <= 0 || n > lineM {
+		if err != nil || n <= 0 || n > lineMax {
 			s.error_at(s.line0, s.col0-uint(len(nstr)), "invalid line number: "+nstr)
 			return
 		}
