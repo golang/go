@@ -380,6 +380,9 @@ func compile(fn *Node) {
 	if fn.Func.Wrapper {
 		ptxt.From3.Offset |= obj.WRAPPER
 	}
+	if fn.Func.NoFramePointer {
+		ptxt.From3.Offset |= obj.NOFRAME
+	}
 	if fn.Func.Needctxt {
 		ptxt.From3.Offset |= obj.NEEDCTXT
 	}
