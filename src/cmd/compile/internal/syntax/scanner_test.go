@@ -22,7 +22,7 @@ func TestScanner(t *testing.T) {
 	defer src.Close()
 
 	var s scanner
-	s.init(src, nil, nil)
+	s.init("parser.go", src, nil, nil)
 	for {
 		s.next()
 		if s.tok == _EOF {
@@ -51,7 +51,7 @@ func TestTokens(t *testing.T) {
 
 	// scan source
 	var got scanner
-	got.init(&bytesReader{buf}, nil, nil)
+	got.init("", &bytesReader{buf}, nil, nil)
 	got.next()
 	for i, want := range sampleTokens {
 		nlsemi := false
@@ -317,12 +317,20 @@ func TestScanErrors(t *testing.T) {
 		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 1, 19},
 		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 1, 19},
 
+		{`//line :`, "invalid line number: ", 1, 9},
+		{`//line :x`, "invalid line number: x", 1, 9},
+		{`//line foo :`, "invalid line number: ", 1, 13},
+		{`//line foo:123abc`, "invalid line number: 123abc", 1, 12},
+		{`/**///line foo:x`, "invalid line number: x", 1, 16},
+		{`//line foo:0`, "invalid line number: 0", 1, 12},
+		{fmt.Sprintf(`//line foo:%d`, lineM+1), fmt.Sprintf("invalid line number: %d", lineM+1), 1, 12},
+
 		// former problem cases
 		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 1},
 	} {
 		var s scanner
 		nerrors := 0
-		s.init(&bytesReader{[]byte(test.src)}, func(err error) {
+		s.init("", &bytesReader{[]byte(test.src)}, func(err error) {
 			nerrors++
 			// only check the first error
 			e := err.(Error) // we know it's an Error

@@ -23,7 +23,7 @@ func parseFile(filename string) {
 	defer src.Close()
 
 	p := noder{baseline: lexlineno.Line()}
-	file, _ := syntax.Parse(src, p.error, p.pragma, 0) // errors are tracked via p.error
+	file, _ := syntax.Parse(filename, src, p.error, p.pragma, 0) // errors are tracked via p.error
 
 	p.file(file)
 

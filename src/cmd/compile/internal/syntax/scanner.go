@@ -7,6 +7,7 @@ package syntax
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -18,6 +19,7 @@ type scanner struct {
 	pragma Pragma
 
 	// current token, valid after calling next()
+	base      *PosBase
 	line, col uint
 	tok       token
 	lit       string   // valid if tok is _Name or _Literal
@@ -28,9 +30,10 @@ type scanner struct {
 	pragh PragmaHandler
 }
 
-func (s *scanner) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+func (s *scanner) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
 	s.source.init(src, errh)
 	s.nlsemi = false
+	s.base = NewFileBase(filename)
 	s.pragh = pragh
 }
 
@@ -524,48 +527,70 @@ func (s *scanner) rune() {
 	s.tok = _Literal
 }
 
-func (s *scanner) lineComment() {
-	// recognize pragmas
-	var prefix string
-	r := s.getr()
-	if s.pragh == nil {
-		goto skip
-	}
-
-	switch r {
-	case 'g':
-		prefix = "go:"
-	case 'l':
-		prefix = "line "
-	default:
-		goto skip
-	}
-
-	s.startLit()
-	for _, m := range prefix {
-		if r != m {
-			s.stopLit()
-			goto skip
-		}
-		r = s.getr()
-	}
-
+func (s *scanner) skipLine(r rune) {
 	for r >= 0 {
 		if r == '\n' {
-			s.ungetr()
+			s.ungetr() // don't consume '\n' - needed for nlsemi logic
 			break
 		}
 		r = s.getr()
 	}
-	s.pragma |= s.pragh(s.line, strings.TrimSuffix(string(s.stopLit()), "\r"))
-	return
+}
 
-skip:
-	// consume line
-	for r != '\n' && r >= 0 {
+func (s *scanner) lineComment() {
+	// recognize pragmas
+	prefix := ""
+	r := s.getr()
+	switch r {
+	case 'g':
+		if s.pragh == nil {
+			s.skipLine(r)
+			return
+		}
+		prefix = "go:"
+	case 'l':
+		prefix = "line "
+	default:
+		s.skipLine(r)
+		return
+	}
+
+	for _, m := range prefix {
+		if r != m {
+			s.skipLine(r)
+			return
+		}
 		r = s.getr()
 	}
-	s.ungetr() // don't consume '\n' - needed for nlsemi logic
+
+	// pragma text without prefix and line ending (which may be "\r\n" if Windows)
+	s.startLit()
+	s.skipLine(r)
+	text := strings.TrimSuffix(string(s.stopLit()), "\r")
+
+	// process //line filename:line pragma
+	if prefix[0] == 'l' {
+		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
+		i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
+		if i < 0 {
+			return
+		}
+		nstr := text[i+1:]
+		n, err := strconv.Atoi(nstr)
+		if err != nil || n <= 0 || n > lineM {
+			s.error_at(s.line0, s.col0-uint(len(nstr)), "invalid line number: "+nstr)
+			return
+		}
+		s.base = NewLinePragmaBase(MakePos(s.base.Pos().Base(), s.line, s.col), text[:i], uint(n))
+		// TODO(gri) Return here once we rely exclusively
+		// on node positions for line number information,
+		// and remove //line pragma handling elsewhere.
+		if s.pragh == nil {
+			return
+		}
+	}
+
+	s.pragma |= s.pragh(s.line, prefix+text)
 }
 
 func (s *scanner) fullComment() {

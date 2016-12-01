@@ -133,7 +133,7 @@ func verifyPrint(filename string, ast1 *File) {
 		panic(err)
 	}
 
-	ast2, err := ParseBytes(buf1.Bytes(), nil, nil, 0)
+	ast2, err := ParseBytes(filename, buf1.Bytes(), nil, nil, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -157,7 +157,7 @@ func verifyPrint(filename string, ast1 *File) {
 }
 
 func TestIssue17697(t *testing.T) {
-	_, err := ParseBytes(nil, nil, nil, 0) // return with parser error, don't panic
+	_, err := ParseBytes("", nil, nil, nil, 0) // return with parser error, don't panic
 	if err == nil {
 		t.Errorf("no error reported")
 	}

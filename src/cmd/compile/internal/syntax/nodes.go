@@ -26,7 +26,7 @@ func (n *node) Pos() *Pos {
 func (*node) aNode() {}
 
 func (n *node) init(p *parser) {
-	n.pos = MakePos(nil, p.line, p.col)
+	n.pos = MakePos(p.base, p.line, p.col)
 }
 
 // ----------------------------------------------------------------------------
