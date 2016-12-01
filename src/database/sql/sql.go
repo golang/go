@@ -1449,13 +1449,13 @@ func (tx *Tx) closePrepared() {
 
 // Commit commits the transaction.
 func (tx *Tx) Commit() error {
+	if tx.isDone() {
+		return ErrTxDone
+	}
 	select {
 	default:
 	case <-tx.ctx.Done():
 		return tx.ctx.Err()
-	}
-	if tx.isDone() {
-		return ErrTxDone
 	}
 	var err error
 	withLock(tx.dc, func() {

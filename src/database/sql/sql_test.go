@@ -683,6 +683,37 @@ func TestQueryRow(t *testing.T) {
 	}
 }
 
+func TestTxRollbackCommitErr(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tx.Rollback()
+	if err != nil {
+		t.Errorf("expected nil error from Rollback; got %v", err)
+	}
+	err = tx.Commit()
+	if err != ErrTxDone {
+		t.Errorf("expected %q from Commit; got %q", ErrTxDone, err)
+	}
+
+	tx, err = db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tx.Commit()
+	if err != nil {
+		t.Errorf("expected nil error from Commit; got %v", err)
+	}
+	err = tx.Rollback()
+	if err != ErrTxDone {
+		t.Errorf("expected %q from Rollback; got %q", ErrTxDone, err)
+	}
+}
+
 func TestStatementErrorAfterClose(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
