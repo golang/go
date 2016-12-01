@@ -265,25 +265,6 @@ func TestSignalForwarding(t *testing.T) {
 		t.Logf("%s", out)
 		t.Errorf("got %v; expected SIGSEGV", ee)
 	}
-
-	// Test SIGPIPE forwarding
-	cmd = exec.Command(bin[0], append(bin[1:], "3")...)
-
-	out, err = cmd.CombinedOutput()
-
-	if err == nil {
-		t.Logf("%s", out)
-		t.Error("test program succeeded unexpectedly")
-	} else if ee, ok := err.(*exec.ExitError); !ok {
-		t.Logf("%s", out)
-		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
-	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
-		t.Logf("%s", out)
-		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
-	} else if !ws.Signaled() || ws.Signal() != syscall.SIGPIPE {
-		t.Logf("%s", out)
-		t.Errorf("got %v; expected SIGPIPE", ee)
-	}
 }
 
 func TestSignalForwardingExternal(t *testing.T) {
