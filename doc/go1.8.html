@@ -627,11 +627,14 @@ Optimizations and bug fixes are not listed.
   <dd>
 
     <p> <!-- CL 18274 -->
-      The zip <code>Reader</code> now supports modification times in
+      The
+      <a href="/pkg/archive/zip/#Reader"><code>Reader</code></a>
+      now supports modification times in
       the NTFS, UNIX, and Extended Time Stamp metadata fields.
       <!-- CL 30811 -->
-      When writing zip files, the Extended Time Stamp field is written
-      for files with non-zero modification times.
+      The
+      <a href="/pkg/archive/zip/#Writer"><code>Writer</code></a>
+      now writes Extended Time Stamp fields.
     </p>
 
   </dd>
