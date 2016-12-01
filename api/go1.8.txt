@@ -155,7 +155,6 @@ pkg database/sql, type IsolationLevel int
 pkg database/sql, type NamedArg struct
 pkg database/sql, type NamedArg struct, Name string
 pkg database/sql, type NamedArg struct, Value interface{}
-pkg debug/gosym, func PCValue([]uint8, uint64, int) int
 pkg debug/pe, method (*COFFSymbol) FullName(StringTable) (string, error)
 pkg debug/pe, method (StringTable) String(uint32) (string, error)
 pkg debug/pe, type File struct, COFFSymbols []COFFSymbol
