@@ -1022,13 +1022,14 @@ func (p *noder) error(err error) {
 func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
 	switch {
 	case strings.HasPrefix(text, "line "):
-		i := strings.IndexByte(text, ':')
+		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
+		i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
 		if i < 0 {
 			break
 		}
 		n, err := strconv.Atoi(text[i+1:])
 		if err != nil {
-			// todo: make this an error instead? it is almost certainly a bug.
+			// TODO: make this an error instead? it is almost certainly a bug.
 			break
 		}
 		if n > 1e8 {
