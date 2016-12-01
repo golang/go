@@ -1093,7 +1093,7 @@ func typeFields(t reflect.Type) []field {
 			// Scan f.typ for fields to include.
 			for i := 0; i < f.typ.NumField(); i++ {
 				sf := f.typ.Field(i)
-				if sf.PkgPath != "" && !sf.Anonymous { // unexported
+				if sf.PkgPath != "" && (!sf.Anonymous || sf.Type.Kind() != reflect.Struct) { // unexported
 					continue
 				}
 				tag := sf.Tag.Get("json")
