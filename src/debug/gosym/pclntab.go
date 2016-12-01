@@ -291,13 +291,6 @@ func (t *LineTable) step(p *[]byte, pc *uint64, val *int32, first bool) bool {
 	return true
 }
 
-// PCValue looks up the given PC in a pc value table. target is the
-// offset of the pc from the entry point.
-func PCValue(tab []byte, target uint64, quantum int) int {
-	t := LineTable{Data: tab, quantum: uint32(quantum)}
-	return int(t.pcvalue(0, 0, target))
-}
-
 // pcvalue reports the value associated with the target pc.
 // off is the offset to the beginning of the pc-value table,
 // and entry is the start PC for the corresponding function.
