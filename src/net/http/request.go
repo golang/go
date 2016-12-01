@@ -785,9 +785,11 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 				return ioutil.NopCloser(&r), nil
 			}
 		default:
-			if body != NoBody {
-				req.ContentLength = -1 // unknown
-			}
+			// This is where we'd set it to -1 (at least
+			// if body != NoBody) to mean unknown, but
+			// that broke people during the Go 1.8 testing
+			// period. People depend on it being 0 I
+			// guess. Maybe retry later. See Issue 18117.
 		}
 		// For client requests, Request.ContentLength of 0
 		// means either actually 0, or unknown. The only way
@@ -797,7 +799,7 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 		// so we use a well-known ReadCloser variable instead
 		// and have the http package also treat that sentinel
 		// variable to mean explicitly zero.
-		if req.ContentLength == 0 {
+		if req.GetBody != nil && req.ContentLength == 0 {
 			req.Body = NoBody
 			req.GetBody = func() (io.ReadCloser, error) { return NoBody, nil }
 		}
