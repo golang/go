@@ -442,6 +442,26 @@ version of gccgo.
   documentation</a> and its example for more details.
 </p>
 
+<h3 id="mapiter">Concurrent Map Misuse</h3>
+
+<p>
+In Go 1.6, the runtime
+<a href="/doc/go1.6#runtime">added lightweight,
+best-effort detection of concurrent misuse of maps</a>. This release
+improves that detector with support for detecting programs that
+concurrently write to and iterate over a map.
+</p>
+<p>
+As always, if one goroutine is writing to a map, no other goroutine should be
+reading (which includes iterating) or writing the map concurrently.
+If the runtime detects this condition, it prints a diagnosis and crashes the program.
+The best way to find out more about the problem is to run the program
+under the
+<a href="https://blog.golang.org/race-detector">race detector</a>,
+which will more reliably identify the race
+and give more detail.
+</p>
+
 <h3 id="memstats">MemStats Documentation</h3>
 
 <p> <!-- CL 28972 -->
