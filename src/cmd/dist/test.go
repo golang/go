@@ -152,8 +152,11 @@ func (t *tester) run() {
 	}
 
 	t.timeoutScale = 1
-	if t.goarch == "arm" || t.goos == "windows" {
+	switch t.goarch {
+	case "arm", "windows":
 		t.timeoutScale = 2
+	case "mips", "mipsle", "mips64", "mips64le":
+		t.timeoutScale = 4
 	}
 	if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
 		t.timeoutScale, err = strconv.Atoi(s)
