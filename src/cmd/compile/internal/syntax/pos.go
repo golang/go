@@ -103,13 +103,15 @@ func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
 	return &PosBase{pos, filename, line - 1}
 }
 
+var noPos Pos
+
 // Pos returns the position at which base is located.
 // If b == nil, the result is the empty position.
-func (b *PosBase) Pos() Pos {
+func (b *PosBase) Pos() *Pos {
 	if b != nil {
-		return b.pos
+		return &b.pos
 	}
-	return Pos{}
+	return &noPos
 }
 
 // Filename returns the filename recorded with the base.
@@ -136,13 +138,13 @@ func (b *PosBase) Line() uint {
 // A lico is a compact encoding of a LIne and COlumn number.
 type lico uint32
 
-// Layout constants: 23 bits for line, 9 bits for column.
+// Layout constants: 24 bits for line, 8 bits for column.
 // (If this is too tight, we can either make lico 64b wide,
 // or we can introduce a tiered encoding where we remove column
 // information as line numbers grow bigger; similar to what gcc
 // does.)
 const (
-	lineW, lineM = 23, 1<<lineW - 1
+	lineW, lineM = 24, 1<<lineW - 1
 	colW, colM   = 32 - lineW, 1<<colW - 1
 )
 
