@@ -7,6 +7,9 @@
 // Contiguous sequences of runes (literals) are extracted
 // directly as []byte without the need to re-encode the
 // runes in UTF-8 (as would be necessary with bufio.Reader).
+//
+// This file is self-contained (go tool compile source.go
+// compiles) and thus could be made into its own package.
 
 package syntax
 
@@ -21,9 +24,8 @@ import (
 //        suf     r0  r            w
 
 type source struct {
-	src   io.Reader
-	errh  ErrorHandler
-	first error // first error encountered
+	src  io.Reader
+	errh func(line, pos uint, msg string)
 
 	// source buffer
 	buf         [4 << 10]byte
@@ -31,42 +33,28 @@ type source struct {
 	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
 	line0, line uint  // previous/current line
 	col0, col   uint  // previous/current column
-	err         error // pending io error
+	ioerr       error // pending io error
 
 	// literal buffer
 	lit []byte // literal prefix
 	suf int    // literal suffix; suf >= 0 means we are scanning a literal
 }
 
-func (s *source) init(src io.Reader, errh ErrorHandler) {
+// init initializes source to read from src and to report errors via errh.
+// errh must not be nil.
+func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
 	s.src = src
 	s.errh = errh
-	s.first = nil
 
 	s.buf[0] = utf8.RuneSelf // terminate with sentinel
 	s.offs = 0
 	s.r0, s.r, s.w = 0, 0, 0
 	s.line0, s.line = 1, 1
 	s.col0, s.col = 1, 1
-	s.err = nil
+	s.ioerr = nil
 
 	s.lit = s.lit[:0]
 	s.suf = -1
-}
-
-func (s *source) error(msg string) {
-	s.error_at(s.line0, s.col0, msg)
-}
-
-func (s *source) error_at(line, col uint, msg string) {
-	err := Error{line, col, msg}
-	if s.first == nil {
-		s.first = err
-	}
-	if s.errh == nil {
-		panic(s.first)
-	}
-	s.errh(err)
 }
 
 // ungetr ungets the most recently read rune.
@@ -84,6 +72,14 @@ func (s *source) ungetr2() {
 	s.col0--
 }
 
+func (s *source) error(msg string) {
+	s.errh(s.line0, s.col0, msg)
+}
+
+// getr reads and returns the next rune.
+// If an error occurs, the error handler provided to init
+// is called with position (line and column) information
+// and error message before getr returns.
 func (s *source) getr() rune {
 redo:
 	s.r0, s.line0, s.col0 = s.r, s.line, s.col
@@ -94,7 +90,7 @@ redo:
 	// in the buffer. Measure and optimize if necessary.
 
 	// make sure we have at least one rune in buffer, or we are at EOF
-	for s.r+utf8.UTFMax > s.w && !utf8.FullRune(s.buf[s.r:s.w]) && s.err == nil && s.w-s.r < len(s.buf) {
+	for s.r+utf8.UTFMax > s.w && !utf8.FullRune(s.buf[s.r:s.w]) && s.ioerr == nil && s.w-s.r < len(s.buf) {
 		s.fill() // s.w-s.r < len(s.buf) => buffer is not full
 	}
 
@@ -116,8 +112,8 @@ redo:
 
 	// EOF
 	if s.r == s.w {
-		if s.err != io.EOF {
-			s.error(s.err.Error())
+		if s.ioerr != io.EOF {
+			s.error(s.ioerr.Error())
 		}
 		return -1
 	}
@@ -174,13 +170,13 @@ func (s *source) fill() {
 		if n > 0 || err != nil {
 			s.buf[s.w] = utf8.RuneSelf // sentinel
 			if err != nil {
-				s.err = err
+				s.ioerr = err
 			}
 			return
 		}
 	}
 
-	s.err = io.ErrNoProgress
+	s.ioerr = io.ErrNoProgress
 }
 
 func (s *source) startLit() {

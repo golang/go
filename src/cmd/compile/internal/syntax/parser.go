@@ -7,6 +7,7 @@ package syntax
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -19,7 +20,12 @@ const trace = false
 const gcCompat = true
 
 type parser struct {
+	base *PosBase
+	errh ErrorHandler
 	scanner
+
+	first  error  // first error encountered
+	pragma Pragma // pragma flags
 
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
@@ -27,11 +33,38 @@ type parser struct {
 }
 
 func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
-	p.scanner.init(filename, src, errh, pragh)
+	p.base = NewFileBase(filename)
+	p.errh = errh
+	p.scanner.init(src, p.error_at, func(line, col uint, text string) {
+		if strings.HasPrefix(text, "line ") {
+			p.updateBase(line, col, text[5:])
+		}
+		if pragh != nil {
+			p.pragma |= pragh(line, text)
+		}
+	}, gcCompat)
+
+	p.first = nil
+	p.pragma = 0
 
 	p.fnest = 0
 	p.xnest = 0
 	p.indent = nil
+}
+
+func (p *parser) updateBase(line, col uint, text string) {
+	// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
+	i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
+	if i < 0 {
+		return
+	}
+	nstr := text[i+1:]
+	n, err := strconv.Atoi(nstr)
+	if err != nil || n <= 0 || n > lineMax {
+		p.error_at(line, col+uint(i+1), "invalid line number: "+nstr)
+		return
+	}
+	p.base = NewLinePragmaBase(MakePos(p.base.Pos().Base(), line, col), text[:i], uint(n))
 }
 
 func (p *parser) got(tok token) bool {
@@ -52,12 +85,24 @@ func (p *parser) want(tok token) {
 // ----------------------------------------------------------------------------
 // Error handling
 
-// syntax_error reports a syntax error at the current line.
-func (p *parser) syntax_error(msg string) {
-	p.syntax_error_at(p.line, p.col, msg)
+// error reports an error at the given position.
+func (p *parser) error_at(line, col uint, msg string) {
+	err := Error{line, col, msg}
+	if p.first == nil {
+		p.first = err
+	}
+	if p.errh == nil {
+		panic(p.first)
+	}
+	p.errh(err)
 }
 
-// Like syntax_error, but reports error at given line rather than current lexer line.
+// error reports a (non-syntax) error at the current token position.
+func (p *parser) error(msg string) {
+	p.error_at(p.line, p.col, msg)
+}
+
+// syntax_error_at reports a syntax error at the given position.
 func (p *parser) syntax_error_at(line, col uint, msg string) {
 	if trace {
 		defer p.trace("syntax_error (" + msg + ")")()
@@ -100,6 +145,11 @@ func (p *parser) syntax_error_at(line, col uint, msg string) {
 	}
 
 	p.error_at(line, col, "syntax error: unexpected "+tok+msg)
+}
+
+// syntax_error reports a syntax error at the current token position.
+func (p *parser) syntax_error(msg string) {
+	p.syntax_error_at(p.line, p.col, msg)
 }
 
 // The stopset contains keywords that start a statement.

@@ -22,7 +22,7 @@ func TestScanner(t *testing.T) {
 	defer src.Close()
 
 	var s scanner
-	s.init("parser.go", src, nil, nil)
+	s.init(src, nil, nil, false)
 	for {
 		s.next()
 		if s.tok == _EOF {
@@ -51,7 +51,7 @@ func TestTokens(t *testing.T) {
 
 	// scan source
 	var got scanner
-	got.init("", &bytesReader{buf}, nil, nil)
+	got.init(&bytesReader{buf}, nil, nil, false)
 	got.next()
 	for i, want := range sampleTokens {
 		nlsemi := false
@@ -317,38 +317,38 @@ func TestScanErrors(t *testing.T) {
 		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 1, 19},
 		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 1, 19},
 
-		{`//line :`, "invalid line number: ", 1, 9},
-		{`//line :x`, "invalid line number: x", 1, 9},
-		{`//line foo :`, "invalid line number: ", 1, 13},
-		{`//line foo:123abc`, "invalid line number: 123abc", 1, 12},
-		{`/**///line foo:x`, "invalid line number: x", 1, 16},
-		{`//line foo:0`, "invalid line number: 0", 1, 12},
-		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), 1, 12},
+		// TODO(gri) move these test cases into an appropriate parser test
+		// {`//line :`, "invalid line number: ", 1, 9},
+		// {`//line :x`, "invalid line number: x", 1, 9},
+		// {`//line foo :`, "invalid line number: ", 1, 13},
+		// {`//line foo:123abc`, "invalid line number: 123abc", 1, 12},
+		// {`/**///line foo:x`, "invalid line number: x", 1, 16},
+		// {`//line foo:0`, "invalid line number: 0", 1, 12},
+		// {fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), 1, 12},
 
 		// former problem cases
 		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 1},
 	} {
 		var s scanner
 		nerrors := 0
-		s.init("", &bytesReader{[]byte(test.src)}, func(err error) {
+		s.init(&bytesReader{[]byte(test.src)}, func(line, col uint, msg string) {
 			nerrors++
 			// only check the first error
-			e := err.(Error) // we know it's an Error
 			if nerrors == 1 {
-				if e.Msg != test.msg {
-					t.Errorf("%q: got msg = %q; want %q", test.src, e.Msg, test.msg)
+				if msg != test.msg {
+					t.Errorf("%q: got msg = %q; want %q", test.src, msg, test.msg)
 				}
-				if e.Line != test.line {
-					t.Errorf("%q: got line = %d; want %d", test.src, e.Line, test.line)
+				if line != test.line {
+					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line)
 				}
-				if e.Col != test.col {
-					t.Errorf("%q: got col = %d; want %d", test.src, e.Col, test.col)
+				if col != test.col {
+					t.Errorf("%q: got col = %d; want %d", test.src, col, test.col)
 				}
 			} else if nerrors > 1 {
 				// TODO(gri) make this use position info
-				t.Errorf("%q: got unexpected %q at line = %d", test.src, e.Msg, e.Line)
+				t.Errorf("%q: got unexpected %q at line = %d", test.src, msg, line)
 			}
-		}, nil)
+		}, nil, true)
 
 		for {
 			s.next()
