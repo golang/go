@@ -77,9 +77,13 @@ func (s *source) error(msg string) {
 }
 
 // getr reads and returns the next rune.
-// If an error occurs, the error handler provided to init
-// is called with position (line and column) information
-// and error message before getr returns.
+//
+// If a read or source encoding error occurs, getr
+// calls the error handler installed with init.
+// The handler must exist.
+//
+// The (line, col) position passed to the error handler
+// is always at the current source reading position.
 func (s *source) getr() rune {
 redo:
 	s.r0, s.line0, s.col0 = s.r, s.line, s.col

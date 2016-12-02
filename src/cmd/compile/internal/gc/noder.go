@@ -28,8 +28,8 @@ func parseFile(filename string) {
 	p.file(file)
 
 	if !imported_unsafe {
-		for _, x := range p.linknames {
-			p.error(syntax.Error{Line: x, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
+		for _, pos := range p.linknames {
+			p.error(syntax.Error{Pos: pos, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
 		}
 	}
 
@@ -41,7 +41,7 @@ func parseFile(filename string) {
 // noder transforms package syntax's AST into a Nod tree.
 type noder struct {
 	baseline  int32
-	linknames []uint // tracks //go:linkname lines
+	linknames []syntax.Pos // tracks //go:linkname positions
 }
 
 func (p *noder) file(file *syntax.File) {
@@ -1011,7 +1011,7 @@ func (p *noder) error(err error) {
 	line := p.baseline
 	var msg string
 	if err, ok := err.(syntax.Error); ok {
-		line += int32(err.Line) - 1
+		line += int32(err.Pos.Line()) - 1
 		msg = err.Msg
 	} else {
 		msg = err.Error()
@@ -1019,7 +1019,7 @@ func (p *noder) error(err error) {
 	yyerrorl(src.MakePos(line), "%s", msg)
 }
 
-func (p *noder) pragma(line uint, text string) syntax.Pragma {
+func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
 	switch {
 	case strings.HasPrefix(text, "line "):
 		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
@@ -1033,23 +1033,23 @@ func (p *noder) pragma(line uint, text string) syntax.Pragma {
 			break
 		}
 		if n > 1e8 {
-			p.error(syntax.Error{Line: line, Msg: "line number out of range"})
+			p.error(syntax.Error{Pos: pos, Msg: "line number out of range"})
 			errorexit()
 		}
 		if n <= 0 {
 			break
 		}
-		lexlineno = src.MakePos(p.baseline + int32(line))
+		lexlineno = src.MakePos(p.baseline + int32(pos.Line()))
 		linehistupdate(text[5:i], n)
 
 	case strings.HasPrefix(text, "go:linkname "):
 		// Record line number so we can emit an error later if
 		// the file doesn't import package unsafe.
-		p.linknames = append(p.linknames, line)
+		p.linknames = append(p.linknames, pos)
 
 		f := strings.Fields(text)
 		if len(f) != 3 {
-			p.error(syntax.Error{Line: line, Msg: "usage: //go:linkname localname linkname"})
+			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:linkname localname linkname"})
 			break
 		}
 		lookup(f[1]).Linkname = f[2]

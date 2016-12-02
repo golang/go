@@ -650,6 +650,7 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/syntax.Node %T":             "",
 	"cmd/compile/internal/syntax.Operator %d":         "",
 	"cmd/compile/internal/syntax.Operator %s":         "",
+	"cmd/compile/internal/syntax.Pos %s":              "",
 	"cmd/compile/internal/syntax.token %d":            "",
 	"cmd/compile/internal/syntax.token %q":            "",
 	"cmd/compile/internal/syntax.token %s":            "",

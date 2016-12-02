@@ -34,18 +34,18 @@ func MakePos(base *PosBase, line, col uint) Pos {
 }
 
 // Filename returns the name of the actual file containing this position.
-func (p *Pos) Filename() string { return p.base.Pos().RelFilename() }
+func (p Pos) Filename() string { return p.base.Pos().RelFilename() }
 
 // Base returns the position base.
-func (p *Pos) Base() *PosBase { return p.base }
+func (p Pos) Base() *PosBase { return p.base }
 
 // RelFilename returns the filename recorded with the position's base.
-func (p *Pos) RelFilename() string { return p.base.Filename() }
+func (p Pos) RelFilename() string { return p.base.Filename() }
 
 // RelLine returns the line number relative to the positions's base.
-func (p *Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
+func (p Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
 
-func (p *Pos) String() string {
+func (p Pos) String() string {
 	b := p.base
 
 	if b == b.Pos().base {
