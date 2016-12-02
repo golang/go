@@ -123,6 +123,9 @@ const (
 	stackPoisonCopy  = 0 // fill stack that should not be accessed with garbage, to detect bad dereferences during copy
 
 	stackCache = 1
+
+	// check the BP links during traceback.
+	debugCheckBP = false
 )
 
 const (
@@ -688,6 +691,16 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
+		if debugCheckBP {
+			// Frame pointers should always point to the next higher frame on
+			// the Go stack (or be nil, for the top frame on the stack).
+			bp := *(*uintptr)(unsafe.Pointer(frame.varp))
+			if bp != 0 && (bp < adjinfo.old.lo || bp >= adjinfo.old.hi) {
+				println("runtime: found invalid frame pointer")
+				print("bp=", hex(bp), " min=", hex(adjinfo.old.lo), " max=", hex(adjinfo.old.hi), "\n")
+				throw("bad frame pointer")
+			}
+		}
 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
 	}
 
@@ -719,6 +732,18 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 
 func adjustctxt(gp *g, adjinfo *adjustinfo) {
 	adjustpointer(adjinfo, unsafe.Pointer(&gp.sched.ctxt))
+	if !framepointer_enabled {
+		return
+	}
+	if debugCheckBP {
+		bp := gp.sched.bp
+		if bp != 0 && (bp < adjinfo.old.lo || bp >= adjinfo.old.hi) {
+			println("runtime: found invalid top frame pointer")
+			print("bp=", hex(bp), " min=", hex(adjinfo.old.lo), " max=", hex(adjinfo.old.hi), "\n")
+			throw("bad top frame pointer")
+		}
+	}
+	adjustpointer(adjinfo, unsafe.Pointer(&gp.sched.bp))
 }
 
 func adjustdefers(gp *g, adjinfo *adjustinfo) {

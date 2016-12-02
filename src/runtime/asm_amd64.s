@@ -742,7 +742,7 @@ havem:
 	MOVQ	(g_sched+gobuf_pc)(SI), BX
 	MOVQ	BX, -8(DI)
 	// Compute the size of the frame, including return PC and, if
-	// GOEXPERIMENT=framepointer, the saved based pointer
+	// GOEXPERIMENT=framepointer, the saved base pointer
 	MOVQ	ctxt+24(FP), BX
 	LEAQ	fv+0(FP), AX
 	SUBQ	SP, AX
