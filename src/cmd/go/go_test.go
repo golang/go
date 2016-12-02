@@ -3718,3 +3718,12 @@ func TestLinkXImportPathEscape(t *testing.T) {
 		tg.t.Fatal(`incorrect output: expected "linkXworked\n"`)
 	}
 }
+
+// Issue 18044.
+func TestLdBindNow(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("LD_BIND_NOW", "1")
+	tg.run("help")
+}

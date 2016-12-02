@@ -1976,6 +1976,13 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
 			copy(syms[first+2:], syms[first+1:second])
 			syms[first+0] = rel
 			syms[first+1] = plt
+
+			// Make sure alignment doesn't introduce a gap.
+			// Setting the alignment explicitly prevents
+			// symalign from basing it on the size and
+			// getting it wrong.
+			rel.Align = int32(SysArch.RegSize)
+			plt.Align = int32(SysArch.RegSize)
 		}
 	}
 
