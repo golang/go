@@ -85,6 +85,10 @@ func main() {
 `
 
 func TestGdbPython(t *testing.T) {
+	if runtime.GOARCH == "mips64" {
+		testenv.SkipFlaky(t, 18173)
+	}
+
 	t.Parallel()
 	checkGdbEnvironment(t)
 	checkGdbVersion(t)
@@ -220,13 +224,16 @@ func main() {
 // TestGdbBacktrace tests that gdb can unwind the stack correctly
 // using only the DWARF debug info.
 func TestGdbBacktrace(t *testing.T) {
-	t.Parallel()
-	checkGdbEnvironment(t)
-	checkGdbVersion(t)
-
 	if runtime.GOOS == "netbsd" {
 		testenv.SkipFlaky(t, 15603)
 	}
+	if runtime.GOARCH == "mips64" {
+		testenv.SkipFlaky(t, 18173)
+	}
+
+	t.Parallel()
+	checkGdbEnvironment(t)
+	checkGdbVersion(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
@@ -294,6 +301,10 @@ func main() {
 // TestGdbAutotmpTypes ensures that types of autotmp variables appear in .debug_info
 // See bug #17830.
 func TestGdbAutotmpTypes(t *testing.T) {
+	if runtime.GOARCH == "mips64" {
+		testenv.SkipFlaky(t, 18173)
+	}
+
 	t.Parallel()
 	checkGdbEnvironment(t)
 	checkGdbVersion(t)
