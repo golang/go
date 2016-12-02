@@ -1469,19 +1469,6 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
   </dd>
 </dl>
 
-<dl id="os_signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
-  <dd>
-    <p> <!-- CL 32796 -->
-      In a Go library built with <code>-buildmode=c-archive</code>
-      or <code>c-shared</code>, when C code calls a Go function,
-      the <code>SIGPIPE</code> signal will be treated as usual for Go code.
-      In particular, when <code>SIGPIPE</code> is triggered by a write
-      to a closed Go network connection, it will not cause the program
-      to exit.
-    </p>
-  </dd>
-</dl>
-
 <dl id="path_filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
   <dd>
     <p>
