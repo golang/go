@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <string.h>
 #include "libcgo.h"
+#include "libcgo_unix.h"
 
 #ifdef ARM_TP_ADDRESS
 // ARM_TP_ADDRESS is (ARM_VECTORS_HIGH + 0x1000) or 0xffff1000
@@ -58,7 +59,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	pthread_attr_getstacksize(&attr, &size);
 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
 	ts->g->stackhi = size;
-	err = pthread_create(&p, &attr, threadentry, ts);
+	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
 
 	pthread_sigmask(SIG_SETMASK, &oset, nil);
 
