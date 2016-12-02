@@ -15,13 +15,12 @@ type Mode uint
 
 // Error describes a syntax error. Error implements the error interface.
 type Error struct {
-	// TODO(gri) Line, Col should be replaced with Pos, eventually.
-	Line, Col uint
-	Msg       string
+	Pos Pos
+	Msg string
 }
 
 func (err Error) Error() string {
-	return fmt.Sprintf("%d: %s", err.Line, err.Msg)
+	return fmt.Sprintf("%s: %s", err.Pos, err.Msg)
 }
 
 var _ error = Error{} // verify that Error implements error
@@ -37,11 +36,11 @@ type Pragma uint16
 // A PragmaHandler is used to process //line and //go: directives as
 // they're scanned. The returned Pragma value will be unioned into the
 // next FuncDecl node.
-type PragmaHandler func(line uint, text string) Pragma
+type PragmaHandler func(pos Pos, text string) Pragma
 
 // Parse parses a single Go source file from src and returns the corresponding
-// syntax tree. If there are syntax errors, Parse will return the first error
-// encountered. The filename is only used for position information.
+// syntax tree. If there are errors, Parse will return the first error found.
+// The filename is only used for position information.
 //
 // If errh != nil, it is called with each error encountered, and Parse will
 // process as much source as possible. If errh is nil, Parse will terminate
@@ -50,11 +49,11 @@ type PragmaHandler func(line uint, text string) Pragma
 // If a PragmaHandler is provided, it is called with each pragma encountered.
 //
 // The Mode argument is currently ignored.
-func Parse(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, err error) {
+func Parse(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
 	defer func() {
 		if p := recover(); p != nil {
-			var ok bool
-			if err, ok = p.(Error); ok {
+			if err, ok := p.(Error); ok {
+				first = err
 				return
 			}
 			panic(p)

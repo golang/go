@@ -35,14 +35,26 @@ type parser struct {
 func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
 	p.base = NewFileBase(filename)
 	p.errh = errh
-	p.scanner.init(src, p.error_at, func(line, col uint, text string) {
-		if strings.HasPrefix(text, "line ") {
-			p.updateBase(line, col, text[5:])
-		}
-		if pragh != nil {
-			p.pragma |= pragh(line, text)
-		}
-	}, gcCompat)
+	p.scanner.init(
+		src,
+		// Error and pragma handlers for scanner.
+		// Because the (line, col) positions passed to these
+		// handlers are always at or after the current reading
+		// position, it is save to use the most recent position
+		// base to compute the corresponding Pos value.
+		func(line, col uint, msg string) {
+			p.error_at(p.pos_at(line, col), msg)
+		},
+		func(line, col uint, text string) {
+			if strings.HasPrefix(text, "line ") {
+				p.updateBase(line, col, text[5:])
+			}
+			if pragh != nil {
+				p.pragma |= pragh(p.pos_at(line, col), text)
+			}
+		},
+		gcCompat,
+	)
 
 	p.first = nil
 	p.pragma = 0
@@ -61,7 +73,7 @@ func (p *parser) updateBase(line, col uint, text string) {
 	nstr := text[i+1:]
 	n, err := strconv.Atoi(nstr)
 	if err != nil || n <= 0 || n > lineMax {
-		p.error_at(line, col+uint(i+1), "invalid line number: "+nstr)
+		p.error_at(p.pos_at(line, col+uint(i+1)), "invalid line number: "+nstr)
 		return
 	}
 	p.base = NewLinePragmaBase(MakePos(p.base.Pos().Base(), line, col), text[:i], uint(n))
@@ -85,9 +97,14 @@ func (p *parser) want(tok token) {
 // ----------------------------------------------------------------------------
 // Error handling
 
+// pos_at returns the Pos value for (line, col) and the current position base.
+func (p *parser) pos_at(line, col uint) Pos {
+	return MakePos(p.base, line, col)
+}
+
 // error reports an error at the given position.
-func (p *parser) error_at(line, col uint, msg string) {
-	err := Error{line, col, msg}
+func (p *parser) error_at(pos Pos, msg string) {
+	err := Error{pos, msg}
 	if p.first == nil {
 		p.first = err
 	}
@@ -97,13 +114,8 @@ func (p *parser) error_at(line, col uint, msg string) {
 	p.errh(err)
 }
 
-// error reports a (non-syntax) error at the current token position.
-func (p *parser) error(msg string) {
-	p.error_at(p.line, p.col, msg)
-}
-
 // syntax_error_at reports a syntax error at the given position.
-func (p *parser) syntax_error_at(line, col uint, msg string) {
+func (p *parser) syntax_error_at(pos Pos, msg string) {
 	if trace {
 		defer p.trace("syntax_error (" + msg + ")")()
 	}
@@ -122,7 +134,7 @@ func (p *parser) syntax_error_at(line, col uint, msg string) {
 		msg = ", " + msg
 	default:
 		// plain error - we don't care about current token
-		p.error_at(line, col, "syntax error: "+msg)
+		p.error_at(pos, "syntax error: "+msg)
 		return
 	}
 
@@ -144,13 +156,13 @@ func (p *parser) syntax_error_at(line, col uint, msg string) {
 		tok = tokstring(p.tok)
 	}
 
-	p.error_at(line, col, "syntax error: unexpected "+tok+msg)
+	p.error_at(pos, "syntax error: unexpected "+tok+msg)
 }
 
-// syntax_error reports a syntax error at the current token position.
-func (p *parser) syntax_error(msg string) {
-	p.syntax_error_at(p.line, p.col, msg)
-}
+// Convenience methods using the current token position.
+func (p *parser) pos() Pos                { return p.pos_at(p.line, p.col) }
+func (p *parser) error(msg string)        { p.error_at(p.pos(), msg) }
+func (p *parser) syntax_error(msg string) { p.syntax_error_at(p.pos(), msg) }
 
 // The stopset contains keywords that start a statement.
 // They are good synchronization points in case of syntax
@@ -1247,7 +1259,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.want(_Rparen)
 			tag := p.oliteral()
 			p.addField(styp, nil, typ, tag)
-			p.error("cannot parenthesize embedded type")
+			p.syntax_error("cannot parenthesize embedded type")
 
 		} else {
 			// '(' embed ')' oliteral
@@ -1255,7 +1267,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.want(_Rparen)
 			tag := p.oliteral()
 			p.addField(styp, nil, typ, tag)
-			p.error("cannot parenthesize embedded type")
+			p.syntax_error("cannot parenthesize embedded type")
 		}
 
 	case _Star:
@@ -1266,7 +1278,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.want(_Rparen)
 			tag := p.oliteral()
 			p.addField(styp, nil, typ, tag)
-			p.error("cannot parenthesize embedded type")
+			p.syntax_error("cannot parenthesize embedded type")
 
 		} else {
 			// '*' embed oliteral
@@ -1334,7 +1346,7 @@ func (p *parser) methodDecl() *Field {
 		f.init(p)
 		f.Type = p.qualifiedName(nil)
 		p.want(_Rparen)
-		p.error("cannot parenthesize embedded type")
+		p.syntax_error("cannot parenthesize embedded type")
 		return f
 
 	default:
@@ -1401,7 +1413,7 @@ func (p *parser) dotsType() *DotsType {
 	p.want(_DotDotDot)
 	t.Elem = p.tryType()
 	if t.Elem == nil {
-		p.error("final argument in variadic function missing type")
+		p.syntax_error("final argument in variadic function missing type")
 	}
 
 	return t
@@ -1612,7 +1624,7 @@ func (p *parser) labeledStmt(label *Name) Stmt {
 		s.Stmt = p.stmt()
 		if s.Stmt == missing_stmt {
 			// report error at line of ':' token
-			p.syntax_error_at(label.Pos().Line(), label.Pos().Col(), "missing statement after label")
+			p.syntax_error_at(label.Pos(), "missing statement after label")
 			// we are already at the end of the labeled statement - no need to advance
 			return missing_stmt
 		}
@@ -1695,7 +1707,7 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
 	if p.tok != _Semi {
 		// accept potential varDecl but complain
 		if forStmt && p.got(_Var) {
-			p.error("var declaration not allowed in for initializer")
+			p.syntax_error("var declaration not allowed in for initializer")
 		}
 		init = p.simpleStmt(nil, forStmt)
 		// If we have a range clause, we are done.
@@ -1748,7 +1760,7 @@ func (p *parser) ifStmt() *IfStmt {
 	p.want(_If)
 	s.Init, s.Cond, _ = p.header(false)
 	if s.Cond == nil {
-		p.error("missing condition in if statement")
+		p.syntax_error("missing condition in if statement")
 	}
 
 	if gcCompat {
@@ -1764,7 +1776,7 @@ func (p *parser) ifStmt() *IfStmt {
 		case _Lbrace:
 			s.Else = p.blockStmt()
 		default:
-			p.error("else must be followed by if or statement block")
+			p.syntax_error("else must be followed by if or statement block")
 			p.advance(_Name, _Rbrace)
 		}
 	}
@@ -2137,7 +2149,7 @@ func (p *parser) exprList() Expr {
 			list = append(list, p.expr())
 		}
 		t := new(ListExpr)
-		t.init(p) // TODO(gri) what is the correct thing here?
+		t.pos = x.Pos()
 		t.ElemList = list
 		x = t
 	}

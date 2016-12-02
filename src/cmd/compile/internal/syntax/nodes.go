@@ -8,7 +8,7 @@ package syntax
 // Nodes
 
 type Node interface {
-	Pos() *Pos
+	Pos() Pos
 	aNode()
 	init(p *parser)
 }
@@ -19,14 +19,15 @@ type node struct {
 	pos Pos
 }
 
-func (n *node) Pos() *Pos {
-	return &n.pos
+func (n *node) Pos() Pos {
+	return n.pos
 }
 
 func (*node) aNode() {}
 
+// TODO(gri) we may be able to get rid of init here and in Node
 func (n *node) init(p *parser) {
-	n.pos = MakePos(p.base, p.line, p.col)
+	n.pos = p.pos()
 }
 
 // ----------------------------------------------------------------------------

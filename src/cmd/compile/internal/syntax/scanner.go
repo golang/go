@@ -41,6 +41,18 @@ func (s *scanner) init(src io.Reader, errh, pragh func(line, col uint, msg strin
 	s.nlsemi = false
 }
 
+// next advances the scanner by reading the next token.
+//
+// If a read, source encoding, or lexical error occurs, next
+// calls the error handler installed with init. The handler
+// must exist.
+//
+// If a //line or //go: directive is encountered, next
+// calls the pragma handler installed with init, if not nil.
+//
+// The (line, col) position passed to the error and pragma
+// handler is always at or after the current source reading
+// position.
 func (s *scanner) next() {
 	nlsemi := s.nlsemi
 	s.nlsemi = false
