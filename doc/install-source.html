@@ -212,7 +212,7 @@ To build without <code>cgo</code>, set the environment variable
 Change to the directory that will be its parent
 and make sure the <code>go</code> directory does not exist.
 Then clone the repository and check out the latest release tag
-(<code class="versionTag">go1.7.2</code>, for example):</p>
+(<code class="versionTag">go1.7.4</code>, for example):</p>
 
 <pre>
 $ git clone https://go.googlesource.com/go
@@ -329,7 +329,7 @@ You just need to do a little more setup.
 </p>
 
 <p>
-The <a href="/doc/code.html">How to Write Go Code</a> document 
+The <a href="/doc/code.html">How to Write Go Code</a> document
 provides <b>essential setup instructions</b> for using the Go tools.
 </p>
 
@@ -355,7 +355,7 @@ $ go get golang.org/x/tools/cmd/godoc
 </pre>
 
 <p>
-To install these tools, the <code>go</code> <code>get</code> command requires 
+To install these tools, the <code>go</code> <code>get</code> command requires
 that <a href="#git">Git</a> be installed locally.
 </p>
 
@@ -400,7 +400,7 @@ New releases are announced on the
 <a href="//groups.google.com/group/golang-announce">golang-announce</a>
 mailing list.
 Each announcement mentions the latest release tag, for instance,
-<code class="versionTag">go1.7.2</code>.
+<code class="versionTag">go1.7.4</code>.
 </p>
 
 <p>
@@ -443,7 +443,7 @@ The value assumed by installed binaries and scripts when
 <code>$GOROOT</code> is not set explicitly.
 It defaults to the value of <code>$GOROOT</code>.
 If you want to build the Go tree in one location
-but move it elsewhere after the build, set 
+but move it elsewhere after the build, set
 <code>$GOROOT_FINAL</code> to the eventual location.
 </p>
 
@@ -566,7 +566,7 @@ architecture.
 Valid choices are the same as for <code>$GOOS</code> and
 <code>$GOARCH</code>, listed above.
 The specified values must be compatible with the local system.
-For example, you should not set <code>$GOHOSTARCH</code> to 
+For example, you should not set <code>$GOHOSTARCH</code> to
 <code>arm</code> on an x86 system.
 </p>
 
@@ -627,7 +627,7 @@ not <code>amd64</code>.
 <p>
 If you choose to override the defaults,
 set these variables in your shell profile (<code>$HOME/.bashrc</code>,
-<code>$HOME/.profile</code>, or equivalent). The settings might look 
+<code>$HOME/.profile</code>, or equivalent). The settings might look
 something like this:
 </p>
 
