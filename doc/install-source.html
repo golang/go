@@ -33,7 +33,7 @@ compiler using the GCC back end, see
 </p>
 
 <p>
-The Go compilers support seven instruction sets.
+The Go compilers support eight instruction sets.
 There are important differences in the quality of the compilers for the different
 architectures.
 </p>
@@ -55,7 +55,7 @@ architectures.
 	<code>arm</code> (<code>ARM</code>)
 </dt>
 <dd>
-	Supports Linux, FreeBSD, NetBSD and Darwin binaries. Less widely used than the other ports.
+	Supports Linux, FreeBSD, NetBSD, OpenBSD and Darwin binaries. Less widely used than the other ports.
 </dd>
 <dt>
 	<code>arm64</code> (<code>AArch64</code>)
@@ -68,6 +68,12 @@ architectures.
 </dt>
 <dd>
 	Supports Linux binaries. New in 1.5 and not as well exercised as other ports.
+</dd>
+<dt>
+	<code>mips, mipsle</code> (32-bit MIPS big- and little-endian)
+</dt>
+<dd>
+	Supports Linux binaries. New in 1.8 and not as well exercised as other ports.
 </dd>
 <dt>
 	<code>mips64, mips64le</code> (64-bit MIPS big- and little-endian)
@@ -463,6 +469,7 @@ Choices for <code>$GOARCH</code> are
 <code>386</code> (32-bit x86), <code>arm</code> (32-bit ARM), <code>arm64</code> (64-bit ARM),
 <code>ppc64le</code> (PowerPC 64-bit, little-endian), <code>ppc64</code> (PowerPC 64-bit, big-endian),
 <code>mips64le</code> (MIPS 64-bit, little-endian), and <code>mips64</code> (MIPS 64-bit, big-endian).
+<code>mipsle</code> (MIPS 32-bit, little-endian), and <code>mips</code> (MIPS 32-bit, big-endian).
 The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <table cellpadding="0">
 <tr>
@@ -512,6 +519,12 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 </tr>
 <tr>
 <td></td><td><code>linux</code></td> <td><code>ppc64le</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>mips</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>mipsle</code></td>
 </tr>
 <tr>
 <td></td><td><code>linux</code></td> <td><code>mips64</code></td>
