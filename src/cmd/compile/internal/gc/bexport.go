@@ -1584,6 +1584,8 @@ func (p *exporter) sym(n *Node) {
 	if name != "_" {
 		p.pkg(s.Pkg)
 	}
+	// Fixes issue #18167.
+	p.string(s.Linkname)
 }
 
 func (p *exporter) bool(b bool) bool {
