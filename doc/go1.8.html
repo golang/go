@@ -77,7 +77,9 @@ func example() {
 <p>
 Go now supports 32-bit MIPS on Linux for both big-endian
 (<code>linux/mips</code>) and little-endian machines
-(<code>linux/mipsle</code>).
+(<code>linux/mipsle</code>) that implement the MIPS32r1 instruction set with FPU
+or kernel FPU emulation. Note that many common MIPS-based routers lack an FPU and
+have firmware that doesn't enable kernel FPU emulation; Go won't run on such machines.
 </p>
 
 <p>
