@@ -2,39 +2,43 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file implements scanner, a lexical tokenizer for
+// Go source. After initialization, consecutive calls of
+// next advance the scanner one token at a time.
+//
+// This file, source.go, and tokens.go are self-contained
+// (go tool compile scanner.go source.go tokens.go compiles)
+// and thus could be made into its own package.
+
 package syntax
 
 import (
 	"fmt"
 	"io"
-	"strconv"
-	"strings"
 	"unicode"
 	"unicode/utf8"
 )
 
 type scanner struct {
 	source
-	nlsemi bool // if set '\n' and EOF translate to ';'
-	pragma Pragma
+	pragh    func(line, col uint, msg string)
+	gcCompat bool // TODO(gri) remove this eventually (only here so we can build w/o parser)
+	nlsemi   bool // if set '\n' and EOF translate to ';'
 
 	// current token, valid after calling next()
-	base      *PosBase
 	line, col uint
 	tok       token
 	lit       string   // valid if tok is _Name or _Literal
 	kind      LitKind  // valid if tok is _Literal
 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
-
-	pragh PragmaHandler
 }
 
-func (s *scanner) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+func (s *scanner) init(src io.Reader, errh, pragh func(line, col uint, msg string), gcCompat bool) {
 	s.source.init(src, errh)
-	s.nlsemi = false
-	s.base = NewFileBase(filename)
 	s.pragh = pragh
+	s.gcCompat = gcCompat
+	s.nlsemi = false
 }
 
 func (s *scanner) next() {
@@ -331,7 +335,7 @@ func (s *scanner) ident() {
 }
 
 func (s *scanner) isCompatRune(c rune, start bool) bool {
-	if !gcCompat || c < utf8.RuneSelf {
+	if !s.gcCompat || c < utf8.RuneSelf {
 		return false
 	}
 	if start && unicode.IsNumber(c) {
@@ -461,7 +465,7 @@ func (s *scanner) stdString() {
 			break
 		}
 		if r < 0 {
-			s.error_at(s.line, s.col, "string not terminated")
+			s.errh(s.line, s.col, "string not terminated")
 			break
 		}
 	}
@@ -481,7 +485,7 @@ func (s *scanner) rawString() {
 			break
 		}
 		if r < 0 {
-			s.error_at(s.line, s.col, "string not terminated")
+			s.errh(s.line, s.col, "string not terminated")
 			break
 		}
 	}
@@ -538,23 +542,18 @@ func (s *scanner) skipLine(r rune) {
 }
 
 func (s *scanner) lineComment() {
-	// recognize pragmas
-	prefix := ""
 	r := s.getr()
-	switch r {
-	case 'g':
-		if s.pragh == nil {
-			s.skipLine(r)
-			return
-		}
-		prefix = "go:"
-	case 'l':
-		prefix = "line "
-	default:
+	if s.pragh == nil || (r != 'g' && r != 'l') {
 		s.skipLine(r)
 		return
 	}
+	// s.pragh != nil && (r == 'g' || r == 'l')
 
+	// recognize pragmas
+	prefix := "go:"
+	if r == 'l' {
+		prefix = "line "
+	}
 	for _, m := range prefix {
 		if r != m {
 			s.skipLine(r)
@@ -563,34 +562,15 @@ func (s *scanner) lineComment() {
 		r = s.getr()
 	}
 
-	// pragma text without prefix and line ending (which may be "\r\n" if Windows)
+	// pragma text without line ending (which may be "\r\n" if Windows),
 	s.startLit()
 	s.skipLine(r)
-	text := strings.TrimSuffix(string(s.stopLit()), "\r")
-
-	// process //line filename:line pragma
-	if prefix[0] == 'l' {
-		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
-		i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
-		if i < 0 {
-			return
-		}
-		nstr := text[i+1:]
-		n, err := strconv.Atoi(nstr)
-		if err != nil || n <= 0 || n > lineMax {
-			s.error_at(s.line0, s.col0-uint(len(nstr)), "invalid line number: "+nstr)
-			return
-		}
-		s.base = NewLinePragmaBase(MakePos(s.base.Pos().Base(), s.line, s.col), text[:i], uint(n))
-		// TODO(gri) Return here once we rely exclusively
-		// on node positions for line number information,
-		// and remove //line pragma handling elsewhere.
-		if s.pragh == nil {
-			return
-		}
+	text := s.stopLit()
+	if i := len(text) - 1; i >= 0 && text[i] == '\r' {
+		text = text[:i]
 	}
 
-	s.pragma |= s.pragh(s.line, prefix+text)
+	s.pragh(s.line, s.col+2, prefix+string(text)) // +2 since pragma text starts after //
 }
 
 func (s *scanner) fullComment() {
@@ -603,7 +583,7 @@ func (s *scanner) fullComment() {
 			}
 		}
 		if r < 0 {
-			s.error_at(s.line, s.col, "comment not terminated")
+			s.errh(s.line, s.col, "comment not terminated")
 			return
 		}
 	}
@@ -651,7 +631,7 @@ func (s *scanner) escape(quote rune) bool {
 			if c < 0 {
 				return true // complain in caller about EOF
 			}
-			if gcCompat {
+			if s.gcCompat {
 				name := "hex"
 				if base == 8 {
 					name = "octal"
