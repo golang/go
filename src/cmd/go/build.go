@@ -3776,6 +3776,10 @@ func instrumentInit() {
 		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
 		os.Exit(2)
 	}
+	if buildMSan && (goos != "linux" || goarch != "amd64") {
+		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", goos, goarch)
+		os.Exit(2)
+	}
 	if goarch != "amd64" || goos != "linux" && goos != "freebsd" && goos != "darwin" && goos != "windows" {
 		fmt.Fprintf(os.Stderr, "go %s: -race and -msan are only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
 		os.Exit(2)
