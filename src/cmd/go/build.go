@@ -3773,7 +3773,7 @@ func instrumentInit() {
 		return
 	}
 	if buildRace && buildMSan {
-		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously", flag.Args()[0])
+		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
 		os.Exit(2)
 	}
 	if goarch != "amd64" || goos != "linux" && goos != "freebsd" && goos != "darwin" && goos != "windows" {
