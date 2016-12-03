@@ -22,7 +22,7 @@ func TestScanner(t *testing.T) {
 	defer src.Close()
 
 	var s scanner
-	s.init(src, nil, nil, false)
+	s.init(src, nil, nil)
 	for {
 		s.next()
 		if s.tok == _EOF {
@@ -51,7 +51,7 @@ func TestTokens(t *testing.T) {
 
 	// scan source
 	var got scanner
-	got.init(&bytesReader{buf}, nil, nil, false)
+	got.init(&bytesReader{buf}, nil, nil)
 	got.next()
 	for i, want := range sampleTokens {
 		nlsemi := false
@@ -269,7 +269,7 @@ func TestScanErrors(t *testing.T) {
 
 		// token-level errors
 		{"x + ~y", "bitwise complement operator is ^", 1, 5},
-		{"foo$bar = 0", "illegal character U+0024 '$'", 1, 4},
+		{"foo$bar = 0", "invalid character U+0024 '$'", 1, 4},
 		{"const x = 0xyz", "malformed hex constant", 1, 13},
 		{"0123456789", "malformed octal constant", 1, 11},
 		{"0123456789. /* foobar", "comment not terminated", 1, 13},   // valid float constant
@@ -348,7 +348,7 @@ func TestScanErrors(t *testing.T) {
 				// TODO(gri) make this use position info
 				t.Errorf("%q: got unexpected %q at line = %d", test.src, msg, line)
 			}
-		}, nil, true)
+		}, nil)
 
 		for {
 			s.next()

@@ -21,9 +21,8 @@ import (
 
 type scanner struct {
 	source
-	pragh    func(line, col uint, msg string)
-	gcCompat bool // TODO(gri) remove this eventually (only here so we can build w/o parser)
-	nlsemi   bool // if set '\n' and EOF translate to ';'
+	pragh  func(line, col uint, msg string)
+	nlsemi bool // if set '\n' and EOF translate to ';'
 
 	// current token, valid after calling next()
 	line, col uint
@@ -34,10 +33,9 @@ type scanner struct {
 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
 }
 
-func (s *scanner) init(src io.Reader, errh, pragh func(line, col uint, msg string), gcCompat bool) {
+func (s *scanner) init(src io.Reader, errh, pragh func(line, col uint, msg string)) {
 	s.source.init(src, errh)
 	s.pragh = pragh
-	s.gcCompat = gcCompat
 	s.nlsemi = false
 }
 
@@ -67,7 +65,7 @@ redo:
 	// token start
 	s.line, s.col = s.source.line0, s.source.col0
 
-	if isLetter(c) || c >= utf8.RuneSelf && (unicode.IsLetter(c) || s.isCompatRune(c, true)) {
+	if isLetter(c) || c >= utf8.RuneSelf && s.isIdentRune(c, true) {
 		s.ident()
 		return
 	}
@@ -290,7 +288,7 @@ redo:
 
 	default:
 		s.tok = 0
-		s.error(fmt.Sprintf("illegal character %#U", c))
+		s.error(fmt.Sprintf("invalid character %#U", c))
 		goto redo
 	}
 
@@ -324,7 +322,7 @@ func (s *scanner) ident() {
 
 	// general case
 	if c >= utf8.RuneSelf {
-		for unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) || s.isCompatRune(c, false) {
+		for s.isIdentRune(c, false) {
 			c = s.getr()
 		}
 	}
@@ -346,14 +344,18 @@ func (s *scanner) ident() {
 	s.tok = _Name
 }
 
-func (s *scanner) isCompatRune(c rune, start bool) bool {
-	if !s.gcCompat || c < utf8.RuneSelf {
-		return false
-	}
-	if start && unicode.IsNumber(c) {
-		s.error(fmt.Sprintf("identifier cannot begin with digit %#U", c))
-	} else {
+func (s *scanner) isIdentRune(c rune, first bool) bool {
+	switch {
+	case unicode.IsLetter(c) || c == '_':
+		// ok
+	case unicode.IsDigit(c):
+		if first {
+			s.error(fmt.Sprintf("identifier cannot begin with digit %#U", c))
+		}
+	case c >= utf8.RuneSelf:
 		s.error(fmt.Sprintf("invalid identifier character %#U", c))
+	default:
+		return false
 	}
 	return true
 }
@@ -643,19 +645,11 @@ func (s *scanner) escape(quote rune) bool {
 			if c < 0 {
 				return true // complain in caller about EOF
 			}
-			if s.gcCompat {
-				name := "hex"
-				if base == 8 {
-					name = "octal"
-				}
-				s.error(fmt.Sprintf("non-%s character in escape sequence: %c", name, c))
-			} else {
-				if c != quote {
-					s.error(fmt.Sprintf("illegal character %#U in escape sequence", c))
-				} else {
-					s.error("escape sequence incomplete")
-				}
+			kind := "hex"
+			if base == 8 {
+				kind = "octal"
 			}
+			s.error(fmt.Sprintf("non-%s character in escape sequence: %c", kind, c))
 			s.ungetr()
 			return false
 		}

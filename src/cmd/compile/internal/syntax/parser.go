@@ -53,7 +53,6 @@ func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh P
 				p.pragma |= pragh(p.pos_at(line, col), text)
 			}
 		},
-		gcCompat,
 	)
 
 	p.first = nil
