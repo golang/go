@@ -78,7 +78,6 @@ func writebarrier(f *Func) {
 					defer f.retSparseSet(wbs)
 				}
 
-				mem := v.Args[2]
 				line := v.Line
 
 				// there may be a sequence of WB stores in the current block. find them.
@@ -104,6 +103,20 @@ func writebarrier(f *Func) {
 							f.Fatalf("value %v depends on WB store %v in the same block %v", w, a, b)
 						}
 					}
+				}
+
+				// find the memory before the WB stores
+				// this memory is not a WB store but it is used in a WB store.
+				var mem *Value
+				for _, w := range storeWBs {
+					a := w.Args[len(w.Args)-1]
+					if wbs.contains(a.ID) {
+						continue
+					}
+					if mem != nil {
+						b.Fatalf("two stores live simultaneously: %s, %s", mem, a)
+					}
+					mem = a
 				}
 
 				b.Values = append(b.Values[:i], others...) // move WB ops out of this block
@@ -177,20 +190,39 @@ func writebarrier(f *Func) {
 				// which may be used in subsequent blocks. Other memories in the
 				// sequence must be dead after this block since there can be only
 				// one memory live.
-				v = storeWBs[len(storeWBs)-1]
-				bEnd.Values = append(bEnd.Values, v)
-				v.Block = bEnd
-				v.reset(OpPhi)
-				v.Type = TypeMem
-				v.AddArg(memThen)
-				v.AddArg(memElse)
-				for _, w := range storeWBs[:len(storeWBs)-1] {
-					for _, a := range w.Args {
-						a.Uses--
+				last := storeWBs[0]
+				if len(storeWBs) > 1 {
+					// find the last store
+					last = nil
+					wbs.clear() // we reuse wbs to record WB stores that is used in another WB store
+					for _, w := range storeWBs {
+						wbs.add(w.Args[len(w.Args)-1].ID)
+					}
+					for _, w := range storeWBs {
+						if wbs.contains(w.ID) {
+							continue
+						}
+						if last != nil {
+							b.Fatalf("two stores live simultaneously: %s, %s", last, w)
+						}
+						last = w
 					}
 				}
-				for _, w := range storeWBs[:len(storeWBs)-1] {
-					f.freeValue(w)
+				bEnd.Values = append(bEnd.Values, last)
+				last.Block = bEnd
+				last.reset(OpPhi)
+				last.Type = TypeMem
+				last.AddArg(memThen)
+				last.AddArg(memElse)
+				for _, w := range storeWBs {
+					if w != last {
+						w.resetArgs()
+					}
+				}
+				for _, w := range storeWBs {
+					if w != last {
+						f.freeValue(w)
+					}
 				}
 
 				if f.Config.fe.Debug_wb() {
