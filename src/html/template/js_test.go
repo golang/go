@@ -341,6 +341,7 @@ func TestIsJsMimeType(t *testing.T) {
 		{"application/javascript;version=1.8;foo=bar", true},
 		{"application/javascript/version=1.8", false},
 		{"text/javascript", true},
+		{"application/json", true},
 	}
 
 	for _, test := range tests {
