@@ -9,6 +9,7 @@ import (
 	"go/build"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -35,25 +36,34 @@ func TestIssue17515(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// symlink between /tmp/home/go/src and /tmp/home/src
-	if err = os.Symlink(home+"/go/src", home+"/src"); err != nil {
-		t.Fatal(err)
-	}
-
-	// Defer tear down (removing files, symlinks)
 	defer os.RemoveAll(home)
 
 	var buildContext = build.Default
 
 	// Success test cases
-	for _, test := range []struct {
+	type SuccessTest struct {
 		gopath, filename, wantSrcdir string
-	}{
+	}
+
+	successTests := []SuccessTest{
 		{home + "/go", home + "/go/src/test/test.go", home + "/go/src"},
-		{home + "/go", home + "/src/test/test.go", home + "/go/src"},
-		{home, home + "/src/test/test.go", home + "/src"},
-		{home, home + "/go/src/test/test.go", home + "/src"},
-	} {
+	}
+
+	// Add symlink cases if not on windows
+	if runtime.GOOS != "windows" {
+		// symlink between /tmp/home/go/src and /tmp/home/src
+		if err := os.Symlink(home+"/go/src", home+"/src"); err != nil {
+			t.Fatal(err)
+		}
+
+		successTests = append(successTests, []SuccessTest{
+			{home + "/go", home + "/src/test/test.go", home + "/go/src"},
+			{home, home + "/go/src/test/test.go", home + "/src"},
+			{home, home + "/src/test/test.go", home + "/src"},
+		}...)
+	}
+
+	for _, test := range successTests {
 		buildContext.GOPATH = test.gopath
 		srcdir, importPath, err := guessImportPath(test.filename, &buildContext)
 		if srcdir != test.wantSrcdir || importPath != "test" || err != nil {
@@ -67,14 +77,23 @@ func TestIssue17515(t *testing.T) {
 	}
 
 	// Failure test cases
-	for _, test := range []struct {
+	type FailTest struct {
 		gopath, filename, wantErr string
-	}{
+	}
+
+	failTests := []FailTest{
 		{home + "/go", home + "/go/src/fake/test.go", errFormat(home + "/go/src/fake")},
-		{home + "/go", home + "/src/fake/test.go", errFormat(home + "/src/fake")},
-		{home, home + "/src/fake/test.go", errFormat(home + "/src/fake")},
-		{home, home + "/go/src/fake/test.go", errFormat(home + "/go/src/fake")},
-	} {
+	}
+
+	if runtime.GOOS != "windows" {
+		failTests = append(failTests, []FailTest{
+			{home + "/go", home + "/src/fake/test.go", errFormat(home + "/src/fake")},
+			{home, home + "/src/fake/test.go", errFormat(home + "/src/fake")},
+			{home, home + "/go/src/fake/test.go", errFormat(home + "/go/src/fake")},
+		}...)
+	}
+
+	for _, test := range failTests {
 		buildContext.GOPATH = test.gopath
 		srcdir, importPath, err := guessImportPath(test.filename, &buildContext)
 		if !strings.HasPrefix(fmt.Sprint(err), test.wantErr) {

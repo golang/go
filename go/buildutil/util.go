@@ -68,7 +68,7 @@ func ContainingPackage(ctxt *build.Context, dir, filename string) (*build.Packag
 
 	resolvedFilename, err := filepath.EvalSymlinks(filepath.Dir(filename))
 	if err != nil {
-		return nil, fmt.Errorf("can't evaluate symlinks of %s: %v", path.Dir(filename), err)
+		return nil, fmt.Errorf("can't evaluate symlinks of %s: %v", filepath.Dir(filename), err)
 	}
 
 	resolvedDir := filepath.ToSlash(resolvedFilename)
