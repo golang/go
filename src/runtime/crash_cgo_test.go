@@ -49,8 +49,6 @@ func TestCgoCallbackGC(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
-	case "freebsd":
-		testenv.SkipFlaky(t, 16396)
 	}
 	if testing.Short() {
 		switch {
