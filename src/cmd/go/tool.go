@@ -60,7 +60,7 @@ func tool(toolName string) string {
 		} else {
 			fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
 		}
-		setExitStatus(3)
+		setExitStatus(2)
 		exit()
 	}
 	return toolPath

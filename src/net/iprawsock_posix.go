@@ -50,6 +50,10 @@ func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return ipToSockaddr(family, a.IP, 0, a.Zone)
 }
 
+func (a *IPAddr) toLocal(net string) sockaddr {
+	return &IPAddr{loopbackIP(net), a.Zone}
+}
+
 func (c *IPConn) readFrom(b []byte) (int, *IPAddr, error) {
 	// TODO(cw,rsc): consider using readv if we know the family
 	// type to avoid the header trim/copy

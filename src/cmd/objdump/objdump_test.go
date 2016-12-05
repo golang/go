@@ -5,6 +5,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"go/build"
 	"internal/testenv"
 	"io/ioutil"
@@ -16,21 +18,42 @@ import (
 	"testing"
 )
 
-func buildObjdump(t *testing.T) (tmp, exe string) {
-	testenv.MustHaveGoBuild(t)
+var tmp, exe string // populated by buildObjdump
 
-	tmp, err := ioutil.TempDir("", "TestObjDump")
+func TestMain(m *testing.M) {
+	if !testenv.HasGoBuild() {
+		return
+	}
+	var exitcode int
+	if err := buildObjdump(); err == nil {
+		exitcode = m.Run()
+	} else {
+		fmt.Println(err)
+		exitcode = 1
+	}
+	os.RemoveAll(tmp)
+	os.Exit(exitcode)
+}
+
+func buildObjdump() error {
+	var err error
+	tmp, err = ioutil.TempDir("", "TestObjDump")
 	if err != nil {
-		t.Fatal("TempDir failed: ", err)
+		return fmt.Errorf("TempDir failed: %v", err)
 	}
 
 	exe = filepath.Join(tmp, "testobjdump.exe")
-	out, err := exec.Command("go", "build", "-o", exe, "cmd/objdump").CombinedOutput()
+	gotool, err := testenv.GoTool()
+	if err != nil {
+		return err
+	}
+	out, err := exec.Command(gotool, "build", "-o", exe, "cmd/objdump").CombinedOutput()
 	if err != nil {
 		os.RemoveAll(tmp)
-		t.Fatalf("go build -o %v cmd/objdump: %v\n%s", exe, err, string(out))
+		return fmt.Errorf("go build -o %v cmd/objdump: %v\n%s", exe, err, string(out))
 	}
-	return
+
+	return nil
 }
 
 var x86Need = []string{
@@ -49,6 +72,16 @@ var armNeed = []string{
 	"RET",
 }
 
+var ppcNeed = []string{
+	"fmthello.go:6",
+	"TEXT main.main(SB)",
+	"BR main.main(SB)",
+	"CALL fmt.Println(SB)",
+	"RET",
+}
+
+var target = flag.String("target", "", "test disassembly of `goos/goarch` binary")
+
 // objdump is fully cross platform: it can handle binaries
 // from any known operating system and architecture.
 // We could in principle add binaries to testdata and check
@@ -59,14 +92,24 @@ var armNeed = []string{
 // can handle that one.
 
 func testDisasm(t *testing.T, flags ...string) {
-	tmp, exe := buildObjdump(t)
-	defer os.RemoveAll(tmp)
+	goarch := runtime.GOARCH
+	if *target != "" {
+		f := strings.Split(*target, "/")
+		if len(f) != 2 {
+			t.Fatalf("-target argument must be goos/goarch")
+		}
+		defer os.Setenv("GOOS", os.Getenv("GOOS"))
+		defer os.Setenv("GOARCH", os.Getenv("GOARCH"))
+		os.Setenv("GOOS", f[0])
+		os.Setenv("GOARCH", f[1])
+		goarch = f[1]
+	}
 
 	hello := filepath.Join(tmp, "hello.exe")
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
 	args = append(args, "testdata/fmthello.go")
-	out, err := exec.Command("go", args...).CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build fmthello.go: %v\n%s", err, out)
 	}
@@ -74,11 +117,13 @@ func testDisasm(t *testing.T, flags ...string) {
 		"fmthello.go:6",
 		"TEXT main.main(SB)",
 	}
-	switch runtime.GOARCH {
+	switch goarch {
 	case "amd64", "386":
 		need = append(need, x86Need...)
 	case "arm":
 		need = append(need, armNeed...)
+	case "ppc64", "ppc64le":
+		need = append(need, ppcNeed...)
 	}
 
 	out, err = exec.Command(exe, "-s", "main.main", hello).CombinedOutput()
@@ -101,11 +146,9 @@ func testDisasm(t *testing.T, flags ...string) {
 
 func TestDisasm(t *testing.T) {
 	switch runtime.GOARCH {
-	case "ppc64", "ppc64le":
-		t.Skipf("skipping on %s, issue 9039", runtime.GOARCH)
 	case "arm64":
 		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
-	case "mips64", "mips64le":
+	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
 	case "s390x":
 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
@@ -119,7 +162,7 @@ func TestDisasmExtld(t *testing.T) {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 	switch runtime.GOARCH {
-	case "ppc64", "ppc64le":
+	case "ppc64":
 		t.Skipf("skipping on %s, no support for external linking, issue 9038", runtime.GOARCH)
 	case "arm64":
 		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)

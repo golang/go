@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Note: some of these functions are semantically inlined
+// by the compiler (in src/cmd/compile/internal/gc/ssa.go).
+
 #include "textflag.h"
 
 // bool Cas(int32 *val, int32 old, int32 new)
@@ -55,7 +58,7 @@ TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-16
 TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-24
 	JMP	runtime∕internal∕atomic·Xadd64(SB)
 
-// bool Casp(void **val, void *old, void *new)
+// bool Casp1(void **val, void *old, void *new)
 // Atomically:
 //	if(*val == old){
 //		*val = new;

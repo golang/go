@@ -181,9 +181,16 @@ func (t *Template) Lookup(name string) *Template {
 	return t.tmpl[name]
 }
 
-// Parse defines the template by parsing the text. Nested template definitions will be
-// associated with the top-level template t. Parse may be called multiple times
-// to parse definitions of templates to associate with t.
+// Parse parses text as a template body for t.
+// Named template definitions ({{define ...}} or {{block ...}} statements) in text
+// define additional templates associated with t and are removed from the
+// definition of t itself.
+//
+// Templates can be redefined in successive calls to Parse.
+// A template definition with a body containing only white space and comments
+// is considered empty and will not replace an existing template's body.
+// This allows using Parse to add new named template definitions without
+// overwriting the main template body.
 func (t *Template) Parse(text string) (*Template, error) {
 	t.init()
 	t.muFuncs.RLock()
@@ -208,7 +215,7 @@ func (t *Template) associate(new *Template, tree *parse.Tree) (bool, error) {
 	if new.common != t.common {
 		panic("internal error: associate not common")
 	}
-	if t.tmpl[new.name] != nil && parse.IsEmptyTree(tree.Root) {
+	if t.tmpl[new.name] != nil && parse.IsEmptyTree(tree.Root) && t.Tree != nil {
 		// If a template by that name exists,
 		// don't replace it with an empty template.
 		return false, nil

@@ -7,7 +7,7 @@
 // For the concurrent garbage collector, the Go compiler implements
 // updates to pointer-valued fields that may be in heap objects by
 // emitting calls to write barriers. This file contains the actual write barrier
-// implementation, markwb, and the various wrappers called by the
+// implementation, gcmarkwb_m, and the various wrappers called by the
 // compiler to implement pointer assignment, slice assignment,
 // typed memmove, and so on.
 
@@ -18,29 +18,60 @@ import (
 	"unsafe"
 )
 
-// markwb is the mark-phase write barrier, the only barrier we have.
+// gcmarkwb_m is the mark-phase write barrier, the only barrier we have.
 // The rest of this file exists only to make calls to this function.
 //
-// This is the Dijkstra barrier coarsened to always shade the ptr (dst) object.
-// The original Dijkstra barrier only shaded ptrs being placed in black slots.
+// This is a hybrid barrier that combines a Yuasa-style deletion
+// barrier—which shades the object whose reference is being
+// overwritten—with Dijkstra insertion barrier—which shades the object
+// whose reference is being written. The insertion part of the barrier
+// is necessary while the calling goroutine's stack is grey. In
+// pseudocode, the barrier is:
+//
+//     writePointer(slot, ptr):
+//         shade(*slot)
+//         if current stack is grey:
+//             shade(ptr)
+//         *slot = ptr
+//
+// slot is the destination in Go code.
+// ptr is the value that goes into the slot in Go code.
 //
 // Shade indicates that it has seen a white pointer by adding the referent
 // to wbuf as well as marking it.
 //
-// slot is the destination (dst) in go code
-// ptr is the value that goes into the slot (src) in the go code
+// The two shades and the condition work together to prevent a mutator
+// from hiding an object from the garbage collector:
+//
+// 1. shade(*slot) prevents a mutator from hiding an object by moving
+// the sole pointer to it from the heap to its stack. If it attempts
+// to unlink an object from the heap, this will shade it.
+//
+// 2. shade(ptr) prevents a mutator from hiding an object by moving
+// the sole pointer to it from its stack into a black object in the
+// heap. If it attempts to install the pointer into a black object,
+// this will shade it.
+//
+// 3. Once a goroutine's stack is black, the shade(ptr) becomes
+// unnecessary. shade(ptr) prevents hiding an object by moving it from
+// the stack to the heap, but this requires first having a pointer
+// hidden on the stack. Immediately after a stack is scanned, it only
+// points to shaded objects, so it's not hiding anything, and the
+// shade(*slot) prevents it from hiding any other pointers on its
+// stack.
+//
+// For a detailed description of this barrier and proof of
+// correctness, see https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md
+//
 //
 //
 // Dealing with memory ordering:
 //
-// Dijkstra pointed out that maintaining the no black to white
-// pointers means that white to white pointers do not need
-// to be noted by the write barrier. Furthermore if either
-// white object dies before it is reached by the
-// GC then the object can be collected during this GC cycle
-// instead of waiting for the next cycle. Unfortunately the cost of
-// ensuring that the object holding the slot doesn't concurrently
-// change to black without the mutator noticing seems prohibitive.
+// Both the Yuasa and Dijkstra barriers can be made conditional on the
+// color of the object containing the slot. We chose not to make these
+// conditional because the cost of ensuring that the object holding
+// the slot doesn't concurrently change color without the mutator
+// noticing seems prohibitive.
 //
 // Consider the following example where the mutator writes into
 // a slot and then loads the slot's mark bit while the GC thread
@@ -98,15 +129,41 @@ import (
 // barriers for writes to globals so that we don't have to rescan
 // global during mark termination.
 //
+//
+// Publication ordering:
+//
+// The write barrier is *pre-publication*, meaning that the write
+// barrier happens prior to the *slot = ptr write that may make ptr
+// reachable by some goroutine that currently cannot reach it.
+//
+//
 //go:nowritebarrierrec
+//go:systemstack
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	if writeBarrier.needed {
+		// Note: This turns bad pointer writes into bad
+		// pointer reads, which could be confusing. We avoid
+		// reading from obviously bad pointers, which should
+		// take care of the vast majority of these. We could
+		// patch this up in the signal handler, or use XCHG to
+		// combine the read and the write. Checking inheap is
+		// insufficient since we need to track changes to
+		// roots outside the heap.
+		if slot1 := uintptr(unsafe.Pointer(slot)); slot1 >= minPhysPageSize {
+			if optr := *slot; optr != 0 {
+				shade(optr)
+			}
+		}
+		// TODO: Make this conditional on the caller's stack color.
 		if ptr != 0 && inheap(ptr) {
 			shade(ptr)
 		}
 	}
 }
 
+// writebarrierptr_prewrite1 invokes a write barrier for *dst = src
+// prior to the write happening.
+//
 // Write barrier calls must not happen during critical GC and scheduler
 // related operations. In particular there are times when the GC assumes
 // that the world is stopped but scheduler related code is still being
@@ -117,7 +174,7 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 // that we are in one these critical section and throw if the write is of
 // a pointer to a heap object.
 //go:nosplit
-func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
+func writebarrierptr_prewrite1(dst *uintptr, src uintptr) {
 	mp := acquirem()
 	if mp.inwb || mp.dying > 0 {
 		releasem(mp)
@@ -125,7 +182,7 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 	}
 	systemstack(func() {
 		if mp.p == 0 && memstats.enablegc && !mp.inwb && inheap(src) {
-			throw("writebarrierptr_nostore1 called with mp.p == nil")
+			throw("writebarrierptr_prewrite1 called with mp.p == nil")
 		}
 		mp.inwb = true
 		gcmarkwb_m(dst, src)
@@ -138,11 +195,11 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 // but if we do that, Go inserts a write barrier on *dst = src.
 //go:nosplit
 func writebarrierptr(dst *uintptr, src uintptr) {
-	*dst = src
 	if writeBarrier.cgo {
 		cgoCheckWriteBarrier(dst, src)
 	}
 	if !writeBarrier.needed {
+		*dst = src
 		return
 	}
 	if src != 0 && src < minPhysPageSize {
@@ -151,13 +208,16 @@ func writebarrierptr(dst *uintptr, src uintptr) {
 			throw("bad pointer in write barrier")
 		})
 	}
-	writebarrierptr_nostore1(dst, src)
+	writebarrierptr_prewrite1(dst, src)
+	*dst = src
 }
 
-// Like writebarrierptr, but the store has already been applied.
-// Do not reapply.
+// writebarrierptr_prewrite is like writebarrierptr, but the store
+// will be performed by the caller after this call. The caller must
+// not allow preemption between this call and the write.
+//
 //go:nosplit
-func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+func writebarrierptr_prewrite(dst *uintptr, src uintptr) {
 	if writeBarrier.cgo {
 		cgoCheckWriteBarrier(dst, src)
 	}
@@ -167,24 +227,38 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 	if src != 0 && src < minPhysPageSize {
 		systemstack(func() { throw("bad pointer in write barrier") })
 	}
-	writebarrierptr_nostore1(dst, src)
+	writebarrierptr_prewrite1(dst, src)
 }
 
 // typedmemmove copies a value of type t to dst from src.
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	if typ.kind&kindNoPointers == 0 {
+		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.size)
+	}
+	// There's a race here: if some other goroutine can write to
+	// src, it may change some pointer in src after we've
+	// performed the write barrier but before we perform the
+	// memory copy. This safe because the write performed by that
+	// other goroutine must also be accompanied by a write
+	// barrier, so at worst we've unnecessarily greyed the old
+	// pointer that was in src.
 	memmove(dst, src, typ.size)
 	if writeBarrier.cgo {
 		cgoCheckMemmove(typ, dst, src, 0, typ.size)
 	}
-	if typ.kind&kindNoPointers != 0 {
-		return
-	}
-	heapBitsBulkBarrier(uintptr(dst), typ.size)
 }
 
 //go:linkname reflect_typedmemmove reflect.typedmemmove
 func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	if raceenabled {
+		raceWriteObjectPC(typ, dst, getcallerpc(unsafe.Pointer(&typ)), funcPC(reflect_typedmemmove))
+		raceReadObjectPC(typ, src, getcallerpc(unsafe.Pointer(&typ)), funcPC(reflect_typedmemmove))
+	}
+	if msanenabled {
+		msanwrite(dst, typ.size)
+		msanread(src, typ.size)
+	}
 	typedmemmove(typ, dst, src)
 }
 
@@ -192,34 +266,38 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 // dst and src point off bytes into the value and only copies size bytes.
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+	if writeBarrier.needed && typ.kind&kindNoPointers == 0 && size >= sys.PtrSize {
+		// Pointer-align start address for bulk barrier.
+		adst, asrc, asize := dst, src, size
+		if frag := -off & (sys.PtrSize - 1); frag != 0 {
+			adst = add(dst, frag)
+			asrc = add(src, frag)
+			asize -= frag
+		}
+		bulkBarrierPreWrite(uintptr(adst), uintptr(asrc), asize&^(sys.PtrSize-1))
+	}
+
 	memmove(dst, src, size)
 	if writeBarrier.cgo {
 		cgoCheckMemmove(typ, dst, src, off, size)
 	}
-	if !writeBarrier.needed || typ.kind&kindNoPointers != 0 || size < sys.PtrSize {
-		return
-	}
-
-	if frag := -off & (sys.PtrSize - 1); frag != 0 {
-		dst = add(dst, frag)
-		size -= frag
-	}
-	heapBitsBulkBarrier(uintptr(dst), size&^(sys.PtrSize-1))
 }
 
-// callwritebarrier is invoked at the end of reflectcall, to execute
-// write barrier operations to record the fact that a call's return
-// values have just been copied to frame, starting at retoffset
-// and continuing to framesize. The entire frame (not just the return
-// values) is described by typ. Because the copy has already
-// happened, we call writebarrierptr_nostore, and this is nosplit so
-// the copy and write barrier appear atomic to GC.
+// reflectcallmove is invoked by reflectcall to copy the return values
+// out of the stack and into the heap, invoking the necessary write
+// barriers. dst, src, and size describe the return value area to
+// copy. typ describes the entire frame (not just the return values).
+// typ may be nil, which indicates write barriers are not needed.
+//
+// It must be nosplit and must only call nosplit functions because the
+// stack map of reflectcall is wrong.
+//
 //go:nosplit
-func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
-	if !writeBarrier.needed || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < sys.PtrSize {
-		return
+func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
+	if writeBarrier.needed && typ != nil && typ.kind&kindNoPointers == 0 && size >= sys.PtrSize {
+		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size)
 	}
-	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize-retoffset)
+	memmove(dst, src, size)
 }
 
 //go:nosplit
@@ -300,8 +378,51 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 		if n > src.len {
 			n = src.len
 		}
-		memmove(dst.array, src.array, uintptr(n)*elemType.size)
+		if n == 0 {
+			return 0
+		}
+
+		size := uintptr(n) * elemType.size
+		if raceenabled {
+			callerpc := getcallerpc(unsafe.Pointer(&elemType))
+			pc := funcPC(reflect_typedslicecopy)
+			racewriterangepc(dst.array, size, callerpc, pc)
+			racereadrangepc(src.array, size, callerpc, pc)
+		}
+		if msanenabled {
+			msanwrite(dst.array, size)
+			msanread(src.array, size)
+		}
+
+		memmove(dst.array, src.array, size)
 		return n
 	}
 	return typedslicecopy(elemType, dst, src)
+}
+
+// typedmemclr clears the typed memory at ptr with type typ. The
+// memory at ptr must already be initialized (and hence in type-safe
+// state). If the memory is being initialized for the first time, see
+// memclrNoHeapPointers.
+//
+// If the caller knows that typ has pointers, it can alternatively
+// call memclrHasPointers.
+//
+//go:nosplit
+func typedmemclr(typ *_type, ptr unsafe.Pointer) {
+	if typ.kind&kindNoPointers == 0 {
+		bulkBarrierPreWrite(uintptr(ptr), 0, typ.size)
+	}
+	memclrNoHeapPointers(ptr, typ.size)
+}
+
+// memclrHasPointers clears n bytes of typed memory starting at ptr.
+// The caller must ensure that the type of the object at ptr has
+// pointers, usually by checking typ.kind&kindNoPointers. However, ptr
+// does not have to point to the start of the allocation.
+//
+//go:nosplit
+func memclrHasPointers(ptr unsafe.Pointer, n uintptr) {
+	bulkBarrierPreWrite(uintptr(ptr), 0, n)
+	memclrNoHeapPointers(ptr, n)
 }

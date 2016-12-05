@@ -1,5 +1,5 @@
 // Inferno utils/6l/span.c
-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -46,14 +46,6 @@ func putelfstr(s string) int {
 		putelfstr("")
 	}
 
-	// When dynamically linking, we create LSym's by reading the names from
-	// the symbol tables of the shared libraries and so the names need to
-	// match exactly. Tools like DTrace will have to wait for now.
-	if !DynlinkingGo() {
-		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
-		s = strings.Replace(s, "·", ".", -1)
-	}
-
 	off := len(Elfstrdat)
 	Elfstrdat = append(Elfstrdat, s...)
 	Elfstrdat = append(Elfstrdat, 0)
@@ -84,29 +76,31 @@ var numelfsym int = 1 // 0 is reserved
 
 var elfbind int
 
-func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {
-	var type_ int
+func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *Symbol) {
+	var typ int
 
 	switch t {
 	default:
 		return
 
-	case 'T':
-		type_ = STT_FUNC
+	case TextSym:
+		typ = STT_FUNC
 
-	case 'D':
-		type_ = STT_OBJECT
+	case DataSym, BSSSym:
+		typ = STT_OBJECT
 
-	case 'B':
-		type_ = STT_OBJECT
-
-	case 'U':
+	case UndefinedSym:
 		// ElfType is only set for symbols read from Go shared libraries, but
 		// for other symbols it is left as STT_NOTYPE which is fine.
-		type_ = int(x.ElfType)
+		typ = int(x.ElfType)
 
-	case 't':
-		type_ = STT_TLS
+	case TLSSym:
+		typ = STT_TLS
+	}
+
+	size := x.Size
+	if t == UndefinedSym {
+		size = 0
 	}
 
 	xo := x
@@ -119,13 +113,11 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 		elfshnum = SHN_UNDEF
 	} else {
 		if xo.Sect == nil {
-			Ctxt.Cursym = x
-			Diag("missing section in putelfsym")
+			Errorf(x, "missing section in putelfsym")
 			return
 		}
 		if xo.Sect.Elfsect == nil {
-			Ctxt.Cursym = x
-			Diag("missing ELF section in putelfsym")
+			Errorf(x, "missing ELF section in putelfsym")
 			return
 		}
 		elfshnum = xo.Sect.Elfsect.shnum
@@ -135,7 +127,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	// maybe one day STB_WEAK.
 	bind := STB_GLOBAL
 
-	if ver != 0 || (x.Type&obj.SHIDDEN != 0) || x.Attr.Local() {
+	if x.Version != 0 || (x.Type&obj.SHIDDEN != 0) || x.Attr.Local() {
 		bind = STB_LOCAL
 	}
 
@@ -144,7 +136,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	// To avoid filling the dynamic table with lots of unnecessary symbols,
 	// mark all Go symbols local (not global) in the final executable.
 	// But when we're dynamically linking, we need all those global symbols.
-	if !DynlinkingGo() && Linkmode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
+	if !ctxt.DynlinkingGo() && Linkmode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
 		bind = STB_LOCAL
 	}
 
@@ -155,23 +147,31 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	if x.Type&obj.SHIDDEN != 0 {
 		other = STV_HIDDEN
 	}
-	if (Buildmode == BuildmodePIE || DynlinkingGo()) && SysArch.Family == sys.PPC64 && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || ctxt.DynlinkingGo()) && SysArch.Family == sys.PPC64 && typ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
 		// On ppc64 the top three bits of the st_other field indicate how
 		// many instructions separate the global and local entry points. In
 		// our case it is two instructions, indicated by the value 3.
 		other |= 3 << 5
 	}
 
-	if DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == obj.STEXT {
+	// When dynamically linking, we create Symbols by reading the names from
+	// the symbol tables of the shared libraries and so the names need to
+	// match exactly. Tools like DTrace will have to wait for now.
+	if !ctxt.DynlinkingGo() {
+		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
+		s = strings.Replace(s, "·", ".", -1)
+	}
+
+	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == obj.STEXT {
 		// When dynamically linking, we want references to functions defined
 		// in this module to always be to the function object, not to the
 		// PLT. We force this by writing an additional local symbol for every
 		// global function symbol and making all relocations against the
 		// global symbol refer to this local symbol instead (see
-		// (*LSym).ElfsymForReloc). This is approximately equivalent to the
+		// (*Symbol).ElfsymForReloc). This is approximately equivalent to the
 		// ELF linker -Bsymbolic-functions option, but that is buggy on
 		// several platforms.
-		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|type_&0xf, elfshnum, other)
+		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
 		x.LocalElfsym = int32(numelfsym)
 		numelfsym++
 		return
@@ -179,22 +179,22 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 		return
 	}
 
-	putelfsyment(putelfstr(s), addr, size, bind<<4|type_&0xf, elfshnum, other)
+	putelfsyment(putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
 	x.Elfsym = int32(numelfsym)
 	numelfsym++
 }
 
-func putelfsectionsym(s *LSym, shndx int) {
+func putelfsectionsym(s *Symbol, shndx int) {
 	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
 	s.Elfsym = int32(numelfsym)
 	numelfsym++
 }
 
-func Asmelfsym() {
+func Asmelfsym(ctxt *Link) {
 	// the first symbol entry is reserved
 	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
 
-	dwarfaddelfsectionsyms()
+	dwarfaddelfsectionsyms(ctxt)
 
 	// Some linkers will add a FILE sym if one is not present.
 	// Avoid having the working directory inserted into the symbol table.
@@ -204,29 +204,25 @@ func Asmelfsym() {
 	numelfsym++
 
 	elfbind = STB_LOCAL
-	genasmsym(putelfsym)
+	genasmsym(ctxt, putelfsym)
 
 	elfbind = STB_GLOBAL
 	elfglobalsymndx = numelfsym
-	genasmsym(putelfsym)
+	genasmsym(ctxt, putelfsym)
 }
 
-func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {
-	switch t {
-	case 'T', 'L', 'D', 'B':
-		if ver != 0 {
+func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, go_ *Symbol) {
+	t := int(typ)
+	switch typ {
+	case TextSym, DataSym, BSSSym:
+		if x.Version != 0 {
 			t += 'a' - 'A'
 		}
 		fallthrough
 
-	case 'a',
-		'p',
-		'f',
-		'z',
-		'Z',
-		'm':
+	case AutoSym, ParamSym, FileSym, FrameSym:
 		l := 4
-		if HEADTYPE == obj.Hplan9 && SysArch.Family == sys.AMD64 && Debug['8'] == 0 {
+		if Headtype == obj.Hplan9 && SysArch.Family == sys.AMD64 && !Flag8 {
 			Lputb(uint32(addr >> 32))
 			l = 8
 		}
@@ -235,26 +231,15 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ 
 		Cput(uint8(t + 0x80)) /* 0x80 is variable length */
 
 		var i int
-		if t == 'z' || t == 'Z' {
-			Cput(s[0])
-			for i = 1; s[i] != 0 || s[i+1] != 0; i += 2 {
-				Cput(s[i])
-				Cput(s[i+1])
-			}
 
-			Cput(0)
-			Cput(0)
-			i++
-		} else {
-			/* skip the '<' in filenames */
-			if t == 'f' {
-				s = s[1:]
-			}
-			for i = 0; i < len(s); i++ {
-				Cput(s[i])
-			}
-			Cput(0)
+		/* skip the '<' in filenames */
+		if t == FileSym {
+			s = s[1:]
 		}
+		for i = 0; i < len(s); i++ {
+			Cput(s[i])
+		}
+		Cput(0)
 
 		Symsize += int32(l) + 1 + int32(i) + 1
 
@@ -263,11 +248,13 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ 
 	}
 }
 
-func Asmplan9sym() {
-	genasmsym(putplan9sym)
+func Asmplan9sym(ctxt *Link) {
+	genasmsym(ctxt, putplan9sym)
 }
 
-var symt *LSym
+var symt *Symbol
+
+var encbuf [10]byte
 
 func Wputb(w uint16) { Cwrite(Append16b(encbuf[:0], w)) }
 func Lputb(l uint32) { Cwrite(Append32b(encbuf[:0], l)) }
@@ -315,67 +302,121 @@ func (libs byPkg) Swap(a, b int) {
 	libs[a], libs[b] = libs[b], libs[a]
 }
 
-func symtab() {
-	dosymtype()
+// Create a table with information on the text sections.
+
+func textsectionmap(ctxt *Link) uint32 {
+
+	t := ctxt.Syms.Lookup("runtime.textsectionmap", 0)
+	t.Type = obj.SRODATA
+	t.Attr |= AttrReachable
+	nsections := int64(0)
+
+	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+		if sect.Name == ".text" {
+			nsections++
+		} else {
+			break
+		}
+	}
+	Symgrow(t, nsections*(2*int64(SysArch.IntSize)+int64(SysArch.PtrSize)))
+
+	off := int64(0)
+	n := 0
+
+	// The vaddr for each text section is the difference between the section's
+	// Vaddr and the Vaddr for the first text section as determined at compile
+	// time.
+
+	// The symbol for the first text section is named runtime.text as before.
+	// Additional text sections are named runtime.text.n where n is the
+	// order of creation starting with 1. These symbols provide the section's
+	// address after relocation by the linker.
+
+	textbase := Segtext.Sect.Vaddr
+	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+		if sect.Name != ".text" {
+			break
+		}
+		off = setuintxx(ctxt, t, off, sect.Vaddr-textbase, int64(SysArch.IntSize))
+		off = setuintxx(ctxt, t, off, sect.Length, int64(SysArch.IntSize))
+		if n == 0 {
+			s := ctxt.Syms.ROLookup("runtime.text", 0)
+			if s == nil {
+				Errorf(nil, "Unable to find symbol runtime.text\n")
+			}
+			off = setaddr(ctxt, t, off, s)
+
+		} else {
+			s := ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0)
+			if s == nil {
+				Errorf(nil, "Unable to find symbol runtime.text.%d\n", n)
+			}
+			off = setaddr(ctxt, t, off, s)
+		}
+		n++
+	}
+	return uint32(n)
+}
+
+func (ctxt *Link) symtab() {
+	dosymtype(ctxt)
 
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
-	xdefine("runtime.text", obj.STEXT, 0)
+	ctxt.xdefine("runtime.text", obj.STEXT, 0)
 
-	xdefine("runtime.etext", obj.STEXT, 0)
-	xdefine("runtime.typelink", obj.SRODATA, 0)
-	xdefine("runtime.etypelink", obj.SRODATA, 0)
-	xdefine("runtime.itablink", obj.SRODATA, 0)
-	xdefine("runtime.eitablink", obj.SRODATA, 0)
-	xdefine("runtime.rodata", obj.SRODATA, 0)
-	xdefine("runtime.erodata", obj.SRODATA, 0)
-	xdefine("runtime.types", obj.SRODATA, 0)
-	xdefine("runtime.etypes", obj.SRODATA, 0)
-	xdefine("runtime.noptrdata", obj.SNOPTRDATA, 0)
-	xdefine("runtime.enoptrdata", obj.SNOPTRDATA, 0)
-	xdefine("runtime.data", obj.SDATA, 0)
-	xdefine("runtime.edata", obj.SDATA, 0)
-	xdefine("runtime.bss", obj.SBSS, 0)
-	xdefine("runtime.ebss", obj.SBSS, 0)
-	xdefine("runtime.noptrbss", obj.SNOPTRBSS, 0)
-	xdefine("runtime.enoptrbss", obj.SNOPTRBSS, 0)
-	xdefine("runtime.end", obj.SBSS, 0)
-	xdefine("runtime.epclntab", obj.SRODATA, 0)
-	xdefine("runtime.esymtab", obj.SRODATA, 0)
+	ctxt.xdefine("runtime.etext", obj.STEXT, 0)
+	ctxt.xdefine("runtime.itablink", obj.SRODATA, 0)
+	ctxt.xdefine("runtime.eitablink", obj.SRODATA, 0)
+	ctxt.xdefine("runtime.rodata", obj.SRODATA, 0)
+	ctxt.xdefine("runtime.erodata", obj.SRODATA, 0)
+	ctxt.xdefine("runtime.types", obj.SRODATA, 0)
+	ctxt.xdefine("runtime.etypes", obj.SRODATA, 0)
+	ctxt.xdefine("runtime.noptrdata", obj.SNOPTRDATA, 0)
+	ctxt.xdefine("runtime.enoptrdata", obj.SNOPTRDATA, 0)
+	ctxt.xdefine("runtime.data", obj.SDATA, 0)
+	ctxt.xdefine("runtime.edata", obj.SDATA, 0)
+	ctxt.xdefine("runtime.bss", obj.SBSS, 0)
+	ctxt.xdefine("runtime.ebss", obj.SBSS, 0)
+	ctxt.xdefine("runtime.noptrbss", obj.SNOPTRBSS, 0)
+	ctxt.xdefine("runtime.enoptrbss", obj.SNOPTRBSS, 0)
+	ctxt.xdefine("runtime.end", obj.SBSS, 0)
+	ctxt.xdefine("runtime.epclntab", obj.SRODATA, 0)
+	ctxt.xdefine("runtime.esymtab", obj.SRODATA, 0)
 
 	// garbage collection symbols
-	s := Linklookup(Ctxt, "runtime.gcdata", 0)
+	s := ctxt.Syms.Lookup("runtime.gcdata", 0)
 
 	s.Type = obj.SRODATA
 	s.Size = 0
 	s.Attr |= AttrReachable
-	xdefine("runtime.egcdata", obj.SRODATA, 0)
+	ctxt.xdefine("runtime.egcdata", obj.SRODATA, 0)
 
-	s = Linklookup(Ctxt, "runtime.gcbss", 0)
+	s = ctxt.Syms.Lookup("runtime.gcbss", 0)
 	s.Type = obj.SRODATA
 	s.Size = 0
 	s.Attr |= AttrReachable
-	xdefine("runtime.egcbss", obj.SRODATA, 0)
+	ctxt.xdefine("runtime.egcbss", obj.SRODATA, 0)
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
-	var symtype *LSym
-	var symtyperel *LSym
-	if UseRelro() && (Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
-		s = Linklookup(Ctxt, "type.*", 0)
+	var symtype *Symbol
+	var symtyperel *Symbol
+	if UseRelro() && (Buildmode == BuildmodeCArchive || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
+		s = ctxt.Syms.Lookup("type.*", 0)
 
 		s.Type = obj.STYPE
 		s.Size = 0
 		s.Attr |= AttrReachable
 		symtype = s
 
-		s = Linklookup(Ctxt, "typerel.*", 0)
+		s = ctxt.Syms.Lookup("typerel.*", 0)
 
 		s.Type = obj.STYPERELRO
 		s.Size = 0
 		s.Attr |= AttrReachable
 		symtyperel = s
-	} else if !DynlinkingGo() {
-		s = Linklookup(Ctxt, "type.*", 0)
+	} else if !ctxt.DynlinkingGo() {
+		s = ctxt.Syms.Lookup("type.*", 0)
 
 		s.Type = obj.STYPE
 		s.Size = 0
@@ -384,47 +425,51 @@ func symtab() {
 		symtyperel = s
 	}
 
-	groupSym := func(name string, t int16) *LSym {
-		s := Linklookup(Ctxt, name, 0)
+	groupSym := func(name string, t obj.SymKind) *Symbol {
+		s := ctxt.Syms.Lookup(name, 0)
 		s.Type = t
 		s.Size = 0
 		s.Attr |= AttrLocal | AttrReachable
 		return s
 	}
 	var (
-		symgostring    = groupSym("go.string.*", obj.SGOSTRING)
-		symgostringhdr = groupSym("go.string.hdr.*", obj.SGOSTRINGHDR)
-		symgofunc      = groupSym("go.func.*", obj.SGOFUNC)
-		symgcbits      = groupSym("runtime.gcbits.*", obj.SGCBITS)
+		symgostring = groupSym("go.string.*", obj.SGOSTRING)
+		symgofunc   = groupSym("go.func.*", obj.SGOFUNC)
+		symgcbits   = groupSym("runtime.gcbits.*", obj.SGCBITS)
 	)
 
-	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
-	symtypelink.Type = obj.STYPELINK
+	var symgofuncrel *Symbol
+	if !ctxt.DynlinkingGo() {
+		if UseRelro() {
+			symgofuncrel = groupSym("go.funcrel.*", obj.SGOFUNCRELRO)
+		} else {
+			symgofuncrel = symgofunc
+		}
+	}
 
-	symitablink := Linklookup(Ctxt, "runtime.itablink", 0)
+	symitablink := ctxt.Syms.Lookup("runtime.itablink", 0)
 	symitablink.Type = obj.SITABLINK
 
-	symt = Linklookup(Ctxt, "runtime.symtab", 0)
+	symt = ctxt.Syms.Lookup("runtime.symtab", 0)
 	symt.Attr |= AttrLocal
 	symt.Type = obj.SSYMTAB
 	symt.Size = 0
 	symt.Attr |= AttrReachable
 
-	ntypelinks := 0
 	nitablinks := 0
 
 	// assign specific types so that they sort together.
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
 	// hide the specific symbols.
-	for _, s := range Ctxt.Allsym {
+	for _, s := range ctxt.Syms.Allsym {
 		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != obj.SRODATA {
 			continue
 		}
 
 		switch {
 		case strings.HasPrefix(s.Name, "type."):
-			if !DynlinkingGo() {
+			if !ctxt.DynlinkingGo() {
 				s.Attr |= AttrHidden
 			}
 			if UseRelro() {
@@ -440,12 +485,6 @@ func symtab() {
 			// names, as they can be referred to by a section offset.
 			s.Type = obj.STYPERELRO
 
-		case strings.HasPrefix(s.Name, "go.typelink."):
-			ntypelinks++
-			s.Type = obj.STYPELINK
-			s.Attr |= AttrHidden
-			s.Outer = symtypelink
-
 		case strings.HasPrefix(s.Name, "go.itablink."):
 			nitablinks++
 			s.Type = obj.SITABLINK
@@ -456,20 +495,23 @@ func symtab() {
 			s.Type = obj.SGOSTRING
 			s.Attr |= AttrHidden
 			s.Outer = symgostring
-			if strings.HasPrefix(s.Name, "go.string.hdr.") {
-				s.Type = obj.SGOSTRINGHDR
-				s.Outer = symgostringhdr
-			}
 
 		case strings.HasPrefix(s.Name, "runtime.gcbits."):
 			s.Type = obj.SGCBITS
 			s.Attr |= AttrHidden
 			s.Outer = symgcbits
 
-		case strings.HasPrefix(s.Name, "go.func."):
-			s.Type = obj.SGOFUNC
-			s.Attr |= AttrHidden
-			s.Outer = symgofunc
+		case strings.HasSuffix(s.Name, "·f"):
+			if !ctxt.DynlinkingGo() {
+				s.Attr |= AttrHidden
+			}
+			if UseRelro() {
+				s.Type = obj.SGOFUNCRELRO
+				s.Outer = symgofuncrel
+			} else {
+				s.Type = obj.SGOFUNC
+				s.Outer = symgofunc
+			}
 
 		case strings.HasPrefix(s.Name, "gcargs."), strings.HasPrefix(s.Name, "gclocals."), strings.HasPrefix(s.Name, "gclocals·"):
 			s.Type = obj.SGOFUNC
@@ -481,106 +523,172 @@ func symtab() {
 	}
 
 	if Buildmode == BuildmodeShared {
-		abihashgostr := Linklookup(Ctxt, "go.link.abihash."+filepath.Base(outfile), 0)
+		abihashgostr := ctxt.Syms.Lookup("go.link.abihash."+filepath.Base(*flagOutfile), 0)
 		abihashgostr.Attr |= AttrReachable
 		abihashgostr.Type = obj.SRODATA
-		hashsym := Linklookup(Ctxt, "go.link.abihashbytes", 0)
-		Addaddr(Ctxt, abihashgostr, hashsym)
-		adduint(Ctxt, abihashgostr, uint64(hashsym.Size))
+		hashsym := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
+		Addaddr(ctxt, abihashgostr, hashsym)
+		adduint(ctxt, abihashgostr, uint64(hashsym.Size))
 	}
+	if Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
+		for _, l := range ctxt.Library {
+			s := ctxt.Syms.Lookup("go.link.pkghashbytes."+l.Pkg, 0)
+			s.Attr |= AttrReachable
+			s.Type = obj.SRODATA
+			s.Size = int64(len(l.hash))
+			s.P = []byte(l.hash)
+			str := ctxt.Syms.Lookup("go.link.pkghash."+l.Pkg, 0)
+			str.Attr |= AttrReachable
+			str.Type = obj.SRODATA
+			Addaddr(ctxt, str, s)
+			adduint(ctxt, str, uint64(len(l.hash)))
+		}
+	}
+
+	nsections := textsectionmap(ctxt)
 
 	// Information about the layout of the executable image for the
 	// runtime to use. Any changes here must be matched by changes to
 	// the definition of moduledata in runtime/symtab.go.
 	// This code uses several global variables that are set by pcln.go:pclntab.
-	moduledata := Ctxt.Moduledata
+	moduledata := ctxt.Moduledata
 	// The pclntab slice
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0))
-	adduint(Ctxt, moduledata, uint64(Linklookup(Ctxt, "runtime.pclntab", 0).Size))
-	adduint(Ctxt, moduledata, uint64(Linklookup(Ctxt, "runtime.pclntab", 0).Size))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0))
+	adduint(ctxt, moduledata, uint64(ctxt.Syms.Lookup("runtime.pclntab", 0).Size))
+	adduint(ctxt, moduledata, uint64(ctxt.Syms.Lookup("runtime.pclntab", 0).Size))
 	// The ftab slice
-	Addaddrplus(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0), int64(pclntabPclntabOffset))
-	adduint(Ctxt, moduledata, uint64(pclntabNfunc+1))
-	adduint(Ctxt, moduledata, uint64(pclntabNfunc+1))
+	Addaddrplus(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabPclntabOffset))
+	adduint(ctxt, moduledata, uint64(pclntabNfunc+1))
+	adduint(ctxt, moduledata, uint64(pclntabNfunc+1))
 	// The filetab slice
-	Addaddrplus(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0), int64(pclntabFiletabOffset))
-	adduint(Ctxt, moduledata, uint64(len(Ctxt.Filesyms))+1)
-	adduint(Ctxt, moduledata, uint64(len(Ctxt.Filesyms))+1)
+	Addaddrplus(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabFiletabOffset))
+	adduint(ctxt, moduledata, uint64(len(ctxt.Filesyms))+1)
+	adduint(ctxt, moduledata, uint64(len(ctxt.Filesyms))+1)
 	// findfunctab
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.findfunctab", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.findfunctab", 0))
 	// minpc, maxpc
-	Addaddr(Ctxt, moduledata, pclntabFirstFunc)
-	Addaddrplus(Ctxt, moduledata, pclntabLastFunc, pclntabLastFunc.Size)
+	Addaddr(ctxt, moduledata, pclntabFirstFunc)
+	Addaddrplus(ctxt, moduledata, pclntabLastFunc, pclntabLastFunc.Size)
 	// pointers to specific parts of the module
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.text", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.etext", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.noptrdata", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.enoptrdata", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.data", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.edata", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.bss", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.ebss", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.noptrbss", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.enoptrbss", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.end", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.gcdata", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.gcbss", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.types", 0))
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.etypes", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.text", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.etext", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.noptrdata", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.enoptrdata", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.data", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.edata", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.bss", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.ebss", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.noptrbss", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.enoptrbss", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.end", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.gcdata", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.gcbss", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.types", 0))
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.etypes", 0))
+
+	// text section information
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.textsectionmap", 0))
+	adduint(ctxt, moduledata, uint64(nsections))
+	adduint(ctxt, moduledata, uint64(nsections))
+
 	// The typelinks slice
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.typelink", 0))
-	adduint(Ctxt, moduledata, uint64(ntypelinks))
-	adduint(Ctxt, moduledata, uint64(ntypelinks))
+	typelinkSym := ctxt.Syms.Lookup("runtime.typelink", 0)
+	ntypelinks := uint64(typelinkSym.Size) / 4
+	Addaddr(ctxt, moduledata, typelinkSym)
+	adduint(ctxt, moduledata, ntypelinks)
+	adduint(ctxt, moduledata, ntypelinks)
 	// The itablinks slice
-	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.itablink", 0))
-	adduint(Ctxt, moduledata, uint64(nitablinks))
-	adduint(Ctxt, moduledata, uint64(nitablinks))
-	if len(Ctxt.Shlibs) > 0 {
-		thismodulename := filepath.Base(outfile)
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.itablink", 0))
+	adduint(ctxt, moduledata, uint64(nitablinks))
+	adduint(ctxt, moduledata, uint64(nitablinks))
+	// The ptab slice
+	if ptab := ctxt.Syms.ROLookup("go.plugin.tabs", 0); ptab != nil {
+		ptab.Attr |= AttrReachable
+		ptab.Attr |= AttrLocal
+		ptab.Type = obj.SRODATA
+
+		nentries := uint64(len(ptab.P) / 8) // sizeof(nameOff) + sizeof(typeOff)
+		Addaddr(ctxt, moduledata, ptab)
+		adduint(ctxt, moduledata, nentries)
+		adduint(ctxt, moduledata, nentries)
+	} else {
+		adduint(ctxt, moduledata, 0)
+		adduint(ctxt, moduledata, 0)
+		adduint(ctxt, moduledata, 0)
+	}
+	if Buildmode == BuildmodePlugin {
+		addgostring(ctxt, moduledata, "go.link.thispluginpath", *flagPluginPath)
+
+		pkghashes := ctxt.Syms.Lookup("go.link.pkghashes", 0)
+		pkghashes.Attr |= AttrReachable
+		pkghashes.Attr |= AttrLocal
+		pkghashes.Type = obj.SRODATA
+
+		for i, l := range ctxt.Library {
+			// pkghashes[i].name
+			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkgname.%d", i), l.Pkg)
+			// pkghashes[i].linktimehash
+			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.hash))
+			// pkghashes[i].runtimehash
+			hash := ctxt.Syms.ROLookup("go.link.pkghash."+l.Pkg, 0)
+			Addaddr(ctxt, pkghashes, hash)
+		}
+		Addaddr(ctxt, moduledata, pkghashes)
+		adduint(ctxt, moduledata, uint64(len(ctxt.Library)))
+		adduint(ctxt, moduledata, uint64(len(ctxt.Library)))
+	} else {
+		adduint(ctxt, moduledata, 0) // pluginpath
+		adduint(ctxt, moduledata, 0)
+		adduint(ctxt, moduledata, 0) // pkghashes slice
+		adduint(ctxt, moduledata, 0)
+		adduint(ctxt, moduledata, 0)
+	}
+	if len(ctxt.Shlibs) > 0 {
+		thismodulename := filepath.Base(*flagOutfile)
 		switch Buildmode {
 		case BuildmodeExe, BuildmodePIE:
 			// When linking an executable, outfile is just "a.out". Make
 			// it something slightly more comprehensible.
 			thismodulename = "the executable"
 		}
-		addgostring(moduledata, "go.link.thismodulename", thismodulename)
+		addgostring(ctxt, moduledata, "go.link.thismodulename", thismodulename)
 
-		modulehashes := Linklookup(Ctxt, "go.link.abihashes", 0)
+		modulehashes := ctxt.Syms.Lookup("go.link.abihashes", 0)
 		modulehashes.Attr |= AttrReachable
 		modulehashes.Attr |= AttrLocal
 		modulehashes.Type = obj.SRODATA
 
-		for i, shlib := range Ctxt.Shlibs {
+		for i, shlib := range ctxt.Shlibs {
 			// modulehashes[i].modulename
 			modulename := filepath.Base(shlib.Path)
-			addgostring(modulehashes, fmt.Sprintf("go.link.libname.%d", i), modulename)
+			addgostring(ctxt, modulehashes, fmt.Sprintf("go.link.libname.%d", i), modulename)
 
 			// modulehashes[i].linktimehash
-			addgostring(modulehashes, fmt.Sprintf("go.link.linkhash.%d", i), string(shlib.Hash))
+			addgostring(ctxt, modulehashes, fmt.Sprintf("go.link.linkhash.%d", i), string(shlib.Hash))
 
 			// modulehashes[i].runtimehash
-			abihash := Linklookup(Ctxt, "go.link.abihash."+modulename, 0)
+			abihash := ctxt.Syms.Lookup("go.link.abihash."+modulename, 0)
 			abihash.Attr |= AttrReachable
-			Addaddr(Ctxt, modulehashes, abihash)
+			Addaddr(ctxt, modulehashes, abihash)
 		}
 
-		Addaddr(Ctxt, moduledata, modulehashes)
-		adduint(Ctxt, moduledata, uint64(len(Ctxt.Shlibs)))
-		adduint(Ctxt, moduledata, uint64(len(Ctxt.Shlibs)))
+		Addaddr(ctxt, moduledata, modulehashes)
+		adduint(ctxt, moduledata, uint64(len(ctxt.Shlibs)))
+		adduint(ctxt, moduledata, uint64(len(ctxt.Shlibs)))
 	}
 
 	// The rest of moduledata is zero initialized.
 	// When linking an object that does not contain the runtime we are
 	// creating the moduledata from scratch and it does not have a
 	// compiler-provided size, so read it from the type data.
-	moduledatatype := Linkrlookup(Ctxt, "type.runtime.moduledata", 0)
-	moduledata.Size = decodetype_size(moduledatatype)
-	Symgrow(Ctxt, moduledata, moduledata.Size)
+	moduledatatype := ctxt.Syms.ROLookup("type.runtime.moduledata", 0)
+	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype)
+	Symgrow(moduledata, moduledata.Size)
 
-	lastmoduledatap := Linklookup(Ctxt, "runtime.lastmoduledatap", 0)
+	lastmoduledatap := ctxt.Syms.Lookup("runtime.lastmoduledatap", 0)
 	if lastmoduledatap.Type != obj.SDYNIMPORT {
 		lastmoduledatap.Type = obj.SNOPTRDATA
 		lastmoduledatap.Size = 0 // overwrite existing value
-		Addaddr(Ctxt, lastmoduledatap, moduledata)
+		Addaddr(ctxt, lastmoduledatap, moduledata)
 	}
 }

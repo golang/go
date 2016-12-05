@@ -7,6 +7,7 @@ package atomic_test
 import (
 	"runtime"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"testing"
 	"unsafe"
 )
@@ -51,17 +52,54 @@ func TestXadduintptr(t *testing.T) {
 // Tests that xadduintptr correctly updates 64-bit values. The place where
 // we actually do so is mstats.go, functions mSysStat{Inc,Dec}.
 func TestXadduintptrOnUint64(t *testing.T) {
-	/*	if runtime.BigEndian != 0 {
+	if sys.BigEndian != 0 {
 		// On big endian architectures, we never use xadduintptr to update
 		// 64-bit values and hence we skip the test.  (Note that functions
 		// mSysStat{Inc,Dec} in mstats.go have explicit checks for
 		// big-endianness.)
-		return
-	}*/
+		t.Skip("skip xadduintptr on big endian architecture")
+	}
 	const inc = 100
 	val := uint64(0)
 	atomic.Xadduintptr((*uintptr)(unsafe.Pointer(&val)), inc)
 	if inc != val {
 		t.Fatalf("xadduintptr should increase lower-order bits, want %d, got %d", inc, val)
 	}
+}
+
+func shouldPanic(t *testing.T, name string, f func()) {
+	defer func() {
+		if recover() == nil {
+			t.Errorf("%s did not panic", name)
+		}
+	}()
+	f()
+}
+
+// Variant of sync/atomic's TestUnaligned64:
+func TestUnaligned64(t *testing.T) {
+	// Unaligned 64-bit atomics on 32-bit systems are
+	// a continual source of pain. Test that on 32-bit systems they crash
+	// instead of failing silently.
+
+	switch runtime.GOARCH {
+	default:
+		if unsafe.Sizeof(int(0)) != 4 {
+			t.Skip("test only runs on 32-bit systems")
+		}
+	case "amd64p32":
+		// amd64p32 can handle unaligned atomics.
+		t.Skipf("test not needed on %v", runtime.GOARCH)
+	}
+
+	x := make([]uint32, 4)
+	up64 := (*uint64)(unsafe.Pointer(&x[1])) // misaligned
+	p64 := (*int64)(unsafe.Pointer(&x[1]))   // misaligned
+
+	shouldPanic(t, "Load64", func() { atomic.Load64(up64) })
+	shouldPanic(t, "Loadint64", func() { atomic.Loadint64(p64) })
+	shouldPanic(t, "Store64", func() { atomic.Store64(up64, 0) })
+	shouldPanic(t, "Xadd64", func() { atomic.Xadd64(up64, 1) })
+	shouldPanic(t, "Xchg64", func() { atomic.Xchg64(up64, 1) })
+	shouldPanic(t, "Cas64", func() { atomic.Cas64(up64, 1, 2) })
 }

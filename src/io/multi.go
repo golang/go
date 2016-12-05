@@ -18,15 +18,17 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
 			}
 		}
 		n, err = mr.readers[0].Read(p)
+		if err == EOF {
+			mr.readers[0] = nil // permit earlier GC
+			mr.readers = mr.readers[1:]
+		}
 		if n > 0 || err != EOF {
-			if err == EOF {
-				// Don't return EOF yet. There may be more bytes
-				// in the remaining readers.
+			if err == EOF && len(mr.readers) > 0 {
+				// Don't return EOF yet. More readers remain.
 				err = nil
 			}
 			return
 		}
-		mr.readers = mr.readers[1:]
 	}
 	return 0, EOF
 }

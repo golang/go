@@ -4,17 +4,6 @@
 
 #include "textflag.h"
 
-// func hasAsm() bool
-// returns whether AES-NI is supported
-TEXT ·hasAsm(SB),NOSPLIT,$0
-	XORQ AX, AX
-	INCL AX
-	CPUID
-	SHRQ $25, CX
-	ANDQ $1, CX
-	MOVB CX, ret+0(FP)
-	RET
-
 // func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 TEXT ·encryptBlockAsm(SB),NOSPLIT,$0
 	MOVQ nr+0(FP), CX

@@ -362,6 +362,11 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 	// associate methods with the receiver type, if any
 	if fun.Recv != nil {
 		// method
+		if len(fun.Recv.List) == 0 {
+			// should not happen (incorrect AST); (See issue 17788)
+			// don't show this method
+			return
+		}
 		recvTypeName, imp := baseTypeName(fun.Recv.List[0].Type)
 		if imp {
 			// should not happen (incorrect AST);
@@ -645,7 +650,9 @@ func (r *reader) computeMethodSets() {
 func (r *reader) cleanupTypes() {
 	for _, t := range r.types {
 		visible := r.isVisible(t.name)
-		if t.decl == nil && (predeclaredTypes[t.name] || visible && (t.isEmbedded || r.hasDotImp)) {
+		predeclared := predeclaredTypes[t.name]
+
+		if t.decl == nil && (predeclared || visible && (t.isEmbedded || r.hasDotImp)) {
 			// t.name is a predeclared type (and was not redeclared in this package),
 			// or it was embedded somewhere but its declaration is missing (because
 			// the AST is incomplete), or we have a dot-import (and all bets are off):
@@ -660,10 +667,12 @@ func (r *reader) cleanupTypes() {
 				r.funcs[name] = f
 			}
 			// 3) move methods
-			for name, m := range t.methods {
-				// don't overwrite functions with the same name - drop them
-				if _, found := r.funcs[name]; !found {
-					r.funcs[name] = m
+			if !predeclared {
+				for name, m := range t.methods {
+					// don't overwrite functions with the same name - drop them
+					if _, found := r.funcs[name]; !found {
+						r.funcs[name] = m
+					}
 				}
 			}
 		}
@@ -808,6 +817,11 @@ func noteBodies(notes []*Note) []string {
 
 // ----------------------------------------------------------------------------
 // Predeclared identifiers
+
+// IsPredeclared reports whether s is a predeclared identifier.
+func IsPredeclared(s string) bool {
+	return predeclaredTypes[s] || predeclaredFuncs[s] || predeclaredConstants[s]
+}
 
 var predeclaredTypes = map[string]bool{
 	"bool":       true,

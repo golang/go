@@ -5,6 +5,8 @@
 package net
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"net/internal/socktest"
 	"os"
@@ -15,7 +17,7 @@ import (
 
 func TestCloseRead(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -413,4 +415,104 @@ func TestZeroByteRead(t *testing.T) {
 			t.Errorf("%s: zero byte server read = %v, %v; want 0, nil", network, n, err)
 		}
 	}
+}
+
+// withTCPConnPair sets up a TCP connection between two peers, then
+// runs peer1 and peer2 concurrently. withTCPConnPair returns when
+// both have completed.
+func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	errc := make(chan error, 2)
+	go func() {
+		c1, err := ln.Accept()
+		if err != nil {
+			errc <- err
+			return
+		}
+		defer c1.Close()
+		errc <- peer1(c1.(*TCPConn))
+	}()
+	go func() {
+		c2, err := Dial("tcp", ln.Addr().String())
+		if err != nil {
+			errc <- err
+			return
+		}
+		defer c2.Close()
+		errc <- peer2(c2.(*TCPConn))
+	}()
+	for i := 0; i < 2; i++ {
+		if err := <-errc; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// Tests that a blocked Read is interrupted by a concurrent SetReadDeadline
+// modifying that Conn's read deadline to the past.
+// See golang.org/cl/30164 which documented this. The net/http package
+// depends on this.
+func TestReadTimeoutUnblocksRead(t *testing.T) {
+	serverDone := make(chan struct{})
+	server := func(cs *TCPConn) error {
+		defer close(serverDone)
+		errc := make(chan error, 1)
+		go func() {
+			defer close(errc)
+			go func() {
+				// TODO: find a better way to wait
+				// until we're blocked in the cs.Read
+				// call below. Sleep is lame.
+				time.Sleep(100 * time.Millisecond)
+
+				// Interrupt the upcoming Read, unblocking it:
+				cs.SetReadDeadline(time.Unix(123, 0)) // time in the past
+			}()
+			var buf [1]byte
+			n, err := cs.Read(buf[:1])
+			if n != 0 || err == nil {
+				errc <- fmt.Errorf("Read = %v, %v; want 0, non-nil", n, err)
+			}
+		}()
+		select {
+		case err := <-errc:
+			return err
+		case <-time.After(5 * time.Second):
+			buf := make([]byte, 2<<20)
+			buf = buf[:runtime.Stack(buf, true)]
+			println("Stacks at timeout:\n", string(buf))
+			return errors.New("timeout waiting for Read to finish")
+		}
+
+	}
+	// Do nothing in the client. Never write. Just wait for the
+	// server's half to be done.
+	client := func(*TCPConn) error {
+		<-serverDone
+		return nil
+	}
+	withTCPConnPair(t, client, server)
+}
+
+// Issue 17695: verify that a blocked Read is woken up by a Close.
+func TestCloseUnblocksRead(t *testing.T) {
+	t.Parallel()
+	server := func(cs *TCPConn) error {
+		// Give the client time to get stuck in a Read:
+		time.Sleep(20 * time.Millisecond)
+		cs.Close()
+		return nil
+	}
+	client := func(ss *TCPConn) error {
+		n, err := ss.Read([]byte{0})
+		if n != 0 || err != io.EOF {
+			return fmt.Errorf("Read = %v, %v; want 0, EOF", n, err)
+		}
+		return nil
+	}
+	withTCPConnPair(t, client, server)
 }

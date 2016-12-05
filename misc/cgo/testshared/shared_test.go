@@ -43,7 +43,7 @@ func run(t *testing.T, msg string, args ...string) {
 }
 
 // goCmd invokes the go tool with the installsuffix set up by TestMain. It calls
-// t.Errorf if the command fails.
+// t.Fatalf if the command fails.
 func goCmd(t *testing.T, args ...string) {
 	newargs := []string{args[0], "-installsuffix=" + suffix}
 	if testing.Verbose() {
@@ -63,7 +63,7 @@ func goCmd(t *testing.T, args ...string) {
 	}
 	if err != nil {
 		if t != nil {
-			t.Errorf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
+			t.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
 		} else {
 			log.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
 		}
@@ -97,6 +97,9 @@ func testMain(m *testing.M) (int, error) {
 	if gorootInstallDir == "" {
 		return 0, errors.New("could not create temporary directory after 10000 tries")
 	}
+	if testing.Verbose() {
+		fmt.Printf("+ mkdir -p %s\n", gorootInstallDir)
+	}
 	defer os.RemoveAll(gorootInstallDir)
 
 	// Some tests need to edit the source in GOPATH, so copy this directory to a
@@ -105,6 +108,9 @@ func testMain(m *testing.M) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("TempDir failed: %v", err)
 	}
+	if testing.Verbose() {
+		fmt.Printf("+ mkdir -p %s\n", scratchDir)
+	}
 	defer os.RemoveAll(scratchDir)
 	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		scratchPath := filepath.Join(scratchDir, path)
@@ -112,11 +118,17 @@ func testMain(m *testing.M) (int, error) {
 			if path == "." {
 				return nil
 			}
+			if testing.Verbose() {
+				fmt.Printf("+ mkdir -p %s\n", scratchPath)
+			}
 			return os.Mkdir(scratchPath, info.Mode())
 		} else {
 			fromBytes, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
+			}
+			if testing.Verbose() {
+				fmt.Printf("+ cp %s %s\n", path, scratchPath)
 			}
 			return ioutil.WriteFile(scratchPath, fromBytes, info.Mode())
 		}
@@ -125,7 +137,13 @@ func testMain(m *testing.M) (int, error) {
 		return 0, fmt.Errorf("walk failed: %v", err)
 	}
 	os.Setenv("GOPATH", scratchDir)
+	if testing.Verbose() {
+		fmt.Printf("+ export GOPATH=%s\n", scratchDir)
+	}
 	myContext.GOPATH = scratchDir
+	if testing.Verbose() {
+		fmt.Printf("+ cd %s\n", scratchDir)
+	}
 	os.Chdir(scratchDir)
 
 	// All tests depend on runtime being built into a shared library. Because
@@ -374,6 +392,14 @@ func TestTrivialExecutable(t *testing.T) {
 	run(t, "trivial executable", "./bin/trivial")
 	AssertIsLinkedTo(t, "./bin/trivial", soname)
 	AssertHasRPath(t, "./bin/trivial", gorootInstallDir)
+}
+
+// Build a trivial program in PIE mode that links against the shared runtime and check it runs.
+func TestTrivialExecutablePIE(t *testing.T) {
+	goCmd(t, "build", "-buildmode=pie", "-o", "trivial.pie", "-linkshared", "trivial")
+	run(t, "trivial executable", "./trivial.pie")
+	AssertIsLinkedTo(t, "./trivial.pie", soname)
+	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
 }
 
 // Build an executable that uses cgo linked against the shared runtime and check it

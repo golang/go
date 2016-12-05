@@ -65,7 +65,7 @@ TEXT runtime·exits(SB),NOSPLIT,$0
 TEXT runtime·brk_(SB),NOSPLIT,$0
 	MOVQ	$24, BP
 	SYSCALL
-	MOVQ	AX, ret+8(FP)
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·sleep(SB),NOSPLIT,$0
@@ -179,8 +179,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	RET
 
 	// save args
-	MOVQ	ureg+8(SP), CX
-	MOVQ	note+16(SP), DX
+	MOVQ	ureg+0(FP), CX
+	MOVQ	note+8(FP), DX
 
 	// change stack
 	MOVQ	g_m(BX), BX

@@ -97,7 +97,8 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case errCanceled, errClosing, errMissingAddress, errNoSuitableAddress:
+	case errCanceled, errClosing, errMissingAddress, errNoSuitableAddress,
+		context.DeadlineExceeded, context.Canceled:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -230,23 +231,27 @@ func TestDialAddrError(t *testing.T) {
 	} {
 		var err error
 		var c Conn
+		var op string
 		if tt.lit != "" {
 			c, err = Dial(tt.network, JoinHostPort(tt.lit, "0"))
+			op = fmt.Sprintf("Dial(%q, %q)", tt.network, JoinHostPort(tt.lit, "0"))
 		} else {
 			c, err = DialTCP(tt.network, nil, tt.addr)
+			op = fmt.Sprintf("DialTCP(%q, %q)", tt.network, tt.addr)
 		}
 		if err == nil {
 			c.Close()
-			t.Errorf("%s %q/%v: should fail", tt.network, tt.lit, tt.addr)
+			t.Errorf("%s succeeded, want error", op)
 			continue
 		}
 		if perr := parseDialError(err); perr != nil {
-			t.Error(perr)
+			t.Errorf("%s: %v", op, perr)
 			continue
 		}
-		aerr, ok := err.(*OpError).Err.(*AddrError)
+		operr := err.(*OpError).Err
+		aerr, ok := operr.(*AddrError)
 		if !ok {
-			t.Errorf("%s %q/%v: should be AddrError: %v", tt.network, tt.lit, tt.addr, err)
+			t.Errorf("%s: %v is %T, want *AddrError", op, err, operr)
 			continue
 		}
 		want := tt.lit
@@ -254,7 +259,7 @@ func TestDialAddrError(t *testing.T) {
 			want = tt.addr.IP.String()
 		}
 		if aerr.Addr != want {
-			t.Fatalf("%s: got %q; want %q", tt.network, aerr.Addr, want)
+			t.Errorf("%s: %v, error Addr=%q, want %q", op, err, aerr.Addr, want)
 		}
 	}
 }
@@ -519,6 +524,10 @@ second:
 
 third:
 	if isPlatformError(nestedErr) {
+		return nil
+	}
+	switch nestedErr {
+	case os.ErrClosed: // for Plan 9
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)

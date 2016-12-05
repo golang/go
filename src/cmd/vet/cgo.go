@@ -38,6 +38,11 @@ func checkCgoCall(f *File, node ast.Node) {
 		return
 	}
 
+	// A call to C.CBytes passes a pointer but is always safe.
+	if sel.Sel.Name == "CBytes" {
+		return
+	}
+
 	for _, arg := range x.Args {
 		if !typeOKForCgoCall(cgoBaseType(f, arg)) {
 			f.Badf(arg.Pos(), "possibly passing Go type with embedded pointer to C")

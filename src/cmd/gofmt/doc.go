@@ -32,7 +32,8 @@ The flags are:
 	-w
 		Do not print reformatted sources to standard output.
 		If a file's formatting is different from gofmt's, overwrite it
-		with gofmt's version.
+		with gofmt's version. If an error occurred during overwriting,
+		the original file is restored from an automatic backup.
 
 Debugging support:
 	-cpuprofile filename
@@ -98,3 +99,5 @@ This may result in changes that are incompatible with earlier versions of Go.
 package main
 
 // BUG(rsc): The implementation of -r is a bit slow.
+// BUG(gri): If -w fails, the restored original file may not have some of the
+//           original file attributes.

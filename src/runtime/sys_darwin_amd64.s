@@ -158,7 +158,7 @@ systime:
 	MOVQ	SP, DI
 	MOVQ	$0, SI
 	MOVQ	$0, DX  // required as of Sierra; Issue 16570
-	MOVL	$(0x2000000+116), AX
+	MOVL	$(0x2000000+116), AX // gettimeofday
 	SYSCALL
 	CMPQ	AX, $0
 	JNE	inreg
@@ -197,7 +197,7 @@ TEXT time·now(SB),NOSPLIT,$0-12
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	sig+0(FP), DI
+	MOVL	how+0(FP), DI
 	MOVQ	new+8(FP), SI
 	MOVQ	old+16(FP), DX
 	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
@@ -219,33 +219,30 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0-24
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
-	MOVQ fn+0(FP),    AX
-	MOVL sig+8(FP),   DI
-	MOVQ info+16(FP), SI
-	MOVQ ctx+24(FP),  DX
-	MOVQ SP, BP
-	SUBQ $64, SP
-	ANDQ $~15, SP     // alignment for x86_64 ABI
-	CALL AX
-	MOVQ BP, SP
+	MOVQ	fn+0(FP),    AX
+	MOVL	sig+8(FP),   DI
+	MOVQ	info+16(FP), SI
+	MOVQ	ctx+24(FP),  DX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP     // alignment for x86_64 ABI
+	CALL	AX
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-12
-	MOVQ ctx+0(FP),        DI
-	MOVL infostyle+8(FP),  SI
+TEXT runtime·sigtramp(SB),NOSPLIT,$32
+	MOVL SI, 24(SP) // save infostyle for sigreturn below
+	MOVL DX, 0(SP)  // sig
+	MOVQ CX, 8(SP)  // info
+	MOVQ R8, 16(SP) // ctx
+	MOVQ $runtime·sigtrampgo(SB), AX
+	CALL AX
+	MOVQ 16(SP), DI // ctx
+	MOVL 24(SP), SI // infostyle
 	MOVL $(0x2000000+184), AX
 	SYSCALL
 	INT $3 // not reached
-
-TEXT runtime·sigtramp(SB),NOSPLIT,$32
-	MOVQ DI,  0(SP) // fn
-	MOVL SI,  8(SP) // infostyle
-	MOVL DX, 12(SP) // sig
-	MOVQ CX, 16(SP) // info
-	MOVQ R8, 24(SP) // ctx
-	MOVQ $runtime·sigtrampgo(SB), AX
-	CALL AX
-	INT $3 // not reached (see issue 16453)
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI		// arg 1 addr

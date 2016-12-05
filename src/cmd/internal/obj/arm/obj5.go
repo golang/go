@@ -1,5 +1,5 @@
 // Derived from Inferno utils/5c/swt.c
-// http://code.google.com/p/inferno-os/source/browse/utils/5c/swt.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/swt.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -66,7 +66,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())
 			}
 
-			if ctxt.Goarm < 7 {
+			if obj.GOARM < 7 {
 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
 				if progedit_tlsfallback == nil {
 					progedit_tlsfallback = obj.Linklookup(ctxt, "runtime.read_tls_fallback", 0)
@@ -175,7 +175,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
 	// internally defined symbols.
-	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
 		// MOVW $sym, Rx becomes MOVW sym@GOT, Rx
 		// MOVW $sym+<off>, Rx becomes MOVW sym@GOT, Rx; ADD <off>, Rx
 		if p.As != AMOVW {
@@ -202,12 +202,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	// MOVx sym, Ry becomes MOVW sym@GOT, R9; MOVx (R9), Ry
 	// MOVx Ry, sym becomes MOVW sym@GOT, R9; MOVx Ry, (R9)
 	// An addition may be inserted between the two MOVs if there is an offset.
-	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
-		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
 		}
 		source = &p.From
-	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 		source = &p.To
 	} else {
 		return
@@ -359,15 +359,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			if autosize == 0 && cursym.Text.Mark&LEAF == 0 {
 				if ctxt.Debugvlog != 0 {
-					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Name)
-					ctxt.Bso.Flush()
+					ctxt.Logf("save suppressed in: %s\n", cursym.Name)
 				}
 
 				cursym.Text.Mark |= LEAF
 			}
 
 			if cursym.Text.Mark&LEAF != 0 {
-				cursym.Leaf = true
+				cursym.Set(obj.AttrLeaf, true)
 				if autosize == 0 {
 					break
 				}
@@ -566,7 +565,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.To.Reg = REGTMP
 			p.To.Offset = 8 * 4 // offset of m.divmod
 
-			/* MOV b,REGTMP */
+			/* MOV b, R8 */
 			p = obj.Appendp(ctxt, p)
 			p.As = AMOVW
 			p.Lineno = q1.Lineno
@@ -576,7 +575,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.From.Reg = q1.To.Reg
 			}
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REGTMP
+			p.To.Reg = REG_R8
 			p.To.Offset = 0
 
 			/* CALL appropriate */
@@ -627,7 +626,7 @@ func isfloatreg(a *obj.Addr) bool {
 }
 
 func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
-	if ctxt.Goarm > 5 {
+	if obj.GOARM > 5 {
 		return
 	}
 
@@ -669,7 +668,9 @@ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
 			ASQRTF,
 			ASQRTD,
 			AABSF,
-			AABSD:
+			AABSD,
+			ANEGF,
+			ANEGD:
 			goto soft
 
 		default:
@@ -709,7 +710,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	p.From.Type = obj.TYPE_MEM
 	p.From.Reg = REGG
 	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-	if ctxt.Cursym.Cfunc {
+	if ctxt.Cursym.CFunc() {
 		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
@@ -802,12 +803,24 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
 	}
 
+	// Now we are at the end of the function, but logically
+	// we are still in function prologue. We need to fix the
+	// SP data and PCDATA.
 	spfix := obj.Appendp(ctxt, last)
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
+	pcdata := obj.Appendp(ctxt, spfix)
+	pcdata.Lineno = ctxt.Cursym.Text.Lineno
+	pcdata.Mode = ctxt.Cursym.Text.Mode
+	pcdata.As = obj.APCDATA
+	pcdata.From.Type = obj.TYPE_CONST
+	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+	pcdata.To.Type = obj.TYPE_CONST
+	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+
 	// MOVW	LR, R3
-	movw := obj.Appendp(ctxt, spfix)
+	movw := obj.Appendp(ctxt, pcdata)
 	movw.As = AMOVW
 	movw.From.Type = obj.TYPE_REG
 	movw.From.Reg = REGLINK
@@ -822,7 +835,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	call.To.Type = obj.TYPE_BRANCH
 	morestack := "runtime.morestack"
 	switch {
-	case ctxt.Cursym.Cfunc:
+	case ctxt.Cursym.CFunc():
 		morestack = "runtime.morestackc"
 	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
 		morestack = "runtime.morestack_noctxt"

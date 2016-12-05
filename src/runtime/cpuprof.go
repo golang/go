@@ -4,7 +4,7 @@
 
 // CPU profiling.
 // Based on algorithms and data structures used in
-// http://code.google.com/p/google-perftools/.
+// https://github.com/google/pprof.
 //
 // The main difference between this code and the google-perftools
 // code is that this code is written to allow copying the profile data
@@ -68,6 +68,7 @@ type cpuprofEntry struct {
 	stack [maxCPUProfStack]uintptr
 }
 
+//go:notinheap
 type cpuProfile struct {
 	on     bool    // profiling is on
 	wait   note    // goroutine waits here

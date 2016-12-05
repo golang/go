@@ -4,7 +4,10 @@
 
 package ssa
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 type branch int
 
@@ -72,6 +75,10 @@ type fact struct {
 type limit struct {
 	min, max   int64  // min <= value <= max, signed
 	umin, umax uint64 // umin <= value <= umax, unsigned
+}
+
+func (l limit) String() string {
+	return fmt.Sprintf("sm,SM,um,UM=%d,%d,%d,%d", l.min, l.max, l.umin, l.umax)
 }
 
 var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
@@ -191,7 +198,7 @@ func (ft *factsTable) get(v, w *Value, d domain) relation {
 
 // update updates the set of relations between v and w in domain d
 // restricting it to r.
-func (ft *factsTable) update(v, w *Value, d domain, r relation) {
+func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 	if lessByID(w, v) {
 		v, w = w, v
 		r = reverseBits[r]
@@ -293,6 +300,9 @@ func (ft *factsTable) update(v, w *Value, d domain, r relation) {
 		}
 		ft.limitStack = append(ft.limitStack, limitFact{v.ID, old})
 		ft.limits[v.ID] = lim
+		if v.Block.Func.pass.debug > 2 {
+			v.Block.Func.Config.Warnl(parent.Line, "parent=%s, new limits %s %s %s", parent, v, w, lim.String())
+		}
 	}
 }
 
@@ -463,24 +473,26 @@ func prove(f *Func) {
 	})
 
 	ft := newFactsTable()
+	idom := f.Idom()
+	sdom := f.sdom()
 
 	// DFS on the dominator tree.
 	for len(work) > 0 {
 		node := work[len(work)-1]
 		work = work[:len(work)-1]
-		parent := f.idom[node.block.ID]
-		branch := getBranch(f.sdom, parent, node.block)
+		parent := idom[node.block.ID]
+		branch := getBranch(sdom, parent, node.block)
 
 		switch node.state {
 		case descend:
 			if branch != unknown {
 				ft.checkpoint()
 				c := parent.Control
-				updateRestrictions(ft, boolean, nil, c, lt|gt, branch)
+				updateRestrictions(parent, ft, boolean, nil, c, lt|gt, branch)
 				if tr, has := domainRelationTable[parent.Control.Op]; has {
 					// When we branched from parent we learned a new set of
 					// restrictions. Update the factsTable accordingly.
-					updateRestrictions(ft, tr.d, c.Args[0], c.Args[1], tr.r, branch)
+					updateRestrictions(parent, ft, tr.d, c.Args[0], c.Args[1], tr.r, branch)
 				}
 			}
 
@@ -488,7 +500,7 @@ func prove(f *Func) {
 				block: node.block,
 				state: simplify,
 			})
-			for s := f.sdom.Child(node.block); s != nil; s = f.sdom.Sibling(s) {
+			for s := sdom.Child(node.block); s != nil; s = sdom.Sibling(s) {
 				work = append(work, bp{
 					block: s,
 					state: descend,
@@ -536,7 +548,7 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 
 // updateRestrictions updates restrictions from the immediate
 // dominating block (p) using r. r is adjusted according to the branch taken.
-func updateRestrictions(ft *factsTable, t domain, v, w *Value, r relation, branch branch) {
+func updateRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation, branch branch) {
 	if t == 0 || branch == unknown {
 		// Trivial case: nothing to do, or branch unknown.
 		// Shoult not happen, but just in case.
@@ -548,7 +560,7 @@ func updateRestrictions(ft *factsTable, t domain, v, w *Value, r relation, branc
 	}
 	for i := domain(1); i <= t; i <<= 1 {
 		if t&i != 0 {
-			ft.update(v, w, i, r)
+			ft.update(parent, v, w, i, r)
 		}
 	}
 }
@@ -556,6 +568,44 @@ func updateRestrictions(ft *factsTable, t domain, v, w *Value, r relation, branc
 // simplifyBlock simplifies block known the restrictions in ft.
 // Returns which branch must always be taken.
 func simplifyBlock(ft *factsTable, b *Block) branch {
+	for _, v := range b.Values {
+		if v.Op != OpSlicemask {
+			continue
+		}
+		add := v.Args[0]
+		if add.Op != OpAdd64 && add.Op != OpAdd32 {
+			continue
+		}
+		// Note that the arg of slicemask was originally a sub, but
+		// was rewritten to an add by generic.rules (if the thing
+		// being subtracted was a constant).
+		x := add.Args[0]
+		y := add.Args[1]
+		if x.Op == OpConst64 || x.Op == OpConst32 {
+			x, y = y, x
+		}
+		if y.Op != OpConst64 && y.Op != OpConst32 {
+			continue
+		}
+		// slicemask(x + y)
+		// if x is larger than -y (y is negative), then slicemask is -1.
+		lim, ok := ft.limits[x.ID]
+		if !ok {
+			continue
+		}
+		if lim.umin > uint64(-y.AuxInt) {
+			if v.Args[0].Op == OpAdd64 {
+				v.reset(OpConst64)
+			} else {
+				v.reset(OpConst32)
+			}
+			if b.Func.pass.debug > 0 {
+				b.Func.Config.Warnl(v.Line, "Proved slicemask not needed")
+			}
+			v.AuxInt = -1
+		}
+	}
+
 	if b.Kind != BlockIf {
 		return unknown
 	}
@@ -564,13 +614,21 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 	m := ft.get(nil, b.Control, boolean)
 	if m == lt|gt {
 		if b.Func.pass.debug > 0 {
-			b.Func.Config.Warnl(b.Line, "Proved boolean %s", b.Control.Op)
+			if b.Func.pass.debug > 1 {
+				b.Func.Config.Warnl(b.Line, "Proved boolean %s (%s)", b.Control.Op, b.Control)
+			} else {
+				b.Func.Config.Warnl(b.Line, "Proved boolean %s", b.Control.Op)
+			}
 		}
 		return positive
 	}
 	if m == eq {
 		if b.Func.pass.debug > 0 {
-			b.Func.Config.Warnl(b.Line, "Disproved boolean %s", b.Control.Op)
+			if b.Func.pass.debug > 1 {
+				b.Func.Config.Warnl(b.Line, "Disproved boolean %s (%s)", b.Control.Op, b.Control)
+			} else {
+				b.Func.Config.Warnl(b.Line, "Disproved boolean %s", b.Control.Op)
+			}
 		}
 		return negative
 	}
@@ -597,13 +655,21 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 		m := ft.get(a0, a1, d)
 		if m != 0 && tr.r&m == m {
 			if b.Func.pass.debug > 0 {
-				b.Func.Config.Warnl(b.Line, "Proved %s", c.Op)
+				if b.Func.pass.debug > 1 {
+					b.Func.Config.Warnl(b.Line, "Proved %s (%s)", c.Op, c)
+				} else {
+					b.Func.Config.Warnl(b.Line, "Proved %s", c.Op)
+				}
 			}
 			return positive
 		}
 		if m != 0 && ((lt|eq|gt)^tr.r)&m == m {
 			if b.Func.pass.debug > 0 {
-				b.Func.Config.Warnl(b.Line, "Disproved %s", c.Op)
+				if b.Func.pass.debug > 1 {
+					b.Func.Config.Warnl(b.Line, "Disproved %s (%s)", c.Op, c)
+				} else {
+					b.Func.Config.Warnl(b.Line, "Disproved %s", c.Op)
+				}
 			}
 			return negative
 		}
@@ -618,7 +684,11 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 		m := ft.get(a0, a1, signed)
 		if m != 0 && tr.r&m == m {
 			if b.Func.pass.debug > 0 {
-				b.Func.Config.Warnl(b.Line, "Proved non-negative bounds %s", c.Op)
+				if b.Func.pass.debug > 1 {
+					b.Func.Config.Warnl(b.Line, "Proved non-negative bounds %s (%s)", c.Op, c)
+				} else {
+					b.Func.Config.Warnl(b.Line, "Proved non-negative bounds %s", c.Op)
+				}
 			}
 			return positive
 		}
@@ -632,6 +702,9 @@ func isNonNegative(v *Value) bool {
 	switch v.Op {
 	case OpConst64:
 		return v.AuxInt >= 0
+
+	case OpConst32:
+		return int32(v.AuxInt) >= 0
 
 	case OpStringLen, OpSliceLen, OpSliceCap,
 		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64:

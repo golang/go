@@ -171,35 +171,31 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB),NOSPLIT,$16
-	MOVD	$0(R15), R2
-	MOVD	$0, R3
-	MOVW	$SYS_gettimeofday, R1
+	MOVW	$0, R2 // CLOCK_REALTIME
+	MOVD	$tp-16(SP), R3
+	MOVW	$SYS_clock_gettime, R1
 	SYSCALL
-	MOVD	0(R15), R2	// sec
-	MOVD	8(R15), R4	// usec
-	MOVD	$1000, R3
-	MULLD	R3, R4
+	LMG	tp-16(SP), R2, R3
+	// sec is in R2, nsec in R3
 	MOVD	R2, sec+0(FP)
-	MOVW	R4, nsec+8(FP)
+	MOVW	R3, nsec+8(FP)
 	RET
 
 TEXT runtime·nanotime(SB),NOSPLIT,$16
 	MOVW	$1, R2 // CLOCK_MONOTONIC
-	MOVD	$0(R15), R3
+	MOVD	$tp-16(SP), R3
 	MOVW	$SYS_clock_gettime, R1
 	SYSCALL
-	MOVD	0(R15), R2	// sec
-	MOVD	8(R15), R4	// nsec
-	// sec is in R2, nsec in R4
+	LMG	tp-16(SP), R2, R3
+	// sec is in R2, nsec in R3
 	// return nsec in R2
-	MOVD	$1000000000, R3
-	MULLD	R3, R2
-	ADD	R4, R2
+	MULLD	$1000000000, R2
+	ADD	R3, R2
 	MOVD	R2, ret+0(FP)
 	RET
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
-	MOVW	sig+0(FP), R2
+	MOVW	how+0(FP), R2
 	MOVD	new+8(FP), R3
 	MOVD	old+16(FP), R4
 	MOVW	size+24(FP), R5
@@ -315,8 +311,8 @@ TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
 
 	// Copy mp, gp, fn off parent stack for use by child.
 	// Careful: Linux system call clobbers ???.
-	MOVD	mm+16(FP), R7
-	MOVD	gg+24(FP), R8
+	MOVD	mp+16(FP), R7
+	MOVD	gp+24(FP), R8
 	MOVD	fn+32(FP), R9
 
 	MOVD	R7, -8(R2)

@@ -20,6 +20,12 @@ func RaceWriteRange(addr unsafe.Pointer, len int)
 func RaceSemacquire(s *uint32)
 func RaceSemrelease(s *uint32)
 
+func RaceErrors() int {
+	var n uint64
+	racecall(&__tsan_report_count, uintptr(unsafe.Pointer(&n)), 0, 0, 0)
+	return int(n)
+}
+
 // private interface for the runtime
 const raceenabled = true
 
@@ -91,23 +97,23 @@ func racecallback(cmd uintptr, ctx unsafe.Pointer) {
 }
 
 func raceSymbolizeCode(ctx *symbolizeCodeContext) {
-	f := findfunc(ctx.pc)
-	if f == nil {
-		ctx.fn = &qq[0]
-		ctx.file = &dash[0]
-		ctx.line = 0
-		ctx.off = ctx.pc
-		ctx.res = 1
-		return
+	f := FuncForPC(ctx.pc)
+	if f != nil {
+		file, line := f.FileLine(ctx.pc)
+		if line != 0 {
+			ctx.fn = cfuncname(f.raw())
+			ctx.line = uintptr(line)
+			ctx.file = &bytes(file)[0] // assume NUL-terminated
+			ctx.off = ctx.pc - f.Entry()
+			ctx.res = 1
+			return
+		}
 	}
-
-	ctx.fn = cfuncname(f)
-	file, line := funcline(f, ctx.pc)
-	ctx.line = uintptr(line)
-	ctx.file = &bytes(file)[0] // assume NUL-terminated
-	ctx.off = ctx.pc - f.entry
+	ctx.fn = &qq[0]
+	ctx.file = &dash[0]
+	ctx.line = 0
+	ctx.off = ctx.pc
 	ctx.res = 1
-	return
 }
 
 type symbolizeDataContext struct {
@@ -176,6 +182,9 @@ var __tsan_go_ignore_sync_begin byte
 //go:linkname __tsan_go_ignore_sync_end __tsan_go_ignore_sync_end
 var __tsan_go_ignore_sync_end byte
 
+//go:linkname __tsan_report_count __tsan_report_count
+var __tsan_report_count byte
+
 // Mimic what cmd/cgo would do.
 //go:cgo_import_static __tsan_init
 //go:cgo_import_static __tsan_fini
@@ -192,6 +201,7 @@ var __tsan_go_ignore_sync_end byte
 //go:cgo_import_static __tsan_release_merge
 //go:cgo_import_static __tsan_go_ignore_sync_begin
 //go:cgo_import_static __tsan_go_ignore_sync_end
+//go:cgo_import_static __tsan_report_count
 
 // These are called from race_amd64.s.
 //go:cgo_import_static __tsan_read

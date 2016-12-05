@@ -115,7 +115,7 @@ NextCipherSuite:
 
 	// Session resumption is not allowed if renegotiating because
 	// renegotiation is primarily used to allow a client to send a client
-	// certificate, which would be skipped if session resumption occured.
+	// certificate, which would be skipped if session resumption occurred.
 	if sessionCache != nil && c.handshakes == 0 {
 		// Try to resume a previously negotiated TLS session, if
 		// available.
@@ -199,7 +199,7 @@ NextCipherSuite:
 	// Otherwise, in a full handshake, if we don't have any certificates
 	// configured then we will never send a CertificateVerify message and
 	// thus no signatures are needed in that case either.
-	if isResume || len(c.config.Certificates) == 0 {
+	if isResume || (len(c.config.Certificates) == 0 && c.config.GetClientCertificate == nil) {
 		hs.finishedHash.discardHandshakeBuffer()
 	}
 
@@ -304,6 +304,13 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			}
 		}
 
+		if c.config.VerifyPeerCertificate != nil {
+			if err := c.config.VerifyPeerCertificate(certMsg.certificates, c.verifiedChains); err != nil {
+				c.sendAlert(alertBadCertificate)
+				return err
+			}
+		}
+
 		switch certs[0].PublicKey.(type) {
 		case *rsa.PublicKey, *ecdsa.PublicKey:
 			break
@@ -370,71 +377,11 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	certReq, ok := msg.(*certificateRequestMsg)
 	if ok {
 		certRequested = true
-
-		// RFC 4346 on the certificateAuthorities field:
-		// A list of the distinguished names of acceptable certificate
-		// authorities. These distinguished names may specify a desired
-		// distinguished name for a root CA or for a subordinate CA;
-		// thus, this message can be used to describe both known roots
-		// and a desired authorization space. If the
-		// certificate_authorities list is empty then the client MAY
-		// send any certificate of the appropriate
-		// ClientCertificateType, unless there is some external
-		// arrangement to the contrary.
-
 		hs.finishedHash.Write(certReq.marshal())
 
-		var rsaAvail, ecdsaAvail bool
-		for _, certType := range certReq.certificateTypes {
-			switch certType {
-			case certTypeRSASign:
-				rsaAvail = true
-			case certTypeECDSASign:
-				ecdsaAvail = true
-			}
-		}
-
-		// We need to search our list of client certs for one
-		// where SignatureAlgorithm is acceptable to the server and the
-		// Issuer is in certReq.certificateAuthorities
-	findCert:
-		for i, chain := range c.config.Certificates {
-			if !rsaAvail && !ecdsaAvail {
-				continue
-			}
-
-			for j, cert := range chain.Certificate {
-				x509Cert := chain.Leaf
-				// parse the certificate if this isn't the leaf
-				// node, or if chain.Leaf was nil
-				if j != 0 || x509Cert == nil {
-					if x509Cert, err = x509.ParseCertificate(cert); err != nil {
-						c.sendAlert(alertInternalError)
-						return errors.New("tls: failed to parse client certificate #" + strconv.Itoa(i) + ": " + err.Error())
-					}
-				}
-
-				switch {
-				case rsaAvail && x509Cert.PublicKeyAlgorithm == x509.RSA:
-				case ecdsaAvail && x509Cert.PublicKeyAlgorithm == x509.ECDSA:
-				default:
-					continue findCert
-				}
-
-				if len(certReq.certificateAuthorities) == 0 {
-					// they gave us an empty list, so just take the
-					// first cert from c.config.Certificates
-					chainToSend = &chain
-					break findCert
-				}
-
-				for _, ca := range certReq.certificateAuthorities {
-					if bytes.Equal(x509Cert.RawIssuer, ca) {
-						chainToSend = &chain
-						break findCert
-					}
-				}
-			}
+		if chainToSend, err = hs.getCertificate(certReq); err != nil {
+			c.sendAlert(alertInternalError)
+			return err
 		}
 
 		msg, err = c.readHandshake()
@@ -455,9 +402,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	// certificate to send.
 	if certRequested {
 		certMsg = new(certificateMsg)
-		if chainToSend != nil {
-			certMsg.certificates = chainToSend.Certificate
-		}
+		certMsg.certificates = chainToSend.Certificate
 		hs.finishedHash.Write(certMsg.marshal())
 		if _, err := c.writeRecord(recordTypeHandshake, certMsg.marshal()); err != nil {
 			return err
@@ -476,7 +421,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		}
 	}
 
-	if chainToSend != nil {
+	if chainToSend != nil && len(chainToSend.Certificate) > 0 {
 		certVerify := &certificateVerifyMsg{
 			hasSignatureAndHash: c.vers >= VersionTLS12,
 		}
@@ -521,6 +466,10 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	}
 
 	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.hello.random, hs.serverHello.random)
+	if err := c.config.writeKeyLog(hs.hello.random, hs.masterSecret); err != nil {
+		c.sendAlert(alertInternalError)
+		return errors.New("tls: failed to write to key log: " + err.Error())
+	}
 
 	hs.finishedHash.discardHandshakeBuffer()
 
@@ -714,6 +663,117 @@ func (hs *clientHandshakeState) sendFinished(out []byte) error {
 	}
 	copy(out, finished.verifyData)
 	return nil
+}
+
+// tls11SignatureSchemes contains the signature schemes that we synthesise for
+// a TLS <= 1.1 connection, based on the supported certificate types.
+var tls11SignatureSchemes = []SignatureScheme{ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512, PKCS1WithSHA1}
+
+const (
+	// tls11SignatureSchemesNumECDSA is the number of initial elements of
+	// tls11SignatureSchemes that use ECDSA.
+	tls11SignatureSchemesNumECDSA = 3
+	// tls11SignatureSchemesNumRSA is the number of trailing elements of
+	// tls11SignatureSchemes that use RSA.
+	tls11SignatureSchemesNumRSA = 4
+)
+
+func (hs *clientHandshakeState) getCertificate(certReq *certificateRequestMsg) (*Certificate, error) {
+	c := hs.c
+
+	var rsaAvail, ecdsaAvail bool
+	for _, certType := range certReq.certificateTypes {
+		switch certType {
+		case certTypeRSASign:
+			rsaAvail = true
+		case certTypeECDSASign:
+			ecdsaAvail = true
+		}
+	}
+
+	if c.config.GetClientCertificate != nil {
+		var signatureSchemes []SignatureScheme
+
+		if !certReq.hasSignatureAndHash {
+			// Prior to TLS 1.2, the signature schemes were not
+			// included in the certificate request message. In this
+			// case we use a plausible list based on the acceptable
+			// certificate types.
+			signatureSchemes = tls11SignatureSchemes
+			if !ecdsaAvail {
+				signatureSchemes = signatureSchemes[tls11SignatureSchemesNumECDSA:]
+			}
+			if !rsaAvail {
+				signatureSchemes = signatureSchemes[:len(signatureSchemes)-tls11SignatureSchemesNumRSA]
+			}
+		} else {
+			signatureSchemes = make([]SignatureScheme, 0, len(certReq.signatureAndHashes))
+			for _, sah := range certReq.signatureAndHashes {
+				signatureSchemes = append(signatureSchemes, SignatureScheme(sah.hash)<<8+SignatureScheme(sah.signature))
+			}
+		}
+
+		return c.config.GetClientCertificate(&CertificateRequestInfo{
+			AcceptableCAs:    certReq.certificateAuthorities,
+			SignatureSchemes: signatureSchemes,
+		})
+	}
+
+	// RFC 4346 on the certificateAuthorities field: A list of the
+	// distinguished names of acceptable certificate authorities.
+	// These distinguished names may specify a desired
+	// distinguished name for a root CA or for a subordinate CA;
+	// thus, this message can be used to describe both known roots
+	// and a desired authorization space. If the
+	// certificate_authorities list is empty then the client MAY
+	// send any certificate of the appropriate
+	// ClientCertificateType, unless there is some external
+	// arrangement to the contrary.
+
+	// We need to search our list of client certs for one
+	// where SignatureAlgorithm is acceptable to the server and the
+	// Issuer is in certReq.certificateAuthorities
+findCert:
+	for i, chain := range c.config.Certificates {
+		if !rsaAvail && !ecdsaAvail {
+			continue
+		}
+
+		for j, cert := range chain.Certificate {
+			x509Cert := chain.Leaf
+			// parse the certificate if this isn't the leaf
+			// node, or if chain.Leaf was nil
+			if j != 0 || x509Cert == nil {
+				var err error
+				if x509Cert, err = x509.ParseCertificate(cert); err != nil {
+					c.sendAlert(alertInternalError)
+					return nil, errors.New("tls: failed to parse client certificate #" + strconv.Itoa(i) + ": " + err.Error())
+				}
+			}
+
+			switch {
+			case rsaAvail && x509Cert.PublicKeyAlgorithm == x509.RSA:
+			case ecdsaAvail && x509Cert.PublicKeyAlgorithm == x509.ECDSA:
+			default:
+				continue findCert
+			}
+
+			if len(certReq.certificateAuthorities) == 0 {
+				// they gave us an empty list, so just take the
+				// first cert from c.config.Certificates
+				return &chain, nil
+			}
+
+			for _, ca := range certReq.certificateAuthorities {
+				if bytes.Equal(x509Cert.RawIssuer, ca) {
+					return &chain, nil
+				}
+			}
+		}
+	}
+
+	// No acceptable certificate found. Don't send a certificate.
+	return new(Certificate), nil
 }
 
 // clientSessionCacheKey returns a key used to cache sessionTickets that could

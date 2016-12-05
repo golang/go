@@ -18,17 +18,15 @@ import (
 	"time"
 )
 
-type untarTest struct {
-	file    string    // Test input file
-	headers []*Header // Expected output headers
-	chksums []string  // MD5 checksum of files, leave as nil if not checked
-	err     error     // Expected error to occur
-}
-
-var gnuTarTest = &untarTest{
-	file: "testdata/gnu.tar",
-	headers: []*Header{
-		{
+func TestReader(t *testing.T) {
+	vectors := []struct {
+		file    string    // Test input file
+		headers []*Header // Expected output headers
+		chksums []string  // MD5 checksum of files, leave as nil if not checked
+		err     error     // Expected error to occur
+	}{{
+		file: "testdata/gnu.tar",
+		headers: []*Header{{
 			Name:     "small.txt",
 			Mode:     0640,
 			Uid:      73025,
@@ -38,8 +36,7 @@ var gnuTarTest = &untarTest{
 			Typeflag: '0',
 			Uname:    "dsymonds",
 			Gname:    "eng",
-		},
-		{
+		}, {
 			Name:     "small2.txt",
 			Mode:     0640,
 			Uid:      73025,
@@ -49,18 +46,14 @@ var gnuTarTest = &untarTest{
 			Typeflag: '0',
 			Uname:    "dsymonds",
 			Gname:    "eng",
+		}},
+		chksums: []string{
+			"e38b27eaccb4391bdec553a7f3ae6b2f",
+			"c65bd2e50a56a2138bf1716f2fd56fe9",
 		},
-	},
-	chksums: []string{
-		"e38b27eaccb4391bdec553a7f3ae6b2f",
-		"c65bd2e50a56a2138bf1716f2fd56fe9",
-	},
-}
-
-var sparseTarTest = &untarTest{
-	file: "testdata/sparse-formats.tar",
-	headers: []*Header{
-		{
+	}, {
+		file: "testdata/sparse-formats.tar",
+		headers: []*Header{{
 			Name:     "sparse-gnu",
 			Mode:     420,
 			Uid:      1000,
@@ -73,8 +66,7 @@ var sparseTarTest = &untarTest{
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-		},
-		{
+		}, {
 			Name:     "sparse-posix-0.0",
 			Mode:     420,
 			Uid:      1000,
@@ -87,8 +79,7 @@ var sparseTarTest = &untarTest{
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-		},
-		{
+		}, {
 			Name:     "sparse-posix-0.1",
 			Mode:     420,
 			Uid:      1000,
@@ -101,8 +92,7 @@ var sparseTarTest = &untarTest{
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-		},
-		{
+		}, {
 			Name:     "sparse-posix-1.0",
 			Mode:     420,
 			Uid:      1000,
@@ -115,8 +105,7 @@ var sparseTarTest = &untarTest{
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
-		},
-		{
+		}, {
 			Name:     "end",
 			Mode:     420,
 			Uid:      1000,
@@ -129,209 +118,237 @@ var sparseTarTest = &untarTest{
 			Gname:    "david",
 			Devmajor: 0,
 			Devminor: 0,
+		}},
+		chksums: []string{
+			"6f53234398c2449fe67c1812d993012f",
+			"6f53234398c2449fe67c1812d993012f",
+			"6f53234398c2449fe67c1812d993012f",
+			"6f53234398c2449fe67c1812d993012f",
+			"b0061974914468de549a2af8ced10316",
 		},
-	},
-	chksums: []string{
-		"6f53234398c2449fe67c1812d993012f",
-		"6f53234398c2449fe67c1812d993012f",
-		"6f53234398c2449fe67c1812d993012f",
-		"6f53234398c2449fe67c1812d993012f",
-		"b0061974914468de549a2af8ced10316",
-	},
-}
-
-var untarTests = []*untarTest{
-	gnuTarTest,
-	sparseTarTest,
-	{
+	}, {
 		file: "testdata/star.tar",
-		headers: []*Header{
-			{
-				Name:       "small.txt",
-				Mode:       0640,
-				Uid:        73025,
-				Gid:        5000,
-				Size:       5,
-				ModTime:    time.Unix(1244592783, 0),
-				Typeflag:   '0',
-				Uname:      "dsymonds",
-				Gname:      "eng",
-				AccessTime: time.Unix(1244592783, 0),
-				ChangeTime: time.Unix(1244592783, 0),
-			},
-			{
-				Name:       "small2.txt",
-				Mode:       0640,
-				Uid:        73025,
-				Gid:        5000,
-				Size:       11,
-				ModTime:    time.Unix(1244592783, 0),
-				Typeflag:   '0',
-				Uname:      "dsymonds",
-				Gname:      "eng",
-				AccessTime: time.Unix(1244592783, 0),
-				ChangeTime: time.Unix(1244592783, 0),
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:       "small.txt",
+			Mode:       0640,
+			Uid:        73025,
+			Gid:        5000,
+			Size:       5,
+			ModTime:    time.Unix(1244592783, 0),
+			Typeflag:   '0',
+			Uname:      "dsymonds",
+			Gname:      "eng",
+			AccessTime: time.Unix(1244592783, 0),
+			ChangeTime: time.Unix(1244592783, 0),
+		}, {
+			Name:       "small2.txt",
+			Mode:       0640,
+			Uid:        73025,
+			Gid:        5000,
+			Size:       11,
+			ModTime:    time.Unix(1244592783, 0),
+			Typeflag:   '0',
+			Uname:      "dsymonds",
+			Gname:      "eng",
+			AccessTime: time.Unix(1244592783, 0),
+			ChangeTime: time.Unix(1244592783, 0),
+		}},
+	}, {
 		file: "testdata/v7.tar",
-		headers: []*Header{
-			{
-				Name:     "small.txt",
-				Mode:     0444,
-				Uid:      73025,
-				Gid:      5000,
-				Size:     5,
-				ModTime:  time.Unix(1244593104, 0),
-				Typeflag: '\x00',
-			},
-			{
-				Name:     "small2.txt",
-				Mode:     0444,
-				Uid:      73025,
-				Gid:      5000,
-				Size:     11,
-				ModTime:  time.Unix(1244593104, 0),
-				Typeflag: '\x00',
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:     "small.txt",
+			Mode:     0444,
+			Uid:      73025,
+			Gid:      5000,
+			Size:     5,
+			ModTime:  time.Unix(1244593104, 0),
+			Typeflag: '\x00',
+		}, {
+			Name:     "small2.txt",
+			Mode:     0444,
+			Uid:      73025,
+			Gid:      5000,
+			Size:     11,
+			ModTime:  time.Unix(1244593104, 0),
+			Typeflag: '\x00',
+		}},
+	}, {
 		file: "testdata/pax.tar",
-		headers: []*Header{
-			{
-				Name:       "a/123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
-				Mode:       0664,
-				Uid:        1000,
-				Gid:        1000,
-				Uname:      "shane",
-				Gname:      "shane",
-				Size:       7,
-				ModTime:    time.Unix(1350244992, 23960108),
-				ChangeTime: time.Unix(1350244992, 23960108),
-				AccessTime: time.Unix(1350244992, 23960108),
-				Typeflag:   TypeReg,
-			},
-			{
-				Name:       "a/b",
-				Mode:       0777,
-				Uid:        1000,
-				Gid:        1000,
-				Uname:      "shane",
-				Gname:      "shane",
-				Size:       0,
-				ModTime:    time.Unix(1350266320, 910238425),
-				ChangeTime: time.Unix(1350266320, 910238425),
-				AccessTime: time.Unix(1350266320, 910238425),
-				Typeflag:   TypeSymlink,
-				Linkname:   "123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
-			},
+		headers: []*Header{{
+			Name:       "a/123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
+			Mode:       0664,
+			Uid:        1000,
+			Gid:        1000,
+			Uname:      "shane",
+			Gname:      "shane",
+			Size:       7,
+			ModTime:    time.Unix(1350244992, 23960108),
+			ChangeTime: time.Unix(1350244992, 23960108),
+			AccessTime: time.Unix(1350244992, 23960108),
+			Typeflag:   TypeReg,
+		}, {
+			Name:       "a/b",
+			Mode:       0777,
+			Uid:        1000,
+			Gid:        1000,
+			Uname:      "shane",
+			Gname:      "shane",
+			Size:       0,
+			ModTime:    time.Unix(1350266320, 910238425),
+			ChangeTime: time.Unix(1350266320, 910238425),
+			AccessTime: time.Unix(1350266320, 910238425),
+			Typeflag:   TypeSymlink,
+			Linkname:   "123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
+		}},
+	}, {
+		file: "testdata/pax-bad-hdr-file.tar",
+		err:  ErrHeader,
+	}, {
+		file: "testdata/pax-bad-mtime-file.tar",
+		err:  ErrHeader,
+	}, {
+		file: "testdata/pax-pos-size-file.tar",
+		headers: []*Header{{
+			Name:     "foo",
+			Mode:     0640,
+			Uid:      319973,
+			Gid:      5000,
+			Size:     999,
+			ModTime:  time.Unix(1442282516, 0),
+			Typeflag: '0',
+			Uname:    "joetsai",
+			Gname:    "eng",
+		}},
+		chksums: []string{
+			"0afb597b283fe61b5d4879669a350556",
 		},
-	},
-	{
+	}, {
 		file: "testdata/nil-uid.tar", // golang.org/issue/5290
-		headers: []*Header{
-			{
-				Name:     "P1050238.JPG.log",
-				Mode:     0664,
-				Uid:      0,
-				Gid:      0,
-				Size:     14,
-				ModTime:  time.Unix(1365454838, 0),
-				Typeflag: TypeReg,
-				Linkname: "",
-				Uname:    "eyefi",
-				Gname:    "eyefi",
-				Devmajor: 0,
-				Devminor: 0,
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:     "P1050238.JPG.log",
+			Mode:     0664,
+			Uid:      0,
+			Gid:      0,
+			Size:     14,
+			ModTime:  time.Unix(1365454838, 0),
+			Typeflag: TypeReg,
+			Linkname: "",
+			Uname:    "eyefi",
+			Gname:    "eyefi",
+			Devmajor: 0,
+			Devminor: 0,
+		}},
+	}, {
 		file: "testdata/xattrs.tar",
-		headers: []*Header{
-			{
-				Name:       "small.txt",
-				Mode:       0644,
-				Uid:        1000,
-				Gid:        10,
-				Size:       5,
-				ModTime:    time.Unix(1386065770, 448252320),
-				Typeflag:   '0',
-				Uname:      "alex",
-				Gname:      "wheel",
-				AccessTime: time.Unix(1389782991, 419875220),
-				ChangeTime: time.Unix(1389782956, 794414986),
-				Xattrs: map[string]string{
-					"user.key":  "value",
-					"user.key2": "value2",
-					// Interestingly, selinux encodes the terminating null inside the xattr
-					"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
-				},
+		headers: []*Header{{
+			Name:       "small.txt",
+			Mode:       0644,
+			Uid:        1000,
+			Gid:        10,
+			Size:       5,
+			ModTime:    time.Unix(1386065770, 448252320),
+			Typeflag:   '0',
+			Uname:      "alex",
+			Gname:      "wheel",
+			AccessTime: time.Unix(1389782991, 419875220),
+			ChangeTime: time.Unix(1389782956, 794414986),
+			Xattrs: map[string]string{
+				"user.key":  "value",
+				"user.key2": "value2",
+				// Interestingly, selinux encodes the terminating null inside the xattr
+				"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
 			},
-			{
-				Name:       "small2.txt",
-				Mode:       0644,
-				Uid:        1000,
-				Gid:        10,
-				Size:       11,
-				ModTime:    time.Unix(1386065770, 449252304),
-				Typeflag:   '0',
-				Uname:      "alex",
-				Gname:      "wheel",
-				AccessTime: time.Unix(1389782991, 419875220),
-				ChangeTime: time.Unix(1386065770, 449252304),
-				Xattrs: map[string]string{
-					"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
-				},
+		}, {
+			Name:       "small2.txt",
+			Mode:       0644,
+			Uid:        1000,
+			Gid:        10,
+			Size:       11,
+			ModTime:    time.Unix(1386065770, 449252304),
+			Typeflag:   '0',
+			Uname:      "alex",
+			Gname:      "wheel",
+			AccessTime: time.Unix(1389782991, 419875220),
+			ChangeTime: time.Unix(1386065770, 449252304),
+			Xattrs: map[string]string{
+				"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
 			},
-		},
-	},
-	{
+		}},
+	}, {
 		// Matches the behavior of GNU, BSD, and STAR tar utilities.
 		file: "testdata/gnu-multi-hdrs.tar",
-		headers: []*Header{
-			{
-				Name:     "GNU2/GNU2/long-path-name",
-				Linkname: "GNU4/GNU4/long-linkpath-name",
-				ModTime:  time.Unix(0, 0),
-				Typeflag: '2',
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:     "GNU2/GNU2/long-path-name",
+			Linkname: "GNU4/GNU4/long-linkpath-name",
+			ModTime:  time.Unix(0, 0),
+			Typeflag: '2',
+		}},
+	}, {
+		// GNU tar file with atime and ctime fields set.
+		// Created with the GNU tar v1.27.1.
+		//	tar --incremental -S -cvf gnu-incremental.tar test2
+		file: "testdata/gnu-incremental.tar",
+		headers: []*Header{{
+			Name:       "test2/",
+			Mode:       16877,
+			Uid:        1000,
+			Gid:        1000,
+			Size:       14,
+			ModTime:    time.Unix(1441973427, 0),
+			Typeflag:   'D',
+			Uname:      "rawr",
+			Gname:      "dsnet",
+			AccessTime: time.Unix(1441974501, 0),
+			ChangeTime: time.Unix(1441973436, 0),
+		}, {
+			Name:       "test2/foo",
+			Mode:       33188,
+			Uid:        1000,
+			Gid:        1000,
+			Size:       64,
+			ModTime:    time.Unix(1441973363, 0),
+			Typeflag:   '0',
+			Uname:      "rawr",
+			Gname:      "dsnet",
+			AccessTime: time.Unix(1441974501, 0),
+			ChangeTime: time.Unix(1441973436, 0),
+		}, {
+			Name:       "test2/sparse",
+			Mode:       33188,
+			Uid:        1000,
+			Gid:        1000,
+			Size:       536870912,
+			ModTime:    time.Unix(1441973427, 0),
+			Typeflag:   'S',
+			Uname:      "rawr",
+			Gname:      "dsnet",
+			AccessTime: time.Unix(1441991948, 0),
+			ChangeTime: time.Unix(1441973436, 0),
+		}},
+	}, {
 		// Matches the behavior of GNU and BSD tar utilities.
 		file: "testdata/pax-multi-hdrs.tar",
-		headers: []*Header{
-			{
-				Name:     "bar",
-				Linkname: "PAX4/PAX4/long-linkpath-name",
-				ModTime:  time.Unix(0, 0),
-				Typeflag: '2',
-			},
-		},
-	},
-	{
+		headers: []*Header{{
+			Name:     "bar",
+			Linkname: "PAX4/PAX4/long-linkpath-name",
+			ModTime:  time.Unix(0, 0),
+			Typeflag: '2',
+		}},
+	}, {
 		file: "testdata/neg-size.tar",
 		err:  ErrHeader,
-	},
-	{
+	}, {
 		file: "testdata/issue10968.tar",
 		err:  ErrHeader,
-	},
-	{
+	}, {
 		file: "testdata/issue11169.tar",
 		err:  ErrHeader,
-	},
-	{
+	}, {
 		file: "testdata/issue12435.tar",
 		err:  ErrHeader,
-	},
-}
+	}}
 
-func TestReader(t *testing.T) {
-	for i, v := range untarTests {
+	for i, v := range vectors {
 		f, err := os.Open(v.file)
 		if err != nil {
 			t.Errorf("file %s, test %d: unexpected error: %v", v.file, i, err)
@@ -440,83 +457,8 @@ func TestPartialRead(t *testing.T) {
 	}
 }
 
-func TestParsePAXHeader(t *testing.T) {
-	paxTests := [][3]string{
-		{"a", "a=name", "10 a=name\n"}, // Test case involving multiple acceptable lengths
-		{"a", "a=name", "9 a=name\n"},  // Test case involving multiple acceptable length
-		{"mtime", "mtime=1350244992.023960108", "30 mtime=1350244992.023960108\n"}}
-	for _, test := range paxTests {
-		key, expected, raw := test[0], test[1], test[2]
-		reader := bytes.NewReader([]byte(raw))
-		headers, err := parsePAX(reader)
-		if err != nil {
-			t.Errorf("Couldn't parse correctly formatted headers: %v", err)
-			continue
-		}
-		if strings.EqualFold(headers[key], expected) {
-			t.Errorf("mtime header incorrectly parsed: got %s, wanted %s", headers[key], expected)
-			continue
-		}
-		trailer := make([]byte, 100)
-		n, err := reader.Read(trailer)
-		if err != io.EOF || n != 0 {
-			t.Error("Buffer wasn't consumed")
-		}
-	}
-	badHeaderTests := [][]byte{
-		[]byte("3 somelongkey=\n"),
-		[]byte("50 tooshort=\n"),
-	}
-	for _, test := range badHeaderTests {
-		if _, err := parsePAX(bytes.NewReader(test)); err != ErrHeader {
-			t.Fatal("Unexpected success when parsing bad header")
-		}
-	}
-}
-
-func TestParsePAXTime(t *testing.T) {
-	// Some valid PAX time values
-	timestamps := map[string]time.Time{
-		"1350244992.023960108":  time.Unix(1350244992, 23960108), // The common case
-		"1350244992.02396010":   time.Unix(1350244992, 23960100), // Lower precision value
-		"1350244992.0239601089": time.Unix(1350244992, 23960108), // Higher precision value
-		"1350244992":            time.Unix(1350244992, 0),        // Low precision value
-	}
-	for input, expected := range timestamps {
-		ts, err := parsePAXTime(input)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !ts.Equal(expected) {
-			t.Fatalf("Time parsing failure %s %s", ts, expected)
-		}
-	}
-}
-
-func TestMergePAX(t *testing.T) {
-	hdr := new(Header)
-	// Test a string, integer, and time based value.
-	headers := map[string]string{
-		"path":  "a/b/c",
-		"uid":   "1000",
-		"mtime": "1350244992.023960108",
-	}
-	err := mergePAX(hdr, headers)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := &Header{
-		Name:    "a/b/c",
-		Uid:     1000,
-		ModTime: time.Unix(1350244992, 23960108),
-	}
-	if !reflect.DeepEqual(hdr, want) {
-		t.Errorf("incorrect merge: got %+v, want %+v", hdr, want)
-	}
-}
-
 func TestSparseFileReader(t *testing.T) {
-	var vectors = []struct {
+	vectors := []struct {
 		realSize   int64         // Real size of the output file
 		sparseMap  []sparseEntry // Input sparse map
 		sparseData string        // Input compact data
@@ -639,9 +581,11 @@ func TestSparseFileReader(t *testing.T) {
 		r := bytes.NewReader([]byte(v.sparseData))
 		rfr := &regFileReader{r: r, nb: int64(len(v.sparseData))}
 
-		var sfr *sparseFileReader
-		var err error
-		var buf []byte
+		var (
+			sfr *sparseFileReader
+			err error
+			buf []byte
+		)
 
 		sfr, err = newSparseFileReader(rfr, v.sparseMap, v.realSize)
 		if err != nil {
@@ -668,6 +612,64 @@ func TestSparseFileReader(t *testing.T) {
 	}
 }
 
+func TestReadOldGNUSparseMap(t *testing.T) {
+	const (
+		t00 = "00000000000\x0000000000000\x00"
+		t11 = "00000000001\x0000000000001\x00"
+		t12 = "00000000001\x0000000000002\x00"
+		t21 = "00000000002\x0000000000001\x00"
+	)
+
+	mkBlk := func(size, sp0, sp1, sp2, sp3, ext string, format int) *block {
+		var blk block
+		copy(blk.GNU().RealSize(), size)
+		copy(blk.GNU().Sparse().Entry(0), sp0)
+		copy(blk.GNU().Sparse().Entry(1), sp1)
+		copy(blk.GNU().Sparse().Entry(2), sp2)
+		copy(blk.GNU().Sparse().Entry(3), sp3)
+		copy(blk.GNU().Sparse().IsExtended(), ext)
+		if format != formatUnknown {
+			blk.SetFormat(format)
+		}
+		return &blk
+	}
+
+	vectors := []struct {
+		data   string        // Input data
+		rawHdr *block        // Input raw header
+		want   []sparseEntry // Expected sparse entries to be outputted
+		err    error         // Expected error to be returned
+	}{
+		{"", mkBlk("", "", "", "", "", "", formatUnknown), nil, ErrHeader},
+		{"", mkBlk("1234", "fewa", "", "", "", "", formatGNU), nil, ErrHeader},
+		{"", mkBlk("0031", "", "", "", "", "", formatGNU), nil, nil},
+		{"", mkBlk("1234", t00, t11, "", "", "", formatGNU),
+			[]sparseEntry{{0, 0}, {1, 1}}, nil},
+		{"", mkBlk("1234", t11, t12, t21, t11, "", formatGNU),
+			[]sparseEntry{{1, 1}, {1, 2}, {2, 1}, {1, 1}}, nil},
+		{"", mkBlk("1234", t11, t12, t21, t11, "\x80", formatGNU),
+			[]sparseEntry{}, io.ErrUnexpectedEOF},
+		{t11 + t11,
+			mkBlk("1234", t11, t12, t21, t11, "\x80", formatGNU),
+			[]sparseEntry{}, io.ErrUnexpectedEOF},
+		{t11 + t21 + strings.Repeat("\x00", 512),
+			mkBlk("1234", t11, t12, t21, t11, "\x80", formatGNU),
+			[]sparseEntry{{1, 1}, {1, 2}, {2, 1}, {1, 1}, {1, 1}, {2, 1}}, nil},
+	}
+
+	for i, v := range vectors {
+		tr := Reader{r: strings.NewReader(v.data)}
+		hdr := new(Header)
+		got, err := tr.readOldGNUSparseMap(hdr, v.rawHdr)
+		if !reflect.DeepEqual(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
+			t.Errorf("test %d, readOldGNUSparseMap(...): got %v, want %v", i, got, v.want)
+		}
+		if err != v.err {
+			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
+		}
+	}
+}
+
 func TestReadGNUSparseMap0x1(t *testing.T) {
 	const (
 		maxUint = ^uint(0)
@@ -679,7 +681,7 @@ func TestReadGNUSparseMap0x1(t *testing.T) {
 		big3 = fmt.Sprintf("%d", (int64(maxInt) / 3))
 	)
 
-	var vectors = []struct {
+	vectors := []struct {
 		extHdrs   map[string]string // Input data
 		sparseMap []sparseEntry     // Expected sparse entries to be outputted
 		err       error             // Expected errors that may be raised
@@ -745,12 +747,12 @@ func TestReadGNUSparseMap0x1(t *testing.T) {
 }
 
 func TestReadGNUSparseMap1x0(t *testing.T) {
-	var sp = []sparseEntry{{1, 2}, {3, 4}}
+	sp := []sparseEntry{{1, 2}, {3, 4}}
 	for i := 0; i < 98; i++ {
 		sp = append(sp, sparseEntry{54321, 12345})
 	}
 
-	var vectors = []struct {
+	vectors := []struct {
 		input     string        // Input data
 		sparseMap []sparseEntry // Expected sparse entries to be outputted
 		cnt       int           // Expected number of bytes read
@@ -825,8 +827,7 @@ func TestReadGNUSparseMap1x0(t *testing.T) {
 }
 
 func TestUninitializedRead(t *testing.T) {
-	test := gnuTarTest
-	f, err := os.Open(test.file)
+	f, err := os.Open("testdata/gnu.tar")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -868,7 +869,7 @@ func TestReadTruncation(t *testing.T) {
 	data2 += strings.Repeat("\x00", 10*512)
 	trash := strings.Repeat("garbage ", 64) // Exactly 512 bytes
 
-	var vectors = []struct {
+	vectors := []struct {
 		input string // Input stream
 		cnt   int    // Expected number of headers read
 		err   error  // Expected error outcome
@@ -904,8 +905,7 @@ func TestReadTruncation(t *testing.T) {
 		{pax + trash[:1], 0, io.ErrUnexpectedEOF},
 		{pax + trash[:511], 0, io.ErrUnexpectedEOF},
 		{sparse[:511], 0, io.ErrUnexpectedEOF},
-		// TODO(dsnet): This should pass, but currently fails.
-		// {sparse[:512], 0, io.ErrUnexpectedEOF},
+		{sparse[:512], 0, io.ErrUnexpectedEOF},
 		{sparse[:3584], 1, io.EOF},
 		{sparse[:9200], 1, io.EOF}, // Terminate in padding of sparse header
 		{sparse[:9216], 1, io.EOF},
@@ -1002,7 +1002,7 @@ func TestReadHeaderOnly(t *testing.T) {
 		t.Fatalf("len(hdrs): got %d, want %d", len(hdrs), 16)
 	}
 	for i := 0; i < 8; i++ {
-		var hdr1, hdr2 = hdrs[i+0], hdrs[i+8]
+		hdr1, hdr2 := hdrs[i+0], hdrs[i+8]
 		hdr1.Size, hdr2.Size = 0, 0
 		if !reflect.DeepEqual(*hdr1, *hdr2) {
 			t.Errorf("incorrect header:\ngot  %+v\nwant %+v", *hdr1, *hdr2)
@@ -1010,116 +1010,87 @@ func TestReadHeaderOnly(t *testing.T) {
 	}
 }
 
-func TestParsePAXRecord(t *testing.T) {
-	var medName = strings.Repeat("CD", 50)
-	var longName = strings.Repeat("AB", 100)
+func TestMergePAX(t *testing.T) {
+	vectors := []struct {
+		in   map[string]string
+		want *Header
+		ok   bool
+	}{{
+		in: map[string]string{
+			"path":  "a/b/c",
+			"uid":   "1000",
+			"mtime": "1350244992.023960108",
+		},
+		want: &Header{
+			Name:    "a/b/c",
+			Uid:     1000,
+			ModTime: time.Unix(1350244992, 23960108),
+		},
+		ok: true,
+	}, {
+		in: map[string]string{
+			"gid": "gtgergergersagersgers",
+		},
+	}, {
+		in: map[string]string{
+			"missing":          "missing",
+			"SCHILY.xattr.key": "value",
+		},
+		want: &Header{
+			Xattrs: map[string]string{"key": "value"},
+		},
+		ok: true,
+	}}
 
-	var vectors = []struct {
-		input     string
-		residual  string
-		outputKey string
-		outputVal string
-		ok        bool
-	}{
-		{"6 k=v\n\n", "\n", "k", "v", true},
-		{"19 path=/etc/hosts\n", "", "path", "/etc/hosts", true},
-		{"210 path=" + longName + "\nabc", "abc", "path", longName, true},
-		{"110 path=" + medName + "\n", "", "path", medName, true},
-		{"9 foo=ba\n", "", "foo", "ba", true},
-		{"11 foo=bar\n\x00", "\x00", "foo", "bar", true},
-		{"18 foo=b=\nar=\n==\x00\n", "", "foo", "b=\nar=\n==\x00", true},
-		{"27 foo=hello9 foo=ba\nworld\n", "", "foo", "hello9 foo=ba\nworld", true},
-		{"27 ☺☻☹=日a本b語ç\nmeow mix", "meow mix", "☺☻☹", "日a本b語ç", true},
-		{"17 \x00hello=\x00world\n", "", "\x00hello", "\x00world", true},
-		{"1 k=1\n", "1 k=1\n", "", "", false},
-		{"6 k~1\n", "6 k~1\n", "", "", false},
-		{"6_k=1\n", "6_k=1\n", "", "", false},
-		{"6 k=1 ", "6 k=1 ", "", "", false},
-		{"632 k=1\n", "632 k=1\n", "", "", false},
-		{"16 longkeyname=hahaha\n", "16 longkeyname=hahaha\n", "", "", false},
-		{"3 somelongkey=\n", "3 somelongkey=\n", "", "", false},
-		{"50 tooshort=\n", "50 tooshort=\n", "", "", false},
-	}
-
-	for _, v := range vectors {
-		key, val, res, err := parsePAXRecord(v.input)
-		ok := (err == nil)
-		if v.ok != ok {
-			if v.ok {
-				t.Errorf("parsePAXRecord(%q): got parsing failure, want success", v.input)
-			} else {
-				t.Errorf("parsePAXRecord(%q): got parsing success, want failure", v.input)
-			}
+	for i, v := range vectors {
+		got := new(Header)
+		err := mergePAX(got, v.in)
+		if v.ok && !reflect.DeepEqual(*got, *v.want) {
+			t.Errorf("test %d, mergePAX(...):\ngot  %+v\nwant %+v", i, *got, *v.want)
 		}
-		if ok && (key != v.outputKey || val != v.outputVal) {
-			t.Errorf("parsePAXRecord(%q): got (%q: %q), want (%q: %q)",
-				v.input, key, val, v.outputKey, v.outputVal)
-		}
-		if res != v.residual {
-			t.Errorf("parsePAXRecord(%q): got residual %q, want residual %q",
-				v.input, res, v.residual)
+		if ok := err == nil; ok != v.ok {
+			t.Errorf("test %d, mergePAX(...): got %v, want %v", i, ok, v.ok)
 		}
 	}
 }
 
-func TestParseNumeric(t *testing.T) {
-	var vectors = []struct {
-		input  string
-		output int64
-		ok     bool
+func TestParsePAX(t *testing.T) {
+	vectors := []struct {
+		in   string
+		want map[string]string
+		ok   bool
 	}{
-		// Test base-256 (binary) encoded values.
-		{"", 0, true},
-		{"\x80", 0, true},
-		{"\x80\x00", 0, true},
-		{"\x80\x00\x00", 0, true},
-		{"\xbf", (1 << 6) - 1, true},
-		{"\xbf\xff", (1 << 14) - 1, true},
-		{"\xbf\xff\xff", (1 << 22) - 1, true},
-		{"\xff", -1, true},
-		{"\xff\xff", -1, true},
-		{"\xff\xff\xff", -1, true},
-		{"\xc0", -1 * (1 << 6), true},
-		{"\xc0\x00", -1 * (1 << 14), true},
-		{"\xc0\x00\x00", -1 * (1 << 22), true},
-		{"\x87\x76\xa2\x22\xeb\x8a\x72\x61", 537795476381659745, true},
-		{"\x80\x00\x00\x00\x07\x76\xa2\x22\xeb\x8a\x72\x61", 537795476381659745, true},
-		{"\xf7\x76\xa2\x22\xeb\x8a\x72\x61", -615126028225187231, true},
-		{"\xff\xff\xff\xff\xf7\x76\xa2\x22\xeb\x8a\x72\x61", -615126028225187231, true},
-		{"\x80\x7f\xff\xff\xff\xff\xff\xff\xff", math.MaxInt64, true},
-		{"\x80\x80\x00\x00\x00\x00\x00\x00\x00", 0, false},
-		{"\xff\x80\x00\x00\x00\x00\x00\x00\x00", math.MinInt64, true},
-		{"\xff\x7f\xff\xff\xff\xff\xff\xff\xff", 0, false},
-		{"\xf5\xec\xd1\xc7\x7e\x5f\x26\x48\x81\x9f\x8f\x9b", 0, false},
-
-		// Test base-8 (octal) encoded values.
-		{"0000000\x00", 0, true},
-		{" \x0000000\x00", 0, true},
-		{" \x0000003\x00", 3, true},
-		{"00000000227\x00", 0227, true},
-		{"032033\x00 ", 032033, true},
-		{"320330\x00 ", 0320330, true},
-		{"0000660\x00 ", 0660, true},
-		{"\x00 0000660\x00 ", 0660, true},
-		{"0123456789abcdef", 0, false},
-		{"0123456789\x00abcdef", 0, false},
-		{"01234567\x0089abcdef", 342391, true},
-		{"0123\x7e\x5f\x264123", 0, false},
+		{"", nil, true},
+		{"6 k=1\n", map[string]string{"k": "1"}, true},
+		{"10 a=name\n", map[string]string{"a": "name"}, true},
+		{"9 a=name\n", map[string]string{"a": "name"}, true},
+		{"30 mtime=1350244992.023960108\n", map[string]string{"mtime": "1350244992.023960108"}, true},
+		{"3 somelongkey=\n", nil, false},
+		{"50 tooshort=\n", nil, false},
+		{"13 key1=haha\n13 key2=nana\n13 key3=kaka\n",
+			map[string]string{"key1": "haha", "key2": "nana", "key3": "kaka"}, true},
+		{"13 key1=val1\n13 key2=val2\n8 key1=\n",
+			map[string]string{"key2": "val2"}, true},
+		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=2\n" +
+			"23 GNU.sparse.offset=1\n25 GNU.sparse.numbytes=2\n" +
+			"23 GNU.sparse.offset=3\n25 GNU.sparse.numbytes=4\n",
+			map[string]string{paxGNUSparseSize: "10", paxGNUSparseNumBlocks: "2", paxGNUSparseMap: "1,2,3,4"}, true},
+		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=1\n" +
+			"25 GNU.sparse.numbytes=2\n23 GNU.sparse.offset=1\n",
+			nil, false},
+		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=1\n" +
+			"25 GNU.sparse.offset=1,2\n25 GNU.sparse.numbytes=2\n",
+			nil, false},
 	}
 
-	for _, v := range vectors {
-		var p parser
-		num := p.parseNumeric([]byte(v.input))
-		ok := (p.err == nil)
-		if v.ok != ok {
-			if v.ok {
-				t.Errorf("parseNumeric(%q): got parsing failure, want success", v.input)
-			} else {
-				t.Errorf("parseNumeric(%q): got parsing success, want failure", v.input)
-			}
+	for i, v := range vectors {
+		r := strings.NewReader(v.in)
+		got, err := parsePAX(r)
+		if !reflect.DeepEqual(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
+			t.Errorf("test %d, parsePAX(...):\ngot  %v\nwant %v", i, got, v.want)
 		}
-		if ok && num != v.output {
-			t.Errorf("parseNumeric(%q): got %d, want %d", v.input, num, v.output)
+		if ok := err == nil; ok != v.ok {
+			t.Errorf("test %d, parsePAX(...): got %v, want %v", i, ok, v.ok)
 		}
 	}
 }

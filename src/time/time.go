@@ -4,7 +4,8 @@
 
 // Package time provides functionality for measuring and displaying time.
 //
-// The calendrical calculations always assume a Gregorian calendar.
+// The calendrical calculations always assume a Gregorian calendar, with
+// no leap seconds.
 package time
 
 import "errors"
@@ -49,9 +50,16 @@ type Time struct {
 	// loc specifies the Location that should be used to
 	// determine the minute, hour, month, day, and year
 	// that correspond to this Time.
-	// Only the zero Time has a nil Location.
-	// In that case it is interpreted to mean UTC.
+	// The nil location means UTC.
+	// All UTC times are represented with loc==nil, never loc==&utcLoc.
 	loc *Location
+}
+
+func (t *Time) setLoc(loc *Location) {
+	if loc == &utcLoc {
+		loc = nil
+	}
+	t.loc = loc
 }
 
 // After reports whether the time instant t is after u.
@@ -67,8 +75,7 @@ func (t Time) Before(u Time) bool {
 // Equal reports whether t and u represent the same time instant.
 // Two times can be equal even if they are in different locations.
 // For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
-// This comparison is different from using t == u, which also compares
-// the locations.
+// Do not use == with Time values.
 func (t Time) Equal(u Time) bool {
 	return t.sec == u.sec && t.nsec == u.nsec
 }
@@ -107,7 +114,14 @@ var months = [...]string{
 }
 
 // String returns the English name of the month ("January", "February", ...).
-func (m Month) String() string { return months[m-1] }
+func (m Month) String() string {
+	if January <= m && m <= December {
+		return months[m-1]
+	}
+	buf := make([]byte, 20)
+	n := fmtInt(buf, uint64(m))
+	return "%!Month(" + string(buf[n:]) + ")"
+}
 
 // A Weekday specifies a day of the week (Sunday = 0, ...).
 type Weekday int
@@ -585,21 +599,21 @@ func (d Duration) Nanoseconds() int64 { return int64(d) }
 func (d Duration) Seconds() float64 {
 	sec := d / Second
 	nsec := d % Second
-	return float64(sec) + float64(nsec)*1e-9
+	return float64(sec) + float64(nsec)/1e9
 }
 
 // Minutes returns the duration as a floating point number of minutes.
 func (d Duration) Minutes() float64 {
 	min := d / Minute
 	nsec := d % Minute
-	return float64(min) + float64(nsec)*(1e-9/60)
+	return float64(min) + float64(nsec)/(60*1e9)
 }
 
 // Hours returns the duration as a floating point number of hours.
 func (d Duration) Hours() float64 {
 	hour := d / Hour
 	nsec := d % Hour
-	return float64(hour) + float64(nsec)*(1e-9/60/60)
+	return float64(hour) + float64(nsec)/(60*60*1e9)
 }
 
 // Add returns the time t+d.
@@ -640,6 +654,12 @@ func Since(t Time) Duration {
 	return Now().Sub(t)
 }
 
+// Until returns the duration until t.
+// It is shorthand for t.Sub(time.Now()).
+func Until(t Time) Duration {
+	return t.Sub(Now())
+}
+
 // AddDate returns the time corresponding to adding the
 // given number of years, months, and days to t.
 // For example, AddDate(-1, 2, 3) applied to January 1, 2011
@@ -651,7 +671,7 @@ func Since(t Time) Duration {
 func (t Time) AddDate(years int, months int, days int) Time {
 	year, month, day := t.Date()
 	hour, min, sec := t.Clock()
-	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec), t.loc)
+	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec), t.Location())
 }
 
 const (
@@ -781,13 +801,13 @@ func Now() Time {
 
 // UTC returns t with the location set to UTC.
 func (t Time) UTC() Time {
-	t.loc = UTC
+	t.setLoc(&utcLoc)
 	return t
 }
 
 // Local returns t with the location set to local time.
 func (t Time) Local() Time {
-	t.loc = Local
+	t.setLoc(Local)
 	return t
 }
 
@@ -798,7 +818,7 @@ func (t Time) In(loc *Location) Time {
 	if loc == nil {
 		panic("time: missing Location in call to Time.In")
 	}
-	t.loc = loc
+	t.setLoc(loc)
 	return t
 }
 
@@ -826,8 +846,9 @@ func (t Time) Unix() int64 {
 
 // UnixNano returns t as a Unix time, the number of nanoseconds elapsed
 // since January 1, 1970 UTC. The result is undefined if the Unix time
-// in nanoseconds cannot be represented by an int64. Note that this
-// means the result of calling UnixNano on the zero Time is undefined.
+// in nanoseconds cannot be represented by an int64 (a date before the year
+// 1678 or after 2262). Note that this means the result of calling UnixNano
+// on the zero Time is undefined.
 func (t Time) UnixNano() int64 {
 	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
 }
@@ -838,7 +859,7 @@ const timeBinaryVersion byte = 1
 func (t Time) MarshalBinary() ([]byte, error) {
 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
 
-	if t.Location() == &utcLoc {
+	if t.Location() == UTC {
 		offsetMin = -1
 	} else {
 		_, offset := t.Zone()
@@ -899,11 +920,11 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
 
 	if offset == -1*60 {
-		t.loc = &utcLoc
+		t.setLoc(&utcLoc)
 	} else if _, localoff, _, _, _ := Local.lookup(t.sec + internalToUnix); offset == localoff {
-		t.loc = Local
+		t.setLoc(Local)
 	} else {
-		t.loc = FixedZone("", offset)
+		t.setLoc(FixedZone("", offset))
 	}
 
 	return nil
@@ -942,6 +963,10 @@ func (t Time) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements the json.Unmarshaler interface.
 // The time is expected to be a quoted string in RFC 3339 format.
 func (t *Time) UnmarshalJSON(data []byte) error {
+	// Ignore null, like in the main JSON package.
+	if string(data) == "null" {
+		return nil
+	}
 	// Fractional seconds are handled implicitly by Parse.
 	var err error
 	*t, err = Parse(`"`+RFC3339+`"`, string(data))
@@ -1092,11 +1117,18 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 		unix -= int64(offset)
 	}
 
-	return Time{unix + unixToInternal, int32(nsec), loc}
+	t := Time{unix + unixToInternal, int32(nsec), nil}
+	t.setLoc(loc)
+	return t
 }
 
 // Truncate returns the result of rounding t down to a multiple of d (since the zero time).
 // If d <= 0, Truncate returns t unchanged.
+//
+// Truncate operates on the time as an absolute duration since the
+// zero time; it does not operate on the presentation form of the
+// time. Thus, Truncate(Hour) may return a time with a non-zero
+// minute, depending on the time's Location.
 func (t Time) Truncate(d Duration) Time {
 	if d <= 0 {
 		return t
@@ -1108,6 +1140,11 @@ func (t Time) Truncate(d Duration) Time {
 // Round returns the result of rounding t to the nearest multiple of d (since the zero time).
 // The rounding behavior for halfway values is to round up.
 // If d <= 0, Round returns t unchanged.
+//
+// Round operates on the time as an absolute duration since the
+// zero time; it does not operate on the presentation form of the
+// time. Thus, Round(Hour) may return a time with a non-zero
+// minute, depending on the time's Location.
 func (t Time) Round(d Duration) Time {
 	if d <= 0 {
 		return t

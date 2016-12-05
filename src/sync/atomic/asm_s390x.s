@@ -37,15 +37,15 @@ TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
 	BR	·CompareAndSwapUint32(SB)
 
 TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
-	MOVD	ptr+0(FP), R3
+	MOVD	addr+0(FP), R3
 	MOVWZ	old+8(FP), R4
 	MOVWZ	new+12(FP), R5
 	CS	R4, R5, 0(R3) // if R4==(R3) then (R3)=R5 else R4=(R3)
 	BNE	cas_fail
-	MOVB	$1, ret+16(FP)
+	MOVB	$1, swapped+16(FP)
 	RET
 cas_fail:
-	MOVB	$0, ret+16(FP)
+	MOVB	$0, swapped+16(FP)
 	RET
 
 TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
@@ -55,29 +55,29 @@ TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
 	BR	·CompareAndSwapUint64(SB)
 
 TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
-	MOVD	ptr+0(FP), R3
+	MOVD	addr+0(FP), R3
 	MOVD	old+8(FP), R4
 	MOVD	new+16(FP), R5
 	CSG	R4, R5, 0(R3) // if R4==(R3) then (R3)=R5 else R4=(R3)
 	BNE	cas64_fail
-	MOVB	$1, ret+24(FP)
+	MOVB	$1, swapped+24(FP)
 	RET
 cas64_fail:
-	MOVB	$0, ret+24(FP)
+	MOVB	$0, swapped+24(FP)
 	RET
 
 TEXT ·AddInt32(SB),NOSPLIT,$0-20
 	BR	·AddUint32(SB)
 
 TEXT ·AddUint32(SB),NOSPLIT,$0-20
-	MOVD	ptr+0(FP), R4
+	MOVD	addr+0(FP), R4
 	MOVWZ	delta+8(FP), R5
 	MOVWZ	(R4), R3
 repeat:
 	ADD	R3, R5, R6
 	CS	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
 	BNE	repeat
-	MOVW	R6, ret+16(FP)
+	MOVW	R6, new+16(FP)
 	RET
 
 TEXT ·AddUintptr(SB),NOSPLIT,$0-24
@@ -87,14 +87,14 @@ TEXT ·AddInt64(SB),NOSPLIT,$0-24
 	BR	·AddUint64(SB)
 
 TEXT ·AddUint64(SB),NOSPLIT,$0-24
-	MOVD	ptr+0(FP), R4
+	MOVD	addr+0(FP), R4
 	MOVD	delta+8(FP), R5
 	MOVD	(R4), R3
 repeat:
 	ADD	R3, R5, R6
 	CSG	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
 	BNE	repeat
-	MOVD	R6, ret+16(FP)
+	MOVD	R6, new+16(FP)
 	RET
 
 TEXT ·LoadInt32(SB),NOSPLIT,$0-12
@@ -125,7 +125,7 @@ TEXT ·StoreInt32(SB),NOSPLIT,$0-12
 	BR	·StoreUint32(SB)
 
 TEXT ·StoreUint32(SB),NOSPLIT,$0-12
-	MOVD	ptr+0(FP), R3
+	MOVD	addr+0(FP), R3
 	MOVW	val+8(FP), R4
 	MOVW	R4, 0(R3)
 	RET

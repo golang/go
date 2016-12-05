@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// BUG(mikio): On Windows, the File method of TCPListener is not
+// implemented.
+
 // TCPAddr represents the address of a TCP end point.
 type TCPAddr struct {
 	IP   IP
@@ -53,6 +56,9 @@ func (a *TCPAddr) opAddr() Addr {
 // "tcp6".  A literal address or host name for IPv6 must be enclosed
 // in square brackets, as in "[::1]:80", "[ipv6-host]:http" or
 // "[ipv6-host%zone]:80".
+//
+// Resolving a hostname is not recommended because this returns at most
+// one of its IP addresses.
 func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
@@ -61,7 +67,7 @@ func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	addrs, err := internetAddrList(context.Background(), net, addr)
+	addrs, err := DefaultResolver.internetAddrList(context.Background(), net, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +87,7 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
 	}
 	n, err := c.readFrom(r)
 	if err != nil && err != io.EOF {
-		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+		err = &OpError{Op: "readfrom", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, err
 }

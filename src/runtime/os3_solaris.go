@@ -127,11 +127,20 @@ func getncpu() int32 {
 	return n
 }
 
-func osinit() {
-	ncpu = getncpu()
+func getPageSize() uintptr {
+	n := int32(sysconf(__SC_PAGESIZE))
+	if n <= 0 {
+		return 0
+	}
+	return uintptr(n)
 }
 
-func tstart_sysvicall()
+func osinit() {
+	ncpu = getncpu()
+	physPageSize = getPageSize()
+}
+
+func tstart_sysvicall(newm *m) uint32
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
@@ -195,58 +204,17 @@ func mpreinit(mp *m) {
 
 func miniterrno()
 
-//go:nosplit
-func msigsave(mp *m) {
-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
-}
-
-//go:nosplit
-func msigrestore(sigmask sigset) {
-	sigprocmask(_SIG_SETMASK, &sigmask, nil)
-}
-
-//go:nosplit
-func sigblock() {
-	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
-}
-
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	_g_ := getg()
 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
-	// Initialize signal handling
-	var st sigaltstackt
-	sigaltstack(nil, &st)
-	if st.ss_flags&_SS_DISABLE != 0 {
-		signalstack(&_g_.m.gsignal.stack)
-		_g_.m.newSigstack = true
-	} else {
-		// Use existing signal stack.
-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
-		_g_.m.gsignal.stack.lo = stsp
-		_g_.m.gsignal.stack.hi = stsp + uintptr(st.ss_size)
-		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
-		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
-		_g_.m.gsignal.stackAlloc = uintptr(st.ss_size)
-		_g_.m.newSigstack = false
-	}
 
-	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := _g_.m.sigmask
-	for i := range sigtable {
-		if sigtable[i].flags&_SigUnblock != 0 {
-			nmask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
-		}
-	}
-	sigprocmask(_SIG_SETMASK, &nmask, nil)
+	minitSignals()
 }
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
-	if getg().m.newSigstack {
-		signalstack(nil)
-	}
+	unminitSignals()
 }
 
 func memlimit() uintptr {
@@ -284,14 +252,10 @@ func sigtramp()
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsig(i int32, fn uintptr, restart bool) {
+func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
 
-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
-	if restart {
-		sa.sa_flags |= _SA_RESTART
-	}
+	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
 	if fn == funcPC(sighandler) {
 		fn = funcPC(sigtramp)
@@ -302,11 +266,10 @@ func setsig(i int32, fn uintptr, restart bool) {
 
 //go:nosplit
 //go:nowritebarrierrec
-func setsigstack(i int32) {
+func setsigstack(i uint32) {
 	var sa sigactiont
 	sigaction(i, nil, &sa)
-	handler := *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
-	if handler == 0 || handler == _SIG_DFL || handler == _SIG_IGN || sa.sa_flags&_SA_ONSTACK != 0 {
+	if sa.sa_flags&_SA_ONSTACK != 0 {
 		return
 	}
 	sa.sa_flags |= _SA_ONSTACK
@@ -315,40 +278,29 @@ func setsigstack(i int32) {
 
 //go:nosplit
 //go:nowritebarrierrec
-func getsig(i int32) uintptr {
+func getsig(i uint32) uintptr {
 	var sa sigactiont
 	sigaction(i, nil, &sa)
-	if *((*uintptr)(unsafe.Pointer(&sa._funcptr))) == funcPC(sigtramp) {
-		return funcPC(sighandler)
-	}
 	return *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
 }
 
+// setSignaltstackSP sets the ss_sp field of a stackt.
 //go:nosplit
-func signalstack(s *stack) {
-	var st sigaltstackt
-	if s == nil {
-		st.ss_flags = _SS_DISABLE
-	} else {
-		st.ss_sp = (*byte)(unsafe.Pointer(s.lo))
-		st.ss_size = uint64(s.hi - s.lo)
-		st.ss_flags = 0
-	}
-	sigaltstack(&st, nil)
+func setSignalstackSP(s *stackt, sp uintptr) {
+	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func updatesigmask(m sigmask) {
-	var mask sigset
-	copy(mask.__sigbits[:], m[:])
-	sigprocmask(_SIG_SETMASK, &mask, nil)
+func sigaddset(mask *sigset, i int) {
+	mask.__sigbits[(i-1)/32] |= 1 << ((uint32(i) - 1) & 31)
 }
 
-func unblocksig(sig int32) {
-	var mask sigset
-	mask.__sigbits[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
-	sigprocmask(_SIG_UNBLOCK, &mask, nil)
+func sigdelset(mask *sigset, i int) {
+	mask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+}
+
+func (c *sigctxt) fixsigcode(sig uint32) {
 }
 
 //go:nosplit
@@ -365,7 +317,7 @@ func semacreate(mp *m) {
 	// here because it could cause a deadlock.
 	_g_.m.libcall.fn = uintptr(unsafe.Pointer(&libc_malloc))
 	_g_.m.libcall.n = 1
-	memclr(unsafe.Pointer(&_g_.m.scratch), uintptr(len(_g_.m.scratch.v)))
+	_g_.m.scratch = mscratch{}
 	_g_.m.scratch.v[0] = unsafe.Sizeof(*sem)
 	_g_.m.libcall.args = uintptr(unsafe.Pointer(&_g_.m.scratch))
 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_g_.m.libcall))
@@ -385,7 +337,7 @@ func semasleep(ns int64) int32 {
 
 		_m_.libcall.fn = uintptr(unsafe.Pointer(&libc_sem_reltimedwait_np))
 		_m_.libcall.n = 2
-		memclr(unsafe.Pointer(&_m_.scratch), uintptr(len(_m_.scratch.v)))
+		_m_.scratch = mscratch{}
 		_m_.scratch.v[0] = _m_.waitsema
 		_m_.scratch.v[1] = uintptr(unsafe.Pointer(&_m_.ts))
 		_m_.libcall.args = uintptr(unsafe.Pointer(&_m_.scratch))
@@ -401,7 +353,7 @@ func semasleep(ns int64) int32 {
 	for {
 		_m_.libcall.fn = uintptr(unsafe.Pointer(&libc_sem_wait))
 		_m_.libcall.n = 1
-		memclr(unsafe.Pointer(&_m_.scratch), uintptr(len(_m_.scratch.v)))
+		_m_.scratch = mscratch{}
 		_m_.scratch.v[0] = _m_.waitsema
 		_m_.libcall.args = uintptr(unsafe.Pointer(&_m_.scratch))
 		asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_m_.libcall))
@@ -505,11 +457,11 @@ func pthread_create(thread *pthread, attr *pthreadattr, fn uintptr, arg unsafe.P
 
 //go:nosplit
 //go:nowritebarrierrec
-func raise(sig int32) /* int32 */ {
+func raise(sig uint32) /* int32 */ {
 	sysvicall1(&libc_raise, uintptr(sig))
 }
 
-func raiseproc(sig int32) /* int32 */ {
+func raiseproc(sig uint32) /* int32 */ {
 	pid := sysvicall0(&libc_getpid)
 	sysvicall2(&libc_kill, pid, uintptr(sig))
 }
@@ -545,13 +497,13 @@ func setitimer(which int32, value *itimerval, ovalue *itimerval) /* int32 */ {
 
 //go:nosplit
 //go:nowritebarrierrec
-func sigaction(sig int32, act *sigactiont, oact *sigactiont) /* int32 */ {
+func sigaction(sig uint32, act *sigactiont, oact *sigactiont) /* int32 */ {
 	sysvicall3(&libc_sigaction, uintptr(sig), uintptr(unsafe.Pointer(act)), uintptr(unsafe.Pointer(oact)))
 }
 
 //go:nosplit
 //go:nowritebarrierrec
-func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
+func sigaltstack(ss *stackt, oss *stackt) /* int32 */ {
 	sysvicall2(&libc_sigaltstack, uintptr(unsafe.Pointer(ss)), uintptr(unsafe.Pointer(oss)))
 }
 
@@ -565,7 +517,7 @@ func sysconf(name int32) int64 {
 	return int64(sysvicall1(&libc_sysconf, uintptr(name)))
 }
 
-func usleep1(uint32)
+func usleep1(usec uint32)
 
 //go:nosplit
 func usleep(µs uint32) {

@@ -113,8 +113,7 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 		}
 	}
 	// If the type implements fmt.Formatter, we have nothing to check.
-	// formatterTyp may be nil - be conservative and check for Format method in that case.
-	if formatterType != nil && types.Implements(typ, formatterType) || f.hasMethod(typ, "Format") {
+	if f.isFormatter(typ) {
 		return true
 	}
 	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?
@@ -185,13 +184,10 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
 		return f.matchStructArgType(t, typ, arg, inProgress)
 
 	case *types.Interface:
-		// If the static type of the argument is empty interface, there's little we can do.
-		// Example:
-		//	func f(x interface{}) { fmt.Printf("%s", x) }
-		// Whether x is valid for %s depends on the type of the argument to f. One day
-		// we will be able to do better. For now, we assume that empty interface is OK
-		// but non-empty interfaces, with Stringer and Error handled above, are errors.
-		return typ.NumMethods() == 0
+		// There's little we can do.
+		// Whether any particular verb is valid depends on the argument.
+		// The user may have reasonable prior knowledge of the contents of the interface.
+		return true
 
 	case *types.Basic:
 		switch typ.Kind() {

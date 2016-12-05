@@ -75,7 +75,9 @@ func writeErr(b []byte) {
 		if v == '\n' || writePos == len(dst)-1 {
 			dst[writePos] = 0
 			write(writeFD, unsafe.Pointer(&writeBuf[0]), int32(hlen+writePos))
-			memclrBytes(dst)
+			for i := range dst {
+				dst[i] = 0
+			}
 			writePos = 0
 		}
 	}

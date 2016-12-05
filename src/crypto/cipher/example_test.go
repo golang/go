@@ -14,7 +14,7 @@ import (
 	"os"
 )
 
-func ExampleNewGCMEncrypter() {
+func ExampleNewGCM_encrypt() {
 	// The key argument should be the AES key, either 16 or 32 bytes
 	// to select AES-128 or AES-256.
 	key := []byte("AES256Key-32Characters1234567890")
@@ -40,7 +40,7 @@ func ExampleNewGCMEncrypter() {
 	fmt.Printf("%x\n", ciphertext)
 }
 
-func ExampleNewGCMDecrypter() {
+func ExampleNewGCM_decrypt() {
 	// The key argument should be the AES key, either 16 or 32 bytes
 	// to select AES-128 or AES-256.
 	key := []byte("AES256Key-32Characters1234567890")

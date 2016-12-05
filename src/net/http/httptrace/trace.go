@@ -1,6 +1,6 @@
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.h
+// license that can be found in the LICENSE file.
 
 // Package httptrace provides mechanisms to trace the events within
 // HTTP client requests.
@@ -8,6 +8,7 @@ package httptrace
 
 import (
 	"context"
+	"crypto/tls"
 	"internal/nettrace"
 	"net"
 	"reflect"
@@ -65,11 +66,16 @@ func WithClientTrace(ctx context.Context, trace *ClientTrace) context.Context {
 	return ctx
 }
 
-// ClientTrace is a set of hooks to run at various stages of an HTTP
-// client request. Any particular hook may be nil. Functions may be
-// called concurrently from different goroutines, starting after the
-// call to Transport.RoundTrip and ending either when RoundTrip
-// returns an error, or when the Response.Body is closed.
+// ClientTrace is a set of hooks to run at various stages of an outgoing
+// HTTP request. Any particular hook may be nil. Functions may be
+// called concurrently from different goroutines and some may be called
+// after the request has completed or failed.
+//
+// ClientTrace currently traces a single HTTP request & response
+// during a single round trip and has no hooks that span a series
+// of redirected requests.
+//
+// See https://blog.golang.org/http-tracing for more.
 type ClientTrace struct {
 	// GetConn is called before a connection is created or
 	// retrieved from an idle pool. The hostPort is the
@@ -118,6 +124,16 @@ type ClientTrace struct {
 	// If net.Dialer.DualStack ("Happy Eyeballs") support is
 	// enabled, this may be called multiple times.
 	ConnectDone func(network, addr string, err error)
+
+	// TLSHandshakeStart is called when the TLS handshake is started. When
+	// connecting to a HTTPS site via a HTTP proxy, the handshake happens after
+	// the CONNECT request is processed by the proxy.
+	TLSHandshakeStart func()
+
+	// TLSHandshakeDone is called after the TLS handshake with either the
+	// successful handshake's connection state, or a non-nil error on handshake
+	// failure.
+	TLSHandshakeDone func(tls.ConnectionState, error)
 
 	// WroteHeaders is called after the Transport has written
 	// the request headers.

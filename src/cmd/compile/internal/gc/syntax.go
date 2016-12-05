@@ -33,39 +33,36 @@ type Node struct {
 	Sym *Sym        // various
 	E   interface{} // Opt or Val, see methods below
 
-	// Various. Usually an offset into a struct. For example, ONAME nodes
-	// that refer to local variables use it to identify their stack frame
-	// position. ODOT, ODOTPTR, and OINDREG use it to indicate offset
-	// relative to their base address. ONAME nodes on the left side of an
-	// OKEY within an OSTRUCTLIT use it to store the named field's offset.
-	// OXCASE and OXFALL use it to validate the use of fallthrough.
+	// Various. Usually an offset into a struct. For example:
+	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
+	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
+	// - OSTRUCTKEY uses it to store the named field's offset.
+	// - OXCASE and OXFALL use it to validate the use of fallthrough.
+	// - ONONAME uses it to store the current value of iota, see Node.Iota
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
 	Lineno int32
-
-	// OREGISTER, OINDREG
-	Reg int16
 
 	Esc uint16 // EscXXX
 
 	Op        Op
 	Ullman    uint8 // sethi/ullman number
 	Addable   bool  // addressable
-	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN
+	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
 	Bounded   bool  // bounds check unnecessary
 	NonNil    bool  // guaranteed to be non-nil
 	Class     Class // PPARAM, PAUTO, PEXTERN, etc
 	Embedded  uint8 // ODCLFIELD embedded type
 	Colas     bool  // OAS resulting from :=
-	Diag      uint8 // already printed error about this
+	Diag      bool  // already printed error about this
 	Noescape  bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
-	Walkdef   uint8
-	Typecheck uint8
+	Walkdef   uint8 // tracks state during typecheckdef; 2 == loop detected
+	Typecheck uint8 // tracks state during typechecking; 2 == loop detected
 	Local     bool
-	Dodata    uint8
+	IsStatic  bool // whether this Node will be converted to purely static data
 	Initorder uint8
-	Used      bool
+	Used      bool // for variable/label declared and not used error
 	Isddd     bool // is the argument variadic
 	Implicit  bool
 	Addrtaken bool  // address taken, even if not moved to heap
@@ -75,11 +72,20 @@ type Node struct {
 	flags     uint8 // TODO: store more bool fields in this flag field
 }
 
+// IsAutoTmp indicates if n was created by the compiler as a temporary,
+// based on the setting of the .AutoTemp flag in n's Name.
+func (n *Node) IsAutoTmp() bool {
+	if n == nil || n.Op != ONAME {
+		return false
+	}
+	return n.Name.AutoTemp
+}
+
 const (
 	hasBreak = 1 << iota
-	notLiveAtEnd
 	isClosureVar
 	isOutputParamHeapAddr
+	noInline // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
 )
 
 func (n *Node) HasBreak() bool {
@@ -92,16 +98,6 @@ func (n *Node) SetHasBreak(b bool) {
 		n.flags &^= hasBreak
 	}
 }
-func (n *Node) NotLiveAtEnd() bool {
-	return n.flags&notLiveAtEnd != 0
-}
-func (n *Node) SetNotLiveAtEnd(b bool) {
-	if b {
-		n.flags |= notLiveAtEnd
-	} else {
-		n.flags &^= notLiveAtEnd
-	}
-}
 func (n *Node) isClosureVar() bool {
 	return n.flags&isClosureVar != 0
 }
@@ -110,6 +106,16 @@ func (n *Node) setIsClosureVar(b bool) {
 		n.flags |= isClosureVar
 	} else {
 		n.flags &^= isClosureVar
+	}
+}
+func (n *Node) noInline() bool {
+	return n.flags&noInline != 0
+}
+func (n *Node) setNoInline(b bool) {
+	if b {
+		n.flags |= noInline
+	} else {
+		n.flags &^= noInline
 	}
 }
 
@@ -166,25 +172,31 @@ func (n *Node) SetOpt(x interface{}) {
 	n.E = x
 }
 
-// Name holds Node fields used only by named nodes (ONAME, OPACK, OLABEL, ODCLFIELD, some OLITERAL).
+func (n *Node) Iota() int64 {
+	return n.Xoffset
+}
+
+func (n *Node) SetIota(x int64) {
+	n.Xoffset = x
+}
+
+// Name holds Node fields used only by named nodes (ONAME, OPACK, OLABEL, some OLITERAL).
 type Name struct {
 	Pack      *Node  // real package for import . names
 	Pkg       *Pkg   // pkg for OPACK nodes
 	Heapaddr  *Node  // temp holding heap address of param (could move to Param?)
-	Inlvar    *Node  // ONAME substitute while inlining (could move to Param?)
 	Defn      *Node  // initializing assignment
 	Curfn     *Node  // function for local variables
-	Param     *Param // additional fields for ONAME, ODCLFIELD
+	Param     *Param // additional fields for ONAME
 	Decldepth int32  // declaration loop depth, increased for every loop or label
 	Vargen    int32  // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-	Iota      int32  // value if this name is iota
 	Funcdepth int32
-	Method    bool // OCALLMETH name
 	Readonly  bool
 	Captured  bool // is the variable captured by a closure
 	Byval     bool // is the variable captured by value or by reference
 	Needzero  bool // if it contains pointers, needs to be zeroed on function entry
 	Keepalive bool // mark value live across unknown assembly call
+	AutoTemp  bool // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
 }
 
 type Param struct {
@@ -267,6 +279,11 @@ type Param struct {
 	// and x.Innermost/Outer means x.Name.Param.Innermost/Outer.
 	Innermost *Node
 	Outer     *Node
+
+	// OTYPE pragmas
+	//
+	// TODO: Should Func pragmas also be stored on the Name?
+	Pragma Pragma
 }
 
 // Func holds Node fields used only with function-like nodes.
@@ -283,21 +300,23 @@ type Func struct {
 	Ntype      *Node // signature
 	Top        int   // top context (Ecall, Eproc, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC
-	FCurfn     *Node
 	Nname      *Node
 
 	Inl     Nodes // copy of the body for use in inlining
 	InlCost int32
 	Depth   int32
 
+	Label int32 // largest auto-generated label in this function
+
 	Endlineno int32
 	WBLineno  int32 // line number of first write barrier
 
-	Pragma        Pragma // go:xxx function annotations
-	Dupok         bool   // duplicate definitions ok
-	Wrapper       bool   // is method wrapper
-	Needctxt      bool   // function uses context register (has closure variables)
-	ReflectMethod bool   // function calls reflect.Type.Method or MethodByName
+	Pragma          Pragma // go:xxx function annotations
+	Dupok           bool   // duplicate definitions ok
+	Wrapper         bool   // is method wrapper
+	Needctxt        bool   // function uses context register (has closure variables)
+	ReflectMethod   bool   // function calls reflect.Type.Method or MethodByName
+	IsHiddenClosure bool
 }
 
 type Op uint8
@@ -349,7 +368,8 @@ const (
 	OCOMPLIT         // Right{List} (composite literal, not yet lowered to specific form)
 	OMAPLIT          // Type{List} (composite literal, Type is map)
 	OSTRUCTLIT       // Type{List} (composite literal, Type is struct)
-	OARRAYLIT        // Type{List} (composite literal, Type is array or slice)
+	OARRAYLIT        // Type{List} (composite literal, Type is array)
+	OSLICELIT        // Type{List} (composite literal, Type is slice)
 	OPTRLIT          // &Left (left is composite literal)
 	OCONV            // Type(Left) (type conversion)
 	OCONVIFACE       // Type(Left) (type conversion, to interface)
@@ -380,8 +400,8 @@ const (
 	OIND       // *Left
 	OINDEX     // Left[Right] (index of array or slice)
 	OINDEXMAP  // Left[Right] (index of map)
-	OKEY       // Left:Right (key:value in struct/array/map literal, or slice index pair)
-	_          // was OPARAM, but cannot remove without breaking binary blob in builtin.go
+	OKEY       // Left:Right (key:value in struct/array/map literal)
+	OSTRUCTKEY // Sym:Left (key:value in struct literal, after type checking)
 	OLEN       // len(Left)
 	OMAKE      // make(List) (before type checking converts to one of the following)
 	OMAKECHAN  // make(Type, Left) (type is chan)
@@ -405,11 +425,11 @@ const (
 	OPRINTN    // println(List)
 	OPAREN     // (Left)
 	OSEND      // Left <- Right
-	OSLICE     // Left[Right.Left : Right.Right] (Left is untypechecked or slice; Right.Op==OKEY)
-	OSLICEARR  // Left[Right.Left : Right.Right] (Left is array)
-	OSLICESTR  // Left[Right.Left : Right.Right] (Left is string)
-	OSLICE3    // Left[R.Left : R.R.Left : R.R.R] (R=Right; Left is untypedchecked or slice; R.Op and R.R.Op==OKEY)
-	OSLICE3ARR // Left[R.Left : R.R.Left : R.R.R] (R=Right; Left is array; R.Op and R.R.Op==OKEY)
+	OSLICE     // Left[List[0] : List[1]] (Left is untypechecked or slice)
+	OSLICEARR  // Left[List[0] : List[1]] (Left is array)
+	OSLICESTR  // Left[List[0] : List[1]] (Left is string)
+	OSLICE3    // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
+	OSLICE3ARR // Left[List[0] : List[1] : List[2]] (Left is array)
 	ORECOVER   // recover()
 	ORECV      // <-Left
 	ORUNESTR   // Type(Left) (Type is string, Left is rune)
@@ -419,11 +439,14 @@ const (
 	OREAL      // real(Left)
 	OIMAG      // imag(Left)
 	OCOMPLEX   // complex(Left, Right)
+	OALIGNOF   // unsafe.Alignof(Left)
+	OOFFSETOF  // unsafe.Offsetof(Left)
+	OSIZEOF    // unsafe.Sizeof(Left)
 
 	// statements
 	OBLOCK    // { List } (block of code)
 	OBREAK    // break
-	OCASE     // case List: Nbody (select case after processing; List==nil means default)
+	OCASE     // case Left or List[0]..List[1]: Nbody (select case after processing; Left==nil and List==nil means default)
 	OXCASE    // case List: Nbody (select case before processing; List==nil means default)
 	OCONTINUE // continue
 	ODEFER    // defer Left (Left must be call)
@@ -455,16 +478,14 @@ const (
 	OINLCALL    // intermediary representation of an inlined call.
 	OEFACE      // itable and data words of an empty-interface value.
 	OITAB       // itable word of an interface value.
+	OIDATA      // data word of an interface value in Left
 	OSPTR       // base pointer of a slice or string.
 	OCLOSUREVAR // variable reference at beginning of closure function
 	OCFUNC      // reference to c function pointer (not go func value)
 	OCHECKNIL   // emit code to ensure pointer/interface not nil
 	OVARKILL    // variable is dead
 	OVARLIVE    // variable is alive
-
-	// thearch-specific registers
-	OREGISTER // a register, such as AX.
-	OINDREG   // offset plus indirect of a register, such as 8(SP).
+	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
 
 	// arch-specific opcodes
 	OCMP    // compare: ACMP.
@@ -543,6 +564,11 @@ func (n *Nodes) Set1(node *Node) {
 	n.slice = &[]*Node{node}
 }
 
+// Set2 sets n to a slice containing two nodes.
+func (n *Nodes) Set2(n1, n2 *Node) {
+	n.slice = &[]*Node{n1, n2}
+}
+
 // MoveNodes sets n to the contents of n2, then clears n2.
 func (n *Nodes) MoveNodes(n2 *Nodes) {
 	n.slice = n2.slice
@@ -564,12 +590,26 @@ func (n Nodes) Addr(i int) **Node {
 // Append appends entries to Nodes.
 // If a slice is passed in, this will take ownership of it.
 func (n *Nodes) Append(a ...*Node) {
+	if len(a) == 0 {
+		return
+	}
 	if n.slice == nil {
-		if len(a) > 0 {
-			n.slice = &a
-		}
+		n.slice = &a
 	} else {
 		*n.slice = append(*n.slice, a...)
+	}
+}
+
+// Prepend prepends entries to Nodes.
+// If a slice is passed in, this will take ownership of it.
+func (n *Nodes) Prepend(a ...*Node) {
+	if len(a) == 0 {
+		return
+	}
+	if n.slice == nil {
+		n.slice = &a
+	} else {
+		*n.slice = append(a, *n.slice...)
 	}
 }
 

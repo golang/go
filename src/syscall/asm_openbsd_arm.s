@@ -17,7 +17,7 @@
 
 TEXT	·Syscall(SB),NOSPLIT,$0-28
 	BL runtime·entersyscall(SB)
-	MOVW syscall+0(FP), R12		// syscall number
+	MOVW trap+0(FP), R12		// syscall number
 	MOVW a1+4(FP), R0		// arg 1
 	MOVW a2+8(FP), R1		// arg 2
 	MOVW a3+12(FP), R2		// arg 3
@@ -39,7 +39,7 @@ error:
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	BL runtime·entersyscall(SB)
-	MOVW syscall+0(FP), R12		// syscall number
+	MOVW trap+0(FP), R12		// syscall number
 	MOVW a1+4(FP), R0		// arg 1
 	MOVW a2+8(FP), R1		// arg 2
 	MOVW a3+12(FP), R2		// arg 3
@@ -65,7 +65,7 @@ error6:
 
 TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	BL runtime·entersyscall(SB)
-	MOVW syscall+0(FP), R12		// syscall number
+	MOVW num+0(FP), R12		// syscall number
 	MOVW a1+4(FP), R0		// arg 1
 	MOVW a2+8(FP), R1		// arg 2
 	MOVW a3+12(FP), R2		// arg 3
@@ -90,7 +90,7 @@ error9:
 	RET
 
 TEXT	·RawSyscall(SB),NOSPLIT,$0-28
-	MOVW syscall+0(FP), R12		// syscall number
+	MOVW trap+0(FP), R12		// syscall number
 	MOVW a1+4(FP), R0		// arg 1
 	MOVW a2+8(FP), R1		// arg 2
 	MOVW a3+12(FP), R2		// arg 3
@@ -109,7 +109,7 @@ errorr:
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
-	MOVW syscall+0(FP), R12		// syscall number
+	MOVW trap+0(FP), R12		// syscall number
 	MOVW a1+4(FP), R0		// arg 1
 	MOVW a2+8(FP), R1		// arg 2
 	MOVW a3+12(FP), R2		// arg 3

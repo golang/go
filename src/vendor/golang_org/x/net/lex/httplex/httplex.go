@@ -10,8 +10,11 @@
 package httplex
 
 import (
+	"net"
 	"strings"
 	"unicode/utf8"
+
+	"golang_org/x/net/idna"
 )
 
 var isTokenTable = [127]bool{
@@ -309,4 +312,40 @@ func ValidHeaderFieldValue(v string) bool {
 		}
 	}
 	return true
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
+}
+
+// PunycodeHostPort returns the IDNA Punycode version
+// of the provided "host" or "host:port" string.
+func PunycodeHostPort(v string) (string, error) {
+	if isASCII(v) {
+		return v, nil
+	}
+
+	host, port, err := net.SplitHostPort(v)
+	if err != nil {
+		// The input 'v' argument was just a "host" argument,
+		// without a port. This error should not be returned
+		// to the caller.
+		host = v
+		port = ""
+	}
+	host, err = idna.ToASCII(host)
+	if err != nil {
+		// Non-UTF-8? Not representable in Punycode, in any
+		// case.
+		return "", err
+	}
+	if port == "" {
+		return host, nil
+	}
+	return net.JoinHostPort(host, port), nil
 }

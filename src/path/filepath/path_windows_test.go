@@ -12,29 +12,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime/debug"
 	"strings"
-	"syscall"
 	"testing"
 )
-
-func init() {
-	tmpdir, err := ioutil.TempDir("", "symtest")
-	if err != nil {
-		panic("failed to create temp directory: " + err.Error())
-	}
-	defer os.RemoveAll(tmpdir)
-
-	err = os.Symlink("target", filepath.Join(tmpdir, "symlink"))
-	if err == nil {
-		return
-	}
-
-	err = err.(*os.LinkError).Err
-	switch err {
-	case syscall.EWINDOWS, syscall.ERROR_PRIVILEGE_NOT_HELD:
-		supportsSymlinks = false
-	}
-}
 
 func TestWinSplitListTestsAreValid(t *testing.T) {
 	comspec := os.Getenv("ComSpec")
@@ -329,9 +310,123 @@ func TestToNorm(t *testing.T) {
 	for _, test := range tests {
 		got, err := filepath.ToNorm(test.arg, stubBase)
 		if err != nil {
-			t.Errorf("unexpected toNorm error, arg: %s, err: %v\n", test.arg, err)
+			t.Errorf("toNorm(%s) failed: %v\n", test.arg, err)
 		} else if got != test.want {
-			t.Errorf("toNorm error, arg: %s, want: %s, got: %s\n", test.arg, test.want, got)
+			t.Errorf("toNorm(%s) returns %s, but %s expected\n", test.arg, got, test.want)
 		}
 	}
+
+	testPath := `{{tmp}}\test\foo\bar`
+
+	testsDir := []struct {
+		wd   string
+		arg  string
+		want string
+	}{
+		// test absolute paths
+		{".", `{{tmp}}\test\foo\bar`, `{{tmp}}\test\foo\bar`},
+		{".", `{{tmp}}\.\test/foo\bar`, `{{tmp}}\test\foo\bar`},
+		{".", `{{tmp}}\test\..\test\foo\bar`, `{{tmp}}\test\foo\bar`},
+		{".", `{{tmp}}\TEST\FOO\BAR`, `{{tmp}}\test\foo\bar`},
+
+		// test relative paths begin with drive letter
+		{`{{tmp}}\test`, `{{tmpvol}}.`, `{{tmpvol}}.`},
+		{`{{tmp}}\test`, `{{tmpvol}}..`, `{{tmpvol}}..`},
+		{`{{tmp}}\test`, `{{tmpvol}}foo\bar`, `{{tmpvol}}foo\bar`},
+		{`{{tmp}}\test`, `{{tmpvol}}.\foo\bar`, `{{tmpvol}}foo\bar`},
+		{`{{tmp}}\test`, `{{tmpvol}}foo\..\foo\bar`, `{{tmpvol}}foo\bar`},
+		{`{{tmp}}\test`, `{{tmpvol}}FOO\BAR`, `{{tmpvol}}foo\bar`},
+
+		// test relative paths begin with '\'
+		{"{{tmp}}", `{{tmpnovol}}\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+		{"{{tmp}}", `{{tmpnovol}}\.\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+		{"{{tmp}}", `{{tmpnovol}}\test\..\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+		{"{{tmp}}", `{{tmpnovol}}\TEST\FOO\BAR`, `{{tmpnovol}}\test\foo\bar`},
+
+		// test relative paths begin without '\'
+		{`{{tmp}}\test`, ".", `.`},
+		{`{{tmp}}\test`, "..", `..`},
+		{`{{tmp}}\test`, `foo\bar`, `foo\bar`},
+		{`{{tmp}}\test`, `.\foo\bar`, `foo\bar`},
+		{`{{tmp}}\test`, `foo\..\foo\bar`, `foo\bar`},
+		{`{{tmp}}\test`, `FOO\BAR`, `foo\bar`},
+	}
+
+	tmp, err := ioutil.TempDir("", "testToNorm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err := os.RemoveAll(tmp)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// ioutil.TempDir might return "non-canonical" name.
+	ctmp, err := filepath.EvalSymlinks(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.MkdirAll(strings.Replace(testPath, "{{tmp}}", ctmp, -1), 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err := os.Chdir(cwd)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	tmpVol := filepath.VolumeName(ctmp)
+	if len(tmpVol) != 2 {
+		t.Fatalf("unexpected temp volume name %q", tmpVol)
+	}
+
+	tmpNoVol := ctmp[len(tmpVol):]
+
+	replacer := strings.NewReplacer("{{tmp}}", ctmp, "{{tmpvol}}", tmpVol, "{{tmpnovol}}", tmpNoVol)
+
+	for _, test := range testsDir {
+		wd := replacer.Replace(test.wd)
+		arg := replacer.Replace(test.arg)
+		want := replacer.Replace(test.want)
+
+		if test.wd == "." {
+			err := os.Chdir(cwd)
+			if err != nil {
+				t.Error(err)
+
+				continue
+			}
+		} else {
+			err := os.Chdir(wd)
+			if err != nil {
+				t.Error(err)
+
+				continue
+			}
+		}
+
+		got, err := filepath.ToNorm(arg, filepath.NormBase)
+		if err != nil {
+			t.Errorf("toNorm(%s) failed: %v (wd=%s)\n", arg, err, wd)
+		} else if got != want {
+			t.Errorf("toNorm(%s) returns %s, but %s expected (wd=%s)\n", arg, got, want, wd)
+		}
+	}
+}
+
+func TestUNC(t *testing.T) {
+	// Test that this doesn't go into an infinite recursion.
+	// See golang.org/issue/15879.
+	defer debug.SetMaxStack(debug.SetMaxStack(1e6))
+	filepath.Glob(`\\?\c:\*`)
 }

@@ -35,8 +35,8 @@ import (
 )
 
 func init() {
-	obj.RegisterRegister(obj.RBaseMIPS64, REG_LAST&^1023+1024, Rconv)
-	obj.RegisterOpcode(obj.ABaseMIPS64, Anames)
+	obj.RegisterRegister(obj.RBaseMIPS, REG_LAST+1, Rconv)
+	obj.RegisterOpcode(obj.ABaseMIPS, Anames)
 }
 
 func Rconv(r int) string {
@@ -70,7 +70,7 @@ func Rconv(r int) string {
 		return "LO"
 	}
 
-	return fmt.Sprintf("Rgok(%d)", r-obj.RBaseMIPS64)
+	return fmt.Sprintf("Rgok(%d)", r-obj.RBaseMIPS)
 }
 
 func DRconv(a int) string {

@@ -199,11 +199,11 @@ func (t *_type) nameOff(off nameOff) name {
 	return resolveNameOff(unsafe.Pointer(t), off)
 }
 
-func (t *_type) typeOff(off typeOff) *_type {
+func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
 	if off == 0 {
 		return nil
 	}
-	base := uintptr(unsafe.Pointer(t))
+	base := uintptr(ptrInModule)
 	var md *moduledata
 	for next := &firstmoduledata; next != nil; next = next.next {
 		if base >= next.types && base < next.etypes {
@@ -235,6 +235,10 @@ func (t *_type) typeOff(off typeOff) *_type {
 	return (*_type)(unsafe.Pointer(res))
 }
 
+func (t *_type) typeOff(off typeOff) *_type {
+	return resolveTypeOff(unsafe.Pointer(t), off)
+}
+
 func (t *_type) textOff(off textOff) unsafe.Pointer {
 	base := uintptr(unsafe.Pointer(t))
 	var md *moduledata
@@ -257,7 +261,30 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 		}
 		return res
 	}
-	res := md.text + uintptr(off)
+	res := uintptr(0)
+
+	// The text, or instruction stream is generated as one large buffer.  The off (offset) for a method is
+	// its offset within this buffer.  If the total text size gets too large, there can be issues on platforms like ppc64 if
+	// the target of calls are too far for the call instruction.  To resolve the large text issue, the text is split
+	// into multiple text sections to allow the linker to generate long calls when necessary.  When this happens, the vaddr
+	// for each text section is set to its offset within the text.  Each method's offset is compared against the section
+	// vaddrs and sizes to determine the containing section.  Then the section relative offset is added to the section's
+	// relocated baseaddr to compute the method addess.
+
+	if len(md.textsectmap) > 1 {
+		for i := range md.textsectmap {
+			sectaddr := md.textsectmap[i].vaddr
+			sectlen := md.textsectmap[i].length
+			if uintptr(off) >= sectaddr && uintptr(off) <= sectaddr+sectlen {
+				res = md.textsectmap[i].baseaddr + uintptr(off) - uintptr(md.textsectmap[i].vaddr)
+				break
+			}
+		}
+	} else {
+		// single text section
+		res = md.text + uintptr(off)
+	}
+
 	if res > md.etext {
 		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))
 		throw("runtime: text offset out of range")
@@ -446,14 +473,11 @@ func typelinksinit() {
 	if firstmoduledata.next == nil {
 		return
 	}
-	typehash := make(map[uint32][]*_type)
+	typehash := make(map[uint32][]*_type, len(firstmoduledata.typelinks))
 
-	modules := []*moduledata{}
-	for md := &firstmoduledata; md != nil; md = md.next {
-		modules = append(modules, md)
-	}
-	prev, modules := modules[len(modules)-1], modules[:len(modules)-1]
-	for len(modules) > 0 {
+	modules := activeModules()
+	prev := modules[0]
+	for _, md := range modules[1:] {
 		// Collect types from the previous module into typehash.
 	collect:
 		for _, tl := range prev.typelinks {
@@ -473,23 +497,26 @@ func typelinksinit() {
 			typehash[t.hash] = append(tlist, t)
 		}
 
-		// If any of this module's typelinks match a type from a
-		// prior module, prefer that prior type by adding the offset
-		// to this module's typemap.
-		md := modules[len(modules)-1]
-		md.typemap = make(map[typeOff]*_type, len(md.typelinks))
-		for _, tl := range md.typelinks {
-			t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
-			for _, candidate := range typehash[t.hash] {
-				if typesEqual(t, candidate) {
-					t = candidate
-					break
+		if md.typemap == nil {
+			// If any of this module's typelinks match a type from a
+			// prior module, prefer that prior type by adding the offset
+			// to this module's typemap.
+			tm := make(map[typeOff]*_type, len(md.typelinks))
+			pinnedTypemaps = append(pinnedTypemaps, tm)
+			md.typemap = tm
+			for _, tl := range md.typelinks {
+				t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
+				for _, candidate := range typehash[t.hash] {
+					if typesEqual(t, candidate) {
+						t = candidate
+						break
+					}
 				}
+				md.typemap[typeOff(tl)] = t
 			}
-			md.typemap[typeOff(tl)] = t
 		}
 
-		prev, modules = md, modules[:len(modules)-1]
+		prev = md
 	}
 }
 
@@ -573,15 +600,19 @@ func typesEqual(t, v *_type) bool {
 		for i := range it.mhdr {
 			tm := &it.mhdr[i]
 			vm := &iv.mhdr[i]
-			tname := it.typ.nameOff(tm.name)
-			vname := iv.typ.nameOff(vm.name)
+			// Note the mhdr array can be relocated from
+			// another module. See #17724.
+			tname := resolveNameOff(unsafe.Pointer(tm), tm.name)
+			vname := resolveNameOff(unsafe.Pointer(vm), vm.name)
 			if tname.name() != vname.name() {
 				return false
 			}
 			if tname.pkgPath() != vname.pkgPath() {
 				return false
 			}
-			if !typesEqual(it.typ.typeOff(tm.ityp), iv.typ.typeOff(vm.ityp)) {
+			tityp := resolveTypeOff(unsafe.Pointer(tm), tm.ityp)
+			vityp := resolveTypeOff(unsafe.Pointer(vm), vm.ityp)
+			if !typesEqual(tityp, vityp) {
 				return false
 			}
 		}

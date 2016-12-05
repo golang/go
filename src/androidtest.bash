@@ -30,6 +30,10 @@ if [ "$GOARM" != "7" ]; then
 	echo "android only supports GOARM=7, got GOARM=$GOARM" 1>&2
 	exit 1
 fi
+if [ "$GOARCH" = "" ]; then
+	echo "GOARCH must be set" 1>&2
+	exit 1
+fi
 
 export CGO_ENABLED=1
 unset GOBIN
@@ -42,6 +46,12 @@ export PATH=$GOROOT/bin:$PATH
 GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
 	-o ../bin/go_android_${GOARCH}_exec \
 	../misc/android/go_android_exec.go
+
+export pkgdir=$(dirname $(go list -f '{{.Target}}' runtime))
+if [ "$pkgdir" = "" ]; then
+	echo "could not find android pkg dir" 1>&2
+	exit 1
+fi
 
 export ANDROID_TEST_DIR=/tmp/androidtest-$$
 
@@ -64,15 +74,7 @@ mkdir -p $FAKE_GOROOT/pkg
 cp -a "${GOROOT}/src" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/test" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/lib" "${FAKE_GOROOT}/"
-
-# For android, the go tool will install the compiled package in
-# pkg/android_${GOARCH}_shared directory by default, not in
-# the usual pkg/${GOOS}_${GOARCH}. Some tests in src/go/* assume
-# the compiled packages were installed in the usual places.
-# Instead of reflecting this exception into the go/* packages,
-# we copy the compiled packages into the usual places.
-cp -a "${GOROOT}/pkg/android_${GOARCH}_shared" "${FAKE_GOROOT}/pkg/"
-mv "${FAKE_GOROOT}/pkg/android_${GOARCH}_shared" "${FAKE_GOROOT}/pkg/android_${GOARCH}"
+cp -a "${pkgdir}" "${FAKE_GOROOT}/pkg/"
 
 echo '# Syncing test files to android device'
 adb shell mkdir -p /data/local/tmp/goroot

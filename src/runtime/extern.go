@@ -57,6 +57,11 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	gcstackbarrierall: setting gcstackbarrierall=1 installs stack barriers
 	in every stack frame, rather than in exponentially-spaced frames.
 
+	gcrescanstacks: setting gcrescanstacks=1 enables stack
+	re-scanning during the STW mark termination phase. This is
+	helpful for debugging if objects are being prematurely
+	garbage collected.
+
 	gcstoptheworld: setting gcstoptheworld=1 disables concurrent garbage collection,
 	making every garbage collection a stop-the-world event. Setting gcstoptheworld=2
 	also disables concurrent sweeping after the garbage collection finishes.

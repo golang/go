@@ -85,6 +85,11 @@ var encodingTests = []encodingTest{
 	{RawStdEncoding, rawRef},
 	{RawURLEncoding, rawUrlRef},
 	{funnyEncoding, funnyRef},
+	{StdEncoding.Strict(), stdRef},
+	{URLEncoding.Strict(), urlRef},
+	{RawStdEncoding.Strict(), rawRef},
+	{RawURLEncoding.Strict(), rawUrlRef},
+	{funnyEncoding.Strict(), funnyRef},
 }
 
 var bigtest = testpair{
@@ -433,6 +438,22 @@ func TestDecoderIssue7733(t *testing.T) {
 	}
 	if string(s) != "abcd" {
 		t.Errorf("DecodeString = %q; want abcd", s)
+	}
+}
+
+func TestDecoderIssue15656(t *testing.T) {
+	_, err := StdEncoding.Strict().DecodeString("WvLTlMrX9NpYDQlEIFlnDB==")
+	want := CorruptInputError(22)
+	if !reflect.DeepEqual(want, err) {
+		t.Errorf("Error = %v; want CorruptInputError(22)", err)
+	}
+	_, err = StdEncoding.Strict().DecodeString("WvLTlMrX9NpYDQlEIFlnDA==")
+	if err != nil {
+		t.Errorf("Error = %v; want nil", err)
+	}
+	_, err = StdEncoding.DecodeString("WvLTlMrX9NpYDQlEIFlnDB==")
+	if err != nil {
+		t.Errorf("Error = %v; want nil", err)
 	}
 }
 

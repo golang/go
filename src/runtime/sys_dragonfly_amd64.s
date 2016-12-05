@@ -51,18 +51,6 @@ TEXT runtime·lwp_start(SB),NOSPLIT,$0
 	MOVQ	R13, g_m(DI)
 	MOVQ	DI, g(CX)
 
-	// On DragonFly, a new thread inherits the signal stack of the
-	// creating thread. That confuses minit, so we remove that
-	// signal stack here before calling the regular mstart. It's
-	// a bit baroque to remove a signal stack here only to add one
-	// in minit, but it's a simple change that keeps DragonFly
-	// working like other OS's. At this point all signals are
-	// blocked, so there is no race.
-	SUBQ	$8, SP
-	MOVQ	$0, 0(SP)
-	CALL	runtime·signalstack(SB)
-	ADDQ	$8, SP
-
 	CALL	runtime·stackcheck(SB)
 	CALL	runtime·mstart(SB)
 
@@ -162,7 +150,7 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), NOSPLIT, $32
-	MOVL	$232, AX
+	MOVL	$232, AX // clock_gettime
 	MOVQ	$0, DI  	// CLOCK_REALTIME
 	LEAQ	8(SP), SI
 	SYSCALL
@@ -200,11 +188,16 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
-	MOVL	sig+8(FP), DI
+	MOVQ	fn+0(FP),    AX
+	MOVL	sig+8(FP),   DI
 	MOVQ	info+16(FP), SI
-	MOVQ	ctx+24(FP), DX
-	MOVQ	fn+0(FP), AX
+	MOVQ	ctx+24(FP),  DX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP     // alignment for x86_64 ABI
 	CALL	AX
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$24
@@ -249,8 +242,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	RET
 	
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
-	MOVQ	new+8(SP), DI
-	MOVQ	old+16(SP), SI
+	MOVQ	new+0(FP), DI
+	MOVQ	old+8(FP), SI
 	MOVQ	$53, AX
 	SYSCALL
 	JCC	2(PC)
@@ -333,11 +326,11 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
 TEXT runtime·kevent(SB),NOSPLIT,$0
-	MOVL	fd+0(FP), DI
-	MOVQ	ev1+8(FP), SI
-	MOVL	nev1+16(FP), DX
-	MOVQ	ev2+24(FP), R10
-	MOVL	nev2+32(FP), R8
+	MOVL	kq+0(FP), DI
+	MOVQ	ch+8(FP), SI
+	MOVL	nch+16(FP), DX
+	MOVQ	ev+24(FP), R10
+	MOVL	nev+32(FP), R8
 	MOVQ	ts+40(FP), R9
 	MOVL	$363, AX
 	SYSCALL

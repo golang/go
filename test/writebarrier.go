@@ -164,8 +164,9 @@ type T17 struct {
 }
 
 func f17(x *T17) {
-	// See golang.org/issue/13901
-	x.f = f17                      // no barrier
+	// Originally from golang.org/issue/13901, but the hybrid
+	// barrier requires both to have barriers.
+	x.f = f17                      // ERROR "write barrier"
 	x.f = func(y *T17) { *y = *x } // ERROR "write barrier"
 }
 
@@ -207,7 +208,15 @@ func f21(x *int) {
 	// Global -> heap pointer updates must have write barriers.
 	x21 = x                   // ERROR "write barrier"
 	y21.x = x                 // ERROR "write barrier"
-	x21 = &z21                // no barrier
-	y21.x = &z21              // no barrier
+	x21 = &z21                // ERROR "write barrier"
+	y21.x = &z21              // ERROR "write barrier"
 	y21 = struct{ x *int }{x} // ERROR "write barrier"
+}
+
+func f22(x *int) (y *int) {
+	// pointer write on stack should have no write barrier.
+	// this is a case that the frontend failed to eliminate.
+	p := &y
+	*p = x // no barrier
+	return
 }

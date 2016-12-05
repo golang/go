@@ -131,7 +131,7 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-12
 TEXT runtime·nsec(SB),NOSPLIT,$-4-12
 	MOVW	$SYS_NSEC, R0
 	SWI	0
-	MOVW	unnamed+0(FP), R1
+	MOVW	arg+0(FP), R1
 	MOVW	0(R1), R0
 	MOVW	R0, ret_lo+4(FP)
 	MOVW	4(R1), R0
@@ -230,7 +230,7 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0-4
 	MOVW	R0, 0(R0)		// not reached
 	RET
 
-//func sigtramp(ureg, msg unsafe.Pointer)
+//func sigtramp(ureg, note unsafe.Pointer)
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-8
 	// check that g and m exist
 	CMP	$0, g
@@ -242,7 +242,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-8
 
 	// save args
 	MOVW	ureg+0(FP), R1
-	MOVW	msg+4(FP), R2
+	MOVW	note+4(FP), R2
 
 	// change stack
 	MOVW	m_gsignal(R0), R3

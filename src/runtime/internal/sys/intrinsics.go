@@ -30,19 +30,6 @@ var deBruijnIdx32 = [32]byte{
 	30, 9, 19, 24, 29, 18, 28, 27,
 }
 
-const deBruijn16 = 0x09af
-
-var deBruijnIdx16 = [16]byte{
-	0, 1, 2, 5, 3, 9, 6, 11,
-	15, 4, 8, 10, 14, 7, 13, 12,
-}
-
-const deBruijn8 = 0x17
-
-var deBruijnIdx8 = [8]byte{
-	0, 1, 2, 4, 7, 3, 6, 5,
-}
-
 // Ctz64 counts trailing (low-order) zeroes,
 // and if all are zero, then 64.
 func Ctz64(x uint64) uint64 {
@@ -60,26 +47,6 @@ func Ctz32(x uint32) uint32 {
 	y := x * deBruijn32 >> 27    // extract part of deBruijn sequence
 	y = uint32(deBruijnIdx32[y]) // convert to bit index
 	z := (x - 1) >> 26 & 32      // adjustment if zero
-	return y + z
-}
-
-// Ctz16 counts trailing (low-order) zeroes,
-// and if all are zero, then 16.
-func Ctz16(x uint16) uint16 {
-	x &= -x                      // isolate low-order bit
-	y := x * deBruijn16 >> 12    // extract part of deBruijn sequence
-	y = uint16(deBruijnIdx16[y]) // convert to bit index
-	z := (x - 1) >> 11 & 16      // adjustment if zero
-	return y + z
-}
-
-// Ctz8 counts trailing (low-order) zeroes,
-// and if all are zero, then 8.
-func Ctz8(x uint8) uint8 {
-	x &= -x                    // isolate low-order bit
-	y := x * deBruijn8 >> 5    // extract part of deBruijn sequence
-	y = uint8(deBruijnIdx8[y]) // convert to bit index
-	z := (x - 1) >> 4 & 8      // adjustment if zero
 	return y + z
 }
 

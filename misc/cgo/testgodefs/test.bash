@@ -12,7 +12,7 @@ FILE_PREFIXES="anonunion issue8478"
 RM=
 for FP in $FILE_PREFIXES
 do
-  go tool cgo -godefs ${FP}.go > ${FP}_defs.go
+  go tool cgo -godefs -srcdir . ${FP}.go > ${FP}_defs.go
   RM="${RM} ${FP}_defs.go"
 done
 

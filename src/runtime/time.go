@@ -88,12 +88,12 @@ func addtimer(t *timer) {
 	unlock(&timers.lock)
 }
 
-// Add a timer to the heap and start or kick the timer proc.
-// If the new timer is earlier than any of the others.
+// Add a timer to the heap and start or kick timerproc if the new timer is
+// earlier than any of the others.
 // Timers are locked.
 func addtimerLocked(t *timer) {
 	// when must never be negative; otherwise timerproc will overflow
-	// during its delta calculation and never expire other runtime·timers.
+	// during its delta calculation and never expire other runtime timers.
 	if t.when < 0 {
 		t.when = 1<<63 - 1
 	}
@@ -150,7 +150,7 @@ func deltimer(t *timer) bool {
 
 // Timerproc runs the time-driven events.
 // It sleeps until the next event in the timers heap.
-// If addtimer inserts a new earlier event, addtimer1 wakes timerproc early.
+// If addtimer inserts a new earlier event, it wakes timerproc early.
 func timerproc() {
 	timers.gp = getg()
 	for {

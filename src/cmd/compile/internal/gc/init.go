@@ -4,19 +4,6 @@
 
 package gc
 
-//	case OADD:
-//		if(n->right->op == OLITERAL) {
-//			v = n->right->vconst;
-//			naddr(n->left, a, canemitcode);
-//		} else
-//		if(n->left->op == OLITERAL) {
-//			v = n->left->vconst;
-//			naddr(n->right, a, canemitcode);
-//		} else
-//			goto bad;
-//		a->offset += v;
-//		break;
-
 // a function named init is a special case.
 // it is called by the initialization before
 // main is run. to make it unique within a
@@ -27,7 +14,7 @@ var renameinit_initgen int
 
 func renameinit() *Sym {
 	renameinit_initgen++
-	return LookupN("init.", renameinit_initgen)
+	return lookupN("init.", renameinit_initgen)
 }
 
 // hand-craft the following initialization code
@@ -70,7 +57,7 @@ func anyinit(n []*Node) bool {
 	}
 
 	// is there an explicit init function
-	s := Lookup("init.1")
+	s := lookup("init.1")
 
 	if s.Def != nil {
 		return true
@@ -88,11 +75,6 @@ func anyinit(n []*Node) bool {
 }
 
 func fninit(n []*Node) {
-	if Debug['A'] != 0 {
-		// sys.go or unsafe.go during compiler build
-		return
-	}
-
 	nf := initfix(n)
 	if !anyinit(nf) {
 		return
@@ -101,40 +83,40 @@ func fninit(n []*Node) {
 	var r []*Node
 
 	// (1)
-	gatevar := newname(Lookup("initdone·"))
+	gatevar := newname(lookup("initdone·"))
 	addvar(gatevar, Types[TUINT8], PEXTERN)
 
 	// (2)
 	Maxarg = 0
 
-	fn := Nod(ODCLFUNC, nil, nil)
-	initsym := Lookup("init")
+	fn := nod(ODCLFUNC, nil, nil)
+	initsym := lookup("init")
 	fn.Func.Nname = newname(initsym)
 	fn.Func.Nname.Name.Defn = fn
-	fn.Func.Nname.Name.Param.Ntype = Nod(OTFUNC, nil, nil)
+	fn.Func.Nname.Name.Param.Ntype = nod(OTFUNC, nil, nil)
 	declare(fn.Func.Nname, PFUNC)
 	funchdr(fn)
 
 	// (3)
-	a := Nod(OIF, nil, nil)
-	a.Left = Nod(OGT, gatevar, Nodintconst(1))
+	a := nod(OIF, nil, nil)
+	a.Left = nod(OGT, gatevar, nodintconst(1))
 	a.Likely = 1
 	r = append(r, a)
 	// (3a)
-	a.Nbody.Set1(Nod(ORETURN, nil, nil))
+	a.Nbody.Set1(nod(ORETURN, nil, nil))
 
 	// (4)
-	b := Nod(OIF, nil, nil)
-	b.Left = Nod(OEQ, gatevar, Nodintconst(1))
+	b := nod(OIF, nil, nil)
+	b.Left = nod(OEQ, gatevar, nodintconst(1))
 	// this actually isn't likely, but code layout is better
 	// like this: no JMP needed after the call.
 	b.Likely = 1
 	r = append(r, b)
 	// (4a)
-	b.Nbody.Set1(Nod(OCALL, syslook("throwinit"), nil))
+	b.Nbody.Set1(nod(OCALL, syslook("throwinit"), nil))
 
 	// (5)
-	a = Nod(OAS, gatevar, Nodintconst(1))
+	a = nod(OAS, gatevar, nodintconst(1))
 
 	r = append(r, a)
 
@@ -142,7 +124,7 @@ func fninit(n []*Node) {
 	for _, s := range initSyms {
 		if s.Def != nil && s != initsym {
 			// could check that it is fn of no args/returns
-			a = Nod(OCALL, s.Def, nil)
+			a = nod(OCALL, s.Def, nil)
 			r = append(r, a)
 		}
 	}
@@ -153,21 +135,21 @@ func fninit(n []*Node) {
 	// (8)
 	// could check that it is fn of no args/returns
 	for i := 1; ; i++ {
-		s := LookupN("init.", i)
+		s := lookupN("init.", i)
 		if s.Def == nil {
 			break
 		}
-		a = Nod(OCALL, s.Def, nil)
+		a = nod(OCALL, s.Def, nil)
 		r = append(r, a)
 	}
 
 	// (9)
-	a = Nod(OAS, gatevar, Nodintconst(2))
+	a = nod(OAS, gatevar, nodintconst(2))
 
 	r = append(r, a)
 
 	// (10)
-	a = Nod(ORETURN, nil, nil)
+	a = nod(ORETURN, nil, nil)
 
 	r = append(r, a)
 	exportsym(fn.Func.Nname)

@@ -18,32 +18,17 @@ TEXT ·Atan2(SB),NOSPLIT,$0
 TEXT ·Atan(SB),NOSPLIT,$0
 	B ·atan(SB)
 
-TEXT ·Dim(SB),NOSPLIT,$0
-	B ·dim(SB)
-
-TEXT ·Min(SB),NOSPLIT,$0
-	B ·min(SB)
-
-TEXT ·Max(SB),NOSPLIT,$0
-	B ·max(SB)
-
 TEXT ·Exp2(SB),NOSPLIT,$0
 	B ·exp2(SB)
+
+TEXT ·Cosh(SB),NOSPLIT,$0
+	B ·cosh(SB)
 
 TEXT ·Expm1(SB),NOSPLIT,$0
 	B ·expm1(SB)
 
 TEXT ·Exp(SB),NOSPLIT,$0
 	B ·exp(SB)
-
-TEXT ·Floor(SB),NOSPLIT,$0
-	B ·floor(SB)
-
-TEXT ·Ceil(SB),NOSPLIT,$0
-	B ·ceil(SB)
-
-TEXT ·Trunc(SB),NOSPLIT,$0
-	B ·trunc(SB)
 
 TEXT ·Frexp(SB),NOSPLIT,$0
 	B ·frexp(SB)
@@ -66,9 +51,6 @@ TEXT ·Log1p(SB),NOSPLIT,$0
 TEXT ·Log(SB),NOSPLIT,$0
 	B ·log(SB)
 
-TEXT ·Modf(SB),NOSPLIT,$0
-	B ·modf(SB)
-
 TEXT ·Mod(SB),NOSPLIT,$0
 	B ·mod(SB)
 
@@ -81,8 +63,14 @@ TEXT ·Sincos(SB),NOSPLIT,$0
 TEXT ·Sin(SB),NOSPLIT,$0
 	B ·sin(SB)
 
+TEXT ·Sinh(SB),NOSPLIT,$0
+	B ·sinh(SB)
+
 TEXT ·Cos(SB),NOSPLIT,$0
 	B ·cos(SB)
 
 TEXT ·Tan(SB),NOSPLIT,$0
 	B ·tan(SB)
+
+TEXT ·Tanh(SB),NOSPLIT,$0
+	B ·tanh(SB)

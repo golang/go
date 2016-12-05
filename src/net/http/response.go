@@ -261,7 +261,7 @@ func (r *Response) Write(w io.Writer) error {
 		if n == 0 {
 			// Reset it to a known zero reader, in case underlying one
 			// is unhappy being read repeatedly.
-			r1.Body = eofReader
+			r1.Body = NoBody
 		} else {
 			r1.ContentLength = -1
 			r1.Body = struct {
@@ -300,7 +300,7 @@ func (r *Response) Write(w io.Writer) error {
 	// contentLengthAlreadySent may have been already sent for
 	// POST/PUT requests, even if zero length. See Issue 8180.
 	contentLengthAlreadySent := tw.shouldSendContentLength()
-	if r1.ContentLength == 0 && !chunked(r1.TransferEncoding) && !contentLengthAlreadySent {
+	if r1.ContentLength == 0 && !chunked(r1.TransferEncoding) && !contentLengthAlreadySent && bodyAllowedForStatus(r.StatusCode) {
 		if _, err := io.WriteString(w, "Content-Length: 0\r\n"); err != nil {
 			return err
 		}

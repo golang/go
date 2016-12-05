@@ -21,30 +21,31 @@ import (
 
 // The usual variables.
 var (
-	goarch           string
-	gobin            string
-	gohostarch       string
-	gohostos         string
-	goos             string
-	goarm            string
-	go386            string
-	goroot           string
-	goroot_final     string
-	goextlinkenabled string
-	gogcflags        string // For running built compiler
-	workdir          string
-	tooldir          string
-	oldgoos          string
-	oldgoarch        string
-	slash            string
-	exe              string
-	defaultcc        string
-	defaultcflags    string
-	defaultldflags   string
-	defaultcxxtarget string
-	defaultcctarget  string
-	rebuildall       bool
-	defaultclang     bool
+	goarch                 string
+	gobin                  string
+	gohostarch             string
+	gohostos               string
+	goos                   string
+	goarm                  string
+	go386                  string
+	goroot                 string
+	goroot_final           string
+	goextlinkenabled       string
+	gogcflags              string // For running built compiler
+	workdir                string
+	tooldir                string
+	oldgoos                string
+	oldgoarch              string
+	slash                  string
+	exe                    string
+	defaultcc              string
+	defaultcflags          string
+	defaultldflags         string
+	defaultcxxtarget       string
+	defaultcctarget        string
+	defaultpkgconfigtarget string
+	rebuildall             bool
+	defaultclang           bool
 
 	vflag int // verbosity
 )
@@ -56,6 +57,8 @@ var okgoarch = []string{
 	"amd64p32",
 	"arm",
 	"arm64",
+	"mips",
+	"mipsle",
 	"mips64",
 	"mips64le",
 	"ppc64",
@@ -207,6 +210,12 @@ func xinit() {
 		}
 	}
 	defaultcxxtarget = b
+
+	b = os.Getenv("PKG_CONFIG")
+	if b == "" {
+		b = "pkg-config"
+	}
+	defaultpkgconfigtarget = b
 
 	// For tools being invoked but also for os.ExpandEnv.
 	os.Setenv("GO386", go386)
@@ -1098,6 +1107,8 @@ var cgoEnabled = map[string]bool{
 	"linux/arm64":     true,
 	"linux/ppc64":     false,
 	"linux/ppc64le":   true,
+	"linux/mips":      false,
+	"linux/mipsle":    false,
 	"linux/mips64":    true,
 	"linux/mips64le":  true,
 	"linux/s390x":     true,

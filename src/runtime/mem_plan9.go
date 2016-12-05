@@ -38,7 +38,7 @@ func memAlloc(n uintptr) unsafe.Pointer {
 				p.size -= n
 				p = (*memHdr)(add(unsafe.Pointer(p), p.size))
 			}
-			memclr(unsafe.Pointer(p), unsafe.Sizeof(memHdr{}))
+			*p = memHdr{}
 			return unsafe.Pointer(p)
 		}
 		prevp = p
@@ -48,7 +48,7 @@ func memAlloc(n uintptr) unsafe.Pointer {
 
 func memFree(ap unsafe.Pointer, n uintptr) {
 	n = memRound(n)
-	memclr(ap, n)
+	memclrNoHeapPointers(ap, n)
 	bp := (*memHdr)(ap)
 	bp.size = n
 	bpn := uintptr(ap)
@@ -63,7 +63,7 @@ func memFree(ap unsafe.Pointer, n uintptr) {
 		if bpn+bp.size == uintptr(unsafe.Pointer(p)) {
 			bp.size += p.size
 			bp.next = p.next
-			memclr(unsafe.Pointer(p), unsafe.Sizeof(memHdr{}))
+			*p = memHdr{}
 		} else {
 			bp.next.set(p)
 		}
@@ -77,14 +77,14 @@ func memFree(ap unsafe.Pointer, n uintptr) {
 	if bpn+bp.size == uintptr(unsafe.Pointer(p.next)) {
 		bp.size += p.next.ptr().size
 		bp.next = p.next.ptr().next
-		memclr(unsafe.Pointer(p.next), unsafe.Sizeof(memHdr{}))
+		*p.next.ptr() = memHdr{}
 	} else {
 		bp.next = p.next
 	}
 	if uintptr(unsafe.Pointer(p))+p.size == bpn {
 		p.size += bp.size
 		p.next = bp.next
-		memclr(unsafe.Pointer(bp), unsafe.Sizeof(memHdr{}))
+		*bp = memHdr{}
 	} else {
 		p.next.set(bp)
 	}

@@ -11,6 +11,7 @@
 package testenv
 
 import (
+	"errors"
 	"flag"
 	"os"
 	"os/exec"
@@ -67,26 +68,36 @@ func MustHaveGoRun(t *testing.T) {
 }
 
 // GoToolPath reports the path to the Go tool.
+// It is a convenience wrapper around GoTool.
 // If the tool is unavailable GoToolPath calls t.Skip.
 // If the tool should be available and isn't, GoToolPath calls t.Fatal.
 func GoToolPath(t *testing.T) string {
 	MustHaveGoBuild(t)
+	path, err := GoTool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
 
+// GoTool reports the path to the Go tool.
+func GoTool() (string, error) {
+	if !HasGoBuild() {
+		return "", errors.New("platform cannot run go tool")
+	}
 	var exeSuffix string
 	if runtime.GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
-
 	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
 	if _, err := os.Stat(path); err == nil {
-		return path
+		return path, nil
 	}
-
 	goBin, err := exec.LookPath("go" + exeSuffix)
 	if err != nil {
-		t.Fatalf("cannot find go tool: %v", err)
+		return "", errors.New("cannot find go tool: " + err.Error())
 	}
-	return goBin
+	return goBin, nil
 }
 
 // HasExec reports whether the current system can start new processes
@@ -124,6 +135,37 @@ func HasExternalNetwork() bool {
 func MustHaveExternalNetwork(t *testing.T) {
 	if testing.Short() {
 		t.Skipf("skipping test: no external network in -short mode")
+	}
+}
+
+// HasSymlink reports whether the current system can use os.Symlink.
+func HasSymlink() bool {
+	ok, _ := hasSymlink()
+	return ok
+}
+
+// MustHaveSymlink reports whether the current system can use os.Symlink.
+// If not, MustHaveSymlink calls t.Skip with an explanation.
+func MustHaveSymlink(t *testing.T) {
+	ok, reason := hasSymlink()
+	if !ok {
+		t.Skipf("skipping test: cannot make symlinks on %s/%s%s", runtime.GOOS, runtime.GOARCH, reason)
+	}
+}
+
+// HasLink reports whether the current system can use os.Link.
+func HasLink() bool {
+	// From Android release M (Marshmallow), hard linking files is blocked
+	// and an attempt to call link() on a file will return EACCES.
+	// - https://code.google.com/p/android-developer-preview/issues/detail?id=3150
+	return runtime.GOOS != "plan9" && runtime.GOOS != "android"
+}
+
+// MustHaveLink reports whether the current system can use os.Link.
+// If not, MustHaveLink calls t.Skip with an explanation.
+func MustHaveLink(t *testing.T) {
+	if !HasLink() {
+		t.Skipf("skipping test: hardlinks are not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 }
 

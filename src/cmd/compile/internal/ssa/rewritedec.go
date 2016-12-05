@@ -500,7 +500,7 @@ func rewriteValuedec_OpStringPtr(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteBlockdec(b *Block) bool {
+func rewriteBlockdec(b *Block, config *Config) bool {
 	switch b.Kind {
 	}
 	return false

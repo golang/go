@@ -127,7 +127,8 @@ func TestPoolStress(t *testing.T) {
 				p.Put(v)
 				v = p.Get()
 				if v != nil && v.(int) != 0 {
-					t.Fatalf("expect 0, got %v", v)
+					t.Errorf("expect 0, got %v", v)
+					break
 				}
 			}
 			done <- true

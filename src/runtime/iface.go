@@ -138,61 +138,28 @@ func additab(m *itab, locked, canfail bool) {
 		throw("invalid itab locking")
 	}
 	h := itabhash(inter, typ)
+	if m == hash[h] {
+		println("duplicate itab for", typ.string(), "and", inter.typ.string())
+		throw("duplicate itabs")
+	}
 	m.link = hash[h]
 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
 }
 
 func itabsinit() {
 	lock(&ifaceLock)
-	for m := &firstmoduledata; m != nil; m = m.next {
-		for _, i := range m.itablinks {
+	for _, md := range activeModules() {
+		for _, i := range md.itablinks {
 			additab(i, true, false)
 		}
 	}
 	unlock(&ifaceLock)
 }
 
-func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
-	if isDirectIface(t) {
-		throw("direct convT2E")
-	}
-	if x == nil {
-		x = newobject(t)
-		// TODO: We allocate a zeroed object only to overwrite it with
-		// actual data. Figure out how to avoid zeroing. Also below in convT2I.
-	}
-	typedmemmove(t, x, elem)
-	e._type = t
-	e.data = x
-	return
-}
-
-func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
-	t := tab._type
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
-	if isDirectIface(t) {
-		throw("direct convT2I")
-	}
-	if x == nil {
-		x = newobject(t)
-	}
-	typedmemmove(t, x, elem)
-	i.tab = tab
-	i.data = x
-	return
-}
-
+// panicdottype is called when doing an i.(T) conversion and the conversion fails.
+// have = the dynamic type we have.
+// want = the static type we're trying to convert to.
+// iface = the static type we're converting from.
 func panicdottype(have, want, iface *_type) {
 	haveString := ""
 	if have != nil {
@@ -201,106 +168,59 @@ func panicdottype(have, want, iface *_type) {
 	panic(&TypeAssertionError{iface.string(), haveString, want.string(), ""})
 }
 
-func assertI2T(t *_type, i iface, r unsafe.Pointer) {
-	tab := i.tab
-	if tab == nil {
-		panic(&TypeAssertionError{"", "", t.string(), ""})
-	}
-	if tab._type != t {
-		panic(&TypeAssertionError{tab.inter.typ.string(), tab._type.string(), t.string(), ""})
-	}
-	if r != nil {
-		if isDirectIface(t) {
-			writebarrierptr((*uintptr)(r), uintptr(i.data))
-		} else {
-			typedmemmove(t, r, i.data)
-		}
-	}
+// panicnildottype is called when doing a i.(T) conversion and the interface i is nil.
+// want = the static type we're trying to convert to.
+func panicnildottype(want *_type) {
+	panic(&TypeAssertionError{"", "", want.string(), ""})
+	// TODO: Add the static type we're converting from as well.
+	// It might generate a better error message.
+	// Just to match other nil conversion errors, we don't for now.
 }
 
-func assertI2T2(t *_type, i iface, r unsafe.Pointer) bool {
-	tab := i.tab
-	if tab == nil || tab._type != t {
-		if r != nil {
-			memclr(r, t.size)
-		}
-		return false
-	}
-	if r != nil {
-		if isDirectIface(t) {
-			writebarrierptr((*uintptr)(r), uintptr(i.data))
-		} else {
-			typedmemmove(t, r, i.data)
-		}
-	}
-	return true
-}
+// The conv and assert functions below do very similar things.
+// The convXXX functions are guaranteed by the compiler to succeed.
+// The assertXXX functions may fail (either panicing or returning false,
+// depending on whether they are 1-result or 2-result).
+// The convXXX functions succeed on a nil input, whereas the assertXXX
+// functions fail on a nil input.
 
-func assertE2T(t *_type, e eface, r unsafe.Pointer) {
-	if e._type == nil {
-		panic(&TypeAssertionError{"", "", t.string(), ""})
+func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
+	if raceenabled {
+		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
 	}
-	if e._type != t {
-		panic(&TypeAssertionError{"", e._type.string(), t.string(), ""})
-	}
-	if r != nil {
-		if isDirectIface(t) {
-			writebarrierptr((*uintptr)(r), uintptr(e.data))
-		} else {
-			typedmemmove(t, r, e.data)
-		}
-	}
-}
-
-var testingAssertE2T2GC bool
-
-// The compiler ensures that r is non-nil.
-func assertE2T2(t *_type, e eface, r unsafe.Pointer) bool {
-	if testingAssertE2T2GC {
-		GC()
-	}
-	if e._type != t {
-		memclr(r, t.size)
-		return false
+	if msanenabled {
+		msanread(elem, t.size)
 	}
 	if isDirectIface(t) {
-		writebarrierptr((*uintptr)(r), uintptr(e.data))
-	} else {
-		typedmemmove(t, r, e.data)
+		// This case is implemented directly by the compiler.
+		throw("direct convT2E")
 	}
-	return true
-}
-
-func convI2E(i iface) (r eface) {
-	tab := i.tab
-	if tab == nil {
-		return
-	}
-	r._type = tab._type
-	r.data = i.data
+	x := newobject(t)
+	// TODO: We allocate a zeroed object only to overwrite it with
+	// actual data. Figure out how to avoid zeroing. Also below in convT2I.
+	typedmemmove(t, x, elem)
+	e._type = t
+	e.data = x
 	return
 }
 
-func assertI2E(inter *interfacetype, i iface, r *eface) {
-	tab := i.tab
-	if tab == nil {
-		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
+func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
+	t := tab._type
+	if raceenabled {
+		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I))
 	}
-	r._type = tab._type
-	r.data = i.data
+	if msanenabled {
+		msanread(elem, t.size)
+	}
+	if isDirectIface(t) {
+		// This case is implemented directly by the compiler.
+		throw("direct convT2I")
+	}
+	x := newobject(t)
+	typedmemmove(t, x, elem)
+	i.tab = tab
+	i.data = x
 	return
-}
-
-// The compiler ensures that r is non-nil.
-func assertI2E2(inter *interfacetype, i iface, r *eface) bool {
-	tab := i.tab
-	if tab == nil {
-		return false
-	}
-	r._type = tab._type
-	r.data = i.data
-	return true
 }
 
 func convI2I(inter *interfacetype, i iface) (r iface) {
@@ -318,7 +238,7 @@ func convI2I(inter *interfacetype, i iface) (r iface) {
 	return
 }
 
-func assertI2I(inter *interfacetype, i iface, r *iface) {
+func assertI2I(inter *interfacetype, i iface) (r iface) {
 	tab := i.tab
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
@@ -331,33 +251,27 @@ func assertI2I(inter *interfacetype, i iface, r *iface) {
 	}
 	r.tab = getitab(inter, tab._type, false)
 	r.data = i.data
+	return
 }
 
-func assertI2I2(inter *interfacetype, i iface, r *iface) bool {
+func assertI2I2(inter *interfacetype, i iface) (r iface, b bool) {
 	tab := i.tab
 	if tab == nil {
-		if r != nil {
-			*r = iface{}
-		}
-		return false
+		return
 	}
 	if tab.inter != inter {
 		tab = getitab(inter, tab._type, true)
 		if tab == nil {
-			if r != nil {
-				*r = iface{}
-			}
-			return false
+			return
 		}
 	}
-	if r != nil {
-		r.tab = tab
-		r.data = i.data
-	}
-	return true
+	r.tab = tab
+	r.data = i.data
+	b = true
+	return
 }
 
-func assertE2I(inter *interfacetype, e eface, r *iface) {
+func assertE2I(inter *interfacetype, e eface) (r iface) {
 	t := e._type
 	if t == nil {
 		// explicit conversions require non-nil interface value.
@@ -365,56 +279,27 @@ func assertE2I(inter *interfacetype, e eface, r *iface) {
 	}
 	r.tab = getitab(inter, t, false)
 	r.data = e.data
+	return
 }
 
-var testingAssertE2I2GC bool
-
-func assertE2I2(inter *interfacetype, e eface, r *iface) bool {
-	if testingAssertE2I2GC {
-		GC()
-	}
+func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
 	t := e._type
 	if t == nil {
-		if r != nil {
-			*r = iface{}
-		}
-		return false
+		return
 	}
 	tab := getitab(inter, t, true)
 	if tab == nil {
-		if r != nil {
-			*r = iface{}
-		}
-		return false
+		return
 	}
-	if r != nil {
-		r.tab = tab
-		r.data = e.data
-	}
-	return true
+	r.tab = tab
+	r.data = e.data
+	b = true
+	return
 }
 
 //go:linkname reflect_ifaceE2I reflect.ifaceE2I
 func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
-	assertE2I(inter, e, dst)
-}
-
-func assertE2E(inter *interfacetype, e eface, r *eface) {
-	if e._type == nil {
-		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
-	}
-	*r = e
-}
-
-// The compiler ensures that r is non-nil.
-func assertE2E2(inter *interfacetype, e eface, r *eface) bool {
-	if e._type == nil {
-		*r = eface{}
-		return false
-	}
-	*r = e
-	return true
+	*dst = assertE2I(inter, e)
 }
 
 func iterate_itabs(fn func(*itab)) {

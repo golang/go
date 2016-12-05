@@ -4,10 +4,7 @@
 
 package obj
 
-import (
-	"fmt"
-	"log"
-)
+import "log"
 
 func addvarint(ctxt *Link, d *Pcdata, val uint32) {
 	var v uint32
@@ -28,18 +25,19 @@ func addvarint(ctxt *Link, d *Pcdata, val uint32) {
 // where func is the function, val is the current value, p is the instruction being
 // considered, and arg can be used to further parameterize valfunc.
 func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) {
-	// To debug a specific function, uncomment second line and change name.
+	// To debug a specific function, uncomment lines and change name.
 	dbg := 0
 
-	//dbg = strcmp(func->name, "main.main") == 0;
-	//dbg = strcmp(desc, "pctofile") == 0;
+	//if func_.Name == "main.main" || desc == "pctospadj" {
+	//	dbg = 1
+	//}
 
 	ctxt.Debugpcln += int32(dbg)
 
 	dst.P = dst.P[:0]
 
 	if ctxt.Debugpcln != 0 {
-		fmt.Fprintf(ctxt.Bso, "funcpctab %s [valfunc=%s]\n", func_.Name, desc)
+		ctxt.Logf("funcpctab %s [valfunc=%s]\n", func_.Name, desc)
 	}
 
 	val := int32(-1)
@@ -52,7 +50,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 	pc := func_.Text.Pc
 
 	if ctxt.Debugpcln != 0 {
-		fmt.Fprintf(ctxt.Bso, "%6x %6d %v\n", uint64(pc), val, func_.Text)
+		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Text)
 	}
 
 	started := int32(0)
@@ -64,7 +62,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if val == oldval && started != 0 {
 			val = valfunc(ctxt, func_, val, p, 1, arg)
 			if ctxt.Debugpcln != 0 {
-				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(p.Pc), "", p)
+				ctxt.Logf("%6x %6s %v\n", uint64(p.Pc), "", p)
 			}
 			continue
 		}
@@ -76,7 +74,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if p.Link != nil && p.Link.Pc == p.Pc {
 			val = valfunc(ctxt, func_, val, p, 1, arg)
 			if ctxt.Debugpcln != 0 {
-				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(p.Pc), "", p)
+				ctxt.Logf("%6x %6s %v\n", uint64(p.Pc), "", p)
 			}
 			continue
 		}
@@ -96,7 +94,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		// where the 0x80 bit indicates that the integer continues.
 
 		if ctxt.Debugpcln != 0 {
-			fmt.Fprintf(ctxt.Bso, "%6x %6d %v\n", uint64(p.Pc), val, p)
+			ctxt.Logf("%6x %6d %v\n", uint64(p.Pc), val, p)
 		}
 
 		if started != 0 {
@@ -118,18 +116,18 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 	if started != 0 {
 		if ctxt.Debugpcln != 0 {
-			fmt.Fprintf(ctxt.Bso, "%6x done\n", uint64(func_.Text.Pc+func_.Size))
+			ctxt.Logf("%6x done\n", uint64(func_.Text.Pc+func_.Size))
 		}
 		addvarint(ctxt, dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
 		addvarint(ctxt, dst, 0) // terminator
 	}
 
 	if ctxt.Debugpcln != 0 {
-		fmt.Fprintf(ctxt.Bso, "wrote %d bytes to %p\n", len(dst.P), dst)
+		ctxt.Logf("wrote %d bytes to %p\n", len(dst.P), dst)
 		for i := 0; i < len(dst.P); i++ {
-			fmt.Fprintf(ctxt.Bso, " %02x", dst.P[i])
+			ctxt.Logf(" %02x", dst.P[i])
 		}
-		fmt.Fprintf(ctxt.Bso, "\n")
+		ctxt.Logf("\n")
 	}
 
 	ctxt.Debugpcln -= int32(dbg)
@@ -217,9 +215,15 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	npcdata := 0
 	nfuncdata := 0
 	for p := cursym.Text; p != nil; p = p.Link {
-		if p.As == APCDATA && p.From.Offset >= int64(npcdata) {
+		// Find the highest ID of any used PCDATA table. This ignores PCDATA table
+		// that consist entirely of "-1", since that's the assumed default value.
+		//   From.Offset is table ID
+		//   To.Offset is data
+		if p.As == APCDATA && p.From.Offset >= int64(npcdata) && p.To.Offset != -1 { // ignore -1 as we start at -1, if we only see -1, nothing changed
 			npcdata = int(p.From.Offset + 1)
 		}
+		// Find the highest ID of any FUNCDATA table.
+		//   From.Offset is table ID
 		if p.As == AFUNCDATA && p.From.Offset >= int64(nfuncdata) {
 			nfuncdata = int(p.From.Offset + 1)
 		}
@@ -246,7 +250,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 			havefunc[p.From.Offset/32] |= 1 << uint64(p.From.Offset%32)
 		}
 
-		if p.As == APCDATA {
+		if p.As == APCDATA && p.To.Offset != -1 {
 			havepc[p.From.Offset/32] |= 1 << uint64(p.From.Offset%32)
 		}
 	}

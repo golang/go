@@ -14,6 +14,7 @@ var (
 	ErrPermission = errors.New("permission denied")
 	ErrExist      = errors.New("file already exists")
 	ErrNotExist   = errors.New("file does not exist")
+	ErrClosed     = errors.New("file already closed")
 )
 
 // PathError records an error and the operation and file path that caused it.
@@ -62,4 +63,17 @@ func IsNotExist(err error) bool {
 // as some syscall errors.
 func IsPermission(err error) bool {
 	return isPermission(err)
+}
+
+// underlyingError returns the underlying error for known os error types.
+func underlyingError(err error) error {
+	switch err := err.(type) {
+	case *PathError:
+		return err.Err
+	case *LinkError:
+		return err.Err
+	case *SyscallError:
+		return err.Err
+	}
+	return err
 }

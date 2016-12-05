@@ -26,7 +26,14 @@ type opInfo struct {
 	generic           bool // this is a generic (arch-independent) opcode
 	rematerializeable bool // this op is rematerializeable
 	commutative       bool // this operation is commutative (e.g. addition)
-	resultInArg0      bool // v and v.Args[0] must be allocated to the same register
+	resultInArg0      bool // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
+	resultNotInArgs   bool // outputs must not be allocated to the same registers as inputs
+	clobberFlags      bool // this op clobbers flags register
+	call              bool // is a function call
+	nilCheck          bool // this op is a nil check on arg0
+	faultOnNilArg0    bool // this op will fault if arg0 is nil (and aux encodes a small offset)
+	faultOnNilArg1    bool // this op will fault if arg1 is nil (and aux encodes a small offset)
+	usesScratch       bool // this op requires scratch memory space
 }
 
 type inputInfo struct {
@@ -34,28 +41,35 @@ type inputInfo struct {
 	regs regMask // allowed input registers
 }
 
+type outputInfo struct {
+	idx  int     // index in output tuple
+	regs regMask // allowed output registers
+}
+
 type regInfo struct {
 	inputs   []inputInfo // ordered in register allocation order
 	clobbers regMask
-	outputs  []regMask // NOTE: values can only have 1 output for now.
+	outputs  []outputInfo // ordered in register allocation order
 }
 
 type auxType int8
 
 const (
-	auxNone         auxType = iota
-	auxBool                 // auxInt is 0/1 for false/true
-	auxInt8                 // auxInt is an 8-bit integer
-	auxInt16                // auxInt is a 16-bit integer
-	auxInt32                // auxInt is a 32-bit integer
-	auxInt64                // auxInt is a 64-bit integer
-	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
-	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
-	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
-	auxString               // aux is a string
-	auxSym                  // aux is a symbol
-	auxSymOff               // aux is a symbol, auxInt is an offset
-	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
+	auxNone            auxType = iota
+	auxBool                    // auxInt is 0/1 for false/true
+	auxInt8                    // auxInt is an 8-bit integer
+	auxInt16                   // auxInt is a 16-bit integer
+	auxInt32                   // auxInt is a 32-bit integer
+	auxInt64                   // auxInt is a 64-bit integer
+	auxInt128                  // auxInt represents a 128-bit integer.  Always 0.
+	auxFloat32                 // auxInt is a float32 (encoded with math.Float64bits)
+	auxFloat64                 // auxInt is a float64 (encoded with math.Float64bits)
+	auxSizeAndAlign            // auxInt is a SizeAndAlign
+	auxString                  // aux is a string
+	auxSym                     // aux is a symbol
+	auxSymOff                  // aux is a symbol, auxInt is an offset
+	auxSymValAndOff            // aux is a symbol, auxInt is a ValAndOff
+	auxSymSizeAndAlign         // aux is a symbol, auxInt is a SizeAndAlign
 
 	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
 )
@@ -123,4 +137,32 @@ func (x ValAndOff) add(off int64) int64 {
 		panic("invalid ValAndOff.add")
 	}
 	return makeValAndOff(x.Val(), x.Off()+off)
+}
+
+// SizeAndAlign holds both the size and the alignment of a type,
+// used in Zero and Move ops.
+// The high 8 bits hold the alignment.
+// The low 56 bits hold the size.
+type SizeAndAlign int64
+
+func (x SizeAndAlign) Size() int64 {
+	return int64(x) & (1<<56 - 1)
+}
+func (x SizeAndAlign) Align() int64 {
+	return int64(uint64(x) >> 56)
+}
+func (x SizeAndAlign) Int64() int64 {
+	return int64(x)
+}
+func (x SizeAndAlign) String() string {
+	return fmt.Sprintf("size=%d,align=%d", x.Size(), x.Align())
+}
+func MakeSizeAndAlign(size, align int64) SizeAndAlign {
+	if size&^(1<<56-1) != 0 {
+		panic("size too big in SizeAndAlign")
+	}
+	if align >= 1<<8 {
+		panic("alignment too big in SizeAndAlign")
+	}
+	return SizeAndAlign(size | align<<56)
 }

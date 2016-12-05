@@ -102,9 +102,13 @@ func init() {
 }
 
 // Addr represents a network end point address.
+//
+// The two methods Network and String conventionally return strings
+// that can be passed as the arguments to Dial, but the exact form
+// and meaning of the strings is up to the implementation.
 type Addr interface {
-	Network() string // name of the network
-	String() string  // string form of address
+	Network() string // name of the network (for example, "tcp", "udp")
+	String() string  // string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
 }
 
 // Conn is a generic stream-oriented network connection.
@@ -112,12 +116,12 @@ type Addr interface {
 // Multiple goroutines may invoke methods on a Conn simultaneously.
 type Conn interface {
 	// Read reads data from the connection.
-	// Read can be made to time out and return a Error with Timeout() == true
+	// Read can be made to time out and return an Error with Timeout() == true
 	// after a fixed time limit; see SetDeadline and SetReadDeadline.
 	Read(b []byte) (n int, err error)
 
 	// Write writes data to the connection.
-	// Write can be made to time out and return a Error with Timeout() == true
+	// Write can be made to time out and return an Error with Timeout() == true
 	// after a fixed time limit; see SetDeadline and SetWriteDeadline.
 	Write(b []byte) (n int, err error)
 
@@ -137,8 +141,10 @@ type Conn interface {
 	//
 	// A deadline is an absolute time after which I/O operations
 	// fail with a timeout (see type Error) instead of
-	// blocking. The deadline applies to all future I/O, not just
-	// the immediately following call to Read or Write.
+	// blocking. The deadline applies to all future and pending
+	// I/O, not just the immediately following call to Read or
+	// Write. After a deadline has been exceeded, the connection
+	// can be refreshed by setting a deadline in the future.
 	//
 	// An idle timeout can be implemented by repeatedly extending
 	// the deadline after successful Read or Write calls.
@@ -146,11 +152,13 @@ type Conn interface {
 	// A zero value for t means I/O operations will not time out.
 	SetDeadline(t time.Time) error
 
-	// SetReadDeadline sets the deadline for future Read calls.
+	// SetReadDeadline sets the deadline for future Read calls
+	// and any currently-blocked Read call.
 	// A zero value for t means Read will not time out.
 	SetReadDeadline(t time.Time) error
 
-	// SetWriteDeadline sets the deadline for future Write calls.
+	// SetWriteDeadline sets the deadline for future Write calls
+	// and any currently-blocked Write call.
 	// Even if write times out, it may return n > 0, indicating that
 	// some of the data was successfully written.
 	// A zero value for t means Write will not time out.
@@ -302,13 +310,13 @@ type PacketConn interface {
 	// bytes copied into b and the return address that
 	// was on the packet.
 	// ReadFrom can be made to time out and return
-	// an error with Timeout() == true after a fixed time limit;
+	// an Error with Timeout() == true after a fixed time limit;
 	// see SetDeadline and SetReadDeadline.
 	ReadFrom(b []byte) (n int, addr Addr, err error)
 
 	// WriteTo writes a packet with payload b to addr.
 	// WriteTo can be made to time out and return
-	// an error with Timeout() == true after a fixed time limit;
+	// an Error with Timeout() == true after a fixed time limit;
 	// see SetDeadline and SetWriteDeadline.
 	// On packet-oriented connections, write timeouts are rare.
 	WriteTo(b []byte, addr Addr) (n int, err error)
@@ -321,21 +329,32 @@ type PacketConn interface {
 	LocalAddr() Addr
 
 	// SetDeadline sets the read and write deadlines associated
-	// with the connection.
+	// with the connection. It is equivalent to calling both
+	// SetReadDeadline and SetWriteDeadline.
+	//
+	// A deadline is an absolute time after which I/O operations
+	// fail with a timeout (see type Error) instead of
+	// blocking. The deadline applies to all future and pending
+	// I/O, not just the immediately following call to ReadFrom or
+	// WriteTo. After a deadline has been exceeded, the connection
+	// can be refreshed by setting a deadline in the future.
+	//
+	// An idle timeout can be implemented by repeatedly extending
+	// the deadline after successful ReadFrom or WriteTo calls.
+	//
+	// A zero value for t means I/O operations will not time out.
 	SetDeadline(t time.Time) error
 
-	// SetReadDeadline sets the deadline for future Read calls.
-	// If the deadline is reached, Read will fail with a timeout
-	// (see type Error) instead of blocking.
-	// A zero value for t means Read will not time out.
+	// SetReadDeadline sets the deadline for future ReadFrom calls
+	// and any currently-blocked ReadFrom call.
+	// A zero value for t means ReadFrom will not time out.
 	SetReadDeadline(t time.Time) error
 
-	// SetWriteDeadline sets the deadline for future Write calls.
-	// If the deadline is reached, Write will fail with a timeout
-	// (see type Error) instead of blocking.
-	// A zero value for t means Write will not time out.
+	// SetWriteDeadline sets the deadline for future WriteTo calls
+	// and any currently-blocked WriteTo call.
 	// Even if write times out, it may return n > 0, indicating that
 	// some of the data was successfully written.
+	// A zero value for t means WriteTo will not time out.
 	SetWriteDeadline(t time.Time) error
 }
 
@@ -512,7 +531,7 @@ func (e *AddrError) Error() string {
 	}
 	s := e.Err
 	if e.Addr != "" {
-		s += " " + e.Addr
+		s = "address " + e.Addr + ": " + s
 	}
 	return s
 }
@@ -603,4 +622,67 @@ func acquireThread() {
 
 func releaseThread() {
 	<-threadLimit
+}
+
+// buffersWriter is the interface implemented by Conns that support a
+// "writev"-like batch write optimization.
+// writeBuffers should fully consume and write all chunks from the
+// provided Buffers, else it should report a non-nil error.
+type buffersWriter interface {
+	writeBuffers(*Buffers) (int64, error)
+}
+
+var testHookDidWritev = func(wrote int) {}
+
+// Buffers contains zero or more runs of bytes to write.
+//
+// On certain machines, for certain types of connections, this is
+// optimized into an OS-specific batch write operation (such as
+// "writev").
+type Buffers [][]byte
+
+var (
+	_ io.WriterTo = (*Buffers)(nil)
+	_ io.Reader   = (*Buffers)(nil)
+)
+
+func (v *Buffers) WriteTo(w io.Writer) (n int64, err error) {
+	if wv, ok := w.(buffersWriter); ok {
+		return wv.writeBuffers(v)
+	}
+	for _, b := range *v {
+		nb, err := w.Write(b)
+		n += int64(nb)
+		if err != nil {
+			v.consume(n)
+			return n, err
+		}
+	}
+	v.consume(n)
+	return n, nil
+}
+
+func (v *Buffers) Read(p []byte) (n int, err error) {
+	for len(p) > 0 && len(*v) > 0 {
+		n0 := copy(p, (*v)[0])
+		v.consume(int64(n0))
+		p = p[n0:]
+		n += n0
+	}
+	if len(*v) == 0 {
+		err = io.EOF
+	}
+	return
+}
+
+func (v *Buffers) consume(n int64) {
+	for len(*v) > 0 {
+		ln0 := int64(len((*v)[0]))
+		if ln0 > n {
+			(*v)[0] = (*v)[0][n:]
+			return
+		}
+		n -= ln0
+		*v = (*v)[1:]
+	}
 }

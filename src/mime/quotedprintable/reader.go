@@ -74,6 +74,11 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 	// 1. in addition to "=\r\n", "=\n" is also treated as soft line break.
 	// 2. it will pass through a '\r' or '\n' not preceded by '=', consistent
 	//    with other broken QP encoders & decoders.
+	// 3. it accepts soft line-break (=) at end of message (issue 15486); i.e.
+	//    the final byte read from the underlying reader is allowed to be '=',
+	//    and it will be silently ignored.
+	// 4. it takes = as literal = if not followed by two hex digits
+	//    but not at end of line (issue 13219).
 	for len(p) > 0 {
 		if len(r.line) == 0 {
 			if r.rerr != nil {
@@ -89,7 +94,8 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 			if bytes.HasSuffix(r.line, softSuffix) {
 				rightStripped := wholeLine[len(r.line):]
 				r.line = r.line[:len(r.line)-1]
-				if !bytes.HasPrefix(rightStripped, lf) && !bytes.HasPrefix(rightStripped, crlf) {
+				if !bytes.HasPrefix(rightStripped, lf) && !bytes.HasPrefix(rightStripped, crlf) &&
+					!(len(rightStripped) == 0 && len(r.line) > 0 && r.rerr == io.EOF) {
 					r.rerr = fmt.Errorf("quotedprintable: invalid bytes after =: %q", rightStripped)
 				}
 			} else if hasLF {
@@ -107,6 +113,11 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 		case b == '=':
 			b, err = readHexByte(r.line[1:])
 			if err != nil {
+				if len(r.line) >= 2 && r.line[1] != '\r' && r.line[1] != '\n' {
+					// Take the = as a literal =.
+					b = '='
+					break
+				}
 				return n, err
 			}
 			r.line = r.line[2:] // 2 of the 3; other 1 is done below

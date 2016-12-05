@@ -408,17 +408,17 @@ func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
 // MatchReader reports whether the Regexp matches the text read by the
 // RuneReader.
 func (re *Regexp) MatchReader(r io.RuneReader) bool {
-	return re.doExecute(r, nil, "", 0, 0) != nil
+	return re.doMatch(r, nil, "")
 }
 
 // MatchString reports whether the Regexp matches the string s.
 func (re *Regexp) MatchString(s string) bool {
-	return re.doExecute(nil, nil, s, 0, 0) != nil
+	return re.doMatch(nil, nil, s)
 }
 
 // Match reports whether the Regexp matches the byte slice b.
 func (re *Regexp) Match(b []byte) bool {
-	return re.doExecute(nil, b, "", 0, 0) != nil
+	return re.doMatch(nil, b, "")
 }
 
 // MatchReader checks whether a textual regular expression matches the text
@@ -502,8 +502,9 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 		nmatch = re.prog.NumCap
 	}
 
+	var dstCap [2]int
 	for searchPos <= endPos {
-		a := re.doExecute(nil, bsrc, src, searchPos, nmatch)
+		a := re.doExecute(nil, bsrc, src, searchPos, nmatch, dstCap[:0])
 		if len(a) == 0 {
 			break // no more matches
 		}
@@ -599,11 +600,22 @@ func special(b byte) bool {
 // inside the argument text; the returned string is a regular expression matching
 // the literal text. For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
 func QuoteMeta(s string) string {
-	b := make([]byte, 2*len(s))
-
 	// A byte loop is correct because all metacharacters are ASCII.
-	j := 0
-	for i := 0; i < len(s); i++ {
+	var i int
+	for i = 0; i < len(s); i++ {
+		if special(s[i]) {
+			break
+		}
+	}
+	// No meta characters found, so return original string.
+	if i >= len(s) {
+		return s
+	}
+
+	b := make([]byte, 2*len(s)-i)
+	copy(b, s[:i])
+	j := i
+	for ; i < len(s); i++ {
 		if special(s[i]) {
 			b[j] = '\\'
 			j++
@@ -611,7 +623,7 @@ func QuoteMeta(s string) string {
 		b[j] = s[i]
 		j++
 	}
-	return string(b[0:j])
+	return string(b[:j])
 }
 
 // The number of capture values in the program may correspond
@@ -641,7 +653,7 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 	}
 
 	for pos, i, prevMatchEnd := 0, 0, -1; i < n && pos <= end; {
-		matches := re.doExecute(nil, b, s, pos, re.prog.NumCap)
+		matches := re.doExecute(nil, b, s, pos, re.prog.NumCap, nil)
 		if len(matches) == 0 {
 			break
 		}
@@ -681,7 +693,8 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 // Find returns a slice holding the text of the leftmost match in b of the regular expression.
 // A return value of nil indicates no match.
 func (re *Regexp) Find(b []byte) []byte {
-	a := re.doExecute(nil, b, "", 0, 2)
+	var dstCap [2]int
+	a := re.doExecute(nil, b, "", 0, 2, dstCap[:0])
 	if a == nil {
 		return nil
 	}
@@ -693,7 +706,7 @@ func (re *Regexp) Find(b []byte) []byte {
 // b[loc[0]:loc[1]].
 // A return value of nil indicates no match.
 func (re *Regexp) FindIndex(b []byte) (loc []int) {
-	a := re.doExecute(nil, b, "", 0, 2)
+	a := re.doExecute(nil, b, "", 0, 2, nil)
 	if a == nil {
 		return nil
 	}
@@ -706,7 +719,8 @@ func (re *Regexp) FindIndex(b []byte) (loc []int) {
 // an empty string. Use FindStringIndex or FindStringSubmatch if it is
 // necessary to distinguish these cases.
 func (re *Regexp) FindString(s string) string {
-	a := re.doExecute(nil, nil, s, 0, 2)
+	var dstCap [2]int
+	a := re.doExecute(nil, nil, s, 0, 2, dstCap[:0])
 	if a == nil {
 		return ""
 	}
@@ -718,7 +732,7 @@ func (re *Regexp) FindString(s string) string {
 // itself is at s[loc[0]:loc[1]].
 // A return value of nil indicates no match.
 func (re *Regexp) FindStringIndex(s string) (loc []int) {
-	a := re.doExecute(nil, nil, s, 0, 2)
+	a := re.doExecute(nil, nil, s, 0, 2, nil)
 	if a == nil {
 		return nil
 	}
@@ -731,7 +745,7 @@ func (re *Regexp) FindStringIndex(s string) (loc []int) {
 // byte offset loc[0] through loc[1]-1.
 // A return value of nil indicates no match.
 func (re *Regexp) FindReaderIndex(r io.RuneReader) (loc []int) {
-	a := re.doExecute(r, nil, "", 0, 2)
+	a := re.doExecute(r, nil, "", 0, 2, nil)
 	if a == nil {
 		return nil
 	}
@@ -744,7 +758,8 @@ func (re *Regexp) FindReaderIndex(r io.RuneReader) (loc []int) {
 // comment.
 // A return value of nil indicates no match.
 func (re *Regexp) FindSubmatch(b []byte) [][]byte {
-	a := re.doExecute(nil, b, "", 0, re.prog.NumCap)
+	var dstCap [4]int
+	a := re.doExecute(nil, b, "", 0, re.prog.NumCap, dstCap[:0])
 	if a == nil {
 		return nil
 	}
@@ -891,7 +906,7 @@ func extract(str string) (name string, num int, rest string, ok bool) {
 // in the package comment.
 // A return value of nil indicates no match.
 func (re *Regexp) FindSubmatchIndex(b []byte) []int {
-	return re.pad(re.doExecute(nil, b, "", 0, re.prog.NumCap))
+	return re.pad(re.doExecute(nil, b, "", 0, re.prog.NumCap, nil))
 }
 
 // FindStringSubmatch returns a slice of strings holding the text of the
@@ -900,7 +915,8 @@ func (re *Regexp) FindSubmatchIndex(b []byte) []int {
 // package comment.
 // A return value of nil indicates no match.
 func (re *Regexp) FindStringSubmatch(s string) []string {
-	a := re.doExecute(nil, nil, s, 0, re.prog.NumCap)
+	var dstCap [4]int
+	a := re.doExecute(nil, nil, s, 0, re.prog.NumCap, dstCap[:0])
 	if a == nil {
 		return nil
 	}
@@ -919,7 +935,7 @@ func (re *Regexp) FindStringSubmatch(s string) []string {
 // 'Index' descriptions in the package comment.
 // A return value of nil indicates no match.
 func (re *Regexp) FindStringSubmatchIndex(s string) []int {
-	return re.pad(re.doExecute(nil, nil, s, 0, re.prog.NumCap))
+	return re.pad(re.doExecute(nil, nil, s, 0, re.prog.NumCap, nil))
 }
 
 // FindReaderSubmatchIndex returns a slice holding the index pairs
@@ -928,7 +944,7 @@ func (re *Regexp) FindStringSubmatchIndex(s string) []int {
 // by the 'Submatch' and 'Index' descriptions in the package comment. A
 // return value of nil indicates no match.
 func (re *Regexp) FindReaderSubmatchIndex(r io.RuneReader) []int {
-	return re.pad(re.doExecute(r, nil, "", 0, re.prog.NumCap))
+	return re.pad(re.doExecute(r, nil, "", 0, re.prog.NumCap, nil))
 }
 
 const startSize = 10 // The size at which to start a slice in the 'All' routines.

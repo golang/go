@@ -87,6 +87,7 @@ func (f *File) ReadGo(name string) {
 			if cg != nil {
 				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), name)
 				f.Preamble += commentText(cg) + "\n"
+				f.Preamble += "#line 1 \"cgo-generated-wrapper\"\n"
 			}
 		}
 	}
@@ -296,7 +297,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 
 	// everything else just recurs
 	default:
-		error_(token.NoPos, "unexpected type %T in walk", x, visit)
+		error_(token.NoPos, "unexpected type %T in walk", x)
 		panic("unexpected type")
 
 	case nil:

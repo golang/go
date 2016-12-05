@@ -1,5 +1,5 @@
 // Inferno utils/6l/pass.c
-// http://code.google.com/p/inferno-os/source/browse/utils/6l/pass.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/pass.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 )
 
 func CanUse1InsnTLS(ctxt *obj.Link) bool {
@@ -54,7 +55,8 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 		case obj.Hlinux,
 			obj.Hnacl,
 			obj.Hplan9,
-			obj.Hwindows:
+			obj.Hwindows,
+			obj.Hwindowsgui:
 			return false
 		}
 
@@ -62,8 +64,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 	}
 
 	switch ctxt.Headtype {
-	case obj.Hplan9,
-		obj.Hwindows:
+	case obj.Hplan9, obj.Hwindows, obj.Hwindowsgui:
 		return false
 	case obj.Hlinux:
 		return !ctxt.Flag_shared
@@ -180,7 +181,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	}
 
 	// TODO: Remove.
-	if ctxt.Headtype == obj.Hwindows && p.Mode == 64 || ctxt.Headtype == obj.Hplan9 {
+	if (ctxt.Headtype == obj.Hwindows || ctxt.Headtype == obj.Hwindowsgui) && p.Mode == 64 || ctxt.Headtype == obj.Hplan9 {
 		if p.From.Scale == 1 && p.From.Index == REG_TLS {
 			p.From.Scale = 2
 		}
@@ -265,7 +266,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
-			p.From.Sym.Local = true
+			p.From.Sym.Set(obj.AttrLocal, true)
 			p.From.Offset = 0
 		}
 
@@ -305,7 +306,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
-			p.From.Sym.Local = true
+			p.From.Sym.Set(obj.AttrLocal, true)
 			p.From.Offset = 0
 		}
 	}
@@ -333,6 +334,13 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 		lea = ALEAL
 		mov = AMOVL
 		reg = REG_CX
+		if p.As == ALEAL && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
+			// Special case: clobber the destination register with
+			// the PC so we don't have to clobber CX.
+			// The SSA backend depends on CX not being clobbered across LEAL.
+			// See cmd/compile/internal/ssa/gen/386.rules (search for Flag_shared).
+			reg = p.To.Reg
+		}
 	}
 
 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
@@ -371,12 +379,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
 	// internally defined symbols.
-	if p.As == lea && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+	if p.As == lea && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
 		// $LEA sym, Rx becomes $MOV $sym, Rx which will be rewritten below
 		p.As = mov
 		p.From.Type = obj.TYPE_ADDR
 	}
-	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
 		// $MOV $sym, Rx becomes $MOV sym@GOT, Rx
 		// $MOV $sym+<off>, Rx becomes $MOV sym@GOT, Rx; $LEA <off>(Rx), Rx
 		// On 386 only, more complicated things like PUSHL $sym become $MOV sym@GOT, CX; PUSHL CX
@@ -391,7 +399,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 			dest = p.To
 			p.As = mov
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_CX
+			p.To.Reg = reg
 			p.To.Sym = nil
 			p.To.Name = obj.NAME_NONE
 		}
@@ -412,7 +420,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 			q.As = pAs
 			q.To = dest
 			q.From.Type = obj.TYPE_REG
-			q.From.Reg = REG_CX
+			q.From.Reg = reg
 		}
 	}
 	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
@@ -422,12 +430,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	// MOVx sym, Ry becomes $MOV sym@GOT, R15; MOVx (R15), Ry
 	// MOVx Ry, sym becomes $MOV sym@GOT, R15; MOVx Ry, (R15)
 	// An addition may be inserted between the two MOVs if there is an offset.
-	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
-		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
 		}
 		source = &p.From
-	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 		source = &p.To
 	} else {
 		return
@@ -437,7 +445,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 		// to a PLT, so make sure the GOT pointer is loaded into BX.
 		// RegTo2 is set on the replacement call insn to stop it being
 		// processed when it is in turn passed to progedit.
-		if p.Mode == 64 || (p.To.Sym != nil && p.To.Sym.Local) || p.RegTo2 != 0 {
+		if p.Mode == 64 || (p.To.Sym != nil && p.To.Sym.Local()) || p.RegTo2 != 0 {
 			return
 		}
 		p1 := obj.Appendp(ctxt, p)
@@ -509,7 +517,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
 		return
 	}
 	// Any Prog (aside from the above special cases) with an Addr with Name ==
-	// NAME_EXTERN, NAME_STATIC or NAME_GOTREF has a CALL __x86.get_pc_thunk.cx
+	// NAME_EXTERN, NAME_STATIC or NAME_GOTREF has a CALL __x86.get_pc_thunk.XX
 	// inserted before it.
 	isName := func(a *obj.Addr) bool {
 		if a.Sym == nil || (a.Type != obj.TYPE_MEM && a.Type != obj.TYPE_ADDR) || a.Reg != 0 {
@@ -542,21 +550,36 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
 	if !isName(&p.From) && !isName(&p.To) && (p.From3 == nil || !isName(p.From3)) {
 		return
 	}
+	var dst int16 = REG_CX
+	if (p.As == ALEAL || p.As == AMOVL) && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
+		dst = p.To.Reg
+		// Why?  See the comment near the top of rewriteToUseGot above.
+		// AMOVLs might be introduced by the GOT rewrites.
+	}
 	q := obj.Appendp(ctxt, p)
 	q.RegTo2 = 1
 	r := obj.Appendp(ctxt, q)
 	r.RegTo2 = 1
 	q.As = obj.ACALL
-	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk.cx", 0)
+	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
 	q.To.Type = obj.TYPE_MEM
 	q.To.Name = obj.NAME_EXTERN
-	q.To.Sym.Local = true
+	q.To.Sym.Set(obj.AttrLocal, true)
 	r.As = p.As
 	r.Scond = p.Scond
 	r.From = p.From
 	r.From3 = p.From3
 	r.Reg = p.Reg
 	r.To = p.To
+	if isName(&p.From) {
+		r.From.Reg = dst
+	}
+	if isName(&p.To) {
+		r.To.Reg = dst
+	}
+	if p.From3 != nil && isName(p.From3) {
+		r.From3.Reg = dst
+	}
 	obj.Nopout(p)
 }
 
@@ -632,17 +655,29 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	// TODO(rsc): Remove 'p.Mode == 64 &&'.
 	if p.Mode == 64 && autoffset < obj.StackSmall && p.From3Offset()&obj.NOSPLIT == 0 {
+		leaf := true
+	LeafSearch:
 		for q := p; q != nil; q = q.Link {
-			if q.As == obj.ACALL {
-				goto noleaf
-			}
-			if (q.As == obj.ADUFFCOPY || q.As == obj.ADUFFZERO) && autoffset >= obj.StackSmall-8 {
-				goto noleaf
+			switch q.As {
+			case obj.ACALL:
+				// Treat common runtime calls that take no arguments
+				// the same as duffcopy and duffzero.
+				if !isZeroArgRuntimeCall(q.To.Sym) {
+					leaf = false
+					break LeafSearch
+				}
+				fallthrough
+			case obj.ADUFFCOPY, obj.ADUFFZERO:
+				if autoffset >= obj.StackSmall-8 {
+					leaf = false
+					break LeafSearch
+				}
 			}
 		}
 
-		p.From3.Offset |= obj.NOSPLIT
-	noleaf:
+		if leaf {
+			p.From3.Offset |= obj.NOSPLIT
+		}
 	}
 
 	if p.From3Offset()&obj.NOSPLIT == 0 || p.From3Offset()&obj.WRAPPER != 0 {
@@ -663,17 +698,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(autoffset)
 		p.Spadj = autoffset
-	} else {
-		// zero-byte stack adjustment.
-		// Insert a fake non-zero adjustment so that stkcheck can
-		// recognize the end of the stack-splitting prolog.
-		p = obj.Appendp(ctxt, p)
-
-		p.As = obj.ANOP
-		p.Spadj = int32(-ctxt.Arch.PtrSize)
-		p = obj.Appendp(ctxt, p)
-		p.As = obj.ANOP
-		p.Spadj = int32(ctxt.Arch.PtrSize)
 	}
 
 	deltasp := autoffset
@@ -810,31 +834,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p2.Pcond = p
 	}
 
-	var a int
-	var pcsize int
 	for ; p != nil; p = p.Link {
-		pcsize = int(p.Mode) / 8
-		a = int(p.From.Name)
-		if a == obj.NAME_AUTO {
+		pcsize := int(p.Mode) / 8
+		switch p.From.Name {
+		case obj.NAME_AUTO:
 			p.From.Offset += int64(deltasp) - int64(bpsize)
-		}
-		if a == obj.NAME_PARAM {
+		case obj.NAME_PARAM:
 			p.From.Offset += int64(deltasp) + int64(pcsize)
 		}
 		if p.From3 != nil {
-			a = int(p.From3.Name)
-			if a == obj.NAME_AUTO {
+			switch p.From3.Name {
+			case obj.NAME_AUTO:
 				p.From3.Offset += int64(deltasp) - int64(bpsize)
-			}
-			if a == obj.NAME_PARAM {
+			case obj.NAME_PARAM:
 				p.From3.Offset += int64(deltasp) + int64(pcsize)
 			}
 		}
-		a = int(p.To.Name)
-		if a == obj.NAME_AUTO {
+		switch p.To.Name {
+		case obj.NAME_AUTO:
 			p.To.Offset += int64(deltasp) - int64(bpsize)
-		}
-		if a == obj.NAME_PARAM {
+		case obj.NAME_PARAM:
 			p.To.Offset += int64(deltasp) + int64(pcsize)
 		}
 
@@ -873,7 +892,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			continue
 
 		case obj.ARET:
-			break
+			// do nothing
 		}
 
 		if autoffset != deltasp {
@@ -912,6 +931,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.As = obj.AJMP
 		}
 	}
+}
+
+func isZeroArgRuntimeCall(s *obj.LSym) bool {
+	if s == nil {
+		return false
+	}
+	switch s.Name {
+	case "runtime.panicindex", "runtime.panicslice", "runtime.panicdivide":
+		return true
+	}
+	return false
 }
 
 func indir_cx(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
@@ -984,7 +1014,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.From.Reg = REG_SP
 		indir_cx(ctxt, p, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if ctxt.Cursym.Cfunc {
+		if ctxt.Cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 	} else if framesize <= obj.StackBig {
@@ -1006,7 +1036,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.From.Reg = REG_AX
 		indir_cx(ctxt, p, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if ctxt.Cursym.Cfunc {
+		if ctxt.Cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 	} else {
@@ -1030,7 +1060,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.As = mov
 		indir_cx(ctxt, p, &p.From)
 		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if ctxt.Cursym.Cfunc {
+		if ctxt.Cursym.CFunc() {
 			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 		p.To.Type = obj.TYPE_REG
@@ -1083,11 +1113,23 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
 	}
 
+	// Now we are at the end of the function, but logically
+	// we are still in function prologue. We need to fix the
+	// SP data and PCDATA.
 	spfix := obj.Appendp(ctxt, last)
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	call := obj.Appendp(ctxt, spfix)
+	pcdata := obj.Appendp(ctxt, spfix)
+	pcdata.Lineno = ctxt.Cursym.Text.Lineno
+	pcdata.Mode = ctxt.Cursym.Text.Mode
+	pcdata.As = obj.APCDATA
+	pcdata.From.Type = obj.TYPE_CONST
+	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+	pcdata.To.Type = obj.TYPE_CONST
+	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+
+	call := obj.Appendp(ctxt, pcdata)
 	call.Lineno = ctxt.Cursym.Text.Lineno
 	call.Mode = ctxt.Cursym.Text.Mode
 	call.As = obj.ACALL
@@ -1095,7 +1137,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	call.To.Name = obj.NAME_EXTERN
 	morestack := "runtime.morestack"
 	switch {
-	case ctxt.Cursym.Cfunc:
+	case ctxt.Cursym.CFunc():
 		morestack = "runtime.morestackc"
 	case ctxt.Cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
 		morestack = "runtime.morestack_noctxt"
@@ -1208,7 +1250,7 @@ func relinv(a obj.As) obj.As {
 		return AJOS
 	}
 
-	log.Fatalf("unknown relation: %s", obj.Aconv(a))
+	log.Fatalf("unknown relation: %s", a)
 	return 0
 }
 

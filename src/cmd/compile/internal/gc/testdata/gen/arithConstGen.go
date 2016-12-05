@@ -5,7 +5,7 @@
 // This program generates a test to verify that the standard arithmetic
 // operators properly handle const cases. The test file should be
 // generated with a known working version of go.
-// launch with `go run arithConstGen.go` a file called arithConst_ssa.go
+// launch with `go run arithConstGen.go` a file called arithConst.go
 // will be written into the parent directory containing the tests
 
 package main
@@ -295,7 +295,7 @@ func main() {
 	}
 
 	// write to file
-	err = ioutil.WriteFile("../arithConst_ssa.go", src, 0666)
+	err = ioutil.WriteFile("../arithConst.go", src, 0666)
 	if err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}

@@ -134,6 +134,7 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 }
 
 func TestWithSimulated(t *testing.T) {
+	t.Parallel()
 	msg := "Test 123"
 	var transport []string
 	for _, n := range []string{"unix", "unixgram", "udp", "tcp"} {
@@ -262,6 +263,7 @@ func check(t *testing.T, in, out string) {
 }
 
 func TestWrite(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		pri Priority
 		pre string
@@ -367,7 +369,8 @@ func TestConcurrentReconnect(t *testing.T) {
 			defer wg.Done()
 			w, err := Dial(net, addr, LOG_USER|LOG_ERR, "tag")
 			if err != nil {
-				t.Fatalf("syslog.Dial() failed: %v", err)
+				t.Errorf("syslog.Dial() failed: %v", err)
+				return
 			}
 			defer w.Close()
 			for i := 0; i < M; i++ {

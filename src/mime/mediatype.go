@@ -248,24 +248,33 @@ func consumeValue(v string) (value, rest string) {
 	}
 
 	// parse a quoted-string
-	rest = v[1:] // consume the leading quote
 	buffer := new(bytes.Buffer)
-	var nextIsLiteral bool
-	for idx, r := range rest {
-		switch {
-		case nextIsLiteral:
-			buffer.WriteRune(r)
-			nextIsLiteral = false
-		case r == '"':
-			return buffer.String(), rest[idx+1:]
-		case r == '\\':
-			nextIsLiteral = true
-		case r != '\r' && r != '\n':
-			buffer.WriteRune(r)
-		default:
+	for i := 1; i < len(v); i++ {
+		r := v[i]
+		if r == '"' {
+			return buffer.String(), v[i+1:]
+		}
+		// When MSIE sends a full file path (in "intranet mode"), it does not
+		// escape backslashes: "C:\dev\go\foo.txt", not "C:\\dev\\go\\foo.txt".
+		//
+		// No known MIME generators emit unnecessary backslash escapes
+		// for simple token characters like numbers and letters.
+		//
+		// If we see an unnecessary backslash escape, assume it is from MSIE
+		// and intended as a literal backslash. This makes Go servers deal better
+		// with MSIE without affecting the way they handle conforming MIME
+		// generators.
+		if r == '\\' && i+1 < len(v) && !isTokenChar(rune(v[i+1])) {
+			buffer.WriteByte(v[i+1])
+			i++
+			continue
+		}
+		if r == '\r' || r == '\n' {
 			return "", v
 		}
+		buffer.WriteByte(v[i])
 	}
+	// Did not find end quote.
 	return "", v
 }
 

@@ -128,11 +128,14 @@ func PrintfTests() {
 	fmt.Printf("%t", stringerarrayv)           // ERROR "arg stringerarrayv for printf verb %t of wrong type"
 	fmt.Printf("%t", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %t of wrong type"
 	fmt.Printf("%q", notstringerarrayv)        // ERROR "arg notstringerarrayv for printf verb %q of wrong type"
-	fmt.Printf("%d", Formatter(true))          // correct (the type is responsible for formatting)
-	fmt.Printf("%s", nonemptyinterface)        // correct (the dynamic type of nonemptyinterface may be a stringer)
+	fmt.Printf("%d", Formatter(true))          // ERROR "arg Formatter\(true\) for printf verb %d of wrong type: testdata.Formatter"
+	fmt.Printf("%z", FormatterVal(true))       // correct (the type is responsible for formatting)
+	fmt.Printf("%d", FormatterVal(true))       // correct (the type is responsible for formatting)
+	fmt.Printf("%s", nonemptyinterface)        // correct (the type is responsible for formatting)
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
 	fmt.Println()                              // not an error
 	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
+	fmt.Println("0.0%")                        // correct (trailing % couldn't be a formatting directive)
 	fmt.Printf("%s", "hi", 3)                  // ERROR "wrong number of args for format in Printf call"
 	_ = fmt.Sprintf("%"+("s"), "hi", 3)        // ERROR "wrong number of args for format in Sprintf call"
 	fmt.Printf("%s%%%d", "hi", 3)              // correct
@@ -173,8 +176,8 @@ func PrintfTests() {
 	Printf("%[2]*.[1]*[3]d", 2, 3, 4)
 	fmt.Fprintf(os.Stderr, "%[2]*.[1]*[3]d", 2, 3, 4) // Use Fprintf to make sure we count arguments correctly.
 	// Bad argument reorderings.
-	Printf("%[xd", 3)                    // ERROR "illegal syntax for printf argument index"
-	Printf("%[x]d", 3)                   // ERROR "illegal syntax for printf argument index"
+	Printf("%[xd", 3)                    // ERROR "bad syntax for printf argument index: \[xd\]"
+	Printf("%[x]d", 3)                   // ERROR "bad syntax for printf argument index: \[x\]"
 	Printf("%[3]*s", "hi", 2)            // ERROR "missing argument for Printf.* reads arg 3, have only 2"
 	_ = fmt.Sprintf("%[3]d", 2)          // ERROR "missing argument for Sprintf.* reads arg 3, have only 1"
 	Printf("%[2]*.[1]*[3]d", 2, "hi", 4) // ERROR "arg .hi. for \* in printf format not of type int"
@@ -199,6 +202,11 @@ func PrintfTests() {
 	et4.Error() // ok, not an error method.
 	var et5 errorTest5
 	et5.error() // ok, not an error method.
+	// Interfaces can be used with any verb.
+	var iface interface {
+		ToTheMadness() bool // Method ToTheMadness usually returns false
+	}
+	fmt.Printf("%f", iface) // ok: fmt treats interfaces as transparent and iface may well have a float concrete type
 	// Can't print a function.
 	Printf("%d", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
 	Printf("%v", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
@@ -232,6 +240,9 @@ func PrintfTests() {
 	externalprintf.Logf(level, "%d", 42)                        // OK
 	externalprintf.Errorf(level, level, "foo %q bar", "foobar") // OK
 	externalprintf.Logf(level, "%d")                            // ERROR "format reads arg 1, have only 0 args"
+	var formatStr = "%s %s"
+	externalprintf.Sprintf(formatStr, "a", "b")     // OK
+	externalprintf.Logf(level, formatStr, "a", "b") // OK
 
 	// user-defined Println-like functions
 	ss := &someStruct{}
@@ -243,6 +254,15 @@ func PrintfTests() {
 	ss.log(someFunction)                 // OK
 	ss.log(someFunction, "bar", 1.33)    // OK
 	ss.log(someFunction, someFunction)   // ERROR "arg someFunction in log call is a function value, not a function call"
+
+	// indexed arguments
+	Printf("%d %[3]d %d %[2]d", 1, 2, 3, 4)             // OK
+	Printf("%d %[0]d %d %[2]d", 1, 2, 3, 4)             // ERROR "indexes start at 1"
+	Printf("%d %[3]d %d %[-2]d", 1, 2, 3, 4)            // ERROR "bad syntax for printf argument index: \[-2\]"
+	Printf("%d %[3]d %d %[2234234234234]d", 1, 2, 3, 4) // ERROR "bad syntax for printf argument index: .+ value out of range"
+	Printf("%d %[3]d %d %[2]d", 1, 2, 3)                // ERROR "format reads arg 4, have only 3 args"
+	Printf("%d %[3]d %d %[2]d", 1, 2, 3, 4, 5)          // ERROR "wrong number of args for format in Printf call: 4 needed but 5 args"
+	Printf("%[1][3]d", 1, 2)                            // ERROR "unrecognized printf verb '\['"
 }
 
 type someStruct struct{}
@@ -396,6 +416,12 @@ func (p *recursivePtrStringer) String() string {
 type Formatter bool
 
 func (*Formatter) Format(fmt.State, rune) {
+}
+
+// Formatter with value receiver
+type FormatterVal bool
+
+func (FormatterVal) Format(fmt.State, rune) {
 }
 
 type RecursiveSlice []RecursiveSlice

@@ -247,7 +247,7 @@ func dominatorsSimple(f *Func) []*Block {
 	idom := make([]*Block, f.NumBlocks())
 
 	// Compute postorder walk
-	post := postorder(f)
+	post := f.postorder()
 
 	// Make map from block id to order index (for intersect call)
 	postnum := make([]int, f.NumBlocks())
@@ -305,10 +305,4 @@ func intersect(b, c *Block, postnum []int, idom []*Block) *Block {
 		}
 	}
 	return b
-}
-
-// build immediate dominators.
-func domTree(f *Func) {
-	f.idom = dominators(f)
-	f.sdom = newSparseTree(f, f.idom)
 }

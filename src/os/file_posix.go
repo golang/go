@@ -18,7 +18,7 @@ func sigpipe() // implemented in package runtime
 func Readlink(name string) (string, error) {
 	for len := 128; ; len *= 2 {
 		b := make([]byte, len)
-		n, e := fixCount(syscall.Readlink(name, b))
+		n, e := fixCount(syscall.Readlink(fixLongPath(name), b))
 		if e != nil {
 			return "", &PathError{"readlink", name, e}
 		}
@@ -57,8 +57,8 @@ func Chmod(name string, mode FileMode) error {
 // Chmod changes the mode of the file to mode.
 // If there is an error, it will be of type *PathError.
 func (f *File) Chmod(mode FileMode) error {
-	if f == nil {
-		return ErrInvalid
+	if err := f.checkValid("chmod"); err != nil {
+		return err
 	}
 	if e := syscall.Fchmod(f.fd, syscallMode(mode)); e != nil {
 		return &PathError{"chmod", f.name, e}
@@ -89,8 +89,8 @@ func Lchown(name string, uid, gid int) error {
 // Chown changes the numeric uid and gid of the named file.
 // If there is an error, it will be of type *PathError.
 func (f *File) Chown(uid, gid int) error {
-	if f == nil {
-		return ErrInvalid
+	if err := f.checkValid("chown"); err != nil {
+		return err
 	}
 	if e := syscall.Fchown(f.fd, uid, gid); e != nil {
 		return &PathError{"chown", f.name, e}
@@ -102,8 +102,8 @@ func (f *File) Chown(uid, gid int) error {
 // It does not change the I/O offset.
 // If there is an error, it will be of type *PathError.
 func (f *File) Truncate(size int64) error {
-	if f == nil {
-		return ErrInvalid
+	if err := f.checkValid("truncate"); err != nil {
+		return err
 	}
 	if e := syscall.Ftruncate(f.fd, size); e != nil {
 		return &PathError{"truncate", f.name, e}
@@ -115,11 +115,11 @@ func (f *File) Truncate(size int64) error {
 // Typically, this means flushing the file system's in-memory copy
 // of recently written data to disk.
 func (f *File) Sync() error {
-	if f == nil {
-		return ErrInvalid
+	if err := f.checkValid("sync"); err != nil {
+		return err
 	}
 	if e := syscall.Fsync(f.fd); e != nil {
-		return NewSyscallError("fsync", e)
+		return &PathError{"sync", f.name, e}
 	}
 	return nil
 }
@@ -134,7 +134,7 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	var utimes [2]syscall.Timespec
 	utimes[0] = syscall.NsecToTimespec(atime.UnixNano())
 	utimes[1] = syscall.NsecToTimespec(mtime.UnixNano())
-	if e := syscall.UtimesNano(name, utimes[0:]); e != nil {
+	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
 		return &PathError{"chtimes", name, e}
 	}
 	return nil

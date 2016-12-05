@@ -24,14 +24,13 @@ const (
 // size variants of an operation even if we just use a subset.
 //
 // The table is formatted for 8-space tabs.
-var progtable = [mips.ALAST & obj.AMask]obj.ProgInfo{
+var progtable = [mips.ALAST & obj.AMask]gc.ProgInfo{
 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
 	obj.ATEXT:     {Flags: gc.Pseudo},
 	obj.AFUNCDATA: {Flags: gc.Pseudo},
 	obj.APCDATA:   {Flags: gc.Pseudo},
 	obj.AUNDEF:    {Flags: gc.Break},
 	obj.AUSEFIELD: {Flags: gc.OK},
-	obj.ACHECKNIL: {Flags: gc.LeftRead},
 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
@@ -135,9 +134,8 @@ var progtable = [mips.ALAST & obj.AMask]obj.ProgInfo{
 	obj.ADUFFCOPY:          {Flags: gc.Call},
 }
 
-func proginfo(p *obj.Prog) {
-	info := &p.Info
-	*info = progtable[p.As&obj.AMask]
+func proginfo(p *obj.Prog) gc.ProgInfo {
+	info := progtable[p.As&obj.AMask]
 	if info.Flags == 0 {
 		gc.Fatalf("proginfo: unknown instruction %v", p)
 	}
@@ -147,28 +145,10 @@ func proginfo(p *obj.Prog) {
 		info.Flags |= gc.RightRead /*CanRegRead |*/
 	}
 
-	if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR) && p.From.Reg != 0 {
-		info.Regindex |= RtoB(int(p.From.Reg))
-	}
-
-	if (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) && p.To.Reg != 0 {
-		info.Regindex |= RtoB(int(p.To.Reg))
-	}
-
 	if p.From.Type == obj.TYPE_ADDR && p.From.Sym != nil && (info.Flags&gc.LeftRead != 0) {
 		info.Flags &^= gc.LeftRead
 		info.Flags |= gc.LeftAddr
 	}
 
-	if p.As == obj.ADUFFZERO {
-		info.Reguse |= 1<<0 | RtoB(mips.REGRT1)
-		info.Regset |= RtoB(mips.REGRT1)
-	}
-
-	if p.As == obj.ADUFFCOPY {
-		// TODO(austin) Revisit when duffcopy is implemented
-		info.Reguse |= RtoB(mips.REGRT1) | RtoB(mips.REGRT2) | RtoB(mips.REG_R3)
-
-		info.Regset |= RtoB(mips.REGRT1) | RtoB(mips.REGRT2)
-	}
+	return info
 }

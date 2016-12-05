@@ -35,7 +35,6 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uns
 // sysMmap calls the mmap system call. It is implemented in assembly.
 func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
 
-// cgoMmap calls the mmap function in the runtime/cgo package on the
 // callCgoMmap calls the mmap function in the runtime/cgo package
 // using the GCC calling convention. It is implemented in assembly.
 func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr

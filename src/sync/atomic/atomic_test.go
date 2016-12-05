@@ -1226,10 +1226,12 @@ func TestStoreLoadSeqCst32(t *testing.T) {
 				}
 				his := LoadInt32(&ack[he][i%3])
 				if (my != i && my != i-1) || (his != i && his != i-1) {
-					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
+					t.Errorf("invalid values: %d/%d (%d)", my, his, i)
+					break
 				}
 				if my != i && his != i {
-					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					t.Errorf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					break
 				}
 				StoreInt32(&ack[me][(i-1)%3], -1)
 			}
@@ -1269,10 +1271,12 @@ func TestStoreLoadSeqCst64(t *testing.T) {
 				}
 				his := LoadInt64(&ack[he][i%3])
 				if (my != i && my != i-1) || (his != i && his != i-1) {
-					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
+					t.Errorf("invalid values: %d/%d (%d)", my, his, i)
+					break
 				}
 				if my != i && his != i {
-					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					t.Errorf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					break
 				}
 				StoreInt64(&ack[me][(i-1)%3], -1)
 			}
@@ -1317,7 +1321,8 @@ func TestStoreLoadRelAcq32(t *testing.T) {
 					d1 := X.data1
 					d2 := X.data2
 					if d1 != i || d2 != float32(i) {
-						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
+						t.Errorf("incorrect data: %d/%g (%d)", d1, d2, i)
+						break
 					}
 				}
 			}
@@ -1365,7 +1370,8 @@ func TestStoreLoadRelAcq64(t *testing.T) {
 					d1 := X.data1
 					d2 := X.data2
 					if d1 != i || d2 != float64(i) {
-						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
+						t.Errorf("incorrect data: %d/%g (%d)", d1, d2, i)
+						break
 					}
 				}
 			}
@@ -1389,8 +1395,15 @@ func TestUnaligned64(t *testing.T) {
 	// Unaligned 64-bit atomics on 32-bit systems are
 	// a continual source of pain. Test that on 32-bit systems they crash
 	// instead of failing silently.
-	if unsafe.Sizeof(int(0)) != 4 {
-		t.Skip("test only runs on 32-bit systems")
+
+	switch runtime.GOARCH {
+	default:
+		if unsafe.Sizeof(int(0)) != 4 {
+			t.Skip("test only runs on 32-bit systems")
+		}
+	case "amd64p32":
+		// amd64p32 can handle unaligned atomics.
+		t.Skipf("test not needed on %v", runtime.GOARCH)
 	}
 
 	x := make([]uint32, 4)

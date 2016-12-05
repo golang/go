@@ -109,5 +109,41 @@ func listenUDP(ctx context.Context, network string, laddr *UDPAddr) (*UDPConn, e
 }
 
 func listenMulticastUDP(ctx context.Context, network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
-	return nil, syscall.EPLAN9
+	l, err := listenPlan9(ctx, network, gaddr)
+	if err != nil {
+		return nil, err
+	}
+	_, err = l.ctl.WriteString("headers")
+	if err != nil {
+		return nil, err
+	}
+	var addrs []Addr
+	if ifi != nil {
+		addrs, err = ifi.Addrs()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		addrs, err = InterfaceAddrs()
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*IPNet); ok {
+			_, err = l.ctl.WriteString("addmulti " + ipnet.IP.String() + " " + gaddr.IP.String())
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	l.data, err = os.OpenFile(l.dir+"/data", os.O_RDWR, 0)
+	if err != nil {
+		return nil, err
+	}
+	fd, err := l.netFD()
+	if err != nil {
+		return nil, err
+	}
+	return newUDPConn(fd), nil
 }

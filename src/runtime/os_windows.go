@@ -20,9 +20,6 @@ const (
 //go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
-//go:cgo_import_dynamic runtime._CryptAcquireContextW CryptAcquireContextW%5 "advapi32.dll"
-//go:cgo_import_dynamic runtime._CryptGenRandom CryptGenRandom%3 "advapi32.dll"
-//go:cgo_import_dynamic runtime._CryptReleaseContext CryptReleaseContext%2 "advapi32.dll"
 //go:cgo_import_dynamic runtime._DuplicateHandle DuplicateHandle%7 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ExitProcess ExitProcess%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
@@ -36,7 +33,6 @@ const (
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
-//go:cgo_import_dynamic runtime._NtWaitForSingleObject NtWaitForSingleObject%3 "ntdll.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
@@ -67,9 +63,6 @@ var (
 	_CreateIoCompletionPort,
 	_CreateThread,
 	_CreateWaitableTimerA,
-	_CryptAcquireContextW,
-	_CryptGenRandom,
-	_CryptReleaseContext,
 	_DuplicateHandle,
 	_ExitProcess,
 	_FreeEnvironmentStringsW,
@@ -83,7 +76,6 @@ var (
 	_GetThreadContext,
 	_LoadLibraryW,
 	_LoadLibraryA,
-	_NtWaitForSingleObject,
 	_ResumeThread,
 	_SetConsoleCtrlHandler,
 	_SetErrorMode,
@@ -110,6 +102,21 @@ var (
 	_GetQueuedCompletionStatusEx,
 	_LoadLibraryExW,
 	_ stdFunction
+
+	// Use RtlGenRandom to generate cryptographically random data.
+	// This approach has been recommended by Microsoft (see issue
+	// 15589 for details).
+	// The RtlGenRandom is not listed in advapi32.dll, instead
+	// RtlGenRandom function can be found by searching for SystemFunction036.
+	// Also some versions of Mingw cannot link to SystemFunction036
+	// when building executable as Cgo. So load SystemFunction036
+	// manually during runtime startup.
+	_RtlGenRandom stdFunction
+
+	// Load ntdll.dll manually during startup, otherwise Mingw
+	// links wrong printf function to cgo executable (see issue
+	// 12030 for details).
+	_NtWaitForSingleObject stdFunction
 )
 
 // Function to be called by windows CreateThread
@@ -167,6 +174,20 @@ func loadOptionalSyscalls() {
 	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
 	_GetQueuedCompletionStatusEx = windowsFindfunc(k32, []byte("GetQueuedCompletionStatusEx\000"))
 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
+
+	var advapi32dll = []byte("advapi32.dll\000")
+	a32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&advapi32dll[0])))
+	if a32 == 0 {
+		throw("advapi32.dll not found")
+	}
+	_RtlGenRandom = windowsFindfunc(a32, []byte("SystemFunction036\000"))
+
+	var ntdll = []byte("ntdll.dll\000")
+	n32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&ntdll[0])))
+	if n32 == 0 {
+		throw("ntdll.dll not found")
+	}
+	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
 }
 
 //go:nosplit
@@ -203,6 +224,12 @@ func getproccount() int32 {
 	var info systeminfo
 	stdcall1(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
 	return int32(info.dwnumberofprocessors)
+}
+
+func getPageSize() uintptr {
+	var info systeminfo
+	stdcall1(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
+	return uintptr(info.dwpagesize)
 }
 
 const (
@@ -256,6 +283,8 @@ func osinit() {
 
 	ncpu = getproccount()
 
+	physPageSize = getPageSize()
+
 	// Windows dynamic priority boosting assumes that a process has different types
 	// of dedicated threads -- GUI, IO, computational, etc. Go processes use
 	// equivalent threads that all do a mix of GUI, IO, computations, etc.
@@ -265,17 +294,9 @@ func osinit() {
 
 //go:nosplit
 func getRandomData(r []byte) {
-	const (
-		prov_rsa_full       = 1
-		crypt_verifycontext = 0xF0000000
-	)
-	var handle uintptr
 	n := 0
-	if stdcall5(_CryptAcquireContextW, uintptr(unsafe.Pointer(&handle)), 0, 0, prov_rsa_full, crypt_verifycontext) != 0 {
-		if stdcall3(_CryptGenRandom, handle, uintptr(len(r)), uintptr(unsafe.Pointer(&r[0]))) != 0 {
-			n = len(r)
-		}
-		stdcall2(_CryptReleaseContext, handle, 0)
+	if stdcall2(_RtlGenRandom, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
+		n = len(r)
 	}
 	extendRandom(r, n)
 }
@@ -375,13 +396,11 @@ func writeConsole(handle uintptr, buf unsafe.Pointer, bufLen int32) int {
 
 	total := len(s)
 	w := 0
-	for len(s) > 0 {
+	for _, r := range s {
 		if w >= len(utf16tmp)-2 {
 			writeConsoleUTF16(handle, utf16tmp[:w])
 			w = 0
 		}
-		r, n := charntorune(s)
-		s = s[n:]
 		if r < 0x10000 {
 			utf16tmp[w] = uint16(r)
 			w++
@@ -418,6 +437,13 @@ func writeConsoleUTF16(handle uintptr, b []uint16) {
 
 //go:nosplit
 func semasleep(ns int64) int32 {
+	const (
+		_WAIT_ABANDONED = 0x00000080
+		_WAIT_OBJECT_0  = 0x00000000
+		_WAIT_TIMEOUT   = 0x00000102
+		_WAIT_FAILED    = 0xFFFFFFFF
+	)
+
 	// store ms in ns to save stack space
 	if ns < 0 {
 		ns = _INFINITE
@@ -427,15 +453,44 @@ func semasleep(ns int64) int32 {
 			ns = 1
 		}
 	}
-	if stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(ns)) != 0 {
-		return -1 // timeout
+
+	result := stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(ns))
+	switch result {
+	case _WAIT_OBJECT_0: //signaled
+		return 0
+
+	case _WAIT_TIMEOUT:
+		return -1
+
+	case _WAIT_ABANDONED:
+		systemstack(func() {
+			throw("runtime.semasleep wait_abandoned")
+		})
+
+	case _WAIT_FAILED:
+		systemstack(func() {
+			print("runtime: waitforsingleobject wait_failed; errno=", getlasterror(), "\n")
+			throw("runtime.semasleep wait_failed")
+		})
+
+	default:
+		systemstack(func() {
+			print("runtime: waitforsingleobject unexpected; result=", result, "\n")
+			throw("runtime.semasleep unexpected")
+		})
 	}
-	return 0
+
+	return -1 // unreachable
 }
 
 //go:nosplit
 func semawakeup(mp *m) {
-	stdcall1(_SetEvent, mp.waitsema)
+	if stdcall1(_SetEvent, mp.waitsema) == 0 {
+		systemstack(func() {
+			print("runtime: setevent failed; errno=", getlasterror(), "\n")
+			throw("runtime.semawakeup")
+		})
+	}
 }
 
 //go:nosplit
@@ -444,6 +499,12 @@ func semacreate(mp *m) {
 		return
 	}
 	mp.waitsema = stdcall4(_CreateEventA, 0, 0, 0, 0)
+	if mp.waitsema == 0 {
+		systemstack(func() {
+			print("runtime: createevent failed; errno=", getlasterror(), "\n")
+			throw("runtime.semacreate")
+		})
+	}
 }
 
 // May run with m.p==nil, so write barriers are not allowed. This
@@ -456,6 +517,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	thandle := stdcall6(_CreateThread, 0, 0x20000,
 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
+
 	if thandle == 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
 		throw("runtime.newosproc")

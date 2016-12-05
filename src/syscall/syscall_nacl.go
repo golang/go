@@ -26,34 +26,20 @@ type Dirent struct {
 	Name   [256]byte
 }
 
-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
-	origlen := len(buf)
-	count = 0
-	for max != 0 && len(buf) > 0 {
-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
-		buf = buf[dirent.Reclen:]
-		if dirent.Ino == 0 { // File absent in directory.
-			continue
-		}
-		bytes := (*[512 + PathMax]byte)(unsafe.Pointer(&dirent.Name[0]))
-		var name = string(bytes[0:clen(bytes[:])])
-		if name == "." || name == ".." { // Useless names
-			continue
-		}
-		max--
-		count++
-		names = append(names, name)
-	}
-	return origlen - len(buf), count, names
+func direntIno(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
 }
 
-func clen(n []byte) int {
-	for i := 0; i < len(n); i++ {
-		if n[i] == 0 {
-			return i
-		}
+func direntReclen(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
+}
+
+func direntNamlen(buf []byte) (uint64, bool) {
+	reclen, ok := direntReclen(buf)
+	if !ok {
+		return 0, false
 	}
-	return len(n)
+	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
 }
 
 const PathMax = 256
@@ -292,9 +278,9 @@ func Getegid() int                      { return 1 }
 func Geteuid() int                      { return 1 }
 func Getgid() int                       { return 1 }
 func Getgroups() ([]int, error)         { return []int{1}, nil }
-func Getpagesize() int                  { return 65536 }
 func Getppid() int                      { return 2 }
 func Getpid() int                       { return 3 }
+func Gettimeofday(tv *Timeval) error    { return ENOSYS }
 func Getuid() int                       { return 1 }
 func Kill(pid int, signum Signal) error { return ENOSYS }
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
@@ -310,3 +296,5 @@ func RouteRIB(facility, param int) ([]byte, error)                { return nil, 
 func ParseRoutingMessage(b []byte) ([]RoutingMessage, error)      { return nil, ENOSYS }
 func ParseRoutingSockaddr(msg RoutingMessage) ([]Sockaddr, error) { return nil, ENOSYS }
 func SysctlUint32(name string) (value uint32, err error)          { return 0, ENOSYS }
+
+type Iovec struct{} // dummy

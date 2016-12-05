@@ -16,6 +16,8 @@ import (
 	"unsafe"
 )
 
+func throw(string) // provided by runtime
+
 // A Mutex is a mutual exclusion lock.
 // Mutexes can be created as part of other structures;
 // the zero value for a Mutex is an unlocked mutex.
@@ -74,7 +76,7 @@ func (m *Mutex) Lock() {
 			// The goroutine has been woken from sleep,
 			// so we need to reset the flag in either case.
 			if new&mutexWoken == 0 {
-				panic("sync: inconsistent mutex state")
+				throw("sync: inconsistent mutex state")
 			}
 			new &^= mutexWoken
 		}
@@ -82,7 +84,7 @@ func (m *Mutex) Lock() {
 			if old&mutexLocked == 0 {
 				break
 			}
-			runtime_Semacquire(&m.sema)
+			runtime_SemacquireMutex(&m.sema)
 			awoke = true
 			iter = 0
 		}
@@ -108,7 +110,7 @@ func (m *Mutex) Unlock() {
 	// Fast path: drop lock bit.
 	new := atomic.AddInt32(&m.state, -mutexLocked)
 	if (new+mutexLocked)&mutexLocked == 0 {
-		panic("sync: unlock of unlocked mutex")
+		throw("sync: unlock of unlocked mutex")
 	}
 
 	old := new

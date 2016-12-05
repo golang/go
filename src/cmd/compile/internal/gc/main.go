@@ -8,6 +8,7 @@ package gc
 
 import (
 	"bufio"
+	"bytes"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
@@ -25,9 +26,6 @@ import (
 var imported_unsafe bool
 
 var (
-	goos    string
-	goarch  string
-	goroot  string
 	buildid string
 )
 
@@ -49,7 +47,7 @@ var debugtab = []struct {
 }{
 	{"append", &Debug_append},         // print information about append compilation
 	{"closure", &Debug_closure},       // print information about closure compilation
-	{"disablenil", &Disable_checknil}, // disable nil checks
+	{"disablenil", &disable_checknil}, // disable nil checks
 	{"gcprog", &Debug_gcprog},         // print dump of GC programs
 	{"nil", &Debug_checknil},          // print information about nil checks
 	{"panic", &Debug_panic},           // do not hide any compiler panic
@@ -86,7 +84,7 @@ func doversion() {
 	if p != "" {
 		sep = " "
 	}
-	fmt.Printf("compile version %s%s%s\n", obj.Getgoversion(), sep, p)
+	fmt.Printf("compile version %s%s%s\n", obj.Version, sep, p)
 	os.Exit(0)
 }
 
@@ -96,20 +94,24 @@ func supportsDynlink(arch *sys.Arch) bool {
 	return arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.PPC64, sys.S390X)
 }
 
+// timing data for compiler phases
+var timings Timings
+var benchfile string
+
+// Main parses flags and Go source files specified in the command-line
+// arguments, type-checks the parsed Go package, compiles functions to machine
+// code, and finally writes the compiled package definition to disk.
 func Main() {
+	timings.Start("fe", "init")
+
 	defer hidePanic()
 
-	goarch = obj.Getgoarch()
-
 	Ctxt = obj.Linknew(Thearch.LinkArch)
-	Ctxt.DiagFunc = Yyerror
-	bstdout = bufio.NewWriter(os.Stdout)
-	Ctxt.Bso = bstdout
+	Ctxt.DiagFunc = yyerror
+	Ctxt.Bso = bufio.NewWriter(os.Stdout)
 
 	localpkg = mkpkg("")
 	localpkg.Prefix = "\"\""
-	autopkg = mkpkg("")
-	autopkg.Prefix = "\"\""
 
 	// pseudo-package, for scoping
 	builtinpkg = mkpkg("go.builtin")
@@ -144,26 +146,19 @@ func Main() {
 	mappkg.Name = "go.map"
 	mappkg.Prefix = "go.map"
 
-	goroot = obj.Getgoroot()
-	goos = obj.Getgoos()
-
-	Nacl = goos == "nacl"
+	Nacl = obj.GOOS == "nacl"
 	if Nacl {
 		flag_largemodel = true
 	}
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
 	obj.Flagcount("%", "debug non-static initializers", &Debug['%'])
-	obj.Flagcount("A", "for bootstrapping, allow 'any' type", &Debug['A'])
 	obj.Flagcount("B", "disable bounds checking", &Debug['B'])
 	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
 	obj.Flagcount("E", "debug symbol export", &Debug['E'])
 	obj.Flagfn1("I", "add `directory` to import search path", addidir)
 	obj.Flagcount("K", "debug missing line numbers", &Debug['K'])
-	obj.Flagcount("M", "debug move generation", &Debug['M'])
 	obj.Flagcount("N", "disable optimizations", &Debug['N'])
-	obj.Flagcount("P", "debug peephole optimizer", &Debug['P'])
-	obj.Flagcount("R", "debug register optimizer", &Debug['R'])
 	obj.Flagcount("S", "print assembly listing", &Debug['S'])
 	obj.Flagfn0("V", "print compiler version", doversion)
 	obj.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
@@ -173,7 +168,6 @@ func Main() {
 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`")
 	obj.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
 	obj.Flagcount("f", "debug stack frames", &Debug['f'])
-	obj.Flagcount("g", "debug code generation", &Debug['g'])
 	obj.Flagcount("h", "halt on error", &Debug['h'])
 	obj.Flagcount("i", "debug line number stack", &Debug['i'])
 	obj.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
@@ -184,7 +178,6 @@ func Main() {
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
 	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
-	flag.BoolVar(&newexport, "newexport", true, "use new export format") // TODO(gri) remove eventually (issue 15323)
 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
 	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
@@ -197,7 +190,6 @@ func Main() {
 	obj.Flagcount("v", "increase debug verbosity", &Debug['v'])
 	obj.Flagcount("w", "debug type checking", &Debug['w'])
 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
-	obj.Flagcount("x", "debug lexer", &Debug['x'])
 	var flag_shared bool
 	var flag_dynlink bool
 	if supportsDynlink(Thearch.LinkArch.Arch) {
@@ -210,7 +202,8 @@ func Main() {
 	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
 	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
-	flag.BoolVar(&ssaEnabled, "ssa", true, "use SSA backend to generate code")
+	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
+	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
 	obj.Flagparse(usage)
 
 	Ctxt.Flag_shared = flag_dynlink || flag_shared
@@ -248,12 +241,16 @@ func Main() {
 				continue
 			}
 			val := 1
+			valstring := ""
 			if i := strings.Index(name, "="); i >= 0 {
 				var err error
 				val, err = strconv.Atoi(name[i+1:])
 				if err != nil {
 					log.Fatalf("invalid debug value %v", name)
 				}
+				name = name[:i]
+			} else if i := strings.Index(name, ":"); i >= 0 {
+				valstring = name[i+1:]
 				name = name[:i]
 			}
 			for _, t := range debugtab {
@@ -275,7 +272,7 @@ func Main() {
 					flag = phase[i+1:]
 					phase = phase[:i]
 				}
-				err := ssa.PhaseOption(phase, flag, val)
+				err := ssa.PhaseOption(phase, flag, val, valstring)
 				if err != "" {
 					log.Fatalf(err)
 				}
@@ -293,7 +290,6 @@ func Main() {
 		Debug['l'] = 1 - Debug['l']
 	}
 
-	Thearch.Betypeinit()
 	Widthint = Thearch.LinkArch.IntSize
 	Widthptr = Thearch.LinkArch.PtrSize
 	Widthreg = Thearch.LinkArch.RegSize
@@ -305,33 +301,17 @@ func Main() {
 	nerrors = 0
 	lexlineno = 1
 
+	timings.Start("fe", "loadsys")
 	loadsys()
 
+	timings.Start("fe", "parse")
+	lexlineno0 := lexlineno
 	for _, infile = range flag.Args() {
-		if trace && Debug['x'] != 0 {
-			fmt.Printf("--- %s ---\n", infile)
-		}
-
 		linehistpush(infile)
-
-		f, err := os.Open(infile)
-		if err != nil {
-			fmt.Printf("open %s: %v\n", infile, err)
-			errorexit()
-		}
-		bin := bufio.NewReader(f)
-
-		// Skip initial BOM if present.
-		if r, _, _ := bin.ReadRune(); r != BOM {
-			bin.UnreadRune()
-		}
-
 		block = 1
 		iota_ = -1000000
-
 		imported_unsafe = false
-
-		parse_file(bin)
+		parseFile(infile)
 		if nsyntaxerrors != 0 {
 			errorexit()
 		}
@@ -340,10 +320,10 @@ func Main() {
 		// for the line history to work, and which then has to be corrected elsewhere,
 		// just add a line here.
 		lexlineno++
-
 		linehistpop()
-		f.Close()
 	}
+	timings.Stop()
+	timings.AddEvent(int64(lexlineno-lexlineno0), "lines")
 
 	testdclstack()
 	mkpackage(localpkg.Name) // final import not used checks
@@ -362,6 +342,7 @@ func Main() {
 	defercheckwidth()
 
 	// Don't use range--typecheck can add closures to xtop.
+	timings.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(xtop); i++ {
 		if xtop[i].Op != ODCL && xtop[i].Op != OAS && xtop[i].Op != OAS2 {
 			xtop[i] = typecheck(xtop[i], Etop)
@@ -372,6 +353,7 @@ func Main() {
 	//   To check interface assignments, depends on phase 1.
 
 	// Don't use range--typecheck can add closures to xtop.
+	timings.Start("fe", "typecheck", "top2")
 	for i := 0; i < len(xtop); i++ {
 		if xtop[i].Op == ODCL || xtop[i].Op == OAS || xtop[i].Op == OAS2 {
 			xtop[i] = typecheck(xtop[i], Etop)
@@ -381,6 +363,8 @@ func Main() {
 
 	// Phase 3: Type check function bodies.
 	// Don't use range--typecheck can add closures to xtop.
+	timings.Start("fe", "typecheck", "func")
+	var fcount int64
 	for i := 0; i < len(xtop); i++ {
 		if xtop[i].Op == ODCLFUNC || xtop[i].Op == OCLOSURE {
 			Curfn = xtop[i]
@@ -391,12 +375,15 @@ func Main() {
 			if nerrors != 0 {
 				Curfn.Nbody.Set(nil) // type errors; do not compile
 			}
+			fcount++
 		}
 	}
+	timings.AddEvent(fcount, "funcs")
 
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
+	timings.Start("fe", "capturevars")
 	for _, n := range xtop {
 		if n.Op == ODCLFUNC && n.Func.Closure != nil {
 			Curfn = n
@@ -411,6 +398,7 @@ func Main() {
 	}
 
 	// Phase 5: Inlining
+	timings.Start("fe", "inlining")
 	if Debug['l'] > 1 {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
@@ -430,10 +418,14 @@ func Main() {
 		// Find functions that can be inlined and clone them before walk expands them.
 		visitBottomUp(xtop, func(list []*Node, recursive bool) {
 			for _, n := range list {
-				if n.Op == ODCLFUNC {
+				if !recursive {
 					caninl(n)
-					inlcalls(n)
+				} else {
+					if Debug['m'] > 1 {
+						fmt.Printf("%v: cannot inline %v: recursive\n", n.Line(), n.Func.Nname)
+					}
 				}
+				inlcalls(n)
 			}
 		})
 	}
@@ -446,11 +438,13 @@ func Main() {
 	// or else the stack copier will not update it.
 	// Large values are also moved off stack in escape analysis;
 	// because large values may contain pointers, it must happen early.
+	timings.Start("fe", "escapes")
 	escapes(xtop)
 
 	// Phase 7: Transform closure bodies to properly reference captured variables.
 	// This needs to happen before walk, because closures must be transformed
 	// before walk reaches a call of a closure.
+	timings.Start("fe", "xclosures")
 	for _, n := range xtop {
 		if n.Op == ODCLFUNC && n.Func.Closure != nil {
 			Curfn = n
@@ -462,11 +456,15 @@ func Main() {
 
 	// Phase 8: Compile top level functions.
 	// Don't use range--walk can add functions to xtop.
+	timings.Start("be", "compilefuncs")
+	fcount = 0
 	for i := 0; i < len(xtop); i++ {
 		if xtop[i].Op == ODCLFUNC {
 			funccompile(xtop[i])
+			fcount++
 		}
 	}
+	timings.AddEvent(fcount, "funcs")
 
 	if nsavederrors+nerrors == 0 {
 		fninit(xtop)
@@ -477,6 +475,7 @@ func Main() {
 	}
 
 	// Phase 9: Check external declarations.
+	timings.Start("be", "externaldcls")
 	for i, n := range externdcl {
 		if n.Op == ONAME {
 			externdcl[i] = typecheck(externdcl[i], Erv)
@@ -487,8 +486,9 @@ func Main() {
 		errorexit()
 	}
 
+	// Write object data to disk.
+	timings.Start("be", "dumpobj")
 	dumpobj()
-
 	if asmhdr != "" {
 		dumpasmhdr()
 	}
@@ -497,7 +497,37 @@ func Main() {
 		errorexit()
 	}
 
-	Flusherrors()
+	flusherrors()
+	timings.Stop()
+
+	if benchfile != "" {
+		if err := writebench(benchfile); err != nil {
+			log.Fatalf("cannot write benchmark data: %v", err)
+		}
+	}
+}
+
+func writebench(filename string) error {
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, "commit:", obj.Version)
+	fmt.Fprintln(&buf, "goos:", runtime.GOOS)
+	fmt.Fprintln(&buf, "goarch:", runtime.GOARCH)
+	timings.Write(&buf, "BenchmarkCompile:"+myimportpath+":")
+
+	n, err := f.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
+	if n != buf.Len() {
+		panic("bad writer")
+	}
+
+	return f.Close()
 }
 
 var importMap = map[string]string{}
@@ -592,7 +622,7 @@ func findpkg(name string) (file string, ok bool) {
 	// don't want to see "encoding/../encoding/base64"
 	// as different from "encoding/base64".
 	if q := path.Clean(name); q != name {
-		Yyerror("non-canonical import path %q (should be %q)", name, q)
+		yyerror("non-canonical import path %q (should be %q)", name, q)
 		return "", false
 	}
 
@@ -607,7 +637,7 @@ func findpkg(name string) (file string, ok bool) {
 		}
 	}
 
-	if goroot != "" {
+	if obj.GOROOT != "" {
 		suffix := ""
 		suffixsep := ""
 		if flag_installsuffix != "" {
@@ -621,11 +651,11 @@ func findpkg(name string) (file string, ok bool) {
 			suffix = "msan"
 		}
 
-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
+		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", obj.GOROOT, obj.GOOS, obj.GOARCH, suffixsep, suffix, name)
 		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", goroot, goos, goarch, suffixsep, suffix, name)
+		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", obj.GOROOT, obj.GOOS, obj.GOARCH, suffixsep, suffix, name)
 		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
@@ -634,39 +664,37 @@ func findpkg(name string) (file string, ok bool) {
 	return "", false
 }
 
-// loadsys loads the definitions for the low-level runtime and unsafe functions,
+// loadsys loads the definitions for the low-level runtime functions,
 // so that the compiler can generate calls to them,
-// but does not make the names "runtime" or "unsafe" visible as packages.
+// but does not make them visible to user code.
 func loadsys() {
-	if Debug['A'] != 0 {
-		return
-	}
-
 	block = 1
 	iota_ = -1000000
-	incannedimport = 1
 
-	// The first byte in the binary export format is a 'c' or 'd'
-	// specifying the encoding format. We could just check that
-	// byte, but this is a perhaps more robust. Also, it is not
-	// speed-critical.
-	// TODO(gri) simplify once textual export format has gone
-	if strings.HasPrefix(runtimeimport, "package") {
-		// textual export format
-		importpkg = Runtimepkg
-		parse_import(bufio.NewReader(strings.NewReader(runtimeimport)), nil)
-		importpkg = unsafepkg
-		parse_import(bufio.NewReader(strings.NewReader(unsafeimport)), nil)
-	} else {
-		// binary export format
-		importpkg = Runtimepkg
-		Import(bufio.NewReader(strings.NewReader(runtimeimport)))
-		importpkg = unsafepkg
-		Import(bufio.NewReader(strings.NewReader(unsafeimport)))
+	importpkg = Runtimepkg
+	typecheckok = true
+	defercheckwidth()
+
+	typs := runtimeTypes()
+	for _, d := range runtimeDecls {
+		sym := Pkglookup(d.name, importpkg)
+		typ := typs[d.typ]
+		switch d.tag {
+		case funcTag:
+			importsym(sym, ONAME)
+			n := newfuncname(sym)
+			n.Type = typ
+			declare(n, PFUNC)
+		case varTag:
+			importvar(sym, typ)
+		default:
+			Fatalf("unhandled declaration tag %v", d.tag)
+		}
 	}
 
+	typecheckok = false
+	resumecheckwidth()
 	importpkg = nil
-	incannedimport = 0
 }
 
 func importfile(f *Val, indent []byte) {
@@ -676,12 +704,12 @@ func importfile(f *Val, indent []byte) {
 
 	path_, ok := f.U.(string)
 	if !ok {
-		Yyerror("import statement not a string")
+		yyerror("import statement not a string")
 		return
 	}
 
 	if len(path_) == 0 {
-		Yyerror("import path is empty")
+		yyerror("import path is empty")
 		return
 	}
 
@@ -694,12 +722,12 @@ func importfile(f *Val, indent []byte) {
 	// the main package, just as we reserve the import
 	// path "math" to identify the standard math package.
 	if path_ == "main" {
-		Yyerror("cannot import \"main\"")
+		yyerror("cannot import \"main\"")
 		errorexit()
 	}
 
 	if myimportpath != "" && path_ == myimportpath {
-		Yyerror("import %q while compiling that package (import cycle)", path_)
+		yyerror("import %q while compiling that package (import cycle)", path_)
 		errorexit()
 	}
 
@@ -709,7 +737,7 @@ func importfile(f *Val, indent []byte) {
 
 	if path_ == "unsafe" {
 		if safemode {
-			Yyerror("cannot import package unsafe")
+			yyerror("cannot import package unsafe")
 			errorexit()
 		}
 
@@ -720,7 +748,7 @@ func importfile(f *Val, indent []byte) {
 
 	if islocalname(path_) {
 		if path_[0] == '/' {
-			Yyerror("import path cannot be absolute path")
+			yyerror("import path cannot be absolute path")
 			return
 		}
 
@@ -737,7 +765,7 @@ func importfile(f *Val, indent []byte) {
 
 	file, found := findpkg(path_)
 	if !found {
-		Yyerror("can't find import: %q", path_)
+		yyerror("can't find import: %q", path_)
 		errorexit()
 	}
 
@@ -751,7 +779,7 @@ func importfile(f *Val, indent []byte) {
 
 	impf, err := os.Open(file)
 	if err != nil {
-		Yyerror("can't open import: %q: %v", path_, err)
+		yyerror("can't open import: %q: %v", path_, err)
 		errorexit()
 	}
 	defer impf.Close()
@@ -759,7 +787,7 @@ func importfile(f *Val, indent []byte) {
 
 	if strings.HasSuffix(file, ".a") {
 		if !skiptopkgdef(imp) {
-			Yyerror("import %s: not a package file", file)
+			yyerror("import %s: not a package file", file)
 			errorexit()
 		}
 	}
@@ -775,18 +803,19 @@ func importfile(f *Val, indent []byte) {
 
 	if p != "empty archive" {
 		if !strings.HasPrefix(p, "go object ") {
-			Yyerror("import %s: not a go object file: %s", file, p)
+			yyerror("import %s: not a go object file: %s", file, p)
 			errorexit()
 		}
 
-		q := fmt.Sprintf("%s %s %s %s", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+		q := fmt.Sprintf("%s %s %s %s", obj.GOOS, obj.GOARCH, obj.Version, obj.Expstring())
 		if p[10:] != q {
-			Yyerror("import %s: object is [%s] expected [%s]", file, p[10:], q)
+			yyerror("import %s: object is [%s] expected [%s]", file, p[10:], q)
 			errorexit()
 		}
 	}
 
 	// process header lines
+	safe := false
 	for {
 		p, err = imp.ReadString('\n')
 		if err != nil {
@@ -796,9 +825,12 @@ func importfile(f *Val, indent []byte) {
 			break // header ends with blank line
 		}
 		if strings.HasPrefix(p, "safe") {
-			importpkg.Safe = true
+			safe = true
 			break // ok to ignore rest
 		}
+	}
+	if safemode && !safe {
+		yyerror("cannot import unsafe package %q", importpkg.Path)
 	}
 
 	// assume files move (get installed)
@@ -806,8 +838,8 @@ func importfile(f *Val, indent []byte) {
 	linehistpragma(file[len(file)-len(path_)-2:]) // acts as #pragma lib
 
 	// In the importfile, if we find:
-	// $$\n  (old format): position the input right after $$\n and return
-	// $$B\n (new format): import directly, then feed the lexer a dummy statement
+	// $$\n  (textual format): not supported anymore
+	// $$B\n (binary format) : import directly, then feed the lexer a dummy statement
 
 	// look for $$
 	var c byte
@@ -831,11 +863,9 @@ func importfile(f *Val, indent []byte) {
 
 	switch c {
 	case '\n':
-		// old export format
-		parse_import(imp, indent)
+		yyerror("cannot import %s: old export format no longer supported (recompile library)", path_)
 
 	case 'B':
-		// new export format
 		if Debug_export != 0 {
 			fmt.Printf("importing %s (%s)\n", path_, file)
 		}
@@ -843,12 +873,8 @@ func importfile(f *Val, indent []byte) {
 		Import(imp)
 
 	default:
-		Yyerror("no import in %q", path_)
+		yyerror("no import in %q", path_)
 		errorexit()
-	}
-
-	if safemode && !importpkg.Safe {
-		Yyerror("cannot import unsafe package %q", importpkg.Path)
 	}
 }
 
@@ -873,12 +899,12 @@ func pkgnotused(lineno int32, path string, name string) {
 func mkpackage(pkgname string) {
 	if localpkg.Name == "" {
 		if pkgname == "_" {
-			Yyerror("invalid package name _")
+			yyerror("invalid package name _")
 		}
 		localpkg.Name = pkgname
 	} else {
 		if pkgname != localpkg.Name {
-			Yyerror("package %s; expected %s", pkgname, localpkg.Name)
+			yyerror("package %s; expected %s", pkgname, localpkg.Name)
 		}
 		for _, s := range localpkg.Syms {
 			if s.Def == nil {
@@ -897,7 +923,7 @@ func mkpackage(pkgname string) {
 				continue
 			}
 
-			if s.Def.Sym != s {
+			if s.Def.Sym != s && s.Flags&SymAlias == 0 {
 				// throw away top-level name left over
 				// from previous import . "x"
 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {

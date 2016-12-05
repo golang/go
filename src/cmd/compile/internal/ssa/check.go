@@ -80,16 +80,6 @@ func checkFunc(f *Func) {
 			if !b.Control.Type.IsBoolean() {
 				f.Fatalf("if block %s has non-bool control value %s", b, b.Control.LongString())
 			}
-		case BlockCall:
-			if len(b.Succs) != 1 {
-				f.Fatalf("call block %s len(Succs)==%d, want 1", b, len(b.Succs))
-			}
-			if b.Control == nil {
-				f.Fatalf("call block %s has no control value", b)
-			}
-			if !b.Control.Type.IsMemory() {
-				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
-			}
 		case BlockDefer:
 			if len(b.Succs) != 2 {
 				f.Fatalf("defer block %s len(Succs)==%d, want 2", b, len(b.Succs))
@@ -99,16 +89,6 @@ func checkFunc(f *Func) {
 			}
 			if !b.Control.Type.IsMemory() {
 				f.Fatalf("defer block %s has non-memory control value %s", b, b.Control.LongString())
-			}
-		case BlockCheck:
-			if len(b.Succs) != 1 {
-				f.Fatalf("check block %s len(Succs)==%d, want 1", b, len(b.Succs))
-			}
-			if b.Control == nil {
-				f.Fatalf("check block %s has no control value", b)
-			}
-			if !b.Control.Type.IsVoid() {
-				f.Fatalf("check block %s has non-void control value %s", b, b.Control.LongString())
 			}
 		case BlockFirst:
 			if len(b.Succs) != 2 {
@@ -165,9 +145,11 @@ func checkFunc(f *Func) {
 				if !isExactFloat32(v) {
 					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
 				}
+			case auxSizeAndAlign:
+				canHaveAuxInt = true
 			case auxString, auxSym:
 				canHaveAux = true
-			case auxSymOff, auxSymValAndOff:
+			case auxSymOff, auxSymValAndOff, auxSymSizeAndAlign:
 				canHaveAuxInt = true
 				canHaveAux = true
 			case auxSymInt32:
@@ -273,8 +255,7 @@ func checkFunc(f *Func) {
 	if f.RegAlloc == nil {
 		// Note: regalloc introduces non-dominating args.
 		// See TODO in regalloc.go.
-		idom := dominators(f)
-		sdom := newSparseTree(f, idom)
+		sdom := f.sdom()
 		for _, b := range f.Blocks {
 			for _, v := range b.Values {
 				for i, arg := range v.Args {

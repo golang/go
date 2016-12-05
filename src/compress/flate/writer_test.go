@@ -56,6 +56,7 @@ func (e *errorWriter) Write(b []byte) (int, error) {
 
 // Test if errors from the underlying writer is passed upwards.
 func TestWriteError(t *testing.T) {
+	t.Parallel()
 	buf := new(bytes.Buffer)
 	n := 65536
 	if !testing.Short() {
@@ -75,7 +76,7 @@ func TestWriteError(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewWriter: level %d: %v", l, err)
 			}
-			n, err := io.CopyBuffer(w, bytes.NewBuffer(in), copyBuffer)
+			n, err := io.CopyBuffer(w, struct{ io.Reader }{bytes.NewBuffer(in)}, copyBuffer)
 			if err == nil {
 				t.Fatalf("Level %d: Expected an error, writer was %#v", l, ew)
 			}
@@ -113,6 +114,7 @@ func TestWriteError(t *testing.T) {
 // Test if two runs produce identical results
 // even when writing different sizes to the Writer.
 func TestDeterministic(t *testing.T) {
+	t.Parallel()
 	for i := 0; i <= 9; i++ {
 		t.Run(fmt.Sprint("L", i), func(t *testing.T) { testDeterministic(i, t) })
 	}
@@ -120,6 +122,7 @@ func TestDeterministic(t *testing.T) {
 }
 
 func testDeterministic(i int, t *testing.T) {
+	t.Parallel()
 	// Test so much we cross a good number of block boundaries.
 	var length = maxStoreBlockSize*30 + 500
 	if testing.Short() {
@@ -142,7 +145,7 @@ func testDeterministic(i int, t *testing.T) {
 	}
 	// Use a very small prime sized buffer.
 	cbuf := make([]byte, 787)
-	_, err = io.CopyBuffer(w, br, cbuf)
+	_, err = io.CopyBuffer(w, struct{ io.Reader }{br}, cbuf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +160,7 @@ func testDeterministic(i int, t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = io.CopyBuffer(w2, br2, cbuf)
+	_, err = io.CopyBuffer(w2, struct{ io.Reader }{br2}, cbuf)
 	if err != nil {
 		t.Fatal(err)
 	}

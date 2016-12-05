@@ -26,6 +26,7 @@ type Value struct {
 
 	// Auxiliary info for this value. The type of this information depends on the opcode and type.
 	// AuxInt is used for integer values, Aux is used for other values.
+	// Floats are stored in AuxInt using math.Float64bits(f).
 	AuxInt int64
 	Aux    interface{}
 
@@ -96,7 +97,7 @@ func (v *Value) AuxValAndOff() ValAndOff {
 
 // long form print.  v# = opcode <type> [aux] args [: reg]
 func (v *Value) LongString() string {
-	s := fmt.Sprintf("v%d = %s", v.ID, v.Op.String())
+	s := fmt.Sprintf("v%d = %s", v.ID, v.Op)
 	s += " <" + v.Type.String() + ">"
 	s += v.auxString()
 	for _, a := range v.Args {
@@ -125,18 +126,20 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
 	case auxInt64, auxInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxSizeAndAlign:
+		return fmt.Sprintf(" [%s]", SizeAndAlign(v.AuxInt))
 	case auxFloat32, auxFloat64:
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
 		return fmt.Sprintf(" {%q}", v.Aux)
 	case auxSym:
 		if v.Aux != nil {
-			return fmt.Sprintf(" {%s}", v.Aux)
+			return fmt.Sprintf(" {%v}", v.Aux)
 		}
 	case auxSymOff, auxSymInt32:
 		s := ""
 		if v.Aux != nil {
-			s = fmt.Sprintf(" {%s}", v.Aux)
+			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
 		if v.AuxInt != 0 {
 			s += fmt.Sprintf(" [%v]", v.AuxInt)
@@ -145,9 +148,15 @@ func (v *Value) auxString() string {
 	case auxSymValAndOff:
 		s := ""
 		if v.Aux != nil {
-			s = fmt.Sprintf(" {%s}", v.Aux)
+			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
+	case auxSymSizeAndAlign:
+		s := ""
+		if v.Aux != nil {
+			s = fmt.Sprintf(" {%v}", v.Aux)
+		}
+		return s + fmt.Sprintf(" [%s]", SizeAndAlign(v.AuxInt))
 	}
 	return ""
 }
@@ -225,9 +234,6 @@ func (v *Value) Log() bool                            { return v.Block.Log() }
 func (v *Value) Fatalf(msg string, args ...interface{}) {
 	v.Block.Func.Config.Fatalf(v.Line, msg, args...)
 }
-func (v *Value) Unimplementedf(msg string, args ...interface{}) {
-	v.Block.Func.Config.Unimplementedf(v.Line, msg, args...)
-}
 
 // isGenericIntConst returns whether v is a generic integer constant.
 func (v *Value) isGenericIntConst() bool {
@@ -267,4 +273,39 @@ func (s *ArgSymbol) String() string {
 
 func (s *AutoSymbol) String() string {
 	return s.Node.String()
+}
+
+// Reg returns the register assigned to v, in cmd/internal/obj/$ARCH numbering.
+func (v *Value) Reg() int16 {
+	reg := v.Block.Func.RegAlloc[v.ID]
+	if reg == nil {
+		v.Fatalf("nil register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).objNum
+}
+
+// Reg0 returns the register assigned to the first output of v, in cmd/internal/obj/$ARCH numbering.
+func (v *Value) Reg0() int16 {
+	reg := v.Block.Func.RegAlloc[v.ID].(LocPair)[0]
+	if reg == nil {
+		v.Fatalf("nil first register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).objNum
+}
+
+// Reg1 returns the register assigned to the second output of v, in cmd/internal/obj/$ARCH numbering.
+func (v *Value) Reg1() int16 {
+	reg := v.Block.Func.RegAlloc[v.ID].(LocPair)[1]
+	if reg == nil {
+		v.Fatalf("nil second register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).objNum
+}
+
+func (v *Value) RegName() string {
+	reg := v.Block.Func.RegAlloc[v.ID]
+	if reg == nil {
+		v.Fatalf("nil register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).name
 }

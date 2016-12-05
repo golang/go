@@ -173,8 +173,8 @@ func cap(v Type) int
 //	specify a different capacity; it must be no smaller than the
 //	length, so make([]int, 0, 10) allocates a slice of length 0 and
 //	capacity 10.
-//	Map: An initial allocation is made according to the size but the
-//	resulting map has length 0. The size may be omitted, in which case
+//	Map: An empty map is allocated with enough space to hold the
+//	specified number of elements. The size may be omitted, in which case
 //	a small starting size is allocated.
 //	Channel: The channel's buffer is initialized with the specified
 //	buffer capacity. If zero, or the size is omitted, the channel is

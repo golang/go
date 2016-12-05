@@ -15,7 +15,7 @@ import (
 // This program generates tests to verify that copying operations
 // copy the data they are supposed to and clobber no adjacent values.
 
-// run as `go run copyGen.go`.  A file called copy_ssa.go
+// run as `go run copyGen.go`.  A file called copy.go
 // will be written into the parent directory containing the tests.
 
 var sizes = [...]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 23, 24, 25, 31, 32, 33, 63, 64, 65, 1023, 1024, 1025, 1024 + 7, 1024 + 8, 1024 + 9, 1024 + 15, 1024 + 16, 1024 + 17}
@@ -86,7 +86,7 @@ func main() {
 	}
 
 	// write to file
-	err = ioutil.WriteFile("../copy_ssa.go", src, 0666)
+	err = ioutil.WriteFile("../copy.go", src, 0666)
 	if err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}

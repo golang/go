@@ -37,7 +37,7 @@ func ExpandEnv(s string) string {
 // shell variable such as $*.
 func isShellSpecialVar(c uint8) bool {
 	switch c {
-	case '*', '#', '$', '@', '!', '?', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+	case '*', '#', '$', '@', '!', '?', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		return true
 	}
 	return false
@@ -76,6 +76,7 @@ func getShellName(s string) (string, int) {
 
 // Getenv retrieves the value of the environment variable named by the key.
 // It returns the value, which will be empty if the variable is not present.
+// To distinguish between an empty value and an unset value, use LookupEnv.
 func Getenv(key string) string {
 	v, _ := syscall.Getenv(key)
 	return v

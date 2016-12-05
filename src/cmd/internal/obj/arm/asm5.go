@@ -1,5 +1,5 @@
 // Inferno utils/5l/span.c
-// http://code.google.com/p/inferno-os/source/browse/utils/5l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -648,7 +648,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 	var out [6 + 3]uint32
 	for {
 		if ctxt.Debugvlog != 0 {
-			fmt.Fprintf(ctxt.Bso, "%5.2f span1\n", obj.Cputime())
+			ctxt.Logf("%5.2f span1\n", obj.Cputime())
 		}
 		bflag = 0
 		c = 0
@@ -1026,16 +1026,15 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 		case obj.NAME_AUTO:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset
-			t := int(immaddr(int32(ctxt.Instoffset)))
-			if t != 0 {
+			if t := immaddr(int32(ctxt.Instoffset)); t != 0 {
 				if immhalf(int32(ctxt.Instoffset)) {
-					if immfloat(int32(t)) {
+					if immfloat(t) {
 						return C_HFAUTO
 					}
 					return C_HAUTO
 				}
 
-				if immfloat(int32(t)) {
+				if immfloat(t) {
 					return C_FAUTO
 				}
 				return C_SAUTO
@@ -1045,16 +1044,15 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 		case obj.NAME_PARAM:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + 4
-			t := int(immaddr(int32(ctxt.Instoffset)))
-			if t != 0 {
+			if t := immaddr(int32(ctxt.Instoffset)); t != 0 {
 				if immhalf(int32(ctxt.Instoffset)) {
-					if immfloat(int32(t)) {
+					if immfloat(t) {
 						return C_HFAUTO
 					}
 					return C_HAUTO
 				}
 
-				if immfloat(int32(t)) {
+				if immfloat(t) {
 					return C_FAUTO
 				}
 				return C_SAUTO
@@ -1064,20 +1062,18 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 		case obj.NAME_NONE:
 			ctxt.Instoffset = a.Offset
-			t := int(immaddr(int32(ctxt.Instoffset)))
-			if t != 0 {
+			if t := immaddr(int32(ctxt.Instoffset)); t != 0 {
 				if immhalf(int32(ctxt.Instoffset)) { /* n.b. that it will also satisfy immrot */
-					if immfloat(int32(t)) {
+					if immfloat(t) {
 						return C_HFOREG
 					}
 					return C_HOREG
 				}
 
-				if immfloat(int32(t)) {
+				if immfloat(t) {
 					return C_FOREG /* n.b. that it will also satisfy immrot */
 				}
-				t := int(immrot(uint32(ctxt.Instoffset)))
-				if t != 0 {
+				if immrot(uint32(ctxt.Instoffset)) != 0 {
 					return C_SROREG
 				}
 				if immhalf(int32(ctxt.Instoffset)) {
@@ -1086,8 +1082,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 				return C_SOREG
 			}
 
-			t = int(immrot(uint32(ctxt.Instoffset)))
-			if t != 0 {
+			if immrot(uint32(ctxt.Instoffset)) != 0 {
 				return C_ROREG
 			}
 			return C_LOREG
@@ -1116,12 +1111,10 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 				return aconsize(ctxt)
 			}
 
-			t := int(immrot(uint32(ctxt.Instoffset)))
-			if t != 0 {
+			if immrot(uint32(ctxt.Instoffset)) != 0 {
 				return C_RCON
 			}
-			t = int(immrot(^uint32(ctxt.Instoffset)))
-			if t != 0 {
+			if immrot(^uint32(ctxt.Instoffset)) != 0 {
 				return C_NCON
 			}
 			return C_LCON
@@ -1155,8 +1148,10 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 }
 
 func aconsize(ctxt *obj.Link) int {
-	t := int(immrot(uint32(ctxt.Instoffset)))
-	if t != 0 {
+	if immrot(uint32(ctxt.Instoffset)) != 0 {
+		return C_RACON
+	}
+	if immrot(uint32(-ctxt.Instoffset)) != 0 {
 		return C_RACON
 	}
 	return C_LACON
@@ -1191,7 +1186,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	}
 
 	if false { /*debug['O']*/
-		fmt.Printf("oplook %v %v %v %v\n", obj.Aconv(p.As), DRconv(a1), DRconv(a2), DRconv(a3))
+		fmt.Printf("oplook %v %v %v %v\n", p.As, DRconv(a1), DRconv(a2), DRconv(a3))
 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
 	}
 
@@ -1343,7 +1338,7 @@ func buildop(ctxt *obj.Link) {
 
 		switch r {
 		default:
-			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
+			ctxt.Diag("unknown op in build: %v", r)
 			log.Fatalf("bad code")
 
 		case AADD:
@@ -1434,6 +1429,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AMOVDF, r0)
 			opset(AABSF, r0)
 			opset(AABSD, r0)
+			opset(ANEGF, r0)
+			opset(ANEGD, r0)
 
 		case ACMPF:
 			opset(ACMPD, r0)
@@ -1535,11 +1532,15 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	case 3: /* add R<<[IR],[R],R */
 		o1 = mov(ctxt, p)
 
-	case 4: /* add $I,[R],R */
+	case 4: /* MOVW $off(R), R -> add $off,[R],R */
 		aclass(ctxt, &p.From)
-
-		o1 = oprrr(ctxt, AADD, int(p.Scond))
-		o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
+		if ctxt.Instoffset < 0 {
+			o1 = oprrr(ctxt, ASUB, int(p.Scond))
+			o1 |= uint32(immrot(uint32(-ctxt.Instoffset)))
+		} else {
+			o1 = oprrr(ctxt, AADD, int(p.Scond))
+			o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
+		}
 		r := int(p.From.Reg)
 		if r == 0 {
 			r = int(o.param)
@@ -1930,7 +1931,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		r := int(p.Reg)
 		if r == 0 {
 			r = rt
-			if p.As == AMOVF || p.As == AMOVD || p.As == AMOVFD || p.As == AMOVDF || p.As == ASQRTF || p.As == ASQRTD || p.As == AABSF || p.As == AABSD {
+			if p.As == AMOVF || p.As == AMOVD || p.As == AMOVFD || p.As == AMOVDF || p.As == ASQRTF || p.As == ASQRTD || p.As == AABSF || p.As == AABSD || p.As == ANEGF || p.As == ANEGD {
 				r = 0
 			}
 		}
@@ -2357,7 +2358,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			o1 |= uint32(p.From.Offset & 0xfff)
 		}
 
-		// This is supposed to be something that stops execution.
+	// This is supposed to be something that stops execution.
 	// It's not supposed to be reached, ever, but if it is, we'd
 	// like to be able to tell how we got there. Assemble as
 	// 0xf7fabcfd which is guaranteed to raise undefined instruction
@@ -2386,7 +2387,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(p.Reg) & 15) << 0
 		o1 |= uint32((p.To.Offset & 15) << 16)
 
-		// DATABUNDLE: BKPT $0x5be0, signify the start of NaCl data bundle;
+	// DATABUNDLE: BKPT $0x5be0, signify the start of NaCl data bundle;
 	// DATABUNDLEEND: zero width alignment marker
 	case 100:
 		if p.As == ADATABUNDLE {
@@ -2508,6 +2509,10 @@ func oprrr(ctxt *obj.Link, a obj.As, sc int) uint32 {
 		return o | 0xe<<24 | 0xb<<20 | 0<<16 | 0xb<<8 | 0xc<<4
 	case AABSF:
 		return o | 0xe<<24 | 0xb<<20 | 0<<16 | 0xa<<8 | 0xc<<4
+	case ANEGD:
+		return o | 0xe<<24 | 0xb<<20 | 1<<16 | 0xb<<8 | 0x4<<4
+	case ANEGF:
+		return o | 0xe<<24 | 0xb<<20 | 1<<16 | 0xa<<8 | 0x4<<4
 	case ACMPD:
 		return o | 0xe<<24 | 0xb<<20 | 4<<16 | 0xb<<8 | 0xc<<4
 	case ACMPF:
@@ -2630,7 +2635,7 @@ func opbra(ctxt *obj.Link, p *obj.Prog, a obj.As, sc int) uint32 {
 		return 0xe<<28 | 0x5<<25
 	}
 
-	ctxt.Diag("bad bra %v", obj.Aconv(a))
+	ctxt.Diag("bad bra %v", a)
 	prasm(ctxt.Curp)
 	return 0
 }
@@ -2750,7 +2755,7 @@ func ofsr(ctxt *obj.Link, a obj.As, r int, v int32, b int, sc int, p *obj.Prog) 
 
 	switch a {
 	default:
-		ctxt.Diag("bad fst %v", obj.Aconv(a))
+		ctxt.Diag("bad fst %v", a)
 		fallthrough
 
 	case AMOVD:
@@ -2788,7 +2793,7 @@ func omvl(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 
 func chipzero5(ctxt *obj.Link, e float64) int {
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if ctxt.Goarm < 7 || e != 0 {
+	if obj.GOARM < 7 || e != 0 {
 		return -1
 	}
 	return 0
@@ -2796,7 +2801,7 @@ func chipzero5(ctxt *obj.Link, e float64) int {
 
 func chipfloat5(ctxt *obj.Link, e float64) int {
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if ctxt.Goarm < 7 {
+	if obj.GOARM < 7 {
 		return -1
 	}
 

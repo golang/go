@@ -4,7 +4,10 @@
 
 package big
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestDecimalString(t *testing.T) {
 	for _, test := range []struct {
@@ -105,12 +108,27 @@ func TestDecimalRounding(t *testing.T) {
 	}
 }
 
+var sink string
+
 func BenchmarkDecimalConversion(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for shift := -100; shift <= +100; shift++ {
 			var d decimal
 			d.init(natOne, shift)
-			d.String()
+			sink = d.String()
 		}
+	}
+}
+
+func BenchmarkFloatString(b *testing.B) {
+	x := new(Float)
+	for _, prec := range []uint{1e2, 1e3, 1e4, 1e5} {
+		x.SetPrec(prec).SetRat(NewRat(1, 3))
+		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				sink = x.String()
+			}
+		})
 	}
 }

@@ -1,0 +1,5 @@
+// netbsd/arm-specific vet whitelist. See readme.txt for details.
+
+runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration
+runtime/sys_netbsd_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+syscall/asm_netbsd_arm.s: [arm] Syscall9: unknown variable trap; offset 0 is num+0(FP)

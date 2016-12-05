@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <sched.h>
 #include <pthread.h>
 
@@ -48,6 +49,7 @@ static void* thread1(void* arg __attribute__ ((unused))) {
 	stack_t ss;
 	int i;
 	stack_t nss;
+	struct timespec ts;
 
 	// Set up an alternate signal stack for this thread.
 	memset(&ss, 0, sizeof ss);
@@ -73,11 +75,11 @@ static void* thread1(void* arg __attribute__ ((unused))) {
 	// Wait until the signal has been delivered.
 	i = 0;
 	while (SIGIOCount() == 0) {
-		if (sched_yield() < 0) {
-			perror("sched_yield");
-		}
+		ts.tv_sec = 0;
+		ts.tv_nsec = 1000000;
+		nanosleep(&ts, NULL);
 		i++;
-		if (i > 100000) {
+		if (i > 5000) {
 			fprintf(stderr, "looping too long waiting for signal\n");
 			exit(EXIT_FAILURE);
 		}
@@ -105,6 +107,7 @@ static void* thread2(void* arg __attribute__ ((unused))) {
 	int i;
 	int oldcount;
 	pthread_t tid;
+	struct timespec ts;
 	stack_t nss;
 
 	// Set up an alternate signal stack for this thread.
@@ -129,11 +132,11 @@ static void* thread2(void* arg __attribute__ ((unused))) {
 	// Wait until the signal has been delivered.
 	i = 0;
 	while (SIGIOCount() == oldcount) {
-		if (sched_yield() < 0) {
-			perror("sched_yield");
-		}
+		ts.tv_sec = 0;
+		ts.tv_nsec = 1000000;
+		nanosleep(&ts, NULL);
 		i++;
-		if (i > 100000) {
+		if (i > 5000) {
 			fprintf(stderr, "looping too long waiting for signal\n");
 			exit(EXIT_FAILURE);
 		}

@@ -21,13 +21,18 @@ import (
 )
 
 type arch struct {
-	name     string
-	pkg      string // obj package to import for this arch.
-	genfile  string // source file containing opcode code generation.
-	ops      []opData
-	blocks   []blockData
-	regnames []string
-	generic  bool
+	name            string
+	pkg             string // obj package to import for this arch.
+	genfile         string // source file containing opcode code generation.
+	ops             []opData
+	blocks          []blockData
+	regnames        []string
+	gpregmask       regMask
+	fpregmask       regMask
+	specialregmask  regMask
+	framepointerreg int8
+	linkreg         int8
+	generic         bool
 }
 
 type opData struct {
@@ -38,8 +43,15 @@ type opData struct {
 	aux               string
 	rematerializeable bool
 	argLength         int32 // number of arguments, if -1, then this operation has a variable number of arguments
-	commutative       bool  // this operation is commutative (e.g. addition)
-	resultInArg0      bool  // v and v.Args[0] must be allocated to the same register
+	commutative       bool  // this operation is commutative on its first 2 arguments (e.g. addition)
+	resultInArg0      bool  // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
+	resultNotInArgs   bool  // outputs must not be allocated to the same registers as inputs
+	clobberFlags      bool  // this op clobbers flags register
+	call              bool  // is a function call
+	nilCheck          bool  // this op is a nil check on arg0
+	faultOnNilArg0    bool  // this op will fault if arg0 is nil (and aux encodes a small offset)
+	faultOnNilArg1    bool  // this op will fault if arg1 is nil (and aux encodes a small offset)
+	usesScratch       bool  // this op requires scratch memory space
 }
 
 type blockData struct {
@@ -73,6 +85,7 @@ var archs []arch
 
 func main() {
 	flag.Parse()
+	sort.Sort(ArchsByName(archs))
 	genOp()
 	genLower()
 }
@@ -118,10 +131,13 @@ func genOp() {
 
 	// generate Op* declarations
 	fmt.Fprintln(w, "const (")
-	fmt.Fprintln(w, "OpInvalid Op = iota")
+	fmt.Fprintln(w, "OpInvalid Op = iota") // make sure OpInvalid is 0.
 	for _, a := range archs {
 		fmt.Fprintln(w)
 		for _, v := range a.ops {
+			if v.name == "Invalid" {
+				continue
+			}
 			fmt.Fprintf(w, "Op%s%s\n", a.Name(), v.name)
 		}
 	}
@@ -135,6 +151,9 @@ func genOp() {
 
 		pkg := path.Base(a.pkg)
 		for _, v := range a.ops {
+			if v.name == "Invalid" {
+				continue
+			}
 			fmt.Fprintln(w, "{")
 			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
 
@@ -156,11 +175,38 @@ func genOp() {
 			if v.resultInArg0 {
 				fmt.Fprintln(w, "resultInArg0: true,")
 				if v.reg.inputs[0] != v.reg.outputs[0] {
-					log.Fatalf("input[0] and output registers must be equal for %s", v.name)
+					log.Fatalf("input[0] and output[0] must use the same registers for %s", v.name)
 				}
 				if v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
-					log.Fatalf("input[1] and output registers must be equal for %s", v.name)
+					log.Fatalf("input[1] and output[0] must use the same registers for %s", v.name)
 				}
+			}
+			if v.resultNotInArgs {
+				fmt.Fprintln(w, "resultNotInArgs: true,")
+			}
+			if v.clobberFlags {
+				fmt.Fprintln(w, "clobberFlags: true,")
+			}
+			if v.call {
+				fmt.Fprintln(w, "call: true,")
+			}
+			if v.nilCheck {
+				fmt.Fprintln(w, "nilCheck: true,")
+			}
+			if v.faultOnNilArg0 {
+				fmt.Fprintln(w, "faultOnNilArg0: true,")
+				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+					log.Fatalf("faultOnNilArg0 with aux %s not allowed", v.aux)
+				}
+			}
+			if v.faultOnNilArg1 {
+				fmt.Fprintln(w, "faultOnNilArg1: true,")
+				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
+				}
+			}
+			if v.usesScratch {
+				fmt.Fprintln(w, "usesScratch: true,")
 			}
 			if a.name == "generic" {
 				fmt.Fprintln(w, "generic:true,")
@@ -191,14 +237,22 @@ func genOp() {
 				}
 				fmt.Fprintln(w, "},")
 			}
+
 			if v.reg.clobbers > 0 {
 				fmt.Fprintf(w, "clobbers: %d,%s\n", v.reg.clobbers, a.regMaskComment(v.reg.clobbers))
 			}
+
 			// reg outputs
-			if len(v.reg.outputs) > 0 {
-				fmt.Fprintln(w, "outputs: []regMask{")
-				for _, r := range v.reg.outputs {
-					fmt.Fprintf(w, "%d,%s\n", r, a.regMaskComment(r))
+			s = s[:0]
+			for i, r := range v.reg.outputs {
+				s = append(s, intPair{countRegs(r), i})
+			}
+			if len(s) > 0 {
+				sort.Sort(byKey(s))
+				fmt.Fprintln(w, "outputs: []outputInfo{")
+				for _, p := range s {
+					r := v.reg.outputs[p.val]
+					fmt.Fprintf(w, "{%d,%d},%s\n", p.val, r, a.regMaskComment(r))
 				}
 				fmt.Fprintln(w, "},")
 			}
@@ -213,6 +267,8 @@ func genOp() {
 	// generate op string method
 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
 
+	fmt.Fprintln(w, "func (o Op) UsesScratch() bool { return opcodeTable[o].usesScratch }")
+
 	// generate registers
 	for _, a := range archs {
 		if a.generic {
@@ -220,9 +276,27 @@ func genOp() {
 		}
 		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
 		for i, r := range a.regnames {
-			fmt.Fprintf(w, "  {%d, \"%s\"},\n", i, r)
+			pkg := a.pkg[len("cmd/internal/obj/"):]
+			var objname string // name in cmd/internal/obj/$ARCH
+			switch r {
+			case "SB":
+				// SB isn't a real register.  cmd/internal/obj expects 0 in this case.
+				objname = "0"
+			case "SP":
+				objname = pkg + ".REGSP"
+			case "g":
+				objname = pkg + ".REGG"
+			default:
+				objname = pkg + ".REG_" + r
+			}
+			fmt.Fprintf(w, "  {%d, %s, \"%s\"},\n", i, objname, r)
 		}
 		fmt.Fprintln(w, "}")
+		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
+		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
+		fmt.Fprintf(w, "var specialRegMask%s = regMask(%d)\n", a.name, a.specialregmask)
+		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
+		fmt.Fprintf(w, "var linkReg%s = int8(%d)\n", a.name, a.linkreg)
 	}
 
 	// gofmt result
@@ -298,3 +372,9 @@ type byKey []intPair
 func (a byKey) Len() int           { return len(a) }
 func (a byKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byKey) Less(i, j int) bool { return a[i].key < a[j].key }
+
+type ArchsByName []arch
+
+func (x ArchsByName) Len() int           { return len(x) }
+func (x ArchsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x ArchsByName) Less(i, j int) bool { return x[i].name < x[j].name }

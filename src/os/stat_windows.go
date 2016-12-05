@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/syscall/windows"
 	"syscall"
 	"unsafe"
 )
@@ -61,7 +62,7 @@ func (file *File) Stat() (FileInfo, error) {
 func Stat(name string) (FileInfo, error) {
 	var fi FileInfo
 	var err error
-	for {
+	for i := 0; i < 255; i++ {
 		fi, err = Lstat(name)
 		if err != nil {
 			return fi, err
@@ -74,6 +75,7 @@ func Stat(name string) (FileInfo, error) {
 			return fi, err
 		}
 	}
+	return nil, &PathError{"Stat", name, syscall.ELOOP}
 }
 
 // Lstat returns the FileInfo structure describing the named file.
@@ -88,13 +90,29 @@ func Lstat(name string) (FileInfo, error) {
 		return &devNullStat, nil
 	}
 	fs := &fileStat{name: basename(name)}
-	namep, e := syscall.UTF16PtrFromString(name)
+	namep, e := syscall.UTF16PtrFromString(fixLongPath(name))
 	if e != nil {
 		return nil, &PathError{"Lstat", name, e}
 	}
 	e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fs.sys)))
 	if e != nil {
-		return nil, &PathError{"GetFileAttributesEx", name, e}
+		if e != windows.ERROR_SHARING_VIOLATION {
+			return nil, &PathError{"GetFileAttributesEx", name, e}
+		}
+		// try FindFirstFile now that GetFileAttributesEx failed
+		var fd syscall.Win32finddata
+		h, e2 := syscall.FindFirstFile(namep, &fd)
+		if e2 != nil {
+			return nil, &PathError{"FindFirstFile", name, e}
+		}
+		syscall.FindClose(h)
+
+		fs.sys.FileAttributes = fd.FileAttributes
+		fs.sys.CreationTime = fd.CreationTime
+		fs.sys.LastAccessTime = fd.LastAccessTime
+		fs.sys.LastWriteTime = fd.LastWriteTime
+		fs.sys.FileSizeHigh = fd.FileSizeHigh
+		fs.sys.FileSizeLow = fd.FileSizeLow
 	}
 	fs.path = name
 	if !isAbs(fs.path) {
@@ -104,78 +122,4 @@ func Lstat(name string) (FileInfo, error) {
 		}
 	}
 	return fs, nil
-}
-
-// basename removes trailing slashes and the leading
-// directory name and drive letter from path name.
-func basename(name string) string {
-	// Remove drive letter
-	if len(name) == 2 && name[1] == ':' {
-		name = "."
-	} else if len(name) > 2 && name[1] == ':' {
-		name = name[2:]
-	}
-	i := len(name) - 1
-	// Remove trailing slashes
-	for ; i > 0 && (name[i] == '/' || name[i] == '\\'); i-- {
-		name = name[:i]
-	}
-	// Remove leading directory name
-	for i--; i >= 0; i-- {
-		if name[i] == '/' || name[i] == '\\' {
-			name = name[i+1:]
-			break
-		}
-	}
-	return name
-}
-
-func isAbs(path string) (b bool) {
-	v := volumeName(path)
-	if v == "" {
-		return false
-	}
-	path = path[len(v):]
-	if path == "" {
-		return false
-	}
-	return IsPathSeparator(path[0])
-}
-
-func volumeName(path string) (v string) {
-	if len(path) < 2 {
-		return ""
-	}
-	// with drive letter
-	c := path[0]
-	if path[1] == ':' &&
-		('0' <= c && c <= '9' || 'a' <= c && c <= 'z' ||
-			'A' <= c && c <= 'Z') {
-		return path[:2]
-	}
-	// is it UNC
-	if l := len(path); l >= 5 && IsPathSeparator(path[0]) && IsPathSeparator(path[1]) &&
-		!IsPathSeparator(path[2]) && path[2] != '.' {
-		// first, leading `\\` and next shouldn't be `\`. its server name.
-		for n := 3; n < l-1; n++ {
-			// second, next '\' shouldn't be repeated.
-			if IsPathSeparator(path[n]) {
-				n++
-				// third, following something characters. its share name.
-				if !IsPathSeparator(path[n]) {
-					if path[n] == '.' {
-						break
-					}
-					for ; n < l; n++ {
-						if IsPathSeparator(path[n]) {
-							break
-						}
-					}
-					return path[:n]
-				}
-				break
-			}
-		}
-	}
-	return ""
 }

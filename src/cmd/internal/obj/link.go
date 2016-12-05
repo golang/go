@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// http://code.google.com/p/inferno-os/source/browse/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -33,6 +33,7 @@ package obj
 import (
 	"bufio"
 	"cmd/internal/sys"
+	"fmt"
 )
 
 // An Addr is an argument to an instruction.
@@ -112,13 +113,17 @@ import (
 //			val = int32(y)
 //
 //	reg<<shift, reg>>shift, reg->shift, reg@>shift
-//		Shifted register value, for ARM.
+//		Shifted register value, for ARM and ARM64.
 //		In this form, reg must be a register and shift can be a register or an integer constant.
 //		Encoding:
 //			type = TYPE_SHIFT
+//		On ARM:
 //			offset = (reg&15) | shifttype<<5 | count
 //			shifttype = 0, 1, 2, 3 for <<, >>, ->, @>
 //			count = (reg&15)<<8 | 1<<4 for a register shift count, (n&31)<<7 for an integer constant.
+//		On ARM64:
+//			offset = (reg&31)<<16 | shifttype<<22 | (count&63)<<10
+//			shifttype = 0, 1, 2 for <<, >>, ->
 //
 //	(reg, reg)
 //		A destination register pair. When used as the last argument of an instruction,
@@ -153,11 +158,8 @@ type Addr struct {
 	Type   AddrType
 	Name   int8
 	Class  int8
-	Etype  uint8
 	Offset int64
-	Width  int64
 	Sym    *LSym
-	Gotype *LSym
 
 	// argument value:
 	//	for TYPE_SCONST, a string
@@ -200,34 +202,55 @@ const (
 	TYPE_REGLIST
 )
 
-// TODO(rsc): Describe prog.
-// TODO(rsc): Describe TEXT/GLOBL flag in from3
+// Prog describes a single machine instruction.
+//
+// The general instruction form is:
+//
+//	As.Scond From, Reg, From3, To, RegTo2
+//
+// where As is an opcode and the others are arguments:
+// From, Reg, From3 are sources, and To, RegTo2 are destinations.
+// Usually, not all arguments are present.
+// For example, MOVL R1, R2 encodes using only As=MOVL, From=R1, To=R2.
+// The Scond field holds additional condition bits for systems (like arm)
+// that have generalized conditional execution.
+//
+// Jump instructions use the Pcond field to point to the target instruction,
+// which must be in the same linked list as the jump instruction.
+//
+// The Progs for a given function are arranged in a list linked through the Link field.
+//
+// Each Prog is charged to a specific source line in the debug information,
+// specified by Lineno, an index into the line history (see LineHist).
+// Every Prog has a Ctxt field that defines various context, including the current LineHist.
+// Progs should be allocated using ctxt.NewProg(), not new(Prog).
+//
+// The other fields not yet mentioned are for use by the back ends and should
+// be left zeroed by creators of Prog lists.
 type Prog struct {
-	Ctxt   *Link
-	Link   *Prog
-	From   Addr
-	From3  *Addr // optional
-	To     Addr
-	Opt    interface{}
-	Forwd  *Prog
-	Pcond  *Prog
-	Rel    *Prog // Source of forward jumps on x86; pcrel on arm
-	Pc     int64
-	Lineno int32
-	Spadj  int32
-	As     As // Assembler opcode.
-	Reg    int16
-	RegTo2 int16  // 2nd register output operand
-	Mark   uint16 // bitmask of arch-specific items
-	Optab  uint16
-	Scond  uint8
-	Back   uint8
-	Ft     uint8
-	Tt     uint8
-	Isize  uint8 // size of the instruction in bytes (x86 only)
-	Mode   int8
-
-	Info ProgInfo
+	Ctxt   *Link       // linker context
+	Link   *Prog       // next Prog in linked list
+	From   Addr        // first source operand
+	From3  *Addr       // third source operand (second is Reg below)
+	To     Addr        // destination operand (second is RegTo2 below)
+	Pcond  *Prog       // target of conditional jump
+	Opt    interface{} // available to optimization passes to hold per-Prog state
+	Forwd  *Prog       // for x86 back end
+	Rel    *Prog       // for x86, arm back ends
+	Pc     int64       // for back ends or assembler: virtual or actual program counter, depending on phase
+	Lineno int32       // line number of this instruction
+	Spadj  int32       // effect of instruction on stack pointer (increment or decrement amount)
+	As     As          // assembler opcode
+	Reg    int16       // 2nd source operand
+	RegTo2 int16       // 2nd destination operand
+	Mark   uint16      // bitmask of arch-specific items
+	Optab  uint16      // arch-specific opcode index
+	Scond  uint8       // condition bits for conditional instruction (e.g., on ARM)
+	Back   uint8       // for x86 back end: backwards branch state
+	Ft     uint8       // for x86 back end: type index of Prog.From
+	Tt     uint8       // for x86 back end: type index of Prog.To
+	Isize  uint8       // for x86 back end: size of the instruction in bytes
+	Mode   int8        // for x86 back end: 32- or 64-bit mode
 }
 
 // From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
@@ -246,17 +269,6 @@ func (p *Prog) From3Offset() int64 {
 	return p.From3.Offset
 }
 
-// ProgInfo holds information about the instruction for use
-// by clients such as the compiler. The exact meaning of this
-// data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
-type ProgInfo struct {
-	_        struct{} // to prevent unkeyed literals. Trailing zero-sized field will take space.
-	Flags    uint32   // flag bits
-	Reguse   uint64   // registers implicitly used by this instruction
-	Regset   uint64   // registers implicitly set by this instruction
-	Regindex uint64   // registers used by addressing mode
-}
-
 // An As denotes an assembler opcode.
 // There are some portable opcodes, declared here in package obj,
 // that are common to all architectures.
@@ -268,12 +280,10 @@ type As int16
 const (
 	AXXX As = iota
 	ACALL
-	ACHECKNIL
 	ADUFFCOPY
 	ADUFFZERO
 	AEND
 	AFUNCDATA
-	AGLOBL
 	AJMP
 	ANOP
 	APCDATA
@@ -296,44 +306,24 @@ const (
 // Subspaces are aligned to a power of two so opcodes can be masked
 // with AMask and used as compact array indices.
 const (
-	ABase386 = (1 + iota) << 12
+	ABase386 = (1 + iota) << 10
 	ABaseARM
 	ABaseAMD64
 	ABasePPC64
 	ABaseARM64
-	ABaseMIPS64
+	ABaseMIPS
 	ABaseS390X
 
-	AMask = 1<<12 - 1 // AND with this to use the opcode as an array index.
+	AllowedOpCodes = 1 << 10            // The number of opcodes available for any given architecture.
+	AMask          = AllowedOpCodes - 1 // AND with this to use the opcode as an array index.
 )
 
 // An LSym is the sort of symbol that is written to an object file.
 type LSym struct {
-	Name      string
-	Type      int16
-	Version   int16
-	Dupok     bool
-	Cfunc     bool
-	Nosplit   bool
-	Leaf      bool
-	Seenglobl bool
-	Onlist    bool
-
-	// ReflectMethod means the function may call reflect.Type.Method or
-	// reflect.Type.MethodByName. Matching is imprecise (as reflect.Type
-	// can be used through a custom interface), so ReflectMethod may be
-	// set in some cases when the reflect package is not called.
-	//
-	// Used by the linker to determine what methods can be pruned.
-	ReflectMethod bool
-
-	// Local means make the symbol local even when compiling Go code to reference Go
-	// symbols in other shared libraries, as in this mode symbols are global by
-	// default. "local" here means in the sense of the dynamic linker, i.e. not
-	// visible outside of the module (shared library or executable) that contains its
-	// definition. (When not compiling to support Go shared libraries, all symbols are
-	// local in this sense unless there is a cgo_export_* directive).
-	Local bool
+	Name    string
+	Type    SymKind
+	Version int16
+	Attribute
 
 	RefIdx int // Index of this symbol in the symbol reference list.
 	Args   int32
@@ -345,6 +335,55 @@ type LSym struct {
 	Pcln   *Pcln
 	P      []byte
 	R      []Reloc
+}
+
+// Attribute is a set of symbol attributes.
+type Attribute int16
+
+const (
+	AttrDuplicateOK Attribute = 1 << iota
+	AttrCFunc
+	AttrNoSplit
+	AttrLeaf
+	AttrSeenGlobl
+	AttrOnList
+
+	// MakeTypelink means that the type should have an entry in the typelink table.
+	AttrMakeTypelink
+
+	// ReflectMethod means the function may call reflect.Type.Method or
+	// reflect.Type.MethodByName. Matching is imprecise (as reflect.Type
+	// can be used through a custom interface), so ReflectMethod may be
+	// set in some cases when the reflect package is not called.
+	//
+	// Used by the linker to determine what methods can be pruned.
+	AttrReflectMethod
+
+	// Local means make the symbol local even when compiling Go code to reference Go
+	// symbols in other shared libraries, as in this mode symbols are global by
+	// default. "local" here means in the sense of the dynamic linker, i.e. not
+	// visible outside of the module (shared library or executable) that contains its
+	// definition. (When not compiling to support Go shared libraries, all symbols are
+	// local in this sense unless there is a cgo_export_* directive).
+	AttrLocal
+)
+
+func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
+func (a Attribute) MakeTypelink() bool  { return a&AttrMakeTypelink != 0 }
+func (a Attribute) CFunc() bool         { return a&AttrCFunc != 0 }
+func (a Attribute) NoSplit() bool       { return a&AttrNoSplit != 0 }
+func (a Attribute) Leaf() bool          { return a&AttrLeaf != 0 }
+func (a Attribute) SeenGlobl() bool     { return a&AttrSeenGlobl != 0 }
+func (a Attribute) OnList() bool        { return a&AttrOnList != 0 }
+func (a Attribute) ReflectMethod() bool { return a&AttrReflectMethod != 0 }
+func (a Attribute) Local() bool         { return a&AttrLocal != 0 }
+
+func (a *Attribute) Set(flag Attribute, value bool) {
+	if value {
+		*a |= flag
+	} else {
+		*a &^= flag
+	}
 }
 
 // The compiler needs LSym to satisfy fmt.Stringer, because it stores
@@ -365,21 +404,33 @@ type Pcln struct {
 	Lastindex   int
 }
 
-// LSym.type
+// A SymKind describes the kind of memory represented by a symbol.
+type SymKind int16
+
+// Defined SymKind values.
+//
+// TODO(rsc): Give idiomatic Go names.
+// TODO(rsc): Reduce the number of symbol types in the object files.
+//go:generate stringer -type=SymKind
 const (
-	Sxxx = iota
+	Sxxx SymKind = iota
 	STEXT
 	SELFRXSECT
 
+	// Read-only sections.
 	STYPE
 	SSTRING
 	SGOSTRING
-	SGOSTRINGHDR
 	SGOFUNC
 	SGCBITS
 	SRODATA
 	SFUNCTAB
 
+	SELFROSECT
+	SMACHOPLT
+
+	// Read-only sections with relocations.
+	//
 	// Types STYPE-SFUNCTAB above are written to the .rodata section by default.
 	// When linking a shared object, some conceptually "read only" types need to
 	// be written to by relocations and putting them in a section called
@@ -393,18 +444,18 @@ const (
 	STYPERELRO
 	SSTRINGRELRO
 	SGOSTRINGRELRO
-	SGOSTRINGHDRRELRO
 	SGOFUNCRELRO
 	SGCBITSRELRO
 	SRODATARELRO
 	SFUNCTABRELRO
 
+	// Part of .data.rel.ro if it exists, otherwise part of .rodata.
 	STYPELINK
 	SITABLINK
 	SSYMTAB
 	SPCLNTAB
-	SELFROSECT
-	SMACHOPLT
+
+	// Writable sections.
 	SELFSECT
 	SMACHO
 	SMACHOGOT
@@ -428,23 +479,50 @@ const (
 	SHOSTOBJ
 	SDWARFSECT
 	SDWARFINFO
-	SSUB       = 1 << 8
-	SMASK      = SSUB - 1
-	SHIDDEN    = 1 << 9
-	SCONTAINER = 1 << 10 // has a sub-symbol
+	SSUB       = SymKind(1 << 8)
+	SMASK      = SymKind(SSUB - 1)
+	SHIDDEN    = SymKind(1 << 9)
+	SCONTAINER = SymKind(1 << 10) // has a sub-symbol
 )
+
+// ReadOnly are the symbol kinds that form read-only sections. In some
+// cases, if they will require relocations, they are transformed into
+// rel-ro sections using RelROMap.
+var ReadOnly = []SymKind{
+	STYPE,
+	SSTRING,
+	SGOSTRING,
+	SGOFUNC,
+	SGCBITS,
+	SRODATA,
+	SFUNCTAB,
+}
+
+// RelROMap describes the transformation of read-only symbols to rel-ro
+// symbols.
+var RelROMap = map[SymKind]SymKind{
+	STYPE:     STYPERELRO,
+	SSTRING:   SSTRINGRELRO,
+	SGOSTRING: SGOSTRINGRELRO,
+	SGOFUNC:   SGOFUNCRELRO,
+	SGCBITS:   SGCBITSRELRO,
+	SRODATA:   SRODATARELRO,
+	SFUNCTAB:  SFUNCTABRELRO,
+}
 
 type Reloc struct {
 	Off  int32
 	Siz  uint8
-	Type int32
+	Type RelocType
 	Add  int64
 	Sym  *LSym
 }
 
-// Reloc.type
+type RelocType int32
+
+//go:generate stringer -type=RelocType
 const (
-	R_ADDR = 1 + iota
+	R_ADDR RelocType = 1 + iota
 	// R_ADDRPOWER relocates a pair of "D-form" instructions (instructions with 16-bit
 	// immediates in the low half of the instruction word), usually addis followed by
 	// another add or a load, inserting the "high adjusted" 16 bits of the address of
@@ -454,12 +532,17 @@ const (
 	// R_ADDRARM64 relocates an adrp, add pair to compute the address of the
 	// referenced symbol.
 	R_ADDRARM64
-	// R_ADDRMIPS (only used on mips64) resolves to the low 16 bits of an external
+	// R_ADDRMIPS (only used on mips/mips64) resolves to the low 16 bits of an external
 	// address, by encoding it into the instruction.
 	R_ADDRMIPS
 	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
 	R_ADDROFF
+	// R_WEAKADDROFF resolves just like R_ADDROFF but is a weak relocation.
+	// A weak relocation does not make the symbol it refers to reachable,
+	// and is only honored by the linker if the symbol is in some other way
+	// reachable.
+	R_WEAKADDROFF
 	R_SIZE
 	R_CALL
 	R_CALLARM
@@ -582,13 +665,27 @@ const (
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
 	R_PCRELDBL
 
-	// R_ADDRMIPSU (only used on mips64) resolves to the sign-adjusted "upper" 16
+	// R_ADDRMIPSU (only used on mips/mips64) resolves to the sign-adjusted "upper" 16
 	// bits (bit 16-31) of an external address, by encoding it into the instruction.
 	R_ADDRMIPSU
 	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
 	// address (offset from thread pointer), by encoding it into the instruction.
 	R_ADDRMIPSTLS
 )
+
+// IsDirectJump returns whether r is a relocation for a direct jump.
+// A direct jump is a CALL or JMP instruction that takes the target address
+// as immediate. The address is embedded into the instruction, possibly
+// with limited width.
+// An indirect jump is a CALL or JMP instruction that takes the target address
+// in register or memory.
+func (r RelocType) IsDirectJump() bool {
+	switch r {
+	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLPOWER, R_CALLMIPS, R_JMPMIPS:
+		return true
+	}
+	return false
+}
 
 type Auto struct {
 	Asym    *LSym
@@ -617,8 +714,7 @@ const (
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
-	Goarm         int32
-	Headtype      int
+	Headtype      HeadType
 	Arch          *LinkArch
 	Debugasm      int32
 	Debugvlog     int32
@@ -629,13 +725,10 @@ type Link struct {
 	Flag_optimize bool
 	Bso           *bufio.Writer
 	Pathname      string
-	Goroot        string
-	Goroot_final  string
 	Hash          map[SymVer]*LSym
 	LineHist      LineHist
 	Imports       []string
-	Plist         *Plist
-	Plast         *Plist
+	Plists        []*Plist
 	Sym_div       *LSym
 	Sym_divu      *LSym
 	Sym_mod       *LSym
@@ -660,8 +753,6 @@ type Link struct {
 	Mode          int
 	Cursym        *LSym
 	Version       int
-	Textp         *LSym
-	Etextp        *LSym
 	Errors        int
 
 	Framepointer_enabled bool
@@ -678,6 +769,11 @@ type Link struct {
 func (ctxt *Link) Diag(format string, args ...interface{}) {
 	ctxt.Errors++
 	ctxt.DiagFunc(format, args...)
+}
+
+func (ctxt *Link) Logf(format string, args ...interface{}) {
+	fmt.Fprintf(ctxt.Bso, format, args...)
+	ctxt.Bso.Flush()
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
@@ -712,9 +808,11 @@ type LinkArch struct {
 	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
 }
 
-/* executable header types */
+// HeadType is the executable header type.
+type HeadType uint8
+
 const (
-	Hunknown = 0 + iota
+	Hunknown HeadType = iota
 	Hdarwin
 	Hdragonfly
 	Hfreebsd
@@ -725,7 +823,66 @@ const (
 	Hplan9
 	Hsolaris
 	Hwindows
+	Hwindowsgui
 )
+
+func (h *HeadType) Set(s string) error {
+	switch s {
+	case "darwin":
+		*h = Hdarwin
+	case "dragonfly":
+		*h = Hdragonfly
+	case "freebsd":
+		*h = Hfreebsd
+	case "linux", "android":
+		*h = Hlinux
+	case "nacl":
+		*h = Hnacl
+	case "netbsd":
+		*h = Hnetbsd
+	case "openbsd":
+		*h = Hopenbsd
+	case "plan9":
+		*h = Hplan9
+	case "solaris":
+		*h = Hsolaris
+	case "windows":
+		*h = Hwindows
+	case "windowsgui":
+		*h = Hwindowsgui
+	default:
+		return fmt.Errorf("invalid headtype: %q", s)
+	}
+	return nil
+}
+
+func (h *HeadType) String() string {
+	switch *h {
+	case Hdarwin:
+		return "darwin"
+	case Hdragonfly:
+		return "dragonfly"
+	case Hfreebsd:
+		return "freebsd"
+	case Hlinux:
+		return "linux"
+	case Hnacl:
+		return "nacl"
+	case Hnetbsd:
+		return "netbsd"
+	case Hopenbsd:
+		return "openbsd"
+	case Hplan9:
+		return "plan9"
+	case Hsolaris:
+		return "solaris"
+	case Hwindows:
+		return "windows"
+	case Hwindowsgui:
+		return "windowsgui"
+	}
+	return fmt.Sprintf("HeadType(%d)", *h)
+}
 
 // AsmBuf is a simple buffer to assemble variable-length x86 instructions into.
 type AsmBuf struct {

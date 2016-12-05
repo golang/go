@@ -148,7 +148,7 @@ type PipeWriter struct {
 }
 
 // Write implements the standard Write interface:
-// it writes data to the pipe, blocking until readers
+// it writes data to the pipe, blocking until one or more readers
 // have consumed all the data or the read end is closed.
 // If the read end is closed with an error, that err is
 // returned as err; otherwise err is ErrClosedPipe.
@@ -175,11 +175,17 @@ func (w *PipeWriter) CloseWithError(err error) error {
 // Pipe creates a synchronous in-memory pipe.
 // It can be used to connect code expecting an io.Reader
 // with code expecting an io.Writer.
-// Reads on one end are matched with writes on the other,
-// copying data directly between the two; there is no internal buffering.
-// It is safe to call Read and Write in parallel with each other or with
-// Close. Close will complete once pending I/O is done. Parallel calls to
-// Read, and parallel calls to Write, are also safe:
+//
+// Reads and Writes on the pipe are matched one to one
+// except when multiple Reads are needed to consume a single Write.
+// That is, each Write to the PipeWriter blocks until it has satisfied
+// one or more Reads from the PipeReader that fully consume
+// the written data.
+// The data is copied directly from the Write to the corresponding
+// Read (or Reads); there is no internal buffering.
+//
+// It is safe to call Read and Write in parallel with each other or with Close.
+// Parallel calls to Read and parallel calls to Write are also safe:
 // the individual calls will be gated sequentially.
 func Pipe() (*PipeReader, *PipeWriter) {
 	p := new(pipe)

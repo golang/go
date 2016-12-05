@@ -24,6 +24,7 @@ var (
 	ExportErrRequestCanceled     = errRequestCanceled
 	ExportErrRequestCanceledConn = errRequestCanceledConn
 	ExportServeFile              = serveFile
+	ExportScanETag               = scanETag
 	ExportHttp2ConfigureServer   = http2ConfigureServer
 )
 
@@ -87,6 +88,12 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	return
 }
 
+func (t *Transport) IdleConnKeyCountForTesting() int {
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	return len(t.idleConn)
+}
+
 func (t *Transport) IdleConnStrsForTesting() []string {
 	var ret []string
 	t.idleMu.Lock()
@@ -96,6 +103,24 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
 		}
 	}
+	sort.Strings(ret)
+	return ret
+}
+
+func (t *Transport) IdleConnStrsForTesting_h2() []string {
+	var ret []string
+	noDialPool := t.h2transport.ConnPool.(http2noDialClientConnPool)
+	pool := noDialPool.http2clientConnPool
+
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	for k, cc := range pool.conns {
+		for range cc {
+			ret = append(ret, k)
+		}
+	}
+
 	sort.Strings(ret)
 	return ret
 }
@@ -159,4 +184,18 @@ func ExportHttp2ConfigureTransport(t *Transport) error {
 	}
 	t.h2transport = t2
 	return nil
+}
+
+var Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
+
+func (s *Server) ExportAllConnsIdle() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for c := range s.activeConn {
+		st, ok := c.curState.Load().(ConnState)
+		if !ok || st != StateIdle {
+			return false
+		}
+	}
+	return true
 }

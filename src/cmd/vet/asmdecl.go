@@ -10,7 +10,9 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/token"
+	"go/types"
 	"regexp"
 	"strconv"
 	"strings"
@@ -24,16 +26,17 @@ type asmKind int
 const (
 	asmString asmKind = 100 + iota
 	asmSlice
+	asmArray
 	asmInterface
 	asmEmptyInterface
+	asmStruct
+	asmComplex
 )
 
 // An asmArch describes assembly parameters for an architecture
 type asmArch struct {
 	name      string
-	ptrSize   int
-	intSize   int
-	maxAlign  int
+	sizes     *types.StdSizes
 	bigEndian bool
 	stack     string
 	lr        bool
@@ -57,16 +60,26 @@ type asmVar struct {
 	inner []*asmVar
 }
 
+// Common architecture word sizes and alignments.
 var (
-	asmArch386      = asmArch{"386", 4, 4, 4, false, "SP", false}
-	asmArchArm      = asmArch{"arm", 4, 4, 4, false, "R13", true}
-	asmArchArm64    = asmArch{"arm64", 8, 8, 8, false, "RSP", true}
-	asmArchAmd64    = asmArch{"amd64", 8, 8, 8, false, "SP", false}
-	asmArchAmd64p32 = asmArch{"amd64p32", 4, 4, 8, false, "SP", false}
-	asmArchMips64   = asmArch{"mips64", 8, 8, 8, true, "R29", true}
-	asmArchMips64LE = asmArch{"mips64", 8, 8, 8, false, "R29", true}
-	asmArchPpc64    = asmArch{"ppc64", 8, 8, 8, true, "R1", true}
-	asmArchPpc64LE  = asmArch{"ppc64le", 8, 8, 8, false, "R1", true}
+	size44 = &types.StdSizes{WordSize: 4, MaxAlign: 4}
+	size48 = &types.StdSizes{WordSize: 4, MaxAlign: 8}
+	size88 = &types.StdSizes{WordSize: 8, MaxAlign: 8}
+)
+
+var (
+	asmArch386      = asmArch{"386", size44, false, "SP", false}
+	asmArchArm      = asmArch{"arm", size44, false, "R13", true}
+	asmArchArm64    = asmArch{"arm64", size88, false, "RSP", true}
+	asmArchAmd64    = asmArch{"amd64", size88, false, "SP", false}
+	asmArchAmd64p32 = asmArch{"amd64p32", size48, false, "SP", false}
+	asmArchMips     = asmArch{"mips", size44, true, "R29", true}
+	asmArchMipsLE   = asmArch{"mipsle", size44, false, "R29", true}
+	asmArchMips64   = asmArch{"mips64", size88, true, "R29", true}
+	asmArchMips64LE = asmArch{"mips64le", size88, false, "R29", true}
+	asmArchPpc64    = asmArch{"ppc64", size88, true, "R1", true}
+	asmArchPpc64LE  = asmArch{"ppc64le", size88, false, "R1", true}
+	asmArchS390X    = asmArch{"s390x", size88, true, "R15", true}
 
 	arches = []*asmArch{
 		&asmArch386,
@@ -74,17 +87,24 @@ var (
 		&asmArchArm64,
 		&asmArchAmd64,
 		&asmArchAmd64p32,
+		&asmArchMips,
+		&asmArchMipsLE,
 		&asmArchMips64,
 		&asmArchMips64LE,
 		&asmArchPpc64,
 		&asmArchPpc64LE,
+		&asmArchS390X,
 	}
 )
+
+func (a *asmArch) intSize() int  { return int(a.sizes.WordSize) }
+func (a *asmArch) ptrSize() int  { return int(a.sizes.WordSize) }
+func (a *asmArch) maxAlign() int { return int(a.sizes.MaxAlign) }
 
 var (
 	re           = regexp.MustCompile
 	asmPlusBuild = re(`//\s+\+build\s+([^\n]+)`)
-	asmTEXT      = re(`\bTEXT\b.*·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+]+))?(?:\s*,\s*\$(-?[0-9]+)(?:-([0-9]+))?)?`)
+	asmTEXT      = re(`\bTEXT\b(.*)·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+]+))?(?:\s*,\s*\$(-?[0-9]+)(?:-([0-9]+))?)?`)
 	asmDATA      = re(`\b(DATA|GLOBL)\b`)
 	asmNamedFP   = re(`([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
 	asmUnnamedFP = re(`[^+\-0-9](([0-9]+)\(FP\))`)
@@ -163,15 +183,26 @@ Files:
 			if arch == "" {
 				// Determine architecture from +build line if possible.
 				if m := asmPlusBuild.FindStringSubmatch(line); m != nil {
-				Fields:
+					// There can be multiple architectures in a single +build line,
+					// so accumulate them all and then prefer the one that
+					// matches build.Default.GOARCH.
+					var archCandidates []*asmArch
 					for _, fld := range strings.Fields(m[1]) {
 						for _, a := range arches {
 							if a.name == fld {
-								arch = a.name
-								archDef = a
-								break Fields
+								archCandidates = append(archCandidates, a)
 							}
 						}
+					}
+					for _, a := range archCandidates {
+						if a.name == build.Default.GOARCH {
+							archCandidates = []*asmArch{a}
+							break
+						}
+					}
+					if len(archCandidates) > 0 {
+						arch = archCandidates[0].name
+						archDef = archCandidates[0]
 					}
 				}
 			}
@@ -179,24 +210,46 @@ Files:
 			if m := asmTEXT.FindStringSubmatch(line); m != nil {
 				flushRet()
 				if arch == "" {
-					f.Warnf(token.NoPos, "%s: cannot determine architecture for assembly file", f.name)
-					continue Files
+					// Arch not specified by filename or build tags.
+					// Fall back to build.Default.GOARCH.
+					for _, a := range arches {
+						if a.name == build.Default.GOARCH {
+							arch = a.name
+							archDef = a
+							break
+						}
+					}
+					if arch == "" {
+						f.Warnf(token.NoPos, "%s: cannot determine architecture for assembly file", f.name)
+						continue Files
+					}
 				}
-				fnName = m[1]
-				fn = knownFunc[m[1]][arch]
+				fnName = m[2]
+				if pkgName := strings.TrimSpace(m[1]); pkgName != "" {
+					pathParts := strings.Split(pkgName, "∕")
+					pkgName = pathParts[len(pathParts)-1]
+					if pkgName != f.pkg.path {
+						f.Warnf(token.NoPos, "%s:%d: [%s] cannot check cross-package assembly function: %s is in package %s", f.name, lineno, arch, fnName, pkgName)
+						fn = nil
+						fnName = ""
+						continue
+					}
+				}
+				fn = knownFunc[fnName][arch]
 				if fn != nil {
-					size, _ := strconv.Atoi(m[4])
-					if size != fn.size && (m[2] != "7" && !strings.Contains(m[2], "NOSPLIT") || size != 0) {
+					size, _ := strconv.Atoi(m[5])
+					flag := m[3]
+					if size != fn.size && (flag != "7" && !strings.Contains(flag, "NOSPLIT") || size != 0) {
 						badf("wrong argument size %d; expected $...-%d", size, fn.size)
 					}
 				}
-				localSize, _ = strconv.Atoi(m[3])
-				localSize += archDef.intSize
+				localSize, _ = strconv.Atoi(m[4])
+				localSize += archDef.intSize()
 				if archDef.lr {
 					// Account for caller's saved LR
-					localSize += archDef.intSize
+					localSize += archDef.intSize()
 				}
-				argSize, _ = strconv.Atoi(m[4])
+				argSize, _ = strconv.Atoi(m[5])
 				if fn == nil && !strings.Contains(fnName, "<>") {
 					badf("function %s missing Go declaration", fnName)
 				}
@@ -300,199 +353,179 @@ Files:
 	}
 }
 
+func asmKindForType(t types.Type, size int) asmKind {
+	switch t := t.Underlying().(type) {
+	case *types.Basic:
+		switch t.Kind() {
+		case types.String:
+			return asmString
+		case types.Complex64, types.Complex128:
+			return asmComplex
+		}
+		return asmKind(size)
+	case *types.Pointer, *types.Chan, *types.Map, *types.Signature:
+		return asmKind(size)
+	case *types.Struct:
+		return asmStruct
+	case *types.Interface:
+		if t.Empty() {
+			return asmEmptyInterface
+		}
+		return asmInterface
+	case *types.Array:
+		return asmArray
+	case *types.Slice:
+		return asmSlice
+	}
+	panic("unreachable")
+}
+
+// A component is an assembly-addressable component of a composite type,
+// or a composite type itself.
+type component struct {
+	size   int
+	offset int
+	kind   asmKind
+	typ    string
+	suffix string // Such as _base for string base, _0_lo for lo half of first element of [1]uint64 on 32 bit machine.
+	outer  string // The suffix for immediately containing composite type.
+}
+
+func newComponent(suffix string, kind asmKind, typ string, offset, size int, outer string) component {
+	return component{suffix: suffix, kind: kind, typ: typ, offset: offset, size: size, outer: outer}
+}
+
+// componentsOfType generates a list of components of type t.
+// For example, given string, the components are the string itself, the base, and the length.
+func componentsOfType(arch *asmArch, t types.Type) []component {
+	return appendComponentsRecursive(arch, t, nil, "", 0)
+}
+
+// appendComponentsRecursive implements componentsOfType.
+// Recursion is required to correct handle structs and arrays,
+// which can contain arbitrary other types.
+func appendComponentsRecursive(arch *asmArch, t types.Type, cc []component, suffix string, off int) []component {
+	s := t.String()
+	size := int(arch.sizes.Sizeof(t))
+	kind := asmKindForType(t, size)
+	cc = append(cc, newComponent(suffix, kind, s, off, size, suffix))
+
+	switch kind {
+	case 8:
+		if arch.ptrSize() == 4 {
+			w1, w2 := "lo", "hi"
+			if arch.bigEndian {
+				w1, w2 = w2, w1
+			}
+			cc = append(cc, newComponent(suffix+"_"+w1, 4, "half "+s, off, 4, suffix))
+			cc = append(cc, newComponent(suffix+"_"+w2, 4, "half "+s, off+4, 4, suffix))
+		}
+
+	case asmEmptyInterface:
+		cc = append(cc, newComponent(suffix+"_type", asmKind(arch.ptrSize()), "interface type", off, arch.ptrSize(), suffix))
+		cc = append(cc, newComponent(suffix+"_data", asmKind(arch.ptrSize()), "interface data", off+arch.ptrSize(), arch.ptrSize(), suffix))
+
+	case asmInterface:
+		cc = append(cc, newComponent(suffix+"_itable", asmKind(arch.ptrSize()), "interface itable", off, arch.ptrSize(), suffix))
+		cc = append(cc, newComponent(suffix+"_data", asmKind(arch.ptrSize()), "interface data", off+arch.ptrSize(), arch.ptrSize(), suffix))
+
+	case asmSlice:
+		cc = append(cc, newComponent(suffix+"_base", asmKind(arch.ptrSize()), "slice base", off, arch.ptrSize(), suffix))
+		cc = append(cc, newComponent(suffix+"_len", asmKind(arch.intSize()), "slice len", off+arch.ptrSize(), arch.intSize(), suffix))
+		cc = append(cc, newComponent(suffix+"_cap", asmKind(arch.intSize()), "slice cap", off+arch.ptrSize()+arch.intSize(), arch.intSize(), suffix))
+
+	case asmString:
+		cc = append(cc, newComponent(suffix+"_base", asmKind(arch.ptrSize()), "string base", off, arch.ptrSize(), suffix))
+		cc = append(cc, newComponent(suffix+"_len", asmKind(arch.intSize()), "string len", off+arch.ptrSize(), arch.intSize(), suffix))
+
+	case asmComplex:
+		fsize := size / 2
+		cc = append(cc, newComponent(suffix+"_real", asmKind(fsize), fmt.Sprintf("real(complex%d)", size*8), off, fsize, suffix))
+		cc = append(cc, newComponent(suffix+"_imag", asmKind(fsize), fmt.Sprintf("imag(complex%d)", size*8), off+fsize, fsize, suffix))
+
+	case asmStruct:
+		tu := t.Underlying().(*types.Struct)
+		fields := make([]*types.Var, tu.NumFields())
+		for i := 0; i < tu.NumFields(); i++ {
+			fields[i] = tu.Field(i)
+		}
+		offsets := arch.sizes.Offsetsof(fields)
+		for i, f := range fields {
+			cc = appendComponentsRecursive(arch, f.Type(), cc, suffix+"_"+f.Name(), off+int(offsets[i]))
+		}
+
+	case asmArray:
+		tu := t.Underlying().(*types.Array)
+		elem := tu.Elem()
+		// Calculate offset of each element array.
+		fields := []*types.Var{
+			types.NewVar(token.NoPos, nil, "fake0", elem),
+			types.NewVar(token.NoPos, nil, "fake1", elem),
+		}
+		offsets := arch.sizes.Offsetsof(fields)
+		elemoff := int(offsets[1])
+		for i := 0; i < int(tu.Len()); i++ {
+			cc = appendComponentsRecursive(arch, elem, cc, suffix+"_"+strconv.Itoa(i), i*elemoff)
+		}
+	}
+
+	return cc
+}
+
 // asmParseDecl parses a function decl for expected assembly variables.
 func (f *File) asmParseDecl(decl *ast.FuncDecl) map[string]*asmFunc {
 	var (
 		arch   *asmArch
 		fn     *asmFunc
 		offset int
-		failed bool
 	)
 
-	addVar := func(outer string, v asmVar) {
-		if vo := fn.vars[outer]; vo != nil {
-			vo.inner = append(vo.inner, &v)
-		}
-		fn.vars[v.name] = &v
-		for i := 0; i < v.size; i++ {
-			fn.varByOffset[v.off+i] = &v
-		}
-	}
-
-	addParams := func(list []*ast.Field) {
-		for i, fld := range list {
-			// Determine alignment, size, and kind of type in declaration.
-			var align, size int
-			var kind asmKind
-			names := fld.Names
-			typ := f.gofmt(fld.Type)
-			switch t := fld.Type.(type) {
-			default:
-				switch typ {
-				default:
-					f.Warnf(fld.Type.Pos(), "unknown assembly argument type %s", typ)
-					failed = true
-					return
-				case "int8", "uint8", "byte", "bool":
-					size = 1
-				case "int16", "uint16":
-					size = 2
-				case "int32", "uint32", "float32":
-					size = 4
-				case "int64", "uint64", "float64":
-					align = arch.maxAlign
-					size = 8
-				case "int", "uint":
-					size = arch.intSize
-				case "uintptr", "iword", "Word", "Errno", "unsafe.Pointer":
-					size = arch.ptrSize
-				case "string", "ErrorString":
-					size = arch.ptrSize * 2
-					align = arch.ptrSize
-					kind = asmString
-				}
-			case *ast.ChanType, *ast.FuncType, *ast.MapType, *ast.StarExpr:
-				size = arch.ptrSize
-			case *ast.InterfaceType:
-				align = arch.ptrSize
-				size = 2 * arch.ptrSize
-				if len(t.Methods.List) > 0 {
-					kind = asmInterface
-				} else {
-					kind = asmEmptyInterface
-				}
-			case *ast.ArrayType:
-				if t.Len == nil {
-					size = arch.ptrSize + 2*arch.intSize
-					align = arch.ptrSize
-					kind = asmSlice
-					break
-				}
-				f.Warnf(fld.Type.Pos(), "unsupported assembly argument type %s", typ)
-				failed = true
-			case *ast.StructType:
-				f.Warnf(fld.Type.Pos(), "unsupported assembly argument type %s", typ)
-				failed = true
-			}
-			if align == 0 {
-				align = size
-			}
-			if kind == 0 {
-				kind = asmKind(size)
-			}
+	// addParams adds asmVars for each of the parameters in list.
+	// isret indicates whether the list are the arguments or the return values.
+	addParams := func(list []*ast.Field, isret bool) {
+		argnum := 0
+		for _, fld := range list {
+			t := f.pkg.types[fld.Type].Type
+			align := int(arch.sizes.Alignof(t))
+			size := int(arch.sizes.Sizeof(t))
 			offset += -offset & (align - 1)
+			cc := componentsOfType(arch, t)
 
-			// Create variable for each name being declared with this type.
+			// names is the list of names with this type.
+			names := fld.Names
 			if len(names) == 0 {
-				name := "unnamed"
-				if decl.Type.Results != nil && len(decl.Type.Results.List) > 0 && &list[0] == &decl.Type.Results.List[0] && i == 0 {
-					// Assume assembly will refer to single unnamed result as r.
+				// Anonymous args will be called arg, arg1, arg2, ...
+				// Similarly so for return values: ret, ret1, ret2, ...
+				name := "arg"
+				if isret {
 					name = "ret"
 				}
-				names = []*ast.Ident{{Name: name}}
+				if argnum > 0 {
+					name += strconv.Itoa(argnum)
+				}
+				names = []*ast.Ident{ast.NewIdent(name)}
 			}
+			argnum += len(names)
+
+			// Create variable for each name.
 			for _, id := range names {
 				name := id.Name
-				addVar("", asmVar{
-					name: name,
-					kind: kind,
-					typ:  typ,
-					off:  offset,
-					size: size,
-				})
-				switch kind {
-				case 8:
-					if arch.ptrSize == 4 {
-						w1, w2 := "lo", "hi"
-						if arch.bigEndian {
-							w1, w2 = w2, w1
-						}
-						addVar(name, asmVar{
-							name: name + "_" + w1,
-							kind: 4,
-							typ:  "half " + typ,
-							off:  offset,
-							size: 4,
-						})
-						addVar(name, asmVar{
-							name: name + "_" + w2,
-							kind: 4,
-							typ:  "half " + typ,
-							off:  offset + 4,
-							size: 4,
-						})
+				for _, c := range cc {
+					outer := name + c.outer
+					v := asmVar{
+						name: name + c.suffix,
+						kind: c.kind,
+						typ:  c.typ,
+						off:  offset + c.offset,
+						size: c.size,
 					}
-
-				case asmEmptyInterface:
-					addVar(name, asmVar{
-						name: name + "_type",
-						kind: asmKind(arch.ptrSize),
-						typ:  "interface type",
-						off:  offset,
-						size: arch.ptrSize,
-					})
-					addVar(name, asmVar{
-						name: name + "_data",
-						kind: asmKind(arch.ptrSize),
-						typ:  "interface data",
-						off:  offset + arch.ptrSize,
-						size: arch.ptrSize,
-					})
-
-				case asmInterface:
-					addVar(name, asmVar{
-						name: name + "_itable",
-						kind: asmKind(arch.ptrSize),
-						typ:  "interface itable",
-						off:  offset,
-						size: arch.ptrSize,
-					})
-					addVar(name, asmVar{
-						name: name + "_data",
-						kind: asmKind(arch.ptrSize),
-						typ:  "interface data",
-						off:  offset + arch.ptrSize,
-						size: arch.ptrSize,
-					})
-
-				case asmSlice:
-					addVar(name, asmVar{
-						name: name + "_base",
-						kind: asmKind(arch.ptrSize),
-						typ:  "slice base",
-						off:  offset,
-						size: arch.ptrSize,
-					})
-					addVar(name, asmVar{
-						name: name + "_len",
-						kind: asmKind(arch.intSize),
-						typ:  "slice len",
-						off:  offset + arch.ptrSize,
-						size: arch.intSize,
-					})
-					addVar(name, asmVar{
-						name: name + "_cap",
-						kind: asmKind(arch.intSize),
-						typ:  "slice cap",
-						off:  offset + arch.ptrSize + arch.intSize,
-						size: arch.intSize,
-					})
-
-				case asmString:
-					addVar(name, asmVar{
-						name: name + "_base",
-						kind: asmKind(arch.ptrSize),
-						typ:  "string base",
-						off:  offset,
-						size: arch.ptrSize,
-					})
-					addVar(name, asmVar{
-						name: name + "_len",
-						kind: asmKind(arch.intSize),
-						typ:  "string len",
-						off:  offset + arch.ptrSize,
-						size: arch.intSize,
-					})
+					if vo := fn.vars[outer]; vo != nil {
+						vo.inner = append(vo.inner, &v)
+					}
+					fn.vars[v.name] = &v
+					for i := 0; i < v.size; i++ {
+						fn.varByOffset[v.off+i] = &v
+					}
 				}
 				offset += size
 			}
@@ -507,18 +540,15 @@ func (f *File) asmParseDecl(decl *ast.FuncDecl) map[string]*asmFunc {
 			varByOffset: make(map[int]*asmVar),
 		}
 		offset = 0
-		addParams(decl.Type.Params.List)
+		addParams(decl.Type.Params.List, false)
 		if decl.Type.Results != nil && len(decl.Type.Results.List) > 0 {
-			offset += -offset & (arch.maxAlign - 1)
-			addParams(decl.Type.Results.List)
+			offset += -offset & (arch.maxAlign() - 1)
+			addParams(decl.Type.Results.List, true)
 		}
 		fn.size = offset
 		m[arch.name] = fn
 	}
 
-	if failed {
-		return nil
-	}
 	return m
 }
 
@@ -613,7 +643,7 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 					src = 8
 				}
 			}
-		case "mips64", "mips64le":
+		case "mips", "mipsle", "mips64", "mips64le":
 			switch op {
 			case "MOVB", "MOVBU":
 				src = 1
@@ -622,6 +652,17 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 			case "MOVW", "MOVWU", "MOVF":
 				src = 4
 			case "MOVV", "MOVD":
+				src = 8
+			}
+		case "s390x":
+			switch op {
+			case "MOVB", "MOVBZ":
+				src = 1
+			case "MOVH", "MOVHZ":
+				src = 2
+			case "MOVW", "MOVWZ", "FMOVS":
+				src = 4
+			case "MOVD", "FMOVD":
 				src = 8
 			}
 		}
@@ -639,11 +680,13 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 	}
 
 	vk := v.kind
+	vs := v.size
 	vt := v.typ
 	switch vk {
 	case asmInterface, asmEmptyInterface, asmString, asmSlice:
 		// allow reference to first word (pointer)
 		vk = v.inner[0].kind
+		vs = v.inner[0].size
 		vt = v.inner[0].typ
 	}
 
@@ -677,6 +720,6 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 				fmt.Fprintf(&inner, "%s+%d(FP)", vi.name, vi.off)
 			}
 		}
-		badf("invalid %s of %s; %s is %d-byte value%s", op, expr, vt, vk, inner.String())
+		badf("invalid %s of %s; %s is %d-byte value%s", op, expr, vt, vs, inner.String())
 	}
 }

@@ -129,10 +129,11 @@ func ParseNetlinkMessage(b []byte) ([]NetlinkMessage, error) {
 
 func netlinkMessageHeaderAndData(b []byte) (*NlMsghdr, []byte, int, error) {
 	h := (*NlMsghdr)(unsafe.Pointer(&b[0]))
-	if int(h.Len) < NLMSG_HDRLEN || int(h.Len) > len(b) {
+	l := nlmAlignOf(int(h.Len))
+	if int(h.Len) < NLMSG_HDRLEN || l > len(b) {
 		return nil, nil, 0, EINVAL
 	}
-	return h, b[NLMSG_HDRLEN:], nlmAlignOf(int(h.Len)), nil
+	return h, b[NLMSG_HDRLEN:], l, nil
 }
 
 // NetlinkRouteAttr represents a netlink route attribute.

@@ -43,7 +43,6 @@ TEXT crosscall2(SB),NOSPLIT,$-8
 	MOVD	R0, R19
 
 	// Initialize Go ABI environment
-	BL      runtime·reginit(SB)
 	BL	runtime·load_g(SB)
 	BL	(R19)
 

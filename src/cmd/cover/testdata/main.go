@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Test runner for coverage test. This file is not coverage-annotated; test.go is.
-// It knows the coverage counter is called "coverTest".
+// It knows the coverage counter is called
+// "thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest".
 
 package main
 
@@ -23,6 +24,9 @@ type block struct {
 }
 
 var counters = make(map[block]bool)
+
+// shorthand for the long counter variable.
+var coverTest = &thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest
 
 // check records the location and expected value for a counter.
 func check(line, count uint32) {

@@ -177,7 +177,7 @@ func FromSlash(path string) string {
 // SplitList splits a list of paths joined by the OS-specific ListSeparator,
 // usually found in PATH or GOPATH environment variables.
 // Unlike strings.Split, SplitList returns an empty slice when passed an empty
-// string. SplitList does not replace slash characters in the returned paths.
+// string.
 func SplitList(path string) []string {
 	return splitList(path)
 }
@@ -393,9 +393,14 @@ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
 func Walk(root string, walkFn WalkFunc) error {
 	info, err := os.Lstat(root)
 	if err != nil {
-		return walkFn(root, nil, err)
+		err = walkFn(root, nil, err)
+	} else {
+		err = walk(root, info, walkFn)
 	}
-	return walk(root, info, walkFn)
+	if err == SkipDir {
+		return nil
+	}
+	return err
 }
 
 // readDirNames reads the directory named by dirname and returns

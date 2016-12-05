@@ -3,16 +3,17 @@
 // license that can be found in the LICENSE file.
 
 // Binary package export.
-// (see fmt.go, parser.go as "documentation" for how to use/setup data structures)
 
 /*
 1) Export data encoding principles:
 
 The export data is a serialized description of the graph of exported
-"objects": constants, types, variables, and functions. In general,
-types - but also objects referred to from inlined function bodies -
-can be reexported and so we need to know which package they are coming
-from. Therefore, packages are also part of the export graph.
+"objects": constants, types, variables, and functions. Aliases may be
+directly reexported, and unaliased types may be indirectly reexported
+(as part of the type of a directly exported object). More generally,
+objects referred to from inlined function bodies can be reexported.
+We need to know which package declares these reexported objects, and
+therefore packages are also part of the export graph.
 
 The roots of the graph are two lists of objects. The 1st list (phase 1,
 see Export) contains all objects that are exported at the package level.
@@ -30,9 +31,9 @@ function bodies. The format of this representation is compiler specific.
 
 The graph is serialized in in-order fashion, starting with the roots.
 Each object in the graph is serialized by writing its fields sequentially.
-If the field is a pointer to another object, that object is serialized,
-recursively. Otherwise the field is written. Non-pointer fields are all
-encoded as integer or string values.
+If the field is a pointer to another object, that object is serialized in
+place, recursively. Otherwise the field is written in place. Non-pointer
+fields are all encoded as integer or string values.
 
 Some objects (packages, types) may be referred to more than once. When
 reaching an object that was not serialized before, an integer _index_
@@ -43,7 +44,7 @@ If the object was already serialized, the encoding is simply the object
 index >= 0. An importer can trivially determine if an object needs to
 be read in for the first time (tag < 0) and entered into the respective
 object table, or if the object was seen already (index >= 0), in which
-case the index is used to look up the object in a table.
+case the index is used to look up the object in the respective table.
 
 Before exporting or importing, the type tables are populated with the
 predeclared types (int, string, error, unsafe.Pointer, etc.). This way
@@ -51,13 +52,16 @@ they are automatically encoded with a known and fixed type index.
 
 2) Encoding format:
 
-The export data starts with a single byte indicating the encoding format
-(compact, or with debugging information), followed by a version string
-(so we can evolve the encoding if need be), and then the package object
-for the exported package (with an empty path).
+The export data starts with two newline-terminated strings: a version
+string and either an empty string, or "debug", when emitting the debug
+format. These strings are followed by version-specific encoding options.
 
-After this header, two lists of objects and the list of inlined function
-bodies follows.
+(The Go1.7 version starts with a couple of bytes specifying the format.
+That format encoding is no longer used but is supported to avoid spurious
+errors when importing old installed package files.)
+
+This header is followed by the package object for the exported package,
+two lists of objects, and the list of inlined function bodies.
 
 The encoding of objects is straight-forward: Constants, variables, and
 functions start with their name, type, and possibly a value. Named types
@@ -66,6 +70,9 @@ same type was imported before via another import, the importer must use
 the previously imported type pointer so that we have exactly one version
 (i.e., one pointer) for each named type (and read but discard the current
 type encoding). Unnamed types simply encode their respective fields.
+Aliases are encoded starting with their name followed by the qualified
+identifier denoting the original (aliased) object, which was exported
+earlier.
 
 In the encoding, some lists start with the list length. Some lists are
 terminated with an end marker (usually for lists where we may not know
@@ -77,7 +84,8 @@ Strings are canonicalized similar to objects that may occur multiple times:
 If the string was exported already, it is represented by its index only.
 Otherwise, the export data starts with the negative string length (negative,
 so we can distinguish from string index), followed by the string bytes.
-The empty string is mapped to index 0.
+The empty string is mapped to index 0. (The initial format string is an
+exception; it is encoded as the string bytes followed by a newline).
 
 The exporter and importer are completely symmetric in implementation: For
 each encoding routine there is a matching and symmetric decoding routine.
@@ -97,30 +105,8 @@ compatibility with both the last release of the compiler, and with the
 corresponding compiler at tip. That change is necessarily more involved,
 as it must switch based on the version number in the export data file.
 
-It is recommended to turn on debugFormat when working on format changes
-as it will help finding encoding/decoding inconsistencies quickly.
-
-Special care must be taken to update builtin.go when the export format
-changes: builtin.go contains the export data obtained by compiling the
-builtin/runtime.go and builtin/unsafe.go files; those compilations in
-turn depend on importing the data in builtin.go. Thus, when the export
-data format changes, the compiler must be able to import the data in
-builtin.go even if its format has not yet changed. Proceed in several
-steps as follows:
-
-- Change the exporter to use the new format, and use a different version
-  string as well.
-- Update the importer accordingly, but accept both the old and the new
-  format depending on the version string.
-- all.bash should pass at this point.
-- Run mkbuiltin.go: this will create a new builtin.go using the new
-  export format.
-- go test -run Builtin should pass at this point.
-- Remove importer support for the old export format and (maybe) revert
-  the version string again (it's only needed to mark the transition).
-- all.bash should still pass.
-
-Don't forget to set debugFormat to false.
+It is recommended to turn on debugFormat temporarily when working on format
+changes as it will help finding encoding/decoding inconsistencies quickly.
 */
 
 package gc
@@ -128,9 +114,9 @@ package gc
 import (
 	"bufio"
 	"bytes"
-	"cmd/compile/internal/big"
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"sort"
 	"strings"
 )
@@ -153,13 +139,12 @@ const debugFormat = false // default: false
 // TODO(gri) disable and remove once there is only one export format again
 const forceObjFileStability = true
 
-// Supported export format versions.
-// TODO(gri) Make this more systematic (issue #16244).
-const (
-	exportVersion0 = "v0"
-	exportVersion1 = "v1"
-	exportVersion  = exportVersion1
-)
+// Current export format version. Increase with each format change.
+// 3: added aliasTag and export of aliases
+// 2: removed unused bool in ODCL export
+// 1: header format change (more regular), export package for _ struct fields
+// 0: Go1.7 encoding
+const exportVersion = 3
 
 // exportInlined enables the export of inlined function bodies and related
 // dependencies. The compiler should work w/o any loss of functionality with
@@ -174,8 +159,8 @@ const exportInlined = true // default: true
 // errors.
 // If disabled, only named types are tracked, possibly leading to slightly
 // less efficient encoding in rare cases. It also prevents the export of
-// some corner-case type declarations (but those are not handled correctly
-// with with the textual export format either).
+// some corner-case type declarations (but those were not handled correctly
+// with the former textual export format either).
 // TODO(gri) enable and remove once issues caused by it are fixed
 const trackAllTypes = false
 
@@ -197,58 +182,36 @@ type exporter struct {
 	written int // bytes written
 	indent  int // for p.trace
 	trace   bool
+
+	// work-around for issue #16369 only
+	nesting int // amount of "nesting" of interface types
 }
 
 // export writes the exportlist for localpkg to out and returns the number of bytes written.
 func export(out *bufio.Writer, trace bool) int {
 	p := exporter{
-		out:      out,
-		strIndex: map[string]int{"": 0}, // empty string is mapped to 0
-		pkgIndex: make(map[*Pkg]int),
-		typIndex: make(map[*Type]int),
-		// don't emit pos info for builtin packages
-		// (not needed and avoids path name diffs in builtin.go between
-		// Windows and non-Windows machines, exposed via builtin_test.go)
-		posInfoFormat: Debug['A'] == 0,
+		out:           out,
+		strIndex:      map[string]int{"": 0}, // empty string is mapped to 0
+		pkgIndex:      make(map[*Pkg]int),
+		typIndex:      make(map[*Type]int),
+		posInfoFormat: true,
 		trace:         trace,
 	}
 
-	// TODO(gri) clean up the ad-hoc encoding of the file format below
-	// (we need this so we can read the builtin package export data
-	// easily w/o being affected by format changes)
-
-	// first byte indicates low-level encoding format
-	var format byte = 'c' // compact
+	// write version info
+	// The version string must start with "version %d" where %d is the version
+	// number. Additional debugging information may follow after a blank; that
+	// text is ignored by the importer.
+	p.rawStringln(fmt.Sprintf("version %d", exportVersion))
+	var debug string
 	if debugFormat {
-		format = 'd'
+		debug = "debug"
 	}
-	p.rawByte(format)
-
-	format = 'n' // track named types only
-	if trackAllTypes {
-		format = 'a'
-	}
-	p.rawByte(format)
-
-	// posInfo exported or not?
+	p.rawStringln(debug) // cannot use p.bool since it's affected by debugFormat; also want to see this clearly
+	p.bool(trackAllTypes)
 	p.bool(p.posInfoFormat)
 
 	// --- generic export data ---
-
-	if p.trace {
-		p.tracef("\n--- package ---\n")
-		if p.indent != 0 {
-			Fatalf("exporter: incorrect indentation %d", p.indent)
-		}
-	}
-
-	if p.trace {
-		p.tracef("version = ")
-	}
-	p.string(exportVersion)
-	if p.trace {
-		p.tracef("\n")
-	}
 
 	// populate type map with predeclared "known" types
 	predecl := predeclared()
@@ -343,7 +306,6 @@ func export(out *bufio.Writer, trace bool) int {
 	}
 
 	// write compiler-specific flags
-	p.bool(safemode)
 	if p.trace {
 		p.tracef("\n")
 	}
@@ -388,6 +350,11 @@ func export(out *bufio.Writer, trace bool) int {
 		if p.trace {
 			p.tracef("\n")
 		}
+
+		if sym.Flags&SymAlias != 0 {
+			Fatalf("exporter: unexpected alias %v in inlined function body", sym)
+		}
+
 		p.obj(sym)
 		objcount++
 	}
@@ -417,7 +384,7 @@ func export(out *bufio.Writer, trace bool) int {
 			// function has inlineable body:
 			// write index and body
 			if p.trace {
-				p.tracef("\n----\nfunc { %s }\n", hconv(f.Inl, FmtSharp))
+				p.tracef("\n----\nfunc { %#v }\n", f.Inl)
 			}
 			p.int(i)
 			p.stmtList(f.Inl)
@@ -479,16 +446,41 @@ func unidealType(typ *Type, val Val) *Type {
 }
 
 func (p *exporter) obj(sym *Sym) {
+	if sym.Flags&SymAlias != 0 {
+		p.tag(aliasTag)
+		p.pos(nil) // TODO(gri) fix position information
+		// Aliases can only be exported from the package that
+		// declares them (aliases to aliases are resolved to the
+		// original object, and so are uses of aliases in inlined
+		// exported function bodies). Thus, we only need the alias
+		// name without package qualification.
+		if sym.Pkg != localpkg {
+			Fatalf("exporter: export of non-local alias: %v", sym)
+		}
+		p.string(sym.Name)
+		orig := sym.Def.Sym
+		if orig.Flags&SymAlias != 0 {
+			Fatalf("exporter: original object %v marked as alias", sym)
+		}
+		p.qualifiedName(orig)
+		return
+	}
+
+	if sym != sym.Def.Sym {
+		Fatalf("exporter: exported object %v is not original %v", sym, sym.Def.Sym)
+	}
+
 	// Exported objects may be from different packages because they
-	// may be re-exported as depencies when exporting inlined function
-	// bodies. Thus, exported object names must be fully qualified.
+	// may be re-exported via an exported alias or as dependencies in
+	// exported inlined function bodies. Thus, exported object names
+	// must be fully qualified.
 	//
-	// TODO(gri) This can only happen if exportInlined is enabled
-	// (default), and during phase 2 of object export. Objects exported
-	// in phase 1 (compiler-indendepent objects) are by definition only
-	// the objects from the current package and not pulled in via inlined
-	// function bodies. In that case the package qualifier is not needed.
-	// Possible space optimization.
+	// (This can only happen for aliased objects or during phase 2
+	// (exportInlined enabled) of object export. Unaliased Objects
+	// exported in phase 1 (compiler-indendepent objects) are by
+	// definition only the objects from the current package and not
+	// pulled in via inlined function bodies. In that case the package
+	// qualifier is not needed. Possible space optimization.)
 
 	n := sym.Def
 	switch n.Op {
@@ -732,14 +724,7 @@ func (p *exporter) typ(t *Type) {
 			p.paramList(sig.Recvs(), inlineable)
 			p.paramList(sig.Params(), inlineable)
 			p.paramList(sig.Results(), inlineable)
-
-			// for issue #16243
-			// We make this conditional for 1.7 to avoid consistency problems
-			// with installed packages compiled with an older version.
-			// TODO(gri) Clean up after 1.7 is out (issue #16244)
-			if exportVersion == exportVersion1 {
-				p.bool(m.Nointerface)
-			}
+			p.bool(m.Nointerface) // record go:nointerface pragma value (see also #16243)
 
 			var f *Func
 			if inlineable {
@@ -790,11 +775,39 @@ func (p *exporter) typ(t *Type) {
 
 	case TINTER:
 		p.tag(interfaceTag)
-
 		// gc doesn't separate between embedded interfaces
 		// and methods declared explicitly with an interface
 		p.int(0) // no embedded interfaces
+
+		// Because the compiler flattens interfaces containing
+		// embedded interfaces, it is possible to create interface
+		// types that recur through an unnamed type.
+		// If trackAllTypes is disabled, such recursion is not
+		// detected, leading to a stack overflow during export
+		// (issue #16369).
+		// As a crude work-around we terminate deep recursion
+		// through interface types with an empty interface and
+		// report an error.
+		// This will catch endless recursion, but is unlikely
+		// to trigger for valid, deeply nested types given the
+		// high threshold.
+		// It would be ok to continue without reporting an error
+		// since the export format is valid. But a subsequent
+		// import would import an incorrect type. The textual
+		// exporter does not report an error but importing the
+		// resulting package will lead to a syntax error during
+		// import.
+		// TODO(gri) remove this once we have a permanent fix
+		// for the issue.
+		if p.nesting > 100 {
+			p.int(0) // 0 methods to indicate empty interface
+			yyerrorl(t.Lineno, "cannot export unnamed recursive interface")
+			break
+		}
+
+		p.nesting++
 		p.methodList(t)
+		p.nesting--
 
 	case TMAP:
 		p.tag(mapTag)
@@ -807,14 +820,11 @@ func (p *exporter) typ(t *Type) {
 		p.typ(t.Elem())
 
 	default:
-		Fatalf("exporter: unexpected type: %s (Etype = %d)", Tconv(t, 0), t.Etype)
+		Fatalf("exporter: unexpected type: %v (Etype = %d)", t, t.Etype)
 	}
 }
 
 func (p *exporter) qualifiedName(sym *Sym) {
-	if strings.Contains(sym.Name, ".") {
-		Fatalf("exporter: invalid symbol name: %s", sym.Name)
-	}
 	p.string(sym.Name)
 	p.pkg(sym.Pkg)
 }
@@ -836,7 +846,7 @@ func (p *exporter) fieldList(t *Type) {
 
 func (p *exporter) field(f *Field) {
 	p.pos(f.Nname)
-	p.fieldName(f.Sym, f)
+	p.fieldName(f)
 	p.typ(f.Type)
 	p.string(f.Note)
 }
@@ -858,37 +868,24 @@ func (p *exporter) methodList(t *Type) {
 
 func (p *exporter) method(m *Field) {
 	p.pos(m.Nname)
-	p.fieldName(m.Sym, m)
+	p.fieldName(m)
 	p.paramList(m.Type.Params(), false)
 	p.paramList(m.Type.Results(), false)
 }
 
-// fieldName is like qualifiedName but it doesn't record the package
-// for blank (_) or exported names.
-func (p *exporter) fieldName(sym *Sym, t *Field) {
-	if t != nil && sym != t.Sym {
-		Fatalf("exporter: invalid fieldName parameters")
-	}
-
-	name := sym.Name
-	if t != nil {
-		if t.Embedded == 0 {
-			name = sym.Name
-		} else if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
-			// anonymous field with unexported base type name: use "?" as field name
-			// (bname != "" per spec, but we are conservative in case of errors)
-			name = "?"
-		} else {
-			name = ""
+// fieldName is like qualifiedName but it doesn't record the package for exported names.
+func (p *exporter) fieldName(t *Field) {
+	name := t.Sym.Name
+	if t.Embedded != 0 {
+		name = "" // anonymous field
+		if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
+			// anonymous field with unexported base type name
+			name = "?" // unexported name to force export of package
 		}
 	}
-
-	if strings.Contains(name, ".") {
-		Fatalf("exporter: invalid symbol name: %s", name)
-	}
 	p.string(name)
-	if name == "?" || name != "_" && name != "" && !exportname(name) {
-		p.pkg(sym.Pkg)
+	if name != "" && !exportname(name) {
+		p.pkg(t.Sym.Pkg)
 	}
 }
 
@@ -897,10 +894,8 @@ func basetypeName(t *Type) string {
 	if s == nil && t.IsPtr() {
 		s = t.Elem().Sym // deref
 	}
+	// s should exist, but be conservative
 	if s != nil {
-		if strings.Contains(s.Name, ".") {
-			Fatalf("exporter: invalid symbol name: %s", s.Name)
-		}
 		return s.Name
 	}
 	return ""
@@ -1034,7 +1029,7 @@ func (p *exporter) value(x Val) {
 		p.tag(tag)
 
 	case *Mpint:
-		if Minintval[TINT64].Cmp(x) <= 0 && x.Cmp(Maxintval[TINT64]) <= 0 {
+		if minintval[TINT64].Cmp(x) <= 0 && x.Cmp(maxintval[TINT64]) <= 0 {
 			// common case: x fits into an int64 - use compact encoding
 			p.tag(int64Tag)
 			p.int64(x.Int64())
@@ -1172,8 +1167,8 @@ func (p *exporter) elemList(list Nodes) {
 		if p.trace {
 			p.tracef("\n")
 		}
-		p.fieldSym(n.Left.Sym, false)
-		p.expr(n.Right)
+		p.fieldSym(n.Sym, false)
+		p.expr(n.Left)
 	}
 }
 
@@ -1204,9 +1199,6 @@ func (p *exporter) expr(n *Node) {
 		p.expr(n.Left) // unparen
 
 	// case ODDDARG:
-	//	unimplemented - handled by default case
-
-	// case OREGISTER:
 	//	unimplemented - handled by default case
 
 	case OLITERAL:
@@ -1276,7 +1268,7 @@ func (p *exporter) expr(n *Node) {
 		p.typ(n.Type)
 		p.elemList(n.List) // special handling of field names
 
-	case OARRAYLIT, OMAPLIT:
+	case OARRAYLIT, OSLICELIT, OMAPLIT:
 		p.op(OCOMPLIT)
 		p.typ(n.Type)
 		p.exprList(n.List)
@@ -1284,6 +1276,9 @@ func (p *exporter) expr(n *Node) {
 	case OKEY:
 		p.op(OKEY)
 		p.exprsOrNil(n.Left, n.Right)
+
+	// case OSTRUCTKEY:
+	//	unreachable - handled in case OSTRUCTLIT by elemList
 
 	// case OCALLPART:
 	//	unimplemented - handled by default case
@@ -1405,8 +1400,8 @@ func (p *exporter) expr(n *Node) {
 		p.op(ODCLCONST)
 
 	default:
-		Fatalf("cannot export %s (%d) node\n"+
-			"==> please file an issue and assign to gri@\n", n.Op, n.Op)
+		Fatalf("cannot export %v (%d) node\n"+
+			"==> please file an issue and assign to gri@\n", n.Op, int(n.Op))
 	}
 }
 
@@ -1436,17 +1431,7 @@ func (p *exporter) stmt(n *Node) {
 	switch op := n.Op; op {
 	case ODCL:
 		p.op(ODCL)
-		switch n.Left.Class {
-		case PPARAM, PPARAMOUT, PAUTO, PAUTOHEAP:
-			// TODO(gri) when is this not PAUTO?
-			// Also, originally this didn't look like
-			// the default case. Investigate.
-			fallthrough
-		default:
-			// TODO(gri) Can we ever reach here?
-			p.bool(false)
-			p.sym(n.Left)
-		}
+		p.sym(n.Left)
 		p.typ(n.Left.Type)
 
 	// case ODCLFIELD:
@@ -1531,7 +1516,7 @@ func (p *exporter) stmt(n *Node) {
 		p.expr(n.Left)
 
 	default:
-		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", n.Op)
+		Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)
 	}
 }
 
@@ -1623,7 +1608,7 @@ func (p *exporter) bool(b bool) bool {
 func (p *exporter) op(op Op) {
 	if p.trace {
 		p.tracef("[")
-		defer p.tracef("= %s] ", op)
+		defer p.tracef("= %v] ", op)
 	}
 
 	p.int(int(op))
@@ -1706,13 +1691,21 @@ func (p *exporter) marker(m byte) {
 	p.rawInt64(int64(p.written))
 }
 
-// rawInt64 should only be used by low-level encoders
+// rawInt64 should only be used by low-level encoders.
 func (p *exporter) rawInt64(x int64) {
 	var tmp [binary.MaxVarintLen64]byte
 	n := binary.PutVarint(tmp[:], x)
 	for i := 0; i < n; i++ {
 		p.rawByte(tmp[i])
 	}
+}
+
+// rawStringln should only be used to emit the initial version string.
+func (p *exporter) rawStringln(s string) {
+	for i := 0; i < len(s); i++ {
+		p.rawByte(s[i])
+	}
+	p.rawByte('\n')
 }
 
 // rawByte is the bottleneck interface to write to p.out.
@@ -1803,6 +1796,9 @@ const (
 	stringTag
 	nilTag
 	unknownTag // not used by gc (only appears in packages with errors)
+
+	// Aliases
+	aliasTag
 )
 
 // Debugging support.
@@ -1838,6 +1834,9 @@ var tagString = [...]string{
 	-stringTag:   "string",
 	-nilTag:      "nil",
 	-unknownTag:  "unknown",
+
+	// Aliases
+	-aliasTag: "alias",
 }
 
 // untype returns the "pseudo" untyped type for a Ctype (import/export use only).

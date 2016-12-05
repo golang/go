@@ -186,7 +186,11 @@ func (z *Reader) readHeader() (hdr Header, err error) {
 		return hdr, ErrHeader
 	}
 	flg := z.buf[3]
-	hdr.ModTime = time.Unix(int64(le.Uint32(z.buf[4:8])), 0)
+	if t := int64(le.Uint32(z.buf[4:8])); t > 0 {
+		// Section 2.3.1, the zero value for MTIME means that the
+		// modified time is not set.
+		hdr.ModTime = time.Unix(t, 0)
+	}
 	// z.buf[8] is XFL and is currently ignored.
 	hdr.OS = z.buf[9]
 	z.digest = crc32.ChecksumIEEE(z.buf[:10])
@@ -238,6 +242,7 @@ func (z *Reader) readHeader() (hdr Header, err error) {
 	return hdr, nil
 }
 
+// Read implements io.Reader, reading uncompressed bytes from its underlying Reader.
 func (z *Reader) Read(p []byte) (n int, err error) {
 	if z.err != nil {
 		return 0, z.err

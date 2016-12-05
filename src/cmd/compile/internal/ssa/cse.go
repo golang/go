@@ -9,10 +9,6 @@ import (
 	"sort"
 )
 
-const (
-	cmpDepth = 4
-)
-
 // cse does common-subexpression elimination on the Function.
 // Values are just relinked, nothing is deleted. A subsequent deadcode
 // pass is required to actually remove duplicate expressions.
@@ -60,7 +56,8 @@ func cse(f *Func) {
 			valueEqClass[v.ID] = -v.ID
 		}
 	}
-	for i, e := range partition {
+	var pNum ID = 1
+	for _, e := range partition {
 		if f.pass.debug > 1 && len(e) > 500 {
 			fmt.Printf("CSE.large partition (%d): ", len(e))
 			for j := 0; j < 3; j++ {
@@ -70,20 +67,23 @@ func cse(f *Func) {
 		}
 
 		for _, v := range e {
-			valueEqClass[v.ID] = ID(i)
+			valueEqClass[v.ID] = pNum
 		}
 		if f.pass.debug > 2 && len(e) > 1 {
-			fmt.Printf("CSE.partition #%d:", i)
+			fmt.Printf("CSE.partition #%d:", pNum)
 			for _, v := range e {
 				fmt.Printf(" %s", v.String())
 			}
 			fmt.Printf("\n")
 		}
+		pNum++
 	}
 
-	// Find an equivalence class where some members of the class have
-	// non-equivalent arguments. Split the equivalence class appropriately.
-	// Repeat until we can't find any more splits.
+	// Split equivalence classes at points where they have
+	// non-equivalent arguments.  Repeat until we can't find any
+	// more splits.
+	var splitPoints []int
+	byArgClass := new(partitionByArgClass) // reuseable partitionByArgClass to reduce allocations
 	for {
 		changed := false
 
@@ -91,39 +91,53 @@ func cse(f *Func) {
 		// we process new additions as they arrive, avoiding O(n^2) behavior.
 		for i := 0; i < len(partition); i++ {
 			e := partition[i]
-			v := e[0]
-			// all values in this equiv class that are not equivalent to v get moved
-			// into another equiv class.
-			// To avoid allocating while building that equivalence class,
-			// move the values equivalent to v to the beginning of e
-			// and other values to the end of e.
-			allvals := e
-		eqloop:
-			for j := 1; j < len(e); {
-				w := e[j]
-				equivalent := true
-				for i := 0; i < len(v.Args); i++ {
-					if valueEqClass[v.Args[i].ID] != valueEqClass[w.Args[i].ID] {
-						equivalent = false
+
+			// Sort by eq class of arguments.
+			byArgClass.a = e
+			byArgClass.eqClass = valueEqClass
+			sort.Sort(byArgClass)
+
+			// Find split points.
+			splitPoints = append(splitPoints[:0], 0)
+			for j := 1; j < len(e); j++ {
+				v, w := e[j-1], e[j]
+				eqArgs := true
+				for k, a := range v.Args {
+					b := w.Args[k]
+					if valueEqClass[a.ID] != valueEqClass[b.ID] {
+						eqArgs = false
 						break
 					}
 				}
-				if !equivalent || v.Type.Compare(w.Type) != CMPeq {
-					// w is not equivalent to v.
-					// move it to the end and shrink e.
-					e[j], e[len(e)-1] = e[len(e)-1], e[j]
-					e = e[:len(e)-1]
-					valueEqClass[w.ID] = ID(len(partition))
-					changed = true
-					continue eqloop
+				if !eqArgs {
+					splitPoints = append(splitPoints, j)
 				}
-				// v and w are equivalent. Keep w in e.
-				j++
 			}
-			partition[i] = e
-			if len(e) < len(allvals) {
-				partition = append(partition, allvals[len(e):])
+			if len(splitPoints) == 1 {
+				continue // no splits, leave equivalence class alone.
 			}
+
+			// Move another equivalence class down in place of e.
+			partition[i] = partition[len(partition)-1]
+			partition = partition[:len(partition)-1]
+			i--
+
+			// Add new equivalence classes for the parts of e we found.
+			splitPoints = append(splitPoints, len(e))
+			for j := 0; j < len(splitPoints)-1; j++ {
+				f := e[splitPoints[j]:splitPoints[j+1]]
+				if len(f) == 1 {
+					// Don't add singletons.
+					valueEqClass[f[0].ID] = -f[0].ID
+					continue
+				}
+				for _, v := range f {
+					valueEqClass[v.ID] = pNum
+				}
+				pNum++
+				partition = append(partition, f)
+			}
+			changed = true
 		}
 
 		if !changed {
@@ -131,13 +145,16 @@ func cse(f *Func) {
 		}
 	}
 
-	// Dominator tree (f.sdom) is computed by the generic domtree pass.
+	sdom := f.sdom()
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
 	rewrite := make([]*Value, f.NumValues())
+	byDom := new(partitionByDom) // reusable partitionByDom to reduce allocs
 	for _, e := range partition {
-		sort.Sort(partitionByDom{e, f.sdom})
+		byDom.a = e
+		byDom.sdom = sdom
+		sort.Sort(byDom)
 		for i := 0; i < len(e)-1; i++ {
 			// e is sorted by domorder, so a maximal dominant element is first in the slice
 			v := e[i]
@@ -152,13 +169,50 @@ func cse(f *Func) {
 				if w == nil {
 					continue
 				}
-				if f.sdom.isAncestorEq(v.Block, w.Block) {
+				if sdom.isAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
 					e[j] = nil
 				} else {
 					// e is sorted by domorder, so v.Block doesn't dominate any subsequent blocks in e
 					break
 				}
+			}
+		}
+	}
+
+	// if we rewrite a tuple generator to a new one in a different block,
+	// copy its selectors to the new generator's block, so tuple generator
+	// and selectors stay together.
+	// be careful not to copy same selectors more than once (issue 16741).
+	copiedSelects := make(map[ID][]*Value)
+	for _, b := range f.Blocks {
+	out:
+		for _, v := range b.Values {
+			// New values are created when selectors are copied to
+			// a new block. We can safely ignore those new values,
+			// since they have already been copied (issue 17918).
+			if int(v.ID) >= len(rewrite) || rewrite[v.ID] != nil {
+				continue
+			}
+			if v.Op != OpSelect0 && v.Op != OpSelect1 {
+				continue
+			}
+			if !v.Args[0].Type.IsTuple() {
+				f.Fatalf("arg of tuple selector %s is not a tuple: %s", v.String(), v.Args[0].LongString())
+			}
+			t := rewrite[v.Args[0].ID]
+			if t != nil && t.Block != b {
+				// v.Args[0] is tuple generator, CSE'd into a different block as t, v is left behind
+				for _, c := range copiedSelects[t.ID] {
+					if v.Op == c.Op {
+						// an equivalent selector is already copied
+						rewrite[v.ID] = c
+						continue out
+					}
+				}
+				c := v.copyInto(t.Block)
+				rewrite[v.ID] = c
+				copiedSelects[t.ID] = append(copiedSelects[t.ID], c)
 			}
 		}
 	}
@@ -219,7 +273,7 @@ func partitionValues(a []*Value, auxIDs auxmap) []eqclass {
 		j := 1
 		for ; j < len(a); j++ {
 			w := a[j]
-			if cmpVal(v, w, auxIDs, cmpDepth) != CMPeq {
+			if cmpVal(v, w, auxIDs) != CMPeq {
 				break
 			}
 		}
@@ -240,7 +294,7 @@ func lt2Cmp(isLt bool) Cmp {
 
 type auxmap map[interface{}]int32
 
-func cmpVal(v, w *Value, auxIDs auxmap, depth int) Cmp {
+func cmpVal(v, w *Value, auxIDs auxmap) Cmp {
 	// Try to order these comparison by cost (cheaper first)
 	if v.Op != w.Op {
 		return lt2Cmp(v.Op < w.Op)
@@ -274,18 +328,6 @@ func cmpVal(v, w *Value, auxIDs auxmap, depth int) Cmp {
 		return lt2Cmp(auxIDs[v.Aux] < auxIDs[w.Aux])
 	}
 
-	if depth > 0 {
-		for i := range v.Args {
-			if v.Args[i] == w.Args[i] {
-				// skip comparing equal args
-				continue
-			}
-			if ac := cmpVal(v.Args[i], w.Args[i], auxIDs, depth-1); ac != CMPeq {
-				return ac
-			}
-		}
-	}
-
 	return CMPeq
 }
 
@@ -300,7 +342,7 @@ func (sv sortvalues) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
 func (sv sortvalues) Less(i, j int) bool {
 	v := sv.a[i]
 	w := sv.a[j]
-	if cmp := cmpVal(v, w, sv.auxIDs, cmpDepth); cmp != CMPeq {
+	if cmp := cmpVal(v, w, sv.auxIDs); cmp != CMPeq {
 		return cmp == CMPlt
 	}
 
@@ -319,4 +361,26 @@ func (sv partitionByDom) Less(i, j int) bool {
 	v := sv.a[i]
 	w := sv.a[j]
 	return sv.sdom.domorder(v.Block) < sv.sdom.domorder(w.Block)
+}
+
+type partitionByArgClass struct {
+	a       []*Value // array of values
+	eqClass []ID     // equivalence class IDs of values
+}
+
+func (sv partitionByArgClass) Len() int      { return len(sv.a) }
+func (sv partitionByArgClass) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
+func (sv partitionByArgClass) Less(i, j int) bool {
+	v := sv.a[i]
+	w := sv.a[j]
+	for i, a := range v.Args {
+		b := w.Args[i]
+		if sv.eqClass[a.ID] < sv.eqClass[b.ID] {
+			return true
+		}
+		if sv.eqClass[a.ID] > sv.eqClass[b.ID] {
+			return false
+		}
+	}
+	return false
 }

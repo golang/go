@@ -102,7 +102,7 @@ func TestRepoRootForImportPath(t *testing.T) {
 			"git.openstack.org/openstack/swift.git",
 			&repoRoot{
 				vcs:  vcsGit,
-				repo: "https://git.openstack.org/openstack/swift",
+				repo: "https://git.openstack.org/openstack/swift.git",
 			},
 		},
 		{
@@ -174,11 +174,23 @@ func TestFromDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	for _, vcs := range vcsList {
+	for j, vcs := range vcsList {
 		dir := filepath.Join(tempDir, "example.com", vcs.name, "."+vcs.cmd)
-		err := os.MkdirAll(dir, 0755)
-		if err != nil {
-			t.Fatal(err)
+		if j&1 == 0 {
+			err := os.MkdirAll(dir, 0755)
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			err := os.MkdirAll(filepath.Dir(dir), 0755)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f, err := os.Create(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.Close()
 		}
 
 		want := repoRoot{
@@ -221,6 +233,46 @@ func TestIsSecure(t *testing.T) {
 		{vcsHg, "ssh://user@example.com/path/to/repo.hg", true},
 	}
 
+	for _, test := range tests {
+		secure := test.vcs.isSecure(test.url)
+		if secure != test.secure {
+			t.Errorf("%s isSecure(%q) = %t; want %t", test.vcs, test.url, secure, test.secure)
+		}
+	}
+}
+
+func TestIsSecureGitAllowProtocol(t *testing.T) {
+	tests := []struct {
+		vcs    *vcsCmd
+		url    string
+		secure bool
+	}{
+		// Same as TestIsSecure to verify same behavior.
+		{vcsGit, "http://example.com/foo.git", false},
+		{vcsGit, "https://example.com/foo.git", true},
+		{vcsBzr, "http://example.com/foo.bzr", false},
+		{vcsBzr, "https://example.com/foo.bzr", true},
+		{vcsSvn, "http://example.com/svn", false},
+		{vcsSvn, "https://example.com/svn", true},
+		{vcsHg, "http://example.com/foo.hg", false},
+		{vcsHg, "https://example.com/foo.hg", true},
+		{vcsGit, "user@server:path/to/repo.git", false},
+		{vcsGit, "user@server:", false},
+		{vcsGit, "server:repo.git", false},
+		{vcsGit, "server:path/to/repo.git", false},
+		{vcsGit, "example.com:path/to/repo.git", false},
+		{vcsGit, "path/that/contains/a:colon/repo.git", false},
+		{vcsHg, "ssh://user@example.com/path/to/repo.hg", true},
+		// New behavior.
+		{vcsGit, "ssh://user@example.com/foo.git", false},
+		{vcsGit, "foo://example.com/bar.git", true},
+		{vcsHg, "foo://example.com/bar.hg", false},
+		{vcsSvn, "foo://example.com/svn", false},
+		{vcsBzr, "foo://example.com/bar.bzr", false},
+	}
+
+	defer os.Unsetenv("GIT_ALLOW_PROTOCOL")
+	os.Setenv("GIT_ALLOW_PROTOCOL", "https:foo")
 	for _, test := range tests {
 		secure := test.vcs.isSecure(test.url)
 		if secure != test.secure {
@@ -305,6 +357,13 @@ func TestMatchGoImport(t *testing.T) {
 			},
 			path: "example.com",
 			err:  errors.New("pathologically short path"),
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "different.example.com/user/foo",
+			err:  errors.New("meta tags do not match import path"),
 		},
 	}
 

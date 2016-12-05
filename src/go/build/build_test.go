@@ -93,6 +93,17 @@ func TestEmptyFolderImport(t *testing.T) {
 	}
 }
 
+func TestIgnoredGoFilesImport(t *testing.T) {
+	_, err := Import(".", "testdata/ignored", 0)
+	e, ok := err.(*NoGoError)
+	if !ok {
+		t.Fatal(`Import("testdata/ignored") did not return NoGoError.`)
+	}
+	if !e.Ignored {
+		t.Fatal(`Import("testdata/ignored") should have ignored Go files.`)
+	}
+}
+
 func TestMultiplePackageImport(t *testing.T) {
 	_, err := Import(".", "testdata/multi", 0)
 	mpe, ok := err.(*MultiplePackageError)
@@ -283,6 +294,7 @@ func TestShellSafety(t *testing.T) {
 		result                  bool
 	}{
 		{"-I${SRCDIR}/../include", "/projects/src/issue 11868", "-I/projects/src/issue 11868/../include", true},
+		{"-I${SRCDIR}", "wtf$@%", "-Iwtf$@%", true},
 		{"-X${SRCDIR}/1,${SRCDIR}/2", "/projects/src/issue 11868", "-X/projects/src/issue 11868/1,/projects/src/issue 11868/2", true},
 		{"-I/tmp -I/tmp", "/tmp2", "-I/tmp -I/tmp", false},
 		{"-I/tmp", "/tmp/[0]", "-I/tmp", true},

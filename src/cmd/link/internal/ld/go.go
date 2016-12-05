@@ -28,16 +28,16 @@ func expandpkg(t0 string, pkg string) string {
 //	once the dust settles, try to move some code to
 //		libmach, so that other linkers and ar can share.
 
-func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int) {
+func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string, whence int) {
 	var p0, p1 int
 
-	if Debug['g'] != 0 {
+	if *flagG {
 		return
 	}
 
 	if int64(int(length)) != length {
 		fmt.Fprintf(os.Stderr, "%s: too much pkg data in %s\n", os.Args[0], filename)
-		if Debug['u'] != 0 {
+		if *flagU {
 			errorexit()
 		}
 		return
@@ -52,7 +52,7 @@ func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int)
 	bdata := make([]byte, length)
 	if _, err := io.ReadFull(f, bdata); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
-		if Debug['u'] != 0 {
+		if *flagU {
 			errorexit()
 		}
 		return
@@ -84,7 +84,7 @@ func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int)
 		if pkg == "main" && !isMain {
 			Exitf("%s: not package main", filename)
 		}
-		if Debug['u'] != 0 && whence != ArchiveObj && !isSafe {
+		if *flagU && whence != ArchiveObj && !isSafe {
 			Exitf("load of unsafe package %s", filename)
 		}
 	}
@@ -101,7 +101,7 @@ func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int)
 		i := strings.IndexByte(data[p0+1:], '\n')
 		if i < 0 {
 			fmt.Fprintf(os.Stderr, "%s: found $$ // cgo but no newline in %s\n", os.Args[0], filename)
-			if Debug['u'] != 0 {
+			if *flagU {
 				errorexit()
 			}
 			return
@@ -114,25 +114,25 @@ func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int)
 		}
 		if p1 < 0 {
 			fmt.Fprintf(os.Stderr, "%s: cannot find end of // cgo section in %s\n", os.Args[0], filename)
-			if Debug['u'] != 0 {
+			if *flagU {
 				errorexit()
 			}
 			return
 		}
 		p1 += p0
 
-		loadcgo(filename, pkg, data[p0:p1])
+		loadcgo(ctxt, filename, pkg, data[p0:p1])
 	}
 }
 
-func loadcgo(file string, pkg string, p string) {
+func loadcgo(ctxt *Link, file string, pkg string, p string) {
 	var next string
 	var q string
 	var f []string
 	var local string
 	var remote string
 	var lib string
-	var s *LSym
+	var s *Symbol
 
 	p0 := ""
 	for ; p != ""; p = next {
@@ -163,7 +163,7 @@ func loadcgo(file string, pkg string, p string) {
 				lib = f[3]
 			}
 
-			if Debug['d'] != 0 {
+			if *FlagD {
 				fmt.Fprintf(os.Stderr, "%s: %s: cannot use dynamic imports with -d flag\n", os.Args[0], file)
 				nerrors++
 				return
@@ -174,7 +174,7 @@ func loadcgo(file string, pkg string, p string) {
 				// to force a link of foo.so.
 				havedynamic = 1
 
-				if HEADTYPE == obj.Hdarwin {
+				if Headtype == obj.Hdarwin {
 					Machoadddynlib(lib)
 				} else {
 					dynlib = append(dynlib, lib)
@@ -187,7 +187,7 @@ func loadcgo(file string, pkg string, p string) {
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
-			s = Linklookup(Ctxt, local, 0)
+			s = ctxt.Syms.Lookup(local, 0)
 			if local != f[1] {
 			}
 			if s.Type == 0 || s.Type == obj.SXREF || s.Type == obj.SHOSTOBJ {
@@ -208,7 +208,7 @@ func loadcgo(file string, pkg string, p string) {
 				goto err
 			}
 			local = f[1]
-			s = Linklookup(Ctxt, local, 0)
+			s = ctxt.Syms.Lookup(local, 0)
 			s.Type = obj.SHOSTOBJ
 			s.Size = 0
 			continue
@@ -225,11 +225,11 @@ func loadcgo(file string, pkg string, p string) {
 				remote = local
 			}
 			local = expandpkg(local, pkg)
-			s = Linklookup(Ctxt, local, 0)
+			s = ctxt.Syms.Lookup(local, 0)
 
 			switch Buildmode {
-			case BuildmodeCShared, BuildmodeCArchive:
-				if s == Linklookup(Ctxt, "main", 0) {
+			case BuildmodeCShared, BuildmodeCArchive, BuildmodePlugin:
+				if s == ctxt.Syms.Lookup("main", 0) {
 					continue
 				}
 			}
@@ -267,7 +267,7 @@ func loadcgo(file string, pkg string, p string) {
 				goto err
 			}
 
-			if Debug['I'] == 0 {
+			if *flagInterpreter == "" {
 				if interpreter != "" && interpreter != f[1] {
 					fmt.Fprintf(os.Stderr, "%s: conflict dynlinker: %s and %s\n", os.Args[0], interpreter, f[1])
 					nerrors++
@@ -298,43 +298,43 @@ err:
 
 var seenlib = make(map[string]bool)
 
-func adddynlib(lib string) {
+func adddynlib(ctxt *Link, lib string) {
 	if seenlib[lib] || Linkmode == LinkExternal {
 		return
 	}
 	seenlib[lib] = true
 
 	if Iself {
-		s := Linklookup(Ctxt, ".dynstr", 0)
+		s := ctxt.Syms.Lookup(".dynstr", 0)
 		if s.Size == 0 {
 			Addstring(s, "")
 		}
-		Elfwritedynent(Linklookup(Ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(s, lib)))
+		Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(s, lib)))
 	} else {
-		Diag("adddynlib: unsupported binary format")
+		Errorf(nil, "adddynlib: unsupported binary format")
 	}
 }
 
-func Adddynsym(ctxt *Link, s *LSym) {
+func Adddynsym(ctxt *Link, s *Symbol) {
 	if s.Dynid >= 0 || Linkmode == LinkExternal {
 		return
 	}
 
 	if Iself {
 		Elfadddynsym(ctxt, s)
-	} else if HEADTYPE == obj.Hdarwin {
-		Diag("adddynsym: missed symbol %s (%s)", s.Name, s.Extname)
-	} else if HEADTYPE == obj.Hwindows {
+	} else if Headtype == obj.Hdarwin {
+		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname)
+	} else if Headtype == obj.Hwindows {
 		// already taken care of
 	} else {
-		Diag("adddynsym: unsupported binary format")
+		Errorf(s, "adddynsym: unsupported binary format")
 	}
 }
 
 func fieldtrack(ctxt *Link) {
 	// record field tracking references
 	var buf bytes.Buffer
-	for _, s := range ctxt.Allsym {
+	for _, s := range ctxt.Syms.Allsym {
 		if strings.HasPrefix(s.Name, "go.track.") {
 			s.Attr |= AttrSpecial // do not lay out in data segment
 			s.Attr |= AttrHidden
@@ -352,26 +352,26 @@ func fieldtrack(ctxt *Link) {
 		}
 	}
 
-	if tracksym == "" {
+	if *flagFieldTrack == "" {
 		return
 	}
-	s := Linklookup(ctxt, tracksym, 0)
+	s := ctxt.Syms.Lookup(*flagFieldTrack, 0)
 	if !s.Attr.Reachable() {
 		return
 	}
-	addstrdata(tracksym, buf.String())
+	addstrdata(ctxt, *flagFieldTrack, buf.String())
 }
 
-func addexport() {
-	if HEADTYPE == obj.Hdarwin {
+func (ctxt *Link) addexport() {
+	if Headtype == obj.Hdarwin {
 		return
 	}
 
 	for _, exp := range dynexp {
-		Adddynsym(Ctxt, exp)
+		Adddynsym(ctxt, exp)
 	}
 	for _, lib := range dynlib {
-		adddynlib(lib)
+		adddynlib(ctxt, lib)
 	}
 }
 
@@ -417,17 +417,5 @@ func (p *Pkg) cycle() *Pkg {
 func importcycles() {
 	for _, p := range pkgall {
 		p.cycle()
-	}
-}
-
-func setlinkmode(arg string) {
-	if arg == "internal" {
-		Linkmode = LinkInternal
-	} else if arg == "external" {
-		Linkmode = LinkExternal
-	} else if arg == "auto" {
-		Linkmode = LinkAuto
-	} else {
-		Exitf("unknown link mode -linkmode %s", arg)
 	}
 }

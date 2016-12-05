@@ -17,14 +17,27 @@ type Config struct {
 	arch            string                     // "amd64", etc.
 	IntSize         int64                      // 4 or 8
 	PtrSize         int64                      // 4 or 8
-	lowerBlock      func(*Block) bool          // lowering function
+	RegSize         int64                      // 4 or 8
+	lowerBlock      func(*Block, *Config) bool // lowering function
 	lowerValue      func(*Value, *Config) bool // lowering function
 	registers       []Register                 // machine registers
+	gpRegMask       regMask                    // general purpose integer register mask
+	fpRegMask       regMask                    // floating point register mask
+	specialRegMask  regMask                    // special register mask
+	FPReg           int8                       // register number of frame pointer, -1 if not used
+	LinkReg         int8                       // register number of link register if it is a general purpose register, -1 if not used
+	hasGReg         bool                       // has hardware g register
 	fe              Frontend                   // callbacks into compiler frontend
 	HTML            *HTMLWriter                // html writer, for debugging
 	ctxt            *obj.Link                  // Generic arch information
 	optimize        bool                       // Do optimization
 	noDuffDevice    bool                       // Don't use Duff's device
+	nacl            bool                       // GOOS=nacl
+	use387          bool                       // GO386=387
+	OldArch         bool                       // True for older versions of architecture, e.g. true for PPC64BE, false for PPC64LE
+	NeedsFpScratch  bool                       // No direct move between GP and FP register sets
+	BigEndian       bool                       //
+	DebugTest       bool                       // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
 	curFunc         *Func
 
@@ -77,15 +90,12 @@ type Logger interface {
 	// Fatal reports a compiler error and exits.
 	Fatalf(line int32, msg string, args ...interface{})
 
-	// Unimplemented reports that the function cannot be compiled.
-	// It will be removed once SSA work is complete.
-	Unimplementedf(line int32, msg string, args ...interface{})
-
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
 	Warnl(line int32, fmt_ string, args ...interface{})
 
-	// Fowards the Debug_checknil flag from gc
+	// Fowards the Debug flags from gc
 	Debug_checknil() bool
+	Debug_wb() bool
 }
 
 type Frontend interface {
@@ -106,9 +116,18 @@ type Frontend interface {
 	SplitSlice(LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
 	SplitComplex(LocalSlot) (LocalSlot, LocalSlot)
 	SplitStruct(LocalSlot, int) LocalSlot
+	SplitArray(LocalSlot) LocalSlot              // array must be length 1
+	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
 
 	// Line returns a string describing the given line number.
 	Line(int32) string
+
+	// AllocFrame assigns frame offsets to all live auto variables.
+	AllocFrame(f *Func)
+
+	// Syslook returns a symbol of the runtime function/variable with the
+	// given name.
+	Syslook(string) interface{} // returns *gc.Sym
 }
 
 // interface used to hold *gc.Node. We'd use *gc.Node directly but
@@ -125,30 +144,148 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	case "amd64":
 		c.IntSize = 8
 		c.PtrSize = 8
+		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
 		c.registers = registersAMD64[:]
+		c.gpRegMask = gpRegMaskAMD64
+		c.fpRegMask = fpRegMaskAMD64
+		c.FPReg = framepointerRegAMD64
+		c.LinkReg = linkRegAMD64
+		c.hasGReg = false
+	case "amd64p32":
+		c.IntSize = 4
+		c.PtrSize = 4
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockAMD64
+		c.lowerValue = rewriteValueAMD64
+		c.registers = registersAMD64[:]
+		c.gpRegMask = gpRegMaskAMD64
+		c.fpRegMask = fpRegMaskAMD64
+		c.FPReg = framepointerRegAMD64
+		c.LinkReg = linkRegAMD64
+		c.hasGReg = false
+		c.noDuffDevice = true
 	case "386":
 		c.IntSize = 4
 		c.PtrSize = 4
-		c.lowerBlock = rewriteBlockAMD64
-		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
+		c.RegSize = 4
+		c.lowerBlock = rewriteBlock386
+		c.lowerValue = rewriteValue386
+		c.registers = registers386[:]
+		c.gpRegMask = gpRegMask386
+		c.fpRegMask = fpRegMask386
+		c.FPReg = framepointerReg386
+		c.LinkReg = linkReg386
+		c.hasGReg = false
 	case "arm":
 		c.IntSize = 4
 		c.PtrSize = 4
+		c.RegSize = 4
 		c.lowerBlock = rewriteBlockARM
 		c.lowerValue = rewriteValueARM
 		c.registers = registersARM[:]
+		c.gpRegMask = gpRegMaskARM
+		c.fpRegMask = fpRegMaskARM
+		c.FPReg = framepointerRegARM
+		c.LinkReg = linkRegARM
+		c.hasGReg = true
+	case "arm64":
+		c.IntSize = 8
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockARM64
+		c.lowerValue = rewriteValueARM64
+		c.registers = registersARM64[:]
+		c.gpRegMask = gpRegMaskARM64
+		c.fpRegMask = fpRegMaskARM64
+		c.FPReg = framepointerRegARM64
+		c.LinkReg = linkRegARM64
+		c.hasGReg = true
+		c.noDuffDevice = obj.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
+	case "ppc64":
+		c.OldArch = true
+		c.BigEndian = true
+		fallthrough
+	case "ppc64le":
+		c.IntSize = 8
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockPPC64
+		c.lowerValue = rewriteValuePPC64
+		c.registers = registersPPC64[:]
+		c.gpRegMask = gpRegMaskPPC64
+		c.fpRegMask = fpRegMaskPPC64
+		c.FPReg = framepointerRegPPC64
+		c.LinkReg = linkRegPPC64
+		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
+		c.NeedsFpScratch = true
+		c.hasGReg = true
+	case "mips64":
+		c.BigEndian = true
+		fallthrough
+	case "mips64le":
+		c.IntSize = 8
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockMIPS64
+		c.lowerValue = rewriteValueMIPS64
+		c.registers = registersMIPS64[:]
+		c.gpRegMask = gpRegMaskMIPS64
+		c.fpRegMask = fpRegMaskMIPS64
+		c.specialRegMask = specialRegMaskMIPS64
+		c.FPReg = framepointerRegMIPS64
+		c.LinkReg = linkRegMIPS64
+		c.hasGReg = true
+	case "s390x":
+		c.IntSize = 8
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockS390X
+		c.lowerValue = rewriteValueS390X
+		c.registers = registersS390X[:]
+		c.gpRegMask = gpRegMaskS390X
+		c.fpRegMask = fpRegMaskS390X
+		c.FPReg = framepointerRegS390X
+		c.LinkReg = linkRegS390X
+		c.hasGReg = true
+		c.noDuffDevice = true
+		c.BigEndian = true
+	case "mips":
+		c.BigEndian = true
+		fallthrough
+	case "mipsle":
+		c.IntSize = 4
+		c.PtrSize = 4
+		c.RegSize = 4
+		c.lowerBlock = rewriteBlockMIPS
+		c.lowerValue = rewriteValueMIPS
+		c.registers = registersMIPS[:]
+		c.gpRegMask = gpRegMaskMIPS
+		c.fpRegMask = fpRegMaskMIPS
+		c.specialRegMask = specialRegMaskMIPS
+		c.FPReg = framepointerRegMIPS
+		c.LinkReg = linkRegMIPS
+		c.hasGReg = true
+		c.noDuffDevice = true
 	default:
-		fe.Unimplementedf(0, "arch %s not implemented", arch)
+		fe.Fatalf(0, "arch %s not implemented", arch)
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
+	c.nacl = obj.GOOS == "nacl"
 
-	// Don't use Duff's device on Plan 9, because floating
+	// Don't use Duff's device on Plan 9 AMD64, because floating
 	// point operations are not allowed in note handler.
-	if obj.Getgoos() == "plan9" {
+	if obj.GOOS == "plan9" && arch == "amd64" {
 		c.noDuffDevice = true
+	}
+
+	if c.nacl {
+		c.noDuffDevice = true // Don't use Duff's device on NaCl
+
+		// runtime call clobber R12 on nacl
+		opcodeTable[OpARMUDIVrtcall].reg.clobbers |= 1 << 12 // R12
 	}
 
 	// Assign IDs to preallocated values/blocks.
@@ -180,8 +317,14 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	return c
 }
 
+func (c *Config) Set387(b bool) {
+	c.NeedsFpScratch = b
+	c.use387 = b
+}
+
 func (c *Config) Frontend() Frontend      { return c.fe }
 func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
+func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
 
 // NewFunc returns a new, empty function object.
 // Caller must call f.Free() before calling NewFunc again.
@@ -198,11 +341,9 @@ func (c *Config) NewFunc() *Func {
 func (c *Config) Logf(msg string, args ...interface{})               { c.fe.Logf(msg, args...) }
 func (c *Config) Log() bool                                          { return c.fe.Log() }
 func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fatalf(line, msg, args...) }
-func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
-	c.fe.Unimplementedf(line, msg, args...)
-}
-func (c *Config) Warnl(line int32, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
-func (c *Config) Debug_checknil() bool                              { return c.fe.Debug_checknil() }
+func (c *Config) Warnl(line int32, msg string, args ...interface{})  { c.fe.Warnl(line, msg, args...) }
+func (c *Config) Debug_checknil() bool                               { return c.fe.Debug_checknil() }
+func (c *Config) Debug_wb() bool                                     { return c.fe.Debug_wb() }
 
 func (c *Config) logDebugHashMatch(evname, name string) {
 	file := c.logfiles[evname]

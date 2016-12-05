@@ -209,8 +209,6 @@ func joinExeDirAndFName(dir, p string) (name string, err error) {
 			return FullPath(d + "\\" + p)
 		}
 	}
-	// we shouldn't be here
-	return "", EINVAL
 }
 
 type ProcAttr struct {

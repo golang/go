@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -120,6 +121,9 @@ func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
 // the associated out-of-band data into oob. It returns the number of
 // bytes copied into b, the number of bytes copied into oob, the flags
 // that were set on the packet, and the source address of the packet.
+//
+// Note that if len(b) == 0 and len(oob) > 0, this function will still
+// read (and discard) 1 byte from the connection.
 func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err error) {
 	if !c.ok() {
 		return 0, 0, 0, nil, syscall.EINVAL
@@ -167,6 +171,9 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (int, error) {
 // WriteMsgUnix writes a packet to addr via c, copying the payload
 // from b and the associated out-of-band data from oob. It returns
 // the number of payload and out-of-band bytes written.
+//
+// Note that if len(b) == 0 and len(oob) > 0, this function will still
+// write 1 byte to the connection.
 func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err error) {
 	if !c.ok() {
 		return 0, 0, syscall.EINVAL
@@ -200,9 +207,10 @@ func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
 // typically use variables of type Listener instead of assuming Unix
 // domain sockets.
 type UnixListener struct {
-	fd     *netFD
-	path   string
-	unlink bool
+	fd         *netFD
+	path       string
+	unlink     bool
+	unlinkOnce sync.Once
 }
 
 func (ln *UnixListener) ok() bool { return ln != nil && ln.fd != nil }

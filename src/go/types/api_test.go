@@ -171,13 +171,11 @@ func TestTypesInfo(t *testing.T) {
 			`x.(int)`,
 			`(int, bool)`,
 		},
-		// TODO(gri): uncomment if we accept issue 8189.
-		// {`package p2; type mybool bool; var m map[string]complex128; var b mybool; func _() { _, b = m["foo"] }`,
-		// 	`m["foo"]`,
-		// 	`(complex128, p2.mybool)`,
-		// },
-		// TODO(gri): remove if we accept issue 8189.
-		{`package p2; var m map[string]complex128; var b bool; func _() { _, b = m["foo"] }`,
+		{`package p2a; type mybool bool; var m map[string]complex128; var b mybool; func _() { _, b = m["foo"] }`,
+			`m["foo"]`,
+			`(complex128, p2a.mybool)`,
+		},
+		{`package p2b; var m map[string]complex128; var b bool; func _() { _, b = m["foo"] }`,
 			`m["foo"]`,
 			`(complex128, bool)`,
 		},
@@ -573,26 +571,25 @@ func TestInitOrderInfo(t *testing.T) {
 			"a = next()", "b = next()", "c = next()", "d = next()", "e = next()", "f = next()", "_ = makeOrder()",
 		}},
 		// test case for issue 10709
-		// TODO(gri) enable once the issue is fixed
-		// {`package p13
+		{`package p13
 
-		// var (
-		//     v = t.m()
-		//     t = makeT(0)
-		// )
+		var (
+		    v = t.m()
+		    t = makeT(0)
+		)
 
-		// type T struct{}
+		type T struct{}
 
-		// func (T) m() int { return 0 }
+		func (T) m() int { return 0 }
 
-		// func makeT(n int) T {
-		//     if n > 0 {
-		//         return makeT(n-1)
-		//     }
-		//     return T{}
-		// }`, []string{
-		// 	"t = makeT(0)", "v = t.m()",
-		// }},
+		func makeT(n int) T {
+		    if n > 0 {
+		        return makeT(n-1)
+		    }
+		    return T{}
+		}`, []string{
+			"t = makeT(0)", "v = t.m()",
+		}},
 		// test case for issue 10709: same as test before, but variable decls swapped
 		{`package p14
 
@@ -612,6 +609,24 @@ func TestInitOrderInfo(t *testing.T) {
 		    return T{}
 		}`, []string{
 			"t = makeT(0)", "v = t.m()",
+		}},
+		// another candidate possibly causing problems with issue 10709
+		{`package p15
+
+		var y1 = f1()
+
+		func f1() int { return g1() }
+		func g1() int { f1(); return x1 }
+
+		var x1 = 0
+
+		var y2 = f2()
+
+		func f2() int { return g2() }
+		func g2() int { return x2 }
+
+		var x2 = 0`, []string{
+			"x1 = 0", "y1 = f1()", "x2 = 0", "y2 = f2()",
 		}},
 	}
 
@@ -1001,7 +1016,11 @@ func TestScopeLookupParent(t *testing.T) {
 	}
 	var info Info
 	makePkg := func(path string, files ...*ast.File) {
-		imports[path], _ = conf.Check(path, fset, files, &info)
+		var err error
+		imports[path], err = conf.Check(path, fset, files, &info)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	makePkg("lib", mustParse("package lib; var X int"))
@@ -1009,17 +1028,44 @@ func TestScopeLookupParent(t *testing.T) {
 	// name at that point and checks that it resolves to a decl of
 	// the specified kind and line number.  "undef" means undefined.
 	mainSrc := `
+/*lib=pkgname:5*/ /*X=var:1*/ /*Pi=const:8*/ /*T=typename:9*/ /*Y=var:10*/ /*F=func:12*/
 package main
+
 import "lib"
-var Y = lib.X
-func f() {
-	print(Y) /*Y=var:4*/
-	z /*z=undef*/ := /*z=undef*/ 1 /*z=var:7*/
-	print(z)
-	/*f=func:5*/ /*lib=pkgname:3*/
-	type /*T=undef*/ T /*T=typename:10*/ *T
+import . "lib"
+
+const Pi = 3.1415
+type T struct{}
+var Y, _ = lib.X, X
+
+func F(){
+	const pi, e = 3.1415, /*pi=undef*/ 2.71828 /*pi=const:13*/ /*e=const:13*/
+	type /*t=undef*/ t /*t=typename:14*/ *t
+	print(Y) /*Y=var:10*/
+	x, Y := Y, /*x=undef*/ /*Y=var:10*/ Pi /*x=var:16*/ /*Y=var:16*/ ; _ = x; _ = Y
+	var F = /*F=func:12*/ F /*F=var:17*/ ; _ = F
+
+	var a []int
+	for i, x := range /*i=undef*/ /*x=var:16*/ a /*i=var:20*/ /*x=var:20*/ { _ = i; _ = x }
+
+	var i interface{}
+	switch y := i.(type) { /*y=undef*/
+	case /*y=undef*/ int /*y=var:23*/ :
+	case float32, /*y=undef*/ float64 /*y=var:23*/ :
+	default /*y=var:23*/:
+		println(y)
+	}
+	/*y=undef*/
+
+        switch int := i.(type) {
+        case /*int=typename:0*/ int /*int=var:31*/ :
+        	println(int)
+        default /*int=var:31*/ :
+        }
 }
+/*main=undef*/
 `
+
 	info.Uses = make(map[*ast.Ident]Object)
 	f := mustParse(mainSrc)
 	makePkg("main", f)
@@ -1125,3 +1171,279 @@ func TestIssue15305(t *testing.T) {
 	}
 	t.Errorf("CallExpr has no type")
 }
+
+// TestCompositeLitTypes verifies that Info.Types registers the correct
+// types for composite literal expressions and composite literal type
+// expressions.
+func TestCompositeLitTypes(t *testing.T) {
+	for _, test := range []struct {
+		lit, typ string
+	}{
+		{`[16]byte{}`, `[16]byte`},
+		{`[...]byte{}`, `[0]byte`},                // test for issue #14092
+		{`[...]int{1, 2, 3}`, `[3]int`},           // test for issue #14092
+		{`[...]int{90: 0, 98: 1, 2}`, `[100]int`}, // test for issue #14092
+		{`[]int{}`, `[]int`},
+		{`map[string]bool{"foo": true}`, `map[string]bool`},
+		{`struct{}{}`, `struct{}`},
+		{`struct{x, y int; z complex128}{}`, `struct{x int; y int; z complex128}`},
+	} {
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, test.lit, "package p; var _ = "+test.lit, 0)
+		if err != nil {
+			t.Fatalf("%s: %v", test.lit, err)
+		}
+
+		info := &Info{
+			Types: make(map[ast.Expr]TypeAndValue),
+		}
+		if _, err = new(Config).Check("p", fset, []*ast.File{f}, info); err != nil {
+			t.Fatalf("%s: %v", test.lit, err)
+		}
+
+		cmptype := func(x ast.Expr, want string) {
+			tv, ok := info.Types[x]
+			if !ok {
+				t.Errorf("%s: no Types entry found", test.lit)
+				return
+			}
+			if tv.Type == nil {
+				t.Errorf("%s: type is nil", test.lit)
+				return
+			}
+			if got := tv.Type.String(); got != want {
+				t.Errorf("%s: got %v, want %s", test.lit, got, want)
+			}
+		}
+
+		// test type of composite literal expression
+		rhs := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0]
+		cmptype(rhs, test.typ)
+
+		// test type of composite literal type expression
+		cmptype(rhs.(*ast.CompositeLit).Type, test.typ)
+	}
+}
+
+// TestObjectParents verifies that objects have parent scopes or not
+// as specified by the Object interface.
+func TestObjectParents(t *testing.T) {
+	const src = `
+package p
+
+const C = 0
+
+type T1 struct {
+	a, b int
+	T2
+}
+
+type T2 interface {
+	im1()
+	im2()
+}
+
+func (T1) m1() {}
+func (*T1) m2() {}
+
+func f(x int) { y := x; print(y) }
+`
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "src", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info := &Info{
+		Defs: make(map[*ast.Ident]Object),
+	}
+	if _, err = new(Config).Check("p", fset, []*ast.File{f}, info); err != nil {
+		t.Fatal(err)
+	}
+
+	for ident, obj := range info.Defs {
+		if obj == nil {
+			// only package names and implicit vars have a nil object
+			// (in this test we only need to handle the package name)
+			if ident.Name != "p" {
+				t.Errorf("%v has nil object", ident)
+			}
+			continue
+		}
+
+		// struct fields, type-associated and interface methods
+		// have no parent scope
+		wantParent := true
+		switch obj := obj.(type) {
+		case *Var:
+			if obj.IsField() {
+				wantParent = false
+			}
+		case *Func:
+			if obj.Type().(*Signature).Recv() != nil { // method
+				wantParent = false
+			}
+		}
+
+		gotParent := obj.Parent() != nil
+		switch {
+		case gotParent && !wantParent:
+			t.Errorf("%v: want no parent, got %s", ident, obj.Parent())
+		case !gotParent && wantParent:
+			t.Errorf("%v: no parent found", ident)
+		}
+	}
+}
+
+// Alias-related code. Keep for now.
+/*
+func TestAliases(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	const src = `
+package b
+
+import (
+	"./testdata/alias"
+	a "./testdata/alias"
+	"math"
+)
+
+const (
+	c1 = alias.Pi1
+	c2 => a.Pi1
+	c3 => a.Pi2
+	c4 => math.Pi
+)
+
+var (
+	v1 => alias.Default
+	v2 => a.Default
+	v3 = f1
+)
+
+type (
+	t1 => alias.Context
+	t2 => a.Context
+)
+
+func f1 => alias.Sin
+func f2 => a.Sin
+
+func _() {
+	assert(c1 == alias.Pi1 && c2 == a.Pi1 && c3 == a.Pi2 && c4 == math.Pi)
+	assert(c2 == c2 && c2 == c3 && c3 == c4)
+	v1 = v2 // must be assignable
+	var _ *t1 = new(t2) // must be assignable
+	var _ t2 = alias.Default
+	f1(1) // must be callable
+	f2(1)
+	_ = alias.Sin(1)
+	_ = a.Sin(1)
+}
+`
+
+	if out := compile(t, "testdata", "alias.go"); out != "" {
+		defer os.Remove(out)
+	}
+
+	DefPredeclaredTestFuncs() // declare assert built-in for testing
+	mustTypecheck(t, "Aliases", src, nil)
+}
+
+func compile(t *testing.T, dirname, filename string) string {
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", filename)
+	cmd.Dir = dirname
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("%s", out)
+		t.Fatalf("go tool compile %s failed: %s", filename, err)
+	}
+	// filename should end with ".go"
+	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
+}
+
+func TestAliasDefUses(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	const src = `
+package p
+
+import(
+	"go/build"
+	"go/types"
+)
+
+// Defs
+const Invalid => types.Invalid
+type Struct => types.Struct
+var Default => build.Default
+func Implements => types.Implements
+
+// Uses
+const _ = Invalid
+var _ types.Struct = Struct{} // types must be identical
+var _ build.Context = Default
+var _ = Implements(nil, nil)
+`
+
+	info := Info{
+		Defs: make(map[*ast.Ident]Object),
+		Uses: make(map[*ast.Ident]Object),
+	}
+	mustTypecheck(t, "TestAliasDefUses", src, &info)
+
+	// verify Defs
+	defs := map[string]string{
+		"Invalid":    "types.Invalid",
+		"Struct":     "types.Struct",
+		"Default":    "build.Default",
+		"Implements": "types.Implements",
+	}
+
+	for ident, obj := range info.Defs {
+		if alias, ok := obj.(*Alias); ok {
+			if want := defs[ident.Name]; want != "" {
+				orig := alias.Orig()
+				if got := orig.Pkg().Name() + "." + orig.Name(); got != want {
+					t.Errorf("%v: got %v, want %v", ident, got, want)
+				}
+				delete(defs, ident.Name) // mark as found
+			} else {
+				t.Errorf("unexpected alias def of %v", ident)
+			}
+		}
+	}
+
+	if len(defs) != 0 {
+		t.Errorf("missing aliases: %v", defs)
+	}
+
+	// verify Uses
+	uses := map[string]string{
+		"Invalid":    "types.Invalid",
+		"Struct":     "types.Struct",
+		"Default":    "build.Default",
+		"Implements": "types.Implements",
+	}
+
+	for ident, obj := range info.Uses {
+		if alias, ok := obj.(*Alias); ok {
+			if want := uses[ident.Name]; want != "" {
+				orig := alias.Orig()
+				if got := orig.Pkg().Name() + "." + orig.Name(); got != want {
+					t.Errorf("%v: got %v, want %v", ident, got, want)
+				}
+				delete(uses, ident.Name) // mark as found
+			} else {
+				t.Errorf("unexpected alias use of %v", ident)
+			}
+		}
+	}
+
+	if len(uses) != 0 {
+		t.Errorf("missing aliases: %v", defs)
+	}
+}
+*/

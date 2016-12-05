@@ -184,14 +184,12 @@ TEXT runtime·mincore(SB),NOSPLIT,$-8-28
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB),NOSPLIT,$24-12
-	MOVD	RSP, R0
-	MOVD	$0, R1
-	MOVD	$SYS_gettimeofday, R8
+	MOVW	$0, R0 // CLOCK_REALTIME
+	MOVD	RSP, R1
+	MOVD	$SYS_clock_gettime, R8
 	SVC
 	MOVD	0(RSP), R3	// sec
-	MOVD	8(RSP), R5	// usec
-	MOVD	$1000, R4
-	MUL	R4, R5
+	MOVD	8(RSP), R5	// nsec
 	MOVD	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
 	RET
@@ -212,7 +210,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$24-8
 	RET
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
-	MOVW	sig+0(FP), R0
+	MOVW	how+0(FP), R0
 	MOVD	new+8(FP), R1
 	MOVD	old+16(FP), R2
 	MOVW	size+24(FP), R3
@@ -319,8 +317,8 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 	MOVD	stk+8(FP), R1
 
 	// Copy mp, gp, fn off parent stack for use by child.
-	MOVD	mm+16(FP), R10
-	MOVD	gg+24(FP), R11
+	MOVD	mp+16(FP), R10
+	MOVD	gp+24(FP), R11
 	MOVD	fn+32(FP), R12
 
 	MOVD	R10, -8(R1)

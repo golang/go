@@ -107,7 +107,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 			}
 			frame.fn = f
 			frame.argp = uintptr(deferArgs(d))
-			frame.arglen, frame.argmap = getArgInfo(&frame, f, true)
+			frame.arglen, frame.argmap = getArgInfo(&frame, f, true, fn)
 		}
 		frame.continpc = frame.pc
 		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
@@ -339,7 +339,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// metadata recorded by f's caller.
 		if callback != nil || printing {
 			frame.argp = frame.fp + sys.MinFrameSize
-			frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil)
+			frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil, nil)
 		}
 
 		// Determine frame's 'continuation PC', where it can continue.
@@ -380,7 +380,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			}
 		}
 		if printing {
-			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp) {
+			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0) {
 				// Print during crash.
 				//	main(0x1, 0x2, 0x3)
 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
@@ -546,19 +546,48 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	return n
 }
 
-func getArgInfo(frame *stkframe, f *_func, needArgMap bool) (arglen uintptr, argmap *bitvector) {
+// reflectMethodValue is a partial duplicate of reflect.methodValue.
+type reflectMethodValue struct {
+	fn    uintptr
+	stack *bitvector // args bitmap
+}
+
+// getArgInfo returns the argument frame information for a call to f
+// with call frame frame.
+//
+// This is used for both actual calls with active stack frames and for
+// deferred calls that are not yet executing. If this is an actual
+// call, ctxt must be nil (getArgInfo will retrieve what it needs from
+// the active stack frame). If this is a deferred call, ctxt must be
+// the function object that was deferred.
+func getArgInfo(frame *stkframe, f *_func, needArgMap bool, ctxt *funcval) (arglen uintptr, argmap *bitvector) {
 	arglen = uintptr(f.args)
 	if needArgMap && f.args == _ArgsSizeUnknown {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
 		switch funcname(f) {
 		case "reflect.makeFuncStub", "reflect.methodValueCall":
-			arg0 := frame.sp + sys.MinFrameSize
-			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
-			if fn[0] != f.entry {
+			// These take a *reflect.methodValue as their
+			// context register.
+			var mv *reflectMethodValue
+			if ctxt != nil {
+				// This is not an actual call, but a
+				// deferred call. The function value
+				// is itself the *reflect.methodValue.
+				mv = (*reflectMethodValue)(unsafe.Pointer(ctxt))
+			} else {
+				// This is a real call that took the
+				// *reflect.methodValue as its context
+				// register and immediately saved it
+				// to 0(SP). Get the methodValue from
+				// 0(SP).
+				arg0 := frame.sp + sys.MinFrameSize
+				mv = *(**reflectMethodValue)(unsafe.Pointer(arg0))
+			}
+			if mv.fn != f.entry {
 				print("runtime: confused by ", funcname(f), "\n")
 				throw("reflect mismatch")
 			}
-			bv := (*bitvector)(unsafe.Pointer(fn[1]))
+			bv := mv.stack
 			arglen = uintptr(bv.n * sys.PtrSize)
 			argmap = bv
 		}
@@ -603,7 +632,7 @@ func printcreatedby(gp *g) {
 	// Show what created goroutine, except main goroutine (goid 1).
 	pc := gp.gopc
 	f := findfunc(pc)
-	if f != nil && showframe(f, gp) && gp.goid != 1 {
+	if f != nil && showframe(f, gp, false) && gp.goid != 1 {
 		print("created by ", funcname(f), "\n")
 		tracepc := pc // back up to CALL instruction for funcline.
 		if pc > f.entry {
@@ -683,7 +712,7 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
 	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, &pcbuf[0], len(pcbuf), nil, nil, 0)
 }
 
-func showframe(f *_func, gp *g) bool {
+func showframe(f *_func, gp *g, firstFrame bool) bool {
 	g := getg()
 	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
@@ -691,10 +720,12 @@ func showframe(f *_func, gp *g) bool {
 	level, _, _ := gotraceback()
 	name := funcname(f)
 
-	// Special case: always show runtime.gopanic frame, so that we can
-	// see where a panic started in the middle of a stack trace.
+	// Special case: always show runtime.gopanic frame
+	// in the middle of a stack trace, so that we can
+	// see the boundary between ordinary code and
+	// panic-induced deferred code.
 	// See golang.org/issue/5832.
-	if name == "runtime.gopanic" {
+	if name == "runtime.gopanic" && !firstFrame {
 		return true
 	}
 
@@ -1077,6 +1108,9 @@ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 		// or when on the system stack.
 		call = asmcgocall
 	}
+	if msanenabled {
+		msanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
+	}
 	call(cgoSymbolizer, noescape(unsafe.Pointer(arg)))
 }
 
@@ -1095,6 +1129,9 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
 		context: ctxt,
 		buf:     (*uintptr)(noescape(unsafe.Pointer(&buf[0]))),
 		max:     uintptr(len(buf)),
+	}
+	if msanenabled {
+		msanwrite(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
 	}
 	call(cgoTraceback, noescape(unsafe.Pointer(&arg)))
 }

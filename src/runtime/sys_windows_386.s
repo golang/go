@@ -192,7 +192,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	SUBL	$m__size, SP		// space for M
 	MOVL	SP, 0(SP)
 	MOVL	$m__size, 4(SP)
-	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX
 
 	LEAL	m_tls(SP), CX
 	MOVL	CX, 0x14(FS)
@@ -203,7 +203,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 
 	MOVL	SP, 0(SP)
 	MOVL	$g__size, 4(SP)
-	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX
 	LEAL	g__size(SP), BX
 	MOVL	BX, g_m(SP)
 
@@ -309,7 +309,7 @@ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
 
 // void tstart(M *newm);
 TEXT runtime·tstart(SB),NOSPLIT,$0
-	MOVL	newm+4(SP), CX		// m
+	MOVL	newm+0(FP), CX		// m
 	MOVL	m_g0(CX), DX		// g
 
 	// Layout new m scheduler stack on os stack.
@@ -337,7 +337,7 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
 
 // uint32 tstart_stdcall(M *newm);
 TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
-	MOVL	newm+4(SP), BX
+	MOVL	newm+0(FP), BX
 
 	PUSHL	BX
 	CALL	runtime·tstart(SB)

@@ -100,6 +100,22 @@ func BenchmarkAppendSlice(b *testing.B) {
 	}
 }
 
+var (
+	blackhole []byte
+)
+
+func BenchmarkAppendSliceLarge(b *testing.B) {
+	for _, length := range []int{1 << 10, 4 << 10, 16 << 10, 64 << 10, 256 << 10, 1024 << 10} {
+		y := make([]byte, length)
+		b.Run(fmt.Sprint(length, "Bytes"), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				blackhole = nil
+				blackhole = append(blackhole, y...)
+			}
+		})
+	}
+}
+
 func BenchmarkAppendStr(b *testing.B) {
 	for _, str := range []string{
 		"1",

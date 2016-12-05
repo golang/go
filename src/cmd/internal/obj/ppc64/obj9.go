@@ -63,7 +63,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			s.Size = 4
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
-			p.From.Sym.Local = true
+			p.From.Sym.Set(obj.AttrLocal, true)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
@@ -76,7 +76,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
-			p.From.Sym.Local = true
+			p.From.Sym.Set(obj.AttrLocal, true)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
@@ -89,7 +89,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
-			p.From.Sym.Local = true
+			p.From.Sym.Set(obj.AttrLocal, true)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
@@ -168,7 +168,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
 	// internally defined symbols.
-	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
 		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
 		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; ADD <off>, Rx
 		if p.As != AMOVD {
@@ -195,12 +195,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	// MOVx sym, Ry becomes MOVD sym@GOT, REGTMP; MOVx (REGTMP), Ry
 	// MOVx Ry, sym becomes MOVD sym@GOT, REGTMP; MOVx Ry, (REGTMP)
 	// An addition may be inserted between the two MOVs if there is an offset.
-	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
-		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
 		}
 		source = &p.From
-	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 		source = &p.To
 	} else {
 		return
@@ -275,9 +275,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	 * expand BECOME pseudo
 	 */
 	if ctxt.Debugvlog != 0 {
-		fmt.Fprintf(ctxt.Bso, "%5.2f noops\n", obj.Cputime())
+		ctxt.Logf("%5.2f noops\n", obj.Cputime())
 	}
-	ctxt.Bso.Flush()
 
 	var q *obj.Prog
 	var q1 *obj.Prog
@@ -446,19 +445,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	autosize := int32(0)
-	var aoffset int
-	var mov obj.As
 	var p1 *obj.Prog
 	var p2 *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
 		case obj.ATEXT:
-			mov = AMOVD
-			aoffset = 0
 			autosize = int32(textstksiz)
 
-			if p.Mark&LEAF != 0 && autosize == 0 && p.From3.Offset&obj.NOFRAME == 0 {
+			if p.Mark&LEAF != 0 && autosize == 0 {
 				// A leaf function with no locals has no frame.
 				p.From3.Offset |= obj.NOFRAME
 			}
@@ -467,6 +462,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// If there is a stack frame at all, it includes
 				// space to save the LR.
 				autosize += int32(ctxt.FixedFrameSize())
+			}
+
+			if p.Mark&LEAF != 0 && autosize < obj.StackSmall {
+				// A leaf function with a small stack can be marked
+				// NOSPLIT, avoiding a stack check.
+				p.From3.Offset |= obj.NOSPLIT
 			}
 
 			p.To.Offset = int64(autosize)
@@ -515,11 +516,49 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if autosize != 0 {
-				/* use MOVDU to adjust R1 when saving R31, if autosize is small */
+				// Make sure to save link register for non-empty frame, even if
+				// it is a leaf function, so that traceback works.
 				if cursym.Text.Mark&LEAF == 0 && autosize >= -BIG && autosize <= BIG {
-					mov = AMOVDU
-					aoffset = int(-autosize)
+					// Use MOVDU to adjust R1 when saving R31, if autosize is small.
+					q = obj.Appendp(ctxt, q)
+					q.As = AMOVD
+					q.Lineno = p.Lineno
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REG_LR
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REGTMP
+
+					q = obj.Appendp(ctxt, q)
+					q.As = AMOVDU
+					q.Lineno = p.Lineno
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REGTMP
+					q.To.Type = obj.TYPE_MEM
+					q.To.Offset = int64(-autosize)
+					q.To.Reg = REGSP
+					q.Spadj = int32(autosize)
 				} else {
+					// Frame size is too large for a MOVDU instruction.
+					// Store link register before decrementing SP, so if a signal comes
+					// during the execution of the function prologue, the traceback
+					// code will not see a half-updated stack frame.
+					q = obj.Appendp(ctxt, q)
+					q.As = AMOVD
+					q.Lineno = p.Lineno
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REG_LR
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REG_R29 // REGTMP may be used to synthesize large offset in the next instruction
+
+					q = obj.Appendp(ctxt, q)
+					q.As = AMOVD
+					q.Lineno = p.Lineno
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REG_R29
+					q.To.Type = obj.TYPE_MEM
+					q.To.Offset = int64(-autosize)
+					q.To.Reg = REGSP
+
 					q = obj.Appendp(ctxt, q)
 					q.As = AADD
 					q.Lineno = p.Lineno
@@ -537,28 +576,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if cursym.Text.Mark&LEAF != 0 {
-				cursym.Leaf = true
+				cursym.Set(obj.AttrLeaf, true)
 				break
-			}
-
-			q = obj.Appendp(ctxt, q)
-			q.As = AMOVD
-			q.Lineno = p.Lineno
-			q.From.Type = obj.TYPE_REG
-			q.From.Reg = REG_LR
-			q.To.Type = obj.TYPE_REG
-			q.To.Reg = REGTMP
-
-			q = obj.Appendp(ctxt, q)
-			q.As = mov
-			q.Lineno = p.Lineno
-			q.From.Type = obj.TYPE_REG
-			q.From.Reg = REGTMP
-			q.To.Type = obj.TYPE_MEM
-			q.To.Offset = int64(aoffset)
-			q.To.Reg = REGSP
-			if q.As == AMOVDU {
-				q.Spadj = int32(-aoffset)
 			}
 
 			if ctxt.Flag_shared {
@@ -824,6 +843,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 */
 func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+	p0 := p // save entry point, but skipping the two instructions setting R2 in shared mode
+
 	// MOVD	g_stackguard(g), R3
 	p = obj.Appendp(ctxt, p)
 
@@ -831,7 +852,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	p.From.Type = obj.TYPE_MEM
 	p.From.Reg = REGG
 	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-	if ctxt.Cursym.Cfunc {
+	if ctxt.Cursym.CFunc() {
 		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
@@ -946,12 +967,30 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	}
 
 	var morestacksym *obj.LSym
-	if ctxt.Cursym.Cfunc {
+	if ctxt.Cursym.CFunc() {
 		morestacksym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
 		morestacksym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
 	} else {
 		morestacksym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+	}
+
+	if ctxt.Flag_shared {
+		// In PPC64 PIC code, R2 is used as TOC pointer derived from R12
+		// which is the address of function entry point when entering
+		// the function. We need to preserve R2 across call to morestack.
+		// Fortunately, in shared mode, 8(SP) and 16(SP) are reserved in
+		// the caller's frame, but not used (0(SP) is caller's saved LR,
+		// 24(SP) is caller's saved R2). Use 8(SP) to save this function's R2.
+
+		// MOVD R12, 8(SP)
+		p = obj.Appendp(ctxt, p)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_R2
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = REGSP
+		p.To.Offset = 8
 	}
 
 	if ctxt.Flag_dynlink {
@@ -1001,12 +1040,23 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Type = obj.TYPE_BRANCH
 		p.To.Sym = morestacksym
 	}
+
+	if ctxt.Flag_shared {
+		// MOVD 8(SP), R2
+		p = obj.Appendp(ctxt, p)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REGSP
+		p.From.Offset = 8
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_R2
+	}
+
 	// BR	start
 	p = obj.Appendp(ctxt, p)
-
 	p.As = ABR
 	p.To.Type = obj.TYPE_BRANCH
-	p.Pcond = ctxt.Cursym.Text.Link
+	p.Pcond = p0.Link
 
 	// placeholder for q1's jump target
 	p = obj.Appendp(ctxt, p)

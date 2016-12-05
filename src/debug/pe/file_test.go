@@ -307,7 +307,7 @@ func main() {
 	src := filepath.Join(tmpdir, "a.go")
 	exe := filepath.Join(tmpdir, "a.exe")
 	err = ioutil.WriteFile(src, []byte(prog), 0644)
-	output, err := exec.Command("go", "build", "-o", exe, src).CombinedOutput()
+	output, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, src).CombinedOutput()
 	if err != nil {
 		t.Fatalf("building test executable failed: %s %s", err, output)
 	}

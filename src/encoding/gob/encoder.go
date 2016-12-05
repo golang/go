@@ -215,6 +215,9 @@ func (enc *Encoder) sendTypeId(state *encoderState, ut *userTypeInfo) {
 // guaranteeing that all necessary type information has been transmitted first.
 // Passing a nil pointer to EncodeValue will panic, as they cannot be transmitted by gob.
 func (enc *Encoder) EncodeValue(value reflect.Value) error {
+	if value.Kind() == reflect.Invalid {
+		return errors.New("gob: cannot encode nil value")
+	}
 	if value.Kind() == reflect.Ptr && value.IsNil() {
 		panic("gob: cannot encode nil pointer of type " + value.Type().String())
 	}

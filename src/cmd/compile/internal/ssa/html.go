@@ -274,9 +274,10 @@ function toggle_visibility(id) {
 <div id="help">
 
 <p>
-Click on a value or block to toggle highlighting of that value/block and its uses.
-Values and blocks are highlighted by ID, which may vary across passes.
-(TODO: Fix this.)
+Click on a value or block to toggle highlighting of that value/block
+and its uses.  (Values and blocks are highlighted by ID, and IDs of
+dead items may be reused, so not all highlights necessarily correspond
+to the clicked item.)
 </p>
 
 <p>
@@ -341,7 +342,8 @@ func (v *Value) HTML() string {
 	// TODO: Using the value ID as the class ignores the fact
 	// that value IDs get recycled and that some values
 	// are transmuted into other values.
-	return fmt.Sprintf("<span class=\"%[1]s ssa-value\">%[1]s</span>", v.String())
+	s := v.String()
+	return fmt.Sprintf("<span class=\"%s ssa-value\">%s</span>", s, s)
 }
 
 func (v *Value) LongHTML() string {
@@ -359,7 +361,7 @@ func (v *Value) LongHTML() string {
 	}
 	r := v.Block.Func.RegAlloc
 	if int(v.ID) < len(r) && r[v.ID] != nil {
-		s += " : " + r[v.ID].Name()
+		s += " : " + html.EscapeString(r[v.ID].Name())
 	}
 	s += "</span>"
 	return s
@@ -369,7 +371,8 @@ func (b *Block) HTML() string {
 	// TODO: Using the value ID as the class ignores the fact
 	// that value IDs get recycled and that some values
 	// are transmuted into other values.
-	return fmt.Sprintf("<span class=\"%[1]s ssa-block\">%[1]s</span>", html.EscapeString(b.String()))
+	s := html.EscapeString(b.String())
+	return fmt.Sprintf("<span class=\"%s ssa-block\">%s</span>", s, s)
 }
 
 func (b *Block) LongHTML() string {

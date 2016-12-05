@@ -11,7 +11,7 @@ package a
 import""  // ERROR "import path is empty"
 var?      // ERROR "illegal character U\+003F '\?'"
 
-var x int // ERROR "unexpected var" "cannot declare name"
+var x int // ERROR "unexpected var"
 
 func main() {
 }

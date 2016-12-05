@@ -41,7 +41,7 @@ type vcsCmd struct {
 	resolveRepo func(v *vcsCmd, rootDir, remoteRepo string) (realRepo string, err error)
 }
 
-var isSecureScheme = map[string]bool{
+var defaultSecureScheme = map[string]bool{
 	"https":   true,
 	"git+ssh": true,
 	"bzr+ssh": true,
@@ -55,7 +55,25 @@ func (v *vcsCmd) isSecure(repo string) bool {
 		// If repo is not a URL, it's not secure.
 		return false
 	}
-	return isSecureScheme[u.Scheme]
+	return v.isSecureScheme(u.Scheme)
+}
+
+func (v *vcsCmd) isSecureScheme(scheme string) bool {
+	switch v.cmd {
+	case "git":
+		// GIT_ALLOW_PROTOCOL is an environment variable defined by Git. It is a
+		// colon-separated list of schemes that are allowed to be used with git
+		// fetch/clone. Any scheme not mentioned will be considered insecure.
+		if allow := os.Getenv("GIT_ALLOW_PROTOCOL"); allow != "" {
+			for _, s := range strings.Split(allow, ":") {
+				if s == scheme {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	return defaultSecureScheme[scheme]
 }
 
 // A tagCmd describes a command to list available tags
@@ -482,7 +500,7 @@ func vcsFromDir(dir, srcRoot string) (vcs *vcsCmd, root string, err error) {
 	origDir := dir
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
-			if fi, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil && fi.IsDir() {
+			if _, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil {
 				return vcs, filepath.ToSlash(dir[len(srcRoot)+1:]), nil
 			}
 		}
@@ -510,6 +528,9 @@ type repoRoot struct {
 	// root is the import path corresponding to the root of the
 	// repository
 	root string
+
+	// isCustom is true for custom import paths (those defined by HTML meta tags)
+	isCustom bool
 }
 
 var httpPrefixRE = regexp.MustCompile(`^https?:`)
@@ -612,7 +633,7 @@ func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsP
 				match["repo"] = scheme + "://" + match["repo"]
 			} else {
 				for _, scheme := range vcs.scheme {
-					if security == secure && !isSecureScheme[scheme] {
+					if security == secure && !vcs.isSecureScheme(scheme) {
 						continue
 					}
 					if vcs.ping(scheme, match["repo"]) == nil {
@@ -661,10 +682,10 @@ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRo
 	// Find the matched meta import.
 	mmi, err := matchGoImport(imports, importPath)
 	if err != nil {
-		if err != errNoMatch {
+		if _, ok := err.(ImportMismatchError); !ok {
 			return nil, fmt.Errorf("parse %s: %v", urlStr, err)
 		}
-		return nil, fmt.Errorf("parse %s: no go-import meta tags", urlStr)
+		return nil, fmt.Errorf("parse %s: no go-import meta tags (%s)", urlStr, err)
 	}
 	if buildV {
 		log.Printf("get %q: found meta tag %#v at %s", importPath, mmi, urlStr)
@@ -695,9 +716,10 @@ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRo
 		return nil, fmt.Errorf("%s: invalid repo root %q; no scheme", urlStr, mmi.RepoRoot)
 	}
 	rr := &repoRoot{
-		vcs:  vcsByCmd(mmi.VCS),
-		repo: mmi.RepoRoot,
-		root: mmi.Prefix,
+		vcs:      vcsByCmd(mmi.VCS),
+		repo:     mmi.RepoRoot,
+		root:     mmi.Prefix,
+		isCustom: true,
 	}
 	if rr.vcs == nil {
 		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, mmi.VCS)
@@ -764,9 +786,6 @@ type metaImport struct {
 	Prefix, VCS, RepoRoot string
 }
 
-// errNoMatch is returned from matchGoImport when there's no applicable match.
-var errNoMatch = errors.New("no import match")
-
 func splitPathHasPrefix(path, prefix []string) bool {
 	if len(path) < len(prefix) {
 		return false
@@ -779,28 +798,45 @@ func splitPathHasPrefix(path, prefix []string) bool {
 	return true
 }
 
+// A ImportMismatchError is returned where metaImport/s are present
+// but none match our import path.
+type ImportMismatchError struct {
+	importPath string
+	mismatches []string // the meta imports that were discarded for not matching our importPath
+}
+
+func (m ImportMismatchError) Error() string {
+	formattedStrings := make([]string, len(m.mismatches))
+	for i, pre := range m.mismatches {
+		formattedStrings[i] = fmt.Sprintf("meta tag %s did not match import path %s", pre, m.importPath)
+	}
+	return strings.Join(formattedStrings, ", ")
+}
+
 // matchGoImport returns the metaImport from imports matching importPath.
 // An error is returned if there are multiple matches.
 // errNoMatch is returned if none match.
-func matchGoImport(imports []metaImport, importPath string) (_ metaImport, err error) {
+func matchGoImport(imports []metaImport, importPath string) (metaImport, error) {
 	match := -1
 	imp := strings.Split(importPath, "/")
+
+	errImportMismatch := ImportMismatchError{importPath: importPath}
 	for i, im := range imports {
 		pre := strings.Split(im.Prefix, "/")
 
 		if !splitPathHasPrefix(imp, pre) {
+			errImportMismatch.mismatches = append(errImportMismatch.mismatches, im.Prefix)
 			continue
 		}
 
 		if match != -1 {
-			err = fmt.Errorf("multiple meta tags match import path %q", importPath)
-			return
+			return metaImport{}, fmt.Errorf("multiple meta tags match import path %q", importPath)
 		}
 		match = i
 	}
+
 	if match == -1 {
-		err = errNoMatch
-		return
+		return metaImport{}, errImportMismatch
 	}
 	return imports[match], nil
 }

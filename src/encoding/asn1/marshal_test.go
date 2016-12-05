@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 )
@@ -167,9 +168,42 @@ func TestMarshal(t *testing.T) {
 	}
 }
 
+type marshalErrTest struct {
+	in  interface{}
+	err string
+}
+
+var marshalErrTests = []marshalErrTest{
+	{bigIntStruct{nil}, "empty integer"},
+}
+
+func TestMarshalError(t *testing.T) {
+	for i, test := range marshalErrTests {
+		_, err := Marshal(test.in)
+		if err == nil {
+			t.Errorf("#%d should fail, but success", i)
+			continue
+		}
+
+		if !strings.Contains(err.Error(), test.err) {
+			t.Errorf("#%d got: %v want %v", i, err, test.err)
+		}
+	}
+}
+
 func TestInvalidUTF8(t *testing.T) {
 	_, err := Marshal(string([]byte{0xff, 0xff}))
 	if err == nil {
 		t.Errorf("invalid UTF8 string was accepted")
+	}
+}
+
+func BenchmarkMarshal(b *testing.B) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		for _, test := range marshalTests {
+			Marshal(test.in)
+		}
 	}
 }

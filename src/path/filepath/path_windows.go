@@ -37,7 +37,7 @@ func volumeNameLen(path string) int {
 	if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
 		return 2
 	}
-	// is it UNC
+	// is it UNC? https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
 	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
 		!isSlash(path[2]) && path[2] != '.' {
 		// first, leading `\\` and next shouldn't be `\`. its server name.
@@ -106,7 +106,11 @@ func splitList(path string) []string {
 }
 
 func abs(path string) (string, error) {
-	return syscall.FullPath(path)
+	fullPath, err := syscall.FullPath(path)
+	if err != nil {
+		return "", err
+	}
+	return Clean(fullPath), nil
 }
 
 func join(elem []string) string {

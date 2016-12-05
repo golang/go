@@ -1,5 +1,5 @@
 // Inferno utils/6l/l.h
-// http://code.google.com/p/inferno-os/source/browse/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -31,13 +31,13 @@
 package amd64
 
 const (
-	MaxAlign  = 32 // max data alignment
-	MinAlign  = 1  // min data alignment
-	FuncAlign = 16
+	maxAlign  = 32 // max data alignment
+	minAlign  = 1  // min data alignment
+	funcAlign = 16
 )
 
 /* Used by ../internal/ld/dwarf.go */
 const (
-	DWARFREGSP = 7
-	DWARFREGLR = 16
+	dwarfRegSP = 7
+	dwarfRegLR = 16
 )

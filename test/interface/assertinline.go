@@ -24,30 +24,51 @@ func assertfunc2(x interface{}) (func(), bool) {
 	return z, ok
 }
 
-// TODO(rsc): struct{*int} is stored directly in the interface
-// and should be possible to fetch back out of the interface,
-// but more of the general data movement code needs to
-// realize that before we can inline the assertion.
-
 func assertstruct(x interface{}) struct{ *int } {
-	return x.(struct{ *int }) // ERROR "type assertion not inlined"
+	return x.(struct{ *int }) // ERROR "type assertion inlined"
 }
 
 func assertstruct2(x interface{}) (struct{ *int }, bool) {
-	z, ok := x.(struct{ *int }) // ERROR "type assertion not inlined"
+	z, ok := x.(struct{ *int }) // ERROR "type assertion inlined"
 	return z, ok
 }
 
 func assertbig(x interface{}) complex128 {
-	return x.(complex128) // ERROR "type assertion not inlined"
+	return x.(complex128) // ERROR "type assertion inlined"
 }
 
 func assertbig2(x interface{}) (complex128, bool) {
-	z, ok := x.(complex128) // ERROR "type assertion not inlined"
+	z, ok := x.(complex128) // ERROR "type assertion inlined"
 	return z, ok
 }
 
 func assertbig2ok(x interface{}) (complex128, bool) {
-	_, ok := x.(complex128) // ERROR "type assertion [(]ok only[)] inlined"
+	_, ok := x.(complex128) // ERROR "type assertion inlined"
 	return 0, ok
+}
+
+func assertslice(x interface{}) []int {
+	return x.([]int) // ERROR "type assertion inlined"
+}
+
+func assertslice2(x interface{}) ([]int, bool) {
+	z, ok := x.([]int) // ERROR "type assertion inlined"
+	return z, ok
+}
+
+func assertslice2ok(x interface{}) ([]int, bool) {
+	_, ok := x.([]int) // ERROR "type assertion inlined"
+	return nil, ok
+}
+
+type I interface {
+	foo()
+}
+
+func assertInter(x interface{}) I {
+	return x.(I) // ERROR "type assertion not inlined"
+}
+func assertInter2(x interface{}) (I, bool) {
+	z, ok := x.(I) // ERROR "type assertion not inlined"
+	return z, ok
 }

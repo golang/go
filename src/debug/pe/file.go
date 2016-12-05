@@ -13,14 +13,17 @@ import (
 	"os"
 )
 
+// Avoid use of post-Go 1.4 io features, to make safe for toolchain bootstrap.
+const seekStart = 0
+
 // A File represents an open PE file.
 type File struct {
 	FileHeader
 	OptionalHeader interface{} // of type *OptionalHeader32 or *OptionalHeader64
 	Sections       []*Section
 	Symbols        []*Symbol    // COFF symbols with auxiliary symbol records removed
-	_COFFSymbols   []COFFSymbol // all COFF symbols (including auxiliary symbol records)
-	_StringTable   _StringTable
+	COFFSymbols    []COFFSymbol // all COFF symbols (including auxiliary symbol records)
+	StringTable    StringTable
 
 	closer io.Closer
 }
@@ -80,7 +83,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	} else {
 		base = int64(0)
 	}
-	sr.Seek(base, io.SeekStart)
+	sr.Seek(base, seekStart)
 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
 		return nil, err
 	}
@@ -93,23 +96,23 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	var err error
 
 	// Read string table.
-	f._StringTable, err = readStringTable(&f.FileHeader, sr)
+	f.StringTable, err = readStringTable(&f.FileHeader, sr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Read symbol table.
-	f._COFFSymbols, err = readCOFFSymbols(&f.FileHeader, sr)
+	f.COFFSymbols, err = readCOFFSymbols(&f.FileHeader, sr)
 	if err != nil {
 		return nil, err
 	}
-	f.Symbols, err = removeAuxSymbols(f._COFFSymbols, f._StringTable)
+	f.Symbols, err = removeAuxSymbols(f.COFFSymbols, f.StringTable)
 	if err != nil {
 		return nil, err
 	}
 
 	// Read optional header.
-	sr.Seek(base, io.SeekStart)
+	sr.Seek(base, seekStart)
 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
 		return nil, err
 	}
@@ -141,7 +144,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		if err := binary.Read(sr, binary.LittleEndian, sh); err != nil {
 			return nil, err
 		}
-		name, err := sh.fullName(f._StringTable)
+		name, err := sh.fullName(f.StringTable)
 		if err != nil {
 			return nil, err
 		}
@@ -168,7 +171,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 	for i := range f.Sections {
 		var err error
-		f.Sections[i]._Relocs, err = readRelocs(&f.Sections[i].SectionHeader, sr)
+		f.Sections[i].Relocs, err = readRelocs(&f.Sections[i].SectionHeader, sr)
 		if err != nil {
 			return nil, err
 		}

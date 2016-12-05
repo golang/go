@@ -15,6 +15,7 @@ func f(x *big, start int64) {
 	if delta := inuse() - start; delta < 9<<20 {
 		println("after alloc: expected delta at least 9MB, got: ", delta)
 	}
+	runtime.KeepAlive(x)
 	x = nil
 	if delta := inuse() - start; delta > 1<<20 {
 		println("after drop: expected delta below 1MB, got: ", delta)
@@ -23,6 +24,7 @@ func f(x *big, start int64) {
 	if delta := inuse() - start; delta < 9<<20 {
 		println("second alloc: expected delta at least 9MB, got: ", delta)
 	}
+	runtime.KeepAlive(x)
 }
 
 func main() {

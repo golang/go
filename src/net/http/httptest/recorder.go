@@ -8,15 +8,33 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 // ResponseRecorder is an implementation of http.ResponseWriter that
 // records its mutations for later inspection in tests.
 type ResponseRecorder struct {
-	Code      int           // the HTTP response code from WriteHeader
-	HeaderMap http.Header   // the HTTP response headers
-	Body      *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
-	Flushed   bool
+	// Code is the HTTP response code set by WriteHeader.
+	//
+	// Note that if a Handler never calls WriteHeader or Write,
+	// this might end up being 0, rather than the implicit
+	// http.StatusOK. To get the implicit value, use the Result
+	// method.
+	Code int
+
+	// HeaderMap contains the headers explicitly set by the Handler.
+	//
+	// To get the implicit headers set by the server (such as
+	// automatic Content-Type), use the Result method.
+	HeaderMap http.Header
+
+	// Body is the buffer to which the Handler's Write calls are sent.
+	// If nil, the Writes are silently discarded.
+	Body *bytes.Buffer
+
+	// Flushed is whether the Handler called Flush.
+	Flushed bool
 
 	result      *http.Response // cache of Result's return value
 	snapHeader  http.Header    // snapshot of HeaderMap at first Write
@@ -136,6 +154,9 @@ func (rw *ResponseRecorder) Flush() {
 // first write call, or at the time of this call, if the handler never
 // did a write.
 //
+// The Response.Body is guaranteed to be non-nil and Body.Read call is
+// guaranteed to not return any error other than io.EOF.
+//
 // Result must only be called after the handler has finished running.
 func (rw *ResponseRecorder) Result() *http.Response {
 	if rw.result != nil {
@@ -159,6 +180,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
 	if rw.Body != nil {
 		res.Body = ioutil.NopCloser(bytes.NewReader(rw.Body.Bytes()))
 	}
+	res.ContentLength = parseContentLength(res.Header.Get("Content-Length"))
 
 	if trailers, ok := rw.snapHeader["Trailer"]; ok {
 		res.Trailer = make(http.Header, len(trailers))
@@ -181,5 +203,33 @@ func (rw *ResponseRecorder) Result() *http.Response {
 			res.Trailer[k] = vv2
 		}
 	}
+	for k, vv := range rw.HeaderMap {
+		if !strings.HasPrefix(k, http.TrailerPrefix) {
+			continue
+		}
+		if res.Trailer == nil {
+			res.Trailer = make(http.Header)
+		}
+		for _, v := range vv {
+			res.Trailer.Add(strings.TrimPrefix(k, http.TrailerPrefix), v)
+		}
+	}
 	return res
+}
+
+// parseContentLength trims whitespace from s and returns -1 if no value
+// is set, or the value if it's >= 0.
+//
+// This a modified version of same function found in net/http/transfer.go. This
+// one just ignores an invalid header.
+func parseContentLength(cl string) int64 {
+	cl = strings.TrimSpace(cl)
+	if cl == "" {
+		return -1
+	}
+	n, err := strconv.ParseInt(cl, 10, 64)
+	if err != nil {
+		return -1
+	}
+	return n
 }

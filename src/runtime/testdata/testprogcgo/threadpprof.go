@@ -1,4 +1,4 @@
-// Copyright 2016 The Go Authors.  All rights reserved.
+// Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -39,17 +39,6 @@ struct cgoTracebackArg {
 	uintptr_t  max;
 };
 
-static void *pprofThread(void* p) {
-	time_t start;
-
-	(void)p;
-	start = time(NULL);
-	while (__sync_add_and_fetch(&cpuHogThreadCount, 0) < 2 && time(NULL) - start < 2) {
-		cpuHogThread();
-	}
-}
-
-
 // pprofCgoThreadTraceback is passed to runtime.SetCgoTraceback.
 // For testing purposes it pretends that all CPU hits in C code are in cpuHog.
 void pprofCgoThreadTraceback(void* parg) {
@@ -63,6 +52,18 @@ void pprofCgoThreadTraceback(void* parg) {
 // in the traceback.
 int getCPUHogThreadCount() {
 	return __sync_add_and_fetch(&cpuHogThreadCount, 0);
+}
+
+static void* cpuHogDriver(void* arg __attribute__ ((unused))) {
+	while (1) {
+		cpuHogThread();
+	}
+	return 0;
+}
+
+void runCPUHogThread() {
+	pthread_t tid;
+	pthread_create(&tid, 0, cpuHogDriver, 0);
 }
 */
 import "C"
@@ -79,11 +80,19 @@ import (
 
 func init() {
 	register("CgoPprofThread", CgoPprofThread)
+	register("CgoPprofThreadNoTraceback", CgoPprofThreadNoTraceback)
 }
 
 func CgoPprofThread() {
 	runtime.SetCgoTraceback(0, unsafe.Pointer(C.pprofCgoThreadTraceback), nil, nil)
+	pprofThread()
+}
 
+func CgoPprofThreadNoTraceback() {
+	pprofThread()
+}
+
+func pprofThread() {
 	f, err := ioutil.TempFile("", "prof")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -94,6 +103,8 @@ func CgoPprofThread() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+
+	C.runCPUHogThread()
 
 	t0 := time.Now()
 	for C.getCPUHogThreadCount() < 2 && time.Since(t0) < time.Second {

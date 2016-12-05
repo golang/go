@@ -25,6 +25,22 @@ func decomposeBuiltIn(f *Func) {
 	for _, name := range f.Names {
 		t := name.Type
 		switch {
+		case t.IsInteger() && t.Size() == 8 && f.Config.IntSize == 4:
+			var elemType Type
+			if t.IsSigned() {
+				elemType = f.Config.fe.TypeInt32()
+			} else {
+				elemType = f.Config.fe.TypeUInt32()
+			}
+			hiName, loName := f.Config.fe.SplitInt64(name)
+			newNames = append(newNames, hiName, loName)
+			for _, v := range f.NamedValues[name] {
+				hi := v.Block.NewValue1(v.Line, OpInt64Hi, elemType, v)
+				lo := v.Block.NewValue1(v.Line, OpInt64Lo, f.Config.fe.TypeUInt32(), v)
+				f.NamedValues[hiName] = append(f.NamedValues[hiName], hi)
+				f.NamedValues[loName] = append(f.NamedValues[loName], lo)
+			}
+			delete(f.NamedValues, name)
 		case t.IsComplex():
 			var elemType Type
 			if t.Size() == 16 {
@@ -78,8 +94,10 @@ func decomposeBuiltIn(f *Func) {
 				f.NamedValues[dataName] = append(f.NamedValues[dataName], data)
 			}
 			delete(f.NamedValues, name)
+		case t.IsFloat():
+			// floats are never decomposed, even ones bigger than IntSize
 		case t.Size() > f.Config.IntSize:
-			f.Unimplementedf("undecomposed named type %s %s", name, t)
+			f.Fatalf("undecomposed named type %v %v", name, t)
 		default:
 			newNames = append(newNames, name)
 		}
@@ -88,8 +106,13 @@ func decomposeBuiltIn(f *Func) {
 }
 
 func decomposeBuiltInPhi(v *Value) {
-	// TODO: decompose 64-bit ops on 32-bit archs?
 	switch {
+	case v.Type.IsInteger() && v.Type.Size() == 8 && v.Block.Func.Config.IntSize == 4:
+		if v.Block.Func.Config.arch == "amd64p32" {
+			// Even though ints are 32 bits, we have 64-bit ops.
+			break
+		}
+		decomposeInt64Phi(v)
 	case v.Type.IsComplex():
 		decomposeComplexPhi(v)
 	case v.Type.IsString():
@@ -98,8 +121,10 @@ func decomposeBuiltInPhi(v *Value) {
 		decomposeSlicePhi(v)
 	case v.Type.IsInterface():
 		decomposeInterfacePhi(v)
+	case v.Type.IsFloat():
+		// floats are never decomposed, even ones bigger than IntSize
 	case v.Type.Size() > v.Block.Func.Config.IntSize:
-		v.Unimplementedf("undecomposed type %s", v.Type)
+		v.Fatalf("undecomposed type %s", v.Type)
 	}
 }
 
@@ -136,6 +161,26 @@ func decomposeSlicePhi(v *Value) {
 	v.AddArg(ptr)
 	v.AddArg(len)
 	v.AddArg(cap)
+}
+
+func decomposeInt64Phi(v *Value) {
+	fe := v.Block.Func.Config.fe
+	var partType Type
+	if v.Type.IsSigned() {
+		partType = fe.TypeInt32()
+	} else {
+		partType = fe.TypeUInt32()
+	}
+
+	hi := v.Block.NewValue0(v.Line, OpPhi, partType)
+	lo := v.Block.NewValue0(v.Line, OpPhi, fe.TypeUInt32())
+	for _, a := range v.Args {
+		hi.AddArg(a.Block.NewValue1(v.Line, OpInt64Hi, partType, a))
+		lo.AddArg(a.Block.NewValue1(v.Line, OpInt64Lo, fe.TypeUInt32(), a))
+	}
+	v.reset(OpInt64Make)
+	v.AddArg(hi)
+	v.AddArg(lo)
 }
 
 func decomposeComplexPhi(v *Value) {
@@ -208,6 +253,21 @@ func decomposeUser(f *Func) {
 			}
 			delete(f.NamedValues, name)
 			newNames = append(newNames, fnames...)
+		case t.IsArray():
+			if t.NumElem() == 0 {
+				// TODO(khr): Not sure what to do here.  Probably nothing.
+				// Names for empty arrays aren't important.
+				break
+			}
+			if t.NumElem() != 1 {
+				f.Fatalf("array not of size 1")
+			}
+			elemName := f.Config.fe.SplitArray(name)
+			for _, v := range f.NamedValues[name] {
+				e := v.Block.NewValue1I(v.Line, OpArraySelect, t.ElemType(), 0, v)
+				f.NamedValues[elemName] = append(f.NamedValues[elemName], e)
+			}
+
 		default:
 			f.Names[i] = name
 			i++
@@ -221,10 +281,13 @@ func decomposeUserPhi(v *Value) {
 	switch {
 	case v.Type.IsStruct():
 		decomposeStructPhi(v)
+	case v.Type.IsArray():
+		decomposeArrayPhi(v)
 	}
-	// TODO: Arrays of length 1?
 }
 
+// decomposeStructPhi replaces phi-of-struct with structmake(phi-for-each-field),
+// and then recursively decomposes the phis for each field.
 func decomposeStructPhi(v *Value) {
 	t := v.Type
 	n := t.NumFields()
@@ -242,10 +305,30 @@ func decomposeStructPhi(v *Value) {
 
 	// Recursively decompose phis for each field.
 	for _, f := range fields[:n] {
-		if f.Type.IsStruct() {
-			decomposeStructPhi(f)
-		}
+		decomposeUserPhi(f)
 	}
+}
+
+// decomposeArrayPhi replaces phi-of-array with arraymake(phi-of-array-element),
+// and then recursively decomposes the element phi.
+func decomposeArrayPhi(v *Value) {
+	t := v.Type
+	if t.NumElem() == 0 {
+		v.reset(OpArrayMake0)
+		return
+	}
+	if t.NumElem() != 1 {
+		v.Fatalf("SSAable array must have no more than 1 element")
+	}
+	elem := v.Block.NewValue0(v.Line, OpPhi, t.ElemType())
+	for _, a := range v.Args {
+		elem.AddArg(a.Block.NewValue1I(v.Line, OpArraySelect, t.ElemType(), 0, a))
+	}
+	v.reset(OpArrayMake1)
+	v.AddArg(elem)
+
+	// Recursively decompose elem phi.
+	decomposeUserPhi(elem)
 }
 
 // MaxStruct is the maximum number of fields a struct

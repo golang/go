@@ -60,7 +60,7 @@ func Clearenv() {
 		// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
 		for j := 1; j < len(s); j++ {
 			if s[j] == '=' {
-				Setenv(s[0:j], "")
+				Unsetenv(s[0:j])
 				break
 			}
 		}

@@ -605,7 +605,10 @@ var fmtTests = []struct {
 	{"%x", I(23), `3c32333e`},
 	{"%#x", I(23), `0x3c32333e`},
 	{"%# x", I(23), `0x3c 0x32 0x33 0x3e`},
-	{"%d", I(23), `23`}, // Stringer applies only to string formats.
+	// Stringer applies only to string formats.
+	{"%d", I(23), `23`},
+	// Stringer applies to the extracted value.
+	{"%s", reflect.ValueOf(I(23)), `<23>`},
 
 	// go syntax
 	{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
@@ -1734,6 +1737,29 @@ func TestFormatterFlags(t *testing.T) {
 		s := Sprintf(tt.in, tt.val)
 		if s != tt.out {
 			t.Errorf("Sprintf(%q, %T) = %q, want %q", tt.in, tt.val, s, tt.out)
+		}
+	}
+}
+
+func TestParsenum(t *testing.T) {
+	testCases := []struct {
+		s          string
+		start, end int
+		num        int
+		isnum      bool
+		newi       int
+	}{
+		{"a123", 0, 4, 0, false, 0},
+		{"1234", 1, 1, 0, false, 1},
+		{"123a", 0, 4, 123, true, 3},
+		{"12a3", 0, 4, 12, true, 2},
+		{"1234", 0, 4, 1234, true, 4},
+		{"1a234", 1, 3, 0, false, 1},
+	}
+	for _, tt := range testCases {
+		num, isnum, newi := Parsenum(tt.s, tt.start, tt.end)
+		if num != tt.num || isnum != tt.isnum || newi != tt.newi {
+			t.Errorf("parsenum(%q, %d, %d) = %d, %v, %d, want %d, %v, %d", tt.s, tt.start, tt.end, num, isnum, newi, tt.num, tt.isnum, tt.newi)
 		}
 	}
 }

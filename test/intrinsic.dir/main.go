@@ -45,18 +45,6 @@ func test(i, x uint64) {
 			logf("Ctz32(0x%x) expected %d but got %d\n", x32, i, t32)
 		}
 	}
-	if i <= 16 {
-		x16 := uint16(x)
-		t16 := T.Ctz16(x16) // ERROR "intrinsic substitution for Ctz16"
-		if uint16(i) != t16 {
-			logf("Ctz16(0x%x) expected %d but got %d\n", x16, i, t16)
-		}
-		x16 = -x16
-		t16 = T.Ctz16(x16) // ERROR "intrinsic substitution for Ctz16"
-		if uint16(i) != t16 {
-			logf("Ctz16(0x%x) expected %d but got %d\n", x16, i, t16)
-		}
-	}
 }
 
 func main() {
@@ -88,9 +76,6 @@ func main() {
 	}
 
 	// Zero is a special case, be sure it is done right.
-	if T.Ctz16(0) != 16 { // ERROR "intrinsic substitution for Ctz16"
-		logf("ctz16(0) != 16")
-	}
 	if T.Ctz32(0) != 32 { // ERROR "intrinsic substitution for Ctz32"
 		logf("ctz32(0) != 32")
 	}

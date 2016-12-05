@@ -251,20 +251,18 @@ func ExampleTime_Truncate() {
 		2 * time.Second,
 		time.Minute,
 		10 * time.Minute,
-		time.Hour,
 	}
 
 	for _, d := range trunc {
-		fmt.Printf("t.Truncate(%6s) = %s\n", d, t.Truncate(d).Format("15:04:05.999999999"))
+		fmt.Printf("t.Truncate(%5s) = %s\n", d, t.Truncate(d).Format("15:04:05.999999999"))
 	}
 
 	// Output:
-	// t.Truncate(   1ns) = 12:15:30.918273645
-	// t.Truncate(   1µs) = 12:15:30.918273
-	// t.Truncate(   1ms) = 12:15:30.918
-	// t.Truncate(    1s) = 12:15:30
-	// t.Truncate(    2s) = 12:15:30
-	// t.Truncate(  1m0s) = 12:15:00
-	// t.Truncate( 10m0s) = 12:10:00
-	// t.Truncate(1h0m0s) = 12:00:00
+	// t.Truncate(  1ns) = 12:15:30.918273645
+	// t.Truncate(  1µs) = 12:15:30.918273
+	// t.Truncate(  1ms) = 12:15:30.918
+	// t.Truncate(   1s) = 12:15:30
+	// t.Truncate(   2s) = 12:15:30
+	// t.Truncate( 1m0s) = 12:15:00
+	// t.Truncate(10m0s) = 12:10:00
 }

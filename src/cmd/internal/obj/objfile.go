@@ -52,7 +52,9 @@
 //	- type [int]
 //	- name & version [symref index]
 //	- flags [int]
-//		1 dupok
+//		1<<0 dupok
+//		1<<1 local
+//		1<<2 add to typelink table
 //	- size [int]
 //	- gotype [symref index]
 //	- p [data block]
@@ -109,6 +111,7 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/dwarf"
 	"cmd/internal/sys"
 	"fmt"
 	"log"
@@ -317,19 +320,19 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 	if s.Type != 0 {
 		fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
 	}
-	if s.Dupok {
+	if s.DuplicateOK() {
 		fmt.Fprintf(ctxt.Bso, "dupok ")
 	}
-	if s.Cfunc {
+	if s.CFunc() {
 		fmt.Fprintf(ctxt.Bso, "cfunc ")
 	}
-	if s.Nosplit {
+	if s.NoSplit() {
 		fmt.Fprintf(ctxt.Bso, "nosplit ")
 	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 	if s.Type == STEXT {
 		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
-		if s.Leaf {
+		if s.Leaf() {
 			fmt.Fprintf(ctxt.Bso, " leaf")
 		}
 	}
@@ -388,11 +391,14 @@ func (w *objWriter) writeSym(s *LSym) {
 	w.writeInt(int64(s.Type))
 	w.writeRefIndex(s)
 	flags := int64(0)
-	if s.Dupok {
+	if s.DuplicateOK() {
 		flags |= 1
 	}
-	if s.Local {
+	if s.Local() {
 		flags |= 1 << 1
+	}
+	if s.MakeTypelink() {
+		flags |= 1 << 2
 	}
 	w.writeInt(flags)
 	w.writeInt(s.Size)
@@ -416,19 +422,19 @@ func (w *objWriter) writeSym(s *LSym) {
 
 	w.writeInt(int64(s.Args))
 	w.writeInt(int64(s.Locals))
-	if s.Nosplit {
+	if s.NoSplit() {
 		w.writeInt(1)
 	} else {
 		w.writeInt(0)
 	}
 	flags = int64(0)
-	if s.Leaf {
+	if s.Leaf() {
 		flags |= 1
 	}
-	if s.Cfunc {
+	if s.CFunc() {
 		flags |= 1 << 1
 	}
-	if s.ReflectMethod {
+	if s.ReflectMethod() {
 		flags |= 1 << 2
 	}
 	w.writeInt(flags)
@@ -506,3 +512,94 @@ type relocByOff []Reloc
 func (x relocByOff) Len() int           { return len(x) }
 func (x relocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
 func (x relocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+
+// implement dwarf.Context
+type dwCtxt struct{ *Link }
+
+func (c dwCtxt) PtrSize() int {
+	return c.Arch.PtrSize
+}
+func (c dwCtxt) AddInt(s dwarf.Sym, size int, i int64) {
+	ls := s.(*LSym)
+	ls.WriteInt(c.Link, ls.Size, size, i)
+}
+func (c dwCtxt) AddBytes(s dwarf.Sym, b []byte) {
+	ls := s.(*LSym)
+	ls.WriteBytes(c.Link, ls.Size, b)
+}
+func (c dwCtxt) AddString(s dwarf.Sym, v string) {
+	ls := s.(*LSym)
+	ls.WriteString(c.Link, ls.Size, len(v), v)
+	ls.WriteInt(c.Link, ls.Size, 1, 0)
+}
+func (c dwCtxt) SymValue(s dwarf.Sym) int64 {
+	return 0
+}
+func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+	rsym := data.(*LSym)
+	ls := s.(*LSym)
+	size := c.PtrSize()
+	ls.WriteAddr(c.Link, ls.Size, size, rsym, value)
+}
+func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+	ls := s.(*LSym)
+	rsym := t.(*LSym)
+	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
+	r := &ls.R[len(ls.R)-1]
+	r.Type = R_DWARFREF
+}
+
+func gendwarf(ctxt *Link, text []*LSym) []*LSym {
+	dctxt := dwCtxt{ctxt}
+	var dw []*LSym
+
+	for _, s := range text {
+		dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
+		if dsym.Size != 0 {
+			continue
+		}
+		dw = append(dw, dsym)
+		dsym.Type = SDWARFINFO
+		dsym.Set(AttrDuplicateOK, s.DuplicateOK())
+		var vars dwarf.Var
+		var abbrev int
+		var offs int32
+		for a := s.Autom; a != nil; a = a.Link {
+			switch a.Name {
+			case NAME_AUTO:
+				abbrev = dwarf.DW_ABRV_AUTO
+				offs = a.Aoffset
+				if ctxt.FixedFrameSize() == 0 {
+					offs -= int32(ctxt.Arch.PtrSize)
+				}
+				if Framepointer_enabled(GOOS, GOARCH) {
+					offs -= int32(ctxt.Arch.PtrSize)
+				}
+
+			case NAME_PARAM:
+				abbrev = dwarf.DW_ABRV_PARAM
+				offs = a.Aoffset + int32(ctxt.FixedFrameSize())
+
+			default:
+				continue
+			}
+			typename := dwarf.InfoPrefix + a.Gotype.Name[len("type."):]
+			dwvar := &dwarf.Var{
+				Name:   a.Asym.Name,
+				Abbrev: abbrev,
+				Offset: int32(offs),
+				Type:   Linklookup(ctxt, typename, 0),
+			}
+			dws := &vars.Link
+			for ; *dws != nil; dws = &(*dws).Link {
+				if offs <= (*dws).Offset {
+					break
+				}
+			}
+			dwvar.Link = *dws
+			*dws = dwvar
+		}
+		dwarf.PutFunc(dctxt, dsym, s.Name, s.Version == 0, s, s.Size, vars.Link)
+	}
+	return dw
+}

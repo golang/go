@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +34,25 @@ import (
 // A Client is higher-level than a RoundTripper (such as Transport)
 // and additionally handles HTTP details such as cookies and
 // redirects.
+//
+// When following redirects, the Client will forward all headers set on the
+// initial Request except:
+//
+//	* when forwarding sensitive headers like "Authorization",
+//	  "WWW-Authenticate", and "Cookie" to untrusted targets.
+//	  These headers will be ignored when following a redirect to a domain
+//	  that is not a subdomain match or exact match of the initial domain.
+//	  For example, a redirect from "foo.com" to either "foo.com" or "sub.foo.com"
+//	  will forward the sensitive headers, but a redirect to "bar.com" will not.
+//
+//	* when forwarding the "Cookie" header with a non-nil cookie Jar.
+//	  Since each redirect may mutate the state of the cookie jar,
+//	  a redirect may possibly alter a cookie set in the initial request.
+//	  When forwarding the "Cookie" header, any mutated cookies will be omitted,
+//	  with the expectation that the Jar will insert those mutated cookies
+//	  with the updated values (assuming the origin matches).
+//	  If Jar is nil, the initial cookies are forwarded without change.
+//
 type Client struct {
 	// Transport specifies the mechanism by which individual
 	// HTTP requests are made.
@@ -56,8 +76,14 @@ type Client struct {
 	CheckRedirect func(req *Request, via []*Request) error
 
 	// Jar specifies the cookie jar.
-	// If Jar is nil, cookies are not sent in requests and ignored
-	// in responses.
+	//
+	// The Jar is used to insert relevant cookies into every
+	// outbound Request and is updated with the cookie values
+	// of every inbound Response. The Jar is consulted for every
+	// redirect that the Client follows.
+	//
+	// If Jar is nil, cookies are only sent if they are explicitly
+	// set on the Request.
 	Jar CookieJar
 
 	// Timeout specifies a time limit for requests made by this
@@ -155,40 +181,6 @@ func (c *Client) send(req *Request, deadline time.Time) (*Response, error) {
 	return resp, nil
 }
 
-// Do sends an HTTP request and returns an HTTP response, following
-// policy (such as redirects, cookies, auth) as configured on the
-// client.
-//
-// An error is returned if caused by client policy (such as
-// CheckRedirect), or failure to speak HTTP (such as a network
-// connectivity problem). A non-2xx status code doesn't cause an
-// error.
-//
-// If the returned error is nil, the Response will contain a non-nil
-// Body which the user is expected to close. If the Body is not
-// closed, the Client's underlying RoundTripper (typically Transport)
-// may not be able to re-use a persistent TCP connection to the server
-// for a subsequent "keep-alive" request.
-//
-// The request Body, if non-nil, will be closed by the underlying
-// Transport, even on errors.
-//
-// On error, any Response can be ignored. A non-nil Response with a
-// non-nil error only occurs when CheckRedirect fails, and even then
-// the returned Response.Body is already closed.
-//
-// Generally Get, Post, or PostForm will be used instead of Do.
-func (c *Client) Do(req *Request) (*Response, error) {
-	method := valueOrDefault(req.Method, "GET")
-	if method == "GET" || method == "HEAD" {
-		return c.doFollowingRedirects(req, shouldRedirectGet)
-	}
-	if method == "POST" || method == "PUT" {
-		return c.doFollowingRedirects(req, shouldRedirectPost)
-	}
-	return c.send(req, c.deadline())
-}
-
 func (c *Client) deadline() time.Time {
 	if c.Timeout > 0 {
 		return time.Now().Add(c.Timeout)
@@ -251,7 +243,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (*Response, error)
 	if !deadline.IsZero() {
 		forkReq()
 	}
-	stopTimer, wasCanceled := setRequestCancel(req, rt, deadline)
+	stopTimer, didTimeout := setRequestCancel(req, rt, deadline)
 
 	resp, err := rt.RoundTrip(req)
 	if err != nil {
@@ -271,9 +263,9 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (*Response, error)
 	}
 	if !deadline.IsZero() {
 		resp.Body = &cancelTimerBody{
-			stop:           stopTimer,
-			rc:             resp.Body,
-			reqWasCanceled: wasCanceled,
+			stop:          stopTimer,
+			rc:            resp.Body,
+			reqDidTimeout: didTimeout,
 		}
 	}
 	return resp, nil
@@ -282,7 +274,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (*Response, error)
 // setRequestCancel sets the Cancel field of req, if deadline is
 // non-zero. The RoundTripper's type is used to determine whether the legacy
 // CancelRequest behavior should be used.
-func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTimer func(), wasCanceled func() bool) {
+func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTimer func(), didTimeout func() bool) {
 	if deadline.IsZero() {
 		return nop, alwaysFalse
 	}
@@ -291,15 +283,6 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 
 	cancel := make(chan struct{})
 	req.Cancel = cancel
-
-	wasCanceled = func() bool {
-		select {
-		case <-cancel:
-			return true
-		default:
-			return false
-		}
-	}
 
 	doCancel := func() {
 		// The new way:
@@ -324,19 +307,23 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	var once sync.Once
 	stopTimer = func() { once.Do(func() { close(stopTimerCh) }) }
 
-	timer := time.NewTimer(deadline.Sub(time.Now()))
+	timer := time.NewTimer(time.Until(deadline))
+	var timedOut atomicBool
+
 	go func() {
 		select {
 		case <-initialReqCancel:
 			doCancel()
+			timer.Stop()
 		case <-timer.C:
+			timedOut.setTrue()
 			doCancel()
 		case <-stopTimerCh:
 			timer.Stop()
 		}
 	}()
 
-	return stopTimer, wasCanceled
+	return stopTimer, timedOut.isSet
 }
 
 // See 2 (end of page 4) http://www.ietf.org/rfc/rfc2617.txt
@@ -349,26 +336,6 @@ func basicAuth(username, password string) string {
 	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
-// True if the specified HTTP status code is one for which the Get utility should
-// automatically redirect.
-func shouldRedirectGet(statusCode int) bool {
-	switch statusCode {
-	case StatusMovedPermanently, StatusFound, StatusSeeOther, StatusTemporaryRedirect:
-		return true
-	}
-	return false
-}
-
-// True if the specified HTTP status code is one for which the Post utility should
-// automatically redirect.
-func shouldRedirectPost(statusCode int) bool {
-	switch statusCode {
-	case StatusFound, StatusSeeOther:
-		return true
-	}
-	return false
-}
-
 // Get issues a GET to the specified URL. If the response is one of
 // the following redirect codes, Get follows the redirect, up to a
 // maximum of 10 redirects:
@@ -377,6 +344,7 @@ func shouldRedirectPost(statusCode int) bool {
 //    302 (Found)
 //    303 (See Other)
 //    307 (Temporary Redirect)
+//    308 (Permanent Redirect)
 //
 // An error is returned if there were too many redirects or if there
 // was an HTTP protocol error. A non-2xx response doesn't cause an
@@ -401,6 +369,7 @@ func Get(url string) (resp *Response, err error) {
 //    302 (Found)
 //    303 (See Other)
 //    307 (Temporary Redirect)
+//    308 (Permanent Redirect)
 //
 // An error is returned if the Client's CheckRedirect function fails
 // or if there was an HTTP protocol error. A non-2xx response doesn't
@@ -415,7 +384,7 @@ func (c *Client) Get(url string) (resp *Response, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.doFollowingRedirects(req, shouldRedirectGet)
+	return c.Do(req)
 }
 
 func alwaysFalse() bool { return false }
@@ -436,16 +405,77 @@ func (c *Client) checkRedirect(req *Request, via []*Request) error {
 	return fn(req, via)
 }
 
-func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) bool) (*Response, error) {
+// redirectBehavior describes what should happen when the
+// client encounters a 3xx status code from the server
+func redirectBehavior(reqMethod string, resp *Response, via []*Request) (redirectMethod string, shouldRedirect bool) {
+	switch resp.StatusCode {
+	case 301, 302, 303:
+		redirectMethod = "GET"
+		shouldRedirect = true
+	case 307, 308:
+		redirectMethod = reqMethod
+		shouldRedirect = true
+
+		// Treat 307 and 308 specially, since they're new in
+		// Go 1.8, and they also require re-sending the request body.
+		loc := resp.Header.Get("Location")
+		if loc == "" {
+			// 308s have been observed in the wild being served
+			// without Location headers. Since Go 1.7 and earlier
+			// didn't follow these codes, just stop here instead
+			// of returning an error.
+			// See Issue 17773.
+			shouldRedirect = false
+			break
+		}
+		ireq := via[0]
+		if ireq.GetBody == nil && ireq.outgoingLength() != 0 {
+			// We had a request body, and 307/308 require
+			// re-sending it, but GetBody is not defined. So just
+			// return this response to the user instead of an
+			// error, like we did in Go 1.7 and earlier.
+			shouldRedirect = false
+		}
+	}
+
+	return redirectMethod, shouldRedirect
+}
+
+// Do sends an HTTP request and returns an HTTP response, following
+// policy (such as redirects, cookies, auth) as configured on the
+// client.
+//
+// An error is returned if caused by client policy (such as
+// CheckRedirect), or failure to speak HTTP (such as a network
+// connectivity problem). A non-2xx status code doesn't cause an
+// error.
+//
+// If the returned error is nil, the Response will contain a non-nil
+// Body which the user is expected to close. If the Body is not
+// closed, the Client's underlying RoundTripper (typically Transport)
+// may not be able to re-use a persistent TCP connection to the server
+// for a subsequent "keep-alive" request.
+//
+// The request Body, if non-nil, will be closed by the underlying
+// Transport, even on errors.
+//
+// On error, any Response can be ignored. A non-nil Response with a
+// non-nil error only occurs when CheckRedirect fails, and even then
+// the returned Response.Body is already closed.
+//
+// Generally Get, Post, or PostForm will be used instead of Do.
+func (c *Client) Do(req *Request) (*Response, error) {
 	if req.URL == nil {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.URL")
 	}
 
 	var (
-		deadline = c.deadline()
-		reqs     []*Request
-		resp     *Response
+		deadline       = c.deadline()
+		reqs           []*Request
+		resp           *Response
+		copyHeaders    = c.makeHeadersCopier(req)
+		redirectMethod string
 	)
 	uerr := func(err error) error {
 		req.closeBody()
@@ -476,16 +506,27 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 			}
 			ireq := reqs[0]
 			req = &Request{
-				Method:   ireq.Method,
+				Method:   redirectMethod,
 				Response: resp,
 				URL:      u,
 				Header:   make(Header),
 				Cancel:   ireq.Cancel,
 				ctx:      ireq.ctx,
 			}
-			if ireq.Method == "POST" || ireq.Method == "PUT" {
-				req.Method = "GET"
+			if ireq.GetBody != nil {
+				req.Body, err = ireq.GetBody()
+				if err != nil {
+					return nil, uerr(err)
+				}
+				req.ContentLength = ireq.ContentLength
 			}
+
+			// Copy original headers before setting the Referer,
+			// in case the user set Referer on their first request.
+			// If they really want to override, they can do it in
+			// their CheckRedirect func.
+			copyHeaders(req)
+
 			// Add the Referer header from the most recent
 			// request URL to the new one, if it's not https->http:
 			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL); ref != "" {
@@ -523,7 +564,6 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 		}
 
 		reqs = append(reqs, req)
-
 		var err error
 		if resp, err = c.send(req, deadline); err != nil {
 			if !deadline.IsZero() && !time.Now().Before(deadline) {
@@ -535,9 +575,77 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 			return nil, uerr(err)
 		}
 
-		if !shouldRedirect(resp.StatusCode) {
+		var shouldRedirect bool
+		redirectMethod, shouldRedirect = redirectBehavior(req.Method, resp, reqs)
+		if !shouldRedirect {
 			return resp, nil
 		}
+
+		req.closeBody()
+	}
+}
+
+// makeHeadersCopier makes a function that copies headers from the
+// initial Request, ireq. For every redirect, this function must be called
+// so that it can copy headers into the upcoming Request.
+func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
+	// The headers to copy are from the very initial request.
+	// We use a closured callback to keep a reference to these original headers.
+	var (
+		ireqhdr  = ireq.Header.clone()
+		icookies map[string][]*Cookie
+	)
+	if c.Jar != nil && ireq.Header.Get("Cookie") != "" {
+		icookies = make(map[string][]*Cookie)
+		for _, c := range ireq.Cookies() {
+			icookies[c.Name] = append(icookies[c.Name], c)
+		}
+	}
+
+	preq := ireq // The previous request
+	return func(req *Request) {
+		// If Jar is present and there was some initial cookies provided
+		// via the request header, then we may need to alter the initial
+		// cookies as we follow redirects since each redirect may end up
+		// modifying a pre-existing cookie.
+		//
+		// Since cookies already set in the request header do not contain
+		// information about the original domain and path, the logic below
+		// assumes any new set cookies override the original cookie
+		// regardless of domain or path.
+		//
+		// See https://golang.org/issue/17494
+		if c.Jar != nil && icookies != nil {
+			var changed bool
+			resp := req.Response // The response that caused the upcoming redirect
+			for _, c := range resp.Cookies() {
+				if _, ok := icookies[c.Name]; ok {
+					delete(icookies, c.Name)
+					changed = true
+				}
+			}
+			if changed {
+				ireqhdr.Del("Cookie")
+				var ss []string
+				for _, cs := range icookies {
+					for _, c := range cs {
+						ss = append(ss, c.Name+"="+c.Value)
+					}
+				}
+				sort.Strings(ss) // Ensure deterministic headers
+				ireqhdr.Set("Cookie", strings.Join(ss, "; "))
+			}
+		}
+
+		// Copy the initial request's Header values
+		// (at least the safe ones).
+		for k, vv := range ireqhdr {
+			if shouldCopyHeaderOnRedirect(k, preq.URL, req.URL) {
+				req.Header[k] = vv
+			}
+		}
+
+		preq = req // Update previous Request with the current request
 	}
 }
 
@@ -558,8 +666,8 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
 // Post is a wrapper around DefaultClient.Post.
 //
 // To set custom headers, use NewRequest and DefaultClient.Do.
-func Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
-	return DefaultClient.Post(url, bodyType, body)
+func Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
+	return DefaultClient.Post(url, contentType, body)
 }
 
 // Post issues a POST to the specified URL.
@@ -570,13 +678,13 @@ func Post(url string, bodyType string, body io.Reader) (resp *Response, err erro
 // request.
 //
 // To set custom headers, use NewRequest and Client.Do.
-func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
+func (c *Client) Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", bodyType)
-	return c.doFollowingRedirects(req, shouldRedirectPost)
+	req.Header.Set("Content-Type", contentType)
+	return c.Do(req)
 }
 
 // PostForm issues a POST to the specified URL, with data's keys and
@@ -605,7 +713,7 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }
 
-// Head issues a HEAD to the specified URL.  If the response is one of
+// Head issues a HEAD to the specified URL. If the response is one of
 // the following redirect codes, Head follows the redirect, up to a
 // maximum of 10 redirects:
 //
@@ -613,13 +721,14 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
 //    302 (Found)
 //    303 (See Other)
 //    307 (Temporary Redirect)
+//    308 (Permanent Redirect)
 //
 // Head is a wrapper around DefaultClient.Head
 func Head(url string) (resp *Response, err error) {
 	return DefaultClient.Head(url)
 }
 
-// Head issues a HEAD to the specified URL.  If the response is one of the
+// Head issues a HEAD to the specified URL. If the response is one of the
 // following redirect codes, Head follows the redirect after calling the
 // Client's CheckRedirect function:
 //
@@ -627,22 +736,23 @@ func Head(url string) (resp *Response, err error) {
 //    302 (Found)
 //    303 (See Other)
 //    307 (Temporary Redirect)
+//    308 (Permanent Redirect)
 func (c *Client) Head(url string) (resp *Response, err error) {
 	req, err := NewRequest("HEAD", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	return c.doFollowingRedirects(req, shouldRedirectGet)
+	return c.Do(req)
 }
 
 // cancelTimerBody is an io.ReadCloser that wraps rc with two features:
 // 1) on Read error or close, the stop func is called.
-// 2) On Read failure, if reqWasCanceled is true, the error is wrapped and
+// 2) On Read failure, if reqDidTimeout is true, the error is wrapped and
 //    marked as net.Error that hit its timeout.
 type cancelTimerBody struct {
-	stop           func() // stops the time.Timer waiting to cancel the request
-	rc             io.ReadCloser
-	reqWasCanceled func() bool
+	stop          func() // stops the time.Timer waiting to cancel the request
+	rc            io.ReadCloser
+	reqDidTimeout func() bool
 }
 
 func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
@@ -654,7 +764,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
 	if err == io.EOF {
 		return n, err
 	}
-	if b.reqWasCanceled() {
+	if b.reqDidTimeout() {
 		err = &httpError{
 			err:     err.Error() + " (Client.Timeout exceeded while reading body)",
 			timeout: true,
@@ -667,4 +777,53 @@ func (b *cancelTimerBody) Close() error {
 	err := b.rc.Close()
 	b.stop()
 	return err
+}
+
+func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
+	switch CanonicalHeaderKey(headerKey) {
+	case "Authorization", "Www-Authenticate", "Cookie", "Cookie2":
+		// Permit sending auth/cookie headers from "foo.com"
+		// to "sub.foo.com".
+
+		// Note that we don't send all cookies to subdomains
+		// automatically. This function is only used for
+		// Cookies set explicitly on the initial outgoing
+		// client request. Cookies automatically added via the
+		// CookieJar mechanism continue to follow each
+		// cookie's scope as set by Set-Cookie. But for
+		// outgoing requests with the Cookie header set
+		// directly, we don't know their scope, so we assume
+		// it's for *.domain.com.
+
+		// TODO(bradfitz): once issue 16142 is fixed, make
+		// this code use those URL accessors, and consider
+		// "http://foo.com" and "http://foo.com:80" as
+		// equivalent?
+
+		// TODO(bradfitz): better hostname canonicalization,
+		// at least once we figure out IDNA/Punycode (issue
+		// 13835).
+		ihost := strings.ToLower(initial.Host)
+		dhost := strings.ToLower(dest.Host)
+		return isDomainOrSubdomain(dhost, ihost)
+	}
+	// All other headers are copied:
+	return true
+}
+
+// isDomainOrSubdomain reports whether sub is a subdomain (or exact
+// match) of the parent domain.
+//
+// Both domains must already be in canonical form.
+func isDomainOrSubdomain(sub, parent string) bool {
+	if sub == parent {
+		return true
+	}
+	// If sub is "foo.example.com" and parent is "example.com",
+	// that means sub must end in "."+parent.
+	// Do it without allocating.
+	if !strings.HasSuffix(sub, parent) {
+		return false
+	}
+	return sub[len(sub)-len(parent)-1] == '.'
 }

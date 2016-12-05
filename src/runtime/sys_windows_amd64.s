@@ -45,6 +45,14 @@ loadregs:
 	MOVQ	8(SI), DX
 	MOVQ	16(SI), R8
 	MOVQ	24(SI), R9
+	// Floating point arguments are passed in the XMM
+	// registers. Set them here in case any of the arguments
+	// are floating point values. For details see
+	//	https://msdn.microsoft.com/en-us/library/zthk2dkh.aspx
+	MOVQ	CX, X0
+	MOVQ	DX, X1
+	MOVQ	R8, X2
+	MOVQ	R9, X3
 
 	// Call stdcall function.
 	CALL	AX
@@ -228,7 +236,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
 	SUBQ	$m__size, SP		// space for M
 	MOVQ	SP, 0(SP)
 	MOVQ	$m__size, 8(SP)
-	CALL	runtime·memclr(SB)	// smashes AX,BX,CX, maybe BP
+	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX, maybe BP
 
 	LEAQ	m_tls(SP), CX
 	MOVQ	CX, 0x28(GS)
@@ -239,7 +247,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
 
 	MOVQ	SP, 0(SP)
 	MOVQ	$g__size, 8(SP)
-	CALL	runtime·memclr(SB)	// smashes AX,BX,CX, maybe BP
+	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX, maybe BP
 	LEAQ	g__size(SP), BX
 	MOVQ	BX, g_m(SP)
 

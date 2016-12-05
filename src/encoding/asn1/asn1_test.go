@@ -132,9 +132,13 @@ func TestParseBigInt(t *testing.T) {
 			if ret.String() != test.base10 {
 				t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
 			}
-			fw := newForkableWriter()
-			marshalBigInt(fw, ret)
-			result := fw.Bytes()
+			e, err := makeBigInt(ret)
+			if err != nil {
+				t.Errorf("%d: err=%q", i, err)
+				continue
+			}
+			result := make([]byte, e.Len())
+			e.Encode(result)
 			if !bytes.Equal(result, test.in) {
 				t.Errorf("#%d: got %x from marshaling %s, want %x", i, result, ret, test.in)
 			}
@@ -963,11 +967,40 @@ func TestUnmarshalInvalidUTF8(t *testing.T) {
 func TestMarshalNilValue(t *testing.T) {
 	nilValueTestData := []interface{}{
 		nil,
-		struct{ v interface{} }{},
+		struct{ V interface{} }{},
 	}
 	for i, test := range nilValueTestData {
 		if _, err := Marshal(test); err == nil {
 			t.Fatalf("#%d: successfully marshaled nil value", i)
 		}
+	}
+}
+
+type unexported struct {
+	X int
+	y int
+}
+
+type exported struct {
+	X int
+	Y int
+}
+
+func TestUnexportedStructField(t *testing.T) {
+	want := StructuralError{"struct contains unexported fields"}
+
+	_, err := Marshal(unexported{X: 5, y: 1})
+	if err != want {
+		t.Errorf("got %v, want %v", err, want)
+	}
+
+	bs, err := Marshal(exported{X: 5, Y: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var u unexported
+	_, err = Unmarshal(bs, &u)
+	if err != want {
+		t.Errorf("got %v, want %v", err, want)
 	}
 }

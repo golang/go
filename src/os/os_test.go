@@ -25,8 +25,6 @@ import (
 	"time"
 )
 
-var supportsSymlinks = true
-
 var dot = []string{
 	"dir_unix.go",
 	"env.go",
@@ -228,6 +226,28 @@ func TestRead0(t *testing.T) {
 	n, err = f.Read(b)
 	if n <= 0 || err != nil {
 		t.Errorf("Read(100) = %d, %v, want >0, nil", n, err)
+	}
+}
+
+// Reading a closed file should should return ErrClosed error
+func TestReadClosed(t *testing.T) {
+	path := sfdir + "/" + sfname
+	file, err := Open(path)
+	if err != nil {
+		t.Fatal("open failed:", err)
+	}
+	file.Close() // close immediately
+
+	b := make([]byte, 100)
+	_, err = file.Read(b)
+
+	e, ok := err.(*PathError)
+	if !ok {
+		t.Fatalf("Read: %T(%v), want PathError", e, e)
+	}
+
+	if e.Err != ErrClosed {
+		t.Errorf("Read: %v, want PathError(ErrClosed)", e)
 	}
 }
 
@@ -580,15 +600,8 @@ func TestReaddirOfFile(t *testing.T) {
 }
 
 func TestHardLink(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9, hardlinks not supported")
-	}
-	// From Android release M (Marshmallow), hard linking files is blocked
-	// and an attempt to call link() on a file will return EACCES.
-	// - https://code.google.com/p/android-developer-preview/issues/detail?id=3150
-	if runtime.GOOS == "android" {
-		t.Skip("skipping on android, hardlinks not supported")
-	}
+	testenv.MustHaveLink(t)
+
 	defer chtmpdir(t)()
 	from, to := "hardlinktestfrom", "hardlinktestto"
 	Remove(from) // Just in case.
@@ -652,14 +665,8 @@ func chtmpdir(t *testing.T) func() {
 }
 
 func TestSymlink(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl", "plan9":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "windows":
-		if !supportsSymlinks {
-			t.Skipf("skipping on %s", runtime.GOOS)
-		}
-	}
+	testenv.MustHaveSymlink(t)
+
 	defer chtmpdir(t)()
 	from, to := "symlinktestfrom", "symlinktestto"
 	Remove(from) // Just in case.
@@ -719,14 +726,8 @@ func TestSymlink(t *testing.T) {
 }
 
 func TestLongSymlink(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "plan9", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "windows":
-		if !supportsSymlinks {
-			t.Skipf("skipping on %s", runtime.GOOS)
-		}
-	}
+	testenv.MustHaveSymlink(t)
+
 	defer chtmpdir(t)()
 	s := "0123456789abcdef"
 	// Long, but not too long: a common limit is 255.
@@ -819,6 +820,39 @@ func TestRenameFailed(t *testing.T) {
 	// Ensure we are not testing the overwrite case here.
 	Remove(from)
 	Remove(to)
+
+	err := Rename(from, to)
+	switch err := err.(type) {
+	case *LinkError:
+		if err.Op != "rename" {
+			t.Errorf("rename %q, %q: err.Op: want %q, got %q", from, to, "rename", err.Op)
+		}
+		if err.Old != from {
+			t.Errorf("rename %q, %q: err.Old: want %q, got %q", from, to, from, err.Old)
+		}
+		if err.New != to {
+			t.Errorf("rename %q, %q: err.New: want %q, got %q", from, to, to, err.New)
+		}
+	case nil:
+		t.Errorf("rename %q, %q: expected error, got nil", from, to)
+
+		// cleanup whatever was placed in "renameto"
+		Remove(to)
+	default:
+		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
+	}
+}
+
+func TestRenameToDirFailed(t *testing.T) {
+	defer chtmpdir(t)()
+	from, to := "renamefrom", "renameto"
+
+	Remove(from)
+	Remove(to)
+	Mkdir(from, 0777)
+	Mkdir(to, 0777)
+	defer Remove(from)
+	defer Remove(to)
 
 	err := Rename(from, to)
 	switch err := err.(type) {
@@ -1030,7 +1064,7 @@ func testChtimes(t *testing.T, name string) {
 	}
 
 	if !pmt.Before(mt) {
-		t.Errorf("ModTime didn't go backwards; was=%d, after=%d", mt, pmt)
+		t.Errorf("ModTime didn't go backwards; was=%v, after=%v", mt, pmt)
 	}
 }
 
@@ -1664,6 +1698,61 @@ func TestReadAtEOF(t *testing.T) {
 		t.Fatalf("ReadAt succeeded")
 	default:
 		t.Fatalf("ReadAt failed: %s", err)
+	}
+}
+
+func TestLongPath(t *testing.T) {
+	tmpdir := newDir("TestLongPath", t)
+	defer func(d string) {
+		if err := RemoveAll(d); err != nil {
+			t.Fatalf("RemoveAll failed: %v", err)
+		}
+	}(tmpdir)
+	for len(tmpdir) < 400 {
+		tmpdir += "/dir3456789"
+	}
+	if err := MkdirAll(tmpdir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	data := []byte("hello world\n")
+	if err := ioutil.WriteFile(tmpdir+"/foo.txt", data, 0644); err != nil {
+		t.Fatalf("ioutil.WriteFile() failed: %v", err)
+	}
+	if err := Rename(tmpdir+"/foo.txt", tmpdir+"/bar.txt"); err != nil {
+		t.Fatalf("Rename failed: %v", err)
+	}
+	mtime := time.Now().Truncate(time.Minute)
+	if err := Chtimes(tmpdir+"/bar.txt", mtime, mtime); err != nil {
+		t.Fatalf("Chtimes failed: %v", err)
+	}
+	names := []string{"bar.txt"}
+	if testenv.HasSymlink() {
+		if err := Symlink(tmpdir+"/bar.txt", tmpdir+"/symlink.txt"); err != nil {
+			t.Fatalf("Symlink failed: %v", err)
+		}
+		names = append(names, "symlink.txt")
+	}
+	if testenv.HasLink() {
+		if err := Link(tmpdir+"/bar.txt", tmpdir+"/link.txt"); err != nil {
+			t.Fatalf("Link failed: %v", err)
+		}
+		names = append(names, "link.txt")
+	}
+	for _, wantSize := range []int64{int64(len(data)), 0} {
+		for _, name := range names {
+			path := tmpdir + "/" + name
+			dir, err := Stat(path)
+			if err != nil {
+				t.Fatalf("Stat(%q) failed: %v", path, err)
+			}
+			filesize := size(path, t)
+			if dir.Size() != filesize || filesize != wantSize {
+				t.Errorf("Size(%q) is %d, len(ReadFile()) is %d, want %d", path, dir.Size(), filesize, wantSize)
+			}
+		}
+		if err := Truncate(tmpdir+"/bar.txt", 0); err != nil {
+			t.Fatalf("Truncate failed: %v", err)
+		}
 	}
 }
 

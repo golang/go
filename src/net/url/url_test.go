@@ -5,6 +5,10 @@
 package url
 
 import (
+	"bytes"
+	encodingPkg "encoding"
+	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -579,20 +583,6 @@ func ufmt(u *URL) string {
 		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.ForceQuery)
 }
 
-func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
-	for _, tt := range tests {
-		u, err := parse(tt.in)
-		if err != nil {
-			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
-			continue
-		}
-		if !reflect.DeepEqual(u, tt.out) {
-			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
-				name, tt.in, ufmt(u), ufmt(tt.out))
-		}
-	}
-}
-
 func BenchmarkString(b *testing.B) {
 	b.StopTimer()
 	b.ReportAllocs()
@@ -618,7 +608,16 @@ func BenchmarkString(b *testing.B) {
 }
 
 func TestParse(t *testing.T) {
-	DoTest(t, Parse, "Parse", urltests)
+	for _, tt := range urltests {
+		u, err := Parse(tt.in)
+		if err != nil {
+			t.Errorf("Parse(%q) returned error %v", tt.in, err)
+			continue
+		}
+		if !reflect.DeepEqual(u, tt.out) {
+			t.Errorf("Parse(%q):\n\tgot  %v\n\twant %v\n", tt.in, ufmt(u), ufmt(tt.out))
+		}
+	}
 }
 
 const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
@@ -665,9 +664,10 @@ var parseRequestURLTests = []struct {
 func TestParseRequestURI(t *testing.T) {
 	for _, test := range parseRequestURLTests {
 		_, err := ParseRequestURI(test.url)
-		valid := err == nil
-		if valid != test.expectedValid {
-			t.Errorf("Expected valid=%v for %q; got %v", test.expectedValid, test.url, valid)
+		if test.expectedValid && err != nil {
+			t.Errorf("ParseRequestURI(%q) gave err %v; want no error", test.url, err)
+		} else if !test.expectedValid && err == nil {
+			t.Errorf("ParseRequestURI(%q) gave nil error; want some error", test.url)
 		}
 	}
 
@@ -676,45 +676,69 @@ func TestParseRequestURI(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 	if url.Path != pathThatLooksSchemeRelative {
-		t.Errorf("Expected path %q; got %q", pathThatLooksSchemeRelative, url.Path)
+		t.Errorf("ParseRequestURI path:\ngot  %q\nwant %q", url.Path, pathThatLooksSchemeRelative)
 	}
 }
 
-func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
-	for _, tt := range tests {
-		u, err := parse(tt.in)
-		if err != nil {
-			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
-			continue
-		}
-		expected := tt.in
-		if len(tt.roundtrip) > 0 {
-			expected = tt.roundtrip
-		}
-		s := u.String()
-		if s != expected {
-			t.Errorf("%s(%q).String() == %q (expected %q)", name, tt.in, s, expected)
-		}
-	}
-}
-
-func TestURLString(t *testing.T) {
-	DoTestString(t, Parse, "Parse", urltests)
-
-	// no leading slash on path should prepend
-	// slash on String() call
-	noslash := URLTest{
-		"http://www.google.com/search",
-		&URL{
+var stringURLTests = []struct {
+	url  URL
+	want string
+}{
+	// No leading slash on path should prepend slash on String() call
+	{
+		url: URL{
 			Scheme: "http",
 			Host:   "www.google.com",
 			Path:   "search",
 		},
-		"",
+		want: "http://www.google.com/search",
+	},
+	// Relative path with first element containing ":" should be prepended with "./", golang.org/issue/17184
+	{
+		url: URL{
+			Path: "this:that",
+		},
+		want: "./this:that",
+	},
+	// Relative path with second element containing ":" should not be prepended with "./"
+	{
+		url: URL{
+			Path: "here/this:that",
+		},
+		want: "here/this:that",
+	},
+	// Non-relative path with first element containing ":" should not be prepended with "./"
+	{
+		url: URL{
+			Scheme: "http",
+			Host:   "www.google.com",
+			Path:   "this:that",
+		},
+		want: "http://www.google.com/this:that",
+	},
+}
+
+func TestURLString(t *testing.T) {
+	for _, tt := range urltests {
+		u, err := Parse(tt.in)
+		if err != nil {
+			t.Errorf("Parse(%q) returned error %s", tt.in, err)
+			continue
+		}
+		expected := tt.in
+		if tt.roundtrip != "" {
+			expected = tt.roundtrip
+		}
+		s := u.String()
+		if s != expected {
+			t.Errorf("Parse(%q).String() == %q (expected %q)", tt.in, s, expected)
+		}
 	}
-	s := noslash.out.String()
-	if s != noslash.in {
-		t.Errorf("Expected %s; go %s", noslash.in, s)
+
+	for _, tt := range stringURLTests {
+		if got := tt.url.String(); got != tt.want {
+			t.Errorf("%+v.String() = %q; want %q", tt.url, got, tt.want)
+		}
 	}
 }
 
@@ -780,6 +804,16 @@ var unescapeTests = []EscapeTest{
 		"",
 		EscapeError("%zz"),
 	},
+	{
+		"a+b",
+		"a b",
+		nil,
+	},
+	{
+		"a%20b",
+		"a b",
+		nil,
+	},
 }
 
 func TestUnescape(t *testing.T) {
@@ -788,10 +822,33 @@ func TestUnescape(t *testing.T) {
 		if actual != tt.out || (err != nil) != (tt.err != nil) {
 			t.Errorf("QueryUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err)
 		}
+
+		in := tt.in
+		out := tt.out
+		if strings.Contains(tt.in, "+") {
+			in = strings.Replace(tt.in, "+", "%20", -1)
+			actual, err := PathUnescape(in)
+			if actual != tt.out || (err != nil) != (tt.err != nil) {
+				t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", in, actual, err, tt.out, tt.err)
+			}
+			if tt.err == nil {
+				s, err := QueryUnescape(strings.Replace(tt.in, "+", "XXX", -1))
+				if err != nil {
+					continue
+				}
+				in = tt.in
+				out = strings.Replace(s, "XXX", "+", -1)
+			}
+		}
+
+		actual, err = PathUnescape(in)
+		if actual != out || (err != nil) != (tt.err != nil) {
+			t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", in, actual, err, out, tt.err)
+		}
 	}
 }
 
-var escapeTests = []EscapeTest{
+var queryEscapeTests = []EscapeTest{
 	{
 		"",
 		"",
@@ -819,8 +876,8 @@ var escapeTests = []EscapeTest{
 	},
 }
 
-func TestEscape(t *testing.T) {
-	for _, tt := range escapeTests {
+func TestQueryEscape(t *testing.T) {
+	for _, tt := range queryEscapeTests {
 		actual := QueryEscape(tt.in)
 		if tt.out != actual {
 			t.Errorf("QueryEscape(%q) = %q, want %q", tt.in, actual, tt.out)
@@ -830,6 +887,54 @@ func TestEscape(t *testing.T) {
 		roundtrip, err := QueryUnescape(actual)
 		if roundtrip != tt.in || err != nil {
 			t.Errorf("QueryUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
+		}
+	}
+}
+
+var pathEscapeTests = []EscapeTest{
+	{
+		"",
+		"",
+		nil,
+	},
+	{
+		"abc",
+		"abc",
+		nil,
+	},
+	{
+		"abc+def",
+		"abc+def",
+		nil,
+	},
+	{
+		"one two",
+		"one%20two",
+		nil,
+	},
+	{
+		"10%",
+		"10%25",
+		nil,
+	},
+	{
+		" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;",
+		"%20%3F&=%23+%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09:%2F@$%27%28%29%2A%2C%3B",
+		nil,
+	},
+}
+
+func TestPathEscape(t *testing.T) {
+	for _, tt := range pathEscapeTests {
+		actual := PathEscape(tt.in)
+		if tt.out != actual {
+			t.Errorf("PathEscape(%q) = %q, want %q", tt.in, actual, tt.out)
+		}
+
+		// for bonus points, verify that escape:unescape is an identity.
+		roundtrip, err := PathUnescape(actual)
+		if roundtrip != tt.in || err != nil {
+			t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
 		}
 	}
 }
@@ -945,6 +1050,15 @@ var resolveReferenceTests = []struct {
 	// Fragment
 	{"http://foo.com/bar", ".#frag", "http://foo.com/#frag"},
 
+	// Paths with escaping (issue 16947).
+	{"http://foo.com/foo%2fbar/", "../baz", "http://foo.com/baz"},
+	{"http://foo.com/1/2%2f/3%2f4/5", "../../a/b/c", "http://foo.com/1/a/b/c"},
+	{"http://foo.com/1/2/3", "./a%2f../../b/..%2fc", "http://foo.com/1/2/b/..%2fc"},
+	{"http://foo.com/1/2%2f/3%2f4/5", "./a%2f../b/../c", "http://foo.com/1/2%2f/3%2f4/a%2f../c"},
+	{"http://foo.com/foo%20bar/", "../baz", "http://foo.com/baz"},
+	{"http://foo.com/foo", "../bar%2fbaz", "http://foo.com/bar%2fbaz"},
+	{"http://foo.com/foo%2dbar/", "./baz-quux", "http://foo.com/foo%2dbar/baz-quux"},
+
 	// RFC 3986: Normal Examples
 	// http://tools.ietf.org/html/rfc3986#section-5.4.1
 	{"http://a/b/c/d;p?q", "g:h", "g:h"},
@@ -1004,7 +1118,7 @@ func TestResolveReference(t *testing.T) {
 	mustParse := func(url string) *URL {
 		u, err := Parse(url)
 		if err != nil {
-			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
+			t.Fatalf("Parse(%q) got err %v", url, err)
 		}
 		return u
 	}
@@ -1013,8 +1127,8 @@ func TestResolveReference(t *testing.T) {
 		base := mustParse(test.base)
 		rel := mustParse(test.rel)
 		url := base.ResolveReference(rel)
-		if url.String() != test.expected {
-			t.Errorf("URL(%q).ResolveReference(%q) == %q, got %q", test.base, test.rel, test.expected, url.String())
+		if got := url.String(); got != test.expected {
+			t.Errorf("URL(%q).ResolveReference(%q)\ngot  %q\nwant %q", test.base, test.rel, got, test.expected)
 		}
 		// Ensure that new instances are returned.
 		if base == url {
@@ -1024,8 +1138,8 @@ func TestResolveReference(t *testing.T) {
 		url, err := base.Parse(test.rel)
 		if err != nil {
 			t.Errorf("URL(%q).Parse(%q) failed: %v", test.base, test.rel, err)
-		} else if url.String() != test.expected {
-			t.Errorf("URL(%q).Parse(%q) == %q, got %q", test.base, test.rel, test.expected, url.String())
+		} else if got := url.String(); got != test.expected {
+			t.Errorf("URL(%q).Parse(%q)\ngot  %q\nwant %q", test.base, test.rel, got, test.expected)
 		} else if base == url {
 			// Ensure that new instances are returned for the wrapper too.
 			t.Errorf("Expected URL.Parse to return new URL instance.")
@@ -1033,14 +1147,14 @@ func TestResolveReference(t *testing.T) {
 		// Ensure Opaque resets the URL.
 		url = base.ResolveReference(opaque)
 		if *url != *opaque {
-			t.Errorf("ResolveReference failed to resolve opaque URL: want %#v, got %#v", url, opaque)
+			t.Errorf("ResolveReference failed to resolve opaque URL:\ngot  %#v\nwant %#v", url, opaque)
 		}
 		// Test the convenience wrapper with an opaque URL too.
 		url, err = base.Parse("scheme:opaque")
 		if err != nil {
 			t.Errorf(`URL(%q).Parse("scheme:opaque") failed: %v`, test.base, err)
 		} else if *url != *opaque {
-			t.Errorf("Parse failed to resolve opaque URL: want %#v, got %#v", url, opaque)
+			t.Errorf("Parse failed to resolve opaque URL:\ngot  %#v\nwant %#v", opaque, url)
 		} else if base == url {
 			// Ensure that new instances are returned, again.
 			t.Errorf("Expected URL.Parse to return new URL instance.")
@@ -1271,7 +1385,7 @@ func TestParseFailure(t *testing.T) {
 	}
 }
 
-func TestParseAuthority(t *testing.T) {
+func TestParseErrors(t *testing.T) {
 	tests := []struct {
 		in      string
 		wantErr bool
@@ -1291,9 +1405,13 @@ func TestParseAuthority(t *testing.T) {
 		{"http://%41:8080/", true},        // not allowed: % encoding only for non-ASCII
 		{"mysql://x@y(z:123)/foo", false}, // golang.org/issue/12023
 		{"mysql://x@y(1.2.3.4:123)/foo", false},
-		{"mysql://x@y([2001:db8::1]:123)/foo", false},
+
 		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
 		{"http://a b.com/", true},                                                                       // no space in host name please
+		{"cache_object://foo", true},                                                                    // scheme cannot have _, relative path cannot have : in first segment
+		{"cache_object:foo", true},
+		{"cache_object:foo/bar", true},
+		{"cache_object/:foo/bar", false},
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)
@@ -1462,11 +1580,106 @@ func TestURLErrorImplementsNetError(t *testing.T) {
 			continue
 		}
 		if err.Timeout() != tt.timeout {
-			t.Errorf("%d: err.Timeout(): want %v, have %v", i+1, tt.timeout, err.Timeout())
+			t.Errorf("%d: err.Timeout(): got %v, want %v", i+1, err.Timeout(), tt.timeout)
 			continue
 		}
 		if err.Temporary() != tt.temporary {
-			t.Errorf("%d: err.Temporary(): want %v, have %v", i+1, tt.temporary, err.Temporary())
+			t.Errorf("%d: err.Temporary(): got %v, want %v", i+1, err.Temporary(), tt.temporary)
 		}
+	}
+}
+
+func TestURLHostname(t *testing.T) {
+	tests := []struct {
+		host string // URL.Host field
+		want string
+	}{
+		{"foo.com:80", "foo.com"},
+		{"foo.com", "foo.com"},
+		{"FOO.COM", "FOO.COM"}, // no canonicalization (yet?)
+		{"1.2.3.4", "1.2.3.4"},
+		{"1.2.3.4:80", "1.2.3.4"},
+		{"[1:2:3:4]", "1:2:3:4"},
+		{"[1:2:3:4]:80", "1:2:3:4"},
+		{"[::1]:80", "::1"},
+	}
+	for _, tt := range tests {
+		u := &URL{Host: tt.host}
+		got := u.Hostname()
+		if got != tt.want {
+			t.Errorf("Hostname for Host %q = %q; want %q", tt.host, got, tt.want)
+		}
+	}
+}
+
+func TestURLPort(t *testing.T) {
+	tests := []struct {
+		host string // URL.Host field
+		want string
+	}{
+		{"foo.com", ""},
+		{"foo.com:80", "80"},
+		{"1.2.3.4", ""},
+		{"1.2.3.4:80", "80"},
+		{"[1:2:3:4]", ""},
+		{"[1:2:3:4]:80", "80"},
+	}
+	for _, tt := range tests {
+		u := &URL{Host: tt.host}
+		got := u.Port()
+		if got != tt.want {
+			t.Errorf("Port for Host %q = %q; want %q", tt.host, got, tt.want)
+		}
+	}
+}
+
+var _ encodingPkg.BinaryMarshaler = (*URL)(nil)
+var _ encodingPkg.BinaryUnmarshaler = (*URL)(nil)
+
+func TestJSON(t *testing.T) {
+	u, err := Parse("https://www.google.com/x?y=z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js, err := json.Marshal(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// If only we could implement TextMarshaler/TextUnmarshaler,
+	// this would work:
+	//
+	// if string(js) != strconv.Quote(u.String()) {
+	// 	t.Errorf("json encoding: %s\nwant: %s\n", js, strconv.Quote(u.String()))
+	// }
+
+	u1 := new(URL)
+	err = json.Unmarshal(js, u1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u1.String() != u.String() {
+		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
+	}
+}
+
+func TestGob(t *testing.T) {
+	u, err := Parse("https://www.google.com/x?y=z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var w bytes.Buffer
+	err = gob.NewEncoder(&w).Encode(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u1 := new(URL)
+	err = gob.NewDecoder(&w).Decode(u1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u1.String() != u.String() {
+		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
 	}
 }

@@ -6,7 +6,7 @@ package crc32
 
 import (
 	"hash"
-	"io"
+	"math/rand"
 	"testing"
 )
 
@@ -49,74 +49,221 @@ var golden = []test{
 	{0x8e0bb443, 0xdcded527, "How can you write a big system without C++?  -Paul Glick"},
 }
 
-func TestGolden(t *testing.T) {
-	castagnoliTab := MakeTable(Castagnoli)
-
+// testGoldenIEEE verifies that the given function returns
+// correct IEEE checksums.
+func testGoldenIEEE(t *testing.T, crcFunc func(b []byte) uint32) {
 	for _, g := range golden {
-		ieee := NewIEEE()
-		io.WriteString(ieee, g.in)
-		s := ieee.Sum32()
-		if s != g.ieee {
-			t.Errorf("IEEE(%s) = 0x%x want 0x%x", g.in, s, g.ieee)
-		}
-
-		castagnoli := New(castagnoliTab)
-		io.WriteString(castagnoli, g.in)
-		s = castagnoli.Sum32()
-		if s != g.castagnoli {
-			t.Errorf("Castagnoli(%s) = 0x%x want 0x%x", g.in, s, g.castagnoli)
-		}
-
-		if len(g.in) > 0 {
-			// The SSE4.2 implementation of this has code to deal
-			// with misaligned data so we ensure that we test that
-			// too.
-			castagnoli = New(castagnoliTab)
-			io.WriteString(castagnoli, g.in[:1])
-			io.WriteString(castagnoli, g.in[1:])
-			s = castagnoli.Sum32()
-			if s != g.castagnoli {
-				t.Errorf("Castagnoli[misaligned](%s) = 0x%x want 0x%x", g.in, s, g.castagnoli)
-			}
+		if crc := crcFunc([]byte(g.in)); crc != g.ieee {
+			t.Errorf("IEEE(%s) = 0x%x want 0x%x", g.in, crc, g.ieee)
 		}
 	}
 }
 
+// testGoldenCastagnoli verifies that the given function returns
+// correct IEEE checksums.
+func testGoldenCastagnoli(t *testing.T, crcFunc func(b []byte) uint32) {
+	for _, g := range golden {
+		if crc := crcFunc([]byte(g.in)); crc != g.castagnoli {
+			t.Errorf("Castagnoli(%s) = 0x%x want 0x%x", g.in, crc, g.castagnoli)
+		}
+	}
+}
+
+// testCrossCheck generates random buffers of various lengths and verifies that
+// the two "update" functions return the same result.
+func testCrossCheck(t *testing.T, crcFunc1, crcFunc2 func(crc uint32, b []byte) uint32) {
+	// The AMD64 implementation has some cutoffs at lengths 168*3=504 and
+	// 1344*3=4032. We should make sure lengths around these values are in the
+	// list.
+	lengths := []int{0, 1, 2, 3, 4, 5, 10, 16, 50, 100, 128,
+		500, 501, 502, 503, 504, 505, 512, 1000, 1024, 2000,
+		4030, 4031, 4032, 4033, 4036, 4040, 4048, 4096, 5000, 10000}
+	for _, length := range lengths {
+		p := make([]byte, length)
+		_, _ = rand.Read(p)
+		crcInit := uint32(rand.Int63())
+		crc1 := crcFunc1(crcInit, p)
+		crc2 := crcFunc2(crcInit, p)
+		if crc1 != crc2 {
+			t.Errorf("mismatch: 0x%x vs 0x%x (buffer length %d)", crc1, crc2, length)
+		}
+	}
+}
+
+// TestSimple tests the simple generic algorithm.
+func TestSimple(t *testing.T) {
+	tab := simpleMakeTable(IEEE)
+	testGoldenIEEE(t, func(b []byte) uint32 {
+		return simpleUpdate(0, tab, b)
+	})
+
+	tab = simpleMakeTable(Castagnoli)
+	testGoldenCastagnoli(t, func(b []byte) uint32 {
+		return simpleUpdate(0, tab, b)
+	})
+}
+
+// TestSimple tests the slicing-by-8 algorithm.
+func TestSlicing(t *testing.T) {
+	tab := slicingMakeTable(IEEE)
+	testGoldenIEEE(t, func(b []byte) uint32 {
+		return slicingUpdate(0, tab, b)
+	})
+
+	tab = slicingMakeTable(Castagnoli)
+	testGoldenCastagnoli(t, func(b []byte) uint32 {
+		return slicingUpdate(0, tab, b)
+	})
+
+	// Cross-check various polys against the simple algorithm.
+	for _, poly := range []uint32{IEEE, Castagnoli, Koopman, 0xD5828281} {
+		t1 := simpleMakeTable(poly)
+		f1 := func(crc uint32, b []byte) uint32 {
+			return simpleUpdate(crc, t1, b)
+		}
+		t2 := slicingMakeTable(poly)
+		f2 := func(crc uint32, b []byte) uint32 {
+			return slicingUpdate(crc, t2, b)
+		}
+		testCrossCheck(t, f1, f2)
+	}
+}
+
+func TestArchIEEE(t *testing.T) {
+	if !archAvailableIEEE() {
+		t.Skip("Arch-specific IEEE not available.")
+	}
+	archInitIEEE()
+	slicingTable := slicingMakeTable(IEEE)
+	testCrossCheck(t, archUpdateIEEE, func(crc uint32, b []byte) uint32 {
+		return slicingUpdate(crc, slicingTable, b)
+	})
+}
+
+func TestArchCastagnoli(t *testing.T) {
+	if !archAvailableCastagnoli() {
+		t.Skip("Arch-specific Castagnoli not available.")
+	}
+	archInitCastagnoli()
+	slicingTable := slicingMakeTable(Castagnoli)
+	testCrossCheck(t, archUpdateCastagnoli, func(crc uint32, b []byte) uint32 {
+		return slicingUpdate(crc, slicingTable, b)
+	})
+}
+
+func TestGolden(t *testing.T) {
+	testGoldenIEEE(t, ChecksumIEEE)
+
+	// Some implementations have special code to deal with misaligned
+	// data; test that as well.
+	for delta := 1; delta <= 7; delta++ {
+		testGoldenIEEE(t, func(b []byte) uint32 {
+			ieee := NewIEEE()
+			d := delta
+			if d >= len(b) {
+				d = len(b)
+			}
+			ieee.Write(b[:d])
+			ieee.Write(b[d:])
+			return ieee.Sum32()
+		})
+	}
+
+	castagnoliTab := MakeTable(Castagnoli)
+	if castagnoliTab == nil {
+		t.Errorf("nil Castagnoli Table")
+	}
+
+	testGoldenCastagnoli(t, func(b []byte) uint32 {
+		castagnoli := New(castagnoliTab)
+		castagnoli.Write(b)
+		return castagnoli.Sum32()
+	})
+
+	// Some implementations have special code to deal with misaligned
+	// data; test that as well.
+	for delta := 1; delta <= 7; delta++ {
+		testGoldenCastagnoli(t, func(b []byte) uint32 {
+			castagnoli := New(castagnoliTab)
+			d := delta
+			if d >= len(b) {
+				d = len(b)
+			}
+			castagnoli.Write(b[:d])
+			castagnoli.Write(b[d:])
+			return castagnoli.Sum32()
+		})
+	}
+}
+
 func BenchmarkIEEECrc40B(b *testing.B) {
-	benchmark(b, NewIEEE(), 40)
+	benchmark(b, NewIEEE(), 40, 0)
 }
 
 func BenchmarkIEEECrc1KB(b *testing.B) {
-	benchmark(b, NewIEEE(), 1<<10)
+	benchmark(b, NewIEEE(), 1<<10, 0)
 }
 
 func BenchmarkIEEECrc4KB(b *testing.B) {
-	benchmark(b, NewIEEE(), 4<<10)
+	benchmark(b, NewIEEE(), 4<<10, 0)
 }
 
 func BenchmarkIEEECrc32KB(b *testing.B) {
-	benchmark(b, NewIEEE(), 32<<10)
+	benchmark(b, NewIEEE(), 32<<10, 0)
+}
+
+func BenchmarkCastagnoliCrc15B(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 15, 0)
+}
+
+func BenchmarkCastagnoliCrc15BMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 15, 1)
 }
 
 func BenchmarkCastagnoliCrc40B(b *testing.B) {
-	benchmark(b, New(MakeTable(Castagnoli)), 40)
+	benchmark(b, New(MakeTable(Castagnoli)), 40, 0)
+}
+
+func BenchmarkCastagnoliCrc40BMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 40, 1)
+}
+
+func BenchmarkCastagnoliCrc512(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 512, 0)
+}
+
+func BenchmarkCastagnoliCrc512Misaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 512, 1)
 }
 
 func BenchmarkCastagnoliCrc1KB(b *testing.B) {
-	benchmark(b, New(MakeTable(Castagnoli)), 1<<10)
+	benchmark(b, New(MakeTable(Castagnoli)), 1<<10, 0)
+}
+
+func BenchmarkCastagnoliCrc1KBMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 1<<10, 1)
 }
 
 func BenchmarkCastagnoliCrc4KB(b *testing.B) {
-	benchmark(b, New(MakeTable(Castagnoli)), 4<<10)
+	benchmark(b, New(MakeTable(Castagnoli)), 4<<10, 0)
+}
+
+func BenchmarkCastagnoliCrc4KBMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 4<<10, 1)
 }
 
 func BenchmarkCastagnoliCrc32KB(b *testing.B) {
-	benchmark(b, New(MakeTable(Castagnoli)), 32<<10)
+	benchmark(b, New(MakeTable(Castagnoli)), 32<<10, 0)
 }
 
-func benchmark(b *testing.B, h hash.Hash32, n int64) {
+func BenchmarkCastagnoliCrc32KBMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 32<<10, 1)
+}
+
+func benchmark(b *testing.B, h hash.Hash32, n, alignment int64) {
 	b.SetBytes(n)
-	data := make([]byte, n)
+	data := make([]byte, n+alignment)
+	data = data[alignment:]
 	for i := range data {
 		data[i] = byte(i)
 	}

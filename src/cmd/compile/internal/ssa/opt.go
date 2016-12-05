@@ -11,4 +11,7 @@ func opt(f *Func) {
 
 func dec(f *Func) {
 	applyRewrite(f, rewriteBlockdec, rewriteValuedec)
+	if f.Config.IntSize == 4 && f.Config.arch != "amd64p32" {
+		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64)
+	}
 }

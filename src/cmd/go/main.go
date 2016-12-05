@@ -79,6 +79,7 @@ var commands = []*Command{
 	cmdClean,
 	cmdDoc,
 	cmdEnv,
+	cmdBug,
 	cmdFix,
 	cmdFmt,
 	cmdGenerate,
@@ -114,6 +115,7 @@ func setExitStatus(n int) {
 }
 
 var origEnv []string
+var newEnv []envVar
 
 func main() {
 	_ = go11tag
@@ -134,7 +136,7 @@ func main() {
 	// Diagnose common mistake: GOPATH==GOROOT.
 	// This setting is equivalent to not setting GOPATH at all,
 	// which is not what most people want when they do it.
-	if gopath := os.Getenv("GOPATH"); gopath == runtime.GOROOT() {
+	if gopath := buildContext.GOPATH; gopath == runtime.GOROOT() {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
 		for _, p := range filepath.SplitList(gopath) {
@@ -146,7 +148,7 @@ func main() {
 				os.Exit(2)
 			}
 			if !filepath.IsAbs(p) {
-				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nRun 'go help gopath' for usage.\n", p)
+				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
 				os.Exit(2)
 			}
 		}
@@ -163,7 +165,8 @@ func main() {
 	// but in practice there might be skew
 	// This makes sure we all agree.
 	origEnv = os.Environ()
-	for _, env := range mkEnv() {
+	newEnv = mkEnv()
+	for _, env := range newEnv {
 		if os.Getenv(env.name) != env.value {
 			os.Setenv(env.name, env.value)
 		}

@@ -14,8 +14,9 @@ type Location interface {
 // A Register is a machine register, like %rax.
 // They are numbered densely from 0 (for each architecture).
 type Register struct {
-	Num  int32
-	name string
+	num    int32
+	objNum int16 // register number from cmd/internal/obj/$ARCH
+	name   string
 }
 
 func (r *Register) Name() string {
@@ -32,7 +33,20 @@ type LocalSlot struct {
 
 func (s LocalSlot) Name() string {
 	if s.Off == 0 {
-		return fmt.Sprintf("%s[%s]", s.N, s.Type)
+		return fmt.Sprintf("%v[%v]", s.N, s.Type)
 	}
-	return fmt.Sprintf("%s+%d[%s]", s.N, s.Off, s.Type)
+	return fmt.Sprintf("%v+%d[%v]", s.N, s.Off, s.Type)
+}
+
+type LocPair [2]Location
+
+func (t LocPair) Name() string {
+	n0, n1 := "nil", "nil"
+	if t[0] != nil {
+		n0 = t[0].Name()
+	}
+	if t[1] != nil {
+		n1 = t[1].Name()
+	}
+	return fmt.Sprintf("<%s,%s>", n0, n1)
 }

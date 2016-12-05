@@ -7,6 +7,7 @@ package ssa
 import (
 	"fmt"
 	"math"
+	"strings"
 )
 
 // A Func represents a Go func declaration (or function literal) and
@@ -36,8 +37,10 @@ type Func struct {
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
-	idom []*Block   // precomputed immediate dominators
-	sdom SparseTree // precomputed dominator tree
+	cachedPostorder []*Block   // cached postorder traversal
+	cachedIdom      []*Block   // cached immediate dominators
+	cachedSdom      SparseTree // cached dominator tree
+	cachedLoopnest  *loopnest  // cached loop nest information
 
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
@@ -111,7 +114,7 @@ func (f *Func) LogStat(key string, args ...interface{}) {
 	}
 	n := "missing_pass"
 	if f.pass != nil {
-		n = f.pass.name
+		n = strings.Replace(f.pass.name, " ", "_", -1)
 	}
 	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
@@ -166,6 +169,7 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
 	b.Succs = b.succstorage[:0]
 	b.Values = b.valstorage[:0]
 	f.Blocks = append(f.Blocks, b)
+	f.invalidateCFG()
 	return b
 }
 
@@ -315,6 +319,18 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1, 
 	return v
 }
 
+// NewValue4 returns a new value in the block with four arguments and zero aux values.
+func (b *Block) NewValue4(line int32, op Op, t Type, arg0, arg1, arg2, arg3 *Value) *Value {
+	v := b.Func.newValue(op, t, b, line)
+	v.AuxInt = 0
+	v.Args = []*Value{arg0, arg1, arg2, arg3}
+	arg0.Uses++
+	arg1.Uses++
+	arg2.Uses++
+	arg3.Uses++
+	return v
+}
+
 // constVal returns a constant value for c.
 func (f *Func) constVal(line int32, op Op, t Type, c int64, setAux bool) *Value {
 	if f.constants == nil {
@@ -395,11 +411,11 @@ func (f *Func) ConstEmptyString(line int32, t Type) *Value {
 func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }
 func (f *Func) Log() bool                              { return f.Config.Log() }
 func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Line, msg, args...) }
-func (f *Func) Unimplementedf(msg string, args ...interface{}) {
-	f.Config.Unimplementedf(f.Entry.Line, msg, args...)
-}
 
 func (f *Func) Free() {
+	// Clear cached CFG info.
+	f.invalidateCFG()
+
 	// Clear values.
 	n := f.vid.num()
 	if n > len(f.Config.values) {
@@ -426,4 +442,46 @@ func (f *Func) Free() {
 	}
 	f.Config.curFunc = nil
 	*f = Func{} // just in case
+}
+
+// postorder returns the reachable blocks in f in a postorder traversal.
+func (f *Func) postorder() []*Block {
+	if f.cachedPostorder == nil {
+		f.cachedPostorder = postorder(f)
+	}
+	return f.cachedPostorder
+}
+
+// Idom returns a map from block ID to the immediate dominator of that block.
+// f.Entry.ID maps to nil. Unreachable blocks map to nil as well.
+func (f *Func) Idom() []*Block {
+	if f.cachedIdom == nil {
+		f.cachedIdom = dominators(f)
+	}
+	return f.cachedIdom
+}
+
+// sdom returns a sparse tree representing the dominator relationships
+// among the blocks of f.
+func (f *Func) sdom() SparseTree {
+	if f.cachedSdom == nil {
+		f.cachedSdom = newSparseTree(f, f.Idom())
+	}
+	return f.cachedSdom
+}
+
+// loopnest returns the loop nest information for f.
+func (f *Func) loopnest() *loopnest {
+	if f.cachedLoopnest == nil {
+		f.cachedLoopnest = loopnestfor(f)
+	}
+	return f.cachedLoopnest
+}
+
+// invalidateCFG tells f that its CFG has changed.
+func (f *Func) invalidateCFG() {
+	f.cachedPostorder = nil
+	f.cachedIdom = nil
+	f.cachedSdom = nil
+	f.cachedLoopnest = nil
 }

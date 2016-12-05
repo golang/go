@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -302,7 +302,7 @@
 	ADDL    y0, y2;                      \ // y2 = S1 + CH					// --
 	;                                    \
 	VPXOR   XTMP4, XTMP3, XTMP1;         \ // XTMP1 = s0
-	VPSHUFD $-6, XDWORD3, XTMP2;         \ // XTMP2 = W[-2] {BBAA}
+	VPSHUFD $0xFA, XDWORD3, XTMP2;       \ // XTMP2 = W[-2] {BBAA}
 	ORL     T1, y3;                      \ // y3 = MAJ = (a|c)&b)|(a&c)             // MAJ
 	ADDL    y1, h;                       \ // h = k + w + h + S0                    // --
 	;                                    \

@@ -6,6 +6,8 @@
 // +build !arm64
 // +build !mips64
 // +build !mips64le
+// +build !mips
+// +build !mipsle
 
 package runtime
 

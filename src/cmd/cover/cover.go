@@ -168,13 +168,13 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 			case *ast.CaseClause: // switch
 				for _, n := range n.List {
 					clause := n.(*ast.CaseClause)
-					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body, false)
+					clause.Body = f.addCounters(clause.Colon+1, clause.End(), clause.Body, false)
 				}
 				return f
 			case *ast.CommClause: // select
 				for _, n := range n.List {
 					clause := n.(*ast.CommClause)
-					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body, false)
+					clause.Body = f.addCounters(clause.Colon+1, clause.End(), clause.Body, false)
 				}
 				return f
 			}
@@ -240,6 +240,18 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(f, n.Assign)
 			return nil
 		}
+	case *ast.CommentGroup:
+		var list []*ast.Comment
+		// Drop all but the //go: comments, some of which are semantically important.
+		// We drop all others because they can appear in places that cause our counters
+		// to appear in syntactically incorrect places. //go: appears at the beginning of
+		// the line and is syntactically safe.
+		for _, c := range n.List {
+			if strings.HasPrefix(c.Text, "//go:") && f.fset.Position(c.Slash).Column == 1 {
+				list = append(list, c)
+			}
+		}
+		n.List = list
 	}
 	return f
 }
@@ -348,7 +360,8 @@ func annotate(name string) {
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}
-	parsedFile.Comments = trimComments(parsedFile, fset)
+	// Remove comments. Or else they interfere with new AST.
+	parsedFile.Comments = nil
 
 	file := &File{
 		fset:    fset,
@@ -372,26 +385,6 @@ func annotate(name string) {
 	// After printing the source tree, add some declarations for the counters etc.
 	// We could do this by adding to the tree, but it's easier just to print the text.
 	file.addVariables(fd)
-}
-
-// trimComments drops all but the //go: comments, some of which are semantically important.
-// We drop all others because they can appear in places that cause our counters
-// to appear in syntactically incorrect places. //go: appears at the beginning of
-// the line and is syntactically safe.
-func trimComments(file *ast.File, fset *token.FileSet) []*ast.CommentGroup {
-	var comments []*ast.CommentGroup
-	for _, group := range file.Comments {
-		var list []*ast.Comment
-		for _, comment := range group.List {
-			if strings.HasPrefix(comment.Text, "//go:") && fset.Position(comment.Slash).Column == 1 {
-				list = append(list, comment)
-			}
-		}
-		if list != nil {
-			comments = append(comments, &ast.CommentGroup{List: list})
-		}
-	}
-	return comments
 }
 
 func (f *File) print(w io.Writer) {
@@ -488,10 +481,35 @@ func (f *File) addCounters(pos, blockEnd token.Pos, list []ast.Stmt, extendToClo
 		var last int
 		end := blockEnd
 		for last = 0; last < len(list); last++ {
-			end = f.statementBoundary(list[last])
-			if f.endsBasicSourceBlock(list[last]) {
-				extendToClosingBrace = false // Block is broken up now.
+			stmt := list[last]
+			end = f.statementBoundary(stmt)
+			if f.endsBasicSourceBlock(stmt) {
+				// If it is a labeled statement, we need to place a counter between
+				// the label and its statement because it may be the target of a goto
+				// and thus start a basic block. That is, given
+				//	foo: stmt
+				// we need to create
+				//	foo: ; stmt
+				// and mark the label as a block-terminating statement.
+				// The result will then be
+				//	foo: COUNTER[n]++; stmt
+				// However, we can't do this if the labeled statement is already
+				// a control statement, such as a labeled for.
+				if label, isLabel := stmt.(*ast.LabeledStmt); isLabel && !f.isControl(label.Stmt) {
+					newLabel := *label
+					newLabel.Stmt = &ast.EmptyStmt{
+						Semicolon: label.Stmt.Pos(),
+						Implicit:  true,
+					}
+					end = label.Pos() // Previous block ends before the label.
+					list[last] = &newLabel
+					// Open a gap and drop in the old statement, now without a label.
+					list = append(list, nil)
+					copy(list[last+1:], list[last:])
+					list[last+1] = label.Stmt
+				}
 				last++
+				extendToClosingBrace = false // Block is broken up now.
 				break
 			}
 		}
@@ -610,7 +628,7 @@ func (f *File) endsBasicSourceBlock(s ast.Stmt) bool {
 	case *ast.IfStmt:
 		return true
 	case *ast.LabeledStmt:
-		return f.endsBasicSourceBlock(s.Stmt)
+		return true // A goto may branch here, starting a new basic block.
 	case *ast.RangeStmt:
 		return true
 	case *ast.SwitchStmt:
@@ -632,6 +650,16 @@ func (f *File) endsBasicSourceBlock(s ast.Stmt) bool {
 	}
 	found, _ := hasFuncLiteral(s)
 	return found
+}
+
+// isControl reports whether s is a control statement that, if labeled, cannot be
+// separated from its label.
+func (f *File) isControl(s ast.Stmt) bool {
+	switch s.(type) {
+	case *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.SelectStmt, *ast.TypeSwitchStmt:
+		return true
+	}
+	return false
 }
 
 // funcLitFinder implements the ast.Visitor pattern to find the location of any

@@ -349,7 +349,11 @@ exponent:
 		if s.ch == '-' || s.ch == '+' {
 			s.next()
 		}
-		s.scanMantissa(10)
+		if digitVal(s.ch) < 10 {
+			s.scanMantissa(10)
+		} else {
+			s.error(offs, "illegal floating-point exponent")
+		}
 	}
 
 	if s.ch == 'i' {

@@ -182,8 +182,12 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
 	MOVQ	0(SP), BX		// caller's PC
 	MOVQ	BX, gobuf_pc(AX)
 	MOVQ	$0, gobuf_ret(AX)
-	MOVQ	$0, gobuf_ctxt(AX)
 	MOVQ	BP, gobuf_bp(AX)
+	// Assert ctxt is zero. See func save.
+	MOVQ	gobuf_ctxt(AX), BX
+	TESTQ	BX, BX
+	JZ	2(PC)
+	CALL	runtime·badctxt(SB)
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	BX, gobuf_g(AX)
@@ -191,8 +195,20 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $0-8
+TEXT runtime·gogo(SB), NOSPLIT, $16-8
 	MOVQ	buf+0(FP), BX		// gobuf
+
+	// If ctxt is not nil, invoke deletion barrier before overwriting.
+	MOVQ	gobuf_ctxt(BX), AX
+	TESTQ	AX, AX
+	JZ	nilctxt
+	LEAQ	gobuf_ctxt(BX), AX
+	MOVQ	AX, 0(SP)
+	MOVQ	$0, 8(SP)
+	CALL	runtime·writebarrierptr_prewrite(SB)
+	MOVQ	buf+0(FP), BX
+
+nilctxt:
 	MOVQ	gobuf_g(BX), DX
 	MOVQ	0(DX), CX		// make sure g != nil
 	get_tls(CX)
@@ -331,13 +347,15 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	MOVQ	g_m(BX), BX
 	MOVQ	m_g0(BX), SI
 	CMPQ	g(CX), SI
-	JNE	2(PC)
+	JNE	3(PC)
+	CALL	runtime·badmorestackg0(SB)
 	INT	$3
 
 	// Cannot grow signal stack (m->gsignal).
 	MOVQ	m_gsignal(BX), SI
 	CMPQ	g(CX), SI
-	JNE	2(PC)
+	JNE	3(PC)
+	CALL	runtime·badmorestackgsignal(SB)
 	INT	$3
 
 	// Called from f.
@@ -356,15 +374,17 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	MOVQ	SI, (g_sched+gobuf_g)(SI)
 	LEAQ	8(SP), AX // f's SP
 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
-	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
 	MOVQ	BP, (g_sched+gobuf_bp)(SI)
+	// newstack will fill gobuf.ctxt.
 
 	// Call newstack on m->g0's stack.
 	MOVQ	m_g0(BX), BX
 	MOVQ	BX, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(BX), SP
+	PUSHQ	DX	// ctxt argument
 	CALL	runtime·newstack(SB)
 	MOVQ	$0, 0x1003	// crash if newstack returns
+	POPQ	DX	// keep balance check happy
 	RET
 
 // morestack but not preserving ctxt.
@@ -412,8 +432,6 @@ TEXT reflect·call(SB), NOSPLIT, $0-0
 
 TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	MOVLQZX argsize+24(FP), CX
-	// NOTE(rsc): No call16, because CALLFN needs four words
-	// of argument space to invoke callwritebarrier.
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -456,24 +474,28 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-32;		\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	CALL	(DX);				\
 	/* copy return values back */		\
+	MOVQ	argtype+0(FP), DX;		\
 	MOVQ	argptr+16(FP), DI;		\
 	MOVLQZX	argsize+24(FP), CX;		\
-	MOVLQZX retoffset+28(FP), BX;		\
+	MOVLQZX	retoffset+28(FP), BX;		\
 	MOVQ	SP, SI;				\
 	ADDQ	BX, DI;				\
 	ADDQ	BX, SI;				\
 	SUBQ	BX, CX;				\
-	REP;MOVSB;				\
-	/* execute write barrier updates */	\
-	MOVQ	argtype+0(FP), DX;		\
-	MOVQ	argptr+16(FP), DI;		\
-	MOVLQZX	argsize+24(FP), CX;		\
-	MOVLQZX retoffset+28(FP), BX;		\
-	MOVQ	DX, 0(SP);			\
-	MOVQ	DI, 8(SP);			\
-	MOVQ	CX, 16(SP);			\
-	MOVQ	BX, 24(SP);			\
-	CALL	runtime·callwritebarrier(SB);	\
+	CALL	callRet<>(SB);			\
+	RET
+
+// callRet copies return values back at the end of call*. This is a
+// separate function so it can allocate stack space for the arguments
+// to reflectcallmove. It does not follow the Go ABI; it expects its
+// arguments in registers.
+TEXT callRet<>(SB), NOSPLIT, $32-0
+	NO_LOCAL_POINTERS
+	MOVQ	DX, 0(SP)
+	MOVQ	DI, 8(SP)
+	MOVQ	SI, 16(SP)
+	MOVQ	CX, 24(SP)
+	CALL	runtime·reflectcallmove(SB)
 	RET
 
 CALLFN(·call32, 32)
@@ -540,8 +562,12 @@ TEXT gosave<>(SB),NOSPLIT,$0
 	LEAQ	8(SP), R9
 	MOVQ	R9, (g_sched+gobuf_sp)(R8)
 	MOVQ	$0, (g_sched+gobuf_ret)(R8)
-	MOVQ	$0, (g_sched+gobuf_ctxt)(R8)
 	MOVQ	BP, (g_sched+gobuf_bp)(R8)
+	// Assert ctxt is zero. See func save.
+	MOVQ	(g_sched+gobuf_ctxt)(R8), R9
+	TESTQ	R9, R9
+	JZ	2(PC)
+	CALL	runtime·badctxt(SB)
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -823,11 +849,6 @@ setbar:
 	// Set the stack barrier return PC.
 	MOVQ	BX, 0(SP)
 	CALL	runtime·setNextBarrierPC(SB)
-	RET
-
-TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
-	MOVQ	argp+0(FP), AX
-	MOVQ	AX, ret+8(FP)
 	RET
 
 // func cputicks() int64
@@ -1340,15 +1361,15 @@ eq:
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$0-33
-	MOVQ	s1str+0(FP), SI
-	MOVQ	s2str+16(FP), DI
+	MOVQ	s1_base+0(FP), SI
+	MOVQ	s2_base+16(FP), DI
 	CMPQ	SI, DI
 	JEQ	eq
-	MOVQ	s1len+8(FP), BX
-	LEAQ	v+32(FP), AX
+	MOVQ	s1_len+8(FP), BX
+	LEAQ	ret+32(FP), AX
 	JMP	runtime·memeqbody(SB)
 eq:
-	MOVB	$1, v+32(FP)
+	MOVB	$1, ret+32(FP)
 	RET
 
 // a in SI
@@ -1695,13 +1716,41 @@ big_loop_avx2_exit:
 	JMP loop
 
 
-// TODO: Also use this in bytes.Index
+TEXT strings·supportAVX2(SB),NOSPLIT,$0-1
+	MOVBLZX runtime·support_avx2(SB), AX
+	MOVB AX, ret+0(FP)
+	RET
+
+TEXT bytes·supportAVX2(SB),NOSPLIT,$0-1
+	MOVBLZX runtime·support_avx2(SB), AX
+	MOVB AX, ret+0(FP)
+	RET
+
 TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
 	MOVQ s+0(FP), DI
 	// We want len in DX and AX, because PCMPESTRI implicitly consumes them
 	MOVQ s_len+8(FP), DX
 	MOVQ c+16(FP), BP
 	MOVQ c_len+24(FP), AX
+	MOVQ DI, R10
+	LEAQ ret+32(FP), R11
+	JMP  runtime·indexShortStr(SB)
+
+TEXT bytes·indexShortStr(SB),NOSPLIT,$0-56
+	MOVQ s+0(FP), DI
+	MOVQ s_len+8(FP), DX
+	MOVQ c+24(FP), BP
+	MOVQ c_len+32(FP), AX
+	MOVQ DI, R10
+	LEAQ ret+48(FP), R11
+	JMP  runtime·indexShortStr(SB)
+
+// AX: length of string, that we are searching for
+// DX: length of string, in which we are searching
+// DI: pointer to string, in which we are searching
+// BP: pointer to string, that we are searching for
+// R11: address, where to put return value
+TEXT runtime·indexShortStr(SB),NOSPLIT,$0
 	CMPQ AX, DX
 	JA fail
 	CMPQ DX, $16
@@ -1791,7 +1840,7 @@ loop8:
 	JB loop8
 	JMP fail
 _9_or_more:
-	CMPQ AX, $16
+	CMPQ AX, $15
 	JA   _16_or_more
 	LEAQ 1(DI)(DX*1), DX
 	SUBQ AX, DX
@@ -1815,7 +1864,7 @@ partial_success9to15:
 	JMP fail
 _16_or_more:
 	CMPQ AX, $16
-	JA   _17_to_31
+	JA   _17_or_more
 	MOVOU (BP), X1
 	LEAQ -15(DI)(DX*1), DX
 loop16:
@@ -1828,7 +1877,9 @@ loop16:
 	CMPQ DI,DX
 	JB loop16
 	JMP fail
-_17_to_31:
+_17_or_more:
+	CMPQ AX, $31
+	JA   _32_or_more
 	LEAQ 1(DI)(DX*1), DX
 	SUBQ AX, DX
 	MOVOU -16(BP)(AX*1), X0
@@ -1852,9 +1903,56 @@ partial_success17to31:
 	ADDQ $1,DI
 	CMPQ DI,DX
 	JB loop17to31
+	JMP fail
+// We can get here only when AVX2 is enabled and cutoff for indexShortStr is set to 63
+// So no need to check cpuid
+_32_or_more:
+	CMPQ AX, $32
+	JA   _33_to_63
+	VMOVDQU (BP), Y1
+	LEAQ -31(DI)(DX*1), DX
+loop32:
+	VMOVDQU (DI), Y2
+	VPCMPEQB Y1, Y2, Y3
+	VPMOVMSKB Y3, SI
+	CMPL  SI, $0xffffffff
+	JE   success_avx2
+	ADDQ $1,DI
+	CMPQ DI,DX
+	JB loop32
+	JMP fail_avx2
+_33_to_63:
+	LEAQ 1(DI)(DX*1), DX
+	SUBQ AX, DX
+	VMOVDQU -32(BP)(AX*1), Y0
+	VMOVDQU (BP), Y1
+loop33to63:
+	VMOVDQU (DI), Y2
+	VPCMPEQB Y1, Y2, Y3
+	VPMOVMSKB Y3, SI
+	CMPL  SI, $0xffffffff
+	JE   partial_success33to63
+	ADDQ $1,DI
+	CMPQ DI,DX
+	JB loop33to63
+	JMP fail_avx2
+partial_success33to63:
+	VMOVDQU -32(AX)(DI*1), Y3
+	VPCMPEQB Y0, Y3, Y4
+	VPMOVMSKB Y4, SI
+	CMPL  SI, $0xffffffff
+	JE success_avx2
+	ADDQ $1,DI
+	CMPQ DI,DX
+	JB loop33to63
+fail_avx2:
+	VZEROUPPER
 fail:
-	MOVQ $-1, ret+32(FP)
+	MOVQ $-1, (R11)
 	RET
+success_avx2:
+	VZEROUPPER
+	JMP success
 sse42:
 	MOVL runtime·cpuid_ecx(SB), CX
 	ANDL $0x100000, CX
@@ -1893,8 +1991,8 @@ loop_sse42:
 sse42_success:
 	ADDQ CX, DI
 success:
-	SUBQ s+0(FP), DI
-	MOVQ DI, ret+32(FP)
+	SUBQ R10, DI
+	MOVQ DI, (R11)
 	RET
 
 
@@ -2052,7 +2150,7 @@ eqret:
 	MOVB	$0, ret+48(FP)
 	RET
 
-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+TEXT runtime·fastrand(SB), NOSPLIT, $0-4
 	get_tls(CX)
 	MOVQ	g(CX), AX
 	MOVQ	g_m(AX), AX
