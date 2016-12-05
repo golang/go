@@ -18,14 +18,10 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func test18146(t *testing.T) {
-	switch runtime.GOOS {
-	case "darwin", "openbsd", "dragonfly":
-		t.Skip("skipping on %s; issue 18146", runtime.GOOS)
-	}
-
 	attempts := 1000
 	threads := 4
 
@@ -64,6 +60,18 @@ func test18146(t *testing.T) {
 		cmd.Stdout = buf
 		cmd.Stderr = buf
 		if err := cmd.Start(); err != nil {
+			// We are starting so many processes that on
+			// some systems (problem seen on Darwin,
+			// Dragonfly, OpenBSD) the fork call will fail
+			// with EAGAIN.
+			if pe, ok := err.(*os.PathError); ok {
+				err = pe.Err
+			}
+			if se, ok := err.(syscall.Errno); ok && se == syscall.EAGAIN {
+				time.Sleep(time.Millisecond)
+				continue
+			}
+
 			t.Error(err)
 			return
 		}
