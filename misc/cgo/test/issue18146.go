@@ -67,7 +67,7 @@ func test18146(t *testing.T) {
 			if pe, ok := err.(*os.PathError); ok {
 				err = pe.Err
 			}
-			if se, ok := err.(syscall.Errno); ok && se == syscall.EAGAIN {
+			if se, ok := err.(syscall.Errno); ok && (se == syscall.EAGAIN || se == syscall.EMFILE) {
 				time.Sleep(time.Millisecond)
 				continue
 			}
