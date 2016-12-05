@@ -22,7 +22,7 @@ import (
 
 func test18146(t *testing.T) {
 	switch runtime.GOOS {
-	case "darwin", "openbsd":
+	case "darwin", "openbsd", "dragonfly":
 		t.Skip("skipping on %s; issue 18146", runtime.GOOS)
 	}
 
