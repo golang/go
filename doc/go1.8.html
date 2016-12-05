@@ -901,16 +901,16 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 <dl id="debug_pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
   <dd>
     <p> <!-- CL 22720, CL 27212, CL 22181, CL 22332, CL 22336, Issue 15345 -->
-      The package has been fleshed out and is now used by <a href="/cmd/link/">the Go linker</a>.
-      New are
-      <a href="/pkg/debug/pe/#Reloc"><code>Reloc</code></a>,
-      <a href="/pkg/debug/pe/#Section"><code>Section</code></a>,
-      <a href="/pkg/debug/pe/#StringTable"><code>StringTable</code></a>,
-      the method
-      <a href="/pkg/debug/pe/#COFFSymbol.FullName"><code>COFFSymbol.FullName</code></a>,
-      and the fields
-      <a href="/pkg/debug/pe/#File.COFFSymbols"><code>File.COFFSymbols</code></a> and
-      <a href="/pkg/debug/pe/#File.StringTable"><code>File.StringTable</code></a>.
+      The package has been extended and is now used by
+      <a href="/cmd/link/">the Go linker</a> to read <code>gcc</code>-generated object files.
+      The new
+      <a href="/pkg/debug/pe/#File.StringTable"><code>File.StringTable</code></a>
+      and
+      <a href="/pkg/debug/pe/#Section.Relocs"><code>Section.Relocs</code></a>
+      fields provide access to the COFF string table and COFF relocations.
+      The new
+      <a href="/pkg/debug/pe/#File.COFFSymbols"><code>File.COFFSymbols</code></a>
+      allows low-level access to the COFF symbol table.
       </p>
   </dd>
 </dl>
