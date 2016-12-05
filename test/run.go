@@ -559,6 +559,19 @@ func (t *test) run() {
 		}
 		args = args[1:]
 	}
+	if action == "errorcheck" {
+		found := false
+		for i, f := range flags {
+			if strings.HasPrefix(f, "-d=") {
+				flags[i] = f + ",ssa/check/on"
+				found = true
+				break
+			}
+		}
+		if !found {
+			flags = append(flags, "-d=ssa/check/on")
+		}
+	}
 
 	t.makeTempDir()
 	if !*keep {
