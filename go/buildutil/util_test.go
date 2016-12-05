@@ -10,6 +10,7 @@ package buildutil_test
 
 import (
 	"go/build"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -23,22 +24,46 @@ func TestContainingPackage(t *testing.T) {
 	goroot := runtime.GOROOT()
 	gopath := filepath.SplitList(os.Getenv("GOPATH"))[0]
 
-	tests := [][2]string{
-		{goroot + "/src/fmt/print.go", "fmt"},
-		{goroot + "/src/encoding/json/foo.go", "encoding/json"},
-		{goroot + "/src/encoding/missing/foo.go", "(not found)"},
-		{gopath + "/src/golang.org/x/tools/go/buildutil/util_test.go",
-			"golang.org/x/tools/go/buildutil"},
+	// Make a symlink to gopath for test
+	tmp, err := ioutil.TempDir(os.TempDir(), "go")
+	if err != nil {
+		t.Errorf("Unable to create a temporary directory in %s", os.TempDir())
 	}
-	for _, test := range tests {
-		file, want := test[0], test[1]
-		bp, err := buildutil.ContainingPackage(&build.Default, ".", file)
-		got := bp.ImportPath
+
+	// symlink between $GOPATH/src and /tmp/go/src
+	// in order to test all possible symlink cases
+	if err := os.Symlink(gopath+"/src", tmp+"/src"); err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmp)
+
+	for _, test := range []struct {
+		gopath, filename, wantPkg string
+	}{
+		{gopath, goroot + "/src/fmt/print.go", "fmt"},
+		{gopath, goroot + "/src/encoding/json/foo.go", "encoding/json"},
+		{gopath, goroot + "/src/encoding/missing/foo.go", "(not found)"},
+		{gopath, gopath + "/src/golang.org/x/tools/go/buildutil/util_test.go",
+			"golang.org/x/tools/go/buildutil"},
+		{gopath, tmp + "/src/golang.org/x/tools/go/buildutil/util_test.go",
+			"golang.org/x/tools/go/buildutil"},
+		{tmp, gopath + "/src/golang.org/x/tools/go/buildutil/util_test.go",
+			"golang.org/x/tools/go/buildutil"},
+		{tmp, tmp + "/src/golang.org/x/tools/go/buildutil/util_test.go",
+			"golang.org/x/tools/go/buildutil"},
+	} {
+		var got string
+		var buildContext = build.Default
+		buildContext.GOPATH = test.gopath
+		bp, err := buildutil.ContainingPackage(&buildContext, ".", test.filename)
 		if err != nil {
 			got = "(not found)"
+		} else {
+			got = bp.ImportPath
 		}
-		if got != want {
-			t.Errorf("ContainingPackage(%q) = %s, want %s", file, got, want)
+		if got != test.wantPkg {
+			t.Errorf("ContainingPackage(%q) = %s, want %s", test.filename, got, test.wantPkg)
 		}
 	}
 

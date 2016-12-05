@@ -66,11 +66,21 @@ func ContainingPackage(ctxt *build.Context, dir, filename string) (*build.Packag
 	// paths will not use `\` unless the PathSeparator
 	// is also `\`, thus we can rely on filepath.ToSlash for some sanity.
 
-	dirSlash := path.Dir(filepath.ToSlash(filename)) + "/"
+	resolvedFilename, err := filepath.EvalSymlinks(filepath.Dir(filename))
+	if err != nil {
+		return nil, fmt.Errorf("can't evaluate symlinks of %s: %v", path.Dir(filename), err)
+	}
+
+	resolvedDir := filepath.ToSlash(resolvedFilename)
+	dirSlash := resolvedDir + "/"
 
 	// We assume that no source root (GOPATH[i] or GOROOT) contains any other.
 	for _, srcdir := range ctxt.SrcDirs() {
-		srcdirSlash := filepath.ToSlash(srcdir) + "/"
+		resolvedSrcdir, err := filepath.EvalSymlinks(srcdir)
+		if err != nil {
+			continue // e.g. non-existent dir on $GOPATH
+		}
+		srcdirSlash := filepath.ToSlash(resolvedSrcdir) + "/"
 		if dirHasPrefix(dirSlash, srcdirSlash) {
 			importPath := dirSlash[len(srcdirSlash) : len(dirSlash)-len("/")]
 			return ctxt.Import(importPath, dir, build.FindOnly)
