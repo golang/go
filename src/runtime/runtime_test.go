@@ -8,6 +8,7 @@ import (
 	"io"
 	. "runtime"
 	"runtime/debug"
+	"strings"
 	"testing"
 	"unsafe"
 )
@@ -327,5 +328,13 @@ func TestGoroutineProfileTrivial(t *testing.T) {
 		if i >= 10 {
 			t.Fatalf("GoroutineProfile not converging")
 		}
+	}
+}
+
+func TestVersion(t *testing.T) {
+	// Test that version does not contain \r or \n.
+	vers := Version()
+	if strings.Contains(vers, "\r") || strings.Contains(vers, "\n") {
+		t.Fatalf("cr/nl in version: %q", vers)
 	}
 }
