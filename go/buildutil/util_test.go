@@ -24,40 +24,35 @@ func TestContainingPackage(t *testing.T) {
 	goroot := runtime.GOROOT()
 	gopath := filepath.SplitList(os.Getenv("GOPATH"))[0]
 
-	type Test struct {
-		gopath, filename, wantPkg string
+	// Make a symlink to gopath for test
+	tmp, err := ioutil.TempDir(os.TempDir(), "go")
+	if err != nil {
+		t.Errorf("Unable to create a temporary directory in %s", os.TempDir())
 	}
 
-	tests := []Test{
+	// symlink between $GOPATH/src and /tmp/go/src
+	// in order to test all possible symlink cases
+	if err := os.Symlink(gopath+"/src", tmp+"/src"); err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmp)
+
+	for _, test := range []struct {
+		gopath, filename, wantPkg string
+	}{
 		{gopath, goroot + "/src/fmt/print.go", "fmt"},
 		{gopath, goroot + "/src/encoding/json/foo.go", "encoding/json"},
 		{gopath, goroot + "/src/encoding/missing/foo.go", "(not found)"},
 		{gopath, gopath + "/src/golang.org/x/tools/go/buildutil/util_test.go",
 			"golang.org/x/tools/go/buildutil"},
-	}
-
-	if runtime.GOOS != "windows" {
-		// Make a symlink to gopath for test
-		tmp, err := ioutil.TempDir(os.TempDir(), "go")
-		if err != nil {
-			t.Errorf("Unable to create a temporary directory in %s", os.TempDir())
-		}
-
-		defer os.RemoveAll(tmp)
-
-		// symlink between $GOPATH/src and /tmp/go/src
-		// in order to test all possible symlink cases
-		if err := os.Symlink(gopath+"/src", tmp+"/src"); err != nil {
-			t.Fatal(err)
-		}
-		tests = append(tests, []Test{
-			{gopath, tmp + "/src/golang.org/x/tools/go/buildutil/util_test.go", "golang.org/x/tools/go/buildutil"},
-			{tmp, gopath + "/src/golang.org/x/tools/go/buildutil/util_test.go", "golang.org/x/tools/go/buildutil"},
-			{tmp, tmp + "/src/golang.org/x/tools/go/buildutil/util_test.go", "golang.org/x/tools/go/buildutil"},
-		}...)
-	}
-
-	for _, test := range tests {
+		{gopath, tmp + "/src/golang.org/x/tools/go/buildutil/util_test.go",
+			"golang.org/x/tools/go/buildutil"},
+		{tmp, gopath + "/src/golang.org/x/tools/go/buildutil/util_test.go",
+			"golang.org/x/tools/go/buildutil"},
+		{tmp, tmp + "/src/golang.org/x/tools/go/buildutil/util_test.go",
+			"golang.org/x/tools/go/buildutil"},
+	} {
 		var got string
 		var buildContext = build.Default
 		buildContext.GOPATH = test.gopath
