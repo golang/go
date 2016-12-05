@@ -4,7 +4,10 @@
 
 package tls
 
-import "bytes"
+import (
+	"bytes"
+	"strings"
+)
 
 type clientHelloMsg struct {
 	raw                          []byte
@@ -393,6 +396,12 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 				}
 				if nameType == 0 {
 					m.serverName = string(d[:nameLen])
+					// An SNI value may not include a
+					// trailing dot. See
+					// https://tools.ietf.org/html/rfc6066#section-3.
+					if strings.HasSuffix(m.serverName, ".") {
+						return false
+					}
 					break
 				}
 				d = d[nameLen:]
