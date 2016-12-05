@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"math/rand"
 	"reflect"
+	"strings"
 	"testing"
 	"testing/quick"
 )
@@ -123,6 +124,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	}
 	if rand.Intn(10) > 5 {
 		m.serverName = randomString(rand.Intn(255), rand)
+		for strings.HasSuffix(m.serverName, ".") {
+			m.serverName = m.serverName[:len(m.serverName)-1]
+		}
 	}
 	m.ocspStapling = rand.Intn(10) > 5
 	m.supportedPoints = randomBytes(rand.Intn(5)+1, rand)

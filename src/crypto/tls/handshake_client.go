@@ -815,7 +815,7 @@ func hostnameInSNI(name string) string {
 	if net.ParseIP(host) != nil {
 		return ""
 	}
-	if len(name) > 0 && name[len(name)-1] == '.' {
+	for len(name) > 0 && name[len(name)-1] == '.' {
 		name = name[:len(name)-1]
 	}
 	return name
