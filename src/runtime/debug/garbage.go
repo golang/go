@@ -90,7 +90,9 @@ func ReadGCStats(stats *GCStats) {
 // A negative percentage disables garbage collection.
 func SetGCPercent(percent int) int {
 	old := setGCPercent(int32(percent))
-	runtime.GC()
+	if percent >= 0 {
+		runtime.GC()
+	}
 	return int(old)
 }
 
