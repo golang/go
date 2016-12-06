@@ -171,7 +171,7 @@ type Request struct {
 	Body io.ReadCloser
 
 	// GetBody defines an optional func to return a new copy of
-	// Body. It used for client requests when a redirect requires
+	// Body. It is used for client requests when a redirect requires
 	// reading the body more than once. Use of GetBody still
 	// requires setting Body.
 	//
