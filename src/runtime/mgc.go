@@ -902,7 +902,7 @@ type gcMode int
 const (
 	gcBackgroundMode gcMode = iota // concurrent GC and sweep
 	gcForceMode                    // stop-the-world GC now, concurrent sweep
-	gcForceBlockMode               // stop-the-world GC now and STW sweep
+	gcForceBlockMode               // stop-the-world GC now and STW sweep (forced by user)
 )
 
 // gcShouldStart returns true if the exit condition for the _GCoff
@@ -965,6 +965,9 @@ func gcStart(mode gcMode, forceTrigger bool) {
 			return
 		}
 	}
+
+	// For stats, check if this GC was forced by the user.
+	forced := mode != gcBackgroundMode
 
 	// In gcstoptheworld debug mode, upgrade the mode accordingly.
 	// We do this after re-checking the transition condition so
@@ -1069,6 +1072,10 @@ func gcStart(mode gcMode, forceTrigger bool) {
 		t := nanotime()
 		work.tMark, work.tMarkTerm = t, t
 		work.heapGoal = work.heap0
+
+		if forced {
+			memstats.numforcedgc++
+		}
 
 		// Perform mark termination. This will restart the world.
 		gcMarkTermination()
