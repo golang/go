@@ -238,6 +238,7 @@ pkg plugin, type Symbol interface {}
 pkg reflect, func Swapper(interface{}) func(int, int)
 pkg runtime, func MutexProfile([]BlockProfileRecord) (int, bool)
 pkg runtime, func SetMutexProfileFraction(int) int
+pkg runtime, type MemStats struct, NumForcedGC uint32
 pkg sort, func Slice(interface{}, func(int, int) bool)
 pkg sort, func SliceIsSorted(interface{}, func(int, int) bool) bool
 pkg sort, func SliceStable(interface{}, func(int, int) bool)
