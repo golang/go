@@ -1669,6 +1669,17 @@ func TestStatStdin(t *testing.T) {
 		Exit(0)
 	}
 
+	fi, err := Stdin.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch mode := fi.Mode(); {
+	case mode&ModeCharDevice != 0:
+	case mode&ModeNamedPipe != 0:
+	default:
+		t.Fatalf("unexpected Stdin mode (%v), want ModeCharDevice or ModeNamedPipe", mode)
+	}
+
 	var cmd *osexec.Cmd
 	if runtime.GOOS == "windows" {
 		cmd = osexec.Command("cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")

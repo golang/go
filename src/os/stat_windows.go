@@ -31,8 +31,9 @@ func (file *File) Stat() (FileInfo, error) {
 	if err != nil {
 		return nil, &PathError{"GetFileType", file.name, err}
 	}
-	if ft == syscall.FILE_TYPE_PIPE {
-		return &fileStat{name: basename(file.name), pipe: true}, nil
+	switch ft {
+	case syscall.FILE_TYPE_PIPE, syscall.FILE_TYPE_CHAR:
+		return &fileStat{name: basename(file.name), filetype: ft}, nil
 	}
 
 	var d syscall.ByHandleFileInformation
@@ -50,10 +51,10 @@ func (file *File) Stat() (FileInfo, error) {
 			FileSizeHigh:   d.FileSizeHigh,
 			FileSizeLow:    d.FileSizeLow,
 		},
-		vol:   d.VolumeSerialNumber,
-		idxhi: d.FileIndexHigh,
-		idxlo: d.FileIndexLow,
-		pipe:  false,
+		filetype: ft,
+		vol:      d.VolumeSerialNumber,
+		idxhi:    d.FileIndexHigh,
+		idxlo:    d.FileIndexLow,
 	}, nil
 }
 
