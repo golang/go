@@ -10,12 +10,11 @@ package net
 
 import "sync"
 
-var servicesError error
 var onceReadServices sync.Once
 
 func readServices() {
-	var file *file
-	if file, servicesError = open("/etc/services"); servicesError != nil {
+	file, err := open("/etc/services")
+	if err != nil {
 		return
 	}
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
