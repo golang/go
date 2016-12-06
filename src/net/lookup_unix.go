@@ -76,13 +76,15 @@ func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, e
 }
 
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
-	// TODO: use the context if there ever becomes a need. Related
-	// is issue 15321. But port lookup generally just involves
-	// local files, and the os package has no context support. The
-	// files might be on a remote filesystem, though. This should
-	// probably race goroutines if ctx != context.Background().
 	if !r.PreferGo && systemConf().canUseCgo() {
 		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
+			if err != nil {
+				// Issue 18213: if cgo fails, first check to see whether we
+				// have the answer baked-in to the net package.
+				if port, err := goLookupPort(network, service); err == nil {
+					return port, nil
+				}
+			}
 			return port, err
 		}
 	}
