@@ -223,7 +223,7 @@ type Library struct {
 	File        string
 	Pkg         string
 	Shlib       string
-	hash        []byte
+	hash        string
 	imports     []*Library
 	textp       []*Symbol // text symbols defined in this library
 	dupTextSyms []*Symbol // dupok text symbols defined in this library
