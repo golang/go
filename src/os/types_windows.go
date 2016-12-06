@@ -12,9 +12,9 @@ import (
 
 // A fileStat is the implementation of FileInfo returned by Stat and Lstat.
 type fileStat struct {
-	name string
-	sys  syscall.Win32FileAttributeData
-	pipe bool
+	name     string
+	sys      syscall.Win32FileAttributeData
+	filetype uint32 // what syscall.GetFileType returns
 
 	// used to implement SameFile
 	sync.Mutex
@@ -43,8 +43,11 @@ func (fs *fileStat) Mode() (m FileMode) {
 	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
 		m |= ModeSymlink
 	}
-	if fs.pipe {
+	switch fs.filetype {
+	case syscall.FILE_TYPE_PIPE:
 		m |= ModeNamedPipe
+	case syscall.FILE_TYPE_CHAR:
+		m |= ModeCharDevice
 	}
 	return m
 }
