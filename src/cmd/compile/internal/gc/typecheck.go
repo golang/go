@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"fmt"
 	"math"
 	"strings"
@@ -3499,7 +3500,7 @@ func domethod(n *Node) {
 
 type mapqueueval struct {
 	n   *Node
-	lno int32
+	lno src.Pos
 }
 
 // tracks the line numbers at which forward types are first used as map keys

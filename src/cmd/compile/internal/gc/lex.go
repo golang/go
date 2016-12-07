@@ -7,16 +7,17 @@ package gc
 import (
 	"cmd/compile/internal/syntax"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"fmt"
 	"strings"
 )
 
 // lexlineno is the line number _after_ the most recently read rune.
 // In particular, it's advanced (or rewound) as newlines are read (or unread).
-var lexlineno int32
+var lexlineno src.Pos
 
 // lineno is the line number at the start of the most recently lexed token.
-var lineno int32
+var lineno src.Pos
 
 func isSpace(c rune) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'

@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
@@ -878,7 +879,7 @@ func importfile(f *Val, indent []byte) {
 	}
 }
 
-func pkgnotused(lineno int32, path string, name string) {
+func pkgnotused(lineno src.Pos, path string, name string) {
 	// If the package was imported with a name other than the final
 	// import path element, show it explicitly in the error message.
 	// Note that this handles both renamed imports and imports of
