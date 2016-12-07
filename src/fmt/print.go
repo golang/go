@@ -813,16 +813,15 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 			if f.Kind() == reflect.Slice && f.IsNil() {
 				p.buf.WriteString(nilParenString)
 				return
-			} else {
-				p.buf.WriteByte('{')
-				for i := 0; i < f.Len(); i++ {
-					if i > 0 {
-						p.buf.WriteString(commaSpaceString)
-					}
-					p.printValue(f.Index(i), verb, depth+1)
-				}
-				p.buf.WriteByte('}')
 			}
+			p.buf.WriteByte('{')
+			for i := 0; i < f.Len(); i++ {
+				if i > 0 {
+					p.buf.WriteString(commaSpaceString)
+				}
+				p.printValue(f.Index(i), verb, depth+1)
+			}
+			p.buf.WriteByte('}')
 		} else {
 			p.buf.WriteByte('[')
 			for i := 0; i < f.Len(); i++ {
