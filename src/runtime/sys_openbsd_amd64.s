@@ -156,9 +156,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	$299, AX		// sys_getthrid
 	SYSCALL
-	MOVQ	AX, DI			// arg 1 - pid
+	MOVQ	AX, DI			// arg 1 - tid
 	MOVL	sig+0(FP), SI		// arg 2 - signum
-	MOVL	$37, AX			// sys_kill
+	MOVQ	$0, DX			// arg 3 - tcb
+	MOVL	$119, AX		// sys_thrkill
 	SYSCALL
 	RET
 
@@ -167,7 +168,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$16
 	SYSCALL
 	MOVQ	AX, DI			// arg 1 - pid
 	MOVL	sig+0(FP), SI		// arg 2 - signum
-	MOVL	$37, AX			// sys_kill
+	MOVL	$122, AX		// sys_kill
 	SYSCALL
 	RET
 
