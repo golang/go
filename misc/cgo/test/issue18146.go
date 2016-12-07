@@ -22,6 +22,10 @@ import (
 )
 
 func test18146(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		t.Skipf("skipping flaky test on %s; see golang.org/issue/18202", runtime.GOOS)
+	}
+
 	attempts := 1000
 	threads := 4
 
