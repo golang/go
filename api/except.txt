@@ -327,4 +327,8 @@ pkg syscall (netbsd-arm), const SizeofIfData = 132
 pkg syscall (netbsd-arm), type IfMsghdr struct, Pad_cgo_1 [4]uint8
 pkg syscall (netbsd-arm-cgo), const SizeofIfData = 132
 pkg syscall (netbsd-arm-cgo), type IfMsghdr struct, Pad_cgo_1 [4]uint8
+pkg syscall (openbsd-386), const SYS_KILL = 37
+pkg syscall (openbsd-386-cgo), const SYS_KILL = 37
+pkg syscall (openbsd-amd64), const SYS_KILL = 37
+pkg syscall (openbsd-amd64-cgo), const SYS_KILL = 37
 pkg unicode, const Version = "6.3.0"
