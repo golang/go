@@ -79,14 +79,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$24
 	INT	$0x80
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$12
+TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	$299, AX		// sys_getthrid
 	INT	$0x80
 	MOVL	$0, 0(SP)
-	MOVL	AX, 4(SP)		// arg 1 - pid
+	MOVL	AX, 4(SP)		// arg 1 - tid
 	MOVL	sig+0(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - signum
-	MOVL	$37, AX			// sys_kill
+	MOVL	$0, 12(SP)		// arg 3 - tcb
+	MOVL	$119, AX		// sys_thrkill
 	INT	$0x80
 	RET
 
@@ -97,7 +98,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$12
 	MOVL	AX, 4(SP)		// arg 1 - pid
 	MOVL	sig+0(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - signum
-	MOVL	$37, AX			// sys_kill
+	MOVL	$122, AX		// sys_kill
 	INT	$0x80
 	RET
 
