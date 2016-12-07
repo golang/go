@@ -274,7 +274,7 @@ cmd/trace: annotate different mark worker types (CL 30702)
 <p>Vet is stricter in some ways and looser where it
   previously caused false positives.</p>
 
-<p>Vet now checks copying of array of locks,
+<p>Vet now checks copying an array of locks,
   duplicate JSON and XML struct field tags,
   non-space-separated struct tags,
   deferred calls to HTTP <code>Response.Body.Close</code>
@@ -299,14 +299,14 @@ and provides a better platform for optimizations
 such as bounds check elimination.
 The new back end reduces the CPU time required by
 <a href="https://golang.org/test/bench/go1/">our benchmark programs</a> by 20-30%
-on 32-bit ARM systems. For 64-bit x86 systems, which already used the SSA backend in
+on 32-bit ARM systems. For 64-bit x86 systems, which already used the SSA back end in
 Go 1.7, the gains are a more modest 0-10%. Other architectures will likely
 see improvements closer to the 32-bit ARM numbers.
 </p>
 
 <p>
   The temporary <code>-ssa=0</code> compiler flag introduced in Go 1.7
-  to disable the new backend has been removed in Go 1.8.
+  to disable the new back end has been removed in Go 1.8.
 </p>
 
 <p>
@@ -1350,7 +1350,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
     The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
     has a new optional hook,
     <a href="/pkg/net/http/httputil/#ReverseProxy.ModifyResponse"><code>ModifyResponse</code></a>,
-    for modifying the response from the backend before proxying it to the client.
+    for modifying the response from the back end before proxying it to the client.
     </p>
     
   </dd>
