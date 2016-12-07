@@ -1879,7 +1879,7 @@ func execute(gp *g, inheritTime bool) {
 	// Check whether the profiler needs to be turned on or off.
 	hz := sched.profilehz
 	if _g_.m.profilehz != hz {
-		resetcpuprofiler(hz)
+		setThreadCPUProfiler(hz)
 	}
 
 	if trace.enabled {
@@ -2780,7 +2780,7 @@ func beforefork() {
 	// Ensure that we stay on the same M where we disable profiling.
 	gp.m.locks++
 	if gp.m.profilehz != 0 {
-		resetcpuprofiler(0)
+		setThreadCPUProfiler(0)
 	}
 
 	// This function is called before fork in syscall package.
@@ -2805,7 +2805,7 @@ func afterfork() {
 
 	hz := sched.profilehz
 	if hz != 0 {
-		resetcpuprofiler(hz)
+		setThreadCPUProfiler(hz)
 	}
 	gp.m.locks--
 }
@@ -3439,12 +3439,15 @@ func setcpuprofilerate_m(hz int32) {
 	// Stop profiler on this thread so that it is safe to lock prof.
 	// if a profiling signal came in while we had prof locked,
 	// it would deadlock.
-	resetcpuprofiler(0)
+	setThreadCPUProfiler(0)
 
 	for !atomic.Cas(&prof.lock, 0, 1) {
 		osyield()
 	}
-	prof.hz = hz
+	if prof.hz != hz {
+		setProcessCPUProfiler(hz)
+		prof.hz = hz
+	}
 	atomic.Store(&prof.lock, 0)
 
 	lock(&sched.lock)
@@ -3452,7 +3455,7 @@ func setcpuprofilerate_m(hz int32) {
 	unlock(&sched.lock)
 
 	if hz != 0 {
-		resetcpuprofiler(hz)
+		setThreadCPUProfiler(hz)
 	}
 
 	_g_.m.locks--

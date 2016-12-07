@@ -138,6 +138,11 @@ func sigenable(sig uint32) {
 		return
 	}
 
+	// SIGPROF is handled specially for profiling.
+	if sig == _SIGPROF {
+		return
+	}
+
 	t := &sigtable[sig]
 	if t.flags&_SigNotify != 0 {
 		ensureSigM()
@@ -155,6 +160,11 @@ func sigenable(sig uint32) {
 // via os/signal.disableSignal and signal_disable.
 func sigdisable(sig uint32) {
 	if sig >= uint32(len(sigtable)) {
+		return
+	}
+
+	// SIGPROF is handled specially for profiling.
+	if sig == _SIGPROF {
 		return
 	}
 
@@ -182,6 +192,11 @@ func sigignore(sig uint32) {
 		return
 	}
 
+	// SIGPROF is handled specially for profiling.
+	if sig == _SIGPROF {
+		return
+	}
+
 	t := &sigtable[sig]
 	if t.flags&_SigNotify != 0 {
 		atomic.Store(&handlingSig[sig], 0)
@@ -189,7 +204,31 @@ func sigignore(sig uint32) {
 	}
 }
 
-func resetcpuprofiler(hz int32) {
+// setProcessCPUProfiler is called when the profiling timer changes.
+// It is called with prof.lock held. hz is the new timer, and is 0 if
+// profiling is being disabled. Enable or disable the signal as
+// required for -buildmode=c-archive.
+func setProcessCPUProfiler(hz int32) {
+	if hz != 0 {
+		// Enable the Go signal handler if not enabled.
+		if atomic.Cas(&handlingSig[_SIGPROF], 0, 1) {
+			atomic.Storeuintptr(&fwdSig[_SIGPROF], getsig(_SIGPROF))
+			setsig(_SIGPROF, funcPC(sighandler))
+		}
+	} else {
+		// If the Go signal handler should be disabled by default,
+		// disable it if it is enabled.
+		if !sigInstallGoHandler(_SIGPROF) {
+			if atomic.Cas(&handlingSig[_SIGPROF], 1, 0) {
+				setsig(_SIGPROF, atomic.Loaduintptr(&fwdSig[_SIGPROF]))
+			}
+		}
+	}
+}
+
+// setThreadCPUProfiler makes any thread-specific changes required to
+// implement profiling at a rate of hz.
+func setThreadCPUProfiler(hz int32) {
 	var it itimerval
 	if hz == 0 {
 		setitimer(_ITIMER_PROF, &it, nil)

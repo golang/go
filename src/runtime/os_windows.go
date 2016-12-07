@@ -744,10 +744,7 @@ func profileloop1(param uintptr) uint32 {
 	}
 }
 
-var cpuprofilerlock mutex
-
-func resetcpuprofiler(hz int32) {
-	lock(&cpuprofilerlock)
+func setProcessCPUProfiler(hz int32) {
 	if profiletimer == 0 {
 		timer := stdcall3(_CreateWaitableTimerA, 0, 0, 0)
 		atomic.Storeuintptr(&profiletimer, timer)
@@ -755,8 +752,9 @@ func resetcpuprofiler(hz int32) {
 		stdcall2(_SetThreadPriority, thread, _THREAD_PRIORITY_HIGHEST)
 		stdcall1(_CloseHandle, thread)
 	}
-	unlock(&cpuprofilerlock)
+}
 
+func setThreadCPUProfiler(hz int32) {
 	ms := int32(0)
 	due := ^int64(^uint64(1 << 63))
 	if hz > 0 {
