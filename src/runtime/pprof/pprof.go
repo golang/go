@@ -386,12 +386,22 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		Sample:     make([]*profile.Sample, 0, len(keys)),
 		SampleType: []*profile.ValueType{{Type: name, Unit: "count"}},
 	}
+	locMap := make(map[uintptr]*profile.Location)
 	for _, k := range keys {
 		stk := p.Stack(index[k])
 		c := count[k]
 		locs := make([]*profile.Location, len(stk))
 		for i, addr := range stk {
-			locs[i] = &profile.Location{Address: uint64(addr) - 1}
+			loc := locMap[addr]
+			if loc == nil {
+				loc = &profile.Location{
+					ID:      uint64(len(locMap) + 1),
+					Address: uint64(addr - 1),
+				}
+				prof.Location = append(prof.Location, loc)
+				locMap[addr] = loc
+			}
+			locs[i] = loc
 		}
 		prof.Sample = append(prof.Sample, &profile.Sample{
 			Location: locs,
