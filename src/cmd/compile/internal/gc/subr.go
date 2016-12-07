@@ -7,6 +7,7 @@ package gc
 import (
 	"bytes"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
@@ -20,7 +21,7 @@ import (
 )
 
 type Error struct {
-	lineno int32
+	lineno src.Pos
 	msg    string
 }
 
@@ -44,7 +45,7 @@ func adderrorname(n *Node) {
 	}
 }
 
-func adderr(line int32, format string, args ...interface{}) {
+func adderr(line src.Pos, format string, args ...interface{}) {
 	errors = append(errors, Error{
 		lineno: line,
 		msg:    fmt.Sprintf("%v: %s\n", linestr(line), fmt.Sprintf(format, args...)),
@@ -85,7 +86,7 @@ func hcrash() {
 	}
 }
 
-func linestr(line int32) string {
+func linestr(line src.Pos) string {
 	return Ctxt.Line(int(line))
 }
 
@@ -93,12 +94,12 @@ func linestr(line int32) string {
 // It is used to avoid multiple error messages on the same
 // line.
 var lasterror struct {
-	syntax int32  // line of last syntax error
-	other  int32  // line of last non-syntax error
-	msg    string // error message of last non-syntax error
+	syntax src.Pos // line of last syntax error
+	other  src.Pos // line of last non-syntax error
+	msg    string  // error message of last non-syntax error
 }
 
-func yyerrorl(line int32, format string, args ...interface{}) {
+func yyerrorl(line src.Pos, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 
 	if strings.HasPrefix(msg, "syntax error") {
@@ -142,7 +143,7 @@ func Warn(fmt_ string, args ...interface{}) {
 	hcrash()
 }
 
-func Warnl(line int32, fmt_ string, args ...interface{}) {
+func Warnl(line src.Pos, fmt_ string, args ...interface{}) {
 	adderr(line, fmt_, args...)
 	if Debug['m'] != 0 {
 		flusherrors()
@@ -200,7 +201,7 @@ func linehistupdate(file string, off int) {
 	Ctxt.LineHist.Update(int(lexlineno), file, off)
 }
 
-func setlineno(n *Node) int32 {
+func setlineno(n *Node) src.Pos {
 	lno := lineno
 	if n != nil {
 		switch n.Op {
@@ -475,7 +476,7 @@ func nodbool(b bool) *Node {
 // Copies of iota ONONAME nodes are assigned the current
 // value of iota_. If lineno != 0, it sets the line number
 // of newly allocated nodes to lineno.
-func treecopy(n *Node, lineno int32) *Node {
+func treecopy(n *Node, lineno src.Pos) *Node {
 	if n == nil {
 		return nil
 	}
@@ -1991,7 +1992,7 @@ func Simsimtype(t *Type) EType {
 	return et
 }
 
-func listtreecopy(l []*Node, lineno int32) []*Node {
+func listtreecopy(l []*Node, lineno src.Pos) []*Node {
 	var out []*Node
 	for _, n := range l {
 		out = append(out, treecopy(n, lineno))

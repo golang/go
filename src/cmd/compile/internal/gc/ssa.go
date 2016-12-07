@@ -14,6 +14,7 @@ import (
 
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
@@ -228,7 +229,7 @@ type state struct {
 	sb       *ssa.Value
 
 	// line number stack. The current line number is top of stack
-	line []int32
+	line []src.Pos
 
 	// list of panic calls by function name and line number.
 	// Used to deduplicate panic calls.
@@ -242,12 +243,12 @@ type state struct {
 
 	cgoUnsafeArgs bool
 	noWB          bool
-	WBLineno      int32 // line number of first write barrier. 0=no write barriers
+	WBLineno      src.Pos // line number of first write barrier. 0=no write barriers
 }
 
 type funcLine struct {
 	f    *Node
-	line int32
+	line src.Pos
 }
 
 type ssaLabel struct {
@@ -278,11 +279,13 @@ func (s *state) label(sym *Sym) *ssaLabel {
 	return lab
 }
 
-func (s *state) Logf(msg string, args ...interface{})              { s.config.Logf(msg, args...) }
-func (s *state) Log() bool                                         { return s.config.Log() }
-func (s *state) Fatalf(msg string, args ...interface{})            { s.config.Fatalf(s.peekLine(), msg, args...) }
-func (s *state) Warnl(line int32, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
-func (s *state) Debug_checknil() bool                              { return s.config.Debug_checknil() }
+func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
+func (s *state) Log() bool                              { return s.config.Log() }
+func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekLine(), msg, args...) }
+func (s *state) Warnl(line src.Pos, msg string, args ...interface{}) {
+	s.config.Warnl(line, msg, args...)
+}
+func (s *state) Debug_checknil() bool { return s.config.Debug_checknil() }
 
 var (
 	// dummy node for the memory variable
@@ -328,7 +331,7 @@ func (s *state) endBlock() *ssa.Block {
 }
 
 // pushLine pushes a line number on the line number stack.
-func (s *state) pushLine(line int32) {
+func (s *state) pushLine(line src.Pos) {
 	if line == 0 {
 		// the frontend may emit node with line number missing,
 		// use the parent line number in this case.
@@ -346,7 +349,7 @@ func (s *state) popLine() {
 }
 
 // peekLine peek the top of the line number stack.
-func (s *state) peekLine() int32 {
+func (s *state) peekLine() src.Pos {
 	return s.line[len(s.line)-1]
 }
 
@@ -2358,7 +2361,7 @@ const (
 // If deref is true, rightIsVolatile reports whether right points to volatile (clobbered by a call) storage.
 // Include a write barrier if wb is true.
 // skip indicates assignments (at the top level) that can be avoided.
-func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32, skip skipMask, rightIsVolatile bool) {
+func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line src.Pos, skip skipMask, rightIsVolatile bool) {
 	if left.Op == ONAME && isblank(left) {
 		return
 	}
@@ -3257,7 +3260,7 @@ func canSSAType(t *Type) bool {
 }
 
 // exprPtr evaluates n to a pointer and nil-checks it.
-func (s *state) exprPtr(n *Node, bounded bool, lineno int32) *ssa.Value {
+func (s *state) exprPtr(n *Node, bounded bool, lineno src.Pos) *ssa.Value {
 	p := s.expr(n)
 	if bounded || n.NonNil {
 		if s.f.Config.Debug_checknil() && lineno > 1 {
@@ -3405,7 +3408,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 // insertWBmove inserts the assignment *left = *right including a write barrier.
 // t is the type being assigned.
 // If right == nil, then we're zeroing *left.
-func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightIsVolatile bool) {
+func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line src.Pos, rightIsVolatile bool) {
 	// if writeBarrier.enabled {
 	//   typedmemmove(&t, left, right)
 	// } else {
@@ -3453,7 +3456,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
 
 // insertWBstore inserts the assignment *left = right including a write barrier.
 // t is the type being assigned.
-func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32, skip skipMask) {
+func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line src.Pos, skip skipMask) {
 	// store scalar fields
 	// if writeBarrier.enabled {
 	//   writebarrierptr for pointer fields
@@ -4378,7 +4381,7 @@ func (s *SSAGenState) Pc() *obj.Prog {
 }
 
 // SetLineno sets the current source line number.
-func (s *SSAGenState) SetLineno(l int32) {
+func (s *SSAGenState) SetLineno(l src.Pos) {
 	lineno = l
 }
 
@@ -4955,7 +4958,7 @@ func (e *ssaExport) CanSSA(t ssa.Type) bool {
 	return canSSAType(t.(*Type))
 }
 
-func (e *ssaExport) Line(line int32) string {
+func (e *ssaExport) Line(line src.Pos) string {
 	return linestr(line)
 }
 
@@ -4971,14 +4974,14 @@ func (e *ssaExport) Log() bool {
 }
 
 // Fatal reports a compiler error and exits.
-func (e *ssaExport) Fatalf(line int32, msg string, args ...interface{}) {
+func (e *ssaExport) Fatalf(line src.Pos, msg string, args ...interface{}) {
 	lineno = line
 	Fatalf(msg, args...)
 }
 
 // Warnl reports a "warning", which is usually flag-triggered
 // logging output for the benefit of tests.
-func (e *ssaExport) Warnl(line int32, fmt_ string, args ...interface{}) {
+func (e *ssaExport) Warnl(line src.Pos, fmt_ string, args ...interface{}) {
 	Warnl(line, fmt_, args...)
 }
 

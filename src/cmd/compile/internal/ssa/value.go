@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/src"
 	"fmt"
 	"math"
 )
@@ -37,7 +38,7 @@ type Value struct {
 	Block *Block
 
 	// Source line number
-	Line int32
+	Line src.Pos
 
 	// Use count. Each appearance in Value.Args and Block.Control counts once.
 	Uses int32

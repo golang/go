@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"cmd/internal/src"
+	"fmt"
+)
 
 // Block represents a basic block in the control flow graph of a function.
 type Block struct {
@@ -13,7 +16,7 @@ type Block struct {
 	ID ID
 
 	// Line number for block's control operation
-	Line int32
+	Line src.Pos
 
 	// The kind of block this is.
 	Kind BlockKind

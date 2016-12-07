@@ -27,7 +27,10 @@
 
 package gc
 
-import "fmt"
+import (
+	"cmd/internal/src"
+	"fmt"
+)
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
@@ -1014,13 +1017,13 @@ func (subst *inlsubst) node(n *Node) *Node {
 }
 
 // Plaster over linenumbers
-func setlnolist(ll Nodes, lno int32) {
+func setlnolist(ll Nodes, lno src.Pos) {
 	for _, n := range ll.Slice() {
 		setlno(n, lno)
 	}
 }
 
-func setlno(n *Node, lno int32) {
+func setlno(n *Node, lno src.Pos) {
 	if n == nil {
 		return
 	}

@@ -6,6 +6,8 @@
 
 package gc
 
+import "cmd/internal/src"
+
 // A Node is a single node in the syntax tree.
 // Actually the syntax tree is a syntax DAG, because there is only one
 // node with Op=ONAME for a given instance of a variable x.
@@ -42,7 +44,7 @@ type Node struct {
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
-	Lineno int32
+	Lineno src.Pos
 
 	Esc uint16 // EscXXX
 
@@ -308,8 +310,8 @@ type Func struct {
 
 	Label int32 // largest auto-generated label in this function
 
-	Endlineno int32
-	WBLineno  int32 // line number of first write barrier
+	Endlineno src.Pos
+	WBLineno  src.Pos // line number of first write barrier
 
 	Pragma          Pragma // go:xxx function annotations
 	Dupok           bool   // duplicate definitions ok

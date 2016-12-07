@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/internal/bio"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 )
 
 const (
@@ -42,10 +43,10 @@ type Sym struct {
 
 	// saved and restored by dcopy
 	Pkg        *Pkg
-	Name       string // object name
-	Def        *Node  // definition: ONAME OTYPE OPACK or OLITERAL
-	Block      int32  // blocknumber to catch redeclaration
-	Lastlineno int32  // last declaration for diagnostic
+	Name       string  // object name
+	Def        *Node   // definition: ONAME OTYPE OPACK or OLITERAL
+	Block      int32   // blocknumber to catch redeclaration
+	Lastlineno src.Pos // last declaration for diagnostic
 
 	Label   *Node // corresponding label (ephemeral)
 	Origpkg *Pkg  // original package for . import
