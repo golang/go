@@ -118,7 +118,7 @@ func genregshift(as obj.As, r0, r1, r2, r int16, typ int64) *obj.Prog {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetLineno(v.Line)
+	s.SetPos(v.Line)
 	switch v.Op {
 	case ssa.OpInitMem:
 		// memory arg needs no code
@@ -861,7 +861,7 @@ var blockJump = map[ssa.BlockKind]struct {
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
-	s.SetLineno(b.Line)
+	s.SetPos(b.Line)
 
 	switch b.Kind {
 	case ssa.BlockPlain:

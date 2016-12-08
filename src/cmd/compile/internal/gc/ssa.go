@@ -44,7 +44,7 @@ func buildssa(fn *Node) *ssa.Func {
 	}
 
 	var s state
-	s.pushLine(fn.Lineno)
+	s.pushLine(fn.Pos)
 	defer s.popLine()
 
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
@@ -54,8 +54,8 @@ func buildssa(fn *Node) *ssa.Func {
 		s.noWB = true
 	}
 	defer func() {
-		if s.WBLineno.IsKnown() {
-			fn.Func.WBLineno = s.WBLineno
+		if s.WBPos.IsKnown() {
+			fn.Func.WBPos = s.WBPos
 		}
 	}()
 	// TODO(khr): build config just once at the start of the compiler binary
@@ -146,11 +146,11 @@ func buildssa(fn *Node) *ssa.Func {
 	// Check that we used all labels
 	for name, lab := range s.labels {
 		if !lab.used() && !lab.reported && !lab.defNode.Used {
-			yyerrorl(lab.defNode.Lineno, "label %v defined and not used", name)
+			yyerrorl(lab.defNode.Pos, "label %v defined and not used", name)
 			lab.reported = true
 		}
 		if lab.used() && !lab.defined() && !lab.reported {
-			yyerrorl(lab.useNode.Lineno, "label %v not defined", name)
+			yyerrorl(lab.useNode.Pos, "label %v not defined", name)
 			lab.reported = true
 		}
 	}
@@ -243,7 +243,7 @@ type state struct {
 
 	cgoUnsafeArgs bool
 	noWB          bool
-	WBLineno      src.Pos // line number of first write barrier. 0=no write barriers
+	WBPos         src.Pos // line number of first write barrier. 0=no write barriers
 }
 
 type funcLine struct {
@@ -492,7 +492,7 @@ func (s *state) stmtList(l Nodes) {
 
 // stmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n *Node) {
-	s.pushLine(n.Lineno)
+	s.pushLine(n.Pos)
 	defer s.popLine()
 
 	// If s.curBlock is nil, then we're about to generate dead code.
@@ -558,8 +558,8 @@ func (s *state) stmt(n *Node) {
 			deref = true
 			res = res.Args[0]
 		}
-		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), deref, n.Lineno, 0, false)
-		s.assign(n.List.Second(), resok, false, false, n.Lineno, 0, false)
+		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), deref, n.Pos, 0, false)
+		s.assign(n.List.Second(), resok, false, false, n.Pos, 0, false)
 		return
 
 	case OAS2FUNC:
@@ -574,8 +574,8 @@ func (s *state) stmt(n *Node) {
 		// This is future-proofing against non-scalar 2-result intrinsics.
 		// Currently we only have scalar ones, which result in no write barrier.
 		fakeret := &Node{Op: OINDREGSP}
-		s.assign(n.List.First(), v1, needwritebarrier(n.List.First(), fakeret), false, n.Lineno, 0, false)
-		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second(), fakeret), false, n.Lineno, 0, false)
+		s.assign(n.List.First(), v1, needwritebarrier(n.List.First(), fakeret), false, n.Pos, 0, false)
+		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second(), fakeret), false, n.Pos, 0, false)
 		return
 
 	case ODCL:
@@ -605,7 +605,7 @@ func (s *state) stmt(n *Node) {
 		if !lab.defined() {
 			lab.defNode = n
 		} else {
-			s.Error("label %v already defined at %v", sym, linestr(lab.defNode.Lineno))
+			s.Error("label %v already defined at %v", sym, linestr(lab.defNode.Pos))
 			lab.reported = true
 		}
 		// The label might already have a target block via a goto.
@@ -690,13 +690,13 @@ func (s *state) stmt(n *Node) {
 				if samesafeexpr(n.Left, rhs.List.First()) {
 					if !s.canSSA(n.Left) {
 						if Debug_append > 0 {
-							Warnl(n.Lineno, "append: len-only update")
+							Warnl(n.Pos, "append: len-only update")
 						}
 						s.append(rhs, true)
 						return
 					} else {
 						if Debug_append > 0 { // replicating old diagnostic message
-							Warnl(n.Lineno, "append: len-only update (in local slice)")
+							Warnl(n.Pos, "append: len-only update (in local slice)")
 						}
 					}
 				}
@@ -759,7 +759,7 @@ func (s *state) stmt(n *Node) {
 			}
 		}
 
-		s.assign(n.Left, r, needwb, deref, n.Lineno, skip, isVolatile)
+		s.assign(n.Left, r, needwb, deref, n.Pos, skip, isVolatile)
 
 	case OIF:
 		bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -1435,7 +1435,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	if !(n.Op == ONAME || n.Op == OLITERAL && n.Sym != nil) {
 		// ONAMEs and named OLITERALs have the line number
 		// of the decl, not the use. See issue 14742.
-		s.pushLine(n.Lineno)
+		s.pushLine(n.Pos)
 		defer s.popLine()
 	}
 
@@ -1969,7 +1969,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
 
 	case OIND:
-		p := s.exprPtr(n.Left, false, n.Lineno)
+		p := s.exprPtr(n.Left, false, n.Pos)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case ODOT:
@@ -1982,7 +1982,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case ODOTPTR:
-		p := s.exprPtr(n.Left, false, n.Lineno)
+		p := s.exprPtr(n.Left, false, n.Pos)
 		p = s.newValue1I(ssa.OpOffPtr, p.Type, n.Xoffset, p)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
@@ -2223,7 +2223,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		if ssa.IsStackAddr(addr) {
 			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
 		} else {
-			s.insertWBstore(pt, addr, r[0], n.Lineno, 0)
+			s.insertWBstore(pt, addr, r[0], n.Pos, 0)
 		}
 		// load the value we just stored to avoid having to spill it
 		s.vars[&ptrVar] = s.newValue2(ssa.OpLoad, pt, addr, s.mem())
@@ -2278,13 +2278,13 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TINT], int64(i)))
 		if arg.store {
 			if haspointers(et) {
-				s.insertWBstore(et, addr, arg.v, n.Lineno, 0)
+				s.insertWBstore(et, addr, arg.v, n.Pos, 0)
 			} else {
 				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg.v, s.mem())
 			}
 		} else {
 			if haspointers(et) {
-				s.insertWBmove(et, addr, arg.v, n.Lineno, arg.isVolatile)
+				s.insertWBmove(et, addr, arg.v, n.Pos, arg.isVolatile)
 			} else {
 				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(et), addr, arg.v, s.mem())
 			}
@@ -2855,7 +2855,7 @@ func (s *state) intrinsicCall(n *Node) *ssa.Value {
 		if x.Op == ssa.OpSelect0 || x.Op == ssa.OpSelect1 {
 			x = x.Args[0]
 		}
-		Warnl(n.Lineno, "intrinsic substitution for %v with %s", n.Left.Sym.Name, x.LongString())
+		Warnl(n.Pos, "intrinsic substitution for %v with %s", n.Left.Sym.Name, x.LongString())
 	}
 	return v
 }
@@ -2945,7 +2945,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// We can then pass that to defer or go.
 		n2 := newname(fn.Sym)
 		n2.Class = PFUNC
-		n2.Lineno = fn.Lineno
+		n2.Pos = fn.Pos
 		n2.Type = Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
 		closure = s.expr(n2)
 		// Note: receiver is already assigned in n.List, so we don't
@@ -3146,12 +3146,12 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
 			return s.newValue2(ssa.OpPtrIndex, ptrto(n.Left.Type.Elem()), a, i), isVolatile
 		}
 	case OIND:
-		return s.exprPtr(n.Left, bounded, n.Lineno), false
+		return s.exprPtr(n.Left, bounded, n.Pos), false
 	case ODOT:
 		p, isVolatile := s.addr(n.Left, bounded)
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p), isVolatile
 	case ODOTPTR:
-		p := s.exprPtr(n.Left, bounded, n.Lineno)
+		p := s.exprPtr(n.Left, bounded, n.Pos)
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p), false
 	case OCLOSUREVAR:
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset,
@@ -3426,8 +3426,8 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line src.Pos, righ
 	if s.noWB {
 		s.Error("write barrier prohibited")
 	}
-	if !s.WBLineno.IsKnown() {
-		s.WBLineno = left.Line
+	if !s.WBPos.IsKnown() {
+		s.WBPos = left.Line
 	}
 
 	var val *ssa.Value
@@ -3467,8 +3467,8 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line src.Pos, ski
 	if s.noWB {
 		s.Error("write barrier prohibited")
 	}
-	if !s.WBLineno.IsKnown() {
-		s.WBLineno = left.Line
+	if !s.WBPos.IsKnown() {
+		s.WBPos = left.Line
 	}
 	s.storeTypeScalars(t, left, right, skip)
 	s.storeTypePtrsWB(t, left, right)
@@ -4062,7 +4062,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 			// Converting to an empty interface.
 			// Input could be an empty or nonempty interface.
 			if Debug_typeassert > 0 {
-				Warnl(n.Lineno, "type assertion inlined")
+				Warnl(n.Pos, "type assertion inlined")
 			}
 
 			// Get itab/type field from input.
@@ -4129,7 +4129,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		}
 		// converting to a nonempty interface needs a runtime call.
 		if Debug_typeassert > 0 {
-			Warnl(n.Lineno, "type assertion not inlined")
+			Warnl(n.Pos, "type assertion not inlined")
 		}
 		if n.Left.Type.IsEmptyInterface() {
 			if commaok {
@@ -4146,7 +4146,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	}
 
 	if Debug_typeassert > 0 {
-		Warnl(n.Lineno, "type assertion inlined")
+		Warnl(n.Pos, "type assertion inlined")
 	}
 
 	// Converting to a concrete type.
@@ -4154,7 +4154,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	typ := s.ifaceType(n.Left.Type, iface) // actual concrete type of input interface
 
 	if Debug_typeassert > 0 {
-		Warnl(n.Lineno, "type assertion inlined")
+		Warnl(n.Pos, "type assertion inlined")
 	}
 
 	var tmp *Node       // temporary for use with large types
@@ -4293,7 +4293,7 @@ func (s *state) checkgoto(from *Node, to *Node) {
 			fs = fs.Link
 		}
 
-		lno := from.Left.Lineno
+		lno := from.Left.Pos
 		if block != nil {
 			yyerrorl(lno, "goto %v jumps into block starting at %v", from.Left.Sym, linestr(block.Lastlineno))
 		} else {
@@ -4380,9 +4380,9 @@ func (s *SSAGenState) Pc() *obj.Prog {
 	return pc
 }
 
-// SetLineno sets the current source line number.
-func (s *SSAGenState) SetLineno(l src.Pos) {
-	lineno = l
+// SetPos sets the current source position.
+func (s *SSAGenState) SetPos(pos src.Pos) {
+	lineno = pos
 }
 
 // genssa appends entries to ptxt for each instruction in f.

@@ -840,7 +840,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	args := as.Rlist
 	as.Rlist.Set(nil)
 
-	setlno(call, n.Lineno)
+	setlno(call, n.Pos)
 
 	as.Rlist.Set(args.Slice())
 
@@ -1029,8 +1029,8 @@ func setlno(n *Node, lno src.Pos) {
 	}
 
 	// don't clobber names, unless they're freshly synthesized
-	if n.Op != ONAME || !n.Lineno.IsKnown() {
-		n.Lineno = lno
+	if n.Op != ONAME || !n.Pos.IsKnown() {
+		n.Pos = lno
 	}
 
 	setlno(n.Left, lno)

@@ -591,7 +591,7 @@ func (p *exporter) pos(n *Node) {
 
 func fileLine(n *Node) (file string, line int) {
 	if n != nil {
-		file, line = Ctxt.LineHist.AbsFileLine(int(n.Lineno.Line()))
+		file, line = Ctxt.LineHist.AbsFileLine(int(n.Pos.Line()))
 	}
 	return
 }
@@ -801,7 +801,7 @@ func (p *exporter) typ(t *Type) {
 		// for the issue.
 		if p.nesting > 100 {
 			p.int(0) // 0 methods to indicate empty interface
-			yyerrorl(t.Lineno, "cannot export unnamed recursive interface")
+			yyerrorl(t.Pos, "cannot export unnamed recursive interface")
 			break
 		}
 

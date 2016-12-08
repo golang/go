@@ -136,18 +136,18 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		return
 	}
 	if my.Name == "init" {
-		yyerrorl(pack.Lineno, "cannot import package as init - init must be a func")
+		yyerrorl(pack.Pos, "cannot import package as init - init must be a func")
 		return
 	}
 	if my.Name == "_" {
 		return
 	}
 	if my.Def != nil {
-		lineno = pack.Lineno
+		lineno = pack.Pos
 		redeclare(my, "as imported package name")
 	}
 	my.Def = pack
-	my.Lastlineno = pack.Lineno
+	my.Lastlineno = pack.Pos
 	my.Block = 1 // at top level
 }
 
@@ -991,7 +991,7 @@ func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
 		return dst
 	}
-	dst.Lineno = src.MakePos(p.baseline + int32(l) - 1)
+	dst.Pos = src.MakePos(p.baseline + int32(l) - 1)
 	return dst
 }
 

@@ -152,7 +152,7 @@ type Type struct {
 
 	Sym    *Sym    // symbol containing name, for named types
 	Vargen int32   // unique name for OTYPE/ONAME
-	Lineno src.Pos // line at which this type was declared, implicitly or explicitly
+	Pos    src.Pos // position at which this type was declared, implicitly or explicitly
 
 	Etype      EType // kind of type
 	Noalg      bool  // suppress hash and eq algorithm generation
@@ -376,9 +376,9 @@ func (f *Fields) Append(s ...*Field) {
 // typ returns a new Type of the specified kind.
 func typ(et EType) *Type {
 	t := &Type{
-		Etype:  et,
-		Width:  BADWIDTH,
-		Lineno: lineno,
+		Etype: et,
+		Width: BADWIDTH,
+		Pos:   lineno,
 	}
 	t.Orig = t
 	// TODO(josharian): lazily initialize some of these?
