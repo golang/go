@@ -2777,7 +2777,7 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
 		/* type */
 		t := STB_GLOBAL << 4
 
-		// TODO(mwhudson): presumably the behaviour should actually be the same on both arm and 386.
+		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
 		if SysArch.Family == sys.I386 && s.Attr.CgoExport() && s.Type&obj.SMASK == obj.STEXT {
 			t |= STT_FUNC
 		} else if SysArch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type&obj.SMASK == obj.STEXT {

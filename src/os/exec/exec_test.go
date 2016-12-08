@@ -978,7 +978,7 @@ func TestContextCancel(t *testing.T) {
 			break
 		}
 		if time.Since(start) > time.Second {
-			t.Fatal("cancelling context did not stop program")
+			t.Fatal("canceling context did not stop program")
 		}
 		time.Sleep(time.Millisecond)
 	}

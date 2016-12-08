@@ -1250,7 +1250,7 @@ func (p *GCProg) AddSym(s *Symbol) {
 }
 
 // dataSortKey is used to sort a slice of data symbol *Symbol pointers.
-// The sort keys are kept inline to improve cache behaviour while sorting.
+// The sort keys are kept inline to improve cache behavior while sorting.
 type dataSortKey struct {
 	size int64
 	name string

@@ -179,7 +179,7 @@ func panicnildottype(want *_type) {
 
 // The conv and assert functions below do very similar things.
 // The convXXX functions are guaranteed by the compiler to succeed.
-// The assertXXX functions may fail (either panicing or returning false,
+// The assertXXX functions may fail (either panicking or returning false,
 // depending on whether they are 1-result or 2-result).
 // The convXXX functions succeed on a nil input, whereas the assertXXX
 // functions fail on a nil input.
