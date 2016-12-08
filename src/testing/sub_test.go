@@ -6,7 +6,6 @@ package testing
 
 import (
 	"bytes"
-	"context"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -278,33 +277,28 @@ func TestTRun(t *T) {
 		ok:     true,
 		maxPar: 4,
 		f: func(t *T) {
-			// t.Parallel doesn't work in the pseudo-T we start with:
-			// it leaks a goroutine.
-			// Call t.Run to get a real one.
-			t.Run("X", func(t *T) {
-				t.Parallel()
-				for i := 0; i < 12; i++ {
-					t.Run("a", func(t *T) {
-						t.Parallel()
-						time.Sleep(time.Nanosecond)
-						for i := 0; i < 12; i++ {
-							t.Run("b", func(t *T) {
-								time.Sleep(time.Nanosecond)
-								for i := 0; i < 12; i++ {
-									t.Run("c", func(t *T) {
-										t.Parallel()
-										time.Sleep(time.Nanosecond)
-										t.Run("d1", func(t *T) {})
-										t.Run("d2", func(t *T) {})
-										t.Run("d3", func(t *T) {})
-										t.Run("d4", func(t *T) {})
-									})
-								}
-							})
-						}
-					})
-				}
-			})
+			t.Parallel()
+			for i := 0; i < 12; i++ {
+				t.Run("a", func(t *T) {
+					t.Parallel()
+					time.Sleep(time.Nanosecond)
+					for i := 0; i < 12; i++ {
+						t.Run("b", func(t *T) {
+							time.Sleep(time.Nanosecond)
+							for i := 0; i < 12; i++ {
+								t.Run("c", func(t *T) {
+									t.Parallel()
+									time.Sleep(time.Nanosecond)
+									t.Run("d1", func(t *T) {})
+									t.Run("d2", func(t *T) {})
+									t.Run("d3", func(t *T) {})
+									t.Run("d4", func(t *T) {})
+								})
+							}
+						})
+					}
+				})
+			}
 		},
 	}, {
 		desc:   "skip output",
@@ -347,7 +341,6 @@ func TestTRun(t *T) {
 			},
 			context: ctx,
 		}
-		root.ctx, root.cancel = context.WithCancel(context.Background())
 		ok := root.Run(tc.desc, tc.f)
 		ctx.release()
 
