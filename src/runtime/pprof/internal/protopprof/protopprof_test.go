@@ -169,3 +169,100 @@ func TestTranslateCPUProfileWithSamples(t *testing.T) {
 			getSampleAsString(p.Sample))
 	}
 }
+
+type fakeFunc struct {
+	name   string
+	file   string
+	lineno int
+}
+
+func (f *fakeFunc) Name() string {
+	return f.name
+}
+func (f *fakeFunc) FileLine(_ uintptr) (string, int) {
+	return f.file, f.lineno
+}
+
+// TestRuntimeFunctionTrimming tests if symbolize trims runtime functions as intended.
+func TestRuntimeRunctionTrimming(t *testing.T) {
+	fakeFuncMap := map[uintptr]*fakeFunc{
+		0x10: &fakeFunc{"runtime.goexit", "runtime.go", 10},
+		0x20: &fakeFunc{"runtime.other", "runtime.go", 20},
+		0x30: &fakeFunc{"foo", "foo.go", 30},
+		0x40: &fakeFunc{"bar", "bar.go", 40},
+	}
+	backupFuncForPC := funcForPC
+	funcForPC = func(pc uintptr) function {
+		return fakeFuncMap[pc]
+	}
+	defer func() {
+		funcForPC = backupFuncForPC
+	}()
+	testLoc := []*profile.Location{
+		{ID: 1, Address: 0x10},
+		{ID: 2, Address: 0x20},
+		{ID: 3, Address: 0x30},
+		{ID: 4, Address: 0x40},
+	}
+	testProfile := &profile.Profile{
+		Sample: []*profile.Sample{
+			{Location: []*profile.Location{testLoc[0], testLoc[1], testLoc[3], testLoc[2]}},
+			{Location: []*profile.Location{testLoc[1], testLoc[3], testLoc[2]}},
+			{Location: []*profile.Location{testLoc[3], testLoc[2], testLoc[1]}},
+			{Location: []*profile.Location{testLoc[3], testLoc[2], testLoc[0]}},
+			{Location: []*profile.Location{testLoc[0], testLoc[1], testLoc[3], testLoc[0]}},
+		},
+		Location: testLoc,
+	}
+	testProfiles := make([]*profile.Profile, 2)
+	testProfiles[0] = testProfile.Copy()
+	testProfiles[1] = testProfile.Copy()
+	// Test case for profilez.
+	testProfiles[0].PeriodType = &profile.ValueType{Type: "cpu", Unit: "nanoseconds"}
+	// Test case for heapz.
+	testProfiles[1].PeriodType = &profile.ValueType{Type: "space", Unit: "bytes"}
+	wantFunc := []*profile.Function{
+		{ID: 1, Name: "runtime.goexit", SystemName: "runtime.goexit", Filename: "runtime.go"},
+		{ID: 2, Name: "runtime.other", SystemName: "runtime.other", Filename: "runtime.go"},
+		{ID: 3, Name: "foo", SystemName: "foo", Filename: "foo.go"},
+		{ID: 4, Name: "bar", SystemName: "bar", Filename: "bar.go"},
+	}
+	wantLoc := []*profile.Location{
+		{ID: 1, Address: 0x10, Line: []profile.Line{{Function: wantFunc[0], Line: 10}}},
+		{ID: 2, Address: 0x20, Line: []profile.Line{{Function: wantFunc[1], Line: 20}}},
+		{ID: 3, Address: 0x30, Line: []profile.Line{{Function: wantFunc[2], Line: 30}}},
+		{ID: 4, Address: 0x40, Line: []profile.Line{{Function: wantFunc[3], Line: 40}}},
+	}
+	wantProfiles := []*profile.Profile{
+		{
+			PeriodType: &profile.ValueType{Type: "cpu", Unit: "nanoseconds"},
+			Sample: []*profile.Sample{
+				{Location: []*profile.Location{wantLoc[1], wantLoc[3], wantLoc[2]}},
+				{Location: []*profile.Location{wantLoc[1], wantLoc[3], wantLoc[2]}},
+				{Location: []*profile.Location{wantLoc[3], wantLoc[2], wantLoc[1]}},
+				{Location: []*profile.Location{wantLoc[3], wantLoc[2]}},
+				{Location: []*profile.Location{wantLoc[1], wantLoc[3]}},
+			},
+			Location: wantLoc,
+			Function: wantFunc,
+		},
+		{
+			PeriodType: &profile.ValueType{Type: "space", Unit: "bytes"},
+			Sample: []*profile.Sample{
+				{Location: []*profile.Location{wantLoc[3], wantLoc[2]}},
+				{Location: []*profile.Location{wantLoc[3], wantLoc[2]}},
+				{Location: []*profile.Location{wantLoc[3], wantLoc[2], wantLoc[1]}},
+				{Location: []*profile.Location{wantLoc[3], wantLoc[2]}},
+				{Location: []*profile.Location{wantLoc[3]}},
+			},
+			Location: wantLoc,
+			Function: wantFunc,
+		},
+	}
+	for i := 0; i < 2; i++ {
+		symbolize(testProfiles[i])
+		if !reflect.DeepEqual(testProfiles[i], wantProfiles[i]) {
+			t.Errorf("incorrect trimming (testcase = %d): got {%v}, want {%v}", i, testProfiles[i], wantProfiles[i])
+		}
+	}
+}
