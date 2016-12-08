@@ -17,17 +17,37 @@ import (
 // Encoder configures encoding PNG images.
 type Encoder struct {
 	CompressionLevel CompressionLevel
+
+	// BufferPool optionally specifies a buffer pool to get temporary
+	// EncoderBuffers when encoding an image.
+	BufferPool EncoderBufferPool
 }
 
+// EncoderBufferPool is an interface for getting and returning temporary
+// instances of the EncoderBuffer struct. This can be used to reuse buffers
+// when encoding multiple images.
+type EncoderBufferPool interface {
+	Get() *EncoderBuffer
+	Put(*EncoderBuffer)
+}
+
+// EncoderBuffer holds the buffers used for encoding PNG images.
+type EncoderBuffer encoder
+
 type encoder struct {
-	enc    *Encoder
-	w      io.Writer
-	m      image.Image
-	cb     int
-	err    error
-	header [8]byte
-	footer [4]byte
-	tmp    [4 * 256]byte
+	enc     *Encoder
+	w       io.Writer
+	m       image.Image
+	cb      int
+	err     error
+	header  [8]byte
+	footer  [4]byte
+	tmp     [4 * 256]byte
+	cr      [nFilter][]uint8
+	pr      []uint8
+	zw      *zlib.Writer
+	zwLevel int
+	bw      *bufio.Writer
 }
 
 type CompressionLevel int
@@ -273,12 +293,24 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
 	return filter
 }
 
-func writeImage(w io.Writer, m image.Image, cb int, level int) error {
-	zw, err := zlib.NewWriterLevel(w, level)
-	if err != nil {
-		return err
+func zeroMemory(v []uint8) {
+	for i := range v {
+		v[i] = 0
 	}
-	defer zw.Close()
+}
+
+func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) error {
+	if e.zw == nil || e.zwLevel != level {
+		zw, err := zlib.NewWriterLevel(w, level)
+		if err != nil {
+			return err
+		}
+		e.zw = zw
+		e.zwLevel = level
+	} else {
+		e.zw.Reset(w)
+	}
+	defer e.zw.Close()
 
 	bpp := 0 // Bytes per pixel.
 
@@ -304,12 +336,23 @@ func writeImage(w io.Writer, m image.Image, cb int, level int) error {
 	// other PNG filter types. These buffers are allocated once and re-used for each row.
 	// The +1 is for the per-row filter type, which is at cr[*][0].
 	b := m.Bounds()
-	var cr [nFilter][]uint8
-	for i := range cr {
-		cr[i] = make([]uint8, 1+bpp*b.Dx())
-		cr[i][0] = uint8(i)
+	sz := 1 + bpp*b.Dx()
+	for i := range e.cr {
+		if cap(e.cr[i]) < sz {
+			e.cr[i] = make([]uint8, sz)
+		} else {
+			e.cr[i] = e.cr[i][:sz]
+		}
+		e.cr[i][0] = uint8(i)
 	}
-	pr := make([]uint8, 1+bpp*b.Dx())
+	cr := e.cr
+	if cap(e.pr) < sz {
+		e.pr = make([]uint8, sz)
+	} else {
+		e.pr = e.pr[:sz]
+		zeroMemory(e.pr)
+	}
+	pr := e.pr
 
 	gray, _ := m.(*image.Gray)
 	rgba, _ := m.(*image.RGBA)
@@ -429,7 +472,7 @@ func writeImage(w io.Writer, m image.Image, cb int, level int) error {
 		}
 
 		// Write the compressed bytes.
-		if _, err := zw.Write(cr[f]); err != nil {
+		if _, err := e.zw.Write(cr[f]); err != nil {
 			return err
 		}
 
@@ -444,13 +487,16 @@ func (e *encoder) writeIDATs() {
 	if e.err != nil {
 		return
 	}
-	var bw *bufio.Writer
-	bw = bufio.NewWriterSize(e, 1<<15)
-	e.err = writeImage(bw, e.m, e.cb, levelToZlib(e.enc.CompressionLevel))
+	if e.bw == nil {
+		e.bw = bufio.NewWriterSize(e, 1<<15)
+	} else {
+		e.bw.Reset(e)
+	}
+	e.err = e.writeImage(e.bw, e.m, e.cb, levelToZlib(e.enc.CompressionLevel))
 	if e.err != nil {
 		return
 	}
-	e.err = bw.Flush()
+	e.err = e.bw.Flush()
 }
 
 // This function is required because we want the zero value of
@@ -489,7 +535,19 @@ func (enc *Encoder) Encode(w io.Writer, m image.Image) error {
 		return FormatError("invalid image size: " + strconv.FormatInt(mw, 10) + "x" + strconv.FormatInt(mh, 10))
 	}
 
-	var e encoder
+	var e *encoder
+	if enc.BufferPool != nil {
+		buffer := enc.BufferPool.Get()
+		e = (*encoder)(buffer)
+
+	}
+	if e == nil {
+		e = &encoder{}
+	}
+	if enc.BufferPool != nil {
+		defer enc.BufferPool.Put((*EncoderBuffer)(e))
+	}
+
 	e.enc = enc
 	e.w = w
 	e.m = m

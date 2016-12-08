@@ -130,6 +130,31 @@ func BenchmarkEncodeGray(b *testing.B) {
 	}
 }
 
+type pool struct {
+	b *EncoderBuffer
+}
+
+func (p *pool) Get() *EncoderBuffer {
+	return p.b
+}
+
+func (p *pool) Put(b *EncoderBuffer) {
+	p.b = b
+}
+
+func BenchmarkEncodeGrayWithBufferPool(b *testing.B) {
+	b.StopTimer()
+	img := image.NewGray(image.Rect(0, 0, 640, 480))
+	e := Encoder{
+		BufferPool: &pool{},
+	}
+	b.SetBytes(640 * 480 * 1)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		e.Encode(ioutil.Discard, img)
+	}
+}
+
 func BenchmarkEncodeNRGBOpaque(b *testing.B) {
 	b.StopTimer()
 	img := image.NewNRGBA(image.Rect(0, 0, 640, 480))
