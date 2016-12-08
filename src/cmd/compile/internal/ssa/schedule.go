@@ -47,7 +47,7 @@ func (h ValHeap) Less(i, j int) bool {
 		return c > 0 // higher score comes later.
 	}
 	if x.Line != y.Line { // Favor in-order line stepping
-		return x.Line > y.Line
+		return x.Line.After(y.Line)
 	}
 	if x.Op != OpPhi {
 		if c := len(x.Args) - len(y.Args); c != 0 {

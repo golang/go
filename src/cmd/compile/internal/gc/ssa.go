@@ -54,7 +54,7 @@ func buildssa(fn *Node) *ssa.Func {
 		s.noWB = true
 	}
 	defer func() {
-		if s.WBLineno != 0 {
+		if s.WBLineno.IsKnown() {
 			fn.Func.WBLineno = s.WBLineno
 		}
 	}()
@@ -332,12 +332,12 @@ func (s *state) endBlock() *ssa.Block {
 
 // pushLine pushes a line number on the line number stack.
 func (s *state) pushLine(line src.Pos) {
-	if line == 0 {
+	if !line.IsKnown() {
 		// the frontend may emit node with line number missing,
 		// use the parent line number in this case.
 		line = s.peekLine()
 		if Debug['K'] != 0 {
-			Warn("buildssa: line 0")
+			Warn("buildssa: unknown position (line 0)")
 		}
 	}
 	s.line = append(s.line, line)
@@ -3263,7 +3263,7 @@ func canSSAType(t *Type) bool {
 func (s *state) exprPtr(n *Node, bounded bool, lineno src.Pos) *ssa.Value {
 	p := s.expr(n)
 	if bounded || n.NonNil {
-		if s.f.Config.Debug_checknil() && lineno > 1 {
+		if s.f.Config.Debug_checknil() && lineno.Line() > 1 {
 			s.f.Config.Warnl(lineno, "removed nil check")
 		}
 		return p
@@ -3426,7 +3426,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line src.Pos, righ
 	if s.noWB {
 		s.Error("write barrier prohibited")
 	}
-	if s.WBLineno == 0 {
+	if !s.WBLineno.IsKnown() {
 		s.WBLineno = left.Line
 	}
 
@@ -3467,7 +3467,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line src.Pos, ski
 	if s.noWB {
 		s.Error("write barrier prohibited")
 	}
-	if s.WBLineno == 0 {
+	if !s.WBLineno.IsKnown() {
 		s.WBLineno = left.Line
 	}
 	s.storeTypeScalars(t, left, right, skip)

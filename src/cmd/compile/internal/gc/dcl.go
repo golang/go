@@ -114,7 +114,7 @@ func testdclstack() {
 
 // redeclare emits a diagnostic about symbol s being redeclared somewhere.
 func redeclare(s *Sym, where string) {
-	if s.Lastlineno == 0 {
+	if !s.Lastlineno.IsKnown() {
 		var tmp string
 		if s.Origpkg != nil {
 			tmp = s.Origpkg.Path
@@ -288,7 +288,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 // declare constants from grammar
 // new_name_list [[type] = expr_list]
 func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
-	lno := src.Pos(0) // default is to leave line number alone in listtreecopy
+	var lno src.Pos // default is to leave line number alone in listtreecopy
 	if len(cl) == 0 {
 		if t != nil {
 			yyerror("const declaration cannot have type without expression")
@@ -719,7 +719,7 @@ func checkembeddedtype(t *Type) {
 
 	if t.IsPtr() || t.IsUnsafePtr() {
 		yyerror("embedded type cannot be a pointer")
-	} else if t.Etype == TFORW && t.ForwardType().Embedlineno == 0 {
+	} else if t.Etype == TFORW && !t.ForwardType().Embedlineno.IsKnown() {
 		t.ForwardType().Embedlineno = lineno
 	}
 }
@@ -1355,7 +1355,7 @@ func checknowritebarrierrec() {
 	visitBottomUp(xtop, func(list []*Node, recursive bool) {
 		// Functions with write barriers have depth 0.
 		for _, n := range list {
-			if n.Func.WBLineno != 0 && n.Func.Pragma&Yeswritebarrierrec == 0 {
+			if n.Func.WBLineno.IsKnown() && n.Func.Pragma&Yeswritebarrierrec == 0 {
 				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBLineno}
 			}
 		}
@@ -1373,7 +1373,7 @@ func checknowritebarrierrec() {
 					// yeswritebarrierrec function.
 					continue
 				}
-				if n.Func.WBLineno == 0 {
+				if !n.Func.WBLineno.IsKnown() {
 					c.curfn = n
 					c.visitcodelist(n.Nbody)
 				}

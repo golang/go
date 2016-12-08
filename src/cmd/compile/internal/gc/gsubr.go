@@ -40,12 +40,12 @@ func Prog(as obj.As) *obj.Prog {
 	Clearp(pc)
 	p.Link = pc
 
-	if lineno == 0 && Debug['K'] != 0 {
-		Warn("prog: line 0")
+	if !lineno.IsKnown() && Debug['K'] != 0 {
+		Warn("prog: unknown position (line 0)")
 	}
 
 	p.As = as
-	p.Lineno = int32(lineno) // TODO(gri) fix this
+	p.Lineno = int32(lineno.Line()) // TODO(gri) fix this
 	return p
 }
 

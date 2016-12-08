@@ -1029,7 +1029,7 @@ func setlno(n *Node, lno src.Pos) {
 	}
 
 	// don't clobber names, unless they're freshly synthesized
-	if n.Op != ONAME || n.Lineno == 0 {
+	if n.Op != ONAME || !n.Lineno.IsKnown() {
 		n.Lineno = lno
 	}
 

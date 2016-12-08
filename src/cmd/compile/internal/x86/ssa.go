@@ -788,7 +788,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
-		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+		if gc.Debug_checknil != 0 && v.Line.Line() > 1 { // v.Line==1 in generated wrappers
 			gc.Warnl(v.Line, "generated nil check")
 		}
 	case ssa.Op386FCHS:

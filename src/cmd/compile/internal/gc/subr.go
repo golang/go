@@ -56,7 +56,7 @@ func adderr(line src.Pos, format string, args ...interface{}) {
 type byLineno []Error
 
 func (x byLineno) Len() int           { return len(x) }
-func (x byLineno) Less(i, j int) bool { return x[i].lineno < x[j].lineno }
+func (x byLineno) Less(i, j int) bool { return x[i].lineno.Before(x[j].lineno) }
 func (x byLineno) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 // flusherrors sorts errors seen so far by line number, prints them to stdout,
@@ -87,7 +87,7 @@ func hcrash() {
 }
 
 func linestr(line src.Pos) string {
-	return Ctxt.Line(int(line))
+	return Ctxt.Line(int(line.Line()))
 }
 
 // lasterror keeps track of the most recently issued error.
@@ -184,21 +184,21 @@ func linehistpush(file string) {
 	if Debug['i'] != 0 {
 		fmt.Printf("import %s at line %v\n", file, linestr(lexlineno))
 	}
-	Ctxt.LineHist.Push(int(lexlineno), file)
+	Ctxt.LineHist.Push(int(lexlineno.Line()), file)
 }
 
 func linehistpop() {
 	if Debug['i'] != 0 {
 		fmt.Printf("end of import at line %v\n", linestr(lexlineno))
 	}
-	Ctxt.LineHist.Pop(int(lexlineno))
+	Ctxt.LineHist.Pop(int(lexlineno.Line()))
 }
 
 func linehistupdate(file string, off int) {
 	if Debug['i'] != 0 {
 		fmt.Printf("line %s at line %v\n", file, linestr(lexlineno))
 	}
-	Ctxt.LineHist.Update(int(lexlineno), file, off)
+	Ctxt.LineHist.Update(int(lexlineno.Line()), file, off)
 }
 
 func setlineno(n *Node) src.Pos {
@@ -216,9 +216,9 @@ func setlineno(n *Node) src.Pos {
 
 		default:
 			lineno = n.Lineno
-			if lineno == 0 {
+			if !lineno.IsKnown() {
 				if Debug['K'] != 0 {
-					Warn("setlineno: line 0")
+					Warn("setlineno: unknown position (line 0)")
 				}
 				lineno = lno
 			}
@@ -488,7 +488,7 @@ func treecopy(n *Node, lineno src.Pos) *Node {
 		m.Left = treecopy(n.Left, lineno)
 		m.Right = treecopy(n.Right, lineno)
 		m.List.Set(listtreecopy(n.List.Slice(), lineno))
-		if lineno != 0 {
+		if lineno.IsKnown() {
 			m.Lineno = lineno
 		}
 		if m.Name != nil && n.Op != ODCLFIELD {
@@ -504,7 +504,7 @@ func treecopy(n *Node, lineno src.Pos) *Node {
 			// so that all the copies of this const definition
 			// don't have the same iota value.
 			m := *n
-			if lineno != 0 {
+			if lineno.IsKnown() {
 				m.Lineno = lineno
 			}
 			m.SetIota(iota_)
@@ -1714,7 +1714,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
 	}
 
-	lexlineno++
+	lexlineno = src.MakePos(lexlineno.Line() + 1)
 	lineno = lexlineno
 	if genwrapper_linehistdone == 0 {
 		// All the wrappers can share the same linehist entry.
