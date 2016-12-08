@@ -89,10 +89,10 @@ type Logger interface {
 	Log() bool
 
 	// Fatal reports a compiler error and exits.
-	Fatalf(line src.Pos, msg string, args ...interface{})
+	Fatalf(pos src.Pos, msg string, args ...interface{})
 
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
-	Warnl(line src.Pos, fmt_ string, args ...interface{})
+	Warnl(pos src.Pos, fmt_ string, args ...interface{})
 
 	// Fowards the Debug flags from gc
 	Debug_checknil() bool
@@ -120,7 +120,7 @@ type Frontend interface {
 	SplitArray(LocalSlot) LocalSlot              // array must be length 1
 	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
 
-	// Line returns a string describing the given line number.
+	// Line returns a string describing the given position.
 	Line(src.Pos) string
 
 	// AllocFrame assigns frame offsets to all live auto variables.
@@ -339,12 +339,10 @@ func (c *Config) NewFunc() *Func {
 	return f
 }
 
-func (c *Config) Logf(msg string, args ...interface{}) { c.fe.Logf(msg, args...) }
-func (c *Config) Log() bool                            { return c.fe.Log() }
-func (c *Config) Fatalf(line src.Pos, msg string, args ...interface{}) {
-	c.fe.Fatalf(line, msg, args...)
-}
-func (c *Config) Warnl(line src.Pos, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
+func (c *Config) Logf(msg string, args ...interface{})                { c.fe.Logf(msg, args...) }
+func (c *Config) Log() bool                                           { return c.fe.Log() }
+func (c *Config) Fatalf(pos src.Pos, msg string, args ...interface{}) { c.fe.Fatalf(pos, msg, args...) }
+func (c *Config) Warnl(pos src.Pos, msg string, args ...interface{})  { c.fe.Warnl(pos, msg, args...) }
 func (c *Config) Debug_checknil() bool                                { return c.fe.Debug_checknil() }
 func (c *Config) Debug_wb() bool                                      { return c.fe.Debug_wb() }
 
