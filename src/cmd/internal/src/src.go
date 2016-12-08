@@ -18,6 +18,9 @@ type Pos struct {
 	line int32
 }
 
+// NoPos is a valid unknown position.
+var NoPos Pos
+
 // MakePos creates a new Pos from a line index.
 // It requires intimate knowledge of the underlying
 // implementation and should be used with caution.

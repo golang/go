@@ -66,7 +66,7 @@ func (s *sparseMap) setBit(k ID, v uint) {
 		s.dense[i].val |= 1 << v
 		return
 	}
-	s.dense = append(s.dense, sparseEntry{k, 1 << v, src.Pos{}})
+	s.dense = append(s.dense, sparseEntry{k, 1 << v, src.NoPos})
 	s.sparse[k] = int32(len(s.dense)) - 1
 }
 
