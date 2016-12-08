@@ -252,14 +252,17 @@ It has moved to the “tools” repository and is now available at
 
 <h3 id="tool_trace">Trace</h3>
 
-<p>TODO:</p>
-<pre>
-cmd/trace: add option to output pprof files (CL 23324)
-cmd/trace: fix a runnable goroutine count bug (CL 25552)
-cmd/trace: move process-wide GC events to their own row (CL 30017)
-internal/trace: fix analysis of EvGoWaiting/EvGoInSyscall events (CL 25572)
-cmd/trace: annotate different mark worker types (CL 30702)
-</pre>
+<p> <!-- CL 23324 -->
+  The <code>trace</code> tool has a new <code>-pprof</code> flag for
+  producing pprof-compatible blocking and latency profiles from an
+  execution trace.
+</p>
+
+<p> <!-- CL 30017, CL 30702 -->
+  Garbage collection events are now shown more clearly in the
+  execution trace viewer. Garbage collection activity is shown on its
+  own row and GC helper goroutines are annotated with their roles.
+</p>
 
 <h3 id="tool_vet">Vet</h3>
 
