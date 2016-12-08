@@ -646,7 +646,7 @@ func startpanic_m() {
 		freezetheworld()
 		return
 	case 1:
-		// Something failed while panicing, probably the print of the
+		// Something failed while panicking, probably the print of the
 		// argument to panic().  Just print a stack trace and exit.
 		_g_.m.dying = 2
 		print("panic during panic\n")
