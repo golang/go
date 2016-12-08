@@ -11,7 +11,7 @@ import (
 )
 
 func (n *Node) Line() string {
-	return Ctxt.LineHist.LineString(int(n.Lineno.Line()))
+	return Ctxt.LineHist.LineString(int(n.Pos.Line()))
 }
 
 var atExitFuncs []func()

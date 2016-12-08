@@ -504,7 +504,7 @@ func escAnalyze(all []*Node, recursive bool) {
 			if n.Esc != escapes[i] {
 				done = false
 				if Debug['m'] > 2 {
-					Warnl(n.Lineno, "Reflooding %v %S", e.curfnSym(n), n)
+					Warnl(n.Pos, "Reflooding %v %S", e.curfnSym(n), n)
 				}
 				escapes[i] = n.Esc
 				e.escflood(n)
@@ -525,7 +525,7 @@ func escAnalyze(all []*Node, recursive bool) {
 	if Debug['m'] != 0 {
 		for _, n := range e.noesc {
 			if n.Esc == EscNone {
-				Warnl(n.Lineno, "%v %S does not escape", e.curfnSym(n), n)
+				Warnl(n.Pos, "%v %S does not escape", e.curfnSym(n), n)
 			}
 		}
 	}
@@ -678,7 +678,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= 1<<16 ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
 		if Debug['m'] > 2 {
-			Warnl(n.Lineno, "%v is too large for stack", n)
+			Warnl(n.Pos, "%v is too large for stack", n)
 		}
 		n.Esc = EscHeap
 		addrescapes(n)
@@ -778,7 +778,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
 			// that b does not escape when b contents do.
 			if Debug['m'] != 0 {
-				Warnl(n.Lineno, "%v ignoring self-assignment to %S", e.curfnSym(n), n.Left)
+				Warnl(n.Pos, "%v ignoring self-assignment to %S", e.curfnSym(n), n.Left)
 			}
 
 			break
@@ -882,7 +882,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 			slice2 := n.List.Second()
 			e.escassignDereference(&e.theSink, slice2, e.stepAssignWhere(n, slice2, "appended slice...", n)) // lose track of assign of dereference
 			if Debug['m'] > 3 {
-				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %S", e.curfnSym(n), n)
+				Warnl(n.Pos, "%v special treatment of append(slice1, slice2...) %S", e.curfnSym(n), n)
 			}
 		}
 		e.escassignDereference(&e.theSink, n.List.First(), e.stepAssignWhere(n, n.List.First(), "appendee slice", n)) // The original elements are now leaked, too
@@ -952,7 +952,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 			a := v.Name.Defn
 			if !v.Name.Byval {
 				a = nod(OADDR, a, nil)
-				a.Lineno = v.Lineno
+				a.Pos = v.Pos
 				e.nodeEscState(a).Loopdepth = e.loopdepth
 				a = typecheck(a, Erv)
 			}
@@ -1145,7 +1145,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 		// OCLOSURE is lowered to OPTRLIT,
 		// insert OADDR to account for the additional indirection.
 		a := nod(OADDR, src, nil)
-		a.Lineno = src.Lineno
+		a.Pos = src.Pos
 		e.nodeEscState(a).Loopdepth = e.nodeEscState(src).Loopdepth
 		a.Type = ptrto(src.Type)
 		e.escflows(dst, a, e.stepAssign(nil, originalDst, src, dstwhy))
@@ -1383,7 +1383,7 @@ func (e *EscState) escassignDereference(dst *Node, src *Node, step *EscStep) {
 func (e *EscState) addDereference(n *Node) *Node {
 	ind := nod(OIND, n, nil)
 	e.nodeEscState(ind).Loopdepth = e.nodeEscState(n).Loopdepth
-	ind.Lineno = n.Lineno
+	ind.Pos = n.Pos
 	t := n.Type
 	if t.IsKind(Tptr) {
 		// This should model our own sloppy use of OIND to encode
@@ -1441,7 +1441,7 @@ func (e *EscState) initEscRetval(call *Node, fntype *Type) {
 		ret.Name.Curfn = Curfn
 		e.nodeEscState(ret).Loopdepth = e.loopdepth
 		ret.Used = true
-		ret.Lineno = call.Lineno
+		ret.Pos = call.Pos
 		cE.Retval.Append(ret)
 	}
 }
@@ -1546,7 +1546,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 					arg = nod(ODDDARG, nil, nil)
 					arr := typArray(n.Type.Elem(), int64(len(args)))
 					arg.Type = ptrto(arr) // make pointer so it will be tracked
-					arg.Lineno = call.Lineno
+					arg.Pos = call.Pos
 					e.track(arg)
 					call.Right = arg
 				}
@@ -1607,7 +1607,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 		if param.Isddd && !call.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
 			arg = nod(ODDDARG, nil, nil)
-			arg.Lineno = call.Lineno
+			arg.Pos = call.Pos
 			arr := typArray(param.Type.Elem(), int64(len(args)-i))
 			arg.Type = ptrto(arr) // make pointer so it will be tracked
 			e.track(arg)
@@ -1757,7 +1757,7 @@ func (es *EscStep) describe(src *Node) {
 		if where == nil {
 			where = dst
 		}
-		Warnl(src.Lineno, "\tfrom %v (%s) at %s", dst, step.why, where.Line())
+		Warnl(src.Pos, "\tfrom %v (%s) at %s", dst, step.why, where.Line())
 	}
 	for step := step0; step != nil && step.busy; step = step.parent {
 		step.busy = false
@@ -1821,10 +1821,10 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 		// 4. return *in
 		if Debug['m'] != 0 {
 			if Debug['m'] <= 2 {
-				Warnl(src.Lineno, "leaking param: %S to result %v level=%v", src, dst.Sym, level.int())
+				Warnl(src.Pos, "leaking param: %S to result %v level=%v", src, dst.Sym, level.int())
 				step.describe(src)
 			} else {
-				Warnl(src.Lineno, "leaking param: %S to result %v level=%v", src, dst.Sym, level)
+				Warnl(src.Pos, "leaking param: %S to result %v level=%v", src, dst.Sym, level)
 			}
 		}
 		if src.Esc&EscMask != EscReturn {
@@ -1841,7 +1841,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 		level.int() > 0 {
 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 		if Debug['m'] != 0 {
-			Warnl(src.Lineno, "mark escaped content: %S", src)
+			Warnl(src.Pos, "mark escaped content: %S", src)
 			step.describe(src)
 		}
 	}
@@ -1858,11 +1858,11 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 				if Debug['m'] != 0 {
 					if Debug['m'] <= 2 {
 						if osrcesc != src.Esc {
-							Warnl(src.Lineno, "leaking param content: %S", src)
+							Warnl(src.Pos, "leaking param content: %S", src)
 							step.describe(src)
 						}
 					} else {
-						Warnl(src.Lineno, "leaking param content: %S level=%v dst.eld=%v src.eld=%v dst=%S",
+						Warnl(src.Pos, "leaking param content: %S level=%v dst.eld=%v src.eld=%v dst=%S",
 							src, level, dstE.Loopdepth, modSrcLoopdepth, dst)
 					}
 				}
@@ -1870,10 +1870,10 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 				src.Esc = EscHeap
 				if Debug['m'] != 0 {
 					if Debug['m'] <= 2 {
-						Warnl(src.Lineno, "leaking param: %S", src)
+						Warnl(src.Pos, "leaking param: %S", src)
 						step.describe(src)
 					} else {
-						Warnl(src.Lineno, "leaking param: %S level=%v dst.eld=%v src.eld=%v dst=%S",
+						Warnl(src.Pos, "leaking param: %S level=%v dst.eld=%v src.eld=%v dst=%S",
 							src, level, dstE.Loopdepth, modSrcLoopdepth, dst)
 					}
 				}
@@ -1884,7 +1884,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 		// original variable.
 		if src.isClosureVar() {
 			if leaks && Debug['m'] != 0 {
-				Warnl(src.Lineno, "leaking closure reference %S", src)
+				Warnl(src.Pos, "leaking closure reference %S", src)
 				step.describe(src)
 			}
 			e.escwalk(level, dst, src.Name.Defn, e.stepWalk(dst, src.Name.Defn, "closure-var", step))
@@ -1903,10 +1903,10 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 					p = p.Left // merely to satisfy error messages in tests
 				}
 				if Debug['m'] > 2 {
-					Warnl(src.Lineno, "%S escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
+					Warnl(src.Pos, "%S escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
 						p, level, dst, dstE.Loopdepth, modSrcLoopdepth)
 				} else {
-					Warnl(src.Lineno, "%S escapes to heap", p)
+					Warnl(src.Pos, "%S escapes to heap", p)
 					step.describe(src)
 				}
 			}
@@ -1924,7 +1924,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 		if leaks {
 			src.Esc = EscHeap
 			if Debug['m'] != 0 && osrcesc != src.Esc {
-				Warnl(src.Lineno, "%S escapes to heap", src)
+				Warnl(src.Pos, "%S escapes to heap", src)
 				step.describe(src)
 			}
 			extraloopdepth = modSrcLoopdepth
@@ -1959,7 +1959,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 		if leaks {
 			src.Esc = EscHeap
 			if Debug['m'] != 0 && osrcesc != src.Esc {
-				Warnl(src.Lineno, "%S escapes to heap", src)
+				Warnl(src.Pos, "%S escapes to heap", src)
 				step.describe(src)
 			}
 			extraloopdepth = modSrcLoopdepth
@@ -2064,7 +2064,7 @@ func (e *EscState) esctag(fn *Node) {
 			narg++
 			if f.Type.Etype == TUINTPTR {
 				if Debug['m'] != 0 {
-					Warnl(fn.Lineno, "%v assuming %v is unsafe uintptr", funcSym(fn), name(f.Sym, narg))
+					Warnl(fn.Pos, "%v assuming %v is unsafe uintptr", funcSym(fn), name(f.Sym, narg))
 				}
 				f.Note = unsafeUintptrTag
 			}
@@ -2079,7 +2079,7 @@ func (e *EscState) esctag(fn *Node) {
 			narg++
 			if f.Type.Etype == TUINTPTR {
 				if Debug['m'] != 0 {
-					Warnl(fn.Lineno, "%v marking %v as escaping uintptr", funcSym(fn), name(f.Sym, narg))
+					Warnl(fn.Pos, "%v marking %v as escaping uintptr", funcSym(fn), name(f.Sym, narg))
 				}
 				f.Note = uintptrEscapesTag
 			}
@@ -2087,7 +2087,7 @@ func (e *EscState) esctag(fn *Node) {
 			if f.Isddd && f.Type.Elem().Etype == TUINTPTR {
 				// final argument is ...uintptr.
 				if Debug['m'] != 0 {
-					Warnl(fn.Lineno, "%v marking %v as escaping ...uintptr", funcSym(fn), name(f.Sym, narg))
+					Warnl(fn.Pos, "%v marking %v as escaping ...uintptr", funcSym(fn), name(f.Sym, narg))
 				}
 				f.Note = uintptrEscapesTag
 			}

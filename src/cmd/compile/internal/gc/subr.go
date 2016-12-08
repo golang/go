@@ -21,8 +21,8 @@ import (
 )
 
 type Error struct {
-	lineno src.Pos
-	msg    string
+	pos src.Pos
+	msg string
 }
 
 var errors []Error
@@ -40,24 +40,24 @@ func adderrorname(n *Node) {
 		return
 	}
 	old := fmt.Sprintf("%v: undefined: %v\n", n.Line(), n.Left)
-	if len(errors) > 0 && errors[len(errors)-1].lineno == n.Lineno && errors[len(errors)-1].msg == old {
+	if len(errors) > 0 && errors[len(errors)-1].pos.Line() == n.Pos.Line() && errors[len(errors)-1].msg == old {
 		errors[len(errors)-1].msg = fmt.Sprintf("%v: undefined: %v in %v\n", n.Line(), n.Left, n)
 	}
 }
 
-func adderr(line src.Pos, format string, args ...interface{}) {
+func adderr(pos src.Pos, format string, args ...interface{}) {
 	errors = append(errors, Error{
-		lineno: line,
-		msg:    fmt.Sprintf("%v: %s\n", linestr(line), fmt.Sprintf(format, args...)),
+		pos: pos,
+		msg: fmt.Sprintf("%v: %s\n", linestr(pos), fmt.Sprintf(format, args...)),
 	})
 }
 
-// byLineno sorts errors by lineno.
-type byLineno []Error
+// byPos sorts errors by source position.
+type byPos []Error
 
-func (x byLineno) Len() int           { return len(x) }
-func (x byLineno) Less(i, j int) bool { return x[i].lineno.Before(x[j].lineno) }
-func (x byLineno) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x byPos) Len() int           { return len(x) }
+func (x byPos) Less(i, j int) bool { return x[i].pos.Before(x[j].pos) }
+func (x byPos) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 // flusherrors sorts errors seen so far by line number, prints them to stdout,
 // and empties the errors array.
@@ -66,7 +66,7 @@ func flusherrors() {
 	if len(errors) == 0 {
 		return
 	}
-	sort.Stable(byLineno(errors))
+	sort.Stable(byPos(errors))
 	for i := 0; i < len(errors); i++ {
 		if i == 0 || errors[i].msg != errors[i-1].msg {
 			fmt.Printf("%s", errors[i].msg)
@@ -215,7 +215,7 @@ func setlineno(n *Node) src.Pos {
 			fallthrough
 
 		default:
-			lineno = n.Lineno
+			lineno = n.Pos
 			if !lineno.IsKnown() {
 				if Debug['K'] != 0 {
 					Warn("setlineno: unknown position (line 0)")
@@ -349,7 +349,7 @@ func importdot(opkg *Pkg, pack *Node) {
 
 	if n == 0 {
 		// can't possibly be used - there were no symbols
-		yyerrorl(pack.Lineno, "imported and not used: %q", opkg.Path)
+		yyerrorl(pack.Pos, "imported and not used: %q", opkg.Path)
 	}
 }
 
@@ -358,7 +358,7 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
 	n.Op = op
 	n.Left = nleft
 	n.Right = nright
-	n.Lineno = lineno
+	n.Pos = lineno
 	n.Xoffset = BADWIDTH
 	n.Orig = n
 	switch op {
@@ -489,7 +489,7 @@ func treecopy(n *Node, lineno src.Pos) *Node {
 		m.Right = treecopy(n.Right, lineno)
 		m.List.Set(listtreecopy(n.List.Slice(), lineno))
 		if lineno.IsKnown() {
-			m.Lineno = lineno
+			m.Pos = lineno
 		}
 		if m.Name != nil && n.Op != ODCLFIELD {
 			Dump("treecopy", n)
@@ -505,7 +505,7 @@ func treecopy(n *Node, lineno src.Pos) *Node {
 			// don't have the same iota value.
 			m := *n
 			if lineno.IsKnown() {
-				m.Lineno = lineno
+				m.Pos = lineno
 			}
 			m.SetIota(iota_)
 			return &m
@@ -2004,7 +2004,7 @@ func liststmt(l []*Node) *Node {
 	n := nod(OBLOCK, nil, nil)
 	n.List.Set(l)
 	if len(l) != 0 {
-		n.Lineno = l[0].Lineno
+		n.Pos = l[0].Pos
 	}
 	return n
 }

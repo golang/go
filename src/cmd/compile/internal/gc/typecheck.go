@@ -167,7 +167,7 @@ func typecheck(n *Node, top int) *Node {
 				break
 			}
 			sprint_depchain(&fmt_, typecheck_tcstack, n, n)
-			yyerrorl(n.Lineno, "constant definition loop%s", fmt_)
+			yyerrorl(n.Pos, "constant definition loop%s", fmt_)
 		}
 
 		if nsavederrors+nerrors == 0 {
@@ -415,7 +415,7 @@ OpSwitch:
 		if alg == ANOEQ {
 			if bad.Etype == TFORW {
 				// queue check for map until all the types are done settling.
-				mapqueue = append(mapqueue, mapqueueval{l, n.Lineno})
+				mapqueue = append(mapqueue, mapqueueval{l, n.Pos})
 			} else if bad.Etype != TANY {
 				// no need to queue, key is already bad
 				yyerror("invalid map key type %v", l.Type)
@@ -3629,8 +3629,8 @@ func typecheckdef(n *Node) *Node {
 	if n.Op == ONONAME {
 		if !n.Diag {
 			n.Diag = true
-			if n.Lineno.IsKnown() {
-				lineno = n.Lineno
+			if n.Pos.IsKnown() {
+				lineno = n.Pos
 			}
 
 			// Note: adderrorname looks for this string and
@@ -3684,7 +3684,7 @@ func typecheckdef(n *Node) *Node {
 		e := n.Name.Defn
 		n.Name.Defn = nil
 		if e == nil {
-			lineno = n.Lineno
+			lineno = n.Pos
 			Dump("typecheckdef nil defn", n)
 			yyerror("xxx")
 		}

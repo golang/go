@@ -114,7 +114,7 @@ func opregreg(op obj.As, dest, src int16) *obj.Prog {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetLineno(v.Line)
+	s.SetPos(v.Line)
 
 	if gc.Thearch.Use387 {
 		if ssaGenValue387(s, v) {
@@ -825,7 +825,7 @@ var nefJumps = [2][2]gc.FloatingEQNEJump{
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
-	s.SetLineno(b.Line)
+	s.SetPos(b.Line)
 
 	if gc.Thearch.Use387 {
 		// Empty the 387's FP stack before the block ends.

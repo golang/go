@@ -64,7 +64,7 @@ func addrescapes(n *Node) {
 			Curfn = Curfn.Func.Closure
 		}
 		ln := lineno
-		lineno = Curfn.Lineno
+		lineno = Curfn.Pos
 		moveToHeap(n)
 		Curfn = oldfn
 		lineno = ln

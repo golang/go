@@ -147,7 +147,7 @@ func duff(size int64) (int64, int64) {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetLineno(v.Line)
+	s.SetPos(v.Line)
 	switch v.Op {
 	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL:
 		r := v.Reg()
@@ -962,7 +962,7 @@ var nefJumps = [2][2]gc.FloatingEQNEJump{
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
-	s.SetLineno(b.Line)
+	s.SetPos(b.Line)
 
 	switch b.Kind {
 	case ssa.BlockPlain:
