@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -1736,5 +1737,78 @@ func TestClientRedirectTypes(t *testing.T) {
 		}
 
 		res.Body.Close()
+	}
+}
+
+// issue18239Body is an io.ReadCloser for TestTransportBodyReadError.
+// Its Read returns readErr and increments *readCalls atomically.
+// Its Close returns nil and increments *closeCalls atomically.
+type issue18239Body struct {
+	readCalls  *int32
+	closeCalls *int32
+	readErr    error
+}
+
+func (b issue18239Body) Read([]byte) (int, error) {
+	atomic.AddInt32(b.readCalls, 1)
+	return 0, b.readErr
+}
+
+func (b issue18239Body) Close() error {
+	atomic.AddInt32(b.closeCalls, 1)
+	return nil
+}
+
+// Issue 18239: make sure the Transport doesn't retry requests with bodies.
+// (Especially if Request.GetBody is not defined.)
+func TestTransportBodyReadError(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.URL.Path == "/ping" {
+			return
+		}
+		buf := make([]byte, 1)
+		n, err := r.Body.Read(buf)
+		w.Header().Set("X-Body-Read", fmt.Sprintf("%v, %v", n, err))
+	}))
+	defer ts.Close()
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	// Do one initial successful request to create an idle TCP connection
+	// for the subsequent request to reuse. (The Transport only retries
+	// requests on reused connections.)
+	res, err := c.Get(ts.URL + "/ping")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	var readCallsAtomic int32
+	var closeCallsAtomic int32 // atomic
+	someErr := errors.New("some body read error")
+	body := issue18239Body{&readCallsAtomic, &closeCallsAtomic, someErr}
+
+	req, err := NewRequest("POST", ts.URL, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tr.RoundTrip(req)
+	if err != someErr {
+		t.Errorf("Got error: %v; want Request.Body read error: %v", err, someErr)
+	}
+
+	// And verify that our Body wasn't used multiple times, which
+	// would indicate retries. (as it buggily was during part of
+	// Go 1.8's dev cycle)
+	readCalls := atomic.LoadInt32(&readCallsAtomic)
+	closeCalls := atomic.LoadInt32(&closeCallsAtomic)
+	if readCalls != 1 {
+		t.Errorf("read calls = %d; want 1", readCalls)
+	}
+	if closeCalls != 1 {
+		t.Errorf("close calls = %d; want 1", closeCalls)
 	}
 }

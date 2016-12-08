@@ -1311,7 +1311,8 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 
       <li><!-- CL 27117 -->
         The <code>Transport</code> will now retry non-idempotent
-        requests if no bytes were written before a network failure.
+        requests if no bytes were written before a network failure
+        and the request has no body.
       </li>
 
       <li><!-- CL 32481 -->
