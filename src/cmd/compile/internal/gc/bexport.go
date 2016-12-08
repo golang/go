@@ -591,7 +591,7 @@ func (p *exporter) pos(n *Node) {
 
 func fileLine(n *Node) (file string, line int) {
 	if n != nil {
-		file, line = Ctxt.LineHist.AbsFileLine(int(n.Lineno))
+		file, line = Ctxt.LineHist.AbsFileLine(int(n.Lineno.Line()))
 	}
 	return
 }

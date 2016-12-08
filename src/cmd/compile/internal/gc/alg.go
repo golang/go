@@ -4,7 +4,10 @@
 
 package gc
 
-import "fmt"
+import (
+	"cmd/internal/src"
+	"fmt"
+)
 
 // AlgKind describes the kind of algorithms used for comparing and
 // hashing a Type.
@@ -186,7 +189,7 @@ func genhash(sym *Sym, t *Type) {
 		fmt.Printf("genhash %v %v\n", sym, t)
 	}
 
-	lineno = 1 // less confusing than end of input
+	lineno = src.MakePos(1) // less confusing than end of input
 	dclcontext = PEXTERN
 	markdcl()
 
@@ -362,7 +365,7 @@ func geneq(sym *Sym, t *Type) {
 		fmt.Printf("geneq %v %v\n", sym, t)
 	}
 
-	lineno = 1 // less confusing than end of input
+	lineno = src.MakePos(1) // less confusing than end of input
 	dclcontext = PEXTERN
 	markdcl()
 

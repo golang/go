@@ -300,7 +300,7 @@ func Main() {
 	blockgen = 1
 	dclcontext = PEXTERN
 	nerrors = 0
-	lexlineno = 1
+	lexlineno = src.MakePos(1)
 
 	timings.Start("fe", "loadsys")
 	loadsys()
@@ -320,11 +320,11 @@ func Main() {
 		// Instead of converting EOF into '\n' in getc and count it as an extra line
 		// for the line history to work, and which then has to be corrected elsewhere,
 		// just add a line here.
-		lexlineno++
+		lexlineno = src.MakePos(lexlineno.Line() + 1)
 		linehistpop()
 	}
 	timings.Stop()
-	timings.AddEvent(int64(lexlineno-lexlineno0), "lines")
+	timings.AddEvent(int64(lexlineno.Line()-lexlineno0.Line()), "lines")
 
 	testdclstack()
 	mkpackage(localpkg.Name) // final import not used checks

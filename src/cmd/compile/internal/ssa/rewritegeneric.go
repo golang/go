@@ -6526,7 +6526,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (NilCheck (Load (OffPtr [c] (SP)) mem) mem)
-	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")
+	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(config.Debug_checknil() && v.Line.Line() > 1, v, "removed nil check")
 	// result: (Invalid)
 	for {
 		v_0 := v.Args[0]
@@ -6546,14 +6546,14 @@ func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
 		if mem != v.Args[1] {
 			break
 		}
-		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")) {
+		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(config.Debug_checknil() && v.Line.Line() > 1, v, "removed nil check")) {
 			break
 		}
 		v.reset(OpInvalid)
 		return true
 	}
 	// match: (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
-	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")
+	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(config.Debug_checknil() && v.Line.Line() > 1, v, "removed nil check")
 	// result: (Invalid)
 	for {
 		v_0 := v.Args[0]
@@ -6577,7 +6577,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
 		if mem != v.Args[1] {
 			break
 		}
-		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")) {
+		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(config.Debug_checknil() && v.Line.Line() > 1, v, "removed nil check")) {
 			break
 		}
 		v.reset(OpInvalid)

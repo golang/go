@@ -705,7 +705,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = arm.REGTMP
-		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+		if gc.Debug_checknil != 0 && v.Line.Line() > 1 { // v.Line.Line()==1 in generated wrappers
 			gc.Warnl(v.Line, "generated nil check")
 		}
 	case ssa.OpARMLoweredZero:
