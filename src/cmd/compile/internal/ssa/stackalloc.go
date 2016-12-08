@@ -40,7 +40,7 @@ func newStackAllocState(f *Func) *stackAllocState {
 		return new(stackAllocState)
 	}
 	if s.f != nil {
-		f.Config.Fatalf(src.Pos{}, "newStackAllocState called without previous free")
+		f.Config.Fatalf(src.NoPos, "newStackAllocState called without previous free")
 	}
 	return s
 }

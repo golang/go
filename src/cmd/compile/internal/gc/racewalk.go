@@ -496,7 +496,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 			*np = n
 		}
 
-		n = treecopy(n, src.Pos{})
+		n = treecopy(n, src.NoPos)
 		makeaddable(n)
 		var f *Node
 		if flag_msan {

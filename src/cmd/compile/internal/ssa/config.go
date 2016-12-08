@@ -270,7 +270,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.hasGReg = true
 		c.noDuffDevice = true
 	default:
-		fe.Fatalf(src.Pos{}, "arch %s not implemented", arch)
+		fe.Fatalf(src.NoPos, "arch %s not implemented", arch)
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
@@ -310,7 +310,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	if ev != "" {
 		v, err := strconv.ParseInt(ev, 10, 64)
 		if err != nil {
-			fe.Fatalf(src.Pos{}, "Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
+			fe.Fatalf(src.NoPos, "Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
 		}
 		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
 	}
@@ -332,7 +332,7 @@ func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
 func (c *Config) NewFunc() *Func {
 	// TODO(khr): should this function take name, type, etc. as arguments?
 	if c.curFunc != nil {
-		c.Fatalf(src.Pos{}, "NewFunc called without previous Free")
+		c.Fatalf(src.NoPos, "NewFunc called without previous Free")
 	}
 	f := &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
 	c.curFunc = f
@@ -355,7 +355,7 @@ func (c *Config) logDebugHashMatch(evname, name string) {
 			var ok error
 			file, ok = os.Create(tmpfile)
 			if ok != nil {
-				c.Fatalf(src.Pos{}, "Could not open hash-testing logfile %s", tmpfile)
+				c.Fatalf(src.NoPos, "Could not open hash-testing logfile %s", tmpfile)
 			}
 		}
 		c.logfiles[evname] = file

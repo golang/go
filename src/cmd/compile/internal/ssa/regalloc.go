@@ -555,7 +555,7 @@ func (s *regAllocState) init(f *Func) {
 		case "s390x":
 			// nothing to do, R10 & R11 already reserved
 		default:
-			s.f.Config.fe.Fatalf(src.Pos{}, "arch %s not implemented", s.f.Config.arch)
+			s.f.Config.fe.Fatalf(src.NoPos, "arch %s not implemented", s.f.Config.arch)
 		}
 	}
 	if s.f.Config.nacl {
@@ -1912,13 +1912,13 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 
 	// Live registers can be sources.
 	for _, x := range srcReg {
-		e.set(&e.s.registers[x.r], x.v.ID, x.c, false, src.Pos{}) // don't care the position of the source
+		e.set(&e.s.registers[x.r], x.v.ID, x.c, false, src.NoPos) // don't care the position of the source
 	}
 	// So can all of the spill locations.
 	for _, spillID := range stacklive {
 		v := e.s.orig[spillID]
 		spill := e.s.values[v.ID].spill
-		e.set(e.s.f.getHome(spillID), v.ID, spill, false, src.Pos{}) // don't care the position of the source
+		e.set(e.s.f.getHome(spillID), v.ID, spill, false, src.NoPos) // don't care the position of the source
 	}
 
 	// Figure out all the destinations we need.

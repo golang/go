@@ -155,7 +155,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
 		blocks[bloc.name] = b
 		for _, valu := range bloc.valus {
 			// args are filled in the second pass.
-			values[valu.name] = b.NewValue0IA(src.Pos{}, valu.op, valu.t, valu.auxint, valu.aux)
+			values[valu.name] = b.NewValue0IA(src.NoPos, valu.op, valu.t, valu.auxint, valu.aux)
 		}
 	}
 	// Connect the blocks together and specify control values.
@@ -429,12 +429,12 @@ func TestConstCache(t *testing.T) {
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Exit("mem")))
-	v1 := f.f.ConstBool(src.Pos{}, TypeBool, false)
-	v2 := f.f.ConstBool(src.Pos{}, TypeBool, true)
+	v1 := f.f.ConstBool(src.NoPos, TypeBool, false)
+	v2 := f.f.ConstBool(src.NoPos, TypeBool, true)
 	f.f.freeValue(v1)
 	f.f.freeValue(v2)
-	v3 := f.f.ConstBool(src.Pos{}, TypeBool, false)
-	v4 := f.f.ConstBool(src.Pos{}, TypeBool, true)
+	v3 := f.f.ConstBool(src.NoPos, TypeBool, false)
+	v4 := f.f.ConstBool(src.NoPos, TypeBool, true)
 	if v3.AuxInt != 0 {
 		t.Errorf("expected %s to have auxint of 0\n", v3.LongString())
 	}
