@@ -393,7 +393,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	m := s.compatRegs(v2.Type) &^ s.used &^ s.tmpused &^ (regMask(1) << r)
 	if m != 0 && !s.values[v2.ID].rematerializeable && countRegs(s.values[v2.ID].regs) == 1 {
 		r2 := pickReg(m)
-		c := s.curBlock.NewValue1(v2.Line, OpCopy, v2.Type, s.regs[r].c)
+		c := s.curBlock.NewValue1(v2.Pos, OpCopy, v2.Type, s.regs[r].c)
 		s.copies[c] = false
 		if s.f.pass.debug > regDebug {
 			fmt.Printf("copy %s to %s : %s\n", v2, c, s.registers[r2].Name())
@@ -446,7 +446,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, line
 		// Load v from its spill location.
 		case vi.spill != nil:
 			if s.f.pass.debug > logSpills {
-				s.f.Config.Warnl(vi.spill.Line, "load spill for %v from %v", v, vi.spill)
+				s.f.Config.Warnl(vi.spill.Pos, "load spill for %v from %v", v, vi.spill)
 			}
 			c = s.curBlock.NewValue1(line, OpLoadReg, v.Type, vi.spill)
 			vi.spillUsed = true
@@ -760,7 +760,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			liveSet.add(e.ID)
 		}
 		if v := b.Control; v != nil && s.values[v.ID].needReg {
-			s.addUse(v.ID, int32(len(b.Values)), b.Line) // psuedo-use by control value
+			s.addUse(v.ID, int32(len(b.Values)), b.Pos) // psuedo-use by control value
 			liveSet.add(v.ID)
 		}
 		for i := len(b.Values) - 1; i >= 0; i-- {
@@ -776,7 +776,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				if !s.values[a.ID].needReg {
 					continue
 				}
-				s.addUse(a.ID, int32(i), v.Line)
+				s.addUse(a.ID, int32(i), v.Pos)
 				liveSet.add(a.ID)
 			}
 		}
@@ -902,7 +902,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					m := s.compatRegs(a.Type) &^ s.used &^ phiUsed
 					if m != 0 && !s.values[a.ID].rematerializeable && countRegs(s.values[a.ID].regs) == 1 {
 						r2 := pickReg(m)
-						c := p.NewValue1(a.Line, OpCopy, a.Type, s.regs[r].c)
+						c := p.NewValue1(a.Pos, OpCopy, a.Type, s.regs[r].c)
 						s.copies[c] = false
 						if s.f.pass.debug > regDebug {
 							fmt.Printf("copy %s to %s : %s\n", a, c, s.registers[r2].Name())
@@ -951,7 +951,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// register-based phi
 				s.assignReg(r, v, v)
 				// Spill the phi in case we need to restore it later.
-				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
+				spill := b.NewValue1(v.Pos, OpStoreReg, v.Type, v)
 				s.setOrig(spill, v)
 				s.values[v.ID].spill = spill
 				s.values[v.ID].spillUsed = false
@@ -1184,7 +1184,7 @@ func (s *regAllocState) regalloc(f *Func) {
 						mask &^= desired.avoid
 					}
 				}
-				args[i.idx] = s.allocValToReg(args[i.idx], mask, true, v.Line)
+				args[i.idx] = s.allocValToReg(args[i.idx], mask, true, v.Pos)
 			}
 
 			// If the output clobbers the input register, make sure we have
@@ -1236,7 +1236,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				for _, r := range dinfo[idx].out {
 					if r != noRegister && m>>r&1 != 0 {
 						m = regMask(1) << r
-						args[0] = s.allocValToReg(v.Args[0], m, true, v.Line)
+						args[0] = s.allocValToReg(v.Args[0], m, true, v.Pos)
 						// Note: we update args[0] so the instruction will
 						// use the register copy we just made.
 						goto ok
@@ -1247,7 +1247,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				for _, r := range dinfo[idx].in[0] {
 					if r != noRegister && m>>r&1 != 0 {
 						m = regMask(1) << r
-						c := s.allocValToReg(v.Args[0], m, true, v.Line)
+						c := s.allocValToReg(v.Args[0], m, true, v.Pos)
 						s.copies[c] = false
 						// Note: no update to args[0] so the instruction will
 						// use the original copy.
@@ -1258,7 +1258,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					for _, r := range dinfo[idx].in[1] {
 						if r != noRegister && m>>r&1 != 0 {
 							m = regMask(1) << r
-							c := s.allocValToReg(v.Args[1], m, true, v.Line)
+							c := s.allocValToReg(v.Args[1], m, true, v.Pos)
 							s.copies[c] = false
 							args[0], args[1] = args[1], args[0]
 							goto ok
@@ -1270,7 +1270,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					m &^= desired.avoid
 				}
 				// Save input 0 to a new register so we can clobber it.
-				c := s.allocValToReg(v.Args[0], m, true, v.Line)
+				c := s.allocValToReg(v.Args[0], m, true, v.Pos)
 				s.copies[c] = false
 			}
 
@@ -1384,7 +1384,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// It would be good to have both spill and restore inside the IF.
 		issueSpill:
 			if s.values[v.ID].needReg {
-				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
+				spill := b.NewValue1(v.Pos, OpStoreReg, v.Type, v)
 				s.setOrig(spill, v)
 				s.values[v.ID].spill = spill
 				s.values[v.ID].spillUsed = false
@@ -1404,7 +1404,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// We assume that a control input can be passed in any
 			// type-compatible register. If this turns out not to be true,
 			// we'll need to introduce a regspec for a block's control value.
-			b.Control = s.allocValToReg(v, s.compatRegs(v.Type), false, b.Line)
+			b.Control = s.allocValToReg(v, s.compatRegs(v.Type), false, b.Pos)
 			if b.Control != v {
 				v.Uses--
 				b.Control.Uses++
@@ -1459,7 +1459,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					m &^= desired.avoid
 				}
 				if m != 0 {
-					s.allocValToReg(v, m, false, b.Line)
+					s.allocValToReg(v, m, false, b.Pos)
 				}
 			}
 		}
@@ -1610,7 +1610,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		vi := s.values[i]
 		if vi.spillUsed {
 			if s.f.pass.debug > logSpills && vi.spill.Op != OpArg {
-				s.f.Config.Warnl(vi.spill.Line, "spilled value at %v remains", vi.spill)
+				s.f.Config.Warnl(vi.spill.Pos, "spilled value at %v remains", vi.spill)
 			}
 			continue
 		}
@@ -1708,7 +1708,7 @@ sinking:
 			}
 			// If here, the register assignment was lost down at least one exit and it can't be sunk
 			if s.f.pass.debug > moveSpills {
-				s.f.Config.Warnl(e.Line, "lost register assignment for spill %v in %v at exit %v to %v",
+				s.f.Config.Warnl(e.Pos, "lost register assignment for spill %v in %v at exit %v to %v",
 					vsp, b, p, d)
 			}
 			nSpillsChanged++
@@ -1744,10 +1744,10 @@ sinking:
 			d := loop.exits[i]
 			vspnew := vsp // reuse original for first sunk spill, saves tracking down and renaming uses
 			if !first {   // any sunk spills after first must make a copy
-				vspnew = d.NewValue1(e.Line, OpStoreReg, e.Type, e)
+				vspnew = d.NewValue1(e.Pos, OpStoreReg, e.Type, e)
 				f.setHome(vspnew, f.getHome(vsp.ID)) // copy stack home
 				if s.f.pass.debug > moveSpills {
-					s.f.Config.Warnl(e.Line, "copied spill %v in %v for %v to %v in %v",
+					s.f.Config.Warnl(e.Pos, "copied spill %v in %v for %v to %v in %v",
 						vsp, b, e, vspnew, d)
 				}
 			} else {
@@ -1755,7 +1755,7 @@ sinking:
 				vspnew.Block = d
 				d.Values = append(d.Values, vspnew)
 				if s.f.pass.debug > moveSpills {
-					s.f.Config.Warnl(e.Line, "moved spill %v in %v for %v to %v in %v",
+					s.f.Config.Warnl(e.Pos, "moved spill %v in %v for %v to %v in %v",
 						vsp, b, e, vspnew, d)
 				}
 			}
@@ -1935,7 +1935,7 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 		if loc == nil {
 			continue
 		}
-		dsts = append(dsts, dstRecord{loc, v.Args[idx].ID, &v.Args[idx], v.Line})
+		dsts = append(dsts, dstRecord{loc, v.Args[idx].ID, &v.Args[idx], v.Pos})
 	}
 	e.destinations = dsts
 
@@ -2251,8 +2251,8 @@ func (e *edgeState) findRegFor(typ Type) Location {
 		a := e.cache[vid]
 		for _, c := range a {
 			if r, ok := e.s.f.getHome(c.ID).(*Register); ok && m>>uint(r.num)&1 != 0 {
-				x := e.p.NewValue1(c.Line, OpStoreReg, c.Type, c)
-				e.set(t, vid, x, false, c.Line)
+				x := e.p.NewValue1(c.Pos, OpStoreReg, c.Type, c)
+				e.set(t, vid, x, false, c.Pos)
 				if e.s.f.pass.debug > regDebug {
 					fmt.Printf("  SPILL %s->%s %s\n", r.Name(), t.Name(), x.LongString())
 				}
@@ -2347,7 +2347,7 @@ func (s *regAllocState) computeLive() {
 
 			// Mark control value as live
 			if b.Control != nil && s.values[b.Control.ID].needReg {
-				live.set(b.Control.ID, int32(len(b.Values)), b.Line)
+				live.set(b.Control.ID, int32(len(b.Values)), b.Pos)
 			}
 
 			// Propagate backwards to the start of the block
@@ -2369,7 +2369,7 @@ func (s *regAllocState) computeLive() {
 				}
 				for _, a := range v.Args {
 					if s.values[a.ID].needReg {
-						live.set(a.ID, int32(i), v.Line)
+						live.set(a.ID, int32(i), v.Pos)
 					}
 				}
 			}
@@ -2447,7 +2447,7 @@ func (s *regAllocState) computeLive() {
 					id := v.Args[i].ID
 					if s.values[id].needReg && (!t.contains(id) || delta < t.get(id)) {
 						update = true
-						t.set(id, delta, v.Line)
+						t.set(id, delta, v.Pos)
 					}
 				}
 

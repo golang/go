@@ -123,12 +123,12 @@ func rewriteValuedec_OpLoad(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpComplexMake)
-		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeFloat32())
+		v0 := b.NewValue0(v.Pos, OpLoad, config.fe.TypeFloat32())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeFloat32())
-		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeFloat32().PtrTo())
+		v1 := b.NewValue0(v.Pos, OpLoad, config.fe.TypeFloat32())
+		v2 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeFloat32().PtrTo())
 		v2.AuxInt = 4
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -147,12 +147,12 @@ func rewriteValuedec_OpLoad(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpComplexMake)
-		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeFloat64())
+		v0 := b.NewValue0(v.Pos, OpLoad, config.fe.TypeFloat64())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeFloat64())
-		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeFloat64().PtrTo())
+		v1 := b.NewValue0(v.Pos, OpLoad, config.fe.TypeFloat64())
+		v2 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeFloat64().PtrTo())
 		v2.AuxInt = 8
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -171,12 +171,12 @@ func rewriteValuedec_OpLoad(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpStringMake)
-		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpLoad, config.fe.TypeBytePtr())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeInt())
-		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
+		v1 := b.NewValue0(v.Pos, OpLoad, config.fe.TypeInt())
+		v2 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -195,19 +195,19 @@ func rewriteValuedec_OpLoad(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpSliceMake)
-		v0 := b.NewValue0(v.Line, OpLoad, t.ElemType().PtrTo())
+		v0 := b.NewValue0(v.Pos, OpLoad, t.ElemType().PtrTo())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeInt())
-		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
+		v1 := b.NewValue0(v.Pos, OpLoad, config.fe.TypeInt())
+		v2 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
 		v1.AddArg(mem)
 		v.AddArg(v1)
-		v3 := b.NewValue0(v.Line, OpLoad, config.fe.TypeInt())
-		v4 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
+		v3 := b.NewValue0(v.Pos, OpLoad, config.fe.TypeInt())
+		v4 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v4.AuxInt = 2 * config.PtrSize
 		v4.AddArg(ptr)
 		v3.AddArg(v4)
@@ -226,12 +226,12 @@ func rewriteValuedec_OpLoad(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpIMake)
-		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpLoad, config.fe.TypeBytePtr())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeBytePtr())
-		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeBytePtr().PtrTo())
+		v1 := b.NewValue0(v.Pos, OpLoad, config.fe.TypeBytePtr())
+		v2 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeBytePtr().PtrTo())
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -318,12 +318,12 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
 		mem := v.Args[2]
 		v.reset(OpStore)
 		v.AuxInt = 4
-		v0 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeFloat32().PtrTo())
+		v0 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeFloat32().PtrTo())
 		v0.AuxInt = 4
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(imag)
-		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
+		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
 		v1.AuxInt = 4
 		v1.AddArg(dst)
 		v1.AddArg(real)
@@ -348,12 +348,12 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
 		mem := v.Args[2]
 		v.reset(OpStore)
 		v.AuxInt = 8
-		v0 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeFloat64().PtrTo())
+		v0 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeFloat64().PtrTo())
 		v0.AuxInt = 8
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(imag)
-		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
+		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
 		v1.AuxInt = 8
 		v1.AddArg(dst)
 		v1.AddArg(real)
@@ -378,12 +378,12 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
 		mem := v.Args[2]
 		v.reset(OpStore)
 		v.AuxInt = config.PtrSize
-		v0 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
+		v0 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v0.AuxInt = config.PtrSize
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(len)
-		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
+		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
 		v1.AuxInt = config.PtrSize
 		v1.AddArg(dst)
 		v1.AddArg(ptr)
@@ -409,19 +409,19 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
 		mem := v.Args[2]
 		v.reset(OpStore)
 		v.AuxInt = config.PtrSize
-		v0 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
+		v0 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v0.AuxInt = 2 * config.PtrSize
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(cap)
-		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
+		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
 		v1.AuxInt = config.PtrSize
-		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
+		v2 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(dst)
 		v1.AddArg(v2)
 		v1.AddArg(len)
-		v3 := b.NewValue0(v.Line, OpStore, TypeMem)
+		v3 := b.NewValue0(v.Pos, OpStore, TypeMem)
 		v3.AuxInt = config.PtrSize
 		v3.AddArg(dst)
 		v3.AddArg(ptr)
@@ -447,12 +447,12 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
 		mem := v.Args[2]
 		v.reset(OpStore)
 		v.AuxInt = config.PtrSize
-		v0 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeBytePtr().PtrTo())
+		v0 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeBytePtr().PtrTo())
 		v0.AuxInt = config.PtrSize
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(data)
-		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
+		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
 		v1.AuxInt = config.PtrSize
 		v1.AddArg(dst)
 		v1.AddArg(itab)

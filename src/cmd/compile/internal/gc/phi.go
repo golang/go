@@ -234,7 +234,7 @@ func (s *phiState) insertVarPhis(n int, var_ *Node, defs []*ssa.Block, typ ssa.T
 				if !hasPhi.contains(c.ID) {
 					// Add a phi to block c for variable n.
 					hasPhi.add(c.ID)
-					v := c.NewValue0I(currentRoot.Line, ssa.OpPhi, typ, int64(n)) // TODO: line number right?
+					v := c.NewValue0I(currentRoot.Pos, ssa.OpPhi, typ, int64(n)) // TODO: line number right?
 					// Note: we store the variable number in the phi's AuxInt field. Used temporarily by phi building.
 					s.s.addNamedValue(var_, v)
 					for i := 0; i < len(c.Preds); i++ {
@@ -467,7 +467,7 @@ loop:
 		// Find variable value on each predecessor.
 		args = args[:0]
 		for _, e := range b.Preds {
-			args = append(args, s.lookupVarOutgoing(e.Block(), v.Type, var_, v.Line))
+			args = append(args, s.lookupVarOutgoing(e.Block(), v.Type, var_, v.Pos))
 		}
 
 		// Decide if we need a phi or not. We need a phi if there

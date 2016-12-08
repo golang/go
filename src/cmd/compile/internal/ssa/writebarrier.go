@@ -56,7 +56,7 @@ func writebarrier(f *Func) {
 				if wbaddr == nil {
 					// initalize global values for write barrier test and calls
 					// find SB and SP values in entry block
-					initln := f.Entry.Line
+					initln := f.Entry.Pos
 					for _, v := range f.Entry.Values {
 						if v.Op == OpSB {
 							sb = v
@@ -81,7 +81,7 @@ func writebarrier(f *Func) {
 					defer f.retSparseSet(wbs)
 				}
 
-				line := v.Line
+				line := v.Pos
 
 				// there may be a sequence of WB stores in the current block. find them.
 				storeWBs = storeWBs[:0]
@@ -127,9 +127,9 @@ func writebarrier(f *Func) {
 				bThen := f.NewBlock(BlockPlain)
 				bElse := f.NewBlock(BlockPlain)
 				bEnd := f.NewBlock(b.Kind)
-				bThen.Line = line
-				bElse.Line = line
-				bEnd.Line = line
+				bThen.Pos = line
+				bElse.Pos = line
+				bEnd.Pos = line
 
 				// set up control flow for end block
 				bEnd.SetControl(b.Control)

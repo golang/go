@@ -301,7 +301,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		ft.limitStack = append(ft.limitStack, limitFact{v.ID, old})
 		ft.limits[v.ID] = lim
 		if v.Block.Func.pass.debug > 2 {
-			v.Block.Func.Config.Warnl(parent.Line, "parent=%s, new limits %s %s %s", parent, v, w, lim.String())
+			v.Block.Func.Config.Warnl(parent.Pos, "parent=%s, new limits %s %s %s", parent, v, w, lim.String())
 		}
 	}
 }
@@ -600,7 +600,7 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 				v.reset(OpConst32)
 			}
 			if b.Func.pass.debug > 0 {
-				b.Func.Config.Warnl(v.Line, "Proved slicemask not needed")
+				b.Func.Config.Warnl(v.Pos, "Proved slicemask not needed")
 			}
 			v.AuxInt = -1
 		}
@@ -615,9 +615,9 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 	if m == lt|gt {
 		if b.Func.pass.debug > 0 {
 			if b.Func.pass.debug > 1 {
-				b.Func.Config.Warnl(b.Line, "Proved boolean %s (%s)", b.Control.Op, b.Control)
+				b.Func.Config.Warnl(b.Pos, "Proved boolean %s (%s)", b.Control.Op, b.Control)
 			} else {
-				b.Func.Config.Warnl(b.Line, "Proved boolean %s", b.Control.Op)
+				b.Func.Config.Warnl(b.Pos, "Proved boolean %s", b.Control.Op)
 			}
 		}
 		return positive
@@ -625,9 +625,9 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 	if m == eq {
 		if b.Func.pass.debug > 0 {
 			if b.Func.pass.debug > 1 {
-				b.Func.Config.Warnl(b.Line, "Disproved boolean %s (%s)", b.Control.Op, b.Control)
+				b.Func.Config.Warnl(b.Pos, "Disproved boolean %s (%s)", b.Control.Op, b.Control)
 			} else {
-				b.Func.Config.Warnl(b.Line, "Disproved boolean %s", b.Control.Op)
+				b.Func.Config.Warnl(b.Pos, "Disproved boolean %s", b.Control.Op)
 			}
 		}
 		return negative
@@ -656,9 +656,9 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 		if m != 0 && tr.r&m == m {
 			if b.Func.pass.debug > 0 {
 				if b.Func.pass.debug > 1 {
-					b.Func.Config.Warnl(b.Line, "Proved %s (%s)", c.Op, c)
+					b.Func.Config.Warnl(b.Pos, "Proved %s (%s)", c.Op, c)
 				} else {
-					b.Func.Config.Warnl(b.Line, "Proved %s", c.Op)
+					b.Func.Config.Warnl(b.Pos, "Proved %s", c.Op)
 				}
 			}
 			return positive
@@ -666,9 +666,9 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 		if m != 0 && ((lt|eq|gt)^tr.r)&m == m {
 			if b.Func.pass.debug > 0 {
 				if b.Func.pass.debug > 1 {
-					b.Func.Config.Warnl(b.Line, "Disproved %s (%s)", c.Op, c)
+					b.Func.Config.Warnl(b.Pos, "Disproved %s (%s)", c.Op, c)
 				} else {
-					b.Func.Config.Warnl(b.Line, "Disproved %s", c.Op)
+					b.Func.Config.Warnl(b.Pos, "Disproved %s", c.Op)
 				}
 			}
 			return negative
@@ -685,9 +685,9 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 		if m != 0 && tr.r&m == m {
 			if b.Func.pass.debug > 0 {
 				if b.Func.pass.debug > 1 {
-					b.Func.Config.Warnl(b.Line, "Proved non-negative bounds %s (%s)", c.Op, c)
+					b.Func.Config.Warnl(b.Pos, "Proved non-negative bounds %s (%s)", c.Op, c)
 				} else {
-					b.Func.Config.Warnl(b.Line, "Proved non-negative bounds %s", c.Op)
+					b.Func.Config.Warnl(b.Pos, "Proved non-negative bounds %s", c.Op)
 				}
 			}
 			return positive

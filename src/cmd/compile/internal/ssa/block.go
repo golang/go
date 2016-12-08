@@ -15,8 +15,8 @@ type Block struct {
 	// these IDs densely, but no guarantees.
 	ID ID
 
-	// Line number for block's control operation
-	Line src.Pos
+	// Source position for block's control operation
+	Pos src.Pos
 
 	// The kind of block this is.
 	Kind BlockKind

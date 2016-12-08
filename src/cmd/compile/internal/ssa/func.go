@@ -80,7 +80,7 @@ func (f *Func) retSparseSet(ss *sparseSet) {
 }
 
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
-func (f *Func) newValue(op Op, t Type, b *Block, line src.Pos) *Value {
+func (f *Func) newValue(op Op, t Type, b *Block, pos src.Pos) *Value {
 	var v *Value
 	if f.freeValues != nil {
 		v = f.freeValues
@@ -97,7 +97,7 @@ func (f *Func) newValue(op Op, t Type, b *Block, line src.Pos) *Value {
 	v.Op = op
 	v.Type = t
 	v.Block = b
-	v.Line = line
+	v.Pos = pos
 	b.Values = append(b.Values, v)
 	return v
 }
@@ -117,7 +117,7 @@ func (f *Func) LogStat(key string, args ...interface{}) {
 	if f.pass != nil {
 		n = strings.Replace(f.pass.name, " ", "_", -1)
 	}
-	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", n, key, value, f.Name)
+	f.Config.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
 
 // freeValue frees a value. It must no longer be referenced.
@@ -411,7 +411,7 @@ func (f *Func) ConstEmptyString(line src.Pos, t Type) *Value {
 
 func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }
 func (f *Func) Log() bool                              { return f.Config.Log() }
-func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Line, msg, args...) }
+func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Pos, msg, args...) }
 
 func (f *Func) Free() {
 	// Clear cached CFG info.
