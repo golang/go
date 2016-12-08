@@ -281,7 +281,7 @@ func (s *state) label(sym *Sym) *ssaLabel {
 
 func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
 func (s *state) Log() bool                              { return s.config.Log() }
-func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekLine(), msg, args...) }
+func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekPos(), msg, args...) }
 func (s *state) Warnl(line src.Pos, msg string, args ...interface{}) {
 	s.config.Warnl(line, msg, args...)
 }
@@ -326,7 +326,7 @@ func (s *state) endBlock() *ssa.Block {
 	s.defvars[b.ID] = s.vars
 	s.curBlock = nil
 	s.vars = nil
-	b.Line = s.peekLine()
+	b.Pos = s.peekPos()
 	return b
 }
 
@@ -335,7 +335,7 @@ func (s *state) pushLine(line src.Pos) {
 	if !line.IsKnown() {
 		// the frontend may emit node with line number missing,
 		// use the parent line number in this case.
-		line = s.peekLine()
+		line = s.peekPos()
 		if Debug['K'] != 0 {
 			Warn("buildssa: unknown position (line 0)")
 		}
@@ -348,130 +348,130 @@ func (s *state) popLine() {
 	s.line = s.line[:len(s.line)-1]
 }
 
-// peekLine peek the top of the line number stack.
-func (s *state) peekLine() src.Pos {
+// peekPos peeks the top of the line number stack.
+func (s *state) peekPos() src.Pos {
 	return s.line[len(s.line)-1]
 }
 
 func (s *state) Error(msg string, args ...interface{}) {
-	yyerrorl(s.peekLine(), msg, args...)
+	yyerrorl(s.peekPos(), msg, args...)
 }
 
 // newValue0 adds a new value with no arguments to the current block.
 func (s *state) newValue0(op ssa.Op, t ssa.Type) *ssa.Value {
-	return s.curBlock.NewValue0(s.peekLine(), op, t)
+	return s.curBlock.NewValue0(s.peekPos(), op, t)
 }
 
 // newValue0A adds a new value with no arguments and an aux value to the current block.
 func (s *state) newValue0A(op ssa.Op, t ssa.Type, aux interface{}) *ssa.Value {
-	return s.curBlock.NewValue0A(s.peekLine(), op, t, aux)
+	return s.curBlock.NewValue0A(s.peekPos(), op, t, aux)
 }
 
 // newValue0I adds a new value with no arguments and an auxint value to the current block.
 func (s *state) newValue0I(op ssa.Op, t ssa.Type, auxint int64) *ssa.Value {
-	return s.curBlock.NewValue0I(s.peekLine(), op, t, auxint)
+	return s.curBlock.NewValue0I(s.peekPos(), op, t, auxint)
 }
 
 // newValue1 adds a new value with one argument to the current block.
 func (s *state) newValue1(op ssa.Op, t ssa.Type, arg *ssa.Value) *ssa.Value {
-	return s.curBlock.NewValue1(s.peekLine(), op, t, arg)
+	return s.curBlock.NewValue1(s.peekPos(), op, t, arg)
 }
 
 // newValue1A adds a new value with one argument and an aux value to the current block.
 func (s *state) newValue1A(op ssa.Op, t ssa.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
-	return s.curBlock.NewValue1A(s.peekLine(), op, t, aux, arg)
+	return s.curBlock.NewValue1A(s.peekPos(), op, t, aux, arg)
 }
 
 // newValue1I adds a new value with one argument and an auxint value to the current block.
 func (s *state) newValue1I(op ssa.Op, t ssa.Type, aux int64, arg *ssa.Value) *ssa.Value {
-	return s.curBlock.NewValue1I(s.peekLine(), op, t, aux, arg)
+	return s.curBlock.NewValue1I(s.peekPos(), op, t, aux, arg)
 }
 
 // newValue2 adds a new value with two arguments to the current block.
 func (s *state) newValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ssa.Value {
-	return s.curBlock.NewValue2(s.peekLine(), op, t, arg0, arg1)
+	return s.curBlock.NewValue2(s.peekPos(), op, t, arg0, arg1)
 }
 
 // newValue2I adds a new value with two arguments and an auxint value to the current block.
 func (s *state) newValue2I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1 *ssa.Value) *ssa.Value {
-	return s.curBlock.NewValue2I(s.peekLine(), op, t, aux, arg0, arg1)
+	return s.curBlock.NewValue2I(s.peekPos(), op, t, aux, arg0, arg1)
 }
 
 // newValue3 adds a new value with three arguments to the current block.
 func (s *state) newValue3(op ssa.Op, t ssa.Type, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
-	return s.curBlock.NewValue3(s.peekLine(), op, t, arg0, arg1, arg2)
+	return s.curBlock.NewValue3(s.peekPos(), op, t, arg0, arg1, arg2)
 }
 
 // newValue3I adds a new value with three arguments and an auxint value to the current block.
 func (s *state) newValue3I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
-	return s.curBlock.NewValue3I(s.peekLine(), op, t, aux, arg0, arg1, arg2)
+	return s.curBlock.NewValue3I(s.peekPos(), op, t, aux, arg0, arg1, arg2)
 }
 
 // newValue4 adds a new value with four arguments to the current block.
 func (s *state) newValue4(op ssa.Op, t ssa.Type, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
-	return s.curBlock.NewValue4(s.peekLine(), op, t, arg0, arg1, arg2, arg3)
+	return s.curBlock.NewValue4(s.peekPos(), op, t, arg0, arg1, arg2, arg3)
 }
 
 // entryNewValue0 adds a new value with no arguments to the entry block.
 func (s *state) entryNewValue0(op ssa.Op, t ssa.Type) *ssa.Value {
-	return s.f.Entry.NewValue0(s.peekLine(), op, t)
+	return s.f.Entry.NewValue0(s.peekPos(), op, t)
 }
 
 // entryNewValue0A adds a new value with no arguments and an aux value to the entry block.
 func (s *state) entryNewValue0A(op ssa.Op, t ssa.Type, aux interface{}) *ssa.Value {
-	return s.f.Entry.NewValue0A(s.peekLine(), op, t, aux)
+	return s.f.Entry.NewValue0A(s.peekPos(), op, t, aux)
 }
 
 // entryNewValue0I adds a new value with no arguments and an auxint value to the entry block.
 func (s *state) entryNewValue0I(op ssa.Op, t ssa.Type, auxint int64) *ssa.Value {
-	return s.f.Entry.NewValue0I(s.peekLine(), op, t, auxint)
+	return s.f.Entry.NewValue0I(s.peekPos(), op, t, auxint)
 }
 
 // entryNewValue1 adds a new value with one argument to the entry block.
 func (s *state) entryNewValue1(op ssa.Op, t ssa.Type, arg *ssa.Value) *ssa.Value {
-	return s.f.Entry.NewValue1(s.peekLine(), op, t, arg)
+	return s.f.Entry.NewValue1(s.peekPos(), op, t, arg)
 }
 
 // entryNewValue1 adds a new value with one argument and an auxint value to the entry block.
 func (s *state) entryNewValue1I(op ssa.Op, t ssa.Type, auxint int64, arg *ssa.Value) *ssa.Value {
-	return s.f.Entry.NewValue1I(s.peekLine(), op, t, auxint, arg)
+	return s.f.Entry.NewValue1I(s.peekPos(), op, t, auxint, arg)
 }
 
 // entryNewValue1A adds a new value with one argument and an aux value to the entry block.
 func (s *state) entryNewValue1A(op ssa.Op, t ssa.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
-	return s.f.Entry.NewValue1A(s.peekLine(), op, t, aux, arg)
+	return s.f.Entry.NewValue1A(s.peekPos(), op, t, aux, arg)
 }
 
 // entryNewValue2 adds a new value with two arguments to the entry block.
 func (s *state) entryNewValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ssa.Value {
-	return s.f.Entry.NewValue2(s.peekLine(), op, t, arg0, arg1)
+	return s.f.Entry.NewValue2(s.peekPos(), op, t, arg0, arg1)
 }
 
 // const* routines add a new const value to the entry block.
-func (s *state) constSlice(t ssa.Type) *ssa.Value       { return s.f.ConstSlice(s.peekLine(), t) }
-func (s *state) constInterface(t ssa.Type) *ssa.Value   { return s.f.ConstInterface(s.peekLine(), t) }
-func (s *state) constNil(t ssa.Type) *ssa.Value         { return s.f.ConstNil(s.peekLine(), t) }
-func (s *state) constEmptyString(t ssa.Type) *ssa.Value { return s.f.ConstEmptyString(s.peekLine(), t) }
+func (s *state) constSlice(t ssa.Type) *ssa.Value       { return s.f.ConstSlice(s.peekPos(), t) }
+func (s *state) constInterface(t ssa.Type) *ssa.Value   { return s.f.ConstInterface(s.peekPos(), t) }
+func (s *state) constNil(t ssa.Type) *ssa.Value         { return s.f.ConstNil(s.peekPos(), t) }
+func (s *state) constEmptyString(t ssa.Type) *ssa.Value { return s.f.ConstEmptyString(s.peekPos(), t) }
 func (s *state) constBool(c bool) *ssa.Value {
-	return s.f.ConstBool(s.peekLine(), Types[TBOOL], c)
+	return s.f.ConstBool(s.peekPos(), Types[TBOOL], c)
 }
 func (s *state) constInt8(t ssa.Type, c int8) *ssa.Value {
-	return s.f.ConstInt8(s.peekLine(), t, c)
+	return s.f.ConstInt8(s.peekPos(), t, c)
 }
 func (s *state) constInt16(t ssa.Type, c int16) *ssa.Value {
-	return s.f.ConstInt16(s.peekLine(), t, c)
+	return s.f.ConstInt16(s.peekPos(), t, c)
 }
 func (s *state) constInt32(t ssa.Type, c int32) *ssa.Value {
-	return s.f.ConstInt32(s.peekLine(), t, c)
+	return s.f.ConstInt32(s.peekPos(), t, c)
 }
 func (s *state) constInt64(t ssa.Type, c int64) *ssa.Value {
-	return s.f.ConstInt64(s.peekLine(), t, c)
+	return s.f.ConstInt64(s.peekPos(), t, c)
 }
 func (s *state) constFloat32(t ssa.Type, c float64) *ssa.Value {
-	return s.f.ConstFloat32(s.peekLine(), t, c)
+	return s.f.ConstFloat32(s.peekPos(), t, c)
 }
 func (s *state) constFloat64(t ssa.Type, c float64) *ssa.Value {
-	return s.f.ConstFloat64(s.peekLine(), t, c)
+	return s.f.ConstFloat64(s.peekPos(), t, c)
 }
 func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
 	if s.config.IntSize == 8 {
@@ -3315,7 +3315,7 @@ func (s *state) check(cmp *ssa.Value, fn *Node) {
 	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 	bNext := s.f.NewBlock(ssa.BlockPlain)
-	line := s.peekLine()
+	line := s.peekPos()
 	bPanic := s.panics[funcLine{fn, line}]
 	if bPanic == nil {
 		bPanic = s.f.NewBlock(ssa.BlockPlain)
@@ -3427,7 +3427,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line src.Pos, righ
 		s.Error("write barrier prohibited")
 	}
 	if !s.WBPos.IsKnown() {
-		s.WBPos = left.Line
+		s.WBPos = left.Pos
 	}
 
 	var val *ssa.Value
@@ -3468,7 +3468,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line src.Pos, ski
 		s.Error("write barrier prohibited")
 	}
 	if !s.WBPos.IsKnown() {
-		s.WBPos = left.Line
+		s.WBPos = left.Pos
 	}
 	s.storeTypeScalars(t, left, right, skip)
 	s.storeTypePtrsWB(t, left, right)

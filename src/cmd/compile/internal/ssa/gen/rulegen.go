@@ -491,7 +491,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
 		}
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++
-		fmt.Fprintf(w, "%s := b.NewValue0(v.Line, Op%s%s, %s)\n", v, oparch, op.name, typ)
+		fmt.Fprintf(w, "%s := b.NewValue0(v.Pos, Op%s%s, %s)\n", v, oparch, op.name, typ)
 		if move && top {
 			// Rewrite original into a copy
 			fmt.Fprintf(w, "v.reset(OpCopy)\n")

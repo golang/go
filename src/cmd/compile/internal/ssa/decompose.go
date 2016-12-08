@@ -35,8 +35,8 @@ func decomposeBuiltIn(f *Func) {
 			hiName, loName := f.Config.fe.SplitInt64(name)
 			newNames = append(newNames, hiName, loName)
 			for _, v := range f.NamedValues[name] {
-				hi := v.Block.NewValue1(v.Line, OpInt64Hi, elemType, v)
-				lo := v.Block.NewValue1(v.Line, OpInt64Lo, f.Config.fe.TypeUInt32(), v)
+				hi := v.Block.NewValue1(v.Pos, OpInt64Hi, elemType, v)
+				lo := v.Block.NewValue1(v.Pos, OpInt64Lo, f.Config.fe.TypeUInt32(), v)
 				f.NamedValues[hiName] = append(f.NamedValues[hiName], hi)
 				f.NamedValues[loName] = append(f.NamedValues[loName], lo)
 			}
@@ -51,8 +51,8 @@ func decomposeBuiltIn(f *Func) {
 			rName, iName := f.Config.fe.SplitComplex(name)
 			newNames = append(newNames, rName, iName)
 			for _, v := range f.NamedValues[name] {
-				r := v.Block.NewValue1(v.Line, OpComplexReal, elemType, v)
-				i := v.Block.NewValue1(v.Line, OpComplexImag, elemType, v)
+				r := v.Block.NewValue1(v.Pos, OpComplexReal, elemType, v)
+				i := v.Block.NewValue1(v.Pos, OpComplexImag, elemType, v)
 				f.NamedValues[rName] = append(f.NamedValues[rName], r)
 				f.NamedValues[iName] = append(f.NamedValues[iName], i)
 			}
@@ -63,8 +63,8 @@ func decomposeBuiltIn(f *Func) {
 			ptrName, lenName := f.Config.fe.SplitString(name)
 			newNames = append(newNames, ptrName, lenName)
 			for _, v := range f.NamedValues[name] {
-				ptr := v.Block.NewValue1(v.Line, OpStringPtr, ptrType, v)
-				len := v.Block.NewValue1(v.Line, OpStringLen, lenType, v)
+				ptr := v.Block.NewValue1(v.Pos, OpStringPtr, ptrType, v)
+				len := v.Block.NewValue1(v.Pos, OpStringLen, lenType, v)
 				f.NamedValues[ptrName] = append(f.NamedValues[ptrName], ptr)
 				f.NamedValues[lenName] = append(f.NamedValues[lenName], len)
 			}
@@ -75,9 +75,9 @@ func decomposeBuiltIn(f *Func) {
 			ptrName, lenName, capName := f.Config.fe.SplitSlice(name)
 			newNames = append(newNames, ptrName, lenName, capName)
 			for _, v := range f.NamedValues[name] {
-				ptr := v.Block.NewValue1(v.Line, OpSlicePtr, ptrType, v)
-				len := v.Block.NewValue1(v.Line, OpSliceLen, lenType, v)
-				cap := v.Block.NewValue1(v.Line, OpSliceCap, lenType, v)
+				ptr := v.Block.NewValue1(v.Pos, OpSlicePtr, ptrType, v)
+				len := v.Block.NewValue1(v.Pos, OpSliceLen, lenType, v)
+				cap := v.Block.NewValue1(v.Pos, OpSliceCap, lenType, v)
 				f.NamedValues[ptrName] = append(f.NamedValues[ptrName], ptr)
 				f.NamedValues[lenName] = append(f.NamedValues[lenName], len)
 				f.NamedValues[capName] = append(f.NamedValues[capName], cap)
@@ -88,8 +88,8 @@ func decomposeBuiltIn(f *Func) {
 			typeName, dataName := f.Config.fe.SplitInterface(name)
 			newNames = append(newNames, typeName, dataName)
 			for _, v := range f.NamedValues[name] {
-				typ := v.Block.NewValue1(v.Line, OpITab, ptrType, v)
-				data := v.Block.NewValue1(v.Line, OpIData, ptrType, v)
+				typ := v.Block.NewValue1(v.Pos, OpITab, ptrType, v)
+				data := v.Block.NewValue1(v.Pos, OpIData, ptrType, v)
 				f.NamedValues[typeName] = append(f.NamedValues[typeName], typ)
 				f.NamedValues[dataName] = append(f.NamedValues[dataName], data)
 			}
@@ -133,11 +133,11 @@ func decomposeStringPhi(v *Value) {
 	ptrType := fe.TypeBytePtr()
 	lenType := fe.TypeInt()
 
-	ptr := v.Block.NewValue0(v.Line, OpPhi, ptrType)
-	len := v.Block.NewValue0(v.Line, OpPhi, lenType)
+	ptr := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
+	len := v.Block.NewValue0(v.Pos, OpPhi, lenType)
 	for _, a := range v.Args {
-		ptr.AddArg(a.Block.NewValue1(v.Line, OpStringPtr, ptrType, a))
-		len.AddArg(a.Block.NewValue1(v.Line, OpStringLen, lenType, a))
+		ptr.AddArg(a.Block.NewValue1(v.Pos, OpStringPtr, ptrType, a))
+		len.AddArg(a.Block.NewValue1(v.Pos, OpStringLen, lenType, a))
 	}
 	v.reset(OpStringMake)
 	v.AddArg(ptr)
@@ -149,13 +149,13 @@ func decomposeSlicePhi(v *Value) {
 	ptrType := fe.TypeBytePtr()
 	lenType := fe.TypeInt()
 
-	ptr := v.Block.NewValue0(v.Line, OpPhi, ptrType)
-	len := v.Block.NewValue0(v.Line, OpPhi, lenType)
-	cap := v.Block.NewValue0(v.Line, OpPhi, lenType)
+	ptr := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
+	len := v.Block.NewValue0(v.Pos, OpPhi, lenType)
+	cap := v.Block.NewValue0(v.Pos, OpPhi, lenType)
 	for _, a := range v.Args {
-		ptr.AddArg(a.Block.NewValue1(v.Line, OpSlicePtr, ptrType, a))
-		len.AddArg(a.Block.NewValue1(v.Line, OpSliceLen, lenType, a))
-		cap.AddArg(a.Block.NewValue1(v.Line, OpSliceCap, lenType, a))
+		ptr.AddArg(a.Block.NewValue1(v.Pos, OpSlicePtr, ptrType, a))
+		len.AddArg(a.Block.NewValue1(v.Pos, OpSliceLen, lenType, a))
+		cap.AddArg(a.Block.NewValue1(v.Pos, OpSliceCap, lenType, a))
 	}
 	v.reset(OpSliceMake)
 	v.AddArg(ptr)
@@ -172,11 +172,11 @@ func decomposeInt64Phi(v *Value) {
 		partType = fe.TypeUInt32()
 	}
 
-	hi := v.Block.NewValue0(v.Line, OpPhi, partType)
-	lo := v.Block.NewValue0(v.Line, OpPhi, fe.TypeUInt32())
+	hi := v.Block.NewValue0(v.Pos, OpPhi, partType)
+	lo := v.Block.NewValue0(v.Pos, OpPhi, fe.TypeUInt32())
 	for _, a := range v.Args {
-		hi.AddArg(a.Block.NewValue1(v.Line, OpInt64Hi, partType, a))
-		lo.AddArg(a.Block.NewValue1(v.Line, OpInt64Lo, fe.TypeUInt32(), a))
+		hi.AddArg(a.Block.NewValue1(v.Pos, OpInt64Hi, partType, a))
+		lo.AddArg(a.Block.NewValue1(v.Pos, OpInt64Lo, fe.TypeUInt32(), a))
 	}
 	v.reset(OpInt64Make)
 	v.AddArg(hi)
@@ -195,11 +195,11 @@ func decomposeComplexPhi(v *Value) {
 		v.Fatalf("decomposeComplexPhi: bad complex size %d", z)
 	}
 
-	real := v.Block.NewValue0(v.Line, OpPhi, partType)
-	imag := v.Block.NewValue0(v.Line, OpPhi, partType)
+	real := v.Block.NewValue0(v.Pos, OpPhi, partType)
+	imag := v.Block.NewValue0(v.Pos, OpPhi, partType)
 	for _, a := range v.Args {
-		real.AddArg(a.Block.NewValue1(v.Line, OpComplexReal, partType, a))
-		imag.AddArg(a.Block.NewValue1(v.Line, OpComplexImag, partType, a))
+		real.AddArg(a.Block.NewValue1(v.Pos, OpComplexReal, partType, a))
+		imag.AddArg(a.Block.NewValue1(v.Pos, OpComplexImag, partType, a))
 	}
 	v.reset(OpComplexMake)
 	v.AddArg(real)
@@ -209,11 +209,11 @@ func decomposeComplexPhi(v *Value) {
 func decomposeInterfacePhi(v *Value) {
 	ptrType := v.Block.Func.Config.fe.TypeBytePtr()
 
-	itab := v.Block.NewValue0(v.Line, OpPhi, ptrType)
-	data := v.Block.NewValue0(v.Line, OpPhi, ptrType)
+	itab := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
+	data := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
 	for _, a := range v.Args {
-		itab.AddArg(a.Block.NewValue1(v.Line, OpITab, ptrType, a))
-		data.AddArg(a.Block.NewValue1(v.Line, OpIData, ptrType, a))
+		itab.AddArg(a.Block.NewValue1(v.Pos, OpITab, ptrType, a))
+		data.AddArg(a.Block.NewValue1(v.Pos, OpIData, ptrType, a))
 	}
 	v.reset(OpIMake)
 	v.AddArg(itab)
@@ -247,7 +247,7 @@ func decomposeUser(f *Func) {
 			}
 			for _, v := range f.NamedValues[name] {
 				for i := 0; i < n; i++ {
-					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), int64(i), v)
+					x := v.Block.NewValue1I(v.Pos, OpStructSelect, t.FieldType(i), int64(i), v)
 					f.NamedValues[fnames[i]] = append(f.NamedValues[fnames[i]], x)
 				}
 			}
@@ -264,7 +264,7 @@ func decomposeUser(f *Func) {
 			}
 			elemName := f.Config.fe.SplitArray(name)
 			for _, v := range f.NamedValues[name] {
-				e := v.Block.NewValue1I(v.Line, OpArraySelect, t.ElemType(), 0, v)
+				e := v.Block.NewValue1I(v.Pos, OpArraySelect, t.ElemType(), 0, v)
 				f.NamedValues[elemName] = append(f.NamedValues[elemName], e)
 			}
 
@@ -293,11 +293,11 @@ func decomposeStructPhi(v *Value) {
 	n := t.NumFields()
 	var fields [MaxStruct]*Value
 	for i := 0; i < n; i++ {
-		fields[i] = v.Block.NewValue0(v.Line, OpPhi, t.FieldType(i))
+		fields[i] = v.Block.NewValue0(v.Pos, OpPhi, t.FieldType(i))
 	}
 	for _, a := range v.Args {
 		for i := 0; i < n; i++ {
-			fields[i].AddArg(a.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), int64(i), a))
+			fields[i].AddArg(a.Block.NewValue1I(v.Pos, OpStructSelect, t.FieldType(i), int64(i), a))
 		}
 	}
 	v.reset(StructMakeOp(n))
@@ -320,9 +320,9 @@ func decomposeArrayPhi(v *Value) {
 	if t.NumElem() != 1 {
 		v.Fatalf("SSAable array must have no more than 1 element")
 	}
-	elem := v.Block.NewValue0(v.Line, OpPhi, t.ElemType())
+	elem := v.Block.NewValue0(v.Pos, OpPhi, t.ElemType())
 	for _, a := range v.Args {
-		elem.AddArg(a.Block.NewValue1I(v.Line, OpArraySelect, t.ElemType(), 0, a))
+		elem.AddArg(a.Block.NewValue1I(v.Pos, OpArraySelect, t.ElemType(), 0, a))
 	}
 	v.reset(OpArrayMake1)
 	v.AddArg(elem)
