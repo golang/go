@@ -322,15 +322,6 @@ func TestScanErrors(t *testing.T) {
 		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 1, 18},
 		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 1, 18},
 
-		// TODO(gri) move these test cases into an appropriate parser test
-		// {`//line :`, "invalid line number: ", 1, 8},
-		// {`//line :x`, "invalid line number: x", 1, 8},
-		// {`//line foo :`, "invalid line number: ", 1, 12},
-		// {`//line foo:123abc`, "invalid line number: 123abc", 1, 11},
-		// {`/**///line foo:x`, "invalid line number: x", 1, 15},
-		// {`//line foo:0`, "invalid line number: 0", 1, 11},
-		// {fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), 1, 11},
-
 		// former problem cases
 		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 0},
 	} {

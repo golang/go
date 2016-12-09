@@ -47,7 +47,7 @@ func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh P
 		},
 		func(line, col uint, text string) {
 			if strings.HasPrefix(text, "line ") {
-				p.updateBase(line, col, text[5:])
+				p.updateBase(line, col+5, text[5:])
 			}
 			if pragh != nil {
 				p.pragma |= pragh(p.pos_at(line, col), text)
@@ -67,7 +67,7 @@ func (p *parser) updateBase(line, col uint, text string) {
 	// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
 	i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
 	if i < 0 {
-		return
+		return // ignore (not a line directive)
 	}
 	nstr := text[i+1:]
 	n, err := strconv.Atoi(nstr)
