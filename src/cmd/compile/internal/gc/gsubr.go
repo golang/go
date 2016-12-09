@@ -45,7 +45,7 @@ func Prog(as obj.As) *obj.Prog {
 	}
 
 	p.As = as
-	p.Lineno = int32(lineno.Line()) // TODO(gri) fix this
+	p.Lineno = lineno
 	return p
 }
 

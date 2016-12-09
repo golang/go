@@ -32,6 +32,7 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
 )
@@ -238,7 +239,7 @@ type Prog struct {
 	Forwd  *Prog       // for x86 back end
 	Rel    *Prog       // for x86, arm back ends
 	Pc     int64       // for back ends or assembler: virtual or actual program counter, depending on phase
-	Lineno int32       // line number of this instruction
+	Lineno src.Pos     // line number of this instruction
 	Spadj  int32       // effect of instruction on stack pointer (increment or decrement amount)
 	As     As          // assembler opcode
 	Reg    int16       // 2nd source operand
