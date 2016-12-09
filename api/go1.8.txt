@@ -250,10 +250,7 @@ pkg syscall (windows-amd64), const ERROR_DIR_NOT_EMPTY = 145
 pkg syscall (windows-amd64), const ERROR_DIR_NOT_EMPTY Errno
 pkg testing, func CoverMode() string
 pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalExample) *M
-pkg testing, method (*B) Context() context.Context
 pkg testing, method (*B) Name() string
-pkg testing, method (*T) Context() context.Context
 pkg testing, method (*T) Name() string
-pkg testing, type TB interface, Context() context.Context
 pkg testing, type TB interface, Name() string
 pkg time, func Until(Time) Duration
