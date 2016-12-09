@@ -151,31 +151,6 @@ var genericOps = []opData{
 	{name: "Rsh64Ux32", argLength: 2},
 	{name: "Rsh64Ux64", argLength: 2},
 
-	// (Left) rotates replace pattern matches in the front end
-	// of (arg0 << arg1) ^ (arg0 >> (A-arg1))
-	// where A is the bit width of arg0 and result.
-	// Note that because rotates are pattern-matched from
-	// shifts, that a rotate of arg1=A+k (k > 0) bits originated from
-	//    (arg0 << A+k) ^ (arg0 >> -k) =
-	//    0 ^ arg0>>huge_unsigned =
-	//    0 ^ 0 = 0
-	// which is not the same as a rotation by A+k
-	//
-	// However, in the specific case of k = 0, the result of
-	// the shift idiom is the same as the result for the
-	// rotate idiom, i.e., result=arg0.
-	// This is different from shifts, where
-	// arg0 << A is defined to be zero.
-	//
-	// Because of this, and also because the primary use case
-	// for rotates is hashing and crypto code with constant
-	// distance, rotate instructions are only substituted
-	// when arg1 is a constant between 1 and A-1, inclusive.
-	{name: "Lrot8", argLength: 1, aux: "Int64"},
-	{name: "Lrot16", argLength: 1, aux: "Int64"},
-	{name: "Lrot32", argLength: 1, aux: "Int64"},
-	{name: "Lrot64", argLength: 1, aux: "Int64"},
-
 	// 2-input comparisons
 	{name: "Eq8", argLength: 2, commutative: true, typ: "Bool"}, // arg0 == arg1
 	{name: "Eq16", argLength: 2, commutative: true, typ: "Bool"},

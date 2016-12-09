@@ -500,7 +500,6 @@ const (
 	OINC    // increment: AINC.
 	OEXTEND // extend: ACWD/ACDQ/ACQO.
 	OHMUL   // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
-	OLROT   // left rotate: AROL.
 	ORROTC  // right rotate-carry: ARCR.
 	ORETJMP // return to other function
 	OPS     // compare parity set (for x86 NaN check)

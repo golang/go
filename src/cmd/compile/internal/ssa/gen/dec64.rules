@@ -365,16 +365,6 @@
 //(Rsh64x32 x (Const32 [0])) -> x
 //(Rsh64Ux32 x (Const32 [0])) -> x
 
-(Lrot64 (Int64Make hi lo) [c]) && c <= 32 ->
-	(Int64Make
-		(Or32 <config.fe.TypeUInt32()>
-			(Lsh32x32 <config.fe.TypeUInt32()> hi (Const32 <config.fe.TypeUInt32()> [c]))
-			(Rsh32Ux32 <config.fe.TypeUInt32()> lo (Const32 <config.fe.TypeUInt32()> [32-c])))
-		(Or32 <config.fe.TypeUInt32()>
-			(Lsh32x32 <config.fe.TypeUInt32()> lo (Const32 <config.fe.TypeUInt32()> [c]))
-			(Rsh32Ux32 <config.fe.TypeUInt32()> hi (Const32 <config.fe.TypeUInt32()> [32-c]))))
-(Lrot64 (Int64Make hi lo) [c]) && c > 32 -> (Lrot64 (Int64Make lo hi) [c-32])
-
 (Const64 <t> [c]) && t.IsSigned() ->
 	(Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [int64(int32(c))]))
 (Const64 <t> [c]) && !t.IsSigned() ->

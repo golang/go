@@ -1205,11 +1205,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OGE, TUINT64}:  ssa.OpGeq64U,
 	opAndType{OGE, TFLOAT64}: ssa.OpGeq64F,
 	opAndType{OGE, TFLOAT32}: ssa.OpGeq32F,
-
-	opAndType{OLROT, TUINT8}:  ssa.OpLrot8,
-	opAndType{OLROT, TUINT16}: ssa.OpLrot16,
-	opAndType{OLROT, TUINT32}: ssa.OpLrot32,
-	opAndType{OLROT, TUINT64}: ssa.OpLrot64,
 }
 
 func (s *state) concreteEtype(t *Type) EType {
@@ -1881,13 +1876,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, n.Right.Type), a.Type, a, b)
-	case OLROT:
-		a := s.expr(n.Left)
-		i := n.Right.Int64()
-		if i <= 0 || i >= n.Type.Size()*8 {
-			s.Fatalf("Wrong rotate distance for LROT, expected 1 through %d, saw %d", n.Type.Size()*8-1, i)
-		}
-		return s.newValue1I(s.ssaRotateOp(n.Op, n.Type), a.Type, i, a)
 	case OANDAND, OOROR:
 		// To implement OANDAND (and OOROR), we introduce a
 		// new temporary variable to hold the result. The

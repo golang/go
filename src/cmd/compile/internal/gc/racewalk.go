@@ -226,7 +226,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 
 	case OLSH,
 		ORSH,
-		OLROT,
 		OAND,
 		OANDNOT,
 		OOR,
