@@ -60,7 +60,8 @@ func (p Pos) String() string {
 // posString formats a (filename, line, col) tuple as a printable position.
 func posString(filename string, line, col uint) string {
 	s := filename + ":" + strconv.FormatUint(uint64(line), 10)
-	if col != 0 {
+	// col == colMax is interpreted as unknown column value
+	if col < colMax {
 		s += ":" + strconv.FormatUint(uint64(col), 10)
 	}
 	return s
@@ -147,8 +148,8 @@ func makeLico(line, col uint) lico {
 		line = lineMax
 	}
 	if col > colMax {
-		// cannot represent column, use 0 to indicate unknown column
-		col = 0
+		// cannot represent column, use max. column so we have some information
+		col = colMax
 	}
 	return lico(line<<colBits | col)
 }

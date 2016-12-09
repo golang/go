@@ -32,7 +32,7 @@ type source struct {
 	offs        int   // source offset of buf
 	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
 	line0, line uint  // previous/current line
-	col0, col   uint  // previous/current column
+	col0, col   uint  // previous/current column (byte offsets from line start)
 	ioerr       error // pending io error
 
 	// literal buffer
@@ -50,7 +50,7 @@ func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
 	s.offs = 0
 	s.r0, s.r, s.w = 0, 0, 0
 	s.line0, s.line = 1, 1
-	s.col0, s.col = 1, 1
+	s.col0, s.col = 0, 0
 	s.ioerr = nil
 
 	s.lit = s.lit[:0]
@@ -102,6 +102,9 @@ redo:
 	// (invariant: s.buf[s.w] == utf8.RuneSelf)
 	if b := s.buf[s.r]; b < utf8.RuneSelf {
 		s.r++
+		// TODO(gri) Optimization: Instead of adjusting s.col for each character,
+		// remember the line offset instead and then compute the offset as needed
+		// (which is less often).
 		s.col++
 		if b == 0 {
 			s.error("invalid NUL character")
@@ -109,7 +112,7 @@ redo:
 		}
 		if b == '\n' {
 			s.line++
-			s.col = 1
+			s.col = 0
 		}
 		return rune(b)
 	}
@@ -125,7 +128,7 @@ redo:
 	// uncommon case: not ASCII
 	r, w := utf8.DecodeRune(s.buf[s.r:s.w])
 	s.r += w
-	s.col++
+	s.col += uint(w)
 
 	if r == utf8.RuneError && w == 1 {
 		s.error("invalid UTF-8 encoding")
