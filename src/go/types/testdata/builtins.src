@@ -19,6 +19,7 @@ func append1() {
 	_ = append(nil /* ERROR not a slice */ , s)
 	_ = append(x /* ERROR not a slice */ , s)
 	_ = append(s)
+	_ = append(s, nil...)
 	append /* ERROR not used */ (s)
 
 	_ = append(s, b)
