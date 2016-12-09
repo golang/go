@@ -32,6 +32,7 @@ package mips
 import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
+	"encoding/binary"
 	"fmt"
 	"math"
 )
@@ -529,6 +530,43 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			AADDVU:
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
+			}
+		}
+	}
+
+	if ctxt.Mode&Mips32 != 0 {
+		// rewrite MOVD into two MOVF in 32-bit mode to avoid unaligned memory access
+		for p = cursym.Text; p != nil; p = p1 {
+			p1 = p.Link
+
+			if p.As != AMOVD {
+				continue
+			}
+			if p.From.Type != obj.TYPE_MEM && p.To.Type != obj.TYPE_MEM {
+				continue
+			}
+
+			p.As = AMOVF
+			q = ctxt.NewProg()
+			*q = *p
+			q.Link = p.Link
+			p.Link = q
+			p1 = q.Link
+
+			var regOff int16
+			if ctxt.Arch.ByteOrder == binary.BigEndian {
+				regOff = 1 // load odd register first
+			}
+			if p.From.Type == obj.TYPE_MEM {
+				reg := REG_F0 + (p.To.Reg-REG_F0)&^1
+				p.To.Reg = reg + regOff
+				q.To.Reg = reg + 1 - regOff
+				q.From.Offset += 4
+			} else if p.To.Type == obj.TYPE_MEM {
+				reg := REG_F0 + (p.From.Reg-REG_F0)&^1
+				p.From.Reg = reg + regOff
+				q.From.Reg = reg + 1 - regOff
+				q.To.Offset += 4
 			}
 		}
 	}
