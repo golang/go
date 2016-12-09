@@ -696,7 +696,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int) {
 			q.To.Type = obj.TYPE_BRANCH
 			q.Pcond = p.Link
 			q.Link = ctxt.Blitrl
-			q.Lineno = p.Lineno
+			q.Pos = p.Pos
 			ctxt.Blitrl = q
 		} else if p.Pc+int64(pool.size)-int64(pool.start) < maxPCDisp {
 			return
@@ -706,7 +706,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int) {
 		// We set it to the line number of the preceding instruction so that
 		// there are no deltas to encode in the pc-line tables.
 		for q := ctxt.Blitrl; q != nil; q = q.Link {
-			q.Lineno = p.Lineno
+			q.Pos = p.Pos
 		}
 
 		ctxt.Elitrl.Link = p.Link

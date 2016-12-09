@@ -86,7 +86,7 @@ func Appendp(ctxt *Link, q *Prog) *Prog {
 	p := ctxt.NewProg()
 	p.Link = q.Link
 	q.Link = p
-	p.Lineno = q.Lineno
+	p.Pos = q.Pos
 	p.Mode = q.Mode
 	return p
 }
