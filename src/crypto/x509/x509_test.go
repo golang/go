@@ -850,17 +850,31 @@ func TestCRLCreation(t *testing.T) {
 	block, _ = pem.Decode([]byte(pemCertificate))
 	cert, _ := ParseCertificate(block.Bytes)
 
-	now := time.Unix(1000, 0)
+	loc := time.FixedZone("Oz/Atlantis", int((2 * time.Hour).Seconds()))
+
+	now := time.Unix(1000, 0).In(loc)
+	nowUTC := now.UTC()
 	expiry := time.Unix(10000, 0)
 
 	revokedCerts := []pkix.RevokedCertificate{
 		{
 			SerialNumber:   big.NewInt(1),
+			RevocationTime: nowUTC,
+		},
+		{
+			SerialNumber: big.NewInt(42),
+			// RevocationTime should be converted to UTC before marshaling.
 			RevocationTime: now,
+		},
+	}
+	expectedCerts := []pkix.RevokedCertificate{
+		{
+			SerialNumber:   big.NewInt(1),
+			RevocationTime: nowUTC,
 		},
 		{
 			SerialNumber:   big.NewInt(42),
-			RevocationTime: now,
+			RevocationTime: nowUTC,
 		},
 	}
 
@@ -869,9 +883,13 @@ func TestCRLCreation(t *testing.T) {
 		t.Errorf("error creating CRL: %s", err)
 	}
 
-	_, err = ParseDERCRL(crlBytes)
+	parsedCRL, err := ParseDERCRL(crlBytes)
 	if err != nil {
 		t.Errorf("error reparsing CRL: %s", err)
+	}
+	if !reflect.DeepEqual(parsedCRL.TBSCertList.RevokedCertificates, expectedCerts) {
+		t.Errorf("RevokedCertificates mismatch: got %v; want %v.",
+			parsedCRL.TBSCertList.RevokedCertificates, expectedCerts)
 	}
 }
 
