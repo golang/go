@@ -21,6 +21,14 @@ type LabelSet struct {
 // labelContextKey is the type of contextKeys used for profiler labels.
 type labelContextKey struct{}
 
+func labelValue(ctx context.Context) labelMap {
+	labels, _ := ctx.Value(labelContextKey{}).(*labelMap)
+	if labels == nil {
+		return labelMap(nil)
+	}
+	return *labels
+}
+
 // labelMap is the representation of the label set held in the context type.
 // This is an initial implementation, but it will be replaced with something
 // that admits incremental immutable modification more efficiently.
@@ -30,7 +38,7 @@ type labelMap map[string]string
 // A label overwrites a prior label with the same key.
 func WithLabels(ctx context.Context, labels LabelSet) context.Context {
 	childLabels := make(labelMap)
-	parentLabels, _ := ctx.Value(labelContextKey{}).(labelMap)
+	parentLabels := labelValue(ctx)
 	// TODO(matloob): replace the map implementation with something
 	// more efficient so creating a child context WithLabels doesn't need
 	// to clone the map.
@@ -40,7 +48,7 @@ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
 	for _, label := range labels.list {
 		childLabels[label.key] = label.value
 	}
-	return context.WithValue(ctx, labelContextKey{}, childLabels)
+	return context.WithValue(ctx, labelContextKey{}, &childLabels)
 }
 
 // Labels takes an even number of strings representing key-value pairs
@@ -60,7 +68,7 @@ func Labels(args ...string) LabelSet {
 // Label returns the value of the label with the given key on ctx, and a boolean indicating
 // whether that label exists.
 func Label(ctx context.Context, key string) (string, bool) {
-	ctxLabels, _ := ctx.Value(labelContextKey{}).(labelMap)
+	ctxLabels := labelValue(ctx)
 	v, ok := ctxLabels[key]
 	return v, ok
 }
@@ -68,7 +76,7 @@ func Label(ctx context.Context, key string) (string, bool) {
 // ForLabels invokes f with each label set on the context.
 // The function f should return true to continue iteration or false to stop iteration early.
 func ForLabels(ctx context.Context, f func(key, value string) bool) {
-	ctxLabels, _ := ctx.Value(labelContextKey{}).(labelMap)
+	ctxLabels := labelValue(ctx)
 	for k, v := range ctxLabels {
 		if !f(k, v) {
 			break
