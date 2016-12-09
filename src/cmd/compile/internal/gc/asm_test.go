@@ -234,6 +234,212 @@ func f(t *T) {
 		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
 	},
 	// TODO: add a test for *t = T{3,4,5} when we fix that.
+
+	// Rotate tests
+	{"amd64", "linux", `
+	func f(x uint64) uint64 {
+		return x<<7 | x>>57
+	}
+`,
+		[]string{"\tROLQ\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint64) uint64 {
+		return x<<7 + x>>57
+	}
+`,
+		[]string{"\tROLQ\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint64) uint64 {
+		return x<<7 ^ x>>57
+	}
+`,
+		[]string{"\tROLQ\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 + x>>25
+	}
+`,
+		[]string{"\tROLL\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 | x>>25
+	}
+`,
+		[]string{"\tROLL\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 ^ x>>25
+	}
+`,
+		[]string{"\tROLL\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint16) uint16 {
+		return x<<7 + x>>9
+	}
+`,
+		[]string{"\tROLW\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint16) uint16 {
+		return x<<7 | x>>9
+	}
+`,
+		[]string{"\tROLW\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint16) uint16 {
+		return x<<7 ^ x>>9
+	}
+`,
+		[]string{"\tROLW\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint8) uint8 {
+		return x<<7 + x>>1
+	}
+`,
+		[]string{"\tROLB\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint8) uint8 {
+		return x<<7 | x>>1
+	}
+`,
+		[]string{"\tROLB\t[$]7,"},
+	},
+	{"amd64", "linux", `
+	func f(x uint8) uint8 {
+		return x<<7 ^ x>>1
+	}
+`,
+		[]string{"\tROLB\t[$]7,"},
+	},
+
+	{"arm", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 + x>>25
+	}
+`,
+		[]string{"\tMOVW\tR[0-9]+@>25,"},
+	},
+	{"arm", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 | x>>25
+	}
+`,
+		[]string{"\tMOVW\tR[0-9]+@>25,"},
+	},
+	{"arm", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 ^ x>>25
+	}
+`,
+		[]string{"\tMOVW\tR[0-9]+@>25,"},
+	},
+
+	{"arm64", "linux", `
+	func f(x uint64) uint64 {
+		return x<<7 + x>>57
+	}
+`,
+		[]string{"\tROR\t[$]57,"},
+	},
+	{"arm64", "linux", `
+	func f(x uint64) uint64 {
+		return x<<7 | x>>57
+	}
+`,
+		[]string{"\tROR\t[$]57,"},
+	},
+	{"arm64", "linux", `
+	func f(x uint64) uint64 {
+		return x<<7 ^ x>>57
+	}
+`,
+		[]string{"\tROR\t[$]57,"},
+	},
+	{"arm64", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 + x>>25
+	}
+`,
+		[]string{"\tRORW\t[$]25,"},
+	},
+	{"arm64", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 | x>>25
+	}
+`,
+		[]string{"\tRORW\t[$]25,"},
+	},
+	{"arm64", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 ^ x>>25
+	}
+`,
+		[]string{"\tRORW\t[$]25,"},
+	},
+
+	{"s390x", "linux", `
+	func f(x uint64) uint64 {
+		return x<<7 + x>>57
+	}
+`,
+		[]string{"\tRLLG\t[$]7,"},
+	},
+	{"s390x", "linux", `
+	func f(x uint64) uint64 {
+		return x<<7 | x>>57
+	}
+`,
+		[]string{"\tRLLG\t[$]7,"},
+	},
+	{"s390x", "linux", `
+	func f(x uint64) uint64 {
+		return x<<7 ^ x>>57
+	}
+`,
+		[]string{"\tRLLG\t[$]7,"},
+	},
+	{"s390x", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 + x>>25
+	}
+`,
+		[]string{"\tRLL\t[$]7,"},
+	},
+	{"s390x", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 | x>>25
+	}
+`,
+		[]string{"\tRLL\t[$]7,"},
+	},
+	{"s390x", "linux", `
+	func f(x uint32) uint32 {
+		return x<<7 ^ x>>25
+	}
+`,
+		[]string{"\tRLL\t[$]7,"},
+	},
+
+	// Rotate after inlining (see issue 18254).
+	{"amd64", "linux", `
+	func f(x uint32, k uint) uint32 {
+		return x<<k | x>>(32-k)
+	}
+	func g(x uint32) uint32 {
+		return f(x, 7)
+	}
+`,
+		[]string{"\tROLL\t[$]7,"},
+	},
 }
 
 // mergeEnvLists merges the two environment lists such that

@@ -1670,10 +1670,6 @@ const (
 	OpRsh64Ux16
 	OpRsh64Ux32
 	OpRsh64Ux64
-	OpLrot8
-	OpLrot16
-	OpLrot32
-	OpLrot64
 	OpEq8
 	OpEq16
 	OpEq32
@@ -20313,30 +20309,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "Rsh64Ux64",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Lrot8",
-		auxType: auxInt64,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Lrot16",
-		auxType: auxInt64,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Lrot32",
-		auxType: auxInt64,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Lrot64",
-		auxType: auxInt64,
-		argLen:  1,
 		generic: true,
 	},
 	{

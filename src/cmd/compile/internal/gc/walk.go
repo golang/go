@@ -551,8 +551,9 @@ opswitch:
 		OGE,
 		OGT,
 		OADD,
-		OCOMPLEX,
-		OLROT:
+		OOR,
+		OXOR,
+		OCOMPLEX:
 		if n.Op == OCOMPLEX && n.Left == nil && n.Right == nil {
 			n.Left = n.List.First()
 			n.Right = n.List.Second()
@@ -560,11 +561,6 @@ opswitch:
 
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
-
-	case OOR, OXOR:
-		n.Left = walkexpr(n.Left, init)
-		n.Right = walkexpr(n.Right, init)
-		n = walkrotate(n)
 
 	case OEQ, ONE:
 		n.Left = walkexpr(n.Left, init)
@@ -3229,63 +3225,6 @@ func samecheap(a *Node, b *Node) bool {
 	}
 
 	return false
-}
-
-// The result of walkrotate MUST be assigned back to n, e.g.
-// 	n.Left = walkrotate(n.Left)
-func walkrotate(n *Node) *Node {
-	if Thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.PPC64) {
-		return n
-	}
-
-	// Want << | >> or >> | << or << ^ >> or >> ^ << on unsigned value.
-	l := n.Left
-
-	r := n.Right
-	if (n.Op != OOR && n.Op != OXOR) || (l.Op != OLSH && l.Op != ORSH) || (r.Op != OLSH && r.Op != ORSH) || n.Type == nil || n.Type.IsSigned() || l.Op == r.Op {
-		return n
-	}
-
-	// Want same, side effect-free expression on lhs of both shifts.
-	if !samecheap(l.Left, r.Left) {
-		return n
-	}
-
-	// Constants adding to width?
-	w := int(l.Type.Width * 8)
-
-	if Thearch.LinkArch.Family == sys.S390X && w != 32 && w != 64 {
-		// only supports 32-bit and 64-bit rotates
-		return n
-	}
-
-	if smallintconst(l.Right) && smallintconst(r.Right) {
-		sl := int(l.Right.Int64())
-		if sl >= 0 {
-			sr := int(r.Right.Int64())
-			if sr >= 0 && sl+sr == w {
-				// Rewrite left shift half to left rotate.
-				if l.Op == OLSH {
-					n = l
-				} else {
-					n = r
-				}
-				n.Op = OLROT
-
-				// Remove rotate 0 and rotate w.
-				s := int(n.Right.Int64())
-
-				if s == 0 || s == w {
-					n = n.Left
-				}
-				return n
-			}
-		}
-		return n
-	}
-
-	// TODO: Could allow s and 32-s if s is bounded (maybe s&31 and 32-s&31).
-	return n
 }
 
 // isIntOrdering reports whether n is a <, ≤, >, or ≥ ordering between integers.

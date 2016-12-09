@@ -192,11 +192,6 @@
 (Rsh8x16 x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
 (Rsh8x8  x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
 
-(Lrot64 x [c]) -> (RORconst  x [64-c&63])
-(Lrot32 x [c]) -> (RORWconst x [32-c&31])
-(Lrot16 <t> x [c]) -> (OR (SLLconst <t> x [c&15]) (SRLconst <t> (ZeroExt16to64 x) [16-c&15]))
-(Lrot8  <t> x [c]) -> (OR (SLLconst <t> x [c&7])  (SRLconst <t> (ZeroExt8to64  x) [8-c&7]))
-
 // constants
 (Const64 [val]) -> (MOVDconst [val])
 (Const32 [val]) -> (MOVDconst [val])
@@ -1134,6 +1129,21 @@
 (BICshiftLL x (SLLconst x [c]) [d]) && c==d -> (MOVDconst [0])
 (BICshiftRL x (SRLconst x [c]) [d]) && c==d -> (MOVDconst [0])
 (BICshiftRA x (SRAconst x [c]) [d]) && c==d -> (MOVDconst [0])
+
+// Generate rotates
+(ADDshiftLL [c] (SRLconst x [64-c]) x) -> (RORconst [64-c] x)
+( ORshiftLL [c] (SRLconst x [64-c]) x) -> (RORconst [64-c] x)
+(XORshiftLL [c] (SRLconst x [64-c]) x) -> (RORconst [64-c] x)
+(ADDshiftRL [c] (SLLconst x [64-c]) x) -> (RORconst [   c] x)
+( ORshiftRL [c] (SLLconst x [64-c]) x) -> (RORconst [   c] x)
+(XORshiftRL [c] (SLLconst x [64-c]) x) -> (RORconst [   c] x)
+
+(ADDshiftLL <t> [c] (SRLconst (MOVWUreg x) [32-c]) x) && c < 32 && t.Size() == 4 -> (RORWconst [32-c] x)
+( ORshiftLL <t> [c] (SRLconst (MOVWUreg x) [32-c]) x) && c < 32 && t.Size() == 4 -> (RORWconst [32-c] x)
+(XORshiftLL <t> [c] (SRLconst (MOVWUreg x) [32-c]) x) && c < 32 && t.Size() == 4 -> (RORWconst [32-c] x)
+(ADDshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [   c] x)
+( ORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [   c] x)
+(XORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [   c] x)
 
 // do combined loads
 // little endian loads

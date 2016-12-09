@@ -135,10 +135,6 @@
 (Lsh8x16 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
 (Lsh8x8  <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
 
-(Lrot32 <t> x [c]) -> (ROLLconst <t> [c&31] x)
-(Lrot16 <t> x [c]) -> (ROLWconst <t> [c&15] x)
-(Lrot8  <t> x [c]) -> (ROLBconst <t> [c&7] x)
-
 (Rsh32Ux32 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
 (Rsh32Ux16 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
 (Rsh32Ux8  <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
@@ -468,25 +464,15 @@
 (XORL (MOVLconst [c]) x) -> (XORLconst [c] x)
 
 (SHLL x (MOVLconst [c])) -> (SHLLconst [c&31] x)
-(SHLL x (MOVLconst [c])) -> (SHLLconst [c&31] x)
-
 (SHRL x (MOVLconst [c])) -> (SHRLconst [c&31] x)
-(SHRL x (MOVLconst [c])) -> (SHRLconst [c&31] x)
-
-(SHRW x (MOVLconst [c])) -> (SHRWconst [c&31] x)
-(SHRW x (MOVLconst [c])) -> (SHRWconst [c&31] x)
-
-(SHRB x (MOVLconst [c])) -> (SHRBconst [c&31] x)
-(SHRB x (MOVLconst [c])) -> (SHRBconst [c&31] x)
+(SHRW x (MOVLconst [c])) && c&31 < 16 -> (SHRWconst [c&31] x)
+(SHRW _ (MOVLconst [c])) && c&31 >= 16 -> (MOVLconst [0])
+(SHRB x (MOVLconst [c])) && c&31 < 8 -> (SHRBconst [c&31] x)
+(SHRB _ (MOVLconst [c])) && c&31 >= 8 -> (MOVLconst [0])
 
 (SARL x (MOVLconst [c])) -> (SARLconst [c&31] x)
-(SARL x (MOVLconst [c])) -> (SARLconst [c&31] x)
-
-(SARW x (MOVLconst [c])) -> (SARWconst [c&31] x)
-(SARW x (MOVLconst [c])) -> (SARWconst [c&31] x)
-
-(SARB x (MOVLconst [c])) -> (SARBconst [c&31] x)
-(SARB x (MOVLconst [c])) -> (SARBconst [c&31] x)
+(SARW x (MOVLconst [c])) -> (SARWconst [min(c&31,15)] x)
+(SARB x (MOVLconst [c])) -> (SARBconst [min(c&31,7)] x)
 
 (SARL x (ANDLconst [31] y)) -> (SARL x y)
 
@@ -494,9 +480,44 @@
 
 (SHRL x (ANDLconst [31] y)) -> (SHRL x y)
 
+// Rotate instructions
+
+(ADDL (SHLLconst [c] x) (SHRLconst [32-c] x)) -> (ROLLconst [c   ] x)
+( ORL (SHLLconst [c] x) (SHRLconst [32-c] x)) -> (ROLLconst [c   ] x)
+(XORL (SHLLconst [c] x) (SHRLconst [32-c] x)) -> (ROLLconst [c   ] x)
+(ADDL (SHRLconst [c] x) (SHLLconst [32-c] x)) -> (ROLLconst [32-c] x)
+( ORL (SHRLconst [c] x) (SHLLconst [32-c] x)) -> (ROLLconst [32-c] x)
+(XORL (SHRLconst [c] x) (SHLLconst [32-c] x)) -> (ROLLconst [32-c] x)
+
+(ADDL <t> (SHLLconst x [c]) (SHRWconst x [16-c])) && c < 16 && t.Size() == 2 -> (ROLWconst x [   c])
+( ORL <t> (SHLLconst x [c]) (SHRWconst x [16-c])) && c < 16 && t.Size() == 2 -> (ROLWconst x [   c])
+(XORL <t> (SHLLconst x [c]) (SHRWconst x [16-c])) && c < 16 && t.Size() == 2 -> (ROLWconst x [   c])
+(ADDL <t> (SHRWconst x [c]) (SHLLconst x [16-c])) && c > 0  && t.Size() == 2 -> (ROLWconst x [16-c])
+( ORL <t> (SHRWconst x [c]) (SHLLconst x [16-c])) && c > 0  && t.Size() == 2 -> (ROLWconst x [16-c])
+(XORL <t> (SHRWconst x [c]) (SHLLconst x [16-c])) && c > 0  && t.Size() == 2 -> (ROLWconst x [16-c])
+
+(ADDL <t> (SHLLconst x [c]) (SHRBconst x [ 8-c])) && c < 8 && t.Size() == 1 -> (ROLBconst x [   c])
+( ORL <t> (SHLLconst x [c]) (SHRBconst x [ 8-c])) && c < 8 && t.Size() == 1 -> (ROLBconst x [   c])
+(XORL <t> (SHLLconst x [c]) (SHRBconst x [ 8-c])) && c < 8 && t.Size() == 1 -> (ROLBconst x [   c])
+(ADDL <t> (SHRBconst x [c]) (SHLLconst x [ 8-c])) && c > 0 && t.Size() == 1 -> (ROLBconst x [ 8-c])
+( ORL <t> (SHRBconst x [c]) (SHLLconst x [ 8-c])) && c > 0 && t.Size() == 1 -> (ROLBconst x [ 8-c])
+(XORL <t> (SHRBconst x [c]) (SHLLconst x [ 8-c])) && c > 0 && t.Size() == 1 -> (ROLBconst x [ 8-c])
+
 (ROLLconst [c] (ROLLconst [d] x)) -> (ROLLconst [(c+d)&31] x)
 (ROLWconst [c] (ROLWconst [d] x)) -> (ROLWconst [(c+d)&15] x)
 (ROLBconst [c] (ROLBconst [d] x)) -> (ROLBconst [(c+d)& 7] x)
+
+// Constant shift simplifications
+
+(SHLLconst x [0]) -> x
+(SHRLconst x [0]) -> x
+(SARLconst x [0]) -> x
+
+(SHRWconst x [0]) -> x
+(SARWconst x [0]) -> x
+
+(SHRBconst x [0]) -> x
+(SARBconst x [0]) -> x
 
 (ROLLconst [0] x) -> x
 (ROLWconst [0] x) -> x
