@@ -62,6 +62,48 @@ func TestPos(t *testing.T) {
 	}
 }
 
+func TestPredicates(t *testing.T) {
+	b1 := NewFileBase("b1")
+	b2 := NewFileBase("b2")
+	for _, test := range []struct {
+		p, q                 Pos
+		known, before, after bool
+	}{
+		{NoPos, NoPos, false, false, false},
+		{NoPos, MakePos(nil, 1, 0), false, true, false},
+		{MakePos(b1, 0, 0), NoPos, true, false, true},
+		{MakePos(nil, 1, 0), NoPos, true, false, true},
+
+		{MakePos(nil, 1, 1), MakePos(nil, 1, 1), true, false, false},
+		{MakePos(nil, 1, 1), MakePos(nil, 1, 2), true, true, false},
+		{MakePos(nil, 1, 2), MakePos(nil, 1, 1), true, false, true},
+		{MakePos(nil, 123, 1), MakePos(nil, 1, 123), true, false, true},
+
+		{MakePos(b1, 1, 1), MakePos(b1, 1, 1), true, false, false},
+		{MakePos(b1, 1, 1), MakePos(b1, 1, 2), true, true, false},
+		{MakePos(b1, 1, 2), MakePos(b1, 1, 1), true, false, true},
+		{MakePos(b1, 123, 1), MakePos(b1, 1, 123), true, false, true},
+
+		{MakePos(b1, 1, 1), MakePos(b2, 1, 1), true, true, false},
+		{MakePos(b1, 1, 1), MakePos(b2, 1, 2), true, true, false},
+		{MakePos(b1, 1, 2), MakePos(b2, 1, 1), true, true, false},
+		{MakePos(b1, 123, 1), MakePos(b2, 1, 123), true, true, false},
+
+		// special case: unknown column (column too large to represent)
+		{MakePos(nil, 1, colMax+10), MakePos(nil, 1, colMax+20), true, false, false},
+	} {
+		if got := test.p.IsKnown(); got != test.known {
+			t.Errorf("%s known: got %v; want %v", test.p, got, test.known)
+		}
+		if got := test.p.Before(test.q); got != test.before {
+			t.Errorf("%s < %s: got %v; want %v", test.p, test.q, got, test.before)
+		}
+		if got := test.p.After(test.q); got != test.after {
+			t.Errorf("%s > %s: got %v; want %v", test.p, test.q, got, test.after)
+		}
+	}
+}
+
 func TestLico(t *testing.T) {
 	for _, test := range []struct {
 		x         lico
