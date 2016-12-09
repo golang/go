@@ -28,11 +28,11 @@ func TestPos(t *testing.T) {
 		relFilename string
 		relLine     uint
 	}{
-		{Pos{}, ":0", "", 0, 0, "", 0},
+		{Pos{}, ":0:0", "", 0, 0, "", 0},
 		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2},
 		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2},
 		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1},
-		{MakePos(f2, 7, 10), "f2:16:10[:0]", "", 7, 10, "f2", 16},
+		{MakePos(f2, 7, 10), "f2:16:10[:0:0]", "", 7, 10, "f2", 16},
 		{MakePos(f3, 12, 7), "f3:101:7[f1:10:1]", "f1", 12, 7, "f3", 101},
 		{MakePos(f4, 25, 1), "f4:114:1[f3:99:1[f1:10:1]]", "f3", 25, 1, "f4", 114}, // doesn't occur in Go code
 	} {
@@ -68,15 +68,15 @@ func TestLico(t *testing.T) {
 		string    string
 		line, col uint
 	}{
-		{0, ":0", 0, 0},
-		{makeLico(0, 0), ":0", 0, 0},
+		{0, ":0:0", 0, 0},
+		{makeLico(0, 0), ":0:0", 0, 0},
 		{makeLico(0, 1), ":0:1", 0, 1},
-		{makeLico(1, 0), ":1", 1, 0},
+		{makeLico(1, 0), ":1:0", 1, 0},
 		{makeLico(1, 1), ":1:1", 1, 1},
 		{makeLico(2, 3), ":2:3", 2, 3},
 		{makeLico(lineMax, 1), fmt.Sprintf(":%d:1", lineMax), lineMax, 1},
 		{makeLico(lineMax+1, 1), fmt.Sprintf(":%d:1", lineMax), lineMax, 1}, // line too large, stick with max. line
-		{makeLico(1, colMax), fmt.Sprintf(":1:%d", colMax), 1, colMax},
+		{makeLico(1, colMax), ":1", 1, colMax},
 		{makeLico(1, colMax+1), ":1", 1, 0}, // column too large
 		{makeLico(lineMax+1, colMax+1), fmt.Sprintf(":%d", lineMax), lineMax, 0},
 	} {
