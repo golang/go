@@ -59,7 +59,7 @@ func Getgoextlinkenabled() string {
 }
 
 func (p *Prog) Line() string {
-	return p.Ctxt.LineHist.LineString(int(p.Lineno))
+	return p.Ctxt.LineHist.LineString(int(p.Lineno.Line()))
 }
 
 var armCondCode = []string{
