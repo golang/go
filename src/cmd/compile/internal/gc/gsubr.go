@@ -45,7 +45,7 @@ func Prog(as obj.As) *obj.Prog {
 	}
 
 	p.As = as
-	p.Lineno = lineno
+	p.Pos = lineno
 	return p
 }
 
@@ -60,7 +60,7 @@ func Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset in
 	q := Ctxt.NewProg()
 	Clearp(q)
 	q.As = as
-	q.Lineno = p.Lineno
+	q.Pos = p.Pos
 	q.From.Type = ftype
 	q.From.Reg = freg
 	q.From.Offset = foffset

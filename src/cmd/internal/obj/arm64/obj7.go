@@ -169,7 +169,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	spfix.Spadj = -framesize
 
 	pcdata := obj.Appendp(ctxt, spfix)
-	pcdata.Lineno = ctxt.Cursym.Text.Lineno
+	pcdata.Pos = ctxt.Cursym.Text.Pos
 	pcdata.Mode = ctxt.Cursym.Text.Mode
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
@@ -585,7 +585,7 @@ loop:
 		a = AB
 		q = ctxt.NewProg()
 		q.As = a
-		q.Lineno = p.Lineno
+		q.Pos = p.Pos
 		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc
 		q.Pcond = p
@@ -771,7 +771,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// during the execution of the function prologue, the traceback
 				// code will not see a half-updated stack frame.
 				q = obj.Appendp(ctxt, q)
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.As = ASUB
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = int64(ctxt.Autosize)
@@ -780,7 +780,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.To.Reg = REGTMP
 
 				q = obj.Appendp(ctxt, q)
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REGLINK
@@ -788,7 +788,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.To.Reg = REGTMP
 
 				q1 = obj.Appendp(ctxt, q)
-				q1.Lineno = p.Lineno
+				q1.Pos = p.Pos
 				q1.As = AMOVD
 				q1.From.Type = obj.TYPE_REG
 				q1.From.Reg = REGTMP
@@ -799,7 +799,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// small frame, update SP and save LR in a single MOVD.W instruction
 				q1 = obj.Appendp(ctxt, q)
 				q1.As = AMOVD
-				q1.Lineno = p.Lineno
+				q1.Pos = p.Pos
 				q1.From.Type = obj.TYPE_REG
 				q1.From.Reg = REGLINK
 				q1.To.Type = obj.TYPE_MEM
@@ -939,7 +939,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 					q.To.Reg = REGSP
 					q.Link = p.Link
 					q.Spadj = int32(-q.From.Offset)
-					q.Lineno = p.Lineno
+					q.Pos = p.Pos
 					p.Link = q
 					p = q
 				}
@@ -947,7 +947,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			if p.As != obj.ARET {
 				q = ctxt.NewProg()
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.Link = p.Link
 				p.Link = q
 				p = q

@@ -222,7 +222,7 @@ const (
 // The Progs for a given function are arranged in a list linked through the Link field.
 //
 // Each Prog is charged to a specific source line in the debug information,
-// specified by Lineno, an index into the line history (see LineHist).
+// specified by Pos.Line(), an index into the line history (see LineHist).
 // Every Prog has a Ctxt field that defines various context, including the current LineHist.
 // Progs should be allocated using ctxt.NewProg(), not new(Prog).
 //
@@ -239,7 +239,7 @@ type Prog struct {
 	Forwd  *Prog       // for x86 back end
 	Rel    *Prog       // for x86, arm back ends
 	Pc     int64       // for back ends or assembler: virtual or actual program counter, depending on phase
-	Lineno src.Pos     // line number of this instruction
+	Pos    src.Pos     // source position of this instruction
 	Spadj  int32       // effect of instruction on stack pointer (increment or decrement amount)
 	As     As          // assembler opcode
 	Reg    int16       // 2nd source operand
