@@ -9,12 +9,12 @@ package syntax
 import "strconv"
 
 // A Pos encodes a source position consisting of a (line, column) number pair
-// and a position base. A zero Pos is a ready to use "unknown" position (empty
-// filename, and unknown line and column number).
+// and a position base. A zero Pos is a ready to use "unknown" position (nil
+// position base and zero line number).
 //
 // The (line, column) values refer to a position in a file independent of any
-// position base ("absolute" position). They start at 1, and they are unknown
-// if 0.
+// position base ("absolute" position). Line numbers start at 1, column values
+// start at 0 and are byte offsets from the beginning of the line.
 //
 // The position base is used to determine the "relative" position, that is the
 // filename and line number relative to the position base. If the base refers
@@ -27,10 +27,32 @@ type Pos struct {
 	lico
 }
 
+// NoPos is a valid unknown position.
+var NoPos Pos
+
 // MakePos creates a new Pos value with the given base, and (file-absolute)
 // line and column.
 func MakePos(base *PosBase, line, col uint) Pos {
 	return Pos{base, makeLico(line, col)}
+}
+
+// IsKnown reports whether the position p is known.
+func (p Pos) IsKnown() bool {
+	return p.base != nil || p.Line() != 0
+}
+
+// Before reports whether the position p comes before q in the source.
+// For positions in different files, ordering is by filename.
+func (p Pos) Before(q Pos) bool {
+	n, m := p.Filename(), q.Filename()
+	return n < m || n == m && p.lico < q.lico
+}
+
+// After reports whether the position p comes after q in the source.
+// For positions in different files, ordering is by filename.
+func (p Pos) After(q Pos) bool {
+	n, m := p.Filename(), q.Filename()
+	return n > m || n == m && p.lico > q.lico
 }
 
 // Filename returns the name of the actual file containing this position.
