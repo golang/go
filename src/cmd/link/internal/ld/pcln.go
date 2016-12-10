@@ -154,10 +154,26 @@ func renumberfiles(ctxt *Link, files []*Symbol, d *Pcdata) {
 	*d = out
 }
 
+// onlycsymbol reports whether this is a cgo symbol provided by the
+// runtime and only used from C code.
+func onlycsymbol(s *Symbol) bool {
+	switch s.Name {
+	case "_cgo_topofstack", "_cgo_panic", "crosscall2":
+		return true
+	}
+	return false
+}
+
 func container(s *Symbol) int {
+	if s == nil {
+		return 0
+	}
+	if Buildmode == BuildmodePlugin && onlycsymbol(s) {
+		return 1
+	}
 	// We want to generate func table entries only for the "lowest level" symbols,
 	// not containers of subsymbols.
-	if s != nil && s.Type&obj.SCONTAINER != 0 {
+	if s.Type&obj.SCONTAINER != 0 {
 		return 1
 	}
 	return 0

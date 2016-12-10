@@ -695,7 +695,16 @@ func machoShouldExport(ctxt *Link, s *Symbol) bool {
 	if Buildmode == BuildmodePlugin && strings.HasPrefix(s.Extname, *flagPluginPath) {
 		return true
 	}
-	return s.Type != obj.STEXT
+	if strings.HasPrefix(s.Name, "type.") && !strings.HasPrefix(s.Name, "type..") {
+		// reduce runtime typemap pressure, but do not
+		// export alg functions (type..*), as these
+		// appear in pclntable.
+		return true
+	}
+	if strings.HasPrefix(s.Name, "go.link.pkghash") {
+		return true
+	}
+	return s.Type >= obj.SELFSECT // only writable sections
 }
 
 func machosymtab(ctxt *Link) {
@@ -710,7 +719,13 @@ func machosymtab(ctxt *Link) {
 
 		// In normal buildmodes, only add _ to C symbols, as
 		// Go symbols have dot in the name.
-		if !strings.Contains(s.Extname, ".") || export {
+		//
+		// Do not export C symbols in plugins, as runtime C
+		// symbols like crosscall2 are in pclntab and end up
+		// pointing at the host binary, breaking unwinding.
+		// See Issue #18190.
+		cexport := !strings.Contains(s.Extname, ".") && (Buildmode != BuildmodePlugin || onlycsymbol(s))
+		if cexport || export {
 			Adduint8(ctxt, symstr, '_')
 		}
 
