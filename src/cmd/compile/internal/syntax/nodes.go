@@ -4,11 +4,13 @@
 
 package syntax
 
+import "cmd/internal/src"
+
 // ----------------------------------------------------------------------------
 // Nodes
 
 type Node interface {
-	Pos() Pos
+	Pos() src.Pos
 	aNode()
 	init(p *parser)
 }
@@ -16,10 +18,10 @@ type Node interface {
 type node struct {
 	// commented out for now since not yet used
 	// doc  *Comment // nil means no comment(s) attached
-	pos Pos
+	pos src.Pos
 }
 
-func (n *node) Pos() Pos {
+func (n *node) Pos() src.Pos {
 	return n.pos
 }
 

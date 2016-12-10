@@ -75,6 +75,9 @@ func anyinit(n []*Node) bool {
 }
 
 func fninit(n []*Node) {
+	// This code is using the last value of lineno for position information
+	// (see comment in noder.go, noder.file method, for details).
+
 	nf := initfix(n)
 	if !anyinit(nf) {
 		return

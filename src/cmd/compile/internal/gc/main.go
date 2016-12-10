@@ -186,7 +186,7 @@ func Main() {
 	obj.Flagcount("r", "debug generated wrappers", &Debug['r'])
 	flag.BoolVar(&flag_race, "race", false, "enable race detector")
 	obj.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
-	flag.StringVar(&Ctxt.LineHist.TrimPathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
+	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
 	flag.BoolVar(&safemode, "u", false, "reject unsafe code")
 	obj.Flagcount("v", "increase debug verbosity", &Debug['v'])
 	obj.Flagcount("w", "debug type checking", &Debug['w'])
@@ -300,31 +300,23 @@ func Main() {
 	blockgen = 1
 	dclcontext = PEXTERN
 	nerrors = 0
-	lexlineno = src.MakePos(1)
 
 	timings.Start("fe", "loadsys")
 	loadsys()
 
 	timings.Start("fe", "parse")
-	lexlineno0 := lexlineno
+	var lines uint
 	for _, infile = range flag.Args() {
-		linehistpush(infile)
 		block = 1
 		iota_ = -1000000
 		imported_unsafe = false
-		parseFile(infile)
+		lines += parseFile(infile)
 		if nsyntaxerrors != 0 {
 			errorexit()
 		}
-
-		// Instead of converting EOF into '\n' in getc and count it as an extra line
-		// for the line history to work, and which then has to be corrected elsewhere,
-		// just add a line here.
-		lexlineno = src.MakePos(lexlineno.Line() + 1)
-		linehistpop()
 	}
 	timings.Stop()
-	timings.AddEvent(int64(lexlineno.Line()-lexlineno0.Line()), "lines")
+	timings.AddEvent(int64(lines), "lines")
 
 	testdclstack()
 	mkpackage(localpkg.Name) // final import not used checks

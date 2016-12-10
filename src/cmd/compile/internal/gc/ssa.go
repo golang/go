@@ -282,8 +282,8 @@ func (s *state) label(sym *Sym) *ssaLabel {
 func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
 func (s *state) Log() bool                              { return s.config.Log() }
 func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekPos(), msg, args...) }
-func (s *state) Warnl(line src.Pos, msg string, args ...interface{}) {
-	s.config.Warnl(line, msg, args...)
+func (s *state) Warnl(pos src.Pos, msg string, args ...interface{}) {
+	s.config.Warnl(pos, msg, args...)
 }
 func (s *state) Debug_checknil() bool { return s.config.Debug_checknil() }
 
@@ -4462,8 +4462,11 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 			f.Logf("%s\t%s\n", s, p)
 		}
 		if f.Config.HTML != nil {
-			saved := ptxt.Ctxt.LineHist.PrintFilenameOnly
-			ptxt.Ctxt.LineHist.PrintFilenameOnly = true
+			// LineHist is defunct now - this code won't do
+			// anything.
+			// TODO: fix this (ideally without a global variable)
+			// saved := ptxt.Ctxt.LineHist.PrintFilenameOnly
+			// ptxt.Ctxt.LineHist.PrintFilenameOnly = true
 			var buf bytes.Buffer
 			buf.WriteString("<code>")
 			buf.WriteString("<dl class=\"ssa-gen\">")
@@ -4483,7 +4486,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 			buf.WriteString("</dl>")
 			buf.WriteString("</code>")
 			f.Config.HTML.WriteColumn("genssa", buf.String())
-			ptxt.Ctxt.LineHist.PrintFilenameOnly = saved
+			// ptxt.Ctxt.LineHist.PrintFilenameOnly = saved
 		}
 	}
 
@@ -4958,8 +4961,8 @@ func (e *ssaExport) CanSSA(t ssa.Type) bool {
 	return canSSAType(t.(*Type))
 }
 
-func (e *ssaExport) Line(line src.Pos) string {
-	return linestr(line)
+func (e *ssaExport) Line(pos src.Pos) string {
+	return linestr(pos)
 }
 
 // Log logs a message from the compiler.
@@ -4974,15 +4977,15 @@ func (e *ssaExport) Log() bool {
 }
 
 // Fatal reports a compiler error and exits.
-func (e *ssaExport) Fatalf(line src.Pos, msg string, args ...interface{}) {
-	lineno = line
+func (e *ssaExport) Fatalf(pos src.Pos, msg string, args ...interface{}) {
+	lineno = pos
 	Fatalf(msg, args...)
 }
 
 // Warnl reports a "warning", which is usually flag-triggered
 // logging output for the benefit of tests.
-func (e *ssaExport) Warnl(line src.Pos, fmt_ string, args ...interface{}) {
-	Warnl(line, fmt_, args...)
+func (e *ssaExport) Warnl(pos src.Pos, fmt_ string, args ...interface{}) {
+	Warnl(pos, fmt_, args...)
 }
 
 func (e *ssaExport) Debug_checknil() bool {

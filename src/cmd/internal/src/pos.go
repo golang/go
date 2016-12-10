@@ -4,7 +4,7 @@
 
 // This file implements the encoding of source positions.
 
-package syntax
+package src
 
 import "strconv"
 
@@ -67,7 +67,14 @@ func (p Pos) RelFilename() string { return p.base.Filename() }
 // RelLine returns the line number relative to the positions's base.
 func (p Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
 
+// AbsFilename() returns the absolute filename recorded with the position's base.
+func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
+
 func (p Pos) String() string {
+	if !p.IsKnown() {
+		return "<unknown line number>"
+	}
+
 	b := p.base
 
 	if b == b.Pos().base {
@@ -79,11 +86,16 @@ func (p Pos) String() string {
 	return posString(b.Filename(), p.RelLine(), p.Col()) + "[" + b.Pos().String() + "]"
 }
 
+// Don't print column numbers because existing tests may not work anymore.
+// It's a variable for now so that the tests can enable it.
+// TODO(gri) fix this
+var printColumn = false
+
 // posString formats a (filename, line, col) tuple as a printable position.
 func posString(filename string, line, col uint) string {
 	s := filename + ":" + strconv.FormatUint(uint64(line), 10)
 	// col == colMax is interpreted as unknown column value
-	if col < colMax {
+	if printColumn && col < colMax {
 		s += ":" + strconv.FormatUint(uint64(col), 10)
 	}
 	return s
@@ -97,15 +109,17 @@ func posString(filename string, line, col uint) string {
 // A nil *PosBase is a ready to use file PosBase for an unnamed
 // file with line numbers starting at 1.
 type PosBase struct {
-	pos      Pos
-	filename string
-	line     uint
+	pos         Pos
+	filename    string // file name used to open source file, for error messages
+	absFilename string // absolute file name, for PC-Line tables
+	line        uint   // relative line number at pos
 }
 
-// NewFileBase returns a new *PosBase for a file with the given filename.
-func NewFileBase(filename string) *PosBase {
+// NewFileBase returns a new *PosBase for a file with the given (relative and
+// absolute) filenames.
+func NewFileBase(filename, absFilename string) *PosBase {
 	if filename != "" {
-		base := &PosBase{filename: filename}
+		base := &PosBase{filename: filename, absFilename: absFilename}
 		base.pos = MakePos(base, 0, 0)
 		return base
 	}
@@ -116,7 +130,7 @@ func NewFileBase(filename string) *PosBase {
 //      //line filename:line
 // at position pos.
 func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
-	return &PosBase{pos, filename, line - 1}
+	return &PosBase{pos, filename, filename, line - 1}
 }
 
 var noPos Pos
@@ -135,6 +149,15 @@ func (b *PosBase) Pos() *Pos {
 func (b *PosBase) Filename() string {
 	if b != nil {
 		return b.filename
+	}
+	return ""
+}
+
+// AbsFilename returns the absolute filename recorded with the base.
+// If b == nil, the result is the empty string.
+func (b *PosBase) AbsFilename() string {
+	if b != nil {
+		return b.absFilename
 	}
 	return ""
 }

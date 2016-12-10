@@ -189,7 +189,7 @@ func genhash(sym *Sym, t *Type) {
 		fmt.Printf("genhash %v %v\n", sym, t)
 	}
 
-	lineno = src.MakePos(1) // less confusing than end of input
+	lineno = src.MakePos(nil, 1, 0) // less confusing than end of input
 	dclcontext = PEXTERN
 	markdcl()
 
@@ -365,7 +365,7 @@ func geneq(sym *Sym, t *Type) {
 		fmt.Printf("geneq %v %v\n", sym, t)
 	}
 
-	lineno = src.MakePos(1) // less confusing than end of input
+	lineno = src.MakePos(nil, 1, 0) // less confusing than end of input
 	dclcontext = PEXTERN
 	markdcl()
 

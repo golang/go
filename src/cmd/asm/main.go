@@ -37,7 +37,6 @@ func main() {
 	if *flags.PrintOut {
 		ctxt.Debugasm = 1
 	}
-	ctxt.LineHist.TrimPathPrefix = *flags.TrimPath
 	ctxt.Flag_dynlink = *flags.Dynlink
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
@@ -57,7 +56,7 @@ func main() {
 	var ok, diag bool
 	var failedFile string
 	for _, f := range flag.Args() {
-		lexer := lex.NewLexer(f, ctxt)
+		lexer := lex.NewLexer(f)
 		parser := asm.NewParser(ctxt, architecture, lexer)
 		ctxt.DiagFunc = func(format string, args ...interface{}) {
 			diag = true
