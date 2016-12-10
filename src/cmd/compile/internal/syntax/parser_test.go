@@ -6,6 +6,7 @@ package syntax
 
 import (
 	"bytes"
+	"cmd/internal/src"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -18,11 +19,11 @@ import (
 )
 
 var fast = flag.Bool("fast", false, "parse package files in parallel")
-var src = flag.String("src", "parser.go", "source file to parse")
+var src_ = flag.String("src", "parser.go", "source file to parse")
 var verify = flag.Bool("verify", false, "verify idempotent printing")
 
 func TestParse(t *testing.T) {
-	_, err := ParseFile(*src, nil, nil, 0)
+	_, err := ParseFile(*src_, nil, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +134,7 @@ func verifyPrint(filename string, ast1 *File) {
 		panic(err)
 	}
 
-	ast2, err := ParseBytes(filename, buf1.Bytes(), nil, nil, 0)
+	ast2, err := ParseBytes(src.NewFileBase(filename, filename), buf1.Bytes(), nil, nil, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -157,7 +158,7 @@ func verifyPrint(filename string, ast1 *File) {
 }
 
 func TestIssue17697(t *testing.T) {
-	_, err := ParseBytes("", nil, nil, nil, 0) // return with parser error, don't panic
+	_, err := ParseBytes(nil, nil, nil, nil, 0) // return with parser error, don't panic
 	if err == nil {
 		t.Errorf("no error reported")
 	}
@@ -202,7 +203,7 @@ func TestLineDirectives(t *testing.T) {
 		{"//line foo:123\n   foo", "syntax error: package statement must be first", "foo", 123, 3},
 		{"//line foo:123\n//line bar:345\nfoo", "syntax error: package statement must be first", "bar", 345, 0},
 	} {
-		_, err := ParseBytes("", []byte(test.src), nil, nil, 0)
+		_, err := ParseBytes(nil, []byte(test.src), nil, nil, 0)
 		if err == nil {
 			t.Errorf("%s: no error reported", test.src)
 			continue

@@ -14,7 +14,7 @@ func TestDump(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	ast, err := ParseFile(*src, nil, nil, 0)
+	ast, err := ParseFile(*src_, nil, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

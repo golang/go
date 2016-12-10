@@ -5,6 +5,7 @@
 package syntax
 
 import (
+	"cmd/internal/src"
 	"fmt"
 	"io"
 	"os"
@@ -15,7 +16,7 @@ type Mode uint
 
 // Error describes a syntax error. Error implements the error interface.
 type Error struct {
-	Pos Pos
+	Pos src.Pos
 	Msg string
 }
 
@@ -36,11 +37,11 @@ type Pragma uint16
 // A PragmaHandler is used to process //line and //go: directives as
 // they're scanned. The returned Pragma value will be unioned into the
 // next FuncDecl node.
-type PragmaHandler func(pos Pos, text string) Pragma
+type PragmaHandler func(pos src.Pos, text string) Pragma
 
 // Parse parses a single Go source file from src and returns the corresponding
 // syntax tree. If there are errors, Parse will return the first error found.
-// The filename is only used for position information.
+// The base argument is only used for position information.
 //
 // If errh != nil, it is called with each error encountered, and Parse will
 // process as much source as possible. If errh is nil, Parse will terminate
@@ -49,7 +50,7 @@ type PragmaHandler func(pos Pos, text string) Pragma
 // If a PragmaHandler is provided, it is called with each pragma encountered.
 //
 // The Mode argument is currently ignored.
-func Parse(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
+func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if err, ok := p.(Error); ok {
@@ -61,14 +62,14 @@ func Parse(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandle
 	}()
 
 	var p parser
-	p.init(filename, src, errh, pragh)
+	p.init(base, src, errh, pragh)
 	p.next()
 	return p.file(), p.first
 }
 
 // ParseBytes behaves like Parse but it reads the source from the []byte slice provided.
-func ParseBytes(filename string, src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
-	return Parse(filename, &bytesReader{src}, errh, pragh, mode)
+func ParseBytes(base *src.PosBase, src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
+	return Parse(base, &bytesReader{src}, errh, pragh, mode)
 }
 
 type bytesReader struct {
@@ -86,13 +87,13 @@ func (r *bytesReader) Read(p []byte) (int, error) {
 
 // ParseFile behaves like Parse but it reads the source from the named file.
 func ParseFile(filename string, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
-	src, err := os.Open(filename)
+	f, err := os.Open(filename)
 	if err != nil {
 		if errh != nil {
 			errh(err)
 		}
 		return nil, err
 	}
-	defer src.Close()
-	return Parse(filename, src, errh, pragh, mode)
+	defer f.Close()
+	return Parse(src.NewFileBase(filename, filename), f, errh, pragh, mode)
 }

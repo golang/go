@@ -727,7 +727,6 @@ type Link struct {
 	Bso           *bufio.Writer
 	Pathname      string
 	Hash          map[SymVer]*LSym
-	LineHist      LineHist
 	Imports       []string
 	Plists        []*Plist
 	Sym_div       *LSym

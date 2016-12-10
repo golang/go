@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package syntax
+package src
 
 import (
 	"fmt"
@@ -10,8 +10,10 @@ import (
 )
 
 func TestPos(t *testing.T) {
-	f0 := NewFileBase("")
-	f1 := NewFileBase("f1")
+	printColumn = true
+
+	f0 := NewFileBase("", "")
+	f1 := NewFileBase("f1", "f1")
 	f2 := NewLinePragmaBase(Pos{}, "f2", 10)
 	f3 := NewLinePragmaBase(MakePos(f1, 10, 1), "f3", 100)
 	f4 := NewLinePragmaBase(MakePos(f3, 10, 1), "f4", 100)
@@ -28,11 +30,11 @@ func TestPos(t *testing.T) {
 		relFilename string
 		relLine     uint
 	}{
-		{Pos{}, ":0:0", "", 0, 0, "", 0},
+		{Pos{}, "<unknown line number>", "", 0, 0, "", 0},
 		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2},
 		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2},
 		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1},
-		{MakePos(f2, 7, 10), "f2:16:10[:0:0]", "", 7, 10, "f2", 16},
+		{MakePos(f2, 7, 10), "f2:16:10[<unknown line number>]", "", 7, 10, "f2", 16},
 		{MakePos(f3, 12, 7), "f3:101:7[f1:10:1]", "f1", 12, 7, "f3", 101},
 		{MakePos(f4, 25, 1), "f4:114:1[f3:99:1[f1:10:1]]", "f3", 25, 1, "f4", 114}, // doesn't occur in Go code
 	} {
@@ -63,8 +65,8 @@ func TestPos(t *testing.T) {
 }
 
 func TestPredicates(t *testing.T) {
-	b1 := NewFileBase("b1")
-	b2 := NewFileBase("b2")
+	b1 := NewFileBase("b1", "b1")
+	b2 := NewFileBase("b2", "b2")
 	for _, test := range []struct {
 		p, q                 Pos
 		known, before, after bool
@@ -105,6 +107,8 @@ func TestPredicates(t *testing.T) {
 }
 
 func TestLico(t *testing.T) {
+	printColumn = true
+
 	for _, test := range []struct {
 		x         lico
 		string    string

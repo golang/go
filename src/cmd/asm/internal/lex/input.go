@@ -13,6 +13,7 @@ import (
 	"text/scanner"
 
 	"cmd/asm/internal/flags"
+	"cmd/internal/src"
 )
 
 // Input is the main input: a stack of readers and some macro definitions.
@@ -290,7 +291,7 @@ func lookup(args []string, arg string) int {
 func (in *Input) invokeMacro(macro *Macro) {
 	// If the macro has no arguments, just substitute the text.
 	if macro.args == nil {
-		in.Push(NewSlice(in.File(), in.Line(), macro.tokens))
+		in.Push(NewSlice(in.Base(), in.Line(), macro.tokens))
 		return
 	}
 	tok := in.Stack.Next()
@@ -300,7 +301,7 @@ func (in *Input) invokeMacro(macro *Macro) {
 		in.peekToken = tok
 		in.peekText = in.text
 		in.peek = true
-		in.Push(NewSlice(in.File(), in.Line(), []Token{Make(macroName, macro.name)}))
+		in.Push(NewSlice(in.Base(), in.Line(), []Token{Make(macroName, macro.name)}))
 		return
 	}
 	actuals := in.argsFor(macro)
@@ -317,7 +318,7 @@ func (in *Input) invokeMacro(macro *Macro) {
 		}
 		tokens = append(tokens, substitution...)
 	}
-	in.Push(NewSlice(in.File(), in.Line(), tokens))
+	in.Push(NewSlice(in.Base(), in.Line(), tokens))
 }
 
 // argsFor returns a map from formal name to actual value for this argumented macro invocation.
@@ -452,8 +453,8 @@ func (in *Input) line() {
 	if tok != '\n' {
 		in.Error("unexpected token at end of #line: ", tok)
 	}
-	linkCtxt.LineHist.Update(histLine, file, line)
-	in.Stack.SetPos(line, file)
+	pos := src.MakePos(in.Base(), uint(in.Line()), uint(in.Col()))
+	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, uint(line)))
 }
 
 // #undef processing

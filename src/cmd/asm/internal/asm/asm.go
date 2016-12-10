@@ -13,7 +13,6 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
-	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
@@ -62,7 +61,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 	}
 	prog.Pc = p.pc
 	if *flags.Debug {
-		fmt.Println(p.histLineNum, prog)
+		fmt.Println(p.lineNum, prog)
 	}
 	if testOut != nil {
 		fmt.Fprintln(testOut, prog)
@@ -164,7 +163,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	prog := &obj.Prog{
 		Ctxt: p.ctxt,
 		As:   obj.ATEXT,
-		Pos:  src.MakePos(p.histLineNum),
+		Pos:  p.pos(),
 		From: nameAddr,
 		From3: &obj.Addr{
 			Type:   obj.TYPE_CONST,
@@ -297,7 +296,7 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
 	prog := &obj.Prog{
 		Ctxt: p.ctxt,
 		As:   obj.APCDATA,
-		Pos:  src.MakePos(p.histLineNum),
+		Pos:  p.pos(),
 		From: key,
 		To:   value,
 	}
@@ -327,7 +326,7 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 	prog := &obj.Prog{
 		Ctxt: p.ctxt,
 		As:   obj.AFUNCDATA,
-		Pos:  src.MakePos(p.histLineNum),
+		Pos:  p.pos(),
 		From: valueAddr,
 		To:   nameAddr,
 	}
@@ -342,7 +341,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 	var target *obj.Addr
 	prog := &obj.Prog{
 		Ctxt: p.ctxt,
-		Pos:  src.MakePos(p.histLineNum),
+		Pos:  p.pos(),
 		As:   op,
 	}
 	switch len(a) {
@@ -470,7 +469,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 	// fmt.Printf("%s %+v\n", op, a)
 	prog := &obj.Prog{
 		Ctxt: p.ctxt,
-		Pos:  src.MakePos(p.histLineNum),
+		Pos:  p.pos(),
 		As:   op,
 	}
 	switch len(a) {

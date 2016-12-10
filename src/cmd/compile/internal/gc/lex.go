@@ -12,11 +12,8 @@ import (
 	"strings"
 )
 
-// lexlineno is the line number _after_ the most recently read rune.
-// In particular, it's advanced (or rewound) as newlines are read (or unread).
-var lexlineno src.Pos
-
-// lineno is the line number at the start of the most recently lexed token.
+// lineno is the source position at the start of the most recently lexed token.
+// TODO(gri) rename and eventually remove
 var lineno src.Pos
 
 func isSpace(c rune) bool {

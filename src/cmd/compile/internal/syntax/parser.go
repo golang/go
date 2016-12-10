@@ -5,6 +5,7 @@
 package syntax
 
 import (
+	"cmd/internal/src"
 	"fmt"
 	"io"
 	"strconv"
@@ -20,7 +21,7 @@ const trace = false
 const gcCompat = true
 
 type parser struct {
-	base *PosBase
+	base *src.PosBase
 	errh ErrorHandler
 	scanner
 
@@ -32,11 +33,11 @@ type parser struct {
 	indent []byte // tracing support
 }
 
-func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
-	p.base = NewFileBase(filename)
+func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+	p.base = base
 	p.errh = errh
 	p.scanner.init(
-		src,
+		r,
 		// Error and pragma handlers for scanner.
 		// Because the (line, col) positions passed to these
 		// handlers are always at or after the current reading
@@ -48,6 +49,7 @@ func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh P
 		func(line, col uint, text string) {
 			if strings.HasPrefix(text, "line ") {
 				p.updateBase(line, col+5, text[5:])
+				return
 			}
 			if pragh != nil {
 				p.pragma |= pragh(p.pos_at(line, col), text)
@@ -63,6 +65,8 @@ func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh P
 	p.indent = nil
 }
 
+const lineMax = 1<<24 - 1 // TODO(gri) this limit is defined for src.Pos - fix
+
 func (p *parser) updateBase(line, col uint, text string) {
 	// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
 	i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
@@ -75,7 +79,7 @@ func (p *parser) updateBase(line, col uint, text string) {
 		p.error_at(p.pos_at(line, col+uint(i+1)), "invalid line number: "+nstr)
 		return
 	}
-	p.base = NewLinePragmaBase(MakePos(p.base.Pos().Base(), line, col), text[:i], uint(n))
+	p.base = src.NewLinePragmaBase(src.MakePos(p.base.Pos().Base(), line, col), text[:i], uint(n))
 }
 
 func (p *parser) got(tok token) bool {
@@ -97,12 +101,12 @@ func (p *parser) want(tok token) {
 // Error handling
 
 // pos_at returns the Pos value for (line, col) and the current position base.
-func (p *parser) pos_at(line, col uint) Pos {
-	return MakePos(p.base, line, col)
+func (p *parser) pos_at(line, col uint) src.Pos {
+	return src.MakePos(p.base, line, col)
 }
 
 // error reports an error at the given position.
-func (p *parser) error_at(pos Pos, msg string) {
+func (p *parser) error_at(pos src.Pos, msg string) {
 	err := Error{pos, msg}
 	if p.first == nil {
 		p.first = err
@@ -114,7 +118,7 @@ func (p *parser) error_at(pos Pos, msg string) {
 }
 
 // syntax_error_at reports a syntax error at the given position.
-func (p *parser) syntax_error_at(pos Pos, msg string) {
+func (p *parser) syntax_error_at(pos src.Pos, msg string) {
 	if trace {
 		defer p.trace("syntax_error (" + msg + ")")()
 	}
@@ -159,7 +163,7 @@ func (p *parser) syntax_error_at(pos Pos, msg string) {
 }
 
 // Convenience methods using the current token position.
-func (p *parser) pos() Pos                { return p.pos_at(p.line, p.col) }
+func (p *parser) pos() src.Pos            { return p.pos_at(p.line, p.col) }
 func (p *parser) error(msg string)        { p.error_at(p.pos(), msg) }
 func (p *parser) syntax_error(msg string) { p.syntax_error_at(p.pos(), msg) }
 
