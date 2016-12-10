@@ -204,6 +204,10 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 			*budget -= fn.InlCost
 			break
 		}
+		if isIntrinsicCall(n) {
+			*budget--
+			break
+		}
 
 		if n.isMethodCalledAsFunction() {
 			if d := n.Left.Sym.Def; d != nil && d.Func.Inl.Len() != 0 {
