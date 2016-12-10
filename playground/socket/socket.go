@@ -175,7 +175,7 @@ func startProcess(id, body string, dest chan<- *Message, opt *Options) *process 
 	)
 	go func() {
 		defer close(done)
-		for m := range buffer(limiter(out, p)) {
+		for m := range buffer(limiter(out, p), time.After) {
 			m.Id = id
 			dest <- m
 		}
@@ -259,7 +259,8 @@ func limiter(in <-chan *Message, p killer) <-chan *Message {
 // coalesced; when a message of a different kind is received, any buffered
 // messages are flushed. When the given channel is closed, buffer flushes the
 // remaining buffered messages and closes the returned channel.
-func buffer(in <-chan *Message) <-chan *Message {
+// The timeAfter func should be time.After. It exists for testing.
+func buffer(in <-chan *Message, timeAfter func(time.Duration) <-chan time.Time) <-chan *Message {
 	out := make(chan *Message)
 	go func() {
 		defer close(out)
@@ -292,7 +293,7 @@ func buffer(in <-chan *Message) <-chan *Message {
 					flush()
 					kind = m.Kind
 					if tc == nil {
-						tc = time.After(msgDelay)
+						tc = timeAfter(msgDelay)
 					}
 				}
 				buf = append(buf, m.Body...)

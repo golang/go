@@ -10,24 +10,28 @@ import (
 )
 
 func TestBuffer(t *testing.T) {
+	afterChan := make(chan time.Time)
 	ch := make(chan *Message)
 	go func() {
 		ch <- &Message{Kind: "err", Body: "a"}
 		ch <- &Message{Kind: "err", Body: "b"}
 		ch <- &Message{Kind: "out", Body: "1"}
 		ch <- &Message{Kind: "out", Body: "2"}
-		time.Sleep(msgDelay * 2)
+		afterChan <- time.Time{} // value itself doesn't matter
 		ch <- &Message{Kind: "out", Body: "3"}
 		ch <- &Message{Kind: "out", Body: "4"}
 		close(ch)
 	}()
 
 	var ms []*Message
-	for m := range buffer(ch) {
+	timeAfter := func(d time.Duration) <-chan time.Time {
+		return afterChan
+	}
+	for m := range buffer(ch, timeAfter) {
 		ms = append(ms, m)
 	}
 	if len(ms) != 3 {
-		t.Fatalf("got %v messages, want 2", len(ms))
+		t.Fatalf("got %v messages, want 3", len(ms))
 	}
 	if g, w := ms[0].Body, "ab"; g != w {
 		t.Errorf("message 0 body = %q, want %q", g, w)
