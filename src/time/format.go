@@ -1101,8 +1101,9 @@ func parseTimeZone(value string) (length int, ok bool) {
 		if value[4] == 'T' {
 			return 5, true
 		}
-	case 4: // Must end in T to match.
-		if value[3] == 'T' {
+	case 4:
+		// Must end in T, except one special case.
+		if value[3] == 'T' || value[:4] == "WITA" {
 			return 4, true
 		}
 	case 3:
