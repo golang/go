@@ -30,6 +30,12 @@ pre .selection-comment {
 pre .ln {
 	color: #999;
 }
+.ln {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
 body {
 	color: #222;
 }
