@@ -535,7 +535,11 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 			// Nested panics; the recursion in printArg cannot succeed.
 			panic(err)
 		}
-		p.fmt.clearflags() // We are done, and for this output we want default behavior.
+
+		oldFlags := p.fmt.fmtFlags
+		// For this output we want default behavior.
+		p.fmt.clearflags()
+
 		p.buf.WriteString(percentBangString)
 		p.buf.WriteRune(verb)
 		p.buf.WriteString(panicString)
@@ -543,6 +547,8 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 		p.printArg(err, 'v')
 		p.panicking = false
 		p.buf.WriteByte(')')
+
+		p.fmt.fmtFlags = oldFlags
 	}
 }
 
