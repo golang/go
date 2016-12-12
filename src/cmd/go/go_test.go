@@ -3727,3 +3727,19 @@ func TestLdBindNow(t *testing.T) {
 	tg.setenv("LD_BIND_NOW", "1")
 	tg.run("help")
 }
+
+// Issue 18225.
+// This is really a cmd/asm issue but this is a convenient place to test it.
+func TestConcurrentAsm(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	asm := `DATA ·constants<>+0x0(SB)/8,$0
+GLOBL ·constants<>(SB),8,$8
+`
+	tg.tempFile("go/src/p/a.s", asm)
+	tg.tempFile("go/src/p/b.s", asm)
+	tg.tempFile("go/src/p/p.go", `package p`)
+	tg.setenv("GOPATH", tg.path("go"))
+	tg.run("build", "p")
+}
