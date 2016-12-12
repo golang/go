@@ -12,6 +12,13 @@ import (
 func DeclaredInMain() {
 }
 
+type C struct {
+}
+
+func F() *C {
+	return nil
+}
+
 func main() {
 	defer depBase.ImplementedInAsm()
 	// This code below causes various go.itab.* symbols to be generated in
@@ -20,4 +27,9 @@ func main() {
 	reflect.TypeOf(os.Stdout).Elem()
 	runtime.GC()
 	depBase.V = depBase.F() + 1
+
+	var c *C
+	if reflect.TypeOf(F).Out(0) != reflect.TypeOf(c) {
+		panic("bad reflection results, see golang.org/issue/18252")
+	}
 }

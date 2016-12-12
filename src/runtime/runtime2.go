@@ -640,7 +640,7 @@ type itab struct {
 	_type  *_type
 	link   *itab
 	bad    int32
-	unused int32
+	inhash int32      // has this itab been added to hash?
 	fun    [1]uintptr // variable sized
 }
 
