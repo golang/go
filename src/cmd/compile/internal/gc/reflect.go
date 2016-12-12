@@ -998,7 +998,6 @@ func itabname(t, itype *Type) *Node {
 		Fatalf("itabname(%v, %v)", t, itype)
 	}
 	s := Pkglookup(t.tconv(FmtLeft)+","+itype.tconv(FmtLeft), itabpkg)
-	Linksym(s).Set(obj.AttrLocal, true)
 	if s.Def == nil {
 		n := newname(s)
 		n.Type = Types[TUINT8]
@@ -1411,15 +1410,15 @@ func dumptypestructs() {
 		// }
 		o := dsymptr(i.sym, 0, dtypesym(i.itype), 0)
 		o = dsymptr(i.sym, o, dtypesym(i.t), 0)
-		o += Widthptr + 8                      // skip link/bad/unused fields
+		o += Widthptr + 8                      // skip link/bad/inhash fields
 		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
 		// at runtime the itab will contain pointers to types, other itabs and
 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
-		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR|obj.LOCAL))
+		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR))
 
 		ilink := Pkglookup(i.t.tconv(FmtLeft)+","+i.itype.tconv(FmtLeft), itablinkpkg)
 		dsymptr(ilink, 0, i.sym, 0)
-		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA|obj.LOCAL))
+		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
 	}
 
 	// process ptabs
