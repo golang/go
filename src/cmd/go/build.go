@@ -2406,8 +2406,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 func (gcToolchain) asm(b *builder, p *Package, obj string, sfiles []string) ([]string, error) {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(goroot, "pkg", "include")
-	ofile := obj + "asm.o"
-	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, buildAsmflags}
+	args := []interface{}{buildToolExec, tool("asm"), "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, buildAsmflags}
 	if p.ImportPath == "runtime" && goarch == "386" {
 		for _, arg := range buildAsmflags {
 			if arg == "-dynlink" {
@@ -2415,13 +2414,16 @@ func (gcToolchain) asm(b *builder, p *Package, obj string, sfiles []string) ([]s
 			}
 		}
 	}
+	var ofiles []string
 	for _, sfile := range sfiles {
-		args = append(args, mkAbs(p.Dir, sfile))
+		ofile := obj + sfile[:len(sfile)-len(".s")] + ".o"
+		ofiles = append(ofiles, ofile)
+		a := append(args, "-o", ofile, mkAbs(p.Dir, sfile))
+		if err := b.run(p.Dir, p.ImportPath, nil, a...); err != nil {
+			return nil, err
+		}
 	}
-	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
-		return nil, err
-	}
-	return []string{ofile}, nil
+	return ofiles, nil
 }
 
 // toolVerify checks that the command line args writes the same output file
