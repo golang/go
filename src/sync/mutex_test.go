@@ -15,12 +15,13 @@ import (
 	"strings"
 	. "sync"
 	"testing"
+	"time"
 )
 
 func HammerSemaphore(s *uint32, loops int, cdone chan bool) {
 	for i := 0; i < loops; i++ {
 		Runtime_Semacquire(s)
-		Runtime_Semrelease(s)
+		Runtime_Semrelease(s, false)
 	}
 	cdone <- true
 }
@@ -171,6 +172,38 @@ func TestMutexMisuse(t *testing.T) {
 		if err == nil || !strings.Contains(string(out), "unlocked") {
 			t.Errorf("%s: did not find failure with message about unlocked lock: %s\n%s\n", test.name, err, out)
 		}
+	}
+}
+
+func TestMutexFairness(t *testing.T) {
+	var mu Mutex
+	stop := make(chan bool)
+	defer close(stop)
+	go func() {
+		for {
+			mu.Lock()
+			time.Sleep(100 * time.Microsecond)
+			mu.Unlock()
+			select {
+			case <-stop:
+				return
+			default:
+			}
+		}
+	}()
+	done := make(chan bool)
+	go func() {
+		for i := 0; i < 10; i++ {
+			time.Sleep(100 * time.Microsecond)
+			mu.Lock()
+			mu.Unlock()
+		}
+		done <- true
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("can't acquire Mutex in 10 seconds")
 	}
 }
 
