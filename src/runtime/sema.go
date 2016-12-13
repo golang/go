@@ -53,22 +53,22 @@ var semtable [semTabSize]struct {
 
 //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
 func sync_runtime_Semacquire(addr *uint32) {
-	semacquire(addr, semaBlockProfile)
+	semacquire1(addr, false, semaBlockProfile)
 }
 
 //go:linkname poll_runtime_Semacquire internal/poll.runtime_Semacquire
 func poll_runtime_Semacquire(addr *uint32) {
-	semacquire(addr, semaBlockProfile)
+	semacquire1(addr, false, semaBlockProfile)
 }
 
 //go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
-func sync_runtime_Semrelease(addr *uint32) {
-	semrelease(addr)
+func sync_runtime_Semrelease(addr *uint32, handoff bool) {
+	semrelease1(addr, handoff)
 }
 
 //go:linkname sync_runtime_SemacquireMutex sync.runtime_SemacquireMutex
-func sync_runtime_SemacquireMutex(addr *uint32) {
-	semacquire(addr, semaBlockProfile|semaMutexProfile)
+func sync_runtime_SemacquireMutex(addr *uint32, lifo bool) {
+	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile)
 }
 
 //go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
@@ -91,7 +91,11 @@ const (
 )
 
 // Called from runtime.
-func semacquire(addr *uint32, profile semaProfileFlags) {
+func semacquire(addr *uint32) {
+	semacquire1(addr, false, 0)
+}
+
+func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
 	gp := getg()
 	if gp != gp.m.curg {
 		throw("semacquire not on the G stack")
@@ -113,6 +117,7 @@ func semacquire(addr *uint32, profile semaProfileFlags) {
 	t0 := int64(0)
 	s.releasetime = 0
 	s.acquiretime = 0
+	s.ticket = 0
 	if profile&semaBlockProfile != 0 && blockprofilerate > 0 {
 		t0 = cputicks()
 		s.releasetime = -1
@@ -135,9 +140,9 @@ func semacquire(addr *uint32, profile semaProfileFlags) {
 		}
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
-		root.queue(addr, s)
+		root.queue(addr, s, lifo)
 		goparkunlock(&root.lock, "semacquire", traceEvGoBlockSync, 4)
-		if cansemacquire(addr) {
+		if s.ticket != 0 || cansemacquire(addr) {
 			break
 		}
 	}
@@ -148,6 +153,10 @@ func semacquire(addr *uint32, profile semaProfileFlags) {
 }
 
 func semrelease(addr *uint32) {
+	semrelease1(addr, false)
+}
+
+func semrelease1(addr *uint32, handoff bool) {
 	root := semroot(addr)
 	atomic.Xadd(addr, 1)
 
@@ -173,6 +182,12 @@ func semrelease(addr *uint32) {
 	unlock(&root.lock)
 	if s != nil { // May be slow, so unlock first
 		acquiretime := s.acquiretime
+		if s.ticket != 0 {
+			throw("corrupted semaphore ticket")
+		}
+		if handoff && cansemacquire(addr) {
+			s.ticket = 1
+		}
 		readyWithTime(s, 5)
 		if acquiretime != 0 {
 			mutexevent(t0-acquiretime, 3)
@@ -197,7 +212,7 @@ func cansemacquire(addr *uint32) bool {
 }
 
 // queue adds s to the blocked goroutines in semaRoot.
-func (root *semaRoot) queue(addr *uint32, s *sudog) {
+func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	s.g = getg()
 	s.elem = unsafe.Pointer(addr)
 	s.next = nil
@@ -207,14 +222,41 @@ func (root *semaRoot) queue(addr *uint32, s *sudog) {
 	pt := &root.treap
 	for t := *pt; t != nil; t = *pt {
 		if t.elem == unsafe.Pointer(addr) {
-			// Already have addr in list; add s to end of per-addr list.
-			if t.waittail == nil {
-				t.waitlink = s
+			// Already have addr in list.
+			if lifo {
+				// Substitute s in t's place in treap.
+				*pt = s
+				s.ticket = t.ticket
+				s.acquiretime = t.acquiretime
+				s.parent = t.parent
+				s.prev = t.prev
+				s.next = t.next
+				if s.prev != nil {
+					s.prev.parent = s
+				}
+				if s.next != nil {
+					s.next.parent = s
+				}
+				// Add t first in s's wait list.
+				s.waitlink = t
+				s.waittail = t.waittail
+				if s.waittail == nil {
+					s.waittail = t
+				}
+				t.parent = nil
+				t.prev = nil
+				t.next = nil
+				t.waittail = nil
 			} else {
-				t.waittail.waitlink = s
+				// Add s to end of t's wait list.
+				if t.waittail == nil {
+					t.waitlink = s
+				} else {
+					t.waittail.waitlink = s
+				}
+				t.waittail = s
+				s.waitlink = nil
 			}
-			t.waittail = s
-			s.waitlink = nil
 			return
 		}
 		last = t
@@ -319,6 +361,7 @@ Found:
 	s.elem = nil
 	s.next = nil
 	s.prev = nil
+	s.ticket = 0
 	return s, now
 }
 
@@ -560,4 +603,9 @@ func notifyListCheck(sz uintptr) {
 		print("runtime: bad notifyList size - sync=", sz, " runtime=", unsafe.Sizeof(notifyList{}), "\n")
 		throw("bad notifyList size")
 	}
+}
+
+//go:linkname sync_nanotime sync.runtime_nanotime
+func sync_nanotime() int64 {
+	return nanotime()
 }

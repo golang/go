@@ -14,13 +14,15 @@ import "unsafe"
 func runtime_Semacquire(s *uint32)
 
 // SemacquireMutex is like Semacquire, but for profiling contended Mutexes.
-func runtime_SemacquireMutex(*uint32)
+// If lifo is true, queue waiter at the head of wait queue.
+func runtime_SemacquireMutex(s *uint32, lifo bool)
 
 // Semrelease atomically increments *s and notifies a waiting goroutine
 // if one is blocked in Semacquire.
 // It is intended as a simple wakeup primitive for use by the synchronization
 // library and should not be used directly.
-func runtime_Semrelease(s *uint32)
+// If handoff is true, pass count directly to the first waiter.
+func runtime_Semrelease(s *uint32, handoff bool)
 
 // Approximation of notifyList in runtime/sema.go. Size and alignment must
 // agree.
@@ -57,3 +59,5 @@ func runtime_canSpin(i int) bool
 
 // runtime_doSpin does active spinning.
 func runtime_doSpin()
+
+func runtime_nanotime() int64
