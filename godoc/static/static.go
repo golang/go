@@ -1778,8 +1778,8 @@ function cgAddChild(tree, ul, cgn) {
 			<h2 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
 				<a class="permalink" href="#{{$name_html}}">&#xb6;</a>
 			</h2>
-			{{comment_html .Doc}}
 			<pre>{{node_html $ .Decl true}}</pre>
+			{{comment_html .Doc}}
 			{{example_html $ .Name}}
 			{{callgraph_html $ "" .Name}}
 
@@ -1812,8 +1812,8 @@ function cgAddChild(tree, ul, cgn) {
 				<h3 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
 					<a class="permalink" href="#{{$name_html}}">&#xb6;</a>
 				</h3>
-				{{comment_html .Doc}}
 				<pre>{{node_html $ .Decl true}}</pre>
+				{{comment_html .Doc}}
 				{{example_html $ .Name}}
 				{{callgraph_html $ "" .Name}}
 			{{end}}
@@ -1823,8 +1823,8 @@ function cgAddChild(tree, ul, cgn) {
 				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
 					<a class="permalink" href="#{{$tname_html}}.{{$name_html}}">&#xb6;</a>
 				</h3>
-				{{comment_html .Doc}}
 				<pre>{{node_html $ .Decl true}}</pre>
+				{{comment_html .Doc}}
 				{{$name := printf "%s_%s" $tname .Name}}
 				{{example_html $ $name}}
 				{{callgraph_html $ .Recv .Name}}
