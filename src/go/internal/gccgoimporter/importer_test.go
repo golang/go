@@ -96,8 +96,11 @@ var importerTests = [...]importerTest{
 	{pkgpath: "complexnums", name: "PN", want: "const PN untyped complex", wantval: "(1 + -1i)"},
 	{pkgpath: "complexnums", name: "PP", want: "const PP untyped complex", wantval: "(1 + 1i)"},
 	{pkgpath: "conversions", name: "Bits", want: "const Bits Units", wantval: `"bits"`},
-	// TODO: enable this entry once bug has been tracked down
-	//{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
+	{pkgpath: "time", name: "Duration", want: "type Duration int64"},
+	{pkgpath: "time", name: "Nanosecond", want: "const Nanosecond Duration", wantval: "1"},
+	{pkgpath: "unicode", name: "IsUpper", want: "func IsUpper(r rune) bool"},
+	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
+	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
 }
 
 func TestGoxImporter(t *testing.T) {
