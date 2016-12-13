@@ -3220,6 +3220,8 @@ func (b *builder) gccArchArgs() []string {
 		return []string{"-m64", "-march=z196"}
 	case "mips64", "mips64le":
 		return []string{"-mabi=64"}
+	case "mips", "mipsle":
+		return []string{"-mabi=32", "-march=mips32"}
 	}
 	return nil
 }
