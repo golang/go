@@ -111,25 +111,32 @@ func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, nvdargs []driver.Na
 
 var errLevelNotSupported = errors.New("sql: selected isolation level is not supported")
 
-func ctxDriverBegin(ctx context.Context, ci driver.Conn) (driver.Tx, error) {
-	if ciCtx, is := ci.(driver.ConnBeginContext); is {
-		return ciCtx.BeginContext(ctx)
+func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (driver.Tx, error) {
+	if ciCtx, is := ci.(driver.ConnBeginTx); is {
+		dopts := driver.TxOptions{}
+		if opts != nil {
+			dopts.Isolation = driver.IsolationLevel(opts.Isolation)
+			dopts.ReadOnly = opts.ReadOnly
+		}
+		return ciCtx.BeginTx(ctx, dopts)
 	}
 
 	if ctx.Done() == context.Background().Done() {
 		return ci.Begin()
 	}
 
-	// Check the transaction level in ctx. If set and non-default
-	// then return an error here as the BeginContext driver value is not supported.
-	if level, ok := driver.IsolationFromContext(ctx); ok && level != driver.IsolationLevel(LevelDefault) {
-		return nil, errors.New("sql: driver does not support non-default isolation level")
-	}
+	if opts != nil {
+		// Check the transaction level. If the transaction level is non-default
+		// then return an error here as the BeginTx driver value is not supported.
+		if opts.Isolation != LevelDefault {
+			return nil, errors.New("sql: driver does not support non-default isolation level")
+		}
 
-	// Check for a read-only parameter in ctx. If a read-only transaction is
-	// requested return an error as the BeginContext driver value is not supported.
-	if ro := driver.ReadOnlyFromContext(ctx); ro {
-		return nil, errors.New("sql: driver does not support read-only transactions")
+		// If a read-only transaction is requested return an error as the
+		// BeginTx driver value is not supported.
+		if opts.ReadOnly {
+			return nil, errors.New("sql: driver does not support read-only transactions")
+		}
 	}
 
 	txi, err := ci.Begin()

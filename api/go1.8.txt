@@ -73,10 +73,8 @@ pkg database/sql, const LevelSnapshot = 5
 pkg database/sql, const LevelSnapshot IsolationLevel
 pkg database/sql, const LevelWriteCommitted = 3
 pkg database/sql, const LevelWriteCommitted IsolationLevel
-pkg database/sql/driver, func IsolationFromContext(context.Context) (IsolationLevel, bool)
-pkg database/sql/driver, func ReadOnlyFromContext(context.Context) bool
-pkg database/sql/driver, type ConnBeginContext interface { BeginContext }
-pkg database/sql/driver, type ConnBeginContext interface, BeginContext(context.Context) (Tx, error)
+pkg database/sql/driver, type ConnBeginTx interface { BeginTx }
+pkg database/sql/driver, type ConnBeginTx interface, BeginTx(context.Context, TxOptions) (Tx, error)
 pkg database/sql/driver, type ConnPrepareContext interface { PrepareContext }
 pkg database/sql/driver, type ConnPrepareContext interface, PrepareContext(context.Context, string) (Stmt, error)
 pkg database/sql/driver, type ExecerContext interface { ExecContext }
@@ -125,16 +123,17 @@ pkg database/sql/driver, type StmtExecContext interface { ExecContext }
 pkg database/sql/driver, type StmtExecContext interface, ExecContext(context.Context, []NamedValue) (Result, error)
 pkg database/sql/driver, type StmtQueryContext interface { QueryContext }
 pkg database/sql/driver, type StmtQueryContext interface, QueryContext(context.Context, []NamedValue) (Rows, error)
-pkg database/sql, func IsolationContext(context.Context, IsolationLevel) context.Context
+pkg database/sql/driver, type TxOptions struct
+pkg database/sql/driver, type TxOptions struct, Isolation IsolationLevel
+pkg database/sql/driver, type TxOptions struct, ReadOnly bool
 pkg database/sql, func Named(string, interface{}) NamedArg
-pkg database/sql, func ReadOnlyContext(context.Context) context.Context
 pkg database/sql, method (*ColumnType) DatabaseTypeName() string
 pkg database/sql, method (*ColumnType) DecimalSize() (int64, int64, bool)
 pkg database/sql, method (*ColumnType) Length() (int64, bool)
 pkg database/sql, method (*ColumnType) Name() string
 pkg database/sql, method (*ColumnType) Nullable() (bool, bool)
 pkg database/sql, method (*ColumnType) ScanType() reflect.Type
-pkg database/sql, method (*DB) BeginContext(context.Context) (*Tx, error)
+pkg database/sql, method (*DB) BeginTx(context.Context, *TxOptions) (*Tx, error)
 pkg database/sql, method (*DB) ExecContext(context.Context, string, ...interface{}) (Result, error)
 pkg database/sql, method (*DB) PingContext(context.Context) error
 pkg database/sql, method (*DB) PrepareContext(context.Context, string) (*Stmt, error)
@@ -155,6 +154,9 @@ pkg database/sql, type IsolationLevel int
 pkg database/sql, type NamedArg struct
 pkg database/sql, type NamedArg struct, Name string
 pkg database/sql, type NamedArg struct, Value interface{}
+pkg database/sql, type TxOptions struct
+pkg database/sql, type TxOptions struct, Isolation IsolationLevel
+pkg database/sql, type TxOptions struct, ReadOnly bool
 pkg debug/pe, method (*COFFSymbol) FullName(StringTable) (string, error)
 pkg debug/pe, method (StringTable) String(uint32) (string, error)
 pkg debug/pe, type File struct, COFFSymbols []COFFSymbol
