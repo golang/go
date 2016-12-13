@@ -274,6 +274,11 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (*Response, error)
 // setRequestCancel sets the Cancel field of req, if deadline is
 // non-zero. The RoundTripper's type is used to determine whether the legacy
 // CancelRequest behavior should be used.
+//
+// As background, there are three ways to cancel a request:
+// First was Transport.CancelRequest. (deprecated)
+// Second was Request.Cancel (this mechanism).
+// Third was Request.Context.
 func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTimer func(), didTimeout func() bool) {
 	if deadline.IsZero() {
 		return nop, alwaysFalse
@@ -285,7 +290,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	req.Cancel = cancel
 
 	doCancel := func() {
-		// The new way:
+		// The newer way (the second way in the func comment):
 		close(cancel)
 
 		// The legacy compatibility way, used only
