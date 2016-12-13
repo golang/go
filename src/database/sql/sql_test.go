@@ -375,7 +375,7 @@ func TestTxContextWait(t *testing.T) {
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*15)
 
-	tx, err := db.BeginContext(ctx)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
