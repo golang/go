@@ -26,6 +26,10 @@ func test18146(t *testing.T) {
 		t.Skipf("skipping flaky test on %s; see golang.org/issue/18202", runtime.GOOS)
 	}
 
+	if runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" {
+		t.Skipf("skipping on %s", runtime.GOARCH)
+	}
+
 	attempts := 1000
 	threads := 4
 
