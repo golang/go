@@ -741,7 +741,7 @@ func (t *tester) internalLink() bool {
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
-	if t.goarch == "arm64" || t.goarch == "mips64" || t.goarch == "mips64le" {
+	if t.goarch == "arm64" || t.goarch == "mips64" || t.goarch == "mips64le" || t.goarch == "mips" || t.goarch == "mipsle" {
 		return false
 	}
 	return true
