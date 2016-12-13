@@ -1,4 +1,4 @@
-// +build linux,!mips,!mipsle,!ppc64
+// +build linux,!ppc64
 // run
 
 // Copyright 2015 The Go Authors. All rights reserved.
