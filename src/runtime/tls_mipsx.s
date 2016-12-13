@@ -10,12 +10,20 @@
 #include "textflag.h"
 
 // If !iscgo, this is a no-op.
+// NOTE: gogo asumes load_g only clobers g (R30) and REGTMP (R23)
 TEXT runtime·save_g(SB),NOSPLIT,$-4-0
 	MOVB	runtime·iscgo(SB), R23
 	BEQ	R23, nocgo
-	UNDEF
+
+	MOVW	R3, R23
+	MOVW	g, runtime·tls_g(SB) // TLS relocation clobbers R3
+	MOVW	R23, R3
+
 nocgo:
 	RET
 
 TEXT runtime·load_g(SB),NOSPLIT,$-4-0
+	MOVW	runtime·tls_g(SB), g // TLS relocation clobbers R3
 	RET
+
+GLOBL runtime·tls_g(SB), TLSBSS, $4
