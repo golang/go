@@ -265,6 +265,9 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
 //	Dial("ip6:ipv6-icmp", "2001:db8::1")
 //
 // For Unix networks, the address must be a file system path.
+
+// If the host is resolved to multiple addresses,
+// Dial will try each address in order until one succeeds.
 func Dial(network, address string) (Conn, error) {
 	var d Dialer
 	return d.Dial(network, address)
@@ -298,6 +301,12 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 // the connection is complete, an error is returned. Once successfully
 // connected, any expiration of the context will not affect the
 // connection.
+//
+// If the host in the address parameter resolves to multiple network addresses,
+// and if a timeout is given, the connection to each address is given an
+// appropriate fraction of the time to connect. For example, if a host has
+// 4 IP addresses and the timeout is 1 minute, the connect to each single
+// address will be given 15 seconds to complete before trying the next one.
 //
 // See func Dial for a description of the network and address
 // parameters.
