@@ -1729,6 +1729,15 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		if _, ok := base(dt.Type).(*dwarf.VoidType); ok {
 			t.Go = c.goVoidPtr
 			t.C.Set("void*")
+			dq := dt.Type
+			for {
+				if d, ok := dq.(*dwarf.QualType); ok {
+					t.C.Set(d.Qual + " " + t.C.String())
+					dq = d.Type
+				} else {
+					break
+				}
+			}
 			break
 		}
 
