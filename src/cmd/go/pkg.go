@@ -178,7 +178,9 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
 	p.CgoLDFLAGS = pp.CgoLDFLAGS
 	p.CgoPkgConfig = pp.CgoPkgConfig
-	p.Imports = pp.Imports
+	// We modify p.Imports in place, so make copy now.
+	p.Imports = make([]string, len(pp.Imports))
+	copy(p.Imports, pp.Imports)
 	p.TestGoFiles = pp.TestGoFiles
 	p.TestImports = pp.TestImports
 	p.XTestGoFiles = pp.XTestGoFiles
