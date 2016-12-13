@@ -47,7 +47,33 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 }
 
 func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
-	return -1
+	ld.Thearch.Lput(uint32(sectoff))
+
+	elfsym := r.Xsym.ElfsymForReloc()
+	switch r.Type {
+	default:
+		return -1
+
+	case obj.R_ADDR:
+		if r.Siz != 4 {
+			return -1
+		}
+		ld.Thearch.Lput(ld.R_MIPS_32 | uint32(elfsym)<<8)
+
+	case obj.R_ADDRMIPS:
+		ld.Thearch.Lput(ld.R_MIPS_LO16 | uint32(elfsym)<<8)
+
+	case obj.R_ADDRMIPSU:
+		ld.Thearch.Lput(ld.R_MIPS_HI16 | uint32(elfsym)<<8)
+
+	case obj.R_ADDRMIPSTLS:
+		ld.Thearch.Lput(ld.R_MIPS_TLS_TPREL_LO16 | uint32(elfsym)<<8)
+
+	case obj.R_CALLMIPS, obj.R_JMPMIPS:
+		ld.Thearch.Lput(ld.R_MIPS_26 | uint32(elfsym)<<8)
+	}
+
+	return 0
 }
 
 func elfsetupplt(ctxt *ld.Link) {
@@ -58,9 +84,50 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	return -1
 }
 
+func applyrel(r *ld.Reloc, s *ld.Symbol, val *int64, t int64) {
+	o := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+	switch r.Type {
+	case obj.R_ADDRMIPS, obj.R_ADDRMIPSTLS:
+		*val = int64(o&0xffff0000 | uint32(t)&0xffff)
+	case obj.R_ADDRMIPSU:
+		*val = int64(o&0xffff0000 | uint32((t+(1<<15))>>16)&0xffff)
+	case obj.R_CALLMIPS, obj.R_JMPMIPS:
+		*val = int64(o&0xfc000000 | uint32(t>>2)&^0xfc000000)
+	}
+}
+
 func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
-		return -1
+		switch r.Type {
+		default:
+			return -1
+
+		case obj.R_ADDRMIPS, obj.R_ADDRMIPSU:
+
+			r.Done = 0
+
+			// set up addend for eventual relocation via outer symbol.
+			rs := r.Sym
+			r.Xadd = r.Add
+			for rs.Outer != nil {
+				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+				rs = rs.Outer
+			}
+
+			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+				ld.Errorf(s, "missing section for %s", rs.Name)
+			}
+			r.Xsym = rs
+			applyrel(r, s, val, r.Xadd)
+			return 0
+
+		case obj.R_ADDRMIPSTLS, obj.R_CALLMIPS, obj.R_JMPMIPS:
+			r.Done = 0
+			r.Xsym = r.Sym
+			r.Xadd = r.Add
+			applyrel(r, s, val, r.Add)
+			return 0
+		}
 	}
 
 	switch r.Type {
@@ -72,23 +139,33 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
 		return 0
 
-	case obj.R_ADDRMIPS,
-		obj.R_ADDRMIPSU:
+	case obj.R_ADDRMIPS, obj.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
-		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
-		if r.Type == obj.R_ADDRMIPS {
-			*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
-		} else {
-			*val = int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff)
-		}
+		applyrel(r, s, val, t)
 		return 0
 
-	case obj.R_CALLMIPS,
-		obj.R_JMPMIPS:
-		// Low 26 bits = (S + A) >> 2
+	case obj.R_CALLMIPS, obj.R_JMPMIPS:
 		t := ld.Symaddr(r.Sym) + r.Add
-		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
-		*val = int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000)
+
+		if t&3 != 0 {
+			ld.Errorf(s, "direct call is not aligned: %s %x", r.Sym.Name, t)
+		}
+
+		// check if target address is in the same 256 MB region as the next instruction
+		if (s.Value+int64(r.Off)+4)&0xf0000000 != (t & 0xf0000000) {
+			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
+		}
+
+		applyrel(r, s, val, t)
+		return 0
+
+	case obj.R_ADDRMIPSTLS:
+		// thread pointer is at 0x7000 offset from the start of TLS data area
+		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
+		if t < -32768 || t >= 32678 {
+			ld.Errorf(s, "TLS offset out of range %d", t)
+		}
+		applyrel(r, s, val, t)
 		return 0
 	}
 

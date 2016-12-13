@@ -962,7 +962,7 @@ func Elfinit(ctxt *Link) {
 				ehdr.flags = 0x5000002 // has entry point, Version5 EABI
 			}
 		} else if SysArch.Family == sys.MIPS {
-			ehdr.flags = 0x50000000 /* MIPS 32 */
+			ehdr.flags = 0x50001004 /* MIPS 32 CPIC O32*/
 		}
 		fallthrough
 	default:

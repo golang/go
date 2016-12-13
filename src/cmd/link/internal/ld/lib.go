@@ -1257,6 +1257,8 @@ func hostlinkArchArgs() []string {
 		// nothing needed
 	case sys.MIPS64:
 		return []string{"-mabi=64"}
+	case sys.MIPS:
+		return []string{"-mabi=32"}
 	}
 	return nil
 }
