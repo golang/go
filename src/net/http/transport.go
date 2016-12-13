@@ -923,6 +923,9 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		// value.
 		select {
 		case <-req.Cancel:
+			// It was an error due to cancelation, so prioritize that
+			// error value. (Issue 16049)
+			return nil, errRequestCanceledConn
 		case <-req.Context().Done():
 			return nil, req.Context().Err()
 		case err := <-cancelc:
@@ -935,9 +938,6 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 			// return the original error message:
 			return nil, v.err
 		}
-		// It was an error due to cancelation, so prioritize that
-		// error value. (Issue 16049)
-		return nil, errRequestCanceledConn
 	case pc := <-idleConnCh:
 		// Another request finished first and its net.Conn
 		// became available before our dial. Or somebody
