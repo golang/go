@@ -658,9 +658,10 @@ func ParseIP(s string) IP {
 // like "192.0.2.0/24" or "2001:db8::/32", as defined in
 // RFC 4632 and RFC 4291.
 //
-// It returns the IP address and the network implied by the IP
-// and mask. For example, ParseCIDR("198.51.100.1/24") returns
-// the IP address 198.51.100.1 and the network 198.51.100.0/24.
+// It returns the IP address and the network implied by the IP and
+// prefix length.
+// For example, ParseCIDR("192.0.2.1/24") returns the IP address
+// 198.0.2.1 and the network 198.0.2.0/24.
 func ParseCIDR(s string) (IP, *IPNet, error) {
 	i := byteIndex(s, '/')
 	if i < 0 {
