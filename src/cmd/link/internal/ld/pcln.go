@@ -248,6 +248,9 @@ func (ctxt *Link) pclntab() {
 		setaddr(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), s)
 		setuintxx(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart), int64(SysArch.PtrSize))
 
+		// Write runtime._func. Keep in sync with ../../../../runtime/runtime2.go:/_func
+		// and package debug/gosym.
+
 		// fixed size of struct, checked below
 		off := funcstart
 
