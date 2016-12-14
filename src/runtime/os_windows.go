@@ -510,7 +510,7 @@ func semacreate(mp *m) {
 // May run with m.p==nil, so write barriers are not allowed. This
 // function is called by newosproc0, so it is also required to
 // operate without stack guards.
-//go:nowritebarrierc
+//go:nowritebarrierrec
 //go:nosplit
 func newosproc(mp *m, stk unsafe.Pointer) {
 	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
@@ -527,7 +527,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 // Used by the C library build mode. On Linux this function would allocate a
 // stack, but that's not necessary for Windows. No stack guards are present
 // and the GC has not been initialized, so write barriers will fail.
-//go:nowritebarrierc
+//go:nowritebarrierrec
 //go:nosplit
 func newosproc0(mp *m, stk unsafe.Pointer) {
 	newosproc(mp, stk)
