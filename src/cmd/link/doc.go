@@ -41,7 +41,7 @@ Flags:
 		Set the value of the string variable in importpath named name to value.
 		Note that before Go 1.5 this option took two separate arguments.
 		Now it takes one argument split on the first = sign.
-		To figure out the name to use, run `go tool nm PROGRAM`;
+		To discover which name to use, run `go tool nm PROGRAM`;
 		usable variables will be tagged "D" or "d".
 	-buildmode mode
 		Set build mode (default exe).
