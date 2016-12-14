@@ -163,22 +163,23 @@ func refererForURL(lastReq, newReq *url.URL) string {
 	return referer
 }
 
-func (c *Client) send(req *Request, deadline time.Time) (*Response, error) {
+// didTimeout is non-nil only if err != nil.
+func (c *Client) send(req *Request, deadline time.Time) (resp *Response, didTimeout func() bool, err error) {
 	if c.Jar != nil {
 		for _, cookie := range c.Jar.Cookies(req.URL) {
 			req.AddCookie(cookie)
 		}
 	}
-	resp, err := send(req, c.transport(), deadline)
+	resp, didTimeout, err = send(req, c.transport(), deadline)
 	if err != nil {
-		return nil, err
+		return nil, didTimeout, err
 	}
 	if c.Jar != nil {
 		if rc := resp.Cookies(); len(rc) > 0 {
 			c.Jar.SetCookies(req.URL, rc)
 		}
 	}
-	return resp, nil
+	return resp, nil, nil
 }
 
 func (c *Client) deadline() time.Time {
@@ -197,22 +198,22 @@ func (c *Client) transport() RoundTripper {
 
 // send issues an HTTP request.
 // Caller should close resp.Body when done reading from it.
-func send(ireq *Request, rt RoundTripper, deadline time.Time) (*Response, error) {
+func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, didTimeout func() bool, err error) {
 	req := ireq // req is either the original request, or a modified fork
 
 	if rt == nil {
 		req.closeBody()
-		return nil, errors.New("http: no Client.Transport or DefaultTransport")
+		return nil, alwaysFalse, errors.New("http: no Client.Transport or DefaultTransport")
 	}
 
 	if req.URL == nil {
 		req.closeBody()
-		return nil, errors.New("http: nil Request.URL")
+		return nil, alwaysFalse, errors.New("http: nil Request.URL")
 	}
 
 	if req.RequestURI != "" {
 		req.closeBody()
-		return nil, errors.New("http: Request.RequestURI can't be set in client requests.")
+		return nil, alwaysFalse, errors.New("http: Request.RequestURI can't be set in client requests.")
 	}
 
 	// forkReq forks req into a shallow clone of ireq the first
@@ -245,7 +246,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (*Response, error)
 	}
 	stopTimer, didTimeout := setRequestCancel(req, rt, deadline)
 
-	resp, err := rt.RoundTrip(req)
+	resp, err = rt.RoundTrip(req)
 	if err != nil {
 		stopTimer()
 		if resp != nil {
@@ -259,7 +260,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (*Response, error)
 				err = errors.New("http: server gave HTTP response to HTTPS client")
 			}
 		}
-		return nil, err
+		return nil, didTimeout, err
 	}
 	if !deadline.IsZero() {
 		resp.Body = &cancelTimerBody{
@@ -268,7 +269,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (*Response, error)
 			reqDidTimeout: didTimeout,
 		}
 	}
-	return resp, nil
+	return resp, nil, nil
 }
 
 // setRequestCancel sets the Cancel field of req, if deadline is
@@ -570,8 +571,9 @@ func (c *Client) Do(req *Request) (*Response, error) {
 
 		reqs = append(reqs, req)
 		var err error
-		if resp, err = c.send(req, deadline); err != nil {
-			if !deadline.IsZero() && !time.Now().Before(deadline) {
+		var didTimeout func() bool
+		if resp, didTimeout, err = c.send(req, deadline); err != nil {
+			if !deadline.IsZero() && didTimeout() {
 				err = &httpError{
 					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
 					timeout: true,
