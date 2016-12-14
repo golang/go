@@ -28,6 +28,9 @@ var protocols = map[string]int{
 // services contains minimal mappings between services names and port
 // numbers for platforms that don't have a complete list of port numbers
 // (some Solaris distros, nacl, etc).
+//
+// See https://www.iana.org/assignments/service-names-port-numbers
+//
 // On Unix, this map is augmented by readServices via goLookupPort.
 var services = map[string]map[string]int{
 	"udp": {
@@ -63,7 +66,12 @@ func lookupProtocolMap(name string) (int, error) {
 	return proto, nil
 }
 
-const maxServiceLength = len("mobility-header") + 10 // with room to grow
+// maxPortBufSize is the longest reasonable name of a service
+// (non-numeric port).
+// Currently the longest known IANA-unregistered name is
+// "mobility-header", so we use that length, plus some slop in case
+// something longer is added in the future.
+const maxPortBufSize = len("mobility-header") + 10
 
 func lookupPortMap(network, service string) (port int, error error) {
 	switch network {
@@ -74,7 +82,7 @@ func lookupPortMap(network, service string) (port int, error error) {
 	}
 
 	if m, ok := services[network]; ok {
-		var lowerService [maxServiceLength]byte
+		var lowerService [maxPortBufSize]byte
 		n := copy(lowerService[:], service)
 		lowerASCIIBytes(lowerService[:n])
 		if port, ok := m[string(lowerService[:n])]; ok && n == len(service) {
