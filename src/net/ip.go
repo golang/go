@@ -654,7 +654,7 @@ func ParseIP(s string) IP {
 	return nil
 }
 
-// ParseCIDR parses s as a CIDR notation IP address and mask,
+// ParseCIDR parses s as a CIDR notation IP address and prefix length,
 // like "192.0.2.0/24" or "2001:db8::/32", as defined in
 // RFC 4632 and RFC 4291.
 //
