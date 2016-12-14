@@ -4,7 +4,7 @@
 
 // Package plugin implements loading and symbol resolution of Go plugins.
 //
-// Currently plugins only work on Linux and Darwin.
+// Currently plugins only work on Linux.
 //
 // A plugin is a Go main package with exported functions and variables that
 // has been built with:
