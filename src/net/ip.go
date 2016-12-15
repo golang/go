@@ -90,7 +90,7 @@ func CIDRMask(ones, bits int) IPMask {
 
 // Well-known IPv4 addresses
 var (
-	IPv4bcast     = IPv4(255, 255, 255, 255) // broadcast
+	IPv4bcast     = IPv4(255, 255, 255, 255) // limited broadcast
 	IPv4allsys    = IPv4(224, 0, 0, 1)       // all systems
 	IPv4allrouter = IPv4(224, 0, 0, 2)       // all routers
 	IPv4zero      = IPv4(0, 0, 0, 0)         // all zeros
