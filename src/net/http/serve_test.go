@@ -481,11 +481,11 @@ func TestServerTimeouts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("http Get #1: %v", err)
 	}
-	got, _ := ioutil.ReadAll(r.Body)
+	got, err := ioutil.ReadAll(r.Body)
 	expected := "req=1"
-	if string(got) != expected {
-		t.Errorf("Unexpected response for request #1; got %q; expected %q",
-			string(got), expected)
+	if string(got) != expected || err != nil {
+		t.Errorf("Unexpected response for request #1; got %q ,%v; expected %q, nil",
+			string(got), err, expected)
 	}
 
 	// Slow client that should timeout.
@@ -496,6 +496,7 @@ func TestServerTimeouts(t *testing.T) {
 	}
 	buf := make([]byte, 1)
 	n, err := conn.Read(buf)
+	conn.Close()
 	latency := time.Since(t1)
 	if n != 0 || err != io.EOF {
 		t.Errorf("Read = %v, %v, wanted %v, %v", n, err, 0, io.EOF)
@@ -507,14 +508,14 @@ func TestServerTimeouts(t *testing.T) {
 	// Hit the HTTP server successfully again, verifying that the
 	// previous slow connection didn't run our handler.  (that we
 	// get "req=2", not "req=3")
-	r, err = Get(ts.URL)
+	r, err = c.Get(ts.URL)
 	if err != nil {
 		t.Fatalf("http Get #2: %v", err)
 	}
-	got, _ = ioutil.ReadAll(r.Body)
+	got, err = ioutil.ReadAll(r.Body)
 	expected = "req=2"
-	if string(got) != expected {
-		t.Errorf("Get #2 got %q, want %q", string(got), expected)
+	if string(got) != expected || err != nil {
+		t.Errorf("Get #2 got %q, %v, want %q, nil", string(got), err, expected)
 	}
 
 	if !testing.Short() {
