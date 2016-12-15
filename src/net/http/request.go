@@ -930,6 +930,9 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 	if !ok {
 		return nil, &badStringError{"malformed HTTP request", s}
 	}
+	if !validMethod(req.Method) {
+		return nil, &badStringError{"invalid method", req.Method}
+	}
 	rawurl := req.RequestURI
 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
 		return nil, &badStringError{"malformed HTTP version", req.Proto}
