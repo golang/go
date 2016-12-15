@@ -6,7 +6,8 @@ package main
 
 // This program failed when run under the C/C++ ThreadSanitizer. The
 // TSAN library was not keeping track of whether signals should be
-// delivered on the alternate signal stack.
+// delivered on the alternate signal stack, and the Go signal handler
+// was not preserving callee-saved registers from C callers.
 
 /*
 #cgo CFLAGS: -g -fsanitize=thread
@@ -19,10 +20,14 @@ void spin() {
 	size_t n;
 	struct timeval tvstart, tvnow;
 	int diff;
+	void *prev = NULL, *cur;
 
 	gettimeofday(&tvstart, NULL);
 	for (n = 0; n < 1<<20; n++) {
-		free(malloc(n));
+		cur = malloc(n);
+		free(prev);
+		prev = cur;
+
 		gettimeofday(&tvnow, NULL);
 		diff = (tvnow.tv_sec - tvstart.tv_sec) * 1000 * 1000 + (tvnow.tv_usec - tvstart.tv_usec);
 
@@ -32,6 +37,8 @@ void spin() {
 			break;
 		}
 	}
+
+	free(prev);
 }
 */
 import "C"
