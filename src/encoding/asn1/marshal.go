@@ -556,8 +556,8 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 		return t, nil
 	}
 
-	tag, isCompound, ok := getUniversalType(v.Type())
-	if !ok {
+	matchAny, tag, isCompound, ok := getUniversalType(v.Type())
+	if !ok || matchAny {
 		return nil, StructuralError{fmt.Sprintf("unknown Go type: %v", v.Type())}
 	}
 
