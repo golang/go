@@ -481,7 +481,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 g0:
 	// Save room for two of our pointers and O32 frame.
 	ADDU	$-24, R29
-	AND	$^7, R29	// O32 ABI expects 8-byte aligned stack on function entry
+	AND	$~7, R29	// O32 ABI expects 8-byte aligned stack on function entry
 	MOVW	R2, 16(R29)	// save old g on stack
 	MOVW	(g_stack+stack_hi)(R2), R2
 	SUBU	R3, R2
