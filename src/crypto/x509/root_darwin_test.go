@@ -7,6 +7,7 @@ package x509
 import (
 	"runtime"
 	"testing"
+	"time"
 )
 
 func TestSystemRoots(t *testing.T) {
@@ -15,12 +16,20 @@ func TestSystemRoots(t *testing.T) {
 		t.Skipf("skipping on %s/%s, no system root", runtime.GOOS, runtime.GOARCH)
 	}
 
-	sysRoots := systemRootsPool()         // actual system roots
+	t0 := time.Now()
+	sysRoots := systemRootsPool() // actual system roots
+	sysRootsDuration := time.Since(t0)
+
+	t1 := time.Now()
 	execRoots, err := execSecurityRoots() // non-cgo roots
+	execSysRootsDuration := time.Since(t1)
 
 	if err != nil {
 		t.Fatalf("failed to read system roots: %v", err)
 	}
+
+	t.Logf("    cgo sys roots: %v", sysRootsDuration)
+	t.Logf("non-cgo sys roots: %v", execSysRootsDuration)
 
 	for _, tt := range []*CertPool{sysRoots, execRoots} {
 		if tt == nil {
