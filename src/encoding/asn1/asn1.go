@@ -536,7 +536,7 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 // a number of ASN.1 values from the given byte slice and returns them as a
 // slice of Go values of the given type.
 func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type) (ret reflect.Value, err error) {
-	expectedTag, compoundType, ok := getUniversalType(elemType)
+	matchAny, expectedTag, compoundType, ok := getUniversalType(elemType)
 	if !ok {
 		err = StructuralError{"unknown Go type for slice"}
 		return
@@ -562,7 +562,7 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 			t.tag = TagUTCTime
 		}
 
-		if t.class != ClassUniversal || t.isCompound != compoundType || t.tag != expectedTag {
+		if !matchAny && (t.class != ClassUniversal || t.isCompound != compoundType || t.tag != expectedTag) {
 			err = StructuralError{"sequence tag mismatch"}
 			return
 		}
@@ -617,23 +617,6 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	}
 
-	// Deal with raw values.
-	if fieldType == rawValueType {
-		var t tagAndLength
-		t, offset, err = parseTagAndLength(bytes, offset)
-		if err != nil {
-			return
-		}
-		if invalidLength(offset, t.length, len(bytes)) {
-			err = SyntaxError{"data truncated"}
-			return
-		}
-		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length], bytes[initOffset : offset+t.length]}
-		offset += t.length
-		v.Set(reflect.ValueOf(result))
-		return
-	}
-
 	// Deal with the ANY type.
 	if ifaceType := fieldType; ifaceType.Kind() == reflect.Interface && ifaceType.NumMethod() == 0 {
 		var t tagAndLength
@@ -682,11 +665,6 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 		return
 	}
-	universalTag, compoundType, ok1 := getUniversalType(fieldType)
-	if !ok1 {
-		err = StructuralError{fmt.Sprintf("unknown Go type: %v", fieldType)}
-		return
-	}
 
 	t, offset, err := parseTagAndLength(bytes, offset)
 	if err != nil {
@@ -702,7 +680,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			return
 		}
 		if t.class == expectedClass && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
-			if t.length > 0 {
+			if fieldType == rawValueType {
+				// The inner element should not be parsed for RawValues.
+			} else if t.length > 0 {
 				t, offset, err = parseTagAndLength(bytes, offset)
 				if err != nil {
 					return
@@ -725,6 +705,12 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			}
 			return
 		}
+	}
+
+	matchAny, universalTag, compoundType, ok1 := getUniversalType(fieldType)
+	if !ok1 {
+		err = StructuralError{fmt.Sprintf("unknown Go type: %v", fieldType)}
+		return
 	}
 
 	// Special case for strings: all the ASN.1 string types map to the Go
@@ -752,21 +738,25 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		universalTag = TagSet
 	}
 
+	matchAnyClassAndTag := matchAny
 	expectedClass := ClassUniversal
 	expectedTag := universalTag
 
 	if !params.explicit && params.tag != nil {
 		expectedClass = ClassContextSpecific
 		expectedTag = *params.tag
+		matchAnyClassAndTag = false
 	}
 
 	if !params.explicit && params.application && params.tag != nil {
 		expectedClass = ClassApplication
 		expectedTag = *params.tag
+		matchAnyClassAndTag = false
 	}
 
 	// We have unwrapped any explicit tagging at this point.
-	if t.class != expectedClass || t.tag != expectedTag || t.isCompound != compoundType {
+	if !matchAnyClassAndTag && (t.class != expectedClass || t.tag != expectedTag) ||
+		(!matchAny && t.isCompound != compoundType) {
 		// Tags don't match. Again, it could be an optional element.
 		ok := setDefaultValue(v, params)
 		if ok {
@@ -785,6 +775,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 
 	// We deal with the structures defined in this package first.
 	switch fieldType {
+	case rawValueType:
+		result := RawValue{t.class, t.tag, t.isCompound, innerBytes, bytes[initOffset:offset]}
+		v.Set(reflect.ValueOf(result))
+		return
 	case objectIdentifierType:
 		newSlice, err1 := parseObjectIdentifier(innerBytes)
 		v.Set(reflect.MakeSlice(v.Type(), len(newSlice), len(newSlice)))

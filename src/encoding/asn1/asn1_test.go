@@ -1033,3 +1033,60 @@ func TestNull(t *testing.T) {
 		t.Errorf("Expected Unmarshal of NullBytes to yield %v, got %v", NullRawValue, unmarshaled)
 	}
 }
+
+func TestExplicitTagRawValueStruct(t *testing.T) {
+	type foo struct {
+		A RawValue `asn1:"optional,explicit,tag:5"`
+		B []byte   `asn1:"optional,explicit,tag:6"`
+	}
+	before := foo{B: []byte{1, 2, 3}}
+	derBytes, err := Marshal(before)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var after foo
+	if rest, err := Unmarshal(derBytes, &after); err != nil || len(rest) != 0 {
+		t.Fatal(err)
+	}
+
+	got := fmt.Sprintf("%#v", after)
+	want := fmt.Sprintf("%#v", before)
+	if got != want {
+		t.Errorf("got %s, want %s (DER: %x)", got, want, derBytes)
+	}
+}
+
+func TestTaggedRawValue(t *testing.T) {
+	type taggedRawValue struct {
+		A RawValue `asn1:"tag:5"`
+	}
+	type untaggedRawValue struct {
+		A RawValue
+	}
+	const isCompound = 0x20
+	const tag = 5
+
+	tests := []struct {
+		shouldMatch bool
+		derBytes    []byte
+	}{
+		{false, []byte{0x30, 3, TagInteger, 1, 1}},
+		{true, []byte{0x30, 3, (ClassContextSpecific << 6) | tag, 1, 1}},
+		{true, []byte{0x30, 3, (ClassContextSpecific << 6) | tag | isCompound, 1, 1}},
+		{false, []byte{0x30, 3, (ClassApplication << 6) | tag | isCompound, 1, 1}},
+	}
+
+	for i, test := range tests {
+		var tagged taggedRawValue
+		if _, err := Unmarshal(test.derBytes, &tagged); (err == nil) != test.shouldMatch {
+			t.Errorf("#%d: unexpected result parsing %x: %s", i, test.derBytes, err)
+		}
+
+		// An untagged RawValue should accept anything.
+		var untagged untaggedRawValue
+		if _, err := Unmarshal(test.derBytes, &untagged); err != nil {
+			t.Errorf("#%d: unexpected failure parsing %x with untagged RawValue: %s", i, test.derBytes, err)
+		}
+	}
+}
