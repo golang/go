@@ -30,7 +30,7 @@ func TestLinkgetlineFromPos(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		f, l := linkgetlineFromPos(ctxt, test.pos)
+		f, l := linkgetlineFromPos(ctxt, ctxt.PosTable.XPos(test.pos))
 		got := fmt.Sprintf("%s:%d", f.Name, l)
 		if got != test.want {
 			t.Errorf("linkgetline(%v) = %q, want %q", test.pos, got, test.want)

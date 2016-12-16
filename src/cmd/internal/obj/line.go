@@ -301,7 +301,8 @@ func linkgetline(ctxt *Link, lineno int32) (f *LSym, l int32) {
 }
 
 // This is modified copy of linkgetline to work from src.Pos.
-func linkgetlineFromPos(ctxt *Link, pos src.Pos) (f *LSym, l int32) {
+func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f *LSym, l int32) {
+	pos := ctxt.PosTable.Pos(xpos)
 	filename := pos.AbsFilename()
 	if !pos.IsKnown() || filename == "" {
 		return Linklookup(ctxt, "??", HistVersion), 0

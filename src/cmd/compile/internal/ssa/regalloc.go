@@ -181,9 +181,9 @@ func pickReg(r regMask) register {
 }
 
 type use struct {
-	dist int32   // distance from start of the block to a use of a value
-	pos  src.Pos // source position of the use
-	next *use    // linked list of uses of a value in nondecreasing dist order
+	dist int32    // distance from start of the block to a use of a value
+	pos  src.XPos // source position of the use
+	next *use     // linked list of uses of a value in nondecreasing dist order
 }
 
 type valState struct {
@@ -288,8 +288,8 @@ type endReg struct {
 
 type startReg struct {
 	r   register
-	vid ID      // pre-regalloc value needed in this register
-	pos src.Pos // source position of use of this register
+	vid ID       // pre-regalloc value needed in this register
+	pos src.XPos // source position of use of this register
 }
 
 // freeReg frees up register r. Any current user of r is kicked out.
@@ -411,7 +411,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 // allocated register is marked nospill so the assignment cannot be
 // undone until the caller allows it by clearing nospill. Returns a
 // *Value which is either v or a copy of v allocated to the chosen register.
-func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos src.Pos) *Value {
+func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos src.XPos) *Value {
 	vi := &s.values[v.ID]
 
 	// Check if v is already in a requested register.
@@ -555,7 +555,7 @@ func (s *regAllocState) init(f *Func) {
 		case "s390x":
 			// nothing to do, R10 & R11 already reserved
 		default:
-			s.f.Config.fe.Fatalf(src.NoPos, "arch %s not implemented", s.f.Config.arch)
+			s.f.Config.fe.Fatalf(src.NoXPos, "arch %s not implemented", s.f.Config.arch)
 		}
 	}
 	if s.f.Config.nacl {
@@ -618,7 +618,7 @@ func (s *regAllocState) init(f *Func) {
 
 // Adds a use record for id at distance dist from the start of the block.
 // All calls to addUse must happen with nonincreasing dist.
-func (s *regAllocState) addUse(id ID, dist int32, pos src.Pos) {
+func (s *regAllocState) addUse(id ID, dist int32, pos src.XPos) {
 	r := s.freeUseRecords
 	if r != nil {
 		s.freeUseRecords = r.next
@@ -1879,17 +1879,17 @@ type edgeState struct {
 }
 
 type contentRecord struct {
-	vid   ID      // pre-regalloc value
-	c     *Value  // cached value
-	final bool    // this is a satisfied destination
-	pos   src.Pos // source position of use of the value
+	vid   ID       // pre-regalloc value
+	c     *Value   // cached value
+	final bool     // this is a satisfied destination
+	pos   src.XPos // source position of use of the value
 }
 
 type dstRecord struct {
 	loc    Location // register or stack slot
 	vid    ID       // pre-regalloc value it should contain
 	splice **Value  // place to store reference to the generating instruction
-	pos    src.Pos  // source position of use of this location
+	pos    src.XPos // source position of use of this location
 }
 
 // setup initializes the edge state for shuffling.
@@ -1912,13 +1912,13 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 
 	// Live registers can be sources.
 	for _, x := range srcReg {
-		e.set(&e.s.registers[x.r], x.v.ID, x.c, false, src.NoPos) // don't care the position of the source
+		e.set(&e.s.registers[x.r], x.v.ID, x.c, false, src.NoXPos) // don't care the position of the source
 	}
 	// So can all of the spill locations.
 	for _, spillID := range stacklive {
 		v := e.s.orig[spillID]
 		spill := e.s.values[v.ID].spill
-		e.set(e.s.f.getHome(spillID), v.ID, spill, false, src.NoPos) // don't care the position of the source
+		e.set(e.s.f.getHome(spillID), v.ID, spill, false, src.NoXPos) // don't care the position of the source
 	}
 
 	// Figure out all the destinations we need.
@@ -2018,7 +2018,7 @@ func (e *edgeState) process() {
 
 // processDest generates code to put value vid into location loc. Returns true
 // if progress was made.
-func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.Pos) bool {
+func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XPos) bool {
 	occupant := e.contents[loc]
 	if occupant.vid == vid {
 		// Value is already in the correct place.
@@ -2140,7 +2140,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.Po
 }
 
 // set changes the contents of location loc to hold the given value and its cached representative.
-func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.Pos) {
+func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos) {
 	e.s.f.setHome(c, loc)
 	e.erase(loc)
 	e.contents[loc] = contentRecord{vid, c, final, pos}
@@ -2291,9 +2291,9 @@ func (v *Value) rematerializeable() bool {
 }
 
 type liveInfo struct {
-	ID   ID      // ID of value
-	dist int32   // # of instructions before next use
-	pos  src.Pos // source position of next use
+	ID   ID       // ID of value
+	dist int32    // # of instructions before next use
+	pos  src.XPos // source position of next use
 }
 
 // dblock contains information about desired & avoid registers at the end of a block.

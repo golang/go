@@ -239,7 +239,7 @@ type Prog struct {
 	Forwd  *Prog       // for x86 back end
 	Rel    *Prog       // for x86, arm back ends
 	Pc     int64       // for back ends or assembler: virtual or actual program counter, depending on phase
-	Pos    src.Pos     // source position of this instruction
+	Pos    src.XPos    // source position of this instruction
 	Spadj  int32       // effect of instruction on stack pointer (increment or decrement amount)
 	As     As          // assembler opcode
 	Reg    int16       // 2nd source operand
@@ -727,6 +727,7 @@ type Link struct {
 	Bso           *bufio.Writer
 	Pathname      string
 	Hash          map[SymVer]*LSym
+	PosTable      src.PosTable
 	Imports       []string
 	Plists        []*Plist
 	Sym_div       *LSym

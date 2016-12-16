@@ -38,7 +38,7 @@ type Value struct {
 	Block *Block
 
 	// Source position
-	Pos src.Pos
+	Pos src.XPos
 
 	// Use count. Each appearance in Value.Args and Block.Control counts once.
 	Uses int32

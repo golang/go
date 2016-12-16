@@ -59,7 +59,7 @@ func Getgoextlinkenabled() string {
 }
 
 func (p *Prog) Line() string {
-	return p.Pos.String()
+	return p.Ctxt.PosTable.Pos(p.Pos).String()
 }
 
 var armCondCode = []string{

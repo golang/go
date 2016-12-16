@@ -21,7 +21,7 @@ type HTMLWriter struct {
 func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		logger.Fatalf(src.NoPos, "%v", err)
+		logger.Fatalf(src.NoXPos, "%v", err)
 	}
 	html := HTMLWriter{File: out, Logger: logger}
 	html.start(funcname)
@@ -329,13 +329,13 @@ func (w *HTMLWriter) WriteColumn(title string, html string) {
 
 func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
 	if _, err := fmt.Fprintf(w.File, msg, v...); err != nil {
-		w.Fatalf(src.NoPos, "%v", err)
+		w.Fatalf(src.NoXPos, "%v", err)
 	}
 }
 
 func (w *HTMLWriter) WriteString(s string) {
 	if _, err := w.File.WriteString(s); err != nil {
-		w.Fatalf(src.NoPos, "%v", err)
+		w.Fatalf(src.NoXPos, "%v", err)
 	}
 }
 

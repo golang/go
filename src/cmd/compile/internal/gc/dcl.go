@@ -288,7 +288,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 // declare constants from grammar
 // new_name_list [[type] = expr_list]
 func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
-	var lno src.Pos // default is to leave line number alone in listtreecopy
+	var lno src.XPos // default is to leave line number alone in listtreecopy
 	if len(cl) == 0 {
 		if t != nil {
 			yyerror("const declaration cannot have type without expression")
@@ -1345,7 +1345,7 @@ type nowritebarrierrecChecker struct {
 type nowritebarrierrecCall struct {
 	target *Node
 	depth  int
-	lineno src.Pos
+	lineno src.XPos
 }
 
 func checknowritebarrierrec() {

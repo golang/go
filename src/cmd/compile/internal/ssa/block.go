@@ -16,7 +16,7 @@ type Block struct {
 	ID ID
 
 	// Source position for block's control operation
-	Pos src.Pos
+	Pos src.XPos
 
 	// The kind of block this is.
 	Kind BlockKind

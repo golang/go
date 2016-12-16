@@ -69,7 +69,7 @@ func (p *noder) file(file *syntax.File) {
 	// for fninit and set lineno to NoPos here.
 	// TODO(gri) fix this once we switched permanently to the new
 	// position information.
-	lineno = src.MakePos(file.Pos().Base(), uint(file.Lines), 0)
+	lineno = MakePos(file.Pos().Base(), uint(file.Lines), 0)
 }
 
 func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
@@ -249,7 +249,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		yyerror("can only use //go:noescape with external func implementations")
 	}
 	f.Func.Pragma = pragma
-	lineno = src.MakePos(fun.Pos().Base(), fun.EndLine, 0)
+	lineno = MakePos(fun.Pos().Base(), fun.EndLine, 0)
 	f.Func.Endlineno = lineno
 
 	funcbody(f)
@@ -375,14 +375,14 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 			l[i] = p.wrapname(expr.ElemList[i], e)
 		}
 		n.List.Set(l)
-		lineno = src.MakePos(expr.Pos().Base(), expr.EndLine, 0)
+		lineno = MakePos(expr.Pos().Base(), expr.EndLine, 0)
 		return n
 	case *syntax.KeyValueExpr:
 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
 		closurehdr(p.typeExpr(expr.Type))
 		body := p.stmts(expr.Body)
-		lineno = src.MakePos(expr.Pos().Base(), expr.EndLine, 0)
+		lineno = MakePos(expr.Pos().Base(), expr.EndLine, 0)
 		return p.setlineno(expr, closurebody(body))
 	case *syntax.ParenExpr:
 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
@@ -1009,7 +1009,7 @@ func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
 		return dst
 	}
-	dst.Pos = pos
+	dst.Pos = Ctxt.PosTable.XPos(pos)
 	return dst
 }
 
@@ -1022,12 +1022,12 @@ func (p *noder) lineno(n syntax.Node) {
 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
 		return
 	}
-	lineno = pos
+	lineno = Ctxt.PosTable.XPos(pos)
 }
 
 func (p *noder) error(err error) {
 	e := err.(syntax.Error)
-	yyerrorl(e.Pos, "%s", e.Msg)
+	yyerrorl(Ctxt.PosTable.XPos(e.Pos), "%s", e.Msg)
 }
 
 func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {

@@ -85,8 +85,8 @@ func (p *Parser) errorf(format string, args ...interface{}) {
 	}
 }
 
-func (p *Parser) pos() src.Pos {
-	return src.MakePos(p.lex.Base(), uint(p.lineNum), 0)
+func (p *Parser) pos() src.XPos {
+	return p.ctxt.PosTable.XPos(src.MakePos(p.lex.Base(), uint(p.lineNum), 0))
 }
 
 func (p *Parser) Parse() (*obj.Prog, bool) {

@@ -679,7 +679,7 @@ func evconst(n *Node) {
 
 	nr := n.Right
 	var rv Val
-	var lno src.Pos
+	var lno src.XPos
 	var wr EType
 	var v Val
 	var norig *Node

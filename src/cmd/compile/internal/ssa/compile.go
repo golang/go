@@ -129,7 +129,7 @@ func (f *Func) dumpFile(phaseName string) {
 
 	fi, err := os.Create(fname)
 	if err != nil {
-		f.Config.Warnl(src.NoPos, "Unable to create after-phase dump file %s", fname)
+		f.Config.Warnl(src.NoXPos, "Unable to create after-phase dump file %s", fname)
 		return
 	}
 

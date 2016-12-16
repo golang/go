@@ -37,6 +37,8 @@ func MakePos(base *PosBase, line, col uint) Pos {
 }
 
 // IsKnown reports whether the position p is known.
+// A position is known if it either has a non-nil
+// position base, or a non-zero line number.
 func (p Pos) IsKnown() bool {
 	return p.base != nil || p.Line() != 0
 }

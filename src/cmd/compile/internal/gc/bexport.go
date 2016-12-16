@@ -591,8 +591,9 @@ func (p *exporter) pos(n *Node) {
 
 func fileLine(n *Node) (file string, line int) {
 	if n != nil {
-		file = n.Pos.AbsFilename()
-		line = int(n.Pos.Line())
+		pos := Ctxt.PosTable.Pos(n.Pos)
+		file = pos.AbsFilename()
+		line = int(pos.Line())
 	}
 	return
 }
