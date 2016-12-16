@@ -1331,7 +1331,7 @@ type gcBitsHeader struct {
 //go:notinheap
 type gcBits struct {
 	// gcBitsHeader // side step recursive type bug (issue 14620) by including fields by hand.
-	free uintptr // free is the index into bits of the next free byte.
+	free uintptr // free is the index into bits of the next free byte; protected by gcBitsArenas.lock
 	next *gcBits
 	bits [gcBitsChunkBytes - gcBitsHeaderBytes]uint8
 }
@@ -1344,27 +1344,54 @@ var gcBitsArenas struct {
 	previous *gcBits
 }
 
+// tryAlloc allocates from b or returns nil if b does not have enough room.
+// The caller must hold gcBitsArenas.lock.
+func (b *gcBits) tryAlloc(bytes uintptr) *uint8 {
+	if b == nil || b.free+bytes > uintptr(len(b.bits)) {
+		return nil
+	}
+	p := &b.bits[b.free]
+	b.free += bytes
+	return p
+}
+
 // newMarkBits returns a pointer to 8 byte aligned bytes
 // to be used for a span's mark bits.
 func newMarkBits(nelems uintptr) *uint8 {
 	lock(&gcBitsArenas.lock)
 	blocksNeeded := uintptr((nelems + 63) / 64)
 	bytesNeeded := blocksNeeded * 8
-	if gcBitsArenas.next == nil ||
-		gcBitsArenas.next.free+bytesNeeded > uintptr(len(gcBits{}.bits)) {
-		// Allocate a new arena.
-		fresh := newArena()
-		fresh.next = gcBitsArenas.next
-		gcBitsArenas.next = fresh
+	if p := gcBitsArenas.next.tryAlloc(bytesNeeded); p != nil {
+		unlock(&gcBitsArenas.lock)
+		return p
 	}
-	if gcBitsArenas.next.free >= gcBitsChunkBytes {
-		println("runtime: gcBitsArenas.next.free=", gcBitsArenas.next.free, gcBitsChunkBytes)
+
+	// Allocate a new arena. This may temporarily drop the lock.
+	fresh := newArenaMayUnlock()
+	// If newArenaMayUnlock dropped the lock, another thread may
+	// have put a fresh arena on the "next" list. Try allocating
+	// from next again.
+	if p := gcBitsArenas.next.tryAlloc(bytesNeeded); p != nil {
+		// Put fresh back on the free list.
+		// TODO: Mark it "already zeroed"
+		fresh.next = gcBitsArenas.free
+		gcBitsArenas.free = fresh
+		unlock(&gcBitsArenas.lock)
+		return p
+	}
+
+	// Allocate from the fresh arena.
+	p := fresh.tryAlloc(bytesNeeded)
+	if p == nil {
 		throw("markBits overflow")
 	}
-	result := &gcBitsArenas.next.bits[gcBitsArenas.next.free]
-	gcBitsArenas.next.free += bytesNeeded
+
+	// Add the fresh arena to the "next" list.
+	fresh.next = gcBitsArenas.next
+	gcBitsArenas.next = fresh
+
 	unlock(&gcBitsArenas.lock)
-	return result
+	return p
 }
 
 // newAllocBits returns a pointer to 8 byte aligned bytes
@@ -1411,14 +1438,17 @@ func nextMarkBitArenaEpoch() {
 	unlock(&gcBitsArenas.lock)
 }
 
-// newArena allocates and zeroes a gcBits arena.
-func newArena() *gcBits {
+// newArenaMayUnlock allocates and zeroes a gcBits arena.
+// The caller must hold gcBitsArena.lock. This may temporarily release it.
+func newArenaMayUnlock() *gcBits {
 	var result *gcBits
 	if gcBitsArenas.free == nil {
+		unlock(&gcBitsArenas.lock)
 		result = (*gcBits)(sysAlloc(gcBitsChunkBytes, &memstats.gc_sys))
 		if result == nil {
 			throw("runtime: cannot allocate memory")
 		}
+		lock(&gcBitsArenas.lock)
 	} else {
 		result = gcBitsArenas.free
 		gcBitsArenas.free = gcBitsArenas.free.next
