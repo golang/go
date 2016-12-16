@@ -12,9 +12,12 @@ import (
 
 // makeFuncImpl is the closure value implementing the function
 // returned by MakeFunc.
+// The first two words of this type must be kept in sync with
+// methodValue and runtime.reflectMethodValue.
+// Any changes should be reflected in all three.
 type makeFuncImpl struct {
 	code  uintptr
-	stack *bitVector // stack bitmap for args - offset known to runtime
+	stack *bitVector
 	typ   *funcType
 	fn    func([]Value) []Value
 }
@@ -70,11 +73,12 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 // word in the passed-in argument frame.
 func makeFuncStub()
 
-// This type is partially duplicated as runtime.reflectMethodValue.
-// Any changes should be reflected in both.
+// The first two words of this type must be kept in sync with
+// makeFuncImpl and runtime.reflectMethodValue.
+// Any changes should be reflected in all three.
 type methodValue struct {
 	fn     uintptr
-	stack  *bitVector // stack bitmap for args - offset known to runtime
+	stack  *bitVector
 	method int
 	rcvr   Value
 }
