@@ -871,7 +871,7 @@ func importfile(f *Val, indent []byte) {
 	}
 }
 
-func pkgnotused(lineno src.Pos, path string, name string) {
+func pkgnotused(lineno src.XPos, path string, name string) {
 	// If the package was imported with a name other than the final
 	// import path element, show it explicitly in the error message.
 	// Note that this handles both renamed imports and imports of

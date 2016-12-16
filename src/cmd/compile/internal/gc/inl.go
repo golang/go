@@ -1017,13 +1017,13 @@ func (subst *inlsubst) node(n *Node) *Node {
 }
 
 // Plaster over linenumbers
-func setlnolist(ll Nodes, lno src.Pos) {
+func setlnolist(ll Nodes, lno src.XPos) {
 	for _, n := range ll.Slice() {
 		setlno(n, lno)
 	}
 }
 
-func setlno(n *Node, lno src.Pos) {
+func setlno(n *Node, lno src.XPos) {
 	if n == nil {
 		return
 	}

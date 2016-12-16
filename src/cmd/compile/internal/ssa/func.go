@@ -80,7 +80,7 @@ func (f *Func) retSparseSet(ss *sparseSet) {
 }
 
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
-func (f *Func) newValue(op Op, t Type, b *Block, pos src.Pos) *Value {
+func (f *Func) newValue(op Op, t Type, b *Block, pos src.XPos) *Value {
 	var v *Value
 	if f.freeValues != nil {
 		v = f.freeValues
@@ -187,7 +187,7 @@ func (f *Func) freeBlock(b *Block) {
 }
 
 // NewValue0 returns a new value in the block with no arguments and zero aux values.
-func (b *Block) NewValue0(pos src.Pos, op Op, t Type) *Value {
+func (b *Block) NewValue0(pos src.XPos, op Op, t Type) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = v.argstorage[:0]
@@ -195,7 +195,7 @@ func (b *Block) NewValue0(pos src.Pos, op Op, t Type) *Value {
 }
 
 // NewValue returns a new value in the block with no arguments and an auxint value.
-func (b *Block) NewValue0I(pos src.Pos, op Op, t Type, auxint int64) *Value {
+func (b *Block) NewValue0I(pos src.XPos, op Op, t Type, auxint int64) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Args = v.argstorage[:0]
@@ -203,7 +203,7 @@ func (b *Block) NewValue0I(pos src.Pos, op Op, t Type, auxint int64) *Value {
 }
 
 // NewValue returns a new value in the block with no arguments and an aux value.
-func (b *Block) NewValue0A(pos src.Pos, op Op, t Type, aux interface{}) *Value {
+func (b *Block) NewValue0A(pos src.XPos, op Op, t Type, aux interface{}) *Value {
 	if _, ok := aux.(int64); ok {
 		// Disallow int64 aux values. They should be in the auxint field instead.
 		// Maybe we want to allow this at some point, but for now we disallow it
@@ -218,7 +218,7 @@ func (b *Block) NewValue0A(pos src.Pos, op Op, t Type, aux interface{}) *Value {
 }
 
 // NewValue returns a new value in the block with no arguments and both an auxint and aux values.
-func (b *Block) NewValue0IA(pos src.Pos, op Op, t Type, auxint int64, aux interface{}) *Value {
+func (b *Block) NewValue0IA(pos src.XPos, op Op, t Type, auxint int64, aux interface{}) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -227,7 +227,7 @@ func (b *Block) NewValue0IA(pos src.Pos, op Op, t Type, auxint int64, aux interf
 }
 
 // NewValue1 returns a new value in the block with one argument and zero aux values.
-func (b *Block) NewValue1(pos src.Pos, op Op, t Type, arg *Value) *Value {
+func (b *Block) NewValue1(pos src.XPos, op Op, t Type, arg *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = v.argstorage[:1]
@@ -237,7 +237,7 @@ func (b *Block) NewValue1(pos src.Pos, op Op, t Type, arg *Value) *Value {
 }
 
 // NewValue1I returns a new value in the block with one argument and an auxint value.
-func (b *Block) NewValue1I(pos src.Pos, op Op, t Type, auxint int64, arg *Value) *Value {
+func (b *Block) NewValue1I(pos src.XPos, op Op, t Type, auxint int64, arg *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Args = v.argstorage[:1]
@@ -247,7 +247,7 @@ func (b *Block) NewValue1I(pos src.Pos, op Op, t Type, auxint int64, arg *Value)
 }
 
 // NewValue1A returns a new value in the block with one argument and an aux value.
-func (b *Block) NewValue1A(pos src.Pos, op Op, t Type, aux interface{}, arg *Value) *Value {
+func (b *Block) NewValue1A(pos src.XPos, op Op, t Type, aux interface{}, arg *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -258,7 +258,7 @@ func (b *Block) NewValue1A(pos src.Pos, op Op, t Type, aux interface{}, arg *Val
 }
 
 // NewValue1IA returns a new value in the block with one argument and both an auxint and aux values.
-func (b *Block) NewValue1IA(pos src.Pos, op Op, t Type, auxint int64, aux interface{}, arg *Value) *Value {
+func (b *Block) NewValue1IA(pos src.XPos, op Op, t Type, auxint int64, aux interface{}, arg *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -269,7 +269,7 @@ func (b *Block) NewValue1IA(pos src.Pos, op Op, t Type, auxint int64, aux interf
 }
 
 // NewValue2 returns a new value in the block with two arguments and zero aux values.
-func (b *Block) NewValue2(pos src.Pos, op Op, t Type, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2(pos src.XPos, op Op, t Type, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = v.argstorage[:2]
@@ -281,7 +281,7 @@ func (b *Block) NewValue2(pos src.Pos, op Op, t Type, arg0, arg1 *Value) *Value 
 }
 
 // NewValue2I returns a new value in the block with two arguments and an auxint value.
-func (b *Block) NewValue2I(pos src.Pos, op Op, t Type, auxint int64, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2I(pos src.XPos, op Op, t Type, auxint int64, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Args = v.argstorage[:2]
@@ -293,7 +293,7 @@ func (b *Block) NewValue2I(pos src.Pos, op Op, t Type, auxint int64, arg0, arg1 
 }
 
 // NewValue3 returns a new value in the block with three arguments and zero aux values.
-func (b *Block) NewValue3(pos src.Pos, op Op, t Type, arg0, arg1, arg2 *Value) *Value {
+func (b *Block) NewValue3(pos src.XPos, op Op, t Type, arg0, arg1, arg2 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = v.argstorage[:3]
@@ -307,7 +307,7 @@ func (b *Block) NewValue3(pos src.Pos, op Op, t Type, arg0, arg1, arg2 *Value) *
 }
 
 // NewValue3I returns a new value in the block with three arguments and an auxint value.
-func (b *Block) NewValue3I(pos src.Pos, op Op, t Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
+func (b *Block) NewValue3I(pos src.XPos, op Op, t Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Args = v.argstorage[:3]
@@ -321,7 +321,7 @@ func (b *Block) NewValue3I(pos src.Pos, op Op, t Type, auxint int64, arg0, arg1,
 }
 
 // NewValue4 returns a new value in the block with four arguments and zero aux values.
-func (b *Block) NewValue4(pos src.Pos, op Op, t Type, arg0, arg1, arg2, arg3 *Value) *Value {
+func (b *Block) NewValue4(pos src.XPos, op Op, t Type, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = []*Value{arg0, arg1, arg2, arg3}
@@ -333,7 +333,7 @@ func (b *Block) NewValue4(pos src.Pos, op Op, t Type, arg0, arg1, arg2, arg3 *Va
 }
 
 // constVal returns a constant value for c.
-func (f *Func) constVal(pos src.Pos, op Op, t Type, c int64, setAux bool) *Value {
+func (f *Func) constVal(pos src.XPos, op Op, t Type, c int64, setAux bool) *Value {
 	if f.constants == nil {
 		f.constants = make(map[int64][]*Value)
 	}
@@ -368,42 +368,42 @@ const (
 )
 
 // ConstInt returns an int constant representing its argument.
-func (f *Func) ConstBool(pos src.Pos, t Type, c bool) *Value {
+func (f *Func) ConstBool(pos src.XPos, t Type, c bool) *Value {
 	i := int64(0)
 	if c {
 		i = 1
 	}
 	return f.constVal(pos, OpConstBool, t, i, true)
 }
-func (f *Func) ConstInt8(pos src.Pos, t Type, c int8) *Value {
+func (f *Func) ConstInt8(pos src.XPos, t Type, c int8) *Value {
 	return f.constVal(pos, OpConst8, t, int64(c), true)
 }
-func (f *Func) ConstInt16(pos src.Pos, t Type, c int16) *Value {
+func (f *Func) ConstInt16(pos src.XPos, t Type, c int16) *Value {
 	return f.constVal(pos, OpConst16, t, int64(c), true)
 }
-func (f *Func) ConstInt32(pos src.Pos, t Type, c int32) *Value {
+func (f *Func) ConstInt32(pos src.XPos, t Type, c int32) *Value {
 	return f.constVal(pos, OpConst32, t, int64(c), true)
 }
-func (f *Func) ConstInt64(pos src.Pos, t Type, c int64) *Value {
+func (f *Func) ConstInt64(pos src.XPos, t Type, c int64) *Value {
 	return f.constVal(pos, OpConst64, t, c, true)
 }
-func (f *Func) ConstFloat32(pos src.Pos, t Type, c float64) *Value {
+func (f *Func) ConstFloat32(pos src.XPos, t Type, c float64) *Value {
 	return f.constVal(pos, OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
 }
-func (f *Func) ConstFloat64(pos src.Pos, t Type, c float64) *Value {
+func (f *Func) ConstFloat64(pos src.XPos, t Type, c float64) *Value {
 	return f.constVal(pos, OpConst64F, t, int64(math.Float64bits(c)), true)
 }
 
-func (f *Func) ConstSlice(pos src.Pos, t Type) *Value {
+func (f *Func) ConstSlice(pos src.XPos, t Type) *Value {
 	return f.constVal(pos, OpConstSlice, t, constSliceMagic, false)
 }
-func (f *Func) ConstInterface(pos src.Pos, t Type) *Value {
+func (f *Func) ConstInterface(pos src.XPos, t Type) *Value {
 	return f.constVal(pos, OpConstInterface, t, constInterfaceMagic, false)
 }
-func (f *Func) ConstNil(pos src.Pos, t Type) *Value {
+func (f *Func) ConstNil(pos src.XPos, t Type) *Value {
 	return f.constVal(pos, OpConstNil, t, constNilMagic, false)
 }
-func (f *Func) ConstEmptyString(pos src.Pos, t Type) *Value {
+func (f *Func) ConstEmptyString(pos src.XPos, t Type) *Value {
 	v := f.constVal(pos, OpConstString, t, constEmptyStringMagic, false)
 	v.Aux = ""
 	return v

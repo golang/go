@@ -500,7 +500,7 @@ loop:
 }
 
 // lookupVarOutgoing finds the variable's value at the end of block b.
-func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t ssa.Type, var_ *Node, line src.Pos) *ssa.Value {
+func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t ssa.Type, var_ *Node, line src.XPos) *ssa.Value {
 	for {
 		if v := s.defvars[b.ID][var_]; v != nil {
 			return v

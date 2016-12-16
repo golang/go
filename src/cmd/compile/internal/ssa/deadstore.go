@@ -113,7 +113,7 @@ func dse(f *Func) {
 				if sz > 0x7fffffff { // work around sparseMap's int32 value type
 					sz = 0x7fffffff
 				}
-				shadowed.set(v.Args[0].ID, int32(sz), src.NoPos)
+				shadowed.set(v.Args[0].ID, int32(sz), src.NoXPos)
 			}
 		}
 		// walk to previous store

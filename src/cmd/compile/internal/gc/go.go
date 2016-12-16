@@ -43,10 +43,10 @@ type Sym struct {
 
 	// saved and restored by dcopy
 	Pkg        *Pkg
-	Name       string  // object name
-	Def        *Node   // definition: ONAME OTYPE OPACK or OLITERAL
-	Block      int32   // blocknumber to catch redeclaration
-	Lastlineno src.Pos // last declaration for diagnostic
+	Name       string   // object name
+	Def        *Node    // definition: ONAME OTYPE OPACK or OLITERAL
+	Block      int32    // blocknumber to catch redeclaration
+	Lastlineno src.XPos // last declaration for diagnostic
 
 	Label   *Node // corresponding label (ephemeral)
 	Origpkg *Pkg  // original package for . import
