@@ -346,6 +346,9 @@ func (check *Checker) collectObjects() {
 						}
 
 					case *ast.TypeSpec:
+						if s.Assign.IsValid() {
+							check.errorf(s.Assign, "type alias declarations not yet implemented")
+						}
 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
 						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, typ: s.Type})
 
