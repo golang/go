@@ -534,6 +534,9 @@ func (check *Checker) declStmt(decl ast.Decl) {
 				}
 
 			case *ast.TypeSpec:
+				if s.Assign.IsValid() {
+					check.errorf(s.Assign, "type alias declarations not yet implemented")
+				}
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
 				// spec: "The scope of a type identifier declared inside a function
 				// begins at the identifier in the TypeSpec and ends at the end of
