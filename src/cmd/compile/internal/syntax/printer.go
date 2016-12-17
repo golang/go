@@ -619,7 +619,11 @@ func (p *printer) printRawNode(n Node) {
 		if n.Group == nil {
 			p.print(_Type, blank)
 		}
-		p.print(n.Name, blank, n.Type)
+		p.print(n.Name, blank)
+		if n.Alias {
+			p.print(_Assign, blank)
+		}
+		p.print(n.Type)
 
 	case *VarDecl:
 		if n.Group == nil {

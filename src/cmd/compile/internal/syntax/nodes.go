@@ -74,6 +74,7 @@ type (
 	// Name Type
 	TypeDecl struct {
 		Name   *Name
+		Alias  bool
 		Type   Expr
 		Group  *Group // nil means not part of a group
 		Pragma Pragma
