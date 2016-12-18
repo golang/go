@@ -1331,7 +1331,7 @@ type gcBitsHeader struct {
 //go:notinheap
 type gcBits struct {
 	// gcBitsHeader // side step recursive type bug (issue 14620) by including fields by hand.
-	free uintptr // free is the index into bits of the next free byte; protected by gcBitsArenas.lock
+	free uintptr // free is the index into bits of the next free byte; read/write atomically
 	next *gcBits
 	bits [gcBitsChunkBytes - gcBitsHeaderBytes]uint8
 }
@@ -1339,28 +1339,45 @@ type gcBits struct {
 var gcBitsArenas struct {
 	lock     mutex
 	free     *gcBits
-	next     *gcBits
+	next     *gcBits // Read atomically. Write atomically under lock.
 	current  *gcBits
 	previous *gcBits
 }
 
 // tryAlloc allocates from b or returns nil if b does not have enough room.
-// The caller must hold gcBitsArenas.lock.
+// This is safe to call concurrently.
 func (b *gcBits) tryAlloc(bytes uintptr) *uint8 {
-	if b == nil || b.free+bytes > uintptr(len(b.bits)) {
+	if b == nil || atomic.Loaduintptr(&b.free)+bytes > uintptr(len(b.bits)) {
 		return nil
 	}
-	p := &b.bits[b.free]
-	b.free += bytes
-	return p
+	// Try to allocate from this block.
+	end := atomic.Xadduintptr(&b.free, bytes)
+	if end > uintptr(len(b.bits)) {
+		return nil
+	}
+	// There was enough room.
+	start := end - bytes
+	return &b.bits[start]
 }
 
 // newMarkBits returns a pointer to 8 byte aligned bytes
 // to be used for a span's mark bits.
 func newMarkBits(nelems uintptr) *uint8 {
-	lock(&gcBitsArenas.lock)
 	blocksNeeded := uintptr((nelems + 63) / 64)
 	bytesNeeded := blocksNeeded * 8
+
+	// Try directly allocating from the current head arena.
+	head := (*gcBits)(atomic.Loadp(unsafe.Pointer(&gcBitsArenas.next)))
+	if p := head.tryAlloc(bytesNeeded); p != nil {
+		return p
+	}
+
+	// There's not enough room in the head arena. We may need to
+	// allocate a new arena.
+	lock(&gcBitsArenas.lock)
+	// Try the head arena again, since it may have changed. Now
+	// that we hold the lock, the list head can't change, but its
+	// free position still can.
 	if p := gcBitsArenas.next.tryAlloc(bytesNeeded); p != nil {
 		unlock(&gcBitsArenas.lock)
 		return p
@@ -1380,7 +1397,8 @@ func newMarkBits(nelems uintptr) *uint8 {
 		return p
 	}
 
-	// Allocate from the fresh arena.
+	// Allocate from the fresh arena. We haven't linked it in yet, so
+	// this cannot race and is guaranteed to succeed.
 	p := fresh.tryAlloc(bytesNeeded)
 	if p == nil {
 		throw("markBits overflow")
@@ -1388,7 +1406,7 @@ func newMarkBits(nelems uintptr) *uint8 {
 
 	// Add the fresh arena to the "next" list.
 	fresh.next = gcBitsArenas.next
-	gcBitsArenas.next = fresh
+	atomic.StorepNoWB(unsafe.Pointer(&gcBitsArenas.next), unsafe.Pointer(fresh))
 
 	unlock(&gcBitsArenas.lock)
 	return p
@@ -1434,7 +1452,7 @@ func nextMarkBitArenaEpoch() {
 	}
 	gcBitsArenas.previous = gcBitsArenas.current
 	gcBitsArenas.current = gcBitsArenas.next
-	gcBitsArenas.next = nil // newMarkBits calls newArena when needed
+	atomic.StorepNoWB(unsafe.Pointer(&gcBitsArenas.next), nil) // newMarkBits calls newArena when needed
 	unlock(&gcBitsArenas.lock)
 }
 
