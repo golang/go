@@ -3426,16 +3426,26 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	}
 }
 
-func TestTransportEventTraceRealDNS(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" {
-		// Skip this test in short mode (the default for
-		// all.bash), in case the user is using a shady/ISP
-		// DNS server hijacking queries.
-		// See issues 16732, 16716.
-		// Our builders use 8.8.8.8, though, which correctly
-		// returns NXDOMAIN, so still run this test there.
-		t.Skip("skipping in short mode")
+var (
+	isDNSHijackedOnce sync.Once
+	isDNSHijacked     bool
+)
+
+func skipIfDNSHijacked(t *testing.T) {
+	// Skip this test if the user is using a shady/ISP
+	// DNS server hijacking queries.
+	// See issues 16732, 16716.
+	isDNSHijackedOnce.Do(func() {
+		addrs, _ := net.LookupHost("dns-should-not-resolve.golang.")
+		isDNSHijacked = len(addrs) != 0
+	})
+	if isDNSHijacked {
+		t.Skip("skipping; test requires non-hijacking DNS server")
 	}
+}
+
+func TestTransportEventTraceRealDNS(t *testing.T) {
+	skipIfDNSHijacked(t)
 	defer afterTest(t)
 	tr := &Transport{}
 	defer tr.CloseIdleConnections()
