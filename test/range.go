@@ -277,6 +277,26 @@ func teststring() {
 		println("wrong sum ranging over makestring", s)
 		panic("fail")
 	}
+
+	x := []rune{'a', 'b'}
+	i := 1
+	for i, x[i] = range "c" {
+		break
+	}
+	if i != 0 || x[0] != 'a' || x[1] != 'c' {
+		println("wrong parallel assignment", i, x[0], x[1])
+		panic("fail")
+	}
+
+	y := []int{1, 2, 3}
+	r := rune(1)
+	for y[r], r = range "\x02" {
+		break
+	}
+	if r != 2 || y[0] != 1 || y[1] != 0 || y[2] != 3 {
+		println("wrong parallel assignment", r, y[0], y[1], y[2])
+		panic("fail")
+	}
 }
 
 func teststring1() {
