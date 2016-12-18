@@ -463,22 +463,30 @@ func f29(b bool) {
 }
 
 // copy of array of pointers should die at end of range loop
+var pstructarr [10]pstruct
 
-var ptrarr [10]*int
+// Struct size choosen to make pointer to element in pstructarr
+// not computable by strength reduction.
+type pstruct struct {
+	intp *int
+	_    [8]byte
+}
 
 func f30(b bool) {
-	// two live temps during print(p):
-	// the copy of ptrarr and the internal iterator pointer.
+	// two live temps during printintpointer(p):
+	// in the copy of p.intp and
+	// the internal iterator pointer if a pointer to pstruct in pstructarr
+	// can not be easily computed by strength reduction.
 	if b {
-		for _, p := range ptrarr {
-			printintpointer(p) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+		for _, p := range pstructarr {
+			printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 		}
 	}
-	for _, p := range ptrarr {
-		printintpointer(p) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+	for _, p := range pstructarr {
+		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 	}
-	for _, p := range ptrarr {
-		printintpointer(p) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+	for _, p := range pstructarr {
+		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 	}
 }
 
