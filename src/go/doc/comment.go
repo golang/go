@@ -48,12 +48,19 @@ const (
 	identRx = `[\pL_][\pL_0-9]*`
 
 	// Regexp for URLs
-	protocol = `https?|ftp|file|gopher|mailto|news|nntp|telnet|wais|prospero`
-	hostPart = `[a-zA-Z0-9_@\-]+`
-	filePart = `[a-zA-Z0-9_?%#~&/\-+=()]+` // parentheses may not be matching; see pairedParensPrefixLen
-	urlRx    = `(` + protocol + `)://` +   // http://
-		hostPart + `([.:]` + hostPart + `)*/?` + // //www.google.com:8080/
-		filePart + `([:.,;]` + filePart + `)*`
+	// Match parens, and check in pairedParensPrefixLen for balance - see #5043
+	// Match .,:;?! within path, but not at end - see #18139, #16565
+	// This excludes some rare yet valid urls ending in common punctuation
+	// in order to allow sentences ending in URLs.
+
+	// protocol (required) e.g. http
+	protoPart = `(https?|ftp|file|gopher|mailto|nntp)`
+	// host (required) e.g. www.example.com or [::1]:8080
+	hostPart = `([a-zA-Z0-9_@\-.\[\]:]+)`
+	// path+query+fragment (optional) e.g. /path/index.html?q=foo#bar
+	pathPart = `([.,:;?!]*[a-zA-Z0-9$'()*+&#=@~_/\-\[\]%])*`
+
+	urlRx = protoPart + `://` + hostPart + pathPart
 )
 
 var matchRx = regexp.MustCompile(`(` + urlRx + `)|(` + identRx + `)`)
