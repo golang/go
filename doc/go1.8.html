@@ -327,6 +327,18 @@ see improvements closer to the 32-bit ARM numbers.
 
 <h3 id="cmd_cgo">Cgo</h3>
 
+<p> <!-- CL 31141 -->
+The Go tool now remembers the value of the <code>CGO_ENABLED</code> environment
+variable set during <code>make.bash</code> and applies it to all future compilations
+by default to fix issue <a href="https://golang.org/issue/12808">#12808</a>.
+When doing native compilation, it is rarely necessary to explicitly set
+the <code>CGO_ENABLED</code> environment variable as <code>make.bash</code>
+will detect the correct setting automatically. The main reason to explicitly
+set the <code>CGO_ENABLED</code> environment variable is when your environment
+supports cgo, but you explicitly do not want cgo support, in which case, set
+<code>CGO_ENABLED=0</code> during <code>make.bash</code> or <code>all.bash</code>.
+</p>
+
 <p> <!-- CL 29991 -->
 The environment variable <code>PKG_CONFIG</code> may now be used to
 set the program to run to handle <code>#cgo</code> <code>pkg-config</code>
