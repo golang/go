@@ -37,7 +37,7 @@ type Conn struct {
 	vers          uint16  // TLS version
 	haveVers      bool    // version has been negotiated
 	config        *Config // configuration passed to constructor
-	// handshakeComplete is true if the connection is currently transfering
+	// handshakeComplete is true if the connection is currently transferring
 	// application data (i.e. is not currently processing a handshake).
 	handshakeComplete bool
 	// handshakes counts the number of handshakes performed on the
