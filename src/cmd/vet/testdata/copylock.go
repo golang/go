@@ -88,6 +88,20 @@ func BadFunc() {
 	fmuSlice := fmuA[:] // OK
 }
 
+func LenAndCapOnLockArrays() {
+	var a [5]sync.Mutex
+	aLen := len(a) // OK
+	aCap := cap(a) // OK
+
+	// override 'len' and 'cap' keywords
+
+	len := func(interface{}) {}
+	len(a) // ERROR "function call copies lock value: sync.Mutex"
+
+	cap := func(interface{}) {}
+	cap(a) // ERROR "function call copies lock value: sync.Mutex"
+}
+
 // SyncTypesCheck checks copying of sync.* types except sync.Mutex
 func SyncTypesCheck() {
 	// sync.RWMutex copying
