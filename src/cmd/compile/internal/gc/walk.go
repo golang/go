@@ -694,6 +694,10 @@ opswitch:
 			break
 		}
 
+		if !instrumenting && iszero(n.Right) && !needwritebarrier(n.Left, n.Right) {
+			break
+		}
+
 		switch n.Right.Op {
 		default:
 			n.Right = walkexpr(n.Right, init)
