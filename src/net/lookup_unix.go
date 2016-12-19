@@ -72,7 +72,8 @@ func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, e
 		// cgo not available (or netgo); fall back to Go's DNS resolver
 		order = hostLookupFilesDNS
 	}
-	return goLookupIPOrder(ctx, host, order)
+	addrs, _, err = goLookupIPCNAMEOrder(ctx, host, order)
+	return
 }
 
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
