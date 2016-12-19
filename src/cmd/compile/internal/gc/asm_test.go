@@ -205,6 +205,19 @@ func f(b []byte, i int) uint32 {
 `,
 		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
 	},
+
+	// Structure zeroing.  See issue #18370.
+	{"amd64", "linux", `
+type T struct {
+	a, b, c int
+}
+func f(t *T) {
+	*t = T{}
+}
+`,
+		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
+	},
+	// TODO: add a test for *t = T{3,4,5} when we fix that.
 }
 
 // mergeEnvLists merges the two environment lists such that
