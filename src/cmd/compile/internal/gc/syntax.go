@@ -361,7 +361,6 @@ const (
 	OAS2MAPR         // List = Rlist (x, ok = m["foo"])
 	OAS2DOTTYPE      // List = Rlist (x, ok = I.(int))
 	OASOP            // Left Etype= Right (x += y)
-	OASWB            // Left = Right (with write barrier)
 	OCALL            // Left(List) (function call, method call or type conversion)
 	OCALLFUNC        // Left(List) (function call f(args))
 	OCALLMETH        // Left(List) (direct method call x.Method(args))

@@ -752,11 +752,6 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 		switch kind {
 		case initKindStatic:
 			a = walkexpr(a, init) // add any assignments in r to top
-			if a.Op == OASWB {
-				// Static initialization never needs
-				// write barriers.
-				a.Op = OAS
-			}
 			if a.Op != OAS {
 				Fatalf("fixedlit: not as, is %v", a)
 			}

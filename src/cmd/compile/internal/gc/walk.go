@@ -338,10 +338,6 @@ func walkstmt(n *Node) *Node {
 
 			ll := ascompatee(n.Op, rl, n.List.Slice(), &n.Ninit)
 			n.List.Set(reorder3(ll))
-			ls := n.List.Slice()
-			for i, n := range ls {
-				ls[i] = applywritebarrier(n)
-			}
 			break
 		}
 
@@ -683,7 +679,7 @@ opswitch:
 			break
 		}
 
-		if !instrumenting && iszero(n.Right) && !needwritebarrier(n.Left, n.Right) {
+		if !instrumenting && iszero(n.Right) {
 			break
 		}
 
@@ -727,7 +723,6 @@ opswitch:
 			static := n.IsStatic
 			n = convas(n, init)
 			n.IsStatic = static
-			n = applywritebarrier(n)
 		}
 
 	case OAS2:
@@ -736,9 +731,6 @@ opswitch:
 		walkexprlistsafe(n.Rlist.Slice(), init)
 		ll := ascompatee(OAS, n.List.Slice(), n.Rlist.Slice(), init)
 		ll = reorder3(ll)
-		for i, n := range ll {
-			ll[i] = applywritebarrier(n)
-		}
 		n = liststmt(ll)
 
 	// a,b,... = fn()
@@ -756,9 +748,6 @@ opswitch:
 		init.Append(r)
 
 		ll := ascompatet(n.Op, n.List, r.Type)
-		for i, n := range ll {
-			ll[i] = applywritebarrier(n)
-		}
 		n = liststmt(ll)
 
 	// x, y = <-c
@@ -2122,19 +2111,6 @@ func needwritebarrier(l *Node, r *Node) bool {
 
 	// Otherwise, be conservative and use write barrier.
 	return true
-}
-
-// TODO(rsc): Perhaps componentgen should run before this.
-
-func applywritebarrier(n *Node) *Node {
-	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
-		if Debug_wb > 1 {
-			Warnl(n.Pos, "marking %v for barrier", n.Left)
-		}
-		n.Op = OASWB
-		return n
-	}
-	return n
 }
 
 func convas(n *Node, init *Nodes) *Node {

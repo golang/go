@@ -641,7 +641,7 @@ func (s *state) stmt(n *Node) {
 		b := s.endBlock()
 		b.AddEdgeTo(lab.target)
 
-	case OAS, OASWB:
+	case OAS:
 		// Generate static data rather than code, if possible.
 		if n.IsStatic {
 			if !genAsInitNoCheck(n) {
@@ -704,7 +704,7 @@ func (s *state) stmt(n *Node) {
 		}
 		var r *ssa.Value
 		var isVolatile bool
-		needwb := n.Op == OASWB
+		needwb := n.Right != nil && needwritebarrier(n.Left, n.Right)
 		deref := !canSSAType(t)
 		if deref {
 			if rhs == nil {
@@ -727,6 +727,9 @@ func (s *state) stmt(n *Node) {
 			// for ODOTTYPE and ORECV also.
 			// They get similar wb-removal treatment in walk.go:OAS.
 			needwb = true
+		}
+		if needwb && Debug_wb > 1 {
+			Warnl(n.Pos, "marking %v for barrier", n.Left)
 		}
 
 		var skip skipMask

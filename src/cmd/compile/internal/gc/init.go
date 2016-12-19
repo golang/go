@@ -41,7 +41,7 @@ func anyinit(n []*Node) bool {
 		case ODCLFUNC, ODCLCONST, ODCLTYPE, OEMPTY:
 			break
 
-		case OAS, OASWB:
+		case OAS:
 			if isblank(ln.Left) && candiscard(ln.Right) {
 				break
 			}
