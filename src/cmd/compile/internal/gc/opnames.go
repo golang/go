@@ -33,7 +33,6 @@ var opnames = []string{
 	OAS2MAPR:         "AS2MAPR",
 	OAS2DOTTYPE:      "AS2DOTTYPE",
 	OASOP:            "ASOP",
-	OASWB:            "ASWB",
 	OCALL:            "CALL",
 	OCALLFUNC:        "CALLFUNC",
 	OCALLMETH:        "CALLMETH",

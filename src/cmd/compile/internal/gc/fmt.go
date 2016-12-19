@@ -837,7 +837,7 @@ func (n *Node) stmtfmt(s fmt.State) {
 	// Don't export "v = <N>" initializing statements, hope they're always
 	// preceded by the DCL which will be re-parsed and typechecked to reproduce
 	// the "v = <N>" again.
-	case OAS, OASWB:
+	case OAS:
 		if n.Colas && !complexinit {
 			fmt.Fprintf(s, "%v := %v", n.Left, n.Right)
 		} else {

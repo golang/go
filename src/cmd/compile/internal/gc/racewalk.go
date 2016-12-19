@@ -136,7 +136,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 	default:
 		Fatalf("instrument: unknown node type %v", n.Op)
 
-	case OAS, OASWB, OAS2FUNC:
+	case OAS, OAS2FUNC:
 		instrumentnode(&n.Left, init, 1, 0)
 		instrumentnode(&n.Right, init, 0, 0)
 		goto ret

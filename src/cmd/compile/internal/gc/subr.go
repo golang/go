@@ -1169,7 +1169,12 @@ func ullmancalc(n *Node) {
 		}
 		goto out
 
-	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OASWB:
+	case OAS:
+		if !needwritebarrier(n.Left, n.Right) {
+			break
+		}
+		fallthrough
+	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
 		ul = UINF
 		goto out
 
