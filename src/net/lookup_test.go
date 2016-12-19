@@ -243,14 +243,15 @@ func TestLookupIPv6LinkLocalAddr(t *testing.T) {
 	}
 }
 
-var lookupIANACNAMETests = []struct {
+var lookupCNAMETests = []struct {
 	name, cname string
 }{
 	{"www.iana.org", "icann.org."},
 	{"www.iana.org.", "icann.org."},
+	{"www.google.com", "google.com."},
 }
 
-func TestLookupIANACNAME(t *testing.T) {
+func TestLookupCNAME(t *testing.T) {
 	if testenv.Builder() == "" {
 		testenv.MustHaveExternalNetwork(t)
 	}
@@ -259,7 +260,7 @@ func TestLookupIANACNAME(t *testing.T) {
 		t.Skip("IPv4 is required")
 	}
 
-	for _, tt := range lookupIANACNAMETests {
+	for _, tt := range lookupCNAMETests {
 		cname, err := LookupCNAME(tt.name)
 		if err != nil {
 			t.Fatal(err)
