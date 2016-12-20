@@ -275,8 +275,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// so we don't need a "package" mode for operands: package names
 	// can only appear in qualified identifiers which are mapped to
 	// selector expressions.
-	// (see also decl.go: checker.aliasDecl)
-	// TODO(gri) factor this code out and share with checker.aliasDecl
 	if ident, ok := e.X.(*ast.Ident); ok {
 		_, obj := check.scope.LookupParent(ident.Name, check.pos)
 		if pname, _ := obj.(*PkgName); pname != nil {
@@ -296,7 +294,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				// ok to continue
 			}
 			check.recordUse(e.Sel, exp)
-			exp = original(exp)
 
 			// avoid further errors if the imported object is an alias that's broken
 			if exp == nil {

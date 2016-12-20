@@ -45,17 +45,6 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 		delete(check.unusedDotImports[scope], pkg)
 	}
 
-	// Alias-related code. Keep for now.
-	// An alias stands for the original object; use that one instead.
-	// TODO(gri) We should be able to factor out the Typ[Invalid] test.
-	// if alias, _ := obj.(*Alias); alias != nil {
-	// 	obj = original(obj)
-	// 	if obj == nil || typ == Typ[Invalid] {
-	// 		return
-	// 	}
-	// 	assert(typ == obj.Type())
-	// }
-
 	switch obj := obj.(type) {
 	case *PkgName:
 		check.errorf(e.Pos(), "use of package %s not in selector", obj.name)
@@ -661,47 +650,41 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 			}
 		} else {
 			// anonymous field
-			name := anonymousFieldIdent(f.Type)
+			// spec: "An embedded type must be specified as a type name T or as a pointer
+			// to a non-interface type name *T, and T itself may not be a pointer type."
 			pos := f.Type.Pos()
+			name := anonymousFieldIdent(f.Type)
+			if name == nil {
+				check.invalidAST(pos, "anonymous field type %s has no name", f.Type)
+				continue
+			}
 			t, isPtr := deref(typ)
-			switch t := t.(type) {
+			// Because we have a name, typ must be of the form T or *T, where T is the name
+			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
+			switch t := t.Underlying().(type) {
 			case *Basic:
 				if t == Typ[Invalid] {
 					// error was reported before
 					continue
 				}
+
 				// unsafe.Pointer is treated like a regular pointer
 				if t.kind == UnsafePointer {
 					check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
 					continue
 				}
-				add(f, name, true, pos)
 
-			case *Named:
-				// spec: "An embedded type must be specified as a type name
-				// T or as a pointer to a non-interface type name *T, and T
-				// itself may not be a pointer type."
-				switch u := t.underlying.(type) {
-				case *Basic:
-					// unsafe.Pointer is treated like a regular pointer
-					if u.kind == UnsafePointer {
-						check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
-						continue
-					}
-				case *Pointer:
-					check.errorf(pos, "anonymous field type cannot be a pointer")
+			case *Pointer:
+				check.errorf(pos, "anonymous field type cannot be a pointer")
+				continue
+
+			case *Interface:
+				if isPtr {
+					check.errorf(pos, "anonymous field type cannot be a pointer to an interface")
 					continue
-				case *Interface:
-					if isPtr {
-						check.errorf(pos, "anonymous field type cannot be a pointer to an interface")
-						continue
-					}
 				}
-				add(f, name, true, pos)
-
-			default:
-				check.invalidAST(pos, "anonymous field type %s must be named", typ)
 			}
+			add(f, name, true, pos)
 		}
 	}
 
@@ -714,7 +697,10 @@ func anonymousFieldIdent(e ast.Expr) *ast.Ident {
 	case *ast.Ident:
 		return e
 	case *ast.StarExpr:
-		return anonymousFieldIdent(e.X)
+		// *T is valid, but **T is not
+		if _, ok := e.X.(*ast.StarExpr); !ok {
+			return anonymousFieldIdent(e.X)
+		}
 	case *ast.SelectorExpr:
 		return e.Sel
 	}
