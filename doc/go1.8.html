@@ -1283,9 +1283,17 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       </li>
 
       <li><!-- CL 31733, CL 29852 -->
-        The <code>Client</code> now supports 307 and 308 redirects.
-        If the redirect requires resending the request body,
-        the request must have the new
+        The <code>Client</code> now supports 301, 307, and 308 redirects.
+
+        For example, <code>Client.Post</code> now follows 301
+        redirects, converting them to <code>GET</code> requests
+        without bodies, like it did for 302 and 303 redirect responses
+        previously.
+
+        The <code>Client</code> now also follows 307 and 308
+        redirects, preserving the original request method and body, if
+        any. If the redirect requires resending the request body, the
+        request must have the new
         <a href="/pkg/net/http/#Request"><code>Request.GetBody</code></a>
         field defined.
         <a href="pkg/net/http/#NewRequest"><code>NewRequest</code></a>

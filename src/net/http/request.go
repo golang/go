@@ -731,6 +731,12 @@ func validMethod(method string) bool {
 // net/http/httptest package, use ReadRequest, or manually update the
 // Request fields. See the Request type's documentation for the
 // difference between inbound and outbound request fields.
+//
+// If body is of type *bytes.Buffer, *bytes.Reader, or
+// *strings.Reader, the returned request's ContentLength is set to its
+// exact value (instead of -1), GetBody is populated (so 307 and 308
+// redirects can replay the body), and Body is set to NoBody if the
+// ContentLength is 0.
 func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 	if method == "" {
 		// We document that "" means "GET" for Request.Method, and people have

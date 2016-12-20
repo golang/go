@@ -470,6 +470,15 @@ func redirectBehavior(reqMethod string, resp *Response, via []*Request) (redirec
 // the returned Response.Body is already closed.
 //
 // Generally Get, Post, or PostForm will be used instead of Do.
+//
+// If the server replies with a redirect, the Client first uses the
+// CheckRedirect function to determine whether the redirect should be
+// followed. If permitted, a 301, 302, or 303 redirect causes
+// subsequent requests to use HTTP method "GET", with no body.
+// A 307 or 308 redirect preserves the original HTTP method and body,
+// provided that the Request.GetBody function is defined.
+// The NewRequest function automatically sets GetBody for common
+// standard library body types.
 func (c *Client) Do(req *Request) (*Response, error) {
 	if req.URL == nil {
 		req.closeBody()
@@ -673,6 +682,9 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
 // Post is a wrapper around DefaultClient.Post.
 //
 // To set custom headers, use NewRequest and DefaultClient.Do.
+//
+// See the Client.Do method documentation for details on how redirects
+// are handled.
 func Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
 	return DefaultClient.Post(url, contentType, body)
 }
@@ -685,6 +697,9 @@ func Post(url string, contentType string, body io.Reader) (resp *Response, err e
 // request.
 //
 // To set custom headers, use NewRequest and Client.Do.
+//
+// See the Client.Do method documentation for details on how redirects
+// are handled.
 func (c *Client) Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
@@ -704,6 +719,9 @@ func (c *Client) Post(url string, contentType string, body io.Reader) (resp *Res
 // Caller should close resp.Body when done reading from it.
 //
 // PostForm is a wrapper around DefaultClient.PostForm.
+//
+// See the Client.Do method documentation for details on how redirects
+// are handled.
 func PostForm(url string, data url.Values) (resp *Response, err error) {
 	return DefaultClient.PostForm(url, data)
 }
@@ -716,6 +734,9 @@ func PostForm(url string, data url.Values) (resp *Response, err error) {
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
+//
+// See the Client.Do method documentation for details on how redirects
+// are handled.
 func (c *Client) PostForm(url string, data url.Values) (resp *Response, err error) {
 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }
