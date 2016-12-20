@@ -399,7 +399,7 @@ func annotate(name string) {
 	// Retain compiler directives that are not processed in ast.Visitor.
 	// Some compiler directives like "go:linkname" and "go:cgo_"
 	// can be not attached to anything in the tree and hence will not be printed by printer.
-	// So, we have to explicitely print them here.
+	// So, we have to explicitly print them here.
 	for cd, handled := range file.directives {
 		if !handled {
 			fmt.Fprintln(fd, cd.Text)
