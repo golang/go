@@ -21,7 +21,7 @@ int main(void) {
 
   // The descriptor will be initialized in a thread, so we have to
   // give a chance to get opened.
-  for (i = 0; i < 100; i++) {
+  for (i = 0; i < 1000; i++) {
     n = read(fd, buf, sizeof buf);
     if (n >= 0)
       break;
