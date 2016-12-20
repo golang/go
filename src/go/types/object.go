@@ -154,7 +154,7 @@ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.V
 func (obj *Const) Val() constant.Value { return obj.val }
 func (*Const) isDependency()           {} // a constant may be a dependency of an initialization expression
 
-// A TypeName represents a declared type.
+// A TypeName represents a name for a (named or alias) type.
 type TypeName struct {
 	object
 }
@@ -215,28 +215,6 @@ func (obj *Func) FullName() string {
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
 func (*Func) isDependency()     {} // a function may be a dependency of an initialization expression
 
-// An Alias represents a declared alias.
-type disabledAlias struct {
-	object
-	orig Object      // aliased constant, type, variable, or function; never an alias
-	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC (only needed during resolve phase)
-}
-
-func disabledNewAlias(pos token.Pos, pkg *Package, name string, orig Object) *disabledAlias {
-	var typ Type = Typ[Invalid]
-	if orig != nil {
-		typ = orig.Type()
-	}
-	// No need to set a valid Alias.kind - that field is only used during identifier
-	// resolution (1st type-checker pass). We could store the field outside but it's
-	// easier to keep it here.
-	return &disabledAlias{object{nil, pos, pkg, name, typ, 0, token.NoPos}, orig, token.ILLEGAL}
-}
-
-// Orig returns the aliased object, or nil if there was an error.
-// The returned object is never an Alias.
-func (obj *disabledAlias) disabledOrig() Object { return obj.orig }
-
 // A Label represents a declared label.
 type Label struct {
 	object
@@ -295,10 +273,6 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		}
 		return
 
-	// Alias-related code. Keep for now.
-	// case *Alias:
-	// 	buf.WriteString("alias")
-
 	case *Label:
 		buf.WriteString("label")
 		typ = nil
@@ -322,6 +296,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		writePackage(buf, obj.Pkg(), qf)
 	}
 	buf.WriteString(obj.Name())
+
+	// TODO(gri) indicate type alias if we have one
+
 	if typ != nil {
 		buf.WriteByte(' ')
 		WriteType(buf, typ, qf)
@@ -353,15 +330,14 @@ func ObjectString(obj Object, qf Qualifier) string {
 	return buf.String()
 }
 
-func (obj *PkgName) String() string       { return ObjectString(obj, nil) }
-func (obj *Const) String() string         { return ObjectString(obj, nil) }
-func (obj *TypeName) String() string      { return ObjectString(obj, nil) }
-func (obj *Var) String() string           { return ObjectString(obj, nil) }
-func (obj *Func) String() string          { return ObjectString(obj, nil) }
-func (obj *disabledAlias) String() string { return ObjectString(obj, nil) }
-func (obj *Label) String() string         { return ObjectString(obj, nil) }
-func (obj *Builtin) String() string       { return ObjectString(obj, nil) }
-func (obj *Nil) String() string           { return ObjectString(obj, nil) }
+func (obj *PkgName) String() string  { return ObjectString(obj, nil) }
+func (obj *Const) String() string    { return ObjectString(obj, nil) }
+func (obj *TypeName) String() string { return ObjectString(obj, nil) }
+func (obj *Var) String() string      { return ObjectString(obj, nil) }
+func (obj *Func) String() string     { return ObjectString(obj, nil) }
+func (obj *Label) String() string    { return ObjectString(obj, nil) }
+func (obj *Builtin) String() string  { return ObjectString(obj, nil) }
+func (obj *Nil) String() string      { return ObjectString(obj, nil) }
 
 func writeFuncName(buf *bytes.Buffer, f *Func, qf Qualifier) {
 	if f.typ != nil {

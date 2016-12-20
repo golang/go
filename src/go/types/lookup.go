@@ -67,24 +67,22 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	}
 
 	typ, isPtr := deref(T)
-	named, _ := typ.(*Named)
 
 	// *typ where typ is an interface has no methods.
-	if isPtr {
-		utyp := typ
-		if named != nil {
-			utyp = named.underlying
-		}
-		if _, ok := utyp.(*Interface); ok {
-			return
-		}
+	if isPtr && IsInterface(typ) {
+		return
 	}
 
 	// Start with typ as single entry at shallowest depth.
-	// If typ is not a named type, insert a nil type instead.
-	current := []embeddedType{{named, nil, isPtr, false}}
+	current := []embeddedType{{typ, nil, isPtr, false}}
 
-	// named types that we have seen already, allocated lazily
+	// Named types that we have seen already, allocated lazily.
+	// Used to avoid endless searches in case of recursive types.
+	// Since only Named types can be used for recursive types, we
+	// only need to track those.
+	// (If we ever allow type aliases to construct recursive types,
+	// we must use type identity rather than pointer equality for
+	// the map key comparison, as we do in consolidateMultiples.)
 	var seen map[*Named]bool
 
 	// search current depth
@@ -93,11 +91,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 
 		// look for (pkg, name) in all types at current depth
 		for _, e := range current {
-			// The very first time only, e.typ may be nil.
-			// In this case, we don't have a named type and
-			// we simply continue with the underlying type.
-			if e.typ != nil {
-				if seen[e.typ] {
+			typ := e.typ
+
+			// If we have a named type, we may have associated methods.
+			// Look for those first.
+			if named, _ := typ.(*Named); named != nil {
+				if seen[named] {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
 					// were consolidated before). The type at that depth shadows
@@ -108,10 +107,10 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				if seen == nil {
 					seen = make(map[*Named]bool)
 				}
-				seen[e.typ] = true
+				seen[named] = true
 
 				// look for a matching attached method
-				if i, m := lookupMethod(e.typ.methods, pkg, name); m != nil {
+				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
 					// potential match
 					assert(m.typ != nil)
 					index = concat(e.index, i)
@@ -124,7 +123,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				}
 
 				// continue with underlying type
-				typ = e.typ.underlying
+				typ = named.underlying
 			}
 
 			switch t := typ.(type) {
@@ -147,16 +146,15 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 					// we have a name collision on the same depth; in either
 					// case we don't need to look further).
 					// Embedded fields are always of the form T or *T where
-					// T is a named type. If e.typ appeared multiple times at
+					// T is a type name. If e.typ appeared multiple times at
 					// this depth, f.typ appears multiple times at the next
 					// depth.
 					if obj == nil && f.anonymous {
-						// Ignore embedded basic types - only user-defined
-						// named types can have methods or struct fields.
 						typ, isPtr := deref(f.typ)
-						if t, _ := typ.(*Named); t != nil {
-							next = append(next, embeddedType{t, concat(e.index, i), e.indirect || isPtr, e.multiples})
-						}
+						// TODO(gri) optimization: ignore types that can't
+						// have fields or methods (only Named, Struct, and
+						// Interface types need to be considered).
+						next = append(next, embeddedType{typ, concat(e.index, i), e.indirect || isPtr, e.multiples})
 					}
 				}
 
@@ -193,12 +191,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	return nil, nil, false // not found
 }
 
-// embeddedType represents an embedded named type
+// embeddedType represents an embedded type
 type embeddedType struct {
-	typ       *Named // nil means use the outer typ variable instead
-	index     []int  // embedded field indices, starting with index at depth 0
-	indirect  bool   // if set, there was a pointer indirection on the path to this field
-	multiples bool   // if set, typ appears multiple times at this depth
+	typ       Type
+	index     []int // embedded field indices, starting with index at depth 0
+	indirect  bool  // if set, there was a pointer indirection on the path to this field
+	multiples bool  // if set, typ appears multiple times at this depth
 }
 
 // consolidateMultiples collects multiple list entries with the same type
@@ -209,10 +207,10 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 		return list // at most one entry - nothing to do
 	}
 
-	n := 0                       // number of entries w/ unique type
-	prev := make(map[*Named]int) // index at which type was previously seen
+	n := 0                     // number of entries w/ unique type
+	prev := make(map[Type]int) // index at which type was previously seen
 	for _, e := range list {
-		if i, found := prev[e.typ]; found {
+		if i, found := lookupType(prev, e.typ); found {
 			list[i].multiples = true
 			// ignore this entry
 		} else {
@@ -222,6 +220,21 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 		}
 	}
 	return list[:n]
+}
+
+func lookupType(m map[Type]int, typ Type) (int, bool) {
+	// fast path: maybe the types are equal
+	if i, found := m[typ]; found {
+		return i, true
+	}
+
+	for t, i := range m {
+		if Identical(t, typ) {
+			return i, true
+		}
+	}
+
+	return 0, false
 }
 
 // MissingMethod returns (nil, false) if V implements T, otherwise it

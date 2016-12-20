@@ -208,11 +208,3 @@ func (BlankT) _() {}
 func (BlankT) _(int) {}
 func (BlankT) _() int { return 0 }
 func (BlankT) _(int) int { return 0}
-
-// type alias declarations
-// TODO(gri) complete this
-type (
-	__ = /* ERROR not yet implemented */ int
-	a0 = /* ERROR not yet implemented */ int
-	a1 = /* ERROR not yet implemented */ struct{}
-)
