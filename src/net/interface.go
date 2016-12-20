@@ -172,6 +172,9 @@ func InterfaceByName(name string) (*Interface, error) {
 // An ipv6ZoneCache represents a cache holding partial network
 // interface information. It is used for reducing the cost of IPv6
 // addressing scope zone resolution.
+//
+// Multiple names sharing the index are managed by first-come
+// first-served basis for consistency.
 type ipv6ZoneCache struct {
 	sync.RWMutex                // guard the following
 	lastFetched  time.Time      // last time routing information was fetched
@@ -202,7 +205,9 @@ func (zc *ipv6ZoneCache) update(ift []Interface) {
 	zc.toName = make(map[int]string, len(ift))
 	for _, ifi := range ift {
 		zc.toIndex[ifi.Name] = ifi.Index
-		zc.toName[ifi.Index] = ifi.Name
+		if _, ok := zc.toName[ifi.Index]; !ok {
+			zc.toName[ifi.Index] = ifi.Name
+		}
 	}
 }
 
