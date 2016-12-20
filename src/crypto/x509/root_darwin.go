@@ -83,7 +83,7 @@ func execSecurityRoots() (*CertPool, error) {
 	// to the "if hasPolicy" check below, though, we will rarely
 	// (or never) call verify-cert on stock macOS systems, though.
 	// The hope is that we only call verify-cert when the user has
-	// tweaked their trust poliy. These 4 goroutines are only
+	// tweaked their trust policy. These 4 goroutines are only
 	// defensive in the pathological case of many trust edits.
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
@@ -195,9 +195,9 @@ func getCertsWithTrustPolicy() (map[string]bool, error) {
 			// `security trust-settings-export` command
 			// fails with:
 			//    exit status 1, SecTrustSettingsCreateExternalRepresentation: No Trust Settings were found.
-			// Rather than match on English substrings that are probably localized
-			// on macOS, just treat interpret any failure as meaning that there are
-			// no trust settings.
+			// Rather than match on English substrings that are probably
+			// localized on macOS, just interpret any failure to mean that
+			// there are no trust settings.
 			if debugExecDarwinRoots {
 				println(fmt.Sprintf("crypto/x509: exec %q: %v, %s", cmd.Args, err, stderr.Bytes()))
 			}
