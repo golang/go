@@ -332,8 +332,12 @@ func goenvs() {
 	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
 }
 
+// exiting is set to non-zero when the process is exiting.
+var exiting uint32
+
 //go:nosplit
 func exit(code int32) {
+	atomic.Store(&exiting, 1)
 	stdcall1(_ExitProcess, uintptr(code))
 }
 
@@ -519,6 +523,14 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
 
 	if thandle == 0 {
+		if atomic.Load(&exiting) != 0 {
+			// CreateThread may fail if called
+			// concurrently with ExitProcess. If this
+			// happens, just freeze this thread and let
+			// the process exit. See issue #18253.
+			lock(&deadlock)
+			lock(&deadlock)
+		}
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
 		throw("runtime.newosproc")
 	}
