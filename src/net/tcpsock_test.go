@@ -317,10 +317,11 @@ var resolveTCPAddrTests = []resolveTCPAddrTest{
 	{"tcp", "[2001:db8::1]:http", &TCPAddr{IP: ParseIP("2001:db8::1"), Port: 80}, nil},
 	{"tcp4", "127.0.0.1:http", &TCPAddr{IP: ParseIP("127.0.0.1"), Port: 80}, nil},
 	{"tcp4", "[::ffff:127.0.0.1]:http", &TCPAddr{IP: ParseIP("127.0.0.1"), Port: 80}, nil},
+	{"tcp6", "[2001:db8::1]:http", &TCPAddr{IP: ParseIP("2001:db8::1"), Port: 80}, nil},
+
 	{"tcp4", "[2001:db8::1]:http", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "2001:db8::1"}},
 	{"tcp6", "127.0.0.1:http", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "127.0.0.1"}},
 	{"tcp6", "[::ffff:127.0.0.1]:http", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "::ffff:127.0.0.1"}},
-	{"tcp6", "[2001:db8::1]:http", &TCPAddr{IP: ParseIP("2001:db8::1"), Port: 80}, nil},
 }
 
 func TestResolveTCPAddr(t *testing.T) {
@@ -331,13 +332,13 @@ func TestResolveTCPAddr(t *testing.T) {
 	for _, tt := range resolveTCPAddrTests {
 		addr, err := ResolveTCPAddr(tt.network, tt.litAddrOrName)
 		if !reflect.DeepEqual(addr, tt.addr) || !reflect.DeepEqual(err, tt.err) {
-			t.Errorf("ResolveTCPAddr(%q, %q) = %v, %v, want %v, %v", tt.network, tt.litAddrOrName, addr, err, tt.addr, tt.err)
+			t.Errorf("ResolveTCPAddr(%q, %q) = %#v, %v, want %#v, %v", tt.network, tt.litAddrOrName, addr, err, tt.addr, tt.err)
 			continue
 		}
 		if err == nil {
 			addr2, err := ResolveTCPAddr(addr.Network(), addr.String())
 			if !reflect.DeepEqual(addr2, tt.addr) || err != tt.err {
-				t.Errorf("(%q, %q): ResolveTCPAddr(%q, %q) = %v, %v, want %v, %v", tt.network, tt.litAddrOrName, addr.Network(), addr.String(), addr2, err, tt.addr, tt.err)
+				t.Errorf("(%q, %q): ResolveTCPAddr(%q, %q) = %#v, %v, want %#v, %v", tt.network, tt.litAddrOrName, addr.Network(), addr.String(), addr2, err, tt.addr, tt.err)
 			}
 		}
 	}
