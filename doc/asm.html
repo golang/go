@@ -838,6 +838,44 @@ It is a scaled mode as on the x86, but the only scale allowed is <code>1</code>.
 
 </ul>
 
+<h3 id="mips">MIPS, MIPS64</h3>
+
+<p>
+General purpose registers are named <code>R0</code> through <code>R31</code>,
+floating point registers are <code>F0</code> through <code>F31</code>.
+</p>
+
+<p>
+<code>R30</code> is reserved to point to <code>g</code>.
+<code>R23</code> is used as a temporary register.
+</p>
+
+<p>
+In a <code>TEXT</code> directive, the frame size <code>$-4</code> for MIPS or
+<code>$-8</code> for MIPS64 instructs the linker not to save <code>LR</code>.
+</p>
+
+<p>
+<code>SP</code> refers to the virtual stack pointer.
+For the hardware register, use <code>R29</code>.
+</p>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>16(R1)</code>: The location at <code>R1</code> plus 16.
+</li>
+
+<li>
+<code>(R1)</code>: Alias for <code>0(R1)</code>.
+</li>
+
+</ul>
+
 <h3 id="unsupported_opcodes">Unsupported opcodes</h3>
 
 <p>
