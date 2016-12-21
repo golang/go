@@ -37,6 +37,31 @@ func test18146(t *testing.T) {
 		attempts = 100
 	}
 
+	// Restrict the number of attempts based on RLIMIT_NPROC.
+	// Tediously, RLIMIT_NPROC was left out of the syscall package,
+	// probably because it is not in POSIX.1, so we define it here.
+	// It is not defined on Solaris.
+	var nproc int
+	setNproc := true
+	switch runtime.GOOS {
+	default:
+		setNproc = false
+	case "linux":
+		nproc = 6
+	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+		nproc = 7
+	}
+	if setNproc {
+		var rlim syscall.Rlimit
+		if syscall.Getrlimit(nproc, &rlim) == nil {
+			max := int(rlim.Cur) / (threads + 5)
+			if attempts > max {
+				t.Logf("lowering attempts from %d to %d for RLIMIT_NPROC", attempts, max)
+				attempts = max
+			}
+		}
+	}
+
 	if os.Getenv("test18146") == "exec" {
 		runtime.GOMAXPROCS(1)
 		for n := threads; n > 0; n-- {
