@@ -458,12 +458,10 @@ func toint(v Val) Val {
 
 	case *Mpcplx:
 		i := new(Mpint)
-		if i.SetFloat(&u.Real) < 0 {
+		if i.SetFloat(&u.Real) < 0 || u.Imag.CmpFloat64(0) != 0 {
 			yyerror("constant %v%vi truncated to integer", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
 		}
-		if u.Imag.CmpFloat64(0) != 0 {
-			yyerror("constant %v%vi truncated to real", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
-		}
+
 		v.U = i
 	}
 
