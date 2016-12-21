@@ -143,6 +143,7 @@ func TestVetDirs(t *testing.T) {
 		"divergent",
 		"buildtag",
 		"incomplete", // incomplete examples
+		"cgo",
 	} {
 		dir := dir
 		t.Run(dir, func(t *testing.T) {
