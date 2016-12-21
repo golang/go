@@ -22,6 +22,7 @@ func TestServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,5 +97,27 @@ func TestServerCloseClientConnections(t *testing.T) {
 	if err == nil {
 		res.Body.Close()
 		t.Fatalf("Unexpected response: %#v", res)
+	}
+}
+
+// Tests that the Server.Client method works and returns an http.Client that can hit
+// NewTLSServer without cert warnings.
+func TestServerClient(t *testing.T) {
+	ts := NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello"))
+	}))
+	defer ts.Close()
+	client := ts.Client()
+	res, err := client.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "hello" {
+		t.Errorf("got %q, want hello", string(got))
 	}
 }
