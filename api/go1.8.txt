@@ -176,7 +176,6 @@ pkg expvar, method (*Float) Value() float64
 pkg expvar, method (Func) Value() interface{}
 pkg expvar, method (*Int) Value() int64
 pkg expvar, method (*String) Value() string
-pkg go/build, type NoGoError struct, Ignored bool
 pkg go/doc, func IsPredeclared(string) bool
 pkg go/types, func Default(Type) Type
 pkg go/types, func IdenticalIgnoreTags(Type, Type) bool
