@@ -123,7 +123,7 @@ func symbolsFromBinaries(prof *profile.Profile, g graph, rx *regexp.Regexp, addr
 	// Walk all mappings looking for matching functions with samples.
 	var objSyms []*objSymbol
 	for _, m := range prof.Mapping {
-		if !hasSamples[filepath.Base(m.File)] {
+		if !hasSamples[m.File] {
 			if address == nil || !(m.Start <= *address && *address <= m.Limit) {
 				continue
 			}
