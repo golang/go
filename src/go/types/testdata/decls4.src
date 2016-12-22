@@ -63,6 +63,7 @@ func (Ai /* ERROR "invalid receiver" */) m1() {}
 func (T0) m1() {}
 func (A0) m1 /* ERROR already declared */ () {}
 func (A0) m2 () {}
+func (A3 /* ERROR invalid receiver */ ) m1 () {}
 func (A10 /* ERROR invalid receiver */ ) m1() {}
 
 // x0 has methods m1, m2 declared via receiver type names T0 and A0

@@ -163,6 +163,30 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
 	return &TypeName{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
 }
 
+func (obj *TypeName) isAlias() bool {
+	switch t := obj.typ.(type) {
+	case nil:
+		return false
+	case *Basic:
+		// It would seem that we should be able to look for different names here;
+		// but the names of universeByte/Rune are "byte" and "rune", respectively.
+		// We do this so that we get better error messages. However, general alias
+		// types don't have that name information and thus behave differently when
+		// reporting errors (we won't see the alias name, only the original name).
+		// Maybe we should remove the special handling for the predeclared types
+		// as well to be consistent (at the cost of slightly less clear error
+		// messages when byte/rune are involved).
+		// This also plays out in the implementation of the Identical(Type, Type)
+		// predicate.
+		// TODO(gri) consider possible clean up
+		return t == universeByte || t == universeRune
+	case *Named:
+		return obj != t.obj
+	default:
+		return true
+	}
+}
+
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object
@@ -242,7 +266,9 @@ type Nil struct {
 }
 
 func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+	var tname *TypeName
 	typ := obj.Type()
+
 	switch obj := obj.(type) {
 	case *PkgName:
 		fmt.Fprintf(buf, "package %s", obj.Name())
@@ -255,8 +281,8 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		buf.WriteString("const")
 
 	case *TypeName:
+		tname = obj
 		buf.WriteString("type")
-		typ = typ.Underlying()
 
 	case *Var:
 		if obj.isField {
@@ -297,12 +323,26 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	}
 	buf.WriteString(obj.Name())
 
-	// TODO(gri) indicate type alias if we have one
-
-	if typ != nil {
-		buf.WriteByte(' ')
-		WriteType(buf, typ, qf)
+	if typ == nil {
+		return
 	}
+
+	if tname != nil {
+		// We have a type object: Don't print anything more for
+		// basic types since there's no more information (names
+		// are the same; see also comment in TypeName.isAlias).
+		if _, ok := typ.(*Basic); ok {
+			return
+		}
+		if tname.isAlias() {
+			buf.WriteString(" =")
+		} else {
+			typ = typ.Underlying()
+		}
+	}
+
+	buf.WriteByte(' ')
+	WriteType(buf, typ, qf)
 }
 
 func writePackage(buf *bytes.Buffer, pkg *Package, qf Qualifier) {
