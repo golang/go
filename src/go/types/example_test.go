@@ -239,10 +239,10 @@ func fib(x int) int {
 	// type S string:
 	//   defined at fib.go:4:6
 	//   used at 6:23
-	// type int int:
+	// type int:
 	//   defined at -
 	//   used at 8:12, 8:17
-	// type string string:
+	// type string:
 	//   defined at -
 	//   used at 4:8
 	// var b S:
