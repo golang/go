@@ -295,11 +295,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			}
 			check.recordUse(e.Sel, exp)
 
-			// avoid further errors if the imported object is an alias that's broken
-			if exp == nil {
-				goto Error
-			}
-
 			// Simplified version of the code for *ast.Idents:
 			// - imported objects are always fully initialized
 			switch exp := exp.(type) {
