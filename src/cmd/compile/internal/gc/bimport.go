@@ -86,10 +86,10 @@ func Import(in *bufio.Reader) {
 
 	// read version specific flags - extend as necessary
 	switch p.version {
-	// case 4:
+	// case 5:
 	// 	...
 	//	fallthrough
-	case 3, 2, 1:
+	case 4, 3, 2, 1:
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.bool()
 		p.posInfoFormat = p.bool()
@@ -315,6 +315,12 @@ func (p *importer) obj(tag int) {
 		val := p.value(typ)
 		importconst(sym, idealType(typ), nodlit(val))
 
+	case aliasTag:
+		// TODO(gri) hook up type alias
+		p.pos()
+		p.qualifiedName()
+		p.typ()
+
 	case typeTag:
 		p.typ()
 
@@ -353,17 +359,6 @@ func (p *importer) obj(tag int) {
 				fmt.Printf("inl body: %v\n", n.Func.Inl)
 			}
 		}
-
-	case aliasTag:
-		p.pos()
-		alias := importpkg.Lookup(p.string())
-		orig := p.qualifiedName()
-
-		// Although the protocol allows the alias to precede the original,
-		// this never happens in files produced by gc.
-		alias.Flags |= SymAlias
-		alias.Def = orig.Def
-		importsym(alias, orig.Def.Op)
 
 	default:
 		formatErrorf("unexpected object (tag = %d)", tag)
@@ -594,6 +589,8 @@ func (p *importer) field() *Field {
 		}
 		sym = sym.Pkg.Lookup(s.Name)
 		f.Embedded = 1
+	} else if sym.Flags&SymAlias != 0 {
+		f.Embedded = 1
 	}
 
 	f.Sym = sym
@@ -616,7 +613,7 @@ func (p *importer) methodList() (methods []*Field) {
 
 func (p *importer) method() *Field {
 	p.pos()
-	sym := p.fieldName()
+	sym := p.methodName()
 	params := p.paramList()
 	result := p.paramList()
 
@@ -630,15 +627,43 @@ func (p *importer) method() *Field {
 func (p *importer) fieldName() *Sym {
 	name := p.string()
 	if p.version == 0 && name == "_" {
-		// version 0 didn't export a package for _ fields
+		// version 0 didn't export a package for _ field names
 		// but used the builtin package instead
 		return builtinpkg.Lookup(name)
 	}
 	pkg := localpkg
-	if name != "" && !exportname(name) {
-		if name == "?" {
-			name = ""
+	var flag SymFlags
+	switch name {
+	case "":
+		// field name is exported - nothing to do
+	case "?":
+		// field name is not exported - need package
+		name = ""
+		pkg = p.pkg()
+	case "@":
+		// field name doesn't match type name (alias)
+		name = p.string()
+		flag = SymAlias
+		fallthrough
+	default:
+		if !exportname(name) {
+			pkg = p.pkg()
 		}
+	}
+	sym := pkg.Lookup(name)
+	sym.Flags |= flag
+	return sym
+}
+
+func (p *importer) methodName() *Sym {
+	name := p.string()
+	if p.version == 0 && name == "_" {
+		// version 0 didn't export a package for _ method names
+		// but used the builtin package instead
+		return builtinpkg.Lookup(name)
+	}
+	pkg := localpkg
+	if !exportname(name) {
 		pkg = p.pkg()
 	}
 	return pkg.Lookup(name)
