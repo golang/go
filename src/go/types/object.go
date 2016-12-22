@@ -163,7 +163,7 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
 	return &TypeName{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
 }
 
-func (obj *TypeName) isAlias() bool {
+func (obj *TypeName) IsAlias() bool {
 	switch t := obj.typ.(type) {
 	case nil:
 		return false
@@ -330,11 +330,11 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	if tname != nil {
 		// We have a type object: Don't print anything more for
 		// basic types since there's no more information (names
-		// are the same; see also comment in TypeName.isAlias).
+		// are the same; see also comment in TypeName.IsAlias).
 		if _, ok := typ.(*Basic); ok {
 			return
 		}
-		if tname.isAlias() {
+		if tname.IsAlias() {
 			buf.WriteString(" =")
 		} else {
 			typ = typ.Underlying()
