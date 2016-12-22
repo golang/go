@@ -8,8 +8,8 @@ import "testing"
 
 func TestIsAlias(t *testing.T) {
 	check := func(obj *TypeName, want bool) {
-		if got := obj.isAlias(); got != want {
-			t.Errorf("%v: got isAlias = %v; want %v", obj, got, want)
+		if got := obj.IsAlias(); got != want {
+			t.Errorf("%v: got IsAlias = %v; want %v", obj, got, want)
 		}
 	}
 
