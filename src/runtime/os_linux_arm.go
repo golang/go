@@ -18,6 +18,12 @@ var armArch uint8 = 6 // we default to ARMv6
 var hwcap uint32      // set by setup_auxv
 
 func checkgoarm() {
+	// On Android, /proc/self/auxv might be unreadable and hwcap won't
+	// reflect the CPU capabilities. Assume that every Android arm device
+	// has the necessary floating point hardware available.
+	if GOOS == "android" {
+		return
+	}
 	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {
 		print("runtime: this CPU has no floating point hardware, so it cannot run\n")
 		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
