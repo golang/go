@@ -452,7 +452,7 @@ func ReadMemStats(m *MemStats) {
 }
 
 func readmemstats_m(stats *MemStats) {
-	updatememstats(nil)
+	updatememstats()
 
 	// The size of the trailing by_size array differs between
 	// mstats and MemStats. NumSizeClasses was changed, but we
@@ -506,21 +506,7 @@ func readGCStats_m(pauses *[]uint64) {
 }
 
 //go:nowritebarrier
-func updatememstats(stats *gcstats) {
-	if stats != nil {
-		*stats = gcstats{}
-	}
-	for mp := allm; mp != nil; mp = mp.alllink {
-		if stats != nil {
-			src := (*[unsafe.Sizeof(gcstats{}) / 8]uint64)(unsafe.Pointer(&mp.gcstats))
-			dst := (*[unsafe.Sizeof(gcstats{}) / 8]uint64)(unsafe.Pointer(stats))
-			for i, v := range src {
-				dst[i] += v
-			}
-			mp.gcstats = gcstats{}
-		}
-	}
-
+func updatememstats() {
 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
 	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +

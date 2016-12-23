@@ -292,16 +292,6 @@ type sudog struct {
 	c           *hchan // channel
 }
 
-type gcstats struct {
-	// the struct must consist of only uint64's,
-	// because it is casted to uint64[].
-	nhandoff    uint64
-	nhandoffcnt uint64
-	nprocyield  uint64
-	nosyield    uint64
-	nsleep      uint64
-}
-
 type libcall struct {
 	fn   uintptr
 	n    uintptr // number of parameters
@@ -436,7 +426,6 @@ type m struct {
 	fflag         uint32      // floating point compare flags
 	locked        uint32      // tracking for lockosthread
 	nextwaitm     uintptr     // next m waiting for lock
-	gcstats       gcstats
 	needextram    bool
 	traceback     uint8
 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
