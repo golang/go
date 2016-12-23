@@ -1042,6 +1042,8 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 
 		var r *Node
 		if n.Right != nil {
+			// n.Right is stack temporary used as backing store.
+			init.Append(Nod(OAS, n.Right, nil)) // zero backing store, just in case (#18410)
 			r = Nod(OADDR, n.Right, nil)
 			r = typecheck(r, Erv)
 		} else {
