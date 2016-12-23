@@ -163,7 +163,7 @@ func parseNetwork(ctx context.Context, net string) (afnet string, proto int, err
 	return "", 0, UnknownNetworkError(net)
 }
 
-// resolverAddrList resolves addr using hint and returns a list of
+// resolveAddrList resolves addr using hint and returns a list of
 // addresses. The result contains at least one address when error is
 // nil.
 func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (addrList, error) {
