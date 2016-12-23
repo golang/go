@@ -174,6 +174,7 @@ type MemStats struct {
 	Lookups uint64
 
 	// Mallocs is the cumulative count of heap objects allocated.
+	// The number of live objects is Mallocs - Frees.
 	Mallocs uint64
 
 	// Frees is the cumulative count of heap objects freed.
@@ -397,9 +398,19 @@ type MemStats struct {
 	//
 	// This does not report allocations larger than BySize[60].Size.
 	BySize [61]struct {
-		Size    uint32
+		// Size is the maximum byte size of an object in this
+		// size class.
+		Size uint32
+
+		// Mallocs is the cumulative count of heap objects
+		// allocated in this size class. The cumulative bytes
+		// of allocation is Size*Mallocs. The number of live
+		// objects in this size class is Mallocs - Frees.
 		Mallocs uint64
-		Frees   uint64
+
+		// Frees is the cumulative count of heap objects freed
+		// in this size class.
+		Frees uint64
 	}
 }
 
