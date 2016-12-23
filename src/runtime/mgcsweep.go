@@ -186,7 +186,6 @@ func (s *mspan) sweep(preserve bool) bool {
 	cl := s.sizeclass
 	size := s.elemsize
 	res := false
-	nfree := 0
 
 	c := _g_.m.mcache
 	freeToHeap := false
@@ -276,15 +275,14 @@ func (s *mspan) sweep(preserve bool) bool {
 	}
 
 	// Count the number of free objects in this span.
-	nfree = s.countFree()
-	if cl == 0 && nfree != 0 {
+	nalloc := uint16(s.countAlloc())
+	if cl == 0 && nalloc == 0 {
 		s.needzero = 1
 		freeToHeap = true
 	}
-	nalloc := uint16(s.nelems) - uint16(nfree)
 	nfreed := s.allocCount - nalloc
 	if nalloc > s.allocCount {
-		print("runtime: nelems=", s.nelems, " nfree=", nfree, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
+		print("runtime: nelems=", s.nelems, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
 		throw("sweep increased allocation count")
 	}
 
