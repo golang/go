@@ -653,7 +653,7 @@ func writeheapdump_m(fd uintptr) {
 	// Update stats so we can dump them.
 	// As a side effect, flushes all the MCaches so the MSpan.freelist
 	// lists contain all the free objects.
-	updatememstats(nil)
+	updatememstats()
 
 	// Set dump file.
 	dumpfd = fd

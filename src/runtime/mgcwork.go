@@ -397,15 +397,11 @@ func getfull() *workbuf {
 		if work.nwait == work.nproc && work.markrootNext >= work.markrootJobs {
 			return nil
 		}
-		_g_ := getg()
 		if i < 10 {
-			_g_.m.gcstats.nprocyield++
 			procyield(20)
 		} else if i < 20 {
-			_g_.m.gcstats.nosyield++
 			osyield()
 		} else {
-			_g_.m.gcstats.nsleep++
 			usleep(100)
 		}
 	}
@@ -419,9 +415,6 @@ func handoff(b *workbuf) *workbuf {
 	b.nobj -= n
 	b1.nobj = n
 	memmove(unsafe.Pointer(&b1.obj[0]), unsafe.Pointer(&b.obj[b.nobj]), uintptr(n)*unsafe.Sizeof(b1.obj[0]))
-	_g_ := getg()
-	_g_.m.gcstats.nhandoff++
-	_g_.m.gcstats.nhandoffcnt += uint64(n)
 
 	// Put b on full list - let first half of b get stolen.
 	putfull(b)
