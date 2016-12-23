@@ -823,10 +823,10 @@ var oneBitCount = [256]uint8{
 	4, 5, 5, 6, 5, 6, 6, 7,
 	5, 6, 6, 7, 6, 7, 7, 8}
 
-// countFree runs through the mark bits in a span and counts the number of free objects
-// in the span.
+// countAlloc returns the number of objects allocated in span s by
+// scanning the allocation bitmap.
 // TODO:(rlh) Use popcount intrinsic.
-func (s *mspan) countFree() int {
+func (s *mspan) countAlloc() int {
 	count := 0
 	maxIndex := s.nelems / 8
 	for i := uintptr(0); i < maxIndex; i++ {
@@ -839,7 +839,7 @@ func (s *mspan) countFree() int {
 		bits := mrkBits & mask
 		count += int(oneBitCount[bits])
 	}
-	return int(s.nelems) - count
+	return count
 }
 
 // heapBitsSetType records that the new allocation [x, x+size)
