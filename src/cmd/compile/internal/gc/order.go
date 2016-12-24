@@ -508,7 +508,7 @@ func orderstmt(n *Node, order *Order) {
 		orderexprlist(n.List, order)
 		orderexprlist(n.Rlist, order)
 		switch n.Op {
-		case OAS2, OAS2DOTTYPE:
+		case OAS2:
 			ordermapassign(n, order)
 		default:
 			order.out = append(order.out, n)
@@ -554,7 +554,7 @@ func orderstmt(n *Node, order *Order) {
 			r.Right.Op = OARRAYBYTESTRTMP
 		}
 		ordermapkeytemp(r, order)
-		ordermapassign(n, order)
+		orderokas2(n, order)
 		cleantemp(t, order)
 
 	// Special: avoid copy of func call n->rlist->n.
@@ -563,7 +563,7 @@ func orderstmt(n *Node, order *Order) {
 
 		orderexprlist(n.List, order)
 		ordercall(n.Rlist.First(), order)
-		ordermapassign(n, order)
+		orderas2(n, order)
 		cleantemp(t, order)
 
 	// Special: use temporary variables to hold result,
@@ -574,31 +574,7 @@ func orderstmt(n *Node, order *Order) {
 
 		orderexprlist(n.List, order)
 		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // i in i.(T)
-
-		var tmp1, tmp2 *Node
-		if !isblank(n.List.First()) {
-			typ := n.Rlist.First().Type
-			tmp1 = ordertemp(typ, order, haspointers(typ))
-		}
-		if !isblank(n.List.Second()) && !n.List.Second().Type.IsBoolean() {
-			tmp2 = ordertemp(Types[TBOOL], order, false)
-		}
-
-		order.out = append(order.out, n)
-
-		if tmp1 != nil {
-			r := nod(OAS, n.List.First(), tmp1)
-			r = typecheck(r, Etop)
-			ordermapassign(r, order)
-			n.List.SetIndex(0, tmp1)
-		}
-		if tmp2 != nil {
-			r := okas(n.List.Second(), tmp2)
-			r = typecheck(r, Etop)
-			ordermapassign(r, order)
-			n.List.SetIndex(1, tmp2)
-		}
-
+		orderokas2(n, order)
 		cleantemp(t, order)
 
 	// Special: use temporary variables to hold result,
@@ -1228,4 +1204,69 @@ func okas(ok, val *Node) *Node {
 		val = conv(val, ok.Type)
 	}
 	return nod(OAS, ok, val)
+}
+
+// orderas2 orders OAS2XXXX nodes. It creates temporaries to ensure left-to-right assignment.
+// The caller should order the right-hand side of the assignment before calling orderas2.
+// It rewrites,
+// 	a, b, a = ...
+// as
+//	tmp1, tmp2, tmp3 = ...
+// 	a, b, a = tmp1, tmp2, tmp3
+// This is necessary to ensure left to right assignment order.
+func orderas2(n *Node, order *Order) {
+	tmplist := []*Node{}
+	left := []*Node{}
+	for _, l := range n.List.Slice() {
+		if !isblank(l) {
+			tmp := ordertemp(l.Type, order, haspointers(l.Type))
+			tmplist = append(tmplist, tmp)
+			left = append(left, l)
+		}
+	}
+
+	order.out = append(order.out, n)
+
+	as := nod(OAS2, nil, nil)
+	as.List.Set(left)
+	as.Rlist.Set(tmplist)
+	as = typecheck(as, Etop)
+	orderstmt(as, order)
+
+	ti := 0
+	for ni, l := range n.List.Slice() {
+		if !isblank(l) {
+			n.List.SetIndex(ni, tmplist[ti])
+			ti++
+		}
+	}
+}
+
+// orderokas2 orders OAS2 with ok.
+// Just like orderas2(), this also adds temporaries to ensure left-to-right assignment.
+func orderokas2(n *Node, order *Order) {
+	var tmp1, tmp2 *Node
+	if !isblank(n.List.First()) {
+		typ := n.Rlist.First().Type
+		tmp1 = ordertemp(typ, order, haspointers(typ))
+	}
+
+	if !isblank(n.List.Second()) {
+		tmp2 = ordertemp(Types[TBOOL], order, false)
+	}
+
+	order.out = append(order.out, n)
+
+	if tmp1 != nil {
+		r := nod(OAS, n.List.First(), tmp1)
+		r = typecheck(r, Etop)
+		ordermapassign(r, order)
+		n.List.SetIndex(0, tmp1)
+	}
+	if tmp2 != nil {
+		r := okas(n.List.Second(), tmp2)
+		r = typecheck(r, Etop)
+		ordermapassign(r, order)
+		n.List.SetIndex(1, tmp2)
+	}
 }
