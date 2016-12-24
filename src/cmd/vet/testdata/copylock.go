@@ -67,7 +67,7 @@ func BadFunc() {
 
 	// override 'new' keyword
 	new := func(interface{}) {}
-	new(t) // ERROR "function call copies lock value: testdata.Tlock contains sync.Once contains sync.Mutex"
+	new(t) // ERROR "call of new copies lock value: testdata.Tlock contains sync.Once contains sync.Mutex"
 
 	// copy of array of locks
 	var muA [5]sync.Mutex
@@ -96,10 +96,10 @@ func LenAndCapOnLockArrays() {
 	// override 'len' and 'cap' keywords
 
 	len := func(interface{}) {}
-	len(a) // ERROR "function call copies lock value: sync.Mutex"
+	len(a) // ERROR "call of len copies lock value: sync.Mutex"
 
 	cap := func(interface{}) {}
-	cap(a) // ERROR "function call copies lock value: sync.Mutex"
+	cap(a) // ERROR "call of cap copies lock value: sync.Mutex"
 }
 
 // SyncTypesCheck checks copying of sync.* types except sync.Mutex
