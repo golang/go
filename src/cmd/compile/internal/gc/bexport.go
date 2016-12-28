@@ -447,30 +447,6 @@ func unidealType(typ *Type, val Val) *Type {
 }
 
 func (p *exporter) obj(sym *Sym) {
-	if sym.Flags&SymAlias != 0 {
-		p.tag(aliasTag)
-		p.pos(nil) // TODO(gri) fix position information
-		// Aliases can only be exported from the package that
-		// declares them (aliases to aliases are resolved to the
-		// original object, and so are uses of aliases in inlined
-		// exported function bodies). Thus, we only need the alias
-		// name without package qualification.
-		if sym.Pkg != localpkg {
-			Fatalf("exporter: export of non-local alias: %v", sym)
-		}
-		p.string(sym.Name)
-		orig := sym.Def.Sym
-		if orig.Flags&SymAlias != 0 {
-			Fatalf("exporter: original object %v marked as alias", sym)
-		}
-		p.qualifiedName(orig)
-		return
-	}
-
-	if sym != sym.Def.Sym {
-		Fatalf("exporter: exported object %v is not original %v", sym, sym.Def.Sym)
-	}
-
 	// Exported objects may be from different packages because they
 	// may be re-exported via an exported alias or as dependencies in
 	// exported inlined function bodies. Thus, exported object names
@@ -885,15 +861,15 @@ func (p *exporter) fieldName(t *Field) {
 	name := t.Sym.Name
 	if t.Embedded != 0 {
 		// anonymous field - we distinguish between 3 cases:
-		// 1) field name matches base type name and name is exported
-		// 2) field name matches base type name and name is not exported
-		// 3) field name doesn't match base type name (type name is alias)
+		// 1) field name matches base type name and is exported
+		// 2) field name matches base type name and is not exported
+		// 3) field name doesn't match base type name (alias name)
 		bname := basetypeName(t.Type)
 		if name == bname {
 			if exportname(name) {
-				name = "" // 1) we don't need to know the name
+				name = "" // 1) we don't need to know the field name or package
 			} else {
-				name = "?" // 2) use unexported name to force package export
+				name = "?" // 2) use unexported name "?" to force package export
 			}
 		} else {
 			// 3) indicate alias and export name as is
@@ -920,11 +896,10 @@ func basetypeName(t *Type) string {
 	if s == nil && t.IsPtr() {
 		s = t.Elem().Sym // deref
 	}
-	// s should exist, but be conservative
 	if s != nil {
 		return s.Name
 	}
-	return ""
+	return "" // unnamed type
 }
 
 func (p *exporter) paramList(params *Type, numbered bool) {
