@@ -21,16 +21,23 @@ func TestIsAlias(t *testing.T) {
 	}
 
 	// various other types
-	t0 := NewTypeName(0, nil, "t0", nil)
-	check(t0, false) // no type yet
-
-	t1 := NewTypeName(0, nil, "t1", nil)
+	pkg := NewPackage("p", "p")
+	t1 := NewTypeName(0, pkg, "t1", nil)
 	n1 := NewNamed(t1, new(Struct), nil)
-	check(t1, false) // type name refers to named type and vice versa
-
-	t2 := NewTypeName(0, nil, "t2", new(Interface))
-	check(t2, true) // type name refers to unnamed type
-
-	t3 := NewTypeName(0, nil, "t3", n1)
-	check(t3, true) // type name refers to named type with different type name (true alias)
+	for _, test := range []struct {
+		name  *TypeName
+		alias bool
+	}{
+		{NewTypeName(0, nil, "t0", nil), false}, // no type yet
+		{NewTypeName(0, pkg, "t0", nil), false}, // no type yet
+		{t1, false},                             // type name refers to named type and vice versa
+		{NewTypeName(0, nil, "t2", new(Interface)), true}, // type name refers to unnamed type
+		{NewTypeName(0, pkg, "t3", n1), true},             // type name refers to named type with different type name
+		{NewTypeName(0, nil, "t4", Typ[Int32]), true},     // type name refers to basic type with different name
+		{NewTypeName(0, nil, "int32", Typ[Int32]), false}, // type name refers to basic type with same name
+		{NewTypeName(0, pkg, "int32", Typ[Int32]), true},  // type name is declared in user-defined package (outside Universe)
+		{NewTypeName(0, nil, "rune", Typ[Rune]), true},    // type name refers to basic type rune which is an alias already
+	} {
+		check(test.name, test.alias)
+	}
 }

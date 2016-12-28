@@ -582,7 +582,7 @@ func (p *importer) field() *Field {
 
 	f := newField()
 	if sym.Name == "" {
-		// anonymous field - typ must be T or *T and T must be a type name
+		// anonymous field: typ must be T or *T and T must be a type name
 		s := typ.Sym
 		if s == nil && typ.IsPtr() {
 			s = typ.Elem().Sym // deref
@@ -590,6 +590,7 @@ func (p *importer) field() *Field {
 		sym = sym.Pkg.Lookup(s.Name)
 		f.Embedded = 1
 	} else if sym.Flags&SymAlias != 0 {
+		// anonymous field: we have an explicit name because it's an alias
 		f.Embedded = 1
 	}
 
@@ -635,13 +636,13 @@ func (p *importer) fieldName() *Sym {
 	var flag SymFlags
 	switch name {
 	case "":
-		// field name is exported - nothing to do
+		// 1) field name matches base type name and is exported: nothing to do
 	case "?":
-		// field name is not exported - need package
+		// 2) field name matches base type name and is not exported: need package
 		name = ""
 		pkg = p.pkg()
 	case "@":
-		// field name doesn't match type name (alias)
+		// 3) field name doesn't match base type name (alias name): need name and possibly package
 		name = p.string()
 		flag = SymAlias
 		fallthrough

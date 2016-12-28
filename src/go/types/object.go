@@ -163,23 +163,19 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
 	return &TypeName{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
 }
 
+// IsAlias reports whether obj is an alias name for a type.
 func (obj *TypeName) IsAlias() bool {
 	switch t := obj.typ.(type) {
 	case nil:
 		return false
 	case *Basic:
-		// It would seem that we should be able to look for different names here;
-		// but the names of universeByte/Rune are "byte" and "rune", respectively.
-		// We do this so that we get better error messages. However, general alias
-		// types don't have that name information and thus behave differently when
-		// reporting errors (we won't see the alias name, only the original name).
-		// Maybe we should remove the special handling for the predeclared types
-		// as well to be consistent (at the cost of slightly less clear error
-		// messages when byte/rune are involved).
-		// This also plays out in the implementation of the Identical(Type, Type)
-		// predicate.
-		// TODO(gri) consider possible clean up
-		return t == universeByte || t == universeRune
+		// Any user-defined type name for a basic type is an alias for a
+		// basic type (because basic types are pre-declared in the Universe
+		// scope, outside any package scope), and so is any type name with
+		// a different name than the name of the basic type it refers to.
+		// Additionaly, we need to look for "byte" and "rune" because they
+		// are aliases but have the same names (for better error messages).
+		return obj.pkg != nil || t.name != obj.name || t == universeByte || t == universeRune
 	case *Named:
 		return obj != t.obj
 	default:

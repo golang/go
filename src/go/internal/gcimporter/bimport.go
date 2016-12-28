@@ -341,9 +341,7 @@ var (
 
 func (p *importer) qualifiedName() (pkg *types.Package, name string) {
 	name = p.string()
-	if name != "" {
-		pkg = p.pkg()
-	}
+	pkg = p.pkg()
 	return
 }
 
@@ -556,7 +554,7 @@ func (p *importer) fieldList(parent *types.Package) (fields []*types.Var, tags [
 
 func (p *importer) field(parent *types.Package) (*types.Var, string) {
 	pos := p.pos()
-	pkg, name := p.fieldName(parent)
+	pkg, name, alias := p.fieldName(parent)
 	typ := p.typ(parent)
 	tag := p.string()
 
@@ -570,8 +568,11 @@ func (p *importer) field(parent *types.Package) (*types.Var, string) {
 		case *types.Named:
 			name = typ.Obj().Name()
 		default:
-			errorf("anonymous field expected")
+			errorf("named base type expected")
 		}
+		anonymous = true
+	} else if alias {
+		// anonymous field: we have an explicit name because it's an alias
 		anonymous = true
 	}
 
@@ -590,41 +591,42 @@ func (p *importer) methodList(parent *types.Package) (methods []*types.Func) {
 
 func (p *importer) method(parent *types.Package) *types.Func {
 	pos := p.pos()
-	pkg, name := p.fieldName(parent)
+	pkg, name, _ := p.fieldName(parent)
 	params, isddd := p.paramList()
 	result, _ := p.paramList()
 	sig := types.NewSignature(nil, params, result, isddd)
 	return types.NewFunc(pos, pkg, name, sig)
 }
 
-func (p *importer) fieldName(parent *types.Package) (*types.Package, string) {
-	name := p.string()
-	pkg := parent
+func (p *importer) fieldName(parent *types.Package) (pkg *types.Package, name string, alias bool) {
+	name = p.string()
+	pkg = parent
 	if pkg == nil {
 		// use the imported package instead
 		pkg = p.pkgList[0]
 	}
 	if p.version == 0 && name == "_" {
 		// version 0 didn't export a package for _ fields
-		return pkg, name
+		return
 	}
 	switch name {
 	case "":
-		// field name is exported - nothing to do
+		// 1) field name matches base type name and is exported: nothing to do
 	case "?":
-		// field name is not exported - need package
+		// 2) field name matches base type name and is not exported: need package
 		name = ""
 		pkg = p.pkg()
 	case "@":
-		// field name doesn't match type name (alias)
+		// 3) field name doesn't match type name (alias)
 		name = p.string()
+		alias = true
 		fallthrough
 	default:
 		if !exported(name) {
 			pkg = p.pkg()
 		}
 	}
-	return pkg, name
+	return
 }
 
 func (p *importer) paramList() (*types.Tuple, bool) {
