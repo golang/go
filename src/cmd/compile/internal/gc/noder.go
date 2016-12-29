@@ -1055,6 +1055,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
 		lookup(f[1]).Linkname = f[2]
 
 	case strings.HasPrefix(text, "go:cgo_"):
+		lineno = p.baseline + int32(line) - 1 // pragcgo may call yyerror
 		pragcgobuf += pragcgo(text)
 		fallthrough // because of //go:cgo_unsafe_args
 	default:
@@ -1062,6 +1063,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
 		if i := strings.Index(text, " "); i >= 0 {
 			verb = verb[:i]
 		}
+		lineno = p.baseline + int32(line) - 1 // pragmaValue may call yyerror
 		return syntax.Pragma(pragmaValue(verb))
 	}
 
