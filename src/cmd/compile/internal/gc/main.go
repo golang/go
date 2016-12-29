@@ -344,8 +344,9 @@ func Main() {
 	// Don't use range--typecheck can add closures to xtop.
 	timings.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(xtop); i++ {
-		if xtop[i].Op != ODCL && xtop[i].Op != OAS && xtop[i].Op != OAS2 {
-			xtop[i] = typecheck(xtop[i], Etop)
+		n := xtop[i]
+		if op := n.Op; op != ODCL && op != OAS && op != OAS2 {
+			xtop[i] = typecheck(n, Etop)
 		}
 	}
 
@@ -355,8 +356,9 @@ func Main() {
 	// Don't use range--typecheck can add closures to xtop.
 	timings.Start("fe", "typecheck", "top2")
 	for i := 0; i < len(xtop); i++ {
-		if xtop[i].Op == ODCL || xtop[i].Op == OAS || xtop[i].Op == OAS2 {
-			xtop[i] = typecheck(xtop[i], Etop)
+		n := xtop[i]
+		if op := n.Op; op == ODCL || op == OAS || op == OAS2 {
+			xtop[i] = typecheck(n, Etop)
 		}
 	}
 	resumecheckwidth()
@@ -366,8 +368,9 @@ func Main() {
 	timings.Start("fe", "typecheck", "func")
 	var fcount int64
 	for i := 0; i < len(xtop); i++ {
-		if xtop[i].Op == ODCLFUNC || xtop[i].Op == OCLOSURE {
-			Curfn = xtop[i]
+		n := xtop[i]
+		if op := n.Op; op == ODCLFUNC || op == OCLOSURE {
+			Curfn = n
 			decldepth = 1
 			saveerrors()
 			typecheckslice(Curfn.Nbody.Slice(), Etop)
@@ -459,8 +462,9 @@ func Main() {
 	timings.Start("be", "compilefuncs")
 	fcount = 0
 	for i := 0; i < len(xtop); i++ {
-		if xtop[i].Op == ODCLFUNC {
-			funccompile(xtop[i])
+		n := xtop[i]
+		if n.Op == ODCLFUNC {
+			funccompile(n)
 			fcount++
 		}
 	}

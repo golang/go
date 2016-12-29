@@ -153,11 +153,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 
 func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 	names := p.declNames(decl.NameList)
-
-	var typ *Node
-	if decl.Type != nil {
-		typ = p.typeExpr(decl.Type)
-	}
+	typ := p.typeExprOrNil(decl.Type)
 
 	var exprs []*Node
 	if decl.Values != nil {
@@ -170,11 +166,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 
 func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
 	names := p.declNames(decl.NameList)
-
-	var typ *Node
-	if decl.Type != nil {
-		typ = p.typeExpr(decl.Type)
-	}
+	typ := p.typeExprOrNil(decl.Type)
 
 	var exprs []*Node
 	if decl.Values != nil {
@@ -190,12 +182,14 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 	}
 
 	name := typedcl0(p.name(decl.Name))
-	name.Name.Param.Pragma = Pragma(decl.Pragma)
-
-	var typ *Node
-	if decl.Type != nil {
-		typ = p.typeExpr(decl.Type)
+	pragma := Pragma(decl.Pragma)
+	if pragma != 0 && decl.Alias {
+		yyerror("cannot specify directive with type alias")
+		pragma = 0
 	}
+	name.Name.Param.Pragma = pragma
+
+	typ := p.typeExprOrNil(decl.Type)
 
 	return typedcl1(name, typ, true)
 }
@@ -468,6 +462,13 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 func (p *noder) typeExpr(typ syntax.Expr) *Node {
 	// TODO(mdempsky): Be stricter? typecheck should handle errors anyway.
 	return p.expr(typ)
+}
+
+func (p *noder) typeExprOrNil(typ syntax.Expr) *Node {
+	if typ != nil {
+		return p.expr(typ)
+	}
+	return nil
 }
 
 func (p *noder) chanDir(dir syntax.ChanDir) ChanDir {
