@@ -180,14 +180,6 @@ func Fatalf(fmt_ string, args ...interface{}) {
 	errorexit()
 }
 
-// TODO(gri) rename this function
-func linehistpragma(file string) {
-	// if Debug['i'] != 0 {
-	// 	fmt.Printf("pragma %s at line %v\n", file, linestr(lexlineno))
-	// }
-	Ctxt.AddImport(file)
-}
-
 func setlineno(n *Node) src.XPos {
 	lno := lineno
 	if n != nil {
