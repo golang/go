@@ -30,6 +30,8 @@ type ReverseProxy struct {
 	// the request into a new request to be sent
 	// using Transport. Its response is then copied
 	// back to the original client unmodified.
+	// Director must not access the provided Request
+	// after returning.
 	Director func(*http.Request)
 
 	// The transport used to perform proxy requests.
