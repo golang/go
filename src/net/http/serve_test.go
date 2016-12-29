@@ -535,6 +535,57 @@ func TestServerTimeouts(t *testing.T) {
 	}
 }
 
+// Test that the HTTP/2 server handles Server.WriteTimeout (Issue 18437)
+func TestHTTP2WriteDeadlineExtendedOnNewRequest(t *testing.T) {
+	t.Skip("disabled until Issue 18437 is fixed")
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	setParallel(t)
+	defer afterTest(t)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(res ResponseWriter, req *Request) {}))
+	ts.Config.WriteTimeout = 250 * time.Millisecond
+	ts.TLS = &tls.Config{NextProtos: []string{"h2"}}
+	ts.StartTLS()
+	defer ts.Close()
+
+	tr := newTLSTransport(t, ts)
+	defer tr.CloseIdleConnections()
+	if err := ExportHttp2ConfigureTransport(tr); err != nil {
+		t.Fatal(err)
+	}
+	c := &Client{Transport: tr}
+
+	for i := 1; i <= 3; i++ {
+		req, err := NewRequest("GET", ts.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// fail test if no response after 1 second
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		req = req.WithContext(ctx)
+
+		r, err := c.Do(req)
+		select {
+		case <-ctx.Done():
+			if ctx.Err() == context.DeadlineExceeded {
+				t.Fatalf("http2 Get #%d response timed out", i)
+			}
+		default:
+		}
+		if err != nil {
+			t.Fatalf("http2 Get #%d: %v", i, err)
+		}
+		r.Body.Close()
+		if r.ProtoMajor != 2 {
+			t.Fatalf("http2 Get expected HTTP/2.0, got %q", r.Proto)
+		}
+		time.Sleep(ts.Config.WriteTimeout / 2)
+	}
+}
+
 // golang.org/issue/4741 -- setting only a write timeout that triggers
 // shouldn't cause a handler to block forever on reads (next HTTP
 // request) that will never happen.
