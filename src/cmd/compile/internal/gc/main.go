@@ -778,7 +778,8 @@ func importfile(f *Val, indent []byte) {
 	defer impf.Close()
 	imp := bufio.NewReader(impf)
 
-	if strings.HasSuffix(file, ".a") {
+	const pkgSuffix = ".a"
+	if strings.HasSuffix(file, pkgSuffix) {
 		if !skiptopkgdef(imp) {
 			yyerror("import %s: not a package file", file)
 			errorexit()
@@ -826,9 +827,9 @@ func importfile(f *Val, indent []byte) {
 		yyerror("cannot import unsafe package %q", importpkg.Path)
 	}
 
-	// assume files move (get installed)
-	// so don't record the full path.
-	linehistpragma(file[len(file)-len(path_)-2:]) // acts as #pragma lib
+	// assume files move (get installed) so don't record the full path
+	// (e.g., for file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a")
+	Ctxt.AddImport(file[len(file)-len(path_)-len(pkgSuffix):])
 
 	// In the importfile, if we find:
 	// $$\n  (textual format): not supported anymore

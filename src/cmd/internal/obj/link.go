@@ -222,8 +222,8 @@ const (
 // The Progs for a given function are arranged in a list linked through the Link field.
 //
 // Each Prog is charged to a specific source line in the debug information,
-// specified by Pos.Line(), an index into the line history (see LineHist).
-// Every Prog has a Ctxt field that defines various context, including the current LineHist.
+// specified by Pos.Line().
+// Every Prog has a Ctxt field that defines its context.
 // Progs should be allocated using ctxt.NewProg(), not new(Prog).
 //
 // The other fields not yet mentioned are for use by the back ends and should
