@@ -3141,6 +3141,10 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
 		pushEnabled:       true,
 	}
 
+	if sc.hs.WriteTimeout != 0 {
+		sc.conn.SetWriteDeadline(time.Time{})
+	}
+
 	if s.NewWriteScheduler != nil {
 		sc.writeSched = s.NewWriteScheduler()
 	} else {

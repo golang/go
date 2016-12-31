@@ -537,7 +537,6 @@ func TestServerTimeouts(t *testing.T) {
 
 // Test that the HTTP/2 server handles Server.WriteTimeout (Issue 18437)
 func TestHTTP2WriteDeadlineExtendedOnNewRequest(t *testing.T) {
-	t.Skip("disabled until Issue 18437 is fixed")
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
