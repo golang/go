@@ -208,7 +208,41 @@ func averageDelta(m0, m1 image.Image) int64 {
 	return sum / n
 }
 
-func BenchmarkEncode(b *testing.B) {
+func TestEncodeYCbCr(t *testing.T) {
+	bo := image.Rect(0, 0, 640, 480)
+	imgRGBA := image.NewRGBA(bo)
+	// Must use 444 subsampling to avoid lossy RGBA to YCbCr conversion.
+	imgYCbCr := image.NewYCbCr(bo, image.YCbCrSubsampleRatio444)
+	rnd := rand.New(rand.NewSource(123))
+	// Create identical rgba and ycbcr images.
+	for y := bo.Min.Y; y < bo.Max.Y; y++ {
+		for x := bo.Min.X; x < bo.Max.X; x++ {
+			col := color.RGBA{
+				uint8(rnd.Intn(256)),
+				uint8(rnd.Intn(256)),
+				uint8(rnd.Intn(256)),
+				255,
+			}
+			imgRGBA.SetRGBA(x, y, col)
+			yo := imgYCbCr.YOffset(x, y)
+			co := imgYCbCr.COffset(x, y)
+			cy, ccr, ccb := color.RGBToYCbCr(col.R, col.G, col.B)
+			imgYCbCr.Y[yo] = cy
+			imgYCbCr.Cb[co] = ccr
+			imgYCbCr.Cr[co] = ccb
+		}
+	}
+
+	// Now check that both images are identical after an encode.
+	var bufRGBA, bufYCbCr bytes.Buffer
+	Encode(&bufRGBA, imgRGBA, nil)
+	Encode(&bufYCbCr, imgYCbCr, nil)
+	if !bytes.Equal(bufRGBA.Bytes(), bufYCbCr.Bytes()) {
+		t.Errorf("RGBA and YCbCr encoded bytes differ")
+	}
+}
+
+func BenchmarkEncodeRGBA(b *testing.B) {
 	b.StopTimer()
 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
 	bo := img.Bounds()
@@ -224,6 +258,28 @@ func BenchmarkEncode(b *testing.B) {
 		}
 	}
 	b.SetBytes(640 * 480 * 4)
+	b.StartTimer()
+	options := &Options{Quality: 90}
+	for i := 0; i < b.N; i++ {
+		Encode(ioutil.Discard, img, options)
+	}
+}
+
+func BenchmarkEncodeYCbCr(b *testing.B) {
+	b.StopTimer()
+	img := image.NewYCbCr(image.Rect(0, 0, 640, 480), image.YCbCrSubsampleRatio420)
+	bo := img.Bounds()
+	rnd := rand.New(rand.NewSource(123))
+	for y := bo.Min.Y; y < bo.Max.Y; y++ {
+		for x := bo.Min.X; x < bo.Max.X; x++ {
+			cy := img.YOffset(x, y)
+			ci := img.COffset(x, y)
+			img.Y[cy] = uint8(rnd.Intn(256))
+			img.Cb[ci] = uint8(rnd.Intn(256))
+			img.Cr[ci] = uint8(rnd.Intn(256))
+		}
+	}
+	b.SetBytes(640 * 480 * 3)
 	b.StartTimer()
 	options := &Options{Quality: 90}
 	for i := 0; i < b.N; i++ {
