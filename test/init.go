@@ -15,7 +15,7 @@ func init() {
 }
 
 func main() {
-	init()         // ERROR "undefined.*init"
+	init()         // ERROR "cannot refer to init functions"
 	runtime.init() // ERROR "unexported.*runtime\.init"
-	var _ = init   // ERROR "undefined.*init"
+	var _ = init   // ERROR "cannot refer to init functions"
 }
