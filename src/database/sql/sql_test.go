@@ -2607,13 +2607,13 @@ func TestIssue6081(t *testing.T) {
 	}
 }
 
-// TestIssue18429 attempts to stress rolling back the transaction from a context
-// cancel while simultaneously calling Tx.Rollback. Rolling back from a context
-// happens concurrently so tx.rollback and tx.Commit must gaurded to not
-// be entered twice.
+// TestIssue18429 attempts to stress rolling back the transaction from a
+// context cancel while simultaneously calling Tx.Rollback. Rolling back from a
+// context happens concurrently so tx.rollback and tx.Commit must guard against
+// double entry.
 //
-// The test is composed of a context that is canceled while the query is in process
-// so the internal rollback will run concurrently with the explicitly called
+// In the test, a context is canceled while the query is in process so
+// the internal rollback will run concurrently with the explicitly called
 // Tx.Rollback.
 func TestIssue18429(t *testing.T) {
 	db := newTestDB(t, "people")
