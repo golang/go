@@ -1885,6 +1885,26 @@ func TestGoTestCpuprofileDashOControlsBinaryLocation(t *testing.T) {
 	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -cpuprofile -o myerrors.test did not create myerrors.test")
 }
 
+func TestGoTestMutexprofileLeavesBinaryBehind(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	// TODO: tg.parallel()
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+	tg.run("test", "-mutexprofile", "errors.prof", "errors")
+	tg.wantExecutable("errors.test"+exeSuffix, "go test -mutexprofile did not create errors.test")
+}
+
+func TestGoTestMutexprofileDashOControlsBinaryLocation(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	// TODO: tg.parallel()
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+	tg.run("test", "-mutexprofile", "errors.prof", "-o", "myerrors.test"+exeSuffix, "errors")
+	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -mutexprofile -o myerrors.test did not create myerrors.test")
+}
+
 func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
