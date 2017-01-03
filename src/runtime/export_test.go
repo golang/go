@@ -271,3 +271,68 @@ func (p *ProfBuf) Read(mode profBufReadMode) ([]uint64, []unsafe.Pointer, bool) 
 func (p *ProfBuf) Close() {
 	(*profBuf)(p).close()
 }
+
+// ReadMemStatsSlow returns both the runtime-computed MemStats and
+// MemStats accumulated by scanning the heap.
+func ReadMemStatsSlow() (base, slow MemStats) {
+	stopTheWorld("ReadMemStatsSlow")
+
+	// Run on the system stack to avoid stack growth allocation.
+	systemstack(func() {
+		// Make sure stats don't change.
+		getg().m.mallocing++
+
+		readmemstats_m(&base)
+
+		// Initialize slow from base and zero the fields we're
+		// recomputing.
+		slow = base
+		slow.Alloc = 0
+		slow.TotalAlloc = 0
+		slow.Mallocs = 0
+		slow.Frees = 0
+		var bySize [_NumSizeClasses]struct {
+			Mallocs, Frees uint64
+		}
+
+		// Add up current allocations in spans.
+		for _, s := range mheap_.allspans {
+			if s.state != mSpanInUse {
+				continue
+			}
+			if s.sizeclass == 0 {
+				slow.Mallocs++
+				slow.Alloc += uint64(s.elemsize)
+			} else {
+				slow.Mallocs += uint64(s.allocCount)
+				slow.Alloc += uint64(s.allocCount) * uint64(s.elemsize)
+				bySize[s.sizeclass].Mallocs += uint64(s.allocCount)
+			}
+		}
+
+		// Add in frees. readmemstats_m flushed the cached stats, so
+		// these are up-to-date.
+		var smallFree uint64
+		slow.Frees = mheap_.nlargefree
+		for i := range mheap_.nsmallfree {
+			slow.Frees += mheap_.nsmallfree[i]
+			bySize[i].Frees = mheap_.nsmallfree[i]
+			bySize[i].Mallocs += mheap_.nsmallfree[i]
+			smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
+		}
+		slow.Frees += memstats.tinyallocs
+		slow.Mallocs += slow.Frees
+
+		slow.TotalAlloc = slow.Alloc + mheap_.largefree + smallFree
+
+		for i := range slow.BySize {
+			slow.BySize[i].Mallocs = bySize[i].Mallocs
+			slow.BySize[i].Frees = bySize[i].Frees
+		}
+
+		getg().m.mallocing--
+	})
+
+	startTheWorld()
+	return
+}
