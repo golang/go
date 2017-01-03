@@ -22,6 +22,11 @@ type mcentral struct {
 	sizeclass int32
 	nonempty  mSpanList // list of spans with a free object, ie a nonempty free list
 	empty     mSpanList // list of spans with no free objects (or cached in an mcache)
+
+	// nmalloc is the cumulative count of objects allocated from
+	// this mcentral, assuming all spans in mcaches are
+	// fully-allocated. Written atomically, read under STW.
+	nmalloc uint64
 }
 
 // Initialize a single central free list.
@@ -106,6 +111,9 @@ havespan:
 	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
 		throw("span has no free objects")
 	}
+	// Assume all objects from this span will be allocated in the
+	// mcache. If it gets uncached, we'll adjust this.
+	atomic.Xadd64(&c.nmalloc, int64(n))
 	usedBytes := uintptr(s.allocCount) * s.elemsize
 	if usedBytes > 0 {
 		reimburseSweepCredit(usedBytes)
@@ -150,6 +158,10 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 		// mCentral_CacheSpan conservatively counted
 		// unallocated slots in heap_live. Undo this.
 		atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
+		// cacheSpan updated alloc assuming all objects on s
+		// were going to be allocated. Adjust for any that
+		// weren't.
+		atomic.Xadd64(&c.nmalloc, -int64(n))
 	}
 	unlock(&c.lock)
 }

@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"runtime"
@@ -447,4 +448,54 @@ func TestPageAccounting(t *testing.T) {
 	if pagesInUse != counted {
 		t.Fatalf("mheap_.pagesInUse is %d, but direct count is %d", pagesInUse, counted)
 	}
+}
+
+func TestReadMemStats(t *testing.T) {
+	base, slow := runtime.ReadMemStatsSlow()
+	if base != slow {
+		logDiff(t, "MemStats", reflect.ValueOf(base), reflect.ValueOf(slow))
+		t.Fatal("memstats mismatch")
+	}
+}
+
+func logDiff(t *testing.T, prefix string, got, want reflect.Value) {
+	typ := got.Type()
+	switch typ.Kind() {
+	case reflect.Array, reflect.Slice:
+		if got.Len() != want.Len() {
+			t.Logf("len(%s): got %v, want %v", prefix, got, want)
+			return
+		}
+		for i := 0; i < got.Len(); i++ {
+			logDiff(t, fmt.Sprintf("%s[%d]", prefix, i), got.Index(i), want.Index(i))
+		}
+	case reflect.Struct:
+		for i := 0; i < typ.NumField(); i++ {
+			gf, wf := got.Field(i), want.Field(i)
+			logDiff(t, prefix+"."+typ.Field(i).Name, gf, wf)
+		}
+	case reflect.Map:
+		t.Fatal("not implemented: logDiff for map")
+	default:
+		if got.Interface() != want.Interface() {
+			t.Logf("%s: got %v, want %v", prefix, got, want)
+		}
+	}
+}
+
+func BenchmarkReadMemStats(b *testing.B) {
+	var ms runtime.MemStats
+	const heapSize = 100 << 20
+	x := make([]*[1024]byte, heapSize/1024)
+	for i := range x {
+		x[i] = new([1024]byte)
+	}
+	hugeSink = x
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		runtime.ReadMemStats(&ms)
+	}
+
+	hugeSink = nil
 }

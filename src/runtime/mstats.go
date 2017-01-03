@@ -534,37 +534,37 @@ func updatememstats() {
 	// Aggregate local stats.
 	cachestats()
 
-	// Scan all spans and count number of alive objects.
-	lock(&mheap_.lock)
-	for _, s := range mheap_.allspans {
-		if s.state != mSpanInUse {
+	// Collect allocation stats. This is safe and consistent
+	// because the world is stopped.
+	var smallFree, totalAlloc, totalFree uint64
+	for i := range mheap_.central {
+		if i == 0 {
+			memstats.nmalloc += mheap_.nlargealloc
+			totalAlloc += mheap_.largealloc
+			totalFree += mheap_.largefree
+			memstats.nfree += mheap_.nlargefree
 			continue
 		}
-		if s.sizeclass == 0 {
-			memstats.nmalloc++
-			memstats.alloc += uint64(s.elemsize)
-		} else {
-			memstats.nmalloc += uint64(s.allocCount)
-			memstats.by_size[s.sizeclass].nmalloc += uint64(s.allocCount)
-			memstats.alloc += uint64(s.allocCount) * uint64(s.elemsize)
-		}
-	}
-	unlock(&mheap_.lock)
+		// The mcaches are now empty, so mcentral stats are
+		// up-to-date.
+		c := &mheap_.central[i].mcentral
+		memstats.nmalloc += c.nmalloc
+		memstats.by_size[i].nmalloc += c.nmalloc
+		totalAlloc += c.nmalloc * uint64(class_to_size[i])
 
-	// Aggregate by size class.
-	smallfree := uint64(0)
-	memstats.nfree = mheap_.nlargefree
-	for i := 0; i < len(memstats.by_size); i++ {
+		// The mcache stats have been flushed to mheap_.
 		memstats.nfree += mheap_.nsmallfree[i]
 		memstats.by_size[i].nfree = mheap_.nsmallfree[i]
-		memstats.by_size[i].nmalloc += mheap_.nsmallfree[i]
-		smallfree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
+		smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
 	}
+	totalFree += smallFree
+
 	memstats.nfree += memstats.tinyallocs
-	memstats.nmalloc += memstats.nfree
+	memstats.nmalloc += memstats.tinyallocs
 
 	// Calculate derived stats.
-	memstats.total_alloc = memstats.alloc + mheap_.largefree + smallfree
+	memstats.total_alloc = totalAlloc
+	memstats.alloc = totalAlloc - totalFree
 	memstats.heap_alloc = memstats.alloc
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }
