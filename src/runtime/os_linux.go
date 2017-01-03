@@ -91,6 +91,9 @@ func getproccount() int32 {
 	const maxCPUs = 64 * 1024
 	var buf [maxCPUs / (sys.PtrSize * 8)]uintptr
 	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
+	if r < 0 {
+		return 1
+	}
 	n := int32(0)
 	for _, v := range buf[:r/sys.PtrSize] {
 		for v != 0 {
