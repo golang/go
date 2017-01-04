@@ -631,6 +631,13 @@ now implements the new
   <a href="/pkg/runtime/#SetMutexProfileFraction"><code>SetMutexProfileFraction</code></a>.
 </p>
 
+<p>
+  A known limitation for Go 1.8 is that the profile only reports contention for
+  <a href="/pkg/sync/#Mutex"><code>sync.Mutex</code></a>,
+  not 
+  <a href="/pkg/sync/#RWMutex"><code>sync.RWMutex</code></a>.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
