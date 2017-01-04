@@ -225,7 +225,7 @@ end:
 	RET
 
 
-// This is the implementation using AVX2. It is based on:
+// This is the implementation using AVX2, BMI1 and BMI2. It is based on:
 // "SHA-1 implementation with Intel(R) AVX2 instruction set extensions"
 // From http://software.intel.com/en-us/articles
 // (look for improving-the-performance-of-the-secure-hash-algorithm-1)
@@ -1459,14 +1459,18 @@ TEXT ·blockAVX2(SB),$1408-32
 
 
 // func checkAVX2() bool
-// returns whether AVX2 is supported
+// returns whether AVX2, BMI1 and BMI2 are supported
 TEXT ·checkAVX2(SB),NOSPLIT,$0
-	CMPB runtime·support_avx2(SB), $1
-	JE   has
-        MOVB    $0, ret+0(FP)
-	RET
-has:
+	CMPB runtime·support_avx2(SB), $0
+	JE   noavx2
+	CMPB runtime·support_bmi1(SB), $0  // check for ANDNL instruction
+	JE   noavx2
+	CMPB runtime·support_bmi2(SB), $0  // check for RORXL instruction
+	JE   noavx2
         MOVB    $1, ret+0(FP)
+	RET
+noavx2:
+        MOVB    $0, ret+0(FP)
 	RET
 
 
