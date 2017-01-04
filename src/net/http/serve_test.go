@@ -5089,3 +5089,40 @@ func testServerKeepAlivesEnabled(t *testing.T, h2 bool) {
 		t.Fatalf("test server has active conns")
 	}
 }
+
+// Issue 18447: test that the Server's ReadTimeout is stopped while
+// the server's doing its 1-byte background read between requests,
+// waiting for the connection to maybe close.
+func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	const timeout = 250 * time.Millisecond
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		select {
+		case <-time.After(2 * timeout):
+			fmt.Fprint(w, "ok")
+		case <-r.Context().Done():
+			fmt.Fprint(w, r.Context().Err())
+		}
+	}))
+	ts.Config.ReadTimeout = timeout
+	ts.Start()
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slurp, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(slurp) != "ok" {
+		t.Fatalf("Got: %q, want ok", slurp)
+	}
+}
