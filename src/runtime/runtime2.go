@@ -745,6 +745,8 @@ var (
 	lfenceBeforeRdtsc bool
 	support_avx       bool
 	support_avx2      bool
+	support_bmi1      bool
+	support_bmi2      bool
 
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link
