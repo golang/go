@@ -895,11 +895,11 @@ func (m *M) before() {
 	if *cpuProfile != "" {
 		f, err := os.Create(toOutputDir(*cpuProfile))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "testing: %s", err)
+			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
 			return
 		}
 		if err := m.deps.StartCPUProfile(f); err != nil {
-			fmt.Fprintf(os.Stderr, "testing: can't start cpu profile: %s", err)
+			fmt.Fprintf(os.Stderr, "testing: can't start cpu profile: %s\n", err)
 			f.Close()
 			return
 		}
@@ -908,11 +908,11 @@ func (m *M) before() {
 	if *traceFile != "" {
 		f, err := os.Create(toOutputDir(*traceFile))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "testing: %s", err)
+			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
 			return
 		}
 		if err := trace.Start(f); err != nil {
-			fmt.Fprintf(os.Stderr, "testing: can't start tracing: %s", err)
+			fmt.Fprintf(os.Stderr, "testing: can't start tracing: %s\n", err)
 			f.Close()
 			return
 		}
