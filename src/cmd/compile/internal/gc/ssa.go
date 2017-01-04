@@ -4013,48 +4013,6 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	return s.variable(n, n.Type)
 }
 
-// ifaceType returns the value for the word containing the type.
-// t is the type of the interface expression.
-// v is the corresponding value.
-func (s *state) ifaceType(t *Type, v *ssa.Value) *ssa.Value {
-	byteptr := ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
-
-	if t.IsEmptyInterface() {
-		// Have eface. The type is the first word in the struct.
-		return s.newValue1(ssa.OpITab, byteptr, v)
-	}
-
-	// Have iface.
-	// The first word in the struct is the itab.
-	// If the itab is nil, return 0.
-	// Otherwise, the second word in the itab is the type.
-
-	tab := s.newValue1(ssa.OpITab, byteptr, v)
-	s.vars[&typVar] = tab
-	isnonnil := s.newValue2(ssa.OpNeqPtr, Types[TBOOL], tab, s.constNil(byteptr))
-	b := s.endBlock()
-	b.Kind = ssa.BlockIf
-	b.SetControl(isnonnil)
-	b.Likely = ssa.BranchLikely
-
-	bLoad := s.f.NewBlock(ssa.BlockPlain)
-	bEnd := s.f.NewBlock(ssa.BlockPlain)
-
-	b.AddEdgeTo(bLoad)
-	b.AddEdgeTo(bEnd)
-	bLoad.AddEdgeTo(bEnd)
-
-	s.startBlock(bLoad)
-	off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), tab)
-	s.vars[&typVar] = s.newValue2(ssa.OpLoad, byteptr, off, s.mem())
-	s.endBlock()
-
-	s.startBlock(bEnd)
-	typ := s.variable(&typVar, byteptr)
-	delete(s.vars, &typVar)
-	return typ
-}
-
 // dottype generates SSA for a type assertion node.
 // commaok indicates whether to panic or return a bool.
 // If commaok is false, resok will be nil.
@@ -4157,10 +4115,17 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 
 	// Converting to a concrete type.
 	direct := isdirectiface(n.Type)
-	typ := s.ifaceType(n.Left.Type, iface) // actual concrete type of input interface
-
+	itab := s.newValue1(ssa.OpITab, byteptr, iface) // type word of interface
 	if Debug_typeassert > 0 {
 		Warnl(n.Pos, "type assertion inlined")
+	}
+	var targetITab *ssa.Value
+	if n.Left.Type.IsEmptyInterface() {
+		// Looking for pointer to target type.
+		targetITab = target
+	} else {
+		// Looking for pointer to itab for target type and source interface.
+		targetITab = s.expr(itabname(n.Type, n.Left.Type))
 	}
 
 	var tmp *Node       // temporary for use with large types
@@ -4173,9 +4138,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, tmp, s.mem())
 	}
 
-	// TODO:  If we have a nonempty interface and its itab field is nil,
-	// then this test is redundant and ifaceType should just branch directly to bFail.
-	cond := s.newValue2(ssa.OpEqPtr, Types[TBOOL], typ, target)
+	cond := s.newValue2(ssa.OpEqPtr, Types[TBOOL], itab, targetITab)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.SetControl(cond)
@@ -4190,7 +4153,11 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
 		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{Typ: byteptr, Sym: Linksym(typenamesym(n.Left.Type))}, s.sb)
-		s.rtcall(panicdottype, false, nil, typ, target, taddr)
+		if n.Left.Type.IsEmptyInterface() {
+			s.rtcall(panicdottypeE, false, nil, itab, target, taddr)
+		} else {
+			s.rtcall(panicdottypeI, false, nil, itab, target, taddr)
+		}
 
 		// on success, return data from interface
 		s.startBlock(bOk)

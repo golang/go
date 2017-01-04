@@ -53,7 +53,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		}
 		for m = (*itab)(atomic.Loadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
 			if m.inter == inter && m._type == typ {
-				if m.bad != 0 {
+				if m.bad {
 					if !canfail {
 						// this can only happen if the conversion
 						// was already done once using the , ok form
@@ -78,7 +78,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	m._type = typ
 	additab(m, true, canfail)
 	unlock(&ifaceLock)
-	if m.bad != 0 {
+	if m.bad {
 		return nil
 	}
 	return m
@@ -130,7 +130,7 @@ func additab(m *itab, locked, canfail bool) {
 			}
 			panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), iname})
 		}
-		m.bad = 1
+		m.bad = true
 		break
 	nextimethod:
 	}
@@ -139,7 +139,7 @@ func additab(m *itab, locked, canfail bool) {
 	}
 	h := itabhash(inter, typ)
 	m.link = hash[h]
-	m.inhash = 1
+	m.inhash = true
 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
 }
 
@@ -152,7 +152,7 @@ func itabsinit() {
 			// and thanks to the way global symbol resolution works, the
 			// pointed-to itab may already have been inserted into the
 			// global 'hash'.
-			if i.inhash == 0 {
+			if !i.inhash {
 				additab(i, true, false)
 			}
 		}
@@ -160,16 +160,26 @@ func itabsinit() {
 	unlock(&ifaceLock)
 }
 
-// panicdottype is called when doing an i.(T) conversion and the conversion fails.
+// panicdottypeE is called when doing an e.(T) conversion and the conversion fails.
 // have = the dynamic type we have.
 // want = the static type we're trying to convert to.
 // iface = the static type we're converting from.
-func panicdottype(have, want, iface *_type) {
+func panicdottypeE(have, want, iface *_type) {
 	haveString := ""
 	if have != nil {
 		haveString = have.string()
 	}
 	panic(&TypeAssertionError{iface.string(), haveString, want.string(), ""})
+}
+
+// panicdottypeI is called when doing an i.(T) conversion and the conversion fails.
+// Same args as panicdottypeE, but "have" is the dynamic itab we have.
+func panicdottypeI(have *itab, want, iface *_type) {
+	var t *_type
+	if have != nil {
+		t = have._type
+	}
+	panicdottypeE(t, want, iface)
 }
 
 // panicnildottype is called when doing a i.(T) conversion and the interface i is nil.

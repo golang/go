@@ -1411,13 +1411,17 @@ func dumptypestructs() {
 		//   inter  *interfacetype
 		//   _type  *_type
 		//   link   *itab
-		//   bad    int32
-		//   unused int32
+		//   hash   uint32
+		//   bad    bool
+		//   inhash bool
+		//   unused [2]byte
 		//   fun    [1]uintptr // variable sized
 		// }
 		o := dsymptr(i.sym, 0, dtypesym(i.itype), 0)
 		o = dsymptr(i.sym, o, dtypesym(i.t), 0)
-		o += Widthptr + 8                      // skip link/bad/inhash fields
+		o += Widthptr                          // skip link field
+		o = duint32(i.sym, o, typehash(i.t))   // copy of type hash
+		o += 4                                 // skip bad/inhash/unused fields
 		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
 		// at runtime the itab will contain pointers to types, other itabs and
 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
