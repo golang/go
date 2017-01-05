@@ -904,16 +904,6 @@ cmp_ret:
 	MOVW	R8, ret+24(FP)
 	RET
 
-TEXT runtime·fastrand(SB),NOSPLIT,$0-4
-	MOVW	g_m(g), R2
-	MOVW	m_fastrand(R2), R1
-	ADDU	R1, R1
-	BGEZ	R1, 2(PC)
-	XOR	$0x88888eef, R1
-	MOVW	R1, m_fastrand(R2)
-	MOVW	R1, ret+0(FP)
-	RET
-
 TEXT runtime·return0(SB),NOSPLIT,$0
 	MOVW	$0, R1
 	RET

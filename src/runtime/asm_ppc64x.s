@@ -1224,17 +1224,6 @@ TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
 	BR      cmpbodyBE<>(SB)
 #endif
 
-TEXT runtime·fastrand(SB), NOSPLIT, $0-4
-	MOVD	g_m(g), R4
-	MOVWZ	m_fastrand(R4), R3
-	ADD	R3, R3
-	CMPW	R3, $0
-	BGE	2(PC)
-	XOR	$0x88888eef, R3
-	MOVW	R3, m_fastrand(R4)
-	MOVW	R3, ret+0(FP)
-	RET
-
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R3
 	RET

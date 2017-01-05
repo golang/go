@@ -93,8 +93,15 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
 // exported value for testing
 var hashLoad = loadFactor
 
-// in asm_*.s
-func fastrand() uint32
+//go:nosplit
+func fastrand() uint32 {
+	mp := getg().m
+	fr := mp.fastrand
+	fr <<= 1
+	fr ^= uint32(int32(fr)>>31) & 0x88888eef
+	mp.fastrand = fr
+	return fr
+}
 
 //go:linkname sync_fastrand sync.fastrand
 func sync_fastrand() uint32 { return fastrand() }
