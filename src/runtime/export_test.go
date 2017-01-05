@@ -245,3 +245,5 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 
 	return
 }
+
+func Fastrand() uint32 { return fastrand() }

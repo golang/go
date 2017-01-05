@@ -991,19 +991,6 @@ eqret:
 	MOVB	AX, ret+24(FP)
 	RET
 
-TEXT runtime·fastrand(SB), NOSPLIT, $0-4
-	get_tls(CX)
-	MOVL	g(CX), AX
-	MOVL	g_m(AX), AX
-	MOVL	m_fastrand(AX), DX
-	ADDL	DX, DX
-	MOVL	DX, BX
-	XORL	$0x88888eef, DX
-	CMOVLMI	BX, DX
-	MOVL	DX, m_fastrand(AX)
-	MOVL	DX, ret+0(FP)
-	RET
-
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVL	$0, AX
 	RET

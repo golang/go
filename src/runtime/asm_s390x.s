@@ -851,17 +851,6 @@ TEXT runtime·memeqbodyclc(SB),NOSPLIT|NOFRAME,$0-0
 	CLC	$1, 0(R3), 0(R5)
 	RET
 
-TEXT runtime·fastrand(SB), NOSPLIT, $0-4
-	MOVD	g_m(g), R4
-	MOVWZ	m_fastrand(R4), R3
-	ADD	R3, R3
-	CMPW	R3, $0
-	BGE	2(PC)
-	XOR	$0x88888eef, R3
-	MOVW	R3, m_fastrand(R4)
-	MOVW	R3, ret+0(FP)
-	RET
-
 TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
 	MOVD	s+0(FP), R3     // s => R3
 	MOVD	s_len+8(FP), R4 // s_len => R4

@@ -971,15 +971,6 @@ _sib_notfound:
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·fastrand(SB),NOSPLIT,$-4-4
-	MOVW	g_m(g), R1
-	MOVW	m_fastrand(R1), R0
-	ADD.S	R0, R0
-	EOR.MI	$0x88888eef, R0
-	MOVW	R0, m_fastrand(R1)
-	MOVW	R0, ret+0(FP)
-	RET
-
 TEXT runtime·return0(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	RET

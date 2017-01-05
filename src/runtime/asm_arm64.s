@@ -959,18 +959,6 @@ equal:
 	MOVB	R0, ret+48(FP)
 	RET
 
-TEXT runtime·fastrand(SB),NOSPLIT,$-8-4
-	MOVD	g_m(g), R1
-	MOVWU	m_fastrand(R1), R0
-	ADD	R0, R0
-	CMPW	$0, R0
-	BGE	notneg
-	EOR	$0x88888eef, R0
-notneg:
-	MOVW	R0, m_fastrand(R1)
-	MOVW	R0, ret+0(FP)
-	RET
-
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R0
 	RET
