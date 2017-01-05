@@ -70,3 +70,68 @@ func TestFileOrder(t *testing.T) {
 		t.Errorf("sort order is\n%s\nwant:\n%s", got, want)
 	}
 }
+
+func TestFilesToReleases(t *testing.T) {
+	fs := []File{
+		{Version: "go1.7.4", OS: "darwin"},
+		{Version: "go1.7.4", OS: "windows"},
+		{Version: "go1.7", OS: "darwin"},
+		{Version: "go1.7", OS: "windows"},
+		{Version: "go1.6.2", OS: "darwin"},
+		{Version: "go1.6.2", OS: "windows"},
+		{Version: "go1.6", OS: "darwin"},
+		{Version: "go1.6", OS: "windows"},
+		{Version: "go1.5.2", OS: "darwin"},
+		{Version: "go1.5.2", OS: "windows"},
+		{Version: "go1.5", OS: "darwin"},
+		{Version: "go1.5", OS: "windows"},
+		{Version: "go1.5beta1", OS: "windows"},
+	}
+	stable, unstable, all := filesToReleases(fs)
+	if got, want := len(stable), 2; want != got {
+		t.Errorf("len(stable): got %v, want %v", got, want)
+	} else {
+		if got, want := stable[0].Version, "go1.7.4"; want != got {
+			t.Errorf("stable[0].Version: got %v, want %v", got, want)
+		}
+		if got, want := stable[1].Version, "go1.6.2"; want != got {
+			t.Errorf("stable[1].Version: got %v, want %v", got, want)
+		}
+	}
+	if got, want := len(unstable), 0; want != got {
+		t.Errorf("len(unstable): got %v, want %v", got, want)
+	}
+	if got, want := len(all), 6; want != got {
+		t.Errorf("len(all): got %v, want %v", got, want)
+	}
+}
+
+func TestOldUnstableNotShown(t *testing.T) {
+	fs := []File{
+		{Version: "go1.7.4"},
+		{Version: "go1.7"},
+		{Version: "go1.7beta1"},
+	}
+	_, unstable, _ := filesToReleases(fs)
+	if len(unstable) != 0 {
+		t.Errorf("got unstable, want none")
+	}
+}
+
+func TestUnstableShown(t *testing.T) {
+	fs := []File{
+		{Version: "go1.8beta2"},
+		{Version: "go1.8rc1"},
+		{Version: "go1.7.4"},
+		{Version: "go1.7"},
+		{Version: "go1.7beta1"},
+	}
+	_, unstable, _ := filesToReleases(fs)
+	if got, want := len(unstable), 1; got != want {
+		t.Fatalf("len(unstable): got %v, want %v", got, want)
+	}
+	// show rcs ahead of betas.
+	if got, want := unstable[0].Version, "go1.8rc1"; got != want {
+		t.Fatalf("unstable[0].Version: got %v, want %v", got, want)
+	}
+}

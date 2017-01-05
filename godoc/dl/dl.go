@@ -98,6 +98,22 @@ func (f File) PrettySize() string {
 	return fmt.Sprintf("%.0fMB", float64(f.Size)/mb)
 }
 
+var primaryPorts = map[string]bool{
+	"darwin/amd64":  true,
+	"linux/386":     true,
+	"linux/amd64":   true,
+	"linux/armv6l":  true,
+	"windows/386":   true,
+	"windows/amd64": true,
+}
+
+func (f File) PrimaryPort() bool {
+	if f.Kind == "source" {
+		return true
+	}
+	return primaryPorts[f.OS+"/"+f.Arch]
+}
+
 func (f File) Highlight() bool {
 	switch {
 	case f.Kind == "source":
@@ -122,10 +138,11 @@ func (f File) URL() string {
 }
 
 type Release struct {
-	Version string
-	Stable  bool
-	Files   []File
-	Visible bool // show files on page load
+	Version        string
+	Stable         bool
+	Files          []File
+	Visible        bool // show files on page load
+	SplitPortTable bool // whether files should be split by primary/other ports.
 }
 
 type Feature struct {
@@ -164,9 +181,9 @@ var featuredFiles = []Feature{
 
 // data to send to the template; increment cacheKey if you change this.
 type listTemplateData struct {
-	Featured         []Feature
-	Stable, Unstable []Release
-	LoginURL         string
+	Featured                  []Feature
+	Stable, Unstable, Archive []Release
+	LoginURL                  string
 }
 
 var (
@@ -196,7 +213,7 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 			log.Errorf(c, "error listing: %v", err)
 			return
 		}
-		d.Stable, d.Unstable = filesToReleases(fs)
+		d.Stable, d.Unstable, d.Archive = filesToReleases(fs)
 		if len(d.Stable) > 0 {
 			d.Featured = filesToFeatured(d.Stable[0].Files)
 		}
@@ -229,7 +246,7 @@ func filesToFeatured(fs []File) (featured []Feature) {
 	return
 }
 
-func filesToReleases(fs []File) (stable, unstable []Release) {
+func filesToReleases(fs []File) (stable, unstable, archive []Release) {
 	sort.Sort(fileOrder(fs))
 
 	var r *Release
@@ -239,12 +256,30 @@ func filesToReleases(fs []File) (stable, unstable []Release) {
 			return
 		}
 		if r.Stable {
-			if len(stable) == 0 {
-				// Display files for latest stable release.
-				stableMaj, stableMin, _ = parseVersion(r.Version)
-				r.Visible = len(stable) == 0
+			// Show all stable versions in the archive
+			archive = append(archive, *r)
+
+			// Show the most two recent major version under "Stable".
+			if len(stable) < 2 {
+				if len(stable) == 0 {
+					// Most recent stable version.
+					stableMaj, stableMin, _ = parseVersion(r.Version)
+				} else if maj, _, _ := parseVersion(r.Version); maj == stableMaj {
+					// Older minor version of most recent major version.
+					return
+				}
+				// Split the file list into primary/other ports for the stable releases.
+				// NOTE(cbro): This is only done for stable releases because maintaining the historical
+				// nature of primary/other ports for older versions is infeasible.
+				// If freebsd is considered primary some time in the future, we'd not want to
+				// mark all of the older freebsd binaries as "primary".
+				// It might be better if we set that as a flag when uploading.
+				r.SplitPortTable = true
+				r.Visible = true // Toggle open all stable releases.
+				stable = append(stable, *r)
+			} else if len(stable) == 1 {
+				// Show the second most recent major version (i.e., security release)
 			}
-			stable = append(stable, *r)
 			return
 		}
 		if len(unstable) != 0 {
@@ -257,7 +292,6 @@ func filesToReleases(fs []File) (stable, unstable []Release) {
 			// latest stable release.
 			return
 		}
-		r.Visible = true
 		unstable = append(unstable, *r)
 	}
 	for _, f := range fs {
