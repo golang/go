@@ -859,7 +859,7 @@ OpSwitch:
 			}
 
 			if n.Type.Etype != TFUNC || !n.IsMethod() {
-				yyerror("type %v has no method %S", n.Left.Type, n.Right.Sym)
+				yyerror("type %v has no method %S", n.Left.Type, n.Sym)
 				n.Type = nil
 				return n
 			}
