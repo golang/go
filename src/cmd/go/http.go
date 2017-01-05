@@ -33,6 +33,7 @@ var httpClient = http.DefaultClient
 var impatientInsecureHTTPClient = &http.Client{
 	Timeout: 5 * time.Second,
 	Transport: &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
