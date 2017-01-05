@@ -161,7 +161,11 @@ func (r Rectangle) Intersect(s Rectangle) Rectangle {
 	if r.Max.Y > s.Max.Y {
 		r.Max.Y = s.Max.Y
 	}
-	if r.Min.X > r.Max.X || r.Min.Y > r.Max.Y {
+	// Letting r0 and s0 be the values of r and s at the time that the method
+	// is called, this next line is equivalent to:
+	//
+	// if max(r0.Min.X, s0.Min.X) >= min(r0.Max.X, s0.Max.X) || likewiseForY { etc }
+	if r.Empty() {
 		return ZR
 	}
 	return r
