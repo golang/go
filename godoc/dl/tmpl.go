@@ -213,6 +213,11 @@ $(document).ready(function() {
 		<h2 class="toggleButton" title="Click to hide downloads for this version">{{.Version}} ▾</h2>
 		{{if .Stable}}{{else}}
 			<p>This is an <b>unstable</b> version of Go. Use with caution.</p>
+			<p>If you already have Go installed, you can install this version by running:</p>
+<pre>
+go get golang.org/x/build/version/{{.Version}}
+</pre>
+			<p>Then, use the <code>{{.Version}}</code> command instead of the <code>go</code> command to use {{.Version}}.</p>
 		{{end}}
 		{{template "files" .Files}}
 	</div>
