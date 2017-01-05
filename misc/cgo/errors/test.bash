@@ -48,6 +48,7 @@ check issue13830.go
 check issue16116.go
 check issue16591.go
 check issue18889.go
+expect issue18452.go issue18452.go:16 issue18452.go:17
 
 if ! go build issue14669.go; then
 	exit 1

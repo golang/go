@@ -421,7 +421,14 @@ func (p *Package) guessKinds(f *File) []*Name {
 	for i, n := range names {
 		switch sniff[i] &^ notSignedIntConst {
 		default:
-			error_(token.NoPos, "could not determine kind of name for C.%s", fixGo(n.Go))
+			var tpos token.Pos
+			for _, ref := range f.Ref {
+				if ref.Name == n {
+					tpos = ref.Pos()
+					break
+				}
+			}
+			error_(tpos, "could not determine kind of name for C.%s", fixGo(n.Go))
 		case notStrLiteral | notType:
 			if sniff[i]&notSignedIntConst != 0 {
 				n.Kind = "uconst"
