@@ -391,6 +391,15 @@ version of gccgo.
   <code>%USERPROFILE%/go</code> on Windows.
 </p>
 
+<h3 id="go_get">Go get</h3>
+
+<p> <!-- CL 34818 -->
+  The “<code>go</code> <code>get</code>” command now always respects
+  HTTP proxy environment variables, regardless of whether
+  the <code style='white-space:nowrap'>-insecure</code> flag is used. In previous releases, the
+  <code style='white-space:nowrap'>-insecure</code> flag had the side effect of not using proxies.
+</p>
+
 <h3 id="go_bug">Go bug</h3>
 
 <p>
