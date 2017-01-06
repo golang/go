@@ -14,7 +14,7 @@ import (
 // IPv4 packet, including its header, even if there is space
 // available. This can occur even in cases where Read or ReadMsgIP
 // could return a complete packet. For this reason, it is recommended
-// that you do not uses these methods if it is important to receive a
+// that you do not use these methods if it is important to receive a
 // full packet.
 //
 // The Go 1 compatibility guidelines make it impossible for us to
