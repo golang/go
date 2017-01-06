@@ -601,7 +601,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 			pp := (*uintptr)(add(scanp, i*sys.PtrSize))
 		retry:
 			p := *pp
-			if f != nil && 0 < p && p < _PageSize && debug.invalidptr != 0 {
+			if f != nil && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
 				getg().m.traceback = 2
