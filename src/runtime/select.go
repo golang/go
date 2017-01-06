@@ -422,8 +422,62 @@ loop:
 	gp.param = nil
 	gopark(selparkcommit, nil, "select", traceEvGoBlockSelect, 2)
 
-	// someone woke us up
-	sellock(scases, lockorder)
+	// While we were asleep, some goroutine came along and completed
+	// one of the cases in the select and woke us up (called ready).
+	// As part of that process, the goroutine did a cas on done above
+	// (aka *sg.selectdone for all queued sg) to win the right to
+	// complete the select. Now done = 1.
+	//
+	// If we copy (grow) our own stack, we will update the
+	// selectdone pointers inside the gp.waiting sudog list to point
+	// at the new stack. Another goroutine attempting to
+	// complete one of our (still linked in) select cases might
+	// see the new selectdone pointer (pointing at the new stack)
+	// before the new stack has real data; if the new stack has done = 0
+	// (before the old values are copied over), the goroutine might
+	// do a cas via sg.selectdone and incorrectly believe that it has
+	// won the right to complete the select, executing a second
+	// communication and attempting to wake us (call ready) again.
+	//
+	// Then things break.
+	//
+	// The best break is that the goroutine doing ready sees the
+	// _Gcopystack status and throws, as in #17007.
+	// A worse break would be for us to continue on, start running real code,
+	// block in a semaphore acquisition (sema.go), and have the other
+	// goroutine wake us up without having really acquired the semaphore.
+	// That would result in the goroutine spuriously running and then
+	// queue up another spurious wakeup when the semaphore really is ready.
+	// In general the situation can cascade until something notices the
+	// problem and causes a crash.
+	//
+	// A stack shrink does not have this problem, because it locks
+	// all the channels that are involved first, blocking out the
+	// possibility of a cas on selectdone.
+	//
+	// A stack growth before gopark above does not have this
+	// problem, because we hold those channel locks (released by
+	// selparkcommit).
+	//
+	// A stack growth after sellock below does not have this
+	// problem, because again we hold those channel locks.
+	//
+	// The only problem is a stack growth during sellock.
+	// To keep that from happening, run sellock on the system stack.
+	//
+	// It might be that we could avoid this if copystack copied the
+	// stack before calling adjustsudogs. In that case,
+	// syncadjustsudogs would need to recopy the tiny part that
+	// it copies today, resulting in a little bit of extra copying.
+	//
+	// An even better fix, not for the week before a release candidate,
+	// would be to put space in every sudog and make selectdone
+	// point at (say) the space in the first sudog.
+
+	systemstack(func() {
+		sellock(scases, lockorder)
+	})
+
 	sg = (*sudog)(gp.param)
 	gp.param = nil
 
@@ -464,8 +518,15 @@ loop:
 	}
 
 	if cas == nil {
-		// This can happen if we were woken up by a close().
-		// TODO: figure that out explicitly so we don't need this loop.
+		// We can wake up with gp.param == nil (so cas == nil)
+		// when a channel involved in the select has been closed.
+		// It is easiest to loop and re-run the operation;
+		// we'll see that it's now closed.
+		// Maybe some day we can signal the close explicitly,
+		// but we'd have to distinguish close-on-reader from close-on-writer.
+		// It's easiest not to duplicate the code and just recheck above.
+		// We know that something closed, and things never un-close,
+		// so we won't block again.
 		goto loop
 	}
 
