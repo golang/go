@@ -16,11 +16,13 @@ import (
 )
 
 // Interface to timers implemented in package runtime.
-// Must be in sync with ../runtime/runtime.h:/^struct.Timer$
+// Must be in sync with ../runtime/time.go:/^type timer
 // Really for use by package time, but we cannot import time here.
 
 type runtimeTimer struct {
-	i      int
+	tb uintptr
+	i  int
+
 	when   int64
 	period int64
 	f      func(interface{}, uintptr) // NOTE: must not be closure
@@ -49,13 +51,14 @@ func (t *timer) start(q *queue, deadline int64) {
 }
 
 func (t *timer) stop() {
+	if t.r.f == nil {
+		return
+	}
 	stopTimer(&t.r)
 }
 
 func (t *timer) reset(q *queue, deadline int64) {
-	if t.r.f != nil {
-		t.stop()
-	}
+	t.stop()
 	if deadline == 0 {
 		return
 	}

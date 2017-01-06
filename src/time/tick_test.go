@@ -67,12 +67,11 @@ func TestNewTickerLtZeroDuration(t *testing.T) {
 }
 
 func BenchmarkTicker(b *testing.B) {
-	ticker := NewTicker(1)
-	b.ResetTimer()
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		<-ticker.C
-	}
-	b.StopTimer()
-	ticker.Stop()
+	benchmark(b, func(n int) {
+		ticker := NewTicker(Nanosecond)
+		for i := 0; i < n; i++ {
+			<-ticker.C
+		}
+		ticker.Stop()
+	})
 }

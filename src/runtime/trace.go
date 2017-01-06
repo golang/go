@@ -408,9 +408,12 @@ func ReadTrace() []byte {
 		var data []byte
 		data = append(data, traceEvFrequency|0<<traceArgCountShift)
 		data = traceAppend(data, uint64(freq))
-		if timers.gp != nil {
-			data = append(data, traceEvTimerGoroutine|0<<traceArgCountShift)
-			data = traceAppend(data, uint64(timers.gp.goid))
+		for i := range timers {
+			tb := &timers[i]
+			if tb.gp != nil {
+				data = append(data, traceEvTimerGoroutine|0<<traceArgCountShift)
+				data = traceAppend(data, uint64(tb.gp.goid))
+			}
 		}
 		// This will emit a bunch of full buffers, we will pick them up
 		// on the next iteration.

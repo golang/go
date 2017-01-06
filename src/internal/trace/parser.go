@@ -270,8 +270,9 @@ func parseHeader(buf []byte) (int, error) {
 // It does analyze and verify per-event-type arguments.
 func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (events []*Event, stacks map[uint64][]*Frame, err error) {
 	var ticksPerSec, lastSeq, lastTs int64
-	var lastG, timerGoid uint64
+	var lastG uint64
 	var lastP int
+	timerGoids := make(map[uint64]bool)
 	lastGs := make(map[int]uint64) // last goroutine running on P
 	stacks = make(map[uint64][]*Frame)
 	batches := make(map[int][]*Event) // events by P
@@ -308,7 +309,7 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 				return
 			}
 		case EvTimerGoroutine:
-			timerGoid = raw.args[0]
+			timerGoids[raw.args[0]] = true
 		case EvStack:
 			if len(raw.args) < 2 {
 				err = fmt.Errorf("EvStack has wrong number of arguments at offset 0x%x: want at least 2, got %v",
@@ -431,7 +432,7 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 	for _, ev := range events {
 		ev.Ts = int64(float64(ev.Ts-minTs) * freq)
 		// Move timers and syscalls to separate fake Ps.
-		if timerGoid != 0 && ev.G == timerGoid && ev.Type == EvGoUnblock {
+		if timerGoids[ev.G] && ev.Type == EvGoUnblock {
 			ev.P = TimerP
 		}
 		if ev.Type == EvGoSysExit {
