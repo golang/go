@@ -132,6 +132,8 @@ func nilcheckelim(f *Func) {
 }
 
 // All platforms are guaranteed to fault if we load/store to anything smaller than this address.
+//
+// This should agree with minLegalPointer in the runtime.
 const minZeroPage = 4096
 
 // nilcheckelim2 eliminates unnecessary nil checks.
