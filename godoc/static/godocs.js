@@ -113,6 +113,11 @@ function generateTOC() {
 
 function bindToggle(el) {
   $('.toggleButton', el).click(function() {
+    if ($(this).closest(".toggle, .toggleVisible")[0] != el) {
+      // Only trigger the closest toggle header.
+      return;
+    }
+
     if ($(el).is('.toggle')) {
       $(el).addClass('toggleVisible').removeClass('toggle');
     } else {
@@ -120,6 +125,7 @@ function bindToggle(el) {
     }
   });
 }
+
 function bindToggles(selector) {
   $(selector).each(function(i, el) {
     bindToggle(el);
@@ -239,10 +245,17 @@ function fixFocus() {
 }
 
 function toggleHash() {
-    var hash = $(window.location.hash);
-    if (hash.is('.toggle')) {
-      hash.find('.toggleButton').first().click();
+  // Open all of the toggles for a particular hash.
+  var els = $(window.location.hash + ", a[name='" + window.location.hash.substring(1) + "']");
+  while (els.length) {
+    for (var i = 0; i < els.length; i++) {
+      var el = $(els[i]);
+      if (el.is('.toggle')) {
+        el.find('.toggleButton').first().click();
+      }
     }
+    els = el.parent();
+  }
 }
 
 function personalizeInstallInstructions() {
