@@ -87,7 +87,7 @@ func TestFilesToReleases(t *testing.T) {
 		{Version: "go1.5", OS: "windows"},
 		{Version: "go1.5beta1", OS: "windows"},
 	}
-	stable, unstable, all := filesToReleases(fs)
+	stable, unstable, archive := filesToReleases(fs)
 	if got, want := len(stable), 2; want != got {
 		t.Errorf("len(stable): got %v, want %v", got, want)
 	} else {
@@ -101,8 +101,8 @@ func TestFilesToReleases(t *testing.T) {
 	if got, want := len(unstable), 0; want != got {
 		t.Errorf("len(unstable): got %v, want %v", got, want)
 	}
-	if got, want := len(all), 6; want != got {
-		t.Errorf("len(all): got %v, want %v", got, want)
+	if got, want := len(archive), 4; want != got {
+		t.Errorf("len(archive): got %v, want %v", got, want)
 	}
 }
 

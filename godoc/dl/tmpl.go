@@ -135,13 +135,12 @@ information about Go releases.
 {{end}}
 
 {{with .Archive}}
-<div class="toggle">
-  <a name="archive"></a>
+<div class="toggle" id="archive">
   <div class="collapsed">
-    <h3 class="toggleButton" title="Click to show versions">All versions▹</h3>
+    <h3 class="toggleButton" title="Click to show versions">Archived versions▹</h3>
   </div>
   <div class="expanded">
-    <h3 class="toggleButton" title="Click to hide versions">All versions▾</h3>
+    <h3 class="toggleButton" title="Click to hide versions">Archived versions▾</h3>
     {{template "releases" .}}
   </div>
 </div>
@@ -218,8 +217,7 @@ $(document).ready(function() {
 
 {{define "releases"}}
 {{range .}}
-<div class="toggle{{if .Visible}}Visible{{end}}">
-	<a name="{{.Version}}"></a> {{/* NOTE(cbro): versions may show multiple times. Don't use "id". */}}
+<div class="toggle{{if .Visible}}Visible{{end}}" id="{{.Version}}">
 	<div class="collapsed">
 		<h2 class="toggleButton" title="Click to show downloads for this version">{{.Version}} ▹</h2>
 	</div>

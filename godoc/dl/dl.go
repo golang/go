@@ -255,44 +255,53 @@ func filesToReleases(fs []File) (stable, unstable, archive []Release) {
 		if r == nil {
 			return
 		}
-		if r.Stable {
-			// Show all stable versions in the archive
-			archive = append(archive, *r)
-
-			// Show the most two recent major version under "Stable".
-			if len(stable) < 2 {
-				if len(stable) == 0 {
-					// Most recent stable version.
-					stableMaj, stableMin, _ = parseVersion(r.Version)
-				} else if maj, _, _ := parseVersion(r.Version); maj == stableMaj {
-					// Older minor version of most recent major version.
-					return
-				}
-				// Split the file list into primary/other ports for the stable releases.
-				// NOTE(cbro): This is only done for stable releases because maintaining the historical
-				// nature of primary/other ports for older versions is infeasible.
-				// If freebsd is considered primary some time in the future, we'd not want to
-				// mark all of the older freebsd binaries as "primary".
-				// It might be better if we set that as a flag when uploading.
-				r.SplitPortTable = true
-				r.Visible = true // Toggle open all stable releases.
-				stable = append(stable, *r)
-			} else if len(stable) == 1 {
-				// Show the second most recent major version (i.e., security release)
+		if !r.Stable {
+			if len(unstable) != 0 {
+				// Only show one (latest) unstable version.
+				return
 			}
+			maj, min, _ := parseVersion(r.Version)
+			if maj < stableMaj || maj == stableMaj && min <= stableMin {
+				// Display unstable version only if newer than the
+				// latest stable release.
+				return
+			}
+			unstable = append(unstable, *r)
+		}
+
+		// Reports whether the release is the most recent minor version of the
+		// two most recent major versions.
+		shouldAddStable := func() bool {
+			if len(stable) >= 2 {
+				// Show up to two stable versions.
+				return false
+			}
+			if len(stable) == 0 {
+				// Most recent stable version.
+				stableMaj, stableMin, _ = parseVersion(r.Version)
+				return true
+			}
+			if maj, _, _ := parseVersion(r.Version); maj == stableMaj {
+				// Older minor version of most recent major version.
+				return false
+			}
+			// Second most recent stable version.
+			return true
+		}
+		if !shouldAddStable() {
+			archive = append(archive, *r)
 			return
 		}
-		if len(unstable) != 0 {
-			// Only show one (latest) unstable version.
-			return
-		}
-		maj, min, _ := parseVersion(r.Version)
-		if maj < stableMaj || maj == stableMaj && min <= stableMin {
-			// Display unstable version only if newer than the
-			// latest stable release.
-			return
-		}
-		unstable = append(unstable, *r)
+
+		// Split the file list into primary/other ports for the stable releases.
+		// NOTE(cbro): This is only done for stable releases because maintaining the historical
+		// nature of primary/other ports for older versions is infeasible.
+		// If freebsd is considered primary some time in the future, we'd not want to
+		// mark all of the older freebsd binaries as "primary".
+		// It might be better if we set that as a flag when uploading.
+		r.SplitPortTable = true
+		r.Visible = true // Toggle open all stable releases.
+		stable = append(stable, *r)
 	}
 	for _, f := range fs {
 		if r == nil || f.Version != r.Version {
