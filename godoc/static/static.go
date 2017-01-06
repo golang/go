@@ -2878,6 +2878,12 @@ a:hover,
 .exampleHeading .text:hover {
 	text-decoration: underline;
 }
+.article a {
+	text-decoration: underline;
+}
+.article .title a {
+	text-decoration: none;
+}
 
 .permalink {
 	display: none;
