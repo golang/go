@@ -1083,8 +1083,10 @@ func waitNumGoroutine(nmax int) int {
 func TestTransportPersistConnLeak(t *testing.T) {
 	// Not parallel: counts goroutines
 	defer afterTest(t)
-	gotReqCh := make(chan bool)
-	unblockCh := make(chan bool)
+
+	const numReq = 25
+	gotReqCh := make(chan bool, numReq)
+	unblockCh := make(chan bool, numReq)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		gotReqCh <- true
 		<-unblockCh
@@ -1098,14 +1100,15 @@ func TestTransportPersistConnLeak(t *testing.T) {
 
 	n0 := runtime.NumGoroutine()
 
-	const numReq = 25
-	didReqCh := make(chan bool)
+	didReqCh := make(chan bool, numReq)
+	failed := make(chan bool, numReq)
 	for i := 0; i < numReq; i++ {
 		go func() {
 			res, err := c.Get(ts.URL)
 			didReqCh <- true
 			if err != nil {
 				t.Errorf("client fetch error: %v", err)
+				failed <- true
 				return
 			}
 			res.Body.Close()
@@ -1114,7 +1117,13 @@ func TestTransportPersistConnLeak(t *testing.T) {
 
 	// Wait for all goroutines to be stuck in the Handler.
 	for i := 0; i < numReq; i++ {
-		<-gotReqCh
+		select {
+		case <-gotReqCh:
+			// ok
+		case <-failed:
+			close(unblockCh)
+			return
+		}
 	}
 
 	nhigh := runtime.NumGoroutine()
