@@ -3863,15 +3863,11 @@ func sysmon() {
 				}
 				shouldRelax := true
 				if osRelaxMinNS > 0 {
-					lock(&timers.lock)
-					if timers.sleeping {
-						now := nanotime()
-						next := timers.sleepUntil
-						if next-now < osRelaxMinNS {
-							shouldRelax = false
-						}
+					next := timeSleepUntil()
+					now := nanotime()
+					if next-now < osRelaxMinNS {
+						shouldRelax = false
 					}
-					unlock(&timers.lock)
 				}
 				if shouldRelax {
 					osRelax(true)
