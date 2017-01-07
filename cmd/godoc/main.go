@@ -89,7 +89,7 @@ var (
 	// layout control
 	tabWidth       = flag.Int("tabwidth", 4, "tab width")
 	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
-	templateDir    = flag.String("templates", "", "directory containing alternate template files")
+	templateDir    = flag.String("templates", "", "load templates/JS/CSS from disk in this directory")
 	showPlayground = flag.Bool("play", false, "enable playground in web interface")
 	showExamples   = flag.Bool("ex", false, "show examples in command line mode")
 	declLinks      = flag.Bool("links", true, "link identifiers to their declarations")
