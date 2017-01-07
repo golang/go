@@ -47,7 +47,7 @@ func baseIsDotDot(path string) bool {
 	return path[i+1:] == ".."
 }
 
-// toNorm returns the normalized path that is guranteed to be unique.
+// toNorm returns the normalized path that is guaranteed to be unique.
 // It should accept the following formats:
 //   * UNC paths                              (e.g \\server\share\foo\bar)
 //   * absolute paths                         (e.g C:\foo\bar)

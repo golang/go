@@ -21,7 +21,7 @@ type opInfo struct {
 	name              string
 	reg               regInfo
 	auxType           auxType
-	argLen            int32 // the number of arugments, -1 if variable length
+	argLen            int32 // the number of arguments, -1 if variable length
 	asm               obj.As
 	generic           bool // this is a generic (arch-independent) opcode
 	rematerializeable bool // this op is rematerializeable

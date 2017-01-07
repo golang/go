@@ -2086,7 +2086,7 @@ func (rs *Rows) Next() bool {
 		}
 		// The driver is at the end of the current result set.
 		// Test to see if there is another result set after the current one.
-		// Only close Rows if there is no futher result sets to read.
+		// Only close Rows if there is no further result sets to read.
 		if !nextResultSet.HasNextResultSet() {
 			rs.Close()
 		}

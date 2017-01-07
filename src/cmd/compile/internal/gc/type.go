@@ -213,7 +213,7 @@ func (t *Type) FuncType() *FuncType {
 	return t.Extra.(*FuncType)
 }
 
-// InterMethType contains Type fields specific to interface method psuedo-types.
+// InterMethType contains Type fields specific to interface method pseudo-types.
 type InterMethType struct {
 	Nname *Node
 }

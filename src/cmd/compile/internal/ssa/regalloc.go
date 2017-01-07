@@ -759,7 +759,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			liveSet.add(e.ID)
 		}
 		if v := b.Control; v != nil && s.values[v.ID].needReg {
-			s.addUse(v.ID, int32(len(b.Values)), b.Line) // psuedo-use by control value
+			s.addUse(v.ID, int32(len(b.Values)), b.Line) // pseudo-use by control value
 			liveSet.add(v.ID)
 		}
 		for i := len(b.Values) - 1; i >= 0; i-- {

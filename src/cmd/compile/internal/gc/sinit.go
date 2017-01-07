@@ -1197,7 +1197,7 @@ func getlit(lit *Node) int {
 	return -1
 }
 
-// stataddr sets nam to the static address of n and reports whether it succeeeded.
+// stataddr sets nam to the static address of n and reports whether it succeeded.
 func stataddr(nam *Node, n *Node) bool {
 	if n == nil {
 		return false

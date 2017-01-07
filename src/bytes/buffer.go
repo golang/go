@@ -23,7 +23,7 @@ type Buffer struct {
 
 // The readOp constants describe the last action performed on
 // the buffer, so that UnreadRune and UnreadByte can check for
-// invalid usage. opReadRuneX constants are choosen such that
+// invalid usage. opReadRuneX constants are chosen such that
 // converted to int they correspond to the rune size that was read.
 type readOp int
 

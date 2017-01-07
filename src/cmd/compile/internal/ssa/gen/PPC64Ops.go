@@ -12,7 +12,7 @@ import "strings"
 //  - Less-than-64-bit integer types live in the low portion of registers.
 //    For now, the upper portion is junk; sign/zero-extension might be optimized in the future, but not yet.
 //  - Boolean types are zero or 1; stored in a byte, but loaded with AMOVBZ so the upper bytes of a register are zero.
-//  - *const instructions may use a constant larger than the instuction can encode.
+//  - *const instructions may use a constant larger than the instruction can encode.
 //    In this case the assembler expands to multiple instructions and uses tmp
 //    register (R31).
 

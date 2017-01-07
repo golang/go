@@ -93,7 +93,7 @@ type Logger interface {
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
 	Warnl(line int32, fmt_ string, args ...interface{})
 
-	// Fowards the Debug flags from gc
+	// Forwards the Debug flags from gc
 	Debug_checknil() bool
 	Debug_wb() bool
 }
