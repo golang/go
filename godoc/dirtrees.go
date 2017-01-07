@@ -7,7 +7,6 @@
 package godoc
 
 import (
-	"bytes"
 	"go/doc"
 	"go/parser"
 	"go/token"
@@ -203,20 +202,6 @@ func (c *Corpus) newDirectory(root string, maxDepth int) *Directory {
 	// the file set provided is only for local parsing, no position
 	// information escapes and thus we don't need to save the set
 	return b.newDirTree(token.NewFileSet(), root, d.Name(), 0)
-}
-
-func (dir *Directory) writeLeafs(buf *bytes.Buffer) {
-	if dir != nil {
-		if len(dir.Dirs) == 0 {
-			buf.WriteString(dir.Path)
-			buf.WriteByte('\n')
-			return
-		}
-
-		for _, d := range dir.Dirs {
-			d.writeLeafs(buf)
-		}
-	}
 }
 
 func (dir *Directory) walk(c chan<- *Directory, skipRoot bool) {

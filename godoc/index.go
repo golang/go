@@ -1429,15 +1429,6 @@ func (c *Corpus) invalidateIndex() {
 	c.refreshMetadata()
 }
 
-// indexUpToDate() returns true if the search index is not older
-// than any of the file systems under godoc's observation.
-//
-func (c *Corpus) indexUpToDate() bool {
-	_, fsTime := c.fsModified.Get()
-	_, siTime := c.searchIndex.Get()
-	return !fsTime.After(siTime)
-}
-
 // feedDirnames feeds the directory names of all directories
 // under the file system given by root to channel c.
 //

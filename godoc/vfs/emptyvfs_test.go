@@ -5,10 +5,11 @@
 package vfs_test
 
 import (
-	"golang.org/x/tools/godoc/vfs"
-	"golang.org/x/tools/godoc/vfs/mapfs"
 	"testing"
 	"time"
+
+	"golang.org/x/tools/godoc/vfs"
+	"golang.org/x/tools/godoc/vfs/mapfs"
 )
 
 func TestNewNameSpace(t *testing.T) {
