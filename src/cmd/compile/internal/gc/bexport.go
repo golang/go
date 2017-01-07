@@ -1000,7 +1000,7 @@ func parName(f *Field, numbered bool) string {
 		Fatalf("invalid symbol name: %s", name)
 	}
 
-	// Functions that can be inlined use numbered parameters so we can distingish them
+	// Functions that can be inlined use numbered parameters so we can distinguish them
 	// from other names in their context after inlining (i.e., the parameter numbering
 	// is a form of parameter rewriting). See issue 4326 for an example and test case.
 	if forceObjFileStability || numbered {

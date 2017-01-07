@@ -357,7 +357,7 @@ func TestTRun(t *T) {
 		want := strings.TrimSpace(tc.output)
 		re := makeRegexp(want)
 		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-			t.Errorf("%s:ouput:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
 		}
 	}
 }
@@ -498,7 +498,7 @@ func TestBRun(t *T) {
 		want := strings.TrimSpace(tc.output)
 		re := makeRegexp(want)
 		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-			t.Errorf("%s:ouput:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
 		}
 	}
 }
