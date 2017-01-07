@@ -594,7 +594,7 @@ func formatGoSource(buf *bytes.Buffer, text []byte, links []analysis.Link, patte
 	// linkWriter, so we have to add line spans as another pass.
 	n := 1
 	for _, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
-		fmt.Fprintf(saved, "<span id=\"L%d\" class=\"ln\">%6d</span>\t", n, n)
+		fmt.Fprintf(saved, "<span id=\"L%d\" class=\"ln\">%6d\t</span>", n, n)
 		n++
 		saved.Write(line)
 		saved.WriteByte('\n')

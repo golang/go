@@ -2873,6 +2873,7 @@ pre .selection-comment {
 }
 pre .ln {
 	color: #999;
+	background: #efefef;
 }
 .ln {
 	-webkit-user-select: none;
