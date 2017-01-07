@@ -5126,3 +5126,50 @@ func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
 		t.Fatalf("Got: %q, want ok", slurp)
 	}
 }
+
+// Issue 18535: test that the Server doesn't try to do a background
+// read if it's already done one.
+func TestServerDuplicateBackgroundRead(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	const goroutines = 5
+	const requests = 2000
+
+	hts := httptest.NewServer(HandlerFunc(NotFound))
+	defer hts.Close()
+
+	reqBytes := []byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")
+
+	var wg sync.WaitGroup
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cn, err := net.Dial("tcp", hts.Listener.Addr().String())
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer cn.Close()
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				io.Copy(ioutil.Discard, cn)
+			}()
+
+			for j := 0; j < requests; j++ {
+				if t.Failed() {
+					return
+				}
+				_, err := cn.Write(reqBytes)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
