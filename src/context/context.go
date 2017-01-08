@@ -234,10 +234,7 @@ func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
 
 // newCancelCtx returns an initialized cancelCtx.
 func newCancelCtx(parent Context) cancelCtx {
-	return cancelCtx{
-		Context: parent,
-		done:    make(chan struct{}),
-	}
+	return cancelCtx{Context: parent}
 }
 
 // propagateCancel arranges for child to be canceled when parent is.
@@ -306,20 +303,32 @@ type canceler interface {
 	Done() <-chan struct{}
 }
 
+// closedchan is a reusable closed channel.
+var closedchan = make(chan struct{})
+
+func init() {
+	close(closedchan)
+}
+
 // A cancelCtx can be canceled. When canceled, it also cancels any children
 // that implement canceler.
 type cancelCtx struct {
 	Context
 
-	done chan struct{} // closed by the first cancel call.
-
-	mu       sync.Mutex
+	mu       sync.Mutex            // protects following fields
+	done     chan struct{}         // created lazily, closed by first cancel call
 	children map[canceler]struct{} // set to nil by the first cancel call
 	err      error                 // set to non-nil by the first cancel call
 }
 
 func (c *cancelCtx) Done() <-chan struct{} {
-	return c.done
+	c.mu.Lock()
+	if c.done == nil {
+		c.done = make(chan struct{})
+	}
+	d := c.done
+	c.mu.Unlock()
+	return d
 }
 
 func (c *cancelCtx) Err() error {
@@ -344,7 +353,11 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 		return // already canceled
 	}
 	c.err = err
-	close(c.done)
+	if c.done == nil {
+		c.done = closedchan
+	} else {
+		close(c.done)
+	}
 	for child := range c.children {
 		// NOTE: acquiring the child's lock while holding parent's lock.
 		child.cancel(false, err)
