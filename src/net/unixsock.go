@@ -196,18 +196,21 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
 
 func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{conn{fd}} }
 
-// DialUnix connects to the remote address raddr on the network net,
-// which must be "unix", "unixgram" or "unixpacket".  If laddr is not
-// nil, it is used as the local address for the connection.
-func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
-	switch net {
+// DialUnix acts like Dial for Unix networks.
+//
+// The network must be a Unix network name; see func Dial for details.
+//
+// If laddr is non-nil, it is used as the local address for the
+// connection.
+func DialUnix(network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+	switch network {
 	case "unix", "unixgram", "unixpacket":
 	default:
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
-	c, err := dialUnix(context.Background(), net, laddr, raddr)
+	c, err := dialUnix(context.Background(), network, laddr, raddr)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
 	return c, nil
 }
