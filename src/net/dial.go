@@ -563,35 +563,37 @@ func dialSingle(ctx context.Context, dp *dialParam, ra Addr) (c Conn, err error)
 	return c, nil
 }
 
-// Listen announces on the local network address laddr.
+// Listen announces on the local network address.
 //
-// The network net must be a stream-oriented network: "tcp", "tcp4",
-// "tcp6", "unix" or "unixpacket".
+// The network must be "tcp", "tcp4", "tcp6", "unix" or "unixpacket".
 //
-// For TCP, the syntax of laddr is "host:port", like "127.0.0.1:8080".
-// If host is omitted, as in ":8080", Listen listens on all available interfaces
-// instead of just the interface with the given host address.
-// Listening on network "tcp" with host "0.0.0.0" or "[::]" may listen on both
-// IPv4 and IPv6. To only use IPv4, use network "tcp4". To explicitly use both,
-// listen on ":port" without a host.
+// For TCP networks, if the host in the address parameter is empty or
+// a literal unspecified IP address, Listen listens on all available
+// unicast and anycast IP addresses of the local system.
+// To only use IPv4, use network "tcp4".
+// The address can use a host name, but this is not recommended,
+// because it will create a listener for at most one of the host's IP
+// addresses.
+// If the port in the address parameter is empty or "0", as in
+// "127.0.0.1:" or "[::1]:0", a port number is automatically chosen.
+// The Addr method of Listener can be used to discover the chosen
+// port.
 //
-// See Dial for more details about the address syntax.
-//
-// Listening on a hostname is not recommended because this creates a socket
-// for at most one of its IP addresses.
-func Listen(net, laddr string) (Listener, error) {
-	addrs, err := DefaultResolver.resolveAddrList(context.Background(), "listen", net, laddr, nil)
+// See func Dial for a description of the network and address
+// parameters.
+func Listen(network, address string) (Listener, error) {
+	addrs, err := DefaultResolver.resolveAddrList(context.Background(), "listen", network, address, nil)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: nil, Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: err}
 	}
 	var l Listener
 	switch la := addrs.first(isIPv4).(type) {
 	case *TCPAddr:
-		l, err = ListenTCP(net, la)
+		l, err = ListenTCP(network, la)
 	case *UnixAddr:
-		l, err = ListenUnix(net, la)
+		l, err = ListenUnix(network, la)
 	default:
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: laddr}}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: address}}
 	}
 	if err != nil {
 		return nil, err // l is non-nil interface containing nil pointer
@@ -599,37 +601,43 @@ func Listen(net, laddr string) (Listener, error) {
 	return l, nil
 }
 
-// ListenPacket announces on the local network address laddr.
+// ListenPacket announces on the local network address.
 //
-// The network net must be a packet-oriented network: "udp", "udp4",
-// "udp6", "ip", "ip4", "ip6" or "unixgram".
+// The network must be "udp", "udp4", "udp6", "unixgram", or an IP
+// transport. The IP transports are "ip", "ip4", or "ip6" followed by
+// a colon and a literal protocol number or a protocol name, as in
+// "ip:1" or "ip:icmp".
 //
-// For UDP, the syntax of laddr is "host:port", like "127.0.0.1:8080".
-// If host is omitted, as in ":8080", ListenPacket listens on all available
-// interfaces instead of just the interface with the given host address.
-// Listening on network "udp" with host "0.0.0.0" or "[::]" may listen on both
-// IPv4 and IPv6. To only use IPv4, use network "udp4". To explicitly use both,
-// listen on ":port" without a host.
+// For UDP and IP networks, if the host in the address parameter is
+// empty or a literal unspecified IP address, ListenPacket listens on
+// all available IP addresses of the local system except multicast IP
+// addresses.
+// To only use IPv4, use network "udp4" or "ip4:proto".
+// The address can use a host name, but this is not recommended,
+// because it will create a listener for at most one of the host's IP
+// addresses.
+// If the port in the address parameter is empty or "0", as in
+// "127.0.0.1:" or "[::1]:0", a port number is automatically chosen.
+// The LocalAddr method of PacketConn can be used to discover the
+// chosen port.
 //
-// See Dial for more details about the address syntax.
-//
-// Listening on a hostname is not recommended because this creates a socket
-// for at most one of its IP addresses.
-func ListenPacket(net, laddr string) (PacketConn, error) {
-	addrs, err := DefaultResolver.resolveAddrList(context.Background(), "listen", net, laddr, nil)
+// See func Dial for a description of the network and address
+// parameters.
+func ListenPacket(network, address string) (PacketConn, error) {
+	addrs, err := DefaultResolver.resolveAddrList(context.Background(), "listen", network, address, nil)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: nil, Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: err}
 	}
 	var l PacketConn
 	switch la := addrs.first(isIPv4).(type) {
 	case *UDPAddr:
-		l, err = ListenUDP(net, la)
+		l, err = ListenUDP(network, la)
 	case *IPAddr:
-		l, err = ListenIP(net, la)
+		l, err = ListenIP(network, la)
 	case *UnixAddr:
-		l, err = ListenUnixgram(net, la)
+		l, err = ListenUnixgram(network, la)
 	default:
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: laddr}}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: address}}
 	}
 	if err != nil {
 		return nil, err // l is non-nil interface containing nil pointer
