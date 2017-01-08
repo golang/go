@@ -23,8 +23,8 @@ type Dialer struct {
 	//
 	// The default is no timeout.
 	//
-	// When dialing a name with multiple IP addresses, the timeout
-	// may be divided between them.
+	// When using TCP and dialing a host name with multiple IP
+	// addresses, the timeout may be divided between them.
 	//
 	// With or without a timeout, the operating system may impose
 	// its own earlier timeout. For instance, TCP timeouts are
@@ -43,10 +43,11 @@ type Dialer struct {
 	// If nil, a local address is automatically chosen.
 	LocalAddr Addr
 
-	// DualStack enables RFC 6555-compliant "Happy Eyeballs" dialing
-	// when the network is "tcp" and the destination is a host name
-	// with both IPv4 and IPv6 addresses. This allows a client to
-	// tolerate networks where one address family is silently broken.
+	// DualStack enables RFC 6555-compliant "Happy Eyeballs"
+	// dialing when the network is "tcp" and the host in the
+	// address parameter resolves to both IPv4 and IPv6 addresses.
+	// This allows a client to tolerate networks where one address
+	// family is silently broken.
 	DualStack bool
 
 	// FallbackDelay specifies the length of time to wait before
@@ -246,39 +247,60 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
 // (IPv4-only), "ip6" (IPv6-only), "unix", "unixgram" and
 // "unixpacket".
 //
-// For TCP and UDP networks, addresses have the form host:port.
-// If host is a literal IPv6 address it must be enclosed
-// in square brackets as in "[::1]:80" or "[ipv6-host%zone]:80".
-// The functions JoinHostPort and SplitHostPort manipulate addresses
-// in this form.
-// If the host is empty, as in ":80", the local system is assumed.
+// For TCP and UDP networks, the address has the form "host:port".
+// The host must be a literal IP address, or a host name that can be
+// resolved to IP addresses.
+// The port must be a literal port number or a service name.
+// If the host is a literal IPv6 address it must be enclosed in square
+// brackets, as in "[2001:db8::1]:80" or "[fe80::1%zone]:80".
+// The zone specifies the scope of the literal IPv6 address as defined
+// in RFC 4007.
+// The functions JoinHostPort and SplitHostPort manipulate a pair of
+// host and port in this form.
+// When using TCP, and the host resolves to multiple IP addresses,
+// Dial will try each IP address in order until one succeeds.
 //
 // Examples:
-//	Dial("tcp", "192.0.2.1:80")
 //	Dial("tcp", "golang.org:http")
-//	Dial("tcp", "[2001:db8::1]:http")
-//	Dial("tcp", "[fe80::1%lo0]:80")
+//	Dial("tcp", "192.0.2.1:http")
+//	Dial("tcp", "198.51.100.1:80")
+//	Dial("udp", "[2001:db8::1]:domain")
+//	Dial("udp", "[fe80::1%lo0]:53")
 //	Dial("tcp", ":80")
 //
 // For IP networks, the network must be "ip", "ip4" or "ip6" followed
-// by a colon and a protocol number or name and the addr must be a
-// literal IP address.
+// by a colon and a literal protocol number or a protocol name, and
+// the address has the form "host". The host must be a literal IP
+// address or a literal IPv6 address with zone.
+// It depends on each operating system how the operating system
+// behaves with a non-well known protocol number such as "0" or "255".
 //
 // Examples:
 //	Dial("ip4:1", "192.0.2.1")
 //	Dial("ip6:ipv6-icmp", "2001:db8::1")
+//	Dial("ip6:58", "fe80::1%lo0")
+//
+// For TCP, UDP and IP networks, if the host is empty or a literal
+// unspecified IP address, as in ":80", "0.0.0.0:80" or "[::]:80" for
+// TCP and UDP, "", "0.0.0.0" or "::" for IP, the local system is
+// assumed.
 //
 // For Unix networks, the address must be a file system path.
-//
-// If the host is resolved to multiple addresses,
-// Dial will try each address in order until one succeeds.
 func Dial(network, address string) (Conn, error) {
 	var d Dialer
 	return d.Dial(network, address)
 }
 
 // DialTimeout acts like Dial but takes a timeout.
+//
 // The timeout includes name resolution, if required.
+// When using TCP, and the host in the address parameter resolves to
+// multiple IP addresses, the timeout is spread over each consecutive
+// dial, such that each is given an appropriate fraction of the time
+// to connect.
+//
+// See func Dial for a description of the network and address
+// parameters.
 func DialTimeout(network, address string, timeout time.Duration) (Conn, error) {
 	d := Dialer{Timeout: timeout}
 	return d.Dial(network, address)
