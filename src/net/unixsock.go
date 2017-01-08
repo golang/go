@@ -42,15 +42,18 @@ func (a *UnixAddr) opAddr() Addr {
 	return a
 }
 
-// ResolveUnixAddr parses addr as a Unix domain socket address.
-// The string net gives the network name, "unix", "unixgram" or
-// "unixpacket".
-func ResolveUnixAddr(net, addr string) (*UnixAddr, error) {
-	switch net {
+// ResolveUnixAddr returns an address of Unix domain socket end point.
+//
+// The network must be a Unix network name.
+//
+// See func Dial for a description of the network and address
+// parameters.
+func ResolveUnixAddr(network, address string) (*UnixAddr, error) {
+	switch network {
 	case "unix", "unixgram", "unixpacket":
-		return &UnixAddr{Name: addr, Net: net}, nil
+		return &UnixAddr{Name: address, Net: network}, nil
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, UnknownNetworkError(network)
 	}
 }
 

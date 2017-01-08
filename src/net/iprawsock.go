@@ -61,26 +61,33 @@ func (a *IPAddr) opAddr() Addr {
 	return a
 }
 
-// ResolveIPAddr parses addr as an IP address of the form "host" or
-// "ipv6-host%zone" and resolves the domain name on the network net,
-// which must be "ip", "ip4" or "ip6".
+// ResolveIPAddr returns an address of IP end point.
 //
-// Resolving a hostname is not recommended because this returns at most
-// one of its IP addresses.
-func ResolveIPAddr(net, addr string) (*IPAddr, error) {
-	if net == "" { // a hint wildcard for Go 1.0 undocumented behavior
-		net = "ip"
+// The network must be an IP network name.
+//
+// If the host in the address parameter is not a literal IP address,
+// ResolveIPAddr resolves the address to an address of IP end point.
+// Otherwise, it parses the address as a literal IP address.
+// The address parameter can use a host name, but this is not
+// recommended, because it will return at most one of the host name's
+// IP addresses.
+//
+// See func Dial for a description of the network and address
+// parameters.
+func ResolveIPAddr(network, address string) (*IPAddr, error) {
+	if network == "" { // a hint wildcard for Go 1.0 undocumented behavior
+		network = "ip"
 	}
-	afnet, _, err := parseNetwork(context.Background(), net, false)
+	afnet, _, err := parseNetwork(context.Background(), network, false)
 	if err != nil {
 		return nil, err
 	}
 	switch afnet {
 	case "ip", "ip4", "ip6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, UnknownNetworkError(network)
 	}
-	addrs, err := DefaultResolver.internetAddrList(context.Background(), afnet, addr)
+	addrs, err := DefaultResolver.internetAddrList(context.Background(), afnet, address)
 	if err != nil {
 		return nil, err
 	}

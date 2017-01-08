@@ -50,24 +50,30 @@ func (a *TCPAddr) opAddr() Addr {
 	return a
 }
 
-// ResolveTCPAddr parses addr as a TCP address of the form "host:port"
-// or "[ipv6-host%zone]:port" and resolves a pair of domain name and
-// port name on the network net, which must be "tcp", "tcp4" or
-// "tcp6".  A literal address or host name for IPv6 must be enclosed
-// in square brackets, as in "[::1]:80", "[ipv6-host]:http" or
-// "[ipv6-host%zone]:80".
+// ResolveTCPAddr returns an address of TCP end point.
 //
-// Resolving a hostname is not recommended because this returns at most
-// one of its IP addresses.
-func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
-	switch net {
+// The network must be a TCP network name.
+//
+// If the host in the address parameter is not a literal IP address or
+// the port is not a literal port number, ResolveTCPAddr resolves the
+// address to an address of TCP end point.
+// Otherwise, it parses the address as a pair of literal IP address
+// and port number.
+// The address parameter can use a host name, but this is not
+// recommended, because it will return at most one of the host name's
+// IP addresses.
+//
+// See func Dial for a description of the network and address
+// parameters.
+func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
+	switch network {
 	case "tcp", "tcp4", "tcp6":
 	case "": // a hint wildcard for Go 1.0 undocumented behavior
-		net = "tcp"
+		network = "tcp"
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, UnknownNetworkError(network)
 	}
-	addrs, err := DefaultResolver.internetAddrList(context.Background(), net, addr)
+	addrs, err := DefaultResolver.internetAddrList(context.Background(), network, address)
 	if err != nil {
 		return nil, err
 	}
