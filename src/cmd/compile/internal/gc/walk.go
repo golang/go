@@ -2187,6 +2187,9 @@ func callnew(t *types.Type) *Node {
 }
 
 func iscallret(n *Node) bool {
+	if n == nil {
+		return false
+	}
 	n = outervalue(n)
 	return n.Op == OINDREGSP
 }
