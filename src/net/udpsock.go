@@ -216,36 +216,44 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	return c, nil
 }
 
-// ListenUDP listens for incoming UDP packets addressed to the local
-// address laddr. Net must be "udp", "udp4", or "udp6".  If laddr has
-// a port of 0, ListenUDP will choose an available port.
-// The LocalAddr method of the returned UDPConn can be used to
-// discover the port. The returned connection's ReadFrom and WriteTo
-// methods can be used to receive and send UDP packets with per-packet
-// addressing.
-func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
-	switch net {
+// ListenUDP acts like ListenPacket for UDP networks.
+//
+// The network must be a UDP network name; see func Dial for details.
+//
+// If the IP field of laddr is nil or an unspecified IP address,
+// ListenUDP listens on all available IP addresses of the local system
+// except multicast IP addresses.
+// If the Port field of laddr is 0, a port number is automatically
+// chosen.
+func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
+	switch network {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	if laddr == nil {
 		laddr = &UDPAddr{}
 	}
-	c, err := listenUDP(context.Background(), net, laddr)
+	c, err := listenUDP(context.Background(), network, laddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return c, nil
 }
 
-// ListenMulticastUDP listens for incoming multicast UDP packets
-// addressed to the group address gaddr on the interface ifi.
-// Network must be "udp", "udp4" or "udp6".
-// ListenMulticastUDP uses the system-assigned multicast interface
-// when ifi is nil, although this is not recommended because the
+// ListenMulticastUDP acts like ListenPacket for UDP networks but
+// takes a group address on a specific network interface.
+//
+// The network must be a UDP network name; see func Dial for details.
+//
+// ListenMulticastUDP listens on all available IP addresses of the
+// local system including the group, multicast IP address.
+// If ifi is nil, ListenMulticastUDP uses the system-assigned
+// multicast interface, although this is not recommended because the
 // assignment depends on platforms and sometimes it might require
 // routing configuration.
+// If the Port field of gaddr is 0, a port number is automatically
+// chosen.
 //
 // ListenMulticastUDP is just for convenience of simple, small
 // applications. There are golang.org/x/net/ipv4 and

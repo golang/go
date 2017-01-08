@@ -215,14 +215,17 @@ func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
 	return c, nil
 }
 
-// ListenIP listens for incoming IP packets addressed to the local
-// address laddr. The returned connection's ReadFrom and WriteTo
-// methods can be used to receive and send IP packets with per-packet
-// addressing.
-func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
-	c, err := listenIP(context.Background(), netProto, laddr)
+// ListenIP acts like ListenPacket for IP networks.
+//
+// The network must be an IP network name; see func Dial for details.
+//
+// If the IP field of laddr is nil or an unspecified IP address,
+// ListenIP listens on all available IP addresses of the local system
+// except multicast IP addresses.
+func ListenIP(network string, laddr *IPAddr) (*IPConn, error) {
+	c, err := listenIP(context.Background(), network, laddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: netProto, Source: nil, Addr: laddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return c, nil
 }
