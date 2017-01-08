@@ -109,14 +109,16 @@ type Resolver struct {
 
 	// Dial optionally specifies an alternate dialer for use by
 	// Go's built-in DNS resolver to make TCP and UDP connections
-	// to DNS services. The provided addr will always be an IP
-	// address and not a hostname.
+	// to DNS services. The host in the address parameter will
+	// always be a literal IP address and not a host name, and the
+	// port in the address parameter will be a literal port number
+	// and not a service name.
 	// If the Conn returned is also a PacketConn, sent and received DNS
-	// messages must adhere to section 4.2.1. "UDP usage" of RFC 1035.
-	// Otherwise, DNS messages transmitted over Conn must adhere to section
-	// 4.2.2. "TCP usage".
+	// messages must adhere to RFC 1035 section 4.2.1, "UDP usage".
+	// Otherwise, DNS messages transmitted over Conn must adhere
+	// to RFC 7766 section 5, "Transport Protocol Selection".
 	// If nil, the default dialer is used.
-	Dial func(ctx context.Context, network, addr string) (Conn, error)
+	Dial func(ctx context.Context, network, address string) (Conn, error)
 
 	// TODO(bradfitz): optional interface impl override hook
 	// TODO(bradfitz): Timeout time.Duration?
