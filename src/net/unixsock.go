@@ -300,40 +300,40 @@ func (l *UnixListener) File() (f *os.File, err error) {
 	return
 }
 
-// ListenUnix announces on the Unix domain socket laddr and returns a
-// Unix listener. The network net must be "unix" or "unixpacket".
-func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
-	switch net {
+// ListenUnix acts like Listen for Unix networks.
+//
+// The network must be "unix" or "unixpacket".
+func ListenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
+	switch network {
 	case "unix", "unixpacket":
 	default:
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	if laddr == nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: errMissingAddress}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: errMissingAddress}
 	}
-	ln, err := listenUnix(context.Background(), net, laddr)
+	ln, err := listenUnix(context.Background(), network, laddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return ln, nil
 }
 
-// ListenUnixgram listens for incoming Unix datagram packets addressed
-// to the local address laddr. The network net must be "unixgram".
-// The returned connection's ReadFrom and WriteTo methods can be used
-// to receive and send packets with per-packet addressing.
-func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
-	switch net {
+// ListenUnixgram acts like ListenPacket for Unix networks.
+//
+// The network must be "unixgram".
+func ListenUnixgram(network string, laddr *UnixAddr) (*UnixConn, error) {
+	switch network {
 	case "unixgram":
 	default:
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	if laddr == nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: nil, Err: errMissingAddress}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: errMissingAddress}
 	}
-	c, err := listenUnixgram(context.Background(), net, laddr)
+	c, err := listenUnixgram(context.Background(), network, laddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return c, nil
 }
