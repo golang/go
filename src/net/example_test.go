@@ -12,7 +12,8 @@ import (
 )
 
 func ExampleListener() {
-	// Listen on TCP port 2000 on all interfaces.
+	// Listen on TCP port 2000 on all available unicast and
+	// anycast IP addresses of the local system.
 	l, err := net.Listen("tcp", ":2000")
 	if err != nil {
 		log.Fatal(err)
