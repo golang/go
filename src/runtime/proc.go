@@ -228,7 +228,8 @@ func forcegchelper() {
 		if debug.gctrace > 0 {
 			println("GC forced")
 		}
-		gcStart(gcBackgroundMode, true)
+		// Time-triggered, fully concurrent.
+		gcStart(gcBackgroundMode, gcTrigger{kind: gcTriggerTime, now: nanotime()})
 	}
 }
 
@@ -3790,8 +3791,7 @@ func sysmon() {
 			idle++
 		}
 		// check if we need to force a GC
-		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
-		if gcShouldStart(true) && lastgc != 0 && now-lastgc > forcegcperiod && atomic.Load(&forcegc.idle) != 0 {
+		if t := (gcTrigger{kind: gcTriggerTime, now: now}); t.test() && atomic.Load(&forcegc.idle) != 0 {
 			lock(&forcegc.lock)
 			forcegc.idle = 0
 			forcegc.g.schedlink = 0

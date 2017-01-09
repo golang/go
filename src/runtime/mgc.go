@@ -888,7 +888,7 @@ var work struct {
 // garbage collection is complete. It may also block the entire
 // program.
 func GC() {
-	gcStart(gcForceBlockMode, false)
+	gcStart(gcForceBlockMode, gcTrigger{kind: gcTriggerAlways})
 }
 
 // gcMode indicates how concurrent a GC cycle should be.
@@ -900,24 +900,62 @@ const (
 	gcForceBlockMode               // stop-the-world GC now and STW sweep (forced by user)
 )
 
-// gcShouldStart returns true if the exit condition for the _GCoff
-// phase has been met. The exit condition should be tested when
-// allocating.
-//
-// If forceTrigger is true, it ignores the current heap size, but
-// checks all other conditions. In general this should be false.
-func gcShouldStart(forceTrigger bool) bool {
-	return gcphase == _GCoff && (forceTrigger || memstats.heap_live >= memstats.gc_trigger) && memstats.enablegc && panicking == 0 && gcpercent >= 0
+// A gcTrigger is a predicate for starting a GC cycle. Specifically,
+// it is an exit condition for the _GCoff phase.
+type gcTrigger struct {
+	kind gcTriggerKind
+	now  int64 // gcTriggerTime: current time
 }
 
-// gcStart transitions the GC from _GCoff to _GCmark (if mode ==
-// gcBackgroundMode) or _GCmarktermination (if mode !=
-// gcBackgroundMode) by performing sweep termination and GC
-// initialization.
+type gcTriggerKind int
+
+const (
+	// gcTriggerAlways indicates that a cycle should be started
+	// unconditionally, even if GOGC is off. This cannot be
+	// consolidated with other cycles.
+	gcTriggerAlways gcTriggerKind = iota
+
+	// gcTriggerHeap indicates that a cycle should be started when
+	// the heap size reaches the trigger heap size computed by the
+	// controller.
+	gcTriggerHeap
+
+	// gcTriggerTime indicates that a cycle should be started when
+	// it's been more than forcegcperiod nanoseconds since the
+	// previous GC cycle.
+	gcTriggerTime
+)
+
+// test returns true if the trigger condition is satisfied, meaning
+// that the exit condition for the _GCoff phase has been met. The exit
+// condition should be tested when allocating.
+func (t gcTrigger) test() bool {
+	if !(gcphase == _GCoff && memstats.enablegc && panicking == 0) {
+		return false
+	}
+	if t.kind == gcTriggerAlways {
+		return true
+	}
+	if gcpercent < 0 {
+		return false
+	}
+	switch t.kind {
+	case gcTriggerHeap:
+		return memstats.heap_live >= memstats.gc_trigger
+	case gcTriggerTime:
+		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
+		return lastgc != 0 && t.now-lastgc > forcegcperiod
+	}
+	return true
+}
+
+// gcStart transitions the GC from _GCoff to _GCmark (if
+// !mode.stwMark) or _GCmarktermination (if mode.stwMark) by
+// performing sweep termination and GC initialization.
 //
 // This may return without performing this transition in some cases,
 // such as when called on a system stack or with locks held.
-func gcStart(mode gcMode, forceTrigger bool) {
+func gcStart(mode gcMode, trigger gcTrigger) {
 	// Since this is called from malloc and malloc is called in
 	// the guts of a number of libraries that might be holding
 	// locks, don't attempt to start GC in non-preemptible or
@@ -940,7 +978,7 @@ func gcStart(mode gcMode, forceTrigger bool) {
 	//
 	// We check the transition condition continuously here in case
 	// this G gets delayed in to the next GC cycle.
-	for (mode != gcBackgroundMode || gcShouldStart(forceTrigger)) && gosweepone() != ^uintptr(0) {
+	for trigger.test() && gosweepone() != ^uintptr(0) {
 		sweep.nbgsweep++
 	}
 
@@ -951,18 +989,18 @@ func gcStart(mode gcMode, forceTrigger bool) {
 	// or re-check the transition condition because we
 	// specifically *don't* want to share the transition with
 	// another thread.
-	useStartSema := mode == gcBackgroundMode
+	useStartSema := trigger.kind != gcTriggerAlways
 	if useStartSema {
 		semacquire(&work.startSema)
 		// Re-check transition condition under transition lock.
-		if !gcShouldStart(forceTrigger) {
+		if !trigger.test() {
 			semrelease(&work.startSema)
 			return
 		}
 	}
 
 	// For stats, check if this GC was forced by the user.
-	forced := mode != gcBackgroundMode
+	forced := trigger.kind == gcTriggerAlways
 
 	// In gcstoptheworld debug mode, upgrade the mode accordingly.
 	// We do this after re-checking the transition condition so
