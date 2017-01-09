@@ -1665,9 +1665,9 @@ func TestClientRedirectTypes(t *testing.T) {
 		3: {method: "POST", serverStatus: 307, wantMethod: "POST"},
 		4: {method: "POST", serverStatus: 308, wantMethod: "POST"},
 
-		5: {method: "HEAD", serverStatus: 301, wantMethod: "GET"},
-		6: {method: "HEAD", serverStatus: 302, wantMethod: "GET"},
-		7: {method: "HEAD", serverStatus: 303, wantMethod: "GET"},
+		5: {method: "HEAD", serverStatus: 301, wantMethod: "HEAD"},
+		6: {method: "HEAD", serverStatus: 302, wantMethod: "HEAD"},
+		7: {method: "HEAD", serverStatus: 303, wantMethod: "HEAD"},
 		8: {method: "HEAD", serverStatus: 307, wantMethod: "HEAD"},
 		9: {method: "HEAD", serverStatus: 308, wantMethod: "HEAD"},
 
