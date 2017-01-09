@@ -4,7 +4,8 @@
 }-->
 
 <p><i>
-This applies to the <code>gc</code> toolchain. Gccgo has native gdb support.
+This applies to the standard toolchain (the <code>gc</code> Go
+compiler and tools). Gccgo has native gdb support.
 Besides this overview you might want to consult the
 <a href="http://sourceware.org/gdb/current/onlinedocs/gdb/">GDB manual</a>.
 </i></p>
@@ -47,6 +48,14 @@ can sometimes make debugging with <code>gdb</code> harder. To disable them
 when debugging, pass the flags <code>-gcflags "-N -l"</code> to the
 <a href="/cmd/go"><code>go</code></a> command used to build the code being
 debugged.
+</p>
+
+<p>
+If you want to use gdb to inspect a core dump, you can trigger a dump
+on a program crash, on systems that permit it, by setting
+<code>GOTRACEBACK=crash</code> in the environment (see the
+<a href="/pkg/runtime/#hdr-Environment_Variables"> runtime package
+documentation</a> for more info).
 </p>
 
 <h3 id="Common_Operations">Common Operations</h3>
@@ -130,7 +139,7 @@ the DWARF code.
 
 <p>
 If you're interested in what the debugging information looks like, run
-'<code>objdump -W 6.out</code>' and browse through the <code>.debug_*</code>
+'<code>objdump -W a.out</code>' and browse through the <code>.debug_*</code>
 sections.
 </p>
 
@@ -377,7 +386,9 @@ $3 = struct hchan&lt;*testing.T&gt;
 </pre>
 
 <p>
-That <code>struct hchan&lt;*testing.T&gt;</code> is the runtime-internal representation of a channel.  It is currently empty, or gdb would have pretty-printed it's contents.
+That <code>struct hchan&lt;*testing.T&gt;</code> is the
+runtime-internal representation of a channel. It is currently empty,
+or gdb would have pretty-printed its contents.
 </p>
 
 <p>
