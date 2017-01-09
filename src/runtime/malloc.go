@@ -764,8 +764,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		assistG.gcAssistBytes -= int64(size - dataSize)
 	}
 
-	if shouldhelpgc && gcShouldStart(false) {
-		gcStart(gcBackgroundMode, false)
+	if shouldhelpgc {
+		if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
+			gcStart(gcBackgroundMode, t)
+		}
 	}
 
 	return x
