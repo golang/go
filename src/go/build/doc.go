@@ -105,6 +105,7 @@
 //	- "go1.6", from Go version 1.6 onward
 //	- "go1.7", from Go version 1.7 onward
 //	- "go1.8", from Go version 1.8 onward
+//	- "go1.9", from Go version 1.9 onward
 //	- any additional words listed in ctxt.BuildTags
 //
 // If a file's name, after stripping the extension and a possible _test suffix,
