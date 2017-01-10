@@ -833,7 +833,14 @@ function personalizeInstallInstructions() {
   var prefix = '?download=';
   var s = window.location.search;
   if (s.indexOf(prefix) != 0) {
-    // No 'download' query string; bail.
+    // No 'download' query string; detect "test" instructions from User Agent.
+    if (navigator.platform.indexOf('Win') != -1) {
+      $('.testUnix').hide();
+      $('.testWindows').show();
+    } else {
+      $('.testUnix').show();
+      $('.testWindows').hide();
+    }
     return;
   }
 
