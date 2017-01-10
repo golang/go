@@ -39,11 +39,12 @@ const debugFormat = false // default: false
 const trace = false // default: false
 
 // Current export format version. Increase with each format change.
-// 3: added aliasTag and export of aliases
+// 4: type name objects support type aliases, uses aliasTag
+// 3: Go1.8 encoding (same as version 2, aliasTag defined but never used)
 // 2: removed unused bool in ODCL export (compiler only)
 // 1: header format change (more regular), export package for _ struct fields
 // 0: Go1.7 encoding
-const exportVersion = 3
+const exportVersion = 4
 
 // trackAllTypes enables cycle tracking for all types, not just named
 // types. The existing compiler invariants assume that unnamed types
@@ -65,9 +66,6 @@ type exporter struct {
 	pkgIndex map[*types.Package]int
 	typIndex map[types.Type]int
 
-	// track objects that we've reexported already
-	reexported map[types.Object]bool
-
 	// position encoding
 	posInfoFormat bool
 	prevFile      string
@@ -86,7 +84,6 @@ func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 		strIndex:      map[string]int{"": 0}, // empty string is mapped to 0
 		pkgIndex:      make(map[*types.Package]int),
 		typIndex:      make(map[types.Type]int),
-		reexported:    make(map[types.Object]bool),
 		posInfoFormat: true, // TODO(gri) might become a flag, eventually
 	}
 
@@ -188,7 +185,13 @@ func (p *exporter) obj(obj types.Object) {
 		p.value(obj.Val())
 
 	case *types.TypeName:
-		p.tag(typeTag)
+		if isAlias(obj) {
+			p.tag(aliasTag)
+			p.pos(obj)
+			p.qualifiedName(obj)
+		} else {
+			p.tag(typeTag)
+		}
 		p.typ(obj.Type())
 
 	case *types.Var:
@@ -204,21 +207,6 @@ func (p *exporter) obj(obj types.Object) {
 		sig := obj.Type().(*types.Signature)
 		p.paramList(sig.Params(), sig.Variadic())
 		p.paramList(sig.Results(), false)
-
-	// Alias-related code. Keep for now.
-	// case *types_Alias:
-	// 	// make sure the original is exported before the alias
-	// 	// (if the alias declaration was invalid, orig will be nil)
-	// 	orig := original(obj)
-	// 	if orig != nil && !p.reexported[orig] {
-	// 		p.obj(orig)
-	// 		p.reexported[orig] = true
-	// 	}
-
-	// 	p.tag(aliasTag)
-	// 	p.pos(obj)
-	// 	p.string(obj.Name())
-	// 	p.qualifiedName(orig)
 
 	default:
 		log.Fatalf("gcimporter: unexpected object %v (%T)", obj, obj)
@@ -279,10 +267,6 @@ func commonPrefixLen(a, b string) int {
 }
 
 func (p *exporter) qualifiedName(obj types.Object) {
-	if obj == nil {
-		p.string("")
-		return
-	}
 	p.string(obj.Name())
 	p.pkg(obj.Pkg(), false)
 }
@@ -482,25 +466,42 @@ func (p *exporter) method(m *types.Func) {
 	p.paramList(sig.Results(), false)
 }
 
-// fieldName is like qualifiedName but it doesn't record the package for exported names.
 func (p *exporter) fieldName(f *types.Var) {
 	name := f.Name()
 
-	// anonymous field with unexported base type name: use "?" as field name
-	// (bname != "" per spec, but we are conservative in case of errors)
 	if f.Anonymous() {
-		base := f.Type()
-		if ptr, ok := base.(*types.Pointer); ok {
-			base = ptr.Elem()
-		}
-		if named, ok := base.(*types.Named); ok && !named.Obj().Exported() {
-			// anonymous field with unexported base type name
-			name = "?" // unexported name to force export of package
+		// anonymous field - we distinguish between 3 cases:
+		// 1) field name matches base type name and is exported
+		// 2) field name matches base type name and is not exported
+		// 3) field name doesn't match base type name (alias name)
+		bname := basetypeName(f.Type())
+		if name == bname {
+			if ast.IsExported(name) {
+				name = "" // 1) we don't need to know the field name or package
+			} else {
+				name = "?" // 2) use unexported name "?" to force package export
+			}
+		} else {
+			// 3) indicate alias and export name as is
+			// (this requires an extra "@" but this is a rare case)
+			p.string("@")
 		}
 	}
+
 	p.string(name)
-	if !f.Exported() {
+	if name != "" && !ast.IsExported(name) {
 		p.pkg(f.Pkg(), false)
+	}
+}
+
+func basetypeName(typ types.Type) string {
+	switch typ := deref(typ).(type) {
+	case *types.Basic:
+		return typ.Name()
+	case *types.Named:
+		return typ.Obj().Name()
+	default:
+		return "" // unnamed type
 	}
 }
 
@@ -797,10 +798,10 @@ func (p *exporter) tracef(format string, args ...interface{}) {
 // Debugging support.
 // (tagString is only used when tracing is enabled)
 var tagString = [...]string{
-	// Packages:
+	// Packages
 	-packageTag: "package",
 
-	// Types:
+	// Types
 	-namedTag:     "named type",
 	-arrayTag:     "array",
 	-sliceTag:     "slice",
@@ -812,7 +813,7 @@ var tagString = [...]string{
 	-mapTag:       "map",
 	-chanTag:      "chan",
 
-	// Values:
+	// Values
 	-falseTag:    "false",
 	-trueTag:     "true",
 	-int64Tag:    "int64",
@@ -821,4 +822,7 @@ var tagString = [...]string{
 	-complexTag:  "complex",
 	-stringTag:   "string",
 	-unknownTag:  "unknown",
+
+	// Type aliases
+	-aliasTag: "alias",
 }
