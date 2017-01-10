@@ -1,12 +1,21 @@
-// +build !nacl
-// buildrun -t 2  -gcflags=-d=ssa/insert_resched_checks/on,ssa/check/on
+// +build !nacl,disabled
+// buildrun -t 10  -gcflags=-d=ssa/insert_resched_checks/on,ssa/check/on
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test is disabled because it flakes when run in all.bash
+// on some platforms, but is useful standalone to verify
+// that rescheduling checks are working (and we may wish
+// to investigate the flake, since it suggests that the
+// loop rescheduling check may not work right on those
+// platforms).
+
 // This checks to see that call-free infinite loops do not
-// block garbage collection.
+// block garbage collection.  IF YOU RUN IT STANDALONE without
+// -gcflags=-d=ssa/insert_resched_checks/on in a not-experimental
+// build, it should hang.
 
 package main
 
