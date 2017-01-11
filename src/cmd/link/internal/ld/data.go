@@ -1250,7 +1250,7 @@ func (p *GCProg) AddSym(s *Symbol) {
 }
 
 // dataSortKey is used to sort a slice of data symbol *Symbol pointers.
-// The sort keys are kept inline to improve cache behaviour while sorting.
+// The sort keys are kept inline to improve cache behavior while sorting.
 type dataSortKey struct {
 	size int64
 	name string
@@ -1976,6 +1976,13 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
 			copy(syms[first+2:], syms[first+1:second])
 			syms[first+0] = rel
 			syms[first+1] = plt
+
+			// Make sure alignment doesn't introduce a gap.
+			// Setting the alignment explicitly prevents
+			// symalign from basing it on the size and
+			// getting it wrong.
+			rel.Align = int32(SysArch.RegSize)
+			plt.Align = int32(SysArch.RegSize)
 		}
 	}
 
@@ -2107,6 +2114,7 @@ func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64) (*S
 		// Create new section, set the starting Vaddr
 		sect = addsection(&Segtext, ".text", 05)
 		sect.Vaddr = va
+		sym.Sect = sect
 
 		// Create a symbol for the start of the secondary text sections
 		ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0).Sect = sect

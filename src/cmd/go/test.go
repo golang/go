@@ -13,7 +13,6 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
-	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -201,7 +200,7 @@ const testFlag2 = `
 	    text from Log and Logf calls even if the test succeeds.
 
 The following flags are also recognized by 'go test' and can be used to
-profile the tests during execution::
+profile the tests during execution:
 
 	-benchmem
 	    Print memory allocation statistics for benchmarks.
@@ -244,7 +243,7 @@ profile the tests during execution::
 	    Writes test binary as -c would.
 
 	-mutexprofilefraction n
- 	    Sample 1 in n stack traces of goroutines holding a
+	    Sample 1 in n stack traces of goroutines holding a
 	    contended mutex.
 
 	-outputdir directory
@@ -335,7 +334,8 @@ If the last comment in the function starts with "Output:" then the output
 is compared exactly against the comment (see examples below). If the last
 comment begins with "Unordered output:" then the output is compared to the
 comment, however the order of the lines is ignored. An example with no such
-comment, or with no text after "Output:" is compiled but not executed.
+comment is compiled but not executed. An example with no text after
+"Output:" is compiled, executed, and expected to produce no output.
 
 Godoc displays the body of ExampleXXX to demonstrate the use
 of the function, constant, or variable XXX.  An example of a method M with
@@ -1122,12 +1122,8 @@ func (b *builder) runTest(a *action) error {
 	cmd.Env = envForDir(cmd.Dir, origEnv)
 	var buf bytes.Buffer
 	if testStreamOutput {
-		// The only way to keep the ordering of the messages and still
-		// intercept its contents. os/exec will share the same Pipe for
-		// both Stdout and Stderr when running the test program.
-		mw := io.MultiWriter(os.Stdout, &buf)
-		cmd.Stdout = mw
-		cmd.Stderr = mw
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 	} else {
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
@@ -1192,7 +1188,7 @@ func (b *builder) runTest(a *action) error {
 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
 	if err == nil {
 		norun := ""
-		if testShowPass && !testStreamOutput {
+		if testShowPass {
 			a.testOutput.Write(out)
 		}
 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
@@ -1204,9 +1200,7 @@ func (b *builder) runTest(a *action) error {
 
 	setExitStatus(1)
 	if len(out) > 0 {
-		if !testStreamOutput {
-			a.testOutput.Write(out)
-		}
+		a.testOutput.Write(out)
 		// assume printing the test binary's exit status is superfluous
 	} else {
 		fmt.Fprintf(a.testOutput, "%s\n", err)

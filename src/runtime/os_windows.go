@@ -332,8 +332,12 @@ func goenvs() {
 	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
 }
 
+// exiting is set to non-zero when the process is exiting.
+var exiting uint32
+
 //go:nosplit
 func exit(code int32) {
+	atomic.Store(&exiting, 1)
 	stdcall1(_ExitProcess, uintptr(code))
 }
 
@@ -510,7 +514,7 @@ func semacreate(mp *m) {
 // May run with m.p==nil, so write barriers are not allowed. This
 // function is called by newosproc0, so it is also required to
 // operate without stack guards.
-//go:nowritebarrierc
+//go:nowritebarrierrec
 //go:nosplit
 func newosproc(mp *m, stk unsafe.Pointer) {
 	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
@@ -519,6 +523,14 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
 
 	if thandle == 0 {
+		if atomic.Load(&exiting) != 0 {
+			// CreateThread may fail if called
+			// concurrently with ExitProcess. If this
+			// happens, just freeze this thread and let
+			// the process exit. See issue #18253.
+			lock(&deadlock)
+			lock(&deadlock)
+		}
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
 		throw("runtime.newosproc")
 	}
@@ -527,7 +539,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 // Used by the C library build mode. On Linux this function would allocate a
 // stack, but that's not necessary for Windows. No stack guards are present
 // and the GC has not been initialized, so write barriers will fail.
-//go:nowritebarrierc
+//go:nowritebarrierrec
 //go:nosplit
 func newosproc0(mp *m, stk unsafe.Pointer) {
 	newosproc(mp, stk)

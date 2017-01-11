@@ -5,7 +5,6 @@
 package testing
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"internal/race"
@@ -128,9 +127,6 @@ func (b *B) nsPerOp() int64 {
 
 // runN runs a single benchmark for the specified number of iterations.
 func (b *B) runN(n int) {
-	b.ctx, b.cancel = context.WithCancel(b.parentContext())
-	defer b.cancel()
-
 	benchmarkLock.Lock()
 	defer benchmarkLock.Unlock()
 	// Try to get a comparable environment for each run

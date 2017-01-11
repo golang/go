@@ -317,6 +317,7 @@ type Func struct {
 	Needctxt        bool   // function uses context register (has closure variables)
 	ReflectMethod   bool   // function calls reflect.Type.Method or MethodByName
 	IsHiddenClosure bool
+	NoFramePointer  bool // Must not use a frame pointer for this function
 }
 
 type Op uint8

@@ -264,3 +264,27 @@ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 		t.Fatalf(`ReadFull = %d (%q), %v; want 2, "ar", nil`, n, buf[:n], err)
 	}
 }
+
+func TestInterleavedMultiReader(t *testing.T) {
+	r1 := strings.NewReader("123")
+	r2 := strings.NewReader("45678")
+
+	mr1 := MultiReader(r1, r2)
+	mr2 := MultiReader(mr1)
+
+	buf := make([]byte, 4)
+
+	// Have mr2 use mr1's []Readers.
+	// Consume r1 (and clear it for GC to handle) and consume part of r2.
+	n, err := ReadFull(mr2, buf)
+	if got := string(buf[:n]); got != "1234" || err != nil {
+		t.Errorf(`ReadFull(mr2) = (%q, %v), want ("1234", nil)`, got, err)
+	}
+
+	// Consume the rest of r2 via mr1.
+	// This should not panic even though mr2 cleared r1.
+	n, err = ReadFull(mr1, buf)
+	if got := string(buf[:n]); got != "5678" || err != nil {
+		t.Errorf(`ReadFull(mr1) = (%q, %v), want ("5678", nil)`, got, err)
+	}
+}

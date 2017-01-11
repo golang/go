@@ -85,6 +85,7 @@ func (p *pipe) write(b []byte) (n int, err error) {
 		}
 		if p.werr != nil {
 			err = ErrClosedPipe
+			break
 		}
 		p.wwait.Wait()
 	}

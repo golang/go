@@ -595,14 +595,14 @@ func XTestCancelRemoves(t testingT) {
 	_, cancel := WithCancel(ctx)
 	checkChildren("with WithCancel child ", ctx, 1)
 	cancel()
-	checkChildren("after cancelling WithCancel child", ctx, 0)
+	checkChildren("after canceling WithCancel child", ctx, 0)
 
 	ctx, _ = WithCancel(Background())
 	checkChildren("after creation", ctx, 0)
 	_, cancel = WithTimeout(ctx, 60*time.Minute)
 	checkChildren("with WithTimeout child ", ctx, 1)
 	cancel()
-	checkChildren("after cancelling WithTimeout child", ctx, 0)
+	checkChildren("after canceling WithTimeout child", ctx, 0)
 }
 
 func XTestWithCancelCanceledParent(t testingT) {

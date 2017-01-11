@@ -6,6 +6,8 @@
 
 package testdata
 
+import "encoding/xml"
+
 type StructTagTest struct {
 	A   int "hello"            // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag pair"
 	B   int "\tx:\"y\""        // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag key"
@@ -37,30 +39,44 @@ type JSONEmbeddedField struct {
 	unexp                     `is:"embedded,notexported" json:"unexp"` // OK for now, see issue 7363
 }
 
+type AnonymousJSON struct{}
+type AnonymousXML struct{}
+
 type DuplicateJSONFields struct {
 	JSON              int `json:"a"`
-	DuplicateJSON     int `json:"a"` // ERROR "struct field DuplicateJSON repeats json tag .a. also at testdata/structtag.go:41"
+	DuplicateJSON     int `json:"a"` // ERROR "struct field DuplicateJSON repeats json tag .a. also at testdata/structtag.go:46"
 	IgnoredJSON       int `json:"-"`
 	OtherIgnoredJSON  int `json:"-"`
 	OmitJSON          int `json:",omitempty"`
 	OtherOmitJSON     int `json:",omitempty"`
-	DuplicateOmitJSON int `json:"a,omitempty"` // ERROR "struct field DuplicateOmitJSON repeats json tag .a. also at testdata/structtag.go:41"
+	DuplicateOmitJSON int `json:"a,omitempty"` // ERROR "struct field DuplicateOmitJSON repeats json tag .a. also at testdata/structtag.go:46"
 	NonJSON           int `foo:"a"`
 	DuplicateNonJSON  int `foo:"a"`
 	Embedded          struct {
 		DuplicateJSON int `json:"a"` // OK because its not in the same struct type
 	}
+	AnonymousJSON `json:"a"` // ERROR "struct field AnonymousJSON repeats json tag .a. also at testdata/structtag.go:46"
 
 	XML              int `xml:"a"`
-	DuplicateXML     int `xml:"a"` // ERROR "struct field DuplicateXML repeats xml tag .a. also at testdata/structtag.go:54"
+	DuplicateXML     int `xml:"a"` // ERROR "struct field DuplicateXML repeats xml tag .a. also at testdata/structtag.go:60"
 	IgnoredXML       int `xml:"-"`
 	OtherIgnoredXML  int `xml:"-"`
 	OmitXML          int `xml:",omitempty"`
 	OtherOmitXML     int `xml:",omitempty"`
-	DuplicateOmitXML int `xml:"a,omitempty"` // ERROR "struct field DuplicateOmitXML repeats xml tag .a. also at testdata/structtag.go:54"
+	DuplicateOmitXML int `xml:"a,omitempty"` // ERROR "struct field DuplicateOmitXML repeats xml tag .a. also at testdata/structtag.go:60"
 	NonXML           int `foo:"a"`
 	DuplicateNonXML  int `foo:"a"`
 	Embedded         struct {
 		DuplicateXML int `xml:"a"` // OK because its not in the same struct type
+	}
+	AnonymousXML `xml:"a"` // ERROR "struct field AnonymousXML repeats xml tag .a. also at testdata/structtag.go:60"
+	Attribute    struct {
+		XMLName     xml.Name `xml:"b"`
+		NoDup       int      `xml:"b"`                // OK because XMLName above affects enclosing struct.
+		Attr        int      `xml:"b,attr"`           // OK because <b b="0"><b>0</b></b> is valid.
+		DupAttr     int      `xml:"b,attr"`           // ERROR "struct field DupAttr repeats xml attribute tag .b. also at testdata/structtag.go:76"
+		DupOmitAttr int      `xml:"b,omitempty,attr"` // ERROR "struct field DupOmitAttr repeats xml attribute tag .b. also at testdata/structtag.go:76"
+
+		AnonymousXML `xml:"b,attr"` // ERROR "struct field AnonymousXML repeats xml attribute tag .b. also at testdata/structtag.go:76"
 	}
 }

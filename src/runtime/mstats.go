@@ -77,6 +77,7 @@ type mstats struct {
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
 	pause_end       [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
 	numgc           uint32
+	numforcedgc     uint32  // number of user-forced GCs
 	gc_cpu_fraction float64 // fraction of CPU time used by GC
 	enablegc        bool
 	debuggc         bool
@@ -99,8 +100,6 @@ type mstats struct {
 	// This is also the heap size by which proportional sweeping
 	// must be complete.
 	gc_trigger uint64
-
-	_ uint32 // force 8-byte alignment of heap_live and prevent an alignment check crash on MIPS32.
 
 	// heap_live is the number of bytes considered live by the GC.
 	// That is: retained by the most recent GC plus allocated
@@ -175,6 +174,7 @@ type MemStats struct {
 	Lookups uint64
 
 	// Mallocs is the cumulative count of heap objects allocated.
+	// The number of live objects is Mallocs - Frees.
 	Mallocs uint64
 
 	// Frees is the cumulative count of heap objects freed.
@@ -365,6 +365,10 @@ type MemStats struct {
 	// NumGC is the number of completed GC cycles.
 	NumGC uint32
 
+	// NumForcedGC is the number of GC cycles that were forced by
+	// the application calling the GC function.
+	NumForcedGC uint32
+
 	// GCCPUFraction is the fraction of this program's available
 	// CPU time used by the GC since the program started.
 	//
@@ -394,9 +398,19 @@ type MemStats struct {
 	//
 	// This does not report allocations larger than BySize[60].Size.
 	BySize [61]struct {
-		Size    uint32
+		// Size is the maximum byte size of an object in this
+		// size class.
+		Size uint32
+
+		// Mallocs is the cumulative count of heap objects
+		// allocated in this size class. The cumulative bytes
+		// of allocation is Size*Mallocs. The number of live
+		// objects in this size class is Mallocs - Frees.
 		Mallocs uint64
-		Frees   uint64
+
+		// Frees is the cumulative count of heap objects freed
+		// in this size class.
+		Frees uint64
 	}
 }
 

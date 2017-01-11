@@ -43,6 +43,13 @@ var resolveIPAddrTests = []resolveIPAddrTest{
 	{"l2tp", "127.0.0.1", nil, UnknownNetworkError("l2tp")},
 	{"l2tp:gre", "127.0.0.1", nil, UnknownNetworkError("l2tp:gre")},
 	{"tcp", "1.2.3.4:123", nil, UnknownNetworkError("tcp")},
+
+	{"ip4", "2001:db8::1", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "2001:db8::1"}},
+	{"ip4:icmp", "2001:db8::1", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "2001:db8::1"}},
+	{"ip6", "127.0.0.1", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "127.0.0.1"}},
+	{"ip6", "::ffff:127.0.0.1", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "::ffff:127.0.0.1"}},
+	{"ip6:ipv6-icmp", "127.0.0.1", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "127.0.0.1"}},
+	{"ip6:ipv6-icmp", "::ffff:127.0.0.1", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "::ffff:127.0.0.1"}},
 }
 
 func TestResolveIPAddr(t *testing.T) {
@@ -54,21 +61,17 @@ func TestResolveIPAddr(t *testing.T) {
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
 	testHookLookupIP = lookupLocalhost
 
-	for i, tt := range resolveIPAddrTests {
+	for _, tt := range resolveIPAddrTests {
 		addr, err := ResolveIPAddr(tt.network, tt.litAddrOrName)
-		if err != tt.err {
-			t.Errorf("#%d: %v", i, err)
-		} else if !reflect.DeepEqual(addr, tt.addr) {
-			t.Errorf("#%d: got %#v; want %#v", i, addr, tt.addr)
-		}
-		if err != nil {
+		if !reflect.DeepEqual(addr, tt.addr) || !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("ResolveIPAddr(%q, %q) = %#v, %v, want %#v, %v", tt.network, tt.litAddrOrName, addr, err, tt.addr, tt.err)
 			continue
 		}
-		rtaddr, err := ResolveIPAddr(addr.Network(), addr.String())
-		if err != nil {
-			t.Errorf("#%d: %v", i, err)
-		} else if !reflect.DeepEqual(rtaddr, addr) {
-			t.Errorf("#%d: got %#v; want %#v", i, rtaddr, addr)
+		if err == nil {
+			addr2, err := ResolveIPAddr(addr.Network(), addr.String())
+			if !reflect.DeepEqual(addr2, tt.addr) || err != tt.err {
+				t.Errorf("(%q, %q): ResolveIPAddr(%q, %q) = %#v, %v, want %#v, %v", tt.network, tt.litAddrOrName, addr.Network(), addr.String(), addr2, err, tt.addr, tt.err)
+			}
 		}
 	}
 }

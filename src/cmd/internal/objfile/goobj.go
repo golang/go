@@ -114,19 +114,66 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
 		if err != nil {
 			return "", 0, nil
 		}
-		fileID := gosym.PCValue(pcfile, pc-uint64(s.Data.Offset), arch.MinLC)
+		fileID := int(pcValue(pcfile, pc-uint64(s.Data.Offset), arch))
 		fileName := s.Func.File[fileID]
 		pcline := make([]byte, s.Func.PCLine.Size)
 		_, err = f.f.ReadAt(pcline, s.Func.PCLine.Offset)
 		if err != nil {
 			return "", 0, nil
 		}
-		line := gosym.PCValue(pcline, pc-uint64(s.Data.Offset), arch.MinLC)
+		line := int(pcValue(pcline, pc-uint64(s.Data.Offset), arch))
 		// Note: we provide only the name in the Func structure.
 		// We could provide more if needed.
 		return fileName, line, &gosym.Func{Sym: &gosym.Sym{Name: s.Name}}
 	}
 	return "", 0, nil
+}
+
+// pcValue looks up the given PC in a pc value table. target is the
+// offset of the pc from the entry point.
+func pcValue(tab []byte, target uint64, arch *sys.Arch) int32 {
+	val := int32(-1)
+	var pc uint64
+	for step(&tab, &pc, &val, pc == 0, arch) {
+		if target < pc {
+			return val
+		}
+	}
+	return -1
+}
+
+// step advances to the next pc, value pair in the encoded table.
+func step(p *[]byte, pc *uint64, val *int32, first bool, arch *sys.Arch) bool {
+	uvdelta := readvarint(p)
+	if uvdelta == 0 && !first {
+		return false
+	}
+	if uvdelta&1 != 0 {
+		uvdelta = ^(uvdelta >> 1)
+	} else {
+		uvdelta >>= 1
+	}
+	vdelta := int32(uvdelta)
+	pcdelta := readvarint(p) * uint32(arch.MinLC)
+	*pc += uint64(pcdelta)
+	*val += vdelta
+	return true
+}
+
+// readvarint reads, removes, and returns a varint from *p.
+func readvarint(p *[]byte) uint32 {
+	var v, shift uint32
+	s := *p
+	for shift = 0; ; shift += 7 {
+		b := s[0]
+		s = s[1:]
+		v |= (uint32(b) & 0x7F) << shift
+		if b&0x80 == 0 {
+			break
+		}
+	}
+	*p = s
+	return v
 }
 
 // We treat the whole object file as the text section.

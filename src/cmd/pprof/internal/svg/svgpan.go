@@ -17,7 +17,7 @@ const svgPanJS = `
  *  - Mouse zooming (using the wheel)
  *  - Object dragging
  *
- * You can configure the behaviour of the pan/zoom/drag with the variables
+ * You can configure the behavior of the pan/zoom/drag with the variables
  * listed in the CONFIGURATION section of this file.
  *
  * Known issues:

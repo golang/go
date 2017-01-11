@@ -481,11 +481,11 @@ func TestServerTimeouts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("http Get #1: %v", err)
 	}
-	got, _ := ioutil.ReadAll(r.Body)
+	got, err := ioutil.ReadAll(r.Body)
 	expected := "req=1"
-	if string(got) != expected {
-		t.Errorf("Unexpected response for request #1; got %q; expected %q",
-			string(got), expected)
+	if string(got) != expected || err != nil {
+		t.Errorf("Unexpected response for request #1; got %q ,%v; expected %q, nil",
+			string(got), err, expected)
 	}
 
 	// Slow client that should timeout.
@@ -496,6 +496,7 @@ func TestServerTimeouts(t *testing.T) {
 	}
 	buf := make([]byte, 1)
 	n, err := conn.Read(buf)
+	conn.Close()
 	latency := time.Since(t1)
 	if n != 0 || err != io.EOF {
 		t.Errorf("Read = %v, %v, wanted %v, %v", n, err, 0, io.EOF)
@@ -507,14 +508,14 @@ func TestServerTimeouts(t *testing.T) {
 	// Hit the HTTP server successfully again, verifying that the
 	// previous slow connection didn't run our handler.  (that we
 	// get "req=2", not "req=3")
-	r, err = Get(ts.URL)
+	r, err = c.Get(ts.URL)
 	if err != nil {
 		t.Fatalf("http Get #2: %v", err)
 	}
-	got, _ = ioutil.ReadAll(r.Body)
+	got, err = ioutil.ReadAll(r.Body)
 	expected = "req=2"
-	if string(got) != expected {
-		t.Errorf("Get #2 got %q, want %q", string(got), expected)
+	if string(got) != expected || err != nil {
+		t.Errorf("Get #2 got %q, %v, want %q, nil", string(got), err, expected)
 	}
 
 	if !testing.Short() {
@@ -531,6 +532,56 @@ func TestServerTimeouts(t *testing.T) {
 			}
 			time.Sleep(ts.Config.ReadTimeout / 2)
 		}
+	}
+}
+
+// Test that the HTTP/2 server handles Server.WriteTimeout (Issue 18437)
+func TestHTTP2WriteDeadlineExtendedOnNewRequest(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	setParallel(t)
+	defer afterTest(t)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(res ResponseWriter, req *Request) {}))
+	ts.Config.WriteTimeout = 250 * time.Millisecond
+	ts.TLS = &tls.Config{NextProtos: []string{"h2"}}
+	ts.StartTLS()
+	defer ts.Close()
+
+	tr := newTLSTransport(t, ts)
+	defer tr.CloseIdleConnections()
+	if err := ExportHttp2ConfigureTransport(tr); err != nil {
+		t.Fatal(err)
+	}
+	c := &Client{Transport: tr}
+
+	for i := 1; i <= 3; i++ {
+		req, err := NewRequest("GET", ts.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// fail test if no response after 1 second
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		req = req.WithContext(ctx)
+
+		r, err := c.Do(req)
+		select {
+		case <-ctx.Done():
+			if ctx.Err() == context.DeadlineExceeded {
+				t.Fatalf("http2 Get #%d response timed out", i)
+			}
+		default:
+		}
+		if err != nil {
+			t.Fatalf("http2 Get #%d: %v", i, err)
+		}
+		r.Body.Close()
+		if r.ProtoMajor != 2 {
+			t.Fatalf("http2 Get expected HTTP/2.0, got %q", r.Proto)
+		}
+		time.Sleep(ts.Config.WriteTimeout / 2)
 	}
 }
 
@@ -5037,4 +5088,88 @@ func testServerKeepAlivesEnabled(t *testing.T, h2 bool) {
 	if !waitCondition(2*time.Second, 10*time.Millisecond, srv.ExportAllConnsIdle) {
 		t.Fatalf("test server has active conns")
 	}
+}
+
+// Issue 18447: test that the Server's ReadTimeout is stopped while
+// the server's doing its 1-byte background read between requests,
+// waiting for the connection to maybe close.
+func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	const timeout = 250 * time.Millisecond
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		select {
+		case <-time.After(2 * timeout):
+			fmt.Fprint(w, "ok")
+		case <-r.Context().Done():
+			fmt.Fprint(w, r.Context().Err())
+		}
+	}))
+	ts.Config.ReadTimeout = timeout
+	ts.Start()
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slurp, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(slurp) != "ok" {
+		t.Fatalf("Got: %q, want ok", slurp)
+	}
+}
+
+// Issue 18535: test that the Server doesn't try to do a background
+// read if it's already done one.
+func TestServerDuplicateBackgroundRead(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	const goroutines = 5
+	const requests = 2000
+
+	hts := httptest.NewServer(HandlerFunc(NotFound))
+	defer hts.Close()
+
+	reqBytes := []byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")
+
+	var wg sync.WaitGroup
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cn, err := net.Dial("tcp", hts.Listener.Addr().String())
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer cn.Close()
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				io.Copy(ioutil.Discard, cn)
+			}()
+
+			for j := 0; j < requests; j++ {
+				if t.Failed() {
+					return
+				}
+				_, err := cn.Write(reqBytes)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
 }

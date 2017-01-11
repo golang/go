@@ -4,12 +4,21 @@
 
 package main
 
-// // No C code required.
+//#include <errno.h>
+//#include <string.h>
 import "C"
 
-import "common"
+// #include
+// void cfunc() {} // uses cgo_topofstack
+
+import (
+	"common"
+	"strings"
+)
 
 func init() {
+	_ = strings.NewReplacer() // trigger stack unwind, Issue #18190.
+	C.strerror(C.EIO)         // uses cgo_topofstack
 	common.X = 2
 }
 

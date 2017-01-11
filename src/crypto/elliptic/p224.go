@@ -35,7 +35,9 @@ func initP224() {
 	p224FromBig(&p224.b, p224.B)
 }
 
-// P224 returns a Curve which implements P-224 (see FIPS 186-3, section D.2.2)
+// P224 returns a Curve which implements P-224 (see FIPS 186-3, section D.2.2).
+//
+// The cryptographic operations are implemented using constant-time algorithms.
 func P224() Curve {
 	initonce.Do(initAll)
 	return p224

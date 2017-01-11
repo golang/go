@@ -636,7 +636,11 @@ func (cr *connReader) startBackgroundRead() {
 	if cr.inRead {
 		panic("invalid concurrent Body.Read call")
 	}
+	if cr.hasByte {
+		return
+	}
 	cr.inRead = true
+	cr.conn.rwc.SetReadDeadline(time.Time{})
 	go cr.backgroundRead()
 }
 

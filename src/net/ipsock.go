@@ -10,6 +10,13 @@ import (
 	"context"
 )
 
+// BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
+// "tcp" and "udp" networks does not listen for both IPv4 and IPv6
+// connections. This is due to the fact that IPv4 traffic will not be
+// routed to an IPv6 socket - two separate sockets are required if
+// both address families are to be supported.
+// See inet6(4) for details.
+
 var (
 	// supportsIPv4 reports whether the platform supports IPv4
 	// networking functionality.

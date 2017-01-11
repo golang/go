@@ -18,6 +18,8 @@
 // with v1.5/OAEP and signing/verifying with v1.5/PSS. If one needs to abstract
 // over the public-key primitive, the PrivateKey struct implements the
 // Decrypter and Signer interfaces from the crypto package.
+//
+// The RSA operations in this package are not implemented using constant-time algorithms.
 package rsa
 
 import (

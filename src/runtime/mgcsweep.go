@@ -405,7 +405,10 @@ func reimburseSweepCredit(unusableBytes uintptr) {
 		// Nobody cares about the credit. Avoid the atomic.
 		return
 	}
-	if int64(atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))) < 0 {
+	nval := atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))
+	if int64(nval) < 0 {
+		// Debugging for #18043.
+		print("runtime: bad spanBytesAlloc=", nval, " (was ", nval+uint64(unusableBytes), ") unusableBytes=", unusableBytes, " sweepPagesPerByte=", mheap_.sweepPagesPerByte, "\n")
 		throw("spanBytesAlloc underflow")
 	}
 }

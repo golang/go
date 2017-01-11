@@ -24,8 +24,14 @@ msan=yes
 
 TMPDIR=${TMPDIR:-/tmp}
 echo 'int main() { return 0; }' > ${TMPDIR}/testsanitizers$$.c
-if $CC -fsanitize=memory -c ${TMPDIR}/testsanitizers$$.c -o ${TMPDIR}/testsanitizers$$.o 2>&1 | grep "unrecognized" >& /dev/null; then
-  echo "skipping msan tests: -fsanitize=memory not supported"
+if $CC -fsanitize=memory -o ${TMPDIR}/testsanitizers$$ ${TMPDIR}/testsanitizers$$.c 2>&1 | grep "unrecognized" >& /dev/null; then
+  echo "skipping msan tests: $CC -fsanitize=memory not supported"
+  msan=no
+elif ! test -x ${TMPDIR}/testsanitizers$$; then
+  echo "skipping msan tests: $CC -fsanitize-memory did not generate an executable"
+  msan=no
+elif ! ${TMPDIR}/testsanitizers$$ >/dev/null 2>&1; then
+  echo "skipping msan tests: $CC -fsanitize-memory generates broken executable"
   msan=no
 fi
 rm -f ${TMPDIR}/testsanitizers$$.*
@@ -145,6 +151,7 @@ if test "$tsan" = "yes"; then
     testtsan tsan3.go
     testtsan tsan4.go
     testtsan tsan8.go
+    testtsan tsan9.go
 
     # These tests are only reliable using clang or GCC version 7 or later.
     # Otherwise runtime/cgo/libcgo.h can't tell whether TSAN is in use.

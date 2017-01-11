@@ -25,7 +25,7 @@ release notes. Go 1.8 is expected to be released in February 2017.
 <p>
 The latest Go release, version 1.8, arrives six months after <a href="go1.7">Go 1.7</a>.
 Most of its changes are in the implementation of the toolchain, runtime, and libraries.
-There is one minor change to the language specification.
+There are <a href="#language">two minor changes</a> to the language specification.
 As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
 We expect almost all Go programs to continue to compile and run as before.
 </p>
@@ -44,8 +44,9 @@ and <a href="#sort_slice">simplifies sorting slices</a>.
 <h2 id="language">Changes to the language</h2>
 
 <p>
-  When explicitly converting a value from one struct type to another, as of Go 1. 8 the tags are ignored.
-  Thus two structs that differ only in their tags may be converted from one to the other:
+  When explicitly converting a value from one struct type to another,
+  as of Go 1.8 the tags are ignored. Thus two structs that differ
+  only in their tags may be converted from one to the other:
 </p>
 
 <pre>
@@ -76,11 +77,17 @@ func example() {
 <p>
 Go now supports 32-bit MIPS on Linux for both big-endian
 (<code>linux/mips</code>) and little-endian machines
-(<code>linux/mipsle</code>).
+(<code>linux/mipsle</code>) that implement the MIPS32r1 instruction set with FPU
+or kernel FPU emulation. Note that many common MIPS-based routers lack an FPU and
+have firmware that doesn't enable kernel FPU emulation; Go won't run on such machines.
 </p>
 
 <p>
 On DragonFly BSD, Go now requires DragonFly 4.4.4 or later. <!-- CL 29491, CL 29971 -->
+</p>
+
+<p>
+On OpenBSD, Go now requires OpenBSD 5.9 or later. <!-- CL 34093 -->
 </p>
 
 <p>
@@ -95,6 +102,18 @@ and cancelation.
   binaries on older OS X versions is untested.
 </p>
 
+<p>
+  Go 1.8 will be the last release to support Linux on ARMv5E and ARMv6 processors:
+  Go 1.9 will likely require the ARMv6K (as found in the Raspberry Pi 1) or later.
+  To identify whether a Linux system is ARMv6K or later, run
+  “<code>go</code> <code>tool</code> <code>dist</code> <code>-check-armv6k</code>”
+  (to facilitate testing, it is also possible to just copy the <code>dist</code> command to the
+  system without installing a full copy of Go 1.8)
+  and if the program terminates with output "ARMv6K supported." then the system
+  implements ARMv6K or later.
+  Go on non-Linux ARM systems already requires ARMv6K or later.
+</p>
+
 
 <h3 id="known_issues">Known Issues</h3>
 
@@ -102,8 +121,7 @@ and cancelation.
 There are some instabilities on FreeBSD and NetBSD that are known but not understood.
 These can lead to program crashes in rare cases.
 See
-<a href="https://golang.org/issue/15658">issue 15658</a>,
-<a href="https://golang.org/issue/16396">issue 16396</a>, and
+<a href="https://golang.org/issue/15658">issue 15658</a> and
 <a href="https://golang.org/issue/16511">issue 16511</a>.
 Any help in solving these issues would be appreciated.
 </p>
@@ -120,8 +138,9 @@ For 64-bit x86 systems, the following instructions have been added:
 <code>MOVSHDUP</code>,
 <code>MOVSLDUP</code>,
 <code>VMOVDDUP</code>,
-<code>VMOVSHDUP</code>,
-and <code>VMOVSLDUP</code>.</p>
+<code>VMOVSHDUP</code>, and
+<code>VMOVSLDUP</code>.
+</p>
 
 <p>
 For 64-bit PPC systems, the common vector scalar instructions have been
@@ -203,7 +222,7 @@ added:
 <code>XXSEL</code>,
 <code>XXSI</code>,
 <code>XXSLDWI</code>,
-<code>XXSPLT</code>, and 
+<code>XXSPLT</code>, and
 <code>XXSPLTW</code>.
 </p>
 
@@ -211,8 +230,8 @@ added:
 
 <p> <!-- CL 27324, CL 27325 -->
 The <code>yacc</code> tool (previously available by running
-“<code>go</code> <code>tool</code> <code>yacc</code>”)
-has been removed. As of Go 1.7 it was no longer used by the Go compiler.
+“<code>go</code> <code>tool</code> <code>yacc</code>”) has been removed.
+As of Go 1.7 it was no longer used by the Go compiler.
 It has moved to the “tools” repository and is now available at
 <code><a href="https://godoc.org/golang.org/x/tools/cmd/goyacc">golang.org/x/tools/cmd/goyacc</a></code>.
 </p>
@@ -229,7 +248,7 @@ It has moved to the “tools” repository and is now available at
 
 <p> <!-- CL 33157 -->
   The <code>pprof</code> tool can now profile TLS servers
-  and skip certificate validation by using the "<code>https+insecure</code>"
+  and skip certificate validation by using the “<code>https+insecure</code>”
   URL scheme.
 </p>
 
@@ -237,37 +256,32 @@ It has moved to the “tools” repository and is now available at
   The callgrind output now has instruction-level granularity.
 </p>
 
-<p>
-  TODO: more. proto? standalone profiles with symbols?
-<pre>
-runtime/pprof: output CPU profiles in pprof protobuf format (CL 33071)
-runtime/pprof: write profiles in protobuf format. (CL 32257)
-</pre>
-</p>
-
 <h3 id="tool_trace">Trace</h3>
 
-<p>TODO:</p>
-<pre>
-cmd/trace: add option to output pprof files (CL 23324)
-cmd/trace: fix a runnable goroutine count bug (CL 25552)
-cmd/trace: move process-wide GC events to their own row (CL 30017)
-internal/trace: fix analysis of EvGoWaiting/EvGoInSyscall events (CL 25572)
-cmd/trace: annotate different mark worker types (CL 30702)
-</pre>
+<p> <!-- CL 23324 -->
+  The <code>trace</code> tool has a new <code>-pprof</code> flag for
+  producing pprof-compatible blocking and latency profiles from an
+  execution trace.
+</p>
+
+<p> <!-- CL 30017, CL 30702 -->
+  Garbage collection events are now shown more clearly in the
+  execution trace viewer. Garbage collection activity is shown on its
+  own row and GC helper goroutines are annotated with their roles.
+</p>
 
 <h3 id="tool_vet">Vet</h3>
 
 <p>Vet is stricter in some ways and looser where it
   previously caused false positives.</p>
 
-<p>Vet now checks copying of array of locks,
+<p>Vet now checks for copying an array of locks,
   duplicate JSON and XML struct field tags,
   non-space-separated struct tags,
   deferred calls to HTTP <code>Response.Body.Close</code>
-  before checking errors,
-  indexed arguments in <code>Printf</code>,
-  and improves existing checks.</p>
+  before checking errors, and
+  indexed arguments in <code>Printf</code>.
+  It also improves existing checks.</p>
 </p>
 
 <h3 id="compiler">Compiler Toolchain</h3>
@@ -286,14 +300,14 @@ and provides a better platform for optimizations
 such as bounds check elimination.
 The new back end reduces the CPU time required by
 <a href="https://golang.org/test/bench/go1/">our benchmark programs</a> by 20-30%
-on 32-bit ARM systems. For 64-bit x86 systems, which already used the SSA backend in
+on 32-bit ARM systems. For 64-bit x86 systems, which already used the SSA back end in
 Go 1.7, the gains are a more modest 0-10%. Other architectures will likely
 see improvements closer to the 32-bit ARM numbers.
 </p>
 
 <p>
   The temporary <code>-ssa=0</code> compiler flag introduced in Go 1.7
-  to disable the new backend has been removed in Go 1.8.
+  to disable the new back end has been removed in Go 1.8.
 </p>
 
 <p>
@@ -313,9 +327,21 @@ see improvements closer to the 32-bit ARM numbers.
 
 <h3 id="cmd_cgo">Cgo</h3>
 
+<p> <!-- CL 31141 -->
+The Go tool now remembers the value of the <code>CGO_ENABLED</code> environment
+variable set during <code>make.bash</code> and applies it to all future compilations
+by default to fix issue <a href="https://golang.org/issue/12808">#12808</a>.
+When doing native compilation, it is rarely necessary to explicitly set
+the <code>CGO_ENABLED</code> environment variable as <code>make.bash</code>
+will detect the correct setting automatically. The main reason to explicitly
+set the <code>CGO_ENABLED</code> environment variable is when your environment
+supports cgo, but you explicitly do not want cgo support, in which case, set
+<code>CGO_ENABLED=0</code> during <code>make.bash</code> or <code>all.bash</code>.
+</p>
+
 <p> <!-- CL 29991 -->
 The environment variable <code>PKG_CONFIG</code> may now be used to
-set the program to run to handle <code>#cgo pkg-config</code>
+set the program to run to handle <code>#cgo</code> <code>pkg-config</code>
 directives.  The default is <code>pkg-config</code>, the program
 always used by earlier releases.  This is intended to make it easier
 to cross-compile
@@ -365,12 +391,21 @@ version of gccgo.
   <code>%USERPROFILE%/go</code> on Windows.
 </p>
 
+<h3 id="go_get">Go get</h3>
+
+<p> <!-- CL 34818 -->
+  The “<code>go</code> <code>get</code>” command now always respects
+  HTTP proxy environment variables, regardless of whether
+  the <code style='white-space:nowrap'>-insecure</code> flag is used. In previous releases, the
+  <code style='white-space:nowrap'>-insecure</code> flag had the side effect of not using proxies.
+</p>
+
 <h3 id="go_bug">Go bug</h3>
 
 <p>
   The new
-  “<a href="/cmd/go/#hdr-Print_information_for_bug_reports"><code>go</code>
-   <code>bug</code></a>” command starts a bug report on GitHub, prefilled
+  “<a href="/cmd/go/#hdr-Print_information_for_bug_reports"><code>go</code> <code>bug</code></a>”
+  command starts a bug report on GitHub, prefilled
   with information about the current system.
 </p>
 
@@ -378,9 +413,8 @@ version of gccgo.
 
 <p> <!-- CL 25419 -->
   The
-  “<a href="/cmd/go/#hdr-Show_documentation_for_package_or_symbol"><code>go</code>
-   <code>doc</code></a>” command
-  now groups constants and variables with their type,
+  “<a href="/cmd/go/#hdr-Show_documentation_for_package_or_symbol"><code>go</code> <code>doc</code></a>”
+  command now groups constants and variables with their type,
   following the behavior of
   <a href="/cmd/godoc/"><code>godoc</code></a>.
 </p>
@@ -404,7 +438,7 @@ version of gccgo.
   plugins written in Go, and a
   new <a href="/pkg/plugin/"><code>plugin</code></a> package for
   loading such plugins at run time. Plugin support is only currently
-  available on Linux and macOS.
+  available on Linux.
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -429,10 +463,30 @@ version of gccgo.
   documentation</a> and its example for more details.
 </p>
 
+<h3 id="mapiter">Concurrent Map Misuse</h3>
+
+<p>
+In Go 1.6, the runtime
+<a href="/doc/go1.6#runtime">added lightweight,
+best-effort detection of concurrent misuse of maps</a>. This release
+improves that detector with support for detecting programs that
+concurrently write to and iterate over a map.
+</p>
+<p>
+As always, if one goroutine is writing to a map, no other goroutine should be
+reading (which includes iterating) or writing the map concurrently.
+If the runtime detects this condition, it prints a diagnosis and crashes the program.
+The best way to find out more about the problem is to run the program
+under the
+<a href="https://blog.golang.org/race-detector">race detector</a>,
+which will more reliably identify the race
+and give more detail.
+</p>
+
 <h3 id="memstats">MemStats Documentation</h3>
 
 <p> <!-- CL 28972 -->
-  The runtime's <a href="/pkg/runtime/#MemStats"><code>MemStats</code></a>
+  The <a href="/pkg/runtime/#MemStats"><code>runtime.MemStats</code></a>
   type has been more thoroughly documented.
 </p>
 
@@ -470,7 +524,7 @@ There have been optimizations to implementations in the
 <a href="/pkg/strings/"><code>strings</code></a>,
 <a href="/pkg/syscall/"><code>syscall</code></a>,
 <a href="/pkg/text/template/"><code>text/template</code></a>, and
-<a href="/pkg/unicode/utf8/"><code>unicode/utf8</code></a>,
+<a href="/pkg/unicode/utf8/"><code>unicode/utf8</code></a>
 packages.
 </p>
 
@@ -562,9 +616,6 @@ now implements the new
     takes a context argument.</li>
   <li>There have been <a href="#database_sql">significant additions</a> to the
     <a href="/pkg/database/sql/">database/sql</a> package with context support.</li>
-  <li>The new <a href="/pkg/testing/#T.Context"><code>T.Context</code></a>
-    method in the <a href="/pkg/testing/">testing</a> package now returns a context for
-    the active test or benchmark.</li>
   <li>All nine of the new <code>Lookup</code> methods on the new
     <a href="/pkg/net/#Resolver"><code>net.Resolver</code></a> now
     take a context.</li>
@@ -578,7 +629,7 @@ now implements the new
 
 <p>
   Most users will want to use the new <code>-mutexprofile</code>
-  flag with <a href="/cmd/go/#hdr-Description_of_testing_flags"><code>go</code> <code>test</code></a>,
+  flag with “<a href="/cmd/go/#hdr-Description_of_testing_flags"><code>go</code> <code>test</code></a>”,
   and then use <a href="/cmd/pprof/">pprof</a> on the resultant file.
 </p>
 
@@ -589,13 +640,20 @@ now implements the new
   <a href="/pkg/runtime/#SetMutexProfileFraction"><code>SetMutexProfileFraction</code></a>.
 </p>
 
+<p>
+  A known limitation for Go 1.8 is that the profile only reports contention for
+  <a href="/pkg/sync/#Mutex"><code>sync.Mutex</code></a>,
+  not 
+  <a href="/pkg/sync/#RWMutex"><code>sync.RWMutex</code></a>.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
 As always, there are various minor changes and updates to the library,
 made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
-in mind. The follow sections list the user visible changes and additions.
-Optimizations and bug fixes are not listed.
+in mind. The following sections list the user visible changes and additions.
+Optimizations and minor bug fixes are not listed.
 </p>
 
 <dl id="archive_tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
@@ -612,20 +670,6 @@ Optimizations and bug fixes are not listed.
   </dd>
 </dl>
 
-<dl id="archive_zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
-  <dd>
-
-    <p> <!-- CL 18274 -->
-      The zip <code>Reader</code> now supports modification times in
-      the NTFS, UNIX, and Extended Time Stamp metadata fields.
-      <!-- CL 30811 -->
-      When writing zip files, the Extended Time Stamp field is written
-      for files with non-zero modification times.
-    </p>
-
-  </dd>
-</dl>
-
 <dl id="compress_flate"><dt><a href="/pkg/compress/flate/">compress/flate</a></dt>
   <dd>
 
@@ -633,11 +677,11 @@ Optimizations and bug fixes are not listed.
       There have been some minor fixes to the encoder to improve the
       compression ratio in certain situations. As a result, the exact
       encoded output of <code>DEFLATE</code> may be different from Go 1.7. Since
-      DEFLATE is the underlying compression of gzip, png, zlib, and zip,
+      <code>DEFLATE</code> is the underlying compression of gzip, png, zlib, and zip,
       those formats may have changed outputs.
     </p>
 
-    <p>
+    <p> <!-- CL 31174 -->
       The encoder, when operating in
       <a href="/pkg/compress/flate/#NoCompression"><code>NoCompression</code></a>
       mode, now produces a consistent output that is not dependent on
@@ -751,14 +795,14 @@ Optimizations and bug fixes are not listed.
       X25519 and <!-- CL 30824, CL 30825 -->
       ChaCha20-Poly1305.  <!-- CL 30957, CL 30958 -->
       ChaCha20-Poly1305 is now prioritized unless <!-- CL 32871 -->
-      AES-GCM when hardware support is present.
+      hardware support for AES-GCM is present.
     </p>
 
     <p> <!-- CL 27315 -->
       AES-128-CBC cipher suites with SHA-256 are also
       now supported.
     </p>
-    
+
   </dd>
 </dl>
 
@@ -799,87 +843,85 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       at <code>/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem</code>
       on Linux, to support RHEL and CentOS.
     </p>
-    
+
   </dd>
 </dl>
-    
+
 <dl id="database_sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
     <p>
-	  The package now supports <code>context.Context</code>. There are new methods
-	  ending in <code>Context</code> such as
-	  <a href="/pkg/database/sql/#DB.QueryContext"><code>DB.QueryContext</code></a> and
-	  <a href="/pkg/database/sql/#DB.PrepareContext"><code>DB.PrepareContext</code></a>
-	  that take context arguments. Using the new <code>Context</code> methods ensures that
-	  connections are closed and returned to the connection pool when the
-	  request is done; enables canceling in-progress queries
-	  should the driver support that; and allows the database
-	  pool to cancel waiting for the next available connection.
+      The package now supports <code>context.Context</code>. There are new methods
+      ending in <code>Context</code> such as
+      <a href="/pkg/database/sql/#DB.QueryContext"><code>DB.QueryContext</code></a> and
+      <a href="/pkg/database/sql/#DB.PrepareContext"><code>DB.PrepareContext</code></a>
+      that take context arguments. Using the new <code>Context</code> methods ensures that
+      connections are closed and returned to the connection pool when the
+      request is done; enables canceling in-progress queries
+      should the driver support that; and allows the database
+      pool to cancel waiting for the next available connection.
     </p>
     <p>
       The <a href="/pkg/database/sql#IsolationLevel"><code>IsolationLevel</code></a>
-	  can now be set when starting a transaction by setting the isolation level
-	  on the <code>Context</code> then passing that <code>Context</code> to
-	  <a href="/pkg/database/sql#DB.BeginContext"><code>DB.BeginContext</code></a>.
-	  An error will be returned if an isolation level is selected that the driver
-	  does not support. A read-only attribute may also be set on the transaction
-	  with <a href="/pkg/database/sql/#ReadOnlyContext"><code>ReadOnlyContext</code></a>.
-	</p>
-	<p>
-      Queries now expose the SQL column type information for drivers that support it.
-	  Rows can return <a href="/pkg/database/sql#Rows.ColumnTypes"><code>ColumnTypes</code></a>
-	  which can include SQL type information, column type lengths, and the Go type.
+      can now be set when starting a transaction by setting the isolation level
+      on the <code>Context</code> then passing that <code>Context</code> to
+      <a href="/pkg/database/sql#DB.BeginContext"><code>DB.BeginContext</code></a>.
+      An error will be returned if an isolation level is selected that the driver
+      does not support. A read-only attribute may also be set on the transaction
+      with <a href="/pkg/database/sql/#ReadOnlyContext"><code>ReadOnlyContext</code></a>.
     </p>
-	<p>
-          A <a href="/pkg/database/sql/#Rows"><code>Rows</code></a>
-          can now represent multiple result sets. After
-	  <a href="/pkg/database/sql/#Rows.Next"><code>Rows.Next</code></a> returns false,
-	  <a href="/pkg/database/sql/#Rows.NextResultSet"><code>Rows.NextResultSet</code></a>
-	  may be called to advance to the next result set. The existing <code>Rows</code>
-	  should continue to be used after it advances to the next result set.
-    </p>
-	<p>
-	  <a href="/pkg/database/sql/#NamedParam"><code>NamedParam</code></a> may be used
-	  as query arguments. The new function <a href="/pkg/database/sql/#Param"><code>Param</code></a>
-	  helps create a <a href="/pkg/database/sql/#NamedParam"><code>NamedParam</code></a>
-	  more succinctly.
-	<p>
-          If a driver supports the new
-          <a href="/pkg/database/sql/driver/#Pinger"><code>Pinger</code></a>
-          interface, the <code>DB</code>'s
-	  <a href="/pkg/database/sql/#DB.Ping"><code>DB.Ping</code></a>
-	  and
-          <a href="/pkg/database/sql/#DB.PingContext"><code>DB.PingContext</code></a>
-          methods will use that interface to check whether a
-          database connection is still valid.
-	</p>
     <p>
-	  The new <code>Context</code> query methods work for all drivers, but
-	  <code>Context</code> cancelation is not responsive unless the driver has been
-	  updated to use them. The other features require driver support in
-	  <a href="/pkg/database/sql/driver"><code>database/sql/driver</code></a>.
-	  Driver authors should review the new interfaces. Users of existing
-	  driver should review the driver documentation to see what
-	  it supports and any system specific documentation on each feature.
-	</p>
+      Queries now expose the SQL column type information for drivers that support it.
+      Rows can return <a href="/pkg/database/sql#Rows.ColumnTypes"><code>ColumnTypes</code></a>
+      which can include SQL type information, column type lengths, and the Go type.
+    </p>
+    <p>
+      A <a href="/pkg/database/sql/#Rows"><code>Rows</code></a>
+      can now represent multiple result sets. After
+      <a href="/pkg/database/sql/#Rows.Next"><code>Rows.Next</code></a> returns false,
+      <a href="/pkg/database/sql/#Rows.NextResultSet"><code>Rows.NextResultSet</code></a>
+      may be called to advance to the next result set. The existing <code>Rows</code>
+      should continue to be used after it advances to the next result set.
+      </p>
+    <p>
+      <a href="/pkg/database/sql/#NamedArg"><code>NamedArg</code></a> may be used
+      as query arguments. The new function <a href="/pkg/database/sql/#Named"><code>Named</code></a>
+      helps create a <a href="/pkg/database/sql/#NamedArg"><code>NamedArg</code></a>
+      more succinctly.
+    <p>
+      If a driver supports the new
+      <a href="/pkg/database/sql/driver/#Pinger"><code>Pinger</code></a>
+      interface, the
+      <a href="/pkg/database/sql/#DB.Ping"><code>DB.Ping</code></a>
+      and
+      <a href="/pkg/database/sql/#DB.PingContext"><code>DB.PingContext</code></a>
+      methods will use that interface to check whether a
+      database connection is still valid.
+    </p>
+    <p>
+      The new <code>Context</code> query methods work for all drivers, but
+      <code>Context</code> cancelation is not responsive unless the driver has been
+      updated to use them. The other features require driver support in
+      <a href="/pkg/database/sql/driver"><code>database/sql/driver</code></a>.
+      Driver authors should review the new interfaces. Users of existing
+      driver should review the driver documentation to see what
+      it supports and any system specific documentation on each feature.
+    </p>
   </dd>
 </dl>
 
 <dl id="debug_pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
   <dd>
     <p> <!-- CL 22720, CL 27212, CL 22181, CL 22332, CL 22336, Issue 15345 -->
-      The package has been fleshed out and is now used by <a href="/cmd/link/">the Go linker</a>.
-      New are
-      <a href="/pkg/debug/pe/#Reloc"><code>Reloc</code></a>,
-      <a href="/pkg/debug/pe/#Section"><code>Section</code></a>,
-      <a href="/pkg/debug/pe/#StringTable"><code>StringTable</code></a>,
-      the method
-      <a href="/pkg/debug/pe/#COFFSymbol.FullName"><code>COFFSymbol.FullName</code></a>,
+      The package has been extended and is now used by
+      <a href="/cmd/link/">the Go linker</a> to read <code>gcc</code>-generated object files.
+      The new
+      <a href="/pkg/debug/pe/#File.StringTable"><code>File.StringTable</code></a>
       and
-      <a href="/pkg/debug/pe/#File"><code>File</code></a>
-      fields
-      <a href="/pkg/debug/pe/#File.COFFSymbols"><code>COFFSymbols</code></a> and
-      <a href="/pkg/debug/pe/#File.StringTable"><code>StringTable</code></a>.
+      <a href="/pkg/debug/pe/#Section.Relocs"><code>Section.Relocs</code></a>
+      fields provide access to the COFF string table and COFF relocations.
+      The new
+      <a href="/pkg/debug/pe/#File.COFFSymbols"><code>File.COFFSymbols</code></a>
+      allows low-level access to the COFF symbol table.
       </p>
   </dd>
 </dl>
@@ -933,9 +975,8 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
     </p>
 
     <p> <!-- CL 30944 -->
-
       In previous versions of Go, unmarshaling a JSON <code>null</code> into an
-      of <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>
+      <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>
       was considered a no-op; now the <code>Unmarshaler</code>'s
       <code>UnmarshalJSON</code> method is called with the JSON literal
       <code>null</code> and can define the semantics of that case.
@@ -1065,7 +1106,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       <a href="/pkg/math/big/#Int.ModInverse"><code>Int.ModInverse</code></a>
       now supports negative numbers.
     </p>
-    
+
   </dd>
 </dl>
 
@@ -1092,9 +1133,9 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
     <a href="/pkg/mime/#ParseMediaType"><code>ParseMediaType</code></a>
     now preserves unnecessary backslash escapes as literals,
     in order to support MSIE.
-    When MSIE sends a full file path (in "intranet mode"), it does not
-    escape backslashes: <code>"C:\dev\go\foo.txt"</code>, not
-    <code>"C:\\dev\\go\\foo.txt"</code>.
+    When MSIE sends a full file path (in “intranet mode”), it does not
+    escape backslashes: “<code>C:\dev\go\foo.txt</code>”, not
+    “<code>C:\\dev\\go\\foo.txt</code>”.
     If we see an unnecessary backslash escape, we now assume it is from MSIE
     and intended as a literal backslash.
     No known MIME generators emit unnecessary backslash escapes
@@ -1126,7 +1167,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
-    
+
     <p><!-- CL 30164, CL 33473 -->
       The <a href="/pkg/net/#Conn"><code>Conn</code></a> documentation
       has been updated to clarify expectations of an interface
@@ -1147,8 +1188,8 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
     </p>
 
     <p><!-- CL 29951 -->
-      The new <a href="/pkg/net/#Buffers"><code>Buffers</code></a> types permits
-      more efficiently writing to the network from multiple discontiguous buffers
+      The new <a href="/pkg/net/#Buffers"><code>Buffers</code></a> type permits
+      writing to the network more efficiently from multiple discontiguous buffers
       in memory. On certain machines, for certain types of connections,
       this is optimized into an OS-specific batch write operation (such as <code>writev</code>).
     </p>
@@ -1165,8 +1206,8 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
     </p>
 
     <p><!-- CL 29233, CL 24901 -->
-      The Go DNS resolver now supports <code>resolv.conf</code>'s "<code>rotate</code>"
-      and "<code>option ndots:0</code>" options. The "<code>ndots</code>" option is
+      The Go DNS resolver now supports <code>resolv.conf</code>'s “<code>rotate</code>”
+      and “<code>option</code> <code>ndots:0</code>” options. The “<code>ndots</code>” option is
       now respected in the same way as <code>libresolve</code>.
     </p>
 
@@ -1193,7 +1234,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
         <a href="/pkg/net/http/#ServeContent"><code>ServeContent</code></a>
         now support HTTP <code>If-Match</code> conditional requests,
         in addition to the previous <code>If-None-Match</code>
-        support.
+        support for ETags properly formatted according to RFC 7232, section 2.3.
       </li>
     </ul>
 
@@ -1213,11 +1254,11 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
         existing <a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
         support. This functionality requires that the underlying
         <a href="/pkg/net/#Conn"><code>net.Conn</code></a> implements
-        <a href="#net">recently-clarified interface documentation</a>.
+        <a href="#net">recently clarified interface documentation</a>.
       </li>
 
       <li><!-- CL 32479 -->
-        To serve trailers known after the header has been written,
+        To serve trailers produced after the header has already been written,
         see the new
         <a href="/pkg/net/http/#TrailerPrefix"><code>TrailerPrefix</code></a>
         mechanism.
@@ -1244,7 +1285,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 
     <p>Client &amp; Transport changes:</p>
     <ul>
-      <li><!-- CL 28930 -->
+      <li><!-- CL 28930, CL 31435 -->
         The <a href="/pkg/net/http/#Client"><code>Client</code></a>
         now copies most request headers on redirect. See
         <a href="/pkg/net/http/#Client">the documentation</a>
@@ -1258,9 +1299,17 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       </li>
 
       <li><!-- CL 31733, CL 29852 -->
-        The <code>Client</code> now supports 307 and 308 redirects.
-        If the redirect requires resending the request body,
-        the request must have the new
+        The <code>Client</code> now supports 301, 307, and 308 redirects.
+
+        For example, <code>Client.Post</code> now follows 301
+        redirects, converting them to <code>GET</code> requests
+        without bodies, like it did for 302 and 303 redirect responses
+        previously.
+
+        The <code>Client</code> now also follows 307 and 308
+        redirects, preserving the original request method and body, if
+        any. If the redirect requires resending the request body, the
+        request must have the new
         <a href="/pkg/net/http/#Request"><code>Request.GetBody</code></a>
         field defined.
         <a href="pkg/net/http/#NewRequest"><code>NewRequest</code></a>
@@ -1275,7 +1324,8 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 
       <li><!-- CL 27117 -->
         The <code>Transport</code> will now retry non-idempotent
-        requests if no bytes were written before a network failure.
+        requests if no bytes were written before a network failure
+        and the request has no body.
       </li>
 
       <li><!-- CL 32481 -->
@@ -1288,8 +1338,24 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       <li> <!-- CL 28077 -->
         The <a href="/pkg/net/http/#DefaultTransport"><code>DefaultTransport.Dialer</code></a>
         now enables <code>DualStack</code> ("<a href="https://tools.ietf.org/html/rfc6555">Happy Eyeballs</a>") support,
-        to use IPv4 as a backup if it looks like IPv6 might be
+        allowing the use of IPv4 as a backup if it looks like IPv6 might be
         failing.
+      </li>
+
+      <li> <!-- CL 31726 -->
+        The <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
+        no longer reads a byte of a non-nil
+        <a href="/pkg/net/http/#Request.Body"><code>Request.Body</code></a>
+        when the
+        <a href="/pkg/net/http/#Request.ContentLength"><code>Request.ContentLength</code></a>
+        is zero to determine whether the <code>ContentLength</code>
+        is actually zero or just undefined.
+        To explicitly signal that a body has zero length,
+        either set it to <code>nil</code>, or set it to the new value
+        <a href="/pkg/net/http/#NoBody"><code>NoBody</code></a>.
+        The new <code>NoBody</code> value is intended for use by <code>Request</code>
+        constructor functions; it is used by
+        <a href="/pkg/net/http/#NewRequest"><code>NewRequest</code></a>.
       </li>
     </ul>
 
@@ -1314,9 +1380,9 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
     The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
     has a new optional hook,
     <a href="/pkg/net/http/httputil/#ReverseProxy.ModifyResponse"><code>ModifyResponse</code></a>,
-    for modifying the response from the backend before proxying it to the client.
+    for modifying the response from the back end before proxying it to the client.
     </p>
-    
+
   </dd>
 </dl>
 
@@ -1326,7 +1392,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
     <p> <!-- CL 32176 -->
       Empty quoted strings are once again allowed in the name part of
       an address. That is, Go 1.4 and earlier accepted
-      <code>"" &lt;gopher@example.com&gt;</code>,
+      <code>""</code> <code>&lt;gopher@example.com&gt;</code>,
       but Go 1.5 introduced a bug that rejected this address.
       The address is recognized again.
     </p>
@@ -1341,7 +1407,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       allows parsing dates found in other
       header lines, such as the <code>Resent-Date:</code> header.
     </p>
-    
+
   </dd>
 </dl>
 
@@ -1349,10 +1415,10 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
   <dd>
 
     <p> <!-- CL 33143 -->
-      If an implementation of
-      the <a href="/pkg/net/smtp/#Auth"><code>Auth</code></a>
-      interface's <code>Start</code> method returns an
-      empty <code>toServer</code> value, the package no longer sends
+      If an implementation of the
+      <a href="/pkg/net/smtp/#Auth"><code>Auth.Start</code></a>
+      method returns an empty <code>toServer</code> value,
+      the package no longer sends
       trailing whitespace in the SMTP <code>AUTH</code> command,
       which some servers rejected.
     </p>
@@ -1363,14 +1429,17 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 <dl id="net_url"><dt><a href="/pkg/net/url/">net/url</a></dt>
   <dd>
 
-    <p> <!-- CL 31322 --> The new functions
+    <p> <!-- CL 31322 -->
+      The new functions
       <a href="/pkg/net/url/#PathEscape"><code>PathEscape</code></a>
       and
       <a href="/pkg/net/url/#PathUnescape"><code>PathUnescape</code></a>
       are similar to the query escaping and unescaping functions but
-      for path elements.</p>
+      for path elements.
+    </p>
 
-    <p> <!-- CL 28933 --> The new methods
+    <p> <!-- CL 28933 -->
+      The new methods
       <a href="/pkg/net/url/#URL.Hostname"><code>URL.Hostname</code></a>
       and
       <a href="/pkg/net/url/#URL.Port"><code>URL.Port</code></a>
@@ -1378,7 +1447,8 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       correctly handling the case where the port may not be present.
     </p>
 
-    <p> <!-- CL 28343 --> The existing method
+    <p> <!-- CL 28343 -->
+      The existing method
       <a href="/pkg/net/url/#URL.ResolveReference"><code>URL.ResolveReference</code></a>
       now properly handles paths with escaped bytes without losing
       the escaping.
@@ -1397,7 +1467,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       now rejects URLs like <code>this_that:other/thing</code> instead of
       interpreting them as relative paths (<code>this_that</code> is not a valid scheme).
       To force interpretation as a relative path,
-      such URLs should be prefixed with <code>"./"</code>.
+      such URLs should be prefixed with “<code>./</code>”.
       The <code>URL.String</code> method now inserts this prefix as needed.
     </p>
 
@@ -1406,7 +1476,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
 
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
-    <p>
+    <p> <!-- CL 16551 -->
       The new function
       <a href="/pkg/os/#Executable"><code>Executable</code></a> returns
       the path name of the running executable.
@@ -1427,12 +1497,12 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       existing empty directory.
       Previously it would fail when renaming to a non-empty directory
       but succeed when renaming to an empty directory.
-      This makes the behavior on Unix correspond to that on other systems.
+      This makes the behavior on Unix correspond to that of other systems.
     </p>
 
     <p> <!-- CL 32451 -->
       On Windows, long absolute paths are now transparently converted to
-      extended-length paths (paths that start with <code>\\?\</code>).
+      extended-length paths (paths that start with “<code>\\?\</code>”).
       This permits the package to work with files whose path names are
       longer than 260 characters.
     </p>
@@ -1454,32 +1524,18 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
   </dd>
 </dl>
 
-<dl id="os_signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
-  <dd>
-    <p> <!-- CL 32796 -->
-      In a Go library built with <code>-buildmode=c-archive</code>
-      or <code>c-shared</code>, when C code calls a Go function,
-      the <code>SIGPIPE</code> signal will be treated as usual for Go code.
-      In particular, when <code>SIGPIPE</code> is triggered by a write
-      to a closed Go network connection, it will not cause the program
-      to exit.
-    </p>
-  </dd>
-</dl>
-
 <dl id="path_filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
   <dd>
     <p>
-    <p>A number of bugs and corner cases on Windows were fixed:
-      <a href="/pkg/path/filepath/#Abs"><code>Abs</code></a> now calls <code>Clean</code> paths as documented,
+      A number of bugs and corner cases on Windows were fixed:
+      <a href="/pkg/path/filepath/#Abs"><code>Abs</code></a> now calls <code>Clean</code> as documented,
       <a href="/pkg/path/filepath/#Glob"><code>Glob</code></a> now matches
-      "<code>\\?\c:\*</code>",
+      “<code>\\?\c:\*</code>”,
       <a href="/pkg/path/filepath/#EvalSymlinks"><code>EvalSymlinks</code></a> now
-      correctly handles "<code>C:.</code>", and
+      correctly handles “<code>C:.</code>”, and
       <a href="/pkg/path/filepath/#Clean"><code>Clean</code></a> now properly
-      handles a leading "<code>..</code>" in the path.
-    <p>
-
+      handles a leading “<code>..</code>” in the path.
+    </p>
   </dd>
 </dl>
 
@@ -1580,14 +1636,6 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       test or benchmark.
     </p>
 
-    <p><!-- CL 31724 -->
-      The new method
-      <a href="/pkg/testing/#T.Context"><code>T.Context</code></a>
-      (and <code>B.Context</code>) returns
-      a <a href="/pkg/context/#Context"><code>Context</code></a> for
-      the current running test or benchmark.
-    </p>
-
     <p><!-- CL 32483 -->
       The new function
       <a href="/pkg/testing/#CoverMode"><code>CoverMode</code></a>
@@ -1600,15 +1648,15 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       Previously, individual test cases would appear to pass,
       and only the overall execution of the test binary would fail.
     </p>
-   
+
   </dd>
 </dl>
 
 <dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
   <dd>
     <p><!-- CL 30935 -->
-      <code>SimpleFold</code> now returns its argument unchanged
-      if the provided input was an invalid rune.
+      <a href="/pkg/unicode/#SimpleFold"><code>SimpleFold</code></a>
+      now returns its argument unchanged if the provided input was an invalid rune.
       Previously, the implementation failed with an index bounds check panic.
     </p>
   </dd>

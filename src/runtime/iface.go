@@ -138,11 +138,8 @@ func additab(m *itab, locked, canfail bool) {
 		throw("invalid itab locking")
 	}
 	h := itabhash(inter, typ)
-	if m == hash[h] {
-		println("duplicate itab for", typ.string(), "and", inter.typ.string())
-		throw("duplicate itabs")
-	}
 	m.link = hash[h]
+	m.inhash = 1
 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
 }
 
@@ -150,7 +147,14 @@ func itabsinit() {
 	lock(&ifaceLock)
 	for _, md := range activeModules() {
 		for _, i := range md.itablinks {
-			additab(i, true, false)
+			// itablinks is a slice of pointers to the itabs used in this
+			// module. A given itab may be used in more than one module
+			// and thanks to the way global symbol resolution works, the
+			// pointed-to itab may already have been inserted into the
+			// global 'hash'.
+			if i.inhash == 0 {
+				additab(i, true, false)
+			}
 		}
 	}
 	unlock(&ifaceLock)
@@ -179,7 +183,7 @@ func panicnildottype(want *_type) {
 
 // The conv and assert functions below do very similar things.
 // The convXXX functions are guaranteed by the compiler to succeed.
-// The assertXXX functions may fail (either panicing or returning false,
+// The assertXXX functions may fail (either panicking or returning false,
 // depending on whether they are 1-result or 2-result).
 // The convXXX functions succeed on a nil input, whereas the assertXXX
 // functions fail on a nil input.

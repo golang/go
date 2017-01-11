@@ -204,7 +204,11 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
 	}
 
 	// Check that we got a reasonable number of samples.
-	if ideal := uintptr(duration * 100 / time.Second); samples == 0 || samples < ideal/4 {
+	// We used to always require at least ideal/4 samples,
+	// but that is too hard to guarantee on a loaded system.
+	// Now we accept 10 or more samples, which we take to be
+	// enough to show that at least some profiling is occurring.
+	if ideal := uintptr(duration * 100 / time.Second); samples == 0 || (samples < ideal/4 && samples < 10) {
 		t.Logf("too few samples; got %d, want at least %d, ideally %d", samples, ideal/4, ideal)
 		ok = false
 	}

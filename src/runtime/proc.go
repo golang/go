@@ -240,6 +240,16 @@ func Gosched() {
 	mcall(gosched_m)
 }
 
+var alwaysFalse bool
+
+// goschedguarded does nothing, but is written in a way that guarantees a preemption check in its prologue.
+// Calls to this function are inserted by the compiler in otherwise uninterruptible loops (see insertLoopReschedChecks).
+func goschedguarded() {
+	if alwaysFalse {
+		goschedguarded()
+	}
+}
+
 // Puts the current goroutine into a waiting state and calls unlockf.
 // If unlockf returns false, the goroutine is resumed.
 // unlockf must not access this G's stack, as it may be moved between
@@ -632,10 +642,15 @@ func helpgc(nproc int32) {
 // sched.stopwait to in order to request that all Gs permanently stop.
 const freezeStopWait = 0x7fffffff
 
+// freezing is set to non-zero if the runtime is trying to freeze the
+// world.
+var freezing uint32
+
 // Similar to stopTheWorld but best-effort and can be called several times.
 // There is no reverse operation, used during crashing.
 // This function must not lock any mutexes.
 func freezetheworld() {
+	atomic.Store(&freezing, 1)
 	// stopwait and preemption requests can be lost
 	// due to races with concurrently executing threads,
 	// so try several times
@@ -1018,14 +1033,29 @@ func stopTheWorldWithSema() {
 			preemptall()
 		}
 	}
+
+	// sanity checks
+	bad := ""
 	if sched.stopwait != 0 {
-		throw("stopTheWorld: not stopped")
-	}
-	for i := 0; i < int(gomaxprocs); i++ {
-		p := allp[i]
-		if p.status != _Pgcstop {
-			throw("stopTheWorld: not stopped")
+		bad = "stopTheWorld: not stopped (stopwait != 0)"
+	} else {
+		for i := 0; i < int(gomaxprocs); i++ {
+			p := allp[i]
+			if p.status != _Pgcstop {
+				bad = "stopTheWorld: not stopped (status != _Pgcstop)"
+			}
 		}
+	}
+	if atomic.Load(&freezing) != 0 {
+		// Some other thread is panicking. This can cause the
+		// sanity checks above to fail if the panic happens in
+		// the signal handler on a stopped thread. Either way,
+		// we should halt this thread.
+		lock(&deadlock)
+		lock(&deadlock)
+	}
+	if bad != "" {
+		throw(bad)
 	}
 }
 

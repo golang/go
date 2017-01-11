@@ -175,6 +175,14 @@ func f(b []byte, i int) uint64 {
 	},
 	{"amd64", "linux", `
 import "encoding/binary"
+func f(b []byte, v uint64) {
+	binary.BigEndian.PutUint64(b, v)
+}
+`,
+		[]string{"\tBSWAPQ\t"},
+	},
+	{"amd64", "linux", `
+import "encoding/binary"
 func f(b []byte) uint32 {
 	return binary.BigEndian.Uint32(b)
 }
@@ -185,6 +193,14 @@ func f(b []byte) uint32 {
 import "encoding/binary"
 func f(b []byte, i int) uint32 {
 	return binary.BigEndian.Uint32(b[i:])
+}
+`,
+		[]string{"\tBSWAPL\t"},
+	},
+	{"amd64", "linux", `
+import "encoding/binary"
+func f(b []byte, v uint32) {
+	binary.BigEndian.PutUint32(b, v)
 }
 `,
 		[]string{"\tBSWAPL\t"},
@@ -205,6 +221,19 @@ func f(b []byte, i int) uint32 {
 `,
 		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
 	},
+
+	// Structure zeroing.  See issue #18370.
+	{"amd64", "linux", `
+type T struct {
+	a, b, c int
+}
+func f(t *T) {
+	*t = T{}
+}
+`,
+		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
+	},
+	// TODO: add a test for *t = T{3,4,5} when we fix that.
 }
 
 // mergeEnvLists merges the two environment lists such that

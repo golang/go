@@ -13,6 +13,9 @@ import (
 )
 
 func TestMemStats(t *testing.T) {
+	// Make sure there's at least one forced GC.
+	GC()
+
 	// Test that MemStats has sane values.
 	st := new(MemStats)
 	ReadMemStats(st)
@@ -24,7 +27,7 @@ func TestMemStats(t *testing.T) {
 		st.HeapInuse == 0 || st.HeapObjects == 0 || st.StackInuse == 0 ||
 		st.StackSys == 0 || st.MSpanInuse == 0 || st.MSpanSys == 0 || st.MCacheInuse == 0 ||
 		st.MCacheSys == 0 || st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 ||
-		st.NextGC == 0 {
+		st.NextGC == 0 || st.NumForcedGC == 0 {
 		t.Fatalf("Zero value: %+v", *st)
 	}
 
@@ -33,7 +36,7 @@ func TestMemStats(t *testing.T) {
 		st.HeapIdle > 1e10 || st.HeapInuse > 1e10 || st.HeapObjects > 1e10 || st.StackInuse > 1e10 ||
 		st.StackSys > 1e10 || st.MSpanInuse > 1e10 || st.MSpanSys > 1e10 || st.MCacheInuse > 1e10 ||
 		st.MCacheSys > 1e10 || st.BuckHashSys > 1e10 || st.GCSys > 1e10 || st.OtherSys > 1e10 ||
-		st.NextGC > 1e10 || st.NumGC > 1e9 || st.PauseTotalNs > 1e11 {
+		st.NextGC > 1e10 || st.NumGC > 1e9 || st.NumForcedGC > 1e9 || st.PauseTotalNs > 1e11 {
 		t.Fatalf("Insanely high value (overflow?): %+v", *st)
 	}
 
@@ -71,6 +74,10 @@ func TestMemStats(t *testing.T) {
 		if st.PauseTotalNs < pauseTotal {
 			t.Fatalf("PauseTotalNs(%d) < sum PauseNs(%d)", st.PauseTotalNs, pauseTotal)
 		}
+	}
+
+	if st.NumForcedGC > st.NumGC {
+		t.Fatalf("NumForcedGC(%d) > NumGC(%d)", st.NumForcedGC, st.NumGC)
 	}
 }
 

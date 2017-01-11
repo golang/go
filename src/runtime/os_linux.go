@@ -91,6 +91,9 @@ func getproccount() int32 {
 	const maxCPUs = 64 * 1024
 	var buf [maxCPUs / (sys.PtrSize * 8)]uintptr
 	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
+	if r < 0 {
+		return 1
+	}
 	n := int32(0)
 	for _, v := range buf[:r/sys.PtrSize] {
 		for v != 0 {
@@ -208,6 +211,26 @@ func sysargs(argc int32, argv **byte) {
 		// Fall back to /proc/self/auxv.
 		fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
 		if fd < 0 {
+			// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
+			// try using mincore to detect the physical page size.
+			// mincore should return EINVAL when address is not a multiple of system page size.
+			const size = 256 << 10 // size of memory region to allocate
+			p := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+			if uintptr(p) < 4096 {
+				return
+			}
+			var n uintptr
+			for n = 4 << 10; n < size; n <<= 1 {
+				err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
+				if err == 0 {
+					physPageSize = n
+					break
+				}
+			}
+			if physPageSize == 0 {
+				physPageSize = size
+			}
+			munmap(p, size)
 			return
 		}
 		var buf [128]uintptr

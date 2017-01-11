@@ -535,7 +535,11 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 			// Nested panics; the recursion in printArg cannot succeed.
 			panic(err)
 		}
-		p.fmt.clearflags() // We are done, and for this output we want default behavior.
+
+		oldFlags := p.fmt.fmtFlags
+		// For this output we want default behavior.
+		p.fmt.clearflags()
+
 		p.buf.WriteString(percentBangString)
 		p.buf.WriteRune(verb)
 		p.buf.WriteString(panicString)
@@ -543,6 +547,8 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 		p.printArg(err, 'v')
 		p.panicking = false
 		p.buf.WriteByte(')')
+
+		p.fmt.fmtFlags = oldFlags
 	}
 }
 
@@ -813,16 +819,15 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 			if f.Kind() == reflect.Slice && f.IsNil() {
 				p.buf.WriteString(nilParenString)
 				return
-			} else {
-				p.buf.WriteByte('{')
-				for i := 0; i < f.Len(); i++ {
-					if i > 0 {
-						p.buf.WriteString(commaSpaceString)
-					}
-					p.printValue(f.Index(i), verb, depth+1)
-				}
-				p.buf.WriteByte('}')
 			}
+			p.buf.WriteByte('{')
+			for i := 0; i < f.Len(); i++ {
+				if i > 0 {
+					p.buf.WriteString(commaSpaceString)
+				}
+				p.printValue(f.Index(i), verb, depth+1)
+			}
+			p.buf.WriteByte('}')
 		} else {
 			p.buf.WriteByte('[')
 			for i := 0; i < f.Len(); i++ {

@@ -546,7 +546,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	return n
 }
 
-// reflectMethodValue is a partial duplicate of reflect.methodValue.
+// reflectMethodValue is a partial duplicate of reflect.makeFuncImpl
+// and reflect.methodValue.
 type reflectMethodValue struct {
 	fn    uintptr
 	stack *bitvector // args bitmap

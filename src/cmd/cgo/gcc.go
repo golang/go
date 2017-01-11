@@ -1210,6 +1210,8 @@ func (p *Package) gccMachine() []string {
 		return []string{"-m64"}
 	case "mips64", "mips64le":
 		return []string{"-mabi=64"}
+	case "mips", "mipsle":
+		return []string{"-mabi=32"}
 	}
 	return nil
 }
@@ -1727,6 +1729,15 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		if _, ok := base(dt.Type).(*dwarf.VoidType); ok {
 			t.Go = c.goVoidPtr
 			t.C.Set("void*")
+			dq := dt.Type
+			for {
+				if d, ok := dq.(*dwarf.QualType); ok {
+					t.C.Set(d.Qual + " " + t.C.String())
+					dq = d.Type
+				} else {
+					break
+				}
+			}
 			break
 		}
 

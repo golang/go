@@ -27,7 +27,7 @@ type aesCipherAsm struct {
 // cryptBlocks invokes the cipher message (KM) instruction with
 // the given function code. This is equivalent to AES in ECB
 // mode. The length must be a multiple of BlockSize (16).
-//go:noesape
+//go:noescape
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
 var useAsm = cipherhw.AESGCMSupport()

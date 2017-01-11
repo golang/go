@@ -711,7 +711,10 @@ func (p *parser) parseType(pkg *types.Package) (t types.Type) {
 func (p *parser) parsePackageInit() PackageInit {
 	name := p.parseUnquotedString()
 	initfunc := p.parseUnquotedString()
-	priority := int(p.parseInt())
+	priority := -1
+	if p.version == "v1" {
+		priority = int(p.parseInt())
+	}
 	return PackageInit{Name: name, InitFunc: initfunc, Priority: priority}
 }
 
@@ -766,6 +769,15 @@ func (p *parser) parseInitDataDirective() {
 		}
 		p.expect(';')
 
+	case "init_graph":
+		p.next()
+		// The graph data is thrown away for now.
+		for p.tok != ';' && p.tok != scanner.EOF {
+			p.parseInt()
+			p.parseInt()
+		}
+		p.expect(';')
+
 	case "checksum":
 		// Don't let the scanner try to parse the checksum as a number.
 		defer func(mode uint) {
@@ -797,7 +809,7 @@ func (p *parser) parseDirective() {
 	}
 
 	switch p.lit {
-	case "v1", "v2", "priority", "init", "checksum":
+	case "v1", "v2", "priority", "init", "init_graph", "checksum":
 		p.parseInitDataDirective()
 
 	case "package":

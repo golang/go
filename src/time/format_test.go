@@ -405,6 +405,7 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
 	{"ESAST hi", 5, true},
 	{"ESASTT hi", 0, false}, // run of upper-case letters too long.
 	{"ESATY hi", 0, false},  // five letters must end in T.
+	{"WITA hi", 4, true},    // Issue #18251
 }
 
 func TestParseTimeZone(t *testing.T) {

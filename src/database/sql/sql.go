@@ -8,14 +8,16 @@
 // The sql package must be used in conjunction with a database driver.
 // See https://golang.org/s/sqldrivers for a list of drivers.
 //
-// For more usage examples, see the wiki page at
+// Drivers that do not support context cancelation will not return until
+// after the query is completed.
+//
+// For usage examples, see the wiki page at
 // https://golang.org/s/sqlwiki.
 package sql
 
 import (
 	"context"
 	"database/sql/driver"
-	"database/sql/internal"
 	"errors"
 	"fmt"
 	"io"
@@ -69,17 +71,26 @@ func Drivers() []string {
 	return list
 }
 
-// A NamedArg used as an argument to Query or Exec
-// binds to the corresponding named parameter in the SQL statement.
+// A NamedArg is a named argument. NamedArg values may be used as
+// arguments to Query or Exec and bind to the corresponding named
+// parameter in the SQL statement.
+//
+// For a more concise way to create NamedArg values, see
+// the Named function.
 type NamedArg struct {
 	_Named_Fields_Required struct{}
 
-	// Name of the parameter placeholder. If empty the ordinal position in the
-	// argument list will be used.
+	// Name is the name of the parameter placeholder.
+	//
+	// If empty, the ordinal position in the argument list will be
+	// used.
+	//
+	// Name must omit any symbol prefix.
 	Name string
 
-	// Value of the parameter. It may be assigned the same value types as
-	// the query arguments.
+	// Value is the value of the parameter.
+	// It may be assigned the same value types as the query
+	// arguments.
 	Value interface{}
 }
 
@@ -103,12 +114,10 @@ func Named(name string, value interface{}) NamedArg {
 	return NamedArg{Name: name, Value: value}
 }
 
-// IsolationLevel is the transaction isolation level stored in Context.
-// The IsolationLevel is set with IsolationContext and the context
-// should be passed to BeginContext.
+// IsolationLevel is the transaction isolation level used in TxOptions.
 type IsolationLevel int
 
-// Various isolation levels that drivers may support in BeginContext.
+// Various isolation levels that drivers may support in BeginTx.
 // If a driver does not support a given isolation level an error may be returned.
 //
 // See https://en.wikipedia.org/wiki/Isolation_(database_systems)#Isolation_levels.
@@ -123,18 +132,12 @@ const (
 	LevelLinearizable
 )
 
-// IsolationContext returns a new Context that carries the provided isolation level.
-// The context must contain the isolation level before beginning the transaction
-// with BeginContext.
-func IsolationContext(ctx context.Context, level IsolationLevel) context.Context {
-	return context.WithValue(ctx, internal.IsolationLevelKey{}, driver.IsolationLevel(level))
-}
-
-// ReadOnlyWithContext returns a new Context that carries the provided
-// read-only transaction property. The context must contain the read-only property
-// before beginning the transaction with BeginContext.
-func ReadOnlyContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, internal.ReadOnlyKey{}, true)
+// TxOptions holds the transaction options to be used in DB.BeginTx.
+type TxOptions struct {
+	// Isolation is the transaction isolation level.
+	// If zero, the driver or database's default level is used.
+	Isolation IsolationLevel
+	ReadOnly  bool
 }
 
 // RawBytes is a byte slice that holds a reference to memory owned by
@@ -1299,28 +1302,27 @@ func (db *DB) QueryRow(query string, args ...interface{}) *Row {
 	return db.QueryRowContext(context.Background(), query, args...)
 }
 
-// BeginContext starts a transaction.
+// BeginTx starts a transaction.
 //
 // The provided context is used until the transaction is committed or rolled back.
 // If the context is canceled, the sql package will roll back
 // the transaction. Tx.Commit will return an error if the context provided to
-// BeginContext is canceled.
+// BeginTx is canceled.
 //
-// An isolation level may be set by setting the value in the context
-// before calling this. If a non-default isolation level is used
-// that the driver doesn't support an error will be returned. Different drivers
-// may have slightly different meanings for the same isolation level.
-func (db *DB) BeginContext(ctx context.Context) (*Tx, error) {
+// The provided TxOptions is optional and may be nil if defaults should be used.
+// If a non-default isolation level is used that the driver doesn't support,
+// an error will be returned.
+func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 	var tx *Tx
 	var err error
 	for i := 0; i < maxBadConnRetries; i++ {
-		tx, err = db.begin(ctx, cachedOrNewConn)
+		tx, err = db.begin(ctx, opts, cachedOrNewConn)
 		if err != driver.ErrBadConn {
 			break
 		}
 	}
 	if err == driver.ErrBadConn {
-		return db.begin(ctx, alwaysNewConn)
+		return db.begin(ctx, opts, alwaysNewConn)
 	}
 	return tx, err
 }
@@ -1328,17 +1330,17 @@ func (db *DB) BeginContext(ctx context.Context) (*Tx, error) {
 // Begin starts a transaction. The default isolation level is dependent on
 // the driver.
 func (db *DB) Begin() (*Tx, error) {
-	return db.BeginContext(context.Background())
+	return db.BeginTx(context.Background(), nil)
 }
 
-func (db *DB) begin(ctx context.Context, strategy connReuseStrategy) (tx *Tx, err error) {
+func (db *DB) begin(ctx context.Context, opts *TxOptions, strategy connReuseStrategy) (tx *Tx, err error) {
 	dc, err := db.conn(ctx, strategy)
 	if err != nil {
 		return nil, err
 	}
 	var txi driver.Tx
 	withLock(dc, func() {
-		txi, err = ctxDriverBegin(ctx, dc.ci)
+		txi, err = ctxDriverBegin(ctx, opts, dc.ci)
 	})
 	if err != nil {
 		db.putConn(dc, err)
@@ -1419,10 +1421,9 @@ func (tx *Tx) isDone() bool {
 // that has already been committed or rolled back.
 var ErrTxDone = errors.New("sql: Transaction has already been committed or rolled back")
 
+// close returns the connection to the pool and
+// must only be called by Tx.rollback or Tx.Commit.
 func (tx *Tx) close(err error) {
-	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
-		panic("double close") // internal error
-	}
 	tx.db.putConn(tx.dc, err)
 	tx.cancel()
 	tx.dc = nil
@@ -1447,13 +1448,13 @@ func (tx *Tx) closePrepared() {
 
 // Commit commits the transaction.
 func (tx *Tx) Commit() error {
+	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
+		return ErrTxDone
+	}
 	select {
 	default:
 	case <-tx.ctx.Done():
 		return tx.ctx.Err()
-	}
-	if tx.isDone() {
-		return ErrTxDone
 	}
 	var err error
 	withLock(tx.dc, func() {
@@ -1469,7 +1470,7 @@ func (tx *Tx) Commit() error {
 // rollback aborts the transaction and optionally forces the pool to discard
 // the connection.
 func (tx *Tx) rollback(discardConn bool) error {
-	if tx.isDone() {
+	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
 		return ErrTxDone
 	}
 	var err error
@@ -2085,7 +2086,7 @@ func (rs *Rows) Next() bool {
 		}
 		// The driver is at the end of the current result set.
 		// Test to see if there is another result set after the current one.
-		// Only close Rows if there is no futher result sets to read.
+		// Only close Rows if there is no further result sets to read.
 		if !nextResultSet.HasNextResultSet() {
 			rs.Close()
 		}

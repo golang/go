@@ -338,3 +338,7 @@ pkg unicode, const Version = "6.2.0"
 pkg unicode, const Version = "6.3.0"
 pkg unicode, const Version = "7.0.0"
 pkg unicode, const Version = "8.0.0"
+pkg syscall (openbsd-386), const SYS_KILL = 37
+pkg syscall (openbsd-386-cgo), const SYS_KILL = 37
+pkg syscall (openbsd-amd64), const SYS_KILL = 37
+pkg syscall (openbsd-amd64-cgo), const SYS_KILL = 37

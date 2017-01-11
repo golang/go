@@ -10,7 +10,6 @@ package driver
 
 import (
 	"context"
-	"database/sql/internal"
 	"errors"
 	"reflect"
 )
@@ -27,13 +26,18 @@ import (
 type Value interface{}
 
 // NamedValue holds both the value name and value.
-// The Ordinal is the position of the parameter starting from one and is always set.
-// If the Name is not empty it should be used for the parameter identifier and
-// not the ordinal position.
 type NamedValue struct {
-	Name    string
+	// If the Name is not empty it should be used for the parameter identifier and
+	// not the ordinal position.
+	//
+	// Name will not have a symbol prefix.
+	Name string
+
+	// Ordinal position of the parameter starting from one and is always set.
 	Ordinal int
-	Value   Value
+
+	// Value is the parameter value.
+	Value Value
 }
 
 // Driver is the interface that must be implemented by a database
@@ -152,7 +156,7 @@ type Conn interface {
 
 	// Begin starts and returns a new transaction.
 	//
-	// Deprecated: Drivers should implement ConnBeginContext instead (or additionally).
+	// Deprecated: Drivers should implement ConnBeginTx instead (or additionally).
 	Begin() (Tx, error)
 }
 
@@ -164,41 +168,35 @@ type ConnPrepareContext interface {
 	PrepareContext(ctx context.Context, query string) (Stmt, error)
 }
 
-// IsolationLevel is the transaction isolation level stored in Context.
+// IsolationLevel is the transaction isolation level stored in TxOptions.
 //
 // This type should be considered identical to sql.IsolationLevel along
 // with any values defined on it.
 type IsolationLevel int
 
-// IsolationFromContext extracts the isolation level from a Context.
-func IsolationFromContext(ctx context.Context) (level IsolationLevel, ok bool) {
-	level, ok = ctx.Value(internal.IsolationLevelKey{}).(IsolationLevel)
-	return level, ok
+// TxOptions holds the transaction options.
+//
+// This type should be considered identical to sql.TxOptions.
+type TxOptions struct {
+	Isolation IsolationLevel
+	ReadOnly  bool
 }
 
-// ReadOnlyFromContext extracts the read-only property from a Context.
-// When readonly is true the transaction must be set to read-only
-// or return an error.
-func ReadOnlyFromContext(ctx context.Context) (readonly bool) {
-	readonly, _ = ctx.Value(internal.ReadOnlyKey{}).(bool)
-	return readonly
-}
-
-// ConnBeginContext enhances the Conn interface with context.
-type ConnBeginContext interface {
-	// BeginContext starts and returns a new transaction.
+// ConnBeginTx enhances the Conn interface with context and TxOptions.
+type ConnBeginTx interface {
+	// BeginTx starts and returns a new transaction.
 	// If the context is canceled by the user the sql package will
 	// call Tx.Rollback before discarding and closing the connection.
 	//
-	// This must call IsolationFromContext to determine if there is a set
-	// isolation level. If the driver does not support setting the isolation
-	// level and one is set or if there is a set isolation level
-	// but the set level is not supported, an error must be returned.
+	// This must check opts.Isolation to determine if there is a set
+	// isolation level. If the driver does not support a non-default
+	// level and one is set or if there is a non-default isolation level
+	// that is not supported, an error must be returned.
 	//
-	// This must also call ReadOnlyFromContext to determine if the read-only
+	// This must also check opts.ReadOnly to determine if the read-only
 	// value is true to either set the read-only transaction property if supported
 	// or return an error if it is not supported.
-	BeginContext(ctx context.Context) (Tx, error)
+	BeginTx(ctx context.Context, opts TxOptions) (Tx, error)
 }
 
 // Result is the result of a query execution.

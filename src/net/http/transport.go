@@ -923,6 +923,9 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		// value.
 		select {
 		case <-req.Cancel:
+			// It was an error due to cancelation, so prioritize that
+			// error value. (Issue 16049)
+			return nil, errRequestCanceledConn
 		case <-req.Context().Done():
 			return nil, req.Context().Err()
 		case err := <-cancelc:
@@ -935,9 +938,6 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 			// return the original error message:
 			return nil, v.err
 		}
-		// It was an error due to cancelation, so prioritize that
-		// error value. (Issue 16049)
-		return nil, errRequestCanceledConn
 	case pc := <-idleConnCh:
 		// Another request finished first and its net.Conn
 		// became available before our dial. Or somebody
@@ -1384,7 +1384,7 @@ func (pc *persistConn) closeConnIfStillIdle() {
 //
 // The startBytesWritten value should be the value of pc.nwrite before the roundTrip
 // started writing the request.
-func (pc *persistConn) mapRoundTripErrorFromReadLoop(startBytesWritten int64, err error) (out error) {
+func (pc *persistConn) mapRoundTripErrorFromReadLoop(req *Request, startBytesWritten int64, err error) (out error) {
 	if err == nil {
 		return nil
 	}
@@ -1399,7 +1399,7 @@ func (pc *persistConn) mapRoundTripErrorFromReadLoop(startBytesWritten int64, er
 	}
 	if pc.isBroken() {
 		<-pc.writeLoopDone
-		if pc.nwrite == startBytesWritten {
+		if pc.nwrite == startBytesWritten && req.outgoingLength() == 0 {
 			return nothingWrittenError{err}
 		}
 	}
@@ -1410,7 +1410,7 @@ func (pc *persistConn) mapRoundTripErrorFromReadLoop(startBytesWritten int64, er
 // up to Transport.RoundTrip method when persistConn.roundTrip sees
 // its pc.closech channel close, indicating the persistConn is dead.
 // (after closech is closed, pc.closed is valid).
-func (pc *persistConn) mapRoundTripErrorAfterClosed(startBytesWritten int64) error {
+func (pc *persistConn) mapRoundTripErrorAfterClosed(req *Request, startBytesWritten int64) error {
 	if err := pc.canceled(); err != nil {
 		return err
 	}
@@ -1428,7 +1428,7 @@ func (pc *persistConn) mapRoundTripErrorAfterClosed(startBytesWritten int64) err
 	// see if we actually managed to write anything. If not, we
 	// can retry the request.
 	<-pc.writeLoopDone
-	if pc.nwrite == startBytesWritten {
+	if pc.nwrite == startBytesWritten && req.outgoingLength() == 0 {
 		return nothingWrittenError{err}
 	}
 
@@ -1710,7 +1710,7 @@ func (pc *persistConn) writeLoop() {
 			}
 			if err != nil {
 				wr.req.Request.closeBody()
-				if pc.nwrite == startBytesWritten {
+				if pc.nwrite == startBytesWritten && wr.req.outgoingLength() == 0 {
 					err = nothingWrittenError{err}
 				}
 			}
@@ -1911,14 +1911,14 @@ WaitResponse:
 				respHeaderTimer = timer.C
 			}
 		case <-pc.closech:
-			re = responseAndError{err: pc.mapRoundTripErrorAfterClosed(startBytesWritten)}
+			re = responseAndError{err: pc.mapRoundTripErrorAfterClosed(req.Request, startBytesWritten)}
 			break WaitResponse
 		case <-respHeaderTimer:
 			pc.close(errTimeout)
 			re = responseAndError{err: errTimeout}
 			break WaitResponse
 		case re = <-resc:
-			re.err = pc.mapRoundTripErrorFromReadLoop(startBytesWritten, re.err)
+			re.err = pc.mapRoundTripErrorFromReadLoop(req.Request, startBytesWritten, re.err)
 			break WaitResponse
 		case <-cancelChan:
 			pc.t.CancelRequest(req.Request)

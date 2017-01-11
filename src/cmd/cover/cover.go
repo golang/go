@@ -151,11 +151,12 @@ type Block struct {
 // File is a wrapper for the state of a file used in the parser.
 // The basic parse tree walker is a method of this type.
 type File struct {
-	fset      *token.FileSet
-	name      string // Name of file.
-	astFile   *ast.File
-	blocks    []Block
-	atomicPkg string // Package name for "sync/atomic" in this file.
+	fset       *token.FileSet
+	name       string // Name of file.
+	astFile    *ast.File
+	blocks     []Block
+	atomicPkg  string                // Package name for "sync/atomic" in this file.
+	directives map[*ast.Comment]bool // Map of compiler directives to whether it's processed in ast.Visitor or not.
 }
 
 // Visit implements the ast.Visitor interface.
@@ -247,8 +248,11 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		// to appear in syntactically incorrect places. //go: appears at the beginning of
 		// the line and is syntactically safe.
 		for _, c := range n.List {
-			if strings.HasPrefix(c.Text, "//go:") && f.fset.Position(c.Slash).Column == 1 {
+			if f.isDirective(c) {
 				list = append(list, c)
+
+				// Mark compiler directive as handled.
+				f.directives[c] = true
 			}
 		}
 		n.List = list
@@ -360,17 +364,27 @@ func annotate(name string) {
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}
-	// Remove comments. Or else they interfere with new AST.
-	parsedFile.Comments = nil
 
 	file := &File{
-		fset:    fset,
-		name:    name,
-		astFile: parsedFile,
+		fset:       fset,
+		name:       name,
+		astFile:    parsedFile,
+		directives: map[*ast.Comment]bool{},
 	}
 	if *mode == "atomic" {
 		file.atomicPkg = file.addImport(atomicPackagePath)
 	}
+
+	for _, cg := range parsedFile.Comments {
+		for _, c := range cg.List {
+			if file.isDirective(c) {
+				file.directives[c] = false
+			}
+		}
+	}
+	// Remove comments. Or else they interfere with new AST.
+	parsedFile.Comments = nil
+
 	ast.Walk(file, file.astFile)
 	fd := os.Stdout
 	if *output != "" {
@@ -381,6 +395,17 @@ func annotate(name string) {
 		}
 	}
 	fd.Write(initialComments(content)) // Retain '// +build' directives.
+
+	// Retain compiler directives that are not processed in ast.Visitor.
+	// Some compiler directives like "go:linkname" and "go:cgo_"
+	// can be not attached to anything in the tree and hence will not be printed by printer.
+	// So, we have to explicitly print them here.
+	for cd, handled := range file.directives {
+		if !handled {
+			fmt.Fprintln(fd, cd.Text)
+		}
+	}
+
 	file.print(fd)
 	// After printing the source tree, add some declarations for the counters etc.
 	// We could do this by adding to the tree, but it's easier just to print the text.
@@ -389,6 +414,11 @@ func annotate(name string) {
 
 func (f *File) print(w io.Writer) {
 	printer.Fprint(w, f.fset, f.astFile)
+}
+
+// isDirective reports whether a comment is a compiler directive.
+func (f *File) isDirective(c *ast.Comment) bool {
+	return strings.HasPrefix(c.Text, "//go:") && f.fset.Position(c.Slash).Column == 1
 }
 
 // intLiteral returns an ast.BasicLit representing the integer value.

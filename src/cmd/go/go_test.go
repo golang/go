@@ -1700,6 +1700,8 @@ func TestMissingGOPATHEnvShowsDefault(t *testing.T) {
 
 // Test go get missing GOPATH causes go get to warn if directory doesn't exist.
 func TestMissingGOPATHGetWarnsIfNotExists(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("skipping because git binary not found")
 	}
@@ -1727,6 +1729,8 @@ func TestMissingGOPATHGetWarnsIfNotExists(t *testing.T) {
 
 // Test go get missing GOPATH causes no warning if directory exists.
 func TestMissingGOPATHGetDoesntWarnIfExists(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("skipping because git binary not found")
 	}
@@ -1757,6 +1761,8 @@ func TestMissingGOPATHGetDoesntWarnIfExists(t *testing.T) {
 
 // Test go get missing GOPATH fails if pointed file is not a directory.
 func TestMissingGOPATHGetFailsIfItsNotDirectory(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
 	tg := testgo(t)
 	defer tg.cleanup()
 
@@ -1877,6 +1883,26 @@ func TestGoTestCpuprofileDashOControlsBinaryLocation(t *testing.T) {
 	tg.cd(tg.path("."))
 	tg.run("test", "-cpuprofile", "errors.prof", "-o", "myerrors.test"+exeSuffix, "errors")
 	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -cpuprofile -o myerrors.test did not create myerrors.test")
+}
+
+func TestGoTestMutexprofileLeavesBinaryBehind(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	// TODO: tg.parallel()
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+	tg.run("test", "-mutexprofile", "errors.prof", "errors")
+	tg.wantExecutable("errors.test"+exeSuffix, "go test -mutexprofile did not create errors.test")
+}
+
+func TestGoTestMutexprofileDashOControlsBinaryLocation(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	// TODO: tg.parallel()
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+	tg.run("test", "-mutexprofile", "errors.prof", "-o", "myerrors.test"+exeSuffix, "errors")
+	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -mutexprofile -o myerrors.test did not create myerrors.test")
 }
 
 func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
@@ -2067,9 +2093,7 @@ func TestCaseCollisions(t *testing.T) {
 
 // Issue 8181.
 func TestGoGetDashTIssue8181(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test that uses network in short mode")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2083,9 +2107,7 @@ func TestGoGetDashTIssue8181(t *testing.T) {
 
 func TestIssue11307(t *testing.T) {
 	// go get -u was not working except in checkout directory
-	if testing.Short() {
-		t.Skip("skipping test that uses network in short mode")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2243,6 +2265,28 @@ func TestCoverageImportMainLoop(t *testing.T) {
 	tg.grepStderr("not an importable package", "did not detect import main")
 	tg.runFail("test", "-cover", "importmain/test")
 	tg.grepStderr("not an importable package", "did not detect import main")
+}
+
+func TestTestEmpty(t *testing.T) {
+	if !canRace {
+		t.Skip("no race detector")
+	}
+
+	wd, _ := os.Getwd()
+	testdata := filepath.Join(wd, "testdata")
+
+	for _, dir := range []string{"pkg", "test", "xtest", "pkgtest", "pkgxtest", "pkgtestxtest", "testxtest"} {
+		t.Run(dir, func(t *testing.T) {
+			tg := testgo(t)
+			defer tg.cleanup()
+			tg.setenv("GOPATH", testdata)
+			tg.cd(filepath.Join(testdata, "src/empty/"+dir))
+			tg.run("test", "-cover", "-coverpkg=.", "-race")
+		})
+		if testing.Short() {
+			break
+		}
+	}
 }
 
 func TestBuildDryRunWithCgo(t *testing.T) {
@@ -3355,9 +3399,11 @@ func TestCgoConsistentResults(t *testing.T) {
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
-	if runtime.GOOS == "solaris" {
-		// See https://golang.org/issue/13247
-		t.Skip("skipping because Solaris builds are known to be inconsistent; see #13247")
+	switch runtime.GOOS {
+	case "freebsd":
+		testenv.SkipFlaky(t, 15405)
+	case "solaris":
+		testenv.SkipFlaky(t, 13247)
 	}
 
 	tg := testgo(t)
@@ -3715,4 +3761,29 @@ func TestLinkXImportPathEscape(t *testing.T) {
 		tg.t.Log(string(out))
 		tg.t.Fatal(`incorrect output: expected "linkXworked\n"`)
 	}
+}
+
+// Issue 18044.
+func TestLdBindNow(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.setenv("LD_BIND_NOW", "1")
+	tg.run("help")
+}
+
+// Issue 18225.
+// This is really a cmd/asm issue but this is a convenient place to test it.
+func TestConcurrentAsm(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	asm := `DATA ·constants<>+0x0(SB)/8,$0
+GLOBL ·constants<>(SB),8,$8
+`
+	tg.tempFile("go/src/p/a.s", asm)
+	tg.tempFile("go/src/p/b.s", asm)
+	tg.tempFile("go/src/p/p.go", `package p`)
+	tg.setenv("GOPATH", tg.path("go"))
+	tg.run("build", "p")
 }

@@ -24,7 +24,7 @@ func toJson(v interface{}) string {
 	return string(data)
 }
 
-func TestLookupMX(t *testing.T) {
+func TestNSLookupMX(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
@@ -49,7 +49,7 @@ func TestLookupMX(t *testing.T) {
 	}
 }
 
-func TestLookupCNAME(t *testing.T) {
+func TestNSLookupCNAME(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
@@ -72,7 +72,7 @@ func TestLookupCNAME(t *testing.T) {
 	}
 }
 
-func TestLookupNS(t *testing.T) {
+func TestNSLookupNS(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
@@ -98,7 +98,7 @@ func TestLookupNS(t *testing.T) {
 	}
 }
 
-func TestLookupTXT(t *testing.T) {
+func TestNSLookupTXT(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {

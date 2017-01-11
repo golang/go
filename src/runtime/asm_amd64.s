@@ -75,11 +75,24 @@ no7:
 	TESTL   $(1<<5), runtime·cpuid_ebx7(SB) // check for AVX2 bit
 	JEQ     noavx2
 	MOVB    $1, runtime·support_avx2(SB)
-	JMP     nocpuinfo
+	JMP     testbmi1
 noavx:
 	MOVB    $0, runtime·support_avx(SB)
 noavx2:
 	MOVB    $0, runtime·support_avx2(SB)
+testbmi1:
+	// Detect BMI1 and BMI2 extensions as per
+	// 5.1.16.1 Detection of VEX-encoded GPR Instructions,
+	//   LZCNT and TZCNT, PREFETCHW chapter of [1]
+	MOVB    $0, runtime·support_bmi1(SB)
+	TESTL   $(1<<3), runtime·cpuid_ebx7(SB) // check for BMI1 bit
+	JEQ     testbmi2
+	MOVB    $1, runtime·support_bmi1(SB)
+testbmi2:
+	MOVB    $0, runtime·support_bmi2(SB)
+	TESTL   $(1<<8), runtime·cpuid_ebx7(SB) // check for BMI2 bit
+	JEQ     nocpuinfo
+	MOVB    $1, runtime·support_bmi2(SB)
 nocpuinfo:	
 	
 	// if there is an _cgo_init, call it.
@@ -742,7 +755,7 @@ havem:
 	MOVQ	(g_sched+gobuf_pc)(SI), BX
 	MOVQ	BX, -8(DI)
 	// Compute the size of the frame, including return PC and, if
-	// GOEXPERIMENT=framepointer, the saved based pointer
+	// GOEXPERIMENT=framepointer, the saved base pointer
 	MOVQ	ctxt+24(FP), BX
 	LEAQ	fv+0(FP), AX
 	SUBQ	SP, AX

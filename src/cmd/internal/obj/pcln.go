@@ -6,9 +6,8 @@ package obj
 
 import "log"
 
-func addvarint(ctxt *Link, d *Pcdata, val uint32) {
-	var v uint32
-	for v = val; v >= 0x80; v >>= 7 {
+func addvarint(d *Pcdata, v uint32) {
+	for ; v >= 0x80; v >>= 7 {
 		d.P = append(d.P, uint8(v|0x80))
 	}
 	d.P = append(d.P, uint8(v))
@@ -98,7 +97,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		}
 
 		if started != 0 {
-			addvarint(ctxt, dst, uint32((p.Pc-pc)/int64(ctxt.Arch.MinLC)))
+			addvarint(dst, uint32((p.Pc-pc)/int64(ctxt.Arch.MinLC)))
 			pc = p.Pc
 		}
 
@@ -108,7 +107,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		} else {
 			delta <<= 1
 		}
-		addvarint(ctxt, dst, delta)
+		addvarint(dst, delta)
 		oldval = val
 		started = 1
 		val = valfunc(ctxt, func_, val, p, 1, arg)
@@ -118,8 +117,8 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if ctxt.Debugpcln != 0 {
 			ctxt.Logf("%6x done\n", uint64(func_.Text.Pc+func_.Size))
 		}
-		addvarint(ctxt, dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
-		addvarint(ctxt, dst, 0) // terminator
+		addvarint(dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
+		addvarint(dst, 0) // terminator
 	}
 
 	if ctxt.Debugpcln != 0 {

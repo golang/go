@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -152,8 +153,11 @@ func (t *tester) run() {
 	}
 
 	t.timeoutScale = 1
-	if t.goarch == "arm" || t.goos == "windows" {
+	switch t.goarch {
+	case "arm":
 		t.timeoutScale = 2
+	case "mips", "mipsle", "mips64", "mips64le":
+		t.timeoutScale = 4
 	}
 	if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
 		t.timeoutScale, err = strconv.Atoi(s)
@@ -328,6 +332,10 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 	})
 }
 
+// stdOutErrAreTerminals is defined in test_linux.go, to report
+// whether stdout & stderr are terminals.
+var stdOutErrAreTerminals func() bool
+
 func (t *tester) registerTests() {
 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-vetall") {
 		// Run vet over std and cmd and call it quits.
@@ -342,6 +350,27 @@ func (t *tester) registerTests() {
 			},
 		})
 		return
+	}
+
+	// This test needs its stdout/stderr to be terminals, so we don't run it from cmd/go's tests.
+	// See issue 18153.
+	if runtime.GOOS == "linux" {
+		t.tests = append(t.tests, distTest{
+			name:    "cmd_go_test_terminal",
+			heading: "cmd/go terminal test",
+			fn: func(dt *distTest) error {
+				t.runPending(dt)
+				if !stdOutErrAreTerminals() {
+					fmt.Println("skipping terminal test; stdout/stderr not terminals")
+					return nil
+				}
+				cmd := exec.Command("go", "test")
+				cmd.Dir = filepath.Join(os.Getenv("GOROOT"), "src/cmd/go/testdata/testterminal18153")
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				return cmd.Run()
+			},
+		})
 	}
 
 	// Fast path to avoid the ~1 second of `go list std cmd` when
@@ -675,7 +704,7 @@ func (t *tester) extLink() bool {
 		"darwin-arm", "darwin-arm64",
 		"dragonfly-386", "dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le",
+		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
 		"netbsd-386", "netbsd-amd64",
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
@@ -712,7 +741,7 @@ func (t *tester) internalLink() bool {
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
-	if t.goarch == "arm64" || t.goarch == "mips64" || t.goarch == "mips64le" {
+	if t.goarch == "arm64" || t.goarch == "mips64" || t.goarch == "mips64le" || t.goarch == "mips" || t.goarch == "mipsle" {
 		return false
 	}
 	return true
@@ -757,8 +786,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		// linux-arm64 is missing because it causes the external linker
 		// to crash, see https://golang.org/issue/17138
 		switch pair {
-		case "linux-386", "linux-amd64", "linux-arm",
-			"darwin-amd64":
+		case "linux-386", "linux-amd64", "linux-arm":
 			return true
 		}
 		return false

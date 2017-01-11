@@ -166,7 +166,7 @@ func TestDisasmExtld(t *testing.T) {
 		t.Skipf("skipping on %s, no support for external linking, issue 9038", runtime.GOARCH)
 	case "arm64":
 		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
-	case "mips64", "mips64le":
+	case "mips64", "mips64le", "mips", "mipsle":
 		t.Skipf("skipping on %s, issue 12559 and 12560", runtime.GOARCH)
 	case "s390x":
 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)

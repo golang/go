@@ -111,8 +111,8 @@ func sigInstallGoHandler(sig uint32) bool {
 	}
 
 	// When built using c-archive or c-shared, only install signal
-	// handlers for synchronous signals and SIGPIPE.
-	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE {
+	// handlers for synchronous signals.
+	if (isarchive || islibrary) && t.flags&_SigPanic == 0 {
 		return false
 	}
 
@@ -212,25 +212,43 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	}
 
 	// If some non-Go code called sigaltstack, adjust.
+	setStack := false
+	var gsignalStack gsignalStack
 	sp := uintptr(unsafe.Pointer(&sig))
 	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
-		var st stackt
-		sigaltstack(nil, &st)
-		if st.ss_flags&_SS_DISABLE != 0 {
-			setg(nil)
-			needm(0)
-			noSignalStack(sig)
-			dropm()
+		if sp >= g.m.g0.stack.lo && sp < g.m.g0.stack.hi {
+			// The signal was delivered on the g0 stack.
+			// This can happen when linked with C code
+			// using the thread sanitizer, which collects
+			// signals then delivers them itself by calling
+			// the signal handler directly when C code,
+			// including C code called via cgo, calls a
+			// TSAN-intercepted function such as malloc.
+			st := stackt{ss_size: g.m.g0.stack.hi - g.m.g0.stack.lo}
+			setSignalstackSP(&st, g.m.g0.stack.lo)
+			setGsignalStack(&st, &gsignalStack)
+			g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+			setStack = true
+		} else {
+			var st stackt
+			sigaltstack(nil, &st)
+			if st.ss_flags&_SS_DISABLE != 0 {
+				setg(nil)
+				needm(0)
+				noSignalStack(sig)
+				dropm()
+			}
+			stsp := uintptr(unsafe.Pointer(st.ss_sp))
+			if sp < stsp || sp >= stsp+st.ss_size {
+				setg(nil)
+				needm(0)
+				sigNotOnStack(sig)
+				dropm()
+			}
+			setGsignalStack(&st, &gsignalStack)
+			g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+			setStack = true
 		}
-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
-		if sp < stsp || sp >= stsp+st.ss_size {
-			setg(nil)
-			needm(0)
-			sigNotOnStack(sig)
-			dropm()
-		}
-		setGsignalStack(&st)
-		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
 	}
 
 	setg(g.m.gsignal)
@@ -238,6 +256,9 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	c.fixsigcode(sig)
 	sighandler(sig, info, ctx, g)
 	setg(g)
+	if setStack {
+		restoreGsignalStack(&gsignalStack)
+	}
 }
 
 // sigpanic turns a synchronous signal into a run-time panic.
@@ -497,15 +518,9 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 		return true
 	}
 
+	// Only forward synchronous signals.
 	c := &sigctxt{info, ctx}
-	// Only forward signals from the kernel.
-	// On Linux and Darwin there is no way to distinguish a SIGPIPE raised by a write
-	// to a closed socket or pipe from a SIGPIPE raised by kill or pthread_kill
-	// so we'll treat every SIGPIPE as kernel-generated.
-	userSig := c.sigcode() == _SI_USER &&
-		(sig != _SIGPIPE || GOOS != "linux" && GOOS != "android" && GOOS != "darwin")
-	// Only forward synchronous signals and SIGPIPE.
-	if userSig || flags&_SigPanic == 0 && sig != _SIGPIPE {
+	if c.sigcode() == _SI_USER || flags&_SigPanic == 0 {
 		return false
 	}
 	// Determine if the signal occurred inside Go code. We test that:
@@ -591,7 +606,7 @@ func minitSignalStack() {
 		signalstack(&_g_.m.gsignal.stack)
 		_g_.m.newSigstack = true
 	} else {
-		setGsignalStack(&st)
+		setGsignalStack(&st, nil)
 		_g_.m.newSigstack = false
 	}
 }
@@ -624,20 +639,51 @@ func unminitSignals() {
 	}
 }
 
+// gsignalStack saves the fields of the gsignal stack changed by
+// setGsignalStack.
+type gsignalStack struct {
+	stack       stack
+	stackguard0 uintptr
+	stackguard1 uintptr
+	stackAlloc  uintptr
+	stktopsp    uintptr
+}
+
 // setGsignalStack sets the gsignal stack of the current m to an
 // alternate signal stack returned from the sigaltstack system call.
+// It saves the old values in *old for use by restoreGsignalStack.
 // This is used when handling a signal if non-Go code has set the
 // alternate signal stack.
 //go:nosplit
 //go:nowritebarrierrec
-func setGsignalStack(st *stackt) {
+func setGsignalStack(st *stackt, old *gsignalStack) {
 	g := getg()
+	if old != nil {
+		old.stack = g.m.gsignal.stack
+		old.stackguard0 = g.m.gsignal.stackguard0
+		old.stackguard1 = g.m.gsignal.stackguard1
+		old.stackAlloc = g.m.gsignal.stackAlloc
+		old.stktopsp = g.m.gsignal.stktopsp
+	}
 	stsp := uintptr(unsafe.Pointer(st.ss_sp))
 	g.m.gsignal.stack.lo = stsp
 	g.m.gsignal.stack.hi = stsp + st.ss_size
 	g.m.gsignal.stackguard0 = stsp + _StackGuard
 	g.m.gsignal.stackguard1 = stsp + _StackGuard
 	g.m.gsignal.stackAlloc = st.ss_size
+}
+
+// restoreGsignalStack restores the gsignal stack to the value it had
+// before entering the signal handler.
+//go:nosplit
+//go:nowritebarrierrec
+func restoreGsignalStack(st *gsignalStack) {
+	gp := getg().m.gsignal
+	gp.stack = st.stack
+	gp.stackguard0 = st.stackguard0
+	gp.stackguard1 = st.stackguard1
+	gp.stackAlloc = st.stackAlloc
+	gp.stktopsp = st.stktopsp
 }
 
 // signalstack sets the current thread's alternate signal stack to s.

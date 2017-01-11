@@ -42,7 +42,11 @@ func runBug(cmd *Command, args []string) {
 	env := newEnv
 	env = append(env, extraEnvVars()...)
 	for _, e := range env {
-		fmt.Fprintf(&buf, "%s=\"%s\"\n", e.name, e.value)
+		// Hide the TERM environment variable from "go bug".
+		// See issue #18128
+		if e.name != "TERM" {
+			fmt.Fprintf(&buf, "%s=\"%s\"\n", e.name, e.value)
+		}
 	}
 	printGoDetails(&buf)
 	printOSDetails(&buf)

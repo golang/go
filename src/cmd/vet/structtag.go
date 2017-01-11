@@ -54,14 +54,37 @@ func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token
 		if val == "" || val == "-" || val[0] == ',' {
 			continue
 		}
+		if key == "xml" && len(field.Names) > 0 && field.Names[0].Name == "XMLName" {
+			// XMLName defines the XML element name of the struct being
+			// checked. That name cannot collide with element or attribute
+			// names defined on other fields of the struct. Vet does not have a
+			// check for untagged fields of type struct defining their own name
+			// by containing a field named XMLName; see issue 18256.
+			continue
+		}
 		if i := strings.Index(val, ","); i >= 0 {
+			if key == "xml" {
+				// Use a separate namespace for XML attributes.
+				for _, opt := range strings.Split(val[i:], ",") {
+					if opt == "attr" {
+						key += " attribute" // Key is part of the error message.
+						break
+					}
+				}
+			}
 			val = val[:i]
 		}
 		if *seen == nil {
 			*seen = map[[2]string]token.Pos{}
 		}
 		if pos, ok := (*seen)[[2]string{key, val}]; ok {
-			f.Badf(field.Pos(), "struct field %s repeats %s tag %q also at %s", field.Names[0].Name, key, val, f.loc(pos))
+			var name string
+			if len(field.Names) > 0 {
+				name = field.Names[0].Name
+			} else {
+				name = field.Type.(*ast.Ident).Name
+			}
+			f.Badf(field.Pos(), "struct field %s repeats %s tag %q also at %s", name, key, val, f.loc(pos))
 		} else {
 			(*seen)[[2]string{key, val}] = field.Pos()
 		}

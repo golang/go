@@ -4,13 +4,19 @@
 
 package io
 
+type eofReader struct{}
+
+func (eofReader) Read([]byte) (int, error) {
+	return 0, EOF
+}
+
 type multiReader struct {
 	readers []Reader
 }
 
 func (mr *multiReader) Read(p []byte) (n int, err error) {
 	for len(mr.readers) > 0 {
-		// Optimization to flatten nested multiReaders (Issue 13558)
+		// Optimization to flatten nested multiReaders (Issue 13558).
 		if len(mr.readers) == 1 {
 			if r, ok := mr.readers[0].(*multiReader); ok {
 				mr.readers = r.readers
@@ -19,7 +25,9 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
 		}
 		n, err = mr.readers[0].Read(p)
 		if err == EOF {
-			mr.readers[0] = nil // permit earlier GC
+			// Use eofReader instead of nil to avoid nil panic
+			// after performing flatten (Issue 18232).
+			mr.readers[0] = eofReader{} // permit earlier GC
 			mr.readers = mr.readers[1:]
 		}
 		if n > 0 || err != EOF {

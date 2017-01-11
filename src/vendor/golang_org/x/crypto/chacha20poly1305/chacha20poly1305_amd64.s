@@ -4,7 +4,7 @@
 
 // This file was originally from https://golang.org/cl/24717 by Vlad Krasnov of CloudFlare.
 
-// +build go1.7
+// +build go1.7,amd64,!gccgo,!appengine
 
 #include "textflag.h"
 // General register allocation
@@ -209,7 +209,7 @@ GLOBL ·andMask<>(SB), (NOPTR+RODATA), $240
 #define polyMul polyMulStage1; polyMulStage2; polyMulStage3; polyMulReduceStage
 #define polyMulAVX2 polyMulStage1_AVX2; polyMulStage2_AVX2; polyMulStage3_AVX2; polyMulReduceStage
 // ----------------------------------------------------------------------------
-TEXT polyHashADInternal(SB), NOSPLIT, $0
+TEXT polyHashADInternal<>(SB), NOSPLIT, $0
 	// adp points to beginning of additional data
 	// itr2 holds ad length
 	XORQ acc0, acc0
@@ -278,8 +278,15 @@ TEXT ·chacha20Poly1305Open(SB), 0, $288-97
 	MOVQ ad+72(FP), adp
 
 	// Check for AVX2 support
-	CMPB runtime·support_avx2(SB), $1
-	JE   chacha20Poly1305Open_AVX2
+	CMPB runtime·support_avx2(SB), $0
+	JE   noavx2bmi2Open
+
+	// Check BMI2 bit for MULXQ.
+	// runtime·cpuid_ebx7 is always available here
+	// because it passed avx2 check
+	TESTL $(1<<8), runtime·cpuid_ebx7(SB)
+	JNE   chacha20Poly1305Open_AVX2
+noavx2bmi2Open:
 
 	// Special optimization, for very short buffers
 	CMPQ inl, $128
@@ -315,7 +322,7 @@ openSSEPreparePolyKey:
 
 	// Hash AAD
 	MOVQ ad_len+80(FP), itr2
-	CALL polyHashADInternal(SB)
+	CALL polyHashADInternal<>(SB)
 
 openSSEMainLoop:
 	CMPQ inl, $256
@@ -476,7 +483,7 @@ openSSE128InnerCipherLoop:
 
 	// Hash
 	MOVQ ad_len+80(FP), itr2
-	CALL polyHashADInternal(SB)
+	CALL polyHashADInternal<>(SB)
 
 openSSE128Open:
 	CMPQ inl, $16
@@ -822,7 +829,7 @@ openAVX2PreparePolyKey:
 
 	// Hash AD + first 64 bytes
 	MOVQ ad_len+80(FP), itr2
-	CALL polyHashADInternal(SB)
+	CALL polyHashADInternal<>(SB)
 	XORQ itr1, itr1
 
 openAVX2InitialHash64:
@@ -1014,7 +1021,7 @@ openAVX2192InnerCipherLoop:
 openAVX2ShortOpen:
 	// Hash
 	MOVQ ad_len+80(FP), itr2
-	CALL polyHashADInternal(SB)
+	CALL polyHashADInternal<>(SB)
 
 openAVX2ShortOpenLoop:
 	CMPQ inl, $32
@@ -1485,8 +1492,15 @@ TEXT ·chacha20Poly1305Seal(SB), 0, $288-96
 	MOVQ ad+72(FP), adp
 
 	// Check for AVX2 support
-	CMPB runtime·support_avx2(SB), $1
-	JE   chacha20Poly1305Seal_AVX2
+	CMPB runtime·support_avx2(SB), $0
+	JE   noavx2bmi2Seal
+
+	// Check BMI2 bit for MULXQ.
+	// runtime·cpuid_ebx7 is always available here
+	// because it passed avx2 check
+	TESTL $(1<<8), runtime·cpuid_ebx7(SB)
+	JNE   chacha20Poly1305Seal_AVX2
+noavx2bmi2Seal:
 
 	// Special optimization, for very short buffers
 	CMPQ inl, $128
@@ -1547,7 +1561,7 @@ sealSSEIntroLoop:
 
 	// Hash AAD
 	MOVQ ad_len+80(FP), itr2
-	CALL polyHashADInternal(SB)
+	CALL polyHashADInternal<>(SB)
 
 	MOVOU (0*16)(inp), A0; MOVOU (1*16)(inp), B0; MOVOU (2*16)(inp), C0; MOVOU (3*16)(inp), D0
 	PXOR  A0, A1; PXOR B0, B1; PXOR C0, C1; PXOR D0, D1
@@ -1691,7 +1705,7 @@ sealSSETail64:
 	MOVO  D1, ctr0Store
 
 sealSSETail64LoopA:
-	// Perform ChaCha rounds, while hashing the prevsiosly encrpyted ciphertext
+	// Perform ChaCha rounds, while hashing the previously encrypted ciphertext
 	polyAdd(0(oup))
 	polyMul
 	LEAQ 16(oup), oup
@@ -1725,7 +1739,7 @@ sealSSETail128:
 	MOVO A0, A1; MOVO B0, B1; MOVO C0, C1; MOVO D0, D1; PADDL ·sseIncMask<>(SB), D1; MOVO D1, ctr1Store
 
 sealSSETail128LoopA:
-	// Perform ChaCha rounds, while hashing the prevsiosly encrpyted ciphertext
+	// Perform ChaCha rounds, while hashing the previously encrypted ciphertext
 	polyAdd(0(oup))
 	polyMul
 	LEAQ 16(oup), oup
@@ -1771,7 +1785,7 @@ sealSSETail192:
 	MOVO A1, A2; MOVO B1, B2; MOVO C1, C2; MOVO D1, D2; PADDL ·sseIncMask<>(SB), D2; MOVO D2, ctr2Store
 
 sealSSETail192LoopA:
-	// Perform ChaCha rounds, while hashing the prevsiosly encrpyted ciphertext
+	// Perform ChaCha rounds, while hashing the previously encrypted ciphertext
 	polyAdd(0(oup))
 	polyMul
 	LEAQ 16(oup), oup
@@ -1852,7 +1866,7 @@ sealSSE128InnerCipherLoop:
 
 	// Hash
 	MOVQ ad_len+80(FP), itr2
-	CALL polyHashADInternal(SB)
+	CALL polyHashADInternal<>(SB)
 	XORQ itr1, itr1
 
 sealSSE128SealHash:
@@ -2027,7 +2041,7 @@ sealAVX2IntroLoop:
 
 	// Hash AD
 	MOVQ ad_len+80(FP), itr2
-	CALL polyHashADInternal(SB)
+	CALL polyHashADInternal<>(SB)
 
 	// Can store at least 320 bytes
 	VPXOR   (0*32)(inp), AA0, AA0
@@ -2290,7 +2304,7 @@ sealAVX2192InnerCipherLoop:
 sealAVX2ShortSeal:
 	// Hash aad
 	MOVQ ad_len+80(FP), itr2
-	CALL polyHashADInternal(SB)
+	CALL polyHashADInternal<>(SB)
 	XORQ itr1, itr1
 
 sealAVX2SealHash:

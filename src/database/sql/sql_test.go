@@ -375,7 +375,7 @@ func TestTxContextWait(t *testing.T) {
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*15)
 
-	tx, err := db.BeginContext(ctx)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -486,8 +486,8 @@ func TestQueryNamedArg(t *testing.T) {
 	rows, err := db.Query(
 		// Ensure the name and age parameters only match on placeholder name, not position.
 		"SELECT|people|age,name|name=?name,age=?age",
-		Named("?age", 2),
-		Named("?name", "Bob"),
+		Named("age", 2),
+		Named("name", "Bob"),
 	)
 	if err != nil {
 		t.Fatalf("Query: %v", err)
@@ -680,6 +680,37 @@ func TestQueryRow(t *testing.T) {
 	want := []byte("APHOTO")
 	if !reflect.DeepEqual(photo, want) {
 		t.Errorf("photo = %q; want %q", photo, want)
+	}
+}
+
+func TestTxRollbackCommitErr(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tx.Rollback()
+	if err != nil {
+		t.Errorf("expected nil error from Rollback; got %v", err)
+	}
+	err = tx.Commit()
+	if err != ErrTxDone {
+		t.Errorf("expected %q from Commit; got %q", ErrTxDone, err)
+	}
+
+	tx, err = db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tx.Commit()
+	if err != nil {
+		t.Errorf("expected nil error from Commit; got %v", err)
+	}
+	err = tx.Rollback()
+	if err != ErrTxDone {
+		t.Errorf("expected %q from Rollback; got %q", ErrTxDone, err)
 	}
 }
 
@@ -2574,6 +2605,54 @@ func TestIssue6081(t *testing.T) {
 	if closes < 9 {
 		t.Errorf("closes = %d; want >= 9", closes)
 	}
+}
+
+// TestIssue18429 attempts to stress rolling back the transaction from a
+// context cancel while simultaneously calling Tx.Rollback. Rolling back from a
+// context happens concurrently so tx.rollback and tx.Commit must guard against
+// double entry.
+//
+// In the test, a context is canceled while the query is in process so
+// the internal rollback will run concurrently with the explicitly called
+// Tx.Rollback.
+func TestIssue18429(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx := context.Background()
+	sem := make(chan bool, 20)
+	var wg sync.WaitGroup
+
+	const milliWait = 30
+
+	for i := 0; i < 100; i++ {
+		sem <- true
+		wg.Add(1)
+		go func() {
+			defer func() {
+				<-sem
+				wg.Done()
+			}()
+			qwait := (time.Duration(rand.Intn(milliWait)) * time.Millisecond).String()
+
+			ctx, cancel := context.WithTimeout(ctx, time.Duration(rand.Intn(milliWait))*time.Millisecond)
+			defer cancel()
+
+			tx, err := db.BeginTx(ctx, nil)
+			if err != nil {
+				return
+			}
+			rows, err := tx.QueryContext(ctx, "WAIT|"+qwait+"|SELECT|people|name|")
+			if rows != nil {
+				rows.Close()
+			}
+			// This call will race with the context cancel rollback to complete
+			// if the rollback itself isn't guarded.
+			tx.Rollback()
+		}()
+	}
+	wg.Wait()
+	time.Sleep(milliWait * 3 * time.Millisecond)
 }
 
 func TestConcurrency(t *testing.T) {

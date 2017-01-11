@@ -780,14 +780,14 @@ func processFlags(p *profile.Profile, ui plugin.UI, f *flags) error {
 
 	var err error
 	si, sm := *f.flagSampleIndex, *f.flagMean || *f.flagMeanDelay
-	si, err = sampleIndex(p, &f.flagTotalDelay, si, 1, "delay", "-total_delay", err)
-	si, err = sampleIndex(p, &f.flagMeanDelay, si, 1, "delay", "-mean_delay", err)
-	si, err = sampleIndex(p, &f.flagContentions, si, 0, "contentions", "-contentions", err)
+	si, err = sampleIndex(p, &f.flagTotalDelay, si, "delay", "-total_delay", err)
+	si, err = sampleIndex(p, &f.flagMeanDelay, si, "delay", "-mean_delay", err)
+	si, err = sampleIndex(p, &f.flagContentions, si, "contentions", "-contentions", err)
 
-	si, err = sampleIndex(p, &f.flagInUseSpace, si, 1, "inuse_space", "-inuse_space", err)
-	si, err = sampleIndex(p, &f.flagInUseObjects, si, 0, "inuse_objects", "-inuse_objects", err)
-	si, err = sampleIndex(p, &f.flagAllocSpace, si, 1, "alloc_space", "-alloc_space", err)
-	si, err = sampleIndex(p, &f.flagAllocObjects, si, 0, "alloc_objects", "-alloc_objects", err)
+	si, err = sampleIndex(p, &f.flagInUseSpace, si, "inuse_space", "-inuse_space", err)
+	si, err = sampleIndex(p, &f.flagInUseObjects, si, "inuse_objects", "-inuse_objects", err)
+	si, err = sampleIndex(p, &f.flagAllocSpace, si, "alloc_space", "-alloc_space", err)
+	si, err = sampleIndex(p, &f.flagAllocObjects, si, "alloc_objects", "-alloc_objects", err)
 
 	if si == -1 {
 		// Use last value if none is requested.
@@ -806,7 +806,6 @@ func processFlags(p *profile.Profile, ui plugin.UI, f *flags) error {
 
 func sampleIndex(p *profile.Profile, flag **bool,
 	sampleIndex int,
-	newSampleIndex int,
 	sampleType, option string,
 	err error) (int, error) {
 	if err != nil || !**flag {
@@ -816,11 +815,12 @@ func sampleIndex(p *profile.Profile, flag **bool,
 	if sampleIndex != -1 {
 		return 0, fmt.Errorf("set at most one sample value selection option")
 	}
-	if newSampleIndex >= len(p.SampleType) ||
-		p.SampleType[newSampleIndex].Type != sampleType {
-		return 0, fmt.Errorf("option %s not valid for this profile", option)
+	for index, s := range p.SampleType {
+		if sampleType == s.Type {
+			return index, nil
+		}
 	}
-	return newSampleIndex, nil
+	return 0, fmt.Errorf("option %s not valid for this profile", option)
 }
 
 func countFlags(bs []*bool) int {

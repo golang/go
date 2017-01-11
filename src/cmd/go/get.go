@@ -205,6 +205,10 @@ var downloadRootCache = map[string]bool{}
 // download runs the download half of the get command
 // for the package named by the argument.
 func download(arg string, parent *Package, stk *importStack, mode int) {
+	if mode&useVendor != 0 {
+		// Caller is responsible for expanding vendor paths.
+		panic("internal error: download mode has useVendor set")
+	}
 	load := func(path string, mode int) *Package {
 		if parent == nil {
 			return loadPackage(path, stk)
@@ -315,32 +319,42 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 		}
 
 		// Process dependencies, now that we know what they are.
-		for _, path := range p.Imports {
+		imports := p.Imports
+		if mode&getTestDeps != 0 {
+			// Process test dependencies when -t is specified.
+			// (But don't get test dependencies for test dependencies:
+			// we always pass mode 0 to the recursive calls below.)
+			imports = stringList(imports, p.TestImports, p.XTestImports)
+		}
+		for i, path := range imports {
 			if path == "C" {
 				continue
 			}
-			// Don't get test dependencies recursively.
-			// Imports is already vendor-expanded.
+			// Fail fast on import naming full vendor path.
+			// Otherwise expand path as needed for test imports.
+			// Note that p.Imports can have additional entries beyond p.build.Imports.
+			orig := path
+			if i < len(p.build.Imports) {
+				orig = p.build.Imports[i]
+			}
+			if j, ok := findVendor(orig); ok {
+				stk.push(path)
+				err := &PackageError{
+					ImportStack: stk.copy(),
+					Err:         "must be imported as " + path[j+len("vendor/"):],
+				}
+				stk.pop()
+				errorf("%s", err)
+				continue
+			}
+			// If this is a test import, apply vendor lookup now.
+			// We cannot pass useVendor to download, because
+			// download does caching based on the value of path,
+			// so it must be the fully qualified path already.
+			if i >= len(p.Imports) {
+				path = vendoredImportPath(p, path)
+			}
 			download(path, p, stk, 0)
-		}
-		if mode&getTestDeps != 0 {
-			// Process test dependencies when -t is specified.
-			// (Don't get test dependencies for test dependencies.)
-			// We pass useVendor here because p.load does not
-			// vendor-expand TestImports and XTestImports.
-			// The call to loadImport inside download needs to do that.
-			for _, path := range p.TestImports {
-				if path == "C" {
-					continue
-				}
-				download(path, p, stk, useVendor)
-			}
-			for _, path := range p.XTestImports {
-				if path == "C" {
-					continue
-				}
-				download(path, p, stk, useVendor)
-			}
 		}
 
 		if isWildcard {

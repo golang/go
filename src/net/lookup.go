@@ -233,20 +233,32 @@ func (r *Resolver) LookupPort(ctx context.Context, network, service string) (por
 	return port, nil
 }
 
-// LookupCNAME returns the canonical DNS host for the given name.
+// LookupCNAME returns the canonical name for the given host.
 // Callers that do not care about the canonical name can call
 // LookupHost or LookupIP directly; both take care of resolving
 // the canonical name as part of the lookup.
-func LookupCNAME(name string) (cname string, err error) {
-	return DefaultResolver.lookupCNAME(context.Background(), name)
+//
+// A canonical name is the final name after following zero
+// or more CNAME records.
+// LookupCNAME does not return an error if host does not
+// contain DNS "CNAME" records, as long as host resolves to
+// address records.
+func LookupCNAME(host string) (cname string, err error) {
+	return DefaultResolver.lookupCNAME(context.Background(), host)
 }
 
-// LookupCNAME returns the canonical DNS host for the given name.
+// LookupCNAME returns the canonical name for the given host.
 // Callers that do not care about the canonical name can call
 // LookupHost or LookupIP directly; both take care of resolving
 // the canonical name as part of the lookup.
-func (r *Resolver) LookupCNAME(ctx context.Context, name string) (cname string, err error) {
-	return r.lookupCNAME(ctx, name)
+//
+// A canonical name is the final name after following zero
+// or more CNAME records.
+// LookupCNAME does not return an error if host does not
+// contain DNS "CNAME" records, as long as host resolves to
+// address records.
+func (r *Resolver) LookupCNAME(ctx context.Context, host string) (cname string, err error) {
+	return r.lookupCNAME(ctx, host)
 }
 
 // LookupSRV tries to resolve an SRV query of the given service,

@@ -684,6 +684,29 @@ func machosymorder(ctxt *Link) {
 	}
 }
 
+// machoShouldExport reports whether a symbol needs to be exported.
+//
+// When dynamically linking, all non-local variables and plugin-exported
+// symbols need to be exported.
+func machoShouldExport(ctxt *Link, s *Symbol) bool {
+	if !ctxt.DynlinkingGo() || s.Attr.Local() {
+		return false
+	}
+	if Buildmode == BuildmodePlugin && strings.HasPrefix(s.Extname, *flagPluginPath) {
+		return true
+	}
+	if strings.HasPrefix(s.Name, "type.") && !strings.HasPrefix(s.Name, "type..") {
+		// reduce runtime typemap pressure, but do not
+		// export alg functions (type..*), as these
+		// appear in pclntable.
+		return true
+	}
+	if strings.HasPrefix(s.Name, "go.link.pkghash") {
+		return true
+	}
+	return s.Type >= obj.SELFSECT // only writable sections
+}
+
 func machosymtab(ctxt *Link) {
 	symtab := ctxt.Syms.Lookup(".machosymtab", 0)
 	symstr := ctxt.Syms.Lookup(".machosymstr", 0)
@@ -692,13 +715,17 @@ func machosymtab(ctxt *Link) {
 		s := sortsym[i]
 		Adduint32(ctxt, symtab, uint32(symstr.Size))
 
+		export := machoShouldExport(ctxt, s)
+
 		// In normal buildmodes, only add _ to C symbols, as
 		// Go symbols have dot in the name.
 		//
-		// When dynamically linking, prefix all non-local
-		// symbols with _ as dlsym on darwin requires it to
-		// resolve any symbol.
-		if !strings.Contains(s.Extname, ".") || (ctxt.DynlinkingGo() && !s.Attr.Local()) {
+		// Do not export C symbols in plugins, as runtime C
+		// symbols like crosscall2 are in pclntab and end up
+		// pointing at the host binary, breaking unwinding.
+		// See Issue #18190.
+		cexport := !strings.Contains(s.Extname, ".") && (Buildmode != BuildmodePlugin || onlycsymbol(s))
+		if cexport || export {
 			Adduint8(ctxt, symstr, '_')
 		}
 
@@ -711,7 +738,7 @@ func machosymtab(ctxt *Link) {
 			Adduint16(ctxt, symtab, 0)                  // desc
 			adduintxx(ctxt, symtab, 0, SysArch.PtrSize) // no value
 		} else {
-			if s.Attr.CgoExport() || (ctxt.DynlinkingGo() && !s.Attr.Local()) {
+			if s.Attr.CgoExport() || export {
 				Adduint8(ctxt, symtab, 0x0f)
 			} else {
 				Adduint8(ctxt, symtab, 0x0e)

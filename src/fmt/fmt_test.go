@@ -1561,18 +1561,23 @@ func TestWidthAndPrecision(t *testing.T) {
 	}
 }
 
-// Panic is a type that panics in String.
-type Panic struct {
+// PanicS is a type that panics in String.
+type PanicS struct {
 	message interface{}
 }
 
 // Value receiver.
-func (p Panic) GoString() string {
+func (p PanicS) String() string {
 	panic(p.message)
 }
 
+// PanicGo is a type that panics in GoString.
+type PanicGo struct {
+	message interface{}
+}
+
 // Value receiver.
-func (p Panic) String() string {
+func (p PanicGo) GoString() string {
 	panic(p.message)
 }
 
@@ -1592,13 +1597,15 @@ var panictests = []struct {
 	out string
 }{
 	// String
-	{"%s", (*Panic)(nil), "<nil>"}, // nil pointer special case
-	{"%s", Panic{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
-	{"%s", Panic{3}, "%!s(PANIC=3)"},
+	{"%s", (*PanicS)(nil), "<nil>"}, // nil pointer special case
+	{"%s", PanicS{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
+	{"%s", PanicS{3}, "%!s(PANIC=3)"},
 	// GoString
-	{"%#v", (*Panic)(nil), "<nil>"}, // nil pointer special case
-	{"%#v", Panic{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
-	{"%#v", Panic{3}, "%!v(PANIC=3)"},
+	{"%#v", (*PanicGo)(nil), "<nil>"}, // nil pointer special case
+	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
+	{"%#v", PanicGo{3}, "%!v(PANIC=3)"},
+	// Issue 18282. catchPanic should not clear fmtFlags permanently.
+	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=3), %!v(PANIC=3)}"},
 	// Format
 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
 	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},

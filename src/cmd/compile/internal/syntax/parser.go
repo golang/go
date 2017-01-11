@@ -26,8 +26,6 @@ type parser struct {
 	indent []byte // tracing support
 }
 
-type parserError string // for error recovery if no error handler was installed
-
 func (p *parser) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
 	p.scanner.init(src, errh, pragh)
 

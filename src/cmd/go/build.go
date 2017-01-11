@@ -413,8 +413,7 @@ func buildModeInit() {
 		} else {
 			switch platform {
 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386",
-				"android/amd64", "android/arm", "android/arm64", "android/386",
-				"darwin/amd64":
+				"android/amd64", "android/arm", "android/arm64", "android/386":
 			default:
 				fatalf("-buildmode=plugin not supported on %s\n", platform)
 			}
@@ -2406,8 +2405,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 func (gcToolchain) asm(b *builder, p *Package, obj string, sfiles []string) ([]string, error) {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(goroot, "pkg", "include")
-	ofile := obj + "asm.o"
-	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, buildAsmflags}
+	args := []interface{}{buildToolExec, tool("asm"), "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, buildAsmflags}
 	if p.ImportPath == "runtime" && goarch == "386" {
 		for _, arg := range buildAsmflags {
 			if arg == "-dynlink" {
@@ -2415,13 +2413,16 @@ func (gcToolchain) asm(b *builder, p *Package, obj string, sfiles []string) ([]s
 			}
 		}
 	}
+	var ofiles []string
 	for _, sfile := range sfiles {
-		args = append(args, mkAbs(p.Dir, sfile))
+		ofile := obj + sfile[:len(sfile)-len(".s")] + ".o"
+		ofiles = append(ofiles, ofile)
+		a := append(args, "-o", ofile, mkAbs(p.Dir, sfile))
+		if err := b.run(p.Dir, p.ImportPath, nil, a...); err != nil {
+			return nil, err
+		}
 	}
-	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
-		return nil, err
-	}
-	return []string{ofile}, nil
+	return ofiles, nil
 }
 
 // toolVerify checks that the command line args writes the same output file
@@ -3218,6 +3219,8 @@ func (b *builder) gccArchArgs() []string {
 		return []string{"-m64", "-march=z196"}
 	case "mips64", "mips64le":
 		return []string{"-mabi=64"}
+	case "mips", "mipsle":
+		return []string{"-mabi=32", "-march=mips32"}
 	}
 	return nil
 }
@@ -3773,7 +3776,11 @@ func instrumentInit() {
 		return
 	}
 	if buildRace && buildMSan {
-		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously", flag.Args()[0])
+		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
+		os.Exit(2)
+	}
+	if buildMSan && (goos != "linux" || goarch != "amd64") {
+		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", goos, goarch)
 		os.Exit(2)
 	}
 	if goarch != "amd64" || goos != "linux" && goos != "freebsd" && goos != "darwin" && goos != "windows" {

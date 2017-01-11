@@ -713,7 +713,7 @@ func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.R
 			} else {
 				// Assign value from argument placeholder name.
 				for _, a := range args {
-					if a.Name == strvalue {
+					if a.Name == strvalue[1:] {
 						val = a.Value
 						break
 					}
@@ -818,7 +818,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				} else {
 					// Assign arg value from placeholder name.
 					for _, a := range args {
-						if a.Name == wcol.Placeholder {
+						if a.Name == wcol.Placeholder[1:] {
 							argValue = a.Value
 							break
 						}

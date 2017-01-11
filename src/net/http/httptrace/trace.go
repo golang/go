@@ -146,7 +146,8 @@ type ClientTrace struct {
 	Wait100Continue func()
 
 	// WroteRequest is called with the result of writing the
-	// request and any body.
+	// request and any body. It may be called multiple times
+	// in the case of retried requests.
 	WroteRequest func(WroteRequestInfo)
 }
 

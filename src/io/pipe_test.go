@@ -247,6 +247,18 @@ func TestPipeWriteClose(t *testing.T) {
 	}
 }
 
+// Test close on Write side during Write.
+func TestPipeWriteClose2(t *testing.T) {
+	c := make(chan int, 1)
+	_, w := Pipe()
+	go delayClose(t, w, c, pipeTest{})
+	n, err := w.Write(make([]byte, 64))
+	<-c
+	if n != 0 || err != ErrClosedPipe {
+		t.Errorf("write to closed pipe: %v, %v want %v, %v", n, err, 0, ErrClosedPipe)
+	}
+}
+
 func TestWriteEmpty(t *testing.T) {
 	r, w := Pipe()
 	go func() {

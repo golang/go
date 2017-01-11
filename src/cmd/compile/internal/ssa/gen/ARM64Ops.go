@@ -12,7 +12,7 @@ import "strings"
 //  - Integer types live in the low portion of registers. Upper portions are junk.
 //  - Boolean types use the low-order byte of a register. 0=false, 1=true.
 //    Upper bytes are junk.
-//  - *const instructions may use a constant larger than the instuction can encode.
+//  - *const instructions may use a constant larger than the instruction can encode.
 //    In this case the assembler expands to multiple instructions and uses tmp
 //    register (R27).
 

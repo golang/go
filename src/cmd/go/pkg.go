@@ -178,7 +178,9 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
 	p.CgoLDFLAGS = pp.CgoLDFLAGS
 	p.CgoPkgConfig = pp.CgoPkgConfig
-	p.Imports = pp.Imports
+	// We modify p.Imports in place, so make copy now.
+	p.Imports = make([]string, len(pp.Imports))
+	copy(p.Imports, pp.Imports)
 	p.TestGoFiles = pp.TestGoFiles
 	p.TestImports = pp.TestImports
 	p.XTestGoFiles = pp.XTestGoFiles
@@ -952,6 +954,10 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		// On ARM with GOARM=5, everything depends on math for the link.
 		if p.Name == "main" && goarch == "arm" {
 			importPaths = append(importPaths, "math")
+		}
+		// In coverage atomic mode everything depends on sync/atomic.
+		if testCoverMode == "atomic" && (!p.Standard || (p.ImportPath != "runtime/cgo" && p.ImportPath != "runtime/race" && p.ImportPath != "sync/atomic")) {
+			importPaths = append(importPaths, "sync/atomic")
 		}
 	}
 

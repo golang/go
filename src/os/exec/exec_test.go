@@ -247,6 +247,11 @@ func TestStdinClose(t *testing.T) {
 }
 
 // Issue 17647.
+// It used to be the case that TestStdinClose, above, would fail when
+// run under the race detector. This test is a variant of TestStdinClose
+// that also used to fail when run under the race detector.
+// This test is run by cmd/dist under the race detector to verify that
+// the race detector no longer reports any problems.
 func TestStdinCloseRace(t *testing.T) {
 	cmd := helperCommand(t, "stdinClose")
 	stdin, err := cmd.StdinPipe()
@@ -262,7 +267,12 @@ func TestStdinCloseRace(t *testing.T) {
 		}
 	}()
 	go func() {
-		io.Copy(stdin, strings.NewReader(stdinCloseTestString))
+		// Send the wrong string, so that the child fails even
+		// if the other goroutine doesn't manage to kill it first.
+		// This test is to check that the race detector does not
+		// falsely report an error, so it doesn't matter how the
+		// child process fails.
+		io.Copy(stdin, strings.NewReader("unexpected string"))
 		if err := stdin.Close(); err != nil {
 			t.Errorf("stdin.Close: %v", err)
 		}
@@ -978,7 +988,7 @@ func TestContextCancel(t *testing.T) {
 			break
 		}
 		if time.Since(start) > time.Second {
-			t.Fatal("cancelling context did not stop program")
+			t.Fatal("canceling context did not stop program")
 		}
 		time.Sleep(time.Millisecond)
 	}

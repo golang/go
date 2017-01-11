@@ -535,7 +535,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 
 	// If no default value is given then the zero value for the type is
 	// assumed to be the default value. This isn't obviously the correct
-	// behaviour, but it's what Go has traditionally done.
+	// behavior, but it's what Go has traditionally done.
 	if params.optional && params.defaultValue == nil {
 		if reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
 			return bytesEncoder(nil), nil

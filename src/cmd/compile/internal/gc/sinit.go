@@ -295,7 +295,9 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 		if staticcopy(l, r, out) {
 			return true
 		}
-		*out = append(*out, nod(OAS, l, r))
+		// We may have skipped past one or more OCONVNOPs, so
+		// use conv to ensure r is assignable to l (#13263).
+		*out = append(*out, nod(OAS, l, conv(r, l.Type)))
 		return true
 
 	case OLITERAL:
@@ -1076,6 +1078,8 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 
 		var r *Node
 		if n.Right != nil {
+			// n.Right is stack temporary used as backing store.
+			init.Append(nod(OAS, n.Right, nil)) // zero backing store, just in case (#18410)
 			r = nod(OADDR, n.Right, nil)
 			r = typecheck(r, Erv)
 		} else {
@@ -1193,7 +1197,7 @@ func getlit(lit *Node) int {
 	return -1
 }
 
-// stataddr sets nam to the static address of n and reports whether it succeeeded.
+// stataddr sets nam to the static address of n and reports whether it succeeded.
 func stataddr(nam *Node, n *Node) bool {
 	if n == nil {
 		return false

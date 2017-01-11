@@ -260,7 +260,7 @@ func Create(name string) (*File, error) {
 var lstat = Lstat
 
 // Rename renames (moves) oldpath to newpath.
-// If newpath already exists, Rename replaces it.
+// If newpath already exists and is not a directory, Rename replaces it.
 // OS-specific restrictions may apply when oldpath and newpath are in different directories.
 // If there is an error, it will be of type *LinkError.
 func Rename(oldpath, newpath string) error {

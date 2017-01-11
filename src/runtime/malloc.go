@@ -157,6 +157,13 @@ const (
 	_MaxGcproc = 32
 
 	_MaxArena32 = 1<<32 - 1
+
+	// minLegalPointer is the smallest possible legal pointer.
+	// This is the smallest possible architectural page size,
+	// since we assume that the first page is never mapped.
+	//
+	// This should agree with minZeroPage in the compiler.
+	minLegalPointer uintptr = 4096
 )
 
 // physPageSize is the size in bytes of the OS's physical pages.

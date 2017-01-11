@@ -73,6 +73,14 @@ func TestParameterGeneration(t *testing.T) {
 	testParameterGeneration(t, L3072N256, 3072, 256)
 }
 
+func fromHex(s string) *big.Int {
+	result, ok := new(big.Int).SetString(s, 16)
+	if !ok {
+		panic(s)
+	}
+	return result
+}
+
 func TestSignAndVerify(t *testing.T) {
 	var priv PrivateKey
 	priv.P, _ = new(big.Int).SetString("A9B5B793FB4785793D246BAE77E8FF63CA52F442DA763C440259919FE1BC1D6065A9350637A04F75A2F039401D49F08E066C4D275A5A65DA5684BC563C14289D7AB8A67163BFBF79D85972619AD2CFF55AB0EE77A9002B0EF96293BDD0F42685EBB2C66C327079F6C98000FBCB79AACDE1BC6F9D5C7B1A97E3D9D54ED7951FEF", 16)
@@ -82,4 +90,34 @@ func TestSignAndVerify(t *testing.T) {
 	priv.X, _ = new(big.Int).SetString("5078D4D29795CBE76D3AACFE48C9AF0BCDBEE91A", 16)
 
 	testSignAndVerify(t, 0, &priv)
+}
+
+func TestSigningWithDegenerateKeys(t *testing.T) {
+	// Signing with degenerate private keys should not cause an infinite
+	// loop.
+	badKeys := []struct{
+		p, q, g, y, x string
+	}{
+		{"00", "01", "00", "00", "00"},
+		{"01", "ff", "00", "00", "00"},
+	}
+
+	for i, test := range badKeys {
+		priv := PrivateKey{
+			PublicKey: PublicKey{
+				Parameters: Parameters {
+					P: fromHex(test.p),
+					Q: fromHex(test.q),
+					G: fromHex(test.g),
+				},
+				Y: fromHex(test.y),
+			},
+			X: fromHex(test.x),
+		}
+
+		hashed := []byte("testing")
+		if _, _, err := Sign(rand.Reader, &priv, hashed); err == nil {
+			t.Errorf("#%d: unexpected success", i)
+		}
+	}
 }

@@ -249,7 +249,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	fn+0(FP), R25
 	MOVW	R29, R22
 	SUBU	$16, R29
-	AND	$0x7, R29	// shadow space for 4 args aligned to 8 bytes as per O32 ABI
+	AND	$~7, R29	// shadow space for 4 args aligned to 8 bytes as per O32 ABI
 	JAL	(R25)
 	MOVW	R22, R29
 	RET

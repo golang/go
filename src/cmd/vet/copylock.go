@@ -93,13 +93,15 @@ func checkCopyLocksReturnStmt(f *File, rs *ast.ReturnStmt) {
 
 // checkCopyLocksCallExpr detects lock copy in the arguments to a function call
 func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
-	if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "new" && f.pkg.types[id].IsBuiltin() {
-		// Skip 'new(Type)' for built-in 'new'
-		return
+	if id, ok := ce.Fun.(*ast.Ident); ok && f.pkg.types[id].IsBuiltin() {
+		switch id.Name {
+		case "new", "len", "cap":
+			return
+		}
 	}
 	for _, x := range ce.Args {
 		if path := lockPathRhs(f, x); path != nil {
-			f.Badf(x.Pos(), "function call copies lock value: %v", path)
+			f.Badf(x.Pos(), "call of %s copies lock value: %v", f.gofmt(ce.Fun), path)
 		}
 	}
 }

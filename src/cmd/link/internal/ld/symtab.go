@@ -602,8 +602,7 @@ func (ctxt *Link) symtab() {
 	adduint(ctxt, moduledata, uint64(nitablinks))
 	adduint(ctxt, moduledata, uint64(nitablinks))
 	// The ptab slice
-	if ptab := ctxt.Syms.ROLookup("go.plugin.tabs", 0); ptab != nil {
-		ptab.Attr |= AttrReachable
+	if ptab := ctxt.Syms.ROLookup("go.plugin.tabs", 0); ptab != nil && ptab.Attr.Reachable() {
 		ptab.Attr |= AttrLocal
 		ptab.Type = obj.SRODATA
 

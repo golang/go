@@ -74,6 +74,10 @@ type gcm struct {
 
 // NewGCM returns the given 128-bit, block cipher wrapped in Galois Counter Mode
 // with the standard nonce length.
+//
+// In general, the GHASH operation performed by this implementation of GCM is not constant-time.
+// An exception is when the underlying Block was created by aes.NewCipher
+// on systems with hardware support for AES. See the crypto/aes package documentation for details.
 func NewGCM(cipher Block) (AEAD, error) {
 	return NewGCMWithNonceSize(cipher, gcmStandardNonceSize)
 }
@@ -184,7 +188,7 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
 		// The AESNI code decrypts and authenticates concurrently, and
 		// so overwrites dst in the event of a tag mismatch. That
-		// behaviour is mimicked here in order to be consistent across
+		// behavior is mimicked here in order to be consistent across
 		// platforms.
 		for i := range out {
 			out[i] = 0

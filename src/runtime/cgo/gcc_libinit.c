@@ -6,10 +6,13 @@
 // +build darwin dragonfly freebsd linux netbsd solaris
 
 #include <pthread.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // strerror
+#include <time.h>
 #include "libcgo.h"
+#include "libcgo_unix.h"
 
 static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
@@ -21,7 +24,7 @@ static void (*cgo_context_function)(struct context_arg*);
 void
 x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
 	pthread_t p;
-	int err = pthread_create(&p, NULL, func, arg);
+	int err = _cgo_try_pthread_create(&p, NULL, func, arg);
 	if (err != 0) {
 		fprintf(stderr, "pthread_create failed: %s", strerror(err));
 		abort();
@@ -83,4 +86,24 @@ void (*(_cgo_get_context_function(void)))(struct context_arg*) {
 	ret = cgo_context_function;
 	pthread_mutex_unlock(&runtime_init_mu);
 	return ret;
+}
+
+// _cgo_try_pthread_create retries pthread_create if it fails with
+// EAGAIN.
+int
+_cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*pfn)(void*), void* arg) {
+	int tries;
+	int err;
+	struct timespec ts;
+
+	for (tries = 0; tries < 20; tries++) {
+		err = pthread_create(thread, attr, pfn, arg);
+		if (err != EAGAIN) {
+			return err;
+		}
+		ts.tv_sec = 0;
+		ts.tv_nsec = (tries + 1) * 1000 * 1000; // Milliseconds.
+		nanosleep(&ts, nil);
+	}
+	return EAGAIN;
 }

@@ -13,7 +13,6 @@ import (
 	"hash/crc32"
 	"io"
 	"os"
-	"time"
 )
 
 var (
@@ -290,16 +289,13 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 		// Other zip authors might not even follow the basic format,
 		// and we'll just ignore the Extra content in that case.
 		b := readBuf(f.Extra)
-
-	Extras:
 		for len(b) >= 4 { // need at least tag and size
 			tag := b.uint16()
 			size := b.uint16()
 			if int(size) > len(b) {
 				break
 			}
-			switch tag {
-			case zip64ExtraId:
+			if tag == zip64ExtraId {
 				// update directory values from the zip64 extra block.
 				// They should only be consulted if the sizes read earlier
 				// are maxed out.
@@ -327,42 +323,7 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 					}
 					f.headerOffset = int64(eb.uint64())
 				}
-				break Extras
-
-			case ntfsExtraId:
-				if size == 32 {
-					eb := readBuf(b[:size])
-					eb.uint32() // reserved
-					eb.uint16() // tag1
-					size1 := eb.uint16()
-					if size1 == 24 {
-						sub := readBuf(eb[:size1])
-						lo := sub.uint32()
-						hi := sub.uint32()
-						tick := (uint64(uint64(lo)|uint64(hi)<<32) - 116444736000000000) / 10000000
-						f.SetModTime(time.Unix(int64(tick), 0))
-					}
-				}
-				break Extras
-
-			case unixExtraId:
-				if size >= 12 {
-					eb := readBuf(b[:size])
-					eb.uint32()          // AcTime
-					epoch := eb.uint32() // ModTime
-					f.SetModTime(time.Unix(int64(epoch), 0))
-					break Extras
-				}
-			case exttsExtraId:
-				if size >= 3 {
-					eb := readBuf(b[:size])
-					flags := eb.uint8()  // Flags
-					epoch := eb.uint32() // AcTime/ModTime/CrTime
-					if flags&1 != 0 {
-						f.SetModTime(time.Unix(int64(epoch), 0))
-					}
-					break Extras
-				}
+				break
 			}
 			b = b[size:]
 		}
@@ -546,12 +507,6 @@ func findSignatureInBlock(b []byte) int {
 }
 
 type readBuf []byte
-
-func (b *readBuf) uint8() uint8 {
-	v := uint8((*b)[0])
-	*b = (*b)[1:]
-	return v
-}
 
 func (b *readBuf) uint16() uint16 {
 	v := binary.LittleEndian.Uint16(*b)

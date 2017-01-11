@@ -35,13 +35,6 @@ int main(int argc, char** argv) {
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	if (verbose) {
-		printf("raising SIGPIPE\n");
-	}
-
-	// Test that the Go runtime handles SIGPIPE.
-	ProvokeSIGPIPE();
-
-	if (verbose) {
 		printf("calling sigaction\n");
 	}
 

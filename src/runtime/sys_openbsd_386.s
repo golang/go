@@ -79,14 +79,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$24
 	INT	$0x80
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$12
+TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	$299, AX		// sys_getthrid
 	INT	$0x80
 	MOVL	$0, 0(SP)
-	MOVL	AX, 4(SP)		// arg 1 - pid
+	MOVL	AX, 4(SP)		// arg 1 - tid
 	MOVL	sig+0(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - signum
-	MOVL	$37, AX			// sys_kill
+	MOVL	$0, 12(SP)		// arg 3 - tcb
+	MOVL	$119, AX		// sys_thrkill
 	INT	$0x80
 	RET
 
@@ -97,7 +98,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$12
 	MOVL	AX, 4(SP)		// arg 1 - pid
 	MOVL	sig+0(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - signum
-	MOVL	$37, AX			// sys_kill
+	MOVL	$122, AX		// sys_kill
 	INT	$0x80
 	RET
 
@@ -212,7 +213,15 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	MOVL	AX, SP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$12
+TEXT runtime·sigtramp(SB),NOSPLIT,$28
+	// Save callee-saved C registers, since the caller may be a C signal handler.
+	MOVL	BX, bx-4(SP)
+	MOVL	BP, bp-8(SP)
+	MOVL	SI, si-12(SP)
+	MOVL	DI, di-16(SP)
+	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+	// modify them.
+
 	MOVL	signo+0(FP), BX
 	MOVL	BX, 0(SP)
 	MOVL	info+4(FP), BX
@@ -220,6 +229,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVL	context+8(FP), BX
 	MOVL	BX, 8(SP)
 	CALL	runtime·sigtrampgo(SB)
+
+	MOVL	di-16(SP), DI
+	MOVL	si-12(SP), SI
+	MOVL	bp-8(SP),  BP
+	MOVL	bx-4(SP),  BX
 	RET
 
 // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));

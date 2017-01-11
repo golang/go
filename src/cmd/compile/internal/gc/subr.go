@@ -1810,6 +1810,8 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		n := nod(ORETJMP, nil, nil)
 		n.Left = newname(methodsym(method.Sym, methodrcvr, 0))
 		fn.Nbody.Append(n)
+		// When tail-calling, we can't use a frame pointer.
+		fn.Func.NoFramePointer = true
 	} else {
 		fn.Func.Wrapper = true // ignore frame for panic+recover matching
 		call := nod(OCALL, dot, nil)

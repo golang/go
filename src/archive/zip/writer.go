@@ -103,18 +103,6 @@ func (w *Writer) Close() error {
 			b.uint32(h.UncompressedSize)
 		}
 
-		// use Extended Timestamp Extra Field.
-		if h.ModifiedTime != 0 || h.ModifiedDate != 0 {
-			mt := uint32(h.ModTime().Unix())
-			var mbuf [9]byte // 2x uint16 + uint8 + uint32
-			eb := writeBuf(mbuf[:])
-			eb.uint16(exttsExtraId)
-			eb.uint16(5)  // size = uint8 + uint32
-			eb.uint8(1)   // flags = modtime
-			eb.uint32(mt) // ModTime
-			h.Extra = append(h.Extra, mbuf[:]...)
-		}
-
 		b.uint16(uint16(len(h.Name)))
 		b.uint16(uint16(len(h.Extra)))
 		b.uint16(uint16(len(h.Comment)))
@@ -396,11 +384,6 @@ func (w nopCloser) Close() error {
 }
 
 type writeBuf []byte
-
-func (b *writeBuf) uint8(v uint8) {
-	(*b)[0] = v
-	*b = (*b)[1:]
-}
 
 func (b *writeBuf) uint16(v uint16) {
 	binary.LittleEndian.PutUint16(*b, v)

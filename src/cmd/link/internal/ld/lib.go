@@ -39,6 +39,7 @@ import (
 	"crypto/sha1"
 	"debug/elf"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -603,6 +604,16 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
+	// If package versioning is required, generate a hash of the
+	// the packages used in the link.
+	if Buildmode == BuildmodeShared || Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
+		for i = 0; i < len(ctxt.Library); i++ {
+			if ctxt.Library[i].Shlib == "" {
+				genhash(ctxt, ctxt.Library[i])
+			}
+		}
+	}
+
 	if SysArch == sys.Arch386 {
 		if (Buildmode == BuildmodeCArchive && Iself) || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE || ctxt.DynlinkingGo() {
 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
@@ -678,6 +689,29 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
 	return arsize + SAR_HDR
 }
 
+func genhash(ctxt *Link, lib *Library) {
+	f, err := bio.Open(lib.File)
+	if err != nil {
+		Errorf(nil, "cannot open file %s for hash generation: %v", lib.File, err)
+		return
+	}
+	defer f.Close()
+
+	var arhdr ArHdr
+	l := nextar(f, int64(len(ARMAG)), &arhdr)
+	if l <= 0 {
+		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
+		return
+	}
+
+	h := sha1.New()
+	if _, err := io.CopyN(h, f, atolwhex(arhdr.size)); err != nil {
+		Errorf(nil, "bad read of %s for hash generation: %v", lib.File, err)
+		return
+	}
+	lib.hash = hex.EncodeToString(h.Sum(nil))
+}
+
 func objfile(ctxt *Link, lib *Library) {
 	pkg := pathtoprefix(lib.Pkg)
 
@@ -718,17 +752,6 @@ func objfile(ctxt *Link, lib *Library) {
 	if !strings.HasPrefix(arhdr.name, pkgname) {
 		Errorf(nil, "%s: cannot find package header", lib.File)
 		goto out
-	}
-
-	if Buildmode == BuildmodeShared || Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
-		before := f.Offset()
-		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
-		if _, err := io.ReadFull(f, pkgdefBytes); err != nil {
-			Errorf(nil, "%s: short read on archive file symbol header: %v", lib.File, err)
-		}
-		hash := sha1.Sum(pkgdefBytes)
-		lib.hash = hash[:]
-		f.Seek(before, 0)
 	}
 
 	off += l
@@ -1234,6 +1257,8 @@ func hostlinkArchArgs() []string {
 		// nothing needed
 	case sys.MIPS64:
 		return []string{"-mabi=64"}
+	case sys.MIPS:
+		return []string{"-mabi=32"}
 	}
 	return nil
 }

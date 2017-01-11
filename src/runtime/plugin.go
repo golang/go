@@ -51,6 +51,9 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
 	modulesinit()
 	typelinksinit()
 
+	pluginftabverify(md)
+	moduledataverify1(md)
+
 	lock(&ifaceLock)
 	for _, i := range md.itablinks {
 		additab(i, true, false)
@@ -80,6 +83,35 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
 		syms[name] = val
 	}
 	return md.pluginpath, syms, ""
+}
+
+func pluginftabverify(md *moduledata) {
+	badtable := false
+	for i := 0; i < len(md.ftab); i++ {
+		entry := md.ftab[i].entry
+		if md.minpc <= entry && entry <= md.maxpc {
+			continue
+		}
+
+		f := (*_func)(unsafe.Pointer(&md.pclntable[md.ftab[i].funcoff]))
+		name := funcname(f)
+
+		// A common bug is f.entry has a relocation to a duplicate
+		// function symbol, meaning if we search for its PC we get
+		// a valid entry with a name that is useful for debugging.
+		name2 := "none"
+		entry2 := uintptr(0)
+		f2 := findfunc(entry)
+		if f2 != nil {
+			name2 = funcname(f2)
+			entry2 = f2.entry
+		}
+		badtable = true
+		println("ftab entry outside pc range: ", hex(entry), "/", hex(entry2), ": ", name, "/", name2)
+	}
+	if badtable {
+		throw("runtime: plugin has bad symbol table")
+	}
 }
 
 // inRange reports whether v0 or v1 are in the range [r0, r1].

@@ -615,7 +615,7 @@ const (
 
 // Layout of in-memory per-function information prepared by linker
 // See https://golang.org/s/go12symtab.
-// Keep in sync with linker
+// Keep in sync with linker (../cmd/link/internal/ld/pcln.go:/pclntab)
 // and with package debug/gosym and with symtab.go in package runtime.
 type _func struct {
 	entry   uintptr // start pc
@@ -640,7 +640,7 @@ type itab struct {
 	_type  *_type
 	link   *itab
 	bad    int32
-	unused int32
+	inhash int32      // has this itab been added to hash?
 	fun    [1]uintptr // variable sized
 }
 
@@ -745,6 +745,8 @@ var (
 	lfenceBeforeRdtsc bool
 	support_avx       bool
 	support_avx2      bool
+	support_bmi1      bool
+	support_bmi2      bool
 
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link
