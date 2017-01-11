@@ -15,8 +15,8 @@ goos=$(go env GOOS)
 goarch=$(go env GOARCH)
 
 function cleanup() {
-	rm -f plugin*.so unnamed*.so
-	rm -rf host pkg sub
+	rm -f plugin*.so unnamed*.so iface*.so
+	rm -rf host pkg sub iface
 }
 trap cleanup EXIT
 
@@ -32,3 +32,9 @@ GOPATH=$(pwd) go build -buildmode=plugin unnamed2.go
 GOPATH=$(pwd) go build host
 
 LD_LIBRARY_PATH=$(pwd) ./host
+
+# Test that types and itabs get properly uniqified.
+GOPATH=$(pwd) go build -buildmode=plugin iface_a
+GOPATH=$(pwd) go build -buildmode=plugin iface_b
+GOPATH=$(pwd) go build iface
+LD_LIBRARY_PATH=$(pwd) ./iface
