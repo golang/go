@@ -6,11 +6,6 @@
 
 // Test basic restrictions on type aliases.
 
-// The compiler doesn't implement type aliases yet,
-// so for now we get the same error (unimplemented)
-// everywhere, OR-ed into the ERROR checks.
-// TODO(gri) remove the need for "unimplemented"
-
 package p
 
 import (
@@ -18,41 +13,87 @@ import (
 	. "reflect"
 )
 
+type T0 struct{}
+
 // Valid type alias declarations.
 
-type _ = int           // ERROR "unimplemented"
-type _ = struct{}      // ERROR "unimplemented"
-type _ = reflect.Value // ERROR "unimplemented"
-type _ = Value         // ERROR "unimplemented"
+type _ = T0
+type _ = int
+type _ = struct{}
+type _ = reflect.Value
+type _ = Value
 
 type (
-	a1 = int           // ERROR "unimplemented"
-	a2 = struct{}      // ERROR "unimplemented"
-	a3 = reflect.Value // ERROR "unimplemented"
-	a4 = Value         // ERROR "unimplemented"
+	A0 = T0
+	A1 = int
+	A2 = struct{}
+	A3 = reflect.Value
+	A4 = Value
+	A5 = Value
+
+	N0 A0
 )
 
+// Methods can be declared on the original named type and the alias.
+func (T0) m1() {}
+func (A0) m1() {} // TODO(gri) this should be an error
+func (A0) m2() {}
+
+// Type aliases and the original type name can be used interchangeably.
+var _ A0 = T0{}
+var _ T0 = A0{}
+
+// But aliases and original types cannot be used with new types based on them.
+var _ N0 = T0{} // ERROR "cannot use T0 literal \(type T0\) as type N0 in assignment"
+var _ N0 = A0{} // ERROR "cannot use T0 literal \(type T0\) as type N0 in assignment"
+
+var _ A5 = Value{}
+
+var _ interface {
+	m1()
+	m2()
+} = T0{}
+
+var _ interface {
+	m1()
+	m2()
+} = A0{}
+
 func _() {
-	type _ = int           // ERROR "unimplemented"
-	type _ = struct{}      // ERROR "unimplemented"
-	type _ = reflect.Value // ERROR "unimplemented"
-	type _ = Value         // ERROR "unimplemented"
+	type _ = T0
+	type _ = int
+	type _ = struct{}
+	type _ = reflect.Value
+	type _ = Value
 
 	type (
-		a1 = int           // ERROR "unimplemented"
-		a2 = struct{}      // ERROR "unimplemented"
-		a3 = reflect.Value // ERROR "unimplemented"
-		a4 = Value         // ERROR "unimplemented"
+		A0 = T0
+		A1 = int
+		A2 = struct{}
+		A3 = reflect.Value
+		A4 = Value
+		A5 Value
+
+		N0 A0
 	)
+
+	var _ A0 = T0{}
+	var _ T0 = A0{}
+
+	var _ N0 = T0{} // ERROR "cannot use T0 literal \(type T0\) as type N0 in assignment"
+	var _ N0 = A0{} // ERROR "cannot use T0 literal \(type T0\) as type N0 in assignment"
+
+	var _ A5 = Value{} // ERROR "cannot use reflect\.Value literal \(type reflect.Value\) as type A5 in assignment"
 }
 
 // Invalid type alias declarations.
 
-type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type|unimplemented"
+type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type"
 
-type b1 = struct{} // ERROR "unimplemented"
-func (b1) m()      {} // disabled ERROR "invalid receiver type"
+func (A1) m() {} // ERROR "cannot define new methods on non-local type int"
+
+type B1 = struct{}
+
+func (B1) m() {} // ERROR "invalid receiver type"
 
 // TODO(gri) expand
-// It appears that type-checking exits after some more severe errors, so we may
-// need more test files.
