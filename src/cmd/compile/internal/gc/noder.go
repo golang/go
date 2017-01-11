@@ -16,6 +16,17 @@ import (
 	"cmd/internal/src"
 )
 
+func parseFiles(filenames []string) uint {
+	var lines uint
+	for _, filename := range filenames {
+		lines += parseFile(filename)
+		if nsyntaxerrors != 0 {
+			errorexit()
+		}
+	}
+	return lines
+}
+
 func parseFile(filename string) uint {
 	f, err := os.Open(filename)
 	if err != nil {
@@ -29,12 +40,6 @@ func parseFile(filename string) uint {
 	file, _ := syntax.Parse(base, f, p.error, p.pragma, 0) // errors are tracked via p.error
 
 	p.file(file)
-
-	if !imported_unsafe {
-		for _, pos := range p.linknames {
-			p.error(syntax.Error{Pos: pos, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
-		}
-	}
 
 	if nsyntaxerrors == 0 {
 		testdclstack()
@@ -55,10 +60,20 @@ type noder struct {
 }
 
 func (p *noder) file(file *syntax.File) {
+	block = 1
+	iota_ = -1000000
+	imported_unsafe = false
+
 	p.lineno(file.PkgName)
 	mkpackage(file.PkgName.Value)
 
 	xtop = append(xtop, p.decls(file.DeclList)...)
+
+	if !imported_unsafe {
+		for _, pos := range p.linknames {
+			p.error(syntax.Error{Pos: pos, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
+		}
+	}
 
 	// For compatibility with old code only (comparisons w/ toolstash):
 	// The old line number tracking simply continued incrementing the

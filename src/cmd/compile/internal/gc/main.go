@@ -325,16 +325,7 @@ func Main() {
 	loadsys()
 
 	timings.Start("fe", "parse")
-	var lines uint
-	for _, infile := range flag.Args() {
-		block = 1
-		iota_ = -1000000
-		imported_unsafe = false
-		lines += parseFile(infile)
-		if nsyntaxerrors != 0 {
-			errorexit()
-		}
-	}
+	lines := parseFiles(flag.Args())
 	timings.Stop()
 	timings.AddEvent(int64(lines), "lines")
 
