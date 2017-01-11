@@ -6,7 +6,10 @@
 
 package gc
 
-import "cmd/internal/src"
+import (
+	"cmd/compile/internal/syntax"
+	"cmd/internal/src"
+)
 
 // A Node is a single node in the syntax tree.
 // Actually the syntax tree is a syntax DAG, because there is only one
@@ -285,7 +288,7 @@ type Param struct {
 	// OTYPE pragmas
 	//
 	// TODO: Should Func pragmas also be stored on the Name?
-	Pragma Pragma
+	Pragma syntax.Pragma
 }
 
 // Func holds Node fields used only with function-like nodes.
@@ -313,11 +316,11 @@ type Func struct {
 	Endlineno src.XPos
 	WBPos     src.XPos // position of first write barrier
 
-	Pragma          Pragma // go:xxx function annotations
-	Dupok           bool   // duplicate definitions ok
-	Wrapper         bool   // is method wrapper
-	Needctxt        bool   // function uses context register (has closure variables)
-	ReflectMethod   bool   // function calls reflect.Type.Method or MethodByName
+	Pragma          syntax.Pragma // go:xxx function annotations
+	Dupok           bool          // duplicate definitions ok
+	Wrapper         bool          // is method wrapper
+	Needctxt        bool          // function uses context register (has closure variables)
+	ReflectMethod   bool          // function calls reflect.Type.Method or MethodByName
 	IsHiddenClosure bool
 	NoFramePointer  bool // Must not use a frame pointer for this function
 }
