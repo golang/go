@@ -18,34 +18,47 @@ import (
 
 func parseFiles(filenames []string) uint {
 	var lines uint
+	var noders []*noder
+
 	for _, filename := range filenames {
-		lines += parseFile(filename)
+		p := &noder{err: make(chan syntax.Error)}
+		noders = append(noders, p)
+
+		go func(filename string) {
+			defer close(p.err)
+			base := src.NewFileBase(filename, absFilename(filename))
+
+			f, err := os.Open(filename)
+			if err != nil {
+				p.error(syntax.Error{Pos: src.MakePos(base, 0, 0), Msg: err.Error()})
+				return
+			}
+			defer f.Close()
+
+			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, 0) // errors are tracked via p.error
+		}(filename)
+	}
+
+	for _, p := range noders {
+		for e := range p.err {
+			yyerrorpos(e.Pos, "%s", e.Msg)
+		}
+
+		p.node()
+		lines += p.file.Lines
+		p.file = nil // release memory
+
 		if nsyntaxerrors != 0 {
 			errorexit()
 		}
-	}
-	return lines
-}
-
-func parseFile(filename string) uint {
-	f, err := os.Open(filename)
-	if err != nil {
-		fmt.Println(err)
-		errorexit()
-	}
-	defer f.Close()
-
-	base := src.NewFileBase(filename, absFilename(filename))
-	var p noder
-	file, _ := syntax.Parse(base, f, p.error, p.pragma, 0) // errors are tracked via p.error
-
-	p.file(file)
-
-	if nsyntaxerrors == 0 {
 		testdclstack()
 	}
 
-	return file.Lines
+	return lines
+}
+
+func yyerrorpos(pos src.Pos, format string, args ...interface{}) {
+	yyerrorl(Ctxt.PosTable.XPos(pos), format, args...)
 }
 
 var pathPrefix string
@@ -54,26 +67,40 @@ func absFilename(name string) string {
 	return obj.AbsFile(Ctxt.Pathname, name, pathPrefix)
 }
 
-// noder transforms package syntax's AST into a Nod tree.
+// noder transforms package syntax's AST into a Node tree.
 type noder struct {
-	linknames []src.Pos // tracks //go:linkname positions
+	file       *syntax.File
+	linknames  []linkname
+	pragcgobuf string
+	err        chan syntax.Error
 }
 
-func (p *noder) file(file *syntax.File) {
+// linkname records a //go:linkname directive.
+type linkname struct {
+	pos    src.Pos
+	local  string
+	remote string
+}
+
+func (p *noder) node() {
 	block = 1
 	iota_ = -1000000
 	imported_unsafe = false
 
-	p.lineno(file.PkgName)
-	mkpackage(file.PkgName.Value)
+	p.lineno(p.file.PkgName)
+	mkpackage(p.file.PkgName.Value)
 
-	xtop = append(xtop, p.decls(file.DeclList)...)
+	xtop = append(xtop, p.decls(p.file.DeclList)...)
 
-	if !imported_unsafe {
-		for _, pos := range p.linknames {
-			p.error(syntax.Error{Pos: pos, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
+	for _, n := range p.linknames {
+		if imported_unsafe {
+			lookup(n.local).Linkname = n.remote
+		} else {
+			yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
 		}
 	}
+
+	pragcgobuf += p.pragcgobuf
 
 	// For compatibility with old code only (comparisons w/ toolstash):
 	// The old line number tracking simply continued incrementing the
@@ -84,7 +111,7 @@ func (p *noder) file(file *syntax.File) {
 	// for fninit and set lineno to NoPos here.
 	// TODO(gri) fix this once we switched permanently to the new
 	// position information.
-	lineno = MakePos(file.Pos().Base(), uint(file.Lines), 0)
+	lineno = MakePos(p.file.Pos().Base(), uint(p.file.Lines), 0)
 
 	clearImports()
 }
@@ -221,7 +248,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
 
 func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 	name := typedcl0(p.name(decl.Name))
-	name.Name.Param.Pragma = Pragma(decl.Pragma)
+	name.Name.Param.Pragma = decl.Pragma
 
 	var typ *Node
 	if decl.Type != nil {
@@ -258,7 +285,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		}
 	}
 
-	pragma := Pragma(fun.Pragma)
+	pragma := fun.Pragma
 
 	f.Nbody.Set(body)
 	f.Noescape = pragma&Noescape != 0
@@ -1043,8 +1070,7 @@ func (p *noder) lineno(n syntax.Node) {
 }
 
 func (p *noder) error(err error) {
-	e := err.(syntax.Error)
-	yyerrorl(Ctxt.PosTable.XPos(e.Pos), "%s", e.Msg)
+	p.err <- err.(syntax.Error)
 }
 
 func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
@@ -1054,26 +1080,27 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 		panic("unreachable")
 
 	case strings.HasPrefix(text, "go:linkname "):
-		// Record line number so we can emit an error later if
-		// the file doesn't import package unsafe.
-		p.linknames = append(p.linknames, pos)
-
 		f := strings.Fields(text)
 		if len(f) != 3 {
 			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:linkname localname linkname"})
 			break
 		}
-		lookup(f[1]).Linkname = f[2]
+		p.linknames = append(p.linknames, linkname{pos, f[1], f[2]})
 
 	case strings.HasPrefix(text, "go:cgo_"):
-		pragcgobuf += pragcgo(text)
+		p.pragcgobuf += pragcgo(text)
 		fallthrough // because of //go:cgo_unsafe_args
 	default:
 		verb := text
 		if i := strings.Index(text, " "); i >= 0 {
 			verb = verb[:i]
 		}
-		return syntax.Pragma(pragmaValue(verb))
+		prag := pragmaValue(verb)
+		const runtimePragmas = Systemstack | Nowritebarrier | Nowritebarrierrec | Yeswritebarrierrec
+		if !compiling_runtime && prag&runtimePragmas != 0 {
+			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//go:%s only allowed in runtime", verb)})
+		}
+		return prag
 	}
 
 	return 0
