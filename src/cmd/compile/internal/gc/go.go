@@ -113,8 +113,6 @@ var sizeof_String int // runtime sizeof(String)
 
 var pragcgobuf string
 
-var infile string
-
 var outfile string
 var linkobj string
 

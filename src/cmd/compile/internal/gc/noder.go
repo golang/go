@@ -70,6 +70,8 @@ func (p *noder) file(file *syntax.File) {
 	// TODO(gri) fix this once we switched permanently to the new
 	// position information.
 	lineno = MakePos(file.Pos().Base(), uint(file.Lines), 0)
+
+	clearImports()
 }
 
 func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
