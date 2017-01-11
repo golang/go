@@ -316,10 +316,10 @@ func (p *importer) obj(tag int) {
 		importconst(sym, idealType(typ), nodlit(val))
 
 	case aliasTag:
-		// TODO(gri) hook up type alias
 		p.pos()
-		p.qualifiedName()
-		p.typ()
+		sym := p.qualifiedName()
+		typ := p.typ()
+		importalias(sym, typ)
 
 	case typeTag:
 		p.typ()
@@ -576,7 +576,7 @@ func (p *importer) fieldList() (fields []*Field) {
 
 func (p *importer) field() *Field {
 	p.pos()
-	sym := p.fieldName()
+	sym, alias := p.fieldName()
 	typ := p.typ()
 	note := p.string()
 
@@ -589,8 +589,8 @@ func (p *importer) field() *Field {
 		}
 		sym = sym.Pkg.Lookup(s.Name)
 		f.Embedded = 1
-	} else if sym.Flags&SymAlias != 0 {
-		// anonymous field: we have an explicit name because it's an alias
+	} else if alias {
+		// anonymous field: we have an explicit name because it's a type alias
 		f.Embedded = 1
 	}
 
@@ -625,15 +625,15 @@ func (p *importer) method() *Field {
 	return f
 }
 
-func (p *importer) fieldName() *Sym {
+func (p *importer) fieldName() (*Sym, bool) {
 	name := p.string()
 	if p.version == 0 && name == "_" {
 		// version 0 didn't export a package for _ field names
 		// but used the builtin package instead
-		return builtinpkg.Lookup(name)
+		return builtinpkg.Lookup(name), false
 	}
 	pkg := localpkg
-	var flag SymFlags
+	alias := false
 	switch name {
 	case "":
 		// 1) field name matches base type name and is exported: nothing to do
@@ -644,16 +644,14 @@ func (p *importer) fieldName() *Sym {
 	case "@":
 		// 3) field name doesn't match base type name (alias name): need name and possibly package
 		name = p.string()
-		flag = SymAlias
+		alias = true
 		fallthrough
 	default:
 		if !exportname(name) {
 			pkg = p.pkg()
 		}
 	}
-	sym := pkg.Lookup(name)
-	sym.Flags |= flag
-	return sym
+	return pkg.Lookup(name), alias
 }
 
 func (p *importer) methodName() *Sym {

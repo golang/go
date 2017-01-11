@@ -695,10 +695,20 @@ func typedcl0(s *Sym) *Node {
 
 // node n, which was returned by typedcl0
 // is being declared to have uncompiled type t.
-// return the ODCLTYPE node to use.
-func typedcl1(n *Node, t *Node, local bool) *Node {
-	n.Name.Param.Ntype = t
-	n.Local = local
+// returns the ODCLTYPE node to use.
+func typedcl1(n *Node, t *Node, pragma Pragma, alias bool) *Node {
+	if pragma != 0 && alias {
+		yyerror("cannot specify directive with type alias")
+		pragma = 0
+	}
+
+	n.Local = true
+
+	p := n.Name.Param
+	p.Ntype = t
+	p.Pragma = pragma
+	p.Alias = alias
+
 	return nod(ODCLTYPE, n, nil)
 }
 

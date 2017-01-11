@@ -352,8 +352,8 @@ func export(out *bufio.Writer, trace bool) int {
 			p.tracef("\n")
 		}
 
-		if sym.Flags&SymAlias != 0 {
-			Fatalf("exporter: unexpected alias %v in inlined function body", sym)
+		if sym.isAlias() {
+			Fatalf("exporter: unexpected type alias %v in inlined function body", sym)
 		}
 
 		p.obj(sym)
@@ -486,8 +486,7 @@ func (p *exporter) obj(sym *Sym) {
 			Fatalf("exporter: export of incomplete type %v", sym)
 		}
 
-		const alias = false // TODO(gri) fix this
-		if alias {
+		if sym.isAlias() {
 			p.tag(aliasTag)
 			p.pos(n)
 			p.qualifiedName(sym)

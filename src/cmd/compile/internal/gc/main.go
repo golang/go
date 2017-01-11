@@ -927,7 +927,7 @@ func mkpackage(pkgname string) {
 				continue
 			}
 
-			if s.Def.Sym != s && s.Flags&SymAlias == 0 {
+			if s.isAlias() {
 				// throw away top-level name left over
 				// from previous import . "x"
 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {

@@ -177,21 +177,12 @@ func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
 }
 
 func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
-	if decl.Alias {
-		yyerror("type alias declarations unimplemented")
-	}
-
 	name := typedcl0(p.name(decl.Name))
-	pragma := Pragma(decl.Pragma)
-	if pragma != 0 && decl.Alias {
-		yyerror("cannot specify directive with type alias")
-		pragma = 0
-	}
-	name.Name.Param.Pragma = pragma
 
+	// decl.Type may be nil but in that case we got a syntax error during parsing
 	typ := p.typeExprOrNil(decl.Type)
 
-	return typedcl1(name, typ, true)
+	return typedcl1(name, typ, Pragma(decl.Pragma), decl.Alias)
 }
 
 func (p *noder) declNames(names []*syntax.Name) []*Node {
