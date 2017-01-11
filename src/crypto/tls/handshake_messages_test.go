@@ -116,7 +116,11 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m.sessionId = randomBytes(rand.Intn(32), rand)
 	m.cipherSuites = make([]uint16, rand.Intn(63)+1)
 	for i := 0; i < len(m.cipherSuites); i++ {
-		m.cipherSuites[i] = uint16(rand.Int31())
+		cs := uint16(rand.Int31())
+		if cs == scsvRenegotiation {
+			cs += 1
+		}
+		m.cipherSuites[i] = cs
 	}
 	m.compressionMethods = randomBytes(rand.Intn(63)+1, rand)
 	if rand.Intn(10) > 5 {
