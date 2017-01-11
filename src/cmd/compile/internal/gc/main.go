@@ -218,6 +218,26 @@ func Main() {
 		usage()
 	}
 
+	if outfile == "" {
+		p := flag.Arg(0)
+		if i := strings.LastIndex(p, "/"); i >= 0 {
+			p = p[i+1:]
+		}
+		if runtime.GOOS == "windows" {
+			if i := strings.LastIndex(p, `\`); i >= 0 {
+				p = p[i+1:]
+			}
+		}
+		if i := strings.LastIndex(p, "."); i >= 0 {
+			p = p[:i]
+		}
+		suffix := ".o"
+		if writearchive {
+			suffix = ".a"
+		}
+		outfile = p + suffix
+	}
+
 	startProfile()
 
 	if flag_race {
@@ -306,7 +326,7 @@ func Main() {
 
 	timings.Start("fe", "parse")
 	var lines uint
-	for _, infile = range flag.Args() {
+	for _, infile := range flag.Args() {
 		block = 1
 		iota_ = -1000000
 		imported_unsafe = false
@@ -319,7 +339,6 @@ func Main() {
 	timings.AddEvent(int64(lines), "lines")
 
 	testdclstack()
-	mkpackage(localpkg.Name) // final import not used checks
 	finishUniverse()
 
 	typecheckok = true
@@ -900,54 +919,37 @@ func mkpackage(pkgname string) {
 		if pkgname != localpkg.Name {
 			yyerror("package %s; expected %s", pkgname, localpkg.Name)
 		}
-		for _, s := range localpkg.Syms {
-			if s.Def == nil {
-				continue
-			}
-			if s.Def.Op == OPACK {
-				// throw away top-level package name leftover
-				// from previous file.
-				// leave s->block set to cause redeclaration
-				// errors if a conflicting top-level name is
-				// introduced by a different file.
-				if !s.Def.Used && nsyntaxerrors == 0 {
-					pkgnotused(s.Def.Pos, s.Def.Name.Pkg.Path, s.Name)
-				}
-				s.Def = nil
-				continue
-			}
-
-			if s.Def.Sym != s && s.Flags&SymAlias == 0 {
-				// throw away top-level name left over
-				// from previous import . "x"
-				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
-					pkgnotused(s.Def.Name.Pack.Pos, s.Def.Name.Pack.Name.Pkg.Path, "")
-					s.Def.Name.Pack.Used = true
-				}
-
-				s.Def = nil
-				continue
-			}
-		}
 	}
+}
 
-	if outfile == "" {
-		p := infile
-		if i := strings.LastIndex(p, "/"); i >= 0 {
-			p = p[i+1:]
+func clearImports() {
+	for _, s := range localpkg.Syms {
+		if s.Def == nil {
+			continue
 		}
-		if runtime.GOOS == "windows" {
-			if i := strings.LastIndex(p, `\`); i >= 0 {
-				p = p[i+1:]
+		if s.Def.Op == OPACK {
+			// throw away top-level package name leftover
+			// from previous file.
+			// leave s->block set to cause redeclaration
+			// errors if a conflicting top-level name is
+			// introduced by a different file.
+			if !s.Def.Used && nsyntaxerrors == 0 {
+				pkgnotused(s.Def.Pos, s.Def.Name.Pkg.Path, s.Name)
 			}
+			s.Def = nil
+			continue
 		}
-		if i := strings.LastIndex(p, "."); i >= 0 {
-			p = p[:i]
+
+		if s.Def.Sym != s && s.Flags&SymAlias == 0 {
+			// throw away top-level name left over
+			// from previous import . "x"
+			if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
+				pkgnotused(s.Def.Name.Pack.Pos, s.Def.Name.Pack.Name.Pkg.Path, "")
+				s.Def.Name.Pack.Used = true
+			}
+
+			s.Def = nil
+			continue
 		}
-		suffix := ".o"
-		if writearchive {
-			suffix = ".a"
-		}
-		outfile = p + suffix
 	}
 }
