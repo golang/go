@@ -743,9 +743,21 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	// and either src or dst is not a named type or
 	// both are empty interface types.
 	// For assignable but different non-empty interface types,
-	// we want to recompute the itab.
-	if eqtype(src.Orig, dst.Orig) && (src.Sym == nil || dst.Sym == nil || src.IsEmptyInterface()) {
-		return OCONVNOP
+	// we want to recompute the itab. Recomputing the itab ensures
+	// that itabs are unique (thus an interface with a compile-time
+	// type I has an itab with interface type I).
+	if eqtype(src.Orig, dst.Orig) {
+		if src.IsEmptyInterface() {
+			// Conversion between two empty interfaces
+			// requires no code.
+			return OCONVNOP
+		}
+		if (src.Sym == nil || dst.Sym == nil) && !src.IsInterface() {
+			// Conversion between two types, at least one unnamed,
+			// needs no conversion. The exception is nonempty interfaces
+			// which need to have their itab updated.
+			return OCONVNOP
+		}
 	}
 
 	// 3. dst is an interface type and src implements dst.
