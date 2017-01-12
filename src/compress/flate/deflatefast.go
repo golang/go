@@ -60,7 +60,7 @@ func newDeflateFast() *deflateFast {
 func (e *deflateFast) encode(dst []token, src []byte) []token {
 	// Ensure that e.cur doesn't wrap.
 	if e.cur > 1<<30 {
-		*e = deflateFast{cur: maxStoreBlockSize, prev: e.prev[:0]}
+		e.resetAll()
 	}
 
 	// This check isn't in the Snappy implementation, but there, the caller
@@ -265,6 +265,21 @@ func (e *deflateFast) reset() {
 
 	// Protect against e.cur wraparound.
 	if e.cur > 1<<30 {
-		*e = deflateFast{cur: maxStoreBlockSize, prev: e.prev[:0]}
+		e.resetAll()
+	}
+}
+
+// resetAll resets the deflateFast struct and is only called in rare
+// situations to prevent integer overflow. It manually resets each field
+// to avoid causing large stack growth.
+//
+// See https://golang.org/issue/18636.
+func (e *deflateFast) resetAll() {
+	// This is equivalent to:
+	//	*e = deflateFast{cur: maxStoreBlockSize, prev: e.prev[:0]}
+	e.cur = maxStoreBlockSize
+	e.prev = e.prev[:0]
+	for i := range e.table {
+		e.table[i] = tableEntry{}
 	}
 }

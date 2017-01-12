@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"reflect"
+	"runtime/debug"
 	"sync"
 	"testing"
 )
@@ -862,5 +863,35 @@ func TestBestSpeedMaxMatchOffset(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestMaxStackSize(t *testing.T) {
+	// This test must not run in parallel with other tests as debug.SetMaxStack
+	// affects all goroutines.
+	n := debug.SetMaxStack(1 << 16)
+	defer debug.SetMaxStack(n)
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	b := make([]byte, 1<<20)
+	for level := HuffmanOnly; level <= BestCompression; level++ {
+		// Run in separate goroutine to increase probability of stack regrowth.
+		wg.Add(1)
+		go func(level int) {
+			defer wg.Done()
+			zw, err := NewWriter(ioutil.Discard, level)
+			if err != nil {
+				t.Errorf("level %d, NewWriter() = %v, want nil", level, err)
+			}
+			if n, err := zw.Write(b); n != len(b) || err != nil {
+				t.Errorf("level %d, Write() = (%d, %v), want (%d, nil)", level, n, err, len(b))
+			}
+			if err := zw.Close(); err != nil {
+				t.Errorf("level %d, Close() = %v, want nil", level, err)
+			}
+			zw.Reset(ioutil.Discard)
+		}(level)
 	}
 }

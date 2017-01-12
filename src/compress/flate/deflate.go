@@ -136,14 +136,17 @@ func (d *compressor) fillDeflate(b []byte) int {
 			delta := d.hashOffset - 1
 			d.hashOffset -= delta
 			d.chainHead -= delta
-			for i, v := range d.hashPrev {
+
+			// Iterate over slices instead of arrays to avoid copying
+			// the entire table onto the stack (Issue #18625).
+			for i, v := range d.hashPrev[:] {
 				if int(v) > delta {
 					d.hashPrev[i] = uint32(int(v) - delta)
 				} else {
 					d.hashPrev[i] = 0
 				}
 			}
-			for i, v := range d.hashHead {
+			for i, v := range d.hashHead[:] {
 				if int(v) > delta {
 					d.hashHead[i] = uint32(int(v) - delta)
 				} else {
