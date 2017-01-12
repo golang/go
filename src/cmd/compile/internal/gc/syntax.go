@@ -284,7 +284,7 @@ type Param struct {
 	//
 	// TODO: Should Func pragmas also be stored on the Name?
 	Pragma Pragma
-	Alias  bool // node is alias for Ntype
+	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
 }
 
 // Func holds Node fields used only with function-like nodes.
