@@ -398,6 +398,14 @@ func lexinit1() {
 	// errortype.Orig = makeErrorInterface()
 	s.Def = typenod(errortype)
 
+	// We create separate byte and rune types for better error messages
+	// rather than just creating type alias *Sym's for the uint8 and
+	// int32 types. Hence, (bytetype|runtype).Sym.isAlias() is false.
+	// TODO(gri) Should we get rid of this special case (at the cost
+	// of less informative error messages involving bytes and runes)?
+	// (Alternatively, we could introduce an OTALIAS node representing
+	// type aliases, albeit at the cost of having to deal with it everywhere).
+
 	// byte alias
 	s = Pkglookup("byte", builtinpkg)
 	bytetype = typ(TUINT8)
