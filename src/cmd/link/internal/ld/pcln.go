@@ -168,7 +168,7 @@ func container(s *Symbol) int {
 	if s == nil {
 		return 0
 	}
-	if Buildmode == BuildmodePlugin && onlycsymbol(s) {
+	if Buildmode == BuildmodePlugin && Headtype == obj.Hdarwin && onlycsymbol(s) {
 		return 1
 	}
 	// We want to generate func table entries only for the "lowest level" symbols,
