@@ -281,11 +281,11 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
 			}
 		}
 
-		param := strings.Join(params, ", ")
+		param := joinStrings(params)
 		if len(results) == 0 {
 			return fmt.Sprintf("func(%s)", param)
 		}
-		result := strings.Join(results, ", ")
+		result := joinStrings(results)
 		if !needParens {
 			return fmt.Sprintf("func(%s) %s", param, result)
 		}
@@ -338,7 +338,7 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
 		for _, arg := range n.Args {
 			args = append(args, pkg.oneLineNodeDepth(arg, depth))
 		}
-		return fmt.Sprintf("%s(%s)", fnc, strings.Join(args, ", "))
+		return fmt.Sprintf("%s(%s)", fnc, joinStrings(args))
 
 	case *ast.UnaryExpr:
 		return fmt.Sprintf("%s%s", n.Op, pkg.oneLineNodeDepth(n.X, depth))
@@ -367,7 +367,21 @@ func (pkg *Package) oneLineField(field *ast.Field, depth int) string {
 	if len(names) == 0 {
 		return pkg.oneLineNodeDepth(field.Type, depth)
 	}
-	return strings.Join(names, ", ") + " " + pkg.oneLineNodeDepth(field.Type, depth)
+	return joinStrings(names) + " " + pkg.oneLineNodeDepth(field.Type, depth)
+}
+
+// joinStrings formats the input as a comma-separated list,
+// but truncates the list at some reasonable length if necessary.
+func joinStrings(ss []string) string {
+	var n int
+	for i, s := range ss {
+		n += len(s) + len(", ")
+		if n > punchedCardWidth {
+			ss = append(ss[:i:i], "...")
+			break
+		}
+	}
+	return strings.Join(ss, ", ")
 }
 
 // packageDoc prints the docs for the package (package doc plus one-liners of the rest).
@@ -787,7 +801,6 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 			}
 			name := iMethod.Names[0].Name
 			if match(method, name) {
-				// pkg.oneLineField(iMethod, 0)
 				if iMethod.Doc != nil {
 					for _, comment := range iMethod.Doc.List {
 						doc.ToText(&pkg.buf, comment.Text, "", indent, indentedWidth)

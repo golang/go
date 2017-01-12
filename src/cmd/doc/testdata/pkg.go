@@ -173,6 +173,19 @@ const (
 
 const ConstGroup4 ExportedType = ExportedType{}
 
+func newLongLine(ss ...string)
+
+var LongLine = newLongLine(
+	"someArgument1",
+	"someArgument2",
+	"someArgument3",
+	"someArgument4",
+	"someArgument5",
+	"someArgument6",
+	"someArgument7",
+	"someArgument8",
+)
+
 type T2 int
 
 type T1 = T2
