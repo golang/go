@@ -538,6 +538,11 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 			off += typ.size
 		}
 	}
+
+	// runtime.getArgInfo expects to be able to find ctxt on the
+	// stack when it finds our caller, makeFuncStub. Make sure it
+	// doesn't get garbage collected.
+	runtime.KeepAlive(ctxt)
 }
 
 // methodReceiver returns information about the receiver
@@ -650,6 +655,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	// though it's a heap object.
 	memclrNoHeapPointers(args, frametype.size)
 	framePool.Put(args)
+
+	// See the comment in callReflect.
+	runtime.KeepAlive(ctxt)
 }
 
 // funcName returns the name of f, for use in error messages.
