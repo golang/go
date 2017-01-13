@@ -4,7 +4,7 @@
 
 // +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
 
-package main
+package base
 
 import (
 	"os"
@@ -13,6 +13,6 @@ import (
 
 var signalsToIgnore = []os.Signal{os.Interrupt, syscall.SIGQUIT}
 
-// signalTrace is the signal to send to make a Go program
+// SignalTrace is the signal to send to make a Go program
 // crash with a stack trace.
-var signalTrace os.Signal = syscall.SIGQUIT
+var SignalTrace os.Signal = syscall.SIGQUIT

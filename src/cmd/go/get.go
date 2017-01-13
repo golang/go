@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"cmd/go/internal/str"
 	"fmt"
 	"go/build"
@@ -17,7 +18,7 @@ import (
 	"strings"
 )
 
-var cmdGet = &Command{
+var cmdGet = &base.Command{
 	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]",
 	Short:     "download and install packages and dependencies",
 	Long: `
@@ -85,9 +86,9 @@ func init() {
 	cmdGet.Run = runGet // break init loop
 }
 
-func runGet(cmd *Command, args []string) {
+func runGet(cmd *base.Command, args []string) {
 	if *getF && !*getU {
-		fatalf("go get: cannot use -f flag without -u")
+		base.Fatalf("go get: cannot use -f flag without -u")
 	}
 
 	// Disable any prompting for passwords by Git.
@@ -127,7 +128,7 @@ func runGet(cmd *Command, args []string) {
 	for _, arg := range args {
 		download(arg, nil, &stk, mode)
 	}
-	exitIfErrors()
+	base.ExitIfErrors()
 
 	// Phase 2. Rescan packages and re-evaluate args list.
 
@@ -220,7 +221,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 
 	p := load(arg, mode)
 	if p.Error != nil && p.Error.hard {
-		errorf("%s", p.Error)
+		base.Errorf("%s", p.Error)
 		return
 	}
 
@@ -257,7 +258,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 		stk.push(arg)
 		err := downloadPackage(p)
 		if err != nil {
-			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
+			base.Errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
 			stk.pop()
 			return
 		}
@@ -293,7 +294,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 			// Do not push here too, or else stk will say arg imports arg.
 			p := load(arg, mode)
 			if p.Error != nil {
-				errorf("%s", p.Error)
+				base.Errorf("%s", p.Error)
 				continue
 			}
 			pkgs = append(pkgs, p)
@@ -304,12 +305,12 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 	// due to wildcard expansion.
 	for _, p := range pkgs {
 		if *getFix {
-			run(cfg.BuildToolexec, str.StringList(tool("fix"), relPaths(p.allgofiles)))
+			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), base.RelPaths(p.allgofiles)))
 
 			// The imports might have changed, so reload again.
 			p = reloadPackage(arg, stk)
 			if p.Error != nil {
-				errorf("%s", p.Error)
+				base.Errorf("%s", p.Error)
 				return
 			}
 		}
@@ -346,7 +347,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 					Err:         "must be imported as " + path[j+len("vendor/"):],
 				}
 				stk.pop()
-				errorf("%s", err)
+				base.Errorf("%s", err)
 				continue
 			}
 			// If this is a test import, apply vendor lookup now.

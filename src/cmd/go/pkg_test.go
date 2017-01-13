@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"cmd/go/internal/str"
 	"io/ioutil"
 	"os"
@@ -164,7 +165,7 @@ func TestSharedLibName(t *testing.T) {
 				oldGopath := cfg.BuildContext.GOPATH
 				defer func() {
 					cfg.BuildContext.GOPATH = oldGopath
-					os.Chdir(cwd)
+					os.Chdir(base.Cwd)
 					err := os.RemoveAll(tmpGopath)
 					if err != nil {
 						t.Error(err)

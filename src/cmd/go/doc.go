@@ -6,9 +6,12 @@
 
 package main
 
-import "cmd/go/internal/cfg"
+import (
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
+)
 
-var cmdDoc = &Command{
+var cmdDoc = &base.Command{
 	Run:         runDoc,
 	UsageLine:   "doc [-u] [-c] [package|[package.]symbol[.method]]",
 	CustomFlags: true,
@@ -115,6 +118,6 @@ Flags:
 `,
 }
 
-func runDoc(cmd *Command, args []string) {
-	run(cfg.BuildToolexec, tool("doc"), args)
+func runDoc(cmd *base.Command, args []string) {
+	base.Run(cfg.BuildToolexec, base.Tool("doc"), args)
 }

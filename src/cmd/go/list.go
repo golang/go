@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"encoding/json"
 	"io"
 	"os"
@@ -14,7 +15,7 @@ import (
 	"text/template"
 )
 
-var cmdList = &Command{
+var cmdList = &base.Command{
 	UsageLine: "list [-e] [-f format] [-json] [build flags] [packages]",
 	Short:     "list packages",
 	Long: `
@@ -146,7 +147,7 @@ var listFmt = cmdList.Flag.String("f", "{{.ImportPath}}", "")
 var listJson = cmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
 
-func runList(cmd *Command, args []string) {
+func runList(cmd *base.Command, args []string) {
 	buildModeInit()
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
@@ -157,7 +158,7 @@ func runList(cmd *Command, args []string) {
 			b, err := json.MarshalIndent(p, "", "\t")
 			if err != nil {
 				out.Flush()
-				fatalf("%s", err)
+				base.Fatalf("%s", err)
 			}
 			out.Write(b)
 			out.Write(nl)
@@ -176,12 +177,12 @@ func runList(cmd *Command, args []string) {
 		}
 		tmpl, err := template.New("main").Funcs(fm).Parse(*listFmt)
 		if err != nil {
-			fatalf("%s", err)
+			base.Fatalf("%s", err)
 		}
 		do = func(p *Package) {
 			if err := tmpl.Execute(out, p); err != nil {
 				out.Flush()
-				fatalf("%s", err)
+				base.Fatalf("%s", err)
 			}
 			if out.NeedNL() {
 				out.Write(nl)

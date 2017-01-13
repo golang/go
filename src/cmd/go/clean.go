@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,7 +14,7 @@ import (
 	"strings"
 )
 
-var cmdClean = &Command{
+var cmdClean = &base.Command{
 	UsageLine: "clean [-i] [-r] [-n] [-x] [build flags] [packages]",
 	Short:     "remove object files",
 	Long: `
@@ -75,7 +76,7 @@ func init() {
 	addBuildFlags(cmdClean)
 }
 
-func runClean(cmd *Command, args []string) {
+func runClean(cmd *base.Command, args []string) {
 	for _, pkg := range packagesAndErrors(args) {
 		clean(pkg)
 	}
@@ -113,12 +114,12 @@ func clean(p *Package) {
 	cleaned[p] = true
 
 	if p.Dir == "" {
-		errorf("can't load package: %v", p.Error)
+		base.Errorf("can't load package: %v", p.Error)
 		return
 	}
 	dirs, err := ioutil.ReadDir(p.Dir)
 	if err != nil {
-		errorf("go clean %s: %v", p.Dir, err)
+		base.Errorf("go clean %s: %v", p.Dir, err)
 		return
 	}
 
@@ -193,7 +194,7 @@ func clean(p *Package) {
 					}
 				}
 				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
-					errorf("go clean: %v", err)
+					base.Errorf("go clean: %v", err)
 				}
 			}
 			continue
@@ -232,7 +233,7 @@ func removeFile(f string) {
 		return
 	}
 	// Windows does not allow deletion of a binary file while it is executing.
-	if toolIsWindows {
+	if base.ToolIsWindows {
 		// Remove lingering ~ file from last attempt.
 		if _, err2 := os.Stat(f + "~"); err2 == nil {
 			os.Remove(f + "~")
@@ -245,5 +246,5 @@ func removeFile(f string) {
 			return
 		}
 	}
-	errorf("go clean: %v", err)
+	base.Errorf("go clean: %v", err)
 }

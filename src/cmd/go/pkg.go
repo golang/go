@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"cmd/go/internal/str"
 	"crypto/sha1"
 	"errors"
@@ -422,7 +423,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 func setErrorPos(p *Package, importPos []token.Position) *Package {
 	if len(importPos) > 0 {
 		pos := importPos[0]
-		pos.Filename = shortPath(pos.Filename)
+		pos.Filename = base.ShortPath(pos.Filename)
 		p.Error.Pos = pos.String()
 	}
 	return p
@@ -469,7 +470,7 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 	}
 
 	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || parent.ImportPath != "command-line-arguments" && !parent.local && filepath.Join(root, parent.ImportPath) != dir {
-		fatalf("unexpected directory layout:\n"+
+		base.Fatalf("unexpected directory layout:\n"+
 			"	import path: %s\n"+
 			"	root: %s\n"+
 			"	dir: %s\n"+
@@ -798,7 +799,7 @@ func expandScanner(err error) error {
 		// instead of just the first, as err.Error does.
 		var buf bytes.Buffer
 		for _, e := range err {
-			e.Pos.Filename = shortPath(e.Pos.Filename)
+			e.Pos.Filename = base.ShortPath(e.Pos.Filename)
 			buf.WriteString("\n")
 			buf.WriteString(e.Error())
 		}
@@ -863,7 +864,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		}
 		_, elem := filepath.Split(p.Dir)
 		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
-		if cfg.BuildContext.GOOS != toolGOOS || cfg.BuildContext.GOARCH != toolGOARCH {
+		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {
 			// Install cross-compiled binaries to subdirectories of bin.
 			elem = full
 		}
@@ -902,7 +903,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 
 				}
 			} else if !os.IsNotExist(err) {
-				fatalf("unexpected error reading %s: %v", shlibnamefile, err)
+				base.Fatalf("unexpected error reading %s: %v", shlibnamefile, err)
 			}
 		}
 	}
@@ -1647,7 +1648,7 @@ func computeBuildID(p *Package) {
 	if p.Standard && p.ImportPath == "runtime/internal/sys" && cfg.BuildContext.Compiler != "gccgo" {
 		data, err := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
 		if err != nil {
-			fatalf("go: %s", err)
+			base.Fatalf("go: %s", err)
 		}
 		fmt.Fprintf(h, "zversion %q\n", string(data))
 	}
@@ -1666,8 +1667,6 @@ func computeBuildID(p *Package) {
 
 	p.buildID = fmt.Sprintf("%x", h.Sum(nil))
 }
-
-var cwd, _ = os.Getwd()
 
 var cmdCache = map[string]*Package{}
 
@@ -1723,13 +1722,13 @@ func loadPackage(arg string, stk *importStack) *Package {
 	// referring to io/ioutil rather than a hypothetical import of
 	// "./ioutil".
 	if build.IsLocalImport(arg) {
-		bp, _ := cfg.BuildContext.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
+		bp, _ := cfg.BuildContext.ImportDir(filepath.Join(base.Cwd, arg), build.FindOnly)
 		if bp.ImportPath != "" && bp.ImportPath != "." {
 			arg = bp.ImportPath
 		}
 	}
 
-	return loadImport(arg, cwd, nil, stk, nil, 0)
+	return loadImport(arg, base.Cwd, nil, stk, nil, 0)
 }
 
 // packages returns the packages named by the
@@ -1744,7 +1743,7 @@ func packages(args []string) []*Package {
 	var pkgs []*Package
 	for _, pkg := range packagesAndErrors(args) {
 		if pkg.Error != nil {
-			errorf("can't load package: %s", pkg.Error)
+			base.Errorf("can't load package: %s", pkg.Error)
 			continue
 		}
 		pkgs = append(pkgs, pkg)
@@ -1794,7 +1793,7 @@ func packagesForBuild(args []string) []*Package {
 	printed := map[*PackageError]bool{}
 	for _, pkg := range pkgs {
 		if pkg.Error != nil {
-			errorf("can't load package: %s", pkg.Error)
+			base.Errorf("can't load package: %s", pkg.Error)
 		}
 		for _, err := range pkg.DepsErrors {
 			// Since these are errors in dependencies,
@@ -1803,11 +1802,11 @@ func packagesForBuild(args []string) []*Package {
 			// Only print each once.
 			if !printed[err] {
 				printed[err] = true
-				errorf("%s", err)
+				base.Errorf("%s", err)
 			}
 		}
 	}
-	exitIfErrors()
+	base.ExitIfErrors()
 
 	// Check for duplicate loads of the same package.
 	// That should be impossible, but if it does happen then
@@ -1819,11 +1818,11 @@ func packagesForBuild(args []string) []*Package {
 	for _, pkg := range packageList(pkgs) {
 		if seen[pkg.ImportPath] && !reported[pkg.ImportPath] {
 			reported[pkg.ImportPath] = true
-			errorf("internal error: duplicate loads of %s", pkg.ImportPath)
+			base.Errorf("internal error: duplicate loads of %s", pkg.ImportPath)
 		}
 		seen[pkg.ImportPath] = true
 	}
-	exitIfErrors()
+	base.ExitIfErrors()
 
 	return pkgs
 }

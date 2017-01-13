@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"fmt"
 	"io"
 	"log"
@@ -19,7 +20,7 @@ import (
 	"strings"
 )
 
-var cmdGenerate = &Command{
+var cmdGenerate = &base.Command{
 	Run:       runGenerate,
 	UsageLine: "generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
 	Short:     "generate Go files by processing source",
@@ -136,7 +137,7 @@ func init() {
 	cmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
 }
 
-func runGenerate(cmd *Command, args []string) {
+func runGenerate(cmd *base.Command, args []string) {
 	ignoreImports = true
 
 	if generateRunFlag != "" {
@@ -196,13 +197,13 @@ func (g *Generator) run() (ok bool) {
 			if e != stop {
 				panic(e)
 			}
-			setExitStatus(1)
+			base.SetExitStatus(1)
 		}
 	}()
 	g.dir, g.file = filepath.Split(g.path)
 	g.dir = filepath.Clean(g.dir) // No final separator please.
 	if cfg.BuildV {
-		fmt.Fprintf(os.Stderr, "%s\n", shortPath(g.path))
+		fmt.Fprintf(os.Stderr, "%s\n", base.ShortPath(g.path))
 	}
 
 	// Scan for lines that start "//go:generate".
@@ -265,7 +266,7 @@ func (g *Generator) run() (ok bool) {
 		g.exec(words)
 	}
 	if err != nil && err != io.EOF {
-		g.errorf("error reading %s: %s", shortPath(g.path), err)
+		g.errorf("error reading %s: %s", base.ShortPath(g.path), err)
 	}
 	return true
 }
@@ -355,7 +356,7 @@ var stop = fmt.Errorf("error in generation")
 // It then exits the program (with exit status 1) because generation stops
 // at the first error.
 func (g *Generator) errorf(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "%s:%d: %s\n", shortPath(g.path), g.lineNum,
+	fmt.Fprintf(os.Stderr, "%s:%d: %s\n", base.ShortPath(g.path), g.lineNum,
 		fmt.Sprintf(format, args...))
 	panic(stop)
 }

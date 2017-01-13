@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package base
 
 import (
 	"os"
@@ -10,8 +10,8 @@ import (
 	"sync"
 )
 
-// interrupted is closed, if go process is interrupted.
-var interrupted = make(chan struct{})
+// Interrupted is closed when the go command receives an interrupt signal.
+var Interrupted = make(chan struct{})
 
 // processSignals setups signal handler.
 func processSignals() {
@@ -19,13 +19,13 @@ func processSignals() {
 	signal.Notify(sig, signalsToIgnore...)
 	go func() {
 		<-sig
-		close(interrupted)
+		close(Interrupted)
 	}()
 }
 
 var onceProcessSignals sync.Once
 
-// startSigHandlers start signal handlers.
-func startSigHandlers() {
+// StartSigHandlers starts the signal handlers.
+func StartSigHandlers() {
 	onceProcessSignals.Do(processSignals)
 }

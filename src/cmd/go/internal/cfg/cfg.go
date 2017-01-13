@@ -7,6 +7,7 @@
 package cfg
 
 import (
+	"flag"
 	"go/build"
 	"runtime"
 )
@@ -57,3 +58,9 @@ var (
 	ExeSuffix string
 	Gopath    []string
 )
+
+// AddBuildFlagsNX adds the -n and -x build flags to the flag set.
+func AddBuildFlagsNX(flags *flag.FlagSet) {
+	flags.BoolVar(&BuildN, "n", false, "")
+	flags.BoolVar(&BuildX, "x", false, "")
+}

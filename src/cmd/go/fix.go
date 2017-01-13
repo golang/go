@@ -6,10 +6,11 @@ package main
 
 import (
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"cmd/go/internal/str"
 )
 
-var cmdFix = &Command{
+var cmdFix = &base.Command{
 	Run:       runFix,
 	UsageLine: "fix [packages]",
 	Short:     "run go tool fix on packages",
@@ -25,11 +26,11 @@ See also: go fmt, go vet.
 	`,
 }
 
-func runFix(cmd *Command, args []string) {
+func runFix(cmd *base.Command, args []string) {
 	for _, pkg := range packages(args) {
 		// Use pkg.gofiles instead of pkg.Dir so that
 		// the command only applies to this package,
 		// not to packages in subdirectories.
-		run(str.StringList(cfg.BuildToolexec, tool("fix"), relPaths(pkg.allgofiles)))
+		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), base.RelPaths(pkg.allgofiles)))
 	}
 }

@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,7 +19,7 @@ import (
 	"strings"
 )
 
-var cmdBug = &Command{
+var cmdBug = &base.Command{
 	Run:       runBug,
 	UsageLine: "bug",
 	Short:     "start a bug report",
@@ -32,7 +33,7 @@ func init() {
 	cmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 }
 
-func runBug(cmd *Command, args []string) {
+func runBug(cmd *base.Command, args []string) {
 	var buf bytes.Buffer
 	buf.WriteString(bugHeader)
 	inspectGoVersion(&buf)

@@ -5,18 +5,17 @@
 package main
 
 import (
-	"cmd/go/internal/cfg"
 	"fmt"
-	"go/build"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
+
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 )
 
-var cmdTool = &Command{
+var cmdTool = &base.Command{
 	Run:       runTool,
 	UsageLine: "tool [-n] command [args...]",
 	Short:     "run specified go tool",
@@ -31,47 +30,13 @@ For more about each tool command, see 'go tool command -h'.
 `,
 }
 
-var (
-	toolGOOS      = runtime.GOOS
-	toolGOARCH    = runtime.GOARCH
-	toolIsWindows = toolGOOS == "windows"
-	toolDir       = build.ToolDir
-
-	toolN bool
-)
+var toolN bool
 
 func init() {
 	cmdTool.Flag.BoolVar(&toolN, "n", false, "")
 }
 
-const toolWindowsExtension = ".exe"
-
-func tool(toolName string) string {
-	toolPath := filepath.Join(toolDir, toolName)
-	if toolIsWindows {
-		toolPath += toolWindowsExtension
-	}
-	if len(cfg.BuildToolexec) > 0 {
-		return toolPath
-	}
-	// Give a nice message if there is no tool with that name.
-	if _, err := os.Stat(toolPath); err != nil {
-		if isInGoToolsRepo(toolName) {
-			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo get golang.org/x/tools/cmd/%s\n", toolName, toolName)
-		} else {
-			fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
-		}
-		setExitStatus(2)
-		exit()
-	}
-	return toolPath
-}
-
-func isInGoToolsRepo(toolName string) bool {
-	return false
-}
-
-func runTool(cmd *Command, args []string) {
+func runTool(cmd *base.Command, args []string) {
 	if len(args) == 0 {
 		listTools()
 		return
@@ -83,11 +48,11 @@ func runTool(cmd *Command, args []string) {
 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
 		default:
 			fmt.Fprintf(os.Stderr, "go tool: bad tool name %q\n", toolName)
-			setExitStatus(2)
+			base.SetExitStatus(2)
 			return
 		}
 	}
-	toolPath := tool(toolName)
+	toolPath := base.Tool(toolName)
 	if toolPath == "" {
 		return
 	}
@@ -119,24 +84,24 @@ func runTool(cmd *Command, args []string) {
 		if e, ok := err.(*exec.ExitError); !ok || !e.Exited() || cfg.BuildX {
 			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
 		}
-		setExitStatus(1)
+		base.SetExitStatus(1)
 		return
 	}
 }
 
 // listTools prints a list of the available tools in the tools directory.
 func listTools() {
-	f, err := os.Open(toolDir)
+	f, err := os.Open(base.ToolDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go tool: no tool directory: %s\n", err)
-		setExitStatus(2)
+		base.SetExitStatus(2)
 		return
 	}
 	defer f.Close()
 	names, err := f.Readdirnames(-1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go tool: can't read directory: %s\n", err)
-		setExitStatus(2)
+		base.SetExitStatus(2)
 		return
 	}
 
@@ -145,8 +110,8 @@ func listTools() {
 		// Unify presentation by going to lower case.
 		name = strings.ToLower(name)
 		// If it's windows, don't show the .exe suffix.
-		if toolIsWindows && strings.HasSuffix(name, toolWindowsExtension) {
-			name = name[:len(name)-len(toolWindowsExtension)]
+		if base.ToolIsWindows && strings.HasSuffix(name, base.ToolWindowsExtension) {
+			name = name[:len(name)-len(base.ToolWindowsExtension)]
 		}
 		fmt.Println(name)
 	}

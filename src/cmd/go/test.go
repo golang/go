@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"cmd/go/internal/str"
 	"errors"
 	"fmt"
@@ -36,7 +37,7 @@ func init() {
 
 const testUsage = "test [build/test flags] [packages] [build/test flags & test binary flags]"
 
-var cmdTest = &Command{
+var cmdTest = &base.Command{
 	CustomFlags: true,
 	UsageLine:   testUsage,
 	Short:       "test packages",
@@ -109,7 +110,7 @@ The test binary also accepts flags that control execution of the test; these
 flags are also accessible by 'go test'.
 `
 
-var helpTestflag = &Command{
+var helpTestflag = &base.Command{
 	UsageLine: "testflag",
 	Short:     "description of testing flags",
 	Long: `
@@ -314,7 +315,7 @@ In the second example, the argument math is passed through to the test
 binary, instead of being interpreted as the package list.
 `
 
-var helpTestfunc = &Command{
+var helpTestfunc = &base.Command{
 	UsageLine: "testfunc",
 	Short:     "description of testing functions",
 	Long: `
@@ -401,7 +402,7 @@ var testMainDeps = map[string]bool{
 	"os": true,
 }
 
-func runTest(cmd *Command, args []string) {
+func runTest(cmd *base.Command, args []string) {
 	var pkgArgs []string
 	pkgArgs, testArgs = testFlags(args)
 
@@ -411,17 +412,17 @@ func runTest(cmd *Command, args []string) {
 	buildModeInit()
 	pkgs := packagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
-		fatalf("no packages to test")
+		base.Fatalf("no packages to test")
 	}
 
 	if testC && len(pkgs) != 1 {
-		fatalf("cannot use -c flag with multiple packages")
+		base.Fatalf("cannot use -c flag with multiple packages")
 	}
 	if testO != "" && len(pkgs) != 1 {
-		fatalf("cannot use -o flag with multiple packages")
+		base.Fatalf("cannot use -o flag with multiple packages")
 	}
 	if testProfile && len(pkgs) != 1 {
-		fatalf("cannot use test profile flag with multiple packages")
+		base.Fatalf("cannot use test profile flag with multiple packages")
 	}
 
 	// If a test timeout was given and is parseable, set our kill timeout
@@ -556,9 +557,9 @@ func runTest(cmd *Command, args []string) {
 			failed := fmt.Sprintf("FAIL\t%s [setup failed]\n", p.ImportPath)
 
 			if p.ImportPath != "" {
-				errorf("# %s\n%s\n%s", p.ImportPath, str, failed)
+				base.Errorf("# %s\n%s\n%s", p.ImportPath, str, failed)
 			} else {
-				errorf("%s\n%s", str, failed)
+				base.Errorf("%s\n%s", str, failed)
 			}
 			continue
 		}
@@ -964,11 +965,11 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 
 	if testC || testNeedBinary {
 		// -c or profiling flag: create action to copy binary to ./test.out.
-		target := filepath.Join(cwd, testBinary+cfg.ExeSuffix)
+		target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
 		if testO != "" {
 			target = testO
 			if !filepath.IsAbs(target) {
-				target = filepath.Join(cwd, target)
+				target = filepath.Join(base.Cwd, target)
 			}
 		}
 		buildAction = &action{
@@ -1110,7 +1111,7 @@ func builderRunTest(b *builder, a *action) error {
 		// We were unable to build the binary.
 		a.failed = false
 		fmt.Fprintf(a.testOutput, "FAIL\t%s [build failed]\n", a.p.ImportPath)
-		setExitStatus(1)
+		base.SetExitStatus(1)
 		return nil
 	}
 
@@ -1153,7 +1154,7 @@ func builderRunTest(b *builder, a *action) error {
 	// running.
 	if err == nil {
 		tick := time.NewTimer(testKillTimeout)
-		startSigHandlers()
+		base.StartSigHandlers()
 		done := make(chan error)
 		go func() {
 			done <- cmd.Wait()
@@ -1163,14 +1164,14 @@ func builderRunTest(b *builder, a *action) error {
 		case err = <-done:
 			// ok
 		case <-tick.C:
-			if signalTrace != nil {
+			if base.SignalTrace != nil {
 				// Send a quit signal in the hope that the program will print
 				// a stack trace and exit. Give it five seconds before resorting
 				// to Kill.
-				cmd.Process.Signal(signalTrace)
+				cmd.Process.Signal(base.SignalTrace)
 				select {
 				case err = <-done:
-					fmt.Fprintf(&buf, "*** Test killed with %v: ran too long (%v).\n", signalTrace, testKillTimeout)
+					fmt.Fprintf(&buf, "*** Test killed with %v: ran too long (%v).\n", base.SignalTrace, testKillTimeout)
 					break Outer
 				case <-time.After(5 * time.Second):
 				}
@@ -1195,7 +1196,7 @@ func builderRunTest(b *builder, a *action) error {
 		return nil
 	}
 
-	setExitStatus(1)
+	base.SetExitStatus(1)
 	if len(out) > 0 {
 		a.testOutput.Write(out)
 		// assume printing the test binary's exit status is superfluous

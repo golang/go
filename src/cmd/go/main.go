@@ -8,78 +8,29 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/str"
+	"cmd/go/internal/base"
 	"flag"
 	"fmt"
 	"go/build"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
-	"sync"
 	"text/template"
 	"unicode"
 	"unicode/utf8"
 )
 
-// A Command is an implementation of a go command
-// like go build or go fix.
-type Command struct {
-	// Run runs the command.
-	// The args are the arguments after the command name.
-	Run func(cmd *Command, args []string)
-
-	// UsageLine is the one-line usage message.
-	// The first word in the line is taken to be the command name.
-	UsageLine string
-
-	// Short is the short description shown in the 'go help' output.
-	Short string
-
-	// Long is the long message shown in the 'go help <this-command>' output.
-	Long string
-
-	// Flag is a set of flags specific to this command.
-	Flag flag.FlagSet
-
-	// CustomFlags indicates that the command will do its own
-	// flag parsing.
-	CustomFlags bool
-}
-
-// Name returns the command's name: the first word in the usage line.
-func (c *Command) Name() string {
-	name := c.UsageLine
-	i := strings.Index(name, " ")
-	if i >= 0 {
-		name = name[:i]
-	}
-	return name
-}
-
-func (c *Command) Usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s\n\n", c.UsageLine)
-	fmt.Fprintf(os.Stderr, "%s\n", strings.TrimSpace(c.Long))
-	os.Exit(2)
-}
-
-// Runnable reports whether the command can be run; otherwise
-// it is a documentation pseudo-command such as importpath.
-func (c *Command) Runnable() bool {
-	return c.Run != nil
-}
-
 // Commands lists the available commands and help topics.
 // The order here is the order in which they are printed by 'go help'.
-var commands []*Command
+var commands []*base.Command
 
 func init() {
-	commands = []*Command{
+	commands = []*base.Command{
 		cmdBuild,
 		cmdClean,
 		cmdDoc,
@@ -109,26 +60,15 @@ func init() {
 	}
 }
 
-var exitStatus = 0
-var exitMu sync.Mutex
-
-func setExitStatus(n int) {
-	exitMu.Lock()
-	if exitStatus < n {
-		exitStatus = n
-	}
-	exitMu.Unlock()
-}
-
 func main() {
 	_ = go11tag
-	flag.Usage = usage
+	flag.Usage = base.Usage
 	flag.Parse()
 	log.SetFlags(0)
 
 	args := flag.Args()
 	if len(args) < 1 {
-		usage()
+		base.Usage()
 	}
 
 	if args[0] == "help" {
@@ -185,14 +125,14 @@ func main() {
 				args = cmd.Flag.Args()
 			}
 			cmd.Run(cmd, args)
-			exit()
+			base.Exit()
 			return
 		}
 	}
 
 	fmt.Fprintf(os.Stderr, "go: unknown subcommand %q\nRun 'go help' for usage.\n", args[0])
-	setExitStatus(2)
-	exit()
+	base.SetExitStatus(2)
+	base.Exit()
 }
 
 var usageTemplate = `Go is a tool for managing Go source code.
@@ -289,7 +229,7 @@ func tmpl(w io.Writer, text string, data interface{}) {
 		if strings.Contains(ew.err.Error(), "pipe") {
 			os.Exit(1)
 		}
-		fatalf("writing output: %v", ew.err)
+		base.Fatalf("writing output: %v", ew.err)
 	}
 	if err != nil {
 		panic(err)
@@ -313,7 +253,7 @@ func printUsage(w io.Writer) {
 var usage func()
 
 func init() {
-	usage = mainUsage
+	base.Usage = mainUsage
 }
 
 func mainUsage() {
@@ -353,8 +293,8 @@ func help(args []string) {
 		fmt.Println()
 		buf := new(bytes.Buffer)
 		printUsage(buf)
-		usage := &Command{Long: buf.String()}
-		tmpl(&commentWriter{W: os.Stdout}, documentationTemplate, append([]*Command{usage}, commands...))
+		usage := &base.Command{Long: buf.String()}
+		tmpl(&commentWriter{W: os.Stdout}, documentationTemplate, append([]*base.Command{usage}, commands...))
 		fmt.Println("package main")
 		return
 	}
@@ -420,52 +360,6 @@ func importPaths(args []string) []string {
 		out = append(out, a)
 	}
 	return out
-}
-
-var atexitFuncs []func()
-
-func atexit(f func()) {
-	atexitFuncs = append(atexitFuncs, f)
-}
-
-func exit() {
-	for _, f := range atexitFuncs {
-		f()
-	}
-	os.Exit(exitStatus)
-}
-
-func fatalf(format string, args ...interface{}) {
-	errorf(format, args...)
-	exit()
-}
-
-func errorf(format string, args ...interface{}) {
-	log.Printf(format, args...)
-	setExitStatus(1)
-}
-
-func exitIfErrors() {
-	if exitStatus != 0 {
-		exit()
-	}
-}
-
-func run(cmdargs ...interface{}) {
-	cmdline := str.StringList(cmdargs...)
-	if cfg.BuildN || cfg.BuildX {
-		fmt.Printf("%s\n", strings.Join(cmdline, " "))
-		if cfg.BuildN {
-			return
-		}
-	}
-
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		errorf("%v", err)
-	}
 }
 
 // envForDir returns a copy of the environment
