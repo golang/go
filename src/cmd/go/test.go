@@ -545,7 +545,7 @@ func runTest(cmd *Command, args []string) {
 
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
-		buildTest, runTest, printTest, err := b.test(p)
+		buildTest, runTest, printTest, err := builderTest(&b, p)
 		if err != nil {
 			str := err.Error()
 			if strings.HasPrefix(str, "\n") {
@@ -652,11 +652,11 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
+func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.action(modeBuild, modeBuild, p)
 		run := &action{p: p, deps: []*action{build}}
-		print := &action{f: (*builder).notest, p: p, deps: []*action{run}}
+		print := &action{f: builderNoTest, p: p, deps: []*action{run}}
 		return build, run, print, nil
 	}
 
@@ -991,18 +991,18 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	} else {
 		// run test
 		runAction = &action{
-			f:          (*builder).runTest,
+			f:          builderRunTest,
 			deps:       []*action{buildAction},
 			p:          p,
 			ignoreFail: true,
 		}
 		cleanAction := &action{
-			f:    (*builder).cleanTest,
+			f:    builderCleanTest,
 			deps: []*action{runAction},
 			p:    p,
 		}
 		printAction = &action{
-			f:    (*builder).printTest,
+			f:    builderPrintTest,
 			deps: []*action{cleanAction},
 			p:    p,
 		}
@@ -1101,8 +1101,8 @@ func declareCoverVars(importPath string, files ...string) map[string]*CoverVar {
 
 var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
 
-// runTest is the action for running a test binary.
-func (b *builder) runTest(a *action) error {
+// builderRunTest is the action for running a test binary.
+func builderRunTest(b *builder, a *action) error {
 	args := stringList(findExecCmd(), a.deps[0].target, testArgs)
 	a.testOutput = new(bytes.Buffer)
 
@@ -1233,8 +1233,8 @@ func coveragePercentage(out []byte) string {
 	return fmt.Sprintf("\tcoverage: %s", matches[1])
 }
 
-// cleanTest is the action for cleaning up after a test.
-func (b *builder) cleanTest(a *action) error {
+// builderCleanTest is the action for cleaning up after a test.
+func builderCleanTest(b *builder, a *action) error {
 	if buildWork {
 		return nil
 	}
@@ -1244,8 +1244,8 @@ func (b *builder) cleanTest(a *action) error {
 	return nil
 }
 
-// printTest is the action for printing a test result.
-func (b *builder) printTest(a *action) error {
+// builderPrintTest is the action for printing a test result.
+func builderPrintTest(b *builder, a *action) error {
 	clean := a.deps[0]
 	run := clean.deps[0]
 	os.Stdout.Write(run.testOutput.Bytes())
@@ -1253,8 +1253,8 @@ func (b *builder) printTest(a *action) error {
 	return nil
 }
 
-// notest is the action for testing a package with no test files.
-func (b *builder) notest(a *action) error {
+// builderNoTest is the action for testing a package with no test files.
+func builderNoTest(b *builder, a *action) error {
 	fmt.Printf("?   \t%s\t[no test files]\n", a.p.ImportPath)
 	return nil
 }

@@ -1124,7 +1124,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 
 	if p.BinaryOnly {
 		// For binary-only package, use build ID from supplied package binary.
-		buildID, err := readBuildID(p)
+		buildID, err := readBuildID(p.Name, p.Target)
 		if err == nil {
 			p.buildID = buildID
 		}
@@ -1495,7 +1495,7 @@ func isStale(p *Package) (bool, string) {
 	// It also catches changes in toolchain, like when flipping between
 	// two versions of Go compiling a single GOPATH.
 	// See issue 8290 and issue 10702.
-	targetBuildID, err := readBuildID(p)
+	targetBuildID, err := readBuildID(p.Name, p.Target)
 	if err == nil && targetBuildID != p.buildID {
 		return true, "build ID mismatch"
 	}
@@ -1559,10 +1559,10 @@ func isStale(p *Package) (bool, string) {
 	// Excluding $GOROOT used to also fix issue 4106, but that's now
 	// taken care of above (at least when the installed Go is a released version).
 	if p.Root != goroot {
-		if olderThan(buildToolchain.compiler()) {
+		if olderThan(buildToolchainCompiler) {
 			return true, "newer compiler"
 		}
-		if p.build.IsCommand() && olderThan(buildToolchain.linker()) {
+		if p.build.IsCommand() && olderThan(buildToolchainLinker) {
 			return true, "newer linker"
 		}
 	}
@@ -1865,20 +1865,20 @@ var (
 // readBuildID reads the build ID from an archive or binary.
 // It only supports the gc toolchain.
 // Other toolchain maintainers should adjust this function.
-func readBuildID(p *Package) (id string, err error) {
-	if buildToolchain != (gcToolchain{}) {
+func readBuildID(name, target string) (id string, err error) {
+	if buildToolchainName != "gc" {
 		return "", errBuildIDToolchain
 	}
 
 	// For commands, read build ID directly from binary.
-	if p.Name == "main" {
-		return ReadBuildIDFromBinary(p.Target)
+	if name == "main" {
+		return ReadBuildIDFromBinary(target)
 	}
 
 	// Otherwise, we expect to have an archive (.a) file,
 	// and we can read the build ID from the Go export data.
-	if !strings.HasSuffix(p.Target, ".a") {
-		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDUnknown}
+	if !strings.HasSuffix(target, ".a") {
+		return "", &os.PathError{Op: "parse", Path: target, Err: errBuildIDUnknown}
 	}
 
 	// Read just enough of the target to fetch the build ID.
@@ -1891,7 +1891,7 @@ func readBuildID(p *Package) (id string, err error) {
 	//
 	// The variable-sized strings are GOOS, GOARCH, and the experiment list (X:none).
 	// Reading the first 1024 bytes should be plenty.
-	f, err := os.Open(p.Target)
+	f, err := os.Open(target)
 	if err != nil {
 		return "", err
 	}
@@ -1904,7 +1904,7 @@ func readBuildID(p *Package) (id string, err error) {
 	}
 
 	bad := func() (string, error) {
-		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDMalformed}
+		return "", &os.PathError{Op: "parse", Path: target, Err: errBuildIDMalformed}
 	}
 
 	// Archive header.

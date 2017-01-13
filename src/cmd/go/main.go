@@ -74,33 +74,37 @@ func (c *Command) Runnable() bool {
 
 // Commands lists the available commands and help topics.
 // The order here is the order in which they are printed by 'go help'.
-var commands = []*Command{
-	cmdBuild,
-	cmdClean,
-	cmdDoc,
-	cmdEnv,
-	cmdBug,
-	cmdFix,
-	cmdFmt,
-	cmdGenerate,
-	cmdGet,
-	cmdInstall,
-	cmdList,
-	cmdRun,
-	cmdTest,
-	cmdTool,
-	cmdVersion,
-	cmdVet,
+var commands []*Command
 
-	helpC,
-	helpBuildmode,
-	helpFileType,
-	helpGopath,
-	helpEnvironment,
-	helpImportPath,
-	helpPackages,
-	helpTestflag,
-	helpTestfunc,
+func init() {
+	commands = []*Command{
+		cmdBuild,
+		cmdClean,
+		cmdDoc,
+		cmdEnv,
+		cmdBug,
+		cmdFix,
+		cmdFmt,
+		cmdGenerate,
+		cmdGet,
+		cmdInstall,
+		cmdList,
+		cmdRun,
+		cmdTest,
+		cmdTool,
+		cmdVersion,
+		cmdVet,
+
+		helpC,
+		helpBuildmode,
+		helpFileType,
+		helpGopath,
+		helpEnvironment,
+		helpImportPath,
+		helpPackages,
+		helpTestflag,
+		helpTestfunc,
+	}
 }
 
 var exitStatus = 0
@@ -307,7 +311,13 @@ func printUsage(w io.Writer) {
 	bw.Flush()
 }
 
-func usage() {
+var usage func()
+
+func init() {
+	usage = mainUsage
+}
+
+func mainUsage() {
 	// special case "go test -h"
 	if len(os.Args) > 1 && os.Args[1] == "test" {
 		os.Stderr.WriteString(testUsage + "\n\n" +
