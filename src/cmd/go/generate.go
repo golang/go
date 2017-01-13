@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"cmd/go/internal/cfg"
 	"fmt"
 	"io"
 	"log"
@@ -200,7 +201,7 @@ func (g *Generator) run() (ok bool) {
 	}()
 	g.dir, g.file = filepath.Split(g.path)
 	g.dir = filepath.Clean(g.dir) // No final separator please.
-	if buildV {
+	if cfg.BuildV {
 		fmt.Fprintf(os.Stderr, "%s\n", shortPath(g.path))
 	}
 
@@ -255,10 +256,10 @@ func (g *Generator) run() (ok bool) {
 			continue
 		}
 		// Run the command line.
-		if buildN || buildX {
+		if cfg.BuildN || cfg.BuildX {
 			fmt.Fprintf(os.Stderr, "%s\n", strings.Join(words, " "))
 		}
-		if buildN {
+		if cfg.BuildN {
 			continue
 		}
 		g.exec(words)
@@ -277,8 +278,8 @@ func isGoGenerate(buf []byte) bool {
 // single go:generate command.
 func (g *Generator) setEnv() {
 	g.env = []string{
-		"GOARCH=" + buildContext.GOARCH,
-		"GOOS=" + buildContext.GOOS,
+		"GOARCH=" + cfg.BuildContext.GOARCH,
+		"GOOS=" + cfg.BuildContext.GOOS,
 		"GOFILE=" + g.file,
 		"GOLINE=" + strconv.Itoa(g.lineNum),
 		"GOPACKAGE=" + g.pkg,
@@ -393,7 +394,7 @@ func (g *Generator) exec(words []string) {
 	cmd.Stderr = os.Stderr
 	// Run the command in the package directory.
 	cmd.Dir = g.dir
-	cmd.Env = mergeEnvLists(g.env, origEnv)
+	cmd.Env = mergeEnvLists(g.env, cfg.OrigEnv)
 	err := cmd.Run()
 	if err != nil {
 		g.errorf("running %q: %s", words[0], err)

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
 	"fmt"
 	"go/build"
@@ -303,7 +304,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 	// due to wildcard expansion.
 	for _, p := range pkgs {
 		if *getFix {
-			run(buildToolExec, str.StringList(tool("fix"), relPaths(p.allgofiles)))
+			run(cfg.BuildToolexec, str.StringList(tool("fix"), relPaths(p.allgofiles)))
 
 			// The imports might have changed, so reload again.
 			p = reloadPackage(arg, stk)
@@ -424,7 +425,7 @@ func downloadPackage(p *Package) error {
 
 	if p.build.SrcRoot == "" {
 		// Package not found. Put in first directory of $GOPATH.
-		list := filepath.SplitList(buildContext.GOPATH)
+		list := filepath.SplitList(cfg.BuildContext.GOPATH)
 		if len(list) == 0 {
 			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: 'go help gopath'")
 		}
@@ -446,7 +447,7 @@ func downloadPackage(p *Package) error {
 	}
 	downloadRootCache[root] = true
 
-	if buildV {
+	if cfg.BuildV {
 		fmt.Fprintf(os.Stderr, "%s (download)\n", rootPath)
 	}
 
@@ -473,7 +474,7 @@ func downloadPackage(p *Package) error {
 		if err = os.MkdirAll(parent, 0777); err != nil {
 			return err
 		}
-		if buildV && !gopathExisted && p.build.Root == buildContext.GOPATH {
+		if cfg.BuildV && !gopathExisted && p.build.Root == cfg.BuildContext.GOPATH {
 			fmt.Fprintf(os.Stderr, "created GOPATH=%s; see 'go help gopath'\n", p.build.Root)
 		}
 
@@ -487,7 +488,7 @@ func downloadPackage(p *Package) error {
 		}
 	}
 
-	if buildN {
+	if cfg.BuildN {
 		// Do not show tag sync in -n; it's noise more than anything,
 		// and since we're not running commands, no tag will be found.
 		// But avoid printing nothing.

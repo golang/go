@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/go/internal/cfg"
 	"fmt"
 	"go/build"
 	"os"
@@ -50,7 +51,7 @@ func tool(toolName string) string {
 	if toolIsWindows {
 		toolPath += toolWindowsExtension
 	}
-	if len(buildToolExec) > 0 {
+	if len(cfg.BuildToolexec) > 0 {
 		return toolPath
 	}
 	// Give a nice message if there is no tool with that name.
@@ -115,7 +116,7 @@ func runTool(cmd *Command, args []string) {
 		// or we're printing command lines too (-x mode).
 		// Assume if command exited cleanly (even with non-zero status)
 		// it printed any messages it wanted to print.
-		if e, ok := err.(*exec.ExitError); !ok || !e.Exited() || buildX {
+		if e, ok := err.(*exec.ExitError); !ok || !e.Exited() || cfg.BuildX {
 			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
 		}
 		setExitStatus(1)

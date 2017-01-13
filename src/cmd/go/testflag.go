@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/go/internal/cfg"
 	"flag"
 	"fmt"
 	"os"
@@ -31,7 +32,7 @@ type testFlagSpec struct {
 var testFlagDefn = []*testFlagSpec{
 	// local.
 	{name: "c", boolVar: &testC},
-	{name: "i", boolVar: &buildI},
+	{name: "i", boolVar: &cfg.BuildI},
 	{name: "o"},
 	{name: "cover", boolVar: &testCover},
 	{name: "covermode"},
@@ -169,7 +170,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			case "covermode":
 				switch value {
 				case "set", "count", "atomic":
-					testCoverMode = value
+					cfg.TestCoverMode = value
 				default:
 					fatalf("invalid flag argument for -covermode: %q", value)
 				}
@@ -186,11 +187,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 	}
 
-	if testCoverMode == "" {
-		testCoverMode = "set"
-		if buildRace {
+	if cfg.TestCoverMode == "" {
+		cfg.TestCoverMode = "set"
+		if cfg.BuildRace {
 			// Default coverage mode is atomic when -race is set.
-			testCoverMode = "atomic"
+			cfg.TestCoverMode = "atomic"
 		}
 	}
 

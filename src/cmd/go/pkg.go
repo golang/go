@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
 	"crypto/sha1"
 	"errors"
@@ -143,11 +144,11 @@ type CoverVar struct {
 func (p *Package) copyBuild(pp *build.Package) {
 	p.build = pp
 
-	if pp.PkgTargetRoot != "" && buildPkgdir != "" {
+	if pp.PkgTargetRoot != "" && cfg.BuildPkgdir != "" {
 		old := pp.PkgTargetRoot
-		pp.PkgRoot = buildPkgdir
-		pp.PkgTargetRoot = buildPkgdir
-		pp.PkgObj = filepath.Join(buildPkgdir, strings.TrimPrefix(pp.PkgObj, old))
+		pp.PkgRoot = cfg.BuildPkgdir
+		pp.PkgTargetRoot = cfg.BuildPkgdir
+		pp.PkgObj = filepath.Join(cfg.BuildPkgdir, strings.TrimPrefix(pp.PkgObj, old))
 	}
 
 	p.Dir = pp.Dir
@@ -364,7 +365,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 			// Not vendoring, or we already found the vendored path.
 			buildMode |= build.IgnoreVendor
 		}
-		bp, err := buildContext.Import(path, srcDir, buildMode)
+		bp, err := cfg.BuildContext.Import(path, srcDir, buildMode)
 		bp.ImportPath = importPath
 		if gobin != "" {
 			bp.BinDir = gobin
@@ -587,7 +588,7 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 	}
 
 	// We can't check standard packages with gccgo.
-	if buildContext.Compiler == "gccgo" && p.Standard {
+	if cfg.BuildContext.Compiler == "gccgo" && p.Standard {
 		return p
 	}
 
@@ -846,7 +847,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 
 	useBindir := p.Name == "main"
 	if !p.Standard {
-		switch buildBuildmode {
+		switch cfg.BuildBuildmode {
 		case "c-archive", "c-shared", "plugin":
 			useBindir = false
 		}
@@ -861,8 +862,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			return p
 		}
 		_, elem := filepath.Split(p.Dir)
-		full := buildContext.GOOS + "_" + buildContext.GOARCH + "/" + elem
-		if buildContext.GOOS != toolGOOS || buildContext.GOARCH != toolGOARCH {
+		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
+		if cfg.BuildContext.GOOS != toolGOOS || cfg.BuildContext.GOARCH != toolGOARCH {
 			// Install cross-compiled binaries to subdirectories of bin.
 			elem = full
 		}
@@ -880,7 +881,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			// Override all the usual logic and force it into the tool directory.
 			p.target = filepath.Join(gorootPkg, "tool", full)
 		}
-		if p.target != "" && buildContext.GOOS == "windows" {
+		if p.target != "" && cfg.BuildContext.GOOS == "windows" {
 			p.target += ".exe"
 		}
 	} else if p.local {
@@ -889,12 +890,12 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		p.target = ""
 	} else {
 		p.target = p.build.PkgObj
-		if buildLinkshared {
+		if cfg.BuildLinkshared {
 			shlibnamefile := p.target[:len(p.target)-2] + ".shlibname"
 			shlib, err := ioutil.ReadFile(shlibnamefile)
 			if err == nil {
 				libname := strings.TrimSpace(string(shlib))
-				if buildContext.Compiler == "gccgo" {
+				if cfg.BuildContext.Compiler == "gccgo" {
 					p.Shlib = filepath.Join(p.build.PkgTargetRoot, "shlibs", libname)
 				} else {
 					p.Shlib = filepath.Join(p.build.PkgTargetRoot, libname)
@@ -918,23 +919,23 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		importPaths = append(importPaths, "syscall")
 	}
 
-	if buildContext.CgoEnabled && p.Name == "main" && !p.Goroot {
+	if cfg.BuildContext.CgoEnabled && p.Name == "main" && !p.Goroot {
 		// Currently build modes c-shared, pie (on systems that do not
 		// support PIE with internal linking mode), plugin, and
 		// -linkshared force external linking mode, as of course does
 		// -ldflags=-linkmode=external. External linking mode forces
 		// an import of runtime/cgo.
-		pieCgo := buildBuildmode == "pie" && (buildContext.GOOS != "linux" || buildContext.GOARCH != "amd64")
+		pieCgo := cfg.BuildBuildmode == "pie" && (cfg.BuildContext.GOOS != "linux" || cfg.BuildContext.GOARCH != "amd64")
 		linkmodeExternal := false
-		for i, a := range buildLdflags {
+		for i, a := range cfg.BuildLdflags {
 			if a == "-linkmode=external" {
 				linkmodeExternal = true
 			}
-			if a == "-linkmode" && i+1 < len(buildLdflags) && buildLdflags[i+1] == "external" {
+			if a == "-linkmode" && i+1 < len(cfg.BuildLdflags) && cfg.BuildLdflags[i+1] == "external" {
 				linkmodeExternal = true
 			}
 		}
-		if buildBuildmode == "c-shared" || buildBuildmode == "plugin" || pieCgo || buildLinkshared || linkmodeExternal {
+		if cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin" || pieCgo || cfg.BuildLinkshared || linkmodeExternal {
 			importPaths = append(importPaths, "runtime/cgo")
 		}
 	}
@@ -945,19 +946,19 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		importPaths = append(importPaths, "runtime")
 		// When race detection enabled everything depends on runtime/race.
 		// Exclude certain packages to avoid circular dependencies.
-		if buildRace && (!p.Standard || !raceExclude[p.ImportPath]) {
+		if cfg.BuildRace && (!p.Standard || !raceExclude[p.ImportPath]) {
 			importPaths = append(importPaths, "runtime/race")
 		}
 		// MSan uses runtime/msan.
-		if buildMSan && (!p.Standard || !raceExclude[p.ImportPath]) {
+		if cfg.BuildMSan && (!p.Standard || !raceExclude[p.ImportPath]) {
 			importPaths = append(importPaths, "runtime/msan")
 		}
 		// On ARM with GOARM=5, everything depends on math for the link.
-		if p.Name == "main" && goarch == "arm" {
+		if p.Name == "main" && cfg.Goarch == "arm" {
 			importPaths = append(importPaths, "math")
 		}
 		// In coverage atomic mode everything depends on sync/atomic.
-		if testCoverMode == "atomic" && (!p.Standard || (p.ImportPath != "runtime/cgo" && p.ImportPath != "runtime/race" && p.ImportPath != "sync/atomic")) {
+		if cfg.TestCoverMode == "atomic" && (!p.Standard || (p.ImportPath != "runtime/cgo" && p.ImportPath != "runtime/race" && p.ImportPath != "sync/atomic")) {
 			importPaths = append(importPaths, "sync/atomic")
 		}
 	}
@@ -1082,14 +1083,14 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	}
 
 	// unsafe is a fake package.
-	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
+	if p.Standard && (p.ImportPath == "unsafe" || cfg.BuildContext.Compiler == "gccgo") {
 		p.target = ""
 	}
 	p.Target = p.target
 
 	// If cgo is not enabled, ignore cgo supporting sources
 	// just as we ignore go files containing import "C".
-	if !buildContext.CgoEnabled {
+	if !cfg.BuildContext.CgoEnabled {
 		p.CFiles = nil
 		p.CXXFiles = nil
 		p.MFiles = nil
@@ -1102,7 +1103,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	}
 
 	// The gc toolchain only permits C source files with cgo.
-	if len(p.CFiles) > 0 && !p.usesCgo() && !p.usesSwig() && buildContext.Compiler == "gc" {
+	if len(p.CFiles) > 0 && !p.usesCgo() && !p.usesSwig() && cfg.BuildContext.Compiler == "gc" {
 		p.Error = &PackageError{
 			ImportStack: stk.copy(),
 			Err:         fmt.Sprintf("C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CFiles, " ")),
@@ -1445,7 +1446,7 @@ var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
 // isStale reports whether package p needs to be rebuilt,
 // along with the reason why.
 func isStale(p *Package) (bool, string) {
-	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
+	if p.Standard && (p.ImportPath == "unsafe" || cfg.BuildContext.Compiler == "gccgo") {
 		// fake, builtin package
 		return false, "builtin package"
 	}
@@ -1473,7 +1474,7 @@ func isStale(p *Package) (bool, string) {
 	}
 
 	// If the -a flag is given, rebuild everything.
-	if buildA {
+	if cfg.BuildA {
 		return true, "build -a flag in use"
 	}
 
@@ -1560,10 +1561,10 @@ func isStale(p *Package) (bool, string) {
 	// Excluding $GOROOT used to also fix issue 4106, but that's now
 	// taken care of above (at least when the installed Go is a released version).
 	if p.Root != goroot {
-		if olderThan(buildToolchainCompiler) {
+		if olderThan(cfg.BuildToolchainCompiler) {
 			return true, "newer compiler"
 		}
-		if p.build.IsCommand() && olderThan(buildToolchainLinker) {
+		if p.build.IsCommand() && olderThan(cfg.BuildToolchainLinker) {
 			return true, "newer linker"
 		}
 	}
@@ -1643,7 +1644,7 @@ func computeBuildID(p *Package) {
 	// Include the content of runtime/internal/sys/zversion.go in the hash
 	// for package runtime. This will give package runtime a
 	// different build ID in each Go release.
-	if p.Standard && p.ImportPath == "runtime/internal/sys" && buildContext.Compiler != "gccgo" {
+	if p.Standard && p.ImportPath == "runtime/internal/sys" && cfg.BuildContext.Compiler != "gccgo" {
 		data, err := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
 		if err != nil {
 			fatalf("go: %s", err)
@@ -1694,7 +1695,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 		stk.push(arg)
 		defer stk.pop()
 
-		bp, err := buildContext.ImportDir(filepath.Join(gorootSrc, arg), 0)
+		bp, err := cfg.BuildContext.ImportDir(filepath.Join(gorootSrc, arg), 0)
 		bp.ImportPath = arg
 		bp.Goroot = true
 		bp.BinDir = gorootBin
@@ -1722,7 +1723,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 	// referring to io/ioutil rather than a hypothetical import of
 	// "./ioutil".
 	if build.IsLocalImport(arg) {
-		bp, _ := buildContext.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
+		bp, _ := cfg.BuildContext.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
 		if bp.ImportPath != "" && bp.ImportPath != "." {
 			arg = bp.ImportPath
 		}
@@ -1867,7 +1868,7 @@ var (
 // It only supports the gc toolchain.
 // Other toolchain maintainers should adjust this function.
 func readBuildID(name, target string) (id string, err error) {
-	if buildToolchainName != "gc" {
+	if cfg.BuildToolchainName != "gc" {
 		return "", errBuildIDToolchain
 	}
 

@@ -7,6 +7,7 @@ package main
 import (
 	"path/filepath"
 
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
 )
 
@@ -52,5 +53,5 @@ func runVetFiles(p *Package, files []string) {
 	for i := range files {
 		files[i] = filepath.Join(p.Dir, files[i])
 	}
-	run(buildToolExec, tool("vet"), relPaths(files))
+	run(cfg.BuildToolexec, tool("vet"), relPaths(files))
 }

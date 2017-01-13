@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
 	"errors"
 	"fmt"
@@ -375,9 +376,9 @@ See the documentation of the testing package for more information.
 }
 
 var (
-	testC            bool       // -c flag
-	testCover        bool       // -cover flag
-	testCoverMode    string     // -covermode flag
+	testC     bool // -c flag
+	testCover bool // -cover flag
+	// Note: testCoverMode is cfg.TestCoverMode (-covermode)
 	testCoverPaths   []string   // -coverpkg flag
 	testCoverPkgs    []*Package // -coverpkg flag
 	testO            string     // -o flag
@@ -444,18 +445,18 @@ func runTest(cmd *Command, args []string) {
 	// In these cases, streaming the output produces the same result
 	// as not streaming, just more immediately.
 	testStreamOutput = len(pkgArgs) == 0 || testBench ||
-		(testShowPass && (len(pkgs) == 1 || buildP == 1))
+		(testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1))
 
 	// For 'go test -i -o x.test', we want to build x.test. Imply -c to make the logic easier.
-	if buildI && testO != "" {
+	if cfg.BuildI && testO != "" {
 		testC = true
 	}
 
 	var b builder
 	b.init()
 
-	if buildI {
-		buildV = testV
+	if cfg.BuildI {
+		cfg.BuildV = testV
 
 		deps := make(map[string]bool)
 		for dep := range testMainDeps {
@@ -479,7 +480,7 @@ func runTest(cmd *Command, args []string) {
 		if deps["C"] {
 			delete(deps, "C")
 			deps["runtime/cgo"] = true
-			if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace && !buildMSan {
+			if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH && !cfg.BuildRace && !cfg.BuildMSan {
 				deps["cmd/cgo"] = true
 			}
 		}
@@ -535,7 +536,7 @@ func runTest(cmd *Command, args []string) {
 			p.Stale = true // rebuild
 			p.StaleReason = "rebuild for coverage"
 			p.fake = true // do not warn about rebuild
-			p.coverMode = testCoverMode
+			p.coverMode = cfg.TestCoverMode
 			var coverFiles []string
 			coverFiles = append(coverFiles, p.GoFiles...)
 			coverFiles = append(coverFiles, p.CgoFiles...)
@@ -625,10 +626,10 @@ func runTest(cmd *Command, args []string) {
 			args = " " + args
 		}
 		extraOpts := ""
-		if buildRace {
+		if cfg.BuildRace {
 			extraOpts = "-race "
 		}
-		if buildMSan {
+		if cfg.BuildMSan {
 			extraOpts = "-msan "
 		}
 		fmt.Fprintf(os.Stderr, "installing these packages with 'go test %s-i%s' will speed future tests.\n\n", extraOpts, args)
@@ -775,7 +776,7 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 		ptest.build.ImportPos = m
 
 		if localCover {
-			ptest.coverMode = testCoverMode
+			ptest.coverMode = cfg.TestCoverMode
 			var coverFiles []string
 			coverFiles = append(coverFiles, ptest.GoFiles...)
 			coverFiles = append(coverFiles, ptest.CgoFiles...)
@@ -884,10 +885,10 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 		recompileForTest(pmain, p, ptest, testDir)
 	}
 
-	if buildContext.GOOS == "darwin" {
-		if buildContext.GOARCH == "arm" || buildContext.GOARCH == "arm64" {
+	if cfg.BuildContext.GOOS == "darwin" {
+		if cfg.BuildContext.GOARCH == "arm" || cfg.BuildContext.GOARCH == "arm64" {
 			t.IsIOS = true
-			t.NeedOS = true
+			t.NeedCgo = true
 		}
 	}
 	if t.TestMain == nil {
@@ -900,7 +901,7 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 		}
 	}
 
-	if !buildN {
+	if !cfg.BuildN {
 		// writeTestmain writes _testmain.go. This must happen after recompileForTest,
 		// because recompileForTest modifies XXX.
 		if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), t); err != nil {
@@ -928,8 +929,8 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 	a := b.action(modeBuild, modeBuild, pmain)
 	a.objdir = testDir + string(filepath.Separator)
 	a.objpkg = filepath.Join(testDir, "main.a")
-	a.target = filepath.Join(testDir, testBinary) + exeSuffix
-	if goos == "windows" {
+	a.target = filepath.Join(testDir, testBinary) + cfg.ExeSuffix
+	if cfg.Goos == "windows" {
 		// There are many reserved words on Windows that,
 		// if used in the name of an executable, cause Windows
 		// to try to ask for extra permissions.
@@ -954,7 +955,7 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 		// we could just do this always on Windows.
 		for _, bad := range windowsBadWords {
 			if strings.Contains(testBinary, bad) {
-				a.target = filepath.Join(testDir, "test.test") + exeSuffix
+				a.target = filepath.Join(testDir, "test.test") + cfg.ExeSuffix
 				break
 			}
 		}
@@ -963,7 +964,7 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 
 	if testC || testNeedBinary {
 		// -c or profiling flag: create action to copy binary to ./test.out.
-		target := filepath.Join(cwd, testBinary+exeSuffix)
+		target := filepath.Join(cwd, testBinary+cfg.ExeSuffix)
 		if testO != "" {
 			target = testO
 			if !filepath.IsAbs(target) {
@@ -1098,9 +1099,9 @@ func builderRunTest(b *builder, a *action) error {
 	args := str.StringList(findExecCmd(), a.deps[0].target, testArgs)
 	a.testOutput = new(bytes.Buffer)
 
-	if buildN || buildX {
+	if cfg.BuildN || cfg.BuildX {
 		b.showcmd("", "%s", strings.Join(args, " "))
-		if buildN {
+		if cfg.BuildN {
 			return nil
 		}
 	}
@@ -1115,7 +1116,7 @@ func builderRunTest(b *builder, a *action) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.p.Dir
-	cmd.Env = envForDir(cmd.Dir, origEnv)
+	cmd.Env = envForDir(cmd.Dir, cfg.OrigEnv)
 	var buf bytes.Buffer
 	if testStreamOutput {
 		cmd.Stdout = os.Stdout
@@ -1227,7 +1228,7 @@ func coveragePercentage(out []byte) string {
 
 // builderCleanTest is the action for cleaning up after a test.
 func builderCleanTest(b *builder, a *action) error {
-	if buildWork {
+	if cfg.BuildWork {
 		return nil
 	}
 	run := a.deps[0]
@@ -1345,7 +1346,7 @@ type testFuncs struct {
 }
 
 func (t *testFuncs) CoverMode() string {
-	return testCoverMode
+	return cfg.TestCoverMode
 }
 
 func (t *testFuncs) CoverEnabled() bool {

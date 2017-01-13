@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
 	"flag"
 	"fmt"
@@ -119,9 +120,6 @@ func setExitStatus(n int) {
 	exitMu.Unlock()
 }
 
-var origEnv []string
-var newEnv []envVar
-
 func main() {
 	_ = go11tag
 	flag.Usage = usage
@@ -141,7 +139,7 @@ func main() {
 	// Diagnose common mistake: GOPATH==GOROOT.
 	// This setting is equivalent to not setting GOPATH at all,
 	// which is not what most people want when they do it.
-	if gopath := buildContext.GOPATH; gopath == runtime.GOROOT() {
+	if gopath := cfg.BuildContext.GOPATH; gopath == runtime.GOROOT() {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
 		for _, p := range filepath.SplitList(gopath) {
@@ -169,11 +167,11 @@ func main() {
 	// the same default computation of these as we do,
 	// but in practice there might be skew
 	// This makes sure we all agree.
-	origEnv = os.Environ()
-	newEnv = mkEnv()
-	for _, env := range newEnv {
-		if os.Getenv(env.name) != env.value {
-			os.Setenv(env.name, env.value)
+	cfg.OrigEnv = os.Environ()
+	cfg.NewEnv = mkEnv()
+	for _, env := range cfg.NewEnv {
+		if os.Getenv(env.Name) != env.Value {
+			os.Setenv(env.Name, env.Value)
 		}
 	}
 
@@ -455,9 +453,9 @@ func exitIfErrors() {
 
 func run(cmdargs ...interface{}) {
 	cmdline := str.StringList(cmdargs...)
-	if buildN || buildX {
+	if cfg.BuildN || cfg.BuildX {
 		fmt.Printf("%s\n", strings.Join(cmdline, " "))
-		if buildN {
+		if cfg.BuildN {
 			return
 		}
 	}
@@ -602,12 +600,12 @@ func matchPackages(pattern string) []string {
 	have := map[string]bool{
 		"builtin": true, // ignore pseudo-package that exists only for documentation
 	}
-	if !buildContext.CgoEnabled {
+	if !cfg.BuildContext.CgoEnabled {
 		have["runtime/cgo"] = true // ignore during walk
 	}
 	var pkgs []string
 
-	for _, src := range buildContext.SrcDirs() {
+	for _, src := range cfg.BuildContext.SrcDirs() {
 		if (pattern == "std" || pattern == "cmd") && src != gorootSrc {
 			continue
 		}
@@ -643,7 +641,7 @@ func matchPackages(pattern string) []string {
 			if !match(name) {
 				return nil
 			}
-			_, err = buildContext.ImportDir(path, 0)
+			_, err = cfg.BuildContext.ImportDir(path, 0)
 			if err != nil {
 				if _, noGo := err.(*build.NoGoError); noGo {
 					return nil
@@ -720,7 +718,7 @@ func matchPackagesInFS(pattern string) []string {
 		// as not matching the pattern. Go 1.5 and earlier skipped, but that
 		// behavior means people miss serious mistakes.
 		// See golang.org/issue/11407.
-		if p, err := buildContext.ImportDir(path, 0); err != nil && (p == nil || len(p.InvalidGoFiles) == 0) {
+		if p, err := cfg.BuildContext.ImportDir(path, 0); err != nil && (p == nil || len(p.InvalidGoFiles) == 0) {
 			if _, noGo := err.(*build.NoGoError); !noGo {
 				log.Print(err)
 			}

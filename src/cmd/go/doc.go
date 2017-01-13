@@ -6,6 +6,8 @@
 
 package main
 
+import "cmd/go/internal/cfg"
+
 var cmdDoc = &Command{
 	Run:         runDoc,
 	UsageLine:   "doc [-u] [-c] [package|[package.]symbol[.method]]",
@@ -114,5 +116,5 @@ Flags:
 }
 
 func runDoc(cmd *Command, args []string) {
-	run(buildToolExec, tool("doc"), args)
+	run(cfg.BuildToolexec, tool("doc"), args)
 }
