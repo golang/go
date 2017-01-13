@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"cmd/go/internal/str"
 )
 
@@ -15,7 +16,7 @@ func init() {
 	addBuildFlags(cmdVet)
 }
 
-var cmdVet = &Command{
+var cmdVet = &base.Command{
 	Run:       runVet,
 	UsageLine: "vet [-n] [-x] [build flags] [packages]",
 	Short:     "run go tool vet on packages",
@@ -36,7 +37,7 @@ See also: go fmt, go fix.
 	`,
 }
 
-func runVet(cmd *Command, args []string) {
+func runVet(cmd *base.Command, args []string) {
 	for _, p := range packages(args) {
 		// Vet expects to be given a set of files all from the same package.
 		// Run once for package p and once for package p_test.
@@ -53,5 +54,5 @@ func runVetFiles(p *Package, files []string) {
 	for i := range files {
 		files[i] = filepath.Join(p.Dir, files[i])
 	}
-	run(cfg.BuildToolexec, tool("vet"), relPaths(files))
+	base.Run(cfg.BuildToolexec, base.Tool("vet"), base.RelPaths(files))
 }

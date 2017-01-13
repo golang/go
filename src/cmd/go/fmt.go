@@ -5,16 +5,18 @@
 package main
 
 import (
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"cmd/go/internal/str"
 	"os"
 	"path/filepath"
 )
 
 func init() {
-	addBuildFlagsNX(cmdFmt)
+	cfg.AddBuildFlagsNX(&cmdFmt.Flag)
 }
 
-var cmdFmt = &Command{
+var cmdFmt = &base.Command{
 	Run:       runFmt,
 	UsageLine: "fmt [-n] [-x] [packages]",
 	Short:     "run gofmt on package sources",
@@ -34,20 +36,20 @@ See also: go fix, go vet.
 	`,
 }
 
-func runFmt(cmd *Command, args []string) {
+func runFmt(cmd *base.Command, args []string) {
 	gofmt := gofmtPath()
 	for _, pkg := range packages(args) {
 		// Use pkg.gofiles instead of pkg.Dir so that
 		// the command only applies to this package,
 		// not to packages in subdirectories.
-		run(str.StringList(gofmt, "-l", "-w", relPaths(pkg.allgofiles)))
+		base.Run(str.StringList(gofmt, "-l", "-w", base.RelPaths(pkg.allgofiles)))
 	}
 }
 
 func gofmtPath() string {
 	gofmt := "gofmt"
-	if toolIsWindows {
-		gofmt += toolWindowsExtension
+	if base.ToolIsWindows {
+		gofmt += base.ToolWindowsExtension
 	}
 
 	gofmtPath := filepath.Join(gobin, gofmt)

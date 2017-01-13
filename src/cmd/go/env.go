@@ -6,13 +6,14 @@ package main
 
 import (
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"fmt"
 	"os"
 	"runtime"
 	"strings"
 )
 
-var cmdEnv = &Command{
+var cmdEnv = &base.Command{
 	Run:       runEnv,
 	UsageLine: "env [var ...]",
 	Short:     "print Go environment information",
@@ -40,7 +41,7 @@ func mkEnv() []cfg.EnvVar {
 		{"GOPATH", cfg.BuildContext.GOPATH},
 		{"GORACE", os.Getenv("GORACE")},
 		{"GOROOT", goroot},
-		{"GOTOOLDIR", toolDir},
+		{"GOTOOLDIR", base.ToolDir},
 
 		// disable escape codes in clang errors
 		{"TERM", "dumb"},
@@ -98,7 +99,7 @@ func extraEnvVars() []cfg.EnvVar {
 	}
 }
 
-func runEnv(cmd *Command, args []string) {
+func runEnv(cmd *base.Command, args []string) {
 	env := cfg.NewEnv
 	env = append(env, extraEnvVars()...)
 	if len(args) > 0 {

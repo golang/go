@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"flag"
 	"fmt"
 	"os"
@@ -64,7 +65,7 @@ var testFlagDefn = []*testFlagSpec{
 
 // add build flags to testFlagDefn
 func init() {
-	var cmd Command
+	var cmd base.Command
 	addBuildFlags(&cmd)
 	cmd.Flag.VisitAll(func(f *flag.Flag) {
 		if f.Name == "v" {
@@ -129,7 +130,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 		if f.flagValue != nil {
 			if err := f.flagValue.Set(value); err != nil {
-				fatalf("invalid flag argument for -%s: %v", f.name, err)
+				base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
 			}
 		} else {
 			// Test-only flags.
@@ -145,7 +146,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			case "exec":
 				execCmd, err = splitQuotedFields(value)
 				if err != nil {
-					fatalf("invalid flag argument for -%s: %v", f.name, err)
+					base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
 				}
 			case "bench":
 				// record that we saw the flag; don't care about the value
@@ -172,7 +173,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				case "set", "count", "atomic":
 					cfg.TestCoverMode = value
 				default:
-					fatalf("invalid flag argument for -covermode: %q", value)
+					base.Fatalf("invalid flag argument for -covermode: %q", value)
 				}
 				testCover = true
 			case "outputdir":
@@ -199,7 +200,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 	if testProfile && outputDir == "" {
 		dir, err := os.Getwd()
 		if err != nil {
-			fatalf("error from os.Getwd: %s", err)
+			base.Fatalf("error from os.Getwd: %s", err)
 		}
 		passToTest = append(passToTest, "-test.outputdir", dir)
 	}
@@ -216,7 +217,7 @@ func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) 
 	}
 	switch arg {
 	case "-?", "-h", "-help":
-		usage()
+		base.Usage()
 	}
 	if arg == "" || arg[0] != '-' {
 		return

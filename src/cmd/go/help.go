@@ -4,7 +4,9 @@
 
 package main
 
-var helpC = &Command{
+import "cmd/go/internal/base"
+
+var helpC = &base.Command{
 	UsageLine: "c",
 	Short:     "calling between Go and C",
 	Long: `
@@ -26,7 +28,7 @@ the C or C++ compiler, respectively, to use.
 	`,
 }
 
-var helpPackages = &Command{
+var helpPackages = &base.Command{
 	UsageLine: "packages",
 	Short:     "description of package lists",
 	Long: `
@@ -100,7 +102,7 @@ by the go tool, as are directories named "testdata".
 	`,
 }
 
-var helpImportPath = &Command{
+var helpImportPath = &base.Command{
 	UsageLine: "importpath",
 	Short:     "import path syntax",
 	Long: `
@@ -277,7 +279,7 @@ See https://golang.org/s/go14customimport for details.
 	`,
 }
 
-var helpGopath = &Command{
+var helpGopath = &base.Command{
 	UsageLine: "gopath",
 	Short:     "GOPATH environment variable",
 	Long: `
@@ -429,7 +431,7 @@ See https://golang.org/s/go15vendor for details.
 	`,
 }
 
-var helpEnvironment = &Command{
+var helpEnvironment = &base.Command{
 	UsageLine: "environment",
 	Short:     "environment variables",
 	Long: `
@@ -511,7 +513,7 @@ Special-purpose environment variables:
 	`,
 }
 
-var helpFileType = &Command{
+var helpFileType = &base.Command{
 	UsageLine: "filetype",
 	Short:     "file types",
 	Long: `
@@ -557,7 +559,7 @@ for more details.
 	`,
 }
 
-var helpBuildmode = &Command{
+var helpBuildmode = &base.Command{
 	UsageLine: "buildmode",
 	Short:     "description of build modes",
 	Long: `

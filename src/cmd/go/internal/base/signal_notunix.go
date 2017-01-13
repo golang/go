@@ -4,7 +4,7 @@
 
 // +build plan9 windows
 
-package main
+package base
 
 import (
 	"os"
@@ -12,6 +12,6 @@ import (
 
 var signalsToIgnore = []os.Signal{os.Interrupt}
 
-// signalTrace is the signal to send to make a Go program
-// crash with a stack trace.
-var signalTrace os.Signal = nil
+// SignalTrace is the signal to send to make a Go program
+// crash with a stack trace (no such signal in this case).
+var SignalTrace os.Signal = nil

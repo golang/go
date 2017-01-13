@@ -5,18 +5,19 @@
 package main
 
 import (
+	"cmd/go/internal/base"
 	"fmt"
 	"runtime"
 )
 
-var cmdVersion = &Command{
+var cmdVersion = &base.Command{
 	Run:       runVersion,
 	UsageLine: "version",
 	Short:     "print Go version",
 	Long:      `Version prints the Go version, as reported by runtime.Version.`,
 }
 
-func runVersion(cmd *Command, args []string) {
+func runVersion(cmd *base.Command, args []string) {
 	if len(args) != 0 {
 		cmd.Usage()
 	}

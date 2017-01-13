@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/base"
 	"cmd/go/internal/str"
 	"fmt"
 	"os"
@@ -31,7 +32,7 @@ func findExecCmd() []string {
 	return execCmd
 }
 
-var cmdRun = &Command{
+var cmdRun = &base.Command{
 	UsageLine: "run [build flags] [-exec xprog] gofiles... [arguments...]",
 	Short:     "compile and run Go program",
 	Long: `
@@ -65,7 +66,7 @@ func printStderr(args ...interface{}) (int, error) {
 	return fmt.Fprint(os.Stderr, args...)
 }
 
-func runRun(cmd *Command, args []string) {
+func runRun(cmd *base.Command, args []string) {
 	instrumentInit()
 	buildModeInit()
 	var b builder
@@ -77,18 +78,18 @@ func runRun(cmd *Command, args []string) {
 	}
 	files, cmdArgs := args[:i], args[i:]
 	if len(files) == 0 {
-		fatalf("go run: no go files listed")
+		base.Fatalf("go run: no go files listed")
 	}
 	for _, file := range files {
 		if strings.HasSuffix(file, "_test.go") {
 			// goFilesPackage is going to assign this to TestGoFiles.
 			// Reject since it won't be part of the build.
-			fatalf("go run: cannot run *_test.go files (%s)", file)
+			base.Fatalf("go run: cannot run *_test.go files (%s)", file)
 		}
 	}
 	p := goFilesPackage(files)
 	if p.Error != nil {
-		fatalf("%s", p.Error)
+		base.Fatalf("%s", p.Error)
 	}
 	p.omitDWARF = true
 	if len(p.DepsErrors) > 0 {
@@ -100,13 +101,13 @@ func runRun(cmd *Command, args []string) {
 		for _, err := range p.DepsErrors {
 			if !printed[err] {
 				printed[err] = true
-				errorf("%s", err)
+				base.Errorf("%s", err)
 			}
 		}
 	}
-	exitIfErrors()
+	base.ExitIfErrors()
 	if p.Name != "main" {
-		fatalf("go run: cannot run non-main package")
+		base.Fatalf("go run: cannot run non-main package")
 	}
 	p.target = "" // must build - not up to date
 	var src string
@@ -121,7 +122,7 @@ func runRun(cmd *Command, args []string) {
 		if !cfg.BuildContext.CgoEnabled {
 			hint = " (cgo is disabled)"
 		}
-		fatalf("go run: no suitable source files%s", hint)
+		base.Fatalf("go run: no suitable source files%s", hint)
 	}
 	p.exeName = src[:len(src)-len(".go")] // name temporary executable for first go file
 	a1 := b.action(modeBuild, modeBuild, p)
@@ -140,19 +141,6 @@ func (b *builder) runProgram(a *action) error {
 		}
 	}
 
-	runStdin(cmdline)
+	base.RunStdin(cmdline)
 	return nil
-}
-
-// runStdin is like run, but connects Stdin.
-func runStdin(cmdline []string) {
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = cfg.OrigEnv
-	startSigHandlers()
-	if err := cmd.Run(); err != nil {
-		errorf("%v", err)
-	}
 }
