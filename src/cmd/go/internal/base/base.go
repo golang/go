@@ -43,6 +43,10 @@ type Command struct {
 	CustomFlags bool
 }
 
+// Commands lists the available commands and help topics.
+// The order here is the order in which they are printed by 'go help'.
+var Commands []*Command
+
 // Name returns the command's name: the first word in the usage line.
 func (c *Command) Name() string {
 	name := c.UsageLine
