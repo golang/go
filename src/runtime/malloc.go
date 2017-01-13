@@ -160,8 +160,6 @@ const (
 	// collector scales well to 32 cpus.
 	_MaxGcproc = 32
 
-	_MaxArena32 = 1<<32 - 1
-
 	// minLegalPointer is the smallest possible legal pointer.
 	// This is the smallest possible architectural page size,
 	// since we assume that the first page is never mapped.
@@ -386,11 +384,11 @@ func mallocinit() {
 // There is no corresponding free function.
 func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 	if n > h.arena_end-h.arena_used {
-		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
-		// Reserve some more space.
+		// If we haven't grown the arena to _MaxMem yet, try
+		// to reserve some more address space.
 		p_size := round(n+_PageSize, 256<<20)
 		new_end := h.arena_end + p_size // Careful: can overflow
-		if h.arena_end <= new_end && new_end-h.arena_start-1 <= _MaxArena32 {
+		if h.arena_end <= new_end && new_end-h.arena_start-1 <= _MaxMem {
 			// TODO: It would be bad if part of the arena
 			// is reserved and part is not.
 			var reserved bool
@@ -401,7 +399,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 			if p == h.arena_end {
 				h.arena_end = new_end
 				h.arena_reserved = reserved
-			} else if h.arena_start <= p && p+p_size-h.arena_start-1 <= _MaxArena32 {
+			} else if h.arena_start <= p && p+p_size-h.arena_start-1 <= _MaxMem {
 				// Keep everything page-aligned.
 				// Our pages are bigger than hardware pages.
 				h.arena_end = p + p_size
@@ -438,7 +436,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 	}
 
 	// If using 64-bit, our reservation is all we have.
-	if h.arena_end-h.arena_start > _MaxArena32 {
+	if sys.PtrSize != 4 {
 		return nil
 	}
 
@@ -450,11 +448,10 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 		return nil
 	}
 
-	if p < h.arena_start || p+p_size-h.arena_start > _MaxArena32 {
-		top := ^uintptr(0)
-		if top-h.arena_start-1 > _MaxArena32 {
-			top = h.arena_start + _MaxArena32 + 1
-		}
+	if p < h.arena_start || p+p_size-h.arena_start > _MaxMem {
+		// This shouldn't be possible because _MaxMem is the
+		// whole address space on 32-bit.
+		top := uint64(h.arena_start) + _MaxMem
 		print("runtime: memory allocated by OS (", hex(p), ") not in usable range [", hex(h.arena_start), ",", hex(top), ")\n")
 		sysFree(unsafe.Pointer(p), p_size, &memstats.heap_sys)
 		return nil
