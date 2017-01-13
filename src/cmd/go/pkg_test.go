@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/go/internal/str"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -17,16 +18,16 @@ var foldDupTests = []struct {
 	list   []string
 	f1, f2 string
 }{
-	{stringList("math/rand", "math/big"), "", ""},
-	{stringList("math", "strings"), "", ""},
-	{stringList("strings"), "", ""},
-	{stringList("strings", "strings"), "strings", "strings"},
-	{stringList("Rand", "rand", "math", "math/rand", "math/Rand"), "Rand", "rand"},
+	{str.StringList("math/rand", "math/big"), "", ""},
+	{str.StringList("math", "strings"), "", ""},
+	{str.StringList("strings"), "", ""},
+	{str.StringList("strings", "strings"), "strings", "strings"},
+	{str.StringList("Rand", "rand", "math", "math/rand", "math/Rand"), "Rand", "rand"},
 }
 
 func TestFoldDup(t *testing.T) {
 	for _, tt := range foldDupTests {
-		f1, f2 := foldDup(tt.list)
+		f1, f2 := str.FoldDup(tt.list)
 		if f1 != tt.f1 || f2 != tt.f2 {
 			t.Errorf("foldDup(%q) = %q, %q, want %q, %q", tt.list, f1, f2, tt.f1, tt.f2)
 		}

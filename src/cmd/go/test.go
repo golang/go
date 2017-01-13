@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/go/internal/str"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -636,15 +637,6 @@ func runTest(cmd *Command, args []string) {
 	b.do(root)
 }
 
-func contains(x []string, s string) bool {
-	for _, t := range x {
-		if t == s {
-			return true
-		}
-	}
-	return false
-}
-
 var windowsBadWords = []string{
 	"install",
 	"patch",
@@ -679,7 +671,7 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 			err.Pos = "" // show full import stack
 			return nil, nil, nil, err
 		}
-		if contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
+		if str.Contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
 			// Can't change that code, because that code is only for loading the
 			// non-test copy of a package.
@@ -764,7 +756,7 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
 		ptest.target = ""
-		ptest.Imports = stringList(p.Imports, p.TestImports)
+		ptest.Imports = str.StringList(p.Imports, p.TestImports)
 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
 		ptest.pkgdir = testDir
 		ptest.fake = true
@@ -1016,7 +1008,7 @@ func testImportStack(top string, p *Package, target string) []string {
 Search:
 	for p.ImportPath != target {
 		for _, p1 := range p.imports {
-			if p1.ImportPath == target || contains(p1.Deps, target) {
+			if p1.ImportPath == target || str.Contains(p1.Deps, target) {
 				stk = append(stk, p1.ImportPath)
 				p = p1
 				continue Search
@@ -1103,7 +1095,7 @@ var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
 
 // builderRunTest is the action for running a test binary.
 func builderRunTest(b *builder, a *action) error {
-	args := stringList(findExecCmd(), a.deps[0].target, testArgs)
+	args := str.StringList(findExecCmd(), a.deps[0].target, testArgs)
 	a.testOutput = new(bytes.Buffer)
 
 	if buildN || buildX {

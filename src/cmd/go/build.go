@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"cmd/go/internal/str"
 	"container/heap"
 	"debug/elf"
 	"errors"
@@ -2091,7 +2092,7 @@ func (b *builder) run(dir string, desc string, env []string, cmdargs ...interfac
 	out, err := b.runOut(dir, desc, env, cmdargs...)
 	if len(out) > 0 {
 		if desc == "" {
-			desc = b.fmtcmd(dir, "%s", strings.Join(stringList(cmdargs...), " "))
+			desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
 		}
 		b.showOutput(dir, desc, b.processOutput(out))
 		if err != nil {
@@ -2121,7 +2122,7 @@ func (b *builder) processOutput(out []byte) string {
 // runOut runs the command given by cmdline in the directory dir.
 // It returns the command output and any errors that occurred.
 func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...interface{}) ([]byte, error) {
-	cmdline := stringList(cmdargs...)
+	cmdline := str.StringList(cmdargs...)
 	if buildN || buildX {
 		var envcmdline string
 		for i := range env {
@@ -2450,7 +2451,7 @@ func toolVerify(b *builder, p *Package, newTool string, ofile string, args []int
 		return err
 	}
 	if !bytes.Equal(data1, data2) {
-		return fmt.Errorf("%s and %s produced different output files:\n%s\n%s", filepath.Base(args[1].(string)), newTool, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
+		return fmt.Errorf("%s and %s produced different output files:\n%s\n%s", filepath.Base(args[1].(string)), newTool, strings.Join(str.StringList(args...), " "), strings.Join(str.StringList(newArgs...), " "))
 	}
 	os.Remove(ofile + ".new")
 	return nil
@@ -2477,7 +2478,7 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 	}
 
 	if buildN || buildX {
-		cmdline := stringList("pack", "r", absAfile, absOfiles)
+		cmdline := str.StringList("pack", "r", absAfile, absOfiles)
 		b.showcmd(p.Dir, "%s # internal", joinUnambiguously(cmdline))
 	}
 	if buildN {
@@ -2692,7 +2693,7 @@ func (tools gccgoToolchain) gc(b *builder, p *Package, archive, obj string, asmh
 	if p.localPrefix != "" {
 		gcargs = append(gcargs, "-fgo-relative-import-path="+p.localPrefix)
 	}
-	args := stringList(tools.compiler(), importArgs, "-c", gcargs, "-o", ofile, buildGccgoflags)
+	args := str.StringList(tools.compiler(), importArgs, "-c", gcargs, "-o", ofile, buildGccgoflags)
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
 	}
@@ -2913,7 +2914,7 @@ func (tools gccgoToolchain) link(b *builder, root *action, out string, allaction
 		ldflags = append(ldflags, root.p.CgoLDFLAGS...)
 	}
 
-	ldflags = stringList("-Wl,-(", ldflags, "-Wl,-)")
+	ldflags = str.StringList("-Wl,-(", ldflags, "-Wl,-)")
 
 	for _, shlib := range shlibs {
 		ldflags = append(
@@ -3244,11 +3245,11 @@ func envList(key, def string) []string {
 func (b *builder) cflags(p *Package) (cppflags, cflags, cxxflags, fflags, ldflags []string) {
 	defaults := "-g -O2"
 
-	cppflags = stringList(envList("CGO_CPPFLAGS", ""), p.CgoCPPFLAGS)
-	cflags = stringList(envList("CGO_CFLAGS", defaults), p.CgoCFLAGS)
-	cxxflags = stringList(envList("CGO_CXXFLAGS", defaults), p.CgoCXXFLAGS)
-	fflags = stringList(envList("CGO_FFLAGS", defaults), p.CgoFFLAGS)
-	ldflags = stringList(envList("CGO_LDFLAGS", defaults), p.CgoLDFLAGS)
+	cppflags = str.StringList(envList("CGO_CPPFLAGS", ""), p.CgoCPPFLAGS)
+	cflags = str.StringList(envList("CGO_CFLAGS", defaults), p.CgoCFLAGS)
+	cxxflags = str.StringList(envList("CGO_CXXFLAGS", defaults), p.CgoCXXFLAGS)
+	fflags = str.StringList(envList("CGO_FFLAGS", defaults), p.CgoFFLAGS)
+	ldflags = str.StringList(envList("CGO_LDFLAGS", defaults), p.CgoLDFLAGS)
 	return
 }
 
@@ -3354,7 +3355,7 @@ func (b *builder) cgo(a *action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofil
 	outGo = append(outGo, gofiles...)
 
 	// gcc
-	cflags := stringList(cgoCPPFLAGS, cgoCFLAGS)
+	cflags := str.StringList(cgoCPPFLAGS, cgoCFLAGS)
 	for _, cfile := range cfiles {
 		ofile := obj + cfile[:len(cfile)-1] + "o"
 		if err := b.gcc(p, ofile, cflags, obj+cfile); err != nil {
@@ -3372,7 +3373,7 @@ func (b *builder) cgo(a *action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofil
 		outObj = append(outObj, ofile)
 	}
 
-	cxxflags := stringList(cgoCPPFLAGS, cgoCXXFLAGS)
+	cxxflags := str.StringList(cgoCPPFLAGS, cgoCXXFLAGS)
 	for _, file := range gxxfiles {
 		// Append .o to the file, just in case the pkg has file.c and file.cpp
 		ofile := obj + cgoRe.ReplaceAllString(filepath.Base(file), "_") + ".o"
@@ -3391,7 +3392,7 @@ func (b *builder) cgo(a *action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofil
 		outObj = append(outObj, ofile)
 	}
 
-	fflags := stringList(cgoCPPFLAGS, cgoFFLAGS)
+	fflags := str.StringList(cgoCPPFLAGS, cgoFFLAGS)
 	for _, file := range ffiles {
 		// Append .o to the file, just in case the pkg has file.c and file.f
 		ofile := obj + cgoRe.ReplaceAllString(filepath.Base(file), "_") + ".o"
@@ -3440,7 +3441,7 @@ func (b *builder) dynimport(p *Package, obj, importGo, cgoExe string, cflags, cg
 		return err
 	}
 
-	linkobj := stringList(ofile, outObj, p.SysoFiles)
+	linkobj := str.StringList(ofile, outObj, p.SysoFiles)
 	dynobj := obj + "_cgo_.o"
 
 	// we need to use -pie for Linux/ARM to get accurate imported sym
@@ -3672,9 +3673,9 @@ func (b *builder) swigOne(p *Package, file, obj string, pcCFLAGS []string, cxx b
 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _, _ := b.cflags(p)
 	var cflags []string
 	if cxx {
-		cflags = stringList(cgoCPPFLAGS, pcCFLAGS, cgoCXXFLAGS)
+		cflags = str.StringList(cgoCPPFLAGS, pcCFLAGS, cgoCXXFLAGS)
 	} else {
-		cflags = stringList(cgoCPPFLAGS, pcCFLAGS, cgoCFLAGS)
+		cflags = str.StringList(cgoCPPFLAGS, pcCFLAGS, cgoCFLAGS)
 	}
 
 	n := 5 // length of ".swig"
