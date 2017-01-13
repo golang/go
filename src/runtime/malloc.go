@@ -148,7 +148,11 @@ const (
 	_MHeapMap_TotalBits = (_64bit*sys.GoosWindows)*35 + (_64bit*(1-sys.GoosWindows)*(1-sys.GoosDarwin*sys.GoarchArm64))*39 + sys.GoosDarwin*sys.GoarchArm64*31 + (1-_64bit)*(32-(sys.GoarchMips+sys.GoarchMipsle))
 	_MHeapMap_Bits      = _MHeapMap_TotalBits - _PageShift
 
-	_MaxMem = uintptr(1<<_MHeapMap_TotalBits - 1)
+	// _MaxMem is the maximum heap arena size minus 1.
+	//
+	// On 32-bit, this is also the maximum heap pointer value,
+	// since the arena starts at address 0.
+	_MaxMem = 1<<_MHeapMap_TotalBits - 1
 
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
