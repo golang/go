@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package buildid
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ func readAligned4(r io.Reader, sz int32) ([]byte, error) {
 	return data, nil
 }
 
-func readELFNote(filename, name string, typ int32) ([]byte, error) {
+func ReadELFNote(filename, name string, typ int32) ([]byte, error) {
 	f, err := elf.Open(filename)
 	if err != nil {
 		return nil, err

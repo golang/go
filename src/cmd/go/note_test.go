@@ -5,10 +5,11 @@
 package main_test
 
 import (
-	main "cmd/go"
 	"go/build"
 	"runtime"
 	"testing"
+
+	"cmd/go/internal/buildid"
 )
 
 func TestNoteReading(t *testing.T) {
@@ -21,9 +22,9 @@ func TestNoteReading2K(t *testing.T) {
 	}
 	// Set BuildIDReadSize to 2kB to exercise Mach-O parsing more strictly.
 	defer func(old int) {
-		main.BuildIDReadSize = old
-	}(main.BuildIDReadSize)
-	main.BuildIDReadSize = 2 * 1024
+		buildid.BuildIDReadSize = old
+	}(buildid.BuildIDReadSize)
+	buildid.BuildIDReadSize = 2 * 1024
 
 	testNoteReading(t)
 }
@@ -34,7 +35,7 @@ func testNoteReading(t *testing.T) {
 	tg.tempFile("hello.go", `package main; func main() { print("hello, world\n") }`)
 	const buildID = "TestNoteReading-Build-ID"
 	tg.run("build", "-ldflags", "-buildid="+buildID, "-o", tg.path("hello.exe"), tg.path("hello.go"))
-	id, err := main.ReadBuildIDFromBinary(tg.path("hello.exe"))
+	id, err := buildid.ReadBuildIDFromBinary(tg.path("hello.exe"))
 	if err != nil {
 		t.Fatalf("reading build ID from hello binary: %v", err)
 	}
@@ -54,7 +55,7 @@ func testNoteReading(t *testing.T) {
 	}
 
 	tg.run("build", "-ldflags", "-buildid="+buildID+" -linkmode=external", "-o", tg.path("hello.exe"), tg.path("hello.go"))
-	id, err = main.ReadBuildIDFromBinary(tg.path("hello.exe"))
+	id, err = buildid.ReadBuildIDFromBinary(tg.path("hello.exe"))
 	if err != nil {
 		t.Fatalf("reading build ID from hello binary (linkmode=external): %v", err)
 	}
