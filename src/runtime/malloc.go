@@ -242,18 +242,21 @@ func mallocinit() {
 		throw("bad system page size")
 	}
 
-	var p, bitmapSize, spansSize, pSize, limit uintptr
+	// The auxiliary regions start at p and are laid out in the
+	// following order: spans, bitmap, arena.
+	var p, pSize uintptr
 	var reserved bool
 
-	// limit = runtime.memlimit();
-	// See https://golang.org/issue/5049
-	// TODO(rsc): Fix after 1.1.
-	limit = 0
+	// The spans array holds one *mspan per _PageSize of arena.
+	var spansSize uintptr = (_MaxMem + 1) / _PageSize * sys.PtrSize
+	spansSize = round(spansSize, _PageSize)
+	// The bitmap holds 2 bits per word of arena.
+	var bitmapSize uintptr = (_MaxMem + 1) / (sys.PtrSize * 8 / 2)
+	bitmapSize = round(bitmapSize, _PageSize)
 
 	// Set up the allocation arena, a contiguous area of memory where
-	// allocated data will be found. The arena begins with a bitmap large
-	// enough to hold 2 bits per allocated word.
-	if sys.PtrSize == 8 && (limit == 0 || limit > 1<<30) {
+	// allocated data will be found.
+	if sys.PtrSize == 8 {
 		// On a 64-bit machine, allocate from a single contiguous reservation.
 		// 512 GB (MaxMem) should be big enough for now.
 		//
@@ -284,9 +287,7 @@ func mallocinit() {
 		// translation buffers, the user address space is limited to 39 bits
 		// On darwin/arm64, the address space is even smaller.
 		arenaSize := round(_MaxMem, _PageSize)
-		bitmapSize = arenaSize / (sys.PtrSize * 8 / 2)
-		spansSize = arenaSize / _PageSize * sys.PtrSize
-		spansSize = round(spansSize, _PageSize)
+		pSize = bitmapSize + spansSize + arenaSize + _PageSize
 		for i := 0; i <= 0x7f; i++ {
 			switch {
 			case GOARCH == "arm64" && GOOS == "darwin":
@@ -296,7 +297,6 @@ func mallocinit() {
 			default:
 				p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
 			}
-			pSize = bitmapSize + spansSize + arenaSize + _PageSize
 			p = uintptr(sysReserve(unsafe.Pointer(p), pSize, &reserved))
 			if p != 0 {
 				break
@@ -327,15 +327,6 @@ func mallocinit() {
 		}
 
 		for _, arenaSize := range arenaSizes {
-			bitmapSize = (_MaxArena32 + 1) / (sys.PtrSize * 8 / 2)
-			spansSize = (_MaxArena32 + 1) / _PageSize * sys.PtrSize
-			if limit > 0 && arenaSize+bitmapSize+spansSize > limit {
-				bitmapSize = (limit / 9) &^ ((1 << _PageShift) - 1)
-				arenaSize = bitmapSize * 8
-				spansSize = arenaSize / _PageSize * sys.PtrSize
-			}
-			spansSize = round(spansSize, _PageSize)
-
 			// SysReserve treats the address we ask for, end, as a hint,
 			// not as an absolute requirement. If we ask for the end
 			// of the data segment but the operating system requires
@@ -361,18 +352,21 @@ func mallocinit() {
 	// so SysReserve can give us a PageSize-unaligned pointer.
 	// To overcome this we ask for PageSize more and round up the pointer.
 	p1 := round(p, _PageSize)
+	pSize -= p1 - p
 
 	spansStart := p1
-	mheap_.bitmap = p1 + spansSize + bitmapSize
+	p1 += spansSize
+	mheap_.bitmap = p1 + bitmapSize
+	p1 += bitmapSize
 	if sys.PtrSize == 4 {
 		// Set arena_start such that we can accept memory
 		// reservations located anywhere in the 4GB virtual space.
 		mheap_.arena_start = 0
 	} else {
-		mheap_.arena_start = p1 + (spansSize + bitmapSize)
+		mheap_.arena_start = p1
 	}
 	mheap_.arena_end = p + pSize
-	mheap_.arena_used = p1 + (spansSize + bitmapSize)
+	mheap_.arena_used = p1
 	mheap_.arena_reserved = reserved
 
 	if mheap_.arena_start&(_PageSize-1) != 0 {
