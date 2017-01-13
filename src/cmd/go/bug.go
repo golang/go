@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/go/internal/cfg"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,7 +29,7 @@ The report includes useful system information.
 }
 
 func init() {
-	cmdBug.Flag.BoolVar(&buildV, "v", false, "")
+	cmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 }
 
 func runBug(cmd *Command, args []string) {
@@ -38,13 +39,13 @@ func runBug(cmd *Command, args []string) {
 	fmt.Fprint(&buf, "#### System details\n\n")
 	fmt.Fprintln(&buf, "```")
 	fmt.Fprintf(&buf, "go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
-	env := newEnv
+	env := cfg.NewEnv
 	env = append(env, extraEnvVars()...)
 	for _, e := range env {
 		// Hide the TERM environment variable from "go bug".
 		// See issue #18128
-		if e.name != "TERM" {
-			fmt.Fprintf(&buf, "%s=\"%s\"\n", e.name, e.value)
+		if e.Name != "TERM" {
+			fmt.Fprintf(&buf, "%s=\"%s\"\n", e.Name, e.Value)
 		}
 	}
 	printGoDetails(&buf)
@@ -97,7 +98,7 @@ func printOSDetails(w io.Writer) {
 		if err == nil {
 			fmt.Fprintf(w, "/etc/release: %s\n", out)
 		} else {
-			if buildV {
+			if cfg.BuildV {
 				fmt.Printf("failed to read /etc/release: %v\n", err)
 			}
 		}
@@ -114,7 +115,7 @@ func printCDetails(w io.Writer) {
 		// Print up to the first newline.
 		fmt.Fprintf(w, "gdb --version: %s\n", firstLine(out))
 	} else {
-		if buildV {
+		if cfg.BuildV {
 			fmt.Printf("failed to run gdb --version: %v\n", err)
 		}
 	}
@@ -123,7 +124,7 @@ func printCDetails(w io.Writer) {
 func inspectGoVersion(w io.Writer) {
 	data, err := httpGET("https://golang.org/VERSION?m=text")
 	if err != nil {
-		if buildV {
+		if cfg.BuildV {
 			fmt.Printf("failed to read from golang.org/VERSION: %v\n", err)
 		}
 		return
@@ -150,7 +151,7 @@ func printCmdOut(w io.Writer, prefix, path string, args ...string) {
 	cmd := exec.Command(path, args...)
 	out, err := cmd.Output()
 	if err != nil {
-		if buildV {
+		if cfg.BuildV {
 			fmt.Printf("%s %s: %v\n", path, strings.Join(args, " "), err)
 		}
 		return

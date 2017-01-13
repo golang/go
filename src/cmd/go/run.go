@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
 	"fmt"
 	"os"
@@ -20,10 +21,10 @@ func findExecCmd() []string {
 		return execCmd
 	}
 	execCmd = []string{} // avoid work the second time
-	if goos == runtime.GOOS && goarch == runtime.GOARCH {
+	if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH {
 		return execCmd
 	}
-	path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", goos, goarch))
+	path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
 	if err == nil {
 		execCmd = []string{path}
 	}
@@ -117,7 +118,7 @@ func runRun(cmd *Command, args []string) {
 		// this case could only happen if the provided source uses cgo
 		// while cgo is disabled.
 		hint := ""
-		if !buildContext.CgoEnabled {
+		if !cfg.BuildContext.CgoEnabled {
 			hint = " (cgo is disabled)"
 		}
 		fatalf("go run: no suitable source files%s", hint)
@@ -132,9 +133,9 @@ func runRun(cmd *Command, args []string) {
 // been compiled. We ignore exit status.
 func (b *builder) runProgram(a *action) error {
 	cmdline := str.StringList(findExecCmd(), a.deps[0].target, a.args)
-	if buildN || buildX {
+	if cfg.BuildN || cfg.BuildX {
 		b.showcmd("", "%s", strings.Join(cmdline, " "))
-		if buildN {
+		if cfg.BuildN {
 			return nil
 		}
 	}
@@ -149,7 +150,7 @@ func runStdin(cmdline []string) {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = origEnv
+	cmd.Env = cfg.OrigEnv
 	startSigHandlers()
 	if err := cmd.Run(); err != nil {
 		errorf("%v", err)

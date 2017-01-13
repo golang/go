@@ -6,6 +6,7 @@ package main
 
 import (
 	"bufio"
+	"cmd/go/internal/cfg"
 	"encoding/json"
 	"io"
 	"os"
@@ -165,7 +166,7 @@ func runList(cmd *Command, args []string) {
 		var cachedCtxt *Context
 		context := func() *Context {
 			if cachedCtxt == nil {
-				cachedCtxt = newContext(&buildContext)
+				cachedCtxt = newContext(&cfg.BuildContext)
 			}
 			return cachedCtxt
 		}

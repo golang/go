@@ -12,6 +12,7 @@
 package main
 
 import (
+	"cmd/go/internal/cfg"
 	"cmd/internal/browser"
 	"crypto/tls"
 	"fmt"
@@ -79,7 +80,7 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 		}
 		u.RawQuery = "go-get=1"
 		urlStr = u.String()
-		if buildV {
+		if cfg.BuildV {
 			log.Printf("Fetching %s", urlStr)
 		}
 		if security == insecure && scheme == "https" { // fail earlier
@@ -96,7 +97,7 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 	}
 	urlStr, res, err := fetch("https")
 	if err != nil {
-		if buildV {
+		if cfg.BuildV {
 			log.Printf("https fetch failed: %v", err)
 		}
 		if security == insecure {
@@ -110,7 +111,7 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 	}
 	// Note: accepting a non-200 OK here, so people can serve a
 	// meta import in their http 404 page.
-	if buildV {
+	if cfg.BuildV {
 		log.Printf("Parsing meta tags from %s (status code %d)", urlStr, res.StatusCode)
 	}
 	return urlStr, res.Body, nil

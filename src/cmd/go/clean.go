@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/go/internal/cfg"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -172,7 +173,7 @@ func clean(p *Package) {
 		}
 	}
 
-	if buildN || buildX {
+	if cfg.BuildN || cfg.BuildX {
 		b.showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
 	}
 
@@ -185,9 +186,9 @@ func clean(p *Package) {
 		if dir.IsDir() {
 			// TODO: Remove once Makefiles are forgotten.
 			if cleanDir[name] {
-				if buildN || buildX {
+				if cfg.BuildN || cfg.BuildX {
 					b.showcmd(p.Dir, "rm -r %s", name)
-					if buildN {
+					if cfg.BuildN {
 						continue
 					}
 				}
@@ -198,7 +199,7 @@ func clean(p *Package) {
 			continue
 		}
 
-		if buildN {
+		if cfg.BuildN {
 			continue
 		}
 
@@ -208,10 +209,10 @@ func clean(p *Package) {
 	}
 
 	if cleanI && p.target != "" {
-		if buildN || buildX {
+		if cfg.BuildN || cfg.BuildX {
 			b.showcmd("", "rm -f %s", p.target)
 		}
-		if !buildN {
+		if !cfg.BuildN {
 			removeFile(p.target)
 		}
 	}

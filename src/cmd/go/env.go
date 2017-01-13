@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/go/internal/cfg"
 	"fmt"
 	"os"
 	"runtime"
@@ -25,22 +26,18 @@ each named variable on its own line.
 	`,
 }
 
-type envVar struct {
-	name, value string
-}
-
-func mkEnv() []envVar {
+func mkEnv() []cfg.EnvVar {
 	var b builder
 	b.init()
 
-	env := []envVar{
-		{"GOARCH", goarch},
+	env := []cfg.EnvVar{
+		{"GOARCH", cfg.Goarch},
 		{"GOBIN", gobin},
-		{"GOEXE", exeSuffix},
+		{"GOEXE", cfg.ExeSuffix},
 		{"GOHOSTARCH", runtime.GOARCH},
 		{"GOHOSTOS", runtime.GOOS},
-		{"GOOS", goos},
-		{"GOPATH", buildContext.GOPATH},
+		{"GOOS", cfg.Goos},
+		{"GOPATH", cfg.BuildContext.GOPATH},
 		{"GORACE", os.Getenv("GORACE")},
 		{"GOROOT", goroot},
 		{"GOTOOLDIR", toolDir},
@@ -50,48 +47,48 @@ func mkEnv() []envVar {
 	}
 
 	if gccgoBin != "" {
-		env = append(env, envVar{"GCCGO", gccgoBin})
+		env = append(env, cfg.EnvVar{"GCCGO", gccgoBin})
 	} else {
-		env = append(env, envVar{"GCCGO", gccgoName})
+		env = append(env, cfg.EnvVar{"GCCGO", gccgoName})
 	}
 
-	switch goarch {
+	switch cfg.Goarch {
 	case "arm":
-		env = append(env, envVar{"GOARM", os.Getenv("GOARM")})
+		env = append(env, cfg.EnvVar{"GOARM", os.Getenv("GOARM")})
 	case "386":
-		env = append(env, envVar{"GO386", os.Getenv("GO386")})
+		env = append(env, cfg.EnvVar{"GO386", os.Getenv("GO386")})
 	}
 
 	cmd := b.gccCmd(".")
-	env = append(env, envVar{"CC", cmd[0]})
-	env = append(env, envVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
+	env = append(env, cfg.EnvVar{"CC", cmd[0]})
+	env = append(env, cfg.EnvVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
 	cmd = b.gxxCmd(".")
-	env = append(env, envVar{"CXX", cmd[0]})
+	env = append(env, cfg.EnvVar{"CXX", cmd[0]})
 
-	if buildContext.CgoEnabled {
-		env = append(env, envVar{"CGO_ENABLED", "1"})
+	if cfg.BuildContext.CgoEnabled {
+		env = append(env, cfg.EnvVar{"CGO_ENABLED", "1"})
 	} else {
-		env = append(env, envVar{"CGO_ENABLED", "0"})
+		env = append(env, cfg.EnvVar{"CGO_ENABLED", "0"})
 	}
 
 	return env
 }
 
-func findEnv(env []envVar, name string) string {
+func findEnv(env []cfg.EnvVar, name string) string {
 	for _, e := range env {
-		if e.name == name {
-			return e.value
+		if e.Name == name {
+			return e.Value
 		}
 	}
 	return ""
 }
 
 // extraEnvVars returns environment variables that should not leak into child processes.
-func extraEnvVars() []envVar {
+func extraEnvVars() []cfg.EnvVar {
 	var b builder
 	b.init()
 	cppflags, cflags, cxxflags, fflags, ldflags := b.cflags(&Package{})
-	return []envVar{
+	return []cfg.EnvVar{
 		{"PKG_CONFIG", b.pkgconfigCmd()},
 		{"CGO_CFLAGS", strings.Join(cflags, " ")},
 		{"CGO_CPPFLAGS", strings.Join(cppflags, " ")},
@@ -102,7 +99,7 @@ func extraEnvVars() []envVar {
 }
 
 func runEnv(cmd *Command, args []string) {
-	env := newEnv
+	env := cfg.NewEnv
 	env = append(env, extraEnvVars()...)
 	if len(args) > 0 {
 		for _, name := range args {
@@ -112,16 +109,16 @@ func runEnv(cmd *Command, args []string) {
 	}
 
 	for _, e := range env {
-		if e.name != "TERM" {
+		if e.Name != "TERM" {
 			switch runtime.GOOS {
 			default:
-				fmt.Printf("%s=\"%s\"\n", e.name, e.value)
+				fmt.Printf("%s=\"%s\"\n", e.Name, e.Value)
 			case "plan9":
-				if strings.IndexByte(e.value, '\x00') < 0 {
-					fmt.Printf("%s='%s'\n", e.name, strings.Replace(e.value, "'", "''", -1))
+				if strings.IndexByte(e.Value, '\x00') < 0 {
+					fmt.Printf("%s='%s'\n", e.Name, strings.Replace(e.Value, "'", "''", -1))
 				} else {
-					v := strings.Split(e.value, "\x00")
-					fmt.Printf("%s=(", e.name)
+					v := strings.Split(e.Value, "\x00")
+					fmt.Printf("%s=(", e.Name)
 					for x, s := range v {
 						if x > 0 {
 							fmt.Printf(" ")
@@ -131,7 +128,7 @@ func runEnv(cmd *Command, args []string) {
 					fmt.Printf(")\n")
 				}
 			case "windows":
-				fmt.Printf("set %s=%s\n", e.name, e.value)
+				fmt.Printf("set %s=%s\n", e.Name, e.Value)
 			}
 		}
 	}

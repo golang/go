@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/go/internal/cfg"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -373,7 +374,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 	cmd := exec.Command(v.cmd, args...)
 	cmd.Dir = dir
 	cmd.Env = envForDir(cmd.Dir, os.Environ())
-	if buildX {
+	if cfg.BuildX {
 		fmt.Printf("cd %s\n", dir)
 		fmt.Printf("%s %s\n", v.cmd, strings.Join(args, " "))
 	}
@@ -383,7 +384,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 	err = cmd.Run()
 	out := buf.Bytes()
 	if err != nil {
-		if verbose || buildV {
+		if verbose || cfg.BuildV {
 			fmt.Fprintf(os.Stderr, "# cd %s; %s %s\n", dir, v.cmd, strings.Join(args, " "))
 			os.Stderr.Write(out)
 		}
@@ -687,7 +688,7 @@ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRo
 		}
 		return nil, fmt.Errorf("parse %s: no go-import meta tags (%s)", urlStr, err)
 	}
-	if buildV {
+	if cfg.BuildV {
 		log.Printf("get %q: found meta tag %#v at %s", importPath, mmi, urlStr)
 	}
 	// If the import was "uni.edu/bob/project", which said the
@@ -697,7 +698,7 @@ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRo
 	// non-evil student).  Instead, first verify the root and see
 	// if it matches Bob's claim.
 	if mmi.Prefix != importPath {
-		if buildV {
+		if cfg.BuildV {
 			log.Printf("get %q: verifying non-authoritative meta tag", importPath)
 		}
 		urlStr0 := urlStr
