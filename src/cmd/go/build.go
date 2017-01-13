@@ -27,8 +27,9 @@ import (
 	"sync"
 	"time"
 
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/buildid"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
 )
 
@@ -889,7 +890,7 @@ func readpkglist(shlibpath string) (pkgs []*Package) {
 			}
 		}
 	} else {
-		pkglistbytes, err := readELFNote(shlibpath, "Go\x00\x00", 1)
+		pkglistbytes, err := buildid.ReadELFNote(shlibpath, "Go\x00\x00", 1)
 		if err != nil {
 			base.Fatalf("readELFNote failed: %v", err)
 		}
