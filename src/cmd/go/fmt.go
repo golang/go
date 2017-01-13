@@ -5,8 +5,9 @@
 package main
 
 import (
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"os"
 	"path/filepath"
@@ -38,11 +39,11 @@ See also: go fix, go vet.
 
 func runFmt(cmd *base.Command, args []string) {
 	gofmt := gofmtPath()
-	for _, pkg := range packages(args) {
+	for _, pkg := range load.Packages(args) {
 		// Use pkg.gofiles instead of pkg.Dir so that
 		// the command only applies to this package,
 		// not to packages in subdirectories.
-		base.Run(str.StringList(gofmt, "-l", "-w", base.RelPaths(pkg.allgofiles)))
+		base.Run(str.StringList(gofmt, "-l", "-w", base.RelPaths(pkg.Internal.AllGoFiles)))
 	}
 }
 
@@ -52,12 +53,12 @@ func gofmtPath() string {
 		gofmt += base.ToolWindowsExtension
 	}
 
-	gofmtPath := filepath.Join(gobin, gofmt)
+	gofmtPath := filepath.Join(cfg.GOBIN, gofmt)
 	if _, err := os.Stat(gofmtPath); err == nil {
 		return gofmtPath
 	}
 
-	gofmtPath = filepath.Join(goroot, "bin", gofmt)
+	gofmtPath = filepath.Join(cfg.GOROOT, "bin", gofmt)
 	if _, err := os.Stat(gofmtPath); err == nil {
 		return gofmtPath
 	}

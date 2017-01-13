@@ -5,8 +5,8 @@
 package main
 
 import (
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"flag"
 	"fmt"
 	"os"

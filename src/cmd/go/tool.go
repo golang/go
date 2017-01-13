@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 )
 
 var cmdTool = &base.Command{
@@ -72,7 +72,7 @@ func runTool(cmd *base.Command, args []string) {
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		// Set $GOROOT, mainly for go tool dist.
-		Env: mergeEnvLists([]string{"GOROOT=" + goroot}, os.Environ()),
+		Env: mergeEnvLists([]string{"GOROOT=" + cfg.GOROOT}, os.Environ()),
 	}
 	err := toolCmd.Run()
 	if err != nil {

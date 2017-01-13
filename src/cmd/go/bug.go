@@ -6,8 +6,8 @@ package main
 
 import (
 	"bytes"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"fmt"
 	"io"
 	"io/ioutil"

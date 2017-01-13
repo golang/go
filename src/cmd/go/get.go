@@ -5,8 +5,9 @@
 package main
 
 import (
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"fmt"
 	"go/build"
@@ -119,10 +120,10 @@ func runGet(cmd *base.Command, args []string) {
 	}
 
 	// Phase 1.  Download/update.
-	var stk importStack
+	var stk load.ImportStack
 	mode := 0
 	if *getT {
-		mode |= getTestDeps
+		mode |= load.GetTestDeps
 	}
 	args = downloadPaths(args)
 	for _, arg := range args {
@@ -137,20 +138,16 @@ func runGet(cmd *base.Command, args []string) {
 	// the information will be recomputed. Instead of keeping
 	// track of the reverse dependency information, evict
 	// everything.
-	for name := range packageCache {
-		delete(packageCache, name)
-	}
+	load.ClearPackageCache()
 
 	// In order to rebuild packages information completely,
 	// we need to clear commands cache. Command packages are
 	// referring to evicted packages from the package cache.
 	// This leads to duplicated loads of the standard packages.
-	for name := range cmdCache {
-		delete(cmdCache, name)
-	}
+	load.ClearCmdCache()
 
-	args = importPaths(args)
-	packagesForBuild(args)
+	args = load.ImportPaths(args)
+	load.PackagesForBuild(args)
 
 	// Phase 3.  Install.
 	if *getD {
@@ -169,7 +166,7 @@ func runGet(cmd *base.Command, args []string) {
 // in the hope that we can figure out the repository from the
 // initial ...-free prefix.
 func downloadPaths(args []string) []string {
-	args = importPathsNoDotExpansion(args)
+	args = load.ImportPathsNoDotExpansion(args)
 	var out []string
 	for _, a := range args {
 		if strings.Contains(a, "...") {
@@ -178,9 +175,9 @@ func downloadPaths(args []string) []string {
 			// warnings. They will be printed by the
 			// eventual call to importPaths instead.
 			if build.IsLocalImport(a) {
-				expand = matchPackagesInFS(a)
+				expand = load.MatchPackagesInFS(a)
 			} else {
-				expand = matchPackages(a)
+				expand = load.MatchPackages(a)
 			}
 			if len(expand) > 0 {
 				out = append(out, expand...)
@@ -207,20 +204,20 @@ var downloadRootCache = map[string]bool{}
 
 // download runs the download half of the get command
 // for the package named by the argument.
-func download(arg string, parent *Package, stk *importStack, mode int) {
-	if mode&useVendor != 0 {
+func download(arg string, parent *load.Package, stk *load.ImportStack, mode int) {
+	if mode&load.UseVendor != 0 {
 		// Caller is responsible for expanding vendor paths.
 		panic("internal error: download mode has useVendor set")
 	}
-	load := func(path string, mode int) *Package {
+	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
-			return loadPackage(path, stk)
+			return load.LoadPackage(path, stk)
 		}
-		return loadImport(path, parent.Dir, parent, stk, nil, mode)
+		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode)
 	}
 
-	p := load(arg, mode)
-	if p.Error != nil && p.Error.hard {
+	p := load1(arg, mode)
+	if p.Error != nil && p.Error.Hard {
 		base.Errorf("%s", p.Error)
 		return
 	}
@@ -243,26 +240,26 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 	// Only process each package once.
 	// (Unless we're fetching test dependencies for this package,
 	// in which case we want to process it again.)
-	if downloadCache[arg] && mode&getTestDeps == 0 {
+	if downloadCache[arg] && mode&load.GetTestDeps == 0 {
 		return
 	}
 	downloadCache[arg] = true
 
-	pkgs := []*Package{p}
+	pkgs := []*load.Package{p}
 	wildcardOkay := len(*stk) == 0
 	isWildcard := false
 
 	// Download if the package is missing, or update if we're using -u.
 	if p.Dir == "" || *getU {
 		// The actual download.
-		stk.push(arg)
+		stk.Push(arg)
 		err := downloadPackage(p)
 		if err != nil {
-			base.Errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
-			stk.pop()
+			base.Errorf("%s", &load.PackageError{ImportStack: stk.Copy(), Err: err.Error()})
+			stk.Pop()
 			return
 		}
-		stk.pop()
+		stk.Pop()
 
 		args := []string{arg}
 		// If the argument has a wildcard in it, re-evaluate the wildcard.
@@ -270,29 +267,23 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 		// for p has been replaced in the package cache.
 		if wildcardOkay && strings.Contains(arg, "...") {
 			if build.IsLocalImport(arg) {
-				args = matchPackagesInFS(arg)
+				args = load.MatchPackagesInFS(arg)
 			} else {
-				args = matchPackages(arg)
+				args = load.MatchPackages(arg)
 			}
 			isWildcard = true
 		}
 
 		// Clear all relevant package cache entries before
 		// doing any new loads.
-		for _, arg := range args {
-			p := packageCache[arg]
-			if p != nil {
-				delete(packageCache, p.Dir)
-				delete(packageCache, p.ImportPath)
-			}
-		}
+		load.ClearPackageCachePartial(args)
 
 		pkgs = pkgs[:0]
 		for _, arg := range args {
 			// Note: load calls loadPackage or loadImport,
 			// which push arg onto stk already.
 			// Do not push here too, or else stk will say arg imports arg.
-			p := load(arg, mode)
+			p := load1(arg, mode)
 			if p.Error != nil {
 				base.Errorf("%s", p.Error)
 				continue
@@ -305,10 +296,10 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 	// due to wildcard expansion.
 	for _, p := range pkgs {
 		if *getFix {
-			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), base.RelPaths(p.allgofiles)))
+			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), base.RelPaths(p.Internal.AllGoFiles)))
 
 			// The imports might have changed, so reload again.
-			p = reloadPackage(arg, stk)
+			p = load.ReloadPackage(arg, stk)
 			if p.Error != nil {
 				base.Errorf("%s", p.Error)
 				return
@@ -318,12 +309,12 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 		if isWildcard {
 			// Report both the real package and the
 			// wildcard in any error message.
-			stk.push(p.ImportPath)
+			stk.Push(p.ImportPath)
 		}
 
 		// Process dependencies, now that we know what they are.
 		imports := p.Imports
-		if mode&getTestDeps != 0 {
+		if mode&load.GetTestDeps != 0 {
 			// Process test dependencies when -t is specified.
 			// (But don't get test dependencies for test dependencies:
 			// we always pass mode 0 to the recursive calls below.)
@@ -335,18 +326,18 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 			}
 			// Fail fast on import naming full vendor path.
 			// Otherwise expand path as needed for test imports.
-			// Note that p.Imports can have additional entries beyond p.build.Imports.
+			// Note that p.Imports can have additional entries beyond p.Internal.Build.Imports.
 			orig := path
-			if i < len(p.build.Imports) {
-				orig = p.build.Imports[i]
+			if i < len(p.Internal.Build.Imports) {
+				orig = p.Internal.Build.Imports[i]
 			}
-			if j, ok := findVendor(orig); ok {
-				stk.push(path)
-				err := &PackageError{
-					ImportStack: stk.copy(),
+			if j, ok := load.FindVendor(orig); ok {
+				stk.Push(path)
+				err := &load.PackageError{
+					ImportStack: stk.Copy(),
 					Err:         "must be imported as " + path[j+len("vendor/"):],
 				}
-				stk.pop()
+				stk.Pop()
 				base.Errorf("%s", err)
 				continue
 			}
@@ -355,20 +346,20 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 			// download does caching based on the value of path,
 			// so it must be the fully qualified path already.
 			if i >= len(p.Imports) {
-				path = vendoredImportPath(p, path)
+				path = load.VendoredImportPath(p, path)
 			}
 			download(path, p, stk, 0)
 		}
 
 		if isWildcard {
-			stk.pop()
+			stk.Pop()
 		}
 	}
 }
 
 // downloadPackage runs the create or download command
 // to make the first copy of or update a copy of the given package.
-func downloadPackage(p *Package) error {
+func downloadPackage(p *load.Package) error {
 	var (
 		vcs            *vcsCmd
 		repo, rootPath string
@@ -380,9 +371,9 @@ func downloadPackage(p *Package) error {
 		security = insecure
 	}
 
-	if p.build.SrcRoot != "" {
+	if p.Internal.Build.SrcRoot != "" {
 		// Directory exists. Look for checkout along path to src.
-		vcs, rootPath, err = vcsFromDir(p.Dir, p.build.SrcRoot)
+		vcs, rootPath, err = vcsFromDir(p.Dir, p.Internal.Build.SrcRoot)
 		if err != nil {
 			return err
 		}
@@ -390,7 +381,7 @@ func downloadPackage(p *Package) error {
 
 		// Double-check where it came from.
 		if *getU && vcs.remoteRepo != nil {
-			dir := filepath.Join(p.build.SrcRoot, filepath.FromSlash(rootPath))
+			dir := filepath.Join(p.Internal.Build.SrcRoot, filepath.FromSlash(rootPath))
 			remote, err := vcs.remoteRepo(vcs, dir)
 			if err != nil {
 				return err
@@ -424,24 +415,24 @@ func downloadPackage(p *Package) error {
 		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
 	}
 
-	if p.build.SrcRoot == "" {
+	if p.Internal.Build.SrcRoot == "" {
 		// Package not found. Put in first directory of $GOPATH.
 		list := filepath.SplitList(cfg.BuildContext.GOPATH)
 		if len(list) == 0 {
 			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: 'go help gopath'")
 		}
 		// Guard against people setting GOPATH=$GOROOT.
-		if list[0] == goroot {
+		if list[0] == cfg.GOROOT {
 			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: 'go help gopath'")
 		}
 		if _, err := os.Stat(filepath.Join(list[0], "src/cmd/go/alldocs.go")); err == nil {
 			return fmt.Errorf("cannot download, %s is a GOROOT, not a GOPATH. For more details see: 'go help gopath'", list[0])
 		}
-		p.build.Root = list[0]
-		p.build.SrcRoot = filepath.Join(list[0], "src")
-		p.build.PkgRoot = filepath.Join(list[0], "pkg")
+		p.Internal.Build.Root = list[0]
+		p.Internal.Build.SrcRoot = filepath.Join(list[0], "src")
+		p.Internal.Build.PkgRoot = filepath.Join(list[0], "pkg")
 	}
-	root := filepath.Join(p.build.SrcRoot, filepath.FromSlash(rootPath))
+	root := filepath.Join(p.Internal.Build.SrcRoot, filepath.FromSlash(rootPath))
 	// If we've considered this repository already, don't do it again.
 	if downloadRootCache[root] {
 		return nil
@@ -467,7 +458,7 @@ func downloadPackage(p *Package) error {
 			return fmt.Errorf("%s exists but %s does not - stale checkout?", root, meta)
 		}
 
-		_, err := os.Stat(p.build.Root)
+		_, err := os.Stat(p.Internal.Build.Root)
 		gopathExisted := err == nil
 
 		// Some version control tools require the parent of the target to exist.
@@ -475,8 +466,8 @@ func downloadPackage(p *Package) error {
 		if err = os.MkdirAll(parent, 0777); err != nil {
 			return err
 		}
-		if cfg.BuildV && !gopathExisted && p.build.Root == cfg.BuildContext.GOPATH {
-			fmt.Fprintf(os.Stderr, "created GOPATH=%s; see 'go help gopath'\n", p.build.Root)
+		if cfg.BuildV && !gopathExisted && p.Internal.Build.Root == cfg.BuildContext.GOPATH {
+			fmt.Fprintf(os.Stderr, "created GOPATH=%s; see 'go help gopath'\n", p.Internal.Build.Root)
 		}
 
 		if err = vcs.create(root, repo); err != nil {

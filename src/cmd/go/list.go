@@ -6,8 +6,9 @@ package main
 
 import (
 	"bufio"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"encoding/json"
 	"io"
 	"os"
@@ -152,9 +153,9 @@ func runList(cmd *base.Command, args []string) {
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
 
-	var do func(*Package)
+	var do func(*load.PackagePublic)
 	if *listJson {
-		do = func(p *Package) {
+		do = func(p *load.PackagePublic) {
 			b, err := json.MarshalIndent(p, "", "\t")
 			if err != nil {
 				out.Flush()
@@ -179,7 +180,7 @@ func runList(cmd *base.Command, args []string) {
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
-		do = func(p *Package) {
+		do = func(p *load.PackagePublic) {
 			if err := tmpl.Execute(out, p); err != nil {
 				out.Flush()
 				base.Fatalf("%s", err)
@@ -190,17 +191,17 @@ func runList(cmd *base.Command, args []string) {
 		}
 	}
 
-	load := packages
+	loadpkgs := load.Packages
 	if *listE {
-		load = packagesAndErrors
+		loadpkgs = load.PackagesAndErrors
 	}
 
-	for _, pkg := range load(args) {
+	for _, pkg := range loadpkgs(args) {
 		// Show vendor-expanded paths in listing
-		pkg.TestImports = pkg.vendored(pkg.TestImports)
-		pkg.XTestImports = pkg.vendored(pkg.XTestImports)
+		pkg.TestImports = pkg.Vendored(pkg.TestImports)
+		pkg.XTestImports = pkg.Vendored(pkg.XTestImports)
 
-		do(pkg)
+		do(&pkg.PackagePublic)
 	}
 }
 
