@@ -941,12 +941,13 @@ func writePESymTableRecords(ctxt *Link) int {
 		case DataSym, BSSSym, TextSym, UndefinedSym:
 		}
 
-		// only windows/386 requires underscore prefix on external symbols
+		// Only windows/386 requires underscore prefix on external symbols.
+		// Include .text symbol as external, because .ctors section relocations refer to it.
 		if SysArch.Family == sys.I386 &&
 			Linkmode == LinkExternal &&
-			(s.Type != obj.SDYNIMPORT || s.Attr.CgoExport()) &&
-			s.Name == s.Extname &&
-			s.Name != "_main" {
+			(s.Type == obj.SHOSTOBJ ||
+				s.Attr.CgoExport() ||
+				s.Name == ".text") {
 			s.Name = "_" + s.Name
 		}
 
@@ -997,13 +998,6 @@ func writePESymTableRecords(ctxt *Link) int {
 	}
 
 	if Linkmode == LinkExternal {
-		for d := dr; d != nil; d = d.next {
-			for m := d.ms; m != nil; m = m.next {
-				s := m.s.R[0].Xsym
-				put(ctxt, s, s.Name, UndefinedSym, 0, nil)
-			}
-		}
-
 		s := ctxt.Syms.Lookup(".text", 0)
 		if s.Type == obj.STEXT {
 			put(ctxt, s, s.Name, TextSym, s.Value, nil)
