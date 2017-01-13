@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package help
 
 import "cmd/go/internal/base"
 
-var helpC = &base.Command{
+var HelpC = &base.Command{
 	UsageLine: "c",
 	Short:     "calling between Go and C",
 	Long: `
@@ -28,7 +28,7 @@ the C or C++ compiler, respectively, to use.
 	`,
 }
 
-var helpPackages = &base.Command{
+var HelpPackages = &base.Command{
 	UsageLine: "packages",
 	Short:     "description of package lists",
 	Long: `
@@ -102,7 +102,7 @@ by the go tool, as are directories named "testdata".
 	`,
 }
 
-var helpImportPath = &base.Command{
+var HelpImportPath = &base.Command{
 	UsageLine: "importpath",
 	Short:     "import path syntax",
 	Long: `
@@ -279,7 +279,7 @@ See https://golang.org/s/go14customimport for details.
 	`,
 }
 
-var helpGopath = &base.Command{
+var HelpGopath = &base.Command{
 	UsageLine: "gopath",
 	Short:     "GOPATH environment variable",
 	Long: `
@@ -431,7 +431,7 @@ See https://golang.org/s/go15vendor for details.
 	`,
 }
 
-var helpEnvironment = &base.Command{
+var HelpEnvironment = &base.Command{
 	UsageLine: "environment",
 	Short:     "environment variables",
 	Long: `
@@ -513,7 +513,7 @@ Special-purpose environment variables:
 	`,
 }
 
-var helpFileType = &base.Command{
+var HelpFileType = &base.Command{
 	UsageLine: "filetype",
 	Short:     "file types",
 	Long: `
@@ -559,7 +559,7 @@ for more details.
 	`,
 }
 
-var helpBuildmode = &base.Command{
+var HelpBuildmode = &base.Command{
 	UsageLine: "buildmode",
 	Short:     "description of build modes",
 	Long: `
