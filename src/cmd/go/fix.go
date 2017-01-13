@@ -5,8 +5,9 @@
 package main
 
 import (
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 )
 
@@ -27,10 +28,10 @@ See also: go fmt, go vet.
 }
 
 func runFix(cmd *base.Command, args []string) {
-	for _, pkg := range packages(args) {
+	for _, pkg := range load.Packages(args) {
 		// Use pkg.gofiles instead of pkg.Dir so that
 		// the command only applies to this package,
 		// not to packages in subdirectories.
-		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), base.RelPaths(pkg.allgofiles)))
+		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), base.RelPaths(pkg.Internal.AllGoFiles)))
 	}
 }

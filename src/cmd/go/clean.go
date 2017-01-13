@@ -5,8 +5,9 @@
 package main
 
 import (
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -77,12 +78,12 @@ func init() {
 }
 
 func runClean(cmd *base.Command, args []string) {
-	for _, pkg := range packagesAndErrors(args) {
+	for _, pkg := range load.PackagesAndErrors(args) {
 		clean(pkg)
 	}
 }
 
-var cleaned = map[*Package]bool{}
+var cleaned = map[*load.Package]bool{}
 
 // TODO: These are dregs left by Makefile-based builds.
 // Eventually, can stop deleting these.
@@ -107,7 +108,7 @@ var cleanExt = map[string]bool{
 	".so": true,
 }
 
-func clean(p *Package) {
+func clean(p *load.Package) {
 	if cleaned[p] {
 		return
 	}
@@ -209,17 +210,17 @@ func clean(p *Package) {
 		}
 	}
 
-	if cleanI && p.target != "" {
+	if cleanI && p.Internal.Target != "" {
 		if cfg.BuildN || cfg.BuildX {
-			b.showcmd("", "rm -f %s", p.target)
+			b.showcmd("", "rm -f %s", p.Internal.Target)
 		}
 		if !cfg.BuildN {
-			removeFile(p.target)
+			removeFile(p.Internal.Target)
 		}
 	}
 
 	if cleanR {
-		for _, p1 := range p.imports {
+		for _, p1 := range p.Internal.Imports {
 			clean(p1)
 		}
 	}

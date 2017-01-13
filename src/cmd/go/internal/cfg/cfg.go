@@ -9,6 +9,8 @@ package cfg
 import (
 	"flag"
 	"go/build"
+	"os"
+	"path/filepath"
 	"runtime"
 )
 
@@ -64,3 +66,11 @@ func AddBuildFlagsNX(flags *flag.FlagSet) {
 	flags.BoolVar(&BuildN, "n", false, "")
 	flags.BoolVar(&BuildX, "x", false, "")
 }
+
+var (
+	GOROOT    = filepath.Clean(runtime.GOROOT())
+	GOBIN     = os.Getenv("GOBIN")
+	GOROOTbin = filepath.Join(GOROOT, "bin")
+	GOROOTpkg = filepath.Join(GOROOT, "pkg")
+	GOROOTsrc = filepath.Join(GOROOT, "src")
+)

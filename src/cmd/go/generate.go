@@ -7,8 +7,9 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"fmt"
 	"io"
 	"log"
@@ -138,7 +139,7 @@ func init() {
 }
 
 func runGenerate(cmd *base.Command, args []string) {
-	ignoreImports = true
+	load.IgnoreImports = true
 
 	if generateRunFlag != "" {
 		var err error
@@ -148,8 +149,8 @@ func runGenerate(cmd *base.Command, args []string) {
 		}
 	}
 	// Even if the arguments are .go files, this loop suffices.
-	for _, pkg := range packages(args) {
-		for _, file := range pkg.gofiles {
+	for _, pkg := range load.Packages(args) {
+		for _, file := range pkg.Internal.GoFiles {
 			if !generate(pkg.Name, file) {
 				break
 			}

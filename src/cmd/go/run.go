@@ -5,8 +5,9 @@
 package main
 
 import (
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"fmt"
 	"os"
@@ -87,17 +88,17 @@ func runRun(cmd *base.Command, args []string) {
 			base.Fatalf("go run: cannot run *_test.go files (%s)", file)
 		}
 	}
-	p := goFilesPackage(files)
+	p := load.GoFilesPackage(files)
 	if p.Error != nil {
 		base.Fatalf("%s", p.Error)
 	}
-	p.omitDWARF = true
+	p.Internal.OmitDWARF = true
 	if len(p.DepsErrors) > 0 {
 		// Since these are errors in dependencies,
 		// the same error might show up multiple times,
 		// once in each package that depends on it.
 		// Only print each once.
-		printed := map[*PackageError]bool{}
+		printed := map[*load.PackageError]bool{}
 		for _, err := range p.DepsErrors {
 			if !printed[err] {
 				printed[err] = true
@@ -109,7 +110,7 @@ func runRun(cmd *base.Command, args []string) {
 	if p.Name != "main" {
 		base.Fatalf("go run: cannot run non-main package")
 	}
-	p.target = "" // must build - not up to date
+	p.Internal.Target = "" // must build - not up to date
 	var src string
 	if len(p.GoFiles) > 0 {
 		src = p.GoFiles[0]
@@ -124,7 +125,7 @@ func runRun(cmd *base.Command, args []string) {
 		}
 		base.Fatalf("go run: no suitable source files%s", hint)
 	}
-	p.exeName = src[:len(src)-len(".go")] // name temporary executable for first go file
+	p.Internal.ExeName = src[:len(src)-len(".go")] // name temporary executable for first go file
 	a1 := b.action(modeBuild, modeBuild, p)
 	a := &action{f: (*builder).runProgram, args: cmdArgs, deps: []*action{a1}}
 	b.do(a)

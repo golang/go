@@ -10,7 +10,7 @@
 
 // +build testgo
 
-package main
+package load
 
 import "os"
 

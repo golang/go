@@ -5,8 +5,9 @@
 package main
 
 import (
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"io/ioutil"
 	"os"
@@ -87,71 +88,79 @@ func TestParseMetaGoImports(t *testing.T) {
 	}
 }
 
+func pkgImportPath(path string) *load.Package {
+	return &load.Package{
+		PackagePublic: load.PackagePublic{
+			ImportPath: path,
+		},
+	}
+}
+
 func TestSharedLibName(t *testing.T) {
 	// TODO(avdva) - make these values platform-specific
 	prefix := "lib"
 	suffix := ".so"
 	testData := []struct {
 		args      []string
-		pkgs      []*Package
+		pkgs      []*load.Package
 		expected  string
 		expectErr bool
 		rootedAt  string
 	}{
 		{
 			args:     []string{"std"},
-			pkgs:     []*Package{},
+			pkgs:     []*load.Package{},
 			expected: "std",
 		},
 		{
 			args:     []string{"std", "cmd"},
-			pkgs:     []*Package{},
+			pkgs:     []*load.Package{},
 			expected: "std,cmd",
 		},
 		{
 			args:     []string{},
-			pkgs:     []*Package{&Package{ImportPath: "gopkg.in/somelib"}},
+			pkgs:     []*load.Package{pkgImportPath("gopkg.in/somelib")},
 			expected: "gopkg.in-somelib",
 		},
 		{
 			args:     []string{"./..."},
-			pkgs:     []*Package{&Package{ImportPath: "somelib"}},
+			pkgs:     []*load.Package{pkgImportPath("somelib")},
 			expected: "somelib",
 			rootedAt: "somelib",
 		},
 		{
 			args:     []string{"../somelib", "../somelib"},
-			pkgs:     []*Package{&Package{ImportPath: "somelib"}},
+			pkgs:     []*load.Package{pkgImportPath("somelib")},
 			expected: "somelib",
 		},
 		{
 			args:     []string{"../lib1", "../lib2"},
-			pkgs:     []*Package{&Package{ImportPath: "gopkg.in/lib1"}, &Package{ImportPath: "gopkg.in/lib2"}},
+			pkgs:     []*load.Package{pkgImportPath("gopkg.in/lib1"), pkgImportPath("gopkg.in/lib2")},
 			expected: "gopkg.in-lib1,gopkg.in-lib2",
 		},
 		{
 			args: []string{"./..."},
-			pkgs: []*Package{
-				&Package{ImportPath: "gopkg.in/dir/lib1"},
-				&Package{ImportPath: "gopkg.in/lib2"},
-				&Package{ImportPath: "gopkg.in/lib3"},
+			pkgs: []*load.Package{
+				pkgImportPath("gopkg.in/dir/lib1"),
+				pkgImportPath("gopkg.in/lib2"),
+				pkgImportPath("gopkg.in/lib3"),
 			},
 			expected: "gopkg.in",
 			rootedAt: "gopkg.in",
 		},
 		{
 			args:      []string{"std", "../lib2"},
-			pkgs:      []*Package{},
+			pkgs:      []*load.Package{},
 			expectErr: true,
 		},
 		{
 			args:      []string{"all", "./"},
-			pkgs:      []*Package{},
+			pkgs:      []*load.Package{},
 			expectErr: true,
 		},
 		{
 			args:      []string{"cmd", "fmt"},
-			pkgs:      []*Package{},
+			pkgs:      []*load.Package{},
 			expectErr: true,
 		},
 	}

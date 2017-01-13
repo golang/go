@@ -6,8 +6,9 @@ package main
 
 import (
 	"bytes"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"errors"
 	"fmt"
@@ -380,13 +381,13 @@ var (
 	testC     bool // -c flag
 	testCover bool // -cover flag
 	// Note: testCoverMode is cfg.TestCoverMode (-covermode)
-	testCoverPaths   []string   // -coverpkg flag
-	testCoverPkgs    []*Package // -coverpkg flag
-	testO            string     // -o flag
-	testProfile      bool       // some profiling flag
-	testNeedBinary   bool       // profile needs to keep binary around
-	testV            bool       // -v flag
-	testTimeout      string     // -timeout flag
+	testCoverPaths   []string        // -coverpkg flag
+	testCoverPkgs    []*load.Package // -coverpkg flag
+	testO            string          // -o flag
+	testProfile      bool            // some profiling flag
+	testNeedBinary   bool            // profile needs to keep binary around
+	testV            bool            // -v flag
+	testTimeout      string          // -timeout flag
 	testArgs         []string
 	testBench        bool
 	testStreamOutput bool // show output as it is generated
@@ -410,7 +411,7 @@ func runTest(cmd *base.Command, args []string) {
 
 	instrumentInit()
 	buildModeInit()
-	pkgs := packagesForBuild(pkgArgs)
+	pkgs := load.PackagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to test")
 	}
@@ -469,10 +470,10 @@ func runTest(cmd *base.Command, args []string) {
 			for _, path := range p.Imports {
 				deps[path] = true
 			}
-			for _, path := range p.vendored(p.TestImports) {
+			for _, path := range p.Vendored(p.TestImports) {
 				deps[path] = true
 			}
-			for _, path := range p.vendored(p.XTestImports) {
+			for _, path := range p.Vendored(p.XTestImports) {
 				deps[path] = true
 			}
 		}
@@ -497,7 +498,7 @@ func runTest(cmd *base.Command, args []string) {
 		sort.Strings(all)
 
 		a := &action{}
-		for _, p := range packagesForBuild(all) {
+		for _, p := range load.PackagesForBuild(all) {
 			a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
 		}
 		b.do(a)
@@ -512,7 +513,7 @@ func runTest(cmd *base.Command, args []string) {
 	if testCoverPaths != nil {
 		// Load packages that were asked about for coverage.
 		// packagesForBuild exits if the packages cannot be loaded.
-		testCoverPkgs = packagesForBuild(testCoverPaths)
+		testCoverPkgs = load.PackagesForBuild(testCoverPaths)
 
 		// Warn about -coverpkg arguments that are not actually used.
 		used := make(map[string]bool)
@@ -536,13 +537,13 @@ func runTest(cmd *base.Command, args []string) {
 			}
 			p.Stale = true // rebuild
 			p.StaleReason = "rebuild for coverage"
-			p.fake = true // do not warn about rebuild
-			p.coverMode = cfg.TestCoverMode
+			p.Internal.Fake = true // do not warn about rebuild
+			p.Internal.CoverMode = cfg.TestCoverMode
 			var coverFiles []string
 			coverFiles = append(coverFiles, p.GoFiles...)
 			coverFiles = append(coverFiles, p.CgoFiles...)
 			coverFiles = append(coverFiles, p.TestGoFiles...)
-			p.coverVars = declareCoverVars(p.ImportPath, coverFiles...)
+			p.Internal.CoverVars = declareCoverVars(p.ImportPath, coverFiles...)
 		}
 	}
 
@@ -594,7 +595,7 @@ func runTest(cmd *base.Command, args []string) {
 
 	// If we are building any out-of-date packages other
 	// than those under test, warn.
-	okBuild := map[*Package]bool{}
+	okBuild := map[*load.Package]bool{}
 	for _, p := range pkgs {
 		okBuild[p] = true
 	}
@@ -607,13 +608,13 @@ func runTest(cmd *base.Command, args []string) {
 
 		// Don't warn about packages being rebuilt because of
 		// things like coverage analysis.
-		for _, p1 := range a.p.imports {
-			if p1.fake {
-				a.p.fake = true
+		for _, p1 := range a.p.Internal.Imports {
+			if p1.Internal.Fake {
+				a.p.Internal.Fake = true
 			}
 		}
 
-		if a.f != nil && !okBuild[a.p] && !a.p.fake && !a.p.local {
+		if a.f != nil && !okBuild[a.p] && !a.p.Internal.Fake && !a.p.Internal.Local {
 			if !warned {
 				fmt.Fprintf(os.Stderr, "warning: building out-of-date packages:\n")
 				warned = true
@@ -646,7 +647,7 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *action, err error) {
+func builderTest(b *builder, p *load.Package) (buildAction, runAction, printAction *action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.action(modeBuild, modeBuild, p)
 		run := &action{p: p, deps: []*action{build}}
@@ -658,13 +659,13 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 	//	ptest - package + test files
 	//	pxtest - package of external test files
 	//	pmain - pkg.test binary
-	var ptest, pxtest, pmain *Package
+	var ptest, pxtest, pmain *load.Package
 
-	var imports, ximports []*Package
-	var stk importStack
-	stk.push(p.ImportPath + " (test)")
+	var imports, ximports []*load.Package
+	var stk load.ImportStack
+	stk.Push(p.ImportPath + " (test)")
 	for i, path := range p.TestImports {
-		p1 := loadImport(path, p.Dir, p, &stk, p.build.TestImportPos[path], useVendor)
+		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], load.UseVendor)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
@@ -677,21 +678,21 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
 			// Can't change that code, because that code is only for loading the
 			// non-test copy of a package.
-			err := &PackageError{
+			err := &load.PackageError{
 				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
 				Err:           "import cycle not allowed in test",
-				isImportCycle: true,
+				IsImportCycle: true,
 			}
 			return nil, nil, nil, err
 		}
 		p.TestImports[i] = p1.ImportPath
 		imports = append(imports, p1)
 	}
-	stk.pop()
-	stk.push(p.ImportPath + "_test")
+	stk.Pop()
+	stk.Push(p.ImportPath + "_test")
 	pxtestNeedsPtest := false
 	for i, path := range p.XTestImports {
-		p1 := loadImport(path, p.Dir, p, &stk, p.build.XTestImportPos[path], useVendor)
+		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], load.UseVendor)
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
@@ -707,7 +708,7 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 		}
 		p.XTestImports[i] = p1.ImportPath
 	}
-	stk.pop()
+	stk.Pop()
 
 	// Use last element of import path, not package name.
 	// They differ when package name is "main".
@@ -752,36 +753,36 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 
 	// Test package.
 	if len(p.TestGoFiles) > 0 || localCover || p.Name == "main" {
-		ptest = new(Package)
+		ptest = new(load.Package)
 		*ptest = *p
 		ptest.GoFiles = nil
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
-		ptest.target = ""
+		ptest.Internal.Target = ""
 		ptest.Imports = str.StringList(p.Imports, p.TestImports)
-		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
-		ptest.pkgdir = testDir
-		ptest.fake = true
-		ptest.forceLibrary = true
+		ptest.Internal.Imports = append(append([]*load.Package{}, p.Internal.Imports...), imports...)
+		ptest.Internal.Pkgdir = testDir
+		ptest.Internal.Fake = true
+		ptest.Internal.ForceLibrary = true
 		ptest.Stale = true
 		ptest.StaleReason = "rebuild for test"
-		ptest.build = new(build.Package)
-		*ptest.build = *p.build
+		ptest.Internal.Build = new(build.Package)
+		*ptest.Internal.Build = *p.Internal.Build
 		m := map[string][]token.Position{}
-		for k, v := range p.build.ImportPos {
+		for k, v := range p.Internal.Build.ImportPos {
 			m[k] = append(m[k], v...)
 		}
-		for k, v := range p.build.TestImportPos {
+		for k, v := range p.Internal.Build.TestImportPos {
 			m[k] = append(m[k], v...)
 		}
-		ptest.build.ImportPos = m
+		ptest.Internal.Build.ImportPos = m
 
 		if localCover {
-			ptest.coverMode = cfg.TestCoverMode
+			ptest.Internal.CoverMode = cfg.TestCoverMode
 			var coverFiles []string
 			coverFiles = append(coverFiles, ptest.GoFiles...)
 			coverFiles = append(coverFiles, ptest.CgoFiles...)
-			ptest.coverVars = declareCoverVars(ptest.ImportPath, coverFiles...)
+			ptest.Internal.CoverVars = declareCoverVars(ptest.ImportPath, coverFiles...)
 		}
 	} else {
 		ptest = p
@@ -789,66 +790,74 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 
 	// External test package.
 	if len(p.XTestGoFiles) > 0 {
-		pxtest = &Package{
-			Name:        p.Name + "_test",
-			ImportPath:  p.ImportPath + "_test",
-			localPrefix: p.localPrefix,
-			Root:        p.Root,
-			Dir:         p.Dir,
-			GoFiles:     p.XTestGoFiles,
-			Imports:     p.XTestImports,
-			build: &build.Package{
-				ImportPos: p.build.XTestImportPos,
+		pxtest = &load.Package{
+			PackagePublic: load.PackagePublic{
+				Name:       p.Name + "_test",
+				ImportPath: p.ImportPath + "_test",
+				Root:       p.Root,
+				Dir:        p.Dir,
+				GoFiles:    p.XTestGoFiles,
+				Imports:    p.XTestImports,
+				Stale:      true,
 			},
-			imports:  ximports,
-			pkgdir:   testDir,
-			fake:     true,
-			external: true,
-			Stale:    true,
+			Internal: load.PackageInternal{
+				LocalPrefix: p.Internal.LocalPrefix,
+				Build: &build.Package{
+					ImportPos: p.Internal.Build.XTestImportPos,
+				},
+				Imports:  ximports,
+				Pkgdir:   testDir,
+				Fake:     true,
+				External: true,
+			},
 		}
 		if pxtestNeedsPtest {
-			pxtest.imports = append(pxtest.imports, ptest)
+			pxtest.Internal.Imports = append(pxtest.Internal.Imports, ptest)
 		}
 	}
 
 	// Action for building pkg.test.
-	pmain = &Package{
-		Name:       "main",
-		Dir:        testDir,
-		GoFiles:    []string{"_testmain.go"},
-		ImportPath: "testmain",
-		Root:       p.Root,
-		build:      &build.Package{Name: "main"},
-		pkgdir:     testDir,
-		fake:       true,
-		Stale:      true,
-		omitDWARF:  !testC && !testNeedBinary,
+	pmain = &load.Package{
+		PackagePublic: load.PackagePublic{
+			Name:       "main",
+			Dir:        testDir,
+			GoFiles:    []string{"_testmain.go"},
+			ImportPath: "testmain",
+			Root:       p.Root,
+			Stale:      true,
+		},
+		Internal: load.PackageInternal{
+			Build:     &build.Package{Name: "main"},
+			Pkgdir:    testDir,
+			Fake:      true,
+			OmitDWARF: !testC && !testNeedBinary,
+		},
 	}
 
 	// The generated main also imports testing, regexp, and os.
-	stk.push("testmain")
+	stk.Push("testmain")
 	for dep := range testMainDeps {
 		if dep == ptest.ImportPath {
-			pmain.imports = append(pmain.imports, ptest)
+			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
 		} else {
-			p1 := loadImport(dep, "", nil, &stk, nil, 0)
+			p1 := load.LoadImport(dep, "", nil, &stk, nil, 0)
 			if p1.Error != nil {
 				return nil, nil, nil, p1.Error
 			}
-			pmain.imports = append(pmain.imports, p1)
+			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
 		}
 	}
 
 	if testCoverPkgs != nil {
 		// Add imports, but avoid duplicates.
-		seen := map[*Package]bool{p: true, ptest: true}
-		for _, p1 := range pmain.imports {
+		seen := map[*load.Package]bool{p: true, ptest: true}
+		for _, p1 := range pmain.Internal.Imports {
 			seen[p1] = true
 		}
 		for _, p1 := range testCoverPkgs {
 			if !seen[p1] {
 				seen[p1] = true
-				pmain.imports = append(pmain.imports, p1)
+				pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
 			}
 		}
 	}
@@ -862,11 +871,11 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 		return nil, nil, nil, err
 	}
 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
-		pmain.imports = append(pmain.imports, ptest)
+		pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
 		t.ImportTest = true
 	}
 	if pxtest != nil {
-		pmain.imports = append(pmain.imports, pxtest)
+		pmain.Internal.Imports = append(pmain.Internal.Imports, pxtest)
 		t.ImportXtest = true
 	}
 
@@ -896,9 +905,9 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 		t.NeedOS = true
 	}
 
-	for _, cp := range pmain.imports {
-		if len(cp.coverVars) > 0 {
-			t.Cover = append(t.Cover, coverInfo{cp, cp.coverVars})
+	for _, cp := range pmain.Internal.Imports {
+		if len(cp.Internal.CoverVars) > 0 {
+			t.Cover = append(t.Cover, coverInfo{cp, cp.Internal.CoverVars})
 		}
 	}
 
@@ -910,7 +919,7 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 		}
 	}
 
-	computeStale(pmain)
+	load.ComputeStale(pmain)
 
 	if ptest != p {
 		a := b.action(modeBuild, modeBuild, ptest)
@@ -1005,11 +1014,11 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
 	return buildAction, runAction, printAction, nil
 }
 
-func testImportStack(top string, p *Package, target string) []string {
+func testImportStack(top string, p *load.Package, target string) []string {
 	stk := []string{top, p.ImportPath}
 Search:
 	for p.ImportPath != target {
-		for _, p1 := range p.imports {
+		for _, p1 := range p.Internal.Imports {
 			if p1.ImportPath == target || str.Contains(p1.Deps, target) {
 				stk = append(stk, p1.ImportPath)
 				p = p1
@@ -1023,12 +1032,12 @@ Search:
 	return stk
 }
 
-func recompileForTest(pmain, preal, ptest *Package, testDir string) {
+func recompileForTest(pmain, preal, ptest *load.Package, testDir string) {
 	// The "test copy" of preal is ptest.
 	// For each package that depends on preal, make a "test copy"
 	// that depends on ptest. And so on, up the dependency tree.
-	testCopy := map[*Package]*Package{preal: ptest}
-	for _, p := range packageList([]*Package{pmain}) {
+	testCopy := map[*load.Package]*load.Package{preal: ptest}
+	for _, p := range load.PackageList([]*load.Package{pmain}) {
 		// Copy on write.
 		didSplit := false
 		split := func() {
@@ -1036,32 +1045,32 @@ func recompileForTest(pmain, preal, ptest *Package, testDir string) {
 				return
 			}
 			didSplit = true
-			if p.pkgdir != testDir {
-				p1 := new(Package)
+			if p.Internal.Pkgdir != testDir {
+				p1 := new(load.Package)
 				testCopy[p] = p1
 				*p1 = *p
-				p1.imports = make([]*Package, len(p.imports))
-				copy(p1.imports, p.imports)
+				p1.Internal.Imports = make([]*load.Package, len(p.Internal.Imports))
+				copy(p1.Internal.Imports, p.Internal.Imports)
 				p = p1
-				p.pkgdir = testDir
-				p.target = ""
-				p.fake = true
+				p.Internal.Pkgdir = testDir
+				p.Internal.Target = ""
+				p.Internal.Fake = true
 				p.Stale = true
 				p.StaleReason = "depends on package being tested"
 			}
 		}
 
-		// Update p.deps and p.imports to use at test copies.
-		for i, dep := range p.deps {
+		// Update p.deps and p.Internal.Imports to use at test copies.
+		for i, dep := range p.Internal.Deps {
 			if p1 := testCopy[dep]; p1 != nil && p1 != dep {
 				split()
-				p.deps[i] = p1
+				p.Internal.Deps[i] = p1
 			}
 		}
-		for i, imp := range p.imports {
+		for i, imp := range p.Internal.Imports {
 			if p1 := testCopy[imp]; p1 != nil && p1 != imp {
 				split()
-				p.imports[i] = p1
+				p.Internal.Imports[i] = p1
 			}
 		}
 	}
@@ -1078,13 +1087,13 @@ func isTestFile(file string) bool {
 
 // declareCoverVars attaches the required cover variables names
 // to the files, to be used when annotating the files.
-func declareCoverVars(importPath string, files ...string) map[string]*CoverVar {
-	coverVars := make(map[string]*CoverVar)
+func declareCoverVars(importPath string, files ...string) map[string]*load.CoverVar {
+	coverVars := make(map[string]*load.CoverVar)
 	for _, file := range files {
 		if isTestFile(file) {
 			continue
 		}
-		coverVars[file] = &CoverVar{
+		coverVars[file] = &load.CoverVar{
 			File: filepath.Join(importPath, file),
 			Var:  fmt.Sprintf("GoCover_%d", coverIndex),
 		}
@@ -1129,7 +1138,7 @@ func builderRunTest(b *builder, a *action) error {
 
 	// If there are any local SWIG dependencies, we want to load
 	// the shared library from the build directory.
-	if a.p.usesSwig() {
+	if a.p.UsesSwig() {
 		env := cmd.Env
 		found := false
 		prefix := "LD_LIBRARY_PATH="
@@ -1294,12 +1303,12 @@ func isTest(name, prefix string) bool {
 }
 
 type coverInfo struct {
-	Package *Package
-	Vars    map[string]*CoverVar
+	Package *load.Package
+	Vars    map[string]*load.CoverVar
 }
 
 // loadTestFuncs returns the testFuncs describing the tests that will be run.
-func loadTestFuncs(ptest *Package) (*testFuncs, error) {
+func loadTestFuncs(ptest *load.Package) (*testFuncs, error) {
 	t := &testFuncs{
 		Package: ptest,
 	}
@@ -1336,7 +1345,7 @@ type testFuncs struct {
 	Benchmarks  []testFunc
 	Examples    []testFunc
 	TestMain    *testFunc
-	Package     *Package
+	Package     *load.Package
 	ImportTest  bool
 	NeedTest    bool
 	ImportXtest bool
@@ -1382,7 +1391,7 @@ var testFileSet = token.NewFileSet()
 func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
 	if err != nil {
-		return expandScanner(err)
+		return base.ExpandScanner(err)
 	}
 	for _, d := range f.Decls {
 		n, ok := d.(*ast.FuncDecl)

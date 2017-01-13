@@ -7,8 +7,9 @@ package main
 import (
 	"path/filepath"
 
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 )
 
@@ -38,7 +39,7 @@ See also: go fmt, go fix.
 }
 
 func runVet(cmd *base.Command, args []string) {
-	for _, p := range packages(args) {
+	for _, p := range load.Packages(args) {
 		// Vet expects to be given a set of files all from the same package.
 		// Run once for package p and once for package p_test.
 		if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles) > 0 {
@@ -50,7 +51,7 @@ func runVet(cmd *base.Command, args []string) {
 	}
 }
 
-func runVetFiles(p *Package, files []string) {
+func runVetFiles(p *load.Package, files []string) {
 	for i := range files {
 		files[i] = filepath.Join(p.Dir, files[i])
 	}

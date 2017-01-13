@@ -7,8 +7,8 @@
 package main
 
 import (
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 )
 
 var cmdDoc = &base.Command{

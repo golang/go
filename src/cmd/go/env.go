@@ -5,8 +5,9 @@
 package main
 
 import (
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"fmt"
 	"os"
 	"runtime"
@@ -33,14 +34,14 @@ func mkEnv() []cfg.EnvVar {
 
 	env := []cfg.EnvVar{
 		{"GOARCH", cfg.Goarch},
-		{"GOBIN", gobin},
+		{"GOBIN", cfg.GOBIN},
 		{"GOEXE", cfg.ExeSuffix},
 		{"GOHOSTARCH", runtime.GOARCH},
 		{"GOHOSTOS", runtime.GOOS},
 		{"GOOS", cfg.Goos},
 		{"GOPATH", cfg.BuildContext.GOPATH},
 		{"GORACE", os.Getenv("GORACE")},
-		{"GOROOT", goroot},
+		{"GOROOT", cfg.GOROOT},
 		{"GOTOOLDIR", base.ToolDir},
 
 		// disable escape codes in clang errors
@@ -88,7 +89,7 @@ func findEnv(env []cfg.EnvVar, name string) string {
 func extraEnvVars() []cfg.EnvVar {
 	var b builder
 	b.init()
-	cppflags, cflags, cxxflags, fflags, ldflags := b.cflags(&Package{})
+	cppflags, cflags, cxxflags, fflags, ldflags := b.cflags(&load.Package{})
 	return []cfg.EnvVar{
 		{"PKG_CONFIG", b.pkgconfigCmd()},
 		{"CGO_CFLAGS", strings.Join(cflags, " ")},
