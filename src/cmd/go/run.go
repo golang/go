@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/go/internal/str"
 	"fmt"
 	"os"
 	"os/exec"
@@ -130,7 +131,7 @@ func runRun(cmd *Command, args []string) {
 // runProgram is the action for running a binary that has already
 // been compiled. We ignore exit status.
 func (b *builder) runProgram(a *action) error {
-	cmdline := stringList(findExecCmd(), a.deps[0].target, a.args)
+	cmdline := str.StringList(findExecCmd(), a.deps[0].target, a.args)
 	if buildN || buildX {
 		b.showcmd("", "%s", strings.Join(cmdline, " "))
 		if buildN {

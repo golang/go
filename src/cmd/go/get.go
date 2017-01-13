@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/go/internal/str"
 	"fmt"
 	"go/build"
 	"os"
@@ -302,7 +303,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 	// due to wildcard expansion.
 	for _, p := range pkgs {
 		if *getFix {
-			run(buildToolExec, stringList(tool("fix"), relPaths(p.allgofiles)))
+			run(buildToolExec, str.StringList(tool("fix"), relPaths(p.allgofiles)))
 
 			// The imports might have changed, so reload again.
 			p = reloadPackage(arg, stk)
@@ -324,7 +325,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 			// Process test dependencies when -t is specified.
 			// (But don't get test dependencies for test dependencies:
 			// we always pass mode 0 to the recursive calls below.)
-			imports = stringList(imports, p.TestImports, p.XTestImports)
+			imports = str.StringList(imports, p.TestImports, p.XTestImports)
 		}
 		for i, path := range imports {
 			if path == "C" {

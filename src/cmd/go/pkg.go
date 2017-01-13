@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/go/internal/str"
 	"crypto/sha1"
 	"errors"
 	"fmt"
@@ -971,19 +972,19 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 
 	// Build list of full paths to all Go files in the package,
 	// for use by commands like go fmt.
-	p.gofiles = stringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles)
+	p.gofiles = str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles)
 	for i := range p.gofiles {
 		p.gofiles[i] = filepath.Join(p.Dir, p.gofiles[i])
 	}
 	sort.Strings(p.gofiles)
 
-	p.sfiles = stringList(p.SFiles)
+	p.sfiles = str.StringList(p.SFiles)
 	for i := range p.sfiles {
 		p.sfiles[i] = filepath.Join(p.Dir, p.sfiles[i])
 	}
 	sort.Strings(p.sfiles)
 
-	p.allgofiles = stringList(p.IgnoredGoFiles)
+	p.allgofiles = str.StringList(p.IgnoredGoFiles)
 	for i := range p.allgofiles {
 		p.allgofiles[i] = filepath.Join(p.Dir, p.allgofiles[i])
 	}
@@ -994,7 +995,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	// To avoid problems on case-insensitive files, we reject any package
 	// where two different input files have equal names under a case-insensitive
 	// comparison.
-	f1, f2 := foldDup(stringList(
+	f1, f2 := str.FoldDup(str.StringList(
 		p.GoFiles,
 		p.CgoFiles,
 		p.IgnoredGoFiles,
@@ -1112,7 +1113,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	// In the absence of errors lower in the dependency tree,
 	// check for case-insensitive collisions of import paths.
 	if len(p.DepsErrors) == 0 {
-		dep1, dep2 := foldDup(p.Deps)
+		dep1, dep2 := str.FoldDup(p.Deps)
 		if dep1 != "" {
 			p.Error = &PackageError{
 				ImportStack: stk.copy(),
@@ -1605,7 +1606,7 @@ func isStale(p *Package) (bool, string) {
 	// to test for write access, and then skip GOPATH roots we don't have write
 	// access to. But hopefully we can just use the mtimes always.
 
-	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
+	srcs := str.StringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
 			return true, "newer source file"
@@ -1623,7 +1624,7 @@ func computeBuildID(p *Package) {
 
 	// Include the list of files compiled as part of the package.
 	// This lets us detect removed files. See issue 3895.
-	inputFiles := stringList(
+	inputFiles := str.StringList(
 		p.GoFiles,
 		p.CgoFiles,
 		p.CFiles,

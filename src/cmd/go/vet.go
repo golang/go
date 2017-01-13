@@ -4,7 +4,11 @@
 
 package main
 
-import "path/filepath"
+import (
+	"path/filepath"
+
+	"cmd/go/internal/str"
+)
 
 func init() {
 	addBuildFlags(cmdVet)
@@ -36,10 +40,10 @@ func runVet(cmd *Command, args []string) {
 		// Vet expects to be given a set of files all from the same package.
 		// Run once for package p and once for package p_test.
 		if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles) > 0 {
-			runVetFiles(p, stringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
+			runVetFiles(p, str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
 		}
 		if len(p.XTestGoFiles) > 0 {
-			runVetFiles(p, stringList(p.XTestGoFiles))
+			runVetFiles(p, str.StringList(p.XTestGoFiles))
 		}
 	}
 }

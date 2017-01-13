@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/go/internal/str"
 	"os"
 	"path/filepath"
 )
@@ -39,7 +40,7 @@ func runFmt(cmd *Command, args []string) {
 		// Use pkg.gofiles instead of pkg.Dir so that
 		// the command only applies to this package,
 		// not to packages in subdirectories.
-		run(stringList(gofmt, "-l", "-w", relPaths(pkg.allgofiles)))
+		run(str.StringList(gofmt, "-l", "-w", relPaths(pkg.allgofiles)))
 	}
 }
 
