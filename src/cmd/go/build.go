@@ -143,6 +143,7 @@ func init() {
 	cmdInstall.Run = runInstall
 
 	cmdBuild.Flag.BoolVar(&buildI, "i", false, "")
+	cmdBuild.Flag.StringVar(&buildO, "o", "", "output file")
 
 	addBuildFlags(cmdBuild)
 	addBuildFlags(cmdInstall)
@@ -155,21 +156,24 @@ var buildP = runtime.NumCPU() // -p flag
 var buildV bool               // -v flag
 var buildX bool               // -x flag
 var buildI bool               // -i flag
-var buildO = cmdBuild.Flag.String("o", "", "output file")
-var buildWork bool           // -work flag
-var buildAsmflags []string   // -asmflags flag
-var buildGcflags []string    // -gcflags flag
-var buildLdflags []string    // -ldflags flag
-var buildGccgoflags []string // -gccgoflags flag
-var buildRace bool           // -race flag
-var buildMSan bool           // -msan flag
-var buildToolExec []string   // -toolexec flag
-var buildBuildmode string    // -buildmode flag
-var buildLinkshared bool     // -linkshared flag
-var buildPkgdir string       // -pkgdir flag
+var buildO string             // -o flag
+var buildWork bool            // -work flag
+var buildAsmflags []string    // -asmflags flag
+var buildGcflags []string     // -gcflags flag
+var buildLdflags []string     // -ldflags flag
+var buildGccgoflags []string  // -gccgoflags flag
+var buildRace bool            // -race flag
+var buildMSan bool            // -msan flag
+var buildToolExec []string    // -toolexec flag
+var buildBuildmode string     // -buildmode flag
+var buildLinkshared bool      // -linkshared flag
+var buildPkgdir string        // -pkgdir flag
 
 var buildContext = build.Default
 var buildToolchain toolchain = noToolchain{}
+var buildToolchainName string
+var buildToolchainCompiler string
+var buildToolchainLinker string
 var ldBuildmode string
 
 // buildCompiler implements flag.Var.
@@ -186,6 +190,9 @@ func (c buildCompiler) Set(value string) error {
 	default:
 		return fmt.Errorf("unknown compiler %q", value)
 	}
+	buildToolchainName = value
+	buildToolchainCompiler = buildToolchain.compiler()
+	buildToolchainLinker = buildToolchain.linker()
 	buildContext.Compiler = value
 	return nil
 }
@@ -196,10 +203,8 @@ func (c buildCompiler) String() string {
 
 func init() {
 	switch build.Default.Compiler {
-	case "gc":
-		buildToolchain = gcToolchain{}
-	case "gccgo":
-		buildToolchain = gccgoToolchain{}
+	case "gc", "gccgo":
+		buildCompiler{}.Set(build.Default.Compiler)
 	}
 }
 
@@ -321,7 +326,7 @@ func pkgsNotMain(pkgs []*Package) (res []*Package) {
 var pkgsFilter = func(pkgs []*Package) []*Package { return pkgs }
 
 func buildModeInit() {
-	_, gccgo := buildToolchain.(gccgoToolchain)
+	gccgo := buildToolchainName == "gccgo"
 	var codegenArg string
 	platform := goos + "/" + goarch
 	switch buildBuildmode {
@@ -402,7 +407,7 @@ func buildModeInit() {
 			}
 			codegenArg = "-dynlink"
 		}
-		if *buildO != "" {
+		if buildO != "" {
 			fatalf("-buildmode=shared and -o not supported together")
 		}
 		ldBuildmode = "shared"
@@ -464,14 +469,14 @@ func runBuild(cmd *Command, args []string) {
 
 	pkgs := packagesForBuild(args)
 
-	if len(pkgs) == 1 && pkgs[0].Name == "main" && *buildO == "" {
-		_, *buildO = path.Split(pkgs[0].ImportPath)
-		*buildO += exeSuffix
+	if len(pkgs) == 1 && pkgs[0].Name == "main" && buildO == "" {
+		_, buildO = path.Split(pkgs[0].ImportPath)
+		buildO += exeSuffix
 	}
 
 	// Special case -o /dev/null by not writing at all.
-	if *buildO == os.DevNull {
-		*buildO = ""
+	if buildO == os.DevNull {
+		buildO = ""
 	}
 
 	// sanity check some often mis-used options
@@ -494,14 +499,14 @@ func runBuild(cmd *Command, args []string) {
 		depMode = modeInstall
 	}
 
-	if *buildO != "" {
+	if buildO != "" {
 		if len(pkgs) > 1 {
 			fatalf("go build: cannot use -o with multiple packages")
 		} else if len(pkgs) == 0 {
 			fatalf("no packages to build")
 		}
 		p := pkgs[0]
-		p.target = *buildO
+		p.target = buildO
 		p.Stale = true // must build - not up to date
 		p.StaleReason = "build -o flag in use"
 		a := b.action(modeInstall, depMode, p)
@@ -874,8 +879,8 @@ func goFilesPackage(gofiles []string) *Package {
 	if pkg.Name == "main" {
 		_, elem := filepath.Split(gofiles[0])
 		exe := elem[:len(elem)-len(".go")] + exeSuffix
-		if *buildO == "" {
-			*buildO = exe
+		if buildO == "" {
+			buildO = exe
 		}
 		if gobin != "" {
 			pkg.target = filepath.Join(gobin, exe)
@@ -896,7 +901,7 @@ func goFilesPackage(gofiles []string) *Package {
 // .go_export section.
 func readpkglist(shlibpath string) (pkgs []*Package) {
 	var stk importStack
-	if _, gccgo := buildToolchain.(gccgoToolchain); gccgo {
+	if buildToolchainName == "gccgo" {
 		f, _ := elf.Open(shlibpath)
 		sect := f.Section(".go_export")
 		data, _ := sect.Data()
@@ -1010,7 +1015,7 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 			return a
 		}
 		// gccgo standard library is "fake" too.
-		if _, ok := buildToolchain.(gccgoToolchain); ok {
+		if buildToolchainName == "gccgo" {
 			// the target name is needed for cgo.
 			a.target = p.target
 			return a
@@ -1114,7 +1119,7 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
 		// external linking mode forces an import of runtime/cgo (and
 		// math on arm). So if it was not passed on the command line and
 		// it is not present in another shared library, add it here.
-		_, gccgo := buildToolchain.(gccgoToolchain)
+		gccgo := buildToolchainName == "gccgo"
 		if !gccgo {
 			seencgo := false
 			for _, p := range pkgs {
@@ -1490,7 +1495,7 @@ func (b *builder) build(a *action) (err error) {
 		if err != nil {
 			return err
 		}
-		if _, ok := buildToolchain.(gccgoToolchain); ok {
+		if buildToolchainName == "gccgo" {
 			cgoObjects = append(cgoObjects, filepath.Join(a.objdir, "_cgo_flags"))
 		}
 		cgoObjects = append(cgoObjects, outObj...)
@@ -3324,7 +3329,7 @@ func (b *builder) cgo(a *action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofil
 		cgoenv = []string{"CGO_LDFLAGS=" + strings.Join(flags, " ")}
 	}
 
-	if _, ok := buildToolchain.(gccgoToolchain); ok {
+	if buildToolchainName == "gccgo" {
 		switch goarch {
 		case "386", "amd64":
 			cgoCFLAGS = append(cgoCFLAGS, "-fsplit-stack")
@@ -3396,8 +3401,8 @@ func (b *builder) cgo(a *action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofil
 		outObj = append(outObj, ofile)
 	}
 
-	switch buildToolchain.(type) {
-	case gcToolchain:
+	switch buildToolchainName {
+	case "gc":
 		importGo := obj + "_cgo_import.go"
 		if err := b.dynimport(p, obj, importGo, cgoExe, cflags, cgoLDFLAGS, outObj); err != nil {
 			return nil, nil, err
@@ -3410,7 +3415,7 @@ func (b *builder) cgo(a *action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofil
 		}
 		outObj = []string{ofile}
 
-	case gccgoToolchain:
+	case "gccgo":
 		defunC := obj + "_cgo_defun.c"
 		defunObj := obj + "_cgo_defun.o"
 		if err := buildToolchain.cc(b, p, obj, defunObj, defunC); err != nil {
@@ -3684,7 +3689,7 @@ func (b *builder) swigOne(p *Package, file, obj string, pcCFLAGS []string, cxx b
 		gccExt = "cxx"
 	}
 
-	_, gccgo := buildToolchain.(gccgoToolchain)
+	gccgo := buildToolchainName == "gccgo"
 
 	// swig
 	args := []string{
