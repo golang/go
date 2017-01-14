@@ -5245,6 +5245,9 @@ func TestServerHijackGetsBackgroundByte(t *testing.T) {
 // immediate 1MB of data to the server to fill up the server's 4KB
 // buffer.
 func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test; see https://golang.org/issue/18657")
+	}
 	setParallel(t)
 	defer afterTest(t)
 	done := make(chan struct{})
