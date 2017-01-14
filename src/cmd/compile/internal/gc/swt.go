@@ -162,8 +162,13 @@ func typecheckswitch(n *Node) {
 							yyerror("impossible type switch case: %L cannot have dynamic type %v"+
 								" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 						} else if !missing.Broke {
-							yyerror("impossible type switch case: %L cannot have dynamic type %v"+
-								" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
+							if ptr != 0 {
+								yyerror("impossible type switch case: %L cannot have dynamic type %v"+
+									" (%v method has pointer receiver)", n.Left.Right, n1.Type, missing.Sym)
+							} else {
+								yyerror("impossible type switch case: %L cannot have dynamic type %v"+
+									" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
+							}
 						}
 					}
 				}
