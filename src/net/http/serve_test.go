@@ -5240,3 +5240,69 @@ func TestServerHijackGetsBackgroundByte(t *testing.T) {
 		t.Error("timeout")
 	}
 }
+
+// Like TestServerHijackGetsBackgroundByte above but sending a
+// immediate 1MB of data to the server to fill up the server's 4KB
+// buffer.
+func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	done := make(chan struct{})
+	const size = 8 << 10
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		defer close(done)
+
+		// Wait until the HTTP server sees the extra data
+		// after the GET request. The HTTP server fires the
+		// close notifier here, assuming it's a pipelined
+		// request, as documented.
+		select {
+		case <-w.(CloseNotifier).CloseNotify():
+		case <-time.After(5 * time.Second):
+			t.Error("timeout")
+			return
+		}
+
+		conn, buf, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer conn.Close()
+		slurp, err := ioutil.ReadAll(buf.Reader)
+		if err != nil {
+			t.Error("Copy: %v", err)
+		}
+		allX := true
+		for _, v := range slurp {
+			if v != 'x' {
+				allX = false
+			}
+		}
+		if len(slurp) != size {
+			t.Errorf("read %d; want %d", len(slurp), size)
+		} else if !allX {
+			t.Errorf("read %q; want %d 'x'", slurp, size)
+		}
+	}))
+	defer ts.Close()
+
+	cn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cn.Close()
+	if _, err := fmt.Fprintf(cn, "GET / HTTP/1.1\r\nHost: e.com\r\n\r\n%s",
+		strings.Repeat("x", size)); err != nil {
+		t.Fatal(err)
+	}
+	if err := cn.(*net.TCPConn).CloseWrite(); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Error("timeout")
+	}
+}
