@@ -5180,6 +5180,9 @@ func TestServerDuplicateBackgroundRead(t *testing.T) {
 // bufio.Reader.Buffered(), without resorting to Reading it
 // (potentially blocking) to get at it.
 func TestServerHijackGetsBackgroundByte(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test; see https://golang.org/issue/18657")
+	}
 	setParallel(t)
 	defer afterTest(t)
 	done := make(chan struct{})
