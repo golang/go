@@ -35,9 +35,11 @@ type (
 )
 
 // Methods can be declared on the original named type and the alias.
-func (T0) m1() {}
-func (A0) m1() {} // TODO(gri) this should be an error
-func (A0) m2() {}
+func (T0) m1()  {}
+func (*T0) m1() {} // ERROR "method redeclared: T0\.m1"
+func (A0) m1()  {} // TODO(gri) this should be an error
+func (A0) m1()  {} // ERROR "A0\.m1 redeclared in this block"
+func (A0) m2()  {}
 
 // Type aliases and the original type name can be used interchangeably.
 var _ A0 = T0{}
@@ -91,6 +93,9 @@ func _() {
 type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type"
 
 func (A1) m() {} // ERROR "cannot define new methods on non-local type int"
+func (A2) m() {} // ERROR "invalid receiver type struct {}"
+func (A3) m() {} // ERROR "cannot define new methods on non-local type reflect.Value"
+func (A4) m() {} // ERROR "cannot define new methods on non-local type reflect.Value"
 
 type B1 = struct{}
 

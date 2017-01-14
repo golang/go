@@ -1163,14 +1163,14 @@ bad:
 	return nil
 }
 
-func methodname(n *Node, t *Node) *Node {
+func methodname(n, recv *Node) *Node {
 	star := false
-	if t.Op == OIND {
+	if recv.Op == OIND {
 		star = true
-		t = t.Left
+		recv = recv.Left
 	}
 
-	return methodname0(n.Sym, star, t.Sym)
+	return methodname0(n.Sym, star, recv.Sym)
 }
 
 func methodname0(s *Sym, star bool, tsym *Sym) *Node {
@@ -1198,7 +1198,6 @@ func methodname0(s *Sym, star bool, tsym *Sym) *Node {
 // - msym is the method symbol
 // - t is function type (with receiver)
 func addmethod(msym *Sym, t *Type, local, nointerface bool) {
-	// get field sym
 	if msym == nil {
 		Fatalf("no method symbol")
 	}
