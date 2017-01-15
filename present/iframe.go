@@ -39,7 +39,7 @@ func parseIframe(ctx *Context, fileName string, lineno int, text string) (Elem, 
 			i.Width = v
 		}
 	default:
-		return nil, fmt.Errorf("incorrect image invocation: %q", text)
+		return nil, fmt.Errorf("incorrect iframe invocation: %q", text)
 	}
 	return i, nil
 }
