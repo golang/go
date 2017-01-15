@@ -94,6 +94,19 @@ type Liveness struct {
 	// in the arguments and locals area, indexed by bb.rpo.
 	argslivepointers []bvec
 	livepointers     []bvec
+
+	cache progeffectscache
+}
+
+type progeffectscache struct {
+	tailuevar    []int32
+	retuevar     []int32
+	textvarkill  []int32
+	textavarinit []int32
+	uevar        [3]int32
+	varkill      [3]int32
+	avarinit     [3]int32
+	initialized  bool
 }
 
 // ProgInfo holds information about the instruction for use
@@ -539,6 +552,44 @@ func isfunny(n *Node) bool {
 	return n.Sym != nil && (n.Sym.Name == ".fp" || n.Sym.Name == ".args")
 }
 
+func (lv *Liveness) initcache() {
+	if lv.cache.initialized {
+		Fatalf("liveness cache initialized twice")
+		return
+	}
+	lv.cache.initialized = true
+
+	for i, node := range lv.vars {
+		switch node.Class {
+		case PPARAM:
+			// A return instruction with a p.to is a tail return, which brings
+			// the stack pointer back up (if it ever went down) and then jumps
+			// to a new function entirely. That form of instruction must read
+			// all the parameters for correctness, and similarly it must not
+			// read the out arguments - they won't be set until the new
+			// function runs.
+			lv.cache.tailuevar = append(lv.cache.tailuevar, int32(i))
+
+			if node.Addrtaken {
+				lv.cache.textavarinit = append(lv.cache.textavarinit, int32(i))
+			}
+			lv.cache.textvarkill = append(lv.cache.textvarkill, int32(i))
+
+		case PPARAMOUT:
+			// If the result had its address taken, it is being tracked
+			// by the avarinit code, which does not use uevar.
+			// If we added it to uevar too, we'd not see any kill
+			// and decide that the variable was live entry, which it is not.
+			// So only use uevar in the non-addrtaken case.
+			// The p.to.type == obj.TYPE_NONE limits the bvset to
+			// non-tail-call return instructions; see note below for details.
+			if !node.Addrtaken {
+				lv.cache.retuevar = append(lv.cache.retuevar, int32(i))
+			}
+		}
+	}
+}
+
 // Computes the effects of an instruction on a set of
 // variables. The vars argument is a slice of *Nodes.
 //
@@ -553,10 +604,11 @@ func isfunny(n *Node) bool {
 // The avarinit output serves as a signal that the data has been
 // initialized, because any use of a variable must come after its
 // initialization.
-func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarinit bvec) {
-	uevar.Clear()
-	varkill.Clear()
-	avarinit.Clear()
+func (lv *Liveness) progeffects(prog *obj.Prog) (uevar, varkill, avarinit []int32) {
+	if !lv.cache.initialized {
+		Fatalf("liveness progeffects cache not initialized")
+		return
+	}
 
 	// A return instruction with a p.to is a tail return, which brings
 	// the stack pointer back up (if it ever went down) and then jumps
@@ -567,49 +619,25 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 	if (prog.As == obj.AJMP || prog.As == obj.ARET) && prog.To.Type == obj.TYPE_MEM && prog.To.Name == obj.NAME_EXTERN {
 		// This is a tail call. Ensure the arguments are still alive.
 		// See issue 16016.
-		for i, node := range vars {
-			if node.Class == PPARAM {
-				uevar.Set(int32(i))
-			}
-		}
+		return lv.cache.tailuevar, nil, nil
 	}
 
 	if prog.As == obj.ARET {
-		// Return instructions read all of the out arguments.
-		for i, node := range vars {
-			switch node.Class {
-			// If the result had its address taken, it is being tracked
-			// by the avarinit code, which does not use uevar.
-			// If we added it to uevar too, we'd not see any kill
-			// and decide that the variable was live entry, which it is not.
-			// So only use uevar in the non-addrtaken case.
-			// The p.to.type == obj.TYPE_NONE limits the bvset to
-			// non-tail-call return instructions; see note below for details.
-			case PPARAMOUT:
-				if !node.Addrtaken && prog.To.Type == obj.TYPE_NONE {
-					uevar.Set(int32(i))
-				}
-			}
+		if prog.To.Type == obj.TYPE_NONE {
+			return lv.cache.retuevar, nil, nil
 		}
-
-		return
+		return nil, nil, nil
 	}
 
 	if prog.As == obj.ATEXT {
 		// A text instruction marks the entry point to a function and
 		// the definition point of all in arguments.
-		for i, node := range vars {
-			switch node.Class {
-			case PPARAM:
-				if node.Addrtaken {
-					avarinit.Set(int32(i))
-				}
-				varkill.Set(int32(i))
-			}
-		}
-
-		return
+		return nil, lv.cache.textvarkill, lv.cache.textavarinit
 	}
+
+	uevar = lv.cache.uevar[:0]
+	varkill = lv.cache.varkill[:0]
+	avarinit = lv.cache.avarinit[:0]
 
 	info := Thearch.Proginfo(prog)
 
@@ -617,17 +645,15 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		from := &prog.From
 		if from.Node != nil && from.Sym != nil {
 			n := from.Node.(*Node)
-			if pos := liveIndex(n, vars); pos >= 0 {
+			if pos := liveIndex(n, lv.vars); pos >= 0 {
 				if n.Addrtaken {
-					avarinit.Set(pos)
+					avarinit = append(avarinit, pos)
 				} else {
 					if info.Flags&(LeftRead|LeftAddr) != 0 {
-						uevar.Set(pos)
+						uevar = append(uevar, pos)
 					}
-					if info.Flags&LeftWrite != 0 {
-						if !isfat(n.Type) {
-							varkill.Set(pos)
-						}
+					if info.Flags&LeftWrite != 0 && !isfat(n.Type) {
+						varkill = append(varkill, pos)
 					}
 				}
 			}
@@ -638,11 +664,11 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		from := prog.From3
 		if from.Node != nil && from.Sym != nil {
 			n := from.Node.(*Node)
-			if pos := liveIndex(n, vars); pos >= 0 {
+			if pos := liveIndex(n, lv.vars); pos >= 0 {
 				if n.Addrtaken {
-					avarinit.Set(pos)
+					avarinit = append(avarinit, pos)
 				} else {
-					uevar.Set(pos)
+					uevar = append(uevar, pos)
 				}
 			}
 		}
@@ -652,13 +678,13 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		to := &prog.To
 		if to.Node != nil && to.Sym != nil {
 			n := to.Node.(*Node)
-			if pos := liveIndex(n, vars); pos >= 0 {
+			if pos := liveIndex(n, lv.vars); pos >= 0 {
 				if n.Addrtaken {
 					if prog.As != obj.AVARKILL {
-						avarinit.Set(pos)
+						avarinit = append(avarinit, pos)
 					}
 					if prog.As == obj.AVARDEF || prog.As == obj.AVARKILL {
-						varkill.Set(pos)
+						varkill = append(varkill, pos)
 					}
 				} else {
 					// RightRead is a read, obviously.
@@ -670,17 +696,19 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 					// having the RightAddr bit set keeps the registerizer from
 					// trying to substitute a register for the memory location.
 					if (info.Flags&RightRead != 0) || info.Flags&(RightAddr|RightWrite) == RightAddr {
-						uevar.Set(pos)
+						uevar = append(uevar, pos)
 					}
 					if info.Flags&RightWrite != 0 {
 						if !isfat(n.Type) || prog.As == obj.AVARDEF {
-							varkill.Set(pos)
+							varkill = append(varkill, pos)
 						}
 					}
 				}
 			}
 		}
 	}
+
+	return uevar, varkill, avarinit
 }
 
 // liveIndex returns the index of n in the set of tracked vars.
@@ -727,11 +755,11 @@ func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node) *Liv
 	return &result
 }
 
-func printeffects(p *obj.Prog, uevar bvec, varkill bvec, avarinit bvec) {
+func (lv *Liveness) printeffects(p *obj.Prog, uevar, varkill, avarinit []int32) {
 	fmt.Printf("effects of %v\n", p)
-	fmt.Println("uevar:", uevar)
-	fmt.Println("varkill:", varkill)
-	fmt.Println("avarinit:", avarinit)
+	fmt.Println("uevar:", lv.slice2bvec(uevar))
+	fmt.Println("varkill:", lv.slice2bvec(varkill))
+	fmt.Println("avarinit:", lv.slice2bvec(avarinit))
 }
 
 // Pretty print a variable node. Uses Pascal like conventions for pointers and
@@ -758,6 +786,14 @@ func printvars(name string, bv bvec, vars []*Node) {
 		}
 	}
 	fmt.Printf("\n")
+}
+
+func (lv *Liveness) slice2bvec(vars []int32) bvec {
+	bv := bvalloc(int32(len(lv.vars)))
+	for _, id := range vars {
+		bv.Set(id)
+	}
+	return bv
 }
 
 // Prints a basic block annotated with the information computed by liveness
@@ -1032,34 +1068,38 @@ func issafepoint(prog *obj.Prog) bool {
 // instructions in each basic block to summarizes the information at each basic
 // block
 func livenessprologue(lv *Liveness) {
-	nvars := int32(len(lv.vars))
-	uevar := bvalloc(nvars)
-	varkill := bvalloc(nvars)
-	avarinit := bvalloc(nvars)
+	lv.initcache()
+
 	for _, bb := range lv.cfg {
 		// Walk the block instructions backward and update the block
 		// effects with the each prog effects.
 		for p := bb.last; p != nil; p = p.Opt.(*obj.Prog) {
-			progeffects(p, lv.vars, uevar, varkill, avarinit)
+			uevar, varkill, _ := lv.progeffects(p)
 			if debuglive >= 3 {
-				printeffects(p, uevar, varkill, avarinit)
+				lv.printeffects(p, uevar, varkill, nil)
 			}
-			bb.varkill.Or(bb.varkill, varkill)
-			bb.uevar.AndNot(bb.uevar, varkill)
-			bb.uevar.Or(bb.uevar, uevar)
+			for _, pos := range varkill {
+				bb.varkill.Set(pos)
+				bb.uevar.Unset(pos)
+			}
+			for _, pos := range uevar {
+				bb.uevar.Set(pos)
+			}
 		}
 
 		// Walk the block instructions forward to update avarinit bits.
 		// avarinit describes the effect at the end of the block, not the beginning.
-		varkill.Clear()
-
 		for p := bb.first; ; p = p.Link {
-			progeffects(p, lv.vars, uevar, varkill, avarinit)
+			_, varkill, avarinit := lv.progeffects(p)
 			if debuglive >= 3 {
-				printeffects(p, uevar, varkill, avarinit)
+				lv.printeffects(p, nil, varkill, avarinit)
 			}
-			bb.avarinit.AndNot(bb.avarinit, varkill)
-			bb.avarinit.Or(bb.avarinit, avarinit)
+			for _, pos := range varkill {
+				bb.avarinit.Unset(pos)
+			}
+			for _, pos := range avarinit {
+				bb.avarinit.Set(pos)
+			}
 			if p == bb.last {
 				break
 			}
@@ -1187,9 +1227,6 @@ func livenessepilogue(lv *Liveness) {
 	nvars := int32(len(lv.vars))
 	livein := bvalloc(nvars)
 	liveout := bvalloc(nvars)
-	uevar := bvalloc(nvars)
-	varkill := bvalloc(nvars)
-	avarinit := bvalloc(nvars)
 	any := bvalloc(nvars)
 	all := bvalloc(nvars)
 	outLive := bvalloc(argswords())       // always-live output params
@@ -1244,11 +1281,15 @@ func livenessepilogue(lv *Liveness) {
 		// allocate liveness maps for those instructions that need them.
 		// Seed the maps with information about the addrtaken variables.
 		for p := bb.first; ; p = p.Link {
-			progeffects(p, lv.vars, uevar, varkill, avarinit)
-			any.AndNot(any, varkill)
-			all.AndNot(all, varkill)
-			any.Or(any, avarinit)
-			all.Or(all, avarinit)
+			_, varkill, avarinit := lv.progeffects(p)
+			for _, pos := range varkill {
+				any.Unset(pos)
+				all.Unset(pos)
+			}
+			for _, pos := range avarinit {
+				any.Set(pos)
+				all.Set(pos)
+			}
 
 			if issafepoint(p) {
 				// Annotate ambiguously live variables so that they can
@@ -1331,15 +1372,19 @@ func livenessepilogue(lv *Liveness) {
 			next = p.Opt.(*obj.Prog) // splicebefore modifies p.opt
 
 			// Propagate liveness information
-			progeffects(p, lv.vars, uevar, varkill, avarinit)
+			uevar, varkill, _ := lv.progeffects(p)
 
 			liveout.Copy(livein)
-			livein.AndNot(liveout, varkill)
-			livein.Or(livein, uevar)
+			for _, pos := range varkill {
+				livein.Unset(pos)
+			}
+			for _, pos := range uevar {
+				livein.Set(pos)
+			}
 			if debuglive >= 3 && issafepoint(p) {
 				fmt.Printf("%v\n", p)
-				printvars("uevar", uevar, lv.vars)
-				printvars("varkill", varkill, lv.vars)
+				printvars("uevar", lv.slice2bvec(uevar), lv.vars)
+				printvars("varkill", lv.slice2bvec(varkill), lv.vars)
 				printvars("livein", livein, lv.vars)
 				printvars("liveout", liveout, lv.vars)
 			}
@@ -1595,10 +1640,6 @@ func printbitset(printed bool, name string, vars []*Node, bits bvec) bool {
 func livenessprintdebug(lv *Liveness) {
 	fmt.Printf("liveness: %s\n", Curfn.Func.Nname.Sym.Name)
 
-	uevar := bvalloc(int32(len(lv.vars)))
-	varkill := bvalloc(int32(len(lv.vars)))
-	avarinit := bvalloc(int32(len(lv.vars)))
-
 	pcdata := 0
 	for i, bb := range lv.cfg {
 		if i > 0 {
@@ -1640,11 +1681,11 @@ func livenessprintdebug(lv *Liveness) {
 			if p.As == obj.APCDATA && p.From.Offset == obj.PCDATA_StackMapIndex {
 				pcdata = int(p.To.Offset)
 			}
-			progeffects(p, lv.vars, uevar, varkill, avarinit)
+			uevar, varkill, avarinit := lv.progeffects(p)
 			printed = false
-			printed = printbitset(printed, "uevar", lv.vars, uevar)
-			printed = printbitset(printed, "varkill", lv.vars, varkill)
-			printed = printbitset(printed, "avarinit", lv.vars, avarinit)
+			printed = printbitset(printed, "uevar", lv.vars, lv.slice2bvec(uevar))
+			printed = printbitset(printed, "varkill", lv.vars, lv.slice2bvec(varkill))
+			printed = printbitset(printed, "avarinit", lv.vars, lv.slice2bvec(avarinit))
 			if printed {
 				fmt.Printf("\n")
 			}
