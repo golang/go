@@ -1572,6 +1572,9 @@ opswitch:
 		n = r
 
 	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
+		if n.Op == OSTRUCTLIT && iszero(n) && !instrumenting { // TODO: SSA doesn't yet handle ARRAYLIT with length > 1
+			break
+		}
 		if isStaticCompositeLiteral(n) {
 			// n can be directly represented in the read-only data section.
 			// Make direct reference to the static data. See issue 12841.
@@ -3143,6 +3146,16 @@ func walkcompare(n *Node, init *Nodes) *Node {
 
 	// Chose not to inline. Call equality function directly.
 	if !inline {
+		if isvaluelit(cmpl) {
+			var_ := temp(cmpl.Type)
+			anylit(cmpl, var_, init)
+			cmpl = var_
+		}
+		if isvaluelit(cmpr) {
+			var_ := temp(cmpr.Type)
+			anylit(cmpr, var_, init)
+			cmpr = var_
+		}
 		if !islvalue(cmpl) || !islvalue(cmpr) {
 			Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
 		}
