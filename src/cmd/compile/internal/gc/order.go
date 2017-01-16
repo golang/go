@@ -417,9 +417,6 @@ func ordercall(n *Node, order *Order) {
 // cases they are also typically registerizable, so not much harm done.
 // And this only applies to the multiple-assignment form.
 // We could do a more precise analysis if needed, like in walk.go.
-//
-// Ordermapassign also inserts these temporaries if needed for
-// calling writebarrierfat with a pointer to n->right.
 func ordermapassign(n *Node, order *Order) {
 	switch n.Op {
 	default:
@@ -427,17 +424,6 @@ func ordermapassign(n *Node, order *Order) {
 
 	case OAS:
 		order.out = append(order.out, n)
-
-		// We call writebarrierfat only for values > 4 pointers long. See walk.go.
-		// TODO(mdempsky): writebarrierfat doesn't exist anymore, but removing that
-		// logic causes net/http's tests to become flaky; see CL 21242.
-		if needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr) && n.Right != nil && !isaddrokay(n.Right) {
-			m := n.Left
-			n.Left = ordertemp(m.Type, order, false)
-			a := nod(OAS, m, n.Left)
-			a = typecheck(a, Etop)
-			order.out = append(order.out, a)
-		}
 
 	case OAS2, OAS2DOTTYPE, OAS2MAPR, OAS2FUNC:
 		var post []*Node

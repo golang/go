@@ -2097,6 +2097,15 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OAPPEND:
 		return s.append(n, false)
 
+	case OSTRUCTLIT, OARRAYLIT:
+		// All literals with nonzero fields have already been
+		// rewritten during walk. Any that remain are just T{}
+		// or equivalents. Use the zero value.
+		if !iszero(n) {
+			Fatalf("literal with nonzero value in SSA: %v", n)
+		}
+		return s.zeroVal(n.Type)
+
 	default:
 		s.Fatalf("unhandled expr %v", n.Op)
 		return nil
