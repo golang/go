@@ -101,6 +101,7 @@ var importerTests = [...]importerTest{
 	{pkgpath: "unicode", name: "IsUpper", want: "func IsUpper(r rune) bool"},
 	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
 	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
+	{pkgpath: "alias", name: "IntAlias2", want: "type IntAlias2 = Int"},
 }
 
 func TestGoxImporter(t *testing.T) {
