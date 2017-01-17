@@ -4,7 +4,9 @@
 
 package gccgoimporter
 
-// This is a verbatim copy of $GOROOT/src/go/internal/gccgoimporter/importer_test.go.
+// This is a verbatim copy of $GOROOT/src/go/internal/gccgoimporter/importer_test.go
+// except for the importerTests variable which does not contain Go1.9-specific tests.
+// Those are added via importer19_test.go.
 
 import (
 	"go/types"
@@ -90,7 +92,7 @@ func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]Init
 	}
 }
 
-var importerTests = [...]importerTest{
+var importerTests = []importerTest{
 	{pkgpath: "pointer", name: "Int8Ptr", want: "type Int8Ptr *int8"},
 	{pkgpath: "complexnums", name: "NN", want: "const NN untyped complex", wantval: "(-1 + -1i)"},
 	{pkgpath: "complexnums", name: "NP", want: "const NP untyped complex", wantval: "(-1 + 1i)"},
