@@ -955,10 +955,12 @@ func writePESymTableRecords(ctxt *Link) int {
 		var value int64
 		// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
 		// it still belongs to the .data section, not the .bss section.
+		// Same for runtime.epclntab (type STEXT), it belongs to .text
+		// section, not the .data section.
 		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != obj.SDATA && Linkmode == LinkExternal {
 			value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
 			sect = bsssect
-		} else if uint64(s.Value) >= Segdata.Vaddr {
+		} else if uint64(s.Value) >= Segdata.Vaddr && s.Type != obj.STEXT {
 			value = int64(uint64(s.Value) - Segdata.Vaddr)
 			sect = datasect
 		} else if uint64(s.Value) >= Segtext.Vaddr {
