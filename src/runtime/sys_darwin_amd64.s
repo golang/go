@@ -117,6 +117,27 @@ TEXT runtime·madvise(SB), NOSPLIT, $0
 #define	gtod_ns_base	0x70
 #define	gtod_sec_base	0x78
 
+TEXT monotonictime<>(SB), NOSPLIT, $32
+	MOVQ $0x7fffffe00000, SI // comm page base
+
+timeloop:
+	MOVL  nt_generation(SI), R8
+	TESTL R8, R8
+	JZ    timeloop
+	RDTSC
+	SHLQ  $32, DX
+	ORQ   DX, AX
+	MOVL nt_shift(SI), CX
+	SUBQ nt_tsc_base(SI), AX
+	SHLQ CX, AX
+	MOVL nt_scale(SI), CX
+	MULQ CX
+	SHRQ $32, AX:DX
+	ADDQ nt_ns_base(SI), AX
+	CMPL nt_generation(SI), R8
+	JNE  timeloop
+	RET
+
 TEXT nanotime<>(SB), NOSPLIT, $32
 	MOVQ	$0x7fffffe00000, BP	/* comm page base */
 	// Loop trying to take a consistent snapshot
@@ -173,7 +194,7 @@ inreg:
 	RET
 
 TEXT runtime·nanotime(SB),NOSPLIT,$0-8
-	CALL	nanotime<>(SB)
+	CALL	monotonictime<>(SB)
 	MOVQ	AX, ret+0(FP)
 	RET
 
