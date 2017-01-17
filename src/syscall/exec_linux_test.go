@@ -133,7 +133,7 @@ func TestCloneNEWUSERAndRemapRootEnableSetgroups(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
 	}
-	testNEWUSERRemap(t, 0, 0, false)
+	testNEWUSERRemap(t, 0, 0, true)
 }
 
 func TestCloneNEWUSERAndRemapNoRootDisableSetgroups(t *testing.T) {
