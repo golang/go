@@ -25,7 +25,7 @@ type Object interface {
 	Name() string   // package local object name
 	Type() Type     // object type
 	Exported() bool // reports whether the name starts with a capital letter
-	Id() string     // object id (see Id below)
+	Id() string     // object name if exported, qualified name if not exported (see func Id)
 
 	// String returns a human-readable string of the object.
 	String() string
@@ -64,15 +64,10 @@ func Id(pkg *Package, name string) string {
 	// inside a package and outside a package - which breaks some
 	// tests)
 	path := "_"
-	// TODO(gri): shouldn't !ast.IsExported(name) => pkg != nil be an precondition?
-	// if pkg == nil {
-	// 	panic("nil package in lookup of unexported name")
-	// }
-	if pkg != nil {
+	// pkg is nil for objects in Universe scope and possibly types
+	// introduced via Eval (see also comment in object.sameId)
+	if pkg != nil && pkg.path != "" {
 		path = pkg.path
-		if path == "" {
-			path = "_"
-		}
 	}
 	return path + "." + name
 }
