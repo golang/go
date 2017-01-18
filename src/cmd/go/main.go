@@ -15,6 +15,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/env"
 	fmtcmd "cmd/go/internal/fmt"
 	"cmd/go/internal/help"
 	"cmd/go/internal/test"
@@ -26,7 +27,7 @@ func init() {
 		work.CmdBuild,
 		cmdClean,
 		cmdDoc,
-		cmdEnv,
+		env.CmdEnv,
 		cmdBug,
 		cmdFix,
 		fmtcmd.CmdFmt,
@@ -100,7 +101,7 @@ func main() {
 	// but in practice there might be skew
 	// This makes sure we all agree.
 	cfg.OrigEnv = os.Environ()
-	cfg.NewEnv = mkEnv()
+	cfg.NewEnv = env.MkEnv()
 	for _, env := range cfg.NewEnv {
 		if os.Getenv(env.Name) != env.Value {
 			os.Setenv(env.Name, env.Value)
