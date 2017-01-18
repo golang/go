@@ -2,22 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package fmt
 
 import (
+	"os"
+	"path/filepath"
+
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
-	"os"
-	"path/filepath"
 )
 
 func init() {
-	cfg.AddBuildFlagsNX(&cmdFmt.Flag)
+	cfg.AddBuildFlagsNX(&CmdFmt.Flag)
 }
 
-var cmdFmt = &base.Command{
+var CmdFmt = &base.Command{
 	Run:       runFmt,
 	UsageLine: "fmt [-n] [-x] [packages]",
 	Short:     "run gofmt on package sources",
