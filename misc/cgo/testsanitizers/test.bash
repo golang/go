@@ -68,6 +68,25 @@ fi
 
 status=0
 
+testmsanshared() {
+  goos=$(go env GOOS)
+  suffix="-installsuffix testsanitizers"
+  libext="so"
+  if [ "$goos" == "darwin" ]; then
+	  libext="dylib"
+  fi
+  go build -msan -buildmode=c-shared $suffix -o ${TMPDIR}/libmsanshared.$libext msan_shared.go
+
+	echo 'int main() { return 0; }' > ${TMPDIR}/testmsanshared.c
+  $CC $(go env GOGCCFLAGS) -fsanitize=memory -o ${TMPDIR}/testmsanshared ${TMPDIR}/testmsanshared.c ${TMPDIR}/libmsanshared.$libext
+
+  if ! LD_LIBRARY_PATH=. ${TMPDIR}/testmsanshared; then
+    echo "FAIL: msan_shared"
+    status=1
+  fi
+  rm -f ${TMPDIR}/{testmsanshared,testmsanshared.c,libmsanshared.$libext}
+}
+
 if test "$msan" = "yes"; then
     if ! go build -msan std; then
 	echo "FAIL: build -msan std"
@@ -108,6 +127,8 @@ if test "$msan" = "yes"; then
 	echo "FAIL: msan_fail"
 	status=1
     fi
+
+    testmsanshared
 fi
 
 if test "$tsan" = "yes"; then
