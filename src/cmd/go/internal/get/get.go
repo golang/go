@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+// Package get implements the ``go get'' command.
+package get
 
 import (
 	"fmt"
@@ -22,7 +23,7 @@ import (
 	"cmd/go/internal/work"
 )
 
-var cmdGet = &base.Command{
+var CmdGet = &base.Command{
 	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]",
 	Short:     "download and install packages and dependencies",
 	Long: `
@@ -78,16 +79,16 @@ See also: go build, go install, go clean.
 	`,
 }
 
-var getD = cmdGet.Flag.Bool("d", false, "")
-var getF = cmdGet.Flag.Bool("f", false, "")
-var getT = cmdGet.Flag.Bool("t", false, "")
-var getU = cmdGet.Flag.Bool("u", false, "")
-var getFix = cmdGet.Flag.Bool("fix", false, "")
-var getInsecure = cmdGet.Flag.Bool("insecure", false, "")
+var getD = CmdGet.Flag.Bool("d", false, "")
+var getF = CmdGet.Flag.Bool("f", false, "")
+var getT = CmdGet.Flag.Bool("t", false, "")
+var getU = CmdGet.Flag.Bool("u", false, "")
+var getFix = CmdGet.Flag.Bool("fix", false, "")
+var getInsecure = CmdGet.Flag.Bool("insecure", false, "")
 
 func init() {
-	work.AddBuildFlags(cmdGet)
-	cmdGet.Run = runGet // break init loop
+	work.AddBuildFlags(CmdGet)
+	CmdGet.Run = runGet // break init loop
 }
 
 func runGet(cmd *base.Command, args []string) {

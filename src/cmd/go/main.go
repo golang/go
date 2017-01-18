@@ -17,6 +17,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/env"
 	fmtcmd "cmd/go/internal/fmt"
+	"cmd/go/internal/get"
 	"cmd/go/internal/help"
 	"cmd/go/internal/test"
 	"cmd/go/internal/work"
@@ -32,7 +33,7 @@ func init() {
 		cmdFix,
 		fmtcmd.CmdFmt,
 		cmdGenerate,
-		cmdGet,
+		get.CmdGet,
 		work.CmdInstall,
 		cmdList,
 		cmdRun,
