@@ -1076,8 +1076,6 @@ top:
 		// objects reachable from global roots since they don't have write
 		// barriers. Rescan some roots and flush work caches.
 
-		gcMarkRootCheck()
-
 		// Disallow caching workbufs and indicate that we're in mark 2.
 		gcBlackenPromptly = true
 
@@ -1100,6 +1098,16 @@ top:
 				_p_.gcw.dispose()
 			})
 		})
+
+		// Check that roots are marked. We should be able to
+		// do this before the forEachP, but based on issue
+		// #16083 there may be a (harmless) race where we can
+		// enter mark 2 while some workers are still scanning
+		// stacks. The forEachP ensures these scans are done.
+		//
+		// TODO(austin): Figure out the race and fix this
+		// properly.
+		gcMarkRootCheck()
 
 		// Now we can start up mark 2 workers.
 		atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, 0xffffffff)
