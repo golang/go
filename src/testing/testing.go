@@ -216,6 +216,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -267,8 +268,8 @@ type common struct {
 	skipped    bool         // Test of benchmark has been skipped.
 	finished   bool         // Test function has completed.
 	done       bool         // Test is finished and all subtests have completed.
-	hasSub     bool
-	raceErrors int // number of races detected during test
+	hasSub     int32        // written atomically
+	raceErrors int          // number of races detected during test
 
 	parent   *common
 	level    int       // Nesting depth of test or benchmark.
@@ -645,7 +646,7 @@ func tRunner(t *T, fn func(t *T)) {
 		// Do not lock t.done to allow race detector to detect race in case
 		// the user does not appropriately synchronizes a goroutine.
 		t.done = true
-		if t.parent != nil && !t.hasSub {
+		if t.parent != nil && atomic.LoadInt32(&t.hasSub) == 0 {
 			t.setRan()
 		}
 		t.signal <- true
@@ -659,8 +660,11 @@ func tRunner(t *T, fn func(t *T)) {
 
 // Run runs f as a subtest of t called name. It reports whether f succeeded.
 // Run will block until all its parallel subtests have completed.
+//
+// Run may be called simultaneously from multiple goroutines, but all such
+// calls must happen before the outer test function for t returns.
 func (t *T) Run(name string, f func(t *T)) bool {
-	t.hasSub = true
+	atomic.StoreInt32(&t.hasSub, 1)
 	testName, ok := t.context.match.fullName(&t.common, name)
 	if !ok {
 		return true
