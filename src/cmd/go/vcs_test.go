@@ -12,6 +12,8 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+
+	"cmd/go/internal/web"
 )
 
 // Test that RepoRootForImportPath creates the correct RepoRoot for a given importPath.
@@ -147,7 +149,7 @@ func TestRepoRootForImportPath(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := repoRootForImportPath(test.path, secure)
+		got, err := repoRootForImportPath(test.path, web.Secure)
 		want := test.want
 
 		if want == nil {
