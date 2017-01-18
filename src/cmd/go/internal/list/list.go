@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package list
 
 import (
 	"bufio"
@@ -17,7 +17,7 @@ import (
 	"text/template"
 )
 
-var cmdList = &base.Command{
+var CmdList = &base.Command{
 	UsageLine: "list [-e] [-f format] [-json] [build flags] [packages]",
 	Short:     "list packages",
 	Long: `
@@ -140,13 +140,13 @@ For more about specifying packages, see 'go help packages'.
 }
 
 func init() {
-	cmdList.Run = runList // break init cycle
-	work.AddBuildFlags(cmdList)
+	CmdList.Run = runList // break init cycle
+	work.AddBuildFlags(CmdList)
 }
 
-var listE = cmdList.Flag.Bool("e", false, "")
-var listFmt = cmdList.Flag.String("f", "{{.ImportPath}}", "")
-var listJson = cmdList.Flag.Bool("json", false, "")
+var listE = CmdList.Flag.Bool("e", false, "")
+var listFmt = CmdList.Flag.String("f", "{{.ImportPath}}", "")
+var listJson = CmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
 
 func runList(cmd *base.Command, args []string) {

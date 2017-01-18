@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate ./mkalldocs.sh
+
 package main
 
 import (
@@ -16,32 +18,41 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/bug"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/clean"
+	"cmd/go/internal/doc"
 	"cmd/go/internal/env"
+	"cmd/go/internal/fix"
 	fmtcmd "cmd/go/internal/fmt"
+	"cmd/go/internal/generate"
 	"cmd/go/internal/get"
 	"cmd/go/internal/help"
+	"cmd/go/internal/list"
+	"cmd/go/internal/run"
 	"cmd/go/internal/test"
+	"cmd/go/internal/tool"
+	"cmd/go/internal/version"
+	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
 )
 
 func init() {
 	base.Commands = []*base.Command{
 		work.CmdBuild,
-		cmdClean,
-		cmdDoc,
+		clean.CmdClean,
+		doc.CmdDoc,
 		env.CmdEnv,
 		bug.CmdBug,
-		cmdFix,
+		fix.CmdFix,
 		fmtcmd.CmdFmt,
-		cmdGenerate,
+		generate.CmdGenerate,
 		get.CmdGet,
 		work.CmdInstall,
-		cmdList,
-		cmdRun,
+		list.CmdList,
+		run.CmdRun,
 		test.CmdTest,
-		cmdTool,
-		cmdVersion,
-		cmdVet,
+		tool.CmdTool,
+		version.CmdVersion,
+		vet.CmdVet,
 
 		help.HelpC,
 		help.HelpBuildmode,
@@ -129,8 +140,6 @@ func main() {
 	base.SetExitStatus(2)
 	base.Exit()
 }
-
-var usage func()
 
 func init() {
 	base.Usage = mainUsage
