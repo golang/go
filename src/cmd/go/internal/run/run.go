@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package run
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ import (
 	"cmd/go/internal/work"
 )
 
-var cmdRun = &base.Command{
+var CmdRun = &base.Command{
 	UsageLine: "run [build flags] [-exec xprog] gofiles... [arguments...]",
 	Short:     "compile and run Go program",
 	Long: `
@@ -40,10 +40,10 @@ See also: go build.
 }
 
 func init() {
-	cmdRun.Run = runRun // break init loop
+	CmdRun.Run = runRun // break init loop
 
-	work.AddBuildFlags(cmdRun)
-	cmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
+	work.AddBuildFlags(CmdRun)
+	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
 func printStderr(args ...interface{}) (int, error) {

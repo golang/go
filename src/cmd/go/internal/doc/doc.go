@@ -2,16 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate ./mkalldocs.sh
-
-package main
+package doc
 
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 )
 
-var cmdDoc = &base.Command{
+var CmdDoc = &base.Command{
 	Run:         runDoc,
 	UsageLine:   "doc [-u] [-c] [package|[package.]symbol[.method]]",
 	CustomFlags: true,

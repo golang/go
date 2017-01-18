@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package tool
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 	"cmd/go/internal/cfg"
 )
 
-var cmdTool = &base.Command{
+var CmdTool = &base.Command{
 	Run:       runTool,
 	UsageLine: "tool [-n] command [args...]",
 	Short:     "run specified go tool",
@@ -33,7 +33,7 @@ For more about each tool command, see 'go tool command -h'.
 var toolN bool
 
 func init() {
-	cmdTool.Flag.BoolVar(&toolN, "n", false, "")
+	CmdTool.Flag.BoolVar(&toolN, "n", false, "")
 }
 
 func runTool(cmd *base.Command, args []string) {

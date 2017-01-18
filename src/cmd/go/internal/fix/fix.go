@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package fix
 
 import (
 	"cmd/go/internal/base"
@@ -11,7 +11,7 @@ import (
 	"cmd/go/internal/str"
 )
 
-var cmdFix = &base.Command{
+var CmdFix = &base.Command{
 	Run:       runFix,
 	UsageLine: "fix [packages]",
 	Short:     "run go tool fix on packages",

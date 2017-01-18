@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package vet
 
 import (
 	"path/filepath"
@@ -15,10 +15,10 @@ import (
 )
 
 func init() {
-	work.AddBuildFlags(cmdVet)
+	work.AddBuildFlags(CmdVet)
 }
 
-var cmdVet = &base.Command{
+var CmdVet = &base.Command{
 	Run:       runVet,
 	UsageLine: "vet [-n] [-x] [build flags] [packages]",
 	Short:     "run go tool vet on packages",

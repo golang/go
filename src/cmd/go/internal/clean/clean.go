@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package clean
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ import (
 	"cmd/go/internal/work"
 )
 
-var cmdClean = &base.Command{
+var CmdClean = &base.Command{
 	UsageLine: "clean [-i] [-r] [-n] [-x] [build flags] [packages]",
 	Short:     "remove object files",
 	Long: `
@@ -68,15 +68,15 @@ var cleanR bool // clean -r flag
 
 func init() {
 	// break init cycle
-	cmdClean.Run = runClean
+	CmdClean.Run = runClean
 
-	cmdClean.Flag.BoolVar(&cleanI, "i", false, "")
-	cmdClean.Flag.BoolVar(&cleanR, "r", false, "")
+	CmdClean.Flag.BoolVar(&cleanI, "i", false, "")
+	CmdClean.Flag.BoolVar(&cleanR, "r", false, "")
 	// -n and -x are important enough to be
 	// mentioned explicitly in the docs but they
 	// are part of the build flags.
 
-	work.AddBuildFlags(cmdClean)
+	work.AddBuildFlags(CmdClean)
 }
 
 func runClean(cmd *base.Command, args []string) {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package version
 
 import (
 	"cmd/go/internal/base"
@@ -10,7 +10,7 @@ import (
 	"runtime"
 )
 
-var cmdVersion = &base.Command{
+var CmdVersion = &base.Command{
 	Run:       runVersion,
 	UsageLine: "version",
 	Short:     "print Go version",

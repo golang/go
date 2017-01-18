@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package generate
 
 import (
 	"bufio"
 	"bytes"
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
-	"cmd/go/internal/work"
 	"fmt"
 	"io"
 	"log"
@@ -20,9 +16,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/go/internal/work"
 )
 
-var cmdGenerate = &base.Command{
+var CmdGenerate = &base.Command{
 	Run:       runGenerate,
 	UsageLine: "generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
 	Short:     "generate Go files by processing source",
@@ -135,8 +136,8 @@ var (
 )
 
 func init() {
-	work.AddBuildFlags(cmdGenerate)
-	cmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
+	work.AddBuildFlags(CmdGenerate)
+	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
 }
 
 func runGenerate(cmd *base.Command, args []string) {
