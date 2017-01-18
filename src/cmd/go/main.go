@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/bug"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/env"
 	fmtcmd "cmd/go/internal/fmt"
@@ -29,7 +30,7 @@ func init() {
 		cmdClean,
 		cmdDoc,
 		env.CmdEnv,
-		cmdBug,
+		bug.CmdBug,
 		cmdFix,
 		fmtcmd.CmdFmt,
 		cmdGenerate,
