@@ -31,8 +31,8 @@ _testmain.go
 /pkg/
 /src/*.*/
 /src/cmd/cgo/zdefaultcc.go
-/src/cmd/go/zdefaultcc.go
-/src/cmd/go/zosarch.go
+/src/cmd/go/internal/cfg/zdefaultcc.go
+/src/cmd/go/internal/cfg/zosarch.go
 /src/cmd/internal/obj/zbootstrap.go
 /src/go/build/zcgo.go
 /src/go/doc/headscan
