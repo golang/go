@@ -1914,7 +1914,7 @@ function cgAddChild(tree, ul, cgn) {
 					{{if .HasPkg}}
 						<tr>
 							<td class="pkg-name">
-								<a href="{{html .Path}}/">{{html .Path}}</a>
+								<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Path}}</a>
 							</td>
 							<td class="pkg-synopsis">
 								{{html .Synopsis}}
@@ -1924,7 +1924,7 @@ function cgAddChild(tree, ul, cgn) {
 				{{else}}
 					<tr>
 						<td class="pkg-name" style="padding-left: {{multiply .Depth 20}}px;">
-							<a href="{{html .Path}}/">{{html .Name}}</a>
+							<a href="{{html .Path}}/{{modeQueryString $.Mode | html}}">{{html .Name}}</a>
 						</td>
 						<td class="pkg-synopsis">
 							{{html .Synopsis}}

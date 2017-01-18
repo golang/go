@@ -101,6 +101,9 @@ func (p *Presentation) initFuncMap() {
 
 		// Number operation
 		"multiply": multiply,
+
+		// formatting of PageInfoMode query string
+		"modeQueryString": modeQueryString,
 	}
 	if p.URLForSrc != nil {
 		p.funcMap["srcLink"] = p.URLForSrc
@@ -441,6 +444,8 @@ type PageInfo struct {
 	Dirname string // directory containing the package
 	Err     error  // error or nil
 	Share   bool   // show share button on examples
+
+	Mode PageInfoMode // display metadata from query string
 
 	// package info
 	FSet       *token.FileSet         // nil if no package documentation

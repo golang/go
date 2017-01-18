@@ -252,7 +252,7 @@ func testWeb(t *testing.T, withIndex bool) {
 			match: []string{
 				"Standard library",
 				"Package fmt implements formatted I/O",
-				"internal/syscall",
+				"internal/syscall/?m=all",
 			},
 			dontmatch: []string{
 				"cmd/gc",

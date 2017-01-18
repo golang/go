@@ -55,7 +55,7 @@ func (s *handlerServer) registerWithMux(mux *http.ServeMux) {
 // set to the respective error but the error is not logged.
 //
 func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode, goos, goarch string) *PageInfo {
-	info := &PageInfo{Dirname: abspath}
+	info := &PageInfo{Dirname: abspath, Mode: mode}
 
 	// Restrict to the package files that would be used when building
 	// the package on this system.  This makes sure that if there are
@@ -203,6 +203,7 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode, 
 		timestamp = time.Now()
 	}
 	info.Dirs = dir.listing(true, func(path string) bool { return h.includePath(path, mode) })
+
 	info.DirTime = timestamp
 	info.DirFlat = mode&FlatDir != 0
 
@@ -320,6 +321,8 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type PageInfoMode uint
 
 const (
+	PageInfoModeQueryString = "m" // query string where PageInfoMode is stored
+
 	NoFiltering PageInfoMode = 1 << iota // do not filter exports
 	AllMethods                           // show all embedded methods
 	ShowSource                           // show source code, do not extract documentation
@@ -337,12 +340,32 @@ var modeNames = map[string]PageInfoMode{
 	"flat":    FlatDir,
 }
 
+// generate a query string for persisting PageInfoMode between pages.
+func modeQueryString(mode PageInfoMode) string {
+	if modeNames := mode.names(); len(modeNames) > 0 {
+		return "?m=" + strings.Join(modeNames, ",")
+	}
+	return ""
+}
+
+// alphabetically sorted names of active flags for a PageInfoMode.
+func (m PageInfoMode) names() []string {
+	var names []string
+	for name, mode := range modeNames {
+		if m&mode != 0 {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
 // GetPageInfoMode computes the PageInfoMode flags by analyzing the request
 // URL form value "m". It is value is a comma-separated list of mode names
 // as defined by modeNames (e.g.: m=src,text).
 func (p *Presentation) GetPageInfoMode(r *http.Request) PageInfoMode {
 	var mode PageInfoMode
-	for _, k := range strings.Split(r.FormValue("m"), ",") {
+	for _, k := range strings.Split(r.FormValue(PageInfoModeQueryString), ",") {
 		if m, found := modeNames[strings.TrimSpace(k)]; found {
 			mode |= m
 		}
@@ -519,7 +542,7 @@ func (p *Presentation) serveTextFile(w http.ResponseWriter, r *http.Request, abs
 		return
 	}
 
-	if r.FormValue("m") == "text" {
+	if r.FormValue(PageInfoModeQueryString) == "text" {
 		p.ServeText(w, src)
 		return
 	}
