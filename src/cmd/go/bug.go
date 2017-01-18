@@ -6,8 +6,6 @@ package main
 
 import (
 	"bytes"
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -17,6 +15,9 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 )
 
 var cmdBug = &base.Command{

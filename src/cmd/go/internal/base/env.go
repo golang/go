@@ -6,7 +6,7 @@ package base
 
 import "strings"
 
-// envForDir returns a copy of the environment
+// EnvForDir returns a copy of the environment
 // suitable for running in the given directory.
 // The environment is the current process's environment
 // but with an updated $PWD, so that an os.Getwd in the

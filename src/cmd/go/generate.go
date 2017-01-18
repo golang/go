@@ -397,7 +397,7 @@ func (g *Generator) exec(words []string) {
 	cmd.Stderr = os.Stderr
 	// Run the command in the package directory.
 	cmd.Dir = g.dir
-	cmd.Env = mergeEnvLists(g.env, cfg.OrigEnv)
+	cmd.Env = base.MergeEnvLists(g.env, cfg.OrigEnv)
 	err := cmd.Run()
 	if err != nil {
 		g.errorf("running %q: %s", words[0], err)

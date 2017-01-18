@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package test
 
 import (
 	"flag"
@@ -138,7 +138,6 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		} else {
 			// Test-only flags.
 			// Arguably should be handled by f.flagValue, but aren't.
-			var err error
 			switch f.name {
 			// bool flags.
 			case "c", "i", "v", "cover":
@@ -147,10 +146,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				testO = value
 				testNeedBinary = true
 			case "exec":
-				execCmd, err = str.SplitQuotedFields(value)
+				xcmd, err := str.SplitQuotedFields(value)
 				if err != nil {
 					base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
 				}
+				work.ExecCmd = xcmd
 			case "bench":
 				// record that we saw the flag; don't care about the value
 				testBench = true
