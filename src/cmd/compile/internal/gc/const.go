@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/internal/src"
+	"math/big"
 	"strings"
 )
 
@@ -455,19 +456,33 @@ func toint(v Val) Val {
 
 	case *Mpflt:
 		i := new(Mpint)
-		if i.SetFloat(u) < 0 {
-			msg := "constant %v truncated to integer"
-			// provide better error message if SetFloat failed because f was too large
-			if u.Val.IsInt() {
-				msg = "constant %v overflows integer"
+		if !i.SetFloat(u) {
+			if i.Ovf {
+				yyerror("integer too large")
+			} else {
+				// The value of u cannot be represented as an integer;
+				// so we need to print an error message.
+				// Unfortunately some float values cannot be
+				// reasonably formatted for inclusion in an error
+				// message (example: 1 + 1e-100), so first we try to
+				// format the float; if the truncation resulted in
+				// something that looks like an integer we omit the
+				// value from the error message.
+				// (See issue #11371).
+				var t big.Float
+				t.Parse(fconv(u, FmtSharp), 10)
+				if t.IsInt() {
+					yyerror("constant truncated to integer")
+				} else {
+					yyerror("constant %v truncated to integer", fconv(u, FmtSharp))
+				}
 			}
-			yyerror(msg, fconv(u, FmtSharp))
 		}
 		v.U = i
 
 	case *Mpcplx:
 		i := new(Mpint)
-		if i.SetFloat(&u.Real) < 0 || u.Imag.CmpFloat64(0) != 0 {
+		if !i.SetFloat(&u.Real) || u.Imag.CmpFloat64(0) != 0 {
 			yyerror("constant %v%vi truncated to integer", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
 		}
 

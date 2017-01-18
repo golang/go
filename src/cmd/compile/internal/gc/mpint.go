@@ -36,15 +36,16 @@ func (a *Mpint) Set(b *Mpint) {
 	a.Val.Set(&b.Val)
 }
 
-func (a *Mpint) SetFloat(b *Mpflt) int {
+func (a *Mpint) SetFloat(b *Mpflt) bool {
 	// avoid converting huge floating-point numbers to integers
 	// (2*Mpprec is large enough to permit all tests to pass)
 	if b.Val.MantExp(nil) > 2*Mpprec {
-		return -1
+		a.SetOverflow()
+		return false
 	}
 
 	if _, acc := b.Val.Int(&a.Val); acc == big.Exact {
-		return 0
+		return true
 	}
 
 	const delta = 16 // a reasonably small number of bits > 0
@@ -55,17 +56,18 @@ func (a *Mpint) SetFloat(b *Mpflt) int {
 	t.SetMode(big.ToZero)
 	t.Set(&b.Val)
 	if _, acc := t.Int(&a.Val); acc == big.Exact {
-		return 0
+		return true
 	}
 
 	// try rounding up a little
 	t.SetMode(big.AwayFromZero)
 	t.Set(&b.Val)
 	if _, acc := t.Int(&a.Val); acc == big.Exact {
-		return 0
+		return true
 	}
 
-	return -1
+	a.Ovf = false
+	return false
 }
 
 func (a *Mpint) Add(b *Mpint) {
