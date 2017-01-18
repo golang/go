@@ -18,6 +18,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	envcmd "cmd/go/internal/env"
 )
 
 var cmdBug = &base.Command{
@@ -42,7 +43,7 @@ func runBug(cmd *base.Command, args []string) {
 	fmt.Fprintln(&buf, "```")
 	fmt.Fprintf(&buf, "go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	env := cfg.NewEnv
-	env = append(env, extraEnvVars()...)
+	env = append(env, envcmd.ExtraEnvVars()...)
 	for _, e := range env {
 		// Hide the TERM environment variable from "go bug".
 		// See issue #18128

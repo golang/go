@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package env
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ import (
 	"cmd/go/internal/work"
 )
 
-var cmdEnv = &base.Command{
+var CmdEnv = &base.Command{
 	Run:       runEnv,
 	UsageLine: "env [var ...]",
 	Short:     "print Go environment information",
@@ -30,7 +30,7 @@ each named variable on its own line.
 	`,
 }
 
-func mkEnv() []cfg.EnvVar {
+func MkEnv() []cfg.EnvVar {
 	var b work.Builder
 	b.Init()
 
@@ -87,8 +87,8 @@ func findEnv(env []cfg.EnvVar, name string) string {
 	return ""
 }
 
-// extraEnvVars returns environment variables that should not leak into child processes.
-func extraEnvVars() []cfg.EnvVar {
+// ExtraEnvVars returns environment variables that should not leak into child processes.
+func ExtraEnvVars() []cfg.EnvVar {
 	var b work.Builder
 	b.Init()
 	cppflags, cflags, cxxflags, fflags, ldflags := b.CFlags(&load.Package{})
@@ -104,7 +104,7 @@ func extraEnvVars() []cfg.EnvVar {
 
 func runEnv(cmd *base.Command, args []string) {
 	env := cfg.NewEnv
-	env = append(env, extraEnvVars()...)
+	env = append(env, ExtraEnvVars()...)
 	if len(args) > 0 {
 		for _, name := range args {
 			fmt.Printf("%s\n", findEnv(env, name))
