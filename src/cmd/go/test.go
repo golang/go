@@ -10,6 +10,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -409,8 +410,8 @@ func runTest(cmd *base.Command, args []string) {
 
 	findExecCmd() // initialize cached result
 
-	instrumentInit()
-	buildModeInit()
+	work.InstrumentInit()
+	work.BuildModeInit()
 	pkgs := load.PackagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to test")
@@ -454,8 +455,8 @@ func runTest(cmd *base.Command, args []string) {
 		testC = true
 	}
 
-	var b builder
-	b.init()
+	var b work.Builder
+	b.Init()
 
 	if cfg.BuildI {
 		cfg.BuildV = testV
@@ -497,18 +498,18 @@ func runTest(cmd *base.Command, args []string) {
 		}
 		sort.Strings(all)
 
-		a := &action{}
+		a := &work.Action{}
 		for _, p := range load.PackagesForBuild(all) {
-			a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
+			a.Deps = append(a.Deps, b.Action(work.ModeInstall, work.ModeInstall, p))
 		}
-		b.do(a)
-		if !testC || a.failed {
+		b.Do(a)
+		if !testC || a.Failed {
 			return
 		}
-		b.init()
+		b.Init()
 	}
 
-	var builds, runs, prints []*action
+	var builds, runs, prints []*work.Action
 
 	if testCoverPaths != nil {
 		// Load packages that were asked about for coverage.
@@ -570,13 +571,13 @@ func runTest(cmd *base.Command, args []string) {
 	}
 
 	// Ultimately the goal is to print the output.
-	root := &action{deps: prints}
+	root := &work.Action{Deps: prints}
 
 	// Force the printing of results to happen in order,
 	// one at a time.
 	for i, a := range prints {
 		if i > 0 {
-			a.deps = append(a.deps, prints[i-1])
+			a.Deps = append(a.Deps, prints[i-1])
 		}
 	}
 
@@ -586,9 +587,9 @@ func runTest(cmd *base.Command, args []string) {
 		// Later runs must wait for the previous run's print.
 		for i, run := range runs {
 			if i == 0 {
-				run.deps = append(run.deps, builds...)
+				run.Deps = append(run.Deps, builds...)
 			} else {
-				run.deps = append(run.deps, prints[i-1])
+				run.Deps = append(run.Deps, prints[i-1])
 			}
 		}
 	}
@@ -600,26 +601,26 @@ func runTest(cmd *base.Command, args []string) {
 		okBuild[p] = true
 	}
 	warned := false
-	for _, a := range actionList(root) {
-		if a.p == nil || okBuild[a.p] {
+	for _, a := range work.ActionList(root) {
+		if a.Package == nil || okBuild[a.Package] {
 			continue
 		}
-		okBuild[a.p] = true // warn at most once
+		okBuild[a.Package] = true // warn at most once
 
 		// Don't warn about packages being rebuilt because of
 		// things like coverage analysis.
-		for _, p1 := range a.p.Internal.Imports {
+		for _, p1 := range a.Package.Internal.Imports {
 			if p1.Internal.Fake {
-				a.p.Internal.Fake = true
+				a.Package.Internal.Fake = true
 			}
 		}
 
-		if a.f != nil && !okBuild[a.p] && !a.p.Internal.Fake && !a.p.Internal.Local {
+		if a.Func != nil && !okBuild[a.Package] && !a.Package.Internal.Fake && !a.Package.Internal.Local {
 			if !warned {
 				fmt.Fprintf(os.Stderr, "warning: building out-of-date packages:\n")
 				warned = true
 			}
-			fmt.Fprintf(os.Stderr, "\t%s\n", a.p.ImportPath)
+			fmt.Fprintf(os.Stderr, "\t%s\n", a.Package.ImportPath)
 		}
 	}
 	if warned {
@@ -637,7 +638,7 @@ func runTest(cmd *base.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "installing these packages with 'go test %s-i%s' will speed future tests.\n\n", extraOpts, args)
 	}
 
-	b.do(root)
+	b.Do(root)
 }
 
 var windowsBadWords = []string{
@@ -647,11 +648,11 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func builderTest(b *builder, p *load.Package) (buildAction, runAction, printAction *action, err error) {
+func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
-		build := b.action(modeBuild, modeBuild, p)
-		run := &action{p: p, deps: []*action{build}}
-		print := &action{f: builderNoTest, p: p, deps: []*action{run}}
+		build := b.Action(work.ModeBuild, work.ModeBuild, p)
+		run := &work.Action{Package: p, Deps: []*work.Action{build}}
+		print := &work.Action{Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
 		return build, run, print, nil
 	}
 
@@ -736,12 +737,12 @@ func builderTest(b *builder, p *load.Package) (buildAction, runAction, printActi
 	// $WORK/unicode/utf8/_test/unicode/utf8.a.
 	// We write the external test package archive to
 	// $WORK/unicode/utf8/_test/unicode/utf8_test.a.
-	testDir := filepath.Join(b.work, filepath.FromSlash(p.ImportPath+"/_test"))
-	ptestObj := buildToolchain.pkgpath(testDir, p)
+	testDir := filepath.Join(b.WorkDir, filepath.FromSlash(p.ImportPath+"/_test"))
+	ptestObj := work.BuildToolchain.Pkgpath(testDir, p)
 
 	// Create the directory for the .a files.
 	ptestDir, _ := filepath.Split(ptestObj)
-	if err := b.mkdir(ptestDir); err != nil {
+	if err := b.Mkdir(ptestDir); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -898,7 +899,7 @@ func builderTest(b *builder, p *load.Package) (buildAction, runAction, printActi
 	if cfg.BuildContext.GOOS == "darwin" {
 		if cfg.BuildContext.GOARCH == "arm" || cfg.BuildContext.GOARCH == "arm64" {
 			t.IsIOS = true
-			t.NeedCgo = true
+			t.NeedOS = true
 		}
 	}
 	if t.TestMain == nil {
@@ -922,24 +923,24 @@ func builderTest(b *builder, p *load.Package) (buildAction, runAction, printActi
 	load.ComputeStale(pmain)
 
 	if ptest != p {
-		a := b.action(modeBuild, modeBuild, ptest)
-		a.objdir = testDir + string(filepath.Separator) + "_obj_test" + string(filepath.Separator)
-		a.objpkg = ptestObj
-		a.target = ptestObj
-		a.link = false
+		a := b.Action(work.ModeBuild, work.ModeBuild, ptest)
+		a.Objdir = testDir + string(filepath.Separator) + "_obj_test" + string(filepath.Separator)
+		a.Objpkg = ptestObj
+		a.Target = ptestObj
+		a.Link = false
 	}
 
 	if pxtest != nil {
-		a := b.action(modeBuild, modeBuild, pxtest)
-		a.objdir = testDir + string(filepath.Separator) + "_obj_xtest" + string(filepath.Separator)
-		a.objpkg = buildToolchain.pkgpath(testDir, pxtest)
-		a.target = a.objpkg
+		a := b.Action(work.ModeBuild, work.ModeBuild, pxtest)
+		a.Objdir = testDir + string(filepath.Separator) + "_obj_xtest" + string(filepath.Separator)
+		a.Objpkg = work.BuildToolchain.Pkgpath(testDir, pxtest)
+		a.Target = a.Objpkg
 	}
 
-	a := b.action(modeBuild, modeBuild, pmain)
-	a.objdir = testDir + string(filepath.Separator)
-	a.objpkg = filepath.Join(testDir, "main.a")
-	a.target = filepath.Join(testDir, testBinary) + cfg.ExeSuffix
+	a := b.Action(work.ModeBuild, work.ModeBuild, pmain)
+	a.Objdir = testDir + string(filepath.Separator)
+	a.Objpkg = filepath.Join(testDir, "main.a")
+	a.Target = filepath.Join(testDir, testBinary) + cfg.ExeSuffix
 	if cfg.Goos == "windows" {
 		// There are many reserved words on Windows that,
 		// if used in the name of an executable, cause Windows
@@ -965,7 +966,7 @@ func builderTest(b *builder, p *load.Package) (buildAction, runAction, printActi
 		// we could just do this always on Windows.
 		for _, bad := range windowsBadWords {
 			if strings.Contains(testBinary, bad) {
-				a.target = filepath.Join(testDir, "test.test") + cfg.ExeSuffix
+				a.Target = filepath.Join(testDir, "test.test") + cfg.ExeSuffix
 				break
 			}
 		}
@@ -981,33 +982,33 @@ func builderTest(b *builder, p *load.Package) (buildAction, runAction, printActi
 				target = filepath.Join(base.Cwd, target)
 			}
 		}
-		buildAction = &action{
-			f:      (*builder).install,
-			deps:   []*action{buildAction},
-			p:      pmain,
-			target: target,
+		buildAction = &work.Action{
+			Func:    work.BuildInstallFunc,
+			Deps:    []*work.Action{buildAction},
+			Package: pmain,
+			Target:  target,
 		}
 		runAction = buildAction // make sure runAction != nil even if not running test
 	}
 	if testC {
-		printAction = &action{p: p, deps: []*action{runAction}} // nop
+		printAction = &work.Action{Package: p, Deps: []*work.Action{runAction}} // nop
 	} else {
 		// run test
-		runAction = &action{
-			f:          builderRunTest,
-			deps:       []*action{buildAction},
-			p:          p,
-			ignoreFail: true,
+		runAction = &work.Action{
+			Func:       builderRunTest,
+			Deps:       []*work.Action{buildAction},
+			Package:    p,
+			IgnoreFail: true,
 		}
-		cleanAction := &action{
-			f:    builderCleanTest,
-			deps: []*action{runAction},
-			p:    p,
+		cleanAction := &work.Action{
+			Func:    builderCleanTest,
+			Deps:    []*work.Action{runAction},
+			Package: p,
 		}
-		printAction = &action{
-			f:    builderPrintTest,
-			deps: []*action{cleanAction},
-			p:    p,
+		printAction = &work.Action{
+			Func:    builderPrintTest,
+			Deps:    []*work.Action{cleanAction},
+			Package: p,
 		}
 	}
 
@@ -1060,7 +1061,7 @@ func recompileForTest(pmain, preal, ptest *load.Package, testDir string) {
 			}
 		}
 
-		// Update p.deps and p.Internal.Imports to use at test copies.
+		// Update p.Deps and p.Internal.Imports to use at test copies.
 		for i, dep := range p.Internal.Deps {
 			if p1 := testCopy[dep]; p1 != nil && p1 != dep {
 				split()
@@ -1105,27 +1106,27 @@ func declareCoverVars(importPath string, files ...string) map[string]*load.Cover
 var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
 
 // builderRunTest is the action for running a test binary.
-func builderRunTest(b *builder, a *action) error {
-	args := str.StringList(findExecCmd(), a.deps[0].target, testArgs)
-	a.testOutput = new(bytes.Buffer)
+func builderRunTest(b *work.Builder, a *work.Action) error {
+	args := str.StringList(findExecCmd(), a.Deps[0].Target, testArgs)
+	a.TestOutput = new(bytes.Buffer)
 
 	if cfg.BuildN || cfg.BuildX {
-		b.showcmd("", "%s", strings.Join(args, " "))
+		b.Showcmd("", "%s", strings.Join(args, " "))
 		if cfg.BuildN {
 			return nil
 		}
 	}
 
-	if a.failed {
+	if a.Failed {
 		// We were unable to build the binary.
-		a.failed = false
-		fmt.Fprintf(a.testOutput, "FAIL\t%s [build failed]\n", a.p.ImportPath)
+		a.Failed = false
+		fmt.Fprintf(a.TestOutput, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
 		base.SetExitStatus(1)
 		return nil
 	}
 
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Dir = a.p.Dir
+	cmd.Dir = a.Package.Dir
 	cmd.Env = envForDir(cmd.Dir, cfg.OrigEnv)
 	var buf bytes.Buffer
 	if testStreamOutput {
@@ -1138,7 +1139,7 @@ func builderRunTest(b *builder, a *action) error {
 
 	// If there are any local SWIG dependencies, we want to load
 	// the shared library from the build directory.
-	if a.p.UsesSwig() {
+	if a.Package.UsesSwig() {
 		env := cmd.Env
 		found := false
 		prefix := "LD_LIBRARY_PATH="
@@ -1196,23 +1197,23 @@ func builderRunTest(b *builder, a *action) error {
 	if err == nil {
 		norun := ""
 		if testShowPass {
-			a.testOutput.Write(out)
+			a.TestOutput.Write(out)
 		}
 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
 			norun = " [no tests to run]"
 		}
-		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s%s\n", a.p.ImportPath, t, coveragePercentage(out), norun)
+		fmt.Fprintf(a.TestOutput, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
 		return nil
 	}
 
 	base.SetExitStatus(1)
 	if len(out) > 0 {
-		a.testOutput.Write(out)
+		a.TestOutput.Write(out)
 		// assume printing the test binary's exit status is superfluous
 	} else {
-		fmt.Fprintf(a.testOutput, "%s\n", err)
+		fmt.Fprintf(a.TestOutput, "%s\n", err)
 	}
-	fmt.Fprintf(a.testOutput, "FAIL\t%s\t%s\n", a.p.ImportPath, t)
+	fmt.Fprintf(a.TestOutput, "FAIL\t%s\t%s\n", a.Package.ImportPath, t)
 
 	return nil
 }
@@ -1237,28 +1238,28 @@ func coveragePercentage(out []byte) string {
 }
 
 // builderCleanTest is the action for cleaning up after a test.
-func builderCleanTest(b *builder, a *action) error {
+func builderCleanTest(b *work.Builder, a *work.Action) error {
 	if cfg.BuildWork {
 		return nil
 	}
-	run := a.deps[0]
-	testDir := filepath.Join(b.work, filepath.FromSlash(run.p.ImportPath+"/_test"))
+	run := a.Deps[0]
+	testDir := filepath.Join(b.WorkDir, filepath.FromSlash(run.Package.ImportPath+"/_test"))
 	os.RemoveAll(testDir)
 	return nil
 }
 
 // builderPrintTest is the action for printing a test result.
-func builderPrintTest(b *builder, a *action) error {
-	clean := a.deps[0]
-	run := clean.deps[0]
-	os.Stdout.Write(run.testOutput.Bytes())
-	run.testOutput = nil
+func builderPrintTest(b *work.Builder, a *work.Action) error {
+	clean := a.Deps[0]
+	run := clean.Deps[0]
+	os.Stdout.Write(run.TestOutput.Bytes())
+	run.TestOutput = nil
 	return nil
 }
 
 // builderNoTest is the action for testing a package with no test files.
-func builderNoTest(b *builder, a *action) error {
-	fmt.Printf("?   \t%s\t[no test files]\n", a.p.ImportPath)
+func builderNoTest(b *work.Builder, a *work.Action) error {
+	fmt.Printf("?   \t%s\t[no test files]\n", a.Package.ImportPath)
 	return nil
 }
 

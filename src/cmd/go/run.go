@@ -5,15 +5,17 @@
 package main
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
-	"cmd/go/internal/str"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 )
 
 var execCmd []string // -exec flag, for run and test
@@ -59,8 +61,8 @@ See also: go build.
 func init() {
 	cmdRun.Run = runRun // break init loop
 
-	addBuildFlags(cmdRun)
-	cmdRun.Flag.Var((*stringsFlag)(&execCmd), "exec", "")
+	work.AddBuildFlags(cmdRun)
+	cmdRun.Flag.Var((*base.StringsFlag)(&execCmd), "exec", "")
 }
 
 func printStderr(args ...interface{}) (int, error) {
@@ -68,11 +70,11 @@ func printStderr(args ...interface{}) (int, error) {
 }
 
 func runRun(cmd *base.Command, args []string) {
-	instrumentInit()
-	buildModeInit()
-	var b builder
-	b.init()
-	b.print = printStderr
+	work.InstrumentInit()
+	work.BuildModeInit()
+	var b work.Builder
+	b.Init()
+	b.Print = printStderr
 	i := 0
 	for i < len(args) && strings.HasSuffix(args[i], ".go") {
 		i++
@@ -126,17 +128,17 @@ func runRun(cmd *base.Command, args []string) {
 		base.Fatalf("go run: no suitable source files%s", hint)
 	}
 	p.Internal.ExeName = src[:len(src)-len(".go")] // name temporary executable for first go file
-	a1 := b.action(modeBuild, modeBuild, p)
-	a := &action{f: (*builder).runProgram, args: cmdArgs, deps: []*action{a1}}
-	b.do(a)
+	a1 := b.Action(work.ModeBuild, work.ModeBuild, p)
+	a := &work.Action{Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
+	b.Do(a)
 }
 
-// runProgram is the action for running a binary that has already
+// buildRunProgram is the action for running a binary that has already
 // been compiled. We ignore exit status.
-func (b *builder) runProgram(a *action) error {
-	cmdline := str.StringList(findExecCmd(), a.deps[0].target, a.args)
+func buildRunProgram(b *work.Builder, a *work.Action) error {
+	cmdline := str.StringList(findExecCmd(), a.Deps[0].Target, a.Args)
 	if cfg.BuildN || cfg.BuildX {
-		b.showcmd("", "%s", strings.Join(cmdline, " "))
+		b.Showcmd("", "%s", strings.Join(cmdline, " "))
 		if cfg.BuildN {
 			return nil
 		}

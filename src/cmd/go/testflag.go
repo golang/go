@@ -5,13 +5,16 @@
 package main
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 )
 
 // The flag handling part of go test is large and distracting.
@@ -66,7 +69,7 @@ var testFlagDefn = []*testFlagSpec{
 // add build flags to testFlagDefn
 func init() {
 	var cmd base.Command
-	addBuildFlags(&cmd)
+	work.AddBuildFlags(&cmd)
 	cmd.Flag.VisitAll(func(f *flag.Flag) {
 		if f.Name == "v" {
 			// test overrides the build -v flag
@@ -144,7 +147,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 				testO = value
 				testNeedBinary = true
 			case "exec":
-				execCmd, err = splitQuotedFields(value)
+				execCmd, err = str.SplitQuotedFields(value)
 				if err != nil {
 					base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
 				}

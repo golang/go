@@ -5,14 +5,16 @@
 package main
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/go/internal/work"
 )
 
 var cmdClean = &base.Command{
@@ -74,7 +76,7 @@ func init() {
 	// mentioned explicitly in the docs but they
 	// are part of the build flags.
 
-	addBuildFlags(cmdClean)
+	work.AddBuildFlags(cmdClean)
 }
 
 func runClean(cmd *base.Command, args []string) {
@@ -124,8 +126,8 @@ func clean(p *load.Package) {
 		return
 	}
 
-	var b builder
-	b.print = fmt.Print
+	var b work.Builder
+	b.Print = fmt.Print
 
 	packageFile := map[string]bool{}
 	if p.Name != "main" {
@@ -176,7 +178,7 @@ func clean(p *load.Package) {
 	}
 
 	if cfg.BuildN || cfg.BuildX {
-		b.showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
+		b.Showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
 	}
 
 	toRemove := map[string]bool{}
@@ -189,7 +191,7 @@ func clean(p *load.Package) {
 			// TODO: Remove once Makefiles are forgotten.
 			if cleanDir[name] {
 				if cfg.BuildN || cfg.BuildX {
-					b.showcmd(p.Dir, "rm -r %s", name)
+					b.Showcmd(p.Dir, "rm -r %s", name)
 					if cfg.BuildN {
 						continue
 					}
@@ -212,7 +214,7 @@ func clean(p *load.Package) {
 
 	if cleanI && p.Internal.Target != "" {
 		if cfg.BuildN || cfg.BuildX {
-			b.showcmd("", "rm -f %s", p.Internal.Target)
+			b.Showcmd("", "rm -f %s", p.Internal.Target)
 		}
 		if !cfg.BuildN {
 			removeFile(p.Internal.Target)

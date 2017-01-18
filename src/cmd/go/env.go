@@ -5,13 +5,15 @@
 package main
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
 	"fmt"
 	"os"
 	"runtime"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/go/internal/work"
 )
 
 var cmdEnv = &base.Command{
@@ -29,8 +31,8 @@ each named variable on its own line.
 }
 
 func mkEnv() []cfg.EnvVar {
-	var b builder
-	b.init()
+	var b work.Builder
+	b.Init()
 
 	env := []cfg.EnvVar{
 		{"GOARCH", cfg.Goarch},
@@ -48,10 +50,10 @@ func mkEnv() []cfg.EnvVar {
 		{"TERM", "dumb"},
 	}
 
-	if gccgoBin != "" {
-		env = append(env, cfg.EnvVar{"GCCGO", gccgoBin})
+	if work.GccgoBin != "" {
+		env = append(env, cfg.EnvVar{"GCCGO", work.GccgoBin})
 	} else {
-		env = append(env, cfg.EnvVar{"GCCGO", gccgoName})
+		env = append(env, cfg.EnvVar{"GCCGO", work.GccgoName})
 	}
 
 	switch cfg.Goarch {
@@ -61,10 +63,10 @@ func mkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{"GO386", os.Getenv("GO386")})
 	}
 
-	cmd := b.gccCmd(".")
+	cmd := b.GccCmd(".")
 	env = append(env, cfg.EnvVar{"CC", cmd[0]})
 	env = append(env, cfg.EnvVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
-	cmd = b.gxxCmd(".")
+	cmd = b.GxxCmd(".")
 	env = append(env, cfg.EnvVar{"CXX", cmd[0]})
 
 	if cfg.BuildContext.CgoEnabled {
@@ -87,11 +89,11 @@ func findEnv(env []cfg.EnvVar, name string) string {
 
 // extraEnvVars returns environment variables that should not leak into child processes.
 func extraEnvVars() []cfg.EnvVar {
-	var b builder
-	b.init()
-	cppflags, cflags, cxxflags, fflags, ldflags := b.cflags(&load.Package{})
+	var b work.Builder
+	b.Init()
+	cppflags, cflags, cxxflags, fflags, ldflags := b.CFlags(&load.Package{})
 	return []cfg.EnvVar{
-		{"PKG_CONFIG", b.pkgconfigCmd()},
+		{"PKG_CONFIG", b.PkgconfigCmd()},
 		{"CGO_CFLAGS", strings.Join(cflags, " ")},
 		{"CGO_CPPFLAGS", strings.Join(cppflags, " ")},
 		{"CGO_CXXFLAGS", strings.Join(cxxflags, " ")},

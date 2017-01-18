@@ -9,6 +9,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/work"
 	"encoding/json"
 	"io"
 	"os"
@@ -140,7 +141,7 @@ For more about specifying packages, see 'go help packages'.
 
 func init() {
 	cmdList.Run = runList // break init cycle
-	addBuildFlags(cmdList)
+	work.AddBuildFlags(cmdList)
 }
 
 var listE = cmdList.Flag.Bool("e", false, "")
@@ -149,7 +150,7 @@ var listJson = cmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
 
 func runList(cmd *base.Command, args []string) {
-	buildModeInit()
+	work.BuildModeInit()
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
 
