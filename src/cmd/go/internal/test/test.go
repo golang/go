@@ -2,15 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package test
 
 import (
 	"bytes"
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
-	"cmd/go/internal/str"
-	"cmd/go/internal/work"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -30,16 +25,22 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 )
 
 // Break init loop.
 func init() {
-	cmdTest.Run = runTest
+	CmdTest.Run = runTest
 }
 
 const testUsage = "test [build/test flags] [packages] [build/test flags & test binary flags]"
 
-var cmdTest = &base.Command{
+var CmdTest = &base.Command{
 	CustomFlags: true,
 	UsageLine:   testUsage,
 	Short:       "test packages",
@@ -112,7 +113,15 @@ The test binary also accepts flags that control execution of the test; these
 flags are also accessible by 'go test'.
 `
 
-var helpTestflag = &base.Command{
+// Usage prints the usage message for 'go test -h' and exits.
+func Usage() {
+	os.Stderr.WriteString(testUsage + "\n\n" +
+		strings.TrimSpace(testFlag1) + "\n\n\t" +
+		strings.TrimSpace(testFlag2) + "\n")
+	os.Exit(2)
+}
+
+var HelpTestflag = &base.Command{
 	UsageLine: "testflag",
 	Short:     "description of testing flags",
 	Long: `
@@ -317,7 +326,7 @@ In the second example, the argument math is passed through to the test
 binary, instead of being interpreted as the package list.
 `
 
-var helpTestfunc = &base.Command{
+var HelpTestfunc = &base.Command{
 	UsageLine: "testfunc",
 	Short:     "description of testing functions",
 	Long: `
@@ -408,7 +417,7 @@ func runTest(cmd *base.Command, args []string) {
 	var pkgArgs []string
 	pkgArgs, testArgs = testFlags(args)
 
-	findExecCmd() // initialize cached result
+	work.FindExecCmd() // initialize cached result
 
 	work.InstrumentInit()
 	work.BuildModeInit()
@@ -1107,7 +1116,7 @@ var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
 
 // builderRunTest is the action for running a test binary.
 func builderRunTest(b *work.Builder, a *work.Action) error {
-	args := str.StringList(findExecCmd(), a.Deps[0].Target, testArgs)
+	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testArgs)
 	a.TestOutput = new(bytes.Buffer)
 
 	if cfg.BuildN || cfg.BuildX {
@@ -1127,7 +1136,7 @@ func builderRunTest(b *work.Builder, a *work.Action) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.Package.Dir
-	cmd.Env = envForDir(cmd.Dir, cfg.OrigEnv)
+	cmd.Env = base.EnvForDir(cmd.Dir, cfg.OrigEnv)
 	var buf bytes.Buffer
 	if testStreamOutput {
 		cmd.Stdout = os.Stdout

@@ -3622,3 +3622,28 @@ func InstrumentInit() {
 		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "msan")
 	}
 }
+
+// ExecCmd is the command to use to run user binaries.
+// Normally it is empty, meaning run the binaries directly.
+// If cross-compiling and running on a remote system or
+// simulator, it is typically go_GOOS_GOARCH_exec, with
+// the target GOOS and GOARCH substituted.
+// The -exec flag overrides these defaults.
+var ExecCmd []string
+
+// FindExecCmd derives the value of ExecCmd to use.
+// It returns that value and leaves ExecCmd set for direct use.
+func FindExecCmd() []string {
+	if ExecCmd != nil {
+		return ExecCmd
+	}
+	ExecCmd = []string{} // avoid work the second time
+	if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH {
+		return ExecCmd
+	}
+	path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
+	if err == nil {
+		ExecCmd = []string{path}
+	}
+	return ExecCmd
+}

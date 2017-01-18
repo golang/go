@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"cmd/go/internal/cfg"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +18,9 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 )
 
 // A vcsCmd describes how to use a version control system
@@ -373,7 +375,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 
 	cmd := exec.Command(v.cmd, args...)
 	cmd.Dir = dir
-	cmd.Env = envForDir(cmd.Dir, os.Environ())
+	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
 	if cfg.BuildX {
 		fmt.Printf("cd %s\n", dir)
 		fmt.Printf("%s %s\n", v.cmd, strings.Join(args, " "))

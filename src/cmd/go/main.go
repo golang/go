@@ -16,6 +16,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/help"
+	"cmd/go/internal/test"
 	"cmd/go/internal/work"
 )
 
@@ -33,7 +34,7 @@ func init() {
 		work.CmdInstall,
 		cmdList,
 		cmdRun,
-		cmdTest,
+		test.CmdTest,
 		cmdTool,
 		cmdVersion,
 		cmdVet,
@@ -45,8 +46,8 @@ func init() {
 		help.HelpEnvironment,
 		help.HelpImportPath,
 		help.HelpPackages,
-		helpTestflag,
-		helpTestfunc,
+		test.HelpTestflag,
+		test.HelpTestfunc,
 	}
 }
 
@@ -134,41 +135,8 @@ func init() {
 func mainUsage() {
 	// special case "go test -h"
 	if len(os.Args) > 1 && os.Args[1] == "test" {
-		os.Stderr.WriteString(testUsage + "\n\n" +
-			strings.TrimSpace(testFlag1) + "\n\n\t" +
-			strings.TrimSpace(testFlag2) + "\n")
-		os.Exit(2)
+		test.Usage()
 	}
 	help.PrintUsage(os.Stderr)
 	os.Exit(2)
-}
-
-// envForDir returns a copy of the environment
-// suitable for running in the given directory.
-// The environment is the current process's environment
-// but with an updated $PWD, so that an os.Getwd in the
-// child will be faster.
-func envForDir(dir string, base []string) []string {
-	// Internally we only use rooted paths, so dir is rooted.
-	// Even if dir is not rooted, no harm done.
-	return mergeEnvLists([]string{"PWD=" + dir}, base)
-}
-
-// mergeEnvLists merges the two environment lists such that
-// variables with the same name in "in" replace those in "out".
-// This always returns a newly allocated slice.
-func mergeEnvLists(in, out []string) []string {
-	out = append([]string(nil), out...)
-NextVar:
-	for _, inkv := range in {
-		k := strings.SplitAfterN(inkv, "=", 2)[0]
-		for i, outkv := range out {
-			if strings.HasPrefix(outkv, k) {
-				out[i] = inkv
-				continue NextVar
-			}
-		}
-		out = append(out, inkv)
-	}
-	return out
 }

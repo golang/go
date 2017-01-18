@@ -7,8 +7,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"runtime"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -17,23 +15,6 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
-
-var execCmd []string // -exec flag, for run and test
-
-func findExecCmd() []string {
-	if execCmd != nil {
-		return execCmd
-	}
-	execCmd = []string{} // avoid work the second time
-	if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH {
-		return execCmd
-	}
-	path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
-	if err == nil {
-		execCmd = []string{path}
-	}
-	return execCmd
-}
 
 var cmdRun = &base.Command{
 	UsageLine: "run [build flags] [-exec xprog] gofiles... [arguments...]",
@@ -62,7 +43,7 @@ func init() {
 	cmdRun.Run = runRun // break init loop
 
 	work.AddBuildFlags(cmdRun)
-	cmdRun.Flag.Var((*base.StringsFlag)(&execCmd), "exec", "")
+	cmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
 func printStderr(args ...interface{}) (int, error) {
@@ -136,7 +117,7 @@ func runRun(cmd *base.Command, args []string) {
 // buildRunProgram is the action for running a binary that has already
 // been compiled. We ignore exit status.
 func buildRunProgram(b *work.Builder, a *work.Action) error {
-	cmdline := str.StringList(findExecCmd(), a.Deps[0].Target, a.Args)
+	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd("", "%s", strings.Join(cmdline, " "))
 		if cfg.BuildN {
