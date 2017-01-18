@@ -11,10 +11,11 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 )
 
 func init() {
-	addBuildFlags(cmdVet)
+	work.AddBuildFlags(cmdVet)
 }
 
 var cmdVet = &base.Command{

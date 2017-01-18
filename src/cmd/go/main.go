@@ -16,11 +16,12 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/help"
+	"cmd/go/internal/work"
 )
 
 func init() {
 	base.Commands = []*base.Command{
-		cmdBuild,
+		work.CmdBuild,
 		cmdClean,
 		cmdDoc,
 		cmdEnv,
@@ -29,7 +30,7 @@ func init() {
 		cmdFmt,
 		cmdGenerate,
 		cmdGet,
-		cmdInstall,
+		work.CmdInstall,
 		cmdList,
 		cmdRun,
 		cmdTest,

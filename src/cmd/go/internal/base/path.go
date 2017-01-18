@@ -7,6 +7,7 @@ package base
 import (
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var Cwd, _ = os.Getwd()
@@ -33,4 +34,11 @@ func RelPaths(paths []string) []string {
 		out = append(out, p)
 	}
 	return out
+}
+
+// IsTestFile reports whether the source file is a set of tests and should therefore
+// be excluded from coverage analysis.
+func IsTestFile(file string) bool {
+	// We don't cover tests, only the code they test.
+	return strings.HasSuffix(file, "_test.go")
 }

@@ -9,6 +9,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/go/internal/work"
 	"fmt"
 	"go/build"
 	"os"
@@ -83,7 +84,7 @@ var getFix = cmdGet.Flag.Bool("fix", false, "")
 var getInsecure = cmdGet.Flag.Bool("insecure", false, "")
 
 func init() {
-	addBuildFlags(cmdGet)
+	work.AddBuildFlags(cmdGet)
 	cmdGet.Run = runGet // break init loop
 }
 
@@ -157,7 +158,7 @@ func runGet(cmd *base.Command, args []string) {
 		return
 	}
 
-	installPackages(args, true)
+	work.InstallPackages(args, true)
 }
 
 // downloadPaths prepares the list of paths to pass to download.

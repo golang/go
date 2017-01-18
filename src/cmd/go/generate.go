@@ -10,6 +10,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/work"
 	"fmt"
 	"io"
 	"log"
@@ -134,7 +135,7 @@ var (
 )
 
 func init() {
-	addBuildFlags(cmdGenerate)
+	work.AddBuildFlags(cmdGenerate)
 	cmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
 }
 
