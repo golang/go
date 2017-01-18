@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+// Package bug implements the ``go bug'' command.
+package bug
 
 import (
 	"bytes"
@@ -18,11 +19,11 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	envcmd "cmd/go/internal/env"
+	"cmd/go/internal/envcmd"
 	"cmd/go/internal/web"
 )
 
-var cmdBug = &base.Command{
+var CmdBug = &base.Command{
 	Run:       runBug,
 	UsageLine: "bug",
 	Short:     "start a bug report",
@@ -33,7 +34,7 @@ The report includes useful system information.
 }
 
 func init() {
-	cmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	CmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 }
 
 func runBug(cmd *base.Command, args []string) {
@@ -43,7 +44,7 @@ func runBug(cmd *base.Command, args []string) {
 	fmt.Fprint(&buf, "#### System details\n\n")
 	fmt.Fprintln(&buf, "```")
 	fmt.Fprintf(&buf, "go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
-	env := cfg.NewEnv
+	env := cfg.CmdEnv
 	env = append(env, envcmd.ExtraEnvVars()...)
 	for _, e := range env {
 		// Hide the TERM environment variable from "go bug".
