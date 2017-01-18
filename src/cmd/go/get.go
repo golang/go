@@ -5,11 +5,6 @@
 package main
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
-	"cmd/go/internal/str"
-	"cmd/go/internal/work"
 	"fmt"
 	"go/build"
 	"os"
@@ -18,6 +13,13 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/go/internal/str"
+	"cmd/go/internal/web"
+	"cmd/go/internal/work"
 )
 
 var cmdGet = &base.Command{
@@ -367,9 +369,9 @@ func downloadPackage(p *load.Package) error {
 		err            error
 	)
 
-	security := secure
+	security := web.Secure
 	if *getInsecure {
-		security = insecure
+		security = web.Insecure
 	}
 
 	if p.Internal.Build.SrcRoot != "" {

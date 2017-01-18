@@ -9,11 +9,9 @@
 // to avoid needing to build net (and thus use cgo) during the
 // bootstrap process.
 
-package main
+package web
 
 import (
-	"cmd/go/internal/cfg"
-	"cmd/internal/browser"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -22,6 +20,9 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"cmd/go/internal/cfg"
+	"cmd/internal/browser"
 )
 
 // httpClient is the default HTTP client, but a variable so it can be
@@ -41,25 +42,25 @@ var impatientInsecureHTTPClient = &http.Client{
 	},
 }
 
-type httpError struct {
+type HTTPError struct {
 	status     string
-	statusCode int
+	StatusCode int
 	url        string
 }
 
-func (e *httpError) Error() string {
+func (e *HTTPError) Error() string {
 	return fmt.Sprintf("%s: %s", e.url, e.status)
 }
 
-// httpGET returns the data from an HTTP GET request for the given URL.
-func httpGET(url string) ([]byte, error) {
+// Get returns the data from an HTTP GET request for the given URL.
+func Get(url string) ([]byte, error) {
 	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		err := &httpError{status: resp.Status, statusCode: resp.StatusCode, url: url}
+		err := &HTTPError{status: resp.Status, StatusCode: resp.StatusCode, url: url}
 
 		return nil, err
 	}
@@ -70,9 +71,9 @@ func httpGET(url string) ([]byte, error) {
 	return b, nil
 }
 
-// httpsOrHTTP returns the body of either the importPath's
-// https resource or, if unavailable, the http resource.
-func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body io.ReadCloser, err error) {
+// GetMaybeInsecure returns the body of either the importPath's
+// https resource or, if unavailable and permitted by the security mode, the http resource.
+func GetMaybeInsecure(importPath string, security SecurityMode) (urlStr string, body io.ReadCloser, err error) {
 	fetch := func(scheme string) (urlStr string, res *http.Response, err error) {
 		u, err := url.Parse(scheme + "://" + importPath)
 		if err != nil {
@@ -83,7 +84,7 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 		if cfg.BuildV {
 			log.Printf("Fetching %s", urlStr)
 		}
-		if security == insecure && scheme == "https" { // fail earlier
+		if security == Insecure && scheme == "https" { // fail earlier
 			res, err = impatientInsecureHTTPClient.Get(urlStr)
 		} else {
 			res, err = httpClient.Get(urlStr)
@@ -100,7 +101,7 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 		if cfg.BuildV {
 			log.Printf("https fetch failed: %v", err)
 		}
-		if security == insecure {
+		if security == Insecure {
 			closeBody(res)
 			urlStr, res, err = fetch("http")
 		}
@@ -117,5 +118,5 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 	return urlStr, res.Body, nil
 }
 
-func queryEscape(s string) string { return url.QueryEscape(s) }
-func openBrowser(url string) bool { return browser.Open(url) }
+func QueryEscape(s string) string { return url.QueryEscape(s) }
+func OpenBrowser(url string) bool { return browser.Open(url) }

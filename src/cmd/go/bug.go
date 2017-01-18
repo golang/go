@@ -19,6 +19,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	envcmd "cmd/go/internal/env"
+	"cmd/go/internal/web"
 )
 
 var cmdBug = &base.Command{
@@ -57,8 +58,8 @@ func runBug(cmd *base.Command, args []string) {
 	fmt.Fprintln(&buf, "```")
 
 	body := buf.String()
-	url := "https://github.com/golang/go/issues/new?body=" + queryEscape(body)
-	if !openBrowser(url) {
+	url := "https://github.com/golang/go/issues/new?body=" + web.QueryEscape(body)
+	if !web.OpenBrowser(url) {
 		fmt.Print("Please file a new issue at golang.org/issue/new using this template:\n\n")
 		fmt.Print(body)
 	}
@@ -125,7 +126,7 @@ func printCDetails(w io.Writer) {
 }
 
 func inspectGoVersion(w io.Writer) {
-	data, err := httpGET("https://golang.org/VERSION?m=text")
+	data, err := web.Get("https://golang.org/VERSION?m=text")
 	if err != nil {
 		if cfg.BuildV {
 			fmt.Printf("failed to read from golang.org/VERSION: %v\n", err)

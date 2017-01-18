@@ -8,7 +8,7 @@
 // These stubs avoid importing packages with large dependency
 // trees, like the use of "net/http" in vcs.go.
 
-package main
+package web
 
 import (
 	"errors"
@@ -17,25 +17,21 @@ import (
 
 var errHTTP = errors.New("no http in bootstrap go command")
 
-type httpError struct {
-	statusCode int
+type HTTPError struct {
+	StatusCode int
 }
 
-func (e *httpError) Error() string {
+func (e *HTTPError) Error() string {
 	panic("unreachable")
 }
 
-func httpGET(url string) ([]byte, error) {
+func Get(url string) ([]byte, error) {
 	return nil, errHTTP
 }
 
-func httpsOrHTTP(importPath string, security securityMode) (string, io.ReadCloser, error) {
+func GetMaybeInsecure(importPath string, security SecurityMode) (string, io.ReadCloser, error) {
 	return "", nil, errHTTP
 }
 
-func parseMetaGoImports(r io.Reader) ([]metaImport, error) {
-	panic("unreachable")
-}
-
-func queryEscape(s string) string { panic("unreachable") }
-func openBrowser(url string) bool { panic("unreachable") }
+func QueryEscape(s string) string { panic("unreachable") }
+func OpenBrowser(url string) bool { panic("unreachable") }

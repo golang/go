@@ -21,6 +21,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/web"
 )
 
 // A vcsCmd describes how to use a version control system
@@ -538,19 +539,9 @@ type repoRoot struct {
 
 var httpPrefixRE = regexp.MustCompile(`^https?:`)
 
-// securityMode specifies whether a function should make network
-// calls using insecure transports (eg, plain text HTTP).
-// The zero value is "secure".
-type securityMode int
-
-const (
-	secure securityMode = iota
-	insecure
-)
-
 // repoRootForImportPath analyzes importPath to determine the
 // version control system, and code repository to use.
-func repoRootForImportPath(importPath string, security securityMode) (*repoRoot, error) {
+func repoRootForImportPath(importPath string, security web.SecurityMode) (*repoRoot, error) {
 	rr, err := repoRootFromVCSPaths(importPath, "", security, vcsPaths)
 	if err == errUnknownSite {
 		// If there are wildcards, look up the thing before the wildcard,
@@ -586,7 +577,7 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
 // repoRootFromVCSPaths attempts to map importPath to a repoRoot
 // using the mappings defined in vcsPaths.
 // If scheme is non-empty, that scheme is forced.
-func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsPaths []*vcsPath) (*repoRoot, error) {
+func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, vcsPaths []*vcsPath) (*repoRoot, error) {
 	// A common error is to use https://packagepath because that's what
 	// hg and git require. Diagnose this helpfully.
 	if loc := httpPrefixRE.FindStringIndex(importPath); loc != nil {
@@ -636,7 +627,7 @@ func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsP
 				match["repo"] = scheme + "://" + match["repo"]
 			} else {
 				for _, scheme := range vcs.scheme {
-					if security == secure && !vcs.isSecureScheme(scheme) {
+					if security == web.Secure && !vcs.isSecureScheme(scheme) {
 						continue
 					}
 					if vcs.ping(scheme, match["repo"]) == nil {
@@ -660,7 +651,7 @@ func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsP
 // statically known by repoRootForImportPathStatic.
 //
 // This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
-func repoRootForImportDynamic(importPath string, security securityMode) (*repoRoot, error) {
+func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*repoRoot, error) {
 	slash := strings.Index(importPath, "/")
 	if slash < 0 {
 		slash = len(importPath)
@@ -669,10 +660,10 @@ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRo
 	if !strings.Contains(host, ".") {
 		return nil, errors.New("import path does not begin with hostname")
 	}
-	urlStr, body, err := httpsOrHTTP(importPath, security)
+	urlStr, body, err := web.GetMaybeInsecure(importPath, security)
 	if err != nil {
 		msg := "https fetch: %v"
-		if security == insecure {
+		if security == web.Insecure {
 			msg = "http/" + msg
 		}
 		return nil, fmt.Errorf(msg, err)
@@ -744,7 +735,7 @@ var (
 // It is an error if no imports are found.
 // urlStr will still be valid if err != nil.
 // The returned urlStr will be of the form "https://golang.org/x/tools?go-get=1"
-func metaImportsForPrefix(importPrefix string, security securityMode) (urlStr string, imports []metaImport, err error) {
+func metaImportsForPrefix(importPrefix string, security web.SecurityMode) (urlStr string, imports []metaImport, err error) {
 	setCache := func(res fetchResult) (fetchResult, error) {
 		fetchCacheMu.Lock()
 		defer fetchCacheMu.Unlock()
@@ -760,7 +751,7 @@ func metaImportsForPrefix(importPrefix string, security securityMode) (urlStr st
 		}
 		fetchCacheMu.Unlock()
 
-		urlStr, body, err := httpsOrHTTP(importPrefix, security)
+		urlStr, body, err := web.GetMaybeInsecure(importPrefix, security)
 		if err != nil {
 			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("fetch %s: %v", urlStr, err)})
 		}
@@ -958,9 +949,9 @@ func bitbucketVCS(match map[string]string) error {
 		SCM string `json:"scm"`
 	}
 	url := expand(match, "https://api.bitbucket.org/1.0/repositories/{bitname}")
-	data, err := httpGET(url)
+	data, err := web.Get(url)
 	if err != nil {
-		if httpErr, ok := err.(*httpError); ok && httpErr.statusCode == 403 {
+		if httpErr, ok := err.(*web.HTTPError); ok && httpErr.StatusCode == 403 {
 			// this may be a private repository. If so, attempt to determine which
 			// VCS it uses. See issue 5375.
 			root := match["root"]
@@ -1000,7 +991,7 @@ func launchpadVCS(match map[string]string) error {
 	if match["project"] == "" || match["series"] == "" {
 		return nil
 	}
-	_, err := httpGET(expand(match, "https://code.launchpad.net/{project}{series}/.bzr/branch-format"))
+	_, err := web.Get(expand(match, "https://code.launchpad.net/{project}{series}/.bzr/branch-format"))
 	if err != nil {
 		match["root"] = expand(match, "launchpad.net/{project}")
 		match["repo"] = expand(match, "https://{root}")
