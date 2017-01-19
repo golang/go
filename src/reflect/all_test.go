@@ -26,6 +26,8 @@ import (
 	"unsafe"
 )
 
+var sink interface{}
+
 func TestBool(t *testing.T) {
 	v := ValueOf(true)
 	if v.Bool() != true {
@@ -5329,6 +5331,72 @@ func TestCallGC(t *testing.T) {
 	typ := ValueOf(f).Type()
 	f2 := MakeFunc(typ, g).Interface().(func(string, string, string, string, string))
 	f2("four", "five5", "six666", "seven77", "eight888")
+}
+
+// Issue 18635 (function version).
+func TestKeepFuncLive(t *testing.T) {
+	// Test that we keep makeFuncImpl live as long as it is
+	// referenced on the stack.
+	typ := TypeOf(func(i int) {})
+	var f, g func(in []Value) []Value
+	f = func(in []Value) []Value {
+		clobber()
+		i := int(in[0].Int())
+		if i > 0 {
+			// We can't use Value.Call here because
+			// runtime.call* will keep the makeFuncImpl
+			// alive. However, by converting it to an
+			// interface value and calling that,
+			// reflect.callReflect is the only thing that
+			// can keep the makeFuncImpl live.
+			//
+			// Alternate between f and g so that if we do
+			// reuse the memory prematurely it's more
+			// likely to get obviously corrupted.
+			MakeFunc(typ, g).Interface().(func(i int))(i - 1)
+		}
+		return nil
+	}
+	g = func(in []Value) []Value {
+		clobber()
+		i := int(in[0].Int())
+		MakeFunc(typ, f).Interface().(func(i int))(i)
+		return nil
+	}
+	MakeFunc(typ, f).Call([]Value{ValueOf(10)})
+}
+
+// Issue 18635 (method version).
+type KeepMethodLive struct{}
+
+func (k KeepMethodLive) Method1(i int) {
+	clobber()
+	if i > 0 {
+		ValueOf(k).MethodByName("Method2").Interface().(func(i int))(i - 1)
+	}
+}
+
+func (k KeepMethodLive) Method2(i int) {
+	clobber()
+	ValueOf(k).MethodByName("Method1").Interface().(func(i int))(i)
+}
+
+func TestKeepMethodLive(t *testing.T) {
+	// Test that we keep methodValue live as long as it is
+	// referenced on the stack.
+	KeepMethodLive{}.Method1(10)
+}
+
+// clobber tries to clobber unreachable memory.
+func clobber() {
+	runtime.GC()
+	for i := 1; i < 32; i++ {
+		for j := 0; j < 10; j++ {
+			obj := make([]*byte, i)
+			sink = obj
+		}
+	}
+	runtime.GC()
 }
 
 type funcLayoutTest struct {

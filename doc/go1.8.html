@@ -93,7 +93,8 @@ On OpenBSD, Go now requires OpenBSD 5.9 or later. <!-- CL 34093 -->
 <p>
 The Plan 9 port's networking support is now much more complete
 and matches the behavior of Unix and Windows with respect to deadlines
-and cancelation.
+and cancelation. For Plan 9 kernel requirements, see the
+<a href="https://golang.org/wiki/Plan9">Plan 9 wiki page</a>.
 </p>
 
 <p>
@@ -808,11 +809,6 @@ Optimizations and minor bug fixes are not listed.
 
 <dl id="crypto_x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
-    <p> <!-- CL 30578 -->
-      <a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>
-      is now implemented on Windows.
-    </p>
-
     <p> <!-- CL 24743 -->
       PSS signatures are now supported.
     </p>
@@ -1617,9 +1613,9 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       June 31 and July 32.
     </p>
 
-    <p> <!-- CL 33029 -->
+    <p> <!-- CL 33029 --> <!-- CL 34816 -->
       The <code>tzdata</code> database has been updated to version
-      2016i for systems that don't already have a local time zone
+      2016j for systems that don't already have a local time zone
       database.
     </p>
 

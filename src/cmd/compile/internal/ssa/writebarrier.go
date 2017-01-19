@@ -35,7 +35,7 @@ func writebarrier(f *Func) {
 	valueLoop:
 		for i, v := range b.Values {
 			switch v.Op {
-			case OpStoreWB, OpMoveWB, OpMoveWBVolatile:
+			case OpStoreWB, OpMoveWB, OpMoveWBVolatile, OpZeroWB:
 				if IsStackAddr(v.Args[0]) {
 					switch v.Op {
 					case OpStoreWB:

@@ -140,7 +140,7 @@ type Dirent struct {
 }
 
 type Fsid struct {
-	_ [2]int32
+	X__val [2]int32
 }
 
 type Flock_t struct {

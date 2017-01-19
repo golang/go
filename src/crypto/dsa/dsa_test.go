@@ -95,7 +95,7 @@ func TestSignAndVerify(t *testing.T) {
 func TestSigningWithDegenerateKeys(t *testing.T) {
 	// Signing with degenerate private keys should not cause an infinite
 	// loop.
-	badKeys := []struct{
+	badKeys := []struct {
 		p, q, g, y, x string
 	}{
 		{"00", "01", "00", "00", "00"},
@@ -105,7 +105,7 @@ func TestSigningWithDegenerateKeys(t *testing.T) {
 	for i, test := range badKeys {
 		priv := PrivateKey{
 			PublicKey: PublicKey{
-				Parameters: Parameters {
+				Parameters: Parameters{
 					P: fromHex(test.p),
 					Q: fromHex(test.q),
 					G: fromHex(test.g),

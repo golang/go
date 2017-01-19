@@ -56,7 +56,9 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
 
 	lock(&ifaceLock)
 	for _, i := range md.itablinks {
-		additab(i, true, false)
+		if i.inhash == 0 {
+			additab(i, true, false)
+		}
 	}
 	unlock(&ifaceLock)
 

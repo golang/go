@@ -24,6 +24,7 @@ import (
 	"net"
 	"os/exec"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1477,6 +1478,9 @@ func TestMultipleRDN(t *testing.T) {
 }
 
 func TestSystemCertPool(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("not implemented on Windows; Issue 16736, 18609")
+	}
 	_, err := SystemCertPool()
 	if err != nil {
 		t.Fatal(err)
