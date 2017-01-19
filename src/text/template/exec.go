@@ -628,7 +628,7 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 		if numIn < numFixed {
 			s.errorf("wrong number of args for %s: want at least %d got %d", name, typ.NumIn()-1, len(args))
 		}
-	} else if numIn < typ.NumIn()-1 || !typ.IsVariadic() && numIn != typ.NumIn() {
+	} else if numIn != typ.NumIn() {
 		s.errorf("wrong number of args for %s: want %d got %d", name, typ.NumIn(), len(args))
 	}
 	if !goodFunc(typ) {
