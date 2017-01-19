@@ -1714,6 +1714,7 @@ func isCommonNetReadError(err error) bool {
 // Serve a new connection.
 func (c *conn) serve(ctx context.Context) {
 	c.remoteAddr = c.rwc.RemoteAddr().String()
+	ctx = context.WithValue(ctx, LocalAddrContextKey, c.rwc.LocalAddr())
 	defer func() {
 		if err := recover(); err != nil && err != ErrAbortHandler {
 			const size = 64 << 10
@@ -2680,7 +2681,6 @@ func (srv *Server) Serve(l net.Listener) error {
 
 	baseCtx := context.Background() // base is always background, per Issue 16220
 	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
-	ctx = context.WithValue(ctx, LocalAddrContextKey, l.Addr())
 	for {
 		rw, e := l.Accept()
 		if e != nil {

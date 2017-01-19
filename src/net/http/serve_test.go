@@ -4561,13 +4561,6 @@ func testServerContext_ServerContextKey(t *testing.T, h2 bool) {
 		if _, ok := got.(*Server); !ok {
 			t.Errorf("context value = %T; want *http.Server", got)
 		}
-
-		got = ctx.Value(LocalAddrContextKey)
-		if addr, ok := got.(net.Addr); !ok {
-			t.Errorf("local addr value = %T; want net.Addr", got)
-		} else if fmt.Sprint(addr) != r.Host {
-			t.Errorf("local addr = %v; want %v", addr, r.Host)
-		}
 	}))
 	defer cst.close()
 	res, err := cst.c.Get(cst.ts.URL)
@@ -4575,6 +4568,37 @@ func testServerContext_ServerContextKey(t *testing.T, h2 bool) {
 		t.Fatal(err)
 	}
 	res.Body.Close()
+}
+
+func TestServerContext_LocalAddrContextKey_h1(t *testing.T) {
+	testServerContext_LocalAddrContextKey(t, h1Mode)
+}
+func TestServerContext_LocalAddrContextKey_h2(t *testing.T) {
+	testServerContext_LocalAddrContextKey(t, h2Mode)
+}
+func testServerContext_LocalAddrContextKey(t *testing.T, h2 bool) {
+	setParallel(t)
+	defer afterTest(t)
+	ch := make(chan interface{}, 1)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		ch <- r.Context().Value(LocalAddrContextKey)
+	}))
+	defer cst.close()
+	if _, err := cst.c.Head(cst.ts.URL); err != nil {
+		t.Fatal(err)
+	}
+
+	host := cst.ts.Listener.Addr().String()
+	select {
+	case got := <-ch:
+		if addr, ok := got.(net.Addr); !ok {
+			t.Errorf("local addr value = %T; want net.Addr", got)
+		} else if fmt.Sprint(addr) != host {
+			t.Errorf("local addr = %v; want %v", addr, host)
+		}
+	case <-time.After(5 * time.Second):
+		t.Error("timed out")
+	}
 }
 
 // https://golang.org/issue/15960
