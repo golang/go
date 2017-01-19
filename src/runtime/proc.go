@@ -1899,6 +1899,9 @@ top:
 			ready(gp, 0, true)
 		}
 	}
+	if _cgo_yield != nil {
+		asmcgocall(_cgo_yield, nil)
+	}
 
 	// local runq
 	if gp, inheritTime := runqget(_p_); gp != nil {

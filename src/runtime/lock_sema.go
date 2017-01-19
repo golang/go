@@ -163,7 +163,16 @@ func notesleep(n *note) {
 	}
 	// Queued. Sleep.
 	gp.m.blocked = true
-	semasleep(-1)
+	if _cgo_yield == nil {
+		semasleep(-1)
+	} else {
+		// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
+		const ns = 10e6
+		for atomic.Loaduintptr(&n.key) == 0 {
+			semasleep(ns)
+			asmcgocall(_cgo_yield, nil)
+		}
+	}
 	gp.m.blocked = false
 }
 
@@ -186,7 +195,16 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 	if ns < 0 {
 		// Queued. Sleep.
 		gp.m.blocked = true
-		semasleep(-1)
+		if _cgo_yield == nil {
+			semasleep(-1)
+		} else {
+			// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
+			const ns = 10e6
+			for atomic.Loaduintptr(&n.key) == 0 {
+				semasleep(ns)
+				asmcgocall(_cgo_yield, nil)
+			}
+		}
 		gp.m.blocked = false
 		return true
 	}

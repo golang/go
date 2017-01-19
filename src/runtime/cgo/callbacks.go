@@ -92,5 +92,15 @@ var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
 var x_cgo_set_context_function byte
 var _cgo_set_context_function = &x_cgo_set_context_function
 
+// Calls a libc function to execute background work injected via libc
+// interceptors, such as processing pending signals under the thread
+// sanitizer.
+//
+// Left as a nil pointer if no libc interceptors are expected.
+
+//go:cgo_import_static _cgo_yield
+//go:linkname _cgo_yield _cgo_yield
+var _cgo_yield unsafe.Pointer
+
 //go:cgo_export_static _cgo_topofstack
 //go:cgo_export_dynamic _cgo_topofstack
