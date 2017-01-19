@@ -343,7 +343,12 @@ func (s *phiState) resolveFwdRefs() {
 				if v.Op != ssa.OpPhi {
 					break // All phis will be at the end of the block during phi building.
 				}
-				v.SetArg(i, values[v.AuxInt])
+				// Only set arguments that have been resolved.
+				// For very wide CFGs, this significantly speeds up phi resolution.
+				// See golang.org/issue/8225.
+				if w := values[v.AuxInt]; w.Op != ssa.OpUnknown {
+					v.SetArg(i, w)
+				}
 			}
 		}
 
