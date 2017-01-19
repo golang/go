@@ -1024,6 +1024,196 @@ func TestTxStmt(t *testing.T) {
 	}
 }
 
+func TestTxStmtPreparedOnce(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t1|name=string,age=int32")
+
+	prepares0 := numPrepares(t, db)
+
+	// db.Prepare increments numPrepares.
+	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	if err != nil {
+		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+	}
+	defer stmt.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("Begin = %v", err)
+	}
+
+	txs1 := tx.Stmt(stmt)
+	txs2 := tx.Stmt(stmt)
+
+	_, err = txs1.Exec("Go", 7)
+	if err != nil {
+		t.Fatalf("Exec = %v", err)
+	}
+	txs1.Close()
+
+	_, err = txs2.Exec("Gopher", 8)
+	if err != nil {
+		t.Fatalf("Exec = %v", err)
+	}
+	txs2.Close()
+
+	err = tx.Commit()
+	if err != nil {
+		t.Fatalf("Commit = %v", err)
+	}
+
+	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+		t.Errorf("executed %d Prepare statements; want 1", prepares)
+	}
+}
+
+func TestTxStmtClosedRePrepares(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t1|name=string,age=int32")
+
+	prepares0 := numPrepares(t, db)
+
+	// db.Prepare increments numPrepares.
+	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	if err != nil {
+		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("Begin = %v", err)
+	}
+	err = stmt.Close()
+	if err != nil {
+		t.Fatalf("stmt.Close() = %v", err)
+	}
+	// tx.Stmt increments numPrepares because stmt is closed.
+	txs := tx.Stmt(stmt)
+	if txs.stickyErr != nil {
+		t.Fatal(txs.stickyErr)
+	}
+	if txs.parentStmt != nil {
+		t.Fatal("expected nil parentStmt")
+	}
+	_, err = txs.Exec(`Eric`, 82)
+	if err != nil {
+		t.Fatalf("txs.Exec = %v", err)
+	}
+
+	err = txs.Close()
+	if err != nil {
+		t.Fatalf("txs.Close = %v", err)
+	}
+
+	tx.Rollback()
+
+	if prepares := numPrepares(t, db) - prepares0; prepares != 2 {
+		t.Errorf("executed %d Prepare statements; want 2", prepares)
+	}
+}
+
+func TestParentStmtOutlivesTxStmt(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t1|name=string,age=int32")
+
+	// Make sure everything happens on the same connection.
+	db.SetMaxOpenConns(1)
+
+	prepares0 := numPrepares(t, db)
+
+	// db.Prepare increments numPrepares.
+	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	if err != nil {
+		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+	}
+	defer stmt.Close()
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("Begin = %v", err)
+	}
+	txs := tx.Stmt(stmt)
+	if len(stmt.css) != 1 {
+		t.Fatalf("len(stmt.css) = %v; want 1", len(stmt.css))
+	}
+	err = txs.Close()
+	if err != nil {
+		t.Fatalf("txs.Close() = %v", err)
+	}
+	err = tx.Rollback()
+	if err != nil {
+		t.Fatalf("tx.Rollback() = %v", err)
+	}
+	// txs must not be valid.
+	_, err = txs.Exec("Suzan", 30)
+	if err == nil {
+		t.Fatalf("txs.Exec(), expected err")
+	}
+	// Stmt must still be valid.
+	_, err = stmt.Exec("Janina", 25)
+	if err != nil {
+		t.Fatalf("stmt.Exec() = %v", err)
+	}
+
+	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+		t.Errorf("executed %d Prepare statements; want 1", prepares)
+	}
+}
+
+// Test that tx.Stmt called with a statment already
+// associated with tx as argument re-prepares the same
+// statement again.
+func TestTxStmtFromTxStmtRePrepares(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t1|name=string,age=int32")
+	prepares0 := numPrepares(t, db)
+	// db.Prepare increments numPrepares.
+	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	if err != nil {
+		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+	}
+	defer stmt.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("Begin = %v", err)
+	}
+	txs1 := tx.Stmt(stmt)
+
+	// tx.Stmt(txs1) increments numPrepares because txs1 already
+	// belongs to a transaction (albeit the same transaction).
+	txs2 := tx.Stmt(txs1)
+	if txs2.stickyErr != nil {
+		t.Fatal(txs2.stickyErr)
+	}
+	if txs2.parentStmt != nil {
+		t.Fatal("expected nil parentStmt")
+	}
+	_, err = txs2.Exec(`Eric`, 82)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = txs1.Close()
+	if err != nil {
+		t.Fatalf("txs1.Close = %v", err)
+	}
+	err = txs2.Close()
+	if err != nil {
+		t.Fatalf("txs1.Close = %v", err)
+	}
+	err = tx.Rollback()
+	if err != nil {
+		t.Fatalf("tx.Rollback = %v", err)
+	}
+
+	if prepares := numPrepares(t, db) - prepares0; prepares != 2 {
+		t.Errorf("executed %d Prepare statements; want 2", prepares)
+	}
+}
+
 // Issue: https://golang.org/issue/2784
 // This test didn't fail before because we got lucky with the fakedb driver.
 // It was failing, and now not, in github.com/bradfitz/go-sql-test
