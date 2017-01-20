@@ -114,6 +114,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpIMake(v, config)
 	case OpIsInBounds:
 		return rewriteValuegeneric_OpIsInBounds(v, config)
+	case OpIsNonNil:
+		return rewriteValuegeneric_OpIsNonNil(v, config)
 	case OpIsSliceInBounds:
 		return rewriteValuegeneric_OpIsSliceInBounds(v, config)
 	case OpLeq16:
@@ -3403,6 +3405,23 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 		}
 		v.reset(OpConstBool)
 		v.AuxInt = 1
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpIsNonNil(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsNonNil (ConstNil))
+	// cond:
+	// result: (ConstBool [0])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConstNil {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 0
 		return true
 	}
 	return false

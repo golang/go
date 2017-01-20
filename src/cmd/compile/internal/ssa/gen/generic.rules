@@ -650,6 +650,7 @@
 (NeqPtr (ConstNil) p) -> (IsNonNil p)
 (EqPtr p (ConstNil)) -> (Not (IsNonNil p))
 (EqPtr (ConstNil) p) -> (Not (IsNonNil p))
+(IsNonNil (ConstNil)) -> (ConstBool [0])
 
 // slice and interface comparisons
 // The frontend ensures that we can only compare against nil,
