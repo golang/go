@@ -40,23 +40,23 @@ var (
 )
 
 func f1() {
-	_ = *intp // ERROR "removed nil check"
+	_ = *intp // ERROR "generated nil check"
 
 	// This one should be removed but the block copy needs
 	// to be turned into its own pseudo-op in order to see
 	// the indirect.
-	_ = *arrayp // ERROR "removed nil check"
+	_ = *arrayp // ERROR "generated nil check"
 
 	// 0-byte indirect doesn't suffice.
 	// we don't registerize globals, so there are no removed.* nil checks.
-	_ = *array0p // ERROR "removed nil check"
 	_ = *array0p // ERROR "generated nil check"
+	_ = *array0p // ERROR "removed nil check"
 
-	_ = *intp    // ERROR "generated nil check"
+	_ = *intp    // ERROR "removed nil check"
 	_ = *arrayp  // ERROR "removed nil check"
 	_ = *structp // ERROR "generated nil check"
 	_ = *emptyp  // ERROR "generated nil check"
-	_ = *arrayp  // ERROR "generated nil check"
+	_ = *arrayp  // ERROR "removed nil check"
 }
 
 func f2() {
@@ -71,15 +71,15 @@ func f2() {
 		empty1p    *Empty1
 	)
 
-	_ = *intp       // ERROR "removed.* nil check"
-	_ = *arrayp     // ERROR "removed.* nil check"
-	_ = *array0p    // ERROR "removed.* nil check"
-	_ = *array0p    // ERROR "generated nil check"
 	_ = *intp       // ERROR "generated nil check"
+	_ = *arrayp     // ERROR "generated nil check"
+	_ = *array0p    // ERROR "generated nil check"
+	_ = *array0p    // ERROR "removed.* nil check"
+	_ = *intp       // ERROR "removed.* nil check"
 	_ = *arrayp     // ERROR "removed.* nil check"
 	_ = *structp    // ERROR "generated nil check"
 	_ = *emptyp     // ERROR "generated nil check"
-	_ = *arrayp     // ERROR "generated nil check"
+	_ = *arrayp     // ERROR "removed.* nil check"
 	_ = *bigarrayp  // ERROR "generated nil check" ARM removed nil check before indirect!!
 	_ = *bigstructp // ERROR "generated nil check"
 	_ = *empty1p    // ERROR "generated nil check"
@@ -122,16 +122,16 @@ func f3(x *[10000]int) {
 	// x wasn't going to change across the function call.
 	// But it's a little complex to do and in practice doesn't
 	// matter enough.
-	_ = x[9999] // ERROR "generated nil check" // TODO: fix
+	_ = x[9999] // ERROR "removed nil check"
 }
 
 func f3a() {
 	x := fx10k()
 	y := fx10k()
 	z := fx10k()
-	_ = &x[9] // ERROR "removed.* nil check"
-	y = z
 	_ = &x[9] // ERROR "generated nil check"
+	y = z
+	_ = &x[9] // ERROR "removed.* nil check"
 	x = y
 	_ = &x[9] // ERROR "generated nil check"
 }
@@ -139,11 +139,11 @@ func f3a() {
 func f3b() {
 	x := fx10k()
 	y := fx10k()
-	_ = &x[9] // ERROR "removed.* nil check"
+	_ = &x[9] // ERROR "generated nil check"
 	y = x
 	_ = &x[9] // ERROR "removed.* nil check"
 	x = y
-	_ = &x[9] // ERROR "generated nil check"
+	_ = &x[9] // ERROR "removed.* nil check"
 }
 
 func fx10() *[10]int
@@ -179,15 +179,15 @@ func f4(x *[10]int) {
 	_ = x[9] // ERROR "generated nil check"  // bug would like to remove before indirect
 
 	fx10()
-	_ = x[9] // ERROR "generated nil check"  // TODO: fix
+	_ = x[9] // ERROR "removed nil check"
 
 	x = fx10()
 	y := fx10()
-	_ = &x[9] // ERROR "removed[a-z ]* nil check"
+	_ = &x[9] // ERROR "generated nil check"
 	y = x
 	_ = &x[9] // ERROR "removed[a-z ]* nil check"
 	x = y
-	_ = &x[9] // ERROR "generated nil check"
+	_ = &x[9] // ERROR "removed[a-z ]* nil check"
 }
 
 func f5(p *float32, q *float64, r *float32, s *float64) float64 {
