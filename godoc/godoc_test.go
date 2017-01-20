@@ -5,6 +5,8 @@
 package godoc
 
 import (
+	"bytes"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -123,10 +125,7 @@ func TestSanitizeFunc(t *testing.T) {
 // Test that we add <span id="StructName.FieldName"> elements
 // to the HTML of struct fields.
 func TestStructFieldsIDAttributes(t *testing.T) {
-	p := &Presentation{
-		DeclLinks: true,
-	}
-	src := []byte(`
+	got := linkifyStructFields(t, []byte(`
 package foo
 
 type T struct {
@@ -137,8 +136,32 @@ type T struct {
 
 	// Opt, if non-nil, is an option.
 	Opt *int
+
+	// Опция - другое поле.
+	Опция bool
 }
-`)
+`))
+	want := `type T struct {
+<span id="T.NoDoc"></span>NoDoc <a href="/pkg/builtin/#string">string</a>
+
+<span id="T.Doc"></span><span class="comment">// Doc has a comment.</span>
+Doc <a href="/pkg/builtin/#string">string</a>
+
+<span id="T.Opt"></span><span class="comment">// Opt, if non-nil, is an option.</span>
+Opt *<a href="/pkg/builtin/#int">int</a>
+
+<span id="T.Опция"></span><span class="comment">// Опция - другое поле.</span>
+Опция <a href="/pkg/builtin/#bool">bool</a>
+}`
+	if got != want {
+		t.Errorf("got: %s\n\nwant: %s\n", got, want)
+	}
+}
+
+func linkifyStructFields(t *testing.T, src []byte) string {
+	p := &Presentation{
+		DeclLinks: true,
+	}
 	fset := token.NewFileSet()
 	af, err := parser.ParseFile(fset, "foo.go", src, parser.ParseComments)
 	if err != nil {
@@ -148,17 +171,46 @@ type T struct {
 	pi := &PageInfo{
 		FSet: fset,
 	}
-	got := p.node_htmlFunc(pi, genDecl, true)
-	want := `type T struct {
-<span id="T.NoDoc"></span>NoDoc <a href="/pkg/builtin/#string">string</a>
+	return p.node_htmlFunc(pi, genDecl, true)
+}
 
-<span id="T.Doc"></span><span class="comment">// Doc has a comment.</span>
-Doc <a href="/pkg/builtin/#string">string</a>
+// Verify that scanIdentifier isn't quadratic.
+// This doesn't actually measure and fail on its own, but it was previously
+// very obvious when running by hand.
+//
+// TODO: if there's a reliable and non-flaky way to test this, do so.
+// Maybe count user CPU time instead of wall time? But that's not easy
+// to do portably in Go.
+func TestStructField(t *testing.T) {
+	for _, n := range []int{10, 100, 1000, 10000} {
+		n := n
+		t.Run(fmt.Sprint(n), func(t *testing.T) {
+			var buf bytes.Buffer
+			fmt.Fprintf(&buf, "package foo\n\ntype T struct {\n")
+			for i := 0; i < n; i++ {
+				fmt.Fprintf(&buf, "\t// Field%d is foo.\n\tField%d int\n\n", i, i)
+			}
+			fmt.Fprintf(&buf, "}\n")
+			linkifyStructFields(t, buf.Bytes())
+		})
+	}
+}
 
-<span id="T.Opt"></span><span class="comment">// Opt, if non-nil, is an option.</span>
-Opt *<a href="/pkg/builtin/#int">int</a>
-}`
-	if got != want {
-		t.Errorf("got: %s\n\nwant: %s\n", got, want)
+func TestScanIdentifier(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"foo bar", "foo"},
+		{"foo/bar", "foo"},
+		{" foo", ""},
+		{"фоо", "фоо"},
+		{"f123", "f123"},
+		{"123f", ""},
+	}
+	for _, tt := range tests {
+		got := scanIdentifier([]byte(tt.in))
+		if string(got) != tt.want {
+			t.Errorf("scanIdentifier(%q) = %q; want %q", tt.in, got, tt.want)
+		}
 	}
 }

@@ -233,24 +233,28 @@ func addStructFieldIDAttributes(buf *bytes.Buffer, name string, st *ast.StructTy
 	if st.Fields == nil {
 		return
 	}
-	var scratch bytes.Buffer
+	// needsLink is a set of identifiers that still need to be
+	// linked, where value == key, to avoid an allocation in func
+	// linkedField.
+	needsLink := make(map[string]string)
+
 	for _, f := range st.Fields.List {
 		if len(f.Names) == 0 {
 			continue
 		}
 		fieldName := f.Names[0].Name
-		scratch.Reset()
-		var added bool
-		foreachLine(buf.Bytes(), func(line []byte) {
-			if !added && isLineForStructFieldID(line, fieldName) {
-				added = true
-				fmt.Fprintf(&scratch, `<span id="%s.%s"></span>`, name, fieldName)
-			}
-			scratch.Write(line)
-		})
-		buf.Reset()
-		buf.Write(scratch.Bytes())
+		needsLink[fieldName] = fieldName
 	}
+	var newBuf bytes.Buffer
+	foreachLine(buf.Bytes(), func(line []byte) {
+		if fieldName := linkedField(line, needsLink); fieldName != "" {
+			fmt.Fprintf(&newBuf, `<span id="%s.%s"></span>`, name, fieldName)
+			delete(needsLink, fieldName)
+		}
+		newBuf.Write(line)
+	})
+	buf.Reset()
+	buf.Write(newBuf.Bytes())
 }
 
 // foreachLine calls fn for each line of in, where a line includes
@@ -270,9 +274,12 @@ func foreachLine(in []byte, fn func(line []byte)) {
 // commentPrefix is the line prefix for comments after they've been HTMLified.
 var commentPrefix = []byte(`<span class="comment">// `)
 
-// isLineForStructFieldID reports whether line is a line we should
-// add a <span id="#StructName.FieldName"> to. Only the fieldName is provided.
-func isLineForStructFieldID(line []byte, fieldName string) bool {
+// linkedField determines whether the given line starts with an
+// identifer in the provided ids map (mapping from identifier to the
+// same identifier). The line can start with either an identifier or
+// an identifier in a comment. If one matches, it returns the
+// identifier that matched. Otherwise it returns the empty string.
+func linkedField(line []byte, ids map[string]string) string {
 	line = bytes.TrimSpace(line)
 
 	// For fields with a doc string of the
@@ -292,13 +299,39 @@ func isLineForStructFieldID(line []byte, fieldName string) bool {
 	//
 	// TODO: do this better, so it works for all
 	// comments, including unconventional ones.
-	// For comments
 	if bytes.HasPrefix(line, commentPrefix) {
-		if matchesIdentBoundary(line[len(commentPrefix):], fieldName) {
-			return true
-		}
+		line = line[len(commentPrefix):]
 	}
-	return matchesIdentBoundary(line, fieldName)
+	id := scanIdentifier(line)
+	if len(id) == 0 {
+		// No leading identifier. Avoid map lookup for
+		// somewhat common case.
+		return ""
+	}
+	return ids[string(id)]
+}
+
+// scanIdentifier scans a valid Go identifier off the front of v and
+// either returns a subslice of v if there's a valid identifier, or
+// returns a zero-length slice.
+func scanIdentifier(v []byte) []byte {
+	var n int // number of leading bytes of v belonging to an identifier
+	for {
+		r, width := utf8.DecodeRune(v[n:])
+		if !(isLetter(r) || n > 0 && isDigit(r)) {
+			break
+		}
+		n += width
+	}
+	return v[:n]
+}
+
+func isLetter(ch rune) bool {
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
+}
+
+func isDigit(ch rune) bool {
+	return '0' <= ch && ch <= '9' || ch >= utf8.RuneSelf && unicode.IsDigit(ch)
 }
 
 // matchesIdentBoundary reports whether line matches /^ident\b/.
