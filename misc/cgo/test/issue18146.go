@@ -73,7 +73,7 @@ func test18146(t *testing.T) {
 		}
 		runtime.GOMAXPROCS(threads)
 		argv := append(os.Args, "-test.run=NoSuchTestExists")
-		if err := syscall.Exec(os.Args[0], argv, nil); err != nil {
+		if err := syscall.Exec(os.Args[0], argv, os.Environ()); err != nil {
 			t.Fatal(err)
 		}
 	}
