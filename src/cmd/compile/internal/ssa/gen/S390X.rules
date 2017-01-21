@@ -885,9 +885,9 @@
 (MOVDEQ y _ (FlagLT)) -> y
 (MOVDEQ y _ (FlagGT)) -> y
 
-(MOVDNE _ y (FlagEQ)) -> y
-(MOVDNE x _ (FlagLT)) -> x
-(MOVDNE x _ (FlagGT)) -> x
+(MOVDNE y _ (FlagEQ)) -> y
+(MOVDNE _ x (FlagLT)) -> x
+(MOVDNE _ x (FlagGT)) -> x
 
 (MOVDLT y _ (FlagEQ)) -> y
 (MOVDLT _ x (FlagLT)) -> x
