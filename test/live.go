@@ -141,7 +141,7 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	y := interface{}(99.0i) // ERROR "live at call to convT2E: x.data x.type$"
+	y := interface{}(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+ x.data x.type$" "live at call to str: x.data x.type$"
 	i9 = y                  // make y escape so the line above has to call convT2E
 	return x != y
 }
@@ -256,12 +256,15 @@ func g15() string
 
 var m map[string]int
 
+// str is used to ensure that a temp is required for runtime calls below.
+func str() string
+
 func f16() {
 	if b {
-		delete(m, "hi") // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
+		delete(m, str()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
 	}
-	delete(m, "hi") // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
-	delete(m, "hi") // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
+	delete(m, str()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
+	delete(m, str()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
 }
 
 var m2s map[string]*byte
@@ -280,19 +283,19 @@ func f17a(p *byte) { // ERROR "live at entry to f17a: p$"
 func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
 	// key temporary
 	if b {
-		m2s["x"] = p // ERROR "live at call to mapassign: p .autotmp_[0-9]+$"
+		m2s[str()] = p // ERROR "live at call to mapassign: p .autotmp_[0-9]+$" "live at call to str: p$"
 	}
-	m2s["x"] = p // ERROR "live at call to mapassign: p .autotmp_[0-9]+$"
-	m2s["x"] = p // ERROR "live at call to mapassign: p .autotmp_[0-9]+$"
+	m2s[str()] = p // ERROR "live at call to mapassign: p .autotmp_[0-9]+$" "live at call to str: p$"
+	m2s[str()] = p // ERROR "live at call to mapassign: p .autotmp_[0-9]+$" "live at call to str: p$"
 }
 
 func f17c() {
 	// key and value temporaries
 	if b {
-		m2s["x"] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+		m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 	}
-	m2s["x"] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+ .autotmp_[0-9]+$"
-	m2s["x"] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+ .autotmp_[0-9]+$"
 }
 
 func f17d() *byte
@@ -313,6 +316,9 @@ func f18() {
 
 var ch chan *byte
 
+// byteptr is used to ensure that a temp is required for runtime calls below.
+func byteptr() *byte
+
 func f19() {
 	// dest temporary for channel receive.
 	var z *byte
@@ -328,10 +334,10 @@ func f19() {
 func f20() {
 	// src temporary for channel send
 	if b {
-		ch <- nil // ERROR "live at call to chansend1: .autotmp_[0-9]+$"
+		ch <- byteptr() // ERROR "live at call to chansend1: .autotmp_[0-9]+$"
 	}
-	ch <- nil // ERROR "live at call to chansend1: .autotmp_[0-9]+$"
-	ch <- nil // ERROR "live at call to chansend1: .autotmp_[0-9]+$"
+	ch <- byteptr() // ERROR "live at call to chansend1: .autotmp_[0-9]+$"
+	ch <- byteptr() // ERROR "live at call to chansend1: .autotmp_[0-9]+$"
 }
 
 func f21() {
@@ -488,13 +494,13 @@ func f30(b bool) {
 
 func f31(b1, b2, b3 bool) {
 	if b1 {
-		g31("a") // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to g31: .autotmp_[0-9]+$"
+		g31(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to g31: .autotmp_[0-9]+$"
 	}
 	if b2 {
-		h31("b") // ERROR "live at call to convT2E: .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to h31: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
+		h31(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to h31: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
 	}
 	if b3 {
-		panic("asdf") // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to gopanic: .autotmp_[0-9]+$"
+		panic(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to gopanic: .autotmp_[0-9]+$"
 	}
 	print(b3)
 }
@@ -529,7 +535,7 @@ func call32(func())
 var m33 map[interface{}]int
 
 func f33() {
-	if m33[nil] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
+	if m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 		printnl()
 		return
 	} else {
@@ -539,7 +545,7 @@ func f33() {
 }
 
 func f34() {
-	if m33[nil] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
+	if m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 		printnl()
 		return
 	}
@@ -547,7 +553,7 @@ func f34() {
 }
 
 func f35() {
-	if m33[nil] == 0 && m33[nil] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
+	if m33[byteptr()] == 0 && m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 		printnl()
 		return
 	}
@@ -555,7 +561,7 @@ func f35() {
 }
 
 func f36() {
-	if m33[nil] == 0 || m33[nil] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
+	if m33[byteptr()] == 0 || m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 		printnl()
 		return
 	}
@@ -563,7 +569,7 @@ func f36() {
 }
 
 func f37() {
-	if (m33[nil] == 0 || m33[nil] == 0) && m33[nil] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
+	if (m33[byteptr()] == 0 || m33[byteptr()] == 0) && m33[byteptr()] == 0 { // ERROR "live at call to mapaccess1: .autotmp_[0-9]+$"
 		printnl()
 		return
 	}

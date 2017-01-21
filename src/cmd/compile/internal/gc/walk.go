@@ -889,20 +889,29 @@ opswitch:
 			n = l
 			break
 		}
-		// Optimize convT2{E,I} when T is not pointer-shaped.
-		// We make the interface by initializing a stack temporary to
-		// the value we want to put in the interface, then using the address of
-		// that stack temporary for the interface data word.
-		if !n.Left.Type.IsInterface() && n.Esc == EscNone && n.Left.Type.Width <= 1024 {
-			tmp := temp(n.Left.Type)
-			init.Append(typecheck(nod(OAS, tmp, n.Left), Etop))
+
+		// Optimize convT2{E,I} when T is not pointer-shaped,
+		// but the value does not escape or is a readonly global.
+		var value *Node
+		switch {
+		case !n.Left.Type.IsInterface() && n.Esc == EscNone && n.Left.Type.Width <= 1024:
+			// Initializing a stack temporary to the value we want to put in the interface,
+			// then using the address of that stack temporary for the interface data word.
+			value = temp(n.Left.Type)
+			init.Append(typecheck(nod(OAS, value, n.Left), Etop))
+		case n.Left.Class == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly:
+			// readonly global; use directly.
+			value = n.Left
+		}
+
+		if value != nil {
 			var t *Node
 			if n.Type.IsEmptyInterface() {
 				t = typename(n.Left.Type)
 			} else {
 				t = itabname(n.Left.Type, n.Type)
 			}
-			l := nod(OEFACE, t, typecheck(nod(OADDR, tmp, nil), Erv))
+			l := nod(OEFACE, t, typecheck(nod(OADDR, value, nil), Erv))
 			l.Type = n.Type
 			l.Typecheck = n.Typecheck
 			n = l
