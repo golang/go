@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"golang_org/x/net/lex/httplex"
+	"golang_org/x/net/proxy"
 )
 
 // DefaultTransport is the default implementation of Transport and is
@@ -275,13 +276,17 @@ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
 		return nil, nil
 	}
 	proxyURL, err := url.Parse(proxy)
-	if err != nil || !strings.HasPrefix(proxyURL.Scheme, "http") {
+	if err != nil ||
+		(proxyURL.Scheme != "http" &&
+			proxyURL.Scheme != "https" &&
+			proxyURL.Scheme != "socks5") {
 		// proxy was bogus. Try prepending "http://" to it and
 		// see if that parses correctly. If not, we fall
 		// through and complain about the original one.
 		if proxyURL, err := url.Parse("http://" + proxy); err == nil {
 			return proxyURL, nil
 		}
+
 	}
 	if err != nil {
 		return nil, fmt.Errorf("invalid proxy address %q: %v", proxy, err)
@@ -964,6 +969,23 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 	}
 }
 
+type oneConnDialer <-chan net.Conn
+
+func newOneConnDialer(c net.Conn) proxy.Dialer {
+	ch := make(chan net.Conn, 1)
+	ch <- c
+	return oneConnDialer(ch)
+}
+
+func (d oneConnDialer) Dial(network, addr string) (net.Conn, error) {
+	select {
+	case c := <-d:
+		return c, nil
+	default:
+		return nil, io.EOF
+	}
+}
+
 func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistConn, error) {
 	pconn := &persistConn{
 		t:             t,
@@ -1020,6 +1042,23 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 	switch {
 	case cm.proxyURL == nil:
 		// Do nothing. Not using a proxy.
+	case cm.proxyURL.Scheme == "socks5":
+		conn := pconn.conn
+		var auth *proxy.Auth
+		if u := cm.proxyURL.User; u != nil {
+			auth = &proxy.Auth{}
+			auth.User = u.Username()
+			auth.Password, _ = u.Password()
+		}
+		p, err := proxy.SOCKS5("", cm.addr(), auth, newOneConnDialer(conn))
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+		if _, err := p.Dial("tcp", cm.targetAddr); err != nil {
+			conn.Close()
+			return nil, err
+		}
 	case cm.targetScheme == "http":
 		pconn.isProxy = true
 		if pa := cm.proxyAuth(); pa != "" {
@@ -1193,19 +1232,21 @@ func useProxy(addr string) bool {
 //
 // A connect method may be of the following types:
 //
-// Cache key form                Description
-// -----------------             -------------------------
-// |http|foo.com                 http directly to server, no proxy
-// |https|foo.com                https directly to server, no proxy
-// http://proxy.com|https|foo.com  http to proxy, then CONNECT to foo.com
-// http://proxy.com|http           http to proxy, http to anywhere after that
+// Cache key form                    Description
+// -----------------                 -------------------------
+// |http|foo.com                     http directly to server, no proxy
+// |https|foo.com                    https directly to server, no proxy
+// http://proxy.com|https|foo.com    http to proxy, then CONNECT to foo.com
+// http://proxy.com|http             http to proxy, http to anywhere after that
+// socks5://proxy.com|http|foo.com   socks5 to proxy, then http to foo.com
+// socks5://proxy.com|https|foo.com  socks5 to proxy, then https to foo.com
 //
 // Note: no support to https to the proxy yet.
 //
 type connectMethod struct {
 	proxyURL     *url.URL // nil for no proxy, else full proxy URL
 	targetScheme string   // "http" or "https"
-	targetAddr   string   // Not used if proxy + http targetScheme (4th example in table)
+	targetAddr   string   // Not used if http proxy + http targetScheme (4th example in table)
 }
 
 func (cm *connectMethod) key() connectMethodKey {
@@ -1213,7 +1254,7 @@ func (cm *connectMethod) key() connectMethodKey {
 	targetAddr := cm.targetAddr
 	if cm.proxyURL != nil {
 		proxyStr = cm.proxyURL.String()
-		if cm.targetScheme == "http" {
+		if strings.HasPrefix(cm.proxyURL.Scheme, "http") && cm.targetScheme == "http" {
 			targetAddr = ""
 		}
 	}
@@ -1982,8 +2023,9 @@ func (pc *persistConn) closeLocked(err error) {
 }
 
 var portMap = map[string]string{
-	"http":  "80",
-	"https": "443",
+	"http":   "80",
+	"https":  "443",
+	"socks5": "1080",
 }
 
 // canonicalAddr returns url.Host but always with a ":port" suffix

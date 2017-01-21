@@ -16,6 +16,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"internal/nettrace"
@@ -943,6 +944,98 @@ func TestTransportExpect100Continue(t *testing.T) {
 	}
 }
 
+func TestSocks5Proxy(t *testing.T) {
+	defer afterTest(t)
+	ch := make(chan string, 1)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		ch <- "real server"
+	}))
+	defer ts.Close()
+	l := newLocalListener(t)
+	defer l.Close()
+	go func() {
+		defer close(ch)
+		s, err := l.Accept()
+		if err != nil {
+			t.Errorf("socks5 proxy Accept(): %v", err)
+			return
+		}
+		defer s.Close()
+		var buf [22]byte
+		if _, err := io.ReadFull(s, buf[:3]); err != nil {
+			t.Errorf("socks5 proxy initial read: %v", err)
+			return
+		}
+		if want := []byte{5, 1, 0}; !bytes.Equal(buf[:3], want) {
+			t.Errorf("socks5 proxy initial read: got %v, want %v", buf[:3], want)
+			return
+		}
+		if _, err := s.Write([]byte{5, 0}); err != nil {
+			t.Errorf("socks5 proxy initial write: %v", err)
+			return
+		}
+		if _, err := io.ReadFull(s, buf[:4]); err != nil {
+			t.Errorf("socks5 proxy second read: %v", err)
+			return
+		}
+		if want := []byte{5, 1, 0}; !bytes.Equal(buf[:3], want) {
+			t.Errorf("socks5 proxy second read: got %v, want %v", buf[:3], want)
+			return
+		}
+		var ipLen int
+		switch buf[3] {
+		case 1:
+			ipLen = 4
+		case 4:
+			ipLen = 16
+		default:
+			t.Fatalf("socks5 proxy second read: unexpected address type %v", buf[4])
+		}
+		if _, err := io.ReadFull(s, buf[4:ipLen+6]); err != nil {
+			t.Errorf("socks5 proxy address read: %v", err)
+			return
+		}
+		ip := net.IP(buf[4 : ipLen+4])
+		port := binary.BigEndian.Uint16(buf[ipLen+4 : ipLen+6])
+		copy(buf[:3], []byte{5, 0, 0})
+		if _, err := s.Write(buf[:ipLen+6]); err != nil {
+			t.Errorf("socks5 proxy connect write: %v", err)
+			return
+		}
+		done := make(chan struct{})
+		srv := &Server{Handler: HandlerFunc(func(w ResponseWriter, r *Request) {
+			done <- struct{}{}
+		})}
+		srv.Serve(&oneConnListener{conn: s})
+		<-done
+		srv.Shutdown(context.Background())
+		ch <- fmt.Sprintf("proxy for %s:%d", ip, port)
+	}()
+
+	pu, err := url.Parse("socks5://" + l.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &Client{Transport: &Transport{Proxy: ProxyURL(pu)}}
+	if _, err := c.Head(ts.URL); err != nil {
+		t.Error(err)
+	}
+	var got string
+	select {
+	case got = <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout connecting to socks5 proxy")
+	}
+	tsu, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "proxy for " + tsu.Host
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestTransportProxy(t *testing.T) {
 	defer afterTest(t)
 	ch := make(chan string, 1)
@@ -960,11 +1053,18 @@ func TestTransportProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := &Client{Transport: &Transport{Proxy: ProxyURL(pu)}}
-	c.Head(ts.URL)
-	got := <-ch
+	if _, err := c.Head(ts.URL); err != nil {
+		t.Error(err)
+	}
+	var got string
+	select {
+	case got = <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout connecting to http proxy")
+	}
 	want := "proxy for " + ts.URL + "/"
 	if got != want {
-		t.Errorf("want %q, got %q", want, got)
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
@@ -2160,6 +2260,7 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 	{env: "https://cache.corp.example.com", want: "https://cache.corp.example.com"},
 	{env: "http://127.0.0.1:8080", want: "http://127.0.0.1:8080"},
 	{env: "https://127.0.0.1:8080", want: "https://127.0.0.1:8080"},
+	{env: "socks5://127.0.0.1", want: "socks5://127.0.0.1"},
 
 	// Don't use secure for http
 	{req: "http://insecure.tld/", env: "http.proxy.tld", httpsenv: "secure.proxy.tld", want: "http://http.proxy.tld"},
