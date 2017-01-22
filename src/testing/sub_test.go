@@ -8,7 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -530,5 +532,46 @@ func TestParallelSub(t *T) {
 	close(block)
 	for i := 0; i < 10; i++ {
 		<-c
+	}
+}
+
+type funcWriter func([]byte) (int, error)
+
+func (fw funcWriter) Write(b []byte) (int, error) { return fw(b) }
+
+func TestRacyOutput(t *T) {
+	var runs int32  // The number of running Writes
+	var races int32 // Incremented for each race detected
+	raceDetector := func(b []byte) (int, error) {
+		// Check if some other goroutine is concurrently calling Write.
+		if atomic.LoadInt32(&runs) > 0 {
+			atomic.AddInt32(&races, 1) // Race detected!
+		}
+		atomic.AddInt32(&runs, 1)
+		defer atomic.AddInt32(&runs, -1)
+		runtime.Gosched() // Increase probability of a race
+		return len(b), nil
+	}
+
+	var wg sync.WaitGroup
+	root := &T{
+		common:  common{w: funcWriter(raceDetector), chatty: true},
+		context: newTestContext(1, newMatcher(regexp.MatchString, "", "")),
+	}
+	root.Run("", func(t *T) {
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				t.Run(fmt.Sprint(i), func(t *T) {
+					t.Logf("testing run %d", i)
+				})
+			}(i)
+		}
+	})
+	wg.Wait()
+
+	if races > 0 {
+		t.Errorf("detected %d racy Writes", races)
 	}
 }
