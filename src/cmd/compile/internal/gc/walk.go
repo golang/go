@@ -894,26 +894,35 @@ opswitch:
 			staticbytes = newname(Pkglookup("staticbytes", Runtimepkg))
 			staticbytes.Class = PEXTERN
 			staticbytes.Type = typArray(Types[TUINT8], 256)
+			zerobase = newname(Pkglookup("zerobase", Runtimepkg))
+			zerobase.Class = PEXTERN
+			zerobase.Type = Types[TUINTPTR]
 		}
 
-		// Optimize convT2{E,I} when T is not pointer-shaped,
-		// but the value does not escape or is a readonly global or is a bool/byte.
+		// Optimize convT2{E,I} for many cases in which T is not pointer-shaped,
+		// by using an existing addressable value identical to n.Left
+		// or creating one on the stack.
 		var value *Node
 		switch {
-		case !n.Left.Type.IsInterface() && n.Esc == EscNone && n.Left.Type.Width <= 1024:
-			// Initializing a stack temporary to the value we want to put in the interface,
-			// then using the address of that stack temporary for the interface data word.
-			value = temp(n.Left.Type)
-			init.Append(typecheck(nod(OAS, value, n.Left), Etop))
-		case n.Left.Class == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly:
-			// readonly global; use directly.
-			value = n.Left
+		case n.Left.Type.Size() == 0:
+			// n.Left is zero-sized. Use zerobase.
+			value = zerobase
 		case n.Left.Type.IsBoolean() || (n.Left.Type.Size() == 1 && n.Left.Type.IsInteger()):
+			// n.Left is a bool/byte. Use staticbytes[n.Left].
 			value = nod(OINDEX, staticbytes, byteindex(n.Left))
 			value.Bounded = true
+		case n.Left.Class == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly:
+			// n.Left is a readonly global; use it directly.
+			value = n.Left
+		case !n.Left.Type.IsInterface() && n.Esc == EscNone && n.Left.Type.Width <= 1024:
+			// n.Left does not escape. Use a stack temporary initialized to n.Left.
+			value = temp(n.Left.Type)
+			init.Append(typecheck(nod(OAS, value, n.Left), Etop))
 		}
 
 		if value != nil {
+			// Value is identical to n.Left.
+			// Construct the interface directly: {type/itab, &value}.
 			var t *Node
 			if n.Type.IsEmptyInterface() {
 				t = typename(n.Left.Type)
