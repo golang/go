@@ -276,7 +276,7 @@ func addImportSpaces(r io.Reader, breaks []string) []byte {
 		}
 		if inImports && len(breaks) > 0 {
 			if m := impLine.FindStringSubmatch(s); m != nil {
-				if m[1] == string(breaks[0]) {
+				if m[1] == breaks[0] {
 					out.WriteByte('\n')
 					breaks = breaks[1:]
 				}
