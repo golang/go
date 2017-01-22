@@ -364,6 +364,7 @@ var pcloc int32
 var Thearch Arch
 
 var (
+	staticbytes,
 	Newproc,
 	Deferproc,
 	Deferreturn,

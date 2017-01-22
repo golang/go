@@ -890,8 +890,14 @@ opswitch:
 			break
 		}
 
+		if staticbytes == nil {
+			staticbytes = newname(Pkglookup("staticbytes", Runtimepkg))
+			staticbytes.Class = PEXTERN
+			staticbytes.Type = typArray(Types[TUINT8], 256)
+		}
+
 		// Optimize convT2{E,I} when T is not pointer-shaped,
-		// but the value does not escape or is a readonly global.
+		// but the value does not escape or is a readonly global or is a bool/byte.
 		var value *Node
 		switch {
 		case !n.Left.Type.IsInterface() && n.Esc == EscNone && n.Left.Type.Width <= 1024:
@@ -902,6 +908,9 @@ opswitch:
 		case n.Left.Class == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly:
 			// readonly global; use directly.
 			value = n.Left
+		case n.Left.Type.IsBoolean() || (n.Left.Type.Size() == 1 && n.Left.Type.IsInteger()):
+			value = nod(OINDEX, staticbytes, byteindex(n.Left))
+			value.Bounded = true
 		}
 
 		if value != nil {
@@ -2631,6 +2640,19 @@ func conv(n *Node, t *Type) *Node {
 	n = nod(OCONV, n, nil)
 	n.Type = t
 	n = typecheck(n, Erv)
+	return n
+}
+
+// byteindex converts n, which is byte-sized, to a uint8.
+// We cannot use conv, because we allow converting bool to uint8 here,
+// which is forbidden in user code.
+func byteindex(n *Node) *Node {
+	if eqtype(n.Type, Types[TUINT8]) {
+		return n
+	}
+	n = nod(OCONV, n, nil)
+	n.Type = Types[TUINT8]
+	n.Typecheck = 1
 	return n
 }
 
