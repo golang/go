@@ -294,6 +294,9 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 	VZERO	V16                    // e70000000844
 	VGBM	$52428, V31            // e7f0cccc0844
 	VREPIB	$255, V4               // e74000ff0045
+	VREPIH	$-1, V16               // e700ffff1845
+	VREPIF	$-32768, V0            // e70080002045
+	VREPIG	$32767, V31            // e7f07fff3845
 	VREPG	$1, V4, V16            // e7040001384d
 	VREPB	$4, V31, V1            // e71f0004044d
 	VFTCIDB	$4095, V1, V2          // e721fff0304a
@@ -318,7 +321,10 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 	VLL	R0, (R15), V1           // VLL     (R15), R0, V1           // e710f0000037
 	VSTL	R0, V16, (R15)          // VSTL    V16, R0, (R15)          // e700f000083f
 	VGMH	$8, $16, V12            // VGMH    $16, $8, V12            // e7c008101046
+	VLEIB	$15, $255, V0           // VLEIB   $255, $15, V0           // e70000fff040
+	VLEIH	$7, $-32768, V15        // VLEIH   $-32768, $7, V15        // e7f080007041
 	VLEIF	$2, $-43, V16           // VLEIF   $-43, $2, V16           // e700ffd52843
+	VLEIG	$1, $32767, V31         // VLEIG   $32767, $1, V31         // e7f07fff1842
 	VSLDB	$3, V1, V16, V18        // VSLDB   V1, V16, $3, V18        // e72100030a77
 	VERIMB	$2, V31, V1, V2         // VERIMB  V31, V1, $2, V2         // e72f10020472
 	VSEL	V1, V2, V3, V4          // VSEL    V2, V3, V1, V4          // e7412000308d
