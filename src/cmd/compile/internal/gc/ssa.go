@@ -1592,6 +1592,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		x := s.expr(n.Left)
 		ft := n.Left.Type // from type
 		tt := n.Type      // to type
+		if ft.IsBoolean() && tt.IsKind(TUINT8) {
+			// Bool -> uint8 is generated internally when indexing into runtime.staticbyte.
+			return s.newValue1(ssa.OpCopy, n.Type, x)
+		}
 		if ft.IsInteger() && tt.IsInteger() {
 			var op ssa.Op
 			if tt.Size() == ft.Size() {
