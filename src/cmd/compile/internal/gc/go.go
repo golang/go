@@ -365,6 +365,7 @@ var Thearch Arch
 
 var (
 	staticbytes,
+	zerobase,
 	Newproc,
 	Deferproc,
 	Deferreturn,
