@@ -4014,7 +4014,7 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 		zVRS(op, uint32(p.To.Reg), uint32(p.From3.Reg), uint32(reg), offset, 0, asm)
 
 	case 109: // VRI-a
-		op, _, _ := vop(p.As)
+		op, m3, _ := vop(p.As)
 		i2 := uint32(vregoff(ctxt, &p.From))
 		switch p.As {
 		case AVZERO:
@@ -4022,7 +4022,6 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 		case AVONE:
 			i2 = 0xffff
 		}
-		m3 := uint32(0)
 		if p.From3 != nil {
 			m3 = uint32(vregoff(ctxt, p.From3))
 		}
