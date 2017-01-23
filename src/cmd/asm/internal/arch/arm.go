@@ -158,10 +158,10 @@ func ARMMRCOffset(op obj.As, cond string, x0, x1, x2, x3, x4, x5 int64) (offset 
 }
 
 // IsARMMULA reports whether the op (as defined by an arm.A* constant) is
-// MULA, MULAWT or MULAWB, the 4-operand instructions.
+// MULA, MULS, MMULA, MMULS, MULABB, MULAWB or MULAWT, the 4-operand instructions.
 func IsARMMULA(op obj.As) bool {
 	switch op {
-	case arm.AMULA, arm.AMULAWB, arm.AMULAWT:
+	case arm.AMULA, arm.AMULS, arm.AMMULA, arm.AMMULS, arm.AMULABB, arm.AMULAWB, arm.AMULAWT:
 		return true
 	}
 	return false
