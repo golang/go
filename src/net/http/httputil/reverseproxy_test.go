@@ -664,3 +664,30 @@ func TestReverseProxy_CopyBuffer(t *testing.T) {
 		}
 	}
 }
+
+type staticTransport struct {
+	res *http.Response
+}
+
+func (t *staticTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	return t.res, nil
+}
+
+func BenchmarkServeHTTP(b *testing.B) {
+	res := &http.Response{
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(strings.NewReader("")),
+	}
+	proxy := &ReverseProxy{
+		Director:  func(*http.Request) {},
+		Transport: &staticTransport{res},
+	}
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/", nil)
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		proxy.ServeHTTP(w, r)
+	}
+}
