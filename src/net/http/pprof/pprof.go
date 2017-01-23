@@ -90,12 +90,25 @@ func sleep(w http.ResponseWriter, d time.Duration) {
 	}
 }
 
+func durationExceedsWriteTimeout(r *http.Request, seconds float64) bool {
+	srv, ok := r.Context().Value(http.ServerContextKey).(*http.Server)
+	return ok && srv.WriteTimeout != 0 && seconds >= srv.WriteTimeout.Seconds()
+}
+
 // Profile responds with the pprof-formatted cpu profile.
 // The package initialization registers it as /debug/pprof/profile.
 func Profile(w http.ResponseWriter, r *http.Request) {
 	sec, _ := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
 	if sec == 0 {
 		sec = 30
+	}
+
+	if durationExceedsWriteTimeout(r, float64(sec)) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Go-Pprof", "1")
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, "profile duration exceeds server's WriteTimeout")
+		return
 	}
 
 	// Set Content Type assuming StartCPUProfile will work,
@@ -106,6 +119,7 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 		// Can change header back to text content
 		// and send error code.
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Go-Pprof", "1")
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Could not enable CPU profiling: %s\n", err)
 		return
@@ -123,6 +137,14 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 		sec = 1
 	}
 
+	if durationExceedsWriteTimeout(r, sec) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Go-Pprof", "1")
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, "profile duration exceeds server's WriteTimeout")
+		return
+	}
+
 	// Set Content Type assuming trace.Start will work,
 	// because if it does it starts writing.
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -130,6 +152,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 		// trace.Start failed, so no writes yet.
 		// Can change header back to text content and send error code.
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Go-Pprof", "1")
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Could not enable tracing: %s\n", err)
 		return
