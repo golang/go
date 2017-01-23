@@ -1163,14 +1163,14 @@ bad:
 	return nil
 }
 
-func methodname(n, recv *Node) *Node {
+func methodname(s *Sym, recv *Node) *Node {
 	star := false
 	if recv.Op == OIND {
 		star = true
 		recv = recv.Left
 	}
 
-	return methodname0(n.Sym, star, recv.Sym)
+	return methodname0(s, star, recv.Sym)
 }
 
 func methodname0(s *Sym, star bool, tsym *Sym) *Node {
@@ -1318,7 +1318,7 @@ func funcsym(s *Sym) *Sym {
 	s1 := Pkglookup(s.Name+"·f", s.Pkg)
 	if !Ctxt.Flag_dynlink && s1.Def == nil {
 		s1.Def = newfuncname(s1)
-		s1.Def.Func.Shortname = newname(s)
+		s1.Def.Func.Shortname = s
 		funcsyms = append(funcsyms, s1.Def)
 	}
 	s.Fsym = s1
@@ -1336,7 +1336,7 @@ func makefuncsym(s *Sym) {
 	}
 	s1 := funcsym(s)
 	s1.Def = newfuncname(s1)
-	s1.Def.Func.Shortname = newname(s)
+	s1.Def.Func.Shortname = s
 	funcsyms = append(funcsyms, s1.Def)
 }
 
