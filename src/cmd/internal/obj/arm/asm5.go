@@ -1440,9 +1440,21 @@ func buildop(ctxt *obj.Link) {
 
 		case AMULWT:
 			opset(AMULWB, r0)
+			opset(AMULBB, r0)
+			opset(AMMUL, r0)
 
 		case AMULAWT:
 			opset(AMULAWB, r0)
+			opset(AMULABB, r0)
+			opset(AMULS, r0)
+			opset(AMMULA, r0)
+			opset(AMMULS, r0)
+
+		case ACLZ:
+			opset(AREV, r0)
+			opset(AREV16, r0)
+			opset(AREVSH, r0)
+			opset(ARBIT, r0)
 
 		case AMULA,
 			ALDREX,
@@ -1452,7 +1464,6 @@ func buildop(ctxt *obj.Link) {
 			ATST,
 			APLD,
 			obj.AUNDEF,
-			ACLZ,
 			obj.AFUNCDATA,
 			obj.APCDATA,
 			obj.ANOP,
@@ -2413,6 +2424,14 @@ func oprrr(ctxt *obj.Link, p *obj.Prog, a obj.As, sc int) uint32 {
 		ctxt.Diag(".nil/.W on dp instruction")
 	}
 	switch a {
+	case AMMUL:
+		return o | 0x75<<20 | 0xf<<12 | 0x1<<4
+	case AMULS:
+		return o | 0x6<<20 | 0x9<<4
+	case AMMULA:
+		return o | 0x75<<20 | 0x1<<4
+	case AMMULS:
+		return o | 0x75<<20 | 0xd<<4
 	case AMULU, AMUL:
 		return o | 0x0<<21 | 0x9<<4
 	case AMULA:
@@ -2547,17 +2566,35 @@ func oprrr(ctxt *obj.Link, p *obj.Prog, a obj.As, sc int) uint32 {
 	case ACLZ:
 		return o&(0xf<<28) | 0x16f<<16 | 0xf1<<4
 
+	case AREV:
+		return o&(0xf<<28) | 0x6bf<<16 | 0xf3<<4
+
+	case AREV16:
+		return o&(0xf<<28) | 0x6bf<<16 | 0xfb<<4
+
+	case AREVSH:
+		return o&(0xf<<28) | 0x6ff<<16 | 0xfb<<4
+
+	case ARBIT:
+		return o&(0xf<<28) | 0x6ff<<16 | 0xf3<<4
+
 	case AMULWT:
 		return o&(0xf<<28) | 0x12<<20 | 0xe<<4
 
 	case AMULWB:
 		return o&(0xf<<28) | 0x12<<20 | 0xa<<4
 
+	case AMULBB:
+		return o&(0xf<<28) | 0x16<<20 | 0xf<<12 | 0x8<<4
+
 	case AMULAWT:
 		return o&(0xf<<28) | 0x12<<20 | 0xc<<4
 
 	case AMULAWB:
 		return o&(0xf<<28) | 0x12<<20 | 0x8<<4
+
+	case AMULABB:
+		return o&(0xf<<28) | 0x10<<20 | 0x8<<4
 
 	case ABL: // BLX REG
 		return o&(0xf<<28) | 0x12fff3<<4

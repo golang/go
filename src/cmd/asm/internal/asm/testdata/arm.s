@@ -945,6 +945,26 @@ jmp_label_3:
 	SLL	R5, R7               // 1775a0e1
 	SLL.S	R5, R7               // 1775b0e1
 
+// MULA / MULS
+	MULAWT	R1, R2, R3, R4       // c23124e1
+	MULAWB	R1, R2, R3, R4       // 823124e1
+	MULS	R1, R2, R3, R4       // 923164e0
+	MMULA	R1, R2, R3, R4       // 123154e7
+	MMULS	R1, R2, R3, R4       // d23154e7
+	MULABB	R1, R2, R3, R4       // 823104e1
+
+// MUL
+	MMUL	R1, R2, R3           // 12f153e7
+	MULBB	R1, R2, R3           // 82f163e1
+	MULWB	R1, R2, R3           // a20123e1
+	MULWT	R1, R2, R3           // e20123e1
+
+// REV
+	REV	R1, R2               // 312fbfe6
+	REV16	R1, R2               // b12fbfe6
+	REVSH	R1, R2               // b12fffe6
+	RBIT	R1, R2               // 312fffe6
+
 //
 // END
 //
