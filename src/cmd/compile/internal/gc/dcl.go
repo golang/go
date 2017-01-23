@@ -519,10 +519,6 @@ func funchdr(n *Node) {
 		Fatalf("funchdr: dclcontext = %d", dclcontext)
 	}
 
-	if Ctxt.Flag_dynlink && importpkg == nil && n.Func.Nname != nil {
-		makefuncsym(n.Func.Nname.Sym)
-	}
-
 	dclcontext = PAUTO
 	funcstart(n)
 
@@ -1163,19 +1159,19 @@ bad:
 	return nil
 }
 
-func methodname(s *Sym, recv *Node) *Node {
+// methodname is a misnomer because this now returns a Sym, rather
+// than an ONAME.
+// TODO(mdempsky): Reconcile with methodsym.
+func methodname(s *Sym, recv *Type) *Sym {
 	star := false
-	if recv.Op == OIND {
+	if recv.IsPtr() {
 		star = true
-		recv = recv.Left
+		recv = recv.Elem()
 	}
 
-	return methodname0(s, star, recv.Sym)
-}
-
-func methodname0(s *Sym, star bool, tsym *Sym) *Node {
+	tsym := recv.Sym
 	if tsym == nil || isblanksym(s) {
-		return newfuncname(s)
+		return s
 	}
 
 	var p string
@@ -1191,7 +1187,7 @@ func methodname0(s *Sym, star bool, tsym *Sym) *Node {
 		s = Pkglookup(p, tsym.Pkg)
 	}
 
-	return newfuncname(s)
+	return s
 }
 
 // Add a method, declared as a function.
@@ -1335,6 +1331,9 @@ func makefuncsym(s *Sym) {
 		return
 	}
 	s1 := funcsym(s)
+	if s1.Def != nil {
+		return
+	}
 	s1.Def = newfuncname(s1)
 	s1.Def.Func.Shortname = s
 	funcsyms = append(funcsyms, s1.Def)

@@ -247,19 +247,19 @@ func (p *noder) funcHeader(fun *syntax.FuncDecl) *Node {
 				yyerror("func main must have no arguments and no return values")
 			}
 		}
-
-		f.Func.Nname = newfuncname(name)
 	} else {
-		// Receiver MethodName Signature
-
 		f.Func.Shortname = name
-		f.Func.Nname = methodname(f.Func.Shortname, t.Left.Right)
+		name = nblank.Sym // filled in by typecheckfunc
 	}
 
+	f.Func.Nname = newfuncname(name)
 	f.Func.Nname.Name.Defn = f
 	f.Func.Nname.Name.Param.Ntype = t // TODO: check if nname already has an ntype
 
-	declare(f.Func.Nname, PFUNC)
+	if fun.Recv == nil {
+		declare(f.Func.Nname, PFUNC)
+	}
+
 	funchdr(f)
 	return f
 }

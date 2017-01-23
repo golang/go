@@ -37,8 +37,8 @@ type (
 // Methods can be declared on the original named type and the alias.
 func (T0) m1()  {} // GCCGO_ERROR "previous"
 func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|redefinition of .m1."
-func (A0) m1()  {} // TODO(gri) this should be an error  // GCCGO_ERROR "redefinition of .m1."
-func (A0) m1()  {} // ERROR "A0\.m1 redeclared in this block|redefinition of .m1."
+func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
+func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
 func (A0) m2()  {}
 
 // Type aliases and the original type name can be used interchangeably.
@@ -95,10 +95,10 @@ type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type|expected type"
 func (A1) m() {} // ERROR "cannot define new methods on non-local type int|may not define methods on non-local type"
 func (A2) m() {} // ERROR "invalid receiver type"
 func (A3) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
-func (A4) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
+func (A4) m() {} // ERROR "reflect.Value.m redeclared in this block" "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
 
 type B1 = struct{}
 
-func (B1) m() {} // ERROR "invalid receiver type"
+func (B1) m() {} // ERROR "m redeclared in this block" "invalid receiver type"
 
 // TODO(gri) expand

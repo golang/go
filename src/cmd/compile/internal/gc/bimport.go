@@ -466,14 +466,7 @@ func (p *importer) typ() *Type {
 			result := p.paramList()
 			nointerface := p.bool()
 
-			base := recv[0].Type
-			star := false
-			if base.IsPtr() {
-				base = base.Elem()
-				star = true
-			}
-
-			n := methodname0(sym, star, base.Sym)
+			n := newfuncname(methodname(sym, recv[0].Type))
 			n.Type = functypefield(recv[0], params, result)
 			checkwidth(n.Type)
 			addmethod(sym, n.Type, false, nointerface)

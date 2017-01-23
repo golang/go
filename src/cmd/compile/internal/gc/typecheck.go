@@ -3436,7 +3436,14 @@ func typecheckfunc(n *Node) {
 	t.SetNname(n.Func.Nname)
 	rcvr := t.Recv()
 	if rcvr != nil && n.Func.Shortname != nil {
+		n.Func.Nname.Sym = methodname(n.Func.Shortname, rcvr.Type)
+		declare(n.Func.Nname, PFUNC)
+
 		addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+	}
+
+	if Ctxt.Flag_dynlink && importpkg == nil && n.Func.Nname != nil {
+		makefuncsym(n.Func.Nname.Sym)
 	}
 }
 
