@@ -83,7 +83,7 @@ func autoexport(n *Node, ctxt Class) {
 	if (ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN {
 		return
 	}
-	if n.Name.Param != nil && n.Name.Param.Ntype != nil && n.Name.Param.Ntype.Op == OTFUNC && n.Name.Param.Ntype.Left != nil { // method
+	if n.Type != nil && n.Type.IsKind(TFUNC) && n.Type.Recv() != nil { // method
 		return
 	}
 
