@@ -252,7 +252,7 @@ func (p *noder) funcHeader(fun *syntax.FuncDecl) *Node {
 	} else {
 		// Receiver MethodName Signature
 
-		f.Func.Shortname = newfuncname(name)
+		f.Func.Shortname = name
 		f.Func.Nname = methodname(f.Func.Shortname, t.Left.Right)
 	}
 
