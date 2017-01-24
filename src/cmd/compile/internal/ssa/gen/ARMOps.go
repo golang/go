@@ -197,7 +197,9 @@ func init() {
 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
 
-		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"}, // count leading zero
+		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},   // count leading zero
+		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},   // reverse byte order
+		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"}, // reverse bit order
 
 		// shifts
 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                    // arg0 << arg1, shift amount is mod 256
