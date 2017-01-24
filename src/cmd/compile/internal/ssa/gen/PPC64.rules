@@ -790,7 +790,7 @@
 (Trunc64to16 x) -> (MOVHreg x)
 (Trunc64to32 x) -> (MOVWreg x)
 
-(Slicemask <t> x) -> (XORconst [-1] (SRADconst <t> (ADDconst <t> x [-1]) [63]))
+(Slicemask <t> x) -> (SRADconst (NEG <t> x) [63])
 
 // Note that MOV??reg returns a 64-bit int, x is not necessarily that wide
 // This may interact with other patterns in the future. (Compare with arm64)

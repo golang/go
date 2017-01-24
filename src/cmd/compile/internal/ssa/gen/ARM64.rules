@@ -202,7 +202,7 @@
 (ConstNil) -> (MOVDconst [0])
 (ConstBool [b]) -> (MOVDconst [b])
 
-(Slicemask <t> x) -> (MVN (SRAconst <t> (SUBconst <t> x [1]) [63]))
+(Slicemask <t> x) -> (SRAconst (NEG <t> x) [63])
 
 // truncations
 // Because we ignore high parts of registers, truncates are just copies.

@@ -8304,17 +8304,16 @@ func rewriteValueMIPS_OpSignmask(v *Value, config *Config) bool {
 func rewriteValueMIPS_OpSlicemask(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Slicemask x)
+	// match: (Slicemask <t> x)
 	// cond:
-	// result: (NEG (SGT x (MOVWconst [0])))
+	// result: (SRAconst (NEG <t> x) [31])
 	for {
+		t := v.Type
 		x := v.Args[0]
-		v.reset(OpMIPSNEG)
-		v0 := b.NewValue0(v.Pos, OpMIPSSGT, config.fe.TypeBool())
+		v.reset(OpMIPSSRAconst)
+		v.AuxInt = 31
+		v0 := b.NewValue0(v.Pos, OpMIPSNEG, t)
 		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, config.fe.TypeUInt32())
-		v1.AuxInt = 0
-		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
 	}

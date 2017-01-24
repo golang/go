@@ -164,7 +164,7 @@
 (ConstNil) -> (MOVVconst [0])
 (ConstBool [b]) -> (MOVVconst [b])
 
-(Slicemask <t> x) -> (NORconst [0] (SRAVconst <t> (SUBVconst <t> x [1]) [63]))
+(Slicemask <t> x) -> (SRAVconst (NEGV <t> x) [63])
 
 // truncations
 // Because we ignore high parts of registers, truncates are just copies.

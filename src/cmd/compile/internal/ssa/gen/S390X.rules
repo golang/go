@@ -152,7 +152,7 @@
 (ZeroExt16to64 x) -> (MOVHZreg x)
 (ZeroExt32to64 x) -> (MOVWZreg x)
 
-(Slicemask <t> x) -> (XOR (MOVDconst [-1]) (SRADconst <t> (SUBconst <t> x [1]) [63]))
+(Slicemask <t> x) -> (SRADconst (NEG <t> x) [63])
 
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.

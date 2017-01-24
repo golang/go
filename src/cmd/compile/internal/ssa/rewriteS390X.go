@@ -17290,21 +17290,15 @@ func rewriteValueS390X_OpSlicemask(v *Value, config *Config) bool {
 	_ = b
 	// match: (Slicemask <t> x)
 	// cond:
-	// result: (XOR (MOVDconst [-1]) (SRADconst <t> (SUBconst <t> x [1]) [63]))
+	// result: (SRADconst (NEG <t> x) [63])
 	for {
 		t := v.Type
 		x := v.Args[0]
-		v.reset(OpS390XXOR)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, config.fe.TypeUInt64())
-		v0.AuxInt = -1
+		v.reset(OpS390XSRADconst)
+		v.AuxInt = 63
+		v0 := b.NewValue0(v.Pos, OpS390XNEG, t)
+		v0.AddArg(x)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSRADconst, t)
-		v1.AuxInt = 63
-		v2 := b.NewValue0(v.Pos, OpS390XSUBconst, t)
-		v2.AuxInt = 1
-		v2.AddArg(x)
-		v1.AddArg(v2)
-		v.AddArg(v1)
 		return true
 	}
 }

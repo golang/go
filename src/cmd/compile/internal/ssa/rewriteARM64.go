@@ -14480,17 +14480,14 @@ func rewriteValueARM64_OpSlicemask(v *Value, config *Config) bool {
 	_ = b
 	// match: (Slicemask <t> x)
 	// cond:
-	// result: (MVN (SRAconst <t> (SUBconst <t> x [1]) [63]))
+	// result: (SRAconst (NEG <t> x) [63])
 	for {
 		t := v.Type
 		x := v.Args[0]
-		v.reset(OpARM64MVN)
-		v0 := b.NewValue0(v.Pos, OpARM64SRAconst, t)
-		v0.AuxInt = 63
-		v1 := b.NewValue0(v.Pos, OpARM64SUBconst, t)
-		v1.AuxInt = 1
-		v1.AddArg(x)
-		v0.AddArg(v1)
+		v.reset(OpARM64SRAconst)
+		v.AuxInt = 63
+		v0 := b.NewValue0(v.Pos, OpARM64NEG, t)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}

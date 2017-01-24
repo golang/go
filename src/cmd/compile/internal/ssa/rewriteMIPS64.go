@@ -8815,18 +8815,14 @@ func rewriteValueMIPS64_OpSlicemask(v *Value, config *Config) bool {
 	_ = b
 	// match: (Slicemask <t> x)
 	// cond:
-	// result: (NORconst [0] (SRAVconst <t> (SUBVconst <t> x [1]) [63]))
+	// result: (SRAVconst (NEGV <t> x) [63])
 	for {
 		t := v.Type
 		x := v.Args[0]
-		v.reset(OpMIPS64NORconst)
-		v.AuxInt = 0
-		v0 := b.NewValue0(v.Pos, OpMIPS64SRAVconst, t)
-		v0.AuxInt = 63
-		v1 := b.NewValue0(v.Pos, OpMIPS64SUBVconst, t)
-		v1.AuxInt = 1
-		v1.AddArg(x)
-		v0.AddArg(v1)
+		v.reset(OpMIPS64SRAVconst)
+		v.AuxInt = 63
+		v0 := b.NewValue0(v.Pos, OpMIPS64NEGV, t)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}

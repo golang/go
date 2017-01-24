@@ -20168,18 +20168,14 @@ func rewriteValueAMD64_OpSlicemask(v *Value, config *Config) bool {
 	_ = b
 	// match: (Slicemask <t> x)
 	// cond:
-	// result: (XORQconst [-1] (SARQconst <t> (SUBQconst <t> x [1]) [63]))
+	// result: (SARQconst (NEGQ <t> x) [63])
 	for {
 		t := v.Type
 		x := v.Args[0]
-		v.reset(OpAMD64XORQconst)
-		v.AuxInt = -1
-		v0 := b.NewValue0(v.Pos, OpAMD64SARQconst, t)
-		v0.AuxInt = 63
-		v1 := b.NewValue0(v.Pos, OpAMD64SUBQconst, t)
-		v1.AuxInt = 1
-		v1.AddArg(x)
-		v0.AddArg(v1)
+		v.reset(OpAMD64SARQconst)
+		v.AuxInt = 63
+		v0 := b.NewValue0(v.Pos, OpAMD64NEGQ, t)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}

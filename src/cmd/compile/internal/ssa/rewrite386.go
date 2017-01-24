@@ -12932,18 +12932,14 @@ func rewriteValue386_OpSlicemask(v *Value, config *Config) bool {
 	_ = b
 	// match: (Slicemask <t> x)
 	// cond:
-	// result: (XORLconst [-1] (SARLconst <t> (SUBLconst <t> x [1]) [31]))
+	// result: (SARLconst (NEGL <t> x) [31])
 	for {
 		t := v.Type
 		x := v.Args[0]
-		v.reset(Op386XORLconst)
-		v.AuxInt = -1
-		v0 := b.NewValue0(v.Pos, Op386SARLconst, t)
-		v0.AuxInt = 31
-		v1 := b.NewValue0(v.Pos, Op386SUBLconst, t)
-		v1.AuxInt = 1
-		v1.AddArg(x)
-		v0.AddArg(v1)
+		v.reset(Op386SARLconst)
+		v.AuxInt = 31
+		v0 := b.NewValue0(v.Pos, Op386NEGL, t)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
