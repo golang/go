@@ -125,7 +125,7 @@
 (ZeroExt16to64 x) -> (MOVWQZX x)
 (ZeroExt32to64 x) -> (MOVLQZX x)
 
-(Slicemask <t> x) -> (XORQconst [-1] (SARQconst <t> (SUBQconst <t> x [1]) [63]))
+(Slicemask <t> x) -> (SARQconst (NEGQ <t> x) [63])
 
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.

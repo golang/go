@@ -9084,18 +9084,14 @@ func rewriteValuePPC64_OpSlicemask(v *Value, config *Config) bool {
 	_ = b
 	// match: (Slicemask <t> x)
 	// cond:
-	// result: (XORconst [-1] (SRADconst <t> (ADDconst <t> x [-1]) [63]))
+	// result: (SRADconst (NEG <t> x) [63])
 	for {
 		t := v.Type
 		x := v.Args[0]
-		v.reset(OpPPC64XORconst)
-		v.AuxInt = -1
-		v0 := b.NewValue0(v.Pos, OpPPC64SRADconst, t)
-		v0.AuxInt = 63
-		v1 := b.NewValue0(v.Pos, OpPPC64ADDconst, t)
-		v1.AuxInt = -1
-		v1.AddArg(x)
-		v0.AddArg(v1)
+		v.reset(OpPPC64SRADconst)
+		v.AuxInt = 63
+		v0 := b.NewValue0(v.Pos, OpPPC64NEG, t)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
