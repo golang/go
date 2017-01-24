@@ -256,7 +256,8 @@ func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool, 
 // NOTE(rsc): Eventually we will need to accept the POSIX TZ environment
 // syntax too, but I don't feel like implementing it today.
 
-var zoneinfo, _ = syscall.Getenv("ZONEINFO")
+var zoneinfo *string
+var zoneinfoOnce sync.Once
 
 // LoadLocation returns the Location with the given name.
 //
@@ -279,8 +280,12 @@ func LoadLocation(name string) (*Location, error) {
 	if name == "Local" {
 		return Local, nil
 	}
-	if zoneinfo != "" {
-		if z, err := loadZoneFile(zoneinfo, name); err == nil {
+	zoneinfoOnce.Do(func() {
+		env, _ := syscall.Getenv("ZONEINFO")
+		zoneinfo = &env
+	})
+	if zoneinfo != nil && *zoneinfo != "" {
+		if z, err := loadZoneFile(*zoneinfo, name); err == nil {
 			z.name = name
 			return z, nil
 		}
