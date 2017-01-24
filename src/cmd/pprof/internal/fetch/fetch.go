@@ -49,7 +49,7 @@ func Fetcher(source string, timeout time.Duration, ui plugin.UI) (*profile.Profi
 func FetchURL(source string, timeout time.Duration) (io.ReadCloser, error) {
 	resp, err := httpGet(source, timeout)
 	if err != nil {
-		return nil, fmt.Errorf("http fetch %s: %v", source, err)
+		return nil, fmt.Errorf("http fetch: %v", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("server response: %s", resp.Status)
