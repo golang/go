@@ -5277,7 +5277,7 @@ func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
 		defer conn.Close()
 		slurp, err := ioutil.ReadAll(buf.Reader)
 		if err != nil {
-			t.Error("Copy: %v", err)
+			t.Errorf("Copy: %v", err)
 		}
 		allX := true
 		for _, v := range slurp {
