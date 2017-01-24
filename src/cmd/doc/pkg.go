@@ -258,7 +258,11 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
 		return fmt.Sprintf("func %s%s%s", recv, name, fnc)
 
 	case *ast.TypeSpec:
-		return fmt.Sprintf("type %s %s", n.Name.Name, pkg.oneLineNodeDepth(n.Type, depth))
+		sep := " "
+		if n.Assign.IsValid() {
+			sep = " = "
+		}
+		return fmt.Sprintf("type %s%s%s", n.Name.Name, sep, pkg.oneLineNodeDepth(n.Type, depth))
 
 	case *ast.FuncType:
 		var params []string

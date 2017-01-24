@@ -71,6 +71,7 @@ var tests = []test{
 			`const MultiLineConst = ...`,                                   // Multi line constant.
 			`var MultiLineVar = map\[struct{ ... }\]struct{ ... }{ ... }`,  // Multi line variable.
 			`func MultiLineFunc\(x interface{ ... }\) \(r struct{ ... }\)`, // Multi line function.
+			`type T1 = T2`, // Type alias
 		},
 		[]string{
 			`const internalConstant = 2`,        // No internal constants.
@@ -89,6 +90,7 @@ var tests = []test{
 			`unexportedTypedConstant`,           // No unexported typed constant.
 			`Field`,                             // No fields.
 			`Method`,                            // No methods.
+			`type T1 T2`, // Type alias does not display as type declaration.
 		},
 	},
 	// Package dump -u
@@ -263,6 +265,18 @@ var tests = []test{
 			`unexportedMethod`,               // No unexported method.
 			`unexportedTypedConstant`,        // No unexported constant.
 			`error`,                          // No embedded error.
+		},
+	},
+	// Type T1 dump (alias).
+	{
+		"type T1",
+		[]string{p+".T1"},
+		[]string{
+			`type T1 = T2`,
+		},
+		[]string{
+			`type T1 T2`,
+			`type ExportedType`,
 		},
 	},
 	// Type -u with unexported fields.
