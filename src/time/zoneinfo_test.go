@@ -5,9 +5,35 @@
 package time_test
 
 import (
+	"fmt"
+	"os"
 	"testing"
 	"time"
 )
+
+func init() {
+	if time.ZoneinfoForTesting() != nil {
+		panic(fmt.Errorf("zoneinfo initialized before first LoadLocation"))
+	}
+}
+
+func TestEnvVarUsage(t *testing.T) {
+	time.ResetZoneinfoForTesting()
+
+	testZoneinfo := "foo.zip"
+	env := "ZONEINFO"
+
+	defer os.Setenv(env, os.Getenv(env))
+	os.Setenv(env, testZoneinfo)
+
+	// Result isn't important, we're testing the side effect of this command
+	time.LoadLocation("Asia/Jerusalem")
+	defer time.ResetZoneinfoForTesting()
+
+	if zoneinfo := time.ZoneinfoForTesting(); testZoneinfo != *zoneinfo {
+		t.Errorf("zoneinfo does not match env variable: got %q want %q", zoneinfo, testZoneinfo)
+	}
+}
 
 func TestVersion3(t *testing.T) {
 	time.ForceZipFileForTesting(true)
