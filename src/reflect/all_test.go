@@ -5985,12 +5985,22 @@ func TestUnaddressableField(t *testing.T) {
 	})
 }
 
+
+type Tint int
+
+type Tint2 = Tint
+
 type Talias1 struct {
 	byte
 	uint8
 	int
 	int32
 	rune
+}
+
+type Talias2 struct {
+	Tint
+	Tint2
 }
 
 func TestAliasNames(t *testing.T) {
@@ -6000,4 +6010,12 @@ func TestAliasNames(t *testing.T) {
 	if out != want {
 		t.Errorf("Talias1 print:\nhave: %s\nwant: %s", out, want)
 	}
+
+	t2 := Talias2{Tint: 1, Tint2: 2}
+	out = fmt.Sprintf("%#v", t2)
+	want = "reflect_test.Talias2{Tint:1, Tint2:2}"
+	if out != want {
+		t.Errorf("Talias2 print:\nhave: %s\nwant: %s", out, want)
+	}
 }
+
