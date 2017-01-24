@@ -4,8 +4,10 @@
 package ssa
 
 import "math"
+import "cmd/internal/obj"
 
 var _ = math.MinInt8 // in case not otherwise used
+var _ = obj.ANOP     // in case not otherwise used
 func rewriteValueARM(v *Value) bool {
 	switch v.Op {
 	case OpARMADC:
@@ -12904,11 +12906,14 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Bswap32 <t> x)
-	// cond:
+	// cond: obj.GOARM==5
 	// result: (XOR <t> 		(SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8]) 		(SRRconst <t> x [8]))
 	for {
 		t := v.Type
 		x := v.Args[0]
+		if !(obj.GOARM == 5) {
+			break
+		}
 		v.reset(OpARMXOR)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpARMSRLconst, t)
@@ -12930,6 +12935,19 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
 		v.AddArg(v4)
 		return true
 	}
+	// match: (Bswap32 x)
+	// cond: obj.GOARM>=6
+	// result: (REV x)
+	for {
+		x := v.Args[0]
+		if !(obj.GOARM >= 6) {
+			break
+		}
+		v.reset(OpARMREV)
+		v.AddArg(x)
+		return true
+	}
+	return false
 }
 func rewriteValueARM_OpClosureCall(v *Value) bool {
 	// match: (ClosureCall [argwid] entry closure mem)
@@ -13074,11 +13092,14 @@ func rewriteValueARM_OpCtz32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Ctz32 <t> x)
-	// cond:
+	// cond: obj.GOARM<=6
 	// result: (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
 	for {
 		t := v.Type
 		x := v.Args[0]
+		if !(obj.GOARM <= 6) {
+			break
+		}
 		v.reset(OpARMRSBconst)
 		v.AuxInt = 32
 		v0 := b.NewValue0(v.Pos, OpARMCLZ, t)
@@ -13095,6 +13116,23 @@ func rewriteValueARM_OpCtz32(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Ctz32 <t> x)
+	// cond: obj.GOARM==7
+	// result: (CLZ <t> (RBIT <t> x))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		if !(obj.GOARM == 7) {
+			break
+		}
+		v.reset(OpARMCLZ)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpARMRBIT, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	return false
 }
 func rewriteValueARM_OpCvt32Fto32(v *Value) bool {
 	// match: (Cvt32Fto32 x)

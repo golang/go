@@ -4,8 +4,10 @@
 package ssa
 
 import "math"
+import "cmd/internal/obj"
 
 var _ = math.MinInt8 // in case not otherwise used
+var _ = obj.ANOP     // in case not otherwise used
 func rewriteValue386(v *Value) bool {
 	switch v.Op {
 	case Op386ADCL:

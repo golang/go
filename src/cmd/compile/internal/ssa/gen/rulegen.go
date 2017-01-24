@@ -153,7 +153,9 @@ func genRules(arch arch) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package ssa")
 	fmt.Fprintln(w, "import \"math\"")
+	fmt.Fprintln(w, "import \"cmd/internal/obj\"")
 	fmt.Fprintln(w, "var _ = math.MinInt8 // in case not otherwise used")
+	fmt.Fprintln(w, "var _ = obj.ANOP     // in case not otherwise used")
 
 	// Main rewrite routine is a switch on v.Op.
 	fmt.Fprintf(w, "func rewriteValue%s(v *Value) bool {\n", arch.name)
