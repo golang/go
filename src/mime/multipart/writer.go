@@ -50,13 +50,18 @@ func (w *Writer) SetBoundary(boundary string) error {
 	if len(boundary) < 1 || len(boundary) > 70 {
 		return errors.New("mime: invalid boundary length")
 	}
-	for _, b := range boundary {
+	end := len(boundary) - 1
+	for i, b := range boundary {
 		if 'A' <= b && b <= 'Z' || 'a' <= b && b <= 'z' || '0' <= b && b <= '9' {
 			continue
 		}
 		switch b {
 		case '\'', '(', ')', '+', '_', ',', '-', '.', '/', ':', '=', '?':
 			continue
+		case ' ':
+			if i != end {
+				continue
+			}
 		}
 		return errors.New("mime: invalid boundary character")
 	}
