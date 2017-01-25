@@ -733,7 +733,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 
 	case *ast.FuncLit:
 		p.expr(x.Type)
-		p.adjBlock(p.distanceFrom(x.Type.Pos()), blank, x.Body)
+		p.funcBody(p.distanceFrom(x.Type.Pos()), blank, x.Body)
 
 	case *ast.ParenExpr:
 		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
@@ -825,6 +825,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		if x.Type != nil {
 			p.expr1(x.Type, token.HighestPrec, depth)
 		}
+		p.level++
 		p.print(x.Lbrace, token.LBRACE)
 		p.exprList(x.Lbrace, x.Elts, 1, commaTerm, x.Rbrace)
 		// do not insert extra line break following a /*-style comment
@@ -837,6 +838,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 			mode |= noExtraBlank
 		}
 		p.print(mode, x.Rbrace, token.RBRACE, mode)
+		p.level--
 
 	case *ast.Ellipsis:
 		p.print(token.ELLIPSIS)
@@ -1557,17 +1559,22 @@ func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
 	return bodySize
 }
 
-// adjBlock prints an "adjacent" block (e.g., a for-loop or function body) following
-// a header (e.g., a for-loop control clause or function signature) of given headerSize.
+// funcBody prints a function body following a function header of given headerSize.
 // If the header's and block's size are "small enough" and the block is "simple enough",
 // the block is printed on the current line, without line breaks, spaced from the header
 // by sep. Otherwise the block's opening "{" is printed on the current line, followed by
 // lines for the block's statements and its closing "}".
 //
-func (p *printer) adjBlock(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
+func (p *printer) funcBody(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
 	if b == nil {
 		return
 	}
+
+	// save/restore composite literal nesting level
+	defer func(level int) {
+		p.level = level
+	}(p.level)
+	p.level = 0
 
 	const maxSize = 100
 	if headerSize+p.bodySize(b, maxSize) <= maxSize {
@@ -1613,7 +1620,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
 	}
 	p.expr(d.Name)
 	p.signature(d.Type.Params, d.Type.Results)
-	p.adjBlock(p.distanceFrom(d.Pos()), vtab, d.Body)
+	p.funcBody(p.distanceFrom(d.Pos()), vtab, d.Body)
 }
 
 func (p *printer) decl(decl ast.Decl) {
