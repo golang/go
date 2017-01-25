@@ -326,9 +326,7 @@ func TestQueryContext(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	if n := db.numFreeConns(); n != 1 {
-		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
-	}
+	waitForFree(t, db, 5*time.Second, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
@@ -343,6 +341,18 @@ func waitCondition(waitFor, checkEvery time.Duration, fn func() bool) bool {
 		time.Sleep(checkEvery)
 	}
 	return false
+}
+
+// waitForFree checks db.numFreeConns until either it equals want or
+// the maxWait time elapses.
+func waitForFree(t *testing.T, db *DB, maxWait time.Duration, want int) {
+	var numFree int
+	if !waitCondition(maxWait, 5*time.Millisecond, func() bool {
+		numFree = db.numFreeConns()
+		return numFree == want
+	}) {
+		t.Fatalf("free conns after hitting EOF = %d; want %d", numFree, want)
+	}
 }
 
 func TestQueryContextWait(t *testing.T) {
@@ -361,9 +371,7 @@ func TestQueryContextWait(t *testing.T) {
 	}
 
 	// Verify closed rows connection after error condition.
-	if n := db.numFreeConns(); n != 1 {
-		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
-	}
+	waitForFree(t, db, 5*time.Second, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
@@ -388,13 +396,7 @@ func TestTxContextWait(t *testing.T) {
 		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
 	}
 
-	var numFree int
-	if !waitCondition(5*time.Second, 5*time.Millisecond, func() bool {
-		numFree = db.numFreeConns()
-		return numFree == 0
-	}) {
-		t.Fatalf("free conns after hitting EOF = %d; want 0", numFree)
-	}
+	waitForFree(t, db, 5*time.Second, 0)
 
 	// Ensure the dropped connection allows more connections to be made.
 	// Checked on DB Close.
@@ -471,9 +473,7 @@ func TestMultiResultSetQuery(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	if n := db.numFreeConns(); n != 1 {
-		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
-	}
+	waitForFree(t, db, 5*time.Second, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
