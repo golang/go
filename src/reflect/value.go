@@ -755,7 +755,7 @@ func (v Value) Field(i int) Value {
 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
 	// Using an unexported field forces flagRO.
 	if !field.name.isExported() {
-		if field.name.name() == "" {
+		if field.anon() {
 			fl |= flagEmbedRO
 		} else {
 			fl |= flagStickyRO
@@ -766,7 +766,7 @@ func (v Value) Field(i int) Value {
 	// In the former case, we want v.ptr + offset.
 	// In the latter case, we must have field.offset = 0,
 	// so v.ptr + field.offset is still okay.
-	ptr := unsafe.Pointer(uintptr(v.ptr) + field.offset)
+	ptr := unsafe.Pointer(uintptr(v.ptr) + field.offset())
 	return Value{typ, ptr, fl}
 }
 

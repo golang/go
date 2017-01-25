@@ -531,7 +531,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			return
 		}
 		for _, f := range st.fields {
-			cgoCheckArg(f.typ, add(p, f.offset), true, top, msg)
+			cgoCheckArg(f.typ, add(p, f.offset()), true, top, msg)
 		}
 	case kindPtr, kindUnsafePointer:
 		if indir {

@@ -511,7 +511,7 @@ func isExportedField(ft *Field) (bool, *Pkg) {
 // dnameField dumps a reflect.name for a struct field.
 func dnameField(s *Sym, ot int, spkg *Pkg, ft *Field) int {
 	var name string
-	if ft.Sym != nil && ft.Embedded == 0 {
+	if ft.Sym != nil {
 		name = ft.Sym.Name
 	}
 	isExported, fpkg := isExportedField(ft)
@@ -1345,7 +1345,14 @@ ok:
 			// ../../../../runtime/type.go:/structField
 			ot = dnameField(s, ot, pkg, f)
 			ot = dsymptr(s, ot, dtypesym(f.Type), 0)
-			ot = duintptr(s, ot, uint64(f.Offset))
+			offsetAnon := uint64(f.Offset) << 1
+			if offsetAnon>>1 != uint64(f.Offset) {
+				Fatalf("%v: bad field offset for %s", t, f.Sym.Name)
+			}
+			if f.Embedded != 0 {
+				offsetAnon |= 1
+			}
+			ot = duintptr(s, ot, offsetAnon)
 		}
 	}
 
