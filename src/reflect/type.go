@@ -2403,6 +2403,9 @@ func StructOf(fields []StructField) Type {
 	lastzero := uintptr(0)
 	repr = append(repr, "struct {"...)
 	for i, field := range fields {
+		if field.Name == "" {
+			panic("reflect.StructOf: field " + strconv.Itoa(i) + " has no name")
+		}
 		if field.Type == nil {
 			panic("reflect.StructOf: field " + strconv.Itoa(i) + " has no type")
 		}
@@ -2794,23 +2797,25 @@ func StructOf(fields []StructField) Type {
 }
 
 func runtimeStructField(field StructField) structField {
-	exported := field.PkgPath == ""
-	if field.Name == "" {
-		t := field.Type.(*rtype)
-		if t.Kind() == Ptr {
-			t = t.Elem().(*rtype)
-		}
-		exported = t.nameOff(t.str).isExported()
-	} else if exported {
-		b0 := field.Name[0]
-		if ('a' <= b0 && b0 <= 'z') || b0 == '_' {
-			panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but has no PkgPath")
-		}
+	if field.PkgPath != "" {
+		panic("reflect.StructOf: StructOf does not allow unexported fields")
 	}
 
-	_ = resolveReflectType(field.Type.common())
+	// Best-effort check for misuse.
+	// Since PkgPath is empty, not much harm done if Unicode lowercase slips through.
+	c := field.Name[0]
+	if 'a' <= c && c <= 'z' || c == '_' {
+		panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but missing PkgPath")
+	}
+
+	name := field.Name
+	if field.Anonymous {
+		name = ""
+	}
+
+	resolveReflectType(field.Type.common()) // install in runtime
 	return structField{
-		name:   newName(field.Name, string(field.Tag), field.PkgPath, exported),
+		name:   newName(name, string(field.Tag), "", true),
 		typ:    field.Type.common(),
 		offset: 0,
 	}

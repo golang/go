@@ -3689,7 +3689,7 @@ func checkSameType(t *testing.T, x, y interface{}) {
 
 func TestArrayOf(t *testing.T) {
 	// check construction and use of type not in binary
-	for _, table := range []struct {
+	tests := []struct {
 		n          int
 		value      func(i int) interface{}
 		comparable bool
@@ -3767,7 +3767,9 @@ func TestArrayOf(t *testing.T) {
 			comparable: true,
 			want:       "[{0 0} {1 1} {2 2} {3 3} {4 4} {5 5} {6 6} {7 7} {8 8} {9 9}]",
 		},
-	} {
+	}
+
+	for _, table := range tests {
 		at := ArrayOf(table.n, TypeOf(table.value(0)))
 		v := New(at).Elem()
 		vok := New(at).Elem()
@@ -4133,50 +4135,58 @@ func TestStructOfExportRules(t *testing.T) {
 		f()
 	}
 
-	for i, test := range []struct {
+	tests := []struct {
 		field     StructField
 		mustPanic bool
 		exported  bool
 	}{
 		{
-			field:     StructField{Name: "", Type: TypeOf(S1{})},
-			mustPanic: false,
-			exported:  true,
+			field:    StructField{Name: "S1", Anonymous: true, Type: TypeOf(S1{})},
+			exported: true,
 		},
 		{
-			field:     StructField{Name: "", Type: TypeOf((*S1)(nil))},
-			mustPanic: false,
-			exported:  true,
+			field:    StructField{Name: "S1", Anonymous: true, Type: TypeOf((*S1)(nil))},
+			exported: true,
 		},
 		{
-			field:     StructField{Name: "", Type: TypeOf(s2{})},
-			mustPanic: false,
-			exported:  false,
-		},
-		{
-			field:     StructField{Name: "", Type: TypeOf((*s2)(nil))},
-			mustPanic: false,
-			exported:  false,
-		},
-		{
-			field:     StructField{Name: "", Type: TypeOf(S1{}), PkgPath: "other/pkg"},
+			field:     StructField{Name: "s2", Anonymous: true, Type: TypeOf(s2{})},
 			mustPanic: true,
-			exported:  true,
 		},
 		{
-			field:     StructField{Name: "", Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
+			field:     StructField{Name: "s2", Anonymous: true, Type: TypeOf((*s2)(nil))},
 			mustPanic: true,
-			exported:  true,
 		},
 		{
-			field:     StructField{Name: "", Type: TypeOf(s2{}), PkgPath: "other/pkg"},
+			field:     StructField{Name: "Name", Type: nil, PkgPath: ""},
 			mustPanic: true,
-			exported:  false,
 		},
 		{
-			field:     StructField{Name: "", Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
+			field:     StructField{Name: "", Type: TypeOf(S1{}), PkgPath: ""},
 			mustPanic: true,
-			exported:  false,
+		},
+		{
+			field:     StructField{Name: "S1", Anonymous: true, Type: TypeOf(S1{}), PkgPath: "other/pkg"},
+			mustPanic: true,
+		},
+		{
+			field:     StructField{Name: "S1", Anonymous: true, Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
+			mustPanic: true,
+		},
+		{
+			field:     StructField{Name: "s2", Anonymous: true, Type: TypeOf(s2{}), PkgPath: "other/pkg"},
+			mustPanic: true,
+		},
+		{
+			field:     StructField{Name: "s2", Anonymous: true, Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
+			mustPanic: true,
+		},
+		{
+			field:     StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
+			mustPanic: true,
+		},
+		{
+			field:     StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
+			mustPanic: true,
 		},
 		{
 			field:     StructField{Name: "S", Type: TypeOf(S1{})},
@@ -4184,81 +4194,68 @@ func TestStructOfExportRules(t *testing.T) {
 			exported:  true,
 		},
 		{
-			field:     StructField{Name: "S", Type: TypeOf((*S1)(nil))},
-			mustPanic: false,
-			exported:  true,
+			field:    StructField{Name: "S", Type: TypeOf((*S1)(nil))},
+			exported: true,
 		},
 		{
-			field:     StructField{Name: "S", Type: TypeOf(s2{})},
-			mustPanic: false,
-			exported:  true,
+			field:    StructField{Name: "S", Type: TypeOf(s2{})},
+			exported: true,
 		},
 		{
-			field:     StructField{Name: "S", Type: TypeOf((*s2)(nil))},
-			mustPanic: false,
-			exported:  true,
+			field:    StructField{Name: "S", Type: TypeOf((*s2)(nil))},
+			exported: true,
 		},
 		{
 			field:     StructField{Name: "s", Type: TypeOf(S1{})},
 			mustPanic: true,
-			exported:  false,
 		},
 		{
 			field:     StructField{Name: "s", Type: TypeOf((*S1)(nil))},
 			mustPanic: true,
-			exported:  false,
 		},
 		{
 			field:     StructField{Name: "s", Type: TypeOf(s2{})},
 			mustPanic: true,
-			exported:  false,
 		},
 		{
 			field:     StructField{Name: "s", Type: TypeOf((*s2)(nil))},
 			mustPanic: true,
-			exported:  false,
 		},
 		{
 			field:     StructField{Name: "s", Type: TypeOf(S1{}), PkgPath: "other/pkg"},
 			mustPanic: true, // TODO(sbinet): creating a name with a package path
-			exported:  false,
 		},
 		{
 			field:     StructField{Name: "s", Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
 			mustPanic: true, // TODO(sbinet): creating a name with a package path
-			exported:  false,
 		},
 		{
 			field:     StructField{Name: "s", Type: TypeOf(s2{}), PkgPath: "other/pkg"},
 			mustPanic: true, // TODO(sbinet): creating a name with a package path
-			exported:  false,
 		},
 		{
 			field:     StructField{Name: "s", Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
 			mustPanic: true, // TODO(sbinet): creating a name with a package path
-			exported:  false,
 		},
 		{
 			field:     StructField{Name: "", Type: TypeOf(ΦType{})},
-			mustPanic: false,
-			exported:  true,
+			mustPanic: true,
 		},
 		{
 			field:     StructField{Name: "", Type: TypeOf(φType{})},
-			mustPanic: false,
-			exported:  false,
+			mustPanic: true,
 		},
 		{
-			field:     StructField{Name: "Φ", Type: TypeOf(0)},
-			mustPanic: false,
-			exported:  true,
+			field:    StructField{Name: "Φ", Type: TypeOf(0)},
+			exported: true,
 		},
 		{
-			field:     StructField{Name: "φ", Type: TypeOf(0)},
-			mustPanic: false,
-			exported:  false,
+			field:    StructField{Name: "φ", Type: TypeOf(0)},
+			exported: false,
 		},
-	} {
+	}
+
+	for i, test := range tests {
 		testPanic(i, test.mustPanic, func() {
 			typ := StructOf([]StructField{test.field})
 			if typ == nil {
@@ -4346,7 +4343,7 @@ func TestStructOfGenericAlg(t *testing.T) {
 		{Name: "S1", Type: st1},
 	})
 
-	for _, table := range []struct {
+	tests := []struct {
 		rt  Type
 		idx []int
 	}{
@@ -4427,7 +4424,9 @@ func TestStructOfGenericAlg(t *testing.T) {
 			),
 			idx: []int{2},
 		},
-	} {
+	}
+
+	for _, table := range tests {
 		v1 := New(table.rt).Elem()
 		v2 := New(table.rt).Elem()
 
@@ -4529,18 +4528,21 @@ func TestStructOfWithInterface(t *testing.T) {
 	type Iface interface {
 		Get() int
 	}
-	for i, table := range []struct {
+	tests := []struct {
+		name string
 		typ  Type
 		val  Value
 		impl bool
 	}{
 		{
+			name: "StructI",
 			typ:  TypeOf(StructI(want)),
 			val:  ValueOf(StructI(want)),
 			impl: true,
 		},
 		{
-			typ: PtrTo(TypeOf(StructI(want))),
+			name: "StructI",
+			typ:  PtrTo(TypeOf(StructI(want))),
 			val: ValueOf(func() interface{} {
 				v := StructI(want)
 				return &v
@@ -4548,7 +4550,8 @@ func TestStructOfWithInterface(t *testing.T) {
 			impl: true,
 		},
 		{
-			typ: PtrTo(TypeOf(StructIPtr(want))),
+			name: "StructIPtr",
+			typ:  PtrTo(TypeOf(StructIPtr(want))),
 			val: ValueOf(func() interface{} {
 				v := StructIPtr(want)
 				return &v
@@ -4556,6 +4559,7 @@ func TestStructOfWithInterface(t *testing.T) {
 			impl: true,
 		},
 		{
+			name: "StructIPtr",
 			typ:  TypeOf(StructIPtr(want)),
 			val:  ValueOf(StructIPtr(want)),
 			impl: false,
@@ -4565,13 +4569,16 @@ func TestStructOfWithInterface(t *testing.T) {
 		//	val:  ValueOf(StructI(want)),
 		//	impl: true,
 		// },
-	} {
+	}
+
+	for i, table := range tests {
 		rt := StructOf(
 			[]StructField{
 				{
-					Name:    "",
-					PkgPath: "",
-					Type:    table.typ,
+					Name:      table.name,
+					Anonymous: true,
+					PkgPath:   "",
+					Type:      table.typ,
 				},
 			},
 		)
@@ -5951,6 +5958,7 @@ func TestSwapper(t *testing.T) {
 			want: []pairPtr{{5, 6, &c}, {3, 4, &b}, {1, 2, &a}},
 		},
 	}
+
 	for i, tt := range tests {
 		inStr := fmt.Sprint(tt.in)
 		Swapper(tt.in)(tt.i, tt.j)
