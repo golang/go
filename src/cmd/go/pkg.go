@@ -429,7 +429,7 @@ func setErrorPos(p *Package, importPos []token.Position) *Package {
 func cleanImport(path string) string {
 	orig := path
 	path = pathpkg.Clean(path)
-	if strings.HasPrefix(orig, "./") && path != ".." && path != "." && !strings.HasPrefix(path, "../") {
+	if strings.HasPrefix(orig, "./") && path != ".." && !strings.HasPrefix(path, "../") {
 		path = "./" + path
 	}
 	return path
