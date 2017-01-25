@@ -52,14 +52,14 @@ func parsePos(pos string) (filename string, startOffset, endOffset int, err erro
 	filename, offset := pos[:colon], pos[colon+1:]
 	startOffset = -1
 	endOffset = -1
-	if hyphen := strings.Index(offset, ","); hyphen < 0 {
+	if comma := strings.Index(offset, ","); comma < 0 {
 		// e.g. "foo.go:#123"
 		startOffset = parseOctothorpDecimal(offset)
 		endOffset = startOffset
 	} else {
 		// e.g. "foo.go:#123,#456"
-		startOffset = parseOctothorpDecimal(offset[:hyphen])
-		endOffset = parseOctothorpDecimal(offset[hyphen+1:])
+		startOffset = parseOctothorpDecimal(offset[:comma])
+		endOffset = parseOctothorpDecimal(offset[comma+1:])
 	}
 	if startOffset < 0 || endOffset < 0 {
 		err = fmt.Errorf("invalid offset %q in query position", offset)
