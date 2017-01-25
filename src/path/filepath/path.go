@@ -461,6 +461,10 @@ func Dir(path string) string {
 		i--
 	}
 	dir := Clean(path[len(vol) : i+1])
+	if dir == "." && len(vol) > 2 {
+		// must be UNC
+		return vol
+	}
 	return vol + dir
 }
 

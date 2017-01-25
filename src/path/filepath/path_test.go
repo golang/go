@@ -665,6 +665,7 @@ var windirtests = []PathTest{
 	{`c:\a\b`, `c:\a`},
 	{`c:a\b`, `c:a`},
 	{`c:a\b\c`, `c:a\b`},
+	{`\\host\share`, `\\host\share`},
 	{`\\host\share\`, `\\host\share\`},
 	{`\\host\share\a`, `\\host\share\`},
 	{`\\host\share\a\b`, `\\host\share\a`},
