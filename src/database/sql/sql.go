@@ -2348,7 +2348,7 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 }
 
 // rowsCloseHook returns a function so tests may install the
-// hook throug a test only mutex.
+// hook through a test only mutex.
 var rowsCloseHook = func() func(*Rows, *error) { return nil }
 
 func (rs *Rows) isClosed() bool {
