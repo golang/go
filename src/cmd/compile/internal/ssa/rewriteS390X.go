@@ -9847,11 +9847,11 @@ func rewriteValueS390X_OpS390XMOVDNE(v *Value, config *Config) bool {
 		v.AddArg(cmp)
 		return true
 	}
-	// match: (MOVDNE _ y (FlagEQ))
+	// match: (MOVDNE y _ (FlagEQ))
 	// cond:
 	// result: y
 	for {
-		y := v.Args[1]
+		y := v.Args[0]
 		v_2 := v.Args[2]
 		if v_2.Op != OpS390XFlagEQ {
 			break
@@ -9861,11 +9861,11 @@ func rewriteValueS390X_OpS390XMOVDNE(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	// match: (MOVDNE x _ (FlagLT))
+	// match: (MOVDNE _ x (FlagLT))
 	// cond:
 	// result: x
 	for {
-		x := v.Args[0]
+		x := v.Args[1]
 		v_2 := v.Args[2]
 		if v_2.Op != OpS390XFlagLT {
 			break
@@ -9875,11 +9875,11 @@ func rewriteValueS390X_OpS390XMOVDNE(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (MOVDNE x _ (FlagGT))
+	// match: (MOVDNE _ x (FlagGT))
 	// cond:
 	// result: x
 	for {
-		x := v.Args[0]
+		x := v.Args[1]
 		v_2 := v.Args[2]
 		if v_2.Op != OpS390XFlagGT {
 			break

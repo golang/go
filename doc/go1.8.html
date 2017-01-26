@@ -435,11 +435,11 @@ version of gccgo.
 <h3 id="plugin">Plugins</h3>
 
 <p>
-  Go now supports a “<code>plugin</code>” build mode for generating
-  plugins written in Go, and a
+  Go now provides early support for plugins with a “<code>plugin</code>”
+  build mode for generating plugins written in Go, and a
   new <a href="/pkg/plugin/"><code>plugin</code></a> package for
-  loading such plugins at run time. Plugin support is only currently
-  available on Linux.
+  loading such plugins at run time. Plugin support is currently only
+  available on Linux. Please report any issues.
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -1643,6 +1643,17 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       detector is enabled and a data race occurs during execution.
       Previously, individual test cases would appear to pass,
       and only the overall execution of the test binary would fail.
+    </p>
+
+    <p><!-- CL 32455 -->
+      The signature of the
+      <a href="/pkg/testing/#MainStart"><code>MainStart</code></a>
+      function has changed, as allowed by the documentation. It is an
+      internal detail and not part of the Go 1 compatibility promise.
+      If you're not calling <code>MainStart</code> directly but see
+      errors, that likely means you set the
+      normally-empty <code>GOROOT</code> environment variable and it
+      doesn't match the version of your <code>go</code> command's binary.
     </p>
 
   </dd>
