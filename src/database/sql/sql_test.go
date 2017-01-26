@@ -2664,7 +2664,7 @@ func TestIssue18429(t *testing.T) {
 			if err != nil {
 				return
 			}
-			// This is expected to give a cancel error many, but not all the time.
+			// This is expected to give a cancel error most, but not all the time.
 			// Test failure will happen with a panic or other race condition being
 			// reported.
 			rows, _ := tx.QueryContext(ctx, "WAIT|"+qwait+"|SELECT|people|name|")
