@@ -90,8 +90,8 @@ func TestWriterSetBoundary(t *testing.T) {
 		{"", false},
 		{"ungültig", false},
 		{"!", false},
-		{strings.Repeat("x", 69), true},
-		{strings.Repeat("x", 70), false},
+		{strings.Repeat("x", 70), true},
+		{strings.Repeat("x", 71), false},
 		{"bad!ascii!", false},
 		{"my-separator", true},
 	}
