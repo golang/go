@@ -67,6 +67,9 @@ func startProfile() {
 				Fatalf("%v", err)
 			}
 		})
+	} else {
+		// Not doing memory profiling; disable it entirely.
+		runtime.MemProfileRate = 0
 	}
 	if traceprofile != "" && traceHandler != nil {
 		traceHandler(traceprofile)
