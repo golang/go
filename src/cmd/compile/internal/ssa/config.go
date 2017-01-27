@@ -51,6 +51,7 @@ type Config struct {
 	// Storage for low-numbered values and blocks.
 	values [2000]Value
 	blocks [200]Block
+	locs   [2000]Location
 
 	// Reusable stackAllocState.
 	// See stackalloc.go's {new,put}StackAllocState.

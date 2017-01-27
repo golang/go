@@ -438,6 +438,16 @@ func (f *Func) Free() {
 		f.Config.blocks[i].ID = ID(i)
 	}
 
+	// Clear locs.
+	n = len(f.RegAlloc)
+	if n > len(f.Config.locs) {
+		n = len(f.Config.locs)
+	}
+	head := f.Config.locs[:n]
+	for i := range head {
+		head[i] = nil
+	}
+
 	// Unregister from config.
 	if f.Config.curFunc != f {
 		f.Fatalf("free of function which isn't the last one allocated")
