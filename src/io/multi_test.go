@@ -239,14 +239,17 @@ func TestMultiReaderFinalEOF(t *testing.T) {
 func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 	var mr Reader
 	closed := make(chan struct{})
-	{
+	// The closure ensures that we don't have a live reference to buf1
+	// on our stack after MultiReader is inlined (Issue 18819).  This
+	// is a work around for a limitation in liveness analysis.
+	func() {
 		buf1 := bytes.NewReader([]byte("foo"))
 		buf2 := bytes.NewReader([]byte("bar"))
 		mr = MultiReader(buf1, buf2)
 		runtime.SetFinalizer(buf1, func(*bytes.Reader) {
 			close(closed)
 		})
-	}
+	}()
 
 	buf := make([]byte, 4)
 	if n, err := ReadFull(mr, buf); err != nil || string(buf) != "foob" {
