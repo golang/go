@@ -147,6 +147,8 @@ var tVal = &T{
 	Tmpl:                 Must(New("x").Parse("test template")), // "x" is the value of .X
 }
 
+var tSliceOfNil = []*T{nil}
+
 // A non-empty interface.
 type I interface {
 	Method0() string
@@ -337,6 +339,7 @@ var execTests = []execTest{
 		"true", tVal, true},
 	{".NilOKFunc not nil", "{{call .NilOKFunc .PI}}", "false", tVal, true},
 	{".NilOKFunc nil", "{{call .NilOKFunc nil}}", "true", tVal, true},
+	{"method on nil value from slice", "-{{range .}}{{.Method1 1234}}{{end}}-", "-1234-", tSliceOfNil, true},
 
 	// Function call builtin.
 	{".BinaryFunc", "{{call .BinaryFunc `1` `2`}}", "[1=2]", tVal, true},
