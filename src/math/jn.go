@@ -226,10 +226,10 @@ func Jn(n int, x float64) float64 {
 //
 // Special cases are:
 //	Yn(n, +Inf) = 0
-//	Yn(n > 0, 0) = -Inf
+//	Yn(n ≥ 0, 0) = -Inf
 //	Yn(n < 0, 0) = +Inf if n is odd, -Inf if n is even
-//	Y1(n, x < 0) = NaN
-//	Y1(n, NaN) = NaN
+//	Yn(n, x < 0) = NaN
+//	Yn(n, NaN) = NaN
 func Yn(n int, x float64) float64 {
 	const Two302 = 1 << 302 // 2**302 0x52D0000000000000
 	// special cases
