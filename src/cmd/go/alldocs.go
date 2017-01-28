@@ -131,16 +131,17 @@
 // 		For example, when building with a non-standard configuration,
 // 		use -pkgdir to keep generated packages in a separate location.
 // 	-tags 'tag list'
-// 		a list of build tags to consider satisfied during the build.
-// 		For more information about build tags, see the description of
+// 		a space-separated list of build tags to consider satisfied during the
+// 		build. For more information about build tags, see the description of
 // 		build constraints in the documentation for the go/build package.
 // 	-toolexec 'cmd args'
 // 		a program to use to invoke toolchain programs like vet and asm.
 // 		For example, instead of running asm, the go command will run
 // 		'cmd args /path/to/asm <arguments for asm>'.
 //
-// The list flags accept a space-separated list of strings. To embed spaces
-// in an element in the list, surround it with either single or double quotes.
+// All the flags that take a list of arguments accept a space-separated
+// list of strings. To embed spaces in an element in the list, surround
+// it with either single or double quotes.
 //
 // For more about specifying packages, see 'go help packages'.
 // For more about where packages and binaries are installed,
