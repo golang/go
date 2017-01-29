@@ -429,6 +429,7 @@ type m struct {
 	inwb          bool // m is executing a write barrier
 	newSigstack   bool // minit on C thread called sigaltstack
 	printlock     int8
+	incgo         bool // m is executing a cgo call
 	fastrand      uint32
 	ncgocall      uint64      // number of cgo calls in total
 	ncgo          int32       // number of cgo calls currently in progress

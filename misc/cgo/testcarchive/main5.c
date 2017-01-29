@@ -68,6 +68,24 @@ int main(int argc, char** argv) {
 
 			break;
 		}
+		case 3: {
+			if (verbose) {
+				printf("attempting SIGPIPE\n");
+			}
+
+			int fd[2];
+			if (pipe(fd) != 0) {
+				printf("pipe(2) failed\n");
+				return 0;
+			}
+			// Close the reading end.
+			close(fd[0]);
+			// Expect that write(2) fails (EPIPE)
+			if (write(fd[1], "some data", 9) != -1) {
+				printf("write(2) unexpectedly succeeded\n");
+				return 0;
+			}
+		}
 		default:
 			printf("Unknown test: %d\n", test);
 			return 0;

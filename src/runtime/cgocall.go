@@ -110,6 +110,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	mp := getg().m
 	mp.ncgocall++
 	mp.ncgo++
+	mp.incgo = true
 
 	// Reset traceback.
 	mp.cgoCallers[0] = 0
@@ -151,6 +152,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 
 //go:nosplit
 func endcgo(mp *m) {
+	mp.incgo = false
 	mp.ncgo--
 
 	if raceenabled {
@@ -180,9 +182,11 @@ func cgocallbackg(ctxt uintptr) {
 	savedsp := unsafe.Pointer(gp.syscallsp)
 	savedpc := gp.syscallpc
 	exitsyscall(0) // coming out of cgo call
+	gp.m.incgo = false
 
 	cgocallbackg1(ctxt)
 
+	gp.m.incgo = true
 	// going back to cgo call
 	reentersyscall(savedpc, uintptr(savedsp))
 
