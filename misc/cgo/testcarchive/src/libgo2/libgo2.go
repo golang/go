@@ -4,6 +4,30 @@
 
 package main
 
+/*
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+// Raise SIGPIPE.
+static void CRaiseSIGPIPE() {
+	int fds[2];
+
+	if (pipe(fds) == -1) {
+		perror("pipe");
+		exit(EXIT_FAILURE);
+	}
+	// Close the reader end
+	close(fds[0]);
+	// Write to the writer end to provoke a SIGPIPE
+	if (write(fds[1], "some data", 9) != -1) {
+		fprintf(stderr, "write to a closed pipe succeeded\n");
+		exit(EXIT_FAILURE);
+	}
+	close(fds[1]);
+}
+*/
 import "C"
 
 import (
@@ -44,6 +68,12 @@ func TestSEGV() {
 // Noop ensures that the Go runtime is initialized.
 //export Noop
 func Noop() {
+}
+
+// Raise SIGPIPE.
+//export GoRaiseSIGPIPE
+func GoRaiseSIGPIPE() {
+	C.CRaiseSIGPIPE()
 }
 
 func main() {

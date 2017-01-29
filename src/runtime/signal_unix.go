@@ -111,8 +111,8 @@ func sigInstallGoHandler(sig uint32) bool {
 	}
 
 	// When built using c-archive or c-shared, only install signal
-	// handlers for synchronous signals.
-	if (isarchive || islibrary) && t.flags&_SigPanic == 0 {
+	// handlers for synchronous signals and SIGPIPE.
+	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE {
 		return false
 	}
 
@@ -518,16 +518,19 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 		return true
 	}
 
-	// Only forward synchronous signals.
 	c := &sigctxt{info, ctx}
-	if c.sigcode() == _SI_USER || flags&_SigPanic == 0 {
+	// Only forward synchronous signals and SIGPIPE.
+	// Unfortunately, user generated SIGPIPEs will also be forwarded, because si_code
+	// is set to _SI_USER even for a SIGPIPE raised from a write to a closed socket
+	// or pipe.
+	if (c.sigcode() == _SI_USER || flags&_SigPanic == 0) && sig != _SIGPIPE {
 		return false
 	}
 	// Determine if the signal occurred inside Go code. We test that:
 	//   (1) we were in a goroutine (i.e., m.curg != nil), and
-	//   (2) we weren't in CGO (i.e., m.curg.syscallsp == 0).
+	//   (2) we weren't in CGO.
 	g := getg()
-	if g != nil && g.m != nil && g.m.curg != nil && g.m.curg.syscallsp == 0 {
+	if g != nil && g.m != nil && g.m.curg != nil && !g.m.incgo {
 		return false
 	}
 	// Signal not handled by Go, forward it.

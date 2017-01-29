@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <sched.h>
 #include <time.h>
+#include <errno.h>
 
 #include "libgo2.h"
 
@@ -26,6 +27,7 @@ static void die(const char* msg) {
 }
 
 static volatile sig_atomic_t sigioSeen;
+static volatile sig_atomic_t sigpipeSeen;
 
 // Use up some stack space.
 static void recur(int i, char *p) {
@@ -35,6 +37,10 @@ static void recur(int i, char *p) {
 	if (i > 0) {
 		recur(i - 1, a);
 	}
+}
+
+static void pipeHandler(int signo, siginfo_t* info, void* ctxt) {
+	sigpipeSeen = 1;
 }
 
 // Signal handler that uses up more stack space than a goroutine will have.
@@ -106,6 +112,10 @@ static void init() {
 		die("sigaction");
 	}
 
+	sa.sa_sigaction = pipeHandler;
+	if (sigaction(SIGPIPE, &sa, NULL) < 0) {
+		die("sigaction");
+	}
 }
 
 int main(int argc, char** argv) {
@@ -167,7 +177,30 @@ int main(int argc, char** argv) {
 		nanosleep(&ts, NULL);
 		i++;
 		if (i > 5000) {
-			fprintf(stderr, "looping too long waiting for signal\n");
+			fprintf(stderr, "looping too long waiting for SIGIO\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if (verbose) {
+		printf("provoking SIGPIPE\n");
+	}
+
+	GoRaiseSIGPIPE();
+
+	if (verbose) {
+		printf("waiting for sigpipeSeen\n");
+	}
+
+	// Wait until the signal has been delivered.
+	i = 0;
+	while (!sigpipeSeen) {
+		ts.tv_sec = 0;
+		ts.tv_nsec = 1000000;
+		nanosleep(&ts, NULL);
+		i++;
+		if (i > 5000) {
+			fprintf(stderr, "looping too long waiting for SIGPIPE\n");
 			exit(EXIT_FAILURE);
 		}
 	}
