@@ -821,6 +821,7 @@ func (m *M) Run() int {
 	haveExamples = len(m.examples) > 0
 	testRan, testOk := runTests(m.deps.MatchString, m.tests)
 	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
+	stopAlarm()
 	if !testRan && !exampleRan && *matchBenchmarks == "" {
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 	}

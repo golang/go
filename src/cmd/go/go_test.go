@@ -3744,6 +3744,13 @@ func TestMatchesOnlySubtestParallelIsOK(t *testing.T) {
 	tg.grepBoth(okPattern, "go test did not say ok")
 }
 
+// Issue 18845
+func TestBenchTimeout(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-bench", ".", "-timeout", "750ms", "testdata/timeoutbench_test.go")
+}
+
 func TestLinkXImportPathEscape(t *testing.T) {
 	// golang.org/issue/16710
 	tg := testgo(t)
