@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -354,7 +353,7 @@ func (t *tester) registerTests() {
 
 	// This test needs its stdout/stderr to be terminals, so we don't run it from cmd/go's tests.
 	// See issue 18153.
-	if runtime.GOOS == "linux" {
+	if t.goos == "linux" {
 		t.tests = append(t.tests, distTest{
 			name:    "cmd_go_test_terminal",
 			heading: "cmd/go terminal test",
