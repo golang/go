@@ -567,7 +567,7 @@ func (t *tester) registerTests() {
 		if t.gohostos == "linux" && t.goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
-		if t.gohostos == "linux" && t.goarch == "amd64" {
+		if t.goos == "linux" && t.goarch == "amd64" {
 			t.registerTest("testsanitizers", "../misc/cgo/testsanitizers", "./test.bash")
 		}
 		if t.hasBash() && t.goos != "android" && !t.iOS() && t.gohostos != "windows" {
