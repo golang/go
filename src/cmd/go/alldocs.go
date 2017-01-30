@@ -17,7 +17,7 @@
 // 	clean       remove object files
 // 	doc         show documentation for package or symbol
 // 	env         print Go environment information
-// 	bug         print information for bug reports
+// 	bug         start a bug report
 // 	fix         run go tool fix on packages
 // 	fmt         run gofmt on package sources
 // 	generate    generate Go files by processing source
@@ -324,15 +324,14 @@
 // each named variable on its own line.
 //
 //
-// Print information for bug reports
+// Start a bug report
 //
 // Usage:
 //
 // 	go bug
 //
-// Bug prints information that helps file effective bug reports.
-//
-// Bugs may be reported at https://golang.org/issue/new.
+// Bug opens the default browser and starts a new bug report.
+// The report includes useful system information.
 //
 //
 // Run go tool fix on packages
