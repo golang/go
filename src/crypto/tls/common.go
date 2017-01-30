@@ -174,9 +174,9 @@ type ConnectionState struct {
 	// TLSUnique contains the "tls-unique" channel binding value (see RFC
 	// 5929, section 3). For resumed sessions this value will be nil
 	// because resumption does not include enough context (see
-	// https://secure-resumption.com/#channelbindings). This will change in
-	// future versions of Go once the TLS master-secret fix has been
-	// standardized and implemented.
+	// https://mitls.org/pages/attacks/3SHAKE#channelbindings). This will
+	// change in future versions of Go once the TLS master-secret fix has
+	// been standardized and implemented.
 	TLSUnique []byte
 }
 
