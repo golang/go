@@ -674,3 +674,15 @@ type T struct{}
 func (*T) Foo(ptr *int) {}
 
 type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "live at entry to R\.Foo: \.this ptr"
+
+// issue 18860: output arguments must be live all the time if there is a defer.
+// In particular, at printint r must be live.
+func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
+	r = p
+	defer func() {
+		recover()
+	}() // ERROR "live at call to deferproc: q r$" "live at call to deferreturn: r$"
+	printint(0) // ERROR "live at call to printint: q r$"
+	r = q
+	return // ERROR "live at call to deferreturn: r$"
+}

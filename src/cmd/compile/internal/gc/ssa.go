@@ -3200,6 +3200,8 @@ func (s *state) canSSA(n *Node) bool {
 			// TODO: handle this case?  Named return values must be
 			// in memory so that the deferred function can see them.
 			// Maybe do: if !strings.HasPrefix(n.String(), "~") { return false }
+			// Or maybe not, see issue 18860.  Even unnamed return values
+			// must be written back so if a defer recovers, the caller can see them.
 			return false
 		}
 		if s.cgoUnsafeArgs {

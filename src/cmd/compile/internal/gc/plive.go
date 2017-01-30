@@ -1192,18 +1192,32 @@ func livenessepilogue(lv *Liveness) {
 	avarinit := bvalloc(nvars)
 	any := bvalloc(nvars)
 	all := bvalloc(nvars)
-	pparamout := bvalloc(localswords())
+	outLive := bvalloc(argswords())       // always-live output params
+	outLiveHeap := bvalloc(localswords()) // always-live pointers to heap-allocated copies of output params
 
-	// Record pointers to heap-allocated pparamout variables.  These
-	// are implicitly read by post-deferreturn code and thus must be
-	// kept live throughout the function (if there is any defer that
-	// recovers).
+	// If there is a defer (that could recover), then all output
+	// parameters are live all the time.  In addition, any locals
+	// that are pointers to heap-allocated output parameters are
+	// also always live (post-deferreturn code needs these
+	// pointers to copy values back to the stack).
+	// TODO: if the output parameter is heap-allocated, then we
+	// don't need to keep the stack copy live?
 	if hasdefer {
 		for _, n := range lv.vars {
+			if n.Class == PPARAMOUT {
+				if n.IsOutputParamHeapAddr() {
+					// Just to be paranoid.
+					Fatalf("variable %v both output param and heap output param", n)
+				}
+				// Needzero not necessary, as the compiler
+				// explicitly zeroes output vars at start of fn.
+				xoffset := n.Xoffset
+				onebitwalktype1(n.Type, &xoffset, outLive)
+			}
 			if n.IsOutputParamHeapAddr() {
 				n.Name.Needzero = true
 				xoffset := n.Xoffset + stkptrsize
-				onebitwalktype1(n.Type, &xoffset, pparamout)
+				onebitwalktype1(n.Type, &xoffset, outLiveHeap)
 			}
 		}
 	}
@@ -1357,7 +1371,8 @@ func livenessepilogue(lv *Liveness) {
 
 				// Mark pparamout variables (as described above)
 				if p.As == obj.ACALL {
-					locals.Or(locals, pparamout)
+					args.Or(args, outLive)
+					locals.Or(locals, outLiveHeap)
 				}
 
 				// Show live pointer bitmaps.
