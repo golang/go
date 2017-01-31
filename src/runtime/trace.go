@@ -19,50 +19,52 @@ import (
 
 // Event types in the trace, args are given in square brackets.
 const (
-	traceEvNone           = 0  // unused
-	traceEvBatch          = 1  // start of per-P batch of events [pid, timestamp]
-	traceEvFrequency      = 2  // contains tracer timer frequency [frequency (ticks per second)]
-	traceEvStack          = 3  // stack [stack id, number of PCs, array of {PC, func string ID, file string ID, line}]
-	traceEvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
-	traceEvProcStart      = 5  // start of P [timestamp, thread id]
-	traceEvProcStop       = 6  // stop of P [timestamp]
-	traceEvGCStart        = 7  // GC start [timestamp, seq, stack id]
-	traceEvGCDone         = 8  // GC done [timestamp]
-	traceEvGCScanStart    = 9  // GC mark termination start [timestamp]
-	traceEvGCScanDone     = 10 // GC mark termination done [timestamp]
-	traceEvGCSweepStart   = 11 // GC sweep start [timestamp, stack id]
-	traceEvGCSweepDone    = 12 // GC sweep done [timestamp]
-	traceEvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
-	traceEvGoStart        = 14 // goroutine starts running [timestamp, goroutine id, seq]
-	traceEvGoEnd          = 15 // goroutine ends [timestamp]
-	traceEvGoStop         = 16 // goroutine stops (like in select{}) [timestamp, stack]
-	traceEvGoSched        = 17 // goroutine calls Gosched [timestamp, stack]
-	traceEvGoPreempt      = 18 // goroutine is preempted [timestamp, stack]
-	traceEvGoSleep        = 19 // goroutine calls Sleep [timestamp, stack]
-	traceEvGoBlock        = 20 // goroutine blocks [timestamp, stack]
-	traceEvGoUnblock      = 21 // goroutine is unblocked [timestamp, goroutine id, seq, stack]
-	traceEvGoBlockSend    = 22 // goroutine blocks on chan send [timestamp, stack]
-	traceEvGoBlockRecv    = 23 // goroutine blocks on chan recv [timestamp, stack]
-	traceEvGoBlockSelect  = 24 // goroutine blocks on select [timestamp, stack]
-	traceEvGoBlockSync    = 25 // goroutine blocks on Mutex/RWMutex [timestamp, stack]
-	traceEvGoBlockCond    = 26 // goroutine blocks on Cond [timestamp, stack]
-	traceEvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
-	traceEvGoSysCall      = 28 // syscall enter [timestamp, stack]
-	traceEvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, seq, real timestamp]
-	traceEvGoSysBlock     = 30 // syscall blocks [timestamp]
-	traceEvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
-	traceEvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
-	traceEvHeapAlloc      = 33 // memstats.heap_live change [timestamp, heap_alloc]
-	traceEvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
-	traceEvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
-	traceEvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
-	traceEvString         = 37 // string dictionary entry [ID, length, string]
-	traceEvGoStartLocal   = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
-	traceEvGoUnblockLocal = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
-	traceEvGoSysExitLocal = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
-	traceEvGoStartLabel   = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
-	traceEvGoBlockGC      = 42 // goroutine blocks on GC assist [timestamp, stack]
-	traceEvCount          = 43
+	traceEvNone              = 0  // unused
+	traceEvBatch             = 1  // start of per-P batch of events [pid, timestamp]
+	traceEvFrequency         = 2  // contains tracer timer frequency [frequency (ticks per second)]
+	traceEvStack             = 3  // stack [stack id, number of PCs, array of {PC, func string ID, file string ID, line}]
+	traceEvGomaxprocs        = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
+	traceEvProcStart         = 5  // start of P [timestamp, thread id]
+	traceEvProcStop          = 6  // stop of P [timestamp]
+	traceEvGCStart           = 7  // GC start [timestamp, seq, stack id]
+	traceEvGCDone            = 8  // GC done [timestamp]
+	traceEvGCScanStart       = 9  // GC mark termination start [timestamp]
+	traceEvGCScanDone        = 10 // GC mark termination done [timestamp]
+	traceEvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
+	traceEvGCSweepDone       = 12 // GC sweep done [timestamp]
+	traceEvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+	traceEvGoStart           = 14 // goroutine starts running [timestamp, goroutine id, seq]
+	traceEvGoEnd             = 15 // goroutine ends [timestamp]
+	traceEvGoStop            = 16 // goroutine stops (like in select{}) [timestamp, stack]
+	traceEvGoSched           = 17 // goroutine calls Gosched [timestamp, stack]
+	traceEvGoPreempt         = 18 // goroutine is preempted [timestamp, stack]
+	traceEvGoSleep           = 19 // goroutine calls Sleep [timestamp, stack]
+	traceEvGoBlock           = 20 // goroutine blocks [timestamp, stack]
+	traceEvGoUnblock         = 21 // goroutine is unblocked [timestamp, goroutine id, seq, stack]
+	traceEvGoBlockSend       = 22 // goroutine blocks on chan send [timestamp, stack]
+	traceEvGoBlockRecv       = 23 // goroutine blocks on chan recv [timestamp, stack]
+	traceEvGoBlockSelect     = 24 // goroutine blocks on select [timestamp, stack]
+	traceEvGoBlockSync       = 25 // goroutine blocks on Mutex/RWMutex [timestamp, stack]
+	traceEvGoBlockCond       = 26 // goroutine blocks on Cond [timestamp, stack]
+	traceEvGoBlockNet        = 27 // goroutine blocks on network [timestamp, stack]
+	traceEvGoSysCall         = 28 // syscall enter [timestamp, stack]
+	traceEvGoSysExit         = 29 // syscall exit [timestamp, goroutine id, seq, real timestamp]
+	traceEvGoSysBlock        = 30 // syscall blocks [timestamp]
+	traceEvGoWaiting         = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
+	traceEvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
+	traceEvHeapAlloc         = 33 // memstats.heap_live change [timestamp, heap_alloc]
+	traceEvNextGC            = 34 // memstats.next_gc change [timestamp, next_gc]
+	traceEvTimerGoroutine    = 35 // denotes timer goroutine [timer goroutine id]
+	traceEvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+	traceEvString            = 37 // string dictionary entry [ID, length, string]
+	traceEvGoStartLocal      = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
+	traceEvGoUnblockLocal    = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
+	traceEvGoSysExitLocal    = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
+	traceEvGoStartLabel      = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
+	traceEvGoBlockGC         = 42 // goroutine blocks on GC assist [timestamp, stack]
+	traceEvGCMarkAssistStart = 43 // GC mark assist start [timestamp, stack]
+	traceEvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
+	traceEvCount             = 45
 )
 
 const (
@@ -380,7 +382,7 @@ func ReadTrace() []byte {
 		trace.headerWritten = true
 		trace.lockOwner = nil
 		unlock(&trace.lock)
-		return []byte("go 1.8 trace\x00\x00\x00\x00")
+		return []byte("go 1.9 trace\x00\x00\x00\x00")
 	}
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
@@ -937,6 +939,14 @@ func traceGCSweepStart() {
 
 func traceGCSweepDone() {
 	traceEvent(traceEvGCSweepDone, -1)
+}
+
+func traceGCMarkAssistStart() {
+	traceEvent(traceEvGCMarkAssistStart, 1)
+}
+
+func traceGCMarkAssistDone() {
+	traceEvent(traceEvGCMarkAssistDone, -1)
 }
 
 func traceGoCreate(newg *g, pc uintptr) {

@@ -415,6 +415,10 @@ func gcAssistAlloc(gp *g) {
 		return
 	}
 
+	if trace.enabled {
+		traceGCMarkAssistStart()
+	}
+
 retry:
 	// Compute the amount of scan work we need to do to make the
 	// balance positive. When the required amount of work is low,
@@ -450,6 +454,9 @@ retry:
 		if scanWork == 0 {
 			// We were able to steal all of the credit we
 			// needed.
+			if trace.enabled {
+				traceGCMarkAssistDone()
+			}
 			return
 		}
 	}
@@ -495,6 +502,9 @@ retry:
 
 		// At this point either background GC has satisfied
 		// this G's assist debt, or the GC cycle is over.
+	}
+	if trace.enabled {
+		traceGCMarkAssistDone()
 	}
 }
 

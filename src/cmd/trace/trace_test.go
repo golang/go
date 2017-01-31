@@ -2,6 +2,7 @@ package main
 
 import (
 	"internal/trace"
+	"strings"
 	"testing"
 )
 
@@ -97,5 +98,45 @@ func TestGoroutineFilter(t *testing.T) {
 	_, err = generateTrace(params)
 	if err != nil {
 		t.Fatalf("generateTrace failed: %v", err)
+	}
+}
+
+func TestPreemptedMarkAssist(t *testing.T) {
+	w := trace.NewWriter()
+	w.Emit(trace.EvBatch, 0, 0)  // start of per-P batch event [pid, timestamp]
+	w.Emit(trace.EvFrequency, 1) // [ticks per second]
+
+	// goroutine 9999: running -> mark assisting -> preempted -> assisting -> running -> block
+	w.Emit(trace.EvGoCreate, 1, 9999, 1, 1) // [timestamp, new goroutine id, new stack id, stack id]
+	w.Emit(trace.EvGoStartLocal, 1, 9999)   // [timestamp, goroutine id]
+	w.Emit(trace.EvGCMarkAssistStart, 1, 2) // [timestamp, stack]
+	w.Emit(trace.EvGoPreempt, 1, 3)         // [timestamp, stack]
+	w.Emit(trace.EvGoStartLocal, 1, 9999)   // [timestamp, goroutine id]
+	w.Emit(trace.EvGCMarkAssistDone, 1)     // [timestamp]
+	w.Emit(trace.EvGoBlock, 1, 4)           // [timestamp, stack]
+
+	events, err := trace.Parse(w, "")
+	if err != nil {
+		t.Fatalf("failed to parse test trace: %v", err)
+	}
+
+	params := &traceParams{
+		events:  events,
+		endTime: int64(1<<63 - 1),
+	}
+
+	viewerData, err := generateTrace(params)
+	if err != nil {
+		t.Fatalf("generateTrace failed: %v", err)
+	}
+
+	marks := 0
+	for _, ev := range viewerData.Events {
+		if strings.Contains(ev.Name, "MARK ASSIST") {
+			marks++
+		}
+	}
+	if marks != 2 {
+		t.Errorf("Got %v MARK ASSIST events, want %v", marks, 2)
 	}
 }
