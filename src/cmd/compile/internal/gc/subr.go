@@ -333,23 +333,41 @@ func importdot(opkg *Pkg, pack *Node) {
 }
 
 func nod(op Op, nleft *Node, nright *Node) *Node {
-	n := new(Node)
+	var n *Node
+	switch op {
+	case OCLOSURE, ODCLFUNC:
+		var x struct {
+			Node
+			Func
+		}
+		n = &x.Node
+		n.Func = &x.Func
+		n.Func.IsHiddenClosure = Curfn != nil
+	case ONAME:
+		var x struct {
+			Node
+			Name
+			Param
+		}
+		n = &x.Node
+		n.Name = &x.Name
+		n.Name.Param = &x.Param
+	case OLABEL, OPACK:
+		var x struct {
+			Node
+			Name
+		}
+		n = &x.Node
+		n.Name = &x.Name
+	default:
+		n = new(Node)
+	}
 	n.Op = op
 	n.Left = nleft
 	n.Right = nright
 	n.Pos = lineno
 	n.Xoffset = BADWIDTH
 	n.Orig = n
-	switch op {
-	case OCLOSURE, ODCLFUNC:
-		n.Func = new(Func)
-		n.Func.IsHiddenClosure = Curfn != nil
-	case ONAME:
-		n.Name = new(Name)
-		n.Name.Param = new(Param)
-	case OLABEL, OPACK:
-		n.Name = new(Name)
-	}
 	if n.Name != nil {
 		n.Name.Curfn = Curfn
 	}
