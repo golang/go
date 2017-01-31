@@ -139,7 +139,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	case *Basic:
 		// Basic types are singletons except for the rune and byte
 		// aliases, thus we cannot solely rely on the x == y check
-		// above.
+		// above. See also comment in TypeName.IsAlias.
 		if y, ok := y.(*Basic); ok {
 			return x.kind == y.kind
 		}

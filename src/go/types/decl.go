@@ -81,14 +81,10 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
 		check.varDecl(obj, d.lhs, d.typ, d.init)
 	case *TypeName:
 		// invalid recursive types are detected via path
-		check.typeDecl(obj, d.typ, def, path)
+		check.typeDecl(obj, d.typ, def, path, d.alias)
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
-	// Alias-related code. Keep for now.
-	// case *Alias:
-	// 	// aliases cannot be recursive - no need to track dependencies
-	// 	check.aliasDecl(obj, d)
 	default:
 		unreachable()
 	}
@@ -219,33 +215,42 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
-func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName) {
+func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName, alias bool) {
 	assert(obj.typ == nil)
 
 	// type declarations cannot use iota
 	assert(check.iota == nil)
 
-	named := &Named{obj: obj}
-	def.setUnderlying(named)
-	obj.typ = named // make sure recursive type declarations terminate
+	if alias {
 
-	// determine underlying type of named
-	check.typExpr(typ, named, append(path, obj))
+		obj.typ = Typ[Invalid]
+		obj.typ = check.typExpr(typ, nil, append(path, obj))
 
-	// The underlying type of named may be itself a named type that is
-	// incomplete:
-	//
-	//	type (
-	//		A B
-	//		B *C
-	//		C A
-	//	)
-	//
-	// The type of C is the (named) type of A which is incomplete,
-	// and which has as its underlying type the named type B.
-	// Determine the (final, unnamed) underlying type by resolving
-	// any forward chain (they always end in an unnamed type).
-	named.underlying = underlying(named.underlying)
+	} else {
+
+		named := &Named{obj: obj}
+		def.setUnderlying(named)
+		obj.typ = named // make sure recursive type declarations terminate
+
+		// determine underlying type of named
+		check.typExpr(typ, named, append(path, obj))
+
+		// The underlying type of named may be itself a named type that is
+		// incomplete:
+		//
+		//	type (
+		//		A B
+		//		B *C
+		//		C A
+		//	)
+		//
+		// The type of C is the (named) type of A which is incomplete,
+		// and which has as its underlying type the named type B.
+		// Determine the (final, unnamed) underlying type by resolving
+		// any forward chain (they always end in an unnamed type).
+		named.underlying = underlying(named.underlying)
+
+	}
 
 	// check and add associated methods
 	// TODO(gri) It's easy to create pathological cases where the
@@ -268,21 +273,23 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 
 	// spec: "If the base type is a struct type, the non-blank method
 	// and field names must be distinct."
-	base := obj.typ.(*Named)
-	if t, _ := base.underlying.(*Struct); t != nil {
-		for _, fld := range t.fields {
-			if fld.name != "_" {
-				assert(mset.insert(fld) == nil)
+	base, _ := obj.typ.(*Named) // nil if receiver base type is type alias
+	if base != nil {
+		if t, _ := base.underlying.(*Struct); t != nil {
+			for _, fld := range t.fields {
+				if fld.name != "_" {
+					assert(mset.insert(fld) == nil)
+				}
 			}
 		}
-	}
 
-	// Checker.Files may be called multiple times; additional package files
-	// may add methods to already type-checked types. Add pre-existing methods
-	// so that we can detect redeclarations.
-	for _, m := range base.methods {
-		assert(m.name != "_")
-		assert(mset.insert(m) == nil)
+		// Checker.Files may be called multiple times; additional package files
+		// may add methods to already type-checked types. Add pre-existing methods
+		// so that we can detect redeclarations.
+		for _, m := range base.methods {
+			assert(m.name != "_")
+			assert(mset.insert(m) == nil)
+		}
 	}
 
 	// type-check methods
@@ -295,7 +302,7 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 				case *Var:
 					check.errorf(m.pos, "field and method with the same name %s", m.name)
 				case *Func:
-					check.errorf(m.pos, "method %s already declared for %s", m.name, base)
+					check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
 				default:
 					unreachable()
 				}
@@ -303,9 +310,12 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 				continue
 			}
 		}
+
+		// type-check
 		check.objDecl(m, nil, nil)
+
 		// methods with blank _ names cannot be found - don't keep them
-		if m.name != "_" {
+		if base != nil && m.name != "_" {
 			base.methods = append(base.methods, m)
 		}
 	}
@@ -331,106 +341,6 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
 		check.later(obj.name, decl, sig, fdecl.Body)
 	}
-}
-
-// original returns the original Object if obj is an Alias;
-// otherwise it returns obj. The result is never an Alias,
-// but it may be nil.
-func original(obj Object) Object {
-	// an alias stands for the original object; use that one instead
-	if alias, _ := obj.(*disabledAlias); alias != nil {
-		obj = alias.orig
-		// aliases always refer to non-alias originals
-		if _, ok := obj.(*disabledAlias); ok {
-			panic("original is an alias")
-		}
-	}
-	return obj
-}
-
-func (check *Checker) aliasDecl(obj *disabledAlias, decl *declInfo) {
-	assert(obj.typ == nil)
-
-	// alias declarations cannot use iota
-	assert(check.iota == nil)
-
-	// assume alias is invalid to start with
-	obj.typ = Typ[Invalid]
-
-	// rhs must be package-qualified identifer pkg.sel (see also call.go: checker.selector)
-	// TODO(gri) factor this code out and share with checker.selector
-	rhs := decl.init
-	var pkg *Package
-	var sel *ast.Ident
-	if sexpr, ok := rhs.(*ast.SelectorExpr); ok {
-		if ident, ok := sexpr.X.(*ast.Ident); ok {
-			_, obj := check.scope.LookupParent(ident.Name, check.pos)
-			if pname, _ := obj.(*PkgName); pname != nil {
-				assert(pname.pkg == check.pkg)
-				check.recordUse(ident, pname)
-				pname.used = true
-				pkg = pname.imported
-				sel = sexpr.Sel
-			}
-		}
-	}
-	if pkg == nil {
-		check.errorf(rhs.Pos(), "invalid alias: %v is not a package-qualified identifier", rhs)
-		return
-	}
-
-	// qualified identifier must denote an exported object
-	orig := pkg.scope.Lookup(sel.Name)
-	if orig == nil || !orig.Exported() {
-		if !pkg.fake {
-			check.errorf(rhs.Pos(), "%s is not exported by package %s", sel.Name, pkg.name)
-		}
-		return
-	}
-	check.recordUse(sel, orig)
-	orig = original(orig)
-
-	// avoid further errors if the imported object is an alias that's broken
-	if orig == nil {
-		return
-	}
-
-	// An alias declaration must not refer to package unsafe.
-	if orig.Pkg() == Unsafe {
-		check.errorf(rhs.Pos(), "invalid alias: %s refers to package unsafe (%v)", obj.Name(), orig)
-		return
-	}
-
-	// The original must be of the same kind as the alias declaration.
-	var why string
-	switch obj.kind {
-	case token.CONST:
-		if _, ok := orig.(*Const); !ok {
-			why = "constant"
-		}
-	case token.TYPE:
-		if _, ok := orig.(*TypeName); !ok {
-			why = "type"
-		}
-	case token.VAR:
-		if _, ok := orig.(*Var); !ok {
-			why = "variable"
-		}
-	case token.FUNC:
-		if _, ok := orig.(*Func); !ok {
-			why = "function"
-		}
-	default:
-		unreachable()
-	}
-	if why != "" {
-		check.errorf(rhs.Pos(), "invalid alias: %v is not a %s", orig, why)
-		return
-	}
-
-	// alias is valid
-	obj.typ = orig.Type()
-	obj.orig = orig
 }
 
 func (check *Checker) declStmt(decl ast.Decl) {
@@ -540,7 +450,7 @@ func (check *Checker) declStmt(decl ast.Decl) {
 				// the innermost containing block."
 				scopePos := s.Name.Pos()
 				check.declare(check.scope, s.Name, obj, scopePos)
-				check.typeDecl(obj, s.Type, nil, nil)
+				check.typeDecl(obj, s.Type, nil, nil, s.Assign.IsValid())
 
 			default:
 				check.invalidAST(s.Pos(), "const, type, or var declaration expected")

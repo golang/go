@@ -154,11 +154,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 
 func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 	names := p.declNames(decl.NameList)
-
-	var typ *Node
-	if decl.Type != nil {
-		typ = p.typeExpr(decl.Type)
-	}
+	typ := p.typeExprOrNil(decl.Type)
 
 	var exprs []*Node
 	if decl.Values != nil {
@@ -171,11 +167,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 
 func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
 	names := p.declNames(decl.NameList)
-
-	var typ *Node
-	if decl.Type != nil {
-		typ = p.typeExpr(decl.Type)
-	}
+	typ := p.typeExprOrNil(decl.Type)
 
 	var exprs []*Node
 	if decl.Values != nil {
@@ -187,14 +179,11 @@ func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
 
 func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 	name := typedcl0(p.name(decl.Name))
-	name.Name.Param.Pragma = Pragma(decl.Pragma)
 
-	var typ *Node
-	if decl.Type != nil {
-		typ = p.typeExpr(decl.Type)
-	}
+	// decl.Type may be nil but in that case we got a syntax error during parsing
+	typ := p.typeExprOrNil(decl.Type)
 
-	return typedcl1(name, typ, true)
+	return typedcl1(name, typ, Pragma(decl.Pragma), decl.Alias)
 }
 
 func (p *noder) declNames(names []*syntax.Name) []*Node {
@@ -259,19 +248,19 @@ func (p *noder) funcHeader(fun *syntax.FuncDecl) *Node {
 				yyerror("func main must have no arguments and no return values")
 			}
 		}
-
-		f.Func.Nname = newfuncname(name)
 	} else {
-		// Receiver MethodName Signature
-
-		f.Func.Shortname = newfuncname(name)
-		f.Func.Nname = methodname(f.Func.Shortname, t.Left.Right)
+		f.Func.Shortname = name
+		name = nblank.Sym // filled in by typecheckfunc
 	}
 
+	f.Func.Nname = newfuncname(name)
 	f.Func.Nname.Name.Defn = f
 	f.Func.Nname.Name.Param.Ntype = t // TODO: check if nname already has an ntype
 
-	declare(f.Func.Nname, PFUNC)
+	if fun.Recv == nil {
+		declare(f.Func.Nname, PFUNC)
+	}
+
 	funchdr(f)
 	return f
 }
@@ -465,6 +454,13 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 func (p *noder) typeExpr(typ syntax.Expr) *Node {
 	// TODO(mdempsky): Be stricter? typecheck should handle errors anyway.
 	return p.expr(typ)
+}
+
+func (p *noder) typeExprOrNil(typ syntax.Expr) *Node {
+	if typ != nil {
+		return p.expr(typ)
+	}
+	return nil
 }
 
 func (p *noder) chanDir(dir syntax.ChanDir) ChanDir {

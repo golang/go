@@ -325,7 +325,7 @@ func (p *parser) constDecl(group *Group) Decl {
 	return d
 }
 
-// TypeSpec = identifier Type .
+// TypeSpec = identifier [ "=" ] Type .
 func (p *parser) typeDecl(group *Group) Decl {
 	if trace {
 		defer p.trace("typeDecl")()
@@ -335,6 +335,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 	d.init(p)
 
 	d.Name = p.name()
+	d.Alias = p.got(_Assign)
 	d.Type = p.tryType()
 	if d.Type == nil {
 		p.syntax_error("in type declaration")

@@ -74,7 +74,13 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 			lastzero = o
 		}
 		o += w
-		if o >= Thearch.MAXWIDTH {
+		maxwidth := Thearch.MAXWIDTH
+		// On 32-bit systems, reflect tables impose an additional constraint
+		// that each field start offset must fit in 31 bits.
+		if maxwidth < 1<<32 {
+			maxwidth = 1<<31 - 1
+		}
+		if o >= maxwidth {
 			yyerror("type %L too large", errtype)
 			o = 8 // small but nonzero
 		}

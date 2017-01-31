@@ -255,7 +255,7 @@ func decodetypeStructFieldType(s *Symbol, i int) *Symbol {
 
 func decodetypeStructFieldOffs(arch *sys.Arch, s *Symbol, i int) int64 {
 	off := decodetypeStructFieldArrayOff(s, i)
-	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.IntSize))
+	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.IntSize) >> 1)
 }
 
 // InterfaceType.methods.length

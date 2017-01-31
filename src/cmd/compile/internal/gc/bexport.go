@@ -140,11 +140,12 @@ const debugFormat = false // default: false
 const forceObjFileStability = true
 
 // Current export format version. Increase with each format change.
-// 3: added aliasTag and export of aliases
-// 2: removed unused bool in ODCL export
+// 4: type name objects support type aliases, uses aliasTag
+// 3: Go1.8 encoding (same as version 2, aliasTag defined but never used)
+// 2: removed unused bool in ODCL export (compiler only)
 // 1: header format change (more regular), export package for _ struct fields
 // 0: Go1.7 encoding
-const exportVersion = 3
+const exportVersion = 4
 
 // exportInlined enables the export of inlined function bodies and related
 // dependencies. The compiler should work w/o any loss of functionality with
@@ -351,8 +352,8 @@ func export(out *bufio.Writer, trace bool) int {
 			p.tracef("\n")
 		}
 
-		if sym.Flags&SymAlias != 0 {
-			Fatalf("exporter: unexpected alias %v in inlined function body", sym)
+		if sym.isAlias() {
+			Fatalf("exporter: unexpected type alias %v in inlined function body", sym)
 		}
 
 		p.obj(sym)
@@ -446,30 +447,6 @@ func unidealType(typ *Type, val Val) *Type {
 }
 
 func (p *exporter) obj(sym *Sym) {
-	if sym.Flags&SymAlias != 0 {
-		p.tag(aliasTag)
-		p.pos(nil) // TODO(gri) fix position information
-		// Aliases can only be exported from the package that
-		// declares them (aliases to aliases are resolved to the
-		// original object, and so are uses of aliases in inlined
-		// exported function bodies). Thus, we only need the alias
-		// name without package qualification.
-		if sym.Pkg != localpkg {
-			Fatalf("exporter: export of non-local alias: %v", sym)
-		}
-		p.string(sym.Name)
-		orig := sym.Def.Sym
-		if orig.Flags&SymAlias != 0 {
-			Fatalf("exporter: original object %v marked as alias", sym)
-		}
-		p.qualifiedName(orig)
-		return
-	}
-
-	if sym != sym.Def.Sym {
-		Fatalf("exporter: exported object %v is not original %v", sym, sym.Def.Sym)
-	}
-
 	// Exported objects may be from different packages because they
 	// may be re-exported via an exported alias or as dependencies in
 	// exported inlined function bodies. Thus, exported object names
@@ -509,7 +486,13 @@ func (p *exporter) obj(sym *Sym) {
 			Fatalf("exporter: export of incomplete type %v", sym)
 		}
 
-		p.tag(typeTag)
+		if sym.isAlias() {
+			p.tag(aliasTag)
+			p.pos(n)
+			p.qualifiedName(sym)
+		} else {
+			p.tag(typeTag)
+		}
 		p.typ(t)
 
 	case ONAME:
@@ -868,19 +851,29 @@ func (p *exporter) methodList(t *Type) {
 
 func (p *exporter) method(m *Field) {
 	p.pos(m.Nname)
-	p.fieldName(m)
+	p.methodName(m.Sym)
 	p.paramList(m.Type.Params(), false)
 	p.paramList(m.Type.Results(), false)
 }
 
-// fieldName is like qualifiedName but it doesn't record the package for exported names.
 func (p *exporter) fieldName(t *Field) {
 	name := t.Sym.Name
 	if t.Embedded != 0 {
-		name = "" // anonymous field
-		if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
-			// anonymous field with unexported base type name
-			name = "?" // unexported name to force export of package
+		// anonymous field - we distinguish between 3 cases:
+		// 1) field name matches base type name and is exported
+		// 2) field name matches base type name and is not exported
+		// 3) field name doesn't match base type name (alias name)
+		bname := basetypeName(t.Type)
+		if name == bname {
+			if exportname(name) {
+				name = "" // 1) we don't need to know the field name or package
+			} else {
+				name = "?" // 2) use unexported name "?" to force package export
+			}
+		} else {
+			// 3) indicate alias and export name as is
+			// (this requires an extra "@" but this is a rare case)
+			p.string("@")
 		}
 	}
 	p.string(name)
@@ -889,16 +882,23 @@ func (p *exporter) fieldName(t *Field) {
 	}
 }
 
+// methodName is like qualifiedName but it doesn't record the package for exported names.
+func (p *exporter) methodName(sym *Sym) {
+	p.string(sym.Name)
+	if !exportname(sym.Name) {
+		p.pkg(sym.Pkg)
+	}
+}
+
 func basetypeName(t *Type) string {
 	s := t.Sym
 	if s == nil && t.IsPtr() {
 		s = t.Elem().Sym // deref
 	}
-	// s should exist, but be conservative
 	if s != nil {
 		return s.Name
 	}
-	return ""
+	return "" // unnamed type
 }
 
 func (p *exporter) paramList(params *Type, numbered bool) {
@@ -1797,7 +1797,7 @@ const (
 	nilTag
 	unknownTag // not used by gc (only appears in packages with errors)
 
-	// Aliases
+	// Type aliases
 	aliasTag
 )
 
@@ -1835,7 +1835,7 @@ var tagString = [...]string{
 	-nilTag:      "nil",
 	-unknownTag:  "unknown",
 
-	// Aliases
+	// Type aliases
 	-aliasTag: "alias",
 }
 
@@ -1889,7 +1889,7 @@ func predeclared() []*Type {
 			Types[TCOMPLEX128],
 			Types[TSTRING],
 
-			// aliases
+			// basic type aliases
 			bytetype,
 			runetype,
 

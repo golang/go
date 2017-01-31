@@ -1077,6 +1077,7 @@ var opprec = []int{
 	OSEND:         3,
 	OANDAND:       2,
 	OOROR:         1,
+
 	// Statements handled by stmtfmt
 	OAS:         -1,
 	OAS2:        -1,
@@ -1104,7 +1105,8 @@ var opprec = []int{
 	OSWITCH:     -1,
 	OXCASE:      -1,
 	OXFALL:      -1,
-	OEND:        0,
+
+	OEND: 0,
 }
 
 func (n *Node) exprfmt(s fmt.State, prec int) {

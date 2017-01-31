@@ -86,10 +86,10 @@ func Import(in *bufio.Reader) {
 
 	// read version specific flags - extend as necessary
 	switch p.version {
-	// case 4:
+	// case 5:
 	// 	...
 	//	fallthrough
-	case 3, 2, 1:
+	case 4, 3, 2, 1:
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.bool()
 		p.posInfoFormat = p.bool()
@@ -317,6 +317,12 @@ func (p *importer) obj(tag int) {
 		val := p.value(typ)
 		importconst(sym, idealType(typ), nodlit(val))
 
+	case aliasTag:
+		p.pos()
+		sym := p.qualifiedName()
+		typ := p.typ()
+		importalias(sym, typ)
+
 	case typeTag:
 		p.typ()
 
@@ -355,17 +361,6 @@ func (p *importer) obj(tag int) {
 				fmt.Printf("inl body: %v\n", n.Func.Inl)
 			}
 		}
-
-	case aliasTag:
-		p.pos()
-		alias := importpkg.Lookup(p.string())
-		orig := p.qualifiedName()
-
-		// Although the protocol allows the alias to precede the original,
-		// this never happens in files produced by gc.
-		alias.Flags |= SymAlias
-		alias.Def = orig.Def
-		importsym(alias, orig.Def.Op)
 
 	default:
 		formatErrorf("unexpected object (tag = %d)", tag)
@@ -473,14 +468,7 @@ func (p *importer) typ() *Type {
 			result := p.paramList()
 			nointerface := p.bool()
 
-			base := recv[0].Type
-			star := false
-			if base.IsPtr() {
-				base = base.Elem()
-				star = true
-			}
-
-			n := methodname0(sym, star, base.Sym)
+			n := newfuncname(methodname(sym, recv[0].Type))
 			n.Type = functypefield(recv[0], params, result)
 			checkwidth(n.Type)
 			addmethod(sym, n.Type, false, nointerface)
@@ -583,18 +571,21 @@ func (p *importer) fieldList() (fields []*Field) {
 
 func (p *importer) field() *Field {
 	p.pos()
-	sym := p.fieldName()
+	sym, alias := p.fieldName()
 	typ := p.typ()
 	note := p.string()
 
 	f := newField()
 	if sym.Name == "" {
-		// anonymous field - typ must be T or *T and T must be a type name
+		// anonymous field: typ must be T or *T and T must be a type name
 		s := typ.Sym
 		if s == nil && typ.IsPtr() {
 			s = typ.Elem().Sym // deref
 		}
 		sym = sym.Pkg.Lookup(s.Name)
+		f.Embedded = 1
+	} else if alias {
+		// anonymous field: we have an explicit name because it's a type alias
 		f.Embedded = 1
 	}
 
@@ -618,7 +609,7 @@ func (p *importer) methodList() (methods []*Field) {
 
 func (p *importer) method() *Field {
 	p.pos()
-	sym := p.fieldName()
+	sym := p.methodName()
 	params := p.paramList()
 	result := p.paramList()
 
@@ -629,18 +620,44 @@ func (p *importer) method() *Field {
 	return f
 }
 
-func (p *importer) fieldName() *Sym {
+func (p *importer) fieldName() (*Sym, bool) {
 	name := p.string()
 	if p.version == 0 && name == "_" {
-		// version 0 didn't export a package for _ fields
+		// version 0 didn't export a package for _ field names
+		// but used the builtin package instead
+		return builtinpkg.Lookup(name), false
+	}
+	pkg := localpkg
+	alias := false
+	switch name {
+	case "":
+		// 1) field name matches base type name and is exported: nothing to do
+	case "?":
+		// 2) field name matches base type name and is not exported: need package
+		name = ""
+		pkg = p.pkg()
+	case "@":
+		// 3) field name doesn't match base type name (alias name): need name and possibly package
+		name = p.string()
+		alias = true
+		fallthrough
+	default:
+		if !exportname(name) {
+			pkg = p.pkg()
+		}
+	}
+	return pkg.Lookup(name), alias
+}
+
+func (p *importer) methodName() *Sym {
+	name := p.string()
+	if p.version == 0 && name == "_" {
+		// version 0 didn't export a package for _ method names
 		// but used the builtin package instead
 		return builtinpkg.Lookup(name)
 	}
 	pkg := localpkg
-	if name != "" && !exportname(name) {
-		if name == "?" {
-			name = ""
-		}
+	if !exportname(name) {
 		pkg = p.pkg()
 	}
 	return pkg.Lookup(name)

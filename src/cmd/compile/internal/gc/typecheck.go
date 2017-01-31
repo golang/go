@@ -96,16 +96,16 @@ func typekind(t *Type) string {
 	return fmt.Sprintf("etype=%d", et)
 }
 
-// sprint_depchain prints a dependency chain of nodes into fmt.
+// sprint_depchain prints a dependency chain of nodes into trace.
 // It is used by typecheck in the case of OLITERAL nodes
 // to print constant definition loops.
-func sprint_depchain(fmt_ *string, stack []*Node, cur *Node, first *Node) {
+func sprint_depchain(trace *string, stack []*Node, cur *Node, first *Node) {
 	for i := len(stack) - 1; i >= 0; i-- {
 		if n := stack[i]; n.Op == cur.Op {
 			if n != first {
-				sprint_depchain(fmt_, stack[:i], n, first)
+				sprint_depchain(trace, stack[:i], n, first)
 			}
-			*fmt_ += fmt.Sprintf("\n\t%v: %v uses %v", n.Line(), n, cur)
+			*trace += fmt.Sprintf("\n\t%v: %v uses %v", n.Line(), n, cur)
 			return
 		}
 	}
@@ -152,7 +152,6 @@ func typecheck(n *Node, top int) *Node {
 	if n.Typecheck == 2 {
 		// Typechecking loop. Trying printing a meaningful message,
 		// otherwise a stack trace of typechecking.
-		var fmt_ string
 		switch n.Op {
 		// We can already diagnose variables used as types.
 		case ONAME:
@@ -160,22 +159,30 @@ func typecheck(n *Node, top int) *Node {
 				yyerror("%v is not a type", n)
 			}
 
+		case OTYPE:
+			if top&Etype == Etype {
+				var trace string
+				sprint_depchain(&trace, typecheck_tcstack, n, n)
+				yyerrorl(n.Lineno, "invalid recursive type alias %v%s", n, trace)
+			}
+
 		case OLITERAL:
 			if top&(Erv|Etype) == Etype {
 				yyerror("%v is not a type", n)
 				break
 			}
-			sprint_depchain(&fmt_, typecheck_tcstack, n, n)
-			yyerrorl(n.Lineno, "constant definition loop%s", fmt_)
+			var trace string
+			sprint_depchain(&trace, typecheck_tcstack, n, n)
+			yyerrorl(n.Lineno, "constant definition loop%s", trace)
 		}
 
 		if nsavederrors+nerrors == 0 {
-			fmt_ = ""
+			var trace string
 			for i := len(typecheck_tcstack) - 1; i >= 0; i-- {
 				x := typecheck_tcstack[i]
-				fmt_ += fmt.Sprintf("\n\t%v %v", x.Line(), x)
+				trace += fmt.Sprintf("\n\t%v %v", x.Line(), x)
 			}
-			yyerror("typechecking loop involving %v%s", n, fmt_)
+			yyerror("typechecking loop involving %v%s", n, trace)
 		}
 
 		lineno = lno
@@ -3429,7 +3436,14 @@ func typecheckfunc(n *Node) {
 	t.SetNname(n.Func.Nname)
 	rcvr := t.Recv()
 	if rcvr != nil && n.Func.Shortname != nil {
-		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Pragma&Nointerface != 0)
+		n.Func.Nname.Sym = methodname(n.Func.Shortname, rcvr.Type)
+		declare(n.Func.Nname, PFUNC)
+
+		addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+	}
+
+	if Ctxt.Flag_dynlink && importpkg == nil && n.Func.Nname != nil {
+		makefuncsym(n.Func.Nname.Sym)
 	}
 }
 
@@ -3578,8 +3592,6 @@ func typecheckdeftype(n *Node) {
 
 	// copy new type and clear fields
 	// that don't come along.
-	// anything zeroed here must be zeroed in
-	// typedcl2 too.
 	copytype(n, t)
 
 ret:
@@ -3758,12 +3770,29 @@ func typecheckdef(n *Node) *Node {
 		n.Name.Defn = typecheck(n.Name.Defn, Etop) // fills in n->type
 
 	case OTYPE:
+		if p := n.Name.Param; p.Alias {
+			// Type alias declaration: Simply use the rhs type - no need
+			// to create a new type.
+			// If we have a syntax error, p.Ntype may be nil.
+			if p.Ntype != nil {
+				p.Ntype = typecheck(p.Ntype, Etype)
+				n.Type = p.Ntype.Type
+				if n.Type == nil {
+					n.Diag = true
+					goto ret
+				}
+				n.Sym.Def = p.Ntype
+			}
+			break
+		}
+
+		// regular type declaration
 		if Curfn != nil {
 			defercheckwidth()
 		}
 		n.Walkdef = 1
 		n.Type = typ(TFORW)
-		n.Type.Sym = n.Sym
+		n.Type.Sym = n.Sym // TODO(gri) this also happens in typecheckdeftype(n) - where should it happen?
 		nerrors0 := nerrors
 		typecheckdeftype(n)
 		if n.Type.Etype == TFORW && nerrors > nerrors0 {
@@ -3771,7 +3800,6 @@ func typecheckdef(n *Node) *Node {
 			// but it was reported. Silence future errors.
 			n.Type.Broke = true
 		}
-
 		if Curfn != nil {
 			resumecheckwidth()
 		}
