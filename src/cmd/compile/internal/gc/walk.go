@@ -50,11 +50,11 @@ func walk(fn *Node) {
 				continue
 			}
 			lineno = defn.Left.Lineno
-			yyerror("%v declared and not used", ln.Sym)
+			adderr(lineno, "%v declared and not used", ln.Sym)
 			defn.Left.Used = true // suppress repeats
 		} else {
 			lineno = ln.Lineno
-			yyerror("%v declared and not used", ln.Sym)
+			adderr(lineno, "%v declared and not used", ln.Sym)
 		}
 	}
 

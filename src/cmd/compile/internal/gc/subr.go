@@ -348,7 +348,7 @@ func importdot(opkg *Pkg, pack *Node) {
 
 	if n == 0 {
 		// can't possibly be used - there were no symbols
-		yyerrorl(pack.Lineno, "imported and not used: %q", opkg.Path)
+		adderr(pack.Lineno, "imported and not used: %q", opkg.Path)
 	}
 }
 
