@@ -12,8 +12,12 @@ import (
 	"unsafe"
 )
 
+// finblock is an array of finalizers to be executed. finblocks are
+// arranged in a linked list for the finalizer queue.
+//
 // finblock is allocated from non-GC'd memory, so any heap pointers
-// must be specially handled.
+// must be specially handled. GC currently assumes that the finalizer
+// queue does not grow during marking (but it can shrink).
 //
 //go:notinheap
 type finblock struct {
@@ -71,6 +75,16 @@ var finalizer1 = [...]byte{
 }
 
 func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot *ptrtype) {
+	if gcphase != _GCoff {
+		// Currently we assume that the finalizer queue won't
+		// grow during marking so we don't have to rescan it
+		// during mark termination. If we ever need to lift
+		// this assumption, we can do it by adding the
+		// necessary barriers to queuefinalizer (which it may
+		// have automatically).
+		throw("queuefinalizer during GC")
+	}
+
 	lock(&finlock)
 	if finq == nil || finq.cnt == uint32(len(finq.fin)) {
 		if finc == nil {
