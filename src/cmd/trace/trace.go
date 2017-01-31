@@ -288,6 +288,13 @@ const (
 	gStateCount
 )
 
+type gInfo struct {
+	state      gState       // current state
+	name       string       // name chosen for this goroutine at first EvGoStart
+	start      *trace.Event // most recent EvGoStart
+	markAssist *trace.Event // if non-nil, the mark assist currently running.
+}
+
 type ViewerData struct {
 	Events   []*ViewerEvent         `json:"traceEvents"`
 	Frames   map[string]ViewerFrame `json:"stackFrames"`
@@ -337,35 +344,47 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 	ctx.data.Frames = make(map[string]ViewerFrame)
 	ctx.data.TimeUnit = "ns"
 	maxProc := 0
-	gnames := make(map[uint64]string)
-	gstates := make(map[uint64]gState)
+	ginfos := make(map[uint64]*gInfo)
+
+	getGInfo := func(g uint64) *gInfo {
+		info, ok := ginfos[g]
+		if !ok {
+			info = &gInfo{}
+			ginfos[g] = info
+		}
+		return info
+	}
+
 	// Since we make many calls to setGState, we record a sticky
 	// error in setGStateErr and check it after every event.
 	var setGStateErr error
 	setGState := func(ev *trace.Event, g uint64, oldState, newState gState) {
-		if oldState == gWaiting && gstates[g] == gWaitingGC {
+		info := getGInfo(g)
+		if oldState == gWaiting && info.state == gWaitingGC {
 			// For checking, gWaiting counts as any gWaiting*.
-			oldState = gstates[g]
+			oldState = info.state
 		}
-		if gstates[g] != oldState && setGStateErr == nil {
+		if info.state != oldState && setGStateErr == nil {
 			setGStateErr = fmt.Errorf("expected G %d to be in state %d, but got state %d", g, oldState, newState)
 		}
-		ctx.gstates[gstates[g]]--
+		ctx.gstates[info.state]--
 		ctx.gstates[newState]++
-		gstates[g] = newState
+		info.state = newState
 	}
 	for _, ev := range ctx.events {
 		// Handle state transitions before we filter out events.
 		switch ev.Type {
 		case trace.EvGoStart, trace.EvGoStartLabel:
 			setGState(ev, ev.G, gRunnable, gRunning)
-			if _, ok := gnames[ev.G]; !ok {
+			info := getGInfo(ev.G)
+			if info.name == "" {
 				if len(ev.Stk) > 0 {
-					gnames[ev.G] = fmt.Sprintf("G%v %s", ev.G, ev.Stk[0].Fn)
+					info.name = fmt.Sprintf("G%v %s", ev.G, ev.Stk[0].Fn)
 				} else {
-					gnames[ev.G] = fmt.Sprintf("G%v", ev.G)
+					info.name = fmt.Sprintf("G%v", ev.G)
 				}
 			}
+			info.start = ev
 		case trace.EvProcStart:
 			ctx.threadStats.prunning++
 		case trace.EvProcStop:
@@ -392,6 +411,10 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			setGState(ev, ev.G, gRunning, gWaiting)
 		case trace.EvGoBlockGC:
 			setGState(ev, ev.G, gRunning, gWaitingGC)
+		case trace.EvGCMarkAssistStart:
+			getGInfo(ev.G).markAssist = ev
+		case trace.EvGCMarkAssistDone:
+			getGInfo(ev.G).markAssist = nil
 		case trace.EvGoWaiting:
 			setGState(ev, ev.G, gRunnable, gWaiting)
 		case trace.EvGoInSyscall:
@@ -444,13 +467,41 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			}
 			ctx.emitSlice(ev, "MARK TERMINATION")
 		case trace.EvGCScanDone:
+		case trace.EvGCMarkAssistStart:
+			// Mark assists can continue past preemptions, so truncate to the
+			// whichever comes first. We'll synthesize another slice if
+			// necessary in EvGoStart.
+			markFinish := ev.Link
+			goFinish := getGInfo(ev.G).start.Link
+			fakeMarkStart := *ev
+			text := "MARK ASSIST"
+			if markFinish.Ts > goFinish.Ts {
+				fakeMarkStart.Link = goFinish
+				text = "MARK ASSIST (unfinished)"
+			}
+			ctx.emitSlice(&fakeMarkStart, text)
 		case trace.EvGCSweepStart:
 			ctx.emitSlice(ev, "SWEEP")
-		case trace.EvGCSweepDone:
-		case trace.EvGoStart:
-			ctx.emitSlice(ev, gnames[ev.G])
-		case trace.EvGoStartLabel:
-			ctx.emitSlice(ev, ev.SArgs[0])
+		case trace.EvGoStart, trace.EvGoStartLabel:
+			info := getGInfo(ev.G)
+			if ev.Type == trace.EvGoStartLabel {
+				ctx.emitSlice(ev, ev.SArgs[0])
+			} else {
+				ctx.emitSlice(ev, info.name)
+			}
+			if info.markAssist != nil {
+				// If we're in a mark assist, synthesize a new slice, ending
+				// either when the mark assist ends or when we're descheduled.
+				markFinish := info.markAssist.Link
+				goFinish := ev.Link
+				fakeMarkStart := *ev
+				text := "MARK ASSIST (resumed, unfinished)"
+				if markFinish.Ts < goFinish.Ts {
+					fakeMarkStart.Link = markFinish
+					text = "MARK ASSIST (resumed)"
+				}
+				ctx.emitSlice(&fakeMarkStart, text)
+			}
 		case trace.EvGoCreate:
 			ctx.emitArrow(ev, "go")
 		case trace.EvGoUnblock:
@@ -493,11 +544,11 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 	}
 
 	if ctx.gtrace && ctx.gs != nil {
-		for k, v := range gnames {
+		for k, v := range ginfos {
 			if !ctx.gs[k] {
 				continue
 			}
-			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: k, Arg: &NameArg{v}})
+			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: k, Arg: &NameArg{v.name}})
 		}
 		ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: ctx.maing, Arg: &SortIndexArg{-2}})
 		ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: 0, Arg: &SortIndexArg{-1}})
