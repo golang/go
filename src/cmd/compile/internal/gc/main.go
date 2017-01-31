@@ -340,13 +340,16 @@ func Main() {
 	// Phase 1: const, type, and names and types of funcs.
 	//   This will gather all the information about types
 	//   and methods but doesn't depend on any of it.
+	//   We also defer type alias declarations until phase 2
+	//   to avoid cycles like #18640.
 	defercheckwidth()
 
 	// Don't use range--typecheck can add closures to xtop.
 	timings.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(xtop); i++ {
-		if xtop[i].Op != ODCL && xtop[i].Op != OAS && xtop[i].Op != OAS2 {
-			xtop[i] = typecheck(xtop[i], Etop)
+		n := xtop[i]
+		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && (op != ODCLTYPE || !n.Left.Name.Param.Alias) {
+			xtop[i] = typecheck(n, Etop)
 		}
 	}
 
@@ -356,8 +359,9 @@ func Main() {
 	// Don't use range--typecheck can add closures to xtop.
 	timings.Start("fe", "typecheck", "top2")
 	for i := 0; i < len(xtop); i++ {
-		if xtop[i].Op == ODCL || xtop[i].Op == OAS || xtop[i].Op == OAS2 {
-			xtop[i] = typecheck(xtop[i], Etop)
+		n := xtop[i]
+		if op := n.Op; op == ODCL || op == OAS || op == OAS2 || op == ODCLTYPE && n.Left.Name.Param.Alias {
+			xtop[i] = typecheck(n, Etop)
 		}
 	}
 	resumecheckwidth()
@@ -367,8 +371,9 @@ func Main() {
 	timings.Start("fe", "typecheck", "func")
 	var fcount int64
 	for i := 0; i < len(xtop); i++ {
-		if xtop[i].Op == ODCLFUNC || xtop[i].Op == OCLOSURE {
-			Curfn = xtop[i]
+		n := xtop[i]
+		if op := n.Op; op == ODCLFUNC || op == OCLOSURE {
+			Curfn = n
 			decldepth = 1
 			saveerrors()
 			typecheckslice(Curfn.Nbody.Slice(), Etop)
@@ -460,8 +465,9 @@ func Main() {
 	timings.Start("be", "compilefuncs")
 	fcount = 0
 	for i := 0; i < len(xtop); i++ {
-		if xtop[i].Op == ODCLFUNC {
-			funccompile(xtop[i])
+		n := xtop[i]
+		if n.Op == ODCLFUNC {
+			funccompile(n)
 			fcount++
 		}
 	}
@@ -924,7 +930,7 @@ func mkpackage(pkgname string) {
 				continue
 			}
 
-			if s.Def.Sym != s && s.Flags&SymAlias == 0 {
+			if s.isAlias() {
 				// throw away top-level name left over
 				// from previous import . "x"
 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {

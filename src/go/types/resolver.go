@@ -14,13 +14,14 @@ import (
 	"unicode"
 )
 
-// A declInfo describes a package-level const, type, var, func, or alias declaration.
+// A declInfo describes a package-level const, type, var, or func declaration.
 type declInfo struct {
 	file  *Scope        // scope of file containing this declaration
 	lhs   []*Var        // lhs of n:1 variable declarations, or nil
 	typ   ast.Expr      // type, or nil
 	init  ast.Expr      // init/orig expression, or nil
 	fdecl *ast.FuncDecl // func declaration, or nil
+	alias bool          // type alias declaration
 
 	// The deps field tracks initialization expression dependencies.
 	// As a special (overloaded) case, it also tracks dependencies of
@@ -274,13 +275,6 @@ func (check *Checker) collectObjects() {
 							check.declare(fileScope, nil, obj, token.NoPos)
 						}
 
-					// Alias-related code. Keep for now.
-					// case *ast.AliasSpec:
-					// 	obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, nil)
-					// 	obj.typ = nil // unresolved
-					// 	obj.kind = d.Tok
-					// 	check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, init: s.Orig})
-
 					case *ast.ValueSpec:
 						switch d.Tok {
 						case token.CONST:
@@ -347,7 +341,7 @@ func (check *Checker) collectObjects() {
 
 					case *ast.TypeSpec:
 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, typ: s.Type})
+						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, typ: s.Type, alias: s.Assign.IsValid()})
 
 					default:
 						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)

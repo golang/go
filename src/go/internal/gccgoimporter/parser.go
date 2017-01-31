@@ -370,27 +370,41 @@ func (p *parser) parseConst(pkg *types.Package) *types.Const {
 	return types.NewConst(token.NoPos, pkg, name, typ, val)
 }
 
-// TypeName = ExportedName .
-func (p *parser) parseTypeName() *types.TypeName {
-	pkg, name := p.parseExportedName()
-	scope := pkg.Scope()
-	if obj := scope.Lookup(name); obj != nil {
-		return obj.(*types.TypeName)
-	}
-	obj := types.NewTypeName(token.NoPos, pkg, name, nil)
-	// a named type may be referred to before the underlying type
-	// is known - set it up
-	types.NewNamed(obj, nil, nil)
-	scope.Insert(obj)
-	return obj
-}
-
-// NamedType = TypeName Type { Method } .
+// NamedType = TypeName [ "=" ] Type { Method } .
+// TypeName  = ExportedName .
 // Method    = "func" "(" Param ")" Name ParamList ResultList ";" .
 func (p *parser) parseNamedType(n int) types.Type {
-	obj := p.parseTypeName()
+	pkg, name := p.parseExportedName()
+	scope := pkg.Scope()
 
-	pkg := obj.Pkg()
+	if p.tok == '=' {
+		// type alias
+		p.next()
+		typ := p.parseType(pkg)
+		if obj := scope.Lookup(name); obj != nil {
+			typ = obj.Type() // use previously imported type
+			if typ == nil {
+				p.errorf("%v (type alias) used in cycle", obj)
+			}
+		} else {
+			obj = types.NewTypeName(token.NoPos, pkg, name, typ)
+			scope.Insert(obj)
+		}
+		p.typeMap[n] = typ
+		return typ
+	}
+
+	// named type
+	obj := scope.Lookup(name)
+	if obj == nil {
+		// a named type may be referred to before the underlying type
+		// is known - set it up
+		tname := types.NewTypeName(token.NoPos, pkg, name, nil)
+		types.NewNamed(tname, nil, nil)
+		scope.Insert(tname)
+		obj = tname
+	}
+
 	typ := obj.Type()
 	p.typeMap[n] = typ
 
@@ -409,8 +423,8 @@ func (p *parser) parseNamedType(n int) types.Type {
 		nt.SetUnderlying(underlying.Underlying())
 	}
 
+	// collect associated methods
 	for p.tok == scanner.Ident {
-		// collect associated methods
 		p.expectKeyword("func")
 		p.expect('(')
 		receiver, _ := p.parseParam(pkg)

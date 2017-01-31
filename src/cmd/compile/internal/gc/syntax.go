@@ -27,7 +27,7 @@ type Node struct {
 	// func
 	Func *Func
 
-	// ONAME
+	// ONAME, OTYPE, OPACK, OLABEL, some OLITERAL
 	Name *Name
 
 	Sym *Sym        // various
@@ -59,8 +59,8 @@ type Node struct {
 	Noescape  bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
 	Walkdef   uint8 // tracks state during typecheckdef; 2 == loop detected
 	Typecheck uint8 // tracks state during typechecking; 2 == loop detected
-	Local     bool
-	IsStatic  bool // whether this Node will be converted to purely static data
+	Local     bool  // type created in this file (see also Type.Local); TODO(gri): move this into flags
+	IsStatic  bool  // whether this Node will be converted to purely static data
 	Initorder uint8
 	Used      bool // for variable/label declared and not used error
 	Isddd     bool // is the argument variadic
@@ -180,14 +180,14 @@ func (n *Node) SetIota(x int64) {
 	n.Xoffset = x
 }
 
-// Name holds Node fields used only by named nodes (ONAME, OPACK, OLABEL, some OLITERAL).
+// Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
 type Name struct {
 	Pack      *Node  // real package for import . names
 	Pkg       *Pkg   // pkg for OPACK nodes
 	Heapaddr  *Node  // temp holding heap address of param (could move to Param?)
 	Defn      *Node  // initializing assignment
 	Curfn     *Node  // function for local variables
-	Param     *Param // additional fields for ONAME
+	Param     *Param // additional fields for ONAME, OTYPE
 	Decldepth int32  // declaration loop depth, increased for every loop or label
 	Vargen    int32  // unique name for ONAME within a function.  Function outputs are numbered starting at one.
 	Funcdepth int32
@@ -280,15 +280,16 @@ type Param struct {
 	Innermost *Node
 	Outer     *Node
 
-	// OTYPE pragmas
+	// OTYPE
 	//
 	// TODO: Should Func pragmas also be stored on the Name?
 	Pragma Pragma
+	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
 }
 
 // Func holds Node fields used only with function-like nodes.
 type Func struct {
-	Shortname  *Node
+	Shortname  *Sym
 	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
 	Exit       Nodes
 	Cvars      Nodes   // closure params
@@ -382,7 +383,7 @@ const (
 	ODCLFUNC  // func f() or func (r) f()
 	ODCLFIELD // struct field, interface field, or func/method argument/return value.
 	ODCLCONST // const pi = 3.14
-	ODCLTYPE  // type Int int
+	ODCLTYPE  // type Int int or type Int = int
 
 	ODELETE    // delete(Left, Right)
 	ODOT       // Left.Sym (Left is of struct type)

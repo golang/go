@@ -390,9 +390,13 @@ type ptrtype struct {
 }
 
 type structfield struct {
-	name   name
-	typ    *_type
-	offset uintptr
+	name       name
+	typ        *_type
+	offsetAnon uintptr
+}
+
+func (f *structfield) offset() uintptr {
+	return f.offsetAnon >> 1
 }
 
 type structtype struct {
@@ -650,7 +654,7 @@ func typesEqual(t, v *_type) bool {
 			if tf.name.tag() != vf.name.tag() {
 				return false
 			}
-			if tf.offset != vf.offset {
+			if tf.offsetAnon != vf.offsetAnon {
 				return false
 			}
 		}

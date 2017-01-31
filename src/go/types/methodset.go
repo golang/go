@@ -72,24 +72,22 @@ func NewMethodSet(T Type) *MethodSet {
 	var base methodSet
 
 	typ, isPtr := deref(T)
-	named, _ := typ.(*Named)
 
 	// *typ where typ is an interface has no methods.
-	if isPtr {
-		utyp := typ
-		if named != nil {
-			utyp = named.underlying
-		}
-		if _, ok := utyp.(*Interface); ok {
-			return &emptyMethodSet
-		}
+	if isPtr && IsInterface(typ) {
+		return &emptyMethodSet
 	}
 
 	// Start with typ as single entry at shallowest depth.
-	// If typ is not a named type, insert a nil type instead.
-	current := []embeddedType{{named, nil, isPtr, false}}
+	current := []embeddedType{{typ, nil, isPtr, false}}
 
-	// named types that we have seen already, allocated lazily
+	// Named types that we have seen already, allocated lazily.
+	// Used to avoid endless searches in case of recursive types.
+	// Since only Named types can be used for recursive types, we
+	// only need to track those.
+	// (If we ever allow type aliases to construct recursive types,
+	// we must use type identity rather than pointer equality for
+	// the map key comparison, as we do in consolidateMultiples.)
 	var seen map[*Named]bool
 
 	// collect methods at current depth
@@ -101,11 +99,12 @@ func NewMethodSet(T Type) *MethodSet {
 		var mset methodSet
 
 		for _, e := range current {
-			// The very first time only, e.typ may be nil.
-			// In this case, we don't have a named type and
-			// we simply continue with the underlying type.
-			if e.typ != nil {
-				if seen[e.typ] {
+			typ := e.typ
+
+			// If we have a named type, we may have associated methods.
+			// Look for those first.
+			if named, _ := typ.(*Named); named != nil {
+				if seen[named] {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
 					// were consolidated before). The type at that depth shadows
@@ -116,12 +115,12 @@ func NewMethodSet(T Type) *MethodSet {
 				if seen == nil {
 					seen = make(map[*Named]bool)
 				}
-				seen[e.typ] = true
+				seen[named] = true
 
-				mset = mset.add(e.typ.methods, e.index, e.indirect, e.multiples)
+				mset = mset.add(named.methods, e.index, e.indirect, e.multiples)
 
 				// continue with underlying type
-				typ = e.typ.underlying
+				typ = named.underlying
 			}
 
 			switch t := typ.(type) {
@@ -130,16 +129,15 @@ func NewMethodSet(T Type) *MethodSet {
 					fset = fset.add(f, e.multiples)
 
 					// Embedded fields are always of the form T or *T where
-					// T is a named type. If typ appeared multiple times at
+					// T is a type name. If typ appeared multiple times at
 					// this depth, f.Type appears multiple times at the next
 					// depth.
 					if f.anonymous {
-						// Ignore embedded basic types - only user-defined
-						// named types can have methods or struct fields.
 						typ, isPtr := deref(f.typ)
-						if t, _ := typ.(*Named); t != nil {
-							next = append(next, embeddedType{t, concat(e.index, i), e.indirect || isPtr, e.multiples})
-						}
+						// TODO(gri) optimization: ignore types that can't
+						// have fields or methods (only Named, Struct, and
+						// Interface types need to be considered).
+						next = append(next, embeddedType{typ, concat(e.index, i), e.indirect || isPtr, e.multiples})
 					}
 				}
 

@@ -519,10 +519,6 @@ func funchdr(n *Node) {
 		Fatalf("funchdr: dclcontext = %d", dclcontext)
 	}
 
-	if Ctxt.Flag_dynlink && importpkg == nil && n.Func.Nname != nil {
-		makefuncsym(n.Func.Nname.Sym)
-	}
-
 	dclcontext = PAUTO
 	funcstart(n)
 
@@ -695,10 +691,20 @@ func typedcl0(s *Sym) *Node {
 
 // node n, which was returned by typedcl0
 // is being declared to have uncompiled type t.
-// return the ODCLTYPE node to use.
-func typedcl1(n *Node, t *Node, local bool) *Node {
-	n.Name.Param.Ntype = t
-	n.Local = local
+// returns the ODCLTYPE node to use.
+func typedcl1(n *Node, t *Node, pragma Pragma, alias bool) *Node {
+	if pragma != 0 && alias {
+		yyerror("cannot specify directive with type alias")
+		pragma = 0
+	}
+
+	n.Local = true
+
+	p := n.Name.Param
+	p.Ntype = t
+	p.Pragma = pragma
+	p.Alias = alias
+
 	return nod(ODCLTYPE, n, nil)
 }
 
@@ -1153,19 +1159,19 @@ bad:
 	return nil
 }
 
-func methodname(n *Node, t *Node) *Node {
+// methodname is a misnomer because this now returns a Sym, rather
+// than an ONAME.
+// TODO(mdempsky): Reconcile with methodsym.
+func methodname(s *Sym, recv *Type) *Sym {
 	star := false
-	if t.Op == OIND {
+	if recv.IsPtr() {
 		star = true
-		t = t.Left
+		recv = recv.Elem()
 	}
 
-	return methodname0(n.Sym, star, t.Sym)
-}
-
-func methodname0(s *Sym, star bool, tsym *Sym) *Node {
+	tsym := recv.Sym
 	if tsym == nil || isblanksym(s) {
-		return newfuncname(s)
+		return s
 	}
 
 	var p string
@@ -1181,14 +1187,13 @@ func methodname0(s *Sym, star bool, tsym *Sym) *Node {
 		s = Pkglookup(p, tsym.Pkg)
 	}
 
-	return newfuncname(s)
+	return s
 }
 
 // Add a method, declared as a function.
 // - msym is the method symbol
 // - t is function type (with receiver)
 func addmethod(msym *Sym, t *Type, local, nointerface bool) {
-	// get field sym
 	if msym == nil {
 		Fatalf("no method symbol")
 	}
@@ -1309,7 +1314,7 @@ func funcsym(s *Sym) *Sym {
 	s1 := Pkglookup(s.Name+"·f", s.Pkg)
 	if !Ctxt.Flag_dynlink && s1.Def == nil {
 		s1.Def = newfuncname(s1)
-		s1.Def.Func.Shortname = newname(s)
+		s1.Def.Func.Shortname = s
 		funcsyms = append(funcsyms, s1.Def)
 	}
 	s.Fsym = s1
@@ -1326,8 +1331,11 @@ func makefuncsym(s *Sym) {
 		return
 	}
 	s1 := funcsym(s)
+	if s1.Def != nil {
+		return
+	}
 	s1.Def = newfuncname(s1)
-	s1.Def.Func.Shortname = newname(s)
+	s1.Def.Func.Shortname = s
 	funcsyms = append(funcsyms, s1.Def)
 }
 

@@ -56,6 +56,7 @@ func RelativeTo(pkg *Package) Qualifier {
 // This flag is exported in the x/tools/go/types package. We don't
 // need it at the moment in the std repo and so we don't export it
 // anymore. We should eventually try to remove it altogether.
+// TODO(gri) remove this
 var gcCompatibilityMode bool
 
 // TypeString returns the string representation of typ.
