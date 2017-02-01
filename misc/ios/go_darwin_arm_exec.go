@@ -147,19 +147,19 @@ func run(bin string, args []string) (err error) {
 		return err
 	}
 
+	pkgpath, err := copyLocalData(appdir)
+	if err != nil {
+		return err
+	}
+
 	entitlementsPath := filepath.Join(tmpdir, "Entitlements.plist")
 	if err := ioutil.WriteFile(entitlementsPath, []byte(entitlementsPlist()), 0744); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(appdir, "Info.plist"), []byte(infoPlist()), 0744); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(appdir, "Info.plist"), []byte(infoPlist(pkgpath)), 0744); err != nil {
 		return err
 	}
 	if err := ioutil.WriteFile(filepath.Join(appdir, "ResourceRules.plist"), []byte(resourceRules), 0744); err != nil {
-		return err
-	}
-
-	pkgpath, err := copyLocalData(appdir)
-	if err != nil {
 		return err
 	}
 
@@ -244,20 +244,9 @@ func run(bin string, args []string) (err error) {
 		return nil
 	}
 
-	s.do(`breakpoint set -n getwd`) // in runtime/cgo/gcc_darwin_arm.go
-
 	started = true
 
-	s.doCmd("run", "stop reason = breakpoint", 20*time.Second)
-
-	// Move the current working directory into the faux gopath.
-	if pkgpath != "src" {
-		s.do(`breakpoint delete 1`)
-		s.do(`expr char* $mem = (char*)malloc(512)`)
-		s.do(`expr $mem = (char*)getwd($mem, 512)`)
-		s.do(`expr $mem = (char*)strcat($mem, "/` + pkgpath + `")`)
-		s.do(`call (void)chdir($mem)`)
-	}
+	s.doCmd("run", "stop reason = signal SIGINT", 20*time.Second)
 
 	startTestsLen := s.out.Len()
 	fmt.Fprintln(s.in, `process continue`)
@@ -579,7 +568,7 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
 	)
 }
 
-func infoPlist() string {
+func infoPlist(pkgpath string) string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -592,6 +581,7 @@ func infoPlist() string {
 <key>CFBundleResourceSpecification</key><string>ResourceRules.plist</string>
 <key>LSRequiresIPhoneOS</key><true/>
 <key>CFBundleDisplayName</key><string>gotest</string>
+<key>GoExecWrapperWorkingDirectory</key><string>` + pkgpath + `</string>
 </dict>
 </plist>
 `
