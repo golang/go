@@ -22,21 +22,18 @@ import (
 // and a normal store will be used.
 // A sequence of WB stores for many pointer fields of a single type will
 // be emitted together, with a single branch.
-//
-// Expanding WB ops introduces new control flows, and we would need to
-// split a block into two if there were values after WB ops, which would
-// require scheduling the values. To avoid this complexity, when building
-// SSA, we make sure that WB ops are always at the end of a block. We do
-// this before fuse as it may merge blocks. It also helps to reduce
-// number of blocks as fuse merges blocks introduced in this phase.
 func writebarrier(f *Func) {
-	var sb, sp, wbaddr *Value
+	var sb, sp, wbaddr, const0 *Value
 	var writebarrierptr, typedmemmove, typedmemclr *obj.LSym
-	var storeWBs, others []*Value
-	var wbs *sparseSet
-	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no WB stores
-	valueLoop:
-		for i, v := range b.Values {
+	var stores, after []*Value
+	var sset *sparseSet
+	var storeNumber []int32
+
+	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no stores to expand
+		// rewrite write barrier for stack writes to ordinary Store/Move/Zero,
+		// record presence of non-stack WB ops.
+		hasStore := false
+		for _, v := range b.Values {
 			switch v.Op {
 			case OpStoreWB, OpMoveWB, OpMoveWBVolatile, OpZeroWB:
 				if IsStackAddr(v.Args[0]) {
@@ -52,187 +49,182 @@ func writebarrier(f *Func) {
 					}
 					continue
 				}
+				hasStore = true
+				break
+			}
+		}
+		if !hasStore {
+			continue
+		}
 
-				if wbaddr == nil {
-					// initalize global values for write barrier test and calls
-					// find SB and SP values in entry block
-					initln := f.Entry.Pos
-					for _, v := range f.Entry.Values {
-						if v.Op == OpSB {
-							sb = v
-						}
-						if v.Op == OpSP {
-							sp = v
-						}
-					}
-					if sb == nil {
-						sb = f.Entry.NewValue0(initln, OpSB, f.Config.fe.TypeUintptr())
-					}
-					if sp == nil {
-						sp = f.Entry.NewValue0(initln, OpSP, f.Config.fe.TypeUintptr())
-					}
-					wbsym := &ExternSymbol{Typ: f.Config.fe.TypeBool(), Sym: f.Config.fe.Syslook("writeBarrier")}
-					wbaddr = f.Entry.NewValue1A(initln, OpAddr, f.Config.fe.TypeUInt32().PtrTo(), wbsym, sb)
-					writebarrierptr = f.Config.fe.Syslook("writebarrierptr")
-					typedmemmove = f.Config.fe.Syslook("typedmemmove")
-					typedmemclr = f.Config.fe.Syslook("typedmemclr")
-
-					wbs = f.newSparseSet(f.NumValues())
-					defer f.retSparseSet(wbs)
+		if wbaddr == nil {
+			// lazily initialize global values for write barrier test and calls
+			// find SB and SP values in entry block
+			initpos := f.Entry.Pos
+			for _, v := range f.Entry.Values {
+				if v.Op == OpSB {
+					sb = v
 				}
-
-				pos := v.Pos
-
-				// there may be a sequence of WB stores in the current block. find them.
-				storeWBs = storeWBs[:0]
-				others = others[:0]
-				wbs.clear()
-				for _, w := range b.Values[i:] {
-					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile || w.Op == OpZeroWB {
-						storeWBs = append(storeWBs, w)
-						wbs.add(w.ID)
-					} else {
-						others = append(others, w)
-					}
+				if v.Op == OpSP {
+					sp = v
 				}
-
-				// make sure that no value in this block depends on WB stores
-				for _, w := range b.Values {
-					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile || w.Op == OpZeroWB {
-						continue
-					}
-					for _, a := range w.Args {
-						if wbs.contains(a.ID) {
-							f.Fatalf("value %v depends on WB store %v in the same block %v", w, a, b)
-						}
-					}
+				if sb != nil && sp != nil {
+					break
 				}
+			}
+			if sb == nil {
+				sb = f.Entry.NewValue0(initpos, OpSB, f.Config.fe.TypeUintptr())
+			}
+			if sp == nil {
+				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.fe.TypeUintptr())
+			}
+			wbsym := &ExternSymbol{Typ: f.Config.fe.TypeBool(), Sym: f.Config.fe.Syslook("writeBarrier")}
+			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.fe.TypeUInt32().PtrTo(), wbsym, sb)
+			writebarrierptr = f.Config.fe.Syslook("writebarrierptr")
+			typedmemmove = f.Config.fe.Syslook("typedmemmove")
+			typedmemclr = f.Config.fe.Syslook("typedmemclr")
+			const0 = f.ConstInt32(initpos, f.Config.fe.TypeUInt32(), 0)
 
-				// find the memory before the WB stores
-				// this memory is not a WB store but it is used in a WB store.
-				var mem *Value
-				for _, w := range storeWBs {
-					a := w.Args[len(w.Args)-1]
-					if wbs.contains(a.ID) {
-						continue
-					}
-					if mem != nil {
-						b.Fatalf("two stores live simultaneously: %s, %s", mem, a)
-					}
-					mem = a
+			// allocate auxiliary data structures for computing store order
+			sset = f.newSparseSet(f.NumValues())
+			defer f.retSparseSet(sset)
+			storeNumber = make([]int32, f.NumValues())
+		}
+
+		// order values in store order
+		b.Values = storeOrder(b.Values, sset, storeNumber)
+
+	again:
+		// find the start and end of the last contiguous WB store sequence.
+		// a branch will be inserted there. values after it will be moved
+		// to a new block.
+		var last *Value
+		var start, end int
+		values := b.Values
+		for i := len(values) - 1; i >= 0; i-- {
+			w := values[i]
+			if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile || w.Op == OpZeroWB {
+				if last == nil {
+					last = w
+					end = i + 1
 				}
-
-				b.Values = append(b.Values[:i], others...) // move WB ops out of this block
-
-				bThen := f.NewBlock(BlockPlain)
-				bElse := f.NewBlock(BlockPlain)
-				bEnd := f.NewBlock(b.Kind)
-				bThen.Pos = pos
-				bElse.Pos = pos
-				bEnd.Pos = pos
-
-				// set up control flow for end block
-				bEnd.SetControl(b.Control)
-				bEnd.Likely = b.Likely
-				for _, e := range b.Succs {
-					bEnd.Succs = append(bEnd.Succs, e)
-					e.b.Preds[e.i].b = bEnd
+			} else {
+				if last != nil {
+					start = i + 1
+					break
 				}
+			}
+		}
+		stores = append(stores[:0], b.Values[start:end]...) // copy to avoid aliasing
+		after = append(after[:0], b.Values[end:]...)
+		b.Values = b.Values[:start]
 
-				// set up control flow for write barrier test
-				// load word, test word, avoiding partial register write from load byte.
-				flag := b.NewValue2(pos, OpLoad, f.Config.fe.TypeUInt32(), wbaddr, mem)
-				const0 := f.ConstInt32(pos, f.Config.fe.TypeUInt32(), 0)
-				flag = b.NewValue2(pos, OpNeq32, f.Config.fe.TypeBool(), flag, const0)
-				b.Kind = BlockIf
-				b.SetControl(flag)
-				b.Likely = BranchUnlikely
-				b.Succs = b.Succs[:0]
-				b.AddEdgeTo(bThen)
-				b.AddEdgeTo(bElse)
-				bThen.AddEdgeTo(bEnd)
-				bElse.AddEdgeTo(bEnd)
+		// find the memory before the WB stores
+		mem := stores[0].Args[len(stores[0].Args)-1]
+		pos := stores[0].Pos
+		bThen := f.NewBlock(BlockPlain)
+		bElse := f.NewBlock(BlockPlain)
+		bEnd := f.NewBlock(b.Kind)
+		bThen.Pos = pos
+		bElse.Pos = pos
+		bEnd.Pos = b.Pos
+		b.Pos = pos
 
-				memThen := mem
-				memElse := mem
-				for _, w := range storeWBs {
-					var val *Value
-					ptr := w.Args[0]
-					siz := w.AuxInt
-					typ := w.Aux // only non-nil for MoveWB, MoveWBVolatile, ZeroWB
+		// set up control flow for end block
+		bEnd.SetControl(b.Control)
+		bEnd.Likely = b.Likely
+		for _, e := range b.Succs {
+			bEnd.Succs = append(bEnd.Succs, e)
+			e.b.Preds[e.i].b = bEnd
+		}
 
-					var op Op
-					var fn *obj.LSym
-					switch w.Op {
-					case OpStoreWB:
-						op = OpStore
-						fn = writebarrierptr
-						val = w.Args[1]
-					case OpMoveWB, OpMoveWBVolatile:
-						op = OpMove
-						fn = typedmemmove
-						val = w.Args[1]
-					case OpZeroWB:
-						op = OpZero
-						fn = typedmemclr
-					}
+		// set up control flow for write barrier test
+		// load word, test word, avoiding partial register write from load byte.
+		flag := b.NewValue2(pos, OpLoad, f.Config.fe.TypeUInt32(), wbaddr, mem)
+		flag = b.NewValue2(pos, OpNeq32, f.Config.fe.TypeBool(), flag, const0)
+		b.Kind = BlockIf
+		b.SetControl(flag)
+		b.Likely = BranchUnlikely
+		b.Succs = b.Succs[:0]
+		b.AddEdgeTo(bThen)
+		b.AddEdgeTo(bElse)
+		bThen.AddEdgeTo(bEnd)
+		bElse.AddEdgeTo(bEnd)
 
-					// then block: emit write barrier call
-					memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, w.Op == OpMoveWBVolatile)
+		// for each write barrier store, append write barrier version to bThen
+		// and simple store version to bElse
+		memThen := mem
+		memElse := mem
+		for _, w := range stores {
+			var val *Value
+			ptr := w.Args[0]
+			siz := w.AuxInt
+			typ := w.Aux // only non-nil for MoveWB, MoveWBVolatile, ZeroWB
+			pos = w.Pos
 
-					// else block: normal store
-					if op == OpZero {
-						memElse = bElse.NewValue2I(pos, op, TypeMem, siz, ptr, memElse)
-					} else {
-						memElse = bElse.NewValue3I(pos, op, TypeMem, siz, ptr, val, memElse)
-					}
-				}
+			var op Op
+			var fn *obj.LSym
+			switch w.Op {
+			case OpStoreWB:
+				op = OpStore
+				fn = writebarrierptr
+				val = w.Args[1]
+			case OpMoveWB, OpMoveWBVolatile:
+				op = OpMove
+				fn = typedmemmove
+				val = w.Args[1]
+			case OpZeroWB:
+				op = OpZero
+				fn = typedmemclr
+			}
 
-				// merge memory
-				// Splice memory Phi into the last memory of the original sequence,
-				// which may be used in subsequent blocks. Other memories in the
-				// sequence must be dead after this block since there can be only
-				// one memory live.
-				last := storeWBs[0]
-				if len(storeWBs) > 1 {
-					// find the last store
-					last = nil
-					wbs.clear() // we reuse wbs to record WB stores that is used in another WB store
-					for _, w := range storeWBs {
-						wbs.add(w.Args[len(w.Args)-1].ID)
-					}
-					for _, w := range storeWBs {
-						if wbs.contains(w.ID) {
-							continue
-						}
-						if last != nil {
-							b.Fatalf("two stores live simultaneously: %s, %s", last, w)
-						}
-						last = w
-					}
-				}
-				bEnd.Values = append(bEnd.Values, last)
-				last.Block = bEnd
-				last.reset(OpPhi)
-				last.Type = TypeMem
-				last.AddArg(memThen)
-				last.AddArg(memElse)
-				for _, w := range storeWBs {
-					if w != last {
-						w.resetArgs()
-					}
-				}
-				for _, w := range storeWBs {
-					if w != last {
-						f.freeValue(w)
-					}
-				}
+			// then block: emit write barrier call
+			memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, w.Op == OpMoveWBVolatile)
 
-				if f.Config.fe.Debug_wb() {
-					f.Config.Warnl(pos, "write barrier")
-				}
+			// else block: normal store
+			if op == OpZero {
+				memElse = bElse.NewValue2I(pos, op, TypeMem, siz, ptr, memElse)
+			} else {
+				memElse = bElse.NewValue3I(pos, op, TypeMem, siz, ptr, val, memElse)
+			}
 
-				break valueLoop
+			if f.Config.fe.Debug_wb() {
+				f.Config.Warnl(pos, "write barrier")
+			}
+		}
+
+		// merge memory
+		// Splice memory Phi into the last memory of the original sequence,
+		// which may be used in subsequent blocks. Other memories in the
+		// sequence must be dead after this block since there can be only
+		// one memory live.
+		bEnd.Values = append(bEnd.Values, last)
+		last.Block = bEnd
+		last.reset(OpPhi)
+		last.Type = TypeMem
+		last.AddArg(memThen)
+		last.AddArg(memElse)
+		for _, w := range stores {
+			if w != last {
+				w.resetArgs()
+			}
+		}
+		for _, w := range stores {
+			if w != last {
+				f.freeValue(w)
+			}
+		}
+
+		// put values after the store sequence into the end block
+		bEnd.Values = append(bEnd.Values, after...)
+		for _, w := range after {
+			w.Block = bEnd
+		}
+
+		// if we have more stores in this block, do this block again
+		for _, w := range b.Values {
+			if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile || w.Op == OpZeroWB {
+				goto again
 			}
 		}
 	}
