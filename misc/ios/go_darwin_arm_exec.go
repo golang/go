@@ -262,7 +262,9 @@ func run(bin string, args []string) (err error) {
 		return s.out.LastIndex([]byte("\nPASS\n")) > startTestsLen ||
 			s.out.LastIndex([]byte("\nPASS\r")) > startTestsLen ||
 			s.out.LastIndex([]byte("\n(lldb) PASS\n")) > startTestsLen ||
-			s.out.LastIndex([]byte("\n(lldb) PASS\r")) > startTestsLen
+			s.out.LastIndex([]byte("\n(lldb) PASS\r")) > startTestsLen ||
+			s.out.LastIndex([]byte("exited with status = 0 (0x00000000) \n")) > startTestsLen ||
+			s.out.LastIndex([]byte("exited with status = 0 (0x00000000) \r")) > startTestsLen
 	}
 	err = s.wait("test completion", passed, opts.timeout)
 	if passed(s.out) {
