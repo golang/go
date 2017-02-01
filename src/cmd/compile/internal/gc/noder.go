@@ -1105,10 +1105,12 @@ func (p *noder) lineno(n syntax.Node) {
 	lineno = Ctxt.PosTable.XPos(pos)
 }
 
+// error is called concurrently if files are parsed concurrently.
 func (p *noder) error(err error) {
 	p.err <- err.(syntax.Error)
 }
 
+// pragma is called concurrently if files are parsed concurrently.
 func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 	switch {
 	case strings.HasPrefix(text, "line "):
@@ -1124,8 +1126,7 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 		p.linknames = append(p.linknames, linkname{pos, f[1], f[2]})
 
 	case strings.HasPrefix(text, "go:cgo_"):
-		// TODO(gri): lineno = p.baseline + int32(line) - 1 // pragcgo may call yyerror
-		p.pragcgobuf += pragcgo(text)
+		p.pragcgobuf += p.pragcgo(pos, text)
 		fallthrough // because of //go:cgo_unsafe_args
 	default:
 		verb := text
@@ -1135,7 +1136,7 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 		prag := pragmaValue(verb)
 		const runtimePragmas = Systemstack | Nowritebarrier | Nowritebarrierrec | Yeswritebarrierrec
 		if !compiling_runtime && prag&runtimePragmas != 0 {
-			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//go:%s only allowed in runtime", verb)})
+			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in runtime", verb)})
 		}
 		return prag
 	}

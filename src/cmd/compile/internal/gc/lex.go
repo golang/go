@@ -115,7 +115,8 @@ func internString(b []byte) string {
 	return s
 }
 
-func pragcgo(text string) string {
+// pragcgo is called concurrently if files are parsed concurrently.
+func (p *noder) pragcgo(pos src.Pos, text string) string {
 	f := pragmaFields(text)
 
 	verb := f[0][3:] // skip "go:"
@@ -132,7 +133,7 @@ func pragcgo(text string) string {
 			return fmt.Sprintln(verb, local, remote)
 
 		default:
-			yyerror(`usage: //go:%s local [remote]`, verb)
+			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf(`usage: //go:%s local [remote]`, verb)})
 		}
 	case "cgo_import_dynamic":
 		switch {
@@ -152,7 +153,7 @@ func pragcgo(text string) string {
 			return fmt.Sprintln(verb, local, remote, library)
 
 		default:
-			yyerror(`usage: //go:cgo_import_dynamic local [remote ["library"]]`)
+			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_dynamic local [remote ["library"]]`})
 		}
 	case "cgo_import_static":
 		switch {
@@ -161,7 +162,7 @@ func pragcgo(text string) string {
 			return fmt.Sprintln(verb, local)
 
 		default:
-			yyerror(`usage: //go:cgo_import_static local`)
+			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_static local`})
 		}
 	case "cgo_dynamic_linker":
 		switch {
@@ -170,7 +171,7 @@ func pragcgo(text string) string {
 			return fmt.Sprintln(verb, path)
 
 		default:
-			yyerror(`usage: //go:cgo_dynamic_linker "path"`)
+			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_dynamic_linker "path"`})
 		}
 	case "cgo_ldflag":
 		switch {
@@ -179,7 +180,7 @@ func pragcgo(text string) string {
 			return fmt.Sprintln(verb, arg)
 
 		default:
-			yyerror(`usage: //go:cgo_ldflag "arg"`)
+			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_ldflag "arg"`})
 		}
 	}
 	return ""
