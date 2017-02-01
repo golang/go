@@ -33,7 +33,7 @@ func main() {
 	fname := f.Name()
 	defer os.Remove(fname)
 
-	out := combinedOutput(parseMobileProvision(mp))
+	out := output(parseMobileProvision(mp))
 	_, err = f.Write(out)
 	check(err)
 	check(f.Close())
@@ -111,12 +111,12 @@ func plistExtract(fname string, path string) ([]byte, error) {
 }
 
 func getLines(cmd *exec.Cmd) [][]byte {
-	out := combinedOutput(cmd)
+	out := output(cmd)
 	return bytes.Split(out, []byte("\n"))
 }
 
-func combinedOutput(cmd *exec.Cmd) []byte {
-	out, err := cmd.CombinedOutput()
+func output(cmd *exec.Cmd) []byte {
+	out, err := cmd.Output()
 	if err != nil {
 		fmt.Println(strings.Join(cmd.Args, "\n"))
 		fmt.Fprintln(os.Stderr, err)
