@@ -109,30 +109,40 @@ init_working_dir()
 		return;
 	}
 	CFStringRef url_str_ref = CFURLGetString(url_ref);
-	char url[MAXPATHLEN];
-        if (!CFStringGetCString(url_str_ref, url, sizeof(url), kCFStringEncodingUTF8)) {
+	char buf[MAXPATHLEN];
+	if (!CFStringGetCString(url_str_ref, buf, sizeof(buf), kCFStringEncodingUTF8)) {
 		fprintf(stderr, "runtime/cgo: cannot get URL string\n");
 		return;
 	}
 
 	// url is of the form "file:///path/to/Info.plist".
 	// strip it down to the working directory "/path/to".
-	int url_len = strlen(url);
+	int url_len = strlen(buf);
 	if (url_len < sizeof("file://")+sizeof("/Info.plist")) {
-		fprintf(stderr, "runtime/cgo: bad URL: %s\n", url);
+		fprintf(stderr, "runtime/cgo: bad URL: %s\n", buf);
 		return;
 	}
-	url[url_len-sizeof("/Info.plist")+1] = 0;
-	char *dir = &url[0] + sizeof("file://")-1;
+	buf[url_len-sizeof("/Info.plist")+1] = 0;
+	char *dir = &buf[0] + sizeof("file://")-1;
 
 	if (chdir(dir) != 0) {
 		fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", dir);
 	}
 
-	// No-op to set a breakpoint on, immediately after the real chdir.
-	// Gives the test harness in go_darwin_arm_exec (which uses lldb) a
-	// chance to move the working directory.
-	getwd(dir);
+	// The test harness in go_darwin_arm_exec passes the relative working directory
+	// in the GoExecWrapperWorkingDirectory property of the app bundle.
+	CFStringRef wd_ref = CFBundleGetValueForInfoDictionaryKey(bundle, CFSTR("GoExecWrapperWorkingDirectory"));
+	if (wd_ref != NULL) {
+		if (!CFStringGetCString(wd_ref, buf, sizeof(buf), kCFStringEncodingUTF8)) {
+			fprintf(stderr, "runtime/cgo: cannot get GoExecWrapperWorkingDirectory string\n");
+			return;
+		}
+		if (chdir(buf) != 0) {
+			fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", buf);
+		}
+		// Notify the test harness that we're correctly set up
+		raise(SIGINT);
+	}
 }
 
 void
