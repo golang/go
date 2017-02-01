@@ -223,10 +223,6 @@ var dclcontext Class // PEXTERN/PAUTO
 
 var statuniqgen int // name generator for static temps
 
-var lastconst []*Node
-
-var lasttype *Node
-
 var Maxarg int64
 
 var Stksize int64 // stack size for current frame

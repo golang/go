@@ -117,9 +117,7 @@ func (p *noder) node() {
 }
 
 func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
-	var lastConstGroup *syntax.Group
-	var lastConstRHS []*Node
-	var iotaVal int64
+	var cs constState
 
 	for _, decl := range decls {
 		p.lineno(decl)
@@ -131,23 +129,7 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
 			l = append(l, p.varDecl(decl)...)
 
 		case *syntax.ConstDecl:
-			// Tricky to handle golang.org/issue/15550 correctly.
-
-			if decl.Group == nil || decl.Group != lastConstGroup {
-				iotaVal = 0
-				lastConstRHS = nil
-			}
-
-			lastconst = lastConstRHS
-
-			l = append(l, p.constDecl(decl, iotaVal)...)
-
-			lastConstRHS = lastconst
-			lastconst = nil
-
-			iotaVal++
-
-			lastConstGroup = decl.Group
+			l = append(l, p.constDecl(decl, &cs)...)
 
 		case *syntax.TypeDecl:
 			l = append(l, p.typeDecl(decl))
@@ -222,16 +204,62 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 	return variter(names, typ, exprs)
 }
 
-func (p *noder) constDecl(decl *syntax.ConstDecl, iotaVal int64) []*Node {
+type constState struct {
+	group  *syntax.Group
+	typ    *Node
+	values []*Node
+	iota   int64
+}
+
+func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
+	if decl.Group == nil || decl.Group != cs.group {
+		*cs = constState{
+			group: decl.Group,
+		}
+	}
+
 	names := p.declNames(decl.NameList)
 	typ := p.typeExprOrNil(decl.Type)
 
-	var exprs []*Node
+	var values []*Node
 	if decl.Values != nil {
-		exprs = p.exprList(decl.Values)
+		values = p.exprList(decl.Values)
+		cs.typ, cs.values = typ, values
+	} else {
+		if typ != nil {
+			yyerror("const declaration cannot have type without expression")
+		}
+		typ, values = cs.typ, cs.values
 	}
 
-	return constiter(names, typ, exprs, iotaVal)
+	var nn []*Node
+	for i, n := range names {
+		if i >= len(values) {
+			yyerror("missing value in const declaration")
+			break
+		}
+		v := values[i]
+		if decl.Values == nil {
+			v = treecopy(v, n.Pos)
+		}
+
+		n.Op = OLITERAL
+		declare(n, dclcontext)
+
+		n.Name.Param.Ntype = typ
+		n.Name.Defn = v
+		n.SetIota(cs.iota)
+
+		nn = append(nn, p.nod(decl, ODCLCONST, n, nil))
+	}
+
+	if len(values) > len(names) {
+		yyerror("extra expression in const declaration")
+	}
+
+	cs.iota++
+
+	return nn
 }
 
 func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
