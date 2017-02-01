@@ -4,7 +4,10 @@
 
 package gc
 
-import "testing"
+import (
+	"cmd/internal/src"
+	"testing"
+)
 
 func eq(a, b []string) bool {
 	if len(a) != len(b) {
@@ -69,8 +72,9 @@ func TestPragcgo(t *testing.T) {
 		{`go:cgo_ldflag "a rg"`, "cgo_ldflag 'a rg'\n"},
 	}
 
+	var p noder
 	for _, tt := range tests {
-		got := pragcgo(tt.in)
+		got := p.pragcgo(src.NoPos, tt.in)
 		if got != tt.want {
 			t.Errorf("pragcgo(%q) = %q; want %q", tt.in, got, tt.want)
 			continue
