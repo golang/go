@@ -263,12 +263,25 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
 }
 
 func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
-	name := typedcl0(p.name(decl.Name))
+	n := p.declName(decl.Name)
+	n.Op = OTYPE
+	declare(n, dclcontext)
+	n.Local = true
 
 	// decl.Type may be nil but in that case we got a syntax error during parsing
 	typ := p.typeExprOrNil(decl.Type)
 
-	return typedcl1(name, typ, syntax.Pragma(decl.Pragma), decl.Alias)
+	param := n.Name.Param
+	param.Ntype = typ
+	param.Pragma = decl.Pragma
+	param.Alias = decl.Alias
+	if param.Alias && param.Pragma != 0 {
+		yyerror("cannot specify directive with type alias")
+		param.Pragma = 0
+	}
+
+	return p.nod(decl, ODCLTYPE, n, nil)
+
 }
 
 func (p *noder) declNames(names []*syntax.Name) []*Node {
