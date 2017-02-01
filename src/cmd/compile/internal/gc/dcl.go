@@ -286,47 +286,6 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 	return init
 }
 
-// declare constants from grammar
-// new_name_list [[type] = expr_list]
-func constiter(vl []*Node, t *Node, cl []*Node, iotaVal int64) []*Node {
-	var lno src.XPos // default is to leave line number alone in listtreecopy
-	if len(cl) == 0 {
-		if t != nil {
-			yyerror("const declaration cannot have type without expression")
-		}
-		cl = lastconst
-		t = lasttype
-		lno = vl[0].Pos
-	} else {
-		lastconst = cl
-		lasttype = t
-	}
-
-	var vv []*Node
-	for i, v := range vl {
-		if i >= len(cl) {
-			yyerror("missing value in const declaration")
-			break
-		}
-
-		c := treecopy(cl[i], lno)
-
-		v.Op = OLITERAL
-		declare(v, dclcontext)
-
-		v.Name.Param.Ntype = t
-		v.Name.Defn = c
-		v.SetIota(iotaVal)
-
-		vv = append(vv, nod(ODCLCONST, v, nil))
-	}
-
-	if len(cl) > len(vl) {
-		yyerror("extra expression in const declaration")
-	}
-	return vv
-}
-
 // newname returns a new ONAME Node associated with symbol s.
 func newname(s *Sym) *Node {
 	if s == nil {
