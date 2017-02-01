@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/internal/src"
 	"fmt"
 	"strings"
 )
@@ -495,7 +496,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 			*np = n
 		}
 
-		n = treecopy(n, 0)
+		n = treecopy(n, src.NoXPos)
 		makeaddable(n)
 		var f *Node
 		if flag_msan {

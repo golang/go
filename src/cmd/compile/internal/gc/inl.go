@@ -27,7 +27,10 @@
 
 package gc
 
-import "fmt"
+import (
+	"cmd/internal/src"
+	"fmt"
+)
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
@@ -837,7 +840,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	args := as.Rlist
 	as.Rlist.Set(nil)
 
-	setlno(call, n.Lineno)
+	setlno(call, n.Pos)
 
 	as.Rlist.Set(args.Slice())
 
@@ -1014,20 +1017,20 @@ func (subst *inlsubst) node(n *Node) *Node {
 }
 
 // Plaster over linenumbers
-func setlnolist(ll Nodes, lno int32) {
+func setlnolist(ll Nodes, lno src.XPos) {
 	for _, n := range ll.Slice() {
 		setlno(n, lno)
 	}
 }
 
-func setlno(n *Node, lno int32) {
+func setlno(n *Node, lno src.XPos) {
 	if n == nil {
 		return
 	}
 
 	// don't clobber names, unless they're freshly synthesized
-	if n.Op != ONAME || n.Lineno == 0 {
-		n.Lineno = lno
+	if n.Op != ONAME || !n.Pos.IsKnown() {
+		n.Pos = lno
 	}
 
 	setlno(n.Left, lno)

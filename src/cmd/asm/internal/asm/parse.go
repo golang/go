@@ -19,14 +19,14 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
 type Parser struct {
 	lex           lex.TokenReader
 	lineNum       int   // Line number in source file.
-	histLineNum   int32 // Cumulative line number across source files.
-	errorLine     int32 // (Cumulative) line number of last error.
+	errorLine     int   // Line number of last error.
 	errorCount    int   // Number of errors.
 	pc            int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
 	input         []lex.Token
@@ -60,7 +60,7 @@ func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
 	}
 }
 
-// panicOnError is enable when testing to abort execution on the first error
+// panicOnError is enabled when testing to abort execution on the first error
 // and turn it into a recoverable panic.
 var panicOnError bool
 
@@ -68,11 +68,11 @@ func (p *Parser) errorf(format string, args ...interface{}) {
 	if panicOnError {
 		panic(fmt.Errorf(format, args...))
 	}
-	if p.histLineNum == p.errorLine {
+	if p.lineNum == p.errorLine {
 		// Only one error per line.
 		return
 	}
-	p.errorLine = p.histLineNum
+	p.errorLine = p.lineNum
 	if p.lex != nil {
 		// Put file and line information on head of message.
 		format = "%s:%d: " + format + "\n"
@@ -83,6 +83,10 @@ func (p *Parser) errorf(format string, args ...interface{}) {
 	if p.errorCount > 10 && !*flags.AllErrors {
 		log.Fatal("too many errors")
 	}
+}
+
+func (p *Parser) pos() src.XPos {
+	return p.ctxt.PosTable.XPos(src.MakePos(p.lex.Base(), uint(p.lineNum), 0))
 }
 
 func (p *Parser) Parse() (*obj.Prog, bool) {
@@ -105,7 +109,6 @@ func (p *Parser) line() bool {
 		// are labeled with this line. Otherwise we complain after we've absorbed
 		// the terminating newline and the line numbers are off by one in errors.
 		p.lineNum = p.lex.Line()
-		p.histLineNum = lex.HistLine()
 		switch tok {
 		case '\n', ';':
 			continue

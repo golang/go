@@ -2,6 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file implements source, a buffered rune reader
+// which is specialized for the needs of the Go scanner:
+// Contiguous sequences of runes (literals) are extracted
+// directly as []byte without the need to re-encode the
+// runes in UTF-8 (as would be necessary with bufio.Reader).
+//
+// This file is self-contained (go tool compile source.go
+// compiles) and thus could be made into its own package.
+
 package syntax
 
 import (
@@ -15,64 +24,69 @@ import (
 //        suf     r0  r            w
 
 type source struct {
-	src   io.Reader
-	errh  ErrorHandler
-	first error // first error encountered
+	src  io.Reader
+	errh func(line, pos uint, msg string)
 
 	// source buffer
 	buf         [4 << 10]byte
 	offs        int   // source offset of buf
 	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
-	line0, line int   // previous/current line
-	err         error // pending io error
+	line0, line uint  // previous/current line
+	col0, col   uint  // previous/current column (byte offsets from line start)
+	ioerr       error // pending io error
 
 	// literal buffer
 	lit []byte // literal prefix
 	suf int    // literal suffix; suf >= 0 means we are scanning a literal
 }
 
-func (s *source) init(src io.Reader, errh ErrorHandler) {
+// init initializes source to read from src and to report errors via errh.
+// errh must not be nil.
+func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
 	s.src = src
 	s.errh = errh
-	s.first = nil
 
 	s.buf[0] = utf8.RuneSelf // terminate with sentinel
 	s.offs = 0
 	s.r0, s.r, s.w = 0, 0, 0
 	s.line0, s.line = 1, 1
-	s.err = nil
+	s.col0, s.col = 0, 0
+	s.ioerr = nil
 
 	s.lit = s.lit[:0]
 	s.suf = -1
 }
 
-func (s *source) error(msg string) {
-	s.error_at(s.pos0(), s.line0, msg)
-}
-
-func (s *source) error_at(pos, line int, msg string) {
-	err := Error{pos, line, msg}
-	if s.first == nil {
-		s.first = err
-	}
-	if s.errh == nil {
-		panic(s.first)
-	}
-	s.errh(err)
-}
-
-// pos0 returns the byte position of the last character read.
-func (s *source) pos0() int {
-	return s.offs + s.r0
-}
-
+// ungetr ungets the most recently read rune.
 func (s *source) ungetr() {
-	s.r, s.line = s.r0, s.line0
+	s.r, s.line, s.col = s.r0, s.line0, s.col0
 }
 
+// ungetr2 is like ungetr but enables a 2nd ungetr.
+// It must not be called if one of the runes seen
+// was a newline.
+func (s *source) ungetr2() {
+	s.ungetr()
+	// line must not have changed
+	s.r0--
+	s.col0--
+}
+
+func (s *source) error(msg string) {
+	s.errh(s.line0, s.col0, msg)
+}
+
+// getr reads and returns the next rune.
+//
+// If a read or source encoding error occurs, getr
+// calls the error handler installed with init.
+// The handler must exist.
+//
+// The (line, col) position passed to the error handler
+// is always at the current source reading position.
 func (s *source) getr() rune {
 redo:
-	s.r0, s.line0 = s.r, s.line
+	s.r0, s.line0, s.col0 = s.r, s.line, s.col
 
 	// We could avoid at least one test that is always taken in the
 	// for loop below by duplicating the common case code (ASCII)
@@ -80,7 +94,7 @@ redo:
 	// in the buffer. Measure and optimize if necessary.
 
 	// make sure we have at least one rune in buffer, or we are at EOF
-	for s.r+utf8.UTFMax > s.w && !utf8.FullRune(s.buf[s.r:s.w]) && s.err == nil && s.w-s.r < len(s.buf) {
+	for s.r+utf8.UTFMax > s.w && !utf8.FullRune(s.buf[s.r:s.w]) && s.ioerr == nil && s.w-s.r < len(s.buf) {
 		s.fill() // s.w-s.r < len(s.buf) => buffer is not full
 	}
 
@@ -88,20 +102,25 @@ redo:
 	// (invariant: s.buf[s.w] == utf8.RuneSelf)
 	if b := s.buf[s.r]; b < utf8.RuneSelf {
 		s.r++
+		// TODO(gri) Optimization: Instead of adjusting s.col for each character,
+		// remember the line offset instead and then compute the offset as needed
+		// (which is less often).
+		s.col++
 		if b == 0 {
 			s.error("invalid NUL character")
 			goto redo
 		}
 		if b == '\n' {
 			s.line++
+			s.col = 0
 		}
 		return rune(b)
 	}
 
 	// EOF
 	if s.r == s.w {
-		if s.err != io.EOF {
-			s.error(s.err.Error())
+		if s.ioerr != io.EOF {
+			s.error(s.ioerr.Error())
 		}
 		return -1
 	}
@@ -109,6 +128,7 @@ redo:
 	// uncommon case: not ASCII
 	r, w := utf8.DecodeRune(s.buf[s.r:s.w])
 	s.r += w
+	s.col += uint(w)
 
 	if r == utf8.RuneError && w == 1 {
 		s.error("invalid UTF-8 encoding")
@@ -157,13 +177,13 @@ func (s *source) fill() {
 		if n > 0 || err != nil {
 			s.buf[s.w] = utf8.RuneSelf // sentinel
 			if err != nil {
-				s.err = err
+				s.ioerr = err
 			}
 			return
 		}
 	}
 
-	s.err = io.ErrNoProgress
+	s.ioerr = io.ErrNoProgress
 }
 
 func (s *source) startLit() {

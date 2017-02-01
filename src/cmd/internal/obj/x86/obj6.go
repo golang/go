@@ -1137,7 +1137,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	spfix.Spadj = -framesize
 
 	pcdata := obj.Appendp(ctxt, spfix)
-	pcdata.Lineno = ctxt.Cursym.Text.Lineno
+	pcdata.Pos = ctxt.Cursym.Text.Pos
 	pcdata.Mode = ctxt.Cursym.Text.Mode
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
@@ -1146,7 +1146,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
 
 	call := obj.Appendp(ctxt, pcdata)
-	call.Lineno = ctxt.Cursym.Text.Lineno
+	call.Pos = ctxt.Cursym.Text.Pos
 	call.Mode = ctxt.Cursym.Text.Mode
 	call.As = obj.ACALL
 	call.To.Type = obj.TYPE_BRANCH
@@ -1351,7 +1351,7 @@ loop:
 		}
 		q = ctxt.NewProg()
 		q.As = obj.AJMP
-		q.Lineno = p.Lineno
+		q.Pos = p.Pos
 		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc
 		q.Pcond = p

@@ -40,12 +40,12 @@ func Prog(as obj.As) *obj.Prog {
 	Clearp(pc)
 	p.Link = pc
 
-	if lineno == 0 && Debug['K'] != 0 {
-		Warn("prog: line 0")
+	if !lineno.IsKnown() && Debug['K'] != 0 {
+		Warn("prog: unknown position (line 0)")
 	}
 
 	p.As = as
-	p.Lineno = lineno
+	p.Pos = lineno
 	return p
 }
 
@@ -60,7 +60,7 @@ func Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset in
 	q := Ctxt.NewProg()
 	Clearp(q)
 	q.As = as
-	q.Lineno = p.Lineno
+	q.Pos = p.Pos
 	q.From.Type = ftype
 	q.From.Reg = freg
 	q.From.Offset = foffset

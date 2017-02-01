@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/internal/src"
 	"fmt"
 )
 
@@ -510,7 +511,7 @@ func orderstmt(n *Node, order *Order) {
 
 		n.Left = orderexpr(n.Left, order, nil)
 		n.Left = ordersafeexpr(n.Left, order)
-		tmp1 := treecopy(n.Left, 0)
+		tmp1 := treecopy(n.Left, src.NoXPos)
 		if tmp1.Op == OINDEXMAP {
 			tmp1.Etype = 0 // now an rvalue not an lvalue
 		}

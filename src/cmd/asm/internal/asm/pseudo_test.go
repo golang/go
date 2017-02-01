@@ -56,7 +56,6 @@ func TestErroneous(t *testing.T) {
 	for _, test := range tests {
 		parser.errorCount = 0
 		parser.lineNum++
-		parser.histLineNum++
 		if !parser.pseudo(test.pseudo, tokenize(test.operands)) {
 			t.Fatalf("Wrong pseudo-instruction: %s", test.pseudo)
 		}

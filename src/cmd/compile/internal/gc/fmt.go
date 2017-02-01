@@ -283,8 +283,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
 	}
 
-	if n.Lineno != 0 {
-		fmt.Fprintf(s, " l(%d)", n.Lineno)
+	if n.Pos.IsKnown() {
+		fmt.Fprintf(s, " l(%d)", n.Pos.Line())
 	}
 
 	if c == 0 && n.Xoffset != BADWIDTH {

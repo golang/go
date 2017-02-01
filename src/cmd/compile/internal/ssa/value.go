@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/src"
 	"fmt"
 	"math"
 )
@@ -36,8 +37,8 @@ type Value struct {
 	// Containing basic block
 	Block *Block
 
-	// Source line number
-	Line int32
+	// Source position
+	Pos src.XPos
 
 	// Use count. Each appearance in Value.Args and Block.Control counts once.
 	Uses int32
@@ -217,7 +218,7 @@ func (v *Value) reset(op Op) {
 
 // copyInto makes a new value identical to v and adds it to the end of b.
 func (v *Value) copyInto(b *Block) *Value {
-	c := b.NewValue0(v.Line, v.Op, v.Type)
+	c := b.NewValue0(v.Pos, v.Op, v.Type)
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
 	c.AddArgs(v.Args...)
@@ -232,7 +233,7 @@ func (v *Value) copyInto(b *Block) *Value {
 func (v *Value) Logf(msg string, args ...interface{}) { v.Block.Logf(msg, args...) }
 func (v *Value) Log() bool                            { return v.Block.Log() }
 func (v *Value) Fatalf(msg string, args ...interface{}) {
-	v.Block.Func.Config.Fatalf(v.Line, msg, args...)
+	v.Block.Func.Config.Fatalf(v.Pos, msg, args...)
 }
 
 // isGenericIntConst returns whether v is a generic integer constant.

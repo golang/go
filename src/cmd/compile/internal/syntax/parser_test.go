@@ -6,6 +6,7 @@ package syntax
 
 import (
 	"bytes"
+	"cmd/internal/src"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -18,11 +19,11 @@ import (
 )
 
 var fast = flag.Bool("fast", false, "parse package files in parallel")
-var src = flag.String("src", "parser.go", "source file to parse")
+var src_ = flag.String("src", "parser.go", "source file to parse")
 var verify = flag.Bool("verify", false, "verify idempotent printing")
 
 func TestParse(t *testing.T) {
-	_, err := ParseFile(*src, nil, nil, 0)
+	_, err := ParseFile(*src_, nil, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +40,7 @@ func TestStdLib(t *testing.T) {
 
 	type parseResult struct {
 		filename string
-		lines    int
+		lines    uint
 	}
 
 	results := make(chan parseResult)
@@ -65,7 +66,7 @@ func TestStdLib(t *testing.T) {
 		}
 	}()
 
-	var count, lines int
+	var count, lines uint
 	for res := range results {
 		count++
 		lines += res.lines
@@ -133,7 +134,7 @@ func verifyPrint(filename string, ast1 *File) {
 		panic(err)
 	}
 
-	ast2, err := ParseBytes(buf1.Bytes(), nil, nil, 0)
+	ast2, err := ParseBytes(src.NewFileBase(filename, filename), buf1.Bytes(), nil, nil, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -157,7 +158,7 @@ func verifyPrint(filename string, ast1 *File) {
 }
 
 func TestIssue17697(t *testing.T) {
-	_, err := ParseBytes(nil, nil, nil, 0) // return with parser error, don't panic
+	_, err := ParseBytes(nil, nil, nil, nil, 0) // return with parser error, don't panic
 	if err == nil {
 		t.Errorf("no error reported")
 	}
@@ -180,5 +181,49 @@ func TestParseFile(t *testing.T) {
 	}
 	if err != first {
 		t.Errorf("got %v; want first error %v", err, first)
+	}
+}
+
+func TestLineDirectives(t *testing.T) {
+	for _, test := range []struct {
+		src, msg  string
+		filename  string
+		line, col uint
+	}{
+		// test validity of //line directive
+		{`//line :`, "invalid line number: ", "", 1, 8},
+		{`//line :x`, "invalid line number: x", "", 1, 8},
+		{`//line foo :`, "invalid line number: ", "", 1, 12},
+		{`//line foo:123abc`, "invalid line number: 123abc", "", 1, 11},
+		{`/**///line foo:x`, "invalid line number: x", "", 1, 15},
+		{`//line foo:0`, "invalid line number: 0", "", 1, 11},
+		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 1, 11},
+
+		// test effect of //line directive on (relative) position information
+		{"//line foo:123\n   foo", "syntax error: package statement must be first", "foo", 123, 3},
+		{"//line foo:123\n//line bar:345\nfoo", "syntax error: package statement must be first", "bar", 345, 0},
+	} {
+		_, err := ParseBytes(nil, []byte(test.src), nil, nil, 0)
+		if err == nil {
+			t.Errorf("%s: no error reported", test.src)
+			continue
+		}
+		perr, ok := err.(Error)
+		if !ok {
+			t.Errorf("%s: got %v; want parser error", test.src, err)
+			continue
+		}
+		if msg := perr.Msg; msg != test.msg {
+			t.Errorf("%s: got msg = %q; want %q", test.src, msg, test.msg)
+		}
+		if filename := perr.Pos.RelFilename(); filename != test.filename {
+			t.Errorf("%s: got filename = %q; want %q", test.src, filename, test.filename)
+		}
+		if line := perr.Pos.RelLine(); line != test.line {
+			t.Errorf("%s: got line = %d; want %d", test.src, line, test.line)
+		}
+		if col := perr.Pos.Col(); col != test.col {
+			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col)
+		}
 	}
 }

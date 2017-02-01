@@ -24,7 +24,7 @@ func TestSizeof(t *testing.T) {
 	}{
 		{Addr{}, 40, 64},
 		{LSym{}, 76, 128},
-		{Prog{}, 144, 224},
+		{Prog{}, 148, 232},
 	}
 
 	for _, tt := range tests {

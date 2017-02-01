@@ -547,7 +547,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			/* MOV m(g),REGTMP */
 			p.As = AMOVW
-			p.Lineno = q1.Lineno
+			p.Pos = q1.Pos
 			p.From.Type = obj.TYPE_MEM
 			p.From.Reg = REGG
 			p.From.Offset = 6 * 4 // offset of g.m
@@ -558,7 +558,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			/* MOV a,m_divmod(REGTMP) */
 			p = obj.Appendp(ctxt, p)
 			p.As = AMOVW
-			p.Lineno = q1.Lineno
+			p.Pos = q1.Pos
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = q1.From.Reg
 			p.To.Type = obj.TYPE_MEM
@@ -568,7 +568,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			/* MOV b, R8 */
 			p = obj.Appendp(ctxt, p)
 			p.As = AMOVW
-			p.Lineno = q1.Lineno
+			p.Pos = q1.Pos
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = q1.Reg
 			if q1.Reg == 0 {
@@ -581,7 +581,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			/* CALL appropriate */
 			p = obj.Appendp(ctxt, p)
 			p.As = ABL
-			p.Lineno = q1.Lineno
+			p.Pos = q1.Pos
 			p.To.Type = obj.TYPE_BRANCH
 			switch o {
 			case ADIV:
@@ -600,7 +600,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			/* MOV REGTMP, b */
 			p = obj.Appendp(ctxt, p)
 			p.As = AMOVW
-			p.Lineno = q1.Lineno
+			p.Pos = q1.Pos
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = REGTMP
 			p.From.Offset = 0
@@ -689,7 +689,7 @@ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
 			p.As = ABL
 			p.To.Type = obj.TYPE_BRANCH
 			p.To.Sym = symsfloat
-			p.Lineno = next.Lineno
+			p.Pos = next.Pos
 
 			p = next
 			wasfloat = 1
@@ -811,7 +811,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	spfix.Spadj = -framesize
 
 	pcdata := obj.Appendp(ctxt, spfix)
-	pcdata.Lineno = ctxt.Cursym.Text.Lineno
+	pcdata.Pos = ctxt.Cursym.Text.Pos
 	pcdata.Mode = ctxt.Cursym.Text.Mode
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
@@ -995,7 +995,7 @@ loop:
 		a = AB
 		q = ctxt.NewProg()
 		q.As = a
-		q.Lineno = p.Lineno
+		q.Pos = p.Pos
 		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc
 		q.Pcond = p

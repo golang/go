@@ -258,7 +258,7 @@ func staticinit(n *Node, out *[]*Node) bool {
 		Fatalf("staticinit")
 	}
 
-	lineno = n.Lineno
+	lineno = n.Pos
 	l := n.Name.Defn.Left
 	r := n.Name.Defn.Right
 	return staticassign(l, r, out)
@@ -469,7 +469,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 	case OCLOSURE:
 		if hasemptycvars(r) {
 			if Debug_closure > 0 {
-				Warnl(r.Lineno, "closure converted to global")
+				Warnl(r.Pos, "closure converted to global")
 			}
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.

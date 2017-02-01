@@ -323,7 +323,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// code will not see a half-updated stack frame.
 				q = obj.Appendp(ctxt, q)
 				q.As = mov
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REGLINK
 				q.To.Type = obj.TYPE_MEM
@@ -332,7 +332,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 				q = obj.Appendp(ctxt, q)
 				q.As = add
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = int64(-autosize)
 				q.To.Type = obj.TYPE_REG
@@ -470,7 +470,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 				q = ctxt.NewProg()
 				q.As = AJMP
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.To.Type = obj.TYPE_MEM
 				q.To.Offset = 0
 				q.To.Reg = REGLINK
@@ -495,7 +495,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if autosize != 0 {
 				q = ctxt.NewProg()
 				q.As = add
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = int64(autosize)
 				q.To.Type = obj.TYPE_REG
@@ -508,7 +508,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			q1 = ctxt.NewProg()
 			q1.As = AJMP
-			q1.Lineno = p.Lineno
+			q1.Pos = p.Pos
 			if retSym != nil { // retjmp
 				q1.To.Type = obj.TYPE_BRANCH
 				q1.To.Name = obj.NAME_EXTERN
@@ -813,7 +813,7 @@ func addnop(ctxt *obj.Link, p *obj.Prog) {
 	// as R0, we have to resort to manually encode the SLL
 	// instruction as WORD $0.
 	q.As = AWORD
-	q.Lineno = p.Lineno
+	q.Pos = p.Pos
 	q.From.Type = obj.TYPE_CONST
 	q.From.Name = obj.NAME_NONE
 	q.From.Offset = 0
@@ -1524,7 +1524,7 @@ loop:
 		a = AJMP
 		q = ctxt.NewProg()
 		q.As = a
-		q.Lineno = p.Lineno
+		q.Pos = p.Pos
 		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc
 		q.Pcond = p

@@ -37,22 +37,24 @@ import (
 	"path/filepath"
 )
 
+// WorkingDir returns the current working directory
+// (or "/???" if the directory cannot be identified),
+// with "/" as separator.
+func WorkingDir() string {
+	var path string
+	path, _ = os.Getwd()
+	if path == "" {
+		path = "/???"
+	}
+	return filepath.ToSlash(path)
+}
+
 func Linknew(arch *LinkArch) *Link {
 	ctxt := new(Link)
 	ctxt.Hash = make(map[SymVer]*LSym)
 	ctxt.Arch = arch
 	ctxt.Version = HistVersion
-
-	var buf string
-	buf, _ = os.Getwd()
-	if buf == "" {
-		buf = "/???"
-	}
-	buf = filepath.ToSlash(buf)
-	ctxt.Pathname = buf
-
-	ctxt.LineHist.GOROOT = GOROOT
-	ctxt.LineHist.Dir = ctxt.Pathname
+	ctxt.Pathname = WorkingDir()
 
 	ctxt.Headtype.Set(GOOS)
 	if ctxt.Headtype < 0 {

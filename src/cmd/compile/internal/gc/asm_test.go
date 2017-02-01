@@ -286,6 +286,6 @@ var issue16214src = `
 package main
 
 func Mod32(x uint32) uint32 {
-	return x % 3 // frontend rewrites it as HMUL with 2863311531, the LITERAL node has Lineno 0
+	return x % 3 // frontend rewrites it as HMUL with 2863311531, the LITERAL node has unknown Pos
 }
 `

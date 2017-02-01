@@ -6,7 +6,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"cmd/internal/src"
+	"fmt"
+)
 
 type stackAllocState struct {
 	f *Func
@@ -37,7 +40,7 @@ func newStackAllocState(f *Func) *stackAllocState {
 		return new(stackAllocState)
 	}
 	if s.f != nil {
-		f.Config.Fatalf(0, "newStackAllocState called without previous free")
+		f.Config.Fatalf(src.NoXPos, "newStackAllocState called without previous free")
 	}
 	return s
 }

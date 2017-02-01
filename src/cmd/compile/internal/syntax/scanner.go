@@ -2,38 +2,55 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file implements scanner, a lexical tokenizer for
+// Go source. After initialization, consecutive calls of
+// next advance the scanner one token at a time.
+//
+// This file, source.go, and tokens.go are self-contained
+// (go tool compile scanner.go source.go tokens.go compiles)
+// and thus could be made into its own package.
+
 package syntax
 
 import (
 	"fmt"
 	"io"
-	"strings"
 	"unicode"
 	"unicode/utf8"
 )
 
 type scanner struct {
 	source
+	pragh  func(line, col uint, msg string)
 	nlsemi bool // if set '\n' and EOF translate to ';'
-	pragma Pragma
 
 	// current token, valid after calling next()
-	pos, line int
+	line, col uint
 	tok       token
 	lit       string   // valid if tok is _Name or _Literal
 	kind      LitKind  // valid if tok is _Literal
 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
-
-	pragh PragmaHandler
 }
 
-func (s *scanner) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+func (s *scanner) init(src io.Reader, errh, pragh func(line, col uint, msg string)) {
 	s.source.init(src, errh)
-	s.nlsemi = false
 	s.pragh = pragh
+	s.nlsemi = false
 }
 
+// next advances the scanner by reading the next token.
+//
+// If a read, source encoding, or lexical error occurs, next
+// calls the error handler installed with init. The handler
+// must exist.
+//
+// If a //line or //go: directive is encountered, next
+// calls the pragma handler installed with init, if not nil.
+//
+// The (line, col) position passed to the error and pragma
+// handler is always at or after the current source reading
+// position.
 func (s *scanner) next() {
 	nlsemi := s.nlsemi
 	s.nlsemi = false
@@ -46,9 +63,9 @@ redo:
 	}
 
 	// token start
-	s.pos, s.line = s.source.pos0(), s.source.line0
+	s.line, s.col = s.source.line0, s.source.col0
 
-	if isLetter(c) || c >= utf8.RuneSelf && (unicode.IsLetter(c) || s.isCompatRune(c, true)) {
+	if isLetter(c) || c >= utf8.RuneSelf && s.isIdentRune(c, true) {
 		s.ident()
 		return
 	}
@@ -114,8 +131,7 @@ redo:
 	case '.':
 		c = s.getr()
 		if isDigit(c) {
-			s.ungetr()
-			s.source.r0-- // make sure '.' is part of literal (line cannot have changed)
+			s.ungetr2()
 			s.number('.')
 			break
 		}
@@ -125,8 +141,7 @@ redo:
 				s.tok = _DotDotDot
 				break
 			}
-			s.ungetr()
-			s.source.r0-- // make next ungetr work (line cannot have changed)
+			s.ungetr2()
 		}
 		s.ungetr()
 		s.tok = _Dot
@@ -273,7 +288,7 @@ redo:
 
 	default:
 		s.tok = 0
-		s.error(fmt.Sprintf("illegal character %#U", c))
+		s.error(fmt.Sprintf("invalid character %#U", c))
 		goto redo
 	}
 
@@ -307,7 +322,7 @@ func (s *scanner) ident() {
 
 	// general case
 	if c >= utf8.RuneSelf {
-		for unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) || s.isCompatRune(c, false) {
+		for s.isIdentRune(c, false) {
 			c = s.getr()
 		}
 	}
@@ -329,14 +344,18 @@ func (s *scanner) ident() {
 	s.tok = _Name
 }
 
-func (s *scanner) isCompatRune(c rune, start bool) bool {
-	if !gcCompat || c < utf8.RuneSelf {
-		return false
-	}
-	if start && unicode.IsNumber(c) {
-		s.error(fmt.Sprintf("identifier cannot begin with digit %#U", c))
-	} else {
+func (s *scanner) isIdentRune(c rune, first bool) bool {
+	switch {
+	case unicode.IsLetter(c) || c == '_':
+		// ok
+	case unicode.IsDigit(c):
+		if first {
+			s.error(fmt.Sprintf("identifier cannot begin with digit %#U", c))
+		}
+	case c >= utf8.RuneSelf:
 		s.error(fmt.Sprintf("invalid identifier character %#U", c))
+	default:
+		return false
 	}
 	return true
 }
@@ -460,7 +479,7 @@ func (s *scanner) stdString() {
 			break
 		}
 		if r < 0 {
-			s.error_at(s.pos, s.line, "string not terminated")
+			s.errh(s.line, s.col, "string not terminated")
 			break
 		}
 	}
@@ -480,7 +499,7 @@ func (s *scanner) rawString() {
 			break
 		}
 		if r < 0 {
-			s.error_at(s.pos, s.line, "string not terminated")
+			s.errh(s.line, s.col, "string not terminated")
 			break
 		}
 	}
@@ -526,48 +545,46 @@ func (s *scanner) rune() {
 	s.tok = _Literal
 }
 
-func (s *scanner) lineComment() {
-	// recognize pragmas
-	var prefix string
-	r := s.getr()
-	if s.pragh == nil {
-		goto skip
-	}
-
-	switch r {
-	case 'g':
-		prefix = "go:"
-	case 'l':
-		prefix = "line "
-	default:
-		goto skip
-	}
-
-	s.startLit()
-	for _, m := range prefix {
-		if r != m {
-			s.stopLit()
-			goto skip
-		}
-		r = s.getr()
-	}
-
+func (s *scanner) skipLine(r rune) {
 	for r >= 0 {
 		if r == '\n' {
-			s.ungetr()
+			s.ungetr() // don't consume '\n' - needed for nlsemi logic
 			break
 		}
 		r = s.getr()
 	}
-	s.pragma |= s.pragh(0, s.line, strings.TrimSuffix(string(s.stopLit()), "\r"))
-	return
+}
 
-skip:
-	// consume line
-	for r != '\n' && r >= 0 {
+func (s *scanner) lineComment() {
+	r := s.getr()
+	if s.pragh == nil || (r != 'g' && r != 'l') {
+		s.skipLine(r)
+		return
+	}
+	// s.pragh != nil && (r == 'g' || r == 'l')
+
+	// recognize pragmas
+	prefix := "go:"
+	if r == 'l' {
+		prefix = "line "
+	}
+	for _, m := range prefix {
+		if r != m {
+			s.skipLine(r)
+			return
+		}
 		r = s.getr()
 	}
-	s.ungetr() // don't consume '\n' - needed for nlsemi logic
+
+	// pragma text without line ending (which may be "\r\n" if Windows),
+	s.startLit()
+	s.skipLine(r)
+	text := s.stopLit()
+	if i := len(text) - 1; i >= 0 && text[i] == '\r' {
+		text = text[:i]
+	}
+
+	s.pragh(s.line, s.col+2, prefix+string(text)) // +2 since pragma text starts after //
 }
 
 func (s *scanner) fullComment() {
@@ -580,7 +597,7 @@ func (s *scanner) fullComment() {
 			}
 		}
 		if r < 0 {
-			s.error_at(s.pos, s.line, "comment not terminated")
+			s.errh(s.line, s.col, "comment not terminated")
 			return
 		}
 	}
@@ -628,19 +645,11 @@ func (s *scanner) escape(quote rune) bool {
 			if c < 0 {
 				return true // complain in caller about EOF
 			}
-			if gcCompat {
-				name := "hex"
-				if base == 8 {
-					name = "octal"
-				}
-				s.error(fmt.Sprintf("non-%s character in escape sequence: %c", name, c))
-			} else {
-				if c != quote {
-					s.error(fmt.Sprintf("illegal character %#U in escape sequence", c))
-				} else {
-					s.error("escape sequence incomplete")
-				}
+			kind := "hex"
+			if base == 8 {
+				kind = "octal"
 			}
+			s.error(fmt.Sprintf("non-%s character in escape sequence: %c", kind, c))
 			s.ungetr()
 			return false
 		}

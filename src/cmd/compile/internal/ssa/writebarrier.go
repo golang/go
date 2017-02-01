@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"cmd/internal/src"
+	"fmt"
+)
 
 // writebarrier expands write barrier ops (StoreWB, MoveWB, etc.) into
 // branches and runtime calls, like
@@ -53,7 +56,7 @@ func writebarrier(f *Func) {
 				if wbaddr == nil {
 					// initalize global values for write barrier test and calls
 					// find SB and SP values in entry block
-					initln := f.Entry.Line
+					initln := f.Entry.Pos
 					for _, v := range f.Entry.Values {
 						if v.Op == OpSB {
 							sb = v
@@ -78,7 +81,7 @@ func writebarrier(f *Func) {
 					defer f.retSparseSet(wbs)
 				}
 
-				line := v.Line
+				pos := v.Pos
 
 				// there may be a sequence of WB stores in the current block. find them.
 				storeWBs = storeWBs[:0]
@@ -124,9 +127,9 @@ func writebarrier(f *Func) {
 				bThen := f.NewBlock(BlockPlain)
 				bElse := f.NewBlock(BlockPlain)
 				bEnd := f.NewBlock(b.Kind)
-				bThen.Line = line
-				bElse.Line = line
-				bEnd.Line = line
+				bThen.Pos = pos
+				bElse.Pos = pos
+				bEnd.Pos = pos
 
 				// set up control flow for end block
 				bEnd.SetControl(b.Control)
@@ -138,9 +141,9 @@ func writebarrier(f *Func) {
 
 				// set up control flow for write barrier test
 				// load word, test word, avoiding partial register write from load byte.
-				flag := b.NewValue2(line, OpLoad, f.Config.fe.TypeUInt32(), wbaddr, mem)
-				const0 := f.ConstInt32(line, f.Config.fe.TypeUInt32(), 0)
-				flag = b.NewValue2(line, OpNeq32, f.Config.fe.TypeBool(), flag, const0)
+				flag := b.NewValue2(pos, OpLoad, f.Config.fe.TypeUInt32(), wbaddr, mem)
+				const0 := f.ConstInt32(pos, f.Config.fe.TypeUInt32(), 0)
+				flag = b.NewValue2(pos, OpNeq32, f.Config.fe.TypeBool(), flag, const0)
 				b.Kind = BlockIf
 				b.SetControl(flag)
 				b.Likely = BranchUnlikely
@@ -175,13 +178,13 @@ func writebarrier(f *Func) {
 					}
 
 					// then block: emit write barrier call
-					memThen = wbcall(line, bThen, fn, typ, ptr, val, memThen, sp, sb, w.Op == OpMoveWBVolatile)
+					memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, w.Op == OpMoveWBVolatile)
 
 					// else block: normal store
 					if op == OpZero {
-						memElse = bElse.NewValue2I(line, op, TypeMem, siz, ptr, memElse)
+						memElse = bElse.NewValue2I(pos, op, TypeMem, siz, ptr, memElse)
 					} else {
-						memElse = bElse.NewValue3I(line, op, TypeMem, siz, ptr, val, memElse)
+						memElse = bElse.NewValue3I(pos, op, TypeMem, siz, ptr, val, memElse)
 					}
 				}
 
@@ -226,7 +229,7 @@ func writebarrier(f *Func) {
 				}
 
 				if f.Config.fe.Debug_wb() {
-					f.Config.Warnl(line, "write barrier")
+					f.Config.Warnl(pos, "write barrier")
 				}
 
 				break valueLoop
@@ -237,7 +240,7 @@ func writebarrier(f *Func) {
 
 // wbcall emits write barrier runtime call in b, returns memory.
 // if valIsVolatile, it moves val into temp space before making the call.
-func wbcall(line int32, b *Block, fn interface{}, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
+func wbcall(pos src.XPos, b *Block, fn interface{}, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
 	config := b.Func.Config
 
 	var tmp GCNode
@@ -248,10 +251,10 @@ func wbcall(line int32, b *Block, fn interface{}, typ interface{}, ptr, val, mem
 		t := val.Type.ElemType()
 		tmp = config.fe.Auto(t)
 		aux := &AutoSymbol{Typ: t, Node: tmp}
-		mem = b.NewValue1A(line, OpVarDef, TypeMem, tmp, mem)
-		tmpaddr := b.NewValue1A(line, OpAddr, t.PtrTo(), aux, sp)
+		mem = b.NewValue1A(pos, OpVarDef, TypeMem, tmp, mem)
+		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), aux, sp)
 		siz := MakeSizeAndAlign(t.Size(), t.Alignment()).Int64()
-		mem = b.NewValue3I(line, OpMove, TypeMem, siz, tmpaddr, val, mem)
+		mem = b.NewValue3I(pos, OpMove, TypeMem, siz, tmpaddr, val, mem)
 		val = tmpaddr
 	}
 
@@ -259,32 +262,32 @@ func wbcall(line int32, b *Block, fn interface{}, typ interface{}, ptr, val, mem
 	off := config.ctxt.FixedFrameSize()
 
 	if typ != nil { // for typedmemmove
-		taddr := b.NewValue1A(line, OpAddr, config.fe.TypeUintptr(), typ, sb)
+		taddr := b.NewValue1A(pos, OpAddr, config.fe.TypeUintptr(), typ, sb)
 		off = round(off, taddr.Type.Alignment())
-		arg := b.NewValue1I(line, OpOffPtr, taddr.Type.PtrTo(), off, sp)
-		mem = b.NewValue3I(line, OpStore, TypeMem, ptr.Type.Size(), arg, taddr, mem)
+		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
+		mem = b.NewValue3I(pos, OpStore, TypeMem, ptr.Type.Size(), arg, taddr, mem)
 		off += taddr.Type.Size()
 	}
 
 	off = round(off, ptr.Type.Alignment())
-	arg := b.NewValue1I(line, OpOffPtr, ptr.Type.PtrTo(), off, sp)
-	mem = b.NewValue3I(line, OpStore, TypeMem, ptr.Type.Size(), arg, ptr, mem)
+	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
+	mem = b.NewValue3I(pos, OpStore, TypeMem, ptr.Type.Size(), arg, ptr, mem)
 	off += ptr.Type.Size()
 
 	if val != nil {
 		off = round(off, val.Type.Alignment())
-		arg = b.NewValue1I(line, OpOffPtr, val.Type.PtrTo(), off, sp)
-		mem = b.NewValue3I(line, OpStore, TypeMem, val.Type.Size(), arg, val, mem)
+		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
+		mem = b.NewValue3I(pos, OpStore, TypeMem, val.Type.Size(), arg, val, mem)
 		off += val.Type.Size()
 	}
 	off = round(off, config.PtrSize)
 
 	// issue call
-	mem = b.NewValue1A(line, OpStaticCall, TypeMem, fn, mem)
+	mem = b.NewValue1A(pos, OpStaticCall, TypeMem, fn, mem)
 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
 
 	if valIsVolatile {
-		mem = b.NewValue1A(line, OpVarKill, TypeMem, tmp, mem) // mark temp dead
+		mem = b.NewValue1A(pos, OpVarKill, TypeMem, tmp, mem) // mark temp dead
 	}
 
 	return mem
