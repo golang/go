@@ -204,6 +204,9 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 	return variter(names, typ, exprs)
 }
 
+// constState tracks state between constant specifiers within a
+// declaration group. This state is kept separate from noder so nested
+// constant declarations are handled correctly (e.g., issue 15550).
 type constState struct {
 	group  *syntax.Group
 	typ    *Node
