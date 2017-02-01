@@ -13,15 +13,15 @@ type nih struct{}
 
 // Types embedding notinheap types must be notinheap.
 
-type embed1 struct {
+type embed1 struct { // ERROR "must be go:notinheap"
 	x nih
-} // ERROR "must be go:notinheap"
+}
 
 type embed2 [1]nih // ERROR "must be go:notinheap"
 
-type embed3 struct {
+type embed3 struct { // ERROR "must be go:notinheap"
 	x [1]nih
-} // ERROR "must be go:notinheap"
+}
 
 type embed4 map[nih]int // ERROR "go:notinheap map key not allowed"
 

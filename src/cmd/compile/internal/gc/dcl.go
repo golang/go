@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"cmd/compile/internal/syntax"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
@@ -636,33 +635,6 @@ func funcbody(n *Node) {
 	if funcdepth == 0 {
 		dclcontext = PEXTERN
 	}
-}
-
-// new type being defined with name s.
-func typedcl0(s *Sym) *Node {
-	n := newname(s)
-	n.Op = OTYPE
-	declare(n, dclcontext)
-	return n
-}
-
-// node n, which was returned by typedcl0
-// is being declared to have uncompiled type t.
-// returns the ODCLTYPE node to use.
-func typedcl1(n *Node, t *Node, pragma syntax.Pragma, alias bool) *Node {
-	if pragma != 0 && alias {
-		yyerror("cannot specify directive with type alias")
-		pragma = 0
-	}
-
-	n.Local = true
-
-	p := n.Name.Param
-	p.Ntype = t
-	p.Pragma = pragma
-	p.Alias = alias
-
-	return nod(ODCLTYPE, n, nil)
 }
 
 // structs, functions, and methods.
