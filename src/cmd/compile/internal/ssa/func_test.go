@@ -37,6 +37,7 @@ package ssa
 //                the parser can be used instead of Fun.
 
 import (
+	"cmd/internal/src"
 	"fmt"
 	"reflect"
 	"testing"
@@ -154,7 +155,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
 		blocks[bloc.name] = b
 		for _, valu := range bloc.valus {
 			// args are filled in the second pass.
-			values[valu.name] = b.NewValue0IA(0, valu.op, valu.t, valu.auxint, valu.aux)
+			values[valu.name] = b.NewValue0IA(src.NoXPos, valu.op, valu.t, valu.auxint, valu.aux)
 		}
 	}
 	// Connect the blocks together and specify control values.
@@ -428,12 +429,12 @@ func TestConstCache(t *testing.T) {
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Exit("mem")))
-	v1 := f.f.ConstBool(0, TypeBool, false)
-	v2 := f.f.ConstBool(0, TypeBool, true)
+	v1 := f.f.ConstBool(src.NoXPos, TypeBool, false)
+	v2 := f.f.ConstBool(src.NoXPos, TypeBool, true)
 	f.f.freeValue(v1)
 	f.f.freeValue(v2)
-	v3 := f.f.ConstBool(0, TypeBool, false)
-	v4 := f.f.ConstBool(0, TypeBool, true)
+	v3 := f.f.ConstBool(src.NoXPos, TypeBool, false)
+	v4 := f.f.ConstBool(src.NoXPos, TypeBool, true)
 	if v3.AuxInt != 0 {
 		t.Errorf("expected %s to have auxint of 0\n", v3.LongString())
 	}

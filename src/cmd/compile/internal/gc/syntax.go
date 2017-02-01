@@ -6,6 +6,11 @@
 
 package gc
 
+import (
+	"cmd/compile/internal/syntax"
+	"cmd/internal/src"
+)
+
 // A Node is a single node in the syntax tree.
 // Actually the syntax tree is a syntax DAG, because there is only one
 // node with Op=ONAME for a given instance of a variable x.
@@ -42,7 +47,7 @@ type Node struct {
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
-	Lineno int32
+	Pos src.XPos
 
 	Esc uint16 // EscXXX
 
@@ -283,7 +288,7 @@ type Param struct {
 	// OTYPE
 	//
 	// TODO: Should Func pragmas also be stored on the Name?
-	Pragma Pragma
+	Pragma syntax.Pragma
 	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
 }
 
@@ -309,14 +314,14 @@ type Func struct {
 
 	Label int32 // largest auto-generated label in this function
 
-	Endlineno int32
-	WBLineno  int32 // line number of first write barrier
+	Endlineno src.XPos
+	WBPos     src.XPos // position of first write barrier
 
-	Pragma          Pragma // go:xxx function annotations
-	Dupok           bool   // duplicate definitions ok
-	Wrapper         bool   // is method wrapper
-	Needctxt        bool   // function uses context register (has closure variables)
-	ReflectMethod   bool   // function calls reflect.Type.Method or MethodByName
+	Pragma          syntax.Pragma // go:xxx function annotations
+	Dupok           bool          // duplicate definitions ok
+	Wrapper         bool          // is method wrapper
+	Needctxt        bool          // function uses context register (has closure variables)
+	ReflectMethod   bool          // function calls reflect.Type.Method or MethodByName
 	IsHiddenClosure bool
 	NoFramePointer  bool // Must not use a frame pointer for this function
 }

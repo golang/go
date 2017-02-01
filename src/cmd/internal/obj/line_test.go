@@ -5,45 +5,35 @@
 package obj
 
 import (
+	"cmd/internal/src"
 	"fmt"
 	"testing"
 )
 
-func TestLineHist(t *testing.T) {
+func TestLinkgetlineFromPos(t *testing.T) {
 	ctxt := new(Link)
 	ctxt.Hash = make(map[SymVer]*LSym)
 
-	ctxt.LineHist.Push(1, "a.c")
-	ctxt.LineHist.Push(3, "a.h")
-	ctxt.LineHist.Pop(5)
-	ctxt.LineHist.Update(7, "linedir", 2)
-	ctxt.LineHist.Pop(9)
-	ctxt.LineHist.Push(11, "b.c")
-	ctxt.LineHist.Pop(13)
+	afile := src.NewFileBase("a.go", "a.go")
+	bfile := src.NewFileBase("b.go", "/foo/bar/b.go")
+	lfile := src.NewLinePragmaBase(src.MakePos(afile, 7, 0), "linedir", 100)
 
-	var expect = []string{
-		0:  "??:0",
-		1:  "a.c:1",
-		2:  "a.c:2",
-		3:  "a.h:1",
-		4:  "a.h:2",
-		5:  "a.c:3",
-		6:  "a.c:4",
-		7:  "linedir:2",
-		8:  "linedir:3",
-		9:  "??:0",
-		10: "??:0",
-		11: "b.c:1",
-		12: "b.c:2",
-		13: "??:0",
-		14: "??:0",
+	var tests = []struct {
+		pos  src.Pos
+		want string
+	}{
+		{src.NoPos, "??:0"},
+		{src.MakePos(afile, 1, 0), "a.go:1"},
+		{src.MakePos(afile, 2, 0), "a.go:2"},
+		{src.MakePos(bfile, 10, 4), "/foo/bar/b.go:10"},
+		{src.MakePos(lfile, 10, 0), "linedir:102"}, // 102 == 100 + (10 - (7+1))
 	}
 
-	for i, want := range expect {
-		f, l := linkgetline(ctxt, int32(i))
-		have := fmt.Sprintf("%s:%d", f.Name, l)
-		if have != want {
-			t.Errorf("linkgetline(%d) = %q, want %q", i, have, want)
+	for _, test := range tests {
+		f, l := linkgetlineFromPos(ctxt, ctxt.PosTable.XPos(test.pos))
+		got := fmt.Sprintf("%s:%d", f.Name, l)
+		if got != test.want {
+			t.Errorf("linkgetline(%v) = %q, want %q", test.pos, got, test.want)
 		}
 	}
 }

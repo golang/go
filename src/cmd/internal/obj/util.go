@@ -59,7 +59,7 @@ func Getgoextlinkenabled() string {
 }
 
 func (p *Prog) Line() string {
-	return p.Ctxt.LineHist.LineString(int(p.Lineno))
+	return p.Ctxt.PosTable.Pos(p.Pos).String()
 }
 
 var armCondCode = []string{
@@ -179,10 +179,6 @@ func (ctxt *Link) freeProgs() {
 		s[i] = Prog{}
 	}
 	ctxt.allocIdx = 0
-}
-
-func (ctxt *Link) Line(n int) string {
-	return ctxt.LineHist.LineString(n)
 }
 
 func Getcallerpc(interface{}) uintptr {

@@ -82,7 +82,7 @@ func storeByType(t ssa.Type, r int16) obj.As {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetLineno(v.Line)
+	s.SetPos(v.Pos)
 	switch v.Op {
 	case ssa.OpInitMem:
 		// memory arg needs no code
@@ -548,8 +548,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = mips.REGTMP
-		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
-			gc.Warnl(v.Line, "generated nil check")
+		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+			gc.Warnl(v.Pos, "generated nil check")
 		}
 	case ssa.OpVarDef:
 		gc.Gvardef(v.Aux.(*gc.Node))
@@ -606,7 +606,7 @@ var blockJump = map[ssa.BlockKind]struct {
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
-	s.SetLineno(b.Line)
+	s.SetPos(b.Pos)
 
 	switch b.Kind {
 	case ssa.BlockPlain:

@@ -247,7 +247,7 @@ func makeclosure(func_ *Node) *Node {
 // after capturing (effectively constant).
 func capturevars(xfunc *Node) {
 	lno := lineno
-	lineno = xfunc.Lineno
+	lineno = xfunc.Pos
 
 	func_ := xfunc.Func.Closure
 	func_.Func.Enter.Set(nil)
@@ -288,7 +288,7 @@ func capturevars(xfunc *Node) {
 			if v.Name.Byval {
 				how = "value"
 			}
-			Warnl(v.Lineno, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Addrtaken, outermost.Assigned, int32(v.Type.Width))
+			Warnl(v.Pos, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Addrtaken, outermost.Assigned, int32(v.Type.Width))
 		}
 
 		outer = typecheck(outer, Erv)
@@ -302,7 +302,7 @@ func capturevars(xfunc *Node) {
 // It transform closure bodies to properly reference captured variables.
 func transformclosure(xfunc *Node) {
 	lno := lineno
-	lineno = xfunc.Lineno
+	lineno = xfunc.Pos
 	func_ := xfunc.Func.Closure
 
 	if func_.Func.Top&Ecall != 0 {
@@ -441,13 +441,13 @@ func hasemptycvars(func_ *Node) bool {
 func closuredebugruntimecheck(r *Node) {
 	if Debug_closure > 0 {
 		if r.Esc == EscHeap {
-			Warnl(r.Lineno, "heap closure, captured vars = %v", r.Func.Cvars)
+			Warnl(r.Pos, "heap closure, captured vars = %v", r.Func.Cvars)
 		} else {
-			Warnl(r.Lineno, "stack closure, captured vars = %v", r.Func.Cvars)
+			Warnl(r.Pos, "stack closure, captured vars = %v", r.Func.Cvars)
 		}
 	}
 	if compiling_runtime && r.Esc == EscHeap {
-		yyerrorl(r.Lineno, "heap-allocated closure, not allowed in runtime.")
+		yyerrorl(r.Pos, "heap-allocated closure, not allowed in runtime.")
 	}
 }
 
@@ -455,7 +455,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 	// If no closure vars, don't bother wrapping.
 	if hasemptycvars(func_) {
 		if Debug_closure > 0 {
-			Warnl(func_.Lineno, "closure converted to global")
+			Warnl(func_.Pos, "closure converted to global")
 		}
 		return func_.Func.Closure.Func.Nname
 	} else {

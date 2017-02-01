@@ -4,11 +4,13 @@
 
 package syntax
 
+import "cmd/internal/src"
+
 // ----------------------------------------------------------------------------
 // Nodes
 
 type Node interface {
-	Line() uint32
+	Pos() src.Pos
 	aNode()
 	init(p *parser)
 }
@@ -16,19 +18,18 @@ type Node interface {
 type node struct {
 	// commented out for now since not yet used
 	// doc  *Comment // nil means no comment(s) attached
-	pos  uint32
-	line uint32
+	pos src.Pos
+}
+
+func (n *node) Pos() src.Pos {
+	return n.pos
 }
 
 func (*node) aNode() {}
 
-func (n *node) Line() uint32 {
-	return n.line
-}
-
+// TODO(gri) we may be able to get rid of init here and in Node
 func (n *node) init(p *parser) {
-	n.pos = uint32(p.pos)
-	n.line = uint32(p.line)
+	n.pos = p.pos()
 }
 
 // ----------------------------------------------------------------------------
@@ -38,7 +39,7 @@ func (n *node) init(p *parser) {
 type File struct {
 	PkgName  *Name
 	DeclList []Decl
-	Lines    int
+	Lines    uint
 	node
 }
 
@@ -103,7 +104,7 @@ type (
 		Type    *FuncType
 		Body    []Stmt // nil means no body (forward declaration)
 		Pragma  Pragma // TODO(mdempsky): Cleaner solution.
-		EndLine uint32 // TODO(mdempsky): Cleaner solution.
+		EndLine uint   // TODO(mdempsky): Cleaner solution.
 		decl
 	}
 )
@@ -143,8 +144,8 @@ type (
 	CompositeLit struct {
 		Type     Expr // nil means no literal type
 		ElemList []Expr
-		NKeys    int    // number of elements with keys
-		EndLine  uint32 // TODO(mdempsky): Cleaner solution.
+		NKeys    int  // number of elements with keys
+		EndLine  uint // TODO(mdempsky): Cleaner solution.
 		expr
 	}
 
@@ -158,7 +159,7 @@ type (
 	FuncLit struct {
 		Type    *FuncType
 		Body    []Stmt
-		EndLine uint32 // TODO(mdempsky): Cleaner solution.
+		EndLine uint // TODO(mdempsky): Cleaner solution.
 		expr
 	}
 

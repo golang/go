@@ -15,7 +15,7 @@ func TestPrint(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	ast, err := ParseFile(*src, nil, nil, 0)
+	ast, err := ParseFile(*src_, nil, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestPrintString(t *testing.T) {
 		"package p; type _ = int; type T1 = struct{}; type ( _ = *struct{}; T2 = float32 )",
 		// TODO(gri) expand
 	} {
-		ast, err := ParseBytes([]byte(want), nil, nil, 0)
+		ast, err := ParseBytes(nil, []byte(want), nil, nil, 0)
 		if err != nil {
 			t.Error(err)
 			continue

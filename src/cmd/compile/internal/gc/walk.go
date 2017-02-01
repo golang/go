@@ -49,11 +49,11 @@ func walk(fn *Node) {
 			if defn.Left.Used {
 				continue
 			}
-			lineno = defn.Left.Lineno
+			lineno = defn.Left.Pos
 			yyerror("%v declared and not used", ln.Sym)
 			defn.Left.Used = true // suppress repeats
 		} else {
-			lineno = ln.Lineno
+			lineno = ln.Pos
 			yyerror("%v declared and not used", ln.Sym)
 		}
 	}
@@ -2137,7 +2137,7 @@ func needwritebarrier(l *Node, r *Node) bool {
 func applywritebarrier(n *Node) *Node {
 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
 		if Debug_wb > 1 {
-			Warnl(n.Lineno, "marking %v for barrier", n.Left)
+			Warnl(n.Pos, "marking %v for barrier", n.Left)
 		}
 		n.Op = OASWB
 		return n
@@ -2592,7 +2592,7 @@ func returnsfromheap(params *Type) []*Node {
 // Enter and Exit lists.
 func heapmoves() {
 	lno := lineno
-	lineno = Curfn.Lineno
+	lineno = Curfn.Pos
 	nn := paramstoheap(Curfn.Type.Recvs())
 	nn = append(nn, paramstoheap(Curfn.Type.Params())...)
 	nn = append(nn, paramstoheap(Curfn.Type.Results())...)
@@ -3418,7 +3418,7 @@ func walkinrange(n *Node, init *Nodes) *Node {
 		opr = brcom(opr)
 	}
 	cmp := nod(opr, lhs, rhs)
-	cmp.Lineno = n.Lineno
+	cmp.Pos = n.Pos
 	cmp = addinit(cmp, l.Ninit.Slice())
 	cmp = addinit(cmp, r.Ninit.Slice())
 	// Typecheck the AST rooted at cmp...

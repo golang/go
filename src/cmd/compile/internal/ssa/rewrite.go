@@ -489,7 +489,7 @@ func noteRule(s string) bool {
 // cond is true and the rule is fired.
 func warnRule(cond bool, v *Value, s string) bool {
 	if cond {
-		v.Block.Func.Config.Warnl(v.Line, s)
+		v.Block.Func.Config.Warnl(v.Pos, s)
 	}
 	return true
 }

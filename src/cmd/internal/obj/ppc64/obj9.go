@@ -496,12 +496,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// way to use r12 as the source.
 				q = obj.Appendp(ctxt, q)
 				q.As = AWORD
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = 0x3c4c0000
 				q = obj.Appendp(ctxt, q)
 				q.As = AWORD
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = 0x38420000
 				rel := obj.Addrel(ctxt.Cursym)
@@ -522,7 +522,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 					// Use MOVDU to adjust R1 when saving R31, if autosize is small.
 					q = obj.Appendp(ctxt, q)
 					q.As = AMOVD
-					q.Lineno = p.Lineno
+					q.Pos = p.Pos
 					q.From.Type = obj.TYPE_REG
 					q.From.Reg = REG_LR
 					q.To.Type = obj.TYPE_REG
@@ -530,7 +530,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 					q = obj.Appendp(ctxt, q)
 					q.As = AMOVDU
-					q.Lineno = p.Lineno
+					q.Pos = p.Pos
 					q.From.Type = obj.TYPE_REG
 					q.From.Reg = REGTMP
 					q.To.Type = obj.TYPE_MEM
@@ -544,7 +544,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 					// code will not see a half-updated stack frame.
 					q = obj.Appendp(ctxt, q)
 					q.As = AMOVD
-					q.Lineno = p.Lineno
+					q.Pos = p.Pos
 					q.From.Type = obj.TYPE_REG
 					q.From.Reg = REG_LR
 					q.To.Type = obj.TYPE_REG
@@ -552,7 +552,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 					q = obj.Appendp(ctxt, q)
 					q.As = AMOVD
-					q.Lineno = p.Lineno
+					q.Pos = p.Pos
 					q.From.Type = obj.TYPE_REG
 					q.From.Reg = REG_R29
 					q.To.Type = obj.TYPE_MEM
@@ -561,7 +561,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 					q = obj.Appendp(ctxt, q)
 					q.As = AADD
-					q.Lineno = p.Lineno
+					q.Pos = p.Pos
 					q.From.Type = obj.TYPE_CONST
 					q.From.Offset = int64(-autosize)
 					q.To.Type = obj.TYPE_REG
@@ -583,7 +583,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if ctxt.Flag_shared {
 				q = obj.Appendp(ctxt, q)
 				q.As = AMOVD
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REG_R2
 				q.To.Type = obj.TYPE_MEM
@@ -713,7 +713,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 				q = ctxt.NewProg()
 				q.As = ABR
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_LR
 				q.Mark |= BRANCH
@@ -733,7 +733,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			q = ctxt.NewProg()
 			q.As = AMOVD
-			q.Lineno = p.Lineno
+			q.Pos = p.Pos
 			q.From.Type = obj.TYPE_REG
 			q.From.Reg = REGTMP
 			q.To.Type = obj.TYPE_REG
@@ -748,7 +748,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q = ctxt.NewProg()
 
 				q.As = AMOVD
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_MEM
 				q.From.Offset = 0
 				q.From.Reg = REGTMP
@@ -763,7 +763,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if autosize != 0 {
 				q = ctxt.NewProg()
 				q.As = AADD
-				q.Lineno = p.Lineno
+				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = int64(autosize)
 				q.To.Type = obj.TYPE_REG
@@ -776,7 +776,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			q1 = ctxt.NewProg()
 			q1.As = ABR
-			q1.Lineno = p.Lineno
+			q1.Pos = p.Pos
 			if retTarget == nil {
 				q1.To.Type = obj.TYPE_REG
 				q1.To.Reg = REG_LR
@@ -1199,7 +1199,7 @@ loop:
 		a = ABR
 		q = ctxt.NewProg()
 		q.As = a
-		q.Lineno = p.Lineno
+		q.Pos = p.Pos
 		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc
 		q.Pcond = p

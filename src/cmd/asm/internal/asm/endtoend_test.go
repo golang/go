@@ -26,10 +26,9 @@ import (
 // result against a golden file.
 
 func testEndToEnd(t *testing.T, goarch, file string) {
-	lex.InitHist()
 	input := filepath.Join("testdata", file+".s")
 	architecture, ctxt := setArch(goarch)
-	lexer := lex.NewLexer(input, ctxt)
+	lexer := lex.NewLexer(input)
 	parser := NewParser(ctxt, architecture, lexer)
 	pList := obj.Linknewplist(ctxt)
 	var ok bool
@@ -264,10 +263,9 @@ var (
 )
 
 func testErrors(t *testing.T, goarch, file string) {
-	lex.InitHist()
 	input := filepath.Join("testdata", file+".s")
 	architecture, ctxt := setArch(goarch)
-	lexer := lex.NewLexer(input, ctxt)
+	lexer := lex.NewLexer(input)
 	parser := NewParser(ctxt, architecture, lexer)
 	pList := obj.Linknewplist(ctxt)
 	var ok bool

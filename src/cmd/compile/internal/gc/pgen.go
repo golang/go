@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
 	"sort"
@@ -311,7 +312,7 @@ func compile(fn *Node) {
 		assertI2I2 = Sysfunc("assertI2I2")
 	}
 
-	defer func(lno int32) {
+	defer func(lno src.XPos) {
 		lineno = lno
 	}(setlineno(fn))
 

@@ -61,7 +61,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 	}
 	prog.Pc = p.pc
 	if *flags.Debug {
-		fmt.Println(p.histLineNum, prog)
+		fmt.Println(p.lineNum, prog)
 	}
 	if testOut != nil {
 		fmt.Fprintln(testOut, prog)
@@ -161,10 +161,10 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		argSize = p.positiveAtoi(op[1].String())
 	}
 	prog := &obj.Prog{
-		Ctxt:   p.ctxt,
-		As:     obj.ATEXT,
-		Lineno: p.histLineNum,
-		From:   nameAddr,
+		Ctxt: p.ctxt,
+		As:   obj.ATEXT,
+		Pos:  p.pos(),
+		From: nameAddr,
 		From3: &obj.Addr{
 			Type:   obj.TYPE_CONST,
 			Offset: flag,
@@ -294,11 +294,11 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
 
 	// log.Printf("PCDATA $%d, $%d", key.Offset, value.Offset)
 	prog := &obj.Prog{
-		Ctxt:   p.ctxt,
-		As:     obj.APCDATA,
-		Lineno: p.histLineNum,
-		From:   key,
-		To:     value,
+		Ctxt: p.ctxt,
+		As:   obj.APCDATA,
+		Pos:  p.pos(),
+		From: key,
+		To:   value,
 	}
 	p.append(prog, "", true)
 }
@@ -324,11 +324,11 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 	}
 
 	prog := &obj.Prog{
-		Ctxt:   p.ctxt,
-		As:     obj.AFUNCDATA,
-		Lineno: p.histLineNum,
-		From:   valueAddr,
-		To:     nameAddr,
+		Ctxt: p.ctxt,
+		As:   obj.AFUNCDATA,
+		Pos:  p.pos(),
+		From: valueAddr,
+		To:   nameAddr,
 	}
 	p.append(prog, "", true)
 }
@@ -340,9 +340,9 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 	var target *obj.Addr
 	prog := &obj.Prog{
-		Ctxt:   p.ctxt,
-		Lineno: p.histLineNum,
-		As:     op,
+		Ctxt: p.ctxt,
+		Pos:  p.pos(),
+		As:   op,
 	}
 	switch len(a) {
 	case 1:
@@ -468,9 +468,9 @@ func (p *Parser) branch(jmp, target *obj.Prog) {
 func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 	// fmt.Printf("%s %+v\n", op, a)
 	prog := &obj.Prog{
-		Ctxt:   p.ctxt,
-		Lineno: p.histLineNum,
-		As:     op,
+		Ctxt: p.ctxt,
+		Pos:  p.pos(),
+		As:   op,
 	}
 	switch len(a) {
 	case 0:

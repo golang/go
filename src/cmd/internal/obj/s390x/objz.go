@@ -795,7 +795,7 @@ func stacksplitPost(ctxt *obj.Link, p *obj.Prog, pPre *obj.Prog, pPreempt *obj.P
 	spfix.Spadj = -framesize
 
 	pcdata := obj.Appendp(ctxt, spfix)
-	pcdata.Lineno = ctxt.Cursym.Text.Lineno
+	pcdata.Pos = ctxt.Cursym.Text.Pos
 	pcdata.Mode = ctxt.Cursym.Text.Mode
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
@@ -970,7 +970,7 @@ func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
 			a = ABR
 			q = ctxt.NewProg()
 			q.As = a
-			q.Lineno = p.Lineno
+			q.Pos = p.Pos
 			q.To.Type = obj.TYPE_BRANCH
 			q.To.Offset = p.Pc
 			q.Pcond = p

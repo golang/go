@@ -91,7 +91,7 @@ func insertLoopReschedChecks(f *Func) {
 
 	// It's possible that there is no memory state (no global/pointer loads/stores or calls)
 	if lastMems[f.Entry.ID] == nil {
-		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Line, OpInitMem, TypeMem)
+		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Pos, OpInitMem, TypeMem)
 	}
 
 	memDefsAtBlockEnds := make([]*Value, f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
@@ -109,7 +109,7 @@ func insertLoopReschedChecks(f *Func) {
 	}
 
 	// Set up counter.  There are no phis etc pre-existing for it.
-	counter0 := f.Entry.NewValue0I(f.Entry.Line, OpConst32, f.Config.fe.TypeInt32(), initialRescheduleCounterValue)
+	counter0 := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), initialRescheduleCounterValue)
 	ctrDefsAtBlockEnds := make([]*Value, f.NumBlocks()) // For each block, def visible at its end, if that def will be used.
 
 	// There's a minor difference between memDefsAtBlockEnds and ctrDefsAtBlockEnds;
@@ -205,8 +205,8 @@ func insertLoopReschedChecks(f *Func) {
 		}
 	}
 
-	zero := f.Entry.NewValue0I(f.Entry.Line, OpConst32, f.Config.fe.TypeInt32(), 0)
-	one := f.Entry.NewValue0I(f.Entry.Line, OpConst32, f.Config.fe.TypeInt32(), 1)
+	zero := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), 0)
+	one := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), 1)
 
 	// Rewrite backedges to include reschedule checks.
 	for _, emc := range tofixBackedges {
@@ -258,14 +258,14 @@ func insertLoopReschedChecks(f *Func) {
 		test := f.NewBlock(BlockIf)
 		sched := f.NewBlock(BlockPlain)
 
-		test.Line = bb.Line
-		sched.Line = bb.Line
+		test.Pos = bb.Pos
+		sched.Pos = bb.Pos
 
 		//    ctr1 := ctr0 - 1
 		//    if ctr1 <= 0 { goto sched }
 		//    goto header
-		ctr1 := test.NewValue2(bb.Line, OpSub32, f.Config.fe.TypeInt32(), ctr0, one)
-		cmp := test.NewValue2(bb.Line, OpLeq32, f.Config.fe.TypeBool(), ctr1, zero)
+		ctr1 := test.NewValue2(bb.Pos, OpSub32, f.Config.fe.TypeInt32(), ctr0, one)
+		cmp := test.NewValue2(bb.Pos, OpLeq32, f.Config.fe.TypeBool(), ctr1, zero)
 		test.SetControl(cmp)
 		test.AddEdgeTo(sched) // if true
 		// if false -- rewrite edge to header.
@@ -282,7 +282,7 @@ func insertLoopReschedChecks(f *Func) {
 		//    mem1 := call resched (mem0)
 		//    goto header
 		resched := f.Config.fe.Syslook("goschedguarded")
-		mem1 := sched.NewValue1A(bb.Line, OpStaticCall, TypeMem, resched, mem0)
+		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, TypeMem, resched, mem0)
 		sched.AddEdgeTo(h)
 		headerMemPhi.AddArg(mem1)
 		headerCtrPhi.AddArg(counter0)
@@ -313,7 +313,7 @@ func insertLoopReschedChecks(f *Func) {
 // newPhiFor inserts a new Phi function into b,
 // with all inputs set to v.
 func newPhiFor(b *Block, v *Value) *Value {
-	phiV := b.NewValue0(b.Line, OpPhi, v.Type)
+	phiV := b.NewValue0(b.Pos, OpPhi, v.Type)
 
 	for range b.Preds {
 		phiV.AddArg(v)

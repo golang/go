@@ -435,7 +435,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
 					q.Link = p.Link
 					p.Link = q
 					q.As = AJMP
-					q.Lineno = p.Lineno
+					q.Pos = p.Pos
 					q.To.Type = obj.TYPE_BRANCH
 					q.Pcond = p.Pcond
 					p.Pcond = q
@@ -443,7 +443,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
 					q.Link = p.Link
 					p.Link = q
 					q.As = AJMP
-					q.Lineno = p.Lineno
+					q.Pos = p.Pos
 					q.To.Type = obj.TYPE_BRANCH
 					q.Pcond = q.Link.Link
 

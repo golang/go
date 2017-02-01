@@ -578,7 +578,7 @@ Outer:
 		}
 		for _, n := range prev {
 			if eqtype(n.Left.Type, c.node.Left.Type) {
-				yyerrorl(c.node.Lineno, "duplicate case %v in type switch\n\tprevious case at %v", c.node.Left.Type, n.Line())
+				yyerrorl(c.node.Pos, "duplicate case %v in type switch\n\tprevious case at %v", c.node.Left.Type, n.Line())
 				// avoid double-reporting errors
 				continue Outer
 			}

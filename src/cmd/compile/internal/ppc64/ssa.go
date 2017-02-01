@@ -143,7 +143,7 @@ func ssaGenISEL(v *ssa.Value, cr int64, r1, r2 int16) {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetLineno(v.Line)
+	s.SetPos(v.Pos)
 	switch v.Op {
 	case ssa.OpInitMem:
 		// memory arg needs no code
@@ -803,8 +803,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REGTMP
-		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
-			gc.Warnl(v.Line, "generated nil check")
+		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+			gc.Warnl(v.Pos, "generated nil check")
 		}
 
 	case ssa.OpPPC64InvertFlags:
@@ -837,7 +837,7 @@ var blockJump = [...]struct {
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
-	s.SetLineno(b.Line)
+	s.SetPos(b.Pos)
 
 	switch b.Kind {
 

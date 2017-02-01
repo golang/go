@@ -134,13 +134,13 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 // pctofileline computes either the file number (arg == 0)
 // or the line number (arg == 1) to use at p.
-// Because p->lineno applies to p, phase == 0 (before p)
+// Because p.Pos applies to p, phase == 0 (before p)
 // takes care of the update.
 func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
-	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Lineno == 0 || phase == 1 {
+	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Pos.Line() == 0 || phase == 1 {
 		return oldval
 	}
-	f, l := linkgetline(ctxt, p.Lineno)
+	f, l := linkgetlineFromPos(ctxt, p.Pos)
 	if f == nil {
 		//	print("getline failed for %s %v\n", ctxt->cursym->name, p);
 		return oldval
