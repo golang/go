@@ -1572,14 +1572,13 @@ func dalgsym(t *Type) *Sym {
 
 // maxPtrmaskBytes is the maximum length of a GC ptrmask bitmap,
 // which holds 1-bit entries describing where pointers are in a given type.
-// 16 bytes is enough to describe 128 pointer-sized words, 512 or 1024 bytes
-// depending on the system. Above this length, the GC information is
-// recorded as a GC program, which can express repetition compactly.
-// In either form, the information is used by the runtime to initialize the
-// heap bitmap, and for large types (like 128 or more words), they are
-// roughly the same speed. GC programs are never much larger and often
-// more compact. (If large arrays are involved, they can be arbitrarily more
-// compact.)
+// Above this length, the GC information is recorded as a GC program,
+// which can express repetition compactly. In either form, the
+// information is used by the runtime to initialize the heap bitmap,
+// and for large types (like 128 or more words), they are roughly the
+// same speed. GC programs are never much larger and often more
+// compact. (If large arrays are involved, they can be arbitrarily
+// more compact.)
 //
 // The cutoff must be large enough that any allocation large enough to
 // use a GC program is large enough that it does not share heap bitmap
