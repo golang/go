@@ -3438,14 +3438,6 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, rightIsVolatile bo
 	}
 	val.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(t))}
 	s.vars[&memVar] = val
-
-	// WB ops will be expanded to branches at writebarrier phase.
-	// To make it easy, we put WB ops at the end of a block, so
-	// that it does not need to split a block into two parts when
-	// expanding WB ops.
-	b := s.f.NewBlock(ssa.BlockPlain)
-	s.endBlock().AddEdgeTo(b)
-	s.startBlock(b)
 }
 
 // insertWBstore inserts the assignment *left = right including a write barrier.
@@ -3466,14 +3458,6 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, skip skipMask) {
 	}
 	s.storeTypeScalars(t, left, right, skip)
 	s.storeTypePtrsWB(t, left, right)
-
-	// WB ops will be expanded to branches at writebarrier phase.
-	// To make it easy, we put WB ops at the end of a block, so
-	// that it does not need to split a block into two parts when
-	// expanding WB ops.
-	b := s.f.NewBlock(ssa.BlockPlain)
-	s.endBlock().AddEdgeTo(b)
-	s.startBlock(b)
 }
 
 // do *left = right for all scalar (non-pointer) parts of t.
