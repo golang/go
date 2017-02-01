@@ -25,7 +25,7 @@ var files = flag.String("files", "", "consider only Go test files matching this 
 
 const dataDir = "testdata"
 
-var templateTxt *template.Template
+var templateTxt = readTemplate("template.txt")
 
 func readTemplate(filename string) *template.Template {
 	t := template.New(filename)
@@ -95,9 +95,6 @@ func test(t *testing.T, mode Mode) {
 	pkgs, err := parser.ParseDir(fset, dataDir, filter, parser.ParseComments)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if templateTxt == nil {
-		templateTxt = readTemplate("template.txt")
 	}
 
 	// test packages
