@@ -204,6 +204,12 @@ func TestMTF(t *testing.T) {
 	}
 }
 
+var (
+	digits = mustLoadFile("testdata/e.txt.bz2")
+	twain  = mustLoadFile("testdata/Mark.Twain-Tom.Sawyer.txt.bz2")
+	random = mustLoadFile("testdata/random.data.bz2")
+)
+
 func benchmarkDecode(b *testing.B, compressed []byte) {
 	// Determine the uncompressed size of testfile.
 	uncompressedSize, err := io.Copy(ioutil.Discard, NewReader(bytes.NewReader(compressed)))
@@ -221,18 +227,6 @@ func benchmarkDecode(b *testing.B, compressed []byte) {
 	}
 }
 
-func BenchmarkDecodeDigits(b *testing.B) {
-	digits := mustLoadFile("testdata/e.txt.bz2")
-	b.ResetTimer()
-	benchmarkDecode(b, digits)
-}
-func BenchmarkDecodeTwain(b *testing.B) {
-	twain := mustLoadFile("testdata/Mark.Twain-Tom.Sawyer.txt.bz2")
-	b.ResetTimer()
-	benchmarkDecode(b, twain)
-}
-func BenchmarkDecodeRand(b *testing.B) {
-	random := mustLoadFile("testdata/random.data.bz2")
-	b.ResetTimer()
-	benchmarkDecode(b, random)
-}
+func BenchmarkDecodeDigits(b *testing.B) { benchmarkDecode(b, digits) }
+func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
+func BenchmarkDecodeRand(b *testing.B)   { benchmarkDecode(b, random) }

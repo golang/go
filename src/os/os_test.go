@@ -55,15 +55,12 @@ var sysdir = func() *sysDir {
 	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
-			/// At this point the test harness has not had a chance
-			// to move us into the ./src/os directory, so the
-			// current working directory is the root of the app.
 			wd, err := syscall.Getwd()
 			if err != nil {
 				wd = err.Error()
 			}
 			return &sysDir{
-				wd,
+				filepath.Join(wd, "..", ".."),
 				[]string{
 					"ResourceRules.plist",
 					"Info.plist",
