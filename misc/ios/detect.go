@@ -23,28 +23,37 @@ import (
 
 func main() {
 	devID := detectDevID()
-	fmt.Printf("export GOIOS_DEV_ID=%s\n", devID)
 
 	udid := detectUDID()
-	mp := detectMobileProvisionFile(udid)
+	mps := detectMobileProvisionFiles(udid)
+	if len(mps) == 0 {
+		fail("did not find mobile provision matching device udid %s", udid)
+	}
 
-	f, err := ioutil.TempFile("", "go_ios_detect_")
-	check(err)
-	fname := f.Name()
-	defer os.Remove(fname)
+	fmt.Println("Available provisioning profiles below.")
+	fmt.Println("NOTE: Any existing app on the device with the app id specified by GOIOS_APP_ID")
+	fmt.Println("will be overwritten when running Go programs.")
+	for _, mp := range mps {
+		fmt.Println()
+		fmt.Printf("export GOIOS_DEV_ID=%s\n", devID)
+		f, err := ioutil.TempFile("", "go_ios_detect_")
+		check(err)
+		fname := f.Name()
+		defer os.Remove(fname)
 
-	out := output(parseMobileProvision(mp))
-	_, err = f.Write(out)
-	check(err)
-	check(f.Close())
+		out := output(parseMobileProvision(mp))
+		_, err = f.Write(out)
+		check(err)
+		check(f.Close())
 
-	appID, err := plistExtract(fname, "ApplicationIdentifierPrefix:0")
-	check(err)
-	fmt.Printf("export GOIOS_APP_ID=%s\n", appID)
+		appID, err := plistExtract(fname, "Entitlements:application-identifier")
+		check(err)
+		fmt.Printf("export GOIOS_APP_ID=%s\n", appID)
 
-	teamID, err := plistExtract(fname, "Entitlements:com.apple.developer.team-identifier")
-	check(err)
-	fmt.Printf("export GOIOS_TEAM_ID=%s\n", teamID)
+		teamID, err := plistExtract(fname, "Entitlements:com.apple.developer.team-identifier")
+		check(err)
+		fmt.Printf("export GOIOS_TEAM_ID=%s\n", teamID)
+	}
 }
 
 func detectDevID() string {
@@ -79,10 +88,11 @@ func detectUDID() []byte {
 	panic("unreachable")
 }
 
-func detectMobileProvisionFile(udid []byte) string {
+func detectMobileProvisionFiles(udid []byte) []string {
 	cmd := exec.Command("mdfind", "-name", ".mobileprovision")
 	lines := getLines(cmd)
 
+	var files []string
 	for _, line := range lines {
 		if len(line) == 0 {
 			continue
@@ -90,12 +100,11 @@ func detectMobileProvisionFile(udid []byte) string {
 		xmlLines := getLines(parseMobileProvision(string(line)))
 		for _, xmlLine := range xmlLines {
 			if bytes.Contains(xmlLine, udid) {
-				return string(line)
+				files = append(files, string(line))
 			}
 		}
 	}
-	fail("did not find mobile provision matching device udid %s", udid)
-	panic("ureachable")
+	return files
 }
 
 func parseMobileProvision(fname string) *exec.Cmd {

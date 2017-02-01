@@ -45,9 +45,10 @@ var errRetry = errors.New("failed to start test harness (retry attempted)")
 var tmpdir string
 
 var (
-	devID  string
-	appID  string
-	teamID string
+	devID    string
+	appID    string
+	teamID   string
+	bundleID string
 )
 
 // lock is a file lock to serialize iOS runs. It is global to avoid the
@@ -75,6 +76,13 @@ func main() {
 	// e.g. Z8B3JBXXXX, available at
 	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
 	teamID = getenv("GOIOS_TEAM_ID")
+
+	parts := strings.SplitN(appID, ".", 2)
+	// For compatibility with the old builders, use a fallback bundle ID
+	bundleID = "golang.gotest"
+	if len(parts) == 2 {
+		bundleID = parts[1]
+	}
 
 	var err error
 	tmpdir, err = ioutil.TempDir("", "go_darwin_arm_exec_")
@@ -143,7 +151,7 @@ func run(bin string, args []string) (err error) {
 	if err := ioutil.WriteFile(entitlementsPath, []byte(entitlementsPlist()), 0744); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(appdir, "Info.plist"), []byte(infoPlist), 0744); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(appdir, "Info.plist"), []byte(infoPlist()), 0744); err != nil {
 		return err
 	}
 	if err := ioutil.WriteFile(filepath.Join(appdir, "ResourceRules.plist"), []byte(resourceRules), 0744); err != nil {
@@ -562,7 +570,8 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
 	)
 }
 
-const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
+func infoPlist() string {
+	return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -570,13 +579,14 @@ const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
 <key>CFBundleSupportedPlatforms</key><array><string>iPhoneOS</string></array>
 <key>CFBundleExecutable</key><string>gotest</string>
 <key>CFBundleVersion</key><string>1.0</string>
-<key>CFBundleIdentifier</key><string>golang.gotest</string>
+<key>CFBundleIdentifier</key><string>` + bundleID + `</string>
 <key>CFBundleResourceSpecification</key><string>ResourceRules.plist</string>
 <key>LSRequiresIPhoneOS</key><true/>
 <key>CFBundleDisplayName</key><string>gotest</string>
 </dict>
 </plist>
 `
+}
 
 func entitlementsPlist() string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
@@ -584,11 +594,11 @@ func entitlementsPlist() string {
 <plist version="1.0">
 <dict>
 	<key>keychain-access-groups</key>
-	<array><string>` + appID + `.golang.gotest</string></array>
+	<array><string>` + appID + `</string></array>
 	<key>get-task-allow</key>
 	<true/>
 	<key>application-identifier</key>
-	<string>` + appID + `.golang.gotest</string>
+	<string>` + appID + `</string>
 	<key>com.apple.developer.team-identifier</key>
 	<string>` + teamID + `</string>
 </dict>
