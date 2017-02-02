@@ -366,40 +366,40 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
 	// 136(SI) is saved EFLAGS, never to be seen again
 	JMP	SI
 
-debughandler:
-	// print basic information
-	LEAL	ctxt+0(FP), DI
-	MOVL	$runtime·sigtrampf(SB), AX
-	MOVL	AX, 0(SP)
-	MOVQ	(16*4+16*8)(DI), BX // rip
-	MOVQ	BX, 8(SP)
-	MOVQ	(16*4+0*8)(DI), BX // rax
-	MOVQ	BX, 16(SP)
-	MOVQ	(16*4+1*8)(DI), BX // rcx
-	MOVQ	BX, 24(SP)
-	MOVQ	(16*4+2*8)(DI), BX // rdx
-	MOVQ	BX, 32(SP)
-	MOVQ	(16*4+3*8)(DI), BX // rbx
-	MOVQ	BX, 40(SP)
-	MOVQ	(16*4+7*8)(DI), BX // rdi
-	MOVQ	BX, 48(SP)
-	MOVQ	(16*4+15*8)(DI), BX // r15
-	MOVQ	BX, 56(SP)
-	MOVQ	(16*4+4*8)(DI), BX // rsp
-	MOVQ	0(BX), BX
-	MOVQ	BX, 64(SP)
-	CALL	runtime·printf(SB)
-	
-	LEAL	ctxt+0(FP), DI
-	MOVQ	(16*4+16*8)(DI), BX // rip
-	MOVL	BX, 0(SP)
-	MOVQ	(16*4+4*8)(DI), BX // rsp
-	MOVL	BX, 4(SP)
-	MOVL	$0, 8(SP)	// lr
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	BX, 12(SP)	// gp
-	CALL	runtime·traceback(SB)
+//debughandler:
+	//// print basic information
+	//LEAL	ctxt+0(FP), DI
+	//MOVL	$runtime·sigtrampf(SB), AX
+	//MOVL	AX, 0(SP)
+	//MOVQ	(16*4+16*8)(DI), BX // rip
+	//MOVQ	BX, 8(SP)
+	//MOVQ	(16*4+0*8)(DI), BX // rax
+	//MOVQ	BX, 16(SP)
+	//MOVQ	(16*4+1*8)(DI), BX // rcx
+	//MOVQ	BX, 24(SP)
+	//MOVQ	(16*4+2*8)(DI), BX // rdx
+	//MOVQ	BX, 32(SP)
+	//MOVQ	(16*4+3*8)(DI), BX // rbx
+	//MOVQ	BX, 40(SP)
+	//MOVQ	(16*4+7*8)(DI), BX // rdi
+	//MOVQ	BX, 48(SP)
+	//MOVQ	(16*4+15*8)(DI), BX // r15
+	//MOVQ	BX, 56(SP)
+	//MOVQ	(16*4+4*8)(DI), BX // rsp
+	//MOVQ	0(BX), BX
+	//MOVQ	BX, 64(SP)
+	//CALL	runtime·printf(SB)
+	//
+	//LEAL	ctxt+0(FP), DI
+	//MOVQ	(16*4+16*8)(DI), BX // rip
+	//MOVL	BX, 0(SP)
+	//MOVQ	(16*4+4*8)(DI), BX // rsp
+	//MOVL	BX, 4(SP)
+	//MOVL	$0, 8(SP)	// lr
+	//get_tls(CX)
+	//MOVL	g(CX), BX
+	//MOVL	BX, 12(SP)	// gp
+	//CALL	runtime·traceback(SB)
 
 notls:
 	MOVL	0, AX

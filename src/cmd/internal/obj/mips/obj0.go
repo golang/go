@@ -1418,151 +1418,10 @@ func compound(ctxt *obj.Link, p *obj.Prog) bool {
 	return false
 }
 
-func follow(ctxt *obj.Link, s *obj.LSym) {
-	ctxt.Cursym = s
-
-	firstp := ctxt.NewProg()
-	lastp := firstp
-	xfol(ctxt, s.Text, &lastp)
-	lastp.Link = nil
-	s.Text = firstp.Link
-}
-
-func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
-	var q *obj.Prog
-	var r *obj.Prog
-	var i int
-
-loop:
-	if p == nil {
-		return
-	}
-	a := p.As
-	if a == AJMP {
-		q = p.Pcond
-		if (p.Mark&NOSCHED != 0) || q != nil && (q.Mark&NOSCHED != 0) {
-			p.Mark |= FOLL
-			(*last).Link = p
-			*last = p
-			p = p.Link
-			xfol(ctxt, p, last)
-			p = q
-			if p != nil && p.Mark&FOLL == 0 {
-				goto loop
-			}
-			return
-		}
-
-		if q != nil {
-			p.Mark |= FOLL
-			p = q
-			if p.Mark&FOLL == 0 {
-				goto loop
-			}
-		}
-	}
-
-	if p.Mark&FOLL != 0 {
-		i = 0
-		q = p
-		for ; i < 4; i, q = i+1, q.Link {
-			if q == *last || (q.Mark&NOSCHED != 0) {
-				break
-			}
-			a = q.As
-			if a == obj.ANOP {
-				i--
-				continue
-			}
-
-			if a == AJMP || a == ARET || a == ARFE {
-				goto copy
-			}
-			if q.Pcond == nil || (q.Pcond.Mark&FOLL != 0) {
-				continue
-			}
-			if a != ABEQ && a != ABNE {
-				continue
-			}
-
-		copy:
-			for {
-				r = ctxt.NewProg()
-				*r = *p
-				if r.Mark&FOLL == 0 {
-					fmt.Printf("can't happen 1\n")
-				}
-				r.Mark |= FOLL
-				if p != q {
-					p = p.Link
-					(*last).Link = r
-					*last = r
-					continue
-				}
-
-				(*last).Link = r
-				*last = r
-				if a == AJMP || a == ARET || a == ARFE {
-					return
-				}
-				r.As = ABNE
-				if a == ABNE {
-					r.As = ABEQ
-				}
-				r.Pcond = p.Link
-				r.Link = p.Pcond
-				if r.Link.Mark&FOLL == 0 {
-					xfol(ctxt, r.Link, last)
-				}
-				if r.Pcond.Mark&FOLL == 0 {
-					fmt.Printf("can't happen 2\n")
-				}
-				return
-			}
-		}
-
-		a = AJMP
-		q = ctxt.NewProg()
-		q.As = a
-		q.Pos = p.Pos
-		q.To.Type = obj.TYPE_BRANCH
-		q.To.Offset = p.Pc
-		q.Pcond = p
-		p = q
-	}
-
-	p.Mark |= FOLL
-	(*last).Link = p
-	*last = p
-	if a == AJMP || a == ARET || a == ARFE {
-		if p.Mark&NOSCHED != 0 {
-			p = p.Link
-			goto loop
-		}
-
-		return
-	}
-
-	if p.Pcond != nil {
-		if a != AJAL && p.Link != nil {
-			xfol(ctxt, p.Link, last)
-			p = p.Pcond
-			if p == nil || (p.Mark&FOLL != 0) {
-				return
-			}
-			goto loop
-		}
-	}
-
-	p = p.Link
-	goto loop
-}
-
 var Linkmips64 = obj.LinkArch{
 	Arch:       sys.ArchMIPS64,
 	Preprocess: preprocess,
 	Assemble:   span0,
-	Follow:     follow,
 	Progedit:   progedit,
 }
 
@@ -1570,7 +1429,6 @@ var Linkmips64le = obj.LinkArch{
 	Arch:       sys.ArchMIPS64LE,
 	Preprocess: preprocess,
 	Assemble:   span0,
-	Follow:     follow,
 	Progedit:   progedit,
 }
 
@@ -1578,7 +1436,6 @@ var Linkmips = obj.LinkArch{
 	Arch:       sys.ArchMIPS,
 	Preprocess: preprocess,
 	Assemble:   span0,
-	Follow:     follow,
 	Progedit:   progedit,
 }
 
@@ -1586,6 +1443,5 @@ var Linkmipsle = obj.LinkArch{
 	Arch:       sys.ArchMIPSLE,
 	Preprocess: preprocess,
 	Assemble:   span0,
-	Follow:     follow,
 	Progedit:   progedit,
 }

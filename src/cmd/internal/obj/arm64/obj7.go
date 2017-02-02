@@ -34,7 +34,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"fmt"
-	"log"
 	"math"
 )
 
@@ -443,191 +442,6 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	obj.Nopout(p)
 }
 
-func follow(ctxt *obj.Link, s *obj.LSym) {
-	ctxt.Cursym = s
-
-	firstp := ctxt.NewProg()
-	lastp := firstp
-	xfol(ctxt, s.Text, &lastp)
-	lastp.Link = nil
-	s.Text = firstp.Link
-}
-
-func relinv(a obj.As) obj.As {
-	switch a {
-	case ABEQ:
-		return ABNE
-	case ABNE:
-		return ABEQ
-	case ABCS:
-		return ABCC
-	case ABHS:
-		return ABLO
-	case ABCC:
-		return ABCS
-	case ABLO:
-		return ABHS
-	case ABMI:
-		return ABPL
-	case ABPL:
-		return ABMI
-	case ABVS:
-		return ABVC
-	case ABVC:
-		return ABVS
-	case ABHI:
-		return ABLS
-	case ABLS:
-		return ABHI
-	case ABGE:
-		return ABLT
-	case ABLT:
-		return ABGE
-	case ABGT:
-		return ABLE
-	case ABLE:
-		return ABGT
-	case ACBZ:
-		return ACBNZ
-	case ACBNZ:
-		return ACBZ
-	case ACBZW:
-		return ACBNZW
-	case ACBNZW:
-		return ACBZW
-	}
-
-	log.Fatalf("unknown relation: %s", Anames[a-obj.ABaseARM64])
-	return 0
-}
-
-func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
-	var q *obj.Prog
-	var r *obj.Prog
-	var i int
-
-loop:
-	if p == nil {
-		return
-	}
-	a := p.As
-	if a == AB {
-		q = p.Pcond
-		if q != nil {
-			p.Mark |= FOLL
-			p = q
-			if !(p.Mark&FOLL != 0) {
-				goto loop
-			}
-		}
-	}
-
-	if p.Mark&FOLL != 0 {
-		i = 0
-		q = p
-		for ; i < 4; i, q = i+1, q.Link {
-			if q == *last || q == nil {
-				break
-			}
-			a = q.As
-			if a == obj.ANOP {
-				i--
-				continue
-			}
-
-			if a == AB || a == obj.ARET || a == AERET {
-				goto copy
-			}
-			if q.Pcond == nil || (q.Pcond.Mark&FOLL != 0) {
-				continue
-			}
-			if a != ABEQ && a != ABNE {
-				continue
-			}
-
-		copy:
-			for {
-				r = ctxt.NewProg()
-				*r = *p
-				if !(r.Mark&FOLL != 0) {
-					fmt.Printf("can't happen 1\n")
-				}
-				r.Mark |= FOLL
-				if p != q {
-					p = p.Link
-					(*last).Link = r
-					*last = r
-					continue
-				}
-
-				(*last).Link = r
-				*last = r
-				if a == AB || a == obj.ARET || a == AERET {
-					return
-				}
-				if a == ABNE {
-					r.As = ABEQ
-				} else {
-					r.As = ABNE
-				}
-				r.Pcond = p.Link
-				r.Link = p.Pcond
-				if !(r.Link.Mark&FOLL != 0) {
-					xfol(ctxt, r.Link, last)
-				}
-				if !(r.Pcond.Mark&FOLL != 0) {
-					fmt.Printf("can't happen 2\n")
-				}
-				return
-			}
-		}
-
-		a = AB
-		q = ctxt.NewProg()
-		q.As = a
-		q.Pos = p.Pos
-		q.To.Type = obj.TYPE_BRANCH
-		q.To.Offset = p.Pc
-		q.Pcond = p
-		p = q
-	}
-
-	p.Mark |= FOLL
-	(*last).Link = p
-	*last = p
-	if a == AB || a == obj.ARET || a == AERET {
-		return
-	}
-	if p.Pcond != nil {
-		if a != ABL && p.Link != nil {
-			q = obj.Brchain(ctxt, p.Link)
-			if a != obj.ATEXT {
-				if q != nil && (q.Mark&FOLL != 0) {
-					p.As = relinv(a)
-					p.Link = p.Pcond
-					p.Pcond = q
-				}
-			}
-
-			xfol(ctxt, p.Link, last)
-			q = obj.Brchain(ctxt, p.Pcond)
-			if q == nil {
-				q = p.Pcond
-			}
-			if q.Mark&FOLL != 0 {
-				p.Pcond = q
-				return
-			}
-
-			p = q
-			goto loop
-		}
-	}
-
-	p = p.Link
-	goto loop
-}
-
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	ctxt.Cursym = cursym
 
@@ -998,7 +812,6 @@ var Linkarm64 = obj.LinkArch{
 	Arch:       sys.ArchARM64,
 	Preprocess: preprocess,
 	Assemble:   span7,
-	Follow:     follow,
 	Progedit:   progedit,
 	UnaryDst:   unaryDst,
 }
