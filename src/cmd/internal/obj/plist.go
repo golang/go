@@ -159,9 +159,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	for _, s := range text {
 		mkfwd(s)
 		linkpatch(ctxt, s)
-		if ctxt.Flag_optimize {
-			ctxt.Arch.Follow(ctxt, s)
-		}
 		ctxt.Arch.Preprocess(ctxt, s)
 		ctxt.Arch.Assemble(ctxt, s)
 		fieldtrack(ctxt, s)

@@ -34,7 +34,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"fmt"
-	"log"
 	"math"
 	"strings"
 )
@@ -1183,241 +1182,6 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	return jls
 }
 
-func follow(ctxt *obj.Link, s *obj.LSym) {
-	ctxt.Cursym = s
-
-	firstp := ctxt.NewProg()
-	lastp := firstp
-	xfol(ctxt, s.Text, &lastp)
-	lastp.Link = nil
-	s.Text = firstp.Link
-}
-
-func nofollow(a obj.As) bool {
-	switch a {
-	case obj.AJMP,
-		obj.ARET,
-		AIRETL,
-		AIRETQ,
-		AIRETW,
-		ARETFL,
-		ARETFQ,
-		ARETFW,
-		obj.AUNDEF:
-		return true
-	}
-
-	return false
-}
-
-func pushpop(a obj.As) bool {
-	switch a {
-	case APUSHL,
-		APUSHFL,
-		APUSHQ,
-		APUSHFQ,
-		APUSHW,
-		APUSHFW,
-		APOPL,
-		APOPFL,
-		APOPQ,
-		APOPFQ,
-		APOPW,
-		APOPFW:
-		return true
-	}
-
-	return false
-}
-
-func relinv(a obj.As) obj.As {
-	switch a {
-	case AJEQ:
-		return AJNE
-	case AJNE:
-		return AJEQ
-	case AJLE:
-		return AJGT
-	case AJLS:
-		return AJHI
-	case AJLT:
-		return AJGE
-	case AJMI:
-		return AJPL
-	case AJGE:
-		return AJLT
-	case AJPL:
-		return AJMI
-	case AJGT:
-		return AJLE
-	case AJHI:
-		return AJLS
-	case AJCS:
-		return AJCC
-	case AJCC:
-		return AJCS
-	case AJPS:
-		return AJPC
-	case AJPC:
-		return AJPS
-	case AJOS:
-		return AJOC
-	case AJOC:
-		return AJOS
-	}
-
-	log.Fatalf("unknown relation: %s", a)
-	return 0
-}
-
-func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
-	var q *obj.Prog
-	var i int
-	var a obj.As
-
-loop:
-	if p == nil {
-		return
-	}
-	if p.As == obj.AJMP {
-		q = p.Pcond
-		if q != nil && q.As != obj.ATEXT {
-			/* mark instruction as done and continue layout at target of jump */
-			p.Mark |= DONE
-
-			p = q
-			if p.Mark&DONE == 0 {
-				goto loop
-			}
-		}
-	}
-
-	if p.Mark&DONE != 0 {
-		/*
-		 * p goes here, but already used it elsewhere.
-		 * copy up to 4 instructions or else branch to other copy.
-		 */
-		i = 0
-		q = p
-		for ; i < 4; i, q = i+1, q.Link {
-			if q == nil {
-				break
-			}
-			if q == *last {
-				break
-			}
-			a = q.As
-			if a == obj.ANOP {
-				i--
-				continue
-			}
-
-			if nofollow(a) || pushpop(a) {
-				break // NOTE(rsc): arm does goto copy
-			}
-			if q.Pcond == nil || q.Pcond.Mark&DONE != 0 {
-				continue
-			}
-			if a == obj.ACALL || a == ALOOP {
-				continue
-			}
-			for {
-				if p.As == obj.ANOP {
-					p = p.Link
-					continue
-				}
-
-				q = obj.Copyp(ctxt, p)
-				p = p.Link
-				q.Mark |= DONE
-				(*last).Link = q
-				*last = q
-				if q.As != a || q.Pcond == nil || q.Pcond.Mark&DONE != 0 {
-					continue
-				}
-
-				q.As = relinv(q.As)
-				p = q.Pcond
-				q.Pcond = q.Link
-				q.Link = p
-				xfol(ctxt, q.Link, last)
-				p = q.Link
-				if p.Mark&DONE != 0 {
-					return
-				}
-				goto loop
-				/* */
-			}
-		}
-		q = ctxt.NewProg()
-		q.As = obj.AJMP
-		q.Pos = p.Pos
-		q.To.Type = obj.TYPE_BRANCH
-		q.To.Offset = p.Pc
-		q.Pcond = p
-		p = q
-	}
-
-	/* emit p */
-	p.Mark |= DONE
-
-	(*last).Link = p
-	*last = p
-	a = p.As
-
-	/* continue loop with what comes after p */
-	if nofollow(a) {
-		return
-	}
-	if p.Pcond != nil && a != obj.ACALL {
-		/*
-		 * some kind of conditional branch.
-		 * recurse to follow one path.
-		 * continue loop on the other.
-		 */
-		q = obj.Brchain(ctxt, p.Pcond)
-		if q != nil {
-			p.Pcond = q
-		}
-		q = obj.Brchain(ctxt, p.Link)
-		if q != nil {
-			p.Link = q
-		}
-		if p.From.Type == obj.TYPE_CONST {
-			if p.From.Offset == 1 {
-				/*
-				 * expect conditional jump to be taken.
-				 * rewrite so that's the fall-through case.
-				 */
-				p.As = relinv(a)
-
-				q = p.Link
-				p.Link = p.Pcond
-				p.Pcond = q
-			}
-		} else {
-			q = p.Link
-			if q.Mark&DONE != 0 {
-				if a != ALOOP {
-					p.As = relinv(a)
-					p.Link = p.Pcond
-					p.Pcond = q
-				}
-			}
-		}
-
-		xfol(ctxt, p.Link, last)
-		if p.Pcond.Mark&DONE != 0 {
-			return
-		}
-		p = p.Pcond
-		goto loop
-	}
-
-	p = p.Link
-	goto loop
-}
-
 var unaryDst = map[obj.As]bool{
 	ABSWAPL:    true,
 	ABSWAPQ:    true,
@@ -1472,7 +1236,6 @@ var Linkamd64 = obj.LinkArch{
 	Arch:       sys.ArchAMD64,
 	Preprocess: preprocess,
 	Assemble:   span6,
-	Follow:     follow,
 	Progedit:   progedit,
 	UnaryDst:   unaryDst,
 }
@@ -1481,7 +1244,6 @@ var Linkamd64p32 = obj.LinkArch{
 	Arch:       sys.ArchAMD64P32,
 	Preprocess: preprocess,
 	Assemble:   span6,
-	Follow:     follow,
 	Progedit:   progedit,
 	UnaryDst:   unaryDst,
 }
@@ -1490,7 +1252,6 @@ var Link386 = obj.LinkArch{
 	Arch:       sys.Arch386,
 	Preprocess: preprocess,
 	Assemble:   span6,
-	Follow:     follow,
 	Progedit:   progedit,
 	UnaryDst:   unaryDst,
 }
