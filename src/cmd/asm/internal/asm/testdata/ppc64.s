@@ -540,6 +540,14 @@ label1:
 //	}
 //	FCMPU	F1, F2, CR0
 
+//	FTDIV FRA, FRB, BF produces
+//	ftdiv BF, FRA, FRB
+	FTDIV F1,F2,$7
+
+//	FTSQRT	FRB, BF produces
+//	ftsqrt	BF, FRB
+	FTSQRT	F2,$7
+
 //
 // CMP
 //
@@ -566,6 +574,10 @@ label1:
 //		outcode(int($1), &$2, int($6.Reg), &$4);
 //	}
 	CMP	R1, $4, CR0 // CMP R1, CR0, $4
+
+//	CMPB  RS,RB,RA produces
+//	cmpb  RA,RS,RB
+	CMPB  R2,R2,R1
 
 //
 // rotate and mask
@@ -673,6 +685,13 @@ label1:
 	DCBF	(R1)
 	DCBF	(R1+R2) // DCBF	(R1)(R2*1)
 
+//	Population count, X-form
+//	<MNEMONIC> RS,RA produces
+//	<mnemonic> RA,RS
+	POPCNTD	R1,R2
+	POPCNTW	R1,R2
+	POPCNTB R1,R2
+
 //	VMX instructions
 
 //	Described as:
@@ -703,14 +722,14 @@ label1:
 //	Vector AND, VX-form
 //	<MNEMONIC> VRA,VRB,VRT produces
 //	<mnemonic> VRT,VRA,VRB
-	VANDL	V10, V9, V8
+	VAND	V10, V9, V8
 	VANDC	V15, V14, V13
 	VNAND	V19, V18, V17
 
 //	Vector OR, VX-form
 //	<MNEMONIC> VRA,VRB,VRT produces
 //	<mnemonic> VRT,VRA,VRB
-	VORL	V26, V25, V24
+	VOR	V26, V25, V24
 	VORC	V23, V22, V21
 	VNOR	V20, V19, V18
 	VXOR	V17, V16, V15
@@ -738,6 +757,14 @@ label1:
 //	<mnemonic> VRT,VRA,VRB,VRC
 	VADDEUQM V4, V3, V2, V1
 	VADDECUQ V4, V3, V2, V1
+
+//	Vector polynomial multiply-sum, VX-form
+//	<MNEMONIC>  VRA,VRB,VRT produces
+//	<mnemonic>  VRT,VRA,VRB
+	VPMSUMB	V2, V3, V1
+	VPMSUMH	V2, V3, V1
+	VPMSUMW	V2, V3, V1
+	VPMSUMD	V2, V3, V1
 
 //	Vector SUB, VX-form
 //	<MNEMONIC> VRA,VRB,VRT produces
