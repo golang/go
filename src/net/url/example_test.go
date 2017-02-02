@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"strings"
 )
@@ -57,33 +55,6 @@ func ExampleURL_roundtrip() {
 	// /foo/bar
 	// /foo%2fbar
 	// https://example.com/foo%2fbar
-}
-
-func ExampleURL_opaque() {
-	// Sending a literal '%' in an HTTP request's Path
-	req := &http.Request{
-		Method: "GET",
-		Host:   "example.com", // takes precedence over URL.Host
-		URL: &url.URL{
-			Host:   "ignored",
-			Scheme: "https",
-			Opaque: "/%2f/",
-		},
-		Header: http.Header{
-			"User-Agent": {"godoc-example/0.1"},
-		},
-	}
-	out, err := httputil.DumpRequestOut(req, true)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(strings.Replace(string(out), "\r", "", -1))
-	// Output:
-	// GET /%2f/ HTTP/1.1
-	// Host: example.com
-	// User-Agent: godoc-example/0.1
-	// Accept-Encoding: gzip
-	//
 }
 
 func ExampleURL_ResolveReference() {
