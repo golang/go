@@ -232,22 +232,18 @@ func forcegchelper() {
 	}
 }
 
-//go:nosplit
-
 // Gosched yields the processor, allowing other goroutines to run. It does not
 // suspend the current goroutine, so execution resumes automatically.
+//go:nosplit
 func Gosched() {
 	mcall(gosched_m)
 }
 
-var alwaysFalse bool
-
-// goschedguarded does nothing, but is written in a way that guarantees a preemption check in its prologue.
-// Calls to this function are inserted by the compiler in otherwise uninterruptible loops (see insertLoopReschedChecks).
+// goschedguarded yields the processor like gosched, but also checks
+// for forbidden states and opts out of the yield in those cases.
+//go:nosplit
 func goschedguarded() {
-	if alwaysFalse {
-		goschedguarded()
-	}
+	mcall(goschedguarded_m)
 }
 
 // Puts the current goroutine into a waiting state and calls unlockf.
@@ -2288,6 +2284,19 @@ func goschedImpl(gp *g) {
 
 // Gosched continuation on g0.
 func gosched_m(gp *g) {
+	if trace.enabled {
+		traceGoSched()
+	}
+	goschedImpl(gp)
+}
+
+// goschedguarded is a forbidden-states-avoided version of gosched_m
+func goschedguarded_m(gp *g) {
+
+	if gp.m.locks != 0 || gp.m.mallocing != 0 || gp.m.preemptoff != "" || gp.m.p.ptr().status != _Prunning {
+		gogo(&gp.sched) // never return
+	}
+
 	if trace.enabled {
 		traceGoSched()
 	}

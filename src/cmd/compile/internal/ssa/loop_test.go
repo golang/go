@@ -48,9 +48,8 @@ func TestLoopConditionS390X(t *testing.T) {
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("SP", OpSP, TypeUInt64, 0, nil),
-			Valu("Nptr", OpOffPtr, TypeInt64Ptr, 8, nil, "SP"),
-			Valu("ret", OpOffPtr, TypeInt64Ptr, 16, nil, "SP"),
-			Valu("N", OpLoad, TypeInt64, 0, nil, "Nptr", "mem"),
+			Valu("ret", OpAddr, TypeInt64Ptr, 0, nil, "SP"),
+			Valu("N", OpArg, TypeInt64, 0, c.fe.Auto(TypeInt64)),
 			Valu("starti", OpConst64, TypeInt64, 0, nil),
 			Valu("startsum", OpConst64, TypeInt64, 0, nil),
 			Goto("b1")),
@@ -66,7 +65,8 @@ func TestLoopConditionS390X(t *testing.T) {
 			Valu("sum", OpAdd64, TypeInt64, 0, nil, "phisum", "c3"),
 			Goto("b1")),
 		Bloc("b3",
-			Valu("store", OpStore, TypeMem, 8, nil, "ret", "phisum", "mem"),
+			Valu("retdef", OpVarDef, TypeMem, 0, nil, "mem"),
+			Valu("store", OpStore, TypeMem, 8, nil, "ret", "phisum", "retdef"),
 			Exit("store")))
 	CheckFunc(fun.f)
 	Compile(fun.f)

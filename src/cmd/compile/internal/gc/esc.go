@@ -654,7 +654,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 	// ninit logically runs at a different loopdepth than the rest of the for loop.
 	e.esclist(n.Ninit, n)
 
-	if n.Op == OFOR || n.Op == ORANGE {
+	if n.Op == OFOR || n.Op == OFORUNTIL || n.Op == ORANGE {
 		e.loopdepth++
 	}
 
@@ -700,7 +700,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 		e.esclist(n.Rlist, n)
 	}
 
-	if n.Op == OFOR || n.Op == ORANGE {
+	if n.Op == OFOR || n.Op == OFORUNTIL || n.Op == ORANGE {
 		e.loopdepth--
 	}
 

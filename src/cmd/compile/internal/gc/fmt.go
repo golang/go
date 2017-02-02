@@ -169,6 +169,7 @@ var goopnames = []string{
 	OEQ:       "==",
 	OFALL:     "fallthrough",
 	OFOR:      "for",
+	OFORUNTIL: "foruntil", // not actual syntax; used to avoid off-end pointer live on backedge.892
 	OGE:       ">=",
 	OGOTO:     "goto",
 	OGT:       ">",
@@ -787,7 +788,7 @@ func (t *Type) typefmt(flag FmtFlag) string {
 // Statements which may be rendered with a simplestmt as init.
 func stmtwithinit(op Op) bool {
 	switch op {
-	case OIF, OFOR, OSWITCH:
+	case OIF, OFOR, OFORUNTIL, OSWITCH:
 		return true
 	}
 
@@ -882,13 +883,17 @@ func (n *Node) stmtfmt(s fmt.State) {
 			fmt.Fprintf(s, " else { %v }", n.Rlist)
 		}
 
-	case OFOR:
+	case OFOR, OFORUNTIL:
+		opname := "for"
+		if n.Op == OFORUNTIL {
+			opname = "foruntil"
+		}
 		if fmtmode == FErr { // TODO maybe only if FmtShort, same below
-			fmt.Fprint(s, "for loop")
+			fmt.Fprintf(s, "%s loop", opname)
 			break
 		}
 
-		fmt.Fprint(s, "for")
+		fmt.Fprint(s, opname)
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Ninit.First())
 		} else if n.Right != nil {
@@ -1089,6 +1094,7 @@ var opprec = []int{
 	OEMPTY:      -1,
 	OFALL:       -1,
 	OFOR:        -1,
+	OFORUNTIL:   -1,
 	OGOTO:       -1,
 	OIF:         -1,
 	OLABEL:      -1,

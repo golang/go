@@ -32,11 +32,24 @@ type DummyFrontend struct {
 	t testing.TB
 }
 
+type DummyAuto struct {
+	t Type
+	s string
+}
+
+func (d *DummyAuto) Typ() Type {
+	return d.t
+}
+
+func (d *DummyAuto) String() string {
+	return d.s
+}
+
 func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }
 func (DummyFrontend) Auto(t Type) GCNode {
-	return nil
+	return &DummyAuto{t: t, s: "aDummyAuto"}
 }
 func (d DummyFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
 	return LocalSlot{s.N, d.TypeBytePtr(), s.Off}, LocalSlot{s.N, d.TypeInt(), s.Off + 8}

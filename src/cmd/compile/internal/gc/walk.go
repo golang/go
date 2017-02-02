@@ -261,7 +261,7 @@ func walkstmt(n *Node) *Node {
 		// make room for size & fn arguments.
 		adjustargs(n, 2*Widthptr)
 
-	case OFOR:
+	case OFOR, OFORUNTIL:
 		if n.Left != nil {
 			walkstmtlist(n.Left.Ninit.Slice())
 			init := n.Left.Ninit
@@ -351,7 +351,7 @@ func walkstmt(n *Node) *Node {
 		walkswitch(n)
 
 	case ORANGE:
-		walkrange(n)
+		n = walkrange(n)
 
 	case OXFALL:
 		yyerror("fallthrough statement out of place")

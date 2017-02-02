@@ -249,6 +249,7 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 		OCALLPART,
 		ORANGE,
 		OFOR,
+		OFORUNTIL,
 		OSELECT,
 		OTYPESW,
 		OPROC,
@@ -429,7 +430,7 @@ func inlnode(n *Node) *Node {
 
 	n.Right = inlnode(n.Right)
 	if n.Right != nil && n.Right.Op == OINLCALL {
-		if n.Op == OFOR {
+		if n.Op == OFOR || n.Op == OFORUNTIL {
 			inlconv2stmt(n.Right)
 		} else {
 			n.Right = inlconv2expr(n.Right)

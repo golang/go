@@ -1,4 +1,4 @@
-// +build !nacl,disabled
+// +build !nacl
 // buildrun -t 10  -gcflags=-d=ssa/insert_resched_checks/on,ssa/check/on
 
 // Copyright 2016 The Go Authors. All rights reserved.
