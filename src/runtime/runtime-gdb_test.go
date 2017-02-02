@@ -89,6 +89,9 @@ func TestGdbPython(t *testing.T) {
 }
 
 func TestGdbPythonCgo(t *testing.T) {
+	if runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" {
+		testenv.SkipFlaky(t, 18784)
+	}
 	testGdbPython(t, true)
 }
 
