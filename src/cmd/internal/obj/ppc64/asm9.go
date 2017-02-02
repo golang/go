@@ -346,6 +346,12 @@ var optab = []Optab{
 	{AMOVD, C_REG, C_NONE, C_NONE, C_MSR, 54, 4, 0},  /* mtmsrd */
 	{AMOVWZ, C_REG, C_NONE, C_NONE, C_MSR, 54, 4, 0}, /* mtmsr */
 
+	/* Other ISA 2.05+ instructions */
+	{APOPCNTD, C_REG, C_NONE, C_NONE, C_REG, 93, 4, 0},  /* population count, x-form */
+	{ACMPB, C_REG, C_REG, C_NONE, C_REG, 92, 4, 0},      /* compare byte, x-form */
+	{AFTDIV, C_FREG, C_FREG, C_NONE, C_SCON, 92, 4, 0},  /* floating test for sw divide, x-form */
+	{AFTSQRT, C_FREG, C_NONE, C_NONE, C_SCON, 93, 4, 0}, /* floating test for sw square root, x-form */
+
 	/* Vector instructions */
 
 	/* Vector load */
@@ -371,6 +377,9 @@ var optab = []Optab{
 	{AVSUBUS, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector subtract unsigned saturate, vx-form */
 	{AVSUBSS, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector subtract signed saturate, vx-form */
 	{AVSUBE, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0},  /* vector subtract extended, va-form */
+
+	/* Vector multiply */
+	{AVPMSUM, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector polynomial multiply & sum, vx-form */
 
 	/* Vector rotate */
 	{AVR, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector rotate, vx-form */
@@ -428,9 +437,13 @@ var optab = []Optab{
 
 	/* VSX move from VSR */
 	{AMFVSR, C_VSREG, C_NONE, C_NONE, C_REG, 88, 4, 0}, /* vsx move from vsr, xx1-form */
+	{AMFVSR, C_FREG, C_NONE, C_NONE, C_REG, 88, 4, 0},
+	{AMFVSR, C_VREG, C_NONE, C_NONE, C_REG, 88, 4, 0},
 
 	/* VSX move to VSR */
 	{AMTVSR, C_REG, C_NONE, C_NONE, C_VSREG, 88, 4, 0}, /* vsx move to vsr, xx1-form */
+	{AMTVSR, C_REG, C_NONE, C_NONE, C_FREG, 88, 4, 0},
+	{AMTVSR, C_REG, C_NONE, C_NONE, C_VREG, 88, 4, 0},
 
 	/* VSX logical */
 	{AXXLAND, C_VSREG, C_VSREG, C_NONE, C_VSREG, 90, 4, 0}, /* vsx and, xx3-form */
@@ -1161,6 +1174,10 @@ func buildop(ctxt *obj.Link) {
 			opset(ADIVDUVCC, r0)
 			opset(ADIVDUCC, r0)
 
+		case APOPCNTD:
+			opset(APOPCNTW, r0)
+			opset(APOPCNTB, r0)
+
 		case AMOVBZ: /* lbz, stz, rlwm(r/r), lhz, lha, stz, and x variants */
 			opset(AMOVH, r0)
 
@@ -1192,12 +1209,12 @@ func buildop(ctxt *obj.Link) {
 			opset(ASTVXL, r0)
 
 		case AVAND: /* vand, vandc, vnand */
-			opset(AVANDL, r0)
+			opset(AVAND, r0)
 			opset(AVANDC, r0)
 			opset(AVNAND, r0)
 
 		case AVOR: /* vor, vorc, vxor, vnor, veqv */
-			opset(AVORL, r0)
+			opset(AVOR, r0)
 			opset(AVORC, r0)
 			opset(AVXOR, r0)
 			opset(AVNOR, r0)
@@ -1252,6 +1269,12 @@ func buildop(ctxt *obj.Link) {
 		case AVSUBE: /* vsubeuqm, vsubecuq */
 			opset(AVSUBEUQM, r0)
 			opset(AVSUBECUQ, r0)
+
+		case AVPMSUM: /* vpmsumb, vpmsumh, vpmsumw, vpmsumd */
+			opset(AVPMSUMB, r0)
+			opset(AVPMSUMH, r0)
+			opset(AVPMSUMW, r0)
+			opset(AVPMSUMD, r0)
 
 		case AVR: /* vrlb, vrlh, vrlw, vrld */
 			opset(AVRLB, r0)
@@ -1375,12 +1398,16 @@ func buildop(ctxt *obj.Link) {
 		case ASTXSI: /* stxsiwx */
 			opset(ASTXSIWX, r0)
 
-		case AMFVSR: /* mfvsrd, mfvsrwz */
+		case AMFVSR: /* mfvsrd, mfvsrwz (and extended mnemonics) */
 			opset(AMFVSRD, r0)
+			opset(AMFFPRD, r0)
+			opset(AMFVRD, r0)
 			opset(AMFVSRWZ, r0)
 
-		case AMTVSR: /* mtvsrd, mtvsrwa, mtvsrwz */
+		case AMTVSR: /* mtvsrd, mtvsrwa, mtvsrwz (and extended mnemonics) */
 			opset(AMTVSRD, r0)
+			opset(AMTFPRD, r0)
+			opset(AMTVRD, r0)
 			opset(AMTVSRWA, r0)
 			opset(AMTVSRWZ, r0)
 
@@ -1710,6 +1737,15 @@ func buildop(ctxt *obj.Link) {
 		case ACMPU:
 			opset(ACMPWU, r0)
 
+		case ACMPB:
+			opset(ACMPB, r0)
+
+		case AFTDIV:
+			opset(AFTDIV, r0)
+
+		case AFTSQRT:
+			opset(AFTSQRT, r0)
+
 		case AADD,
 			AANDCC, /* and. Rb,Rs,Ra; andi. $uimm,Rs,Ra; andis. $uimm,Rs,Ra */
 			AFMOVSX,
@@ -1783,7 +1819,7 @@ func AOP_RRR(op uint32, d uint32, a uint32, b uint32) uint32 {
 	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11
 }
 
-/* VX-form 2-register operands, r/r/none */
+/* VX-form 2-register operands, r/none/r */
 func AOP_RR(op uint32, d uint32, a uint32) uint32 {
 	return op | (d&31)<<21 | (a&31)<<11
 }
@@ -1879,6 +1915,10 @@ func OP_BCR(op uint32, bo uint32, bi uint32) uint32 {
 
 func OP_RLW(op uint32, a uint32, s uint32, sh uint32, mb uint32, me uint32) uint32 {
 	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | (mb&31)<<6 | (me&31)<<1
+}
+
+func AOP_RLDIC(op uint32, a uint32, s uint32, sh uint32, m uint32) uint32 {
+	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | ((sh&32)>>5)<<1 | (m&31)<<6 | ((m&32)>>5)<<5
 }
 
 func AOP_ISEL(op uint32, t uint32, a uint32, b uint32, bc uint32) uint32 {
@@ -2353,6 +2393,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			if mask[1] != 63 {
 				ctxt.Diag("invalid mask for rotate: %x (end != bit 63)\n%v", uint64(d), p)
 			}
+			o1 = LOP_RRR(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
+			o1 |= (uint32(a) & 31) << 6
+			if a&0x20 != 0 {
+				o1 |= 1 << 5 /* mb[5] is top bit */
+			}
 
 		case ARLDCR, ARLDCRCC:
 			var mask [2]uint8
@@ -2362,20 +2407,26 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			if mask[0] != 0 {
 				ctxt.Diag("invalid mask for rotate: %x (start != 0)\n%v", uint64(d), p)
 			}
+			o1 = LOP_RRR(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
+			o1 |= (uint32(a) & 31) << 6
+			if a&0x20 != 0 {
+				o1 |= 1 << 5 /* mb[5] is top bit */
+			}
 
 		// These opcodes use a shift count like the ppc64 asm, no mask conversion done
-		case ARLDICR, ARLDICRCC, ARLDICL, ARLDICLCC:
-			a = int(d)
+		case ARLDICR, ARLDICRCC:
+			me := int(d)
+			sh := regoff(ctxt, &p.From)
+			o1 = AOP_RLDIC(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(me))
+
+		case ARLDICL, ARLDICLCC:
+			mb := int(d)
+			sh := regoff(ctxt, &p.From)
+			o1 = AOP_RLDIC(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(mb))
 
 		default:
 			ctxt.Diag("unexpected op in rldc case\n%v", p)
 			a = 0
-		}
-
-		o1 = LOP_RRR(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
-		o1 |= (uint32(a) & 31) << 6
-		if a&0x20 != 0 {
-			o1 |= 1 << 5 /* mb[5] is top bit */
 		}
 
 	case 17, /* bc bo,bi,lbra (same for now) */
@@ -3170,8 +3221,24 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		/* 2-register operand order: XS, RA or RA, XT */
 		xt := int32(p.To.Reg)
 		xs := int32(p.From.Reg)
-		if REG_VS0 <= xt && xt <= REG_VS63 {
+		/* We need to treat the special case of extended mnemonics that may have a FREG/VREG as an argument */
+		if REG_V0 <= xt && xt <= REG_V31 {
+			/* Convert V0-V31 to VS32-VS63 */
+			xt = xt + 64
 			o1 = AOP_XX1(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg))
+		} else if REG_F0 <= xt && xt <= REG_F31 {
+			/* Convert F0-F31 to VS0-VS31 */
+			xt = xt + 64
+			o1 = AOP_XX1(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg))
+		} else if REG_VS0 <= xt && xt <= REG_VS63 {
+			o1 = AOP_XX1(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg))
+		} else if REG_V0 <= xs && xs <= REG_V31 {
+			/* Likewise for XS */
+			xs = xs + 64
+			o1 = AOP_XX1(oprrr(ctxt, p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
+		} else if REG_F0 <= xs && xs <= REG_F31 {
+			xs = xs + 64
+			o1 = AOP_XX1(oprrr(ctxt, p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
 		} else if REG_VS0 <= xs && xs <= REG_VS63 {
 			o1 = AOP_XX1(oprrr(ctxt, p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
 		}
@@ -3198,6 +3265,30 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		/* reg reg reg reg */
 		/* 3-register operand order: XA, XB, XC, XT */
 		o1 = AOP_XX4(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), uint32(p.From3.Reg))
+
+	case 92: /* X-form instructions, 3-operands */
+		if p.To.Type == obj.TYPE_CONST {
+			/* imm reg reg */
+			/* operand order: FRA, FRB, BF */
+			bf := int(regoff(ctxt, &p.To)) << 2
+			o1 = AOP_RRR(opirr(ctxt, p.As), uint32(bf), uint32(p.From.Reg), uint32(p.Reg))
+		} else if p.To.Type == obj.TYPE_REG {
+			/* reg reg reg */
+			/* operand order: RS, RB, RA */
+			o1 = AOP_RRR(oprrr(ctxt, p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
+		}
+
+	case 93: /* X-form instructions, 2-operands */
+		if p.To.Type == obj.TYPE_CONST {
+			/* imm reg */
+			/* operand order: FRB, BF */
+			bf := int(regoff(ctxt, &p.To)) << 2
+			o1 = AOP_RR(opirr(ctxt, p.As), uint32(bf), uint32(p.From.Reg))
+		} else if p.Reg == 0 {
+			/* popcnt* r,r, X-form */
+			/* operand order: RS, RA */
+			o1 = AOP_RRR(oprrr(ctxt, p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
+		}
 
 	}
 
@@ -3281,6 +3372,8 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 		return OPVCC(31, 0, 0, 0) /* L=0 */
 	case ACMPWU:
 		return OPVCC(31, 32, 0, 0)
+	case ACMPB:
+		return OPVCC(31, 508, 0, 0) /* cmpb - v2.05 */
 
 	case ACNTLZW:
 		return OPVCC(31, 26, 0, 0)
@@ -3621,6 +3714,13 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 	case AORNCC:
 		return OPVCC(31, 412, 0, 1)
 
+	case APOPCNTD:
+		return OPVCC(31, 506, 0, 0) /* popcntd - v2.06 */
+	case APOPCNTW:
+		return OPVCC(31, 378, 0, 0) /* popcntw - v2.06 */
+	case APOPCNTB:
+		return OPVCC(31, 122, 0, 0) /* popcntb - v2.02 */
+
 	case ARFI:
 		return OPVCC(19, 50, 0, 0)
 	case ARFCI:
@@ -3757,14 +3857,14 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 	/* Vector (VMX/Altivec) instructions */
 	/* ISA 2.03 enables these for PPC970. For POWERx processors, these */
 	/* are enabled starting at POWER6 (ISA 2.05). */
-	case AVANDL:
+	case AVAND:
 		return OPVX(4, 1028, 0, 0) /* vand - v2.03 */
 	case AVANDC:
 		return OPVX(4, 1092, 0, 0) /* vandc - v2.03 */
 	case AVNAND:
 		return OPVX(4, 1412, 0, 0) /* vnand - v2.07 */
 
-	case AVORL:
+	case AVOR:
 		return OPVX(4, 1156, 0, 0) /* vor - v2.03 */
 	case AVORC:
 		return OPVX(4, 1348, 0, 0) /* vorc - v2.07 */
@@ -3809,6 +3909,15 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 		return OPVX(4, 60, 0, 0) /* vaddeuqm - v2.07 */
 	case AVADDECUQ:
 		return OPVX(4, 61, 0, 0) /* vaddecuq - v2.07 */
+
+	case AVPMSUMB:
+		return OPVX(4, 1032, 0, 0) /* vpmsumb - v2.07 */
+	case AVPMSUMH:
+		return OPVX(4, 1096, 0, 0) /* vpmsumh - v2.07 */
+	case AVPMSUMW:
+		return OPVX(4, 1160, 0, 0) /* vpmsumw - v2.07 */
+	case AVPMSUMD:
+		return OPVX(4, 1224, 0, 0) /* vpmsumd - v2.07 */
 
 	case AVSUBUBM:
 		return OPVX(4, 1024, 0, 0) /* vsububm - v2.03 */
@@ -3976,12 +4085,12 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 
 	/* Vector scalar (VSX) instructions */
 	/* ISA 2.06 enables these for POWER7. */
-	case AMFVSRD:
+	case AMFVSRD, AMFVRD, AMFFPRD:
 		return OPVXX1(31, 51, 0) /* mfvsrd - v2.07 */
 	case AMFVSRWZ:
 		return OPVXX1(31, 115, 0) /* mfvsrwz - v2.07 */
 
-	case AMTVSRD:
+	case AMTVSRD, AMTFPRD, AMTVRD:
 		return OPVXX1(31, 179, 0) /* mtvsrd - v2.07 */
 	case AMTVSRWA:
 		return OPVXX1(31, 211, 0) /* mtvsrwa - v2.07 */
@@ -4259,6 +4368,11 @@ func opirr(ctxt *obj.Link, a obj.As) uint32 {
 	case AVSPLTISW:
 		return OPVX(4, 908, 0, 0) /* vspltisw - v2.03 */
 	/* End of vector instructions */
+
+	case AFTDIV:
+		return OPVCC(63, 128, 0, 0) /* ftdiv - v2.06 */
+	case AFTSQRT:
+		return OPVCC(63, 160, 0, 0) /* ftsqrt - v2.06 */
 
 	case AXOR:
 		return OPVCC(26, 0, 0, 0) /* XORIL */
