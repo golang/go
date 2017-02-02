@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 31, 2017",
+	"Subtitle": "Version of February 3, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -685,11 +685,9 @@ If a variable has not yet been assigned a value, its value is the
 <h2 id="Types">Types</h2>
 
 <p>
-A type determines the set of values and operations specific to values of that
-type. Types may be <i>named</i> or <i>unnamed</i>. Named types are specified
-by a (possibly <a href="#Qualified_identifiers">qualified</a>)
-<a href="#Type_declarations"><i>type name</i></a>; unnamed types are specified
-using a <i>type literal</i>, which composes a new type from existing types.
+A type determines a set of values together with operations and methods specific
+to those values. A type may be denoted by a <i>type name</i>, if it has one,
+or specified using a <i>type literal</i>, which composes a type from existing types.
 </p>
 
 <pre class="ebnf">
@@ -702,6 +700,7 @@ TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType 
 <p>
 Named instances of the boolean, numeric, and string types are
 <a href="#Predeclared_identifiers">predeclared</a>.
+Other named types are introduced with <a href="#Type_declarations">type declarations</a>.
 <i>Composite types</i>&mdash;array, struct, pointer, function,
 interface, slice, map, and channel types&mdash;may be constructed using
 type literals.
@@ -717,16 +716,23 @@ is the underlying type of the type to which <code>T</code> refers in its
 </p>
 
 <pre>
-   type T1 string
-   type T2 T1
-   type T3 []T1
-   type T4 T3
+type (
+	A1 = string
+	A2 = A1
+)
+
+type (
+	B1 string
+	B2 B1
+	B3 []B1
+	B4 B3
+)
 </pre>
 
 <p>
-The underlying type of <code>string</code>, <code>T1</code>, and <code>T2</code>
-is <code>string</code>. The underlying type of <code>[]T1</code>, <code>T3</code>,
-and <code>T4</code> is <code>[]T1</code>.
+The underlying type of <code>string</code>, <code>A1</code>, <code>A2</code>, <code>B1</code>,
+and <code>B2</code> is <code>string</code>.
+The underlying type of <code>[]B1</code>, <code>B3</code>, and <code>B4</code> is <code>[]B1</code>.
 </p>
 
 <h3 id="Method_sets">Method sets</h3>
@@ -1417,11 +1423,10 @@ Two types are either <i>identical</i> or <i>different</i>.
 </p>
 
 <p>
-Two <a href="#Types">named types</a> are identical if their type names originate in the same
-<a href="#Type_declarations">TypeSpec</a>.
-A named and an <a href="#Types">unnamed type</a> are always different. Two unnamed types are identical
-if the corresponding type literals are identical, that is, if they have the same
-literal structure and corresponding components have identical types. In detail:
+A <a href="#Type_definitions">defined type</a> is always different from any other type.
+Otherwise, two types are identical if their <a href="#Types">underlying</a> type literals are
+structurally equivalent; that is, they have the same literal structure and corresponding
+components have identical types. In detail:
 </p>
 
 <ul>
@@ -1460,13 +1465,24 @@ Given the declarations
 
 <pre>
 type (
-	T0 []string
-	T1 []string
-	T2 struct{ a, b int }
-	T3 struct{ a, c int }
-	T4 func(int, float64) *T0
-	T5 func(x int, y float64) *[]string
+	A0 = []string
+	A1 = A0
+	A2 = struct{ a, b int }
+	A3 = int
+	A4 = func(A3, float64) *A0
+	A5 = func(x int, _ float64) *[]string
 )
+
+type (
+	B0 A0
+	B1 []string
+	B2 struct{ a, b int }
+	B3 struct{ a, c int }
+	B4 func(int, float64) *B0
+	B5 func(x int, y float64) *A1
+)
+
+type	C0 = B0
 </pre>
 
 <p>
@@ -1474,17 +1490,22 @@ these types are identical:
 </p>
 
 <pre>
-T0 and T0
+A0, A1, and []string
+A2 and struct{ a, b int }
+A3 and int
+A4, func(int, float64) *[]string, and A5
+
+B0, B0, and C0
 []int and []int
 struct{ a, b *T5 } and struct{ a, b *T5 }
-func(x int, y float64) *[]string and func(int, float64) (result *[]string)
+func(x int, y float64) *[]string, func(int, float64) (result *[]string), and A5
 </pre>
 
 <p>
-<code>T0</code> and <code>T1</code> are different because they are named types
-with distinct declarations; <code>func(int, float64) *T0</code> and
-<code>func(x int, y float64) *[]string</code> are different because <code>T0</code>
-is different from <code>[]string</code>.
+<code>B0</code> and <code>B1</code> are different because they are new types
+created by distinct <a href="#Type_definitions">type definitions</a>;
+<code>func(int, float64) *B0</code> and <code>func(x int, y float64) *[]string</code>
+are different because <code>B0</code> is different from <code>[]string</code>.
 </p>
 
 
@@ -1502,7 +1523,7 @@ A value <code>x</code> is <i>assignable</i> to a <a href="#Variables">variable</
 <li>
 <code>x</code>'s type <code>V</code> and <code>T</code> have identical
 <a href="#Types">underlying types</a> and at least one of <code>V</code>
-or <code>T</code> is not a <a href="#Types">named type</a>.
+or <code>T</code> is not a <a href="#Type_definitions">defined</a> type.
 </li>
 <li>
 <code>T</code> is an interface type and
@@ -1511,7 +1532,7 @@ or <code>T</code> is not a <a href="#Types">named type</a>.
 <li>
 <code>x</code> is a bidirectional channel value, <code>T</code> is a channel type,
 <code>x</code>'s type <code>V</code> and <code>T</code> have identical element types,
-and at least one of <code>V</code> or <code>T</code> is not a named type.
+and at least one of <code>V</code> or <code>T</code> is not a defined type.
 </li>
 <li>
 <code>x</code> is the predeclared identifier <code>nil</code> and <code>T</code>
@@ -1840,23 +1861,60 @@ last non-empty expression list.
 <h3 id="Type_declarations">Type declarations</h3>
 
 <p>
-A type declaration binds an identifier, the <i>type name</i>, to a new type
-that has the same <a href="#Types">underlying type</a> as an existing type,
-and operations defined for the existing type are also defined for the new type.
-The new type is <a href="#Type_identity">different</a> from the existing type.
+A type declaration binds an identifier, the <i>type name</i>, to a <a href="#Types">type</a>.
+Type declarations come in two forms: Alias declarations and type definitions.
+<p>
+
+<pre class="ebnf">
+TypeDecl = "type" ( TypeSpec | "(" { TypeSpec ";" } ")" ) .
+TypeSpec = AliasDecl | TypeDef .
+</pre>
+
+<h4 id="Alias_declarations">Alias declarations</h4>
+
+<p>
+An alias declaration binds an identifier to the given type.
 </p>
 
 <pre class="ebnf">
-TypeDecl     = "type" ( TypeSpec | "(" { TypeSpec ";" } ")" ) .
-TypeSpec     = identifier Type .
+AliasDecl = identifier "=" Type .
 </pre>
 
-<pre>
-type IntArray [16]int
+<p>
+Within the <a href="#Declarations_and_scope">scope</a> of
+the identifier, it serves as an <i>alias</i> for the type.
+</p>
 
+<pre>
 type (
-	Point struct{ x, y float64 }
-	Polar Point
+	nodeList = []*Node  // nodeList and []*Node are identical types
+	Polar    = polar    // Polar and polar denote identical types
+)
+</pre>
+
+
+<h4 id="Type_definitions">Type definitions</h4>
+
+<p>
+A type definition binds an identifier to a newly created type
+with the same <a href="#Types">underlying type</a> and
+operations as the given type.
+</p>
+
+<pre class="ebnf">
+TypeDef = identifier Type .
+</pre>
+
+<p>
+The new type is called a <i>defined type</i>.
+It is <a href="#Type_identity">different</a> from any other type,
+including the type it is created from.
+</p>
+
+<pre>
+type (
+	Point struct{ x, y float64 }  // Point and struct{ x, y float64 } are different types
+	polar Point                   // polar and Point denote different types
 )
 
 type TreeNode struct {
@@ -1872,8 +1930,9 @@ type Block interface {
 </pre>
 
 <p>
-The declared type does not inherit any <a href="#Method_declarations">methods</a>
-bound to the existing type, but the <a href="#Method_sets">method set</a>
+A defined type may have <a href="#Method_declarations">methods</a> associated with it.
+It does not inherit any methods bound to the given type,
+but the <a href="#Method_sets">method set</a>
 of an interface type or of elements of a composite type remains unchanged:
 </p>
 
@@ -1901,8 +1960,8 @@ type MyBlock Block
 </pre>
 
 <p>
-A type declaration may be used to define a different boolean, numeric, or string
-type and attach methods to it:
+Type definitions may be used to define different boolean, numeric,
+or string types and associate methods with them:
 </p>
 
 <pre>
@@ -1924,8 +1983,8 @@ func (tz TimeZone) String() string {
 <h3 id="Variable_declarations">Variable declarations</h3>
 
 <p>
-A variable declaration creates one or more variables, binds corresponding
-identifiers to them, and gives each a type and an initial value.
+A variable declaration creates one or more <a href="#Variables">variables</a>,
+binds corresponding identifiers to them, and gives each a type and an initial value.
 </p>
 
 <pre class="ebnf">
@@ -2083,8 +2142,8 @@ and associates the method with the receiver's <i>base type</i>.
 </p>
 
 <pre class="ebnf">
-MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
-Receiver     = Parameters .
+MethodDecl = "func" Receiver MethodName ( Function | Signature ) .
+Receiver   = Parameters .
 </pre>
 
 <p>
@@ -2093,7 +2152,7 @@ name. That parameter section must declare a single non-variadic parameter, the r
 Its type must be of the form <code>T</code> or <code>*T</code> (possibly using
 parentheses) where <code>T</code> is a type name. The type denoted by <code>T</code> is called
 the receiver <i>base type</i>; it must not be a pointer or interface type and
-it must be declared in the same package as the method.
+it must be <a href="#Type_definitions">defined</a> in the same package as the method.
 The method is said to be <i>bound</i> to the base type and the method name
 is visible only within <a href="#Selectors">selectors</a> for type <code>T</code>
 or <code>*T</code>.
