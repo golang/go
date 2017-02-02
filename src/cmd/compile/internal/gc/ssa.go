@@ -4346,6 +4346,29 @@ func (s *SSAGenState) SetPos(pos src.XPos) {
 	s.pp.pos = pos
 }
 
+// DebugFriendlySetPos sets the position subject to heuristics
+// that reduce "jumpy" line number churn when debugging.
+// Spill/fill/copy instructions from the register allocator,
+// phi functions, and instructions with a no-pos position
+// are examples of instructions that can cause churn.
+func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
+	// The two choices here are either to leave lineno unchanged,
+	// or to explicitly set it to src.NoXPos.  Leaving it unchanged
+	// (reusing the preceding line number) produces slightly better-
+	// looking assembly language output from the compiler, and is
+	// expected by some already-existing tests.
+	// The debug information appears to be the same in either case
+	switch v.Op {
+	case ssa.OpPhi, ssa.OpCopy, ssa.OpLoadReg, ssa.OpStoreReg:
+		// leave the position unchanged from beginning of block
+		// or previous line number.
+	default:
+		if v.Pos != src.NoXPos {
+			s.SetPos(v.Pos)
+		}
+	}
+}
+
 // genssa appends entries to pp for each instruction in f.
 func genssa(f *ssa.Func, pp *Progs) {
 	var s SSAGenState
@@ -4381,8 +4404,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		thearch.SSAMarkMoves(&s, b)
 		for _, v := range b.Values {
 			x := s.pp.next
-			s.SetPos(v.Pos)
-
+			s.DebugFriendlySetPosFrom(v)
 			switch v.Op {
 			case ssa.OpInitMem:
 				// memory arg needs no code
