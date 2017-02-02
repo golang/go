@@ -269,11 +269,10 @@ func (p *Package) guessKinds(f *File) []*Name {
 			}
 		}
 
-		needType = append(needType, n)
-
 		// If this is a struct, union, or enum type name, no need to guess the kind.
 		if strings.HasPrefix(n.C, "struct ") || strings.HasPrefix(n.C, "union ") || strings.HasPrefix(n.C, "enum ") {
 			n.Kind = "type"
+			needType = append(needType, n)
 			continue
 		}
 
