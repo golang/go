@@ -233,7 +233,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT time·now(SB),NOSPLIT,$20
+TEXT runtime·walltime(SB),NOSPLIT,$20
 	MOVL $0, 0(SP) // real time clock
 	LEAL 8(SP), AX
 	MOVL AX, 4(SP) // timespec
@@ -249,7 +249,7 @@ TEXT time·now(SB),NOSPLIT,$20
 	RET
 
 TEXT syscall·now(SB),NOSPLIT,$0
-	JMP time·now(SB)
+	JMP runtime·walltime(SB)
 
 TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$8
 	MOVL arg1+0(FP), AX

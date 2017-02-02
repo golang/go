@@ -157,8 +157,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R3, ret+24(FP)
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$16
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$16
 	MOVD	$0, R3 // CLOCK_REALTIME
 	MOVD	$0(R1), R4
 	SYSCALL	$SYS_clock_gettime

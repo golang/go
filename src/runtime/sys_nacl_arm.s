@@ -196,7 +196,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
 	MOVW	R0, ret+24(FP)
 	RET
 
-TEXT time·now(SB),NOSPLIT,$16
+TEXT runtime·walltime(SB),NOSPLIT,$16
 	MOVW	$0, R0 // real time clock
 	MOVW	$4(R13), R1
 	NACL_SYSCALL(SYS_clock_gettime)
@@ -209,7 +209,7 @@ TEXT time·now(SB),NOSPLIT,$16
 	RET
 
 TEXT syscall·now(SB),NOSPLIT,$0
-	B time·now(SB)
+	B runtime·walltime(SB)
 
 TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
 	MOVW	arg1+0(FP), R0
