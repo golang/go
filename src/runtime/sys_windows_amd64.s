@@ -465,8 +465,8 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	32(SP), SP
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$8-12
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$8-12
 	CALL	runtime·unixnano(SB)
 	MOVQ	0(SP), AX
 

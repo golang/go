@@ -198,8 +198,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
 	MOVQ	AX, ret+0(FP)
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$0-12
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$0-12
 	CALL	nanotime<>(SB)
 
 	// generated code for

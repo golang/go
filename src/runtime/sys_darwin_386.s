@@ -217,8 +217,8 @@ inreg:
 	ADCL	$0, DX
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$0
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$0
 	CALL	runtime·now(SB)
 	MOVL	$1000000000, CX
 	DIVL	CX

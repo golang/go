@@ -241,8 +241,7 @@ func stackBarrier()
 // in asm_*.s
 func return0()
 
-//go:linkname time_now time.now
-func time_now() (sec int64, nsec int32)
+func walltime() (sec int64, nsec int32)
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.
@@ -281,7 +280,7 @@ func prefetcht2(addr uintptr)
 func prefetchnta(addr uintptr)
 
 func unixnanotime() int64 {
-	sec, nsec := time_now()
+	sec, nsec := walltime()
 	return sec*1e9 + int64(nsec)
 }
 

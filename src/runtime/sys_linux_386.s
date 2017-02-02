@@ -151,8 +151,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	MOVL	AX, ret+12(FP)
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	$265, AX			// syscall - clock_gettime
 	MOVL	$0, BX		// CLOCK_REALTIME
 	LEAL	8(SP), CX

@@ -159,7 +159,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT time·now(SB), 7, $32
+TEXT runtime·walltime(SB), 7, $32
 	MOVW	$8(R13), R0  // timeval
 	MOVW	$0, R1  // zone
 	MOVW	$0, R2	// see issue 16570

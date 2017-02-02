@@ -424,8 +424,41 @@ func formatNano(b []byte, nanosec uint, n int, trim bool) []byte {
 
 // String returns the time formatted using the format string
 //	"2006-01-02 15:04:05.999999999 -0700 MST"
+// 
+// If the time has a monotonic clock reading, the returned string
+// includes a final field "m±<value>", where value is the monotonic
+// clock reading formatted as a decimal number of seconds.
 func (t Time) String() string {
-	return t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
+	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
+
+	// Format monotonic clock reading as m=±ddd.nnnnnnnnn.
+	if t.wall&hasMonotonic != 0 {
+		m2 := t.ext
+		m1, m2 := m2/1e9, m2%1e9
+		if m2 < 0 {
+			m2 += 1e9
+			m1--
+		}
+		sign := byte('+')
+		if m1 < 0 {
+			sign = '-'
+			m1 = -m1
+		}
+		m0, m1 := m1/1e9, m1%1e9
+		var buf []byte
+		buf = append(buf, " m="...)
+		buf = append(buf, sign)
+		wid := 0
+		if m0 != 0 {
+			buf = appendInt(buf, int(m0), 0)
+			wid = 9
+		}
+		buf = appendInt(buf, int(m1), wid)
+		buf = append(buf, '.')
+		buf = appendInt(buf, int(m2), 9)
+		s += string(buf)
+	}
+	return s
 }
 
 // Format returns a textual representation of the time value formatted
@@ -1022,11 +1055,11 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 
 	if zoneOffset != -1 {
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
-		t.sec -= int64(zoneOffset)
+		t.addSec(-int64(zoneOffset))
 
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		name, offset, _, _, _ := local.lookup(t.sec + internalToUnix)
+		name, offset, _, _, _ := local.lookup(t.unixSec())
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
 			t.setLoc(local)
 			return t, nil
@@ -1041,9 +1074,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		offset, _, ok := local.lookupName(zoneName, t.sec+internalToUnix)
+		offset, _, ok := local.lookupName(zoneName, t.unixSec())
 		if ok {
-			t.sec -= int64(offset)
+			t.addSec(-int64(offset))
 			t.setLoc(local)
 			return t, nil
 		}

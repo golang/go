@@ -151,7 +151,7 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SVC	$0x80
 	RET
 
-TEXT time·now(SB),NOSPLIT,$40-12
+TEXT runtime·walltime(SB),NOSPLIT,$40-12
 	MOVD	RSP, R0	// timeval
 	MOVD	R0, R9	// this is how dyld calls gettimeofday
 	MOVW	$0, R1	// zone

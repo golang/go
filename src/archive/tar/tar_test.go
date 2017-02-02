@@ -94,13 +94,16 @@ func TestRoundTrip(t *testing.T) {
 	var b bytes.Buffer
 	tw := NewWriter(&b)
 	hdr := &Header{
-		Name:    "file.txt",
-		Uid:     1 << 21, // too big for 8 octal digits
-		Size:    int64(len(data)),
-		ModTime: time.Now(),
+		Name: "file.txt",
+		Uid:  1 << 21, // too big for 8 octal digits
+		Size: int64(len(data)),
+		// AddDate to strip monotonic clock reading,
+		// and Round to discard sub-second precision,
+		// both of which are not included in the tar header
+		// and would otherwise break the round-trip check
+		// below.
+		ModTime: time.Now().AddDate(0, 0, 0).Round(1 * time.Second),
 	}
-	// tar only supports second precision.
-	hdr.ModTime = hdr.ModTime.Add(-time.Duration(hdr.ModTime.Nanosecond()) * time.Nanosecond)
 	if err := tw.WriteHeader(hdr); err != nil {
 		t.Fatalf("tw.WriteHeader: %v", err)
 	}

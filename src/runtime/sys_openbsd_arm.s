@@ -150,8 +150,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SWI	$0
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVW	CLOCK_REALTIME, R0	// arg 1 - clock_id
 	MOVW	$8(R13), R1		// arg 2 - tp
 	MOVW	$87, R12		// sys_clock_gettime

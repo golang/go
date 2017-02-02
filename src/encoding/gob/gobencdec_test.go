@@ -746,7 +746,7 @@ func (i *isZeroBugInterface) GobDecode(data []byte) error {
 }
 
 func TestGobEncodeIsZero(t *testing.T) {
-	x := isZeroBug{time.Now(), "hello", -55, isZeroBugArray{1, 2}, isZeroBugInterface{}}
+	x := isZeroBug{time.Unix(1e9, 0), "hello", -55, isZeroBugArray{1, 2}, isZeroBugInterface{}}
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
 	err := enc.Encode(x)

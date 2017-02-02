@@ -135,8 +135,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-28
 	MOVL	AX, ret+24(FP)
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$16
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$16
 	// Be careful. We're calling a function with gcc calling convention here.
 	// We're guaranteed 128 bytes on entry, and we've taken 16, and the
 	// call uses another 8.

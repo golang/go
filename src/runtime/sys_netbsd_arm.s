@@ -137,8 +137,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-4
 	SWI $0xa001a9	// sys_setitimer
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVW $0, R0	// CLOCK_REALTIME
 	MOVW $8(R13), R1
 	SWI $0xa001ab	// clock_gettime

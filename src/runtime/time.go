@@ -301,3 +301,11 @@ func net_runtimeNano() int64 {
 func time_runtimeNano() int64 {
 	return nanotime()
 }
+
+var startNano = nanotime()
+
+//go:linkname time_now time.now
+func time_now() (sec int64, nsec int32, mono uint64) {
+	sec, nsec = walltime()
+	return sec, nsec, uint64(nanotime() - startNano + 1)
+}

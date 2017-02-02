@@ -242,7 +242,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT time·now(SB),NOSPLIT,$16
+TEXT runtime·walltime(SB),NOSPLIT,$16
 	MOVQ runtime·faketime(SB), AX
 	CMPQ AX, $0
 	JEQ realtime
@@ -268,7 +268,7 @@ realtime:
 	RET
 
 TEXT syscall·now(SB),NOSPLIT,$0
-	JMP time·now(SB)
+	JMP runtime·walltime(SB)
 
 TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
 	MOVL arg1+0(FP), DI
