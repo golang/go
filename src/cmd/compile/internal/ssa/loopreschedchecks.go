@@ -6,13 +6,12 @@ package ssa
 
 import "fmt"
 
-// an edgeMemCtr records a backedge, together with the memory and
-// counter phi functions at the target of the backedge that must
+// an edgeMem records a backedge, together with the memory
+// phi functions at the target of the backedge that must
 // be updated when a rescheduling check replaces the backedge.
-type edgeMemCtr struct {
+type edgeMem struct {
 	e Edge
 	m *Value // phi for memory at dest of e
-	c *Value // phi for counter at dest of e
 }
 
 // a rewriteTarget is a a value-argindex pair indicating
@@ -38,32 +37,26 @@ func (r *rewrite) String() string {
 	return s
 }
 
-const initialRescheduleCounterValue = 1021 // Largest 10-bit prime. 97 nSec loop bodies will check every 100 uSec.
-
 // insertLoopReschedChecks inserts rescheduling checks on loop backedges.
 func insertLoopReschedChecks(f *Func) {
 	// TODO: when split information is recorded in export data, insert checks only on backedges that can be reached on a split-call-free path.
 
-	// Loop reschedule checks decrement a per-function counter
-	// shared by all loops, and when the counter becomes non-positive
-	// a call is made to a rescheduling check in the runtime.
+	// Loop reschedule checks compare the stack pointer with
+	// the per-g stack bound.  If the pointer appears invalid,
+	// that means a reschedule check is needed.
 	//
 	// Steps:
 	// 1. locate backedges.
 	// 2. Record memory definitions at block end so that
-	//    the SSA graph for mem can be prperly modified.
-	// 3. Define a counter and record its future uses (at backedges)
-	//    (Same process as 2, applied to a single definition of the counter.
-	//     difference for mem is that there are zero-to-many existing mem
-	//     definitions, versus exactly one for the new counter.)
-	// 4. Ensure that phi functions that will-be-needed for mem and counter
+	//    the SSA graph for mem can be properly modified.
+	// 3. Ensure that phi functions that will-be-needed for mem
 	//    are present in the graph, initially with trivial inputs.
-	// 5. Record all to-be-modified uses of mem and counter;
+	// 4. Record all to-be-modified uses of mem;
 	//    apply modifications (split into two steps to simplify and
 	//    avoided nagging order-dependences).
-	// 6. Rewrite backedges to include counter check, reschedule check,
+	// 5. Rewrite backedges to include reschedule check,
 	//    and modify destination phi function appropriately with new
-	//    definitions for mem and counter.
+	//    definitions for mem.
 
 	if f.NoSplit { // nosplit functions don't reschedule.
 		return
@@ -83,10 +76,10 @@ func insertLoopReschedChecks(f *Func) {
 		fmt.Printf("before %s = %s\n", f.Name, sdom.treestructure(f.Entry))
 	}
 
-	tofixBackedges := []edgeMemCtr{}
+	tofixBackedges := []edgeMem{}
 
 	for _, e := range backedges { // TODO: could filter here by calls in loops, if declared and inferred nosplit are recorded in export data.
-		tofixBackedges = append(tofixBackedges, edgeMemCtr{e, nil, nil})
+		tofixBackedges = append(tofixBackedges, edgeMem{e, nil})
 	}
 
 	// It's possible that there is no memory state (no global/pointer loads/stores or calls)
@@ -108,40 +101,8 @@ func insertLoopReschedChecks(f *Func) {
 		memDefsAtBlockEnds[b.ID] = mem
 	}
 
-	// Set up counter.  There are no phis etc pre-existing for it.
-	counter0 := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), initialRescheduleCounterValue)
-	ctrDefsAtBlockEnds := make([]*Value, f.NumBlocks()) // For each block, def visible at its end, if that def will be used.
-
-	// There's a minor difference between memDefsAtBlockEnds and ctrDefsAtBlockEnds;
-	// because the counter only matter for loops and code that reaches them, it is nil for blocks where the ctr is no
-	// longer live.  This will avoid creation of dead phi functions.  This optimization is ignored for the mem variable
-	// because it is harder and also less likely to be helpful, though dead code elimination ought to clean this out anyhow.
-
-	for _, emc := range tofixBackedges {
-		e := emc.e
-		// set initial uses of counter zero (note available-at-bottom and use are the same thing initially.)
-		// each back-edge will be rewritten to include a reschedule check, and that will use the counter.
-		src := e.b.Preds[e.i].b
-		ctrDefsAtBlockEnds[src.ID] = counter0
-	}
-
-	// Push uses towards root
-	for _, b := range f.postorder() {
-		bd := ctrDefsAtBlockEnds[b.ID]
-		if bd == nil {
-			continue
-		}
-		for _, e := range b.Preds {
-			p := e.b
-			if ctrDefsAtBlockEnds[p.ID] == nil {
-				ctrDefsAtBlockEnds[p.ID] = bd
-			}
-		}
-	}
-
 	// Maps from block to newly-inserted phi function in block.
 	newmemphis := make(map[*Block]rewrite)
-	newctrphis := make(map[*Block]rewrite)
 
 	// Insert phi functions as necessary for future changes to flow graph.
 	for i, emc := range tofixBackedges {
@@ -167,27 +128,12 @@ func insertLoopReschedChecks(f *Func) {
 		}
 		tofixBackedges[i].m = headerMemPhi
 
-		var headerCtrPhi *Value
-		rw, ok := newctrphis[h]
-		if !ok {
-			headerCtrPhi = newPhiFor(h, counter0)
-			newctrphis[h] = rewrite{before: counter0, after: headerCtrPhi}
-			addDFphis(counter0, h, h, f, ctrDefsAtBlockEnds, newctrphis)
-		} else {
-			headerCtrPhi = rw.after
-		}
-		tofixBackedges[i].c = headerCtrPhi
 	}
 
 	rewriteNewPhis(f.Entry, f.Entry, f, memDefsAtBlockEnds, newmemphis)
-	rewriteNewPhis(f.Entry, f.Entry, f, ctrDefsAtBlockEnds, newctrphis)
 
 	if f.pass.debug > 0 {
 		for b, r := range newmemphis {
-			fmt.Printf("b=%s, rewrite=%s\n", b, r.String())
-		}
-
-		for b, r := range newctrphis {
 			fmt.Printf("b=%s, rewrite=%s\n", b, r.String())
 		}
 	}
@@ -199,26 +145,15 @@ func insertLoopReschedChecks(f *Func) {
 		}
 	}
 
-	for _, r := range newctrphis {
-		for _, rw := range r.rewrites {
-			rw.v.SetArg(rw.i, r.after)
-		}
-	}
-
-	zero := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), 0)
-	one := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), 1)
-
 	// Rewrite backedges to include reschedule checks.
 	for _, emc := range tofixBackedges {
 		e := emc.e
 		headerMemPhi := emc.m
-		headerCtrPhi := emc.c
 		h := e.b
 		i := e.i
 		p := h.Preds[i]
 		bb := p.b
 		mem0 := headerMemPhi.Args[i]
-		ctr0 := headerCtrPhi.Args[i]
 		// bb e->p h,
 		// Because we're going to insert a rare-call, make sure the
 		// looping edge still looks likely.
@@ -236,22 +171,20 @@ func insertLoopReschedChecks(f *Func) {
 		//
 		// new block(s):
 		// test:
-		//    ctr1 := ctr0 - 1
-		//    if ctr1 <= 0 { goto sched }
+		//    if sp < g.limit { goto sched }
 		//    goto join
 		// sched:
 		//    mem1 := call resched (mem0)
 		//    goto join
 		// join:
-		//    ctr2 := phi(ctr1, counter0) // counter0 is the constant
 		//    mem2 := phi(mem0, mem1)
 		//    goto h
 		//
 		// and correct arg i of headerMemPhi and headerCtrPhi
 		//
-		// EXCEPT: block containing only phi functions is bad
+		// EXCEPT: join block containing only phi functions is bad
 		// for the register allocator.  Therefore, there is no
-		// join, and instead branches targeting join instead target
+		// join, and branches targeting join must instead target
 		// the header, and the other phi functions within header are
 		// adjusted for the additional input.
 
@@ -261,20 +194,30 @@ func insertLoopReschedChecks(f *Func) {
 		test.Pos = bb.Pos
 		sched.Pos = bb.Pos
 
-		//    ctr1 := ctr0 - 1
-		//    if ctr1 <= 0 { goto sched }
-		//    goto header
-		ctr1 := test.NewValue2(bb.Pos, OpSub32, f.Config.fe.TypeInt32(), ctr0, one)
-		cmp := test.NewValue2(bb.Pos, OpLeq32, f.Config.fe.TypeBool(), ctr1, zero)
+		// if sp < g.limit { goto sched }
+		// goto header
+
+		pt := f.Config.Frontend().TypeUintptr()
+		g := test.NewValue1(bb.Pos, OpGetG, pt, mem0)
+		sp := test.NewValue0(bb.Pos, OpSP, pt)
+		cmpOp := OpLess64U
+		if pt.Size() == 4 {
+			cmpOp = OpLess32U
+		}
+		limaddr := test.NewValue1I(bb.Pos, OpOffPtr, pt, 2*pt.Size(), g)
+		lim := test.NewValue2(bb.Pos, OpLoad, pt, limaddr, mem0)
+		cmp := test.NewValue2(bb.Pos, cmpOp, f.Config.fe.TypeBool(), sp, lim)
 		test.SetControl(cmp)
-		test.AddEdgeTo(sched) // if true
-		// if false -- rewrite edge to header.
+
+		// if true, goto sched
+		test.AddEdgeTo(sched)
+
+		// if false, rewrite edge to header.
 		// do NOT remove+add, because that will perturb all the other phi functions
 		// as well as messing up other edges to the header.
 		test.Succs = append(test.Succs, Edge{h, i})
 		h.Preds[i] = Edge{test, 1}
 		headerMemPhi.SetArg(i, mem0)
-		headerCtrPhi.SetArg(i, ctr1)
 
 		test.Likely = BranchUnlikely
 
@@ -285,16 +228,15 @@ func insertLoopReschedChecks(f *Func) {
 		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, TypeMem, resched, mem0)
 		sched.AddEdgeTo(h)
 		headerMemPhi.AddArg(mem1)
-		headerCtrPhi.AddArg(counter0)
 
 		bb.Succs[p.i] = Edge{test, 0}
 		test.Preds = append(test.Preds, Edge{bb, p.i})
 
 		// Must correct all the other phi functions in the header for new incoming edge.
-		// Except for mem and counter phis, it will be the same value seen on the original
+		// Except for mem phis, it will be the same value seen on the original
 		// backedge at index i.
 		for _, v := range h.Values {
-			if v.Op == OpPhi && v != headerMemPhi && v != headerCtrPhi {
+			if v.Op == OpPhi && v != headerMemPhi {
 				v.AddArg(v.Args[i])
 			}
 		}
@@ -354,7 +296,7 @@ func rewriteNewPhis(h, b *Block, f *Func, defsForUses []*Value, newphis map[*Blo
 		// in dominance frontier, self, and dominated.
 		// If the variable def reaching uses in b is itself defined in b, then the new phi function
 		// does not reach the successors of b.  (This assumes a bit about the structure of the
-		// phi use-def graph, but it's true for memory and the inserted counter.)
+		// phi use-def graph, but it's true for memory.)
 		if dfu := defsForUses[b.ID]; dfu != nil && dfu.Block != b {
 			for _, e := range b.Succs {
 				s := e.b

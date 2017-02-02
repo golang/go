@@ -492,6 +492,7 @@ const (
 	OFALL     // fallthrough (after processing)
 	OXFALL    // fallthrough (before processing)
 	OFOR      // for Ninit; Left; Right { Nbody }
+	OFORUNTIL // for Ninit; Left; Right { Nbody } ; test applied after executing body, not before
 	OGOTO     // goto Left
 	OIF       // if Ninit; Left { Nbody } else { Rlist }
 	OLABEL    // Left:

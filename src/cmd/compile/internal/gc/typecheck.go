@@ -2022,7 +2022,7 @@ OpSwitch:
 		checkdefergo(n)
 		break OpSwitch
 
-	case OFOR:
+	case OFOR, OFORUNTIL:
 		ok |= Etop
 		typecheckslice(n.Ninit.Slice(), Etop)
 		decldepth++
@@ -3890,6 +3890,7 @@ func markbreak(n *Node, implicit *Node) {
 		}
 
 	case OFOR,
+		OFORUNTIL,
 		OSWITCH,
 		OTYPESW,
 		OSELECT,
@@ -3915,7 +3916,7 @@ func markbreaklist(l Nodes, implicit *Node) {
 		}
 		if n.Op == OLABEL && i+1 < len(s) && n.Name.Defn == s[i+1] {
 			switch n.Name.Defn.Op {
-			case OFOR, OSWITCH, OTYPESW, OSELECT, ORANGE:
+			case OFOR, OFORUNTIL, OSWITCH, OTYPESW, OSELECT, ORANGE:
 				n.Left.Sym.Label = n.Name.Defn
 				markbreak(n.Name.Defn, n.Name.Defn)
 				n.Left.Sym.Label = nil
@@ -3958,7 +3959,7 @@ func (n *Node) isterminating() bool {
 		OXFALL:
 		return true
 
-	case OFOR:
+	case OFOR, OFORUNTIL:
 		if n.Left != nil {
 			return false
 		}

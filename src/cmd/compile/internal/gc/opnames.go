@@ -124,6 +124,7 @@ var opnames = []string{
 	OFALL:            "FALL",
 	OXFALL:           "XFALL",
 	OFOR:             "FOR",
+	OFORUNTIL:        "FORUNTIL",
 	OGOTO:            "GOTO",
 	OIF:              "IF",
 	OLABEL:           "LABEL",

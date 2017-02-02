@@ -372,7 +372,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		yyerror("instrument: OGETG can happen only in runtime which we don't instrument")
 		goto ret
 
-	case OFOR:
+	case OFOR, OFORUNTIL:
 		if n.Left != nil {
 			instrumentnode(&n.Left, &n.Left.Ninit, 0, 0)
 		}

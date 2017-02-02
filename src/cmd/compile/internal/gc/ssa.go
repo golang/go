@@ -182,7 +182,7 @@ type state struct {
 	// function we're building
 	f *ssa.Func
 
-	// labels and labeled control flow nodes (OFOR, OSWITCH, OSELECT) in f
+	// labels and labeled control flow nodes (OFOR, OFORUNTIL, OSWITCH, OSELECT) in f
 	labels       map[string]*ssaLabel
 	labeledNodes map[*Node]*ssaLabel
 
@@ -594,7 +594,7 @@ func (s *state) stmt(n *Node) {
 		// Associate label with its control flow node, if any
 		if ctl := n.Name.Defn; ctl != nil {
 			switch ctl.Op {
-			case OFOR, OSWITCH, OSELECT:
+			case OFOR, OFORUNTIL, OSWITCH, OSELECT:
 				s.labeledNodes[ctl] = lab
 			}
 		}
@@ -840,24 +840,30 @@ func (s *state) stmt(n *Node) {
 			b.AddEdgeTo(to)
 		}
 
-	case OFOR:
+	case OFOR, OFORUNTIL:
 		// OFOR: for Ninit; Left; Right { Nbody }
+		// For      = cond; body; incr
+		// Foruntil = body; incr; cond
 		bCond := s.f.NewBlock(ssa.BlockPlain)
 		bBody := s.f.NewBlock(ssa.BlockPlain)
 		bIncr := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
 
-		// first, jump to condition test
+		// first, jump to condition test (OFOR) or body (OFORUNTIL)
 		b := s.endBlock()
-		b.AddEdgeTo(bCond)
+		if n.Op == OFOR {
+			b.AddEdgeTo(bCond)
+			// generate code to test condition
+			s.startBlock(bCond)
+			if n.Left != nil {
+				s.condBranch(n.Left, bBody, bEnd, 1)
+			} else {
+				b := s.endBlock()
+				b.Kind = ssa.BlockPlain
+				b.AddEdgeTo(bBody)
+			}
 
-		// generate code to test condition
-		s.startBlock(bCond)
-		if n.Left != nil {
-			s.condBranch(n.Left, bBody, bEnd, 1)
 		} else {
-			b := s.endBlock()
-			b.Kind = ssa.BlockPlain
 			b.AddEdgeTo(bBody)
 		}
 
@@ -898,6 +904,19 @@ func (s *state) stmt(n *Node) {
 		if b := s.endBlock(); b != nil {
 			b.AddEdgeTo(bCond)
 		}
+
+		if n.Op == OFORUNTIL {
+			// generate code to test condition
+			s.startBlock(bCond)
+			if n.Left != nil {
+				s.condBranch(n.Left, bBody, bEnd, 1)
+			} else {
+				b := s.endBlock()
+				b.Kind = ssa.BlockPlain
+				b.AddEdgeTo(bBody)
+			}
+		}
+
 		s.startBlock(bEnd)
 
 	case OSWITCH, OSELECT:
