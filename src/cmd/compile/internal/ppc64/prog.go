@@ -49,6 +49,7 @@ var progtable = [ppc64.ALAST & obj.AMask]gc.ProgInfo{
 	ppc64.AOR & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AORN & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AXOR & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.ANOR & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AEQV & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AMULLD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AMULLW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
