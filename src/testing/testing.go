@@ -569,7 +569,9 @@ func (c *common) Skipped() bool {
 }
 
 // Parallel signals that this test is to be run in parallel with (and only with)
-// other parallel tests.
+// other parallel tests. When a test is run multiple times due to use of
+// -test.count or -test.cpu, multiple instances of a single test never run in
+// parallel with each other.
 func (t *T) Parallel() {
 	if t.isParallel {
 		panic("testing: t.Parallel called multiple times")
