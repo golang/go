@@ -3436,7 +3436,7 @@ func skipIfDNSHijacked(t *testing.T) {
 	// DNS server hijacking queries.
 	// See issues 16732, 16716.
 	isDNSHijackedOnce.Do(func() {
-		addrs, _ := net.LookupHost("dns-should-not-resolve.golang.")
+		addrs, _ := net.LookupHost("dns-should-not-resolve.golang")
 		isDNSHijacked = len(addrs) != 0
 	})
 	if isDNSHijacked {
