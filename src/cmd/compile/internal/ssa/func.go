@@ -14,15 +14,14 @@ import (
 // A Func represents a Go func declaration (or function literal) and
 // its body. This package compiles each Func independently.
 type Func struct {
-	Config     *Config     // architecture information
-	pass       *pass       // current pass information (name, options, etc.)
-	Name       string      // e.g. bytes·Compare
-	Type       Type        // type signature of the function.
-	StaticData interface{} // associated static data, untouched by the ssa package
-	Blocks     []*Block    // unordered set of all basic blocks (note: not indexable by ID)
-	Entry      *Block      // the entry basic block
-	bid        idAlloc     // block ID allocator
-	vid        idAlloc     // value ID allocator
+	Config *Config  // architecture information
+	pass   *pass    // current pass information (name, options, etc.)
+	Name   string   // e.g. bytes·Compare
+	Type   Type     // type signature of the function.
+	Blocks []*Block // unordered set of all basic blocks (note: not indexable by ID)
+	Entry  *Block   // the entry basic block
+	bid    idAlloc  // block ID allocator
+	vid    idAlloc  // value ID allocator
 
 	scheduled bool // Values in Blocks are in final order
 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
