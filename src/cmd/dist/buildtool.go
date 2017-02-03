@@ -70,6 +70,13 @@ var bootstrapDirs = []string{
 	"math/big",
 }
 
+// File prefixes that are ignored by go/build anyway, and cause
+// problems with editor generated temporary files (#18931).
+var ignorePrefixes = []string{
+	".",
+	"_",
+}
+
 // File suffixes that use build tags introduced since Go 1.4.
 // These must not be copied into the bootstrap build directory.
 var ignoreSuffixes = []string{
@@ -103,6 +110,11 @@ func bootstrapBuildTools() {
 		xmkdirall(dst)
 	Dir:
 		for _, name := range xreaddirfiles(src) {
+			for _, pre := range ignorePrefixes {
+				if strings.HasPrefix(name, pre) {
+					continue Dir
+				}
+			}
 			for _, suf := range ignoreSuffixes {
 				if strings.HasSuffix(name, suf) {
 					continue Dir
