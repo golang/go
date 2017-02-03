@@ -643,9 +643,10 @@ func (s *state) stmt(n *Node) {
 
 	case OAS, OASWB:
 		// Generate static data rather than code, if possible.
-		if gen_as_init(n, true) {
-			if !gen_as_init(n, false) {
-				Fatalf("non-static data marked as static: %v\n\n", n)
+		if n.IsStatic {
+			if !genAsInitNoCheck(n) {
+				Dump("\ngen_as_init", n)
+				Fatalf("gen_as_init couldn't generate static data")
 			}
 			return
 		}
