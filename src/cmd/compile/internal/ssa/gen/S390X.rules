@@ -309,9 +309,12 @@
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVDload ptr mem)
-(Load <t> ptr mem) && is32BitInt(t) -> (MOVWZload ptr mem)
-(Load <t> ptr mem) && is16BitInt(t) -> (MOVHZload ptr mem)
-(Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBZload ptr mem)
+(Load <t> ptr mem) && is32BitInt(t) && isSigned(t) -> (MOVWload ptr mem)
+(Load <t> ptr mem) && is32BitInt(t) && !isSigned(t) -> (MOVWZload ptr mem)
+(Load <t> ptr mem) && is16BitInt(t) && isSigned(t) -> (MOVHload ptr mem)
+(Load <t> ptr mem) && is16BitInt(t) && !isSigned(t) -> (MOVHZload ptr mem)
+(Load <t> ptr mem) && is8BitInt(t) && isSigned(t) -> (MOVBload ptr mem)
+(Load <t> ptr mem) && (t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) -> (MOVBZload ptr mem)
 (Load <t> ptr mem) && is32BitFloat(t) -> (FMOVSload ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
 
@@ -442,16 +445,20 @@
 // ***************************
 // TODO: Should the optimizations be a separate pass?
 
+// if a register move has only 1 use, just use the same register without emitting instruction
+// MOVDnop doesn't emit instruction, only for ensuring the type.
+(MOVDreg x) && x.Uses == 1 -> (MOVDnop x)
+
 // Fold sign extensions into conditional moves of constants.
 // Designed to remove the MOVBZreg inserted by the If lowering.
-(MOVBZreg x:(MOVDLT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
-(MOVBZreg x:(MOVDLE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
-(MOVBZreg x:(MOVDGT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
-(MOVBZreg x:(MOVDGE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
-(MOVBZreg x:(MOVDEQ (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
-(MOVBZreg x:(MOVDNE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
-(MOVBZreg x:(MOVDGTnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
-(MOVBZreg x:(MOVDGEnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+(MOVBZreg x:(MOVDLT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
+(MOVBZreg x:(MOVDLE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
+(MOVBZreg x:(MOVDGT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
+(MOVBZreg x:(MOVDGE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
+(MOVBZreg x:(MOVDEQ (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
+(MOVBZreg x:(MOVDNE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
+(MOVBZreg x:(MOVDGTnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
+(MOVBZreg x:(MOVDGEnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
 
 // Fold boolean tests into blocks.
 (NE (CMPWconst [0] (MOVDLT (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (LT cmp yes no)
@@ -584,46 +591,46 @@
 (MOVDNE x y (InvertFlags cmp)) -> (MOVDNE x y cmp)
 
 // don't extend after proper load
-(MOVBreg x:(MOVBload _ _)) -> x
-(MOVBZreg x:(MOVBZload _ _)) -> x
-(MOVHreg x:(MOVBload _ _)) -> x
-(MOVHreg x:(MOVBZload _ _)) -> x
-(MOVHreg x:(MOVHload _ _)) -> x
-(MOVHZreg x:(MOVBZload _ _)) -> x
-(MOVHZreg x:(MOVHZload _ _)) -> x
-(MOVWreg x:(MOVBload _ _)) -> x
-(MOVWreg x:(MOVBZload _ _)) -> x
-(MOVWreg x:(MOVHload _ _)) -> x
-(MOVWreg x:(MOVHZload _ _)) -> x
-(MOVWreg x:(MOVWload _ _)) -> x
-(MOVWZreg x:(MOVBZload _ _)) -> x
-(MOVWZreg x:(MOVHZload _ _)) -> x
-(MOVWZreg x:(MOVWZload _ _)) -> x
+(MOVBreg x:(MOVBload _ _)) -> (MOVDreg x)
+(MOVBZreg x:(MOVBZload _ _)) -> (MOVDreg x)
+(MOVHreg x:(MOVBload _ _)) -> (MOVDreg x)
+(MOVHreg x:(MOVBZload _ _)) -> (MOVDreg x)
+(MOVHreg x:(MOVHload _ _)) -> (MOVDreg x)
+(MOVHZreg x:(MOVBZload _ _)) -> (MOVDreg x)
+(MOVHZreg x:(MOVHZload _ _)) -> (MOVDreg x)
+(MOVWreg x:(MOVBload _ _)) -> (MOVDreg x)
+(MOVWreg x:(MOVBZload _ _)) -> (MOVDreg x)
+(MOVWreg x:(MOVHload _ _)) -> (MOVDreg x)
+(MOVWreg x:(MOVHZload _ _)) -> (MOVDreg x)
+(MOVWreg x:(MOVWload _ _)) -> (MOVDreg x)
+(MOVWZreg x:(MOVBZload _ _)) -> (MOVDreg x)
+(MOVWZreg x:(MOVHZload _ _)) -> (MOVDreg x)
+(MOVWZreg x:(MOVWZload _ _)) -> (MOVDreg x)
 
 // don't extend if argument is already extended
-(MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) -> x
-(MOVBZreg x:(Arg <t>)) && is8BitInt(t) && !isSigned(t) -> x
-(MOVHreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && isSigned(t) -> x
-(MOVHZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && !isSigned(t) -> x
-(MOVWreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t) -> x
-(MOVWZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t) -> x
+(MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) -> (MOVDreg x)
+(MOVBZreg x:(Arg <t>)) && is8BitInt(t) && !isSigned(t) -> (MOVDreg x)
+(MOVHreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && isSigned(t) -> (MOVDreg x)
+(MOVHZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && !isSigned(t) -> (MOVDreg x)
+(MOVWreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t) -> (MOVDreg x)
+(MOVWZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t) -> (MOVDreg x)
 
 // fold double extensions
-(MOVBreg x:(MOVBreg _)) -> x
-(MOVBZreg x:(MOVBZreg _)) -> x
-(MOVHreg x:(MOVBreg _)) -> x
-(MOVHreg x:(MOVBZreg _)) -> x
-(MOVHreg x:(MOVHreg _)) -> x
-(MOVHZreg x:(MOVBZreg _)) -> x
-(MOVHZreg x:(MOVHZreg _)) -> x
-(MOVWreg x:(MOVBreg _)) -> x
-(MOVWreg x:(MOVBZreg _)) -> x
-(MOVWreg x:(MOVHreg _)) -> x
-(MOVWreg x:(MOVHreg _)) -> x
-(MOVWreg x:(MOVWreg _)) -> x
-(MOVWZreg x:(MOVBZreg _)) -> x
-(MOVWZreg x:(MOVHZreg _)) -> x
-(MOVWZreg x:(MOVWZreg _)) -> x
+(MOVBreg x:(MOVBreg _)) -> (MOVDreg x)
+(MOVBZreg x:(MOVBZreg _)) -> (MOVDreg x)
+(MOVHreg x:(MOVBreg _)) -> (MOVDreg x)
+(MOVHreg x:(MOVBZreg _)) -> (MOVDreg x)
+(MOVHreg x:(MOVHreg _)) -> (MOVDreg x)
+(MOVHZreg x:(MOVBZreg _)) -> (MOVDreg x)
+(MOVHZreg x:(MOVHZreg _)) -> (MOVDreg x)
+(MOVWreg x:(MOVBreg _)) -> (MOVDreg x)
+(MOVWreg x:(MOVBZreg _)) -> (MOVDreg x)
+(MOVWreg x:(MOVHreg _)) -> (MOVDreg x)
+(MOVWreg x:(MOVHreg _)) -> (MOVDreg x)
+(MOVWreg x:(MOVWreg _)) -> (MOVDreg x)
+(MOVWZreg x:(MOVBZreg _)) -> (MOVDreg x)
+(MOVWZreg x:(MOVHZreg _)) -> (MOVDreg x)
+(MOVWZreg x:(MOVWZreg _)) -> (MOVDreg x)
 
 // fold extensions into constants
 (MOVBreg (MOVDconst [c])) -> (MOVDconst [int64(int8(c))])
@@ -653,10 +660,10 @@
 (MOVWZreg x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <v.Type> [off] {sym} ptr idx mem)
 
 // replace load from same location as preceding store with copy
-(MOVBZload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
-(MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
-(MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
-(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+(MOVBZload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
+(MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
+(MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
+(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
 
 // Don't extend before storing
 (MOVWstore [off] {sym} ptr (MOVWreg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
