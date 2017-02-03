@@ -180,8 +180,8 @@ func (c buildCompiler) Set(value string) error {
 		return fmt.Errorf("unknown compiler %q", value)
 	}
 	cfg.BuildToolchainName = value
-	cfg.BuildToolchainCompiler = BuildToolchain.compiler()
-	cfg.BuildToolchainLinker = BuildToolchain.linker()
+	cfg.BuildToolchainCompiler = BuildToolchain.compiler
+	cfg.BuildToolchainLinker = BuildToolchain.linker
 	cfg.BuildContext.Compiler = value
 	return nil
 }
@@ -1317,9 +1317,11 @@ func (b *Builder) build(a *Action) (err error) {
 			sfiles = nil
 		}
 
-		cgoExe := base.Tool("cgo")
+		var cgoExe string
 		if a.cgo != nil && a.cgo.Target != "" {
 			cgoExe = a.cgo.Target
+		} else {
+			cgoExe = base.Tool("cgo")
 		}
 		outGo, outObj, err := b.cgo(a, cgoExe, obj, pcCFLAGS, pcLDFLAGS, cgofiles, objdirCgofiles, gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
 		if err != nil {

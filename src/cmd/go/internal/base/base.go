@@ -8,8 +8,6 @@ package base
 
 import (
 	"bytes"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/str"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,6 +17,9 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/str"
 )
 
 // A Command is an implementation of a go command

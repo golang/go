@@ -10,7 +10,15 @@ import (
 	"strings"
 )
 
-var Cwd, _ = os.Getwd()
+func getwd() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		Fatalf("cannot determine current directory: %v", err)
+	}
+	return wd
+}
+
+var Cwd = getwd()
 
 // ShortPath returns an absolute or relative name for path, whatever is shorter.
 func ShortPath(path string) string {

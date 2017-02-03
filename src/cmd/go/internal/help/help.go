@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package help implements "go help".
+// Package help implements the ``go help'' command.
 package help
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 	"strings"
+	"text/template"
 	"unicode"
 	"unicode/utf8"
 

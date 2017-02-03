@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package env
+// Package envcmd implements the ``go env'' command.
+package envcmd
 
 import (
 	"fmt"
@@ -103,7 +104,7 @@ func ExtraEnvVars() []cfg.EnvVar {
 }
 
 func runEnv(cmd *base.Command, args []string) {
-	env := cfg.NewEnv
+	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
 	if len(args) > 0 {
 		for _, name := range args {

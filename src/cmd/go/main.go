@@ -20,9 +20,9 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/clean"
 	"cmd/go/internal/doc"
-	"cmd/go/internal/env"
+	"cmd/go/internal/envcmd"
 	"cmd/go/internal/fix"
-	fmtcmd "cmd/go/internal/fmt"
+	"cmd/go/internal/fmtcmd"
 	"cmd/go/internal/generate"
 	"cmd/go/internal/get"
 	"cmd/go/internal/help"
@@ -40,7 +40,7 @@ func init() {
 		work.CmdBuild,
 		clean.CmdClean,
 		doc.CmdDoc,
-		env.CmdEnv,
+		envcmd.CmdEnv,
 		bug.CmdBug,
 		fix.CmdFix,
 		fmtcmd.CmdFmt,
@@ -114,8 +114,8 @@ func main() {
 	// but in practice there might be skew
 	// This makes sure we all agree.
 	cfg.OrigEnv = os.Environ()
-	cfg.NewEnv = env.MkEnv()
-	for _, env := range cfg.NewEnv {
+	cfg.CmdEnv = envcmd.MkEnv()
+	for _, env := range cfg.CmdEnv {
 		if os.Getenv(env.Name) != env.Value {
 			os.Setenv(env.Name, env.Value)
 		}

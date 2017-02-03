@@ -5,8 +5,10 @@
 package base
 
 import (
-	"cmd/go/internal/str"
 	"flag"
+
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/str"
 )
 
 // A StringsFlag is a command-line flag that interprets its argument
@@ -28,6 +30,6 @@ func (v *StringsFlag) String() string {
 
 // AddBuildFlagsNX adds the -n and -x build flags to the flag set.
 func AddBuildFlagsNX(flags *flag.FlagSet) {
-	flags.BoolVar(&BuildN, "n", false, "")
-	flags.BoolVar(&BuildX, "x", false, "")
+	flags.BoolVar(&cfg.BuildN, "n", false, "")
+	flags.BoolVar(&cfg.BuildX, "x", false, "")
 }
