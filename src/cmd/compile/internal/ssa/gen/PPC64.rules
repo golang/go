@@ -257,10 +257,10 @@
 (Neg16  x) -> (NEG x)
 (Neg8   x) -> (NEG x)
 
-(Com64 x) -> (XORconst [-1] x)
-(Com32 x) -> (XORconst [-1] x)
-(Com16 x) -> (XORconst [-1] x)
-(Com8  x) -> (XORconst [-1] x)
+(Com64 x) -> (NOR x x)
+(Com32 x) -> (NOR x x)
+(Com16 x) -> (NOR x x)
+(Com8  x) -> (NOR x x)
 
 // Lowering boolean ops
 (AndB x y) -> (AND x y)
@@ -268,7 +268,7 @@
 (Not x) -> (XORconst [1] x)
 
 // Use ANDN for AND x NOT y
-(AND x (XORconst [-1] y)) -> (ANDN x y)
+(AND x (NOR y y)) -> (ANDN x y)
 
 // Lowering comparisons
 (EqB x y)  -> (ANDconst [1] (EQV x y))
