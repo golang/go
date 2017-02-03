@@ -31,10 +31,11 @@
 #define T7 2.4801587301587301587e-5
 #define PosInf 0x7FF0000000000000
 #define NegInf 0xFFF0000000000000
+#define Overflow 7.09782712893384e+02
 
 // func Exp(x float64) float64
 TEXT ·Exp(SB),NOSPLIT,$0
-// test bits for not-finite
+	// test bits for not-finite
 	MOVQ    x+0(FP), BX
 	MOVQ    $~(1<<63), AX // sign bit mask
 	MOVQ    BX, DX
@@ -42,7 +43,11 @@ TEXT ·Exp(SB),NOSPLIT,$0
 	MOVQ    $PosInf, AX
 	CMPQ    AX, DX
 	JLE     notFinite
+	// check if argument will overflow
 	MOVQ    BX, X0
+	MOVSD   $Overflow, X1
+	COMISD  X1, X0
+	JA      overflow
 	MOVSD   $LOG2E, X1
 	MULSD   X0, X1
 	CVTSD2SL X1, BX // BX = exponent

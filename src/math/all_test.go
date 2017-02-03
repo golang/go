@@ -947,6 +947,11 @@ var vfexpSC = []float64{
 	2000,
 	Inf(1),
 	NaN(),
+	// smallest float64 that overflows Exp(x)
+	7.097827128933841e+02,
+	// Issue 18912
+	1.48852223e+09,
+	1.4885222e+09,
 }
 var expSC = []float64{
 	0,
@@ -954,6 +959,27 @@ var expSC = []float64{
 	Inf(1),
 	Inf(1),
 	NaN(),
+	Inf(1),
+	Inf(1),
+	Inf(1),
+}
+
+var vfexp2SC = []float64{
+	Inf(-1),
+	-2000,
+	2000,
+	Inf(1),
+	NaN(),
+	// smallest float64 that overflows Exp2(x)
+	1024,
+}
+var exp2SC = []float64{
+	0,
+	0,
+	Inf(1),
+	Inf(1),
+	NaN(),
+	Inf(1),
 }
 
 var vfexpm1SC = []float64{
@@ -2089,8 +2115,8 @@ func testExp2(t *testing.T, Exp2 func(float64) float64, name string) {
 			t.Errorf("%s(%g) = %g, want %g", name, vf[i], f, exp2[i])
 		}
 	}
-	for i := 0; i < len(vfexpSC); i++ {
-		if f := Exp2(vfexpSC[i]); !alike(expSC[i], f) {
+	for i := 0; i < len(vfexp2SC); i++ {
+		if f := Exp2(vfexp2SC[i]); !alike(exp2SC[i], f) {
 			t.Errorf("%s(%g) = %g, want %g", name, vfexpSC[i], f, expSC[i])
 		}
 	}
