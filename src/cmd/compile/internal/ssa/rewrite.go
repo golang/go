@@ -541,3 +541,13 @@ func experiment(f *Func) bool {
 	}
 	return r
 }
+
+func isConstZero(v *Value) bool {
+	switch v.Op {
+	case OpConstNil:
+		return true
+	case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool, OpConst32F, OpConst64F:
+		return v.AuxInt == 0
+	}
+	return false
+}
