@@ -9801,6 +9801,19 @@ func rewriteValuegeneric_OpRsh8x8(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpSignExt16to32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (SignExt16to32 (Const16 [c]))
+	// cond:
+	// result: (Const32 [int64( int16(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst16 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst32)
+		v.AuxInt = int64(int16(c))
+		return true
+	}
 	// match: (SignExt16to32 (Trunc32to16 x:(Rsh32x64 _ (Const64 [s]))))
 	// cond: s >= 16
 	// result: x
@@ -9831,6 +9844,19 @@ func rewriteValuegeneric_OpSignExt16to32(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpSignExt16to64(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (SignExt16to64 (Const16 [c]))
+	// cond:
+	// result: (Const64 [int64( int16(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst16 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst64)
+		v.AuxInt = int64(int16(c))
+		return true
+	}
 	// match: (SignExt16to64 (Trunc64to16 x:(Rsh64x64 _ (Const64 [s]))))
 	// cond: s >= 48
 	// result: x
@@ -9861,6 +9887,19 @@ func rewriteValuegeneric_OpSignExt16to64(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpSignExt32to64(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (SignExt32to64 (Const32 [c]))
+	// cond:
+	// result: (Const64 [int64( int32(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst32 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst64)
+		v.AuxInt = int64(int32(c))
+		return true
+	}
 	// match: (SignExt32to64 (Trunc64to32 x:(Rsh64x64 _ (Const64 [s]))))
 	// cond: s >= 32
 	// result: x
@@ -9891,6 +9930,19 @@ func rewriteValuegeneric_OpSignExt32to64(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpSignExt8to16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (SignExt8to16  (Const8  [c]))
+	// cond:
+	// result: (Const16 [int64(  int8(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst16)
+		v.AuxInt = int64(int8(c))
+		return true
+	}
 	// match: (SignExt8to16  (Trunc16to8  x:(Rsh16x64 _ (Const64 [s]))))
 	// cond: s >= 8
 	// result: x
@@ -9921,6 +9973,19 @@ func rewriteValuegeneric_OpSignExt8to16(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpSignExt8to32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (SignExt8to32  (Const8  [c]))
+	// cond:
+	// result: (Const32 [int64(  int8(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst32)
+		v.AuxInt = int64(int8(c))
+		return true
+	}
 	// match: (SignExt8to32  (Trunc32to8  x:(Rsh32x64 _ (Const64 [s]))))
 	// cond: s >= 24
 	// result: x
@@ -9951,6 +10016,19 @@ func rewriteValuegeneric_OpSignExt8to32(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpSignExt8to64(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (SignExt8to64  (Const8  [c]))
+	// cond:
+	// result: (Const64 [int64(  int8(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst64)
+		v.AuxInt = int64(int8(c))
+		return true
+	}
 	// match: (SignExt8to64  (Trunc64to8  x:(Rsh64x64 _ (Const64 [s]))))
 	// cond: s >= 56
 	// result: x
@@ -12225,6 +12303,19 @@ func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpZeroExt16to32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ZeroExt16to32 (Const16 [c]))
+	// cond:
+	// result: (Const32 [int64(uint16(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst16 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst32)
+		v.AuxInt = int64(uint16(c))
+		return true
+	}
 	// match: (ZeroExt16to32 (Trunc32to16 x:(Rsh32Ux64 _ (Const64 [s]))))
 	// cond: s >= 16
 	// result: x
@@ -12255,6 +12346,19 @@ func rewriteValuegeneric_OpZeroExt16to32(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpZeroExt16to64(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ZeroExt16to64 (Const16 [c]))
+	// cond:
+	// result: (Const64 [int64(uint16(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst16 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst64)
+		v.AuxInt = int64(uint16(c))
+		return true
+	}
 	// match: (ZeroExt16to64 (Trunc64to16 x:(Rsh64Ux64 _ (Const64 [s]))))
 	// cond: s >= 48
 	// result: x
@@ -12285,6 +12389,19 @@ func rewriteValuegeneric_OpZeroExt16to64(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpZeroExt32to64(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ZeroExt32to64 (Const32 [c]))
+	// cond:
+	// result: (Const64 [int64(uint32(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst32 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst64)
+		v.AuxInt = int64(uint32(c))
+		return true
+	}
 	// match: (ZeroExt32to64 (Trunc64to32 x:(Rsh64Ux64 _ (Const64 [s]))))
 	// cond: s >= 32
 	// result: x
@@ -12315,6 +12432,19 @@ func rewriteValuegeneric_OpZeroExt32to64(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpZeroExt8to16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ZeroExt8to16  (Const8  [c]))
+	// cond:
+	// result: (Const16 [int64( uint8(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst16)
+		v.AuxInt = int64(uint8(c))
+		return true
+	}
 	// match: (ZeroExt8to16  (Trunc16to8  x:(Rsh16Ux64 _ (Const64 [s]))))
 	// cond: s >= 8
 	// result: x
@@ -12345,6 +12475,19 @@ func rewriteValuegeneric_OpZeroExt8to16(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpZeroExt8to32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ZeroExt8to32  (Const8  [c]))
+	// cond:
+	// result: (Const32 [int64( uint8(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst32)
+		v.AuxInt = int64(uint8(c))
+		return true
+	}
 	// match: (ZeroExt8to32  (Trunc32to8  x:(Rsh32Ux64 _ (Const64 [s]))))
 	// cond: s >= 24
 	// result: x
@@ -12375,6 +12518,19 @@ func rewriteValuegeneric_OpZeroExt8to32(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpZeroExt8to64(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ZeroExt8to64  (Const8  [c]))
+	// cond:
+	// result: (Const64 [int64( uint8(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst64)
+		v.AuxInt = int64(uint8(c))
+		return true
+	}
 	// match: (ZeroExt8to64  (Trunc64to8  x:(Rsh64Ux64 _ (Const64 [s]))))
 	// cond: s >= 56
 	// result: x
