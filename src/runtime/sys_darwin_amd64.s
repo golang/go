@@ -252,14 +252,15 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$32
+TEXT runtime·sigtramp(SB),NOSPLIT,$40
 	MOVL SI, 24(SP) // save infostyle for sigreturn below
+	MOVQ R8, 32(SP) // save ctx
 	MOVL DX, 0(SP)  // sig
 	MOVQ CX, 8(SP)  // info
 	MOVQ R8, 16(SP) // ctx
 	MOVQ $runtime·sigtrampgo(SB), AX
 	CALL AX
-	MOVQ 16(SP), DI // ctx
+	MOVQ 32(SP), DI // ctx
 	MOVL 24(SP), SI // infostyle
 	MOVL $(0x2000000+184), AX
 	SYSCALL
