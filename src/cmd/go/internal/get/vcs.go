@@ -948,7 +948,7 @@ func bitbucketVCS(match map[string]string) error {
 	var resp struct {
 		SCM string `json:"scm"`
 	}
-	url := expand(match, "https://api.bitbucket.org/1.0/repositories/{bitname}")
+	url := expand(match, "https://api.bitbucket.org/2.0/repositories/{bitname}?fields=scm")
 	data, err := web.Get(url)
 	if err != nil {
 		if httpErr, ok := err.(*web.HTTPError); ok && httpErr.StatusCode == 403 {
