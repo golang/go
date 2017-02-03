@@ -14668,6 +14668,70 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (Store (Load (OffPtr [c] (SP)) mem) x mem)
+	// cond: isConstZero(x) 	&& mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize
+	// result: mem
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpLoad {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpOffPtr {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpSP {
+			break
+		}
+		mem := v_0.Args[1]
+		x := v.Args[1]
+		if mem != v.Args[2] {
+			break
+		}
+		if !(isConstZero(x) && mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
+	// cond: isConstZero(x) 	&& mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize
+	// result: mem
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpOffPtr {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpLoad {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpOffPtr {
+			break
+		}
+		c := v_0_0_0.AuxInt
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != OpSP {
+			break
+		}
+		mem := v_0_0.Args[1]
+		x := v.Args[1]
+		if mem != v.Args[2] {
+			break
+		}
+		if !(isConstZero(x) && mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpStringLen(v *Value, config *Config) bool {

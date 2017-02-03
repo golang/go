@@ -1390,6 +1390,18 @@
 	&& isSameSym(mem.Aux, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	-> mem
+(Store (Load (OffPtr [c] (SP)) mem) x mem)
+	&& isConstZero(x)
+	&& mem.Op == OpStaticCall
+	&& isSameSym(mem.Aux, "runtime.newobject")
+	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+	-> mem
+(Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
+	&& isConstZero(x)
+	&& mem.Op == OpStaticCall
+	&& isSameSym(mem.Aux, "runtime.newobject")
+	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+	-> mem
 // nil checks just need to rewrite to something useless.
 // they will be deadcode eliminated soon afterwards.
 (NilCheck (Load (OffPtr [c] (SP)) mem) mem)
