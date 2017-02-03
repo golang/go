@@ -7,7 +7,6 @@
 package cfg
 
 import (
-	"flag"
 	"go/build"
 	"os"
 	"path/filepath"
@@ -30,13 +29,17 @@ var (
 	BuildRace              bool               // -race flag
 	BuildToolexec          []string           // -toolexec flag
 	BuildToolchainName     string
-	BuildToolchainCompiler string
-	BuildToolchainLinker   string
+	BuildToolchainCompiler func() string
+	BuildToolchainLinker   func() string
 	BuildV                 bool // -v flag
 	BuildWork              bool // -work flag
 	BuildX                 bool // -x flag
-
 )
+
+func init() {
+	BuildToolchainCompiler = func() string { return "missing-compiler" }
+	BuildToolchainLinker = func() string { return "missing-linker" }
+}
 
 // The test coverage mode affects package loading. Sigh.
 var TestCoverMode string // -covermode flag
@@ -50,8 +53,10 @@ type EnvVar struct {
 // OrigEnv is the original environment of the program at startup.
 var OrigEnv []string
 
-// NewEnv is the new environment for running commands.
-var NewEnv []EnvVar
+// CmdEnv is the new environment for running go tool commands.
+// User binaries (during go test or go run) are run with OrigEnv,
+// not CmdEnv.
+var CmdEnv []EnvVar
 
 // Global build parameters (used during package load)
 var (
@@ -60,12 +65,6 @@ var (
 	ExeSuffix string
 	Gopath    []string
 )
-
-// AddBuildFlagsNX adds the -n and -x build flags to the flag set.
-func AddBuildFlagsNX(flags *flag.FlagSet) {
-	flags.BoolVar(&BuildN, "n", false, "")
-	flags.BoolVar(&BuildX, "x", false, "")
-}
 
 var (
 	GOROOT    = filepath.Clean(runtime.GOROOT())

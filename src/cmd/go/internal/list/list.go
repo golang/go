@@ -2,19 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package list implements the ``go list'' command.
 package list
 
 import (
 	"bufio"
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
-	"cmd/go/internal/work"
 	"encoding/json"
 	"io"
 	"os"
 	"strings"
 	"text/template"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/go/internal/work"
 )
 
 var CmdList = &base.Command{

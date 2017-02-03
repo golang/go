@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package run implements the ``go run'' command.
 package run
 
 import (
@@ -66,7 +67,7 @@ func runRun(cmd *base.Command, args []string) {
 	}
 	for _, file := range files {
 		if strings.HasSuffix(file, "_test.go") {
-			// goFilesPackage is going to assign this to TestGoFiles.
+			// GoFilesPackage is going to assign this to TestGoFiles.
 			// Reject since it won't be part of the build.
 			base.Fatalf("go run: cannot run *_test.go files (%s)", file)
 		}

@@ -883,7 +883,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package 
 			p.Internal.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
 		}
 		if p.Internal.Target != "" && cfg.BuildContext.GOOS == "windows" {
-			p.Internal.Target += ".Internal.Exe"
+			p.Internal.Target += ".exe"
 		}
 	} else if p.Internal.Local {
 		// Local import turned into absolute path.
@@ -1562,10 +1562,10 @@ func isStale(p *Package) (bool, string) {
 	// Excluding $GOROOT used to also fix issue 4106, but that's now
 	// taken care of above (at least when the installed Go is a released version).
 	if p.Root != cfg.GOROOT {
-		if olderThan(cfg.BuildToolchainCompiler) {
+		if olderThan(cfg.BuildToolchainCompiler()) {
 			return true, "newer compiler"
 		}
-		if p.Internal.Build.IsCommand() && olderThan(cfg.BuildToolchainLinker) {
+		if p.Internal.Build.IsCommand() && olderThan(cfg.BuildToolchainLinker()) {
 			return true, "newer linker"
 		}
 	}
