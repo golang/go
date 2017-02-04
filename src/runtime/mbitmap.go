@@ -332,11 +332,6 @@ func (m markBits) clearMarked() {
 	atomic.And8(m.bytep, ^m.mask)
 }
 
-// clearMarkedNonAtomic clears the marked bit non-atomically.
-func (m markBits) clearMarkedNonAtomic() {
-	*m.bytep ^= m.mask
-}
-
 // markBitsForSpan returns the markBits for the span base address base.
 func markBitsForSpan(base uintptr) (mbits markBits) {
 	if base < mheap_.arena_start || base >= mheap_.arena_used {
