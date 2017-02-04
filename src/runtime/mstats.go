@@ -72,7 +72,7 @@ type mstats struct {
 	// Statistics about garbage collector.
 	// Protected by mheap or stopping the world during GC.
 	next_gc         uint64 // goal heap_live for when next GC ends; ^0 if disabled
-	last_gc         uint64 // last gc (in absolute time)
+	last_gc_unix    uint64 // last gc (in unix time)
 	pause_total_ns  uint64
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
 	pause_end       [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
@@ -92,7 +92,8 @@ type mstats struct {
 
 	// Statistics below here are not exported to MemStats directly.
 
-	tinyallocs uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+	last_gc_nanotime uint64 // last gc (monotonic time)
+	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
 
 	// gc_trigger is the heap size that triggers marking.
 	//
@@ -497,7 +498,7 @@ func readGCStats_m(pauses *[]uint64) {
 		p[n+i] = memstats.pause_end[j]
 	}
 
-	p[n+n] = memstats.last_gc
+	p[n+n] = memstats.last_gc_unix
 	p[n+n+1] = uint64(memstats.numgc)
 	p[n+n+2] = memstats.pause_total_ns
 	unlock(&mheap_.lock)
