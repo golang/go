@@ -139,11 +139,11 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 			}
 		}
 		if *doDiff {
-			data, err := diff(src, res)
+			data, err := diff(src, res, filename)
 			if err != nil {
 				return fmt.Errorf("computing diff: %s", err)
 			}
-			fmt.Printf("diff %s gofmt/%s\n", filename, filename)
+			fmt.Printf("diff -u %s %s\n", filepath.ToSlash(filename+".orig"), filepath.ToSlash(filename))
 			out.Write(data)
 		}
 	}
@@ -225,7 +225,7 @@ func gofmtMain() {
 	}
 }
 
-func diff(b1, b2 []byte) (data []byte, err error) {
+func diff(b1, b2 []byte, filename string) (data []byte, err error) {
 	f1, err := ioutil.TempFile("", "gofmt")
 	if err != nil {
 		return
@@ -248,9 +248,39 @@ func diff(b1, b2 []byte) (data []byte, err error) {
 		// diff exits with a non-zero status when the files don't match.
 		// Ignore that failure as long as we get output.
 		err = nil
+
+		data, err = replaceTempFilename(data, filename)
 	}
 	return
+}
 
+// replaceTempFilename replaces temporary filenames in diff with actual one.
+//
+// --- /tmp/gofmt316145376	2017-02-03 19:13:00.280468375 -0500
+// +++ /tmp/gofmt617882815	2017-02-03 19:13:00.280468375 -0500
+// ...
+// ->
+// --- path/to/file.go.orig	2017-02-03 19:13:00.280468375 -0500
+// +++ path/to/file.go	2017-02-03 19:13:00.280468375 -0500
+// ...
+func replaceTempFilename(diff []byte, filename string) ([]byte, error) {
+	bs := bytes.SplitN(diff, []byte{'\n'}, 3)
+	if len(bs) < 3 {
+		return nil, fmt.Errorf("got unexpected diff for %s", filename)
+	}
+	// Preserve timestamps.
+	var t0, t1 []byte
+	if i := bytes.LastIndexByte(bs[0], '\t'); i != -1 {
+		t0 = bs[0][i:]
+	}
+	if i := bytes.LastIndexByte(bs[1], '\t'); i != -1 {
+		t1 = bs[1][i:]
+	}
+	// Always print filepath with slash separator.
+	f := filepath.ToSlash(filename)
+	bs[0] = []byte(fmt.Sprintf("--- %s%s", f+".orig", t0))
+	bs[1] = []byte(fmt.Sprintf("+++ %s%s", f, t1))
+	return bytes.Join(bs, []byte{'\n'}), nil
 }
 
 const chmodSupported = runtime.GOOS != "windows"
