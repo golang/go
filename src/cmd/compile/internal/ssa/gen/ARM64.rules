@@ -524,109 +524,147 @@
 // can be encoded in the instructions
 // since this rewriting takes place before stack allocation, the offset to SP is unknown,
 // so don't do it for args and locals with unaligned offset
-(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBload [off1+off2] {sym} ptr mem)
-(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBUload [off1+off2] {sym} ptr mem)
+(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+	(MOVBload [off1+off2] {sym} ptr mem)
+(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+	(MOVBUload [off1+off2] {sym} ptr mem)
 (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem)
-	&& (off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVHload [off1+off2] {sym} ptr mem)
 (MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem)
-	&& (off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVHUload [off1+off2] {sym} ptr mem)
 (MOVWload [off1] {sym} (ADDconst [off2] ptr) mem)
-	&& (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVWload [off1+off2] {sym} ptr mem)
 (MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem)
-	&& (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVWUload [off1+off2] {sym} ptr mem)
 (MOVDload [off1] {sym} (ADDconst [off2] ptr) mem)
-	&& (off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVDload [off1+off2] {sym} ptr mem)
 (FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem)
-	&& (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(FMOVSload [off1+off2] {sym} ptr mem)
 (FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem)
-	&& (off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(FMOVDload [off1+off2] {sym} ptr mem)
 
-(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVBstore [off1+off2] {sym} ptr val mem)
+(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(off1+off2) ->
+	(MOVBstore [off1+off2] {sym} ptr val mem)
 (MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	&& (off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVHstore [off1+off2] {sym} ptr val mem)
 (MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	&& (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVWstore [off1+off2] {sym} ptr val mem)
 (MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	&& (off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVDstore [off1+off2] {sym} ptr val mem)
 (FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	&& (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(FMOVSstore [off1+off2] {sym} ptr val mem)
 (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	&& (off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(FMOVDstore [off1+off2] {sym} ptr val mem)
-(MOVBstorezero [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBstorezero [off1+off2] {sym} ptr mem)
+(MOVBstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+	(MOVBstorezero [off1+off2] {sym} ptr mem)
 (MOVHstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
-	&& (off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVHstorezero [off1+off2] {sym} ptr mem)
 (MOVWstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
-	&& (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVWstorezero [off1+off2] {sym} ptr mem)
 (MOVDstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
-	&& (off1+off2)%2==8 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym) ->
+	&& is32Bit(off1+off2)
+	&& ((off1+off2)%2==8 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)) ->
 	(MOVDstorezero [off1+off2] {sym} ptr mem)
 
-(MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+(MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2) ->
 	(MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVBUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+(MOVBUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2) ->
 	(MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVHUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVWUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(FMOVSload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
-(MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+(MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2) ->
 	(MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVHstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVWstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
-(MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+(MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2) ->
 	(MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVHstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVDstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+	&& is32Bit(off1+off2)
 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1)) ->
 	(MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
