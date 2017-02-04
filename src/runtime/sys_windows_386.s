@@ -152,7 +152,7 @@ done:
 	// RET 4 (return and pop 4 bytes parameters)
 	BYTE $0xC2; WORD $4
 	RET // unreached; make assembler happy
- 
+
 TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
 	MOVL	$runtime·exceptionhandler(SB), AX
 	JMP	runtime·sigtramp(SB)
@@ -432,15 +432,103 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
 	MOVL	BP, SP
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$8-12
-	CALL	runtime·unixnano(SB)
-	MOVL	0(SP), AX
-	MOVL	4(SP), DX
+// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+// Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
+#define _INTERRUPT_TIME 0x7ffe0008
+#define _SYSTEM_TIME 0x7ffe0014
+#define time_lo 0
+#define time_hi1 4
+#define time_hi2 8
 
+TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+loop:
+	MOVL	(_INTERRUPT_TIME+time_hi1), AX
+	MOVL	(_INTERRUPT_TIME+time_lo), CX
+	MOVL	(_INTERRUPT_TIME+time_hi2), DI
+	CMPL	AX, DI
+	JNE	loop
+
+	// wintime = DI:CX, multiply by 100
+	MOVL	$100, AX
+	MULL	CX
+	IMULL	$100, DI
+	ADDL	DI, DX
+	// wintime*100 = DX:AX, subtract startNano and return
+	SUBL	runtime·startNano+0(SB), AX
+	SBBL runtime·startNano+4(SB), DX
+	MOVL	AX, ret+0(FP)
+	MOVL	DX, ret+4(FP)
+	RET
+
+TEXT time·now(SB),NOSPLIT,$0-20
+loop:
+	MOVL	(_INTERRUPT_TIME+time_hi1), AX
+	MOVL	(_INTERRUPT_TIME+time_lo), CX
+	MOVL	(_INTERRUPT_TIME+time_hi2), DI
+	CMPL	AX, DI
+	JNE	loop
+
+	// w = DI:CX
+	// multiply by 100
+	MOVL	$100, AX
+	MULL	CX
+	IMULL	$100, DI
+	ADDL	DI, DX
+	// w*100 = DX:AX
+	// subtract startNano and save for return
+	SUBL	runtime·startNano+0(SB), AX
+	SBBL runtime·startNano+4(SB), DX
+	MOVL	AX, mono+12(FP)
+	MOVL	DX, mono+16(FP)
+
+wall:
+	MOVL	(_SYSTEM_TIME+time_hi1), CX
+	MOVL	(_SYSTEM_TIME+time_lo), AX
+	MOVL	(_SYSTEM_TIME+time_hi2), DX
+	CMPL	CX, DX
+	JNE	wall
+	
+	// w = DX:AX
+	// convert to Unix epoch (but still 100ns units)
+	#define delta 116444736000000000
+	SUBL	$(delta & 0xFFFFFFFF), AX
+	SBBL $(delta >> 32), DX
+	
+	// nano/100 = DX:AX
+	// split into two decimal halves by div 1e9.
+	// (decimal point is two spots over from correct place,
+	// but we avoid overflow in the high word.)
 	MOVL	$1000000000, CX
 	DIVL	CX
+	MOVL	AX, DI
+	MOVL	DX, SI
+	
+	// DI = nano/100/1e9 = nano/1e11 = sec/100, DX = SI = nano/100%1e9
+	// split DX into seconds and nanoseconds by div 1e7 magic multiply.
+	MOVL	DX, AX
+	MOVL	$1801439851, CX
+	MULL	CX
+	SHRL	$22, DX
+	MOVL	DX, BX
+	IMULL	$10000000, DX
+	MOVL	SI, CX
+	SUBL	DX, CX
+	
+	// DI = sec/100 (still)
+	// BX = (nano/100%1e9)/1e7 = (nano/1e9)%100 = sec%100
+	// CX = (nano/100%1e9)%1e7 = (nano%1e9)/100 = nsec/100
+	// store nsec for return
+	IMULL	$100, CX
+	MOVL	CX, nsec+8(FP)
+
+	// DI = sec/100 (still)
+	// BX = sec%100
+	// construct DX:AX = 64-bit sec and store for return
+	MOVL	$0, DX
+	MOVL	$100, AX
+	MULL	DI
+	ADDL	BX, AX
+	ADCL	$0, DX
 	MOVL	AX, sec+0(FP)
-	MOVL	$0, sec+4(FP)
-	MOVL	DX, nsec+8(FP)
+	MOVL	DX, sec+4(FP)
 	RET

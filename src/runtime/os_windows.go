@@ -578,50 +578,7 @@ func unminit() {
 	*tp = 0
 }
 
-// Described in http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
-type _KSYSTEM_TIME struct {
-	LowPart   uint32
-	High1Time int32
-	High2Time int32
-}
-
-const (
-	_INTERRUPT_TIME = 0x7ffe0008
-	_SYSTEM_TIME    = 0x7ffe0014
-)
-
-//go:nosplit
-func systime(addr uintptr) int64 {
-	timeaddr := (*_KSYSTEM_TIME)(unsafe.Pointer(addr))
-
-	var t _KSYSTEM_TIME
-	for i := 1; i < 10000; i++ {
-		// these fields must be read in that order (see URL above)
-		t.High1Time = timeaddr.High1Time
-		t.LowPart = timeaddr.LowPart
-		t.High2Time = timeaddr.High2Time
-		if t.High1Time == t.High2Time {
-			return int64(t.High1Time)<<32 | int64(t.LowPart)
-		}
-		if (i % 100) == 0 {
-			osyield()
-		}
-	}
-	systemstack(func() {
-		throw("interrupt/system time is changing too fast")
-	})
-	return 0
-}
-
-//go:nosplit
-func unixnano() int64 {
-	return (systime(_SYSTEM_TIME) - 116444736000000000) * 100
-}
-
-//go:nosplit
-func nanotime() int64 {
-	return systime(_INTERRUPT_TIME) * 100
-}
+func nanotime() int64
 
 // Calling stdcall on os stack.
 // May run during STW, so write barriers are not allowed.

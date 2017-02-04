@@ -981,14 +981,16 @@ func daysIn(m Month, year int) int {
 }
 
 // Provided by package runtime.
-func now() (sec int64, nsec int32, mono uint64)
+func now() (sec int64, nsec int32, mono int64)
 
 // Now returns the current local time.
 func Now() Time {
 	sec, nsec, mono := now()
-	t := unixTime(sec, nsec)
-	t.setMono(int64(mono))
-	return t
+	sec += unixToInternal - minWall
+	if uint64(sec)>>33 != 0 {
+		return Time{uint64(nsec), sec + minWall, Local}
+	}
+	return Time{hasMonotonic | uint64(sec)<<nsecShift | uint64(nsec), mono, Local}
 }
 
 func unixTime(sec int64, nsec int32) Time {

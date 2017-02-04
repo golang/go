@@ -246,6 +246,9 @@ var monotonicStringTests = []struct {
 }
 
 func TestMonotonicString(t *testing.T) {
+	t1 := Now()
+	t.Logf("Now() = %v", t1)
+
 	for _, tt := range monotonicStringTests {
 		t1 := Now()
 		SetMono(&t1, tt.mono)
