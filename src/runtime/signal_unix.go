@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -31,10 +32,17 @@ const (
 // Stores the signal handlers registered before Go installed its own.
 // These signal handlers will be invoked in cases where Go doesn't want to
 // handle a particular signal (e.g., signal occurred on a non-Go thread).
-// See sigfwdgo() for more information on when the signals are forwarded.
+// See sigfwdgo for more information on when the signals are forwarded.
 //
-// Signal forwarding is currently available only on Darwin and Linux.
+// This is read by the signal handler; accesses should use
+// atomic.Loaduintptr and atomic.Storeuintptr.
 var fwdSig [_NSIG]uintptr
+
+// handlingSig is indexed by signal number and is non-zero if we are
+// currently handling the signal. Or, to put it another way, whether
+// the signal handler is currently set to the Go signal handler or not.
+// This is uint32 rather than bool so that we can use atomic instructions.
+var handlingSig [_NSIG]uint32
 
 // channels for synchronizing signal mask updates with the signal mask
 // thread
@@ -76,6 +84,9 @@ func initsig(preinit bool) {
 		if t.flags == 0 || t.flags&_SigDefault != 0 {
 			continue
 		}
+
+		// We don't need to use atomic operations here because
+		// there shouldn't be any other goroutines running yet.
 		fwdSig[i] = getsig(i)
 
 		if !sigInstallGoHandler(i) {
@@ -87,7 +98,7 @@ func initsig(preinit bool) {
 			continue
 		}
 
-		t.flags |= _SigHandling
+		handlingSig[i] = 1
 		setsig(i, funcPC(sighandler))
 	}
 }
@@ -100,7 +111,7 @@ func sigInstallGoHandler(sig uint32) bool {
 	// Even these signals can be fetched using the os/signal package.
 	switch sig {
 	case _SIGHUP, _SIGINT:
-		if fwdSig[sig] == _SIG_IGN {
+		if atomic.Loaduintptr(&fwdSig[sig]) == _SIG_IGN {
 			return false
 		}
 	}
@@ -119,6 +130,9 @@ func sigInstallGoHandler(sig uint32) bool {
 	return true
 }
 
+// sigenable enables the Go signal handler to catch the signal sig.
+// It is only called while holding the os/signal.handlers lock,
+// via os/signal.enableSignal and signal_enable.
 func sigenable(sig uint32) {
 	if sig >= uint32(len(sigtable)) {
 		return
@@ -129,14 +143,16 @@ func sigenable(sig uint32) {
 		ensureSigM()
 		enableSigChan <- sig
 		<-maskUpdatedChan
-		if t.flags&_SigHandling == 0 {
-			t.flags |= _SigHandling
-			fwdSig[sig] = getsig(sig)
+		if atomic.Cas(&handlingSig[sig], 0, 1) {
+			atomic.Storeuintptr(&fwdSig[sig], getsig(sig))
 			setsig(sig, funcPC(sighandler))
 		}
 	}
 }
 
+// sigdisable disables the Go signal handler for the signal sig.
+// It is only called while holding the os/signal.handlers lock,
+// via os/signal.disableSignal and signal_disable.
 func sigdisable(sig uint32) {
 	if sig >= uint32(len(sigtable)) {
 		return
@@ -152,12 +168,15 @@ func sigdisable(sig uint32) {
 		// signal, then to go back to the state before Notify
 		// we should remove the one we installed.
 		if !sigInstallGoHandler(sig) {
-			t.flags &^= _SigHandling
-			setsig(sig, fwdSig[sig])
+			atomic.Store(&handlingSig[sig], 0)
+			setsig(sig, atomic.Loaduintptr(&fwdSig[sig]))
 		}
 	}
 }
 
+// sigignore ignores the signal sig.
+// It is only called while holding the os/signal.handlers lock,
+// via os/signal.ignoreSignal and signal_ignore.
 func sigignore(sig uint32) {
 	if sig >= uint32(len(sigtable)) {
 		return
@@ -165,7 +184,7 @@ func sigignore(sig uint32) {
 
 	t := &sigtable[sig]
 	if t.flags&_SigNotify != 0 {
-		t.flags &^= _SigHandling
+		atomic.Store(&handlingSig[sig], 0)
 		setsig(sig, _SIG_IGN)
 	}
 }
@@ -348,7 +367,7 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 	if sig >= _NSIG {
 		handler = _SIG_DFL
 	} else {
-		handler = fwdSig[sig]
+		handler = atomic.Loaduintptr(&fwdSig[sig])
 	}
 
 	// Reset the signal handler and raise the signal.
@@ -490,7 +509,7 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	if sig >= uint32(len(sigtable)) {
 		return false
 	}
-	fwdFn := fwdSig[sig]
+	fwdFn := atomic.Loaduintptr(&fwdSig[sig])
 
 	if !signalsOK {
 		// The only way we can get here is if we are in a
@@ -505,18 +524,22 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 		return true
 	}
 
-	flags := sigtable[sig].flags
-
 	// If there is no handler to forward to, no need to forward.
 	if fwdFn == _SIG_DFL {
 		return false
 	}
 
 	// If we aren't handling the signal, forward it.
-	if flags&_SigHandling == 0 {
+	// Really if we aren't handling the signal, we shouldn't get here,
+	// but on Darwin setsigstack can lead us here because it sets
+	// the sa_tramp field. The sa_tramp field is not returned by
+	// sigaction, so the fix for that is non-obvious.
+	if atomic.Load(&handlingSig[sig]) == 0 {
 		sigfwd(fwdFn, sig, info, ctx)
 		return true
 	}
+
+	flags := sigtable[sig].flags
 
 	c := &sigctxt{info, ctx}
 	// Only forward synchronous signals and SIGPIPE.
@@ -533,10 +556,12 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	if g != nil && g.m != nil && g.m.curg != nil && !g.m.incgo {
 		return false
 	}
+
 	// Signal not handled by Go, forward it.
 	if fwdFn != _SIG_IGN {
 		sigfwd(fwdFn, sig, info, ctx)
 	}
+
 	return true
 }
 
