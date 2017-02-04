@@ -141,7 +141,7 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	y := interface{}(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+ x.data x.type$" "live at call to str: x.data x.type$"
+	y := interface{}(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+ x.data x.type$" "live at call to str: x.data x.type$"
 	i9 = y                  // make y escape so the line above has to call convT2E
 	return x != y
 }
@@ -494,13 +494,13 @@ func f30(b bool) {
 
 func f31(b1, b2, b3 bool) {
 	if b1 {
-		g31(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to g31: .autotmp_[0-9]+$"
+		g31(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+$" "live at call to g31: .autotmp_[0-9]+$"
 	}
 	if b2 {
-		h31(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to h31: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
+		h31(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to h31: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
 	}
 	if b3 {
-		panic(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to gopanic: .autotmp_[0-9]+$"
+		panic(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+$" "live at call to gopanic: .autotmp_[0-9]+$"
 	}
 	print(b3)
 }
