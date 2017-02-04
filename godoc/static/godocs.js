@@ -245,9 +245,15 @@ function fixFocus() {
 }
 
 function toggleHash() {
+  var id = window.location.hash.substring(1);
   // Open all of the toggles for a particular hash.
-  var els = $(document.getElementById(window.location.hash.substring(1)),
-      $.find("a[name='" + window.location.hash.substring(1) + "']"));
+  var els = $(
+    document.getElementById(id),
+    $('a[name]').filter(function() {
+      return $(this).attr('name') == id;
+    })
+  );
+
   while (els.length) {
     for (var i = 0; i < els.length; i++) {
       var el = $(els[i]);
