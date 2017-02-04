@@ -9,7 +9,9 @@ import (
 	"flag"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"text/scanner"
@@ -110,7 +112,7 @@ func runTest(t *testing.T, in, out string) {
 		}
 
 		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
-		d, err := diff(expected, got)
+		d, err := diff(expected, got, in)
 		if err == nil {
 			t.Errorf("%s", d)
 		}
@@ -183,4 +185,65 @@ func TestBackupFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("Created: %s", name)
+}
+
+func TestDiff(t *testing.T) {
+	if _, err := exec.LookPath("diff"); err != nil {
+		t.Skipf("skip test on %s: diff command is required", runtime.GOOS)
+	}
+	in := []byte("first\nsecond\n")
+	out := []byte("first\nthird\n")
+	filename := "difftest.txt"
+	b, err := diff(in, out, filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bs := bytes.SplitN(b, []byte{'\n'}, 3)
+	line0, line1 := bs[0], bs[1]
+
+	if prefix := "--- difftest.txt.orig"; !bytes.HasPrefix(line0, []byte(prefix)) {
+		t.Errorf("diff: first line should start with `%s`\ngot: %s", prefix, line0)
+	}
+
+	if prefix := "+++ difftest.txt"; !bytes.HasPrefix(line1, []byte(prefix)) {
+		t.Errorf("diff: second line should start with `%s`\ngot: %s", prefix, line1)
+	}
+
+	want := `@@ -1,2 +1,2 @@
+ first
+-second
++third
+`
+
+	if got := string(bs[2]); got != want {
+		t.Errorf("diff: got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestReplaceTempFilename(t *testing.T) {
+	diff := []byte(`--- /tmp/tmpfile1	2017-02-08 00:53:26.175105619 +0900
++++ /tmp/tmpfile2	2017-02-08 00:53:38.415151275 +0900
+@@ -1,2 +1,2 @@
+ first
+-second
++third
+`)
+	want := []byte(`--- path/to/file.go.orig	2017-02-08 00:53:26.175105619 +0900
++++ path/to/file.go	2017-02-08 00:53:38.415151275 +0900
+@@ -1,2 +1,2 @@
+ first
+-second
++third
+`)
+	// Check path in diff output is always slash regardless of the
+	// os.PathSeparator (`/` or `\`).
+	sep := string(os.PathSeparator)
+	filename := strings.Join([]string{"path", "to", "file.go"}, sep)
+	got, err := replaceTempFilename(diff, filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("os.PathSeparator='%s': replacedDiff:\ngot:\n%s\nwant:\n%s", sep, got, want)
+	}
 }
