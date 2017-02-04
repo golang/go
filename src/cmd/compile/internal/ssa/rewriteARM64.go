@@ -2717,7 +2717,7 @@ func rewriteValueARM64_OpARM64FMOVDload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond: (off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (FMOVDload [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -2729,7 +2729,7 @@ func rewriteValueARM64_OpARM64FMOVDload(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64FMOVDload)
@@ -2740,7 +2740,7 @@ func rewriteValueARM64_OpARM64FMOVDload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -2753,7 +2753,7 @@ func rewriteValueARM64_OpARM64FMOVDload(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64FMOVDload)
@@ -2769,7 +2769,7 @@ func rewriteValueARM64_OpARM64FMOVDstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	// cond: (off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (FMOVDstore [off1+off2] {sym} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -2782,7 +2782,7 @@ func rewriteValueARM64_OpARM64FMOVDstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64FMOVDstore)
@@ -2794,7 +2794,7 @@ func rewriteValueARM64_OpARM64FMOVDstore(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -2808,7 +2808,7 @@ func rewriteValueARM64_OpARM64FMOVDstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64FMOVDstore)
@@ -2825,7 +2825,7 @@ func rewriteValueARM64_OpARM64FMOVSload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond: (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (FMOVSload [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -2837,7 +2837,7 @@ func rewriteValueARM64_OpARM64FMOVSload(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64FMOVSload)
@@ -2848,7 +2848,7 @@ func rewriteValueARM64_OpARM64FMOVSload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (FMOVSload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -2861,7 +2861,7 @@ func rewriteValueARM64_OpARM64FMOVSload(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64FMOVSload)
@@ -2877,7 +2877,7 @@ func rewriteValueARM64_OpARM64FMOVSstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	// cond: (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (FMOVSstore [off1+off2] {sym} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -2890,7 +2890,7 @@ func rewriteValueARM64_OpARM64FMOVSstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64FMOVSstore)
@@ -2902,7 +2902,7 @@ func rewriteValueARM64_OpARM64FMOVSstore(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -2916,7 +2916,7 @@ func rewriteValueARM64_OpARM64FMOVSstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64FMOVSstore)
@@ -3603,7 +3603,7 @@ func rewriteValueARM64_OpARM64MOVBUload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond:
+	// cond: is32Bit(off1+off2)
 	// result: (MOVBUload [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -3615,6 +3615,9 @@ func rewriteValueARM64_OpARM64MOVBUload(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
 		v.reset(OpARM64MOVBUload)
 		v.AuxInt = off1 + off2
 		v.Aux = sym
@@ -3623,7 +3626,7 @@ func rewriteValueARM64_OpARM64MOVBUload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVBUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2)
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2)
 	// result: (MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -3636,7 +3639,7 @@ func rewriteValueARM64_OpARM64MOVBUload(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2)) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
 			break
 		}
 		v.reset(OpARM64MOVBUload)
@@ -3715,7 +3718,7 @@ func rewriteValueARM64_OpARM64MOVBload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVBload [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond:
+	// cond: is32Bit(off1+off2)
 	// result: (MOVBload [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -3727,6 +3730,9 @@ func rewriteValueARM64_OpARM64MOVBload(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
 		v.reset(OpARM64MOVBload)
 		v.AuxInt = off1 + off2
 		v.Aux = sym
@@ -3735,7 +3741,7 @@ func rewriteValueARM64_OpARM64MOVBload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2)
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2)
 	// result: (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -3748,7 +3754,7 @@ func rewriteValueARM64_OpARM64MOVBload(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2)) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
 			break
 		}
 		v.reset(OpARM64MOVBload)
@@ -3827,7 +3833,7 @@ func rewriteValueARM64_OpARM64MOVBstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	// cond:
+	// cond: is32Bit(off1+off2)
 	// result: (MOVBstore [off1+off2] {sym} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -3840,6 +3846,9 @@ func rewriteValueARM64_OpARM64MOVBstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
 		v.reset(OpARM64MOVBstore)
 		v.AuxInt = off1 + off2
 		v.Aux = sym
@@ -3849,7 +3858,7 @@ func rewriteValueARM64_OpARM64MOVBstore(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	// cond: canMergeSym(sym1,sym2)
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2)
 	// result: (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -3863,7 +3872,7 @@ func rewriteValueARM64_OpARM64MOVBstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(canMergeSym(sym1, sym2)) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
 			break
 		}
 		v.reset(OpARM64MOVBstore)
@@ -4028,7 +4037,7 @@ func rewriteValueARM64_OpARM64MOVBstorezero(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVBstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond:
+	// cond: is32Bit(off1+off2)
 	// result: (MOVBstorezero [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4040,6 +4049,9 @@ func rewriteValueARM64_OpARM64MOVBstorezero(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
 		v.reset(OpARM64MOVBstorezero)
 		v.AuxInt = off1 + off2
 		v.Aux = sym
@@ -4048,7 +4060,7 @@ func rewriteValueARM64_OpARM64MOVBstorezero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2)
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2)
 	// result: (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4061,7 +4073,7 @@ func rewriteValueARM64_OpARM64MOVBstorezero(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2)) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
 			break
 		}
 		v.reset(OpARM64MOVBstorezero)
@@ -4077,7 +4089,7 @@ func rewriteValueARM64_OpARM64MOVDload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVDload [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond: (off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVDload [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4089,7 +4101,7 @@ func rewriteValueARM64_OpARM64MOVDload(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVDload)
@@ -4100,7 +4112,7 @@ func rewriteValueARM64_OpARM64MOVDload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4113,7 +4125,7 @@ func rewriteValueARM64_OpARM64MOVDload(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVDload)
@@ -4180,7 +4192,7 @@ func rewriteValueARM64_OpARM64MOVDstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	// cond: (off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVDstore [off1+off2] {sym} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -4193,7 +4205,7 @@ func rewriteValueARM64_OpARM64MOVDstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVDstore)
@@ -4205,7 +4217,7 @@ func rewriteValueARM64_OpARM64MOVDstore(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -4219,7 +4231,7 @@ func rewriteValueARM64_OpARM64MOVDstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVDstore)
@@ -4258,7 +4270,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVDstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond: (off1+off2)%2==8 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%2==8 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVDstorezero [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4270,7 +4282,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !((off1+off2)%2 == 8 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%2 == 8 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVDstorezero)
@@ -4281,7 +4293,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVDstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%8==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4294,7 +4306,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%8 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVDstorezero)
@@ -4310,7 +4322,7 @@ func rewriteValueARM64_OpARM64MOVHUload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond: (off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVHUload [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4322,7 +4334,7 @@ func rewriteValueARM64_OpARM64MOVHUload(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVHUload)
@@ -4333,7 +4345,7 @@ func rewriteValueARM64_OpARM64MOVHUload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVHUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4346,7 +4358,7 @@ func rewriteValueARM64_OpARM64MOVHUload(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVHUload)
@@ -4449,7 +4461,7 @@ func rewriteValueARM64_OpARM64MOVHload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond: (off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVHload [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4461,7 +4473,7 @@ func rewriteValueARM64_OpARM64MOVHload(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVHload)
@@ -4472,7 +4484,7 @@ func rewriteValueARM64_OpARM64MOVHload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4485,7 +4497,7 @@ func rewriteValueARM64_OpARM64MOVHload(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVHload)
@@ -4612,7 +4624,7 @@ func rewriteValueARM64_OpARM64MOVHstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	// cond: (off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVHstore [off1+off2] {sym} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -4625,7 +4637,7 @@ func rewriteValueARM64_OpARM64MOVHstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVHstore)
@@ -4637,7 +4649,7 @@ func rewriteValueARM64_OpARM64MOVHstore(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVHstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -4651,7 +4663,7 @@ func rewriteValueARM64_OpARM64MOVHstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVHstore)
@@ -4774,7 +4786,7 @@ func rewriteValueARM64_OpARM64MOVHstorezero(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVHstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond: (off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVHstorezero [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4786,7 +4798,7 @@ func rewriteValueARM64_OpARM64MOVHstorezero(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVHstorezero)
@@ -4797,7 +4809,7 @@ func rewriteValueARM64_OpARM64MOVHstorezero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVHstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%2==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4810,7 +4822,7 @@ func rewriteValueARM64_OpARM64MOVHstorezero(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%2 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVHstorezero)
@@ -4826,7 +4838,7 @@ func rewriteValueARM64_OpARM64MOVWUload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond: (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVWUload [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4838,7 +4850,7 @@ func rewriteValueARM64_OpARM64MOVWUload(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVWUload)
@@ -4849,7 +4861,7 @@ func rewriteValueARM64_OpARM64MOVWUload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVWUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVWUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -4862,7 +4874,7 @@ func rewriteValueARM64_OpARM64MOVWUload(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVWUload)
@@ -4989,7 +5001,7 @@ func rewriteValueARM64_OpARM64MOVWload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVWload [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond: (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVWload [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -5001,7 +5013,7 @@ func rewriteValueARM64_OpARM64MOVWload(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVWload)
@@ -5012,7 +5024,7 @@ func rewriteValueARM64_OpARM64MOVWload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -5025,7 +5037,7 @@ func rewriteValueARM64_OpARM64MOVWload(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVWload)
@@ -5200,7 +5212,7 @@ func rewriteValueARM64_OpARM64MOVWstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem)
-	// cond: (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVWstore [off1+off2] {sym} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -5213,7 +5225,7 @@ func rewriteValueARM64_OpARM64MOVWstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVWstore)
@@ -5225,7 +5237,7 @@ func rewriteValueARM64_OpARM64MOVWstore(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVWstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -5239,7 +5251,7 @@ func rewriteValueARM64_OpARM64MOVWstore(v *Value, config *Config) bool {
 		ptr := v_0.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVWstore)
@@ -5320,7 +5332,7 @@ func rewriteValueARM64_OpARM64MOVWstorezero(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVWstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
-	// cond: (off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym)
+	// cond: is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym) && !isAuto(sym))
 	// result: (MOVWstorezero [off1+off2] {sym} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -5332,7 +5344,7 @@ func rewriteValueARM64_OpARM64MOVWstorezero(v *Value, config *Config) bool {
 		off2 := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym)) {
+		if !(is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym) && !isAuto(sym))) {
 			break
 		}
 		v.reset(OpARM64MOVWstorezero)
@@ -5343,7 +5355,7 @@ func rewriteValueARM64_OpARM64MOVWstorezero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVWstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
+	// cond: canMergeSym(sym1,sym2) 	&& is32Bit(off1+off2) 	&& ((off1+off2)%4==0 || off1+off2<256 && off1+off2>-256 && !isArg(sym1) && !isAuto(sym1))
 	// result: (MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -5356,7 +5368,7 @@ func rewriteValueARM64_OpARM64MOVWstorezero(v *Value, config *Config) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && ((off1+off2)%4 == 0 || off1+off2 < 256 && off1+off2 > -256 && !isArg(sym1) && !isAuto(sym1))) {
 			break
 		}
 		v.reset(OpARM64MOVWstorezero)
