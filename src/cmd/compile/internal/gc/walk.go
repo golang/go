@@ -417,8 +417,36 @@ func convFuncName(from, to *Type) string {
 	case 'T':
 		switch tkind {
 		case 'E':
+			switch {
+			case from.Size() == 2 && from.Align == 2:
+				return "convT2E16"
+			case from.Size() == 4 && from.Align == 4 && !haspointers(from):
+				return "convT2E32"
+			case from.Size() == 8 && from.Align == Types[TUINT64].Align && !haspointers(from):
+				return "convT2E64"
+			case from.IsString():
+				return "convT2Estring"
+			case from.IsSlice():
+				return "convT2Eslice"
+			case !haspointers(from):
+				return "convT2Enoptr"
+			}
 			return "convT2E"
 		case 'I':
+			switch {
+			case from.Size() == 2 && from.Align == 2:
+				return "convT2I16"
+			case from.Size() == 4 && from.Align == 4 && !haspointers(from):
+				return "convT2I32"
+			case from.Size() == 8 && from.Align == Types[TUINT64].Align && !haspointers(from):
+				return "convT2I64"
+			case from.IsString():
+				return "convT2Istring"
+			case from.IsSlice():
+				return "convT2Islice"
+			case !haspointers(from):
+				return "convT2Inoptr"
+			}
 			return "convT2I"
 		}
 	}
