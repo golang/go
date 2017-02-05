@@ -61,7 +61,7 @@ func Search(n int, f func(int) bool) int {
 	// Invariant: f(i-1) == false, f(j) == true.
 	i, j := 0, n
 	for i < j {
-		h := i + (j-i)/2 // avoid overflow when computing h
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
 		// i ≤ h < j
 		if !f(h) {
 			i = h + 1 // preserves f(i-1) == false
