@@ -101,15 +101,17 @@ type IMAGE_EXPORT_DIRECTORY struct {
 
 const (
 	PEBASE = 0x00400000
+)
 
+var (
 	// SectionAlignment must be greater than or equal to FileAlignment.
 	// The default is the page size for the architecture.
-	PESECTALIGN = 0x1000
+	PESECTALIGN int64 = 0x1000
 
 	// FileAlignment should be a power of 2 between 512 and 64 K, inclusive.
 	// The default is 512. If the SectionAlignment is less than
 	// the architecture's page size, then FileAlignment must match SectionAlignment.
-	PEFILEALIGN = 2 << 8
+	PEFILEALIGN int64 = 2 << 8
 )
 
 const (
@@ -435,8 +437,17 @@ func Peinit(ctxt *Link) {
 		dd = oh.DataDirectory[:]
 	}
 
+	if Linkmode == LinkExternal {
+		PESECTALIGN = 0
+		PEFILEALIGN = 0
+	}
+
 	PEFILEHEADR = int32(Rnd(int64(len(dosstub)+binary.Size(&fh)+l+binary.Size(&sh)), PEFILEALIGN))
-	PESECTHEADR = int32(Rnd(int64(PEFILEHEADR), PESECTALIGN))
+	if Linkmode != LinkExternal {
+		PESECTHEADR = int32(Rnd(int64(PEFILEHEADR), PESECTALIGN))
+	} else {
+		PESECTHEADR = 0
+	}
 	nextsectoff = int(PESECTHEADR)
 	nextfileoff = int(PEFILEHEADR)
 
@@ -1218,10 +1229,10 @@ func Asmbpe(ctxt *Link) {
 	oh.BaseOfCode = t.VirtualAddress
 	oh64.ImageBase = PEBASE
 	oh.ImageBase = PEBASE
-	oh64.SectionAlignment = PESECTALIGN
-	oh.SectionAlignment = PESECTALIGN
-	oh64.FileAlignment = PEFILEALIGN
-	oh.FileAlignment = PEFILEALIGN
+	oh64.SectionAlignment = uint32(PESECTALIGN)
+	oh.SectionAlignment = uint32(PESECTALIGN)
+	oh64.FileAlignment = uint32(PEFILEALIGN)
+	oh.FileAlignment = uint32(PEFILEALIGN)
 	oh64.MajorOperatingSystemVersion = 4
 	oh.MajorOperatingSystemVersion = 4
 	oh64.MinorOperatingSystemVersion = 0
