@@ -542,23 +542,26 @@ opswitch:
 			Warn("shift bounds check elided")
 		}
 
-		// Use results from call expression as arguments for complex.
 	case OAND,
 		OSUB,
 		OHMUL,
+		OMUL,
 		OLT,
 		OLE,
 		OGE,
 		OGT,
 		OADD,
 		OOR,
-		OXOR,
-		OCOMPLEX:
-		if n.Op == OCOMPLEX && n.Left == nil && n.Right == nil {
+		OXOR:
+		n.Left = walkexpr(n.Left, init)
+		n.Right = walkexpr(n.Right, init)
+
+	case OCOMPLEX:
+		// Use results from call expression as arguments for complex.
+		if n.Left == nil && n.Right == nil {
 			n.Left = n.List.First()
 			n.Right = n.List.Second()
 		}
-
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
 
@@ -1070,11 +1073,6 @@ opswitch:
 		n.Right = nod(OCOM, n.Right, nil)
 		n.Right = typecheck(n.Right, Erv)
 		n.Right = walkexpr(n.Right, init)
-
-	case OMUL:
-		n.Left = walkexpr(n.Left, init)
-		n.Right = walkexpr(n.Right, init)
-		n = walkmul(n, init)
 
 	case ODIV, OMOD:
 		n.Left = walkexpr(n.Left, init)
@@ -3396,76 +3394,6 @@ func walkinrange(n *Node, init *Nodes) *Node {
 	cmp.Type = n.Type
 	cmp = walkexpr(cmp, init)
 	return cmp
-}
-
-// walkmul rewrites integer multiplication by powers of two as shifts.
-// The result of walkmul MUST be assigned back to n, e.g.
-// 	n.Left = walkmul(n.Left, init)
-func walkmul(n *Node, init *Nodes) *Node {
-	if !n.Type.IsInteger() {
-		return n
-	}
-
-	var nr *Node
-	var nl *Node
-	if n.Right.Op == OLITERAL {
-		nl = n.Left
-		nr = n.Right
-	} else if n.Left.Op == OLITERAL {
-		nl = n.Right
-		nr = n.Left
-	} else {
-		return n
-	}
-
-	neg := 0
-
-	// x*0 is 0 (and side effects of x).
-	var pow int
-	var w int
-	if nr.Int64() == 0 {
-		cheapexpr(nl, init)
-		Nodconst(n, n.Type, 0)
-		goto ret
-	}
-
-	// nr is a constant.
-	pow = powtwo(nr)
-
-	if pow < 0 {
-		return n
-	}
-	if pow >= 1000 {
-		// negative power of 2, like -16
-		neg = 1
-
-		pow -= 1000
-	}
-
-	w = int(nl.Type.Width * 8)
-	if pow+1 >= w { // too big, shouldn't happen
-		return n
-	}
-
-	nl = cheapexpr(nl, init)
-
-	if pow == 0 {
-		// x*1 is x
-		n = nl
-
-		goto ret
-	}
-
-	n = nod(OLSH, nl, nodintconst(int64(pow)))
-
-ret:
-	if neg != 0 {
-		n = nod(OMINUS, n, nil)
-	}
-
-	n = typecheck(n, Erv)
-	n = walkexpr(n, init)
-	return n
 }
 
 // walkdiv rewrites division by a constant as less expensive
