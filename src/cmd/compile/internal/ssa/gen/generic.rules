@@ -120,6 +120,16 @@
 (Mul32 (Const32 [-1]) x) -> (Neg32 x)
 (Mul64 (Const64 [-1]) x) -> (Neg64 x)
 
+// Convert multiplication by a power of two to a shift.
+(Mul8  <t> n (Const8  [c])) && isPowerOfTwo(c) -> (Lsh8x64  <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+(Mul16 <t> n (Const16 [c])) && isPowerOfTwo(c) -> (Lsh16x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+(Mul32 <t> n (Const32 [c])) && isPowerOfTwo(c) -> (Lsh32x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+(Mul64 <t> n (Const64 [c])) && isPowerOfTwo(c) -> (Lsh64x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+(Mul8  <t> n (Const8  [c])) && t.IsSigned() && isPowerOfTwo(-c) -> (Neg8  (Lsh8x64  <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+(Mul16 <t> n (Const16 [c])) && t.IsSigned() && isPowerOfTwo(-c) -> (Neg16 (Lsh16x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+(Mul32 <t> n (Const32 [c])) && t.IsSigned() && isPowerOfTwo(-c) -> (Neg32 (Lsh32x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+(Mul64 <t> n (Const64 [c])) && t.IsSigned() && isPowerOfTwo(-c) -> (Neg64 (Lsh64x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+
 (Mod8  (Const8  [c]) (Const8  [d])) && d != 0 -> (Const8  [int64(int8(c % d))])
 (Mod16 (Const16 [c]) (Const16 [d])) && d != 0 -> (Const16 [int64(int16(c % d))])
 (Mod32 (Const32 [c]) (Const32 [d])) && d != 0 -> (Const32 [int64(int32(c % d))])

@@ -5458,6 +5458,51 @@ func rewriteValuegeneric_OpMul16(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (Mul16 <t> n (Const16 [c]))
+	// cond: isPowerOfTwo(c)
+	// result: (Lsh16x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	for {
+		t := v.Type
+		n := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(isPowerOfTwo(c)) {
+			break
+		}
+		v.reset(OpLsh16x64)
+		v.Type = t
+		v.AddArg(n)
+		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0.AuxInt = log2(c)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Mul16 <t> n (Const16 [c]))
+	// cond: t.IsSigned() && isPowerOfTwo(-c)
+	// result: (Neg16 (Lsh16x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+	for {
+		t := v.Type
+		n := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(t.IsSigned() && isPowerOfTwo(-c)) {
+			break
+		}
+		v.reset(OpNeg16)
+		v0 := b.NewValue0(v.Pos, OpLsh16x64, t)
+		v0.AddArg(n)
+		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v1.AuxInt = log2(-c)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Mul16 x (Const16 <t> [c]))
 	// cond: x.Op != OpConst16
 	// result: (Mul16 (Const16 <t> [c]) x)
@@ -5531,6 +5576,51 @@ func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
 		x := v.Args[1]
 		v.reset(OpNeg32)
 		v.AddArg(x)
+		return true
+	}
+	// match: (Mul32 <t> n (Const32 [c]))
+	// cond: isPowerOfTwo(c)
+	// result: (Lsh32x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	for {
+		t := v.Type
+		n := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(isPowerOfTwo(c)) {
+			break
+		}
+		v.reset(OpLsh32x64)
+		v.Type = t
+		v.AddArg(n)
+		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0.AuxInt = log2(c)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Mul32 <t> n (Const32 [c]))
+	// cond: t.IsSigned() && isPowerOfTwo(-c)
+	// result: (Neg32 (Lsh32x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+	for {
+		t := v.Type
+		n := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(t.IsSigned() && isPowerOfTwo(-c)) {
+			break
+		}
+		v.reset(OpNeg32)
+		v0 := b.NewValue0(v.Pos, OpLsh32x64, t)
+		v0.AddArg(n)
+		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v1.AuxInt = log2(-c)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 	// match: (Mul32 x (Const32 <t> [c]))
@@ -5735,6 +5825,51 @@ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (Mul64 <t> n (Const64 [c]))
+	// cond: isPowerOfTwo(c)
+	// result: (Lsh64x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	for {
+		t := v.Type
+		n := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(isPowerOfTwo(c)) {
+			break
+		}
+		v.reset(OpLsh64x64)
+		v.Type = t
+		v.AddArg(n)
+		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0.AuxInt = log2(c)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Mul64 <t> n (Const64 [c]))
+	// cond: t.IsSigned() && isPowerOfTwo(-c)
+	// result: (Neg64 (Lsh64x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+	for {
+		t := v.Type
+		n := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(t.IsSigned() && isPowerOfTwo(-c)) {
+			break
+		}
+		v.reset(OpNeg64)
+		v0 := b.NewValue0(v.Pos, OpLsh64x64, t)
+		v0.AddArg(n)
+		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v1.AuxInt = log2(-c)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Mul64 x (Const64 <t> [c]))
 	// cond: x.Op != OpConst64
 	// result: (Mul64 (Const64 <t> [c]) x)
@@ -5935,6 +6070,51 @@ func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
 		x := v.Args[1]
 		v.reset(OpNeg8)
 		v.AddArg(x)
+		return true
+	}
+	// match: (Mul8  <t> n (Const8  [c]))
+	// cond: isPowerOfTwo(c)
+	// result: (Lsh8x64  <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	for {
+		t := v.Type
+		n := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(isPowerOfTwo(c)) {
+			break
+		}
+		v.reset(OpLsh8x64)
+		v.Type = t
+		v.AddArg(n)
+		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0.AuxInt = log2(c)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Mul8  <t> n (Const8  [c]))
+	// cond: t.IsSigned() && isPowerOfTwo(-c)
+	// result: (Neg8  (Lsh8x64  <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+	for {
+		t := v.Type
+		n := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(t.IsSigned() && isPowerOfTwo(-c)) {
+			break
+		}
+		v.reset(OpNeg8)
+		v0 := b.NewValue0(v.Pos, OpLsh8x64, t)
+		v0.AddArg(n)
+		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v1.AuxInt = log2(-c)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 	// match: (Mul8  x (Const8  <t> [c]))
