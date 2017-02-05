@@ -144,7 +144,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagDataAddr = 0
 		}
 		if *ld.FlagRound == -1 {
-			*ld.FlagRound = ld.PESECTALIGN
+			*ld.FlagRound = int(ld.PESECTALIGN)
 		}
 	}
 
