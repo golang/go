@@ -589,7 +589,7 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
 			memstats.heap_objects++
 			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
 			// Swept spans are at the end of lists.
-			if s.npages < uintptr(len(h.free)) {
+			if s.npages < uintptr(len(h.busy)) {
 				h.busy[s.npages].insertBack(s)
 			} else {
 				h.busylarge.insertBack(s)
@@ -941,7 +941,7 @@ func (h *mheap) freeList(npages uintptr) *mSpanList {
 }
 
 func (h *mheap) busyList(npages uintptr) *mSpanList {
-	if npages < uintptr(len(h.free)) {
+	if npages < uintptr(len(h.busy)) {
 		return &h.busy[npages]
 	}
 	return &h.busylarge
