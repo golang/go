@@ -370,6 +370,8 @@ var (
 	Newproc,
 	Deferproc,
 	Deferreturn,
+	Duffcopy,
+	Duffzero,
 	panicindex,
 	panicslice,
 	panicdivide,

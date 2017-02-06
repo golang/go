@@ -6,12 +6,13 @@
 
 package gc
 
-import "fmt"
+import (
+	"cmd/internal/obj"
+	"fmt"
+)
 
-func Sysfunc(name string) *Node {
-	n := newname(Pkglookup(name, Runtimepkg))
-	n.Class = PFUNC
-	return n
+func Sysfunc(name string) *obj.LSym {
+	return Linksym(Pkglookup(name, Runtimepkg))
 }
 
 // addrescapes tags node n as having had its address taken
