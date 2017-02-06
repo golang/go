@@ -946,9 +946,7 @@ func initDefaultCipherSuites() {
 	}
 
 	varDefaultCipherSuites = make([]uint16, 0, len(cipherSuites))
-	for _, topCipher := range topCipherSuites {
-		varDefaultCipherSuites = append(varDefaultCipherSuites, topCipher)
-	}
+	varDefaultCipherSuites = append(varDefaultCipherSuites, topCipherSuites...)
 
 NextCipherSuite:
 	for _, suite := range cipherSuites {
