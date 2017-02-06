@@ -1746,7 +1746,12 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
 	case *ExprStmt:
 		cond = s.X
 	default:
-		p.error("invalid condition, tag, or type switch guard")
+		// Not obviously a syntax error but by making it one, we get
+		// automatic filtering of multiple syntax error messages per
+		// line in the compiler. This avoids the follow-up error
+		// "missing condition in if statement" for an if statement
+		// (minimal fix for #18915).
+		p.syntax_error(fmt.Sprintf("%s used as value", String(s)))
 	}
 
 	p.xnest = outer
