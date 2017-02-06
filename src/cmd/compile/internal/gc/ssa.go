@@ -794,7 +794,7 @@ func (s *state) stmt(n *Node) {
 		s.stmtList(n.List)
 		b := s.exit()
 		b.Kind = ssa.BlockRetJmp // override BlockRet
-		b.Aux = n.Left.Sym
+		b.Aux = Linksym(n.Left.Sym)
 
 	case OCONTINUE, OBREAK:
 		var op string
@@ -3004,7 +3004,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	case codeptr != nil:
 		call = s.newValue2(ssa.OpInterCall, ssa.TypeMem, codeptr, s.mem())
 	case sym != nil:
-		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, sym, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Linksym(sym), s.mem())
 	default:
 		Fatalf("bad call type %v %v", n.Op, n)
 	}
@@ -3365,7 +3365,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 	}
 
 	// Issue call
-	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, fn.Sym, s.mem())
+	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Linksym(fn.Sym), s.mem())
 	s.vars[&memVar] = call
 
 	if !returns {
@@ -4981,8 +4981,8 @@ func (e *ssaExport) Debug_wb() bool {
 	return Debug_wb != 0
 }
 
-func (e *ssaExport) Syslook(name string) interface{} {
-	return syslook(name).Sym
+func (e *ssaExport) Syslook(name string) *obj.LSym {
+	return Linksym(syslook(name).Sym)
 }
 
 func (n *Node) Typ() ssa.Type {

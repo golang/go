@@ -5,8 +5,8 @@
 package ssa
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/src"
-	"fmt"
 )
 
 // writebarrier expands write barrier ops (StoreWB, MoveWB, etc.) into
@@ -31,7 +31,7 @@ import (
 // number of blocks as fuse merges blocks introduced in this phase.
 func writebarrier(f *Func) {
 	var sb, sp, wbaddr *Value
-	var writebarrierptr, typedmemmove, typedmemclr interface{} // *gc.Sym
+	var writebarrierptr, typedmemmove, typedmemclr *obj.LSym
 	var storeWBs, others []*Value
 	var wbs *sparseSet
 	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no WB stores
@@ -71,7 +71,7 @@ func writebarrier(f *Func) {
 					if sp == nil {
 						sp = f.Entry.NewValue0(initln, OpSP, f.Config.fe.TypeUintptr())
 					}
-					wbsym := &ExternSymbol{Typ: f.Config.fe.TypeBool(), Sym: f.Config.fe.Syslook("writeBarrier").(fmt.Stringer)}
+					wbsym := &ExternSymbol{Typ: f.Config.fe.TypeBool(), Sym: f.Config.fe.Syslook("writeBarrier")}
 					wbaddr = f.Entry.NewValue1A(initln, OpAddr, f.Config.fe.TypeUInt32().PtrTo(), wbsym, sb)
 					writebarrierptr = f.Config.fe.Syslook("writebarrierptr")
 					typedmemmove = f.Config.fe.Syslook("typedmemmove")
@@ -162,7 +162,7 @@ func writebarrier(f *Func) {
 					typ := w.Aux // only non-nil for MoveWB, MoveWBVolatile, ZeroWB
 
 					var op Op
-					var fn interface{} // *gc.Sym
+					var fn *obj.LSym
 					switch w.Op {
 					case OpStoreWB:
 						op = OpStore
@@ -240,7 +240,7 @@ func writebarrier(f *Func) {
 
 // wbcall emits write barrier runtime call in b, returns memory.
 // if valIsVolatile, it moves val into temp space before making the call.
-func wbcall(pos src.XPos, b *Block, fn interface{}, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
+func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
 	config := b.Func.Config
 
 	var tmp GCNode
