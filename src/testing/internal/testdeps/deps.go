@@ -49,3 +49,10 @@ func (TestDeps) WriteHeapProfile(w io.Writer) error {
 func (TestDeps) WriteProfileTo(name string, w io.Writer, debug int) error {
 	return pprof.Lookup(name).WriteTo(w, debug)
 }
+
+// ImportPath is the import path of the testing binary, set by the generated main function.
+var ImportPath string
+
+func (TestDeps) ImportPath() string {
+	return ImportPath
+}

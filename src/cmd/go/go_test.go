@@ -3690,6 +3690,28 @@ func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
 	tg.grepBoth(okPattern, "go test did not say ok")
 }
 
+func TestBenchmarkLabels(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	// TODO: tg.parallel()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("test", "-run", "^$", "-bench", ".", "bench")
+	tg.grepStdout(`(?m)^goos: `+runtime.GOOS, "go test did not print goos")
+	tg.grepStdout(`(?m)^goarch: `+runtime.GOARCH, "go test did not print goarch")
+	tg.grepStdout(`(?m)^pkg: bench`, "go test did not say pkg: bench")
+	tg.grepBothNot(`(?s)pkg:.*pkg:`, "go test said pkg multiple times")
+}
+
+func TestBenchmarkLabelsOutsideGOPATH(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	// TODO: tg.parallel()
+	tg.run("test", "-run", "^$", "-bench", ".", "testdata/standalone_benchmark_test.go")
+	tg.grepStdout(`(?m)^goos: `+runtime.GOOS, "go test did not print goos")
+	tg.grepStdout(`(?m)^goarch: `+runtime.GOARCH, "go test did not print goarch")
+	tg.grepBothNot(`(?m)^pkg:`, "go test did say pkg:")
+}
+
 func TestMatchesOnlyTestIsOK(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

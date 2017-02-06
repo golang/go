@@ -47,6 +47,7 @@ type InternalBenchmark struct {
 // affecting benchmark results.
 type B struct {
 	common
+	importPath       string // import path of the package containing the benchmark
 	context          *benchContext
 	N                int
 	previousN        int           // number of iterations in the previous run
@@ -233,9 +234,18 @@ func (b *B) run1() bool {
 	return true
 }
 
+var labelsOnce sync.Once
+
 // run executes the benchmark in a separate goroutine, including all of its
 // subbenchmarks. b must not have subbenchmarks.
 func (b *B) run() BenchmarkResult {
+	labelsOnce.Do(func() {
+		fmt.Fprintf(b.w, "goos: %s\n", runtime.GOOS)
+		fmt.Fprintf(b.w, "goarch: %s\n", runtime.GOARCH)
+		if b.importPath != "" {
+			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
+		}
+	})
 	if b.context != nil {
 		// Running go test --test.bench
 		b.context.processBench(b) // Must call doBench.
@@ -363,10 +373,10 @@ type benchContext struct {
 // An internal function but exported because it is cross-package; part of the implementation
 // of the "go test" command.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
-	runBenchmarks(matchString, benchmarks)
+	runBenchmarks("", matchString, benchmarks)
 }
 
-func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
+func runBenchmarks(importPath string, matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
 	// If no flag was specified, don't run benchmarks.
 	if len(*matchBenchmarks) == 0 {
 		return true
@@ -398,6 +408,7 @@ func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			w:      os.Stdout,
 			chatty: *chatty,
 		},
+		importPath: importPath,
 		benchFunc: func(b *B) {
 			for _, Benchmark := range bs {
 				b.Run(Benchmark.Name, Benchmark.F)
@@ -486,9 +497,10 @@ func (b *B) Run(name string, f func(b *B)) bool {
 			w:      b.w,
 			chatty: b.chatty,
 		},
-		benchFunc: f,
-		benchTime: b.benchTime,
-		context:   b.context,
+		importPath: b.importPath,
+		benchFunc:  f,
+		benchTime:  b.benchTime,
+		context:    b.context,
 	}
 	if sub.run1() {
 		sub.run()
