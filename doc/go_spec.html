@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 3, 2017",
+	"Subtitle": "Version of February 6, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -1862,7 +1862,7 @@ last non-empty expression list.
 
 <p>
 A type declaration binds an identifier, the <i>type name</i>, to a <a href="#Types">type</a>.
-Type declarations come in two forms: Alias declarations and type definitions.
+Type declarations come in two forms: alias declarations and type definitions.
 <p>
 
 <pre class="ebnf">
@@ -1896,9 +1896,9 @@ type (
 <h4 id="Type_definitions">Type definitions</h4>
 
 <p>
-A type definition binds an identifier to a newly created type
-with the same <a href="#Types">underlying type</a> and
-operations as the given type.
+A type definition creates a new, distinct type with the same
+<a href="#Types">underlying type</a> and operations as the given type,
+and binds an identifier to it.
 </p>
 
 <pre class="ebnf">
