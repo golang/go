@@ -297,19 +297,19 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
 
 func compile(fn *Node) {
 	if Newproc == nil {
-		Newproc = Sysfunc("newproc")
-		Deferproc = Sysfunc("deferproc")
-		Deferreturn = Sysfunc("deferreturn")
-		panicindex = Sysfunc("panicindex")
-		panicslice = Sysfunc("panicslice")
-		panicdivide = Sysfunc("panicdivide")
-		growslice = Sysfunc("growslice")
-		panicdottype = Sysfunc("panicdottype")
-		panicnildottype = Sysfunc("panicnildottype")
-		assertE2I = Sysfunc("assertE2I")
-		assertE2I2 = Sysfunc("assertE2I2")
-		assertI2I = Sysfunc("assertI2I")
-		assertI2I2 = Sysfunc("assertI2I2")
+		Newproc = Linksym(Sysfunc("newproc").Sym)
+		Deferproc = Linksym(Sysfunc("deferproc").Sym)
+		Deferreturn = Linksym(Sysfunc("deferreturn").Sym)
+		panicindex = Linksym(Sysfunc("panicindex").Sym)
+		panicslice = Linksym(Sysfunc("panicslice").Sym)
+		panicdivide = Linksym(Sysfunc("panicdivide").Sym)
+		growslice = Linksym(Sysfunc("growslice").Sym)
+		panicdottype = Linksym(Sysfunc("panicdottype").Sym)
+		panicnildottype = Linksym(Sysfunc("panicnildottype").Sym)
+		assertE2I = Linksym(Sysfunc("assertE2I").Sym)
+		assertE2I2 = Linksym(Sysfunc("assertE2I2").Sym)
+		assertI2I = Linksym(Sysfunc("assertI2I").Sym)
+		assertI2I2 = Linksym(Sysfunc("assertI2I2").Sym)
 	}
 
 	defer func(lno src.XPos) {
