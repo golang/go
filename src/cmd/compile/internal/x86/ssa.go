@@ -587,12 +587,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.Op386DUFFZERO:
 		p := gc.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_ADDR
-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
+		p.To.Sym = gc.Duffzero
 		p.To.Offset = v.AuxInt
 	case ssa.Op386DUFFCOPY:
 		p := gc.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_ADDR
-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
+		p.To.Sym = gc.Duffcopy
 		p.To.Offset = v.AuxInt
 
 	case ssa.OpCopy, ssa.Op386MOVLconvert: // TODO: use MOVLreg for reg->reg copies instead of OpCopy?

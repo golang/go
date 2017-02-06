@@ -658,7 +658,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		p = gc.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_ADDR
-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
+		p.To.Sym = gc.Duffzero
 		p.To.Offset = off
 	case ssa.OpAMD64MOVOconst:
 		if v.AuxInt != 0 {
@@ -669,7 +669,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpAMD64DUFFCOPY:
 		p := gc.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_ADDR
-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
+		p.To.Sym = gc.Duffcopy
 		p.To.Offset = v.AuxInt
 
 	case ssa.OpCopy, ssa.OpAMD64MOVQconvert, ssa.OpAMD64MOVLconvert: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
