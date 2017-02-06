@@ -53,7 +53,7 @@ type ctxt9 struct {
 // Instruction layout.
 
 const (
-	funcAlign = 8
+	funcAlign = 16
 )
 
 const (
