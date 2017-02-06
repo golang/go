@@ -656,9 +656,6 @@ func relocsym(ctxt *Link, s *Symbol) {
 					// PE/COFF's PC32 relocation uses the address after the relocated
 					// bytes as the base. Compensate by skewing the addend.
 					o += int64(r.Siz)
-					// GNU ld always add VirtualAddress of the .text section to the
-					// relocated address, compensate that.
-					o -= int64(s.Sect.Vaddr - PEBASE)
 				} else {
 					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, Headtype)
 				}

@@ -485,6 +485,11 @@ func pewrite() {
 	} else {
 		binary.Write(&coutbuf, binary.LittleEndian, &oh)
 	}
+	if Linkmode == LinkExternal {
+		for i := range sh[:pensect] {
+			sh[i].VirtualAddress = 0
+		}
+	}
 	binary.Write(&coutbuf, binary.LittleEndian, sh[:pensect])
 }
 
@@ -828,7 +833,7 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol) int {
 			if r.Xsym.Dynid < 0 {
 				Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
 			}
-			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-PEBASE)) {
+			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Seg.Vaddr)) {
 				Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
 			}
 
@@ -896,8 +901,7 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 	dottext := ctxt.Syms.Lookup(".text", 0)
 	ctors.NumberOfRelocations = 1
 	ctors.PointerToRelocations = uint32(coutbuf.Offset())
-	sectoff := ctors.VirtualAddress
-	Lputl(sectoff)
+	Lputl(0)
 	Lputl(uint32(dottext.Dynid))
 	switch obj.GOARCH {
 	default:
