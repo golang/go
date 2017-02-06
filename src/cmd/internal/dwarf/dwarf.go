@@ -25,7 +25,6 @@ type Var struct {
 	Abbrev int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
 	Offset int32
 	Type   Sym
-	Link   *Var
 }
 
 // A Context specifies how to add data to a Sym.
@@ -565,7 +564,7 @@ func HasChildren(die *DWDie) bool {
 
 // PutFunc writes a DIE for a function to s.
 // It also writes child DIEs for each variable in vars.
-func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size int64, vars *Var) {
+func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size int64, vars []*Var) {
 	Uleb128put(ctxt, s, DW_ABRV_FUNCTION)
 	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
 	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, 0, startPC)
@@ -576,7 +575,7 @@ func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size 
 	}
 	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
 	names := make(map[string]bool)
-	for v := vars; v != nil; v = v.Link {
+	for _, v := range vars {
 		if strings.Contains(v.Name, ".autotmp_") {
 			continue
 		}
@@ -602,3 +601,11 @@ func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size 
 	}
 	Uleb128put(ctxt, s, 0)
 }
+
+// VarsByOffset attaches the methods of sort.Interface to []*Var,
+// sorting in increasing Offset.
+type VarsByOffset []*Var
+
+func (s VarsByOffset) Len() int           { return len(s) }
+func (s VarsByOffset) Less(i, j int) bool { return s[i].Offset < s[j].Offset }
+func (s VarsByOffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

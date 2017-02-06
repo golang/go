@@ -561,7 +561,7 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
 		dw = append(dw, dsym)
 		dsym.Type = SDWARFINFO
 		dsym.Set(AttrDuplicateOK, s.DuplicateOK())
-		var vars dwarf.Var
+		var vars []*dwarf.Var
 		var abbrev int
 		var offs int32
 		for a := s.Autom; a != nil; a = a.Link {
@@ -583,23 +583,26 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
 			default:
 				continue
 			}
+
 			typename := dwarf.InfoPrefix + a.Gotype.Name[len("type."):]
-			dwvar := &dwarf.Var{
+			vars = append(vars, &dwarf.Var{
 				Name:   a.Asym.Name,
 				Abbrev: abbrev,
-				Offset: int32(offs),
+				Offset: offs,
 				Type:   Linklookup(ctxt, typename, 0),
-			}
-			dws := &vars.Link
-			for ; *dws != nil; dws = &(*dws).Link {
-				if offs <= (*dws).Offset {
-					break
-				}
-			}
-			dwvar.Link = *dws
-			*dws = dwvar
+			})
 		}
-		dwarf.PutFunc(dctxt, dsym, s.Name, s.Version == 0, s, s.Size, vars.Link)
+
+		// We want to sort variables by offset, breaking ties
+		// with declaration order. Autom holds variables in
+		// reverse declaration order, so we reverse the
+		// assembled slice and then apply a stable sort.
+		for i, j := 0, len(vars)-1; i < j; i, j = i+1, j-1 {
+			vars[i], vars[j] = vars[j], vars[i]
+		}
+		sort.Stable(dwarf.VarsByOffset(vars))
+
+		dwarf.PutFunc(dctxt, dsym, s.Name, s.Version == 0, s, s.Size, vars)
 	}
 	return dw
 }
