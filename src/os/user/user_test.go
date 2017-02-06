@@ -31,6 +31,12 @@ func TestCurrent(t *testing.T) {
 	}
 }
 
+func BenchmarkCurrent(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Current()
+	}
+}
+
 func compare(t *testing.T, want, got *User) {
 	if want.Uid != got.Uid {
 		t.Errorf("got Uid=%q; want %q", got.Uid, want.Uid)
