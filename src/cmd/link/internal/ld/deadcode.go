@@ -254,9 +254,7 @@ func (d *deadcodepass) init() {
 				}
 			}
 		}
-		for _, name := range markextra {
-			names = append(names, name)
-		}
+		names = append(names, markextra...)
 		for _, s := range dynexp {
 			d.mark(s, nil)
 		}
