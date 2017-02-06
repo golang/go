@@ -16,10 +16,10 @@ var PrintFunc = printFunc
 var Opt = opt
 var Deadcode = deadcode
 var Copyelim = copyelim
+var TestCtxt = obj.Linknew(&x86.Linkamd64)
 
 func testConfig(t testing.TB) *Config {
-	testCtxt := &obj.Link{Arch: &x86.Linkamd64}
-	return NewConfig("amd64", DummyFrontend{t}, testCtxt, true)
+	return NewConfig("amd64", DummyFrontend{t}, TestCtxt, true)
 }
 
 // DummyFrontend is a test-only frontend.
@@ -68,8 +68,8 @@ func (DummyFrontend) Line(_ src.XPos) string {
 }
 func (DummyFrontend) AllocFrame(f *Func) {
 }
-func (DummyFrontend) Syslook(s string) interface{} {
-	return DummySym(s)
+func (DummyFrontend) Syslook(s string) *obj.LSym {
+	return obj.Linklookup(TestCtxt, s, 0)
 }
 
 func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
@@ -100,7 +100,3 @@ func (d DummyFrontend) CanSSA(t Type) bool {
 	// There are no un-SSAable types in dummy land.
 	return true
 }
-
-type DummySym string
-
-func (s DummySym) String() string { return string(s) }
