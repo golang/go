@@ -17,8 +17,8 @@ func TestWriteBarrierStoreOrder(t *testing.T) {
 			Valu("sp", OpSP, TypeInvalid, 0, nil),
 			Valu("v", OpConstNil, ptrType, 0, nil),
 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("wb2", OpStoreWB, TypeMem, 8, nil, "addr1", "v", "wb1"),
-			Valu("wb1", OpStoreWB, TypeMem, 8, nil, "addr1", "v", "start"), // wb1 and wb2 are out of order
+			Valu("wb2", OpStore, TypeMem, 8, ptrType, "addr1", "v", "wb1"),
+			Valu("wb1", OpStore, TypeMem, 8, ptrType, "addr1", "v", "start"), // wb1 and wb2 are out of order
 			Goto("exit")),
 		Bloc("exit",
 			Exit("wb2")))

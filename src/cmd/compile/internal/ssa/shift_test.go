@@ -41,7 +41,7 @@ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
 			Valu("load", OpLoad, typ, 0, nil, "argptr", "mem"),
 			Valu("c", OpConst64, TypeUInt64, amount, nil),
 			Valu("shift", op, typ, 0, nil, "load", "c"),
-			Valu("store", OpStore, TypeMem, 8, nil, "resptr", "shift", "mem"),
+			Valu("store", OpStore, TypeMem, 8, TypeUInt64, "resptr", "shift", "mem"),
 			Exit("store")))
 	Compile(fun.f)
 	return fun
@@ -101,7 +101,7 @@ func makeShiftExtensionFunc(c *Config, amount int64, lshift, rshift Op, typ Type
 			Valu("c", OpConst64, TypeUInt64, amount, nil),
 			Valu("lshift", lshift, typ, 0, nil, "load", "c"),
 			Valu("rshift", rshift, typ, 0, nil, "lshift", "c"),
-			Valu("store", OpStore, TypeMem, 8, nil, "resptr", "rshift", "mem"),
+			Valu("store", OpStore, TypeMem, 8, TypeUInt64, "resptr", "rshift", "mem"),
 			Exit("store")))
 	Compile(fun.f)
 	return fun

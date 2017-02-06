@@ -88,6 +88,9 @@ func (DummyFrontend) AllocFrame(f *Func) {
 func (DummyFrontend) Syslook(s string) *obj.LSym {
 	return obj.Linklookup(TestCtxt, s, 0)
 }
+func (DummyFrontend) UseWriteBarrier() bool {
+	return true // only writebarrier_test cares
+}
 
 func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
 func (d DummyFrontend) Log() bool                            { return true }

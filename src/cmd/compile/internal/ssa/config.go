@@ -139,6 +139,9 @@ type Frontend interface {
 	// Syslook returns a symbol of the runtime function/variable with the
 	// given name.
 	Syslook(string) *obj.LSym
+
+	// UseWriteBarrier returns whether write barrier is enabled
+	UseWriteBarrier() bool
 }
 
 // interface used to hold *gc.Node. We'd use *gc.Node directly but
