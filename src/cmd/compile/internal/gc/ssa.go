@@ -2205,7 +2205,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 			// Tell liveness we're about to build a new slice
 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, sn, s.mem())
 		}
-		capaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(array_cap), addr)
+		capaddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), int64(array_cap), addr)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
 		if ssa.IsStackAddr(addr) {
 			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
@@ -2230,7 +2230,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	if inplace {
 		l = s.variable(&lenVar, Types[TINT]) // generates phi for len
 		nl = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
-		lenaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(array_nel), addr)
+		lenaddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), int64(array_nel), addr)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenaddr, nl, s.mem())
 	}
 
@@ -3520,7 +3520,7 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 	case t.IsInterface():
 		// itab field is treated as a scalar.
 		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
-		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TUINT8]), s.config.PtrSize, left)
+		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(ptrto(Types[TUINT8])), s.config.PtrSize, left)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
@@ -3556,7 +3556,7 @@ func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
 	case t.IsInterface():
 		// itab field is treated as a scalar.
 		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
-		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TUINT8]), s.config.PtrSize, left)
+		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(ptrto(Types[TUINT8])), s.config.PtrSize, left)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
