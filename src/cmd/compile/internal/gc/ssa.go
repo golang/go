@@ -2359,6 +2359,14 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, skip skipMa
 	if left.Op == ONAME && skip == 0 {
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
 	}
+	if isReflectHeaderDataField(left) {
+		// Package unsafe's documentation says storing pointers into
+		// reflect.SliceHeader and reflect.StringHeader's Data fields
+		// is valid, even though they have type uintptr (#19168).
+		// Mark it pointer type to signal the writebarrier pass to
+		// insert a write barrier.
+		t = Types[TUNSAFEPTR]
+	}
 	if deref {
 		// Treat as a mem->mem move.
 		if wb && !ssa.IsStackAddr(addr) {
@@ -3422,9 +3430,9 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value) {
 
 	var val *ssa.Value
 	if right == nil {
-		val = s.newValue2I(ssa.OpZeroWB, ssa.TypeMem, sizeAlignAuxInt(t), left, s.mem())
+		val = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), left, s.mem())
 	} else {
-		val = s.newValue3I(ssa.OpMoveWB, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
+		val = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
 	}
 	//val.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(t))}
 	val.Aux = t
@@ -3560,24 +3568,24 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
 	switch {
 	case t.IsPtrShaped():
-		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
+		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
 		store.Aux = t
 		s.vars[&memVar] = store
 	case t.IsString():
 		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), right)
-		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
 		store.Aux = ptrto(Types[TUINT8])
 		s.vars[&memVar] = store
 	case t.IsSlice():
 		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), right)
-		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
 		store.Aux = ptrto(Types[TUINT8])
 		s.vars[&memVar] = store
 	case t.IsInterface():
 		// itab field is treated as a scalar.
 		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
 		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(ptrto(Types[TUINT8])), s.config.PtrSize, left)
-		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
+		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
 		store.Aux = ptrto(Types[TUINT8])
 		s.vars[&memVar] = store
 	case t.IsStruct():
@@ -4960,6 +4968,10 @@ func (e *ssaExport) Debug_checknil() bool {
 
 func (e *ssaExport) Debug_wb() bool {
 	return Debug_wb != 0
+}
+
+func (e *ssaExport) UseWriteBarrier() bool {
+	return use_writebarrier
 }
 
 func (e *ssaExport) Syslook(name string) *obj.LSym {

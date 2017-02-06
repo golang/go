@@ -9,8 +9,25 @@ import (
 	"cmd/internal/src"
 )
 
-// writebarrier expands write barrier ops (StoreWB, MoveWB, etc.) into
-// branches and runtime calls, like
+// needwb returns whether we need write barrier for store op v.
+// v must be Store/Move/Zero.
+func needwb(v *Value) bool {
+	t, ok := v.Aux.(Type)
+	if !ok {
+		v.Fatalf("store aux is not a type: %s", v.LongString())
+	}
+	if !t.HasPointer() {
+		return false
+	}
+	if IsStackAddr(v.Args[0]) {
+		return false // write on stack doesn't need write barrier
+	}
+	return true
+}
+
+// writebarrier pass inserts write barriers for store ops (Store, Move, Zero)
+// when necessary (the condition above). It rewrites store ops to branches
+// and runtime calls, like
 //
 // if writeBarrier.enabled {
 //   writebarrierptr(ptr, val)
@@ -18,11 +35,13 @@ import (
 //   *ptr = val
 // }
 //
-// If ptr is an address of a stack slot, write barrier will be removed
-// and a normal store will be used.
 // A sequence of WB stores for many pointer fields of a single type will
 // be emitted together, with a single branch.
 func writebarrier(f *Func) {
+	if !f.Config.fe.UseWriteBarrier() {
+		return
+	}
+
 	var sb, sp, wbaddr, const0 *Value
 	var writebarrierptr, typedmemmove, typedmemclr *obj.LSym
 	var stores, after []*Value
@@ -30,27 +49,23 @@ func writebarrier(f *Func) {
 	var storeNumber []int32
 
 	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no stores to expand
-		// rewrite write barrier for stack writes to ordinary Store/Move/Zero,
-		// record presence of non-stack WB ops.
+		// first, identify all the stores that need to insert a write barrier.
+		// mark them with WB ops temporarily. record presence of WB ops.
 		hasStore := false
 		for _, v := range b.Values {
 			switch v.Op {
-			case OpStoreWB, OpMoveWB, OpZeroWB:
-				if IsStackAddr(v.Args[0]) {
+			case OpStore, OpMove, OpZero:
+				if needwb(v) {
 					switch v.Op {
-					case OpStoreWB:
-						v.Op = OpStore
-					case OpMoveWB:
-						v.Op = OpMove
-						v.Aux = nil
-					case OpZeroWB:
-						v.Op = OpZero
-						v.Aux = nil
+					case OpStore:
+						v.Op = OpStoreWB
+					case OpMove:
+						v.Op = OpMoveWB
+					case OpZero:
+						v.Op = OpZeroWB
 					}
-					continue
+					hasStore = true
 				}
-				hasStore = true
-				break
 			}
 		}
 		if !hasStore {
