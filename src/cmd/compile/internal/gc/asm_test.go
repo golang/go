@@ -504,6 +504,45 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		[]string{"\"abc\""},
 	},
+	// Bit test ops on amd64, issue 18943.
+	{
+		`
+		func f37(a, b uint64) int {
+			if a&(1<<(b&63)) != 0 {
+				return 1
+			}
+			return -1
+		}
+		`,
+		[]string{"\tBTQ\t"},
+	},
+	{
+		`
+		func f38(a, b uint64) bool {
+			return a&(1<<(b&63)) != 0
+		}
+		`,
+		[]string{"\tBTQ\t"},
+	},
+	{
+		`
+		func f39(a uint64) int {
+			if a&(1<<60) != 0 {
+				return 1
+			}
+			return -1
+		}
+		`,
+		[]string{"\tBTQ\t\\$60"},
+	},
+	{
+		`
+		func f40(a uint64) bool {
+			return a&(1<<60) != 0
+		}
+		`,
+		[]string{"\tBTQ\t\\$60"},
+	},
 }
 
 var linux386Tests = []*asmTest{

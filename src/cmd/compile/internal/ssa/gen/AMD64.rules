@@ -518,6 +518,37 @@
 (NE (TESTB (SETA  cmp) (SETA  cmp)) yes no) -> (UGT cmp yes no)
 (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no) -> (UGE cmp yes no)
 
+// Normalize TESTx argument order for BTx rewrites below.
+(TESTQ y x:(SHLQ _ _)) && y.Op != OpAMD64SHLQ -> (TESTQ x y)
+(TESTL y x:(SHLL _ _)) && y.Op != OpAMD64SHLL -> (TESTL x y)
+
+// Recognize bit tests: a&(1<<b) != 0 for b suitably bounded
+// Note that ULT and SETB check the carry flag; they are identical to CS and SETCS.
+// Same, mutatis mutandis, for UGE and SETAE, and CC and SETCC.
+(NE (TESTL (SHLL (MOVLconst [1]) x) y)) && !config.nacl -> (ULT (BTL x y))
+(EQ (TESTL (SHLL (MOVLconst [1]) x) y)) && !config.nacl -> (UGE (BTL x y))
+(NE (TESTQ (SHLQ (MOVQconst [1]) x) y)) && !config.nacl -> (ULT (BTQ x y))
+(EQ (TESTQ (SHLQ (MOVQconst [1]) x) y)) && !config.nacl -> (UGE (BTQ x y))
+(NE (TESTLconst [c] x)) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (ULT (BTLconst [log2(c)] x))
+(EQ (TESTLconst [c] x)) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (UGE (BTLconst [log2(c)] x))
+(NE (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (ULT (BTQconst [log2(c)] x))
+(EQ (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (UGE (BTQconst [log2(c)] x))
+(NE (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (ULT (BTQconst [log2(c)] x))
+(EQ (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (UGE (BTQconst [log2(c)] x))
+(SETNE (TESTL (SHLL (MOVLconst [1]) x) y)) && !config.nacl -> (SETB  (BTL x y))
+(SETEQ (TESTL (SHLL (MOVLconst [1]) x) y)) && !config.nacl -> (SETAE (BTL x y))
+(SETNE (TESTQ (SHLQ (MOVQconst [1]) x) y)) && !config.nacl -> (SETB  (BTQ x y))
+(SETEQ (TESTQ (SHLQ (MOVQconst [1]) x) y)) && !config.nacl -> (SETAE (BTQ x y))
+(SETNE (TESTLconst [c] x)) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (SETB  (BTLconst [log2(c)] x))
+(SETEQ (TESTLconst [c] x)) && isPowerOfTwo(c) && log2(c) < 32 && !config.nacl -> (SETAE (BTLconst [log2(c)] x))
+(SETNE (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETB  (BTQconst [log2(c)] x))
+(SETEQ (TESTQconst [c] x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAE (BTQconst [log2(c)] x))
+(SETNE (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETB  (BTQconst [log2(c)] x))
+(SETEQ (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAE (BTQconst [log2(c)] x))
+
+// Convert BTQconst to BTLconst if possible. It has a shorter encoding.
+(BTQconst [c] x) && c < 32 -> (BTLconst [c] x)
+
 // Special case for floating point - LF/LEF not generated
 (NE (TESTB (SETGF  cmp) (SETGF  cmp)) yes no) -> (UGT  cmp yes no)
 (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no) -> (UGE  cmp yes no)
@@ -1379,6 +1410,16 @@
 (CMPLconst (ANDLconst [c] x) [0]) -> (TESTLconst [c] x)
 (CMPWconst (ANDLconst [c] x) [0]) -> (TESTWconst [int64(int16(c))] x)
 (CMPBconst (ANDLconst [c] x) [0]) -> (TESTBconst [int64(int8(c))] x)
+
+// Convert TESTx to TESTxconst if possible.
+(TESTQ (MOVQconst [c]) x) && c < 1<<31 -> (TESTQconst [c] x)
+(TESTL (MOVLconst [c]) x) -> (TESTLconst [c] x)
+(TESTW (MOVLconst [c]) x) -> (TESTWconst [c] x)
+(TESTB (MOVLconst [c]) x) -> (TESTBconst [c] x)
+(TESTQ x (MOVQconst [c])) && c < 1<<31 -> (TESTQconst [c] x)
+(TESTL x (MOVLconst [c])) -> (TESTLconst [c] x)
+(TESTW x (MOVLconst [c])) -> (TESTWconst [c] x)
+(TESTB x (MOVLconst [c])) -> (TESTBconst [c] x)
 
 // TEST %reg,%reg is shorter than CMP
 (CMPQconst x [0]) -> (TESTQ x x)
