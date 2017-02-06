@@ -238,6 +238,8 @@ func determineLinkMode(ctxt *Link) {
 				Linkmode = LinkExternal
 			} else if iscgo && externalobj {
 				Linkmode = LinkExternal
+			} else if Buildmode == BuildmodePIE {
+				Linkmode = LinkExternal // https://golang.org/issue/18968
 			} else {
 				Linkmode = LinkInternal
 			}
