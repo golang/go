@@ -16,6 +16,7 @@ func interrupt() {
 // readFile reads and returns the content of the named file.
 // It is a trivial implementation of ioutil.ReadFile, reimplemented
 // here to avoid depending on io/ioutil or os.
+// It returns an error if name exceeds maxFileSize bytes.
 func readFile(name string) ([]byte, error) {
 	f, err := syscall.Open(name, syscall.O_RDONLY, 0)
 	if err != nil {
@@ -34,6 +35,9 @@ func readFile(name string) ([]byte, error) {
 		}
 		if n == 0 || err != nil {
 			break
+		}
+		if len(ret) > maxFileSize {
+			return nil, fileSizeError(name)
 		}
 	}
 	return ret, err

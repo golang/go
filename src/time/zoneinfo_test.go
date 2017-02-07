@@ -20,8 +20,8 @@ func init() {
 func TestEnvVarUsage(t *testing.T) {
 	time.ResetZoneinfoForTesting()
 
-	testZoneinfo := "foo.zip"
-	env := "ZONEINFO"
+	const testZoneinfo = "foo.zip"
+	const env = "ZONEINFO"
 
 	defer os.Setenv(env, os.Getenv(env))
 	os.Setenv(env, testZoneinfo)
@@ -32,6 +32,26 @@ func TestEnvVarUsage(t *testing.T) {
 
 	if zoneinfo := time.ZoneinfoForTesting(); testZoneinfo != *zoneinfo {
 		t.Errorf("zoneinfo does not match env variable: got %q want %q", zoneinfo, testZoneinfo)
+	}
+}
+
+func TestLoadLocationValidatesNames(t *testing.T) {
+	time.ResetZoneinfoForTesting()
+	const env = "ZONEINFO"
+	defer os.Setenv(env, os.Getenv(env))
+	os.Setenv(env, "")
+
+	bad := []string{
+		"/usr/foo/Foo",
+		"\\UNC\foo",
+		"..",
+		"a..",
+	}
+	for _, v := range bad {
+		_, err := time.LoadLocation(v)
+		if err != time.ErrLocation {
+			t.Errorf("LoadLocation(%q) error = %v; want ErrLocation", v, err)
+		}
 	}
 }
 

@@ -11,6 +11,17 @@ package time
 
 import "errors"
 
+// maxFileSize is the max permitted size of files read by readFile.
+// As reference, the zoneinfo.zip distributed by Go is ~350 KB,
+// so 10MB is overkill.
+const maxFileSize = 10 << 20
+
+type fileSizeError string
+
+func (f fileSizeError) Error() string {
+	return "time: file " + string(f) + " is too large"
+}
+
 // Copies of io.Seek* constants to avoid importing "io":
 const (
 	seekStart   = 0
