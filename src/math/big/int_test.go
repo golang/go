@@ -7,8 +7,8 @@ package big
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/quick"
@@ -903,56 +903,105 @@ func TestLshRsh(t *testing.T) {
 	}
 }
 
-var int64Tests = []int64{
-	0,
-	1,
-	-1,
-	4294967295,
-	-4294967295,
-	4294967296,
-	-4294967296,
-	9223372036854775807,
-	-9223372036854775807,
-	-9223372036854775808,
+var int64Tests = []string{
+	// int64
+	"0",
+	"1",
+	"-1",
+	"4294967295",
+	"-4294967295",
+	"4294967296",
+	"-4294967296",
+	"9223372036854775807",
+	"-9223372036854775807",
+	"-9223372036854775808",
+
+	// not int64
+	"0x8000000000000000",
+	"-0x8000000000000001",
+	"38579843757496759476987459679745",
+	"-38579843757496759476987459679745",
 }
 
 func TestInt64(t *testing.T) {
-	for i, testVal := range int64Tests {
-		in := NewInt(testVal)
-		out := in.Int64()
+	for _, s := range int64Tests {
+		var x Int
+		_, ok := x.SetString(s, 0)
+		if !ok {
+			t.Errorf("SetString(%s, 0) failed", s)
+			continue
+		}
 
-		if out != testVal {
-			t.Errorf("#%d got %d want %d", i, out, testVal)
+		want, err := strconv.ParseInt(s, 0, 64)
+		if err != nil {
+			if err.(*strconv.NumError).Err == strconv.ErrRange {
+				if x.IsInt64() {
+					t.Errorf("IsInt64(%s) succeeded unexpectedly", s)
+				}
+			} else {
+				t.Errorf("ParseInt(%s) failed", s)
+			}
+			continue
+		}
+
+		if !x.IsInt64() {
+			t.Errorf("IsInt64(%s) failed unexpectedly", s)
+		}
+
+		got := x.Int64()
+		if got != want {
+			t.Errorf("Int64(%s) = %d; want %d", s, got, want)
 		}
 	}
 }
 
-var uint64Tests = []uint64{
-	0,
-	1,
-	4294967295,
-	4294967296,
-	8589934591,
-	8589934592,
-	9223372036854775807,
-	9223372036854775808,
-	18446744073709551615, // 1<<64 - 1
+var uint64Tests = []string{
+	// uint64
+	"0",
+	"1",
+	"4294967295",
+	"4294967296",
+	"8589934591",
+	"8589934592",
+	"9223372036854775807",
+	"9223372036854775808",
+	"0x08000000000000000",
+
+	// not uint64
+	"0x10000000000000000",
+	"-0x08000000000000000",
+	"-1",
 }
 
 func TestUint64(t *testing.T) {
-	in := new(Int)
-	for i, testVal := range uint64Tests {
-		in.SetUint64(testVal)
-		out := in.Uint64()
-
-		if out != testVal {
-			t.Errorf("#%d got %d want %d", i, out, testVal)
+	for _, s := range uint64Tests {
+		var x Int
+		_, ok := x.SetString(s, 0)
+		if !ok {
+			t.Errorf("SetString(%s, 0) failed", s)
+			continue
 		}
 
-		str := fmt.Sprint(testVal)
-		strOut := in.String()
-		if strOut != str {
-			t.Errorf("#%d.String got %s want %s", i, strOut, str)
+		want, err := strconv.ParseUint(s, 0, 64)
+		if err != nil {
+			// check for sign explicitly (ErrRange doesn't cover signed input)
+			if s[0] == '-' || err.(*strconv.NumError).Err == strconv.ErrRange {
+				if x.IsUint64() {
+					t.Errorf("IsUint64(%s) succeeded unexpectedly", s)
+				}
+			} else {
+				t.Errorf("ParseUint(%s) failed", s)
+			}
+			continue
+		}
+
+		if !x.IsUint64() {
+			t.Errorf("IsUint64(%s) failed unexpectedly", s)
+		}
+
+		got := x.Uint64()
+		if got != want {
+			t.Errorf("Uint64(%s) = %d; want %d", s, got, want)
 		}
 	}
 }

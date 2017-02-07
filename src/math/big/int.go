@@ -324,22 +324,22 @@ func (x *Int) Cmp(y *Int) (r int) {
 	return
 }
 
-// low32 returns the least significant 32 bits of z.
-func low32(z nat) uint32 {
-	if len(z) == 0 {
+// low32 returns the least significant 32 bits of x.
+func low32(x nat) uint32 {
+	if len(x) == 0 {
 		return 0
 	}
-	return uint32(z[0])
+	return uint32(x[0])
 }
 
-// low64 returns the least significant 64 bits of z.
-func low64(z nat) uint64 {
-	if len(z) == 0 {
+// low64 returns the least significant 64 bits of x.
+func low64(x nat) uint64 {
+	if len(x) == 0 {
 		return 0
 	}
-	v := uint64(z[0])
-	if _W == 32 && len(z) > 1 {
-		v |= uint64(z[1]) << 32
+	v := uint64(x[0])
+	if _W == 32 && len(x) > 1 {
+		return uint64(x[1])<<32 | v
 	}
 	return v
 }
@@ -358,6 +358,20 @@ func (x *Int) Int64() int64 {
 // If x cannot be represented in a uint64, the result is undefined.
 func (x *Int) Uint64() uint64 {
 	return low64(x.abs)
+}
+
+// IsInt64 reports whether x can be represented as an int64.
+func (x *Int) IsInt64() bool {
+	if len(x.abs) <= 64/_W {
+		w := int64(low64(x.abs))
+		return w >= 0 || x.neg && w == -w
+	}
+	return false
+}
+
+// IsUint64 reports whether x can be represented as a uint64.
+func (x *Int) IsUint64() bool {
+	return !x.neg && len(x.abs) <= 64/_W
 }
 
 // SetString sets z to the value of s, interpreted in the given base,
