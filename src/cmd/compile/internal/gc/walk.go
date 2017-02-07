@@ -3234,37 +3234,6 @@ func finishcompare(n, r *Node, init *Nodes) *Node {
 	return nn
 }
 
-func samecheap(a *Node, b *Node) bool {
-	var ar *Node
-	var br *Node
-	for a != nil && b != nil && a.Op == b.Op {
-		switch a.Op {
-		default:
-			return false
-
-		case ONAME:
-			return a == b
-
-		case ODOT, ODOTPTR:
-			if a.Sym != b.Sym {
-				return false
-			}
-
-		case OINDEX:
-			ar = a.Right
-			br = b.Right
-			if !Isconst(ar, CTINT) || !Isconst(br, CTINT) || ar.Val().U.(*Mpint).Cmp(br.Val().U.(*Mpint)) != 0 {
-				return false
-			}
-		}
-
-		a = a.Left
-		b = b.Left
-	}
-
-	return false
-}
-
 // isIntOrdering reports whether n is a <, ≤, >, or ≥ ordering between integers.
 func (n *Node) isIntOrdering() bool {
 	switch n.Op {
