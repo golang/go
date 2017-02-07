@@ -426,7 +426,7 @@ func downloadPackage(p *load.Package) error {
 			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: 'go help gopath'")
 		}
 		// Guard against people setting GOPATH=$GOROOT.
-		if list[0] == cfg.GOROOT {
+		if filepath.Clean(list[0]) == filepath.Clean(cfg.GOROOT) {
 			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: 'go help gopath'")
 		}
 		if _, err := os.Stat(filepath.Join(list[0], "src/cmd/go/alldocs.go")); err == nil {
