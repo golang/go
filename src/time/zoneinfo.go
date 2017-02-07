@@ -5,6 +5,7 @@
 package time
 
 import (
+	"errors"
 	"sync"
 	"syscall"
 )
@@ -256,6 +257,8 @@ func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool, 
 // NOTE(rsc): Eventually we will need to accept the POSIX TZ environment
 // syntax too, but I don't feel like implementing it today.
 
+var errLocation = errors.New("time: invalid location name")
+
 var zoneinfo *string
 var zoneinfoOnce sync.Once
 
@@ -280,6 +283,11 @@ func LoadLocation(name string) (*Location, error) {
 	if name == "Local" {
 		return Local, nil
 	}
+	if containsDotDot(name) || name[0] == '/' || name[0] == '\\' {
+		// No valid IANA Time Zone name contains a single dot,
+		// much less dot dot. Likewise, none begin with a slash.
+		return nil, errLocation
+	}
 	zoneinfoOnce.Do(func() {
 		env, _ := syscall.Getenv("ZONEINFO")
 		zoneinfo = &env
@@ -291,4 +299,17 @@ func LoadLocation(name string) (*Location, error) {
 		}
 	}
 	return loadLocation(name)
+}
+
+// containsDotDot reports whether s contains "..".
+func containsDotDot(s string) bool {
+	if len(s) < 2 {
+		return false
+	}
+	for i := 0; i < len(s)-1; i++ {
+		if s[i] == '.' && s[i+1] == '.' {
+			return true
+		}
+	}
+	return false
 }

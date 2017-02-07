@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"os"
 	"runtime"
+	"strings"
 	"testing"
 	"testing/quick"
 	. "time"
@@ -1252,5 +1254,16 @@ func TestMarshalBinaryZeroTime(t *testing.T) {
 func TestZeroMonthString(t *testing.T) {
 	if got, want := Month(0).String(), "%!Month(0)"; got != want {
 		t.Errorf("zero month = %q; want %q", got, want)
+	}
+}
+
+func TestReadFileLimit(t *testing.T) {
+	const zero = "/dev/zero"
+	if _, err := os.Stat(zero); err != nil {
+		t.Skip("skipping test without a /dev/zero")
+	}
+	_, err := ReadFile(zero)
+	if err == nil || !strings.Contains(err.Error(), "is too large") {
+		t.Errorf("readFile(%q) error = %v; want error containing 'is too large'", zero, err)
 	}
 }

@@ -32,4 +32,6 @@ var (
 	ParseTimeZone          = parseTimeZone
 	SetMono                = (*Time).setMono
 	GetMono                = (*Time).mono
+	ErrLocation            = errLocation
+	ReadFile               = readFile
 )
