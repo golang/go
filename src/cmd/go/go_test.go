@@ -3777,3 +3777,24 @@ func TestA(t *testing.T) {}`)
 	tg.grepStdout("pkgs$", "expected package not listed")
 	tg.grepStdout("pkgs/a", "expected package not listed")
 }
+
+// Issue 18975.
+func TestFFLAGS(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tg.tempFile("p/src/p/main.go", `package main
+		// #cgo FFLAGS: -no-such-fortran-flag
+		import "C"
+		func main() {}
+	`)
+	tg.tempFile("p/src/p/a.f", `! comment`)
+	tg.setenv("GOPATH", tg.path("p"))
+	tg.runFail("build", "-x", "p")
+	tg.grepStderr("no-such-fortran-flag", `missing expected "-no-such-fortran-flag"`)
+}
