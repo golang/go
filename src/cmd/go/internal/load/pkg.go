@@ -184,6 +184,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.CgoCFLAGS = pp.CgoCFLAGS
 	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
+	p.CgoFFLAGS = pp.CgoFFLAGS
 	p.CgoLDFLAGS = pp.CgoLDFLAGS
 	p.CgoPkgConfig = pp.CgoPkgConfig
 	// We modify p.Imports in place, so make copy now.
