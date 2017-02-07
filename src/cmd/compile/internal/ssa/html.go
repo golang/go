@@ -471,5 +471,9 @@ func (p htmlFuncPrinter) endDepCycle() {
 }
 
 func (p htmlFuncPrinter) named(n LocalSlot, vals []*Value) {
-	// TODO
+	fmt.Fprintf(p.w, "<li>name %s: ", n.Name())
+	for _, val := range vals {
+		fmt.Fprintf(p.w, "%s ", val.HTML())
+	}
+	fmt.Fprintf(p.w, "</li>")
 }
