@@ -144,7 +144,7 @@ func writeLogdHeader() int {
 	//      hdr[3:7] sec unsigned uint32, little endian.
 	//      hdr[7:11] nsec unsigned uint32, little endian.
 	hdr[0] = 0 // LOG_ID_MAIN
-	sec, nsec := time_now()
+	sec, nsec := walltime()
 	packUint32(hdr[3:7], uint32(sec))
 	packUint32(hdr[7:11], uint32(nsec))
 
