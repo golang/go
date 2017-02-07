@@ -1683,173 +1683,111 @@ func homeEnvName() string {
 	}
 }
 
-// Test go env missing GOPATH shows default.
-func TestMissingGOPATHEnvShowsDefault(t *testing.T) {
+func TestDefaultGOPATH(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
-	tg.setenv("GOPATH", "")
+	tg.tempDir("home/go")
+	tg.setenv(homeEnvName(), tg.path("home"))
+
 	tg.run("env", "GOPATH")
+	tg.grepStdout(regexp.QuoteMeta(tg.path("home/go")), "want GOPATH=$HOME/go")
 
-	want := filepath.Join(os.Getenv(homeEnvName()), "go")
-	got := strings.TrimSpace(tg.getStdout())
-	if got != want {
-		t.Errorf("got %q; want %q", got, want)
-	}
+	tg.setenv("GOROOT", tg.path("home/go"))
+	tg.run("env", "GOPATH")
+	tg.grepStdoutNot(".", "want unset GOPATH because GOROOT=$HOME/go")
+
+	tg.setenv("GOROOT", tg.path("home/go")+"/")
+	tg.run("env", "GOPATH")
+	tg.grepStdoutNot(".", "want unset GOPATH because GOROOT=$HOME/go/")
 }
 
-// Test go get missing GOPATH causes go get to warn if directory doesn't exist.
-func TestMissingGOPATHGetWarnsIfNotExists(t *testing.T) {
+func TestDefaultGOPATHGet(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
-
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("skipping because git binary not found")
-	}
 
 	tg := testgo(t)
 	defer tg.cleanup()
-
-	// setenv variables for test and defer deleting temporary home directory.
 	tg.setenv("GOPATH", "")
-	tmp, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("could not create tmp home: %v", err)
-	}
-	defer os.RemoveAll(tmp)
-	tg.setenv(homeEnvName(), tmp)
+	tg.tempDir("home")
+	tg.setenv(homeEnvName(), tg.path("home"))
 
+	// warn for creating directory
 	tg.run("get", "-v", "github.com/golang/example/hello")
+	tg.grepStderr("created GOPATH="+regexp.QuoteMeta(tg.path("home/go"))+"; see 'go help gopath'", "did not create GOPATH")
 
-	want := fmt.Sprintf("created GOPATH=%s; see 'go help gopath'", filepath.Join(tmp, "go"))
-	got := strings.TrimSpace(tg.getStderr())
-	if !strings.Contains(got, want) {
-		t.Errorf("got %q; want %q", got, want)
-	}
-}
-
-// Test go get missing GOPATH causes no warning if directory exists.
-func TestMissingGOPATHGetDoesntWarnIfExists(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("skipping because git binary not found")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	// setenv variables for test and defer resetting them.
-	tg.setenv("GOPATH", "")
-	tmp, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("could not create tmp home: %v", err)
-	}
-	defer os.RemoveAll(tmp)
-	if err := os.Mkdir(filepath.Join(tmp, "go"), 0777); err != nil {
-		t.Fatalf("could not create $HOME/go: %v", err)
-	}
-
-	tg.setenv(homeEnvName(), tmp)
-
+	// no warning if directory already exists
+	tg.must(os.RemoveAll(tg.path("home/go")))
+	tg.tempDir("home/go")
 	tg.run("get", "github.com/golang/example/hello")
+	tg.grepStderrNot(".", "expected no output on standard error")
 
-	got := strings.TrimSpace(tg.getStderr())
-	if got != "" {
-		t.Errorf("got %q; wants empty", got)
-	}
+	// error if $HOME/go is a file
+	tg.must(os.RemoveAll(tg.path("home/go")))
+	tg.tempFile("home/go", "")
+	tg.runFail("get", "github.com/golang/example/hello")
+	tg.grepStderr(`mkdir .*[/\\]go: .*(not a directory|cannot find the path)`, "expected error because $HOME/go is a file")
 }
 
-// Test go get missing GOPATH fails if pointed file is not a directory.
-func TestMissingGOPATHGetFailsIfItsNotDirectory(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
+func TestDefaultGOPATHPrintedSearchList(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-
-	// setenv variables for test and defer resetting them.
 	tg.setenv("GOPATH", "")
-	tmp, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("could not create tmp home: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tg.tempDir("home")
+	tg.setenv(homeEnvName(), tg.path("home"))
 
-	path := filepath.Join(tmp, "go")
-	if err := ioutil.WriteFile(path, nil, 0777); err != nil {
-		t.Fatalf("could not create GOPATH at %s: %v", path, err)
-	}
-	tg.setenv(homeEnvName(), tmp)
-
-	const pkg = "github.com/golang/example/hello"
-	tg.runFail("get", pkg)
-
-	msg := "not a directory"
-	if runtime.GOOS == "windows" {
-		msg = "The system cannot find the path specified."
-	}
-	want := fmt.Sprintf("package %s: mkdir %s: %s", pkg, filepath.Join(tmp, "go"), msg)
-	got := strings.TrimSpace(tg.getStderr())
-	if got != want {
-		t.Errorf("got %q; wants %q", got, want)
-	}
-}
-
-// Test go install of missing package when missing GOPATH fails and shows default GOPATH.
-func TestMissingGOPATHInstallMissingPackageFailsAndShowsDefault(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	// setenv variables for test and defer resetting them.
-	tg.setenv("GOPATH", "")
-	tmp, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("could not create tmp home: %v", err)
-	}
-	defer os.RemoveAll(tmp)
-	if err := os.Mkdir(filepath.Join(tmp, "go"), 0777); err != nil {
-		t.Fatalf("could not create $HOME/go: %v", err)
-	}
-	tg.setenv(homeEnvName(), tmp)
-
-	const pkg = "github.com/golang/example/hello"
-	tg.runFail("install", pkg)
-
-	pkgPath := filepath.Join(strings.Split(pkg, "/")...)
-	want := fmt.Sprintf("can't load package: package %s: cannot find package \"%s\" in any of:", pkg, pkg) +
-		fmt.Sprintf("\n\t%s (from $GOROOT)", filepath.Join(runtime.GOROOT(), "src", pkgPath)) +
-		fmt.Sprintf("\n\t%s (from $GOPATH)", filepath.Join(tmp, "go", "src", pkgPath))
-
-	got := strings.TrimSpace(tg.getStderr())
-	if got != want {
-		t.Errorf("got %q; wants %q", got, want)
-	}
+	tg.runFail("install", "github.com/golang/example/hello")
+	tg.grepStderr(regexp.QuoteMeta(tg.path("home/go/src/github.com/golang/example/hello"))+`.*from \$GOPATH`, "expected default GOPATH")
 }
 
 // Issue 4186.  go get cannot be used to download packages to $GOROOT.
 // Test that without GOPATH set, go get should fail.
-func TestWithoutGOPATHGoGetFails(t *testing.T) {
+func TestGoGetIntoGOROOT(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
 	tg.tempDir("src")
-	tg.setenv("GOPATH", "")
-	tg.setenv("GOROOT", tg.path("."))
-	tg.runFail("get", "-d", "golang.org/x/codereview/cmd/hgpatch")
-}
 
-// Test that with GOPATH=$GOROOT, go get should fail.
-func TestWithGOPATHEqualsGOROOTGoGetFails(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
+	// Fails because GOROOT=GOPATH
 	tg.setenv("GOPATH", tg.path("."))
 	tg.setenv("GOROOT", tg.path("."))
-	tg.runFail("get", "-d", "golang.org/x/codereview/cmd/hgpatch")
+	tg.runFail("get", "-d", "github.com/golang/example/hello")
+	tg.grepStderr("warning: GOPATH set to GOROOT", "go should detect GOPATH=GOROOT")
+	tg.grepStderr(`\$GOPATH must not be set to \$GOROOT`, "go should detect GOPATH=GOROOT")
+
+	// Fails because GOROOT=GOPATH after cleaning.
+	tg.setenv("GOPATH", tg.path(".")+"/")
+	tg.setenv("GOROOT", tg.path("."))
+	tg.runFail("get", "-d", "github.com/golang/example/hello")
+	tg.grepStderr("warning: GOPATH set to GOROOT", "go should detect GOPATH=GOROOT")
+	tg.grepStderr(`\$GOPATH must not be set to \$GOROOT`, "go should detect GOPATH=GOROOT")
+
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GOROOT", tg.path(".")+"/")
+	tg.runFail("get", "-d", "github.com/golang/example/hello")
+	tg.grepStderr("warning: GOPATH set to GOROOT", "go should detect GOPATH=GOROOT")
+	tg.grepStderr(`\$GOPATH must not be set to \$GOROOT`, "go should detect GOPATH=GOROOT")
+
+	// Fails because GOROOT=$HOME/go so default GOPATH unset.
+	tg.tempDir("home/go")
+	tg.setenv(homeEnvName(), tg.path("home"))
+	tg.setenv("GOPATH", "")
+	tg.setenv("GOROOT", tg.path("home/go"))
+	tg.runFail("get", "-d", "github.com/golang/example/hello")
+	tg.grepStderr(`\$GOPATH not set`, "expected GOPATH not set")
+
+	tg.setenv(homeEnvName(), tg.path("home")+"/")
+	tg.setenv("GOPATH", "")
+	tg.setenv("GOROOT", tg.path("home/go"))
+	tg.runFail("get", "-d", "github.com/golang/example/hello")
+	tg.grepStderr(`\$GOPATH not set`, "expected GOPATH not set")
+
+	tg.setenv(homeEnvName(), tg.path("home"))
+	tg.setenv("GOPATH", "")
+	tg.setenv("GOROOT", tg.path("home/go")+"/")
+	tg.runFail("get", "-d", "github.com/golang/example/hello")
+	tg.grepStderr(`\$GOPATH not set`, "expected GOPATH not set")
 }
 
 func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
