@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.5
-
 // Package typeutil defines various utilities for types, such as Map,
 // a mapping from types.Type to interface{} values.
 package typeutil // import "golang.org/x/tools/go/types/typeutil"

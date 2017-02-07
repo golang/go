@@ -1,5 +1,3 @@
-// +build go1.5
-
 package typeutil_test
 
 import (

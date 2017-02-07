@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.5
-
 package ssa
 
 // CreateTestMainPackage synthesizes a main package that runs all the
@@ -221,6 +219,7 @@ func (deps) StartCPUProfile(io.Writer) error { return nil }
 func (deps) StopCPUProfile() {}
 func (deps) WriteHeapProfile(io.Writer) error { return nil }
 func (deps) WriteProfileTo(string, io.Writer, int) error { return nil }
+func (deps) ImportPath() string { return "" }
 
 var match deps
 {{else}}

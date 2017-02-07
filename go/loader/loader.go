@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.5
-
 package loader
 
 // See doc.go for package documentation and implementation notes.
@@ -604,7 +602,7 @@ func (conf *Config) Load() (*Program, error) {
 
 	// Create packages specified by conf.CreatePkgs.
 	for _, cp := range conf.CreatePkgs {
-		files, errs := parseFiles(conf.fset(), conf.build(), nil, ".", cp.Filenames, conf.ParserMode)
+		files, errs := parseFiles(conf.fset(), conf.build(), nil, conf.Cwd, cp.Filenames, conf.ParserMode)
 		files = append(files, cp.Files...)
 
 		path := cp.Path
@@ -616,7 +614,7 @@ func (conf *Config) Load() (*Program, error) {
 			}
 		}
 
-		dir := "."
+		dir := conf.Cwd
 		if len(files) > 0 && files[0].Pos().IsValid() {
 			dir = filepath.Dir(conf.fset().File(files[0].Pos()).Name())
 		}

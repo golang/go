@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.5
-
 package interp
 
 // Emulated functions that we cannot interpret because they are
@@ -450,7 +448,7 @@ func ext۰testing۰runExample(fr *frame, args []value) value {
 
 func ext۰time۰now(fr *frame, args []value) value {
 	nano := time.Now().UnixNano()
-	return tuple{int64(nano / 1e9), int32(nano % 1e9)}
+	return tuple{int64(nano / 1e9), int32(nano % 1e9), 0}
 }
 
 func ext۰time۰Sleep(fr *frame, args []value) value {
