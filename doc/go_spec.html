@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 6, 2017",
+	"Subtitle": "Version of February 7, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -6468,7 +6468,7 @@ The following minimal alignment properties are guaranteed:
 </li>
 
 <li>For a variable <code>x</code> of array type: <code>unsafe.Alignof(x)</code> is the same as
-   <code>unsafe.Alignof(x[0])</code>, but at least 1.
+	the alignment of a variable of the array's element type.
 </li>
 </ol>
 
