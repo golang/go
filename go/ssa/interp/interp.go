@@ -314,9 +314,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		fr.env[instr] = fr.get(instr.Iter).(iter).next()
 
 	case *ssa.FieldAddr:
-		x := fr.get(instr.X)
-		// FIXME wrong!  &global.f must not change if we do *global = zero!
-		fr.env[instr] = &(*x.(*value)).(structure)[instr.Field]
+		fr.env[instr] = &(*fr.get(instr.X).(*value)).(structure)[instr.Field]
 
 	case *ssa.Field:
 		fr.env[instr] = fr.get(instr.X).(structure)[instr.Field]
