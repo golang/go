@@ -32,17 +32,6 @@ package obj
 
 // Code and data passes.
 
-func Brchain(ctxt *Link, p *Prog) *Prog {
-	for i := 0; i < 20; i++ {
-		if p == nil || p.As != AJMP || p.Pcond == nil {
-			return p
-		}
-		p = p.Pcond
-	}
-
-	return nil
-}
-
 func brloop(ctxt *Link, p *Prog) *Prog {
 	var q *Prog
 

@@ -1411,15 +1411,6 @@ func (s *state) ssaShiftOp(op Op, t *Type, u *Type) ssa.Op {
 	return x
 }
 
-func (s *state) ssaRotateOp(op Op, t *Type) ssa.Op {
-	etype1 := s.concreteEtype(t)
-	x, ok := opToSSA[opAndType{op, etype1}]
-	if !ok {
-		s.Fatalf("unhandled rotate op %v etype=%s", op, etype1)
-	}
-	return x
-}
-
 // expr converts the expression n to ssa, adds it to s and returns the ssa result.
 func (s *state) expr(n *Node) *ssa.Value {
 	if !(n.Op == ONAME || n.Op == OLITERAL && n.Sym != nil) {
