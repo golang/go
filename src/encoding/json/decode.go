@@ -22,7 +22,8 @@ import (
 )
 
 // Unmarshal parses the JSON-encoded data and stores the result
-// in the value pointed to by v.
+// in the value pointed to by v. If v is nil or not a pointer,
+// Unmarshal returns an InvalidUnmarshalError.
 //
 // Unmarshal uses the inverse of the encodings that
 // Marshal uses, allocating maps, slices, and pointers as necessary,
