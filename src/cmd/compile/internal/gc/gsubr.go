@@ -299,7 +299,7 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 // Gins inserts instruction as. f is from, t is to.
 func Gins(as obj.As, f, t *Node) *obj.Prog {
 	switch as {
-	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF, obj.ATYPE,
+	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF,
 		obj.ATEXT, obj.AFUNCDATA, obj.AUSEFIELD:
 	default:
 		Fatalf("unhandled gins op %v", as)

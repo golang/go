@@ -23,7 +23,6 @@ const (
 // As an exception to that rule, we typically write down all the
 // size variants of an operation even if we just use a subset.
 var progtable = [x86.ALAST & obj.AMask]gc.ProgInfo{
-	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
 	obj.ATEXT:     {Flags: gc.Pseudo},
 	obj.AFUNCDATA: {Flags: gc.Pseudo},
 	obj.APCDATA:   {Flags: gc.Pseudo},

@@ -25,7 +25,6 @@ const (
 //
 // The table is formatted for 8-space tabs.
 var progtable = [mips.ALAST & obj.AMask]gc.ProgInfo{
-	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
 	obj.ATEXT:     {Flags: gc.Pseudo},
 	obj.AFUNCDATA: {Flags: gc.Pseudo},
 	obj.APCDATA:   {Flags: gc.Pseudo},

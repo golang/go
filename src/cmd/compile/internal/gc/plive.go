@@ -910,9 +910,7 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
 		if false {
 			fmt.Printf("analyzing '%v'\n", p)
 		}
-		if p.As != obj.ATYPE {
-			checkprog(fn, p)
-		}
+		checkprog(fn, p)
 	}
 }
 

@@ -50,30 +50,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
 			case AEND:
 				continue
 
-			case ATYPE:
-				// Assume each TYPE instruction describes
-				// a different local variable or parameter,
-				// so no dedup.
-				// Using only the TYPE instructions means
-				// that we discard location information about local variables
-				// in C and assembly functions; that information is inferred
-				// from ordinary references, because there are no TYPE
-				// instructions there. Without the type information, gdb can't
-				// use the locations, so we don't bother to save them.
-				// If something else could use them, we could arrange to
-				// preserve them.
-				if curtext == nil {
-					continue
-				}
-				a := new(Auto)
-				a.Asym = p.From.Sym
-				a.Aoffset = int32(p.From.Offset)
-				a.Name = int16(p.From.Name)
-				a.Gotype = p.To.Sym
-				a.Link = curtext.Autom
-				curtext.Autom = a
-				continue
-
 			case ATEXT:
 				s := p.From.Sym
 				if s == nil {
