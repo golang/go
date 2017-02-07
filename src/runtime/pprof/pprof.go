@@ -33,7 +33,9 @@
 //            }
 //            defer pprof.StopCPUProfile()
 //        }
-//        ...
+//
+//        // ... rest of the program ...
+//
 //        if *memprofile != "" {
 //            f, err := os.Create(*memprofile)
 //            if err != nil {
