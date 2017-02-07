@@ -185,6 +185,8 @@ func unlockProfiles() {
 // If a profile with that name already exists, NewProfile panics.
 // The convention is to use a 'import/path.' prefix to create
 // separate name spaces for each package.
+// For compatibility with various tools that read pprof data,
+// profile names should not contain spaces.
 func NewProfile(name string) *Profile {
 	lockProfiles()
 	defer unlockProfiles()
