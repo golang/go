@@ -2433,6 +2433,16 @@ func TestStripPrefix(t *testing.T) {
 	res.Body.Close()
 }
 
+// https://golang.org/issue/18952.
+func TestStripPrefix_notModifyRequest(t *testing.T) {
+	h := StripPrefix("/foo", NotFoundHandler())
+	req := httptest.NewRequest("GET", "/foo/bar", nil)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	if req.URL.Path != "/foo/bar" {
+		t.Errorf("StripPrefix should not modify the provided Request, but it did")
+	}
+}
+
 func TestRequestLimit_h1(t *testing.T) { testRequestLimit(t, h1Mode) }
 func TestRequestLimit_h2(t *testing.T) { testRequestLimit(t, h2Mode) }
 func testRequestLimit(t *testing.T, h2 bool) {
