@@ -76,18 +76,17 @@ func hashStrRev(sep string) (uint32, uint32) {
 // If sep is an empty string, Count returns 1 + the number of Unicode code points in s.
 func Count(s, sep string) int {
 	n := 0
-	// special cases
+	// special case
 	if len(sep) == 0 {
 		return utf8.RuneCountInString(s) + 1
 	}
-	offset := 0
 	for {
-		i := Index(s[offset:], sep)
+		i := Index(s, sep)
 		if i == -1 {
 			return n
 		}
 		n++
-		offset += i + len(sep)
+		s = s[i+len(sep):]
 	}
 }
 
