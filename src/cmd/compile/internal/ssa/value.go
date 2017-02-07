@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"math"
@@ -244,8 +245,8 @@ func (v *Value) isGenericIntConst() bool {
 // ExternSymbol is an aux value that encodes a variable's
 // constant offset from the static base pointer.
 type ExternSymbol struct {
-	Typ Type         // Go type
-	Sym fmt.Stringer // A *gc.Sym referring to a global variable
+	Typ Type // Go type
+	Sym *obj.LSym
 	// Note: the offset for an external symbol is not
 	// calculated until link time.
 }

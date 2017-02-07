@@ -1433,12 +1433,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 		len := s.newValue1(ssa.OpStringLen, Types[TINT], str)
 		return s.newValue3(ssa.OpSliceMake, n.Type, ptr, len, len)
 	case OCFUNC:
-		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: n.Left.Sym})
+		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: Linksym(n.Left.Sym)})
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
 	case ONAME:
 		if n.Class == PFUNC {
 			// "value" of a function is the address of the function's closure
-			sym := funcsym(n.Sym)
+			sym := Linksym(funcsym(n.Sym))
 			aux := &ssa.ExternSymbol{Typ: n.Type, Sym: sym}
 			return s.entryNewValue1A(ssa.OpAddr, ptrto(n.Type), aux, s.sb)
 		}
@@ -2187,7 +2187,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 
 	// Call growslice
 	s.startBlock(grow)
-	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(n.Type.Elem())}, s.sb)
+	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(n.Type.Elem()))}, s.sb)
 
 	r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
 
@@ -3071,7 +3071,7 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
 		switch n.Class {
 		case PEXTERN:
 			// global variable
-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: n.Sym})
+			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: Linksym(n.Sym)})
 			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
 			// TODO: Make OpAddr use AuxInt as well as Aux.
 			if n.Xoffset != 0 {
@@ -3427,7 +3427,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line src.XPos, rig
 		}
 		val = s.newValue3I(op, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
 	}
-	val.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}
+	val.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(t))}
 	s.vars[&memVar] = val
 
 	// WB ops will be expanded to branches at writebarrier phase.
@@ -4168,7 +4168,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	if !commaok {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
-		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{Typ: byteptr, Sym: typenamesym(n.Left.Type)}, s.sb)
+		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{Typ: byteptr, Sym: Linksym(typenamesym(n.Left.Type))}, s.sb)
 		s.rtcall(panicdottype, false, nil, typ, target, taddr)
 
 		// on success, return data from interface
@@ -4569,14 +4569,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	switch sym := v.Aux.(type) {
 	case *ssa.ExternSymbol:
 		a.Name = obj.NAME_EXTERN
-		switch s := sym.Sym.(type) {
-		case *Sym:
-			a.Sym = Linksym(s)
-		case *obj.LSym:
-			a.Sym = s
-		default:
-			v.Fatalf("ExternSymbol.Sym is %T", s)
-		}
+		a.Sym = sym.Sym
 	case *ssa.ArgSymbol:
 		n := sym.Node.(*Node)
 		a.Name = obj.NAME_PARAM
