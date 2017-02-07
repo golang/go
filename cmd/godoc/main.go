@@ -162,8 +162,15 @@ func main() {
 
 	playEnabled = *showPlayground
 
-	// Check usage: either server and no args, command line and args, or index creation mode
+	// Check usage: server and no args.
+	if (*httpAddr != "" || *urlFlag != "") && (flag.NArg() > 0) {
+		fmt.Fprintln(os.Stderr, "can't use -http with args.")
+		usage()
+	}
+
+	// Check usage: command line args or index creation mode.
 	if (*httpAddr != "" || *urlFlag != "") != (flag.NArg() == 0) && !*writeIndex {
+		fmt.Fprintln(os.Stderr, "missing args.")
 		usage()
 	}
 
