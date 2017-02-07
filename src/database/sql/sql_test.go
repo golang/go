@@ -313,9 +313,13 @@ func TestQueryContext(t *testing.T) {
 		got = append(got, r)
 		index++
 	}
-	err = rows.Err()
-	if err != nil {
-		t.Fatalf("Err: %v", err)
+	select {
+	case <-ctx.Done():
+		if err := ctx.Err(); err != context.Canceled {
+			t.Fatalf("context err = %v; want context.Canceled")
+		}
+	default:
+		t.Fatalf("context err = nil; want context.Canceled")
 	}
 	want := []row{
 		{age: 1, name: "Alice"},
