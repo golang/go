@@ -1411,8 +1411,7 @@ func buildop(ctxt *obj.Link) {
 			AMOVM,
 			ARFE,
 			obj.ATEXT,
-			obj.AUSEFIELD,
-			obj.ATYPE:
+			obj.AUSEFIELD:
 			break
 
 		case AADDF:

@@ -474,7 +474,6 @@ var Anames = []string{
 	"PCDATA",
 	"RET",
 	"TEXT",
-	"TYPE",
 	"UNDEF",
 	"USEFIELD",
 	"VARDEF",

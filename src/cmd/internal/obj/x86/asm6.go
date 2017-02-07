@@ -1699,7 +1699,6 @@ var optab =
 	{AXTEST, ynone, Px, [23]uint8{0x0f, 01, 0xd6}},
 	{AXGETBV, ynone, Pm, [23]uint8{01, 0xd0}},
 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
-	{obj.ATYPE, nil, 0, [23]uint8{}},
 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
 	{obj.APCDATA, ypcdata, Px, [23]uint8{0, 0}},
 	{obj.AVARDEF, nil, 0, [23]uint8{}},

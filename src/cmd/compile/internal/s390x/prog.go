@@ -18,7 +18,6 @@ import (
 // As an exception to that rule, we typically write down all the
 // size variants of an operation even if we just use a subset.
 var progtable = [s390x.ALAST & obj.AMask]gc.ProgInfo{
-	obj.ATYPE & obj.AMask:     {Flags: gc.Pseudo | gc.Skip},
 	obj.ATEXT & obj.AMask:     {Flags: gc.Pseudo},
 	obj.AFUNCDATA & obj.AMask: {Flags: gc.Pseudo},
 	obj.APCDATA & obj.AMask:   {Flags: gc.Pseudo},
