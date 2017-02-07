@@ -1476,21 +1476,33 @@ func BenchmarkFieldsFunc(b *testing.B) {
 	}
 }
 
-func BenchmarkSplit1(b *testing.B) {
+func BenchmarkSplitEmptySeparator(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Split(benchInputHard, "")
 	}
 }
 
-func BenchmarkSplit2(b *testing.B) {
+func BenchmarkSplitSingleByteSeparator(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Split(benchInputHard, "/")
 	}
 }
 
-func BenchmarkSplit3(b *testing.B) {
+func BenchmarkSplitMultiByteSeparator(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Split(benchInputHard, "hello")
+	}
+}
+
+func BenchmarkSplitNSingleByteSeparator(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		SplitN(benchInputHard, "/", 10)
+	}
+}
+
+func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		SplitN(benchInputHard, "hello", 10)
 	}
 }
 
