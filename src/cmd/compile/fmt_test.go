@@ -660,7 +660,6 @@ var knownFormats = map[string]string{
 	"float64 %.3f":                                    "",
 	"float64 %.6g":                                    "",
 	"float64 %g":                                      "",
-	"fmt.Stringer %T":                                 "",
 	"int %-12d":                                       "",
 	"int %-6d":                                        "",
 	"int %-8o":                                        "",
