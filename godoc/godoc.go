@@ -582,21 +582,24 @@ func (p *Presentation) example_textFunc(info *PageInfo, funcName, indent string)
 
 		// print code
 		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
+		config := &printer.Config{Mode: printer.UseSpaces, Tabwidth: p.TabWidth}
 		var buf1 bytes.Buffer
-		p.writeNode(&buf1, info.FSet, cnode)
+		config.Fprint(&buf1, info.FSet, cnode)
 		code := buf1.String()
-		// Additional formatting if this is a function body.
+
+		// Additional formatting if this is a function body. Unfortunately, we
+		// can't print statements individually because we would lose comments
+		// on later statements.
 		if n := len(code); n >= 2 && code[0] == '{' && code[n-1] == '}' {
 			// remove surrounding braces
 			code = code[1 : n-1]
 			// unindent
-			code = strings.Replace(code, "\n    ", "\n", -1)
+			code = replaceLeadingIndentation(code, strings.Repeat(" ", p.TabWidth), indent)
 		}
 		code = strings.Trim(code, "\n")
-		code = strings.Replace(code, "\n", "\n\t", -1)
 
 		buf.WriteString(indent)
-		buf.WriteString("Example:\n\t")
+		buf.WriteString("Example:\n")
 		buf.WriteString(code)
 		buf.WriteString("\n\n")
 	}
@@ -624,7 +627,7 @@ func (p *Presentation) example_htmlFunc(info *PageInfo, funcName string) string 
 			// remove surrounding braces
 			code = code[1 : n-1]
 			// unindent
-			code = strings.Replace(code, "\n    ", "\n", -1)
+			code = replaceLeadingIndentation(code, strings.Repeat(" ", p.TabWidth), "")
 			// remove output comment
 			if loc := exampleOutputRx.FindStringIndex(code); loc != nil {
 				code = strings.TrimSpace(code[:loc[0]])
@@ -773,6 +776,93 @@ func splitExampleName(s string) (name, suffix string) {
 	}
 	name = s
 	return
+}
+
+// replaceLeadingIndentation replaces oldIndent at the beginning of each line
+// with newIndent. This is used for formatting examples. Raw strings that
+// span multiple lines are handled specially: oldIndent is not removed (since
+// go/printer will not add any indentation there), but newIndent is added
+// (since we may still want leading indentation).
+func replaceLeadingIndentation(body, oldIndent, newIndent string) string {
+	// Handle indent at the beginning of the first line. After this, we handle
+	// indentation only after a newline.
+	var buf bytes.Buffer
+	if strings.HasPrefix(body, oldIndent) {
+		buf.WriteString(newIndent)
+		body = body[len(oldIndent):]
+	}
+
+	// Use a state machine to keep track of whether we're in a string or
+	// rune literal while we process the rest of the code.
+	const (
+		codeState = iota
+		runeState
+		interpretedStringState
+		rawStringState
+	)
+	searchChars := []string{
+		"'\"`\n", // codeState
+		`\'`,     // runeState
+		`\"`,     // interpretedStringState
+		"`\n",    // rawStringState
+		// newlineState does not need to search
+	}
+	state := codeState
+	for {
+		i := strings.IndexAny(body, searchChars[state])
+		if i < 0 {
+			buf.WriteString(body)
+			break
+		}
+		c := body[i]
+		buf.WriteString(body[:i+1])
+		body = body[i+1:]
+		switch state {
+		case codeState:
+			switch c {
+			case '\'':
+				state = runeState
+			case '"':
+				state = interpretedStringState
+			case '`':
+				state = rawStringState
+			case '\n':
+				if strings.HasPrefix(body, oldIndent) {
+					buf.WriteString(newIndent)
+					body = body[len(oldIndent):]
+				}
+			}
+
+		case runeState:
+			switch c {
+			case '\\':
+				r, size := utf8.DecodeRuneInString(body)
+				buf.WriteRune(r)
+				body = body[size:]
+			case '\'':
+				state = codeState
+			}
+
+		case interpretedStringState:
+			switch c {
+			case '\\':
+				r, size := utf8.DecodeRuneInString(body)
+				buf.WriteRune(r)
+				body = body[size:]
+			case '"':
+				state = codeState
+			}
+
+		case rawStringState:
+			switch c {
+			case '`':
+				state = codeState
+			case '\n':
+				buf.WriteString(newIndent)
+			}
+		}
+	}
+	return buf.String()
 }
 
 // Write an AST node to w.

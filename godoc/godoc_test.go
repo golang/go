@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"strings"
 	"testing"
 )
 
@@ -187,6 +188,32 @@ func TestScanIdentifier(t *testing.T) {
 		got := scanIdentifier([]byte(tt.in))
 		if string(got) != tt.want {
 			t.Errorf("scanIdentifier(%q) = %q; want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestReplaceLeadingIndentation(t *testing.T) {
+	oldIndent := strings.Repeat(" ", 2)
+	newIndent := strings.Repeat(" ", 4)
+	tests := []struct {
+		src, want string
+	}{
+		{"  foo\n    bar\n  baz", "    foo\n      bar\n    baz"},
+		{"  '`'\n  '`'\n", "    '`'\n    '`'\n"},
+		{"  '\\''\n  '`'\n", "    '\\''\n    '`'\n"},
+		{"  \"`\"\n  \"`\"\n", "    \"`\"\n    \"`\"\n"},
+		{"  `foo\n  bar`", "    `foo\n      bar`"},
+		{"  `foo\\`\n  bar", "    `foo\\`\n    bar"},
+		{"  '\\`'`foo\n  bar", "    '\\`'`foo\n      bar"},
+		{
+			"  if true {\n    foo := `One\n    \tTwo\nThree`\n  }\n",
+			"    if true {\n      foo := `One\n        \tTwo\n    Three`\n    }\n",
+		},
+	}
+	for _, tc := range tests {
+		if got := replaceLeadingIndentation(tc.src, oldIndent, newIndent); got != tc.want {
+			t.Errorf("replaceLeadingIndentation:\n%v\n---\nhave:\n%v\n---\nwant:\n%v\n",
+				tc.src, got, tc.want)
 		}
 	}
 }
