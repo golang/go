@@ -440,7 +440,9 @@ function PlaygroundOutput(el) {
       if (opts.shareURLEl) {
         shareURL = $(opts.shareURLEl).hide();
       }
-      $(opts.shareEl).click(share);
+      $(opts.shareEl).click(function() {
+        share();
+      });
     }
 
     if (opts.toysEl !== null) {
