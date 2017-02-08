@@ -964,6 +964,25 @@ func newPEDWARFSection(ctxt *Link, name string, size int64) *IMAGE_SECTION_HEADE
 func writePESymTableRecords(ctxt *Link) int {
 	var symcnt int
 
+	writeOneSymbol := func(s *Symbol, addr int64, sectidx int, typ uint16, class uint8) {
+		// write COFF symbol table record
+		if len(s.Name) > 8 {
+			Lputl(0)
+			Lputl(uint32(strtbladd(s.Name)))
+		} else {
+			strnput(s.Name, 8)
+		}
+		Lputl(uint32(addr))
+		Wputl(uint16(sectidx))
+		Wputl(typ)
+		Cput(class)
+		Cput(0) // no aux entries
+
+		s.Dynid = int32(symcnt)
+
+		symcnt++
+	}
+
 	put := func(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, gotype *Symbol) {
 		if s == nil {
 			return
@@ -978,16 +997,13 @@ func writePESymTableRecords(ctxt *Link) int {
 		}
 
 		// Only windows/386 requires underscore prefix on external symbols.
-		// Include .text symbol as external, because .ctors section relocations refer to it.
 		if SysArch.Family == sys.I386 &&
 			Linkmode == LinkExternal &&
-			(s.Type == obj.SHOSTOBJ ||
-				s.Attr.CgoExport() ||
-				s.Name == ".text") {
+			(s.Type == obj.SHOSTOBJ || s.Attr.CgoExport()) {
 			s.Name = "_" + s.Name
 		}
 
-		var typ uint16
+		typ := uint16(IMAGE_SYM_TYPE_NULL)
 		var sect int
 		var value int64
 		// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
@@ -1008,35 +1024,21 @@ func writePESymTableRecords(ctxt *Link) int {
 		} else {
 			Errorf(s, "addpesym %#x", addr)
 		}
-
-		// write COFF symbol table record
-		if len(s.Name) > 8 {
-			Lputl(0)
-			Lputl(uint32(strtbladd(s.Name)))
-		} else {
-			strnput(s.Name, 8)
+		if typ != IMAGE_SYM_TYPE_NULL {
+		} else if Linkmode != LinkExternal {
+			// TODO: fix IMAGE_SYM_DTYPE_ARRAY value and use following expression, instead of 0x0308
+			typ = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
+			typ = 0x0308 // "array of structs"
 		}
-		Lputl(uint32(value))
-		Wputl(uint16(sect))
-		if typ != 0 {
-			Wputl(typ)
-		} else if Linkmode == LinkExternal {
-			Wputl(0)
-		} else {
-			Wputl(0x0308) // "array of structs"
-		}
-		Cput(2) // storage class: external
-		Cput(0) // no aux entries
-
-		s.Dynid = int32(symcnt)
-
-		symcnt++
+		writeOneSymbol(s, value, sect, typ, IMAGE_SYM_CLASS_EXTERNAL)
 	}
 
 	if Linkmode == LinkExternal {
-		s := ctxt.Syms.Lookup(".text", 0)
-		if s.Type == obj.STEXT {
-			put(ctxt, s, s.Name, TextSym, s.Value, nil)
+		// Include section symbols as external, because
+		// .ctors and .debug_* section relocations refer to it.
+		for idx, name := range shNames {
+			sym := ctxt.Syms.Lookup(name, 0)
+			writeOneSymbol(sym, 0, idx+1, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
 		}
 	}
 

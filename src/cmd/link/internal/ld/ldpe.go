@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	// TODO: the Microsoft doco says IMAGE_SYM_DTYPE_ARRAY is 3 (same with IMAGE_SYM_DTYPE_POINTER and IMAGE_SYM_DTYPE_FUNCTION)
 	IMAGE_SYM_UNDEFINED              = 0
 	IMAGE_SYM_ABSOLUTE               = -1
 	IMAGE_SYM_DEBUG                  = -2

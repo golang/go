@@ -2033,9 +2033,6 @@ func (ctxt *Link) textaddress() {
 		ctxt.Textp[0] = text
 	}
 
-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
-		ctxt.Syms.Lookup(".text", 0).Sect = sect
-	}
 	va := uint64(*FlagTextAddr)
 	n := 1
 	sect.Vaddr = va
@@ -2295,9 +2292,6 @@ func (ctxt *Link) address() {
 
 	ctxt.xdefine("runtime.text", obj.STEXT, int64(text.Vaddr))
 	ctxt.xdefine("runtime.etext", obj.STEXT, int64(lasttext.Vaddr+lasttext.Length))
-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
-		ctxt.xdefine(".text", obj.STEXT, int64(text.Vaddr))
-	}
 
 	// If there are multiple text sections, create runtime.text.n for
 	// their section Vaddr, using n for index
