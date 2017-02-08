@@ -356,6 +356,9 @@ var oh64 PE64_IMAGE_OPTIONAL_HEADER
 
 var sh [16]IMAGE_SECTION_HEADER
 
+// shNames stores full names of PE sections stored in sh.
+var shNames []string
+
 var dd []IMAGE_DATA_DIRECTORY
 
 type Imp struct {
@@ -379,7 +382,7 @@ var dexport [1024]*Symbol
 
 var nexport int
 
-func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
+func addpesectionWithLongName(ctxt *Link, shortname, longname string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
 	if pensect == 16 {
 		Errorf(nil, "too many sections")
 		errorexit()
@@ -387,7 +390,8 @@ func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SE
 
 	h := &sh[pensect]
 	pensect++
-	copy(h.Name[:], name)
+	copy(h.Name[:], shortname)
+	shNames = append(shNames, longname)
 	h.VirtualSize = uint32(sectsize)
 	h.VirtualAddress = uint32(nextsectoff)
 	nextsectoff = int(Rnd(int64(nextsectoff)+int64(sectsize), PESECTALIGN))
@@ -400,6 +404,9 @@ func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SE
 	return h
 }
 
+func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
+	return addpesectionWithLongName(ctxt, name, name, sectsize, filesize)
+}
 func chksectoff(ctxt *Link, h *IMAGE_SECTION_HEADER, off int64) {
 	if off != int64(h.PointerToRawData) {
 		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(off))
@@ -946,7 +953,7 @@ func newPEDWARFSection(ctxt *Link, name string, size int64) *IMAGE_SECTION_HEADE
 
 	off := strtbladd(name)
 	s := fmt.Sprintf("/%d", off)
-	h := addpesection(ctxt, s, int(size), int(size))
+	h := addpesectionWithLongName(ctxt, s, name, int(size), int(size))
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
 
 	return h
