@@ -458,10 +458,11 @@ func Peinit(ctxt *Link) {
 	nextsectoff = int(PESECTHEADR)
 	nextfileoff = int(PEFILEHEADR)
 
-	// some mingw libs depend on this symbol, for example, FindPESectionByName
-	ctxt.xdefine("__image_base__", obj.SDATA, PEBASE)
-
-	ctxt.xdefine("_image_base__", obj.SDATA, PEBASE)
+	if Linkmode == LinkInternal {
+		// some mingw libs depend on this symbol, for example, FindPESectionByName
+		ctxt.xdefine("__image_base__", obj.SDATA, PEBASE)
+		ctxt.xdefine("_image_base__", obj.SDATA, PEBASE)
+	}
 
 	HEADR = PEFILEHEADR
 	if *FlagTextAddr == -1 {
