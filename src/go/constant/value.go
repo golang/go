@@ -205,13 +205,8 @@ func rtof(x ratVal) floatVal {
 
 func vtoc(x Value) complexVal { return complexVal{x, int64Val(0)} }
 
-var (
-	minInt64 = big.NewInt(-1 << 63)
-	maxInt64 = big.NewInt(1<<63 - 1)
-)
-
 func makeInt(x *big.Int) Value {
-	if minInt64.Cmp(x) <= 0 && x.Cmp(maxInt64) <= 0 {
+	if x.IsInt64() {
 		return int64Val(x.Int64())
 	}
 	return intVal{x}
@@ -413,7 +408,7 @@ func Uint64Val(x Value) (uint64, bool) {
 	case int64Val:
 		return uint64(x), x >= 0
 	case intVal:
-		return x.val.Uint64(), x.val.Sign() >= 0 && x.val.BitLen() <= 64
+		return x.val.Uint64(), x.val.IsUint64()
 	case unknownVal:
 		return 0, false
 	default:
