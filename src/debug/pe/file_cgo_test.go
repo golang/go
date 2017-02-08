@@ -19,7 +19,6 @@ func testCgoDWARF(t *testing.T, linktype int) {
 }
 
 func TestDefaultLinkerDWARF(t *testing.T) {
-	t.Skip("skipping broken test: see issue 10776")
 	testCgoDWARF(t, linkCgoDefault)
 }
 
@@ -28,6 +27,5 @@ func TestInternalLinkerDWARF(t *testing.T) {
 }
 
 func TestExternalLinkerDWARF(t *testing.T) {
-	t.Skip("skipping broken test: see issue 10776")
 	testCgoDWARF(t, linkCgoExternal)
 }
