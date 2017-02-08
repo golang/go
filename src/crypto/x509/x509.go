@@ -1707,10 +1707,11 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 }
 
 // CreateCertificate creates a new certificate based on a template. The
-// following members of template are used: SerialNumber, Subject, NotBefore,
-// NotAfter, KeyUsage, ExtKeyUsage, UnknownExtKeyUsage, BasicConstraintsValid,
-// IsCA, MaxPathLen, SubjectKeyId, DNSNames, PermittedDNSDomainsCritical,
-// PermittedDNSDomains, SignatureAlgorithm, AuthorityKeyId.
+// following members of template are used: AuthorityKeyId,
+// BasicConstraintsValid, DNSNames, ExtKeyUsage, IsCA, KeyUsage, MaxPathLen,
+// NotAfter, NotBefore, PermittedDNSDomains, PermittedDNSDomainsCritical,
+// SerialNumber, SignatureAlgorithm, Subject, SubjectKeyId, and
+// UnknownExtKeyUsage.
 //
 // The certificate is signed by parent. If parent is equal to template then the
 // certificate is self-signed. The parameter pub is the public key of the
