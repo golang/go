@@ -1451,7 +1451,7 @@ func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP) (derBy
 	return asn1.Marshal(rawValues)
 }
 
-func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
+func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.Extension, err error) {
 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
 	n := 0
 
@@ -1525,9 +1525,9 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if len(template.AuthorityKeyId) > 0 && !oidInExtensions(oidExtensionAuthorityKeyId, template.ExtraExtensions) {
+	if len(authorityKeyId) > 0 && !oidInExtensions(oidExtensionAuthorityKeyId, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionAuthorityKeyId
-		ret[n].Value, err = asn1.Marshal(authKeyId{template.AuthorityKeyId})
+		ret[n].Value, err = asn1.Marshal(authKeyId{authorityKeyId})
 		if err != nil {
 			return
 		}
@@ -1710,7 +1710,7 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 // following members of template are used: SerialNumber, Subject, NotBefore,
 // NotAfter, KeyUsage, ExtKeyUsage, UnknownExtKeyUsage, BasicConstraintsValid,
 // IsCA, MaxPathLen, SubjectKeyId, DNSNames, PermittedDNSDomainsCritical,
-// PermittedDNSDomains, SignatureAlgorithm.
+// PermittedDNSDomains, SignatureAlgorithm, AuthorityKeyId.
 //
 // The certificate is signed by parent. If parent is equal to template then the
 // certificate is self-signed. The parameter pub is the public key of the
@@ -1720,6 +1720,10 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 //
 // All keys types that are implemented via crypto.Signer are supported (This
 // includes *rsa.PublicKey and *ecdsa.PublicKey.)
+//
+// The AuthorityKeyId will be taken from the SubjectKeyId of parent, if any,
+// unless the resulting certificate is self-signed. Otherwise the value from
+// template will be used.
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv interface{}) (cert []byte, err error) {
 	key, ok := priv.(crypto.Signer)
 	if !ok {
@@ -1750,11 +1754,12 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return
 	}
 
+	authorityKeyId := template.AuthorityKeyId
 	if !bytes.Equal(asn1Issuer, asn1Subject) && len(parent.SubjectKeyId) > 0 {
-		template.AuthorityKeyId = parent.SubjectKeyId
+		authorityKeyId = parent.SubjectKeyId
 	}
 
-	extensions, err := buildExtensions(template)
+	extensions, err := buildExtensions(template, authorityKeyId)
 	if err != nil {
 		return
 	}
