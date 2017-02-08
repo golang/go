@@ -1482,7 +1482,11 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	}
 
 	if Linkmode == LinkExternal {
-		if !Iself && Headtype != obj.Hdarwin {
+		switch {
+		case Iself:
+		case Headtype == obj.Hdarwin:
+		case Headtype == obj.Hwindows:
+		default:
 			return
 		}
 	}
