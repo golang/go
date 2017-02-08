@@ -96,7 +96,7 @@ func swapRange(data Interface, a, b, n int) {
 }
 
 func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
-	m := lo + (hi-lo)/2 // Written like this to avoid integer overflow.
+	m := int(uint(lo+hi) >> 1) // Written like this to avoid integer overflow.
 	if hi-lo > 40 {
 		// Tukey's ``Ninther,'' median of three medians of three.
 		s := (hi - lo) / 8
@@ -447,7 +447,7 @@ func symMerge(data Interface, a, m, b int) {
 		i := m
 		j := b
 		for i < j {
-			h := i + (j-i)/2
+			h := int(uint(i+j) >> 1)
 			if data.Less(h, a) {
 				i = h + 1
 			} else {
@@ -471,7 +471,7 @@ func symMerge(data Interface, a, m, b int) {
 		i := a
 		j := m
 		for i < j {
-			h := i + (j-i)/2
+			h := int(uint(i+j) >> 1)
 			if !data.Less(m, h) {
 				i = h + 1
 			} else {
@@ -485,7 +485,7 @@ func symMerge(data Interface, a, m, b int) {
 		return
 	}
 
-	mid := a + (b-a)/2
+	mid := int(uint(a+b) >> 1)
 	n := mid + m
 	var start, r int
 	if m > mid {
@@ -498,7 +498,7 @@ func symMerge(data Interface, a, m, b int) {
 	p := n - 1
 
 	for start < r {
-		c := start + (r-start)/2
+		c := int(uint(start+r) >> 1)
 		if !data.Less(p-c, c) {
 			start = c + 1
 		} else {

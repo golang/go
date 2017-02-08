@@ -115,6 +115,10 @@ func rewriteCall(ce *ast.CallExpr) {
 		// e.g. skip SelectorExpr (data.Less(..) calls)
 		return
 	}
+	// skip casts
+	if ident.Name == "int" || ident.Name == "uint" {
+		return
+	}
 	if len(ce.Args) < 1 {
 		return
 	}
