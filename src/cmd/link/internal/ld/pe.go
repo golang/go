@@ -854,72 +854,68 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol) int {
 	return relocs
 }
 
+// peemitsectreloc emits the relocation entries for sect.
+// The actual relocations are emitted by relocfn.
+// This updates the corresponding PE section table entry
+// with the relocation offset and count.
+func peemitsectreloc(sect *IMAGE_SECTION_HEADER, relocfn func() int) {
+	sect.PointerToRelocations = uint32(coutbuf.Offset())
+	// first entry: extended relocs
+	Lputl(0) // placeholder for number of relocation + 1
+	Lputl(0)
+	Wputl(0)
+
+	n := relocfn() + 1
+
+	cpos := coutbuf.Offset()
+	Cseek(int64(sect.PointerToRelocations))
+	Lputl(uint32(n))
+	Cseek(cpos)
+	if n > 0x10000 {
+		n = 0x10000
+		sect.Characteristics |= IMAGE_SCN_LNK_NRELOC_OVFL
+	} else {
+		sect.PointerToRelocations += 10 // skip the extend reloc entry
+	}
+	sect.NumberOfRelocations = uint16(n - 1)
+}
+
 // peemitreloc emits relocation entries for go.o in external linking.
 func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 	for coutbuf.Offset()&7 != 0 {
 		Cput(0)
 	}
 
-	text.PointerToRelocations = uint32(coutbuf.Offset())
-	// first entry: extended relocs
-	Lputl(0) // placeholder for number of relocation + 1
-	Lputl(0)
-	Wputl(0)
+	peemitsectreloc(text, func() int {
+		n := perelocsect(ctxt, Segtext.Sect, ctxt.Textp)
+		for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
+			n += perelocsect(ctxt, sect, datap)
+		}
+		return n
+	})
 
-	n := perelocsect(ctxt, Segtext.Sect, ctxt.Textp) + 1
-	for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
-		n += perelocsect(ctxt, sect, datap)
-	}
+	peemitsectreloc(data, func() int {
+		var n int
+		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+			n += perelocsect(ctxt, sect, datap)
+		}
+		return n
+	})
 
-	cpos := coutbuf.Offset()
-	Cseek(int64(text.PointerToRelocations))
-	Lputl(uint32(n))
-	Cseek(cpos)
-	if n > 0x10000 {
-		n = 0x10000
-		text.Characteristics |= IMAGE_SCN_LNK_NRELOC_OVFL
-	} else {
-		text.PointerToRelocations += 10 // skip the extend reloc entry
-	}
-	text.NumberOfRelocations = uint16(n - 1)
-
-	data.PointerToRelocations = uint32(cpos)
-	// first entry: extended relocs
-	Lputl(0) // placeholder for number of relocation + 1
-	Lputl(0)
-	Wputl(0)
-
-	n = 1
-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
-		n += perelocsect(ctxt, sect, datap)
-	}
-
-	cpos = coutbuf.Offset()
-	Cseek(int64(data.PointerToRelocations))
-	Lputl(uint32(n))
-	Cseek(cpos)
-	if n > 0x10000 {
-		n = 0x10000
-		data.Characteristics |= IMAGE_SCN_LNK_NRELOC_OVFL
-	} else {
-		data.PointerToRelocations += 10 // skip the extend reloc entry
-	}
-	data.NumberOfRelocations = uint16(n - 1)
-
-	dottext := ctxt.Syms.Lookup(".text", 0)
-	ctors.NumberOfRelocations = 1
-	ctors.PointerToRelocations = uint32(coutbuf.Offset())
-	Lputl(0)
-	Lputl(uint32(dottext.Dynid))
-	switch obj.GOARCH {
-	default:
-		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.GOARCH)
-		os.Exit(2)
-	case "386":
-		Wputl(IMAGE_REL_I386_DIR32)
-	case "amd64":
-		Wputl(IMAGE_REL_AMD64_ADDR64)
-	}
+	peemitsectreloc(ctors, func() int {
+		dottext := ctxt.Syms.Lookup(".text", 0)
+		Lputl(0)
+		Lputl(uint32(dottext.Dynid))
+		switch obj.GOARCH {
+		default:
+			Errorf(dottext, "unknown architecture for PE: %q\n", obj.GOARCH)
+		case "386":
+			Wputl(IMAGE_REL_I386_DIR32)
+		case "amd64":
+			Wputl(IMAGE_REL_AMD64_ADDR64)
+		}
+		return 1
+	})
 }
 
 func (ctxt *Link) dope() {
