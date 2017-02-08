@@ -1196,12 +1196,14 @@ func Asmbpe(ctxt *Link) {
 		b.Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
 		b.PointerToRawData = 0
 		bsssect = pensect
-
-		c = addinitarray(ctxt)
 	}
 
 	if !*FlagS {
 		dwarfaddpeheaders(ctxt)
+	}
+
+	if Linkmode == LinkExternal {
+		c = addinitarray(ctxt)
 	}
 
 	Cseek(int64(nextfileoff))
