@@ -1956,6 +1956,15 @@ func (s *state) expr(n *Node) *ssa.Value {
 			v := s.expr(n.Left)
 			return s.newValue1I(ssa.OpStructSelect, n.Type, int64(fieldIdx(n)), v)
 		}
+		if n.Left.Op == OSTRUCTLIT {
+			// All literals with nonzero fields have already been
+			// rewritten during walk. Any that remain are just T{}
+			// or equivalents. Use the zero value.
+			if !iszero(n.Left) {
+				Fatalf("literal with nonzero value in SSA: %v", n.Left)
+			}
+			return s.zeroVal(n.Type)
+		}
 		p, _ := s.addr(n, false)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
