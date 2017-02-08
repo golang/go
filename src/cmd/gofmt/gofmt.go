@@ -243,7 +243,12 @@ func diff(b1, b2 []byte, filename string) (data []byte, err error) {
 	f1.Write(b1)
 	f2.Write(b2)
 
-	data, err = exec.Command("diff", "-u", f1.Name(), f2.Name()).CombinedOutput()
+	cmd := "diff"
+	if runtime.GOOS == "plan9" {
+		cmd = "/bin/ape/diff"
+	}
+
+	data, err = exec.Command(cmd, "-u", f1.Name(), f2.Name()).CombinedOutput()
 	if len(data) > 0 {
 		// diff exits with a non-zero status when the files don't match.
 		// Ignore that failure as long as we get output.
