@@ -305,8 +305,9 @@ type DB struct {
 
 	mu           sync.Mutex // protects following fields
 	freeConn     []*driverConn
-	connRequests []chan connRequest
-	numOpen      int // number of opened and pending open connections
+	connRequests map[uint64]chan connRequest
+	nextRequest  uint64 // Next key to use in connRequests.
+	numOpen      int    // number of opened and pending open connections
 	// Used to signal the need for new connections
 	// a goroutine running connectionOpener() reads on this chan and
 	// maybeOpenNewConnections sends on the chan (one send per needed connection)
@@ -572,10 +573,11 @@ func Open(driverName, dataSourceName string) (*DB, error) {
 		return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driverName)
 	}
 	db := &DB{
-		driver:   driveri,
-		dsn:      dataSourceName,
-		openerCh: make(chan struct{}, connectionRequestQueueSize),
-		lastPut:  make(map[*driverConn]string),
+		driver:       driveri,
+		dsn:          dataSourceName,
+		openerCh:     make(chan struct{}, connectionRequestQueueSize),
+		lastPut:      make(map[*driverConn]string),
+		connRequests: make(map[uint64]chan connRequest),
 	}
 	go db.connectionOpener()
 	return db, nil
@@ -881,6 +883,14 @@ type connRequest struct {
 
 var errDBClosed = errors.New("sql: database is closed")
 
+// nextRequestKeyLocked returns the next connection request key.
+// It is assumed that nextRequest will not overflow.
+func (db *DB) nextRequestKeyLocked() uint64 {
+	next := db.nextRequest
+	db.nextRequest++
+	return next
+}
+
 // conn returns a newly-opened or cached *driverConn.
 func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn, error) {
 	db.mu.Lock()
@@ -918,12 +928,25 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		// Make the connRequest channel. It's buffered so that the
 		// connectionOpener doesn't block while waiting for the req to be read.
 		req := make(chan connRequest, 1)
-		db.connRequests = append(db.connRequests, req)
+		reqKey := db.nextRequestKeyLocked()
+		db.connRequests[reqKey] = req
 		db.mu.Unlock()
 
 		// Timeout the connection request with the context.
 		select {
 		case <-ctx.Done():
+			// Remove the connection request and ensure no value has been sent
+			// on it after removing.
+			db.mu.Lock()
+			delete(db.connRequests, reqKey)
+			select {
+			default:
+			case ret, ok := <-req:
+				if ok {
+					db.putConnDBLocked(ret.conn, ret.err)
+				}
+			}
+			db.mu.Unlock()
 			return nil, ctx.Err()
 		case ret, ok := <-req:
 			if !ok {
@@ -1044,12 +1067,12 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 		return false
 	}
 	if c := len(db.connRequests); c > 0 {
-		req := db.connRequests[0]
-		// This copy is O(n) but in practice faster than a linked list.
-		// TODO: consider compacting it down less often and
-		// moving the base instead?
-		copy(db.connRequests, db.connRequests[1:])
-		db.connRequests = db.connRequests[:c-1]
+		var req chan connRequest
+		var reqKey uint64
+		for reqKey, req = range db.connRequests {
+			break
+		}
+		delete(db.connRequests, reqKey) // Remove from pending requests.
 		if err == nil {
 			dc.inUse = true
 		}
