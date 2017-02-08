@@ -1206,10 +1206,10 @@ func (c *Conn) Close() error {
 	var alertErr error
 
 	c.handshakeMutex.Lock()
-	defer c.handshakeMutex.Unlock()
 	if c.handshakeComplete {
 		alertErr = c.closeNotify()
 	}
+	c.handshakeMutex.Unlock()
 
 	if err := c.conn.Close(); err != nil {
 		return err
