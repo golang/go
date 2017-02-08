@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build dragonfly freebsd
+
 package net
 
 import (
@@ -22,10 +24,11 @@ const maxSendfileSize int = 4 << 20
 //
 // if handled == false, sendFile performed no work.
 func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
-	// FreeBSD uses 0 as the "until EOF" value. If you pass in more bytes than the
-	// file contains, it will loop back to the beginning ad nauseam until it's sent
-	// exactly the number of bytes told to. As such, we need to know exactly how many
-	// bytes to send.
+	// FreeBSD and DragonFly use 0 as the "until EOF" value.
+	// If you pass in more bytes than the file contains, it will
+	// loop back to the beginning ad nauseam until it's sent
+	// exactly the number of bytes told to. As such, we need to
+	// know exactly how many bytes to send.
 	var remain int64 = 0
 
 	lr, ok := r.(*io.LimitedReader)
@@ -49,10 +52,11 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 		remain = fi.Size()
 	}
 
-	// The other quirk with FreeBSD's sendfile implementation is that it doesn't
-	// use the current position of the file -- if you pass it offset 0, it starts
-	// from offset 0. There's no way to tell it "start from current position", so
-	// we have to manage that explicitly.
+	// The other quirk with FreeBSD/DragonFly's sendfile
+	// implementation is that it doesn't use the current position
+	// of the file -- if you pass it offset 0, it starts from
+	// offset 0. There's no way to tell it "start from current
+	// position", so we have to manage that explicitly.
 	pos, err := f.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return 0, err, false
