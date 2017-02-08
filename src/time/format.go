@@ -433,17 +433,13 @@ func (t Time) String() string {
 
 	// Format monotonic clock reading as m=±ddd.nnnnnnnnn.
 	if t.wall&hasMonotonic != 0 {
-		m2 := t.ext
-		m1, m2 := m2/1e9, m2%1e9
-		if m2 < 0 {
-			m2 += 1e9
-			m1--
-		}
+		m2 := uint64(t.ext)
 		sign := byte('+')
-		if m1 < 0 {
+		if t.ext < 0 {
 			sign = '-'
-			m1 = -m1
+			m2 = -m2
 		}
+		m1, m2 := m2/1e9, m2%1e9
 		m0, m1 := m1/1e9, m1%1e9
 		var buf []byte
 		buf = append(buf, " m="...)
