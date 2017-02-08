@@ -500,6 +500,9 @@ func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	default:
 		return false
 
+	case obj.R_DWARFREF:
+		v = ld.IMAGE_REL_AMD64_SECREL
+
 	case obj.R_ADDR:
 		if r.Siz == 8 {
 			v = ld.IMAGE_REL_AMD64_ADDR64

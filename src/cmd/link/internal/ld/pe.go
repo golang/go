@@ -801,7 +801,7 @@ func addexports(ctxt *Link) {
 
 // perelocsect relocates symbols from first in section sect, and returns
 // the total number of relocations emitted.
-func perelocsect(ctxt *Link, sect *Section, syms []*Symbol) int {
+func perelocsect(ctxt *Link, sect *Section, syms []*Symbol, base uint64) int {
 	// If main section has no bits, nothing to relocate.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 		return 0
@@ -841,7 +841,7 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol) int {
 			if r.Xsym.Dynid < 0 {
 				Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
 			}
-			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Seg.Vaddr)) {
+			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
 				Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
 			}
 
@@ -887,9 +887,9 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 	}
 
 	peemitsectreloc(text, func() int {
-		n := perelocsect(ctxt, Segtext.Sect, ctxt.Textp)
+		n := perelocsect(ctxt, Segtext.Sect, ctxt.Textp, Segtext.Vaddr)
 		for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
-			n += perelocsect(ctxt, sect, datap)
+			n += perelocsect(ctxt, sect, datap, Segtext.Vaddr)
 		}
 		return n
 	})
@@ -897,10 +897,23 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 	peemitsectreloc(data, func() int {
 		var n int
 		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
-			n += perelocsect(ctxt, sect, datap)
+			n += perelocsect(ctxt, sect, datap, Segdata.Vaddr)
 		}
 		return n
 	})
+
+dwarfLoop:
+	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+		for i, name := range shNames {
+			if sect.Name == name {
+				peemitsectreloc(&sh[i], func() int {
+					return perelocsect(ctxt, sect, dwarfp, sect.Vaddr)
+				})
+				continue dwarfLoop
+			}
+		}
+		Errorf(nil, "peemitsectreloc: could not find %q section", sect.Name)
+	}
 
 	peemitsectreloc(ctors, func() int {
 		dottext := ctxt.Syms.Lookup(".text", 0)

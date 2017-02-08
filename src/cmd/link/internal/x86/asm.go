@@ -482,6 +482,9 @@ func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
 	default:
 		return false
 
+	case obj.R_DWARFREF:
+		v = ld.IMAGE_REL_I386_SECREL
+
 	case obj.R_ADDR:
 		v = ld.IMAGE_REL_I386_DIR32
 

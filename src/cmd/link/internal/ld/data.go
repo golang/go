@@ -575,7 +575,14 @@ func relocsym(ctxt *Link, s *Symbol) {
 			}
 			if Linkmode == LinkExternal {
 				r.Done = 0
-				r.Type = obj.R_ADDR
+				// PE code emits IMAGE_REL_I386_SECREL and IMAGE_REL_AMD64_SECREL
+				// for R_DWARFREF relocations, while R_ADDR is replaced with
+				// IMAGE_REL_I386_DIR32, IMAGE_REL_AMD64_ADDR64 and IMAGE_REL_AMD64_ADDR32.
+				// Do not replace R_DWARFREF with R_ADDR for windows -
+				// let PE code emit correct relocations.
+				if Headtype != obj.Hwindows && Headtype != obj.Hwindowsgui {
+					r.Type = obj.R_ADDR
+				}
 
 				r.Xsym = ctxt.Syms.ROLookup(r.Sym.Sect.Name, 0)
 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
