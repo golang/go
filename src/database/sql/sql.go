@@ -2084,7 +2084,7 @@ type Rows struct {
 	lasterr error // non-nil only if closed is true
 
 	// lastcols is only used in Scan, Next, and NextResultSet which are expected
-	// not not be called concurrently.
+	// not to be called concurrently.
 	lastcols []driver.Value
 }
 
