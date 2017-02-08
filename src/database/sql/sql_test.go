@@ -531,6 +531,63 @@ func TestQueryNamedArg(t *testing.T) {
 	}
 }
 
+func TestPoolExhaustOnCancel(t *testing.T) {
+	if testing.Short() {
+		t.Skip("long test")
+	}
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	max := 3
+
+	db.SetMaxOpenConns(max)
+
+	// First saturate the connection pool.
+	// Then start new requests for a connection that is cancelled after it is requested.
+
+	var saturate, saturateDone sync.WaitGroup
+	saturate.Add(max)
+	saturateDone.Add(max)
+
+	for i := 0; i < max; i++ {
+		go func() {
+			saturate.Done()
+			rows, err := db.Query("WAIT|500ms|SELECT|people|name,photo|")
+			if err != nil {
+				t.Fatalf("Query: %v", err)
+			}
+			rows.Close()
+			saturateDone.Done()
+		}()
+	}
+
+	saturate.Wait()
+
+	// Now cancel the request while it is waiting.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	for i := 0; i < max; i++ {
+		ctxReq, cancelReq := context.WithCancel(ctx)
+		go func() {
+			time.Sleep(time.Millisecond * 100)
+			cancelReq()
+		}()
+		err := db.PingContext(ctxReq)
+		if err != context.Canceled {
+			t.Fatalf("PingContext (Exhaust): %v", err)
+		}
+	}
+
+	saturateDone.Wait()
+
+	// Now try to open a normal connection.
+	err := db.PingContext(ctx)
+	if err != nil {
+		t.Fatalf("PingContext (Normal): %v", err)
+	}
+}
+
 func TestByteOwnership(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
