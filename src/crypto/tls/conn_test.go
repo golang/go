@@ -241,3 +241,34 @@ func TestDynamicRecordSizingWithAEAD(t *testing.T) {
 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
 	runDynamicRecordSizingTest(t, config)
 }
+
+// hairpinConn is a net.Conn that makes a “hairpin” call when closed, back into
+// the tls.Conn which is calling it.
+type hairpinConn struct {
+	net.Conn
+	tlsConn *Conn
+}
+
+func (conn *hairpinConn) Close() error {
+	conn.tlsConn.ConnectionState()
+	return nil
+}
+
+func TestHairpinInClose(t *testing.T) {
+	// This tests that the underlying net.Conn can call back into the
+	// tls.Conn when being closed without deadlocking.
+	client, server := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	conn := &hairpinConn{client, nil}
+	tlsConn := Server(conn, &Config{
+		GetCertificate: func(*ClientHelloInfo) (*Certificate, error) {
+			panic("unreachable")
+		},
+	})
+	conn.tlsConn = tlsConn
+
+	// This call should not deadlock.
+	tlsConn.Close()
+}
