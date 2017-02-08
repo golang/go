@@ -5,7 +5,7 @@
 package time_test
 
 import (
-	"regexp"
+	"strings"
 	"testing"
 	. "time"
 )
@@ -231,22 +231,28 @@ func TestMonotonicOverflow(t *testing.T) {
 	}
 }
 
+var monotonicStringTests = []struct {
+	mono int64
+	want string
+}{
+	{0, "m=+0.000000000"},
+	{123456789, "m=+0.123456789"},
+	{-123456789, "m=-0.123456789"},
+	{123456789000, "m=+123.456789000"},
+	{-123456789000, "m=-123.456789000"},
+	{9e18, "m=+9000000000.000000000"},
+	{-9e18, "m=-9000000000.000000000"},
+	{-1 << 63, "m=-9223372036.854775808"},
+}
+
 func TestMonotonicString(t *testing.T) {
-	t1 := Now()
-	re := regexp.MustCompile(` m=\+[0-9]+\.[0-9]{9}$`)
-	if !re.MatchString(t1.String()) {
-		t.Errorf("Now().String() = %q, want match for /%s/", t1.String(), re)
-	}
-
-	t2 := Now().Add(-5 * Hour)
-	re = regexp.MustCompile(` m=-[0-9]+\.[0-9]{9}$`)
-	if !re.MatchString(t2.String()) {
-		t.Errorf("Now().Add(-5*Hour).String() = %q, want match for /%s/", t2.String(), re)
-	}
-
-	t3 := Now().Add(1.2e18)
-	re = regexp.MustCompile(` m=\+120[0-9]{7}\.[0-9]{9}$`)
-	if !re.MatchString(t3.String()) {
-		t.Errorf("Now().Add(12e17).String() = %q, want match for /%s/", t3.String(), re)
+	for _, tt := range monotonicStringTests {
+		t1 := Now()
+		SetMono(&t1, tt.mono)
+		s := t1.String()
+		got := s[strings.LastIndex(s, " ")+1:]
+		if got != tt.want {
+			t.Errorf("with mono=%d: got %q; want %q", tt.mono, got, tt.want)
+		}
 	}
 }
