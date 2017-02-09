@@ -87,7 +87,7 @@ func (h HostnameError) Error() string {
 			valid += san.String()
 		}
 	} else {
-		if len(c.DNSNames) > 0 {
+		if c.hasSANExtension() {
 			valid = strings.Join(c.DNSNames, ", ")
 		} else {
 			valid = c.Subject.CommonName
@@ -482,7 +482,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 
 	lowered := toLowerCaseASCII(h)
 
-	if len(c.DNSNames) > 0 {
+	if c.hasSANExtension() {
 		for _, match := range c.DNSNames {
 			if matchHostnames(toLowerCaseASCII(match), lowered) {
 				return nil
