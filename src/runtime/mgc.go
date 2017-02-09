@@ -1016,18 +1016,7 @@ func gcStart(mode gcMode, forceTrigger bool) {
 		// the time we start the world and begin
 		// scanning.
 		//
-		// It's necessary to enable write barriers
-		// during the scan phase for several reasons:
-		//
-		// They must be enabled for writes to higher
-		// stack frames before we scan stacks and
-		// install stack barriers because this is how
-		// we track writes to inactive stack frames.
-		// (Alternatively, we could not install stack
-		// barriers over frame boundaries with
-		// up-pointers).
-		//
-		// They must be enabled before assists are
+		// Write barriers must be enabled before assists are
 		// enabled because they must be enabled before
 		// any non-leaf heap objects are marked. Since
 		// allocations are blocked until assists can
@@ -1327,13 +1316,6 @@ func gcMarkTermination() {
 
 	// Free stack spans. This must be done between GC cycles.
 	systemstack(freeStackSpans)
-
-	// Best-effort remove stack barriers so they don't get in the
-	// way of things like GDB and perf.
-	lock(&allglock)
-	myallgs := allgs
-	unlock(&allglock)
-	gcTryRemoveAllStackBarriers(myallgs)
 
 	// Print gctrace before dropping worldsema. As soon as we drop
 	// worldsema another cycle could start and smash the stats

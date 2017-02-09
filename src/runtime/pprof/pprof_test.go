@@ -8,12 +8,9 @@ package pprof_test
 
 import (
 	"bytes"
-	"compress/gzip"
 	"fmt"
 	"internal/pprof/profile"
 	"internal/testenv"
-	"io"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"os/exec"
@@ -124,8 +121,7 @@ func testCPUProfile(t *testing.T, need []string, f func(dur time.Duration)) {
 
 	const maxDuration = 5 * time.Second
 	// If we're running a long test, start with a long duration
-	// because some of the tests (e.g., TestStackBarrierProfiling)
-	// are trying to make sure something *doesn't* happen.
+	// for tests that try to make sure something *doesn't* happen.
 	duration := 5 * time.Second
 	if testing.Short() {
 		duration = 200 * time.Millisecond
@@ -186,10 +182,6 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
 				if strings.Contains(f.Name(), name) {
 					have[i] += count
 				}
-			}
-			if strings.Contains(f.Name(), "stackBarrier") {
-				// The runtime should have unwound this.
-				t.Fatalf("profile includes stackBarrier")
 			}
 		}
 	})
@@ -348,111 +340,6 @@ func TestMathBigDivide(t *testing.T) {
 			}
 		}
 	})
-}
-
-func slurpString(r io.Reader) string {
-	slurp, _ := ioutil.ReadAll(r)
-	return string(slurp)
-}
-
-func getLinuxKernelConfig() string {
-	if f, err := os.Open("/proc/config"); err == nil {
-		defer f.Close()
-		return slurpString(f)
-	}
-	if f, err := os.Open("/proc/config.gz"); err == nil {
-		defer f.Close()
-		r, err := gzip.NewReader(f)
-		if err != nil {
-			return ""
-		}
-		return slurpString(r)
-	}
-	if f, err := os.Open("/boot/config"); err == nil {
-		defer f.Close()
-		return slurpString(f)
-	}
-	uname, _ := exec.Command("uname", "-r").Output()
-	if len(uname) > 0 {
-		if f, err := os.Open("/boot/config-" + strings.TrimSpace(string(uname))); err == nil {
-			defer f.Close()
-			return slurpString(f)
-		}
-	}
-	return ""
-}
-
-func haveLinuxHiresTimers() bool {
-	config := getLinuxKernelConfig()
-	return strings.Contains(config, "CONFIG_HIGH_RES_TIMERS=y")
-}
-
-func TestStackBarrierProfiling(t *testing.T) {
-	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") ||
-		runtime.GOOS == "openbsd" ||
-		runtime.GOOS == "solaris" ||
-		runtime.GOOS == "dragonfly" ||
-		runtime.GOOS == "freebsd" {
-		// This test currently triggers a large number of
-		// usleep(100)s. These kernels/arches have poor
-		// resolution timers, so this gives up a whole
-		// scheduling quantum. On Linux and the BSDs (and
-		// probably Solaris), profiling signals are only
-		// generated when a process completes a whole
-		// scheduling quantum, so this test often gets zero
-		// profiling signals and fails.
-		t.Skipf("low resolution timers inhibit profiling signals (golang.org/issue/13405)")
-		return
-	}
-
-	if runtime.GOOS == "linux" && strings.HasPrefix(runtime.GOARCH, "mips") {
-		if !haveLinuxHiresTimers() {
-			t.Skipf("low resolution timers inhibit profiling signals (golang.org/issue/13405, golang.org/issue/17936)")
-		}
-	}
-
-	if !strings.Contains(os.Getenv("GODEBUG"), "gcstackbarrierall=1") {
-		// Re-execute this test with constant GC and stack
-		// barriers at every frame.
-		testenv.MustHaveExec(t)
-		if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
-			t.Skip("gcstackbarrierall doesn't work on ppc64")
-		}
-		args := []string{"-test.run=TestStackBarrierProfiling"}
-		if testing.Short() {
-			args = append(args, "-test.short")
-		}
-		cmd := exec.Command(os.Args[0], args...)
-		cmd.Env = append([]string{"GODEBUG=gcstackbarrierall=1", "GOGC=1", "GOTRACEBACK=system"}, os.Environ()...)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("subprocess failed with %v:\n%s", err, out)
-		}
-		return
-	}
-
-	testCPUProfile(t, nil, func(duration time.Duration) {
-		// In long mode, we're likely to get one or two
-		// samples in stackBarrier.
-		t := time.After(duration)
-		for {
-			deepStack(1000)
-			select {
-			case <-t:
-				return
-			default:
-			}
-		}
-	})
-}
-
-var x []byte
-
-func deepStack(depth int) int {
-	if depth == 0 {
-		return 0
-	}
-	x = make([]byte, 1024)
-	return deepStack(depth-1) + 1
 }
 
 // Operating systems that are expected to fail the tests. See issue 13841.

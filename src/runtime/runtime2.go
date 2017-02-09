@@ -326,12 +326,6 @@ type stack struct {
 	hi uintptr
 }
 
-// stkbar records the state of a G's stack barrier.
-type stkbar struct {
-	savedLRPtr uintptr // location overwritten by stack barrier PC
-	savedLRVal uintptr // value overwritten at savedLRPtr
-}
-
 type g struct {
 	// Stack parameters.
 	// stack describes the actual stack memory: [stack.lo, stack.hi).
@@ -351,8 +345,6 @@ type g struct {
 	sched          gobuf
 	syscallsp      uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
 	syscallpc      uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
-	stkbar         []stkbar       // stack barriers, from low to high (see top of mstkbar.go)
-	stkbarPos      uintptr        // index of lowest stack barrier not hit
 	stktopsp       uintptr        // expected sp at top of stack, to check in traceback
 	param          unsafe.Pointer // passed parameter on wakeup
 	atomicstatus   uint32

@@ -164,7 +164,7 @@ type neverCallThisFunction struct{}
 // This function must never be called directly. Call goexit1 instead.
 // gentraceback assumes that goexit terminates the stack. A direct
 // call on the stack will cause gentraceback to stop walking the stack
-// prematurely and if there are leftover stack barriers it may panic.
+// prematurely and if there is leftover state it may panic.
 func goexit(neverCallThisFunction)
 
 // Not all cgocallback_gofunc frames are actually cgocallback_gofunc,
@@ -240,13 +240,6 @@ const _NoArgs = ^uintptr(0)
 func morestack()
 func morestack_noctxt()
 func rt0_go()
-
-// stackBarrier records that the stack has been unwound past a certain
-// point. It is installed over a return PC on the stack. It must
-// retrieve the original return PC from g.stkbuf, increment
-// g.stkbufPos to record that the barrier was hit, and jump to the
-// original return PC.
-func stackBarrier()
 
 // return0 is a stub used to return 0 from deferproc.
 // It is called at the very end of deferproc to signal

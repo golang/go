@@ -50,13 +50,6 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	gcshrinkstackoff: setting gcshrinkstackoff=1 disables moving goroutines
 	onto smaller stacks. In this mode, a goroutine's stack can only grow.
 
-	gcstackbarrieroff: setting gcstackbarrieroff=1 disables the use of stack barriers
-	that allow the garbage collector to avoid repeating a stack scan during the
-	mark termination phase.
-
-	gcstackbarrierall: setting gcstackbarrierall=1 installs stack barriers
-	in every stack frame, rather than in exponentially-spaced frames.
-
 	gcrescanstacks: setting gcrescanstacks=1 enables stack
 	re-scanning during the STW mark termination phase. This is
 	helpful for debugging if objects are being prematurely
