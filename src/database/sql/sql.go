@@ -939,14 +939,14 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			// on it after removing.
 			db.mu.Lock()
 			delete(db.connRequests, reqKey)
+			db.mu.Unlock()
 			select {
 			default:
 			case ret, ok := <-req:
 				if ok {
-					db.putConnDBLocked(ret.conn, ret.err)
+					db.putConn(ret.conn, ret.err)
 				}
 			}
-			db.mu.Unlock()
 			return nil, ctx.Err()
 		case ret, ok := <-req:
 			if !ok {
