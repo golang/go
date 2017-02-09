@@ -432,7 +432,7 @@ func ext۰runtime۰Func۰Entry(fr *frame, args []value) value {
 
 // This is a workaround for a bug in go/ssa/testmain.go: it creates
 // InternalExamples even for Example functions with no Output comment.
-// TODO(adonovan): fix (and redesign) testmain.go after Go 1.6.
+// TODO(adonovan): fix (and redesign) testmain.go..
 func ext۰testing۰runExample(fr *frame, args []value) value {
 	// This is a stripped down runExample that simply calls the function.
 	// It does not capture and compare output nor recover from panic.
@@ -448,7 +448,7 @@ func ext۰testing۰runExample(fr *frame, args []value) value {
 
 func ext۰time۰now(fr *frame, args []value) value {
 	nano := time.Now().UnixNano()
-	return tuple{int64(nano / 1e9), int32(nano % 1e9), 0}
+	return tuple{int64(nano / 1e9), int32(nano % 1e9), int64(0)}
 }
 
 func ext۰time۰Sleep(fr *frame, args []value) value {

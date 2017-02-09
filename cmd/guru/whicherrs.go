@@ -181,11 +181,9 @@ func whicherrs(q *Query) error {
 		// typeswitch or assert to. This means finding out
 		// if the type pointed to can be seen by us.
 		//
-		// For the purposes of this analysis, the type is always
-		// either a Named type or a pointer to one.
-		// There are cases where error can be implemented
-		// by unnamed types, but in that case, we can't assert to
-		// it, so we don't care about it for this analysis.
+		// For the purposes of this analysis, we care only about
+		// TypeNames of Named or pointer-to-Named types.
+		// We ignore other types (e.g. structs) that implement error.
 		var name *types.TypeName
 		switch t := conc.(type) {
 		case *types.Pointer:

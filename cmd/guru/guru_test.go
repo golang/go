@@ -218,6 +218,7 @@ func TestGuru(t *testing.T) {
 	}
 
 	for _, filename := range []string{
+		"testdata/src/alias/alias.go", // iff guru.HasAlias (go1.9)
 		"testdata/src/calls/main.go",
 		"testdata/src/describe/main.go",
 		"testdata/src/freevars/main.go",
@@ -246,6 +247,9 @@ func TestGuru(t *testing.T) {
 		if filename == "testdata/src/referrers/main.go" && runtime.GOOS == "plan9" {
 			// Disable this test on plan9 since it expects a particular
 			// wording for a "no such file or directory" error.
+			continue
+		}
+		if filename == "testdata/src/alias/alias.go" && !guru.HasAlias {
 			continue
 		}
 

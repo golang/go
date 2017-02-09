@@ -1,0 +1,47 @@
+-------- @describe describe-pkg --------
+definition of package "alias"
+	type  I interface{f()}
+		method (I) f()
+	type  M = N
+		method (N) f()
+	type  N int
+		method (N) f()
+	type  O int
+	type  P = struct{N}
+		method (struct{N}) f()
+	type  U = invalid type
+	var   m N
+
+-------- @implements implements-I --------
+interface type I
+	is implemented by basic type N
+
+-------- @describe describe-def-M --------
+alias of type N (size 8, align 8)
+defined as int
+Methods:
+	method (N) f()
+
+-------- @describe describe-ref-M --------
+alias of type N (size 8, align 8)
+defined as int
+Methods:
+	method (N) f()
+
+-------- @describe describe-O --------
+definition of type O (size 8, align 8)
+No methods.
+
+-------- @describe describe-P --------
+type struct{N} (size 8, align 8)
+Methods:
+	method (struct{N}) f()
+Fields:
+	N N
+
+-------- @describe describe-U --------
+alias of type invalid type
+
+-------- @describe describe-undefined --------
+identifier
+

@@ -75,9 +75,6 @@ type Member interface {
 }
 
 // A Type is a Member of a Package representing a package-level named type.
-//
-// Type() returns a *types.Named.
-//
 type Type struct {
 	object *types.TypeName
 	pkg    *Package

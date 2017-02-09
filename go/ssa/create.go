@@ -195,9 +195,10 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 			obj := scope.Lookup(name)
 			memberFromObject(p, obj, nil)
 			if obj, ok := obj.(*types.TypeName); ok {
-				named := obj.Type().(*types.Named)
-				for i, n := 0, named.NumMethods(); i < n; i++ {
-					memberFromObject(p, named.Method(i), nil)
+				if named, ok := obj.Type().(*types.Named); ok {
+					for i, n := 0, named.NumMethods(); i < n; i++ {
+						memberFromObject(p, named.Method(i), nil)
+					}
 				}
 			}
 		}

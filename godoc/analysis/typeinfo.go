@@ -101,14 +101,16 @@ func (a *analysis) doTypeInfo(info *loader.PackageInfo, implements map[*types.Na
 	// IMPLEMENTS & METHOD SETS
 	for _, obj := range info.Defs {
 		if obj, ok := obj.(*types.TypeName); ok {
-			a.namedType(obj, implements)
+			if named, ok := obj.Type().(*types.Named); ok {
+				a.namedType(named, implements)
+			}
 		}
 	}
 }
 
-func (a *analysis) namedType(obj *types.TypeName, implements map[*types.Named]implementsFacts) {
+func (a *analysis) namedType(T *types.Named, implements map[*types.Named]implementsFacts) {
+	obj := T.Obj()
 	qualifier := types.RelativeTo(obj.Pkg())
-	T := obj.Type().(*types.Named)
 	v := &TypeInfoJSON{
 		Name:    obj.Name(),
 		Size:    sizes.Sizeof(T),
