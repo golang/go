@@ -144,7 +144,7 @@ func (p *parser) syntax_error_at(pos src.Pos, msg string) {
 	// determine token string
 	var tok string
 	switch p.tok {
-	case _Name:
+	case _Name, _Semi:
 		tok = p.lit
 	case _Literal:
 		tok = "literal " + p.lit
@@ -215,7 +215,7 @@ func tokstring(tok token) string {
 	case _Comma:
 		return "comma"
 	case _Semi:
-		return "semicolon or newline"
+		return "semicolon"
 	}
 	return tok.String()
 }
