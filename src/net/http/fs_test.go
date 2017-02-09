@@ -1161,6 +1161,39 @@ func TestLinuxSendfileChild(*testing.T) {
 	}
 }
 
+// Issue 18984: tests that requests for paths beyond files return not-found errors
+func TestFileServerNotDirError(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(FileServer(Dir("testdata")))
+	defer ts.Close()
+
+	res, err := Get(ts.URL + "/index.html/not-a-file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != 404 {
+		t.Errorf("StatusCode = %v; want 404", res.StatusCode)
+	}
+
+	dir := Dir("testdata")
+	_, err = dir.Open("/index.html/not-a-file")
+	if err == nil {
+		t.Fatal("err == nil; want != nil")
+	}
+	if !os.IsNotExist(err) {
+		t.Errorf("err = %v; os.IsNotExist(err) = %v; want true", err, os.IsNotExist(err))
+	}
+
+	_, err = dir.Open("/index.html/not-a-dir/not-a-file")
+	if err == nil {
+		t.Fatal("err == nil; want != nil")
+	}
+	if !os.IsNotExist(err) {
+		t.Errorf("err = %v; os.IsNotExist(err) = %v; want true", err, os.IsNotExist(err))
+	}
+}
+
 func TestFileServerCleanPath(t *testing.T) {
 	tests := []struct {
 		path     string
