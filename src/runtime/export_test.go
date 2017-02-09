@@ -248,3 +248,26 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 
 func Fastrand() uint32          { return fastrand() }
 func Fastrandn(n uint32) uint32 { return fastrandn(n) }
+
+type ProfBuf profBuf
+
+func NewProfBuf(hdrsize, bufwords, tags int) *ProfBuf {
+	return (*ProfBuf)(newProfBuf(hdrsize, bufwords, tags))
+}
+
+func (p *ProfBuf) Write(tag *unsafe.Pointer, now int64, hdr []uint64, stk []uintptr) {
+	(*profBuf)(p).write(tag, now, hdr, stk)
+}
+
+const (
+	ProfBufBlocking    = profBufBlocking
+	ProfBufNonBlocking = profBufNonBlocking
+)
+
+func (p *ProfBuf) Read(mode profBufReadMode) ([]uint64, []unsafe.Pointer, bool) {
+	return (*profBuf)(p).read(profBufReadMode(mode))
+}
+
+func (p *ProfBuf) Close() {
+	(*profBuf)(p).close()
+}
