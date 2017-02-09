@@ -14,6 +14,7 @@ func TestIsAlias(t *testing.T) {
 	}
 
 	// predeclared types
+	check(Unsafe.Scope().Lookup("Pointer").(*TypeName), false)
 	for _, name := range Universe.Names() {
 		if obj, _ := Universe.Lookup(name).(*TypeName); obj != nil {
 			check(obj, name == "byte" || name == "rune")
