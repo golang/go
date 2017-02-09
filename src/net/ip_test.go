@@ -6,6 +6,7 @@ package net
 
 import (
 	"bytes"
+	"math/rand"
 	"reflect"
 	"runtime"
 	"testing"
@@ -643,5 +644,34 @@ func TestIPAddrScope(t *testing.T) {
 		if ok := tt.scope(ip); ok != tt.ok {
 			t.Errorf("%s(%q) = %v, want %v", name(tt.scope), ip, ok, tt.ok)
 		}
+	}
+}
+
+func BenchmarkIPEqual(b *testing.B) {
+	b.Run("IPv4", func(b *testing.B) {
+		benchmarkIPEqual(b, IPv4len)
+	})
+	b.Run("IPv6", func(b *testing.B) {
+		benchmarkIPEqual(b, IPv6len)
+	})
+}
+
+func benchmarkIPEqual(b *testing.B, size int) {
+	ips := make([]IP, 1000)
+	for i := range ips {
+		ips[i] = make(IP, size)
+		rand.Read(ips[i])
+	}
+	// Half of the N are equal.
+	for i := 0; i < b.N/2; i++ {
+		x := ips[i%len(ips)]
+		y := ips[i%len(ips)]
+		x.Equal(y)
+	}
+	// The other half are not equal.
+	for i := 0; i < b.N/2; i++ {
+		x := ips[i%len(ips)]
+		y := ips[(i+1)%len(ips)]
+		x.Equal(y)
 	}
 }
