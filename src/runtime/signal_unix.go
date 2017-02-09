@@ -712,7 +712,6 @@ type gsignalStack struct {
 	stack       stack
 	stackguard0 uintptr
 	stackguard1 uintptr
-	stackAlloc  uintptr
 	stktopsp    uintptr
 }
 
@@ -729,7 +728,6 @@ func setGsignalStack(st *stackt, old *gsignalStack) {
 		old.stack = g.m.gsignal.stack
 		old.stackguard0 = g.m.gsignal.stackguard0
 		old.stackguard1 = g.m.gsignal.stackguard1
-		old.stackAlloc = g.m.gsignal.stackAlloc
 		old.stktopsp = g.m.gsignal.stktopsp
 	}
 	stsp := uintptr(unsafe.Pointer(st.ss_sp))
@@ -737,7 +735,6 @@ func setGsignalStack(st *stackt, old *gsignalStack) {
 	g.m.gsignal.stack.hi = stsp + st.ss_size
 	g.m.gsignal.stackguard0 = stsp + _StackGuard
 	g.m.gsignal.stackguard1 = stsp + _StackGuard
-	g.m.gsignal.stackAlloc = st.ss_size
 }
 
 // restoreGsignalStack restores the gsignal stack to the value it had
@@ -749,7 +746,6 @@ func restoreGsignalStack(st *gsignalStack) {
 	gp.stack = st.stack
 	gp.stackguard0 = st.stackguard0
 	gp.stackguard1 = st.stackguard1
-	gp.stackAlloc = st.stackAlloc
 	gp.stktopsp = st.stktopsp
 }
 
