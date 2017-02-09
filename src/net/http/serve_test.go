@@ -606,7 +606,10 @@ func TestHTTP2WriteDeadlineExtendedOnNewRequest(t *testing.T) {
 func TestOnlyWriteTimeout(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
-	var conn net.Conn
+	var (
+		mu   sync.RWMutex
+		conn net.Conn
+	)
 	var afterTimeoutErrc = make(chan error, 1)
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, req *Request) {
 		buf := make([]byte, 512<<10)
@@ -615,11 +618,17 @@ func TestOnlyWriteTimeout(t *testing.T) {
 			t.Errorf("handler Write error: %v", err)
 			return
 		}
+		mu.RLock()
+		defer mu.RUnlock()
+		if conn == nil {
+			t.Error("no established connection found")
+			return
+		}
 		conn.SetWriteDeadline(time.Now().Add(-30 * time.Second))
 		_, err = w.Write(buf)
 		afterTimeoutErrc <- err
 	}))
-	ts.Listener = trackLastConnListener{ts.Listener, &conn}
+	ts.Listener = trackLastConnListener{ts.Listener, &mu, &conn}
 	ts.Start()
 	defer ts.Close()
 
@@ -633,6 +642,7 @@ func TestOnlyWriteTimeout(t *testing.T) {
 			return
 		}
 		_, err = io.Copy(ioutil.Discard, res.Body)
+		res.Body.Close()
 		errc <- err
 	}()
 	select {
@@ -651,12 +661,18 @@ func TestOnlyWriteTimeout(t *testing.T) {
 // trackLastConnListener tracks the last net.Conn that was accepted.
 type trackLastConnListener struct {
 	net.Listener
+
+	mu   *sync.RWMutex
 	last *net.Conn // destination
 }
 
 func (l trackLastConnListener) Accept() (c net.Conn, err error) {
 	c, err = l.Listener.Accept()
-	*l.last = c
+	if err == nil {
+		l.mu.Lock()
+		*l.last = c
+		l.mu.Unlock()
+	}
 	return
 }
 
