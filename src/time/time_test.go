@@ -1058,6 +1058,65 @@ func TestDurationHours(t *testing.T) {
 	}
 }
 
+var durationTruncateTests = []struct {
+	d    Duration
+	m    Duration
+	want Duration
+}{
+	{0, Second, 0},
+	{Minute, -7 * Second, Minute},
+	{Minute, 0, Minute},
+	{Minute, 1, Minute},
+	{Minute + 10*Second, 10 * Second, Minute + 10*Second},
+	{2*Minute + 10*Second, Minute, 2 * Minute},
+	{10*Minute + 10*Second, 3 * Minute, 9 * Minute},
+	{Minute + 10*Second, Minute + 10*Second + 1, 0},
+	{Minute + 10*Second, Hour, 0},
+	{-Minute, Second, -Minute},
+	{-10 * Minute, 3 * Minute, -9 * Minute},
+	{-10 * Minute, Hour, 0},
+}
+
+func TestDurationTruncate(t *testing.T) {
+	for _, tt := range durationTruncateTests {
+		if got := tt.d.Truncate(tt.m); got != tt.want {
+			t.Errorf("Duration(%s).Truncate(%s) = %s; want: %s", tt.d, tt.m, got, tt.want)
+		}
+	}
+}
+
+var durationRoundTests = []struct {
+	d    Duration
+	m    Duration
+	want Duration
+}{
+	{0, Second, 0},
+	{Minute, -11 * Second, Minute},
+	{Minute, 0, Minute},
+	{Minute, 1, Minute},
+	{2 * Minute, Minute, 2 * Minute},
+	{2*Minute + 10*Second, Minute, 2 * Minute},
+	{2*Minute + 30*Second, Minute, 3 * Minute},
+	{2*Minute + 50*Second, Minute, 3 * Minute},
+	{-Minute, 1, -Minute},
+	{-2 * Minute, Minute, -2 * Minute},
+	{-2*Minute - 10*Second, Minute, -2 * Minute},
+	{-2*Minute - 30*Second, Minute, -3 * Minute},
+	{-2*Minute - 50*Second, Minute, -3 * Minute},
+	{8e18, 3e18, 9e18},
+	{9e18, 5e18, 1<<63 - 1},
+	{-8e18, 3e18, -9e18},
+	{-9e18, 5e18, -1 << 63},
+}
+
+func TestDurationRound(t *testing.T) {
+	for _, tt := range durationRoundTests {
+		if got := tt.d.Round(tt.m); got != tt.want {
+			t.Errorf("Duration(%s).Round(%s) = %s; want: %s", tt.d, tt.m, got, tt.want)
+		}
+	}
+}
+
 var defaultLocTests = []struct {
 	name string
 	f    func(t1, t2 Time) bool
