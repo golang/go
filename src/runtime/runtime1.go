@@ -329,7 +329,6 @@ var debug struct {
 	scavenge          int32
 	scheddetail       int32
 	schedtrace        int32
-	wbshadow          int32
 }
 
 var dbgvars = []dbgVar{
@@ -349,7 +348,6 @@ var dbgvars = []dbgVar{
 	{"scavenge", &debug.scavenge},
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
-	{"wbshadow", &debug.wbshadow},
 }
 
 func parsedebugvars() {
