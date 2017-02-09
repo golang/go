@@ -78,7 +78,6 @@ import (
 	"internal/pprof/profile"
 	"io"
 	"runtime"
-	"runtime/pprof/internal/protopprof"
 	"sort"
 	"strings"
 	"sync"
@@ -500,7 +499,7 @@ func writeHeap(w io.Writer, debug int) error {
 	}
 
 	if debug == 0 {
-		pp := protopprof.EncodeMemProfile(p, int64(runtime.MemProfileRate), time.Now())
+		pp := encodeMemProfile(p, int64(runtime.MemProfileRate), time.Now())
 		return pp.Write(w)
 	}
 
@@ -709,7 +708,7 @@ func profileWriter(w io.Writer) {
 		buf.Write(data)
 	}
 
-	profile, err := protopprof.TranslateCPUProfile(buf.Bytes(), startTime)
+	profile, err := translateCPUProfile(buf.Bytes(), startTime)
 	if err != nil {
 		// The runtime should never produce an invalid or truncated profile.
 		// It drops records that can't fit into its log buffers.

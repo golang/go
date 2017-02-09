@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package protopprof
+package pprof
 
 import (
 	"bytes"
@@ -62,14 +62,14 @@ func createProfileWithTwoSamples(t *testing.T, periodMs uintptr, count1 uintptr,
 	return *buf
 }
 
-// Tests TranslateCPUProfile parses correct sampling period in an otherwise empty cpu profile.
+// Tests translateCPUProfile parses correct sampling period in an otherwise empty cpu profile.
 func TestTranlateCPUProfileSamplingPeriod(t *testing.T) {
 	// A test server with mock cpu profile data.
 	var buf bytes.Buffer
 
 	startTime := time.Now()
 	b := createEmptyProfileWithPeriod(t, 2000)
-	p, err := TranslateCPUProfile(b.Bytes(), startTime)
+	p, err := translateCPUProfile(b.Bytes(), startTime)
 	if err != nil {
 		t.Fatalf("translate failed: %v", err)
 	}
@@ -108,7 +108,7 @@ func getSampleAsString(sample []*profile.Sample) string {
 	return str
 }
 
-// Tests TranslateCPUProfile parses a cpu profile with sample values present.
+// Tests translateCPUProfile parses a cpu profile with sample values present.
 func TestTranslateCPUProfileWithSamples(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("test requires a system with /proc/self/maps")
@@ -134,7 +134,7 @@ func TestTranslateCPUProfileWithSamples(t *testing.T) {
 
 	startTime := time.Now()
 	b := createProfileWithTwoSamples(t, 2000, 20, 40, uintptr(address1), uintptr(address2))
-	p, err := TranslateCPUProfile(b.Bytes(), startTime)
+	p, err := translateCPUProfile(b.Bytes(), startTime)
 
 	if err != nil {
 		t.Fatalf("Could not parse Profile profile: %v", err)
