@@ -384,7 +384,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpS390XMOVBZloadidx, ssa.OpS390XMOVHZloadidx, ssa.OpS390XMOVWZloadidx, ssa.OpS390XMOVDloadidx,
+	case ssa.OpS390XMOVBZloadidx, ssa.OpS390XMOVHZloadidx, ssa.OpS390XMOVWZloadidx,
+		ssa.OpS390XMOVBloadidx, ssa.OpS390XMOVHloadidx, ssa.OpS390XMOVWloadidx, ssa.OpS390XMOVDloadidx,
 		ssa.OpS390XMOVHBRloadidx, ssa.OpS390XMOVWBRloadidx, ssa.OpS390XMOVDBRloadidx,
 		ssa.OpS390XFMOVSloadidx, ssa.OpS390XFMOVDloadidx:
 		r := v.Args[0].Reg()
