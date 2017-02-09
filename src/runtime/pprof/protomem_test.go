@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package protopprof
+package pprof
 
 import (
 	"bytes"
@@ -42,7 +42,7 @@ func TestSampledHeapAllocProfile(t *testing.T) {
 	var buf bytes.Buffer
 
 	rec, rate := testMemRecords(address1, address2)
-	p := EncodeMemProfile(rec, rate, time.Now())
+	p := encodeMemProfile(rec, rate, time.Now())
 	if err := p.Write(&buf); err != nil {
 		t.Fatalf("Failed to write profile: %v", err)
 	}

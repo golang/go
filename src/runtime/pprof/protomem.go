@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package protopprof
+package pprof
 
 import (
 	"internal/pprof/profile"
@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-// EncodeMemProfile converts MemProfileRecords to a Profile.
-func EncodeMemProfile(mr []runtime.MemProfileRecord, rate int64, t time.Time) *profile.Profile {
+// encodeMemProfile converts MemProfileRecords to a Profile.
+func encodeMemProfile(mr []runtime.MemProfileRecord, rate int64, t time.Time) *profile.Profile {
 	p := &profile.Profile{
 		Period:     rate,
 		PeriodType: &profile.ValueType{Type: "space", Unit: "bytes"},
