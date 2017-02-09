@@ -619,13 +619,13 @@ func TestErrorAfterClientClose(t *testing.T) {
 
 // Tests the fix to issue 11221. Without the fix, this loops forever or crashes.
 func TestAcceptExitAfterListenerClose(t *testing.T) {
-	newServer = NewServer()
+	newServer := NewServer()
 	newServer.Register(new(Arith))
 	newServer.RegisterName("net.rpc.Arith", new(Arith))
 	newServer.RegisterName("newServer.Arith", new(Arith))
 
 	var l net.Listener
-	l, newServerAddr = listenTCP()
+	l, _ = listenTCP()
 	l.Close()
 	newServer.Accept(l)
 }
