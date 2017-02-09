@@ -83,6 +83,7 @@ import (
 	"sync"
 	"text/tabwriter"
 	"time"
+	"unsafe"
 )
 
 // BUG(rsc): Profiles are only as good as the kernel support used to generate them.
@@ -696,30 +697,33 @@ func StartCPUProfile(w io.Writer) error {
 	return nil
 }
 
+// readProfile, provided by the runtime, returns the next chunk of
+// binary CPU profiling stack trace data, blocking until data is available.
+// If profiling is turned off and all the profile data accumulated while it was
+// on has been returned, readProfile returns eof=true.
+// The caller must save the returned data and tags before calling readProfile again.
+func readProfile() (data []uint64, tags []unsafe.Pointer, eof bool)
+
 func profileWriter(w io.Writer) {
-	startTime := time.Now()
-	// This will buffer the entire profile into buf and then
-	// translate it into a profile.Profile structure. This will
-	// create two copies of all the data in the profile in memory.
-	// TODO(matloob): Convert each chunk of the proto output and
-	// stream it out instead of converting the entire profile.
-	var buf bytes.Buffer
+	b := newProfileBuilder()
+	var err error
 	for {
-		data := runtime.CPUProfile()
-		if data == nil {
+		time.Sleep(100 * time.Millisecond)
+		data, _, eof := readProfile()
+		if e := b.addCPUData(data); e != nil && err == nil {
+			err = e
+		}
+		if eof {
 			break
 		}
-		buf.Write(data)
 	}
-
-	profile, err := translateCPUProfile(buf.Bytes(), startTime)
+	p := b.build()
 	if err != nil {
 		// The runtime should never produce an invalid or truncated profile.
 		// It drops records that can't fit into its log buffers.
-		panic(fmt.Errorf("could not translate binary profile to proto format: %v", err))
+		panic("runtime/pprof: converting profile: " + err.Error())
 	}
-
-	profile.Write(w)
+	p.Write(w)
 	cpu.done <- true
 }
 

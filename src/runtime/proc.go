@@ -3137,13 +3137,14 @@ func mcount() int32 {
 }
 
 var prof struct {
-	lock uint32
-	hz   int32
+	signalLock uint32
+	hz         int32
 }
 
-func _System()       { _System() }
-func _ExternalCode() { _ExternalCode() }
-func _GC()           { _GC() }
+func _System()           { _System() }
+func _ExternalCode()     { _ExternalCode() }
+func _LostExternalCode() { _LostExternalCode() }
+func _GC()               { _GC() }
 
 // Called if we receive a SIGPROF signal.
 // Called by the signal handler, may run during STW.
@@ -3279,14 +3280,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	}
 
 	if prof.hz != 0 {
-		// Simple cas-lock to coordinate with setcpuprofilerate.
-		for !atomic.Cas(&prof.lock, 0, 1) {
-			osyield()
-		}
-		if prof.hz != 0 {
-			cpuprof.add(stk[:n])
-		}
-		atomic.Store(&prof.lock, 0)
+		cpuprof.add(gp, stk[:n])
 	}
 	getg().m.mallocing--
 }
@@ -3309,15 +3303,7 @@ func sigprofNonGo() {
 		for n < len(sigprofCallers) && sigprofCallers[n] != 0 {
 			n++
 		}
-
-		// Simple cas-lock to coordinate with setcpuprofilerate.
-		for !atomic.Cas(&prof.lock, 0, 1) {
-			osyield()
-		}
-		if prof.hz != 0 {
-			cpuprof.addNonGo(sigprofCallers[:n])
-		}
-		atomic.Store(&prof.lock, 0)
+		cpuprof.addNonGo(sigprofCallers[:n])
 	}
 
 	atomic.Store(&sigprofCallersUse, 0)
@@ -3330,19 +3316,11 @@ func sigprofNonGo() {
 //go:nowritebarrierrec
 func sigprofNonGoPC(pc uintptr) {
 	if prof.hz != 0 {
-		pc := []uintptr{
+		stk := []uintptr{
 			pc,
 			funcPC(_ExternalCode) + sys.PCQuantum,
 		}
-
-		// Simple cas-lock to coordinate with setcpuprofilerate.
-		for !atomic.Cas(&prof.lock, 0, 1) {
-			osyield()
-		}
-		if prof.hz != 0 {
-			cpuprof.addNonGo(pc)
-		}
-		atomic.Store(&prof.lock, 0)
+		cpuprof.addNonGo(stk)
 	}
 }
 
@@ -3370,8 +3348,9 @@ func setsSP(pc uintptr) bool {
 	return false
 }
 
-// Arrange to call fn with a traceback hz times a second.
-func setcpuprofilerate_m(hz int32) {
+// setcpuprofilerate sets the CPU profiling rate to hz times per second.
+// If hz <= 0, setcpuprofilerate turns off CPU profiling.
+func setcpuprofilerate(hz int32) {
 	// Force sane arguments.
 	if hz < 0 {
 		hz = 0
@@ -3387,14 +3366,14 @@ func setcpuprofilerate_m(hz int32) {
 	// it would deadlock.
 	setThreadCPUProfiler(0)
 
-	for !atomic.Cas(&prof.lock, 0, 1) {
+	for !atomic.Cas(&prof.signalLock, 0, 1) {
 		osyield()
 	}
 	if prof.hz != hz {
 		setProcessCPUProfiler(hz)
 		prof.hz = hz
 	}
-	atomic.Store(&prof.lock, 0)
+	atomic.Store(&prof.signalLock, 0)
 
 	lock(&sched.lock)
 	sched.profilehz = hz
