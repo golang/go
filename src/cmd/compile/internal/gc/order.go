@@ -206,6 +206,18 @@ func orderaddrtemp(n *Node, order *Order) *Node {
 	return ordercopyexpr(n, n.Type, order, 0)
 }
 
+// ordermapkeytemp prepares n.Right to be a key in a map lookup.
+func ordermapkeytemp(n *Node, order *Order) {
+	// Most map calls need to take the address of the key.
+	// Exception: mapaccessN_fast* calls. See golang.org/issue/19015.
+	p, _ := mapaccessfast(n.Left.Type)
+	fastaccess := p != "" && n.Etype == 0 // Etype == 0 iff n is an rvalue
+	if fastaccess {
+		return
+	}
+	n.Right = orderaddrtemp(n.Right, order)
+}
+
 type ordermarker int
 
 // Marktemp returns the top of the temporary variable stack.
@@ -527,7 +539,7 @@ func orderstmt(n *Node, order *Order) {
 		ordermapassign(n, order)
 		cleantemp(t, order)
 
-	// Special: make sure key is addressable,
+	// Special: make sure key is addressable if needed,
 	// and make sure OINDEXMAP is not copied out.
 	case OAS2MAPR:
 		t := marktemp(order)
@@ -541,7 +553,7 @@ func orderstmt(n *Node, order *Order) {
 		if r.Right.Op == OARRAYBYTESTR {
 			r.Right.Op = OARRAYBYTESTRTMP
 		}
-		r.Right = orderaddrtemp(r.Right, order)
+		ordermapkeytemp(r, order)
 		ordermapassign(n, order)
 		cleantemp(t, order)
 
@@ -1074,9 +1086,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 			needCopy = true
 		}
 
-		// Map calls need to take the address of the key.
-		n.Right = orderaddrtemp(n.Right, order)
-
+		ordermapkeytemp(n, order)
 		if needCopy {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}

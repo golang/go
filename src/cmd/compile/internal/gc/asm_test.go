@@ -440,6 +440,38 @@ func f(t *T) {
 `,
 		[]string{"\tROLL\t[$]7,"},
 	},
+
+	// Direct use of constants in fast map access calls. Issue 19015.
+	{"amd64", "linux", `
+	func f(m map[int]int) int {
+		return m[5]
+	}
+`,
+		[]string{"\tMOVQ\t[$]5,"},
+	},
+	{"amd64", "linux", `
+	func f(m map[int]int) bool {
+		_, ok := m[5]
+		return ok
+	}
+`,
+		[]string{"\tMOVQ\t[$]5,"},
+	},
+	{"amd64", "linux", `
+	func f(m map[string]int) int {
+		return m["abc"]
+	}
+`,
+		[]string{"\"abc\""},
+	},
+	{"amd64", "linux", `
+	func f(m map[string]int) bool {
+		_, ok := m["abc"]
+		return ok
+	}
+`,
+		[]string{"\"abc\""},
+	},
 }
 
 // mergeEnvLists merges the two environment lists such that
