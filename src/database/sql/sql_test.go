@@ -365,7 +365,7 @@ func TestQueryContextWait(t *testing.T) {
 	defer closeDB(t, db)
 	prepares0 := numPrepares(t, db)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*15)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Millisecond)
 	defer cancel()
 
 	// This will trigger the *fakeConn.Prepare method which will take time
@@ -387,7 +387,7 @@ func TestTxContextWait(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*15)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Millisecond)
 	defer cancel()
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -566,13 +566,13 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	saturate.Wait()
 
 	// Now cancel the request while it is waiting.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	for i := 0; i < max; i++ {
 		ctxReq, cancelReq := context.WithCancel(ctx)
 		go func() {
-			time.Sleep(time.Millisecond * 100)
+			time.Sleep(100 * time.Millisecond)
 			cancelReq()
 		}()
 		err := db.PingContext(ctxReq)
@@ -1807,8 +1807,8 @@ func TestConnMaxLifetime(t *testing.T) {
 	}
 
 	// Expire first conn
-	offset = time.Second * 11
-	db.SetConnMaxLifetime(time.Second * 10)
+	offset = 11 * time.Second
+	db.SetConnMaxLifetime(10 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2765,7 +2765,7 @@ func TestIssue18719(t *testing.T) {
 
 		// Wait for the context to cancel and tx to rollback.
 		for tx.isDone() == false {
-			time.Sleep(time.Millisecond * 3)
+			time.Sleep(3 * time.Millisecond)
 		}
 	}
 	defer func() { hookTxGrabConn = nil }()
