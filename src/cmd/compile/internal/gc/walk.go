@@ -791,18 +791,8 @@ opswitch:
 		r.Left = walkexpr(r.Left, init)
 		r.Right = walkexpr(r.Right, init)
 		t := r.Left.Type
-		p := ""
-		if t.Val().Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
-			switch algtype(t.Key()) {
-			case AMEM32:
-				p = "mapaccess2_fast32"
-			case AMEM64:
-				p = "mapaccess2_fast64"
-			case ASTRING:
-				p = "mapaccess2_faststr"
-			}
-		}
 
+		_, p := mapaccessfast(t)
 		var key *Node
 		if p != "" {
 			// fast versions take key by value
@@ -811,7 +801,6 @@ opswitch:
 			// standard version takes key by reference
 			// orderexpr made sure key is addressable.
 			key = nod(OADDR, r.Right, nil)
-
 			p = "mapaccess2"
 		}
 
@@ -1173,18 +1162,7 @@ opswitch:
 			n = mkcall1(mapfn("mapassign", t), nil, init, typename(t), map_, key)
 		} else {
 			// m[k] is not the target of an assignment.
-			p := ""
-			if t.Val().Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
-				switch algtype(t.Key()) {
-				case AMEM32:
-					p = "mapaccess1_fast32"
-				case AMEM64:
-					p = "mapaccess1_fast64"
-				case ASTRING:
-					p = "mapaccess1_faststr"
-				}
-			}
-
+			p, _ := mapaccessfast(t)
 			if p == "" {
 				// standard version takes key by reference.
 				// orderexpr made sure key is addressable.
@@ -2698,6 +2676,23 @@ func mapfndel(name string, t *Type) *Node {
 	fn := syslook(name)
 	fn = substArgTypes(fn, t.Key(), t.Val(), t.Key())
 	return fn
+}
+
+// mapaccessfast returns the names of the fast map access runtime routines for t.
+func mapaccessfast(t *Type) (access1, access2 string) {
+	// Check ../../runtime/hashmap.go:maxValueSize before changing.
+	if t.Val().Width > 128 {
+		return "", ""
+	}
+	switch algtype(t.Key()) {
+	case AMEM32:
+		return "mapaccess1_fast32", "mapaccess2_fast32"
+	case AMEM64:
+		return "mapaccess1_fast64", "mapaccess2_fast64"
+	case ASTRING:
+		return "mapaccess1_faststr", "mapaccess2_faststr"
+	}
+	return "", ""
 }
 
 func writebarrierfn(name string, l *Type, r *Type) *Node {
