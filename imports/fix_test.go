@@ -188,7 +188,9 @@ _, _ := bytes.Buffer, bytes.NewReader
 `,
 		out: `package foo
 
-import "bytes"
+import (
+	"bytes"
+)
 
 func bar() {
 	_, _ := bytes.Buffer, bytes.NewReader
@@ -747,7 +749,9 @@ func main() { fmt.Println() }
 `,
 		out: `package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func main() { fmt.Println() }
 `,
@@ -775,6 +779,27 @@ import (
 )
 
 func main() {}
+`,
+	},
+
+	{
+		name: "do not make grouped imports non-grouped",
+		in: `package p
+
+import (
+	"bytes"
+	"fmt"
+)
+
+var _ = fmt.Sprintf
+`,
+		out: `package p
+
+import (
+	"fmt"
+)
+
+var _ = fmt.Sprintf
 `,
 	},
 }
