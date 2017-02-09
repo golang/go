@@ -723,6 +723,10 @@ func (c *Certificate) Equal(other *Certificate) bool {
 	return bytes.Equal(c.Raw, other.Raw)
 }
 
+func (c *Certificate) hasSANExtension() bool {
+	return oidInExtensions(oidExtensionSubjectAltName, c.Extensions)
+}
+
 // Entrust have a broken root certificate (CN=Entrust.net Certification
 // Authority (2048)) which isn't marked as a CA certificate and is thus invalid
 // according to PKIX.
