@@ -43,6 +43,8 @@ type Func struct {
 	cachedSdom      SparseTree // cached dominator tree
 	cachedLoopnest  *loopnest  // cached loop nest information
 
+	auxmap auxmap // map from aux values to opaque ids used by CSE
+
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
 

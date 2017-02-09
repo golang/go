@@ -30,19 +30,21 @@ func cse(f *Func) {
 
 	// Make initial coarse partitions by using a subset of the conditions above.
 	a := make([]*Value, 0, f.NumValues())
-	auxIDs := auxmap{}
+	if f.auxmap == nil {
+		f.auxmap = auxmap{}
+	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if auxIDs[v.Aux] == 0 {
-				auxIDs[v.Aux] = int32(len(auxIDs)) + 1
-			}
 			if v.Type.IsMemory() {
 				continue // memory values can never cse
+			}
+			if f.auxmap[v.Aux] == 0 {
+				f.auxmap[v.Aux] = int32(len(f.auxmap)) + 1
 			}
 			a = append(a, v)
 		}
 	}
-	partition := partitionValues(a, auxIDs)
+	partition := partitionValues(a, f.auxmap)
 
 	// map from value id back to eqclass id
 	valueEqClass := make([]ID, f.NumValues())
