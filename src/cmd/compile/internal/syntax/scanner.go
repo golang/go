@@ -27,7 +27,7 @@ type scanner struct {
 	// current token, valid after calling next()
 	line, col uint
 	tok       token
-	lit       string   // valid if tok is _Name or _Literal
+	lit       string   // valid if tok is _Name, _Literal, or _Semi ("semicolon", "newline", or "EOF")
 	kind      LitKind  // valid if tok is _Literal
 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
@@ -73,12 +73,14 @@ redo:
 	switch c {
 	case -1:
 		if nlsemi {
+			s.lit = "EOF"
 			s.tok = _Semi
 			break
 		}
 		s.tok = _EOF
 
 	case '\n':
+		s.lit = "newline"
 		s.tok = _Semi
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
@@ -106,6 +108,7 @@ redo:
 		s.tok = _Comma
 
 	case ';':
+		s.lit = "semicolon"
 		s.tok = _Semi
 
 	case ')':
@@ -185,6 +188,7 @@ redo:
 			if s.source.line > s.line && nlsemi {
 				// A multi-line comment acts like a newline;
 				// it translates to a ';' if nlsemi is set.
+				s.lit = "newline"
 				s.tok = _Semi
 				break
 			}

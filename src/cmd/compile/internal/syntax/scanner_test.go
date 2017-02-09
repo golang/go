@@ -66,6 +66,11 @@ func TestTokens(t *testing.T) {
 		}
 
 		switch want.tok {
+		case _Semi:
+			if got.lit != "semicolon" {
+				t.Errorf("got %s; want semicolon", got.lit)
+			}
+
 		case _Name, _Literal:
 			if got.lit != want.src {
 				t.Errorf("got lit = %q; want %q", got.lit, want.src)
@@ -93,6 +98,9 @@ func TestTokens(t *testing.T) {
 			if got.tok != _Semi {
 				t.Errorf("got tok = %s; want ;", got.tok)
 				continue
+			}
+			if got.lit != "newline" {
+				t.Errorf("got %s; want newline", got.lit)
 			}
 		}
 
