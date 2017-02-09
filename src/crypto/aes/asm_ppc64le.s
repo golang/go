@@ -121,7 +121,7 @@ loop128:
 	VSLDOI $12, ZERO, IN0, TMP     // vsldoi 6,0,1,12
 	VPERM IN0, IN0, OUTPERM, OUTTAIL // vperm 11,1,1,8    Rotate
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	VCIPHERLAST KEY, RCON, KEY     // vcipherlast 3,3,4
 	STVX STAGE, (OUT+R0)           // stvx 7,0,5        Write to output
 	ADD $16, OUT, OUT              // addi 5,5,16       Point to the next round
@@ -142,7 +142,7 @@ loop128:
 	VSLDOI $12, ZERO, IN0, TMP     // vsldoi 6,0,1,12
 	VPERM IN0, IN0, OUTPERM, OUTTAIL // vperm 11,1,1,8  Rotate
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	VCIPHERLAST KEY, RCON, KEY     // vcipherlast 3,3,4
 	STVX STAGE, (OUT+R0)           // stvx 7,0,5   Round 9
 	ADD $16, OUT, OUT              // addi 5,5,16
@@ -160,7 +160,7 @@ loop128:
 	VSLDOI $12, ZERO, IN0, TMP     // vsldoi 6,0,1,12
 	VPERM IN0, IN0, OUTPERM, OUTTAIL // vperm 11,1,1,8  Rotate
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	VCIPHERLAST KEY, RCON, KEY     // vcipherlast 3,3,4
 	STVX STAGE, (OUT+R0)           // stvx 7,0,5    Round 10
 	ADD $16, OUT, OUT              // addi 5,5,16
@@ -174,7 +174,7 @@ loop128:
 	VXOR IN0, KEY, IN0             // vxor 1,1,3
 	VPERM IN0, IN0, OUTPERM, OUTTAIL // vperm 11,1,1,8
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	STVX STAGE, (OUT+R0)           // stvx 7,0,5  Round 11
 
 	ADD $15, OUT, INP              // addi  3,5,15
@@ -188,7 +188,7 @@ l192:
 	MOVD $4, CNT                   // li 7,4
 	VPERM IN0, IN0, OUTPERM, OUTTAIL // vperm 11,1,1,8
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	STVX STAGE, (OUT+R0)           // stvx 7,0,5
 	ADD $16, OUT, OUT              // addi 5,5,16
 	VPERM IN1, TMP, KEY, IN1       // vperm 2,2,6,3
@@ -221,7 +221,7 @@ loop192:
 	VSLDOI $12, ZERO, IN0, TMP     // vsldoi 6,0,1,12
 	VPERM STAGE, STAGE, OUTPERM, OUTTAIL // vperm 11,7,7,8
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	VCIPHERLAST KEY, RCON, KEY     // vcipherlast 3,3,4
 	STVX STAGE, (OUT+R0)           // stvx 7,0,5
 	ADD $16, OUT, OUT              // addi 5,5,16
@@ -231,7 +231,7 @@ loop192:
 	VSLDOI $12, ZERO, TMP, TMP     // vsldoi 6,0,6,12
 	VPERM STAGE, STAGE, OUTPERM, OUTTAIL // vperm 11,7,7,8
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	VXOR IN0, TMP, IN0             // vxor 1,1,6
 	VSLDOI $12, ZERO, TMP, TMP     // vsldoi 6,0,6,12
 	VXOR IN0, TMP, IN0             // vxor 1,1,6
@@ -247,7 +247,7 @@ loop192:
 	VXOR IN1, KEY, IN1             // vxor 2,2,3
 	VPERM IN0, IN0, OUTPERM, OUTTAIL // vperm 11,1,1,8
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	STVX STAGE, (OUT+R0)           // stvx 7,0,5
 	ADD $15, OUT, INP              // addi 3,5,15
 	ADD $16, OUT, OUT              // addi 5,5,16
@@ -263,7 +263,7 @@ l256:
 	MOVD $14, ROUNDS               // li 8,14
 	VPERM IN0, IN0, OUTPERM, OUTTAIL // vperm 11,1,1,8
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	STVX STAGE, (OUT+R0)           // stvx 7,0,5
 	ADD $16, OUT, OUT              // addi 5,5,16
 	VPERM IN1, TMP, KEY, IN1       // vperm 2,2,6,3
@@ -274,7 +274,7 @@ loop256:
 	VSLDOI $12, ZERO, IN0, TMP     // vsldoi 6,0,1,12
 	VPERM IN1, IN1, OUTPERM, OUTTAIL // vperm 11,2,2,8
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	VCIPHERLAST KEY, RCON, KEY     // vcipherlast 3,3,4
 	STVX STAGE, (OUT+R0)           // stvx 7,0,5
 	ADD $16, OUT, OUT              // addi 5,5,16
@@ -288,7 +288,7 @@ loop256:
 	VXOR IN0, KEY, IN0             // vxor 1,1,3
 	VPERM IN0, IN0, OUTPERM, OUTTAIL // vperm 11,1,1,8
 	VSEL OUTHEAD, OUTTAIL, OUTMASK, STAGE // vsel 7,10,11,9
-	VORL OUTTAIL, OUTTAIL, OUTHEAD // vor 10,11,11
+	VOR OUTTAIL, OUTTAIL, OUTHEAD  // vor 10,11,11
 	STVX STAGE, (OUT+R0)           // stvx 7,0,5
 	ADD $15, OUT, INP              // addi 3,5,15
 	ADD $16, OUT, OUT              // addi 5,5,16
