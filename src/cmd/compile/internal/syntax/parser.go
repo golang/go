@@ -1690,7 +1690,7 @@ func (p *parser) stmtBody(context string) []Stmt {
 	}
 
 	if !p.got(_Lbrace) {
-		p.syntax_error("missing { after " + context)
+		p.syntax_error("expecting { after " + context)
 		p.advance(_Name, _Rbrace)
 	}
 
