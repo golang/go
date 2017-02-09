@@ -721,10 +721,6 @@ func gcFlushBgCredit(scanWork int64) {
 
 // scanstack scans gp's stack, greying all pointers found on the stack.
 //
-// During mark phase, it also installs stack barriers while traversing
-// gp's stack. During mark termination, it stops scanning when it
-// reaches an unhit stack barrier.
-//
 // scanstack is marked go:systemstack because it must not be preempted
 // while using a workbuf.
 //
@@ -767,86 +763,14 @@ func scanstack(gp *g, gcw *gcWork) {
 		shrinkstack(gp)
 	}
 
-	// Prepare for stack barrier insertion/removal.
-	var sp, barrierOffset, nextBarrier uintptr
-	if gp.syscallsp != 0 {
-		sp = gp.syscallsp
-	} else {
-		sp = gp.sched.sp
-	}
-	gcLockStackBarriers(gp) // Not necessary during mark term, but harmless.
-	switch gcphase {
-	case _GCmark:
-		// Install stack barriers during stack scan.
-		barrierOffset = uintptr(firstStackBarrierOffset)
-		nextBarrier = sp + barrierOffset
-
-		if debug.gcstackbarrieroff > 0 {
-			nextBarrier = ^uintptr(0)
-		}
-
-		// Remove any existing stack barriers before we
-		// install new ones.
-		gcRemoveStackBarriers(gp)
-
-	case _GCmarktermination:
-		if !work.markrootDone {
-			// This is a STW GC. There may be stale stack
-			// barriers from an earlier cycle since we
-			// never passed through mark phase.
-			gcRemoveStackBarriers(gp)
-		}
-
-		if int(gp.stkbarPos) == len(gp.stkbar) {
-			// gp hit all of the stack barriers (or there
-			// were none). Re-scan the whole stack.
-			nextBarrier = ^uintptr(0)
-		} else {
-			// Only re-scan up to the lowest un-hit
-			// barrier. Any frames above this have not
-			// executed since the concurrent scan of gp and
-			// any writes through up-pointers to above
-			// this barrier had write barriers.
-			nextBarrier = gp.stkbar[gp.stkbarPos].savedLRPtr
-			if debugStackBarrier {
-				print("rescan below ", hex(nextBarrier), " in [", hex(sp), ",", hex(gp.stack.hi), ") goid=", gp.goid, "\n")
-			}
-		}
-
-	default:
-		throw("scanstack in wrong phase")
-	}
-
 	// Scan the stack.
 	var cache pcvalueCache
-	n := 0
 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
 		scanframeworker(frame, &cache, gcw)
-
-		if frame.fp > nextBarrier {
-			// We skip installing a barrier on bottom-most
-			// frame because on LR machines this LR is not
-			// on the stack.
-			if gcphase == _GCmark && n != 0 {
-				if gcInstallStackBarrier(gp, frame) {
-					barrierOffset *= 2
-					nextBarrier = sp + barrierOffset
-				}
-			} else if gcphase == _GCmarktermination {
-				// We just scanned a frame containing
-				// a return to a stack barrier. Since
-				// this frame never returned, we can
-				// stop scanning.
-				return false
-			}
-		}
-		n++
-
 		return true
 	}
 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
 	tracebackdefers(gp, scanframe, nil)
-	gcUnlockStackBarriers(gp)
 	gp.gcscanvalid = true
 }
 

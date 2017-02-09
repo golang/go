@@ -816,8 +816,6 @@ func scang(gp *g, gcw *gcWork) {
 	// Nothing is racing with us now, but gcscandone might be set to true left over
 	// from an earlier round of stack scanning (we scan twice per GC).
 	// We use gcscandone to record whether the scan has been done during this round.
-	// It is important that the scan happens exactly once: if called twice,
-	// the installation of stack barriers will detect the double scan and die.
 
 	gp.gcscandone = false
 
@@ -2810,7 +2808,7 @@ func malg(stacksize int32) *g {
 	if stacksize >= 0 {
 		stacksize = round2(_StackSystem + stacksize)
 		systemstack(func() {
-			newg.stack, newg.stkbar = stackalloc(uint32(stacksize))
+			newg.stack = stackalloc(uint32(stacksize))
 		})
 		newg.stackguard0 = newg.stack.lo + _StackGuard
 		newg.stackguard1 = ^uintptr(0)
@@ -2959,12 +2957,6 @@ func gfput(_p_ *p, gp *g) {
 		gp.stack.lo = 0
 		gp.stack.hi = 0
 		gp.stackguard0 = 0
-		gp.stkbar = nil
-		gp.stkbarPos = 0
-	} else {
-		// Reset stack barriers.
-		gp.stkbar = gp.stkbar[:0]
-		gp.stkbarPos = 0
 	}
 
 	gp.schedlink.set(_p_.gfree)
@@ -3021,7 +3013,7 @@ retry:
 		if gp.stack.lo == 0 {
 			// Stack was deallocated in gfput. Allocate a new one.
 			systemstack(func() {
-				gp.stack, gp.stkbar = stackalloc(_FixedStack)
+				gp.stack = stackalloc(_FixedStack)
 			})
 			gp.stackguard0 = gp.stack.lo + _StackGuard
 			gp.stackAlloc = _FixedStack
@@ -3240,7 +3232,6 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		traceback = false
 	}
 	var stk [maxCPUProfStack]uintptr
-	var haveStackLock *g
 	n := 0
 	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
 		cgoOff := 0
@@ -3258,26 +3249,9 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		}
 
 		// Collect Go stack that leads to the cgo call.
-		if gcTryLockStackBarriers(mp.curg) {
-			haveStackLock = mp.curg
-			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[cgoOff], len(stk)-cgoOff, nil, nil, 0)
-		}
+		n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[cgoOff], len(stk)-cgoOff, nil, nil, 0)
 	} else if traceback {
-		var flags uint = _TraceTrap
-		if gp.m.curg != nil && gcTryLockStackBarriers(gp.m.curg) {
-			// It's safe to traceback the user stack.
-			haveStackLock = gp.m.curg
-			flags |= _TraceJumpStack
-		}
-		// Traceback is safe if we're on the system stack (if
-		// necessary, flags will stop it before switching to
-		// the user stack), or if we locked the user stack.
-		if gp != gp.m.curg || haveStackLock != nil {
-			n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, flags)
-		}
-	}
-	if haveStackLock != nil {
-		gcUnlockStackBarriers(haveStackLock)
+		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap|_TraceJumpStack)
 	}
 
 	if n <= 0 {
@@ -3287,10 +3261,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		if GOOS == "windows" && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
 			// Libcall, i.e. runtime syscall on windows.
 			// Collect Go stack that leads to the call.
-			if gcTryLockStackBarriers(mp.libcallg.ptr()) {
-				n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
-				gcUnlockStackBarriers(mp.libcallg.ptr())
-			}
+			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
 		}
 		if n == 0 {
 			// If all of the above has failed, account it against abstract "System" or "GC".

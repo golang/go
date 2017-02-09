@@ -313,22 +313,20 @@ type dbgVar struct {
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	allocfreetrace    int32
-	cgocheck          int32
-	efence            int32
-	gccheckmark       int32
-	gcpacertrace      int32
-	gcshrinkstackoff  int32
-	gcstackbarrieroff int32
-	gcstackbarrierall int32
-	gcrescanstacks    int32
-	gcstoptheworld    int32
-	gctrace           int32
-	invalidptr        int32
-	sbrk              int32
-	scavenge          int32
-	scheddetail       int32
-	schedtrace        int32
+	allocfreetrace   int32
+	cgocheck         int32
+	efence           int32
+	gccheckmark      int32
+	gcpacertrace     int32
+	gcshrinkstackoff int32
+	gcrescanstacks   int32
+	gcstoptheworld   int32
+	gctrace          int32
+	invalidptr       int32
+	sbrk             int32
+	scavenge         int32
+	scheddetail      int32
+	schedtrace       int32
 }
 
 var dbgvars = []dbgVar{
@@ -338,8 +336,6 @@ var dbgvars = []dbgVar{
 	{"gccheckmark", &debug.gccheckmark},
 	{"gcpacertrace", &debug.gcpacertrace},
 	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
-	{"gcstackbarrieroff", &debug.gcstackbarrieroff},
-	{"gcstackbarrierall", &debug.gcstackbarrierall},
 	{"gcrescanstacks", &debug.gcrescanstacks},
 	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
@@ -389,17 +385,6 @@ func parsedebugvars() {
 
 	setTraceback(gogetenv("GOTRACEBACK"))
 	traceback_env = traceback_cache
-
-	if debug.gcrescanstacks == 0 {
-		// Without rescanning, there's no need for stack
-		// barriers.
-		debug.gcstackbarrieroff = 1
-		debug.gcstackbarrierall = 0
-	}
-
-	if debug.gcstackbarrierall > 0 {
-		firstStackBarrierOffset = 0
-	}
 
 	// For cgocheck > 1, we turn on the write barrier at all times
 	// and check all pointer writes.

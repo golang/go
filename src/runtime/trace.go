@@ -572,12 +572,7 @@ func traceStackID(mp *m, buf []uintptr, skip int) uint64 {
 		nstk = callers(skip+1, buf[:])
 	} else if gp != nil {
 		gp = mp.curg
-		// This may happen when tracing a system call,
-		// so we must lock the stack.
-		if gcTryLockStackBarriers(gp) {
-			nstk = gcallers(gp, skip, buf[:])
-			gcUnlockStackBarriers(gp)
-		}
+		nstk = gcallers(gp, skip, buf[:])
 	}
 	if nstk > 0 {
 		nstk-- // skip runtime.goexit

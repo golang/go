@@ -573,29 +573,9 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 		return
 	}
 	if !inheap(dst) {
-		// If dst is on the stack and in a higher frame than the
-		// caller, we either need to execute write barriers on
-		// it (which is what happens for normal stack writes
-		// through pointers to higher frames), or we need to
-		// force the mark termination stack scan to scan the
-		// frame containing dst.
-		//
-		// Executing write barriers on dst is complicated in the
-		// general case because we either need to unwind the
-		// stack to get the stack map, or we need the type's
-		// bitmap, which may be a GC program.
-		//
-		// Hence, we opt for forcing the re-scan to scan the
-		// frame containing dst, which we can do by simply
-		// unwinding the stack barriers between the current SP
-		// and dst's frame.
 		gp := getg().m.curg
 		if gp != nil && gp.stack.lo <= dst && dst < gp.stack.hi {
-			// Run on the system stack to give it more
-			// stack space.
-			systemstack(func() {
-				gcUnwindBarriers(gp, dst)
-			})
+			// Destination is our own stack. No need for barriers.
 			return
 		}
 

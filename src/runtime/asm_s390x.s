@@ -298,23 +298,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	$0, R12
 	BR	runtime·morestack(SB)
 
-TEXT runtime·stackBarrier(SB),NOSPLIT,$0
-	// We came here via a RET to an overwritten LR.
-	// R3 may be live. Other registers are available.
-
-	// Get the original return PC, g.stkbar[g.stkbarPos].savedLRVal.
-	MOVD	(g_stkbar+slice_array)(g), R4
-	MOVD	g_stkbarPos(g), R5
-	MOVD	$stkbar__size, R6
-	MULLD	R5, R6
-	ADD	R4, R6
-	MOVD	stkbar_savedLRVal(R6), R6
-	// Record that this stack barrier was hit.
-	ADD	$1, R5
-	MOVD	R5, g_stkbarPos(g)
-	// Jump to the original return PC.
-	BR	(R6)
-
 // reflectcall: call a function with the given argument list
 // func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
 // we don't have variable-sized frames, so we use a small number
@@ -675,26 +658,12 @@ TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
 	MOVD	16(R15), R3		// LR saved by caller
-	MOVD	runtime·stackBarrierPC(SB), R4
-	CMPBNE	R3, R4, nobar
-	// Get original return PC.
-	BL	runtime·nextBarrierPC(SB)
-	MOVD	8(R15), R3
-nobar:
 	MOVD	R3, ret+8(FP)
 	RET
 
 TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
 	MOVD	pc+8(FP), R3
-	MOVD	16(R15), R4
-	MOVD	runtime·stackBarrierPC(SB), R5
-	CMPBEQ	R4, R5, setbar
 	MOVD	R3, 16(R15)		// set LR in caller
-	RET
-setbar:
-	// Set the stack barrier return PC.
-	MOVD	R3, 8(R15)
-	BL	runtime·setNextBarrierPC(SB)
 	RET
 
 TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0

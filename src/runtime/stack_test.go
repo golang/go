@@ -315,17 +315,17 @@ func TestPanicFar(t *testing.T) {
 	defer func() {
 		// At this point we created a large stack and unwound
 		// it via recovery. Force a stack walk, which will
-		// check the consistency of stack barriers.
+		// check the stack's consistency.
 		Callers(0, pc)
 	}()
 	defer func() {
 		recover()
 	}()
 	useStackAndCall(100, func() {
-		// Kick off the GC and make it do something nontrivial
-		// to keep stack barriers installed for a while.
+		// Kick off the GC and make it do something nontrivial.
+		// (This used to force stack barriers to stick around.)
 		xtree = makeTree(18)
-		// Give the GC time to install stack barriers.
+		// Give the GC time to start scanning stacks.
 		time.Sleep(time.Millisecond)
 		panic(1)
 	})
