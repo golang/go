@@ -159,7 +159,10 @@ func writebarrier(f *Func) {
 			var val *Value
 			ptr := w.Args[0]
 			siz := w.AuxInt
-			typ := w.Aux // only non-nil for MoveWB, ZeroWB
+			var typ interface{}
+			if w.Op != OpStoreWB {
+				typ = &ExternSymbol{Typ: f.Config.fe.TypeUintptr(), Sym: w.Aux.(Type).Symbol()}
+			}
 			pos = w.Pos
 
 			var op Op

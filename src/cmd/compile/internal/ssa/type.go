@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/internal/obj"
+
 // TODO: use go/types instead?
 
 // A type interface used to import cmd/internal/gc:Type
@@ -39,9 +41,12 @@ type Type interface {
 
 	NumElem() int64 // # of elements of an array
 
+	HasPointer() bool // has heap pointer
+
 	String() string
 	SimpleString() string // a coarser generic description of T, e.g. T's underlying type
 	Compare(Type) Cmp     // compare types, returning one of CMPlt, CMPeq, CMPgt.
+	Symbol() *obj.LSym    // the symbol of the type
 }
 
 // Special compiler-only types.
@@ -80,6 +85,8 @@ func (t *CompilerType) FieldType(i int) Type   { panic("not implemented") }
 func (t *CompilerType) FieldOff(i int) int64   { panic("not implemented") }
 func (t *CompilerType) FieldName(i int) string { panic("not implemented") }
 func (t *CompilerType) NumElem() int64         { panic("not implemented") }
+func (t *CompilerType) HasPointer() bool       { panic("not implemented") }
+func (t *CompilerType) Symbol() *obj.LSym      { panic("not implemented") }
 
 type TupleType struct {
 	first  Type
@@ -122,6 +129,8 @@ func (t *TupleType) FieldType(i int) Type {
 func (t *TupleType) FieldOff(i int) int64   { panic("not implemented") }
 func (t *TupleType) FieldName(i int) string { panic("not implemented") }
 func (t *TupleType) NumElem() int64         { panic("not implemented") }
+func (t *TupleType) HasPointer() bool       { panic("not implemented") }
+func (t *TupleType) Symbol() *obj.LSym      { panic("not implemented") }
 
 // Cmp is a comparison between values a and b.
 // -1 if a < b

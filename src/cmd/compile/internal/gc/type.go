@@ -11,6 +11,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 )
@@ -1278,4 +1279,18 @@ func (t *Type) IsUntyped() bool {
 		return true
 	}
 	return false
+}
+
+// HasPointer returns whether t contains heap pointer.
+// This is used for write barrier insertion, so we ignore
+// pointers to go:notinheap types.
+func (t *Type) HasPointer() bool {
+	if t.IsPtr() && t.Elem().NotInHeap() {
+		return false
+	}
+	return haspointers(t)
+}
+
+func (t *Type) Symbol() *obj.LSym {
+	return Linksym(typenamesym(t))
 }
