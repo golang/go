@@ -813,15 +813,13 @@ var work struct {
 	// should pass gcDrainBlock to gcDrain to block in the
 	// getfull() barrier. Otherwise, they should pass gcDrainNoBlock.
 	//
-	// TODO: This is a temporary fallback to support
-	// debug.gcrescanstacks > 0 and to work around some known
-	// races. Remove this when we remove the debug option and fix
-	// the races.
+	// TODO: This is a temporary fallback to work around races
+	// that cause early mark termination.
 	helperDrainBlock bool
 
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
-	nFlushCacheRoots                                             int
-	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots, nRescanRoots int
+	nFlushCacheRoots                               int
+	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
 
 	// markrootDone indicates that roots have been marked at least
 	// once during the current GC cycle. This is checked by root
@@ -871,14 +869,6 @@ var work struct {
 	assistQueue struct {
 		lock       mutex
 		head, tail guintptr
-	}
-
-	// rescan is a list of G's that need to be rescanned during
-	// mark termination. A G adds itself to this list when it
-	// first invalidates its stack scan.
-	rescan struct {
-		lock mutex
-		list []guintptr
 	}
 
 	// Timing/utilization stats for this cycle.
@@ -1630,24 +1620,22 @@ func gcMark(start_time int64) {
 	work.ndone = 0
 	work.nproc = uint32(gcprocs())
 
-	if debug.gcrescanstacks == 0 && work.full == 0 && work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots+work.nRescanRoots == 0 {
+	if work.full == 0 && work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots == 0 {
 		// There's no work on the work queue and no root jobs
 		// that can produce work, so don't bother entering the
 		// getfull() barrier.
 		//
-		// With the hybrid barrier enabled, this will be the
-		// situation the vast majority of the time after
-		// concurrent mark. However, we still need a fallback
-		// for STW GC and because there are some known races
-		// that occasionally leave work around for mark
-		// termination.
+		// This will be the situation the vast majority of the
+		// time after concurrent mark. However, we still need
+		// a fallback for STW GC and because there are some
+		// known races that occasionally leave work around for
+		// mark termination.
 		//
 		// We're still hedging our bets here: if we do
 		// accidentally produce some work, we'll still process
 		// it, just not necessarily in parallel.
 		//
-		// TODO(austin): When we eliminate
-		// debug.gcrescanstacks: fix the races, and remove
+		// TODO(austin): Fix the races and and remove
 		// work draining from mark termination so we don't
 		// need the fallback path.
 		work.helperDrainBlock = false
@@ -1827,21 +1815,13 @@ func gcSweep(mode gcMode) {
 func gcResetMarkState() {
 	// This may be called during a concurrent phase, so make sure
 	// allgs doesn't change.
-	if !(gcphase == _GCoff || gcphase == _GCmarktermination) {
-		// Accessing gcRescan is unsafe.
-		throw("bad GC phase")
-	}
 	lock(&allglock)
 	for _, gp := range allgs {
 		gp.gcscandone = false  // set to true in gcphasework
 		gp.gcscanvalid = false // stack has not been scanned
-		gp.gcRescan = -1
 		gp.gcAssistBytes = 0
 	}
 	unlock(&allglock)
-
-	// Clear rescan list.
-	work.rescan.list = work.rescan.list[:0]
 
 	work.bytesMarked = 0
 	work.initialHeapLive = memstats.heap_live

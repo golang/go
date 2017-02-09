@@ -365,7 +365,7 @@ type g struct {
 	paniconfault   bool     // panic (instead of crash) on unexpected fault address
 	preemptscan    bool     // preempted g does scan for gc
 	gcscandone     bool     // g has scanned stack; protected by _Gscan bit in status
-	gcscanvalid    bool     // false at start of gc cycle, true if G has not run since last scan; transition from true to false by calling queueRescan and false to true by calling dequeueRescan
+	gcscanvalid    bool     // false at start of gc cycle, true if G has not run since last scan; TODO: remove?
 	throwsplit     bool     // must not split stack
 	raceignore     int8     // ignore race detection events
 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
@@ -387,13 +387,6 @@ type g struct {
 	labels unsafe.Pointer // profiler labels
 
 	// Per-G GC state
-
-	// gcRescan is this G's index in work.rescan.list. If this is
-	// -1, this G is not on the rescan list.
-	//
-	// If gcphase != _GCoff and this G is visible to the garbage
-	// collector, writes to this are protected by work.rescan.lock.
-	gcRescan int32
 
 	// gcAssistBytes is this G's GC assist credit in terms of
 	// bytes allocated. If this is positive, then the G has credit
