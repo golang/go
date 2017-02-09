@@ -410,14 +410,29 @@ func (d *decoder) newImageFromDescriptor() (*image.Paletted, error) {
 	height := int(d.tmp[6]) + int(d.tmp[7])<<8
 	d.imageFields = d.tmp[8]
 
-	// The GIF89a spec, Section 20 (Image Descriptor) says:
-	// "Each image must fit within the boundaries of the Logical
-	// Screen, as defined in the Logical Screen Descriptor."
-	bounds := image.Rect(left, top, left+width, top+height)
-	if bounds != bounds.Intersect(image.Rect(0, 0, d.width, d.height)) {
+	// The GIF89a spec, Section 20 (Image Descriptor) says: "Each image must
+	// fit within the boundaries of the Logical Screen, as defined in the
+	// Logical Screen Descriptor."
+	//
+	// This is conceptually similar to testing
+	//	frameBounds := image.Rect(left, top, left+width, top+height)
+	//	imageBounds := image.Rect(0, 0, d.width, d.height)
+	//	if !frameBounds.In(imageBounds) { etc }
+	// but the semantics of the Go image.Rectangle type is that r.In(s) is true
+	// whenever r is an empty rectangle, even if r.Min.X > s.Max.X. Here, we
+	// want something stricter.
+	//
+	// Note that, by construction, left >= 0 && top >= 0, so we only have to
+	// explicitly compare frameBounds.Max (left+width, top+height) against
+	// imageBounds.Max (d.width, d.height) and not frameBounds.Min (left, top)
+	// against imageBounds.Min (0, 0).
+	if left+width > d.width || top+height > d.height {
 		return nil, errors.New("gif: frame bounds larger than image bounds")
 	}
-	return image.NewPaletted(bounds, nil), nil
+	return image.NewPaletted(image.Rectangle{
+		Min: image.Point{left, top},
+		Max: image.Point{left + width, top + height},
+	}, nil), nil
 }
 
 func (d *decoder) readBlock() (int, error) {
