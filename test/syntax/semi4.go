@@ -13,5 +13,5 @@ package main
 
 func main() {
 	for x		// GCCGO_ERROR "undefined"
-	{		// ERROR "missing .*{.* after for clause|missing operand"
-		z	// ERROR "undefined|missing { after for clause"
+	{		// ERROR "expecting .*{.* after for clause|missing operand"
+		z	// ERROR "undefined|expecting { after for clause"
