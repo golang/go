@@ -481,21 +481,20 @@
 (MOVDnop <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <t> [off] {sym} ptr mem)
 (MOVDnop <t> x:(MOVDload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDload  <t> [off] {sym} ptr mem)
 
-// TODO(mundaym): uncomment rules once signed indexed loads are added.
 (MOVDreg <t> x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <t> [off] {sym} ptr idx mem)
-//(MOVDreg <t> x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDreg <t> x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <t> [off] {sym} ptr idx mem)
 (MOVDreg <t> x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <t> [off] {sym} ptr idx mem)
-//(MOVDreg <t> x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDreg <t> x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <t> [off] {sym} ptr idx mem)
 (MOVDreg <t> x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <t> [off] {sym} ptr idx mem)
-//(MOVDreg <t> x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDreg <t> x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <t> [off] {sym} ptr idx mem)
 (MOVDreg <t> x:(MOVDloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDloadidx  <t> [off] {sym} ptr idx mem)
 
 (MOVDnop <t> x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <t> [off] {sym} ptr idx mem)
-//(MOVDnop <t> x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDnop <t> x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <t> [off] {sym} ptr idx mem)
 (MOVDnop <t> x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <t> [off] {sym} ptr idx mem)
-//(MOVDnop <t> x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDnop <t> x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <t> [off] {sym} ptr idx mem)
 (MOVDnop <t> x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <t> [off] {sym} ptr idx mem)
-//(MOVDnop <t> x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDnop <t> x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <t> [off] {sym} ptr idx mem)
 (MOVDnop <t> x:(MOVDloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDloadidx  <t> [off] {sym} ptr idx mem)
 
 // Fold sign extensions into conditional moves of constants.
@@ -677,16 +676,31 @@
 // Make sure we don't combine these ops if the load has another use.
 // This prevents a single load from being split into multiple loads
 // which then might return different values.  See test/atomicload.go.
-(MOVBreg x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
+(MOVBreg  x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload  <v.Type> [off] {sym} ptr mem)
+(MOVBreg  x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload  <v.Type> [off] {sym} ptr mem)
 (MOVBZreg x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZload <v.Type> [off] {sym} ptr mem)
-(MOVHreg x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload <v.Type> [off] {sym} ptr mem)
+(MOVBZreg x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZload <v.Type> [off] {sym} ptr mem)
+(MOVHreg  x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload  <v.Type> [off] {sym} ptr mem)
+(MOVHreg  x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload  <v.Type> [off] {sym} ptr mem)
 (MOVHZreg x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZload <v.Type> [off] {sym} ptr mem)
-(MOVWreg x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
+(MOVHZreg x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZload <v.Type> [off] {sym} ptr mem)
+(MOVWreg  x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <v.Type> [off] {sym} ptr mem)
+(MOVWreg  x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <v.Type> [off] {sym} ptr mem)
 (MOVWZreg x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZload <v.Type> [off] {sym} ptr mem)
+(MOVWZreg x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZload <v.Type> [off] {sym} ptr mem)
 
+(MOVBreg  x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <v.Type> [off] {sym} ptr idx mem)
+(MOVBreg  x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <v.Type> [off] {sym} ptr idx mem)
 (MOVBZreg x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <v.Type> [off] {sym} ptr idx mem)
+(MOVBZreg x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <v.Type> [off] {sym} ptr idx mem)
+(MOVHreg  x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <v.Type> [off] {sym} ptr idx mem)
+(MOVHreg  x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <v.Type> [off] {sym} ptr idx mem)
 (MOVHZreg x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <v.Type> [off] {sym} ptr idx mem)
+(MOVHZreg x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <v.Type> [off] {sym} ptr idx mem)
+(MOVWreg  x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <v.Type> [off] {sym} ptr idx mem)
+(MOVWreg  x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <v.Type> [off] {sym} ptr idx mem)
 (MOVWZreg x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <v.Type> [off] {sym} ptr idx mem)
+(MOVWZreg x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <v.Type> [off] {sym} ptr idx mem)
 
 // replace load from same location as preceding store with copy
 (MOVDload  [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVDreg x)
@@ -867,10 +881,16 @@
 // generating indexed loads and stores
 (MOVBZload [off1] {sym1} (MOVDaddridx [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVBZloadidx [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVBload [off1] {sym1} (MOVDaddridx [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVBloadidx [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVHZload [off1] {sym1} (MOVDaddridx [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVHZloadidx [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVHload [off1] {sym1} (MOVDaddridx [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVHloadidx [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVWZload [off1] {sym1} (MOVDaddridx [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVWZloadidx [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVWload [off1] {sym1} (MOVDaddridx [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVWloadidx [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVDload [off1] {sym1} (MOVDaddridx [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVDloadidx [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 (FMOVSload [off1] {sym1} (MOVDaddridx [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
@@ -892,46 +912,56 @@
 	(FMOVDstoreidx [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
 
 (MOVBZload [off] {sym} (ADD ptr idx) mem) && ptr.Op != OpSB -> (MOVBZloadidx [off] {sym} ptr idx mem)
+(MOVBload  [off] {sym} (ADD ptr idx) mem) && ptr.Op != OpSB -> (MOVBloadidx  [off] {sym} ptr idx mem)
 (MOVHZload [off] {sym} (ADD ptr idx) mem) && ptr.Op != OpSB -> (MOVHZloadidx [off] {sym} ptr idx mem)
+(MOVHload  [off] {sym} (ADD ptr idx) mem) && ptr.Op != OpSB -> (MOVHloadidx  [off] {sym} ptr idx mem)
 (MOVWZload [off] {sym} (ADD ptr idx) mem) && ptr.Op != OpSB -> (MOVWZloadidx [off] {sym} ptr idx mem)
-(MOVDload [off] {sym} (ADD ptr idx) mem) && ptr.Op != OpSB -> (MOVDloadidx [off] {sym} ptr idx mem)
+(MOVWload  [off] {sym} (ADD ptr idx) mem) && ptr.Op != OpSB -> (MOVWloadidx  [off] {sym} ptr idx mem)
+(MOVDload  [off] {sym} (ADD ptr idx) mem) && ptr.Op != OpSB -> (MOVDloadidx  [off] {sym} ptr idx mem)
 (FMOVSload [off] {sym} (ADD ptr idx) mem) && ptr.Op != OpSB -> (FMOVSloadidx [off] {sym} ptr idx mem)
 (FMOVDload [off] {sym} (ADD ptr idx) mem) && ptr.Op != OpSB -> (FMOVDloadidx [off] {sym} ptr idx mem)
-(MOVBstore [off] {sym} (ADD ptr idx) val mem) && ptr.Op != OpSB -> (MOVBstoreidx [off] {sym} ptr idx val mem)
-(MOVHstore [off] {sym} (ADD ptr idx) val mem) && ptr.Op != OpSB -> (MOVHstoreidx [off] {sym} ptr idx val mem)
-(MOVWstore [off] {sym} (ADD ptr idx) val mem) && ptr.Op != OpSB -> (MOVWstoreidx [off] {sym} ptr idx val mem)
-(MOVDstore [off] {sym} (ADD ptr idx) val mem) && ptr.Op != OpSB -> (MOVDstoreidx [off] {sym} ptr idx val mem)
+
+(MOVBstore  [off] {sym} (ADD ptr idx) val mem) && ptr.Op != OpSB -> (MOVBstoreidx  [off] {sym} ptr idx val mem)
+(MOVHstore  [off] {sym} (ADD ptr idx) val mem) && ptr.Op != OpSB -> (MOVHstoreidx  [off] {sym} ptr idx val mem)
+(MOVWstore  [off] {sym} (ADD ptr idx) val mem) && ptr.Op != OpSB -> (MOVWstoreidx  [off] {sym} ptr idx val mem)
+(MOVDstore  [off] {sym} (ADD ptr idx) val mem) && ptr.Op != OpSB -> (MOVDstoreidx  [off] {sym} ptr idx val mem)
 (FMOVSstore [off] {sym} (ADD ptr idx) val mem) && ptr.Op != OpSB -> (FMOVSstoreidx [off] {sym} ptr idx val mem)
 (FMOVDstore [off] {sym} (ADD ptr idx) val mem) && ptr.Op != OpSB -> (FMOVDstoreidx [off] {sym} ptr idx val mem)
 
 // combine ADD into indexed loads and stores
-(MOVBZloadidx [c] {sym} (ADDconst [d] ptr) idx mem) -> (MOVBZloadidx [c+d] {sym} ptr idx mem)
-(MOVHZloadidx [c] {sym} (ADDconst [d] ptr) idx mem) -> (MOVHZloadidx [c+d] {sym} ptr idx mem)
-(MOVWZloadidx [c] {sym} (ADDconst [d] ptr) idx mem) -> (MOVWZloadidx [c+d] {sym} ptr idx mem)
-(MOVDloadidx [c] {sym} (ADDconst [d] ptr) idx mem) -> (MOVDloadidx [c+d] {sym} ptr idx mem)
-(FMOVSloadidx [c] {sym} (ADDconst [d] ptr) idx mem) -> (FMOVSloadidx [c+d] {sym} ptr idx mem)
-(FMOVDloadidx [c] {sym} (ADDconst [d] ptr) idx mem) -> (FMOVDloadidx [c+d] {sym} ptr idx mem)
+(MOVBZloadidx [c] {sym} (ADDconst [d] ptr) idx mem) && is20Bit(c+d) -> (MOVBZloadidx [c+d] {sym} ptr idx mem)
+(MOVBloadidx  [c] {sym} (ADDconst [d] ptr) idx mem) && is20Bit(c+d) -> (MOVBloadidx  [c+d] {sym} ptr idx mem)
+(MOVHZloadidx [c] {sym} (ADDconst [d] ptr) idx mem) && is20Bit(c+d) -> (MOVHZloadidx [c+d] {sym} ptr idx mem)
+(MOVHloadidx  [c] {sym} (ADDconst [d] ptr) idx mem) && is20Bit(c+d) -> (MOVHloadidx  [c+d] {sym} ptr idx mem)
+(MOVWZloadidx [c] {sym} (ADDconst [d] ptr) idx mem) && is20Bit(c+d) -> (MOVWZloadidx [c+d] {sym} ptr idx mem)
+(MOVWloadidx  [c] {sym} (ADDconst [d] ptr) idx mem) && is20Bit(c+d) -> (MOVWloadidx  [c+d] {sym} ptr idx mem)
+(MOVDloadidx  [c] {sym} (ADDconst [d] ptr) idx mem) && is20Bit(c+d) -> (MOVDloadidx  [c+d] {sym} ptr idx mem)
+(FMOVSloadidx [c] {sym} (ADDconst [d] ptr) idx mem) && is20Bit(c+d) -> (FMOVSloadidx [c+d] {sym} ptr idx mem)
+(FMOVDloadidx [c] {sym} (ADDconst [d] ptr) idx mem) && is20Bit(c+d) -> (FMOVDloadidx [c+d] {sym} ptr idx mem)
 
-(MOVBstoreidx [c] {sym} (ADDconst [d] ptr) idx val mem) -> (MOVBstoreidx [c+d] {sym} ptr idx val mem)
-(MOVHstoreidx [c] {sym} (ADDconst [d] ptr) idx val mem) -> (MOVHstoreidx [c+d] {sym} ptr idx val mem)
-(MOVWstoreidx [c] {sym} (ADDconst [d] ptr) idx val mem) -> (MOVWstoreidx [c+d] {sym} ptr idx val mem)
-(MOVDstoreidx [c] {sym} (ADDconst [d] ptr) idx val mem) -> (MOVDstoreidx [c+d] {sym} ptr idx val mem)
-(FMOVSstoreidx [c] {sym} (ADDconst [d] ptr) idx val mem) -> (FMOVSstoreidx [c+d] {sym} ptr idx val mem)
-(FMOVDstoreidx [c] {sym} (ADDconst [d] ptr) idx val mem) -> (FMOVDstoreidx [c+d] {sym} ptr idx val mem)
+(MOVBstoreidx  [c] {sym} (ADDconst [d] ptr) idx val mem) && is20Bit(c+d) -> (MOVBstoreidx  [c+d] {sym} ptr idx val mem)
+(MOVHstoreidx  [c] {sym} (ADDconst [d] ptr) idx val mem) && is20Bit(c+d) -> (MOVHstoreidx  [c+d] {sym} ptr idx val mem)
+(MOVWstoreidx  [c] {sym} (ADDconst [d] ptr) idx val mem) && is20Bit(c+d) -> (MOVWstoreidx  [c+d] {sym} ptr idx val mem)
+(MOVDstoreidx  [c] {sym} (ADDconst [d] ptr) idx val mem) && is20Bit(c+d) -> (MOVDstoreidx  [c+d] {sym} ptr idx val mem)
+(FMOVSstoreidx [c] {sym} (ADDconst [d] ptr) idx val mem) && is20Bit(c+d) -> (FMOVSstoreidx [c+d] {sym} ptr idx val mem)
+(FMOVDstoreidx [c] {sym} (ADDconst [d] ptr) idx val mem) && is20Bit(c+d) -> (FMOVDstoreidx [c+d] {sym} ptr idx val mem)
 
-(MOVBZloadidx [c] {sym} ptr (ADDconst [d] idx) mem) -> (MOVBZloadidx [c+d] {sym} ptr idx mem)
-(MOVHZloadidx [c] {sym} ptr (ADDconst [d] idx) mem) -> (MOVHZloadidx [c+d] {sym} ptr idx mem)
-(MOVWZloadidx [c] {sym} ptr (ADDconst [d] idx) mem) -> (MOVWZloadidx [c+d] {sym} ptr idx mem)
-(MOVDloadidx [c] {sym} ptr (ADDconst [d] idx) mem) -> (MOVDloadidx [c+d] {sym} ptr idx mem)
-(FMOVSloadidx [c] {sym} ptr (ADDconst [d] idx) mem) -> (FMOVSloadidx [c+d] {sym} ptr idx mem)
-(FMOVDloadidx [c] {sym} ptr (ADDconst [d] idx) mem) -> (FMOVDloadidx [c+d] {sym} ptr idx mem)
+(MOVBZloadidx [c] {sym} ptr (ADDconst [d] idx) mem) && is20Bit(c+d) -> (MOVBZloadidx [c+d] {sym} ptr idx mem)
+(MOVBloadidx  [c] {sym} ptr (ADDconst [d] idx) mem) && is20Bit(c+d) -> (MOVBloadidx  [c+d] {sym} ptr idx mem)
+(MOVHZloadidx [c] {sym} ptr (ADDconst [d] idx) mem) && is20Bit(c+d) -> (MOVHZloadidx [c+d] {sym} ptr idx mem)
+(MOVHloadidx  [c] {sym} ptr (ADDconst [d] idx) mem) && is20Bit(c+d) -> (MOVHloadidx  [c+d] {sym} ptr idx mem)
+(MOVWZloadidx [c] {sym} ptr (ADDconst [d] idx) mem) && is20Bit(c+d) -> (MOVWZloadidx [c+d] {sym} ptr idx mem)
+(MOVWloadidx  [c] {sym} ptr (ADDconst [d] idx) mem) && is20Bit(c+d) -> (MOVWloadidx  [c+d] {sym} ptr idx mem)
+(MOVDloadidx  [c] {sym} ptr (ADDconst [d] idx) mem) && is20Bit(c+d) -> (MOVDloadidx  [c+d] {sym} ptr idx mem)
+(FMOVSloadidx [c] {sym} ptr (ADDconst [d] idx) mem) && is20Bit(c+d) -> (FMOVSloadidx [c+d] {sym} ptr idx mem)
+(FMOVDloadidx [c] {sym} ptr (ADDconst [d] idx) mem) && is20Bit(c+d) -> (FMOVDloadidx [c+d] {sym} ptr idx mem)
 
-(MOVBstoreidx [c] {sym} ptr (ADDconst [d] idx) val mem) -> (MOVBstoreidx [c+d] {sym} ptr idx val mem)
-(MOVHstoreidx [c] {sym} ptr (ADDconst [d] idx) val mem) -> (MOVHstoreidx [c+d] {sym} ptr idx val mem)
-(MOVWstoreidx [c] {sym} ptr (ADDconst [d] idx) val mem) -> (MOVWstoreidx [c+d] {sym} ptr idx val mem)
-(MOVDstoreidx [c] {sym} ptr (ADDconst [d] idx) val mem) -> (MOVDstoreidx [c+d] {sym} ptr idx val mem)
-(FMOVSstoreidx [c] {sym} ptr (ADDconst [d] idx) val mem) -> (FMOVSstoreidx [c+d] {sym} ptr idx val mem)
-(FMOVDstoreidx [c] {sym} ptr (ADDconst [d] idx) val mem) -> (FMOVDstoreidx [c+d] {sym} ptr idx val mem)
+(MOVBstoreidx  [c] {sym} ptr (ADDconst [d] idx) val mem) && is20Bit(c+d) -> (MOVBstoreidx  [c+d] {sym} ptr idx val mem)
+(MOVHstoreidx  [c] {sym} ptr (ADDconst [d] idx) val mem) && is20Bit(c+d) -> (MOVHstoreidx  [c+d] {sym} ptr idx val mem)
+(MOVWstoreidx  [c] {sym} ptr (ADDconst [d] idx) val mem) && is20Bit(c+d) -> (MOVWstoreidx  [c+d] {sym} ptr idx val mem)
+(MOVDstoreidx  [c] {sym} ptr (ADDconst [d] idx) val mem) && is20Bit(c+d) -> (MOVDstoreidx  [c+d] {sym} ptr idx val mem)
+(FMOVSstoreidx [c] {sym} ptr (ADDconst [d] idx) val mem) && is20Bit(c+d) -> (FMOVSstoreidx [c+d] {sym} ptr idx val mem)
+(FMOVDstoreidx [c] {sym} ptr (ADDconst [d] idx) val mem) && is20Bit(c+d) -> (FMOVDstoreidx [c+d] {sym} ptr idx val mem)
 
 // MOVDaddr into MOVDaddridx
 (MOVDaddridx [off1] {sym1} (MOVDaddr [off2] {sym2} x) y) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && x.Op != OpSB ->

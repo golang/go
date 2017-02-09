@@ -1649,8 +1649,11 @@ const (
 	OpS390XMOVDBRstore
 	OpS390XMVC
 	OpS390XMOVBZloadidx
+	OpS390XMOVBloadidx
 	OpS390XMOVHZloadidx
+	OpS390XMOVHloadidx
 	OpS390XMOVWZloadidx
+	OpS390XMOVWloadidx
 	OpS390XMOVDloadidx
 	OpS390XMOVHBRloadidx
 	OpS390XMOVWBRloadidx
@@ -21533,6 +21536,24 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "MOVBloadidx",
+		auxType:      auxSymOff,
+		argLen:       3,
+		commutative:  true,
+		clobberFlags: true,
+		symEffect:    SymRead,
+		asm:          s390x.AMOVB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
 		name:         "MOVHZloadidx",
 		auxType:      auxSymOff,
 		argLen:       3,
@@ -21551,6 +21572,24 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "MOVHloadidx",
+		auxType:      auxSymOff,
+		argLen:       3,
+		commutative:  true,
+		clobberFlags: true,
+		symEffect:    SymRead,
+		asm:          s390x.AMOVH,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
 		name:         "MOVWZloadidx",
 		auxType:      auxSymOff,
 		argLen:       3,
@@ -21558,6 +21597,24 @@ var opcodeTable = [...]opInfo{
 		clobberFlags: true,
 		symEffect:    SymRead,
 		asm:          s390x.AMOVWZ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+				{0, 4295021566}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:         "MOVWloadidx",
+		auxType:      auxSymOff,
+		argLen:       3,
+		commutative:  true,
+		clobberFlags: true,
+		symEffect:    SymRead,
+		asm:          s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 54270},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP

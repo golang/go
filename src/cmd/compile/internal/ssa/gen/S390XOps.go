@@ -403,10 +403,12 @@ func init() {
 		{name: "MVC", argLength: 3, reg: gpmvc, asm: "MVC", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, faultOnNilArg1: true, symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size,off
 
 		// indexed loads/stores
-		// TODO(mundaym): add sign-extended indexed loads
-		{name: "MOVBZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", clobberFlags: true, symEffect: "Read"},   // load a byte from arg0+arg1+auxint+aux. arg2=mem
-		{name: "MOVHZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", clobberFlags: true, symEffect: "Read"},  // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem
-		{name: "MOVWZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", clobberFlags: true, symEffect: "Read"},  // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem
+		{name: "MOVBZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", clobberFlags: true, symEffect: "Read"},   // load a byte from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
+		{name: "MOVBloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVB", aux: "SymOff", typ: "Int8", clobberFlags: true, symEffect: "Read"},      // load a byte from arg0+arg1+auxint+aux. arg2=mem. Sign extend.
+		{name: "MOVHZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", clobberFlags: true, symEffect: "Read"},  // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
+		{name: "MOVHloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVH", aux: "SymOff", typ: "Int16", clobberFlags: true, symEffect: "Read"},     // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Sign extend.
+		{name: "MOVWZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", clobberFlags: true, symEffect: "Read"},  // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
+		{name: "MOVWloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVW", aux: "SymOff", typ: "Int32", clobberFlags: true, symEffect: "Read"},     // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Sign extend.
 		{name: "MOVDloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVD", aux: "SymOff", typ: "UInt64", clobberFlags: true, symEffect: "Read"},    // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem
 		{name: "MOVHBRloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVHBR", aux: "SymOff", typ: "Int16", clobberFlags: true, symEffect: "Read"}, // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
 		{name: "MOVWBRloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVWBR", aux: "SymOff", typ: "Int32", clobberFlags: true, symEffect: "Read"}, // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
