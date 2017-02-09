@@ -44,9 +44,6 @@ func (p *Plugin) Lookup(symName string) (Symbol, error) {
 //
 //	package main
 //
-//	// // No C code needed.
-//	import "C"
-//
 //	import "fmt"
 //
 //	var V int
