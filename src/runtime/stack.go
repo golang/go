@@ -415,9 +415,10 @@ func stackalloc(n uint32) stack {
 // resources and must not split the stack.
 //
 //go:systemstack
-func stackfree(stk stack, n uintptr) {
+func stackfree(stk stack) {
 	gp := getg()
 	v := unsafe.Pointer(stk.lo)
+	n := stk.hi - stk.lo
 	if n&(n-1) != 0 {
 		throw("stack not a power of 2")
 	}
@@ -852,7 +853,7 @@ func copystack(gp *g, newsize uintptr, sync bool) {
 		fillstack(new, 0xfd)
 	}
 	if stackDebug >= 1 {
-		print("copystack gp=", gp, " [", hex(old.lo), " ", hex(old.hi-used), " ", hex(old.hi), "]/", gp.stackAlloc, " -> [", hex(new.lo), " ", hex(new.hi-used), " ", hex(new.hi), "]/", newsize, "\n")
+		print("copystack gp=", gp, " [", hex(old.lo), " ", hex(old.hi-used), " ", hex(old.hi), "]", " -> [", hex(new.lo), " ", hex(new.hi-used), " ", hex(new.hi), "]/", newsize, "\n")
 	}
 
 	// Compute adjustment.
@@ -895,8 +896,6 @@ func copystack(gp *g, newsize uintptr, sync bool) {
 	gp.stack = new
 	gp.stackguard0 = new.lo + _StackGuard // NOTE: might clobber a preempt request
 	gp.sched.sp = new.hi - used
-	oldsize := gp.stackAlloc
-	gp.stackAlloc = newsize
 	gp.stktopsp += adjinfo.delta
 
 	// Adjust pointers in the new stack.
@@ -906,7 +905,7 @@ func copystack(gp *g, newsize uintptr, sync bool) {
 	if stackPoisonCopy != 0 {
 		fillstack(old, 0xfc)
 	}
-	stackfree(old, oldsize)
+	stackfree(old)
 }
 
 // round x up to a power of 2.
@@ -1051,9 +1050,9 @@ func newstack(ctxt unsafe.Pointer) {
 	}
 
 	// Allocate a bigger segment and move the stack.
-	oldsize := int(gp.stackAlloc)
+	oldsize := gp.stack.hi - gp.stack.lo
 	newsize := oldsize * 2
-	if uintptr(newsize) > maxstacksize {
+	if newsize > maxstacksize {
 		print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
 		throw("stack overflow")
 	}
@@ -1064,7 +1063,7 @@ func newstack(ctxt unsafe.Pointer) {
 
 	// The concurrent GC will not scan the stack while we are doing the copy since
 	// the gp is in a Gcopystack status.
-	copystack(gp, uintptr(newsize), true)
+	copystack(gp, newsize, true)
 	if stackDebug >= 1 {
 		print("stack grow done\n")
 	}
@@ -1098,7 +1097,7 @@ func shrinkstack(gp *g) {
 		if gp.stack.lo != 0 {
 			// Free whole stack - it will get reallocated
 			// if G is used again.
-			stackfree(gp.stack, gp.stackAlloc)
+			stackfree(gp.stack)
 			gp.stack.lo = 0
 			gp.stack.hi = 0
 		}
@@ -1120,7 +1119,7 @@ func shrinkstack(gp *g) {
 		return
 	}
 
-	oldsize := gp.stackAlloc
+	oldsize := gp.stack.hi - gp.stack.lo
 	newsize := oldsize / 2
 	// Don't shrink the allocation below the minimum-sized stack
 	// allocation.
