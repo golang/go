@@ -19,10 +19,10 @@
       mem)
     )
 (Store [8] dst (ComplexMake real imag) mem) ->
-  (Store [4]
+  (Store [4] {config.fe.TypeFloat32()}
     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)
     imag
-    (Store [4] dst real mem))
+    (Store [4] {config.fe.TypeFloat32()} dst real mem))
 (Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
   (ComplexMake
     (Load <config.fe.TypeFloat64()> ptr mem)
@@ -31,10 +31,10 @@
       mem)
     )
 (Store [16] dst (ComplexMake real imag) mem) ->
-  (Store [8]
+  (Store [8] {config.fe.TypeFloat64()}
     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)
     imag
-    (Store [8] dst real mem))
+    (Store [8] {config.fe.TypeFloat64()} dst real mem))
 
 // string ops
 (StringPtr (StringMake ptr _)) -> ptr
@@ -47,10 +47,10 @@
       (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)
       mem))
 (Store [2*config.PtrSize] dst (StringMake ptr len) mem) ->
-  (Store [config.PtrSize]
+  (Store [config.PtrSize] {config.fe.TypeInt()}
     (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
     len
-    (Store [config.PtrSize] dst ptr mem))
+    (Store [config.PtrSize] {config.fe.TypeBytePtr()} dst ptr mem))
 
 // slice ops
 (SlicePtr (SliceMake ptr _ _ )) -> ptr
@@ -67,13 +67,13 @@
       (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] ptr)
       mem))
 (Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem) ->
-  (Store [config.PtrSize]
+  (Store [config.PtrSize] {config.fe.TypeInt()}
     (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] dst)
     cap
-    (Store [config.PtrSize]
+    (Store [config.PtrSize] {config.fe.TypeInt()}
       (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
       len
-      (Store [config.PtrSize] dst ptr mem)))
+      (Store [config.PtrSize] {config.fe.TypeBytePtr()} dst ptr mem)))
 
 // interface ops
 (ITab (IMake itab _)) -> itab
@@ -86,7 +86,7 @@
       (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] ptr)
       mem))
 (Store [2*config.PtrSize] dst (IMake itab data) mem) ->
-  (Store [config.PtrSize]
+  (Store [config.PtrSize] {config.fe.TypeBytePtr()}
     (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)
     data
-    (Store [config.PtrSize] dst itab mem))
+    (Store [config.PtrSize] {config.fe.TypeUintptr()} dst itab mem))
