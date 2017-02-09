@@ -7,12 +7,14 @@ package expvar
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http/httptest"
 	"reflect"
 	"runtime"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -219,23 +221,42 @@ func BenchmarkMapSet(b *testing.B) {
 }
 
 func BenchmarkMapAddSame(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		m := new(Map).Init()
-		m.Add("red", 1)
-		m.Add("red", 1)
-		m.Add("red", 1)
-		m.Add("red", 1)
-	}
+	m := new(Map).Init()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.Add("red", 1)
+		}
+	})
 }
 
 func BenchmarkMapAddDifferent(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		m := new(Map).Init()
-		m.Add("red", 1)
-		m.Add("blue", 1)
-		m.Add("green", 1)
-		m.Add("yellow", 1)
+	procKeys := make([][]string, runtime.GOMAXPROCS(0))
+	for i := range procKeys {
+		keys := make([]string, 4)
+		for j := range keys {
+			keys[j] = fmt.Sprint(i, j)
+		}
+		procKeys[i] = keys
 	}
+
+	m := new(Map).Init()
+	b.ResetTimer()
+
+	var n int32
+	b.RunParallel(func(pb *testing.PB) {
+		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
+		keys := procKeys[i]
+		j := 0
+
+		for pb.Next() {
+			m.Add(keys[j], 1)
+			if j++; j == len(keys) {
+				j = 0
+			}
+		}
+	})
 }
 
 func TestFunc(t *testing.T) {
