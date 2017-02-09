@@ -166,7 +166,7 @@ const (
 
 func matchNameConstraint(domain, constraint string) bool {
 	// The meaning of zero length constraints is not specified, but this
-	// code follows NSS and accepts them as valid for everything.
+	// code follows NSS and accepts them as matching everything.
 	if len(constraint) == 0 {
 		return true
 	}
@@ -216,6 +216,12 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		}
 
 		if !ok {
+			return CertificateInvalidError{c, CANotAuthorizedForThisName}
+		}
+	}
+
+	for _, constraint := range c.ExcludedDNSDomains {
+		if matchNameConstraint(opts.DNSName, constraint) {
 			return CertificateInvalidError{c, CANotAuthorizedForThisName}
 		}
 	}
