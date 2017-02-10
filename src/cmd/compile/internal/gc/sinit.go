@@ -1402,7 +1402,7 @@ func genAsInitNoCheck(n *Node) bool {
 
 		nam.Xoffset += int64(array_nel) - int64(array_array)
 		var nod1 Node
-		Nodconst(&nod1, Types[TINT], nr.Type.NumElem())
+		nodconst(&nod1, Types[TINT], nr.Type.NumElem())
 		gdata(&nam, &nod1, Widthint)
 
 		nam.Xoffset += int64(array_cap) - int64(array_nel)

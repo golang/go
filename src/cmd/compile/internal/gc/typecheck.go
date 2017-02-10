@@ -1321,7 +1321,7 @@ OpSwitch:
 
 		// any side effects disappear; ignore init
 		var r Node
-		Nodconst(&r, Types[TUINTPTR], evalunsafe(n))
+		nodconst(&r, Types[TUINTPTR], evalunsafe(n))
 		r.Orig = n
 		n = &r
 
@@ -1376,7 +1376,7 @@ OpSwitch:
 		case TSTRING:
 			if Isconst(l, CTSTR) {
 				var r Node
-				Nodconst(&r, Types[TINT], int64(len(l.Val().U.(string))))
+				nodconst(&r, Types[TINT], int64(len(l.Val().U.(string))))
 				r.Orig = n
 				n = &r
 			}
@@ -1386,7 +1386,7 @@ OpSwitch:
 				break
 			}
 			var r Node
-			Nodconst(&r, Types[TINT], t.NumElem())
+			nodconst(&r, Types[TINT], t.NumElem())
 			r.Orig = n
 			n = &r
 		}
