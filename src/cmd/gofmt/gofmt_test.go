@@ -198,6 +198,11 @@ func TestDiff(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	if runtime.GOOS == "windows" {
+		b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\n'}, -1)
+	}
+
 	bs := bytes.SplitN(b, []byte{'\n'}, 3)
 	line0, line1 := bs[0], bs[1]
 
