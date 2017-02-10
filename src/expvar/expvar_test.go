@@ -221,11 +221,12 @@ func BenchmarkMapSet(b *testing.B) {
 }
 
 func BenchmarkMapAddSame(b *testing.B) {
-	m := new(Map).Init()
-	b.ResetTimer()
-
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
+			m := new(Map).Init()
+			m.Add("red", 1)
+			m.Add("red", 1)
+			m.Add("red", 1)
 			m.Add("red", 1)
 		}
 	})
@@ -241,19 +242,17 @@ func BenchmarkMapAddDifferent(b *testing.B) {
 		procKeys[i] = keys
 	}
 
-	m := new(Map).Init()
 	b.ResetTimer()
 
 	var n int32
 	b.RunParallel(func(pb *testing.PB) {
 		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
 		keys := procKeys[i]
-		j := 0
 
 		for pb.Next() {
-			m.Add(keys[j], 1)
-			if j++; j == len(keys) {
-				j = 0
+			m := new(Map).Init()
+			for _, k := range keys {
+				m.Add(k, 1)
 			}
 		}
 	})
