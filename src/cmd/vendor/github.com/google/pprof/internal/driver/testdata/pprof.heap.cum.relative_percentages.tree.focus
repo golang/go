@@ -1,0 +1,19 @@
+Showing nodes accounting for 62.50MB, 98.46% of 63.48MB total
+Dropped 2 nodes (cum <= 3.17MB)
+----------------------------------------------------------+-------------
+      flat  flat%   sum%        cum   cum%   calls calls% + context 	 	 
+----------------------------------------------------------+-------------
+                                           63.48MB   100% |   line3002 testdata/file3000.src
+         0     0%     0%    63.48MB   100%                | line2000 testdata/file2000.src
+                                           63.48MB   100% |   line2001 testdata/file2000.src (inline)
+----------------------------------------------------------+-------------
+                                           63.48MB   100% |   line2000 testdata/file2000.src (inline)
+   62.50MB 98.46% 98.46%    63.48MB   100%                | line2001 testdata/file2000.src
+----------------------------------------------------------+-------------
+         0     0% 98.46%    63.48MB   100%                | line3000 testdata/file3000.src
+                                           63.48MB   100% |   line3002 testdata/file3000.src (inline)
+----------------------------------------------------------+-------------
+                                           63.48MB   100% |   line3000 testdata/file3000.src (inline)
+         0     0% 98.46%    63.48MB   100%                | line3002 testdata/file3000.src
+                                           63.48MB   100% |   line2000 testdata/file2000.src
+----------------------------------------------------------+-------------

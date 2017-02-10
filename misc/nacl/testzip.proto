@@ -37,6 +37,26 @@ go	src=..
 				testdata
 					+
 			vendor
+				github.com
+					google
+						pprof
+							internal
+								driver
+									testdata
+										+
+								graph
+									testdata
+										+
+								report
+									testdata
+										+
+							profile
+								testdata
+									+
+					ianlancetaylor
+						demangle
+							testdata
+								+
 				golang.org
 					x
 						arch

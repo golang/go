@@ -2,137 +2,138 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// pprof is a tool for visualization of profile.data. It is based on
+// the upstream version at github.com/google/pprof, with minor
+// modifications specific to the Go distribution. Please consider
+// upstreaming any modifications to these packages.
+
 package main
 
 import (
+	"crypto/tls"
 	"debug/dwarf"
-	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
-	"strings"
+	"strconv"
 	"sync"
+	"time"
 
 	"cmd/internal/objfile"
-	"cmd/pprof/internal/commands"
-	"cmd/pprof/internal/driver"
-	"cmd/pprof/internal/fetch"
-	"cmd/pprof/internal/plugin"
-	"cmd/pprof/internal/symbolizer"
-	"cmd/pprof/internal/symbolz"
-	"internal/pprof/profile"
+	"github.com/google/pprof/driver"
+	"github.com/google/pprof/profile"
 )
 
 func main() {
-	var extraCommands map[string]*commands.Command // no added Go-specific commands
-	if err := driver.PProf(flags{}, fetch.Fetcher, symbolize, new(objTool), plugin.StandardUI(), extraCommands); err != nil {
+	options := &driver.Options{
+		Fetch: new(fetcher),
+		Obj:   new(objTool),
+	}
+	if err := driver.PProf(options); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(2)
 	}
 }
 
-// symbolize attempts to symbolize profile p.
-// If the source is a local binary, it tries using symbolizer and obj.
-// If the source is a URL, it fetches symbol information using symbolz.
-func symbolize(mode, source string, p *profile.Profile, obj plugin.ObjTool, ui plugin.UI) error {
-	remote, local := true, true
-	for _, o := range strings.Split(strings.ToLower(mode), ":") {
-		switch o {
-		case "none", "no":
-			return nil
-		case "local":
-			remote, local = false, true
-		case "remote":
-			remote, local = true, false
-		default:
-			ui.PrintErr("ignoring unrecognized symbolization option: " + mode)
-			ui.PrintErr("expecting -symbolize=[local|remote|none][:force]")
-			fallthrough
-		case "", "force":
-			// -force is recognized by symbolizer.Symbolize.
-			// If the source is remote, and the mapping file
-			// does not exist, don't use local symbolization.
-			if isRemote(source) {
-				if len(p.Mapping) == 0 {
-					local = false
-				} else if _, err := os.Stat(p.Mapping[0].File); err != nil {
-					local = false
-				}
+type fetcher struct {
+}
+
+func (f *fetcher) Fetch(src string, duration, timeout time.Duration) (*profile.Profile, string, error) {
+	sourceURL, timeout := adjustURL(src, duration, timeout)
+	if sourceURL == "" {
+		// Could not recognize URL, let regular pprof attempt to fetch the profile (eg. from a file)
+		return nil, "", nil
+	}
+	fmt.Fprintln(os.Stderr, "Fetching profile over HTTP from", sourceURL)
+	if duration > 0 {
+		fmt.Fprintf(os.Stderr, "Please wait... (%v)\n", duration)
+	}
+	p, err := getProfile(sourceURL, timeout)
+	return p, sourceURL, err
+}
+
+func getProfile(source string, timeout time.Duration) (*profile.Profile, error) {
+	url, err := url.Parse(source)
+	if err != nil {
+		return nil, err
+	}
+
+	var tlsConfig *tls.Config
+	if url.Scheme == "https+insecure" {
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		url.Scheme = "https"
+		source = url.String()
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			ResponseHeaderTimeout: timeout + 5*time.Second,
+			TLSClientConfig:       tlsConfig,
+		},
+	}
+	resp, err := client.Get(source)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server response: %s", resp.Status)
+	}
+	return profile.Parse(resp.Body)
+}
+
+// cpuProfileHandler is the Go pprof CPU profile handler URL.
+const cpuProfileHandler = "/debug/pprof/profile"
+
+// adjustURL applies the duration/timeout values and Go specific defaults
+func adjustURL(source string, duration, timeout time.Duration) (string, time.Duration) {
+	u, err := url.Parse(source)
+	if err != nil || (u.Host == "" && u.Scheme != "" && u.Scheme != "file") {
+		// Try adding http:// to catch sources of the form hostname:port/path.
+		// url.Parse treats "hostname" as the scheme.
+		u, err = url.Parse("http://" + source)
+	}
+	if err != nil || u.Host == "" {
+		return "", 0
+	}
+
+	if u.Path == "" || u.Path == "/" {
+		u.Path = cpuProfileHandler
+	}
+
+	// Apply duration/timeout overrides to URL.
+	values := u.Query()
+	if duration > 0 {
+		values.Set("seconds", fmt.Sprint(int(duration.Seconds())))
+	} else {
+		if urlSeconds := values.Get("seconds"); urlSeconds != "" {
+			if us, err := strconv.ParseInt(urlSeconds, 10, 32); err == nil {
+				duration = time.Duration(us) * time.Second
 			}
 		}
 	}
-
-	var err error
-	if local {
-		// Symbolize using binutils.
-		if err = symbolizer.Symbolize(mode, p, obj, ui); err == nil {
-			return nil
+	if timeout <= 0 {
+		if duration > 0 {
+			timeout = duration + duration/2
+		} else {
+			timeout = 60 * time.Second
 		}
 	}
-	if remote {
-		err = symbolz.Symbolize(source, fetch.PostURL, p)
-	}
-	return err
+	u.RawQuery = values.Encode()
+	return u.String(), timeout
 }
 
-// isRemote returns whether source is a URL for a remote source.
-func isRemote(source string) bool {
-	url, err := url.Parse(source)
-	if err != nil {
-		url, err = url.Parse("http://" + source)
-		if err != nil {
-			return false
-		}
-	}
-	if scheme := strings.ToLower(url.Scheme); scheme == "" || scheme == "file" {
-		return false
-	}
-	return true
-}
-
-// flags implements the driver.FlagPackage interface using the builtin flag package.
-type flags struct {
-}
-
-func (flags) Bool(o string, d bool, c string) *bool {
-	return flag.Bool(o, d, c)
-}
-
-func (flags) Int(o string, d int, c string) *int {
-	return flag.Int(o, d, c)
-}
-
-func (flags) Float64(o string, d float64, c string) *float64 {
-	return flag.Float64(o, d, c)
-}
-
-func (flags) String(o, d, c string) *string {
-	return flag.String(o, d, c)
-}
-
-func (flags) Parse(usage func()) []string {
-	flag.Usage = usage
-	flag.Parse()
-	args := flag.Args()
-	if len(args) == 0 {
-		usage()
-	}
-	return args
-}
-
-func (flags) ExtraUsage() string {
-	return ""
-}
-
-// objTool implements plugin.ObjTool using Go libraries
+// objTool implements driver.ObjTool using Go libraries
 // (instead of invoking GNU binutils).
 type objTool struct {
 	mu          sync.Mutex
 	disasmCache map[string]*objfile.Disasm
 }
 
-func (*objTool) Open(name string, start uint64) (plugin.ObjFile, error) {
+func (*objTool) Open(name string, start, limit, offset uint64) (driver.ObjFile, error) {
 	of, err := objfile.Open(name)
 	if err != nil {
 		return nil, err
@@ -154,14 +155,14 @@ func (*objTool) Demangle(names []string) (map[string]string, error) {
 	return make(map[string]string), nil
 }
 
-func (t *objTool) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
+func (t *objTool) Disasm(file string, start, end uint64) ([]driver.Inst, error) {
 	d, err := t.cachedDisasm(file)
 	if err != nil {
 		return nil, err
 	}
-	var asm []plugin.Inst
+	var asm []driver.Inst
 	d.Decode(start, end, nil, func(pc, size uint64, file string, line int, text string) {
-		asm = append(asm, plugin.Inst{Addr: pc, File: file, Line: line, Text: text})
+		asm = append(asm, driver.Inst{Addr: pc, File: file, Line: line, Text: text})
 	})
 	return asm, nil
 }
@@ -194,7 +195,7 @@ func (*objTool) SetConfig(config string) {
 	// Ignore entirely.
 }
 
-// file implements plugin.ObjFile using Go libraries
+// file implements driver.ObjFile using Go libraries
 // (instead of invoking GNU binutils).
 // A file represents a single executable being analyzed.
 type file struct {
@@ -222,7 +223,7 @@ func (f *file) BuildID() string {
 	return ""
 }
 
-func (f *file) SourceLine(addr uint64) ([]plugin.Frame, error) {
+func (f *file) SourceLine(addr uint64) ([]driver.Frame, error) {
 	if f.pcln == nil {
 		pcln, err := f.file.PCLineTable()
 		if err != nil {
@@ -233,7 +234,7 @@ func (f *file) SourceLine(addr uint64) ([]plugin.Frame, error) {
 	addr -= f.offset
 	file, line, fn := f.pcln.PCToLine(addr)
 	if fn != nil {
-		frame := []plugin.Frame{
+		frame := []driver.Frame{
 			{
 				Func: fn.Name,
 				File: file,
@@ -254,7 +255,7 @@ func (f *file) SourceLine(addr uint64) ([]plugin.Frame, error) {
 // dwarfSourceLine tries to get file/line information using DWARF.
 // This is for C functions that appear in the profile.
 // Returns nil if there is no information available.
-func (f *file) dwarfSourceLine(addr uint64) []plugin.Frame {
+func (f *file) dwarfSourceLine(addr uint64) []driver.Frame {
 	if f.dwarf == nil && !f.triedDwarf {
 		// Ignore any error--we don't care exactly why there
 		// is no DWARF info.
@@ -277,7 +278,7 @@ func (f *file) dwarfSourceLine(addr uint64) []plugin.Frame {
 
 // dwarfSourceLineEntry tries to get file/line information from a
 // DWARF compilation unit. Returns nil if it doesn't find anything.
-func (f *file) dwarfSourceLineEntry(r *dwarf.Reader, entry *dwarf.Entry, addr uint64) []plugin.Frame {
+func (f *file) dwarfSourceLineEntry(r *dwarf.Reader, entry *dwarf.Entry, addr uint64) []driver.Frame {
 	lines, err := f.dwarf.LineReader(entry)
 	if err != nil {
 		return nil
@@ -311,7 +312,7 @@ FindName:
 
 	// TODO: Report inlined functions.
 
-	frames := []plugin.Frame{
+	frames := []driver.Frame{
 		{
 			Func: name,
 			File: lentry.File.Name,
@@ -322,7 +323,7 @@ FindName:
 	return frames
 }
 
-func (f *file) Symbols(r *regexp.Regexp, addr uint64) ([]*plugin.Sym, error) {
+func (f *file) Symbols(r *regexp.Regexp, addr uint64) ([]*driver.Sym, error) {
 	if f.sym == nil {
 		sym, err := f.file.Symbols()
 		if err != nil {
@@ -330,7 +331,7 @@ func (f *file) Symbols(r *regexp.Regexp, addr uint64) ([]*plugin.Sym, error) {
 		}
 		f.sym = sym
 	}
-	var out []*plugin.Sym
+	var out []*driver.Sym
 	for _, s := range f.sym {
 		// Ignore a symbol with address 0 and size 0.
 		// An ELF STT_FILE symbol will look like that.
@@ -338,7 +339,7 @@ func (f *file) Symbols(r *regexp.Regexp, addr uint64) ([]*plugin.Sym, error) {
 			continue
 		}
 		if (r == nil || r.MatchString(s.Name)) && (addr == 0 || s.Addr <= addr && addr < s.Addr+uint64(s.Size)) {
-			out = append(out, &plugin.Sym{
+			out = append(out, &driver.Sym{
 				Name:  []string{s.Name},
 				File:  f.name,
 				Start: s.Addr,
