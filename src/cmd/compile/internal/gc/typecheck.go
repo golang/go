@@ -3213,8 +3213,8 @@ func checkassign(stmt *Node, n *Node) {
 		return
 	}
 
-	// have already complained about n being undefined
-	if n.Op == ONONAME {
+	// have already complained about n being invalid
+	if n.Type == nil {
 		return
 	}
 
