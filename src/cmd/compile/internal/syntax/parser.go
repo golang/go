@@ -358,7 +358,7 @@ func (p *parser) importDecl(group *Group) Decl {
 		d.LocalPkgName = n
 		p.next()
 	}
-	if p.tok == _Literal && (gcCompat || p.kind == StringLit) {
+	if p.tok == _Literal && p.kind == StringLit {
 		d.Path = p.oliteral()
 	} else {
 		p.syntax_error("missing import path; require quoted string")
@@ -637,16 +637,13 @@ func (p *parser) callStmt() *CallStmt {
 
 	s := new(CallStmt)
 	s.init(p)
-	s.Tok = p.tok
+	s.Tok = p.tok // _Defer or _Go
 	p.next()
 
 	x := p.pexpr(p.tok == _Lparen) // keep_parens so we can report error below
 	switch x := x.(type) {
 	case *CallExpr:
 		s.Call = x
-		if gcCompat {
-			s.node = x.node
-		}
 	case *ParenExpr:
 		p.error(fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
 		// already progressed, no need to advance
@@ -1127,9 +1124,6 @@ func (p *parser) structType() *StructType {
 			break
 		}
 	}
-	if gcCompat {
-		typ.init(p)
-	}
 	p.want(_Rbrace)
 
 	return typ
@@ -1153,9 +1147,6 @@ func (p *parser) interfaceType() *InterfaceType {
 		if !p.osemi(_Rbrace) {
 			break
 		}
-	}
-	if gcCompat {
-		typ.init(p)
 	}
 	p.want(_Rbrace)
 
@@ -1554,8 +1545,7 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 		return p.newAssignStmt(0, lhs, p.exprList())
 
 	case _Define:
-		var n node
-		n.init(p)
+		pos := p.pos()
 		p.next()
 
 		if rangeOk && p.got(_Range) {
@@ -1580,9 +1570,7 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 		}
 
 		as := p.newAssignStmt(Def, lhs, rhs)
-		if gcCompat {
-			as.node = n
-		}
+		as.pos = pos // TODO(gri) pass this into newAssignStmt
 		return as
 
 	default:
@@ -1856,9 +1844,6 @@ func (p *parser) caseClause() *CaseClause {
 		p.advance(_Case, _Default, _Rbrace)
 	}
 
-	if gcCompat {
-		c.init(p)
-	}
 	p.want(_Colon)
 	c.Body = p.stmtList()
 
