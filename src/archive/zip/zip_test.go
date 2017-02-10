@@ -681,6 +681,18 @@ func BenchmarkZip64Test(b *testing.B) {
 	}
 }
 
+func BenchmarkZip64TestSizes(b *testing.B) {
+	for _, size := range []int64{1 << 12, 1 << 20, 1 << 26} {
+		b.Run(fmt.Sprint(size), func(b *testing.B) {
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					testZip64(b, size)
+				}
+			})
+		})
+	}
+}
+
 func TestSuffixSaver(t *testing.T) {
 	const keep = 10
 	ss := &suffixSaver{keep: keep}
