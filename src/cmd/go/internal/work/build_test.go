@@ -5,10 +5,15 @@
 package work
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 
 	"cmd/go/internal/base"
@@ -163,5 +168,56 @@ func pkgImportPath(pkgpath string) *load.Package {
 		PackagePublic: load.PackagePublic{
 			ImportPath: pkgpath,
 		},
+	}
+}
+
+// When installing packages, the installed package directory should
+// respect the group sticky bit and group name of the destination
+// directory.
+// See https://golang.org/issue/18878.
+func TestRespectGroupSticky(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("can't set group sticky bit with chmod on nacl")
+	}
+
+	var b Builder
+	b.Init()
+
+	// Check that `cp` is called instead of `mv` by looking at the output
+	// of `(*Builder).ShowCmd` afterwards as a sanity check.
+	cfg.BuildX = true
+	var cmdBuf bytes.Buffer
+	b.Print = func(a ...interface{}) (int, error) {
+		return cmdBuf.WriteString(fmt.Sprint(a...))
+	}
+
+	stickydir := path.Join(os.TempDir(), "GroupSticky")
+	if err := os.Mkdir(stickydir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(stickydir)
+
+	// Mkdir doesn't always correctly set the group sticky bit.
+	// Change stickydir's permissions to include group sticky bit.
+	if err := os.Chmod(stickydir, 0755|os.ModeSetgid); err != nil {
+		t.Fatal(err)
+	}
+
+	pkgfile, err := ioutil.TempFile(b.WorkDir, "")
+	if err != nil {
+		t.Fatalf("ioutil.TempFile(%q): %v", b.WorkDir, err)
+	}
+	defer os.Remove(pkgfile.Name())
+	defer pkgfile.Close()
+
+	stickyFile := filepath.Join(stickydir, "sticky")
+	if err := b.moveOrCopyFile(nil, stickyFile, pkgfile.Name(), 0666, true); err != nil {
+		t.Fatalf("moveOrCopyFile: %v", err)
+	}
+
+	got := strings.TrimSpace(cmdBuf.String())
+	want := b.fmtcmd("", "cp %s %s", pkgfile.Name(), stickyFile)
+	if got != want {
+		t.Fatalf("moveOrCopyFile(%q, %q): want %q, got %q", stickyFile, pkgfile.Name(), want, got)
 	}
 }
