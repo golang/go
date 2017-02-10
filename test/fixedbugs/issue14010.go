@@ -11,5 +11,5 @@ package main
 
 func main() {
 	true = false // ERROR "cannot assign to true"
-	byte = 0     // ERROR "not an expression" "cannot assign to byte"
+	byte = 0     // ERROR "not an expression"
 }
