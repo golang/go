@@ -27,6 +27,20 @@ import (
 
 // Asynchronous semaphore for sync.Mutex.
 
+// A semaRoot holds a linked list of sudog with distinct addresses (s.elem).
+// Each of those sudog may in turn point (through s.waitlink) to a list
+// of other sudogs waiting on the same address.
+// The operations on the inner lists of sudogs with the same address
+// are all O(1). Only the scanning of the top-level semaRoot list is O(n),
+// where n is the number of distinct addresses with goroutines blocked
+// on them that hash to the given semaRoot.
+// In systems with many goroutines, most queue up on a few addresses,
+// so the linear search across unique addresses is probably OK.
+// At least, we'll use this until it's not.
+// The next step is probably to make the top-level list a treap instead
+// of a linked list.
+// See golang.org/issue/17953 for a program that worked badly
+// before we introduced the second level of list.
 type semaRoot struct {
 	lock  mutex
 	head  *sudog
@@ -157,22 +171,10 @@ func semrelease(addr *uint32) {
 		unlock(&root.lock)
 		return
 	}
-	s := root.head
-	for ; s != nil; s = s.next {
-		if s.elem == unsafe.Pointer(addr) {
-			atomic.Xadd(&root.nwait, -1)
-			root.dequeue(s)
-			break
-		}
-	}
+	s, t0 := root.dequeue(addr)
 	if s != nil {
+		atomic.Xadd(&root.nwait, -1)
 		if s.acquiretime != 0 {
-			t0 := cputicks()
-			for x := root.head; x != nil; x = x.next {
-				if x.elem == unsafe.Pointer(addr) {
-					x.acquiretime = t0
-				}
-			}
 			mutexevent(t0-s.acquiretime, 3)
 		}
 	}
@@ -198,9 +200,26 @@ func cansemacquire(addr *uint32) bool {
 	}
 }
 
+// queue adds s to the blocked goroutines in semaRoot.
 func (root *semaRoot) queue(addr *uint32, s *sudog) {
 	s.g = getg()
 	s.elem = unsafe.Pointer(addr)
+
+	for t := root.head; t != nil; t = t.next {
+		if t.elem == unsafe.Pointer(addr) {
+			// Already have addr in list; add s to end of per-addr list.
+			if t.waittail == nil {
+				t.waitlink = s
+			} else {
+				t.waittail.waitlink = s
+			}
+			t.waittail = s
+			s.waitlink = nil
+			return
+		}
+	}
+
+	// Add s as new entry in list of unique addrs.
 	s.next = nil
 	s.prev = root.tail
 	if root.tail != nil {
@@ -211,20 +230,63 @@ func (root *semaRoot) queue(addr *uint32, s *sudog) {
 	root.tail = s
 }
 
-func (root *semaRoot) dequeue(s *sudog) {
-	if s.next != nil {
-		s.next.prev = s.prev
-	} else {
-		root.tail = s.prev
+// dequeue searches for and finds the first goroutine
+// in semaRoot blocked on addr.
+// If the sudog was being profiled, dequeue returns the time
+// at which it was woken up as now. Otherwise now is 0.
+func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now int64) {
+	s := root.head
+	for ; s != nil; s = s.next {
+		if s.elem == unsafe.Pointer(addr) {
+			goto Found
+		}
 	}
-	if s.prev != nil {
-		s.prev.next = s.next
+	return nil, 0
+
+Found:
+	now = int64(0)
+	if s.acquiretime != 0 {
+		now = cputicks()
+	}
+	if t := s.waitlink; t != nil {
+		// Substitute t, also waiting on addr, for s in root list of unique addrs.
+		t.prev = s.prev
+		t.next = s.next
+		if t.prev != nil {
+			t.prev.next = t
+		} else {
+			root.head = t
+		}
+		if t.next != nil {
+			t.next.prev = t
+		} else {
+			root.tail = t
+		}
+		if t.waitlink != nil {
+			t.waittail = s.waittail
+		} else {
+			t.waittail = nil
+		}
+		t.acquiretime = now
+		s.waitlink = nil
+		s.waittail = nil
 	} else {
-		root.head = s.next
+		// Remove s from list.
+		if s.next != nil {
+			s.next.prev = s.prev
+		} else {
+			root.tail = s.prev
+		}
+		if s.prev != nil {
+			s.prev.next = s.next
+		} else {
+			root.head = s.next
+		}
 	}
 	s.elem = nil
 	s.next = nil
 	s.prev = nil
+	return s, now
 }
 
 // notifyList is a ticket-based notification list used to implement sync.Cond.

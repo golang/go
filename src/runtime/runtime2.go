@@ -270,7 +270,7 @@ type gobuf struct {
 type sudog struct {
 	// The following fields are protected by the hchan.lock of the
 	// channel this sudog is blocking on. shrinkstack depends on
-	// this.
+	// this for sudogs involved in channel ops.
 
 	g          *g
 	selectdone *uint32 // CAS to 1 to win select race (may point to stack)
@@ -279,12 +279,15 @@ type sudog struct {
 	elem       unsafe.Pointer // data element (may point to stack)
 
 	// The following fields are never accessed concurrently.
-	// waitlink is only accessed by g.
+	// For channels, waitlink is only accessed by g.
+	// For semaphores, all fields (including the ones above)
+	// are only accessed when holding a semaRoot lock.
 
 	acquiretime int64
 	releasetime int64
 	ticket      uint32
-	waitlink    *sudog // g.waiting list
+	waitlink    *sudog // g.waiting list or semaRoot
+	waittail    *sudog // semaRoot
 	c           *hchan // channel
 }
 
