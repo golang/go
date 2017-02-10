@@ -44,7 +44,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
 
 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
-				yy1 := int32(src.Y[yi]) * 0x010100 // Convert 0x12 to 0x121200.
+				yy1 := int32(src.Y[yi]) * 0x10101
 				cb1 := int32(src.Cb[ci]) - 128
 				cr1 := int32(src.Cr[ci]) - 128
 
@@ -101,7 +101,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 				ci := ciBase + sx/2
 
 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
-				yy1 := int32(src.Y[yi]) * 0x010100 // Convert 0x12 to 0x121200.
+				yy1 := int32(src.Y[yi]) * 0x10101
 				cb1 := int32(src.Cb[ci]) - 128
 				cr1 := int32(src.Cr[ci]) - 128
 
@@ -158,7 +158,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 				ci := ciBase + sx/2
 
 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
-				yy1 := int32(src.Y[yi]) * 0x010100 // Convert 0x12 to 0x121200.
+				yy1 := int32(src.Y[yi]) * 0x10101
 				cb1 := int32(src.Cb[ci]) - 128
 				cr1 := int32(src.Cr[ci]) - 128
 
@@ -214,7 +214,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
 
 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
-				yy1 := int32(src.Y[yi]) * 0x010100 // Convert 0x12 to 0x121200.
+				yy1 := int32(src.Y[yi]) * 0x10101
 				cb1 := int32(src.Cb[ci]) - 128
 				cr1 := int32(src.Cr[ci]) - 128
 

@@ -61,8 +61,58 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
 	//	G = Y' - 0.34414*(Cb-128) - 0.71414*(Cr-128)
 	//	B = Y' + 1.77200*(Cb-128)
 	// http://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
-
-	yy1 := int32(y) * 0x010100 // Convert 0x12 to 0x121200.
+	//
+	// Those formulae use non-integer multiplication factors. When computing,
+	// integer math is generally faster than floating point math. We multiply
+	// all of those factors by 1<<16 and round to the nearest integer:
+	//	 91881 = roundToNearestInteger(1.40200 * 65536).
+	//	 22554 = roundToNearestInteger(0.34414 * 65536).
+	//	 46802 = roundToNearestInteger(0.71414 * 65536).
+	//	116130 = roundToNearestInteger(1.77200 * 65536).
+	//
+	// Adding a rounding adjustment in the range [0, 1<<16-1] and then shifting
+	// right by 16 gives us an integer math version of the original formulae.
+	//	R = (65536*Y' +  91881 *(Cr-128)                  + adjustment) >> 16
+	//	G = (65536*Y' -  22554 *(Cb-128) - 46802*(Cr-128) + adjustment) >> 16
+	//	B = (65536*Y' + 116130 *(Cb-128)                  + adjustment) >> 16
+	// A constant rounding adjustment of 1<<15, one half of 1<<16, would mean
+	// round-to-nearest when dividing by 65536 (shifting right by 16).
+	// Similarly, a constant rounding adjustment of 0 would mean round-down.
+	//
+	// Defining YY1 = 65536*Y' + adjustment simplifies the formulae and
+	// requires fewer CPU operations:
+	//	R = (YY1 +  91881 *(Cr-128)                 ) >> 16
+	//	G = (YY1 -  22554 *(Cb-128) - 46802*(Cr-128)) >> 16
+	//	B = (YY1 + 116130 *(Cb-128)                 ) >> 16
+	//
+	// The inputs (y, cb, cr) are 8 bit color, ranging in [0x00, 0xff]. In this
+	// function, the output is also 8 bit color, but in the related YCbCr.RGBA
+	// method, below, the output is 16 bit color, ranging in [0x0000, 0xffff].
+	// Outputting 16 bit color simply requires changing the 16 to 8 in the "R =
+	// etc >> 16" equation, and likewise for G and B.
+	//
+	// As mentioned above, a constant rounding adjustment of 1<<15 is a natural
+	// choice, but there is an additional constraint: if c0 := YCbCr{Y: y, Cb:
+	// 0x80, Cr: 0x80} and c1 := Gray{Y: y} then c0.RGBA() should equal
+	// c1.RGBA(). Specifically, if y == 0 then "R = etc >> 8" should yield
+	// 0x0000 and if y == 0xff then "R = etc >> 8" should yield 0xffff. If we
+	// used a constant rounding adjustment of 1<<15, then it would yield 0x0080
+	// and 0xff80 respectively.
+	//
+	// Note that when cb == 0x80 and cr == 0x80 then the formulae collapse to:
+	//	R = YY1 >> n
+	//	G = YY1 >> n
+	//	B = YY1 >> n
+	// where n is 16 for this function (8 bit color output) and 8 for the
+	// YCbCr.RGBA method (16 bit color output).
+	//
+	// The solution is to make the rounding adjustment non-constant, and equal
+	// to 257*Y', which ranges over [0, 1<<16-1] as Y' ranges over [0, 255].
+	// YY1 is then defined as:
+	//	YY1 = 65536*Y' + 257*Y'
+	// or equivalently:
+	//	YY1 = Y' * 0x10101
+	yy1 := int32(y) * 0x10101
 	cb1 := int32(cb) - 128
 	cr1 := int32(cr) - 128
 
@@ -136,7 +186,7 @@ func (c YCbCr) RGBA() (uint32, uint32, uint32, uint32) {
 	//	0x7e18 0x808d 0x7db9
 	//	0x7e7e 0x8080 0x7d7d
 
-	yy1 := int32(c.Y) * 0x10100 // Convert 0x12 to 0x121200.
+	yy1 := int32(c.Y) * 0x10101
 	cb1 := int32(c.Cb) - 128
 	cr1 := int32(c.Cr) - 128
 
@@ -196,7 +246,7 @@ type NYCbCrA struct {
 
 func (c NYCbCrA) RGBA() (uint32, uint32, uint32, uint32) {
 	// The first part of this method is the same as YCbCr.RGBA.
-	yy1 := int32(c.Y) * 0x10100 // Convert 0x12 to 0x121200.
+	yy1 := int32(c.Y) * 0x10101
 	cb1 := int32(c.Cb) - 128
 	cr1 := int32(c.Cr) - 128
 
