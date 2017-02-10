@@ -28,6 +28,7 @@ func TestRectangle(t *testing.T) {
 
 	rects := []Rectangle{
 		Rect(0, 0, 10, 10),
+		Rect(10, 0, 20, 10),
 		Rect(1, 2, 3, 4),
 		Rect(4, 6, 10, 10),
 		Rect(2, 3, 12, 5),
@@ -62,9 +63,9 @@ func TestRectangle(t *testing.T) {
 			if err := in(a, s); err != nil {
 				t.Errorf("Intersect: r=%s, s=%s, a=%s, a not in s: %v", r, s, a, err)
 			}
-			if a.Empty() == r.Overlaps(s) {
-				t.Errorf("Intersect: r=%s, s=%s, a=%s: empty=%t same as overlaps=%t",
-					r, s, a, a.Empty(), r.Overlaps(s))
+			if isZero, overlaps := a == (Rectangle{}), r.Overlaps(s); isZero == overlaps {
+				t.Errorf("Intersect: r=%s, s=%s, a=%s: isZero=%t same as overlaps=%t",
+					r, s, a, isZero, overlaps)
 			}
 			largerThanA := [4]Rectangle{a, a, a, a}
 			largerThanA[0].Min.X--
