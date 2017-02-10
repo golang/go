@@ -231,6 +231,7 @@ func TestTraceSymbolize(t *testing.T) {
 	if runtime.GOOS != "windows" && runtime.GOOS != "plan9" {
 		want = append(want, []eventDesc{
 			{trace.EvGoBlockNet, []frame{
+				{"internal/poll.(*FD).Accept", 0},
 				{"net.(*netFD).accept", 0},
 				{"net.(*TCPListener).accept", 0},
 				{"net.(*TCPListener).Accept", 0},

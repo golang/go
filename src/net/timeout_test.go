@@ -6,6 +6,7 @@ package net
 
 import (
 	"fmt"
+	"internal/poll"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -145,9 +146,9 @@ var acceptTimeoutTests = []struct {
 }{
 	// Tests that accept deadlines in the past work, even if
 	// there's incoming connections available.
-	{-5 * time.Second, [2]error{errTimeout, errTimeout}},
+	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
 
-	{50 * time.Millisecond, [2]error{nil, errTimeout}},
+	{50 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
 }
 
 func TestAcceptTimeout(t *testing.T) {
@@ -299,9 +300,9 @@ var readTimeoutTests = []struct {
 }{
 	// Tests that read deadlines work, even if there's data ready
 	// to be read.
-	{-5 * time.Second, [2]error{errTimeout, errTimeout}},
+	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
 
-	{50 * time.Millisecond, [2]error{nil, errTimeout}},
+	{50 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
 }
 
 func TestReadTimeout(t *testing.T) {
@@ -423,9 +424,9 @@ var readFromTimeoutTests = []struct {
 }{
 	// Tests that read deadlines work, even if there's data ready
 	// to be read.
-	{-5 * time.Second, [2]error{errTimeout, errTimeout}},
+	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
 
-	{50 * time.Millisecond, [2]error{nil, errTimeout}},
+	{50 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
 }
 
 func TestReadFromTimeout(t *testing.T) {
@@ -496,9 +497,9 @@ var writeTimeoutTests = []struct {
 }{
 	// Tests that write deadlines work, even if there's buffer
 	// space available to write.
-	{-5 * time.Second, [2]error{errTimeout, errTimeout}},
+	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
 
-	{10 * time.Millisecond, [2]error{nil, errTimeout}},
+	{10 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
 }
 
 func TestWriteTimeout(t *testing.T) {
@@ -610,9 +611,9 @@ var writeToTimeoutTests = []struct {
 }{
 	// Tests that write deadlines work, even if there's buffer
 	// space available to write.
-	{-5 * time.Second, [2]error{errTimeout, errTimeout}},
+	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
 
-	{10 * time.Millisecond, [2]error{nil, errTimeout}},
+	{10 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
 }
 
 func TestWriteToTimeout(t *testing.T) {

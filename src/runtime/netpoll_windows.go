@@ -12,7 +12,8 @@ const _DWORD_MAX = 0xffffffff
 
 const _INVALID_HANDLE_VALUE = ^uintptr(0)
 
-// net_op must be the same as beginning of net.operation. Keep these in sync.
+// net_op must be the same as beginning of internal/poll.operation.
+// Keep these in sync.
 type net_op struct {
 	// used by windows
 	o overlapped

@@ -9,6 +9,7 @@ package net
 import (
 	"context"
 	"fmt"
+	"internal/poll"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -767,7 +768,7 @@ func TestRetryTimeout(t *testing.T) {
 		if s == "192.0.2.1:53" {
 			deadline0 = deadline
 			time.Sleep(10 * time.Millisecond)
-			return nil, errTimeout
+			return nil, poll.ErrTimeout
 		}
 
 		if deadline == deadline0 {

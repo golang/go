@@ -4,10 +4,10 @@
 
 // +build darwin dragonfly freebsd linux netbsd openbsd windows solaris
 
-package net
+package poll
 
 import (
-	"runtime"
+	"errors"
 	"sync"
 	"syscall"
 	"time"
@@ -31,11 +31,14 @@ type pollDesc struct {
 
 var serverInit sync.Once
 
-func (pd *pollDesc) init(fd *netFD) error {
+func (pd *pollDesc) init(fd *FD) error {
 	serverInit.Do(runtime_pollServerInit)
-	ctx, errno := runtime_pollOpen(uintptr(fd.sysfd))
-	runtime.KeepAlive(fd)
+	ctx, errno := runtime_pollOpen(uintptr(fd.Sysfd))
 	if errno != 0 {
+		if ctx != 0 {
+			runtime_pollUnblock(ctx)
+			runtime_pollClose(ctx)
+		}
 		return syscall.Errno(errno)
 	}
 	pd.runtimeCtx = ctx
@@ -59,6 +62,9 @@ func (pd *pollDesc) evict() {
 }
 
 func (pd *pollDesc) prepare(mode int) error {
+	if pd.runtimeCtx == 0 {
+		return nil
+	}
 	res := runtime_pollReset(pd.runtimeCtx, mode)
 	return convertErr(res)
 }
@@ -72,6 +78,9 @@ func (pd *pollDesc) prepareWrite() error {
 }
 
 func (pd *pollDesc) wait(mode int) error {
+	if pd.runtimeCtx == 0 {
+		return errors.New("waiting for unsupported file type")
+	}
 	res := runtime_pollWait(pd.runtimeCtx, mode)
 	return convertErr(res)
 }
@@ -85,6 +94,9 @@ func (pd *pollDesc) waitWrite() error {
 }
 
 func (pd *pollDesc) waitCanceled(mode int) {
+	if pd.runtimeCtx == 0 {
+		return
+	}
 	runtime_pollWaitCanceled(pd.runtimeCtx, mode)
 }
 
@@ -101,27 +113,27 @@ func convertErr(res int) error {
 	case 0:
 		return nil
 	case 1:
-		return errClosing
+		return ErrClosing
 	case 2:
-		return errTimeout
+		return ErrTimeout
 	}
 	println("unreachable: ", res)
 	panic("unreachable")
 }
 
-func (fd *netFD) setDeadline(t time.Time) error {
+func (fd *FD) SetDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'r'+'w')
 }
 
-func (fd *netFD) setReadDeadline(t time.Time) error {
+func (fd *FD) SetReadDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'r')
 }
 
-func (fd *netFD) setWriteDeadline(t time.Time) error {
+func (fd *FD) SetWriteDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'w')
 }
 
-func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
+func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 	diff := int64(time.Until(t))
 	d := runtimeNano() + diff
 	if d <= 0 && diff > 0 {
@@ -134,6 +146,9 @@ func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
 	}
 	if err := fd.incref(); err != nil {
 		return err
+	}
+	if fd.pd.runtimeCtx == 0 {
+		return errors.New("file type does not support deadlines")
 	}
 	runtime_pollSetDeadline(fd.pd.runtimeCtx, d, mode)
 	fd.decref()

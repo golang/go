@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package net
+package poll
 
 import (
-	"os"
 	"runtime"
 	"sync"
 	"syscall"
@@ -49,7 +48,7 @@ func newAsyncIO(fn func([]byte) (int, error), b []byte) *asyncIO {
 		// Go runtime.
 		runtime.LockOSThread()
 		runtime_ignoreHangup()
-		aio.pid = os.Getpid()
+		aio.pid = syscall.Getpid()
 		aio.mu.Unlock()
 
 		n, err := fn(b)
@@ -64,8 +63,6 @@ func newAsyncIO(fn func([]byte) (int, error), b []byte) *asyncIO {
 	return aio
 }
 
-var hangupNote os.Signal = syscall.Note("hangup")
-
 // Cancel interrupts the I/O operation, causing
 // the Wait function to return.
 func (aio *asyncIO) Cancel() {
@@ -74,11 +71,12 @@ func (aio *asyncIO) Cancel() {
 	if aio.pid == -1 {
 		return
 	}
-	proc, err := os.FindProcess(aio.pid)
-	if err != nil {
+	f, e := syscall.Open("/proc/"+itoa(aio.pid)+"/note", syscall.O_WRONLY)
+	if e != nil {
 		return
 	}
-	proc.Signal(hangupNote)
+	syscall.Write(f, []byte("hangup"))
+	syscall.Close(f)
 }
 
 // Wait for the I/O operation to complete.

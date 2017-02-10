@@ -6,16 +6,13 @@ package net
 
 import (
 	"os"
+	"runtime"
 	"syscall"
 	"time"
 	"unsafe"
 )
 
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
 	// The kernel expects milliseconds so round to next highest
 	// millisecond.
 	d += (time.Millisecond - time.Nanosecond)
@@ -27,6 +24,7 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
 	}
 	ret := uint32(0)
 	size := uint32(unsafe.Sizeof(ka))
-	err := syscall.WSAIoctl(fd.sysfd, syscall.SIO_KEEPALIVE_VALS, (*byte)(unsafe.Pointer(&ka)), size, nil, 0, &ret, nil, 0)
+	err := fd.pfd.WSAIoctl(syscall.SIO_KEEPALIVE_VALS, (*byte)(unsafe.Pointer(&ka)), size, nil, 0, &ret, nil, 0)
+	runtime.KeepAlive(fd)
 	return os.NewSyscallError("wsaioctl", err)
 }

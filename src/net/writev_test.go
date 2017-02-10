@@ -7,6 +7,7 @@ package net
 import (
 	"bytes"
 	"fmt"
+	"internal/poll"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -99,13 +100,13 @@ func TestBuffers_WriteTo(t *testing.T) {
 }
 
 func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
-	oldHook := testHookDidWritev
-	defer func() { testHookDidWritev = oldHook }()
+	oldHook := poll.TestHookDidWritev
+	defer func() { poll.TestHookDidWritev = oldHook }()
 	var writeLog struct {
 		sync.Mutex
 		log []int
 	}
-	testHookDidWritev = func(size int) {
+	poll.TestHookDidWritev = func(size int) {
 		writeLog.Lock()
 		writeLog.log = append(writeLog.log, size)
 		writeLog.Unlock()

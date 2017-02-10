@@ -4,37 +4,39 @@
 
 package net
 
+import "internal/poll"
+
 var (
 	// Placeholders for saving original socket system calls.
 	origSocket      = socketFunc
-	origClosesocket = closeFunc
+	origClosesocket = poll.CloseFunc
 	origConnect     = connectFunc
-	origConnectEx   = connectExFunc
+	origConnectEx   = poll.ConnectExFunc
 	origListen      = listenFunc
-	origAccept      = acceptFunc
+	origAccept      = poll.AcceptFunc
 )
 
 func installTestHooks() {
 	socketFunc = sw.Socket
-	closeFunc = sw.Closesocket
+	poll.CloseFunc = sw.Closesocket
 	connectFunc = sw.Connect
-	connectExFunc = sw.ConnectEx
+	poll.ConnectExFunc = sw.ConnectEx
 	listenFunc = sw.Listen
-	acceptFunc = sw.AcceptEx
+	poll.AcceptFunc = sw.AcceptEx
 }
 
 func uninstallTestHooks() {
 	socketFunc = origSocket
-	closeFunc = origClosesocket
+	poll.CloseFunc = origClosesocket
 	connectFunc = origConnect
-	connectExFunc = origConnectEx
+	poll.ConnectExFunc = origConnectEx
 	listenFunc = origListen
-	acceptFunc = origAccept
+	poll.AcceptFunc = origAccept
 }
 
 // forceCloseSockets must be called only from TestMain.
 func forceCloseSockets() {
 	for s := range sw.Sockets() {
-		closeFunc(s)
+		poll.CloseFunc(s)
 	}
 }

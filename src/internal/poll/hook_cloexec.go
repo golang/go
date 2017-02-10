@@ -4,11 +4,9 @@
 
 // +build freebsd linux
 
-package net
+package poll
 
 import "syscall"
 
-var (
-	// Placeholders for socket system calls.
-	accept4Func func(int, int) (int, syscall.Sockaddr, error) = syscall.Accept4
-)
+// Accept4Func is used to hook the accept4 call.
+var Accept4Func func(int, int) (int, syscall.Sockaddr, error) = syscall.Accept4
