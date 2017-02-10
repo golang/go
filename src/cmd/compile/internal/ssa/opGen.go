@@ -434,6 +434,12 @@ const (
 	OpAMD64MOVSSstoreidx4
 	OpAMD64MOVSDstoreidx1
 	OpAMD64MOVSDstoreidx8
+	OpAMD64ADDSDmem
+	OpAMD64ADDSSmem
+	OpAMD64SUBSSmem
+	OpAMD64SUBSDmem
+	OpAMD64MULSSmem
+	OpAMD64MULSDmem
 	OpAMD64ADDQ
 	OpAMD64ADDL
 	OpAMD64ADDQconst
@@ -517,6 +523,16 @@ const (
 	OpAMD64ROLLconst
 	OpAMD64ROLWconst
 	OpAMD64ROLBconst
+	OpAMD64ADDLmem
+	OpAMD64ADDQmem
+	OpAMD64SUBQmem
+	OpAMD64SUBLmem
+	OpAMD64ANDLmem
+	OpAMD64ANDQmem
+	OpAMD64ORQmem
+	OpAMD64ORLmem
+	OpAMD64XORQmem
+	OpAMD64XORLmem
 	OpAMD64NEGQ
 	OpAMD64NEGL
 	OpAMD64NOTQ
@@ -4652,6 +4668,108 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "ADDSDmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AADDSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
+		name:           "ADDSSmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AADDSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
+		name:           "SUBSSmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		asm:            x86.ASUBSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
+		name:           "SUBSDmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		asm:            x86.ASUBSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
+		name:           "MULSSmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AMULSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
+		name:           "MULSDmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AMULSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
 		name:         "ADDQ",
 		argLen:       2,
 		commutative:  true,
@@ -5890,6 +6008,186 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "ADDLmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AADDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "ADDQmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "SUBQmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		asm:            x86.ASUBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "SUBLmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		asm:            x86.ASUBL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "ANDLmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AANDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "ANDQmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AANDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "ORQmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "ORLmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AORL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "XORQmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AXORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:           "XORLmem",
+		auxType:        auxSymOff,
+		argLen:         3,
+		resultInArg0:   true,
+		clobberFlags:   true,
+		faultOnNilArg1: true,
+		asm:            x86.AXORL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
