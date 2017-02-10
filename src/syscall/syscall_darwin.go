@@ -127,7 +127,6 @@ func getAttrList(path string, attrList attrList, attrBuf []byte, options uint) (
 		uintptr(options),
 		0,
 	)
-	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		return nil, e1
 	}
@@ -180,7 +179,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
 	}
 	r0, _, e1 := Syscall(SYS_GETFSSTAT64, uintptr(_p0), bufsize, uintptr(flags))
-	use(unsafe.Pointer(_p0))
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
