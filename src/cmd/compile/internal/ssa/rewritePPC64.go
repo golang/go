@@ -34,6 +34,32 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpAnd8(v, config)
 	case OpAndB:
 		return rewriteValuePPC64_OpAndB(v, config)
+	case OpAtomicAdd32:
+		return rewriteValuePPC64_OpAtomicAdd32(v, config)
+	case OpAtomicAdd64:
+		return rewriteValuePPC64_OpAtomicAdd64(v, config)
+	case OpAtomicAnd8:
+		return rewriteValuePPC64_OpAtomicAnd8(v, config)
+	case OpAtomicCompareAndSwap32:
+		return rewriteValuePPC64_OpAtomicCompareAndSwap32(v, config)
+	case OpAtomicCompareAndSwap64:
+		return rewriteValuePPC64_OpAtomicCompareAndSwap64(v, config)
+	case OpAtomicExchange32:
+		return rewriteValuePPC64_OpAtomicExchange32(v, config)
+	case OpAtomicExchange64:
+		return rewriteValuePPC64_OpAtomicExchange64(v, config)
+	case OpAtomicLoad32:
+		return rewriteValuePPC64_OpAtomicLoad32(v, config)
+	case OpAtomicLoad64:
+		return rewriteValuePPC64_OpAtomicLoad64(v, config)
+	case OpAtomicLoadPtr:
+		return rewriteValuePPC64_OpAtomicLoadPtr(v, config)
+	case OpAtomicOr8:
+		return rewriteValuePPC64_OpAtomicOr8(v, config)
+	case OpAtomicStore32:
+		return rewriteValuePPC64_OpAtomicStore32(v, config)
+	case OpAtomicStore64:
+		return rewriteValuePPC64_OpAtomicStore64(v, config)
 	case OpAvg64u:
 		return rewriteValuePPC64_OpAvg64u(v, config)
 	case OpClosureCall:
@@ -767,6 +793,225 @@ func rewriteValuePPC64_OpAndB(v *Value, config *Config) bool {
 		v.reset(OpPPC64AND)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicAdd32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicAdd32 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicAdd32 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64LoweredAtomicAdd32)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicAdd64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicAdd64 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicAdd64 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64LoweredAtomicAdd64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicAnd8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicAnd8 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicAnd8 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64LoweredAtomicAnd8)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicCompareAndSwap32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
+	// cond:
+	// result: (LoweredAtomicCas32 ptr old new_ mem)
+	for {
+		ptr := v.Args[0]
+		old := v.Args[1]
+		new_ := v.Args[2]
+		mem := v.Args[3]
+		v.reset(OpPPC64LoweredAtomicCas32)
+		v.AddArg(ptr)
+		v.AddArg(old)
+		v.AddArg(new_)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicCompareAndSwap64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicCompareAndSwap64 ptr old new_ mem)
+	// cond:
+	// result: (LoweredAtomicCas64 ptr old new_ mem)
+	for {
+		ptr := v.Args[0]
+		old := v.Args[1]
+		new_ := v.Args[2]
+		mem := v.Args[3]
+		v.reset(OpPPC64LoweredAtomicCas64)
+		v.AddArg(ptr)
+		v.AddArg(old)
+		v.AddArg(new_)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicExchange32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicExchange32 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicExchange32 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64LoweredAtomicExchange32)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicExchange64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicExchange64 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicExchange64 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64LoweredAtomicExchange64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicLoad32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicLoad32  ptr mem)
+	// cond:
+	// result: (LoweredAtomicLoad32 ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpPPC64LoweredAtomicLoad32)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicLoad64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicLoad64  ptr mem)
+	// cond:
+	// result: (LoweredAtomicLoad64 ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpPPC64LoweredAtomicLoad64)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicLoadPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicLoadPtr ptr mem)
+	// cond:
+	// result: (LoweredAtomicLoadPtr ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpPPC64LoweredAtomicLoadPtr)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicOr8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicOr8  ptr val mem)
+	// cond:
+	// result: (LoweredAtomicOr8  ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64LoweredAtomicOr8)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicStore32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicStore32      ptr val mem)
+	// cond:
+	// result: (LoweredAtomicStore32 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64LoweredAtomicStore32)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicStore64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicStore64      ptr val mem)
+	// cond:
+	// result: (LoweredAtomicStore64 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64LoweredAtomicStore64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
 		return true
 	}
 }
