@@ -6,6 +6,7 @@ package os
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -16,7 +17,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 	if !file.isdir() {
 		return nil, &PathError{"Readdir", file.name, syscall.ENOTDIR}
 	}
-	if !file.dirinfo.isempty && file.fd == syscall.InvalidHandle {
+	if !file.dirinfo.isempty && file.pfd.Sysfd == syscall.InvalidHandle {
 		return nil, syscall.EINVAL
 	}
 	wantAll := n <= 0
@@ -29,7 +30,8 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 	d := &file.dirinfo.data
 	for n != 0 && !file.dirinfo.isempty {
 		if file.dirinfo.needdata {
-			e := syscall.FindNextFile(file.fd, d)
+			e := file.pfd.FindNextFile(d)
+			runtime.KeepAlive(file)
 			if e != nil {
 				if e == syscall.ERROR_NO_MORE_FILES {
 					break

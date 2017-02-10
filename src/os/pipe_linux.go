@@ -29,5 +29,5 @@ func Pipe() (r *File, w *File, err error) {
 		return nil, nil, NewSyscallError("pipe2", e)
 	}
 
-	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
+	return newFile(uintptr(p[0]), "|0", true), newFile(uintptr(p[1]), "|1", true), nil
 }

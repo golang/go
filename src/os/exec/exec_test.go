@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"internal/poll"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -369,12 +370,16 @@ var testedAlreadyLeaked = false
 
 // basefds returns the number of expected file descriptors
 // to be present in a process at start.
+// stdin, stdout, stderr, epoll/kqueue
 func basefds() uintptr {
 	return os.Stderr.Fd() + 1
 }
 
 func closeUnexpectedFds(t *testing.T, m string) {
 	for fd := basefds(); fd <= 101; fd++ {
+		if fd == poll.PollDescriptor() {
+			continue
+		}
 		err := os.NewFile(fd, "").Close()
 		if err == nil {
 			t.Logf("%s: Something already leaked - closed fd %d", m, fd)
@@ -732,6 +737,9 @@ func TestHelperProcess(*testing.T) {
 			// Now verify that there are no other open fds.
 			var files []*os.File
 			for wantfd := basefds() + 1; wantfd <= 100; wantfd++ {
+				if wantfd == poll.PollDescriptor() {
+					continue
+				}
 				f, err := os.Open(os.Args[0])
 				if err != nil {
 					fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)

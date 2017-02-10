@@ -7,6 +7,7 @@
 package os
 
 import (
+	"internal/poll"
 	"runtime"
 	"syscall"
 )
@@ -33,9 +34,10 @@ func rename(oldname, newname string) error {
 // can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
-	fd      int
-	name    string
-	dirinfo *dirInfo // nil unless directory being read
+	pfd      poll.FD
+	name     string
+	dirinfo  *dirInfo // nil unless directory being read
+	nonblock bool     // whether we set nonblocking mode
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
@@ -44,16 +46,64 @@ func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
 	}
-	return uintptr(f.fd)
+
+	// If we put the file descriptor into nonblocking mode,
+	// then set it to blocking mode before we return it,
+	// because historically we have always returned a descriptor
+	// opened in blocking mode. The File will continue to work,
+	// but any blocking operation will tie up a thread.
+	if f.nonblock {
+		syscall.SetNonblock(f.pfd.Sysfd, false)
+	}
+
+	return uintptr(f.pfd.Sysfd)
 }
 
 // NewFile returns a new File with the given file descriptor and name.
 func NewFile(fd uintptr, name string) *File {
+	return newFile(fd, name, false)
+}
+
+// newFile is like NewFile, but if pollable is true it tries to add the
+// file to the runtime poller.
+func newFile(fd uintptr, name string, pollable bool) *File {
 	fdi := int(fd)
 	if fdi < 0 {
 		return nil
 	}
-	f := &File{&file{fd: fdi, name: name}}
+	f := &File{&file{
+		pfd: poll.FD{
+			Sysfd:         fdi,
+			IsStream:      true,
+			ZeroReadIsEOF: true,
+		},
+		name: name,
+	}}
+
+	// Don't try to use kqueue with regular files on FreeBSD.
+	// It crashes the system unpredictably while running all.bash.
+	// Issue 19093.
+	if runtime.GOOS == "freebsd" {
+		pollable = false
+	}
+
+	if pollable {
+		if err := f.pfd.Init(); err != nil {
+			// An error here indicates a failure to register
+			// with the netpoll system. That can happen for
+			// a file descriptor that is not supported by
+			// epoll/kqueue; for example, disk files on
+			// GNU/Linux systems. We assume that any real error
+			// will show up in later I/O.
+		} else {
+			// We successfully registered with netpoll, so put
+			// the file into nonblocking mode.
+			if err := syscall.SetNonblock(fdi, true); err == nil {
+				f.nonblock = true
+			}
+		}
+	}
+
 	runtime.SetFinalizer(f.file, (*file).close)
 	return f
 }
@@ -69,7 +119,7 @@ type dirInfo struct {
 // output or standard error. See the SIGPIPE docs in os/signal, and
 // issue 11845.
 func epipecheck(file *File, e error) {
-	if e == syscall.EPIPE && (file.fd == 1 || file.fd == 2) {
+	if e == syscall.EPIPE && (file.pfd.Sysfd == 1 || file.pfd.Sysfd == 2) {
 		sigpipe()
 	}
 }
@@ -120,7 +170,7 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return NewFile(uintptr(r), name), nil
+	return newFile(uintptr(r), name, true), nil
 }
 
 // Close closes the File, rendering it unusable for I/O.
@@ -133,83 +183,51 @@ func (f *File) Close() error {
 }
 
 func (file *file) close() error {
-	if file == nil || file.fd == badFd {
+	if file == nil || file.pfd.Sysfd == badFd {
 		return syscall.EINVAL
 	}
 	var err error
-	if e := syscall.Close(file.fd); e != nil {
+	if e := file.pfd.Close(); e != nil {
 		err = &PathError{"close", file.name, e}
 	}
-	file.fd = -1 // so it can't be closed again
+	file.pfd.Sysfd = badFd // so it can't be closed again
 
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(file, nil)
 	return err
 }
 
-// Darwin and FreeBSD can't read or write 2GB+ at a time,
-// even on 64-bit systems. See golang.org/issue/7812.
-// Use 1GB instead of, say, 2GB-1, to keep subsequent
-// reads aligned.
-const (
-	needsMaxRW = runtime.GOOS == "darwin" || runtime.GOOS == "freebsd"
-	maxRW      = 1 << 30
-)
-
 // read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an error, if any.
 func (f *File) read(b []byte) (n int, err error) {
-	if needsMaxRW && len(b) > maxRW {
-		b = b[:maxRW]
-	}
-	return fixCount(syscall.Read(f.fd, b))
+	n, err = f.pfd.Read(b)
+	runtime.KeepAlive(f)
+	return n, err
 }
 
 // pread reads len(b) bytes from the File starting at byte offset off.
 // It returns the number of bytes read and the error, if any.
 // EOF is signaled by a zero count with err set to nil.
 func (f *File) pread(b []byte, off int64) (n int, err error) {
-	if needsMaxRW && len(b) > maxRW {
-		b = b[:maxRW]
-	}
-	return fixCount(syscall.Pread(f.fd, b, off))
+	n, err = f.pfd.Pread(b, off)
+	runtime.KeepAlive(f)
+	return n, err
 }
 
 // write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
 func (f *File) write(b []byte) (n int, err error) {
-	for {
-		bcap := b
-		if needsMaxRW && len(bcap) > maxRW {
-			bcap = bcap[:maxRW]
-		}
-		m, err := fixCount(syscall.Write(f.fd, bcap))
-		n += m
-
-		// If the syscall wrote some data but not all (short write)
-		// or it returned EINTR, then assume it stopped early for
-		// reasons that are uninteresting to the caller, and try again.
-		if 0 < m && m < len(bcap) || err == syscall.EINTR {
-			b = b[m:]
-			continue
-		}
-
-		if needsMaxRW && len(bcap) != len(b) && err == nil {
-			b = b[m:]
-			continue
-		}
-
-		return n, err
-	}
+	n, err = f.pfd.Write(b)
+	runtime.KeepAlive(f)
+	return n, err
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
 // It returns the number of bytes written and an error, if any.
 func (f *File) pwrite(b []byte, off int64) (n int, err error) {
-	if needsMaxRW && len(b) > maxRW {
-		b = b[:maxRW]
-	}
-	return fixCount(syscall.Pwrite(f.fd, b, off))
+	n, err = f.pfd.Pwrite(b, off)
+	runtime.KeepAlive(f)
+	return n, err
 }
 
 // seek sets the offset for the next Read or Write on file to offset, interpreted
@@ -217,7 +235,9 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
-	return syscall.Seek(f.fd, offset, whence)
+	ret, err = f.pfd.Seek(offset, whence)
+	runtime.KeepAlive(f)
+	return ret, err
 }
 
 // Truncate changes the size of the named file.

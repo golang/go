@@ -523,13 +523,15 @@ func (fd *FD) Pread(b []byte, off int64) (int, error) {
 	var done uint32
 	e = syscall.ReadFile(fd.Sysfd, b, &done, &o)
 	if e != nil {
+		done = 0
 		if e == syscall.ERROR_HANDLE_EOF {
-			// end of file
-			return 0, nil
+			e = io.EOF
 		}
-		return 0, e
 	}
-	return int(done), nil
+	if len(b) != 0 {
+		e = fd.eofError(int(done), e)
+	}
+	return int(done), e
 }
 
 func (fd *FD) RecvFrom(buf []byte) (int, syscall.Sockaddr, error) {

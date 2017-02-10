@@ -41,6 +41,10 @@ func netpollinit() {
 	}
 }
 
+func netpolldescriptor() uintptr {
+	return iocphandle
+}
+
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	if stdcall4(_CreateIoCompletionPort, fd, iocphandle, 0, 0) == 0 {
 		return -int32(getlasterror())

@@ -77,8 +77,9 @@ type pollCache struct {
 }
 
 var (
-	netpollInited uint32
-	pollcache     pollCache
+	netpollInited  uint32
+	pollcache      pollCache
+	netpollWaiters uint32
 )
 
 //go:linkname poll_runtime_pollServerInit internal/poll.runtime_pollServerInit
@@ -89,6 +90,14 @@ func poll_runtime_pollServerInit() {
 
 func netpollinited() bool {
 	return atomic.Load(&netpollInited) != 0
+}
+
+//go:linkname poll_runtime_pollServerDescriptor internal/poll.runtime_pollServerDescriptor
+
+// poll_runtime_pollServerDescriptor returns the descriptor being used,
+// or ^uintptr(0) if the system does not use a poll descriptor.
+func poll_runtime_pollServerDescriptor() uintptr {
+	return netpolldescriptor()
 }
 
 //go:linkname poll_runtime_pollOpen internal/poll.runtime_pollOpen
@@ -244,10 +253,10 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	}
 	unlock(&pd.lock)
 	if rg != nil {
-		goready(rg, 3)
+		netpollgoready(rg, 3)
 	}
 	if wg != nil {
-		goready(wg, 3)
+		netpollgoready(wg, 3)
 	}
 }
 
@@ -273,10 +282,10 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
 	}
 	unlock(&pd.lock)
 	if rg != nil {
-		goready(rg, 3)
+		netpollgoready(rg, 3)
 	}
 	if wg != nil {
-		goready(wg, 3)
+		netpollgoready(wg, 3)
 	}
 }
 
@@ -312,7 +321,19 @@ func netpollcheckerr(pd *pollDesc, mode int32) int {
 }
 
 func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
-	return atomic.Casuintptr((*uintptr)(gpp), pdWait, uintptr(unsafe.Pointer(gp)))
+	r := atomic.Casuintptr((*uintptr)(gpp), pdWait, uintptr(unsafe.Pointer(gp)))
+	if r {
+		// Bump the count of goroutines waiting for the poller.
+		// The scheduler uses this to decide whether to block
+		// waiting for the poller if there is nothing else to do.
+		atomic.Xadd(&netpollWaiters, 1)
+	}
+	return r
+}
+
+func netpollgoready(gp *g, traceskip int) {
+	atomic.Xadd(&netpollWaiters, -1)
+	goready(gp, traceskip+1)
 }
 
 // returns true if IO is ready, or false if timedout or closed
@@ -410,10 +431,10 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	}
 	unlock(&pd.lock)
 	if rg != nil {
-		goready(rg, 0)
+		netpollgoready(rg, 0)
 	}
 	if wg != nil {
-		goready(wg, 0)
+		netpollgoready(wg, 0)
 	}
 }
 

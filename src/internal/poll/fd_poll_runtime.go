@@ -17,6 +17,7 @@ import (
 func runtimeNano() int64
 
 func runtime_pollServerInit()
+func runtime_pollServerDescriptor() uintptr
 func runtime_pollOpen(fd uintptr) (uintptr, int)
 func runtime_pollClose(ctx uintptr)
 func runtime_pollWait(ctx uintptr, mode int) int
@@ -145,4 +146,10 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 	runtime_pollSetDeadline(fd.pd.runtimeCtx, d, mode)
 	fd.decref()
 	return nil
+}
+
+// PollDescriptor returns the descriptor being used by the poller,
+// or ^uintptr(0) if there isn't one. This is only used for testing.
+func PollDescriptor() uintptr {
+	return runtime_pollServerDescriptor()
 }

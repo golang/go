@@ -365,7 +365,19 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.decref()
-	return syscall.ReadDirent(fd.Sysfd, buf)
+	for {
+		n, err := syscall.ReadDirent(fd.Sysfd, buf)
+		if err != nil {
+			n = 0
+			if err == syscall.EAGAIN {
+				if err = fd.pd.waitRead(); err == nil {
+					continue
+				}
+			}
+		}
+		// Do not call eofError; caller does not expect to see io.EOF.
+		return n, err
+	}
 }
 
 // Fchdir wraps syscall.Fchdir.

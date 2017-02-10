@@ -85,3 +85,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 	fd.decref()
 	return nil
 }
+
+func PollDescriptor() uintptr {
+	return ^uintptr(0)
+}

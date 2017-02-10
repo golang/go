@@ -36,6 +36,10 @@ func netpollinit() {
 	throw("netpollinit: failed to create descriptor")
 }
 
+func netpolldescriptor() uintptr {
+	return uintptr(epfd)
+}
+
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	var ev epollevent
 	ev.events = _EPOLLIN | _EPOLLOUT | _EPOLLRDHUP | _EPOLLET

@@ -240,6 +240,7 @@ func TestTraceSymbolize(t *testing.T) {
 			{trace.EvGoSysCall, []frame{
 				{"syscall.read", 0},
 				{"syscall.Read", 0},
+				{"internal/poll.(*FD).Read", 0},
 				{"os.(*File).read", 0},
 				{"os.(*File).Read", 0},
 				{"runtime/trace_test.TestTraceSymbolize.func11", 102},
