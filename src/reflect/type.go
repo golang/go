@@ -1469,6 +1469,7 @@ func (t *rtype) ptrTo() *rtype {
 	pp := *prototype
 
 	pp.str = resolveReflectName(newName(s, "", "", false))
+	pp.ptrToThis = 0
 
 	// For the type structures linked into the binary, the
 	// compiler provides a good hash of the string.
