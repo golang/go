@@ -742,7 +742,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	if cursym.Text.From3Offset()&obj.WRAPPER != 0 {
-		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+		// if g._panic != nil && g._panic.argp == FP {
+		//   g._panic.argp = bottom-of-frame
+		// }
 		//
 		//	MOVQ g_panic(CX), BX
 		//	TESTQ BX, BX
@@ -757,12 +759,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		// The NOP is needed to give the jumps somewhere to land.
 		// It is a liblink NOP, not an x86 NOP: it encodes to 0 instruction bytes.
 
+		// MOVQ g_panic(CX), BX
 		p = obj.Appendp(ctxt, p)
-
 		p.As = AMOVQ
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = REG_CX
-		p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // G.panic
+		p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // g_panic
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_BX
 		if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
@@ -776,6 +778,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.As = AMOVL
 		}
 
+		// TESTQ BX, BX
 		p = obj.Appendp(ctxt, p)
 		p.As = ATESTQ
 		p.From.Type = obj.TYPE_REG
@@ -786,11 +789,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.As = ATESTL
 		}
 
+		// JEQ end
 		p = obj.Appendp(ctxt, p)
 		p.As = AJEQ
 		p.To.Type = obj.TYPE_BRANCH
 		p1 := p
 
+		// LEAQ (autoffset+8)(SP), DI
 		p = obj.Appendp(ctxt, p)
 		p.As = ALEAQ
 		p.From.Type = obj.TYPE_MEM
@@ -802,6 +807,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.As = ALEAL
 		}
 
+		// CMPQ panic_argp(BX), DI
 		p = obj.Appendp(ctxt, p)
 		p.As = ACMPQ
 		p.From.Type = obj.TYPE_MEM
@@ -820,11 +826,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.As = ACMPL
 		}
 
+		// JNE end
 		p = obj.Appendp(ctxt, p)
 		p.As = AJNE
 		p.To.Type = obj.TYPE_BRANCH
 		p2 := p
 
+		// MOVQ SP, panic_argp(BX)
 		p = obj.Appendp(ctxt, p)
 		p.As = AMOVQ
 		p.From.Type = obj.TYPE_REG
@@ -843,8 +851,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.As = AMOVL
 		}
 
+		// NOP
 		p = obj.Appendp(ctxt, p)
 		p.As = obj.ANOP
+
+		// Set targets for jumps above to the NOP
 		p1.Pcond = p
 		p2.Pcond = p
 	}
