@@ -112,7 +112,8 @@ func (t *Template) escape() error {
 // If an error occurs executing the template or writing its output,
 // execution stops, but partial results may already have been written to
 // the output writer.
-// A template may be executed safely in parallel.
+// A template may be executed safely in parallel, although if parallel
+// executions share a Writer the output may be interleaved.
 func (t *Template) Execute(wr io.Writer, data interface{}) error {
 	if err := t.escape(); err != nil {
 		return err
@@ -125,7 +126,8 @@ func (t *Template) Execute(wr io.Writer, data interface{}) error {
 // If an error occurs executing the template or writing its output,
 // execution stops, but partial results may already have been written to
 // the output writer.
-// A template may be executed safely in parallel.
+// A template may be executed safely in parallel, although if parallel
+// executions share a Writer the output may be interleaved.
 func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
 	tmpl, err := t.lookupAndEscapeTemplate(name)
 	if err != nil {
