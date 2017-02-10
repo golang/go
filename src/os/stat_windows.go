@@ -16,7 +16,7 @@ func (file *File) Stat() (FileInfo, error) {
 	if file == nil {
 		return nil, ErrInvalid
 	}
-	if file == nil || file.fd < 0 {
+	if file == nil || file.pfd.Sysfd < 0 {
 		return nil, syscall.EINVAL
 	}
 	if file.isdir() {
@@ -27,7 +27,7 @@ func (file *File) Stat() (FileInfo, error) {
 		return &devNullStat, nil
 	}
 
-	ft, err := syscall.GetFileType(file.fd)
+	ft, err := file.pfd.GetFileType()
 	if err != nil {
 		return nil, &PathError{"GetFileType", file.name, err}
 	}
@@ -37,7 +37,7 @@ func (file *File) Stat() (FileInfo, error) {
 	}
 
 	var d syscall.ByHandleFileInformation
-	err = syscall.GetFileInformationByHandle(file.fd, &d)
+	err = file.pfd.GetFileInformationByHandle(&d)
 	if err != nil {
 		return nil, &PathError{"GetFileInformationByHandle", file.name, err}
 	}

@@ -99,11 +99,12 @@ func (f *File) Read(b []byte) (n int, err error) {
 		return 0, err
 	}
 	n, e := f.read(b)
-	if n == 0 && len(b) > 0 && e == nil {
-		return 0, io.EOF
-	}
 	if e != nil {
-		err = &PathError{"read", f.name, e}
+		if e == io.EOF {
+			err = e
+		} else {
+			err = &PathError{"read", f.name, e}
+		}
 	}
 	return n, err
 }
@@ -118,11 +119,12 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 	}
 	for len(b) > 0 {
 		m, e := f.pread(b, off)
-		if m == 0 && e == nil {
-			return n, io.EOF
-		}
 		if e != nil {
-			err = &PathError{"read", f.name, e}
+			if e == io.EOF {
+				err = e
+			} else {
+				err = &PathError{"read", f.name, e}
+			}
 			break
 		}
 		n += m
@@ -226,19 +228,6 @@ func Chdir(dir string) error {
 	return nil
 }
 
-// Chdir changes the current working directory to the file,
-// which must be a directory.
-// If there is an error, it will be of type *PathError.
-func (f *File) Chdir() error {
-	if err := f.checkValid("chdir"); err != nil {
-		return err
-	}
-	if e := syscall.Fchdir(f.fd); e != nil {
-		return &PathError{"chdir", f.name, e}
-	}
-	return nil
-}
-
 // Open opens the named file for reading. If successful, methods on
 // the returned file can be used for reading; the associated file
 // descriptor has mode O_RDONLY.
@@ -274,16 +263,4 @@ func fixCount(n int, err error) (int, error) {
 		n = 0
 	}
 	return n, err
-}
-
-// checkValid checks whether f is valid for use.
-// If not, it returns an appropriate error, perhaps incorporating the operation name op.
-func (f *File) checkValid(op string) error {
-	if f == nil {
-		return ErrInvalid
-	}
-	if f.fd == badFd {
-		return &PathError{op, f.name, ErrClosed}
-	}
-	return nil
 }

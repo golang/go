@@ -6,6 +6,7 @@ package os_test
 
 import (
 	"fmt"
+	"internal/poll"
 	"internal/syscall/windows"
 	"internal/testenv"
 	"io"
@@ -643,9 +644,9 @@ func TestStatSymlinkLoop(t *testing.T) {
 }
 
 func TestReadStdin(t *testing.T) {
-	old := *os.ReadConsoleFunc
+	old := poll.ReadConsole
 	defer func() {
-		*os.ReadConsoleFunc = old
+		poll.ReadConsole = old
 	}()
 
 	testConsole := os.NewConsoleFile(syscall.Stdin, "test")
@@ -664,7 +665,7 @@ func TestReadStdin(t *testing.T) {
 			for _, s := range tests {
 				t.Run(fmt.Sprintf("c%d/r%d/%s", consoleSize, readSize, s), func(t *testing.T) {
 					s16 := utf16.Encode([]rune(s))
-					*os.ReadConsoleFunc = func(h syscall.Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) error {
+					poll.ReadConsole = func(h syscall.Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) error {
 						if inputControl != nil {
 							t.Fatalf("inputControl not nil")
 						}

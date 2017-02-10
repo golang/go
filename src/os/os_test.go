@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -112,7 +113,7 @@ func size(name string, t *testing.T) int64 {
 			break
 		}
 		if e != nil {
-			t.Fatal("read failed:", err)
+			t.Fatal("read failed:", e)
 		}
 	}
 	return int64(len)
@@ -1939,4 +1940,76 @@ func TestRemoveAllRace(t *testing.T) {
 	}
 	close(hold) // let workers race to remove root
 	wg.Wait()
+}
+
+// Test that reading from a pipe doesn't use up a thread.
+func TestPipeThreads(t *testing.T) {
+	switch runtime.GOOS {
+	case "freebsd":
+		t.Skip("skipping on FreeBSD; issue 19093")
+	case "windows":
+		t.Skip("skipping on Windows; issue 19098")
+	}
+
+	threads := 100
+
+	// OpenBSD has a low default for max number of files.
+	if runtime.GOOS == "openbsd" {
+		threads = 50
+	}
+
+	r := make([]*File, threads)
+	w := make([]*File, threads)
+	for i := 0; i < threads; i++ {
+		rp, wp, err := Pipe()
+		if err != nil {
+			for j := 0; j < i; j++ {
+				r[j].Close()
+				w[j].Close()
+			}
+			t.Fatal(err)
+		}
+		r[i] = rp
+		w[i] = wp
+	}
+
+	defer debug.SetMaxThreads(debug.SetMaxThreads(threads / 2))
+
+	var wg sync.WaitGroup
+	wg.Add(threads)
+	c := make(chan bool, threads)
+	for i := 0; i < threads; i++ {
+		go func(i int) {
+			defer wg.Done()
+			var b [1]byte
+			c <- true
+			if _, err := r[i].Read(b[:]); err != nil {
+				t.Error(err)
+			}
+		}(i)
+	}
+
+	for i := 0; i < threads; i++ {
+		<-c
+	}
+
+	// If we are still alive, it means that the 100 goroutines did
+	// not require 100 threads.
+
+	for i := 0; i < threads; i++ {
+		if _, err := w[i].Write([]byte{0}); err != nil {
+			t.Error(err)
+		}
+		if err := w[i].Close(); err != nil {
+			t.Error(err)
+		}
+	}
+
+	wg.Wait()
+
+	for i := 0; i < threads; i++ {
+		if err := r[i].Close(); err != nil {
+			t.Error(err)
+		}
+	}
 }

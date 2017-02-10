@@ -121,6 +121,10 @@ func netpollinit() {
 	throw("netpollinit: failed to create port")
 }
 
+func netpolldescriptor() uintptr {
+	return uintptr(portfd)
+}
+
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	lock(&pd.lock)
 	// We don't register for any specific type of events yet, that's

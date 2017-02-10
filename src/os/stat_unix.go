@@ -17,7 +17,7 @@ func (f *File) Stat() (FileInfo, error) {
 		return nil, ErrInvalid
 	}
 	var fs fileStat
-	err := syscall.Fstat(f.fd, &fs.sys)
+	err := f.pfd.Fstat(&fs.sys)
 	if err != nil {
 		return nil, &PathError{"stat", f.name, err}
 	}

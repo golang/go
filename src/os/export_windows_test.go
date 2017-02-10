@@ -7,7 +7,6 @@ package os
 // Export for testing.
 
 var (
-	FixLongPath     = fixLongPath
-	NewConsoleFile  = newConsoleFile
-	ReadConsoleFunc = &readConsole
+	FixLongPath    = fixLongPath
+	NewConsoleFile = newConsoleFile
 )
