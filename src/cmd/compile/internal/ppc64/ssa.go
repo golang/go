@@ -196,6 +196,272 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = y
 		}
 
+	case ssa.OpPPC64LoweredAtomicAnd8,
+		ssa.OpPPC64LoweredAtomicOr8:
+		// SYNC
+		// LBAR		(Rarg0), Rtmp
+		// AND/OR	Rarg1, Rtmp
+		// STBCCC	Rtmp, (Rarg0)
+		// BNE		-3(PC)
+		// ISYNC
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		psync := gc.Prog(ppc64.ASYNC)
+		psync.To.Type = obj.TYPE_NONE
+		p := gc.Prog(ppc64.ALBAR)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ppc64.REGTMP
+		p1 := gc.Prog(v.Op.Asm())
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = ppc64.REGTMP
+		p2 := gc.Prog(ppc64.ASTBCCC)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = ppc64.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = r0
+		p2.RegTo2 = ppc64.REGTMP
+		p3 := gc.Prog(ppc64.ABNE)
+		p3.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p3, p)
+		pisync := gc.Prog(ppc64.AISYNC)
+		pisync.To.Type = obj.TYPE_NONE
+
+	case ssa.OpPPC64LoweredAtomicAdd32,
+		ssa.OpPPC64LoweredAtomicAdd64:
+		// SYNC
+		// LDAR/LWAR    (Rarg0), Rout
+		// ADD		Rarg1, Rout
+		// STDCCC/STWCCC Rout, (Rarg0)
+		// BNE         -3(PC)
+		// ISYNC
+		// MOVW		Rout,Rout (if Add32)
+		ld := ppc64.ALDAR
+		st := ppc64.ASTDCCC
+		if v.Op == ssa.OpPPC64LoweredAtomicAdd32 {
+			ld = ppc64.ALWAR
+			st = ppc64.ASTWCCC
+		}
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		out := v.Reg0()
+		// SYNC
+		psync := gc.Prog(ppc64.ASYNC)
+		psync.To.Type = obj.TYPE_NONE
+		// LDAR or LWAR
+		p := gc.Prog(ld)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = out
+		// ADD reg1,out
+		p1 := gc.Prog(ppc64.AADD)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.To.Reg = out
+		p1.To.Type = obj.TYPE_REG
+		// STDCCC or STWCCC
+		p3 := gc.Prog(st)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = out
+		p3.To.Type = obj.TYPE_MEM
+		p3.To.Reg = r0
+		// BNE retry
+		p4 := gc.Prog(ppc64.ABNE)
+		p4.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p4, p)
+		// ISYNC
+		pisync := gc.Prog(ppc64.AISYNC)
+		pisync.To.Type = obj.TYPE_NONE
+
+		// Ensure a 32 bit result
+		if v.Op == ssa.OpPPC64LoweredAtomicAdd32 {
+			p5 := gc.Prog(ppc64.AMOVWZ)
+			p5.To.Type = obj.TYPE_REG
+			p5.To.Reg = out
+			p5.From.Type = obj.TYPE_REG
+			p5.From.Reg = out
+		}
+
+	case ssa.OpPPC64LoweredAtomicExchange32,
+		ssa.OpPPC64LoweredAtomicExchange64:
+		// SYNC
+		// LDAR/LWAR    (Rarg0), Rout
+		// STDCCC/STWCCC Rout, (Rarg0)
+		// BNE         -2(PC)
+		// ISYNC
+		ld := ppc64.ALDAR
+		st := ppc64.ASTDCCC
+		if v.Op == ssa.OpPPC64LoweredAtomicExchange32 {
+			ld = ppc64.ALWAR
+			st = ppc64.ASTWCCC
+		}
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		out := v.Reg0()
+		// SYNC
+		psync := gc.Prog(ppc64.ASYNC)
+		psync.To.Type = obj.TYPE_NONE
+		// LDAR or LWAR
+		p := gc.Prog(ld)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = out
+		// STDCCC or STWCCC
+		p1 := gc.Prog(st)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.To.Type = obj.TYPE_MEM
+		p1.To.Reg = r0
+		// BNE retry
+		p2 := gc.Prog(ppc64.ABNE)
+		p2.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p2, p)
+		// ISYNC
+		pisync := gc.Prog(ppc64.AISYNC)
+		pisync.To.Type = obj.TYPE_NONE
+
+	case ssa.OpPPC64LoweredAtomicLoad32,
+		ssa.OpPPC64LoweredAtomicLoad64,
+		ssa.OpPPC64LoweredAtomicLoadPtr:
+		// SYNC
+		// MOVD/MOVW (Rarg0), Rout
+		// CMP Rout,Rout
+		// BNE 1(PC)
+		// ISYNC
+		ld := ppc64.AMOVD
+		cmp := ppc64.ACMP
+		if v.Op == ssa.OpPPC64LoweredAtomicLoad32 {
+			ld = ppc64.AMOVW
+			cmp = ppc64.ACMPW
+		}
+		arg0 := v.Args[0].Reg()
+		out := v.Reg0()
+		// SYNC
+		psync := gc.Prog(ppc64.ASYNC)
+		psync.To.Type = obj.TYPE_NONE
+		// Load
+		p := gc.Prog(ld)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = arg0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = out
+		// CMP
+		p1 := gc.Prog(cmp)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = out
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = out
+		// BNE
+		p2 := gc.Prog(ppc64.ABNE)
+		p2.To.Type = obj.TYPE_BRANCH
+		// ISYNC
+		pisync := gc.Prog(ppc64.AISYNC)
+		pisync.To.Type = obj.TYPE_NONE
+		gc.Patch(p2, pisync)
+
+	case ssa.OpPPC64LoweredAtomicStore32,
+		ssa.OpPPC64LoweredAtomicStore64:
+		// SYNC
+		// MOVD/MOVW arg1,(arg0)
+		st := ppc64.AMOVD
+		if v.Op == ssa.OpPPC64LoweredAtomicStore32 {
+			st = ppc64.AMOVW
+		}
+		arg0 := v.Args[0].Reg()
+		arg1 := v.Args[1].Reg()
+		// SYNC
+		psync := gc.Prog(ppc64.ASYNC)
+		psync.To.Type = obj.TYPE_NONE
+		// Store
+		p := gc.Prog(st)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = arg0
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = arg1
+
+	case ssa.OpPPC64LoweredAtomicCas64,
+		ssa.OpPPC64LoweredAtomicCas32:
+		// SYNC
+		// loop:
+		// LDAR        (Rarg0), Rtmp
+		// CMP         Rarg1, Rtmp
+		// BNE         fail
+		// STDCCC      Rarg2, (Rarg0)
+		// BNE         loop
+		// ISYNC
+		// MOVD        $1, Rout
+		// BR          end
+		// fail:
+		// MOVD        $0, Rout
+		// end:
+		ld := ppc64.ALDAR
+		st := ppc64.ASTDCCC
+		cmp := ppc64.ACMP
+		if v.Op == ssa.OpPPC64LoweredAtomicCas32 {
+			ld = ppc64.ALWAR
+			st = ppc64.ASTWCCC
+			cmp = ppc64.ACMPW
+		}
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		r2 := v.Args[2].Reg()
+		out := v.Reg0()
+		// SYNC
+		psync := gc.Prog(ppc64.ASYNC)
+		psync.To.Type = obj.TYPE_NONE
+		// LDAR or LWAR
+		p := gc.Prog(ld)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ppc64.REGTMP
+		// CMP reg1,reg2
+		p1 := gc.Prog(cmp)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.To.Reg = ppc64.REGTMP
+		p1.To.Type = obj.TYPE_REG
+		// BNE cas_fail
+		p2 := gc.Prog(ppc64.ABNE)
+		p2.To.Type = obj.TYPE_BRANCH
+		// STDCCC or STWCCC
+		p3 := gc.Prog(st)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = r2
+		p3.To.Type = obj.TYPE_MEM
+		p3.To.Reg = r0
+		// BNE retry
+		p4 := gc.Prog(ppc64.ABNE)
+		p4.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p4, p)
+		// ISYNC
+		pisync := gc.Prog(ppc64.AISYNC)
+		pisync.To.Type = obj.TYPE_NONE
+		// return true
+		p5 := gc.Prog(ppc64.AMOVD)
+		p5.From.Type = obj.TYPE_CONST
+		p5.From.Offset = 1
+		p5.To.Type = obj.TYPE_REG
+		p5.To.Reg = out
+		// BR done
+		p6 := gc.Prog(obj.AJMP)
+		p6.To.Type = obj.TYPE_BRANCH
+		// return false
+		p7 := gc.Prog(ppc64.AMOVD)
+		p7.From.Type = obj.TYPE_CONST
+		p7.From.Offset = 0
+		p7.To.Type = obj.TYPE_REG
+		p7.To.Reg = out
+		gc.Patch(p2, p7)
+		// done (label)
+		p8 := gc.Prog(obj.ANOP)
+		gc.Patch(p6, p8)
+
 	case ssa.OpPPC64LoweredGetClosurePtr:
 		// Closure pointer is R11 (already)
 		gc.CheckLoweredGetClosurePtr(v)
@@ -790,6 +1056,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.KeepAlive(v)
 	case ssa.OpPhi:
 		gc.CheckLoweredPhi(v)
+	case ssa.OpSelect0, ssa.OpSelect1:
+		// nothing to do
 
 	case ssa.OpPPC64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
