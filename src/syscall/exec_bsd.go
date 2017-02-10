@@ -146,9 +146,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		if ngroups > 0 {
 			groups = uintptr(unsafe.Pointer(&cred.Groups[0]))
 		}
-		_, _, err1 = RawSyscall(SYS_SETGROUPS, ngroups, groups, 0)
-		if err1 != 0 {
-			goto childerror
+		if !cred.NoSetGroups {
+			_, _, err1 = RawSyscall(SYS_SETGROUPS, ngroups, groups, 0)
+			if err1 != 0 {
+				goto childerror
+			}
 		}
 		_, _, err1 = RawSyscall(SYS_SETGID, uintptr(cred.Gid), 0, 0)
 		if err1 != 0 {
