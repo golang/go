@@ -151,7 +151,7 @@ func TestTraceSymbolize(t *testing.T) {
 			{"testing.tRunner", 0},
 		}},
 		{trace.EvGoCreate, []frame{
-			{"runtime/trace_test.TestTraceSymbolize", 39},
+			{"runtime/trace_test.TestTraceSymbolize", 37},
 			{"testing.tRunner", 0},
 		}},
 		{trace.EvGoStop, []frame{

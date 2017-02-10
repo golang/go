@@ -7,7 +7,7 @@
 package p
 
 type T interface {
-	M(interface {
+	M(interface { // ERROR "cannot export unnamed recursive interface"
 		T
-	}) // ERROR "cannot export unnamed recursive interface"
+	})
 }
