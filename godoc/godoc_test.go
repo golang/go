@@ -5,7 +5,7 @@
 package godoc
 
 import (
-	"go/ast"
+	"bytes"
 	"go/parser"
 	"go/token"
 	"strings"
@@ -124,7 +124,7 @@ func TestSanitizeFunc(t *testing.T) {
 // Test that we add <span id="StructName.FieldName"> elements
 // to the HTML of struct fields.
 func TestStructFieldsIDAttributes(t *testing.T) {
-	got := linkifyStructFields(t, []byte(`
+	got := linkifySource(t, []byte(`
 package foo
 
 type T struct {
@@ -157,7 +157,25 @@ Opt *<a href="/pkg/builtin/#int">int</a>
 	}
 }
 
-func linkifyStructFields(t *testing.T, src []byte) string {
+func TestCompositeLitLinkFields(t *testing.T) {
+	got := linkifySource(t, []byte(`
+package foo
+
+type T struct {
+	X int
+}
+
+var S T = T{X: 12}`))
+	want := `type T struct {
+<span id="T.X"></span>X <a href="/pkg/builtin/#int">int</a>
+}
+var S <a href="#T">T</a> = <a href="#T">T</a>{<a href="#T.X">X</a>: 12}`
+	if got != want {
+		t.Errorf("got: %s\n\nwant: %s\n", got, want)
+	}
+}
+
+func linkifySource(t *testing.T, src []byte) string {
 	p := &Presentation{
 		DeclLinks: true,
 	}
@@ -166,11 +184,17 @@ func linkifyStructFields(t *testing.T, src []byte) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	genDecl := af.Decls[0].(*ast.GenDecl)
+	var buf bytes.Buffer
 	pi := &PageInfo{
 		FSet: fset,
 	}
-	return p.node_htmlFunc(pi, genDecl, true)
+	sep := ""
+	for _, decl := range af.Decls {
+		buf.WriteString(sep)
+		sep = "\n"
+		buf.WriteString(p.node_htmlFunc(pi, decl, true))
+	}
+	return buf.String()
 }
 
 func TestScanIdentifier(t *testing.T) {

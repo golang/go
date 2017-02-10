@@ -29,7 +29,7 @@ func TestStructField(t *testing.T) {
 				fmt.Fprintf(&buf, "\t// Field%d is foo.\n\tField%d int\n\n", i, i)
 			}
 			fmt.Fprintf(&buf, "}\n")
-			linkifyStructFields(t, buf.Bytes())
+			linkifySource(t, buf.Bytes())
 		})
 	}
 }
