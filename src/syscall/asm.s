@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "textflag.h"
-
-TEXT ·use(SB),NOSPLIT,$0
-	RET
+// Dummy asm file to keep Windows building.
+// TODO(sameer): delete this after updating go tool
+// per Ian's comment in golang.org/cl/36716
