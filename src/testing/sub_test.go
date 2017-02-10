@@ -457,8 +457,14 @@ func TestBRun(t *T) {
 					_ = append([]byte(nil), buf[:]...)
 				}
 			}
-			b.Run("", func(b *B) { alloc(b) })
-			b.Run("", func(b *B) { alloc(b) })
+			b.Run("", func(b *B) {
+				alloc(b)
+				b.ReportAllocs()
+			})
+			b.Run("", func(b *B) {
+				alloc(b)
+				b.ReportAllocs()
+			})
 			// runtime.MemStats sometimes reports more allocations than the
 			// benchmark is responsible for. Luckily the point of this test is
 			// to ensure that the results are not underreported, so we can

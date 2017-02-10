@@ -73,9 +73,11 @@ type B struct {
 // a call to StopTimer.
 func (b *B) StartTimer() {
 	if !b.timerOn {
-		runtime.ReadMemStats(&memStats)
-		b.startAllocs = memStats.Mallocs
-		b.startBytes = memStats.TotalAlloc
+		if *benchmarkMemory || b.showAllocResult {
+			runtime.ReadMemStats(&memStats)
+			b.startAllocs = memStats.Mallocs
+			b.startBytes = memStats.TotalAlloc
+		}
 		b.start = time.Now()
 		b.timerOn = true
 	}
@@ -87,9 +89,11 @@ func (b *B) StartTimer() {
 func (b *B) StopTimer() {
 	if b.timerOn {
 		b.duration += time.Now().Sub(b.start)
-		runtime.ReadMemStats(&memStats)
-		b.netAllocs += memStats.Mallocs - b.startAllocs
-		b.netBytes += memStats.TotalAlloc - b.startBytes
+		if *benchmarkMemory || b.showAllocResult {
+			runtime.ReadMemStats(&memStats)
+			b.netAllocs += memStats.Mallocs - b.startAllocs
+			b.netBytes += memStats.TotalAlloc - b.startBytes
+		}
 		b.timerOn = false
 	}
 }
@@ -98,9 +102,11 @@ func (b *B) StopTimer() {
 // It does not affect whether the timer is running.
 func (b *B) ResetTimer() {
 	if b.timerOn {
-		runtime.ReadMemStats(&memStats)
-		b.startAllocs = memStats.Mallocs
-		b.startBytes = memStats.TotalAlloc
+		if *benchmarkMemory || b.showAllocResult {
+			runtime.ReadMemStats(&memStats)
+			b.startAllocs = memStats.Mallocs
+			b.startBytes = memStats.TotalAlloc
+		}
 		b.start = time.Now()
 	}
 	b.duration = 0
@@ -294,6 +300,8 @@ func (b *B) launch() {
 }
 
 // The results of a benchmark run.
+// MemAllocs and MemBytes may be zero if memory benchmarking is not requested
+// using B.ReportAllocs or the -benchmem command line flag.
 type BenchmarkResult struct {
 	N         int           // The number of iterations.
 	T         time.Duration // The total time taken.
@@ -316,6 +324,7 @@ func (r BenchmarkResult) mbPerSec() float64 {
 	return (float64(r.Bytes) * float64(r.N) / 1e6) / r.T.Seconds()
 }
 
+// AllocsPerOp returns r.MemAllocs / r.N.
 func (r BenchmarkResult) AllocsPerOp() int64 {
 	if r.N <= 0 {
 		return 0
@@ -323,6 +332,7 @@ func (r BenchmarkResult) AllocsPerOp() int64 {
 	return int64(r.MemAllocs) / int64(r.N)
 }
 
+// AllocsPerOp returns r.MemBytes / r.N.
 func (r BenchmarkResult) AllocedBytesPerOp() int64 {
 	if r.N <= 0 {
 		return 0
@@ -350,6 +360,7 @@ func (r BenchmarkResult) String() string {
 	return fmt.Sprintf("%8d\t%s%s", r.N, ns, mb)
 }
 
+// MemString returns r.AllocedBytesPerOp and r.AllocsPerOp in the same format as 'go test'.
 func (r BenchmarkResult) MemString() string {
 	return fmt.Sprintf("%8d B/op\t%8d allocs/op",
 		r.AllocedBytesPerOp(), r.AllocsPerOp())
