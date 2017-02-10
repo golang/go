@@ -95,6 +95,9 @@ type Logger interface {
 	// Fatal reports a compiler error and exits.
 	Fatalf(pos src.XPos, msg string, args ...interface{})
 
+	// Error reports a compiler error but keep going.
+	Error(pos src.XPos, msg string, args ...interface{})
+
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
 	Warnl(pos src.XPos, fmt_ string, args ...interface{})
 
@@ -354,6 +357,7 @@ func (c *Config) NewFunc() *Func {
 func (c *Config) Logf(msg string, args ...interface{})                 { c.fe.Logf(msg, args...) }
 func (c *Config) Log() bool                                            { return c.fe.Log() }
 func (c *Config) Fatalf(pos src.XPos, msg string, args ...interface{}) { c.fe.Fatalf(pos, msg, args...) }
+func (c *Config) Error(pos src.XPos, msg string, args ...interface{})  { c.fe.Error(pos, msg, args...) }
 func (c *Config) Warnl(pos src.XPos, msg string, args ...interface{})  { c.fe.Warnl(pos, msg, args...) }
 func (c *Config) Debug_checknil() bool                                 { return c.fe.Debug_checknil() }
 func (c *Config) Debug_wb() bool                                       { return c.fe.Debug_wb() }

@@ -50,14 +50,6 @@ func buildssa(fn *Node) *ssa.Func {
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
 		s.cgoUnsafeArgs = true
 	}
-	if fn.Func.Pragma&Nowritebarrier != 0 {
-		s.noWB = true
-	}
-	defer func() {
-		if s.WBPos.IsKnown() {
-			fn.Func.WBPos = s.WBPos
-		}
-	}()
 	// TODO(khr): build config just once at the start of the compiler binary
 
 	ssaExp.log = printssa
@@ -68,6 +60,14 @@ func buildssa(fn *Node) *ssa.Func {
 	if fn.Func.Pragma&Nosplit != 0 {
 		s.f.NoSplit = true
 	}
+	if fn.Func.Pragma&Nowritebarrier != 0 {
+		s.f.NoWB = true
+	}
+	defer func() {
+		if s.f.WBPos.IsKnown() {
+			fn.Func.WBPos = s.f.WBPos
+		}
+	}()
 	s.exitCode = fn.Func.Exit
 	s.panics = map[funcLine]*ssa.Block{}
 	s.config.DebugTest = s.config.DebugHashMatch("GOSSAHASH", name)
@@ -150,6 +150,10 @@ func buildssa(fn *Node) *ssa.Func {
 
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
+	if nerrors > 0 {
+		s.f.Free()
+		return nil
+	}
 
 	return s.f
 }
@@ -214,8 +218,6 @@ type state struct {
 	placeholder *ssa.Value
 
 	cgoUnsafeArgs bool
-	noWB          bool
-	WBPos         src.XPos // line number of first write barrier. 0=no write barriers
 }
 
 type funcLine struct {
@@ -517,8 +519,8 @@ func (s *state) stmt(n *Node) {
 			deref = true
 			res = res.Args[0]
 		}
-		s.assign(n.List.First(), res, needwritebarrier(n.List.First()), deref, 0)
-		s.assign(n.List.Second(), resok, false, false, 0)
+		s.assign(n.List.First(), res, deref, 0)
+		s.assign(n.List.Second(), resok, false, 0)
 		return
 
 	case OAS2FUNC:
@@ -529,8 +531,8 @@ func (s *state) stmt(n *Node) {
 		v := s.intrinsicCall(n.Rlist.First())
 		v1 := s.newValue1(ssa.OpSelect0, n.List.First().Type, v)
 		v2 := s.newValue1(ssa.OpSelect1, n.List.Second().Type, v)
-		s.assign(n.List.First(), v1, needwritebarrier(n.List.First()), false, 0)
-		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second()), false, 0)
+		s.assign(n.List.First(), v1, false, 0)
+		s.assign(n.List.Second(), v2, false, 0)
 		return
 
 	case ODCL:
@@ -624,7 +626,6 @@ func (s *state) stmt(n *Node) {
 			}
 		}
 		var r *ssa.Value
-		needwb := n.Right != nil && needwritebarrier(n.Left)
 		deref := !canSSAType(t)
 		if deref {
 			if rhs == nil {
@@ -638,18 +639,6 @@ func (s *state) stmt(n *Node) {
 			} else {
 				r = s.expr(rhs)
 			}
-		}
-		if rhs != nil && rhs.Op == OAPPEND && needwritebarrier(n.Left) {
-			// The frontend gets rid of the write barrier to enable the special OAPPEND
-			// handling above, but since this is not a special case, we need it.
-			// TODO: just add a ptr graying to the end of growslice?
-			// TODO: check whether we need to provide special handling and a write barrier
-			// for ODOTTYPE and ORECV also.
-			// They get similar wb-removal treatment in walk.go:OAS.
-			needwb = true
-		}
-		if needwb && Debug_wb > 1 {
-			Warnl(n.Pos, "marking %v for barrier", n.Left)
 		}
 
 		var skip skipMask
@@ -682,7 +671,7 @@ func (s *state) stmt(n *Node) {
 			}
 		}
 
-		s.assign(n.Left, r, needwb, deref, skip)
+		s.assign(n.Left, r, deref, skip)
 
 	case OIF:
 		bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -2134,13 +2123,9 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
 		store.Aux = Types[TINT]
 		s.vars[&memVar] = store
-		if ssa.IsStackAddr(addr) {
-			store := s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
-			store.Aux = pt
-			s.vars[&memVar] = store
-		} else {
-			s.insertWBstore(pt, addr, r[0], 0)
-		}
+		store = s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
+		store.Aux = pt
+		s.vars[&memVar] = store
 		// load the value we just stored to avoid having to spill it
 		s.vars[&ptrVar] = s.newValue2(ssa.OpLoad, pt, addr, s.mem())
 		s.vars[&lenVar] = r[1] // avoid a spill in the fast path
@@ -2188,26 +2173,14 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		c = s.variable(&capVar, Types[TINT])     // generates phi for cap
 	}
 	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
-	// TODO: just one write barrier call for all of these writes?
-	// TODO: maybe just one writeBarrier.enabled check?
 	for i, arg := range args {
 		addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TINT], int64(i)))
 		if arg.store {
-			if haspointers(et) {
-				s.insertWBstore(et, addr, arg.v, 0)
-			} else {
-				store := s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg.v, s.mem())
-				store.Aux = et
-				s.vars[&memVar] = store
-			}
+			s.storeType(et, addr, arg.v, 0)
 		} else {
-			if haspointers(et) {
-				s.insertWBmove(et, addr, arg.v)
-			} else {
-				store := s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(et), addr, arg.v, s.mem())
-				store.Aux = et
-				s.vars[&memVar] = store
-			}
+			store := s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(et), addr, arg.v, s.mem())
+			store.Aux = et
+			s.vars[&memVar] = store
 		}
 	}
 
@@ -2278,9 +2251,8 @@ const (
 // Right has already been evaluated to ssa, left has not.
 // If deref is true, then we do left = *right instead (and right has already been nil-checked).
 // If deref is true and right == nil, just do left = 0.
-// Include a write barrier if wb is true.
 // skip indicates assignments (at the top level) that can be avoided.
-func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, skip skipMask) {
+func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) {
 	if left.Op == ONAME && isblank(left) {
 		return
 	}
@@ -2321,7 +2293,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, skip skipMa
 			}
 
 			// Recursively assign the new value we've made to the base of the dot op.
-			s.assign(left.Left, new, false, false, 0)
+			s.assign(left.Left, new, false, 0)
 			// TODO: do we need to update named values here?
 			return
 		}
@@ -2346,7 +2318,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, skip skipMa
 			i = s.extendIndex(i, panicindex)
 			s.boundsCheck(i, s.constInt(Types[TINT], 1))
 			v := s.newValue1(ssa.OpArrayMake1, t, right)
-			s.assign(left.Left, v, false, false, 0)
+			s.assign(left.Left, v, false, 0)
 			return
 		}
 		// Update variable assignment.
@@ -2369,42 +2341,18 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, skip skipMa
 	}
 	if deref {
 		// Treat as a mem->mem move.
-		if wb && !ssa.IsStackAddr(addr) {
-			s.insertWBmove(t, addr, right)
-			return
-		}
+		var store *ssa.Value
 		if right == nil {
-			store := s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
-			store.Aux = t
-			s.vars[&memVar] = store
-			return
+			store = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
+		} else {
+			store = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), addr, right, s.mem())
 		}
-		store := s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), addr, right, s.mem())
 		store.Aux = t
 		s.vars[&memVar] = store
 		return
 	}
 	// Treat as a store.
-	if wb && !ssa.IsStackAddr(addr) {
-		if skip&skipPtr != 0 {
-			// Special case: if we don't write back the pointers, don't bother
-			// doing the write barrier check.
-			s.storeTypeScalars(t, addr, right, skip)
-			return
-		}
-		s.insertWBstore(t, addr, right, skip)
-		return
-	}
-	if skip != 0 {
-		if skip&skipPtr == 0 {
-			s.storeTypePtrs(t, addr, right)
-		}
-		s.storeTypeScalars(t, addr, right, skip)
-		return
-	}
-	store := s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
-	store.Aux = t
-	s.vars[&memVar] = store
+	s.storeType(t, addr, right, skip)
 }
 
 // zeroVal returns the zero value for type t.
@@ -3403,65 +3351,15 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
 	return res
 }
 
-// insertWBmove inserts the assignment *left = *right including a write barrier.
-// t is the type being assigned.
-// If right == nil, then we're zeroing *left.
-func (s *state) insertWBmove(t *Type, left, right *ssa.Value) {
-	// if writeBarrier.enabled {
-	//   typedmemmove(&t, left, right)
-	// } else {
-	//   *left = *right
-	// }
-	//
-	// or
-	//
-	// if writeBarrier.enabled {
-	//   typedmemclr(&t, left)
-	// } else {
-	//   *left = zeroValue
-	// }
-
-	if s.noWB {
-		s.Error("write barrier prohibited")
-	}
-	if !s.WBPos.IsKnown() {
-		s.WBPos = left.Pos
-	}
-
-	var val *ssa.Value
-	if right == nil {
-		val = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), left, s.mem())
-	} else {
-		val = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
-	}
-	//val.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(t))}
-	val.Aux = t
-	s.vars[&memVar] = val
-}
-
-// insertWBstore inserts the assignment *left = right including a write barrier.
-// t is the type being assigned.
-func (s *state) insertWBstore(t *Type, left, right *ssa.Value, skip skipMask) {
-	// store scalar fields
-	// if writeBarrier.enabled {
-	//   writebarrierptr for pointer fields
-	// } else {
-	//   store pointer fields
-	// }
-
-	if s.noWB {
-		s.Error("write barrier prohibited")
-	}
-	if !s.WBPos.IsKnown() {
-		s.WBPos = left.Pos
-	}
-	if t == Types[TUINTPTR] {
-		// Stores to reflect.{Slice,String}Header.Data.
-		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
-		return
-	}
+// do *left = right for type t.
+func (s *state) storeType(t *Type, left, right *ssa.Value, skip skipMask) {
+	// store scalar fields first, so write barrier stores for
+	// pointer fields can be grouped together, and scalar values
+	// don't need to be live across the write barrier call.
 	s.storeTypeScalars(t, left, right, skip)
-	s.storeTypePtrsWB(t, left, right)
+	if skip&skipPtr == 0 && haspointers(t) {
+		s.storeTypePtrs(t, left, right)
+	}
 }
 
 // do *left = right for all scalar (non-pointer) parts of t.
@@ -3559,50 +3457,6 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 		// nothing
 	case t.IsArray() && t.NumElem() == 1:
 		s.storeTypePtrs(t.Elem(), left, s.newValue1I(ssa.OpArraySelect, t.Elem(), 0, right))
-	default:
-		s.Fatalf("bad write barrier type %v", t)
-	}
-}
-
-// do *left = right for all pointer parts of t, with write barriers if necessary.
-func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
-	switch {
-	case t.IsPtrShaped():
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
-		store.Aux = t
-		s.vars[&memVar] = store
-	case t.IsString():
-		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), right)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
-		store.Aux = ptrto(Types[TUINT8])
-		s.vars[&memVar] = store
-	case t.IsSlice():
-		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), right)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
-		store.Aux = ptrto(Types[TUINT8])
-		s.vars[&memVar] = store
-	case t.IsInterface():
-		// itab field is treated as a scalar.
-		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
-		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(ptrto(Types[TUINT8])), s.config.PtrSize, left)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
-		store.Aux = ptrto(Types[TUINT8])
-		s.vars[&memVar] = store
-	case t.IsStruct():
-		n := t.NumFields()
-		for i := 0; i < n; i++ {
-			ft := t.FieldType(i)
-			if !haspointers(ft.(*Type)) {
-				continue
-			}
-			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
-			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
-			s.storeTypePtrsWB(ft.(*Type), addr, val)
-		}
-	case t.IsArray() && t.NumElem() == 0:
-		// nothing
-	case t.IsArray() && t.NumElem() == 1:
-		s.storeTypePtrsWB(t.Elem(), left, s.newValue1I(ssa.OpArraySelect, t.Elem(), 0, right))
 	default:
 		s.Fatalf("bad write barrier type %v", t)
 	}
@@ -4954,6 +4808,11 @@ func (e *ssaExport) Log() bool {
 func (e *ssaExport) Fatalf(pos src.XPos, msg string, args ...interface{}) {
 	lineno = pos
 	Fatalf(msg, args...)
+}
+
+// Error reports a compiler error but keep going.
+func (e *ssaExport) Error(pos src.XPos, msg string, args ...interface{}) {
+	yyerrorl(pos, msg, args...)
 }
 
 // Warnl reports a "warning", which is usually flag-triggered
