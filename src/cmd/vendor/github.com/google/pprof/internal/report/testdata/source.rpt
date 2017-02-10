@@ -1,0 +1,49 @@
+Total: 11111
+ROUTINE ======================== bar in testdata/source1
+        10        110 (flat, cum)  0.99% of Total
+         .          .      5:source1 line 5;
+         .          .      6:source1 line 6;
+         .          .      7:source1 line 7;
+         .          .      8:source1 line 8;
+         .          .      9:source1 line 9;
+        10        110     10:source1 line 10;
+         .          .     11:source1 line 11;
+         .          .     12:source1 line 12;
+         .          .     13:source1 line 13;
+         .          .     14:source1 line 14;
+         .          .     15:source1 line 15;
+ROUTINE ======================== foo in testdata/source1
+         0         10 (flat, cum)  0.09% of Total
+         .          .      1:source1 line 1;
+         .          .      2:source1 line 2;
+         .          .      3:source1 line 3;
+         .         10      4:source1 line 4;
+         .          .      5:source1 line 5;
+         .          .      6:source1 line 6;
+         .          .      7:source1 line 7;
+         .          .      8:source1 line 8;
+         .          .      9:source1 line 9;
+ROUTINE ======================== main in testdata/source1
+         1      11111 (flat, cum)   100% of Total
+         .          .      1:source1 line 1;
+         1      11111      2:source1 line 2;
+         .          .      3:source1 line 3;
+         .          .      4:source1 line 4;
+         .          .      5:source1 line 5;
+         .          .      6:source1 line 6;
+         .          .      7:source1 line 7;
+ROUTINE ======================== tee in testdata/source2
+     11100      21100 (flat, cum) 189.90% of Total
+         .          .      1:source2 line 1;
+      1000      11000      2:source2 line 2;
+         .          .      3:source2 line 3;
+         .          .      4:source2 line 4;
+         .          .      5:source2 line 5;
+         .          .      6:source2 line 6;
+         .          .      7:source2 line 7;
+     10100      10100      8:source2 line 8;
+         .          .      9:source2 line 9;
+         .          .     10:source2 line 10;
+         .          .     11:source2 line 11;
+         .          .     12:source2 line 12;
+         .          .     13:source2 line 13;
