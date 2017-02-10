@@ -2478,17 +2478,24 @@ func TestNumMethodOnDDD(t *testing.T) {
 }
 
 func TestPtrTo(t *testing.T) {
+	// This block of code means that the ptrToThis field of the
+	// reflect data for *unsafe.Pointer is non zero, see
+	// https://golang.org/issue/19003
+	var x unsafe.Pointer
+	var y = &x
+	var z = &y
+
 	var i int
 
-	typ := TypeOf(i)
+	typ := TypeOf(z)
 	for i = 0; i < 100; i++ {
 		typ = PtrTo(typ)
 	}
 	for i = 0; i < 100; i++ {
 		typ = typ.Elem()
 	}
-	if typ != TypeOf(i) {
-		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, TypeOf(i))
+	if typ != TypeOf(z) {
+		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, TypeOf(z))
 	}
 }
 
@@ -6053,7 +6060,6 @@ func TestUnaddressableField(t *testing.T) {
 	})
 }
 
-
 type Tint int
 
 type Tint2 = Tint
@@ -6086,4 +6092,3 @@ func TestAliasNames(t *testing.T) {
 		t.Errorf("Talias2 print:\nhave: %s\nwant: %s", out, want)
 	}
 }
-
