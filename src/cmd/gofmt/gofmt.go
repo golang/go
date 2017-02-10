@@ -225,36 +225,45 @@ func gofmtMain() {
 	}
 }
 
+func writeTempFile(dir, prefix string, data []byte) (string, error) {
+	file, err := ioutil.TempFile(dir, prefix)
+	if err != nil {
+		return "", err
+	}
+	_, err = file.Write(data)
+	if err1 := file.Close(); err == nil {
+		err = err1
+	}
+	if err != nil {
+		os.Remove(file.Name())
+		return "", err
+	}
+	return file.Name(), nil
+}
+
 func diff(b1, b2 []byte, filename string) (data []byte, err error) {
-	f1, err := ioutil.TempFile("", "gofmt")
+	f1, err := writeTempFile("", "gofmt", b1)
 	if err != nil {
 		return
 	}
-	defer os.Remove(f1.Name())
-	defer f1.Close()
+	defer os.Remove(f1)
 
-	f2, err := ioutil.TempFile("", "gofmt")
+	f2, err := writeTempFile("", "gofmt", b2)
 	if err != nil {
 		return
 	}
-	defer os.Remove(f2.Name())
-	defer f2.Close()
-
-	f1.Write(b1)
-	f2.Write(b2)
+	defer os.Remove(f2)
 
 	cmd := "diff"
 	if runtime.GOOS == "plan9" {
 		cmd = "/bin/ape/diff"
 	}
 
-	data, err = exec.Command(cmd, "-u", f1.Name(), f2.Name()).CombinedOutput()
+	data, err = exec.Command(cmd, "-u", f1, f2).CombinedOutput()
 	if len(data) > 0 {
 		// diff exits with a non-zero status when the files don't match.
 		// Ignore that failure as long as we get output.
-		err = nil
-
-		data, err = replaceTempFilename(data, filename)
+		return replaceTempFilename(data, filename)
 	}
 	return
 }
