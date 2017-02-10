@@ -748,16 +748,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		//
 		//	MOVQ g_panic(CX), BX
 		//	TESTQ BX, BX
-		//	JEQ end
+		//	JNE checkargp
+		// end:
+		//	NOP
+		//  ... rest of function ...
+		// checkargp:
 		//	LEAQ (autoffset+8)(SP), DI
 		//	CMPQ panic_argp(BX), DI
 		//	JNE end
-		//	MOVQ SP, panic_argp(BX)
-		// end:
-		//	NOP
+		//  MOVQ SP, panic_argp(BX)
+		//  JMP end
 		//
 		// The NOP is needed to give the jumps somewhere to land.
 		// It is a liblink NOP, not an x86 NOP: it encodes to 0 instruction bytes.
+		//
+		// The layout is chosen to help static branch prediction:
+		// Both conditional jumps are unlikely, so they are arranged to be forward jumps.
 
 		// MOVQ g_panic(CX), BX
 		p = obj.Appendp(ctxt, p)
@@ -789,14 +795,23 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.As = ATESTL
 		}
 
-		// JEQ end
-		p = obj.Appendp(ctxt, p)
-		p.As = AJEQ
-		p.To.Type = obj.TYPE_BRANCH
-		p1 := p
+		// JNE checkargp (checkargp to be resolved later)
+		jne := obj.Appendp(ctxt, p)
+		jne.As = AJNE
+		jne.To.Type = obj.TYPE_BRANCH
+
+		// end:
+		//  NOP
+		end := obj.Appendp(ctxt, jne)
+		end.As = obj.ANOP
+
+		// Fast forward to end of function.
+		var last *obj.Prog
+		for last = end; last.Link != nil; last = last.Link {
+		}
 
 		// LEAQ (autoffset+8)(SP), DI
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(ctxt, last)
 		p.As = ALEAQ
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = REG_SP
@@ -806,6 +821,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		if ctxt.Headtype == obj.Hnacl || p.Mode == 32 {
 			p.As = ALEAL
 		}
+
+		// Set jne branch target.
+		jne.Pcond = p
 
 		// CMPQ panic_argp(BX), DI
 		p = obj.Appendp(ctxt, p)
@@ -830,7 +848,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p = obj.Appendp(ctxt, p)
 		p.As = AJNE
 		p.To.Type = obj.TYPE_BRANCH
-		p2 := p
+		p.Pcond = end
 
 		// MOVQ SP, panic_argp(BX)
 		p = obj.Appendp(ctxt, p)
@@ -851,13 +869,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.As = AMOVL
 		}
 
-		// NOP
+		// JMP end
 		p = obj.Appendp(ctxt, p)
-		p.As = obj.ANOP
+		p.As = obj.AJMP
+		p.To.Type = obj.TYPE_BRANCH
+		p.Pcond = end
 
-		// Set targets for jumps above to the NOP
-		p1.Pcond = p
-		p2.Pcond = p
+		// Reset p for following code.
+		p = end
 	}
 
 	for ; p != nil; p = p.Link {
