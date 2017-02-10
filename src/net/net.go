@@ -81,6 +81,7 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/poll"
 	"io"
 	"os"
 	"syscall"
@@ -234,7 +235,7 @@ func (c *conn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.setDeadline(t); err != nil {
+	if err := c.fd.pfd.SetDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -245,7 +246,7 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.setReadDeadline(t); err != nil {
+	if err := c.fd.pfd.SetReadDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -256,7 +257,7 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.setWriteDeadline(t); err != nil {
+	if err := c.fd.pfd.SetWriteDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -391,10 +392,8 @@ var (
 	errMissingAddress = errors.New("missing address")
 
 	// For both read and write operations.
-	errTimeout          error = &timeoutError{}
-	errCanceled               = errors.New("operation was canceled")
-	errClosing                = errors.New("use of closed network connection")
-	ErrWriteToConnected       = errors.New("use of WriteTo with pre-connected connection")
+	errCanceled         = errors.New("operation was canceled")
+	ErrWriteToConnected = errors.New("use of WriteTo with pre-connected connection")
 )
 
 // mapErr maps from the context errors to the historical internal net
@@ -407,7 +406,7 @@ func mapErr(err error) error {
 	case context.Canceled:
 		return errCanceled
 	case context.DeadlineExceeded:
-		return errTimeout
+		return poll.ErrTimeout
 	default:
 		return err
 	}
@@ -501,12 +500,6 @@ func (e *OpError) Temporary() bool {
 	t, ok := e.Err.(temporary)
 	return ok && t.Temporary()
 }
-
-type timeoutError struct{}
-
-func (e *timeoutError) Error() string   { return "i/o timeout" }
-func (e *timeoutError) Timeout() bool   { return true }
-func (e *timeoutError) Temporary() bool { return true }
 
 // A ParseError is the error type of literal network address parsers.
 type ParseError struct {
@@ -631,8 +624,6 @@ func releaseThread() {
 type buffersWriter interface {
 	writeBuffers(*Buffers) (int64, error)
 }
-
-var testHookDidWritev = func(wrote int) {}
 
 // Buffers contains zero or more runs of bytes to write.
 //

@@ -255,7 +255,7 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	if !l.ok() {
 		return syscall.EINVAL
 	}
-	if err := l.fd.setDeadline(t); err != nil {
+	if err := l.fd.pfd.SetDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
 	}
 	return nil

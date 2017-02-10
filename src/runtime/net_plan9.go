@@ -8,12 +8,12 @@ import (
 	_ "unsafe"
 )
 
-//go:linkname runtime_ignoreHangup net.runtime_ignoreHangup
+//go:linkname runtime_ignoreHangup internal/poll.runtime_ignoreHangup
 func runtime_ignoreHangup() {
 	getg().m.ignoreHangup = true
 }
 
-//go:linkname runtime_unignoreHangup net.runtime_unignoreHangup
+//go:linkname runtime_unignoreHangup internal/poll.runtime_unignoreHangup
 func runtime_unignoreHangup(sig string) {
 	getg().m.ignoreHangup = false
 }

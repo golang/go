@@ -249,10 +249,10 @@ func (fd *netFD) netFD() (*netFD, error) {
 
 func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
 	defer func() { fixErr(err) }()
-	if err := fd.readLock(); err != nil {
+	if err := fd.pfd.ReadLock(); err != nil {
 		return nil, err
 	}
-	defer fd.readUnlock()
+	defer fd.pfd.ReadUnlock()
 	listen, err := os.Open(fd.dir + "/listen")
 	if err != nil {
 		return nil, err

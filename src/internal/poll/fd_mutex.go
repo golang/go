@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package net
+package poll
 
 import "sync/atomic"
 
 // fdMutex is a specialized synchronization primitive that manages
 // lifetime of an fd and serializes access to Read, Write and Close
-// methods on netFD.
+// methods on FD.
 type fdMutex struct {
 	state uint64
 	rsema uint32
@@ -16,7 +16,7 @@ type fdMutex struct {
 }
 
 // fdMutex.state is organized as follows:
-// 1 bit - whether netFD is closed, if set all subsequent lock operations will fail.
+// 1 bit - whether FD is closed, if set all subsequent lock operations will fail.
 // 1 bit - lock for read operations.
 // 1 bit - lock for write operations.
 // 20 bits - total number of references (read+write+misc).
@@ -196,9 +196,9 @@ func runtime_Semrelease(sema *uint32)
 
 // incref adds a reference to fd.
 // It returns an error when fd cannot be used.
-func (fd *netFD) incref() error {
+func (fd *FD) incref() error {
 	if !fd.fdmu.incref() {
-		return errClosing
+		return ErrClosing
 	}
 	return nil
 }
@@ -206,17 +206,18 @@ func (fd *netFD) incref() error {
 // decref removes a reference from fd.
 // It also closes fd when the state of fd is set to closed and there
 // is no remaining reference.
-func (fd *netFD) decref() {
+func (fd *FD) decref() error {
 	if fd.fdmu.decref() {
-		fd.destroy()
+		return fd.destroy()
 	}
+	return nil
 }
 
 // readLock adds a reference to fd and locks fd for reading.
 // It returns an error when fd cannot be used for reading.
-func (fd *netFD) readLock() error {
+func (fd *FD) readLock() error {
 	if !fd.fdmu.rwlock(true) {
-		return errClosing
+		return ErrClosing
 	}
 	return nil
 }
@@ -224,7 +225,7 @@ func (fd *netFD) readLock() error {
 // readUnlock removes a reference from fd and unlocks fd for reading.
 // It also closes fd when the state of fd is set to closed and there
 // is no remaining reference.
-func (fd *netFD) readUnlock() {
+func (fd *FD) readUnlock() {
 	if fd.fdmu.rwunlock(true) {
 		fd.destroy()
 	}
@@ -232,9 +233,9 @@ func (fd *netFD) readUnlock() {
 
 // writeLock adds a reference to fd and locks fd for writing.
 // It returns an error when fd cannot be used for writing.
-func (fd *netFD) writeLock() error {
+func (fd *FD) writeLock() error {
 	if !fd.fdmu.rwlock(false) {
-		return errClosing
+		return ErrClosing
 	}
 	return nil
 }
@@ -242,7 +243,7 @@ func (fd *netFD) writeLock() error {
 // writeUnlock removes a reference from fd and unlocks fd for writing.
 // It also closes fd when the state of fd is set to closed and there
 // is no remaining reference.
-func (fd *netFD) writeUnlock() {
+func (fd *FD) writeUnlock() {
 	if fd.fdmu.rwunlock(false) {
 		fd.destroy()
 	}

@@ -61,8 +61,8 @@ func sync_runtime_Semacquire(addr *uint32) {
 	semacquire(addr, semaBlockProfile)
 }
 
-//go:linkname net_runtime_Semacquire net.runtime_Semacquire
-func net_runtime_Semacquire(addr *uint32) {
+//go:linkname poll_runtime_Semacquire internal/poll.runtime_Semacquire
+func poll_runtime_Semacquire(addr *uint32) {
 	semacquire(addr, semaBlockProfile)
 }
 
@@ -76,8 +76,8 @@ func sync_runtime_SemacquireMutex(addr *uint32) {
 	semacquire(addr, semaBlockProfile|semaMutexProfile)
 }
 
-//go:linkname net_runtime_Semrelease net.runtime_Semrelease
-func net_runtime_Semrelease(addr *uint32) {
+//go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
+func poll_runtime_Semrelease(addr *uint32) {
 	semrelease(addr)
 }
 

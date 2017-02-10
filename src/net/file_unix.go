@@ -7,6 +7,7 @@
 package net
 
 import (
+	"internal/poll"
 	"os"
 	"syscall"
 )
@@ -17,7 +18,7 @@ func dupSocket(f *os.File) (int, error) {
 		return -1, err
 	}
 	if err := syscall.SetNonblock(s, true); err != nil {
-		closeFunc(s)
+		poll.CloseFunc(s)
 		return -1, os.NewSyscallError("setnonblock", err)
 	}
 	return s, nil
@@ -31,7 +32,7 @@ func newFileFD(f *os.File) (*netFD, error) {
 	family := syscall.AF_UNSPEC
 	sotype, err := syscall.GetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_TYPE)
 	if err != nil {
-		closeFunc(s)
+		poll.CloseFunc(s)
 		return nil, os.NewSyscallError("getsockopt", err)
 	}
 	lsa, _ := syscall.Getsockname(s)
@@ -44,12 +45,12 @@ func newFileFD(f *os.File) (*netFD, error) {
 	case *syscall.SockaddrUnix:
 		family = syscall.AF_UNIX
 	default:
-		closeFunc(s)
+		poll.CloseFunc(s)
 		return nil, syscall.EPROTONOSUPPORT
 	}
 	fd, err := newFD(s, family, sotype, "")
 	if err != nil {
-		closeFunc(s)
+		poll.CloseFunc(s)
 		return nil, err
 	}
 	laddr := fd.addrFunc()(lsa)
