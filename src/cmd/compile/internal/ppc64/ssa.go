@@ -177,27 +177,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		{
 			x := v.Args[0].Reg()
 			y := v.Reg()
-			p := gc.Prog(ppc64.AFMOVD)
+
+			p := gc.Prog(ppc64.AMFVSRD)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
-			s.AddrScratch(&p.To)
-			p = gc.Prog(ppc64.AMOVD)
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = y
-			s.AddrScratch(&p.From)
 		}
 	case ssa.OpPPC64Xi2f64:
 		{
 			x := v.Args[0].Reg()
 			y := v.Reg()
-			p := gc.Prog(ppc64.AMOVD)
+
+			p := gc.Prog(ppc64.AMTVSRD)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
-			s.AddrScratch(&p.To)
-			p = gc.Prog(ppc64.AFMOVD)
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = y
-			s.AddrScratch(&p.From)
 		}
 
 	case ssa.OpPPC64LoweredGetClosurePtr:

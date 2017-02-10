@@ -111,6 +111,8 @@ var progtable = [ppc64.ALAST & obj.AMask]gc.ProgInfo{
 	ppc64.AFMOVSX & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
 	ppc64.AFMOVSZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
 	ppc64.AFMOVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+	ppc64.AMFVSRD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+	ppc64.AMTVSRD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
 
 	// Jumps
 	ppc64.ABR & obj.AMask:  {Flags: gc.Jump | gc.Break},
