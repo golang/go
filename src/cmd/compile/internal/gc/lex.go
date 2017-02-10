@@ -16,7 +16,7 @@ import (
 // TODO(gri) rename and eventually remove
 var lineno src.XPos
 
-func MakePos(base *src.PosBase, line, col uint) src.XPos {
+func makePos(base *src.PosBase, line, col uint) src.XPos {
 	return Ctxt.PosTable.XPos(src.MakePos(base, line, col))
 }
 

@@ -111,7 +111,7 @@ func (p *noder) node() {
 	// for fninit and set lineno to NoPos here.
 	// TODO(gri) fix this once we switched permanently to the new
 	// position information.
-	lineno = MakePos(p.file.Pos().Base(), uint(p.file.Lines), 0)
+	lineno = makePos(p.file.Pos().Base(), uint(p.file.Lines), 0)
 
 	clearImports()
 }
@@ -322,7 +322,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		yyerror("can only use //go:noescape with external func implementations")
 	}
 	f.Func.Pragma = pragma
-	lineno = MakePos(fun.Pos().Base(), fun.EndLine, 0)
+	lineno = makePos(fun.Pos().Base(), fun.EndLine, 0)
 	f.Func.Endlineno = lineno
 
 	funcbody(f)
@@ -448,14 +448,14 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 			l[i] = p.wrapname(expr.ElemList[i], e)
 		}
 		n.List.Set(l)
-		lineno = MakePos(expr.Pos().Base(), expr.EndLine, 0)
+		lineno = makePos(expr.Pos().Base(), expr.EndLine, 0)
 		return n
 	case *syntax.KeyValueExpr:
 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
 		closurehdr(p.typeExpr(expr.Type))
 		body := p.stmts(expr.Body)
-		lineno = MakePos(expr.Pos().Base(), expr.EndLine, 0)
+		lineno = makePos(expr.Pos().Base(), expr.EndLine, 0)
 		return p.setlineno(expr, closurebody(body))
 	case *syntax.ParenExpr:
 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
