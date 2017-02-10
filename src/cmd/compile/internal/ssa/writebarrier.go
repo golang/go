@@ -19,7 +19,7 @@ func needwb(v *Value) bool {
 	if !t.HasPointer() {
 		return false
 	}
-	if IsStackAddr(v.Args[0]) {
+	if isStackAddr(v.Args[0]) {
 		return false // write on stack doesn't need write barrier
 	}
 	return true
@@ -207,6 +207,12 @@ func writebarrier(f *Func) {
 				memElse = bElse.NewValue3I(pos, op, TypeMem, siz, ptr, val, memElse)
 			}
 
+			if f.NoWB {
+				f.Config.fe.Error(pos, "write barrier prohibited")
+			}
+			if !f.WBPos.IsKnown() {
+				f.WBPos = pos
+			}
 			if f.Config.fe.Debug_wb() {
 				f.Config.Warnl(pos, "write barrier")
 			}
@@ -309,8 +315,8 @@ func round(o int64, r int64) int64 {
 	return (o + r - 1) &^ (r - 1)
 }
 
-// IsStackAddr returns whether v is known to be an address of a stack slot
-func IsStackAddr(v *Value) bool {
+// isStackAddr returns whether v is known to be an address of a stack slot
+func isStackAddr(v *Value) bool {
 	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
 		v = v.Args[0]
 	}
