@@ -15,8 +15,21 @@ import (
 	"cmd/internal/objfile"
 )
 
+const helpText = `usage: go tool nm [options] file...
+  -n
+      an alias for -sort address (numeric),
+      for compatibility with other nm commands
+  -size
+      print symbol size in decimal between address and type
+  -sort {address,name,none,size}
+      sort output in the given order (default name)
+      size orders from largest to smallest
+  -type
+      print symbol type after name
+`
+
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: go tool nm [-n] [-size] [-sort order] [-type] file...\n")
+	fmt.Fprintf(os.Stderr, helpText)
 	os.Exit(2)
 }
 
