@@ -268,11 +268,13 @@ func BenchmarkEncoderEncode(b *testing.B) {
 		X, Y string
 	}
 	v := &T{"foo", "bar"}
-	for i := 0; i < b.N; i++ {
-		if err := NewEncoder(ioutil.Discard).Encode(v); err != nil {
-			b.Fatal(err)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if err := NewEncoder(ioutil.Discard).Encode(v); err != nil {
+				b.Fatal(err)
+			}
 		}
-	}
+	})
 }
 
 type tokenStreamCase struct {

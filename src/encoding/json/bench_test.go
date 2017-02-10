@@ -82,12 +82,14 @@ func BenchmarkCodeEncoder(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	enc := NewEncoder(ioutil.Discard)
-	for i := 0; i < b.N; i++ {
-		if err := enc.Encode(&codeStruct); err != nil {
-			b.Fatal("Encode:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		enc := NewEncoder(ioutil.Discard)
+		for pb.Next() {
+			if err := enc.Encode(&codeStruct); err != nil {
+				b.Fatal("Encode:", err)
+			}
 		}
-	}
+	})
 	b.SetBytes(int64(len(codeJSON)))
 }
 
@@ -97,11 +99,13 @@ func BenchmarkCodeMarshal(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	for i := 0; i < b.N; i++ {
-		if _, err := Marshal(&codeStruct); err != nil {
-			b.Fatal("Marshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, err := Marshal(&codeStruct); err != nil {
+				b.Fatal("Marshal:", err)
+			}
 		}
-	}
+	})
 	b.SetBytes(int64(len(codeJSON)))
 }
 
@@ -111,19 +115,21 @@ func BenchmarkCodeDecoder(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	var buf bytes.Buffer
-	dec := NewDecoder(&buf)
-	var r codeResponse
-	for i := 0; i < b.N; i++ {
-		buf.Write(codeJSON)
-		// hide EOF
-		buf.WriteByte('\n')
-		buf.WriteByte('\n')
-		buf.WriteByte('\n')
-		if err := dec.Decode(&r); err != nil {
-			b.Fatal("Decode:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		var buf bytes.Buffer
+		dec := NewDecoder(&buf)
+		var r codeResponse
+		for pb.Next() {
+			buf.Write(codeJSON)
+			// hide EOF
+			buf.WriteByte('\n')
+			buf.WriteByte('\n')
+			buf.WriteByte('\n')
+			if err := dec.Decode(&r); err != nil {
+				b.Fatal("Decode:", err)
+			}
 		}
-	}
+	})
 	b.SetBytes(int64(len(codeJSON)))
 }
 
@@ -155,12 +161,14 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	for i := 0; i < b.N; i++ {
-		var r codeResponse
-		if err := Unmarshal(codeJSON, &r); err != nil {
-			b.Fatal("Unmarshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var r codeResponse
+			if err := Unmarshal(codeJSON, &r); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
 		}
-	}
+	})
 	b.SetBytes(int64(len(codeJSON)))
 }
 
@@ -170,65 +178,75 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	var r codeResponse
-	for i := 0; i < b.N; i++ {
-		if err := Unmarshal(codeJSON, &r); err != nil {
-			b.Fatal("Unmarshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		var r codeResponse
+		for pb.Next() {
+			if err := Unmarshal(codeJSON, &r); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
 		}
-	}
+	})
+	// TODO(bcmills): Is there a missing b.SetBytes here?
 }
 
 func BenchmarkUnmarshalString(b *testing.B) {
 	data := []byte(`"hello, world"`)
-	var s string
-
-	for i := 0; i < b.N; i++ {
-		if err := Unmarshal(data, &s); err != nil {
-			b.Fatal("Unmarshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		var s string
+		for pb.Next() {
+			if err := Unmarshal(data, &s); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
 		}
-	}
+	})
 }
 
 func BenchmarkUnmarshalFloat64(b *testing.B) {
-	var f float64
 	data := []byte(`3.14`)
-
-	for i := 0; i < b.N; i++ {
-		if err := Unmarshal(data, &f); err != nil {
-			b.Fatal("Unmarshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		var f float64
+		for pb.Next() {
+			if err := Unmarshal(data, &f); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
 		}
-	}
+	})
 }
 
 func BenchmarkUnmarshalInt64(b *testing.B) {
-	var x int64
 	data := []byte(`3`)
-
-	for i := 0; i < b.N; i++ {
-		if err := Unmarshal(data, &x); err != nil {
-			b.Fatal("Unmarshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		var x int64
+		for pb.Next() {
+			if err := Unmarshal(data, &x); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
 		}
-	}
+	})
 }
 
 func BenchmarkIssue10335(b *testing.B) {
 	b.ReportAllocs()
-	var s struct{}
 	j := []byte(`{"a":{ }}`)
-	for n := 0; n < b.N; n++ {
-		if err := Unmarshal(j, &s); err != nil {
-			b.Fatal(err)
+	b.RunParallel(func(pb *testing.PB) {
+		var s struct{}
+		for pb.Next() {
+			if err := Unmarshal(j, &s); err != nil {
+				b.Fatal(err)
+			}
 		}
-	}
+	})
 }
 
 func BenchmarkUnmapped(b *testing.B) {
 	b.ReportAllocs()
-	var s struct{}
 	j := []byte(`{"s": "hello", "y": 2, "o": {"x": 0}, "a": [1, 99, {"x": 1}]}`)
-	for n := 0; n < b.N; n++ {
-		if err := Unmarshal(j, &s); err != nil {
-			b.Fatal(err)
+	b.RunParallel(func(pb *testing.PB) {
+		var s struct{}
+		for pb.Next() {
+			if err := Unmarshal(j, &s); err != nil {
+				b.Fatal(err)
+			}
 		}
-	}
+	})
 }
