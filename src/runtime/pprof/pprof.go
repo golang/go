@@ -267,13 +267,18 @@ func (p *Profile) Add(value interface{}, skip int) {
 
 	stk := make([]uintptr, 32)
 	n := runtime.Callers(skip+1, stk[:])
+	stk = stk[:n]
+	if len(stk) == 0 {
+		// The value for skip is too large, and there's no stack trace to record.
+		stk = []uintptr{funcPC(lostProfileEvent)}
+	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.m[value] != nil {
 		panic("pprof: Profile.Add of duplicate value")
 	}
-	p.m[value] = stk[:n]
+	p.m[value] = stk
 }
 
 // Remove removes the execution stack associated with value from the profile.
