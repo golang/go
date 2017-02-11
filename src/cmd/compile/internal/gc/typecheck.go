@@ -2700,17 +2700,18 @@ out:
 
 notenough:
 	if n == nil || !n.Diag {
+		details := errorDetails(nl, tstruct, isddd)
 		if call != nil {
 			// call is the expression being called, not the overall call.
 			// Method expressions have the form T.M, and the compiler has
 			// rewritten those to ONAME nodes but left T in Left.
 			if call.Op == ONAME && call.Left != nil && call.Left.Op == OTYPE {
-				yyerror("not enough arguments in call to method expression %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
+				yyerror("not enough arguments in call to method expression %v%s", call, details)
 			} else {
-				yyerror("not enough arguments in call to %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
+				yyerror("not enough arguments in call to %v%s", call, details)
 			}
 		} else {
-			yyerror("not enough arguments to %v\n\thave %s\n\twant %v", op, nl.retsigerr(isddd), tstruct)
+			yyerror("not enough arguments to %v%s", op, details)
 		}
 		if n != nil {
 			n.Diag = true
@@ -2720,12 +2721,28 @@ notenough:
 	goto out
 
 toomany:
+	details := errorDetails(nl, tstruct, isddd)
 	if call != nil {
-		yyerror("too many arguments in call to %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
+		yyerror("too many arguments in call to %v%s", call, details)
 	} else {
-		yyerror("too many arguments to %v\n\thave %s\n\twant %v", op, nl.retsigerr(isddd), tstruct)
+		yyerror("too many arguments to %v%s", op, details)
 	}
 	goto out
+}
+
+func errorDetails(nl Nodes, tstruct *Type, isddd bool) string {
+	// If we don't know any type at a call site, let's suppress any return
+	// message signatures. See Issue https://golang.org/issues/19012.
+	if tstruct == nil {
+		return ""
+	}
+	// If any node has an unknown type, suppress it as well
+	for _, n := range nl.Slice() {
+		if n.Type == nil {
+			return ""
+		}
+	}
+	return fmt.Sprintf("\n\thave %s\n\twant %v", nl.retsigerr(isddd), tstruct)
 }
 
 // sigrepr is a type's representation to the outside world,
