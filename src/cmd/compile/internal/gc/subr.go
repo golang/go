@@ -1759,22 +1759,8 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	if rcvr.IsPtr() && rcvr.Elem() == methodrcvr {
 		// generating wrapper from *T to T.
 		n := nod(OIF, nil, nil)
-
 		n.Left = nod(OEQ, this.Left, nodnil())
-
-		// these strings are already in the reflect tables,
-		// so no space cost to use them here.
-		var l []*Node
-
-		var v Val
-		v.U = rcvr.Elem().Sym.Pkg.Name // package name
-		l = append(l, nodlit(v))
-		v.U = rcvr.Elem().Sym.Name // type name
-		l = append(l, nodlit(v))
-		v.U = method.Sym.Name
-		l = append(l, nodlit(v)) // method name
 		call := nod(OCALL, syslook("panicwrap"), nil)
-		call.List.Set(l)
 		n.Nbody.Set1(call)
 		fn.Nbody.Append(n)
 	}
