@@ -332,7 +332,7 @@ func (r BenchmarkResult) AllocsPerOp() int64 {
 	return int64(r.MemAllocs) / int64(r.N)
 }
 
-// AllocsPerOp returns r.MemBytes / r.N.
+// AllocedBytesPerOp returns r.MemBytes / r.N.
 func (r BenchmarkResult) AllocedBytesPerOp() int64 {
 	if r.N <= 0 {
 		return 0
