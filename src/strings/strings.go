@@ -72,21 +72,21 @@ func hashStrRev(sep string) (uint32, uint32) {
 	return hash, pow
 }
 
-// Count counts the number of non-overlapping instances of sep in s.
-// If sep is an empty string, Count returns 1 + the number of Unicode code points in s.
-func Count(s, sep string) int {
+// Count counts the number of non-overlapping instances of substr in s.
+// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
+func Count(s, substr string) int {
 	n := 0
 	// special case
-	if len(sep) == 0 {
+	if len(substr) == 0 {
 		return utf8.RuneCountInString(s) + 1
 	}
 	for {
-		i := Index(s, sep)
+		i := Index(s, substr)
 		if i == -1 {
 			return n
 		}
 		n++
-		s = s[i+len(sep):]
+		s = s[i+len(substr):]
 	}
 }
 
@@ -105,16 +105,16 @@ func ContainsRune(s string, r rune) bool {
 	return IndexRune(s, r) >= 0
 }
 
-// LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
-func LastIndex(s, sep string) int {
-	n := len(sep)
+// LastIndex returns the index of the last instance of substr in s, or -1 if substr is not present in s.
+func LastIndex(s, substr string) int {
+	n := len(substr)
 	switch {
 	case n == 0:
 		return len(s)
 	case n == 1:
-		return LastIndexByte(s, sep[0])
+		return LastIndexByte(s, substr[0])
 	case n == len(s):
-		if sep == s {
+		if substr == s {
 			return 0
 		}
 		return -1
@@ -122,20 +122,20 @@ func LastIndex(s, sep string) int {
 		return -1
 	}
 	// Rabin-Karp search from the end of the string
-	hashsep, pow := hashStrRev(sep)
+	hashss, pow := hashStrRev(substr)
 	last := len(s) - n
 	var h uint32
 	for i := len(s) - 1; i >= last; i-- {
 		h = h*primeRK + uint32(s[i])
 	}
-	if h == hashsep && s[last:] == sep {
+	if h == hashss && s[last:] == substr {
 		return last
 	}
 	for i := last - 1; i >= 0; i-- {
 		h *= primeRK
 		h += uint32(s[i])
 		h -= pow * uint32(s[i+n])
-		if h == hashsep && s[i:i+n] == sep {
+		if h == hashss && s[i:i+n] == substr {
 			return i
 		}
 	}
