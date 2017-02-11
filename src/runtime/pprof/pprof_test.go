@@ -635,3 +635,22 @@ func containsCounts(prof *profile.Profile, counts []int64) bool {
 	}
 	return true
 }
+
+// Issue 18836.
+func TestEmptyCallStack(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	p := NewProfile("test18836")
+	p.Add("foo", 47674)
+	p.WriteTo(&buf, 1)
+	p.Remove("foo")
+	got := buf.String()
+	prefix := "test18836 profile: total 1\n"
+	if !strings.HasPrefix(got, prefix) {
+		t.Fatalf("got:\n\t%q\nwant prefix:\n\t%q\n", got, prefix)
+	}
+	lostevent := "lostProfileEvent"
+	if !strings.Contains(got, lostevent) {
+		t.Fatalf("got:\n\t%q\ndoes not contain:\n\t%q\n", got, lostevent)
+	}
+}
