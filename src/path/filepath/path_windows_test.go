@@ -67,6 +67,9 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 		}
 	}
 
+	// on some systems, SystemRoot is required for cmd to work
+	systemRoot := os.Getenv("SystemRoot")
+
 	for i, d := range tt.result {
 		if d == "" {
 			continue
@@ -75,7 +78,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 		cmd := &exec.Cmd{
 			Path: comspec,
 			Args: []string{`/c`, cmdfile},
-			Env:  []string{`Path=` + tt.list},
+			Env:  []string{`Path=` + tt.list, `SystemRoot=` + systemRoot},
 			Dir:  tmp,
 		}
 		out, err := cmd.CombinedOutput()
