@@ -9,16 +9,16 @@ package strings
 // TODO: implements short string optimization on non amd64 platforms
 // and get rid of strings_amd64.go
 
-// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
-func Index(s, sep string) int {
-	n := len(sep)
+// Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
+func Index(s, substr string) int {
+	n := len(substr)
 	switch {
 	case n == 0:
 		return 0
 	case n == 1:
-		return IndexByte(s, sep[0])
+		return IndexByte(s, substr[0])
 	case n == len(s):
-		if sep == s {
+		if substr == s {
 			return 0
 		}
 		return -1
@@ -26,12 +26,12 @@ func Index(s, sep string) int {
 		return -1
 	}
 	// Rabin-Karp search
-	hashsep, pow := hashStr(sep)
+	hashss, pow := hashStr(substr)
 	var h uint32
 	for i := 0; i < n; i++ {
 		h = h*primeRK + uint32(s[i])
 	}
-	if h == hashsep && s[:n] == sep {
+	if h == hashss && s[:n] == substr {
 		return 0
 	}
 	for i := n; i < len(s); {
@@ -39,7 +39,7 @@ func Index(s, sep string) int {
 		h += uint32(s[i])
 		h -= pow * uint32(s[i-n])
 		i++
-		if h == hashsep && s[i-n:i] == sep {
+		if h == hashss && s[i-n:i] == substr {
 			return i - n
 		}
 	}
