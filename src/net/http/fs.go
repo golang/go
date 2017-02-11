@@ -43,6 +43,9 @@ func mapDirOpenError(originalErr error, name string) error {
 
 	parts := strings.Split(name, string(filepath.Separator))
 	for i := range parts {
+		if parts[i] == "" {
+			continue
+		}
 		fi, err := os.Stat(strings.Join(parts[:i+1], string(filepath.Separator)))
 		if err != nil {
 			return originalErr
