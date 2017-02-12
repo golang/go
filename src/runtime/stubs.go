@@ -97,8 +97,8 @@ var hashLoad = loadFactor
 func fastrand() uint32 {
 	mp := getg().m
 	fr := mp.fastrand
-	fr <<= 1
-	fr ^= uint32(int32(fr)>>31) & 0x88888eef
+	mx := uint32(int32(fr)>>31) & 0xa8888eef
+	fr = fr<<1 ^ mx
 	mp.fastrand = fr
 	return fr
 }
