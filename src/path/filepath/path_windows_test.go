@@ -433,3 +433,45 @@ func TestUNC(t *testing.T) {
 	defer debug.SetMaxStack(debug.SetMaxStack(1e6))
 	filepath.Glob(`\\?\c:\*`)
 }
+
+func TestWalkDirectoryJunction(t *testing.T) {
+	t.Skip("skipping broken test: see issue 10424")
+
+	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
+	if !strings.Contains(string(output), " /J ") {
+		t.Skip(`skipping test; mklink does not supports directory junctions`)
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestWalkDirectoryJunction")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(wd)
+
+	err = os.Chdir(tmpdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err = exec.Command("cmd", "/c", "mklink", "/J", "link", tmpdir).CombinedOutput()
+	if err != nil {
+		t.Errorf(`"mklink link %v" command failed: %v\n%v`, tmpdir, err, string(output))
+	}
+
+	walkfunc := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			t.Log(err)
+		}
+		return nil
+	}
+	err = filepath.Walk(tmpdir, walkfunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
