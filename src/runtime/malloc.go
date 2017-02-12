@@ -877,7 +877,7 @@ func nextSampleNoFP() int32 {
 		rate = 0x3fffffff
 	}
 	if rate != 0 {
-		return int32(int(fastrand()) % (2 * rate))
+		return int32(fastrand() % uint32(2*rate))
 	}
 	return 0
 }
