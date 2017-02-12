@@ -41,7 +41,7 @@ func testFastWalk(t *testing.T, files map[string]string, callback func(path stri
 			mu.Lock()
 			defer mu.Unlock()
 			if !strings.HasPrefix(path, t.gopath) {
-				t.Fatal("bogus prefix on %q, expect %q", path, t.gopath)
+				t.Fatalf("bogus prefix on %q, expect %q", path, t.gopath)
 			}
 			key := filepath.ToSlash(strings.TrimPrefix(path, t.gopath))
 			if old, dup := got[key]; dup {
