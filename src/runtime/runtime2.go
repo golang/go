@@ -286,6 +286,7 @@ type sudog struct {
 	acquiretime int64
 	releasetime int64
 	ticket      uint32
+	parent      *sudog // semaRoot binary tree
 	waitlink    *sudog // g.waiting list or semaRoot
 	waittail    *sudog // semaRoot
 	c           *hchan // channel
