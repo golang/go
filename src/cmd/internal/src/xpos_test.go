@@ -59,9 +59,9 @@ func TestConversion(t *testing.T) {
 func TestSize(t *testing.T) {
 	var p XPos
 	if unsafe.Alignof(p) != 4 {
-		t.Errorf("alignment = %s; want 4", unsafe.Alignof(p))
+		t.Errorf("alignment = %v; want 4", unsafe.Alignof(p))
 	}
 	if unsafe.Sizeof(p) != 8 {
-		t.Errorf("size = %s; want 8", unsafe.Sizeof(p))
+		t.Errorf("size = %v; want 8", unsafe.Sizeof(p))
 	}
 }
