@@ -1662,7 +1662,7 @@ func (p *parser) forStmt() Stmt {
 	s.init(p)
 
 	p.want(_For)
-	s.Init, s.Cond, s.Post = p.header(true)
+	s.Init, s.Cond, s.Post = p.header(_For)
 	if gcCompat {
 		s.init(p)
 	}
@@ -1688,10 +1688,13 @@ func (p *parser) stmtBody(context string) []Stmt {
 	return body
 }
 
-var dummyCond = &Name{Value: "false"}
+func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleStmt) {
+	// TODO(gri) move caller's p.want(keyword) here, once we removed gcCompat
 
-func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleStmt) {
 	if p.tok == _Lbrace {
+		if keyword == _If {
+			p.syntax_error("missing condition in if statement")
+		}
 		return
 	}
 
@@ -1700,11 +1703,11 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
 
 	if p.tok != _Semi {
 		// accept potential varDecl but complain
-		if forStmt && p.got(_Var) {
+		if keyword == _For && p.got(_Var) {
 			p.syntax_error("var declaration not allowed in for initializer")
 		}
-		init = p.simpleStmt(nil, forStmt)
-		// If we have a range clause, we are done.
+		init = p.simpleStmt(nil, keyword == _For)
+		// If we have a range clause, we are done (can only happen for keyword == _For).
 		if _, ok := init.(*RangeClause); ok {
 			p.xnest = outer
 			return
@@ -1712,8 +1715,15 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
 	}
 
 	var condStmt SimpleStmt
-	if p.got(_Semi) {
-		if forStmt {
+	var semi struct {
+		pos src.Pos
+		lit string
+	}
+	if p.tok == _Semi {
+		semi.pos = p.pos()
+		semi.lit = p.lit
+		p.next()
+		if keyword == _For {
 			if p.tok != _Semi {
 				condStmt = p.simpleStmt(nil, false)
 			}
@@ -1732,12 +1742,17 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
 	// unpack condStmt
 	switch s := condStmt.(type) {
 	case nil:
-		// nothing to do
+		if keyword == _If {
+			if semi.lit != "semicolon" {
+				p.syntax_error_at(semi.pos, fmt.Sprintf("unexpected %s, expecting { after if clause", semi.lit))
+			} else {
+				p.syntax_error_at(semi.pos, "missing condition in if statement")
+			}
+		}
 	case *ExprStmt:
 		cond = s.X
 	default:
 		p.syntax_error(fmt.Sprintf("%s used as value", String(s)))
-		cond = dummyCond // avoid follow-up error for if statements
 	}
 
 	p.xnest = outer
@@ -1753,10 +1768,7 @@ func (p *parser) ifStmt() *IfStmt {
 	s.init(p)
 
 	p.want(_If)
-	s.Init, s.Cond, _ = p.header(false)
-	if s.Cond == nil {
-		p.syntax_error("missing condition in if statement")
-	}
+	s.Init, s.Cond, _ = p.header(_If)
 
 	if gcCompat {
 		s.init(p)
@@ -1788,7 +1800,7 @@ func (p *parser) switchStmt() *SwitchStmt {
 	s := new(SwitchStmt)
 	s.init(p)
 
-	s.Init, s.Tag, _ = p.header(false)
+	s.Init, s.Tag, _ = p.header(_Switch)
 
 	if !p.got(_Lbrace) {
 		p.syntax_error("missing { after switch clause")
