@@ -37,9 +37,10 @@ type Response struct {
 	// Header maps header keys to values. If the response had multiple
 	// headers with the same key, they may be concatenated, with comma
 	// delimiters.  (Section 4.2 of RFC 2616 requires that multiple headers
-	// be semantically equivalent to a comma-delimited sequence.) Values
-	// duplicated by other fields in this struct (e.g., ContentLength) are
-	// omitted from Header.
+	// be semantically equivalent to a comma-delimited sequence.) When
+	// Header values are duplicated by other fields in this struct (e.g.,
+	// ContentLength, TransferEncoding, Trailer), the field values are
+	// authoritative.
 	//
 	// Keys in the map are canonicalized (see CanonicalHeaderKey).
 	Header Header
