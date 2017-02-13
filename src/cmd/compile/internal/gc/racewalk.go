@@ -369,11 +369,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 
 		goto ret
 
-		// impossible nodes: only appear in backend.
-	case ORROTC, OEXTEND:
-		yyerror("instrument: %v cannot exist now", n.Op)
-		goto ret
-
 	case OGETG:
 		yyerror("instrument: OGETG can happen only in runtime which we don't instrument")
 		goto ret
