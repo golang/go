@@ -50,7 +50,7 @@ func (fd *FD) Close() error {
 	return nil
 }
 
-func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (n int, err error) {
+func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
 	if fd.rtimedout.isSet() {
 		return 0, ErrTimeout
 	}
@@ -62,7 +62,7 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (n int, err error) {
 		return 0, nil
 	}
 	fd.raio = newAsyncIO(fn, b)
-	n, err = fd.raio.Wait()
+	n, err := fd.raio.Wait()
 	fd.raio = nil
 	if isHangup(err) {
 		err = io.EOF
@@ -70,10 +70,10 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (n int, err error) {
 	if isInterrupted(err) {
 		err = ErrTimeout
 	}
-	return
+	return n, err
 }
 
-func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (n int, err error) {
+func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
 	if fd.wtimedout.isSet() {
 		return 0, ErrTimeout
 	}
@@ -82,12 +82,12 @@ func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (n int, err error) {
 	}
 	defer fd.writeUnlock()
 	fd.waio = newAsyncIO(fn, b)
-	n, err = fd.waio.Wait()
+	n, err := fd.waio.Wait()
 	fd.waio = nil
 	if isInterrupted(err) {
 		err = ErrTimeout
 	}
-	return
+	return n, err
 }
 
 func (fd *FD) SetDeadline(t time.Time) error {
