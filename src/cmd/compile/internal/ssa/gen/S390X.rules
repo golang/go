@@ -457,6 +457,40 @@
 // MOVDnop doesn't emit instruction, only for ensuring the type.
 (MOVDreg x) && x.Uses == 1 -> (MOVDnop x)
 
+// Fold type changes into loads.
+(MOVDreg <t> x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZload <t> [off] {sym} ptr mem)
+(MOVDreg <t> x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload  <t> [off] {sym} ptr mem)
+(MOVDreg <t> x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZload <t> [off] {sym} ptr mem)
+(MOVDreg <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload  <t> [off] {sym} ptr mem)
+(MOVDreg <t> x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZload <t> [off] {sym} ptr mem)
+(MOVDreg <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <t> [off] {sym} ptr mem)
+(MOVDreg <t> x:(MOVDload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDload  <t> [off] {sym} ptr mem)
+
+(MOVDnop <t> x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZload <t> [off] {sym} ptr mem)
+(MOVDnop <t> x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload  <t> [off] {sym} ptr mem)
+(MOVDnop <t> x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZload <t> [off] {sym} ptr mem)
+(MOVDnop <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload  <t> [off] {sym} ptr mem)
+(MOVDnop <t> x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZload <t> [off] {sym} ptr mem)
+(MOVDnop <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <t> [off] {sym} ptr mem)
+(MOVDnop <t> x:(MOVDload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDload  <t> [off] {sym} ptr mem)
+
+// TODO(mundaym): uncomment rules once signed indexed loads are added.
+(MOVDreg <t> x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <t> [off] {sym} ptr idx mem)
+//(MOVDreg <t> x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDreg <t> x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <t> [off] {sym} ptr idx mem)
+//(MOVDreg <t> x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDreg <t> x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <t> [off] {sym} ptr idx mem)
+//(MOVDreg <t> x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDreg <t> x:(MOVDloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDloadidx  <t> [off] {sym} ptr idx mem)
+
+(MOVDnop <t> x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <t> [off] {sym} ptr idx mem)
+//(MOVDnop <t> x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDnop <t> x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <t> [off] {sym} ptr idx mem)
+//(MOVDnop <t> x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDnop <t> x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <t> [off] {sym} ptr idx mem)
+//(MOVDnop <t> x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <t> [off] {sym} ptr idx mem)
+(MOVDnop <t> x:(MOVDloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDloadidx  <t> [off] {sym} ptr idx mem)
+
 // Fold sign extensions into conditional moves of constants.
 // Designed to remove the MOVBZreg inserted by the If lowering.
 (MOVBZreg x:(MOVDLT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
