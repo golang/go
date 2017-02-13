@@ -638,6 +638,39 @@ var linuxS390XTests = []*asmTest{
 		`,
 		[]string{"\tRLL\t[$]7,"},
 	},
+	// Fused multiply-add/sub instructions.
+	{
+		`
+		func f14(x, y, z float64) float64 {
+			return x * y + z
+		}
+		`,
+		[]string{"\tFMADD\t"},
+	},
+	{
+		`
+		func f15(x, y, z float64) float64 {
+			return x * y - z
+		}
+		`,
+		[]string{"\tFMSUB\t"},
+	},
+	{
+		`
+		func f16(x, y, z float32) float32 {
+			return x * y + z
+		}
+		`,
+		[]string{"\tFMADDS\t"},
+	},
+	{
+		`
+		func f17(x, y, z float32) float32 {
+			return x * y - z
+		}
+		`,
+		[]string{"\tFMSUBS\t"},
+	},
 }
 
 var linuxARMTests = []*asmTest{

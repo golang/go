@@ -1287,8 +1287,8 @@ var fpConvOpToSSA = map[twoTypes]twoOpsAndType{
 
 	// float
 	twoTypes{TFLOAT64, TFLOAT32}: twoOpsAndType{ssa.OpCvt64Fto32F, ssa.OpCopy, TFLOAT32},
-	twoTypes{TFLOAT64, TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCopy, TFLOAT64},
-	twoTypes{TFLOAT32, TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCopy, TFLOAT32},
+	twoTypes{TFLOAT64, TFLOAT64}: twoOpsAndType{ssa.OpRound64F, ssa.OpCopy, TFLOAT64},
+	twoTypes{TFLOAT32, TFLOAT32}: twoOpsAndType{ssa.OpRound32F, ssa.OpCopy, TFLOAT32},
 	twoTypes{TFLOAT32, TFLOAT64}: twoOpsAndType{ssa.OpCvt32Fto64F, ssa.OpCopy, TFLOAT64},
 }
 
@@ -1704,7 +1704,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if ft.IsComplex() && tt.IsComplex() {
 			var op ssa.Op
 			if ft.Size() == tt.Size() {
-				op = ssa.OpCopy
+				switch ft.Size() {
+				case 8:
+					op = ssa.OpRound32F
+				case 16:
+					op = ssa.OpRound64F
+				default:
+					s.Fatalf("weird complex conversion %v -> %v", ft, tt)
+				}
 			} else if ft.Size() == 8 && tt.Size() == 16 {
 				op = ssa.OpCvt32Fto64F
 			} else if ft.Size() == 16 && tt.Size() == 8 {

@@ -141,6 +141,7 @@ func init() {
 
 		fp01        = regInfo{inputs: []regMask{}, outputs: fponly}
 		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
+		fp31        = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
 		fp21clobber = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
 		fpgp        = regInfo{inputs: fponly, outputs: gponly}
 		gpfp        = regInfo{inputs: gponly, outputs: fponly}
@@ -166,16 +167,20 @@ func init() {
 
 	var S390Xops = []opData{
 		// fp ops
-		{name: "FADDS", argLength: 2, reg: fp21clobber, asm: "FADDS", commutative: true, resultInArg0: true, clobberFlags: true}, // fp32 add
-		{name: "FADD", argLength: 2, reg: fp21clobber, asm: "FADD", commutative: true, resultInArg0: true, clobberFlags: true},   // fp64 add
-		{name: "FSUBS", argLength: 2, reg: fp21clobber, asm: "FSUBS", resultInArg0: true, clobberFlags: true},                    // fp32 sub
-		{name: "FSUB", argLength: 2, reg: fp21clobber, asm: "FSUB", resultInArg0: true, clobberFlags: true},                      // fp64 sub
-		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true, resultInArg0: true},                            // fp32 mul
-		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true, resultInArg0: true},                              // fp64 mul
-		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS", resultInArg0: true},                                               // fp32 div
-		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV", resultInArg0: true},                                                 // fp64 div
-		{name: "FNEGS", argLength: 1, reg: fp11clobber, asm: "FNEGS", clobberFlags: true},                                        // fp32 neg
-		{name: "FNEG", argLength: 1, reg: fp11clobber, asm: "FNEG", clobberFlags: true},                                          // fp64 neg
+		{name: "FADDS", argLength: 2, reg: fp21clobber, asm: "FADDS", commutative: true, resultInArg0: true, clobberFlags: true}, // fp32 arg0 + arg1
+		{name: "FADD", argLength: 2, reg: fp21clobber, asm: "FADD", commutative: true, resultInArg0: true, clobberFlags: true},   // fp64 arg0 + arg1
+		{name: "FSUBS", argLength: 2, reg: fp21clobber, asm: "FSUBS", resultInArg0: true, clobberFlags: true},                    // fp32 arg0 - arg1
+		{name: "FSUB", argLength: 2, reg: fp21clobber, asm: "FSUB", resultInArg0: true, clobberFlags: true},                      // fp64 arg0 - arg1
+		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true, resultInArg0: true},                            // fp32 arg0 * arg1
+		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true, resultInArg0: true},                              // fp64 arg0 * arg1
+		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS", resultInArg0: true},                                               // fp32 arg0 / arg1
+		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV", resultInArg0: true},                                                 // fp64 arg0 / arg1
+		{name: "FNEGS", argLength: 1, reg: fp11clobber, asm: "FNEGS", clobberFlags: true},                                        // fp32 -arg0
+		{name: "FNEG", argLength: 1, reg: fp11clobber, asm: "FNEG", clobberFlags: true},                                          // fp64 -arg0
+		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS", resultInArg0: true},                                             // fp32 arg1 * arg2 + arg0
+		{name: "FMADD", argLength: 3, reg: fp31, asm: "FMADD", resultInArg0: true},                                               // fp64 arg1 * arg2 + arg0
+		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS", resultInArg0: true},                                             // fp32 arg1 * arg2 - arg0
+		{name: "FMSUB", argLength: 3, reg: fp31, asm: "FMSUB", resultInArg0: true},                                               // fp64 arg1 * arg2 - arg0
 
 		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", aux: "SymOff", faultOnNilArg0: true}, // fp32 load
 		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", aux: "SymOff", faultOnNilArg0: true}, // fp64 load
@@ -402,6 +407,9 @@ func init() {
 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R12")}}},
 		// arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{ptrsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+		// Round ops to block fused-multiply-add extraction.
+		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
+		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
 
 		// MOVDconvert converts between pointers and integers.
 		// We have a special op for this so as to not confuse GC

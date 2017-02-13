@@ -436,6 +436,10 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpPPC64XOR(v, config)
 	case OpPPC64XORconst:
 		return rewriteValuePPC64_OpPPC64XORconst(v, config)
+	case OpRound32F:
+		return rewriteValuePPC64_OpRound32F(v, config)
+	case OpRound64F:
+		return rewriteValuePPC64_OpRound64F(v, config)
 	case OpRsh16Ux16:
 		return rewriteValuePPC64_OpRsh16Ux16(v, config)
 	case OpRsh16Ux32:
@@ -7423,6 +7427,34 @@ func rewriteValuePPC64_OpPPC64XORconst(v *Value, config *Config) bool {
 		return true
 	}
 	return false
+}
+func rewriteValuePPC64_OpRound32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Round32F x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValuePPC64_OpRound64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Round64F x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 }
 func rewriteValuePPC64_OpRsh16Ux16(v *Value, config *Config) bool {
 	b := v.Block

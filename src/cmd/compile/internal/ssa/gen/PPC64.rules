@@ -74,6 +74,9 @@
 (Cvt32Fto64F x) -> x // Note x will have the wrong type for patterns dependent on Float32/Float64
 (Cvt64Fto32F x) -> (FRSP x)
 
+(Round32F x) -> x
+(Round64F x) -> x
+
 (Sqrt x) -> (FSQRT x)
 
 // Lowering constants

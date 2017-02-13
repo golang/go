@@ -343,6 +343,10 @@ var genericOps = []opData{
 	{name: "Cvt32Fto64F", argLength: 1},
 	{name: "Cvt64Fto32F", argLength: 1},
 
+	// Force rounding to precision of type.
+	{name: "Round32F", argLength: 1},
+	{name: "Round64F", argLength: 1},
+
 	// Automatically inserted safety checks
 	{name: "IsNonNil", argLength: 1, typ: "Bool"},        // arg0 != nil
 	{name: "IsInBounds", argLength: 2, typ: "Bool"},      // 0 <= arg0 < arg1. arg1 is guaranteed >= 0.

@@ -1716,6 +1716,13 @@ OpSwitch:
 				*r = *n
 				n.Op = OLITERAL
 				n.SetVal(n.Left.Val())
+			} else if t.Etype == n.Type.Etype {
+				switch t.Etype {
+				case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
+					// Floating point casts imply rounding and
+					// so the conversion must be kept.
+					n.Op = OCONV
+				}
 			}
 
 		// do not use stringtoarraylit.

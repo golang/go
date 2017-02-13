@@ -193,6 +193,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 		opregreg(v.Op.Asm(), r, v.Args[1].Reg())
+	case ssa.OpS390XFMADD, ssa.OpS390XFMADDS,
+		ssa.OpS390XFMSUB, ssa.OpS390XFMSUBS:
+		r := v.Reg()
+		if r != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		r1 := v.Args[1].Reg()
+		r2 := v.Args[2].Reg()
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r1
+		p.Reg = r2
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
 	case ssa.OpS390XDIVD, ssa.OpS390XDIVW,
 		ssa.OpS390XDIVDU, ssa.OpS390XDIVWU,
 		ssa.OpS390XMODD, ssa.OpS390XMODW,
@@ -465,6 +479,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpS390XLoweredGetClosurePtr:
 		// Closure pointer is R12 (already)
 		gc.CheckLoweredGetClosurePtr(v)
+	case ssa.OpS390XLoweredRound32F, ssa.OpS390XLoweredRound64F:
+		// input is already rounded
 	case ssa.OpS390XLoweredGetG:
 		r := v.Reg()
 		p := gc.Prog(s390x.AMOVD)

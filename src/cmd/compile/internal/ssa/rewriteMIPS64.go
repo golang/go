@@ -436,6 +436,10 @@ func rewriteValueMIPS64(v *Value, config *Config) bool {
 		return rewriteValueMIPS64_OpOr8(v, config)
 	case OpOrB:
 		return rewriteValueMIPS64_OpOrB(v, config)
+	case OpRound32F:
+		return rewriteValueMIPS64_OpRound32F(v, config)
+	case OpRound64F:
+		return rewriteValueMIPS64_OpRound64F(v, config)
 	case OpRsh16Ux16:
 		return rewriteValueMIPS64_OpRsh16Ux16(v, config)
 	case OpRsh16Ux32:
@@ -7374,6 +7378,34 @@ func rewriteValueMIPS64_OpOrB(v *Value, config *Config) bool {
 		v.reset(OpMIPS64OR)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpRound32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Round32F x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueMIPS64_OpRound64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Round64F x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 }

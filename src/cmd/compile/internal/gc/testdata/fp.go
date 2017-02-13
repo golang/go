@@ -232,6 +232,141 @@ func integer2floatConversions() int {
 	return fails
 }
 
+func multiplyAdd() int {
+	fails := 0
+	{
+		// Test that a multiply-accumulate operation with intermediate
+		// rounding forced by a float32() cast produces the expected
+		// result.
+		// Test cases generated experimentally on a system (s390x) that
+		// supports fused multiply-add instructions.
+		var tests = [...]struct{ x, y, z, res float32 }{
+			{0.6046603, 0.9405091, 0.6645601, 1.2332485},      // fused multiply-add result: 1.2332486
+			{0.67908466, 0.21855305, 0.20318687, 0.3516029},   // fused multiply-add result: 0.35160288
+			{0.29311424, 0.29708257, 0.752573, 0.8396522},     // fused multiply-add result: 0.8396521
+			{0.5305857, 0.2535405, 0.282081, 0.41660595},      // fused multiply-add result: 0.41660598
+			{0.29711226, 0.89436173, 0.097454615, 0.36318043}, // fused multiply-add result: 0.36318046
+			{0.6810783, 0.24151509, 0.31152245, 0.47601312},   // fused multiply-add result: 0.47601315
+			{0.73023146, 0.18292491, 0.4283571, 0.5619346},    // fused multiply-add result: 0.56193465
+			{0.89634174, 0.32208398, 0.7211478, 1.009845},     // fused multiply-add result: 1.0098451
+			{0.6280982, 0.12675293, 0.2813303, 0.36094356},    // fused multiply-add result: 0.3609436
+			{0.29400632, 0.75316125, 0.15096405, 0.3723982},   // fused multiply-add result: 0.37239823
+		}
+		check := func(s string, got, expected float32) int {
+			if got != expected {
+				fmt.Printf("multiplyAdd: %s, expected %g, got %g\n", s, expected, got)
+				return 1
+			}
+			return 0
+		}
+		for _, t := range tests {
+			fails += check(
+				fmt.Sprintf("float32(%v * %v) + %v", t.x, t.y, t.z),
+				func(x, y, z float32) float32 {
+					return float32(x*y) + z
+				}(t.x, t.y, t.z),
+				t.res)
+
+			fails += check(
+				fmt.Sprintf("%v += float32(%v * %v)", t.z, t.x, t.y),
+				func(x, y, z float32) float32 {
+					z += float32(x * y)
+					return z
+				}(t.x, t.y, t.z),
+				t.res)
+		}
+	}
+	{
+		// Test that a multiply-accumulate operation with intermediate
+		// rounding forced by a float64() cast produces the expected
+		// result.
+		// Test cases generated experimentally on a system (s390x) that
+		// supports fused multiply-add instructions.
+		var tests = [...]struct{ x, y, z, res float64 }{
+			{0.4688898449024232, 0.28303415118044517, 0.29310185733681576, 0.42581369658590373}, // fused multiply-add result: 0.4258136965859037
+			{0.7886049150193449, 0.3618054804803169, 0.8805431227416171, 1.1658647029293308},    // fused multiply-add result: 1.1658647029293305
+			{0.7302314772948083, 0.18292491645390843, 0.4283570818068078, 0.5619346137829748},   // fused multiply-add result: 0.5619346137829747
+			{0.6908388315056789, 0.7109071952999951, 0.5637795958152644, 1.0549018919252924},    // fused multiply-add result: 1.0549018919252926
+			{0.4584424785756506, 0.6001655953233308, 0.02626515060968944, 0.3014065536855481},   // fused multiply-add result: 0.30140655368554814
+			{0.539210105890946, 0.9756748149873165, 0.7507630564795985, 1.2768567767840384},     // fused multiply-add result: 1.2768567767840386
+			{0.7830349733960021, 0.3932509992288867, 0.1304138461737918, 0.4383431318929343},    // fused multiply-add result: 0.43834313189293433
+			{0.6841751300974551, 0.6530402051353608, 0.524499759549865, 0.9712936268572192},     // fused multiply-add result: 0.9712936268572193
+			{0.3691117091643448, 0.826454125634742, 0.34768170859156955, 0.6527356034505334},    // fused multiply-add result: 0.6527356034505333
+			{0.16867966833433606, 0.33136826030698385, 0.8279280961505588, 0.8838231843956668},  // fused multiply-add result: 0.8838231843956669
+		}
+		check := func(s string, got, expected float64) int {
+			if got != expected {
+				fmt.Printf("multiplyAdd: %s, expected %g, got %g\n", s, expected, got)
+				return 1
+			}
+			return 0
+		}
+		for _, t := range tests {
+			fails += check(
+				fmt.Sprintf("float64(%v * %v) + %v", t.x, t.y, t.z),
+				func(x, y, z float64) float64 {
+					return float64(x*y) + z
+				}(t.x, t.y, t.z),
+				t.res)
+
+			fails += check(
+				fmt.Sprintf("%v += float64(%v * %v)", t.z, t.x, t.y),
+				func(x, y, z float64) float64 {
+					z += float64(x * y)
+					return z
+				}(t.x, t.y, t.z),
+				t.res)
+		}
+	}
+	{
+		// Test that a multiply-accumulate operation with intermediate
+		// rounding forced by a complex128() cast produces the expected
+		// result.
+		// Test cases generated experimentally on a system (s390x) that
+		// supports fused multiply-add instructions.
+		var tests = [...]struct {
+			x, y float64
+			res  complex128
+		}{
+			{0.6046602879796196, 0.9405090880450124, (2.754489951983871 + 3i)},    // fused multiply-add result: (2.7544899519838713 + 3i)
+			{0.09696951891448456, 0.30091186058528707, (0.5918204173287407 + 3i)}, // fused multiply-add result: (0.5918204173287408 + 3i)
+			{0.544155573000885, 0.27850762181610883, (1.910974340818764 + 3i)},    // fused multiply-add result: (1.9109743408187638 + 3i)
+			{0.9769168685862624, 0.07429099894984302, (3.0050416047086297 + 3i)},  // fused multiply-add result: (3.00504160470863 + 3i)
+			{0.9269868035744142, 0.9549454404167818, (3.735905851140024 + 3i)},    // fused multiply-add result: (3.7359058511400245 + 3i)
+			{0.7109071952999951, 0.5637795958152644, (2.69650118171525 + 3i)},     // fused multiply-add result: (2.6965011817152496 + 3i)
+			{0.7558235074915978, 0.40380328579570035, (2.671273808270494 + 3i)},   // fused multiply-add result: (2.6712738082704934 + 3i)
+			{0.13065111702897217, 0.9859647293402467, (1.3779180804271633 + 3i)},  // fused multiply-add result: (1.3779180804271631 + 3i)
+			{0.8963417453962161, 0.3220839705208817, (3.0111092067095298 + 3i)},   // fused multiply-add result: (3.01110920670953 + 3i)
+			{0.39998376285699544, 0.497868113342702, (1.697819401913688 + 3i)},    // fused multiply-add result: (1.6978194019136883 + 3i)
+		}
+		check := func(s string, got, expected complex128) int {
+			if got != expected {
+				fmt.Printf("multiplyAdd: %s, expected %v, got %v\n", s, expected, got)
+				return 1
+			}
+			return 0
+		}
+		for _, t := range tests {
+			fails += check(
+				fmt.Sprintf("complex128(complex(%v, 1)*3) + complex(%v, 0)", t.x, t.y),
+				func(x, y float64) complex128 {
+					return complex128(complex(x, 1)*3) + complex(y, 0)
+				}(t.x, t.y),
+				t.res)
+
+			fails += check(
+				fmt.Sprintf("z := complex(%v, 1); z += complex128(complex(%v, 1) * 3)", t.y, t.x),
+				func(x, y float64) complex128 {
+					z := complex(y, 0)
+					z += complex128(complex(x, 1) * 3)
+					return z
+				}(t.x, t.y),
+				t.res)
+		}
+	}
+	return fails
+}
+
 const (
 	aa = 0x1000000000000000
 	ab = 0x100000000000000
@@ -1657,6 +1792,8 @@ func main() {
 	fails += expect64("dd", dd, 44.0)
 
 	fails += integer2floatConversions()
+
+	fails += multiplyAdd()
 
 	var zero64 float64 = 0.0
 	var one64 float64 = 1.0

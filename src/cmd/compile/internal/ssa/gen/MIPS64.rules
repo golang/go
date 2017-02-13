@@ -203,6 +203,9 @@
 (Cvt32Fto64F x) -> (MOVFD x)
 (Cvt64Fto32F x) -> (MOVDF x)
 
+(Round32F x) -> x
+(Round64F x) -> x
+
 // comparisons
 (Eq8 x y)  -> (SGTU (MOVVconst [1]) (XOR (ZeroExt8to64 x) (ZeroExt8to64 y)))
 (Eq16 x y) -> (SGTU (MOVVconst [1]) (XOR (ZeroExt16to64 x) (ZeroExt16to64 y)))
