@@ -157,7 +157,7 @@ type Addr struct {
 	Index  int16
 	Scale  int16 // Sometimes holds a register.
 	Type   AddrType
-	Name   int8
+	Name   AddrName
 	Class  int8
 	Offset int64
 	Sym    *LSym
@@ -172,10 +172,10 @@ type Addr struct {
 	Node interface{} // for use by compiler
 }
 
-type AddrType uint8
+type AddrName int8
 
 const (
-	NAME_NONE = 0 + iota
+	NAME_NONE AddrName = iota
 	NAME_EXTERN
 	NAME_STATIC
 	NAME_AUTO
@@ -185,10 +185,11 @@ const (
 	NAME_GOTREF
 )
 
-const (
-	TYPE_NONE AddrType = 0
+type AddrType uint8
 
-	TYPE_BRANCH AddrType = 5 + iota
+const (
+	TYPE_NONE AddrType = iota
+	TYPE_BRANCH
 	TYPE_TEXTSIZE
 	TYPE_MEM
 	TYPE_CONST
@@ -691,7 +692,7 @@ type Auto struct {
 	Asym    *LSym
 	Link    *Auto
 	Aoffset int32
-	Name    int16
+	Name    AddrName
 	Gotype  *LSym
 }
 

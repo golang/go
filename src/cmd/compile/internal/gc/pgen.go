@@ -442,7 +442,7 @@ func gendebug(fn *obj.LSym, decls []*Node) {
 			continue
 		}
 
-		var name int16
+		var name obj.AddrName
 		switch n.Class {
 		case PAUTO:
 			if !n.Used {
