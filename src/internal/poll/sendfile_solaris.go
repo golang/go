@@ -15,13 +15,15 @@ import "syscall"
 const maxSendfileSize int = 4 << 20
 
 // SendFile wraps the sendfile system call.
-func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error) {
+func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
 	if err := dstFD.writeLock(); err != nil {
 		return 0, err
 	}
 	defer dstFD.writeUnlock()
 
 	dst := int(dstFD.Sysfd)
+	var written int64
+	var err error
 	for remain > 0 {
 		n := maxSendfileSize
 		if int64(n) > remain {

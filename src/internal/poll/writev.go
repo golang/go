@@ -13,7 +13,7 @@ import (
 )
 
 // Writev wraps the writev system call.
-func (fd *FD) Writev(v *[][]byte) (n int64, err error) {
+func (fd *FD) Writev(v *[][]byte) (int64, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -31,6 +31,8 @@ func (fd *FD) Writev(v *[][]byte) (n int64, err error) {
 	// UIO_MAXIOV also seems to be 1024.
 	maxVec := 1024
 
+	var n int64
+	var err error
 	for len(*v) > 0 {
 		iovecs = iovecs[:0]
 		for _, chunk := range *v {

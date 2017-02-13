@@ -86,7 +86,7 @@ func (fd *FD) Shutdown(how int) error {
 const maxRW = 1 << 30
 
 // Read implements io.Reader.
-func (fd *FD) Read(p []byte) (n int, err error) {
+func (fd *FD) Read(p []byte) (int, error) {
 	if err := fd.readLock(); err != nil {
 		return 0, err
 	}
@@ -106,7 +106,7 @@ func (fd *FD) Read(p []byte) (n int, err error) {
 		p = p[:maxRW]
 	}
 	for {
-		n, err = syscall.Read(fd.Sysfd, p)
+		n, err := syscall.Read(fd.Sysfd, p)
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN {
@@ -116,13 +116,12 @@ func (fd *FD) Read(p []byte) (n int, err error) {
 			}
 		}
 		err = fd.eofError(n, err)
-		break
+		return n, err
 	}
-	return
 }
 
 // Pread wraps the pread system call.
-func (fd *FD) Pread(p []byte, off int64) (n int, err error) {
+func (fd *FD) Pread(p []byte, off int64) (int, error) {
 	if err := fd.readLock(); err != nil {
 		return 0, err
 	}
@@ -134,7 +133,7 @@ func (fd *FD) Pread(p []byte, off int64) (n int, err error) {
 		p = p[:maxRW]
 	}
 	for {
-		n, err = syscall.Pread(fd.Sysfd, p, off)
+		n, err := syscall.Pread(fd.Sysfd, p, off)
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN {
@@ -144,13 +143,12 @@ func (fd *FD) Pread(p []byte, off int64) (n int, err error) {
 			}
 		}
 		err = fd.eofError(n, err)
-		break
+		return n, err
 	}
-	return
 }
 
 // RecvFrom wraps the recvfrom network call.
-func (fd *FD) RecvFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+func (fd *FD) RecvFrom(p []byte) (int, syscall.Sockaddr, error) {
 	if err := fd.readLock(); err != nil {
 		return 0, nil, err
 	}
@@ -159,7 +157,7 @@ func (fd *FD) RecvFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 		return 0, nil, err
 	}
 	for {
-		n, sa, err = syscall.Recvfrom(fd.Sysfd, p, 0)
+		n, sa, err := syscall.Recvfrom(fd.Sysfd, p, 0)
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN {
@@ -169,13 +167,12 @@ func (fd *FD) RecvFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 			}
 		}
 		err = fd.eofError(n, err)
-		break
+		return n, sa, err
 	}
-	return
 }
 
 // ReadMsg wraps the recvmsg network call.
-func (fd *FD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, error) {
 	if err := fd.readLock(); err != nil {
 		return 0, 0, 0, nil, err
 	}
@@ -184,7 +181,7 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sock
 		return 0, 0, 0, nil, err
 	}
 	for {
-		n, oobn, flags, sa, err = syscall.Recvmsg(fd.Sysfd, p, oob, 0)
+		n, oobn, flags, sa, err := syscall.Recvmsg(fd.Sysfd, p, oob, 0)
 		if err != nil {
 			// TODO(dfc) should n and oobn be set to 0
 			if err == syscall.EAGAIN {
@@ -194,13 +191,12 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sock
 			}
 		}
 		err = fd.eofError(n, err)
-		break
+		return n, oobn, flags, sa, err
 	}
-	return
 }
 
 // Write implements io.Writer.
-func (fd *FD) Write(p []byte) (nn int, err error) {
+func (fd *FD) Write(p []byte) (int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -208,18 +204,18 @@ func (fd *FD) Write(p []byte) (nn int, err error) {
 	if err := fd.pd.prepareWrite(); err != nil {
 		return 0, err
 	}
+	var nn int
 	for {
-		var n int
 		max := len(p)
 		if fd.IsStream && max-nn > maxRW {
 			max = nn + maxRW
 		}
-		n, err = syscall.Write(fd.Sysfd, p[nn:max])
+		n, err := syscall.Write(fd.Sysfd, p[nn:max])
 		if n > 0 {
 			nn += n
 		}
 		if nn == len(p) {
-			break
+			return nn, err
 		}
 		if err == syscall.EAGAIN {
 			if err = fd.pd.waitWrite(); err == nil {
@@ -227,18 +223,16 @@ func (fd *FD) Write(p []byte) (nn int, err error) {
 			}
 		}
 		if err != nil {
-			break
+			return nn, err
 		}
 		if n == 0 {
-			err = io.ErrUnexpectedEOF
-			break
+			return nn, io.ErrUnexpectedEOF
 		}
 	}
-	return
 }
 
 // Pwrite wraps the pwrite system call.
-func (fd *FD) Pwrite(p []byte, off int64) (nn int, err error) {
+func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -246,18 +240,18 @@ func (fd *FD) Pwrite(p []byte, off int64) (nn int, err error) {
 	if err := fd.pd.prepareWrite(); err != nil {
 		return 0, err
 	}
+	var nn int
 	for {
-		var n int
 		max := len(p)
 		if fd.IsStream && max-nn > maxRW {
 			max = nn + maxRW
 		}
-		n, err = syscall.Pwrite(fd.Sysfd, p[nn:max], off+int64(nn))
+		n, err := syscall.Pwrite(fd.Sysfd, p[nn:max], off+int64(nn))
 		if n > 0 {
 			nn += n
 		}
 		if nn == len(p) {
-			break
+			return nn, err
 		}
 		if err == syscall.EAGAIN {
 			if err = fd.pd.waitWrite(); err == nil {
@@ -265,18 +259,16 @@ func (fd *FD) Pwrite(p []byte, off int64) (nn int, err error) {
 			}
 		}
 		if err != nil {
-			break
+			return nn, err
 		}
 		if n == 0 {
-			err = io.ErrUnexpectedEOF
-			break
+			return nn, io.ErrUnexpectedEOF
 		}
 	}
-	return
 }
 
 // WriteTo wraps the sendto network call.
-func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -285,22 +277,21 @@ func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 		return 0, err
 	}
 	for {
-		err = syscall.Sendto(fd.Sysfd, p, 0, sa)
+		err := syscall.Sendto(fd.Sysfd, p, 0, sa)
 		if err == syscall.EAGAIN {
 			if err = fd.pd.waitWrite(); err == nil {
 				continue
 			}
 		}
-		break
+		if err != nil {
+			return 0, err
+		}
+		return len(p), nil
 	}
-	if err == nil {
-		n = len(p)
-	}
-	return
 }
 
 // WriteMsg wraps the sendmsg network call.
-func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, 0, err
 	}
@@ -309,18 +300,17 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn i
 		return 0, 0, err
 	}
 	for {
-		n, err = syscall.SendmsgN(fd.Sysfd, p, oob, sa, 0)
+		n, err := syscall.SendmsgN(fd.Sysfd, p, oob, sa, 0)
 		if err == syscall.EAGAIN {
 			if err = fd.pd.waitWrite(); err == nil {
 				continue
 			}
 		}
-		break
+		if err != nil {
+			return n, 0, err
+		}
+		return n, len(oob), err
 	}
-	if err == nil {
-		oobn = len(oob)
-	}
-	return
 }
 
 // WaitWrite waits until data can be written to fd.
@@ -329,18 +319,17 @@ func (fd *FD) WaitWrite() error {
 }
 
 // Accept wraps the accept network call.
-func (fd *FD) Accept() (newfd int, rsa syscall.Sockaddr, errcall string, err error) {
-	if err = fd.readLock(); err != nil {
+func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
+	if err := fd.readLock(); err != nil {
 		return -1, nil, "", err
 	}
 	defer fd.readUnlock()
 
-	var s int
-	if err = fd.pd.prepareRead(); err != nil {
+	if err := fd.pd.prepareRead(); err != nil {
 		return -1, nil, "", err
 	}
 	for {
-		s, rsa, errcall, err = accept(fd.Sysfd)
+		s, rsa, errcall, err := accept(fd.Sysfd)
 		if err == nil {
 			return s, rsa, "", err
 		}
@@ -360,7 +349,7 @@ func (fd *FD) Accept() (newfd int, rsa syscall.Sockaddr, errcall string, err err
 }
 
 // Seek wraps syscall.Seek.
-func (fd *FD) Seek(offset int64, whence int) (ret int64, err error) {
+func (fd *FD) Seek(offset int64, whence int) (int64, error) {
 	if err := fd.incref(); err != nil {
 		return 0, err
 	}
@@ -371,7 +360,7 @@ func (fd *FD) Seek(offset int64, whence int) (ret int64, err error) {
 // ReadDirent wraps syscall.ReadDirent.
 // We treat this like an ordinary system call rather than a call
 // that tries to fill the buffer.
-func (fd *FD) ReadDirent(buf []byte) (n int, err error) {
+func (fd *FD) ReadDirent(buf []byte) (int, error) {
 	if err := fd.incref(); err != nil {
 		return 0, err
 	}

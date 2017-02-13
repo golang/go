@@ -433,7 +433,7 @@ var ReadConsole = syscall.ReadConsole // changed for testing
 // readConsole reads utf16 characters from console File,
 // encodes them into utf8 and stores them in buffer b.
 // It returns the number of utf8 bytes read and an error, if any.
-func (fd *FD) readConsole(b []byte) (n int, err error) {
+func (fd *FD) readConsole(b []byte) (int, error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
@@ -503,7 +503,7 @@ func (fd *FD) readConsole(b []byte) (n int, err error) {
 	return i, nil
 }
 
-func (fd *FD) Pread(b []byte, off int64) (n int, err error) {
+func (fd *FD) Pread(b []byte, off int64) (int, error) {
 	if err := fd.readLock(); err != nil {
 		return 0, err
 	}
@@ -591,8 +591,8 @@ func (fd *FD) Write(buf []byte) (int, error) {
 
 // writeConsole writes len(b) bytes to the console File.
 // It returns the number of bytes written and an error, if any.
-func (fd *FD) writeConsole(b []byte) (n int, err error) {
-	n = len(b)
+func (fd *FD) writeConsole(b []byte) (int, error) {
+	n := len(b)
 	runes := make([]rune, 0, 256)
 	if len(fd.lastbits) > 0 {
 		b = append(fd.lastbits, b...)
@@ -622,7 +622,7 @@ func (fd *FD) writeConsole(b []byte) (n int, err error) {
 		uint16s := utf16.Encode(chunk)
 		for len(uint16s) > 0 {
 			var written uint32
-			err = syscall.WriteConsole(fd.Sysfd, &uint16s[0], uint32(len(uint16s)), &written, nil)
+			err := syscall.WriteConsole(fd.Sysfd, &uint16s[0], uint32(len(uint16s)), &written, nil)
 			if err != nil {
 				return 0, err
 			}
@@ -769,7 +769,7 @@ func (fd *FD) Accept(sysSocket func() (syscall.Handle, error)) (syscall.Handle, 
 	}
 }
 
-func (fd *FD) Seek(offset int64, whence int) (ret int64, err error) {
+func (fd *FD) Seek(offset int64, whence int) (int64, error) {
 	if err := fd.incref(); err != nil {
 		return 0, err
 	}
