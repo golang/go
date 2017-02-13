@@ -494,15 +494,8 @@ const (
 	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
 
 	// arch-specific opcodes
-	OCMP    // compare: ACMP.
-	ODEC    // decrement: ADEC.
-	OINC    // increment: AINC.
-	OEXTEND // extend: ACWD/ACDQ/ACQO.
 	OHMUL   // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
-	ORROTC  // right rotate-carry: ARCR.
 	ORETJMP // return to other function
-	OPS     // compare parity set (for x86 NaN check)
-	OPC     // compare parity clear (for x86 NaN check)
 	OGETG   // runtime.getg() (read g pointer)
 
 	OEND
