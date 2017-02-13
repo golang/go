@@ -60,6 +60,15 @@ type UnixConn struct {
 	conn
 }
 
+// SyscallConn returns a raw network connection.
+// This implements the syscall.Conn interface.
+func (c *UnixConn) SyscallConn() (syscall.RawConn, error) {
+	if !c.ok() {
+		return nil, syscall.EINVAL
+	}
+	return newRawConn(c.fd)
+}
+
 // CloseRead shuts down the reading side of the Unix domain connection.
 // Most callers should just use Close.
 func (c *UnixConn) CloseRead() error {
