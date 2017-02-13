@@ -164,6 +164,7 @@ func checkStaleRuntime(t *testing.T) {
 			return
 		}
 		if string(out) != "false\n" {
+			t.Logf("go list -f {{.Stale}} runtime:\n%s", out)
 			staleRuntimeErr = fmt.Errorf("Stale runtime.a. Run 'go install runtime'.")
 		}
 	})
