@@ -1266,6 +1266,10 @@
   && clobber(x)
   -> (MOVDBRstoreidx [i-4] {s} p idx w0 mem)
 
+// Move shifts to second argument of ORs.  Helps load combining rules below.
+(ORW x:(SLWconst _) y) && y.Op != OpS390XSLWconst -> (ORW y x)
+(OR  x:(SLDconst _) y) && y.Op != OpS390XSLDconst -> (OR  y x)
+
 // Combining byte loads into larger (unaligned) loads.
 
 // Little endian loads.

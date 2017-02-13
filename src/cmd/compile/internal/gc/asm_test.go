@@ -221,6 +221,39 @@ func f(b []byte, i int) uint32 {
 `,
 		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
 	},
+	{"s390x", "linux", `
+import "encoding/binary"
+func f(b []byte) uint32 {
+	return binary.LittleEndian.Uint32(b)
+}
+`,
+		[]string{"\tMOVWZ\t\\(.*\\),"},
+	},
+	{"s390x", "linux", `
+import "encoding/binary"
+func f(b []byte, i int) uint32 {
+	return binary.LittleEndian.Uint32(b[i:])
+}
+`,
+		[]string{"\tMOVWZ\t\\(.*\\)\\(.*\\*1\\),"},
+	},
+	{"s390x", "linux", `
+import "encoding/binary"
+func f(b []byte) uint64 {
+	return binary.LittleEndian.Uint64(b)
+}
+`,
+		[]string{"\tMOVD\t\\(.*\\),"},
+	},
+	{"s390x", "linux", `
+import "encoding/binary"
+func f(b []byte, i int) uint64 {
+	return binary.LittleEndian.Uint64(b[i:])
+}
+`,
+		[]string{"\tMOVD\t\\(.*\\)\\(.*\\*1\\),"},
+	},
+	// TODO: s390x big-endian tests.
 
 	// Structure zeroing.  See issue #18370.
 	{"amd64", "linux", `

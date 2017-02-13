@@ -7465,6 +7465,23 @@ func rewriteValue386_Op386ORL(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ORL x:(SHLLconst _) y)
+	// cond: y.Op != Op386SHLLconst
+	// result: (ORL y x)
+	for {
+		x := v.Args[0]
+		if x.Op != Op386SHLLconst {
+			break
+		}
+		y := v.Args[1]
+		if !(y.Op != Op386SHLLconst) {
+			break
+		}
+		v.reset(Op386ORL)
+		v.AddArg(y)
+		v.AddArg(x)
+		return true
+	}
 	// match: (ORL                  x0:(MOVBload [i]   {s} p mem)     s0:(SHLLconst [8] x1:(MOVBload [i+1] {s} p mem)))
 	// cond: x0.Uses == 1   && x1.Uses == 1   && s0.Uses == 1   && mergePoint(b,x0,x1) != nil   && clobber(x0)   && clobber(x1)   && clobber(s0)
 	// result: @mergePoint(b,x0,x1) (MOVWload [i] {s} p mem)

@@ -14324,6 +14324,23 @@ func rewriteValueS390X_OpS390XOR(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (OR  x:(SLDconst _) y)
+	// cond: y.Op != OpS390XSLDconst
+	// result: (OR  y x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpS390XSLDconst {
+			break
+		}
+		y := v.Args[1]
+		if !(y.Op != OpS390XSLDconst) {
+			break
+		}
+		v.reset(OpS390XOR)
+		v.AddArg(y)
+		v.AddArg(x)
+		return true
+	}
 	// match: (OR o0:(OR o1:(OR o2:(OR o3:(OR o4:(OR o5:(OR                       x0:(MOVBZload [i]   {s} p mem)     s0:(SLDconst [8]  x1:(MOVBZload [i+1] {s} p mem)))     s1:(SLDconst [16] x2:(MOVBZload [i+2] {s} p mem)))     s2:(SLDconst [24] x3:(MOVBZload [i+3] {s} p mem)))     s3:(SLDconst [32] x4:(MOVBZload [i+4] {s} p mem)))     s4:(SLDconst [40] x5:(MOVBZload [i+5] {s} p mem)))     s5:(SLDconst [48] x6:(MOVBZload [i+6] {s} p mem)))     s6:(SLDconst [56] x7:(MOVBZload [i+7] {s} p mem)))
 	// cond: p.Op != OpSB   && x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && x3.Uses == 1   && x4.Uses == 1   && x5.Uses == 1   && x6.Uses == 1   && x7.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && s2.Uses == 1   && s3.Uses == 1   && s4.Uses == 1   && s5.Uses == 1   && s6.Uses == 1   && o0.Uses == 1   && o1.Uses == 1   && o2.Uses == 1   && o3.Uses == 1   && o4.Uses == 1   && o5.Uses == 1   && mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(x3)   && clobber(x4)   && clobber(x5)   && clobber(x6)   && clobber(x7)   && clobber(s0)   && clobber(s1)   && clobber(s2)   && clobber(s3)   && clobber(s4)   && clobber(s5)   && clobber(s6)   && clobber(o0)   && clobber(o1)   && clobber(o2)   && clobber(o3)   && clobber(o4)   && clobber(o5)
 	// result: @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVDBRload [i] {s} p mem)
@@ -15410,6 +15427,23 @@ func rewriteValueS390X_OpS390XORW(v *Value, config *Config) bool {
 		v.AddArg(x)
 		v.AddArg(ptr)
 		v.AddArg(mem)
+		return true
+	}
+	// match: (ORW x:(SLWconst _) y)
+	// cond: y.Op != OpS390XSLWconst
+	// result: (ORW y x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpS390XSLWconst {
+			break
+		}
+		y := v.Args[1]
+		if !(y.Op != OpS390XSLWconst) {
+			break
+		}
+		v.reset(OpS390XORW)
+		v.AddArg(y)
+		v.AddArg(x)
 		return true
 	}
 	// match: (ORW                 x0:(MOVBZload [i]   {s} p mem)     s0:(SLWconst [8] x1:(MOVBZload [i+1] {s} p mem)))
