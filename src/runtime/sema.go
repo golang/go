@@ -174,13 +174,14 @@ func semrelease(addr *uint32) {
 	s, t0 := root.dequeue(addr)
 	if s != nil {
 		atomic.Xadd(&root.nwait, -1)
-		if s.acquiretime != 0 {
-			mutexevent(t0-s.acquiretime, 3)
-		}
 	}
 	unlock(&root.lock)
 	if s != nil { // May be slow, so unlock first
+		acquiretime := s.acquiretime
 		readyWithTime(s, 5)
+		if acquiretime != 0 {
+			mutexevent(t0-acquiretime, 3)
+		}
 	}
 }
 
