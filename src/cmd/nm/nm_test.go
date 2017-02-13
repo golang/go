@@ -34,7 +34,7 @@ func testMain(m *testing.M) int {
 
 	tmpDir, err := ioutil.TempDir("", "TestNM")
 	if err != nil {
-		fmt.Printf("TempDir failed: ", err)
+		fmt.Println("TempDir failed:", err)
 		return 2
 	}
 	defer os.RemoveAll(tmpDir)
@@ -42,7 +42,7 @@ func testMain(m *testing.M) int {
 	testnmpath = filepath.Join(tmpDir, "testnm.exe")
 	gotool, err := testenv.GoTool()
 	if err != nil {
-		fmt.Printf("GoTool failed: ", err)
+		fmt.Println("GoTool failed:", err)
 		return 2
 	}
 	out, err := exec.Command(gotool, "build", "-o", testnmpath, "cmd/nm").CombinedOutput()
@@ -149,7 +149,7 @@ func testGoFile(t *testing.T, iscgo, isexternallinker bool) {
 	}
 	err = scanner.Err()
 	if err != nil {
-		t.Fatal("error reading nm output: %v", err)
+		t.Fatalf("error reading nm output: %v", err)
 	}
 	if len(names) > 0 {
 		t.Errorf("executable is missing %v symbols", names)

@@ -200,7 +200,7 @@ func testPseudoprimes(t *testing.T, name string, cond func(nat) bool, want []int
 		n[0] = Word(i)
 		pseudo := cond(n)
 		if pseudo && (len(want) == 0 || i != want[0]) {
-			t.Errorf("%s(%v, base=2) = %v, want false", name, i)
+			t.Errorf("%s(%v, base=2) = true, want false", name, i)
 		} else if !pseudo && len(want) >= 1 && i == want[0] {
 			t.Errorf("%s(%v, base=2) = false, want true", name, i)
 		}
