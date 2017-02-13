@@ -1131,6 +1131,9 @@
 (CMPWconst x [0]) -> (TESTW x x)
 (CMPBconst x [0]) -> (TESTB x x)
 
+// Move shifts to second argument of ORs.  Helps load combining rules below.
+(ORL x:(SHLLconst _) y) && y.Op != Op386SHLLconst -> (ORL y x)
+
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
 // designed to match the way encoding/binary.LittleEndian does it.

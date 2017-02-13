@@ -11282,6 +11282,23 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ORL x:(SHLLconst _) y)
+	// cond: y.Op != OpAMD64SHLLconst
+	// result: (ORL y x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64SHLLconst {
+			break
+		}
+		y := v.Args[1]
+		if !(y.Op != OpAMD64SHLLconst) {
+			break
+		}
+		v.reset(OpAMD64ORL)
+		v.AddArg(y)
+		v.AddArg(x)
+		return true
+	}
 	// match: (ORL                  x0:(MOVBload [i]   {s} p mem)     s0:(SHLLconst [8] x1:(MOVBload [i+1] {s} p mem)))
 	// cond: x0.Uses == 1   && x1.Uses == 1   && s0.Uses == 1   && mergePoint(b,x0,x1) != nil   && clobber(x0)   && clobber(x1)   && clobber(s0)
 	// result: @mergePoint(b,x0,x1) (MOVWload [i] {s} p mem)
@@ -11906,6 +11923,23 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value, config *Config) bool {
 		}
 		v.reset(OpCopy)
 		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (ORQ x:(SHLQconst _) y)
+	// cond: y.Op != OpAMD64SHLQconst
+	// result: (ORQ y x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64SHLQconst {
+			break
+		}
+		y := v.Args[1]
+		if !(y.Op != OpAMD64SHLQconst) {
+			break
+		}
+		v.reset(OpAMD64ORQ)
+		v.AddArg(y)
 		v.AddArg(x)
 		return true
 	}
