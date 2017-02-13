@@ -33,7 +33,3 @@ func (mu *FDMutex) RWLock(read bool) bool {
 func (mu *FDMutex) RWUnlock(read bool) bool {
 	return mu.rwunlock(read)
 }
-
-func (fd *FD) EOFError(n int, err error) error {
-	return fd.eofError(n, err)
-}
