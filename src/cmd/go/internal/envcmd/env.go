@@ -36,44 +36,44 @@ func MkEnv() []cfg.EnvVar {
 	b.Init()
 
 	env := []cfg.EnvVar{
-		{"GOARCH", cfg.Goarch},
-		{"GOBIN", cfg.GOBIN},
-		{"GOEXE", cfg.ExeSuffix},
-		{"GOHOSTARCH", runtime.GOARCH},
-		{"GOHOSTOS", runtime.GOOS},
-		{"GOOS", cfg.Goos},
-		{"GOPATH", cfg.BuildContext.GOPATH},
-		{"GORACE", os.Getenv("GORACE")},
-		{"GOROOT", cfg.GOROOT},
-		{"GOTOOLDIR", base.ToolDir},
+		{Name: "GOARCH", Value: cfg.Goarch},
+		{Name: "GOBIN", Value: cfg.GOBIN},
+		{Name: "GOEXE", Value: cfg.ExeSuffix},
+		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
+		{Name: "GOHOSTOS", Value: runtime.GOOS},
+		{Name: "GOOS", Value: cfg.Goos},
+		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH},
+		{Name: "GORACE", Value: os.Getenv("GORACE")},
+		{Name: "GOROOT", Value: cfg.GOROOT},
+		{Name: "GOTOOLDIR", Value: base.ToolDir},
 
 		// disable escape codes in clang errors
-		{"TERM", "dumb"},
+		{Name: "TERM", Value: "dumb"},
 	}
 
 	if work.GccgoBin != "" {
-		env = append(env, cfg.EnvVar{"GCCGO", work.GccgoBin})
+		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoBin})
 	} else {
-		env = append(env, cfg.EnvVar{"GCCGO", work.GccgoName})
+		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoName})
 	}
 
 	switch cfg.Goarch {
 	case "arm":
-		env = append(env, cfg.EnvVar{"GOARM", os.Getenv("GOARM")})
+		env = append(env, cfg.EnvVar{Name: "GOARM", Value: os.Getenv("GOARM")})
 	case "386":
-		env = append(env, cfg.EnvVar{"GO386", os.Getenv("GO386")})
+		env = append(env, cfg.EnvVar{Name: "GO386", Value: os.Getenv("GO386")})
 	}
 
 	cmd := b.GccCmd(".")
-	env = append(env, cfg.EnvVar{"CC", cmd[0]})
-	env = append(env, cfg.EnvVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
+	env = append(env, cfg.EnvVar{Name: "CC", Value: cmd[0]})
+	env = append(env, cfg.EnvVar{Name: "GOGCCFLAGS", Value: strings.Join(cmd[3:], " ")})
 	cmd = b.GxxCmd(".")
-	env = append(env, cfg.EnvVar{"CXX", cmd[0]})
+	env = append(env, cfg.EnvVar{Name: "CXX", Value: cmd[0]})
 
 	if cfg.BuildContext.CgoEnabled {
-		env = append(env, cfg.EnvVar{"CGO_ENABLED", "1"})
+		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "1"})
 	} else {
-		env = append(env, cfg.EnvVar{"CGO_ENABLED", "0"})
+		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "0"})
 	}
 
 	return env
@@ -94,12 +94,12 @@ func ExtraEnvVars() []cfg.EnvVar {
 	b.Init()
 	cppflags, cflags, cxxflags, fflags, ldflags := b.CFlags(&load.Package{})
 	return []cfg.EnvVar{
-		{"PKG_CONFIG", b.PkgconfigCmd()},
-		{"CGO_CFLAGS", strings.Join(cflags, " ")},
-		{"CGO_CPPFLAGS", strings.Join(cppflags, " ")},
-		{"CGO_CXXFLAGS", strings.Join(cxxflags, " ")},
-		{"CGO_FFLAGS", strings.Join(fflags, " ")},
-		{"CGO_LDFLAGS", strings.Join(ldflags, " ")},
+		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
+		{Name: "CGO_CFLAGS", Value: strings.Join(cflags, " ")},
+		{Name: "CGO_CPPFLAGS", Value: strings.Join(cppflags, " ")},
+		{Name: "CGO_CXXFLAGS", Value: strings.Join(cxxflags, " ")},
+		{Name: "CGO_FFLAGS", Value: strings.Join(fflags, " ")},
+		{Name: "CGO_LDFLAGS", Value: strings.Join(ldflags, " ")},
 	}
 }
 

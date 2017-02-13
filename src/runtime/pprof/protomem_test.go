@@ -96,9 +96,9 @@ func testMemRecords(a1, a2 uint64) ([]runtime.MemProfileRecord, int64) {
 	addr1, addr2 := uintptr(a1), uintptr(a2)
 	rate := int64(512 * 1024)
 	rec := []runtime.MemProfileRecord{
-		{4096, 1024, 4, 1, [32]uintptr{addr1, addr2}},
-		{512 * 1024, 0, 1, 0, [32]uintptr{addr2 + 1, addr2 + 2}},
-		{512 * 1024, 512 * 1024, 1, 1, [32]uintptr{addr1 + 1, addr1 + 2, addr2 + 3}},
+		{AllocBytes: 4096, FreeBytes: 1024, AllocObjects: 4, FreeObjects: 1, Stack0: [32]uintptr{addr1, addr2}},
+		{AllocBytes: 512 * 1024, FreeBytes: 0, AllocObjects: 1, FreeObjects: 0, Stack0: [32]uintptr{addr2 + 1, addr2 + 2}},
+		{AllocBytes: 512 * 1024, FreeBytes: 512 * 1024, AllocObjects: 1, FreeObjects: 1, Stack0: [32]uintptr{addr1 + 1, addr1 + 2, addr2 + 3}},
 	}
 	return rec, rate
 }
