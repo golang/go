@@ -178,6 +178,9 @@
 (Cvt32Fto64F x) -> (LDEBR x)
 (Cvt64Fto32F x) -> (LEDBR x)
 
+(Round32F x) -> (LoweredRound32F x)
+(Round64F x) -> (LoweredRound64F x)
+
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
@@ -1010,6 +1013,8 @@
 (XOR (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c^d])
 (XORconst [c] (MOVDconst [d])) -> (MOVDconst [c^d])
 (XORWconst [c] (MOVDconst [d])) -> (MOVDconst [c^d])
+(LoweredRound32F x:(FMOVSconst)) -> x
+(LoweredRound64F x:(FMOVDconst)) -> x
 
 // generic simplifications
 // TODO: more of this
@@ -1023,6 +1028,14 @@
 (ORW x x) -> x
 (XOR x x) -> (MOVDconst [0])
 (XORW x x) -> (MOVDconst [0])
+
+// fused multiply-add
+(FADD x (FMUL y z)) -> (FMADD x y z)
+(FADDS x (FMULS y z)) -> (FMADDS x y z)
+(FADD (FMUL y z) x) -> (FMADD x y z)
+(FADDS (FMULS y z) x) -> (FMADDS x y z)
+(FSUB (FMUL y z) x) -> (FMSUB x y z)
+(FSUBS (FMULS y z) x) -> (FMSUBS x y z)
 
 // Fold memory operations into operations.
 // Exclude global data (SB) because these instructions cannot handle relative addresses.

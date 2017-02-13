@@ -488,6 +488,10 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpOr8(v, config)
 	case OpOrB:
 		return rewriteValue386_OpOrB(v, config)
+	case OpRound32F:
+		return rewriteValue386_OpRound32F(v, config)
+	case OpRound64F:
+		return rewriteValue386_OpRound64F(v, config)
 	case OpRsh16Ux16:
 		return rewriteValue386_OpRsh16Ux16(v, config)
 	case OpRsh16Ux32:
@@ -12206,6 +12210,34 @@ func rewriteValue386_OpOrB(v *Value, config *Config) bool {
 		v.reset(Op386ORL)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpRound32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Round32F x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpRound64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Round64F x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 }

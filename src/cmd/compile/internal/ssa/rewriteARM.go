@@ -620,6 +620,10 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpOr8(v, config)
 	case OpOrB:
 		return rewriteValueARM_OpOrB(v, config)
+	case OpRound32F:
+		return rewriteValueARM_OpRound32F(v, config)
+	case OpRound64F:
+		return rewriteValueARM_OpRound64F(v, config)
 	case OpRsh16Ux16:
 		return rewriteValueARM_OpRsh16Ux16(v, config)
 	case OpRsh16Ux32:
@@ -15769,6 +15773,34 @@ func rewriteValueARM_OpOrB(v *Value, config *Config) bool {
 		v.reset(OpARMOR)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpRound32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Round32F x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpRound64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Round64F x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 }

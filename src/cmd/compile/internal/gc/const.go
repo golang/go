@@ -719,6 +719,7 @@ func evconst(n *Node) {
 		case OCONV_ | CTINT_,
 			OCONV_ | CTRUNE_,
 			OCONV_ | CTFLT_,
+			OCONV_ | CTCPLX_,
 			OCONV_ | CTSTR_,
 			OCONV_ | CTBOOL_:
 			nl = convlit1(nl, n.Type, true, false)

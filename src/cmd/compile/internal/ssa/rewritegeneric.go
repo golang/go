@@ -270,6 +270,10 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpPhi(v, config)
 	case OpPtrIndex:
 		return rewriteValuegeneric_OpPtrIndex(v, config)
+	case OpRound32F:
+		return rewriteValuegeneric_OpRound32F(v, config)
+	case OpRound64F:
+		return rewriteValuegeneric_OpRound64F(v, config)
 	case OpRsh16Ux16:
 		return rewriteValuegeneric_OpRsh16Ux16(v, config)
 	case OpRsh16Ux32:
@@ -9782,6 +9786,42 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
 		v1.AuxInt = t.ElemType().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpRound32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Round32F x:(Const32F))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpConst32F {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpRound64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Round64F x:(Const64F))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpConst64F {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 	return false

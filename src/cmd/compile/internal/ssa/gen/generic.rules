@@ -46,6 +46,8 @@
 (Trunc64to32 (Const64 [c]))  -> (Const32  [int64(int32(c))])
 (Cvt64Fto32F (Const64F [c])) -> (Const32F [f2i(float64(i2f32(c)))])
 (Cvt32Fto64F (Const32F [c])) -> (Const64F [c]) // c is already a 64 bit float
+(Round32F x:(Const32F)) -> x
+(Round64F x:(Const64F)) -> x
 
 (Trunc16to8  (ZeroExt8to16  x)) -> x
 (Trunc32to8  (ZeroExt8to32  x)) -> x

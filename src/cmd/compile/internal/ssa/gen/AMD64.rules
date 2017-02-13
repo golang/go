@@ -150,6 +150,9 @@
 (Cvt32Fto64F x) -> (CVTSS2SD x)
 (Cvt64Fto32F x) -> (CVTSD2SS x)
 
+(Round32F x) -> x
+(Round64F x) -> x
+
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
