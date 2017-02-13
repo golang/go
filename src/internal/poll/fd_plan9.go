@@ -5,6 +5,7 @@
 package poll
 
 import (
+	"errors"
 	"io"
 	"sync/atomic"
 	"time"
@@ -196,4 +197,20 @@ func isInterrupted(err error) bool {
 // or ^uintptr(0) if there isn't one. This is only used for testing.
 func PollDescriptor() uintptr {
 	return ^uintptr(0)
+}
+
+// RawControl invokes the user-defined function f for a non-IO
+// operation.
+func (fd *FD) RawControl(f func(uintptr)) error {
+	return errors.New("not implemented")
+}
+
+// RawRead invokes the user-defined function f for a read operation.
+func (fd *FD) RawRead(f func(uintptr) bool) error {
+	return errors.New("not implemented")
+}
+
+// RawWrite invokes the user-defined function f for a write operation.
+func (fd *FD) RawWrite(f func(uintptr) bool) error {
+	return errors.New("not implemented")
 }
