@@ -43,7 +43,7 @@ func TestAssembly(t *testing.T) {
 		}
 		for _, r := range test.regexps {
 			if b, err := regexp.MatchString(r, asm); !b || err != nil {
-				t.Errorf("expected:%s\ngo:%s\nasm:%s\n", r, test.function, asm)
+				t.Errorf("%s/%s: expected:%s\ngo:%s\nasm:%s\n", test.os, test.arch, r, test.function, asm)
 			}
 		}
 	}
