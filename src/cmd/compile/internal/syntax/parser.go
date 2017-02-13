@@ -799,7 +799,7 @@ loop:
 				p.syntax_error("expecting name or (")
 				p.advance(_Semi, _Rparen)
 			}
-			if gcCompat {
+			if gcCompat && x != nil {
 				x.init(p)
 			}
 
