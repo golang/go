@@ -110,8 +110,8 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
 
 	MOVL	$1000000000, CX
 	DIVL	CX
-	MOVL	AX, sec+0(FP)
-	MOVL	$0, sec+4(FP)
+	MOVL	AX, sec_lo+0(FP)
+	MOVL	$0, sec_hi+4(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
 

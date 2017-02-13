@@ -203,9 +203,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$16
 	MOVW	4(R13), R0 // low 32-bit sec
 	MOVW	8(R13), R1 // high 32-bit sec
 	MOVW	12(R13), R2 // nsec
-	MOVW	R0, sec+0(FP)
-	MOVW	R1, sec+4(FP)
-	MOVW	R2, sec+8(FP)
+	MOVW	R0, sec_lo+0(FP)
+	MOVW	R1, sec_hi+4(FP)
+	MOVW	R2, nsec+8(FP)
 	RET
 
 TEXT syscall·now(SB),NOSPLIT,$0

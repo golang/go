@@ -262,8 +262,8 @@ realtime:
 	MOVL 8(SP), BX // nsec
 
 	// sec is in AX, nsec in BX
-	MOVL	AX, sec+0(FP)
-	MOVL	CX, sec+4(FP)
+	MOVL	AX, sec_lo+0(FP)
+	MOVL	CX, sec_hi+4(FP)
 	MOVL	BX, nsec+8(FP)
 	RET
 
