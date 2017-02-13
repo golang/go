@@ -7,6 +7,7 @@ package filepath_test
 import (
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -434,44 +435,28 @@ func TestUNC(t *testing.T) {
 	filepath.Glob(`\\?\c:\*`)
 }
 
-func TestWalkDirectoryJunction(t *testing.T) {
-	t.Skip("skipping broken test: see issue 10424")
-
+func testWalkMklink(t *testing.T, linktype string) {
 	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
-	if !strings.Contains(string(output), " /J ") {
-		t.Skip(`skipping test; mklink does not supports directory junctions`)
+	if !strings.Contains(string(output), fmt.Sprintf(" /%s ", linktype)) {
+		t.Skipf(`skipping test; mklink does not supports /%s parameter`, linktype)
 	}
-
-	tmpdir, err := ioutil.TempDir("", "TestWalkDirectoryJunction")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(wd)
-
-	err = os.Chdir(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	output, err = exec.Command("cmd", "/c", "mklink", "/J", "link", tmpdir).CombinedOutput()
-	if err != nil {
-		t.Errorf(`"mklink link %v" command failed: %v\n%v`, tmpdir, err, string(output))
-	}
-
-	walkfunc := func(path string, info os.FileInfo, err error) error {
+	testWalkSymlink(t, func(target, link string) error {
+		output, err := exec.Command("cmd", "/c", "mklink", "/"+linktype, link, target).CombinedOutput()
 		if err != nil {
-			t.Log(err)
+			return fmt.Errorf(`"mklink /%s %v %v" command failed: %v\n%v`, linktype, link, target, err, string(output))
 		}
 		return nil
-	}
-	err = filepath.Walk(tmpdir, walkfunc)
-	if err != nil {
-		t.Fatal(err)
-	}
+	})
+}
+
+func TestWalkDirectoryJunction(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	t.Skip("skipping broken test: see issue 10424")
+	testWalkMklink(t, "J")
+}
+
+func TestWalkDirectorySymlink(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	t.Skip("skipping broken test: see issue 17540")
+	testWalkMklink(t, "D")
 }
