@@ -93,6 +93,15 @@ type IPConn struct {
 	conn
 }
 
+// SyscallConn returns a raw network connection.
+// This implements the syscall.Conn interface.
+func (c *IPConn) SyscallConn() (syscall.RawConn, error) {
+	if !c.ok() {
+		return nil, syscall.EINVAL
+	}
+	return newRawConn(c.fd)
+}
+
 // ReadFromIP reads an IP packet from c, copying the payload into b.
 // It returns the number of bytes copied into b and the return address
 // that was on the packet.
