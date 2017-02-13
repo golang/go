@@ -833,3 +833,19 @@ func (fd *FD) GetFileInformationByHandle(data *syscall.ByHandleFileInformation) 
 	defer fd.decref()
 	return syscall.GetFileInformationByHandle(fd.Sysfd, data)
 }
+
+// RawControl invokes the user-defined function f for a non-IO
+// operation.
+func (fd *FD) RawControl(f func(uintptr)) error {
+	return errors.New("not implemented")
+}
+
+// RawRead invokes the user-defined function f for a read operation.
+func (fd *FD) RawRead(f func(uintptr) bool) error {
+	return errors.New("not implemented")
+}
+
+// RawWrite invokes the user-defined function f for a write operation.
+func (fd *FD) RawWrite(f func(uintptr) bool) error {
+	return errors.New("not implemented")
+}
