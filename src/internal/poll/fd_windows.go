@@ -624,7 +624,7 @@ func (fd *FD) writeConsole(b []byte) (n int, err error) {
 			var written uint32
 			err = syscall.WriteConsole(fd.Sysfd, &uint16s[0], uint32(len(uint16s)), &written, nil)
 			if err != nil {
-				return 0, nil
+				return 0, err
 			}
 			uint16s = uint16s[written:]
 		}
