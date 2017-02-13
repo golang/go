@@ -1703,8 +1703,8 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 
 	if p.tok != _Semi {
 		// accept potential varDecl but complain
-		if keyword == _For && p.got(_Var) {
-			p.syntax_error("var declaration not allowed in for initializer")
+		if p.got(_Var) {
+			p.syntax_error(fmt.Sprintf("var declaration not allowed in %s initializer", keyword.String()))
 		}
 		init = p.simpleStmt(nil, keyword == _For)
 		// If we have a range clause, we are done (can only happen for keyword == _For).
