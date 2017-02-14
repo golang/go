@@ -347,6 +347,8 @@ var archAsmX = map[string]string{
 	"android":  "linux",
 	"mips64":   "mips64x",
 	"mips64le": "mips64x",
+	"mips":     "mipsx",
+	"mipsle":   "mipsx",
 	"ppc64":    "ppc64x",
 	"ppc64le":  "ppc64x",
 }
