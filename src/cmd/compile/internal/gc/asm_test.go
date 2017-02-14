@@ -314,6 +314,17 @@ func f(t *T) {
 		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
 	},
 	// TODO: add a test for *t = T{3,4,5} when we fix that.
+	// Also test struct containing pointers (this was special because of write barriers).
+	{"amd64", "linux", `
+type T struct {
+	a, b, c *int
+}
+func f(t *T) {
+	*t = T{}
+}
+`,
+		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
+	},
 
 	// Rotate tests
 	{"amd64", "linux", `
