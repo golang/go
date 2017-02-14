@@ -59,10 +59,11 @@ func main() {
 	case *flagAll:
 		vetPlatforms(allPlatforms())
 	default:
-		host := platform{os: build.Default.GOOS, arch: build.Default.GOARCH}
-		host.vet(runtime.GOMAXPROCS(-1))
+		hostPlatform.vet(runtime.GOMAXPROCS(-1))
 	}
 }
+
+var hostPlatform = platform{os: build.Default.GOOS, arch: build.Default.GOARCH}
 
 func allPlatforms() []platform {
 	var pp []platform
@@ -177,6 +178,14 @@ var ignorePathPrefixes = [...]string{
 	"cmd/go/testdata/",
 	"cmd/vet/testdata/",
 	"go/printer/testdata/",
+	// fmt_test contains a known bad format string.
+	// We cannot add it to any given whitelist,
+	// because it won't show up for any non-host platform,
+	// due to deficiencies in vet.
+	// Just whitelist the whole file.
+	// TODO: If vet ever uses go/loader and starts working off source,
+	// this problem will likely go away.
+	"fmt/fmt_test.go",
 }
 
 func vetPlatforms(pp []platform) {
@@ -224,7 +233,18 @@ func (p platform) vet(ncpus int) {
 	// and no clear way to improve vet to eliminate large chunks of them.
 	// And having them in the whitelists will just cause annoyance
 	// and churn when working on the runtime.
-	cmd = exec.Command(cmdGoPath, "tool", "vet", "-unsafeptr=false", ".")
+	args := []string{"tool", "vet", "-unsafeptr=false"}
+	if p != hostPlatform {
+		// When not checking the host platform, vet gets confused by
+		// the fmt.Formatters in cmd/compile,
+		// so just skip the printf checks on non-host platforms for now.
+		// There's not too much platform-specific code anyway.
+		// TODO: If vet ever uses go/loader and starts working off source,
+		// this problem will likely go away.
+		args = append(args, "-printf=false")
+	}
+	args = append(args, ".")
+	cmd = exec.Command(cmdGoPath, args...)
 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
 	cmd.Env = env
 	stderr, err := cmd.StderrPipe()
