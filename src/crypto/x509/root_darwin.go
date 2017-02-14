@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -61,7 +62,26 @@ func execSecurityRoots() (*CertPool, error) {
 		println(fmt.Sprintf("crypto/x509: %d certs have a trust policy", len(hasPolicy)))
 	}
 
-	cmd := exec.Command("/usr/bin/security", "find-certificate", "-a", "-p", "/System/Library/Keychains/SystemRootCertificates.keychain")
+	args := []string{"find-certificate", "-a", "-p",
+		"/System/Library/Keychains/SystemRootCertificates.keychain",
+		"/Library/Keychains/System.keychain",
+	}
+
+	u, err := user.Current()
+	if err != nil {
+		if debugExecDarwinRoots {
+			println(fmt.Sprintf("crypto/x509: get current user: %v", err))
+		}
+	} else {
+		args = append(args,
+			filepath.Join(u.HomeDir, "/Library/Keychains/login.keychain"),
+
+			// Fresh installs of Sierra use a slightly different path for the login keychain
+			filepath.Join(u.HomeDir, "/Library/Keychains/login.keychain-db"),
+		)
+	}
+
+	cmd := exec.Command("/usr/bin/security", args...)
 	data, err := cmd.Output()
 	if err != nil {
 		return nil, err
