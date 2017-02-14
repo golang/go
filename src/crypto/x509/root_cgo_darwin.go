@@ -119,7 +119,11 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 			}
 			// We only want trusted certs.
 			int untrusted = 0;
-			if (i != 0) {
+			int trustAsRoot = 0;
+			int trustRoot = 0;
+			if (i == 0) {
+				trustAsRoot = 1;
+			} else {
 				// Certs found in the system domain are always trusted. If the user
 				// configures "Never Trust" on such a cert, it will also be found in the
 				// admin or user domain, causing it to be added to untrustedPemRoots. The
@@ -129,7 +133,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 				// SecTrustServer.c, "user trust settings overrule admin trust settings",
 				// so take the last trust settings array we find.
 				// Skip the system domain since it is always trusted.
-				for (int k = 1; k < numDomains; k++) {
+				for (int k = i; k < numDomains; k++) {
 					CFArrayRef domainTrustSettings = NULL;
 					err = SecTrustSettingsCopyTrustSettings(cert, domains[k], &domainTrustSettings);
 					if (err == errSecSuccess && domainTrustSettings != NULL) {
@@ -152,28 +156,35 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 						// TODO: The rest of the dictionary specifies conditions for evaluation.
 						if (result == kSecTrustSettingsResultDeny) {
 							untrusted = 1;
+						} else if (result == kSecTrustSettingsResultTrustAsRoot) {
+							trustAsRoot = 1;
+						} else if (result == kSecTrustSettingsResultTrustRoot) {
+							trustRoot = 1;
 						}
 					}
 				}
 				CFRelease(trustSettings);
 			}
-			// We only want to add Root CAs, so make sure Subject and Issuer Name match
-			CFDataRef subjectName = SecCertificateCopyNormalizedSubjectContent(cert, &errRef);
-			if (errRef != NULL) {
-				CFRelease(errRef);
-				continue;
-			}
-			CFDataRef issuerName = SecCertificateCopyNormalizedIssuerContent(cert, &errRef);
-			if (errRef != NULL) {
+
+			if (trustRoot) {
+				// We only want to add Root CAs, so make sure Subject and Issuer Name match
+				CFDataRef subjectName = SecCertificateCopyNormalizedSubjectContent(cert, &errRef);
+				if (errRef != NULL) {
+					CFRelease(errRef);
+					continue;
+				}
+				CFDataRef issuerName = SecCertificateCopyNormalizedIssuerContent(cert, &errRef);
+				if (errRef != NULL) {
+					CFRelease(subjectName);
+					CFRelease(errRef);
+					continue;
+				}
+				Boolean equal = CFEqual(subjectName, issuerName);
 				CFRelease(subjectName);
-				CFRelease(errRef);
-				continue;
-			}
-			Boolean equal = CFEqual(subjectName, issuerName);
-			CFRelease(subjectName);
-			CFRelease(issuerName);
-			if (!equal) {
-				continue;
+				CFRelease(issuerName);
+				if (!equal) {
+					continue;
+				}
 			}
 
 			// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
@@ -185,6 +196,9 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 			}
 
 			if (data != NULL) {
+				if (!trustRoot && !trustAsRoot) {
+					untrusted = 1;
+				}
 				CFMutableDataRef appendTo = untrusted ? combinedUntrustedData : combinedData;
 				CFDataAppendBytes(appendTo, CFDataGetBytePtr(data), CFDataGetLength(data));
 				CFRelease(data);
