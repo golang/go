@@ -292,6 +292,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 
+	case ssa.Op386AVGLU:
+		// compute (x+y)/2 unsigned.
+		// Do a 32-bit add, the overflow goes into the carry.
+		// Shift right once and pull the carry back into the 31st bit.
+		r := v.Reg()
+		if r != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		p := gc.Prog(x86.AADDL)
+		p.From.Type = obj.TYPE_REG
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+		p.From.Reg = v.Args[1].Reg()
+		p = gc.Prog(x86.ARCRL)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+
 	case ssa.Op386ADDLconst:
 		r := v.Reg()
 		a := v.Args[0].Reg()

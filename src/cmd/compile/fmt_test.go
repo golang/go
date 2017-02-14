@@ -596,6 +596,7 @@ var knownFormats = map[string]string{
 	"*cmd/internal/obj.Prog %s":                       "",
 	"*cmd/internal/obj.Prog %v":                       "",
 	"*math/big.Int %#x":                               "",
+	"*math/big.Int %s":                                "",
 	"[16]byte %x":                                     "",
 	"[]*cmd/compile/internal/gc.Node %v":              "",
 	"[]*cmd/compile/internal/gc.Sig %#v":              "",

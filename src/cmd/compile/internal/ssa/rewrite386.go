@@ -236,6 +236,8 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpAnd8(v, config)
 	case OpAndB:
 		return rewriteValue386_OpAndB(v, config)
+	case OpAvg32u:
+		return rewriteValue386_OpAvg32u(v, config)
 	case OpBswap32:
 		return rewriteValue386_OpBswap32(v, config)
 	case OpClosureCall:
@@ -9709,6 +9711,21 @@ func rewriteValue386_OpAndB(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(Op386ANDL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAvg32u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Avg32u x y)
+	// cond:
+	// result: (AVGLU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386AVGLU)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true

@@ -9647,31 +9647,20 @@ func rewriteValueARM64_OpAvg64u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Avg64u <t> x y)
 	// cond:
-	// result: (ADD (ADD <t> (SRLconst <t> x [1]) (SRLconst <t> y [1])) (AND <t> (AND <t> x y) (MOVDconst [1])))
+	// result: (ADD (SRLconst <t> (SUB <t> x y) [1]) y)
 	for {
 		t := v.Type
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpARM64ADD)
-		v0 := b.NewValue0(v.Pos, OpARM64ADD, t)
-		v1 := b.NewValue0(v.Pos, OpARM64SRLconst, t)
-		v1.AuxInt = 1
+		v0 := b.NewValue0(v.Pos, OpARM64SRLconst, t)
+		v0.AuxInt = 1
+		v1 := b.NewValue0(v.Pos, OpARM64SUB, t)
 		v1.AddArg(x)
+		v1.AddArg(y)
 		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpARM64SRLconst, t)
-		v2.AuxInt = 1
-		v2.AddArg(y)
-		v0.AddArg(v2)
 		v.AddArg(v0)
-		v3 := b.NewValue0(v.Pos, OpARM64AND, t)
-		v4 := b.NewValue0(v.Pos, OpARM64AND, t)
-		v4.AddArg(x)
-		v4.AddArg(y)
-		v3.AddArg(v4)
-		v5 := b.NewValue0(v.Pos, OpARM64MOVDconst, config.fe.TypeUInt64())
-		v5.AuxInt = 1
-		v3.AddArg(v5)
-		v.AddArg(v3)
+		v.AddArg(y)
 		return true
 	}
 }
