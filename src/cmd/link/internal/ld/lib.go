@@ -430,6 +430,11 @@ func (ctxt *Link) loadlib() {
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
 
+	// Recalculate pe parameters now that we have Linkmode set.
+	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+		Peinit(ctxt)
+	}
+
 	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
 		toc := ctxt.Syms.Lookup(".TOC.", 0)
 		toc.Type = obj.SDYNIMPORT
