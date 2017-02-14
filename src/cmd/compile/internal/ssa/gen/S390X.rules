@@ -60,7 +60,8 @@
 (Mod8   x y) -> (MODW  (MOVBreg x) (MOVBreg y))
 (Mod8u  x y) -> (MODWU (MOVBZreg x) (MOVBZreg y))
 
-(Avg64u <t> x y) -> (ADD (ADD <t> (SRDconst <t> x [1]) (SRDconst <t> y [1])) (ANDconst <t> (AND <t> x y) [1]))
+// (x + y) / 2 with x>=y -> (x - y) / 2 + y
+(Avg64u <t> x y) -> (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
 
 (And64 x y) -> (AND x y)
 (And32 x y) -> (ANDW x y)

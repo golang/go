@@ -28,7 +28,8 @@
 (Mod32 x y) -> (SUB x (MULLW y (DIVW x y)))
 (Mod32u x y) -> (SUB x (MULLW y (DIVWU x y)))
 
-(Avg64u <t> x y) -> (ADD (ADD <t> (SRD <t> x (MOVDconst <t> [1])) (SRD <t> y (MOVDconst <t> [1]))) (ANDconst <t> (AND <t> x y) [1]))
+// (x + y) / 2 with x>=y -> (x - y) / 2 + y
+(Avg64u <t> x y) -> (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
 
 (Mul64  x y) -> (MULLD  x y)
 (Mul32  x y) -> (MULLW  x y)

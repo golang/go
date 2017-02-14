@@ -61,8 +61,12 @@ var genericOps = []opData{
 	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)"}, // arg0 * arg1, returns (hi, lo)
 	{name: "Mul64uhilo", argLength: 2, typ: "(UInt64,UInt64)"}, // arg0 * arg1, returns (hi, lo)
 
-	// Weird special instruction for strength reduction of divides.
-	{name: "Avg64u", argLength: 2}, // (uint64(arg0) + uint64(arg1)) / 2, correct to all 64 bits.
+	// Weird special instructions for use in the strength reduction of divides.
+	// These ops compute unsigned (arg0 + arg1) / 2, correct to all
+	// 32/64 bits, even when the intermediate result of the add has 33/65 bits.
+	// These ops can assume arg0 >= arg1.
+	{name: "Avg32u", argLength: 2, typ: "UInt32"}, // 32-bit platforms only
+	{name: "Avg64u", argLength: 2, typ: "UInt64"}, // 64-bit platforms only
 
 	{name: "Div8", argLength: 2},  // arg0 / arg1, signed
 	{name: "Div8u", argLength: 2}, // arg0 / arg1, unsigned
@@ -263,11 +267,13 @@ var genericOps = []opData{
 	{name: "Const8", aux: "Int8"},        // auxint is sign-extended 8 bits
 	{name: "Const16", aux: "Int16"},      // auxint is sign-extended 16 bits
 	{name: "Const32", aux: "Int32"},      // auxint is sign-extended 32 bits
-	{name: "Const64", aux: "Int64"},      // value is auxint
-	{name: "Const32F", aux: "Float32"},   // value is math.Float64frombits(uint64(auxint)) and is exactly prepresentable as float 32
-	{name: "Const64F", aux: "Float64"},   // value is math.Float64frombits(uint64(auxint))
-	{name: "ConstInterface"},             // nil interface
-	{name: "ConstSlice"},                 // nil slice
+	// Note: ConstX are sign-extended even when the type of the value is unsigned.
+	// For instance, uint8(0xaa) is stored as auxint=0xffffffffffffffaa.
+	{name: "Const64", aux: "Int64"},    // value is auxint
+	{name: "Const32F", aux: "Float32"}, // value is math.Float64frombits(uint64(auxint)) and is exactly prepresentable as float 32
+	{name: "Const64F", aux: "Float64"}, // value is math.Float64frombits(uint64(auxint))
+	{name: "ConstInterface"},           // nil interface
+	{name: "ConstSlice"},               // nil slice
 
 	// Constant-like things
 	{name: "InitMem"},            // memory input to the function.

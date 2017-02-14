@@ -773,31 +773,20 @@ func rewriteValueMIPS64_OpAvg64u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Avg64u <t> x y)
 	// cond:
-	// result: (ADDV (ADDV <t> (SRLVconst <t> x [1]) (SRLVconst <t> y [1])) (AND <t> (AND <t> x y) (MOVVconst [1])))
+	// result: (ADDV (SRLVconst <t> (SUBV <t> x y) [1]) y)
 	for {
 		t := v.Type
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpMIPS64ADDV)
-		v0 := b.NewValue0(v.Pos, OpMIPS64ADDV, t)
-		v1 := b.NewValue0(v.Pos, OpMIPS64SRLVconst, t)
-		v1.AuxInt = 1
+		v0 := b.NewValue0(v.Pos, OpMIPS64SRLVconst, t)
+		v0.AuxInt = 1
+		v1 := b.NewValue0(v.Pos, OpMIPS64SUBV, t)
 		v1.AddArg(x)
+		v1.AddArg(y)
 		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpMIPS64SRLVconst, t)
-		v2.AuxInt = 1
-		v2.AddArg(y)
-		v0.AddArg(v2)
 		v.AddArg(v0)
-		v3 := b.NewValue0(v.Pos, OpMIPS64AND, t)
-		v4 := b.NewValue0(v.Pos, OpMIPS64AND, t)
-		v4.AddArg(x)
-		v4.AddArg(y)
-		v3.AddArg(v4)
-		v5 := b.NewValue0(v.Pos, OpMIPS64MOVVconst, config.fe.TypeUInt64())
-		v5.AuxInt = 1
-		v3.AddArg(v5)
-		v.AddArg(v3)
+		v.AddArg(y)
 		return true
 	}
 }

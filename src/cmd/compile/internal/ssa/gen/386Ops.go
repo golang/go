@@ -202,6 +202,8 @@ func init() {
 
 		{name: "MULLQU", argLength: 2, reg: gp21mul, asm: "MULL", clobberFlags: true}, // arg0 * arg1, high 32 in result[0], low 32 in result[1]
 
+		{name: "AVGLU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true, clobberFlags: true}, // (arg0 + arg1) / 2 as unsigned, all 32 result bits
+
 		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL", clobberFlags: true}, // arg0 / arg1
 		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW", clobberFlags: true}, // arg0 / arg1
 		{name: "DIVLU", argLength: 2, reg: gp11div, asm: "DIVL", clobberFlags: true}, // arg0 / arg1

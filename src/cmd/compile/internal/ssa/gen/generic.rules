@@ -114,7 +114,24 @@
         (Const32F [f2i(float64(i2f32(c) * i2f32(d)))])
 (Mul64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) * i2f(d))])
 
-// Convert x * -1 to -x. The front-end catches some but not all of these.
+(Div8   (Const8  [c])  (Const8  [d])) && d != 0 -> (Const8  [int64(int8(c)/int8(d))])
+(Div16  (Const16 [c])  (Const16 [d])) && d != 0 -> (Const16 [int64(int16(c)/int16(d))])
+(Div32  (Const32 [c])  (Const32 [d])) && d != 0 -> (Const32 [int64(int32(c)/int32(d))])
+(Div64  (Const64 [c])  (Const64 [d])) && d != 0 -> (Const64 [c/d])
+(Div8u  (Const8  [c])  (Const8  [d])) && d != 0 -> (Const8  [int64(int8(uint8(c)/uint8(d)))])
+(Div16u (Const16 [c])  (Const16 [d])) && d != 0 -> (Const16 [int64(int16(uint16(c)/uint16(d)))])
+(Div32u (Const32 [c])  (Const32 [d])) && d != 0 -> (Const32 [int64(int32(uint32(c)/uint32(d)))])
+(Div64u (Const64 [c])  (Const64 [d])) && d != 0 -> (Const64 [int64(uint64(c)/uint64(d))])
+(Div32F (Const32F [c]) (Const32F [d])) -> (Const32F [f2i(float64(i2f32(c) / i2f32(d)))])
+(Div64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) / i2f(d))])
+
+// Convert x * 1 to x.
+(Mul8  (Const8  [1]) x) -> x
+(Mul16 (Const16 [1]) x) -> x
+(Mul32 (Const32 [1]) x) -> x
+(Mul64 (Const64 [1]) x) -> x
+
+// Convert x * -1 to -x.
 (Mul8  (Const8  [-1]) x) -> (Neg8  x)
 (Mul16 (Const16 [-1]) x) -> (Neg16 x)
 (Mul32 (Const32 [-1]) x) -> (Neg32 x)
@@ -901,102 +918,270 @@
   (ArrayMake1 (Arg <t.ElemType()> {n} [off]))
 
 // strength reduction of divide by a constant.
-// Note: frontend does <=32 bits. We only need to do 64 bits here.
-// TODO: Do them all here?
+// See ../magic.go for a detailed description of these algorithms.
 
-// Div/mod by 1.  Currently handled by frontend.
-//(Div64 n (Const64 [1])) -> n
-//(Div64u n (Const64 [1])) -> n
-//(Mod64 n (Const64 [1])) -> (Const64 [0])
-//(Mod64u n (Const64 [1])) -> (Const64 [0])
-
-// Unsigned divide by power of 2.
-(Div64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (Rsh64Ux64 n (Const64 <t> [log2(c)]))
-(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
-
-// Signed divide by power of 2.  Currently handled by frontend.
-// n / c = n >> log(c)       if n >= 0
-//       = (n+c-1) >> log(c) if n < 0
-// We conditionally add c-1 by adding n>>63>>(64-log(c)) (first shift signed, second shift unsigned).
-//(Div64 <t> n (Const64 [c])) && isPowerOfTwo(c) ->
-//  (Rsh64x64
-//    (Add64 <t>
-//      n
-//      (Rsh64Ux64 <t>
-//        (Rsh64x64 <t> n (Const64 <t> [63]))
-//        (Const64 <t> [64-log2(c)])))
-//    (Const64 <t> [log2(c)]))
+// Unsigned divide by power of 2.  Strength reduce to a shift.
+(Div8u  n (Const8  [c])) && isPowerOfTwo(c&0xff)       -> (Rsh8Ux64 n  (Const64 <config.fe.TypeUInt64()> [log2(c&0xff)]))
+(Div16u n (Const16 [c])) && isPowerOfTwo(c&0xffff)     -> (Rsh16Ux64 n (Const64 <config.fe.TypeUInt64()> [log2(c&0xffff)]))
+(Div32u n (Const32 [c])) && isPowerOfTwo(c&0xffffffff) -> (Rsh32Ux64 n (Const64 <config.fe.TypeUInt64()> [log2(c&0xffffffff)]))
+(Div64u n (Const64 [c])) && isPowerOfTwo(c)            -> (Rsh64Ux64 n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
 
 // Unsigned divide, not a power of 2.  Strength reduce to a multiply.
-(Div64u <t> x (Const64 [c])) && umagic64ok(c) && !umagic64a(c) ->
-  (Rsh64Ux64
-    (Hmul64u <t>
-      (Const64 <t> [umagic64m(c)])
+// For 8-bit divides, we just do a direct 9-bit by 8-bit multiply.
+(Div8u x (Const8 [c])) && umagicOK(8, c) ->
+  (Trunc32to8
+    (Rsh32Ux64 <config.fe.TypeUInt32()>
+      (Mul32 <config.fe.TypeUInt32()>
+        (Const32 <config.fe.TypeUInt32()> [int64(1<<8+umagic(8,c).m)])
+        (ZeroExt8to32 x))
+      (Const64 <config.fe.TypeUInt64()> [8+umagic(8,c).s])))
+
+// For 16-bit divides on 64-bit machines, we do a direct 17-bit by 16-bit multiply.
+(Div16u x (Const16 [c])) && umagicOK(16, c) && config.RegSize == 8 ->
+  (Trunc64to16
+    (Rsh64Ux64 <config.fe.TypeUInt64()>
+      (Mul64 <config.fe.TypeUInt64()>
+        (Const64 <config.fe.TypeUInt64()> [int64(1<<16+umagic(16,c).m)])
+        (ZeroExt16to64 x))
+      (Const64 <config.fe.TypeUInt64()> [16+umagic(16,c).s])))
+
+// For 16-bit divides on 32-bit machines
+(Div16u x (Const16 [c])) && umagicOK(16, c) && config.RegSize == 4 && umagic(16,c).m&1 == 0 ->
+  (Trunc32to16
+    (Rsh32Ux64 <config.fe.TypeUInt32()>
+      (Mul32 <config.fe.TypeUInt32()>
+        (Const32 <config.fe.TypeUInt32()> [int64(1<<15+umagic(16,c).m/2)])
+        (ZeroExt16to32 x))
+      (Const64 <config.fe.TypeUInt64()> [16+umagic(16,c).s-1])))
+(Div16u x (Const16 [c])) && umagicOK(16, c) && config.RegSize == 4 && c&1 == 0 ->
+  (Trunc32to16
+    (Rsh32Ux64 <config.fe.TypeUInt32()>
+      (Mul32 <config.fe.TypeUInt32()>
+        (Const32 <config.fe.TypeUInt32()> [int64(1<<15+(umagic(16,c).m+1)/2)])
+        (Rsh32Ux64 <config.fe.TypeUInt32()> (ZeroExt16to32 x) (Const64 <config.fe.TypeUInt64()> [1])))
+      (Const64 <config.fe.TypeUInt64()> [16+umagic(16,c).s-2])))
+(Div16u x (Const16 [c])) && umagicOK(16, c) && config.RegSize == 4 ->
+  (Trunc32to16
+    (Rsh32Ux64 <config.fe.TypeUInt32()>
+      (Avg32u
+        (Lsh32x64 <config.fe.TypeUInt32()> (ZeroExt16to32 x) (Const64 <config.fe.TypeUInt64()> [16]))
+        (Mul32 <config.fe.TypeUInt32()>
+          (Const32 <config.fe.TypeUInt32()> [int64(umagic(16,c).m)])
+          (ZeroExt16to32 x)))
+      (Const64 <config.fe.TypeUInt64()> [16+umagic(16,c).s-1])))
+
+// For 32-bit divides on 32-bit machines
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && umagic(32,c).m&1 == 0 ->
+  (Rsh32Ux64 <config.fe.TypeUInt32()>
+    (Hmul32u <config.fe.TypeUInt32()>
+      (Const32 <config.fe.TypeUInt32()> [int64(int32(1<<31+umagic(32,c).m/2))])
       x)
-    (Const64 <t> [umagic64s(c)]))
-(Div64u <t> x (Const64 [c])) && umagic64ok(c) && umagic64a(c) ->
-  (Rsh64Ux64
-    (Avg64u <t>
-      (Hmul64u <t>
-        x
-        (Const64 <t> [umagic64m(c)]))
+    (Const64 <config.fe.TypeUInt64()> [umagic(32,c).s-1]))
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 && c&1 == 0 ->
+  (Rsh32Ux64 <config.fe.TypeUInt32()>
+    (Hmul32u <config.fe.TypeUInt32()>
+      (Const32 <config.fe.TypeUInt32()> [int64(int32(1<<31+(umagic(32,c).m+1)/2))])
+      (Rsh32Ux64 <config.fe.TypeUInt32()> x (Const64 <config.fe.TypeUInt64()> [1])))
+    (Const64 <config.fe.TypeUInt64()> [umagic(32,c).s-2]))
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 4 ->
+  (Rsh32Ux64 <config.fe.TypeUInt32()>
+    (Avg32u
+      x
+      (Hmul32u <config.fe.TypeUInt32()>
+        (Const32 <config.fe.TypeUInt32()> [int64(int32(umagic(32,c).m))])
+        x))
+    (Const64 <config.fe.TypeUInt64()> [umagic(32,c).s-1]))
+
+// For 32-bit divides on 64-bit machines
+// We'll use a regular (non-hi) multiply for this case.
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 8 && umagic(32,c).m&1 == 0 ->
+  (Trunc64to32
+    (Rsh64Ux64 <config.fe.TypeUInt64()>
+      (Mul64 <config.fe.TypeUInt64()>
+        (Const64 <config.fe.TypeUInt64()> [int64(1<<31+umagic(32,c).m/2)])
+        (ZeroExt32to64 x))
+      (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-1])))
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 8 && c&1 == 0 ->
+  (Trunc64to32
+    (Rsh64Ux64 <config.fe.TypeUInt64()>
+      (Mul64 <config.fe.TypeUInt64()>
+        (Const64 <config.fe.TypeUInt64()> [int64(1<<31+(umagic(32,c).m+1)/2)])
+        (Rsh64Ux64 <config.fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <config.fe.TypeUInt64()> [1])))
+      (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-2])))
+(Div32u x (Const32 [c])) && umagicOK(32, c) && config.RegSize == 8 ->
+  (Trunc64to32
+    (Rsh64Ux64 <config.fe.TypeUInt64()>
+      (Avg64u
+        (Lsh64x64 <config.fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <config.fe.TypeUInt64()> [32]))
+        (Mul64 <config.fe.TypeUInt32()>
+          (Const64 <config.fe.TypeUInt32()> [int64(umagic(32,c).m)])
+          (ZeroExt32to64 x)))
+      (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-1])))
+
+// For 64-bit divides on 64-bit machines
+// (64-bit divides on 32-bit machines are lowered to a runtime call by the walk pass.)
+(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && umagic(64,c).m&1 == 0 ->
+  (Rsh64Ux64 <config.fe.TypeUInt64()>
+    (Hmul64u <config.fe.TypeUInt64()>
+      (Const64 <config.fe.TypeUInt64()> [int64(1<<63+umagic(64,c).m/2)])
       x)
-    (Const64 <t> [umagic64s(c)-1]))
+    (Const64 <config.fe.TypeUInt64()> [umagic(64,c).s-1]))
+(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 && c&1 == 0 ->
+  (Rsh64Ux64 <config.fe.TypeUInt64()>
+    (Hmul64u <config.fe.TypeUInt64()>
+      (Const64 <config.fe.TypeUInt64()> [int64(1<<63+(umagic(64,c).m+1)/2)])
+      (Rsh64Ux64 <config.fe.TypeUInt64()> x (Const64 <config.fe.TypeUInt64()> [1])))
+    (Const64 <config.fe.TypeUInt64()> [umagic(64,c).s-2]))
+(Div64u x (Const64 [c])) && umagicOK(64, c) && config.RegSize == 8 ->
+  (Rsh64Ux64 <config.fe.TypeUInt64()>
+    (Avg64u
+      x
+      (Hmul64u <config.fe.TypeUInt64()>
+        (Const64 <config.fe.TypeUInt64()> [int64(umagic(64,c).m)])
+        x))
+    (Const64 <config.fe.TypeUInt64()> [umagic(64,c).s-1]))
+
+// Signed divide by a negative constant.  Rewrite to divide by a positive constant.
+(Div8  <t> n (Const8  [c])) && c < 0 && c != -1<<7  -> (Neg8  (Div8  <t> n (Const8  <t> [-c])))
+(Div16 <t> n (Const16 [c])) && c < 0 && c != -1<<15 -> (Neg16 (Div16 <t> n (Const16 <t> [-c])))
+(Div32 <t> n (Const32 [c])) && c < 0 && c != -1<<31 -> (Neg32 (Div32 <t> n (Const32 <t> [-c])))
+(Div64 <t> n (Const64 [c])) && c < 0 && c != -1<<63 -> (Neg64 (Div64 <t> n (Const64 <t> [-c])))
+
+// Dividing by the most-negative number.  Result is always 0 except
+// if the input is also the most-negative number.
+// We can detect that using the sign bit of x & -x.
+(Div8  <t> x (Const8  [-1<<7 ])) -> (Rsh8Ux64  (And8  <t> x (Neg8  <t> x)) (Const64 <config.fe.TypeUInt64()> [7 ]))
+(Div16 <t> x (Const16 [-1<<15])) -> (Rsh16Ux64 (And16 <t> x (Neg16 <t> x)) (Const64 <config.fe.TypeUInt64()> [15]))
+(Div32 <t> x (Const32 [-1<<31])) -> (Rsh32Ux64 (And32 <t> x (Neg32 <t> x)) (Const64 <config.fe.TypeUInt64()> [31]))
+(Div64 <t> x (Const64 [-1<<63])) -> (Rsh64Ux64 (And64 <t> x (Neg64 <t> x)) (Const64 <config.fe.TypeUInt64()> [63]))
+
+// Signed divide by power of 2.
+// n / c =       n >> log(c) if n >= 0
+//       = (n+c-1) >> log(c) if n < 0
+// We conditionally add c-1 by adding n>>63>>(64-log(c)) (first shift signed, second shift unsigned).
+(Div8  <t> n (Const8  [c])) && isPowerOfTwo(c) ->
+  (Rsh8x64
+    (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <config.fe.TypeUInt64()> [ 7])) (Const64 <config.fe.TypeUInt64()> [ 8-log2(c)])))
+    (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+(Div16 <t> n (Const16 [c])) && isPowerOfTwo(c) ->
+  (Rsh16x64
+    (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <config.fe.TypeUInt64()> [15])) (Const64 <config.fe.TypeUInt64()> [16-log2(c)])))
+    (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+(Div32 <t> n (Const32 [c])) && isPowerOfTwo(c) ->
+  (Rsh32x64
+    (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <config.fe.TypeUInt64()> [31])) (Const64 <config.fe.TypeUInt64()> [32-log2(c)])))
+    (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+(Div64 <t> n (Const64 [c])) && isPowerOfTwo(c) ->
+  (Rsh64x64
+    (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <config.fe.TypeUInt64()> [63])) (Const64 <config.fe.TypeUInt64()> [64-log2(c)])))
+    (Const64 <config.fe.TypeUInt64()> [log2(c)]))
 
 // Signed divide, not a power of 2.  Strength reduce to a multiply.
-(Div64 <t> x (Const64 [c])) && c > 0 && smagic64ok(c) && smagic64m(c) > 0 ->
+(Div8 <t> x (Const8 [c])) && smagicOK(8,c) ->
+  (Sub8 <t>
+    (Rsh32x64 <t>
+      (Mul32 <config.fe.TypeUInt32()>
+        (Const32 <config.fe.TypeUInt32()> [int64(smagic(8,c).m)])
+        (SignExt8to32 x))
+      (Const64 <config.fe.TypeUInt64()> [8+smagic(8,c).s]))
+    (Rsh32x64 <t>
+      (SignExt8to32 x)
+      (Const64 <config.fe.TypeUInt64()> [31])))
+(Div16 <t> x (Const16 [c])) && smagicOK(16,c) ->
+  (Sub16 <t>
+    (Rsh32x64 <t>
+      (Mul32 <config.fe.TypeUInt32()>
+        (Const32 <config.fe.TypeUInt32()> [int64(smagic(16,c).m)])
+        (SignExt16to32 x))
+      (Const64 <config.fe.TypeUInt64()> [16+smagic(16,c).s]))
+    (Rsh32x64 <t>
+      (SignExt16to32 x)
+      (Const64 <config.fe.TypeUInt64()> [31])))
+(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 8 ->
+  (Sub32 <t>
+    (Rsh64x64 <t>
+      (Mul64 <config.fe.TypeUInt64()>
+        (Const64 <config.fe.TypeUInt64()> [int64(smagic(32,c).m)])
+        (SignExt32to64 x))
+      (Const64 <config.fe.TypeUInt64()> [32+smagic(32,c).s]))
+    (Rsh64x64 <t>
+      (SignExt32to64 x)
+      (Const64 <config.fe.TypeUInt64()> [63])))
+(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 == 0 ->
+  (Sub32 <t>
+    (Rsh32x64 <t>
+      (Hmul32 <t>
+        (Const32 <config.fe.TypeUInt32()> [int64(int32(smagic(32,c).m/2))])
+        x)
+      (Const64 <config.fe.TypeUInt64()> [smagic(32,c).s-1]))
+    (Rsh32x64 <t>
+      x
+      (Const64 <config.fe.TypeUInt64()> [31])))
+(Div32 <t> x (Const32 [c])) && smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 != 0 ->
+  (Sub32 <t>
+    (Rsh32x64 <t>
+      (Add32 <t>
+        (Hmul32 <t>
+          (Const32 <config.fe.TypeUInt32()> [int64(int32(smagic(32,c).m))])
+          x)
+        x)
+      (Const64 <config.fe.TypeUInt64()> [smagic(32,c).s]))
+    (Rsh32x64 <t>
+      x
+      (Const64 <config.fe.TypeUInt64()> [31])))
+(Div64 <t> x (Const64 [c])) && smagicOK(64,c) && smagic(64,c).m&1 == 0 ->
   (Sub64 <t>
     (Rsh64x64 <t>
       (Hmul64 <t>
-        (Const64 <t> [smagic64m(c)])
+        (Const64 <config.fe.TypeUInt64()> [int64(smagic(64,c).m/2)])
         x)
-      (Const64 <t> [smagic64s(c)]))
+      (Const64 <config.fe.TypeUInt64()> [smagic(64,c).s-1]))
     (Rsh64x64 <t>
       x
-      (Const64 <t> [63])))
-(Div64 <t> x (Const64 [c])) && c > 0 && smagic64ok(c) && smagic64m(c) < 0 ->
+      (Const64 <config.fe.TypeUInt64()> [63])))
+(Div64 <t> x (Const64 [c])) && smagicOK(64,c) && smagic(64,c).m&1 != 0 ->
   (Sub64 <t>
     (Rsh64x64 <t>
       (Add64 <t>
         (Hmul64 <t>
-          (Const64 <t> [smagic64m(c)])
+          (Const64 <config.fe.TypeUInt64()> [int64(smagic(64,c).m)])
           x)
         x)
-      (Const64 <t> [smagic64s(c)]))
+      (Const64 <config.fe.TypeUInt64()> [smagic(64,c).s]))
     (Rsh64x64 <t>
       x
-      (Const64 <t> [63])))
-(Div64 <t> x (Const64 [c])) && c < 0 && smagic64ok(c) && smagic64m(c) > 0 ->
-  (Neg64 <t>
-    (Sub64 <t>
-      (Rsh64x64 <t>
-        (Hmul64 <t>
-          (Const64 <t> [smagic64m(c)])
-          x)
-        (Const64 <t> [smagic64s(c)]))
-      (Rsh64x64 <t>
-        x
-        (Const64 <t> [63]))))
-(Div64 <t> x (Const64 [c])) && c < 0 && smagic64ok(c) && smagic64m(c) < 0 ->
-  (Neg64 <t>
-    (Sub64 <t>
-      (Rsh64x64 <t>
-        (Add64 <t>
-          (Hmul64 <t>
-            (Const64 <t> [smagic64m(c)])
-            x)
-          x)
-        (Const64 <t> [smagic64s(c)]))
-      (Rsh64x64 <t>
-        x
-        (Const64 <t> [63]))))
+      (Const64 <config.fe.TypeUInt64()> [63])))
 
-// A%B = A-(A/B*B).
+// Unsigned mod by power of 2 constant.
+(Mod8u  <t> n (Const8  [c])) && isPowerOfTwo(c&0xff)       -> (And8 n (Const8 <t> [(c&0xff)-1]))
+(Mod16u <t> n (Const16 [c])) && isPowerOfTwo(c&0xffff)     -> (And16 n (Const16 <t> [(c&0xffff)-1]))
+(Mod32u <t> n (Const32 [c])) && isPowerOfTwo(c&0xffffffff) -> (And32 n (Const32 <t> [(c&0xffffffff)-1]))
+(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c)            -> (And64 n (Const64 <t> [c-1]))
+
+// Signed mod by negative constant.
+(Mod8  <t> n (Const8  [c])) && c < 0 && c != -1<<7  -> (Mod8  <t> n (Const8  <t> [-c]))
+(Mod16 <t> n (Const16 [c])) && c < 0 && c != -1<<15 -> (Mod16 <t> n (Const16 <t> [-c]))
+(Mod32 <t> n (Const32 [c])) && c < 0 && c != -1<<31 -> (Mod32 <t> n (Const32 <t> [-c]))
+(Mod64 <t> n (Const64 [c])) && c < 0 && c != -1<<63 -> (Mod64 <t> n (Const64 <t> [-c]))
+
+// All other mods by constants, do A%B = A-(A/B*B).
 // This implements % with two * and a bunch of ancillary ops.
 // One of the * is free if the user's code also computes A/B.
-(Mod64  <t> x (Const64 [c])) && x.Op != OpConst64 && smagic64ok(c)
+(Mod8   <t> x (Const8  [c])) && x.Op != OpConst8  && (c > 0 || c == -1<<7)
+  -> (Sub8  x (Mul8  <t> (Div8   <t> x (Const8  <t> [c])) (Const8  <t> [c])))
+(Mod16  <t> x (Const16 [c])) && x.Op != OpConst16 && (c > 0 || c == -1<<15)
+  -> (Sub16 x (Mul16 <t> (Div16  <t> x (Const16 <t> [c])) (Const16 <t> [c])))
+(Mod32  <t> x (Const32 [c])) && x.Op != OpConst32 && (c > 0 || c == -1<<31)
+  -> (Sub32 x (Mul32 <t> (Div32  <t> x (Const32 <t> [c])) (Const32 <t> [c])))
+(Mod64  <t> x (Const64 [c])) && x.Op != OpConst64 && (c > 0 || c == -1<<63)
   -> (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
-(Mod64u <t> x (Const64 [c])) && x.Op != OpConst64 && umagic64ok(c)
+(Mod8u  <t> x (Const8  [c])) && x.Op != OpConst8  && c > 0 && umagicOK(8 ,c)
+  -> (Sub8  x (Mul8  <t> (Div8u  <t> x (Const8  <t> [c])) (Const8  <t> [c])))
+(Mod16u <t> x (Const16 [c])) && x.Op != OpConst16 && c > 0 && umagicOK(16,c)
+  -> (Sub16 x (Mul16 <t> (Div16u <t> x (Const16 <t> [c])) (Const16 <t> [c])))
+(Mod32u <t> x (Const32 [c])) && x.Op != OpConst32 && c > 0 && umagicOK(32,c)
+  -> (Sub32 x (Mul32 <t> (Div32u <t> x (Const32 <t> [c])) (Const32 <t> [c])))
+(Mod64u <t> x (Const64 [c])) && x.Op != OpConst64 && c > 0 && umagicOK(64,c)
   -> (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
 
 // floating point optimizations

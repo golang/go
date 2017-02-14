@@ -360,6 +360,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpAnd8(v, config)
 	case OpAndB:
 		return rewriteValueARM_OpAndB(v, config)
+	case OpAvg32u:
+		return rewriteValueARM_OpAvg32u(v, config)
 	case OpBswap32:
 		return rewriteValueARM_OpBswap32(v, config)
 	case OpClosureCall:
@@ -13014,6 +13016,28 @@ func rewriteValueARM_OpAndB(v *Value, config *Config) bool {
 		y := v.Args[1]
 		v.reset(OpARMAND)
 		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAvg32u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Avg32u <t> x y)
+	// cond:
+	// result: (ADD (SRLconst <t> (SUB <t> x y) [1]) y)
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMADD)
+		v0 := b.NewValue0(v.Pos, OpARMSRLconst, t)
+		v0.AuxInt = 1
+		v1 := b.NewValue0(v.Pos, OpARMSUB, t)
+		v1.AddArg(x)
+		v1.AddArg(y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		v.AddArg(y)
 		return true
 	}

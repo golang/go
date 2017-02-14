@@ -1071,15 +1071,28 @@ opswitch:
 			break
 		}
 
-		// Try rewriting as shifts or magic multiplies.
-		n = walkdiv(n, init)
-
-		// rewrite 64-bit div and mod into function calls
-		// on 32-bit architectures.
-		switch n.Op {
-		case OMOD, ODIV:
-			if Widthreg >= 8 || (et != TUINT64 && et != TINT64) {
-				break opswitch
+		// rewrite 64-bit div and mod on 32-bit architectures.
+		// TODO: Remove this code once we can introduce
+		// runtime calls late in SSA processing.
+		if Widthreg < 8 && (et == TINT64 || et == TUINT64) {
+			if n.Right.Op == OLITERAL {
+				// Leave div/mod by constant powers of 2.
+				// The SSA backend will handle those.
+				switch et {
+				case TINT64:
+					c := n.Right.Int64()
+					if c < 0 {
+						c = -c
+					}
+					if c != 0 && c&(c-1) == 0 {
+						break opswitch
+					}
+				case TUINT64:
+					c := uint64(n.Right.Int64())
+					if c != 0 && c&(c-1) == 0 {
+						break opswitch
+					}
+				}
 			}
 			var fn string
 			if et == TINT64 {
@@ -3322,263 +3335,6 @@ func walkinrange(n *Node, init *Nodes) *Node {
 	cmp.Type = n.Type
 	cmp = walkexpr(cmp, init)
 	return cmp
-}
-
-// walkdiv rewrites division by a constant as less expensive
-// operations.
-// The result of walkdiv MUST be assigned back to n, e.g.
-// 	n.Left = walkdiv(n.Left, init)
-func walkdiv(n *Node, init *Nodes) *Node {
-	// if >= 0, nr is 1<<pow // 1 if nr is negative.
-
-	if n.Right.Op != OLITERAL {
-		return n
-	}
-
-	// nr is a constant.
-	nl := cheapexpr(n.Left, init)
-
-	nr := n.Right
-
-	// special cases of mod/div
-	// by a constant
-	w := int(nl.Type.Width * 8)
-
-	s := 0            // 1 if nr is negative.
-	pow := powtwo(nr) // if >= 0, nr is 1<<pow
-	if pow >= 1000 {
-		// negative power of 2
-		s = 1
-
-		pow -= 1000
-	}
-
-	if pow+1 >= w {
-		// divisor too large.
-		return n
-	}
-
-	if pow < 0 {
-		// try to do division by multiply by (2^w)/d
-		// see hacker's delight chapter 10
-		// TODO: support 64-bit magic multiply here.
-		var m Magic
-		m.W = w
-
-		if nl.Type.IsSigned() {
-			m.Sd = nr.Int64()
-			smagic(&m)
-		} else {
-			m.Ud = uint64(nr.Int64())
-			umagic(&m)
-		}
-
-		if m.Bad != 0 {
-			return n
-		}
-
-		// We have a quick division method so use it
-		// for modulo too.
-		if n.Op == OMOD {
-			// rewrite as A%B = A - (A/B*B).
-			n1 := nod(ODIV, nl, nr)
-
-			n2 := nod(OMUL, n1, nr)
-			n = nod(OSUB, nl, n2)
-			goto ret
-		}
-
-		switch simtype[nl.Type.Etype] {
-		default:
-			return n
-
-			// n1 = nl * magic >> w (HMUL)
-		case TUINT8, TUINT16, TUINT32:
-			var nc Node
-
-			nodconst(&nc, nl.Type, int64(m.Um))
-			n1 := nod(OHMUL, nl, &nc)
-			n1 = typecheck(n1, Erv)
-			if m.Ua != 0 {
-				// Select a Go type with (at least) twice the width.
-				var twide *Type
-				switch simtype[nl.Type.Etype] {
-				default:
-					return n
-
-				case TUINT8, TUINT16:
-					twide = Types[TUINT32]
-
-				case TUINT32:
-					twide = Types[TUINT64]
-
-				case TINT8, TINT16:
-					twide = Types[TINT32]
-
-				case TINT32:
-					twide = Types[TINT64]
-				}
-
-				// add numerator (might overflow).
-				// n2 = (n1 + nl)
-				n2 := nod(OADD, conv(n1, twide), conv(nl, twide))
-
-				// shift by m.s
-				var nc Node
-
-				nodconst(&nc, Types[TUINT], int64(m.S))
-				n = conv(nod(ORSH, n2, &nc), nl.Type)
-			} else {
-				// n = n1 >> m.s
-				var nc Node
-
-				nodconst(&nc, Types[TUINT], int64(m.S))
-				n = nod(ORSH, n1, &nc)
-			}
-
-			// n1 = nl * magic >> w
-		case TINT8, TINT16, TINT32:
-			var nc Node
-
-			nodconst(&nc, nl.Type, m.Sm)
-			n1 := nod(OHMUL, nl, &nc)
-			n1 = typecheck(n1, Erv)
-			if m.Sm < 0 {
-				// add the numerator.
-				n1 = nod(OADD, n1, nl)
-			}
-
-			// shift by m.s
-			var ns Node
-
-			nodconst(&ns, Types[TUINT], int64(m.S))
-			n2 := conv(nod(ORSH, n1, &ns), nl.Type)
-
-			// add 1 iff n1 is negative.
-			var nneg Node
-
-			nodconst(&nneg, Types[TUINT], int64(w)-1)
-			n3 := nod(ORSH, nl, &nneg) // n4 = -1 iff n1 is negative.
-			n = nod(OSUB, n2, n3)
-
-			// apply sign.
-			if m.Sd < 0 {
-				n = nod(OMINUS, n, nil)
-			}
-		}
-
-		goto ret
-	}
-
-	switch pow {
-	case 0:
-		if n.Op == OMOD {
-			// nl % 1 is zero.
-			nodconst(n, n.Type, 0)
-		} else if s != 0 {
-			// divide by -1
-			n.Op = OMINUS
-
-			n.Right = nil
-		} else {
-			// divide by 1
-			n = nl
-		}
-
-	default:
-		if n.Type.IsSigned() {
-			if n.Op == OMOD {
-				// signed modulo 2^pow is like ANDing
-				// with the last pow bits, but if nl < 0,
-				// nl & (2^pow-1) is (nl+1)%2^pow - 1.
-				var nc Node
-
-				nodconst(&nc, Types[simtype[TUINT]], int64(w)-1)
-				n1 := nod(ORSH, nl, &nc) // n1 = -1 iff nl < 0.
-				if pow == 1 {
-					n1 = typecheck(n1, Erv)
-					n1 = cheapexpr(n1, init)
-
-					// n = (nl+ε)&1 -ε where ε=1 iff nl<0.
-					n2 := nod(OSUB, nl, n1)
-
-					var nc Node
-					nodconst(&nc, nl.Type, 1)
-					n3 := nod(OAND, n2, &nc)
-					n = nod(OADD, n3, n1)
-				} else {
-					// n = (nl+ε)&(nr-1) - ε where ε=2^pow-1 iff nl<0.
-					var nc Node
-
-					nodconst(&nc, nl.Type, (1<<uint(pow))-1)
-					n2 := nod(OAND, n1, &nc) // n2 = 2^pow-1 iff nl<0.
-					n2 = typecheck(n2, Erv)
-					n2 = cheapexpr(n2, init)
-
-					n3 := nod(OADD, nl, n2)
-					n4 := nod(OAND, n3, &nc)
-					n = nod(OSUB, n4, n2)
-				}
-
-				break
-			} else {
-				// arithmetic right shift does not give the correct rounding.
-				// if nl >= 0, nl >> n == nl / nr
-				// if nl < 0, we want to add 2^n-1 first.
-				var nc Node
-
-				nodconst(&nc, Types[simtype[TUINT]], int64(w)-1)
-				n1 := nod(ORSH, nl, &nc) // n1 = -1 iff nl < 0.
-				if pow == 1 {
-					// nl+1 is nl-(-1)
-					n.Left = nod(OSUB, nl, n1)
-				} else {
-					// Do a logical right right on -1 to keep pow bits.
-					var nc Node
-
-					nodconst(&nc, Types[simtype[TUINT]], int64(w)-int64(pow))
-					n2 := nod(ORSH, conv(n1, nl.Type.toUnsigned()), &nc)
-					n.Left = nod(OADD, nl, conv(n2, nl.Type))
-				}
-
-				// n = (nl + 2^pow-1) >> pow
-				n.Op = ORSH
-
-				var n2 Node
-				nodconst(&n2, Types[simtype[TUINT]], int64(pow))
-				n.Right = &n2
-				n.Typecheck = 0
-			}
-
-			if s != 0 {
-				n = nod(OMINUS, n, nil)
-			}
-			break
-		}
-
-		var nc Node
-		if n.Op == OMOD {
-			// n = nl & (nr-1)
-			n.Op = OAND
-
-			nodconst(&nc, nl.Type, nr.Int64()-1)
-		} else {
-			// n = nl >> pow
-			n.Op = ORSH
-
-			nodconst(&nc, Types[simtype[TUINT]], int64(pow))
-		}
-
-		n.Typecheck = 0
-		n.Right = &nc
-	}
-
-	goto ret
-
-ret:
-	n = typecheck(n, Erv)
-	n = walkexpr(n, init)
-	return n
 }
 
 // return 1 if integer n must be in range [0, max), 0 otherwise

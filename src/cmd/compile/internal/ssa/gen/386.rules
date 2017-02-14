@@ -31,6 +31,8 @@
 
 (Mul32uhilo x y) -> (MULLQU x y)
 
+(Avg32u x y) -> (AVGLU x y)
+
 (Div32F x y) -> (DIVSS x y)
 (Div64F x y) -> (DIVSD x y)
 

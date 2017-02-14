@@ -1117,29 +1117,20 @@ func rewriteValueS390X_OpAvg64u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Avg64u <t> x y)
 	// cond:
-	// result: (ADD (ADD <t> (SRDconst <t> x [1]) (SRDconst <t> y [1])) (ANDconst <t> (AND <t> x y) [1]))
+	// result: (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
 	for {
 		t := v.Type
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpS390XADD)
-		v0 := b.NewValue0(v.Pos, OpS390XADD, t)
-		v1 := b.NewValue0(v.Pos, OpS390XSRDconst, t)
-		v1.AuxInt = 1
+		v0 := b.NewValue0(v.Pos, OpS390XSRDconst, t)
+		v0.AuxInt = 1
+		v1 := b.NewValue0(v.Pos, OpS390XSUB, t)
 		v1.AddArg(x)
+		v1.AddArg(y)
 		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XSRDconst, t)
-		v2.AuxInt = 1
-		v2.AddArg(y)
-		v0.AddArg(v2)
 		v.AddArg(v0)
-		v3 := b.NewValue0(v.Pos, OpS390XANDconst, t)
-		v3.AuxInt = 1
-		v4 := b.NewValue0(v.Pos, OpS390XAND, t)
-		v4.AddArg(x)
-		v4.AddArg(y)
-		v3.AddArg(v4)
-		v.AddArg(v3)
+		v.AddArg(y)
 		return true
 	}
 }
