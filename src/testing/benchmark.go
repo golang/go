@@ -657,9 +657,6 @@ func Benchmark(f func(b *B)) BenchmarkResult {
 		benchFunc: f,
 		benchTime: *benchTime,
 	}
-	if !b.run1() {
-		return BenchmarkResult{}
-	}
 	return b.run()
 }
 

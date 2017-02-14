@@ -15,6 +15,11 @@ import (
 	"time"
 )
 
+func init() {
+	// Make benchmark tests run 10* faster.
+	*benchTime = 100 * time.Millisecond
+}
+
 func TestTestContext(t *T) {
 	const (
 		add1 = 0
@@ -579,5 +584,20 @@ func TestRacyOutput(t *T) {
 
 	if races > 0 {
 		t.Errorf("detected %d racy Writes", races)
+	}
+}
+
+func TestBenchmark(t *T) {
+	res := Benchmark(func(b *B) {
+		for i := 0; i < 5; i++ {
+			b.Run("", func(b *B) {
+				for i := 0; i < b.N; i++ {
+					time.Sleep(time.Millisecond)
+				}
+			})
+		}
+	})
+	if res.NsPerOp() < 4000000 {
+		t.Errorf("want >5ms; got %v", time.Duration(res.NsPerOp()))
 	}
 }
