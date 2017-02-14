@@ -4219,60 +4219,87 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 
 // checkgoto checks that a goto from from to to does not
 // jump into a block or jump over variable declarations.
-// It is a copy of checkgoto in the pre-SSA backend,
-// modified only for line number handling.
-// TODO: document how this works and why it is designed the way it is.
 func (s *state) checkgoto(from *Node, to *Node) {
+	if from.Op != OGOTO || to.Op != OLABEL {
+		Fatalf("bad from/to in checkgoto: %v -> %v", from, to)
+	}
+
+	// from and to's Sym fields record dclstack's value at their
+	// position, which implicitly encodes their block nesting
+	// level and variable declaration position within that block.
+	//
+	// For valid gotos, to.Sym will be a tail of from.Sym.
+	// Otherwise, any link in to.Sym not also in from.Sym
+	// indicates a block/declaration being jumped into/over.
+	//
+	// TODO(mdempsky): We should only complain about jumping over
+	// variable declarations, but currently we reject type and
+	// constant declarations too (#8042).
+
 	if from.Sym == to.Sym {
 		return
 	}
 
-	nf := 0
-	for fs := from.Sym; fs != nil; fs = fs.Link {
-		nf++
-	}
-	nt := 0
-	for fs := to.Sym; fs != nil; fs = fs.Link {
-		nt++
-	}
+	nf := dcldepth(from.Sym)
+	nt := dcldepth(to.Sym)
+
+	// Unwind from.Sym so it's no longer than to.Sym. It's okay to
+	// jump out of blocks or backwards past variable declarations.
 	fs := from.Sym
 	for ; nf > nt; nf-- {
 		fs = fs.Link
 	}
-	if fs != to.Sym {
-		// decide what to complain about.
-		// prefer to complain about 'into block' over declarations,
-		// so scan backward to find most recent block or else dcl.
-		var block *Sym
 
-		var dcl *Sym
-		ts := to.Sym
-		for ; nt > nf; nt-- {
-			if ts.Pkg == nil {
-				block = ts
-			} else {
-				dcl = ts
-			}
-			ts = ts.Link
-		}
-
-		for ts != fs {
-			if ts.Pkg == nil {
-				block = ts
-			} else {
-				dcl = ts
-			}
-			ts = ts.Link
-			fs = fs.Link
-		}
-
-		lno := from.Left.Pos
-		if block != nil {
-			yyerrorl(lno, "goto %v jumps into block starting at %v", from.Left.Sym, linestr(block.Lastlineno))
-		} else {
-			yyerrorl(lno, "goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, linestr(dcl.Lastlineno))
-		}
+	if fs == to.Sym {
+		return
 	}
+
+	// Decide what to complain about. Unwind to.Sym until where it
+	// forked from from.Sym, and keep track of the innermost block
+	// and declaration we jumped into/over.
+	var block *Sym
+	var dcl *Sym
+
+	// If to.Sym is longer, unwind until it's the same length.
+	ts := to.Sym
+	for ; nt > nf; nt-- {
+		if ts.Pkg == nil {
+			block = ts
+		} else {
+			dcl = ts
+		}
+		ts = ts.Link
+	}
+
+	// Same length; unwind until we find their common ancestor.
+	for ts != fs {
+		if ts.Pkg == nil {
+			block = ts
+		} else {
+			dcl = ts
+		}
+		ts = ts.Link
+		fs = fs.Link
+	}
+
+	// Prefer to complain about 'into block' over declarations.
+	lno := from.Left.Pos
+	if block != nil {
+		yyerrorl(lno, "goto %v jumps into block starting at %v", from.Left.Sym, linestr(block.Lastlineno))
+	} else {
+		yyerrorl(lno, "goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, linestr(dcl.Lastlineno))
+	}
+}
+
+// dcldepth returns the declaration depth for a dclstack Sym; that is,
+// the sum of the block nesting level and the number of declarations
+// in scope.
+func dcldepth(s *Sym) int {
+	n := 0
+	for ; s != nil; s = s.Link {
+		n++
+	}
+	return n
 }
 
 // variable returns the value of a variable at the current location.
