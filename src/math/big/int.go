@@ -570,7 +570,7 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
 // Rand sets z to a pseudo-random number in [0, n) and returns z.
 func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	z.neg = false
-	if n.neg == true || len(n.abs) == 0 {
+	if n.neg || len(n.abs) == 0 {
 		z.abs = nil
 		return z
 	}
