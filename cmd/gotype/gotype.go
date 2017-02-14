@@ -67,6 +67,16 @@ func initSizes() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "usage: gotype [flags] [path ...]")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "If no path is provided, gotype processes stdin.")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "If a single directory is provided, gotype processes files in that directory.")
+	fmt.Fprintln(os.Stderr, "If the -a flag is provided gotype also processes the _test.go files in the directory.")
+	fmt.Fprintln(os.Stderr, "If the directory contains an xtest package, gotype -a will separately process the xtest")
+	fmt.Fprintln(os.Stderr, "package (it assumes the package itself is installed).")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Otherwise, the paths are processed as files belonging to the same package.")
+	fmt.Fprintln(os.Stderr, "")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
@@ -137,41 +147,56 @@ func parseFiles(filenames []string) ([]*ast.File, error) {
 	return files, nil
 }
 
-func parseDir(dirname string) ([]*ast.File, error) {
+func parseDir(dirname string) (files, xfiles []*ast.File, err error) {
 	ctxt := build.Default
 	pkginfo, err := ctxt.ImportDir(dirname, 0)
 	if _, nogo := err.(*build.NoGoError); err != nil && !nogo {
-		return nil, err
+		return
 	}
+
 	filenames := append(pkginfo.GoFiles, pkginfo.CgoFiles...)
 	if *allFiles {
 		filenames = append(filenames, pkginfo.TestGoFiles...)
+	}
+
+	var xfilenames []string
+	if *allFiles {
+		xfilenames = pkginfo.XTestGoFiles
 	}
 
 	// complete file names
 	for i, filename := range filenames {
 		filenames[i] = filepath.Join(dirname, filename)
 	}
+	for i, filename := range xfilenames {
+		xfilenames[i] = filepath.Join(dirname, filename)
+	}
 
-	return parseFiles(filenames)
+	if files, err = parseFiles(filenames); err != nil {
+		return
+	}
+
+	xfiles, err = parseFiles(xfilenames)
+	return
 }
 
-func getPkgFiles(args []string) ([]*ast.File, error) {
+func getPkgFiles(args []string) (files, xfiles []*ast.File, err error) {
 	if len(args) == 0 {
 		// stdin
 		file, err := parseStdin()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return []*ast.File{file}, nil
+		return []*ast.File{file}, nil, nil
 	}
 
 	if len(args) == 1 {
 		// possibly a directory
 		path := args[0]
-		info, err := os.Stat(path)
+		var info os.FileInfo
+		info, err = os.Stat(path)
 		if err != nil {
-			return nil, err
+			return
 		}
 		if info.IsDir() {
 			return parseDir(path)
@@ -179,7 +204,8 @@ func getPkgFiles(args []string) ([]*ast.File, error) {
 	}
 
 	// list of files
-	return parseFiles(args)
+	files, err = parseFiles(args)
+	return
 }
 
 func checkPkgFiles(files []*ast.File) {
@@ -240,15 +266,24 @@ func main() {
 
 	start := time.Now()
 
-	files, err := getPkgFiles(flag.Args())
+	files, xfiles, err := getPkgFiles(flag.Args())
 	if err != nil {
 		report(err)
 		os.Exit(2)
 	}
 
-	checkPkgFiles(files)
-	if errorCount > 0 {
-		os.Exit(2)
+	if len(files) > 0 {
+		checkPkgFiles(files)
+		if errorCount > 0 {
+			os.Exit(2)
+		}
+	}
+
+	if len(xfiles) > 0 {
+		checkPkgFiles(xfiles)
+		if errorCount > 0 {
+			os.Exit(2)
+		}
 	}
 
 	if *verbose {
