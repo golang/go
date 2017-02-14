@@ -1539,9 +1539,6 @@ opswitch:
 		n = r
 
 	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
-		if n.Op == OSTRUCTLIT && iszero(n) && !instrumenting { // TODO: SSA doesn't yet handle ARRAYLIT with length > 1
-			break
-		}
 		if isStaticCompositeLiteral(n) {
 			// n can be directly represented in the read-only data section.
 			// Make direct reference to the static data. See issue 12841.
