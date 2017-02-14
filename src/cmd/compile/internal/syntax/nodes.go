@@ -10,9 +10,16 @@ import "cmd/internal/src"
 // Nodes
 
 type Node interface {
+	// Pos() returns the position associated with the node as follows:
+	// 1) The position of a node representing a terminal syntax production
+	//    (Name, BasicLit, etc.) is the position of the respective production
+	//    in the source.
+	// 2) The position of a node representing a non-terminal production
+	//    (IndexExpr, IfStmt, etc.) is the position of a token uniquely
+	//    associated with that production; usually the left-most one
+	//    ('[' for IndexExpr, 'if' for IfStmt, etc.)
 	Pos() src.Pos
 	aNode()
-	init(p *parser)
 }
 
 type node struct {
@@ -26,11 +33,6 @@ func (n *node) Pos() src.Pos {
 }
 
 func (*node) aNode() {}
-
-// TODO(gri) we may be able to get rid of init here and in Node
-func (n *node) init(p *parser) {
-	n.pos = p.pos()
-}
 
 // ----------------------------------------------------------------------------
 // Files
