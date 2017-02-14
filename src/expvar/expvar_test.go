@@ -38,8 +38,8 @@ func TestNil(t *testing.T) {
 func TestInt(t *testing.T) {
 	RemoveAll()
 	reqs := NewInt("requests")
-	if reqs.i != 0 {
-		t.Errorf("reqs.i = %v, want 0", reqs.i)
+	if i := reqs.Value(); i != 0 {
+		t.Errorf("reqs.Value() = %v, want 0", i)
 	}
 	if reqs != Get("requests").(*Int) {
 		t.Errorf("Get() failed.")
@@ -47,8 +47,8 @@ func TestInt(t *testing.T) {
 
 	reqs.Add(1)
 	reqs.Add(3)
-	if reqs.i != 4 {
-		t.Errorf("reqs.i = %v, want 4", reqs.i)
+	if i := reqs.Value(); i != 4 {
+		t.Errorf("reqs.Value() = %v, want 4", i)
 	}
 
 	if s := reqs.String(); s != "4" {
@@ -56,12 +56,8 @@ func TestInt(t *testing.T) {
 	}
 
 	reqs.Set(-2)
-	if reqs.i != -2 {
-		t.Errorf("reqs.i = %v, want -2", reqs.i)
-	}
-
-	if v, want := reqs.Value(), int64(-2); v != want {
-		t.Errorf("reqs.Value() = %q, want %q", v, want)
+	if i := reqs.Value(); i != -2 {
+		t.Errorf("reqs.Value() = %v, want -2", i)
 	}
 }
 
@@ -134,19 +130,14 @@ func BenchmarkFloatSet(b *testing.B) {
 func TestString(t *testing.T) {
 	RemoveAll()
 	name := NewString("my-name")
-	if name.s != "" {
-		t.Errorf("name.s = %q, want \"\"", name.s)
+	if name.Value() != "" {
+		t.Errorf("name.Value() = %q, want \"\"", name.s)
 	}
 
 	name.Set("Mike")
-	if name.s != "Mike" {
-		t.Errorf("name.s = %q, want \"Mike\"", name.s)
-	}
-
 	if s, want := name.String(), `"Mike"`; s != want {
 		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
 	}
-
 	if s, want := name.Value(), "Mike"; s != want {
 		t.Errorf("from %q, name.Value() = %q, want %q", name.s, s, want)
 	}
@@ -176,13 +167,13 @@ func TestMapCounter(t *testing.T) {
 	colors.Add("red", 2)
 	colors.Add("blue", 4)
 	colors.AddFloat(`green "midori"`, 4.125)
-	if x := colors.m["red"].(*Int).i; x != 3 {
+	if x := colors.Get("red").(*Int).Value(); x != 3 {
 		t.Errorf("colors.m[\"red\"] = %v, want 3", x)
 	}
-	if x := colors.m["blue"].(*Int).i; x != 4 {
+	if x := colors.Get("blue").(*Int).Value(); x != 4 {
 		t.Errorf("colors.m[\"blue\"] = %v, want 4", x)
 	}
-	if x := colors.m[`green "midori"`].(*Float).Value(); x != 4.125 {
+	if x := colors.Get(`green "midori"`).(*Float).Value(); x != 4.125 {
 		t.Errorf("colors.m[`green \"midori\"] = %v, want 4.125", x)
 	}
 
@@ -212,6 +203,19 @@ func BenchmarkMapSet(b *testing.B) {
 	m := new(Map).Init()
 
 	v := new(Int)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.Set("red", v)
+		}
+	})
+}
+
+func BenchmarkMapSetString(b *testing.B) {
+	m := new(Map).Init()
+
+	v := new(String)
+	v.Set("Hello, !")
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -251,6 +255,41 @@ func BenchmarkMapAddDifferent(b *testing.B) {
 
 		for pb.Next() {
 			m := new(Map).Init()
+			for _, k := range keys {
+				m.Add(k, 1)
+			}
+		}
+	})
+}
+
+func BenchmarkMapAddSameSteadyState(b *testing.B) {
+	m := new(Map).Init()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.Add("red", 1)
+		}
+	})
+}
+
+func BenchmarkMapAddDifferentSteadyState(b *testing.B) {
+	procKeys := make([][]string, runtime.GOMAXPROCS(0))
+	for i := range procKeys {
+		keys := make([]string, 4)
+		for j := range keys {
+			keys[j] = fmt.Sprint(i, j)
+		}
+		procKeys[i] = keys
+	}
+
+	m := new(Map).Init()
+	b.ResetTimer()
+
+	var n int32
+	b.RunParallel(func(pb *testing.PB) {
+		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
+		keys := procKeys[i]
+
+		for pb.Next() {
 			for _, k := range keys {
 				m.Add(k, 1)
 			}
