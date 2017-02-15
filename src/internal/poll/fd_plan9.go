@@ -178,3 +178,7 @@ func isHangup(err error) bool {
 func isInterrupted(err error) bool {
 	return err != nil && stringsHasSuffix(err.Error(), "interrupted")
 }
+
+func PollDescriptor() uintptr {
+	return ^uintptr(0)
+}
