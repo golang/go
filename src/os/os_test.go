@@ -1947,6 +1947,8 @@ func TestPipeThreads(t *testing.T) {
 	switch runtime.GOOS {
 	case "freebsd":
 		t.Skip("skipping on FreeBSD; issue 19093")
+	case "solaris":
+		t.Skip("skipping on Solaris; issue 19111")
 	case "windows":
 		t.Skip("skipping on Windows; issue 19098")
 	case "plan9":
