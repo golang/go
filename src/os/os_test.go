@@ -1949,6 +1949,8 @@ func TestPipeThreads(t *testing.T) {
 		t.Skip("skipping on FreeBSD; issue 19093")
 	case "windows":
 		t.Skip("skipping on Windows; issue 19098")
+	case "plan9":
+		t.Skip("skipping on Plan 9; does not support runtime poller")
 	}
 
 	threads := 100
