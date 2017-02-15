@@ -120,19 +120,11 @@ func buildssa(fn *Node) *ssa.Func {
 		}
 	}
 
-	// Populate arguments.
+	// Populate SSAable arguments.
 	for _, n := range fn.Func.Dcl {
-		if n.Class != PPARAM {
-			continue
+		if n.Class == PPARAM && s.canSSA(n) {
+			s.vars[n] = s.newValue0A(ssa.OpArg, n.Type, n)
 		}
-		var v *ssa.Value
-		if s.canSSA(n) {
-			v = s.newValue0A(ssa.OpArg, n.Type, n)
-		} else {
-			// Not SSAable. Load it.
-			v = s.newValue2(ssa.OpLoad, n.Type, s.decladdrs[n], s.startmem)
-		}
-		s.vars[n] = v
 	}
 
 	// Convert the AST-based IR to the SSA-based IR
