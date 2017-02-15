@@ -100,14 +100,6 @@ func (pd *pollDesc) waitCanceled(mode int) {
 	runtime_pollWaitCanceled(pd.runtimeCtx, mode)
 }
 
-func (pd *pollDesc) waitCanceledRead() {
-	pd.waitCanceled('r')
-}
-
-func (pd *pollDesc) waitCanceledWrite() {
-	pd.waitCanceled('w')
-}
-
 func convertErr(res int) error {
 	switch res {
 	case 0:
