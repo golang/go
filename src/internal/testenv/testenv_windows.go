@@ -30,7 +30,6 @@ func initWinHasSymlink() {
 			winSymlinkErr = err
 		}
 	}
-	os.Remove("target")
 }
 
 func hasSymlink() (ok bool, reason string) {
