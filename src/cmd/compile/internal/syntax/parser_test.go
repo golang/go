@@ -195,7 +195,7 @@ func TestLineDirectives(t *testing.T) {
 		{`//line :x`, "invalid line number: x", "", 1, 8},
 		{`//line foo :`, "invalid line number: ", "", 1, 12},
 		{`//line foo:123abc`, "invalid line number: 123abc", "", 1, 11},
-		{`/**///line foo:x`, "invalid line number: x", "", 1, 15},
+		{`/**///line foo:x`, "syntax error: package statement must be first", "", 1, 16}, //line directive not at start of line - ignored
 		{`//line foo:0`, "invalid line number: 0", "", 1, 11},
 		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 1, 11},
 
