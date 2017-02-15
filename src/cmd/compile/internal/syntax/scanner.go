@@ -45,10 +45,11 @@ func (s *scanner) init(src io.Reader, errh, pragh func(line, col uint, msg strin
 // calls the error handler installed with init. The handler
 // must exist.
 //
-// If a //line or //go: directive is encountered, next
-// calls the pragma handler installed with init, if not nil.
+// If a //line or //go: directive is encountered at the start
+// of a line, next calls the directive handler pragh installed
+// with init, if not nil.
 //
-// The (line, col) position passed to the error and pragma
+// The (line, col) position passed to the error and directive
 // handler is always at or after the current source reading
 // position.
 func (s *scanner) next() {
@@ -561,13 +562,14 @@ func (s *scanner) skipLine(r rune) {
 
 func (s *scanner) lineComment() {
 	r := s.getr()
-	if s.pragh == nil || (r != 'g' && r != 'l') {
+	// directives must start at the beginning of the line (s.col == 0)
+	if s.col != 0 || s.pragh == nil || (r != 'g' && r != 'l') {
 		s.skipLine(r)
 		return
 	}
-	// s.pragh != nil && (r == 'g' || r == 'l')
+	// s.col == 0 && s.pragh != nil && (r == 'g' || r == 'l')
 
-	// recognize pragmas
+	// recognize directives
 	prefix := "go:"
 	if r == 'l' {
 		prefix = "line "
@@ -580,7 +582,7 @@ func (s *scanner) lineComment() {
 		r = s.getr()
 	}
 
-	// pragma text without line ending (which may be "\r\n" if Windows),
+	// directive text without line ending (which may be "\r\n" if Windows),
 	s.startLit()
 	s.skipLine(r)
 	text := s.stopLit()
@@ -588,7 +590,7 @@ func (s *scanner) lineComment() {
 		text = text[:i]
 	}
 
-	s.pragh(s.line, s.col+2, prefix+string(text)) // +2 since pragma text starts after //
+	s.pragh(s.line, s.col+2, prefix+string(text)) // +2 since directive text starts after //
 }
 
 func (s *scanner) fullComment() {
