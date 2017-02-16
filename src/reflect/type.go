@@ -2205,9 +2205,6 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	// Prepare GC data if any.
 	// A bucket is at most bucketSize*(1+maxKeySize+maxValSize)+2*ptrSize bytes,
 	// or 2072 bytes, or 259 pointer-size words, or 33 bytes of pointer bitmap.
-	// Normally the enforced limit on pointer maps is 16 bytes,
-	// but larger ones are acceptable, 33 bytes isn't too too big,
-	// and it's easier to generate a pointer bitmap than a GC program.
 	// Note that since the key and value are known to be <= 128 bytes,
 	// they're guaranteed to have bitmaps instead of GC programs.
 	var gcdata *byte
@@ -2234,7 +2231,7 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 				panic("reflect: unexpected GC program in MapOf")
 			}
 			kmask := (*[16]byte)(unsafe.Pointer(ktyp.gcdata))
-			for i := uintptr(0); i < ktyp.size/ptrSize; i++ {
+			for i := uintptr(0); i < ktyp.ptrdata/ptrSize; i++ {
 				if (kmask[i/8]>>(i%8))&1 != 0 {
 					for j := uintptr(0); j < bucketSize; j++ {
 						word := base + j*ktyp.size/ptrSize + i
@@ -2250,7 +2247,7 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 				panic("reflect: unexpected GC program in MapOf")
 			}
 			emask := (*[16]byte)(unsafe.Pointer(etyp.gcdata))
-			for i := uintptr(0); i < etyp.size/ptrSize; i++ {
+			for i := uintptr(0); i < etyp.ptrdata/ptrSize; i++ {
 				if (emask[i/8]>>(i%8))&1 != 0 {
 					for j := uintptr(0); j < bucketSize; j++ {
 						word := base + j*etyp.size/ptrSize + i
