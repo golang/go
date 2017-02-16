@@ -12,24 +12,48 @@ import (
 )
 
 var (
-	mimeLock       sync.RWMutex      // guards following 3 maps
-	mimeTypes      map[string]string // ".Z" => "application/x-compress"
-	mimeTypesLower map[string]string // ".z" => "application/x-compress"
+	mimeTypes      sync.Map // map[string]string; ".Z" => "application/x-compress"
+	mimeTypesLower sync.Map // map[string]string; ".z" => "application/x-compress"
 
 	// extensions maps from MIME type to list of lowercase file
 	// extensions: "image/jpeg" => [".jpg", ".jpeg"]
-	extensions map[string][]string
+	extensionsMu sync.Mutex // Guards stores (but not loads) on extensions.
+	extensions   sync.Map   // map[string][]string; slice values are append-only.
 )
 
+func clearSyncMap(m *sync.Map) {
+	m.Range(func(k, _ interface{}) bool {
+		m.Delete(k)
+		return true
+	})
+}
+
 // setMimeTypes is used by initMime's non-test path, and by tests.
-// The two maps must not be the same, or nil.
 func setMimeTypes(lowerExt, mixExt map[string]string) {
-	if lowerExt == nil || mixExt == nil {
-		panic("nil map")
+	clearSyncMap(&mimeTypes)
+	clearSyncMap(&mimeTypesLower)
+	clearSyncMap(&extensions)
+
+	for k, v := range lowerExt {
+		mimeTypesLower.Store(k, v)
 	}
-	mimeTypesLower = lowerExt
-	mimeTypes = mixExt
-	extensions = invert(lowerExt)
+	for k, v := range mixExt {
+		mimeTypes.Store(k, v)
+	}
+
+	extensionsMu.Lock()
+	defer extensionsMu.Unlock()
+	for k, v := range lowerExt {
+		justType, _, err := ParseMediaType(v)
+		if err != nil {
+			panic(err)
+		}
+		var exts []string
+		if ei, ok := extensions.Load(k); ok {
+			exts = ei.([]string)
+		}
+		extensions.Store(justType, append(exts, k))
+	}
 }
 
 var builtinTypesLower = map[string]string{
@@ -45,29 +69,6 @@ var builtinTypesLower = map[string]string{
 	".xml":  "text/xml; charset=utf-8",
 }
 
-func clone(m map[string]string) map[string]string {
-	m2 := make(map[string]string, len(m))
-	for k, v := range m {
-		m2[k] = v
-		if strings.ToLower(k) != k {
-			panic("keys in builtinTypesLower must be lowercase")
-		}
-	}
-	return m2
-}
-
-func invert(m map[string]string) map[string][]string {
-	m2 := make(map[string][]string, len(m))
-	for k, v := range m {
-		justType, _, err := ParseMediaType(v)
-		if err != nil {
-			panic(err)
-		}
-		m2[justType] = append(m2[justType], k)
-	}
-	return m2
-}
-
 var once sync.Once // guards initMime
 
 var testInitMime, osInitMime func()
@@ -76,7 +77,7 @@ func initMime() {
 	if fn := testInitMime; fn != nil {
 		fn()
 	} else {
-		setMimeTypes(builtinTypesLower, clone(builtinTypesLower))
+		setMimeTypes(builtinTypesLower, builtinTypesLower)
 		osInitMime()
 	}
 }
@@ -100,12 +101,10 @@ func initMime() {
 // Text types have the charset parameter set to "utf-8" by default.
 func TypeByExtension(ext string) string {
 	once.Do(initMime)
-	mimeLock.RLock()
-	defer mimeLock.RUnlock()
 
 	// Case-sensitive lookup.
-	if v := mimeTypes[ext]; v != "" {
-		return v
+	if v, ok := mimeTypes.Load(ext); ok {
+		return v.(string)
 	}
 
 	// Case-insensitive lookup.
@@ -118,7 +117,9 @@ func TypeByExtension(ext string) string {
 		c := ext[i]
 		if c >= utf8RuneSelf {
 			// Slow path.
-			return mimeTypesLower[strings.ToLower(ext)]
+			si, _ := mimeTypesLower.Load(strings.ToLower(ext))
+			s, _ := si.(string)
+			return s
 		}
 		if 'A' <= c && c <= 'Z' {
 			lower = append(lower, c+('a'-'A'))
@@ -126,9 +127,9 @@ func TypeByExtension(ext string) string {
 			lower = append(lower, c)
 		}
 	}
-	// The conversion from []byte to string doesn't allocate in
-	// a map lookup.
-	return mimeTypesLower[string(lower)]
+	si, _ := mimeTypesLower.Load(string(lower))
+	s, _ := si.(string)
+	return s
 }
 
 // ExtensionsByType returns the extensions known to be associated with the MIME
@@ -142,13 +143,11 @@ func ExtensionsByType(typ string) ([]string, error) {
 	}
 
 	once.Do(initMime)
-	mimeLock.RLock()
-	defer mimeLock.RUnlock()
-	s, ok := extensions[justType]
+	s, ok := extensions.Load(justType)
 	if !ok {
 		return nil, nil
 	}
-	return append([]string{}, s...), nil
+	return append([]string{}, s.([]string)...), nil
 }
 
 // AddExtensionType sets the MIME type associated with
@@ -173,15 +172,20 @@ func setExtensionType(extension, mimeType string) error {
 	}
 	extLower := strings.ToLower(extension)
 
-	mimeLock.Lock()
-	defer mimeLock.Unlock()
-	mimeTypes[extension] = mimeType
-	mimeTypesLower[extLower] = mimeType
-	for _, v := range extensions[justType] {
+	mimeTypes.Store(extension, mimeType)
+	mimeTypesLower.Store(extLower, mimeType)
+
+	extensionsMu.Lock()
+	defer extensionsMu.Unlock()
+	var exts []string
+	if ei, ok := extensions.Load(justType); ok {
+		exts = ei.([]string)
+	}
+	for _, v := range exts {
 		if v == extLower {
 			return nil
 		}
 	}
-	extensions[justType] = append(extensions[justType], extLower)
+	extensions.Store(justType, append(exts, extLower))
 	return nil
 }
