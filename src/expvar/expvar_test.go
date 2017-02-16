@@ -21,9 +21,11 @@ import (
 // RemoveAll removes all exported variables.
 // This is for tests only.
 func RemoveAll() {
-	mutex.Lock()
-	defer mutex.Unlock()
-	vars = make(map[string]Var)
+	varKeysMu.Lock()
+	defer varKeysMu.Unlock()
+	for _, k := range varKeys {
+		vars.Delete(k)
+	}
 	varKeys = nil
 }
 
@@ -130,22 +132,22 @@ func BenchmarkFloatSet(b *testing.B) {
 func TestString(t *testing.T) {
 	RemoveAll()
 	name := NewString("my-name")
-	if name.Value() != "" {
-		t.Errorf("name.Value() = %q, want \"\"", name.s)
+	if s := name.Value(); s != "" {
+		t.Errorf(`NewString("my-name").Value() = %q, want ""`, s)
 	}
 
 	name.Set("Mike")
 	if s, want := name.String(), `"Mike"`; s != want {
-		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
+		t.Errorf(`after name.Set("Mike"), name.String() = %q, want %q`, s, want)
 	}
 	if s, want := name.Value(), "Mike"; s != want {
-		t.Errorf("from %q, name.Value() = %q, want %q", name.s, s, want)
+		t.Errorf(`after name.Set("Mike"), name.Value() = %q, want %q`, s, want)
 	}
 
 	// Make sure we produce safe JSON output.
-	name.Set(`<`)
+	name.Set("<")
 	if s, want := name.String(), "\"\\u003c\""; s != want {
-		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
+		t.Errorf(`after name.Set("<"), name.String() = %q, want %q`, s, want)
 	}
 }
 
