@@ -1664,8 +1664,7 @@ func fncall(l *Node, rt *Type) bool {
 	if l.Ullman >= UINF || l.Op == OINDEXMAP {
 		return true
 	}
-	var r Node
-	if needwritebarrier(l, &r) {
+	if needwritebarrier(l) {
 		return true
 	}
 	if eqtype(l.Type, rt) {
@@ -2049,8 +2048,8 @@ func isstack(n *Node) bool {
 	return false
 }
 
-// Do we need a write barrier for the assignment l = r?
-func needwritebarrier(l *Node, r *Node) bool {
+// Do we need a write barrier for assigning to l?
+func needwritebarrier(l *Node) bool {
 	if !use_writebarrier {
 		return false
 	}
@@ -2077,21 +2076,6 @@ func needwritebarrier(l *Node, r *Node) bool {
 		return false
 	}
 
-	// Implicit zeroing is still zeroing, so it needs write
-	// barriers. In practice, these are all to stack variables
-	// (even if isstack isn't smart enough to figure that out), so
-	// they'll be eliminated by the backend.
-	if r == nil {
-		return true
-	}
-
-	// Ignore no-op conversions when making decision.
-	// Ensures that xp = unsafe.Pointer(&x) is treated
-	// the same as xp = &x.
-	for r.Op == OCONVNOP {
-		r = r.Left
-	}
-
 	// TODO: We can eliminate write barriers if we know *both* the
 	// current and new content of the slot must already be shaded.
 	// We know a pointer is shaded if it's nil, or points to
@@ -2099,12 +2083,6 @@ func needwritebarrier(l *Node, r *Node) bool {
 	// The nil optimization could be particularly useful for
 	// writes to just-allocated objects. Unfortunately, knowing
 	// the "current" value of the slot requires flow analysis.
-
-	// No write barrier for storing address of stack values,
-	// which are guaranteed only to be written to the stack.
-	if r.Op == OADDR && isstack(r.Left) {
-		return false
-	}
 
 	// Otherwise, be conservative and use write barrier.
 	return true
