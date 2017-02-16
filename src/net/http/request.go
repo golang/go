@@ -27,8 +27,6 @@ import (
 	"sync"
 
 	"golang_org/x/net/idna"
-	"golang_org/x/text/unicode/norm"
-	"golang_org/x/text/width"
 )
 
 const (
@@ -639,16 +637,19 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 type requestBodyReadError struct{ error }
 
 func idnaASCII(v string) (string, error) {
+	// TODO: Consider removing this check after verifying performance is okay.
+	// Right now punycode verification, length checks, context checks, and the
+	// permissable character tests are all omitted. It also prevents the ToASCII
+	// call from salvaging an invalid IDN, when possible. As a result it may be
+	// possible to have two IDNs that appear identical to the user where the
+	// ASCII-only version causes an error downstream whereas the non-ASCII
+	// version does not.
+	// Note that for correct ASCII IDNs ToASCII will only do considerably more
+	// work, but it will not cause an allocation.
 	if isASCII(v) {
 		return v, nil
 	}
-	// The idna package doesn't do everything from
-	// https://tools.ietf.org/html/rfc5895 so we do it here.
-	// TODO(bradfitz): should the idna package do this instead?
-	v = strings.ToLower(v)
-	v = width.Fold.String(v)
-	v = norm.NFC.String(v)
-	return idna.ToASCII(v)
+	return idna.Lookup.ToASCII(v)
 }
 
 // cleanHost cleans up the host sent in request's Host header.
