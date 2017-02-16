@@ -332,10 +332,7 @@ type encOpts struct {
 
 type encoderFunc func(e *encodeState, v reflect.Value, opts encOpts)
 
-var encoderCache struct {
-	sync.RWMutex
-	m map[reflect.Type]encoderFunc
-}
+var encoderCache sync.Map // map[reflect.Type]encoderFunc
 
 func valueEncoder(v reflect.Value) encoderFunc {
 	if !v.IsValid() {
@@ -345,36 +342,31 @@ func valueEncoder(v reflect.Value) encoderFunc {
 }
 
 func typeEncoder(t reflect.Type) encoderFunc {
-	encoderCache.RLock()
-	f := encoderCache.m[t]
-	encoderCache.RUnlock()
-	if f != nil {
-		return f
+	if fi, ok := encoderCache.Load(t); ok {
+		return fi.(encoderFunc)
 	}
 
 	// To deal with recursive types, populate the map with an
 	// indirect func before we build it. This type waits on the
 	// real func (f) to be ready and then calls it. This indirect
 	// func is only used for recursive types.
-	encoderCache.Lock()
-	if encoderCache.m == nil {
-		encoderCache.m = make(map[reflect.Type]encoderFunc)
-	}
-	var wg sync.WaitGroup
+	var (
+		wg sync.WaitGroup
+		f  encoderFunc
+	)
 	wg.Add(1)
-	encoderCache.m[t] = func(e *encodeState, v reflect.Value, opts encOpts) {
+	fi, loaded := encoderCache.LoadOrStore(t, encoderFunc(func(e *encodeState, v reflect.Value, opts encOpts) {
 		wg.Wait()
 		f(e, v, opts)
+	}))
+	if loaded {
+		return fi.(encoderFunc)
 	}
-	encoderCache.Unlock()
 
-	// Compute fields without lock.
-	// Might duplicate effort but won't hold other computations back.
+	// Compute the real encoder and replace the indirect func with it.
 	f = newTypeEncoder(t, true)
 	wg.Done()
-	encoderCache.Lock()
-	encoderCache.m[t] = f
-	encoderCache.Unlock()
+	encoderCache.Store(t, f)
 	return f
 }
 
