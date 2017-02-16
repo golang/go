@@ -839,7 +839,7 @@ func (srv *Server) initialReadLimitSize() int64 {
 	return int64(srv.maxHeaderBytes()) + 4096 // bufio slop
 }
 
-// wrapper around io.ReaderCloser which on first read, sends an
+// wrapper around io.ReadCloser which on first read, sends an
 // HTTP/1.1 100 Continue header
 type expectContinueReader struct {
 	resp       *response
