@@ -2721,6 +2721,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		case ARLDIMI, ARLDIMICC:
 			o1 = AOP_RRR(opirr(ctxt, p.As), uint32(p.Reg), uint32(p.To.Reg), (uint32(v) & 0x1F))
 			o1 |= (uint32(d) & 31) << 6
+			if d&0x20 != 0 {
+				o1 |= 1 << 5
+			}
 			if v&0x20 != 0 {
 				o1 |= 1 << 1
 			}
