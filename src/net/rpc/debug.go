@@ -71,20 +71,17 @@ type debugHTTP struct {
 // Runs at /debug/rpc
 func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Build a sorted version of the data.
-	var services = make(serviceArray, len(server.serviceMap))
-	i := 0
-	server.mu.Lock()
-	for sname, service := range server.serviceMap {
-		services[i] = debugService{service, sname, make(methodArray, len(service.method))}
-		j := 0
-		for mname, method := range service.method {
-			services[i].Method[j] = debugMethod{method, mname}
-			j++
+	var services serviceArray
+	server.serviceMap.Range(func(snamei, svci interface{}) bool {
+		svc := svci.(*service)
+		ds := debugService{svc, snamei.(string), make(methodArray, 0, len(svc.method))}
+		for mname, method := range svc.method {
+			ds.Method = append(ds.Method, debugMethod{method, mname})
 		}
-		sort.Sort(services[i].Method)
-		i++
-	}
-	server.mu.Unlock()
+		sort.Sort(ds.Method)
+		services = append(services, ds)
+		return true
+	})
 	sort.Sort(services)
 	err := debug.Execute(w, services)
 	if err != nil {
