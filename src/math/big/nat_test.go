@@ -303,36 +303,6 @@ func TestModW(t *testing.T) {
 	}
 }
 
-func TestTrailingZeroBits(t *testing.T) {
-	// test 0 case explicitly
-	if n := trailingZeroBits(0); n != 0 {
-		t.Errorf("got trailingZeroBits(0) = %d; want 0", n)
-	}
-
-	x := Word(1)
-	for i := uint(0); i < _W; i++ {
-		n := trailingZeroBits(x)
-		if n != i {
-			t.Errorf("got trailingZeroBits(%#x) = %d; want %d", x, n, i%_W)
-		}
-		x <<= 1
-	}
-
-	// test 0 case explicitly
-	if n := nat(nil).trailingZeroBits(); n != 0 {
-		t.Errorf("got nat(nil).trailingZeroBits() = %d; want 0", n)
-	}
-
-	y := nat(nil).set(natOne)
-	for i := uint(0); i <= 3*_W; i++ {
-		n := y.trailingZeroBits()
-		if n != i {
-			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.utoa(16), n, i)
-		}
-		y = y.shl(y, 1)
-	}
-}
-
 var montgomeryTests = []struct {
 	x, y, m      string
 	k0           uint64
