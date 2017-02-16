@@ -187,8 +187,7 @@ type Response struct {
 
 // Server represents an RPC Server.
 type Server struct {
-	mu         sync.RWMutex // protects the serviceMap
-	serviceMap map[string]*service
+	serviceMap sync.Map   // map[string]*service
 	reqLock    sync.Mutex // protects freeReq
 	freeReq    *Request
 	respLock   sync.Mutex // protects freeResp
@@ -197,7 +196,7 @@ type Server struct {
 
 // NewServer returns a new Server.
 func NewServer() *Server {
-	return &Server{serviceMap: make(map[string]*service)}
+	return &Server{}
 }
 
 // DefaultServer is the default instance of *Server.
@@ -240,11 +239,6 @@ func (server *Server) RegisterName(name string, rcvr interface{}) error {
 }
 
 func (server *Server) register(rcvr interface{}, name string, useName bool) error {
-	server.mu.Lock()
-	defer server.mu.Unlock()
-	if server.serviceMap == nil {
-		server.serviceMap = make(map[string]*service)
-	}
 	s := new(service)
 	s.typ = reflect.TypeOf(rcvr)
 	s.rcvr = reflect.ValueOf(rcvr)
@@ -261,9 +255,6 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		s := "rpc.Register: type " + sname + " is not exported"
 		log.Print(s)
 		return errors.New(s)
-	}
-	if _, present := server.serviceMap[sname]; present {
-		return errors.New("rpc: service already defined: " + sname)
 	}
 	s.name = sname
 
@@ -283,7 +274,10 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		log.Print(str)
 		return errors.New(str)
 	}
-	server.serviceMap[s.name] = s
+
+	if _, dup := server.serviceMap.LoadOrStore(sname, s); dup {
+		return errors.New("rpc: service already defined: " + sname)
+	}
 	return nil
 }
 
@@ -581,7 +575,7 @@ func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *m
 	return
 }
 
-func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mtype *methodType, req *Request, keepReading bool, err error) {
+func (server *Server) readRequestHeader(codec ServerCodec) (svc *service, mtype *methodType, req *Request, keepReading bool, err error) {
 	// Grab the request header.
 	req = server.getRequest()
 	err = codec.ReadRequestHeader(req)
@@ -607,14 +601,13 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
 	methodName := req.ServiceMethod[dot+1:]
 
 	// Look up the request.
-	server.mu.RLock()
-	service = server.serviceMap[serviceName]
-	server.mu.RUnlock()
-	if service == nil {
+	svci, ok := server.serviceMap.Load(serviceName)
+	if !ok {
 		err = errors.New("rpc: can't find service " + req.ServiceMethod)
 		return
 	}
-	mtype = service.method[methodName]
+	svc = svci.(*service)
+	mtype = svc.method[methodName]
 	if mtype == nil {
 		err = errors.New("rpc: can't find method " + req.ServiceMethod)
 	}
