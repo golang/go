@@ -1170,7 +1170,7 @@ func ullmancalc(n *Node) {
 		goto out
 
 	case OAS:
-		if !needwritebarrier(n.Left, n.Right) {
+		if !needwritebarrier(n.Left) {
 			break
 		}
 		fallthrough

@@ -553,7 +553,7 @@ func (s *state) stmt(n *Node) {
 			deref = true
 			res = res.Args[0]
 		}
-		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), deref, 0, false)
+		s.assign(n.List.First(), res, needwritebarrier(n.List.First()), deref, 0, false)
 		s.assign(n.List.Second(), resok, false, false, 0, false)
 		return
 
@@ -565,12 +565,8 @@ func (s *state) stmt(n *Node) {
 		v := s.intrinsicCall(n.Rlist.First())
 		v1 := s.newValue1(ssa.OpSelect0, n.List.First().Type, v)
 		v2 := s.newValue1(ssa.OpSelect1, n.List.Second().Type, v)
-		// Make a fake node to mimic loading return value, ONLY for write barrier test.
-		// This is future-proofing against non-scalar 2-result intrinsics.
-		// Currently we only have scalar ones, which result in no write barrier.
-		fakeret := &Node{Op: OINDREGSP}
-		s.assign(n.List.First(), v1, needwritebarrier(n.List.First(), fakeret), false, 0, false)
-		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second(), fakeret), false, 0, false)
+		s.assign(n.List.First(), v1, needwritebarrier(n.List.First()), false, 0, false)
+		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second()), false, 0, false)
 		return
 
 	case ODCL:
@@ -696,7 +692,7 @@ func (s *state) stmt(n *Node) {
 		}
 		var r *ssa.Value
 		var isVolatile bool
-		needwb := n.Right != nil && needwritebarrier(n.Left, n.Right)
+		needwb := n.Right != nil && needwritebarrier(n.Left)
 		deref := !canSSAType(t)
 		if deref {
 			if rhs == nil {
@@ -711,7 +707,7 @@ func (s *state) stmt(n *Node) {
 				r = s.expr(rhs)
 			}
 		}
-		if rhs != nil && rhs.Op == OAPPEND && needwritebarrier(n.Left, rhs) {
+		if rhs != nil && rhs.Op == OAPPEND && needwritebarrier(n.Left) {
 			// The frontend gets rid of the write barrier to enable the special OAPPEND
 			// handling above, but since this is not a special case, we need it.
 			// TODO: just add a ptr graying to the end of growslice?
