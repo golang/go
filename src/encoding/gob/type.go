@@ -36,31 +36,21 @@ const (
 	xText              // encoding.TextMarshaler or encoding.TextUnmarshaler
 )
 
-var (
-	// Protected by an RWMutex because we read it a lot and write
-	// it only when we see a new type, typically when compiling.
-	userTypeLock  sync.RWMutex
-	userTypeCache = make(map[reflect.Type]*userTypeInfo)
-)
+var userTypeCache sync.Map // map[reflect.Type]*userTypeInfo
 
 // validType returns, and saves, the information associated with user-provided type rt.
 // If the user type is not valid, err will be non-nil. To be used when the error handler
 // is not set up.
-func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
-	userTypeLock.RLock()
-	ut = userTypeCache[rt]
-	userTypeLock.RUnlock()
-	if ut != nil {
-		return
+func validUserType(rt reflect.Type) (*userTypeInfo, error) {
+	if ui, ok := userTypeCache.Load(rt); ok {
+		return ui.(*userTypeInfo), nil
 	}
-	// Now set the value under the write lock.
-	userTypeLock.Lock()
-	defer userTypeLock.Unlock()
-	if ut = userTypeCache[rt]; ut != nil {
-		// Lost the race; not a problem.
-		return
-	}
-	ut = new(userTypeInfo)
+
+	// Construct a new userTypeInfo and atomically add it to the userTypeCache.
+	// If we lose the race, we'll waste a little CPU and create a little garbage
+	// but return the existing value anyway.
+
+	ut := new(userTypeInfo)
 	ut.base = rt
 	ut.user = rt
 	// A type that is just a cycle of pointers (such as type T *T) cannot
@@ -108,8 +98,8 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
 	// 	ut.externalDec, ut.decIndir = xText, indir
 	// }
 
-	userTypeCache[rt] = ut
-	return
+	ui, _ := userTypeCache.LoadOrStore(rt, ut)
+	return ui.(*userTypeInfo), nil
 }
 
 var (
@@ -808,9 +798,8 @@ type GobDecoder interface {
 }
 
 var (
-	registerLock       sync.RWMutex
-	nameToConcreteType = make(map[string]reflect.Type)
-	concreteTypeToName = make(map[reflect.Type]string)
+	nameToConcreteType sync.Map // map[string]reflect.Type
+	concreteTypeToName sync.Map // map[reflect.Type]string
 )
 
 // RegisterName is like Register but uses the provided name rather than the
@@ -820,21 +809,22 @@ func RegisterName(name string, value interface{}) {
 		// reserved for nil
 		panic("attempt to register empty name")
 	}
-	registerLock.Lock()
-	defer registerLock.Unlock()
+
 	ut := userType(reflect.TypeOf(value))
+
 	// Check for incompatible duplicates. The name must refer to the
 	// same user type, and vice versa.
-	if t, ok := nameToConcreteType[name]; ok && t != ut.user {
+
+	// Store the name and type provided by the user....
+	if t, dup := nameToConcreteType.LoadOrStore(name, reflect.TypeOf(value)); dup && t != ut.user {
 		panic(fmt.Sprintf("gob: registering duplicate types for %q: %s != %s", name, t, ut.user))
 	}
-	if n, ok := concreteTypeToName[ut.base]; ok && n != name {
+
+	// but the flattened type in the type table, since that's what decode needs.
+	if n, dup := concreteTypeToName.LoadOrStore(ut.base, name); dup && n != name {
+		nameToConcreteType.Delete(name)
 		panic(fmt.Sprintf("gob: registering duplicate names for %s: %q != %q", ut.user, n, name))
 	}
-	// Store the name and type provided by the user....
-	nameToConcreteType[name] = reflect.TypeOf(value)
-	// but the flattened type in the type table, since that's what decode needs.
-	concreteTypeToName[ut.base] = name
 }
 
 // Register records a type, identified by a value for that type, under its

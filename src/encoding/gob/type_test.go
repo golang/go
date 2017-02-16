@@ -178,9 +178,7 @@ func TestRegistrationNaming(t *testing.T) {
 		Register(tc.t)
 
 		tct := reflect.TypeOf(tc.t)
-		registerLock.RLock()
-		ct := nameToConcreteType[tc.name]
-		registerLock.RUnlock()
+		ct, _ := nameToConcreteType.Load(tc.name)
 		if ct != tct {
 			t.Errorf("nameToConcreteType[%q] = %v, want %v", tc.name, ct, tct)
 		}
@@ -188,7 +186,7 @@ func TestRegistrationNaming(t *testing.T) {
 		if tct.Kind() == reflect.Ptr {
 			tct = tct.Elem()
 		}
-		if n := concreteTypeToName[tct]; n != tc.name {
+		if n, _ := concreteTypeToName.Load(tct); n != tc.name {
 			t.Errorf("concreteTypeToName[%v] got %v, want %v", tct, n, tc.name)
 		}
 	}
