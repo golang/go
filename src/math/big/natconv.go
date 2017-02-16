@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/bits"
 	"sync"
 )
 
@@ -262,7 +263,7 @@ func (x nat) itoa(neg bool, base int) []byte {
 	// convert power of two and non power of two bases separately
 	if b := Word(base); b == b&-b {
 		// shift is base b digit size in bits
-		shift := trailingZeroBits(b) // shift > 0 because b >= 2
+		shift := uint(bits.TrailingZeros(uint(b))) // shift > 0 because b >= 2
 		mask := Word(1<<shift - 1)
 		w := x[0]         // current word
 		nbits := uint(_W) // number of unprocessed bits in w

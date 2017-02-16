@@ -68,6 +68,7 @@ var bootstrapDirs = []string{
 	"cmd/link/internal/x86",
 	"debug/pe",
 	"math/big",
+	"math/bits",
 }
 
 // File prefixes that are ignored by go/build anyway, and cause
