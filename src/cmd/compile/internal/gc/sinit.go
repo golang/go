@@ -751,19 +751,15 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 		a = typecheck(a, Etop)
 		switch kind {
 		case initKindStatic:
-			a = walkexpr(a, init) // add any assignments in r to top
-			if a.Op != OAS {
-				Fatalf("fixedlit: not as, is %v", a)
-			}
-			a.IsStatic = true
+			genAsStatic(a)
 		case initKindDynamic, initKindLocalCode:
 			a = orderstmtinplace(a)
 			a = walkstmt(a)
+			init.Append(a)
 		default:
 			Fatalf("fixedlit: bad kind %d", kind)
 		}
 
-		init.Append(a)
 	}
 }
 
@@ -780,12 +776,22 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		fixedlit(ctxt, initKindDynamic, n, vstat, init)
 
 		// copy static to slice
-		a := nod(OSLICE, vstat, nil)
+		var_ = typecheck(var_, Erv|Easgn)
+		var nam Node
+		if !stataddr(&nam, var_) || nam.Class != PEXTERN {
+			Fatalf("slicelit: %v", var_)
+		}
 
-		a = nod(OAS, var_, a)
-		a = typecheck(a, Etop)
-		a.IsStatic = true
-		init.Append(a)
+		var v Node
+		nodconst(&v, Types[TINT], t.NumElem())
+
+		nam.Xoffset += int64(array_array)
+		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)
+		nam.Xoffset += int64(array_nel) - int64(array_array)
+		gdata(&nam, &v, Widthint)
+		nam.Xoffset += int64(array_cap) - int64(array_nel)
+		gdata(&nam, &v, Widthint)
+
 		return
 	}
 
@@ -964,18 +970,14 @@ func maplit(n *Node, m *Node, init *Nodes) {
 				lhs := nod(OINDEX, vstatk, nodintconst(b))
 				as := nod(OAS, lhs, index)
 				as = typecheck(as, Etop)
-				as = walkexpr(as, init)
-				as.IsStatic = true
-				init.Append(as)
+				genAsStatic(as)
 
 				// build vstatv[b] = value
 				setlineno(value)
 				lhs = nod(OINDEX, vstatv, nodintconst(b))
 				as = nod(OAS, lhs, value)
 				as = typecheck(as, Etop)
-				as = walkexpr(as, init)
-				as.IsStatic = true
-				init.Append(as)
+				genAsStatic(as)
 
 				b++
 			}
@@ -1344,69 +1346,15 @@ func isvaluelit(n *Node) bool {
 	return n.Op == OARRAYLIT || n.Op == OSTRUCTLIT
 }
 
-func genAsInitNoCheck(n *Node) bool {
-	nr := n.Right
-	nl := n.Left
-	if nr == nil {
-		var nam Node
-		return stataddr(&nam, nl) && nam.Class == PEXTERN
-	}
-
-	if nr.Type == nil || !eqtype(nl.Type, nr.Type) {
-		return false
-	}
-
+func genAsStatic(as *Node) {
 	var nam Node
-	if !stataddr(&nam, nl) || nam.Class != PEXTERN {
-		return false
+	if !stataddr(&nam, as.Left) || nam.Class != PEXTERN {
+		Fatalf("genAsStatic: lhs %v", as.Left)
 	}
 
-	switch nr.Op {
-	default:
-		return false
-
-	case OCONVNOP:
-		nr = nr.Left
-		if nr == nil || nr.Op != OSLICEARR {
-			return false
-		}
-		fallthrough
-
-	case OSLICEARR:
-		low, high, _ := nr.SliceBounds()
-		if low != nil || high != nil {
-			return false
-		}
-		nr = nr.Left
-		if nr == nil || nr.Op != OADDR {
-			return false
-		}
-		ptr := nr
-		nr = nr.Left
-		if nr == nil || nr.Op != ONAME {
-			return false
-		}
-
-		// nr is the array being converted to a slice
-		if nr.Type == nil || !nr.Type.IsArray() {
-			return false
-		}
-
-		nam.Xoffset += int64(array_array)
-		gdata(&nam, ptr, Widthptr)
-
-		nam.Xoffset += int64(array_nel) - int64(array_array)
-		var nod1 Node
-		nodconst(&nod1, Types[TINT], nr.Type.NumElem())
-		gdata(&nam, &nod1, Widthint)
-
-		nam.Xoffset += int64(array_cap) - int64(array_nel)
-		gdata(&nam, &nod1, Widthint)
-
-		return true
-
-	case OLITERAL:
-		gdata(&nam, nr, int(nr.Type.Width))
-		return true
+	if as.Right.Op != OLITERAL {
+		Fatalf("genAsStatic: rhs %v", as.Right)
 	}
+
+	gdata(&nam, as.Right, int(as.Right.Type.Width))
 }

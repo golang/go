@@ -65,7 +65,6 @@ type Node struct {
 	Walkdef   uint8 // tracks state during typecheckdef; 2 == loop detected
 	Typecheck uint8 // tracks state during typechecking; 2 == loop detected
 	Local     bool  // type created in this file (see also Type.Local); TODO(gri): move this into flags
-	IsStatic  bool  // whether this Node will be converted to purely static data
 	Initorder uint8
 	Used      bool // for variable/label declared and not used error
 	Isddd     bool // is the argument variadic
