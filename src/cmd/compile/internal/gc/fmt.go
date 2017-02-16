@@ -335,10 +335,6 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " tc(%d)", n.Typecheck)
 	}
 
-	if c == 0 && n.IsStatic {
-		fmt.Fprint(s, " static")
-	}
-
 	if n.Isddd {
 		fmt.Fprintf(s, " isddd(%v)", n.Isddd)
 	}

@@ -630,15 +630,6 @@ func (s *state) stmt(n *Node) {
 		b.AddEdgeTo(lab.target)
 
 	case OAS:
-		// Generate static data rather than code, if possible.
-		if n.IsStatic {
-			if !genAsInitNoCheck(n) {
-				Dump("\ngen_as_init", n)
-				Fatalf("gen_as_init couldn't generate static data")
-			}
-			return
-		}
-
 		if n.Left == n.Right && n.Left.Op == ONAME {
 			// An x=x assignment. No point in doing anything
 			// here. In addition, skipping this assignment
