@@ -398,12 +398,12 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	}
 
 	ut := userType(iv.Elem().Type())
-	registerLock.RLock()
-	name, ok := concreteTypeToName[ut.base]
-	registerLock.RUnlock()
+	namei, ok := concreteTypeToName.Load(ut.base)
 	if !ok {
 		errorf("type not registered for interface: %s", ut.base)
 	}
+	name := namei.(string)
+
 	// Send the name.
 	state.encodeUint(uint64(len(name)))
 	state.b.WriteString(name)
