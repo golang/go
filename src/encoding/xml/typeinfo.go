@@ -42,21 +42,18 @@ const (
 	fMode = fElement | fAttr | fCDATA | fCharData | fInnerXml | fComment | fAny
 )
 
-var tinfoMap = make(map[reflect.Type]*typeInfo)
-var tinfoLock sync.RWMutex
+var tinfoMap sync.Map // map[reflect.Type]*typeInfo
 
 var nameType = reflect.TypeOf(Name{})
 
 // getTypeInfo returns the typeInfo structure with details necessary
 // for marshaling and unmarshaling typ.
 func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
-	tinfoLock.RLock()
-	tinfo, ok := tinfoMap[typ]
-	tinfoLock.RUnlock()
-	if ok {
-		return tinfo, nil
+	if ti, ok := tinfoMap.Load(typ); ok {
+		return ti.(*typeInfo), nil
 	}
-	tinfo = &typeInfo{}
+
+	tinfo := &typeInfo{}
 	if typ.Kind() == reflect.Struct && typ != nameType {
 		n := typ.NumField()
 		for i := 0; i < n; i++ {
@@ -105,10 +102,9 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 			}
 		}
 	}
-	tinfoLock.Lock()
-	tinfoMap[typ] = tinfo
-	tinfoLock.Unlock()
-	return tinfo, nil
+
+	ti, _ := tinfoMap.LoadOrStore(typ, tinfo)
+	return ti.(*typeInfo), nil
 }
 
 // structFieldInfo builds and returns a fieldInfo for f.
