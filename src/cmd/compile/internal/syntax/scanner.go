@@ -466,6 +466,53 @@ done:
 	s.tok = _Literal
 }
 
+func (s *scanner) rune() {
+	s.startLit()
+
+	ok := true // only report errors if we're ok so far
+	n := 0
+	for ; ; n++ {
+		r := s.getr()
+		if r == '\'' {
+			break
+		}
+		if r == '\\' {
+			if !s.escape('\'') {
+				ok = false
+			}
+			continue
+		}
+		if r == '\n' {
+			s.ungetr() // assume newline is not part of literal
+			if ok {
+				s.error("newline in character literal")
+				ok = false
+			}
+			break
+		}
+		if r < 0 {
+			if ok {
+				s.errh(s.line, s.col, "invalid character literal (missing closing ')")
+				ok = false
+			}
+			break
+		}
+	}
+
+	if ok {
+		if n == 0 {
+			s.error("empty character literal or unescaped ' in character literal")
+		} else if n != 1 {
+			s.errh(s.line, s.col, "invalid character literal (more than one character)")
+		}
+	}
+
+	s.nlsemi = true
+	s.lit = string(s.stopLit())
+	s.kind = RuneLit
+	s.tok = _Literal
+}
+
 func (s *scanner) stdString() {
 	s.startLit()
 
@@ -515,38 +562,6 @@ func (s *scanner) rawString() {
 	s.nlsemi = true
 	s.lit = string(s.stopLit())
 	s.kind = StringLit
-	s.tok = _Literal
-}
-
-func (s *scanner) rune() {
-	s.startLit()
-
-	r := s.getr()
-	ok := false
-	if r == '\'' {
-		s.error("empty character literal or unescaped ' in character literal")
-	} else if r == '\n' {
-		s.ungetr() // assume newline is not part of literal
-		s.error("newline in character literal")
-	} else {
-		ok = true
-		if r == '\\' {
-			ok = s.escape('\'')
-		}
-	}
-
-	r = s.getr()
-	if r != '\'' {
-		// only report error if we're ok so far
-		if ok {
-			s.error("missing '")
-		}
-		s.ungetr()
-	}
-
-	s.nlsemi = true
-	s.lit = string(s.stopLit())
-	s.kind = RuneLit
 	s.tok = _Literal
 }
 
