@@ -119,14 +119,6 @@ import (
 	"sort"
 )
 
-// The Go and C compilers, and the assembler, call writeobj to write
-// out a Go object file. The linker does not call this; the linker
-// does not write out object files.
-func Writeobjdirect(ctxt *Link, b *bufio.Writer) {
-	Flushplist(ctxt)
-	WriteObjFile(ctxt, b)
-}
-
 // objWriter writes Go object files.
 type objWriter struct {
 	wr   *bufio.Writer

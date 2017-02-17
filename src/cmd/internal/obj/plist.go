@@ -14,96 +14,83 @@ type Plist struct {
 	Firstpc *Prog
 }
 
-/*
- * start a new Prog list.
- */
-func Linknewplist(ctxt *Link) *Plist {
-	pl := new(Plist)
-	ctxt.Plists = append(ctxt.Plists, pl)
-	return pl
+func Flushplist(ctxt *Link, plist *Plist) {
+	flushplist(ctxt, plist, ctxt.Debugasm == 0)
 }
-
-func Flushplist(ctxt *Link) {
-	flushplist(ctxt, ctxt.Debugasm == 0)
+func FlushplistNoFree(ctxt *Link, plist *Plist) {
+	flushplist(ctxt, plist, false)
 }
-func FlushplistNoFree(ctxt *Link) {
-	flushplist(ctxt, false)
-}
-func flushplist(ctxt *Link, freeProgs bool) {
+func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 	// Build list of symbols, and assign instructions to lists.
-	// Ignore ctxt->plist boundaries. There are no guarantees there,
-	// and the assemblers just use one big list.
 	var curtext *LSym
 	var etext *Prog
 	var text []*LSym
 
-	for _, pl := range ctxt.Plists {
-		var plink *Prog
-		for p := pl.Firstpc; p != nil; p = plink {
-			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
-				fmt.Printf("obj: %v\n", p)
-			}
-			plink = p.Link
-			p.Link = nil
-
-			switch p.As {
-			case AEND:
-				continue
-
-			case ATEXT:
-				s := p.From.Sym
-				if s == nil {
-					// func _() { }
-					curtext = nil
-
-					continue
-				}
-
-				if s.Text != nil {
-					log.Fatalf("duplicate TEXT for %s", s.Name)
-				}
-				if s.OnList() {
-					log.Fatalf("symbol %s listed multiple times", s.Name)
-				}
-				s.Set(AttrOnList, true)
-				text = append(text, s)
-				flag := int(p.From3Offset())
-				if flag&DUPOK != 0 {
-					s.Set(AttrDuplicateOK, true)
-				}
-				if flag&NOSPLIT != 0 {
-					s.Set(AttrNoSplit, true)
-				}
-				if flag&REFLECTMETHOD != 0 {
-					s.Set(AttrReflectMethod, true)
-				}
-				s.Type = STEXT
-				s.Text = p
-				etext = p
-				curtext = s
-				continue
-
-			case AFUNCDATA:
-				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
-				if curtext == nil { // func _() {}
-					continue
-				}
-				if p.To.Sym.Name == "go_args_stackmap" {
-					if p.From.Type != TYPE_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
-						ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
-					}
-					p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
-				}
-
-			}
-
-			if curtext == nil {
-				etext = nil
-				continue
-			}
-			etext.Link = p
-			etext = p
+	var plink *Prog
+	for p := plist.Firstpc; p != nil; p = plink {
+		if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
+			fmt.Printf("obj: %v\n", p)
 		}
+		plink = p.Link
+		p.Link = nil
+
+		switch p.As {
+		case AEND:
+			continue
+
+		case ATEXT:
+			s := p.From.Sym
+			if s == nil {
+				// func _() { }
+				curtext = nil
+
+				continue
+			}
+
+			if s.Text != nil {
+				log.Fatalf("duplicate TEXT for %s", s.Name)
+			}
+			if s.OnList() {
+				log.Fatalf("symbol %s listed multiple times", s.Name)
+			}
+			s.Set(AttrOnList, true)
+			text = append(text, s)
+			flag := int(p.From3Offset())
+			if flag&DUPOK != 0 {
+				s.Set(AttrDuplicateOK, true)
+			}
+			if flag&NOSPLIT != 0 {
+				s.Set(AttrNoSplit, true)
+			}
+			if flag&REFLECTMETHOD != 0 {
+				s.Set(AttrReflectMethod, true)
+			}
+			s.Type = STEXT
+			s.Text = p
+			etext = p
+			curtext = s
+			continue
+
+		case AFUNCDATA:
+			// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
+			if curtext == nil { // func _() {}
+				continue
+			}
+			if p.To.Sym.Name == "go_args_stackmap" {
+				if p.From.Type != TYPE_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
+					ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
+				}
+				p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
+			}
+
+		}
+
+		if curtext == nil {
+			etext = nil
+			continue
+		}
+		etext.Link = p
+		etext = p
 	}
 
 	// Add reference to Go arguments for C or assembly functions without them.
@@ -147,7 +134,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	// Add to running list in ctxt.
 	ctxt.Text = append(ctxt.Text, text...)
 	ctxt.Data = append(ctxt.Data, gendwarf(ctxt, text)...)
-	ctxt.Plists = nil
 	ctxt.Curp = nil
 	if freeProgs {
 		ctxt.freeProgs()

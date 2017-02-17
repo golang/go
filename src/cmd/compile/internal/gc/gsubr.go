@@ -161,16 +161,6 @@ func Addrconst(a *obj.Addr, v int64) {
 	a.Offset = v
 }
 
-func newplist() *obj.Plist {
-	pl := obj.Linknewplist(Ctxt)
-
-	pc = Ctxt.NewProg()
-	Clearp(pc)
-	pl.Firstpc = pc
-
-	return pl
-}
-
 // nodarg returns a Node for the function argument denoted by t,
 // which is either the entire function argument or result struct (t is a  struct *Type)
 // or a specific argument (t is a *Field within a struct *Type).

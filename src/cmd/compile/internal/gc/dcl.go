@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"sort"
@@ -1228,11 +1227,6 @@ func funccompile(n *Node) {
 	pc = nil
 	funcdepth = 0
 	dclcontext = PEXTERN
-	if nerrors != 0 {
-		// If we have compile errors, ignore any assembler/linker errors.
-		Ctxt.DiagFunc = func(string, ...interface{}) {}
-	}
-	obj.Flushplist(Ctxt) // convert from Prog list to machine code
 }
 
 func funcsym(s *Sym) *Sym {
