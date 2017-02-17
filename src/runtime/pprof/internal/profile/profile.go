@@ -4,6 +4,9 @@
 
 // Package profile provides a representation of profile.proto and
 // methods to encode/decode profiles in this format.
+//
+// This package is only for testing runtime/pprof.
+// It is not used by production Go programs.
 package profile
 
 import (

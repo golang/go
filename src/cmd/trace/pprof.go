@@ -9,13 +9,14 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"internal/pprof/profile"
 	"internal/trace"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
+
+	"github.com/google/pprof/profile"
 )
 
 func init() {
