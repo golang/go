@@ -102,12 +102,120 @@ func testDeadStorePanic() {
 	}
 }
 
+//go:noinline
+func loadHitStore8(x int8, p *int8) int32 {
+	x *= x           // try to trash high bits (arch-dependent)
+	*p = x           // store
+	return int32(*p) // load and cast
+}
+
+//go:noinline
+func loadHitStoreU8(x uint8, p *uint8) uint32 {
+	x *= x            // try to trash high bits (arch-dependent)
+	*p = x            // store
+	return uint32(*p) // load and cast
+}
+
+//go:noinline
+func loadHitStore16(x int16, p *int16) int32 {
+	x *= x           // try to trash high bits (arch-dependent)
+	*p = x           // store
+	return int32(*p) // load and cast
+}
+
+//go:noinline
+func loadHitStoreU16(x uint16, p *uint16) uint32 {
+	x *= x            // try to trash high bits (arch-dependent)
+	*p = x            // store
+	return uint32(*p) // load and cast
+}
+
+//go:noinline
+func loadHitStore32(x int32, p *int32) int64 {
+	x *= x           // try to trash high bits (arch-dependent)
+	*p = x           // store
+	return int64(*p) // load and cast
+}
+
+//go:noinline
+func loadHitStoreU32(x uint32, p *uint32) uint64 {
+	x *= x            // try to trash high bits (arch-dependent)
+	*p = x            // store
+	return uint64(*p) // load and cast
+}
+
+func testLoadHitStore() {
+	// Test that sign/zero extensions are kept when a load-hit-store
+	// is replaced by a register-register move.
+	{
+		var in int8 = (1 << 6) + 1
+		var p int8
+		got := loadHitStore8(in, &p)
+		want := int32(in * in)
+		if got != want {
+			fmt.Println("testLoadHitStore (int8) failed. want =", want, ", got =", got)
+			failed = true
+		}
+	}
+	{
+		var in uint8 = (1 << 6) + 1
+		var p uint8
+		got := loadHitStoreU8(in, &p)
+		want := uint32(in * in)
+		if got != want {
+			fmt.Println("testLoadHitStore (uint8) failed. want =", want, ", got =", got)
+			failed = true
+		}
+	}
+	{
+		var in int16 = (1 << 10) + 1
+		var p int16
+		got := loadHitStore16(in, &p)
+		want := int32(in * in)
+		if got != want {
+			fmt.Println("testLoadHitStore (int16) failed. want =", want, ", got =", got)
+			failed = true
+		}
+	}
+	{
+		var in uint16 = (1 << 10) + 1
+		var p uint16
+		got := loadHitStoreU16(in, &p)
+		want := uint32(in * in)
+		if got != want {
+			fmt.Println("testLoadHitStore (uint16) failed. want =", want, ", got =", got)
+			failed = true
+		}
+	}
+	{
+		var in int32 = (1 << 30) + 1
+		var p int32
+		got := loadHitStore32(in, &p)
+		want := int64(in * in)
+		if got != want {
+			fmt.Println("testLoadHitStore (int32) failed. want =", want, ", got =", got)
+			failed = true
+		}
+	}
+	{
+		var in uint32 = (1 << 30) + 1
+		var p uint32
+		got := loadHitStoreU32(in, &p)
+		want := uint64(in * in)
+		if got != want {
+			fmt.Println("testLoadHitStore (uint32) failed. want =", want, ", got =", got)
+			failed = true
+		}
+	}
+}
+
 func main() {
 
 	testLoadStoreOrder()
 	testStoreSize()
 	testExtStore()
 	testDeadStorePanic()
+	testLoadHitStore()
 
 	if failed {
 		panic("failed")
