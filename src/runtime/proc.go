@@ -2330,6 +2330,7 @@ func goexit0(gp *g) {
 	gp.waitreason = ""
 	gp.param = nil
 	gp.labels = nil
+	gp.timer = nil
 
 	// Note that gp's stack scan is now "valid" because it has no
 	// stack.
