@@ -20,7 +20,7 @@ import (
 // data into the profileBuilder as it becomes available.
 func translateCPUProfile(data []uint64) (*profile.Profile, error) {
 	b := newProfileBuilder()
-	if err := b.addCPUData(data); err != nil {
+	if err := b.addCPUData(data, nil); err != nil {
 		return nil, err
 	}
 	return b.build(), nil

@@ -36,25 +36,8 @@ type profileBuilder struct {
 	p          *profile.Profile
 	start      time.Time
 	havePeriod bool
-	locs       map[uint64]*profile.Location
-	samples    map[sampleKey]*profile.Sample
-}
-
-// A sampleKey is the key for the map from stack to profile.Sample.
-// It is an unbounded array of profile.Location, broken into
-// fixed-size chunks. The chunks are chained by the next field,
-// which is an interface{} holding a sampleKey so that the default
-// Go equality will consider the whole array contents.
-// (In contrast, if next were *sampleKey or the interface{} held a
-// *sampleKey, equality would only look at the pointer, not the values
-// in the next sampleKey in the chain.)
-// This is a bit of a hack, but it has the right effect and is expedient.
-// At some point we will want to do a better job, so that lookups
-// of large stacks need not allocate just to build a key.
-type sampleKey struct {
-	loc  [8]*profile.Location
-	i    int
-	next interface{}
+	locs       map[uintptr]*profile.Location
+	m          profMap
 }
 
 // newProfileBuilder returns a new profileBuilder.
@@ -72,17 +55,16 @@ func newProfileBuilder() *profileBuilder {
 		TimeNanos: int64(start.UnixNano()),
 	}
 	return &profileBuilder{
-		p:       p,
-		start:   start,
-		locs:    make(map[uint64]*profile.Location),
-		samples: make(map[sampleKey]*profile.Sample),
+		p:     p,
+		start: start,
+		locs:  make(map[uintptr]*profile.Location),
 	}
 }
 
 // addCPUData adds the CPU profiling data to the profile.
 // The data must be a whole number of records,
 // as delivered by the runtime.
-func (b *profileBuilder) addCPUData(data []uint64) error {
+func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error {
 	p := b.p
 	if !b.havePeriod {
 		// first record is period
@@ -112,17 +94,22 @@ func (b *profileBuilder) addCPUData(data []uint64) error {
 	// there can be larger counts.
 	// Because many samples with the same stack arrive,
 	// we want to deduplicate immediately, which we do
-	// using the b.samples map.
+	// using the b.m profMap.
 	for len(data) > 0 {
 		if len(data) < 3 || data[0] > uint64(len(data)) {
 			return fmt.Errorf("truncated profile")
 		}
-		if data[0] < 3 {
+		if data[0] < 3 || tags != nil && len(tags) < 1 {
 			return fmt.Errorf("malformed profile")
 		}
 		count := data[2]
 		stk := data[3:data[0]]
 		data = data[data[0]:]
+		var tag unsafe.Pointer
+		if tags != nil {
+			tag = tags[0]
+			tags = tags[1:]
+		}
 
 		if count == 0 && len(stk) == 1 {
 			// overflow record
@@ -131,11 +118,22 @@ func (b *profileBuilder) addCPUData(data []uint64) error {
 				uint64(funcPC(lostProfileEvent)),
 			}
 		}
+		b.m.lookup(stk, tag).count += int64(count)
+	}
+	return nil
+}
 
-		sloc := make([]*profile.Location, len(stk))
-		skey := sampleKey{}
-		for i, addr := range stk {
-			addr := uint64(addr)
+// build completes and returns the constructed profile.
+func (b *profileBuilder) build() *profile.Profile {
+	b.p.DurationNanos = time.Since(b.start).Nanoseconds()
+
+	for e := b.m.all; e != nil; e = e.nextAll {
+		s := &profile.Sample{
+			Value:    []int64{e.count, e.count * int64(b.p.Period)},
+			Location: make([]*profile.Location, len(e.stk)),
+		}
+		for i, addr := range e.stk {
+			addr := uintptr(addr)
 			// Addresses from stack traces point to the next instruction after
 			// each call.  Adjust by -1 to land somewhere on the actual call
 			// (except for the leaf, which is not a call).
@@ -145,37 +143,17 @@ func (b *profileBuilder) addCPUData(data []uint64) error {
 			loc := b.locs[addr]
 			if loc == nil {
 				loc = &profile.Location{
-					ID:      uint64(len(p.Location) + 1),
-					Address: addr,
+					ID:      uint64(len(b.p.Location) + 1),
+					Address: uint64(addr),
 				}
 				b.locs[addr] = loc
-				p.Location = append(p.Location, loc)
+				b.p.Location = append(b.p.Location, loc)
 			}
-			sloc[i] = loc
-			if skey.i == len(skey.loc) {
-				skey = sampleKey{next: skey}
-			}
-			skey.loc[skey.i] = loc
-			skey.i++
+			s.Location[i] = loc
 		}
-		s := b.samples[skey]
-		if s == nil {
-			s = &profile.Sample{
-				Value:    []int64{0, 0},
-				Location: sloc,
-			}
-			b.samples[skey] = s
-			p.Sample = append(p.Sample, s)
-		}
-		s.Value[0] += int64(count)
-		s.Value[1] += int64(count) * int64(p.Period)
+		b.p.Sample = append(b.p.Sample, s)
 	}
-	return nil
-}
 
-// build completes and returns the constructed profile.
-func (b *profileBuilder) build() *profile.Profile {
-	b.p.DurationNanos = time.Since(b.start).Nanoseconds()
 	if runtime.GOOS == "linux" {
 		addMappings(b.p)
 	}
