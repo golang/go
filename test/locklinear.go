@@ -10,7 +10,10 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -64,6 +67,13 @@ func checkLinear(typ string, tries int, f func(n int)) {
 const offset = 251 // known size of runtime hash table
 
 func main() {
+	f, err := os.Create("lock.prof")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
 	checkLinear("lockone", 1000, func(n int) {
 		ch := make(chan int)
 		locks := make([]sync.RWMutex, offset+1)

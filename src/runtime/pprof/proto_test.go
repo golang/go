@@ -7,10 +7,10 @@ package pprof
 import (
 	"bytes"
 	"encoding/json"
-	"internal/pprof/profile"
 	"io/ioutil"
 	"reflect"
 	"runtime"
+	"runtime/pprof/internal/profile"
 	"testing"
 )
 

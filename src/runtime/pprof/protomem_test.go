@@ -6,8 +6,8 @@ package pprof
 
 import (
 	"bytes"
-	"internal/pprof/profile"
 	"runtime"
+	"runtime/pprof/internal/profile"
 	"testing"
 )
 
