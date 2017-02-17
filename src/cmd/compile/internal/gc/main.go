@@ -37,6 +37,7 @@ var (
 	Debug_panic    int
 	Debug_slice    int
 	Debug_wb       int
+	Debug_pctab    string
 )
 
 // Debug arguments.
@@ -59,6 +60,7 @@ var debugtab = []struct {
 	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
 	{"wb", &Debug_wb},                 // print information about write barriers
 	{"export", &Debug_export},         // print export data
+	{"pctab", &Debug_pctab},           // print named pc-value table
 }
 
 func usage() {
@@ -318,6 +320,9 @@ func Main() {
 			log.Fatalf("unknown debug key -d %s\n", name)
 		}
 	}
+
+	// set via a -d flag
+	Ctxt.Debugpcln = Debug_pctab
 
 	// enable inlining.  for now:
 	//	default: inlining on.  (debug['l'] == 1)
