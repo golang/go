@@ -93,14 +93,6 @@ func rot(x uint64, size, k uint) uint64 {
 	return x<<k | x>>(size-k)&(1<<k-1)
 }
 
-func rev(x uint64, size uint) (r uint64) {
-	for i := size; i > 0; i-- {
-		r = r<<1 | x&1
-		x >>= 1
-	}
-	return
-}
-
 func swap(x uint64, size uint) (r uint64) {
 	for i := size / 8; i > 0; i-- {
 		r = r<<8 | x&0xff

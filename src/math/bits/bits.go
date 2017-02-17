@@ -96,20 +96,62 @@ func RotateRight64(x uint64, k int) uint64 { return uint64(rot(uint64(x), 64, 64
 
 // --- Reverse ---
 
+const m0 = 0xaaaaaaaaaaaaaaaa // 10101010 ...
+const m1 = 0xcccccccccccccccc // 11001100 ...
+const m2 = 0xf0f0f0f0f0f0f0f0 // 11110000 ...
+const m3 = 0xff00ff00ff00ff00 // etc.
+const m4 = 0xffff0000ffff0000
+const m5 = 0xffffffff00000000
+
 // Reverse returns the value of x with its bits in reversed order.
-func Reverse(x uint) uint { return uint(rev(uint64(x), UintSize)) }
+func Reverse(x uint) uint {
+	if UintSize == 32 {
+		return uint(Reverse32(uint32(x)))
+	}
+	return uint(Reverse64(uint64(x)))
+}
 
 // Reverse8 returns the value of x with its bits in reversed order.
-func Reverse8(x uint8) uint8 { return uint8(rev(uint64(x), 8)) }
+func Reverse8(x uint8) uint8 {
+	const m = 0xff
+	x = x&(m0&m)>>1 | x&^(m0&m)<<1
+	x = x&(m1&m)>>2 | x&^(m1&m)<<2
+	x = x&(m2&m)>>4 | x&^(m2&m)<<4
+	return x
+}
 
 // Reverse16 returns the value of x with its bits in reversed order.
-func Reverse16(x uint16) uint16 { return uint16(rev(uint64(x), 16)) }
+func Reverse16(x uint16) uint16 {
+	const m = 0xffff
+	x = x&(m0&m)>>1 | x&^(m0&m)<<1
+	x = x&(m1&m)>>2 | x&^(m1&m)<<2
+	x = x&(m2&m)>>4 | x&^(m2&m)<<4
+	x = x&(m3&m)>>8 | x&^(m3&m)<<8
+	return x
+}
 
 // Reverse32 returns the value of x with its bits in reversed order.
-func Reverse32(x uint32) uint32 { return uint32(rev(uint64(x), 32)) }
+func Reverse32(x uint32) uint32 {
+	const m = 0xffffffff
+	x = x&(m0&m)>>1 | x&^(m0&m)<<1
+	x = x&(m1&m)>>2 | x&^(m1&m)<<2
+	x = x&(m2&m)>>4 | x&^(m2&m)<<4
+	x = x&(m3&m)>>8 | x&^(m3&m)<<8
+	x = x&(m4&m)>>16 | x&^(m4&m)<<16
+	return x
+}
 
 // Reverse64 returns the value of x with its bits in reversed order.
-func Reverse64(x uint64) uint64 { return uint64(rev(uint64(x), 64)) }
+func Reverse64(x uint64) uint64 {
+	const m = 0xffffffffffffffff
+	x = x&(m0&m)>>1 | x&^(m0&m)<<1
+	x = x&(m1&m)>>2 | x&^(m1&m)<<2
+	x = x&(m2&m)>>4 | x&^(m2&m)<<4
+	x = x&(m3&m)>>8 | x&^(m3&m)<<8
+	x = x&(m4&m)>>16 | x&^(m4&m)<<16
+	x = x&(m5&m)>>32 | x&^(m5&m)<<32
+	return x
+}
 
 // --- ReverseBytes ---
 

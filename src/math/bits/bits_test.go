@@ -367,6 +367,36 @@ func testReverse(t *testing.T, x64, want64 uint64) {
 	}
 }
 
+func BenchmarkReverse(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Reverse(uint(i))
+	}
+}
+
+func BenchmarkReverse8(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Reverse8(uint8(i))
+	}
+}
+
+func BenchmarkReverse16(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Reverse16(uint16(i))
+	}
+}
+
+func BenchmarkReverse32(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Reverse32(uint32(i))
+	}
+}
+
+func BenchmarkReverse64(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Reverse64(uint64(i))
+	}
+}
+
 func TestReverseBytes(t *testing.T) {
 	for _, test := range []struct {
 		x, r uint64
