@@ -24,31 +24,23 @@ func addvarint(d *Pcdata, v uint32) {
 // where func is the function, val is the current value, p is the instruction being
 // considered, and arg can be used to further parameterize valfunc.
 func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) {
-	// To debug a specific function, uncomment lines and change name.
-	dbg := 0
-
-	//if func_.Name == "main.main" || desc == "pctospadj" {
-	//	dbg = 1
-	//}
-
-	ctxt.Debugpcln += int32(dbg)
+	dbg := desc == ctxt.Debugpcln
 
 	dst.P = dst.P[:0]
 
-	if ctxt.Debugpcln != 0 {
+	if dbg {
 		ctxt.Logf("funcpctab %s [valfunc=%s]\n", func_.Name, desc)
 	}
 
 	val := int32(-1)
 	oldval := val
 	if func_.Text == nil {
-		ctxt.Debugpcln -= int32(dbg)
 		return
 	}
 
 	pc := func_.Text.Pc
 
-	if ctxt.Debugpcln != 0 {
+	if dbg {
 		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Text)
 	}
 
@@ -60,7 +52,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 		if val == oldval && started != 0 {
 			val = valfunc(ctxt, func_, val, p, 1, arg)
-			if ctxt.Debugpcln != 0 {
+			if dbg {
 				ctxt.Logf("%6x %6s %v\n", uint64(p.Pc), "", p)
 			}
 			continue
@@ -72,7 +64,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		// for a true instruction boundary in the program.
 		if p.Link != nil && p.Link.Pc == p.Pc {
 			val = valfunc(ctxt, func_, val, p, 1, arg)
-			if ctxt.Debugpcln != 0 {
+			if dbg {
 				ctxt.Logf("%6x %6s %v\n", uint64(p.Pc), "", p)
 			}
 			continue
@@ -92,7 +84,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		// as variable-length little-endian base-128 integers,
 		// where the 0x80 bit indicates that the integer continues.
 
-		if ctxt.Debugpcln != 0 {
+		if dbg {
 			ctxt.Logf("%6x %6d %v\n", uint64(p.Pc), val, p)
 		}
 
@@ -114,22 +106,20 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 	}
 
 	if started != 0 {
-		if ctxt.Debugpcln != 0 {
+		if dbg {
 			ctxt.Logf("%6x done\n", uint64(func_.Text.Pc+func_.Size))
 		}
 		addvarint(dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
 		addvarint(dst, 0) // terminator
 	}
 
-	if ctxt.Debugpcln != 0 {
+	if dbg {
 		ctxt.Logf("wrote %d bytes to %p\n", len(dst.P), dst)
 		for i := 0; i < len(dst.P); i++ {
 			ctxt.Logf(" %02x", dst.P[i])
 		}
 		ctxt.Logf("\n")
 	}
-
-	ctxt.Debugpcln -= int32(dbg)
 }
 
 // pctofileline computes either the file number (arg == 0)
@@ -297,6 +287,11 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	pcinlineState := new(pcinlineState)
 	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
 	pcln.InlTree = pcinlineState.localTree
+	if ctxt.Debugpcln == "pctoinline" && len(pcln.InlTree.nodes) > 0 {
+		ctxt.Logf("-- inlining tree for %s:\n", cursym)
+		dumpInlTree(ctxt, pcln.InlTree)
+		ctxt.Logf("--\n")
+	}
 
 	// tabulate which pc and func data we have.
 	havepc := make([]uint32, (npcdata+31)/32)
