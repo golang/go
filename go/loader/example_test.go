@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.8 // TODO(adonovan) determine which versions we need to test here
+// +build go1.8,!go1.9 // TODO(adonovan) determine which versions we need to test here
 // +build !windows
 
 package loader_test
