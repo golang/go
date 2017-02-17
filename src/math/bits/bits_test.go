@@ -189,6 +189,56 @@ func TestOnesCount(t *testing.T) {
 	}
 }
 
+// Exported (global) variable to store function results
+// during benchmarking to ensure side-effect free calls
+// are not optimized away.
+var Unused int
+
+// Exported (global) variable serving as input for some
+// of the benchmarks to ensure side-effect free calls
+// are not optimized away.
+var Input uint64 = deBruijn64
+
+func BenchmarkOnesCount(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += OnesCount(uint(Input))
+	}
+	Unused = s
+}
+
+func BenchmarkOnesCount8(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += OnesCount8(uint8(Input))
+	}
+	Unused = s
+}
+
+func BenchmarkOnesCount16(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += OnesCount16(uint16(Input))
+	}
+	Unused = s
+}
+
+func BenchmarkOnesCount32(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += OnesCount32(uint32(Input))
+	}
+	Unused = s
+}
+
+func BenchmarkOnesCount64(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += OnesCount64(uint64(Input))
+	}
+	Unused = s
+}
+
 func TestRotateLeft(t *testing.T) {
 	var m uint64 = deBruijn64
 
@@ -367,17 +417,12 @@ func testReverse(t *testing.T, x64, want64 uint64) {
 	}
 }
 
-// Exported (global) variable to store function results
-// during benchmarking, to ensure side-effect free calls
-// are not optimized away.
-var Unused uint64
-
 func BenchmarkReverse(b *testing.B) {
 	var s uint
 	for i := 0; i < b.N; i++ {
 		s += Reverse(uint(i))
 	}
-	Unused = uint64(s)
+	Unused = int(s)
 }
 
 func BenchmarkReverse8(b *testing.B) {
@@ -385,7 +430,7 @@ func BenchmarkReverse8(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += Reverse8(uint8(i))
 	}
-	Unused = uint64(s)
+	Unused = int(s)
 }
 
 func BenchmarkReverse16(b *testing.B) {
@@ -393,7 +438,7 @@ func BenchmarkReverse16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += Reverse16(uint16(i))
 	}
-	Unused = uint64(s)
+	Unused = int(s)
 }
 
 func BenchmarkReverse32(b *testing.B) {
@@ -401,7 +446,7 @@ func BenchmarkReverse32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += Reverse32(uint32(i))
 	}
-	Unused = uint64(s)
+	Unused = int(s)
 }
 
 func BenchmarkReverse64(b *testing.B) {
@@ -409,7 +454,7 @@ func BenchmarkReverse64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += Reverse64(uint64(i))
 	}
-	Unused = s
+	Unused = int(s)
 }
 
 func TestReverseBytes(t *testing.T) {
@@ -473,7 +518,7 @@ func BenchmarkReverseBytes(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += ReverseBytes(uint(i))
 	}
-	Unused = uint64(s)
+	Unused = int(s)
 }
 
 func BenchmarkReverseBytes16(b *testing.B) {
@@ -481,7 +526,7 @@ func BenchmarkReverseBytes16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += ReverseBytes16(uint16(i))
 	}
-	Unused = uint64(s)
+	Unused = int(s)
 }
 
 func BenchmarkReverseBytes32(b *testing.B) {
@@ -489,7 +534,7 @@ func BenchmarkReverseBytes32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += ReverseBytes32(uint32(i))
 	}
-	Unused = uint64(s)
+	Unused = int(s)
 }
 
 func BenchmarkReverseBytes64(b *testing.B) {
@@ -497,7 +542,7 @@ func BenchmarkReverseBytes64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += ReverseBytes64(uint64(i))
 	}
-	Unused = s
+	Unused = int(s)
 }
 
 func TestLen(t *testing.T) {

@@ -74,14 +74,6 @@ func ntz64(x uint64) int {
 	return int(deBruijn64tab[(x&-x)*deBruijn64>>(64-6)])
 }
 
-func pop(x uint64) (n int) {
-	for x != 0 {
-		n++
-		x &= x - 1
-	}
-	return
-}
-
 func pos(k int) uint {
 	if k < 0 {
 		panic("negative rotation count")
