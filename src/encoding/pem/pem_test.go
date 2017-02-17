@@ -83,6 +83,16 @@ const pemTooFewEndingDashes = `
 dGVzdA==
 -----END FOO----`
 
+const pemTooManyEndingDashes = `
+-----BEGIN FOO-----
+dGVzdA==
+-----END FOO------`
+
+const pemTrailingNonWhitespace = `
+-----BEGIN FOO-----
+dGVzdA==
+-----END FOO----- .`
+
 const pemWrongEndingType = `
 -----BEGIN FOO-----
 dGVzdA==
@@ -100,6 +110,14 @@ var badPEMTests = []struct {
 	{
 		"too few trailing dashes",
 		pemTooFewEndingDashes,
+	},
+	{
+		"too many trailing dashes",
+		pemTooManyEndingDashes,
+	},
+	{
+		"trailing non-whitespace",
+		pemTrailingNonWhitespace,
 	},
 	{
 		"incorrect ending type",

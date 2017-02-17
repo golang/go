@@ -135,17 +135,23 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		return decodeError(data, rest)
 	}
 
-	// After the "-----" of the ending line should be the same type and a
-	// final five dashes.
+	// After the "-----" of the ending line, there should be the same type
+	// and then a final five dashes.
 	endTrailer := rest[endTrailerIndex:]
 	endTrailerLen := len(typeLine) + len(pemEndOfLine)
 	if len(endTrailer) < endTrailerLen {
 		return decodeError(data, rest)
 	}
 
+	restOfEndLine := endTrailer[endTrailerLen:]
 	endTrailer = endTrailer[:endTrailerLen]
 	if !bytes.HasPrefix(endTrailer, typeLine) ||
 		!bytes.HasSuffix(endTrailer, pemEndOfLine) {
+		return decodeError(data, rest)
+	}
+
+	// The line must end with only whitespace.
+	if s, _ := getLine(restOfEndLine); len(s) != 0 {
 		return decodeError(data, rest)
 	}
 
