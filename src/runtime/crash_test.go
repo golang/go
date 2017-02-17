@@ -538,3 +538,31 @@ func TestConcurrentMapIterateWrite(t *testing.T) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
+
+type point struct {
+	x, y *int
+}
+
+func (p *point) negate() {
+	*p.x = *p.x * -1
+	*p.y = *p.y * -1
+}
+
+// Test for issue #10152.
+func TestPanicInlined(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatalf("recover failed")
+		}
+		buf := make([]byte, 2048)
+		n := runtime.Stack(buf, false)
+		buf = buf[:n]
+		if !bytes.Contains(buf, []byte("(*point).negate(")) {
+			t.Fatalf("expecting stack trace to contain call to (*point).negate()")
+		}
+	}()
+
+	pt := new(point)
+	pt.negate()
+}

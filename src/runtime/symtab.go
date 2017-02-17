@@ -604,6 +604,23 @@ func funcname(f *_func) string {
 	return gostringnocopy(cfuncname(f))
 }
 
+func funcnameFromNameoff(f *_func, nameoff int32) string {
+	datap := findmoduledatap(f.entry) // inefficient
+	if datap == nil {
+		return ""
+	}
+	cstr := &datap.pclntable[nameoff]
+	return gostringnocopy(cstr)
+}
+
+func funcfile(f *_func, fileno int32) string {
+	datap := findmoduledatap(f.entry) // inefficient
+	if datap == nil {
+		return "?"
+	}
+	return gostringnocopy(&datap.pclntable[datap.filetab[fileno]])
+}
+
 func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32) {
 	datap := findmoduledatap(f.entry) // inefficient
 	if datap == nil {
@@ -698,4 +715,12 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
 		throw("stackmapdata: index out of range")
 	}
 	return bitvector{stkmap.nbit, (*byte)(add(unsafe.Pointer(&stkmap.bytedata), uintptr(n*((stkmap.nbit+7)/8))))}
+}
+
+// inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
+type inlinedCall struct {
+	parent int32 // index of parent in the inltree, or < 0
+	file   int32 // fileno index into filetab
+	line   int32 // line number of the call site
+	func_  int32 // offset into pclntab for name of called function
 }
