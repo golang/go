@@ -513,7 +513,10 @@ func (ctxt *Link) symtab() {
 				s.Outer = symgofunc
 			}
 
-		case strings.HasPrefix(s.Name, "gcargs."), strings.HasPrefix(s.Name, "gclocals."), strings.HasPrefix(s.Name, "gclocals·"):
+		case strings.HasPrefix(s.Name, "gcargs."),
+			strings.HasPrefix(s.Name, "gclocals."),
+			strings.HasPrefix(s.Name, "gclocals·"),
+			strings.HasPrefix(s.Name, "inltree."):
 			s.Type = obj.SGOFUNC
 			s.Attr |= AttrHidden
 			s.Outer = symgofunc

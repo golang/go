@@ -843,12 +843,23 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	call.Type = n.Type
 	call.Typecheck = 1
 
-	// Hide the args from setlno -- the parameters to the inlined
+	// Hide the args from setPos -- the parameters to the inlined
 	// call already have good line numbers that should be preserved.
 	args := as.Rlist
 	as.Rlist.Set(nil)
 
-	setlno(call, n.Pos)
+	// Rewrite the line information for the inlined AST.
+	parent := -1
+	callBase := Ctxt.PosTable.Pos(n.Pos).Base()
+	if callBase != nil {
+		parent = callBase.InliningIndex()
+	}
+	newIndex := Ctxt.InlTree.Add(parent, n.Pos, Linksym(fn.Sym))
+	setpos := &setPos{
+		bases:       make(map[*src.PosBase]*src.PosBase),
+		newInlIndex: newIndex,
+	}
+	setpos.node(call)
 
 	as.Rlist.Set(args.Slice())
 
@@ -1024,29 +1035,47 @@ func (subst *inlsubst) node(n *Node) *Node {
 	}
 }
 
-// Plaster over linenumbers
-func setlnolist(ll Nodes, lno src.XPos) {
+// setPos is a visitor to update position info with a new inlining index.
+type setPos struct {
+	bases       map[*src.PosBase]*src.PosBase
+	newInlIndex int
+}
+
+func (s *setPos) nodelist(ll Nodes) {
 	for _, n := range ll.Slice() {
-		setlno(n, lno)
+		s.node(n)
 	}
 }
 
-func setlno(n *Node, lno src.XPos) {
+func (s *setPos) node(n *Node) {
 	if n == nil {
 		return
 	}
 
 	// don't clobber names, unless they're freshly synthesized
 	if n.Op != ONAME || !n.Pos.IsKnown() {
-		n.Pos = lno
+		n.Pos = s.updatedPos(n)
 	}
 
-	setlno(n.Left, lno)
-	setlno(n.Right, lno)
-	setlnolist(n.List, lno)
-	setlnolist(n.Rlist, lno)
-	setlnolist(n.Ninit, lno)
-	setlnolist(n.Nbody, lno)
+	s.node(n.Left)
+	s.node(n.Right)
+	s.nodelist(n.List)
+	s.nodelist(n.Rlist)
+	s.nodelist(n.Ninit)
+	s.nodelist(n.Nbody)
+}
+
+func (s *setPos) updatedPos(n *Node) src.XPos {
+	pos := Ctxt.PosTable.Pos(n.Pos)
+	oldbase := pos.Base() // can be nil
+	newbase := s.bases[oldbase]
+	if newbase == nil {
+		newbase = src.NewInliningBase(oldbase, s.newInlIndex)
+		pos.SetBase(newbase)
+		s.bases[oldbase] = newbase
+	}
+	pos.SetBase(newbase)
+	return Ctxt.PosTable.XPos(pos)
 }
 
 func (n *Node) isMethodCalledAsFunction() bool {

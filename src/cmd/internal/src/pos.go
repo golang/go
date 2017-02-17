@@ -63,6 +63,9 @@ func (p Pos) Filename() string { return p.base.Pos().RelFilename() }
 // Base returns the position base.
 func (p Pos) Base() *PosBase { return p.base }
 
+// SetBase sets the position base.
+func (p *Pos) SetBase(base *PosBase) { p.base = base }
+
 // RelFilename returns the filename recorded with the position's base.
 func (p Pos) RelFilename() string { return p.base.Filename() }
 
@@ -115,13 +118,14 @@ type PosBase struct {
 	filename    string // file name used to open source file, for error messages
 	absFilename string // absolute file name, for PC-Line tables
 	line        uint   // relative line number at pos
+	inl         int    // inlining index (see cmd/internal/obj/inl.go)
 }
 
 // NewFileBase returns a new *PosBase for a file with the given (relative and
 // absolute) filenames.
 func NewFileBase(filename, absFilename string) *PosBase {
 	if filename != "" {
-		base := &PosBase{filename: filename, absFilename: absFilename}
+		base := &PosBase{filename: filename, absFilename: absFilename, inl: -1}
 		base.pos = MakePos(base, 0, 0)
 		return base
 	}
@@ -132,7 +136,24 @@ func NewFileBase(filename, absFilename string) *PosBase {
 //      //line filename:line
 // at position pos.
 func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
-	return &PosBase{pos, filename, filename, line - 1}
+	return &PosBase{pos, filename, filename, line - 1, -1}
+}
+
+// NewInliningBase returns a copy of the old PosBase with the given inlining
+// index. If old == nil, the resulting PosBase has no filename.
+func NewInliningBase(old *PosBase, inlTreeIndex int) *PosBase {
+	if old == nil {
+		base := &PosBase{inl: inlTreeIndex}
+		base.pos = MakePos(base, 0, 0)
+		return base
+	}
+	copy := *old
+	base := &copy
+	base.inl = inlTreeIndex
+	if old == old.pos.base {
+		base.pos.base = base
+	}
+	return base
 }
 
 var noPos Pos
@@ -171,6 +192,16 @@ func (b *PosBase) Line() uint {
 		return b.line
 	}
 	return 0
+}
+
+// InliningIndex returns the index into the global inlining
+// tree recorded with the base. If b == nil or the base has
+// not been inlined, the result is < 0.
+func (b *PosBase) InliningIndex() int {
+	if b != nil {
+		return b.inl
+	}
+	return -1
 }
 
 // ----------------------------------------------------------------------------

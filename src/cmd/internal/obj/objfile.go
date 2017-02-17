@@ -94,6 +94,7 @@
 //	- pcsp [data block]
 //	- pcfile [data block]
 //	- pcline [data block]
+//	- pcinline [data block]
 //	- npcdata [int]
 //	- pcdata [npcdata data blocks]
 //	- nfuncdata [int]
@@ -101,6 +102,8 @@
 //	- funcdatasym [nfuncdata ints]
 //	- nfile [int]
 //	- file [nfile symref index]
+//	- ninlinedcall [int]
+//	- inlinedcall [ninlinedcall int symref int symref]
 //
 // The file layout and meaning of type integers are architecture-independent.
 //
@@ -156,6 +159,7 @@ func (w *objWriter) addLengths(s *LSym) {
 	data += len(pc.Pcsp.P)
 	data += len(pc.Pcfile.P)
 	data += len(pc.Pcline.P)
+	data += len(pc.Pcinline.P)
 	for i := 0; i < len(pc.Pcdata); i++ {
 		data += len(pc.Pcdata[i].P)
 	}
@@ -227,6 +231,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 		w.wr.Write(pc.Pcsp.P)
 		w.wr.Write(pc.Pcfile.P)
 		w.wr.Write(pc.Pcline.P)
+		w.wr.Write(pc.Pcinline.P)
 		for i := 0; i < len(pc.Pcdata); i++ {
 			w.wr.Write(pc.Pcdata[i].P)
 		}
@@ -298,6 +303,11 @@ func (w *objWriter) writeRefs(s *LSym) {
 			w.writeRef(d, false)
 		}
 		for _, f := range pc.File {
+			w.writeRef(f, true)
+		}
+		for _, call := range pc.InlTree.nodes {
+			w.writeRef(call.Func, false)
+			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
 			w.writeRef(f, true)
 		}
 	}
@@ -452,6 +462,7 @@ func (w *objWriter) writeSym(s *LSym) {
 	w.writeInt(int64(len(pc.Pcsp.P)))
 	w.writeInt(int64(len(pc.Pcfile.P)))
 	w.writeInt(int64(len(pc.Pcline.P)))
+	w.writeInt(int64(len(pc.Pcinline.P)))
 	w.writeInt(int64(len(pc.Pcdata)))
 	for i := 0; i < len(pc.Pcdata); i++ {
 		w.writeInt(int64(len(pc.Pcdata[i].P)))
@@ -466,6 +477,14 @@ func (w *objWriter) writeSym(s *LSym) {
 	w.writeInt(int64(len(pc.File)))
 	for _, f := range pc.File {
 		w.writeRefIndex(f)
+	}
+	w.writeInt(int64(len(pc.InlTree.nodes)))
+	for _, call := range pc.InlTree.nodes {
+		w.writeInt(int64(call.Parent))
+		f, l := linkgetlineFromPos(w.ctxt, call.Pos)
+		w.writeRefIndex(f)
+		w.writeInt(int64(l))
+		w.writeRefIndex(call.Func)
 	}
 }
 
