@@ -1013,7 +1013,7 @@
     (Rsh64Ux64 <config.fe.TypeUInt64()>
       (Avg64u
         (Lsh64x64 <config.fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <config.fe.TypeUInt64()> [32]))
-        (Mul64 <config.fe.TypeUInt32()>
+        (Mul64 <config.fe.TypeUInt64()>
           (Const64 <config.fe.TypeUInt32()> [int64(umagic(32,c).m)])
           (ZeroExt32to64 x)))
       (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-1])))

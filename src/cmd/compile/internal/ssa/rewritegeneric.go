@@ -2813,7 +2813,7 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 	}
 	// match: (Div32u x (Const32 [c]))
 	// cond: umagicOK(32, c) && config.RegSize == 8
-	// result: (Trunc64to32     (Rsh64Ux64 <config.fe.TypeUInt64()>       (Avg64u         (Lsh64x64 <config.fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <config.fe.TypeUInt64()> [32]))         (Mul64 <config.fe.TypeUInt32()>           (Const64 <config.fe.TypeUInt32()> [int64(umagic(32,c).m)])           (ZeroExt32to64 x)))       (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-1])))
+	// result: (Trunc64to32     (Rsh64Ux64 <config.fe.TypeUInt64()>       (Avg64u         (Lsh64x64 <config.fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <config.fe.TypeUInt64()> [32]))         (Mul64 <config.fe.TypeUInt64()>           (Const64 <config.fe.TypeUInt32()> [int64(umagic(32,c).m)])           (ZeroExt32to64 x)))       (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-1])))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -2835,7 +2835,7 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 		v4.AuxInt = 32
 		v2.AddArg(v4)
 		v1.AddArg(v2)
-		v5 := b.NewValue0(v.Pos, OpMul64, config.fe.TypeUInt32())
+		v5 := b.NewValue0(v.Pos, OpMul64, config.fe.TypeUInt64())
 		v6 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt32())
 		v6.AuxInt = int64(umagic(32, c).m)
 		v5.AddArg(v6)
