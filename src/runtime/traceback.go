@@ -332,6 +332,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			}
 		}
 		if printing {
+			// assume skip=0 for printing
 			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0) {
 				// Print during crash.
 				//	main(0x1, 0x2, 0x3)
@@ -340,6 +341,21 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				tracepc := frame.pc // back up to CALL instruction for funcline.
 				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
 					tracepc--
+				}
+				file, line := funcline(f, tracepc)
+				inldata := funcdata(f, _FUNCDATA_InlTree)
+				if inldata != nil {
+					inltree := (*[1 << 20]inlinedCall)(inldata)
+					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, nil)
+					for ix != -1 {
+						name := funcnameFromNameoff(f, inltree[ix].func_)
+						print(name, "(...)\n")
+						print("\t", file, ":", line, "\n")
+
+						file = funcfile(f, inltree[ix].file)
+						line = inltree[ix].line
+						ix = inltree[ix].parent
+					}
 				}
 				name := funcname(f)
 				if name == "runtime.gopanic" {
@@ -358,7 +374,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					print(hex(argp[i]))
 				}
 				print(")\n")
-				file, line := funcline(f, tracepc)
 				print("\t", file, ":", line)
 				if frame.pc > f.entry {
 					print(" +", hex(frame.pc-f.entry))
