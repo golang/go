@@ -101,36 +101,102 @@ func OnesCount64(x uint64) int {
 // --- RotateLeft ---
 
 // RotateLeft returns the value of x rotated left by k bits; k must not be negative.
-func RotateLeft(x uint, k int) uint { return uint(rot(uint64(x), UintSize, pos(k)%UintSize)) }
+func RotateLeft(x uint, k int) uint {
+	if UintSize == 32 {
+		return uint(RotateLeft32(uint32(x), k))
+	}
+	return uint(RotateLeft64(uint64(x), k))
+}
 
 // RotateLeft8 returns the value of x rotated left by k bits; k must not be negative.
-func RotateLeft8(x uint8, k int) uint8 { return uint8(rot(uint64(x), 8, pos(k)%8)) }
+func RotateLeft8(x uint8, k int) uint8 {
+	if k < 0 {
+		panic("negative rotation count")
+	}
+	const n = 8
+	s := uint(k) & (n - 1)
+	return x<<s | x>>(n-s)
+}
 
 // RotateLeft16 returns the value of x rotated left by k bits; k must not be negative.
-func RotateLeft16(x uint16, k int) uint16 { return uint16(rot(uint64(x), 16, pos(k)%16)) }
+func RotateLeft16(x uint16, k int) uint16 {
+	if k < 0 {
+		panic("negative rotation count")
+	}
+	const n = 16
+	s := uint(k) & (n - 1)
+	return x<<s | x>>(n-s)
+}
 
 // RotateLeft32 returns the value of x rotated left by k bits; k must not be negative.
-func RotateLeft32(x uint32, k int) uint32 { return uint32(rot(uint64(x), 32, pos(k)%32)) }
+func RotateLeft32(x uint32, k int) uint32 {
+	if k < 0 {
+		panic("negative rotation count")
+	}
+	const n = 32
+	s := uint(k) & (n - 1)
+	return x<<s | x>>(n-s)
+}
 
 // RotateLeft64 returns the value of x rotated left by k bits; k must not be negative.
-func RotateLeft64(x uint64, k int) uint64 { return uint64(rot(uint64(x), 64, pos(k)%64)) }
+func RotateLeft64(x uint64, k int) uint64 {
+	if k < 0 {
+		panic("negative rotation count")
+	}
+	const n = 64
+	s := uint(k) & (n - 1)
+	return x<<s | x>>(n-s)
+}
 
 // --- RotateRight ---
 
-// RotateRight returns the value of x rotated right by k bits; k must not be negative.
-func RotateRight(x uint, k int) uint { return uint(rot(uint64(x), UintSize, UintSize-pos(k)%UintSize)) }
+// RotateRight returns the value of x rotated left by k bits; k must not be negative.
+func RotateRight(x uint, k int) uint {
+	if UintSize == 32 {
+		return uint(RotateRight32(uint32(x), k))
+	}
+	return uint(RotateRight64(uint64(x), k))
+}
 
-// RotateRight8 returns the value of x rotated right by k bits; k must not be negative.
-func RotateRight8(x uint8, k int) uint8 { return uint8(rot(uint64(x), 8, 8-pos(k)%8)) }
+// RotateRight8 returns the value of x rotated left by k bits; k must not be negative.
+func RotateRight8(x uint8, k int) uint8 {
+	if k < 0 {
+		panic("negative rotation count")
+	}
+	const n = 8
+	s := uint(k) & (n - 1)
+	return x<<(n-s) | x>>s
+}
 
-// RotateRight16 returns the value of x rotated right by k bits; k must not be negative.
-func RotateRight16(x uint16, k int) uint16 { return uint16(rot(uint64(x), 16, 16-pos(k)%16)) }
+// RotateRight16 returns the value of x rotated left by k bits; k must not be negative.
+func RotateRight16(x uint16, k int) uint16 {
+	if k < 0 {
+		panic("negative rotation count")
+	}
+	const n = 16
+	s := uint(k) & (n - 1)
+	return x<<(n-s) | x>>s
+}
 
-// RotateRight32 returns the value of x rotated right by k bits; k must not be negative.
-func RotateRight32(x uint32, k int) uint32 { return uint32(rot(uint64(x), 32, 32-pos(k)%32)) }
+// RotateRight32 returns the value of x rotated left by k bits; k must not be negative.
+func RotateRight32(x uint32, k int) uint32 {
+	if k < 0 {
+		panic("negative rotation count")
+	}
+	const n = 32
+	s := uint(k) & (n - 1)
+	return x<<(n-s) | x>>s
+}
 
-// RotateRight64 returns the value of x rotated right by k bits; k must not be negative.
-func RotateRight64(x uint64, k int) uint64 { return uint64(rot(uint64(x), 64, 64-pos(k)%64)) }
+// RotateRight64 returns the value of x rotated left by k bits; k must not be negative.
+func RotateRight64(x uint64, k int) uint64 {
+	if k < 0 {
+		panic("negative rotation count")
+	}
+	const n = 64
+	s := uint(k) & (n - 1)
+	return x<<(n-s) | x>>s
+}
 
 // --- Reverse ---
 

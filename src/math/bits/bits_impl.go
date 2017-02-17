@@ -74,17 +74,6 @@ func ntz64(x uint64) int {
 	return int(deBruijn64tab[(x&-x)*deBruijn64>>(64-6)])
 }
 
-func pos(k int) uint {
-	if k < 0 {
-		panic("negative rotation count")
-	}
-	return uint(k)
-}
-
-func rot(x uint64, size, k uint) uint64 {
-	return x<<k | x>>(size-k)&(1<<k-1)
-}
-
 func blen(x uint64) (i int) {
 	for ; x >= 1<<(16-1); x >>= 16 {
 		i += 16

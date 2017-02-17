@@ -289,6 +289,46 @@ func TestRotateLeft(t *testing.T) {
 	}
 }
 
+func BenchmarkRotateLeft(b *testing.B) {
+	var s uint
+	for i := 0; i < b.N; i++ {
+		s += RotateLeft(uint(Input), i)
+	}
+	Unused = int(s)
+}
+
+func BenchmarkRotateLeft8(b *testing.B) {
+	var s uint8
+	for i := 0; i < b.N; i++ {
+		s += RotateLeft8(uint8(Input), i)
+	}
+	Unused = int(s)
+}
+
+func BenchmarkRotateLeft16(b *testing.B) {
+	var s uint16
+	for i := 0; i < b.N; i++ {
+		s += RotateLeft16(uint16(Input), i)
+	}
+	Unused = int(s)
+}
+
+func BenchmarkRotateLeft32(b *testing.B) {
+	var s uint32
+	for i := 0; i < b.N; i++ {
+		s += RotateLeft32(uint32(Input), i)
+	}
+	Unused = int(s)
+}
+
+func BenchmarkRotateLeft64(b *testing.B) {
+	var s uint64
+	for i := 0; i < b.N; i++ {
+		s += RotateLeft64(uint64(Input), i)
+	}
+	Unused = int(s)
+}
+
 func TestRotateRight(t *testing.T) {
 	var m uint64 = deBruijn64
 
@@ -337,6 +377,46 @@ func TestRotateRight(t *testing.T) {
 			}
 		}
 	}
+}
+
+func BenchmarkRotateRight(b *testing.B) {
+	var s uint
+	for i := 0; i < b.N; i++ {
+		s += RotateRight(uint(Input), i)
+	}
+	Unused = int(s)
+}
+
+func BenchmarkRotateRight8(b *testing.B) {
+	var s uint8
+	for i := 0; i < b.N; i++ {
+		s += RotateRight8(uint8(Input), i)
+	}
+	Unused = int(s)
+}
+
+func BenchmarkRotateRight16(b *testing.B) {
+	var s uint16
+	for i := 0; i < b.N; i++ {
+		s += RotateRight16(uint16(Input), i)
+	}
+	Unused = int(s)
+}
+
+func BenchmarkRotateRight32(b *testing.B) {
+	var s uint32
+	for i := 0; i < b.N; i++ {
+		s += RotateRight32(uint32(Input), i)
+	}
+	Unused = int(s)
+}
+
+func BenchmarkRotateRight64(b *testing.B) {
+	var s uint64
+	for i := 0; i < b.N; i++ {
+		s += RotateRight64(uint64(Input), i)
+	}
+	Unused = int(s)
 }
 
 func TestReverse(t *testing.T) {
