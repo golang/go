@@ -4,7 +4,7 @@
 
 // +build !nacl
 
-package pprof_test
+package pprof
 
 import (
 	"bytes"
@@ -16,7 +16,6 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
-	. "runtime/pprof"
 	"strings"
 	"sync"
 	"testing"
@@ -68,14 +67,14 @@ func cpuHog2() {
 }
 
 func TestCPUProfile(t *testing.T) {
-	testCPUProfile(t, []string{"runtime/pprof_test.cpuHog1"}, func(dur time.Duration) {
+	testCPUProfile(t, []string{"runtime/pprof.cpuHog1"}, func(dur time.Duration) {
 		cpuHogger(cpuHog1, dur)
 	})
 }
 
 func TestCPUProfileMultithreaded(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
-	testCPUProfile(t, []string{"runtime/pprof_test.cpuHog1", "runtime/pprof_test.cpuHog2"}, func(dur time.Duration) {
+	testCPUProfile(t, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog2"}, func(dur time.Duration) {
 		c := make(chan int)
 		go func() {
 			cpuHogger(cpuHog1, dur)
@@ -171,21 +170,26 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
 	// Check that profile is well formed and contains need.
 	have := make([]uintptr, len(need))
 	var samples uintptr
+	var buf bytes.Buffer
 	parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
+		fmt.Fprintf(&buf, "%d:", count)
 		samples += count
 		for _, pc := range stk {
+			fmt.Fprintf(&buf, " %#x", pc)
 			f := runtime.FuncForPC(pc)
 			if f == nil {
 				continue
 			}
+			fmt.Fprintf(&buf, "(%s)", f.Name())
 			for i, name := range need {
 				if strings.Contains(f.Name(), name) {
 					have[i] += count
 				}
 			}
 		}
+		fmt.Fprintf(&buf, "\n")
 	})
-	t.Logf("total %d CPU profile samples collected", samples)
+	t.Logf("total %d CPU profile samples collected:\n%s", samples, buf.String())
 
 	if samples < 10 && runtime.GOOS == "windows" {
 		// On some windows machines we end up with
@@ -361,44 +365,44 @@ func TestBlockProfile(t *testing.T) {
 		{"chan recv", blockChanRecv, `
 [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
 #	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanRecv\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.blockChanRecv\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{"chan send", blockChanSend, `
 [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
 #	0x[0-9,a-f]+	runtime\.chansend1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanSend\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.blockChanSend\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{"chan close", blockChanClose, `
 [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
 #	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanClose\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.blockChanClose\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{"select recv async", blockSelectRecvAsync, `
 [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
 #	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/runtime/select.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectRecvAsync\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.blockSelectRecvAsync\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{"select send sync", blockSelectSendSync, `
 [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
 #	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/runtime/select.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectSendSync\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.blockSelectSendSync\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{"mutex", blockMutex, `
 [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
 #	0x[0-9,a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9,a-f]+	.*/src/sync/mutex\.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.blockMutex\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.blockMutex\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
 		{"cond", blockCond, `
 [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
 #	0x[0-9,a-f]+	sync\.\(\*Cond\)\.Wait\+0x[0-9,a-f]+	.*/src/sync/cond\.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.blockCond\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.blockCond\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+#	0x[0-9,a-f]+	runtime/pprof\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
 `},
 	}
 
@@ -541,7 +545,7 @@ func TestMutexProfile(t *testing.T) {
 	if ok, err := regexp.MatchString(r2, lines[3]); err != nil || !ok {
 		t.Errorf("%q didn't match %q", lines[3], r2)
 	}
-	r3 := "^#.*runtime/pprof_test.blockMutex.*$"
+	r3 := "^#.*runtime/pprof.blockMutex.*$"
 	if ok, err := regexp.MatchString(r3, lines[5]); err != nil || !ok {
 		t.Errorf("%q didn't match %q", lines[5], r3)
 	}

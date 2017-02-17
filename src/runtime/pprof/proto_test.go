@@ -19,11 +19,13 @@ import (
 // This is only used for testing. Real conversions stream the
 // data into the profileBuilder as it becomes available.
 func translateCPUProfile(data []uint64) (*profile.Profile, error) {
-	b := newProfileBuilder()
+	var buf bytes.Buffer
+	b := newProfileBuilder(&buf)
 	if err := b.addCPUData(data, nil); err != nil {
 		return nil, err
 	}
-	return b.build(), nil
+	b.build()
+	return profile.Parse(&buf)
 }
 
 // fmtJSON returns a pretty-printed JSON form for x.
@@ -38,7 +40,7 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
 	// A test server with mock cpu profile data.
 	var buf bytes.Buffer
 
-	b := []uint64{3, 0, 2000} // empty profile with 2000ms sample period
+	b := []uint64{3, 0, 2000} // empty profile with 2ms sample period
 	p, err := translateCPUProfile(b)
 	if err != nil {
 		t.Fatalf("translateCPUProfile: %v", err)
@@ -53,15 +55,13 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
 	}
 
 	// Expected PeriodType and SampleType.
-	expectedPeriodType := &profile.ValueType{Type: "cpu", Unit: "nanoseconds"}
-	expectedSampleType := []*profile.ValueType{
+	periodType := &profile.ValueType{Type: "cpu", Unit: "nanoseconds"}
+	sampleType := []*profile.ValueType{
 		{Type: "samples", Unit: "count"},
 		{Type: "cpu", Unit: "nanoseconds"},
 	}
-	if p.Period != 2000*1000 || !reflect.DeepEqual(p.PeriodType, expectedPeriodType) ||
-		!reflect.DeepEqual(p.SampleType, expectedSampleType) || p.Sample != nil {
-		t.Fatalf("Unexpected Profile fields")
-	}
+
+	checkProfile(t, p, 2000*1000, periodType, sampleType, nil)
 }
 
 func f1() { f1() }
@@ -145,7 +145,17 @@ func checkProfile(t *testing.T, p *profile.Profile, period int64, periodType *pr
 			l.Line = nil
 		}
 	}
-	if !reflect.DeepEqual(p.Sample, samples) {
+	if fmtJSON(p.Sample) != fmtJSON(samples) { // ignore unexported fields
+		if len(p.Sample) == len(samples) {
+			for i := range p.Sample {
+				if !reflect.DeepEqual(p.Sample[i], samples[i]) {
+					t.Errorf("sample %d = %v\nwant = %v\n", i, fmtJSON(p.Sample[i]), fmtJSON(samples[i]))
+				}
+			}
+			if t.Failed() {
+				t.FailNow()
+			}
+		}
 		t.Fatalf("p.Sample = %v\nwant = %v", fmtJSON(p.Sample), fmtJSON(samples))
 	}
 }
@@ -163,6 +173,7 @@ func (f *fakeFunc) FileLine(uintptr) (string, int) {
 	return f.file, f.lineno
 }
 
+/*
 // TestRuntimeFunctionTrimming tests if symbolize trims runtime functions as intended.
 func TestRuntimeRunctionTrimming(t *testing.T) {
 	fakeFuncMap := map[uintptr]*fakeFunc{
@@ -246,3 +257,4 @@ func TestRuntimeRunctionTrimming(t *testing.T) {
 		}
 	}
 }
+*/
