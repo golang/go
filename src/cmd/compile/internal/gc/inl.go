@@ -977,7 +977,12 @@ func (subst *inlsubst) node(n *Node) *Node {
 		return n
 
 	case OLITERAL, OTYPE:
-		return n
+		// If n is a named constant or type, we can continue
+		// using it in the inline copy. Otherwise, make a copy
+		// so we can update the line number.
+		if n.Sym != nil {
+			return n
+		}
 
 		// Since we don't handle bodies with closures, this return is guaranteed to belong to the current inlined function.
 
@@ -1015,24 +1020,24 @@ func (subst *inlsubst) node(n *Node) *Node {
 		m.Left = newname(lookup(p))
 
 		return m
-	default:
-		m := nod(OXXX, nil, nil)
-		*m = *n
-		m.Ninit.Set(nil)
-
-		if n.Op == OCLOSURE {
-			Fatalf("cannot inline function containing closure: %+v", n)
-		}
-
-		m.Left = subst.node(n.Left)
-		m.Right = subst.node(n.Right)
-		m.List.Set(subst.list(n.List))
-		m.Rlist.Set(subst.list(n.Rlist))
-		m.Ninit.Set(append(m.Ninit.Slice(), subst.list(n.Ninit)...))
-		m.Nbody.Set(subst.list(n.Nbody))
-
-		return m
 	}
+
+	m := nod(OXXX, nil, nil)
+	*m = *n
+	m.Ninit.Set(nil)
+
+	if n.Op == OCLOSURE {
+		Fatalf("cannot inline function containing closure: %+v", n)
+	}
+
+	m.Left = subst.node(n.Left)
+	m.Right = subst.node(n.Right)
+	m.List.Set(subst.list(n.List))
+	m.Rlist.Set(subst.list(n.Rlist))
+	m.Ninit.Set(append(m.Ninit.Slice(), subst.list(n.Ninit)...))
+	m.Nbody.Set(subst.list(n.Nbody))
+
+	return m
 }
 
 // setPos is a visitor to update position info with a new inlining index.
@@ -1050,6 +1055,12 @@ func (s *setPos) nodelist(ll Nodes) {
 func (s *setPos) node(n *Node) {
 	if n == nil {
 		return
+	}
+	if n.Op == OLITERAL || n.Op == OTYPE {
+		if n.Sym != nil {
+			// This node is not a copy, so don't clobber position.
+			return
+		}
 	}
 
 	// don't clobber names, unless they're freshly synthesized
