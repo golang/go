@@ -93,14 +93,6 @@ func rot(x uint64, size, k uint) uint64 {
 	return x<<k | x>>(size-k)&(1<<k-1)
 }
 
-func swap(x uint64, size uint) (r uint64) {
-	for i := size / 8; i > 0; i-- {
-		r = r<<8 | x&0xff
-		x >>= 8
-	}
-	return
-}
-
 func blen(x uint64) (i int) {
 	for ; x >= 1<<(16-1); x >>= 16 {
 		i += 16
