@@ -62,16 +62,17 @@ func main() {
 			diag = true
 			log.Printf(format, args...)
 		}
-		pList := obj.Linknewplist(ctxt)
+		pList := new(obj.Plist)
 		pList.Firstpc, ok = parser.Parse()
 		if !ok {
 			failedFile = f
 			break
 		}
+		// reports errors to parser.Errorf
+		obj.Flushplist(ctxt, pList)
 	}
 	if ok {
-		// reports errors to parser.Errorf
-		obj.Writeobjdirect(ctxt, buf)
+		obj.WriteObjFile(ctxt, buf)
 	}
 	if !ok || diag {
 		if failedFile != "" {

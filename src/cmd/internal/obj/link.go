@@ -729,7 +729,6 @@ type Link struct {
 	Hash          map[SymVer]*LSym
 	PosTable      src.PosTable
 	Imports       []string
-	Plists        []*Plist
 	Sym_div       *LSym
 	Sym_divu      *LSym
 	Sym_mod       *LSym

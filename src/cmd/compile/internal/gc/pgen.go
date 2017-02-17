@@ -368,7 +368,10 @@ func compile(fn *Node) {
 		return
 	}
 
-	newplist()
+	plist := new(obj.Plist)
+	pc = Ctxt.NewProg()
+	Clearp(pc)
+	plist.Firstpc = pc
 
 	setlineno(Curfn)
 
@@ -430,6 +433,7 @@ func compile(fn *Node) {
 
 	genssa(ssafn, ptxt, gcargs, gclocals)
 	ssafn.Free()
+	obj.Flushplist(Ctxt, plist) // convert from Prog list to machine code
 }
 
 func gendebug(fn *obj.LSym, decls []*Node) {
