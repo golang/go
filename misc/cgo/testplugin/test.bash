@@ -15,8 +15,8 @@ goos=$(go env GOOS)
 goarch=$(go env GOARCH)
 
 function cleanup() {
-	rm -f plugin*.so unnamed*.so
-	rm -rf host pkg sub
+	rm -f plugin*.so unnamed*.so iface*.so
+	rm -rf host pkg sub iface issue18676
 }
 trap cleanup EXIT
 
@@ -32,3 +32,15 @@ GOPATH=$(pwd) go build -buildmode=plugin unnamed2.go
 GOPATH=$(pwd) go build host
 
 LD_LIBRARY_PATH=$(pwd) ./host
+
+# Test that types and itabs get properly uniqified.
+GOPATH=$(pwd) go build -buildmode=plugin iface_a
+GOPATH=$(pwd) go build -buildmode=plugin iface_b
+GOPATH=$(pwd) go build iface
+LD_LIBRARY_PATH=$(pwd) ./iface
+
+# Test for issue 18676 - make sure we don't add the same itab twice.
+# The buggy code hangs forever, so use a timeout to check for that.
+GOPATH=$(pwd) go build -buildmode=plugin -o plugin.so src/issue18676/plugin.go
+GOPATH=$(pwd) go build -o issue18676 src/issue18676/main.go
+timeout 10s ./issue18676

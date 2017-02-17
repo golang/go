@@ -330,9 +330,9 @@ sigtrampnog:
 	// Lock sigprofCallersUse.
 	MOVL	$0, AX
 	MOVL	$1, CX
-	MOVQ	$runtime·sigprofCallersUse(SB), BX
+	MOVQ	$runtime·sigprofCallersUse(SB), R11
 	LOCK
-	CMPXCHGL	CX, 0(BX)
+	CMPXCHGL	CX, 0(R11)
 	JNZ	sigtramp  // Skip stack trace if already locked.
 
 	// Jump to the traceback function in runtime/cgo.

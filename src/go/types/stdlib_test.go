@@ -157,6 +157,7 @@ func TestStdFixed(t *testing.T) {
 		"issue11362.go", // canonical import path check
 		"issue15002.go", // uses Mmap; testTestDir should consult build tags
 		"issue16369.go", // go/types handles this correctly - not an issue
+		"issue18459.go", // go/types doesn't check validity of //go:xxx directives
 	)
 }
 

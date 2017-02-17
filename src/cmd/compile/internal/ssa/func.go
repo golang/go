@@ -24,6 +24,7 @@ type Func struct {
 	vid        idAlloc     // value ID allocator
 
 	scheduled bool // Values in Blocks are in final order
+	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
 
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location

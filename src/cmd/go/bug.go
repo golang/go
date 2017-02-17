@@ -20,11 +20,10 @@ import (
 var cmdBug = &Command{
 	Run:       runBug,
 	UsageLine: "bug",
-	Short:     "print information for bug reports",
+	Short:     "start a bug report",
 	Long: `
-Bug prints information that helps file effective bug reports.
-
-Bugs may be reported at https://golang.org/issue/new.
+Bug opens the default browser and starts a new bug report.
+The report includes useful system information.
 	`,
 }
 

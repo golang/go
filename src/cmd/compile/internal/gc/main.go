@@ -30,11 +30,12 @@ var (
 )
 
 var (
-	Debug_append  int
-	Debug_closure int
-	Debug_panic   int
-	Debug_slice   int
-	Debug_wb      int
+	Debug_append   int
+	Debug_closure  int
+	debug_dclstack int
+	Debug_panic    int
+	Debug_slice    int
+	Debug_wb       int
 )
 
 // Debug arguments.
@@ -48,6 +49,7 @@ var debugtab = []struct {
 	{"append", &Debug_append},         // print information about append compilation
 	{"closure", &Debug_closure},       // print information about closure compilation
 	{"disablenil", &disable_checknil}, // disable nil checks
+	{"dclstack", &debug_dclstack},     // run internal dclstack checks
 	{"gcprog", &Debug_gcprog},         // print dump of GC programs
 	{"nil", &Debug_checknil},          // print information about nil checks
 	{"panic", &Debug_panic},           // do not hide any compiler panic
@@ -325,7 +327,6 @@ func Main() {
 	timings.Stop()
 	timings.AddEvent(int64(lexlineno-lexlineno0), "lines")
 
-	testdclstack()
 	mkpackage(localpkg.Name) // final import not used checks
 	finishUniverse()
 

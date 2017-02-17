@@ -217,7 +217,9 @@ func Import(in *bufio.Reader) {
 	typecheckok = tcok
 	resumecheckwidth()
 
-	testdclstack() // debugging only
+	if debug_dclstack != 0 {
+		testdclstack()
+	}
 }
 
 func formatErrorf(format string, args ...interface{}) {

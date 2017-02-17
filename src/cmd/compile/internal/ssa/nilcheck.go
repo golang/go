@@ -82,7 +82,7 @@ func nilcheckelim(f *Func) {
 				}
 			}
 
-			// Next, process values in the block.
+			// Next, eliminate any redundant nil checks in this block.
 			i := 0
 			for _, v := range b.Values {
 				b.Values[i] = v
@@ -105,19 +105,31 @@ func nilcheckelim(f *Func) {
 							f.Config.Warnl(v.Line, "removed nil check")
 						}
 						v.reset(OpUnknown)
+						// TODO: f.freeValue(v)
 						i--
 						continue
 					}
-					// Record the fact that we know ptr is non nil, and remember to
-					// undo that information when this dominator subtree is done.
-					nonNilValues[ptr.ID] = true
-					work = append(work, bp{op: ClearPtr, ptr: ptr})
 				}
 			}
 			for j := i; j < len(b.Values); j++ {
 				b.Values[j] = nil
 			}
 			b.Values = b.Values[:i]
+
+			// Finally, find redundant nil checks for subsequent blocks.
+			// Note that we can't add these until the loop above is done, as the
+			// values in the block are not ordered in any way when this pass runs.
+			// This was the cause of issue #18725.
+			for _, v := range b.Values {
+				if v.Op != OpNilCheck {
+					continue
+				}
+				ptr := v.Args[0]
+				// Record the fact that we know ptr is non nil, and remember to
+				// undo that information when this dominator subtree is done.
+				nonNilValues[ptr.ID] = true
+				work = append(work, bp{op: ClearPtr, ptr: ptr})
+			}
 
 			// Add all dominated blocks to the work list.
 			for w := sdom[node.block.ID].child; w != nil; w = sdom[w.ID].sibling {

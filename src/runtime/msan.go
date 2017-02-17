@@ -28,9 +28,11 @@ const msanenabled = true
 // the runtime, but operations like a slice copy can call msanread
 // anyhow for values on the stack. Just ignore msanread when running
 // on the system stack. The other msan functions are fine.
+//
+//go:nosplit
 func msanread(addr unsafe.Pointer, sz uintptr) {
 	g := getg()
-	if g == g.m.g0 || g == g.m.gsignal {
+	if g == nil || g.m == nil || g == g.m.g0 || g == g.m.gsignal {
 		return
 	}
 	domsanread(addr, sz)

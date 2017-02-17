@@ -1543,12 +1543,12 @@ func rewriteValuePPC64_OpGeq16U(v *Value, config *Config) bool {
 	_ = b
 	// match: (Geq16U x y)
 	// cond:
-	// result: (GreaterEqual (CMPU (ZeroExt16to32 x) (ZeroExt16to32 y)))
+	// result: (GreaterEqual (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpPPC64GreaterEqual)
-		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
+		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
 		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
 		v1.AddArg(x)
 		v0.AddArg(v1)
@@ -1598,12 +1598,12 @@ func rewriteValuePPC64_OpGeq32U(v *Value, config *Config) bool {
 	_ = b
 	// match: (Geq32U x y)
 	// cond:
-	// result: (GreaterEqual (CMPU x y))
+	// result: (GreaterEqual (CMPWU x y))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpPPC64GreaterEqual)
-		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
+		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -1687,12 +1687,12 @@ func rewriteValuePPC64_OpGeq8U(v *Value, config *Config) bool {
 	_ = b
 	// match: (Geq8U x y)
 	// cond:
-	// result: (GreaterEqual (CMPU (ZeroExt8to32 x) (ZeroExt8to32 y)))
+	// result: (GreaterEqual (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpPPC64GreaterEqual)
-		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
+		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
 		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
 		v1.AddArg(x)
 		v0.AddArg(v1)

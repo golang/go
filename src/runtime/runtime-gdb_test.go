@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"go/build"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -67,7 +68,6 @@ func checkGdbPython(t *testing.T) {
 }
 
 const helloSource = `
-package main
 import "fmt"
 var gslice []string
 func main() {
@@ -85,8 +85,19 @@ func main() {
 `
 
 func TestGdbPython(t *testing.T) {
+	testGdbPython(t, false)
+}
+
+func TestGdbPythonCgo(t *testing.T) {
+	testGdbPython(t, true)
+}
+
+func testGdbPython(t *testing.T, cgo bool) {
 	if runtime.GOARCH == "mips64" {
 		testenv.SkipFlaky(t, 18173)
+	}
+	if cgo && !build.Default.CgoEnabled {
+		t.Skip("skipping because cgo is not enabled")
 	}
 
 	t.Parallel()
@@ -100,8 +111,15 @@ func TestGdbPython(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
+	var buf bytes.Buffer
+	buf.WriteString("package main\n")
+	if cgo {
+		buf.WriteString(`import "C"` + "\n")
+	}
+	buf.WriteString(helloSource)
+
 	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, []byte(helloSource), 0644)
+	err = ioutil.WriteFile(src, buf.Bytes(), 0644)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}

@@ -54,9 +54,9 @@
 	ADCQ  t3, h1;                  \
 	ADCQ  $0, h2
 
-DATA poly1305Mask<>+0x00(SB)/8, $0x0FFFFFFC0FFFFFFF
-DATA poly1305Mask<>+0x08(SB)/8, $0x0FFFFFFC0FFFFFFC
-GLOBL poly1305Mask<>(SB), RODATA, $16
+DATA ·poly1305Mask<>+0x00(SB)/8, $0x0FFFFFFC0FFFFFFF
+DATA ·poly1305Mask<>+0x08(SB)/8, $0x0FFFFFFC0FFFFFFC
+GLOBL ·poly1305Mask<>(SB), RODATA, $16
 
 // func poly1305(out *[16]byte, m *byte, mlen uint64, key *[32]key)
 TEXT ·poly1305(SB), $0-32
@@ -67,8 +67,8 @@ TEXT ·poly1305(SB), $0-32
 
 	MOVQ 0(AX), R11
 	MOVQ 8(AX), R12
-	ANDQ poly1305Mask<>(SB), R11   // r0
-	ANDQ poly1305Mask<>+8(SB), R12 // r1
+	ANDQ ·poly1305Mask<>(SB), R11   // r0
+	ANDQ ·poly1305Mask<>+8(SB), R12 // r1
 	XORQ R8, R8                    // h0
 	XORQ R9, R9                    // h1
 	XORQ R10, R10                  // h2

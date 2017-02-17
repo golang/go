@@ -5,6 +5,8 @@ import (
 	"reflect"
 )
 
+var SlicePtr interface{} = &[]int{}
+
 var V int = 1
 
 var HasMask []string = []string{"hi"}

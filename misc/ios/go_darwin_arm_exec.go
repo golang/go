@@ -99,7 +99,7 @@ func main() {
 	// Approximately 1 in a 100 binaries fail to start. If it happens,
 	// try again. These failures happen for several reasons beyond
 	// our control, but all of them are safe to retry as they happen
-	// before lldb encounters the initial getwd breakpoint. As we
+	// before lldb encounters the initial SIGUSR2 stop. As we
 	// know the tests haven't started, we are not hiding flaky tests
 	// with this retry.
 	for i := 0; i < 5; i++ {
@@ -204,6 +204,11 @@ func run(bin string, args []string) (err error) {
 	var opts options
 	opts, args = parseArgs(args)
 
+	// Pass the suffix for the current working directory as the
+	// first argument to the test. For iOS, cmd/go generates
+	// special handling of this argument.
+	args = append([]string{"cwdSuffix=" + pkgpath}, args...)
+
 	// ios-deploy invokes lldb to give us a shell session with the app.
 	s, err := newSession(appdir, args, opts)
 	if err != nil {
@@ -224,6 +229,7 @@ func run(bin string, args []string) (err error) {
 	s.do(`process handle SIGHUP  --stop false --pass true --notify false`)
 	s.do(`process handle SIGPIPE --stop false --pass true --notify false`)
 	s.do(`process handle SIGUSR1 --stop false --pass true --notify false`)
+	s.do(`process handle SIGUSR2 --stop true --pass false --notify true`) // sent by test harness
 	s.do(`process handle SIGCONT --stop false --pass true --notify false`)
 	s.do(`process handle SIGSEGV --stop false --pass true --notify false`) // does not work
 	s.do(`process handle SIGBUS  --stop false --pass true --notify false`) // does not work
@@ -236,20 +242,9 @@ func run(bin string, args []string) (err error) {
 		return nil
 	}
 
-	s.do(`breakpoint set -n getwd`) // in runtime/cgo/gcc_darwin_arm.go
-
 	started = true
 
-	s.doCmd("run", "stop reason = breakpoint", 20*time.Second)
-
-	// Move the current working directory into the faux gopath.
-	if pkgpath != "src" {
-		s.do(`breakpoint delete 1`)
-		s.do(`expr char* $mem = (char*)malloc(512)`)
-		s.do(`expr $mem = (char*)getwd($mem, 512)`)
-		s.do(`expr $mem = (char*)strcat($mem, "/` + pkgpath + `")`)
-		s.do(`call (void)chdir($mem)`)
-	}
+	s.doCmd("run", "stop reason = signal SIGUSR2", 20*time.Second)
 
 	startTestsLen := s.out.Len()
 	fmt.Fprintln(s.in, `process continue`)
@@ -520,13 +515,11 @@ func copyLocalData(dstbase string) (pkgpath string, err error) {
 
 	// Copy timezone file.
 	//
-	// Typical apps have the zoneinfo.zip in the root of their app bundle,
+	// Apps have the zoneinfo.zip in the root of their app bundle,
 	// read by the time package as the working directory at initialization.
-	// As we move the working directory to the GOROOT pkg directory, we
-	// install the zoneinfo.zip file in the pkgpath.
 	if underGoRoot {
 		err := cp(
-			filepath.Join(dstbase, pkgpath),
+			dstbase,
 			filepath.Join(cwd, "lib", "time", "zoneinfo.zip"),
 		)
 		if err != nil {

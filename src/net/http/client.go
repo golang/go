@@ -413,19 +413,28 @@ func (c *Client) checkRedirect(req *Request, via []*Request) error {
 
 // redirectBehavior describes what should happen when the
 // client encounters a 3xx status code from the server
-func redirectBehavior(reqMethod string, resp *Response, via []*Request) (redirectMethod string, shouldRedirect bool) {
+func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirectMethod string, shouldRedirect, includeBody bool) {
 	switch resp.StatusCode {
 	case 301, 302, 303:
-		redirectMethod = "GET"
+		redirectMethod = reqMethod
 		shouldRedirect = true
+		includeBody = false
+
+		// RFC 2616 allowed automatic redirection only with GET and
+		// HEAD requests. RFC 7231 lifts this restriction, but we still
+		// restrict other methods to GET to maintain compatibility.
+		// See Issue 18570.
+		if reqMethod != "GET" && reqMethod != "HEAD" {
+			redirectMethod = "GET"
+		}
 	case 307, 308:
 		redirectMethod = reqMethod
 		shouldRedirect = true
+		includeBody = true
 
 		// Treat 307 and 308 specially, since they're new in
 		// Go 1.8, and they also require re-sending the request body.
-		loc := resp.Header.Get("Location")
-		if loc == "" {
+		if resp.Header.Get("Location") == "" {
 			// 308s have been observed in the wild being served
 			// without Location headers. Since Go 1.7 and earlier
 			// didn't follow these codes, just stop here instead
@@ -434,7 +443,6 @@ func redirectBehavior(reqMethod string, resp *Response, via []*Request) (redirec
 			shouldRedirect = false
 			break
 		}
-		ireq := via[0]
 		if ireq.GetBody == nil && ireq.outgoingLength() != 0 {
 			// We had a request body, and 307/308 require
 			// re-sending it, but GetBody is not defined. So just
@@ -443,8 +451,7 @@ func redirectBehavior(reqMethod string, resp *Response, via []*Request) (redirec
 			shouldRedirect = false
 		}
 	}
-
-	return redirectMethod, shouldRedirect
+	return redirectMethod, shouldRedirect, includeBody
 }
 
 // Do sends an HTTP request and returns an HTTP response, following
@@ -474,7 +481,8 @@ func redirectBehavior(reqMethod string, resp *Response, via []*Request) (redirec
 // If the server replies with a redirect, the Client first uses the
 // CheckRedirect function to determine whether the redirect should be
 // followed. If permitted, a 301, 302, or 303 redirect causes
-// subsequent requests to use HTTP method "GET", with no body.
+// subsequent requests to use HTTP method GET
+// (or HEAD if the original request was HEAD), with no body.
 // A 307 or 308 redirect preserves the original HTTP method and body,
 // provided that the Request.GetBody function is defined.
 // The NewRequest function automatically sets GetBody for common
@@ -486,11 +494,14 @@ func (c *Client) Do(req *Request) (*Response, error) {
 	}
 
 	var (
-		deadline       = c.deadline()
-		reqs           []*Request
-		resp           *Response
-		copyHeaders    = c.makeHeadersCopier(req)
+		deadline    = c.deadline()
+		reqs        []*Request
+		resp        *Response
+		copyHeaders = c.makeHeadersCopier(req)
+
+		// Redirect behavior:
 		redirectMethod string
+		includeBody    bool
 	)
 	uerr := func(err error) error {
 		req.closeBody()
@@ -528,7 +539,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
 				Cancel:   ireq.Cancel,
 				ctx:      ireq.ctx,
 			}
-			if ireq.GetBody != nil {
+			if includeBody && ireq.GetBody != nil {
 				req.Body, err = ireq.GetBody()
 				if err != nil {
 					return nil, uerr(err)
@@ -592,7 +603,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
 		}
 
 		var shouldRedirect bool
-		redirectMethod, shouldRedirect = redirectBehavior(req.Method, resp, reqs)
+		redirectMethod, shouldRedirect, includeBody = redirectBehavior(req.Method, resp, reqs[0])
 		if !shouldRedirect {
 			return resp, nil
 		}
