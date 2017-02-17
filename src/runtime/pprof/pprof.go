@@ -709,8 +709,8 @@ func profileWriter(w io.Writer) {
 	var err error
 	for {
 		time.Sleep(100 * time.Millisecond)
-		data, _, eof := readProfile()
-		if e := b.addCPUData(data); e != nil && err == nil {
+		data, tags, eof := readProfile()
+		if e := b.addCPUData(data, tags); e != nil && err == nil {
 			err = e
 		}
 		if eof {
