@@ -7851,7 +7851,7 @@ func rewriteValueS390X_OpS390XMOVBZload(v *Value, config *Config) bool {
 	_ = b
 	// match: (MOVBZload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
-	// result: (MOVDreg x)
+	// result: (MOVBZreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -7867,7 +7867,7 @@ func rewriteValueS390X_OpS390XMOVBZload(v *Value, config *Config) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpS390XMOVDreg)
+		v.reset(OpS390XMOVBZreg)
 		v.AddArg(x)
 		return true
 	}
@@ -11021,7 +11021,7 @@ func rewriteValueS390X_OpS390XMOVHZload(v *Value, config *Config) bool {
 	_ = b
 	// match: (MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
-	// result: (MOVDreg x)
+	// result: (MOVHZreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -11037,7 +11037,7 @@ func rewriteValueS390X_OpS390XMOVHZload(v *Value, config *Config) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpS390XMOVDreg)
+		v.reset(OpS390XMOVHZreg)
 		v.AddArg(x)
 		return true
 	}
@@ -12406,7 +12406,7 @@ func rewriteValueS390X_OpS390XMOVWZload(v *Value, config *Config) bool {
 	_ = b
 	// match: (MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
-	// result: (MOVDreg x)
+	// result: (MOVWZreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -12422,7 +12422,7 @@ func rewriteValueS390X_OpS390XMOVWZload(v *Value, config *Config) bool {
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpS390XMOVDreg)
+		v.reset(OpS390XMOVWZreg)
 		v.AddArg(x)
 		return true
 	}
