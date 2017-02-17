@@ -5,55 +5,65 @@
 package pprof
 
 import (
-	"internal/pprof/profile"
+	"io"
 	"math"
 	"runtime"
-	"time"
+	"strings"
 )
 
-// encodeMemProfile converts MemProfileRecords to a Profile.
-func encodeMemProfile(mr []runtime.MemProfileRecord, rate int64, t time.Time) *profile.Profile {
-	p := &profile.Profile{
-		Period:     rate,
-		PeriodType: &profile.ValueType{Type: "space", Unit: "bytes"},
-		SampleType: []*profile.ValueType{
-			{Type: "alloc_objects", Unit: "count"},
-			{Type: "alloc_space", Unit: "bytes"},
-			{Type: "inuse_objects", Unit: "count"},
-			{Type: "inuse_space", Unit: "bytes"},
-		},
-		TimeNanos: int64(t.UnixNano()),
-	}
+// writeHeapProto writes the current heap profile in protobuf format to w.
+func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64) error {
+	b := newProfileBuilder(w)
+	b.pbValueType(tagProfile_PeriodType, "space", "bytes")
+	b.pb.int64Opt(tagProfile_Period, rate)
+	b.pbValueType(tagProfile_SampleType, "alloc_objects", "count")
+	b.pbValueType(tagProfile_SampleType, "alloc_space", "bytes")
+	b.pbValueType(tagProfile_SampleType, "inuse_objects", "count")
+	b.pbValueType(tagProfile_SampleType, "inuse_space", "bytes")
 
-	locs := make(map[uintptr]*profile.Location)
-	for _, r := range mr {
-		stack := r.Stack()
-		sloc := make([]*profile.Location, len(stack))
-		for i, addr := range stack {
-			loc := locs[addr]
-			if loc == nil {
-				loc = &profile.Location{
-					ID:      uint64(len(p.Location) + 1),
-					Address: uint64(addr),
+	values := []int64{0, 0, 0, 0}
+	var locs []uint64
+	for _, r := range p {
+		locs = locs[:0]
+		hideRuntime := true
+		for tries := 0; tries < 2; tries++ {
+			for i, addr := range r.Stack() {
+				if false && i > 0 { // TODO: why disabled?
+					addr--
 				}
-				locs[addr] = loc
-				p.Location = append(p.Location, loc)
+				if hideRuntime {
+					if f := runtime.FuncForPC(addr); f != nil && strings.HasPrefix(f.Name(), "runtime.") {
+						continue
+					}
+					// Found non-runtime. Show any runtime uses above it.
+					hideRuntime = false
+				}
+				l := b.locForPC(addr)
+				if l == 0 { // runtime.goexit
+					continue
+				}
+				locs = append(locs, l)
 			}
-			sloc[i] = loc
+			if len(locs) > 0 {
+				break
+			}
+			hideRuntime = false // try again, and show all frames
 		}
 
-		ao, ab := scaleHeapSample(r.AllocObjects, r.AllocBytes, rate)
-		uo, ub := scaleHeapSample(r.InUseObjects(), r.InUseBytes(), rate)
-
-		p.Sample = append(p.Sample, &profile.Sample{
-			Value:    []int64{ao, ab, uo, ub},
-			Location: sloc,
+		values[0], values[1] = scaleHeapSample(r.AllocObjects, r.AllocBytes, rate)
+		values[2], values[3] = scaleHeapSample(r.InUseObjects(), r.InUseBytes(), rate)
+		var blockSize int64
+		if values[0] > 0 {
+			blockSize = values[1] / values[0]
+		}
+		b.pbSample(values, locs, func() {
+			if blockSize != 0 {
+				b.pbLabel(tagSample_Label, "bytes", "", blockSize)
+			}
 		})
 	}
-	if runtime.GOOS == "linux" {
-		addMappings(p)
-	}
-	return p
+	b.build()
+	return nil
 }
 
 // scaleHeapSample adjusts the data from a heap Sample to

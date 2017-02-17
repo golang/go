@@ -9,7 +9,6 @@ import (
 	"internal/pprof/profile"
 	"runtime"
 	"testing"
-	"time"
 )
 
 func TestConvertMemProfile(t *testing.T) {
@@ -24,8 +23,7 @@ func TestConvertMemProfile(t *testing.T) {
 		{AllocBytes: 512 * 1024, FreeBytes: 512 * 1024, AllocObjects: 1, FreeObjects: 1, Stack0: [32]uintptr{a1 + 1, a1 + 2, a2 + 3}},
 	}
 
-	p := encodeMemProfile(rec, rate, time.Now())
-	if err := p.Write(&buf); err != nil {
+	if err := writeHeapProto(&buf, rec, rate); err != nil {
 		t.Fatalf("writing profile: %v", err)
 	}
 
@@ -42,19 +40,31 @@ func TestConvertMemProfile(t *testing.T) {
 		{Type: "inuse_space", Unit: "bytes"},
 	}
 	samples := []*profile.Sample{
-		{Value: []int64{2050, 2099200, 1537, 1574400}, Location: []*profile.Location{
-			{ID: 1, Mapping: map1, Address: addr1},
-			{ID: 2, Mapping: map2, Address: addr2},
-		}},
-		{Value: []int64{1, 829411, 1, 829411}, Location: []*profile.Location{
-			{ID: 3, Mapping: map2, Address: addr2 + 1},
-			{ID: 4, Mapping: map2, Address: addr2 + 2},
-		}},
-		{Value: []int64{1, 829411, 0, 0}, Location: []*profile.Location{
-			{ID: 5, Mapping: map1, Address: addr1 + 1},
-			{ID: 6, Mapping: map1, Address: addr1 + 2},
-			{ID: 7, Mapping: map2, Address: addr2 + 3},
-		}},
+		{
+			Value: []int64{2050, 2099200, 1537, 1574400},
+			Location: []*profile.Location{
+				{ID: 1, Mapping: map1, Address: addr1},
+				{ID: 2, Mapping: map2, Address: addr2},
+			},
+			NumLabel: map[string][]int64{"bytes": {1024}},
+		},
+		{
+			Value: []int64{1, 829411, 1, 829411},
+			Location: []*profile.Location{
+				{ID: 3, Mapping: map2, Address: addr2 + 1},
+				{ID: 4, Mapping: map2, Address: addr2 + 2},
+			},
+			NumLabel: map[string][]int64{"bytes": {829411}},
+		},
+		{
+			Value: []int64{1, 829411, 0, 0},
+			Location: []*profile.Location{
+				{ID: 5, Mapping: map1, Address: addr1 + 1},
+				{ID: 6, Mapping: map1, Address: addr1 + 2},
+				{ID: 7, Mapping: map2, Address: addr2 + 3},
+			},
+			NumLabel: map[string][]int64{"bytes": {829411}},
+		},
 	}
 	checkProfile(t, p, rate, periodType, sampleType, samples)
 }

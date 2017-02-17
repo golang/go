@@ -75,7 +75,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"internal/pprof/profile"
 	"io"
 	"runtime"
 	"sort"
@@ -384,35 +383,26 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 	}
 
 	// Output profile in protobuf form.
-	prof := &profile.Profile{
-		PeriodType: &profile.ValueType{Type: name, Unit: "count"},
-		Period:     1,
-		Sample:     make([]*profile.Sample, 0, len(keys)),
-		SampleType: []*profile.ValueType{{Type: name, Unit: "count"}},
-	}
-	locMap := make(map[uintptr]*profile.Location)
+	b := newProfileBuilder(w)
+	b.pbValueType(tagProfile_PeriodType, name, "count")
+	b.pb.int64Opt(tagProfile_Period, 1)
+	b.pbValueType(tagProfile_SampleType, name, "count")
+
+	values := []int64{0}
+	var locs []uint64
 	for _, k := range keys {
-		stk := p.Stack(index[k])
-		c := count[k]
-		locs := make([]*profile.Location, len(stk))
-		for i, addr := range stk {
-			loc := locMap[addr]
-			if loc == nil {
-				loc = &profile.Location{
-					ID:      uint64(len(locMap) + 1),
-					Address: uint64(addr - 1),
-				}
-				prof.Location = append(prof.Location, loc)
-				locMap[addr] = loc
+		values[0] = int64(count[k])
+		locs = locs[:0]
+		for i, addr := range p.Stack(index[k]) {
+			if false && i > 0 { // TODO: why disabled?
+				addr--
 			}
-			locs[i] = loc
+			locs = append(locs, b.locForPC(addr))
 		}
-		prof.Sample = append(prof.Sample, &profile.Sample{
-			Location: locs,
-			Value:    []int64{int64(c)},
-		})
+		b.pbSample(values, locs, nil)
 	}
-	return prof.Write(w)
+	b.build()
+	return nil
 }
 
 // keysByCount sorts keys with higher counts first, breaking ties by key string order.
@@ -500,8 +490,7 @@ func writeHeap(w io.Writer, debug int) error {
 	}
 
 	if debug == 0 {
-		pp := encodeMemProfile(p, int64(runtime.MemProfileRate), time.Now())
-		return pp.Write(w)
+		return writeHeapProto(w, p, int64(runtime.MemProfileRate))
 	}
 
 	sort.Slice(p, func(i, j int) bool { return p[i].InUseBytes() > p[j].InUseBytes() })
@@ -705,7 +694,7 @@ func StartCPUProfile(w io.Writer) error {
 func readProfile() (data []uint64, tags []unsafe.Pointer, eof bool)
 
 func profileWriter(w io.Writer) {
-	b := newProfileBuilder()
+	b := newProfileBuilder(w)
 	var err error
 	for {
 		time.Sleep(100 * time.Millisecond)
@@ -717,13 +706,12 @@ func profileWriter(w io.Writer) {
 			break
 		}
 	}
-	p := b.build()
 	if err != nil {
 		// The runtime should never produce an invalid or truncated profile.
 		// It drops records that can't fit into its log buffers.
 		panic("runtime/pprof: converting profile: " + err.Error())
 	}
-	p.Write(w)
+	b.build()
 	cpu.done <- true
 }
 
