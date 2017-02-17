@@ -101,7 +101,6 @@ const m1 = 0xcccccccccccccccc // 11001100 ...
 const m2 = 0xf0f0f0f0f0f0f0f0 // 11110000 ...
 const m3 = 0xff00ff00ff00ff00 // etc.
 const m4 = 0xffff0000ffff0000
-const m5 = 0xffffffff00000000
 
 // Reverse returns the value of x with its bits in reversed order.
 func Reverse(x uint) uint {
@@ -114,43 +113,39 @@ func Reverse(x uint) uint {
 // Reverse8 returns the value of x with its bits in reversed order.
 func Reverse8(x uint8) uint8 {
 	const m = 1<<8 - 1
-	x = x&(m0&m)>>1 | x&^(m0&m)<<1
-	x = x&(m1&m)>>2 | x&^(m1&m)<<2
-	x = x&(m2&m)>>4 | x&^(m2&m)<<4
-	return x
+	x = x&(m0&m)>>1 | x<<1&(m0&m)
+	x = x&(m1&m)>>2 | x<<2&(m1&m)
+	return x>>4 | x<<4
 }
 
 // Reverse16 returns the value of x with its bits in reversed order.
 func Reverse16(x uint16) uint16 {
 	const m = 1<<16 - 1
-	x = x&(m0&m)>>1 | x&^(m0&m)<<1
-	x = x&(m1&m)>>2 | x&^(m1&m)<<2
-	x = x&(m2&m)>>4 | x&^(m2&m)<<4
-	x = x&(m3&m)>>8 | x&^(m3&m)<<8
-	return x
+	x = x&(m0&m)>>1 | x<<1&(m0&m)
+	x = x&(m1&m)>>2 | x<<2&(m1&m)
+	x = x&(m2&m)>>4 | x<<4&(m2&m)
+	return x>>8 | x<<8
 }
 
 // Reverse32 returns the value of x with its bits in reversed order.
 func Reverse32(x uint32) uint32 {
 	const m = 1<<32 - 1
-	x = x&(m0&m)>>1 | x&^(m0&m)<<1
-	x = x&(m1&m)>>2 | x&^(m1&m)<<2
-	x = x&(m2&m)>>4 | x&^(m2&m)<<4
-	x = x&(m3&m)>>8 | x&^(m3&m)<<8
-	x = x&(m4&m)>>16 | x&^(m4&m)<<16
-	return x
+	x = x&(m0&m)>>1 | x<<1&(m0&m)
+	x = x&(m1&m)>>2 | x<<2&(m1&m)
+	x = x&(m2&m)>>4 | x<<4&(m2&m)
+	x = x&(m3&m)>>8 | x<<8&(m3&m)
+	return x>>16 | x<<16
 }
 
 // Reverse64 returns the value of x with its bits in reversed order.
 func Reverse64(x uint64) uint64 {
 	const m = 1<<64 - 1
-	x = x&(m0&m)>>1 | x&^(m0&m)<<1
-	x = x&(m1&m)>>2 | x&^(m1&m)<<2
-	x = x&(m2&m)>>4 | x&^(m2&m)<<4
-	x = x&(m3&m)>>8 | x&^(m3&m)<<8
-	x = x&(m4&m)>>16 | x&^(m4&m)<<16
-	x = x&(m5&m)>>32 | x&^(m5&m)<<32
-	return x
+	x = x&(m0&m)>>1 | x<<1&(m0&m)
+	x = x&(m1&m)>>2 | x<<2&(m1&m)
+	x = x&(m2&m)>>4 | x<<4&(m2&m)
+	x = x&(m3&m)>>8 | x<<8&(m3&m)
+	x = x&(m4&m)>>16 | x<<16&(m4&m)
+	return x>>32 | x<<32
 }
 
 // --- ReverseBytes ---
@@ -165,26 +160,22 @@ func ReverseBytes(x uint) uint {
 
 // ReverseBytes16 returns the value of x with its bytes in reversed order.
 func ReverseBytes16(x uint16) uint16 {
-	const m = 1<<16 - 1
-	x = x&(m3&m)>>8 | x&^(m3&m)<<8
-	return x
+	return x>>8 | x<<8
 }
 
 // ReverseBytes32 returns the value of x with its bytes in reversed order.
 func ReverseBytes32(x uint32) uint32 {
 	const m = 1<<32 - 1
-	x = x&(m3&m)>>8 | x&^(m3&m)<<8
-	x = x&(m4&m)>>16 | x&^(m4&m)<<16
-	return x
+	x = x&(m3&m)>>8 | x<<8&(m3&m)
+	return x>>16 | x<<16
 }
 
 // ReverseBytes64 returns the value of x with its bytes in reversed order.
 func ReverseBytes64(x uint64) uint64 {
 	const m = 1<<64 - 1
-	x = x&(m3&m)>>8 | x&^(m3&m)<<8
-	x = x&(m4&m)>>16 | x&^(m4&m)<<16
-	x = x&(m5&m)>>32 | x&^(m5&m)<<32
-	return x
+	x = x&(m3&m)>>8 | x<<8&(m3&m)
+	x = x&(m4&m)>>16 | x<<16&(m4&m)
+	return x>>32 | x<<32
 }
 
 // --- Len ---
