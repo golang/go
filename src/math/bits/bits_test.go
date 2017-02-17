@@ -80,6 +80,56 @@ func TestLeadingZeros(t *testing.T) {
 	}
 }
 
+// Exported (global) variable serving as input for some
+// of the benchmarks to ensure side-effect free calls
+// are not optimized away.
+var Input uint64 = deBruijn64
+
+// Exported (global) variable to store function results
+// during benchmarking to ensure side-effect free calls
+// are not optimized away.
+var Output int
+
+func BenchmarkLeadingZeros(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += LeadingZeros(uint(Input) >> (uint(i) % UintSize))
+	}
+	Output = s
+}
+
+func BenchmarkLeadingZeros8(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += LeadingZeros8(uint8(Input) >> (uint(i) % 8))
+	}
+	Output = s
+}
+
+func BenchmarkLeadingZeros16(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += LeadingZeros16(uint16(Input) >> (uint(i) % 16))
+	}
+	Output = s
+}
+
+func BenchmarkLeadingZeros32(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += LeadingZeros32(uint32(Input) >> (uint(i) % 32))
+	}
+	Output = s
+}
+
+func BenchmarkLeadingZeros64(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += LeadingZeros64(uint64(Input) >> (uint(i) % 64))
+	}
+	Output = s
+}
+
 func TestTrailingZeros(t *testing.T) {
 	for i := 0; i < 256; i++ {
 		ntz := tab[i].ntz
@@ -141,6 +191,46 @@ func TestTrailingZeros(t *testing.T) {
 	}
 }
 
+func BenchmarkTrailingZeros(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += TrailingZeros(uint(Input) << (uint(i) % UintSize))
+	}
+	Output = s
+}
+
+func BenchmarkTrailingZeros8(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += TrailingZeros8(uint8(Input) << (uint(i) % 8))
+	}
+	Output = s
+}
+
+func BenchmarkTrailingZeros16(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += TrailingZeros16(uint16(Input) << (uint(i) % 16))
+	}
+	Output = s
+}
+
+func BenchmarkTrailingZeros32(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += TrailingZeros32(uint32(Input) << (uint(i) % 32))
+	}
+	Output = s
+}
+
+func BenchmarkTrailingZeros64(b *testing.B) {
+	var s int
+	for i := 0; i < b.N; i++ {
+		s += TrailingZeros64(uint64(Input) << (uint(i) % 64))
+	}
+	Output = s
+}
+
 func TestOnesCount(t *testing.T) {
 	for i := 0; i < 256; i++ {
 		want := tab[i].pop
@@ -189,22 +279,12 @@ func TestOnesCount(t *testing.T) {
 	}
 }
 
-// Exported (global) variable to store function results
-// during benchmarking to ensure side-effect free calls
-// are not optimized away.
-var Unused int
-
-// Exported (global) variable serving as input for some
-// of the benchmarks to ensure side-effect free calls
-// are not optimized away.
-var Input uint64 = deBruijn64
-
 func BenchmarkOnesCount(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
 		s += OnesCount(uint(Input))
 	}
-	Unused = s
+	Output = s
 }
 
 func BenchmarkOnesCount8(b *testing.B) {
@@ -212,7 +292,7 @@ func BenchmarkOnesCount8(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += OnesCount8(uint8(Input))
 	}
-	Unused = s
+	Output = s
 }
 
 func BenchmarkOnesCount16(b *testing.B) {
@@ -220,7 +300,7 @@ func BenchmarkOnesCount16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += OnesCount16(uint16(Input))
 	}
-	Unused = s
+	Output = s
 }
 
 func BenchmarkOnesCount32(b *testing.B) {
@@ -228,7 +308,7 @@ func BenchmarkOnesCount32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += OnesCount32(uint32(Input))
 	}
-	Unused = s
+	Output = s
 }
 
 func BenchmarkOnesCount64(b *testing.B) {
@@ -236,7 +316,7 @@ func BenchmarkOnesCount64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += OnesCount64(uint64(Input))
 	}
-	Unused = s
+	Output = s
 }
 
 func TestRotateLeft(t *testing.T) {
@@ -294,7 +374,7 @@ func BenchmarkRotateLeft(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += RotateLeft(uint(Input), i)
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkRotateLeft8(b *testing.B) {
@@ -302,7 +382,7 @@ func BenchmarkRotateLeft8(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += RotateLeft8(uint8(Input), i)
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkRotateLeft16(b *testing.B) {
@@ -310,7 +390,7 @@ func BenchmarkRotateLeft16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += RotateLeft16(uint16(Input), i)
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkRotateLeft32(b *testing.B) {
@@ -318,7 +398,7 @@ func BenchmarkRotateLeft32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += RotateLeft32(uint32(Input), i)
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkRotateLeft64(b *testing.B) {
@@ -326,7 +406,7 @@ func BenchmarkRotateLeft64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += RotateLeft64(uint64(Input), i)
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func TestRotateRight(t *testing.T) {
@@ -384,7 +464,7 @@ func BenchmarkRotateRight(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += RotateRight(uint(Input), i)
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkRotateRight8(b *testing.B) {
@@ -392,7 +472,7 @@ func BenchmarkRotateRight8(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += RotateRight8(uint8(Input), i)
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkRotateRight16(b *testing.B) {
@@ -400,7 +480,7 @@ func BenchmarkRotateRight16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += RotateRight16(uint16(Input), i)
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkRotateRight32(b *testing.B) {
@@ -408,7 +488,7 @@ func BenchmarkRotateRight32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += RotateRight32(uint32(Input), i)
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkRotateRight64(b *testing.B) {
@@ -416,7 +496,7 @@ func BenchmarkRotateRight64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += RotateRight64(uint64(Input), i)
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func TestReverse(t *testing.T) {
@@ -502,7 +582,7 @@ func BenchmarkReverse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += Reverse(uint(i))
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkReverse8(b *testing.B) {
@@ -510,7 +590,7 @@ func BenchmarkReverse8(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += Reverse8(uint8(i))
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkReverse16(b *testing.B) {
@@ -518,7 +598,7 @@ func BenchmarkReverse16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += Reverse16(uint16(i))
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkReverse32(b *testing.B) {
@@ -526,7 +606,7 @@ func BenchmarkReverse32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += Reverse32(uint32(i))
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkReverse64(b *testing.B) {
@@ -534,7 +614,7 @@ func BenchmarkReverse64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += Reverse64(uint64(i))
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func TestReverseBytes(t *testing.T) {
@@ -598,7 +678,7 @@ func BenchmarkReverseBytes(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += ReverseBytes(uint(i))
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkReverseBytes16(b *testing.B) {
@@ -606,7 +686,7 @@ func BenchmarkReverseBytes16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += ReverseBytes16(uint16(i))
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkReverseBytes32(b *testing.B) {
@@ -614,7 +694,7 @@ func BenchmarkReverseBytes32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += ReverseBytes32(uint32(i))
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func BenchmarkReverseBytes64(b *testing.B) {
@@ -622,7 +702,7 @@ func BenchmarkReverseBytes64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s += ReverseBytes64(uint64(i))
 	}
-	Unused = int(s)
+	Output = int(s)
 }
 
 func TestLen(t *testing.T) {
