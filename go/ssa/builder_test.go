@@ -11,6 +11,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -415,5 +416,85 @@ var (
 	}
 	for fn, descr := range want {
 		t.Errorf("want func: %q: %q", fn, descr)
+	}
+}
+
+// TestPhiElimination ensures that dead phis, including those that
+// participate in a cycle, are properly eliminated.
+func TestPhiElimination(t *testing.T) {
+	const input = `
+package p
+
+func f() error
+
+func g(slice []int) {
+	for {
+		for range slice {
+			// e should not be lifted to a dead φ-node.
+			e := f()
+			h(e)
+		}
+	}
+}
+
+func h(error)
+`
+	// The SSA code for this function should look something like this:
+	// 0:
+	//         jump 1
+	// 1:
+	//         t0 = len(slice)
+	//         jump 2
+	// 2:
+	//         t1 = phi [1: -1:int, 3: t2]
+	//         t2 = t1 + 1:int
+	//         t3 = t2 < t0
+	//         if t3 goto 3 else 1
+	// 3:
+	//         t4 = f()
+	//         t5 = h(t4)
+	//         jump 2
+	//
+	// But earlier versions of the SSA construction algorithm would
+	// additionally generate this cycle of dead phis:
+	//
+	// 1:
+	//         t7 = phi [0: nil:error, 2: t8] #e
+	//         ...
+	// 2:
+	//         t8 = phi [1: t7, 3: t4] #e
+	//         ...
+
+	// Parse
+	var conf loader.Config
+	f, err := conf.ParseFile("<input>", input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	conf.CreateFromFiles("p", f)
+
+	// Load
+	lprog, err := conf.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Create and build SSA
+	prog := ssautil.CreateProgram(lprog, 0)
+	p := prog.Package(lprog.Package("p").Pkg)
+	p.Build()
+	g := p.Func("g")
+
+	phis := 0
+	for _, b := range g.Blocks {
+		for _, instr := range b.Instrs {
+			if _, ok := instr.(*ssa.Phi); ok {
+				phis++
+			}
+		}
+	}
+	if phis != 1 {
+		g.WriteTo(os.Stderr)
+		t.Errorf("expected a single Phi (for the range index), got %d", phis)
 	}
 }
