@@ -453,6 +453,30 @@ func testReverseBytes(t *testing.T, x64, want64 uint64) {
 	}
 }
 
+func BenchmarkReverseBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ReverseBytes(deBruijn64 & (1<<UintSize - 1))
+	}
+}
+
+func BenchmarkReverseBytes16(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ReverseBytes16(deBruijn64 & (1<<16 - 1))
+	}
+}
+
+func BenchmarkReverseBytes32(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ReverseBytes32(deBruijn64 & (1<<32 - 1))
+	}
+}
+
+func BenchmarkReverseBytes64(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ReverseBytes64(deBruijn64 & (1<<64 - 1))
+	}
+}
+
 func TestLen(t *testing.T) {
 	for i := 0; i < 256; i++ {
 		len := 8 - tab[i].nlz
