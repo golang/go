@@ -2476,7 +2476,12 @@ var shutdownPollInterval = 500 * time.Millisecond
 // listeners, then closing all idle connections, and then waiting
 // indefinitely for connections to return to idle and then shut down.
 // If the provided context expires before the shutdown is complete,
-// then the context's error is returned.
+// Shutdown returns the context's error, otherwise it returns any
+// error returned from closing the Server's underlying Listener(s).
+//
+// When Shutdown is called, Serve, ListenAndServe, and
+// ListenAndServeTLS immediately return ErrServerClosed. Make sure the
+// program doesn't exit and waits instead for Shutdown to return.
 //
 // Shutdown does not attempt to close nor wait for hijacked
 // connections such as WebSockets. The caller of Shutdown should
