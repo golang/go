@@ -114,7 +114,8 @@ func numberfile(ctxt *Link, file *Symbol) {
 		ctxt.Filesyms = append(ctxt.Filesyms, file)
 		file.Value = int64(len(ctxt.Filesyms))
 		file.Type = obj.SFILEPATH
-		file.Name = expandGoroot(file.Name)
+		path := file.Name[len(obj.FileSymPrefix):]
+		file.Name = expandGoroot(path)
 	}
 }
 
