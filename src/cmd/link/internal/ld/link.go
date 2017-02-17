@@ -240,10 +240,20 @@ type FuncInfo struct {
 	Pcsp        Pcdata
 	Pcfile      Pcdata
 	Pcline      Pcdata
+	Pcinline    Pcdata
 	Pcdata      []Pcdata
 	Funcdata    []*Symbol
 	Funcdataoff []int64
 	File        []*Symbol
+	InlTree     []InlinedCall
+}
+
+// InlinedCall is a node in a local inlining tree (FuncInfo.InlTree).
+type InlinedCall struct {
+	Parent int32   // index of parent in InlTree
+	File   *Symbol // file of the inlined call
+	Line   int32   // line number of the inlined call
+	Func   *Symbol // function that was inlined
 }
 
 type Pcdata struct {

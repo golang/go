@@ -169,6 +169,62 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 	return int32(i)
 }
 
+// pcinlineState holds the state used to create a function's inlining
+// tree and the PC-value table that maps PCs to nodes in that tree.
+type pcinlineState struct {
+	globalToLocal map[int]int
+	localTree     InlTree
+}
+
+// addBranch adds a branch from the global inlining tree in ctxt to
+// the function's local inlining tree, returning the index in the local tree.
+func (s *pcinlineState) addBranch(ctxt *Link, globalIndex int) int {
+	if globalIndex < 0 {
+		return -1
+	}
+
+	localIndex, ok := s.globalToLocal[globalIndex]
+	if ok {
+		return localIndex
+	}
+
+	// Since tracebacks don't include column information, we could
+	// use one node for multiple calls of the same function on the
+	// same line (e.g., f(x) + f(y)). For now, we use one node for
+	// each inlined call.
+	call := ctxt.InlTree.nodes[globalIndex]
+	call.Parent = s.addBranch(ctxt, call.Parent)
+	localIndex = len(s.localTree.nodes)
+	s.localTree.nodes = append(s.localTree.nodes, call)
+	s.globalToLocal[globalIndex] = localIndex
+	return localIndex
+}
+
+// pctoinline computes the index into the local inlining tree to use at p.
+// If p is not the result of inlining, pctoinline returns -1. Because p.Pos
+// applies to p, phase == 0 (before p) takes care of the update.
+func (s *pcinlineState) pctoinline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+	if phase == 1 {
+		return oldval
+	}
+
+	posBase := ctxt.PosTable.Pos(p.Pos).Base()
+	if posBase == nil {
+		return -1
+	}
+
+	globalIndex := posBase.InliningIndex()
+	if globalIndex < 0 {
+		return -1
+	}
+
+	if s.globalToLocal == nil {
+		s.globalToLocal = make(map[int]int)
+	}
+
+	return int32(s.addBranch(ctxt, globalIndex))
+}
+
 // pctospadj computes the sp adjustment in effect.
 // It is oldval plus any adjustment made by p itself.
 // The adjustment by p takes effect only after p, so we
@@ -237,6 +293,10 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	funcpctab(ctxt, &pcln.Pcsp, cursym, "pctospadj", pctospadj, nil)
 	funcpctab(ctxt, &pcln.Pcfile, cursym, "pctofile", pctofileline, pcln)
 	funcpctab(ctxt, &pcln.Pcline, cursym, "pctoline", pctofileline, nil)
+
+	pcinlineState := new(pcinlineState)
+	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
+	pcln.InlTree = pcinlineState.localTree
 
 	// tabulate which pc and func data we have.
 	havepc := make([]uint32, (npcdata+31)/32)

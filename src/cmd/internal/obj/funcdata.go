@@ -12,8 +12,10 @@ package obj
 
 const (
 	PCDATA_StackMapIndex       = 0
+	PCDATA_InlTreeIndex        = 1
 	FUNCDATA_ArgsPointerMaps   = 0
 	FUNCDATA_LocalsPointerMaps = 1
+	FUNCDATA_InlTree           = 2
 
 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
 	// whose argument size is unknown (C vararg functions, and

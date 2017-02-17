@@ -10,6 +10,8 @@ import (
 	"runtime/pprof"
 )
 
+// Line returns n's position as a string. If n has been inlined,
+// it uses the outermost position where n has been inlined.
 func (n *Node) Line() string {
 	return linestr(n.Pos)
 }

@@ -173,8 +173,10 @@ func (f *Func) raw() *_func {
 // See funcdata.h and ../cmd/internal/obj/funcdata.go.
 const (
 	_PCDATA_StackMapIndex       = 0
+	_PCDATA_InlTreeIndex        = 1
 	_FUNCDATA_ArgsPointerMaps   = 0
 	_FUNCDATA_LocalsPointerMaps = 1
+	_FUNCDATA_InlTree           = 2
 	_ArgsSizeUnknown            = -0x80000000
 )
 

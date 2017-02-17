@@ -87,7 +87,7 @@ func hcrash() {
 }
 
 func linestr(pos src.XPos) string {
-	return Ctxt.PosTable.Pos(pos).String()
+	return Ctxt.OutermostPos(pos).String()
 }
 
 // lasterror keeps track of the most recently issued error.
