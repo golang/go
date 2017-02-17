@@ -708,12 +708,6 @@ type Pcdata struct {
 	P []byte
 }
 
-// symbol version, incremented each time a file is loaded.
-// version==1 is reserved for savehist.
-const (
-	HistVersion = 1
-)
-
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
