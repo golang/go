@@ -476,28 +476,33 @@ func TestMemPprof(t *testing.T) {
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
 
-	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-alloc_space", "-top", exe, fn))
-
-	found := false
-	for i, e := range cmd.Env {
-		if strings.HasPrefix(e, "PPROF_TMPDIR=") {
-			cmd.Env[i] = "PPROF_TMPDIR=" + os.TempDir()
-			found = true
-			break
+	for try := 0; try < 2; try++ {
+		cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-alloc_space", "-top"))
+		// Check that pprof works both with and without explicit executable on command line.
+		if try == 0 {
+			cmd.Args = append(cmd.Args, exe, fn)
+		} else {
+			cmd.Args = append(cmd.Args, fn)
 		}
-	}
-	if !found {
-		cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
-	}
+		found := false
+		for i, e := range cmd.Env {
+			if strings.HasPrefix(e, "PPROF_TMPDIR=") {
+				cmd.Env[i] = "PPROF_TMPDIR=" + os.TempDir()
+				found = true
+				break
+			}
+		}
+		if !found {
+			cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
+		}
 
-	top, err := cmd.CombinedOutput()
-	t.Logf("%s", top)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Contains(top, []byte("MemProf")) {
-		t.Error("missing MemProf in pprof output")
+		top, err := cmd.CombinedOutput()
+		t.Logf("%s:\n%s", cmd.Args, top)
+		if err != nil {
+			t.Error(err)
+		} else if !bytes.Contains(top, []byte("MemProf")) {
+			t.Error("missing MemProf in pprof output")
+		}
 	}
 }
 
