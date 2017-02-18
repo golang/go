@@ -94,12 +94,12 @@ func ExtraEnvVars() []cfg.EnvVar {
 	b.Init()
 	cppflags, cflags, cxxflags, fflags, ldflags := b.CFlags(&load.Package{})
 	return []cfg.EnvVar{
-		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
 		{Name: "CGO_CFLAGS", Value: strings.Join(cflags, " ")},
 		{Name: "CGO_CPPFLAGS", Value: strings.Join(cppflags, " ")},
 		{Name: "CGO_CXXFLAGS", Value: strings.Join(cxxflags, " ")},
 		{Name: "CGO_FFLAGS", Value: strings.Join(fflags, " ")},
 		{Name: "CGO_LDFLAGS", Value: strings.Join(ldflags, " ")},
+		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
 	}
 }
 
