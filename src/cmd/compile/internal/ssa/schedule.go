@@ -400,7 +400,7 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 					stack = append(stack, a)
 					sset.add(a.ID)
 					argsdone = false
-					continue
+					break
 				}
 				if storeNumber[a.ID]/3 > max {
 					max = storeNumber[a.ID] / 3
