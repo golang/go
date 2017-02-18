@@ -81,13 +81,12 @@
 (SignExt16to64 (Const16 [c])) -> (Const64 [int64( int16(c))])
 (SignExt32to64 (Const32 [c])) -> (Const64 [int64( int32(c))])
 
-// const negation is currently handled by frontend
-//(Neg8 (Const8 [c])) -> (Const8 [-c])
-//(Neg16 (Const16 [c])) -> (Const16 [-c])
-//(Neg32 (Const32 [c])) -> (Const32 [-c])
-//(Neg64 (Const64 [c])) -> (Const64 [-c])
-//(Neg32F (Const32F [c])) -> (Const32F [f2i(-i2f(c))])
-//(Neg64F (Const64F [c])) -> (Const64F [f2i(-i2f(c))])
+(Neg8   (Const8   [c])) -> (Const8   [int64( -int8(c))])
+(Neg16  (Const16  [c])) -> (Const16  [int64(-int16(c))])
+(Neg32  (Const32  [c])) -> (Const32  [int64(-int32(c))])
+(Neg64  (Const64  [c])) -> (Const64  [-c])
+(Neg32F (Const32F [c])) && i2f(c) != 0 -> (Const32F [f2i(-i2f(c))])
+(Neg64F (Const64F [c])) && i2f(c) != 0 -> (Const64F [f2i(-i2f(c))])
 
 (Add8   (Const8 [c])   (Const8 [d]))   -> (Const8  [int64(int8(c+d))])
 (Add16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c+d))])
