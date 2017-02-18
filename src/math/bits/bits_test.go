@@ -232,48 +232,61 @@ func BenchmarkTrailingZeros64(b *testing.B) {
 }
 
 func TestOnesCount(t *testing.T) {
+	var x uint64
+	for i := 0; i <= 64; i++ {
+		testOnesCount(t, x, i)
+		x = x<<1 | 1
+	}
+
+	for i := 64; i >= 0; i-- {
+		testOnesCount(t, x, i)
+		x = x << 1
+	}
+
 	for i := 0; i < 256; i++ {
-		want := tab[i].pop
 		for k := 0; k < 64-8; k++ {
-			x := uint64(i) << uint(k)
-			if x <= 1<<8-1 {
-				got := OnesCount8(uint8(x))
-				if got != want {
-					t.Fatalf("OnesCount8(%#02x) == %d; want %d", x, got, want)
-				}
-			}
+			testOnesCount(t, uint64(i)<<uint(k), tab[i].pop)
+		}
+	}
+}
 
-			if x <= 1<<16-1 {
-				got := OnesCount16(uint16(x))
-				if got != want {
-					t.Fatalf("OnesCount16(%#04x) == %d; want %d", x, got, want)
-				}
-			}
+func testOnesCount(t *testing.T, x uint64, want int) {
+	if x <= 1<<8-1 {
+		got := OnesCount8(uint8(x))
+		if got != want {
+			t.Fatalf("OnesCount8(%#02x) == %d; want %d", x, got, want)
+		}
+	}
 
-			if x <= 1<<32-1 {
-				got := OnesCount32(uint32(x))
-				if got != want {
-					t.Fatalf("OnesCount32(%#08x) == %d; want %d", x, got, want)
-				}
-				if UintSize == 32 {
-					got = OnesCount(uint(x))
-					if got != want {
-						t.Fatalf("OnesCount(%#08x) == %d; want %d", x, got, want)
-					}
-				}
-			}
+	if x <= 1<<16-1 {
+		got := OnesCount16(uint16(x))
+		if got != want {
+			t.Fatalf("OnesCount16(%#04x) == %d; want %d", x, got, want)
+		}
+	}
 
-			if x <= 1<<64-1 {
-				got := OnesCount64(uint64(x))
-				if got != want {
-					t.Fatalf("OnesCount64(%#016x) == %d; want %d", x, got, want)
-				}
-				if UintSize == 64 {
-					got = OnesCount(uint(x))
-					if got != want {
-						t.Fatalf("OnesCount(%#016x) == %d; want %d", x, got, want)
-					}
-				}
+	if x <= 1<<32-1 {
+		got := OnesCount32(uint32(x))
+		if got != want {
+			t.Fatalf("OnesCount32(%#08x) == %d; want %d", x, got, want)
+		}
+		if UintSize == 32 {
+			got = OnesCount(uint(x))
+			if got != want {
+				t.Fatalf("OnesCount(%#08x) == %d; want %d", x, got, want)
+			}
+		}
+	}
+
+	if x <= 1<<64-1 {
+		got := OnesCount64(uint64(x))
+		if got != want {
+			t.Fatalf("OnesCount64(%#016x) == %d; want %d", x, got, want)
+		}
+		if UintSize == 64 {
+			got = OnesCount(uint(x))
+			if got != want {
+				t.Fatalf("OnesCount(%#016x) == %d; want %d", x, got, want)
 			}
 		}
 	}
