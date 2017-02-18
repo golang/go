@@ -974,6 +974,8 @@ func (u *URL) ResolveReference(ref *URL) *URL {
 }
 
 // Query parses RawQuery and returns the corresponding values.
+// It silently discards malformed value pairs.
+// To check errors use ParseQuery.
 func (u *URL) Query() Values {
 	v, _ := ParseQuery(u.RawQuery)
 	return v
