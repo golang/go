@@ -312,39 +312,60 @@ func Mconv(a *Addr) string {
 			str = fmt.Sprintf("%d(%v)", a.Offset, Rconv(int(a.Reg)))
 		}
 
+		// Note: a.Reg == REG_NONE encodes the default base register for the NAME_ type.
 	case NAME_EXTERN:
+		reg := "SB"
+		if a.Reg != REG_NONE {
+			reg = Rconv(int(a.Reg))
+		}
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s%s(SB)", a.Sym.Name, offConv(a.Offset))
+			str = fmt.Sprintf("%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
 		} else {
-			str = fmt.Sprintf("%s(SB)", offConv(a.Offset))
+			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
 		}
 
 	case NAME_GOTREF:
+		reg := "SB"
+		if a.Reg != REG_NONE {
+			reg = Rconv(int(a.Reg))
+		}
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s%s@GOT(SB)", a.Sym.Name, offConv(a.Offset))
+			str = fmt.Sprintf("%s%s@GOT(%s)", a.Sym.Name, offConv(a.Offset), reg)
 		} else {
-			str = fmt.Sprintf("%s@GOT(SB)", offConv(a.Offset))
+			str = fmt.Sprintf("%s@GOT(%s)", offConv(a.Offset), reg)
 		}
 
 	case NAME_STATIC:
+		reg := "SB"
+		if a.Reg != REG_NONE {
+			reg = Rconv(int(a.Reg))
+		}
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s<>%s(SB)", a.Sym.Name, offConv(a.Offset))
+			str = fmt.Sprintf("%s<>%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
 		} else {
-			str = fmt.Sprintf("<>%s(SB)", offConv(a.Offset))
+			str = fmt.Sprintf("<>%s(%s)", offConv(a.Offset), reg)
 		}
 
 	case NAME_AUTO:
+		reg := "SP"
+		if a.Reg != REG_NONE {
+			reg = Rconv(int(a.Reg))
+		}
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s%s(SP)", a.Sym.Name, offConv(a.Offset))
+			str = fmt.Sprintf("%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
 		} else {
-			str = fmt.Sprintf("%s(SP)", offConv(a.Offset))
+			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
 		}
 
 	case NAME_PARAM:
+		reg := "FP"
+		if a.Reg != REG_NONE {
+			reg = Rconv(int(a.Reg))
+		}
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s%s(FP)", a.Sym.Name, offConv(a.Offset))
+			str = fmt.Sprintf("%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
 		} else {
-			str = fmt.Sprintf("%s(FP)", offConv(a.Offset))
+			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
 		}
 	}
 	return str
