@@ -1952,7 +1952,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 	case ODOTPTR:
 		p := s.exprPtr(n.Left, false, n.Pos)
-		p = s.newValue1I(ssa.OpOffPtr, p.Type, n.Xoffset, p)
+		p = s.newValue1I(ssa.OpOffPtr, ptrto(n.Type), n.Xoffset, p)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case OINDEX:
