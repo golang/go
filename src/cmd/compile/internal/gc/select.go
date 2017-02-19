@@ -31,8 +31,8 @@ func typecheckselect(sel *Node) {
 		} else if ncase.List.Len() > 1 {
 			yyerror("select cases cannot be lists")
 		} else {
-			ncase.List.SetIndex(0, typecheck(ncase.List.Index(0), Etop))
-			n = ncase.List.Index(0)
+			ncase.List.SetFirst(typecheck(ncase.List.First(), Etop))
+			n = ncase.List.First()
 			ncase.Left = n
 			ncase.List.Set(nil)
 			setlineno(n)
@@ -187,8 +187,8 @@ func walkselect(sel *Node) {
 				n.Op = OSELRECV
 			}
 			if n.Op == OSELRECV2 {
-				n.List.SetIndex(0, nod(OADDR, n.List.First(), nil))
-				n.List.SetIndex(0, typecheck(n.List.Index(0), Erv))
+				n.List.SetFirst(nod(OADDR, n.List.First(), nil))
+				n.List.SetFirst(typecheck(n.List.First(), Erv))
 			}
 
 			if n.Left == nil {

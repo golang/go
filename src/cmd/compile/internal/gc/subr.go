@@ -1045,7 +1045,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
 			if low == nil && high == nil {
 				return
 			}
-			n.List.Set([]*Node{low, high})
+			n.List.Set2(low, high)
 			return
 		}
 		s[0] = low
@@ -1057,7 +1057,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
 			if low == nil && high == nil && max == nil {
 				return
 			}
-			n.List.Set([]*Node{low, high, max})
+			n.List.Set3(low, high, max)
 			return
 		}
 		s[0] = low

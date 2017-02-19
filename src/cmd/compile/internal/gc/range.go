@@ -196,8 +196,8 @@ func walkrange(n *Node) {
 			body = []*Node{nod(OAS, v1, hv1)}
 		} else {
 			a := nod(OAS2, nil, nil)
-			a.List.Set([]*Node{v1, v2})
-			a.Rlist.Set([]*Node{hv1, nod(OIND, hp, nil)})
+			a.List.Set2(v1, v2)
+			a.Rlist.Set2(hv1, nod(OIND, hp, nil))
 			body = []*Node{a}
 
 			// Advance pointer as part of increment.
@@ -251,8 +251,8 @@ func walkrange(n *Node) {
 			val := nodSym(ODOT, hit, valsym)
 			val = nod(OIND, val, nil)
 			a := nod(OAS2, nil, nil)
-			a.List.Set([]*Node{v1, v2})
-			a.Rlist.Set([]*Node{key, val})
+			a.List.Set2(v1, v2)
+			a.Rlist.Set2(key, val)
 			body = []*Node{a}
 		}
 
@@ -272,7 +272,7 @@ func walkrange(n *Node) {
 		n.Left = nod(ONE, hb, nodbool(false))
 		a := nod(OAS2RECV, nil, nil)
 		a.Typecheck = 1
-		a.List.Set([]*Node{hv1, hb})
+		a.List.Set2(hv1, hb)
 		a.Rlist.Set1(nod(ORECV, ha, nil))
 		n.Left.Ninit.Set1(a)
 		if v1 == nil {

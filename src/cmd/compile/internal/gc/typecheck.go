@@ -1243,7 +1243,7 @@ OpSwitch:
 		}
 
 		if n.List.Len() == 1 && !n.Isddd {
-			n.List.SetIndex(0, typecheck(n.List.Index(0), Erv|Efnstruct))
+			n.List.SetFirst(typecheck(n.List.First(), Erv|Efnstruct))
 		} else {
 			typecheckslice(n.List.Slice(), Erv)
 		}
@@ -1539,7 +1539,7 @@ OpSwitch:
 			return n
 		}
 
-		args.SetIndex(1, assignconv(r, l.Type.Key(), "delete"))
+		args.SetSecond(assignconv(r, l.Type.Key(), "delete"))
 		break OpSwitch
 
 	case OAPPEND:
@@ -1552,7 +1552,7 @@ OpSwitch:
 		}
 
 		if args.Len() == 1 && !n.Isddd {
-			args.SetIndex(0, typecheck(args.Index(0), Erv|Efnstruct))
+			args.SetFirst(typecheck(args.First(), Erv|Efnstruct))
 		} else {
 			typecheckslice(args.Slice(), Erv)
 		}
@@ -1597,11 +1597,11 @@ OpSwitch:
 			}
 
 			if t.Elem().IsKind(TUINT8) && args.Second().Type.IsString() {
-				args.SetIndex(1, defaultlit(args.Index(1), Types[TSTRING]))
+				args.SetSecond(defaultlit(args.Second(), Types[TSTRING]))
 				break OpSwitch
 			}
 
-			args.SetIndex(1, assignconv(args.Index(1), t.Orig, "append"))
+			args.SetSecond(assignconv(args.Second(), t.Orig, "append"))
 			break OpSwitch
 		}
 
@@ -3328,7 +3328,7 @@ func typecheckas2(n *Node) {
 	cl := n.List.Len()
 	cr := n.Rlist.Len()
 	if cl > 1 && cr == 1 {
-		n.Rlist.SetIndex(0, typecheck(n.Rlist.Index(0), Erv|Efnstruct))
+		n.Rlist.SetFirst(typecheck(n.Rlist.First(), Erv|Efnstruct))
 	} else {
 		typecheckslice(n.Rlist.Slice(), Erv)
 	}
