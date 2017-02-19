@@ -684,8 +684,6 @@ func (p *pp) printArg(arg interface{}, verb rune) {
 	}
 }
 
-var byteType = reflect.TypeOf(byte(0))
-
 // printValue is similar to printArg but starts with a reflect value, not an interface{} value.
 // It does not handle 'p' and 'T' verbs because these should have been already handled by printArg.
 func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
