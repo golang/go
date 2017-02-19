@@ -60,7 +60,7 @@ var x86Need = []string{
 	"fmthello.go:6",
 	"TEXT main.main(SB)",
 	"JMP main.main(SB)",
-	"CALL fmt.Println(SB)",
+	"CALL main.Println(SB)",
 	"RET",
 }
 
@@ -68,7 +68,7 @@ var armNeed = []string{
 	"fmthello.go:6",
 	"TEXT main.main(SB)",
 	//"B.LS main.main(SB)", // TODO(rsc): restore; golang.org/issue/9021
-	"BL fmt.Println(SB)",
+	"BL main.Println(SB)",
 	"RET",
 }
 
@@ -76,7 +76,7 @@ var ppcNeed = []string{
 	"fmthello.go:6",
 	"TEXT main.main(SB)",
 	"BR main.main(SB)",
-	"CALL fmt.Println(SB)",
+	"CALL main.Println(SB)",
 	"RET",
 }
 
