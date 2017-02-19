@@ -188,7 +188,7 @@ func typecheckswitch(n *Node) {
 				}
 
 				nvar = typecheck(nvar, Erv|Easgn)
-				ncase.Rlist.SetIndex(0, nvar)
+				ncase.Rlist.SetFirst(nvar)
 			}
 		}
 
@@ -628,8 +628,8 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 
 			case c.node.List.Len() == 2:
 				// Range of integers.
-				low := c.node.List.Index(0).Int64()
-				high := c.node.List.Index(1).Int64()
+				low := c.node.List.First().Int64()
+				high := c.node.List.Second().Int64()
 				for i := low; i <= high; i++ {
 					prev, dup := seen[i]
 					if !dup {
@@ -745,7 +745,7 @@ func (s *typeSwitch) walk(sw *Node) {
 		i.Nbody.Set1(nod(OGOTO, lbl, nil))
 		// Wrap default case with label.
 		blk := nod(OBLOCK, nil, nil)
-		blk.List.Set([]*Node{nod(OLABEL, lbl, nil), def})
+		blk.List.Set2(nod(OLABEL, lbl, nil), def)
 		def = blk
 	}
 	i.Left = typecheck(i.Left, Erv)
@@ -840,7 +840,7 @@ func (s *typeSwitch) typeone(t *Node) *Node {
 	}
 
 	a := nod(OAS2, nil, nil)
-	a.List.Set([]*Node{name, s.okname}) // name, ok =
+	a.List.Set2(name, s.okname) // name, ok =
 	b := nod(ODOTTYPE, s.facename, nil)
 	b.Type = t.Left.Type // interface.(type)
 	a.Rlist.Set1(b)

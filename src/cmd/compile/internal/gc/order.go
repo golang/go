@@ -594,7 +594,7 @@ func orderstmt(n *Node, order *Order) {
 		r = okas(n.List.Second(), tmp2)
 		r = typecheck(r, Etop)
 		ordermapassign(r, order)
-		n.List.Set([]*Node{tmp1, tmp2})
+		n.List.Set2(tmp1, tmp2)
 		cleantemp(t, order)
 
 	// Special: does not save n onto out.
@@ -647,9 +647,9 @@ func orderstmt(n *Node, order *Order) {
 
 	case ODELETE:
 		t := marktemp(order)
-		n.List.SetIndex(0, orderexpr(n.List.Index(0), order, nil))
-		n.List.SetIndex(1, orderexpr(n.List.Index(1), order, nil))
-		n.List.SetIndex(1, orderaddrtemp(n.List.Index(1), order)) // map key
+		n.List.SetFirst(orderexpr(n.List.First(), order, nil))
+		n.List.SetSecond(orderexpr(n.List.Second(), order, nil))
+		n.List.SetSecond(orderaddrtemp(n.List.Second(), order)) // map key
 		order.out = append(order.out, n)
 		cleantemp(t, order)
 
@@ -1261,12 +1261,12 @@ func orderokas2(n *Node, order *Order) {
 		r := nod(OAS, n.List.First(), tmp1)
 		r = typecheck(r, Etop)
 		ordermapassign(r, order)
-		n.List.SetIndex(0, tmp1)
+		n.List.SetFirst(tmp1)
 	}
 	if tmp2 != nil {
 		r := okas(n.List.Second(), tmp2)
 		r = typecheck(r, Etop)
 		ordermapassign(r, order)
-		n.List.SetIndex(1, tmp2)
+		n.List.SetSecond(tmp2)
 	}
 }

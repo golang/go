@@ -818,7 +818,7 @@ opswitch:
 			var_ := temp(ptrto(t.Val()))
 			var_.Typecheck = 1
 			var_.NonNil = true // mapaccess always returns a non-nil pointer
-			n.List.SetIndex(0, var_)
+			n.List.SetFirst(var_)
 			n = walkexpr(n, init)
 			init.Append(n)
 			n = nod(OAS, a, nod(OIND, var_, nil))
@@ -2860,8 +2860,8 @@ func appendslice(n *Node, init *Nodes) *Node {
 //   s
 func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	if !samesafeexpr(dst, n.List.First()) {
-		n.List.SetIndex(0, safeexpr(n.List.Index(0), init))
-		n.List.SetIndex(0, walkexpr(n.List.Index(0), init))
+		n.List.SetFirst(safeexpr(n.List.First(), init))
+		n.List.SetFirst(walkexpr(n.List.First(), init))
 	}
 	walkexprlistsafe(n.List.Slice()[1:], init)
 
