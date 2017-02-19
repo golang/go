@@ -20,3 +20,16 @@ func f(b [6]byte) T {
 	_ = x
 	return T{b: b}
 }
+
+// Arg symbol's base address may be not at an aligned offset to
+// SP. Folding arg's address into load/store may cause odd offset.
+func move(a, b [20]byte) [20]byte {
+	var x [1000]int // a large stack frame
+	_ = x
+	return b // b is not 8-byte aligned to SP
+}
+func zero() ([20]byte, [20]byte) {
+	var x [1000]int // a large stack frame
+	_ = x
+	return [20]byte{}, [20]byte{} // the second return value is not 8-byte aligned to SP
+}
