@@ -168,7 +168,9 @@ func (f *Func) raw() *_func {
 	return (*_func)(unsafe.Pointer(f))
 }
 
-// funcdata.h
+// PCDATA and FUNCDATA table indexes.
+//
+// See funcdata.h and ../cmd/internal/obj/funcdata.go.
 const (
 	_PCDATA_StackMapIndex       = 0
 	_FUNCDATA_ArgsPointerMaps   = 0
