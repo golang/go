@@ -231,8 +231,8 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 				}
 				return errNotEnough
 			}
-			// Both lzwr and br should be exhausted. Reading from them should
-			// yield (0, io.EOF).
+			// In theory, both lzwr and br should be exhausted. Reading from them
+			// should yield (0, io.EOF).
 			//
 			// The spec (Appendix F - Compression), says that "An End of
 			// Information code... must be the last code output by the encoder
@@ -248,11 +248,21 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 				}
 				return errTooMuch
 			}
-			if n, err := br.Read(d.tmp[:1]); n != 0 || err != io.EOF {
+
+			// In practice, some GIFs have an extra byte in the data sub-block
+			// stream, which we ignore. See https://golang.org/issue/16146.
+			for nExtraBytes := 0; ; {
+				n, err := br.Read(d.tmp[:2])
+				nExtraBytes += n
+				if nExtraBytes > 1 {
+					return errTooMuch
+				}
+				if err == io.EOF {
+					break
+				}
 				if err != nil {
 					return fmt.Errorf("gif: reading image data: %v", err)
 				}
-				return errTooMuch
 			}
 
 			// Check that the color indexes are inside the palette.
