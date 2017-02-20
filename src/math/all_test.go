@@ -1742,11 +1742,13 @@ var vfy0SC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	-1,
 }
 var y0SC = []float64{
 	NaN(),
 	Inf(-1),
 	0,
+	NaN(),
 	NaN(),
 }
 var y1SC = []float64{
@@ -1754,17 +1756,20 @@ var y1SC = []float64{
 	Inf(-1),
 	0,
 	NaN(),
+	NaN(),
 }
 var y2SC = []float64{
 	NaN(),
 	Inf(-1),
 	0,
 	NaN(),
+	NaN(),
 }
 var yM3SC = []float64{
 	NaN(),
 	Inf(1),
 	0,
+	NaN(),
 	NaN(),
 }
 
@@ -2715,6 +2720,9 @@ func TestYn(t *testing.T) {
 		if f := Yn(-3, vfy0SC[i]); !alike(yM3SC[i], f) {
 			t.Errorf("Yn(-3, %g) = %g, want %g", vfy0SC[i], f, yM3SC[i])
 		}
+	}
+	if f := Yn(0, 0); !alike(Inf(-1), f) {
+		t.Errorf("Yn(0, 0) = %g, want %g", f, Inf(-1))
 	}
 }
 
