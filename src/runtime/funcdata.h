@@ -6,9 +6,7 @@
 // in Go binaries. It is included by assembly sources, so it must
 // be written using #defines.
 //
-// The Go compiler also #includes this file, for now.
-//
-// symtab.go also contains a copy of these constants.
+// These must agree with symtab.go and ../cmd/internal/obj/funcdata.go.
 
 #define PCDATA_StackMapIndex 0
 
