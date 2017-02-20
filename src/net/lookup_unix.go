@@ -8,6 +8,8 @@ package net
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"sync"
 )
 
@@ -49,6 +51,31 @@ func readProtocols() {
 func lookupProtocol(_ context.Context, name string) (int, error) {
 	onceReadProtocols.Do(readProtocols)
 	return lookupProtocolMap(name)
+}
+
+func (r *Resolver) dial(ctx context.Context, network, server string) (dnsConn, error) {
+	// Calling Dial here is scary -- we have to be sure not to
+	// dial a name that will require a DNS lookup, or Dial will
+	// call back here to translate it. The DNS config parser has
+	// already checked that all the cfg.servers are IP
+	// addresses, which Dial will use without a DNS lookup.
+	var c Conn
+	var err error
+	if r.Dial != nil {
+		c, err = r.Dial(ctx, network, server)
+	} else {
+		var d Dialer
+		c, err = d.DialContext(ctx, network, server)
+	}
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	dc, ok := c.(dnsConn)
+	if !ok {
+		c.Close()
+		return nil, errors.New("net: Resolver.Dial returned unsupported connection type " + reflect.TypeOf(c).String())
+	}
+	return dc, nil
 }
 
 func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {

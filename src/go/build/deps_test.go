@@ -304,7 +304,7 @@ var pkgDeps = map[string][]string{
 	// do networking portably, it must have a small dependency set: just L0+basic os.
 	"net": {
 		"L0", "CGO",
-		"context", "math/rand", "os", "sort", "syscall", "time",
+		"context", "math/rand", "os", "reflect", "sort", "syscall", "time",
 		"internal/nettrace", "internal/poll",
 		"internal/syscall/windows", "internal/singleflight", "internal/race",
 		"golang_org/x/net/lif", "golang_org/x/net/route",

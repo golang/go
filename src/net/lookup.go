@@ -107,6 +107,15 @@ type Resolver struct {
 	// with resolvers that process AAAA queries incorrectly.
 	StrictErrors bool
 
+	// Dial optionally specifies an alternate dialer for use by
+	// Go's built-in DNS resolver to make TCP and UDP connections
+	// to DNS services. The provided addr will always be an IP
+	// address and not a hostname.
+	// The Conn returned must be a *TCPConn or *UDPConn as
+	// requested by the network parameter. If nil, the default
+	// dialer is used.
+	Dial func(ctx context.Context, network, addr string) (Conn, error)
+
 	// TODO(bradfitz): optional interface impl override hook
 	// TODO(bradfitz): Timeout time.Duration?
 }
