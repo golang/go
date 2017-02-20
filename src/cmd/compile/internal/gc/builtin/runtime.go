@@ -12,6 +12,8 @@ package runtime
 
 // emitted by compiler, not referred to by go programs
 
+import "unsafe"
+
 func newobject(typ *byte) *any
 func panicindex()
 func panicslice()
@@ -129,8 +131,8 @@ func makeslice(typ *byte, len int, cap int) (ary []any)
 func makeslice64(typ *byte, len int64, cap int64) (ary []any)
 func growslice(typ *byte, old []any, cap int) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
-func memclrNoHeapPointers(ptr *byte, length uintptr)
-func memclrHasPointers(ptr *byte, length uintptr)
+func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+func memclrHasPointers(ptr unsafe.Pointer, n uintptr)
 
 func memequal(x, y *any, size uintptr) bool
 func memequal8(x, y *any) bool

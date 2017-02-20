@@ -72,6 +72,12 @@ func mkbuiltin(w io.Writer, name string) {
 			}
 			fmt.Fprintf(w, "{%q, funcTag, %d},\n", decl.Name.Name, interner.intern(decl.Type))
 		case *ast.GenDecl:
+			if decl.Tok == token.IMPORT {
+				if len(decl.Specs) != 1 || decl.Specs[0].(*ast.ImportSpec).Path.Value != "\"unsafe\"" {
+					log.Fatal("runtime cannot import other package")
+				}
+				continue
+			}
 			if decl.Tok != token.VAR {
 				log.Fatal("unhandled declaration kind", decl.Tok)
 			}
@@ -137,6 +143,11 @@ func (i *typeInterner) mktype(t ast.Expr) string {
 			return "runetype"
 		}
 		return fmt.Sprintf("Types[T%s]", strings.ToUpper(t.Name))
+	case *ast.SelectorExpr:
+		if t.X.(*ast.Ident).Name != "unsafe" || t.Sel.Name != "Pointer" {
+			log.Fatalf("unhandled type: %#v", t)
+		}
+		return "Types[TUNSAFEPTR]"
 
 	case *ast.ArrayType:
 		if t.Len == nil {
