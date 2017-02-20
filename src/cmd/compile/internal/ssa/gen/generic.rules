@@ -481,6 +481,22 @@
   && uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
   -> (Lsh8x64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
 
+// replace shifts with zero extensions
+(Rsh16Ux64 (Lsh16x64 x (Const64  [8])) (Const64  [8])) -> (ZeroExt8to16  (Trunc16to8  <config.fe.TypeUInt8()>  x))
+(Rsh32Ux64 (Lsh32x64 x (Const64 [24])) (Const64 [24])) -> (ZeroExt8to32  (Trunc32to8  <config.fe.TypeUInt8()>  x))
+(Rsh64Ux64 (Lsh64x64 x (Const64 [56])) (Const64 [56])) -> (ZeroExt8to64  (Trunc64to8  <config.fe.TypeUInt8()>  x))
+(Rsh32Ux64 (Lsh32x64 x (Const64 [16])) (Const64 [16])) -> (ZeroExt16to32 (Trunc32to16 <config.fe.TypeUInt16()> x))
+(Rsh64Ux64 (Lsh64x64 x (Const64 [48])) (Const64 [48])) -> (ZeroExt16to64 (Trunc64to16 <config.fe.TypeUInt16()> x))
+(Rsh64Ux64 (Lsh64x64 x (Const64 [32])) (Const64 [32])) -> (ZeroExt32to64 (Trunc64to32 <config.fe.TypeUInt32()> x))
+
+// replace shifts with sign extensions
+(Rsh16x64 (Lsh16x64 x (Const64  [8])) (Const64  [8])) -> (SignExt8to16  (Trunc16to8  <config.fe.TypeInt8()>  x))
+(Rsh32x64 (Lsh32x64 x (Const64 [24])) (Const64 [24])) -> (SignExt8to32  (Trunc32to8  <config.fe.TypeInt8()>  x))
+(Rsh64x64 (Lsh64x64 x (Const64 [56])) (Const64 [56])) -> (SignExt8to64  (Trunc64to8  <config.fe.TypeInt8()>  x))
+(Rsh32x64 (Lsh32x64 x (Const64 [16])) (Const64 [16])) -> (SignExt16to32 (Trunc32to16 <config.fe.TypeInt16()> x))
+(Rsh64x64 (Lsh64x64 x (Const64 [48])) (Const64 [48])) -> (SignExt16to64 (Trunc64to16 <config.fe.TypeInt16()> x))
+(Rsh64x64 (Lsh64x64 x (Const64 [32])) (Const64 [32])) -> (SignExt32to64 (Trunc64to32 <config.fe.TypeInt32()> x))
+
 // constant comparisons
 (Eq64 (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(c == d)])
 (Eq32 (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(c == d)])
