@@ -419,13 +419,13 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	n.Left = nod(ONE, nod(OLEN, a, nil), nodintconst(0))
 
 	// hp = &a[0]
-	hp := temp(ptrto(Types[TUINT8]))
+	hp := temp(Types[TUNSAFEPTR])
 
 	tmp := nod(OINDEX, a, nodintconst(0))
 	tmp.Bounded = true
 	tmp = nod(OADDR, tmp, nil)
 	tmp = nod(OCONVNOP, tmp, nil)
-	tmp.Type = ptrto(Types[TUINT8])
+	tmp.Type = Types[TUNSAFEPTR]
 	n.Nbody.Append(nod(OAS, hp, tmp))
 
 	// hn = len(a) * sizeof(elem(a))
