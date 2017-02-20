@@ -197,7 +197,7 @@ func k4(a [100]int) [100]int {
 func k5(a [100]int) [100]int {
 	max := (1 << 63) - 1
 	for i := max - 50; i < max; i++ { // ERROR "Induction variable with minimum 9223372036854775757 and increment 1$"
-		a[i-max+50] = i
+		a[i-max+50] = i   // ERROR "Found redundant \(IsInBounds ind 100\), ind < 50$"
 		a[i-(max-70)] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 70$"
 	}
 	return a
