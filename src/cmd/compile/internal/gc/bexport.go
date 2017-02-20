@@ -1202,6 +1202,7 @@ func (p *exporter) expr(n *Node) {
 			break
 		}
 		p.op(OLITERAL)
+		p.pos(n)
 		p.typ(unidealType(n.Type, n.Val()))
 		p.value(n.Val())
 
@@ -1210,12 +1211,14 @@ func (p *exporter) expr(n *Node) {
 		// _ becomes ~b%d internally; print as _ for export
 		if n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
 			p.op(ONAME)
+			p.pos(n)
 			p.string("_") // inlined and customized version of p.sym(n)
 			break
 		}
 
 		if n.Sym != nil && !isblank(n) && n.Name.Vargen > 0 {
 			p.op(ONAME)
+			p.pos(n)
 			p.sym(n)
 			break
 		}
@@ -1225,12 +1228,14 @@ func (p *exporter) expr(n *Node) {
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
 		if n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
 			p.op(OXDOT)
+			p.pos(n)
 			p.expr(n.Left) // n.Left.Op == OTYPE
 			p.fieldSym(n.Right.Sym, true)
 			break
 		}
 
 		p.op(ONAME)
+		p.pos(n)
 		p.sym(n)
 
 	// case OPACK, ONONAME:
@@ -1238,6 +1243,7 @@ func (p *exporter) expr(n *Node) {
 
 	case OTYPE:
 		p.op(OTYPE)
+		p.pos(n)
 		if p.bool(n.Type == nil) {
 			p.sym(n)
 		} else {
@@ -1255,21 +1261,25 @@ func (p *exporter) expr(n *Node) {
 
 	case OPTRLIT:
 		p.op(OPTRLIT)
+		p.pos(n)
 		p.expr(n.Left)
 		p.bool(n.Implicit())
 
 	case OSTRUCTLIT:
 		p.op(OSTRUCTLIT)
+		p.pos(n)
 		p.typ(n.Type)
 		p.elemList(n.List) // special handling of field names
 
 	case OARRAYLIT, OSLICELIT, OMAPLIT:
 		p.op(OCOMPLIT)
+		p.pos(n)
 		p.typ(n.Type)
 		p.exprList(n.List)
 
 	case OKEY:
 		p.op(OKEY)
+		p.pos(n)
 		p.exprsOrNil(n.Left, n.Right)
 
 	// case OSTRUCTKEY:
@@ -1280,11 +1290,13 @@ func (p *exporter) expr(n *Node) {
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		p.op(OXDOT)
+		p.pos(n)
 		p.expr(n.Left)
 		p.fieldSym(n.Sym, true)
 
 	case ODOTTYPE, ODOTTYPE2:
 		p.op(ODOTTYPE)
+		p.pos(n)
 		p.expr(n.Left)
 		if p.bool(n.Right != nil) {
 			p.expr(n.Right)
@@ -1294,17 +1306,20 @@ func (p *exporter) expr(n *Node) {
 
 	case OINDEX, OINDEXMAP:
 		p.op(OINDEX)
+		p.pos(n)
 		p.expr(n.Left)
 		p.expr(n.Right)
 
 	case OSLICE, OSLICESTR, OSLICEARR:
 		p.op(OSLICE)
+		p.pos(n)
 		p.expr(n.Left)
 		low, high, _ := n.SliceBounds()
 		p.exprsOrNil(low, high)
 
 	case OSLICE3, OSLICE3ARR:
 		p.op(OSLICE3)
+		p.pos(n)
 		p.expr(n.Left)
 		low, high, max := n.SliceBounds()
 		p.exprsOrNil(low, high)
@@ -1313,12 +1328,14 @@ func (p *exporter) expr(n *Node) {
 	case OCOPY, OCOMPLEX:
 		// treated like other builtin calls (see e.g., OREAL)
 		p.op(op)
+		p.pos(n)
 		p.expr(n.Left)
 		p.expr(n.Right)
 		p.op(OEND)
 
 	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
 		p.op(OCONV)
+		p.pos(n)
 		p.typ(n.Type)
 		if n.Left != nil {
 			p.expr(n.Left)
@@ -1329,6 +1346,7 @@ func (p *exporter) expr(n *Node) {
 
 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
 		p.op(op)
+		p.pos(n)
 		if n.Left != nil {
 			p.expr(n.Left)
 			p.op(OEND)
@@ -1344,12 +1362,14 @@ func (p *exporter) expr(n *Node) {
 
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
 		p.op(OCALL)
+		p.pos(n)
 		p.expr(n.Left)
 		p.exprList(n.List)
 		p.bool(n.Isddd())
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		p.op(op) // must keep separate from OMAKE for importer
+		p.pos(n)
 		p.typ(n.Type)
 		switch {
 		default:
@@ -1369,21 +1389,25 @@ func (p *exporter) expr(n *Node) {
 	// unary expressions
 	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
 		p.op(op)
+		p.pos(n)
 		p.expr(n.Left)
 
 	// binary expressions
 	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE, OLT,
 		OLSH, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSEND, OSUB, OXOR:
 		p.op(op)
+		p.pos(n)
 		p.expr(n.Left)
 		p.expr(n.Right)
 
 	case OADDSTR:
 		p.op(OADDSTR)
+		p.pos(n)
 		p.exprList(n.List)
 
 	case OCMPSTR, OCMPIFACE:
 		p.op(Op(n.Etype))
+		p.pos(n)
 		p.expr(n.Left)
 		p.expr(n.Right)
 
@@ -1393,6 +1417,7 @@ func (p *exporter) expr(n *Node) {
 		// TODO(gri) these should not be exported in the first place
 		// TODO(gri) why is this considered an expression in fmt.go?
 		p.op(ODCLCONST)
+		p.pos(n)
 
 	default:
 		Fatalf("cannot export %v (%d) node\n"+
@@ -1426,6 +1451,7 @@ func (p *exporter) stmt(n *Node) {
 	switch op := n.Op; op {
 	case ODCL:
 		p.op(ODCL)
+		p.pos(n)
 		p.sym(n.Left)
 		p.typ(n.Left.Type)
 
@@ -1438,12 +1464,14 @@ func (p *exporter) stmt(n *Node) {
 		// the "v = <N>" again.
 		if n.Right != nil {
 			p.op(OAS)
+			p.pos(n)
 			p.expr(n.Left)
 			p.expr(n.Right)
 		}
 
 	case OASOP:
 		p.op(OASOP)
+		p.pos(n)
 		p.int(int(n.Etype))
 		p.expr(n.Left)
 		if p.bool(!n.Implicit()) {
@@ -1452,11 +1480,13 @@ func (p *exporter) stmt(n *Node) {
 
 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 		p.op(OAS2)
+		p.pos(n)
 		p.exprList(n.List)
 		p.exprList(n.Rlist)
 
 	case ORETURN:
 		p.op(ORETURN)
+		p.pos(n)
 		p.exprList(n.List)
 
 	// case ORETJMP:
@@ -1464,10 +1494,12 @@ func (p *exporter) stmt(n *Node) {
 
 	case OPROC, ODEFER:
 		p.op(op)
+		p.pos(n)
 		p.expr(n.Left)
 
 	case OIF:
 		p.op(OIF)
+		p.pos(n)
 		p.stmtList(n.Ninit)
 		p.expr(n.Left)
 		p.stmtList(n.Nbody)
@@ -1475,32 +1507,38 @@ func (p *exporter) stmt(n *Node) {
 
 	case OFOR:
 		p.op(OFOR)
+		p.pos(n)
 		p.stmtList(n.Ninit)
 		p.exprsOrNil(n.Left, n.Right)
 		p.stmtList(n.Nbody)
 
 	case ORANGE:
 		p.op(ORANGE)
+		p.pos(n)
 		p.stmtList(n.List)
 		p.expr(n.Right)
 		p.stmtList(n.Nbody)
 
 	case OSELECT, OSWITCH:
 		p.op(op)
+		p.pos(n)
 		p.stmtList(n.Ninit)
 		p.exprsOrNil(n.Left, nil)
 		p.stmtList(n.List)
 
 	case OCASE, OXCASE:
 		p.op(OXCASE)
+		p.pos(n)
 		p.stmtList(n.List)
 		p.stmtList(n.Nbody)
 
 	case OFALL, OXFALL:
 		p.op(OXFALL)
+		p.pos(n)
 
 	case OBREAK, OCONTINUE:
 		p.op(op)
+		p.pos(n)
 		p.exprsOrNil(n.Left, nil)
 
 	case OEMPTY:
@@ -1508,6 +1546,7 @@ func (p *exporter) stmt(n *Node) {
 
 	case OGOTO, OLABEL:
 		p.op(op)
+		p.pos(n)
 		p.expr(n.Left)
 
 	default:
