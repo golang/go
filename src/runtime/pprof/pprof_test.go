@@ -511,6 +511,7 @@ func blockCond() {
 }
 
 func TestMutexProfile(t *testing.T) {
+	testenv.SkipFlaky(t, 19139)
 	old := runtime.SetMutexProfileFraction(1)
 	defer runtime.SetMutexProfileFraction(old)
 	if old != 0 {
