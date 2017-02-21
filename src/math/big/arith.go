@@ -9,7 +9,7 @@
 package big
 
 // A Word represents a single digit of a multi-precision unsigned integer.
-type Word uintptr
+type Word uint
 
 const (
 	// Compute the size _S of a Word in bytes.
