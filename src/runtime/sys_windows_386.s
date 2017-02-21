@@ -455,9 +455,9 @@ loop:
 	ADDL	DI, DX
 	// wintime*100 = DX:AX, subtract startNano and return
 	SUBL	runtime·startNano+0(SB), AX
-	SBBL runtime·startNano+4(SB), DX
-	MOVL	AX, ret+0(FP)
-	MOVL	DX, ret+4(FP)
+	SBBL	runtime·startNano+4(SB), DX
+	MOVL	AX, ret_lo+0(FP)
+	MOVL	DX, ret_hi+4(FP)
 	RET
 
 TEXT time·now(SB),NOSPLIT,$0-20

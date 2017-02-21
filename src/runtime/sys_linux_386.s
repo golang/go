@@ -162,8 +162,8 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	12(SP), BX	// nsec
 
 	// sec is in AX, nsec in BX
-	MOVL	AX, sec+0(FP)
-	MOVL	$0, sec+4(FP)
+	MOVL	AX, sec_lo+0(FP)
+	MOVL	$0, sec_hi+4(FP)
 	MOVL	BX, nsec+8(FP)
 	RET
 
