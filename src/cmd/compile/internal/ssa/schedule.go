@@ -14,6 +14,7 @@ const (
 	ScoreMemory
 	ScoreDefault
 	ScoreFlags
+	ScoreSelectCall
 	ScoreControl // towards bottom of block
 )
 
@@ -110,10 +111,25 @@ func schedule(f *Func) {
 				// We want all the vardefs next.
 				score[v.ID] = ScoreVarDef
 			case v.Type.IsMemory():
-				// Schedule stores as early as possible. This tends to
-				// reduce register pressure. It also helps make sure
-				// VARDEF ops are scheduled before the corresponding LEA.
-				score[v.ID] = ScoreMemory
+				// Don't schedule independent operations after call to those functions.
+				// runtime.selectgo will jump to next instruction after this call,
+				// causing extra execution of those operations. Prevent it, by setting
+				// priority to high value.
+				if (v.Op == OpAMD64CALLstatic || v.Op == OpPPC64CALLstatic ||
+					v.Op == OpARMCALLstatic || v.Op == OpARM64CALLstatic ||
+					v.Op == Op386CALLstatic || v.Op == OpMIPS64CALLstatic ||
+					v.Op == OpS390XCALLstatic || v.Op == OpMIPSCALLstatic) &&
+					(isSameSym(v.Aux, "runtime.selectrecv") ||
+						isSameSym(v.Aux, "runtime.selectrecv2") ||
+						isSameSym(v.Aux, "runtime.selectsend") ||
+						isSameSym(v.Aux, "runtime.selectdefault")) {
+					score[v.ID] = ScoreSelectCall
+				} else {
+					// Schedule stores as early as possible. This tends to
+					// reduce register pressure. It also helps make sure
+					// VARDEF ops are scheduled before the corresponding LEA.
+					score[v.ID] = ScoreMemory
+				}
 			case v.Op == OpSelect0 || v.Op == OpSelect1:
 				// Schedule the pseudo-op of reading part of a tuple
 				// immediately after the tuple-generating op, since
