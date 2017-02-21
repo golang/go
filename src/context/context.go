@@ -100,6 +100,7 @@ type Context interface {
 	// Canceled if the context was canceled or DeadlineExceeded if the
 	// context's deadline passed. No other values for Err are defined.
 	// After Done is closed, successive calls to Err return the same value.
+	// Err's return value is unspecified before Done is closed.
 	Err() error
 
 	// Value returns the value associated with this context for key, or nil
