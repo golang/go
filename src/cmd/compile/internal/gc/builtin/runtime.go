@@ -100,8 +100,10 @@ func closechan(hchan any)
 
 var writeBarrier struct {
 	enabled bool
+	pad     [3]byte
 	needed  bool
 	cgo     bool
+	alignme uint64
 }
 
 func writebarrierptr(dst *any, src any)
