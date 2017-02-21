@@ -439,7 +439,7 @@ TEXT ·decryptBlockAsm(SB),NOSPLIT|NOFRAME,$0
 	// Load the arguments inside the registers
 	MOVD dst+0(FP), BLK_OUT
 	MOVD src+8(FP), BLK_INP
-	MOVD enc+16(FP), BLK_KEY
+	MOVD dec+16(FP), BLK_KEY
 
 	MOVWZ 240(BLK_KEY), BLK_ROUNDS // lwz 6,240(5)
 	MOVD $15, BLK_IDX              // li 7,15
