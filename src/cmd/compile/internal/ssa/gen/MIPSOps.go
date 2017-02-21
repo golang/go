@@ -267,8 +267,8 @@ func init() {
 		// SYNC
 		// MOVW	Rarg1, (Rarg0)
 		// SYNC
-		{name: "LoweredAtomicStore", argLength: 3, reg: gpstore, faultOnNilArg0: true},
-		{name: "LoweredAtomicStorezero", argLength: 2, reg: gpstore0, faultOnNilArg0: true},
+		{name: "LoweredAtomicStore", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStorezero", argLength: 2, reg: gpstore0, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic exchange.
 		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>.
@@ -278,7 +278,7 @@ func init() {
 		// SC	Rtmp, (Rarg0)
 		// BEQ	Rtmp, -3(PC)
 		// SYNC
-		{name: "LoweredAtomicExchange", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicExchange", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic add.
 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
@@ -289,8 +289,8 @@ func init() {
 		// BEQ	Rtmp, -3(PC)
 		// SYNC
 		// ADDU Rarg1, Rout
-		{name: "LoweredAtomicAdd", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true},
-		{name: "LoweredAtomicAddconst", argLength: 2, reg: regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}, aux: "Int32", resultNotInArgs: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicAdd", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAddconst", argLength: 2, reg: regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}, aux: "Int32", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
@@ -308,7 +308,7 @@ func init() {
 		// SC	Rout, (Rarg0)
 		// BEQ	Rout, -4(PC)
 		// SYNC
-		{name: "LoweredAtomicCas", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicCas", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic and/or.
 		// *arg0 &= (|=) arg1. arg2=mem. returns memory.
@@ -318,8 +318,8 @@ func init() {
 		// SC	Rtmp, (Rarg0)
 		// BEQ	Rtmp, -3(PC)
 		// SYNC
-		{name: "LoweredAtomicAnd", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true},
-		{name: "LoweredAtomicOr", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true},
+		{name: "LoweredAtomicAnd", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicOr", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true},
 
 		// large or unaligned zeroing
 		// arg0 = address of memory to zero (in R1, changed as side effect)
