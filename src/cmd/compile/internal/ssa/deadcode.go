@@ -64,7 +64,7 @@ func liveValues(f *Func, reachable []bool) []bool {
 			q = append(q, v)
 		}
 		for _, v := range b.Values {
-			if opcodeTable[v.Op].call && !live[v.ID] {
+			if (opcodeTable[v.Op].call || opcodeTable[v.Op].hasSideEffects) && !live[v.ID] {
 				live[v.ID] = true
 				q = append(q, v)
 			}
