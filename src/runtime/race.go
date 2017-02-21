@@ -98,7 +98,7 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 	if f != nil {
 		file, line := f.FileLine(ctx.pc)
 		if line != 0 {
-			ctx.fn = cfuncname(f.raw())
+			ctx.fn = cfuncname(f.funcInfo())
 			ctx.line = uintptr(line)
 			ctx.file = &bytes(file)[0] // assume NUL-terminated
 			ctx.off = ctx.pc - f.Entry()

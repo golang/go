@@ -1877,7 +1877,7 @@ func getgcmask(ep interface{}) (mask []byte) {
 		frame.sp = uintptr(p)
 		_g_ := getg()
 		gentraceback(_g_.m.curg.sched.pc, _g_.m.curg.sched.sp, 0, _g_.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
-		if frame.fn != nil {
+		if frame.fn.valid() {
 			f := frame.fn
 			targetpc := frame.continpc
 			if targetpc == 0 {

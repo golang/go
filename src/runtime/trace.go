@@ -816,7 +816,7 @@ func traceFrameForPC(buf *traceBuf, frames map[uintptr]traceFrame, pc uintptr) (
 
 	var frame traceFrame
 	f := findfunc(pc)
-	if f == nil {
+	if !f.valid() {
 		frames[pc] = frame
 		return frame, buf
 	}

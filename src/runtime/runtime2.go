@@ -685,7 +685,7 @@ type _panic struct {
 
 // stack traces
 type stkframe struct {
-	fn       *_func     // function being run
+	fn       funcInfo   // function being run
 	pc       uintptr    // program counter within fn
 	continpc uintptr    // program counter where execution can continue, or 0 if not
 	lr       uintptr    // program counter at caller aka link register
