@@ -1,4 +1,5 @@
 pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
+pkg math/big, type Word uintptr
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
 pkg os (linux-arm), const O_SYNC = 4096
 pkg os (linux-arm-cgo), const O_SYNC = 4096
