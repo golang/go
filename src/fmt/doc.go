@@ -38,7 +38,7 @@
 		%E	scientific notation, e.g. -1.234456E+78
 		%f	decimal point but no exponent, e.g. 123.456
 		%F	synonym for %f
-		%g	%e for large exponents, %f otherwise
+		%g	%e for large exponents, %f otherwise. Precision is discussed below.
 		%G	%E for large exponents, %F otherwise
 	String and slice of bytes (treated equivalently with these verbs):
 		%s	the uninterpreted bytes of the string or slice
