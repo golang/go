@@ -88,15 +88,15 @@ TEXT ·Syscall9(SB),NOSPLIT,$28-52
 	SYSCALL
 	BEQ	R7, ok9
 	MOVW	$-1, R1
-	MOVW	R1, r1+28(FP)	// r1
-	MOVW	R0, r2+32(FP)	// r2
-	MOVW	R2, err+36(FP)	// errno
+	MOVW	R1, r1+40(FP)	// r1
+	MOVW	R0, r2+44(FP)	// r2
+	MOVW	R2, err+48(FP)	// errno
 	JAL	runtime·exitsyscall(SB)
 	RET
 ok9:
-	MOVW	R2, r1+28(FP)	// r1
-	MOVW	R3, r2+32(FP)	// r2
-	MOVW	R0, err+36(FP)	// errno
+	MOVW	R2, r1+40(FP)	// r1
+	MOVW	R3, r2+44(FP)	// r2
+	MOVW	R0, err+48(FP)	// errno
 	JAL	runtime·exitsyscall(SB)
 	RET
 
