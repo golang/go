@@ -42,6 +42,11 @@ Supported profile types are:
 Flags:
 	-http=addr: HTTP service address (e.g., ':6060')
 	-pprof=type: print a pprof-like profile instead
+
+Note that while the various profiles available when launching
+'go tool trace' work on every browser, the trace viewer itself
+(the 'view trace' page) comes from the Chrome/Chromium project
+and is only actively tested on that browser.
 `
 
 var (
