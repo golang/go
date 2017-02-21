@@ -522,15 +522,15 @@ func init() {
 		// store arg0 to arg1+auxint+aux, arg2=mem.
 		// These ops return a tuple of <old contents of *(arg1+auxint+aux), memory>.
 		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
-		{name: "XCHGL", argLength: 3, reg: gpstorexchg, asm: "XCHGL", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true},
-		{name: "XCHGQ", argLength: 3, reg: gpstorexchg, asm: "XCHGQ", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true},
+		{name: "XCHGL", argLength: 3, reg: gpstorexchg, asm: "XCHGL", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, hasSideEffects: true},
+		{name: "XCHGQ", argLength: 3, reg: gpstorexchg, asm: "XCHGQ", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, hasSideEffects: true},
 
 		// Atomic adds.
 		// *(arg1+auxint+aux) += arg0.  arg2=mem.
 		// Returns a tuple of <old contents of *(arg1+auxint+aux), memory>.
 		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
-		{name: "XADDLlock", argLength: 3, reg: gpstorexchg, asm: "XADDL", typ: "(UInt32,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true},
-		{name: "XADDQlock", argLength: 3, reg: gpstorexchg, asm: "XADDQ", typ: "(UInt64,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true},
+		{name: "XADDLlock", argLength: 3, reg: gpstorexchg, asm: "XADDL", typ: "(UInt32,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, hasSideEffects: true},
+		{name: "XADDQlock", argLength: 3, reg: gpstorexchg, asm: "XADDQ", typ: "(UInt64,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, hasSideEffects: true},
 		{name: "AddTupleFirst32", argLength: 2}, // arg0=tuple <x,y>.  Returns <x+arg1,y>.
 		{name: "AddTupleFirst64", argLength: 2}, // arg0=tuple <x,y>.  Returns <x+arg1,y>.
 
@@ -553,12 +553,12 @@ func init() {
 		//    JEQ ...
 		// but we can't do that because memory-using ops can't generate flags yet
 		// (flagalloc wants to move flag-generating instructions around).
-		{name: "CMPXCHGLlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
-		{name: "CMPXCHGQlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGQ", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
+		{name: "CMPXCHGLlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "CMPXCHGQlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGQ", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// Atomic memory updates.
-		{name: "ANDBlock", argLength: 3, reg: gpstore, asm: "ANDB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true}, // *(arg0+auxint+aux) &= arg1
-		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},   // *(arg0+auxint+aux) |= arg1
+		{name: "ANDBlock", argLength: 3, reg: gpstore, asm: "ANDB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true}, // *(arg0+auxint+aux) &= arg1
+		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},   // *(arg0+auxint+aux) |= arg1
 	}
 
 	var AMD64blocks = []blockData{

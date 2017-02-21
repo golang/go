@@ -456,16 +456,16 @@ func init() {
 
 		// atomic stores.
 		// store arg1 to arg0. arg2=mem. returns memory. auxint must be zero.
-		{name: "STLR", argLength: 3, reg: gpstore, asm: "STLR", faultOnNilArg0: true},
-		{name: "STLRW", argLength: 3, reg: gpstore, asm: "STLRW", faultOnNilArg0: true},
+		{name: "STLR", argLength: 3, reg: gpstore, asm: "STLR", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "STLRW", argLength: 3, reg: gpstore, asm: "STLRW", faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic exchange.
 		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>. auxint must be zero.
 		// LDAXR	(Rarg0), Rout
 		// STLXR	Rarg1, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -2(PC)
-		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true},
-		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic add.
 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
@@ -473,8 +473,8 @@ func init() {
 		// ADD		Rarg1, Rout
 		// STLXR	Rout, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
-		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true},
-		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory. auxint must be zero.
@@ -490,8 +490,8 @@ func init() {
 		// STLXR	Rarg2, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -4(PC)
 		// CSET		EQ, Rout
-		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true},
-		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic and/or.
 		// *arg0 &= (|=) arg1. arg2=mem. returns memory. auxint must be zero.
@@ -499,8 +499,8 @@ func init() {
 		// AND/OR	Rarg1, Rtmp
 		// STLXRB	Rtmp, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
-		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true},
-		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "ORR", faultOnNilArg0: true},
+		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "ORR", faultOnNilArg0: true, hasSideEffects: true},
 	}
 
 	blocks := []blockData{
