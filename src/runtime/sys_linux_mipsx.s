@@ -323,7 +323,7 @@ TEXT runtime·futex(SB),NOSPLIT,$20-28
 	RET
 
 
-// int32 clone(int32 flags, void *stk, M *mm, G *gg, void (*fn)(void));
+// int32 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),NOSPLIT,$-4-24
 	MOVW	flags+0(FP), R4
 	MOVW	stk+4(FP), R5
@@ -335,9 +335,9 @@ TEXT runtime·clone(SB),NOSPLIT,$-4-24
 	// stack so that any syscall invoked immediately in the new thread won't fail.
 	ADD	$-32, R5
 
-	// Copy mm, gg, fn off parent stack for use by child.
-	MOVW	mm+8(FP), R16
-	MOVW	gg+12(FP), R17
+	// Copy mp, gp, fn off parent stack for use by child.
+	MOVW	mp+8(FP), R16
+	MOVW	gp+12(FP), R17
 	MOVW	fn+16(FP), R18
 
 	MOVW	$1234, R1
