@@ -20,7 +20,7 @@ func setDecryptKeyAsm(key *byte, keylen int, dec *uint32) int
 
 //go:noescape
 
-func doEncryptKeyAsm()
+func doEncryptKeyAsm(key *byte, keylen int, dec *uint32) int
 
 //go:noescape
 
