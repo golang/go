@@ -92,14 +92,14 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 		if fn == nil {
 			// Defer of nil function. Args don't matter.
 			frame.pc = 0
-			frame.fn = nil
+			frame.fn = funcInfo{}
 			frame.argp = 0
 			frame.arglen = 0
 			frame.argmap = nil
 		} else {
 			frame.pc = fn.fn
 			f := findfunc(frame.pc)
-			if f == nil {
+			if !f.valid() {
 				print("runtime: unknown pc in defer ", hex(frame.pc), "\n")
 				throw("unknown pc")
 			}
@@ -186,7 +186,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	}
 
 	f := findfunc(frame.pc)
-	if f == nil {
+	if !f.valid() {
 		if callback != nil {
 			print("runtime: unknown pc ", hex(frame.pc), "\n")
 			throw("unknown pc")
@@ -230,10 +230,10 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				frame.fp += sys.RegSize
 			}
 		}
-		var flr *_func
+		var flr funcInfo
 		if topofstack(f) {
 			frame.lr = 0
-			flr = nil
+			flr = funcInfo{}
 		} else if usesLR && f.entry == jmpdeferPC {
 			// jmpdefer modifies SP/LR/PC non-atomically.
 			// If a profiling interrupt arrives during jmpdefer,
@@ -259,7 +259,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 			}
 			flr = findfunc(frame.lr)
-			if flr == nil {
+			if !flr.valid() {
 				// This happens if you get a profiling interrupt at just the wrong time.
 				// In that context it is okay to stop early.
 				// But if callback is set, we're doing a garbage collection and must
@@ -403,7 +403,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		waspanic = f.entry == sigpanicPC
 
 		// Do not unwind past the bottom of the stack.
-		if flr == nil {
+		if !flr.valid() {
 			break
 		}
 
@@ -426,7 +426,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			}
 			f = findfunc(frame.pc)
 			frame.fn = f
-			if f == nil {
+			if !f.valid() {
 				frame.pc = x
 			} else if funcspdelta(f, frame.pc, &cache) == 0 {
 				frame.lr = x
@@ -521,7 +521,7 @@ type reflectMethodValue struct {
 // call, ctxt must be nil (getArgInfo will retrieve what it needs from
 // the active stack frame). If this is a deferred call, ctxt must be
 // the function object that was deferred.
-func getArgInfo(frame *stkframe, f *_func, needArgMap bool, ctxt *funcval) (arglen uintptr, argmap *bitvector) {
+func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (arglen uintptr, argmap *bitvector) {
 	arglen = uintptr(f.args)
 	if needArgMap && f.args == _ArgsSizeUnknown {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
@@ -593,7 +593,7 @@ func printcreatedby(gp *g) {
 	// Show what created goroutine, except main goroutine (goid 1).
 	pc := gp.gopc
 	f := findfunc(pc)
-	if f != nil && showframe(f, gp, false) && gp.goid != 1 {
+	if f.valid() && showframe(f, gp, false) && gp.goid != 1 {
 		print("created by ", funcname(f), "\n")
 		tracepc := pc // back up to CALL instruction for funcline.
 		if pc > f.entry {
@@ -673,7 +673,7 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
 	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, &pcbuf[0], len(pcbuf), nil, nil, 0)
 }
 
-func showframe(f *_func, gp *g, firstFrame bool) bool {
+func showframe(f funcInfo, gp *g, firstFrame bool) bool {
 	g := getg()
 	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
@@ -690,7 +690,7 @@ func showframe(f *_func, gp *g, firstFrame bool) bool {
 		return true
 	}
 
-	return level > 1 || f != nil && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
+	return level > 1 || f.valid() && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
 }
 
 // isExportedRuntime reports whether name is an exported runtime function.
@@ -781,7 +781,7 @@ func tracebackothers(me *g) {
 }
 
 // Does f mark the top of a goroutine stack?
-func topofstack(f *_func) bool {
+func topofstack(f funcInfo) bool {
 	pc := f.entry
 	return pc == goexitPC ||
 		pc == mstartPC ||

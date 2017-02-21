@@ -3336,7 +3336,7 @@ func sigprofNonGoPC(pc uintptr) {
 // or putting one on the stack at the right offset.
 func setsSP(pc uintptr) bool {
 	f := findfunc(pc)
-	if f == nil {
+	if !f.valid() {
 		// couldn't find the function for this PC,
 		// so assume the worst and stop traceback
 		return true

@@ -62,7 +62,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		// but we do recognize the top pointer on the stack as code,
 		// then assume this was a call to non-code and treat like
 		// pc == 0, to make unwinding show the context.
-		if pc != 0 && findfunc(pc) == nil && findfunc(*(*uintptr)(unsafe.Pointer(sp))) != nil {
+		if pc != 0 && !findfunc(pc).valid() && findfunc(*(*uintptr)(unsafe.Pointer(sp))).valid() {
 			pc = 0
 		}
 

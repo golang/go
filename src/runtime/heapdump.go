@@ -565,7 +565,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 	for i := uintptr(0); i < nstk; i++ {
 		pc := stk[i]
 		f := findfunc(pc)
-		if f == nil {
+		if !f.valid() {
 			var buf [64]byte
 			n := len(buf)
 			n--

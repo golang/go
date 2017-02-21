@@ -95,7 +95,7 @@ func pluginftabverify(md *moduledata) {
 			continue
 		}
 
-		f := (*_func)(unsafe.Pointer(&md.pclntable[md.ftab[i].funcoff]))
+		f := funcInfo{(*_func)(unsafe.Pointer(&md.pclntable[md.ftab[i].funcoff])), md}
 		name := funcname(f)
 
 		// A common bug is f.entry has a relocation to a duplicate
@@ -104,7 +104,7 @@ func pluginftabverify(md *moduledata) {
 		name2 := "none"
 		entry2 := uintptr(0)
 		f2 := findfunc(entry)
-		if f2 != nil {
+		if f2.valid() {
 			name2 = funcname(f2)
 			entry2 = f2.entry
 		}

@@ -174,7 +174,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 		return
 	}
 	f := findfunc(rpc[1])
-	if f == nil {
+	if !f.valid() {
 		// TODO(rsc): Probably a bug?
 		// The C version said "have retpc at least"
 		// but actually returned pc=0.
@@ -187,7 +187,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	// All architectures turn faults into apparent calls to sigpanic.
 	// If we see a call to sigpanic, we do not back up the PC to find
 	// the line number of the call instruction, because there is no call.
-	if xpc > f.entry && (g == nil || g.entry != funcPC(sigpanic)) {
+	if xpc > f.entry && (!g.valid() || g.entry != funcPC(sigpanic)) {
 		xpc--
 	}
 	file, line32 := funcline(f, xpc)
