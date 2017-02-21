@@ -18,7 +18,6 @@ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: c
 runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
 runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
 runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
-runtime/sys_GOOS_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: now is in package time
 
 // Legitimate vet complaints in which we are testing for correct runtime behavior
 // in bad situations that vet can also detect statically.
