@@ -494,17 +494,21 @@ func (c *Client) Do(req *Request) (*Response, error) {
 	}
 
 	var (
-		deadline    = c.deadline()
-		reqs        []*Request
-		resp        *Response
-		copyHeaders = c.makeHeadersCopier(req)
+		deadline      = c.deadline()
+		reqs          []*Request
+		resp          *Response
+		copyHeaders   = c.makeHeadersCopier(req)
+		reqBodyClosed = false // have we closed the current req.Body?
 
 		// Redirect behavior:
 		redirectMethod string
 		includeBody    bool
 	)
 	uerr := func(err error) error {
-		req.closeBody()
+		// the body may have been closed already by c.send()
+		if !reqBodyClosed {
+			req.closeBody()
+		}
 		method := valueOrDefault(reqs[0].Method, "GET")
 		var urlStr string
 		if resp != nil && resp.Request != nil {
@@ -596,6 +600,8 @@ func (c *Client) Do(req *Request) (*Response, error) {
 		var err error
 		var didTimeout func() bool
 		if resp, didTimeout, err = c.send(req, deadline); err != nil {
+			// c.send() always closes req.Body
+			reqBodyClosed = true
 			if !deadline.IsZero() && didTimeout() {
 				err = &httpError{
 					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",

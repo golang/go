@@ -1381,3 +1381,30 @@ func testServerUndeclaredTrailers(t *testing.T, h2 bool) {
 		t.Errorf("Trailer = %#v; want %#v", res.Trailer, want)
 	}
 }
+
+func TestBadResponseAfterReadingBody(t *testing.T) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, false, HandlerFunc(func(w ResponseWriter, r *Request) {
+		_, err := io.Copy(ioutil.Discard, r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+		fmt.Fprintln(c, "some bogus crap")
+	}))
+	defer cst.close()
+
+	closes := 0
+	res, err := cst.c.Post(cst.ts.URL, "text/plain", countCloseReader{&closes, strings.NewReader("hello")})
+	if err == nil {
+		res.Body.Close()
+		t.Fatal("expected an error to be returned from Post")
+	}
+	if closes != 1 {
+		t.Errorf("closes = %d; want 1", closes)
+	}
+}
