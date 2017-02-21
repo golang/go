@@ -12,13 +12,13 @@ TEXT ·SwapInt32(SB),NOSPLIT,$0-12
 TEXT ·SwapUint32(SB),NOSPLIT,$0-12
 	JMP	runtime∕internal∕atomic·Xchg(SB)
 
-TEXT ·SwapInt64(SB),NOSPLIT,$0-24
+TEXT ·SwapInt64(SB),NOSPLIT,$0-20
 	JMP	runtime∕internal∕atomic·Xchg64(SB)
 
-TEXT ·SwapUint64(SB),NOSPLIT,$0-24
+TEXT ·SwapUint64(SB),NOSPLIT,$0-20
 	JMP	runtime∕internal∕atomic·Xchg64(SB)
 
-TEXT ·SwapUintptr(SB),NOSPLIT,$0-20
+TEXT ·SwapUintptr(SB),NOSPLIT,$0-12
 	JMP	runtime∕internal∕atomic·Xchg(SB)
 
 TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-13
