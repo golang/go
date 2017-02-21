@@ -143,9 +143,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	INT	$0x80
 
 	MOVL	12(SP), AX		// sec - l32
-	MOVL	AX, sec+0(FP)
+	MOVL	AX, sec_lo+0(FP)
 	MOVL	16(SP), AX		// sec - h32
-	MOVL	AX, sec+4(FP)
+	MOVL	AX, sec_hi+4(FP)
 
 	MOVL	20(SP), BX		// nsec
 	MOVL	BX, nsec+8(FP)
