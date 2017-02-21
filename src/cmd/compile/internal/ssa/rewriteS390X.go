@@ -19111,7 +19111,7 @@ func rewriteBlockS390X(b *Block, config *Config) bool {
 		}
 		// match: (If cond yes no)
 		// cond:
-		// result: (NE (CMPWconst [0] (MOVBZreg cond)) yes no)
+		// result: (NE (CMPWconst [0] (MOVBZreg <config.fe.TypeBool()> cond)) yes no)
 		for {
 			v := b.Control
 			_ = v
@@ -19121,7 +19121,7 @@ func rewriteBlockS390X(b *Block, config *Config) bool {
 			b.Kind = BlockS390XNE
 			v0 := b.NewValue0(v.Pos, OpS390XCMPWconst, TypeFlags)
 			v0.AuxInt = 0
-			v1 := b.NewValue0(v.Pos, OpS390XMOVBZreg, config.fe.TypeUInt64())
+			v1 := b.NewValue0(v.Pos, OpS390XMOVBZreg, config.fe.TypeBool())
 			v1.AddArg(cond)
 			v0.AddArg(v1)
 			b.SetControl(v0)
