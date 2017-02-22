@@ -204,7 +204,7 @@ func PhaseOption(phase, flag string, val int, valString string) string {
 			}
 		}
 		return "" +
-			`GcFlag -d=ssa/<phase>/<flag>[=<value>]|[:<function_name>]
+			`GcFlag -d=ssa/<phase>/<flag>[=<value>|<function_name>]
 <phase> is one of:
 ` + phasenames + `
 <flag> is one of on, off, debug, mem, time, test, stats, dump

@@ -41,11 +41,12 @@ var (
 
 // Debug arguments.
 // These can be specified with the -d flag, as in "-d nil"
-// to set the debug_checknil variable. In general the list passed
-// to -d can be comma-separated.
+// to set the debug_checknil variable.
+// Multiple options can be comma-separated.
+// Each option accepts an optional argument, as in "gcprog=2"
 var debugtab = []struct {
 	name string
-	val  *int
+	val  interface{} // must be *int or *string
 }{
 	{"append", &Debug_append},         // print information about append compilation
 	{"closure", &Debug_closure},       // print information about closure compilation
@@ -269,26 +270,33 @@ func Main() {
 			if name == "" {
 				continue
 			}
-			val := 1
-			valstring := ""
-			if i := strings.Index(name, "="); i >= 0 {
+			val, valstring, haveInt := 1, "", true
+			if i := strings.IndexAny(name, "=:"); i >= 0 {
 				var err error
-				val, err = strconv.Atoi(name[i+1:])
+				name, valstring = name[:i], name[i+1:]
+				val, err = strconv.Atoi(valstring)
 				if err != nil {
-					log.Fatalf("invalid debug value %v", name)
+					val, haveInt = 1, false
 				}
-				name = name[:i]
-			} else if i := strings.Index(name, ":"); i >= 0 {
-				valstring = name[i+1:]
-				name = name[:i]
 			}
 			for _, t := range debugtab {
-				if t.name == name {
-					if t.val != nil {
-						*t.val = val
-						continue Split
-					}
+				if t.name != name {
+					continue
 				}
+				switch vp := t.val.(type) {
+				case nil:
+					// Ignore
+				case *string:
+					*vp = valstring
+				case *int:
+					if !haveInt {
+						log.Fatalf("invalid debug value %v", name)
+					}
+					*vp = val
+				default:
+					panic("bad debugtab type")
+				}
+				continue Split
 			}
 			// special case for ssa for now
 			if strings.HasPrefix(name, "ssa/") {
