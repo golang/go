@@ -263,7 +263,7 @@ var (
 
 func (t *tester) registerStdTest(pkg string) {
 	testName := "go_test:" + pkg
-	if t.runRx == nil || t.runRx.MatchString(testName) {
+	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
 		stdMatches = append(stdMatches, pkg)
 	}
 	t.tests = append(t.tests, distTest{
@@ -299,7 +299,7 @@ func (t *tester) registerStdTest(pkg string) {
 
 func (t *tester) registerRaceBenchTest(pkg string) {
 	testName := "go_test_bench:" + pkg
-	if t.runRx == nil || t.runRx.MatchString(testName) {
+	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
 		benchMatches = append(benchMatches, pkg)
 	}
 	t.tests = append(t.tests, distTest{
