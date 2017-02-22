@@ -23,7 +23,10 @@ func Commands() [][]string {
 	case "windows":
 		cmds = append(cmds, []string{"cmd", "/c", "start"})
 	default:
-		cmds = append(cmds, []string{"xdg-open"})
+		if os.Getenv("DISPLAY") != "" {
+			// xdg-open is only for use in a desktop environment.
+			cmds = append(cmds, []string{"xdg-open"})
+		}
 	}
 	cmds = append(cmds,
 		[]string{"chrome"},
