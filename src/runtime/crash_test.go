@@ -170,9 +170,6 @@ func checkStaleRuntime(t *testing.T) {
 				t.Logf("go list -f {{.StaleReason}} failed: %v", err)
 			}
 			t.Logf("go list -f {{.StaleReason}} runtime:\n%s", out)
-			out, err = testEnv(exec.Command("ls", "-lR", "--full-time", runtime.GOROOT())).CombinedOutput()
-			t.Logf("%s", out)
-
 			staleRuntimeErr = fmt.Errorf("Stale runtime.a. Run 'go install runtime'.")
 		}
 	})
