@@ -340,7 +340,8 @@ func ipEmptyString(ip IP) string {
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
-// The encoding is the same as returned by String.
+// The encoding is the same as returned by String, with one exception:
+// When len(ip) is zero, it returns an empty slice.
 func (ip IP) MarshalText() ([]byte, error) {
 	if len(ip) == 0 {
 		return []byte(""), nil
