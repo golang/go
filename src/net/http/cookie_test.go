@@ -69,7 +69,7 @@ var writeSetCookiesTests = []struct {
 	// are disallowed by RFC 6265 but are common in the wild.
 	{
 		&Cookie{Name: "special-1", Value: "a z"},
-		`special-1=a z`,
+		`special-1="a z"`,
 	},
 	{
 		&Cookie{Name: "special-2", Value: " z"},
@@ -85,7 +85,7 @@ var writeSetCookiesTests = []struct {
 	},
 	{
 		&Cookie{Name: "special-5", Value: "a,z"},
-		`special-5=a,z`,
+		`special-5="a,z"`,
 	},
 	{
 		&Cookie{Name: "special-6", Value: ",z"},
@@ -398,9 +398,12 @@ func TestCookieSanitizeValue(t *testing.T) {
 		{"foo\"bar", "foobar"},
 		{"\x00\x7e\x7f\x80", "\x7e"},
 		{`"withquotes"`, "withquotes"},
-		{"a z", "a z"},
+		{"a z", `"a z"`},
 		{" z", `" z"`},
 		{"a ", `"a "`},
+		{"a,z", `"a,z"`},
+		{",z", `",z"`},
+		{"a,", `"a,"`},
 	}
 	for _, tt := range tests {
 		if got := sanitizeCookieValue(tt.in); got != tt.want {
