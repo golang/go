@@ -663,7 +663,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 		pos := p.pos()
 		p.next()
 		p.xnest++
-		x := p.expr() // expr_or_type
+		x := p.expr()
 		p.xnest--
 		p.want(_Rparen)
 
@@ -718,12 +718,6 @@ func (p *parser) operand(keep_parens bool) Expr {
 
 	case _Lbrack, _Chan, _Map, _Struct, _Interface:
 		return p.type_() // othertype
-
-	case _Lbrace:
-		// common case: p.header is missing simpleStmt before { in if, for, switch
-		p.syntax_error("missing operand")
-		// '{' will be consumed in pexpr - no need to consume it here
-		return nil
 
 	default:
 		p.syntax_error("expecting expression")
@@ -850,12 +844,12 @@ loop:
 			// operand may have returned a parenthesized complit
 			// type; accept it but complain if we have a complit
 			t := unparen(x)
-			// determine if '{' belongs to a complit or a compound_stmt
+			// determine if '{' belongs to a composite literal or a block statement
 			complit_ok := false
 			switch t.(type) {
 			case *Name, *SelectorExpr:
 				if p.xnest >= 0 {
-					// x is considered a comptype
+					// x is considered a composite literal type
 					complit_ok = true
 				}
 			case *ArrayType, *SliceType, *StructType, *MapType:
@@ -1692,6 +1686,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 		}
 		return
 	}
+	// p.tok != _Lbrace
 
 	outer := p.xnest
 	p.xnest = -1
@@ -1712,7 +1707,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 	var condStmt SimpleStmt
 	var semi struct {
 		pos src.Pos
-		lit string
+		lit string // valid if pos.IsKnown()
 	}
 	if p.tok == _Semi {
 		semi.pos = p.pos()
@@ -1720,6 +1715,10 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 		p.next()
 		if keyword == _For {
 			if p.tok != _Semi {
+				if p.tok == _Lbrace {
+					p.syntax_error("expecting for loop condition")
+					goto done
+				}
 				condStmt = p.simpleStmt(nil, false)
 			}
 			p.want(_Semi)
@@ -1734,10 +1733,11 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 		init = nil
 	}
 
+done:
 	// unpack condStmt
 	switch s := condStmt.(type) {
 	case nil:
-		if keyword == _If {
+		if keyword == _If && semi.pos.IsKnown() {
 			if semi.lit != "semicolon" {
 				p.syntax_error_at(semi.pos, fmt.Sprintf("unexpected %s, expecting { after if clause", semi.lit))
 			} else {
@@ -2037,7 +2037,7 @@ func (p *parser) call(fun Expr) *CallExpr {
 	p.xnest++
 
 	for p.tok != _EOF && p.tok != _Rparen {
-		c.ArgList = append(c.ArgList, p.expr()) // expr_or_type
+		c.ArgList = append(c.ArgList, p.expr())
 		c.HasDots = p.got(_DotDotDot)
 		if !p.ocomma(_Rparen) || c.HasDots {
 			break
