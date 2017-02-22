@@ -1507,13 +1507,7 @@ func isStale(p *Package) (bool, string) {
 	// Package is stale if a dependency is.
 	for _, p1 := range p.Internal.Deps {
 		if p1.Stale {
-			// Don't add "stale dependency" if it is
-			// already there.
-			if strings.HasPrefix(p1.StaleReason, "stale dependency") {
-				return true, p1.StaleReason
-			}
-			msg := fmt.Sprintf("stale dependency %s: %s", p1.Name, p1.StaleReason)
-			return true, msg
+			return true, "stale dependency"
 		}
 	}
 
@@ -1551,8 +1545,7 @@ func isStale(p *Package) (bool, string) {
 	// Package is stale if a dependency is, or if a dependency is newer.
 	for _, p1 := range p.Internal.Deps {
 		if p1.Internal.Target != "" && olderThan(p1.Internal.Target) {
-			msg := fmt.Sprintf("newer dependency %s ", p1.Internal.Target)
-			return true, msg
+			return true, "newer dependency"
 		}
 	}
 
@@ -1619,8 +1612,7 @@ func isStale(p *Package) (bool, string) {
 	srcs := str.StringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
-			msg := fmt.Sprintf("newer source file %s", filepath.Join(p.Dir, src))
-			return true, msg
+			return true, "newer source file"
 		}
 	}
 
