@@ -338,7 +338,7 @@ func walkstmt(n *Node) *Node {
 			break
 		}
 
-		ll := ascompatte(n.Op, nil, false, Curfn.Type.Results(), n.List.Slice(), 1, &n.Ninit)
+		ll := ascompatte(nil, false, Curfn.Type.Results(), n.List.Slice(), 1, &n.Ninit)
 		n.List.Set(ll)
 
 	case ORETJMP:
@@ -611,7 +611,7 @@ opswitch:
 		}
 		n.Left = walkexpr(n.Left, init)
 		walkexprlist(n.List.Slice(), init)
-		ll := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
+		ll := ascompatte(n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
 		n.List.Set(reorder1(ll))
 
 	case OCALLFUNC:
@@ -644,7 +644,7 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 		walkexprlist(n.List.Slice(), init)
 
-		ll := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
+		ll := ascompatte(n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
 		n.List.Set(reorder1(ll))
 
 	case OCALLMETH:
@@ -654,8 +654,8 @@ opswitch:
 		}
 		n.Left = walkexpr(n.Left, init)
 		walkexprlist(n.List.Slice(), init)
-		ll := ascompatte(n.Op, n, false, t.Recvs(), []*Node{n.Left.Left}, 0, init)
-		lr := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
+		ll := ascompatte(n, false, t.Recvs(), []*Node{n.Left.Left}, 0, init)
+		lr := ascompatte(n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
 		ll = append(ll, lr...)
 		n.Left.Left = nil
 		ullmancalc(n.Left)
@@ -1737,162 +1737,82 @@ func ascompatet(op Op, nl Nodes, nr *Type) []*Node {
 }
 
 // package all the arguments that match a ... T parameter into a []T.
-func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []*Node {
+func mkdotargslice(typ *Type, args []*Node, init *Nodes, ddd *Node) *Node {
 	esc := uint16(EscUnknown)
 	if ddd != nil {
 		esc = ddd.Esc
 	}
 
-	tslice := typSlice(l.Type.Elem())
-
-	var n *Node
-	if len(lr0) == 0 {
-		n = nodnil()
-		n.Type = tslice
-	} else {
-		n = nod(OCOMPLIT, nil, typenod(tslice))
-		if ddd != nil && prealloc[ddd] != nil {
-			prealloc[n] = prealloc[ddd] // temporary to use
-		}
-		n.List.Set(lr0)
-		n.Esc = esc
-		n = typecheck(n, Erv)
-		if n.Type == nil {
-			Fatalf("mkdotargslice: typecheck failed")
-		}
-		n = walkexpr(n, init)
+	if len(args) == 0 {
+		n := nodnil()
+		n.Type = typ
+		return n
 	}
 
-	a := nod(OAS, nodarg(l, fp), n)
-	nn = append(nn, convas(a, init))
-	return nn
-}
-
-// helpers for shape errors
-func dumptypes(nl *Type, what string) string {
-	s := ""
-	for _, l := range nl.Fields().Slice() {
-		if s != "" {
-			s += ", "
-		}
-		s += fldconv(l, 0)
+	n := nod(OCOMPLIT, nil, typenod(typ))
+	if ddd != nil && prealloc[ddd] != nil {
+		prealloc[n] = prealloc[ddd] // temporary to use
 	}
-	if s == "" {
-		s = fmt.Sprintf("[no arguments %s]", what)
+	n.List.Set(args)
+	n.Esc = esc
+	n = typecheck(n, Erv)
+	if n.Type == nil {
+		Fatalf("mkdotargslice: typecheck failed")
 	}
-	return s
-}
-
-func dumpnodetypes(l []*Node, what string) string {
-	s := ""
-	for _, r := range l {
-		if s != "" {
-			s += ", "
-		}
-		s += r.Type.String()
-	}
-	if s == "" {
-		s = fmt.Sprintf("[no arguments %s]", what)
-	}
-	return s
+	n = walkexpr(n, init)
+	return n
 }
 
 // check assign expression list to
 // a type list. called in
 //	return expr-list
 //	func(expr-list)
-func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, init *Nodes) []*Node {
-	lr0 := lr
-	l, savel := iterFields(nl)
-	var r *Node
-	if len(lr) > 0 {
-		r = lr[0]
-	}
+func ascompatte(call *Node, isddd bool, lhs *Type, rhs []*Node, fp int, init *Nodes) []*Node {
 	var nn []*Node
 
 	// f(g()) where g has multiple return values
-	if r != nil && len(lr) <= 1 && r.Type.IsFuncArgStruct() {
+	if len(rhs) == 1 && rhs[0].Type.IsFuncArgStruct() {
 		// optimization - can do block copy
-		if eqtypenoname(r.Type, nl) {
-			arg := nodarg(nl, fp)
-			r = nod(OCONVNOP, r, nil)
-			r.Type = arg.Type
-			nn = []*Node{convas(nod(OAS, arg, r), init)}
+		if eqtypenoname(rhs[0].Type, lhs) {
+			nl := nodarg(lhs, fp)
+			nr := nod(OCONVNOP, rhs[0], nil)
+			nr.Type = nl.Type
+			nn = []*Node{convas(nod(OAS, nl, nr), init)}
 			goto ret
 		}
 
 		// conversions involved.
 		// copy into temporaries.
-		var alist []*Node
-
-		for _, l := range r.Type.Fields().Slice() {
-			tmp := temp(l.Type)
-			alist = append(alist, tmp)
+		var tmps []*Node
+		for _, nr := range rhs[0].Type.FieldSlice() {
+			tmps = append(tmps, temp(nr.Type))
 		}
 
 		a := nod(OAS2, nil, nil)
-		a.List.Set(alist)
-		a.Rlist.Set(lr)
+		a.List.Set(tmps)
+		a.Rlist.Set(rhs)
 		a = typecheck(a, Etop)
 		a = walkstmt(a)
 		init.Append(a)
-		lr = alist
-		r = lr[0]
-		l, savel = iterFields(nl)
+
+		rhs = tmps
 	}
 
-	for {
-		if l != nil && l.Isddd {
-			// the ddd parameter must be last
-			ll := savel.Next()
-
-			if ll != nil {
-				yyerror("... must be last argument")
-			}
-
-			// special case --
-			// only if we are assigning a single ddd
-			// argument to a ddd parameter then it is
-			// passed through unencapsulated
-			if r != nil && len(lr) <= 1 && isddd && eqtype(l.Type, r.Type) {
-				a := nod(OAS, nodarg(l, fp), r)
-				a = convas(a, init)
-				nn = append(nn, a)
-				break
-			}
-
-			// normal case -- make a slice of all
-			// remaining arguments and pass it to
-			// the ddd parameter.
-			nn = mkdotargslice(lr, nn, l, fp, init, call.Right)
-
-			break
+	// For each parameter (LHS), assign its corresponding argument (RHS).
+	// If there's a ... parameter (which is only valid as the final
+	// parameter) and this is not a ... call expression,
+	// then assign the remaining arguments as a slice.
+	for i, nl := range lhs.FieldSlice() {
+		var nr *Node
+		if nl.Isddd && !isddd {
+			nr = mkdotargslice(nl.Type, rhs[i:], init, call.Right)
+		} else {
+			nr = rhs[i]
 		}
 
-		if l == nil || r == nil {
-			if l != nil || r != nil {
-				l1 := dumptypes(nl, "expected")
-				l2 := dumpnodetypes(lr0, "given")
-				if l != nil {
-					yyerror("not enough arguments to %v\n\t%s\n\t%s", op, l1, l2)
-				} else {
-					yyerror("too many arguments to %v\n\t%s\n\t%s", op, l1, l2)
-				}
-			}
-
-			break
-		}
-
-		a := nod(OAS, nodarg(l, fp), r)
+		a := nod(OAS, nodarg(nl, fp), nr)
 		a = convas(a, init)
 		nn = append(nn, a)
-
-		l = savel.Next()
-		r = nil
-		lr = lr[1:]
-		if len(lr) > 0 {
-			r = lr[0]
-		}
 	}
 
 ret:
