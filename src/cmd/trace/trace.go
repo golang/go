@@ -475,7 +475,7 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			goFinish := getGInfo(ev.G).start.Link
 			fakeMarkStart := *ev
 			text := "MARK ASSIST"
-			if markFinish.Ts > goFinish.Ts {
+			if markFinish == nil || markFinish.Ts > goFinish.Ts {
 				fakeMarkStart.Link = goFinish
 				text = "MARK ASSIST (unfinished)"
 			}
@@ -496,7 +496,7 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 				goFinish := ev.Link
 				fakeMarkStart := *ev
 				text := "MARK ASSIST (resumed, unfinished)"
-				if markFinish.Ts < goFinish.Ts {
+				if markFinish != nil && markFinish.Ts < goFinish.Ts {
 					fakeMarkStart.Link = markFinish
 					text = "MARK ASSIST (resumed)"
 				}
