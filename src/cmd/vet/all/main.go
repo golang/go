@@ -220,7 +220,11 @@ func (p platform) vet(ncpus int) {
 	// Not installing leads to non-obvious failures due to inability to typecheck.
 	// TODO: If go/loader ever makes it to the standard library, have vet use it,
 	// at which point vet can work off source rather than compiled packages.
-	cmd := exec.Command(cmdGoPath, "install", "-p", strconv.Itoa(ncpus), "std")
+	gcflags := ""
+	if p != hostPlatform {
+		gcflags = "-dolinkobj=false"
+	}
+	cmd := exec.Command(cmdGoPath, "install", "-p", strconv.Itoa(ncpus), "-gcflags="+gcflags, "std")
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	if err != nil {
