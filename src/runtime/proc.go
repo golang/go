@@ -3791,7 +3791,7 @@ func sysmon() {
 		}
 		// check if we need to force a GC
 		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
-		if gcphase == _GCoff && lastgc != 0 && now-lastgc > forcegcperiod && atomic.Load(&forcegc.idle) != 0 {
+		if gcShouldStart(true) && lastgc != 0 && now-lastgc > forcegcperiod && atomic.Load(&forcegc.idle) != 0 {
 			lock(&forcegc.lock)
 			forcegc.idle = 0
 			forcegc.g.schedlink = 0
