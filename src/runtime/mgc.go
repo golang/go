@@ -911,8 +911,8 @@ type gcTriggerKind int
 
 const (
 	// gcTriggerAlways indicates that a cycle should be started
-	// unconditionally, even if GOGC is off. This cannot be
-	// consolidated with other cycles.
+	// unconditionally, even if GOGC is off or we're in a cycle
+	// right now. This cannot be consolidated with other cycles.
 	gcTriggerAlways gcTriggerKind = iota
 
 	// gcTriggerHeap indicates that a cycle should be started when
@@ -930,13 +930,13 @@ const (
 // that the exit condition for the _GCoff phase has been met. The exit
 // condition should be tested when allocating.
 func (t gcTrigger) test() bool {
-	if !(gcphase == _GCoff && memstats.enablegc && panicking == 0) {
+	if !memstats.enablegc || panicking != 0 {
 		return false
 	}
 	if t.kind == gcTriggerAlways {
 		return true
 	}
-	if gcpercent < 0 {
+	if gcphase != _GCoff || gcpercent < 0 {
 		return false
 	}
 	switch t.kind {
@@ -984,19 +984,11 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 
 	// Perform GC initialization and the sweep termination
 	// transition.
-	//
-	// If this is a forced GC, don't acquire the transition lock
-	// or re-check the transition condition because we
-	// specifically *don't* want to share the transition with
-	// another thread.
-	useStartSema := trigger.kind != gcTriggerAlways
-	if useStartSema {
-		semacquire(&work.startSema)
-		// Re-check transition condition under transition lock.
-		if !trigger.test() {
-			semrelease(&work.startSema)
-			return
-		}
+	semacquire(&work.startSema)
+	// Re-check transition condition under transition lock.
+	if !trigger.test() {
+		semrelease(&work.startSema)
+		return
 	}
 
 	// For stats, check if this GC was forced by the user.
@@ -1103,9 +1095,7 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 		gcMarkTermination()
 	}
 
-	if useStartSema {
-		semrelease(&work.startSema)
-	}
+	semrelease(&work.startSema)
 }
 
 // gcMarkDone transitions the GC from mark 1 to mark 2 and from mark 2
