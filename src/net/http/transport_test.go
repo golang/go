@@ -2900,6 +2900,40 @@ func TestTransportResponseCancelRace(t *testing.T) {
 	res.Body.Close()
 }
 
+// Test for issue 19248: Content-Encoding's value is case insensitive.
+func TestTransportContentEncodingCaseInsensitive(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	for _, ce := range []string{"gzip", "GZIP"} {
+		ce := ce
+		t.Run(ce, func(t *testing.T) {
+			const encodedString = "aaaa"
+			ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+				conn, _, _ := w.(Hijacker).Hijack()
+				fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Encoding: %s\r\nContent-Length: 28\r\n\r\n", ce)
+				conn.Write([]byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x4a\x4c\x4c\x4c\x04\x04\x00\x00\xff\xff\x45\xe5\x98\xad\x04\x00\x00\x00"))
+				conn.Close()
+			}))
+			defer ts.Close()
+
+			res, err := ts.Client().Get(ts.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			body, err := ioutil.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if string(body) != encodedString {
+				t.Fatalf("Expected body %q, got: %q\n", encodedString, string(body))
+			}
+		})
+	}
+}
+
 func TestTransportDialCancelRace(t *testing.T) {
 	defer afterTest(t)
 
