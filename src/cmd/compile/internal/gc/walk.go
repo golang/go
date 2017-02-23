@@ -882,6 +882,7 @@ opswitch:
 		switch {
 		case n.Left.Type.Size() == 0:
 			// n.Left is zero-sized. Use zerobase.
+			cheapexpr(n.Left, init) // Evaluate n.Left for side-effects. See issue 19246.
 			value = zerobase
 		case n.Left.Type.IsBoolean() || (n.Left.Type.Size() == 1 && n.Left.Type.IsInteger()):
 			// n.Left is a bool/byte. Use staticbytes[n.Left].
