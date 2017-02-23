@@ -289,8 +289,51 @@ func TestStdinCloseRace(t *testing.T) {
 
 // Issue 5071
 func TestPipeLookPathLeak(t *testing.T) {
-	fd0, lsof0 := numOpenFDS(t)
-	for i := 0; i < 4; i++ {
+	// If we are reading from /proc/self/fd we (should) get an exact result.
+	tolerance := 0
+
+	// Reading /proc/self/fd is more reliable than calling lsof, so try that
+	// first.
+	numOpenFDs := func() (int, []byte, error) {
+		fds, err := ioutil.ReadDir("/proc/self/fd")
+		if err != nil {
+			return 0, nil, err
+		}
+		return len(fds), nil, nil
+	}
+	want, before, err := numOpenFDs()
+	if err != nil {
+		// We encountered a problem reading /proc/self/fd (we might be on
+		// a platform that doesn't have it). Fall back onto lsof.
+		t.Logf("using lsof because: %v", err)
+		numOpenFDs = func() (int, []byte, error) {
+			// Android's stock lsof does not obey the -p option,
+			// so extra filtering is needed.
+			// https://golang.org/issue/10206
+			if runtime.GOOS == "android" {
+				// numOpenFDsAndroid handles errors itself and
+				// might skip or fail the test.
+				n, lsof := numOpenFDsAndroid(t)
+				return n, lsof, nil
+			}
+			lsof, err := exec.Command("lsof", "-b", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
+			return bytes.Count(lsof, []byte("\n")), lsof, err
+		}
+
+		// lsof may see file descriptors associated with the fork itself,
+		// so we allow some extra margin if we have to use it.
+		// https://golang.org/issue/19243
+		tolerance = 5
+
+		// Retry reading the number of open file descriptors.
+		want, before, err = numOpenFDs()
+		if err != nil {
+			t.Log(err)
+			t.Skipf("skipping test; error finding or running lsof")
+		}
+	}
+
+	for i := 0; i < 6; i++ {
 		cmd := exec.Command("something-that-does-not-exist-binary")
 		cmd.StdoutPipe()
 		cmd.StderrPipe()
@@ -299,36 +342,20 @@ func TestPipeLookPathLeak(t *testing.T) {
 			t.Fatal("unexpected success")
 		}
 	}
-	for triesLeft := 3; triesLeft >= 0; triesLeft-- {
-		open, lsof := numOpenFDS(t)
-		fdGrowth := open - fd0
-		if fdGrowth > 2 {
-			if triesLeft > 0 {
-				// Work around what appears to be a race with Linux's
-				// proc filesystem (as used by lsof). It seems to only
-				// be eventually consistent. Give it awhile to settle.
-				// See golang.org/issue/7808
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-			t.Errorf("leaked %d fds; want ~0; have:\n%s\noriginally:\n%s", fdGrowth, lsof, lsof0)
-		}
-		break
-	}
-}
-
-func numOpenFDS(t *testing.T) (n int, lsof []byte) {
-	if runtime.GOOS == "android" {
-		// Android's stock lsof does not obey the -p option,
-		// so extra filtering is needed. (golang.org/issue/10206)
-		return numOpenFDsAndroid(t)
-	}
-
-	lsof, err := exec.Command("lsof", "-b", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
+	got, after, err := numOpenFDs()
 	if err != nil {
-		t.Skip("skipping test; error finding or running lsof")
+		// numOpenFDs has already succeeded once, it should work here.
+		t.Errorf("unexpected failure: %v", err)
 	}
-	return bytes.Count(lsof, []byte("\n")), lsof
+	if got-want > tolerance {
+		t.Errorf("number of open file descriptors changed: got %v, want %v", got, want)
+		if before != nil {
+			t.Errorf("before:\n%v\n", before)
+		}
+		if after != nil {
+			t.Errorf("after:\n%v\n", after)
+		}
+	}
 }
 
 func numOpenFDsAndroid(t *testing.T) (n int, lsof []byte) {
