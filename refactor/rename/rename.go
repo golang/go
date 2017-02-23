@@ -392,6 +392,9 @@ func loadProgram(ctxt *build.Context, pkgs map[string]bool) (*loader.Program, er
 	// It would be nice if the loader API permitted "AllowErrors: soft".
 	conf.AllowErrors = true
 	prog, err := conf.Load()
+	if err != nil {
+		return nil, err
+	}
 	var errpkgs []string
 	// Report hard errors in indirectly imported packages.
 	for _, info := range prog.AllPackages {
@@ -408,7 +411,7 @@ func loadProgram(ctxt *build.Context, pkgs map[string]bool) (*loader.Program, er
 		return nil, fmt.Errorf("couldn't load packages due to errors: %s%s",
 			strings.Join(errpkgs, ", "), more)
 	}
-	return prog, err
+	return prog, nil
 }
 
 func containsHardErrors(errors []error) bool {

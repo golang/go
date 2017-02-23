@@ -72,6 +72,14 @@ var _ foo.T
 				"support move destinations whose base names are not valid " +
 				"go identifiers",
 		},
+		{
+			ctxt: fakeContext(map[string][]string{
+				"foo": {``},
+				"bar": {`package bar`},
+			}),
+			from: "foo", to: "bar",
+			want: `no initial packages were loaded`,
+		},
 	}
 
 	for _, test := range tests {
