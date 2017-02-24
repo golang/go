@@ -74,7 +74,7 @@ func what(q *Query) error {
 			}
 		}
 
-		// For pointsto, we approximate findInterestingNode.
+		// For pointsto and whicherrs, we approximate findInterestingNode.
 		if _, ok := enable["pointsto"]; !ok {
 			switch n.(type) {
 			case ast.Stmt,
@@ -84,10 +84,14 @@ func what(q *Query) error {
 				*ast.InterfaceType,
 				*ast.MapType,
 				*ast.ChanType:
-				enable["pointsto"] = false // not an expr
+				// not an expression
+				enable["pointsto"] = false
+				enable["whicherrs"] = false
 
 			case ast.Expr, ast.Decl, *ast.ValueSpec:
-				enable["pointsto"] = true // an expr, maybe
+				// an expression, maybe
+				enable["pointsto"] = true
+				enable["whicherrs"] = true
 
 			default:
 				// Comment, Field, KeyValueExpr, etc: ascend.
