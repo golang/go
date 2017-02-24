@@ -9,6 +9,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -36,12 +37,14 @@ func checkLinear(typ string, tries int, f func(n int)) {
 
 	n := tries
 	fails := 0
+	var buf bytes.Buffer
 	for {
 		t1 := timeF(n)
 		t2 := timeF(2 * n)
 		if debug {
 			println(n, t1.String(), 2*n, t2.String())
 		}
+		fmt.Fprintf(&buf, "%d %v %d %v\n", n, t1, 2*n, t2)
 		// should be 2x (linear); allow up to 2.5x
 		if t1*3/2 < t2 && t2 < t1*5/2 {
 			return
@@ -56,23 +59,27 @@ func checkLinear(typ string, tries int, f func(n int)) {
 		}
 		// Once the test runs long enough for n ops,
 		// try to get the right ratio at least once.
-		// If five in a row all fail, give up.
-		if fails++; fails >= 5 {
-			panic(fmt.Sprintf("%s: too slow: %d ops: %v; %d ops: %v\n",
-				typ, n, t1, 2*n, t2))
+		// If many in a row all fail, give up.
+		if fails++; fails >= 10 {
+			panic(fmt.Sprintf("%s: too slow: %d ops: %v; %d ops: %v\n\n%s",
+				typ, n, t1, 2*n, t2, buf.String()))
 		}
 	}
 }
 
 const offset = 251 // known size of runtime hash table
 
+const profile = false
+
 func main() {
-	f, err := os.Create("lock.prof")
-	if err != nil {
-		log.Fatal(err)
+	if profile {
+		f, err := os.Create("lock.prof")
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
 
 	checkLinear("lockone", 1000, func(n int) {
 		ch := make(chan int)
