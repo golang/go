@@ -315,6 +315,27 @@ func mProf_FlushLocked() {
 	}
 }
 
+// mProf_PostSweep records that all sweep frees for this GC cycle have
+// completed. This has the effect of publishing the heap profile
+// snapshot as of the last mark termination without advancing the heap
+// profile cycle.
+func mProf_PostSweep() {
+	lock(&proflock)
+	// Flush cycle C+1 to the active profile so everything as of
+	// the last mark termination becomes visible. *Don't* advance
+	// the cycle, since we're still accumulating allocs in cycle
+	// C+2, which have to become C+1 in the next mark termination
+	// and so on.
+	c := mProf.cycle
+	for b := mbuckets; b != nil; b = b.allnext {
+		mp := b.mp()
+		mpc := &mp.future[(c+1)%uint32(len(mp.future))]
+		mp.active.add(mpc)
+		*mpc = memRecordCycle{}
+	}
+	unlock(&proflock)
+}
+
 // Called by malloc to record a profiled block.
 func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 	var stk [maxStack]uintptr

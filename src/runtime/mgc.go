@@ -884,6 +884,19 @@ var work struct {
 		head, tail guintptr
 	}
 
+	// sweepWaiters is a list of blocked goroutines to wake when
+	// we transition from mark termination to sweep.
+	sweepWaiters struct {
+		lock mutex
+		head guintptr
+	}
+
+	// cycles is the number of completed GC cycles, where a GC
+	// cycle is sweep termination, mark, mark termination, and
+	// sweep. This differs from memstats.numgc, which is
+	// incremented at mark termination.
+	cycles uint32
+
 	// Timing/utilization stats for this cycle.
 	stwprocs, maxprocs                 int32
 	tSweepTerm, tMark, tMarkTerm, tEnd int64 // nanotime() of phase start
@@ -899,7 +912,94 @@ var work struct {
 // garbage collection is complete. It may also block the entire
 // program.
 func GC() {
-	gcStart(gcForceBlockMode, gcTrigger{kind: gcTriggerAlways})
+	// We consider a cycle to be: sweep termination, mark, mark
+	// termination, and sweep. This function shouldn't return
+	// until a full cycle has been completed, from beginning to
+	// end. Hence, we always want to finish up the current cycle
+	// and start a new one. That means:
+	//
+	// 1. In sweep termination, mark, or mark termination of cycle
+	// N, wait until mark termination N completes and transitions
+	// to sweep N.
+	//
+	// 2. In sweep N, help with sweep N.
+	//
+	// At this point we can begin a full cycle N+1.
+	//
+	// 3. Trigger cycle N+1 by starting sweep termination N+1.
+	//
+	// 4. Wait for mark termination N+1 to complete.
+	//
+	// 5. Help with sweep N+1 until it's done.
+	//
+	// This all has to be written to deal with the fact that the
+	// GC may move ahead on its own. For example, when we block
+	// until mark termination N, we may wake up in cycle N+2.
+
+	gp := getg()
+
+	// Prevent the GC phase or cycle count from changing.
+	lock(&work.sweepWaiters.lock)
+	n := atomic.Load(&work.cycles)
+	if gcphase == _GCmark {
+		// Wait until sweep termination, mark, and mark
+		// termination of cycle N complete.
+		gp.schedlink = work.sweepWaiters.head
+		work.sweepWaiters.head.set(gp)
+		goparkunlock(&work.sweepWaiters.lock, "wait for GC cycle", traceEvGoBlock, 1)
+	} else {
+		// We're in sweep N already.
+		unlock(&work.sweepWaiters.lock)
+	}
+
+	// We're now in sweep N or later. Trigger GC cycle N+1, which
+	// will first finish sweep N if necessary and then enter sweep
+	// termination N+1.
+	gcStart(gcBackgroundMode, gcTrigger{kind: gcTriggerCycle, n: n + 1})
+
+	// Wait for mark termination N+1 to complete.
+	lock(&work.sweepWaiters.lock)
+	if gcphase == _GCmark && atomic.Load(&work.cycles) == n+1 {
+		gp.schedlink = work.sweepWaiters.head
+		work.sweepWaiters.head.set(gp)
+		goparkunlock(&work.sweepWaiters.lock, "wait for GC cycle", traceEvGoBlock, 1)
+	} else {
+		unlock(&work.sweepWaiters.lock)
+	}
+
+	// Finish sweep N+1 before returning. We do this both to
+	// complete the cycle and because runtime.GC() is often used
+	// as part of tests and benchmarks to get the system into a
+	// relatively stable and isolated state.
+	for atomic.Load(&work.cycles) == n+1 && gosweepone() != ^uintptr(0) {
+		sweep.nbgsweep++
+		Gosched()
+	}
+
+	// Callers may assume that the heap profile reflects the
+	// just-completed cycle when this returns (historically this
+	// happened because this was a STW GC), but right now the
+	// profile still reflects mark termination N, not N+1.
+	//
+	// As soon as all of the sweep frees from cycle N+1 are done,
+	// we can go ahead and publish the heap profile.
+	//
+	// First, wait for sweeping to finish. (We know there are no
+	// more spans on the sweep queue, but we may be concurrently
+	// sweeping spans, so we have to wait.)
+	for atomic.Load(&work.cycles) == n+1 && atomic.Load(&mheap_.sweepers) != 0 {
+		Gosched()
+	}
+
+	// Now we're really done with sweeping, so we can publish the
+	// stable heap profile. Only do this if we haven't already hit
+	// another mark termination.
+	mp := acquirem()
+	cycle := atomic.Load(&work.cycles)
+	if cycle == n+1 || (gcphase == _GCmark && cycle == n+2) {
+		mProf_PostSweep()
+	}
+	releasem(mp)
 }
 
 // gcMode indicates how concurrent a GC cycle should be.
@@ -915,7 +1015,8 @@ const (
 // it is an exit condition for the _GCoff phase.
 type gcTrigger struct {
 	kind gcTriggerKind
-	now  int64 // gcTriggerTime: current time
+	now  int64  // gcTriggerTime: current time
+	n    uint32 // gcTriggerCycle: cycle number to start
 }
 
 type gcTriggerKind int
@@ -935,6 +1036,11 @@ const (
 	// it's been more than forcegcperiod nanoseconds since the
 	// previous GC cycle.
 	gcTriggerTime
+
+	// gcTriggerCycle indicates that a cycle should be started if
+	// we have not yet started cycle number gcTrigger.n (relative
+	// to work.cycles).
+	gcTriggerCycle
 )
 
 // test returns true if the trigger condition is satisfied, meaning
@@ -956,6 +1062,9 @@ func (t gcTrigger) test() bool {
 	case gcTriggerTime:
 		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
 		return lastgc != 0 && t.now-lastgc > forcegcperiod
+	case gcTriggerCycle:
+		// t.n > work.cycles, but accounting for wraparound.
+		return int32(t.n-work.cycles) > 0
 	}
 	return true
 }
@@ -1003,7 +1112,7 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 	}
 
 	// For stats, check if this GC was forced by the user.
-	work.userForced = trigger.kind == gcTriggerAlways
+	work.userForced = trigger.kind == gcTriggerAlways || trigger.kind == gcTriggerCycle
 
 	// In gcstoptheworld debug mode, upgrade the mode accordingly.
 	// We do this after re-checking the transition condition so
@@ -1047,6 +1156,7 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 	// reclaimed until the next GC cycle.
 	clearpools()
 
+	work.cycles++
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		gcController.startCycle()
 		work.heapGoal = memstats.next_gc
@@ -1331,8 +1441,6 @@ func gcMarkTermination() {
 	totalCpu := sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
 	memstats.gc_cpu_fraction = float64(work.totaltime) / float64(totalCpu)
 
-	memstats.numgc++
-
 	// Reset sweep state.
 	sweep.nbgsweep = 0
 	sweep.npausesweep = 0
@@ -1340,6 +1448,13 @@ func gcMarkTermination() {
 	if work.userForced {
 		memstats.numforcedgc++
 	}
+
+	// Bump GC cycle count and wake goroutines waiting on sweep.
+	lock(&work.sweepWaiters.lock)
+	memstats.numgc++
+	injectglist(work.sweepWaiters.head.ptr())
+	work.sweepWaiters.head = 0
+	unlock(&work.sweepWaiters.lock)
 
 	// Finish the current heap profiling cycle and start a new
 	// heap profiling cycle. We do this before starting the world
