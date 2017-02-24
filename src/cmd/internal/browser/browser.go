@@ -49,7 +49,7 @@ func Open(url string) bool {
 	return false
 }
 
-// appearsSuccessful reports whether the command appears to have run succesfully.
+// appearsSuccessful reports whether the command appears to have run successfully.
 // If the command runs longer than the timeout, it's deemed successful.
 // If the command runs within the timeout, it's deemed successful if it exited cleanly.
 func appearsSuccessful(cmd *exec.Cmd, timeout time.Duration) bool {
