@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 struct sigaction sa;
@@ -30,7 +31,12 @@ int install_handler() {
 		perror("sigaction");
 		return 2;
 	}
-	if (osa.sa_handler == SIG_DFL || (osa.sa_flags&SA_ONSTACK) == 0) {
+	if (osa.sa_handler == SIG_DFL) {
+		fprintf(stderr, "Go runtime did not install signal handler\n");
+		return 2;
+	}
+	// gccgo does not set SA_ONSTACK for SIGSEGV.
+	if (getenv("GCCGO") == "" && (osa.sa_flags&SA_ONSTACK) == 0) {
 		fprintf(stderr, "Go runtime did not install signal handler\n");
 		return 2;
 	}
