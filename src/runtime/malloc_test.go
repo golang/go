@@ -28,28 +28,40 @@ func TestMemStats(t *testing.T) {
 		}
 		return fmt.Errorf("zero value")
 	}
-	le := func(thresh uint64) func(interface{}) error {
+	le := func(thresh float64) func(interface{}) error {
 		return func(x interface{}) error {
-			if reflect.ValueOf(x).Uint() < thresh {
+			if reflect.ValueOf(x).Convert(reflect.TypeOf(thresh)).Float() < thresh {
 				return nil
 			}
-			return fmt.Errorf("insanely high value (overflow?); want <= %d", thresh)
+			return fmt.Errorf("insanely high value (overflow?); want <= %v", thresh)
 		}
 	}
-	// Of the uint fields, HeapReleased, HeapIdle, PauseTotalNs, and NumGC can be 0.
+	eq := func(x interface{}) func(interface{}) error {
+		return func(y interface{}) error {
+			if x == y {
+				return nil
+			}
+			return fmt.Errorf("want %v", x)
+		}
+	}
+	// Of the uint fields, HeapReleased, HeapIdle can be 0.
+	// PauseTotalNs can be 0 if timer resolution is poor.
+	//
+	// TODO: Test that GCCPUFraction is <= 0.99. This currently
+	// fails on windows/386. (Issue #19319)
 	fields := map[string][]func(interface{}) error{
 		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
 		"Lookups": {nz, le(1e10)}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
 		"HeapAlloc": {nz, le(1e10)}, "HeapSys": {nz, le(1e10)}, "HeapIdle": {le(1e10)},
-		"HeapInuse": {nz, le(1e10)}, "HeapReleased": nil, "HeapObjects": {nz, le(1e10)},
+		"HeapInuse": {nz, le(1e10)}, "HeapReleased": {le(1e10)}, "HeapObjects": {nz, le(1e10)},
 		"StackInuse": {nz, le(1e10)}, "StackSys": {nz, le(1e10)},
 		"MSpanInuse": {nz, le(1e10)}, "MSpanSys": {nz, le(1e10)},
 		"MCacheInuse": {nz, le(1e10)}, "MCacheSys": {nz, le(1e10)},
 		"BuckHashSys": {nz, le(1e10)}, "GCSys": {nz, le(1e10)}, "OtherSys": {nz, le(1e10)},
-		"NextGC": {nz, le(1e10)}, "LastGC": nil,
+		"NextGC": {nz, le(1e10)}, "LastGC": {nz},
 		"PauseTotalNs": {le(1e11)}, "PauseNs": nil, "PauseEnd": nil,
-		"NumGC": {le(1e9)}, "NumForcedGC": {nz, le(1e9)},
-		"GCCPUFraction": nil, "EnableGC": nil, "DebugGC": nil,
+		"NumGC": {nz, le(1e9)}, "NumForcedGC": {nz, le(1e9)},
+		"GCCPUFraction": nil, "EnableGC": {eq(true)}, "DebugGC": {eq(false)},
 		"BySize": nil,
 	}
 
