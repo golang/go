@@ -15,10 +15,15 @@ import (
 // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
-	buf       []byte   // contents are the bytes buf[off : len(buf)]
-	off       int      // read at &buf[off], write at &buf[len(buf)]
-	bootstrap [64]byte // memory to hold first slice; helps small buffers avoid allocation.
-	lastRead  readOp   // last read operation, so that Unread* can work correctly.
+	buf      []byte // contents are the bytes buf[off : len(buf)]
+	off      int    // read at &buf[off], write at &buf[len(buf)]
+	lastRead readOp // last read operation, so that Unread* can work correctly.
+	// FIXME: lastRead can fit in a single byte
+
+	// memory to hold first slice; helps small buffers avoid allocation.
+	// FIXME: it would be advisable to align Buffer to cachelines to avoid false
+	// sharing.
+	bootstrap [64]byte
 }
 
 // The readOp constants describe the last action performed on
@@ -68,13 +73,13 @@ func (b *Buffer) Cap() int { return cap(b.buf) }
 // but continues to use the same allocated storage.
 // It panics if n is negative or greater than the length of the buffer.
 func (b *Buffer) Truncate(n int) {
+	if n == 0 {
+		b.Reset()
+		return
+	}
 	b.lastRead = opInvalid
-	switch {
-	case n < 0 || n > b.Len():
+	if n < 0 || n > b.Len() {
 		panic("bytes.Buffer: truncation out of range")
-	case n == 0:
-		// Reuse buffer space.
-		b.off = 0
 	}
 	b.buf = b.buf[0 : b.off+n]
 }
@@ -82,7 +87,11 @@ func (b *Buffer) Truncate(n int) {
 // Reset resets the buffer to be empty,
 // but it retains the underlying storage for use by future writes.
 // Reset is the same as Truncate(0).
-func (b *Buffer) Reset() { b.Truncate(0) }
+func (b *Buffer) Reset() {
+	b.buf = b.buf[:0]
+	b.off = 0
+	b.lastRead = opInvalid
+}
 
 // grow grows the buffer to guarantee space for n more bytes.
 // It returns the index where bytes should be written.
@@ -91,7 +100,7 @@ func (b *Buffer) grow(n int) int {
 	m := b.Len()
 	// If buffer is empty, reset to recover space.
 	if m == 0 && b.off != 0 {
-		b.Truncate(0)
+		b.Reset()
 	}
 	if len(b.buf)+n > cap(b.buf) {
 		var buf []byte
@@ -161,7 +170,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	b.lastRead = opInvalid
 	// If buffer is empty, reset to recover space.
 	if b.off >= len(b.buf) {
-		b.Truncate(0)
+		b.Reset()
 	}
 	for {
 		if free := cap(b.buf) - len(b.buf); free < MinRead {
@@ -225,7 +234,7 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 		}
 	}
 	// Buffer is now empty; reset.
-	b.Truncate(0)
+	b.Reset()
 	return
 }
 
@@ -264,7 +273,7 @@ func (b *Buffer) Read(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
 		// Buffer is empty, reset to recover space.
-		b.Truncate(0)
+		b.Reset()
 		if len(p) == 0 {
 			return
 		}
@@ -302,7 +311,7 @@ func (b *Buffer) ReadByte() (byte, error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
 		// Buffer is empty, reset to recover space.
-		b.Truncate(0)
+		b.Reset()
 		return 0, io.EOF
 	}
 	c := b.buf[b.off]
@@ -320,7 +329,7 @@ func (b *Buffer) ReadRune() (r rune, size int, err error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
 		// Buffer is empty, reset to recover space.
-		b.Truncate(0)
+		b.Reset()
 		return 0, 0, io.EOF
 	}
 	c := b.buf[b.off]
