@@ -637,16 +637,17 @@ func (n Nodes) Addr(i int) **Node {
 }
 
 // Append appends entries to Nodes.
-// If a slice is passed in, this will take ownership of it.
 func (n *Nodes) Append(a ...*Node) {
 	if len(a) == 0 {
 		return
 	}
 	if n.slice == nil {
-		n.slice = &a
-	} else {
-		*n.slice = append(*n.slice, a...)
+		s := make([]*Node, len(a))
+		copy(s, a)
+		n.slice = &s
+		return
 	}
+	*n.slice = append(*n.slice, a...)
 }
 
 // Prepend prepends entries to Nodes.
