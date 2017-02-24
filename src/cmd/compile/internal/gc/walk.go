@@ -886,6 +886,7 @@ opswitch:
 			value = zerobase
 		case n.Left.Type.IsBoolean() || (n.Left.Type.Size() == 1 && n.Left.Type.IsInteger()):
 			// n.Left is a bool/byte. Use staticbytes[n.Left].
+			n.Left = cheapexpr(n.Left, init)
 			value = nod(OINDEX, staticbytes, byteindex(n.Left))
 			value.Bounded = true
 		case n.Left.Class == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly:

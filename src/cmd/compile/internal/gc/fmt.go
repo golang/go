@@ -1486,7 +1486,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag) {
 
 	if recur {
 		indent(s)
-		if dumpdepth > 10 {
+		if dumpdepth > 40 {
 			fmt.Fprint(s, "...")
 			return
 		}
