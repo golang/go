@@ -6,6 +6,8 @@ package runtime_test
 
 import (
 	"flag"
+	"fmt"
+	"reflect"
 	. "runtime"
 	"testing"
 	"time"
@@ -20,24 +22,50 @@ func TestMemStats(t *testing.T) {
 	st := new(MemStats)
 	ReadMemStats(st)
 
-	// Everything except HeapReleased, HeapIdle, and NumGC,
-	// because they indeed can be 0.
-	if st.Alloc == 0 || st.TotalAlloc == 0 || st.Sys == 0 || st.Lookups == 0 ||
-		st.Mallocs == 0 || st.Frees == 0 || st.HeapAlloc == 0 || st.HeapSys == 0 ||
-		st.HeapInuse == 0 || st.HeapObjects == 0 || st.StackInuse == 0 ||
-		st.StackSys == 0 || st.MSpanInuse == 0 || st.MSpanSys == 0 || st.MCacheInuse == 0 ||
-		st.MCacheSys == 0 || st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 ||
-		st.NextGC == 0 || st.NumForcedGC == 0 {
-		t.Fatalf("Zero value: %+v", *st)
+	nz := func(x interface{}) error {
+		if x != reflect.Zero(reflect.TypeOf(x)).Interface() {
+			return nil
+		}
+		return fmt.Errorf("zero value")
+	}
+	le := func(thresh uint64) func(interface{}) error {
+		return func(x interface{}) error {
+			if reflect.ValueOf(x).Uint() < thresh {
+				return nil
+			}
+			return fmt.Errorf("insanely high value (overflow?); want <= %d", thresh)
+		}
+	}
+	// Of the uint fields, HeapReleased, HeapIdle, PauseTotalNs, and NumGC can be 0.
+	fields := map[string][]func(interface{}) error{
+		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
+		"Lookups": {nz, le(1e10)}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
+		"HeapAlloc": {nz, le(1e10)}, "HeapSys": {nz, le(1e10)}, "HeapIdle": {le(1e10)},
+		"HeapInuse": {nz, le(1e10)}, "HeapReleased": nil, "HeapObjects": {nz, le(1e10)},
+		"StackInuse": {nz, le(1e10)}, "StackSys": {nz, le(1e10)},
+		"MSpanInuse": {nz, le(1e10)}, "MSpanSys": {nz, le(1e10)},
+		"MCacheInuse": {nz, le(1e10)}, "MCacheSys": {nz, le(1e10)},
+		"BuckHashSys": {nz, le(1e10)}, "GCSys": {nz, le(1e10)}, "OtherSys": {nz, le(1e10)},
+		"NextGC": {nz, le(1e10)}, "LastGC": nil,
+		"PauseTotalNs": {le(1e11)}, "PauseNs": nil, "PauseEnd": nil,
+		"NumGC": {le(1e9)}, "NumForcedGC": {nz, le(1e9)},
+		"GCCPUFraction": nil, "EnableGC": nil, "DebugGC": nil,
+		"BySize": nil,
 	}
 
-	if st.Alloc > 1e10 || st.TotalAlloc > 1e11 || st.Sys > 1e10 || st.Lookups > 1e10 ||
-		st.Mallocs > 1e10 || st.Frees > 1e10 || st.HeapAlloc > 1e10 || st.HeapSys > 1e10 ||
-		st.HeapIdle > 1e10 || st.HeapInuse > 1e10 || st.HeapObjects > 1e10 || st.StackInuse > 1e10 ||
-		st.StackSys > 1e10 || st.MSpanInuse > 1e10 || st.MSpanSys > 1e10 || st.MCacheInuse > 1e10 ||
-		st.MCacheSys > 1e10 || st.BuckHashSys > 1e10 || st.GCSys > 1e10 || st.OtherSys > 1e10 ||
-		st.NextGC > 1e10 || st.NumGC > 1e9 || st.NumForcedGC > 1e9 || st.PauseTotalNs > 1e11 {
-		t.Fatalf("Insanely high value (overflow?): %+v", *st)
+	rst := reflect.ValueOf(st).Elem()
+	for i := 0; i < rst.Type().NumField(); i++ {
+		name, val := rst.Type().Field(i).Name, rst.Field(i).Interface()
+		checks, ok := fields[name]
+		if !ok {
+			t.Errorf("unknown MemStats field %s", name)
+			continue
+		}
+		for _, check := range checks {
+			if err := check(val); err != nil {
+				t.Errorf("%s = %v: %s", name, val, err)
+			}
+		}
 	}
 
 	if st.Sys != st.HeapSys+st.StackSys+st.MSpanSys+st.MCacheSys+
