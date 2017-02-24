@@ -84,7 +84,7 @@ func (mode *BuildMode) Set(s string) error {
 		switch obj.GOOS {
 		case "linux":
 			switch obj.GOARCH {
-			case "386", "amd64", "arm", "arm64":
+			case "386", "amd64", "arm", "arm64", "s390x":
 			default:
 				return badmode()
 			}
