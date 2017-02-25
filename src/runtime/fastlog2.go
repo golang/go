@@ -4,8 +4,6 @@
 
 package runtime
 
-import "unsafe"
-
 // fastlog2 implements a fast approximation to the base 2 log of a
 // float64. This is used to compute a geometric distribution for heap
 // sampling, without introducing dependencies into package math. This
@@ -27,7 +25,3 @@ func fastlog2(x float64) float64 {
 	low, high := fastlog2Table[xManIndex], fastlog2Table[xManIndex+1]
 	return float64(xExp) + low + (high-low)*float64(xManScale)*fastlogScaleRatio
 }
-
-// float64bits returns the IEEE 754 binary representation of f.
-// Taken from math.Float64bits to avoid dependencies into package math.
-func float64bits(f float64) uint64 { return *(*uint64)(unsafe.Pointer(&f)) }
