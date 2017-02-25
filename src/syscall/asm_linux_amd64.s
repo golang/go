@@ -111,6 +111,29 @@ ok2:
 	MOVQ	$0, err+72(FP)
 	RET
 
+// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
+	MOVQ	a1+8(FP), DI
+	MOVQ	$0, SI
+	MOVQ	$0, DX
+	MOVQ	$0, R10
+	MOVQ	$0, R8
+	MOVQ	$0, R9
+	MOVQ	trap+0(FP), AX	// syscall entry
+	POPQ	R12 // preserve return address
+	SYSCALL
+	PUSHQ	R12
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	ok2
+	MOVQ	$-1, r1+16(FP)
+	NEGQ	AX
+	MOVQ	AX, err+24(FP)
+	RET
+ok2:
+	MOVQ	AX, r1+16(FP)
+	MOVQ	$0, err+24(FP)
+	RET
+
 // func gettimeofday(tv *Timeval) (err uintptr)
 TEXT ·gettimeofday(SB),NOSPLIT,$0-16
 	MOVQ	tv+0(FP), DI
