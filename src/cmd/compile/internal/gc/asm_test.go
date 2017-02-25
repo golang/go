@@ -122,7 +122,7 @@ func (ats *asmTests) compileToAsm(t *testing.T, dir string) string {
 	for _, i := range ats.imports {
 		out := filepath.Join(testDir, i+".a")
 
-		if s := ats.runGo(t, "build", "-o", out, "-gcflags=-dolinkobj", i); s != "" {
+		if s := ats.runGo(t, "build", "-o", out, "-gcflags=-dolinkobj=false", i); s != "" {
 			t.Fatalf("Stdout = %s\nWant empty", s)
 		}
 	}
