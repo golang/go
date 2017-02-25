@@ -28,19 +28,19 @@ func LeadingZeros64(x uint64) int { return 64 - blen(uint64(x)) }
 
 // --- TrailingZeros ---
 
-// TrailingZeros returns the number of trailing zero bits in x; the result is 0 for x == 0.
+// TrailingZeros returns the number of trailing zero bits in x; the result is UintSize for x == 0.
 func TrailingZeros(x uint) int { return ntz(x) }
 
-// TrailingZeros8 returns the number of trailing zero bits in x; the result is 0 for x == 0.
+// TrailingZeros8 returns the number of trailing zero bits in x; the result is 8 for x == 0.
 func TrailingZeros8(x uint8) int { return ntz8(x) }
 
-// TrailingZeros16 returns the number of trailing zero bits in x; the result is 0 for x == 0.
+// TrailingZeros16 returns the number of trailing zero bits in x; the result is 16 for x == 0.
 func TrailingZeros16(x uint16) int { return ntz16(x) }
 
-// TrailingZeros32 returns the number of trailing zero bits in x; the result is 0 for x == 0.
+// TrailingZeros32 returns the number of trailing zero bits in x; the result is 32 for x == 0.
 func TrailingZeros32(x uint32) int { return ntz32(x) }
 
-// TrailingZeros64 returns the number of trailing zero bits in x; the result is 0 for x == 0.
+// TrailingZeros64 returns the number of trailing zero bits in x; the result is 64 for x == 0.
 func TrailingZeros64(x uint64) int { return ntz64(x) }
 
 // --- OnesCount ---
