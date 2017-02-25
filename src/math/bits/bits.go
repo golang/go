@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run make_tables.go
+
 // Package bits implements bit counting and manipulation
 // functions for the predeclared unsigned integer types.
 package bits
@@ -232,19 +234,12 @@ func Reverse(x uint) uint {
 
 // Reverse8 returns the value of x with its bits in reversed order.
 func Reverse8(x uint8) uint8 {
-	const m = 1<<8 - 1
-	x = x>>1&(m0&m) | x&(m0&m)<<1
-	x = x>>2&(m1&m) | x&(m1&m)<<2
-	return x>>4 | x<<4
+	return rev8tab[x]
 }
 
 // Reverse16 returns the value of x with its bits in reversed order.
 func Reverse16(x uint16) uint16 {
-	const m = 1<<16 - 1
-	x = x>>1&(m0&m) | x&(m0&m)<<1
-	x = x>>2&(m1&m) | x&(m1&m)<<2
-	x = x>>4&(m2&m) | x&(m2&m)<<4
-	return x>>8 | x<<8
+	return uint16(rev8tab[x>>8]) | uint16(rev8tab[x&0xff])<<8
 }
 
 // Reverse32 returns the value of x with its bits in reversed order.
