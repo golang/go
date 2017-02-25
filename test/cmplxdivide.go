@@ -5,33 +5,25 @@
 // license that can be found in the LICENSE file.
 
 // Driver for complex division table defined in cmplxdivide1.go
-// For details, see the comment at the top of in cmplxdivide.c.
+// For details, see the comment at the top of cmplxdivide.c.
 
 package main
 
 import (
 	"fmt"
 	"math"
-	"math/cmplx"
 )
 
-type Test struct {
-	f, g complex128
-	out  complex128
-}
-
-var nan = math.NaN()
-var inf = math.Inf(1)
-var negzero = math.Copysign(0, -1)
-
 func calike(a, b complex128) bool {
-	switch {
-	case cmplx.IsInf(a) && cmplx.IsInf(b):
-		return true
-	case cmplx.IsNaN(a) && cmplx.IsNaN(b):
-		return true
+	if imag(a) != imag(b) && !(math.IsNaN(imag(a)) && math.IsNaN(imag(b))) {
+		return false
 	}
-	return a == b
+
+	if real(a) != real(b) && !(math.IsNaN(real(a)) && math.IsNaN(real(b))) {
+		return false
+	}
+
+	return true
 }
 
 func main() {
