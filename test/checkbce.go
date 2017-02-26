@@ -13,10 +13,14 @@ func f0(a []int) {
 }
 
 func f1(a [256]int, i int) {
-	useInt(a[i])     // ERROR "Found IsInBounds$"
-	useInt(a[i%256]) // ERROR "Found IsInBounds$"
-	useInt(a[i&255])
-	useInt(a[i&17])
+	var j int
+	useInt(a[i]) // ERROR "Found IsInBounds$"
+	j = i % 256
+	useInt(a[j]) // ERROR "Found IsInBounds$"
+	j = i & 255
+	useInt(a[j])
+	j = i & 17
+	useInt(a[j])
 
 	if 4 <= i && i < len(a) {
 		useInt(a[i])
@@ -29,9 +33,36 @@ func f1(a [256]int, i int) {
 
 func f2(a [256]int, i uint) {
 	useInt(a[i]) // ERROR "Found IsInBounds$"
-	useInt(a[i%256])
-	useInt(a[i&255])
-	useInt(a[i&17])
+	j := i % 256
+	useInt(a[j])
+	j = i & 255
+	useInt(a[j])
+	j = i & 17
+	useInt(a[j])
+}
+
+func f2a(a [35]int, i uint8) {
+	useInt(a[i]) // ERROR "Found IsInBounds$"
+	j := i & 34
+	useInt(a[j])
+	j = i & 17
+	useInt(a[j])
+}
+
+func f2b(a [35]int, i uint16) {
+	useInt(a[i]) // ERROR "Found IsInBounds$"
+	j := i & 34
+	useInt(a[j])
+	j = i & 17
+	useInt(a[j])
+}
+
+func f2c(a [35]int, i uint32) {
+	useInt(a[i]) // ERROR "Found IsInBounds$"
+	j := i & 34
+	useInt(a[j])
+	j = i & 17
+	useInt(a[j])
 }
 
 func f3(a [256]int, i uint8) {

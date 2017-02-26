@@ -5814,7 +5814,202 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		return true
 	}
-	// match: (IsInBounds (And32 (Const32 [c]) _) (Const32 [d]))
+	// match: (IsInBounds                (And8  (Const8  [c]) _)  (Const8  [d]))
+	// cond: 0 <= c && c < d
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd8 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst8 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 <= c && c < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (ZeroExt8to16  (And8  (Const8  [c]) _)) (Const16 [d]))
+	// cond: 0 <= c && c < d
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to16 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAnd8 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpConst8 {
+			break
+		}
+		c := v_0_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 <= c && c < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (ZeroExt8to32  (And8  (Const8  [c]) _)) (Const32 [d]))
+	// cond: 0 <= c && c < d
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to32 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAnd8 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpConst8 {
+			break
+		}
+		c := v_0_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 <= c && c < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (ZeroExt8to64  (And8  (Const8  [c]) _)) (Const64 [d]))
+	// cond: 0 <= c && c < d
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to64 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAnd8 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpConst8 {
+			break
+		}
+		c := v_0_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 <= c && c < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds                (And16 (Const16 [c]) _)  (Const16 [d]))
+	// cond: 0 <= c && c < d
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd16 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 <= c && c < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (ZeroExt16to32 (And16 (Const16 [c]) _)) (Const32 [d]))
+	// cond: 0 <= c && c < d
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt16to32 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAnd16 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 <= c && c < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (ZeroExt16to64 (And16 (Const16 [c]) _)) (Const64 [d]))
+	// cond: 0 <= c && c < d
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt16to64 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAnd16 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 <= c && c < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds                (And32 (Const32 [c]) _)  (Const32 [d]))
 	// cond: 0 <= c && c < d
 	// result: (ConstBool [1])
 	for {
@@ -5839,7 +6034,36 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 		v.AuxInt = 1
 		return true
 	}
-	// match: (IsInBounds (And64 (Const64 [c]) _) (Const64 [d]))
+	// match: (IsInBounds (ZeroExt32to64 (And32 (Const32 [c]) _)) (Const64 [d]))
+	// cond: 0 <= c && c < d
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt32to64 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAnd32 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 <= c && c < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds                (And64 (Const64 [c]) _)  (Const64 [d]))
 	// cond: 0 <= c && c < d
 	// result: (ConstBool [1])
 	for {
