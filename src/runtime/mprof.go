@@ -64,6 +64,34 @@ type memRecord struct {
 	// come only after a GC during concurrent sweeping. So if we would
 	// naively count them, we would get a skew toward mallocs.
 	//
+	// Hence, we delay information to get consistent snapshots as
+	// of mark termination. Allocations count toward the next mark
+	// termination's snapshot, while sweep frees count toward the
+	// previous mark termination's snapshot:
+	//
+	//              MT          MT          MT          MT
+	//             .·|         .·|         .·|         .·|
+	//          .·˙  |      .·˙  |      .·˙  |      .·˙  |
+	//       .·˙     |   .·˙     |   .·˙     |   .·˙     |
+	//    .·˙        |.·˙        |.·˙        |.·˙        |
+	//
+	//       alloc → ▲ ← free
+	//               ┠┅┅┅┅┅┅┅┅┅┅┅P
+	//       r_a     →    p_a    →  allocs
+	//                    p_f    →  frees
+	//
+	//                   alloc → ▲ ← free
+	//                           ┠┅┅┅┅┅┅┅┅┅┅┅P
+	//                   r_a     →    p_a    →  alloc
+	//		                  p_f    →  frees
+	//
+	// Since we can't publish a consistent snapshot until all of
+	// the sweep frees are accounted for, we wait until the next
+	// mark termination ("MT" above) to publish the previous mark
+	// termination's snapshot ("P" above). To do this, information
+	// is delayed through "recent" and "prev" stages ("r_*" and
+	// "p_*" above). Specifically:
+	//
 	// Mallocs are accounted in recent stats.
 	// Explicit frees are accounted in recent stats.
 	// GC frees are accounted in prev stats.
