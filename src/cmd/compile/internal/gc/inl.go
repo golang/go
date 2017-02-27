@@ -130,7 +130,7 @@ func caninl(fn *Node) {
 	if Debug['l'] < 3 {
 		f := fn.Type.Params().Fields()
 		if len := f.Len(); len > 0 {
-			if t := f.Index(len - 1); t.Isddd {
+			if t := f.Index(len - 1); t.Isddd() {
 				reason = "has ... args"
 				return
 			}
@@ -403,7 +403,7 @@ func inlnode(n *Node) *Node {
 	case ODEFER, OPROC:
 		switch n.Left.Op {
 		case OCALLFUNC, OCALLMETH:
-			n.Left.setNoInline(true)
+			n.Left.SetNoInline(true)
 		}
 		return n
 
@@ -494,7 +494,7 @@ func inlnode(n *Node) *Node {
 	// switch at the top of this function.
 	switch n.Op {
 	case OCALLFUNC, OCALLMETH:
-		if n.noInline() {
+		if n.NoInline() {
 			return n
 		}
 	}
@@ -505,9 +505,9 @@ func inlnode(n *Node) *Node {
 			fmt.Printf("%v:call to func %+v\n", n.Line(), n.Left)
 		}
 		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall(n) { // normal case
-			n = mkinlcall(n, n.Left, n.Isddd)
+			n = mkinlcall(n, n.Left, n.Isddd())
 		} else if n.isMethodCalledAsFunction() && n.Left.Sym.Def != nil {
-			n = mkinlcall(n, n.Left.Sym.Def, n.Isddd)
+			n = mkinlcall(n, n.Left.Sym.Def, n.Isddd())
 		}
 
 	case OCALLMETH:
@@ -524,7 +524,7 @@ func inlnode(n *Node) *Node {
 			Fatalf("no function definition for [%p] %+v\n", n.Left.Type, n.Left.Type)
 		}
 
-		n = mkinlcall(n, n.Left.Type.Nname(), n.Isddd)
+		n = mkinlcall(n, n.Left.Type.Nname(), n.Isddd())
 	}
 
 	lineno = lno
@@ -671,7 +671,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	var varargtype *Type
 	varargcount := 0
 	for _, t := range fn.Type.Params().Fields().Slice() {
-		if t.Isddd {
+		if t.Isddd() {
 			variadic = true
 			varargtype = t.Type
 		}
@@ -737,7 +737,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		// 0 or 1 expression on RHS.
 		var i int
 		for _, t := range fn.Type.Params().Fields().Slice() {
-			if variadic && t.Isddd {
+			if variadic && t.Isddd() {
 				vararg = tinlvar(t, inlvars)
 				for i = 0; i < varargcount && li < n.List.Len(); i++ {
 					m = argvar(varargtype, i)
@@ -757,7 +757,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 			if li >= n.List.Len() {
 				break
 			}
-			if variadic && t.Isddd {
+			if variadic && t.Isddd() {
 				break
 			}
 			as.List.Append(tinlvar(t, inlvars))
@@ -766,7 +766,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		}
 
 		// match varargcount arguments with variadic parameters.
-		if variadic && t != nil && t.Isddd {
+		if variadic && t != nil && t.Isddd() {
 			vararg = tinlvar(t, inlvars)
 			var i int
 			for i = 0; i < varargcount && li < n.List.Len(); i++ {
@@ -828,7 +828,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	body := subst.list(fn.Func.Inl)
 
 	lab := nod(OLABEL, retlabel, nil)
-	lab.Used = true // avoid 'not used' when function doesn't have return
+	lab.SetUsed(true) // avoid 'not used' when function doesn't have return
 	body = append(body, lab)
 
 	typecheckslice(body, Etop)
@@ -890,9 +890,9 @@ func inlvar(var_ *Node) *Node {
 	n := newname(var_.Sym)
 	n.Type = var_.Type
 	n.Class = PAUTO
-	n.Used = true
+	n.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
-	n.Addrtaken = var_.Addrtaken
+	n.SetAddrtaken(var_.Addrtaken())
 
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n
@@ -903,7 +903,7 @@ func retvar(t *Field, i int) *Node {
 	n := newname(lookupN("~r", i))
 	n.Type = t.Type
 	n.Class = PAUTO
-	n.Used = true
+	n.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n
@@ -915,7 +915,7 @@ func argvar(t *Type, i int) *Node {
 	n := newname(lookupN("~arg", i))
 	n.Type = t.Elem()
 	n.Class = PAUTO
-	n.Used = true
+	n.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n

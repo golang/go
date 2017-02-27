@@ -342,7 +342,7 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
 		}
 		n = &x.Node
 		n.Func = &x.Func
-		n.Func.IsHiddenClosure = Curfn != nil
+		n.Func.SetIsHiddenClosure(Curfn != nil)
 	case ONAME:
 		var x struct {
 			Node
@@ -422,7 +422,7 @@ func (x methcmp) Less(i, j int) bool {
 
 func nodintconst(v int64) *Node {
 	c := nod(OLITERAL, nil, nil)
-	c.Addable = true
+	c.SetAddable(true)
 	c.SetVal(Val{new(Mpint)})
 	c.Val().U.(*Mpint).SetInt64(v)
 	c.Type = Types[TIDEAL]
@@ -432,7 +432,7 @@ func nodintconst(v int64) *Node {
 
 func nodfltconst(v *Mpflt) *Node {
 	c := nod(OLITERAL, nil, nil)
-	c.Addable = true
+	c.SetAddable(true)
 	c.SetVal(Val{newMpflt()})
 	c.Val().U.(*Mpflt).Set(v)
 	c.Type = Types[TIDEAL]
@@ -443,7 +443,7 @@ func nodfltconst(v *Mpflt) *Node {
 func nodconst(n *Node, t *Type, v int64) {
 	*n = Node{}
 	n.Op = OLITERAL
-	n.Addable = true
+	n.SetAddable(true)
 	ullmancalc(n)
 	n.SetVal(Val{new(Mpint)})
 	n.Val().U.(*Mpint).SetInt64(v)
@@ -613,7 +613,7 @@ func eqtype1(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) boo
 	if t1 == t2 {
 		return true
 	}
-	if t1 == nil || t2 == nil || t1.Etype != t2.Etype || t1.Broke || t2.Broke {
+	if t1 == nil || t2 == nil || t1.Etype != t2.Etype || t1.Broke() || t2.Broke() {
 		return false
 	}
 	if t1.Sym != nil || t2.Sym != nil {
@@ -660,7 +660,7 @@ func eqtype1(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) boo
 			ta, ia := iterFields(f(t1))
 			tb, ib := iterFields(f(t2))
 			for ; ta != nil && tb != nil; ta, tb = ia.Next(), ib.Next() {
-				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, cmpTags, assumedEqual) {
+				if ta.Isddd() != tb.Isddd() || !eqtype1(ta.Type, tb.Type, cmpTags, assumedEqual) {
 					return false
 				}
 			}
@@ -769,14 +769,14 @@ func assignop(src *Type, dst *Type, why *string) Op {
 		}
 
 		// we'll have complained about this method anyway, suppress spurious messages.
-		if have != nil && have.Sym == missing.Sym && (have.Type.Broke || missing.Type.Broke) {
+		if have != nil && have.Sym == missing.Sym && (have.Type.Broke() || missing.Type.Broke()) {
 			return OCONVIFACE
 		}
 
 		if why != nil {
 			if isptrto(src, TINTER) {
 				*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", src)
-			} else if have != nil && have.Sym == missing.Sym && have.Nointerface {
+			} else if have != nil && have.Sym == missing.Sym && have.Nointerface() {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
 			} else if have != nil && have.Sym == missing.Sym {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
@@ -861,7 +861,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	// Conversions from regular to go:notinheap are not allowed
 	// (unless it's unsafe.Pointer). This is a runtime-specific
 	// rule.
-	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap && !src.Elem().NotInHeap {
+	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
 		if why != nil {
 			*why = fmt.Sprintf(":\n\t%v is go:notinheap, but %v is not", dst.Elem(), src.Elem())
 		}
@@ -959,7 +959,7 @@ func assignconv(n *Node, t *Type, context string) *Node {
 
 // Convert node n for assignment to type t.
 func assignconvfn(n *Node, t *Type, context func() string) *Node {
-	if n == nil || n.Type == nil || n.Type.Broke {
+	if n == nil || n.Type == nil || n.Type.Broke() {
 		return n
 	}
 
@@ -968,10 +968,10 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	}
 
 	old := n
-	od := old.Diag
-	old.Diag = true // silence errors about n; we'll issue one below
+	od := old.Diag()
+	old.SetDiag(true) // silence errors about n; we'll issue one below
 	n = defaultlit(n, t)
-	old.Diag = od
+	old.SetDiag(od)
 	if t.Etype == TBLANK {
 		return n
 	}
@@ -983,7 +983,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 			r := nod(OCONVNOP, n, nil)
 			r.Type = Types[TBOOL]
 			r.Typecheck = 1
-			r.Implicit = true
+			r.SetImplicit(true)
 			n = r
 		}
 	}
@@ -1002,7 +1002,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	r := nod(op, n, nil)
 	r.Type = t
 	r.Typecheck = 1
-	r.Implicit = true
+	r.SetImplicit(true)
 	r.Orig = n.Orig
 	return r
 }
@@ -1499,8 +1499,8 @@ func dotpath(s *Sym, t *Type, save **Field, ignorecase bool) (path []Dlist, ambi
 // modify the tree with missing type names.
 func adddot(n *Node) *Node {
 	n.Left = typecheck(n.Left, Etype|Erv)
-	if n.Left.Diag {
-		n.Diag = true
+	if n.Left.Diag() {
+		n.SetDiag(true)
 	}
 	t := n.Left.Type
 	if t == nil {
@@ -1521,7 +1521,7 @@ func adddot(n *Node) *Node {
 		// rebuild elided dots
 		for c := len(path) - 1; c >= 0; c-- {
 			n.Left = nodSym(ODOT, n.Left, path[c].field.Sym)
-			n.Left.Implicit = true
+			n.Left.SetImplicit(true)
 		}
 	case ambig:
 		yyerror("ambiguous selector %v", n)
@@ -1674,9 +1674,9 @@ func structargs(tl *Type, mustname bool) []*Node {
 			n = newname(t.Sym)
 		}
 		a := nod(ODCLFIELD, n, typenod(t.Type))
-		a.Isddd = t.Isddd
+		a.SetIsddd(t.Isddd())
 		if n != nil {
-			n.Isddd = t.Isddd
+			n.SetIsddd(t.Isddd())
 		}
 		args = append(args, a)
 	}
@@ -1750,7 +1750,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	isddd := false
 	for _, n := range in {
 		args = append(args, n.Left)
-		isddd = n.Left.Isddd
+		isddd = n.Left.Isddd()
 	}
 
 	methodrcvr := method.Type.Recv().Type
@@ -1788,12 +1788,12 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		n.Left = newname(methodsym(method.Sym, methodrcvr, 0))
 		fn.Nbody.Append(n)
 		// When tail-calling, we can't use a frame pointer.
-		fn.Func.NoFramePointer = true
+		fn.Func.SetNoFramePointer(true)
 	} else {
-		fn.Func.Wrapper = true // ignore frame for panic+recover matching
+		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
 		call := nod(OCALL, dot, nil)
 		call.List.Set(args)
-		call.Isddd = isddd
+		call.SetIsddd(isddd)
 		if method.Type.Results().NumFields() > 0 {
 			n := nod(ORETURN, nil, nil)
 			n.List.Set1(call)
@@ -1816,7 +1816,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 
 	// wrappers where T is anonymous (struct or interface) can be duplicated.
 	if rcvr.IsStruct() || rcvr.IsInterface() || rcvr.IsPtr() && rcvr.Elem().IsStruct() {
-		fn.Func.Dupok = true
+		fn.Func.SetDupok(true)
 	}
 	fn = typecheck(fn, Etop)
 	typecheckslice(fn.Nbody.Slice(), Etop)
@@ -1913,12 +1913,12 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 		expandmeth(t)
 	}
 	for _, im := range iface.Fields().Slice() {
-		if im.Broke {
+		if im.Broke() {
 			continue
 		}
 		var followptr bool
 		tm := ifacelookdot(im.Sym, t, &followptr, false)
-		if tm == nil || tm.Nointerface || !eqtype(tm.Type, im.Type) {
+		if tm == nil || tm.Nointerface() || !eqtype(tm.Type, im.Type) {
 			if tm == nil {
 				tm = ifacelookdot(im.Sym, t, &followptr, true)
 			}
@@ -2126,7 +2126,7 @@ func itabType(itab *Node) *Node {
 	typ.Type = ptrto(Types[TUINT8])
 	typ.Typecheck = 1
 	typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
-	typ.Bounded = true            // guaranteed not to fault
+	typ.SetBounded(true)          // guaranteed not to fault
 	return typ
 }
 
@@ -2141,7 +2141,7 @@ func ifaceData(n *Node, t *Type) *Node {
 		return ptr
 	}
 	ptr.Type = ptrto(t)
-	ptr.Bounded = true
+	ptr.SetBounded(true)
 	ptr.Typecheck = 1
 	ind := nod(OIND, ptr, nil)
 	ind.Type = t

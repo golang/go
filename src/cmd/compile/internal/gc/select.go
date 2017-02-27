@@ -44,7 +44,7 @@ func typecheckselect(sel *Node) {
 			// remove implicit conversions; the eventual assignment
 			// will reintroduce them.
 			case OAS:
-				if (n.Right.Op == OCONVNOP || n.Right.Op == OCONVIFACE) && n.Right.Implicit {
+				if (n.Right.Op == OCONVNOP || n.Right.Op == OCONVIFACE) && n.Right.Implicit() {
 					n.Right = n.Right.Left
 				}
 
@@ -332,8 +332,8 @@ func selecttype(size int32) *Type {
 	scase.List.Append(nod(ODCLFIELD, newname(lookup("receivedp")), typenod(ptrto(Types[TUINT8]))))
 	scase.List.Append(nod(ODCLFIELD, newname(lookup("releasetime")), typenod(Types[TUINT64])))
 	scase = typecheck(scase, Etype)
-	scase.Type.Noalg = true
-	scase.Type.Local = true
+	scase.Type.SetNoalg(true)
+	scase.Type.SetLocal(true)
 
 	sel := nod(OTSTRUCT, nil, nil)
 	sel.List.Append(nod(ODCLFIELD, newname(lookup("tcase")), typenod(Types[TUINT16])))
@@ -347,8 +347,8 @@ func selecttype(size int32) *Type {
 	arr = nod(OTARRAY, nodintconst(int64(size)), typenod(Types[TUINT16]))
 	sel.List.Append(nod(ODCLFIELD, newname(lookup("pollorderarr")), arr))
 	sel = typecheck(sel, Etype)
-	sel.Type.Noalg = true
-	sel.Type.Local = true
+	sel.Type.SetNoalg(true)
+	sel.Type.SetLocal(true)
 
 	return sel.Type
 }

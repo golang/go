@@ -688,7 +688,7 @@ func (p *importer) param(named bool) *Field {
 	if f.Type.Etype == TDDDFIELD {
 		// TDDDFIELD indicates wrapped ... slice type
 		f.Type = typSlice(f.Type.DDDField())
-		f.Isddd = true
+		f.SetIsddd(true)
 	}
 
 	if named {
@@ -898,7 +898,7 @@ func (p *importer) node() *Node {
 			if n.Op == OCOMPLIT {
 				// Special case for &T{...}: turn into (*T){...}.
 				n.Right = nod(OIND, n.Right, nil)
-				n.Right.Implicit = true
+				n.Right.SetImplicit(true)
 			} else {
 				n = nod(OADDR, n, nil)
 			}
@@ -975,7 +975,7 @@ func (p *importer) node() *Node {
 		n := builtinCall(op)
 		n.List.Set(p.exprList())
 		if op == OAPPEND {
-			n.Isddd = p.bool()
+			n.SetIsddd(p.bool())
 		}
 		return n
 
@@ -985,7 +985,7 @@ func (p *importer) node() *Node {
 	case OCALL:
 		n := nod(OCALL, p.expr(), nil)
 		n.List.Set(p.exprList())
-		n.Isddd = p.bool()
+		n.SetIsddd(p.bool())
 		return n
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
@@ -1045,7 +1045,7 @@ func (p *importer) node() *Node {
 		n.Left = p.expr()
 		if !p.bool() {
 			n.Right = nodintconst(1)
-			n.Implicit = true
+			n.SetImplicit(true)
 		} else {
 			n.Right = p.expr()
 		}

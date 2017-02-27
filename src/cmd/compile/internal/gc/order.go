@@ -191,7 +191,7 @@ func orderaddrtemp(n *Node, order *Order) *Node {
 		n = defaultlit(n, nil)
 		dowidth(n.Type)
 		vstat := staticname(n.Type)
-		vstat.Name.Readonly = true
+		vstat.Name.SetReadonly(true)
 		var out []*Node
 		staticassign(vstat, n, &out)
 		if out != nil {
@@ -239,9 +239,9 @@ func cleantempnopop(mark ordermarker, order *Order, out *[]*Node) {
 
 	for i := len(order.temp) - 1; i >= int(mark); i-- {
 		n := order.temp[i]
-		if n.Name.Keepalive {
-			n.Name.Keepalive = false
-			n.Addrtaken = true // ensure SSA keeps the n variable
+		if n.Name.Keepalive() {
+			n.Name.SetKeepalive(false)
+			n.SetAddrtaken(true) // ensure SSA keeps the n variable
 			kill = nod(OVARLIVE, n, nil)
 			kill = typecheck(kill, Etop)
 			*out = append(*out, kill)
@@ -401,12 +401,12 @@ func ordercall(n *Node, order *Order) {
 				x := *xp
 				if x.Type.IsPtr() {
 					x = ordercopyexpr(x, x.Type, order, 0)
-					x.Name.Keepalive = true
+					x.Name.SetKeepalive(true)
 					*xp = x
 				}
 			}
 			next := it.Next()
-			if next == nil && t.Isddd && t.Note == uintptrEscapesTag {
+			if next == nil && t.Isddd() && t.Note == uintptrEscapesTag {
 				next = t
 			}
 			t = next
@@ -800,7 +800,7 @@ func orderstmt(n *Node, order *Order) {
 				// declaration (and possible allocation) until inside the case body.
 				// Delete the ODCL nodes here and recreate them inside the body below.
 				case OSELRECV, OSELRECV2:
-					if r.Colas {
+					if r.Colas() {
 						i := 0
 						if r.Ninit.Len() != 0 && r.Ninit.First().Op == ODCL && r.Ninit.First().Left == r.Left {
 							i++
@@ -844,7 +844,7 @@ func orderstmt(n *Node, order *Order) {
 						// the conversion happens in the OAS instead.
 						tmp1 = r.Left
 
-						if r.Colas {
+						if r.Colas() {
 							tmp2 = nod(ODCL, tmp1, nil)
 							tmp2 = typecheck(tmp2, Etop)
 							n2.Ninit.Append(tmp2)
@@ -861,7 +861,7 @@ func orderstmt(n *Node, order *Order) {
 					}
 					if r.List.Len() != 0 {
 						tmp1 = r.List.First()
-						if r.Colas {
+						if r.Colas() {
 							tmp2 = nod(ODCL, tmp1, nil)
 							tmp2 = typecheck(tmp2, Etop)
 							n2.Ninit.Append(tmp2)
@@ -1146,7 +1146,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		}
 
 	case OCLOSURE:
-		if n.Noescape && n.Func.Cvars.Len() > 0 {
+		if n.Noescape() && n.Func.Cvars.Len() > 0 {
 			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 
@@ -1155,12 +1155,12 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		n.Right = orderexpr(n.Right, order, nil)
 		orderexprlist(n.List, order)
 		orderexprlist(n.Rlist, order)
-		if n.Noescape {
+		if n.Noescape() {
 			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 
 	case ODDDARG:
-		if n.Noescape {
+		if n.Noescape() {
 			// The ddd argument does not live beyond the call it is created for.
 			// Allocate a temporary that will be cleaned up when this statement
 			// completes. We could be more aggressive and try to arrange for it

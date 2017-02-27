@@ -702,7 +702,7 @@ func (p *exporter) typ(t *Type) {
 			p.paramList(sig.Recvs(), inlineable)
 			p.paramList(sig.Params(), inlineable)
 			p.paramList(sig.Results(), inlineable)
-			p.bool(m.Nointerface) // record go:nointerface pragma value (see also #16243)
+			p.bool(m.Nointerface()) // record go:nointerface pragma value (see also #16243)
 
 			var f *Func
 			if inlineable {
@@ -921,7 +921,7 @@ func (p *exporter) paramList(params *Type, numbered bool) {
 
 func (p *exporter) param(q *Field, n int, numbered bool) {
 	t := q.Type
-	if q.Isddd {
+	if q.Isddd() {
 		// create a fake type to encode ... just for the p.typ call
 		t = typDDDField(t.Elem())
 	}
@@ -1183,7 +1183,7 @@ func (p *exporter) expr(n *Node) {
 	// }
 
 	// from exprfmt (fmt.go)
-	for n != nil && n.Implicit && (n.Op == OIND || n.Op == OADDR) {
+	for n != nil && n.Implicit() && (n.Op == OIND || n.Op == OADDR) {
 		n = n.Left
 	}
 
@@ -1256,7 +1256,7 @@ func (p *exporter) expr(n *Node) {
 	case OPTRLIT:
 		p.op(OPTRLIT)
 		p.expr(n.Left)
-		p.bool(n.Implicit)
+		p.bool(n.Implicit())
 
 	case OSTRUCTLIT:
 		p.op(OSTRUCTLIT)
@@ -1337,8 +1337,8 @@ func (p *exporter) expr(n *Node) {
 		}
 		// only append() calls may contain '...' arguments
 		if op == OAPPEND {
-			p.bool(n.Isddd)
-		} else if n.Isddd {
+			p.bool(n.Isddd())
+		} else if n.Isddd() {
 			Fatalf("exporter: unexpected '...' with %s call", opnames[op])
 		}
 
@@ -1346,7 +1346,7 @@ func (p *exporter) expr(n *Node) {
 		p.op(OCALL)
 		p.expr(n.Left)
 		p.exprList(n.List)
-		p.bool(n.Isddd)
+		p.bool(n.Isddd())
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		p.op(op) // must keep separate from OMAKE for importer
@@ -1446,7 +1446,7 @@ func (p *exporter) stmt(n *Node) {
 		p.op(OASOP)
 		p.int(int(n.Etype))
 		p.expr(n.Left)
-		if p.bool(!n.Implicit) {
+		if p.bool(!n.Implicit()) {
 			p.expr(n.Right)
 		}
 

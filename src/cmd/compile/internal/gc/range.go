@@ -188,7 +188,7 @@ func walkrange(n *Node) {
 		if v2 != nil {
 			hp = temp(ptrto(n.Type.Elem()))
 			tmp := nod(OINDEX, ha, nodintconst(0))
-			tmp.Bounded = true
+			tmp.SetBounded(true)
 			init = append(init, nod(OAS, hp, nod(OADDR, tmp, nil)))
 		}
 
@@ -325,7 +325,7 @@ func walkrange(n *Node) {
 
 		// hv2 := rune(ha[hv1])
 		nind := nod(OINDEX, ha, hv1)
-		nind.Bounded = true
+		nind.SetBounded(true)
 		body = append(body, nod(OAS, hv2, conv(nind, runetype)))
 
 		// if hv2 < utf8.RuneSelf
@@ -422,7 +422,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	hp := temp(Types[TUNSAFEPTR])
 
 	tmp := nod(OINDEX, a, nodintconst(0))
-	tmp.Bounded = true
+	tmp.SetBounded(true)
 	tmp = nod(OADDR, tmp, nil)
 	tmp = nod(OCONVNOP, tmp, nil)
 	tmp.Type = Types[TUNSAFEPTR]

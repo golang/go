@@ -18,7 +18,7 @@ import (
 // The algorithm (known as Tarjan's algorithm) for doing that is taken from
 // Sedgewick, Algorithms, Second Edition, p. 482, with two adaptations.
 //
-// First, a hidden closure function (n.Func.IsHiddenClosure) cannot be the
+// First, a hidden closure function (n.Func.IsHiddenClosure()) cannot be the
 // root of a connected component. Refusing to use it as a root
 // forces it into the component of the function in which it appears.
 // This is more convenient for escape analysis.
@@ -58,7 +58,7 @@ func visitBottomUp(list []*Node, analyze func(list []*Node, recursive bool)) {
 	v.analyze = analyze
 	v.nodeID = make(map[*Node]uint32)
 	for _, n := range list {
-		if n.Op == ODCLFUNC && !n.Func.IsHiddenClosure {
+		if n.Op == ODCLFUNC && !n.Func.IsHiddenClosure() {
 			v.visit(n)
 		}
 	}
@@ -78,7 +78,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 
 	v.stack = append(v.stack, n)
 	min = v.visitcodelist(n.Nbody, min)
-	if (min == id || min == id+1) && !n.Func.IsHiddenClosure {
+	if (min == id || min == id+1) && !n.Func.IsHiddenClosure() {
 		// This node is the root of a strongly connected component.
 
 		// The original min passed to visitcodelist was v.nodeID[n]+1.
@@ -562,7 +562,7 @@ func (e *EscState) escfunc(fn *Node) {
 			if ln.Type != nil && !haspointers(ln.Type) {
 				break
 			}
-			if Curfn.Nbody.Len() == 0 && !Curfn.Noescape {
+			if Curfn.Nbody.Len() == 0 && !Curfn.Noescape() {
 				ln.Esc = EscHeap
 			} else {
 				ln.Esc = EscNone // prime for escflood later
@@ -882,7 +882,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 		e.escassignSinkWhy(n, n.Left, "panic")
 
 	case OAPPEND:
-		if !n.Isddd {
+		if !n.Isddd() {
 			for _, nn := range n.List.Slice()[1:] {
 				e.escassignSinkWhy(n, nn, "appended to slice") // lose track of assign to dereference
 			}
@@ -959,7 +959,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 				continue
 			}
 			a := v.Name.Defn
-			if !v.Name.Byval {
+			if !v.Name.Byval() {
 				a = nod(OADDR, a, nil)
 				a.Pos = v.Pos
 				e.nodeEscState(a).Loopdepth = e.loopdepth
@@ -1449,7 +1449,7 @@ func (e *EscState) initEscRetval(call *Node, fntype *Type) {
 		ret.Class = PAUTO
 		ret.Name.Curfn = Curfn
 		e.nodeEscState(ret).Loopdepth = e.loopdepth
-		ret.Used = true
+		ret.SetUsed(true)
 		ret.Pos = call.Pos
 		cE.Retval.Append(ret)
 	}
@@ -1550,7 +1550,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 					continue
 				}
 				arg := args[0]
-				if n.Isddd && !call.Isddd {
+				if n.Isddd() && !call.Isddd() {
 					// Introduce ODDDARG node to represent ... allocation.
 					arg = nod(ODDDARG, nil, nil)
 					arr := typArray(n.Type.Elem(), int64(len(args)))
@@ -1613,7 +1613,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 	for ; i < len(args); i++ {
 		arg = args[i]
 		note = param.Note
-		if param.Isddd && !call.Isddd {
+		if param.Isddd() && !call.Isddd() {
 			// Introduce ODDDARG node to represent ... allocation.
 			arg = nod(ODDDARG, nil, nil)
 			arg.Pos = call.Pos
@@ -1637,7 +1637,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 				// the function returns.
 				// This 'noescape' is even stronger than the usual esc == EscNone.
 				// arg.Esc == EscNone means that arg does not escape the current function.
-				// arg.Noescape = true here means that arg does not escape this statement
+				// arg.SetNoescape(true) here means that arg does not escape this statement
 				// in the current function.
 				case OCALLPART,
 					OCLOSURE,
@@ -1646,7 +1646,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 					OSLICELIT,
 					OPTRLIT,
 					OSTRUCTLIT:
-					a.Noescape = true
+					a.SetNoescape(true)
 				}
 			}
 		}
@@ -1891,7 +1891,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 
 		// Treat a captured closure variable as equivalent to the
 		// original variable.
-		if src.isClosureVar() {
+		if src.IsClosureVar() {
 			if leaks && Debug['m'] != 0 {
 				Warnl(src.Pos, "leaking closure reference %S", src)
 				step.describe(src)
@@ -2054,7 +2054,7 @@ func (e *EscState) esctag(fn *Node) {
 	// External functions are assumed unsafe,
 	// unless //go:noescape is given before the declaration.
 	if fn.Nbody.Len() == 0 {
-		if fn.Noescape {
+		if fn.Noescape() {
 			for _, f := range fn.Type.Params().Fields().Slice() {
 				if haspointers(f.Type) {
 					f.Note = mktag(EscNone)
@@ -2093,7 +2093,7 @@ func (e *EscState) esctag(fn *Node) {
 				f.Note = uintptrEscapesTag
 			}
 
-			if f.Isddd && f.Type.Elem().Etype == TUINTPTR {
+			if f.Isddd() && f.Type.Elem().Etype == TUINTPTR {
 				// final argument is ...uintptr.
 				if Debug['m'] != 0 {
 					Warnl(fn.Pos, "%v marking %v as escaping ...uintptr", funcSym(fn), name(f.Sym, narg))

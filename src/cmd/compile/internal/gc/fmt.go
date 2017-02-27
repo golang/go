@@ -273,8 +273,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " u(%d)", n.Ullman)
 	}
 
-	if c == 0 && n.Addable {
-		fmt.Fprintf(s, " a(%v)", n.Addable)
+	if c == 0 && n.Addable() {
+		fmt.Fprintf(s, " a(%v)", n.Addable())
 	}
 
 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
@@ -297,8 +297,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		}
 	}
 
-	if n.Colas {
-		fmt.Fprintf(s, " colas(%v)", n.Colas)
+	if n.Colas() {
+		fmt.Fprintf(s, " colas(%v)", n.Colas())
 	}
 
 	if n.Name != nil && n.Name.Funcdepth != 0 {
@@ -335,34 +335,34 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " tc(%d)", n.Typecheck)
 	}
 
-	if n.Isddd {
-		fmt.Fprintf(s, " isddd(%v)", n.Isddd)
+	if n.Isddd() {
+		fmt.Fprintf(s, " isddd(%v)", n.Isddd())
 	}
 
-	if n.Implicit {
-		fmt.Fprintf(s, " implicit(%v)", n.Implicit)
+	if n.Implicit() {
+		fmt.Fprintf(s, " implicit(%v)", n.Implicit())
 	}
 
 	if n.Embedded != 0 {
 		fmt.Fprintf(s, " embedded(%d)", n.Embedded)
 	}
 
-	if n.Addrtaken {
+	if n.Addrtaken() {
 		fmt.Fprint(s, " addrtaken")
 	}
 
-	if n.Assigned {
+	if n.Assigned() {
 		fmt.Fprint(s, " assigned")
 	}
-	if n.Bounded {
+	if n.Bounded() {
 		fmt.Fprint(s, " bounded")
 	}
-	if n.NonNil {
+	if n.NonNil() {
 		fmt.Fprint(s, " nonnil")
 	}
 
-	if c == 0 && n.Used {
-		fmt.Fprintf(s, " used(%v)", n.Used)
+	if c == 0 && n.Used() {
+		fmt.Fprintf(s, " used(%v)", n.Used())
 	}
 }
 
@@ -832,14 +832,14 @@ func (n *Node) stmtfmt(s fmt.State) {
 	// preceded by the DCL which will be re-parsed and typechecked to reproduce
 	// the "v = <N>" again.
 	case OAS:
-		if n.Colas && !complexinit {
+		if n.Colas() && !complexinit {
 			fmt.Fprintf(s, "%v := %v", n.Left, n.Right)
 		} else {
 			fmt.Fprintf(s, "%v = %v", n.Left, n.Right)
 		}
 
 	case OASOP:
-		if n.Implicit {
+		if n.Implicit() {
 			if Op(n.Etype) == OADD {
 				fmt.Fprintf(s, "%v++", n.Left)
 			} else {
@@ -851,7 +851,7 @@ func (n *Node) stmtfmt(s fmt.State) {
 		fmt.Fprintf(s, "%v %#v= %v", n.Left, Op(n.Etype), n.Right)
 
 	case OAS2:
-		if n.Colas && !complexinit {
+		if n.Colas() && !complexinit {
 			fmt.Fprintf(s, "%.v := %.v", n.List, n.Rlist)
 			break
 		}
@@ -1104,7 +1104,7 @@ var opprec = []int{
 }
 
 func (n *Node) exprfmt(s fmt.State, prec int) {
-	for n != nil && n.Implicit && (n.Op == OIND || n.Op == OADDR) {
+	for n != nil && n.Implicit() && (n.Op == OIND || n.Op == OADDR) {
 		n = n.Left
 	}
 
@@ -1224,9 +1224,9 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 		fmt.Fprintf(s, "%v { %v }", n.Type, n.Func.Closure.Nbody)
 
 	case OCOMPLIT:
-		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && n.Right.Type.IsPtr()
+		ptrlit := n.Right != nil && n.Right.Implicit() && n.Right.Type != nil && n.Right.Type.IsPtr()
 		if fmtmode == FErr {
-			if n.Right != nil && n.Right.Type != nil && !n.Implicit {
+			if n.Right != nil && n.Right.Type != nil && !n.Implicit() {
 				if ptrlit {
 					fmt.Fprintf(s, "&%v literal", n.Right.Type.Elem())
 					return
@@ -1359,7 +1359,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			fmt.Fprintf(s, "%#v(%v)", n.Op, n.Left)
 			return
 		}
-		if n.Isddd {
+		if n.Isddd() {
 			fmt.Fprintf(s, "%#v(%.v...)", n.Op, n.List)
 			return
 		}
@@ -1367,7 +1367,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		n.Left.exprfmt(s, nprec)
-		if n.Isddd {
+		if n.Isddd() {
 			fmt.Fprintf(s, "(%.v...)", n.List)
 			return
 		}
@@ -1653,7 +1653,7 @@ func fldconv(f *Field, flag FmtFlag) string {
 	}
 
 	var typ string
-	if f.Isddd {
+	if f.Isddd() {
 		typ = fmt.Sprintf("...%v", f.Type.Elem())
 	} else {
 		typ = fmt.Sprintf("%v", f.Type)

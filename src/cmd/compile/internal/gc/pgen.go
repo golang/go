@@ -95,7 +95,7 @@ func gvardefx(n *Node, as obj.As) {
 
 	switch n.Class {
 	case PAUTO, PPARAM, PPARAMOUT:
-		if !n.Used {
+		if !n.Used() {
 			Prog(obj.ANOP)
 			return
 		}
@@ -187,8 +187,8 @@ func cmpstackvarlt(a, b *Node) bool {
 		return a.Xoffset < b.Xoffset
 	}
 
-	if a.Used != b.Used {
-		return a.Used
+	if a.Used() != b.Used() {
+		return a.Used()
 	}
 
 	ap := haspointers(a.Type)
@@ -197,8 +197,8 @@ func cmpstackvarlt(a, b *Node) bool {
 		return ap
 	}
 
-	ap = a.Name.Needzero
-	bp = b.Name.Needzero
+	ap = a.Name.Needzero()
+	bp = b.Name.Needzero()
 	if ap != bp {
 		return ap
 	}
@@ -226,13 +226,13 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
 	// Mark the PAUTO's unused.
 	for _, ln := range Curfn.Func.Dcl {
 		if ln.Class == PAUTO {
-			ln.Used = false
+			ln.SetUsed(false)
 		}
 	}
 
 	for _, l := range f.RegAlloc {
 		if ls, ok := l.(ssa.LocalSlot); ok {
-			ls.N.(*Node).Used = true
+			ls.N.(*Node).SetUsed(true)
 		}
 
 	}
@@ -242,9 +242,9 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
 		for _, v := range b.Values {
 			switch a := v.Aux.(type) {
 			case *ssa.ArgSymbol:
-				a.Node.(*Node).Used = true
+				a.Node.(*Node).SetUsed(true)
 			case *ssa.AutoSymbol:
-				a.Node.(*Node).Used = true
+				a.Node.(*Node).SetUsed(true)
 			}
 
 			if !scratchUsed {
@@ -255,7 +255,7 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
 
 	if f.Config.NeedsFpScratch {
 		scratchFpMem = temp(Types[TUINT64])
-		scratchFpMem.Used = scratchUsed
+		scratchFpMem.SetUsed(scratchUsed)
 	}
 
 	sort.Sort(byStackVar(Curfn.Func.Dcl))
@@ -265,7 +265,7 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
 		if n.Op != ONAME || n.Class != PAUTO {
 			continue
 		}
-		if !n.Used {
+		if !n.Used() {
 			Curfn.Func.Dcl = Curfn.Func.Dcl[:i]
 			break
 		}
@@ -381,22 +381,22 @@ func compile(fn *Node) {
 	}
 	ptxt := Gins(obj.ATEXT, nam, nil)
 	ptxt.From3 = new(obj.Addr)
-	if fn.Func.Dupok {
+	if fn.Func.Dupok() {
 		ptxt.From3.Offset |= obj.DUPOK
 	}
-	if fn.Func.Wrapper {
+	if fn.Func.Wrapper() {
 		ptxt.From3.Offset |= obj.WRAPPER
 	}
-	if fn.Func.NoFramePointer {
+	if fn.Func.NoFramePointer() {
 		ptxt.From3.Offset |= obj.NOFRAME
 	}
-	if fn.Func.Needctxt {
+	if fn.Func.Needctxt() {
 		ptxt.From3.Offset |= obj.NEEDCTXT
 	}
 	if fn.Func.Pragma&Nosplit != 0 {
 		ptxt.From3.Offset |= obj.NOSPLIT
 	}
-	if fn.Func.ReflectMethod {
+	if fn.Func.ReflectMethod() {
 		ptxt.From3.Offset |= obj.REFLECTMETHOD
 	}
 	if fn.Func.Pragma&Systemstack != 0 {
@@ -449,7 +449,7 @@ func gendebug(fn *obj.LSym, decls []*Node) {
 		var name obj.AddrName
 		switch n.Class {
 		case PAUTO:
-			if !n.Used {
+			if !n.Used() {
 				continue
 			}
 			name = obj.NAME_AUTO

@@ -158,10 +158,10 @@ func typecheckswitch(n *Node) {
 						n1 = n.Left.Right
 						ls[i1] = n1
 					case !n1.Type.IsInterface() && t.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr):
-						if have != nil && !missing.Broke && !have.Broke {
+						if have != nil && !missing.Broke() && !have.Broke() {
 							yyerror("impossible type switch case: %L cannot have dynamic type %v"+
 								" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-						} else if !missing.Broke {
+						} else if !missing.Broke() {
 							if ptr != 0 {
 								yyerror("impossible type switch case: %L cannot have dynamic type %v"+
 									" (%v method has pointer receiver)", n.Left.Right, n1.Type, missing.Sym)
@@ -760,7 +760,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	} else {
 		h.Xoffset = int64(3 * Widthptr) // offset of hash in runtime.itab
 	}
-	h.Bounded = true // guaranteed not to fault
+	h.SetBounded(true) // guaranteed not to fault
 	a = nod(OAS, s.hashname, h)
 	a = typecheck(a, Etop)
 	cas = append(cas, a)

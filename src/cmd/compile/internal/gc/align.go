@@ -124,8 +124,8 @@ func dowidth(t *Type) {
 	}
 
 	if t.Width == -2 {
-		if !t.Broke {
-			t.Broke = true
+		if !t.Broke() {
+			t.SetBroke(true)
 			yyerrorl(t.Pos, "invalid recursive type %v", t)
 		}
 
@@ -135,7 +135,7 @@ func dowidth(t *Type) {
 
 	// break infinite recursion if the broken recursive type
 	// is referenced again
-	if t.Broke && t.Width == 0 {
+	if t.Broke() && t.Width == 0 {
 		return
 	}
 
@@ -228,7 +228,7 @@ func dowidth(t *Type) {
 		checkwidth(t.Key())
 
 	case TFORW: // should have been filled in
-		if !t.Broke {
+		if !t.Broke() {
 			yyerror("invalid recursive type %v", t)
 		}
 		w = 1 // anything will do
@@ -249,9 +249,9 @@ func dowidth(t *Type) {
 			break
 		}
 		if t.isDDDArray() {
-			if !t.Broke {
+			if !t.Broke() {
 				yyerror("use of [...] array outside of array literal")
-				t.Broke = true
+				t.SetBroke(true)
 			}
 			break
 		}
@@ -356,10 +356,10 @@ func checkwidth(t *Type) {
 		return
 	}
 
-	if t.Deferwidth {
+	if t.Deferwidth() {
 		return
 	}
-	t.Deferwidth = true
+	t.SetDeferwidth(true)
 
 	deferredTypeStack = append(deferredTypeStack, t)
 }
@@ -379,7 +379,7 @@ func resumecheckwidth() {
 	for len(deferredTypeStack) > 0 {
 		t := deferredTypeStack[len(deferredTypeStack)-1]
 		deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
-		t.Deferwidth = false
+		t.SetDeferwidth(false)
 		dowidth(t)
 	}
 

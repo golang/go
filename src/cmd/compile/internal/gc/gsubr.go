@@ -76,7 +76,7 @@ func ggloblnod(nam *Node) {
 	s := Linksym(nam.Sym)
 	s.Gotype = Linksym(ngotype(nam))
 	flags := 0
-	if nam.Name.Readonly {
+	if nam.Name.Readonly() {
 		flags = obj.RODATA
 	}
 	if nam.Type != nil && !haspointers(nam.Type) {
@@ -202,7 +202,7 @@ func nodarg(t interface{}, fp int) *Node {
 			Fatalf("nodarg: offset not computed for %v", t)
 		}
 		n.Xoffset = first.Offset
-		n.Addable = true
+		n.SetAddable(true)
 
 	case *Field:
 		funarg = t.Funarg
@@ -247,7 +247,7 @@ func nodarg(t interface{}, fp int) *Node {
 			Fatalf("nodarg: offset not computed for %v", t)
 		}
 		n.Xoffset = t.Offset
-		n.Addable = true
+		n.SetAddable(true)
 		n.Orig = t.Nname
 	}
 
@@ -274,7 +274,7 @@ func nodarg(t interface{}, fp int) *Node {
 	}
 
 	n.Typecheck = 1
-	n.Addrtaken = true // keep optimizers at bay
+	n.SetAddrtaken(true) // keep optimizers at bay
 	return n
 }
 
