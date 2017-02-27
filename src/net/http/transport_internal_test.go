@@ -30,6 +30,7 @@ func TestTransportPersistConnReadLoopEOF(t *testing.T) {
 
 	tr := new(Transport)
 	req, _ := NewRequest("GET", "http://"+ln.Addr().String(), nil)
+	req = req.WithT(t)
 	treq := &transportRequest{Request: req}
 	cm := connectMethod{targetScheme: "http", targetAddr: ln.Addr().String()}
 	pc, err := tr.getConn(treq, cm)
@@ -47,13 +48,13 @@ func TestTransportPersistConnReadLoopEOF(t *testing.T) {
 
 	_, err = pc.roundTrip(treq)
 	if !isTransportReadFromServerError(err) && err != errServerClosedIdle {
-		t.Fatalf("roundTrip = %#v, %v; want errServerClosedConn or errServerClosedIdle", err, err)
+		t.Errorf("roundTrip = %#v, %v; want errServerClosedIdle or transportReadFromServerError", err, err)
 	}
 
 	<-pc.closech
 	err = pc.closed
 	if !isTransportReadFromServerError(err) && err != errServerClosedIdle {
-		t.Fatalf("pc.closed = %#v, %v; want errServerClosedConn or errServerClosedIdle", err, err)
+		t.Errorf("pc.closed = %#v, %v; want errServerClosedIdle or transportReadFromServerError", err, err)
 	}
 }
 
