@@ -11,11 +11,13 @@ const (
 
 	_HWCAP_VFP   = 1 << 6  // introduced in at least 2.6.11
 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
+	_HWCAP_IDIVA = 1 << 17
 )
 
 var randomNumber uint32
 var armArch uint8 = 6 // we default to ARMv6
 var hwcap uint32      // set by setup_auxv
+var hardDiv bool      // set if a hardware divider is available
 
 func checkgoarm() {
 	// On Android, /proc/self/auxv might be unreadable and hwcap won't
@@ -53,6 +55,7 @@ func archauxv(tag, val uintptr) {
 
 	case _AT_HWCAP: // CPU capability bit flags
 		hwcap = uint32(val)
+		hardDiv = (hwcap & _HWCAP_IDIVA) != 0
 	}
 }
 

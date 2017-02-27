@@ -142,6 +142,8 @@ var optab = []Optab{
 	{AMUL, C_REG, C_NONE, C_REG, 15, 4, 0, 0, 0},
 	{ADIV, C_REG, C_REG, C_REG, 16, 4, 0, 0, 0},
 	{ADIV, C_REG, C_NONE, C_REG, 16, 4, 0, 0, 0},
+	{ADIVHW, C_REG, C_REG, C_REG, 105, 4, 0, 0, 0},
+	{ADIVHW, C_REG, C_NONE, C_REG, 105, 4, 0, 0, 0},
 	{AMULL, C_REG, C_REG, C_REGREG, 17, 4, 0, 0, 0},
 	{AMULA, C_REG, C_REG, C_REGREG2, 17, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_SAUTO, 20, 4, REGSP, 0, 0},
@@ -1401,6 +1403,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AMODU, r0)
 			opset(ADIVU, r0)
 
+		case ADIVHW:
+			opset(ADIVUHW, r0)
+
 		case AMOVW,
 			AMOVB,
 			AMOVBS,
@@ -2407,6 +2412,16 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.As == ADATABUNDLE {
 			o1 = 0xe125be70
 		}
+
+	case 105: /* divhw r,[r,]r */
+		o1 = c.oprrr(p, p.As, int(p.Scond))
+		rf := int(p.From.Reg)
+		rt := int(p.To.Reg)
+		r := int(p.Reg)
+		if r == 0 {
+			r = rt
+		}
+		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16
 	}
 
 	out[0] = o1
@@ -2445,6 +2460,10 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
 		c.ctxt.Diag(".nil/.W on dp instruction")
 	}
 	switch a {
+	case ADIVHW:
+		return o | 0x71<<20 | 0xf<<12 | 0x1<<4
+	case ADIVUHW:
+		return o | 0x73<<20 | 0xf<<12 | 0x1<<4
 	case AMMUL:
 		return o | 0x75<<20 | 0xf<<12 | 0x1<<4
 	case AMULS:

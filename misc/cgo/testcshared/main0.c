@@ -12,6 +12,7 @@
 //   int8_t DidInitRun();
 //   int8_t DidMainRun();
 //   int32_t FromPkg();
+//   uint32_t Divu(uint32_t, uint32_t);
 int main(void) {
   int8_t ran_init = DidInitRun();
   if (!ran_init) {
@@ -28,6 +29,11 @@ int main(void) {
   int32_t from_pkg = FromPkg();
   if (from_pkg != 1024) {
     fprintf(stderr, "ERROR: FromPkg=%d, want %d\n", from_pkg, 1024);
+    return 1;
+  }
+  uint32_t divu = Divu(2264, 31);
+  if (divu != 73) {
+    fprintf(stderr, "ERROR: Divu(2264, 31)=%d, want %d\n", divu, 73);
     return 1;
   }
   // test.bash looks for "PASS" to ensure this program has reached the end. 
