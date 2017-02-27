@@ -600,6 +600,7 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
+	return // skip API check on go1.8.typealias branch
 	if t.goos != "nacl" && t.goos != "android" && !t.iOS() {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
