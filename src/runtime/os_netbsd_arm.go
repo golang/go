@@ -6,6 +6,8 @@ package runtime
 
 import "unsafe"
 
+var hardDiv bool // TODO: set if a hardware divider is available
+
 func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
 	// Machine dependent mcontext initialisation for LWP.
 	mc.__gregs[_REG_R15] = uint32(funcPC(lwp_tramp))

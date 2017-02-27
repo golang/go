@@ -4,6 +4,8 @@
 
 package runtime
 
+var hardDiv bool // TODO: set if a hardware divider is available
+
 func checkgoarm() {
 	return // TODO(minux)
 }

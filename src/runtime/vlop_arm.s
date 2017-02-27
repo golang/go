@@ -119,6 +119,10 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
 
 // Be careful: Ra == R11 will be used by the linker for synthesized instructions.
 TEXT udiv(SB),NOSPLIT,$-4
+	MOVBU	runtime·hardDiv(SB), Ra
+	CMP	$0, Ra
+	BNE	udiv_hardware
+
 	CLZ 	Rq, Rs // find normalizing shift
 	MOVW.S	Rq<<Rs, Ra
 	MOVW	$fast_udiv_tab<>-64(SB), RM
@@ -152,6 +156,14 @@ TEXT udiv(SB),NOSPLIT,$-4
 	ADD.CC	$1, Rq
 	ADD.PL	RM<<1, Rr
 	ADD.PL	$2, Rq
+	RET
+
+// use hardware divider
+udiv_hardware:
+	DIVUHW	Rq, Rr, Rs
+	MUL	Rs, Rq, RM
+	RSB	Rr, RM, Rr
+	MOVW	Rs, Rq
 	RET
 
 udiv_by_large_d:

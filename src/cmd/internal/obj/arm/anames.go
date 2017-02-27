@@ -71,6 +71,8 @@ var Anames = []string{
 	"DIV",
 	"MOD",
 	"MODU",
+	"DIVHW",
+	"DIVUHW",
 	"MOVB",
 	"MOVBS",
 	"MOVBU",
