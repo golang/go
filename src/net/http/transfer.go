@@ -51,6 +51,19 @@ func (br *byteReader) Read(p []byte) (n int, err error) {
 	return 1, io.EOF
 }
 
+// transferBodyReader is an io.Reader that reads from tw.Body
+// and records any non-EOF error in tw.bodyReadError.
+// It is exactly 1 pointer wide to avoid allocations into interfaces.
+type transferBodyReader struct{ tw *transferWriter }
+
+func (br transferBodyReader) Read(p []byte) (n int, err error) {
+	n, err = br.tw.Body.Read(p)
+	if err != nil && err != io.EOF {
+		br.tw.bodyReadError = err
+	}
+	return
+}
+
 // transferWriter inspects the fields of a user-supplied Request or Response,
 // sanitizes them without changing the user object and provides methods for
 // writing the respective header, body and trailer in wire format.
@@ -64,6 +77,7 @@ type transferWriter struct {
 	TransferEncoding []string
 	Trailer          Header
 	IsResponse       bool
+	bodyReadError    error // any non-EOF error from reading Body
 
 	FlushHeaders bool            // flush headers to network before body
 	ByteReadCh   chan readResult // non-nil if probeRequestBody called
@@ -304,24 +318,25 @@ func (t *transferWriter) WriteBody(w io.Writer) error {
 
 	// Write body
 	if t.Body != nil {
+		var body = transferBodyReader{t}
 		if chunked(t.TransferEncoding) {
 			if bw, ok := w.(*bufio.Writer); ok && !t.IsResponse {
 				w = &internal.FlushAfterChunkWriter{Writer: bw}
 			}
 			cw := internal.NewChunkedWriter(w)
-			_, err = io.Copy(cw, t.Body)
+			_, err = io.Copy(cw, body)
 			if err == nil {
 				err = cw.Close()
 			}
 		} else if t.ContentLength == -1 {
-			ncopy, err = io.Copy(w, t.Body)
+			ncopy, err = io.Copy(w, body)
 		} else {
-			ncopy, err = io.Copy(w, io.LimitReader(t.Body, t.ContentLength))
+			ncopy, err = io.Copy(w, io.LimitReader(body, t.ContentLength))
 			if err != nil {
 				return err
 			}
 			var nextra int64
-			nextra, err = io.Copy(ioutil.Discard, t.Body)
+			nextra, err = io.Copy(ioutil.Discard, body)
 			ncopy += nextra
 		}
 		if err != nil {

@@ -8,9 +8,11 @@
 package http
 
 import (
+	"context"
 	"net"
 	"sort"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -198,4 +200,8 @@ func (s *Server) ExportAllConnsIdle() bool {
 		}
 	}
 	return true
+}
+
+func (r *Request) WithT(t *testing.T) *Request {
+	return r.WithContext(context.WithValue(r.Context(), tLogKey{}, t.Logf))
 }

@@ -1625,7 +1625,9 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
 		{path: "/fast", want: 200},
 	}
 	for i, tt := range tests {
-		res, err := c.Get(ts.URL + tt.path)
+		req, _ := NewRequest("GET", ts.URL+tt.path, nil)
+		req = req.WithT(t)
+		res, err := c.Do(req)
 		select {
 		case <-inHandler:
 		case <-time.After(5 * time.Second):

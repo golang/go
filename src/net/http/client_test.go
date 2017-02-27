@@ -304,6 +304,7 @@ func TestClientRedirects(t *testing.T) {
 	}
 }
 
+// Tests that Client redirects' contexts are derived from the original request's context.
 func TestClientRedirectContext(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
@@ -320,10 +321,12 @@ func TestClientRedirectContext(t *testing.T) {
 		Transport: tr,
 		CheckRedirect: func(req *Request, via []*Request) error {
 			cancel()
-			if len(via) > 2 {
-				return errors.New("too many redirects")
+			select {
+			case <-req.Context().Done():
+				return nil
+			case <-time.After(5 * time.Second):
+				return errors.New("redirected request's context never expired after root request canceled")
 			}
-			return nil
 		},
 	}
 	req, _ := NewRequest("GET", ts.URL, nil)
@@ -1818,6 +1821,7 @@ func TestTransportBodyReadError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	req = req.WithT(t)
 	_, err = tr.RoundTrip(req)
 	if err != someErr {
 		t.Errorf("Got error: %v; want Request.Body read error: %v", err, someErr)

@@ -621,6 +621,9 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 	// Write body and trailer
 	err = tw.WriteBody(w)
 	if err != nil {
+		if tw.bodyReadError == err {
+			err = requestBodyReadError{err}
+		}
 		return err
 	}
 
@@ -629,6 +632,11 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 	}
 	return nil
 }
+
+// requestBodyReadError wraps an error from (*Request).write to indicate
+// that the error came from a Read call on the Request.Body.
+// This error type should not escape the net/http package to users.
+type requestBodyReadError struct{ error }
 
 func idnaASCII(v string) (string, error) {
 	if isASCII(v) {
