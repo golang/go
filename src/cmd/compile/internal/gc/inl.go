@@ -405,7 +405,7 @@ func inlnode(n *Node) *Node {
 		case OCALLFUNC, OCALLMETH:
 			n.Left.setNoInline(true)
 		}
-		fallthrough
+		return n
 
 	// TODO do them here (or earlier),
 	// so escape analysis can avoid more heapmoves.
@@ -445,14 +445,9 @@ func inlnode(n *Node) *Node {
 			}
 		}
 
-	// if we just replaced arg in f(arg()) or return arg with an inlined call
-	// and arg returns multiple values, glue as list
-	case ORETURN,
-		OCALLFUNC,
-		OCALLMETH,
-		OCALLINTER,
-		OAPPEND,
-		OCOMPLEX:
+	case ORETURN, OCALLFUNC, OCALLMETH, OCALLINTER, OAPPEND, OCOMPLEX:
+		// if we just replaced arg in f(arg()) or return arg with an inlined call
+		// and arg returns multiple values, glue as list
 		if n.List.Len() == 1 && n.List.First().Op == OINLCALL && n.List.First().Rlist.Len() > 1 {
 			n.List.Set(inlconv2list(n.List.First()))
 			break
@@ -469,18 +464,12 @@ func inlnode(n *Node) *Node {
 	}
 
 	inlnodelist(n.Rlist)
-	switch n.Op {
-	case OAS2FUNC:
-		if n.Rlist.First().Op == OINLCALL {
-			n.Rlist.Set(inlconv2list(n.Rlist.First()))
-			n.Op = OAS2
-			n.Typecheck = 0
-			n = typecheck(n, Etop)
-			break
-		}
-		fallthrough
-
-	default:
+	if n.Op == OAS2FUNC && n.Rlist.First().Op == OINLCALL {
+		n.Rlist.Set(inlconv2list(n.Rlist.First()))
+		n.Op = OAS2
+		n.Typecheck = 0
+		n = typecheck(n, Etop)
+	} else {
 		s := n.Rlist.Slice()
 		for i1, n1 := range s {
 			if n1.Op == OINLCALL {
