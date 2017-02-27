@@ -57,6 +57,7 @@ var pkgDeps = map[string][]string{
 	// L1 adds simple functions and strings processing,
 	// but not Unicode tables.
 	"math":          {"unsafe"},
+	"math/bits":     {},
 	"math/cmplx":    {"math"},
 	"math/rand":     {"L0", "math"},
 	"strconv":       {"L0", "unicode/utf8", "math"},
@@ -66,6 +67,7 @@ var pkgDeps = map[string][]string{
 	"L1": {
 		"L0",
 		"math",
+		"math/bits",
 		"math/cmplx",
 		"math/rand",
 		"sort",
@@ -258,7 +260,7 @@ var pkgDeps = map[string][]string{
 	"index/suffixarray":        {"L4", "regexp"},
 	"internal/singleflight":    {"sync"},
 	"internal/trace":           {"L4", "OS"},
-	"math/big":                 {"L4", "math/bits"},
+	"math/big":                 {"L4"},
 	"mime":                     {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
 	"mime/quotedprintable":     {"L4"},
 	"net/internal/socktest":    {"L4", "OS", "syscall"},
