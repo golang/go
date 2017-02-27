@@ -857,6 +857,10 @@ var work struct {
 	// mode is the concurrency mode of the current GC cycle.
 	mode gcMode
 
+	// userForced indicates the current GC cycle was forced by an
+	// explicit user call.
+	userForced bool
+
 	// totaltime is the CPU nanoseconds spent in GC since the
 	// program started if debug.gctrace > 0.
 	totaltime int64
@@ -992,7 +996,7 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 	}
 
 	// For stats, check if this GC was forced by the user.
-	forced := trigger.kind == gcTriggerAlways
+	work.userForced = trigger.kind == gcTriggerAlways
 
 	// In gcstoptheworld debug mode, upgrade the mode accordingly.
 	// We do this after re-checking the transition condition so
@@ -1086,10 +1090,6 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 		t := nanotime()
 		work.tMark, work.tMarkTerm = t, t
 		work.heapGoal = work.heap0
-
-		if forced {
-			memstats.numforcedgc++
-		}
 
 		// Perform mark termination. This will restart the world.
 		gcMarkTermination()
@@ -1330,6 +1330,10 @@ func gcMarkTermination() {
 	sweep.nbgsweep = 0
 	sweep.npausesweep = 0
 
+	if work.userForced {
+		memstats.numforcedgc++
+	}
+
 	// Finish the current heap profiling cycle and start a new
 	// heap profiling cycle. We do this before starting the world
 	// so events don't leak into the wrong cycle.
@@ -1378,7 +1382,7 @@ func gcMarkTermination() {
 			work.heap0>>20, "->", work.heap1>>20, "->", work.heap2>>20, " MB, ",
 			work.heapGoal>>20, " MB goal, ",
 			work.maxprocs, " P")
-		if work.mode != gcBackgroundMode {
+		if work.userForced {
 			print(" (forced)")
 		}
 		print("\n")
