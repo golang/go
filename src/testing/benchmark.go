@@ -657,7 +657,10 @@ func Benchmark(f func(b *B)) BenchmarkResult {
 		benchFunc: f,
 		benchTime: *benchTime,
 	}
-	return b.run()
+	if b.run1() {
+		b.run()
+	}
+	return b.result
 }
 
 type discard struct{}

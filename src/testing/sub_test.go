@@ -7,6 +7,7 @@ package testing
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"regexp"
 	"runtime"
 	"strings"
@@ -530,6 +531,16 @@ func TestBenchmarkOutput(t *T) {
 	Benchmark(func(b *B) {})
 }
 
+func TestBenchmarkStartsFrom1(t *T) {
+	var first = true
+	Benchmark(func(b *B) {
+		if first && b.N != 1 {
+			panic(fmt.Sprintf("Benchmark() first N=%v; want 1", b.N))
+		}
+		first = false
+	})
+}
+
 func TestParallelSub(t *T) {
 	c := make(chan int)
 	block := make(chan int)
@@ -591,6 +602,7 @@ func TestBenchmark(t *T) {
 	res := Benchmark(func(b *B) {
 		for i := 0; i < 5; i++ {
 			b.Run("", func(b *B) {
+				fmt.Fprintf(os.Stderr, "b.N: %v\n", b.N)
 				for i := 0; i < b.N; i++ {
 					time.Sleep(time.Millisecond)
 				}
