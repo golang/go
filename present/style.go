@@ -38,7 +38,7 @@ func Style(s string) template.HTML {
 
 // font returns s with font indicators turned into HTML font tags.
 func font(s string) string {
-	if strings.IndexAny(s, "[`_*") == -1 {
+	if !strings.ContainsAny(s, "[`_*") {
 		return s
 	}
 	words := split(s)

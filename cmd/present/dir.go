@@ -88,11 +88,7 @@ func initTemplates(base string) error {
 
 	var err error
 	dirListTemplate, err = template.ParseFiles(filepath.Join(base, "templates/dir.tmpl"))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // renderDoc reads the present file, gets its template representation,

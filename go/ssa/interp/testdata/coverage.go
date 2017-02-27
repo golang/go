@@ -435,7 +435,7 @@ func init() {
 func init() {
 	// Regression test for SSA renaming bug.
 	var ints []int
-	for _ = range "foo" {
+	for range "foo" {
 		var x int
 		x++
 		ints = append(ints, x)

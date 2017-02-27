@@ -294,7 +294,7 @@ func compareTool() {
 	}
 
 	cmdS := append([]string{cmd[0], extra}, cmd[1:]...)
-	outfile, ok = cmpRun(true, cmdS)
+	outfile, _ = cmpRun(true, cmdS)
 
 	fmt.Fprintf(os.Stderr, "\n%s\n", compareLogs(outfile))
 	os.Exit(2)
