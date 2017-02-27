@@ -946,7 +946,7 @@ func clearImports() {
 			// leave s->block set to cause redeclaration
 			// errors if a conflicting top-level name is
 			// introduced by a different file.
-			if !s.Def.Used && nsyntaxerrors == 0 {
+			if !s.Def.Used() && nsyntaxerrors == 0 {
 				pkgnotused(s.Def.Pos, s.Def.Name.Pkg.Path, s.Name)
 			}
 			s.Def = nil
@@ -956,9 +956,9 @@ func clearImports() {
 		if s.isAlias() {
 			// throw away top-level name left over
 			// from previous import . "x"
-			if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
+			if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used() && nsyntaxerrors == 0 {
 				pkgnotused(s.Def.Name.Pack.Pos, s.Def.Name.Pack.Name.Pkg.Path, "")
-				s.Def.Name.Pack.Used = true
+				s.Def.Name.Pack.SetUsed(true)
 			}
 
 			s.Def = nil

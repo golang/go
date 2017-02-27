@@ -563,7 +563,7 @@ func makeaddable(n *Node) {
 
 func uintptraddr(n *Node) *Node {
 	r := nod(OADDR, n, nil)
-	r.Bounded = true
+	r.SetBounded(true)
 	r = conv(r, Types[TUNSAFEPTR])
 	r = conv(r, Types[TUINTPTR])
 	return r

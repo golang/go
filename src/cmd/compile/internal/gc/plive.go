@@ -569,7 +569,7 @@ func (lv *Liveness) initcache() {
 			// function runs.
 			lv.cache.tailuevar = append(lv.cache.tailuevar, int32(i))
 
-			if node.Addrtaken {
+			if node.Addrtaken() {
 				lv.cache.textavarinit = append(lv.cache.textavarinit, int32(i))
 			}
 			lv.cache.textvarkill = append(lv.cache.textvarkill, int32(i))
@@ -582,7 +582,7 @@ func (lv *Liveness) initcache() {
 			// So only use uevar in the non-addrtaken case.
 			// The p.to.type == obj.TYPE_NONE limits the bvset to
 			// non-tail-call return instructions; see note below for details.
-			if !node.Addrtaken {
+			if !node.Addrtaken() {
 				lv.cache.retuevar = append(lv.cache.retuevar, int32(i))
 			}
 		}
@@ -645,7 +645,7 @@ func (lv *Liveness) progeffects(prog *obj.Prog) (uevar, varkill, avarinit []int3
 		if from.Node != nil && from.Sym != nil {
 			n := from.Node.(*Node)
 			if pos := liveIndex(n, lv.vars); pos >= 0 {
-				if n.Addrtaken {
+				if n.Addrtaken() {
 					avarinit = append(avarinit, pos)
 				} else {
 					if info.Flags&(LeftRead|LeftAddr) != 0 {
@@ -664,7 +664,7 @@ func (lv *Liveness) progeffects(prog *obj.Prog) (uevar, varkill, avarinit []int3
 		if from.Node != nil && from.Sym != nil {
 			n := from.Node.(*Node)
 			if pos := liveIndex(n, lv.vars); pos >= 0 {
-				if n.Addrtaken {
+				if n.Addrtaken() {
 					avarinit = append(avarinit, pos)
 				} else {
 					uevar = append(uevar, pos)
@@ -678,7 +678,7 @@ func (lv *Liveness) progeffects(prog *obj.Prog) (uevar, varkill, avarinit []int3
 		if to.Node != nil && to.Sym != nil {
 			n := to.Node.(*Node)
 			if pos := liveIndex(n, lv.vars); pos >= 0 {
-				if n.Addrtaken {
+				if n.Addrtaken() {
 					if prog.As != obj.AVARKILL {
 						avarinit = append(avarinit, pos)
 					}
@@ -770,7 +770,7 @@ func printnode(node *Node) {
 		p = "^"
 	}
 	a := ""
-	if node.Addrtaken {
+	if node.Addrtaken() {
 		a = "@"
 	}
 	fmt.Printf(" %v%s%s", node, p, a)
@@ -1223,7 +1223,7 @@ func livenessepilogue(lv *Liveness) {
 				livedefer.Set(int32(i))
 			}
 			if n.IsOutputParamHeapAddr() {
-				n.Name.Needzero = true
+				n.Name.SetNeedzero(true)
 				livedefer.Set(int32(i))
 			}
 		}
@@ -1274,8 +1274,8 @@ func livenessepilogue(lv *Liveness) {
 						}
 						all.Set(pos) // silence future warnings in this block
 						n := lv.vars[pos]
-						if !n.Name.Needzero {
-							n.Name.Needzero = true
+						if !n.Name.Needzero() {
+							n.Name.SetNeedzero(true)
 							if debuglive >= 1 {
 								Warnl(p.Pos, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
 							}

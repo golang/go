@@ -36,22 +36,22 @@ func walk(fn *Node) {
 
 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
 	for _, ln := range fn.Func.Dcl {
-		if ln.Op == ONAME && (ln.Class == PAUTO || ln.Class == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used {
-			ln.Name.Defn.Left.Used = true
+		if ln.Op == ONAME && (ln.Class == PAUTO || ln.Class == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used() {
+			ln.Name.Defn.Left.SetUsed(true)
 		}
 	}
 
 	for _, ln := range fn.Func.Dcl {
-		if ln.Op != ONAME || (ln.Class != PAUTO && ln.Class != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Used {
+		if ln.Op != ONAME || (ln.Class != PAUTO && ln.Class != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Used() {
 			continue
 		}
 		if defn := ln.Name.Defn; defn != nil && defn.Op == OTYPESW {
-			if defn.Left.Used {
+			if defn.Left.Used() {
 				continue
 			}
 			lineno = defn.Left.Pos
 			yyerror("%v declared and not used", ln.Sym)
-			defn.Left.Used = true // suppress repeats
+			defn.Left.SetUsed(true) // suppress repeats
 		} else {
 			lineno = ln.Pos
 			yyerror("%v declared and not used", ln.Sym)
@@ -97,7 +97,7 @@ func paramoutheap(fn *Node) bool {
 	for _, ln := range fn.Func.Dcl {
 		switch ln.Class {
 		case PPARAMOUT:
-			if ln.isParamStackCopy() || ln.Addrtaken {
+			if ln.isParamStackCopy() || ln.Addrtaken() {
 				return true
 			}
 
@@ -229,7 +229,7 @@ func walkstmt(n *Node) *Node {
 				prealloc[v] = callnew(v.Type)
 			}
 			nn := nod(OAS, v.Name.Param.Heapaddr, prealloc[v])
-			nn.Colas = true
+			nn.SetColas(true)
 			nn = typecheck(nn, Etop)
 			return walkstmt(nn)
 		}
@@ -487,7 +487,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 		nn := nod(OIND, n.Name.Param.Heapaddr, nil)
 		nn = typecheck(nn, Erv)
 		nn = walkexpr(nn, init)
-		nn.Left.NonNil = true
+		nn.Left.SetNonNil(true)
 		return nn
 	}
 
@@ -558,7 +558,7 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
 		t := n.Left.Type
-		n.Bounded = bounded(n.Right, 8*t.Width)
+		n.SetBounded(bounded(n.Right, 8*t.Width))
 		if Debug['m'] != 0 && n.Etype != 0 && !Isconst(n.Right, CTINT) {
 			Warn("shift bounds check elided")
 		}
@@ -622,13 +622,13 @@ opswitch:
 		n = mkcall("gorecover", n.Type, init, nod(OADDR, nodfp, nil))
 
 	case OLITERAL:
-		n.Addable = true
+		n.SetAddable(true)
 
 	case OCLOSUREVAR, OCFUNC:
-		n.Addable = true
+		n.SetAddable(true)
 
 	case ONAME:
-		n.Addable = true
+		n.SetAddable(true)
 
 	case OCALLINTER:
 		usemethod(n)
@@ -638,7 +638,7 @@ opswitch:
 		}
 		n.Left = walkexpr(n.Left, init)
 		walkexprlist(n.List.Slice(), init)
-		ll := ascompatte(n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
+		ll := ascompatte(n, n.Isddd(), t.Params(), n.List.Slice(), 0, init)
 		n.List.Set(reorder1(ll))
 
 	case OCALLFUNC:
@@ -671,7 +671,7 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 		walkexprlist(n.List.Slice(), init)
 
-		ll := ascompatte(n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
+		ll := ascompatte(n, n.Isddd(), t.Params(), n.List.Slice(), 0, init)
 		n.List.Set(reorder1(ll))
 
 	case OCALLMETH:
@@ -682,7 +682,7 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 		walkexprlist(n.List.Slice(), init)
 		ll := ascompatte(n, false, t.Recvs(), []*Node{n.Left.Left}, 0, init)
-		lr := ascompatte(n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
+		lr := ascompatte(n, n.Isddd(), t.Params(), n.List.Slice(), 0, init)
 		ll = append(ll, lr...)
 		n.Left.Left = nil
 		ullmancalc(n.Left)
@@ -725,10 +725,10 @@ opswitch:
 		case OAPPEND:
 			// x = append(...)
 			r := n.Right
-			if r.Type.Elem().NotInHeap {
+			if r.Type.Elem().NotInHeap() {
 				yyerror("%v is go:notinheap; heap allocation disallowed", r.Type.Elem())
 			}
-			if r.Isddd {
+			if r.Isddd() {
 				r = appendslice(r, init) // also works for append(slice, string).
 			} else {
 				r = walkappend(r, init, n)
@@ -844,7 +844,7 @@ opswitch:
 		if !isblank(a) {
 			var_ := temp(ptrto(t.Val()))
 			var_.Typecheck = 1
-			var_.NonNil = true // mapaccess always returns a non-nil pointer
+			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
 			n.List.SetFirst(var_)
 			n = walkexpr(n, init)
 			init.Append(n)
@@ -915,8 +915,8 @@ opswitch:
 			// n.Left is a bool/byte. Use staticbytes[n.Left].
 			n.Left = cheapexpr(n.Left, init)
 			value = nod(OINDEX, staticbytes, byteindex(n.Left))
-			value.Bounded = true
-		case n.Left.Class == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly:
+			value.SetBounded(true)
+		case n.Left.Class == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly():
 			// n.Left is a readonly global; use it directly.
 			value = n.Left
 		case !n.Left.Type.IsInterface() && n.Esc == EscNone && n.Left.Type.Width <= 1024:
@@ -1143,7 +1143,7 @@ opswitch:
 
 		// if range of type cannot exceed static array bound,
 		// disable bounds check.
-		if n.Bounded {
+		if n.Bounded() {
 			break
 		}
 		t := n.Left.Type
@@ -1151,19 +1151,19 @@ opswitch:
 			t = t.Elem()
 		}
 		if t.IsArray() {
-			n.Bounded = bounded(r, t.NumElem())
-			if Debug['m'] != 0 && n.Bounded && !Isconst(n.Right, CTINT) {
+			n.SetBounded(bounded(r, t.NumElem()))
+			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
-			if smallintconst(n.Right) && !n.Bounded {
+			if smallintconst(n.Right) && !n.Bounded() {
 				yyerror("index out of bounds")
 			}
 		} else if Isconst(n.Left, CTSTR) {
-			n.Bounded = bounded(r, int64(len(n.Left.Val().U.(string))))
-			if Debug['m'] != 0 && n.Bounded && !Isconst(n.Right, CTINT) {
+			n.SetBounded(bounded(r, int64(len(n.Left.Val().U.(string)))))
+			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
-			if smallintconst(n.Right) && !n.Bounded {
+			if smallintconst(n.Right) && !n.Bounded() {
 				yyerror("index out of bounds")
 			}
 		}
@@ -1205,7 +1205,7 @@ opswitch:
 			}
 		}
 		n.Type = ptrto(t.Val())
-		n.NonNil = true // mapaccess1* and mapassign always return non-nil pointers.
+		n.SetNonNil(true) // mapaccess1* and mapassign always return non-nil pointers.
 		n = nod(OIND, n, nil)
 		n.Type = t.Val()
 		n.Typecheck = 1
@@ -1435,7 +1435,7 @@ opswitch:
 			// When len and cap can fit into int, use makeslice instead of
 			// makeslice64, which is faster and shorter on 32 bit platforms.
 
-			if t.Elem().NotInHeap {
+			if t.Elem().NotInHeap() {
 				yyerror("%v is go:notinheap; heap allocation disallowed", t.Elem())
 			}
 
@@ -1580,7 +1580,7 @@ opswitch:
 			// n can be directly represented in the read-only data section.
 			// Make direct reference to the static data. See issue 12841.
 			vstat := staticname(n.Type)
-			vstat.Name.Readonly = true
+			vstat.Name.SetReadonly(true)
 			fixedlit(inInitFunction, initKindStatic, n, vstat, init)
 			n = vstat
 			n = typecheck(n, Erv)
@@ -1831,7 +1831,7 @@ func ascompatte(call *Node, isddd bool, lhs *Type, rhs []*Node, fp int, init *No
 	// then assign the remaining arguments as a slice.
 	for i, nl := range lhs.FieldSlice() {
 		var nr *Node
-		if nl.Isddd && !isddd {
+		if nl.Isddd() && !isddd {
 			nr = mkdotargslice(nl.Type, rhs[i:], init, call.Right)
 		} else {
 			nr = rhs[i]
@@ -1963,14 +1963,14 @@ func walkprint(nn *Node, init *Nodes) *Node {
 }
 
 func callnew(t *Type) *Node {
-	if t.NotInHeap {
+	if t.NotInHeap() {
 		yyerror("%v is go:notinheap; heap allocation disallowed", t)
 	}
 	dowidth(t)
 	fn := syslook("newobject")
 	fn = substArgTypes(fn, t)
 	v := mkcall1(fn, ptrto(t), nil, typename(t))
-	v.NonNil = true
+	v.SetNonNil(true)
 	return v
 }
 
@@ -2058,7 +2058,7 @@ func needwritebarrier(l *Node) bool {
 
 	// No write barrier if this is a pointer to a go:notinheap
 	// type, since the write barrier's inheap(ptr) check will fail.
-	if l.Type.IsPtr() && l.Type.Elem().NotInHeap {
+	if l.Type.IsPtr() && l.Type.Elem().NotInHeap() {
 		return false
 	}
 
@@ -2308,7 +2308,7 @@ func aliased(n *Node, all []*Node, i int) bool {
 			continue
 
 		case PAUTO, PPARAM, PPARAMOUT:
-			if n.Addrtaken {
+			if n.Addrtaken() {
 				varwrite = 1
 				continue
 			}
@@ -2356,7 +2356,7 @@ func varexpr(n *Node) bool {
 	case ONAME:
 		switch n.Class {
 		case PAUTO, PPARAM, PPARAMOUT:
-			if !n.Addrtaken {
+			if !n.Addrtaken() {
 				return true
 			}
 		}
@@ -2790,7 +2790,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 	} else {
 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
 		nptr1 := nod(OINDEX, s, nod(OLEN, l1, nil))
-		nptr1.Bounded = true
+		nptr1.SetBounded(true)
 
 		nptr1 = nod(OADDR, nptr1, nil)
 
@@ -2895,7 +2895,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	ls = n.List.Slice()[1:]
 	for i, n := range ls {
 		nx = nod(OINDEX, ns, nn) // s[n] ...
-		nx.Bounded = true
+		nx.SetBounded(true)
 		l = append(l, nod(OAS, nx, n)) // s[n] = arg
 		if i+1 < len(ls) {
 			l = append(l, nod(OAS, nn, nod(OADD, nn, nodintconst(1)))) // n = n + 1
@@ -3410,7 +3410,7 @@ func usemethod(n *Node) {
 		return
 	}
 
-	Curfn.Func.ReflectMethod = true
+	Curfn.Func.SetReflectMethod(true)
 }
 
 func usefield(n *Node) {

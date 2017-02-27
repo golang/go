@@ -570,7 +570,7 @@ const (
 // part of the composite literal.
 
 // staticname returns a name backed by a static data symbol.
-// Callers should set n.Name.Readonly = true on the
+// Callers should call n.Name.SetReadonly(true) on the
 // returned node for readonly nodes.
 func staticname(t *Type) *Node {
 	n := newname(lookupN("statictmp_", statuniqgen))
@@ -585,7 +585,7 @@ func isliteral(n *Node) bool {
 }
 
 func (n *Node) isSimpleName() bool {
-	return n.Op == ONAME && n.Addable && n.Class != PAUTOHEAP && n.Class != PEXTERN
+	return n.Op == ONAME && n.Addable() && n.Class != PAUTOHEAP && n.Class != PEXTERN
 }
 
 func litas(l *Node, r *Node, init *Nodes) {
@@ -822,7 +822,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	if mode&initConst != 0 {
 		vstat = staticname(t)
 		if ctxt == inInitFunction {
-			vstat.Name.Readonly = true
+			vstat.Name.SetReadonly(true)
 		}
 		fixedlit(ctxt, initKindStatic, n, vstat, init)
 	}
@@ -882,7 +882,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			value = r.Right
 		}
 		a := nod(OINDEX, vauto, nodintconst(index))
-		a.Bounded = true
+		a.SetBounded(true)
 		index++
 
 		// TODO need to check bounds?
@@ -952,9 +952,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
 
 		// make and initialize static arrays
 		vstatk := staticname(tk)
-		vstatk.Name.Readonly = true
+		vstatk.Name.SetReadonly(true)
 		vstatv := staticname(tv)
-		vstatv.Name.Readonly = true
+		vstatv.Name.SetReadonly(true)
 
 		b := int64(0)
 		for _, r := range n.List.Slice() {
@@ -989,10 +989,10 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		// }
 		i := temp(Types[TINT])
 		rhs := nod(OINDEX, vstatv, i)
-		rhs.Bounded = true
+		rhs.SetBounded(true)
 
 		kidx := nod(OINDEX, vstatk, i)
-		kidx.Bounded = true
+		kidx.SetBounded(true)
 		lhs := nod(OINDEX, m, kidx)
 
 		zero := nod(OAS, i, nodintconst(0))
@@ -1104,7 +1104,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 		if var_.isSimpleName() && n.List.Len() > 4 {
 			// lay out static data
 			vstat := staticname(t)
-			vstat.Name.Readonly = true
+			vstat.Name.SetReadonly(true)
 
 			ctxt := inInitFunction
 			if n.Op == OARRAYLIT {
@@ -1203,7 +1203,7 @@ func stataddr(nam *Node, n *Node) bool {
 	switch n.Op {
 	case ONAME:
 		*nam = *n
-		return n.Addable
+		return n.Addable()
 
 	case ODOT:
 		if !stataddr(nam, n.Left) {

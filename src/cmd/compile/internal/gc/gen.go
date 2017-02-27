@@ -38,7 +38,7 @@ func addrescapes(n *Node) {
 		}
 
 		// If a closure reference escapes, mark the outer variable as escaping.
-		if n.isClosureVar() {
+		if n.IsClosureVar() {
 			addrescapes(n.Name.Defn)
 			break
 		}
@@ -119,7 +119,7 @@ func moveToHeap(n *Node) {
 	// Unset AutoTemp to persist the &foo variable name through SSA to
 	// liveness analysis.
 	// TODO(mdempsky/drchase): Cleaner solution?
-	heapaddr.Name.AutoTemp = false
+	heapaddr.Name.SetAutoTemp(false)
 
 	// Parameters have a local stack copy used at function start/end
 	// in addition to the copy in the heap that may live longer than
@@ -145,7 +145,7 @@ func moveToHeap(n *Node) {
 			// Thus, we need the pointer to the heap copy always available so the
 			// post-deferreturn code can copy the return value back to the stack.
 			// See issue 16095.
-			heapaddr.setIsOutputParamHeapAddr(true)
+			heapaddr.SetIsOutputParamHeapAddr(true)
 		}
 		n.Name.Param.Stackcopy = stackcopy
 
@@ -207,11 +207,11 @@ func tempname(nn *Node, t *Type) {
 	s.Def = n
 	n.Type = t
 	n.Class = PAUTO
-	n.Addable = true
+	n.SetAddable(true)
 	n.Ullman = 1
 	n.Esc = EscNever
 	n.Name.Curfn = Curfn
-	n.Name.AutoTemp = true
+	n.Name.SetAutoTemp(true)
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 
 	dowidth(t)
@@ -222,6 +222,6 @@ func tempname(nn *Node, t *Type) {
 func temp(t *Type) *Node {
 	var n Node
 	tempname(&n, t)
-	n.Sym.Def.Used = true
+	n.Sym.Def.SetUsed(true)
 	return n.Orig
 }

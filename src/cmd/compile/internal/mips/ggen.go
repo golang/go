@@ -28,7 +28,7 @@ func defframe(ptxt *obj.Prog) {
 
 	// iterate through declarations - they are sorted in decreasing xoffset order.
 	for _, n := range gc.Curfn.Func.Dcl {
-		if !n.Name.Needzero {
+		if !n.Name.Needzero() {
 			continue
 		}
 		if n.Class != gc.PAUTO {

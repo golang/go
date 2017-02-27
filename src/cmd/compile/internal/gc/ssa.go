@@ -140,7 +140,7 @@ func buildssa(fn *Node) *ssa.Func {
 
 	// Check that we used all labels
 	for name, lab := range s.labels {
-		if !lab.used() && !lab.reported && !lab.defNode.Used {
+		if !lab.used() && !lab.reported && !lab.defNode.Used() {
 			yyerrorl(lab.defNode.Pos, "label %v defined and not used", name)
 			lab.reported = true
 		}
@@ -930,7 +930,7 @@ func (s *state) stmt(n *Node) {
 
 	case OVARLIVE:
 		// Insert a varlive op to record that a variable is still live.
-		if !n.Left.Addrtaken {
+		if !n.Left.Addrtaken() {
 			s.Fatalf("VARLIVE variable %v must have Addrtaken set", n.Left)
 		}
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, ssa.TypeMem, n.Left, s.mem())
@@ -1919,7 +1919,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.expr(n.Left)
 
 	case OADDR:
-		return s.addr(n.Left, n.Bounded)
+		return s.addr(n.Left, n.Bounded())
 
 	case OINDREGSP:
 		addr := s.entryNewValue1I(ssa.OpOffPtr, ptrto(n.Type), n.Xoffset, s.sp)
@@ -1955,7 +1955,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OINDEX:
 		switch {
 		case n.Left.Type.IsString():
-			if n.Bounded && Isconst(n.Left, CTSTR) && Isconst(n.Right, CTINT) {
+			if n.Bounded() && Isconst(n.Left, CTSTR) && Isconst(n.Right, CTINT) {
 				// Replace "abc"[1] with 'b'.
 				// Delayed until now because "abc"[1] is not an ideal constant.
 				// See test/fixedbugs/issue11370.go.
@@ -1964,7 +1964,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
 			i = s.extendIndex(i, panicindex)
-			if !n.Bounded {
+			if !n.Bounded() {
 				len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
 				s.boundsCheck(i, len)
 			}
@@ -3105,7 +3105,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			i := s.expr(n.Right)
 			i = s.extendIndex(i, panicindex)
 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], a)
-			if !n.Bounded {
+			if !n.Bounded() {
 				s.boundsCheck(i, len)
 			}
 			p := s.newValue1(ssa.OpSlicePtr, t, a)
@@ -3115,7 +3115,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			i := s.expr(n.Right)
 			i = s.extendIndex(i, panicindex)
 			len := s.constInt(Types[TINT], n.Left.Type.NumElem())
-			if !n.Bounded {
+			if !n.Bounded() {
 				s.boundsCheck(i, len)
 			}
 			return s.newValue2(ssa.OpPtrIndex, ptrto(n.Left.Type.Elem()), a, i)
@@ -3163,7 +3163,7 @@ func (s *state) canSSA(n *Node) bool {
 	if n.Op != ONAME {
 		return false
 	}
-	if n.Addrtaken {
+	if n.Addrtaken() {
 		return false
 	}
 	if n.isParamHeapCopy() {
@@ -3239,7 +3239,7 @@ func canSSAType(t *Type) bool {
 // exprPtr evaluates n to a pointer and nil-checks it.
 func (s *state) exprPtr(n *Node, bounded bool, lineno src.XPos) *ssa.Value {
 	p := s.expr(n)
-	if bounded || n.NonNil {
+	if bounded || n.NonNil() {
 		if s.f.Config.Debug_checknil() && lineno.Line() > 1 {
 			s.f.Config.Warnl(lineno, "removed nil check")
 		}
@@ -4761,7 +4761,7 @@ func (e *ssaExport) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlo
 	n := name.N.(*Node)
 	ptrType := ptrto(Types[TUINT8])
 	lenType := Types[TINT]
-	if n.Class == PAUTO && !n.Addrtaken {
+	if n.Class == PAUTO && !n.Addrtaken() {
 		// Split this string up into two separate variables.
 		p := e.namedAuto(n.Sym.Name+".ptr", ptrType)
 		l := e.namedAuto(n.Sym.Name+".len", lenType)
@@ -4774,7 +4774,7 @@ func (e *ssaExport) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlo
 func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
 	t := ptrto(Types[TUINT8])
-	if n.Class == PAUTO && !n.Addrtaken {
+	if n.Class == PAUTO && !n.Addrtaken() {
 		// Split this interface up into two separate variables.
 		f := ".itab"
 		if n.Type.IsEmptyInterface() {
@@ -4792,7 +4792,7 @@ func (e *ssaExport) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 	n := name.N.(*Node)
 	ptrType := ptrto(name.Type.ElemType().(*Type))
 	lenType := Types[TINT]
-	if n.Class == PAUTO && !n.Addrtaken {
+	if n.Class == PAUTO && !n.Addrtaken() {
 		// Split this slice up into three separate variables.
 		p := e.namedAuto(n.Sym.Name+".ptr", ptrType)
 		l := e.namedAuto(n.Sym.Name+".len", lenType)
@@ -4814,7 +4814,7 @@ func (e *ssaExport) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSl
 	} else {
 		t = Types[TFLOAT32]
 	}
-	if n.Class == PAUTO && !n.Addrtaken {
+	if n.Class == PAUTO && !n.Addrtaken() {
 		// Split this complex up into two separate variables.
 		c := e.namedAuto(n.Sym.Name+".real", t)
 		d := e.namedAuto(n.Sym.Name+".imag", t)
@@ -4832,7 +4832,7 @@ func (e *ssaExport) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 	} else {
 		t = Types[TUINT32]
 	}
-	if n.Class == PAUTO && !n.Addrtaken {
+	if n.Class == PAUTO && !n.Addrtaken() {
 		// Split this int64 up into two separate variables.
 		h := e.namedAuto(n.Sym.Name+".hi", t)
 		l := e.namedAuto(n.Sym.Name+".lo", Types[TUINT32])
@@ -4849,7 +4849,7 @@ func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 	n := name.N.(*Node)
 	st := name.Type
 	ft := st.FieldType(i)
-	if n.Class == PAUTO && !n.Addrtaken {
+	if n.Class == PAUTO && !n.Addrtaken() {
 		// Note: the _ field may appear several times.  But
 		// have no fear, identically-named but distinct Autos are
 		// ok, albeit maybe confusing for a debugger.
@@ -4866,7 +4866,7 @@ func (e *ssaExport) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 		Fatalf("bad array size")
 	}
 	et := at.ElemType()
-	if n.Class == PAUTO && !n.Addrtaken {
+	if n.Class == PAUTO && !n.Addrtaken() {
 		x := e.namedAuto(n.Sym.Name+"[0]", et)
 		return ssa.LocalSlot{N: x, Type: et, Off: 0}
 	}
@@ -4880,11 +4880,11 @@ func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
 	s := &Sym{Name: name, Pkg: localpkg}
 	n := nod(ONAME, nil, nil)
 	s.Def = n
-	s.Def.Used = true
+	s.Def.SetUsed(true)
 	n.Sym = s
 	n.Type = t
 	n.Class = PAUTO
-	n.Addable = true
+	n.SetAddable(true)
 	n.Ullman = 1
 	n.Esc = EscNever
 	n.Xoffset = 0

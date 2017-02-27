@@ -84,10 +84,10 @@ func algtype(t *Type) AlgKind {
 // If it returns ANOEQ, it also returns the component type of t that
 // makes it incomparable.
 func algtype1(t *Type) (AlgKind, *Type) {
-	if t.Broke {
+	if t.Broke() {
 		return AMEM, nil
 	}
-	if t.Noalg {
+	if t.Noalg() {
 		return ANOEQ, t
 	}
 
@@ -227,7 +227,7 @@ func genhash(sym *Sym, t *Type) {
 		ni := newname(lookup("i"))
 		ni.Type = Types[TINT]
 		n.List.Set1(ni)
-		n.Colas = true
+		n.SetColas(true)
 		colasdefn(n.List.Slice(), n)
 		ni = n.List.First()
 
@@ -235,7 +235,7 @@ func genhash(sym *Sym, t *Type) {
 		call := nod(OCALL, hashel, nil)
 
 		nx := nod(OINDEX, np, ni)
-		nx.Bounded = true
+		nx.SetBounded(true)
 		na := nod(OADDR, nx, nil)
 		na.Etype = 1 // no escape to heap
 		call.List.Append(na)
@@ -298,7 +298,7 @@ func genhash(sym *Sym, t *Type) {
 
 	funcbody(fn)
 	Curfn = fn
-	fn.Func.Dupok = true
+	fn.Func.SetDupok(true)
 	fn = typecheck(fn, Etop)
 	typecheckslice(fn.Nbody.Slice(), Etop)
 	Curfn = nil
@@ -406,16 +406,16 @@ func geneq(sym *Sym, t *Type) {
 		ni := newname(lookup("i"))
 		ni.Type = Types[TINT]
 		nrange.List.Set1(ni)
-		nrange.Colas = true
+		nrange.SetColas(true)
 		colasdefn(nrange.List.Slice(), nrange)
 		ni = nrange.List.First()
 
 		// if p[i] != q[i] { return false }
 		nx := nod(OINDEX, np, ni)
 
-		nx.Bounded = true
+		nx.SetBounded(true)
 		ny := nod(OINDEX, nq, ni)
-		ny.Bounded = true
+		ny.SetBounded(true)
 
 		nif := nod(OIF, nil, nil)
 		nif.Left = nod(ONE, nx, ny)
@@ -490,7 +490,7 @@ func geneq(sym *Sym, t *Type) {
 
 	funcbody(fn)
 	Curfn = fn
-	fn.Func.Dupok = true
+	fn.Func.SetDupok(true)
 	fn = typecheck(fn, Etop)
 	typecheckslice(fn.Nbody.Slice(), Etop)
 	Curfn = nil

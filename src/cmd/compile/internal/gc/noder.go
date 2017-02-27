@@ -269,7 +269,7 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 	n := p.declName(decl.Name)
 	n.Op = OTYPE
 	declare(n, dclcontext)
-	n.Local = true
+	n.SetLocal(true)
 
 	// decl.Type may be nil but in that case we got a syntax error during parsing
 	typ := p.typeExprOrNil(decl.Type)
@@ -317,8 +317,8 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 	pragma := fun.Pragma
 
 	f.Nbody.Set(body)
-	f.Noescape = pragma&Noescape != 0
-	if f.Noescape && len(body) != 0 {
+	f.SetNoescape(pragma&Noescape != 0)
+	if f.Noescape() && len(body) != 0 {
 		yyerror("can only use //go:noescape with external func implementations")
 	}
 	f.Func.Pragma = pragma
@@ -404,9 +404,9 @@ func (p *noder) param(param *syntax.Field, dddOk, final bool) *Node {
 		typ.Op = OTARRAY
 		typ.Right = typ.Left
 		typ.Left = nil
-		n.Isddd = true
+		n.SetIsddd(true)
 		if n.Left != nil {
-			n.Left.Isddd = true
+			n.Left.SetIsddd(true)
 		}
 	}
 
@@ -463,7 +463,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		// parser.new_dotname
 		obj := p.expr(expr.X)
 		if obj.Op == OPACK {
-			obj.Used = true
+			obj.SetUsed(true)
 			return oldname(restrictlookup(expr.Sel.Value, obj.Name.Pkg))
 		}
 		return p.setlineno(expr, nodSym(OXDOT, obj, p.name(expr.Sel)))
@@ -501,7 +501,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 					// TODO(mdempsky): Switch back to p.nod after we
 					// get rid of gcCompat.
 					x.Right = nod(OIND, x.Right, nil)
-					x.Right.Implicit = true
+					x.Right.SetImplicit(true)
 					return x
 				}
 			}
@@ -511,7 +511,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 	case *syntax.CallExpr:
 		n := p.nod(expr, OCALL, p.expr(expr.Fun), nil)
 		n.List.Set(p.exprs(expr.ArgList))
-		n.Isddd = expr.HasDots
+		n.SetIsddd(expr.HasDots)
 		return n
 
 	case *syntax.ArrayType:
@@ -625,7 +625,7 @@ func (p *noder) packname(expr syntax.Expr) *Sym {
 	case *syntax.Name:
 		name := p.name(expr)
 		if n := oldname(name); n.Name != nil && n.Name.Pack != nil {
-			n.Name.Pack.Used = true
+			n.Name.Pack.SetUsed(true)
 		}
 		return name
 	case *syntax.SelectorExpr:
@@ -635,7 +635,7 @@ func (p *noder) packname(expr syntax.Expr) *Sym {
 			yyerror("%v is not a package", name)
 			pkg = localpkg
 		} else {
-			name.Def.Used = true
+			name.Def.SetUsed(true)
 			pkg = name.Def.Name.Pkg
 		}
 		return restrictlookup(expr.Sel.Value, pkg)
@@ -690,7 +690,7 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 	case *syntax.AssignStmt:
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
 			n := p.nod(stmt, OASOP, p.expr(stmt.Lhs), p.expr(stmt.Rhs))
-			n.Implicit = stmt.Rhs == syntax.ImplicitOne
+			n.SetImplicit(stmt.Rhs == syntax.ImplicitOne)
 			n.Etype = EType(p.binOp(stmt.Op))
 			return n
 		}
@@ -701,7 +701,7 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 		n := p.nod(stmt, OAS, nil, nil) // assume common case
 
 		if stmt.Op == syntax.Def {
-			n.Colas = true
+			n.SetColas(true)
 			colasdefn(lhs, n) // modifies lhs, call before using lhs[0] in common case
 		}
 
@@ -836,7 +836,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
 			lhs := p.exprList(r.Lhs)
 			n.List.Set(lhs)
 			if r.Def {
-				n.Colas = true
+				n.SetColas(true)
 				colasdefn(lhs, n)
 			}
 		}
@@ -1074,7 +1074,7 @@ func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
 		fallthrough
 	case ONAME, ONONAME, OPACK:
 		x = p.nod(n, OPAREN, x, nil)
-		x.Implicit = true
+		x.SetImplicit(true)
 	}
 	return x
 }
@@ -1147,7 +1147,7 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 func mkname(sym *Sym) *Node {
 	n := oldname(sym)
 	if n.Name != nil && n.Name.Pack != nil {
-		n.Name.Pack.Used = true
+		n.Name.Pack.SetUsed(true)
 	}
 	return n
 }

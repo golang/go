@@ -154,15 +154,32 @@ type Type struct {
 	Vargen int32    // unique name for OTYPE/ONAME
 	Pos    src.XPos // position at which this type was declared, implicitly or explicitly
 
-	Etype      EType // kind of type
-	Noalg      bool  // suppress hash and eq algorithm generation
-	Trecur     uint8 // to detect loops
-	Local      bool  // created in this file
-	Deferwidth bool
-	Broke      bool  // broken type definition.
-	Align      uint8 // the required alignment of this type, in bytes
-	NotInHeap  bool  // type cannot be heap allocated
+	Etype  EType // kind of type
+	Trecur uint8 // to detect loops
+	Align  uint8 // the required alignment of this type, in bytes
+
+	flags bitset8
 }
+
+const (
+	typeLocal     = 1 << iota // created in this file
+	typeNotInHeap             // type cannot be heap allocated
+	typeBroke                 // broken type definition
+	typeNoalg                 // suppress hash and eq algorithm generation
+	typeDeferwidth
+)
+
+func (t *Type) Local() bool      { return t.flags&typeLocal != 0 }
+func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
+func (t *Type) Broke() bool      { return t.flags&typeBroke != 0 }
+func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
+func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
+
+func (t *Type) SetLocal(b bool)      { t.flags.set(typeLocal, b) }
+func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
+func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
+func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
+func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
 
 // MapType contains Type fields specific to maps.
 type MapType struct {
@@ -299,11 +316,10 @@ type SliceType struct {
 // A Field represents a field in a struct or a method in an interface or
 // associated with a named type.
 type Field struct {
-	Nointerface bool
-	Embedded    uint8 // embedded field
-	Funarg      Funarg
-	Broke       bool // broken field definition
-	Isddd       bool // field is ... argument
+	flags bitset8
+
+	Embedded uint8 // embedded field
+	Funarg   Funarg
 
 	Sym   *Sym
 	Nname *Node
@@ -316,6 +332,20 @@ type Field struct {
 
 	Note string // literal string annotation
 }
+
+const (
+	fieldIsddd = 1 << iota // field is ... argument
+	fieldBroke             // broken field definition
+	fieldNointerface
+)
+
+func (f *Field) Isddd() bool       { return f.flags&fieldIsddd != 0 }
+func (f *Field) Broke() bool       { return f.flags&fieldBroke != 0 }
+func (f *Field) Nointerface() bool { return f.flags&fieldNointerface != 0 }
+
+func (f *Field) SetIsddd(b bool)       { f.flags.set(fieldIsddd, b) }
+func (f *Field) SetBroke(b bool)       { f.flags.set(fieldBroke, b) }
+func (f *Field) SetNointerface(b bool) { f.flags.set(fieldNointerface, b) }
 
 // End returns the offset of the first byte immediately after this field.
 func (f *Field) End() int64 {
@@ -416,7 +446,7 @@ func typArray(elem *Type, bound int64) *Type {
 	}
 	t := typ(TARRAY)
 	t.Extra = &ArrayType{Elem: elem, Bound: bound}
-	t.NotInHeap = elem.NotInHeap
+	t.SetNotInHeap(elem.NotInHeap())
 	return t
 }
 
@@ -439,7 +469,7 @@ func typSlice(elem *Type) *Type {
 func typDDDArray(elem *Type) *Type {
 	t := typ(TARRAY)
 	t.Extra = &ArrayType{Elem: elem, Bound: -1}
-	t.NotInHeap = elem.NotInHeap
+	t.SetNotInHeap(elem.NotInHeap())
 	return t
 }
 
@@ -832,8 +862,8 @@ func (t *Type) SetFields(fields []*Field) {
 		// you could heap allocate T and then get a pointer F,
 		// which would be a heap pointer to a go:notinheap
 		// type.
-		if f.Type != nil && f.Type.NotInHeap {
-			t.NotInHeap = true
+		if f.Type != nil && f.Type.NotInHeap() {
+			t.SetNotInHeap(true)
 			break
 		}
 	}
@@ -1039,8 +1069,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 			ta, ia := iterFields(f(t))
 			tb, ib := iterFields(f(x))
 			for ; ta != nil && tb != nil; ta, tb = ia.Next(), ib.Next() {
-				if ta.Isddd != tb.Isddd {
-					return cmpForNe(!ta.Isddd)
+				if ta.Isddd() != tb.Isddd() {
+					return cmpForNe(!ta.Isddd())
 				}
 				if c := ta.Type.cmp(tb.Type); c != ssa.CMPeq {
 					return c

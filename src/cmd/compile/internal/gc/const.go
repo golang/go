@@ -371,11 +371,11 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 	return n
 
 bad:
-	if !n.Diag {
-		if !t.Broke {
+	if !n.Diag() {
+		if !t.Broke() {
 			yyerror("cannot convert %v to type %v", n, t)
 		}
-		n.Diag = true
+		n.SetDiag(true)
 	}
 
 	if n.Type.IsUntyped() {
@@ -702,9 +702,9 @@ func evconst(n *Node) {
 
 		switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
 		default:
-			if !n.Diag {
+			if !n.Diag() {
 				yyerror("illegal constant expression %v %v", n.Op, nl.Type)
-				n.Diag = true
+				n.SetDiag(true)
 			}
 			return
 
@@ -964,9 +964,9 @@ func evconst(n *Node) {
 	// The default case above would print 'ideal % ideal',
 	// which is not quite an ideal error.
 	case OMOD_ | CTFLT_:
-		if !n.Diag {
+		if !n.Diag() {
 			yyerror("illegal constant expression: floating-point %% operation")
-			n.Diag = true
+			n.SetDiag(true)
 		}
 
 		return
@@ -1190,9 +1190,9 @@ setfalse:
 	return
 
 illegal:
-	if !n.Diag {
+	if !n.Diag() {
 		yyerror("illegal constant expression: %v %v %v", nl.Type, n.Op, nr.Type)
-		n.Diag = true
+		n.SetDiag(true)
 	}
 }
 
@@ -1331,9 +1331,9 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
 
 		if n.Val().Ctype() == CTNIL {
 			lineno = lno
-			if !n.Diag {
+			if !n.Diag() {
 				yyerror("use of untyped nil")
-				n.Diag = true
+				n.SetDiag(true)
 			}
 
 			n.Type = nil

@@ -115,11 +115,11 @@ func mapbucket(t *Type) *Type {
 	field = append(field, makefield("topbits", arr))
 
 	arr = typArray(keytype, BUCKETSIZE)
-	arr.Noalg = true
+	arr.SetNoalg(true)
 	field = append(field, makefield("keys", arr))
 
 	arr = typArray(valtype, BUCKETSIZE)
-	arr.Noalg = true
+	arr.SetNoalg(true)
 	field = append(field, makefield("values", arr))
 
 	// Make sure the overflow pointer is the last memory in the struct,
@@ -157,8 +157,8 @@ func mapbucket(t *Type) *Type {
 	field = append(field, ovf)
 
 	// link up fields
-	bucket.Noalg = true
-	bucket.Local = t.Local
+	bucket.SetNoalg(true)
+	bucket.SetLocal(t.Local())
 	bucket.SetFields(field[:])
 	dowidth(bucket)
 
@@ -195,8 +195,8 @@ func hmap(t *Type) *Type {
 	}
 
 	h := typ(TSTRUCT)
-	h.Noalg = true
-	h.Local = t.Local
+	h.SetNoalg(true)
+	h.SetLocal(t.Local())
 	h.SetFields(fields)
 	dowidth(h)
 	t.MapType().Hmap = h
@@ -241,7 +241,7 @@ func hiter(t *Type) *Type {
 
 	// build iterator struct holding the above fields
 	i := typ(TSTRUCT)
-	i.Noalg = true
+	i.SetNoalg(true)
 	i.SetFields(field[:])
 	dowidth(i)
 	if i.Width != int64(12*Widthptr) {
@@ -266,7 +266,7 @@ func methodfunc(f *Type, receiver *Type) *Type {
 	for _, t := range f.Params().Fields().Slice() {
 		d = nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
-		d.Isddd = t.Isddd
+		d.SetIsddd(t.Isddd())
 		in = append(in, d)
 	}
 
@@ -314,7 +314,7 @@ func methods(t *Type) []*Sig {
 		if f.Type.Recv() == nil {
 			Fatalf("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
 		}
-		if f.Nointerface {
+		if f.Nointerface() {
 			continue
 		}
 
@@ -943,7 +943,7 @@ func typesym(t *Type) *Sym {
 	name := t.tconv(FmtLeft)
 
 	// Use a separate symbol name for Noalg types for #17752.
-	if a, bad := algtype1(t); a == ANOEQ && bad.Noalg {
+	if a, bad := algtype1(t); a == ANOEQ && bad.Noalg() {
 		name = "noalg." + name
 	}
 
@@ -987,7 +987,7 @@ func typename(t *Type) *Node {
 	s := typenamesym(t)
 	n := nod(OADDR, s.Def, nil)
 	n.Type = ptrto(s.Def.Type)
-	n.Addable = true
+	n.SetAddable(true)
 	n.Ullman = 2
 	n.Typecheck = 1
 	return n
@@ -1010,7 +1010,7 @@ func itabname(t, itype *Type) *Node {
 
 	n := nod(OADDR, s.Def, nil)
 	n.Type = ptrto(s.Def.Type)
-	n.Addable = true
+	n.SetAddable(true)
 	n.Ullman = 2
 	n.Typecheck = 1
 	return n
@@ -1146,7 +1146,7 @@ func dtypesym(t *Type) *Sym {
 	}
 
 	// named types from other files are defined only by those files
-	if tbase.Sym != nil && !tbase.Local {
+	if tbase.Sym != nil && !tbase.Local() {
 		return s
 	}
 	if isforw[tbase.Etype] {
@@ -1192,7 +1192,7 @@ ok:
 		}
 		isddd := false
 		for _, t1 := range t.Params().Fields().Slice() {
-			isddd = t1.Isddd
+			isddd = t1.Isddd()
 			dtypesym(t1.Type)
 		}
 		for _, t1 := range t.Results().Fields().Slice() {
@@ -1789,7 +1789,7 @@ func zeroaddr(size int64) *Node {
 	}
 	z := nod(OADDR, s.Def, nil)
 	z.Type = ptrto(Types[TUINT8])
-	z.Addable = true
+	z.SetAddable(true)
 	z.Typecheck = 1
 	return z
 }
