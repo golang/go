@@ -868,6 +868,9 @@ func TestHelperProcess(*testing.T) {
 	case "stderrfail":
 		fmt.Fprintf(os.Stderr, "some stderr text\n")
 		os.Exit(1)
+	case "sleep":
+		time.Sleep(3 * time.Second)
+		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
 		os.Exit(2)
