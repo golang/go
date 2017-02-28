@@ -406,7 +406,17 @@ func Map(mapping func(rune) rune, s string) string {
 				nbytes += utf8.EncodeRune(b[nbytes:], r)
 			}
 		}
-		i += utf8.RuneLen(c)
+
+		if c == utf8.RuneError {
+			// RuneError is the result of either decoding
+			// an invalid sequence or '\uFFFD'. Determine
+			// the correct number of bytes we need to advance.
+			_, w := utf8.DecodeRuneInString(s[i:])
+			i += w
+		} else {
+			i += utf8.RuneLen(c)
+		}
+
 		s = s[i:]
 		break
 	}

@@ -625,6 +625,19 @@ func TestMap(t *testing.T) {
 		(*reflect.StringHeader)(unsafe.Pointer(&m)).Data {
 		t.Error("unexpected copy during identity map")
 	}
+
+	// 7. Handle invalid UTF-8 sequence
+	replaceNotLatin := func(r rune) rune {
+		if unicode.Is(unicode.Latin, r) {
+			return r
+		}
+		return '?'
+	}
+	m = Map(replaceNotLatin, "Hello\255World")
+	expect = "Hello?World"
+	if m != expect {
+		t.Errorf("replace invalid sequence: expected %q got %q", expect, m)
+	}
 }
 
 func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
