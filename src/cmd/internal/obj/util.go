@@ -181,10 +181,6 @@ func (ctxt *Link) freeProgs() {
 	ctxt.allocIdx = 0
 }
 
-func Getcallerpc(interface{}) uintptr {
-	return 1
-}
-
 func (ctxt *Link) Dconv(a *Addr) string {
 	return Dconv(nil, a)
 }
