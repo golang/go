@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestCredentialNoSetGroups(t *testing.T) {
@@ -42,4 +43,41 @@ func TestCredentialNoSetGroups(t *testing.T) {
 	if err = cmd.Run(); err != nil {
 		t.Errorf("Failed to run command: %v", err)
 	}
+}
+
+// For issue #19314: make sure that SIGSTOP does not cause the process
+// to appear done.
+func TestWaitid(t *testing.T) {
+	t.Parallel()
+
+	cmd := helperCommand(t, "sleep")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// The sleeps here are unnecessary in the sense that the test
+	// should still pass, but they are useful to make it more
+	// likely that we are testing the expected state of the child.
+	time.Sleep(100 * time.Millisecond)
+
+	if err := cmd.Process.Signal(syscall.SIGSTOP); err != nil {
+		cmd.Process.Kill()
+		t.Fatal(err)
+	}
+
+	ch := make(chan error)
+	go func() {
+		ch <- cmd.Wait()
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	if err := cmd.Process.Signal(syscall.SIGCONT); err != nil {
+		t.Error(err)
+		syscall.Kill(cmd.Process.Pid, syscall.SIGCONT)
+	}
+
+	cmd.Process.Kill()
+
+	<-ch
 }
