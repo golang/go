@@ -34,7 +34,7 @@ func New(ctxt *build.Context, fset *token.FileSet, packages map[string]*types.Pa
 	return &Importer{
 		ctxt:     ctxt,
 		fset:     fset,
-		sizes:    archSizes[ctxt.GOARCH], // use go/types default if GOARCH not found (map access returns nil)
+		sizes:    types.SizesFor(ctxt.GOARCH), // uses go/types default if GOARCH not found
 		packages: packages,
 	}
 }
@@ -179,21 +179,4 @@ func (p *Importer) joinPath(elem ...string) string {
 		return f(elem...)
 	}
 	return filepath.Join(elem...)
-}
-
-// common architecture word sizes and alignments
-// TODO(gri) consider making this available via go/types
-var archSizes = map[string]*types.StdSizes{
-	"386":      {WordSize: 4, MaxAlign: 4},
-	"arm":      {WordSize: 4, MaxAlign: 4},
-	"arm64":    {WordSize: 8, MaxAlign: 8},
-	"amd64":    {WordSize: 8, MaxAlign: 8},
-	"amd64p32": {WordSize: 4, MaxAlign: 8},
-	"mips":     {WordSize: 4, MaxAlign: 4},
-	"mipsle":   {WordSize: 4, MaxAlign: 4},
-	"mips64":   {WordSize: 8, MaxAlign: 8},
-	"mips64le": {WordSize: 8, MaxAlign: 8},
-	"ppc64":    {WordSize: 8, MaxAlign: 8},
-	"ppc64le":  {WordSize: 8, MaxAlign: 8},
-	"s390x":    {WordSize: 8, MaxAlign: 8},
 }
