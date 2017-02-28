@@ -13,7 +13,6 @@ import (
 )
 
 var CheckFunc = checkFunc
-var PrintFunc = printFunc
 var Opt = opt
 var Deadcode = deadcode
 var Copyelim = copyelim
