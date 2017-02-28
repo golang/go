@@ -23,14 +23,6 @@ var deBruijn32tab = [32]byte{
 	31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9,
 }
 
-func ntz8(x uint8) (n int) {
-	if x == 0 {
-		return 8
-	}
-	// see comment in ntz64
-	return int(deBruijn32tab[uint32(x&-x)*deBruijn32>>(32-5)])
-}
-
 func ntz16(x uint16) (n int) {
 	if x == 0 {
 		return 16

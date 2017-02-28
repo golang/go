@@ -30,6 +30,7 @@ package bits
 func main() {
 	buf := bytes.NewBuffer(header)
 
+	gen(buf, "ntz8tab", ntz8)
 	gen(buf, "pop8tab", pop8)
 	gen(buf, "rev8tab", rev8)
 	// add more tables as needed
@@ -56,6 +57,14 @@ func gen(w io.Writer, name string, f func(uint8) uint8) {
 		fmt.Fprintf(w, "%#02x,", f(uint8(i)))
 	}
 	fmt.Fprint(w, "\n}\n\n")
+}
+
+func ntz8(x uint8) (n uint8) {
+	for x&1 == 0 && n < 8 {
+		x >>= 1
+		n++
+	}
+	return
 }
 
 func pop8(x uint8) (n uint8) {
