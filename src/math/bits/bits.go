@@ -63,32 +63,17 @@ func OnesCount(x uint) int {
 
 // OnesCount8 returns the number of one bits ("population count") in x.
 func OnesCount8(x uint8) int {
-	const m = 1<<8 - 1
-	x = x>>1&(m0&m) + x&(m0&m)
-	x = x>>2&(m1&m) + x&(m1&m)
-	x += x >> 4
-	return int(x) & (1<<4 - 1)
+	return int(pop8tab[x])
 }
 
 // OnesCount16 returns the number of one bits ("population count") in x.
 func OnesCount16(x uint16) int {
-	const m = 1<<16 - 1
-	x = x>>1&(m0&m) + x&(m0&m)
-	x = x>>2&(m1&m) + x&(m1&m)
-	x = (x>>4 + x) & (m2 & m)
-	x += x >> 8
-	return int(x) & (1<<5 - 1)
+	return int(pop8tab[x>>8] + pop8tab[x&0xff])
 }
 
 // OnesCount32 returns the number of one bits ("population count") in x.
 func OnesCount32(x uint32) int {
-	const m = 1<<32 - 1
-	x = x>>1&(m0&m) + x&(m0&m)
-	x = x>>2&(m1&m) + x&(m1&m)
-	x = (x>>4 + x) & (m2 & m)
-	x += x >> 8
-	x += x >> 16
-	return int(x) & (1<<6 - 1)
+	return int(pop8tab[x>>24] + pop8tab[x>>16&0xff] + pop8tab[x>>8&0xff] + pop8tab[x&0xff])
 }
 
 // OnesCount64 returns the number of one bits ("population count") in x.
