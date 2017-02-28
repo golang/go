@@ -33,7 +33,7 @@ func main() {
 	gen(buf, "ntz8tab", ntz8)
 	gen(buf, "pop8tab", pop8)
 	gen(buf, "rev8tab", rev8)
-	// add more tables as needed
+	gen(buf, "len8tab", len8)
 
 	out, err := format.Source(buf.Bytes())
 	if err != nil {
@@ -79,6 +79,14 @@ func rev8(x uint8) (r uint8) {
 	for i := 8; i > 0; i-- {
 		r = r<<1 | x&1
 		x >>= 1
+	}
+	return
+}
+
+func len8(x uint8) (n uint8) {
+	for x != 0 {
+		x >>= 1
+		n++
 	}
 	return
 }
