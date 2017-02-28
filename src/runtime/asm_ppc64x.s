@@ -1113,53 +1113,183 @@ equal:
 	MOVBZ	R3,ret+48(FP)
 	RET
 
-TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
-	MOVD	s+0(FP), R3
-	MOVD	s_len+8(FP), R4
-	MOVBZ	c+24(FP), R5	// byte to find
-	MOVD	R3, R6		// store base for later
-	SUB	$1, R3
-	ADD	R3, R4		// end-1
+TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
+	MOVD	s+0(FP), R3		// R3 = byte array pointer
+	MOVD	s_len+8(FP), R4		// R4 = length
+	MOVBZ	c+24(FP), R5		// R5 = byte
+	MOVD	$ret+32(FP), R14	// R14 = &ret
+	BR	runtime·indexbytebody<>(SB)
 
+TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
+	MOVD	s+0(FP), R3	  // R3 = string
+	MOVD	s_len+8(FP), R4	  // R4 = length
+	MOVBZ	c+16(FP), R5	  // R5 = byte
+	MOVD	$ret+24(FP), R14  // R14 = &ret
+	BR	runtime·indexbytebody<>(SB)
+
+TEXT runtime·indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
+	DCBT	(R3)		// Prepare cache line.
+	MOVD	R3,R10		// Save base address for calculating the index later.
+	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.
+	RLDIMI	$8,R5,$48,R5	// Replicating the byte across the register.
+
+	// Calculate last acceptable address and check for possible overflow
+	// using a saturated add.
+	// Overflows set last acceptable address to 0xffffffffffffffff.
+	ADD	R4,R3,R7
+	SUBC	R3,R7,R6
+	SUBE	R0,R0,R9
+	MOVW	R9,R6
+	OR	R6,R7,R7
+
+	RLDIMI	$16,R5,$32,R5
+	CMPU	R4,$32		// Check if it's a small string (<32 bytes). Those will be processed differently.
+	MOVD	$-1,R9
+	WORD $0x54661EB8	// Calculate padding in R6 (rlwinm r6,r3,3,26,28).
+	RLDIMI	$32,R5,$0,R5
+	ADD	$-1,R7,R7
+#ifdef GOARCH_ppc64le
+	SLD	R6,R9,R9	// Prepare mask for Little Endian
+#else
+	SRD	R6,R9,R9	// Same for Big Endian
+#endif
+	BLE	small_string	// Jump to the small string case if it's <32 bytes.
+
+	// Case for length >32 bytes
+	MOVD	0(R8),R12	// Load one doubleword from the aligned address in R8.
+	CMPB	R12,R5,R3	// Check for a match.
+	AND	R9,R3,R3	// Mask bytes below s_base
+	RLDICL	$0,R7,$61,R4	// length-1
+	RLDICR	$0,R7,$60,R7	// Last doubleword in R7
+	CMPU	R3,$0,CR7	// If we have a match, jump to the final computation
+	BNE	CR7,done
+
+	// Check for doubleword alignment and jump to the loop setup if aligned.
+	MOVFL	R8,CR7
+	BC	12,28,loop_setup
+
+	// Not aligned, so handle the second doubleword
+	MOVDU	8(R8),R12
+	CMPB	R12,R5,R3
+	CMPU	R3,$0,CR7
+	BNE	CR7,done
+
+loop_setup:
+	// We are now aligned to a 16-byte boundary. We will load two doublewords
+	// per loop iteration. The last doubleword is in R7, so our loop counter
+	// starts at (R7-R8)/16.
+	SUB	R8,R7,R6
+	SRD	$4,R6,R6
+	MOVD	R6,CTR
+
+	// Note: when we have an align directive, align this loop to 32 bytes so
+	// it fits in a single icache sector.
 loop:
-	CMP	R3, R4
-	BEQ	notfound
-	MOVBZU	1(R3), R7
-	CMP	R7, R5
-	BNE	loop
+	// Load two doublewords, then compare and merge in a single register. We
+	// will check two doublewords per iteration, then find out which of them
+	// contains the byte later. This speeds up the search.
+	MOVD	8(R8),R12
+	MOVDU	16(R8),R11
+	CMPB	R12,R5,R3
+	CMPB	R11,R5,R9
+	OR	R3,R9,R6
+	CMPU	R6,$0,CR7
+	BNE	CR7,found
+	BC	16,0,loop
 
-	SUB	R6, R3		// remove base
-	MOVD	R3, ret+32(FP)
-	RET
+	// Counter zeroed, but we may have another doubleword to read
+	CMPU	R8,R7
+	BEQ	notfound
+
+	MOVDU	8(R8),R12
+	CMPB	R12,R5,R3
+	CMPU	R3,$0,CR6
+	BNE	CR6,done
 
 notfound:
-	MOVD	$-1, R3
-	MOVD	R3, ret+32(FP)
+	MOVD	$-1,R3
+	MOVD	R3,(R14)
 	RET
 
-TEXT strings·IndexByte(SB),NOSPLIT,$0-32
-	MOVD	p+0(FP), R3
-	MOVD	b_len+8(FP), R4
-	MOVBZ	c+16(FP), R5	// byte to find
-	MOVD	R3, R6		// store base for later
-	SUB	$1, R3
-	ADD	R3, R4		// end-1
+found:
+	// One of the doublewords from the loop contains the byte we are looking
+	// for. Check the first doubleword and adjust the address if found.
+	CMPU	R3,$0,CR6
+	ADD	$-8,R8,R8
+	BNE	CR6,done
 
-loop:
-	CMP	R3, R4
+	// Not found, so it must be in the second doubleword of the merged pair.
+	MOVD	R9,R3
+	ADD	$8,R8,R8
+
+done:
+	// At this point, R3 has 0xFF in the same position as the byte we are
+	// looking for in the doubleword. Use that to calculate the exact index
+	// of the byte.
+#ifdef GOARCH_ppc64le
+	ADD	$-1,R3,R11
+	ANDN	R3,R11,R11
+	POPCNTD	R11,R11		// Count trailing zeros (Little Endian).
+#else
+	CNTLZD	R3,R11		// Count leading zeros (Big Endian).
+#endif
+	CMPU	R8,R7		// Check if we are at the last doubleword.
+	SRD	$3,R11		// Convert trailing zeros to bytes.
+	ADD	R11,R8,R3
+	CMPU	R11,R4,CR7	// If at the last doubleword, check the byte offset.
+	BNE	return
+	BLE	CR7,return
+	MOVD	$-1,R3
+	MOVD	R3,(R14)
+	RET
+
+return:
+	SUB	R10,R3		// Calculate index.
+	MOVD	R3,(R14)
+	RET
+
+small_string:
+	// We unroll this loop for better performance.
+	CMPU	R4,$0		// Check for length=0
 	BEQ	notfound
-	MOVBZU	1(R3), R7
-	CMP	R7, R5
-	BNE	loop
 
-	SUB	R6, R3		// remove base
-	MOVD	R3, ret+24(FP)
-	RET
+	MOVD	0(R8),R12	// Load one doubleword from the aligned address in R8.
+	CMPB	R12,R5,R3	// Check for a match.
+	AND	R9,R3,R3	// Mask bytes below s_base.
+	CMPU	R3,$0,CR7	// If we have a match, jump to the final computation.
+	RLDICL	$0,R7,$61,R4	// length-1
+	RLDICR	$0,R7,$60,R7	// Last doubleword in R7.
+        CMPU	R8,R7
+	BNE	CR7,done
+	BEQ	notfound	// Hit length.
 
-notfound:
-	MOVD	$-1, R3
-	MOVD	R3, ret+24(FP)
-	RET
+	MOVDU	8(R8),R12
+	CMPB	R12,R5,R3
+	CMPU	R3,$0,CR6
+	CMPU	R8,R7
+	BNE	CR6,done
+	BEQ	notfound
+
+	MOVDU	8(R8),R12
+	CMPB	R12,R5,R3
+	CMPU	R3,$0,CR6
+	CMPU	R8,R7
+	BNE	CR6,done
+	BEQ	notfound
+
+	MOVDU	8(R8),R12
+	CMPB	R12,R5,R3
+	CMPU	R3,$0,CR6
+	CMPU	R8,R7
+	BNE	CR6,done
+	BEQ	notfound
+
+	MOVDU	8(R8),R12
+	CMPB	R12,R5,R3
+	CMPU	R3,$0,CR6
+	CMPU	R8,R7
+	BNE	CR6,done
+	BR	notfound
 
 TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
 	MOVD	s1_base+0(FP), R5
