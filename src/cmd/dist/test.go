@@ -338,16 +338,16 @@ var stdOutErrAreTerminals func() bool
 func (t *tester) registerTests() {
 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-vetall") {
 		// Run vet over std and cmd and call it quits.
-		t.tests = append(t.tests, distTest{
-			name:    "vet/all",
-			heading: "go vet std cmd",
-			fn: func(dt *distTest) error {
-				// This runs vet/all for the current platform.
-				// TODO: on a fast builder or builders, run over all platforms.
-				t.addCmd(dt, "src/cmd/vet/all", "go", "run", "main.go", "-all")
-				return nil
-			},
-		})
+		for osarch := range cgoEnabled {
+			t.tests = append(t.tests, distTest{
+				name:    "vet/" + osarch,
+				heading: "go vet std cmd",
+				fn: func(dt *distTest) error {
+					t.addCmd(dt, "src/cmd/vet/all", "go", "run", "main.go", "-p="+osarch)
+					return nil
+				},
+			})
+		}
 		return
 	}
 
