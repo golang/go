@@ -524,6 +524,8 @@ func rewriteValueS390X(v *Value, config *Config) bool {
 		return rewriteValueS390X_OpS390XMOVDload(v, config)
 	case OpS390XMOVDloadidx:
 		return rewriteValueS390X_OpS390XMOVDloadidx(v, config)
+	case OpS390XMOVDnop:
+		return rewriteValueS390X_OpS390XMOVDnop(v, config)
 	case OpS390XMOVDreg:
 		return rewriteValueS390X_OpS390XMOVDreg(v, config)
 	case OpS390XMOVDstore:
@@ -10195,9 +10197,68 @@ func rewriteValueS390X_OpS390XMOVDloadidx(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValueS390X_OpS390XMOVDnop(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVDnop <t> x)
+	// cond: t.Compare(x.Type) == CMPeq
+	// result: x
+	for {
+		t := v.Type
+		x := v.Args[0]
+		if !(t.Compare(x.Type) == CMPeq) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVDnop (MOVDconst [c]))
+	// cond:
+	// result: (MOVDconst [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpS390XMOVDconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpS390XMOVDconst)
+		v.AuxInt = c
+		return true
+	}
+	return false
+}
 func rewriteValueS390X_OpS390XMOVDreg(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (MOVDreg <t> x)
+	// cond: t.Compare(x.Type) == CMPeq
+	// result: x
+	for {
+		t := v.Type
+		x := v.Args[0]
+		if !(t.Compare(x.Type) == CMPeq) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVDreg (MOVDconst [c]))
+	// cond:
+	// result: (MOVDconst [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpS390XMOVDconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpS390XMOVDconst)
+		v.AuxInt = c
+		return true
+	}
 	// match: (MOVDreg x)
 	// cond: x.Uses == 1
 	// result: (MOVDnop x)
