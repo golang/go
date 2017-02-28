@@ -6,6 +6,8 @@
 
 package testdata
 
+import "unsafe"
+
 func ShiftTest() {
 	var i8 int8
 	_ = i8 << 7
@@ -77,4 +79,7 @@ func ShiftTest() {
 	p >>= 32    // ERROR "p might be too small for shift of 32"
 
 	const oneIf64Bit = ^uint(0) >> 63 // allow large shifts of constants; they are used for 32/64 bit compatibility tricks
+
+	var h uintptr
+	h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1))) // shifts by unsafe amounts are safe
 }

@@ -47,6 +47,29 @@ func checkLongShift(f *File, node ast.Node, x, y ast.Expr) {
 		// like ^uint(0) >> 63 for 32/64 bit detection and compatibility.
 		return
 	}
+
+	// Ignore shifts where the shift amount is calculated using unsafe.
+	// These are used for bit-twiddling tricks.
+	var hasUnsafe bool
+	ast.Inspect(y, func(n ast.Node) bool {
+		sel, ok := n.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		pkg, ok := sel.X.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		if pkg.Name == "unsafe" {
+			hasUnsafe = true
+			return false
+		}
+		return true
+	})
+	if hasUnsafe {
+		return
+	}
+
 	v := f.pkg.types[y].Value
 	if v == nil {
 		return
