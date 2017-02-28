@@ -124,9 +124,14 @@ func Main() {
 	unsafepkg = mkpkg("unsafe")
 	unsafepkg.Name = "unsafe"
 
-	// real package, referred to by generated runtime calls
-	Runtimepkg = mkpkg("runtime")
+	// Pseudo-package that contains the compiler's builtin
+	// declarations for package runtime. These are declared in a
+	// separate package to avoid conflicts with package runtime's
+	// actual declarations, which may differ intentionally but
+	// insignificantly.
+	Runtimepkg = mkpkg("go.runtime")
 	Runtimepkg.Name = "runtime"
+	Runtimepkg.Prefix = "runtime"
 
 	// pseudo-packages used in symbol tables
 	itabpkg = mkpkg("go.itab")

@@ -1914,7 +1914,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			on = substArgTypes(on, n.Type) // any-1
 		} else if isInt[et] {
 			if et == TUINT64 {
-				if (t.Sym.Pkg == Runtimepkg || compiling_runtime) && t.Sym.Name == "hex" {
+				if t.Sym.Pkg.isRuntime() && t.Sym.Name == "hex" {
 					on = syslook("printhex")
 				} else {
 					on = syslook("printuint")
