@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -35,6 +36,17 @@ func ExampleCommand() {
 		log.Fatal(err)
 	}
 	fmt.Printf("in all caps: %q\n", out.String())
+}
+
+func ExampleCommand_environment() {
+	cmd := exec.Command("prog")
+	cmd.Env = append(os.Environ(),
+		"FOO=duplicate_value", // ignored
+		"FOO=actual_value",    // this value is used
+	)
+	if err := cmd.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func ExampleCmd_Output() {
