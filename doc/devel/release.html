@@ -15,19 +15,12 @@ git checkout <i>release-branch</i>
 <h2 id="policy">Release Policy</h2>
 
 <p>
-Each major Go release obsoletes and ends support for the previous one.
-For example, if Go 1.5 has been released, then it is the current release
-and Go 1.4 and earlier are no longer supported.
-We fix critical problems in the current release as needed by issuing minor revisions
-(for example, Go 1.5.1, Go 1.5.2, and so on).
-</p>
-
-<p>
-As a special case, we issue minor revisions for critical security problems
-in both the current release and the previous release.
-For example, if Go 1.5 is the current release then we will issue minor revisions
-to fix critical security problems in both Go 1.4 and Go 1.5 as they arise.
-See the <a href="/security">security policy</a> for more details.
+Each major Go release is supported until there are two newer major releases.
+For example, Go 1.8 is supported until Go 1.10 is released,
+and Go 1.9 is supported until Go 1.11 is released.
+We fix critical problems, including <a href="/security">critical security problems</a>,
+in supported releases as needed by issuing minor revisions
+(for example, Go 1.8.1, Go 1.8.2, and so on).
 </p>
 
 <h2 id="go1.8">go1.8 (released 2017/02/16)</h2>
