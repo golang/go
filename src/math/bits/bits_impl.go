@@ -65,25 +65,3 @@ func ntz64(x uint64) int {
 	// (Knuth, volume 4, section 7.3.1)
 	return int(deBruijn64tab[(x&-x)*deBruijn64>>(64-6)])
 }
-
-func blen(x uint64) (i int) {
-	for ; x >= 1<<(16-1); x >>= 16 {
-		i += 16
-	}
-	if x >= 1<<(8-1) {
-		x >>= 8
-		i += 8
-	}
-	if x >= 1<<(4-1) {
-		x >>= 4
-		i += 4
-	}
-	if x >= 1<<(2-1) {
-		x >>= 2
-		i += 2
-	}
-	if x >= 1<<(1-1) {
-		i++
-	}
-	return
-}
