@@ -221,7 +221,7 @@ func (p platform) vet(ncpus int) {
 	w := make(whitelist)
 	w.load(p.os, p.arch)
 
-	env := append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch)
+	env := append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
 
 	// Do 'go install std' before running vet.
 	// It is cheap when already installed.
