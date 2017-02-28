@@ -693,6 +693,11 @@ func TestHelperProcess(*testing.T) {
 			iargs = append(iargs, s)
 		}
 		fmt.Println(iargs...)
+	case "echoenv":
+		for _, s := range args {
+			fmt.Println(os.Getenv(s))
+		}
+		os.Exit(0)
 	case "cat":
 		if len(args) == 0 {
 			io.Copy(os.Stdout, os.Stdin)
@@ -1041,5 +1046,20 @@ func TestContextCancel(t *testing.T) {
 		t.Error("program unexpectedly exited successfully")
 	} else {
 		t.Logf("exit status: %v", err)
+	}
+}
+
+// test that environment variables are de-duped.
+func TestDedupEnvEcho(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	cmd := helperCommand(t, "echoenv", "FOO")
+	cmd.Env = append(cmd.Env, "FOO=bad", "FOO=good")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.TrimSpace(string(out)), "good"; got != want {
+		t.Errorf("output = %q; want %q", got, want)
 	}
 }

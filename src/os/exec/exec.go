@@ -55,7 +55,11 @@ type Cmd struct {
 	Args []string
 
 	// Env specifies the environment of the process.
-	// If Env is nil, Run uses the current process's environment.
+	// Each entry is of the form "key=value".
+	// If Env is nil, the new process uses the current process's
+	// environment.
+	// If Env contains duplicate environment keys, only the last
+	// value in the slice for each duplicate key is used.
 	Env []string
 
 	// Dir specifies the working directory of the command.
@@ -354,7 +358,7 @@ func (c *Cmd) Start() error {
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
-		Env:   c.envv(),
+		Env:   dedupEnv(c.envv()),
 		Sys:   c.SysProcAttr,
 	})
 	if err != nil {
@@ -711,4 +715,36 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// dedupEnv returns a copy of env with any duplicates removed, in favor of
+// later values.
+// Items not of the normal environment "key=value" form are preserved unchanged.
+func dedupEnv(env []string) []string {
+	return dedupEnvCase(runtime.GOOS == "windows", env)
+}
+
+// dedupEnvCase is dedupEnv with a case option for testing.
+// If caseInsensitive is true, the case of keys is ignored.
+func dedupEnvCase(caseInsensitive bool, env []string) []string {
+	out := make([]string, 0, len(env))
+	saw := map[string]int{} // key => index into out
+	for _, kv := range env {
+		eq := strings.Index(kv, "=")
+		if eq < 0 {
+			out = append(out, kv)
+			continue
+		}
+		k := kv[:eq]
+		if caseInsensitive {
+			k = strings.ToLower(k)
+		}
+		if dupIdx, isDup := saw[k]; isDup {
+			out[dupIdx] = kv
+			continue
+		}
+		saw[k] = len(out)
+		out = append(out, kv)
+	}
+	return out
 }
