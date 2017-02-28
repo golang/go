@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 var (
@@ -33,6 +34,7 @@ var (
 )
 
 var cmdGoPath string
+var failed uint32 // updated atomically
 
 func main() {
 	log.SetPrefix("vet/all: ")
@@ -60,6 +62,9 @@ func main() {
 		vetPlatforms(allPlatforms())
 	default:
 		hostPlatform.vet(runtime.GOMAXPROCS(-1))
+	}
+	if atomic.LoadUint32(&failed) != 0 {
+		os.Exit(1)
 	}
 }
 
@@ -297,6 +302,7 @@ NextLine:
 			} else {
 				fmt.Fprintf(&buf, "%s:%s: %s\n", file, lineno, msg)
 			}
+			atomic.StoreUint32(&failed, 1)
 			continue
 		}
 		w[key]--
@@ -321,6 +327,7 @@ NextLine:
 				for i := 0; i < v; i++ {
 					fmt.Fprintln(&buf, k)
 				}
+				atomic.StoreUint32(&failed, 1)
 			}
 		}
 	}
