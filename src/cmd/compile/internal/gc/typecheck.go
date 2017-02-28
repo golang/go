@@ -1118,7 +1118,7 @@ OpSwitch:
 
 	case OSLICE, OSLICE3:
 		ok |= Erv
-		n.Left = typecheck(n.Left, top)
+		n.Left = typecheck(n.Left, Erv)
 		low, high, max := n.SliceBounds()
 		hasmax := n.Op.IsSlice3()
 		low = typecheck(low, Erv)
@@ -1130,6 +1130,10 @@ OpSwitch:
 		max = indexlit(max)
 		n.SetSliceBounds(low, high, max)
 		l := n.Left
+		if l.Type == nil {
+			n.Type = nil
+			return n
+		}
 		if l.Type.IsArray() {
 			if !islvalue(n.Left) {
 				yyerror("invalid operation %v (slice of unaddressable value)", n)
@@ -1142,12 +1146,7 @@ OpSwitch:
 			n.Left = typecheck(n.Left, Erv)
 			l = n.Left
 		}
-
 		t := l.Type
-		if t == nil {
-			n.Type = nil
-			return n
-		}
 		var tp *Type
 		if t.IsString() {
 			if hasmax {
