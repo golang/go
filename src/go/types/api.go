@@ -121,7 +121,7 @@ type Config struct {
 	Importer Importer
 
 	// If Sizes != nil, it provides the sizing functions for package unsafe.
-	// Otherwise &StdSizes{WordSize: 8, MaxAlign: 8} is used instead.
+	// Otherwise SizesFor("amd64") is used instead.
 	Sizes Sizes
 
 	// If DisableUnusedImportCheck is set, packages are not checked
