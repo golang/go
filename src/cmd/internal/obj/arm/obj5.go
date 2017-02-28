@@ -341,8 +341,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		q = p
 	}
 
-	var p1 *obj.Prog
-	var p2 *obj.Prog
 	var q2 *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {
 		o := p.As
@@ -391,22 +389,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOVW g_panic(g), R1
-				//	CMP $0, R1
-				//	B.EQ end
-				//	MOVW panic_argp(R1), R2
-				//	ADD $(autosize+4), R13, R3
-				//	CMP R2, R3
-				//	B.NE end
-				//	ADD $4, R13, R4
-				//	MOVW R4, panic_argp(R1)
+				//	CMP  $0, R1
+				//	B.NE checkargp
 				// end:
 				//	NOP
+				// ... function ...
+				// checkargp:
+				//	MOVW panic_argp(R1), R2
+				//	ADD  $(autosize+4), R13, R3
+				//	CMP  R2, R3
+				//	B.NE end
+				//	ADD  $4, R13, R4
+				//	MOVW R4, panic_argp(R1)
+				//	B    end
 				//
 				// The NOP is needed to give the jumps somewhere to land.
 				// It is a liblink NOP, not an ARM NOP: it encodes to 0 instruction bytes.
 
 				p = obj.Appendp(ctxt, p)
-
 				p.As = AMOVW
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REGG
@@ -420,20 +420,34 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.From.Offset = 0
 				p.Reg = REG_R1
 
-				p = obj.Appendp(ctxt, p)
-				p.As = ABEQ
-				p.To.Type = obj.TYPE_BRANCH
-				p1 = p
+				// B.NE checkargp
+				bne := obj.Appendp(ctxt, p)
+				bne.As = ABNE
+				bne.To.Type = obj.TYPE_BRANCH
 
-				p = obj.Appendp(ctxt, p)
-				p.As = AMOVW
-				p.From.Type = obj.TYPE_MEM
-				p.From.Reg = REG_R1
-				p.From.Offset = 0 // Panic.argp
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REG_R2
+				// end: NOP
+				end := obj.Appendp(ctxt, bne)
+				end.As = obj.ANOP
 
-				p = obj.Appendp(ctxt, p)
+				// find end of function
+				var last *obj.Prog
+				for last = end; last.Link != nil; last = last.Link {
+				}
+
+				// MOVW panic_argp(R1), R2
+				mov := obj.Appendp(ctxt, last)
+				mov.As = AMOVW
+				mov.From.Type = obj.TYPE_MEM
+				mov.From.Reg = REG_R1
+				mov.From.Offset = 0 // Panic.argp
+				mov.To.Type = obj.TYPE_REG
+				mov.To.Reg = REG_R2
+
+				// B.NE branch target is MOVW above
+				bne.Pcond = mov
+
+				// ADD $(autosize+4), R13, R3
+				p = obj.Appendp(ctxt, mov)
 				p.As = AADD
 				p.From.Type = obj.TYPE_CONST
 				p.From.Offset = int64(autosize) + 4
@@ -441,17 +455,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = REG_R3
 
+				// CMP R2, R3
 				p = obj.Appendp(ctxt, p)
 				p.As = ACMP
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REG_R2
 				p.Reg = REG_R3
 
+				// B.NE end
 				p = obj.Appendp(ctxt, p)
 				p.As = ABNE
 				p.To.Type = obj.TYPE_BRANCH
-				p2 = p
+				p.Pcond = end
 
+				// ADD $4, R13, R4
 				p = obj.Appendp(ctxt, p)
 				p.As = AADD
 				p.From.Type = obj.TYPE_CONST
@@ -460,6 +477,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = REG_R4
 
+				// MOVW R4, panic_argp(R1)
 				p = obj.Appendp(ctxt, p)
 				p.As = AMOVW
 				p.From.Type = obj.TYPE_REG
@@ -468,11 +486,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.To.Reg = REG_R1
 				p.To.Offset = 0 // Panic.argp
 
+				// B end
 				p = obj.Appendp(ctxt, p)
+				p.As = AB
+				p.To.Type = obj.TYPE_BRANCH
+				p.Pcond = end
 
-				p.As = obj.ANOP
-				p1.Pcond = p
-				p2.Pcond = p
+				// reset for subsequent passes
+				p = end
 			}
 
 		case obj.ARET:
@@ -702,7 +723,7 @@ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
 }
 
 func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
-	// MOVW			g_stackguard(g), R1
+	// MOVW g_stackguard(g), R1
 	p = obj.Appendp(ctxt, p)
 
 	p.As = AMOVW
@@ -748,11 +769,11 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		//	SP-stackguard+StackGuard < framesize + (StackGuard-StackSmall)
 		// The +StackGuard on both sides is required to keep the left side positive:
 		// SP is allowed to be slightly below stackguard. See stack.h.
-		//	CMP $StackPreempt, R1
+		//	CMP     $StackPreempt, R1
 		//	MOVW.NE $StackGuard(SP), R2
-		//	SUB.NE R1, R2
+		//	SUB.NE  R1, R2
 		//	MOVW.NE $(framesize+(StackGuard-StackSmall)), R3
-		//	CMP.NE R3, R2
+		//	CMP.NE  R3, R2
 		p = obj.Appendp(ctxt, p)
 
 		p.As = ACMP
