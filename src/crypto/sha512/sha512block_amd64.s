@@ -1480,6 +1480,7 @@ TEXT ·checkAVX2(SB), NOSPLIT, $0
 	CMPB AX,$0
 	JNE check_bmi2
 	MOVB AX, ret+0(FP)
+	RET
 check_bmi2:
 	MOVB runtime·support_bmi2(SB), AX
 	MOVB AX, ret+0(FP)
