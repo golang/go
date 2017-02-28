@@ -14,6 +14,7 @@ import (
 	"go/token"
 	"go/types"
 	"path/filepath"
+	"sync"
 )
 
 // An Importer provides the context for importing packages from source code.
@@ -116,31 +117,9 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 	filenames = append(filenames, bp.GoFiles...)
 	filenames = append(filenames, bp.CgoFiles...)
 
-	// parse package files
-	// TODO(gri) do this concurrently
-	var files []*ast.File
-	for _, filename := range filenames {
-		filepath := p.joinPath(bp.Dir, filename)
-		var file *ast.File
-		if open := p.ctxt.OpenFile; open != nil {
-			f, err := open(filepath)
-			if err != nil {
-				return nil, fmt.Errorf("opening package file %s failed (%v)", filepath, err)
-			}
-			file, err = parser.ParseFile(p.fset, filepath, f, 0)
-			f.Close() // ignore Close error - import may still succeed
-		} else {
-			// Special-case when ctxt doesn't provide a custom OpenFile and use the
-			// parser's file reading mechanism directly. This appears to be quite a
-			// bit faster than opening the file and providing an io.ReaderCloser in
-			// both cases.
-			// TODO(gri) investigate performance difference (issue #19281)
-			file, err = parser.ParseFile(p.fset, filepath, nil, 0)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("parsing package file %s failed (%v)", filepath, err)
-		}
-		files = append(files, file)
+	files, err := p.parseFiles(bp.Dir, filenames)
+	if err != nil {
+		return nil, err
 	}
 
 	// type-check package files
@@ -157,6 +136,47 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 
 	p.packages[bp.ImportPath] = pkg
 	return pkg, nil
+}
+
+func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, error) {
+	open := p.ctxt.OpenFile // possibly nil
+
+	files := make([]*ast.File, len(filenames))
+	errors := make([]error, len(filenames))
+
+	var wg sync.WaitGroup
+	wg.Add(len(filenames))
+	for i, filename := range filenames {
+		go func(i int, filepath string) {
+			defer wg.Done()
+			if open != nil {
+				src, err := open(filepath)
+				if err != nil {
+					errors[i] = fmt.Errorf("opening package file %s failed (%v)", filepath, err)
+					return
+				}
+				files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
+				src.Close() // ignore Close error - parsing may have succeeded which is all we need
+			} else {
+				// Special-case when ctxt doesn't provide a custom OpenFile and use the
+				// parser's file reading mechanism directly. This appears to be quite a
+				// bit faster than opening the file and providing an io.ReaderCloser in
+				// both cases.
+				// TODO(gri) investigate performance difference (issue #19281)
+				files[i], errors[i] = parser.ParseFile(p.fset, filepath, nil, 0)
+			}
+		}(i, p.joinPath(dir, filename))
+	}
+	wg.Wait()
+
+	// if there are errors, return the first one for deterministic results
+	for _, err := range errors {
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return files, nil
 }
 
 // context-controlled file system operations
