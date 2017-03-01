@@ -92,7 +92,6 @@ type Type struct {
 type NamedConst struct {
 	object *types.Const
 	Value  *Const
-	pos    token.Pos
 	pkg    *Package
 }
 
