@@ -74,7 +74,7 @@ func TestSymbolizationPath(t *testing.T) {
 			},
 		}
 		s := &source{}
-		locateBinaries(p, s, obj, &proftest.TestUI{t, tc.msgCount})
+		locateBinaries(p, s, obj, &proftest.TestUI{T: t, Ignore: tc.msgCount})
 		if file := p.Mapping[0].File; file != tc.want {
 			t.Errorf("%s:%s:%s, want %s, got %s", tc.env, tc.file, tc.buildID, tc.want, file)
 		}
@@ -176,7 +176,7 @@ func TestFetch(t *testing.T) {
 		{path + "go.nomappings.crash", "/bin/gotest.exe"},
 		{"http://localhost/profile?file=cppbench.cpu", ""},
 	} {
-		p, _, _, err := grabProfile(&source{ExecName: tc.execName}, tc.source, 0, nil, testObj{}, &proftest.TestUI{t, 0})
+		p, _, _, err := grabProfile(&source{ExecName: tc.execName}, tc.source, 0, nil, testObj{}, &proftest.TestUI{T: t})
 		if err != nil {
 			t.Fatalf("%s: %s", tc.source, err)
 		}
