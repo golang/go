@@ -55,7 +55,6 @@ func main() { // HLfunc
 		name       string
 		readFile   func(string) ([]byte, error)
 		sourceFile string
-		sourceLine int
 		cmd        string
 		err        string
 		Code
