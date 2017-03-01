@@ -84,7 +84,7 @@ pprof text reports show the location hierarchy in text format.
 
 * **-text:** Prints the location entries, one per line, including the flat and cum
   values.
-* **-tree:** Prints each location entry with its predecessors and successors. 
+* **-tree:** Prints each location entry with its predecessors and successors.
 * **-peek= _regex_:** Print the location entry with all its predecessors and
   successors, without trimming any entries.
 * **-traces:** Prints each sample with a location per line.
@@ -120,9 +120,10 @@ profile must contain data with the appropriate level of detail.
 
 pprof will look for source files on its current working directory and all its
 ancestors. pprof will look for binaries on the directories specified in the
-`$PPROF_BINARY_PATH` environment variable, by default `$HOME/pprof/binaries`. It
-will look binaries up by name, and if the profile includes linker build ids, it
-will also search for them in a directory named as the build id.
+`$PPROF_BINARY_PATH` environment variable, by default `$HOME/pprof/binaries`
+(`%USERPROFILE%\pprof\binaries` on Windows). It will look binaries up by name,
+and if the profile includes linker build ids, it will also search for them in
+a directory named as the build id.
 
 pprof uses the binutils tools to examine and disassemble the binaries. By
 default it will search for those tools in the current path, but it can also

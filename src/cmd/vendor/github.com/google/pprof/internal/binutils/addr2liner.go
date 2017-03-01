@@ -164,7 +164,10 @@ func (d *addr2Liner) readFrame() (plugin.Frame, bool) {
 		}
 	}
 
-	return plugin.Frame{funcname, fileline, linenumber}, false
+	return plugin.Frame{
+		Func: funcname,
+		File: fileline,
+		Line: linenumber}, false
 }
 
 // addrInfo returns the stack frame information for a specific program

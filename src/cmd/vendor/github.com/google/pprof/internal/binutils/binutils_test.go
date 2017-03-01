@@ -49,7 +49,7 @@ func TestAddr2Liner(t *testing.T) {
 		}
 		for l, f := range s {
 			level := (len(s) - l) * 1000
-			want := plugin.Frame{functionName(level), fmt.Sprintf("file%d", level), level}
+			want := plugin.Frame{Func: functionName(level), File: fmt.Sprintf("file%d", level), Line: level}
 
 			if f != want {
 				t.Errorf("AddrInfo(%#x)[%d]: = %+v, want %+v", addr, l, f, want)

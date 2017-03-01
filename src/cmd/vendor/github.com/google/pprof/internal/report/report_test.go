@@ -230,7 +230,7 @@ func TestDisambiguation(t *testing.T) {
 		sibling: "sibling",
 	}
 
-	g := &graph.Graph{n}
+	g := &graph.Graph{Nodes: n}
 
 	names := getDisambiguatedNames(g)
 

@@ -46,16 +46,16 @@ func TestFindSymbols(t *testing.T) {
 			"line.*[AC]",
 			testsyms,
 			[]plugin.Sym{
-				{[]string{"lineA001"}, "object.o", 0x1000, 0x1FFF},
-				{[]string{"line200A"}, "object.o", 0x2000, 0x2FFF},
-				{[]string{"lineB00C"}, "object.o", 0x3000, 0x3FFF},
+				{Name: []string{"lineA001"}, File: "object.o", Start: 0x1000, End: 0x1FFF},
+				{Name: []string{"line200A"}, File: "object.o", Start: 0x2000, End: 0x2FFF},
+				{Name: []string{"lineB00C"}, File: "object.o", Start: 0x3000, End: 0x3FFF},
 			},
 		},
 		{
 			"Dumb::operator",
 			testsyms,
 			[]plugin.Sym{
-				{[]string{"Dumb::operator()(char const*) const"}, "object.o", 0x3000, 0x3FFF},
+				{Name: []string{"Dumb::operator()(char const*) const"}, File: "object.o", Start: 0x3000, End: 0x3FFF},
 			},
 		},
 	}
@@ -109,7 +109,7 @@ func TestFunctionAssembly(t *testing.T) {
 	}
 	testcases := []testcase{
 		{
-			plugin.Sym{[]string{"symbol1"}, "", 0x1000, 0x1FFF},
+			plugin.Sym{Name: []string{"symbol1"}, Start: 0x1000, End: 0x1FFF},
 			`  1000: instruction one
   1001: instruction two
   1002: instruction three
@@ -123,7 +123,7 @@ func TestFunctionAssembly(t *testing.T) {
 			},
 		},
 		{
-			plugin.Sym{[]string{"symbol2"}, "", 0x2000, 0x2FFF},
+			plugin.Sym{Name: []string{"symbol2"}, Start: 0x2000, End: 0x2FFF},
 			`  2000: instruction one
   2001: instruction two
 `,

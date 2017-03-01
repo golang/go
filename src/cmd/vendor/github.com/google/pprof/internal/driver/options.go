@@ -47,7 +47,7 @@ func setDefaults(o *plugin.Options) *plugin.Options {
 		d.UI = &stdUI{r: bufio.NewReader(os.Stdin)}
 	}
 	if d.Sym == nil {
-		d.Sym = &symbolizer.Symbolizer{d.Obj, d.UI}
+		d.Sym = &symbolizer.Symbolizer{Obj: d.Obj, UI: d.UI}
 	}
 	return d
 }
