@@ -26,7 +26,6 @@ func CanPoint(T types.Type) bool {
 			return true // treat reflect.Value like interface{}
 		}
 		return CanPoint(T.Underlying())
-
 	case *types.Pointer, *types.Interface, *types.Map, *types.Chan, *types.Signature, *types.Slice:
 		return true
 	}
@@ -171,7 +170,7 @@ func (a *analysis) flatten(t types.Type) []*fieldInfo {
 			}
 
 		default:
-			panic(t)
+			panic(fmt.Sprintf("cannot flatten unsupported type %T", t))
 		}
 
 		a.flattenMemo[t] = fl

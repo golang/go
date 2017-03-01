@@ -108,6 +108,16 @@ func (a *analysis) setValueNode(v ssa.Value, id nodeid, cgn *cgnode) {
 		}
 		a.genLoad(cgn, ptr.n, v, 0, a.sizeof(t))
 	}
+
+	for _, query := range a.config.extendedQueries[v] {
+		t, nid := a.evalExtendedQuery(v.Type().Underlying(), id, query.ops)
+
+		if query.ptr.a == nil {
+			query.ptr.a = a
+			query.ptr.n = a.addNodes(t, "query.extended")
+		}
+		a.copy(query.ptr.n, nid, a.sizeof(t))
+	}
 }
 
 // endObject marks the end of a sequence of calls to addNodes denoting

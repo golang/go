@@ -102,6 +102,13 @@ func (a *analysis) renumber() {
 		ptr.n = renumbering[ptr.n]
 		a.result.IndirectQueries[v] = ptr
 	}
+	for _, queries := range a.config.extendedQueries {
+		for _, query := range queries {
+			if query.ptr != nil {
+				query.ptr.n = renumbering[query.ptr.n]
+			}
+		}
+	}
 
 	// Renumber nodeids in global objects.
 	for v, id := range a.globalobj {
