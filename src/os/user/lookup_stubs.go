@@ -15,7 +15,6 @@ import (
 )
 
 func init() {
-	userImplemented = false
 	groupImplemented = false
 }
 
@@ -44,14 +43,6 @@ func current() (*User, error) {
 		return u, nil
 	}
 	return u, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
-}
-
-func lookupUser(username string) (*User, error) {
-	return nil, errors.New("user: Lookup requires cgo")
-}
-
-func lookupUserId(uid string) (*User, error) {
-	return nil, errors.New("user: LookupId requires cgo")
 }
 
 func listGroups(*User) ([]string, error) {
