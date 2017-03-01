@@ -3234,10 +3234,6 @@ func ungetrune(f *bufio.Reader, c rune) {
 	peekrune = c
 }
 
-func write(f *bufio.Writer, b []byte, n int) int {
-	panic("write")
-}
-
 func open(s string) *bufio.Reader {
 	fi, err := os.Open(s)
 	if err != nil {
