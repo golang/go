@@ -38,7 +38,7 @@ func TestSymbolizationPath(t *testing.T) {
 	}
 
 	// Save environment variables to restore after test
-	saveHome := os.Getenv("HOME")
+	saveHome := os.Getenv(homeEnv())
 	savePath := os.Getenv("PPROF_BINARY_PATH")
 
 	tempdir, err := ioutil.TempDir("", "home")
@@ -50,7 +50,7 @@ func TestSymbolizationPath(t *testing.T) {
 	os.Create(filepath.Join(tempdir, "pprof", "binaries", "abcde10001", "binary"))
 
 	obj := testObj{tempdir}
-	os.Setenv("HOME", tempdir)
+	os.Setenv(homeEnv(), tempdir)
 	for _, tc := range []struct {
 		env, file, buildID, want string
 		msgCount                 int
@@ -79,7 +79,7 @@ func TestSymbolizationPath(t *testing.T) {
 			t.Errorf("%s:%s:%s, want %s, got %s", tc.env, tc.file, tc.buildID, tc.want, file)
 		}
 	}
-	os.Setenv("HOME", saveHome)
+	os.Setenv(homeEnv(), saveHome)
 	os.Setenv("PPROF_BINARY_PATH", savePath)
 }
 
