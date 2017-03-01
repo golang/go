@@ -77,36 +77,43 @@ type memRecord struct {
 	//
 	//       alloc → ▲ ← free
 	//               ┠┅┅┅┅┅┅┅┅┅┅┅P
-	//       r_a     →    p_a    →  allocs
-	//                    p_f    →  frees
+	//       C+2     →    C+1    →  C
 	//
 	//                   alloc → ▲ ← free
 	//                           ┠┅┅┅┅┅┅┅┅┅┅┅P
-	//                   r_a     →    p_a    →  alloc
-	//		                  p_f    →  frees
+	//                   C+2     →    C+1    →  C
 	//
 	// Since we can't publish a consistent snapshot until all of
 	// the sweep frees are accounted for, we wait until the next
 	// mark termination ("MT" above) to publish the previous mark
-	// termination's snapshot ("P" above). To do this, information
-	// is delayed through "recent" and "prev" stages ("r_*" and
-	// "p_*" above). Specifically:
+	// termination's snapshot ("P" above). To do this, allocation
+	// and free events are accounted to *future* heap profile
+	// cycles ("C+n" above) and we only publish a cycle once all
+	// of the events from that cycle must be done. Specifically:
 	//
-	// Mallocs are accounted in recent stats.
-	// Explicit frees are accounted in recent stats.
-	// GC frees are accounted in prev stats.
-	// After GC prev stats are added to final stats and
-	// recent stats are moved into prev stats.
+	// Mallocs are accounted to cycle C+2.
+	// Explicit frees are accounted to cycle C+2.
+	// GC frees (done during sweeping) are accounted to cycle C+1.
+	//
+	// After mark termination, we increment the global heap
+	// profile cycle counter and accumulate the stats from cycle C
+	// into the active profile.
 
 	// active is the currently published profile. A profiling
 	// cycle can be accumulated into active once its complete.
 	active memRecordCycle
 
-	// changes between next-to-last GC and last GC
-	prev memRecordCycle
-
-	// changes since last GC
-	recent memRecordCycle
+	// future records the profile events we're counting for cycles
+	// that have not yet been published. This is ring buffer
+	// indexed by the global heap profile cycle C and stores
+	// cycles C, C+1, and C+2. Unlike active, these counts are
+	// only for a single cycle; they are not cumulative across
+	// cycles.
+	//
+	// We store cycle C here because there's a window between when
+	// C becomes the active cycle and when we've flushed it to
+	// active.
+	future [3]memRecordCycle
 }
 
 // memRecordCycle
@@ -136,7 +143,20 @@ var (
 	xbuckets  *bucket // mutex profile buckets
 	buckhash  *[179999]*bucket
 	bucketmem uintptr
+
+	mProf struct {
+		// All fields in mProf are protected by proflock.
+
+		// cycle is the global heap profile cycle. This wraps
+		// at mProfCycleWrap.
+		cycle uint32
+		// flushed indicates that future[cycle] in all buckets
+		// has been flushed to the active profile.
+		flushed bool
+	}
 )
+
+const mProfCycleWrap = uint32(len(memRecord{}.future)) * (2 << 24)
 
 // newBucket allocates a bucket with the given type and number of stack entries.
 func newBucket(typ bucketType, nstk int) *bucket {
@@ -248,21 +268,51 @@ func eqslice(x, y []uintptr) bool {
 	return true
 }
 
-func mprof_GC() {
+// mProf_NextCycle publishes the next heap profile cycle and creates a
+// fresh heap profile cycle. This operation is fast and can be done
+// during STW. The caller must call mProf_Flush before calling
+// mProf_NextCycle again.
+//
+// This is called by mark termination during STW so allocations and
+// frees after the world is started again count towards a new heap
+// profiling cycle.
+func mProf_NextCycle() {
+	lock(&proflock)
+	// We explicitly wrap mProf.cycle rather than depending on
+	// uint wraparound because the memRecord.future ring does not
+	// itself wrap at a power of two.
+	mProf.cycle = (mProf.cycle + 1) % mProfCycleWrap
+	mProf.flushed = false
+	unlock(&proflock)
+}
+
+// mProf_Flush flushes the events from the current heap profiling
+// cycle into the active profile. After this it is safe to start a new
+// heap profiling cycle with mProf_NextCycle.
+//
+// This is called by GC after mark termination starts the world. In
+// contrast with mProf_NextCycle, this is somewhat expensive, but safe
+// to do concurrently.
+func mProf_Flush() {
+	lock(&proflock)
+	if !mProf.flushed {
+		mProf_FlushLocked()
+		mProf.flushed = true
+	}
+	unlock(&proflock)
+}
+
+func mProf_FlushLocked() {
+	c := mProf.cycle
 	for b := mbuckets; b != nil; b = b.allnext {
 		mp := b.mp()
 
-		mp.active.add(&mp.prev)
-		mp.prev = mp.recent
-		mp.recent = memRecordCycle{}
+		// Flush cycle C into the published profile and clear
+		// it for reuse.
+		mpc := &mp.future[c%uint32(len(mp.future))]
+		mp.active.add(mpc)
+		*mpc = memRecordCycle{}
 	}
-}
-
-// Record that a gc just happened: all the 'recent' statistics are now real.
-func mProf_GC() {
-	lock(&proflock)
-	mprof_GC()
-	unlock(&proflock)
 }
 
 // Called by malloc to record a profiled block.
@@ -271,9 +321,11 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 	nstk := callers(4, stk[:])
 	lock(&proflock)
 	b := stkbucket(memProfile, size, stk[:nstk], true)
+	c := mProf.cycle
 	mp := b.mp()
-	mp.recent.allocs++
-	mp.recent.alloc_bytes += size
+	mpc := &mp.future[(c+2)%uint32(len(mp.future))]
+	mpc.allocs++
+	mpc.alloc_bytes += size
 	unlock(&proflock)
 
 	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of proflock.
@@ -288,9 +340,11 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 // Called when freeing a profiled block.
 func mProf_Free(b *bucket, size uintptr) {
 	lock(&proflock)
+	c := mProf.cycle
 	mp := b.mp()
-	mp.prev.frees++
-	mp.prev.free_bytes += size
+	mpc := &mp.future[(c+1)%uint32(len(mp.future))]
+	mpc.frees++
+	mpc.free_bytes += size
 	unlock(&proflock)
 }
 
@@ -467,6 +521,10 @@ func (r *MemProfileRecord) Stack() []uintptr {
 // of calling MemProfile directly.
 func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 	lock(&proflock)
+	// If we're between mProf_NextCycle and mProf_Flush, take care
+	// of flushing to the active profile so we only have to look
+	// at the active profile below.
+	mProf_FlushLocked()
 	clear := true
 	for b := mbuckets; b != nil; b = b.allnext {
 		mp := b.mp()
@@ -481,12 +539,14 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 		// Absolutely no data, suggesting that a garbage collection
 		// has not yet happened. In order to allow profiling when
 		// garbage collection is disabled from the beginning of execution,
-		// accumulate stats as if a GC just happened, and recount buckets.
-		mprof_GC()
-		mprof_GC()
+		// accumulate all of the cycles, and recount buckets.
 		n = 0
 		for b := mbuckets; b != nil; b = b.allnext {
 			mp := b.mp()
+			for c := range mp.future {
+				mp.active.add(&mp.future[c])
+				mp.future[c] = memRecordCycle{}
+			}
 			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
 				n++
 			}
