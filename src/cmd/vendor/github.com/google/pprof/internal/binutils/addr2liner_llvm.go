@@ -121,7 +121,7 @@ func (d *llvmSymbolizer) readFrame() (plugin.Frame, bool) {
 
 	fileline, err := d.readString()
 	if err != nil {
-		return plugin.Frame{funcname, "", 0}, true
+		return plugin.Frame{Func: funcname}, true
 	}
 
 	linenumber := 0
@@ -144,7 +144,7 @@ func (d *llvmSymbolizer) readFrame() (plugin.Frame, bool) {
 		}
 	}
 
-	return plugin.Frame{funcname, fileline, linenumber}, false
+	return plugin.Frame{Func: funcname, File: fileline, Line: linenumber}, false
 }
 
 // addrInfo returns the stack frame information for a specific program

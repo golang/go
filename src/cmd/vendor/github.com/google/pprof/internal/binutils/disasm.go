@@ -46,7 +46,7 @@ func findSymbols(syms []byte, file string, r *regexp.Regexp, address uint64) ([]
 			continue
 		}
 		if match := matchSymbol(names, start, symAddr-1, r, address); match != nil {
-			symbols = append(symbols, &plugin.Sym{match, file, start, symAddr - 1})
+			symbols = append(symbols, &plugin.Sym{Name: match, File: file, Start: start, End: symAddr - 1})
 		}
 		names, start = []string{name}, symAddr
 	}
