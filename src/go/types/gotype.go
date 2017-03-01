@@ -21,6 +21,10 @@ package.
 Otherwise, each path must be the filename of Go file belonging to
 the same package.
 
+Imports are processed by importing directly from the source of
+imported packages (default), or by importing from compiled and
+installed packages (by setting -c to the respective compiler).
+
 Usage:
 	gotype [flags] [path...]
 
@@ -32,11 +36,7 @@ The flags are:
 	-v
 		verbose mode
 	-c
-		compiler used to compile packages (gc or gccgo); default: gc
-		(gotype based on Go1.5 and up only)
-	-gccgo
-		use gccimporter instead of gcimporter
-		(gotype based on Go1.4 and before only)
+		compiler used for installed packages (gc, gccgo, or source); default: source
 
 Debugging flags:
 	-seq
@@ -90,7 +90,7 @@ var (
 	allFiles  = flag.Bool("a", false, "use all (incl. _test.go) files when processing a directory")
 	allErrors = flag.Bool("e", false, "report all errors (not just the first 10)")
 	verbose   = flag.Bool("v", false, "verbose mode")
-	gccgo     = flag.Bool("gccgo", false, "use gccgoimporter instead of gcimporter")
+	compiler  = flag.String("c", "source", "compiler used for installed packages (gc, gccgo, or source)")
 
 	// debugging support
 	sequential    = flag.Bool("seq", false, "parse sequentially, rather than in parallel")
@@ -103,7 +103,6 @@ var (
 	fset       = token.NewFileSet()
 	errorCount = 0
 	parserMode parser.Mode
-	sizes      types.Sizes
 )
 
 func initParserMode() {
@@ -116,18 +115,6 @@ func initParserMode() {
 	if *parseComments && (*printAST || *printTrace) {
 		parserMode |= parser.ParseComments
 	}
-}
-
-func initSizes() {
-	wordSize := 8
-	maxAlign := 8
-	switch build.Default.GOARCH {
-	case "386", "arm":
-		wordSize = 4
-		maxAlign = 4
-		// add more cases as needed
-	}
-	sizes = &types.StdSizes{WordSize: int64(wordSize), MaxAlign: int64(maxAlign)}
 }
 
 func usage() {
@@ -248,11 +235,9 @@ func getPkgFiles(args []string) ([]*ast.File, error) {
 }
 
 func checkPkgFiles(files []*ast.File) {
-	compiler := "gc"
-	if *gccgo {
-		compiler = "gccgo"
-	}
 	type bailout struct{}
+
+	// if checkPkgFiles is called multiple times, set up conf only once
 	conf := types.Config{
 		FakeImportC: true,
 		Error: func(err error) {
@@ -261,8 +246,8 @@ func checkPkgFiles(files []*ast.File) {
 			}
 			report(err)
 		},
-		Importer: importer.For(compiler, nil),
-		Sizes:    sizes,
+		Importer: importer.For(*compiler, nil),
+		Sizes:    types.SizesFor(build.Default.GOARCH),
 	}
 
 	defer func() {
@@ -301,7 +286,6 @@ func main() {
 		*sequential = true
 	}
 	initParserMode()
-	initSizes()
 
 	start := time.Now()
 
