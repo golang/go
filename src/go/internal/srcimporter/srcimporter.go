@@ -92,21 +92,25 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 		if pkg == &importing {
 			return nil, fmt.Errorf("import cycle through package %q", bp.ImportPath)
 		}
-		if pkg.Complete() {
-			return pkg, nil
+		if !pkg.Complete() {
+			// package exists but is not complete - we cannot handle this
+			// at the moment since the source importer replaces the package
+			// wholesale rather than augmenting it (see #19337 for details)
+			return nil, fmt.Errorf("reimported partially imported package %q", bp.ImportPath)
 		}
-	} else {
-		p.packages[bp.ImportPath] = &importing
-		defer func() {
-			// clean up in case of error
-			// TODO(gri) Eventually we may want to leave a (possibly empty)
-			// package in the map in all cases (and use that package to
-			// identify cycles). See also issue 16088.
-			if p.packages[bp.ImportPath] == &importing {
-				p.packages[bp.ImportPath] = nil
-			}
-		}()
+		return pkg, nil
 	}
+
+	p.packages[bp.ImportPath] = &importing
+	defer func() {
+		// clean up in case of error
+		// TODO(gri) Eventually we may want to leave a (possibly empty)
+		// package in the map in all cases (and use that package to
+		// identify cycles). See also issue 16088.
+		if p.packages[bp.ImportPath] == &importing {
+			p.packages[bp.ImportPath] = nil
+		}
+	}()
 
 	// collect package files
 	bp, err = p.ctxt.ImportDir(bp.Dir, 0)
