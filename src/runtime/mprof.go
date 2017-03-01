@@ -97,22 +97,30 @@ type memRecord struct {
 	// GC frees are accounted in prev stats.
 	// After GC prev stats are added to final stats and
 	// recent stats are moved into prev stats.
-	allocs      uintptr
-	frees       uintptr
-	alloc_bytes uintptr
-	free_bytes  uintptr
+
+	// active is the currently published profile. A profiling
+	// cycle can be accumulated into active once its complete.
+	active memRecordCycle
 
 	// changes between next-to-last GC and last GC
-	prev_allocs      uintptr
-	prev_frees       uintptr
-	prev_alloc_bytes uintptr
-	prev_free_bytes  uintptr
+	prev memRecordCycle
 
 	// changes since last GC
-	recent_allocs      uintptr
-	recent_frees       uintptr
-	recent_alloc_bytes uintptr
-	recent_free_bytes  uintptr
+	recent memRecordCycle
+}
+
+// memRecordCycle
+type memRecordCycle struct {
+	allocs, frees           uintptr
+	alloc_bytes, free_bytes uintptr
+}
+
+// add accumulates b into a. It does not zero b.
+func (a *memRecordCycle) add(b *memRecordCycle) {
+	a.allocs += b.allocs
+	a.frees += b.frees
+	a.alloc_bytes += b.alloc_bytes
+	a.free_bytes += b.free_bytes
 }
 
 // A blockRecord is the bucket data for a bucket of type blockProfile,
@@ -243,20 +251,10 @@ func eqslice(x, y []uintptr) bool {
 func mprof_GC() {
 	for b := mbuckets; b != nil; b = b.allnext {
 		mp := b.mp()
-		mp.allocs += mp.prev_allocs
-		mp.frees += mp.prev_frees
-		mp.alloc_bytes += mp.prev_alloc_bytes
-		mp.free_bytes += mp.prev_free_bytes
 
-		mp.prev_allocs = mp.recent_allocs
-		mp.prev_frees = mp.recent_frees
-		mp.prev_alloc_bytes = mp.recent_alloc_bytes
-		mp.prev_free_bytes = mp.recent_free_bytes
-
-		mp.recent_allocs = 0
-		mp.recent_frees = 0
-		mp.recent_alloc_bytes = 0
-		mp.recent_free_bytes = 0
+		mp.active.add(&mp.prev)
+		mp.prev = mp.recent
+		mp.recent = memRecordCycle{}
 	}
 }
 
@@ -274,8 +272,8 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 	lock(&proflock)
 	b := stkbucket(memProfile, size, stk[:nstk], true)
 	mp := b.mp()
-	mp.recent_allocs++
-	mp.recent_alloc_bytes += size
+	mp.recent.allocs++
+	mp.recent.alloc_bytes += size
 	unlock(&proflock)
 
 	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of proflock.
@@ -291,8 +289,8 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 func mProf_Free(b *bucket, size uintptr) {
 	lock(&proflock)
 	mp := b.mp()
-	mp.prev_frees++
-	mp.prev_free_bytes += size
+	mp.prev.frees++
+	mp.prev.free_bytes += size
 	unlock(&proflock)
 }
 
@@ -472,10 +470,10 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 	clear := true
 	for b := mbuckets; b != nil; b = b.allnext {
 		mp := b.mp()
-		if inuseZero || mp.alloc_bytes != mp.free_bytes {
+		if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
 			n++
 		}
-		if mp.allocs != 0 || mp.frees != 0 {
+		if mp.active.allocs != 0 || mp.active.frees != 0 {
 			clear = false
 		}
 	}
@@ -489,7 +487,7 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 		n = 0
 		for b := mbuckets; b != nil; b = b.allnext {
 			mp := b.mp()
-			if inuseZero || mp.alloc_bytes != mp.free_bytes {
+			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
 				n++
 			}
 		}
@@ -499,7 +497,7 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 		idx := 0
 		for b := mbuckets; b != nil; b = b.allnext {
 			mp := b.mp()
-			if inuseZero || mp.alloc_bytes != mp.free_bytes {
+			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
 				record(&p[idx], b)
 				idx++
 			}
@@ -512,10 +510,10 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 // Write b's data to r.
 func record(r *MemProfileRecord, b *bucket) {
 	mp := b.mp()
-	r.AllocBytes = int64(mp.alloc_bytes)
-	r.FreeBytes = int64(mp.free_bytes)
-	r.AllocObjects = int64(mp.allocs)
-	r.FreeObjects = int64(mp.frees)
+	r.AllocBytes = int64(mp.active.alloc_bytes)
+	r.FreeBytes = int64(mp.active.free_bytes)
+	r.AllocObjects = int64(mp.active.allocs)
+	r.FreeObjects = int64(mp.active.frees)
 	if raceenabled {
 		racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(unsafe.Pointer(&r)), funcPC(MemProfile))
 	}
@@ -532,7 +530,7 @@ func iterate_memprof(fn func(*bucket, uintptr, *uintptr, uintptr, uintptr, uintp
 	lock(&proflock)
 	for b := mbuckets; b != nil; b = b.allnext {
 		mp := b.mp()
-		fn(b, b.nstk, &b.stk()[0], b.size, mp.allocs, mp.frees)
+		fn(b, b.nstk, &b.stk()[0], b.size, mp.active.allocs, mp.active.frees)
 	}
 	unlock(&proflock)
 }
