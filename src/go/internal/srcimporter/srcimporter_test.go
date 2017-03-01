@@ -132,3 +132,19 @@ func TestImportedTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestReimport(t *testing.T) {
+	if runtime.GOOS == "nacl" {
+		t.Skip("no source code available")
+	}
+
+	// Reimporting a partially imported (incomplete) package is not supported (see issue #19337).
+	// Make sure we recognize the situation and report an error.
+
+	mathPkg := types.NewPackage("math", "math") // incomplete package
+	importer := New(&build.Default, token.NewFileSet(), map[string]*types.Package{mathPkg.Path(): mathPkg})
+	_, err := importer.ImportFrom("math", ".", 0)
+	if err == nil || !strings.HasPrefix(err.Error(), "reimport") {
+		t.Errorf("got %v; want reimport error", err)
+	}
+}
