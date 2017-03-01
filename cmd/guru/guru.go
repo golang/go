@@ -65,11 +65,6 @@ func (qpos *queryPos) objectString(obj types.Object) string {
 	return types.ObjectString(obj, types.RelativeTo(qpos.info.Pkg))
 }
 
-// SelectionString prints selection sel relative to the query position.
-func (qpos *queryPos) selectionString(sel *types.Selection) string {
-	return types.SelectionString(sel, types.RelativeTo(qpos.info.Pkg))
-}
-
 // A Query specifies a single guru query.
 type Query struct {
 	Pos   string         // query position
