@@ -9,9 +9,11 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"internal/testenv"
 	"io"
 	"net"
 	"net/textproto"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -592,6 +594,9 @@ QUIT
 `
 
 func TestTLSClient(t *testing.T) {
+	if runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64" {
+		testenv.SkipFlaky(t, 19229)
+	}
 	ln := newLocalListener(t)
 	defer ln.Close()
 	errc := make(chan error)
