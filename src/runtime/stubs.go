@@ -192,9 +192,6 @@ func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
 // data dependency ordering.
 func publicationBarrier()
 
-//go:noescape
-func setcallerpc(argp unsafe.Pointer, pc uintptr)
-
 // getcallerpc returns the program counter (PC) of its caller's caller.
 // getcallersp returns the stack pointer (SP) of its caller's caller.
 // For both, the argp must be a pointer to the caller's first function argument.

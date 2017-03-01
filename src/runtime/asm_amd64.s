@@ -822,12 +822,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
 	MOVQ	AX, ret+8(FP)
 	RET
 
-TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
-	MOVQ	argp+0(FP),AX		// addr of first arg
-	MOVQ	pc+8(FP), BX
-	MOVQ	BX, -8(AX)		// set calling pc
-	RET
-
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1

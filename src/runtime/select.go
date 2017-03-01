@@ -11,11 +11,12 @@ import (
 	"unsafe"
 )
 
-const (
-	debugSelect = false
+const debugSelect = false
 
+const (
 	// scase.kind
-	caseRecv = iota
+	caseNil = iota
+	caseRecv
 	caseSend
 	caseDefault
 )
@@ -37,10 +38,9 @@ type hselect struct {
 type scase struct {
 	elem        unsafe.Pointer // data element
 	c           *hchan         // chan
-	pc          uintptr        // return pc
+	pc          uintptr        // return pc (for race detector / msan)
 	kind        uint16
-	so          uint16 // vararg of selected bool
-	receivedp   *bool  // pointer to received bool (recv2)
+	receivedp   *bool // pointer to received bool, if any
 	releasetime int64
 }
 
@@ -72,92 +72,63 @@ func newselect(sel *hselect, selsize int64, size int32) {
 	}
 }
 
-//go:nosplit
-func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) (selected bool) {
-	// nil cases do not compete
-	if c != nil {
-		selectsendImpl(sel, c, getcallerpc(unsafe.Pointer(&sel)), elem, uintptr(unsafe.Pointer(&selected))-uintptr(unsafe.Pointer(&sel)))
-	}
-	return
-}
-
-// cut in half to give stack a chance to split
-func selectsendImpl(sel *hselect, c *hchan, pc uintptr, elem unsafe.Pointer, so uintptr) {
+func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) {
+	pc := getcallerpc(unsafe.Pointer(&sel))
 	i := sel.ncase
 	if i >= sel.tcase {
 		throw("selectsend: too many cases")
 	}
 	sel.ncase = i + 1
+	if c == nil {
+		return
+	}
 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
-
 	cas.pc = pc
 	cas.c = c
-	cas.so = uint16(so)
 	cas.kind = caseSend
 	cas.elem = elem
 
 	if debugSelect {
-		print("selectsend s=", sel, " pc=", hex(cas.pc), " chan=", cas.c, " so=", cas.so, "\n")
+		print("selectsend s=", sel, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
 	}
 }
 
-//go:nosplit
-func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer) (selected bool) {
-	// nil cases do not compete
-	if c != nil {
-		selectrecvImpl(sel, c, getcallerpc(unsafe.Pointer(&sel)), elem, nil, uintptr(unsafe.Pointer(&selected))-uintptr(unsafe.Pointer(&sel)))
-	}
-	return
-}
-
-//go:nosplit
-func selectrecv2(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) (selected bool) {
-	// nil cases do not compete
-	if c != nil {
-		selectrecvImpl(sel, c, getcallerpc(unsafe.Pointer(&sel)), elem, received, uintptr(unsafe.Pointer(&selected))-uintptr(unsafe.Pointer(&sel)))
-	}
-	return
-}
-
-func selectrecvImpl(sel *hselect, c *hchan, pc uintptr, elem unsafe.Pointer, received *bool, so uintptr) {
+func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) {
+	pc := getcallerpc(unsafe.Pointer(&sel))
 	i := sel.ncase
 	if i >= sel.tcase {
 		throw("selectrecv: too many cases")
 	}
 	sel.ncase = i + 1
+	if c == nil {
+		return
+	}
 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
 	cas.pc = pc
 	cas.c = c
-	cas.so = uint16(so)
 	cas.kind = caseRecv
 	cas.elem = elem
 	cas.receivedp = received
 
 	if debugSelect {
-		print("selectrecv s=", sel, " pc=", hex(cas.pc), " chan=", cas.c, " so=", cas.so, "\n")
+		print("selectrecv s=", sel, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
 	}
 }
 
-//go:nosplit
-func selectdefault(sel *hselect) (selected bool) {
-	selectdefaultImpl(sel, getcallerpc(unsafe.Pointer(&sel)), uintptr(unsafe.Pointer(&selected))-uintptr(unsafe.Pointer(&sel)))
-	return
-}
-
-func selectdefaultImpl(sel *hselect, callerpc uintptr, so uintptr) {
+func selectdefault(sel *hselect) {
+	pc := getcallerpc(unsafe.Pointer(&sel))
 	i := sel.ncase
 	if i >= sel.tcase {
 		throw("selectdefault: too many cases")
 	}
 	sel.ncase = i + 1
 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
-	cas.pc = callerpc
+	cas.pc = pc
 	cas.c = nil
-	cas.so = uint16(so)
 	cas.kind = caseDefault
 
 	if debugSelect {
-		print("selectdefault s=", sel, " pc=", hex(cas.pc), " so=", cas.so, "\n")
+		print("selectdefault s=", sel, " pc=", hex(cas.pc), "\n")
 	}
 }
 
@@ -181,14 +152,11 @@ func selunlock(scases []scase, lockorder []uint16) {
 	// the G that calls select runnable again and schedules it for execution.
 	// When the G runs on another M, it locks all the locks and frees sel.
 	// Now if the first M touches sel, it will access freed memory.
-	n := len(scases)
-	r := 0
-	// skip the default case
-	if n > 0 && scases[lockorder[0]].c == nil {
-		r = 1
-	}
-	for i := n - 1; i >= r; i-- {
+	for i := len(scases) - 1; i >= 0; i-- {
 		c := scases[lockorder[i]].c
+		if c == nil {
+			break
+		}
 		if i > 0 && c == scases[lockorder[i-1]].c {
 			continue // will unlock it on the next iteration
 		}
@@ -229,22 +197,20 @@ func block() {
 // *sel is on the current goroutine's stack (regardless of any
 // escaping in selectgo).
 //
-// selectgo does not return. Instead, it overwrites its return PC and
-// returns directly to the triggered select case. Because of this, it
-// cannot appear at the top of a split stack.
-//
+// selectgo returns the index of the chosen scase, which matches the
+// ordinal position of its respective select{recv,send,default} call.
 //go:nosplit
-func selectgo(sel *hselect) {
-	pc, offset := selectgoImpl(sel)
-	*(*bool)(add(unsafe.Pointer(&sel), uintptr(offset))) = true
-	setcallerpc(unsafe.Pointer(&sel), pc)
+func selectgo(sel *hselect) int {
+	return selectgoImpl(sel)
 }
 
-// selectgoImpl returns scase.pc and scase.so for the select
-// case which fired.
-func selectgoImpl(sel *hselect) (uintptr, uint16) {
+// Separate function to keep runtime/trace.TestTraceSymbolize happy.
+func selectgoImpl(sel *hselect) int {
 	if debugSelect {
 		print("select: sel=", sel, "\n")
+	}
+	if sel.ncase != sel.tcase {
+		throw("selectgo: case count mismatch")
 	}
 
 	scaseslice := slice{unsafe.Pointer(&sel.scase), int(sel.ncase), int(sel.ncase)}
@@ -338,13 +304,19 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 
 loop:
 	// pass 1 - look for something already waiting
+	var dfli int
 	var dfl *scase
+	var casi int
 	var cas *scase
 	for i := 0; i < int(sel.ncase); i++ {
-		cas = &scases[pollorder[i]]
+		casi = int(pollorder[i])
+		cas = &scases[casi]
 		c = cas.c
 
 		switch cas.kind {
+		case caseNil:
+			continue
+
 		case caseRecv:
 			sg = c.sendq.dequeue()
 			if sg != nil {
@@ -373,12 +345,14 @@ loop:
 			}
 
 		case caseDefault:
+			dfli = casi
 			dfl = cas
 		}
 	}
 
 	if dfl != nil {
 		selunlock(scases, lockorder)
+		casi = dfli
 		cas = dfl
 		goto retc
 	}
@@ -391,7 +365,11 @@ loop:
 	}
 	nextp = &gp.waiting
 	for _, casei := range lockorder {
-		cas = &scases[casei]
+		casi = int(casei)
+		cas = &scases[casi]
+		if cas.kind == caseNil {
+			continue
+		}
 		c = cas.c
 		sg := acquireSudog()
 		sg.g = gp
@@ -485,6 +463,7 @@ loop:
 	// otherwise they stack up on quiet channels
 	// record the successful case, if any.
 	// We singly-linked up the SudoGs in lock order.
+	casi = -1
 	cas = nil
 	sglist = gp.waiting
 	// Clear all elem before unlinking from gp.waiting.
@@ -497,11 +476,15 @@ loop:
 
 	for _, casei := range lockorder {
 		k = &scases[casei]
+		if k.kind == caseNil {
+			continue
+		}
 		if sglist.releasetime > 0 {
 			k.releasetime = sglist.releasetime
 		}
 		if sg == sglist {
 			// sg has already been dequeued by the G that woke us up.
+			casi = int(casei)
 			cas = k
 		} else {
 			c = k.c
@@ -650,7 +633,7 @@ retc:
 	if cas.releasetime > 0 {
 		blockevent(cas.releasetime-t0, 2)
 	}
-	return cas.pc, cas.so
+	return casi
 
 sclose:
 	// send on closed channel
@@ -694,22 +677,15 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
 		rc := &cases[i]
 		switch rc.dir {
 		case selectDefault:
-			selectdefaultImpl(sel, uintptr(i), 0)
+			selectdefault(sel)
 		case selectSend:
-			if rc.ch == nil {
-				break
-			}
-			selectsendImpl(sel, rc.ch, uintptr(i), rc.val, 0)
+			selectsend(sel, rc.ch, rc.val)
 		case selectRecv:
-			if rc.ch == nil {
-				break
-			}
-			selectrecvImpl(sel, rc.ch, uintptr(i), rc.val, r, 0)
+			selectrecv(sel, rc.ch, rc.val, r)
 		}
 	}
 
-	pc, _ := selectgoImpl(sel)
-	chosen = int(pc)
+	chosen = selectgo(sel)
 	recvOK = *r
 	return
 }

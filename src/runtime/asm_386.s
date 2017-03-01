@@ -799,12 +799,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·setcallerpc(SB),NOSPLIT,$4-8
-	MOVL	argp+0(FP),AX		// addr of first arg
-	MOVL	pc+4(FP), BX
-	MOVL	BX, -4(AX)		// set calling pc
-	RET
-
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	TESTL	$0x4000000, runtime·cpuid_edx(SB) // no sse2, no mfence

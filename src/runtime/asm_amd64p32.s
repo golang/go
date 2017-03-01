@@ -507,12 +507,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-12
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·setcallerpc(SB),NOSPLIT,$8-8
-	MOVL	argp+0(FP),AX		// addr of first arg
-	MOVL	pc+4(FP), BX		// pc to set
-	MOVQ	BX, -8(AX)		// set calling pc
-	RET
-
 // int64 runtime·cputicks(void)
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	RDTSC
