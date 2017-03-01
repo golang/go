@@ -100,11 +100,10 @@ var runtimeDecls = [...]struct {
 	{"selectnbrecv", funcTag, 82},
 	{"selectnbrecv2", funcTag, 84},
 	{"newselect", funcTag, 85},
-	{"selectsend", funcTag, 81},
-	{"selectrecv", funcTag, 72},
-	{"selectrecv2", funcTag, 86},
-	{"selectdefault", funcTag, 87},
-	{"selectgo", funcTag, 56},
+	{"selectsend", funcTag, 74},
+	{"selectrecv", funcTag, 86},
+	{"selectdefault", funcTag, 56},
+	{"selectgo", funcTag, 87},
 	{"block", funcTag, 5},
 	{"makeslice", funcTag, 89},
 	{"makeslice64", funcTag, 90},
@@ -227,8 +226,8 @@ func runtimeTypes() []*Type {
 	typs[83] = typPtr(typs[11])
 	typs[84] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[83]), anonfield(typs[70])}, []*Node{anonfield(typs[11])})
 	typs[85] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
-	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[70]), anonfield(typs[3]), anonfield(typs[83])}, []*Node{anonfield(typs[11])})
-	typs[87] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[11])})
+	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[70]), anonfield(typs[3]), anonfield(typs[83])}, nil)
+	typs[87] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
 	typs[88] = typSlice(typs[2])
 	typs[89] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[88])})
 	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[88])})

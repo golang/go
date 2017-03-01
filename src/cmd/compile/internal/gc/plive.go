@@ -306,49 +306,6 @@ func iscall(prog *obj.Prog, name *obj.LSym) bool {
 	return name == prog.To.Sym
 }
 
-// Returns true for instructions that call a runtime function implementing a
-// select communication clause.
-
-var selectNames [4]*obj.LSym
-
-func isselectcommcasecall(prog *obj.Prog) bool {
-	if selectNames[0] == nil {
-		selectNames[0] = Linksym(Pkglookup("selectsend", Runtimepkg))
-		selectNames[1] = Linksym(Pkglookup("selectrecv", Runtimepkg))
-		selectNames[2] = Linksym(Pkglookup("selectrecv2", Runtimepkg))
-		selectNames[3] = Linksym(Pkglookup("selectdefault", Runtimepkg))
-	}
-
-	for _, name := range selectNames {
-		if iscall(prog, name) {
-			return true
-		}
-	}
-	return false
-}
-
-// Returns true for call instructions that target runtime·newselect.
-
-var isnewselect_sym *obj.LSym
-
-func isnewselect(prog *obj.Prog) bool {
-	if isnewselect_sym == nil {
-		isnewselect_sym = Linksym(Pkglookup("newselect", Runtimepkg))
-	}
-	return iscall(prog, isnewselect_sym)
-}
-
-// Returns true for call instructions that target runtime·selectgo.
-
-var isselectgocall_sym *obj.LSym
-
-func isselectgocall(prog *obj.Prog) bool {
-	if isselectgocall_sym == nil {
-		isselectgocall_sym = Linksym(Pkglookup("selectgo", Runtimepkg))
-	}
-	return iscall(prog, isselectgocall_sym)
-}
-
 var isdeferreturn_sym *obj.LSym
 
 func isdeferreturn(prog *obj.Prog) bool {
@@ -356,52 +313,6 @@ func isdeferreturn(prog *obj.Prog) bool {
 		isdeferreturn_sym = Linksym(Pkglookup("deferreturn", Runtimepkg))
 	}
 	return iscall(prog, isdeferreturn_sym)
-}
-
-// Walk backwards from a runtime·selectgo call up to its immediately dominating
-// runtime·newselect call. Any successor nodes of communication clause nodes
-// are implicit successors of the runtime·selectgo call node. The goal of this
-// analysis is to add these missing edges to complete the control flow graph.
-func addselectgosucc(selectgo *BasicBlock) {
-	pred := selectgo
-	for {
-		if len(pred.pred) == 0 {
-			Fatalf("selectgo does not have a newselect")
-		}
-		pred = pred.pred[0]
-		if blockany(pred, isselectcommcasecall) {
-			// A select comm case block should have exactly one
-			// successor.
-			if len(pred.succ) != 1 {
-				Fatalf("select comm case has too many successors")
-			}
-			succ := pred.succ[0]
-
-			// Its successor should have exactly two successors.
-			// The drop through should flow to the selectgo block
-			// and the branch should lead to the select case
-			// statements block.
-			if len(succ.succ) != 2 {
-				Fatalf("select comm case successor has too many successors")
-			}
-
-			// Add the block as a successor of the selectgo block.
-			addedge(selectgo, succ)
-		}
-
-		if blockany(pred, isnewselect) {
-			// Reached the matching newselect.
-			break
-		}
-	}
-}
-
-// The entry point for the missing selectgo control flow algorithm. Takes a
-// slice of *BasicBlocks containing selectgo calls.
-func fixselectgo(selectgo []*BasicBlock) {
-	for _, bb := range selectgo {
-		addselectgosucc(bb)
-	}
 }
 
 // Constructs a control flow graph from a sequence of instructions. This
@@ -417,10 +328,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 	for p := firstp; p != nil; p = p.Link {
 		p.Opt = nil
 	}
-
-	// Allocate a slice to remember where we have seen selectgo calls.
-	// These blocks will be revisited to add successor control flow edges.
-	var selectgo []*BasicBlock
 
 	// Loop through all instructions identifying branch targets
 	// and fall-throughs and allocate basic blocks.
@@ -439,12 +346,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 			}
 
 			if p.As != obj.AJMP && p.Link != nil && p.Link.Opt == nil {
-				p.Link.Opt = newblock(p.Link)
-				cfg = append(cfg, p.Link.Opt.(*BasicBlock))
-			}
-		} else if isselectcommcasecall(p) || isselectgocall(p) {
-			// Accommodate implicit selectgo control flow.
-			if p.Link.Opt == nil {
 				p.Link.Opt = newblock(p.Link)
 				cfg = append(cfg, p.Link.Opt.(*BasicBlock))
 			}
@@ -467,11 +368,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 				// TODO: remove after SSA is done. SSA does not
 				// generate any unreachable RET instructions.
 				break
-			}
-
-			// Collect basic blocks with selectgo calls.
-			if isselectgocall(p) {
-				selectgo = append(selectgo, bb)
 			}
 		}
 
@@ -500,11 +396,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 			prev = p
 			p = p.Link
 		}
-	}
-
-	// Add missing successor edges to the selectgo blocks.
-	if len(selectgo) != 0 {
-		fixselectgo(selectgo)
 	}
 
 	// Find a depth-first order and assign a depth-first number to

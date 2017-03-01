@@ -621,11 +621,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
 	MOVV	R1, ret+8(FP)
 	RET
 
-TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
-	MOVV	pc+8(FP), R1
-	MOVV	R1, 16(R29)		// set LR in caller
-	RET
-
 TEXT runtime·abort(SB),NOSPLIT,$-8-0
 	MOVW	(R0), R0
 	UNDEF
