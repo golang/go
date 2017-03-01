@@ -337,28 +337,6 @@ func isDigit(ch rune) bool {
 	return '0' <= ch && ch <= '9' || ch >= utf8.RuneSelf && unicode.IsDigit(ch)
 }
 
-// matchesIdentBoundary reports whether line matches /^ident\b/.
-// A boundary is considered either none, or an ASCII non-alphanum.
-func matchesIdentBoundary(line []byte, ident string) bool {
-	if len(line) < len(ident) {
-		return false
-	}
-	if string(line[:len(ident)]) != ident {
-		return false
-	}
-	rest := line[len(ident):]
-	return len(rest) == 0 || !isASCIIWordChar(rest[0])
-}
-
-// isASCIIWordChar reports whether b is an ASCII "word"
-// character. (Matching /\w/ in ASCII mode)
-func isASCIIWordChar(b byte) bool {
-	return 'a' <= b && b <= 'z' ||
-		'A' <= b && b <= 'Z' ||
-		'0' <= b && b <= '0' ||
-		b == '_'
-}
-
 func comment_htmlFunc(comment string) string {
 	var buf bytes.Buffer
 	// TODO(gri) Provide list of words (e.g. function parameters)
