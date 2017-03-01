@@ -151,7 +151,6 @@ var (
 	selectorExprType = reflect.TypeOf((*ast.SelectorExpr)(nil))
 	objectPtrType    = reflect.TypeOf((*ast.Object)(nil))
 	positionType     = reflect.TypeOf(token.NoPos)
-	callExprType     = reflect.TypeOf((*ast.CallExpr)(nil))
 	scopePtrType     = reflect.TypeOf((*ast.Scope)(nil))
 )
 
