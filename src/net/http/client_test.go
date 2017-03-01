@@ -583,8 +583,9 @@ func TestClientRedirect308NoGetBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	c := &Client{Transport: &Transport{DisableKeepAlives: true}}
 	req.GetBody = nil // so it can't rewind.
-	res, err := DefaultClient.Do(req)
+	res, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
