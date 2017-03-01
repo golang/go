@@ -38,9 +38,7 @@ The flags are:
 	-c
 		compiler used for installed packages (gc, gccgo, or source); default: source
 
-Debugging flags:
-	-seq
-		parse sequentially, rather than in parallel
+Flags controlling additional output:
 	-ast
 		print AST (forces -seq)
 	-trace
@@ -82,6 +80,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -93,7 +92,6 @@ var (
 	compiler  = flag.String("c", "source", "compiler used for installed packages (gc, gccgo, or source)")
 
 	// debugging support
-	sequential    = flag.Bool("seq", false, "parse sequentially, rather than in parallel")
 	printAST      = flag.Bool("ast", false, "print AST (forces -seq)")
 	printTrace    = flag.Bool("trace", false, "print parse trace (forces -seq)")
 	parseComments = flag.Bool("comments", false, "parse comments (ignored unless -ast or -trace is provided)")
@@ -102,6 +100,7 @@ var (
 var (
 	fset       = token.NewFileSet()
 	errorCount = 0
+	sequential = false
 	parserMode parser.Mode
 )
 
@@ -109,8 +108,12 @@ func initParserMode() {
 	if *allErrors {
 		parserMode |= parser.AllErrors
 	}
+	if *printAST {
+		sequential = true
+	}
 	if *printTrace {
 		parserMode |= parser.Trace
+		sequential = true
 	}
 	if *parseComments && (*printAST || *printTrace) {
 		parserMode |= parser.ParseComments
@@ -152,46 +155,36 @@ func parseStdin() (*ast.File, error) {
 	return parse("<standard input>", src)
 }
 
-func parseFiles(filenames []string) ([]*ast.File, error) {
+func parseFiles(dir string, filenames []string) ([]*ast.File, error) {
 	files := make([]*ast.File, len(filenames))
+	errors := make([]error, len(filenames))
 
-	if *sequential {
-		for i, filename := range filenames {
-			var err error
-			files[i], err = parse(filename, nil)
-			if err != nil {
-				return nil, err // leave unfinished goroutines hanging
-			}
+	var wg sync.WaitGroup
+	for i, filename := range filenames {
+		wg.Add(1)
+		go func(i int, filepath string) {
+			defer wg.Done()
+			files[i], errors[i] = parse(filepath, nil)
+		}(i, filepath.Join(dir, filename))
+		if sequential {
+			wg.Wait()
 		}
-	} else {
-		type parseResult struct {
-			file *ast.File
-			err  error
-		}
+	}
+	wg.Wait()
 
-		out := make(chan parseResult)
-		for _, filename := range filenames {
-			go func(filename string) {
-				file, err := parse(filename, nil)
-				out <- parseResult{file, err}
-			}(filename)
-		}
-
-		for i := range filenames {
-			res := <-out
-			if res.err != nil {
-				return nil, res.err // leave unfinished goroutines hanging
-			}
-			files[i] = res.file
+	// if there are errors, return the first one for deterministic results
+	for _, err := range errors {
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	return files, nil
 }
 
-func parseDir(dirname string) ([]*ast.File, error) {
+func parseDir(dir string) ([]*ast.File, error) {
 	ctxt := build.Default
-	pkginfo, err := ctxt.ImportDir(dirname, 0)
+	pkginfo, err := ctxt.ImportDir(dir, 0)
 	if _, nogo := err.(*build.NoGoError); err != nil && !nogo {
 		return nil, err
 	}
@@ -200,12 +193,7 @@ func parseDir(dirname string) ([]*ast.File, error) {
 		filenames = append(filenames, pkginfo.TestGoFiles...)
 	}
 
-	// complete file names
-	for i, filename := range filenames {
-		filenames[i] = filepath.Join(dirname, filename)
-	}
-
-	return parseFiles(filenames)
+	return parseFiles(dir, filenames)
 }
 
 func getPkgFiles(args []string) ([]*ast.File, error) {
@@ -231,7 +219,7 @@ func getPkgFiles(args []string) ([]*ast.File, error) {
 	}
 
 	// list of files
-	return parseFiles(args)
+	return parseFiles("", args)
 }
 
 func checkPkgFiles(files []*ast.File) {
@@ -282,9 +270,6 @@ func printStats(d time.Duration) {
 func main() {
 	flag.Usage = usage
 	flag.Parse()
-	if *printAST || *printTrace {
-		*sequential = true
-	}
 	initParserMode()
 
 	start := time.Now()
