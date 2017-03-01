@@ -298,17 +298,6 @@ func hasStyle(s Style) selector {
 	}
 }
 
-func hasAttr(key, val string) selector {
-	return func(n *html.Node) bool {
-		for _, a := range n.Attr {
-			if a.Key == key && a.Val == val {
-				return true
-			}
-		}
-		return false
-	}
-}
-
 func attr(node *html.Node, key string) (value string) {
 	for _, attr := range node.Attr {
 		if attr.Key == key {
@@ -316,16 +305,6 @@ func attr(node *html.Node, key string) (value string) {
 		}
 	}
 	return ""
-}
-
-func findAll(node *html.Node, fn selector) (nodes []*html.Node) {
-	walk(node, func(n *html.Node) bool {
-		if fn(n) {
-			nodes = append(nodes, n)
-		}
-		return true
-	})
-	return
 }
 
 func find(n *html.Node, fn selector) *html.Node {
