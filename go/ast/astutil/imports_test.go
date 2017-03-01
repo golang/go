@@ -143,6 +143,95 @@ import (
 `,
 	},
 	{
+		name: "issue #19190",
+		pkg:  "x.org/y/z",
+		in: `package main
+
+// Comment
+import "C"
+
+import (
+	"bytes"
+	"os"
+
+	"d.com/f"
+)
+`,
+		out: `package main
+
+// Comment
+import "C"
+
+import (
+	"bytes"
+	"os"
+
+	"d.com/f"
+	"x.org/y/z"
+)
+`,
+	},
+	{
+		name: "issue #19190 with existing grouped import packages",
+		pkg:  "x.org/y/z",
+		in: `package main
+
+// Comment
+import "C"
+
+import (
+	"bytes"
+	"os"
+
+	"c.com/f"
+	"d.com/f"
+
+	"y.com/a"
+	"y.com/b"
+	"y.com/c"
+)
+`,
+		out: `package main
+
+// Comment
+import "C"
+
+import (
+	"bytes"
+	"os"
+
+	"c.com/f"
+	"d.com/f"
+	"x.org/y/z"
+
+	"y.com/a"
+	"y.com/b"
+	"y.com/c"
+)
+`,
+	},
+	{
+		name: "issue #19190 - match score is still respected",
+		pkg:  "y.org/c",
+		in: `package main
+
+import (
+	"x.org/a"
+
+	"y.org/b"
+)
+`,
+		out: `package main
+
+import (
+	"x.org/a"
+
+	"y.org/b"
+	"y.org/c"
+)
+`,
+	},
+	{
 		name: "import into singular group",
 		pkg:  "bytes",
 		in: `package main

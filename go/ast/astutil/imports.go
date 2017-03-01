@@ -49,6 +49,8 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 		lastImport = -1         // index in f.Decls of the file's final import decl
 		impDecl    *ast.GenDecl // import decl containing the best match
 		impIndex   = -1         // spec index in impDecl containing the best match
+
+		isThirdPartyPath = isThirdParty(ipath)
 	)
 	for i, decl := range f.Decls {
 		gen, ok := decl.(*ast.GenDecl)
@@ -65,15 +67,27 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 				impDecl = gen
 			}
 
-			// Compute longest shared prefix with imports in this group.
+			// Compute longest shared prefix with imports in this group and find best
+			// matched import spec.
+			// 1. Always prefer import spec with longest shared prefix.
+			// 2. While match length is 0,
+			// - for stdlib package: prefer first import spec.
+			// - for third party package: prefer first third party import spec.
+			// We cannot use last import spec as best match for third party package
+			// because grouped imports are usually placed last by goimports -local
+			// flag.
+			// See issue #19190.
+			seenAnyThirdParty := false
 			for j, spec := range gen.Specs {
 				impspec := spec.(*ast.ImportSpec)
-				n := matchLen(importPath(impspec), ipath)
-				if n > bestMatch {
+				p := importPath(impspec)
+				n := matchLen(p, ipath)
+				if n > bestMatch || (bestMatch == 0 && !seenAnyThirdParty && isThirdPartyPath) {
 					bestMatch = n
 					impDecl = gen
 					impIndex = j
 				}
+				seenAnyThirdParty = seenAnyThirdParty || isThirdParty(p)
 			}
 		}
 	}
@@ -173,6 +187,12 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 	}
 
 	return true
+}
+
+func isThirdParty(importPath string) bool {
+	// Third party package import path usually contains "." (".com", ".org", ...)
+	// This logic is taken from golang.org/x/tools/imports package.
+	return strings.Contains(importPath, ".")
 }
 
 // DeleteImport deletes the import path from the file f, if present.

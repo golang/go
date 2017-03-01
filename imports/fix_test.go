@@ -802,6 +802,70 @@ import (
 var _ = fmt.Sprintf
 `,
 	},
+
+	{
+		name: "issue #19190 1",
+		in: `package main
+
+import (
+	"time"
+)
+
+func main() {
+	_ = snappy.Encode
+	_ = p.P
+	_ = time.Parse
+}
+`,
+		out: `package main
+
+import (
+	"time"
+
+	"code.google.com/p/snappy-go/snappy"
+	"rsc.io/p"
+)
+
+func main() {
+	_ = snappy.Encode
+	_ = p.P
+	_ = time.Parse
+}
+`,
+	},
+
+	{
+		name: "issue #19190 2",
+		in: `package main
+
+import (
+	"time"
+
+	"code.google.com/p/snappy-go/snappy"
+)
+
+func main() {
+	_ = snappy.Encode
+	_ = p.P
+	_ = time.Parse
+}
+`,
+		out: `package main
+
+import (
+	"time"
+
+	"code.google.com/p/snappy-go/snappy"
+	"rsc.io/p"
+)
+
+func main() {
+	_ = snappy.Encode
+	_ = p.P
+	_ = time.Parse
+}
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
