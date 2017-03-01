@@ -555,7 +555,8 @@ func TestClientRedirect308NoLocation(t *testing.T) {
 		w.WriteHeader(308)
 	}))
 	defer ts.Close()
-	res, err := Get(ts.URL)
+	c := &Client{Transport: &Transport{DisableKeepAlives: true}}
+	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
