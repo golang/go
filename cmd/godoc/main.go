@@ -53,10 +53,7 @@ import (
 	"golang.org/x/tools/godoc/vfs/zipfs"
 )
 
-const (
-	defaultAddr = ":6060" // default webserver address
-	toolsPath   = "golang.org/x/tools/cmd/"
-)
+const defaultAddr = ":6060" // default webserver address
 
 var (
 	// file system to serve
