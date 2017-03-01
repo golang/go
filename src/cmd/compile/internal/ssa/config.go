@@ -221,7 +221,6 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.FPReg = framepointerRegPPC64
 		c.LinkReg = linkRegPPC64
 		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
-		c.NeedsFpScratch = true
 		c.hasGReg = true
 	case "mips64":
 		c.BigEndian = true
