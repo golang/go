@@ -35,7 +35,7 @@ func New(ctxt *build.Context, fset *token.FileSet, packages map[string]*types.Pa
 	return &Importer{
 		ctxt:     ctxt,
 		fset:     fset,
-		sizes:    types.SizesFor(ctxt.GOARCH), // uses go/types default if GOARCH not found
+		sizes:    types.SizesFor(ctxt.Compiler, ctxt.GOARCH), // uses go/types default if GOARCH not found
 		packages: packages,
 	}
 }

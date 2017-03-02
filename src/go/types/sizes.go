@@ -154,7 +154,7 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 }
 
 // common architecture word sizes and alignments
-var archSizes = map[string]*StdSizes{
+var gcArchSizes = map[string]*StdSizes{
 	"386":      {4, 4},
 	"arm":      {4, 4},
 	"arm64":    {8, 8},
@@ -171,16 +171,21 @@ var archSizes = map[string]*StdSizes{
 	// update the doc string of SizesFor below.
 }
 
-// SizesFor returns the Sizes for one of these architectures:
+// SizesFor returns the Sizes used by a compiler for an architecture.
+// The result is nil if a compiler/architecture pair is not known.
+//
+// Supported architectures for compiler "gc":
 // "386", "arm", "arm64", "amd64", "amd64p32", "mips", "mipsle",
 // "mips64", "mips64le", "ppc64", "ppc64le", "s390x".
-// The result is nil if an architecture is not known.
-func SizesFor(arch string) Sizes {
-	return archSizes[arch]
+func SizesFor(compiler, arch string) Sizes {
+	if compiler != "gc" {
+		return nil
+	}
+	return gcArchSizes[arch]
 }
 
 // stdSizes is used if Config.Sizes == nil.
-var stdSizes = SizesFor("amd64")
+var stdSizes = SizesFor("gc", "amd64")
 
 func (conf *Config) alignof(T Type) int64 {
 	if s := conf.Sizes; s != nil {
