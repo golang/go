@@ -57,10 +57,9 @@ func (err Error) Error() string {
 // vendored packages. See https://golang.org/s/go15vendor.
 // If possible, external implementations should implement ImporterFrom.
 type Importer interface {
-	// Import returns the imported package for the given import
-	// path, or an error if the package couldn't be imported.
-	// Two calls to Import with the same path return the same
-	// package.
+	// Import returns the imported package for the given import path.
+	// The semantics is like for ImporterFrom.ImportFrom except that
+	// dir and mode are ignored (since they are not present).
 	Import(path string) (*Package, error)
 }
 
@@ -79,12 +78,15 @@ type ImporterFrom interface {
 	Importer
 
 	// ImportFrom returns the imported package for the given import
-	// path when imported by the package in srcDir, or an error
-	// if the package couldn't be imported. The mode value must
-	// be 0; it is reserved for future use.
-	// Two calls to ImportFrom with the same path and srcDir return
-	// the same package.
-	ImportFrom(path, srcDir string, mode ImportMode) (*Package, error)
+	// path when imported by a package file located in dir.
+	// If the import failed, besides returning an error, ImportFrom
+	// is encouraged to cache and return a package anyway, if one
+	// was created. This will reduce package inconsistencies and
+	// follow-on type checker errors due to the missing package.
+	// The mode value must be 0; it is reserved for future use.
+	// Two calls to ImportFrom with the same path and dir must
+	// return the same package.
+	ImportFrom(path, dir string, mode ImportMode) (*Package, error)
 }
 
 // A Config specifies the configuration for type checking.
@@ -99,7 +101,7 @@ type Config struct {
 	// identifiers referring to package C (which won't find an object).
 	// This feature is intended for the standard library cmd/api tool.
 	//
-	// Caution: Effects may be unpredictable due to follow-up errors.
+	// Caution: Effects may be unpredictable due to follow-on errors.
 	//          Do not use casually!
 	FakeImportC bool
 

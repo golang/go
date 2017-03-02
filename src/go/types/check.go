@@ -57,6 +57,16 @@ type context struct {
 	hasCallOrRecv bool           // set if an expression contains a function call or channel receive operation
 }
 
+// An importKey identifies an imported package by import path and source directory
+// (directory containing the file containing the import). In practice, the directory
+// may always be the same, or may not matter. Given an (import path, directory), an
+// importer must always return the same package (but given two different import paths,
+// an importer may still return the same package by mapping them to the same package
+// paths).
+type importKey struct {
+	path, dir string
+}
+
 // A Checker maintains the state of the type checker.
 // It must be created with NewChecker.
 type Checker struct {
@@ -66,7 +76,8 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	objMap map[Object]*declInfo // maps package-level object to declaration info
+	objMap map[Object]*declInfo   // maps package-level object to declaration info
+	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
 
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
@@ -162,6 +173,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		pkg:    pkg,
 		Info:   info,
 		objMap: make(map[Object]*declInfo),
+		impMap: make(map[importKey]*Package),
 	}
 }
 
