@@ -239,7 +239,6 @@ var optab = []Optab{
 	{AMOVWF, C_REG, C_NONE, C_FREG, 87, 8, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_FREG, 88, 4, 0, 0, 0},
 	{AMOVW, C_FREG, C_NONE, C_REG, 89, 4, 0, 0, 0},
-	{ATST, C_REG, C_NONE, C_NONE, 90, 4, 0, 0, 0},
 	{ALDREXD, C_SOREG, C_NONE, C_REG, 91, 4, 0, 0, 0},
 	{ASTREXD, C_SOREG, C_REG, C_REG, 92, 4, 0, 0, 0},
 	{APLD, C_SOREG, C_NONE, C_NONE, 95, 4, 0, 0, 0},
@@ -1354,6 +1353,7 @@ func buildop(ctxt *obj.Link) {
 		case ACMP:
 			opset(ATEQ, r0)
 			opset(ACMN, r0)
+			opset(ATST, r0)
 
 		case AMVN:
 			break
@@ -2286,11 +2286,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 		o1 |= (uint32(p.From.Reg) & 15) << 16
 		o1 |= (uint32(p.To.Reg) & 15) << 12
-
-	case 90: /* tst reg  */
-		o1 = oprrr(ctxt, -ACMP, int(p.Scond))
-
-		o1 |= (uint32(p.From.Reg) & 15) << 16
 
 	case 91: /* ldrexd oreg,reg */
 		aclass(ctxt, &p.From)
