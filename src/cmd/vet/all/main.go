@@ -182,9 +182,6 @@ var ignorePathPrefixes = [...]string{
 	"cmd/go/testdata/",
 	"cmd/vet/testdata/",
 	"go/printer/testdata/",
-	// Ignore pprof for the moment to get the builders happy.
-	// TODO: Fix all the issues and reinstate.
-	"cmd/vendor/github.com/google/pprof",
 }
 
 func vetPlatforms(pp []platform) {
