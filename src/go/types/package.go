@@ -52,7 +52,7 @@ func (pkg *Package) Complete() bool { return pkg.complete }
 func (pkg *Package) MarkComplete() { pkg.complete = true }
 
 // Imports returns the list of packages directly imported by
-// pkg; the list is in source order. Package unsafe is excluded.
+// pkg; the list is in source order.
 //
 // If pkg was loaded from export data, Imports includes packages that
 // provide package-level objects referenced by pkg. This may be more or
