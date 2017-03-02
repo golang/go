@@ -61,7 +61,11 @@ func importType(path, name string) types.Type {
 
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	if stdImporter == nil {
-		stdImporter = importer.Default()
+		if *source {
+			stdImporter = importer.For("source", nil)
+		} else {
+			stdImporter = importer.Default()
+		}
 		inittypes()
 	}
 	pkg.defs = make(map[*ast.Ident]types.Object)
