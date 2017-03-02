@@ -2071,6 +2071,29 @@ func isstack(n *Node) bool {
 	return false
 }
 
+// isReflectHeaderDataField reports whether l is an expression p.Data
+// where p has type reflect.SliceHeader or reflect.StringHeader.
+func isReflectHeaderDataField(l *Node) bool {
+	if l.Type != Types[TUINTPTR] {
+		return false
+	}
+
+	var tsym *Sym
+	switch l.Op {
+	case ODOT:
+		tsym = l.Left.Type.Sym
+	case ODOTPTR:
+		tsym = l.Left.Type.Elem().Sym
+	default:
+		return false
+	}
+
+	if tsym == nil || l.Sym.Name != "Data" || tsym.Pkg.Path != "reflect" {
+		return false
+	}
+	return tsym.Name == "SliceHeader" || tsym.Name == "StringHeader"
+}
+
 // Do we need a write barrier for the assignment l = r?
 func needwritebarrier(l *Node, r *Node) bool {
 	if !use_writebarrier {
@@ -2081,15 +2104,21 @@ func needwritebarrier(l *Node, r *Node) bool {
 		return false
 	}
 
-	// No write barrier for write of non-pointers.
-	dowidth(l.Type)
-
-	if !haspointers(l.Type) {
+	// No write barrier for write to stack.
+	if isstack(l) {
 		return false
 	}
 
-	// No write barrier for write to stack.
-	if isstack(l) {
+	// Package unsafe's documentation says storing pointers into
+	// reflect.SliceHeader and reflect.StringHeader's Data fields
+	// is valid, even though they have type uintptr (#19168).
+	if isReflectHeaderDataField(l) {
+		return true
+	}
+
+	// No write barrier for write of non-pointers.
+	dowidth(l.Type)
+	if !haspointers(l.Type) {
 		return false
 	}
 
