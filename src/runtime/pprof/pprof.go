@@ -311,8 +311,8 @@ func (p *Profile) WriteTo(w io.Writer, debug int) error {
 	}
 
 	// Obtain consistent snapshot under lock; then process without lock.
-	all := make([][]uintptr, 0, len(p.m))
 	p.mu.Lock()
+	all := make([][]uintptr, 0, len(p.m))
 	for _, stk := range p.m {
 		all = append(all, stk)
 	}
