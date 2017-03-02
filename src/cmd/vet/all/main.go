@@ -182,14 +182,6 @@ var ignorePathPrefixes = [...]string{
 	"cmd/go/testdata/",
 	"cmd/vet/testdata/",
 	"go/printer/testdata/",
-	// fmt_test contains a known bad format string.
-	// We cannot add it to any given whitelist,
-	// because it won't show up for any non-host platform,
-	// due to deficiencies in vet.
-	// Just whitelist the whole file.
-	// TODO: If vet ever uses go/loader and starts working off source,
-	// this problem will likely go away.
-	"fmt/fmt_test.go",
 	// Ignore pprof for the moment to get the builders happy.
 	// TODO: Fix all the issues and reinstate.
 	"cmd/vendor/github.com/google/pprof",
@@ -209,28 +201,15 @@ func (p platform) vet() {
 	w := make(whitelist)
 	w.load(p.os, p.arch)
 
-	env := append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
-
 	// 'go tool vet .' is considerably faster than 'go vet ./...'
 	// TODO: The unsafeptr checks are disabled for now,
 	// because there are so many false positives,
 	// and no clear way to improve vet to eliminate large chunks of them.
 	// And having them in the whitelists will just cause annoyance
 	// and churn when working on the runtime.
-	args := []string{"tool", "vet", "-unsafeptr=false", "-source"}
-	if p != hostPlatform {
-		// When not checking the host platform, vet gets confused by
-		// the fmt.Formatters in cmd/compile,
-		// so just skip the printf checks on non-host platforms for now.
-		// There's not too much platform-specific code anyway.
-		// TODO: If vet ever uses go/loader and starts working off source,
-		// this problem will likely go away.
-		args = append(args, "-printf=false")
-	}
-	args = append(args, ".")
-	cmd := exec.Command(cmdGoPath, args...)
+	cmd := exec.Command(cmdGoPath, "tool", "vet", "-unsafeptr=false", "-source", ".")
 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
-	cmd.Env = env
+	cmd.Env = append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		log.Fatal(err)
