@@ -3795,6 +3795,11 @@ func TestFFLAGS(t *testing.T) {
 	`)
 	tg.tempFile("p/src/p/a.f", `! comment`)
 	tg.setenv("GOPATH", tg.path("p"))
-	tg.runFail("build", "-x", "p")
+
+	// This should normally fail because we are passing an unknown flag,
+	// but issue #19080 points to Fortran compilers that succeed anyhow.
+	// To work either way we call doRun directly rather than run or runFail.
+	tg.doRun([]string{"build", "-x", "p"})
+
 	tg.grepStderr("no-such-fortran-flag", `missing expected "-no-such-fortran-flag"`)
 }
