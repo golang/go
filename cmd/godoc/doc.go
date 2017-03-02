@@ -35,9 +35,11 @@ web page.
 	godoc -http=:6060
 
 Usage:
+
 	godoc [flag] package [name ...]
 
 The flags are:
+
 	-v
 		verbose mode
 	-q
@@ -82,9 +84,9 @@ The flags are:
 		webserver address for command line searches
 	-analysis=type,pointer
 		comma-separated list of analyses to perform
-    		"type": display identifier resolution, type info, method sets,
+		"type": display identifier resolution, type info, method sets,
 			'implements', and static callees
-		"pointer" display channel peers, callers and dynamic callees
+		"pointer": display channel peers, callers and dynamic callees
 			(significantly slower)
 		See http://golang.org/lib/godoc/analysis/help.html for details.
 	-templates=""
