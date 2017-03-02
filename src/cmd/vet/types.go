@@ -14,25 +14,31 @@ import (
 )
 
 // stdImporter is the importer we use to import packages.
-// It is created during initialization so that all packages
-// are imported by the same importer.
-var stdImporter = importer.Default()
+// It is shared so that all packages are imported by the same importer.
+var stdImporter types.Importer
 
 var (
-	errorType     *types.Interface
-	stringerType  *types.Interface // possibly nil
-	formatterType *types.Interface // possibly nil
+	errorType        *types.Interface
+	stringerType     *types.Interface // possibly nil
+	formatterType    *types.Interface // possibly nil
+	httpResponseType types.Type       // possibly nil
+	httpClientType   types.Type       // possibly nil
 )
 
-func init() {
+func inittypes() {
 	errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
 
 	if typ := importType("fmt", "Stringer"); typ != nil {
 		stringerType = typ.Underlying().(*types.Interface)
 	}
-
 	if typ := importType("fmt", "Formatter"); typ != nil {
 		formatterType = typ.Underlying().(*types.Interface)
+	}
+	if typ := importType("net/http", "Response"); typ != nil {
+		httpResponseType = typ
+	}
+	if typ := importType("net/http", "Client"); typ != nil {
+		httpClientType = typ
 	}
 }
 
@@ -54,6 +60,10 @@ func importType(path, name string) types.Type {
 }
 
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+	if stdImporter == nil {
+		stdImporter = importer.Default()
+		inittypes()
+	}
 	pkg.defs = make(map[*ast.Ident]types.Object)
 	pkg.uses = make(map[*ast.Ident]types.Object)
 	pkg.selectors = make(map[*ast.SelectorExpr]*types.Selection)

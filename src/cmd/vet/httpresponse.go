@@ -12,29 +12,17 @@ import (
 	"go/types"
 )
 
-var (
-	httpResponseType types.Type
-	httpClientType   types.Type
-)
-
 func init() {
-	if typ := importType("net/http", "Response"); typ != nil {
-		httpResponseType = typ
-	}
-	if typ := importType("net/http", "Client"); typ != nil {
-		httpClientType = typ
-	}
-	// if http.Response or http.Client are not defined don't register this check.
-	if httpResponseType == nil || httpClientType == nil {
-		return
-	}
-
 	register("httpresponse",
 		"check errors are checked before using an http Response",
 		checkHTTPResponse, callExpr)
 }
 
 func checkHTTPResponse(f *File, node ast.Node) {
+	// If http.Response or http.Client are not defined, skip this check.
+	if httpResponseType == nil || httpClientType == nil {
+		return
+	}
 	call := node.(*ast.CallExpr)
 	if !isHTTPFuncOrMethodOnClient(f, call) {
 		return // the function call is not related to this check.
