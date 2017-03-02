@@ -22,10 +22,6 @@ type sweepdata struct {
 
 	nbgsweep    uint32
 	npausesweep uint32
-
-	// pacertracegen is the sweepgen at which the last pacer trace
-	// "sweep finished" message was printed.
-	pacertracegen uint32
 }
 
 // finishsweep_m ensures that all spans are swept.
@@ -82,16 +78,19 @@ func sweepone() uintptr {
 	// increment locks to ensure that the goroutine is not preempted
 	// in the middle of sweep thus leaving the span in an inconsistent state for next GC
 	_g_.m.locks++
+	if atomic.Load(&mheap_.sweepdone) != 0 {
+		_g_.m.locks--
+		return ^uintptr(0)
+	}
+	atomic.Xadd(&mheap_.sweepers, +1)
+
+	npages := ^uintptr(0)
 	sg := mheap_.sweepgen
 	for {
 		s := mheap_.sweepSpans[1-sg/2%2].pop()
 		if s == nil {
-			mheap_.sweepdone = 1
-			_g_.m.locks--
-			if debug.gcpacertrace > 0 && atomic.Cas(&sweep.pacertracegen, sg-2, sg) {
-				print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
-			}
-			return ^uintptr(0)
+			atomic.Store(&mheap_.sweepdone, 1)
+			break
 		}
 		if s.state != mSpanInUse {
 			// This can happen if direct sweeping already
@@ -106,16 +105,25 @@ func sweepone() uintptr {
 		if s.sweepgen != sg-2 || !atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 			continue
 		}
-		npages := s.npages
+		npages = s.npages
 		if !s.sweep(false) {
 			// Span is still in-use, so this returned no
 			// pages to the heap and the span needs to
 			// move to the swept in-use list.
 			npages = 0
 		}
-		_g_.m.locks--
-		return npages
+		break
 	}
+
+	// Decrement the number of active sweepers and if this is the
+	// last one print trace information.
+	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepdone) != 0 {
+		if debug.gcpacertrace > 0 {
+			print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
+		}
+	}
+	_g_.m.locks--
+	return npages
 }
 
 //go:nowritebarrier
