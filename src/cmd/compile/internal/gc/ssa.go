@@ -3454,6 +3454,11 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, skip skipMask) {
 	if !s.WBPos.IsKnown() {
 		s.WBPos = left.Pos
 	}
+	if t == Types[TUINTPTR] {
+		// Stores to reflect.{Slice,String}Header.Data.
+		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
+		return
+	}
 	s.storeTypeScalars(t, left, right, skip)
 	s.storeTypePtrsWB(t, left, right)
 }
