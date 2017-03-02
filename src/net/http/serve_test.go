@@ -953,17 +953,17 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
 	defer tr.CloseIdleConnections()
 	c := &Client{Transport: tr, Timeout: time.Second}
 
-	fetch := func(response chan string) {
+	fetch := func(num int, response chan<- string) {
 		resp, err := c.Get(ts.URL)
 		if err != nil {
-			t.Error(err)
+			t.Errorf("Request %d: %v", num, err)
 			response <- ""
 			return
 		}
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			t.Error(err)
+			t.Errorf("Request %d: %v", num, err)
 			response <- ""
 			return
 		}
@@ -972,14 +972,14 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
 
 	// Start a request. The server will block on getting conn.RemoteAddr.
 	response1c := make(chan string, 1)
-	go fetch(response1c)
+	go fetch(1, response1c)
 
 	// Wait for the server to accept it; grab the connection.
 	conn1 := <-conns
 
 	// Start another request and grab its connection
 	response2c := make(chan string, 1)
-	go fetch(response2c)
+	go fetch(2, response2c)
 	var conn2 net.Conn
 
 	select {
