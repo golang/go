@@ -247,7 +247,7 @@ func checkPkgFiles(files []*ast.File) {
 			report(err)
 		},
 		Importer: importer.For(*compiler, nil),
-		Sizes:    types.SizesFor(build.Default.GOARCH),
+		Sizes:    types.SizesFor(build.Default.Compiler, build.Default.GOARCH),
 	}
 
 	defer func() {
