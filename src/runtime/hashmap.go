@@ -498,10 +498,12 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map writes")
 	}
-	h.flags |= hashWriting
-
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
+
+	// Set hashWriting after calling alg.hash, since alg.hash may panic,
+	// in which case we have not actually done a write.
+	h.flags |= hashWriting
 
 	if h.buckets == nil {
 		h.buckets = newarray(t.bucket, 1)
@@ -611,10 +613,14 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map writes")
 	}
-	h.flags |= hashWriting
 
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
+
+	// Set hashWriting after calling alg.hash, since alg.hash may panic,
+	// in which case we have not actually done a write (delete).
+	h.flags |= hashWriting
+
 	bucket := hash & (uintptr(1)<<h.B - 1)
 	if h.growing() {
 		growWork(t, h, bucket)
