@@ -36,10 +36,14 @@ const (
 // An asmArch describes assembly parameters for an architecture
 type asmArch struct {
 	name      string
-	sizes     *types.StdSizes
 	bigEndian bool
 	stack     string
 	lr        bool
+	// calculated during initialization
+	sizes    types.Sizes
+	intSize  int
+	ptrSize  int
+	maxAlign int
 }
 
 // An asmFunc describes the expected variables for a function on a given architecture.
@@ -60,26 +64,19 @@ type asmVar struct {
 	inner []*asmVar
 }
 
-// Common architecture word sizes and alignments.
 var (
-	size44 = &types.StdSizes{WordSize: 4, MaxAlign: 4}
-	size48 = &types.StdSizes{WordSize: 4, MaxAlign: 8}
-	size88 = &types.StdSizes{WordSize: 8, MaxAlign: 8}
-)
-
-var (
-	asmArch386      = asmArch{"386", size44, false, "SP", false}
-	asmArchArm      = asmArch{"arm", size44, false, "R13", true}
-	asmArchArm64    = asmArch{"arm64", size88, false, "RSP", true}
-	asmArchAmd64    = asmArch{"amd64", size88, false, "SP", false}
-	asmArchAmd64p32 = asmArch{"amd64p32", size48, false, "SP", false}
-	asmArchMips     = asmArch{"mips", size44, true, "R29", true}
-	asmArchMipsLE   = asmArch{"mipsle", size44, false, "R29", true}
-	asmArchMips64   = asmArch{"mips64", size88, true, "R29", true}
-	asmArchMips64LE = asmArch{"mips64le", size88, false, "R29", true}
-	asmArchPpc64    = asmArch{"ppc64", size88, true, "R1", true}
-	asmArchPpc64LE  = asmArch{"ppc64le", size88, false, "R1", true}
-	asmArchS390X    = asmArch{"s390x", size88, true, "R15", true}
+	asmArch386      = asmArch{name: "386", bigEndian: false, stack: "SP", lr: false}
+	asmArchArm      = asmArch{name: "arm", bigEndian: false, stack: "R13", lr: true}
+	asmArchArm64    = asmArch{name: "arm64", bigEndian: false, stack: "RSP", lr: true}
+	asmArchAmd64    = asmArch{name: "amd64", bigEndian: false, stack: "SP", lr: false}
+	asmArchAmd64p32 = asmArch{name: "amd64p32", bigEndian: false, stack: "SP", lr: false}
+	asmArchMips     = asmArch{name: "mips", bigEndian: true, stack: "R29", lr: true}
+	asmArchMipsLE   = asmArch{name: "mipsle", bigEndian: false, stack: "R29", lr: true}
+	asmArchMips64   = asmArch{name: "mips64", bigEndian: true, stack: "R29", lr: true}
+	asmArchMips64LE = asmArch{name: "mips64le", bigEndian: false, stack: "R29", lr: true}
+	asmArchPpc64    = asmArch{name: "ppc64", bigEndian: true, stack: "R1", lr: true}
+	asmArchPpc64LE  = asmArch{name: "ppc64le", bigEndian: false, stack: "R1", lr: true}
+	asmArchS390X    = asmArch{name: "s390x", bigEndian: true, stack: "R15", lr: true}
 
 	arches = []*asmArch{
 		&asmArch386,
@@ -97,9 +94,17 @@ var (
 	}
 )
 
-func (a *asmArch) intSize() int  { return int(a.sizes.WordSize) }
-func (a *asmArch) ptrSize() int  { return int(a.sizes.WordSize) }
-func (a *asmArch) maxAlign() int { return int(a.sizes.MaxAlign) }
+func init() {
+	for _, arch := range arches {
+		arch.sizes = types.SizesFor("gc", arch.name)
+		if arch.sizes == nil {
+			panic("missing SizesFor for gc/" + arch.name)
+		}
+		arch.intSize = int(arch.sizes.Sizeof(types.Typ[types.Int]))
+		arch.ptrSize = int(arch.sizes.Sizeof(types.Typ[types.UnsafePointer]))
+		arch.maxAlign = int(arch.sizes.Alignof(types.Typ[types.Int64]))
+	}
+}
 
 var (
 	re           = regexp.MustCompile
@@ -244,10 +249,10 @@ Files:
 					}
 				}
 				localSize, _ = strconv.Atoi(m[4])
-				localSize += archDef.intSize()
+				localSize += archDef.intSize
 				if archDef.lr {
 					// Account for caller's saved LR
-					localSize += archDef.intSize()
+					localSize += archDef.intSize
 				}
 				argSize, _ = strconv.Atoi(m[5])
 				if fn == nil && !strings.Contains(fnName, "<>") {
@@ -412,7 +417,7 @@ func appendComponentsRecursive(arch *asmArch, t types.Type, cc []component, suff
 
 	switch kind {
 	case 8:
-		if arch.ptrSize() == 4 {
+		if arch.ptrSize == 4 {
 			w1, w2 := "lo", "hi"
 			if arch.bigEndian {
 				w1, w2 = w2, w1
@@ -422,21 +427,21 @@ func appendComponentsRecursive(arch *asmArch, t types.Type, cc []component, suff
 		}
 
 	case asmEmptyInterface:
-		cc = append(cc, newComponent(suffix+"_type", asmKind(arch.ptrSize()), "interface type", off, arch.ptrSize(), suffix))
-		cc = append(cc, newComponent(suffix+"_data", asmKind(arch.ptrSize()), "interface data", off+arch.ptrSize(), arch.ptrSize(), suffix))
+		cc = append(cc, newComponent(suffix+"_type", asmKind(arch.ptrSize), "interface type", off, arch.ptrSize, suffix))
+		cc = append(cc, newComponent(suffix+"_data", asmKind(arch.ptrSize), "interface data", off+arch.ptrSize, arch.ptrSize, suffix))
 
 	case asmInterface:
-		cc = append(cc, newComponent(suffix+"_itable", asmKind(arch.ptrSize()), "interface itable", off, arch.ptrSize(), suffix))
-		cc = append(cc, newComponent(suffix+"_data", asmKind(arch.ptrSize()), "interface data", off+arch.ptrSize(), arch.ptrSize(), suffix))
+		cc = append(cc, newComponent(suffix+"_itable", asmKind(arch.ptrSize), "interface itable", off, arch.ptrSize, suffix))
+		cc = append(cc, newComponent(suffix+"_data", asmKind(arch.ptrSize), "interface data", off+arch.ptrSize, arch.ptrSize, suffix))
 
 	case asmSlice:
-		cc = append(cc, newComponent(suffix+"_base", asmKind(arch.ptrSize()), "slice base", off, arch.ptrSize(), suffix))
-		cc = append(cc, newComponent(suffix+"_len", asmKind(arch.intSize()), "slice len", off+arch.ptrSize(), arch.intSize(), suffix))
-		cc = append(cc, newComponent(suffix+"_cap", asmKind(arch.intSize()), "slice cap", off+arch.ptrSize()+arch.intSize(), arch.intSize(), suffix))
+		cc = append(cc, newComponent(suffix+"_base", asmKind(arch.ptrSize), "slice base", off, arch.ptrSize, suffix))
+		cc = append(cc, newComponent(suffix+"_len", asmKind(arch.intSize), "slice len", off+arch.ptrSize, arch.intSize, suffix))
+		cc = append(cc, newComponent(suffix+"_cap", asmKind(arch.intSize), "slice cap", off+arch.ptrSize+arch.intSize, arch.intSize, suffix))
 
 	case asmString:
-		cc = append(cc, newComponent(suffix+"_base", asmKind(arch.ptrSize()), "string base", off, arch.ptrSize(), suffix))
-		cc = append(cc, newComponent(suffix+"_len", asmKind(arch.intSize()), "string len", off+arch.ptrSize(), arch.intSize(), suffix))
+		cc = append(cc, newComponent(suffix+"_base", asmKind(arch.ptrSize), "string base", off, arch.ptrSize, suffix))
+		cc = append(cc, newComponent(suffix+"_len", asmKind(arch.intSize), "string len", off+arch.ptrSize, arch.intSize, suffix))
 
 	case asmComplex:
 		fsize := size / 2
@@ -542,7 +547,7 @@ func (f *File) asmParseDecl(decl *ast.FuncDecl) map[string]*asmFunc {
 		offset = 0
 		addParams(decl.Type.Params.List, false)
 		if decl.Type.Results != nil && len(decl.Type.Results.List) > 0 {
-			offset += -offset & (arch.maxAlign() - 1)
+			offset += -offset & (arch.maxAlign - 1)
 			addParams(decl.Type.Results.List, true)
 		}
 		fn.size = offset
