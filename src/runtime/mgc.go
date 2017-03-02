@@ -1302,23 +1302,17 @@ func gcMarkTermination() {
 	sweep.nbgsweep = 0
 	sweep.npausesweep = 0
 
-	// If gcSweep didn't do it, finish the current heap profiling
-	// cycle and start a new heap profiling cycle. We do this
-	// before starting the world so events don't leak into the
-	// wrong cycle.
-	needProfCycle := _ConcurrentSweep && work.mode != gcForceBlockMode
-	if needProfCycle {
-		mProf_NextCycle()
-	}
+	// Finish the current heap profiling cycle and start a new
+	// heap profiling cycle. We do this before starting the world
+	// so events don't leak into the wrong cycle.
+	mProf_NextCycle()
 
 	systemstack(startTheWorldWithSema)
 
 	// Flush the heap profile so we can start a new cycle next GC.
 	// This is relatively expensive, so we don't do it with the
 	// world stopped.
-	if needProfCycle {
-		mProf_Flush()
-	}
+	mProf_Flush()
 
 	// Free stack spans. This must be done between GC cycles.
 	systemstack(freeStackSpans)
@@ -1763,10 +1757,9 @@ func gcSweep(mode gcMode) {
 		for sweepone() != ^uintptr(0) {
 			sweep.npausesweep++
 		}
-		// All "free" events are now real, so flush everything
-		// into the published profile.
-		mProf_NextCycle()
-		mProf_Flush()
+		// All "free" events for this mark/sweep cycle have
+		// now happened, so we can make this profile cycle
+		// available immediately.
 		mProf_NextCycle()
 		mProf_Flush()
 		return
