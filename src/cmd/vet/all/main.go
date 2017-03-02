@@ -22,9 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 )
 
@@ -62,7 +60,7 @@ func main() {
 	case *flagAll:
 		vetPlatforms(allPlatforms())
 	default:
-		hostPlatform.vet(runtime.GOMAXPROCS(-1))
+		hostPlatform.vet()
 	}
 	if atomic.LoadUint32(&failed) != 0 {
 		os.Exit(1)
@@ -198,23 +196,12 @@ var ignorePathPrefixes = [...]string{
 }
 
 func vetPlatforms(pp []platform) {
-	ncpus := runtime.GOMAXPROCS(-1) / len(pp)
-	if ncpus < 1 {
-		ncpus = 1
-	}
-	var wg sync.WaitGroup
-	wg.Add(len(pp))
 	for _, p := range pp {
-		p := p
-		go func() {
-			p.vet(ncpus)
-			wg.Done()
-		}()
+		p.vet()
 	}
-	wg.Wait()
 }
 
-func (p platform) vet(ncpus int) {
+func (p platform) vet() {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
 
@@ -224,29 +211,13 @@ func (p platform) vet(ncpus int) {
 
 	env := append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
 
-	// Do 'go install std' before running vet.
-	// It is cheap when already installed.
-	// Not installing leads to non-obvious failures due to inability to typecheck.
-	// TODO: If go/loader ever makes it to the standard library, have vet use it,
-	// at which point vet can work off source rather than compiled packages.
-	gcflags := ""
-	if p != hostPlatform {
-		gcflags = "-dolinkobj=false"
-	}
-	cmd := exec.Command(cmdGoPath, "install", "-p", strconv.Itoa(ncpus), "-gcflags="+gcflags, "std")
-	cmd.Env = env
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatalf("failed to run GOOS=%s GOARCH=%s 'go install std': %v\n%s", p.os, p.arch, err, out)
-	}
-
 	// 'go tool vet .' is considerably faster than 'go vet ./...'
 	// TODO: The unsafeptr checks are disabled for now,
 	// because there are so many false positives,
 	// and no clear way to improve vet to eliminate large chunks of them.
 	// And having them in the whitelists will just cause annoyance
 	// and churn when working on the runtime.
-	args := []string{"tool", "vet", "-unsafeptr=false"}
+	args := []string{"tool", "vet", "-unsafeptr=false", "-source"}
 	if p != hostPlatform {
 		// When not checking the host platform, vet gets confused by
 		// the fmt.Formatters in cmd/compile,
@@ -257,7 +228,7 @@ func (p platform) vet(ncpus int) {
 		args = append(args, "-printf=false")
 	}
 	args = append(args, ".")
-	cmd = exec.Command(cmdGoPath, args...)
+	cmd := exec.Command(cmdGoPath, args...)
 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
 	cmd.Env = env
 	stderr, err := cmd.StderrPipe()
