@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"go/types"
 	"internal/testenv"
 	"log"
 	"os"
@@ -108,11 +109,11 @@ type whitelist map[string]int
 
 // load adds entries from the whitelist file, if present, for os/arch to w.
 func (w whitelist) load(goos string, goarch string) {
-	// Look up whether goarch is a 32-bit or 64-bit architecture.
-	archbits, ok := nbits[goarch]
-	if !ok {
-		log.Fatalf("unknown bitwidth for arch %q", goarch)
+	sz := types.SizesFor("gc", goarch)
+	if sz == nil {
+		log.Fatalf("unknown type sizes for arch %q", goarch)
 	}
+	archbits := 8 * sz.Sizeof(types.Typ[types.UnsafePointer])
 
 	// Look up whether goarch has a shared arch suffix,
 	// such as mips64x for mips64 and mips64le.
@@ -336,23 +337,6 @@ NextLine:
 	}
 
 	os.Stdout.Write(buf.Bytes())
-}
-
-// nbits maps from architecture names to the number of bits in a pointer.
-// TODO: figure out a clean way to avoid get this info rather than listing it here yet again.
-var nbits = map[string]int{
-	"386":      32,
-	"amd64":    64,
-	"amd64p32": 32,
-	"arm":      32,
-	"arm64":    64,
-	"mips":     32,
-	"mipsle":   32,
-	"mips64":   64,
-	"mips64le": 64,
-	"ppc64":    64,
-	"ppc64le":  64,
-	"s390x":    64,
 }
 
 // archAsmX maps architectures to the suffix usually used for their assembly files,
