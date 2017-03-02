@@ -215,9 +215,7 @@ func (check *Checker) collectObjects() {
 						// for clients; it is not needed for type-checking)
 						if !pkgImports[imp] {
 							pkgImports[imp] = true
-							if imp != Unsafe {
-								pkg.imports = append(pkg.imports, imp)
-							}
+							pkg.imports = append(pkg.imports, imp)
 						}
 
 						// local name overrides imported package name
