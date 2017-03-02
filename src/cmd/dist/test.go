@@ -426,7 +426,7 @@ func (t *tester) registerTests() {
 				cmd := t.addCmd(dt, "src", "go", "test", "-short", t.timeout(300), t.tags(), "runtime", "-cpu=1,2,4")
 				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
 				// creation of first goroutines and first garbage collections in the parallel setting.
-				cmd.Env = mergeEnvLists([]string{"GOMAXPROCS=2"}, os.Environ())
+				cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
 				return nil
 			},
 		})
@@ -807,10 +807,9 @@ func (t *tester) registerHostTest(name, heading, dir, pkg string) {
 }
 
 func (t *tester) runHostTest(dir, pkg string) error {
-	env := mergeEnvLists([]string{"GOARCH=" + t.gohostarch, "GOOS=" + t.gohostos}, os.Environ())
 	defer os.Remove(filepath.Join(t.goroot, dir, "test.test"))
 	cmd := t.dirCmd(dir, "go", "test", t.tags(), "-c", "-o", "test.test", pkg)
-	cmd.Env = env
+	cmd.Env = append(os.Environ(), "GOARCH="+t.gohostarch, "GOOS="+t.gohostos)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
@@ -818,7 +817,7 @@ func (t *tester) runHostTest(dir, pkg string) error {
 }
 
 func (t *tester) cgoTest(dt *distTest) error {
-	env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
+	env := append(os.Environ(), "GOTRACEBACK=2")
 
 	cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
 	cmd.Env = env
@@ -1053,12 +1052,12 @@ func (t *tester) cgoTestSO(dt *distTest, testpath string) error {
 		if t.goos == "darwin" {
 			s = "DYLD_LIBRARY_PATH"
 		}
-		cmd.Env = mergeEnvLists([]string{s + "=."}, os.Environ())
+		cmd.Env = append(os.Environ(), s+"=.")
 
 		// On FreeBSD 64-bit architectures, the 32-bit linker looks for
 		// different environment variables.
 		if t.goos == "freebsd" && t.gohostarch == "386" {
-			cmd.Env = mergeEnvLists([]string{"LD_32_LIBRARY_PATH=."}, cmd.Env)
+			cmd.Env = append(cmd.Env, "LD_32_LIBRARY_PATH=.")
 		}
 	}
 	return cmd.Run()
@@ -1097,9 +1096,8 @@ func (t *tester) raceTest(dt *distTest) error {
 	// TODO(iant): Figure out how to catch this.
 	// t.addCmd(dt, "src", "go", "test", "-race", "-run=TestParallelTest", "cmd/go")
 	if t.cgoEnabled {
-		env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
 		cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", "-race", "-short", t.runFlag(""))
-		cmd.Env = env
+		cmd.Env = append(os.Environ(), "GOTRACEBACK=2")
 	}
 	if t.extLink() {
 		// Test with external linking; see issue 9133.
@@ -1118,7 +1116,7 @@ func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
 	runtest.Do(func() {
 		const exe = "runtest.exe" // named exe for Windows, but harmless elsewhere
 		cmd := t.dirCmd("test", "go", "build", "-o", exe, "run.go")
-		cmd.Env = mergeEnvLists([]string{"GOOS=" + t.gohostos, "GOARCH=" + t.gohostarch, "GOMAXPROCS="}, os.Environ())
+		cmd.Env = append(os.Environ(), "GOOS="+t.gohostos, "GOARCH="+t.gohostarch, "GOMAXPROCS=")
 		runtest.exe = filepath.Join(cmd.Dir, exe)
 		if err := cmd.Run(); err != nil {
 			runtest.err = err
@@ -1139,24 +1137,6 @@ func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
 		fmt.Sprintf("--shards=%d", shards),
 	)
 	return nil
-}
-
-// mergeEnvLists merges the two environment lists such that
-// variables with the same name in "in" replace those in "out".
-// out may be mutated.
-func mergeEnvLists(in, out []string) []string {
-NextVar:
-	for _, inkv := range in {
-		k := strings.SplitAfterN(inkv, "=", 2)[0]
-		for i, outkv := range out {
-			if strings.HasPrefix(outkv, k) {
-				out[i] = inkv
-				continue NextVar
-			}
-		}
-		out = append(out, inkv)
-	}
-	return out
 }
 
 // cgoPackages is the standard packages that use cgo.

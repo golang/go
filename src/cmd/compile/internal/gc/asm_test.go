@@ -143,7 +143,7 @@ func (ats *asmTests) compileToAsm(t *testing.T, dir string) string {
 func (ats *asmTests) runGo(t *testing.T, args ...string) string {
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command(testenv.GoToolPath(t), args...)
-	cmd.Env = mergeEnvLists([]string{"GOARCH=" + ats.arch, "GOOS=" + ats.os}, os.Environ())
+	cmd.Env = append(os.Environ(), "GOARCH="+ats.arch, "GOOS="+ats.os)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -788,25 +788,6 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		[]string{"\tRORW\t[$]25,"},
 	},
-}
-
-// mergeEnvLists merges the two environment lists such that
-// variables with the same name in "in" replace those in "out".
-// This always returns a newly allocated slice.
-func mergeEnvLists(in, out []string) []string {
-	out = append([]string(nil), out...)
-NextVar:
-	for _, inkv := range in {
-		k := strings.SplitAfterN(inkv, "=", 2)[0]
-		for i, outkv := range out {
-			if strings.HasPrefix(outkv, k) {
-				out[i] = inkv
-				continue NextVar
-			}
-		}
-		out = append(out, inkv)
-	}
-	return out
 }
 
 // TestLineNumber checks to make sure the generated assembly has line numbers
