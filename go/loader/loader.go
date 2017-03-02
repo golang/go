@@ -1009,6 +1009,10 @@ func (imp *importer) addFiles(info *PackageInfo, files []*ast.File, cycleCheck b
 			time.Since(imp.start), info.Pkg.Path(), len(files))
 	}
 
+	if info.Pkg == types.Unsafe && len(files) > 0 {
+		panic(`addFiles("unsafe") not permitted`)
+	}
+
 	// Ignore the returned (first) error since we
 	// already collect them all in the PackageInfo.
 	info.checker.Files(files)
@@ -1025,7 +1029,12 @@ func (imp *importer) addFiles(info *PackageInfo, files []*ast.File, cycleCheck b
 }
 
 func (imp *importer) newPackageInfo(path, dir string) *PackageInfo {
-	pkg := types.NewPackage(path, "")
+	var pkg *types.Package
+	if path == "unsafe" {
+		pkg = types.Unsafe
+	} else {
+		pkg = types.NewPackage(path, "")
+	}
 	info := &PackageInfo{
 		Pkg: pkg,
 		Info: types.Info{
