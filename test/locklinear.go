@@ -49,18 +49,19 @@ func checkLinear(typ string, tries int, f func(n int)) {
 		if t1*3/2 < t2 && t2 < t1*5/2 {
 			return
 		}
-		// If 2n ops run in under a second and the ratio
-		// doesn't work out, make n bigger, trying to reduce
-		// the effect that a constant amount of overhead has
-		// on the computed ratio.
-		if t2 < 1*time.Second {
-			n *= 2
-			continue
-		}
 		// Once the test runs long enough for n ops,
 		// try to get the right ratio at least once.
 		// If many in a row all fail, give up.
-		if fails++; fails >= 10 {
+		if fails++; fails >= 5 {
+			// If 2n ops run in under a second and the ratio
+			// doesn't work out, make n bigger, trying to reduce
+			// the effect that a constant amount of overhead has
+			// on the computed ratio.
+			if t2 < time.Second*4/10 {
+				fails = 0
+				n *= 2
+				continue
+			}
 			panic(fmt.Sprintf("%s: too slow: %d ops: %v; %d ops: %v\n\n%s",
 				typ, n, t1, 2*n, t2, buf.String()))
 		}
