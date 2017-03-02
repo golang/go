@@ -2263,10 +2263,6 @@ func (p *Package) build() {
 	if p.info == nil {
 		return // synthetic package, e.g. "testmain"
 	}
-	if p.files == nil {
-		p.info = nil
-		return // package loaded from export data
-	}
 
 	// Ensure we have runtime type info for all exported members.
 	// TODO(adonovan): ideally belongs in memberFromObject, but
