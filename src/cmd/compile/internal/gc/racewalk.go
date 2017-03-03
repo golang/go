@@ -630,5 +630,5 @@ func appendinit(np **Node, init Nodes) {
 	}
 
 	n.Ninit.AppendNodes(&init)
-	n.Ullman = UINF
+	n.SetHasCall(true)
 }

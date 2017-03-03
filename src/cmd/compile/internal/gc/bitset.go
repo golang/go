@@ -23,3 +23,13 @@ func (f *bitset16) set(mask uint16, b bool) {
 		*(*uint16)(f) &^= mask
 	}
 }
+
+type bitset32 uint32
+
+func (f *bitset32) set(mask uint32, b bool) {
+	if b {
+		*(*uint32)(f) |= mask
+	} else {
+		*(*uint32)(f) &^= mask
+	}
+}

@@ -685,7 +685,7 @@ opswitch:
 		lr := ascompatte(n, n.Isddd(), t.Params(), n.List.Slice(), 0, init)
 		ll = append(ll, lr...)
 		n.Left.Left = nil
-		ullmancalc(n.Left)
+		updateHasCall(n.Left)
 		n.List.Set(reorder1(ll))
 
 	case OAS:
@@ -1617,7 +1617,7 @@ opswitch:
 		n = typecheck(n, Erv)
 	}
 
-	ullmancalc(n)
+	updateHasCall(n)
 
 	if Debug['w'] != 0 && n != nil {
 		Dump("walk", n)
@@ -1698,7 +1698,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 // evaluating the lv or a function call
 // in the conversion of the types
 func fncall(l *Node, rt *Type) bool {
-	if l.Ullman >= UINF || l.Op == OINDEXMAP {
+	if l.HasCall() || l.Op == OINDEXMAP {
 		return true
 	}
 	if needwritebarrier(l) {
@@ -1743,8 +1743,8 @@ func ascompatet(op Op, nl Nodes, nr *Type) []*Node {
 
 		a := nod(OAS, l, nodarg(r, 0))
 		a = convas(a, &nn)
-		ullmancalc(a)
-		if a.Ullman >= UINF {
+		updateHasCall(a)
+		if a.HasCall() {
 			Dump("ascompatet ucount", a)
 			ullmanOverflow = true
 		}
@@ -2104,7 +2104,7 @@ func convas(n *Node, init *Nodes) *Node {
 	}
 
 out:
-	ullmancalc(n)
+	updateHasCall(n)
 	return n
 }
 
@@ -2120,8 +2120,8 @@ func reorder1(all []*Node) []*Node {
 
 	for _, n := range all {
 		t++
-		ullmancalc(n)
-		if n.Ullman >= UINF {
+		updateHasCall(n)
+		if n.HasCall() {
 			c++
 		}
 	}
@@ -2136,7 +2136,7 @@ func reorder1(all []*Node) []*Node {
 	d := 0
 	var a *Node
 	for _, n := range all {
-		if n.Ullman < UINF {
+		if !n.HasCall() {
 			r = append(r, n)
 			continue
 		}
@@ -2436,10 +2436,10 @@ func vmatch1(l *Node, r *Node) bool {
 		case PPARAM, PAUTO:
 			break
 
-		// assignment to non-stack variable
-		// must be delayed if right has function calls.
 		default:
-			if r.Ullman >= UINF {
+			// assignment to non-stack variable must be
+			// delayed if right has function calls.
+			if r.HasCall() {
 				return true
 			}
 		}
