@@ -158,7 +158,7 @@ func canMergeLoad(target, load *Value) bool {
 		// If the load is in a different block do not merge it.
 		return false
 	}
-	mem := load.Args[len(load.Args)-1]
+	mem := load.MemoryArg()
 
 	// We need the load's memory arg to still be alive at target. That
 	// can't be the case if one of target's args depends on a memory
@@ -230,7 +230,7 @@ search:
 					if len(m.Args) == 0 {
 						break
 					}
-					m = m.Args[len(m.Args)-1]
+					m = m.MemoryArg()
 				}
 			}
 

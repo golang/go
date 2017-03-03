@@ -20,7 +20,7 @@ func tighten(f *Func) {
 				// Tuple selectors must stay with the tuple generator.
 				continue
 			}
-			if len(v.Args) > 0 && v.Args[len(v.Args)-1].Type.IsMemory() {
+			if v.MemoryArg() != nil {
 				// We can't move values which have a memory arg - it might
 				// make two memory values live across a block boundary.
 				continue

@@ -311,3 +311,23 @@ func (v *Value) RegName() string {
 	}
 	return reg.(*Register).name
 }
+
+// MemoryArg returns the memory argument for the Value.
+// The returned value, if non-nil, will be memory-typed,
+// except in the case where v is Select1, in which case
+// the returned value will be a tuple containing a memory
+// type. Otherwise, nil is returned.
+func (v *Value) MemoryArg() *Value {
+	if v.Op == OpPhi {
+		v.Fatalf("MemoryArg on Phi")
+	}
+	na := len(v.Args)
+	if na == 0 {
+		return nil
+	}
+	if m := v.Args[na-1]; m.Type.IsMemory() ||
+		(v.Op == OpSelect1 && m.Type.FieldType(1).IsMemory()) {
+		return m
+	}
+	return nil
+}

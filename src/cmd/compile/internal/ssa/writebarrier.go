@@ -120,7 +120,7 @@ func writebarrier(f *Func) {
 		b.Values = b.Values[:start]
 
 		// find the memory before the WB stores
-		mem := stores[0].Args[len(stores[0].Args)-1]
+		mem := stores[0].MemoryArg()
 		pos := stores[0].Pos
 		bThen := f.NewBlock(BlockPlain)
 		bElse := f.NewBlock(BlockPlain)
