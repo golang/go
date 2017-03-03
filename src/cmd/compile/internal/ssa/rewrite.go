@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/obj"
 	"crypto/sha1"
 	"fmt"
 	"math"
@@ -382,6 +383,25 @@ func f2i(f float64) int64 {
 // uaddOvf returns true if unsigned a+b would overflow.
 func uaddOvf(a, b int64) bool {
 	return uint64(a)+uint64(b) < uint64(a)
+}
+
+// de-virtualize an InterCall
+// 'sym' is the symbol for the itab
+func devirt(v *Value, sym interface{}, offset int64) *obj.LSym {
+	f := v.Block.Func
+	ext, ok := sym.(*ExternSymbol)
+	if !ok {
+		return nil
+	}
+	lsym := f.Config.Frontend().DerefItab(ext.Sym, offset)
+	if f.pass.debug > 0 {
+		if lsym != nil {
+			f.Config.Warnl(v.Pos, "de-virtualizing call")
+		} else {
+			f.Config.Warnl(v.Pos, "couldn't de-virtualize call")
+		}
+	}
+	return lsym
 }
 
 // isSamePtr reports whether p1 and p2 point to the same address.

@@ -121,6 +121,12 @@ type Frontend interface {
 	SplitArray(LocalSlot) LocalSlot              // array must be length 1
 	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
 
+	// DerefItab dereferences an itab function
+	// entry, given the symbol of the itab and
+	// the byte offset of the function pointer.
+	// It may return nil.
+	DerefItab(sym *obj.LSym, offset int64) *obj.LSym
+
 	// Line returns a string describing the given position.
 	Line(src.XPos) string
 

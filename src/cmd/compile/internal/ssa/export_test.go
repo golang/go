@@ -97,21 +97,22 @@ func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t
 func (d DummyFrontend) Debug_checknil() bool                               { return false }
 func (d DummyFrontend) Debug_wb() bool                                     { return false }
 
-func (d DummyFrontend) TypeBool() Type    { return TypeBool }
-func (d DummyFrontend) TypeInt8() Type    { return TypeInt8 }
-func (d DummyFrontend) TypeInt16() Type   { return TypeInt16 }
-func (d DummyFrontend) TypeInt32() Type   { return TypeInt32 }
-func (d DummyFrontend) TypeInt64() Type   { return TypeInt64 }
-func (d DummyFrontend) TypeUInt8() Type   { return TypeUInt8 }
-func (d DummyFrontend) TypeUInt16() Type  { return TypeUInt16 }
-func (d DummyFrontend) TypeUInt32() Type  { return TypeUInt32 }
-func (d DummyFrontend) TypeUInt64() Type  { return TypeUInt64 }
-func (d DummyFrontend) TypeFloat32() Type { return TypeFloat32 }
-func (d DummyFrontend) TypeFloat64() Type { return TypeFloat64 }
-func (d DummyFrontend) TypeInt() Type     { return TypeInt64 }
-func (d DummyFrontend) TypeUintptr() Type { return TypeUInt64 }
-func (d DummyFrontend) TypeString() Type  { panic("unimplemented") }
-func (d DummyFrontend) TypeBytePtr() Type { return TypeBytePtr }
+func (d DummyFrontend) TypeBool() Type                               { return TypeBool }
+func (d DummyFrontend) TypeInt8() Type                               { return TypeInt8 }
+func (d DummyFrontend) TypeInt16() Type                              { return TypeInt16 }
+func (d DummyFrontend) TypeInt32() Type                              { return TypeInt32 }
+func (d DummyFrontend) TypeInt64() Type                              { return TypeInt64 }
+func (d DummyFrontend) TypeUInt8() Type                              { return TypeUInt8 }
+func (d DummyFrontend) TypeUInt16() Type                             { return TypeUInt16 }
+func (d DummyFrontend) TypeUInt32() Type                             { return TypeUInt32 }
+func (d DummyFrontend) TypeUInt64() Type                             { return TypeUInt64 }
+func (d DummyFrontend) TypeFloat32() Type                            { return TypeFloat32 }
+func (d DummyFrontend) TypeFloat64() Type                            { return TypeFloat64 }
+func (d DummyFrontend) TypeInt() Type                                { return TypeInt64 }
+func (d DummyFrontend) TypeUintptr() Type                            { return TypeUInt64 }
+func (d DummyFrontend) TypeString() Type                             { panic("unimplemented") }
+func (d DummyFrontend) TypeBytePtr() Type                            { return TypeBytePtr }
+func (d DummyFrontend) DerefItab(sym *obj.LSym, off int64) *obj.LSym { return nil }
 
 func (d DummyFrontend) CanSSA(t Type) bool {
 	// There are no un-SSAable types in dummy land.
