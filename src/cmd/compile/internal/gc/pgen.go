@@ -380,6 +380,8 @@ func compile(fn *Node) {
 		nam = nil
 	}
 	ptxt := Gins(obj.ATEXT, nam, nil)
+	fnsym := ptxt.From.Sym
+
 	ptxt.From3 = new(obj.Addr)
 	if fn.Func.Dupok() {
 		ptxt.From3.Offset |= obj.DUPOK
@@ -418,26 +420,19 @@ func compile(fn *Node) {
 	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
 	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
 
-	if obj.Fieldtrack_enabled != 0 && len(Curfn.Func.FieldTrack) > 0 {
-		trackSyms := make([]*Sym, 0, len(Curfn.Func.FieldTrack))
-		for sym := range Curfn.Func.FieldTrack {
-			trackSyms = append(trackSyms, sym)
-		}
-		sort.Sort(symByName(trackSyms))
-		for _, sym := range trackSyms {
-			gtrack(sym)
-		}
-	}
-
-	gendebug(ptxt.From.Sym, fn.Func.Dcl)
+	gendebug(fnsym, fn.Func.Dcl)
 
 	genssa(ssafn, ptxt, gcargs, gclocals)
 	ssafn.Free()
+
 	obj.Flushplist(Ctxt, plist) // convert from Prog list to machine code
+	ptxt = nil                  // nil to prevent misuse; Prog may have been freed by Flushplist
+
+	fieldtrack(fnsym, fn.Func.FieldTrack)
 }
 
-func gendebug(fn *obj.LSym, decls []*Node) {
-	if fn == nil {
+func gendebug(fnsym *obj.LSym, decls []*Node) {
+	if fnsym == nil {
 		return
 	}
 
@@ -466,8 +461,30 @@ func gendebug(fn *obj.LSym, decls []*Node) {
 			Gotype:  Linksym(ngotype(n)),
 		}
 
-		a.Link = fn.Autom
-		fn.Autom = a
+		a.Link = fnsym.Autom
+		fnsym.Autom = a
+	}
+}
+
+// fieldtrack adds R_USEFIELD relocations to fnsym to record any
+// struct fields that it used.
+func fieldtrack(fnsym *obj.LSym, tracked map[*Sym]struct{}) {
+	if fnsym == nil {
+		return
+	}
+	if obj.Fieldtrack_enabled == 0 || len(tracked) == 0 {
+		return
+	}
+
+	trackSyms := make([]*Sym, 0, len(tracked))
+	for sym := range tracked {
+		trackSyms = append(trackSyms, sym)
+	}
+	sort.Sort(symByName(trackSyms))
+	for _, sym := range trackSyms {
+		r := obj.Addrel(fnsym)
+		r.Sym = Linksym(sym)
+		r.Type = obj.R_USEFIELD
 	}
 }
 

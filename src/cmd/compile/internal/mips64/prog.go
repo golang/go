@@ -29,7 +29,6 @@ var progtable = [mips.ALAST & obj.AMask]gc.ProgInfo{
 	obj.AFUNCDATA: {Flags: gc.Pseudo},
 	obj.APCDATA:   {Flags: gc.Pseudo},
 	obj.AUNDEF:    {Flags: gc.Break},
-	obj.AUSEFIELD: {Flags: gc.OK},
 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
