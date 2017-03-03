@@ -8,8 +8,10 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -22,6 +24,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/acme/autocert"
 )
 
 const (
@@ -30,7 +34,15 @@ const (
 	startTimeout = 10 * time.Minute
 )
 
+var startTime = time.Now()
+
+var (
+	autoCertDomain = flag.String("autocert", "", "if non-empty, listen on port 443 and serve a LetsEncrypt cert for this hostname")
+)
+
 func main() {
+	flag.Parse()
+
 	const k = "TIP_BUILDER"
 	var b Builder
 	switch os.Getenv(k) {
@@ -47,9 +59,28 @@ func main() {
 	http.Handle("/", httpsOnlyHandler{p})
 	http.HandleFunc("/_ah/health", p.serveHealthCheck)
 
-	log.Print("Starting up")
+	log.Printf("Starting up tip server for builder %q", os.Getenv(k))
 
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	errc := make(chan error)
+
+	go func() {
+		errc <- http.ListenAndServe(":8080", nil)
+	}()
+	if *autoCertDomain != "" {
+		log.Printf("Listening on port 443 with LetsEncrypt support on domain %q", *autoCertDomain)
+		m := autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist(*autoCertDomain),
+		}
+		s := &http.Server{
+			Addr:      ":https",
+			TLSConfig: &tls.Config{GetCertificate: m.GetCertificate},
+		}
+		go func() {
+			errc <- s.ListenAndServeTLS("", "")
+		}()
+	}
+	if err := <-errc; err != nil {
 		p.stop()
 		log.Fatal(err)
 	}
@@ -98,14 +129,17 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) serveStatus(w http.ResponseWriter, r *http.Request) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	fmt.Fprintf(w, "side=%v\ncurrent=%v\nerror=%v\n", p.side, p.cur, p.err)
+	fmt.Fprintf(w, "side=%v\ncurrent=%v\nerror=%v\nuptime=%v\n", p.side, p.cur, p.err, int(time.Since(startTime).Seconds()))
 }
 
 func (p *Proxy) serveHealthCheck(w http.ResponseWriter, r *http.Request) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	// NOTE: Status 502, 503, 504 are the only status codes that signify an unhealthy app.
-	// So long as this handler returns one of those codes, this instance will not be sent any requests.
+
+	// NOTE: (App Engine only; not GKE) Status 502, 503, 504 are
+	// the only status codes that signify an unhealthy app.  So
+	// long as this handler returns one of those codes, this
+	// instance will not be sent any requests.
 	if p.proxy == nil {
 		log.Printf("Health check: not ready")
 		http.Error(w, "Not ready", http.StatusServiceUnavailable)
@@ -266,11 +300,13 @@ func checkout(repo, hash, path string) error {
 	return nil
 }
 
+var timeoutClient = &http.Client{Timeout: 10 * time.Second}
+
 // gerritMetaMap returns the map from repo name (e.g. "go") to its
 // latest master hash.
 // The returned map is nil on any transient error.
 func gerritMetaMap() map[string]string {
-	res, err := http.Get(metaURL)
+	res, err := timeoutClient.Get(metaURL)
 	if err != nil {
 		return nil
 	}
@@ -309,7 +345,7 @@ func gerritMetaMap() map[string]string {
 }
 
 func getOK(url string) (body []byte, err error) {
-	res, err := http.Get(url)
+	res, err := timeoutClient.Get(url)
 	if err != nil {
 		return nil, err
 	}

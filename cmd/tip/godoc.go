@@ -17,7 +17,7 @@ type godocBuilder struct {
 }
 
 func (b godocBuilder) Signature(heads map[string]string) string {
-	return heads["go"] + "-" + heads["tools"]
+	return fmt.Sprintf("go=%v/tools=%v", heads["go"], heads["tools"])
 }
 
 func (b godocBuilder) Init(dir, hostport string, heads map[string]string) (*exec.Cmd, error) {

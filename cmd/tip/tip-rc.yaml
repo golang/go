@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: tipgodoc-v1
+spec:
+  replicas: 1
+  selector:
+    app: tipgodoc
+  template:
+    metadata:
+      name: tipgodoc
+      labels:
+        app: tipgodoc
+    spec:
+      volumes:
+      - name: cache-volume
+        emptyDir: {}
+      containers:
+      - name: gitmirror
+        image: gcr.io/symbolic-datum-552/tip:v1
+        imagePullPolicy: Always
+        command: ["/go/bin/tip", "--autocert=tip.golang.org"]
+        env:
+        - name: TMPDIR
+          value: /build
+        - name: TIP_BUILDER
+          value: godoc
+        volumeMounts:
+        - mountPath: /build
+          name: cache-volume
+        ports:
+        - containerPort: 8080
+        - containerPort: 443
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"

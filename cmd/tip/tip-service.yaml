@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tipgodoc
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+    - port: 443
+      targetPort: 443
+      name: https
+  selector:
+    app: tipgodoc
+  type: LoadBalancer
+  loadBalancerIP: 130.211.180.236
