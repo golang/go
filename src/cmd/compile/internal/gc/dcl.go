@@ -292,7 +292,6 @@ func newname(s *Sym) *Node {
 	n := nod(ONAME, nil, nil)
 	n.Sym = s
 	n.SetAddable(true)
-	n.Ullman = 1
 	n.Xoffset = 0
 	return n
 }
@@ -305,7 +304,6 @@ func newnoname(s *Sym) *Node {
 	n := nod(ONONAME, nil, nil)
 	n.Sym = s
 	n.SetAddable(true)
-	n.Ullman = 1
 	n.Xoffset = 0
 	return n
 }
@@ -376,7 +374,6 @@ func oldname(s *Sym) *Node {
 			c.SetIsddd(n.Isddd())
 			c.Name.Defn = n
 			c.SetAddable(false)
-			c.Ullman = 2
 			c.Name.Funcdepth = funcdepth
 
 			// Link into list of active closure variables.

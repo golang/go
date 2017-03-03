@@ -4885,7 +4885,6 @@ func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
 	n.Type = t
 	n.Class = PAUTO
 	n.SetAddable(true)
-	n.Ullman = 1
 	n.Esc = EscNever
 	n.Xoffset = 0
 	n.Name.Curfn = Curfn

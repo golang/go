@@ -336,8 +336,6 @@ func transformclosure(xfunc *Node) {
 			if v.Name.Byval() {
 				// If v is captured by value, we merely downgrade it to PPARAM.
 				v.Class = PPARAM
-
-				v.Ullman = 1
 				fld.Nname = v
 			} else {
 				// If v of type T is captured by reference,
@@ -393,7 +391,6 @@ func transformclosure(xfunc *Node) {
 			if v.Name.Byval() && v.Type.Width <= int64(2*Widthptr) {
 				// If it is a small variable captured by value, downgrade it to PAUTO.
 				v.Class = PAUTO
-				v.Ullman = 1
 				xfunc.Func.Dcl = append(xfunc.Func.Dcl, v)
 				body = append(body, nod(OAS, v, cv))
 			} else {
@@ -628,7 +625,6 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	ptr.Sym = lookup("rcvr")
 	ptr.Class = PAUTO
 	ptr.SetAddable(true)
-	ptr.Ullman = 1
 	ptr.SetUsed(true)
 	ptr.Name.Curfn = xfunc
 	ptr.Xoffset = 0

@@ -49,12 +49,11 @@ type Node struct {
 
 	Pos src.XPos
 
-	flags bitset16
+	flags bitset32
 
 	Esc uint16 // EscXXX
 
 	Op        Op
-	Ullman    uint8 // sethi/ullman number
 	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
 	Class     Class // PPARAM, PAUTO, PEXTERN, etc
 	Embedded  uint8 // ODCLFIELD embedded type
@@ -91,6 +90,7 @@ const (
 	nodeBounded  // bounds check unnecessary
 	nodeAddable  // addressable
 	nodeUsed     // for variable/label declared and not used error
+	nodeHasCall  // expression contains a function call
 )
 
 func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
@@ -109,6 +109,7 @@ func (n *Node) Noescape() bool              { return n.flags&nodeNoescape != 0 }
 func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
 func (n *Node) Addable() bool               { return n.flags&nodeAddable != 0 }
 func (n *Node) Used() bool                  { return n.flags&nodeUsed != 0 }
+func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
 
 func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
 func (n *Node) SetIsClosureVar(b bool)          { n.flags.set(nodeIsClosureVar, b) }
@@ -126,6 +127,7 @@ func (n *Node) SetNoescape(b bool)              { n.flags.set(nodeNoescape, b) }
 func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
 func (n *Node) SetAddable(b bool)               { n.flags.set(nodeAddable, b) }
 func (n *Node) SetUsed(b bool)                  { n.flags.set(nodeUsed, b) }
+func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
 
 // Val returns the Val for the node.
 func (n *Node) Val() Val {

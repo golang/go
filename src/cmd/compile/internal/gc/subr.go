@@ -426,7 +426,6 @@ func nodintconst(v int64) *Node {
 	c.SetVal(Val{new(Mpint)})
 	c.Val().U.(*Mpint).SetInt64(v)
 	c.Type = Types[TIDEAL]
-	ullmancalc(c)
 	return c
 }
 
@@ -436,7 +435,6 @@ func nodfltconst(v *Mpflt) *Node {
 	c.SetVal(Val{newMpflt()})
 	c.Val().U.(*Mpflt).Set(v)
 	c.Type = Types[TIDEAL]
-	ullmancalc(c)
 	return c
 }
 
@@ -444,7 +442,6 @@ func nodconst(n *Node, t *Type, v int64) {
 	*n = Node{}
 	n.Op = OLITERAL
 	n.SetAddable(true)
-	ullmancalc(n)
 	n.SetVal(Val{new(Mpint)})
 	n.Val().U.(*Mpint).SetInt64(v)
 	n.Type = t
@@ -1145,73 +1142,55 @@ func printframenode(n *Node) {
 	}
 }
 
-// calculate sethi/ullman number
-// roughly how many registers needed to
-// compile a node. used to compile the
-// hardest side first to minimize registers.
-func ullmancalc(n *Node) {
+// updateHasCall checks whether expression n contains any function
+// calls and sets the n.HasCall flag if so.
+func updateHasCall(n *Node) {
 	if n == nil {
 		return
 	}
 
-	var ul int
-	var ur int
+	b := false
 	if n.Ninit.Len() != 0 {
-		ul = UINF
+		// TODO(mdempsky): This seems overly conservative.
+		b = true
 		goto out
 	}
 
 	switch n.Op {
 	case OLITERAL, ONAME:
-		ul = 1
-		if n.Class == PAUTOHEAP {
-			ul++
-		}
-		goto out
-
 	case OAS:
-		if !needwritebarrier(n.Left) {
-			break
+		if needwritebarrier(n.Left) {
+			b = true
+			goto out
 		}
-		fallthrough
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
-		ul = UINF
+		b = true
 		goto out
-
-		// hard with instrumented code
 	case OANDAND, OOROR:
+		// hard with instrumented code
 		if instrumenting {
-			ul = UINF
+			b = true
 			goto out
 		}
 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR,
 		OIND, ODOTPTR, ODOTTYPE, ODIV, OMOD:
 		// These ops might panic, make sure they are done
 		// before we start marshaling args for a call. See issue 16760.
-		ul = UINF
+		b = true
 		goto out
 	}
 
-	ul = 1
-	if n.Left != nil {
-		ul = int(n.Left.Ullman)
+	if n.Left != nil && n.Left.HasCall() {
+		b = true
+		goto out
 	}
-	ur = 1
-	if n.Right != nil {
-		ur = int(n.Right.Ullman)
-	}
-	if ul == ur {
-		ul += 1
-	}
-	if ur > ul {
-		ul = ur
+	if n.Right != nil && n.Right.HasCall() {
+		b = true
+		goto out
 	}
 
 out:
-	if ul > 200 {
-		ul = 200 // clamp to uchar with room to grow
-	}
-	n.Ullman = uint8(ul)
+	n.SetHasCall(b)
 }
 
 func badtype(op Op, tl *Type, tr *Type) {
@@ -2032,7 +2011,7 @@ func addinit(n *Node, init []*Node) *Node {
 	}
 
 	n.Ninit.Prepend(init...)
-	n.Ullman = UINF
+	n.SetHasCall(true)
 	return n
 }
 

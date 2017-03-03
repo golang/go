@@ -269,10 +269,6 @@ func (n *Node) Format(s fmt.State, verb rune) {
 func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	c := flag & FmtShort
 
-	if c == 0 && n.Ullman != 0 {
-		fmt.Fprintf(s, " u(%d)", n.Ullman)
-	}
-
 	if c == 0 && n.Addable() {
 		fmt.Fprintf(s, " a(%v)", n.Addable())
 	}
@@ -359,6 +355,10 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	}
 	if n.NonNil() {
 		fmt.Fprint(s, " nonnil")
+	}
+
+	if c == 0 && n.HasCall() {
+		fmt.Fprintf(s, " hascall")
 	}
 
 	if c == 0 && n.Used() {

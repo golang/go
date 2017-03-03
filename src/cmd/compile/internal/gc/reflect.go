@@ -988,7 +988,6 @@ func typename(t *Type) *Node {
 	n := nod(OADDR, s.Def, nil)
 	n.Type = ptrto(s.Def.Type)
 	n.SetAddable(true)
-	n.Ullman = 2
 	n.Typecheck = 1
 	return n
 }
@@ -1011,7 +1010,6 @@ func itabname(t, itype *Type) *Node {
 	n := nod(OADDR, s.Def, nil)
 	n.Type = ptrto(s.Def.Type)
 	n.SetAddable(true)
-	n.Ullman = 2
 	n.Typecheck = 1
 	return n
 }

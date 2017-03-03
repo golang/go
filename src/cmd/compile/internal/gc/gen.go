@@ -173,7 +173,6 @@ func moveToHeap(n *Node) {
 
 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
 	n.Class = PAUTOHEAP
-	n.Ullman = 2
 	n.Xoffset = 0
 	n.Name.Param.Heapaddr = heapaddr
 	n.Esc = EscHeap
@@ -208,7 +207,6 @@ func tempname(nn *Node, t *Type) {
 	n.Type = t
 	n.Class = PAUTO
 	n.SetAddable(true)
-	n.Ullman = 1
 	n.Esc = EscNever
 	n.Name.Curfn = Curfn
 	n.Name.SetAutoTemp(true)
