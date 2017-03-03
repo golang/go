@@ -492,7 +492,6 @@ var Anames = []string{
 	"RET",
 	"TEXT",
 	"UNDEF",
-	"USEFIELD",
 	"VARDEF",
 	"VARKILL",
 	"VARLIVE",

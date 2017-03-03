@@ -97,13 +97,6 @@ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
 	Ctxt.Globl(s, int64(width), int(flags))
 }
 
-func gtrack(s *Sym) {
-	p := Gins(obj.AUSEFIELD, nil, nil)
-	p.From.Type = obj.TYPE_MEM
-	p.From.Name = obj.NAME_EXTERN
-	p.From.Sym = Linksym(s)
-}
-
 func isfat(t *Type) bool {
 	if t != nil {
 		switch t.Etype {
@@ -289,8 +282,7 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 // Gins inserts instruction as. f is from, t is to.
 func Gins(as obj.As, f, t *Node) *obj.Prog {
 	switch as {
-	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF,
-		obj.ATEXT, obj.AFUNCDATA, obj.AUSEFIELD:
+	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF, obj.ATEXT, obj.AFUNCDATA:
 	default:
 		Fatalf("unhandled gins op %v", as)
 	}
