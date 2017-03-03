@@ -314,11 +314,11 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 			if v.Op == OpInitMem || v.Op == OpPhi {
 				continue
 			}
-			a := v.Args[len(v.Args)-1]
+			a := v
 			if v.Op == OpSelect1 {
-				a = a.Args[len(a.Args)-1]
+				a = a.Args[0]
 			}
-			sset.add(a.ID) // record that a is used
+			sset.add(a.MemoryArg().ID) // record that v's memory arg is used
 		}
 		if v.Op == OpNilCheck {
 			hasNilCheck = true
@@ -364,7 +364,7 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 		if w.Op == OpSelect1 {
 			w = w.Args[0]
 		}
-		w = w.Args[len(w.Args)-1]
+		w = w.MemoryArg()
 	}
 	var stack []*Value
 	for _, v := range values {
