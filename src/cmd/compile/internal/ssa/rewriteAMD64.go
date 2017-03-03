@@ -512,10 +512,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpGreater8(v, config)
 	case OpGreater8U:
 		return rewriteValueAMD64_OpGreater8U(v, config)
-	case OpHmul16:
-		return rewriteValueAMD64_OpHmul16(v, config)
-	case OpHmul16u:
-		return rewriteValueAMD64_OpHmul16u(v, config)
 	case OpHmul32:
 		return rewriteValueAMD64_OpHmul32(v, config)
 	case OpHmul32u:
@@ -524,10 +520,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpHmul64(v, config)
 	case OpHmul64u:
 		return rewriteValueAMD64_OpHmul64u(v, config)
-	case OpHmul8:
-		return rewriteValueAMD64_OpHmul8(v, config)
-	case OpHmul8u:
-		return rewriteValueAMD64_OpHmul8u(v, config)
 	case OpInt64Hi:
 		return rewriteValueAMD64_OpInt64Hi(v, config)
 	case OpInterCall:
@@ -18834,36 +18826,6 @@ func rewriteValueAMD64_OpGreater8U(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpHmul16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16  x y)
-	// cond:
-	// result: (HMULW  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpAMD64HMULW)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueAMD64_OpHmul16u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16u x y)
-	// cond:
-	// result: (HMULWU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpAMD64HMULWU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
 func rewriteValueAMD64_OpHmul32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -18919,36 +18881,6 @@ func rewriteValueAMD64_OpHmul64u(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpAMD64HMULQU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueAMD64_OpHmul8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8   x y)
-	// cond:
-	// result: (HMULB  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpAMD64HMULB)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueAMD64_OpHmul8u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8u  x y)
-	// cond:
-	// result: (HMULBU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpAMD64HMULBU)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true

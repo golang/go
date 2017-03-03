@@ -264,8 +264,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			j2.To.Val = s.Pc()
 		}
 
-	case ssa.Op386HMULL, ssa.Op386HMULW, ssa.Op386HMULB,
-		ssa.Op386HMULLU, ssa.Op386HMULWU, ssa.Op386HMULBU:
+	case ssa.Op386HMULL, ssa.Op386HMULLU:
 		// the frontend rewrites constant division by 8/16/32 bit integers into
 		// HMUL by a constant
 		// SSA rewrites generate the 64 bit versions

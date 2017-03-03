@@ -44,10 +44,6 @@
 (Hmul64u x y) -> (HMULQU x y)
 (Hmul32  x y) -> (HMULL  x y)
 (Hmul32u x y) -> (HMULLU x y)
-(Hmul16  x y) -> (HMULW  x y)
-(Hmul16u x y) -> (HMULWU x y)
-(Hmul8   x y) -> (HMULB  x y)
-(Hmul8u  x y) -> (HMULBU x y)
 
 (Mul64uhilo x y) -> (MULQU2 x y)
 (Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)

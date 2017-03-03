@@ -49,10 +49,6 @@ var genericOps = []opData{
 	{name: "Div32F", argLength: 2}, // arg0 / arg1
 	{name: "Div64F", argLength: 2},
 
-	{name: "Hmul8", argLength: 2},  // (arg0 * arg1) >> width, signed
-	{name: "Hmul8u", argLength: 2}, // (arg0 * arg1) >> width, unsigned
-	{name: "Hmul16", argLength: 2},
-	{name: "Hmul16u", argLength: 2},
 	{name: "Hmul32", argLength: 2},
 	{name: "Hmul32u", argLength: 2},
 	{name: "Hmul64", argLength: 2},

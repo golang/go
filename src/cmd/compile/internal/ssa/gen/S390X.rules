@@ -44,10 +44,6 @@
 (Hmul64u x y) -> (MULHDU x y)
 (Hmul32  x y) -> (SRDconst [32] (MULLD (MOVWreg x) (MOVWreg y)))
 (Hmul32u x y) -> (SRDconst [32] (MULLD (MOVWZreg x) (MOVWZreg y)))
-(Hmul16  x y) -> (SRDconst [16] (MULLW (MOVHreg x) (MOVHreg y)))
-(Hmul16u x y) -> (SRDconst [16] (MULLW (MOVHZreg x) (MOVHZreg y)))
-(Hmul8   x y) -> (SRDconst [8] (MULLW (MOVBreg x) (MOVBreg y)))
-(Hmul8u  x y) -> (SRDconst [8] (MULLW (MOVBZreg x) (MOVBZreg y)))
 
 (Mod64  x y) -> (MODD  x y)
 (Mod64u x y) -> (MODDU x y)

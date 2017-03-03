@@ -158,18 +158,10 @@ func rewriteValueMIPS(v *Value, config *Config) bool {
 		return rewriteValueMIPS_OpGreater8(v, config)
 	case OpGreater8U:
 		return rewriteValueMIPS_OpGreater8U(v, config)
-	case OpHmul16:
-		return rewriteValueMIPS_OpHmul16(v, config)
-	case OpHmul16u:
-		return rewriteValueMIPS_OpHmul16u(v, config)
 	case OpHmul32:
 		return rewriteValueMIPS_OpHmul32(v, config)
 	case OpHmul32u:
 		return rewriteValueMIPS_OpHmul32u(v, config)
-	case OpHmul8:
-		return rewriteValueMIPS_OpHmul8(v, config)
-	case OpHmul8u:
-		return rewriteValueMIPS_OpHmul8u(v, config)
 	case OpInterCall:
 		return rewriteValueMIPS_OpInterCall(v, config)
 	case OpIsInBounds:
@@ -1909,50 +1901,6 @@ func rewriteValueMIPS_OpGreater8U(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpHmul16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16 x y)
-	// cond:
-	// result: (SRAconst (MUL <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpMIPSSRAconst)
-		v.AuxInt = 16
-		v0 := b.NewValue0(v.Pos, OpMIPSMUL, config.fe.TypeInt32())
-		v1 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS_OpHmul16u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16u x y)
-	// cond:
-	// result: (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpMIPSSRLconst)
-		v.AuxInt = 16
-		v0 := b.NewValue0(v.Pos, OpMIPSMUL, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueMIPS_OpHmul32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -1983,50 +1931,6 @@ func rewriteValueMIPS_OpHmul32u(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Pos, OpMIPSMULTU, MakeTuple(config.fe.TypeUInt32(), config.fe.TypeUInt32()))
 		v0.AddArg(x)
 		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS_OpHmul8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8 x y)
-	// cond:
-	// result: (SRAconst  (MUL <config.fe.TypeInt32()> (SignExt8to32 x) (SignExt8to32 y)) [8])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpMIPSSRAconst)
-		v.AuxInt = 8
-		v0 := b.NewValue0(v.Pos, OpMIPSMUL, config.fe.TypeInt32())
-		v1 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS_OpHmul8u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8u x y)
-	// cond:
-	// result: (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpMIPSSRLconst)
-		v.AuxInt = 8
-		v0 := b.NewValue0(v.Pos, OpMIPSMUL, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
 		v.AddArg(v0)
 		return true
 	}
