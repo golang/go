@@ -93,10 +93,11 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 			return nil, fmt.Errorf("import cycle through package %q", bp.ImportPath)
 		}
 		if !pkg.Complete() {
-			// package exists but is not complete - we cannot handle this
+			// Package exists but is not complete - we cannot handle this
 			// at the moment since the source importer replaces the package
-			// wholesale rather than augmenting it (see #19337 for details)
-			return nil, fmt.Errorf("reimported partially imported package %q", bp.ImportPath)
+			// wholesale rather than augmenting it (see #19337 for details).
+			// Return incomplete package with error (see #16088).
+			return pkg, fmt.Errorf("reimported partially imported package %q", bp.ImportPath)
 		}
 		return pkg, nil
 	}
@@ -135,7 +136,8 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 	}
 	pkg, err = conf.Check(bp.ImportPath, p.fset, files, nil)
 	if err != nil {
-		return nil, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
+		// return (possibly nil or incomplete) package with error (see #16088)
+		return pkg, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
 	}
 
 	p.packages[bp.ImportPath] = pkg
