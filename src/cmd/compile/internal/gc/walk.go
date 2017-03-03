@@ -565,7 +565,6 @@ opswitch:
 
 	case OAND,
 		OSUB,
-		OHMUL,
 		OMUL,
 		OLT,
 		OLE,

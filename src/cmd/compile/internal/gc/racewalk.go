@@ -232,7 +232,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OXOR,
 		OSUB,
 		OMUL,
-		OHMUL,
 		OEQ,
 		ONE,
 		OLT,
