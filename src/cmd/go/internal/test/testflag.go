@@ -174,7 +174,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			case "covermode":
 				switch value {
 				case "set", "count", "atomic":
-					cfg.TestCoverMode = value
+					testCoverMode = value
 				default:
 					base.Fatalf("invalid flag argument for -covermode: %q", value)
 				}
@@ -191,11 +191,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 	}
 
-	if cfg.TestCoverMode == "" {
-		cfg.TestCoverMode = "set"
+	if testCoverMode == "" {
+		testCoverMode = "set"
 		if cfg.BuildRace {
 			// Default coverage mode is atomic when -race is set.
-			cfg.TestCoverMode = "atomic"
+			testCoverMode = "atomic"
 		}
 	}
 

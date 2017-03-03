@@ -41,9 +41,6 @@ func init() {
 	BuildToolchainLinker = func() string { return "missing-linker" }
 }
 
-// The test coverage mode affects package loading. Sigh.
-var TestCoverMode string // -covermode flag
-
 // An EnvVar is an environment variable Name=Value.
 type EnvVar struct {
 	Name  string
