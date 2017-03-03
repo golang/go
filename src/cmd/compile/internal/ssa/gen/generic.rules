@@ -1386,9 +1386,9 @@
 
 // recognize runtime.newobject and don't Zero/Nilcheck it
 (Zero (Load (OffPtr [c] (SP)) mem) mem)
-        && mem.Op == OpStaticCall
+	&& mem.Op == OpStaticCall
 	&& isSameSym(mem.Aux, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	-> mem
 // nil checks just need to rewrite to something useless.
 // they will be deadcode eliminated soon afterwards.
