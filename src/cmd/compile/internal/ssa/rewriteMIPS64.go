@@ -166,10 +166,6 @@ func rewriteValueMIPS64(v *Value, config *Config) bool {
 		return rewriteValueMIPS64_OpGreater8(v, config)
 	case OpGreater8U:
 		return rewriteValueMIPS64_OpGreater8U(v, config)
-	case OpHmul16:
-		return rewriteValueMIPS64_OpHmul16(v, config)
-	case OpHmul16u:
-		return rewriteValueMIPS64_OpHmul16u(v, config)
 	case OpHmul32:
 		return rewriteValueMIPS64_OpHmul32(v, config)
 	case OpHmul32u:
@@ -178,10 +174,6 @@ func rewriteValueMIPS64(v *Value, config *Config) bool {
 		return rewriteValueMIPS64_OpHmul64(v, config)
 	case OpHmul64u:
 		return rewriteValueMIPS64_OpHmul64u(v, config)
-	case OpHmul8:
-		return rewriteValueMIPS64_OpHmul8(v, config)
-	case OpHmul8u:
-		return rewriteValueMIPS64_OpHmul8u(v, config)
 	case OpInterCall:
 		return rewriteValueMIPS64_OpInterCall(v, config)
 	case OpIsInBounds:
@@ -1918,54 +1910,6 @@ func rewriteValueMIPS64_OpGreater8U(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpHmul16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16 x y)
-	// cond:
-	// result: (SRAVconst (Select1 <config.fe.TypeInt32()> (MULV (SignExt16to64 x) (SignExt16to64 y))) [16])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpMIPS64SRAVconst)
-		v.AuxInt = 16
-		v0 := b.NewValue0(v.Pos, OpSelect1, config.fe.TypeInt32())
-		v1 := b.NewValue0(v.Pos, OpMIPS64MULV, MakeTuple(config.fe.TypeInt64(), config.fe.TypeInt64()))
-		v2 := b.NewValue0(v.Pos, OpSignExt16to64, config.fe.TypeInt64())
-		v2.AddArg(x)
-		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpSignExt16to64, config.fe.TypeInt64())
-		v3.AddArg(y)
-		v1.AddArg(v3)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS64_OpHmul16u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16u x y)
-	// cond:
-	// result: (SRLVconst (Select1 <config.fe.TypeUInt32()> (MULVU (ZeroExt16to64 x) (ZeroExt16to64 y))) [16])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpMIPS64SRLVconst)
-		v.AuxInt = 16
-		v0 := b.NewValue0(v.Pos, OpSelect1, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Pos, OpMIPS64MULVU, MakeTuple(config.fe.TypeUInt64(), config.fe.TypeUInt64()))
-		v2 := b.NewValue0(v.Pos, OpZeroExt16to64, config.fe.TypeUInt64())
-		v2.AddArg(x)
-		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpZeroExt16to64, config.fe.TypeUInt64())
-		v3.AddArg(y)
-		v1.AddArg(v3)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueMIPS64_OpHmul32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -2044,54 +1988,6 @@ func rewriteValueMIPS64_OpHmul64u(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Pos, OpMIPS64MULVU, MakeTuple(config.fe.TypeUInt64(), config.fe.TypeUInt64()))
 		v0.AddArg(x)
 		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS64_OpHmul8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8 x y)
-	// cond:
-	// result: (SRAVconst (Select1 <config.fe.TypeInt16()> (MULV (SignExt8to64 x) (SignExt8to64 y))) [8])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpMIPS64SRAVconst)
-		v.AuxInt = 8
-		v0 := b.NewValue0(v.Pos, OpSelect1, config.fe.TypeInt16())
-		v1 := b.NewValue0(v.Pos, OpMIPS64MULV, MakeTuple(config.fe.TypeInt64(), config.fe.TypeInt64()))
-		v2 := b.NewValue0(v.Pos, OpSignExt8to64, config.fe.TypeInt64())
-		v2.AddArg(x)
-		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpSignExt8to64, config.fe.TypeInt64())
-		v3.AddArg(y)
-		v1.AddArg(v3)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS64_OpHmul8u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8u x y)
-	// cond:
-	// result: (SRLVconst (Select1 <config.fe.TypeUInt16()> (MULVU (ZeroExt8to64 x) (ZeroExt8to64 y))) [8])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpMIPS64SRLVconst)
-		v.AuxInt = 8
-		v0 := b.NewValue0(v.Pos, OpSelect1, config.fe.TypeUInt16())
-		v1 := b.NewValue0(v.Pos, OpMIPS64MULVU, MakeTuple(config.fe.TypeUInt64(), config.fe.TypeUInt64()))
-		v2 := b.NewValue0(v.Pos, OpZeroExt8to64, config.fe.TypeUInt64())
-		v2.AddArg(x)
-		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpZeroExt8to64, config.fe.TypeUInt64())
-		v3.AddArg(y)
-		v1.AddArg(v3)
-		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
 	}

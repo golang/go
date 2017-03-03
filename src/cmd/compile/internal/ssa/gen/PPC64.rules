@@ -49,10 +49,6 @@
 (Hmul64u  x y) -> (MULHDU x y)
 (Hmul32  x y) -> (MULHW  x y)
 (Hmul32u  x y) -> (MULHWU x y)
-(Hmul16 x y) -> (SRAWconst (MULLW <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
-(Hmul16u x y) -> (SRWconst (MULLW <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
-(Hmul8 x y) -> (SRAWconst (MULLW <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
-(Hmul8u x y) -> (SRWconst (MULLW <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
 
 (Mul32F x y) -> (FMULS x y)
 (Mul64F x y) -> (FMUL x y)

@@ -192,10 +192,6 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpGreater8(v, config)
 	case OpGreater8U:
 		return rewriteValuePPC64_OpGreater8U(v, config)
-	case OpHmul16:
-		return rewriteValuePPC64_OpHmul16(v, config)
-	case OpHmul16u:
-		return rewriteValuePPC64_OpHmul16u(v, config)
 	case OpHmul32:
 		return rewriteValuePPC64_OpHmul32(v, config)
 	case OpHmul32u:
@@ -204,10 +200,6 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpHmul64(v, config)
 	case OpHmul64u:
 		return rewriteValuePPC64_OpHmul64u(v, config)
-	case OpHmul8:
-		return rewriteValuePPC64_OpHmul8(v, config)
-	case OpHmul8u:
-		return rewriteValuePPC64_OpHmul8u(v, config)
 	case OpInterCall:
 		return rewriteValuePPC64_OpInterCall(v, config)
 	case OpIsInBounds:
@@ -2151,50 +2143,6 @@ func rewriteValuePPC64_OpGreater8U(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpHmul16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16 x y)
-	// cond:
-	// result: (SRAWconst (MULLW <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpPPC64SRAWconst)
-		v.AuxInt = 16
-		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, config.fe.TypeInt32())
-		v1 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValuePPC64_OpHmul16u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16u x y)
-	// cond:
-	// result: (SRWconst (MULLW <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpPPC64SRWconst)
-		v.AuxInt = 16
-		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValuePPC64_OpHmul32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -2252,50 +2200,6 @@ func rewriteValuePPC64_OpHmul64u(v *Value, config *Config) bool {
 		v.reset(OpPPC64MULHDU)
 		v.AddArg(x)
 		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValuePPC64_OpHmul8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8 x y)
-	// cond:
-	// result: (SRAWconst (MULLW <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpPPC64SRAWconst)
-		v.AuxInt = 8
-		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, config.fe.TypeInt16())
-		v1 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValuePPC64_OpHmul8u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8u x y)
-	// cond:
-	// result: (SRWconst (MULLW <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpPPC64SRWconst)
-		v.AuxInt = 8
-		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, config.fe.TypeUInt16())
-		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
 		return true
 	}
 }

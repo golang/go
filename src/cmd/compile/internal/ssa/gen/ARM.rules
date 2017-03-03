@@ -30,10 +30,6 @@
 
 (Hmul32 x y) -> (HMUL x y)
 (Hmul32u x y) -> (HMULU x y)
-(Hmul16 x y) -> (SRAconst (MUL <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
-(Hmul16u x y) -> (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
-(Hmul8 x y) -> (SRAconst (MUL <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
-(Hmul8u x y) -> (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
 
 (Mul32uhilo x y) -> (MULLU x y)
 
