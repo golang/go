@@ -388,9 +388,9 @@ See the documentation of the testing package for more information.
 }
 
 var (
-	testC     bool // -c flag
-	testCover bool // -cover flag
-	// Note: testCoverMode is cfg.TestCoverMode (-covermode)
+	testC            bool            // -c flag
+	testCover        bool            // -cover flag
+	testCoverMode    string          // -covermode flag
 	testCoverPaths   []string        // -coverpkg flag
 	testCoverPkgs    []*load.Package // -coverpkg flag
 	testO            string          // -o flag
@@ -548,7 +548,7 @@ func runTest(cmd *base.Command, args []string) {
 			p.Stale = true // rebuild
 			p.StaleReason = "rebuild for coverage"
 			p.Internal.Fake = true // do not warn about rebuild
-			p.Internal.CoverMode = cfg.TestCoverMode
+			p.Internal.CoverMode = testCoverMode
 			var coverFiles []string
 			coverFiles = append(coverFiles, p.GoFiles...)
 			coverFiles = append(coverFiles, p.CgoFiles...)
@@ -559,6 +559,11 @@ func runTest(cmd *base.Command, args []string) {
 
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
+		// sync/atomic import is inserted by the cover tool. See #18486
+		if testCover && testCoverMode == "atomic" {
+			ensureImport(p, "sync/atomic")
+		}
+
 		buildTest, runTest, printTest, err := builderTest(&b, p)
 		if err != nil {
 			str := err.Error()
@@ -648,6 +653,23 @@ func runTest(cmd *base.Command, args []string) {
 	}
 
 	b.Do(root)
+}
+
+// ensures that package p imports the named package
+func ensureImport(p *load.Package, pkg string) {
+	for _, d := range p.Internal.Deps {
+		if d.Name == pkg {
+			return
+		}
+	}
+
+	a := load.LoadPackage(pkg, &load.ImportStack{})
+	if a.Error != nil {
+		base.Fatalf("load %s: %v", pkg, a.Error)
+	}
+	load.ComputeStale(a)
+
+	p.Internal.Imports = append(p.Internal.Imports, a)
 }
 
 var windowsBadWords = []string{
@@ -788,7 +810,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		ptest.Internal.Build.ImportPos = m
 
 		if localCover {
-			ptest.Internal.CoverMode = cfg.TestCoverMode
+			ptest.Internal.CoverMode = testCoverMode
 			var coverFiles []string
 			coverFiles = append(coverFiles, ptest.GoFiles...)
 			coverFiles = append(coverFiles, ptest.CgoFiles...)
@@ -1361,7 +1383,7 @@ type testFuncs struct {
 }
 
 func (t *testFuncs) CoverMode() string {
-	return cfg.TestCoverMode
+	return testCoverMode
 }
 
 func (t *testFuncs) CoverEnabled() bool {
