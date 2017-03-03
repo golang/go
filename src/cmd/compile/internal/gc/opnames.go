@@ -152,7 +152,6 @@ var opnames = []string{
 	OVARKILL:         "VARKILL",
 	OVARLIVE:         "VARLIVE",
 	OINDREGSP:        "INDREGSP",
-	OHMUL:            "HMUL",
 	ORETJMP:          "RETJMP",
 	OGETG:            "GETG",
 	OEND:             "END",

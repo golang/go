@@ -493,7 +493,6 @@ const (
 	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
 
 	// arch-specific opcodes
-	OHMUL   // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
 	ORETJMP // return to other function
 	OGETG   // runtime.getg() (read g pointer)
 
