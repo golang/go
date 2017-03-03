@@ -1684,7 +1684,6 @@ func structargs(tl *Type, mustname bool) []*Node {
 //	rcvr - U
 //	method - M func (t T)(), a TFIELD type struct
 //	newnam - the eventual mangled name of this function
-
 func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	if false && Debug['r'] != 0 {
 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
@@ -1720,6 +1719,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	fn.Func.Nname = newname(newnam)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = t
+	fn.Func.Nname.Sym.SetExported(true) // prevent export; see closure.go
 	declare(fn.Func.Nname, PFUNC)
 	funchdr(fn)
 
@@ -1923,6 +1923,14 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 		}
 	}
 
+	// We're going to emit an OCONVIFACE.
+	// Call itabname so that (t, iface)
+	// gets added to itabs early, which allows
+	// us to de-virtualize calls through this
+	// type/interface pair later. See peekitabs in reflect.go
+	if isdirectiface(t0) && !iface.IsEmptyInterface() {
+		itabname(t0, iface)
+	}
 	return true
 }
 

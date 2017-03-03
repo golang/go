@@ -124,6 +124,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpGreater8U(v, config)
 	case OpIMake:
 		return rewriteValuegeneric_OpIMake(v, config)
+	case OpInterCall:
+		return rewriteValuegeneric_OpInterCall(v, config)
 	case OpIsInBounds:
 		return rewriteValuegeneric_OpIsInBounds(v, config)
 	case OpIsNonNil:
@@ -5732,6 +5734,52 @@ func rewriteValuegeneric_OpIMake(v *Value, config *Config) bool {
 		v.reset(OpIMake)
 		v.AddArg(typ)
 		v.AddArg(val)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpInterCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
+	// cond: devirt(v, itab, off) != nil
+	// result: (StaticCall [argsize] {devirt(v, itab, off)} mem)
+	for {
+		argsize := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpLoad {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpOffPtr {
+			break
+		}
+		off := v_0_0.AuxInt
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpITab {
+			break
+		}
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != OpIMake {
+			break
+		}
+		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+		if v_0_0_0_0_0.Op != OpAddr {
+			break
+		}
+		itab := v_0_0_0_0_0.Aux
+		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+		if v_0_0_0_0_0_0.Op != OpSB {
+			break
+		}
+		mem := v.Args[1]
+		if !(devirt(v, itab, off) != nil) {
+			break
+		}
+		v.reset(OpStaticCall)
+		v.AuxInt = argsize
+		v.Aux = devirt(v, itab, off)
+		v.AddArg(mem)
 		return true
 	}
 	return false
