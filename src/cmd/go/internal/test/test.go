@@ -1561,10 +1561,6 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
 
 func main() {
 {{if .IsIOS}}
-	// Send a SIGUSR2, which will be intercepted by LLDB to
-	// tell the test harness that installation was successful,
-	// and to give the exec script a chance set the current
-	// working directory. See misc/ios/go_darwin_arm_exec.go.
 	signal.Notify(make(chan os.Signal), syscall.SIGUSR2)
 	syscall.Kill(0, syscall.SIGUSR2)
 	signal.Reset(syscall.SIGUSR2)
