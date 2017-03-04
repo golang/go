@@ -6,6 +6,7 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"log"
 	"os"
 	"path/filepath"
@@ -114,7 +115,7 @@ func numberfile(ctxt *Link, file *Symbol) {
 		ctxt.Filesyms = append(ctxt.Filesyms, file)
 		file.Value = int64(len(ctxt.Filesyms))
 		file.Type = obj.SFILEPATH
-		path := file.Name[len(obj.FileSymPrefix):]
+		path := file.Name[len(src.FileSymPrefix):]
 		file.Name = expandGoroot(path)
 	}
 }
