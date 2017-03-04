@@ -387,6 +387,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 	debug.Printf("consumePhrase: [%s]", p.s)
 	// phrase = 1*word
 	var words []string
+	var isPrevEncoded bool
 	for {
 		// word = atom / quoted-string
 		var word string
@@ -394,6 +395,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 		if p.empty() {
 			return "", errors.New("mail: missing phrase")
 		}
+		isEncoded := false
 		if p.peek() == '"' {
 			// quoted-string
 			word, err = p.consumeQuotedString()
@@ -403,7 +405,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 			// than what RFC 5322 specifies.
 			word, err = p.consumeAtom(true, true)
 			if err == nil {
-				word, err = p.decodeRFC2047Word(word)
+				word, isEncoded, err = p.decodeRFC2047Word(word)
 			}
 		}
 
@@ -411,7 +413,12 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 			break
 		}
 		debug.Printf("consumePhrase: consumed %q", word)
-		words = append(words, word)
+		if isPrevEncoded && isEncoded {
+			words[len(words)-1] += word
+		} else {
+			words = append(words, word)
+		}
+		isPrevEncoded = isEncoded
 	}
 	// Ignore any error if we got at least one word.
 	if err != nil && len(words) == 0 {
@@ -540,22 +547,23 @@ func (p *addrParser) len() int {
 	return len(p.s)
 }
 
-func (p *addrParser) decodeRFC2047Word(s string) (string, error) {
+func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, err error) {
 	if p.dec != nil {
-		return p.dec.DecodeHeader(s)
+		word, err = p.dec.Decode(s)
+	} else {
+		word, err = rfc2047Decoder.Decode(s)
 	}
 
-	dec, err := rfc2047Decoder.Decode(s)
 	if err == nil {
-		return dec, nil
+		return word, true, nil
 	}
 
 	if _, ok := err.(charsetError); ok {
-		return s, err
+		return s, true, err
 	}
 
 	// Ignore invalid RFC 2047 encoded-word errors.
-	return s, nil
+	return s, false, nil
 }
 
 var rfc2047Decoder = mime.WordDecoder{

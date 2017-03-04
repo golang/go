@@ -235,6 +235,16 @@ func TestAddressParsing(t *testing.T) {
 				},
 			},
 		},
+		// RFC 2047 "Q"-encoded UTF-8 address with multiple encoded-words.
+		{
+			`=?utf-8?q?J=C3=B6rg?=  =?utf-8?q?Doe?= <joerg@example.com>`,
+			[]*Address{
+				{
+					Name:    `JörgDoe`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
 		// RFC 2047, Section 8.
 		{
 			`=?ISO-8859-1?Q?Andr=E9?= Pirard <PIRARD@vm1.ulg.ac.be>`,
