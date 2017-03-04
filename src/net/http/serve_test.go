@@ -474,9 +474,7 @@ func TestServerTimeouts(t *testing.T) {
 	defer ts.Close()
 
 	// Hit the HTTP server successfully.
-	tr := &Transport{DisableKeepAlives: true} // they interfere with this test
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
 	r, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatalf("http Get #1: %v", err)
@@ -548,12 +546,10 @@ func TestHTTP2WriteDeadlineExtendedOnNewRequest(t *testing.T) {
 	ts.StartTLS()
 	defer ts.Close()
 
-	tr := newTLSTransport(t, ts)
-	defer tr.CloseIdleConnections()
-	if err := ExportHttp2ConfigureTransport(tr); err != nil {
+	c := ts.Client()
+	if err := ExportHttp2ConfigureTransport(c.Transport.(*Transport)); err != nil {
 		t.Fatal(err)
 	}
-	c := &Client{Transport: tr}
 
 	for i := 1; i <= 3; i++ {
 		req, err := NewRequest("GET", ts.URL, nil)
@@ -608,9 +604,7 @@ func TestOnlyWriteTimeout(t *testing.T) {
 	ts.Start()
 	defer ts.Close()
 
-	tr := &Transport{DisableKeepAlives: false}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
 
 	errc := make(chan error)
 	go func() {
@@ -671,8 +665,7 @@ func TestIdentityResponse(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	c := &Client{Transport: new(Transport)}
-	defer closeClient(c)
+	c := ts.Client()
 
 	// Note: this relies on the assumption (which is true) that
 	// Get sends HTTP/1.1 or greater requests. Otherwise the
@@ -949,9 +942,8 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
 	ts.Start()
 	defer ts.Close()
 
-	tr := &Transport{DisableKeepAlives: true}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr, Timeout: time.Second}
+	c := ts.Client()
+	c.Timeout = time.Second
 
 	fetch := func(num int, response chan<- string) {
 		resp, err := c.Get(ts.URL)
@@ -1022,9 +1014,7 @@ func TestIdentityResponseHeaders(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := &Client{Transport: new(Transport)}
-	defer closeClient(c)
-
+	c := ts.Client()
 	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatalf("Get error: %v", err)
@@ -1145,12 +1135,7 @@ func TestTLSServer(t *testing.T) {
 			t.Errorf("expected test TLS server to start with https://, got %q", ts.URL)
 			return
 		}
-		noVerifyTransport := &Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		}
-		client := &Client{Transport: noVerifyTransport}
+		client := ts.Client()
 		res, err := client.Get(ts.URL)
 		if err != nil {
 			t.Error(err)
@@ -1967,8 +1952,7 @@ func TestTimeoutHandlerRace(t *testing.T) {
 	ts := httptest.NewServer(TimeoutHandler(delayHi, 20*time.Millisecond, ""))
 	defer ts.Close()
 
-	c := &Client{Transport: new(Transport)}
-	defer closeClient(c)
+	c := ts.Client()
 
 	var wg sync.WaitGroup
 	gate := make(chan bool, 10)
@@ -2011,8 +1995,8 @@ func TestTimeoutHandlerRaceHeader(t *testing.T) {
 	if testing.Short() {
 		n = 10
 	}
-	c := &Client{Transport: new(Transport)}
-	defer closeClient(c)
+
+	c := ts.Client()
 	for i := 0; i < n; i++ {
 		gate <- true
 		wg.Add(1)
@@ -2099,8 +2083,7 @@ func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
 	ts := httptest.NewServer(TimeoutHandler(handler, timeout, ""))
 	defer ts.Close()
 
-	c := &Client{Transport: new(Transport)}
-	defer closeClient(c)
+	c := ts.Client()
 
 	// Issue was caused by the timeout handler starting the timer when
 	// was created, not when the request. So wait for more than the timeout
@@ -2127,8 +2110,7 @@ func TestTimeoutHandlerEmptyResponse(t *testing.T) {
 	ts := httptest.NewServer(TimeoutHandler(handler, timeout, ""))
 	defer ts.Close()
 
-	c := &Client{Transport: new(Transport)}
-	defer closeClient(c)
+	c := ts.Client()
 
 	res, err := c.Get(ts.URL)
 	if err != nil {
@@ -2364,9 +2346,7 @@ func TestServerWriteHijackZeroBytes(t *testing.T) {
 	ts.Start()
 	defer ts.Close()
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
 	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -2411,8 +2391,7 @@ func TestStripPrefix(t *testing.T) {
 	ts := httptest.NewServer(StripPrefix("/foo", h))
 	defer ts.Close()
 
-	c := &Client{Transport: new(Transport)}
-	defer closeClient(c)
+	c := ts.Client()
 
 	res, err := c.Get(ts.URL + "/foo/bar")
 	if err != nil {
@@ -3654,9 +3633,7 @@ func TestServerConnState(t *testing.T) {
 	}
 	ts.Start()
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
 
 	mustGet := func(url string, headers ...string) {
 		req, err := NewRequest("GET", url, nil)
@@ -4491,15 +4468,9 @@ func benchmarkClientServerParallel(b *testing.B, parallelism int, useTLS bool) {
 	b.ResetTimer()
 	b.SetParallelism(parallelism)
 	b.RunParallel(func(pb *testing.PB) {
-		noVerifyTransport := &Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		}
-		defer noVerifyTransport.CloseIdleConnections()
-		client := &Client{Transport: noVerifyTransport}
+		c := ts.Client()
 		for pb.Next() {
-			res, err := client.Get(ts.URL)
+			res, err := c.Get(ts.URL)
 			if err != nil {
 				b.Logf("Get: %v", err)
 				continue
@@ -4934,10 +4905,7 @@ func TestServerIdleTimeout(t *testing.T) {
 	ts.Config.IdleTimeout = 2 * time.Second
 	ts.Start()
 	defer ts.Close()
-
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
 
 	get := func() string {
 		res, err := c.Get(ts.URL)
@@ -4998,9 +4966,8 @@ func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
 
 	get := func() string { return get(t, c, ts.URL) }
 
@@ -5119,9 +5086,7 @@ func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
 	ts.Start()
 	defer ts.Close()
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
 
 	res, err := c.Get(ts.URL)
 	if err != nil {
