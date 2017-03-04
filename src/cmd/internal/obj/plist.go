@@ -46,6 +46,9 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 
 				continue
 			}
+			if s.FuncInfo == nil {
+				s.FuncInfo = new(FuncInfo)
+			}
 
 			if s.Text != nil {
 				log.Fatalf("duplicate TEXT for %s", s.Name)

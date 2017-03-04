@@ -326,15 +326,22 @@ type LSym struct {
 	Attribute
 
 	RefIdx int // Index of this symbol in the symbol reference list.
-	Args   int32
-	Locals int32
 	Size   int64
 	Gotype *LSym
-	Autom  *Auto
-	Text   *Prog
-	Pcln   *Pcln
 	P      []byte
 	R      []Reloc
+
+	// TODO(mdempsky): De-anonymize field.
+	*FuncInfo
+}
+
+// A FuncInfo contains extra fields for STEXT symbols.
+type FuncInfo struct {
+	Args   int32
+	Locals int32
+	Text   *Prog
+	Autom  []*Auto
+	Pcln   Pcln
 }
 
 // Attribute is a set of symbol attributes.
@@ -691,7 +698,6 @@ func (r RelocType) IsDirectJump() bool {
 
 type Auto struct {
 	Asym    *LSym
-	Link    *Auto
 	Aoffset int32
 	Name    AddrName
 	Gotype  *LSym

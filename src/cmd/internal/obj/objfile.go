@@ -153,7 +153,7 @@ func (w *objWriter) addLengths(s *LSym) {
 		return
 	}
 
-	pc := s.Pcln
+	pc := &s.Pcln
 
 	data := 0
 	data += len(pc.Pcsp.P)
@@ -167,11 +167,7 @@ func (w *objWriter) addLengths(s *LSym) {
 	w.nData += data
 	w.nPcdata += len(pc.Pcdata)
 
-	autom := 0
-	for a := s.Autom; a != nil; a = a.Link {
-		autom++
-	}
-	w.nAutom += autom
+	w.nAutom += len(s.Autom)
 	w.nFuncdata += len(pc.Funcdataoff)
 	w.nFile += len(pc.File)
 }
@@ -227,7 +223,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	// Data block
 	for _, s := range ctxt.Text {
 		w.wr.Write(s.P)
-		pc := s.Pcln
+		pc := &s.Pcln
 		w.wr.Write(pc.Pcsp.P)
 		w.wr.Write(pc.Pcfile.P)
 		w.wr.Write(pc.Pcline.P)
@@ -294,11 +290,11 @@ func (w *objWriter) writeRefs(s *LSym) {
 	}
 
 	if s.Type == STEXT {
-		for a := s.Autom; a != nil; a = a.Link {
+		for _, a := range s.Autom {
 			w.writeRef(a.Asym, false)
 			w.writeRef(a.Gotype, false)
 		}
-		pc := s.Pcln
+		pc := &s.Pcln
 		for _, d := range pc.Funcdata {
 			w.writeRef(d, false)
 		}
@@ -338,15 +334,15 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 			fmt.Fprintf(ctxt.Bso, " leaf")
 		}
 	}
-
 	fmt.Fprintf(ctxt.Bso, "\n")
-	for p := s.Text; p != nil; p = p.Link {
-		fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
+	if s.Type == STEXT {
+		for p := s.Text; p != nil; p = p.Link {
+			fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
+		}
 	}
-	var c int
-	var j int
-	for i := 0; i < len(s.P); {
+	for i := 0; i < len(s.P); i += 16 {
 		fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
+		j := i
 		for j = i; j < i+16 && j < len(s.P); j++ {
 			fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
 		}
@@ -355,7 +351,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 		}
 		fmt.Fprintf(ctxt.Bso, "  ")
 		for j = i; j < i+16 && j < len(s.P); j++ {
-			c = int(s.P[j])
+			c := int(s.P[j])
 			if ' ' <= c && c <= 0x7e {
 				fmt.Fprintf(ctxt.Bso, "%c", c)
 			} else {
@@ -364,7 +360,6 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 		}
 
 		fmt.Fprintf(ctxt.Bso, "\n")
-		i += 16
 	}
 
 	sort.Sort(relocByOff(s.R)) // generate stable output
@@ -440,12 +435,8 @@ func (w *objWriter) writeSym(s *LSym) {
 		flags |= 1 << 2
 	}
 	w.writeInt(flags)
-	n := 0
-	for a := s.Autom; a != nil; a = a.Link {
-		n++
-	}
-	w.writeInt(int64(n))
-	for a := s.Autom; a != nil; a = a.Link {
+	w.writeInt(int64(len(s.Autom)))
+	for _, a := range s.Autom {
 		w.writeRefIndex(a.Asym)
 		w.writeInt(int64(a.Aoffset))
 		if a.Name == NAME_AUTO {
@@ -458,7 +449,7 @@ func (w *objWriter) writeSym(s *LSym) {
 		w.writeRefIndex(a.Gotype)
 	}
 
-	pc := s.Pcln
+	pc := &s.Pcln
 	w.writeInt(int64(len(pc.Pcsp.P)))
 	w.writeInt(int64(len(pc.Pcfile.P)))
 	w.writeInt(int64(len(pc.Pcline.P)))
@@ -575,7 +566,7 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
 		var vars []*dwarf.Var
 		var abbrev int
 		var offs int32
-		for a := s.Autom; a != nil; a = a.Link {
+		for _, a := range s.Autom {
 			switch a.Name {
 			case NAME_AUTO:
 				abbrev = dwarf.DW_ABRV_AUTO

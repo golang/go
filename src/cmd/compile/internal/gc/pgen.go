@@ -436,6 +436,10 @@ func gendebug(fnsym *obj.LSym, decls []*Node) {
 		return
 	}
 
+	if fnsym.FuncInfo == nil {
+		fnsym.FuncInfo = new(obj.FuncInfo)
+	}
+
 	for _, n := range decls {
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
@@ -461,8 +465,13 @@ func gendebug(fnsym *obj.LSym, decls []*Node) {
 			Gotype:  Linksym(ngotype(n)),
 		}
 
-		a.Link = fnsym.Autom
-		fnsym.Autom = a
+		fnsym.Autom = append(fnsym.Autom, a)
+	}
+
+	// Reverse to make toolstash happy.
+	// TODO(mdempsky): Remove.
+	for i, j := 0, len(fnsym.Autom)-1; i < j; i, j = i+1, j-1 {
+		fnsym.Autom[i], fnsym.Autom[j] = fnsym.Autom[j], fnsym.Autom[i]
 	}
 }
 
