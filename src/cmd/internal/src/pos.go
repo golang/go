@@ -75,6 +75,10 @@ func (p Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().
 // AbsFilename() returns the absolute filename recorded with the position's base.
 func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
 
+// SymFilename() returns the absolute filename recorded with the position's base,
+// prefixed by FileSymPrefix to make it appropriate for use as a linker symbol.
+func (p Pos) SymFilename() string { return p.base.SymFilename() }
+
 func (p Pos) String() string {
 	if !p.IsKnown() {
 		return "<unknown line number>"
@@ -117,6 +121,7 @@ type PosBase struct {
 	pos         Pos
 	filename    string // file name used to open source file, for error messages
 	absFilename string // absolute file name, for PC-Line tables
+	symFilename string // cached symbol file name, to avoid repeated string concatenation
 	line        uint   // relative line number at pos
 	inl         int    // inlining index (see cmd/internal/obj/inl.go)
 }
@@ -125,7 +130,12 @@ type PosBase struct {
 // absolute) filenames.
 func NewFileBase(filename, absFilename string) *PosBase {
 	if filename != "" {
-		base := &PosBase{filename: filename, absFilename: absFilename, inl: -1}
+		base := &PosBase{
+			filename:    filename,
+			absFilename: absFilename,
+			symFilename: FileSymPrefix + absFilename,
+			inl:         -1,
+		}
 		base.pos = MakePos(base, 0, 0)
 		return base
 	}
@@ -136,7 +146,7 @@ func NewFileBase(filename, absFilename string) *PosBase {
 //      //line filename:line
 // at position pos.
 func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
-	return &PosBase{pos, filename, filename, line - 1, -1}
+	return &PosBase{pos, filename, filename, FileSymPrefix + filename, line - 1, -1}
 }
 
 // NewInliningBase returns a copy of the old PosBase with the given inlining
@@ -183,6 +193,18 @@ func (b *PosBase) AbsFilename() string {
 		return b.absFilename
 	}
 	return ""
+}
+
+const FileSymPrefix = "gofile.."
+
+// SymFilename returns the absolute filename recorded with the base,
+// prefixed by FileSymPrefix to make it appropriate for use as a linker symbol.
+// If b is nil, SymFilename returns FileSymPrefix + "??".
+func (b *PosBase) SymFilename() string {
+	if b != nil {
+		return b.symFilename
+	}
+	return FileSymPrefix + "??"
 }
 
 // Line returns the line number recorded with the base.
