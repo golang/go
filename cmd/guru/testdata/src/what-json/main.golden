@@ -41,7 +41,8 @@
 		"freevars",
 		"implements",
 		"pointsto",
-		"referrers"
+		"referrers",
+		"whicherrs"
 	],
 	"srcdir": "testdata/src",
 	"importpath": "what-json"
@@ -81,7 +82,8 @@
 		"freevars",
 		"implements",
 		"pointsto",
-		"referrers"
+		"referrers",
+		"whicherrs"
 	],
 	"srcdir": "testdata/src",
 	"importpath": "what-json",
