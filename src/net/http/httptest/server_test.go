@@ -121,3 +121,27 @@ func TestServerClient(t *testing.T) {
 		t.Errorf("got %q, want hello", string(got))
 	}
 }
+
+// Tests that the Server.Client.Transport interface is implemented
+// by a *http.Transport.
+func TestServerClientTransportType(t *testing.T) {
+	ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	}))
+	defer ts.Close()
+	client := ts.Client()
+	if _, ok := client.Transport.(*http.Transport); !ok {
+		t.Errorf("got %T, want *http.Transport", client.Transport)
+	}
+}
+
+// Tests that the TLS Server.Client.Transport interface is implemented
+// by a *http.Transport.
+func TestTLSServerClientTransportType(t *testing.T) {
+	ts := NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	}))
+	defer ts.Close()
+	client := ts.Client()
+	if _, ok := client.Transport.(*http.Transport); !ok {
+		t.Errorf("got %T, want *http.Transport", client.Transport)
+	}
+}

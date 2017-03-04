@@ -74,6 +74,7 @@ func TestServeFile(t *testing.T) {
 		ServeFile(w, r, "testdata/file")
 	}))
 	defer ts.Close()
+	c := ts.Client()
 
 	var err error
 
@@ -91,7 +92,7 @@ func TestServeFile(t *testing.T) {
 	req.Method = "GET"
 
 	// straight GET
-	_, body := getBody(t, "straight get", req)
+	_, body := getBody(t, "straight get", req, c)
 	if !bytes.Equal(body, file) {
 		t.Fatalf("body mismatch: got %q, want %q", body, file)
 	}
@@ -102,7 +103,7 @@ Cases:
 		if rt.r != "" {
 			req.Header.Set("Range", rt.r)
 		}
-		resp, body := getBody(t, fmt.Sprintf("range test %q", rt.r), req)
+		resp, body := getBody(t, fmt.Sprintf("range test %q", rt.r), req, c)
 		if resp.StatusCode != rt.code {
 			t.Errorf("range=%q: StatusCode=%d, want %d", rt.r, resp.StatusCode, rt.code)
 		}
@@ -704,7 +705,8 @@ func TestDirectoryIfNotModified(t *testing.T) {
 	req, _ := NewRequest("GET", ts.URL, nil)
 	req.Header.Set("If-Modified-Since", lastMod)
 
-	res, err = DefaultClient.Do(req)
+	c := ts.Client()
+	res, err = c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -716,7 +718,7 @@ func TestDirectoryIfNotModified(t *testing.T) {
 	// Advance the index.html file's modtime, but not the directory's.
 	indexFile.modtime = indexFile.modtime.Add(1 * time.Hour)
 
-	res, err = DefaultClient.Do(req)
+	res, err = c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -995,7 +997,9 @@ func TestServeContent(t *testing.T) {
 		for k, v := range tt.reqHeader {
 			req.Header.Set(k, v)
 		}
-		res, err := DefaultClient.Do(req)
+
+		c := ts.Client()
+		res, err := c.Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1050,8 +1054,9 @@ func TestServeContentErrorMessages(t *testing.T) {
 	}
 	ts := httptest.NewServer(FileServer(fs))
 	defer ts.Close()
+	c := ts.Client()
 	for _, code := range []int{403, 404, 500} {
-		res, err := DefaultClient.Get(fmt.Sprintf("%s/%d", ts.URL, code))
+		res, err := c.Get(fmt.Sprintf("%s/%d", ts.URL, code))
 		if err != nil {
 			t.Errorf("Error fetching /%d: %v", code, err)
 			continue
@@ -1125,8 +1130,8 @@ func TestLinuxSendfile(t *testing.T) {
 	}
 }
 
-func getBody(t *testing.T, testName string, req Request) (*Response, []byte) {
-	r, err := DefaultClient.Do(&req)
+func getBody(t *testing.T, testName string, req Request, client *Client) (*Response, []byte) {
+	r, err := client.Do(&req)
 	if err != nil {
 		t.Fatalf("%s: for URL %q, send error: %v", testName, req.URL.String(), err)
 	}
