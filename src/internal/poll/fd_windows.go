@@ -154,6 +154,10 @@ func (s *ioSrv) ProcessRemoteIO() {
 // is available. Alternatively, it passes the request onto
 // runtime netpoll and waits for completion or cancels request.
 func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) error) (int, error) {
+	if !canCancelIO {
+		onceStartServer.Do(startServer)
+	}
+
 	fd := o.fd
 	// Notify runtime netpoll about starting IO.
 	err := fd.pd.prepare(int(o.mode))
@@ -229,21 +233,18 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 }
 
 // Start helper goroutines.
-var rsrv, wsrv *ioSrv
+var rsrv, wsrv ioSrv
 var onceStartServer sync.Once
 
 func startServer() {
-	rsrv = new(ioSrv)
-	wsrv = new(ioSrv)
-	if !canCancelIO {
-		// Only CancelIo API is available. Lets start two special goroutines
-		// locked to an OS thread, that both starts and cancels IO. One will
-		// process read requests, while other will do writes.
-		rsrv.req = make(chan ioSrvReq)
-		go rsrv.ProcessRemoteIO()
-		wsrv.req = make(chan ioSrvReq)
-		go wsrv.ProcessRemoteIO()
-	}
+	// This is called, once, when only the CancelIo API is available.
+	// Start two special goroutines, both locked to an OS thread,
+	// that start and cancel IO requests.
+	// One will process read requests, while the other will do writes.
+	rsrv.req = make(chan ioSrvReq)
+	go rsrv.ProcessRemoteIO()
+	wsrv.req = make(chan ioSrvReq)
+	go wsrv.ProcessRemoteIO()
 }
 
 // FD is a file descriptor. The net and os packages embed this type in
@@ -298,7 +299,6 @@ func (fd *FD) Init(net string) (string, error) {
 	if initErr != nil {
 		return "", initErr
 	}
-	onceStartServer.Do(startServer)
 
 	switch net {
 	case "file":
