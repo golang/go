@@ -595,13 +595,7 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
 			})
 		}
 
-		// We want to sort variables by offset, breaking ties
-		// with declaration order. Autom holds variables in
-		// reverse declaration order, so we reverse the
-		// assembled slice and then apply a stable sort.
-		for i, j := 0, len(vars)-1; i < j; i, j = i+1, j-1 {
-			vars[i], vars[j] = vars[j], vars[i]
-		}
+		// Stable sort so that ties are broken with declaration order.
 		sort.Stable(dwarf.VarsByOffset(vars))
 
 		dwarf.PutFunc(dctxt, dsym, s.Name, s.Version == 0, s, s.Size, vars)

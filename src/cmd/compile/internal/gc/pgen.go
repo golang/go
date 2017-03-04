@@ -467,12 +467,6 @@ func gendebug(fnsym *obj.LSym, decls []*Node) {
 
 		fnsym.Autom = append(fnsym.Autom, a)
 	}
-
-	// Reverse to make toolstash happy.
-	// TODO(mdempsky): Remove.
-	for i, j := 0, len(fnsym.Autom)-1; i < j; i, j = i+1, j-1 {
-		fnsym.Autom[i], fnsym.Autom[j] = fnsym.Autom[j], fnsym.Autom[i]
-	}
 }
 
 // fieldtrack adds R_USEFIELD relocations to fnsym to record any
