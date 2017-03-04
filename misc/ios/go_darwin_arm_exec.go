@@ -212,11 +212,6 @@ func run(bin string, args []string) (err error) {
 	var opts options
 	opts, args = parseArgs(args)
 
-	// Pass the suffix for the current working directory as the
-	// first argument to the test. For iOS, cmd/go generates
-	// special handling of this argument.
-	args = append([]string{"cwdSuffix=" + pkgpath}, args...)
-
 	// ios-deploy invokes lldb to give us a shell session with the app.
 	s, err := newSession(appdir, args, opts)
 	if err != nil {
@@ -253,6 +248,15 @@ func run(bin string, args []string) (err error) {
 	started = true
 
 	s.doCmd("run", "stop reason = signal SIGUSR2", 20*time.Second)
+
+	// Move the current working directory into the faux gopath.
+	if pkgpath != "src" {
+		s.do(`breakpoint delete 1`)
+		s.do(`expr char* $mem = (char*)malloc(512)`)
+		s.do(`expr $mem = (char*)getwd($mem, 512)`)
+		s.do(`expr $mem = (char*)strcat($mem, "/` + pkgpath + `")`)
+		s.do(`call (void)chdir($mem)`)
+	}
 
 	startTestsLen := s.out.Len()
 	fmt.Fprintln(s.in, `process continue`)

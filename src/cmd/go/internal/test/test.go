@@ -1562,28 +1562,12 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
 func main() {
 {{if .IsIOS}}
 	// Send a SIGUSR2, which will be intercepted by LLDB to
-	// tell the test harness that installation was successful.
-	// See misc/ios/go_darwin_arm_exec.go.
+	// tell the test harness that installation was successful,
+	// and to give the exec script a chance set the current
+	// working directory. See misc/ios/go_darwin_arm_exec.go.
 	signal.Notify(make(chan os.Signal), syscall.SIGUSR2)
 	syscall.Kill(0, syscall.SIGUSR2)
 	signal.Reset(syscall.SIGUSR2)
-
-	// The first argument supplied to an iOS test is an offset
-	// suffix for the current working directory.
-	// Process it here, and remove it from os.Args.
-	const hdr = "cwdSuffix="
-	if len(os.Args) < 2 || len(os.Args[1]) <= len(hdr) || os.Args[1][:len(hdr)] != hdr {
-		panic("iOS test not passed a working directory suffix")
-	}
-	suffix := os.Args[1][len(hdr):]
-	dir, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	if err := os.Chdir(dir + "/" + suffix); err != nil {
-		panic(err)
-	}
-	os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
 {{end}}
 
 {{if .CoverEnabled}}
