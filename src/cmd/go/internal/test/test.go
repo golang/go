@@ -907,12 +907,8 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 
 	if cfg.BuildContext.GOOS == "darwin" {
 		if cfg.BuildContext.GOARCH == "arm" || cfg.BuildContext.GOARCH == "arm64" {
-			t.IsIOS = true
-			t.NeedOS = true
+			t.NeedCgo = true
 		}
-	}
-	if t.TestMain == nil {
-		t.NeedOS = true
 	}
 
 	for _, cp := range pmain.Internal.Imports {
@@ -1360,8 +1356,7 @@ type testFuncs struct {
 	NeedTest    bool
 	ImportXtest bool
 	NeedXtest   bool
-	NeedOS      bool
-	IsIOS       bool
+	NeedCgo     bool
 	Cover       []coverInfo
 }
 
@@ -1475,7 +1470,7 @@ var testmainTmpl = template.Must(template.New("main").Parse(`
 package main
 
 import (
-{{if .NeedOS}}
+{{if not .TestMain}}
 	"os"
 {{end}}
 	"testing"
@@ -1491,10 +1486,8 @@ import (
 	_cover{{$i}} {{$p.Package.ImportPath | printf "%q"}}
 {{end}}
 
-{{if .IsIOS}}
-	"os/signal"
+{{if .NeedCgo}}
 	_ "runtime/cgo"
-	"syscall"
 {{end}}
 )
 
@@ -1560,12 +1553,6 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
 {{end}}
 
 func main() {
-{{if .IsIOS}}
-	signal.Notify(make(chan os.Signal), syscall.SIGUSR2)
-	syscall.Kill(0, syscall.SIGUSR2)
-	signal.Reset(syscall.SIGUSR2)
-{{end}}
-
 {{if .CoverEnabled}}
 	testing.RegisterCover(testing.Cover{
 		Mode: {{printf "%q" .CoverMode}},
