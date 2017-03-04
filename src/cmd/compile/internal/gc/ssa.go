@@ -496,8 +496,14 @@ func (s *state) stmt(n *Node) {
 	// Provide a block for the dead code so that we don't have
 	// to add special cases everywhere else.
 	if s.curBlock == nil {
-		dead := s.f.NewBlock(ssa.BlockPlain)
-		s.startBlock(dead)
+		switch n.Op {
+		case OLABEL, OBREAK, OCONTINUE:
+			// These statements don't need a block,
+			// and they commonly occur without one.
+		default:
+			dead := s.f.NewBlock(ssa.BlockPlain)
+			s.startBlock(dead)
+		}
 	}
 
 	s.stmtList(n.Ninit)
@@ -604,9 +610,12 @@ func (s *state) stmt(n *Node) {
 			lab.target = s.f.NewBlock(ssa.BlockPlain)
 		}
 
-		// go to that label (we pretend "label:" is preceded by "goto label")
-		b := s.endBlock()
-		b.AddEdgeTo(lab.target)
+		// Go to that label.
+		// (We pretend "label:" is preceded by "goto label", unless the predecessor is unreachable.)
+		if s.curBlock != nil {
+			b := s.endBlock()
+			b.AddEdgeTo(lab.target)
+		}
 		s.startBlock(lab.target)
 
 	case OGOTO:
@@ -826,8 +835,10 @@ func (s *state) stmt(n *Node) {
 			}
 		}
 
-		b := s.endBlock()
-		b.AddEdgeTo(to)
+		if s.curBlock != nil {
+			b := s.endBlock()
+			b.AddEdgeTo(to)
+		}
 
 	case OFOR:
 		// OFOR: for Ninit; Left; Right { Nbody }
