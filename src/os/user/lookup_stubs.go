@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !cgo,!windows,!plan9,!android
+// +build !cgo,!windows,!plan9 android
 
 package user
 
@@ -46,6 +46,9 @@ func current() (*User, error) {
 }
 
 func listGroups(*User) ([]string, error) {
+	if runtime.GOOS == "android" {
+		return nil, errors.New("user: GroupIds not implemented on Android")
+	}
 	return nil, errors.New("user: GroupIds requires cgo")
 }
 
