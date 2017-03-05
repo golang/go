@@ -69,7 +69,7 @@ func concatstring5(buf *tmpBuf, a [5]string) string {
 
 // Buf is a fixed-size buffer for the result,
 // it is not nil if the result does not escape.
-func slicebytetostring(buf *tmpBuf, b []byte) string {
+func slicebytetostring(buf *tmpBuf, b []byte) (str string) {
 	l := len(b)
 	if l == 0 {
 		// Turns out to be a relatively common case.
@@ -77,18 +77,26 @@ func slicebytetostring(buf *tmpBuf, b []byte) string {
 		// you find the indices and convert the subslice to string.
 		return ""
 	}
-	if raceenabled && l > 0 {
+	if raceenabled {
 		racereadrangepc(unsafe.Pointer(&b[0]),
 			uintptr(l),
 			getcallerpc(unsafe.Pointer(&buf)),
 			funcPC(slicebytetostring))
 	}
-	if msanenabled && l > 0 {
+	if msanenabled {
 		msanread(unsafe.Pointer(&b[0]), uintptr(l))
 	}
-	s, c := rawstringtmp(buf, l)
-	copy(c, b)
-	return s
+
+	var p unsafe.Pointer
+	if buf != nil && len(b) <= len(buf) {
+		p = unsafe.Pointer(buf)
+	} else {
+		p = mallocgc(uintptr(len(b)), nil, false)
+	}
+	stringStructOf(&str).str = p
+	stringStructOf(&str).len = len(b)
+	memmove(p, (*(*slice)(unsafe.Pointer(&b))).array, uintptr(len(b)))
+	return
 }
 
 // stringDataOnStack reports whether the string's data is
