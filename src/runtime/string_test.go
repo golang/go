@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -86,6 +87,20 @@ func BenchmarkConcatStringAndBytes(b *testing.B) {
 	s1 := []byte("Gophers!")
 	for i := 0; i < b.N; i++ {
 		_ = "Hello " + string(s1)
+	}
+}
+
+var escapeString string
+
+func BenchmarkSliceByteToString(b *testing.B) {
+	buf := []byte{'!'}
+	for n := 0; n < 8; n++ {
+		b.Run(strconv.Itoa(len(buf)), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				escapeString = string(buf)
+			}
+		})
+		buf = append(buf, buf...)
 	}
 }
 
