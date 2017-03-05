@@ -3803,3 +3803,47 @@ func TestFFLAGS(t *testing.T) {
 
 	tg.grepStderr("no-such-fortran-flag", `missing expected "-no-such-fortran-flag"`)
 }
+
+// Issue 19198.
+// This is really a cmd/link issue but this is a convenient place to test it.
+func TestDuplicateGlobalAsmSymbols(t *testing.T) {
+	if runtime.GOARCH != "386" && runtime.GOARCH != "amd64" {
+		t.Skipf("skipping test on %s", runtime.GOARCH)
+	}
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	asm := `
+#include "textflag.h"
+
+DATA sym<>+0x0(SB)/8,$0
+GLOBL sym<>(SB),(NOPTR+RODATA),$8
+
+TEXT ·Data(SB),NOSPLIT,$0
+	MOVB sym<>(SB), AX
+	MOVB AX, ret+0(FP)
+	RET
+`
+	tg.tempFile("go/src/a/a.s", asm)
+	tg.tempFile("go/src/a/a.go", `package a; func Data() uint8`)
+	tg.tempFile("go/src/b/b.s", asm)
+	tg.tempFile("go/src/b/b.go", `package b; func Data() uint8`)
+	tg.tempFile("go/src/p/p.go", `
+package main
+import "a"
+import "b"
+import "C"
+func main() {
+	_ = a.Data() + b.Data()
+}
+`)
+	tg.setenv("GOPATH", tg.path("go"))
+	exe := filepath.Join(tg.tempdir, "p.exe")
+	tg.creatingTemp(exe)
+	tg.run("build", "-o", exe, "p")
+}

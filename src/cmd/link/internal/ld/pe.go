@@ -1040,7 +1040,11 @@ func writePESymTableRecords(ctxt *Link) int {
 			typ = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
 			typ = 0x0308 // "array of structs"
 		}
-		writeOneSymbol(s, value, sect, typ, IMAGE_SYM_CLASS_EXTERNAL)
+		class := IMAGE_SYM_CLASS_EXTERNAL
+		if s.Version != 0 || (s.Type&obj.SHIDDEN != 0) || s.Attr.Local() {
+			class = IMAGE_SYM_CLASS_STATIC
+		}
+		writeOneSymbol(s, value, sect, typ, uint8(class))
 	}
 
 	if Linkmode == LinkExternal {
