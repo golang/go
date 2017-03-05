@@ -739,7 +739,7 @@ func (p *parser) discardDirectiveWhileParsingTypes(pkg *types.Package) {
 		case ';':
 			return
 		case '<':
-			p.parseType(p.pkg)
+			p.parseType(pkg)
 		case scanner.EOF:
 			p.error("unexpected EOF")
 		default:
