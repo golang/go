@@ -129,7 +129,7 @@ type objWriter struct {
 	// Temporary buffer for zigzag int writing.
 	varintbuf [10]uint8
 
-	// Provide the the index of a symbol reference by symbol name.
+	// Provide the index of a symbol reference by symbol name.
 	// One map for versioned symbols and one for unversioned symbols.
 	// Used for deduplicating the symbol reference list.
 	refIdx  map[string]int

@@ -25,7 +25,7 @@ func TestNlzNto(t *testing.T) {
 	// construct the bit pattern 000...111, with bit 33 set as well.
 	for i := int64(0); i < 64; i++ {
 		tx := x | (1 << 32)
-		// nto should be the the number of bits we've shifted on, with an extra bit
+		// nto should be the number of bits we've shifted on, with an extra bit
 		// at iter 32
 		ntoExp := i
 		if ntoExp == 32 {

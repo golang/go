@@ -180,7 +180,7 @@ type mspan struct {
 	// for the next free object in this span.
 	// Each allocation scans allocBits starting at freeindex until it encounters a 0
 	// indicating a free object. freeindex is then adjusted so that subsequent scans begin
-	// just past the the newly discovered free object.
+	// just past the newly discovered free object.
 	//
 	// If freeindex == nelem, this span has no free objects.
 	//

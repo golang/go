@@ -188,7 +188,7 @@ type WordDecoder struct {
 	// charset into UTF-8.
 	// Charsets are always lower-case. utf-8, iso-8859-1 and us-ascii charsets
 	// are handled by default.
-	// One of the the CharsetReader's result values must be non-nil.
+	// One of the CharsetReader's result values must be non-nil.
 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
 }
 
