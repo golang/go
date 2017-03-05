@@ -65,6 +65,10 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode, 
 	// are used.
 	ctxt := build.Default
 	ctxt.IsAbsPath = pathpkg.IsAbs
+	ctxt.IsDir = func(path string) bool {
+		fi, err := h.c.fs.Stat(filepath.ToSlash(path))
+		return err == nil && fi.IsDir()
+	}
 	ctxt.ReadDir = func(dir string) ([]os.FileInfo, error) {
 		f, err := h.c.fs.ReadDir(filepath.ToSlash(dir))
 		filtered := make([]os.FileInfo, 0, len(f))
