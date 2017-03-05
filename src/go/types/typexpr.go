@@ -623,7 +623,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 	// current field typ and tag
 	var typ Type
 	var tag string
-	add := func(field *ast.Field, ident *ast.Ident, anonymous bool, pos token.Pos) {
+	add := func(ident *ast.Ident, anonymous bool, pos token.Pos) {
 		if tag != "" && tags == nil {
 			tags = make([]string, len(fields))
 		}
@@ -646,7 +646,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 		if len(f.Names) > 0 {
 			// named fields
 			for _, name := range f.Names {
-				add(f, name, false, name.Pos())
+				add(name, false, name.Pos())
 			}
 		} else {
 			// anonymous field
@@ -684,7 +684,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
 					continue
 				}
 			}
-			add(f, name, true, pos)
+			add(name, true, pos)
 		}
 	}
 
