@@ -655,7 +655,7 @@ const (
 	R_ADDRPOWER_PCREL
 
 	// R_ADDRPOWER_TOCREL relocates two D-form instructions like R_ADDRPOWER, but
-	// inserts the offset from the TOC to the address of the the relocated symbol
+	// inserts the offset from the TOC to the address of the relocated symbol
 	// rather than the symbol's address.
 	R_ADDRPOWER_TOCREL
 

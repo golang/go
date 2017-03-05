@@ -97,7 +97,7 @@ const (
 // the slice may (but doesn't have to) be shorter if the mantissa contains
 // trailing 0 bits. x.mant is normalized if the msb of x.mant == 1 (i.e.,
 // the msb is shifted all the way "to the left"). Thus, if the mantissa has
-// trailing 0 bits or x.prec is not a multiple of the the Word size _W,
+// trailing 0 bits or x.prec is not a multiple of the Word size _W,
 // x.mant[0] has trailing zero bits. The msb of the mantissa corresponds
 // to the value 0.5; the exponent x.exp shifts the binary point as needed.
 //

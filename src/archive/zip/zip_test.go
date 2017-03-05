@@ -255,7 +255,7 @@ func TestZip64EdgeCase(t *testing.T) {
 	testZip64DirectoryRecordLength(buf, t)
 }
 
-// Tests that we generate a zip64 file if the the directory at offset
+// Tests that we generate a zip64 file if the directory at offset
 // 0xFFFFFFFF, but not before.
 func TestZip64DirectoryOffset(t *testing.T) {
 	if testing.Short() && race.Enabled {
