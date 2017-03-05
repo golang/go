@@ -6733,7 +6733,7 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 	}
 	// match: (Load <t> ptr mem)
 	// cond: t.IsStruct() && t.NumFields() == 1 && config.fe.CanSSA(t)
-	// result: (StructMake1     (Load <t.FieldType(0)> ptr mem))
+	// result: (StructMake1     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -6743,14 +6743,17 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		}
 		v.reset(OpStructMake1)
 		v0 := b.NewValue0(v.Pos, OpLoad, t.FieldType(0))
-		v0.AddArg(ptr)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+		v1.AuxInt = 0
+		v1.AddArg(ptr)
+		v0.AddArg(v1)
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Load <t> ptr mem)
 	// cond: t.IsStruct() && t.NumFields() == 2 && config.fe.CanSSA(t)
-	// result: (StructMake2     (Load <t.FieldType(0)> ptr mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
+	// result: (StructMake2     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -6760,21 +6763,24 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		}
 		v.reset(OpStructMake2)
 		v0 := b.NewValue0(v.Pos, OpLoad, t.FieldType(0))
-		v0.AddArg(ptr)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+		v1.AuxInt = 0
+		v1.AddArg(ptr)
+		v0.AddArg(v1)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpLoad, t.FieldType(1))
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
-		v2.AuxInt = t.FieldOff(1)
-		v2.AddArg(ptr)
-		v1.AddArg(v2)
-		v1.AddArg(mem)
-		v.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpLoad, t.FieldType(1))
+		v3 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
+		v3.AuxInt = t.FieldOff(1)
+		v3.AddArg(ptr)
+		v2.AddArg(v3)
+		v2.AddArg(mem)
+		v.AddArg(v2)
 		return true
 	}
 	// match: (Load <t> ptr mem)
 	// cond: t.IsStruct() && t.NumFields() == 3 && config.fe.CanSSA(t)
-	// result: (StructMake3     (Load <t.FieldType(0)> ptr mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
+	// result: (StructMake3     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -6784,28 +6790,31 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		}
 		v.reset(OpStructMake3)
 		v0 := b.NewValue0(v.Pos, OpLoad, t.FieldType(0))
-		v0.AddArg(ptr)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+		v1.AuxInt = 0
+		v1.AddArg(ptr)
+		v0.AddArg(v1)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpLoad, t.FieldType(1))
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
-		v2.AuxInt = t.FieldOff(1)
-		v2.AddArg(ptr)
-		v1.AddArg(v2)
-		v1.AddArg(mem)
-		v.AddArg(v1)
-		v3 := b.NewValue0(v.Pos, OpLoad, t.FieldType(2))
-		v4 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
-		v4.AuxInt = t.FieldOff(2)
-		v4.AddArg(ptr)
-		v3.AddArg(v4)
-		v3.AddArg(mem)
-		v.AddArg(v3)
+		v2 := b.NewValue0(v.Pos, OpLoad, t.FieldType(1))
+		v3 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
+		v3.AuxInt = t.FieldOff(1)
+		v3.AddArg(ptr)
+		v2.AddArg(v3)
+		v2.AddArg(mem)
+		v.AddArg(v2)
+		v4 := b.NewValue0(v.Pos, OpLoad, t.FieldType(2))
+		v5 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
+		v5.AuxInt = t.FieldOff(2)
+		v5.AddArg(ptr)
+		v4.AddArg(v5)
+		v4.AddArg(mem)
+		v.AddArg(v4)
 		return true
 	}
 	// match: (Load <t> ptr mem)
 	// cond: t.IsStruct() && t.NumFields() == 4 && config.fe.CanSSA(t)
-	// result: (StructMake4     (Load <t.FieldType(0)> ptr mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
+	// result: (StructMake4     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -6815,30 +6824,33 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		}
 		v.reset(OpStructMake4)
 		v0 := b.NewValue0(v.Pos, OpLoad, t.FieldType(0))
-		v0.AddArg(ptr)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+		v1.AuxInt = 0
+		v1.AddArg(ptr)
+		v0.AddArg(v1)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpLoad, t.FieldType(1))
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
-		v2.AuxInt = t.FieldOff(1)
-		v2.AddArg(ptr)
-		v1.AddArg(v2)
-		v1.AddArg(mem)
-		v.AddArg(v1)
-		v3 := b.NewValue0(v.Pos, OpLoad, t.FieldType(2))
-		v4 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
-		v4.AuxInt = t.FieldOff(2)
-		v4.AddArg(ptr)
-		v3.AddArg(v4)
-		v3.AddArg(mem)
-		v.AddArg(v3)
-		v5 := b.NewValue0(v.Pos, OpLoad, t.FieldType(3))
-		v6 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(3).PtrTo())
-		v6.AuxInt = t.FieldOff(3)
-		v6.AddArg(ptr)
-		v5.AddArg(v6)
-		v5.AddArg(mem)
-		v.AddArg(v5)
+		v2 := b.NewValue0(v.Pos, OpLoad, t.FieldType(1))
+		v3 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
+		v3.AuxInt = t.FieldOff(1)
+		v3.AddArg(ptr)
+		v2.AddArg(v3)
+		v2.AddArg(mem)
+		v.AddArg(v2)
+		v4 := b.NewValue0(v.Pos, OpLoad, t.FieldType(2))
+		v5 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
+		v5.AuxInt = t.FieldOff(2)
+		v5.AddArg(ptr)
+		v4.AddArg(v5)
+		v4.AddArg(mem)
+		v.AddArg(v4)
+		v6 := b.NewValue0(v.Pos, OpLoad, t.FieldType(3))
+		v7 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(3).PtrTo())
+		v7.AuxInt = t.FieldOff(3)
+		v7.AddArg(ptr)
+		v6.AddArg(v7)
+		v6.AddArg(mem)
+		v.AddArg(v6)
 		return true
 	}
 	// match: (Load <t> _ _)
@@ -14671,7 +14683,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	// match: (Store dst (StructMake1 <t> f0) mem)
 	// cond:
-	// result: (Store [t.FieldType(0).Size()] dst f0 mem)
+	// result: (Store [t.FieldType(0).Size()] (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
 	for {
 		dst := v.Args[0]
 		v_1 := v.Args[1]
@@ -14683,14 +14695,17 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		mem := v.Args[2]
 		v.reset(OpStore)
 		v.AuxInt = t.FieldType(0).Size()
-		v.AddArg(dst)
+		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+		v0.AuxInt = 0
+		v0.AddArg(dst)
+		v.AddArg(v0)
 		v.AddArg(f0)
 		v.AddArg(mem)
 		return true
 	}
 	// match: (Store dst (StructMake2 <t> f0 f1) mem)
 	// cond:
-	// result: (Store [t.FieldType(1).Size()]     (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)     f1     (Store [t.FieldType(0).Size()] dst f0 mem))
+	// result: (Store [t.FieldType(1).Size()]     (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)     f1     (Store [t.FieldType(0).Size()]       (OffPtr <t.FieldType(0)> [0] dst)         f0 mem))
 	for {
 		dst := v.Args[0]
 		v_1 := v.Args[1]
@@ -14710,7 +14725,10 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v.AddArg(f1)
 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
 		v1.AuxInt = t.FieldType(0).Size()
-		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0))
+		v2.AuxInt = 0
+		v2.AddArg(dst)
+		v1.AddArg(v2)
 		v1.AddArg(f0)
 		v1.AddArg(mem)
 		v.AddArg(v1)
@@ -14718,7 +14736,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	// match: (Store dst (StructMake3 <t> f0 f1 f2) mem)
 	// cond:
-	// result: (Store [t.FieldType(2).Size()]     (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)     f2     (Store [t.FieldType(1).Size()]       (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)       f1       (Store [t.FieldType(0).Size()] dst f0 mem)))
+	// result: (Store [t.FieldType(2).Size()]     (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)     f2     (Store [t.FieldType(1).Size()]       (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)       f1       (Store [t.FieldType(0).Size()]         (OffPtr <t.FieldType(0).PtrTo()> [0] dst)           f0 mem)))
 	for {
 		dst := v.Args[0]
 		v_1 := v.Args[1]
@@ -14746,7 +14764,10 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v1.AddArg(f1)
 		v3 := b.NewValue0(v.Pos, OpStore, TypeMem)
 		v3.AuxInt = t.FieldType(0).Size()
-		v3.AddArg(dst)
+		v4 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+		v4.AuxInt = 0
+		v4.AddArg(dst)
+		v3.AddArg(v4)
 		v3.AddArg(f0)
 		v3.AddArg(mem)
 		v1.AddArg(v3)
@@ -14755,7 +14776,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	// match: (Store dst (StructMake4 <t> f0 f1 f2 f3) mem)
 	// cond:
-	// result: (Store [t.FieldType(3).Size()]     (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst)     f3     (Store [t.FieldType(2).Size()]       (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)       f2       (Store [t.FieldType(1).Size()]         (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)         f1         (Store [t.FieldType(0).Size()] dst f0 mem))))
+	// result: (Store [t.FieldType(3).Size()]     (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst)     f3     (Store [t.FieldType(2).Size()]       (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)       f2       (Store [t.FieldType(1).Size()]         (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)         f1         (Store [t.FieldType(0).Size()]           (OffPtr <t.FieldType(0).PtrTo()> [0] dst)             f0 mem))))
 	for {
 		dst := v.Args[0]
 		v_1 := v.Args[1]
@@ -14791,7 +14812,10 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v3.AddArg(f1)
 		v5 := b.NewValue0(v.Pos, OpStore, TypeMem)
 		v5.AuxInt = t.FieldType(0).Size()
-		v5.AddArg(dst)
+		v6 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+		v6.AuxInt = 0
+		v6.AddArg(dst)
+		v5.AddArg(v6)
 		v5.AddArg(f0)
 		v5.AddArg(mem)
 		v3.AddArg(v5)
