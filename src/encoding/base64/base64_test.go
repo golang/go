@@ -220,6 +220,8 @@ func TestDecodeCorrupt(t *testing.T) {
 		{"AAAA", -1},
 		{"AAAAAA=", 7},
 		{"YWJjZA=====", 8},
+		{"A!\n", 1},
+		{"A=\n", 1},
 	}
 	for _, tc := range testCases {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(tc.input)))

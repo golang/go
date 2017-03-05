@@ -254,6 +254,7 @@ func (e CorruptInputError) Error() string {
 // indicates if end-of-message padding or a partial quantum was encountered
 // and thus any additional data is an error.
 func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+	var inIdx int
 	si := 0
 
 	// skip over newlines
@@ -275,6 +276,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				break
 			}
 			in := src[si]
+			inIdx = si
 
 			si++
 			// skip over newlines
@@ -287,7 +289,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				switch j {
 				case 0, 1:
 					// incorrect padding
-					return n, false, CorruptInputError(si - 1)
+					return n, false, CorruptInputError(inIdx)
 				case 2:
 					// "==" is expected, the first "=" is already consumed.
 					if si == len(src) {
@@ -314,7 +316,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 			}
 			dbuf[j] = enc.decodeMap[in]
 			if dbuf[j] == 0xFF {
-				return n, false, CorruptInputError(si - 1)
+				return n, false, CorruptInputError(inIdx)
 			}
 		}
 
