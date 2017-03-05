@@ -86,6 +86,11 @@ func slicebytetostring(buf *tmpBuf, b []byte) (str string) {
 	if msanenabled {
 		msanread(unsafe.Pointer(&b[0]), uintptr(l))
 	}
+	if l == 1 {
+		stringStructOf(&str).str = unsafe.Pointer(&staticbytes[b[0]])
+		stringStructOf(&str).len = 1
+		return
+	}
 
 	var p unsafe.Pointer
 	if buf != nil && len(b) <= len(buf) {
