@@ -150,7 +150,7 @@ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
 	}
 }
 
-func (r *reader) filterSpec(spec ast.Spec, tok token.Token) bool {
+func (r *reader) filterSpec(spec ast.Spec) bool {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		// always keep imports so we can collect them
@@ -215,7 +215,7 @@ func (r *reader) filterSpecList(list []ast.Spec, tok token.Token) []ast.Spec {
 
 	j := 0
 	for _, s := range list {
-		if r.filterSpec(s, tok) {
+		if r.filterSpec(s) {
 			list[j] = s
 			j++
 		}
