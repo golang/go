@@ -51,15 +51,14 @@ type Sym struct {
 	Pkg        *Pkg
 	Name       string   // object name
 	Def        *Node    // definition: ONAME OTYPE OPACK or OLITERAL
-	Block      int32    // blocknumber to catch redeclaration
 	Lastlineno src.XPos // last declaration for diagnostic
+	Block      int32    // blocknumber to catch redeclaration
 
+	flags   bitset8
 	Label   *Node // corresponding label (ephemeral)
 	Origpkg *Pkg  // original package for . import
 	Lsym    *obj.LSym
 	Fsym    *Sym // funcsym
-
-	flags bitset8
 }
 
 const (

@@ -26,7 +26,7 @@ func TestSizeof(t *testing.T) {
 		{Name{}, 36, 56},
 		{Param{}, 28, 56},
 		{Node{}, 84, 136},
-		{Sym{}, 64, 120},
+		{Sym{}, 64, 112},
 		{Type{}, 60, 96},
 		{MapType{}, 20, 40},
 		{ForwardType{}, 20, 32},
