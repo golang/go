@@ -125,6 +125,17 @@ var canonicalHostTests = map[string]string{
 	"[2001:4860:0:::68]:8080": "2001:4860:0:::68",
 	"www.bücher.de":           "www.xn--bcher-kva.de",
 	"www.example.com.":        "www.example.com",
+	// TODO: Fix canonicalHost so that all of the following malformed
+	// domain names trigger an error. (This list is not exhaustive, e.g.
+	// malformed internationalized domain names are missing.)
+	".":                       "",
+	"..":                      ".",
+	"...":                     "..",
+	".net":                    ".net",
+	".net.":                   ".net",
+	"a..":                     "a.",
+	"b.a..":                   "b.a.",
+	"weird.stuff...":          "weird.stuff..",
 	"[bad.unmatched.bracket:": "error",
 }
 
@@ -133,7 +144,7 @@ func TestCanonicalHost(t *testing.T) {
 		got, err := canonicalHost(h)
 		if want == "error" {
 			if err == nil {
-				t.Errorf("%q: got nil error, want non-nil", h)
+				t.Errorf("%q: got %q and nil error, want non-nil", h, got)
 			}
 			continue
 		}
@@ -176,6 +187,15 @@ var jarKeyTests = map[string]string{
 	"co.uk":               "co.uk",
 	"uk":                  "uk",
 	"192.168.0.5":         "192.168.0.5",
+	// The following are actual outputs of canonicalHost for
+	// malformed inputs to canonicalHost (see above).
+	"":              "",
+	".":             ".",
+	"..":            ".",
+	".net":          ".net",
+	"a.":            "a.",
+	"b.a.":          "a.",
+	"weird.stuff..": ".",
 }
 
 func TestJarKey(t *testing.T) {
@@ -197,6 +217,15 @@ var jarKeyNilPSLTests = map[string]string{
 	"co.uk":               "co.uk",
 	"uk":                  "uk",
 	"192.168.0.5":         "192.168.0.5",
+	// The following are actual outputs of canonicalHost for
+	// malformed inputs to canonicalHost.
+	"":              "",
+	".":             ".",
+	"..":            "..",
+	".net":          ".net",
+	"a.":            "a.",
+	"b.a.":          "a.",
+	"weird.stuff..": "stuff..",
 }
 
 func TestJarKeyNilPSL(t *testing.T) {
@@ -1263,5 +1292,20 @@ func TestDomainHandling(t *testing.T) {
 	for _, test := range domainHandlingTests {
 		jar := newTestJar()
 		test.run(t, jar)
+	}
+}
+
+func TestIssue19384(t *testing.T) {
+	cookies := []*http.Cookie{{Name: "name", Value: "value"}}
+	for _, host := range []string{"", ".", "..", "..."} {
+		jar, _ := New(nil)
+		u := &url.URL{Scheme: "http", Host: host, Path: "/"}
+		if got := jar.Cookies(u); len(got) != 0 {
+			t.Errorf("host %q, got %v", host, got)
+		}
+		jar.SetCookies(u, cookies)
+		if got := jar.Cookies(u); len(got) != 1 || got[0].Value != "value" {
+			t.Errorf("host %q, got %v", host, got)
+		}
 	}
 }

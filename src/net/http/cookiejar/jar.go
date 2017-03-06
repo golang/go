@@ -331,7 +331,7 @@ func jarKey(host string, psl PublicSuffixList) string {
 	var i int
 	if psl == nil {
 		i = strings.LastIndex(host, ".")
-		if i == -1 {
+		if i <= 0 {
 			return host
 		}
 	} else {
