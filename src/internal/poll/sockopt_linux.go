@@ -4,9 +4,7 @@
 
 package poll
 
-import (
-	"syscall"
-)
+import "syscall"
 
 // SetsockoptIPMreqn wraps the setsockopt network call with a IPMreqn argument.
 func (fd *FD) SetsockoptIPMreqn(level, name int, mreq *syscall.IPMreqn) error {

@@ -4,9 +4,7 @@
 
 package poll
 
-import (
-	"syscall"
-)
+import "syscall"
 
 // Setsockopt wraps the Windows setsockopt network call.
 func (fd *FD) Setsockopt(level, optname int32, optval *byte, optlen int32) error {

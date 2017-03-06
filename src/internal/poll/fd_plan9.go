@@ -90,14 +90,17 @@ func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
 	return n, err
 }
 
+// SetDeadline sets the read and write deadlines associated with fd.
 func (fd *FD) SetDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'r'+'w')
 }
 
+// SetReadDeadline sets the read deadline associated with fd.
 func (fd *FD) SetReadDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'r')
 }
 
+// SetWriteDeadline sets the write deadline associated with fd.
 func (fd *FD) SetWriteDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'w')
 }
@@ -163,10 +166,12 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 
 // On Plan 9 only, expose the locking for the net code.
 
+// ReadLock wraps FD.readLock.
 func (fd *FD) ReadLock() error {
 	return fd.readLock()
 }
 
+// ReadUnlock wraps FD.readUnlock.
 func (fd *FD) ReadUnlock() {
 	fd.readUnlock()
 }
@@ -179,6 +184,8 @@ func isInterrupted(err error) bool {
 	return err != nil && stringsHasSuffix(err.Error(), "interrupted")
 }
 
+// PollDescriptor returns the descriptor being used by the poller,
+// or ^uintptr(0) if there isn't one. This is only used for testing.
 func PollDescriptor() uintptr {
 	return ^uintptr(0)
 }

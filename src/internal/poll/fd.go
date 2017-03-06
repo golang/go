@@ -9,9 +9,7 @@
 // runtime scheduler.
 package poll
 
-import (
-	"errors"
-)
+import "errors"
 
 // ErrClosing is returned when a descriptor is used after it has been closed.
 var ErrClosing = errors.New("use of closed file or network connection")

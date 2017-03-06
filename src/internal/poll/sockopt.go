@@ -6,9 +6,7 @@
 
 package poll
 
-import (
-	"syscall"
-)
+import "syscall"
 
 // SetsockoptInt wraps the setsockopt network call with an int argument.
 func (fd *FD) SetsockoptInt(level, name, arg int) error {

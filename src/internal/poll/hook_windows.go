@@ -4,9 +4,7 @@
 
 package poll
 
-import (
-	"syscall"
-)
+import "syscall"
 
 // CloseFunc is used to hook the close call.
 var CloseFunc func(syscall.Handle) error = syscall.Closesocket
