@@ -211,7 +211,7 @@ func makeclosure(func_ *Node) *Node {
 	xfunc := nod(ODCLFUNC, nil, nil)
 
 	xfunc.Func.Nname = newfuncname(closurename(func_))
-	xfunc.Func.Nname.Sym.Flags |= SymExported // disable export
+	xfunc.Func.Nname.Sym.SetExported(true) // disable export
 	xfunc.Func.Nname.Name.Param.Ntype = xtype
 	xfunc.Func.Nname.Name.Defn = xfunc
 	declare(xfunc.Func.Nname, PFUNC)
@@ -564,10 +564,10 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 
 	sym := Pkglookup(p, spkg)
 
-	if sym.Flags&SymUniq != 0 {
+	if sym.Uniq() {
 		return sym.Def
 	}
-	sym.Flags |= SymUniq
+	sym.SetUniq(true)
 
 	savecurfn := Curfn
 	Curfn = nil
@@ -607,7 +607,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 
 	xfunc.Func.SetDupok(true)
 	xfunc.Func.Nname = newfuncname(sym)
-	xfunc.Func.Nname.Sym.Flags |= SymExported // disable export
+	xfunc.Func.Nname.Sym.SetExported(true) // disable export
 	xfunc.Func.Nname.Name.Param.Ntype = xtype
 	xfunc.Func.Nname.Name.Defn = xfunc
 	declare(xfunc.Func.Nname, PFUNC)

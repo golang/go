@@ -352,8 +352,8 @@ func methods(t *Type) []*Sig {
 		sig.type_ = methodfunc(f.Type, t)
 		sig.mtype = methodfunc(f.Type, nil)
 
-		if sig.isym.Flags&SymSiggen == 0 {
-			sig.isym.Flags |= SymSiggen
+		if !sig.isym.Siggen() {
+			sig.isym.SetSiggen(true)
 			if !eqtype(this, it) || this.Width < Types[Tptr].Width {
 				compiling_wrappers = 1
 				genwrapper(it, f, sig.isym, 1)
@@ -361,8 +361,8 @@ func methods(t *Type) []*Sig {
 			}
 		}
 
-		if sig.tsym.Flags&SymSiggen == 0 {
-			sig.tsym.Flags |= SymSiggen
+		if !sig.tsym.Siggen() {
+			sig.tsym.SetSiggen(true)
 			if !eqtype(this, t) {
 				compiling_wrappers = 1
 				genwrapper(t, f, sig.tsym, 0)
@@ -416,8 +416,8 @@ func imethods(t *Type) []*Sig {
 		// code can refer to it.
 		isym := methodsym(method, t, 0)
 
-		if isym.Flags&SymSiggen == 0 {
-			isym.Flags |= SymSiggen
+		if !isym.Siggen() {
+			isym.SetSiggen(true)
 			genwrapper(t, f, isym, 0)
 		}
 	}
@@ -1121,10 +1121,10 @@ func dtypesym(t *Type) *Sym {
 	}
 
 	s := typesym(t)
-	if s.Flags&SymSiggen != 0 {
+	if s.Siggen() {
 		return s
 	}
-	s.Flags |= SymSiggen
+	s.SetSiggen(true)
 
 	// special case (look for runtime below):
 	// when compiling package runtime,
@@ -1519,10 +1519,10 @@ func dalgsym(t *Type) *Sym {
 
 		s = Pkglookup(p, typepkg)
 
-		if s.Flags&SymAlgGen != 0 {
+		if s.AlgGen() {
 			return s
 		}
-		s.Flags |= SymAlgGen
+		s.SetAlgGen(true)
 
 		// make hash closure
 		p = fmt.Sprintf(".hashfunc%d", t.Width)
@@ -1628,8 +1628,8 @@ func dgcptrmask(t *Type) *Sym {
 	p := fmt.Sprintf("gcbits.%x", ptrmask)
 
 	sym := Pkglookup(p, Runtimepkg)
-	if sym.Flags&SymUniq == 0 {
-		sym.Flags |= SymUniq
+	if !sym.Uniq() {
+		sym.SetUniq(true)
 		for i, x := range ptrmask {
 			duint8(sym, i, x)
 		}

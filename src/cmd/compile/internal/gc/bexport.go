@@ -257,10 +257,10 @@ func export(out *bufio.Writer, trace bool) int {
 	for _, n := range exportlist {
 		sym := n.Sym
 
-		if sym.Flags&SymExported != 0 {
+		if sym.Exported() {
 			continue
 		}
-		sym.Flags |= SymExported
+		sym.SetExported(true)
 
 		// TODO(gri) Closures have dots in their names;
 		// e.g., TestFloatZeroValue.func1 in math/big tests.
@@ -269,7 +269,7 @@ func export(out *bufio.Writer, trace bool) int {
 		}
 
 		// TODO(gri) Should we do this check?
-		// if sym.Flags&SymExport == 0 {
+		// if !sym.Export() {
 		// 	continue
 		// }
 
@@ -324,10 +324,10 @@ func export(out *bufio.Writer, trace bool) int {
 		// are different optimization opportunities, but factor
 		// eventually.
 
-		if sym.Flags&SymExported != 0 {
+		if sym.Exported() {
 			continue
 		}
-		sym.Flags |= SymExported
+		sym.SetExported(true)
 
 		// TODO(gri) Closures have dots in their names;
 		// e.g., TestFloatZeroValue.func1 in math/big tests.
@@ -336,7 +336,7 @@ func export(out *bufio.Writer, trace bool) int {
 		}
 
 		// TODO(gri) Should we do this check?
-		// if sym.Flags&SymExport == 0 {
+		// if !sym.Export() {
 		// 	continue
 		// }
 

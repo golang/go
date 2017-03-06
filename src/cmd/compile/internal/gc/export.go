@@ -33,14 +33,14 @@ func exportsym(n *Node) {
 	if n == nil || n.Sym == nil {
 		return
 	}
-	if n.Sym.Flags&(SymExport|SymPackage) != 0 {
-		if n.Sym.Flags&SymPackage != 0 {
+	if n.Sym.Export() || n.Sym.Package() {
+		if n.Sym.Package() {
 			yyerror("export/package mismatch: %v", n.Sym)
 		}
 		return
 	}
 
-	n.Sym.Flags |= SymExport
+	n.Sym.SetExport(true)
 	if Debug['E'] != 0 {
 		fmt.Printf("export symbol %v\n", n.Sym)
 	}
@@ -90,8 +90,8 @@ func autoexport(n *Node, ctxt Class) {
 	if exportname(n.Sym.Name) || initname(n.Sym.Name) {
 		exportsym(n)
 	}
-	if asmhdr != "" && n.Sym.Pkg == localpkg && n.Sym.Flags&SymAsm == 0 {
-		n.Sym.Flags |= SymAsm
+	if asmhdr != "" && n.Sym.Pkg == localpkg && !n.Sym.Asm() {
+		n.Sym.SetAsm(true)
 		asmlist = append(asmlist, n)
 	}
 }
@@ -203,9 +203,9 @@ func importsym(s *Sym, op Op) {
 	// mark the symbol so it is not reexported
 	if s.Def == nil {
 		if exportname(s.Name) || initname(s.Name) {
-			s.Flags |= SymExport
+			s.SetExport(true)
 		} else {
-			s.Flags |= SymPackage // package scope
+			s.SetPackage(true) // package scope
 		}
 	}
 }

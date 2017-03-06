@@ -1534,10 +1534,10 @@ func expand0(t *Type, followptr bool) {
 
 	if u.IsInterface() {
 		for _, f := range u.Fields().Slice() {
-			if f.Sym.Flags&SymUniq != 0 {
+			if f.Sym.Uniq() {
 				continue
 			}
-			f.Sym.Flags |= SymUniq
+			f.Sym.SetUniq(true)
 			slist = append(slist, Symlink{field: f, followptr: followptr})
 		}
 
@@ -1547,10 +1547,10 @@ func expand0(t *Type, followptr bool) {
 	u = methtype(t)
 	if u != nil {
 		for _, f := range u.Methods().Slice() {
-			if f.Sym.Flags&SymUniq != 0 {
+			if f.Sym.Uniq() {
 				continue
 			}
-			f.Sym.Flags |= SymUniq
+			f.Sym.SetUniq(true)
 			slist = append(slist, Symlink{field: f, followptr: followptr})
 		}
 	}
@@ -1598,7 +1598,7 @@ func expandmeth(t *Type) {
 	// mark top-level method symbols
 	// so that expand1 doesn't consider them.
 	for _, f := range t.Methods().Slice() {
-		f.Sym.Flags |= SymUniq
+		f.Sym.SetUniq(true)
 	}
 
 	// generate all reachable methods
@@ -1609,7 +1609,7 @@ func expandmeth(t *Type) {
 	var ms []*Field
 	for i, sl := range slist {
 		slist[i].field = nil
-		sl.field.Sym.Flags &^= SymUniq
+		sl.field.Sym.SetUniq(false)
 
 		var f *Field
 		if path, _ := dotpath(sl.field.Sym, t, &f, false); path == nil {
@@ -1631,7 +1631,7 @@ func expandmeth(t *Type) {
 	}
 
 	for _, f := range t.Methods().Slice() {
-		f.Sym.Flags &^= SymUniq
+		f.Sym.SetUniq(false)
 	}
 
 	ms = append(ms, t.Methods().Slice()...)
