@@ -592,6 +592,7 @@ var knownFormats = map[string]string{
 	"*cmd/compile/internal/ssa.Value %v":              "",
 	"*cmd/compile/internal/ssa.sparseTreeMapEntry %v": "",
 	"*cmd/internal/obj.Addr %v":                       "",
+	"*cmd/internal/obj.LSym %v":                       "",
 	"*cmd/internal/obj.Prog %p":                       "",
 	"*cmd/internal/obj.Prog %s":                       "",
 	"*cmd/internal/obj.Prog %v":                       "",

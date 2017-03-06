@@ -113,6 +113,7 @@ func Main() {
 	defer hidePanic()
 
 	Ctxt = obj.Linknew(Thearch.LinkArch)
+	Ctxt.DebugInfo = debuginfo
 	Ctxt.DiagFunc = yyerror
 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
 

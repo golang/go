@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
+	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -420,8 +421,6 @@ func compile(fn *Node) {
 	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
 	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
 
-	gendebug(fnsym, fn.Func.Dcl)
-
 	genssa(ssafn, ptxt, gcargs, gclocals)
 	ssafn.Free()
 
@@ -431,42 +430,67 @@ func compile(fn *Node) {
 	fieldtrack(fnsym, fn.Func.FieldTrack)
 }
 
-func gendebug(fnsym *obj.LSym, decls []*Node) {
-	if fnsym == nil {
-		return
+func debuginfo(fnsym *obj.LSym) []*dwarf.Var {
+	if expect := Linksym(Curfn.Func.Nname.Sym); fnsym != expect {
+		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
 	}
 
-	if fnsym.FuncInfo == nil {
-		fnsym.FuncInfo = new(obj.FuncInfo)
-	}
-
-	for _, n := range decls {
+	var vars []*dwarf.Var
+	for _, n := range Curfn.Func.Dcl {
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
 		}
 
 		var name obj.AddrName
+		var abbrev int
+		offs := n.Xoffset
+
 		switch n.Class {
 		case PAUTO:
 			if !n.Used() {
 				continue
 			}
 			name = obj.NAME_AUTO
+
+			abbrev = dwarf.DW_ABRV_AUTO
+			if Ctxt.FixedFrameSize() == 0 {
+				offs -= int64(Widthptr)
+			}
+			if obj.Framepointer_enabled(obj.GOOS, obj.GOARCH) {
+				offs -= int64(Widthptr)
+			}
+
 		case PPARAM, PPARAMOUT:
 			name = obj.NAME_PARAM
+
+			abbrev = dwarf.DW_ABRV_PARAM
+			offs += Ctxt.FixedFrameSize()
+
 		default:
 			continue
 		}
 
-		a := &obj.Auto{
+		gotype := Linksym(ngotype(n))
+		fnsym.Autom = append(fnsym.Autom, &obj.Auto{
 			Asym:    obj.Linklookup(Ctxt, n.Sym.Name, 0),
 			Aoffset: int32(n.Xoffset),
 			Name:    name,
-			Gotype:  Linksym(ngotype(n)),
-		}
+			Gotype:  gotype,
+		})
 
-		fnsym.Autom = append(fnsym.Autom, a)
+		typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+		vars = append(vars, &dwarf.Var{
+			Name:   n.Sym.Name,
+			Abbrev: abbrev,
+			Offset: int32(offs),
+			Type:   obj.Linklookup(Ctxt, typename, 0),
+		})
 	}
+
+	// Stable sort so that ties are broken with declaration order.
+	sort.Stable(dwarf.VarsByOffset(vars))
+
+	return vars
 }
 
 // fieldtrack adds R_USEFIELD relocations to fnsym to record any
