@@ -114,11 +114,25 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 	}
 }
 
+const sizeofSkipFunction = 256
+
+// This function is defined in asm.s to be sizeofSkipFunction bytes long.
+func skipPleaseUseCallersFrames()
+
 // Generic traceback. Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
 // duplicating the code and all its subtlety.
+//
+// The skip argument is only valid with pcbuf != nil and counts the number
+// of logical frames to skip rather than physical frames (with inlining, a
+// PC in pcbuf can represent multiple calls). If a PC is partially skipped
+// and max > 1, pcbuf[1] will be runtime.skipPleaseUseCallersFrames+N where
+// N indicates the number of logical frames to skip in pcbuf[0].
 func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
+	if skip > 0 && callback != nil {
+		throw("gentraceback callback cannot be used with non-zero skip")
+	}
 	if goexitPC == 0 {
 		throw("gentraceback before goexitPC initialization")
 	}
@@ -318,19 +332,57 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			_defer = _defer.link
 		}
 
-		if skip > 0 {
-			skip--
-			goto skipped
-		}
-
-		if pcbuf != nil {
-			(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
-		}
 		if callback != nil {
 			if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
 				return n
 			}
 		}
+
+		if pcbuf != nil {
+			if skip == 0 {
+				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
+			} else {
+				// backup to CALL instruction to read inlining info (same logic as below)
+				tracepc := frame.pc
+				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+					tracepc--
+				}
+				inldata := funcdata(f, _FUNCDATA_InlTree)
+
+				// no inlining info, skip the physical frame
+				if inldata == nil {
+					skip--
+					goto skipped
+				}
+
+				ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, &cache)
+				inltree := (*[1 << 20]inlinedCall)(inldata)
+				// skip the logical (inlined) frames
+				logicalSkipped := 0
+				for ix >= 0 && skip > 0 {
+					skip--
+					logicalSkipped++
+					ix = inltree[ix].parent
+				}
+
+				// skip the physical frame if there's more to skip
+				if skip > 0 {
+					skip--
+					goto skipped
+				}
+
+				// now we have a partially skipped frame
+				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
+
+				// if there's room, pcbuf[1] is a skip PC that encodes the number of skipped frames in pcbuf[0]
+				if n+1 < max {
+					n++
+					skipPC := funcPC(skipPleaseUseCallersFrames) + uintptr(logicalSkipped)
+					(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = skipPC
+				}
+			}
+		}
+
 		if printing {
 			// assume skip=0 for printing
 			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0) {
