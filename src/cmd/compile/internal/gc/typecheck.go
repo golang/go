@@ -3667,19 +3667,11 @@ func typecheckdef(n *Node) *Node {
 				lineno = n.Pos
 			}
 
-			switch n.Sym.Name {
-			case "init":
-				// As per the spec at:
-				//  https://golang.org/ref/spec#Program_initialization_and_execution
-				// init cannot be referred to in usercode.
-				// See https://golang.org/issues/8481.
-				yyerror("cannot refer to init functions")
-			default:
-				// Note: adderrorname looks for this string and
-				// adds context about the outer expression
-				yyerror("undefined: %v", n.Sym)
-			}
+			// Note: adderrorname looks for this string and
+			// adds context about the outer expression
+			yyerror("undefined: %v", n.Sym)
 		}
+
 		return n
 	}
 
