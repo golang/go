@@ -3566,7 +3566,7 @@ func copytype(n *Node, t *Type) {
 	}
 	t.methods = Fields{}
 	t.allMethods = Fields{}
-	t.nod = nil
+	t.nod = n
 	t.SetDeferwidth(false)
 	t.ptrTo = ptrTo
 	t.sliceOf = sliceOf

@@ -404,12 +404,10 @@ func (p *importer) newtyp(etype EType) *Type {
 // importtype declares that pt, an imported named type, has underlying type t.
 func (p *importer) importtype(pt, t *Type) {
 	if pt.Etype == TFORW {
-		n := pt.nod
 		copytype(pt.nod, t)
-		pt.nod = n // unzero nod
 		pt.Sym.Importdef = importpkg
 		pt.Sym.Lastlineno = lineno
-		declare(n, PEXTERN)
+		declare(pt.nod, PEXTERN)
 		checkwidth(pt)
 	} else {
 		// pt.Orig and t must be identical.
