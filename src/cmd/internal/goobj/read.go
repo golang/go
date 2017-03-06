@@ -198,9 +198,11 @@ type Func struct {
 	PCSP     Data       // PC → SP offset map
 	PCFile   Data       // PC → file number map (index into File)
 	PCLine   Data       // PC → line number map
+	PCInline Data       // PC → inline tree index map
 	PCData   []Data     // PC → runtime support data map
 	FuncData []FuncData // non-PC-specific runtime support data
 	File     []string   // paths indexed by PCFile
+	InlTree  []InlinedCall
 }
 
 // TODO: Add PCData []byte and PCDataIter (similar to liblink).
@@ -209,6 +211,15 @@ type Func struct {
 type FuncData struct {
 	Sym    SymID // symbol holding data
 	Offset int64 // offset into symbol for funcdata pointer
+}
+
+// An InlinedCall is a node in an InlTree.
+// See cmd/internal/obj.InlTree for details.
+type InlinedCall struct {
+	Parent int
+	File   string
+	Line   int
+	Func   SymID
 }
 
 // A Package is a parsed Go object file or archive defining a Go package.
@@ -583,7 +594,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 	// TODO: extract OS + build ID if/when we need it
 
 	r.readFull(r.tmp[:8])
-	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go17ld")) {
+	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go19ld")) {
 		return r.error(errCorruptObject)
 	}
 
@@ -671,6 +682,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 			f.PCSP = r.readData()
 			f.PCFile = r.readData()
 			f.PCLine = r.readData()
+			f.PCInline = r.readData()
 			f.PCData = make([]Data, r.readInt())
 			for i := range f.PCData {
 				f.PCData[i] = r.readData()
@@ -686,11 +698,18 @@ func (r *objReader) parseObject(prefix []byte) error {
 			for i := range f.File {
 				f.File[i] = r.readSymID().Name
 			}
+			f.InlTree = make([]InlinedCall, r.readInt())
+			for i := range f.InlTree {
+				f.InlTree[i].Parent = r.readInt()
+				f.InlTree[i].File = r.readSymID().Name
+				f.InlTree[i].Line = r.readInt()
+				f.InlTree[i].Func = r.readSymID()
+			}
 		}
 	}
 
 	r.readFull(r.tmp[:7])
-	if !bytes.Equal(r.tmp[:7], []byte("\xffgo17ld")) {
+	if !bytes.Equal(r.tmp[:7], []byte("\xffgo19ld")) {
 		return r.error(errCorruptObject)
 	}
 
