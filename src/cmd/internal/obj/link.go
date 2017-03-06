@@ -32,6 +32,7 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/dwarf"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
@@ -752,6 +753,7 @@ type Link struct {
 	Armsize       int32
 	Pc            int64
 	DiagFunc      func(string, ...interface{})
+	DebugInfo     func(fn *LSym) []*dwarf.Var
 	Mode          int
 	Cursym        *LSym
 	Version       int

@@ -128,6 +128,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 		ctxt.Arch.Preprocess(ctxt, s)
 		ctxt.Arch.Assemble(ctxt, s)
 		linkpcln(ctxt, s)
+		makeFuncDebugEntry(ctxt, s)
 		if freeProgs {
 			s.Text = nil
 		}
@@ -135,7 +136,6 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 
 	// Add to running list in ctxt.
 	ctxt.Text = append(ctxt.Text, text...)
-	ctxt.Data = append(ctxt.Data, gendwarf(ctxt, text)...)
 	ctxt.Curp = nil
 	if freeProgs {
 		ctxt.freeProgs()

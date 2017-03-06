@@ -551,54 +551,19 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 	r.Type = R_DWARFREF
 }
 
-func gendwarf(ctxt *Link, text []*LSym) []*LSym {
-	dctxt := dwCtxt{ctxt}
-	var dw []*LSym
-
-	for _, s := range text {
-		dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
-		if dsym.Size != 0 {
-			continue
-		}
-		dw = append(dw, dsym)
-		dsym.Type = SDWARFINFO
-		dsym.Set(AttrDuplicateOK, s.DuplicateOK())
-		var vars []*dwarf.Var
-		var abbrev int
-		var offs int32
-		for _, a := range s.Autom {
-			switch a.Name {
-			case NAME_AUTO:
-				abbrev = dwarf.DW_ABRV_AUTO
-				offs = a.Aoffset
-				if ctxt.FixedFrameSize() == 0 {
-					offs -= int32(ctxt.Arch.PtrSize)
-				}
-				if Framepointer_enabled(GOOS, GOARCH) {
-					offs -= int32(ctxt.Arch.PtrSize)
-				}
-
-			case NAME_PARAM:
-				abbrev = dwarf.DW_ABRV_PARAM
-				offs = a.Aoffset + int32(ctxt.FixedFrameSize())
-
-			default:
-				continue
-			}
-
-			typename := dwarf.InfoPrefix + a.Gotype.Name[len("type."):]
-			vars = append(vars, &dwarf.Var{
-				Name:   a.Asym.Name,
-				Abbrev: abbrev,
-				Offset: offs,
-				Type:   Linklookup(ctxt, typename, 0),
-			})
-		}
-
-		// Stable sort so that ties are broken with declaration order.
-		sort.Stable(dwarf.VarsByOffset(vars))
-
-		dwarf.PutFunc(dctxt, dsym, s.Name, s.Version == 0, s, s.Size, vars)
+// makeFuncDebugEntry makes a DWARF Debugging Information Entry
+// for TEXT symbol s.
+func makeFuncDebugEntry(ctxt *Link, s *LSym) {
+	dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
+	if dsym.Size != 0 {
+		return
 	}
-	return dw
+	dsym.Type = SDWARFINFO
+	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
+	var vars []*dwarf.Var
+	if ctxt.DebugInfo != nil {
+		vars = ctxt.DebugInfo(s)
+	}
+	dwarf.PutFunc(dwCtxt{ctxt}, dsym, s.Name, s.Version == 0, s, s.Size, vars)
+	ctxt.Data = append(ctxt.Data, dsym)
 }
