@@ -114,14 +114,17 @@ func convertErr(res int) error {
 	panic("unreachable")
 }
 
+// SetDeadline sets the read and write deadlines associated with fd.
 func (fd *FD) SetDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'r'+'w')
 }
 
+// SetReadDeadline sets the read deadline associated with fd.
 func (fd *FD) SetReadDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'r')
 }
 
+// SetWriteDeadline sets the write deadline associated with fd.
 func (fd *FD) SetWriteDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'w')
 }

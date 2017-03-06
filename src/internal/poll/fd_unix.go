@@ -313,11 +313,6 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 	}
 }
 
-// WaitWrite waits until data can be written to fd.
-func (fd *FD) WaitWrite() error {
-	return fd.pd.waitWrite()
-}
-
 // Accept wraps the accept network call.
 func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
 	if err := fd.readLock(); err != nil {
@@ -396,4 +391,11 @@ func (fd *FD) Fstat(s *syscall.Stat_t) error {
 	}
 	defer fd.decref()
 	return syscall.Fstat(fd.Sysfd, s)
+}
+
+// On Unix variants only, expose the IO event for the net code.
+
+// WaitWrite waits until data can be read from fd.
+func (fd *FD) WaitWrite() error {
+	return fd.pd.waitWrite()
 }
