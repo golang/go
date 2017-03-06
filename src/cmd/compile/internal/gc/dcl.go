@@ -409,7 +409,7 @@ func colasname(n *Node) bool {
 func colasdefn(left []*Node, defn *Node) {
 	for _, n := range left {
 		if n.Sym != nil {
-			n.Sym.Flags |= SymUniq
+			n.Sym.SetUniq(true)
 		}
 	}
 
@@ -424,14 +424,14 @@ func colasdefn(left []*Node, defn *Node) {
 			continue
 		}
 
-		if n.Sym.Flags&SymUniq == 0 {
+		if !n.Sym.Uniq() {
 			yyerrorl(defn.Pos, "%v repeated on left side of :=", n.Sym)
 			n.SetDiag(true)
 			nerr++
 			continue
 		}
 
-		n.Sym.Flags &^= SymUniq
+		n.Sym.SetUniq(false)
 		if n.Sym.Block == block {
 			continue
 		}

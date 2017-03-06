@@ -43,7 +43,6 @@ func (p *Pkg) isRuntime() bool {
 // allows using Sym pointer equality to test for Go identifier uniqueness when
 // handling selector expressions.
 type Sym struct {
-	Flags     SymFlags
 	Link      *Sym
 	Importdef *Pkg   // where imported definition was found
 	Linkname  string // link name
@@ -59,19 +58,35 @@ type Sym struct {
 	Origpkg *Pkg  // original package for . import
 	Lsym    *obj.LSym
 	Fsym    *Sym // funcsym
+
+	flags bitset8
 }
 
-type SymFlags uint8
-
 const (
-	SymExport SymFlags = 1 << iota // to be exported
-	SymPackage
-	SymExported // already written out by export
-	SymUniq
-	SymSiggen
-	SymAsm
-	SymAlgGen
+	symExport = 1 << iota // to be exported
+	symPackage
+	symExported // already written out by export
+	symUniq
+	symSiggen
+	symAsm
+	symAlgGen
 )
+
+func (sym *Sym) Export() bool   { return sym.flags&symExport != 0 }
+func (sym *Sym) Package() bool  { return sym.flags&symPackage != 0 }
+func (sym *Sym) Exported() bool { return sym.flags&symExported != 0 }
+func (sym *Sym) Uniq() bool     { return sym.flags&symUniq != 0 }
+func (sym *Sym) Siggen() bool   { return sym.flags&symSiggen != 0 }
+func (sym *Sym) Asm() bool      { return sym.flags&symAsm != 0 }
+func (sym *Sym) AlgGen() bool   { return sym.flags&symAlgGen != 0 }
+
+func (sym *Sym) SetExport(b bool)   { sym.flags.set(symExport, b) }
+func (sym *Sym) SetPackage(b bool)  { sym.flags.set(symPackage, b) }
+func (sym *Sym) SetExported(b bool) { sym.flags.set(symExported, b) }
+func (sym *Sym) SetUniq(b bool)     { sym.flags.set(symUniq, b) }
+func (sym *Sym) SetSiggen(b bool)   { sym.flags.set(symSiggen, b) }
+func (sym *Sym) SetAsm(b bool)      { sym.flags.set(symAsm, b) }
+func (sym *Sym) SetAlgGen(b bool)   { sym.flags.set(symAlgGen, b) }
 
 func (sym *Sym) isAlias() bool {
 	return sym.Def != nil && sym.Def.Sym != sym
