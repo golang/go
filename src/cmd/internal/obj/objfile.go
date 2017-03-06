@@ -15,7 +15,7 @@
 //
 // The file format is:
 //
-//	- magic header: "\x00\x00go17ld"
+//	- magic header: "\x00\x00go19ld"
 //	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
@@ -31,7 +31,7 @@
 //	- data, the content of the defined symbols
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
-//	- magic footer: "\xff\xffgo17ld"
+//	- magic footer: "\xff\xffgo19ld"
 //
 // All integers are stored in a zigzag varint format.
 // See golang.org/s/go12symtab for a definition.
@@ -198,7 +198,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	w := newObjWriter(ctxt, b)
 
 	// Magic header
-	w.wr.WriteString("\x00\x00go17ld")
+	w.wr.WriteString("\x00\x00go19ld")
 
 	// Version
 	w.wr.WriteByte(1)
@@ -249,7 +249,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	}
 
 	// Magic footer
-	w.wr.WriteString("\xff\xffgo17ld")
+	w.wr.WriteString("\xff\xffgo19ld")
 }
 
 // Symbols are prefixed so their content doesn't get confused with the magic footer.

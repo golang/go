@@ -17,7 +17,7 @@ package ld
 //
 // The file format is:
 //
-//	- magic header: "\x00\x00go17ld"
+//	- magic header: "\x00\x00go19ld"
 //	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
@@ -33,7 +33,7 @@ package ld
 //	- data, the content of the defined symbols
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
-//	- magic footer: "\xff\xffgo17ld"
+//	- magic footer: "\xff\xffgo19ld"
 //
 // All integers are stored in a zigzag varint format.
 // See golang.org/s/go12symtab for a definition.
@@ -127,8 +127,8 @@ import (
 )
 
 const (
-	startmagic = "\x00\x00go17ld"
-	endmagic   = "\xff\xffgo17ld"
+	startmagic = "\x00\x00go19ld"
+	endmagic   = "\xff\xffgo19ld"
 )
 
 var emptyPkg = []byte(`"".`)
