@@ -202,11 +202,13 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 // 1 identifying the caller of Callers.
 // It returns the number of entries written to pc.
 //
-// Note that since each slice entry pc[i] is a return program counter,
-// looking up the file and line for pc[i] (for example, using (*Func).FileLine)
-// will normally return the file and line number of the instruction immediately
-// following the call.
-// To easily look up file/line information for the call sequence, use Frames.
+// To translate these PCs into symbolic information such as function
+// names and line numbers, use CallersFrames. CallersFrames accounts
+// for inlined functions and adjusts the return program counters into
+// call program counters. Iterating over the returned slice of PCs
+// directly is discouraged, as is using FuncForPC on any of the
+// returned PCs, since these cannot account for inlining or return
+// program counter adjustment.
 func Callers(skip int, pc []uintptr) int {
 	// runtime.callers uses pc.array==nil as a signal
 	// to print a stack trace. Pick off 0-length pc here
