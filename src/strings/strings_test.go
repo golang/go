@@ -452,6 +452,7 @@ var fieldstests = []FieldsTest{
 	{"", []string{}},
 	{" ", []string{}},
 	{" \t ", []string{}},
+	{"\u2000", []string{}},
 	{"  abc  ", []string{"abc"}},
 	{"1 2 3 4", []string{"1", "2", "3", "4"}},
 	{"1  2  3  4", []string{"1", "2", "3", "4"}},
@@ -459,6 +460,9 @@ var fieldstests = []FieldsTest{
 	{"1\u20002\u20013\u20024", []string{"1", "2", "3", "4"}},
 	{"\u2000\u2001\u2002", []string{}},
 	{"\n™\t™\n", []string{"™", "™"}},
+	{"\n\u20001™2\u2000 \u2001 ™", []string{"1™2", "™"}},
+	{"\n1\uFFFD \uFFFD2\u20003\uFFFD4", []string{"1\uFFFD", "\uFFFD2", "3\uFFFD4"}},
+	{"1\xFF\u2000\xFF2\xFF \xFF", []string{"1\xFF", "\xFF2\xFF", "\xFF"}},
 	{faces, []string{faces}},
 }
 
@@ -1473,19 +1477,55 @@ var makeFieldsInput = func() string {
 	return string(x)
 }
 
-var fieldsInput = makeFieldsInput()
+var makeFieldsInputASCII = func() string {
+	x := make([]byte, 1<<20)
+	// Input is ~10% space, rest ASCII non-space.
+	for i := range x {
+		if rand.Intn(10) == 0 {
+			x[i] = ' '
+		} else {
+			x[i] = 'x'
+		}
+	}
+	return string(x)
+}
+
+var stringdata = []struct{ name, data string }{
+	{"ASCII", makeFieldsInputASCII()},
+	{"Mixed", makeFieldsInput()},
+}
 
 func BenchmarkFields(b *testing.B) {
-	b.SetBytes(int64(len(fieldsInput)))
-	for i := 0; i < b.N; i++ {
-		Fields(fieldsInput)
+	for _, sd := range stringdata {
+		b.Run(sd.name, func(b *testing.B) {
+			for j := 1 << 4; j <= 1<<20; j <<= 4 {
+				b.Run(fmt.Sprintf("%d", j), func(b *testing.B) {
+					b.ReportAllocs()
+					b.SetBytes(int64(j))
+					data := sd.data[:j]
+					for i := 0; i < b.N; i++ {
+						Fields(data)
+					}
+				})
+			}
+		})
 	}
 }
 
 func BenchmarkFieldsFunc(b *testing.B) {
-	b.SetBytes(int64(len(fieldsInput)))
-	for i := 0; i < b.N; i++ {
-		FieldsFunc(fieldsInput, unicode.IsSpace)
+	for _, sd := range stringdata {
+		b.Run(sd.name, func(b *testing.B) {
+			for j := 1 << 4; j <= 1<<20; j <<= 4 {
+				b.Run(fmt.Sprintf("%d", j), func(b *testing.B) {
+					b.ReportAllocs()
+					b.SetBytes(int64(j))
+					data := sd.data[:j]
+					for i := 0; i < b.N; i++ {
+						FieldsFunc(data, unicode.IsSpace)
+					}
+				})
+			}
+		})
 	}
 }
 
