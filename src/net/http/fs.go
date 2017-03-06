@@ -373,7 +373,7 @@ func checkIfMatch(w ResponseWriter, r *Request) condResult {
 	return condFalse
 }
 
-func checkIfUnmodifiedSince(w ResponseWriter, r *Request, modtime time.Time) condResult {
+func checkIfUnmodifiedSince(r *Request, modtime time.Time) condResult {
 	ius := r.Header.Get("If-Unmodified-Since")
 	if ius == "" || isZeroTime(modtime) {
 		return condNone
@@ -418,7 +418,7 @@ func checkIfNoneMatch(w ResponseWriter, r *Request) condResult {
 	return condTrue
 }
 
-func checkIfModifiedSince(w ResponseWriter, r *Request, modtime time.Time) condResult {
+func checkIfModifiedSince(r *Request, modtime time.Time) condResult {
 	if r.Method != "GET" && r.Method != "HEAD" {
 		return condNone
 	}
@@ -503,7 +503,7 @@ func checkPreconditions(w ResponseWriter, r *Request, modtime time.Time) (done b
 	// This function carefully follows RFC 7232 section 6.
 	ch := checkIfMatch(w, r)
 	if ch == condNone {
-		ch = checkIfUnmodifiedSince(w, r, modtime)
+		ch = checkIfUnmodifiedSince(r, modtime)
 	}
 	if ch == condFalse {
 		w.WriteHeader(StatusPreconditionFailed)
@@ -519,7 +519,7 @@ func checkPreconditions(w ResponseWriter, r *Request, modtime time.Time) (done b
 			return true, ""
 		}
 	case condNone:
-		if checkIfModifiedSince(w, r, modtime) == condFalse {
+		if checkIfModifiedSince(r, modtime) == condFalse {
 			writeNotModified(w)
 			return true, ""
 		}
@@ -604,7 +604,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 
 	// Still a directory? (we didn't find an index.html file)
 	if d.IsDir() {
-		if checkIfModifiedSince(w, r, d.ModTime()) == condFalse {
+		if checkIfModifiedSince(r, d.ModTime()) == condFalse {
 			writeNotModified(w)
 			return
 		}
