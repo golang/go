@@ -119,7 +119,7 @@ func (p *dumper) dump(x reflect.Value, n Node) {
 
 		// special cases for identifiers w/o attached comments (common case)
 		if x, ok := x.Interface().(*Name); ok {
-			p.printf(x.Value)
+			p.printf("%s @ %v", x.Value, x.Pos())
 			return
 		}
 
