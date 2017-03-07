@@ -160,6 +160,37 @@ func truncfltlit(oldv *Mpflt, t *types.Type) *Mpflt {
 	return fv
 }
 
+// truncate Real and Imag parts of Mpcplx to 32-bit or 64-bit
+// precision, according to type; return truncated value. In case of
+// overflow, calls yyerror but does not truncate the input value.
+func trunccmplxlit(oldv *Mpcplx, t *types.Type) *Mpcplx {
+	if t == nil {
+		return oldv
+	}
+
+	if overflow(Val{oldv}, t) {
+		// Avoid setting to Inf if there was an overflow. It's never
+		// useful, and it'll cause spourious and confusing 'constant Inf
+		// overflows float32' errors down the road.
+		return oldv
+	}
+
+	cv := newMpcmplx()
+
+	switch t.Etype {
+	case TCOMPLEX64:
+		cv.Real.SetFloat64(oldv.Real.Float32())
+		cv.Imag.SetFloat64(oldv.Imag.Float32())
+	case TCOMPLEX128:
+		cv.Real.SetFloat64(oldv.Real.Float64())
+		cv.Imag.SetFloat64(oldv.Imag.Float64())
+	default:
+		Fatalf("trunccplxlit: unexpected Etype %v", t.Etype)
+	}
+
+	return cv
+}
+
 // canReuseNode indicates whether it is known to be safe
 // to reuse a Node.
 type canReuseNode bool
@@ -361,7 +392,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 				fallthrough
 
 			case CTCPLX:
-				overflow(n.Val(), t)
+				n.SetVal(Val{trunccmplxlit(n.Val().U.(*Mpcplx), t)})
 			}
 		} else if et == types.TSTRING && (ct == CTINT || ct == CTRUNE) && explicit {
 			n.SetVal(tostr(n.Val()))
@@ -519,21 +550,25 @@ func doesoverflow(v Val, t *types.Type) bool {
 	return false
 }
 
-func overflow(v Val, t *types.Type) {
+func overflow(v Val, t *types.Type) bool {
 	// v has already been converted
 	// to appropriate form for t.
 	if t == nil || t.Etype == TIDEAL {
-		return
+		return false
 	}
 
 	// Only uintptrs may be converted to unsafe.Pointer, which cannot overflow.
 	if t.Etype == TUNSAFEPTR {
-		return
+		return false
 	}
 
 	if doesoverflow(v, t) {
 		yyerror("constant %v overflows %v", v, t)
+		return true
 	}
+
+	return false
+
 }
 
 func tostr(v Val) Val {
