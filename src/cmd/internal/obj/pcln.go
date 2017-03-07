@@ -44,13 +44,13 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Text)
 	}
 
-	started := int32(0)
+	started := false
 	var delta uint32
 	for p := func_.Text; p != nil; p = p.Link {
 		// Update val. If it's not changing, keep going.
 		val = valfunc(ctxt, func_, val, p, 0, arg)
 
-		if val == oldval && started != 0 {
+		if val == oldval && started {
 			val = valfunc(ctxt, func_, val, p, 1, arg)
 			if dbg {
 				ctxt.Logf("%6x %6s %v\n", uint64(p.Pc), "", p)
@@ -88,7 +88,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 			ctxt.Logf("%6x %6d %v\n", uint64(p.Pc), val, p)
 		}
 
-		if started != 0 {
+		if started {
 			addvarint(dst, uint32((p.Pc-pc)/int64(ctxt.Arch.MinLC)))
 			pc = p.Pc
 		}
@@ -101,11 +101,11 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		}
 		addvarint(dst, delta)
 		oldval = val
-		started = 1
+		started = true
 		val = valfunc(ctxt, func_, val, p, 1, arg)
 	}
 
-	if started != 0 {
+	if started {
 		if dbg {
 			ctxt.Logf("%6x done\n", uint64(func_.Text.Pc+func_.Size))
 		}
