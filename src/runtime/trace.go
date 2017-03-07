@@ -982,7 +982,7 @@ func traceGoPreempt() {
 	traceEvent(traceEvGoPreempt, 1)
 }
 
-func traceGoPark(traceEv byte, skip int, gp *g) {
+func traceGoPark(traceEv byte, skip int) {
 	if traceEv&traceFutileWakeup != 0 {
 		traceEvent(traceEvFutileWakeup, -1)
 	}
