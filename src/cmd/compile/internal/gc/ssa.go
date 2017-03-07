@@ -4385,7 +4385,36 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		Thearch.SSAMarkMoves(&s, b)
 		for _, v := range b.Values {
 			x := pc
-			Thearch.SSAGenValue(&s, v)
+			s.SetPos(v.Pos)
+
+			switch v.Op {
+			case ssa.OpInitMem:
+				// memory arg needs no code
+			case ssa.OpArg:
+				// input args need no code
+			case ssa.OpSP, ssa.OpSB:
+				// nothing to do
+			case ssa.OpSelect0, ssa.OpSelect1:
+				// nothing to do
+			case ssa.OpGetG:
+				// nothing to do when there's a g register,
+				// and checkLower complains if there's not
+			case ssa.OpVarDef:
+				Gvardef(v.Aux.(*Node))
+			case ssa.OpVarKill:
+				Gvarkill(v.Aux.(*Node))
+			case ssa.OpVarLive:
+				Gvarlive(v.Aux.(*Node))
+			case ssa.OpKeepAlive:
+				KeepAlive(v)
+			case ssa.OpPhi:
+				CheckLoweredPhi(v)
+
+			default:
+				// let the backend handle it
+				Thearch.SSAGenValue(&s, v)
+			}
+
 			if logProgs {
 				for ; x != pc; x = x.Link {
 					valueProgs[x] = v

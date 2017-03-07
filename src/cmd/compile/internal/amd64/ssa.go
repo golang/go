@@ -147,7 +147,6 @@ func duff(size int64) (int64, int64) {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetPos(v.Pos)
 	switch v.Op {
 	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL:
 		r := v.Reg()
@@ -714,12 +713,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		gc.AddrAuto(&p.To, v)
-	case ssa.OpPhi:
-		gc.CheckLoweredPhi(v)
-	case ssa.OpInitMem:
-		// memory arg needs no code
-	case ssa.OpArg:
-		// input args need no code
 	case ssa.OpAMD64LoweredGetClosurePtr:
 		// Closure pointer is DX.
 		gc.CheckLoweredGetClosurePtr(v)
@@ -821,10 +814,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpSP, ssa.OpSB:
-		// nothing to do
-	case ssa.OpSelect0, ssa.OpSelect1:
-		// nothing to do
 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
 		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
 		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,
@@ -868,14 +857,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpAMD64REPMOVSQ:
 		gc.Prog(x86.AREP)
 		gc.Prog(x86.AMOVSQ)
-	case ssa.OpVarDef:
-		gc.Gvardef(v.Aux.(*gc.Node))
-	case ssa.OpVarKill:
-		gc.Gvarkill(v.Aux.(*gc.Node))
-	case ssa.OpVarLive:
-		gc.Gvarlive(v.Aux.(*gc.Node))
-	case ssa.OpKeepAlive:
-		gc.KeepAlive(v)
 	case ssa.OpAMD64LoweredNilCheck:
 		// Issue a load which will fault if the input is nil.
 		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).

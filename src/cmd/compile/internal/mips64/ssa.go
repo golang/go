@@ -82,14 +82,7 @@ func storeByType(t ssa.Type, r int16) obj.As {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetPos(v.Pos)
 	switch v.Op {
-	case ssa.OpInitMem:
-		// memory arg needs no code
-	case ssa.OpArg:
-		// input args need no code
-	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
-		// nothing to do
 	case ssa.OpCopy, ssa.OpMIPS64MOVVconvert, ssa.OpMIPS64MOVVreg:
 		if v.Type.IsMemory() {
 			return
@@ -141,8 +134,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		}
-	case ssa.OpPhi:
-		gc.CheckLoweredPhi(v)
 	case ssa.OpStoreReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
@@ -551,14 +542,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
 			gc.Warnl(v.Pos, "generated nil check")
 		}
-	case ssa.OpVarDef:
-		gc.Gvardef(v.Aux.(*gc.Node))
-	case ssa.OpVarKill:
-		gc.Gvarkill(v.Aux.(*gc.Node))
-	case ssa.OpVarLive:
-		gc.Gvarlive(v.Aux.(*gc.Node))
-	case ssa.OpKeepAlive:
-		gc.KeepAlive(v)
 	case ssa.OpMIPS64FPFlagTrue,
 		ssa.OpMIPS64FPFlagFalse:
 		// MOVV	$0, r
@@ -582,8 +565,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.To.Reg = v.Reg()
 		p4 := gc.Prog(obj.ANOP) // not a machine instruction, for branch to land
 		gc.Patch(p2, p4)
-	case ssa.OpSelect0, ssa.OpSelect1:
-		// nothing to do
 	case ssa.OpMIPS64LoweredGetClosurePtr:
 		// Closure pointer is R22 (mips.REGCTXT).
 		gc.CheckLoweredGetClosurePtr(v)

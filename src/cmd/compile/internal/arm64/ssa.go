@@ -92,14 +92,7 @@ func genshift(as obj.As, r0, r1, r int16, typ int64, s int64) *obj.Prog {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetPos(v.Pos)
 	switch v.Op {
-	case ssa.OpInitMem:
-		// memory arg needs no code
-	case ssa.OpArg:
-		// input args need no code
-	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
-		// nothing to do
 	case ssa.OpCopy, ssa.OpARM64MOVDconvert, ssa.OpARM64MOVDreg:
 		if v.Type.IsMemory() {
 			return
@@ -139,8 +132,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpPhi:
-		gc.CheckLoweredPhi(v)
 	case ssa.OpStoreReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
@@ -693,14 +684,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Line==1 in generated wrappers
 			gc.Warnl(v.Pos, "generated nil check")
 		}
-	case ssa.OpVarDef:
-		gc.Gvardef(v.Aux.(*gc.Node))
-	case ssa.OpVarKill:
-		gc.Gvarkill(v.Aux.(*gc.Node))
-	case ssa.OpVarLive:
-		gc.Gvarlive(v.Aux.(*gc.Node))
-	case ssa.OpKeepAlive:
-		gc.KeepAlive(v)
 	case ssa.OpARM64Equal,
 		ssa.OpARM64NotEqual,
 		ssa.OpARM64LessThan,
@@ -717,8 +700,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = condBits[v.Op]
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpSelect0, ssa.OpSelect1:
-		// nothing to do
 	case ssa.OpARM64LoweredGetClosurePtr:
 		// Closure pointer is R26 (arm64.REGCTXT).
 		gc.CheckLoweredGetClosurePtr(v)
