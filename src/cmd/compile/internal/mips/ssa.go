@@ -74,16 +74,7 @@ func storeByType(t ssa.Type, r int16) obj.As {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetPos(v.Pos)
 	switch v.Op {
-	case ssa.OpInitMem:
-		// memory arg needs no code
-	case ssa.OpArg:
-		// input args need no code
-	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
-		// nothing to do
-	case ssa.OpSelect0, ssa.OpSelect1:
-		// nothing to do
 	case ssa.OpCopy, ssa.OpMIPSMOVWconvert, ssa.OpMIPSMOVWreg:
 		t := v.Type
 		if t.IsMemory() {
@@ -778,16 +769,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p6 := gc.Prog(obj.ANOP)
 		gc.Patch(p2, p6)
 
-	case ssa.OpVarDef:
-		gc.Gvardef(v.Aux.(*gc.Node))
-	case ssa.OpVarKill:
-		gc.Gvarkill(v.Aux.(*gc.Node))
-	case ssa.OpVarLive:
-		gc.Gvarlive(v.Aux.(*gc.Node))
-	case ssa.OpKeepAlive:
-		gc.KeepAlive(v)
-	case ssa.OpPhi:
-		gc.CheckLoweredPhi(v)
 	case ssa.OpMIPSLoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
 		p := gc.Prog(mips.AMOVB)

@@ -143,15 +143,7 @@ func ssaGenISEL(v *ssa.Value, cr int64, r1, r2 int16) {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetPos(v.Pos)
 	switch v.Op {
-	case ssa.OpInitMem:
-		// memory arg needs no code
-	case ssa.OpArg:
-		// input args need no code
-	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
-		// nothing to do
-
 	case ssa.OpCopy, ssa.OpPPC64MOVDconvert:
 		t := v.Type
 		if t.IsMemory() {
@@ -1046,19 +1038,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Maxarg < v.AuxInt {
 			gc.Maxarg = v.AuxInt
 		}
-	case ssa.OpVarDef:
-		gc.Gvardef(v.Aux.(*gc.Node))
-	case ssa.OpVarKill:
-		gc.Gvarkill(v.Aux.(*gc.Node))
-	case ssa.OpVarLive:
-		gc.Gvarlive(v.Aux.(*gc.Node))
-	case ssa.OpKeepAlive:
-		gc.KeepAlive(v)
-	case ssa.OpPhi:
-		gc.CheckLoweredPhi(v)
-	case ssa.OpSelect0, ssa.OpSelect1:
-		// nothing to do
-
 	case ssa.OpPPC64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
 		p := gc.Prog(ppc64.AMOVBZ)
