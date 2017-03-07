@@ -321,9 +321,10 @@ type Func struct {
 	Shortname  *types.Sym
 	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
 	Exit       Nodes
-	Cvars      Nodes   // closure params
-	Dcl        []*Node // autodcl for this func/closure
-	Inldcl     Nodes   // copy of dcl for use in inlining
+	Cvars      Nodes      // closure params
+	Dcl        []*Node    // autodcl for this func/closure
+	Inldcl     Nodes      // copy of dcl for use in inlining
+	scopes     src.Scopes // lexical scopes of the function
 	Closgen    int
 	Outerfunc  *Node // outer function (for closure)
 	FieldTrack map[*types.Sym]struct{}

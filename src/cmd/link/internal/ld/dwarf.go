@@ -8,7 +8,6 @@
 //   - assign global variables and types to their packages
 //   - gdb uses c syntax, meaning clumsy quoting is needed for go identifiers. eg
 //     ptype struct '[]uint8' and qualifiers need to be quoted away
-//   - lexical scoping is lost, so gdb gets confused as to which 'main.i' you mean.
 //   - file:line info for variables
 //   - make strings a typedef so prettyprinters can see the underlying string type
 
@@ -76,6 +75,7 @@ var arangessec *Symbol
 var framesec *Symbol
 var infosec *Symbol
 var linesec *Symbol
+var rangesec *Symbol
 
 var gdbscript string
 
@@ -1288,6 +1288,34 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 	return syms
 }
 
+func writeranges(ctxt *Link, syms []*Symbol) []*Symbol {
+	if rangesec == nil {
+		rangesec = ctxt.Syms.Lookup(".debug_ranges", 0)
+	}
+	rangesec.Type = obj.SDWARFSECT
+	rangesec.Attr |= AttrReachable
+	rangesec.R = rangesec.R[:0]
+
+	for _, s := range ctxt.Textp {
+		rangeSym := ctxt.Syms.Lookup(dwarf.RangePrefix+s.Name, int(s.Version))
+		rangeSym.Attr |= AttrHidden
+		rangeSym.Attr |= AttrReachable
+		rangeSym.Type = obj.SDWARFRANGE
+		rangeSym.Value = rangesec.Size
+		rangesec.P = append(rangesec.P, rangeSym.P...)
+		for _, r := range rangeSym.R {
+			r.Off += int32(rangesec.Size)
+			rangesec.R = append(rangesec.R, r)
+		}
+		rangesec.Size += rangeSym.Size
+	}
+	if rangesec.Size > 0 {
+		// PE does not like empty sections
+		syms = append(syms, rangesec)
+	}
+	return syms
+}
+
 /*
  *  Walk DWarfDebugInfoEntries, and emit .debug_info
  */
@@ -1318,7 +1346,7 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol) []*Symbol {
 		// Fields marked with (*) must be changed for 64-bit dwarf
 		// This must match COMPUNITHEADERSIZE above.
 		Adduint32(ctxt, s, 0) // unit_length (*), will be filled in later.
-		Adduint16(ctxt, s, 2) // dwarf version (appendix F)
+		Adduint16(ctxt, s, 3) // dwarf version (appendix F)
 
 		// debug_abbrev_offset (*)
 		adddwarfref(ctxt, s, abbrevsym, 4)
@@ -1531,6 +1559,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	syms := writeabbrev(ctxt, nil)
 	syms, funcs := writelines(ctxt, syms)
 	syms = writeframes(ctxt, syms)
+	syms = writeranges(ctxt, syms)
 
 	synthesizestringtypes(ctxt, dwtypes.Child)
 	synthesizeslicetypes(ctxt, dwtypes.Child)
@@ -1572,6 +1601,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *Symbol) {
 	Addstring(shstrtab, ".debug_pubnames")
 	Addstring(shstrtab, ".debug_pubtypes")
 	Addstring(shstrtab, ".debug_gdb_scripts")
+	Addstring(shstrtab, ".debug_ranges")
 	if Linkmode == LinkExternal {
 		Addstring(shstrtab, elfRelType+".debug_info")
 		Addstring(shstrtab, elfRelType+".debug_aranges")
@@ -1599,6 +1629,10 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
 	sym = ctxt.Syms.Lookup(".debug_frame", 0)
 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+	sym = ctxt.Syms.Lookup(".debug_ranges", 0)
+	if sym.Sect != nil {
+		putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+	}
 }
 
 /*

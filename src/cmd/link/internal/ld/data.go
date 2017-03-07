@@ -570,9 +570,18 @@ func relocsym(ctxt *Link, s *Symbol) {
 			}
 
 		case obj.R_DWARFREF:
-			if r.Sym.Sect == nil {
+			sectName := ""
+			vaddr := int64(0)
+			if r.Sym.Sect != nil {
+				sectName = r.Sym.Sect.Name
+				vaddr = int64(r.Sym.Sect.Vaddr)
+			} else if r.Sym.Type == obj.SDWARFRANGE {
+				sectName = ".debug_ranges"
+				vaddr = 0
+			} else {
 				Errorf(s, "missing DWARF section for relocation target %s", r.Sym.Name)
 			}
+
 			if Linkmode == LinkExternal {
 				r.Done = 0
 				// PE code emits IMAGE_REL_I386_SECREL and IMAGE_REL_AMD64_SECREL
@@ -584,8 +593,9 @@ func relocsym(ctxt *Link, s *Symbol) {
 					r.Type = obj.R_ADDR
 				}
 
-				r.Xsym = ctxt.Syms.ROLookup(r.Sym.Sect.Name, 0)
-				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
+				r.Xsym = ctxt.Syms.ROLookup(sectName, 0)
+				r.Xadd = r.Add + Symaddr(r.Sym) - vaddr
+
 				o = r.Xadd
 				rs = r.Xsym
 				if Iself && SysArch.Family == sys.AMD64 {
@@ -593,7 +603,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				}
 				break
 			}
-			o = Symaddr(r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
+			o = Symaddr(r.Sym) + r.Add - vaddr
 
 		case obj.R_WEAKADDROFF:
 			if !r.Sym.Attr.Reachable() {
@@ -1822,6 +1832,7 @@ func (ctxt *Link) dodata() {
 		if s.Type != obj.SDWARFSECT {
 			break
 		}
+
 		sect = addsection(&Segdwarf, s.Name, 04)
 		sect.Align = 1
 		datsize = Rnd(datsize, int64(sect.Align))

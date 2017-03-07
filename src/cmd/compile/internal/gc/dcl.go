@@ -33,6 +33,9 @@ var block int32 // current block number
 // Sym definitions, and only a subset of its fields are actually used.
 var dclstack *types.Sym
 
+// lastPopdclPos is the last pos passed to popdcl
+var lastPopdclPos src.Pos
+
 func dcopy(a, b *types.Sym) {
 	a.Pkg = b.Pkg
 	a.Name = b.Name
@@ -59,7 +62,7 @@ func pushdcl(s *types.Sym) *types.Sym {
 
 // popdcl pops the innermost block scope and restores all symbol declarations
 // to their previous state.
-func popdcl() {
+func popdcl(pos src.Pos) {
 	d := dclstack
 	for ; d != nil && d.Name != ""; d = d.Link {
 		s := d.Pkg.Lookup(d.Name)
@@ -74,16 +77,29 @@ func popdcl() {
 
 	dclstack = d.Link // pop mark
 	block = d.Block
+
+	if Curfn != nil {
+		Curfn.Func.scopes.Close(&Ctxt.PosTable, pos)
+		lastPopdclPos = pos
+	}
+
+	return
 }
 
 // markdcl records the start of a new block scope for declarations.
-func markdcl() {
+func markdcl(pos src.Pos) {
 	d := push()
 	d.Name = "" // used as a mark in fifo
 	d.Block = block
 
 	blockgen++
 	block = blockgen
+
+	if Curfn != nil {
+		Curfn.Func.scopes.Open(&Ctxt.PosTable, pos)
+	}
+
+	return
 }
 
 // keep around for debugging
@@ -451,14 +467,14 @@ func ifacedcl(n *Node) {
 // and declare the arguments.
 // called in extern-declaration context
 // returns in auto-declaration context.
-func funchdr(n *Node) {
+func funchdr(n *Node, pos src.Pos) {
 	// change the declaration context from extern to auto
 	if funcdepth == 0 && dclcontext != PEXTERN {
 		Fatalf("funchdr: dclcontext = %d", dclcontext)
 	}
 
 	dclcontext = PAUTO
-	funcstart(n)
+	funcstart(n, pos)
 
 	if n.Func.Nname != nil {
 		funcargs(n.Func.Nname.Name.Param.Ntype)
@@ -596,22 +612,22 @@ var funcdepth int32   // len(funcstack) during parsing, but then forced to be th
 
 // start the function.
 // called before funcargs; undone at end of funcbody.
-func funcstart(n *Node) {
-	markdcl()
+func funcstart(n *Node, pos src.Pos) {
 	funcstack = append(funcstack, Curfn)
 	funcdepth++
 	Curfn = n
+	markdcl(pos)
 }
 
 // finish the body.
 // called in auto-declaration context.
 // returns in extern-declaration context.
-func funcbody(n *Node) {
+func funcbody(n *Node, pos src.Pos) {
 	// change the declaration context from auto to extern
 	if dclcontext != PAUTO {
 		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)
 	}
-	popdcl()
+	popdcl(pos)
 	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
 	funcdepth--
 	if funcdepth == 0 {
