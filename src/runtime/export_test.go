@@ -41,11 +41,11 @@ type LFNode struct {
 }
 
 func LFStackPush(head *uint64, node *LFNode) {
-	lfstackpush(head, (*lfnode)(unsafe.Pointer(node)))
+	(*lfstack)(head).push((*lfnode)(unsafe.Pointer(node)))
 }
 
 func LFStackPop(head *uint64) *LFNode {
-	return (*LFNode)(unsafe.Pointer(lfstackpop(head)))
+	return (*LFNode)(unsafe.Pointer((*lfstack)(head).pop()))
 }
 
 func GCMask(x interface{}) (ret []byte) {

@@ -782,8 +782,8 @@ const gcAssistTimeSlack = 5000
 const gcOverAssistWork = 64 << 10
 
 var work struct {
-	full  uint64                   // lock-free list of full blocks workbuf
-	empty uint64                   // lock-free list of empty blocks workbuf
+	full  lfstack                  // lock-free list of full blocks workbuf
+	empty lfstack                  // lock-free list of empty blocks workbuf
 	pad0  [sys.CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
 
 	// bytesMarked is the number of bytes marked this cycle. This
@@ -1574,7 +1574,7 @@ func gcMarkWorkAvailable(p *p) bool {
 	if p != nil && !p.gcw.empty() {
 		return true
 	}
-	if atomic.Load64(&work.full) != 0 {
+	if !work.full.empty() {
 		return true // global work available
 	}
 	if work.markrootNext < work.markrootJobs {
