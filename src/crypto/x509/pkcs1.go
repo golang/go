@@ -35,6 +35,12 @@ type pkcs1AdditionalRSAPrime struct {
 	Coeff *big.Int
 }
 
+// pkcs1PublicKey reflects the ASN.1 structure of a PKCS#1 public key.
+type pkcs1PublicKey struct {
+	N *big.Int
+	E int
+}
+
 // ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
 func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
 	var priv pkcs1PrivateKey
@@ -112,10 +118,4 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
 
 	b, _ := asn1.Marshal(priv)
 	return b
-}
-
-// rsaPublicKey reflects the ASN.1 structure of a PKCS#1 public key.
-type rsaPublicKey struct {
-	N *big.Int
-	E int
 }
