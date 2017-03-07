@@ -178,7 +178,7 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
 	b.pb.int64Opt(tagMapping_Filename, b.stringIndex(file))
 	// TODO: Set any of HasInlineFrames, HasFunctions, HasFilenames, HasLineNumbers?
 	// It seems like they should all be true, but they've never been set.
-	b.pb.endMessage(tagProfile_Mapping, start)
+	b.pb.endMessage(tag, start)
 }
 
 // locForPC returns the location ID for addr.
