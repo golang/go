@@ -145,11 +145,10 @@ func selectnbsend(hchan chan<- any, elem *any) bool
 func selectnbrecv(elem *any, hchan <-chan any) bool
 func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
 
-func newselect(sel *byte, selsize int64, size int32)
-func selectsend(sel *byte, hchan chan<- any, elem *any)
-func selectrecv(sel *byte, hchan <-chan any, elem *any, received *bool)
-func selectdefault(sel *byte)
-func selectgo(sel *byte) int
+func selectsend(cas *byte, hchan chan<- any, elem *any)
+func selectrecv(cas *byte, hchan <-chan any, elem *any, received *bool)
+func selectdefault(cas *byte)
+func selectgo(cas0 *byte, order0 *byte, ncases int) int
 func block()
 
 func makeslice(typ *byte, len int, cap int) (ary []any)

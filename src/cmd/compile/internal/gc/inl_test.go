@@ -60,7 +60,6 @@ func TestIntendedInlining(t *testing.T) {
 			"releasem",
 			"round",
 			"roundupsize",
-			"selectsize",
 			"stringStructOf",
 			"subtract1",
 			"subtractb",
