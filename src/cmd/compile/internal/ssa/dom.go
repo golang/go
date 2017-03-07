@@ -296,7 +296,8 @@ func dominatorsSimple(f *Func) []*Block {
 // intersect finds the closest dominator of both b and c.
 // It requires a postorder numbering of all the blocks.
 func intersect(b, c *Block, postnum []int, idom []*Block) *Block {
-	// TODO: This loop is O(n^2). See BenchmarkNilCheckDeep*.
+	// TODO: This loop is O(n^2). It used to be used in nilcheck,
+	// see BenchmarkNilCheckDeep*.
 	for b != c {
 		if postnum[b.ID] < postnum[c.ID] {
 			b = idom[b.ID]
