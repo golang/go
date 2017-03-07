@@ -84,15 +84,14 @@ func (p Pos) String() string {
 		return "<unknown line number>"
 	}
 
-	b := p.base
-
-	if b == b.Pos().base {
+	s := posString(p.Filename(), p.Line(), p.Col())
+	if b := p.base; b == b.Pos().base {
 		// base is file base (incl. nil)
-		return posString(b.Filename(), p.Line(), p.Col())
+		return s
 	}
 
 	// base is relative
-	return posString(b.Filename(), p.RelLine(), p.Col()) + "[" + b.Pos().String() + "]"
+	return posString(p.RelFilename(), p.RelLine(), p.Col()) + "[" + s + "]"
 }
 
 // Don't print column numbers because existing tests may not work anymore.

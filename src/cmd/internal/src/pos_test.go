@@ -18,6 +18,13 @@ func TestPos(t *testing.T) {
 	f3 := NewLinePragmaBase(MakePos(f1, 10, 1), "f3", 100)
 	f4 := NewLinePragmaBase(MakePos(f3, 10, 1), "f4", 100)
 
+	// line directives from issue #19392
+	fp := NewFileBase("p.go", "p.go")
+	fc := NewLinePragmaBase(MakePos(fp, 3, 0), "c.go", 10)
+	ft := NewLinePragmaBase(MakePos(fp, 6, 0), "t.go", 20)
+	fv := NewLinePragmaBase(MakePos(fp, 9, 0), "v.go", 30)
+	ff := NewLinePragmaBase(MakePos(fp, 12, 0), "f.go", 40)
+
 	for _, test := range []struct {
 		pos    Pos
 		string string
@@ -34,9 +41,15 @@ func TestPos(t *testing.T) {
 		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2},
 		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2},
 		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1},
-		{MakePos(f2, 7, 10), "f2:16:10[<unknown line number>]", "", 7, 10, "f2", 16},
-		{MakePos(f3, 12, 7), "f3:101:7[f1:10:1]", "f1", 12, 7, "f3", 101},
-		{MakePos(f4, 25, 1), "f4:114:1[f3:99:1[f1:10:1]]", "f3", 25, 1, "f4", 114}, // doesn't occur in Go code
+		{MakePos(f2, 7, 10), "f2:16:10[:7:10]", "", 7, 10, "f2", 16},
+		{MakePos(f3, 12, 7), "f3:101:7[f1:12:7]", "f1", 12, 7, "f3", 101},
+		{MakePos(f4, 25, 1), "f4:114:1[f3:25:1]", "f3", 25, 1, "f4", 114},
+
+		// positions from issue #19392
+		{MakePos(fc, 4, 0), "c.go:10:0[p.go:4:0]", "p.go", 4, 0, "c.go", 10},
+		{MakePos(ft, 7, 0), "t.go:20:0[p.go:7:0]", "p.go", 7, 0, "t.go", 20},
+		{MakePos(fv, 10, 0), "v.go:30:0[p.go:10:0]", "p.go", 10, 0, "v.go", 30},
+		{MakePos(ff, 13, 0), "f.go:40:0[p.go:13:0]", "p.go", 13, 0, "f.go", 40},
 	} {
 		pos := test.pos
 		if got := pos.String(); got != test.string {
