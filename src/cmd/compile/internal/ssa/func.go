@@ -104,6 +104,31 @@ func (f *Func) newValue(op Op, t Type, b *Block, pos src.XPos) *Value {
 	return v
 }
 
+// newValueNoBlock allocates a new Value with the given fields.
+// The returned value is not placed in any block.  Once the caller
+// decides on a block b, it must set b.Block and append
+// the returned value to b.Values.
+func (f *Func) newValueNoBlock(op Op, t Type, pos src.XPos) *Value {
+	var v *Value
+	if f.freeValues != nil {
+		v = f.freeValues
+		f.freeValues = v.argstorage[0]
+		v.argstorage[0] = nil
+	} else {
+		ID := f.vid.get()
+		if int(ID) < len(f.Config.values) {
+			v = &f.Config.values[ID]
+		} else {
+			v = &Value{ID: ID}
+		}
+	}
+	v.Op = op
+	v.Type = t
+	v.Block = nil // caller must fix this.
+	v.Pos = pos
+	return v
+}
+
 // logPassStat writes a string key and int value as a warning in a
 // tab-separated format easily handled by spreadsheets or awk.
 // file names, lines, and function names are included to provide enough (?)
