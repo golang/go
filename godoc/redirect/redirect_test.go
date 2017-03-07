@@ -50,6 +50,9 @@ func TestRedirects(t *testing.T) {
 		"/issues/new":               {301, "https://github.com/golang/go/issues/new"},
 		"/issues/1/2/3":             errorResult(404),
 
+		"/wiki/foo":  {302, "https://github.com/golang/go/wiki/foo"},
+		"/wiki/foo/": {302, "https://github.com/golang/go/wiki/foo/"},
+
 		"/design":              {301, "https://github.com/golang/proposal/tree/master/design"},
 		"/design/":             {302, "/design"},
 		"/design/123-foo":      {302, "https://github.com/golang/proposal/blob/master/design/123-foo.md"},
