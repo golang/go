@@ -70,7 +70,7 @@ func f2() { f2() }
 // testPCs returns two PCs and two corresponding memory mappings
 // to use in test profiles.
 func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
-	if runtime.GOOS == "linux" {
+	if runtime.GOOS == "linux" || runtime.GOOS == "android" {
 		// Figure out two addresses from /proc/self/maps.
 		mmap, err := ioutil.ReadFile("/proc/self/maps")
 		if err != nil {
