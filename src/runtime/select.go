@@ -12,8 +12,10 @@ import (
 
 const debugSelect = false
 
+// scase.kind values.
+// Known to compiler.
+// Changes here must also be made in src/cmd/compile/internal/gc/select.go's walkselect.
 const (
-	// scase.kind
 	caseNil = iota
 	caseRecv
 	caseSend
@@ -24,11 +26,11 @@ const (
 // Known to compiler.
 // Changes here must also be made in src/cmd/internal/gc/select.go's scasetype.
 type scase struct {
-	elem        unsafe.Pointer // data element
 	c           *hchan         // chan
-	pc          uintptr        // return pc (for race detector / msan)
+	elem        unsafe.Pointer // data element
+	receivedp   *bool          // pointer to received bool, if any
 	kind        uint16
-	receivedp   *bool // pointer to received bool, if any
+	pc          uintptr // race pc (for race detector / msan)
 	releasetime int64
 }
 
@@ -37,43 +39,8 @@ var (
 	chanrecvpc = funcPC(chanrecv)
 )
 
-func selectsend(cas *scase, c *hchan, elem unsafe.Pointer) {
-	if c == nil {
-		return
-	}
+func selectsetpc(cas *scase) {
 	cas.pc = getcallerpc()
-	cas.c = c
-	cas.kind = caseSend
-	cas.elem = elem
-
-	if debugSelect {
-		print("selectsend cas=", cas, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
-	}
-}
-
-func selectrecv(cas *scase, c *hchan, elem unsafe.Pointer, received *bool) {
-	if c == nil {
-		return
-	}
-	cas.pc = getcallerpc()
-	cas.c = c
-	cas.kind = caseRecv
-	cas.elem = elem
-	cas.receivedp = received
-
-	if debugSelect {
-		print("selectrecv cas=", cas, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
-	}
-}
-
-func selectdefault(cas *scase) {
-	cas.pc = getcallerpc()
-	cas.c = nil
-	cas.kind = caseDefault
-
-	if debugSelect {
-		print("selectdefault cas=", cas, " pc=", hex(cas.pc), "\n")
-	}
 }
 
 func sellock(scases []scase, lockorder []uint16) {
@@ -155,6 +122,15 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) int {
 	scases := cas1[:ncases:ncases]
 	pollorder := order1[:ncases:ncases]
 	lockorder := order1[ncases:][:ncases:ncases]
+
+	// Replace send/receive cases involving nil channels with
+	// caseNil so logic below can assume non-nil channel.
+	for i := range scases {
+		cas := &scases[i]
+		if cas.c == nil && cas.kind != caseDefault {
+			*cas = scase{}
+		}
+	}
 
 	var t0 int64
 	if blockprofilerate > 0 {
@@ -556,11 +532,14 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
 		rc := &cases[i]
 		switch rc.dir {
 		case selectDefault:
-			selectdefault(&sel[i])
+			sel[i] = scase{kind: caseDefault}
 		case selectSend:
-			selectsend(&sel[i], rc.ch, rc.val)
+			sel[i] = scase{kind: caseSend, c: rc.ch, elem: rc.val}
 		case selectRecv:
-			selectrecv(&sel[i], rc.ch, rc.val, r)
+			sel[i] = scase{kind: caseRecv, c: rc.ch, elem: rc.val, receivedp: r}
+		}
+		if raceenabled || msanenabled {
+			selectsetpc(&sel[i])
 		}
 	}
 
