@@ -208,15 +208,15 @@ func (d *WordDecoder) Decode(word string) (string, error) {
 	if len(charset) == 0 {
 		return "", errInvalidWord
 	}
+	if len(word) <= split+3 {
+		return "", errInvalidWord
+	}
 	encoding := word[split+1]
 	// the field after split must only be one byte
 	if word[split+2] != '?' {
 		return "", errInvalidWord
 	}
 	text := word[split+3:]
-	if len(text) == 0 {
-		return "", errInvalidWord
-	}
 
 	content, err := decode(encoding, text)
 	if err != nil {
