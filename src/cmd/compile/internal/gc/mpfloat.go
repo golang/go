@@ -37,6 +37,13 @@ func newMpflt() *Mpflt {
 	return &a
 }
 
+func newMpcmplx() *Mpcplx {
+	var a Mpcplx
+	a.Real = *newMpflt()
+	a.Imag = *newMpflt()
+	return &a
+}
+
 func (a *Mpflt) SetInt(b *Mpint) {
 	if b.checkOverflow(0) {
 		// sign doesn't really matter but copy anyway
