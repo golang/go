@@ -187,10 +187,6 @@ func walkselectcases(cases *Nodes) []*Node {
 			if n.Op == OSELRECV2 && n.List.Len() == 0 {
 				n.Op = OSELRECV
 			}
-			if n.Op == OSELRECV2 {
-				n.List.SetFirst(nod(OADDR, n.List.First(), nil))
-				n.List.SetFirst(typecheck(n.List.First(), Erv))
-			}
 
 			if n.Left != nil {
 				n.Left = nod(OADDR, n.Left, nil)
@@ -225,7 +221,7 @@ func walkselectcases(cases *Nodes) []*Node {
 			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), types.Types[TBOOL], &r.Ninit, ch, n.Right)
 
 		case OSELRECV:
-			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
+			// if selectnbrecv(&v, c) { body } else { default body }
 			r = nod(OIF, nil, nil)
 			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
@@ -236,7 +232,7 @@ func walkselectcases(cases *Nodes) []*Node {
 			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), types.Types[TBOOL], &r.Ninit, elem, ch)
 
 		case OSELRECV2:
-			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
+			// if selectnbrecv2(&v, &received, c) { body } else { default body }
 			r = nod(OIF, nil, nil)
 			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
@@ -244,7 +240,9 @@ func walkselectcases(cases *Nodes) []*Node {
 			if elem == nil {
 				elem = nodnil()
 			}
-			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), types.Types[TBOOL], &r.Ninit, elem, n.List.First(), ch)
+			receivedp := nod(OADDR, n.List.First(), nil)
+			receivedp = typecheck(receivedp, Erv)
+			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), types.Types[TBOOL], &r.Ninit, elem, receivedp, ch)
 		}
 
 		r.Left = typecheck(r.Left, Erv)
@@ -282,7 +280,7 @@ func walkselectcases(cases *Nodes) []*Node {
 			caseDefault
 		)
 
-		var c, elem, receivedp *Node
+		var c, elem *Node
 		var kind int64 = caseDefault
 
 		if n := cas.Left; n != nil {
@@ -295,15 +293,10 @@ func walkselectcases(cases *Nodes) []*Node {
 				kind = caseSend
 				c = n.Left
 				elem = n.Right
-			case OSELRECV:
+			case OSELRECV, OSELRECV2:
 				kind = caseRecv
 				c = n.Right.Left
 				elem = n.Left
-			case OSELRECV2:
-				kind = caseRecv
-				c = n.Right.Left
-				elem = n.Left
-				receivedp = n.List.First()
 			}
 		}
 
@@ -324,11 +317,6 @@ func walkselectcases(cases *Nodes) []*Node {
 			elem.Type = types.Types[TUNSAFEPTR]
 			setField("elem", elem)
 		}
-		if receivedp != nil {
-			receivedp = nod(OCONVNOP, receivedp, nil)
-			receivedp.Type = types.NewPtr(types.Types[TBOOL])
-			setField("receivedp", receivedp)
-		}
 
 		// TODO(mdempsky): There should be a cleaner way to
 		// handle this.
@@ -341,7 +329,11 @@ func walkselectcases(cases *Nodes) []*Node {
 	// run the select
 	lineno = sellineno
 	chosen := temp(types.Types[TINT])
-	r = nod(OAS, chosen, mkcall("selectgo", types.Types[TINT], nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), nodintconst(int64(n))))
+	recvOK := temp(types.Types[TBOOL])
+	r = nod(OAS2, nil, nil)
+	r.List.Set2(chosen, recvOK)
+	fn := syslook("selectgo")
+	r.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), nodintconst(int64(n))))
 	r = typecheck(r, Etop)
 	init = append(init, r)
 
@@ -358,6 +350,13 @@ func walkselectcases(cases *Nodes) []*Node {
 		cond = defaultlit(cond, nil)
 
 		r = nod(OIF, cond, nil)
+
+		if n := cas.Left; n != nil && n.Op == OSELRECV2 {
+			x := nod(OAS, n.List.First(), recvOK)
+			x = typecheck(x, Etop)
+			r.Nbody.Append(x)
+		}
+
 		r.Nbody.AppendNodes(&cas.Nbody)
 		r.Nbody.Append(nod(OBREAK, nil, nil))
 		init = append(init, r)
@@ -382,7 +381,6 @@ func scasetype() *types.Type {
 		scase = tostruct([]*Node{
 			namedfield("c", types.Types[TUNSAFEPTR]),
 			namedfield("elem", types.Types[TUNSAFEPTR]),
-			namedfield("receivedp", types.NewPtr(types.Types[TBOOL])),
 			namedfield("kind", types.Types[TUINT16]),
 			namedfield("pc", types.Types[TUINTPTR]),
 			namedfield("releasetime", types.Types[TUINT64]),

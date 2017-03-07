@@ -242,7 +242,7 @@ func runtimeTypes() []*types.Type {
 	typs[88] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
 	typs[89] = types.NewPtr(typs[11])
 	typs[90] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[89]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
-	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[32])})
+	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[32]), anonfield(typs[11])})
 	typs[92] = types.NewSlice(typs[2])
 	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[92])})
 	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[92])})
