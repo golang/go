@@ -35,7 +35,7 @@ const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345678
 const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 
 // NewEncoding returns a new padded Encoding defined by the given alphabet,
-// which must be a 64-byte string that does not contains the padding character
+// which must be a 64-byte string that does not contain the padding character
 // or CR / LF ('\r', '\n').
 // The resulting Encoding uses the default padding character ('='),
 // which may be changed or disabled via WithPadding.
