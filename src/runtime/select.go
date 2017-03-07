@@ -199,13 +199,7 @@ func block() {
 //
 // selectgo returns the index of the chosen scase, which matches the
 // ordinal position of its respective select{recv,send,default} call.
-//go:nosplit
 func selectgo(sel *hselect) int {
-	return selectgoImpl(sel)
-}
-
-// Separate function to keep runtime/trace.TestTraceSymbolize happy.
-func selectgoImpl(sel *hselect) int {
 	if debugSelect {
 		print("select: sel=", sel, "\n")
 	}
@@ -398,7 +392,7 @@ loop:
 
 	// wait for someone to wake us up
 	gp.param = nil
-	gopark(selparkcommit, nil, "select", traceEvGoBlockSelect, 2)
+	gopark(selparkcommit, nil, "select", traceEvGoBlockSelect, 1)
 
 	// While we were asleep, some goroutine came along and completed
 	// one of the cases in the select and woke us up (called ready).
@@ -592,7 +586,7 @@ bufsend:
 
 recv:
 	// can receive from sleeping sender (sg)
-	recv(c, sg, cas.elem, func() { selunlock(scases, lockorder) })
+	recv(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
 	if debugSelect {
 		print("syncrecv: sel=", sel, " c=", c, "\n")
 	}
@@ -623,7 +617,7 @@ send:
 	if msanenabled {
 		msanread(cas.elem, c.elemtype.size)
 	}
-	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) })
+	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
 	if debugSelect {
 		print("syncsend: sel=", sel, " c=", c, "\n")
 	}
@@ -631,7 +625,7 @@ send:
 
 retc:
 	if cas.releasetime > 0 {
-		blockevent(cas.releasetime-t0, 2)
+		blockevent(cas.releasetime-t0, 1)
 	}
 	return casi
 
