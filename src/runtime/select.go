@@ -7,7 +7,6 @@ package runtime
 // This file contains the implementation of Go select statements.
 
 import (
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -21,20 +20,9 @@ const (
 	caseDefault
 )
 
-// Select statement header.
-// Known to compiler.
-// Changes here must also be made in src/cmd/internal/gc/select.go's selecttype.
-type hselect struct {
-	tcase     uint16   // total count of scase[]
-	ncase     uint16   // currently filled scase[]
-	pollorder *uint16  // case poll order
-	lockorder *uint16  // channel lock order
-	scase     [1]scase // one per case (in order of appearance)
-}
-
 // Select case descriptor.
 // Known to compiler.
-// Changes here must also be made in src/cmd/internal/gc/select.go's selecttype.
+// Changes here must also be made in src/cmd/internal/gc/select.go's scasetype.
 type scase struct {
 	elem        unsafe.Pointer // data element
 	c           *hchan         // chan
@@ -49,86 +37,42 @@ var (
 	chanrecvpc = funcPC(chanrecv)
 )
 
-func selectsize(size uintptr) uintptr {
-	selsize := unsafe.Sizeof(hselect{}) +
-		(size-1)*unsafe.Sizeof(hselect{}.scase[0]) +
-		size*unsafe.Sizeof(*hselect{}.lockorder) +
-		size*unsafe.Sizeof(*hselect{}.pollorder)
-	return round(selsize, sys.Int64Align)
-}
-
-func newselect(sel *hselect, selsize int64, size int32) {
-	if selsize != int64(selectsize(uintptr(size))) {
-		print("runtime: bad select size ", selsize, ", want ", selectsize(uintptr(size)), "\n")
-		throw("bad select size")
-	}
-	sel.tcase = uint16(size)
-	sel.ncase = 0
-	sel.lockorder = (*uint16)(add(unsafe.Pointer(&sel.scase), uintptr(size)*unsafe.Sizeof(hselect{}.scase[0])))
-	sel.pollorder = (*uint16)(add(unsafe.Pointer(sel.lockorder), uintptr(size)*unsafe.Sizeof(*hselect{}.lockorder)))
-
-	if debugSelect {
-		print("newselect s=", sel, " size=", size, "\n")
-	}
-}
-
-func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) {
-	pc := getcallerpc()
-	i := sel.ncase
-	if i >= sel.tcase {
-		throw("selectsend: too many cases")
-	}
-	sel.ncase = i + 1
+func selectsend(cas *scase, c *hchan, elem unsafe.Pointer) {
 	if c == nil {
 		return
 	}
-	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
-	cas.pc = pc
+	cas.pc = getcallerpc()
 	cas.c = c
 	cas.kind = caseSend
 	cas.elem = elem
 
 	if debugSelect {
-		print("selectsend s=", sel, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
+		print("selectsend cas=", cas, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
 	}
 }
 
-func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) {
-	pc := getcallerpc()
-	i := sel.ncase
-	if i >= sel.tcase {
-		throw("selectrecv: too many cases")
-	}
-	sel.ncase = i + 1
+func selectrecv(cas *scase, c *hchan, elem unsafe.Pointer, received *bool) {
 	if c == nil {
 		return
 	}
-	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
-	cas.pc = pc
+	cas.pc = getcallerpc()
 	cas.c = c
 	cas.kind = caseRecv
 	cas.elem = elem
 	cas.receivedp = received
 
 	if debugSelect {
-		print("selectrecv s=", sel, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
+		print("selectrecv cas=", cas, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
 	}
 }
 
-func selectdefault(sel *hselect) {
-	pc := getcallerpc()
-	i := sel.ncase
-	if i >= sel.tcase {
-		throw("selectdefault: too many cases")
-	}
-	sel.ncase = i + 1
-	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
-	cas.pc = pc
+func selectdefault(cas *scase) {
+	cas.pc = getcallerpc()
 	cas.c = nil
 	cas.kind = caseDefault
 
 	if debugSelect {
-		print("selectdefault s=", sel, " pc=", hex(cas.pc), "\n")
+		print("selectdefault cas=", cas, " pc=", hex(cas.pc), "\n")
 	}
 }
 
@@ -194,26 +138,28 @@ func block() {
 
 // selectgo implements the select statement.
 //
-// *sel is on the current goroutine's stack (regardless of any
-// escaping in selectgo).
+// cas0 points to an array of type [ncases]scase, and order0 points to
+// an array of type [2*ncases]uint16. Both reside on the goroutine's
+// stack (regardless of any escaping in selectgo).
 //
 // selectgo returns the index of the chosen scase, which matches the
 // ordinal position of its respective select{recv,send,default} call.
-func selectgo(sel *hselect) int {
+func selectgo(cas0 *scase, order0 *uint16, ncases int) int {
 	if debugSelect {
-		print("select: sel=", sel, "\n")
-	}
-	if sel.ncase != sel.tcase {
-		throw("selectgo: case count mismatch")
+		print("select: cas0=", cas0, "\n")
 	}
 
-	scaseslice := slice{unsafe.Pointer(&sel.scase), int(sel.ncase), int(sel.ncase)}
-	scases := *(*[]scase)(unsafe.Pointer(&scaseslice))
+	cas1 := (*[1 << 16]scase)(unsafe.Pointer(cas0))
+	order1 := (*[1 << 17]uint16)(unsafe.Pointer(order0))
+
+	scases := cas1[:ncases:ncases]
+	pollorder := order1[:ncases:ncases]
+	lockorder := order1[ncases:][:ncases:ncases]
 
 	var t0 int64
 	if blockprofilerate > 0 {
 		t0 = cputicks()
-		for i := 0; i < int(sel.ncase); i++ {
+		for i := 0; i < ncases; i++ {
 			scases[i].releasetime = -1
 		}
 	}
@@ -227,9 +173,7 @@ func selectgo(sel *hselect) int {
 	// optimizing (and needing to test).
 
 	// generate permuted order
-	pollslice := slice{unsafe.Pointer(sel.pollorder), int(sel.ncase), int(sel.ncase)}
-	pollorder := *(*[]uint16)(unsafe.Pointer(&pollslice))
-	for i := 1; i < int(sel.ncase); i++ {
+	for i := 1; i < ncases; i++ {
 		j := fastrandn(uint32(i + 1))
 		pollorder[i] = pollorder[j]
 		pollorder[j] = uint16(i)
@@ -237,9 +181,7 @@ func selectgo(sel *hselect) int {
 
 	// sort the cases by Hchan address to get the locking order.
 	// simple heap sort, to guarantee n log n time and constant stack footprint.
-	lockslice := slice{unsafe.Pointer(sel.lockorder), int(sel.ncase), int(sel.ncase)}
-	lockorder := *(*[]uint16)(unsafe.Pointer(&lockslice))
-	for i := 0; i < int(sel.ncase); i++ {
+	for i := 0; i < ncases; i++ {
 		j := i
 		// Start with the pollorder to permute cases on the same channel.
 		c := scases[pollorder[i]].c
@@ -250,7 +192,7 @@ func selectgo(sel *hselect) int {
 		}
 		lockorder[j] = pollorder[i]
 	}
-	for i := int(sel.ncase) - 1; i >= 0; i-- {
+	for i := ncases - 1; i >= 0; i-- {
 		o := lockorder[i]
 		c := scases[o].c
 		lockorder[i] = lockorder[0]
@@ -273,7 +215,7 @@ func selectgo(sel *hselect) int {
 		lockorder[j] = o
 	}
 	/*
-		for i := 0; i+1 < int(sel.ncase); i++ {
+		for i := 0; i+1 < ncases; i++ {
 			if scases[lockorder[i]].c.sortkey() > scases[lockorder[i+1]].c.sortkey() {
 				print("i=", i, " x=", lockorder[i], " y=", lockorder[i+1], "\n")
 				throw("select: broken sort")
@@ -301,7 +243,7 @@ loop:
 	var dfl *scase
 	var casi int
 	var cas *scase
-	for i := 0; i < int(sel.ncase); i++ {
+	for i := 0; i < ncases; i++ {
 		casi = int(pollorder[i])
 		cas = &scases[casi]
 		c = cas.c
@@ -454,7 +396,7 @@ loop:
 	c = cas.c
 
 	if debugSelect {
-		print("wait-return: sel=", sel, " c=", c, " cas=", cas, " kind=", cas.kind, "\n")
+		print("wait-return: cas0=", cas0, " c=", c, " cas=", cas, " kind=", cas.kind, "\n")
 	}
 
 	if cas.kind == caseRecv && cas.receivedp != nil {
@@ -530,7 +472,7 @@ recv:
 	// can receive from sleeping sender (sg)
 	recv(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
 	if debugSelect {
-		print("syncrecv: sel=", sel, " c=", c, "\n")
+		print("syncrecv: cas0=", cas0, " c=", c, "\n")
 	}
 	if cas.receivedp != nil {
 		*cas.receivedp = true
@@ -561,7 +503,7 @@ send:
 	}
 	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
 	if debugSelect {
-		print("syncsend: sel=", sel, " c=", c, "\n")
+		print("syncsend: cas0=", cas0, " c=", c, "\n")
 	}
 	goto retc
 
@@ -604,24 +546,25 @@ const (
 
 //go:linkname reflect_rselect reflect.rselect
 func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
-	// flagNoScan is safe here, because all objects are also referenced from cases.
-	size := selectsize(uintptr(len(cases)))
-	sel := (*hselect)(mallocgc(size, nil, true))
-	newselect(sel, int64(size), int32(len(cases)))
+	if len(cases) == 0 {
+		block()
+	}
+	sel := make([]scase, len(cases))
+	order := make([]uint16, 2*len(cases))
 	r := new(bool)
 	for i := range cases {
 		rc := &cases[i]
 		switch rc.dir {
 		case selectDefault:
-			selectdefault(sel)
+			selectdefault(&sel[i])
 		case selectSend:
-			selectsend(sel, rc.ch, rc.val)
+			selectsend(&sel[i], rc.ch, rc.val)
 		case selectRecv:
-			selectrecv(sel, rc.ch, rc.val, r)
+			selectrecv(&sel[i], rc.ch, rc.val, r)
 		}
 	}
 
-	chosen = selectgo(sel)
+	chosen = selectgo(&sel[0], &order[0], len(cases))
 	recvOK = *r
 	return
 }
