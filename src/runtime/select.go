@@ -28,7 +28,6 @@ const (
 type scase struct {
 	c           *hchan         // chan
 	elem        unsafe.Pointer // data element
-	receivedp   *bool          // pointer to received bool, if any
 	kind        uint16
 	pc          uintptr // race pc (for race detector / msan)
 	releasetime int64
@@ -111,7 +110,9 @@ func block() {
 //
 // selectgo returns the index of the chosen scase, which matches the
 // ordinal position of its respective select{recv,send,default} call.
-func selectgo(cas0 *scase, order0 *uint16, ncases int) int {
+// Also, if the chosen scase was a receive operation, it returns whether
+// a value was received.
+func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 	if debugSelect {
 		print("select: cas0=", cas0, "\n")
 	}
@@ -219,6 +220,7 @@ loop:
 	var dfl *scase
 	var casi int
 	var cas *scase
+	var recvOK bool
 	for i := 0; i < ncases; i++ {
 		casi = int(pollorder[i])
 		cas = &scases[casi]
@@ -375,8 +377,8 @@ loop:
 		print("wait-return: cas0=", cas0, " c=", c, " cas=", cas, " kind=", cas.kind, "\n")
 	}
 
-	if cas.kind == caseRecv && cas.receivedp != nil {
-		*cas.receivedp = true
+	if cas.kind == caseRecv {
+		recvOK = true
 	}
 
 	if raceenabled {
@@ -409,9 +411,7 @@ bufrecv:
 	if msanenabled && cas.elem != nil {
 		msanwrite(cas.elem, c.elemtype.size)
 	}
-	if cas.receivedp != nil {
-		*cas.receivedp = true
-	}
+	recvOK = true
 	qp = chanbuf(c, c.recvx)
 	if cas.elem != nil {
 		typedmemmove(c.elemtype, cas.elem, qp)
@@ -450,17 +450,13 @@ recv:
 	if debugSelect {
 		print("syncrecv: cas0=", cas0, " c=", c, "\n")
 	}
-	if cas.receivedp != nil {
-		*cas.receivedp = true
-	}
+	recvOK = true
 	goto retc
 
 rclose:
 	// read at end of closed channel
 	selunlock(scases, lockorder)
-	if cas.receivedp != nil {
-		*cas.receivedp = false
-	}
+	recvOK = false
 	if cas.elem != nil {
 		typedmemclr(c.elemtype, cas.elem)
 	}
@@ -487,7 +483,7 @@ retc:
 	if cas.releasetime > 0 {
 		blockevent(cas.releasetime-t0, 1)
 	}
-	return casi
+	return casi, recvOK
 
 sclose:
 	// send on closed channel
@@ -521,13 +517,12 @@ const (
 )
 
 //go:linkname reflect_rselect reflect.rselect
-func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
+func reflect_rselect(cases []runtimeSelect) (int, bool) {
 	if len(cases) == 0 {
 		block()
 	}
 	sel := make([]scase, len(cases))
 	order := make([]uint16, 2*len(cases))
-	r := new(bool)
 	for i := range cases {
 		rc := &cases[i]
 		switch rc.dir {
@@ -536,16 +531,14 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
 		case selectSend:
 			sel[i] = scase{kind: caseSend, c: rc.ch, elem: rc.val}
 		case selectRecv:
-			sel[i] = scase{kind: caseRecv, c: rc.ch, elem: rc.val, receivedp: r}
+			sel[i] = scase{kind: caseRecv, c: rc.ch, elem: rc.val}
 		}
 		if raceenabled || msanenabled {
 			selectsetpc(&sel[i])
 		}
 	}
 
-	chosen = selectgo(&sel[0], &order[0], len(cases))
-	recvOK = *r
-	return
+	return selectgo(&sel[0], &order[0], len(cases))
 }
 
 func (q *waitq) dequeueSudoG(sgp *sudog) {

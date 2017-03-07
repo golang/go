@@ -146,7 +146,7 @@ func selectnbrecv(elem *any, hchan <-chan any) bool
 func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
 
 func selectsetpc(cas *byte)
-func selectgo(cas0 *byte, order0 *byte, ncases int) int
+func selectgo(cas0 *byte, order0 *byte, ncases int) (int, bool)
 func block()
 
 func makeslice(typ *byte, len int, cap int) (ary []any)
