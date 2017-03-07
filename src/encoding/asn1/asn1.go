@@ -207,6 +207,14 @@ func parseBitString(bytes []byte) (ret BitString, err error) {
 	return
 }
 
+// NULL
+
+// NullRawValue is a RawValue with its Tag set to the ASN.1 NULL type tag (5).
+var NullRawValue = RawValue{Tag: TagNull}
+
+// NullBytes contains bytes representing the DER-encoded ASN.1 NULL type.
+var NullBytes = []byte{TagNull, 0}
+
 // OBJECT IDENTIFIER
 
 // An ObjectIdentifier represents an ASN.1 OBJECT IDENTIFIER.
