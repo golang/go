@@ -24,7 +24,7 @@ type ptabEntry struct {
 }
 
 // runtime interface and reflection data structures
-var signatlist []*Node
+var signatlist []*Type
 var itabs []itabEntry
 var ptabs []ptabEntry
 
@@ -977,7 +977,7 @@ func typenamesym(t *Type) *Sym {
 		n.Typecheck = 1
 		s.Def = n
 
-		signatlist = append(signatlist, typenod(t))
+		signatlist = append(signatlist, t)
 	}
 
 	return s.Def.Sym
@@ -1382,20 +1382,15 @@ ok:
 func dumptypestructs() {
 	// copy types from externdcl list to signatlist
 	for _, n := range externdcl {
-		if n.Op != OTYPE {
-			continue
+		if n.Op == OTYPE {
+			signatlist = append(signatlist, n.Type)
 		}
-		signatlist = append(signatlist, n)
 	}
 
 	// Process signatlist.  This can't use range, as entries are
 	// added to the list while it is being processed.
 	for i := 0; i < len(signatlist); i++ {
-		n := signatlist[i]
-		if n.Op != OTYPE {
-			continue
-		}
-		t := n.Type
+		t := signatlist[i]
 		dtypesym(t)
 		if t.Sym != nil {
 			dtypesym(ptrto(t))
