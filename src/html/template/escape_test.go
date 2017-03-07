@@ -359,7 +359,7 @@ func TestEscape(t *testing.T) {
 		{
 			"styleStrEncodedProtocolEncoded",
 			`<a style="background: '{{"javascript\\3a alert(1337)"}}'">`,
-			// The CSS string 'javascript\\3a alert(1337)' does not contains a colon.
+			// The CSS string 'javascript\\3a alert(1337)' does not contain a colon.
 			`<a style="background: 'javascript\\3a alert\28 1337\29 '">`,
 		},
 		{
