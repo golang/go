@@ -478,6 +478,10 @@ func debuginfo(fnsym *obj.LSym) []*dwarf.Var {
 			Gotype:  gotype,
 		})
 
+		if n.IsAutoTmp() {
+			continue
+		}
+
 		typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
 		vars = append(vars, &dwarf.Var{
 			Name:   n.Sym.Name,
