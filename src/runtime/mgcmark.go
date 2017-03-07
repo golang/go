@@ -1230,6 +1230,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 			// Dump the object
 			gcDumpObject("obj", obj, ^uintptr(0))
 
+			getg().m.traceback = 2
 			throw("checkmark found unmarked object")
 		}
 		if hbits.isCheckmarked(span.elemsize) {
@@ -1244,6 +1245,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 			print("runtime: marking free object ", hex(obj), " found at *(", hex(base), "+", hex(off), ")\n")
 			gcDumpObject("base", base, off)
 			gcDumpObject("obj", obj, ^uintptr(0))
+			getg().m.traceback = 2
 			throw("marking free object")
 		}
 
