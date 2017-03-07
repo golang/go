@@ -169,13 +169,14 @@ func (b *profileBuilder) pbLine(tag int, funcID uint64, line int64) {
 }
 
 // pbMapping encodes a Mapping message to b.pb.
-func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file string) {
+func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file, buildID string) {
 	start := b.pb.startMessage()
 	b.pb.uint64Opt(tagMapping_ID, id)
 	b.pb.uint64Opt(tagMapping_Start, base)
 	b.pb.uint64Opt(tagMapping_Limit, limit)
 	b.pb.uint64Opt(tagMapping_Offset, offset)
 	b.pb.int64Opt(tagMapping_Filename, b.stringIndex(file))
+	b.pb.int64Opt(tagMapping_BuildID, b.stringIndex(buildID))
 	// TODO: Set any of HasInlineFrames, HasFunctions, HasFilenames, HasLineNumbers?
 	// It seems like they should all be true, but they've never been set.
 	b.pb.endMessage(tag, start)
@@ -438,10 +439,10 @@ func (b *profileBuilder) readMapping() {
 		}
 		next() // dev
 		next() // inode
-		file := line
-		if file == nil {
+		if line == nil {
 			continue
 		}
+		file := string(line)
 
 		// TODO: pprof's remapMappingIDs makes two adjustments:
 		// 1. If there is an /anon_hugepage mapping first and it is
@@ -452,7 +453,8 @@ func (b *profileBuilder) readMapping() {
 		// If we do need them, they would go here, before we
 		// enter the mappings into b.mem in the first place.
 
+		buildID, _ := elfBuildID(file)
 		b.mem = append(b.mem, memMap{uintptr(lo), uintptr(hi)})
-		b.pbMapping(tagProfile_Mapping, uint64(len(b.mem)), lo, hi, offset, string(file))
+		b.pbMapping(tagProfile_Mapping, uint64(len(b.mem)), lo, hi, offset, file, buildID)
 	}
 }
