@@ -77,7 +77,7 @@ testmsanshared() {
   fi
   go build -msan -buildmode=c-shared $suffix -o ${TMPDIR}/libmsanshared.$libext msan_shared.go
 
-	echo 'int main() { return 0; }' > ${TMPDIR}/testmsanshared.c
+  echo 'int main() { return 0; }' > ${TMPDIR}/testmsanshared.c
   $CC $(go env GOGCCFLAGS) -fsanitize=memory -o ${TMPDIR}/testmsanshared ${TMPDIR}/testmsanshared.c ${TMPDIR}/libmsanshared.$libext
 
   if ! LD_LIBRARY_PATH=. ${TMPDIR}/testmsanshared; then
@@ -130,6 +130,25 @@ if test "$msan" = "yes"; then
 
     testmsanshared
 fi
+
+testtsanshared() {
+  goos=$(go env GOOS)
+  suffix="-installsuffix tsan"
+  libext="so"
+  if [ "$goos" == "darwin" ]; then
+	  libext="dylib"
+  fi
+  go build -buildmode=c-shared $suffix -o ${TMPDIR}/libtsanshared.$libext tsan_shared.go
+
+  echo 'int main() { return 0; }' > ${TMPDIR}/testtsanshared.c
+  $CC $(go env GOGCCFLAGS) -fsanitize=thread -o ${TMPDIR}/testtsanshared ${TMPDIR}/testtsanshared.c ${TMPDIR}/libtsanshared.$libext
+
+  if ! LD_LIBRARY_PATH=. ${TMPDIR}/testtsanshared; then
+    echo "FAIL: tsan_shared"
+    status=1
+  fi
+  rm -f ${TMPDIR}/{testtsanshared,testtsanshared.c,libtsanshared.$libext}
+}
 
 if test "$tsan" = "yes"; then
     echo 'int main() { return 0; }' > ${TMPDIR}/testsanitizers$$.c
@@ -196,6 +215,8 @@ if test "$tsan" = "yes"; then
 	testtsan tsan7.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
 	testtsan tsan10.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
 	testtsan tsan11.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+
+	testtsanshared
     fi
 fi
 
