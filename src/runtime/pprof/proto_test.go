@@ -87,8 +87,10 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 		}
 		addr1 = mprof.Mapping[0].Start
 		map1 = mprof.Mapping[0]
+		map1.BuildID, _ = elfBuildID(map1.File)
 		addr2 = mprof.Mapping[1].Start
 		map2 = mprof.Mapping[1]
+		map2.BuildID, _ = elfBuildID(map2.File)
 	} else {
 		addr1 = uint64(funcPC(f1))
 		addr2 = uint64(funcPC(f2))
