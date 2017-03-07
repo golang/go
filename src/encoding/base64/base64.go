@@ -58,9 +58,9 @@ func NewEncoding(encoder string) *Encoding {
 
 // WithPadding creates a new encoding identical to enc except
 // with a specified padding character, or NoPadding to disable padding.
-func (enc Encoding) WithPadding(padding rune) *Encoding {
+func (enc *Encoding) WithPadding(padding rune) *Encoding {
 	enc.padChar = padding
-	return &enc
+	return enc
 }
 
 // Strict creates a new encoding identical to enc except with
