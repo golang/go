@@ -35,15 +35,14 @@ var traceback_env uint32
 //go:nosplit
 func gotraceback() (level int32, all, crash bool) {
 	_g_ := getg()
-	all = _g_.m.throwing > 0
-	if _g_.m.traceback != 0 {
-		level = int32(_g_.m.traceback)
-		return
-	}
 	t := atomic.Load(&traceback_cache)
 	crash = t&tracebackCrash != 0
-	all = all || t&tracebackAll != 0
-	level = int32(t >> tracebackShift)
+	all = _g_.m.throwing > 0 || t&tracebackAll != 0
+	if _g_.m.traceback != 0 {
+		level = int32(_g_.m.traceback)
+	} else {
+		level = int32(t >> tracebackShift)
+	}
 	return
 }
 
