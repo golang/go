@@ -59,7 +59,7 @@ func ParsePKIXPublicKey(derBytes []byte) (pub interface{}, err error) {
 func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorithm pkix.AlgorithmIdentifier, err error) {
 	switch pub := pub.(type) {
 	case *rsa.PublicKey:
-		publicKeyBytes, err = asn1.Marshal(rsaPublicKey{
+		publicKeyBytes, err = asn1.Marshal(pkcs1PublicKey{
 			N: pub.N,
 			E: pub.E,
 		})
@@ -941,7 +941,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 			return nil, errors.New("x509: RSA key missing NULL parameters")
 		}
 
-		p := new(rsaPublicKey)
+		p := new(pkcs1PublicKey)
 		rest, err := asn1.Unmarshal(asn1Data, p)
 		if err != nil {
 			return nil, err
