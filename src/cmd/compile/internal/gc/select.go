@@ -192,9 +192,7 @@ func walkselectcases(cases *Nodes) []*Node {
 				n.List.SetFirst(typecheck(n.List.First(), Erv))
 			}
 
-			if n.Left == nil {
-				n.Left = nodnil()
-			} else {
+			if n.Left != nil {
 				n.Left = nod(OADDR, n.Left, nil)
 				n.Left = typecheck(n.Left, Erv)
 			}
@@ -231,14 +229,22 @@ func walkselectcases(cases *Nodes) []*Node {
 			r = nod(OIF, nil, nil)
 			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
-			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), types.Types[TBOOL], &r.Ninit, n.Left, ch)
+			elem := n.Left
+			if elem == nil {
+				elem = nodnil()
+			}
+			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), types.Types[TBOOL], &r.Ninit, elem, ch)
 
 		case OSELRECV2:
 			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
 			r = nod(OIF, nil, nil)
 			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
-			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), types.Types[TBOOL], &r.Ninit, n.Left, n.List.First(), ch)
+			elem := n.Left
+			if elem == nil {
+				elem = nodnil()
+			}
+			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), types.Types[TBOOL], &r.Ninit, elem, n.List.First(), ch)
 		}
 
 		r.Left = typecheck(r.Left, Erv)
@@ -268,9 +274,17 @@ func walkselectcases(cases *Nodes) []*Node {
 		init = append(init, cas.Ninit.Slice()...)
 		cas.Ninit.Set(nil)
 
-		s := bytePtrToIndex(selv, int64(i))
+		// Keep in sync with runtime/select.go.
+		const (
+			caseNil = iota
+			caseRecv
+			caseSend
+			caseDefault
+		)
 
-		var x *Node
+		var c, elem, receivedp *Node
+		var kind int64 = caseDefault
+
 		if n := cas.Left; n != nil {
 			init = append(init, n.Ninit.Slice()...)
 
@@ -278,21 +292,50 @@ func walkselectcases(cases *Nodes) []*Node {
 			default:
 				Fatalf("select %v", n.Op)
 			case OSEND:
-				// selectsend(cas *byte, hchan *chan any, elem *any)
-				x = mkcall1(chanfn("selectsend", 2, n.Left.Type), nil, nil, s, n.Left, n.Right)
+				kind = caseSend
+				c = n.Left
+				elem = n.Right
 			case OSELRECV:
-				// selectrecv(cas *byte, hchan *chan any, elem *any, received *bool)
-				x = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), nil, nil, s, n.Right.Left, n.Left, nodnil())
+				kind = caseRecv
+				c = n.Right.Left
+				elem = n.Left
 			case OSELRECV2:
-				// selectrecv(cas *byte, hchan *chan any, elem *any, received *bool)
-				x = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), nil, nil, s, n.Right.Left, n.Left, n.List.First())
+				kind = caseRecv
+				c = n.Right.Left
+				elem = n.Left
+				receivedp = n.List.First()
 			}
-		} else {
-			// selectdefault(cas *byte)
-			x = mkcall("selectdefault", nil, nil, s)
 		}
 
-		init = append(init, x)
+		setField := func(f string, val *Node) {
+			r := nod(OAS, nodSym(ODOT, nod(OINDEX, selv, nodintconst(int64(i))), lookup(f)), val)
+			r = typecheck(r, Etop)
+			init = append(init, r)
+		}
+
+		setField("kind", nodintconst(kind))
+		if c != nil {
+			c = nod(OCONVNOP, c, nil)
+			c.Type = types.Types[TUNSAFEPTR]
+			setField("c", c)
+		}
+		if elem != nil {
+			elem = nod(OCONVNOP, elem, nil)
+			elem.Type = types.Types[TUNSAFEPTR]
+			setField("elem", elem)
+		}
+		if receivedp != nil {
+			receivedp = nod(OCONVNOP, receivedp, nil)
+			receivedp.Type = types.NewPtr(types.Types[TBOOL])
+			setField("receivedp", receivedp)
+		}
+
+		// TODO(mdempsky): There should be a cleaner way to
+		// handle this.
+		if instrumenting {
+			r = mkcall("selectsetpc", nil, nil, bytePtrToIndex(selv, int64(i)))
+			init = append(init, r)
+		}
 	}
 
 	// run the select
@@ -337,11 +380,11 @@ var scase *types.Type
 func scasetype() *types.Type {
 	if scase == nil {
 		scase = tostruct([]*Node{
-			namedfield("elem", types.NewPtr(types.Types[TUINT8])),
-			namedfield("chan", types.NewPtr(types.Types[TUINT8])),
-			namedfield("pc", types.Types[TUINTPTR]),
+			namedfield("c", types.Types[TUNSAFEPTR]),
+			namedfield("elem", types.Types[TUNSAFEPTR]),
+			namedfield("receivedp", types.NewPtr(types.Types[TBOOL])),
 			namedfield("kind", types.Types[TUINT16]),
-			namedfield("receivedp", types.NewPtr(types.Types[TUINT8])),
+			namedfield("pc", types.Types[TUINTPTR]),
 			namedfield("releasetime", types.Types[TUINT64]),
 		})
 		scase.SetNoalg(true)

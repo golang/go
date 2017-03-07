@@ -145,9 +145,7 @@ func selectnbsend(hchan chan<- any, elem *any) bool
 func selectnbrecv(elem *any, hchan <-chan any) bool
 func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
 
-func selectsend(cas *byte, hchan chan<- any, elem *any)
-func selectrecv(cas *byte, hchan <-chan any, elem *any, received *bool)
-func selectdefault(cas *byte)
+func selectsetpc(cas *byte)
 func selectgo(cas0 *byte, order0 *byte, ncases int) int
 func block()
 

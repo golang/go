@@ -1681,7 +1681,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		}
 
 		// unsafe.Pointer <--> *T
-		if to.Etype == TUNSAFEPTR && from.IsPtr() || from.Etype == TUNSAFEPTR && to.IsPtr() {
+		if to.Etype == TUNSAFEPTR && from.IsPtrShaped() || from.Etype == TUNSAFEPTR && to.IsPtrShaped() {
 			return v
 		}
 

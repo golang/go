@@ -164,9 +164,9 @@ var b bool
 // this used to have a spurious "live at entry to f11a: ~r0"
 func f11a() *int {
 	select { // ERROR "live at call to selectgo: .autotmp_[0-9]+$"
-	case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
+	case <-c:
 		return nil
-	case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
+	case <-c:
 		return nil
 	}
 }
@@ -179,9 +179,9 @@ func f11b() *int {
 		// This used to have a spurious "live at call to printint: p".
 		printint(1) // nothing live here!
 		select {    // ERROR "live at call to selectgo: .autotmp_[0-9]+$"
-		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
+		case <-c:
 			return nil
-		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
+		case <-c:
 			return nil
 		}
 	}
@@ -199,8 +199,8 @@ func f11c() *int {
 		// so we can get to the println, so p is not dead.
 		printint(1) // ERROR "live at call to printint: p$"
 		select {    // ERROR "live at call to selectgo: .autotmp_[0-9]+ p$"
-		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+ p$"
-		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+ p$"
+		case <-c:
+		case <-c:
 		}
 	}
 	println(*p)
@@ -590,13 +590,13 @@ func f38(b bool) {
 	// and therefore no output.
 	if b {
 		select { // ERROR "live at call to selectgo:( .autotmp_[0-9]+)+$"
-		case <-fc38(): // ERROR "live at call to selectrecv:( .autotmp_[0-9]+)+$"
+		case <-fc38():
 			printnl()
-		case fc38() <- *fi38(1): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectsend:( .autotmp_[0-9]+)+$"
+		case fc38() <- *fi38(1): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$"
 			printnl()
-		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectrecv:( .autotmp_[0-9]+)+$"
+		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$"
 			printnl()
-		case *fi38(3), *fb38() = <-fc38(): // ERROR "live at call to fb38:( .autotmp_[0-9]+)+$" "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectrecv:( .autotmp_[0-9]+)+$"
+		case *fi38(3), *fb38() = <-fc38(): // ERROR "live at call to fb38:( .autotmp_[0-9]+)+$" "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$"
 			printnl()
 		}
 		printnl()
