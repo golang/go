@@ -393,7 +393,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 		var word string
 		p.skipSpace()
 		if p.empty() {
-			return "", errors.New("mail: missing phrase")
+			break
 		}
 		isEncoded := false
 		if p.peek() == '"' {

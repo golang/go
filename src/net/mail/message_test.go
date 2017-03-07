@@ -136,6 +136,7 @@ func TestAddressParsingError(t *testing.T) {
 		4: {"\"\\" + string([]byte{0x80}) + "\" <escaped-invalid-unicode@example.net>", "invalid utf-8 in quoted-string"},
 		5: {"\"\x00\" <null@example.net>", "bad character in quoted-string"},
 		6: {"\"\\\x00\" <escaped-null@example.net>", "bad character in quoted-string"},
+		7: {"John Doe", "no angle-addr"},
 	}
 
 	for i, tc := range mustErrTestCases {
