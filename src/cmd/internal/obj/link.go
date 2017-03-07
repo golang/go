@@ -483,6 +483,7 @@ const (
 	SHOSTOBJ
 	SDWARFSECT
 	SDWARFINFO
+	SDWARFRANGE
 	SSUB       = SymKind(1 << 8)
 	SMASK      = SymKind(SSUB - 1)
 	SHIDDEN    = SymKind(1 << 9)
@@ -739,7 +740,7 @@ type Link struct {
 	Armsize       int32
 	Pc            int64
 	DiagFunc      func(string, ...interface{})
-	DebugInfo     func(fn *LSym, curfn interface{}) []*dwarf.Var // if non-nil, curfn is a *gc.Node
+	DebugInfo     func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
 	Cursym        *LSym
 	Version       int
 	Errors        int

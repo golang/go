@@ -187,7 +187,7 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 
 		if f := p.funcList[i]; f != nil {
 			// function not yet imported - read body and set it
-			funchdr(f)
+			funchdr(f, src.NoPos)
 			body := p.stmtList()
 			if body == nil {
 				// Make sure empty body is not interpreted as
@@ -198,7 +198,7 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 				body = []*Node{nod(OEMPTY, nil, nil)}
 			}
 			f.Func.Inl.Set(body)
-			funcbody(f)
+			funcbody(f, src.NoPos)
 		} else {
 			// function already imported - read body but discard declarations
 			dclcontext = PDISCARD // throw away any declarations
@@ -1091,54 +1091,54 @@ func (p *importer) node() *Node {
 		return nodl(p.pos(), op, p.expr(), nil)
 
 	case OIF:
-		markdcl()
+		markdcl(src.NoPos)
 		n := nodl(p.pos(), OIF, nil, nil)
 		n.Ninit.Set(p.stmtList())
 		n.Left = p.expr()
 		n.Nbody.Set(p.stmtList())
 		n.Rlist.Set(p.stmtList())
-		popdcl()
+		popdcl(src.NoPos)
 		return n
 
 	case OFOR:
-		markdcl()
+		markdcl(src.NoPos)
 		n := nodl(p.pos(), OFOR, nil, nil)
 		n.Ninit.Set(p.stmtList())
 		n.Left, n.Right = p.exprsOrNil()
 		n.Nbody.Set(p.stmtList())
-		popdcl()
+		popdcl(src.NoPos)
 		return n
 
 	case ORANGE:
-		markdcl()
+		markdcl(src.NoPos)
 		n := nodl(p.pos(), ORANGE, nil, nil)
 		n.List.Set(p.stmtList())
 		n.Right = p.expr()
 		n.Nbody.Set(p.stmtList())
-		popdcl()
+		popdcl(src.NoPos)
 		return n
 
 	case OSELECT, OSWITCH:
-		markdcl()
+		markdcl(src.NoPos)
 		n := nodl(p.pos(), op, nil, nil)
 		n.Ninit.Set(p.stmtList())
 		n.Left, _ = p.exprsOrNil()
 		n.List.Set(p.stmtList())
-		popdcl()
+		popdcl(src.NoPos)
 		return n
 
 	// case OCASE, OXCASE:
 	// 	unreachable - mapped to OXCASE case below by exporter
 
 	case OXCASE:
-		markdcl()
+		markdcl(src.NoPos)
 		n := nodl(p.pos(), OXCASE, nil, nil)
 		n.Xoffset = int64(block)
 		n.List.Set(p.exprList())
 		// TODO(gri) eventually we must declare variables for type switch
 		// statements (type switch statements are not yet exported)
 		n.Nbody.Set(p.stmtList())
-		popdcl()
+		popdcl(src.NoPos)
 		return n
 
 	// case OFALL:

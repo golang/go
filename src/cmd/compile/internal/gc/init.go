@@ -4,7 +4,10 @@
 
 package gc
 
-import "cmd/compile/internal/types"
+import (
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
+)
 
 // a function named init is a special case.
 // it is called by the initialization before
@@ -92,7 +95,7 @@ func fninit(n []*Node) {
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = nod(OTFUNC, nil, nil)
 	declare(fn.Func.Nname, PFUNC)
-	funchdr(fn)
+	funchdr(fn, src.NoPos)
 
 	// (3)
 	a := nod(OIF, nil, nil)
@@ -152,7 +155,7 @@ func fninit(n []*Node) {
 	exportsym(fn.Func.Nname)
 
 	fn.Nbody.Set(r)
-	funcbody(fn)
+	funcbody(fn, src.NoPos)
 
 	Curfn = fn
 	fn = typecheck(fn, Etop)

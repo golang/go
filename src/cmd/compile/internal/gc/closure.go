@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"fmt"
 )
 
@@ -17,7 +18,7 @@ func closurehdr(ntype *Node) {
 	n.Func.Depth = funcdepth
 	n.Func.Outerfunc = Curfn
 
-	funchdr(n)
+	funchdr(n, src.NoPos)
 
 	// steal ntype's argument names and
 	// leave a fresh copy in their place.
@@ -58,7 +59,7 @@ func closurebody(body []*Node) *Node {
 	func_ := Curfn
 	func_.Nbody.Set(body)
 	func_.Func.Endlineno = lineno
-	funcbody(func_)
+	funcbody(func_, src.NoPos)
 
 	// closure-specific variables are hanging off the
 	// ordinary ones in the symbol table; see oldname.
@@ -226,8 +227,10 @@ func makeclosure(func_ *Node) *Node {
 	}
 
 	xfunc.Nbody.Set(func_.Nbody.Slice())
+	xfunc.Func.scopes = func_.Func.scopes
 	xfunc.Func.Dcl = append(func_.Func.Dcl, xfunc.Func.Dcl...)
 	func_.Func.Dcl = nil
+	func_.Func.scopes.Scopes = nil
 	if xfunc.Nbody.Len() == 0 {
 		Fatalf("empty body - won't generate any code")
 	}
@@ -609,6 +612,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	xfunc.Func.Nname.Sym.SetExported(true) // disable export
 	xfunc.Func.Nname.Name.Param.Ntype = xtype
 	xfunc.Func.Nname.Name.Defn = xfunc
+	xfunc.Func.scopes.Scopes = []src.Scope{src.Scope{}}
 	declare(xfunc.Func.Nname, PFUNC)
 
 	// Declare and initialize variable holding receiver.

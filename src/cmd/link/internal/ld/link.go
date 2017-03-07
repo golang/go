@@ -89,6 +89,10 @@ func (s *Symbol) ElfsymForReloc() int32 {
 	}
 }
 
+func (s *Symbol) Len() int64 {
+	return s.Size
+}
+
 // Attribute is a set of common symbol attributes.
 type Attribute int16
 
