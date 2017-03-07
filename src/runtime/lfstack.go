@@ -3,10 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // Lock-free stack.
-// Initialize head to 0, compare with 0 to test for emptiness.
-// The stack does not keep pointers to nodes,
-// so they can be garbage collected if there are no other pointers to nodes.
-// The following code runs only in non-preemptible contexts.
 
 package runtime
 
@@ -15,32 +11,47 @@ import (
 	"unsafe"
 )
 
-func lfstackpush(head *uint64, node *lfnode) {
+// lfstack is the head of a lock-free stack.
+//
+// The zero value of lfstack is an empty list.
+//
+// This stack is intrusive. Nodes must embed lfnode as the first field.
+//
+// The stack does not keep GC-visible pointers to nodes, so the caller
+// is responsible for ensuring the nodes are not garbage collected
+// (typically by allocating them from manually-managed memory).
+type lfstack uint64
+
+func (head *lfstack) push(node *lfnode) {
 	node.pushcnt++
 	new := lfstackPack(node, node.pushcnt)
 	if node1 := lfstackUnpack(new); node1 != node {
-		print("runtime: lfstackpush invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
-		throw("lfstackpush")
+		print("runtime: lfstack.push invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
+		throw("lfstack.push")
 	}
 	for {
-		old := atomic.Load64(head)
+		old := atomic.Load64((*uint64)(head))
 		node.next = old
-		if atomic.Cas64(head, old, new) {
+		if atomic.Cas64((*uint64)(head), old, new) {
 			break
 		}
 	}
 }
 
-func lfstackpop(head *uint64) unsafe.Pointer {
+func (head *lfstack) pop() unsafe.Pointer {
 	for {
-		old := atomic.Load64(head)
+		old := atomic.Load64((*uint64)(head))
 		if old == 0 {
 			return nil
 		}
 		node := lfstackUnpack(old)
 		next := atomic.Load64(&node.next)
-		if atomic.Cas64(head, old, next) {
+		if atomic.Cas64((*uint64)(head), old, next) {
 			return unsafe.Pointer(node)
 		}
 	}
+}
+
+func (head *lfstack) empty() bool {
+	return atomic.Load64((*uint64)(head)) == 0
 }

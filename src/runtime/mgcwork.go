@@ -312,7 +312,7 @@ func (b *workbuf) checkempty() {
 func getempty() *workbuf {
 	var b *workbuf
 	if work.empty != 0 {
-		b = (*workbuf)(lfstackpop(&work.empty))
+		b = (*workbuf)(work.empty.pop())
 		if b != nil {
 			b.checkempty()
 		}
@@ -324,11 +324,11 @@ func getempty() *workbuf {
 }
 
 // putempty puts a workbuf onto the work.empty list.
-// Upon entry this go routine owns b. The lfstackpush relinquishes ownership.
+// Upon entry this go routine owns b. The lfstack.push relinquishes ownership.
 //go:nowritebarrier
 func putempty(b *workbuf) {
 	b.checkempty()
-	lfstackpush(&work.empty, &b.node)
+	work.empty.push(&b.node)
 }
 
 // putfull puts the workbuf on the work.full list for the GC.
@@ -337,14 +337,14 @@ func putempty(b *workbuf) {
 //go:nowritebarrier
 func putfull(b *workbuf) {
 	b.checknonempty()
-	lfstackpush(&work.full, &b.node)
+	work.full.push(&b.node)
 }
 
 // trygetfull tries to get a full or partially empty workbuffer.
 // If one is not immediately available return nil
 //go:nowritebarrier
 func trygetfull() *workbuf {
-	b := (*workbuf)(lfstackpop(&work.full))
+	b := (*workbuf)(work.full.pop())
 	if b != nil {
 		b.checknonempty()
 		return b
@@ -365,7 +365,7 @@ func trygetfull() *workbuf {
 // phase.
 //go:nowritebarrier
 func getfull() *workbuf {
-	b := (*workbuf)(lfstackpop(&work.full))
+	b := (*workbuf)(work.full.pop())
 	if b != nil {
 		b.checknonempty()
 		return b
@@ -383,7 +383,7 @@ func getfull() *workbuf {
 				println("runtime: work.nwait=", decnwait, "work.nproc=", work.nproc)
 				throw("work.nwait > work.nproc")
 			}
-			b = (*workbuf)(lfstackpop(&work.full))
+			b = (*workbuf)(work.full.pop())
 			if b != nil {
 				b.checknonempty()
 				return b
