@@ -69,9 +69,7 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
 		publicKeyAlgorithm.Algorithm = oidPublicKeyRSA
 		// This is a NULL parameters value which is required by
 		// https://tools.ietf.org/html/rfc3279#section-2.3.1.
-		publicKeyAlgorithm.Parameters = asn1.RawValue{
-			Tag: 5,
-		}
+		publicKeyAlgorithm.Parameters = asn1.NullRawValue
 	case *ecdsa.PublicKey:
 		publicKeyBytes = elliptic.Marshal(pub.Curve, pub.X, pub.Y)
 		oid, ok := oidFromNamedCurve(pub.Curve)
@@ -355,10 +353,8 @@ func rsaPSSParameters(hashFunc crypto.Hash) asn1.RawValue {
 
 	params := pssParameters{
 		Hash: pkix.AlgorithmIdentifier{
-			Algorithm: hashOID,
-			Parameters: asn1.RawValue{
-				Tag: 5, /* ASN.1 NULL */
-			},
+			Algorithm:  hashOID,
+			Parameters: asn1.NullRawValue,
 		},
 		MGF: pkix.AlgorithmIdentifier{
 			Algorithm: oidMGF1,
@@ -368,10 +364,8 @@ func rsaPSSParameters(hashFunc crypto.Hash) asn1.RawValue {
 	}
 
 	mgf1Params := pkix.AlgorithmIdentifier{
-		Algorithm: hashOID,
-		Parameters: asn1.RawValue{
-			Tag: 5, /* ASN.1 NULL */
-		},
+		Algorithm:  hashOID,
+		Parameters: asn1.NullRawValue,
 	}
 
 	var err error
@@ -418,11 +412,10 @@ func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm
 	// https://tools.ietf.org/html/rfc3447#section-8.1), that the
 	// salt length matches the hash length, and that the trailer
 	// field has the default value.
-	asn1NULL := []byte{0x05, 0x00}
-	if !bytes.Equal(params.Hash.Parameters.FullBytes, asn1NULL) ||
+	if !bytes.Equal(params.Hash.Parameters.FullBytes, asn1.NullBytes) ||
 		!params.MGF.Algorithm.Equal(oidMGF1) ||
 		!mgf1HashFunc.Algorithm.Equal(params.Hash.Algorithm) ||
-		!bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1NULL) ||
+		!bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1.NullBytes) ||
 		params.TrailerField != 1 {
 		return UnknownSignatureAlgorithm
 	}
@@ -928,16 +921,13 @@ type distributionPointName struct {
 	RelativeName pkix.RDNSequence `asn1:"optional,tag:1"`
 }
 
-// asn1Null is the ASN.1 encoding of a NULL value.
-var asn1Null = []byte{5, 0}
-
 func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, error) {
 	asn1Data := keyData.PublicKey.RightAlign()
 	switch algo {
 	case RSA:
 		// RSA public keys must have a NULL in the parameters
 		// (https://tools.ietf.org/html/rfc3279#section-2.3.1).
-		if !bytes.Equal(keyData.Algorithm.Parameters.FullBytes, asn1Null) {
+		if !bytes.Equal(keyData.Algorithm.Parameters.FullBytes, asn1.NullBytes) {
 			return nil, errors.New("x509: RSA key missing NULL parameters")
 		}
 
@@ -1650,9 +1640,7 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 		pubType = RSA
 		hashFunc = crypto.SHA256
 		sigAlgo.Algorithm = oidSignatureSHA256WithRSA
-		sigAlgo.Parameters = asn1.RawValue{
-			Tag: 5,
-		}
+		sigAlgo.Parameters = asn1.NullRawValue
 
 	case *ecdsa.PublicKey:
 		pubType = ECDSA

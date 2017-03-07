@@ -479,6 +479,7 @@ var unmarshalTestData = []struct {
 	out interface{}
 }{
 	{[]byte{0x02, 0x01, 0x42}, newInt(0x42)},
+	{[]byte{0x05, 0x00}, &RawValue{0, 5, false, []byte{}, []byte{0x05, 0x00}}},
 	{[]byte{0x30, 0x08, 0x06, 0x06, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d}, &TestObjectIdentifierStruct{[]int{1, 2, 840, 113549}}},
 	{[]byte{0x03, 0x04, 0x06, 0x6e, 0x5d, 0xc0}, &BitString{[]byte{110, 93, 192}, 18}},
 	{[]byte{0x30, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &[]int{1, 2, 3}},
@@ -1005,5 +1006,30 @@ func TestUnexportedStructField(t *testing.T) {
 	_, err = Unmarshal(bs, &u)
 	if err != want {
 		t.Errorf("got %v, want %v", err, want)
+	}
+}
+
+func TestNull(t *testing.T) {
+	marshaled, err := Marshal(NullRawValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(NullBytes, marshaled) {
+		t.Errorf("Expected Marshal of NullRawValue to yeild %x, got %x", NullBytes, marshaled)
+	}
+
+	unmarshaled := RawValue{}
+	if _, err := Unmarshal(NullBytes, &unmarshaled); err != nil {
+		t.Fatal(err)
+	}
+
+	unmarshaled.FullBytes = NullRawValue.FullBytes
+	if len(unmarshaled.Bytes) == 0 {
+		// DeepEqual considers a nil slice and an empty slice to be different.
+		unmarshaled.Bytes = NullRawValue.Bytes
+	}
+
+	if !reflect.DeepEqual(NullRawValue, unmarshaled) {
+		t.Errorf("Expected Unmarshal of NullBytes to yield %v, got %v", NullRawValue, unmarshaled)
 	}
 }
