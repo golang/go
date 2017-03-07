@@ -65,11 +65,11 @@ x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *ol
 		}
 		oldgoact->mask = 0;
 		for (i = 0; i < 8 * sizeof(oldgoact->mask); i++) {
-			if (sigismember(&act.sa_mask, i+1) == 1) {
+			if (sigismember(&oldact.sa_mask, i+1) == 1) {
 				oldgoact->mask |= (uint64_t)(1)<<i;
 			}
 		}
-		oldgoact->flags = act.sa_flags;
+		oldgoact->flags = oldact.sa_flags;
 	}
 
 	return ret;
