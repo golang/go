@@ -52,6 +52,7 @@ var (
 	systemstack_switchPC uintptr
 	systemstackPC        uintptr
 	cgocallback_gofuncPC uintptr
+	skipPC               uintptr
 
 	gogoPC uintptr
 
@@ -78,6 +79,7 @@ func tracebackinit() {
 	systemstack_switchPC = funcPC(systemstack_switch)
 	systemstackPC = funcPC(systemstack)
 	cgocallback_gofuncPC = funcPC(cgocallback_gofunc)
+	skipPC = funcPC(skipPleaseUseCallersFrames)
 
 	// used by sigprof handler
 	gogoPC = funcPC(gogo)

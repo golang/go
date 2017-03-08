@@ -40,6 +40,21 @@ func testCallers(skp int) (frames []string) {
 	return
 }
 
+func testCallersFrames(skp int) (frames []string) {
+	skip = skp
+	f()
+	callers := pcs[:npcs]
+	ci := runtime.CallersFrames(callers)
+	for {
+		frame, more := ci.Next()
+		frames = append(frames, frame.Function)
+		if !more || frame.Function == "main.main" {
+			break
+		}
+	}
+	return
+}
+
 var expectedFrames [][]string = [][]string{
 	0: {"runtime.Callers", "main.testCallers", "main.main"},
 	1: {"main.testCallers", "main.main"},
@@ -48,6 +63,8 @@ var expectedFrames [][]string = [][]string{
 	4: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
 	5: {"main.main"},
 }
+
+var allFrames = []string{"runtime.Callers", "main.h", "main.g", "main.f", "main.testCallersFrames", "main.main"}
 
 func same(xs, ys []string) bool {
 	if len(xs) != len(ys) {
@@ -67,6 +84,12 @@ func main() {
 		expected := expectedFrames[i]
 		if !same(frames, expected) {
 			log.Fatalf("testCallers(%d):\n got %v\n want %v", i, frames, expected)
+		}
+
+		frames = testCallersFrames(i)
+		expected = allFrames[i:]
+		if !same(frames, expected) {
+			log.Fatalf("testCallersFrames(%d):\n got %v\n want %v", i, frames, expected)
 		}
 	}
 }
