@@ -1161,7 +1161,7 @@ func TestParentStmtOutlivesTxStmt(t *testing.T) {
 	}
 }
 
-// Test that tx.Stmt called with a statment already
+// Test that tx.Stmt called with a statement already
 // associated with tx as argument re-prepares the same
 // statement again.
 func TestTxStmtFromTxStmtRePrepares(t *testing.T) {
