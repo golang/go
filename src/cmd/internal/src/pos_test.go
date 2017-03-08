@@ -10,8 +10,6 @@ import (
 )
 
 func TestPos(t *testing.T) {
-	printColumn = true
-
 	f0 := NewFileBase("", "")
 	f1 := NewFileBase("f1", "f1")
 	f2 := NewLinePragmaBase(Pos{}, "f2", 10)
@@ -41,15 +39,15 @@ func TestPos(t *testing.T) {
 		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2},
 		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2},
 		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1},
-		{MakePos(f2, 7, 10), "f2:16:10[:7:10]", "", 7, 10, "f2", 16},
-		{MakePos(f3, 12, 7), "f3:101:7[f1:12:7]", "f1", 12, 7, "f3", 101},
-		{MakePos(f4, 25, 1), "f4:114:1[f3:25:1]", "f3", 25, 1, "f4", 114},
+		{MakePos(f2, 7, 10), "f2:16[:7:10]", "", 7, 10, "f2", 16},
+		{MakePos(f3, 12, 7), "f3:101[f1:12:7]", "f1", 12, 7, "f3", 101},
+		{MakePos(f4, 25, 1), "f4:114[f3:25:1]", "f3", 25, 1, "f4", 114},
 
 		// positions from issue #19392
-		{MakePos(fc, 4, 0), "c.go:10:0[p.go:4:0]", "p.go", 4, 0, "c.go", 10},
-		{MakePos(ft, 7, 0), "t.go:20:0[p.go:7:0]", "p.go", 7, 0, "t.go", 20},
-		{MakePos(fv, 10, 0), "v.go:30:0[p.go:10:0]", "p.go", 10, 0, "v.go", 30},
-		{MakePos(ff, 13, 0), "f.go:40:0[p.go:13:0]", "p.go", 13, 0, "f.go", 40},
+		{MakePos(fc, 4, 0), "c.go:10[p.go:4:0]", "p.go", 4, 0, "c.go", 10},
+		{MakePos(ft, 7, 0), "t.go:20[p.go:7:0]", "p.go", 7, 0, "t.go", 20},
+		{MakePos(fv, 10, 0), "v.go:30[p.go:10:0]", "p.go", 10, 0, "v.go", 30},
+		{MakePos(ff, 13, 0), "f.go:40[p.go:13:0]", "p.go", 13, 0, "f.go", 40},
 	} {
 		pos := test.pos
 		if got := pos.String(); got != test.string {
@@ -120,8 +118,6 @@ func TestPredicates(t *testing.T) {
 }
 
 func TestLico(t *testing.T) {
-	printColumn = true
-
 	for _, test := range []struct {
 		x         lico
 		string    string
@@ -140,7 +136,7 @@ func TestLico(t *testing.T) {
 		{makeLico(lineMax+1, colMax+1), fmt.Sprintf(":%d", lineMax), lineMax, 0},
 	} {
 		x := test.x
-		if got := posString("", x.Line(), x.Col()); got != test.string {
+		if got := format("", x.Line(), x.Col(), true); got != test.string {
 			t.Errorf("%s: got %q", test.string, got)
 		}
 	}

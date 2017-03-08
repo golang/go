@@ -166,6 +166,7 @@ func Main() {
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
 	obj.Flagcount("%", "debug non-static initializers", &Debug['%'])
 	obj.Flagcount("B", "disable bounds checking", &Debug['B'])
+	obj.Flagcount("C", "disable printing of columns in error messages", &Debug['C']) // TODO(gri) remove eventually
 	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
 	obj.Flagcount("E", "debug symbol export", &Debug['E'])
 	obj.Flagfn1("I", "add `directory` to import search path", addidir)
