@@ -8,6 +8,7 @@ package main
 
 import (
 	"go/ast"
+	"go/build"
 	"go/importer"
 	"go/token"
 	"go/types"
@@ -80,6 +81,8 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 		// By providing a Config with our own error function, it will continue
 		// past the first error. There is no need for that function to do anything.
 		Error: func(error) {},
+
+		Sizes: archSizes,
 	}
 	info := &types.Info{
 		Selections: pkg.selectors,
@@ -289,3 +292,5 @@ func (f *File) hasMethod(typ types.Type, name string) bool {
 	_, ok := obj.(*types.Func)
 	return ok
 }
+
+var archSizes = types.SizesFor("gc", build.Default.GOARCH)
