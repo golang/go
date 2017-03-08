@@ -335,21 +335,21 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t Type, arg0, arg1, arg2, arg3 *V
 }
 
 // constVal returns a constant value for c.
-func (f *Func) constVal(pos src.XPos, op Op, t Type, c int64, setAux bool) *Value {
+func (f *Func) constVal(pos src.XPos, op Op, t Type, c int64, setAuxInt bool) *Value {
 	if f.constants == nil {
 		f.constants = make(map[int64][]*Value)
 	}
 	vv := f.constants[c]
 	for _, v := range vv {
 		if v.Op == op && v.Type.Compare(t) == CMPeq {
-			if setAux && v.AuxInt != c {
+			if setAuxInt && v.AuxInt != c {
 				panic(fmt.Sprintf("cached const %s should have AuxInt of %d", v.LongString(), c))
 			}
 			return v
 		}
 	}
 	var v *Value
-	if setAux {
+	if setAuxInt {
 		v = f.Entry.NewValue0I(pos, op, t, c)
 	} else {
 		v = f.Entry.NewValue0(pos, op, t)
