@@ -185,8 +185,14 @@ func notetsleep_internal(n *note, ns int64) bool {
 
 	deadline := nanotime() + ns
 	for {
+		if _cgo_yield != nil && ns > 10e6 {
+			ns = 10e6
+		}
 		gp.m.blocked = true
 		futexsleep(key32(&n.key), 0, ns)
+		if _cgo_yield != nil {
+			asmcgocall(_cgo_yield, nil)
+		}
 		gp.m.blocked = false
 		if atomic.Load(key32(&n.key)) != 0 {
 			break
