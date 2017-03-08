@@ -13,12 +13,6 @@ definition of package "describe"
 	const pi     untyped float = 3.141
 	const pie    cake = 3.141
 
--------- @describe badimport1 --------
-
-Error: can't import package "nosuchpkg"
--------- @describe badimport2 --------
-
-Error: can't import package "nosuchpkg"
 -------- @describe unsafe --------
 import of package "unsafe"
 	builtin Alignof 

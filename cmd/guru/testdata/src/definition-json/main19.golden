@@ -1,0 +1,5 @@
+-------- @definition qualified-nopkg --------
+{
+	"objpos": "testdata/src/definition-json/main19.go:3:8",
+	"desc": "package nosuchpkg"
+}

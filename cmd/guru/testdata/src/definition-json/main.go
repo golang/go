@@ -9,7 +9,6 @@ package definition
 import (
 	"lib"
 	lib2 "lib"
-	"nosuchpkg"
 )
 
 func main() {
@@ -28,7 +27,6 @@ func main() {
 	var _ lib.Const    // @definition qualified-const "Const"
 	var _ lib2.Type    // @definition qualified-type-renaming "Type"
 	var _ lib.Nonesuch // @definition qualified-nomember "Nonesuch"
-	var _ nosuchpkg.T  // @definition qualified-nopkg "nosuchpkg"
 
 	var u U
 	print(u.field) // @definition select-field "field"

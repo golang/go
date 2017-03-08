@@ -221,6 +221,7 @@ func TestGuru(t *testing.T) {
 		"testdata/src/alias/alias.go", // iff guru.HasAlias (go1.9)
 		"testdata/src/calls/main.go",
 		"testdata/src/describe/main.go",
+		"testdata/src/describe/main19.go", // iff go1.9
 		"testdata/src/freevars/main.go",
 		"testdata/src/implements/main.go",
 		"testdata/src/implements-methods/main.go",
@@ -237,6 +238,7 @@ func TestGuru(t *testing.T) {
 		"testdata/src/calls-json/main.go",
 		"testdata/src/peers-json/main.go",
 		"testdata/src/definition-json/main.go",
+		"testdata/src/definition-json/main19.go",
 		"testdata/src/describe-json/main.go",
 		"testdata/src/implements-json/main.go",
 		"testdata/src/implements-methods-json/main.go",
@@ -250,6 +252,11 @@ func TestGuru(t *testing.T) {
 			continue
 		}
 		if filename == "testdata/src/alias/alias.go" && !guru.HasAlias {
+			continue
+		}
+		if strings.HasSuffix(filename, "19.go") && !contains(build.Default.ReleaseTags, "go1.9") {
+			// TODO(adonovan): recombine the 'describe' and 'definition'
+			// tests once we drop support for go1.8.
 			continue
 		}
 
@@ -294,6 +301,15 @@ func TestGuru(t *testing.T) {
 			}
 		}
 	}
+}
+
+func contains(haystack []string, needle string) bool {
+	for _, x := range haystack {
+		if needle == x {
+			return true
+		}
+	}
+	return false
 }
 
 func TestIssue14684(t *testing.T) {

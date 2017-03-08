@@ -8,13 +8,8 @@ package describe // @describe pkgdecl "describe"
 
 import (
 	"lib"
-	"nosuchpkg"            // @describe badimport1 "nosuchpkg"
-	nosuchpkg2 "nosuchpkg" // @describe badimport2 "nosuchpkg2"
-	_ "unsafe"             // @describe unsafe "unsafe"
+	_ "unsafe" // @describe unsafe "unsafe"
 )
-
-var _ nosuchpkg.T
-var _ nosuchpkg2.T
 
 type cake float64 // @describe type-ref-builtin "float64"
 
