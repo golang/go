@@ -26,7 +26,9 @@ func current() (*User, error) {
 		Name:     "", // ignored
 		HomeDir:  os.Getenv("HOME"),
 	}
-	if runtime.GOOS == "nacl" {
+	// On NaCL and Android, return a dummy user instead of failing.
+	switch runtime.GOOS {
+	case "nacl":
 		if u.Uid == "" {
 			u.Uid = "1"
 		}
@@ -34,7 +36,17 @@ func current() (*User, error) {
 			u.Username = "nacl"
 		}
 		if u.HomeDir == "" {
-			u.HomeDir = "/home/nacl"
+			u.HomeDir = "/"
+		}
+	case "android":
+		if u.Uid == "" {
+			u.Uid = "1"
+		}
+		if u.Username == "" {
+			u.Username = "android"
+		}
+		if u.HomeDir == "" {
+			u.HomeDir = "/sdcard"
 		}
 	}
 	// cgo isn't available, but if we found the minimum information

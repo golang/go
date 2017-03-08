@@ -16,9 +16,6 @@ func checkUser(t *testing.T) {
 }
 
 func TestCurrent(t *testing.T) {
-	if runtime.GOOS == "android" {
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
 	u, err := Current()
 	if err != nil {
 		t.Fatalf("Current: %v (got %#v)", err, u)
