@@ -140,6 +140,7 @@ func (f *Func) freeValue(v *Value) {
 		for i, cv := range vv {
 			if v == cv {
 				vv[i] = vv[len(vv)-1]
+				vv[len(vv)-1] = nil
 				f.constants[v.AuxInt] = vv[0 : len(vv)-1]
 				break
 			}
