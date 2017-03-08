@@ -1652,28 +1652,31 @@ func TestMarshal(t *testing.T) {
 		if test.UnmarshalOnly {
 			continue
 		}
-		data, err := Marshal(test.Value)
-		if err != nil {
-			if test.MarshalError == "" {
-				t.Errorf("#%d: marshal(%#v): %s", idx, test.Value, err)
-				continue
+
+		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+			data, err := Marshal(test.Value)
+			if err != nil {
+				if test.MarshalError == "" {
+					t.Errorf("marshal(%#v): %s", test.Value, err)
+					return
+				}
+				if !strings.Contains(err.Error(), test.MarshalError) {
+					t.Errorf("marshal(%#v): %s, want %q", test.Value, err, test.MarshalError)
+				}
+				return
 			}
-			if !strings.Contains(err.Error(), test.MarshalError) {
-				t.Errorf("#%d: marshal(%#v): %s, want %q", idx, test.Value, err, test.MarshalError)
+			if test.MarshalError != "" {
+				t.Errorf("Marshal succeeded, want error %q", test.MarshalError)
+				return
 			}
-			continue
-		}
-		if test.MarshalError != "" {
-			t.Errorf("#%d: Marshal succeeded, want error %q", idx, test.MarshalError)
-			continue
-		}
-		if got, want := string(data), test.ExpectXML; got != want {
-			if strings.Contains(want, "\n") {
-				t.Errorf("#%d: marshal(%#v):\nHAVE:\n%s\nWANT:\n%s", idx, test.Value, got, want)
-			} else {
-				t.Errorf("#%d: marshal(%#v):\nhave %#q\nwant %#q", idx, test.Value, got, want)
+			if got, want := string(data), test.ExpectXML; got != want {
+				if strings.Contains(want, "\n") {
+					t.Errorf("marshal(%#v):\nHAVE:\n%s\nWANT:\n%s", test.Value, got, want)
+				} else {
+					t.Errorf("marshal(%#v):\nhave %#q\nwant %#q", test.Value, got, want)
+				}
 			}
-		}
+		})
 	}
 }
 
@@ -1781,27 +1784,29 @@ func TestUnmarshal(t *testing.T) {
 		dest := reflect.New(vt.Elem()).Interface()
 		err := Unmarshal([]byte(test.ExpectXML), dest)
 
-		switch fix := dest.(type) {
-		case *Feed:
-			fix.Author.InnerXML = ""
-			for i := range fix.Entry {
-				fix.Entry[i].Author.InnerXML = ""
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			switch fix := dest.(type) {
+			case *Feed:
+				fix.Author.InnerXML = ""
+				for i := range fix.Entry {
+					fix.Entry[i].Author.InnerXML = ""
+				}
 			}
-		}
 
-		if err != nil {
-			if test.UnmarshalError == "" {
-				t.Errorf("#%d: unmarshal(%#v): %s", i, test.ExpectXML, err)
-				continue
+			if err != nil {
+				if test.UnmarshalError == "" {
+					t.Errorf("unmarshal(%#v): %s", test.ExpectXML, err)
+					return
+				}
+				if !strings.Contains(err.Error(), test.UnmarshalError) {
+					t.Errorf("unmarshal(%#v): %s, want %q", test.ExpectXML, err, test.UnmarshalError)
+				}
+				return
 			}
-			if !strings.Contains(err.Error(), test.UnmarshalError) {
-				t.Errorf("#%d: unmarshal(%#v): %s, want %q", i, test.ExpectXML, err, test.UnmarshalError)
+			if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
+				t.Errorf("unmarshal(%q):\nhave %#v\nwant %#v", test.ExpectXML, got, want)
 			}
-			continue
-		}
-		if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
-			t.Errorf("#%d: unmarshal(%q):\nhave %#v\nwant %#v", i, test.ExpectXML, got, want)
-		}
+		})
 	}
 }
 
