@@ -585,7 +585,8 @@ func (t *test) run() {
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
 	case "errorcheck":
-		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a.o"}
+		// TODO(gri) remove need for -C (disable printing of columns in error messages)
+		cmdline := []string{"go", "tool", "compile", "-C", "-e", "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)

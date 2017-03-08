@@ -13,8 +13,7 @@ import "strconv"
 // position base and zero line number).
 //
 // The (line, column) values refer to a position in a file independent of any
-// position base ("absolute" position). Line numbers start at 1, column values
-// start at 0 and are byte offsets from the beginning of the line.
+// position base ("absolute" file position).
 //
 // The position base is used to determine the "relative" position, that is the
 // filename and line number relative to the position base. If the base refers
@@ -80,30 +79,42 @@ func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
 func (p Pos) SymFilename() string { return p.base.SymFilename() }
 
 func (p Pos) String() string {
+	return p.Format(true)
+}
+
+// Format formats a position as "filename:line" or "filename:line:column",
+// controlled by the showCol flag.
+// If the position is relative to a line directive, the original position
+// is appended in square brackets without column (since the column doesn't
+// change).
+func (p Pos) Format(showCol bool) string {
 	if !p.IsKnown() {
 		return "<unknown line number>"
 	}
 
-	s := posString(p.Filename(), p.Line(), p.Col())
 	if b := p.base; b == b.Pos().base {
 		// base is file base (incl. nil)
-		return s
+		return format(p.Filename(), p.Line(), p.Col(), showCol)
 	}
 
 	// base is relative
-	return posString(p.RelFilename(), p.RelLine(), p.Col()) + "[" + s + "]"
+	// Print the column only for the original position since the
+	// relative position's column information may be bogus (it's
+	// typically generated code and we can't say much about the
+	// original source at that point but for the file:line info
+	// that's provided via a line directive).
+	// TODO(gri) This may not be true if we have an inlining base.
+	// We may want to differentiate at some point.
+	return format(p.RelFilename(), p.RelLine(), 0, false) +
+		"[" + format(p.Filename(), p.Line(), p.Col(), showCol) + "]"
 }
 
-// Don't print column numbers because existing tests may not work anymore.
-// It's a variable for now so that the tests can enable it.
-// TODO(gri) fix this
-var printColumn = false
-
-// posString formats a (filename, line, col) tuple as a printable position.
-func posString(filename string, line, col uint) string {
+// format formats a (filename, line, col) tuple as "filename:line" (showCol
+// is false) or "filename:line:column" (showCol is true).
+func format(filename string, line, col uint, showCol bool) string {
 	s := filename + ":" + strconv.FormatUint(uint64(line), 10)
 	// col == colMax is interpreted as unknown column value
-	if printColumn && col < colMax {
+	if showCol && col < colMax {
 		s += ":" + strconv.FormatUint(uint64(col), 10)
 	}
 	return s
