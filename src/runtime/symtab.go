@@ -21,8 +21,15 @@ type Frames struct {
 	wasPanic bool
 
 	// Frames to return for subsequent calls to the Next method.
-	// Used for non-Go frames.
-	frames *[]Frame
+	// Used for non-Go or inlined frames.
+	framesNext []Frame
+
+	// This buffer is used when expanding PCs into multiple frames.
+	// Initially it points to the scratch space.
+	frames []Frame
+
+	// Scratch space to avoid allocation.
+	scratch [4]Frame
 }
 
 // Frame is the information returned by Frames for each call frame.
@@ -51,21 +58,40 @@ type Frame struct {
 // prepares to return function/file/line information.
 // Do not change the slice until you are done with the Frames.
 func CallersFrames(callers []uintptr) *Frames {
-	return &Frames{callers: callers}
+	ci := &Frames{}
+	ci.frames = ci.scratch[:0]
+	if len(callers) >= 1 {
+		pc := callers[0]
+		s := pc - skipPC
+		if s >= 0 && s < sizeofSkipFunction {
+			// Ignore skip frame callers[0] since this means the caller trimmed the PC slice.
+			ci.callers = callers[1:]
+			return ci
+		}
+	}
+	if len(callers) >= 2 {
+		pc := callers[1]
+		s := pc - skipPC
+		if s >= 0 && s < sizeofSkipFunction {
+			// Expand callers[0] and skip s logical frames at this PC.
+			ci.frames = ci.expandPC(ci.frames[:0], callers[0])
+			ci.framesNext = ci.frames[int(s):]
+			ci.callers = callers[2:]
+			return ci
+		}
+	}
+	ci.callers = callers
+	return ci
 }
 
 // Next returns frame information for the next caller.
 // If more is false, there are no more callers (the Frame value is valid).
 func (ci *Frames) Next() (frame Frame, more bool) {
-	if ci.frames != nil {
+	if len(ci.framesNext) > 0 {
 		// We have saved up frames to return.
-		f := (*ci.frames)[0]
-		if len(*ci.frames) == 1 {
-			ci.frames = nil
-		} else {
-			*ci.frames = (*ci.frames)[1:]
-		}
-		return f, ci.frames != nil || len(ci.callers) > 0
+		f := ci.framesNext[0]
+		ci.framesNext = ci.framesNext[1:]
+		return f, len(ci.framesNext) > 0 || len(ci.callers) > 0
 	}
 
 	if len(ci.callers) == 0 {
@@ -75,13 +101,27 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 	pc := ci.callers[0]
 	ci.callers = ci.callers[1:]
 	more = len(ci.callers) > 0
+
+	ci.frames = ci.expandPC(ci.frames[:0], pc)
+	if len(ci.frames) == 0 {
+		// Expansion failed, so there's no useful symbolic information.
+		return Frame{}, more
+	}
+
+	ci.framesNext = ci.frames[1:]
+	return ci.frames[0], more || len(ci.framesNext) > 0
+}
+
+// expandPC appends the frames corresponding to pc to frames
+// and returns the new slice.
+func (ci *Frames) expandPC(frames []Frame, pc uintptr) []Frame {
 	f := FuncForPC(pc)
 	if f == nil {
 		ci.wasPanic = false
 		if cgoSymbolizer != nil {
-			return ci.cgoNext(pc, more)
+			frames = expandCgoFrames(frames, pc)
 		}
-		return Frame{}, more
+		return frames
 	}
 
 	entry := f.Entry()
@@ -89,35 +129,68 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 	if xpc > entry && !ci.wasPanic {
 		xpc--
 	}
-	file, line := f.FileLine(xpc)
-
-	function := f.Name()
 	ci.wasPanic = entry == sigpanicPC
 
-	frame = Frame{
+	frames = expandInlinedCalls(frames, xpc, f)
+	return frames
+}
+
+// expandInlinedCalls expands xpc into multiple frames using the inlining
+// info in fn. expandInlinedCalls appends to frames and returns the new
+// slice. The resulting slice has at least one frame for the physical frame
+// that contains xpc (i.e., the function represented by fn).
+func expandInlinedCalls(frames []Frame, xpc uintptr, fn *Func) []Frame {
+	entry := fn.Entry()
+
+	// file and line are the innermost position at xpc.
+	file, line := fn.FileLine(xpc)
+
+	funcInfo := fn.funcInfo()
+	inldata := funcdata(funcInfo, _FUNCDATA_InlTree)
+	if inldata != nil {
+		inltree := (*[1 << 20]inlinedCall)(inldata)
+		ix := pcdatavalue(funcInfo, _PCDATA_InlTreeIndex, xpc, nil)
+		for ix >= 0 {
+			call := inltree[ix]
+			frames = append(frames, Frame{
+				PC:       xpc,
+				Func:     nil, // nil for inlined functions
+				Function: funcnameFromNameoff(funcInfo, call.func_),
+				File:     file,
+				Line:     line,
+				Entry:    entry,
+			})
+			file = funcfile(funcInfo, call.file)
+			line = int(call.line)
+			ix = call.parent
+		}
+	}
+
+	physicalFrame := Frame{
 		PC:       xpc,
-		Func:     f,
-		Function: function,
+		Func:     fn,
+		Function: fn.Name(),
 		File:     file,
 		Line:     line,
 		Entry:    entry,
 	}
+	frames = append(frames, physicalFrame)
 
-	return frame, more
+	return frames
 }
 
-// cgoNext returns frame information for pc, known to be a non-Go function,
-// using the cgoSymbolizer hook.
-func (ci *Frames) cgoNext(pc uintptr, more bool) (Frame, bool) {
+// expandCgoFrames expands frame information for pc, known to be
+// a non-Go function, using the cgoSymbolizer hook. expandCgoFrames
+// appends to frames and returns the new slice.
+func expandCgoFrames(frames []Frame, pc uintptr) []Frame {
 	arg := cgoSymbolizerArg{pc: pc}
 	callCgoSymbolizer(&arg)
 
 	if arg.file == nil && arg.funcName == nil {
 		// No useful information from symbolizer.
-		return Frame{}, more
+		return frames
 	}
 
-	var frames []Frame
 	for {
 		frames = append(frames, Frame{
 			PC:       pc,
@@ -140,18 +213,7 @@ func (ci *Frames) cgoNext(pc uintptr, more bool) (Frame, bool) {
 	arg.pc = 0
 	callCgoSymbolizer(&arg)
 
-	if len(frames) == 1 {
-		// Return a single frame.
-		return frames[0], more
-	}
-
-	// Return the first frame we saw and store the rest to be
-	// returned by later calls to Next.
-	rf := frames[0]
-	frames = frames[1:]
-	ci.frames = new([]Frame)
-	*ci.frames = frames
-	return rf, true
+	return frames
 }
 
 // NOTE: Func does not expose the actual unexported fields, because we return *Func
