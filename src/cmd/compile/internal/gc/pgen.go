@@ -335,17 +335,6 @@ func compile(fn *Node) {
 
 	saveerrors()
 
-	if Curfn.Type.FuncType().Outnamed {
-		// add clearing of the output parameters
-		for _, t := range Curfn.Type.Results().Fields().Slice() {
-			if t.Nname != nil {
-				n := nod(OAS, t.Nname, nil)
-				n = typecheck(n, Etop)
-				Curfn.Nbody.Prepend(n)
-			}
-		}
-	}
-
 	order(Curfn)
 	if nerrors != 0 {
 		return
