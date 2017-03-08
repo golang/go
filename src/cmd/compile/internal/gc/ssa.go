@@ -477,6 +477,9 @@ func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
 	}
 	return s.constInt32(t, int32(c))
 }
+func (s *state) constOffPtrSP(t ssa.Type, c int64) *ssa.Value {
+	return s.f.ConstOffPtrSP(s.peekPos(), t, c, s.sp)
+}
 
 // stmtList converts the statement list n to SSA and adds it to s.
 func (s *state) stmtList(l Nodes) {
@@ -1953,7 +1956,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.addr(n.Left, n.Bounded())
 
 	case OINDREGSP:
-		addr := s.entryNewValue1I(ssa.OpOffPtr, ptrto(n.Type), n.Xoffset, s.sp)
+		addr := s.constOffPtrSP(ptrto(n.Type), n.Xoffset)
 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
 
 	case OIND:
@@ -2991,7 +2994,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		if k != callNormal {
 			argStart += int64(2 * Widthptr)
 		}
-		addr := s.entryNewValue1I(ssa.OpOffPtr, ptrto(Types[TUINTPTR]), argStart, s.sp)
+		addr := s.constOffPtrSP(ptrto(Types[TUINTPTR]), argStart)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, rcvr, s.mem())
 	}
 
@@ -3000,9 +3003,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// Write argsize and closure (args to Newproc/Deferproc).
 		argStart := Ctxt.FixedFrameSize()
 		argsize := s.constInt32(Types[TUINT32], int32(stksize))
-		addr := s.entryNewValue1I(ssa.OpOffPtr, ptrto(Types[TUINT32]), argStart, s.sp)
+		addr := s.constOffPtrSP(ptrto(Types[TUINT32]), argStart)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, addr, argsize, s.mem())
-		addr = s.entryNewValue1I(ssa.OpOffPtr, ptrto(Types[TUINTPTR]), argStart+int64(Widthptr), s.sp)
+		addr = s.constOffPtrSP(ptrto(Types[TUINTPTR]), argStart+int64(Widthptr))
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
 		stksize += 2 * int64(Widthptr)
 	}
@@ -3049,7 +3052,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		return nil
 	}
 	fp := res.Field(0)
-	return s.entryNewValue1I(ssa.OpOffPtr, ptrto(fp.Type), fp.Offset+Ctxt.FixedFrameSize(), s.sp)
+	return s.constOffPtrSP(ptrto(fp.Type), fp.Offset+Ctxt.FixedFrameSize())
 }
 
 // etypesign returns the signed-ness of e, for integer/pointer etypes.
@@ -3129,7 +3132,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 	case OINDREGSP:
 		// indirect off REGSP
 		// used for storing/loading arguments/returns to/from callees
-		return s.entryNewValue1I(ssa.OpOffPtr, t, n.Xoffset, s.sp)
+		return s.constOffPtrSP(t, n.Xoffset)
 	case OINDEX:
 		if n.Left.Type.IsSlice() {
 			a := s.expr(n.Left)
@@ -3364,7 +3367,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
 	for _, arg := range args {
 		t := arg.Type
 		off = Rnd(off, t.Alignment())
-		ptr := s.newValue1I(ssa.OpOffPtr, t.PtrTo(), off, s.sp)
+		ptr := s.constOffPtrSP(t.PtrTo(), off)
 		size := t.Size()
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, size, ptr, arg, s.mem())
 		off += size
@@ -3395,7 +3398,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
 	res := make([]*ssa.Value, len(results))
 	for i, t := range results {
 		off = Rnd(off, t.Alignment())
-		ptr := s.newValue1I(ssa.OpOffPtr, ptrto(t), off, s.sp)
+		ptr := s.constOffPtrSP(ptrto(t), off)
 		res[i] = s.newValue2(ssa.OpLoad, t, ptr, s.mem())
 		off += t.Size()
 	}

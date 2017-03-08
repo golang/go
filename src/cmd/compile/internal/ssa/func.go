@@ -133,9 +133,9 @@ func (f *Func) freeValue(v *Value) {
 	// Clear everything but ID (which we reuse).
 	id := v.ID
 
-	// Zero argument values might be cached, so remove them there.
+	// Values with zero arguments and OpOffPtr values might be cached, so remove them there.
 	nArgs := opcodeTable[v.Op].argLen
-	if nArgs == 0 {
+	if nArgs == 0 || v.Op == OpOffPtr {
 		vv := f.constants[v.AuxInt]
 		for i, cv := range vv {
 			if v == cv {
@@ -410,6 +410,14 @@ func (f *Func) ConstEmptyString(pos src.XPos, t Type) *Value {
 	v := f.constVal(pos, OpConstString, t, constEmptyStringMagic, false)
 	v.Aux = ""
 	return v
+}
+func (f *Func) ConstOffPtrSP(pos src.XPos, t Type, c int64, sp *Value) *Value {
+	v := f.constVal(pos, OpOffPtr, t, c, true)
+	if len(v.Args) == 0 {
+		v.AddArg(sp)
+	}
+	return v
+
 }
 
 func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }
