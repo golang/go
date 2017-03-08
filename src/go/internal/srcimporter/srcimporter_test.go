@@ -76,7 +76,7 @@ func walkDir(t *testing.T, path string, endTime time.Time) (int, bool) {
 }
 
 func TestImportStdLib(t *testing.T) {
-	if runtime.GOOS == "nacl" {
+	if !testenv.HasSrc() {
 		t.Skip("no source code available")
 	}
 
@@ -102,7 +102,7 @@ var importedObjectTests = []struct {
 }
 
 func TestImportedTypes(t *testing.T) {
-	if runtime.GOOS == "nacl" {
+	if !testenv.HasSrc() {
 		t.Skip("no source code available")
 	}
 
@@ -134,7 +134,7 @@ func TestImportedTypes(t *testing.T) {
 }
 
 func TestReimport(t *testing.T) {
-	if runtime.GOOS == "nacl" {
+	if !testenv.HasSrc() {
 		t.Skip("no source code available")
 	}
 
