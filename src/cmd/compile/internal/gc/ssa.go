@@ -3364,10 +3364,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
 	for _, arg := range args {
 		t := arg.Type
 		off = Rnd(off, t.Alignment())
-		ptr := s.sp
-		if off != 0 {
-			ptr = s.newValue1I(ssa.OpOffPtr, t.PtrTo(), off, s.sp)
-		}
+		ptr := s.newValue1I(ssa.OpOffPtr, t.PtrTo(), off, s.sp)
 		size := t.Size()
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, size, ptr, arg, s.mem())
 		off += size
@@ -3398,10 +3395,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
 	res := make([]*ssa.Value, len(results))
 	for i, t := range results {
 		off = Rnd(off, t.Alignment())
-		ptr := s.sp
-		if off != 0 {
-			ptr = s.newValue1I(ssa.OpOffPtr, ptrto(t), off, s.sp)
-		}
+		ptr := s.newValue1I(ssa.OpOffPtr, ptrto(t), off, s.sp)
 		res[i] = s.newValue2(ssa.OpLoad, t, ptr, s.mem())
 		off += t.Size()
 	}
