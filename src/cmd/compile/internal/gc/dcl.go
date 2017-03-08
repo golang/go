@@ -1041,16 +1041,12 @@ func methodname(s *Sym, recv *Type) *Sym {
 
 	var p string
 	if star {
-		p = fmt.Sprintf("(*%v).%v", tsym, s)
+		p = fmt.Sprintf("(*%v).%v", tsym.Name, s)
 	} else {
 		p = fmt.Sprintf("%v.%v", tsym, s)
 	}
 
-	if exportname(tsym.Name) {
-		s = lookup(p)
-	} else {
-		s = Pkglookup(p, tsym.Pkg)
-	}
+	s = Pkglookup(p, tsym.Pkg)
 
 	return s
 }
