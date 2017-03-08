@@ -181,7 +181,11 @@ func SizesFor(compiler, arch string) Sizes {
 	if compiler != "gc" {
 		return nil
 	}
-	return gcArchSizes[arch]
+	s, ok := gcArchSizes[arch]
+	if !ok {
+		return nil
+	}
+	return s
 }
 
 // stdSizes is used if Config.Sizes == nil.

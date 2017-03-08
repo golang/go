@@ -51,24 +51,6 @@ encoding/xml/marshal_test.go: method MarshalXML(e *Encoder, start StartElement) 
 encoding/xml/read.go: method UnmarshalXML(d *Decoder, start StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
 encoding/xml/read_test.go: method UnmarshalXML(d *Decoder, start StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
 
-// Lots of false positives from the "large shift" check.
-// Mostly code that uses clever const tricks to determine
-// or use the size of an int or pointer (and related values).
-image/png/paeth.go: x might be too small for shift of 63
-math/big/float.go: x[i] might be too small for shift of 32
-math/big/nat.go: Word(rand.Uint32()) might be too small for shift of 32
-runtime/malloc.go: uintptr(i) might be too small for shift of 40
-runtime/malloc.go: uintptr(i) might be too small for shift of 40
-runtime/malloc.go: uintptr(i) might be too small for shift of 40
-sync/atomic/atomic_test.go: uintptr(seed + i) might be too small for shift of 32
-sync/atomic/atomic_test.go: uintptr(seed+i) << 32 might be too small for shift of 32
-sync/atomic/atomic_test.go: uintptr(seed + i) might be too small for shift of 32
-sync/atomic/atomic_test.go: old might be too small for shift of 32
-sync/atomic/atomic_test.go: old << 32 might be too small for shift of 32
-sync/atomic/atomic_test.go: old might be too small for shift of 32
-sync/atomic/atomic_test.go: v might be too small for shift of 32
-sync/atomic/atomic_test.go: v might be too small for shift of 32
-
 // Long struct tags used to test reflect internals
 cmd/link/link_test.go: struct field tag "\n\tLondon. Michaelmas term lately over, and the Lord Chancellor sitting in Lincoln’s Inn Hall. Implacable November weather. As much mud in the streets as if the waters had but newly retired from the face of the earth, and it would not be wonderful to meet a Megalosaurus, forty feet long or so, waddling like an elephantine lizard up Holborn Hill. Smoke lowering down from chimney-pots, making a soft black drizzle, with flakes of soot in it as big as full-grown snowflakes—gone into mourning, one might imagine, for the death of the sun. Dogs, undistinguishable in mire. Horses, scarcely better; splashed to their very blinkers. Foot passengers, jostling one another’s umbrellas in a general infection of ill temper, and losing their foot-hold at street-corners, where tens of thousands of other foot passengers have been slipping and sliding since the day broke (if this day ever broke), adding new deposits to the crust upon crust of mud, sticking at those points tenaciously to the pavement, and accumulating at compound interest.\n\n\tFog everywhere. Fog up the river, where it flows among green aits and meadows; fog down the river, where it rolls defiled among the tiers of shipping and the waterside pollutions of a great (and dirty) city. Fog on the Essex marshes, fog on the Kentish heights. Fog creeping into the cabooses of collier-brigs; fog lying out on the yards and hovering in the rigging of great ships; fog drooping on the gunwales of barges and small boats. Fog in the eyes and throats of ancient Greenwich pensioners, wheezing by the firesides of their wards; fog in the stem and bowl of the afternoon pipe of the wrathful skipper, down in his close cabin; fog cruelly pinching the toes and fingers of his shivering little ‘prentice boy on deck. Chance people on the bridges peeping over the parapets into a nether sky of fog, with fog all round them, as if they were up in a balloon and hanging in the misty clouds.\n\n\tGas looming through the fog in divers places in the streets, much as the sun may, from the spongey fields, be seen to loom by husbandman and ploughboy. Most of the shops lighted two hours before their time—as the gas seems to know, for it has a haggard and unwilling look.\n\n\tThe raw afternoon is rawest, and the dense fog is densest, and the muddy streets are muddiest near that leaden-headed old obstruction, appropriate ornament for the threshold of a leaden-headed old corporation, Temple Bar. And hard by Temple Bar, in Lincoln’s Inn Hall, at the very heart of the fog, sits the Lord High Chancellor in his High Court of Chancery." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
 cmd/link/link_test.go: struct field tag "\n\tIt was grand to see how the wind awoke, and bent the trees, and drove the rain before it like a cloud of smoke; and to hear the solemn thunder, and to see the lightning; and while thinking with awe of the tremendous powers by which our little lives are encompassed, to consider how beneficent they are, and how upon the smallest flower and leaf there was already a freshness poured from all this seeming rage, which seemed to make creation new again." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
