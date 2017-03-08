@@ -6,10 +6,16 @@ package objfile
 
 import (
 	"bufio"
+	"bytes"
+	"cmd/internal/src"
+	"container/list"
 	"debug/gosym"
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -102,10 +108,82 @@ func base(path string) string {
 	return path
 }
 
+// CachedFile contains the content of a file split into lines.
+type CachedFile struct {
+	FileName string
+	Lines    [][]byte
+}
+
+// FileCache is a simple LRU cache of file contents.
+type FileCache struct {
+	files  *list.List
+	maxLen int
+}
+
+// NewFileCache returns a FileCache which can contain up to maxLen cached file contents.
+func NewFileCache(maxLen int) *FileCache {
+	return &FileCache{
+		files:  list.New(),
+		maxLen: maxLen,
+	}
+}
+
+// Line returns the source code line for the given file and line number.
+// If the file is not already cached, reads it , inserts it into the cache,
+// and removes the least recently used file if necessary.
+// If the file is in cache, moves it up to the front of the list.
+func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
+	if filepath.Ext(filename) != ".go" {
+		return nil, nil
+	}
+
+	// Clean filenames returned by src.Pos.SymFilename()
+	// or src.PosBase.SymFilename() removing
+	// the leading src.FileSymPrefix.
+	if strings.HasPrefix(filename, src.FileSymPrefix) {
+		filename = filename[len(src.FileSymPrefix):]
+	}
+
+	// Expand literal "$GOROOT" rewrited by obj.AbsFile()
+	filename = filepath.Clean(os.ExpandEnv(filename))
+
+	var cf *CachedFile
+	var e *list.Element
+
+	for e = fc.files.Front(); e != nil; e = e.Next() {
+		cf = e.Value.(*CachedFile)
+		if cf.FileName == filename {
+			break
+		}
+	}
+
+	if e == nil {
+		content, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return nil, err
+		}
+
+		cf = &CachedFile{
+			FileName: filename,
+			Lines:    bytes.Split(content, []byte{'\n'}),
+		}
+		fc.files.PushFront(cf)
+
+		if fc.files.Len() >= fc.maxLen {
+			fc.files.Remove(fc.files.Back())
+		}
+	} else {
+		fc.files.MoveToFront(e)
+	}
+
+	return cf.Lines[line-1], nil
+}
+
 // Print prints a disassembly of the file to w.
 // If filter is non-nil, the disassembly only includes functions with names matching filter.
+// If printCode is true, the disassembly includs corresponding source lines.
 // The disassembly only includes functions that overlap the range [start, end).
-func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64) {
+func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, printCode bool) {
 	if start < d.textStart {
 		start = d.textStart
 	}
@@ -114,6 +192,12 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64) {
 	}
 	printed := false
 	bw := bufio.NewWriter(w)
+
+	var fc *FileCache
+	if printCode {
+		fc = NewFileCache(8)
+	}
+
 	for _, sym := range d.syms {
 		symStart := sym.Addr
 		symEnd := sym.Addr + uint64(sym.Size)
@@ -132,14 +216,32 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64) {
 		file, _, _ := d.pcln.PCToLine(sym.Addr)
 		fmt.Fprintf(bw, "TEXT %s(SB) %s\n", sym.Name, file)
 
-		tw := tabwriter.NewWriter(bw, 1, 8, 1, '\t', 0)
+		tw := tabwriter.NewWriter(bw, 18, 8, 1, '\t', tabwriter.StripEscape)
 		if symEnd > end {
 			symEnd = end
 		}
 		code := d.text[:end-d.textStart]
+
+		var lastFile string
+		var lastLine int
+
 		d.Decode(symStart, symEnd, relocs, func(pc, size uint64, file string, line int, text string) {
 			i := pc - d.textStart
-			fmt.Fprintf(tw, "\t%s:%d\t%#x\t", base(file), line, pc)
+
+			if printCode {
+				if file != lastFile || line != lastLine {
+					if srcLine, err := fc.Line(file, line); err == nil {
+						fmt.Fprintf(tw, "%s%s%s\n", []byte{tabwriter.Escape}, srcLine, []byte{tabwriter.Escape})
+					}
+
+					lastFile, lastLine = file, line
+				}
+
+				fmt.Fprintf(tw, "  %#x\t", pc)
+			} else {
+				fmt.Fprintf(tw, "  %s:%d\t%#x\t", base(file), line, pc)
+			}
+
 			if size%4 != 0 || d.goarch == "386" || d.goarch == "amd64" {
 				// Print instruction as bytes.
 				fmt.Fprintf(tw, "%x", code[i:i+size])

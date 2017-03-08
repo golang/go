@@ -57,24 +57,18 @@ func buildObjdump() error {
 }
 
 var x86Need = []string{
-	"fmthello.go:6",
-	"TEXT main.main(SB)",
 	"JMP main.main(SB)",
 	"CALL main.Println(SB)",
 	"RET",
 }
 
 var armNeed = []string{
-	"fmthello.go:6",
-	"TEXT main.main(SB)",
 	//"B.LS main.main(SB)", // TODO(rsc): restore; golang.org/issue/9021
 	"BL main.Println(SB)",
 	"RET",
 }
 
 var ppcNeed = []string{
-	"fmthello.go:6",
-	"TEXT main.main(SB)",
 	"BR main.main(SB)",
 	"CALL main.Println(SB)",
 	"RET",
@@ -91,7 +85,7 @@ var target = flag.String("target", "", "test disassembly of `goos/goarch` binary
 // binary for the current system (only) and test that objdump
 // can handle that one.
 
-func testDisasm(t *testing.T, flags ...string) {
+func testDisasm(t *testing.T, printCode bool, flags ...string) {
 	goarch := runtime.GOARCH
 	if *target != "" {
 		f := strings.Split(*target, "/")
@@ -114,9 +108,15 @@ func testDisasm(t *testing.T, flags ...string) {
 		t.Fatalf("go build fmthello.go: %v\n%s", err, out)
 	}
 	need := []string{
-		"fmthello.go:6",
 		"TEXT main.main(SB)",
 	}
+
+	if printCode {
+		need = append(need, `	Println("hello, world")`)
+	} else {
+		need = append(need, "fmthello.go:6")
+	}
+
 	switch goarch {
 	case "amd64", "386":
 		need = append(need, x86Need...)
@@ -126,7 +126,16 @@ func testDisasm(t *testing.T, flags ...string) {
 		need = append(need, ppcNeed...)
 	}
 
-	out, err = exec.Command(exe, "-s", "main.main", hello).CombinedOutput()
+	args = []string{
+		"-s", "main.main",
+		hello,
+	}
+
+	if printCode {
+		args = append([]string{"-S"}, args...)
+	}
+
+	out, err = exec.Command(exe, args...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("objdump fmthello.exe: %v\n%s", err, out)
 	}
@@ -153,7 +162,19 @@ func TestDisasm(t *testing.T) {
 	case "s390x":
 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
 	}
-	testDisasm(t)
+	testDisasm(t, false)
+}
+
+func TestDisasmCode(t *testing.T) {
+	switch runtime.GOARCH {
+	case "arm64":
+		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
+	case "mips", "mipsle", "mips64", "mips64le":
+		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
+	case "s390x":
+		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
+	}
+	testDisasm(t, true)
 }
 
 func TestDisasmExtld(t *testing.T) {
@@ -178,5 +199,5 @@ func TestDisasmExtld(t *testing.T) {
 	if !build.Default.CgoEnabled {
 		t.Skip("skipping because cgo is not enabled")
 	}
-	testDisasm(t, "-ldflags=-linkmode=external")
+	testDisasm(t, false, "-ldflags=-linkmode=external")
 }
