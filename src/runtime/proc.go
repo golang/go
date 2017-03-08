@@ -3755,6 +3755,10 @@ func sysmon() {
 			}
 			unlock(&sched.lock)
 		}
+		// trigger libc interceptors if needed
+		if _cgo_yield != nil {
+			asmcgocall(_cgo_yield, nil)
+		}
 		// poll network if not polled for more than 10ms
 		lastpoll := int64(atomic.Load64(&sched.lastpoll))
 		now := nanotime()

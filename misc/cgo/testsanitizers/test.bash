@@ -190,17 +190,12 @@ if test "$tsan" = "yes"; then
     fi
 
     if test "$ok" = "true"; then
-	# This test requires rebuilding os/user with -fsanitize=thread.
+	# These tests require rebuilding os/user with -fsanitize=thread.
 	testtsan tsan5.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
-
-	# This test requires rebuilding runtime/cgo with -fsanitize=thread.
 	testtsan tsan6.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
-
-	# This test requires rebuilding runtime/cgo with -fsanitize=thread.
 	testtsan tsan7.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
-
-	# This test requires rebuilding runtime/cgo with -fsanitize=thread.
 	testtsan tsan10.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+	testtsan tsan11.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
     fi
 fi
 

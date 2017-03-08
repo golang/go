@@ -198,10 +198,9 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 		if _cgo_yield == nil {
 			semasleep(-1)
 		} else {
-			// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
+			// Sleep in arbitrary-but-moderate intervals to poll libc interceptors.
 			const ns = 10e6
-			for atomic.Loaduintptr(&n.key) == 0 {
-				semasleep(ns)
+			for semasleep(ns) < 0 {
 				asmcgocall(_cgo_yield, nil)
 			}
 		}
@@ -213,11 +212,17 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 	for {
 		// Registered. Sleep.
 		gp.m.blocked = true
+		if _cgo_yield != nil && ns > 10e6 {
+			ns = 10e6
+		}
 		if semasleep(ns) >= 0 {
 			gp.m.blocked = false
 			// Acquired semaphore, semawakeup unregistered us.
 			// Done.
 			return true
+		}
+		if _cgo_yield != nil {
+			asmcgocall(_cgo_yield, nil)
 		}
 		gp.m.blocked = false
 		// Interrupted or timed out. Still registered. Semaphore not acquired.
