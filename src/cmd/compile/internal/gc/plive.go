@@ -98,10 +98,9 @@ type Liveness struct {
 }
 
 type progeffectscache struct {
-	tailuevar    []int32
-	retuevar     []int32
-	textvarkill  []int32
 	textavarinit []int32
+	retuevar     []int32
+	tailuevar    []int32
 	uevar        [3]int32
 	varkill      [3]int32
 	avarinit     [3]int32
@@ -458,12 +457,12 @@ func (lv *Liveness) initcache() {
 			// all the parameters for correctness, and similarly it must not
 			// read the out arguments - they won't be set until the new
 			// function runs.
+
 			lv.cache.tailuevar = append(lv.cache.tailuevar, int32(i))
 
 			if node.Addrtaken() {
 				lv.cache.textavarinit = append(lv.cache.textavarinit, int32(i))
 			}
-			lv.cache.textvarkill = append(lv.cache.textvarkill, int32(i))
 
 		case PPARAMOUT:
 			// If the result had its address taken, it is being tracked
@@ -500,29 +499,9 @@ func (lv *Liveness) progeffects(prog *obj.Prog) (uevar, varkill, avarinit []int3
 		return
 	}
 
-	// A return instruction with a p.to is a tail return, which brings
-	// the stack pointer back up (if it ever went down) and then jumps
-	// to a new function entirely. That form of instruction must read
-	// all the parameters for correctness, and similarly it must not
-	// read the out arguments - they won't be set until the new
-	// function runs.
-	if (prog.As == obj.AJMP || prog.As == obj.ARET) && prog.To.Type == obj.TYPE_MEM && prog.To.Name == obj.NAME_EXTERN {
-		// This is a tail call. Ensure the arguments are still alive.
-		// See issue 16016.
-		return lv.cache.tailuevar, nil, nil
-	}
-
-	if prog.As == obj.ARET {
-		if prog.To.Type == obj.TYPE_NONE {
-			return lv.cache.retuevar, nil, nil
-		}
+	switch prog.As {
+	case obj.ATEXT, obj.ARET, obj.AJMP, obj.AUNDEF:
 		return nil, nil, nil
-	}
-
-	if prog.As == obj.ATEXT {
-		// A text instruction marks the entry point to a function and
-		// the definition point of all in arguments.
-		return nil, lv.cache.textvarkill, lv.cache.textavarinit
 	}
 
 	uevar = lv.cache.uevar[:0]
@@ -1020,17 +999,7 @@ func livenesssolve(lv *Liveness) {
 	for change := true; change; {
 		change = false
 		for _, bb := range lv.cfg {
-			any.Clear()
-			all.Clear()
-			for j, pred := range bb.pred {
-				if j == 0 {
-					any.Copy(pred.avarinitany)
-					all.Copy(pred.avarinitall)
-				} else {
-					any.Or(any, pred.avarinitany)
-					all.And(all, pred.avarinitall)
-				}
-			}
+			lv.avarinitanyall(bb, any, all)
 
 			any.AndNot(any, bb.varkill)
 			all.AndNot(all, bb.varkill)
@@ -1060,13 +1029,34 @@ func livenesssolve(lv *Liveness) {
 		for i := len(lv.cfg) - 1; i >= 0; i-- {
 			bb := lv.cfg[i]
 
-			// A variable is live on output from this block
-			// if it is live on input to some successor.
-			//
-			// out[b] = \bigcup_{s \in succ[b]} in[s]
 			newliveout.Clear()
-			for _, succ := range bb.succ {
-				newliveout.Or(newliveout, succ.livein)
+			if len(bb.succ) == 0 {
+				switch prog := bb.last; {
+				case prog.As == obj.ARET && prog.To.Type == obj.TYPE_NONE:
+					// ssa.BlockRet
+					for _, pos := range lv.cache.retuevar {
+						newliveout.Set(pos)
+					}
+				case (prog.As == obj.AJMP || prog.As == obj.ARET) && prog.To.Type == obj.TYPE_MEM && prog.To.Name == obj.NAME_EXTERN:
+					// ssa.BlockRetJmp
+					for _, pos := range lv.cache.tailuevar {
+						newliveout.Set(pos)
+					}
+				case prog.As == obj.AUNDEF:
+					// ssa.BlockExit
+					// nothing to do
+				default:
+					Fatalf("unexpected terminal prog: %v", prog)
+				}
+			} else {
+				// A variable is live on output from this block
+				// if it is live on input to some successor.
+				//
+				// out[b] = \bigcup_{s \in succ[b]} in[s]
+				newliveout.Copy(bb.succ[0].livein)
+				for _, succ := range bb.succ[1:] {
+					newliveout.Or(newliveout, succ.livein)
+				}
 			}
 
 			if !bb.liveout.Eq(newliveout) {
@@ -1128,18 +1118,7 @@ func livenessepilogue(lv *Liveness) {
 		// Compute avarinitany and avarinitall for entry to block.
 		// This duplicates information known during livenesssolve
 		// but avoids storing two more vectors for each block.
-		any.Clear()
-		all.Clear()
-		for j := 0; j < len(bb.pred); j++ {
-			pred := bb.pred[j]
-			if j == 0 {
-				any.Copy(pred.avarinitany)
-				all.Copy(pred.avarinitall)
-			} else {
-				any.Or(any, pred.avarinitany)
-				all.And(all, pred.avarinitall)
-			}
-		}
+		lv.avarinitanyall(bb, any, all)
 
 		// Walk forward through the basic block instructions and
 		// allocate liveness maps for those instructions that need them.
@@ -1248,21 +1227,6 @@ func livenessepilogue(lv *Liveness) {
 				// Found an interesting instruction, record the
 				// corresponding liveness information.
 
-				// Useful sanity check: on entry to the function,
-				// the only things that can possibly be live are the
-				// input parameters.
-				if p.As == obj.ATEXT {
-					for j := int32(0); j < liveout.n; j++ {
-						if !liveout.Get(j) {
-							continue
-						}
-						n := lv.vars[j]
-						if n.Class != PPARAM {
-							Fatalf("internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
-						}
-					}
-				}
-
 				// Record live variables.
 				live := lv.livevars[pos]
 				live.Or(live, liveout)
@@ -1344,6 +1308,34 @@ func livenessepilogue(lv *Liveness) {
 	}
 
 	flusherrors()
+
+	// Useful sanity check: on entry to the function,
+	// the only things that can possibly be live are the
+	// input parameters.
+	for j, n := range lv.vars {
+		if n.Class != PPARAM && lv.livevars[0].Get(int32(j)) {
+			Fatalf("internal error: %v %L recorded as live on entry", Curfn.Func.Nname, n)
+		}
+	}
+}
+
+func (lv *Liveness) avarinitanyall(bb *BasicBlock, any, all bvec) {
+	if len(bb.pred) == 0 {
+		any.Clear()
+		all.Clear()
+		for _, pos := range lv.cache.textavarinit {
+			any.Set(pos)
+			all.Set(pos)
+		}
+		return
+	}
+
+	any.Copy(bb.pred[0].avarinitany)
+	all.Copy(bb.pred[0].avarinitall)
+	for _, pred := range bb.pred[1:] {
+		any.Or(any, pred.avarinitany)
+		all.And(all, pred.avarinitall)
+	}
 }
 
 // FNV-1 hash function constants.
