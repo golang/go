@@ -68,6 +68,7 @@ func walk(fn *Node) {
 		dumplist(s, Curfn.Nbody)
 	}
 
+	zeroResults()
 	heapmoves()
 	if Debug['W'] != 0 && Curfn.Func.Enter.Len() > 0 {
 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
@@ -2466,20 +2467,9 @@ func vmatch1(l *Node, r *Node) bool {
 
 // paramstoheap returns code to allocate memory for heap-escaped parameters
 // and to copy non-result prameters' values from the stack.
-// If out is true, then code is also produced to zero-initialize their
-// stack memory addresses.
 func paramstoheap(params *Type) []*Node {
 	var nn []*Node
 	for _, t := range params.Fields().Slice() {
-		// For precise stacks, the garbage collector assumes results
-		// are always live, so zero them always.
-		if params.StructType().Funarg == FunargResults {
-			// Defer might stop a panic and show the
-			// return values as they exist at the time of panic.
-			// Make sure to zero them on entry to the function.
-			nn = append(nn, nod(OAS, nodarg(t, 1), nil))
-		}
-
 		v := t.Nname
 		if v != nil && v.Sym != nil && strings.HasPrefix(v.Sym.Name, "~r") { // unnamed result
 			v = nil
@@ -2497,6 +2487,29 @@ func paramstoheap(params *Type) []*Node {
 	}
 
 	return nn
+}
+
+// zeroResults zeros the return values at the start of the function.
+// We need to do this very early in the function.  Defer might stop a
+// panic and show the return values as they exist at the time of
+// panic.  For precise stacks, the garbage collector assumes results
+// are always live, so we need to zero them before any allocations,
+// even allocations to move params/results to the heap.
+// The generated code is added to Curfn's Enter list.
+func zeroResults() {
+	lno := lineno
+	lineno = Curfn.Pos
+	for _, f := range Curfn.Type.Results().Fields().Slice() {
+		if v := f.Nname; v != nil && v.Name.Param.Heapaddr != nil {
+			// The local which points to the return value is the
+			// thing that needs zeroing. This is already handled
+			// by a Needzero annotation in plive.go:livenessepilogue.
+			continue
+		}
+		// Zero the stack location containing f.
+		Curfn.Func.Enter.Append(nod(OAS, nodarg(f, 1), nil))
+	}
+	lineno = lno
 }
 
 // returnsfromheap returns code to copy values for heap-escaped parameters
