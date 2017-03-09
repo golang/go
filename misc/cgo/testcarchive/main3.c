@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 #include <sched.h>
+#include <unistd.h>
 
 #include "libgo3.h"
 
