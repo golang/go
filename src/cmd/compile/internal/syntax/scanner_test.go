@@ -56,8 +56,8 @@ func TestTokens(t *testing.T) {
 	for i, want := range sampleTokens {
 		nlsemi := false
 
-		if got.line != uint(i+1) {
-			t.Errorf("got line %d; want %d", got.line, i+1)
+		if got.line != uint(i+linebase) {
+			t.Errorf("got line %d; want %d", got.line, i+linebase)
 		}
 
 		if got.tok != want.tok {
@@ -264,75 +264,75 @@ var sampleTokens = [...]struct {
 func TestScanErrors(t *testing.T) {
 	for _, test := range []struct {
 		src, msg  string
-		line, col uint
+		line, col uint // 0-based
 	}{
 		// Note: Positions for lexical errors are the earliest position
 		// where the error is apparent, not the beginning of the respective
 		// token.
 
 		// rune-level errors
-		{"fo\x00o", "invalid NUL character", 1, 2},
-		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 2, 0},
-		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 3, 0},
+		{"fo\x00o", "invalid NUL character", 0, 2},
+		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 1, 0},
+		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 2, 0},
 
 		// token-level errors
-		{"\u00BD" /* ½ */, "invalid identifier character U+00BD '½'", 1, 0},
-		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid identifier character U+00BD '½'", 1, 13 /* byte offset */},
-		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 1, 0},
-		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 1, 8 /* byte offset */},
+		{"\u00BD" /* ½ */, "invalid identifier character U+00BD '½'", 0, 0},
+		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid identifier character U+00BD '½'", 0, 13 /* byte offset */},
+		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 0, 0},
+		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 0, 8 /* byte offset */},
 
-		{"x + ~y", "bitwise complement operator is ^", 1, 4},
-		{"foo$bar = 0", "invalid character U+0024 '$'", 1, 3},
-		{"const x = 0xyz", "malformed hex constant", 1, 12},
-		{"0123456789", "malformed octal constant", 1, 10},
-		{"0123456789. /* foobar", "comment not terminated", 1, 12},   // valid float constant
-		{"0123456789e0 /*\nfoobar", "comment not terminated", 1, 13}, // valid float constant
-		{"var a, b = 08, 07\n", "malformed octal constant", 1, 13},
-		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 1, 10},
+		{"x + ~y", "bitwise complement operator is ^", 0, 4},
+		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
+		{"const x = 0xyz", "malformed hex constant", 0, 12},
+		{"0123456789", "malformed octal constant", 0, 10},
+		{"0123456789. /* foobar", "comment not terminated", 0, 12},   // valid float constant
+		{"0123456789e0 /*\nfoobar", "comment not terminated", 0, 13}, // valid float constant
+		{"var a, b = 08, 07\n", "malformed octal constant", 0, 13},
+		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 0, 10},
 
-		{`''`, "empty character literal or unescaped ' in character literal", 1, 1},
-		{"'\n", "newline in character literal", 1, 1},
-		{`'\`, "invalid character literal (missing closing ')", 1, 0},
-		{`'\'`, "invalid character literal (missing closing ')", 1, 0},
-		{`'\x`, "invalid character literal (missing closing ')", 1, 0},
-		{`'\x'`, "non-hex character in escape sequence: '", 1, 3},
-		{`'\y'`, "unknown escape sequence", 1, 2},
-		{`'\x0'`, "non-hex character in escape sequence: '", 1, 4},
-		{`'\00'`, "non-octal character in escape sequence: '", 1, 4},
-		{`'\377' /*`, "comment not terminated", 1, 7}, // valid octal escape
-		{`'\378`, "non-octal character in escape sequence: 8", 1, 4},
-		{`'\400'`, "octal escape value > 255: 256", 1, 5},
-		{`'xx`, "invalid character literal (missing closing ')", 1, 0},
-		{`'xx'`, "invalid character literal (more than one character)", 1, 0},
+		{`''`, "empty character literal or unescaped ' in character literal", 0, 1},
+		{"'\n", "newline in character literal", 0, 1},
+		{`'\`, "invalid character literal (missing closing ')", 0, 0},
+		{`'\'`, "invalid character literal (missing closing ')", 0, 0},
+		{`'\x`, "invalid character literal (missing closing ')", 0, 0},
+		{`'\x'`, "non-hex character in escape sequence: '", 0, 3},
+		{`'\y'`, "unknown escape sequence", 0, 2},
+		{`'\x0'`, "non-hex character in escape sequence: '", 0, 4},
+		{`'\00'`, "non-octal character in escape sequence: '", 0, 4},
+		{`'\377' /*`, "comment not terminated", 0, 7}, // valid octal escape
+		{`'\378`, "non-octal character in escape sequence: 8", 0, 4},
+		{`'\400'`, "octal escape value > 255: 256", 0, 5},
+		{`'xx`, "invalid character literal (missing closing ')", 0, 0},
+		{`'xx'`, "invalid character literal (more than one character)", 0, 0},
 
-		{"\"\n", "newline in string", 1, 1},
-		{`"`, "string not terminated", 1, 0},
-		{`"foo`, "string not terminated", 1, 0},
-		{"`", "string not terminated", 1, 0},
-		{"`foo", "string not terminated", 1, 0},
-		{"/*/", "comment not terminated", 1, 0},
-		{"/*\n\nfoo", "comment not terminated", 1, 0},
-		{"/*\n\nfoo", "comment not terminated", 1, 0},
-		{`"\`, "string not terminated", 1, 0},
-		{`"\"`, "string not terminated", 1, 0},
-		{`"\x`, "string not terminated", 1, 0},
-		{`"\x"`, "non-hex character in escape sequence: \"", 1, 3},
-		{`"\y"`, "unknown escape sequence", 1, 2},
-		{`"\x0"`, "non-hex character in escape sequence: \"", 1, 4},
-		{`"\00"`, "non-octal character in escape sequence: \"", 1, 4},
-		{`"\377" /*`, "comment not terminated", 1, 7}, // valid octal escape
-		{`"\378"`, "non-octal character in escape sequence: 8", 1, 4},
-		{`"\400"`, "octal escape value > 255: 256", 1, 5},
+		{"\"\n", "newline in string", 0, 1},
+		{`"`, "string not terminated", 0, 0},
+		{`"foo`, "string not terminated", 0, 0},
+		{"`", "string not terminated", 0, 0},
+		{"`foo", "string not terminated", 0, 0},
+		{"/*/", "comment not terminated", 0, 0},
+		{"/*\n\nfoo", "comment not terminated", 0, 0},
+		{"/*\n\nfoo", "comment not terminated", 0, 0},
+		{`"\`, "string not terminated", 0, 0},
+		{`"\"`, "string not terminated", 0, 0},
+		{`"\x`, "string not terminated", 0, 0},
+		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
+		{`"\y"`, "unknown escape sequence", 0, 2},
+		{`"\x0"`, "non-hex character in escape sequence: \"", 0, 4},
+		{`"\00"`, "non-octal character in escape sequence: \"", 0, 4},
+		{`"\377" /*`, "comment not terminated", 0, 7}, // valid octal escape
+		{`"\378"`, "non-octal character in escape sequence: 8", 0, 4},
+		{`"\400"`, "octal escape value > 255: 256", 0, 5},
 
-		{`s := "foo\z"`, "unknown escape sequence", 1, 10},
-		{`s := "foo\z00\nbar"`, "unknown escape sequence", 1, 10},
-		{`"\x`, "string not terminated", 1, 0},
-		{`"\x"`, "non-hex character in escape sequence: \"", 1, 3},
-		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 1, 18},
-		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 1, 18},
+		{`s := "foo\z"`, "unknown escape sequence", 0, 10},
+		{`s := "foo\z00\nbar"`, "unknown escape sequence", 0, 10},
+		{`"\x`, "string not terminated", 0, 0},
+		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
+		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 0, 18},
+		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 0, 18},
 
 		// former problem cases
-		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 0},
+		{"package p\n\n\xef", "invalid UTF-8 encoding", 2, 0},
 	} {
 		var s scanner
 		nerrors := 0
@@ -343,11 +343,11 @@ func TestScanErrors(t *testing.T) {
 				if msg != test.msg {
 					t.Errorf("%q: got msg = %q; want %q", test.src, msg, test.msg)
 				}
-				if line != test.line {
-					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line)
+				if line != test.line+linebase {
+					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line+linebase)
 				}
-				if col != test.col {
-					t.Errorf("%q: got col = %d; want %d", test.src, col, test.col)
+				if col != test.col+colbase {
+					t.Errorf("%q: got col = %d; want %d", test.src, col, test.col+colbase)
 				}
 			} else if nerrors > 1 {
 				// TODO(gri) make this use position info

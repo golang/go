@@ -18,6 +18,10 @@ import (
 	"unicode/utf8"
 )
 
+// starting points for line and column numbers
+const linebase = 1
+const colbase = 1
+
 // buf [...read...|...|...unread...|s|...free...]
 //         ^      ^   ^            ^
 //         |      |   |            |
@@ -49,8 +53,8 @@ func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
 	s.buf[0] = utf8.RuneSelf // terminate with sentinel
 	s.offs = 0
 	s.r0, s.r, s.w = 0, 0, 0
-	s.line0, s.line = 1, 1
-	s.col0, s.col = 0, 0
+	s.line0, s.line = 0, linebase
+	s.col0, s.col = 0, colbase
 	s.ioerr = nil
 
 	s.lit = s.lit[:0]
@@ -112,7 +116,7 @@ redo:
 		}
 		if b == '\n' {
 			s.line++
-			s.col = 0
+			s.col = colbase
 		}
 		return rune(b)
 	}

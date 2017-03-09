@@ -297,8 +297,8 @@ func testPos(t *testing.T, list []test, prefix, suffix string, extract func(*Fil
 		}
 
 		// verify node position with expected position as indicated by @
-		if col := int(node.Pos().Col()); col != index {
-			t.Errorf("pos error: %s: col = %d, want %d", src, col, index)
+		if col := int(node.Pos().Col()); col != index+colbase {
+			t.Errorf("pos error: %s: col = %d, want %d", src, col, index+colbase)
 			continue
 		}
 	}
