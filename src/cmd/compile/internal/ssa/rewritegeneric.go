@@ -14705,7 +14705,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	// match: (Store dst (StructMake2 <t> f0 f1) mem)
 	// cond:
-	// result: (Store [t.FieldType(1).Size()]     (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)     f1     (Store [t.FieldType(0).Size()]       (OffPtr <t.FieldType(0)> [0] dst)         f0 mem))
+	// result: (Store [t.FieldType(1).Size()]     (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)     f1     (Store [t.FieldType(0).Size()]       (OffPtr <t.FieldType(0).PtrTo()> [0] dst)         f0 mem))
 	for {
 		dst := v.Args[0]
 		v_1 := v.Args[1]
@@ -14725,7 +14725,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v.AddArg(f1)
 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
 		v1.AuxInt = t.FieldType(0).Size()
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0))
+		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
 		v2.AuxInt = 0
 		v2.AddArg(dst)
 		v1.AddArg(v2)
