@@ -98,6 +98,7 @@
         (Const32F [f2i(float64(i2f32(c) + i2f32(d)))]) // ensure we combine the operands with 32 bit precision
 (Add64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) + i2f(d))])
 (AddPtr <t> x (Const64 [c])) -> (OffPtr <t> x [c])
+(AddPtr <t> x (Const32 [c])) -> (OffPtr <t> x [c])
 
 (Sub8   (Const8 [c]) (Const8 [d]))     -> (Const8 [int64(int8(c-d))])
 (Sub16  (Const16 [c]) (Const16 [d]))   -> (Const16 [int64(int16(c-d))])

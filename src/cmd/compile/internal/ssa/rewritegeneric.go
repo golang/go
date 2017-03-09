@@ -1823,6 +1823,23 @@ func rewriteValuegeneric_OpAddPtr(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (AddPtr <t> x (Const32 [c]))
+	// cond:
+	// result: (OffPtr <t> x [c])
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpOffPtr)
+		v.Type = t
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpAnd16(v *Value, config *Config) bool {
