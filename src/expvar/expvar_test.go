@@ -211,6 +211,33 @@ func BenchmarkMapSet(b *testing.B) {
 	})
 }
 
+func BenchmarkMapSetDifferent(b *testing.B) {
+	procKeys := make([][]string, runtime.GOMAXPROCS(0))
+	for i := range procKeys {
+		keys := make([]string, 4)
+		for j := range keys {
+			keys[j] = fmt.Sprint(i, j)
+		}
+		procKeys[i] = keys
+	}
+
+	m := new(Map).Init()
+	v := new(Int)
+	b.ResetTimer()
+
+	var n int32
+	b.RunParallel(func(pb *testing.PB) {
+		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
+		keys := procKeys[i]
+
+		for pb.Next() {
+			for _, k := range keys {
+				m.Set(k, v)
+			}
+		}
+	})
+}
+
 func BenchmarkMapSetString(b *testing.B) {
 	m := new(Map).Init()
 
