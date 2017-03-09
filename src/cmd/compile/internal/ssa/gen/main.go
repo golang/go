@@ -18,6 +18,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 type arch struct {
@@ -42,17 +43,18 @@ type opData struct {
 	typ               string // default result type
 	aux               string
 	rematerializeable bool
-	argLength         int32 // number of arguments, if -1, then this operation has a variable number of arguments
-	commutative       bool  // this operation is commutative on its first 2 arguments (e.g. addition)
-	resultInArg0      bool  // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
-	resultNotInArgs   bool  // outputs must not be allocated to the same registers as inputs
-	clobberFlags      bool  // this op clobbers flags register
-	call              bool  // is a function call
-	nilCheck          bool  // this op is a nil check on arg0
-	faultOnNilArg0    bool  // this op will fault if arg0 is nil (and aux encodes a small offset)
-	faultOnNilArg1    bool  // this op will fault if arg1 is nil (and aux encodes a small offset)
-	usesScratch       bool  // this op requires scratch memory space
-	hasSideEffects    bool  // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	argLength         int32  // number of arguments, if -1, then this operation has a variable number of arguments
+	commutative       bool   // this operation is commutative on its first 2 arguments (e.g. addition)
+	resultInArg0      bool   // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
+	resultNotInArgs   bool   // outputs must not be allocated to the same registers as inputs
+	clobberFlags      bool   // this op clobbers flags register
+	call              bool   // is a function call
+	nilCheck          bool   // this op is a nil check on arg0
+	faultOnNilArg0    bool   // this op will fault if arg0 is nil (and aux encodes a small offset)
+	faultOnNilArg1    bool   // this op will fault if arg1 is nil (and aux encodes a small offset)
+	usesScratch       bool   // this op requires scratch memory space
+	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	symEffect         string // effect this op has on symbol in aux
 }
 
 type blockData struct {
@@ -212,6 +214,12 @@ func genOp() {
 			if v.hasSideEffects {
 				fmt.Fprintln(w, "hasSideEffects: true,")
 			}
+			if v.symEffect != "" {
+				if !strings.HasPrefix(v.aux, "Sym") {
+					log.Fatalf("symEffect with aux %s not allowed", v.aux)
+				}
+				fmt.Fprintf(w, "symEffect: Sym%s,\n", v.symEffect)
+			}
 			if a.name == "generic" {
 				fmt.Fprintln(w, "generic:true,")
 				fmt.Fprintln(w, "},") // close op
@@ -272,6 +280,9 @@ func genOp() {
 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
 
 	fmt.Fprintln(w, "func (o Op) UsesScratch() bool { return opcodeTable[o].usesScratch }")
+
+	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
+	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
 
 	// generate registers
 	for _, a := range archs {

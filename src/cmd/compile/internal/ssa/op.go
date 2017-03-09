@@ -23,18 +23,19 @@ type opInfo struct {
 	auxType           auxType
 	argLen            int32 // the number of arguments, -1 if variable length
 	asm               obj.As
-	generic           bool // this is a generic (arch-independent) opcode
-	rematerializeable bool // this op is rematerializeable
-	commutative       bool // this operation is commutative (e.g. addition)
-	resultInArg0      bool // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
-	resultNotInArgs   bool // outputs must not be allocated to the same registers as inputs
-	clobberFlags      bool // this op clobbers flags register
-	call              bool // is a function call
-	nilCheck          bool // this op is a nil check on arg0
-	faultOnNilArg0    bool // this op will fault if arg0 is nil (and aux encodes a small offset)
-	faultOnNilArg1    bool // this op will fault if arg1 is nil (and aux encodes a small offset)
-	usesScratch       bool // this op requires scratch memory space
-	hasSideEffects    bool // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	generic           bool      // this is a generic (arch-independent) opcode
+	rematerializeable bool      // this op is rematerializeable
+	commutative       bool      // this operation is commutative (e.g. addition)
+	resultInArg0      bool      // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
+	resultNotInArgs   bool      // outputs must not be allocated to the same registers as inputs
+	clobberFlags      bool      // this op clobbers flags register
+	call              bool      // is a function call
+	nilCheck          bool      // this op is a nil check on arg0
+	faultOnNilArg0    bool      // this op will fault if arg0 is nil (and aux encodes a small offset)
+	faultOnNilArg1    bool      // this op will fault if arg1 is nil (and aux encodes a small offset)
+	usesScratch       bool      // this op requires scratch memory space
+	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	symEffect         SymEffect // effect this op has on symbol in aux
 }
 
 type inputInfo struct {
@@ -73,6 +74,20 @@ const (
 	auxSymSizeAndAlign         // aux is a symbol, auxInt is a SizeAndAlign
 
 	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
+)
+
+// A SymEffect describes the effect that an SSA Value has on the variable
+// identified by the symbol in its Aux field.
+type SymEffect int8
+
+const (
+	SymRead SymEffect = 1 << iota
+	SymWrite
+	SymAddr
+
+	SymRdWr = SymRead | SymWrite
+
+	SymNone SymEffect = 0
 )
 
 // A ValAndOff is used by the several opcodes. It holds
