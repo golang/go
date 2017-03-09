@@ -21852,9 +21852,11 @@ var opcodeTable = [...]opInfo{
 	},
 }
 
-func (o Op) Asm() obj.As       { return opcodeTable[o].asm }
-func (o Op) String() string    { return opcodeTable[o].name }
-func (o Op) UsesScratch() bool { return opcodeTable[o].usesScratch }
+func (o Op) Asm() obj.As          { return opcodeTable[o].asm }
+func (o Op) String() string       { return opcodeTable[o].name }
+func (o Op) UsesScratch() bool    { return opcodeTable[o].usesScratch }
+func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }
+func (o Op) IsCall() bool         { return opcodeTable[o].call }
 
 var registers386 = [...]Register{
 	{0, x86.REG_AX, "AX"},
