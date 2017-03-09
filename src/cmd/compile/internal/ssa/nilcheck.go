@@ -39,23 +39,36 @@ func nilcheckelim(f *Func) {
 
 	// make an initial pass identifying any non-nil values
 	for _, b := range f.Blocks {
-		// a value resulting from taking the address of a
-		// value, or a value constructed from an offset of a
-		// non-nil ptr (OpAddPtr) implies it is non-nil
 		for _, v := range b.Values {
+			// a value resulting from taking the address of a
+			// value, or a value constructed from an offset of a
+			// non-nil ptr (OpAddPtr) implies it is non-nil
 			if v.Op == OpAddr || v.Op == OpAddPtr {
 				nonNilValues[v.ID] = true
-			} else if v.Op == OpPhi {
+			}
+		}
+	}
+
+	for changed := true; changed; {
+		changed = false
+		for _, b := range f.Blocks {
+			for _, v := range b.Values {
 				// phis whose arguments are all non-nil
 				// are non-nil
-				argsNonNil := true
-				for _, a := range v.Args {
-					if !nonNilValues[a.ID] {
-						argsNonNil = false
+				if v.Op == OpPhi {
+					argsNonNil := true
+					for _, a := range v.Args {
+						if !nonNilValues[a.ID] {
+							argsNonNil = false
+							break
+						}
 					}
-				}
-				if argsNonNil {
-					nonNilValues[v.ID] = true
+					if argsNonNil {
+						if !nonNilValues[v.ID] {
+							changed = true
+						}
+						nonNilValues[v.ID] = true
+					}
 				}
 			}
 		}
