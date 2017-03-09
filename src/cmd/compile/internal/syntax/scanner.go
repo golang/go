@@ -577,12 +577,12 @@ func (s *scanner) skipLine(r rune) {
 
 func (s *scanner) lineComment() {
 	r := s.getr()
-	// directives must start at the beginning of the line (s.col == 0)
-	if s.col != 0 || s.pragh == nil || (r != 'g' && r != 'l') {
+	// directives must start at the beginning of the line (s.col == colbase)
+	if s.col != colbase || s.pragh == nil || (r != 'g' && r != 'l') {
 		s.skipLine(r)
 		return
 	}
-	// s.col == 0 && s.pragh != nil && (r == 'g' || r == 'l')
+	// s.col == colbase && s.pragh != nil && (r == 'g' || r == 'l')
 
 	// recognize directives
 	prefix := "go:"

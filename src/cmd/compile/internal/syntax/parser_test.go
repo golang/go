@@ -188,20 +188,20 @@ func TestLineDirectives(t *testing.T) {
 	for _, test := range []struct {
 		src, msg  string
 		filename  string
-		line, col uint
+		line, col uint // 0-based
 	}{
 		// test validity of //line directive
-		{`//line :`, "invalid line number: ", "", 1, 8},
-		{`//line :x`, "invalid line number: x", "", 1, 8},
-		{`//line foo :`, "invalid line number: ", "", 1, 12},
-		{`//line foo:123abc`, "invalid line number: 123abc", "", 1, 11},
-		{`/**///line foo:x`, "syntax error: package statement must be first", "", 1, 16}, //line directive not at start of line - ignored
-		{`//line foo:0`, "invalid line number: 0", "", 1, 11},
-		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 1, 11},
+		{`//line :`, "invalid line number: ", "", 0, 8},
+		{`//line :x`, "invalid line number: x", "", 0, 8},
+		{`//line foo :`, "invalid line number: ", "", 0, 12},
+		{`//line foo:123abc`, "invalid line number: 123abc", "", 0, 11},
+		{`/**///line foo:x`, "syntax error: package statement must be first", "", 0, 16}, //line directive not at start of line - ignored
+		{`//line foo:0`, "invalid line number: 0", "", 0, 11},
+		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 0, 11},
 
 		// test effect of //line directive on (relative) position information
-		{"//line foo:123\n   foo", "syntax error: package statement must be first", "foo", 123, 3},
-		{"//line foo:123\n//line bar:345\nfoo", "syntax error: package statement must be first", "bar", 345, 0},
+		{"//line foo:123\n   foo", "syntax error: package statement must be first", "foo", 123 - linebase, 3},
+		{"//line foo:123\n//line bar:345\nfoo", "syntax error: package statement must be first", "bar", 345 - linebase, 0},
 	} {
 		_, err := ParseBytes(nil, []byte(test.src), nil, nil, 0)
 		if err == nil {
@@ -219,11 +219,11 @@ func TestLineDirectives(t *testing.T) {
 		if filename := perr.Pos.RelFilename(); filename != test.filename {
 			t.Errorf("%s: got filename = %q; want %q", test.src, filename, test.filename)
 		}
-		if line := perr.Pos.RelLine(); line != test.line {
-			t.Errorf("%s: got line = %d; want %d", test.src, line, test.line)
+		if line := perr.Pos.RelLine(); line != test.line+linebase {
+			t.Errorf("%s: got line = %d; want %d", test.src, line, test.line+linebase)
 		}
-		if col := perr.Pos.Col(); col != test.col {
-			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col)
+		if col := perr.Pos.Col(); col != test.col+colbase {
+			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col+colbase)
 		}
 	}
 }
