@@ -4738,6 +4738,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
 	a.Type = obj.TYPE_MEM
 	a.Node = n
 	a.Sym = Linksym(n.Sym)
+	a.Reg = int16(Thearch.REGSP)
 	a.Offset = n.Xoffset + off
 	if n.Class == PPARAM || n.Class == PPARAMOUT {
 		a.Name = obj.NAME_PARAM
