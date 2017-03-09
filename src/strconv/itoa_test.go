@@ -129,7 +129,8 @@ func TestUitoa(t *testing.T) {
 func BenchmarkFormatInt(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, test := range itob64tests {
-			FormatInt(test.in, test.base)
+			s := FormatInt(test.in, test.base)
+			BenchSink += len(s)
 		}
 	}
 }
@@ -138,7 +139,8 @@ func BenchmarkAppendInt(b *testing.B) {
 	dst := make([]byte, 0, 30)
 	for i := 0; i < b.N; i++ {
 		for _, test := range itob64tests {
-			AppendInt(dst, test.in, test.base)
+			dst = AppendInt(dst[:0], test.in, test.base)
+			BenchSink += len(dst)
 		}
 	}
 }
@@ -146,7 +148,8 @@ func BenchmarkAppendInt(b *testing.B) {
 func BenchmarkFormatUint(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, test := range uitob64tests {
-			FormatUint(test.in, test.base)
+			s := FormatUint(test.in, test.base)
+			BenchSink += len(s)
 		}
 	}
 }
@@ -155,7 +158,27 @@ func BenchmarkAppendUint(b *testing.B) {
 	dst := make([]byte, 0, 30)
 	for i := 0; i < b.N; i++ {
 		for _, test := range uitob64tests {
-			AppendUint(dst, test.in, test.base)
+			dst = AppendUint(dst[:0], test.in, test.base)
+			BenchSink += len(dst)
 		}
 	}
 }
+
+func BenchmarkFormatIntSmall(b *testing.B) {
+	const smallInt = 42
+	for i := 0; i < b.N; i++ {
+		s := FormatInt(smallInt, 10)
+		BenchSink += len(s)
+	}
+}
+
+func BenchmarkAppendIntSmall(b *testing.B) {
+	dst := make([]byte, 0, 30)
+	const smallInt = 42
+	for i := 0; i < b.N; i++ {
+		dst = AppendInt(dst[:0], smallInt, 10)
+		BenchSink += len(dst)
+	}
+}
+
+var BenchSink int // make sure compiler cannot optimize away benchmarks
