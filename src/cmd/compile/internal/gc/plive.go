@@ -1106,11 +1106,15 @@ func livenessepilogue(lv *Liveness) {
 		for i, n := range lv.vars {
 			if n.Class == PPARAMOUT {
 				if n.IsOutputParamHeapAddr() {
-					// Just to be paranoid.
+					// Just to be paranoid.  Heap addresses are PAUTOs.
 					Fatalf("variable %v both output param and heap output param", n)
 				}
-				// Needzero not necessary, as the compiler
-				// explicitly zeroes output vars at start of fn.
+				if n.Name.Param.Heapaddr != nil {
+					// If this variable moved to the heap, then
+					// its stack copy is not live.
+					continue
+				}
+				// Note: zeroing is handled by zeroResults in walk.go.
 				livedefer.Set(int32(i))
 			}
 			if n.IsOutputParamHeapAddr() {
