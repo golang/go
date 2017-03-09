@@ -272,19 +272,19 @@ var genericOps = []opData{
 	{name: "ConstSlice"},               // nil slice
 
 	// Constant-like things
-	{name: "InitMem"},            // memory input to the function.
-	{name: "Arg", aux: "SymOff"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+	{name: "InitMem"},                               // memory input to the function.
+	{name: "Arg", aux: "SymOff", symEffect: "None"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
 
 	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
 	// on whether it is a global or stack variable).  The Aux field identifies the
 	// variable. It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
 	// or *AutoSymbol (arg0=SP).
-	{name: "Addr", argLength: 1, aux: "Sym"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
+	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
 
-	{name: "SP"},                 // stack pointer
-	{name: "SB", typ: "Uintptr"}, // static base pointer (a.k.a. globals pointer)
-	{name: "Func", aux: "Sym"},   // entry address of a function
-	{name: "Invalid"},            // unused value
+	{name: "SP"},                                  // stack pointer
+	{name: "SB", typ: "Uintptr"},                  // static base pointer (a.k.a. globals pointer)
+	{name: "Func", aux: "Sym", symEffect: "None"}, // entry address of a function
+	{name: "Invalid"},                             // unused value
 
 	// Memory operations
 	{name: "Load", argLength: 2},                                  // Load from arg0.  arg1=memory
@@ -294,16 +294,16 @@ var genericOps = []opData{
 
 	// Memory operations with write barriers.
 	// Expand to runtime calls. Write barrier will be removed if write on stack.
-	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Int64"},          // Store arg1 to arg0. arg2=memory, auxint=size.  Returns memory.
-	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory.
-	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "SymSizeAndAlign"}, // arg0=destptr, arg1=mem, auxint=size+alignment, aux=symbol-of-type. Returns memory.
+	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Int64"},                             // Store arg1 to arg0. arg2=memory, auxint=size.  Returns memory.
+	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory.
+	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=mem, auxint=size+alignment, aux=symbol-of-type. Returns memory.
 
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated
 	// as a phantom first argument.
-	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true}, // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
-	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true}, // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
-	{name: "InterCall", argLength: 2, aux: "Int64", call: true},   // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true},                    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
+	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true, symEffect: "None"}, // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
+	{name: "InterCall", argLength: 2, aux: "Int64", call: true},                      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
 
 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
 	{name: "SignExt8to16", argLength: 1, typ: "Int16"},
@@ -396,15 +396,15 @@ var genericOps = []opData{
 	{name: "LoadReg", argLength: 1},
 
 	// Used during ssa construction. Like Copy, but the arg has not been specified yet.
-	{name: "FwdRef", aux: "Sym"},
+	{name: "FwdRef", aux: "Sym", symEffect: "None"},
 
 	// Unknown value. Used for Values whose values don't matter because they are dead code.
 	{name: "Unknown"},
 
-	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
-	{name: "VarKill", argLength: 1, aux: "Sym"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
-	{name: "VarLive", argLength: 1, aux: "Sym"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
-	{name: "KeepAlive", argLength: 2, typ: "Mem"},          // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "KeepAlive", argLength: 2, typ: "Mem"},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
 
 	// Ops for breaking 64-bit operations on 32-bit architectures
 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo

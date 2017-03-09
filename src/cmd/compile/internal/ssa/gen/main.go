@@ -214,11 +214,14 @@ func genOp() {
 			if v.hasSideEffects {
 				fmt.Fprintln(w, "hasSideEffects: true,")
 			}
+			needEffect := strings.HasPrefix(v.aux, "Sym")
 			if v.symEffect != "" {
-				if !strings.HasPrefix(v.aux, "Sym") {
+				if !needEffect {
 					log.Fatalf("symEffect with aux %s not allowed", v.aux)
 				}
 				fmt.Fprintf(w, "symEffect: Sym%s,\n", v.symEffect)
+			} else if needEffect {
+				log.Fatalf("symEffect needed for aux %s", v.aux)
 			}
 			if a.name == "generic" {
 				fmt.Fprintln(w, "generic:true,")
