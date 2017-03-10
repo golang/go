@@ -172,7 +172,20 @@ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
 fi
 
 echo "##### Building packages and commands for $GOOS/$GOARCH."
+
+old_bin_files=$(cd $GOROOT/bin && echo *)
+
 CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std cmd
+
+# Check that there are no new files in $GOROOT/bin other than go and gofmt
+# and $GOOS_$GOARCH (a directory used when cross-compiling).
+(cd $GOROOT/bin && for f in *; do
+	if ! expr " $old_bin_files go gofmt ${GOOS}_${GOARCH} " : ".* $f " >/dev/null 2>/dev/null; then
+		echo 1>&2 "ERROR: unexpected new file in $GOROOT/bin: $f"
+		exit 1
+	fi
+done)
+
 echo
 
 rm -f "$GOTOOLDIR"/go_bootstrap
