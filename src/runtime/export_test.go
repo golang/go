@@ -336,3 +336,16 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 	startTheWorld()
 	return
 }
+
+// BlockOnSystemStack switches to the system stack, prints "x\n" to
+// stderr, and blocks in a stack containing
+// "runtime.blockOnSystemStackInternal".
+func BlockOnSystemStack() {
+	systemstack(blockOnSystemStackInternal)
+}
+
+func blockOnSystemStackInternal() {
+	print("x\n")
+	lock(&deadlock)
+	lock(&deadlock)
+}
