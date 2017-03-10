@@ -22,7 +22,5 @@ math/big/arith.go: (xi&yi | (xi|yi)&^zi) might be too small for shift of 63
 math/big/arith.go: (yi&^xi | (yi|^xi)&zi) might be too small for shift of 63
 math/big/arith.go: xi &^ zi might be too small for shift of 63
 math/big/arith.go: (zi &^ xi) might be too small for shift of 63
-math/big/nat.go: t too small for shift of 64
-math/big/nat.go: x too small for shift of 64
 math/big/nat.go: yi might be too small for shift of 60
 math/big/nat.go: yi might be too small for shift of 60
