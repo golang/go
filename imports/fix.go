@@ -761,6 +761,7 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 			case loadExportsSem <- struct{}{}:
 				select {
 				case <-done:
+					return
 				default:
 				}
 			case <-done:
