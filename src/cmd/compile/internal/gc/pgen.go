@@ -22,14 +22,17 @@ var makefuncdatasym_nsym int
 func makefuncdatasym(nameprefix string, funcdatakind int64) *Sym {
 	sym := lookupN(nameprefix, makefuncdatasym_nsym)
 	makefuncdatasym_nsym++
-	pnod := newname(sym)
-	pnod.Class = PEXTERN
-	p := Gins(obj.AFUNCDATA, nil, pnod)
+	p := Prog(obj.AFUNCDATA)
 	Addrconst(&p.From, funcdatakind)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = Linksym(sym)
 	return sym
 }
 
-// gvardef inserts a VARDEF for n into the instruction stream.
+// TODO(mdempsky): Update to reference OpVar{Def,Kill,Live} instead
+// and move to plive.go.
+
 // VARDEF is an annotation for the liveness analysis, marking a place
 // where a complete initialization (definition) of a variable begins.
 // Since the liveness analysis can see initialization of single-word
@@ -84,55 +87,6 @@ func makefuncdatasym(nameprefix string, funcdatakind int64) *Sym {
 // even if its address has been taken. That is, a VARKILL annotation asserts
 // that its argument is certainly dead, for use when the liveness analysis
 // would not otherwise be able to deduce that fact.
-
-func gvardefx(n *Node, as obj.As) {
-	if n == nil {
-		Fatalf("gvardef nil")
-	}
-	if n.Op != ONAME {
-		Fatalf("gvardef %#v; %v", n.Op, n)
-		return
-	}
-
-	switch n.Class {
-	case PAUTO, PPARAM, PPARAMOUT:
-		if !n.Used() {
-			Prog(obj.ANOP)
-			return
-		}
-
-		if as == obj.AVARLIVE {
-			Gins(as, n, nil)
-		} else {
-			Gins(as, nil, n)
-		}
-	}
-}
-
-func Gvardef(n *Node) {
-	gvardefx(n, obj.AVARDEF)
-}
-
-func Gvarkill(n *Node) {
-	gvardefx(n, obj.AVARKILL)
-}
-
-func Gvarlive(n *Node) {
-	gvardefx(n, obj.AVARLIVE)
-}
-
-func removevardef(firstp *obj.Prog) {
-	for p := firstp; p != nil; p = p.Link {
-		for p.Link != nil && (p.Link.As == obj.AVARDEF || p.Link.As == obj.AVARKILL || p.Link.As == obj.AVARLIVE) {
-			p.Link = p.Link.Link
-		}
-		if p.To.Type == obj.TYPE_BRANCH {
-			for p.To.Val.(*obj.Prog) != nil && (p.To.Val.(*obj.Prog).As == obj.AVARDEF || p.To.Val.(*obj.Prog).As == obj.AVARKILL || p.To.Val.(*obj.Prog).As == obj.AVARLIVE) {
-				p.To.Val = p.To.Val.(*obj.Prog).Link
-			}
-		}
-	}
-}
 
 func emitptrargsmap() {
 	if Curfn.Func.Nname.Sym.Name == "_" {
@@ -407,10 +361,7 @@ func compile(fn *Node) {
 		}
 	}
 
-	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
-	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
-
-	genssa(ssafn, ptxt, gcargs, gclocals)
+	genssa(ssafn, ptxt)
 
 	obj.Flushplist(Ctxt, plist) // convert from Prog list to machine code
 	ptxt = nil                  // nil to prevent misuse; Prog may have been freed by Flushplist
