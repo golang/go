@@ -27,7 +27,7 @@ fi
 # Directory where cgo headers and outputs will be installed.
 # The installation directory format varies depending on the platform.
 installdir=pkg/${goos}_${goarch}_testcshared_shared
-if [ "${goos}" == "darwin" ]; then
+if [ "${goos}" = "darwin" ]; then
 	installdir=pkg/${goos}_${goarch}_testcshared
 fi
 
@@ -40,13 +40,13 @@ function cleanup() {
 	rm -f testp testp2 testp3 testp4 testp5
 	rm -rf pkg "${goroot}/${installdir}"
 
-	if [ "$goos" == "android" ]; then
+	if [ "$goos" = "android" ]; then
 		adb shell rm -rf "$androidpath"
 	fi
 }
 trap cleanup EXIT
 
-if [ "$goos" == "android" ]; then
+if [ "$goos" = "android" ]; then
 	adb shell mkdir -p "$androidpath"
 fi
 
@@ -69,7 +69,7 @@ function run() {
 
 function binpush() {
 	bin=${1}
-	if [ "$goos" == "android" ]; then
+	if [ "$goos" = "android" ]; then
 		adb push "$bin"  "${androidpath}/${bin}" 2>/dev/null
 	fi
 }
@@ -79,7 +79,7 @@ rm -rf pkg
 suffix="-installsuffix testcshared"
 
 libext="so"
-if [ "$goos" == "darwin" ]; then
+if [ "$goos" = "darwin" ]; then
 	libext="dylib"
 fi
 
@@ -89,7 +89,7 @@ GOPATH=$(pwd) go install -buildmode=c-shared $suffix libgo
 GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo.$libext src/libgo/libgo.go
 binpush libgo.$libext
 
-if [ "$goos" == "linux" ] || [ "$goos" == "android" ] ; then
+if [ "$goos" = "linux" ] || [ "$goos" = "android" ] ; then
     if readelf -d libgo.$libext | grep TEXTREL >/dev/null; then
         echo "libgo.$libext has TEXTREL set"
         exit 1
@@ -97,7 +97,7 @@ if [ "$goos" == "linux" ] || [ "$goos" == "android" ] ; then
 fi
 
 GOGCCFLAGS=$(go env GOGCCFLAGS)
-if [ "$goos" == "android" ]; then
+if [ "$goos" = "android" ]; then
 	GOGCCFLAGS="${GOGCCFLAGS} -pie"
 fi
 
@@ -127,7 +127,7 @@ fi
 GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo2.$libext libgo2
 binpush libgo2.$libext
 linkflags="-Wl,--no-as-needed"
-if [ "$goos" == "darwin" ]; then
+if [ "$goos" = "darwin" ]; then
 	linkflags=""
 fi
 $(go env CC) ${GOGCCFLAGS} -o testp2 main2.c $linkflags libgo2.$libext
@@ -139,7 +139,7 @@ if [ "$output" != "PASS" ]; then
 fi
 
 # test3: tests main.main is exported on android.
-if [ "$goos" == "android" ]; then
+if [ "$goos" = "android" ]; then
 	$(go env CC) ${GOGCCFLAGS} -o testp3 main3.c -ldl
 	binpush testp3
 	output=$(run ./testp ./libgo.so)
