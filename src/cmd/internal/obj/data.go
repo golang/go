@@ -70,7 +70,7 @@ func (s *LSym) GrowCap(c int64) {
 // prepwrite prepares to write data of size siz into s at offset off.
 func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
 	if off < 0 || siz < 0 || off >= 1<<30 {
-		log.Fatalf("prepwrite: bad off=%d siz=%d s=%v", off, siz, s)
+		ctxt.Diag("prepwrite: bad off=%d siz=%d s=%v", off, siz, s)
 	}
 	if s.Type == SBSS || s.Type == STLSBSS {
 		ctxt.Diag("cannot supply data for BSS var")
