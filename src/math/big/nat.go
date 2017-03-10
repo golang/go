@@ -68,24 +68,14 @@ func (z nat) setWord(x Word) nat {
 }
 
 func (z nat) setUint64(x uint64) nat {
-	// single-digit values
+	// single-word value
 	if w := Word(x); uint64(w) == x {
 		return z.setWord(w)
 	}
-
-	// compute number of words n required to represent x
-	n := 0
-	for t := x; t > 0; t >>= _W {
-		n++
-	}
-
-	// split x into n words
-	z = z.make(n)
-	for i := range z {
-		z[i] = Word(x & _M)
-		x >>= _W
-	}
-
+	// 2-word value
+	z = z.make(2)
+	z[1] = Word(x >> 32)
+	z[0] = Word(x)
 	return z
 }
 
