@@ -6,6 +6,13 @@ package runtime
 import "unsafe"
 
 const (
+	_NBBY            = 0x8
+	_CTL_MAXNAME     = 0x18
+	_CPU_LEVEL_WHICH = 0x3
+	_CPU_WHICH_PID   = 0x2
+)
+
+const (
 	_EINTR  = 0x4
 	_EFAULT = 0xe
 
