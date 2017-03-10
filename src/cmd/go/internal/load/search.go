@@ -93,12 +93,21 @@ func MatchPackages(pattern string) []string {
 			if !match(name) {
 				return nil
 			}
-			_, err = cfg.BuildContext.ImportDir(path, 0)
+			pkg, err := cfg.BuildContext.ImportDir(path, 0)
 			if err != nil {
 				if _, noGo := err.(*build.NoGoError); noGo {
 					return nil
 				}
 			}
+
+			// If we are expanding "cmd", skip main
+			// packages under cmd/vendor. At least as of
+			// March, 2017, there is one there for the
+			// vendored pprof tool.
+			if pattern == "cmd" && strings.HasPrefix(pkg.ImportPath, "cmd/vendor") && pkg.Name == "main" {
+				return nil
+			}
+
 			pkgs = append(pkgs, name)
 			return nil
 		})
