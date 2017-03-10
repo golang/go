@@ -1699,8 +1699,6 @@ var optab =
 	{AXGETBV, ynone, Pm, [23]uint8{01, 0xd0}},
 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
 	{obj.APCDATA, ypcdata, Px, [23]uint8{0, 0}},
-	{obj.AVARDEF, nil, 0, [23]uint8{}},
-	{obj.AVARKILL, nil, 0, [23]uint8{}},
 	{obj.ADUFFCOPY, yduff, Px, [23]uint8{0xe8}},
 	{obj.ADUFFZERO, yduff, Px, [23]uint8{0xe8}},
 	{obj.AEND, nil, 0, [23]uint8{}},
