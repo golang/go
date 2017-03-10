@@ -298,7 +298,7 @@ func blockevent(cycles int64, skip int) {
 		cycles = 1
 	}
 	if blocksampled(cycles) {
-		saveblockevent(cycles, skip+1, blockProfile, &blockprofilerate)
+		saveblockevent(cycles, skip+1, blockProfile)
 	}
 }
 
@@ -310,7 +310,7 @@ func blocksampled(cycles int64) bool {
 	return true
 }
 
-func saveblockevent(cycles int64, skip int, which bucketType, ratep *uint64) {
+func saveblockevent(cycles int64, skip int, which bucketType) {
 	gp := getg()
 	var nstk int
 	var stk [maxStack]uintptr
@@ -353,7 +353,7 @@ func mutexevent(cycles int64, skip int) {
 	// TODO(pjw): measure impact of always calling fastrand vs using something
 	// like malloc.go:nextSample()
 	if rate > 0 && int64(fastrand())%rate == 0 {
-		saveblockevent(cycles, skip+1, mutexProfile, &mutexprofilerate)
+		saveblockevent(cycles, skip+1, mutexProfile)
 	}
 }
 
