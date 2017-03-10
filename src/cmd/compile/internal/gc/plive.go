@@ -9,49 +9,22 @@
 //
 //	-live (aka -live=1): print liveness lists as code warnings at safe points
 //	-live=2: print an assembly listing with liveness annotations
-//	-live=3: print information during each computation phase (much chattier)
 //
 // Each level includes the earlier output as well.
 
 package gc
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
-	"cmd/internal/sys"
 	"crypto/md5"
 	"fmt"
-	"sort"
 	"strings"
 )
 
-// An ordinary basic block.
-//
-// Instructions are threaded together in a doubly-linked list. To iterate in
-// program order follow the link pointer from the first node and stop after the
-// last node has been visited
-//
-//   for p = bb.first; ; p = p.link {
-//     ...
-//     if p == bb.last {
-//       break
-//     }
-//   }
-//
-// To iterate in reverse program order by following the opt pointer from the
-// last node
-//
-//   for p = bb.last; p != nil; p = p.opt {
-//     ...
-//   }
-type BasicBlock struct {
-	pred            []*BasicBlock // predecessors; if none, probably start of CFG
-	succ            []*BasicBlock // successors; if none, probably ends in return statement
-	first           *obj.Prog     // first instruction in block
-	last            *obj.Prog     // last instruction in block
-	rpo             int           // reverse post-order number (also index in cfg)
-	lastbitmapindex int           // for livenessepilogue
-
-	// Summary sets of block effects.
+// BlockEffects summarizes the liveness effects on an SSA block.
+type BlockEffects struct {
+	lastbitmapindex int // for livenessepilogue
 
 	// Computed during livenessprologue using only the content of
 	// individual blocks:
@@ -80,10 +53,15 @@ type BasicBlock struct {
 // A collection of global state used by liveness analysis.
 type Liveness struct {
 	fn         *Node
-	ptxt       *obj.Prog
+	f          *ssa.Func
 	vars       []*Node
-	cfg        []*BasicBlock
 	stkptrsize int64
+
+	be []BlockEffects
+
+	// stackMapIndex maps from safe points (i.e., CALLs) to their
+	// index within the stack maps.
+	stackMapIndex map[*ssa.Value]int
 
 	// An array with a bit vector for each safe point tracking
 	// live variables, indexed by bb.rpo.
@@ -108,115 +86,6 @@ type progeffectscache struct {
 type ProgInfo struct {
 	_     struct{} // to prevent unkeyed literals. Trailing zero-sized field will take space.
 	Flags uint32   // flag bits
-}
-
-// Constructs a new basic block containing a single instruction.
-func newblock(prog *obj.Prog) *BasicBlock {
-	if prog == nil {
-		Fatalf("newblock: prog cannot be nil")
-	}
-	// type block allows us to allocate a BasicBlock
-	// and its pred/succ slice together.
-	type block struct {
-		result BasicBlock
-		pred   [2]*BasicBlock
-		succ   [2]*BasicBlock
-	}
-	b := new(block)
-
-	result := &b.result
-	result.rpo = -1
-	result.first = prog
-	result.last = prog
-	result.pred = b.pred[:0]
-	result.succ = b.succ[:0]
-	return result
-}
-
-// Adds an edge between two basic blocks by making from a predecessor of to and
-// to a successor of from.
-func addedge(from *BasicBlock, to *BasicBlock) {
-	if from == nil {
-		Fatalf("addedge: from is nil")
-	}
-	if to == nil {
-		Fatalf("addedge: to is nil")
-	}
-	from.succ = append(from.succ, to)
-	to.pred = append(to.pred, from)
-}
-
-// Inserts prev before curr in the instruction
-// stream. Any control flow, such as branches or fall-throughs, that target the
-// existing instruction are adjusted to target the new instruction.
-func splicebefore(lv *Liveness, bb *BasicBlock, prev *obj.Prog, curr *obj.Prog) {
-	// There may be other instructions pointing at curr,
-	// and we want them to now point at prev. Instead of
-	// trying to find all such instructions, swap the contents
-	// so that the problem becomes inserting next after curr.
-	// The "opt" field is the backward link in the linked list.
-
-	// Overwrite curr's data with prev, but keep the list links.
-	tmp := *curr
-
-	*curr = *prev
-	curr.Opt = tmp.Opt
-	curr.Link = tmp.Link
-
-	// Overwrite prev (now next) with curr's old data.
-	next := prev
-
-	*next = tmp
-	next.Opt = nil
-	next.Link = nil
-
-	// Now insert next after curr.
-	next.Link = curr.Link
-
-	next.Opt = curr
-	curr.Link = next
-	if next.Link != nil && next.Link.Opt == curr {
-		next.Link.Opt = next
-	}
-
-	if bb.last == curr {
-		bb.last = next
-	}
-}
-
-// A pretty printer for basic blocks.
-func printblock(bb *BasicBlock) {
-	fmt.Printf("basic block %d\n", bb.rpo)
-	fmt.Printf("\tpred:")
-	for _, pred := range bb.pred {
-		fmt.Printf(" %d", pred.rpo)
-	}
-	fmt.Printf("\n")
-	fmt.Printf("\tsucc:")
-	for _, succ := range bb.succ {
-		fmt.Printf(" %d", succ.rpo)
-	}
-	fmt.Printf("\n")
-	fmt.Printf("\tprog:\n")
-	for prog := bb.first; ; prog = prog.Link {
-		fmt.Printf("\t\t%v\n", prog)
-		if prog == bb.last {
-			break
-		}
-	}
-}
-
-// Iterates over a basic block applying a callback to each instruction. There
-// are two criteria for termination. If the end of basic block is reached a
-// value of zero is returned. If the callback returns a non-zero value, the
-// iteration is stopped and the value of the callback is returned.
-func blockany(bb *BasicBlock, f func(*obj.Prog) bool) bool {
-	for p := bb.last; p != nil; p = p.Opt.(*obj.Prog) {
-		if f(p) {
-			return true
-		}
-	}
-	return false
 }
 
 // livenessShouldTrack reports whether the liveness analysis
@@ -254,175 +123,6 @@ func getvariables(fn *Node) []*Node {
 	}
 
 	return vars
-}
-
-// A pretty printer for control flow graphs. Takes a slice of *BasicBlocks.
-func printcfg(cfg []*BasicBlock) {
-	for _, bb := range cfg {
-		printblock(bb)
-	}
-}
-
-// Comparison predicate used for sorting basic blocks by their rpo in ascending
-// order.
-type blockrpocmp []*BasicBlock
-
-func (x blockrpocmp) Len() int           { return len(x) }
-func (x blockrpocmp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x blockrpocmp) Less(i, j int) bool { return x[i].rpo < x[j].rpo }
-
-// A pattern matcher for call instructions. Returns true when the instruction
-// is a call to a specific package qualified function name.
-func iscall(prog *obj.Prog, name *obj.LSym) bool {
-	if prog == nil {
-		Fatalf("iscall: prog is nil")
-	}
-	if name == nil {
-		Fatalf("iscall: function name is nil")
-	}
-	if prog.As != obj.ACALL {
-		return false
-	}
-	return name == prog.To.Sym
-}
-
-var isdeferreturn_sym *obj.LSym
-
-func isdeferreturn(prog *obj.Prog) bool {
-	if isdeferreturn_sym == nil {
-		isdeferreturn_sym = Linksym(Pkglookup("deferreturn", Runtimepkg))
-	}
-	return iscall(prog, isdeferreturn_sym)
-}
-
-// Constructs a control flow graph from a sequence of instructions. This
-// procedure is complicated by various sources of implicit control flow that are
-// not accounted for using the standard cfg construction algorithm. Returns a
-// slice of *BasicBlocks in control flow graph form (basic blocks ordered by
-// their RPO number).
-func newcfg(firstp *obj.Prog) []*BasicBlock {
-	// Reset the opt field of each prog to nil. In the first and second
-	// passes, instructions that are labels temporarily use the opt field to
-	// point to their basic block. In the third pass, the opt field reset
-	// to point to the predecessor of an instruction in its basic block.
-	for p := firstp; p != nil; p = p.Link {
-		p.Opt = nil
-	}
-
-	// Loop through all instructions identifying branch targets
-	// and fall-throughs and allocate basic blocks.
-	var cfg []*BasicBlock
-
-	bb := newblock(firstp)
-	cfg = append(cfg, bb)
-	for p := firstp; p != nil && p.As != obj.AEND; p = p.Link {
-		if p.To.Type == obj.TYPE_BRANCH {
-			if p.To.Val == nil {
-				Fatalf("prog branch to nil")
-			}
-			if p.To.Val.(*obj.Prog).Opt == nil {
-				p.To.Val.(*obj.Prog).Opt = newblock(p.To.Val.(*obj.Prog))
-				cfg = append(cfg, p.To.Val.(*obj.Prog).Opt.(*BasicBlock))
-			}
-
-			if p.As != obj.AJMP && p.Link != nil && p.Link.Opt == nil {
-				p.Link.Opt = newblock(p.Link)
-				cfg = append(cfg, p.Link.Opt.(*BasicBlock))
-			}
-		}
-	}
-
-	bb.rpo = 0
-	rpo := 1
-	for p := firstp; p != nil && p.As != obj.AEND; p = p.Link {
-		if p.Opt != nil {
-			p.Opt.(*BasicBlock).rpo = rpo
-			rpo++
-		}
-	}
-	if rpo != len(cfg) {
-		Fatalf("newcfg: inconsistent block counts: %d != %d", rpo, len(cfg))
-	}
-
-	// Loop through all basic blocks maximally growing the list of
-	// contained instructions until a label is reached. Add edges
-	// for branches and fall-through instructions.
-	for _, bb := range cfg {
-		for p := bb.last; p != nil && p.As != obj.AEND; p = p.Link {
-			if p.Opt != nil && p != bb.last {
-				break
-			}
-			bb.last = p
-
-			// Stop before an unreachable RET, to avoid creating
-			// unreachable control flow nodes.
-			if p.Link != nil && p.Link.As == obj.ARET && p.Link.Mode == 1 {
-				// TODO: remove after SSA is done. SSA does not
-				// generate any unreachable RET instructions.
-				break
-			}
-		}
-
-		if bb.last.To.Type == obj.TYPE_BRANCH {
-			addedge(bb, bb.last.To.Val.(*obj.Prog).Opt.(*BasicBlock))
-		}
-		if bb.last.Link != nil {
-			// Add a fall-through when the instruction is
-			// not an unconditional control transfer.
-			if bb.last.As != obj.AJMP && bb.last.As != obj.ARET && bb.last.As != obj.AUNDEF {
-				addedge(bb, bb.last.Link.Opt.(*BasicBlock))
-			}
-		}
-	}
-
-	// Add back links so the instructions in a basic block can be traversed
-	// backward. This is the final state of the instruction opt field.
-	for _, bb := range cfg {
-		p := bb.first
-		var prev *obj.Prog
-		for {
-			p.Opt = prev
-			if p == bb.last {
-				break
-			}
-			prev = p
-			p = p.Link
-		}
-	}
-
-	// Sort the basic blocks by their depth first number. The
-	// slice is now a depth-first spanning tree with the first
-	// node being the root.
-	sort.Sort(blockrpocmp(cfg))
-
-	// Unreachable control flow nodes are indicated by a -1 in the rpo
-	// field. If we see these nodes something must have gone wrong in an
-	// upstream compilation phase.
-	bb = cfg[0]
-	if bb.rpo == -1 {
-		fmt.Printf("newcfg: unreachable basic block for %v\n", bb.last)
-		printcfg(cfg)
-		Fatalf("newcfg: invalid control flow graph")
-	}
-
-	return cfg
-}
-
-// Frees a control flow graph (a slice of *BasicBlocks) and all of its leaf
-// data structures.
-func freecfg(cfg []*BasicBlock) {
-	if len(cfg) > 0 {
-		bb0 := cfg[0]
-		for p := bb0.first; p != nil; p = p.Link {
-			p.Opt = nil
-		}
-	}
-}
-
-// Returns true if the node names a variable that is otherwise uninteresting to
-// the liveness computation.
-func isfunny(n *Node) bool {
-	return n.Sym != nil && (n.Sym.Name == ".fp" || n.Sym.Name == ".args")
 }
 
 func (lv *Liveness) initcache() {
@@ -463,112 +163,113 @@ func (lv *Liveness) initcache() {
 	}
 }
 
-// Computes the effects of an instruction on a set of
-// variables. The vars argument is a slice of *Nodes.
+// A liveEffect is a set of flags that describe an instruction's
+// liveness effects on a variable.
 //
-// The output vectors give bits for variables:
-//	uevar - used by this instruction
-//	varkill - killed by this instruction
+// The possible flags are:
+//	uevar - used by the instruction
+//	varkill - killed by the instruction
 //		for variables without address taken, means variable was set
 //		for variables with address taken, means variable was marked dead
-//	avarinit - initialized or referred to by this instruction,
+//	avarinit - initialized or referred to by the instruction,
 //		only for variables with address taken but not escaping to heap
 //
 // The avarinit output serves as a signal that the data has been
 // initialized, because any use of a variable must come after its
 // initialization.
-func (lv *Liveness) progeffects(prog *obj.Prog) (uevar, varkill, avarinit []int32) {
-	if !lv.cache.initialized {
-		Fatalf("liveness progeffects cache not initialized")
-		return
+type liveEffect int
+
+const (
+	uevar liveEffect = 1 << iota
+	varkill
+	avarinit
+)
+
+// valueEffects returns the index of a variable in lv.vars and the
+// liveness effects v has on that variable.
+// If v does not affect any tracked variables, it returns -1, 0.
+func (lv *Liveness) valueEffects(v *ssa.Value) (pos int32, effect liveEffect) {
+	n, e := affectedNode(v)
+	if e == 0 {
+		return -1, 0
 	}
 
-	switch prog.As {
-	case obj.ATEXT, obj.ARET, obj.AJMP, obj.AUNDEF:
-		return nil, nil, nil
+	pos = liveIndex(n, lv.vars)
+	if pos < 0 {
+		return -1, 0
 	}
 
-	uevar = lv.cache.uevar[:0]
-	varkill = lv.cache.varkill[:0]
-	avarinit = lv.cache.avarinit[:0]
+	if n.Addrtaken() {
+		if v.Op != ssa.OpVarKill {
+			effect |= avarinit
+		}
+		if v.Op == ssa.OpVarDef || v.Op == ssa.OpVarKill {
+			effect |= varkill
+		}
+	} else {
+		// Read is a read, obviously.
+		// Addr by itself is also implicitly a read.
+		//
+		// Addr|Write means that the address is being taken
+		// but only so that the instruction can write to the value.
+		// It is not a read.
 
-	info := thearch.Proginfo(prog)
-
-	if info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
-		from := &prog.From
-		if from.Node != nil && from.Sym != nil {
-			n := from.Node.(*Node)
-			if pos := liveIndex(n, lv.vars); pos >= 0 {
-				if n.Addrtaken() {
-					avarinit = append(avarinit, pos)
-				} else {
-					if info.Flags&(LeftRead|LeftAddr) != 0 {
-						uevar = append(uevar, pos)
-					}
-					if info.Flags&LeftWrite != 0 && !isfat(n.Type) {
-						varkill = append(varkill, pos)
-					}
-				}
-			}
+		if e&ssa.SymRead != 0 || e&(ssa.SymAddr|ssa.SymWrite) == ssa.SymAddr {
+			effect |= uevar
+		}
+		if e&ssa.SymWrite != 0 && (!isfat(n.Type) || v.Op == ssa.OpVarDef) {
+			effect |= varkill
 		}
 	}
 
-	if info.Flags&From3Read != 0 {
-		from := prog.From3
-		if from.Node != nil && from.Sym != nil {
-			n := from.Node.(*Node)
-			if pos := liveIndex(n, lv.vars); pos >= 0 {
-				if n.Addrtaken() {
-					avarinit = append(avarinit, pos)
-				} else {
-					uevar = append(uevar, pos)
-				}
-			}
-		}
+	return
+}
+
+// affectedNode returns the *Node affected by v
+func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
+	// Special cases.
+	switch v.Op {
+	case ssa.OpLoadReg:
+		n, _ := AutoVar(v.Args[0])
+		return n, ssa.SymRead
+	case ssa.OpStoreReg:
+		n, _ := AutoVar(v)
+		return n, ssa.SymWrite
+
+	case ssa.OpVarLive:
+		return v.Aux.(*Node), ssa.SymRead
+	case ssa.OpVarDef, ssa.OpVarKill:
+		return v.Aux.(*Node), ssa.SymWrite
+	case ssa.OpKeepAlive:
+		n, _ := AutoVar(v.Args[0])
+		return n, ssa.SymRead
 	}
 
-	if info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
-		to := &prog.To
-		if to.Node != nil && to.Sym != nil {
-			n := to.Node.(*Node)
-			if pos := liveIndex(n, lv.vars); pos >= 0 {
-				if n.Addrtaken() {
-					if prog.As != obj.AVARKILL {
-						avarinit = append(avarinit, pos)
-					}
-					if prog.As == obj.AVARDEF || prog.As == obj.AVARKILL {
-						varkill = append(varkill, pos)
-					}
-				} else {
-					// RightRead is a read, obviously.
-					// RightAddr by itself is also implicitly a read.
-					//
-					// RightAddr|RightWrite means that the address is being taken
-					// but only so that the instruction can write to the value.
-					// It is not a read. It is equivalent to RightWrite except that
-					// having the RightAddr bit set keeps the registerizer from
-					// trying to substitute a register for the memory location.
-					if (info.Flags&RightRead != 0) || info.Flags&(RightAddr|RightWrite) == RightAddr {
-						uevar = append(uevar, pos)
-					}
-					if info.Flags&RightWrite != 0 {
-						if !isfat(n.Type) || prog.As == obj.AVARDEF {
-							varkill = append(varkill, pos)
-						}
-					}
-				}
-			}
-		}
+	e := v.Op.SymEffect()
+	if e == 0 {
+		return nil, 0
 	}
 
-	return uevar, varkill, avarinit
+	var n *Node
+	switch a := v.Aux.(type) {
+	case nil, *ssa.ExternSymbol:
+		// ok, but no node
+	case *ssa.ArgSymbol:
+		n = a.Node.(*Node)
+	case *ssa.AutoSymbol:
+		n = a.Node.(*Node)
+	default:
+		Fatalf("weird aux: %s", v.LongString())
+	}
+
+	return n, e
 }
 
 // liveIndex returns the index of n in the set of tracked vars.
 // If n is not a tracked var, liveIndex returns -1.
 // If n is not a tracked var but should be tracked, liveIndex crashes.
 func liveIndex(n *Node, vars []*Node) int32 {
-	if n.Name.Curfn != Curfn || !livenessShouldTrack(n) {
+	if n == nil || n.Name.Curfn != Curfn || !livenessShouldTrack(n) {
 		return -1
 	}
 
@@ -585,187 +286,34 @@ func liveIndex(n *Node, vars []*Node) int32 {
 // Constructs a new liveness structure used to hold the global state of the
 // liveness computation. The cfg argument is a slice of *BasicBlocks and the
 // vars argument is a slice of *Nodes.
-func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node, stkptrsize int64) *Liveness {
-	result := Liveness{
+func newliveness(fn *Node, f *ssa.Func, vars []*Node, stkptrsize int64) *Liveness {
+	lv := &Liveness{
 		fn:         fn,
-		ptxt:       ptxt,
-		cfg:        cfg,
+		f:          f,
 		vars:       vars,
 		stkptrsize: stkptrsize,
+		be:         make([]BlockEffects, f.NumBlocks()),
 	}
 
-	nblocks := int32(len(cfg))
+	nblocks := int32(len(f.Blocks))
 	nvars := int32(len(vars))
 	bulk := bvbulkalloc(nvars, nblocks*7)
-	for _, bb := range cfg {
-		bb.uevar = bulk.next()
-		bb.varkill = bulk.next()
-		bb.livein = bulk.next()
-		bb.liveout = bulk.next()
-		bb.avarinit = bulk.next()
-		bb.avarinitany = bulk.next()
-		bb.avarinitall = bulk.next()
+	for _, b := range f.Blocks {
+		be := lv.blockEffects(b)
+
+		be.uevar = bulk.next()
+		be.varkill = bulk.next()
+		be.livein = bulk.next()
+		be.liveout = bulk.next()
+		be.avarinit = bulk.next()
+		be.avarinitany = bulk.next()
+		be.avarinitall = bulk.next()
 	}
-	return &result
+	return lv
 }
 
-func (lv *Liveness) printeffects(p *obj.Prog, uevar, varkill, avarinit []int32) {
-	fmt.Printf("effects of %v\n", p)
-	fmt.Println("uevar:", lv.slice2bvec(uevar))
-	fmt.Println("varkill:", lv.slice2bvec(varkill))
-	fmt.Println("avarinit:", lv.slice2bvec(avarinit))
-}
-
-// Pretty print a variable node. Uses Pascal like conventions for pointers and
-// addresses to avoid confusing the C like conventions used in the node variable
-// names.
-func printnode(node *Node) {
-	p := ""
-	if haspointers(node.Type) {
-		p = "^"
-	}
-	a := ""
-	if node.Addrtaken() {
-		a = "@"
-	}
-	fmt.Printf(" %v%s%s", node, p, a)
-}
-
-// Pretty print a list of variables. The vars argument is a slice of *Nodes.
-func printvars(name string, bv bvec, vars []*Node) {
-	fmt.Printf("%s:", name)
-	for i, node := range vars {
-		if bv.Get(int32(i)) {
-			printnode(node)
-		}
-	}
-	fmt.Printf("\n")
-}
-
-func (lv *Liveness) slice2bvec(vars []int32) bvec {
-	bv := bvalloc(int32(len(lv.vars)))
-	for _, id := range vars {
-		bv.Set(id)
-	}
-	return bv
-}
-
-// Prints a basic block annotated with the information computed by liveness
-// analysis.
-func livenessprintblock(lv *Liveness, bb *BasicBlock) {
-	fmt.Printf("basic block %d\n", bb.rpo)
-
-	fmt.Printf("\tpred:")
-	for _, pred := range bb.pred {
-		fmt.Printf(" %d", pred.rpo)
-	}
-	fmt.Printf("\n")
-
-	fmt.Printf("\tsucc:")
-	for _, succ := range bb.succ {
-		fmt.Printf(" %d", succ.rpo)
-	}
-	fmt.Printf("\n")
-
-	printvars("\tuevar", bb.uevar, lv.vars)
-	printvars("\tvarkill", bb.varkill, lv.vars)
-	printvars("\tlivein", bb.livein, lv.vars)
-	printvars("\tliveout", bb.liveout, lv.vars)
-	printvars("\tavarinit", bb.avarinit, lv.vars)
-	printvars("\tavarinitany", bb.avarinitany, lv.vars)
-	printvars("\tavarinitall", bb.avarinitall, lv.vars)
-
-	fmt.Printf("\tprog:\n")
-	for prog := bb.first; ; prog = prog.Link {
-		fmt.Printf("\t\t%v", prog)
-		if prog.As == obj.APCDATA && prog.From.Offset == obj.PCDATA_StackMapIndex {
-			pos := int32(prog.To.Offset)
-			live := lv.livevars[pos]
-			fmt.Printf(" %s", live.String())
-		}
-
-		fmt.Printf("\n")
-		if prog == bb.last {
-			break
-		}
-	}
-}
-
-// Prints a control flow graph annotated with any information computed by
-// liveness analysis.
-func livenessprintcfg(lv *Liveness) {
-	for _, bb := range lv.cfg {
-		livenessprintblock(lv, bb)
-	}
-}
-
-func checkauto(fn *Node, p *obj.Prog, n *Node) {
-	for _, ln := range fn.Func.Dcl {
-		if ln.Op == ONAME && ln.Class == PAUTO && ln == n {
-			return
-		}
-	}
-
-	if n == nil {
-		fmt.Printf("%v: checkauto %v: nil node in %v\n", p.Line(), Curfn, p)
-		return
-	}
-
-	fmt.Printf("checkauto %v: %v (%p; class=%d) not found in %p %v\n", funcSym(Curfn), n, n, n.Class, p, p)
-	for _, ln := range fn.Func.Dcl {
-		fmt.Printf("\t%v (%p; class=%d)\n", ln, ln, ln.Class)
-	}
-	Fatalf("checkauto: invariant lost")
-}
-
-func checkparam(fn *Node, p *obj.Prog, n *Node) {
-	if isfunny(n) {
-		return
-	}
-	for _, a := range fn.Func.Dcl {
-		if a.Op == ONAME && (a.Class == PPARAM || a.Class == PPARAMOUT) && a == n {
-			return
-		}
-	}
-
-	fmt.Printf("checkparam %v: %v (%p; class=%d) not found in %v\n", Curfn, n, n, n.Class, p)
-	for _, ln := range fn.Func.Dcl {
-		fmt.Printf("\t%v (%p; class=%d)\n", ln, ln, ln.Class)
-	}
-	Fatalf("checkparam: invariant lost")
-}
-
-func checkprog(fn *Node, p *obj.Prog) {
-	if p.From.Name == obj.NAME_AUTO {
-		checkauto(fn, p, p.From.Node.(*Node))
-	}
-	if p.From.Name == obj.NAME_PARAM {
-		checkparam(fn, p, p.From.Node.(*Node))
-	}
-	if p.To.Name == obj.NAME_AUTO {
-		checkauto(fn, p, p.To.Node.(*Node))
-	}
-	if p.To.Name == obj.NAME_PARAM {
-		checkparam(fn, p, p.To.Node.(*Node))
-	}
-}
-
-// Check instruction invariants. We assume that the nodes corresponding to the
-// sources and destinations of memory operations will be declared in the
-// function. This is not strictly true, as is the case for the so-called funny
-// nodes and there are special cases to skip over that stuff. The analysis will
-// fail if this invariant blindly changes.
-func checkptxt(fn *Node, firstp *obj.Prog) {
-	if debuglive == 0 {
-		return
-	}
-
-	for p := firstp; p != nil; p = p.Link {
-		if false {
-			fmt.Printf("analyzing '%v'\n", p)
-		}
-		checkprog(fn, p)
-	}
+func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
+	return &lv.be[b.ID]
 }
 
 // NOTE: The bitmap for a specific type t should be cached in t after the first run
@@ -890,30 +438,10 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
 	}
 }
 
-// Construct a disembodied instruction.
-func unlinkedprog(as obj.As) *obj.Prog {
-	p := Ctxt.NewProg()
-	Clearp(p)
-	p.As = as
-	return p
-}
-
-// Construct a new PCDATA instruction associated with and for the purposes of
-// covering an existing instruction.
-func newpcdataprog(prog *obj.Prog, index int32) *obj.Prog {
-	pcdata := unlinkedprog(obj.APCDATA)
-	pcdata.Pos = prog.Pos
-	pcdata.From.Type = obj.TYPE_CONST
-	pcdata.From.Offset = obj.PCDATA_StackMapIndex
-	pcdata.To.Type = obj.TYPE_CONST
-	pcdata.To.Offset = int64(index)
-	return pcdata
-}
-
 // Returns true for instructions that are safe points that must be annotated
 // with liveness information.
-func issafepoint(prog *obj.Prog) bool {
-	return prog.As == obj.ATEXT || prog.As == obj.ACALL
+func issafepoint(v *ssa.Value) bool {
+	return v.Op.IsCall() || v.Op == ssa.OpARMCALLudiv
 }
 
 // Initializes the sets for solving the live variables. Visits all the
@@ -922,38 +450,31 @@ func issafepoint(prog *obj.Prog) bool {
 func livenessprologue(lv *Liveness) {
 	lv.initcache()
 
-	for _, bb := range lv.cfg {
+	for _, b := range lv.f.Blocks {
+		be := lv.blockEffects(b)
+
 		// Walk the block instructions backward and update the block
 		// effects with the each prog effects.
-		for p := bb.last; p != nil; p = p.Opt.(*obj.Prog) {
-			uevar, varkill, _ := lv.progeffects(p)
-			if debuglive >= 3 {
-				lv.printeffects(p, uevar, varkill, nil)
+		for j := len(b.Values) - 1; j >= 0; j-- {
+			pos, e := lv.valueEffects(b.Values[j])
+			if e&varkill != 0 {
+				be.varkill.Set(pos)
+				be.uevar.Unset(pos)
 			}
-			for _, pos := range varkill {
-				bb.varkill.Set(pos)
-				bb.uevar.Unset(pos)
-			}
-			for _, pos := range uevar {
-				bb.uevar.Set(pos)
+			if e&uevar != 0 {
+				be.uevar.Set(pos)
 			}
 		}
 
 		// Walk the block instructions forward to update avarinit bits.
 		// avarinit describes the effect at the end of the block, not the beginning.
-		for p := bb.first; ; p = p.Link {
-			_, varkill, avarinit := lv.progeffects(p)
-			if debuglive >= 3 {
-				lv.printeffects(p, nil, varkill, avarinit)
+		for j := 0; j < len(b.Values); j++ {
+			pos, e := lv.valueEffects(b.Values[j])
+			if e&varkill != 0 {
+				be.avarinit.Unset(pos)
 			}
-			for _, pos := range varkill {
-				bb.avarinit.Unset(pos)
-			}
-			for _, pos := range avarinit {
-				bb.avarinit.Set(pos)
-			}
-			if p == bb.last {
-				break
+			if e&avarinit != 0 {
+				be.avarinit.Set(pos)
 			}
 		}
 	}
@@ -971,33 +492,41 @@ func livenesssolve(lv *Liveness) {
 	// Push avarinitall, avarinitany forward.
 	// avarinitall says the addressed var is initialized along all paths reaching the block exit.
 	// avarinitany says the addressed var is initialized along some path reaching the block exit.
-	for i, bb := range lv.cfg {
-		if i == 0 {
-			bb.avarinitall.Copy(bb.avarinit)
+	for _, b := range lv.f.Blocks {
+		be := lv.blockEffects(b)
+		if b == lv.f.Entry {
+			be.avarinitall.Copy(be.avarinit)
 		} else {
-			bb.avarinitall.Clear()
-			bb.avarinitall.Not()
+			be.avarinitall.Clear()
+			be.avarinitall.Not()
 		}
-		bb.avarinitany.Copy(bb.avarinit)
+		be.avarinitany.Copy(be.avarinit)
 	}
+
+	// Walk blocks in the general direction of propagation (RPO
+	// for avarinit{any,all}, and PO for live{in,out}). This
+	// improves convergence.
+	po := lv.f.Postorder()
 
 	for change := true; change; {
 		change = false
-		for _, bb := range lv.cfg {
-			lv.avarinitanyall(bb, any, all)
+		for i := len(po) - 1; i >= 0; i-- {
+			b := po[i]
+			be := lv.blockEffects(b)
+			lv.avarinitanyall(b, any, all)
 
-			any.AndNot(any, bb.varkill)
-			all.AndNot(all, bb.varkill)
-			any.Or(any, bb.avarinit)
-			all.Or(all, bb.avarinit)
-			if !any.Eq(bb.avarinitany) {
+			any.AndNot(any, be.varkill)
+			all.AndNot(all, be.varkill)
+			any.Or(any, be.avarinit)
+			all.Or(all, be.avarinit)
+			if !any.Eq(be.avarinitany) {
 				change = true
-				bb.avarinitany.Copy(any)
+				be.avarinitany.Copy(any)
 			}
 
-			if !all.Eq(bb.avarinitall) {
+			if !all.Eq(be.avarinitall) {
 				change = true
-				bb.avarinitall.Copy(all)
+				be.avarinitall.Copy(all)
 			}
 		}
 	}
@@ -1008,45 +537,35 @@ func livenesssolve(lv *Liveness) {
 
 	for change := true; change; {
 		change = false
-
-		// Walk blocks in the general direction of propagation. This
-		// improves convergence.
-		for i := len(lv.cfg) - 1; i >= 0; i-- {
-			bb := lv.cfg[i]
+		for _, b := range po {
+			be := lv.blockEffects(b)
 
 			newliveout.Clear()
-			if len(bb.succ) == 0 {
-				switch prog := bb.last; {
-				case prog.As == obj.ARET && prog.To.Type == obj.TYPE_NONE:
-					// ssa.BlockRet
-					for _, pos := range lv.cache.retuevar {
-						newliveout.Set(pos)
-					}
-				case (prog.As == obj.AJMP || prog.As == obj.ARET) && prog.To.Type == obj.TYPE_MEM && prog.To.Name == obj.NAME_EXTERN:
-					// ssa.BlockRetJmp
-					for _, pos := range lv.cache.tailuevar {
-						newliveout.Set(pos)
-					}
-				case prog.As == obj.AUNDEF:
-					// ssa.BlockExit
-					// nothing to do
-				default:
-					Fatalf("unexpected terminal prog: %v", prog)
+			switch b.Kind {
+			case ssa.BlockRet:
+				for _, pos := range lv.cache.retuevar {
+					newliveout.Set(pos)
 				}
-			} else {
+			case ssa.BlockRetJmp:
+				for _, pos := range lv.cache.tailuevar {
+					newliveout.Set(pos)
+				}
+			case ssa.BlockExit:
+				// nothing to do
+			default:
 				// A variable is live on output from this block
 				// if it is live on input to some successor.
 				//
 				// out[b] = \bigcup_{s \in succ[b]} in[s]
-				newliveout.Copy(bb.succ[0].livein)
-				for _, succ := range bb.succ[1:] {
-					newliveout.Or(newliveout, succ.livein)
+				newliveout.Copy(lv.blockEffects(b.Succs[0].Block()).livein)
+				for _, succ := range b.Succs[1:] {
+					newliveout.Or(newliveout, lv.blockEffects(succ.Block()).livein)
 				}
 			}
 
-			if !bb.liveout.Eq(newliveout) {
+			if !be.liveout.Eq(newliveout) {
 				change = true
-				bb.liveout.Copy(newliveout)
+				be.liveout.Copy(newliveout)
 			}
 
 			// A variable is live on input to this block
@@ -1054,8 +573,8 @@ func livenesssolve(lv *Liveness) {
 			// not set by the code in this block.
 			//
 			// in[b] = uevar[b] \cup (out[b] \setminus varkill[b])
-			newlivein.AndNot(bb.liveout, bb.varkill)
-			bb.livein.Or(newlivein, bb.uevar)
+			newlivein.AndNot(be.liveout, be.varkill)
+			be.livein.Or(newlivein, be.uevar)
 		}
 	}
 }
@@ -1099,200 +618,124 @@ func livenessepilogue(lv *Liveness) {
 		}
 	}
 
-	for _, bb := range lv.cfg {
+	{
+		// Reserve an entry for function entry.
+		live := bvalloc(nvars)
+		for _, pos := range lv.cache.textavarinit {
+			live.Set(pos)
+		}
+		lv.livevars = append(lv.livevars, live)
+	}
+
+	for _, b := range lv.f.Blocks {
+		be := lv.blockEffects(b)
+
 		// Compute avarinitany and avarinitall for entry to block.
 		// This duplicates information known during livenesssolve
 		// but avoids storing two more vectors for each block.
-		lv.avarinitanyall(bb, any, all)
+		lv.avarinitanyall(b, any, all)
 
 		// Walk forward through the basic block instructions and
 		// allocate liveness maps for those instructions that need them.
 		// Seed the maps with information about the addrtaken variables.
-		for p := bb.first; ; p = p.Link {
-			_, varkill, avarinit := lv.progeffects(p)
-			for _, pos := range varkill {
+		for _, v := range b.Values {
+			pos, e := lv.valueEffects(v)
+			if e&varkill != 0 {
 				any.Unset(pos)
 				all.Unset(pos)
 			}
-			for _, pos := range avarinit {
+			if e&avarinit != 0 {
 				any.Set(pos)
 				all.Set(pos)
 			}
 
-			if issafepoint(p) {
-				// Annotate ambiguously live variables so that they can
-				// be zeroed at function entry.
-				// livein and liveout are dead here and used as temporaries.
-				livein.Clear()
+			if !issafepoint(v) {
+				continue
+			}
 
-				liveout.AndNot(any, all)
-				if !liveout.IsEmpty() {
-					for pos := int32(0); pos < liveout.n; pos++ {
-						if !liveout.Get(pos) {
-							continue
-						}
-						all.Set(pos) // silence future warnings in this block
-						n := lv.vars[pos]
-						if !n.Name.Needzero() {
-							n.Name.SetNeedzero(true)
-							if debuglive >= 1 {
-								Warnl(p.Pos, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
-							}
+			// Annotate ambiguously live variables so that they can
+			// be zeroed at function entry.
+			// livein and liveout are dead here and used as temporaries.
+			livein.Clear()
+
+			liveout.AndNot(any, all)
+			if !liveout.IsEmpty() {
+				for pos := int32(0); pos < liveout.n; pos++ {
+					if !liveout.Get(pos) {
+						continue
+					}
+					all.Set(pos) // silence future warnings in this block
+					n := lv.vars[pos]
+					if !n.Name.Needzero() {
+						n.Name.SetNeedzero(true)
+						if debuglive >= 1 {
+							Warnl(v.Pos, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
 						}
 					}
 				}
-
-				// Allocate a bit vector for each class and facet of
-				// value we are tracking.
-
-				// Live stuff first.
-				live := bvalloc(nvars)
-				live.Copy(any)
-				lv.livevars = append(lv.livevars, live)
-
-				if debuglive >= 3 {
-					fmt.Printf("%v\n", p)
-					printvars("avarinitany", any, lv.vars)
-				}
 			}
 
-			if p == bb.last {
-				break
-			}
+			// Live stuff first.
+			live := bvalloc(nvars)
+			live.Copy(any)
+			lv.livevars = append(lv.livevars, live)
 		}
 
-		bb.lastbitmapindex = len(lv.livevars) - 1
+		be.lastbitmapindex = len(lv.livevars) - 1
 	}
 
-	var msg []string
-	var nmsg, startmsg int
-	for _, bb := range lv.cfg {
-		if debuglive >= 1 && Curfn.Func.Nname.Sym.Name != "init" && Curfn.Func.Nname.Sym.Name[0] != '.' {
-			nmsg = len(lv.livevars)
-			startmsg = nmsg
-			msg = make([]string, nmsg)
-			for j := 0; j < nmsg; j++ {
-				msg[j] = ""
-			}
-		}
+	for _, b := range lv.f.Blocks {
+		be := lv.blockEffects(b)
 
 		// walk backward, emit pcdata and populate the maps
-		pos := int32(bb.lastbitmapindex)
-
+		pos := int32(be.lastbitmapindex)
 		if pos < 0 {
 			// the first block we encounter should have the ATEXT so
 			// at no point should pos ever be less than zero.
 			Fatalf("livenessepilogue")
 		}
 
-		livein.Copy(bb.liveout)
-		var next *obj.Prog
-		for p := bb.last; p != nil; p = next {
-			next = p.Opt.(*obj.Prog) // splicebefore modifies p.opt
+		livein.Copy(be.liveout)
+		for i := len(b.Values) - 1; i >= 0; i-- {
+			v := b.Values[i]
 
 			// Propagate liveness information
-			uevar, varkill, _ := lv.progeffects(p)
-
-			liveout.Copy(livein)
-			for _, pos := range varkill {
-				livein.Unset(pos)
-			}
-			for _, pos := range uevar {
-				livein.Set(pos)
-			}
-			if debuglive >= 3 && issafepoint(p) {
-				fmt.Printf("%v\n", p)
-				printvars("uevar", lv.slice2bvec(uevar), lv.vars)
-				printvars("varkill", lv.slice2bvec(varkill), lv.vars)
-				printvars("livein", livein, lv.vars)
-				printvars("liveout", liveout, lv.vars)
-			}
-
-			if issafepoint(p) {
-				// Found an interesting instruction, record the
-				// corresponding liveness information.
-
-				// Record live variables.
-				live := lv.livevars[pos]
-				live.Or(live, liveout)
-
-				// Mark pparamout variables (as described above)
-				if p.As == obj.ACALL {
-					live.Or(live, livedefer)
+			{
+				pos, e := lv.valueEffects(v)
+				liveout.Copy(livein)
+				if e&varkill != 0 {
+					livein.Unset(pos)
 				}
-
-				// Show live variables.
-				if msg != nil {
-					fmt_ := fmt.Sprintf("%v: live at ", p.Line())
-					if p.As == obj.ACALL && p.To.Sym != nil {
-						name := p.To.Sym.Name
-						i := strings.Index(name, ".")
-						if i >= 0 {
-							name = name[i+1:]
-						}
-						fmt_ += fmt.Sprintf("call to %s:", name)
-					} else if p.As == obj.ACALL {
-						fmt_ += "indirect call:"
-					} else {
-						fmt_ += fmt.Sprintf("entry to %s:", ((p.From.Node).(*Node)).Sym.Name)
-					}
-					numlive := 0
-					for j, n := range lv.vars {
-						if live.Get(int32(j)) {
-							fmt_ += fmt.Sprintf(" %v", n)
-							numlive++
-						}
-					}
-
-					fmt_ += "\n"
-					if numlive == 0 { // squelch message
-
-					} else {
-						startmsg--
-						msg[startmsg] = fmt_
-					}
+				if e&uevar != 0 {
+					livein.Set(pos)
 				}
-
-				// Only CALL instructions need a PCDATA annotation.
-				// The TEXT instruction annotation is implicit.
-				if p.As == obj.ACALL {
-					before := p
-					if isdeferreturn(p) {
-						// runtime.deferreturn modifies its return address to return
-						// back to the CALL, not to the subsequent instruction.
-						// Because the return comes back one instruction early,
-						// the PCDATA must begin one instruction early too.
-						// The instruction before a call to deferreturn is always a
-						// no-op, to keep PC-specific data unambiguous.
-						before = p.Opt.(*obj.Prog)
-						if Ctxt.Arch.Family == sys.PPC64 {
-							// On ppc64 there is an additional instruction
-							// (another no-op or reload of toc pointer) before
-							// the call.
-							before = before.Opt.(*obj.Prog)
-						}
-					}
-					splicebefore(lv, bb, newpcdataprog(before, pos), before)
-				}
-
-				pos--
 			}
+
+			if !issafepoint(v) {
+				continue
+			}
+
+			// Found an interesting instruction, record the
+			// corresponding liveness information.
+
+			// Record live variables.
+			live := lv.livevars[pos]
+			live.Or(live, liveout)
+			live.Or(live, livedefer) // only for non-entry safe points
+
+			pos--
 		}
 
-		if msg != nil {
-			for j := startmsg; j < nmsg; j++ {
-				if msg[j] != "" {
-					fmt.Printf("%s", msg[j])
-				}
+		if b == lv.f.Entry {
+			if pos != 0 {
+				Fatalf("bad pos for entry point: %v", pos)
 			}
 
-			msg = nil
-			nmsg = 0
-			startmsg = 0
+			// Record live variables.
+			live := lv.livevars[pos]
+			live.Or(live, liveout)
 		}
 	}
-
-	flusherrors()
 
 	// Useful sanity check: on entry to the function,
 	// the only things that can possibly be live are the
@@ -1304,8 +747,8 @@ func livenessepilogue(lv *Liveness) {
 	}
 }
 
-func (lv *Liveness) avarinitanyall(bb *BasicBlock, any, all bvec) {
-	if len(bb.pred) == 0 {
+func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
+	if len(b.Preds) == 0 {
 		any.Clear()
 		all.Clear()
 		for _, pos := range lv.cache.textavarinit {
@@ -1315,11 +758,14 @@ func (lv *Liveness) avarinitanyall(bb *BasicBlock, any, all bvec) {
 		return
 	}
 
-	any.Copy(bb.pred[0].avarinitany)
-	all.Copy(bb.pred[0].avarinitall)
-	for _, pred := range bb.pred[1:] {
-		any.Or(any, pred.avarinitany)
-		all.And(all, pred.avarinitall)
+	be := lv.blockEffects(b.Preds[0].Block())
+	any.Copy(be.avarinitany)
+	all.Copy(be.avarinitall)
+
+	for _, pred := range b.Preds[1:] {
+		be := lv.blockEffects(pred.Block())
+		any.Or(any, be.avarinitany)
+		all.And(all, be.avarinitall)
 	}
 }
 
@@ -1416,20 +862,59 @@ Outer:
 	lv.livevars = lv.livevars[:uniq]
 
 	// Rewrite PCDATA instructions to use new numbering.
-	for p := lv.ptxt; p != nil; p = p.Link {
-		if p.As == obj.APCDATA && p.From.Offset == obj.PCDATA_StackMapIndex {
-			i := p.To.Offset
-			if i >= 0 {
-				p.To.Offset = int64(remap[i])
+	lv.showlive(nil, lv.livevars[0])
+	pos := 1
+	lv.stackMapIndex = make(map[*ssa.Value]int)
+	for _, b := range lv.f.Blocks {
+		for _, v := range b.Values {
+			if issafepoint(v) {
+				lv.showlive(v, lv.livevars[remap[pos]])
+				lv.stackMapIndex[v] = int(remap[pos])
+				pos++
 			}
 		}
 	}
 }
 
-func printbitset(printed bool, name string, vars []*Node, bits bvec) bool {
+func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
+	if debuglive == 0 || Curfn.Func.Nname.Sym.Name == "init" || strings.HasPrefix(Curfn.Func.Nname.Sym.Name, ".") {
+		return
+	}
+	if live.IsEmpty() {
+		return
+	}
+
+	pos := Curfn.Func.Nname.Pos
+	if v != nil {
+		pos = v.Pos
+	}
+
+	s := "live at "
+	if v == nil {
+		s += fmt.Sprintf("entry to %s:", Curfn.Func.Nname.Sym.Name)
+	} else if sym, ok := v.Aux.(*obj.LSym); ok {
+		fn := sym.Name
+		if pos := strings.Index(fn, "."); pos >= 0 {
+			fn = fn[pos+1:]
+		}
+		s += fmt.Sprintf("call to %s:", fn)
+	} else {
+		s += "indirect call:"
+	}
+
+	for j, n := range lv.vars {
+		if live.Get(int32(j)) {
+			s += fmt.Sprintf(" %v", n)
+		}
+	}
+
+	Warnl(pos, s)
+}
+
+func (lv *Liveness) printbvec(printed bool, name string, live bvec) bool {
 	started := false
-	for i, n := range vars {
-		if !bits.Get(int32(i)) {
+	for i, n := range lv.vars {
+		if !live.Get(int32(i)) {
 			continue
 		}
 		if !started {
@@ -1447,8 +932,21 @@ func printbitset(printed bool, name string, vars []*Node, bits bvec) bool {
 
 		fmt.Printf("%s", n.Sym.Name)
 	}
-
 	return printed
+}
+
+// printeffect is like printbvec, but for a single variable.
+func (lv *Liveness) printeffect(printed bool, name string, pos int32, x bool) bool {
+	if !x {
+		return printed
+	}
+	if !printed {
+		fmt.Printf("\t")
+	} else {
+		fmt.Printf(" ")
+	}
+	fmt.Printf("%s=%s", name, lv.vars[pos].Sym.Name)
+	return true
 }
 
 // Prints the computed liveness information and inputs, for debugging.
@@ -1458,83 +956,102 @@ func livenessprintdebug(lv *Liveness) {
 	fmt.Printf("liveness: %s\n", Curfn.Func.Nname.Sym.Name)
 
 	pcdata := 0
-	for i, bb := range lv.cfg {
+	for i, b := range lv.f.Blocks {
 		if i > 0 {
 			fmt.Printf("\n")
 		}
 
 		// bb#0 pred=1,2 succ=3,4
-		fmt.Printf("bb#%d pred=", i)
-
-		for j := 0; j < len(bb.pred); j++ {
+		fmt.Printf("bb#%d pred=", b.ID)
+		for j, pred := range b.Preds {
 			if j > 0 {
 				fmt.Printf(",")
 			}
-			fmt.Printf("%d", (bb.pred[j]).rpo)
+			fmt.Printf("%d", pred.Block().ID)
 		}
-
 		fmt.Printf(" succ=")
-		for j := 0; j < len(bb.succ); j++ {
+		for j, succ := range b.Succs {
 			if j > 0 {
 				fmt.Printf(",")
 			}
-			fmt.Printf("%d", (bb.succ[j]).rpo)
+			fmt.Printf("%d", succ.Block().ID)
 		}
-
 		fmt.Printf("\n")
 
-		// initial settings
-		var printed bool
+		be := lv.blockEffects(b)
 
-		printed = printbitset(printed, "uevar", lv.vars, bb.uevar)
-		printed = printbitset(printed, "livein", lv.vars, bb.livein)
+		// initial settings
+		printed := false
+		printed = lv.printbvec(printed, "uevar", be.uevar)
+		printed = lv.printbvec(printed, "livein", be.livein)
 		if printed {
 			fmt.Printf("\n")
 		}
 
 		// program listing, with individual effects listed
-		for p := bb.first; ; p = p.Link {
-			fmt.Printf("%v\n", p)
-			if p.As == obj.APCDATA && p.From.Offset == obj.PCDATA_StackMapIndex {
-				pcdata = int(p.To.Offset)
-			}
-			uevar, varkill, avarinit := lv.progeffects(p)
+
+		if b == lv.f.Entry {
+			live := lv.livevars[pcdata]
+			fmt.Printf("(%s) function entry\n", linestr(Curfn.Func.Nname.Pos))
+			fmt.Printf("\tlive=")
 			printed = false
-			printed = printbitset(printed, "uevar", lv.vars, lv.slice2bvec(uevar))
-			printed = printbitset(printed, "varkill", lv.vars, lv.slice2bvec(varkill))
-			printed = printbitset(printed, "avarinit", lv.vars, lv.slice2bvec(avarinit))
+			for j, n := range lv.vars {
+				if !live.Get(int32(j)) {
+					continue
+				}
+				if printed {
+					fmt.Printf(",")
+				}
+				fmt.Printf("%v", n)
+				printed = true
+			}
+			fmt.Printf("\n")
+		}
+
+		for _, v := range b.Values {
+			fmt.Printf("(%s) %v\n", linestr(v.Pos), v.LongString())
+
+			if pos, ok := lv.stackMapIndex[v]; ok {
+				pcdata = pos
+			}
+
+			pos, effect := lv.valueEffects(v)
+			printed = false
+			printed = lv.printeffect(printed, "uevar", pos, effect&uevar != 0)
+			printed = lv.printeffect(printed, "varkill", pos, effect&varkill != 0)
+			printed = lv.printeffect(printed, "avarinit", pos, effect&avarinit != 0)
 			if printed {
 				fmt.Printf("\n")
 			}
-			if issafepoint(p) {
-				live := lv.livevars[pcdata]
-				fmt.Printf("\tlive=")
-				printed = false
-				for j, n := range lv.vars {
-					if live.Get(int32(j)) {
-						if printed {
-							fmt.Printf(",")
-						}
-						fmt.Printf("%v", n)
-						printed = true
-					}
-				}
-				fmt.Printf("\n")
+
+			if !issafepoint(v) {
+				continue
 			}
 
-			if p == bb.last {
-				break
+			live := lv.livevars[pcdata]
+			fmt.Printf("\tlive=")
+			printed = false
+			for j, n := range lv.vars {
+				if !live.Get(int32(j)) {
+					continue
+				}
+				if printed {
+					fmt.Printf(",")
+				}
+				fmt.Printf("%v", n)
+				printed = true
 			}
+			fmt.Printf("\n")
 		}
 
 		// bb bitsets
 		fmt.Printf("end\n")
-
-		printed = printbitset(printed, "varkill", lv.vars, bb.varkill)
-		printed = printbitset(printed, "liveout", lv.vars, bb.liveout)
-		printed = printbitset(printed, "avarinit", lv.vars, bb.avarinit)
-		printed = printbitset(printed, "avarinitany", lv.vars, bb.avarinitany)
-		printed = printbitset(printed, "avarinitall", lv.vars, bb.avarinitall)
+		printed = false
+		printed = lv.printbvec(printed, "varkill", be.varkill)
+		printed = lv.printbvec(printed, "liveout", be.liveout)
+		printed = lv.printbvec(printed, "avarinit", be.avarinit)
+		printed = lv.printbvec(printed, "avarinitany", be.avarinitany)
+		printed = lv.printbvec(printed, "avarinitall", be.avarinitall)
 		if printed {
 			fmt.Printf("\n")
 		}
@@ -1584,17 +1101,11 @@ func livenessemit(lv *Liveness, argssym, livesym *Sym) {
 	finishgclocals(argssym)
 }
 
-func printprog(p *obj.Prog) {
-	for p != nil {
-		fmt.Printf("%v\n", p)
-		p = p.Link
-	}
-}
-
-// Entry pointer for liveness analysis. Constructs a complete CFG, solves for
-// the liveness of pointer variables in the function, and emits a runtime data
+// Entry pointer for liveness analysis. Solves for the liveness of
+// pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
-func liveness(e *ssafn, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
+// Returns a map from GC safe points to their corresponding stack map index.
+func liveness(e *ssafn, f *ssa.Func, argssym, livesym *Sym) map[*ssa.Value]int {
 	// Change name to dump debugging information only for a specific function.
 	debugdelta := 0
 
@@ -1603,38 +1114,16 @@ func liveness(e *ssafn, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	}
 
 	debuglive += debugdelta
-	if debuglive >= 3 {
-		fmt.Printf("liveness: %s\n", e.curfn.Func.Nname.Sym.Name)
-		printprog(firstp)
-	}
-
-	checkptxt(e.curfn, firstp)
 
 	// Construct the global liveness state.
-	cfg := newcfg(firstp)
-
-	if debuglive >= 3 {
-		printcfg(cfg)
-	}
 	vars := getvariables(e.curfn)
-	lv := newliveness(e.curfn, firstp, cfg, vars, e.stkptrsize)
+	lv := newliveness(e.curfn, f, vars, e.stkptrsize)
 
 	// Run the dataflow framework.
 	livenessprologue(lv)
-
-	if debuglive >= 3 {
-		livenessprintcfg(lv)
-	}
 	livenesssolve(lv)
-	if debuglive >= 3 {
-		livenessprintcfg(lv)
-	}
 	livenessepilogue(lv)
-	if debuglive >= 3 {
-		livenessprintcfg(lv)
-	}
 	livenesscompact(lv)
-
 	if debuglive >= 2 {
 		livenessprintdebug(lv)
 	}
@@ -1642,14 +1131,7 @@ func liveness(e *ssafn, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	// Emit the live pointer map data structures
 	livenessemit(lv, argssym, livesym)
 
-	// Free everything.
-	for _, ln := range e.curfn.Func.Dcl {
-		if ln != nil {
-			ln.SetOpt(nil)
-		}
-	}
-
-	freecfg(cfg)
-
 	debuglive -= debugdelta
+
+	return lv.stackMapIndex
 }

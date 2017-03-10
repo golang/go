@@ -497,6 +497,10 @@ func (f *Func) postorder() []*Block {
 	return f.cachedPostorder
 }
 
+func (f *Func) Postorder() []*Block {
+	return f.postorder()
+}
+
 // Idom returns a map from block ID to the immediate dominator of that block.
 // f.Entry.ID maps to nil. Unreachable blocks map to nil as well.
 func (f *Func) Idom() []*Block {
