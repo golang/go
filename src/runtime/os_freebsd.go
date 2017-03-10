@@ -42,21 +42,87 @@ func osyield()
 // From FreeBSD's <sys/sysctl.h>
 const (
 	_CTL_HW      = 6
-	_HW_NCPU     = 3
 	_HW_PAGESIZE = 7
 )
 
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
 
-func getncpu() int32 {
-	mib := [2]uint32{_CTL_HW, _HW_NCPU}
-	out := uint32(0)
-	nout := unsafe.Sizeof(out)
-	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
-	if ret >= 0 {
-		return int32(out)
+// Undocumented numbers from FreeBSD's lib/libc/gen/sysctlnametomib.c.
+const (
+	_CTL_QUERY     = 0
+	_CTL_QUERY_MIB = 3
+)
+
+// sysctlnametomib fill mib with dynamically assigned sysctl entries of name,
+// return count of effected mib slots, return 0 on error.
+func sysctlnametomib(name []byte, mib *[_CTL_MAXNAME]uint32) uint32 {
+	oid := [2]uint32{_CTL_QUERY, _CTL_QUERY_MIB}
+	miblen := uintptr(_CTL_MAXNAME)
+	if sysctl(&oid[0], 2, (*byte)(unsafe.Pointer(mib)), &miblen, (*byte)(unsafe.Pointer(&name[0])), (uintptr)(len(name))) < 0 {
+		return 0
 	}
-	return 1
+	miblen /= unsafe.Sizeof(uint32(0))
+	if miblen <= 0 {
+		return 0
+	}
+	return uint32(miblen)
+}
+
+const (
+	_CPU_SETSIZE_MAX = 32 // Limited by _MaxGomaxprocs(256) in runtime2.go.
+	_CPU_CURRENT_PID = -1 // Current process ID.
+)
+
+//go:noescape
+func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
+
+func getncpu() int32 {
+	var mask [_CPU_SETSIZE_MAX]byte
+	var mib [_CTL_MAXNAME]uint32
+
+	// According to FreeBSD's /usr/src/sys/kern/kern_cpuset.c,
+	// cpuset_getaffinity return ERANGE when provided buffer size exceed the limits in kernel.
+	// Querying kern.smp.maxcpus to calculate maximum buffer size.
+	// See https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=200802
+
+	// Variable kern.smp.maxcpus introduced at Dec 23 2003, revision 123766,
+	// with dynamically assigned sysctl entries.
+	miblen := sysctlnametomib([]byte("kern.smp.maxcpus"), &mib)
+	if miblen == 0 {
+		return 1
+	}
+
+	// Query kern.smp.maxcpus.
+	dstsize := uintptr(4)
+	maxcpus := uint32(0)
+	if sysctl(&mib[0], miblen, (*byte)(unsafe.Pointer(&maxcpus)), &dstsize, nil, 0) != 0 {
+		return 1
+	}
+
+	size := maxcpus / _NBBY
+	ptrsize := uint32(unsafe.Sizeof(uintptr(0)))
+	if size < ptrsize {
+		size = ptrsize
+	}
+	if size > _CPU_SETSIZE_MAX {
+		return 1
+	}
+
+	if cpuset_getaffinity(_CPU_LEVEL_WHICH, _CPU_WHICH_PID, _CPU_CURRENT_PID,
+		int(size), (*byte)(unsafe.Pointer(&mask[0]))) != 0 {
+		return 1
+	}
+	n := int32(0)
+	for _, v := range mask[:size] {
+		for v != 0 {
+			n += int32(v & 1)
+			v >>= 1
+		}
+	}
+	if n == 0 {
+		return 1
+	}
+	return n
 }
 
 func getPageSize() uintptr {

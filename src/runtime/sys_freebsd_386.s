@@ -398,4 +398,13 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	NEGL	AX
 	RET
 
+// func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
+TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-28
+	MOVL	$487, AX
+	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX
+	MOVL	AX, ret+24(FP)
+	RET
+
 GLOBL runtime·tlsoffset(SB),NOPTR,$4
