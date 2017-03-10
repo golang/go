@@ -16,7 +16,6 @@ func Init(arch *gc.Arch) {
 
 	arch.Defframe = defframe
 	arch.Ginsnop = ginsnop
-	arch.Proginfo = proginfo
 
 	arch.SSAMarkMoves = ssaMarkMoves
 	arch.SSAGenValue = ssaGenValue

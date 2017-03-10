@@ -80,14 +80,6 @@ type progeffectscache struct {
 	initialized  bool
 }
 
-// ProgInfo holds information about the instruction for use
-// by clients such as the compiler. The exact meaning of this
-// data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
-type ProgInfo struct {
-	_     struct{} // to prevent unkeyed literals. Trailing zero-sized field will take space.
-	Flags uint32   // flag bits
-}
-
 // livenessShouldTrack reports whether the liveness analysis
 // should track the variable n.
 // We don't care about variables that have no pointers,
