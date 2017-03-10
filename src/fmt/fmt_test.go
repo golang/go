@@ -1201,6 +1201,14 @@ func BenchmarkSprintfTruncateString(b *testing.B) {
 	})
 }
 
+func BenchmarkSprintfSlowParsingPath(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%.v", nil)
+		}
+	})
+}
+
 func BenchmarkSprintfQuoteString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
