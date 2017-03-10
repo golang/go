@@ -12,7 +12,7 @@ FC=$1
 goos=$(go env GOOS)
 
 libext="so"
-if [ "$goos" == "darwin" ]; then
+if [ "$goos" = "darwin" ]; then
 	libext="dylib"
 fi
 

@@ -72,7 +72,7 @@ testmsanshared() {
   goos=$(go env GOOS)
   suffix="-installsuffix testsanitizers"
   libext="so"
-  if [ "$goos" == "darwin" ]; then
+  if [ "$goos" = "darwin" ]; then
 	  libext="dylib"
   fi
   go build -msan -buildmode=c-shared $suffix -o ${TMPDIR}/libmsanshared.$libext msan_shared.go
@@ -135,7 +135,7 @@ testtsanshared() {
   goos=$(go env GOOS)
   suffix="-installsuffix tsan"
   libext="so"
-  if [ "$goos" == "darwin" ]; then
+  if [ "$goos" = "darwin" ]; then
 	  libext="dylib"
   fi
   go build -buildmode=c-shared $suffix -o ${TMPDIR}/libtsanshared.$libext tsan_shared.go

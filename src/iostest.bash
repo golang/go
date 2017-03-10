@@ -24,11 +24,11 @@ if [ "$GOARCH" != "arm" ] && [ "$GOARCH" != "arm64" ]; then
 	echo "iostest.bash requires GOARCH=arm or GOARCH=arm64, got GOARCH=$GOARCH" 1>&2
 	exit 1
 fi
-if [ "$GOARCH" == "arm" ]; then
+if [ "$GOARCH" = "arm" ]; then
 	export GOARM=7
 fi
 
-if [ "$1" == "-restart" ]; then
+if [ "$1" = "-restart" ]; then
 	# Reboot to make sure previous runs do not interfere with the current run.
 	# It is reasonably easy for a bad program leave an iOS device in an
 	# almost unusable state.
@@ -60,7 +60,7 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
 	-o ../bin/go_darwin_${GOARCH}_exec \
 	../misc/ios/go_darwin_arm_exec.go
 
-if [ "$GOIOS_DEV_ID" == "" ]; then
+if [ "$GOIOS_DEV_ID" = "" ]; then
 	echo "detecting iOS development identity"
 	eval $(GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go run ../misc/ios/detect.go)
 fi

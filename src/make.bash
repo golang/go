@@ -107,7 +107,7 @@ done
 # Test for debian/kFreeBSD.
 # cmd/dist will detect kFreeBSD as freebsd/$GOARCH, but we need to
 # disable cgo manually.
-if [ "$(uname -s)" == "GNU/kFreeBSD" ]; then
+if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
 	export CGO_ENABLED=0
 fi
 
@@ -125,7 +125,7 @@ if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
 	exit 1
 fi
-if [ "$GOROOT_BOOTSTRAP" == "$GOROOT" ]; then
+if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
 	echo "ERROR: \$GOROOT_BOOTSTRAP must not be set to \$GOROOT" >&2
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
 	exit 1
