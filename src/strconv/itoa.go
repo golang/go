@@ -39,9 +39,9 @@ func AppendUint(dst []byte, i uint64, base int) []byte {
 	return dst
 }
 
-const (
-	digits = "0123456789abcdefghijklmnopqrstuvwxyz"
-)
+const host32bit = ^uint(0)>>32 == 0
+
+const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 var shifts = [len(digits) + 1]uint{
 	1 << 1: 1,
@@ -71,61 +71,65 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 	}
 
 	// convert bits
+	// We use uint values where we can because those will
+	// fit into a single register even on a 32bit machine.
 	if base == 10 {
 		// common case: use constants for / because
 		// the compiler can optimize it into a multiply+shift
 
-		if ^uintptr(0)>>32 == 0 {
-			for u > uint64(^uintptr(0)) {
+		if host32bit {
+			// convert the lower digits using 32bit operations
+			for u >= 1e9 {
+				// the compiler recognizes q = a/b; r = a%b
+				// and produces only one DIV instruction;
+				// no need to be clever here
 				q := u / 1e9
-				us := uintptr(u - q*1e9) // us % 1e9 fits into a uintptr
+				us := uint(u % 1e9) // u % 1e9 fits into a uint
 				for j := 9; j > 0; j-- {
 					i--
-					qs := us / 10
-					a[i] = byte(us - qs*10 + '0')
-					us = qs
+					a[i] = byte(us%10 + '0')
+					us /= 10
 				}
 				u = q
 			}
+			// u < 1e9
 		}
 
-		// u guaranteed to fit into a uintptr
-		us := uintptr(u)
+		// u guaranteed to fit into a uint
+		us := uint(u)
 		for us >= 10 {
 			i--
-			q := us / 10
-			a[i] = byte(us - q*10 + '0')
-			us = q
+			a[i] = byte(us%10 + '0')
+			us /= 10
 		}
-		// u < 10
+		// us < 10
 		i--
 		a[i] = byte(us + '0')
 
 	} else if s := shifts[base]; s > 0 {
 		// base is power of 2: use shifts and masks instead of / and %
 		b := uint64(base)
-		m := uintptr(b) - 1 // == 1<<s - 1
+		m := uint(base) - 1 // == 1<<s - 1
 		for u >= b {
 			i--
-			a[i] = digits[uintptr(u)&m]
+			a[i] = digits[uint(u)&m]
 			u >>= s
 		}
 		// u < base
 		i--
-		a[i] = digits[uintptr(u)]
+		a[i] = digits[u]
 
 	} else {
 		// general case
 		b := uint64(base)
 		for u >= b {
 			i--
-			q := u / b
-			a[i] = digits[uintptr(u-q*b)]
-			u = q
+			a[i] = digits[u%b]
+			u /= b
 		}
 		// u < base
 		i--
-		a[i] = digits[uintptr(u)]
+		a[i] = digits[u]
 	}
 
 	// add sign, if any
