@@ -24,11 +24,6 @@ import (
 	"strings"
 )
 
-const (
-	UNVISITED = 0
-	VISITED   = 1
-)
-
 // An ordinary basic block.
 //
 // Instructions are threaded together in a doubly-linked list. To iterate in
@@ -54,7 +49,6 @@ type BasicBlock struct {
 	first           *obj.Prog     // first instruction in block
 	last            *obj.Prog     // last instruction in block
 	rpo             int           // reverse post-order number (also index in cfg)
-	mark            int           // mark bit for traversals
 	lastbitmapindex int           // for livenessepilogue
 
 	// Summary sets of block effects.
@@ -132,7 +126,6 @@ func newblock(prog *obj.Prog) *BasicBlock {
 
 	result := &b.result
 	result.rpo = -1
-	result.mark = UNVISITED
 	result.first = prog
 	result.last = prog
 	result.pred = b.pred[:0]
@@ -270,19 +263,6 @@ func printcfg(cfg []*BasicBlock) {
 	}
 }
 
-// Assigns a reverse post order number to each connected basic block using the
-// standard algorithm. Unconnected blocks will not be affected.
-func reversepostorder(root *BasicBlock, rpo *int32) {
-	root.mark = VISITED
-	for _, bb := range root.succ {
-		if bb.mark == UNVISITED {
-			reversepostorder(bb, rpo)
-		}
-	}
-	*rpo -= 1
-	root.rpo = int(*rpo)
-}
-
 // Comparison predicate used for sorting basic blocks by their rpo in ascending
 // order.
 type blockrpocmp []*BasicBlock
@@ -352,6 +332,18 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 		}
 	}
 
+	bb.rpo = 0
+	rpo := 1
+	for p := firstp; p != nil && p.As != obj.AEND; p = p.Link {
+		if p.Opt != nil {
+			p.Opt.(*BasicBlock).rpo = rpo
+			rpo++
+		}
+	}
+	if rpo != len(cfg) {
+		Fatalf("newcfg: inconsistent block counts: %d != %d", rpo, len(cfg))
+	}
+
 	// Loop through all basic blocks maximally growing the list of
 	// contained instructions until a label is reached. Add edges
 	// for branches and fall-through instructions.
@@ -397,15 +389,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 			p = p.Link
 		}
 	}
-
-	// Find a depth-first order and assign a depth-first number to
-	// all basic blocks.
-	for _, bb := range cfg {
-		bb.mark = UNVISITED
-	}
-	bb = cfg[0]
-	rpo := int32(len(cfg))
-	reversepostorder(bb, &rpo)
 
 	// Sort the basic blocks by their depth first number. The
 	// slice is now a depth-first spanning tree with the first
