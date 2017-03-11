@@ -426,8 +426,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpCvt64to32F(v, config)
 	case OpCvt64to64F:
 		return rewriteValueAMD64_OpCvt64to64F(v, config)
-	case OpDeferCall:
-		return rewriteValueAMD64_OpDeferCall(v, config)
 	case OpDiv128u:
 		return rewriteValueAMD64_OpDiv128u(v, config)
 	case OpDiv16:
@@ -490,8 +488,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpGetClosurePtr(v, config)
 	case OpGetG:
 		return rewriteValueAMD64_OpGetG(v, config)
-	case OpGoCall:
-		return rewriteValueAMD64_OpGoCall(v, config)
 	case OpGreater16:
 		return rewriteValueAMD64_OpGreater16(v, config)
 	case OpGreater16U:
@@ -18085,21 +18081,6 @@ func rewriteValueAMD64_OpCvt64to64F(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpDeferCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (DeferCall [argwid] mem)
-	// cond:
-	// result: (CALLdefer [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(OpAMD64CALLdefer)
-		v.AuxInt = argwid
-		v.AddArg(mem)
-		return true
-	}
-}
 func rewriteValueAMD64_OpDiv128u(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -18637,21 +18618,6 @@ func rewriteValueAMD64_OpGetG(v *Value, config *Config) bool {
 	for {
 		mem := v.Args[0]
 		v.reset(OpAMD64LoweredGetG)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGoCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (GoCall [argwid] mem)
-	// cond:
-	// result: (CALLgo [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(OpAMD64CALLgo)
-		v.AuxInt = argwid
 		v.AddArg(mem)
 		return true
 	}

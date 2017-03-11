@@ -101,7 +101,7 @@ func (e Edge) Index() int {
 //     Exit        return mem                []
 //    Plain               nil            [next]
 //       If   a boolean Value      [then, else]
-//    Defer               mem  [nopanic, panic]  (control opcode should be OpDeferCall)
+//    Defer               mem  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
 type BlockKind int8
 
 // short form print

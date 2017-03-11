@@ -276,8 +276,6 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpCvt64Fto32(v, config)
 	case OpCvt64Fto32F:
 		return rewriteValue386_OpCvt64Fto32F(v, config)
-	case OpDeferCall:
-		return rewriteValue386_OpDeferCall(v, config)
 	case OpDiv16:
 		return rewriteValue386_OpDiv16(v, config)
 	case OpDiv16u:
@@ -328,8 +326,6 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpGetClosurePtr(v, config)
 	case OpGetG:
 		return rewriteValue386_OpGetG(v, config)
-	case OpGoCall:
-		return rewriteValue386_OpGoCall(v, config)
 	case OpGreater16:
 		return rewriteValue386_OpGreater16(v, config)
 	case OpGreater16U:
@@ -9983,21 +9979,6 @@ func rewriteValue386_OpCvt64Fto32F(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValue386_OpDeferCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (DeferCall [argwid] mem)
-	// cond:
-	// result: (CALLdefer [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(Op386CALLdefer)
-		v.AuxInt = argwid
-		v.AddArg(mem)
-		return true
-	}
-}
 func rewriteValue386_OpDiv16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -10401,21 +10382,6 @@ func rewriteValue386_OpGetG(v *Value, config *Config) bool {
 	for {
 		mem := v.Args[0]
 		v.reset(Op386LoweredGetG)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValue386_OpGoCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (GoCall [argwid] mem)
-	// cond:
-	// result: (CALLgo [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(Op386CALLgo)
-		v.AuxInt = argwid
 		v.AddArg(mem)
 		return true
 	}

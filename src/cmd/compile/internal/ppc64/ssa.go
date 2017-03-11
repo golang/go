@@ -1022,22 +1022,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			gc.Maxarg = v.AuxInt
 		}
 
-	case ssa.OpPPC64CALLdefer:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Deferproc
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
-	case ssa.OpPPC64CALLgo:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Newproc
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
 	case ssa.OpPPC64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
 		p := gc.Prog(ppc64.AMOVBZ)

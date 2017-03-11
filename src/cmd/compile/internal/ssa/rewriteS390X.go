@@ -116,8 +116,6 @@ func rewriteValueS390X(v *Value, config *Config) bool {
 		return rewriteValueS390X_OpCvt64to32F(v, config)
 	case OpCvt64to64F:
 		return rewriteValueS390X_OpCvt64to64F(v, config)
-	case OpDeferCall:
-		return rewriteValueS390X_OpDeferCall(v, config)
 	case OpDiv16:
 		return rewriteValueS390X_OpDiv16(v, config)
 	case OpDiv16u:
@@ -178,8 +176,6 @@ func rewriteValueS390X(v *Value, config *Config) bool {
 		return rewriteValueS390X_OpGetClosurePtr(v, config)
 	case OpGetG:
 		return rewriteValueS390X_OpGetG(v, config)
-	case OpGoCall:
-		return rewriteValueS390X_OpGoCall(v, config)
 	case OpGreater16:
 		return rewriteValueS390X_OpGreater16(v, config)
 	case OpGreater16U:
@@ -1545,21 +1541,6 @@ func rewriteValueS390X_OpCvt64to64F(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValueS390X_OpDeferCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (DeferCall [argwid] mem)
-	// cond:
-	// result: (CALLdefer [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(OpS390XCALLdefer)
-		v.AuxInt = argwid
-		v.AddArg(mem)
-		return true
-	}
-}
 func rewriteValueS390X_OpDiv16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -2192,21 +2173,6 @@ func rewriteValueS390X_OpGetG(v *Value, config *Config) bool {
 	for {
 		mem := v.Args[0]
 		v.reset(OpS390XLoweredGetG)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValueS390X_OpGoCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (GoCall [argwid] mem)
-	// cond:
-	// result: (CALLgo [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(OpS390XCALLgo)
-		v.AuxInt = argwid
 		v.AddArg(mem)
 		return true
 	}
