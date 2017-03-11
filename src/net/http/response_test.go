@@ -949,3 +949,29 @@ func TestNeedsSniff(t *testing.T) {
 		t.Errorf("needsSniff empty Content-Type = %t; want %t", got, want)
 	}
 }
+
+// A response should only write out single Connection: close header. Tests #19499.
+func TestResponseWritesOnlySingleConnectionClose(t *testing.T) {
+	const connectionCloseHeader = "Connection: close"
+
+	res, err := ReadResponse(bufio.NewReader(strings.NewReader("HTTP/1.0 200 OK\r\n\r\nAAAA")), nil)
+	if err != nil {
+		t.Fatalf("ReadResponse failed %v", err)
+	}
+
+	var buf1 bytes.Buffer
+	if err = res.Write(&buf1); err != nil {
+		t.Fatalf("Write failed %v", err)
+	}
+	if res, err = ReadResponse(bufio.NewReader(&buf1), nil); err != nil {
+		t.Fatalf("ReadResponse failed %v", err)
+	}
+
+	var buf2 bytes.Buffer
+	if err = res.Write(&buf2); err != nil {
+		t.Fatalf("Write failed %v", err)
+	}
+	if count := strings.Count(buf2.String(), connectionCloseHeader); count != 1 {
+		t.Errorf("Found %d %q header", count, connectionCloseHeader)
+	}
+}

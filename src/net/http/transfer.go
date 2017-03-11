@@ -75,6 +75,7 @@ type transferWriter struct {
 	ContentLength    int64 // -1 means unknown, 0 means exactly none
 	Close            bool
 	TransferEncoding []string
+	Header           Header
 	Trailer          Header
 	IsResponse       bool
 	bodyReadError    error // any non-EOF error from reading Body
@@ -96,6 +97,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 		t.Method = valueOrDefault(rr.Method, "GET")
 		t.Close = rr.Close
 		t.TransferEncoding = rr.TransferEncoding
+		t.Header = rr.Header
 		t.Trailer = rr.Trailer
 		atLeastHTTP11 = rr.protoAtLeastOutgoing(1, 1)
 		t.Body = rr.Body
@@ -114,6 +116,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 		t.ContentLength = rr.ContentLength
 		t.Close = rr.Close
 		t.TransferEncoding = rr.TransferEncoding
+		t.Header = rr.Header
 		t.Trailer = rr.Trailer
 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
 		t.ResponseToHEAD = noResponseBodyExpected(t.Method)
@@ -266,7 +269,7 @@ func (t *transferWriter) shouldSendContentLength() bool {
 }
 
 func (t *transferWriter) WriteHeader(w io.Writer) error {
-	if t.Close {
+	if t.Close && !hasToken(t.Header.get("Connection"), "close") {
 		if _, err := io.WriteString(w, "Connection: close\r\n"); err != nil {
 			return err
 		}
