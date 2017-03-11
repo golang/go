@@ -4756,6 +4756,42 @@ func (s *SSAGenState) AddrScratch(a *obj.Addr) {
 	a.Offset = s.ScratchFpMem.Xoffset
 }
 
+func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+	if sym, _ := v.Aux.(*obj.LSym); sym == Deferreturn {
+		// Deferred calls will appear to be returning to
+		// the CALL deferreturn(SB) that we are about to emit.
+		// However, the stack trace code will show the line
+		// of the instruction byte before the return PC.
+		// To avoid that being an unrelated instruction,
+		// insert an actual hardware NOP that will have the right line number.
+		// This is different from obj.ANOP, which is a virtual no-op
+		// that doesn't make it into the instruction stream.
+		Thearch.Ginsnop()
+	}
+
+	p := Prog(obj.ACALL)
+	if sym, ok := v.Aux.(*obj.LSym); ok {
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = sym
+	} else {
+		// TODO(mdempsky): Can these differences be eliminated?
+		switch Thearch.LinkArch.Family {
+		case sys.AMD64, sys.I386, sys.PPC64, sys.S390X:
+			p.To.Type = obj.TYPE_REG
+		case sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64:
+			p.To.Type = obj.TYPE_MEM
+		default:
+			Fatalf("unknown indirect call family")
+		}
+		p.To.Reg = v.Args[0].Reg()
+	}
+	if Maxarg < v.AuxInt {
+		Maxarg = v.AuxInt
+	}
+	return p
+}
+
 // fieldIdx finds the index of the field referred to by the ODOT node n.
 func fieldIdx(n *Node) int {
 	t := n.Left.Type

@@ -19,6 +19,7 @@ func Init() {
 	gc.Thearch.MAXWIDTH = 1 << 50
 
 	gc.Thearch.Defframe = defframe
+	gc.Thearch.Ginsnop = ginsnop2
 	gc.Thearch.Proginfo = proginfo
 
 	gc.Thearch.SSAMarkMoves = ssaMarkMoves

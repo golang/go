@@ -669,39 +669,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			q.To.Type = obj.TYPE_REG
 			q.To.Reg = r
 		}
-	case ssa.Op386CALLstatic:
-		if v.Aux.(*obj.LSym) == gc.Deferreturn {
-			// Deferred calls will appear to be returning to
-			// the CALL deferreturn(SB) that we are about to emit.
-			// However, the stack trace code will show the line
-			// of the instruction byte before the return PC.
-			// To avoid that being an unrelated instruction,
-			// insert an actual hardware NOP that will have the right line number.
-			// This is different from obj.ANOP, which is a virtual no-op
-			// that doesn't make it into the instruction stream.
-			ginsnop()
-		}
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
-	case ssa.Op386CALLclosure:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Args[0].Reg()
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
-	case ssa.Op386CALLinter:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Args[0].Reg()
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
+	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
+		s.Call(v)
 	case ssa.Op386NEGL,
 		ssa.Op386BSWAPL,
 		ssa.Op386NOTL:

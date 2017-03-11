@@ -19,6 +19,7 @@ func Init() {
 	gc.Thearch.REGSP = mips.REGSP
 	gc.Thearch.MAXWIDTH = (1 << 31) - 1
 	gc.Thearch.Defframe = defframe
+	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Proginfo = proginfo
 	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
 	gc.Thearch.SSAGenValue = ssaGenValue
