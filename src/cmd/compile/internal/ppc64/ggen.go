@@ -98,3 +98,29 @@ func ginsnop() {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = ppc64.REG_R0
 }
+
+func ginsnop2() {
+	// PPC64 is unusual because TWO nops are required
+	// (see gc/cgen.go, gc/plive.go -- copy of comment below)
+	//
+	// On ppc64, when compiling Go into position
+	// independent code on ppc64le we insert an
+	// instruction to reload the TOC pointer from the
+	// stack as well. See the long comment near
+	// jmpdefer in runtime/asm_ppc64.s for why.
+	// If the MOVD is not needed, insert a hardware NOP
+	// so that the same number of instructions are used
+	// on ppc64 in both shared and non-shared modes.
+
+	ginsnop()
+	if gc.Ctxt.Flag_shared {
+		p := gc.Prog(ppc64.AMOVD)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Offset = 24
+		p.From.Reg = ppc64.REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ppc64.REG_R2
+	} else {
+		ginsnop()
+	}
+}

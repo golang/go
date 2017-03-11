@@ -941,45 +941,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.Patch(p4, p)
 
 	case ssa.OpPPC64CALLstatic:
-		if v.Aux.(*obj.LSym) == gc.Deferreturn {
-			// Deferred calls will appear to be returning to
-			// the CALL deferreturn(SB) that we are about to emit.
-			// However, the stack trace code will show the line
-			// of the instruction byte before the return PC.
-			// To avoid that being an unrelated instruction,
-			// insert two actual hardware NOPs that will have the right line number.
-			// This is different from obj.ANOP, which is a virtual no-op
-			// that doesn't make it into the instruction stream.
-			// PPC64 is unusual because TWO nops are required
-			// (see gc/cgen.go, gc/plive.go -- copy of comment below)
-			//
-			// On ppc64, when compiling Go into position
-			// independent code on ppc64le we insert an
-			// instruction to reload the TOC pointer from the
-			// stack as well. See the long comment near
-			// jmpdefer in runtime/asm_ppc64.s for why.
-			// If the MOVD is not needed, insert a hardware NOP
-			// so that the same number of instructions are used
-			// on ppc64 in both shared and non-shared modes.
-			ginsnop()
-			if gc.Ctxt.Flag_shared {
-				p := gc.Prog(ppc64.AMOVD)
-				p.From.Type = obj.TYPE_MEM
-				p.From.Offset = 24
-				p.From.Reg = ppc64.REGSP
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = ppc64.REG_R2
-			} else {
-				ginsnop()
-			}
-		}
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
+		s.Call(v)
 
 	case ssa.OpPPC64CALLclosure, ssa.OpPPC64CALLinter:
 		p := gc.Prog(ppc64.AMOVD)
@@ -1001,8 +963,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			q.To.Reg = ppc64.REG_R12
 		}
 
-		pp := gc.Prog(obj.ACALL)
-		pp.To.Type = obj.TYPE_REG
+		pp := s.Call(v)
 		pp.To.Reg = ppc64.REG_CTR
 
 		if gc.Ctxt.Flag_shared {
@@ -1016,10 +977,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			q.From.Reg = ppc64.REGSP
 			q.To.Type = obj.TYPE_REG
 			q.To.Reg = ppc64.REG_R2
-		}
-
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
 		}
 
 	case ssa.OpPPC64LoweredNilCheck:

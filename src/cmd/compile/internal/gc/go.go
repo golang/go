@@ -365,10 +365,11 @@ type Arch struct {
 
 	REGSP    int
 	MAXWIDTH int64
+	Use387   bool // should 386 backend use 387 FP instructions instead of sse2.
 
 	Defframe func(*obj.Prog)
+	Ginsnop  func()
 	Proginfo func(*obj.Prog) ProgInfo
-	Use387   bool // should 8g use 387 FP instructions instead of sse2.
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
