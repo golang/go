@@ -410,8 +410,6 @@
 // Lowering calls
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
 (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
-(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
-(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
 (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
 // Miscellaneous

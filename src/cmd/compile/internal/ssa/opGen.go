@@ -387,8 +387,6 @@ const (
 	Op386REPSTOSL
 	Op386CALLstatic
 	Op386CALLclosure
-	Op386CALLdefer
-	Op386CALLgo
 	Op386CALLinter
 	Op386DUFFCOPY
 	Op386REPMOVSL
@@ -626,8 +624,6 @@ const (
 	OpAMD64REPSTOSQ
 	OpAMD64CALLstatic
 	OpAMD64CALLclosure
-	OpAMD64CALLdefer
-	OpAMD64CALLgo
 	OpAMD64CALLinter
 	OpAMD64DUFFCOPY
 	OpAMD64REPMOVSQ
@@ -853,8 +849,6 @@ const (
 	OpARMSRAcond
 	OpARMCALLstatic
 	OpARMCALLclosure
-	OpARMCALLdefer
-	OpARMCALLgo
 	OpARMCALLinter
 	OpARMLoweredNilCheck
 	OpARMEqual
@@ -1018,8 +1012,6 @@ const (
 	OpARM64CSELULT0
 	OpARM64CALLstatic
 	OpARM64CALLclosure
-	OpARM64CALLdefer
-	OpARM64CALLgo
 	OpARM64CALLinter
 	OpARM64LoweredNilCheck
 	OpARM64Equal
@@ -1140,8 +1132,6 @@ const (
 	OpMIPSMOVDF
 	OpMIPSCALLstatic
 	OpMIPSCALLclosure
-	OpMIPSCALLdefer
-	OpMIPSCALLgo
 	OpMIPSCALLinter
 	OpMIPSLoweredAtomicLoad
 	OpMIPSLoweredAtomicStore
@@ -1246,8 +1236,6 @@ const (
 	OpMIPS64MOVDF
 	OpMIPS64CALLstatic
 	OpMIPS64CALLclosure
-	OpMIPS64CALLdefer
-	OpMIPS64CALLgo
 	OpMIPS64CALLinter
 	OpMIPS64DUFFZERO
 	OpMIPS64LoweredZero
@@ -1366,8 +1354,6 @@ const (
 	OpPPC64MOVDconvert
 	OpPPC64CALLstatic
 	OpPPC64CALLclosure
-	OpPPC64CALLdefer
-	OpPPC64CALLgo
 	OpPPC64CALLinter
 	OpPPC64LoweredZero
 	OpPPC64LoweredMove
@@ -1560,8 +1546,6 @@ const (
 	OpS390XCLEAR
 	OpS390XCALLstatic
 	OpS390XCALLclosure
-	OpS390XCALLdefer
-	OpS390XCALLgo
 	OpS390XCALLinter
 	OpS390XInvertFlags
 	OpS390XLoweredGetG
@@ -1809,8 +1793,6 @@ const (
 	OpZeroWB
 	OpClosureCall
 	OpStaticCall
-	OpDeferCall
-	OpGoCall
 	OpInterCall
 	OpSignExt8to16
 	OpSignExt8to32
@@ -4102,26 +4084,6 @@ var opcodeTable = [...]opInfo{
 				{1, 4},   // DX
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
-		},
-	},
-	{
-		name:         "CALLdefer",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
-		},
-	},
-	{
-		name:         "CALLgo",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
 			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
 		},
 	},
@@ -7377,26 +7339,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "CALLdefer",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-		},
-	},
-	{
-		name:         "CALLgo",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-		},
-	},
-	{
 		name:         "CALLinter",
 		auxType:      auxInt64,
 		argLen:       2,
@@ -10535,26 +10477,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "CALLdefer",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 4294924287, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
-		},
-	},
-	{
-		name:         "CALLgo",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 4294924287, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
-		},
-	},
-	{
 		name:         "CALLinter",
 		auxType:      auxInt64,
 		argLen:       2,
@@ -12655,26 +12577,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "CALLdefer",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 9223372035512336383, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
-		},
-	},
-	{
-		name:         "CALLgo",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 9223372035512336383, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
-		},
-	},
-	{
 		name:         "CALLinter",
 		auxType:      auxInt64,
 		argLen:       2,
@@ -14194,7 +14096,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "CALLclosure",
-		auxType:      auxInt32,
+		auxType:      auxInt64,
 		argLen:       3,
 		clobberFlags: true,
 		call:         true,
@@ -14207,28 +14109,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "CALLdefer",
-		auxType:      auxInt32,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 140737421246462, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31 F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30 HI LO
-		},
-	},
-	{
-		name:         "CALLgo",
-		auxType:      auxInt32,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 140737421246462, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31 F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30 HI LO
-		},
-	},
-	{
 		name:         "CALLinter",
-		auxType:      auxInt32,
+		auxType:      auxInt64,
 		argLen:       2,
 		clobberFlags: true,
 		call:         true,
@@ -15608,26 +15490,6 @@ var opcodeTable = [...]opInfo{
 				{1, 4194304},   // R22
 				{0, 201326590}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP R31
 			},
-			clobbers: 4611686018393833470, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 HI LO
-		},
-	},
-	{
-		name:         "CALLdefer",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 4611686018393833470, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 HI LO
-		},
-	},
-	{
-		name:         "CALLgo",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
 			clobbers: 4611686018393833470, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 HI LO
 		},
 	},
@@ -17137,26 +16999,6 @@ var opcodeTable = [...]opInfo{
 				{1, 2048},       // R11
 				{0, 1073733626}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			clobbers: 576460745860964344, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
-		},
-	},
-	{
-		name:         "CALLdefer",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 576460745860964344, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
-		},
-	},
-	{
-		name:         "CALLgo",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
 			clobbers: 576460745860964344, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 		},
 	},
@@ -19928,26 +19770,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "CALLdefer",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 4294923263, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
-		},
-	},
-	{
-		name:         "CALLgo",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		call:         true,
-		reg: regInfo{
-			clobbers: 4294923263, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
-		},
-	},
-	{
 		name:         "CALLinter",
 		auxType:      auxInt64,
 		argLen:       2,
@@ -21486,20 +21308,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "StaticCall",
 		auxType: auxSymOff,
-		argLen:  1,
-		call:    true,
-		generic: true,
-	},
-	{
-		name:    "DeferCall",
-		auxType: auxInt64,
-		argLen:  1,
-		call:    true,
-		generic: true,
-	},
-	{
-		name:    "GoCall",
-		auxType: auxInt64,
 		argLen:  1,
 		call:    true,
 		generic: true,

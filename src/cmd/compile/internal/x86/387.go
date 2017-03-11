@@ -298,7 +298,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		popAndSave(s, v)
 		return true
 
-	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLdefer, ssa.Op386CALLgo, ssa.Op386CALLinter:
+	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
 		flush387(s)  // Calls must empty the FP stack.
 		return false // then issue the call as normal
 	}

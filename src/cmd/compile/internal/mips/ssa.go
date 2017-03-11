@@ -504,22 +504,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Maxarg < v.AuxInt {
 			gc.Maxarg = v.AuxInt
 		}
-	case ssa.OpMIPSCALLdefer:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Deferproc
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
-	case ssa.OpMIPSCALLgo:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Newproc
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
 	case ssa.OpMIPSCALLinter:
 		p := gc.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM

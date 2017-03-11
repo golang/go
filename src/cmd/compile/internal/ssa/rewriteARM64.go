@@ -322,8 +322,6 @@ func rewriteValueARM64(v *Value, config *Config) bool {
 		return rewriteValueARM64_OpCvt64to32F(v, config)
 	case OpCvt64to64F:
 		return rewriteValueARM64_OpCvt64to64F(v, config)
-	case OpDeferCall:
-		return rewriteValueARM64_OpDeferCall(v, config)
 	case OpDiv16:
 		return rewriteValueARM64_OpDiv16(v, config)
 	case OpDiv16u:
@@ -382,8 +380,6 @@ func rewriteValueARM64(v *Value, config *Config) bool {
 		return rewriteValueARM64_OpGeq8U(v, config)
 	case OpGetClosurePtr:
 		return rewriteValueARM64_OpGetClosurePtr(v, config)
-	case OpGoCall:
-		return rewriteValueARM64_OpGoCall(v, config)
 	case OpGreater16:
 		return rewriteValueARM64_OpGreater16(v, config)
 	case OpGreater16U:
@@ -10141,21 +10137,6 @@ func rewriteValueARM64_OpCvt64to64F(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValueARM64_OpDeferCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (DeferCall [argwid] mem)
-	// cond:
-	// result: (CALLdefer [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(OpARM64CALLdefer)
-		v.AuxInt = argwid
-		v.AddArg(mem)
-		return true
-	}
-}
 func rewriteValueARM64_OpDiv16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -10663,21 +10644,6 @@ func rewriteValueARM64_OpGetClosurePtr(v *Value, config *Config) bool {
 	// result: (LoweredGetClosurePtr)
 	for {
 		v.reset(OpARM64LoweredGetClosurePtr)
-		return true
-	}
-}
-func rewriteValueARM64_OpGoCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (GoCall [argwid] mem)
-	// cond:
-	// result: (CALLgo [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(OpARM64CALLgo)
-		v.AuxInt = argwid
-		v.AddArg(mem)
 		return true
 	}
 }

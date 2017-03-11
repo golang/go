@@ -3014,9 +3014,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	var call *ssa.Value
 	switch {
 	case k == callDefer:
-		call = s.newValue1(ssa.OpDeferCall, ssa.TypeMem, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Deferproc, s.mem())
 	case k == callGo:
-		call = s.newValue1(ssa.OpGoCall, ssa.TypeMem, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Newproc, s.mem())
 	case closure != nil:
 		codeptr = s.newValue2(ssa.OpLoad, Types[TUINTPTR], closure, s.mem())
 		call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, codeptr, closure, s.mem())
