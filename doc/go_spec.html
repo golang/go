@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 9, 2017",
+	"Subtitle": "Version of February 12, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -154,7 +154,7 @@ Any other comment acts like a newline.
 <p>
 Tokens form the vocabulary of the Go language.
 There are four classes: <i>identifiers</i>, <i>keywords</i>, <i>operators
-and delimiters</i>, and <i>literals</i>.  <i>White space</i>, formed from
+and punctuation</i>, and <i>literals</i>.  <i>White space</i>, formed from
 spaces (U+0020), horizontal tabs (U+0009),
 carriage returns (U+000D), and newlines (U+000A),
 is ignored except as it separates tokens
@@ -197,7 +197,7 @@ into the token stream immediately after a line's final token if that token is
 	    <code>return</code>
 	</li>
 
-	<li>one of the <a href="#Operators_and_Delimiters">operators and delimiters</a>
+	<li>one of the <a href="#Operators_and_punctuation">operators and punctuation</a>
 	    <code>++</code>,
 	    <code>--</code>,
 	    <code>)</code>,
@@ -254,10 +254,11 @@ const        fallthrough  if           range        type
 continue     for          import       return       var
 </pre>
 
-<h3 id="Operators_and_Delimiters">Operators and Delimiters</h3>
+<h3 id="Operators_and_punctuation">Operators and punctuation</h3>
 
 <p>
-The following character sequences represent <a href="#Operators">operators</a>, delimiters, and other special tokens:
+The following character sequences represent <a href="#Operators">operators</a>
+(including <a href="#assign_op">assignment operators</a>) and punctuation:
 </p>
 <pre class="grammar">
 +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
@@ -4494,8 +4495,8 @@ a[i] = 23
 
 <p>
 An <i>assignment operation</i> <code>x</code> <i>op</i><code>=</code>
-<code>y</code> where <i>op</i> is a binary arithmetic operation is equivalent
-to <code>x</code> <code>=</code> <code>x</code> <i>op</i>
+<code>y</code> where <i>op</i> is a binary <a href="#Arithmetic_operators">arithmetic operator</a>
+is equivalent to <code>x</code> <code>=</code> <code>x</code> <i>op</i>
 <code>(y)</code> but evaluates <code>x</code>
 only once.  The <i>op</i><code>=</code> construct is a single token.
 In assignment operations, both the left- and right-hand expression lists
