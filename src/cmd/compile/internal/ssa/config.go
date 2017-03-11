@@ -286,7 +286,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.noDuffDevice = true // Don't use Duff's device on NaCl
 
 		// runtime call clobber R12 on nacl
-		opcodeTable[OpARMUDIVrtcall].reg.clobbers |= 1 << 12 // R12
+		opcodeTable[OpARMCALLudiv].reg.clobbers |= 1 << 12 // R12
 	}
 
 	// Assign IDs to preallocated values/blocks.

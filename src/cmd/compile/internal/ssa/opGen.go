@@ -660,7 +660,7 @@ const (
 	OpARMMUL
 	OpARMHMUL
 	OpARMHMULU
-	OpARMUDIVrtcall
+	OpARMCALLudiv
 	OpARMADDS
 	OpARMADDSconst
 	OpARMADC
@@ -7784,7 +7784,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "UDIVrtcall",
+		name:         "CALLudiv",
+		auxType:      auxSymOff,
 		argLen:       2,
 		clobberFlags: true,
 		reg: regInfo{
