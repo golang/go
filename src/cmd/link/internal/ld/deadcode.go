@@ -127,27 +127,6 @@ func deadcode(ctxt *Link) {
 	ctxt.Textp = textp
 }
 
-var markextra = []string{
-	"runtime.morestack",
-	"runtime.morestackx",
-	"runtime.morestack00",
-	"runtime.morestack10",
-	"runtime.morestack01",
-	"runtime.morestack11",
-	"runtime.morestack8",
-	"runtime.morestack16",
-	"runtime.morestack24",
-	"runtime.morestack32",
-	"runtime.morestack40",
-	"runtime.morestack48",
-
-	// on arm, lock in the div/mod helpers too
-	"_div",
-	"_divu",
-	"_mod",
-	"_modu",
-}
-
 // methodref holds the relocations from a receiver type symbol to its
 // method. There are three relocations, one for each of the fields in
 // the reflect.method struct: mtyp, ifn, and tfn.
@@ -222,9 +201,6 @@ func (d *deadcodepass) init() {
 
 	if SysArch.Family == sys.ARM {
 		// mark some functions that are only referenced after linker code editing
-		if obj.GOARM == 5 {
-			names = append(names, "_sfloat")
-		}
 		names = append(names, "runtime.read_tls_fallback")
 	}
 
@@ -254,7 +230,6 @@ func (d *deadcodepass) init() {
 				}
 			}
 		}
-		names = append(names, markextra...)
 		for _, s := range dynexp {
 			d.mark(s, nil)
 		}
