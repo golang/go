@@ -80,11 +80,11 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 		if host32bit {
 			// convert the lower digits using 32bit operations
 			for u >= 1e9 {
-				// the compiler recognizes q = a/b; r = a%b
-				// and produces only one DIV instruction;
-				// no need to be clever here
+				// Avoid using r = a%b in addition to q = a/b
+				// since 64bit division and modulo operations
+				// are calculated by runtime functions on 32bit machines.
 				q := u / 1e9
-				us := uint(u % 1e9) // u % 1e9 fits into a uint
+				us := uint(u - q*1e9) // u % 1e9 fits into a uint
 				for j := 9; j > 0; j-- {
 					i--
 					a[i] = byte(us%10 + '0')
@@ -117,19 +117,22 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 		}
 		// u < base
 		i--
-		a[i] = digits[u]
-
+		a[i] = digits[uint(u)]
 	} else {
 		// general case
 		b := uint64(base)
 		for u >= b {
 			i--
-			a[i] = digits[u%b]
-			u /= b
+			// Avoid using r = a%b in addition to q = a/b
+			// since 64bit division and modulo operations
+			// are calculated by runtime functions on 32bit machines.
+			q := u / b
+			a[i] = digits[uint(u-q*b)]
+			u = q
 		}
 		// u < base
 		i--
-		a[i] = digits[u]
+		a[i] = digits[uint(u)]
 	}
 
 	// add sign, if any
