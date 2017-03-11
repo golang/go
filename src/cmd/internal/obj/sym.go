@@ -66,7 +66,7 @@ func Linknew(arch *LinkArch) *Link {
 	return ctxt
 }
 
-func Linklookup(ctxt *Link, name string, v int) *LSym {
+func (ctxt *Link) Lookup(name string, v int) *LSym {
 	s := ctxt.Hash[SymVer{name, v}]
 	if s != nil {
 		return s
@@ -80,6 +80,10 @@ func Linklookup(ctxt *Link, name string, v int) *LSym {
 	}
 	ctxt.Hash[SymVer{name, v}] = s
 	return s
+}
+
+func Linklookup(ctxt *Link, name string, v int) *LSym {
+	return ctxt.Lookup(name, v)
 }
 
 func Linksymfmt(s *LSym) string {

@@ -143,7 +143,7 @@ func init() {
 		// output0 = arg0/arg1, output1 = arg0%arg1
 		// see ../../../../../runtime/vlop_arm.s
 		{
-			name:      "UDIVrtcall",
+			name:      "CALLudiv",
 			argLength: 2,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
@@ -152,6 +152,9 @@ func init() {
 			},
 			clobberFlags: true,
 			typ:          "(UInt32,UInt32)",
+			aux:          "SymOff",
+			// TODO(mdempsky): Should this be true?
+			call: false,
 		},
 
 		{name: "ADDS", argLength: 2, reg: gp21carry, asm: "ADD", commutative: true}, // arg0 + arg1, set carry flag

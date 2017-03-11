@@ -167,11 +167,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		gc.AddrAuto(&p.To, v)
-	case ssa.OpARMUDIVrtcall:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = obj.Linklookup(gc.Ctxt, "udiv", 0)
 	case ssa.OpARMADD,
 		ssa.OpARMADC,
 		ssa.OpARMSUB,
@@ -625,7 +620,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpARMCALLstatic, ssa.OpARMCALLclosure, ssa.OpARMCALLinter:
+	case ssa.OpARMCALLstatic, ssa.OpARMCALLclosure, ssa.OpARMCALLinter, ssa.OpARMCALLudiv:
 		s.Call(v)
 	case ssa.OpARMDUFFZERO:
 		p := gc.Prog(obj.ADUFFZERO)
