@@ -124,7 +124,6 @@ func Naddr(a *obj.Addr, n *Node) {
 
 	a.Offset = n.Xoffset
 	s := n.Sym
-	a.Node = n.Orig
 
 	if s == nil {
 		Fatalf("naddr: nil sym %v", n)
