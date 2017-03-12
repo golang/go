@@ -460,6 +460,47 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 	}
 }
 
+func BenchmarkServeMux(b *testing.B) {
+
+	type test struct {
+		path string
+		code int
+		req  *Request
+	}
+
+	// Build example handlers and requests
+	var tests []test
+	endpoints := []string{"search", "dir", "file", "change", "count", "s"}
+	for _, e := range endpoints {
+		for i := 200; i < 230; i++ {
+			p := fmt.Sprintf("/%s/%d/", e, i)
+			tests = append(tests, test{
+				path: p,
+				code: i,
+				req:  &Request{Method: "GET", Host: "localhost", URL: &url.URL{Path: p}},
+			})
+		}
+	}
+	mux := NewServeMux()
+	for _, tt := range tests {
+		mux.Handle(tt.path, serve(tt.code))
+	}
+
+	rw := httptest.NewRecorder()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, tt := range tests {
+			*rw = httptest.ResponseRecorder{}
+			h, pattern := mux.Handler(tt.req)
+			h.ServeHTTP(rw, tt.req)
+			if pattern != tt.path || rw.Code != tt.code {
+				b.Fatalf("got %d, %q, want %d, %q", rw.Code, pattern, tt.code, tt.path)
+			}
+		}
+	}
+}
+
 func TestServerTimeouts(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
