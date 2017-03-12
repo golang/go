@@ -169,8 +169,6 @@ type Addr struct {
 	//	for TYPE_BRANCH, a *Prog (optional)
 	//	for TYPE_TEXTSIZE, an int32 (optional)
 	Val interface{}
-
-	Node interface{} // for use by compiler
 }
 
 type AddrName int8
@@ -231,29 +229,28 @@ const (
 // The other fields not yet mentioned are for use by the back ends and should
 // be left zeroed by creators of Prog lists.
 type Prog struct {
-	Ctxt   *Link       // linker context
-	Link   *Prog       // next Prog in linked list
-	From   Addr        // first source operand
-	From3  *Addr       // third source operand (second is Reg below)
-	To     Addr        // destination operand (second is RegTo2 below)
-	Pcond  *Prog       // target of conditional jump
-	Opt    interface{} // available to optimization passes to hold per-Prog state
-	Forwd  *Prog       // for x86 back end
-	Rel    *Prog       // for x86, arm back ends
-	Pc     int64       // for back ends or assembler: virtual or actual program counter, depending on phase
-	Pos    src.XPos    // source position of this instruction
-	Spadj  int32       // effect of instruction on stack pointer (increment or decrement amount)
-	As     As          // assembler opcode
-	Reg    int16       // 2nd source operand
-	RegTo2 int16       // 2nd destination operand
-	Mark   uint16      // bitmask of arch-specific items
-	Optab  uint16      // arch-specific opcode index
-	Scond  uint8       // condition bits for conditional instruction (e.g., on ARM)
-	Back   uint8       // for x86 back end: backwards branch state
-	Ft     uint8       // for x86 back end: type index of Prog.From
-	Tt     uint8       // for x86 back end: type index of Prog.To
-	Isize  uint8       // for x86 back end: size of the instruction in bytes
-	Mode   int8        // for x86 back end: 32- or 64-bit mode
+	Ctxt   *Link    // linker context
+	Link   *Prog    // next Prog in linked list
+	From   Addr     // first source operand
+	From3  *Addr    // third source operand (second is Reg below)
+	To     Addr     // destination operand (second is RegTo2 below)
+	Pcond  *Prog    // target of conditional jump
+	Forwd  *Prog    // for x86 back end
+	Rel    *Prog    // for x86, arm back ends
+	Pc     int64    // for back ends or assembler: virtual or actual program counter, depending on phase
+	Pos    src.XPos // source position of this instruction
+	Spadj  int32    // effect of instruction on stack pointer (increment or decrement amount)
+	As     As       // assembler opcode
+	Reg    int16    // 2nd source operand
+	RegTo2 int16    // 2nd destination operand
+	Mark   uint16   // bitmask of arch-specific items
+	Optab  uint16   // arch-specific opcode index
+	Scond  uint8    // condition bits for conditional instruction (e.g., on ARM)
+	Back   uint8    // for x86 back end: backwards branch state
+	Ft     uint8    // for x86 back end: type index of Prog.From
+	Tt     uint8    // for x86 back end: type index of Prog.To
+	Isize  uint8    // for x86 back end: size of the instruction in bytes
+	Mode   int8     // for x86 back end: 32- or 64-bit mode
 }
 
 // From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
