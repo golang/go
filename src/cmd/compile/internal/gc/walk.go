@@ -1184,9 +1184,14 @@ opswitch:
 		t := map_.Type
 		if n.Etype == 1 {
 			// This m[k] expression is on the left-hand side of an assignment.
-			// orderexpr made sure key is addressable.
-			key = nod(OADDR, key, nil)
-			n = mkcall1(mapfn("mapassign", t), nil, init, typename(t), map_, key)
+			p := mapassignfast(t)
+			if p == "" {
+				// standard version takes key by reference.
+				// orderexpr made sure key is addressable.
+				key = nod(OADDR, key, nil)
+				p = "mapassign"
+			}
+			n = mkcall1(mapfn(p, t), nil, init, typename(t), map_, key)
 		} else {
 			// m[k] is not the target of an assignment.
 			p, _ := mapaccessfast(t)
@@ -2628,7 +2633,7 @@ func mapfndel(name string, t *Type) *Node {
 	return fn
 }
 
-// mapaccessfast returns the names of the fast map access runtime routines for t.
+// mapaccessfast returns the name of the fast map access runtime routine for t.
 func mapaccessfast(t *Type) (access1, access2 string) {
 	// Check ../../runtime/hashmap.go:maxValueSize before changing.
 	if t.Val().Width > 128 {
@@ -2643,6 +2648,23 @@ func mapaccessfast(t *Type) (access1, access2 string) {
 		return "mapaccess1_faststr", "mapaccess2_faststr"
 	}
 	return "", ""
+}
+
+// mapassignfast returns the name of the fast map assign runtime routine for t.
+func mapassignfast(t *Type) (assign string) {
+	// Check ../../runtime/hashmap.go:maxValueSize before changing.
+	if t.Val().Width > 128 {
+		return ""
+	}
+	switch algtype(t.Key()) {
+	case AMEM32:
+		return "mapassign_fast32"
+	case AMEM64:
+		return "mapassign_fast64"
+	case ASTRING:
+		return "mapassign_faststr"
+	}
+	return ""
 }
 
 func writebarrierfn(name string, l *Type, r *Type) *Node {

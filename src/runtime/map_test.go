@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -617,3 +618,36 @@ func TestNonEscapingMap(t *testing.T) {
 		t.Fatalf("want 0 allocs, got %v", n)
 	}
 }
+
+func benchmarkMapAssignInt32(b *testing.B, pow uint) {
+	a := make(map[int32]int)
+	for i := 0; i < b.N; i++ {
+		a[int32(i&((1<<pow)-1))] = i
+	}
+}
+func BenchmarkMapAssignInt32_255(b *testing.B) { benchmarkMapAssignInt32(b, 8) }
+func BenchmarkMapAssignInt32_64k(b *testing.B) { benchmarkMapAssignInt32(b, 16) }
+
+func benchmarkMapAssignInt64(b *testing.B, pow uint) {
+	a := make(map[int64]int)
+	for i := 0; i < b.N; i++ {
+		a[int64(i&((1<<pow)-1))] = i
+	}
+}
+func BenchmarkMapAssignInt64_255(b *testing.B) { benchmarkMapAssignInt64(b, 8) }
+func BenchmarkMapAssignInt64_64k(b *testing.B) { benchmarkMapAssignInt64(b, 16) }
+
+func benchmarkMapAssignStr(b *testing.B, pow uint) {
+	k := make([]string, (1 << pow))
+	for i := 0; i < len(k); i++ {
+		k[i] = strconv.Itoa(i)
+	}
+	b.ResetTimer()
+	a := make(map[string]int)
+	for i := 0; i < b.N; i++ {
+		a[k[i&((1<<pow)-1)]] = i
+	}
+}
+
+func BenchmarkMapAssignStr_255(b *testing.B) { benchmarkMapAssignStr(b, 8) }
+func BenchmarkMapAssignStr_64k(b *testing.B) { benchmarkMapAssignStr(b, 16) }

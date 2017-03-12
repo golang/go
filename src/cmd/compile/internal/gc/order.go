@@ -206,13 +206,20 @@ func orderaddrtemp(n *Node, order *Order) *Node {
 	return ordercopyexpr(n, n.Type, order, 0)
 }
 
-// ordermapkeytemp prepares n.Right to be a key in a map lookup.
+// ordermapkeytemp prepares n.Right to be a key in a map runtime call.
 func ordermapkeytemp(n *Node, order *Order) {
 	// Most map calls need to take the address of the key.
-	// Exception: mapaccessN_fast* calls. See golang.org/issue/19015.
-	p, _ := mapaccessfast(n.Left.Type)
-	fastaccess := p != "" && n.Etype == 0 // Etype == 0 iff n is an rvalue
-	if fastaccess {
+	// Exception: map(accessN|assign)_fast* calls. See golang.org/issue/19015.
+	var p string
+	switch n.Etype {
+	case 0: // n is an rvalue
+		p, _ = mapaccessfast(n.Left.Type)
+	case 1: // n is an lvalue
+		p = mapassignfast(n.Left.Type)
+	default:
+		Fatalf("unexpected node type: %+v", n)
+	}
+	if p != "" {
 		return
 	}
 	n.Right = orderaddrtemp(n.Right, order)
