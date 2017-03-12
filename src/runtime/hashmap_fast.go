@@ -45,7 +45,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 			if k != key {
 				continue
 			}
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 			if x == empty {
 				continue
 			}
@@ -94,7 +94,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 			if k != key {
 				continue
 			}
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 			if x == empty {
 				continue
 			}
@@ -143,7 +143,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 			if k != key {
 				continue
 			}
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 			if x == empty {
 				continue
 			}
@@ -192,7 +192,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 			if k != key {
 				continue
 			}
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 			if x == empty {
 				continue
 			}
@@ -223,7 +223,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
 			for i := uintptr(0); i < bucketCnt; i++ {
-				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 				if x == empty {
 					continue
 				}
@@ -240,7 +240,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 			if x == empty {
 				continue
 			}
@@ -295,7 +295,7 @@ dohash:
 	}
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 			if x != top {
 				continue
 			}
@@ -332,7 +332,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
 			for i := uintptr(0); i < bucketCnt; i++ {
-				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 				if x == empty {
 					continue
 				}
@@ -349,7 +349,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 			if x == empty {
 				continue
 			}
@@ -402,7 +402,7 @@ dohash:
 	}
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
+			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 			if x != top {
 				continue
 			}
@@ -419,4 +419,276 @@ dohash:
 			return unsafe.Pointer(&zeroVal[0]), false
 		}
 	}
+}
+
+func mapassign_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+	if h == nil {
+		panic(plainError("assignment to entry in nil map"))
+	}
+	if raceenabled {
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast32))
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map writes")
+	}
+	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+
+	// Set hashWriting after calling alg.hash for consistency with mapassign.
+	h.flags |= hashWriting
+
+	if h.buckets == nil {
+		h.buckets = newarray(t.bucket, 1)
+	}
+
+again:
+	bucket := hash & (uintptr(1)<<h.B - 1)
+	if h.growing() {
+		growWork(t, h, bucket)
+	}
+	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+
+	var inserti *uint8
+	var insertk unsafe.Pointer
+	var val unsafe.Pointer
+	for {
+		for i := uintptr(0); i < bucketCnt; i++ {
+			if b.tophash[i] != top {
+				if b.tophash[i] == empty && inserti == nil {
+					inserti = &b.tophash[i]
+					insertk = add(unsafe.Pointer(b), dataOffset+i*4)
+					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+				}
+				continue
+			}
+			k := *((*uint32)(add(unsafe.Pointer(b), dataOffset+i*4)))
+			if k != key {
+				continue
+			}
+			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+			goto done
+		}
+		ovf := b.overflow(t)
+		if ovf == nil {
+			break
+		}
+		b = ovf
+	}
+
+	// Did not find mapping for key. Allocate new cell & add entry.
+
+	// If we hit the max load factor or we have too many overflow buckets,
+	// and we're not already in the middle of growing, start growing.
+	if !h.growing() && (overLoadFactor(int64(h.count), h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+		hashGrow(t, h)
+		goto again // Growing the table invalidates everything, so try again
+	}
+
+	if inserti == nil {
+		// all current buckets are full, allocate a new one.
+		newb := (*bmap)(newobject(t.bucket))
+		h.setoverflow(t, b, newb)
+		inserti = &newb.tophash[0]
+		insertk = add(unsafe.Pointer(newb), dataOffset)
+		val = add(insertk, bucketCnt*4)
+	}
+
+	// store new key/value at insert position
+	*((*uint32)(insertk)) = key
+	*inserti = top
+	h.count++
+
+done:
+	if h.flags&hashWriting == 0 {
+		throw("concurrent map writes")
+	}
+	h.flags &^= hashWriting
+	return val
+}
+
+func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+	if h == nil {
+		panic(plainError("assignment to entry in nil map"))
+	}
+	if raceenabled {
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast64))
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map writes")
+	}
+	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+
+	// Set hashWriting after calling alg.hash for consistency with mapassign.
+	h.flags |= hashWriting
+
+	if h.buckets == nil {
+		h.buckets = newarray(t.bucket, 1)
+	}
+
+again:
+	bucket := hash & (uintptr(1)<<h.B - 1)
+	if h.growing() {
+		growWork(t, h, bucket)
+	}
+	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+
+	var inserti *uint8
+	var insertk unsafe.Pointer
+	var val unsafe.Pointer
+	for {
+		for i := uintptr(0); i < bucketCnt; i++ {
+			if b.tophash[i] != top {
+				if b.tophash[i] == empty && inserti == nil {
+					inserti = &b.tophash[i]
+					insertk = add(unsafe.Pointer(b), dataOffset+i*8)
+					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+				}
+				continue
+			}
+			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
+			if k != key {
+				continue
+			}
+			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+			goto done
+		}
+		ovf := b.overflow(t)
+		if ovf == nil {
+			break
+		}
+		b = ovf
+	}
+
+	// Did not find mapping for key. Allocate new cell & add entry.
+
+	// If we hit the max load factor or we have too many overflow buckets,
+	// and we're not already in the middle of growing, start growing.
+	if !h.growing() && (overLoadFactor(int64(h.count), h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+		hashGrow(t, h)
+		goto again // Growing the table invalidates everything, so try again
+	}
+
+	if inserti == nil {
+		// all current buckets are full, allocate a new one.
+		newb := (*bmap)(newobject(t.bucket))
+		h.setoverflow(t, b, newb)
+		inserti = &newb.tophash[0]
+		insertk = add(unsafe.Pointer(newb), dataOffset)
+		val = add(insertk, bucketCnt*8)
+	}
+
+	// store new key/value at insert position
+	*((*uint64)(insertk)) = key
+	*inserti = top
+	h.count++
+
+done:
+	if h.flags&hashWriting == 0 {
+		throw("concurrent map writes")
+	}
+	h.flags &^= hashWriting
+	return val
+}
+
+func mapassign_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+	if h == nil {
+		panic(plainError("assignment to entry in nil map"))
+	}
+	if raceenabled {
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_faststr))
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map writes")
+	}
+	key := stringStructOf(&ky)
+	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+
+	// Set hashWriting after calling alg.hash for consistency with mapassign.
+	h.flags |= hashWriting
+
+	if h.buckets == nil {
+		h.buckets = newarray(t.bucket, 1)
+	}
+
+again:
+	bucket := hash & (uintptr(1)<<h.B - 1)
+	if h.growing() {
+		growWork(t, h, bucket)
+	}
+	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+
+	var inserti *uint8
+	var insertk unsafe.Pointer
+	var val unsafe.Pointer
+	for {
+		for i := uintptr(0); i < bucketCnt; i++ {
+			if b.tophash[i] != top {
+				if b.tophash[i] == empty && inserti == nil {
+					inserti = &b.tophash[i]
+					insertk = add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
+					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+				}
+				continue
+			}
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
+			if k.len != key.len {
+				continue
+			}
+			if k.str != key.str && !memequal(k.str, key.str, uintptr(key.len)) {
+				continue
+			}
+			// already have a mapping for key. Update it.
+			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+			goto done
+		}
+		ovf := b.overflow(t)
+		if ovf == nil {
+			break
+		}
+		b = ovf
+	}
+
+	// Did not find mapping for key. Allocate new cell & add entry.
+
+	// If we hit the max load factor or we have too many overflow buckets,
+	// and we're not already in the middle of growing, start growing.
+	if !h.growing() && (overLoadFactor(int64(h.count), h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+		hashGrow(t, h)
+		goto again // Growing the table invalidates everything, so try again
+	}
+
+	if inserti == nil {
+		// all current buckets are full, allocate a new one.
+		newb := (*bmap)(newobject(t.bucket))
+		h.setoverflow(t, b, newb)
+		inserti = &newb.tophash[0]
+		insertk = add(unsafe.Pointer(newb), dataOffset)
+		val = add(insertk, bucketCnt*2*sys.PtrSize)
+	}
+
+	// store new key/value at insert position
+	*((*stringStruct)(insertk)) = *key
+	*inserti = top
+	h.count++
+
+done:
+	if h.flags&hashWriting == 0 {
+		throw("concurrent map writes")
+	}
+	h.flags &^= hashWriting
+	return val
 }
