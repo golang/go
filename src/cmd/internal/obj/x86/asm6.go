@@ -4565,7 +4565,7 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		if int64(r.Off) < p.Pc {
 			break
 		}
-		if asmbuf.rexflag != 0 {
+		if asmbuf.rexflag != 0 && asmbuf.vexflag == 0 {
 			r.Off++
 		}
 		if r.Type == objabi.R_PCREL {
