@@ -483,11 +483,7 @@ func Main() {
 			}
 		}
 
-		// Just before compilation, compile itabs found on
-		// the right side of OCONVIFACE so that methods
-		// can be de-virtualized during compilation.
 		Curfn = nil
-		peekitabs()
 
 		// Phase 8: Compile top level functions.
 		// Don't use range--walk can add functions to xtop.
