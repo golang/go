@@ -2243,6 +2243,7 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 
 func TestProxyFromEnvironment(t *testing.T) {
 	ResetProxyEnv()
+	defer ResetProxyEnv()
 	for _, tt := range proxyFromEnvTests {
 		os.Setenv("HTTP_PROXY", tt.env)
 		os.Setenv("HTTPS_PROXY", tt.httpsenv)
