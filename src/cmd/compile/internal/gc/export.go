@@ -15,12 +15,10 @@ import (
 
 var (
 	Debug_export int // if set, print debugging information about export data
-	exportsize   int
 )
 
 func exportf(format string, args ...interface{}) {
-	n, _ := fmt.Fprintf(bout, format, args...)
-	exportsize += n
+	fmt.Fprintf(bout, format, args...)
 	if Debug_export != 0 {
 		fmt.Printf(format, args...)
 	}
