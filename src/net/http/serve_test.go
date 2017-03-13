@@ -1357,6 +1357,69 @@ func TestTLSServer(t *testing.T) {
 	})
 }
 
+func TestServeTLS(t *testing.T) {
+	// Not parallel: uses global test hooks.
+	defer afterTest(t)
+	defer SetTestHookServerServe(nil)
+	var ok bool
+	const maxTries = 5
+	var ln net.Listener
+	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tlsConf := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+
+Try:
+	for try := 0; try < maxTries; try++ {
+		ln = newLocalListener(t)
+		addr := ln.Addr().String()
+		t.Logf("Got %v", addr)
+		lnc := make(chan net.Listener, 1)
+		SetTestHookServerServe(func(s *Server, ln net.Listener) {
+			lnc <- ln
+		})
+		handler := HandlerFunc(func(w ResponseWriter, r *Request) {
+		})
+		s := &Server{
+			Addr:      addr,
+			TLSConfig: tlsConf,
+			Handler:   handler,
+		}
+		errc := make(chan error, 1)
+		go func() { errc <- s.ServeTLS(ln, "", "") }()
+		select {
+		case err := <-errc:
+			t.Logf("On try #%v: %v", try+1, err)
+			continue
+		case ln = <-lnc:
+			ok = true
+			t.Logf("Listening on %v", ln.Addr().String())
+			break Try
+		}
+	}
+	if !ok {
+		t.Fatalf("Failed to start up after %d tries", maxTries)
+	}
+	defer ln.Close()
+	c, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"h2", "http/1.1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if got, want := c.ConnectionState().NegotiatedProtocol, "h2"; got != want {
+		t.Errorf("NegotiatedProtocol = %q; want %q", got, want)
+	}
+	if got, want := c.ConnectionState().NegotiatedProtocolIsMutual, true; got != want {
+		t.Errorf("NegotiatedProtocolIsMutual = %v; want %v", got, want)
+	}
+}
+
 // Issue 15908
 func TestAutomaticHTTP2_Serve_NoTLSConfig(t *testing.T) {
 	testAutomaticHTTP2_Serve(t, nil, true)
