@@ -953,16 +953,20 @@ func hammerSwapUint64(addr *uint64, count int) {
 	}
 }
 
+const arch32 = unsafe.Sizeof(uintptr(0)) == 4
+
 func hammerSwapUintptr64(uaddr *uint64, count int) {
 	// only safe when uintptr is 64-bit.
 	// not called on 32-bit systems.
-	addr := (*uintptr)(unsafe.Pointer(uaddr))
-	seed := int(uintptr(unsafe.Pointer(&count)))
-	for i := 0; i < count; i++ {
-		new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
-		old := SwapUintptr(addr, new)
-		if old>>32 != old<<32>>32 {
-			panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
+	if !arch32 {
+		addr := (*uintptr)(unsafe.Pointer(uaddr))
+		seed := int(uintptr(unsafe.Pointer(&count)))
+		for i := 0; i < count; i++ {
+			new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
+			old := SwapUintptr(addr, new)
+			if old>>32 != old<<32>>32 {
+				panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
+			}
 		}
 	}
 }
@@ -1116,8 +1120,6 @@ func hammerStoreLoadUint64(t *testing.T, paddr unsafe.Pointer) {
 
 func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
 	addr := (*uintptr)(paddr)
-	var test64 uint64 = 1 << 50
-	arch32 := uintptr(test64) == 0
 	v := LoadUintptr(addr)
 	new := v
 	if arch32 {
@@ -1144,8 +1146,6 @@ func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
 
 func hammerStoreLoadPointer(t *testing.T, paddr unsafe.Pointer) {
 	addr := (*unsafe.Pointer)(paddr)
-	var test64 uint64 = 1 << 50
-	arch32 := uintptr(test64) == 0
 	v := uintptr(LoadPointer(addr))
 	new := v
 	if arch32 {
@@ -1398,7 +1398,7 @@ func TestUnaligned64(t *testing.T) {
 
 	switch runtime.GOARCH {
 	default:
-		if unsafe.Sizeof(int(0)) != 4 {
+		if !arch32 {
 			t.Skip("test only runs on 32-bit systems")
 		}
 	case "amd64p32":

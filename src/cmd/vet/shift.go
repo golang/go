@@ -23,6 +23,11 @@ func init() {
 }
 
 func checkShift(f *File, node ast.Node) {
+	if f.dead[node] {
+		// Skip shift checks on unreachable nodes.
+		return
+	}
+
 	switch node := node.(type) {
 	case *ast.BinaryExpr:
 		if node.Op == token.SHL || node.Op == token.SHR {

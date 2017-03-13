@@ -194,6 +194,9 @@ type File struct {
 
 	// Registered checkers to run.
 	checkers map[ast.Node][]func(*File, ast.Node)
+
+	// Unreachable nodes; can be ignored in shift check.
+	dead map[ast.Node]bool
 }
 
 func main() {
@@ -330,7 +333,13 @@ func doPackage(directory string, names []string, basePkg *Package) *Package {
 			}
 			astFiles = append(astFiles, parsedFile)
 		}
-		files = append(files, &File{fset: fs, content: data, name: name, file: parsedFile})
+		files = append(files, &File{
+			fset:    fs,
+			content: data,
+			name:    name,
+			file:    parsedFile,
+			dead:    make(map[ast.Node]bool),
+		})
 	}
 	if len(astFiles) == 0 {
 		return nil
@@ -472,6 +481,7 @@ func (f *File) walkFile(name string, file *ast.File) {
 
 // Visit implements the ast.Visitor interface.
 func (f *File) Visit(node ast.Node) ast.Visitor {
+	f.updateDead(node)
 	var key ast.Node
 	switch node.(type) {
 	case *ast.AssignStmt:
