@@ -79,3 +79,9 @@ func ResetProxyEnv() {
 	}
 	ResetCachedEnvironment()
 }
+
+func TestInvalidNoProxy(t *testing.T) {
+	ResetProxyEnv()
+	os.Setenv("NO_PROXY", ":1")
+	useProxy("example.com:80") // should not panic
+}

@@ -1227,6 +1227,10 @@ func useProxy(addr string) bool {
 		if addr == p {
 			return false
 		}
+		if len(p) == 0 {
+			// There is no host part, likely the entry is malformed; ignore.
+			continue
+		}
 		if p[0] == '.' && (strings.HasSuffix(addr, p) || addr == p[1:]) {
 			// no_proxy ".foo.com" matches "bar.foo.com" or "foo.com"
 			return false
