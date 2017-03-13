@@ -70,8 +70,8 @@
 (Cvt32Fto64F x) -> x // Note x will have the wrong type for patterns dependent on Float32/Float64
 (Cvt64Fto32F x) -> (FRSP x)
 
-(Round32F x) -> x
-(Round64F x) -> x
+(Round32F x) -> (LoweredRound32F x)
+(Round64F x) -> (LoweredRound64F x)
 
 (Sqrt x) -> (FSQRT x)
 
@@ -849,3 +849,11 @@
 // A particular pattern seen in cgo code:
 (AND (MOVDconst [c]) x:(MOVBZload _ _)) -> (ANDconst [c&0xFF] x)
 (AND x:(MOVBZload _ _) (MOVDconst [c])) -> (ANDconst [c&0xFF] x)
+
+// floating-point fused multiply-add/sub
+(FADD z (FMUL x y)) -> (FMADD x y z)
+(FADD (FMUL x y) z) -> (FMADD x y z)
+(FSUB (FMUL x y) z) -> (FMSUB x y z)
+(FADDS z (FMULS x y)) -> (FMADDS x y z)
+(FADDS (FMULS x y) z) -> (FMADDS x y z)
+(FSUBS (FMULS x y) z) -> (FMSUBS x y z)

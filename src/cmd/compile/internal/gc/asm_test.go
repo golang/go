@@ -196,6 +196,11 @@ var allAsmTests = []*asmTests{
 		imports: []string{"math/bits"},
 		tests:   linuxMIPSTests,
 	},
+	{
+		arch:  "ppc64le",
+		os:    "linux",
+		tests: linuxPPC64LETests,
+	},
 }
 
 var linuxAMD64Tests = []*asmTest{
@@ -1326,6 +1331,42 @@ var linuxMIPSTests = []*asmTest{
 		}
 		`,
 		[]string{"\tCLZ\t"},
+	},
+}
+
+var linuxPPC64LETests = []*asmTest{
+	// Fused multiply-add/sub instructions.
+	{
+		`
+		func f0(x, y, z float64) float64 {
+			return x * y + z
+		}
+		`,
+		[]string{"\tFMADD\t"},
+	},
+	{
+		`
+		func f1(x, y, z float64) float64 {
+			return x * y - z
+		}
+		`,
+		[]string{"\tFMSUB\t"},
+	},
+	{
+		`
+		func f2(x, y, z float32) float32 {
+			return x * y + z
+		}
+		`,
+		[]string{"\tFMADDS\t"},
+	},
+	{
+		`
+		func f3(x, y, z float32) float32 {
+			return x * y - z
+		}
+		`,
+		[]string{"\tFMSUBS\t"},
 	},
 }
 
