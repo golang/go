@@ -76,8 +76,9 @@ func testCrossCheck(t *testing.T, crcFunc1, crcFunc2 func(crc uint32, b []byte) 
 	// The AMD64 implementation has some cutoffs at lengths 168*3=504 and
 	// 1344*3=4032. We should make sure lengths around these values are in the
 	// list.
-	lengths := []int{0, 1, 2, 3, 4, 5, 10, 16, 50, 100, 128,
-		500, 501, 502, 503, 504, 505, 512, 1000, 1024, 2000,
+	lengths := []int{0, 1, 2, 3, 4, 5, 10, 16, 50, 63, 64, 65, 100,
+		127, 128, 129, 255, 256, 257, 300, 312, 384, 416, 448, 480,
+		500, 501, 502, 503, 504, 505, 512, 513, 1000, 1024, 2000,
 		4030, 4031, 4032, 4033, 4036, 4040, 4048, 4096, 5000, 10000}
 	for _, length := range lengths {
 		p := make([]byte, length)
