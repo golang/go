@@ -378,6 +378,10 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64CMPconst(v)
 	case OpPPC64Equal:
 		return rewriteValuePPC64_OpPPC64Equal(v)
+	case OpPPC64FADD:
+		return rewriteValuePPC64_OpPPC64FADD(v)
+	case OpPPC64FADDS:
+		return rewriteValuePPC64_OpPPC64FADDS(v)
 	case OpPPC64FMOVDload:
 		return rewriteValuePPC64_OpPPC64FMOVDload(v)
 	case OpPPC64FMOVDstore:
@@ -386,6 +390,10 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64FMOVSload(v)
 	case OpPPC64FMOVSstore:
 		return rewriteValuePPC64_OpPPC64FMOVSstore(v)
+	case OpPPC64FSUB:
+		return rewriteValuePPC64_OpPPC64FSUB(v)
+	case OpPPC64FSUBS:
+		return rewriteValuePPC64_OpPPC64FSUBS(v)
 	case OpPPC64GreaterEqual:
 		return rewriteValuePPC64_OpPPC64GreaterEqual(v)
 	case OpPPC64GreaterThan:
@@ -5298,6 +5306,80 @@ func rewriteValuePPC64_OpPPC64Equal(v *Value) bool {
 	}
 	return false
 }
+func rewriteValuePPC64_OpPPC64FADD(v *Value) bool {
+	// match: (FADD z (FMUL x y))
+	// cond:
+	// result: (FMADD x y z)
+	for {
+		z := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64FMUL {
+			break
+		}
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		v.reset(OpPPC64FMADD)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (FADD (FMUL x y) z)
+	// cond:
+	// result: (FMADD x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64FMUL {
+			break
+		}
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		z := v.Args[1]
+		v.reset(OpPPC64FMADD)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64FADDS(v *Value) bool {
+	// match: (FADDS z (FMULS x y))
+	// cond:
+	// result: (FMADDS x y z)
+	for {
+		z := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64FMULS {
+			break
+		}
+		x := v_1.Args[0]
+		y := v_1.Args[1]
+		v.reset(OpPPC64FMADDS)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (FADDS (FMULS x y) z)
+	// cond:
+	// result: (FMADDS x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64FMULS {
+			break
+		}
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		z := v.Args[1]
+		v.reset(OpPPC64FMADDS)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	return false
+}
 func rewriteValuePPC64_OpPPC64FMOVDload(v *Value) bool {
 	// match: (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2)
@@ -5502,6 +5584,46 @@ func rewriteValuePPC64_OpPPC64FMOVSstore(v *Value) bool {
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64FSUB(v *Value) bool {
+	// match: (FSUB (FMUL x y) z)
+	// cond:
+	// result: (FMSUB x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64FMUL {
+			break
+		}
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		z := v.Args[1]
+		v.reset(OpPPC64FMSUB)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64FSUBS(v *Value) bool {
+	// match: (FSUBS (FMULS x y) z)
+	// cond:
+	// result: (FMSUBS x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64FMULS {
+			break
+		}
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		z := v.Args[1]
+		v.reset(OpPPC64FMSUBS)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
 		return true
 	}
 	return false
@@ -7444,11 +7566,10 @@ func rewriteValuePPC64_OpPPC64XORconst(v *Value) bool {
 func rewriteValuePPC64_OpRound32F(v *Value) bool {
 	// match: (Round32F x)
 	// cond:
-	// result: x
+	// result: (LoweredRound32F x)
 	for {
 		x := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpPPC64LoweredRound32F)
 		v.AddArg(x)
 		return true
 	}
@@ -7456,11 +7577,10 @@ func rewriteValuePPC64_OpRound32F(v *Value) bool {
 func rewriteValuePPC64_OpRound64F(v *Value) bool {
 	// match: (Round64F x)
 	// cond:
-	// result: x
+	// result: (LoweredRound64F x)
 	for {
 		x := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpPPC64LoweredRound64F)
 		v.AddArg(x)
 		return true
 	}

@@ -458,6 +458,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// Closure pointer is R11 (already)
 		gc.CheckLoweredGetClosurePtr(v)
 
+	case ssa.OpPPC64LoweredRound32F, ssa.OpPPC64LoweredRound64F:
+		// input is already rounded
+
 	case ssa.OpLoadReg:
 		loadOp := loadByType(v.Type)
 		p := gc.Prog(loadOp)
@@ -562,6 +565,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r2
 		p.Reg = r1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+
+	case ssa.OpPPC64FMADD, ssa.OpPPC64FMADDS, ssa.OpPPC64FMSUB, ssa.OpPPC64FMSUBS:
+		r := v.Reg()
+		r1 := v.Args[0].Reg()
+		r2 := v.Args[1].Reg()
+		r3 := v.Args[2].Reg()
+		// r = r1*r2 ± r3
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r1
+		p.Reg = r3
+		p.From3 = new(obj.Addr)
+		p.From3.Type = obj.TYPE_REG
+		p.From3.Reg = r2
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
