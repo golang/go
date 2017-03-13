@@ -1431,10 +1431,3 @@
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	&& warnRule(config.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
 	-> (Invalid)
-
-// De-virtualize interface calls into static calls.
-// Note that (ITab (IMake)) doesn't get
-// rewritten until after the first opt pass,
-// so this rule should trigger reliably.
-(InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem) && devirt(v, itab, off) != nil ->
-	(StaticCall [argsize] {devirt(v, itab, off)} mem)
