@@ -16,6 +16,15 @@ import (
 type itabEntry struct {
 	t, itype *Type
 	sym      *Sym
+
+	// symbol of the itab itself;
+	// filled in lazily after typecheck
+	lsym *obj.LSym
+
+	// symbols of each method in
+	// the itab, sorted by byte offset;
+	// filled in at the same time as lsym
+	entries []*obj.LSym
 }
 
 type ptabEntry struct {
@@ -415,7 +424,6 @@ func imethods(t *Type) []*Sig {
 		// Generate the method body, so that compiled
 		// code can refer to it.
 		isym := methodsym(method, t, 0)
-
 		if !isym.Siggen() {
 			isym.SetSiggen(true)
 			genwrapper(t, f, isym, 0)
@@ -1377,6 +1385,78 @@ ok:
 	s.Lsym.Set(obj.AttrMakeTypelink, keep)
 
 	return s
+}
+
+// for each itabEntry, gather the methods on
+// the concrete type that implement the interface
+func peekitabs() {
+	for i := range itabs {
+		tab := &itabs[i]
+		methods := genfun(tab.t, tab.itype)
+		if len(methods) == 0 {
+			continue
+		}
+		tab.lsym = Linksym(tab.sym)
+		tab.entries = methods
+	}
+}
+
+// for the given concrete type and interface
+// type, return the (sorted) set of methods
+// on the concrete type that implement the interface
+func genfun(t, it *Type) []*obj.LSym {
+	if t == nil || it == nil {
+		return nil
+	}
+	sigs := imethods(it)
+	methods := methods(t)
+	out := make([]*obj.LSym, 0, len(sigs))
+	if len(sigs) == 0 {
+		return nil
+	}
+
+	// both sigs and methods are sorted by name,
+	// so we can find the intersect in a single pass
+	for _, m := range methods {
+		if m.name == sigs[0].name {
+			out = append(out, Linksym(m.isym))
+			sigs = sigs[1:]
+			if len(sigs) == 0 {
+				break
+			}
+		}
+	}
+
+	return out
+}
+
+// itabsym uses the information gathered in
+// peekitabs to de-virtualize interface methods.
+// Since this is called by the SSA backend, it shouldn't
+// generate additional Nodes, Syms, etc.
+func itabsym(it *obj.LSym, offset int64) *obj.LSym {
+	var syms []*obj.LSym
+	if it == nil {
+		return nil
+	}
+
+	for i := range itabs {
+		e := &itabs[i]
+		if e.lsym == it {
+			syms = e.entries
+			break
+		}
+	}
+	if syms == nil {
+		return nil
+	}
+
+	// keep this arithmetic in sync with *itab layout
+	methodnum := int((offset - 3*int64(Widthptr) - 8) / int64(Widthptr))
+	if methodnum >= len(syms) {
+		return nil
+	}
+	return syms[methodnum]
 }
 
 func dumptypestructs() {

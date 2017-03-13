@@ -4967,6 +4967,10 @@ func (e *ssaExport) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 	return ssa.LocalSlot{N: n, Type: et, Off: name.Off}
 }
 
+func (e *ssaExport) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
+	return itabsym(it, offset)
+}
+
 // namedAuto returns a new AUTO variable with the given name and type.
 // These are exposed to the debugger.
 func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
