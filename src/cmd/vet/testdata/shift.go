@@ -102,5 +102,8 @@ func ShiftTest() {
 	const oneIf64Bit = ^uint(0) >> 63 // allow large shifts of constants; they are used for 32/64 bit compatibility tricks
 
 	var h uintptr
-	h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1))) // shifts by unsafe amounts are safe
+	h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1)))
+	h <<= 8 * unsafe.Sizeof(h) // ERROR "too small for shift"
+	h >>= 7 * unsafe.Alignof(h)
+	h >>= 8 * unsafe.Alignof(h) // ERROR "too small for shift"
 }
