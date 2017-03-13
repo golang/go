@@ -485,60 +485,73 @@
 (Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVHstore ptr val mem)
 (Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
 
+// Using Zero instead of LoweredZero allows the
+// target address to be folded where possible.
 (Zero [0] _ mem) -> mem
 (Zero [1] destptr mem) -> (MOVBstorezero destptr mem)
-(Zero [2] {t} destptr mem) && t.(Type).Alignment()%2 == 0 ->
-	(MOVHstorezero destptr mem)
 (Zero [2] destptr mem) ->
-	(MOVBstorezero [1] destptr
-		(MOVBstorezero [0] destptr mem))
-(Zero [4] {t} destptr mem) && t.(Type).Alignment()%4 == 0 ->
-	(MOVWstorezero destptr mem)
-(Zero [4] {t} destptr mem) && t.(Type).Alignment()%2 == 0 ->
-	(MOVHstorezero [2] destptr
-		(MOVHstorezero [0] destptr mem))
-(Zero [4] destptr mem) ->
-	(MOVBstorezero [3] destptr
-		(MOVBstorezero [2] destptr
-			(MOVBstorezero [1] destptr
-				(MOVBstorezero [0] destptr mem))))
-(Zero [8] {t} destptr mem) && t.(Type).Alignment()%8 == 0 ->
-	(MOVDstorezero [0] destptr mem)
-(Zero [8] {t} destptr mem) && t.(Type).Alignment()%4 == 0 ->
-	(MOVWstorezero [4] destptr
-		(MOVWstorezero [0] destptr mem))
-(Zero [8] {t} destptr mem) && t.(Type).Alignment()%2 == 0 ->
-	(MOVHstorezero [6] destptr
-		(MOVHstorezero [4] destptr
-			(MOVHstorezero [2] destptr
-				(MOVHstorezero [0] destptr mem))))
-
+	(MOVHstorezero destptr mem)
 (Zero [3] destptr mem) ->
 	(MOVBstorezero [2] destptr
-		(MOVBstorezero [1] destptr
-			(MOVBstorezero [0] destptr mem)))
+		(MOVHstorezero destptr mem))
+(Zero [4] destptr mem) ->
+	(MOVWstorezero destptr mem)
+(Zero [5] destptr mem) ->
+	(MOVBstorezero [4] destptr
+        	(MOVWstorezero destptr mem))
+(Zero [6] destptr mem) ->
+	(MOVHstorezero [4] destptr
+		(MOVWstorezero destptr mem))
+(Zero [7] destptr mem) ->
+	(MOVBstorezero [6] destptr
+		(MOVHstorezero [4] destptr
+			(MOVWstorezero destptr mem)))
+(Zero [8] destptr mem) ->
+	(MOVDstorezero destptr mem)
 
 // Zero small numbers of words directly.
-(Zero [16] {t} destptr mem) && t.(Type).Alignment()%8 == 0 ->
+(Zero [12] destptr mem) ->
+        (MOVWstorezero [8] destptr
+                (MOVDstorezero [0] destptr mem))
+(Zero [16] destptr mem) ->
 	(MOVDstorezero [8] destptr
                 (MOVDstorezero [0] destptr mem))
-(Zero [24] {t} destptr mem) && t.(Type).Alignment()%8 == 0 ->
+(Zero [24] destptr mem) ->
 	(MOVDstorezero [16] destptr
 		(MOVDstorezero [8] destptr
 			(MOVDstorezero [0] destptr mem)))
-(Zero [32] {t} destptr mem) && t.(Type).Alignment()%8 == 0 ->
+(Zero [32] destptr mem) ->
 	(MOVDstorezero [24] destptr
 		(MOVDstorezero [16] destptr
 			(MOVDstorezero [8] destptr
 				(MOVDstorezero [0] destptr mem))))
 
-// Large zeroing uses a loop
-(Zero [s] {t} ptr mem)
-	&& (s > 512 || config.noDuffDevice) || t.(Type).Alignment()%8 != 0 ->
-	(LoweredZero [t.(Type).Alignment()]
-		ptr
-		(ADDconst <ptr.Type> ptr [s-moveSize(t.(Type).Alignment(), config)])
-		mem)
+(Zero [40] destptr mem) ->
+	(MOVDstorezero [32] destptr
+		(MOVDstorezero [24] destptr
+			(MOVDstorezero [16] destptr
+				(MOVDstorezero [8] destptr
+					(MOVDstorezero [0] destptr mem)))))
+
+(Zero [48] destptr mem) ->
+	(MOVDstorezero [40] destptr
+		(MOVDstorezero [32] destptr
+			(MOVDstorezero [24] destptr
+				(MOVDstorezero [16] destptr
+					(MOVDstorezero [8] destptr
+						(MOVDstorezero [0] destptr mem))))))
+
+(Zero [56] destptr mem) ->
+	(MOVDstorezero [48] destptr
+		(MOVDstorezero [40] destptr
+			(MOVDstorezero [32] destptr
+				(MOVDstorezero [24] destptr
+					(MOVDstorezero [16] destptr
+						(MOVDstorezero [8] destptr
+							(MOVDstorezero [0] destptr mem)))))))
+
+// Handle cases not handled above
+(Zero [s] ptr mem) -> (LoweredZero [s] ptr mem)
 
 // moves
 (Move [0] _ _ mem) -> mem

@@ -831,62 +831,135 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssaGenISEL(v, ppc64.C_COND_EQ, iselRegs[1], v.Reg())
 
 	case ssa.OpPPC64LoweredZero:
-		// Similar to how this is done on ARM,
-		// except that PPC MOVDU x,off(y) is *(y+off) = x; y=y+off
-		// not store-and-increment.
-		// Therefore R3 should be dest-align
-		// and arg1 should be dest+size-align
-		// HOWEVER, the input dest address cannot be dest-align because
-		// that does not necessarily address valid memory and it's not
-		// known how that might be optimized.  Therefore, correct it in
-		// in the expansion:
+
+		// unaligned data doesn't hurt performance
+		// for these instructions on power8 or later
+
+		// for sizes >= 64 generate a loop as follows:
+
+		// set up loop counter in CTR, used by BC
+		//	 MOVD len/32,REG_TMP
+		//	 MOVD REG_TMP,CTR
+		//	 loop:
+		//	 MOVD R0,(R3)
+		//	 MOVD R0,8(R3)
+		//	 MOVD R0,16(R3)
+		//	 MOVD R0,24(R3)
+		//	 ADD  $32,R3
+		//	 BC   16, 0, loop
 		//
-		// ADD    -8,R3,R3
-		// MOVDU  R0, 8(R3)
-		// CMP	  R3, Rarg1
-		// BL	  -2(PC)
-		// arg1 is the address of the last element to zero
-		// auxint is alignment
-		var sz int64
-		var movu obj.As
-		switch {
-		case v.AuxInt%8 == 0:
-			sz = 8
-			movu = ppc64.AMOVDU
-		case v.AuxInt%4 == 0:
-			sz = 4
-			movu = ppc64.AMOVWZU // MOVWU instruction not implemented
-		case v.AuxInt%2 == 0:
-			sz = 2
-			movu = ppc64.AMOVHU
-		default:
-			sz = 1
-			movu = ppc64.AMOVBU
+		// any remainder is done as described below
+
+		// for sizes < 64 bytes, first clear as many doublewords as possible,
+		// then handle the remainder
+		//	MOVD R0,(R3)
+		//	MOVD R0,8(R3)
+		// .... etc.
+		//
+		// the remainder bytes are cleared using one or more
+		// of the following instructions with the appropriate
+		// offsets depending which instructions are needed
+		//
+		//	MOVW R0,n1(R3)	4 bytes
+		//	MOVH R0,n2(R3)	2 bytes
+		//	MOVB R0,n3(R3)	1 byte
+		//
+		// 7 bytes: MOVW, MOVH, MOVB
+		// 6 bytes: MOVW, MOVH
+		// 5 bytes: MOVW, MOVB
+		// 3 bytes: MOVH, MOVB
+
+		// each loop iteration does 32 bytes
+		ctr := v.AuxInt / 32
+
+		// remainder bytes
+		rem := v.AuxInt % 32
+
+		// only generate a loop if there is more
+		// than 1 iteration.
+		if ctr > 1 {
+			// Set up CTR loop counter
+			p := gc.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = ctr
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REGTMP
+
+			p = gc.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REGTMP
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REG_CTR
+
+			// generate 4 MOVDs
+			// when this is a loop then the top must be saved
+			var top *obj.Prog
+			for offset := int64(0); offset < 32; offset += 8 {
+				// This is the top of loop
+				p := gc.Prog(ppc64.AMOVD)
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = ppc64.REG_R0
+				p.To.Type = obj.TYPE_MEM
+				p.To.Reg = v.Args[0].Reg()
+				p.To.Offset = offset
+				// Save the top of loop
+				if top == nil {
+					top = p
+				}
+			}
+
+			// Increment address for the
+			// 4 doublewords just zeroed.
+			p = gc.Prog(ppc64.AADD)
+			p.Reg = v.Args[0].Reg()
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 32
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Args[0].Reg()
+
+			// Branch back to top of loop
+			// based on CTR
+			// BC with BO_BCTR generates bdnz
+			p = gc.Prog(ppc64.ABC)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = ppc64.BO_BCTR
+			p.Reg = ppc64.REG_R0
+			p.To.Type = obj.TYPE_BRANCH
+			gc.Patch(p, top)
 		}
 
-		p := gc.Prog(ppc64.AADD)
-		p.Reg = v.Args[0].Reg()
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = -sz
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Args[0].Reg()
+		// when ctr == 1 the loop was not generated but
+		// there are at least 32 bytes to clear, so add
+		// that to the remainder to generate the code
+		// to clear those doublewords
+		if ctr == 1 {
+			rem += 32
+		}
 
-		p = gc.Prog(movu)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = ppc64.REG_R0
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		p.To.Offset = sz
+		// clear the remainder starting at offset zero
+		offset := int64(0)
 
-		p2 := gc.Prog(ppc64.ACMPU)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = v.Args[0].Reg()
-		p2.To.Reg = v.Args[1].Reg()
-		p2.To.Type = obj.TYPE_REG
-
-		p3 := gc.Prog(ppc64.ABLT)
-		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		// first clear as many doublewords as possible
+		// then clear remaining sizes as available
+		for rem > 0 {
+			op, size := ppc64.AMOVB, int64(1)
+			switch {
+			case rem >= 8:
+				op, size = ppc64.AMOVD, 8
+			case rem >= 4:
+				op, size = ppc64.AMOVW, 4
+			case rem >= 2:
+				op, size = ppc64.AMOVH, 2
+			}
+			p := gc.Prog(op)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REG_R0
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = v.Args[0].Reg()
+			p.To.Offset = offset
+			rem -= size
+			offset += size
+		}
 
 	case ssa.OpPPC64LoweredMove:
 		// Similar to how this is done on ARM,

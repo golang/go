@@ -312,19 +312,37 @@ func init() {
 
 		// large or unaligned zeroing
 		// arg0 = address of memory to zero (in R3, changed as side effect)
-		// arg1 = address of the last element to zero
-		// arg2 = mem
 		// returns mem
-		//  ADD -8,R3,R3 // intermediate value not valid GC ptr, cannot expose to opt+GC
-		//	MOVDU	R0, 8(R3)
-		//	CMP	R3, Rarg1
-		//	BLE	-2(PC)
+		//
+		// a loop is generated when there is more than one iteration
+		// needed to clear 4 doublewords
+		//
+		// 	MOVD	$len/32,R31
+		//	MOVD	R31,CTR
+		//	loop:
+		//	MOVD	R0,(R3)
+		//	MOVD	R0,8(R3)
+		//	MOVD	R0,16(R3)
+		//	MOVD	R0,24(R3)
+		//	ADD	R3,32
+		//	BC	loop
+
+		// remaining doubleword clears generated as needed
+		//	MOVD	R0,(R3)
+		//	MOVD	R0,8(R3)
+		//	MOVD	R0,16(R3)
+		//	MOVD	R0,24(R3)
+
+		// one or more of these to clear remainder < 8 bytes
+		//	MOVW	R0,n1(R3)
+		//	MOVH	R0,n2(R3)
+		//	MOVB	R0,n3(R3)
 		{
 			name:      "LoweredZero",
 			aux:       "Int64",
-			argLength: 3,
+			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R3"), gp},
+				inputs:   []regMask{buildReg("R3")},
 				clobbers: buildReg("R3"),
 			},
 			clobberFlags:   true,
