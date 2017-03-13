@@ -55,6 +55,71 @@ func TestBasicEncoderDecoder(t *testing.T) {
 	}
 }
 
+func TestEncodeIntSlice(t *testing.T) {
+
+	s8 := []int8{1, 5, 12, 22, 35, 51, 70, 92, 117}
+	s16 := []int16{145, 176, 210, 247, 287, 330, 376, 425, 477}
+	s32 := []int32{532, 590, 651, 715, 782, 852, 925, 1001, 1080}
+	s64 := []int64{1162, 1247, 1335, 1426, 1520, 1617, 1717, 1820, 1926}
+
+	t.Run("int8", func(t *testing.T) {
+		var sink bytes.Buffer
+		enc := NewEncoder(&sink)
+		enc.Encode(s8)
+
+		dec := NewDecoder(&sink)
+		res := make([]int8, 9)
+		dec.Decode(&res)
+
+		if !reflect.DeepEqual(s8, res) {
+			t.Fatalf("EncodeIntSlice: expected %v, got %v", s8, res)
+		}
+	})
+
+	t.Run("int16", func(t *testing.T) {
+		var sink bytes.Buffer
+		enc := NewEncoder(&sink)
+		enc.Encode(s16)
+
+		dec := NewDecoder(&sink)
+		res := make([]int16, 9)
+		dec.Decode(&res)
+
+		if !reflect.DeepEqual(s16, res) {
+			t.Fatalf("EncodeIntSlice: expected %v, got %v", s16, res)
+		}
+	})
+
+	t.Run("int32", func(t *testing.T) {
+		var sink bytes.Buffer
+		enc := NewEncoder(&sink)
+		enc.Encode(s32)
+
+		dec := NewDecoder(&sink)
+		res := make([]int32, 9)
+		dec.Decode(&res)
+
+		if !reflect.DeepEqual(s32, res) {
+			t.Fatalf("EncodeIntSlice: expected %v, got %v", s32, res)
+		}
+	})
+
+	t.Run("int64", func(t *testing.T) {
+		var sink bytes.Buffer
+		enc := NewEncoder(&sink)
+		enc.Encode(s64)
+
+		dec := NewDecoder(&sink)
+		res := make([]int64, 9)
+		dec.Decode(&res)
+
+		if !reflect.DeepEqual(s64, res) {
+			t.Fatalf("EncodeIntSlice: expected %v, got %v", s64, res)
+		}
+	})
+
+}
+
 type ET0 struct {
 	A int
 	B string
