@@ -1711,6 +1711,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	t.Rlist.Set(out)
 
 	fn := nod(ODCLFUNC, nil, nil)
+	fn.Func.SetDupok(true)
 	fn.Func.Nname = newname(newnam)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = t
