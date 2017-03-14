@@ -406,6 +406,7 @@ outer:
 			break outer
 
 		case ';':
+			// Do nothing.
 
 		case START:
 			t = gettok()
@@ -498,7 +499,7 @@ outer:
 					continue
 
 				case ';':
-					break
+					// Do nothing.
 
 				case IDENTIFIER:
 					j = chfind(0, tokname)
