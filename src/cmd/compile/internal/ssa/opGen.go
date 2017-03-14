@@ -1783,7 +1783,6 @@ const (
 	OpAddr
 	OpSP
 	OpSB
-	OpFunc
 	OpLoad
 	OpStore
 	OpMove
@@ -21551,13 +21550,6 @@ var opcodeTable = [...]opInfo{
 		name:    "SB",
 		argLen:  0,
 		generic: true,
-	},
-	{
-		name:      "Func",
-		auxType:   auxSym,
-		argLen:    0,
-		symEffect: SymNone,
-		generic:   true,
 	},
 	{
 		name:    "Load",

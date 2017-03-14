@@ -281,10 +281,9 @@ var genericOps = []opData{
 	// or *AutoSymbol (arg0=SP).
 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
 
-	{name: "SP"},                                  // stack pointer
-	{name: "SB", typ: "Uintptr"},                  // static base pointer (a.k.a. globals pointer)
-	{name: "Func", aux: "Sym", symEffect: "None"}, // entry address of a function
-	{name: "Invalid"},                             // unused value
+	{name: "SP"},                 // stack pointer
+	{name: "SB", typ: "Uintptr"}, // static base pointer (a.k.a. globals pointer)
+	{name: "Invalid"},            // unused value
 
 	// Memory operations
 	{name: "Load", argLength: 2},                                  // Load from arg0.  arg1=memory
