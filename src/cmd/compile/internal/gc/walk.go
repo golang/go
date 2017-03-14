@@ -804,16 +804,15 @@ opswitch:
 		r.Right = walkexpr(r.Right, init)
 		t := r.Left.Type
 
-		_, p := mapaccessfast(t)
+		fast := mapfast(t)
 		var key *Node
-		if p != "" {
+		if fast != mapslow {
 			// fast versions take key by value
 			key = r.Right
 		} else {
 			// standard version takes key by reference
 			// orderexpr made sure key is addressable.
 			key = nod(OADDR, r.Right, nil)
-			p = "mapaccess2"
 		}
 
 		// from:
@@ -824,7 +823,7 @@ opswitch:
 		a := n.List.First()
 
 		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
-			fn := mapfn(p, t)
+			fn := mapfn(mapaccess2[fast], t)
 			r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
 		} else {
 			fn := mapfn("mapaccess2_fat", t)
@@ -862,11 +861,13 @@ opswitch:
 		map_ = walkexpr(map_, init)
 		key = walkexpr(key, init)
 
-		// orderstmt made sure key is addressable.
-		key = nod(OADDR, key, nil)
-
 		t := map_.Type
-		n = mkcall1(mapfndel("mapdelete", t), nil, init, typename(t), map_, key)
+		fast := mapfast(t)
+		if fast == mapslow {
+			// orderstmt made sure key is addressable.
+			key = nod(OADDR, key, nil)
+		}
+		n = mkcall1(mapfndel(mapdelete[fast], t), nil, init, typename(t), map_, key)
 
 	case OAS2DOTTYPE:
 		walkexprlistsafe(n.List.Slice(), init)
@@ -1184,30 +1185,27 @@ opswitch:
 		t := map_.Type
 		if n.Etype == 1 {
 			// This m[k] expression is on the left-hand side of an assignment.
-			p := mapassignfast(t)
-			if p == "" {
+			fast := mapfast(t)
+			if fast == mapslow {
 				// standard version takes key by reference.
 				// orderexpr made sure key is addressable.
 				key = nod(OADDR, key, nil)
-				p = "mapassign"
 			}
-			n = mkcall1(mapfn(p, t), nil, init, typename(t), map_, key)
+			n = mkcall1(mapfn(mapassign[fast], t), nil, init, typename(t), map_, key)
 		} else {
 			// m[k] is not the target of an assignment.
-			p, _ := mapaccessfast(t)
-			if p == "" {
+			fast := mapfast(t)
+			if fast == mapslow {
 				// standard version takes key by reference.
 				// orderexpr made sure key is addressable.
 				key = nod(OADDR, key, nil)
-				p = "mapaccess1"
 			}
 
 			if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
-				n = mkcall1(mapfn(p, t), typPtr(t.Val()), init, typename(t), map_, key)
+				n = mkcall1(mapfn(mapaccess1[fast], t), typPtr(t.Val()), init, typename(t), map_, key)
 			} else {
-				p = "mapaccess1_fat"
 				z := zeroaddr(w)
-				n = mkcall1(mapfn(p, t), typPtr(t.Val()), init, typename(t), map_, key, z)
+				n = mkcall1(mapfn("mapaccess1_fat", t), typPtr(t.Val()), init, typename(t), map_, key, z)
 			}
 		}
 		n.Type = typPtr(t.Val())
@@ -2633,38 +2631,39 @@ func mapfndel(name string, t *Type) *Node {
 	return fn
 }
 
-// mapaccessfast returns the name of the fast map access runtime routine for t.
-func mapaccessfast(t *Type) (access1, access2 string) {
-	// Check ../../runtime/hashmap.go:maxValueSize before changing.
-	if t.Val().Width > 128 {
-		return "", ""
-	}
-	switch algtype(t.Key()) {
-	case AMEM32:
-		return "mapaccess1_fast32", "mapaccess2_fast32"
-	case AMEM64:
-		return "mapaccess1_fast64", "mapaccess2_fast64"
-	case ASTRING:
-		return "mapaccess1_faststr", "mapaccess2_faststr"
-	}
-	return "", ""
+const (
+	mapslow = iota
+	mapfast32
+	mapfast64
+	mapfaststr
+	nmapfast
+)
+
+type mapnames [nmapfast]string
+
+func mkmapnames(base string) mapnames {
+	return mapnames{base, base + "_fast32", base + "_fast64", base + "_faststr"}
 }
 
-// mapassignfast returns the name of the fast map assign runtime routine for t.
-func mapassignfast(t *Type) (assign string) {
+var mapaccess1 mapnames = mkmapnames("mapaccess1")
+var mapaccess2 mapnames = mkmapnames("mapaccess2")
+var mapassign mapnames = mkmapnames("mapassign")
+var mapdelete mapnames = mkmapnames("mapdelete")
+
+func mapfast(t *Type) int {
 	// Check ../../runtime/hashmap.go:maxValueSize before changing.
 	if t.Val().Width > 128 {
-		return ""
+		return mapslow
 	}
 	switch algtype(t.Key()) {
 	case AMEM32:
-		return "mapassign_fast32"
+		return mapfast32
 	case AMEM64:
-		return "mapassign_fast64"
+		return mapfast64
 	case ASTRING:
-		return "mapassign_faststr"
+		return mapfaststr
 	}
-	return ""
+	return mapslow
 }
 
 func writebarrierfn(name string, l *Type, r *Type) *Node {

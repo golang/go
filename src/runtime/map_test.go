@@ -619,35 +619,85 @@ func TestNonEscapingMap(t *testing.T) {
 	}
 }
 
-func benchmarkMapAssignInt32(b *testing.B, pow uint) {
+func benchmarkMapAssignInt32(b *testing.B, n int) {
 	a := make(map[int32]int)
 	for i := 0; i < b.N; i++ {
-		a[int32(i&((1<<pow)-1))] = i
+		a[int32(i&(n-1))] = i
 	}
 }
-func BenchmarkMapAssignInt32_255(b *testing.B) { benchmarkMapAssignInt32(b, 8) }
-func BenchmarkMapAssignInt32_64k(b *testing.B) { benchmarkMapAssignInt32(b, 16) }
 
-func benchmarkMapAssignInt64(b *testing.B, pow uint) {
+func benchmarkMapDeleteInt32(b *testing.B, n int) {
+	a := make(map[int32]int)
+	for i := 0; i < n*b.N; i++ {
+		a[int32(i)] = i
+	}
+	b.ResetTimer()
+	for i := 0; i < n*b.N; i = i + n {
+		delete(a, int32(i))
+	}
+}
+
+func benchmarkMapAssignInt64(b *testing.B, n int) {
 	a := make(map[int64]int)
 	for i := 0; i < b.N; i++ {
-		a[int64(i&((1<<pow)-1))] = i
+		a[int64(i&(n-1))] = i
 	}
 }
-func BenchmarkMapAssignInt64_255(b *testing.B) { benchmarkMapAssignInt64(b, 8) }
-func BenchmarkMapAssignInt64_64k(b *testing.B) { benchmarkMapAssignInt64(b, 16) }
 
-func benchmarkMapAssignStr(b *testing.B, pow uint) {
-	k := make([]string, (1 << pow))
+func benchmarkMapDeleteInt64(b *testing.B, n int) {
+	a := make(map[int64]int)
+	for i := 0; i < n*b.N; i++ {
+		a[int64(i)] = i
+	}
+	b.ResetTimer()
+	for i := 0; i < n*b.N; i = i + n {
+		delete(a, int64(i))
+	}
+}
+
+func benchmarkMapAssignStr(b *testing.B, n int) {
+	k := make([]string, n)
 	for i := 0; i < len(k); i++ {
 		k[i] = strconv.Itoa(i)
 	}
 	b.ResetTimer()
 	a := make(map[string]int)
 	for i := 0; i < b.N; i++ {
-		a[k[i&((1<<pow)-1)]] = i
+		a[k[i&(n-1)]] = i
 	}
 }
 
-func BenchmarkMapAssignStr_255(b *testing.B) { benchmarkMapAssignStr(b, 8) }
-func BenchmarkMapAssignStr_64k(b *testing.B) { benchmarkMapAssignStr(b, 16) }
+func benchmarkMapDeleteStr(b *testing.B, n int) {
+	k := make([]string, n*b.N)
+	for i := 0; i < n*b.N; i++ {
+		k[i] = strconv.Itoa(i)
+	}
+	a := make(map[string]int)
+	for i := 0; i < n*b.N; i++ {
+		a[k[i]] = i
+	}
+	b.ResetTimer()
+	for i := 0; i < n*b.N; i = i + n {
+		delete(a, k[i])
+	}
+}
+
+func runWith(f func(*testing.B, int), v ...int) func(*testing.B) {
+	return func(b *testing.B) {
+		for _, n := range v {
+			b.Run(strconv.Itoa(n), func(b *testing.B) { f(b, n) })
+		}
+	}
+}
+
+func BenchmarkMapAssign(b *testing.B) {
+	b.Run("Int32", runWith(benchmarkMapAssignInt32, 1<<8, 1<<16))
+	b.Run("Int64", runWith(benchmarkMapAssignInt64, 1<<8, 1<<16))
+	b.Run("Str", runWith(benchmarkMapAssignStr, 1<<8, 1<<16))
+}
+
+func BenchmarkMapDelete(b *testing.B) {
+	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 1, 2, 4))
+	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 1, 2, 4))
+	b.Run("Str", runWith(benchmarkMapDeleteStr, 1, 2, 4))
+}

@@ -206,23 +206,15 @@ func orderaddrtemp(n *Node, order *Order) *Node {
 	return ordercopyexpr(n, n.Type, order, 0)
 }
 
-// ordermapkeytemp prepares n.Right to be a key in a map runtime call.
-func ordermapkeytemp(n *Node, order *Order) {
+// ordermapkeytemp prepares n to be a key in a map runtime call and returns n.
+// It should only be used for map runtime calls which have *_fast* versions.
+func ordermapkeytemp(t *Type, n *Node, order *Order) *Node {
 	// Most map calls need to take the address of the key.
-	// Exception: map(accessN|assign)_fast* calls. See golang.org/issue/19015.
-	var p string
-	switch n.Etype {
-	case 0: // n is an rvalue
-		p, _ = mapaccessfast(n.Left.Type)
-	case 1: // n is an lvalue
-		p = mapassignfast(n.Left.Type)
-	default:
-		Fatalf("unexpected node type: %+v", n)
+	// Exception: map*_fast* calls. See golang.org/issue/19015.
+	if mapfast(t) == mapslow {
+		return orderaddrtemp(n, order)
 	}
-	if p != "" {
-		return
-	}
-	n.Right = orderaddrtemp(n.Right, order)
+	return n
 }
 
 type ordermarker int
@@ -560,7 +552,7 @@ func orderstmt(n *Node, order *Order) {
 		if r.Right.Op == OARRAYBYTESTR {
 			r.Right.Op = OARRAYBYTESTRTMP
 		}
-		ordermapkeytemp(r, order)
+		r.Right = ordermapkeytemp(r.Left.Type, r.Right, order)
 		orderokas2(n, order)
 		cleantemp(t, order)
 
@@ -640,10 +632,12 @@ func orderstmt(n *Node, order *Order) {
 		case ODELETE:
 			orderexprlist(n.Left.List, order)
 
-			t1 := marktemp(order)
-			np := n.Left.List.Addr(1) // map key
-			*np = ordercopyexpr(*np, (*np).Type, order, 0)
-			poptemp(t1, order)
+			if mapfast(n.Left.List.First().Type) == mapslow {
+				t1 := marktemp(order)
+				np := n.Left.List.Addr(1) // map key
+				*np = ordercopyexpr(*np, (*np).Type, order, 0)
+				poptemp(t1, order)
+			}
 
 		default:
 			ordercall(n.Left, order)
@@ -656,7 +650,7 @@ func orderstmt(n *Node, order *Order) {
 		t := marktemp(order)
 		n.List.SetFirst(orderexpr(n.List.First(), order, nil))
 		n.List.SetSecond(orderexpr(n.List.Second(), order, nil))
-		n.List.SetSecond(orderaddrtemp(n.List.Second(), order)) // map key
+		n.List.SetSecond(ordermapkeytemp(n.List.First().Type, n.List.Second(), order))
 		order.out = append(order.out, n)
 		cleantemp(t, order)
 
@@ -1069,7 +1063,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 			needCopy = true
 		}
 
-		ordermapkeytemp(n, order)
+		n.Right = ordermapkeytemp(n.Left.Type, n.Right, order)
 		if needCopy {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}

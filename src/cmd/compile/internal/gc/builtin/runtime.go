@@ -108,6 +108,9 @@ func mapassign_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapassign_faststr(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
 func mapdelete(mapType *byte, hmap map[any]any, key *any)
+func mapdelete_fast32(mapType *byte, hmap map[any]any, key any)
+func mapdelete_fast64(mapType *byte, hmap map[any]any, key any)
+func mapdelete_faststr(mapType *byte, hmap map[any]any, key any)
 func mapiternext(hiter *any)
 
 // *byte is really *runtime.Type

@@ -255,16 +255,18 @@ func g15() string
 // and also that none show up in "ambiguously live" messages.
 
 var m map[string]int
+var mi map[interface{}]int
 
-// str is used to ensure that a temp is required for runtime calls below.
+// str and iface are used to ensure that a temp is required for runtime calls below.
 func str() string
+func iface() interface{}
 
 func f16() {
 	if b {
-		delete(m, str()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
+		delete(mi, iface()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
 	}
-	delete(m, str()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
-	delete(m, str()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
+	delete(mi, iface()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
+	delete(mi, iface()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
 }
 
 var m2s map[string]*byte
