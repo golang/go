@@ -120,7 +120,7 @@ func adjustargs(n *Node, adjust int) {
 	callfunc := n.Left
 	for _, arg = range callfunc.List.Slice() {
 		if arg.Op != OAS {
-			yyerror("call arg not assignment")
+			Fatalf("call arg not assignment")
 		}
 		lhs = arg.Left
 		if lhs.Op == ONAME {
@@ -130,12 +130,12 @@ func adjustargs(n *Node, adjust int) {
 		}
 
 		if lhs.Op != OINDREGSP {
-			yyerror("call argument store does not use OINDREGSP")
+			Fatalf("call argument store does not use OINDREGSP")
 		}
 
 		// can't really check this in machine-indep code.
 		//if(lhs->val.u.reg != D_SP)
-		//      yyerror("call arg assign not indreg(SP)");
+		//      Fatalf("call arg assign not indreg(SP)")
 		lhs.Xoffset += int64(adjust)
 	}
 }
@@ -1694,7 +1694,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 		var nln, nrn Nodes
 		nln.Set(nl)
 		nrn.Set(nr)
-		yyerror("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
+		Fatalf("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }
@@ -1760,7 +1760,7 @@ func ascompatet(op Op, nl Nodes, nr *Type) []*Node {
 	}
 
 	if i < nl.Len() || r != nil {
-		yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
+		Fatalf("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
 	}
 
 	if ullmanOverflow {
@@ -2678,7 +2678,7 @@ func addstr(n *Node, init *Nodes) *Node {
 	c := n.List.Len()
 
 	if c < 2 {
-		yyerror("addstr count %d too small", c)
+		Fatalf("addstr count %d too small", c)
 	}
 
 	buf := nodnil()

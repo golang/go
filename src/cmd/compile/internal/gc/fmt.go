@@ -725,7 +725,7 @@ func (t *Type) typefmt(flag FmtFlag) string {
 				return "map.iter[" + m.Key().String() + "]" + m.Val().String()
 			}
 
-			yyerror("unknown internal map type")
+			Fatalf("unknown internal map type")
 		}
 
 		buf := make([]byte, 0, 64)

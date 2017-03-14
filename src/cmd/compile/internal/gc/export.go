@@ -33,7 +33,7 @@ func exportsym(n *Node) {
 	}
 	if n.Sym.Export() || n.Sym.Package() {
 		if n.Sym.Package() {
-			yyerror("export/package mismatch: %v", n.Sym)
+			Fatalf("export/package mismatch: %v", n.Sym)
 		}
 		return
 	}
@@ -220,7 +220,7 @@ func pkgtype(s *Sym) *Type {
 	}
 
 	if s.Def.Type == nil {
-		yyerror("pkgtype %v", s)
+		Fatalf("pkgtype %v", s)
 	}
 	return s.Def.Type
 }

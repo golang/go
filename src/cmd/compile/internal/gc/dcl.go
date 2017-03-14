@@ -106,7 +106,7 @@ func testdclstack() {
 			if nerrors != 0 {
 				errorexit()
 			}
-			yyerror("mark left on the stack")
+			Fatalf("mark left on the stack")
 		}
 	}
 }
