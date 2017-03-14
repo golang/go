@@ -14,6 +14,9 @@ import (
 	"strings"
 )
 
+// A Config holds readonly compilation information.
+// It is created once, early during compilation,
+// and shared across all compilations.
 type Config struct {
 	arch            string                     // "amd64", etc.
 	IntSize         int64                      // 4 or 8
