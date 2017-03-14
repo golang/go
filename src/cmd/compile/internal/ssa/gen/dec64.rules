@@ -30,17 +30,17 @@
 		(Load <config.fe.TypeUInt32()> ptr mem)
 		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem))
 
-(Store [8] dst (Int64Make hi lo) mem) && !config.BigEndian ->
-	(Store [4] {hi.Type}
+(Store {t} dst (Int64Make hi lo) mem) && t.(Type).Size() == 8 && !config.BigEndian ->
+	(Store {hi.Type}
 		(OffPtr <hi.Type.PtrTo()> [4] dst)
 		hi
-		(Store [4] {lo.Type} dst lo mem))
+		(Store {lo.Type} dst lo mem))
 
-(Store [8] dst (Int64Make hi lo) mem) && config.BigEndian ->
-	(Store [4] {lo.Type}
+(Store {t} dst (Int64Make hi lo) mem) && t.(Type).Size() == 8 && config.BigEndian ->
+	(Store {lo.Type}
 		(OffPtr <lo.Type.PtrTo()> [4] dst)
 		lo
-		(Store [4] {hi.Type} dst hi mem))
+		(Store {hi.Type} dst hi mem))
 
 (Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() ->
   (Int64Make

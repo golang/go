@@ -173,26 +173,21 @@ func writebarrier(f *Func) {
 		for _, w := range stores {
 			var val *Value
 			ptr := w.Args[0]
-			siz := w.AuxInt
 			var typ interface{}
 			if w.Op != OpStoreWB {
 				typ = &ExternSymbol{Typ: f.Config.fe.TypeUintptr(), Sym: w.Aux.(Type).Symbol()}
 			}
 			pos = w.Pos
 
-			var op Op
 			var fn *obj.LSym
 			switch w.Op {
 			case OpStoreWB:
-				op = OpStore
 				fn = writebarrierptr
 				val = w.Args[1]
 			case OpMoveWB:
-				op = OpMove
 				fn = typedmemmove
 				val = w.Args[1]
 			case OpZeroWB:
-				op = OpZero
 				fn = typedmemclr
 			}
 
@@ -201,10 +196,15 @@ func writebarrier(f *Func) {
 			memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, volatile)
 
 			// else block: normal store
-			if op == OpZero {
-				memElse = bElse.NewValue2I(pos, op, TypeMem, siz, ptr, memElse)
-			} else {
-				memElse = bElse.NewValue3I(pos, op, TypeMem, siz, ptr, val, memElse)
+			switch w.Op {
+			case OpStoreWB:
+				memElse = bElse.NewValue3A(pos, OpStore, TypeMem, w.Aux, ptr, val, memElse)
+			case OpMoveWB:
+				memElse = bElse.NewValue3I(pos, OpMove, TypeMem, w.AuxInt, ptr, val, memElse)
+				memElse.Aux = w.Aux
+			case OpZeroWB:
+				memElse = bElse.NewValue2I(pos, OpZero, TypeMem, w.AuxInt, ptr, memElse)
+				memElse.Aux = w.Aux
 			}
 
 			if f.NoWB {
@@ -270,8 +270,9 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem
 		aux := &AutoSymbol{Typ: t, Node: tmp}
 		mem = b.NewValue1A(pos, OpVarDef, TypeMem, tmp, mem)
 		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), aux, sp)
-		siz := MakeSizeAndAlign(t.Size(), t.Alignment()).Int64()
+		siz := t.Size()
 		mem = b.NewValue3I(pos, OpMove, TypeMem, siz, tmpaddr, val, mem)
+		mem.Aux = t
 		val = tmpaddr
 	}
 
@@ -282,19 +283,19 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem
 		taddr := b.NewValue1A(pos, OpAddr, config.fe.TypeUintptr(), typ, sb)
 		off = round(off, taddr.Type.Alignment())
 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
-		mem = b.NewValue3I(pos, OpStore, TypeMem, ptr.Type.Size(), arg, taddr, mem)
+		mem = b.NewValue3A(pos, OpStore, TypeMem, ptr.Type, arg, taddr, mem)
 		off += taddr.Type.Size()
 	}
 
 	off = round(off, ptr.Type.Alignment())
 	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
-	mem = b.NewValue3I(pos, OpStore, TypeMem, ptr.Type.Size(), arg, ptr, mem)
+	mem = b.NewValue3A(pos, OpStore, TypeMem, ptr.Type, arg, ptr, mem)
 	off += ptr.Type.Size()
 
 	if val != nil {
 		off = round(off, val.Type.Alignment())
 		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
-		mem = b.NewValue3I(pos, OpStore, TypeMem, val.Type.Size(), arg, val, mem)
+		mem = b.NewValue3A(pos, OpStore, TypeMem, val.Type, arg, val, mem)
 		off += val.Type.Size()
 	}
 	off = round(off, config.PtrSize)

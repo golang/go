@@ -3777,31 +3777,29 @@ func rewriteValueS390X_OpMod8u(v *Value, config *Config) bool {
 func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Move [s] _ _ mem)
-	// cond: SizeAndAlign(s).Size() == 0
+	// match: (Move [0] _ _ mem)
+	// cond:
 	// result: mem
 	for {
-		s := v.AuxInt
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 0) {
+		if v.AuxInt != 0 {
 			break
 		}
+		mem := v.Args[2]
 		v.reset(OpCopy)
 		v.Type = mem.Type
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 1
+	// match: (Move [1] dst src mem)
+	// cond:
 	// result: (MOVBstore dst (MOVBZload src mem) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 1 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 1) {
-			break
-		}
 		v.reset(OpS390XMOVBstore)
 		v.AddArg(dst)
 		v0 := b.NewValue0(v.Pos, OpS390XMOVBZload, config.fe.TypeUInt8())
@@ -3811,17 +3809,16 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 2
+	// match: (Move [2] dst src mem)
+	// cond:
 	// result: (MOVHstore dst (MOVHZload src mem) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 2 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 2) {
-			break
-		}
 		v.reset(OpS390XMOVHstore)
 		v.AddArg(dst)
 		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, config.fe.TypeUInt16())
@@ -3831,17 +3828,16 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 4
+	// match: (Move [4] dst src mem)
+	// cond:
 	// result: (MOVWstore dst (MOVWZload src mem) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 4 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 4) {
-			break
-		}
 		v.reset(OpS390XMOVWstore)
 		v.AddArg(dst)
 		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, config.fe.TypeUInt32())
@@ -3851,17 +3847,16 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 8
+	// match: (Move [8] dst src mem)
+	// cond:
 	// result: (MOVDstore dst (MOVDload src mem) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 8 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 8) {
-			break
-		}
 		v.reset(OpS390XMOVDstore)
 		v.AddArg(dst)
 		v0 := b.NewValue0(v.Pos, OpS390XMOVDload, config.fe.TypeUInt64())
@@ -3871,17 +3866,16 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 16
+	// match: (Move [16] dst src mem)
+	// cond:
 	// result: (MOVDstore [8] dst (MOVDload [8] src mem) 		(MOVDstore dst (MOVDload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 16 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 16) {
-			break
-		}
 		v.reset(OpS390XMOVDstore)
 		v.AuxInt = 8
 		v.AddArg(dst)
@@ -3900,17 +3894,16 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 24
+	// match: (Move [24] dst src mem)
+	// cond:
 	// result: (MOVDstore [16] dst (MOVDload [16] src mem) 	        (MOVDstore [8] dst (MOVDload [8] src mem)                 (MOVDstore dst (MOVDload src mem) mem)))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 24 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 24) {
-			break
-		}
 		v.reset(OpS390XMOVDstore)
 		v.AuxInt = 16
 		v.AddArg(dst)
@@ -3938,17 +3931,16 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 3
+	// match: (Move [3] dst src mem)
+	// cond:
 	// result: (MOVBstore [2] dst (MOVBZload [2] src mem) 		(MOVHstore dst (MOVHZload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 3 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 3) {
-			break
-		}
 		v.reset(OpS390XMOVBstore)
 		v.AuxInt = 2
 		v.AddArg(dst)
@@ -3967,17 +3959,16 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 5
+	// match: (Move [5] dst src mem)
+	// cond:
 	// result: (MOVBstore [4] dst (MOVBZload [4] src mem) 		(MOVWstore dst (MOVWZload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 5 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 5) {
-			break
-		}
 		v.reset(OpS390XMOVBstore)
 		v.AuxInt = 4
 		v.AddArg(dst)
@@ -3996,17 +3987,16 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 6
+	// match: (Move [6] dst src mem)
+	// cond:
 	// result: (MOVHstore [4] dst (MOVHZload [4] src mem) 		(MOVWstore dst (MOVWZload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 6 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 6) {
-			break
-		}
 		v.reset(OpS390XMOVHstore)
 		v.AuxInt = 4
 		v.AddArg(dst)
@@ -4025,17 +4015,16 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 7
+	// match: (Move [7] dst src mem)
+	// cond:
 	// result: (MOVBstore [6] dst (MOVBZload [6] src mem) 		(MOVHstore [4] dst (MOVHZload [4] src mem) 			(MOVWstore dst (MOVWZload src mem) mem)))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 7 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 7) {
-			break
-		}
 		v.reset(OpS390XMOVBstore)
 		v.AuxInt = 6
 		v.AddArg(dst)
@@ -4064,36 +4053,36 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() > 0 && SizeAndAlign(s).Size() <= 256
-	// result: (MVC [makeValAndOff(SizeAndAlign(s).Size(), 0)] dst src mem)
+	// cond: s > 0 && s <= 256
+	// result: (MVC [makeValAndOff(s, 0)] dst src mem)
 	for {
 		s := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 0 && SizeAndAlign(s).Size() <= 256) {
+		if !(s > 0 && s <= 256) {
 			break
 		}
 		v.reset(OpS390XMVC)
-		v.AuxInt = makeValAndOff(SizeAndAlign(s).Size(), 0)
+		v.AuxInt = makeValAndOff(s, 0)
 		v.AddArg(dst)
 		v.AddArg(src)
 		v.AddArg(mem)
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() > 256 && SizeAndAlign(s).Size() <= 512
-	// result: (MVC [makeValAndOff(SizeAndAlign(s).Size()-256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))
+	// cond: s > 256 && s <= 512
+	// result: (MVC [makeValAndOff(s-256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))
 	for {
 		s := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 256 && SizeAndAlign(s).Size() <= 512) {
+		if !(s > 256 && s <= 512) {
 			break
 		}
 		v.reset(OpS390XMVC)
-		v.AuxInt = makeValAndOff(SizeAndAlign(s).Size()-256, 256)
+		v.AuxInt = makeValAndOff(s-256, 256)
 		v.AddArg(dst)
 		v.AddArg(src)
 		v0 := b.NewValue0(v.Pos, OpS390XMVC, TypeMem)
@@ -4105,18 +4094,18 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() > 512 && SizeAndAlign(s).Size() <= 768
-	// result: (MVC [makeValAndOff(SizeAndAlign(s).Size()-512, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem)))
+	// cond: s > 512 && s <= 768
+	// result: (MVC [makeValAndOff(s-512, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem)))
 	for {
 		s := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 512 && SizeAndAlign(s).Size() <= 768) {
+		if !(s > 512 && s <= 768) {
 			break
 		}
 		v.reset(OpS390XMVC)
-		v.AuxInt = makeValAndOff(SizeAndAlign(s).Size()-512, 512)
+		v.AuxInt = makeValAndOff(s-512, 512)
 		v.AddArg(dst)
 		v.AddArg(src)
 		v0 := b.NewValue0(v.Pos, OpS390XMVC, TypeMem)
@@ -4133,18 +4122,18 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() > 768 && SizeAndAlign(s).Size() <= 1024
-	// result: (MVC [makeValAndOff(SizeAndAlign(s).Size()-768, 768)] dst src (MVC [makeValAndOff(256, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))))
+	// cond: s > 768 && s <= 1024
+	// result: (MVC [makeValAndOff(s-768, 768)] dst src (MVC [makeValAndOff(256, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))))
 	for {
 		s := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 768 && SizeAndAlign(s).Size() <= 1024) {
+		if !(s > 768 && s <= 1024) {
 			break
 		}
 		v.reset(OpS390XMVC)
-		v.AuxInt = makeValAndOff(SizeAndAlign(s).Size()-768, 768)
+		v.AuxInt = makeValAndOff(s-768, 768)
 		v.AddArg(dst)
 		v.AddArg(src)
 		v0 := b.NewValue0(v.Pos, OpS390XMVC, TypeMem)
@@ -4166,22 +4155,22 @@ func rewriteValueS390X_OpMove(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() > 1024
-	// result: (LoweredMove [SizeAndAlign(s).Size()%256] dst src (ADDconst <src.Type> src [(SizeAndAlign(s).Size()/256)*256]) mem)
+	// cond: s > 1024
+	// result: (LoweredMove [s%256] dst src (ADDconst <src.Type> src [(s/256)*256]) mem)
 	for {
 		s := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 1024) {
+		if !(s > 1024) {
 			break
 		}
 		v.reset(OpS390XLoweredMove)
-		v.AuxInt = SizeAndAlign(s).Size() % 256
+		v.AuxInt = s % 256
 		v.AddArg(dst)
 		v.AddArg(src)
 		v0 := b.NewValue0(v.Pos, OpS390XADDconst, src.Type)
-		v0.AuxInt = (SizeAndAlign(s).Size() / 256) * 256
+		v0.AuxInt = (s / 256) * 256
 		v0.AddArg(src)
 		v.AddArg(v0)
 		v.AddArg(mem)
@@ -18095,17 +18084,15 @@ func rewriteValueS390X_OpStaticCall(v *Value, config *Config) bool {
 func rewriteValueS390X_OpStore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Store [8] ptr val mem)
-	// cond: is64BitFloat(val.Type)
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 8 && is64BitFloat(val.Type)
 	// result: (FMOVDstore ptr val mem)
 	for {
-		if v.AuxInt != 8 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(is64BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 8 && is64BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpS390XFMOVDstore)
@@ -18114,17 +18101,15 @@ func rewriteValueS390X_OpStore(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [4] ptr val mem)
-	// cond: is32BitFloat(val.Type)
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 4 && is32BitFloat(val.Type)
 	// result: (FMOVSstore ptr val mem)
 	for {
-		if v.AuxInt != 4 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(is32BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 4 && is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpS390XFMOVSstore)
@@ -18133,64 +18118,68 @@ func rewriteValueS390X_OpStore(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [8] ptr val mem)
-	// cond:
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 8
 	// result: (MOVDstore ptr val mem)
 	for {
-		if v.AuxInt != 8 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
+		if !(t.(Type).Size() == 8) {
+			break
+		}
 		v.reset(OpS390XMOVDstore)
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [4] ptr val mem)
-	// cond:
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 4
 	// result: (MOVWstore ptr val mem)
 	for {
-		if v.AuxInt != 4 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
+		if !(t.(Type).Size() == 4) {
+			break
+		}
 		v.reset(OpS390XMOVWstore)
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [2] ptr val mem)
-	// cond:
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 2
 	// result: (MOVHstore ptr val mem)
 	for {
-		if v.AuxInt != 2 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
+		if !(t.(Type).Size() == 2) {
+			break
+		}
 		v.reset(OpS390XMOVHstore)
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [1] ptr val mem)
-	// cond:
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 1
 	// result: (MOVBstore ptr val mem)
 	for {
-		if v.AuxInt != 1 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
+		if !(t.(Type).Size() == 1) {
+			break
+		}
 		v.reset(OpS390XMOVBstore)
 		v.AddArg(ptr)
 		v.AddArg(val)
@@ -18451,94 +18440,88 @@ func rewriteValueS390X_OpXor8(v *Value, config *Config) bool {
 func rewriteValueS390X_OpZero(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Zero [s] _ mem)
-	// cond: SizeAndAlign(s).Size() == 0
+	// match: (Zero [0] _ mem)
+	// cond:
 	// result: mem
 	for {
-		s := v.AuxInt
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 0) {
+		if v.AuxInt != 0 {
 			break
 		}
+		mem := v.Args[1]
 		v.reset(OpCopy)
 		v.Type = mem.Type
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 1
+	// match: (Zero [1] destptr mem)
+	// cond:
 	// result: (MOVBstoreconst [0] destptr mem)
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 1) {
+		if v.AuxInt != 1 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpS390XMOVBstoreconst)
 		v.AuxInt = 0
 		v.AddArg(destptr)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 2
+	// match: (Zero [2] destptr mem)
+	// cond:
 	// result: (MOVHstoreconst [0] destptr mem)
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 2) {
+		if v.AuxInt != 2 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpS390XMOVHstoreconst)
 		v.AuxInt = 0
 		v.AddArg(destptr)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 4
+	// match: (Zero [4] destptr mem)
+	// cond:
 	// result: (MOVWstoreconst [0] destptr mem)
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 4) {
+		if v.AuxInt != 4 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpS390XMOVWstoreconst)
 		v.AuxInt = 0
 		v.AddArg(destptr)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 8
+	// match: (Zero [8] destptr mem)
+	// cond:
 	// result: (MOVDstoreconst [0] destptr mem)
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 8) {
+		if v.AuxInt != 8 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpS390XMOVDstoreconst)
 		v.AuxInt = 0
 		v.AddArg(destptr)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 3
+	// match: (Zero [3] destptr mem)
+	// cond:
 	// result: (MOVBstoreconst [makeValAndOff(0,2)] destptr 		(MOVHstoreconst [0] destptr mem))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 3) {
+		if v.AuxInt != 3 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpS390XMOVBstoreconst)
 		v.AuxInt = makeValAndOff(0, 2)
 		v.AddArg(destptr)
@@ -18549,16 +18532,15 @@ func rewriteValueS390X_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 5
+	// match: (Zero [5] destptr mem)
+	// cond:
 	// result: (MOVBstoreconst [makeValAndOff(0,4)] destptr 		(MOVWstoreconst [0] destptr mem))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 5) {
+		if v.AuxInt != 5 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpS390XMOVBstoreconst)
 		v.AuxInt = makeValAndOff(0, 4)
 		v.AddArg(destptr)
@@ -18569,16 +18551,15 @@ func rewriteValueS390X_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 6
+	// match: (Zero [6] destptr mem)
+	// cond:
 	// result: (MOVHstoreconst [makeValAndOff(0,4)] destptr 		(MOVWstoreconst [0] destptr mem))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 6) {
+		if v.AuxInt != 6 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpS390XMOVHstoreconst)
 		v.AuxInt = makeValAndOff(0, 4)
 		v.AddArg(destptr)
@@ -18589,16 +18570,15 @@ func rewriteValueS390X_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 7
+	// match: (Zero [7] destptr mem)
+	// cond:
 	// result: (MOVWstoreconst [makeValAndOff(0,3)] destptr 		(MOVWstoreconst [0] destptr mem))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 7) {
+		if v.AuxInt != 7 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpS390XMOVWstoreconst)
 		v.AuxInt = makeValAndOff(0, 3)
 		v.AddArg(destptr)
@@ -18610,36 +18590,36 @@ func rewriteValueS390X_OpZero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() > 0 && SizeAndAlign(s).Size() <= 1024
-	// result: (CLEAR [makeValAndOff(SizeAndAlign(s).Size(), 0)] destptr mem)
+	// cond: s > 0 && s <= 1024
+	// result: (CLEAR [makeValAndOff(s, 0)] destptr mem)
 	for {
 		s := v.AuxInt
 		destptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() > 0 && SizeAndAlign(s).Size() <= 1024) {
+		if !(s > 0 && s <= 1024) {
 			break
 		}
 		v.reset(OpS390XCLEAR)
-		v.AuxInt = makeValAndOff(SizeAndAlign(s).Size(), 0)
+		v.AuxInt = makeValAndOff(s, 0)
 		v.AddArg(destptr)
 		v.AddArg(mem)
 		return true
 	}
 	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() > 1024
-	// result: (LoweredZero [SizeAndAlign(s).Size()%256] destptr (ADDconst <destptr.Type> destptr [(SizeAndAlign(s).Size()/256)*256]) mem)
+	// cond: s > 1024
+	// result: (LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(s/256)*256]) mem)
 	for {
 		s := v.AuxInt
 		destptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() > 1024) {
+		if !(s > 1024) {
 			break
 		}
 		v.reset(OpS390XLoweredZero)
-		v.AuxInt = SizeAndAlign(s).Size() % 256
+		v.AuxInt = s % 256
 		v.AddArg(destptr)
 		v0 := b.NewValue0(v.Pos, OpS390XADDconst, destptr.Type)
-		v0.AuxInt = (SizeAndAlign(s).Size() / 256) * 256
+		v0.AuxInt = (s / 256) * 256
 		v0.AddArg(destptr)
 		v.AddArg(v0)
 		v.AddArg(mem)

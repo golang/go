@@ -6764,8 +6764,8 @@ func rewriteValuegeneric_OpLess8U(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Load <t1> p1 (Store [w] p2 x _))
-	// cond: isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && w == t1.Size()
+	// match: (Load <t1> p1 (Store {t2} p2 x _))
+	// cond: isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && t1.Size() == t2.(Type).Size()
 	// result: x
 	for {
 		t1 := v.Type
@@ -6774,10 +6774,10 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		if v_1.Op != OpStore {
 			break
 		}
-		w := v_1.AuxInt
+		t2 := v_1.Aux
 		p2 := v_1.Args[0]
 		x := v_1.Args[1]
-		if !(isSamePtr(p1, p2) && t1.Compare(x.Type) == CMPeq && w == t1.Size()) {
+		if !(isSamePtr(p1, p2) && t1.Compare(x.Type) == CMPeq && t1.Size() == t2.(Type).Size()) {
 			break
 		}
 		v.reset(OpCopy)
@@ -14748,7 +14748,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	// match: (Store dst (StructMake1 <t> f0) mem)
 	// cond:
-	// result: (Store [t.FieldType(0).Size()] {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
+	// result: (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
 	for {
 		dst := v.Args[0]
 		v_1 := v.Args[1]
@@ -14759,7 +14759,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		f0 := v_1.Args[0]
 		mem := v.Args[2]
 		v.reset(OpStore)
-		v.AuxInt = t.FieldType(0).Size()
 		v.Aux = t.FieldType(0)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
 		v0.AuxInt = 0
@@ -14771,7 +14770,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	// match: (Store dst (StructMake2 <t> f0 f1) mem)
 	// cond:
-	// result: (Store [t.FieldType(1).Size()] {t.FieldType(1)}     (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)     f1     (Store [t.FieldType(0).Size()] {t.FieldType(0)}       (OffPtr <t.FieldType(0).PtrTo()> [0] dst)         f0 mem))
+	// result: (Store {t.FieldType(1)}     (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)     f1     (Store {t.FieldType(0)}       (OffPtr <t.FieldType(0).PtrTo()> [0] dst)         f0 mem))
 	for {
 		dst := v.Args[0]
 		v_1 := v.Args[1]
@@ -14783,7 +14782,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		f1 := v_1.Args[1]
 		mem := v.Args[2]
 		v.reset(OpStore)
-		v.AuxInt = t.FieldType(1).Size()
 		v.Aux = t.FieldType(1)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
 		v0.AuxInt = t.FieldOff(1)
@@ -14791,7 +14789,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		v.AddArg(f1)
 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
-		v1.AuxInt = t.FieldType(0).Size()
 		v1.Aux = t.FieldType(0)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
 		v2.AuxInt = 0
@@ -14804,7 +14801,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	// match: (Store dst (StructMake3 <t> f0 f1 f2) mem)
 	// cond:
-	// result: (Store [t.FieldType(2).Size()] {t.FieldType(2)}     (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)     f2     (Store [t.FieldType(1).Size()] {t.FieldType(1)}       (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)       f1       (Store [t.FieldType(0).Size()] {t.FieldType(0)}         (OffPtr <t.FieldType(0).PtrTo()> [0] dst)           f0 mem)))
+	// result: (Store {t.FieldType(2)}     (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)     f2     (Store {t.FieldType(1)}       (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)       f1       (Store {t.FieldType(0)}         (OffPtr <t.FieldType(0).PtrTo()> [0] dst)           f0 mem)))
 	for {
 		dst := v.Args[0]
 		v_1 := v.Args[1]
@@ -14817,7 +14814,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		f2 := v_1.Args[2]
 		mem := v.Args[2]
 		v.reset(OpStore)
-		v.AuxInt = t.FieldType(2).Size()
 		v.Aux = t.FieldType(2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
 		v0.AuxInt = t.FieldOff(2)
@@ -14825,7 +14821,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		v.AddArg(f2)
 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
-		v1.AuxInt = t.FieldType(1).Size()
 		v1.Aux = t.FieldType(1)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
 		v2.AuxInt = t.FieldOff(1)
@@ -14833,7 +14828,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v1.AddArg(v2)
 		v1.AddArg(f1)
 		v3 := b.NewValue0(v.Pos, OpStore, TypeMem)
-		v3.AuxInt = t.FieldType(0).Size()
 		v3.Aux = t.FieldType(0)
 		v4 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
 		v4.AuxInt = 0
@@ -14847,7 +14841,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	// match: (Store dst (StructMake4 <t> f0 f1 f2 f3) mem)
 	// cond:
-	// result: (Store [t.FieldType(3).Size()] {t.FieldType(3)}     (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst)     f3     (Store [t.FieldType(2).Size()] {t.FieldType(2)}       (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)       f2       (Store [t.FieldType(1).Size()] {t.FieldType(1)}         (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)         f1         (Store [t.FieldType(0).Size()] {t.FieldType(0)}           (OffPtr <t.FieldType(0).PtrTo()> [0] dst)             f0 mem))))
+	// result: (Store {t.FieldType(3)}     (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst)     f3     (Store {t.FieldType(2)}       (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)       f2       (Store {t.FieldType(1)}         (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)         f1         (Store {t.FieldType(0)}           (OffPtr <t.FieldType(0).PtrTo()> [0] dst)             f0 mem))))
 	for {
 		dst := v.Args[0]
 		v_1 := v.Args[1]
@@ -14861,7 +14855,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		f3 := v_1.Args[3]
 		mem := v.Args[2]
 		v.reset(OpStore)
-		v.AuxInt = t.FieldType(3).Size()
 		v.Aux = t.FieldType(3)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(3).PtrTo())
 		v0.AuxInt = t.FieldOff(3)
@@ -14869,7 +14862,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		v.AddArg(f3)
 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
-		v1.AuxInt = t.FieldType(2).Size()
 		v1.Aux = t.FieldType(2)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
 		v2.AuxInt = t.FieldOff(2)
@@ -14877,7 +14869,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v1.AddArg(v2)
 		v1.AddArg(f2)
 		v3 := b.NewValue0(v.Pos, OpStore, TypeMem)
-		v3.AuxInt = t.FieldType(1).Size()
 		v3.Aux = t.FieldType(1)
 		v4 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
 		v4.AuxInt = t.FieldOff(1)
@@ -14885,7 +14876,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v3.AddArg(v4)
 		v3.AddArg(f1)
 		v5 := b.NewValue0(v.Pos, OpStore, TypeMem)
-		v5.AuxInt = t.FieldType(0).Size()
 		v5.Aux = t.FieldType(0)
 		v6 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
 		v6.AuxInt = 0
@@ -14898,44 +14888,42 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Store [size] dst (Load <t> src mem) mem)
-	// cond: !config.fe.CanSSA(t)
-	// result: (Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] {t} dst src mem)
+	// match: (Store {t} dst (Load src mem) mem)
+	// cond: !config.fe.CanSSA(t.(Type))
+	// result: (Move {t} [t.(Type).Size()] dst src mem)
 	for {
-		size := v.AuxInt
+		t := v.Aux
 		dst := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpLoad {
 			break
 		}
-		t := v_1.Type
 		src := v_1.Args[0]
 		mem := v_1.Args[1]
 		if mem != v.Args[2] {
 			break
 		}
-		if !(!config.fe.CanSSA(t)) {
+		if !(!config.fe.CanSSA(t.(Type))) {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = MakeSizeAndAlign(size, t.Alignment()).Int64()
+		v.AuxInt = t.(Type).Size()
 		v.Aux = t
 		v.AddArg(dst)
 		v.AddArg(src)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [size] dst (Load <t> src mem) (VarDef {x} mem))
-	// cond: !config.fe.CanSSA(t)
-	// result: (Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] {t} dst src (VarDef {x} mem))
+	// match: (Store {t} dst (Load src mem) (VarDef {x} mem))
+	// cond: !config.fe.CanSSA(t.(Type))
+	// result: (Move {t} [t.(Type).Size()] dst src (VarDef {x} mem))
 	for {
-		size := v.AuxInt
+		t := v.Aux
 		dst := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpLoad {
 			break
 		}
-		t := v_1.Type
 		src := v_1.Args[0]
 		mem := v_1.Args[1]
 		v_2 := v.Args[2]
@@ -14946,11 +14934,11 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		if mem != v_2.Args[0] {
 			break
 		}
-		if !(!config.fe.CanSSA(t)) {
+		if !(!config.fe.CanSSA(t.(Type))) {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = MakeSizeAndAlign(size, t.Alignment()).Int64()
+		v.AuxInt = t.(Type).Size()
 		v.Aux = t
 		v.AddArg(dst)
 		v.AddArg(src)
@@ -14974,11 +14962,10 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [size] dst (ArrayMake1 e) mem)
+	// match: (Store dst (ArrayMake1 e) mem)
 	// cond:
-	// result: (Store [size] {e.Type} dst e mem)
+	// result: (Store {e.Type} dst e mem)
 	for {
-		size := v.AuxInt
 		dst := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpArrayMake1 {
@@ -14987,7 +14974,6 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		e := v_1.Args[0]
 		mem := v.Args[2]
 		v.reset(OpStore)
-		v.AuxInt = size
 		v.Aux = e.Type
 		v.AddArg(dst)
 		v.AddArg(e)

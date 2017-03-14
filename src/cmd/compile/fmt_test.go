@@ -640,7 +640,6 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/ssa.Location %v":            "",
 	"cmd/compile/internal/ssa.Op %s":                  "",
 	"cmd/compile/internal/ssa.Op %v":                  "",
-	"cmd/compile/internal/ssa.SizeAndAlign %s":        "",
 	"cmd/compile/internal/ssa.Type %s":                "",
 	"cmd/compile/internal/ssa.Type %v":                "",
 	"cmd/compile/internal/ssa.ValAndOff %s":           "",

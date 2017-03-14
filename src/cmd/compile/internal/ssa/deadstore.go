@@ -88,9 +88,9 @@ func dse(f *Func) {
 		if v.Op == OpStore || v.Op == OpZero {
 			var sz int64
 			if v.Op == OpStore {
-				sz = v.AuxInt
+				sz = v.Aux.(Type).Size()
 			} else { // OpZero
-				sz = SizeAndAlign(v.AuxInt).Size()
+				sz = v.AuxInt
 			}
 			if shadowedSize := int64(shadowed.get(v.Args[0].ID)); shadowedSize != -1 && shadowedSize >= sz {
 				// Modify store into a copy

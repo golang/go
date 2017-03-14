@@ -6087,31 +6087,29 @@ func rewriteValueMIPS_OpMod8u(v *Value, config *Config) bool {
 func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Move [s] _ _ mem)
-	// cond: SizeAndAlign(s).Size() == 0
+	// match: (Move [0] _ _ mem)
+	// cond:
 	// result: mem
 	for {
-		s := v.AuxInt
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 0) {
+		if v.AuxInt != 0 {
 			break
 		}
+		mem := v.Args[2]
 		v.reset(OpCopy)
 		v.Type = mem.Type
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 1
+	// match: (Move [1] dst src mem)
+	// cond:
 	// result: (MOVBstore dst (MOVBUload src mem) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 1 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 1) {
-			break
-		}
 		v.reset(OpMIPSMOVBstore)
 		v.AddArg(dst)
 		v0 := b.NewValue0(v.Pos, OpMIPSMOVBUload, config.fe.TypeUInt8())
@@ -6121,15 +6119,18 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0
+	// match: (Move [2] {t} dst src mem)
+	// cond: t.(Type).Alignment()%2 == 0
 	// result: (MOVHstore dst (MOVHUload src mem) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 2 {
+			break
+		}
+		t := v.Aux
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0) {
+		if !(t.(Type).Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVHstore)
@@ -6141,17 +6142,16 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 2
+	// match: (Move [2] dst src mem)
+	// cond:
 	// result: (MOVBstore [1] dst (MOVBUload [1] src mem) 		(MOVBstore dst (MOVBUload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 2 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 2) {
-			break
-		}
 		v.reset(OpMIPSMOVBstore)
 		v.AuxInt = 1
 		v.AddArg(dst)
@@ -6170,15 +6170,18 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0
+	// match: (Move [4] {t} dst src mem)
+	// cond: t.(Type).Alignment()%4 == 0
 	// result: (MOVWstore dst (MOVWload src mem) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 4 {
+			break
+		}
+		t := v.Aux
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0) {
+		if !(t.(Type).Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVWstore)
@@ -6190,15 +6193,18 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0
+	// match: (Move [4] {t} dst src mem)
+	// cond: t.(Type).Alignment()%2 == 0
 	// result: (MOVHstore [2] dst (MOVHUload [2] src mem) 		(MOVHstore dst (MOVHUload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 4 {
+			break
+		}
+		t := v.Aux
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0) {
+		if !(t.(Type).Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVHstore)
@@ -6219,17 +6225,16 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 4
+	// match: (Move [4] dst src mem)
+	// cond:
 	// result: (MOVBstore [3] dst (MOVBUload [3] src mem) 		(MOVBstore [2] dst (MOVBUload [2] src mem) 			(MOVBstore [1] dst (MOVBUload [1] src mem) 				(MOVBstore dst (MOVBUload src mem) mem))))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 4 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 4) {
-			break
-		}
 		v.reset(OpMIPSMOVBstore)
 		v.AuxInt = 3
 		v.AddArg(dst)
@@ -6266,17 +6271,16 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 3
+	// match: (Move [3] dst src mem)
+	// cond:
 	// result: (MOVBstore [2] dst (MOVBUload [2] src mem) 		(MOVBstore [1] dst (MOVBUload [1] src mem) 			(MOVBstore dst (MOVBUload src mem) mem)))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 3 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 3) {
-			break
-		}
 		v.reset(OpMIPSMOVBstore)
 		v.AuxInt = 2
 		v.AddArg(dst)
@@ -6304,15 +6308,18 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0
+	// match: (Move [8] {t} dst src mem)
+	// cond: t.(Type).Alignment()%4 == 0
 	// result: (MOVWstore [4] dst (MOVWload [4] src mem) 		(MOVWstore dst (MOVWload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 8 {
+			break
+		}
+		t := v.Aux
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0) {
+		if !(t.(Type).Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVWstore)
@@ -6333,15 +6340,18 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0
+	// match: (Move [8] {t} dst src mem)
+	// cond: t.(Type).Alignment()%2 == 0
 	// result: (MOVHstore [6] dst (MOVHload [6] src mem) 		(MOVHstore [4] dst (MOVHload [4] src mem) 			(MOVHstore [2] dst (MOVHload [2] src mem) 				(MOVHstore dst (MOVHload src mem) mem))))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 8 {
+			break
+		}
+		t := v.Aux
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0) {
+		if !(t.(Type).Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVHstore)
@@ -6380,15 +6390,18 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 6 && SizeAndAlign(s).Align()%2 == 0
+	// match: (Move [6] {t} dst src mem)
+	// cond: t.(Type).Alignment()%2 == 0
 	// result: (MOVHstore [4] dst (MOVHload [4] src mem) 		(MOVHstore [2] dst (MOVHload [2] src mem) 			(MOVHstore dst (MOVHload src mem) mem)))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 6 {
+			break
+		}
+		t := v.Aux
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 6 && SizeAndAlign(s).Align()%2 == 0) {
+		if !(t.(Type).Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVHstore)
@@ -6418,15 +6431,18 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 12 && SizeAndAlign(s).Align()%4 == 0
+	// match: (Move [12] {t} dst src mem)
+	// cond: t.(Type).Alignment()%4 == 0
 	// result: (MOVWstore [8] dst (MOVWload [8] src mem) 		(MOVWstore [4] dst (MOVWload [4] src mem) 			(MOVWstore dst (MOVWload src mem) mem)))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 12 {
+			break
+		}
+		t := v.Aux
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 12 && SizeAndAlign(s).Align()%4 == 0) {
+		if !(t.(Type).Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVWstore)
@@ -6456,15 +6472,18 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%4 == 0
+	// match: (Move [16] {t} dst src mem)
+	// cond: t.(Type).Alignment()%4 == 0
 	// result: (MOVWstore [12] dst (MOVWload [12] src mem) 		(MOVWstore [8] dst (MOVWload [8] src mem) 			(MOVWstore [4] dst (MOVWload [4] src mem) 				(MOVWstore dst (MOVWload src mem) mem))))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 16 {
+			break
+		}
+		t := v.Aux
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%4 == 0) {
+		if !(t.(Type).Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVWstore)
@@ -6503,23 +6522,24 @@ func rewriteValueMIPS_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: (SizeAndAlign(s).Size() > 16 || SizeAndAlign(s).Align()%4 != 0)
-	// result: (LoweredMove [SizeAndAlign(s).Align()] 		dst 		src 		(ADDconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)]) 		mem)
+	// match: (Move [s] {t} dst src mem)
+	// cond: (s > 16 || t.(Type).Alignment()%4 != 0)
+	// result: (LoweredMove [t.(Type).Alignment()] 		dst 		src 		(ADDconst <src.Type> src [s-moveSize(t.(Type).Alignment(), config)]) 		mem)
 	for {
 		s := v.AuxInt
+		t := v.Aux
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 16 || SizeAndAlign(s).Align()%4 != 0) {
+		if !(s > 16 || t.(Type).Alignment()%4 != 0) {
 			break
 		}
 		v.reset(OpMIPSLoweredMove)
-		v.AuxInt = SizeAndAlign(s).Align()
+		v.AuxInt = t.(Type).Alignment()
 		v.AddArg(dst)
 		v.AddArg(src)
 		v0 := b.NewValue0(v.Pos, OpMIPSADDconst, src.Type)
-		v0.AuxInt = SizeAndAlign(s).Size() - moveSize(SizeAndAlign(s).Align(), config)
+		v0.AuxInt = s - moveSize(t.(Type).Alignment(), config)
 		v0.AddArg(src)
 		v.AddArg(v0)
 		v.AddArg(mem)
@@ -8277,49 +8297,49 @@ func rewriteValueMIPS_OpStaticCall(v *Value, config *Config) bool {
 func rewriteValueMIPS_OpStore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Store [1] ptr val mem)
-	// cond:
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 1
 	// result: (MOVBstore ptr val mem)
 	for {
-		if v.AuxInt != 1 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
+		if !(t.(Type).Size() == 1) {
+			break
+		}
 		v.reset(OpMIPSMOVBstore)
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [2] ptr val mem)
-	// cond:
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 2
 	// result: (MOVHstore ptr val mem)
 	for {
-		if v.AuxInt != 2 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
+		if !(t.(Type).Size() == 2) {
+			break
+		}
 		v.reset(OpMIPSMOVHstore)
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [4] ptr val mem)
-	// cond: !is32BitFloat(val.Type)
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 4 && !is32BitFloat(val.Type)
 	// result: (MOVWstore ptr val mem)
 	for {
-		if v.AuxInt != 4 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(!is32BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 4 && !is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpMIPSMOVWstore)
@@ -8328,36 +8348,15 @@ func rewriteValueMIPS_OpStore(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [8] ptr val mem)
-	// cond: !is64BitFloat(val.Type)
-	// result: (MOVWstore ptr val mem)
-	for {
-		if v.AuxInt != 8 {
-			break
-		}
-		ptr := v.Args[0]
-		val := v.Args[1]
-		mem := v.Args[2]
-		if !(!is64BitFloat(val.Type)) {
-			break
-		}
-		v.reset(OpMIPSMOVWstore)
-		v.AddArg(ptr)
-		v.AddArg(val)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Store [4] ptr val mem)
-	// cond: is32BitFloat(val.Type)
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 4 && is32BitFloat(val.Type)
 	// result: (MOVFstore ptr val mem)
 	for {
-		if v.AuxInt != 4 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(is32BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 4 && is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpMIPSMOVFstore)
@@ -8366,17 +8365,15 @@ func rewriteValueMIPS_OpStore(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [8] ptr val mem)
-	// cond: is64BitFloat(val.Type)
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 8 && is64BitFloat(val.Type)
 	// result: (MOVDstore ptr val mem)
 	for {
-		if v.AuxInt != 8 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(is64BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 8 && is64BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpMIPSMOVDstore)
@@ -8587,30 +8584,28 @@ func rewriteValueMIPS_OpXor8(v *Value, config *Config) bool {
 func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Zero [s] _ mem)
-	// cond: SizeAndAlign(s).Size() == 0
+	// match: (Zero [0] _ mem)
+	// cond:
 	// result: mem
 	for {
-		s := v.AuxInt
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 0) {
+		if v.AuxInt != 0 {
 			break
 		}
+		mem := v.Args[1]
 		v.reset(OpCopy)
 		v.Type = mem.Type
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 1
+	// match: (Zero [1] ptr mem)
+	// cond:
 	// result: (MOVBstore ptr (MOVWconst [0]) mem)
 	for {
-		s := v.AuxInt
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 1) {
+		if v.AuxInt != 1 {
 			break
 		}
+		ptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpMIPSMOVBstore)
 		v.AddArg(ptr)
 		v0 := b.NewValue0(v.Pos, OpMIPSMOVWconst, config.fe.TypeUInt32())
@@ -8619,14 +8614,17 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0
+	// match: (Zero [2] {t} ptr mem)
+	// cond: t.(Type).Alignment()%2 == 0
 	// result: (MOVHstore ptr (MOVWconst [0]) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 2 {
+			break
+		}
+		t := v.Aux
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0) {
+		if !(t.(Type).Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVHstore)
@@ -8637,16 +8635,15 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 2
+	// match: (Zero [2] ptr mem)
+	// cond:
 	// result: (MOVBstore [1] ptr (MOVWconst [0]) 		(MOVBstore [0] ptr (MOVWconst [0]) mem))
 	for {
-		s := v.AuxInt
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 2) {
+		if v.AuxInt != 2 {
 			break
 		}
+		ptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpMIPSMOVBstore)
 		v.AuxInt = 1
 		v.AddArg(ptr)
@@ -8663,14 +8660,17 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0
+	// match: (Zero [4] {t} ptr mem)
+	// cond: t.(Type).Alignment()%4 == 0
 	// result: (MOVWstore ptr (MOVWconst [0]) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 4 {
+			break
+		}
+		t := v.Aux
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0) {
+		if !(t.(Type).Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVWstore)
@@ -8681,14 +8681,17 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0
+	// match: (Zero [4] {t} ptr mem)
+	// cond: t.(Type).Alignment()%2 == 0
 	// result: (MOVHstore [2] ptr (MOVWconst [0]) 		(MOVHstore [0] ptr (MOVWconst [0]) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 4 {
+			break
+		}
+		t := v.Aux
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0) {
+		if !(t.(Type).Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVHstore)
@@ -8707,16 +8710,15 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 4
+	// match: (Zero [4] ptr mem)
+	// cond:
 	// result: (MOVBstore [3] ptr (MOVWconst [0]) 		(MOVBstore [2] ptr (MOVWconst [0]) 			(MOVBstore [1] ptr (MOVWconst [0]) 				(MOVBstore [0] ptr (MOVWconst [0]) mem))))
 	for {
-		s := v.AuxInt
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 4) {
+		if v.AuxInt != 4 {
 			break
 		}
+		ptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpMIPSMOVBstore)
 		v.AuxInt = 3
 		v.AddArg(ptr)
@@ -8747,16 +8749,15 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 3
+	// match: (Zero [3] ptr mem)
+	// cond:
 	// result: (MOVBstore [2] ptr (MOVWconst [0]) 		(MOVBstore [1] ptr (MOVWconst [0]) 			(MOVBstore [0] ptr (MOVWconst [0]) mem)))
 	for {
-		s := v.AuxInt
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 3) {
+		if v.AuxInt != 3 {
 			break
 		}
+		ptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(OpMIPSMOVBstore)
 		v.AuxInt = 2
 		v.AddArg(ptr)
@@ -8780,14 +8781,17 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 6 && SizeAndAlign(s).Align()%2 == 0
+	// match: (Zero [6] {t} ptr mem)
+	// cond: t.(Type).Alignment()%2 == 0
 	// result: (MOVHstore [4] ptr (MOVWconst [0]) 		(MOVHstore [2] ptr (MOVWconst [0]) 			(MOVHstore [0] ptr (MOVWconst [0]) mem)))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 6 {
+			break
+		}
+		t := v.Aux
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 6 && SizeAndAlign(s).Align()%2 == 0) {
+		if !(t.(Type).Alignment()%2 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVHstore)
@@ -8813,14 +8817,17 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0
+	// match: (Zero [8] {t} ptr mem)
+	// cond: t.(Type).Alignment()%4 == 0
 	// result: (MOVWstore [4] ptr (MOVWconst [0]) 			(MOVWstore [0] ptr (MOVWconst [0]) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 8 {
+			break
+		}
+		t := v.Aux
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0) {
+		if !(t.(Type).Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVWstore)
@@ -8839,14 +8846,17 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 12 && SizeAndAlign(s).Align()%4 == 0
+	// match: (Zero [12] {t} ptr mem)
+	// cond: t.(Type).Alignment()%4 == 0
 	// result: (MOVWstore [8] ptr (MOVWconst [0]) 		(MOVWstore [4] ptr (MOVWconst [0]) 			(MOVWstore [0] ptr (MOVWconst [0]) mem)))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 12 {
+			break
+		}
+		t := v.Aux
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 12 && SizeAndAlign(s).Align()%4 == 0) {
+		if !(t.(Type).Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVWstore)
@@ -8872,14 +8882,17 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%4 == 0
+	// match: (Zero [16] {t} ptr mem)
+	// cond: t.(Type).Alignment()%4 == 0
 	// result: (MOVWstore [12] ptr (MOVWconst [0]) 		(MOVWstore [8] ptr (MOVWconst [0]) 			(MOVWstore [4] ptr (MOVWconst [0]) 				(MOVWstore [0] ptr (MOVWconst [0]) mem))))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 16 {
+			break
+		}
+		t := v.Aux
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%4 == 0) {
+		if !(t.(Type).Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpMIPSMOVWstore)
@@ -8912,21 +8925,22 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Zero [s] ptr mem)
-	// cond: (SizeAndAlign(s).Size() > 16  || SizeAndAlign(s).Align()%4 != 0)
-	// result: (LoweredZero [SizeAndAlign(s).Align()] 		ptr 		(ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)]) 		mem)
+	// match: (Zero [s] {t} ptr mem)
+	// cond: (s > 16  || s%4 != 0)
+	// result: (LoweredZero [t.(Type).Alignment()] 		ptr 		(ADDconst <ptr.Type> ptr [s-moveSize(t.(Type).Alignment(), config)]) 		mem)
 	for {
 		s := v.AuxInt
+		t := v.Aux
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() > 16 || SizeAndAlign(s).Align()%4 != 0) {
+		if !(s > 16 || s%4 != 0) {
 			break
 		}
 		v.reset(OpMIPSLoweredZero)
-		v.AuxInt = SizeAndAlign(s).Align()
+		v.AuxInt = t.(Type).Alignment()
 		v.AddArg(ptr)
 		v0 := b.NewValue0(v.Pos, OpMIPSADDconst, ptr.Type)
-		v0.AuxInt = SizeAndAlign(s).Size() - moveSize(SizeAndAlign(s).Align(), config)
+		v0.AuxInt = s - moveSize(t.(Type).Alignment(), config)
 		v0.AddArg(ptr)
 		v.AddArg(v0)
 		v.AddArg(mem)

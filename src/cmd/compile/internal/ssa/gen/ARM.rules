@@ -290,90 +290,90 @@
 (Load <t> ptr mem) && is64BitFloat(t) -> (MOVDload ptr mem)
 
 // stores
-(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
-(Store [2] ptr val mem) -> (MOVHstore ptr val mem)
-(Store [4] ptr val mem) && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
-(Store [4] ptr val mem) && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
-(Store [8] ptr val mem) && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVHstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 4 && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
 
 // zero instructions
-(Zero [s] _ mem) && SizeAndAlign(s).Size() == 0 -> mem
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore ptr (MOVWconst [0]) mem)
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
+(Zero [0] _ mem) -> mem
+(Zero [1] ptr mem) -> (MOVBstore ptr (MOVWconst [0]) mem)
+(Zero [2] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore ptr (MOVWconst [0]) mem)
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 2 ->
+(Zero [2] ptr mem) ->
 	(MOVBstore [1] ptr (MOVWconst [0])
 		(MOVBstore [0] ptr (MOVWconst [0]) mem))
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
+(Zero [4] {t} ptr mem) && t.(Type).Alignment()%4 == 0 ->
 	(MOVWstore ptr (MOVWconst [0]) mem)
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
+(Zero [4] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore [2] ptr (MOVWconst [0])
 		(MOVHstore [0] ptr (MOVWconst [0]) mem))
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 ->
+(Zero [4] ptr mem) ->
 	(MOVBstore [3] ptr (MOVWconst [0])
 		(MOVBstore [2] ptr (MOVWconst [0])
 			(MOVBstore [1] ptr (MOVWconst [0])
 				(MOVBstore [0] ptr (MOVWconst [0]) mem))))
 
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 3 ->
+(Zero [3] ptr mem) ->
 	(MOVBstore [2] ptr (MOVWconst [0])
 		(MOVBstore [1] ptr (MOVWconst [0])
 			(MOVBstore [0] ptr (MOVWconst [0]) mem)))
 
 // Medium zeroing uses a duff device
 // 4 and 128 are magic constants, see runtime/mkduff.go
-(Zero [s] ptr mem)
-	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512
-	&& SizeAndAlign(s).Align()%4 == 0 && !config.noDuffDevice ->
-	(DUFFZERO [4 * (128 - int64(SizeAndAlign(s).Size()/4))] ptr (MOVWconst [0]) mem)
+(Zero [s] {t} ptr mem)
+	&& s%4 == 0 && s > 4 && s <= 512
+	&& t.(Type).Alignment()%4 == 0 && !config.noDuffDevice ->
+	(DUFFZERO [4 * (128 - int64(s/4))] ptr (MOVWconst [0]) mem)
 
 // Large zeroing uses a loop
-(Zero [s] ptr mem)
-	&& (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0 ->
-	(LoweredZero [SizeAndAlign(s).Align()]
+(Zero [s] {t} ptr mem)
+	&& (s > 512 || config.noDuffDevice) || t.(Type).Alignment()%4 != 0 ->
+	(LoweredZero [t.(Type).Alignment()]
 		ptr
-		(ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)])
+		(ADDconst <ptr.Type> ptr [s-moveSize(t.(Type).Alignment(), config)])
 		(MOVWconst [0])
 		mem)
 
 // moves
-(Move [s] _ _ mem) && SizeAndAlign(s).Size() == 0 -> mem
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore dst (MOVBUload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
+(Move [0] _ _ mem) -> mem
+(Move [1] dst src mem) -> (MOVBstore dst (MOVBUload src mem) mem)
+(Move [2] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore dst (MOVHUload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 ->
+(Move [2] dst src mem) ->
 	(MOVBstore [1] dst (MOVBUload [1] src mem)
 		(MOVBstore dst (MOVBUload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
+(Move [4] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
 	(MOVWstore dst (MOVWload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
+(Move [4] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore [2] dst (MOVHUload [2] src mem)
 		(MOVHstore dst (MOVHUload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 ->
+(Move [4] dst src mem) ->
 	(MOVBstore [3] dst (MOVBUload [3] src mem)
 		(MOVBstore [2] dst (MOVBUload [2] src mem)
 			(MOVBstore [1] dst (MOVBUload [1] src mem)
 				(MOVBstore dst (MOVBUload src mem) mem))))
 
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 3 ->
+(Move [3] dst src mem) ->
 	(MOVBstore [2] dst (MOVBUload [2] src mem)
 		(MOVBstore [1] dst (MOVBUload [1] src mem)
 			(MOVBstore dst (MOVBUload src mem) mem)))
 
 // Medium move uses a duff device
 // 8 and 128 are magic constants, see runtime/mkduff.go
-(Move [s] dst src mem)
-	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512
-	&& SizeAndAlign(s).Align()%4 == 0 && !config.noDuffDevice ->
-	(DUFFCOPY [8 * (128 - int64(SizeAndAlign(s).Size()/4))] dst src mem)
+(Move [s] {t} dst src mem)
+	&& s%4 == 0 && s > 4 && s <= 512
+	&& t.(Type).Alignment()%4 == 0 && !config.noDuffDevice ->
+	(DUFFCOPY [8 * (128 - int64(s/4))] dst src mem)
 
 // Large move uses a loop
-(Move [s] dst src mem)
-	&& (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0 ->
-	(LoweredMove [SizeAndAlign(s).Align()]
+(Move [s] {t} dst src mem)
+	&& (s > 512 || config.noDuffDevice) || t.(Type).Alignment()%4 != 0 ->
+	(LoweredMove [t.(Type).Alignment()]
 		dst
 		src
-		(ADDconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)])
+		(ADDconst <src.Type> src [s-moveSize(t.(Type).Alignment(), config)])
 		mem)
 
 // calls

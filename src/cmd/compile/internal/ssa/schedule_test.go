@@ -14,9 +14,9 @@ func TestSchedule(t *testing.T) {
 				Valu("mem0", OpInitMem, TypeMem, 0, nil),
 				Valu("ptr", OpConst64, TypeInt64, 0xABCD, nil),
 				Valu("v", OpConst64, TypeInt64, 12, nil),
-				Valu("mem1", OpStore, TypeMem, 8, nil, "ptr", "v", "mem0"),
-				Valu("mem2", OpStore, TypeMem, 8, nil, "ptr", "v", "mem1"),
-				Valu("mem3", OpStore, TypeInt64, 8, nil, "ptr", "sum", "mem2"),
+				Valu("mem1", OpStore, TypeMem, 0, TypeInt64, "ptr", "v", "mem0"),
+				Valu("mem2", OpStore, TypeMem, 0, TypeInt64, "ptr", "v", "mem1"),
+				Valu("mem3", OpStore, TypeMem, 0, TypeInt64, "ptr", "sum", "mem2"),
 				Valu("l1", OpLoad, TypeInt64, 0, nil, "ptr", "mem1"),
 				Valu("l2", OpLoad, TypeInt64, 0, nil, "ptr", "mem2"),
 				Valu("sum", OpAdd64, TypeInt64, 0, nil, "l1", "l2"),
@@ -63,11 +63,11 @@ func TestStoreOrder(t *testing.T) {
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem0", OpInitMem, TypeMem, 0, nil),
-			Valu("a", OpAdd64, TypeInt64, 0, nil, "b", "c"),            // v2
-			Valu("b", OpLoad, TypeInt64, 0, nil, "ptr", "mem1"),        // v3
-			Valu("c", OpNeg64, TypeInt64, 0, nil, "b"),                 // v4
-			Valu("mem1", OpStore, TypeMem, 8, nil, "ptr", "v", "mem0"), // v5
-			Valu("mem2", OpStore, TypeMem, 0, nil, "ptr", "a", "mem1"),
+			Valu("a", OpAdd64, TypeInt64, 0, nil, "b", "c"),                  // v2
+			Valu("b", OpLoad, TypeInt64, 0, nil, "ptr", "mem1"),              // v3
+			Valu("c", OpNeg64, TypeInt64, 0, nil, "b"),                       // v4
+			Valu("mem1", OpStore, TypeMem, 0, TypeInt64, "ptr", "v", "mem0"), // v5
+			Valu("mem2", OpStore, TypeMem, 0, TypeInt64, "ptr", "a", "mem1"),
 			Valu("ptr", OpConst64, TypeInt64, 0xABCD, nil),
 			Valu("v", OpConst64, TypeInt64, 12, nil),
 			Goto("exit")),
