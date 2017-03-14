@@ -11,8 +11,9 @@ import (
 	"strings"
 )
 
-// A Func represents a Go func declaration (or function literal) and
-// its body. This package compiles each Func independently.
+// A Func represents a Go func declaration (or function literal) and its body.
+// This package compiles each Func independently.
+// Funcs are single-use; a new Func must be created for every compiled function.
 type Func struct {
 	Config *Config  // architecture information
 	pass   *pass    // current pass information (name, options, etc.)
