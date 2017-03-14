@@ -692,3 +692,172 @@ done:
 	h.flags &^= hashWriting
 	return val
 }
+
+func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
+	if raceenabled && h != nil {
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_fast32))
+	}
+	if h == nil || h.count == 0 {
+		return
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map writes")
+	}
+
+	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+
+	// Set hashWriting after calling alg.hash for consistency with mapdelete
+	h.flags |= hashWriting
+
+	bucket := hash & (uintptr(1)<<h.B - 1)
+	if h.growing() {
+		growWork(t, h, bucket)
+	}
+	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+	for {
+		for i := uintptr(0); i < bucketCnt; i++ {
+			if b.tophash[i] != top {
+				continue
+			}
+			k := (*uint32)(add(unsafe.Pointer(b), dataOffset+i*4))
+			if key != *k {
+				continue
+			}
+			*k = 0
+			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*4 + i*uintptr(t.valuesize))
+			typedmemclr(t.elem, v)
+			b.tophash[i] = empty
+			h.count--
+			goto done
+		}
+		b = b.overflow(t)
+		if b == nil {
+			goto done
+		}
+	}
+
+done:
+	if h.flags&hashWriting == 0 {
+		throw("concurrent map writes")
+	}
+	h.flags &^= hashWriting
+}
+
+func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
+	if raceenabled && h != nil {
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_fast64))
+	}
+	if h == nil || h.count == 0 {
+		return
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map writes")
+	}
+
+	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+
+	// Set hashWriting after calling alg.hash for consistency with mapdelete
+	h.flags |= hashWriting
+
+	bucket := hash & (uintptr(1)<<h.B - 1)
+	if h.growing() {
+		growWork(t, h, bucket)
+	}
+	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+	for {
+		for i := uintptr(0); i < bucketCnt; i++ {
+			if b.tophash[i] != top {
+				continue
+			}
+			k := (*uint64)(add(unsafe.Pointer(b), dataOffset+i*8))
+			if key != *k {
+				continue
+			}
+			*k = 0
+			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*8 + i*uintptr(t.valuesize))
+			typedmemclr(t.elem, v)
+			b.tophash[i] = empty
+			h.count--
+			goto done
+		}
+		b = b.overflow(t)
+		if b == nil {
+			goto done
+		}
+	}
+
+done:
+	if h.flags&hashWriting == 0 {
+		throw("concurrent map writes")
+	}
+	h.flags &^= hashWriting
+}
+
+func mapdelete_faststr(t *maptype, h *hmap, ky string) {
+	if raceenabled && h != nil {
+		callerpc := getcallerpc(unsafe.Pointer(&t))
+		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_faststr))
+	}
+	if h == nil || h.count == 0 {
+		return
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map writes")
+	}
+
+	key := stringStructOf(&ky)
+	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+
+	// Set hashWriting after calling alg.hash for consistency with mapdelete
+	h.flags |= hashWriting
+
+	bucket := hash & (uintptr(1)<<h.B - 1)
+	if h.growing() {
+		growWork(t, h, bucket)
+	}
+	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
+	if top < minTopHash {
+		top += minTopHash
+	}
+	for {
+		for i := uintptr(0); i < bucketCnt; i++ {
+			if b.tophash[i] != top {
+				continue
+			}
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
+			if k.len != key.len {
+				continue
+			}
+			if k.str != key.str && !memequal(k.str, key.str, uintptr(key.len)) {
+				continue
+			}
+			typedmemclr(t.key, unsafe.Pointer(k))
+			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*2*sys.PtrSize + i*uintptr(t.valuesize))
+			typedmemclr(t.elem, v)
+			b.tophash[i] = empty
+			h.count--
+			goto done
+		}
+		b = b.overflow(t)
+		if b == nil {
+			goto done
+		}
+	}
+
+done:
+	if h.flags&hashWriting == 0 {
+		throw("concurrent map writes")
+	}
+	h.flags &^= hashWriting
+}
