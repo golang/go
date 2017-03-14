@@ -1290,8 +1290,6 @@ loop:
 			}
 
 		case '{':
-			if brac == 0 {
-			}
 			brac++
 
 		case '$':
