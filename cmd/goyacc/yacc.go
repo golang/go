@@ -2279,7 +2279,7 @@ func output() {
 // temp1[t] is changed to reflect the action
 //
 func precftn(r, t, s int) {
-	var action int
+	action := NOASC
 
 	lp := levprd[r]
 	lt := toklev[t]
