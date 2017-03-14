@@ -192,8 +192,7 @@ func tempname(nn *Node, t *Type) {
 	}
 
 	if t == nil {
-		yyerror("tempname called with nil type")
-		t = Types[TINT32]
+		Fatalf("tempname called with nil type")
 	}
 
 	// give each tmp a different name so that there

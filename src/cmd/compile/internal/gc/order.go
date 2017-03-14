@@ -799,8 +799,8 @@ func orderstmt(n *Node, order *Order) {
 			if r != nil {
 				switch r.Op {
 				default:
-					yyerror("unknown op in select %v", r.Op)
 					Dump("select case", r)
+					Fatalf("unknown op in select %v", r.Op)
 
 				// If this is case x := <-ch or case x, y := <-ch, the case has
 				// the ODCL nodes to declare x and y. We want to delay that
@@ -821,8 +821,8 @@ func orderstmt(n *Node, order *Order) {
 					}
 
 					if r.Ninit.Len() != 0 {
-						yyerror("ninit on select recv")
 						dumplist("ninit", r.Ninit)
+						Fatalf("ninit on select recv")
 					}
 
 					// case x = <-c
@@ -883,8 +883,8 @@ func orderstmt(n *Node, order *Order) {
 
 				case OSEND:
 					if r.Ninit.Len() != 0 {
-						yyerror("ninit on select send")
 						dumplist("ninit", r.Ninit)
+						Fatalf("ninit on select send")
 					}
 
 					// case c <- x

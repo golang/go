@@ -165,7 +165,7 @@ func mapbucket(t *Type) *Type {
 	// Double-check that overflow field is final memory in struct,
 	// with no padding at end. See comment above.
 	if ovf.Offset != bucket.Width-int64(Widthptr) {
-		yyerror("bad math in mapbucket for %v", t)
+		Fatalf("bad math in mapbucket for %v", t)
 	}
 
 	t.MapType().Bucket = bucket
@@ -245,7 +245,7 @@ func hiter(t *Type) *Type {
 	i.SetFields(field[:])
 	dowidth(i)
 	if i.Width != int64(12*Widthptr) {
-		yyerror("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
+		Fatalf("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
 	}
 	t.MapType().Hiter = i
 	i.StructType().Map = t

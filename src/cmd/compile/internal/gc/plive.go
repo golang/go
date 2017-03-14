@@ -751,7 +751,7 @@ func checkauto(fn *Node, p *obj.Prog, n *Node) {
 	for _, ln := range fn.Func.Dcl {
 		fmt.Printf("\t%v (%p; class=%d)\n", ln, ln, ln.Class)
 	}
-	yyerror("checkauto: invariant lost")
+	Fatalf("checkauto: invariant lost")
 }
 
 func checkparam(fn *Node, p *obj.Prog, n *Node) {
@@ -768,7 +768,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 	for _, ln := range fn.Func.Dcl {
 		fmt.Printf("\t%v (%p; class=%d)\n", ln, ln, ln.Class)
 	}
-	yyerror("checkparam: invariant lost")
+	Fatalf("checkparam: invariant lost")
 }
 
 func checkprog(fn *Node, p *obj.Prog) {
@@ -1258,7 +1258,7 @@ func livenessepilogue(lv *Liveness) {
 						}
 						n := lv.vars[j]
 						if n.Class != PPARAM {
-							yyerrorl(p.Pos, "internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
+							Fatalf("internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
 						}
 					}
 				}

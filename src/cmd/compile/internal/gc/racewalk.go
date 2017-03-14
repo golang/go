@@ -364,13 +364,10 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OAS2RECV,
 		OAS2MAPR,
 		OASOP:
-		yyerror("instrument: %v must be lowered by now", n.Op)
-
-		goto ret
+		Fatalf("instrument: %v must be lowered by now", n.Op)
 
 	case OGETG:
-		yyerror("instrument: OGETG can happen only in runtime which we don't instrument")
-		goto ret
+		Fatalf("instrument: OGETG can happen only in runtime which we don't instrument")
 
 	case OFOR, OFORUNTIL:
 		if n.Left != nil {
