@@ -463,13 +463,29 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 func TestServerTimeouts(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
+	// Try three times, with increasing timeouts.
+	tries := []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, 1 * time.Second}
+	for i, timeout := range tries {
+		err := testServerTimeouts(timeout)
+		if err == nil {
+			return
+		}
+		t.Logf("failed at %v: %v", timeout, err)
+		if i != len(tries)-1 {
+			t.Logf("retrying at %v ...", tries[i+1])
+		}
+	}
+	t.Fatal("all attempts failed")
+}
+
+func testServerTimeouts(timeout time.Duration) error {
 	reqNum := 0
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(res ResponseWriter, req *Request) {
 		reqNum++
 		fmt.Fprintf(res, "req=%d", reqNum)
 	}))
-	ts.Config.ReadTimeout = 250 * time.Millisecond
-	ts.Config.WriteTimeout = 250 * time.Millisecond
+	ts.Config.ReadTimeout = timeout
+	ts.Config.WriteTimeout = timeout
 	ts.Start()
 	defer ts.Close()
 
@@ -477,12 +493,12 @@ func TestServerTimeouts(t *testing.T) {
 	c := ts.Client()
 	r, err := c.Get(ts.URL)
 	if err != nil {
-		t.Fatalf("http Get #1: %v", err)
+		return fmt.Errorf("http Get #1: %v", err)
 	}
 	got, err := ioutil.ReadAll(r.Body)
 	expected := "req=1"
 	if string(got) != expected || err != nil {
-		t.Errorf("Unexpected response for request #1; got %q ,%v; expected %q, nil",
+		return fmt.Errorf("Unexpected response for request #1; got %q ,%v; expected %q, nil",
 			string(got), err, expected)
 	}
 
@@ -490,17 +506,18 @@ func TestServerTimeouts(t *testing.T) {
 	t1 := time.Now()
 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
 	if err != nil {
-		t.Fatalf("Dial: %v", err)
+		return fmt.Errorf("Dial: %v", err)
 	}
 	buf := make([]byte, 1)
 	n, err := conn.Read(buf)
 	conn.Close()
 	latency := time.Since(t1)
 	if n != 0 || err != io.EOF {
-		t.Errorf("Read = %v, %v, wanted %v, %v", n, err, 0, io.EOF)
+		return fmt.Errorf("Read = %v, %v, wanted %v, %v", n, err, 0, io.EOF)
 	}
-	if latency < 200*time.Millisecond /* fudge from 250 ms above */ {
-		t.Errorf("got EOF after %s, want >= %s", latency, 200*time.Millisecond)
+	minLatency := timeout / 5 * 4
+	if latency < minLatency {
+		return fmt.Errorf("got EOF after %s, want >= %s", latency, minLatency)
 	}
 
 	// Hit the HTTP server successfully again, verifying that the
@@ -508,29 +525,31 @@ func TestServerTimeouts(t *testing.T) {
 	// get "req=2", not "req=3")
 	r, err = c.Get(ts.URL)
 	if err != nil {
-		t.Fatalf("http Get #2: %v", err)
+		return fmt.Errorf("http Get #2: %v", err)
 	}
 	got, err = ioutil.ReadAll(r.Body)
+	r.Body.Close()
 	expected = "req=2"
 	if string(got) != expected || err != nil {
-		t.Errorf("Get #2 got %q, %v, want %q, nil", string(got), err, expected)
+		return fmt.Errorf("Get #2 got %q, %v, want %q, nil", string(got), err, expected)
 	}
 
 	if !testing.Short() {
 		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
 		if err != nil {
-			t.Fatalf("Dial: %v", err)
+			return fmt.Errorf("long Dial: %v", err)
 		}
 		defer conn.Close()
 		go io.Copy(ioutil.Discard, conn)
 		for i := 0; i < 5; i++ {
 			_, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"))
 			if err != nil {
-				t.Fatalf("on write %d: %v", i, err)
+				return fmt.Errorf("on write %d: %v", i, err)
 			}
-			time.Sleep(ts.Config.ReadTimeout / 2)
+			time.Sleep(timeout / 2)
 		}
 	}
+	return nil
 }
 
 // Test that the HTTP/2 server handles Server.WriteTimeout (Issue 18437)
