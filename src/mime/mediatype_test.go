@@ -253,13 +253,18 @@ func TestParseMediaType(t *testing.T) {
 
 type badMediaTypeTest struct {
 	in  string
+	mt  string
 	err string
 }
 
 var badMediaTypeTests = []badMediaTypeTest{
-	{"bogus ;=========", "mime: invalid media parameter"},
-	{"bogus/<script>alert</script>", "mime: expected token after slash"},
-	{"bogus/bogus<script>alert</script>", "mime: unexpected content after media subtype"},
+	{"bogus ;=========", "bogus", "mime: invalid media parameter"},
+	// The following example is from real email delivered by gmail (error: missing semicolon)
+	// and it is there to check behavior described in #19498
+	{"application/pdf; x-mac-type=\"3F3F3F3F\"; x-mac-creator=\"3F3F3F3F\" name=\"a.pdf\";",
+		"application/pdf", "mime: invalid media parameter"},
+	{"bogus/<script>alert</script>", "", "mime: expected token after slash"},
+	{"bogus/bogus<script>alert</script>", "", "mime: unexpected content after media subtype"},
 }
 
 func TestParseMediaTypeBogus(t *testing.T) {
@@ -275,8 +280,11 @@ func TestParseMediaTypeBogus(t *testing.T) {
 		if params != nil {
 			t.Errorf("ParseMediaType(%q): got non-nil params on error", tt.in)
 		}
-		if mt != "" {
-			t.Errorf("ParseMediaType(%q): got non-empty media type string on error", tt.in)
+		if err != ErrInvalidMediaParameter && mt != "" {
+			t.Errorf("ParseMediaType(%q): got unexpected non-empty media type string", tt.in)
+		}
+		if err == ErrInvalidMediaParameter && mt != tt.mt {
+			t.Errorf("ParseMediaType(%q): in case of invalid parameters: expected type %q, got %q", tt.in, tt.mt, mt)
 		}
 	}
 }
