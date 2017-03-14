@@ -345,6 +345,10 @@ func compile(fn *Node) {
 	if nerrors != 0 {
 		return
 	}
+	checkcontrolflow(fn)
+	if nerrors != 0 {
+		return
+	}
 	if instrumenting {
 		instrument(fn)
 	}

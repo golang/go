@@ -1078,6 +1078,23 @@ func (o Op) IsSlice3() bool {
 	return false
 }
 
+// labeledControl returns the control flow Node (for, switch, select)
+// associated with the label n, if any.
+func (n *Node) labeledControl() *Node {
+	if n.Op != OLABEL {
+		Fatalf("labeledControl %v", n.Op)
+	}
+	ctl := n.Name.Defn
+	if ctl == nil {
+		return nil
+	}
+	switch ctl.Op {
+	case OFOR, OFORUNTIL, OSWITCH, OSELECT:
+		return ctl
+	}
+	return nil
+}
+
 func syslook(name string) *Node {
 	s := Pkglookup(name, Runtimepkg)
 	if s == nil || s.Def == nil {
