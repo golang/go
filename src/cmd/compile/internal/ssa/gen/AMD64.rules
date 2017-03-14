@@ -98,7 +98,7 @@
 
 // Lowering other arithmetic
 (Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <TypeFlags> (BSFQ x)))
-(Ctz32 <t> x) -> (CMOVLEQ (Select0 <t> (BSFL x)) (MOVLconst <t> [32]) (Select1 <TypeFlags> (BSFL x)))
+(Ctz32 x) -> (Select0 (BSFQ (ORQ <config.Frontend().TypeUInt64()> (MOVQconst [1<<32]) x)))
 
 (Bswap64 x) -> (BSWAPQ x)
 (Bswap32 x) -> (BSWAPL x)
@@ -2083,3 +2083,9 @@
 	(CMPXCHGQlock [off1+off2] {sym} ptr old new_ mem)
 (CMPXCHGLlock [off1] {sym} (ADDQconst [off2] ptr) old new_ mem) && is32Bit(off1+off2) ->
 	(CMPXCHGLlock [off1+off2] {sym} ptr old new_ mem)
+
+// We don't need the conditional move if we know the arg of BSF is not zero.
+(CMOVQEQ x _ (Select1 (BSFQ (ORQconst [c] _)))) && c != 0 -> x
+// Extension is unnecessary for trailing zeros.
+(BSFQ (ORQconst <t> [1<<8] (MOVBQZX x))) -> (BSFQ (ORQconst <t> [1<<8] x))
+(BSFQ (ORQconst <t> [1<<16] (MOVWQZX x))) -> (BSFQ (ORQconst <t> [1<<16] x))

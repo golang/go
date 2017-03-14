@@ -248,7 +248,7 @@ func (s *mspan) nextFreeIndex() uintptr {
 		return snelems
 	}
 
-	s.allocCache >>= (bitIndex + 1)
+	s.allocCache >>= uint(bitIndex + 1)
 	sfreeindex = result + 1
 
 	if sfreeindex%64 == 0 && sfreeindex != snelems {

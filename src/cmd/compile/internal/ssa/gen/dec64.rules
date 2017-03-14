@@ -108,13 +108,11 @@
 		(Com32 <config.fe.TypeUInt32()> (Int64Lo x)))
 
 (Ctz64 x) ->
-	(Int64Make
-		(Const32 <config.fe.TypeUInt32()> [0])
-		(Add32 <config.fe.TypeUInt32()>
-			(Ctz32 <config.fe.TypeUInt32()> (Int64Lo x))
-			(And32 <config.fe.TypeUInt32()>
-				(Com32 <config.fe.TypeUInt32()> (Zeromask (Int64Lo x)))
-				(Ctz32 <config.fe.TypeUInt32()> (Int64Hi x)))))
+	(Add32 <config.fe.TypeUInt32()>
+		(Ctz32 <config.fe.TypeUInt32()> (Int64Lo x))
+		(And32 <config.fe.TypeUInt32()>
+			(Com32 <config.fe.TypeUInt32()> (Zeromask (Int64Lo x)))
+			(Ctz32 <config.fe.TypeUInt32()> (Int64Hi x))))
 
 (Bswap64 x) ->
 	(Int64Make

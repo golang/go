@@ -162,7 +162,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "amd64",
 		os:      "linux",
-		imports: []string{"encoding/binary"},
+		imports: []string{"encoding/binary", "math/bits"},
 		tests:   linuxAMD64Tests,
 	},
 	{
@@ -174,7 +174,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "s390x",
 		os:      "linux",
-		imports: []string{"encoding/binary"},
+		imports: []string{"encoding/binary", "math/bits"},
 		tests:   linuxS390XTests,
 	},
 	{
@@ -543,6 +543,39 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		[]string{"\tBTQ\t\\$60"},
 	},
+	// Intrinsic tests for math/bits
+	{
+		`
+		func f41(a uint64) int {
+			return bits.TrailingZeros64(a)
+		}
+		`,
+		[]string{"\tBSFQ\t", "\tMOVQ\t\\$64,", "\tCMOVQEQ\t"},
+	},
+	{
+		`
+		func f42(a uint32) int {
+			return bits.TrailingZeros32(a)
+		}
+		`,
+		[]string{"\tBSFQ\t", "\tORQ\t[^$]", "\tMOVQ\t\\$4294967296,"},
+	},
+	{
+		`
+		func f43(a uint16) int {
+			return bits.TrailingZeros16(a)
+		}
+		`,
+		[]string{"\tBSFQ\t", "\tORQ\t\\$65536,"},
+	},
+	{
+		`
+		func f44(a uint8) int {
+			return bits.TrailingZeros8(a)
+		}
+		`,
+		[]string{"\tBSFQ\t", "\tORQ\t\\$256,"},
+	},
 }
 
 var linux386Tests = []*asmTest{
@@ -709,6 +742,39 @@ var linuxS390XTests = []*asmTest{
 		}
 		`,
 		[]string{"\tFMSUBS\t"},
+	},
+	// Intrinsic tests for math/bits
+	{
+		`
+		func f18(a uint64) int {
+			return bits.TrailingZeros64(a)
+		}
+		`,
+		[]string{"\tFLOGR\t"},
+	},
+	{
+		`
+		func f19(a uint32) int {
+			return bits.TrailingZeros32(a)
+		}
+		`,
+		[]string{"\tFLOGR\t", "\tMOVWZ\t"},
+	},
+	{
+		`
+		func f20(a uint16) int {
+			return bits.TrailingZeros16(a)
+		}
+		`,
+		[]string{"\tFLOGR\t", "\tOR\t\\$65536,"},
+	},
+	{
+		`
+		func f21(a uint8) int {
+			return bits.TrailingZeros8(a)
+		}
+		`,
+		[]string{"\tFLOGR\t", "\tOR\t\\$256,"},
 	},
 }
 
