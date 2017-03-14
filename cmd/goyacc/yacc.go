@@ -2269,11 +2269,7 @@ func output() {
 
 	fmt.Fprintf(ftable, "}\n")
 	ftable.WriteRune('\n')
-	fmt.Fprintf(ftable, "const %sNprod = %v\n", prefix, nprod)
 	fmt.Fprintf(ftable, "const %sPrivate = %v\n", prefix, PRIVATE)
-	ftable.WriteRune('\n')
-	fmt.Fprintf(ftable, "var %sTokenNames []string\n", prefix)
-	fmt.Fprintf(ftable, "var %sStates []string\n", prefix)
 }
 
 //
