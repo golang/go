@@ -737,6 +737,7 @@ func (t *test) run() {
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
+		cmd = append(cmd, flags...)
 		cmd = append(cmd, t.goFileName())
 		out, err := runcmd(append(cmd, args...)...)
 		if err != nil {
