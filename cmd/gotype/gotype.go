@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// gotype.go is a 1:1 copy of the original source maintained in
-// $GOROOT/src/go/types/gotype.go.
+// gotype.go is a copy of the original source maintained
+// in $GOROOT/src/go/types/gotype.go, but with the call
+// to types.SizesFor factored out so we can provide a local
+// implementation when compiling against Go 1.8 and earlier.
 //
-// This copy is here for the sole purpose of satisfying existing
+// This code is here for the sole purpose of satisfying historic
 // references to this location, and for making gotype accessible
 // via 'go get'.
 //
 // Do NOT make changes to this version as they will not be maintained
-// (and possibly overwritten). Any changes should be made to the original.
+// (and possibly overwritten). Any changes should be made to the original
+// and then ported to here.
 
 /*
 The gotype command, like the front-end of a Go compiler, parses and
@@ -282,7 +285,7 @@ func checkPkgFiles(files []*ast.File) {
 			report(err)
 		},
 		Importer: importer.For(*compiler, nil),
-		Sizes:    types.SizesFor(build.Default.Compiler, build.Default.GOARCH),
+		Sizes:    SizesFor(build.Default.Compiler, build.Default.GOARCH),
 	}
 
 	defer func() {
