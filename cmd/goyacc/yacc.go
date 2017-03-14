@@ -1264,18 +1264,6 @@ l1:
 	return nl
 }
 
-func dumpprod(curprod []int, max int) {
-	fmt.Printf("\n")
-	for i := 0; i < max; i++ {
-		p := curprod[i]
-		if p < 0 {
-			fmt.Printf("[%v] %v\n", i, p)
-		} else {
-			fmt.Printf("[%v] %v\n", i, symnam(p))
-		}
-	}
-}
-
 //
 // copy action to the next ; or closing }
 //
@@ -1564,21 +1552,6 @@ func cpres() {
 	}
 }
 
-func dumppres() {
-	for i := 0; i <= nnonter; i++ {
-		fmt.Printf("nonterm %d\n", i)
-		curres := pres[i]
-		for j := 0; j < len(curres); j++ {
-			fmt.Printf("\tproduction %d:", j)
-			prd := curres[j]
-			for k := 0; k < len(prd); k++ {
-				fmt.Printf(" %d", prd[k])
-			}
-			fmt.Print("\n")
-		}
-	}
-}
-
 //
 // mark nonterminals which derive the empty string
 // also, look for nonterminals which don't derive any token strings
@@ -1662,14 +1635,6 @@ again:
 			continue again
 		}
 		return
-	}
-}
-
-func dumpempty() {
-	for i := 0; i <= nnonter; i++ {
-		if pempty[i] == EMPTY {
-			fmt.Printf("non-term %d %s matches empty\n", i, symnam(i+NTBASE))
-		}
 	}
 }
 
