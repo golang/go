@@ -1225,9 +1225,7 @@ func writecode(code []rune) {
 // skipcom is called after reading a '/'
 //
 func skipcom() int {
-	var c rune
-
-	c = getrune(finput)
+	c := getrune(finput)
 	if c == '/' {
 		for c != EOF {
 			if c == '\n' {
