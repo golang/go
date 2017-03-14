@@ -2227,6 +2227,7 @@ func (e *edgeState) findRegFor(typ Type) Location {
 	// 1) an unused register
 	// 2) a non-unique register not holding a final value
 	// 3) a non-unique register
+	// 4) TODO: a register holding a rematerializeable value
 	x := m &^ e.usedRegs
 	if x != 0 {
 		return &e.s.registers[pickReg(x)]
@@ -2252,10 +2253,12 @@ func (e *edgeState) findRegFor(typ Type) Location {
 		a := e.cache[vid]
 		for _, c := range a {
 			if r, ok := e.s.f.getHome(c.ID).(*Register); ok && m>>uint(r.num)&1 != 0 {
-				x := e.p.NewValue1(c.Pos, OpStoreReg, c.Type, c)
-				e.set(t, vid, x, false, c.Pos)
-				if e.s.f.pass.debug > regDebug {
-					fmt.Printf("  SPILL %s->%s %s\n", r.Name(), t.Name(), x.LongString())
+				if !c.rematerializeable() {
+					x := e.p.NewValue1(c.Pos, OpStoreReg, c.Type, c)
+					e.set(t, vid, x, false, c.Pos)
+					if e.s.f.pass.debug > regDebug {
+						fmt.Printf("  SPILL %s->%s %s\n", r.Name(), t.Name(), x.LongString())
+					}
 				}
 				// r will now be overwritten by the caller. At some point
 				// later, the newly saved value will be moved back to its
