@@ -2006,6 +2006,13 @@ OpSwitch:
 	case OLABEL:
 		ok |= Etop
 		decldepth++
+		if isblanksym(n.Left.Sym) {
+			// Empty identifier is valid but useless.
+			// Eliminate now to simplify life later.
+			// See issues 7538, 11589, 11593.
+			n.Op = OEMPTY
+			n.Left = nil
+		}
 		break OpSwitch
 
 	case ODEFER:
