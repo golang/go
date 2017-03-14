@@ -663,10 +663,10 @@ func (e *EscState) esc(n *Node, parent *Node) {
 	// must happen before processing of switch body,
 	// so before recursion.
 	if n.Op == OSWITCH && n.Left != nil && n.Left.Op == OTYPESW {
-		for _, n1 := range n.List.Slice() { // cases
+		for _, cas := range n.List.Slice() { // cases
 			// it.N().Rlist is the variable per case
-			if n1.Rlist.Len() != 0 {
-				e.nodeEscState(n1.Rlist.First()).Loopdepth = e.loopdepth
+			if cas.Rlist.Len() != 0 {
+				e.nodeEscState(cas.Rlist.First()).Loopdepth = e.loopdepth
 			}
 		}
 	}
@@ -750,12 +750,12 @@ func (e *EscState) esc(n *Node, parent *Node) {
 
 	case OSWITCH:
 		if n.Left != nil && n.Left.Op == OTYPESW {
-			for _, n2 := range n.List.Slice() {
+			for _, cas := range n.List.Slice() {
 				// cases
 				// n.Left.Right is the argument of the .(type),
 				// it.N().Rlist is the variable per case
-				if n2.Rlist.Len() != 0 {
-					e.escassignWhyWhere(n2.Rlist.First(), n.Left.Right, "switch case", n)
+				if cas.Rlist.Len() != 0 {
+					e.escassignWhyWhere(cas.Rlist.First(), n.Left.Right, "switch case", n)
 				}
 			}
 		}
@@ -821,19 +821,17 @@ func (e *EscState) esc(n *Node, parent *Node) {
 		// TODO: leak to a dummy node instead
 		// defer f(x) - f and x escape
 		e.escassignSinkWhy(n, n.Left.Left, "defer func")
-
 		e.escassignSinkWhy(n, n.Left.Right, "defer func ...") // ODDDARG for call
-		for _, n4 := range n.Left.List.Slice() {
-			e.escassignSinkWhy(n, n4, "defer func arg")
+		for _, arg := range n.Left.List.Slice() {
+			e.escassignSinkWhy(n, arg, "defer func arg")
 		}
 
 	case OPROC:
 		// go f(x) - f and x escape
 		e.escassignSinkWhy(n, n.Left.Left, "go func")
-
 		e.escassignSinkWhy(n, n.Left.Right, "go func ...") // ODDDARG for call
-		for _, n4 := range n.Left.List.Slice() {
-			e.escassignSinkWhy(n, n4, "go func arg")
+		for _, arg := range n.Left.List.Slice() {
+			e.escassignSinkWhy(n, arg, "go func arg")
 		}
 
 	case OCALLMETH, OCALLFUNC, OCALLINTER:
@@ -908,28 +906,28 @@ func (e *EscState) esc(n *Node, parent *Node) {
 
 	case OARRAYLIT:
 		// Link values to array
-		for _, n2 := range n.List.Slice() {
-			if n2.Op == OKEY {
-				n2 = n2.Right
+		for _, elt := range n.List.Slice() {
+			if elt.Op == OKEY {
+				elt = elt.Right
 			}
-			e.escassign(n, n2, e.stepAssignWhere(n, n2, "array literal element", n))
+			e.escassign(n, elt, e.stepAssignWhere(n, elt, "array literal element", n))
 		}
 
 	case OSLICELIT:
 		// Slice is not leaked until proven otherwise
 		e.track(n)
 		// Link values to slice
-		for _, n2 := range n.List.Slice() {
-			if n2.Op == OKEY {
-				n2 = n2.Right
+		for _, elt := range n.List.Slice() {
+			if elt.Op == OKEY {
+				elt = elt.Right
 			}
-			e.escassign(n, n2, e.stepAssignWhere(n, n2, "slice literal element", n))
+			e.escassign(n, elt, e.stepAssignWhere(n, elt, "slice literal element", n))
 		}
 
 		// Link values to struct.
 	case OSTRUCTLIT:
-		for _, n6 := range n.List.Slice() {
-			e.escassignWhyWhere(n, n6.Left, "struct literal element", n)
+		for _, elt := range n.List.Slice() {
+			e.escassignWhyWhere(n, elt.Left, "struct literal element", n)
 		}
 
 	case OPTRLIT:
@@ -947,9 +945,9 @@ func (e *EscState) esc(n *Node, parent *Node) {
 	case OMAPLIT:
 		e.track(n)
 		// Keys and values make it to memory, lose track.
-		for _, n7 := range n.List.Slice() {
-			e.escassignSinkWhy(n, n7.Left, "map literal key")
-			e.escassignSinkWhy(n, n7.Right, "map literal value")
+		for _, elt := range n.List.Slice() {
+			e.escassignSinkWhy(n, elt.Left, "map literal key")
+			e.escassignSinkWhy(n, elt.Right, "map literal value")
 		}
 
 	case OCLOSURE:
@@ -1942,11 +1940,11 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 		level = level.dec()
 
 	case OSLICELIT:
-		for _, n1 := range src.List.Slice() {
-			if n1.Op == OKEY {
-				n1 = n1.Right
+		for _, elt := range src.List.Slice() {
+			if elt.Op == OKEY {
+				elt = elt.Right
 			}
-			e.escwalk(level.dec(), dst, n1, e.stepWalk(dst, n1, "slice-literal-element", step))
+			e.escwalk(level.dec(), dst, elt, e.stepWalk(dst, elt, "slice-literal-element", step))
 		}
 
 		fallthrough
