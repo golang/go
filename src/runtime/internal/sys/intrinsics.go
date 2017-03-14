@@ -32,22 +32,22 @@ var deBruijnIdx32 = [32]byte{
 
 // Ctz64 counts trailing (low-order) zeroes,
 // and if all are zero, then 64.
-func Ctz64(x uint64) uint64 {
+func Ctz64(x uint64) int {
 	x &= -x                      // isolate low-order bit
 	y := x * deBruijn64 >> 58    // extract part of deBruijn sequence
-	y = uint64(deBruijnIdx64[y]) // convert to bit index
-	z := (x - 1) >> 57 & 64      // adjustment if zero
-	return y + z
+	i := int(deBruijnIdx64[y])   // convert to bit index
+	z := int((x - 1) >> 57 & 64) // adjustment if zero
+	return i + z
 }
 
 // Ctz32 counts trailing (low-order) zeroes,
 // and if all are zero, then 32.
-func Ctz32(x uint32) uint32 {
+func Ctz32(x uint32) int {
 	x &= -x                      // isolate low-order bit
 	y := x * deBruijn32 >> 27    // extract part of deBruijn sequence
-	y = uint32(deBruijnIdx32[y]) // convert to bit index
-	z := (x - 1) >> 26 & 32      // adjustment if zero
-	return y + z
+	i := int(deBruijnIdx32[y])   // convert to bit index
+	z := int((x - 1) >> 26 & 32) // adjustment if zero
+	return i + z
 }
 
 // Bswap64 returns its input with byte order reversed

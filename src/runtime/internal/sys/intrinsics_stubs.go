@@ -6,7 +6,7 @@
 
 package sys
 
-func Ctz64(x uint64) uint64
-func Ctz32(x uint32) uint32
+func Ctz64(x uint64) int
+func Ctz32(x uint32) int
 func Bswap64(x uint64) uint64
 func Bswap32(x uint32) uint32
