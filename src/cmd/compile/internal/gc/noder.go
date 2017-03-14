@@ -321,6 +321,9 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 	if f.Noescape() && len(body) != 0 {
 		yyerror("can only use //go:noescape with external func implementations")
 	}
+	if pragma&Systemstack != 0 && pragma&Nosplit != 0 {
+		yyerror("go:nosplit and go:systemstack cannot be combined")
+	}
 	f.Func.Pragma = pragma
 	lineno = makePos(fun.Pos().Base(), fun.EndLine, 0)
 	f.Func.Endlineno = lineno
