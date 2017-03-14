@@ -393,9 +393,6 @@ func compile(fn *Node) {
 	}
 	if fn.Func.Pragma&Systemstack != 0 {
 		ptxt.From.Sym.Set(obj.AttrCFunc, true)
-		if fn.Func.Pragma&Nosplit != 0 {
-			yyerror("go:nosplit and go:systemstack cannot be combined")
-		}
 	}
 
 	// Clumsy but important.
