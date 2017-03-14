@@ -321,7 +321,7 @@ func compile(fn *Node) {
 	}(setlineno(fn))
 
 	Curfn = fn
-	dowidth(Curfn.Type)
+	dowidth(fn.Type)
 
 	if fn.Nbody.Len() == 0 {
 		if pure_go || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
@@ -335,25 +335,25 @@ func compile(fn *Node) {
 
 	saveerrors()
 
-	order(Curfn)
+	order(fn)
 	if nerrors != 0 {
 		return
 	}
 
 	hasdefer = false
-	walk(Curfn)
+	walk(fn)
 	if nerrors != 0 {
 		return
 	}
 	if instrumenting {
-		instrument(Curfn)
+		instrument(fn)
 	}
 	if nerrors != 0 {
 		return
 	}
 
 	// Build an SSA backend function.
-	ssafn := buildssa(Curfn)
+	ssafn := buildssa(fn)
 	if nerrors != 0 {
 		return
 	}
@@ -363,9 +363,9 @@ func compile(fn *Node) {
 	Clearp(pc)
 	plist.Firstpc = pc
 
-	setlineno(Curfn)
+	setlineno(fn)
 
-	nam := Curfn.Func.Nname
+	nam := fn.Func.Nname
 	if isblank(nam) {
 		nam = nil
 	}
@@ -402,7 +402,7 @@ func compile(fn *Node) {
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
 	if myimportpath == "reflect" {
-		if Curfn.Func.Nname.Sym.Name == "callReflect" || Curfn.Func.Nname.Sym.Name == "callMethod" {
+		if fn.Func.Nname.Sym.Name == "callReflect" || fn.Func.Nname.Sym.Name == "callMethod" {
 			ptxt.From3.Offset |= obj.WRAPPER
 		}
 	}
