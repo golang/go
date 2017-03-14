@@ -657,14 +657,14 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
 	// Sanity check aux, auxint.
 	if auxint != "" {
 		switch op.aux {
-		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32", "SizeAndAlign", "SymSizeAndAlign":
+		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32", "TypSize":
 		default:
 			log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
 		}
 	}
 	if aux != "" {
 		switch op.aux {
-		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "SymSizeAndAlign":
+		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "Typ", "TypSize":
 		default:
 			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
 		}

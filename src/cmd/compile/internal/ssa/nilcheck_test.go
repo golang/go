@@ -405,7 +405,7 @@ func TestNilcheckBug(t *testing.T) {
 			If("bool2", "extra", "exit")),
 		Bloc("extra",
 			// prevent fuse from eliminating this block
-			Valu("store", OpStore, TypeMem, 8, nil, "ptr1", "nilptr", "mem"),
+			Valu("store", OpStore, TypeMem, 0, ptrType, "ptr1", "nilptr", "mem"),
 			Goto("exit")),
 		Bloc("exit",
 			Valu("phi", OpPhi, TypeMem, 0, nil, "mem", "store"),

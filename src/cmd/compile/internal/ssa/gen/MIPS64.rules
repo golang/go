@@ -285,133 +285,133 @@
 (Load <t> ptr mem) && is64BitFloat(t) -> (MOVDload ptr mem)
 
 // stores
-(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
-(Store [2] ptr val mem) -> (MOVHstore ptr val mem)
-(Store [4] ptr val mem) && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
-(Store [8] ptr val mem) && !is64BitFloat(val.Type) -> (MOVVstore ptr val mem)
-(Store [4] ptr val mem) && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
-(Store [8] ptr val mem) && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVHstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 4 && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 8 && !is64BitFloat(val.Type) -> (MOVVstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
 
 // zeroing
-(Zero [s] _ mem) && SizeAndAlign(s).Size() == 0 -> mem
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore ptr (MOVVconst [0]) mem)
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
+(Zero [0] _ mem) -> mem
+(Zero [1] ptr mem) -> (MOVBstore ptr (MOVVconst [0]) mem)
+(Zero [2] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore ptr (MOVVconst [0]) mem)
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 2 ->
+(Zero [2] ptr mem) ->
 	(MOVBstore [1] ptr (MOVVconst [0])
 		(MOVBstore [0] ptr (MOVVconst [0]) mem))
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
+(Zero [4] {t} ptr mem) && t.(Type).Alignment()%4 == 0 ->
 	(MOVWstore ptr (MOVVconst [0]) mem)
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
+(Zero [4] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore [2] ptr (MOVVconst [0])
 		(MOVHstore [0] ptr (MOVVconst [0]) mem))
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 ->
+(Zero [4] ptr mem) ->
 	(MOVBstore [3] ptr (MOVVconst [0])
 		(MOVBstore [2] ptr (MOVVconst [0])
 			(MOVBstore [1] ptr (MOVVconst [0])
 				(MOVBstore [0] ptr (MOVVconst [0]) mem))))
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%8 == 0 ->
+(Zero [8] {t} ptr mem) && t.(Type).Alignment()%8 == 0 ->
 	(MOVVstore ptr (MOVVconst [0]) mem)
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0 ->
+(Zero [8] {t} ptr mem) && t.(Type).Alignment()%4 == 0 ->
 	(MOVWstore [4] ptr (MOVVconst [0])
 		(MOVWstore [0] ptr (MOVVconst [0]) mem))
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 ->
+(Zero [8] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore [6] ptr (MOVVconst [0])
 		(MOVHstore [4] ptr (MOVVconst [0])
 			(MOVHstore [2] ptr (MOVVconst [0])
 				(MOVHstore [0] ptr (MOVVconst [0]) mem))))
 
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 3 ->
+(Zero [3] ptr mem) ->
 	(MOVBstore [2] ptr (MOVVconst [0])
 		(MOVBstore [1] ptr (MOVVconst [0])
 			(MOVBstore [0] ptr (MOVVconst [0]) mem)))
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 6 && SizeAndAlign(s).Align()%2 == 0 ->
+(Zero [6] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore [4] ptr (MOVVconst [0])
 		(MOVHstore [2] ptr (MOVVconst [0])
 			(MOVHstore [0] ptr (MOVVconst [0]) mem)))
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 12 && SizeAndAlign(s).Align()%4 == 0 ->
+(Zero [12] {t} ptr mem) && t.(Type).Alignment()%4 == 0 ->
 	(MOVWstore [8] ptr (MOVVconst [0])
 		(MOVWstore [4] ptr (MOVVconst [0])
 			(MOVWstore [0] ptr (MOVVconst [0]) mem)))
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%8 == 0 ->
+(Zero [16] {t} ptr mem) && t.(Type).Alignment()%8 == 0 ->
 	(MOVVstore [8] ptr (MOVVconst [0])
 		(MOVVstore [0] ptr (MOVVconst [0]) mem))
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 24 && SizeAndAlign(s).Align()%8 == 0 ->
+(Zero [24] {t} ptr mem) && t.(Type).Alignment()%8 == 0 ->
 	(MOVVstore [16] ptr (MOVVconst [0])
 		(MOVVstore [8] ptr (MOVVconst [0])
 			(MOVVstore [0] ptr (MOVVconst [0]) mem)))
 
 // medium zeroing uses a duff device
 // 8, and 128 are magic constants, see runtime/mkduff.go
-(Zero [s] ptr mem)
-	&& SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size() <= 8*128
-	&& SizeAndAlign(s).Align()%8 == 0 && !config.noDuffDevice ->
-	(DUFFZERO [8 * (128 - int64(SizeAndAlign(s).Size()/8))] ptr mem)
+(Zero [s] {t} ptr mem)
+	&& s%8 == 0 && s > 24 && s <= 8*128
+	&& t.(Type).Alignment()%8 == 0 && !config.noDuffDevice ->
+	(DUFFZERO [8 * (128 - int64(s/8))] ptr mem)
 
 // large or unaligned zeroing uses a loop
-(Zero [s] ptr mem)
-	&& (SizeAndAlign(s).Size() > 8*128 || config.noDuffDevice) || SizeAndAlign(s).Align()%8 != 0 ->
-	(LoweredZero [SizeAndAlign(s).Align()]
+(Zero [s] {t} ptr mem)
+	&& (s > 8*128 || config.noDuffDevice) || t.(Type).Alignment()%8 != 0 ->
+	(LoweredZero [t.(Type).Alignment()]
 		ptr
-		(ADDVconst <ptr.Type> ptr [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)])
+		(ADDVconst <ptr.Type> ptr [s-moveSize(t.(Type).Alignment(), config)])
 		mem)
 
 // moves
-(Move [s] _ _ mem) && SizeAndAlign(s).Size() == 0 -> mem
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore dst (MOVBload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
+(Move [0] _ _ mem) -> mem
+(Move [1] dst src mem) -> (MOVBstore dst (MOVBload src mem) mem)
+(Move [2] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore dst (MOVHload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 ->
+(Move [2] dst src mem) ->
 	(MOVBstore [1] dst (MOVBload [1] src mem)
 		(MOVBstore dst (MOVBload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
+(Move [4] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
 	(MOVWstore dst (MOVWload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
+(Move [4] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore [2] dst (MOVHload [2] src mem)
 		(MOVHstore dst (MOVHload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 ->
+(Move [4] dst src mem) ->
 	(MOVBstore [3] dst (MOVBload [3] src mem)
 		(MOVBstore [2] dst (MOVBload [2] src mem)
 			(MOVBstore [1] dst (MOVBload [1] src mem)
 				(MOVBstore dst (MOVBload src mem) mem))))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%8 == 0 ->
+(Move [8] {t} dst src mem) && t.(Type).Alignment()%8 == 0 ->
 	(MOVVstore dst (MOVVload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0 ->
+(Move [8] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
 	(MOVWstore [4] dst (MOVWload [4] src mem)
 		(MOVWstore dst (MOVWload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0 ->
+(Move [8] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore [6] dst (MOVHload [6] src mem)
 		(MOVHstore [4] dst (MOVHload [4] src mem)
 			(MOVHstore [2] dst (MOVHload [2] src mem)
 				(MOVHstore dst (MOVHload src mem) mem))))
 
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 3 ->
+(Move [3] dst src mem) ->
 	(MOVBstore [2] dst (MOVBload [2] src mem)
 		(MOVBstore [1] dst (MOVBload [1] src mem)
 			(MOVBstore dst (MOVBload src mem) mem)))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 6 && SizeAndAlign(s).Align()%2 == 0 ->
+(Move [6] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
 	(MOVHstore [4] dst (MOVHload [4] src mem)
 		(MOVHstore [2] dst (MOVHload [2] src mem)
 			(MOVHstore dst (MOVHload src mem) mem)))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 12 && SizeAndAlign(s).Align()%4 == 0 ->
+(Move [12] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
 	(MOVWstore [8] dst (MOVWload [8] src mem)
 		(MOVWstore [4] dst (MOVWload [4] src mem)
 			(MOVWstore dst (MOVWload src mem) mem)))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%8 == 0 ->
+(Move [16] {t} dst src mem) && t.(Type).Alignment()%8 == 0 ->
 	(MOVVstore [8] dst (MOVVload [8] src mem)
 		(MOVVstore dst (MOVVload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 24 && SizeAndAlign(s).Align()%8 == 0 ->
+(Move [24] {t} dst src mem) && t.(Type).Alignment()%8 == 0 ->
 	(MOVVstore [16] dst (MOVVload [16] src mem)
 		(MOVVstore [8] dst (MOVVload [8] src mem)
 			(MOVVstore dst (MOVVload src mem) mem)))
 
 // large or unaligned move uses a loop
-(Move [s] dst src mem)
-	&& SizeAndAlign(s).Size() > 24 || SizeAndAlign(s).Align()%8 != 0 ->
-	(LoweredMove [SizeAndAlign(s).Align()]
+(Move [s] {t} dst src mem)
+	&& s > 24 || t.(Type).Alignment()%8 != 0 ->
+	(LoweredMove [t.(Type).Alignment()]
 		dst
 		src
-		(ADDVconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)])
+		(ADDVconst <src.Type> src [s-moveSize(t.(Type).Alignment(), config)])
 		mem)
 
 // calls

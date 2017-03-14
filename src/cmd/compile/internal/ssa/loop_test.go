@@ -66,7 +66,7 @@ func TestLoopConditionS390X(t *testing.T) {
 			Goto("b1")),
 		Bloc("b3",
 			Valu("retdef", OpVarDef, TypeMem, 0, nil, "mem"),
-			Valu("store", OpStore, TypeMem, 8, TypeInt64, "ret", "phisum", "retdef"),
+			Valu("store", OpStore, TypeMem, 0, TypeInt64, "ret", "phisum", "retdef"),
 			Exit("store")))
 	CheckFunc(fun.f)
 	Compile(fun.f)

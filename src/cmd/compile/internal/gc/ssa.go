@@ -369,6 +369,11 @@ func (s *state) newValue3I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1, arg2 *s
 	return s.curBlock.NewValue3I(s.peekPos(), op, t, aux, arg0, arg1, arg2)
 }
 
+// newValue3A adds a new value with three arguments and an aux value to the current block.
+func (s *state) newValue3A(op ssa.Op, t ssa.Type, aux interface{}, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue3A(s.peekPos(), op, t, aux, arg0, arg1, arg2)
+}
+
 // newValue4 adds a new value with four arguments to the current block.
 func (s *state) newValue4(op ssa.Op, t ssa.Type, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue4(s.peekPos(), op, t, arg0, arg1, arg2, arg3)
@@ -885,9 +890,7 @@ func (s *state) exit() *ssa.Block {
 		addr := s.decladdrs[n]
 		val := s.variable(n, n.Type)
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, n, s.mem())
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, n.Type.Size(), addr, val, s.mem())
-		store.Aux = n.Type
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, n.Type, addr, val, s.mem())
 		// TODO: if val is ever spilled, we'd like to use the
 		// PPARAMOUT slot for spilling it. That won't happen
 		// currently.
@@ -2120,12 +2123,8 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, sn, s.mem())
 		}
 		capaddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), int64(array_cap), addr)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
-		store.Aux = Types[TINT]
-		s.vars[&memVar] = store
-		store = s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
-		store.Aux = pt
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TINT], capaddr, r[2], s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, pt, addr, r[0], s.mem())
 		// load the value we just stored to avoid having to spill it
 		s.vars[&ptrVar] = s.newValue2(ssa.OpLoad, pt, addr, s.mem())
 		s.vars[&lenVar] = r[1] // avoid a spill in the fast path
@@ -2145,9 +2144,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		l = s.variable(&lenVar, Types[TINT]) // generates phi for len
 		nl = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
 		lenaddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), int64(array_nel), addr)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenaddr, nl, s.mem())
-		store.Aux = Types[TINT]
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TINT], lenaddr, nl, s.mem())
 	}
 
 	// Evaluate args
@@ -2178,7 +2175,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		if arg.store {
 			s.storeType(et, addr, arg.v, 0)
 		} else {
-			store := s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(et), addr, arg.v, s.mem())
+			store := s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg.v, s.mem())
 			store.Aux = et
 			s.vars[&memVar] = store
 		}
@@ -2343,9 +2340,9 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 		// Treat as a mem->mem move.
 		var store *ssa.Value
 		if right == nil {
-			store = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
+			store = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
 		} else {
-			store = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), addr, right, s.mem())
+			store = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), addr, right, s.mem())
 		}
 		store.Aux = t
 		s.vars[&memVar] = store
@@ -2928,9 +2925,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			argStart += int64(2 * Widthptr)
 		}
 		addr := s.constOffPtrSP(ptrto(Types[TUINTPTR]), argStart)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, rcvr, s.mem())
-		store.Aux = Types[TUINTPTR]
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TUINTPTR], addr, rcvr, s.mem())
 	}
 
 	// Defer/go args
@@ -2939,13 +2934,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		argStart := Ctxt.FixedFrameSize()
 		argsize := s.constInt32(Types[TUINT32], int32(stksize))
 		addr := s.constOffPtrSP(ptrto(Types[TUINT32]), argStart)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, addr, argsize, s.mem())
-		store.Aux = Types[TUINT32]
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TUINT32], addr, argsize, s.mem())
 		addr = s.constOffPtrSP(ptrto(Types[TUINTPTR]), argStart+int64(Widthptr))
-		store = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
-		store.Aux = Types[TUINTPTR]
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TUINTPTR], addr, closure, s.mem())
 		stksize += 2 * int64(Widthptr)
 	}
 
@@ -3308,9 +3299,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
 		off = Rnd(off, t.Alignment())
 		ptr := s.constOffPtrSP(t.PtrTo(), off)
 		size := t.Size()
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, size, ptr, arg, s.mem())
-		store.Aux = t
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, ptr, arg, s.mem())
 		off += size
 	}
 	off = Rnd(off, int64(Widthptr))
@@ -3366,9 +3355,7 @@ func (s *state) storeType(t *Type, left, right *ssa.Value, skip skipMask) {
 func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask) {
 	switch {
 	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), left, right, s.mem())
-		store.Aux = t
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, left, right, s.mem())
 	case t.IsPtrShaped():
 		// no scalar fields.
 	case t.IsString():
@@ -3377,30 +3364,22 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
 		}
 		len := s.newValue1(ssa.OpStringLen, Types[TINT], right)
 		lenAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), s.config.IntSize, left)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
-		store.Aux = Types[TINT]
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TINT], lenAddr, len, s.mem())
 	case t.IsSlice():
 		if skip&skipLen == 0 {
 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], right)
 			lenAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), s.config.IntSize, left)
-			store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
-			store.Aux = Types[TINT]
-			s.vars[&memVar] = store
+			s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TINT], lenAddr, len, s.mem())
 		}
 		if skip&skipCap == 0 {
 			cap := s.newValue1(ssa.OpSliceCap, Types[TINT], right)
 			capAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), 2*s.config.IntSize, left)
-			store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capAddr, cap, s.mem())
-			store.Aux = Types[TINT]
-			s.vars[&memVar] = store
+			s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TINT], capAddr, cap, s.mem())
 		}
 	case t.IsInterface():
 		// itab field doesn't need a write barrier (even though it is a pointer).
 		itab := s.newValue1(ssa.OpITab, ptrto(Types[TUINT8]), right)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, left, itab, s.mem())
-		store.Aux = Types[TUINTPTR]
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TUINTPTR], left, itab, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
 		for i := 0; i < n; i++ {
@@ -3422,26 +3401,18 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
 func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 	switch {
 	case t.IsPtrShaped():
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
-		store.Aux = t
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, left, right, s.mem())
 	case t.IsString():
 		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), right)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
-		store.Aux = ptrto(Types[TUINT8])
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, ptrto(Types[TUINT8]), left, ptr, s.mem())
 	case t.IsSlice():
 		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), right)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
-		store.Aux = ptrto(Types[TUINT8])
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, ptrto(Types[TUINT8]), left, ptr, s.mem())
 	case t.IsInterface():
 		// itab field is treated as a scalar.
 		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
 		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(ptrto(Types[TUINT8])), s.config.PtrSize, left)
-		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
-		store.Aux = ptrto(Types[TUINT8])
-		s.vars[&memVar] = store
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, ptrto(Types[TUINT8]), idataAddr, idata, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
 		for i := 0; i < n; i++ {
@@ -4042,7 +4013,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		}
 	} else {
 		p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
-		store := s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(n.Type), addr, p, s.mem())
+		store := s.newValue3I(ssa.OpMove, ssa.TypeMem, n.Type.Size(), addr, p, s.mem())
 		store.Aux = n.Type
 		s.vars[&memVar] = store
 	}
@@ -4055,7 +4026,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	if tmp == nil {
 		s.vars[valVar] = s.zeroVal(n.Type)
 	} else {
-		store := s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(n.Type), addr, s.mem())
+		store := s.newValue2I(ssa.OpZero, ssa.TypeMem, n.Type.Size(), addr, s.mem())
 		store.Aux = n.Type
 		s.vars[&memVar] = store
 	}
@@ -4404,11 +4375,6 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
 	}
-}
-
-// sizeAlignAuxInt returns an AuxInt encoding the size and alignment of type t.
-func sizeAlignAuxInt(t *Type) int64 {
-	return ssa.MakeSizeAndAlign(t.Size(), t.Alignment()).Int64()
 }
 
 // extendIndex extends v to a full int width.

@@ -286,16 +286,16 @@ var genericOps = []opData{
 	{name: "Invalid"},            // unused value
 
 	// Memory operations
-	{name: "Load", argLength: 2},                                                        // Load from arg0.  arg1=memory
-	{name: "Store", argLength: 3, typ: "Mem", aux: "SymOff", symEffect: "None"},         // Store arg1 to arg0.  arg2=memory, auxint=size, aux=type.  Returns memory.
-	{name: "Move", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=type.  Returns memory.
-	{name: "Zero", argLength: 2, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=mem, auxint=size+alignment, aux=type. Returns memory.
+	{name: "Load", argLength: 2},                             // Load from arg0.  arg1=memory
+	{name: "Store", argLength: 3, typ: "Mem", aux: "Typ"},    // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "Move", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
+	{name: "Zero", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 
 	// Memory operations with write barriers.
 	// Expand to runtime calls. Write barrier will be removed if write on stack.
-	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "SymOff", symEffect: "None"},         // Store arg1 to arg0. arg2=memory, auxint=size, aux=type.  Returns memory.
-	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=type.  Returns memory.
-	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=mem, auxint=size+alignment, aux=type. Returns memory.
+	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Typ"},    // Store arg1 to arg0. arg2=memory, aux=type.  Returns memory.
+	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
+	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated

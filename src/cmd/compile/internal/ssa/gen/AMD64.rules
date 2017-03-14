@@ -297,56 +297,56 @@
 
 // Lowering stores
 // These more-specific FP versions of Store pattern should come first.
-(Store [8] ptr val mem) && is64BitFloat(val.Type) -> (MOVSDstore ptr val mem)
-(Store [4] ptr val mem) && is32BitFloat(val.Type) -> (MOVSSstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (MOVSDstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (MOVSSstore ptr val mem)
 
-(Store [8] ptr val mem) -> (MOVQstore ptr val mem)
-(Store [4] ptr val mem) -> (MOVLstore ptr val mem)
-(Store [2] ptr val mem) -> (MOVWstore ptr val mem)
-(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 8 -> (MOVQstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 4 -> (MOVLstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
 
 // Lowering moves
-(Move [s] _ _ mem) && SizeAndAlign(s).Size() == 0 -> mem
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore dst (MOVBload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 -> (MOVWstore dst (MOVWload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 -> (MOVLstore dst (MOVLload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 8 -> (MOVQstore dst (MOVQload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 16 -> (MOVOstore dst (MOVOload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 3 ->
+(Move [0] _ _ mem) -> mem
+(Move [1] dst src mem) -> (MOVBstore dst (MOVBload src mem) mem)
+(Move [2] dst src mem) -> (MOVWstore dst (MOVWload src mem) mem)
+(Move [4] dst src mem) -> (MOVLstore dst (MOVLload src mem) mem)
+(Move [8] dst src mem) -> (MOVQstore dst (MOVQload src mem) mem)
+(Move [16] dst src mem) -> (MOVOstore dst (MOVOload src mem) mem)
+(Move [3] dst src mem) ->
 	(MOVBstore [2] dst (MOVBload [2] src mem)
 		(MOVWstore dst (MOVWload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 5 ->
+(Move [5] dst src mem) ->
 	(MOVBstore [4] dst (MOVBload [4] src mem)
 		(MOVLstore dst (MOVLload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 6 ->
+(Move [6] dst src mem) ->
 	(MOVWstore [4] dst (MOVWload [4] src mem)
 		(MOVLstore dst (MOVLload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 7 ->
+(Move [7] dst src mem) ->
 	(MOVLstore [3] dst (MOVLload [3] src mem)
 		(MOVLstore dst (MOVLload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() < 16 ->
-	(MOVQstore [SizeAndAlign(s).Size()-8] dst (MOVQload [SizeAndAlign(s).Size()-8] src mem)
+(Move [s] dst src mem) && s > 8 && s < 16 ->
+	(MOVQstore [s-8] dst (MOVQload [s-8] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
 
 // Adjust moves to be a multiple of 16 bytes.
 (Move [s] dst src mem)
-	&& SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size()%16 != 0 && SizeAndAlign(s).Size()%16 <= 8 ->
-	(Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%16]
-		(OffPtr <dst.Type> dst [SizeAndAlign(s).Size()%16])
-		(OffPtr <src.Type> src [SizeAndAlign(s).Size()%16])
+	&& s > 16 && s%16 != 0 && s%16 <= 8 ->
+	(Move [s-s%16]
+		(OffPtr <dst.Type> dst [s%16])
+		(OffPtr <src.Type> src [s%16])
 		(MOVQstore dst (MOVQload src mem) mem))
 (Move [s] dst src mem)
-	&& SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size()%16 != 0 && SizeAndAlign(s).Size()%16 > 8 ->
-	(Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%16]
-		(OffPtr <dst.Type> dst [SizeAndAlign(s).Size()%16])
-		(OffPtr <src.Type> src [SizeAndAlign(s).Size()%16])
+	&& s > 16 && s%16 != 0 && s%16 > 8 ->
+	(Move [s-s%16]
+		(OffPtr <dst.Type> dst [s%16])
+		(OffPtr <src.Type> src [s%16])
 		(MOVOstore dst (MOVOload src mem) mem))
 
 // Medium copying uses a duff device.
 (Move [s] dst src mem)
-	&& SizeAndAlign(s).Size() >= 32 && SizeAndAlign(s).Size() <= 16*64 && SizeAndAlign(s).Size()%16 == 0
+	&& s >= 32 && s <= 16*64 && s%16 == 0
 	&& !config.noDuffDevice ->
-	(DUFFCOPY [14*(64-SizeAndAlign(s).Size()/16)] dst src mem)
+	(DUFFCOPY [14*(64-s/16)] dst src mem)
 // 14 and 64 are magic constants.  14 is the number of bytes to encode:
 //	MOVUPS	(SI), X0
 //	ADDQ	$16, SI
@@ -355,43 +355,43 @@
 // and 64 is the number of such blocks. See src/runtime/duff_amd64.s:duffcopy.
 
 // Large copying uses REP MOVSQ.
-(Move [s] dst src mem) && (SizeAndAlign(s).Size() > 16*64 || config.noDuffDevice) && SizeAndAlign(s).Size()%8 == 0 ->
-	(REPMOVSQ dst src (MOVQconst [SizeAndAlign(s).Size()/8]) mem)
+(Move [s] dst src mem) && (s > 16*64 || config.noDuffDevice) && s%8 == 0 ->
+	(REPMOVSQ dst src (MOVQconst [s/8]) mem)
 
 // Lowering Zero instructions
-(Zero [s] _ mem) && SizeAndAlign(s).Size() == 0 -> mem
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstoreconst [0] destptr mem)
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 2 -> (MOVWstoreconst [0] destptr mem)
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 -> (MOVLstoreconst [0] destptr mem)
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 -> (MOVQstoreconst [0] destptr mem)
+(Zero [0] _ mem) -> mem
+(Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
+(Zero [2] destptr mem) -> (MOVWstoreconst [0] destptr mem)
+(Zero [4] destptr mem) -> (MOVLstoreconst [0] destptr mem)
+(Zero [8] destptr mem) -> (MOVQstoreconst [0] destptr mem)
 
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 3 ->
+(Zero [3] destptr mem) ->
 	(MOVBstoreconst [makeValAndOff(0,2)] destptr
 		(MOVWstoreconst [0] destptr mem))
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 5 ->
+(Zero [5] destptr mem) ->
 	(MOVBstoreconst [makeValAndOff(0,4)] destptr
 		(MOVLstoreconst [0] destptr mem))
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 6 ->
+(Zero [6] destptr mem) ->
 	(MOVWstoreconst [makeValAndOff(0,4)] destptr
 		(MOVLstoreconst [0] destptr mem))
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 7 ->
+(Zero [7] destptr mem) ->
 	(MOVLstoreconst [makeValAndOff(0,3)] destptr
 		(MOVLstoreconst [0] destptr mem))
 
 // Strip off any fractional word zeroing.
-(Zero [s] destptr mem) && SizeAndAlign(s).Size()%8 != 0 && SizeAndAlign(s).Size() > 8 ->
-	(Zero [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%8] (OffPtr <destptr.Type> destptr [SizeAndAlign(s).Size()%8])
+(Zero [s] destptr mem) && s%8 != 0 && s > 8 ->
+	(Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8])
 		(MOVQstoreconst [0] destptr mem))
 
 // Zero small numbers of words directly.
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 16 ->
+(Zero [16] destptr mem) ->
 	(MOVQstoreconst [makeValAndOff(0,8)] destptr
 		(MOVQstoreconst [0] destptr mem))
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 24 ->
+(Zero [24] destptr mem) ->
 	(MOVQstoreconst [makeValAndOff(0,16)] destptr
 		(MOVQstoreconst [makeValAndOff(0,8)] destptr
 			(MOVQstoreconst [0] destptr mem)))
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 32 ->
+(Zero [32] destptr mem) ->
 	(MOVQstoreconst [makeValAndOff(0,24)] destptr
 		(MOVQstoreconst [makeValAndOff(0,16)] destptr
 			(MOVQstoreconst [makeValAndOff(0,8)] destptr
@@ -399,18 +399,18 @@
 
 // Medium zeroing uses a duff device.
 (Zero [s] destptr mem)
-	&& SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size()%16 != 0
+	&& s <= 1024 && s%8 == 0 && s%16 != 0
 	&& !config.noDuffDevice ->
-	(Zero [SizeAndAlign(s).Size()-8] (OffPtr <destptr.Type> [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+	(Zero [s-8] (OffPtr <destptr.Type> [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
 (Zero [s] destptr mem)
-	&& SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice ->
-	(DUFFZERO [SizeAndAlign(s).Size()] destptr (MOVOconst [0]) mem)
+	&& s <= 1024 && s%16 == 0 && !config.noDuffDevice ->
+	(DUFFZERO [s] destptr (MOVOconst [0]) mem)
 
 // Large zeroing uses REP STOSQ.
 (Zero [s] destptr mem)
-	&& (SizeAndAlign(s).Size() > 1024 || (config.noDuffDevice && SizeAndAlign(s).Size() > 32))
-	&& SizeAndAlign(s).Size()%8 == 0 ->
-	(REPSTOSQ destptr (MOVQconst [SizeAndAlign(s).Size()/8]) (MOVQconst [0]) mem)
+	&& (s > 1024 || (config.noDuffDevice && s > 32))
+	&& s%8 == 0 ->
+	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
 
 // Lowering constants
 (Const8   [val]) -> (MOVLconst [val])

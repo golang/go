@@ -320,82 +320,82 @@
 
 // Lowering stores
 // These more-specific FP versions of Store pattern should come first.
-(Store [8] ptr val mem) && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
-(Store [4] ptr val mem) && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
 
-(Store [8] ptr val mem) -> (MOVDstore ptr val mem)
-(Store [4] ptr val mem) -> (MOVWstore ptr val mem)
-(Store [2] ptr val mem) -> (MOVHstore ptr val mem)
-(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 8 -> (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 4 -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVHstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
 
 // Lowering moves
 
 // Load and store for small copies.
-(Move [s] _ _ mem) && SizeAndAlign(s).Size() == 0 -> mem
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore dst (MOVBZload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 -> (MOVHstore dst (MOVHZload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 -> (MOVWstore dst (MOVWZload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 8 -> (MOVDstore dst (MOVDload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 16 ->
+(Move [0] _ _ mem) -> mem
+(Move [1] dst src mem) -> (MOVBstore dst (MOVBZload src mem) mem)
+(Move [2] dst src mem) -> (MOVHstore dst (MOVHZload src mem) mem)
+(Move [4] dst src mem) -> (MOVWstore dst (MOVWZload src mem) mem)
+(Move [8] dst src mem) -> (MOVDstore dst (MOVDload src mem) mem)
+(Move [16] dst src mem) ->
 	(MOVDstore [8] dst (MOVDload [8] src mem)
 		(MOVDstore dst (MOVDload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 24 ->
+(Move [24] dst src mem) ->
         (MOVDstore [16] dst (MOVDload [16] src mem)
 	        (MOVDstore [8] dst (MOVDload [8] src mem)
                 (MOVDstore dst (MOVDload src mem) mem)))
-(Move [s] dst src mem)  && SizeAndAlign(s).Size() == 3 ->
+(Move [3] dst src mem) ->
 	(MOVBstore [2] dst (MOVBZload [2] src mem)
 		(MOVHstore dst (MOVHZload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 5 ->
+(Move [5] dst src mem) ->
 	(MOVBstore [4] dst (MOVBZload [4] src mem)
 		(MOVWstore dst (MOVWZload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 6 ->
+(Move [6] dst src mem) ->
 	(MOVHstore [4] dst (MOVHZload [4] src mem)
 		(MOVWstore dst (MOVWZload src mem) mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 7 ->
+(Move [7] dst src mem) ->
 	(MOVBstore [6] dst (MOVBZload [6] src mem)
 		(MOVHstore [4] dst (MOVHZload [4] src mem)
 			(MOVWstore dst (MOVWZload src mem) mem)))
 
 // MVC for other moves. Use up to 4 instructions (sizes up to 1024 bytes).
-(Move [s] dst src mem) && SizeAndAlign(s).Size() > 0 && SizeAndAlign(s).Size() <= 256 ->
-	(MVC [makeValAndOff(SizeAndAlign(s).Size(), 0)] dst src mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() > 256 && SizeAndAlign(s).Size() <= 512 ->
-	(MVC [makeValAndOff(SizeAndAlign(s).Size()-256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() > 512 && SizeAndAlign(s).Size() <= 768 ->
-	(MVC [makeValAndOff(SizeAndAlign(s).Size()-512, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem)))
-(Move [s] dst src mem) && SizeAndAlign(s).Size() > 768 && SizeAndAlign(s).Size() <= 1024 ->
-	(MVC [makeValAndOff(SizeAndAlign(s).Size()-768, 768)] dst src (MVC [makeValAndOff(256, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))))
+(Move [s] dst src mem) && s > 0 && s <= 256 ->
+	(MVC [makeValAndOff(s, 0)] dst src mem)
+(Move [s] dst src mem) && s > 256 && s <= 512 ->
+	(MVC [makeValAndOff(s-256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))
+(Move [s] dst src mem) && s > 512 && s <= 768 ->
+	(MVC [makeValAndOff(s-512, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem)))
+(Move [s] dst src mem) && s > 768 && s <= 1024 ->
+	(MVC [makeValAndOff(s-768, 768)] dst src (MVC [makeValAndOff(256, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))))
 
 // Move more than 1024 bytes using a loop.
-(Move [s] dst src mem) && SizeAndAlign(s).Size() > 1024 ->
-	(LoweredMove [SizeAndAlign(s).Size()%256] dst src (ADDconst <src.Type> src [(SizeAndAlign(s).Size()/256)*256]) mem)
+(Move [s] dst src mem) && s > 1024 ->
+	(LoweredMove [s%256] dst src (ADDconst <src.Type> src [(s/256)*256]) mem)
 
 // Lowering Zero instructions
-(Zero [s] _ mem) && SizeAndAlign(s).Size() == 0 -> mem
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstoreconst [0] destptr mem)
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 2 -> (MOVHstoreconst [0] destptr mem)
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 -> (MOVWstoreconst [0] destptr mem)
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 -> (MOVDstoreconst [0] destptr mem)
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 3 ->
+(Zero [0] _ mem) -> mem
+(Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
+(Zero [2] destptr mem) -> (MOVHstoreconst [0] destptr mem)
+(Zero [4] destptr mem) -> (MOVWstoreconst [0] destptr mem)
+(Zero [8] destptr mem) -> (MOVDstoreconst [0] destptr mem)
+(Zero [3] destptr mem) ->
 	(MOVBstoreconst [makeValAndOff(0,2)] destptr
 		(MOVHstoreconst [0] destptr mem))
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 5 ->
+(Zero [5] destptr mem) ->
 	(MOVBstoreconst [makeValAndOff(0,4)] destptr
 		(MOVWstoreconst [0] destptr mem))
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 6 ->
+(Zero [6] destptr mem) ->
 	(MOVHstoreconst [makeValAndOff(0,4)] destptr
 		(MOVWstoreconst [0] destptr mem))
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 7 ->
+(Zero [7] destptr mem) ->
 	(MOVWstoreconst [makeValAndOff(0,3)] destptr
 		(MOVWstoreconst [0] destptr mem))
 
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() > 0 && SizeAndAlign(s).Size() <= 1024 ->
-	(CLEAR [makeValAndOff(SizeAndAlign(s).Size(), 0)] destptr mem)
+(Zero [s] destptr mem) && s > 0 && s <= 1024 ->
+	(CLEAR [makeValAndOff(s, 0)] destptr mem)
 
 // Move more than 1024 bytes using a loop.
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() > 1024 ->
-	(LoweredZero [SizeAndAlign(s).Size()%256] destptr (ADDconst <destptr.Type> destptr [(SizeAndAlign(s).Size()/256)*256]) mem)
+(Zero [s] destptr mem) && s > 1024 ->
+	(LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(s/256)*256]) mem)
 
 // Lowering constants
 (Const8   [val]) -> (MOVDconst [val])

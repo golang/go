@@ -11405,31 +11405,29 @@ func rewriteValue386_OpMod8u(v *Value, config *Config) bool {
 func rewriteValue386_OpMove(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Move [s] _ _ mem)
-	// cond: SizeAndAlign(s).Size() == 0
+	// match: (Move [0] _ _ mem)
+	// cond:
 	// result: mem
 	for {
-		s := v.AuxInt
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 0) {
+		if v.AuxInt != 0 {
 			break
 		}
+		mem := v.Args[2]
 		v.reset(OpCopy)
 		v.Type = mem.Type
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 1
+	// match: (Move [1] dst src mem)
+	// cond:
 	// result: (MOVBstore dst (MOVBload src mem) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 1 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 1) {
-			break
-		}
 		v.reset(Op386MOVBstore)
 		v.AddArg(dst)
 		v0 := b.NewValue0(v.Pos, Op386MOVBload, config.fe.TypeUInt8())
@@ -11439,17 +11437,16 @@ func rewriteValue386_OpMove(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 2
+	// match: (Move [2] dst src mem)
+	// cond:
 	// result: (MOVWstore dst (MOVWload src mem) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 2 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 2) {
-			break
-		}
 		v.reset(Op386MOVWstore)
 		v.AddArg(dst)
 		v0 := b.NewValue0(v.Pos, Op386MOVWload, config.fe.TypeUInt16())
@@ -11459,17 +11456,16 @@ func rewriteValue386_OpMove(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 4
+	// match: (Move [4] dst src mem)
+	// cond:
 	// result: (MOVLstore dst (MOVLload src mem) mem)
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 4 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 4) {
-			break
-		}
 		v.reset(Op386MOVLstore)
 		v.AddArg(dst)
 		v0 := b.NewValue0(v.Pos, Op386MOVLload, config.fe.TypeUInt32())
@@ -11479,17 +11475,16 @@ func rewriteValue386_OpMove(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 3
+	// match: (Move [3] dst src mem)
+	// cond:
 	// result: (MOVBstore [2] dst (MOVBload [2] src mem) 		(MOVWstore dst (MOVWload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 3 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 3) {
-			break
-		}
 		v.reset(Op386MOVBstore)
 		v.AuxInt = 2
 		v.AddArg(dst)
@@ -11508,17 +11503,16 @@ func rewriteValue386_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 5
+	// match: (Move [5] dst src mem)
+	// cond:
 	// result: (MOVBstore [4] dst (MOVBload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 5 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 5) {
-			break
-		}
 		v.reset(Op386MOVBstore)
 		v.AuxInt = 4
 		v.AddArg(dst)
@@ -11537,17 +11531,16 @@ func rewriteValue386_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 6
+	// match: (Move [6] dst src mem)
+	// cond:
 	// result: (MOVWstore [4] dst (MOVWload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 6 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 6) {
-			break
-		}
 		v.reset(Op386MOVWstore)
 		v.AuxInt = 4
 		v.AddArg(dst)
@@ -11566,17 +11559,16 @@ func rewriteValue386_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 7
+	// match: (Move [7] dst src mem)
+	// cond:
 	// result: (MOVLstore [3] dst (MOVLload [3] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 7 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 7) {
-			break
-		}
 		v.reset(Op386MOVLstore)
 		v.AuxInt = 3
 		v.AddArg(dst)
@@ -11595,17 +11587,16 @@ func rewriteValue386_OpMove(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 8
+	// match: (Move [8] dst src mem)
+	// cond:
 	// result: (MOVLstore [4] dst (MOVLload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
 	for {
-		s := v.AuxInt
+		if v.AuxInt != 8 {
+			break
+		}
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 8) {
-			break
-		}
 		v.reset(Op386MOVLstore)
 		v.AuxInt = 4
 		v.AddArg(dst)
@@ -11625,24 +11616,24 @@ func rewriteValue386_OpMove(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size()%4 != 0
-	// result: (Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%4] 		(ADDLconst <dst.Type> dst [SizeAndAlign(s).Size()%4]) 		(ADDLconst <src.Type> src [SizeAndAlign(s).Size()%4]) 		(MOVLstore dst (MOVLload src mem) mem))
+	// cond: s > 8 && s%4 != 0
+	// result: (Move [s-s%4] 		(ADDLconst <dst.Type> dst [s%4]) 		(ADDLconst <src.Type> src [s%4]) 		(MOVLstore dst (MOVLload src mem) mem))
 	for {
 		s := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size()%4 != 0) {
+		if !(s > 8 && s%4 != 0) {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = SizeAndAlign(s).Size() - SizeAndAlign(s).Size()%4
+		v.AuxInt = s - s%4
 		v0 := b.NewValue0(v.Pos, Op386ADDLconst, dst.Type)
-		v0.AuxInt = SizeAndAlign(s).Size() % 4
+		v0.AuxInt = s % 4
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, Op386ADDLconst, src.Type)
-		v1.AuxInt = SizeAndAlign(s).Size() % 4
+		v1.AuxInt = s % 4
 		v1.AddArg(src)
 		v.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, Op386MOVLstore, TypeMem)
@@ -11656,39 +11647,39 @@ func rewriteValue386_OpMove(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() <= 4*128 && SizeAndAlign(s).Size()%4 == 0 	&& !config.noDuffDevice
-	// result: (DUFFCOPY [10*(128-SizeAndAlign(s).Size()/4)] dst src mem)
+	// cond: s > 8 && s <= 4*128 && s%4 == 0 	&& !config.noDuffDevice
+	// result: (DUFFCOPY [10*(128-s/4)] dst src mem)
 	for {
 		s := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() <= 4*128 && SizeAndAlign(s).Size()%4 == 0 && !config.noDuffDevice) {
+		if !(s > 8 && s <= 4*128 && s%4 == 0 && !config.noDuffDevice) {
 			break
 		}
 		v.reset(Op386DUFFCOPY)
-		v.AuxInt = 10 * (128 - SizeAndAlign(s).Size()/4)
+		v.AuxInt = 10 * (128 - s/4)
 		v.AddArg(dst)
 		v.AddArg(src)
 		v.AddArg(mem)
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: (SizeAndAlign(s).Size() > 4*128 || config.noDuffDevice) && SizeAndAlign(s).Size()%4 == 0
-	// result: (REPMOVSL dst src (MOVLconst [SizeAndAlign(s).Size()/4]) mem)
+	// cond: (s > 4*128 || config.noDuffDevice) && s%4 == 0
+	// result: (REPMOVSL dst src (MOVLconst [s/4]) mem)
 	for {
 		s := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !((SizeAndAlign(s).Size() > 4*128 || config.noDuffDevice) && SizeAndAlign(s).Size()%4 == 0) {
+		if !((s > 4*128 || config.noDuffDevice) && s%4 == 0) {
 			break
 		}
 		v.reset(Op386REPMOVSL)
 		v.AddArg(dst)
 		v.AddArg(src)
 		v0 := b.NewValue0(v.Pos, Op386MOVLconst, config.fe.TypeUInt32())
-		v0.AuxInt = SizeAndAlign(s).Size() / 4
+		v0.AuxInt = s / 4
 		v.AddArg(v0)
 		v.AddArg(mem)
 		return true
@@ -12941,17 +12932,15 @@ func rewriteValue386_OpStaticCall(v *Value, config *Config) bool {
 func rewriteValue386_OpStore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Store [8] ptr val mem)
-	// cond: is64BitFloat(val.Type)
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 8 && is64BitFloat(val.Type)
 	// result: (MOVSDstore ptr val mem)
 	for {
-		if v.AuxInt != 8 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(is64BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 8 && is64BitFloat(val.Type)) {
 			break
 		}
 		v.reset(Op386MOVSDstore)
@@ -12960,17 +12949,15 @@ func rewriteValue386_OpStore(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [4] ptr val mem)
-	// cond: is32BitFloat(val.Type)
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 4 && is32BitFloat(val.Type)
 	// result: (MOVSSstore ptr val mem)
 	for {
-		if v.AuxInt != 4 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(is32BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 4 && is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(Op386MOVSSstore)
@@ -12979,48 +12966,51 @@ func rewriteValue386_OpStore(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [4] ptr val mem)
-	// cond:
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 4
 	// result: (MOVLstore ptr val mem)
 	for {
-		if v.AuxInt != 4 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
+		if !(t.(Type).Size() == 4) {
+			break
+		}
 		v.reset(Op386MOVLstore)
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [2] ptr val mem)
-	// cond:
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 2
 	// result: (MOVWstore ptr val mem)
 	for {
-		if v.AuxInt != 2 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
+		if !(t.(Type).Size() == 2) {
+			break
+		}
 		v.reset(Op386MOVWstore)
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Store [1] ptr val mem)
-	// cond:
+	// match: (Store {t} ptr val mem)
+	// cond: t.(Type).Size() == 1
 	// result: (MOVBstore ptr val mem)
 	for {
-		if v.AuxInt != 1 {
-			break
-		}
+		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
+		if !(t.(Type).Size() == 1) {
+			break
+		}
 		v.reset(Op386MOVBstore)
 		v.AddArg(ptr)
 		v.AddArg(val)
@@ -13241,78 +13231,73 @@ func rewriteValue386_OpXor8(v *Value, config *Config) bool {
 func rewriteValue386_OpZero(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Zero [s] _ mem)
-	// cond: SizeAndAlign(s).Size() == 0
+	// match: (Zero [0] _ mem)
+	// cond:
 	// result: mem
 	for {
-		s := v.AuxInt
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 0) {
+		if v.AuxInt != 0 {
 			break
 		}
+		mem := v.Args[1]
 		v.reset(OpCopy)
 		v.Type = mem.Type
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 1
+	// match: (Zero [1] destptr mem)
+	// cond:
 	// result: (MOVBstoreconst [0] destptr mem)
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 1) {
+		if v.AuxInt != 1 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(Op386MOVBstoreconst)
 		v.AuxInt = 0
 		v.AddArg(destptr)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 2
+	// match: (Zero [2] destptr mem)
+	// cond:
 	// result: (MOVWstoreconst [0] destptr mem)
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 2) {
+		if v.AuxInt != 2 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(Op386MOVWstoreconst)
 		v.AuxInt = 0
 		v.AddArg(destptr)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 4
+	// match: (Zero [4] destptr mem)
+	// cond:
 	// result: (MOVLstoreconst [0] destptr mem)
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 4) {
+		if v.AuxInt != 4 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(Op386MOVLstoreconst)
 		v.AuxInt = 0
 		v.AddArg(destptr)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 3
+	// match: (Zero [3] destptr mem)
+	// cond:
 	// result: (MOVBstoreconst [makeValAndOff(0,2)] destptr 		(MOVWstoreconst [0] destptr mem))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 3) {
+		if v.AuxInt != 3 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(Op386MOVBstoreconst)
 		v.AuxInt = makeValAndOff(0, 2)
 		v.AddArg(destptr)
@@ -13323,16 +13308,15 @@ func rewriteValue386_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 5
+	// match: (Zero [5] destptr mem)
+	// cond:
 	// result: (MOVBstoreconst [makeValAndOff(0,4)] destptr 		(MOVLstoreconst [0] destptr mem))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 5) {
+		if v.AuxInt != 5 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(Op386MOVBstoreconst)
 		v.AuxInt = makeValAndOff(0, 4)
 		v.AddArg(destptr)
@@ -13343,16 +13327,15 @@ func rewriteValue386_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 6
+	// match: (Zero [6] destptr mem)
+	// cond:
 	// result: (MOVWstoreconst [makeValAndOff(0,4)] destptr 		(MOVLstoreconst [0] destptr mem))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 6) {
+		if v.AuxInt != 6 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(Op386MOVWstoreconst)
 		v.AuxInt = makeValAndOff(0, 4)
 		v.AddArg(destptr)
@@ -13363,16 +13346,15 @@ func rewriteValue386_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 7
+	// match: (Zero [7] destptr mem)
+	// cond:
 	// result: (MOVLstoreconst [makeValAndOff(0,3)] destptr 		(MOVLstoreconst [0] destptr mem))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 7) {
+		if v.AuxInt != 7 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(Op386MOVLstoreconst)
 		v.AuxInt = makeValAndOff(0, 3)
 		v.AddArg(destptr)
@@ -13384,19 +13366,19 @@ func rewriteValue386_OpZero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size()%4 != 0 && SizeAndAlign(s).Size() > 4
-	// result: (Zero [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%4] (ADDLconst destptr [SizeAndAlign(s).Size()%4]) 		(MOVLstoreconst [0] destptr mem))
+	// cond: s%4 != 0 && s > 4
+	// result: (Zero [s-s%4] (ADDLconst destptr [s%4]) 		(MOVLstoreconst [0] destptr mem))
 	for {
 		s := v.AuxInt
 		destptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size()%4 != 0 && SizeAndAlign(s).Size() > 4) {
+		if !(s%4 != 0 && s > 4) {
 			break
 		}
 		v.reset(OpZero)
-		v.AuxInt = SizeAndAlign(s).Size() - SizeAndAlign(s).Size()%4
+		v.AuxInt = s - s%4
 		v0 := b.NewValue0(v.Pos, Op386ADDLconst, config.fe.TypeUInt32())
-		v0.AuxInt = SizeAndAlign(s).Size() % 4
+		v0.AuxInt = s % 4
 		v0.AddArg(destptr)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, Op386MOVLstoreconst, TypeMem)
@@ -13406,16 +13388,15 @@ func rewriteValue386_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 8
+	// match: (Zero [8] destptr mem)
+	// cond:
 	// result: (MOVLstoreconst [makeValAndOff(0,4)] destptr 		(MOVLstoreconst [0] destptr mem))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 8) {
+		if v.AuxInt != 8 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(Op386MOVLstoreconst)
 		v.AuxInt = makeValAndOff(0, 4)
 		v.AddArg(destptr)
@@ -13426,16 +13407,15 @@ func rewriteValue386_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 12
+	// match: (Zero [12] destptr mem)
+	// cond:
 	// result: (MOVLstoreconst [makeValAndOff(0,8)] destptr 		(MOVLstoreconst [makeValAndOff(0,4)] destptr 			(MOVLstoreconst [0] destptr mem)))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 12) {
+		if v.AuxInt != 12 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(Op386MOVLstoreconst)
 		v.AuxInt = makeValAndOff(0, 8)
 		v.AddArg(destptr)
@@ -13450,16 +13430,15 @@ func rewriteValue386_OpZero(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() == 16
+	// match: (Zero [16] destptr mem)
+	// cond:
 	// result: (MOVLstoreconst [makeValAndOff(0,12)] destptr 		(MOVLstoreconst [makeValAndOff(0,8)] destptr 			(MOVLstoreconst [makeValAndOff(0,4)] destptr 				(MOVLstoreconst [0] destptr mem))))
 	for {
-		s := v.AuxInt
-		destptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() == 16) {
+		if v.AuxInt != 16 {
 			break
 		}
+		destptr := v.Args[0]
+		mem := v.Args[1]
 		v.reset(Op386MOVLstoreconst)
 		v.AuxInt = makeValAndOff(0, 12)
 		v.AddArg(destptr)
@@ -13479,17 +13458,17 @@ func rewriteValue386_OpZero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Zero [s] destptr mem)
-	// cond: SizeAndAlign(s).Size() > 16   && SizeAndAlign(s).Size() <= 4*128   && SizeAndAlign(s).Size()%4 == 0   && !config.noDuffDevice
-	// result: (DUFFZERO [1*(128-SizeAndAlign(s).Size()/4)] destptr (MOVLconst [0]) mem)
+	// cond: s > 16 && s <= 4*128 && s%4 == 0   && !config.noDuffDevice
+	// result: (DUFFZERO [1*(128-s/4)] destptr (MOVLconst [0]) mem)
 	for {
 		s := v.AuxInt
 		destptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size() <= 4*128 && SizeAndAlign(s).Size()%4 == 0 && !config.noDuffDevice) {
+		if !(s > 16 && s <= 4*128 && s%4 == 0 && !config.noDuffDevice) {
 			break
 		}
 		v.reset(Op386DUFFZERO)
-		v.AuxInt = 1 * (128 - SizeAndAlign(s).Size()/4)
+		v.AuxInt = 1 * (128 - s/4)
 		v.AddArg(destptr)
 		v0 := b.NewValue0(v.Pos, Op386MOVLconst, config.fe.TypeUInt32())
 		v0.AuxInt = 0
@@ -13498,19 +13477,19 @@ func rewriteValue386_OpZero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Zero [s] destptr mem)
-	// cond: (SizeAndAlign(s).Size() > 4*128 || (config.noDuffDevice && SizeAndAlign(s).Size() > 16))   && SizeAndAlign(s).Size()%4 == 0
-	// result: (REPSTOSL destptr (MOVLconst [SizeAndAlign(s).Size()/4]) (MOVLconst [0]) mem)
+	// cond: (s > 4*128 || (config.noDuffDevice && s > 16))   && s%4 == 0
+	// result: (REPSTOSL destptr (MOVLconst [s/4]) (MOVLconst [0]) mem)
 	for {
 		s := v.AuxInt
 		destptr := v.Args[0]
 		mem := v.Args[1]
-		if !((SizeAndAlign(s).Size() > 4*128 || (config.noDuffDevice && SizeAndAlign(s).Size() > 16)) && SizeAndAlign(s).Size()%4 == 0) {
+		if !((s > 4*128 || (config.noDuffDevice && s > 16)) && s%4 == 0) {
 			break
 		}
 		v.reset(Op386REPSTOSL)
 		v.AddArg(destptr)
 		v0 := b.NewValue0(v.Pos, Op386MOVLconst, config.fe.TypeUInt32())
-		v0.AuxInt = SizeAndAlign(s).Size() / 4
+		v0.AuxInt = s / 4
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, Op386MOVLconst, config.fe.TypeUInt32())
 		v1.AuxInt = 0

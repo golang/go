@@ -17,8 +17,8 @@ func TestWriteBarrierStoreOrder(t *testing.T) {
 			Valu("sp", OpSP, TypeInvalid, 0, nil),
 			Valu("v", OpConstNil, ptrType, 0, nil),
 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("wb2", OpStore, TypeMem, 8, ptrType, "addr1", "v", "wb1"),
-			Valu("wb1", OpStore, TypeMem, 8, ptrType, "addr1", "v", "start"), // wb1 and wb2 are out of order
+			Valu("wb2", OpStore, TypeMem, 0, ptrType, "addr1", "v", "wb1"),
+			Valu("wb1", OpStore, TypeMem, 0, ptrType, "addr1", "v", "start"), // wb1 and wb2 are out of order
 			Goto("exit")),
 		Bloc("exit",
 			Exit("wb2")))
@@ -44,7 +44,7 @@ func TestWriteBarrierPhi(t *testing.T) {
 			Valu("phi", OpPhi, TypeMem, 0, nil, "start", "wb"),
 			Valu("v", OpConstNil, ptrType, 0, nil),
 			Valu("addr", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("wb", OpStore, TypeMem, 8, ptrType, "addr", "v", "phi"), // has write barrier
+			Valu("wb", OpStore, TypeMem, 0, ptrType, "addr", "v", "phi"), // has write barrier
 			Goto("loop")))
 
 	CheckFunc(fun.f)
