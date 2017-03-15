@@ -1406,11 +1406,11 @@
 (CMPBconst (ANDLconst [c] x) [0]) -> (TESTBconst [int64(int8(c))] x)
 
 // Convert TESTx to TESTxconst if possible.
-(TESTQ (MOVQconst [c]) x) && c < 1<<31 -> (TESTQconst [c] x)
+(TESTQ (MOVQconst [c]) x) && is32Bit(c) -> (TESTQconst [c] x)
 (TESTL (MOVLconst [c]) x) -> (TESTLconst [c] x)
 (TESTW (MOVLconst [c]) x) -> (TESTWconst [c] x)
 (TESTB (MOVLconst [c]) x) -> (TESTBconst [c] x)
-(TESTQ x (MOVQconst [c])) && c < 1<<31 -> (TESTQconst [c] x)
+(TESTQ x (MOVQconst [c])) && is32Bit(c) -> (TESTQconst [c] x)
 (TESTL x (MOVLconst [c])) -> (TESTLconst [c] x)
 (TESTW x (MOVLconst [c])) -> (TESTWconst [c] x)
 (TESTB x (MOVLconst [c])) -> (TESTBconst [c] x)
