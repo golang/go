@@ -5332,6 +5332,40 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (EqPtr x x)
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (EqPtr (Addr {a} x) (Addr {b} x))
+	// cond:
+	// result: (ConstBool [b2i(a == b)])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		a := v_0.Aux
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		b := v_1.Aux
+		if x != v_1.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(a == b)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpEqSlice(v *Value) bool {
