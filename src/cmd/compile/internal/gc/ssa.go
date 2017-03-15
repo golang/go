@@ -20,16 +20,14 @@ import (
 
 var ssaConfig *ssa.Config
 var ssaExp ssaExport
+var ssaCache *ssa.Cache
 
-func initssa() *ssa.Config {
-	if ssaConfig == nil {
-		ssaConfig = ssa.NewConfig(Thearch.LinkArch.Name, &ssaExp, Ctxt, Debug['N'] == 0)
-		if Thearch.LinkArch.Name == "386" {
-			ssaConfig.Set387(Thearch.Use387)
-		}
+func initssaconfig() {
+	ssaConfig = ssa.NewConfig(Thearch.LinkArch.Name, &ssaExp, Ctxt, Debug['N'] == 0)
+	if Thearch.LinkArch.Name == "386" {
+		ssaConfig.Set387(Thearch.Use387)
 	}
-	ssaConfig.HTML = nil
-	return ssaConfig
+	ssaCache = new(ssa.Cache)
 }
 
 // buildssa builds an SSA function.
@@ -51,12 +49,15 @@ func buildssa(fn *Node) *ssa.Func {
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
 		s.cgoUnsafeArgs = true
 	}
-	// TODO(khr): build config just once at the start of the compiler binary
 
 	ssaExp.log = printssa
 
-	s.config = initssa()
-	s.f = s.config.NewFunc()
+	s.f = ssa.NewFunc()
+	s.config = ssaConfig
+	s.f.Config = ssaConfig
+	s.f.Cache = ssaCache
+	s.f.Cache.Reset()
+	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH", name)
 	s.f.Name = name
 	if fn.Func.Pragma&Nosplit != 0 {
 		s.f.NoSplit = true
@@ -71,12 +72,9 @@ func buildssa(fn *Node) *ssa.Func {
 	}()
 	s.exitCode = fn.Func.Exit
 	s.panics = map[funcLine]*ssa.Block{}
-	s.config.DebugTest = s.config.DebugHashMatch("GOSSAHASH", name)
 
 	if name == os.Getenv("GOSSAFUNC") {
-		// TODO: tempfile? it is handy to have the location
-		// of this file be stable, so you can just reload in the browser.
-		s.config.HTML = ssa.NewHTMLWriter("ssa.html", s.config, name)
+		s.f.HTMLWriter = ssa.NewHTMLWriter("ssa.html", ssaConfig, name)
 		// TODO: generate and print a mapping from nodes to values and blocks
 	}
 
@@ -140,7 +138,6 @@ func buildssa(fn *Node) *ssa.Func {
 	}
 
 	if nerrors > 0 {
-		s.f.Free()
 		return nil
 	}
 
@@ -152,7 +149,6 @@ func buildssa(fn *Node) *ssa.Func {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 	if nerrors > 0 {
-		s.f.Free()
 		return nil
 	}
 
@@ -4287,7 +4283,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 			}
 			f.Logf("%s\t%s\n", s, p)
 		}
-		if f.Config.HTML != nil {
+		if f.HTMLWriter != nil {
 			// LineHist is defunct now - this code won't do
 			// anything.
 			// TODO: fix this (ideally without a global variable)
@@ -4311,7 +4307,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 			}
 			buf.WriteString("</dl>")
 			buf.WriteString("</code>")
-			f.Config.HTML.WriteColumn("genssa", buf.String())
+			f.HTMLWriter.WriteColumn("genssa", buf.String())
 			// ptxt.Ctxt.LineHist.PrintFilenameOnly = saved
 		}
 	}
@@ -4328,8 +4324,8 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	// Remove leftover instrumentation from the instruction stream.
 	removevardef(ptxt)
 
-	f.Config.HTML.Close()
-	f.Config.HTML = nil
+	f.HTMLWriter.Close()
+	f.HTMLWriter = nil
 }
 
 type FloatingEQNEJump struct {

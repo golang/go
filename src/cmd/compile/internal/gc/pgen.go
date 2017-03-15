@@ -411,7 +411,6 @@ func compile(fn *Node) {
 	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
 
 	genssa(ssafn, ptxt, gcargs, gclocals)
-	ssafn.Free()
 
 	obj.Flushplist(Ctxt, plist) // convert from Prog list to machine code
 	ptxt = nil                  // nil to prevent misuse; Prog may have been freed by Flushplist

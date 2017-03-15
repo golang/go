@@ -154,7 +154,6 @@ func BenchmarkDeadCode(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				fun := Fun(c, "entry", blocks...)
 				Deadcode(fun.f)
-				fun.f.Free()
 			}
 		})
 	}

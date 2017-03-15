@@ -43,7 +43,7 @@ func Compile(f *Func) {
 
 	// Run all the passes
 	printFunc(f)
-	f.Config.HTML.WriteFunc("start", f)
+	f.HTMLWriter.WriteFunc("start", f)
 	if BuildDump != "" && BuildDump == f.Name {
 		f.dumpFile("build")
 	}
@@ -71,7 +71,7 @@ func Compile(f *Func) {
 		tEnd := time.Now()
 
 		// Need something less crude than "Log the whole intermediate result".
-		if f.Log() || f.Config.HTML != nil {
+		if f.Log() || f.HTMLWriter != nil {
 			time := tEnd.Sub(tStart).Nanoseconds()
 			var stats string
 			if logMemStats {
@@ -86,7 +86,7 @@ func Compile(f *Func) {
 
 			f.Logf("  pass %s end %s\n", p.name, stats)
 			printFunc(f)
-			f.Config.HTML.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
+			f.HTMLWriter.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
 		}
 		if p.time || p.mem {
 			// Surround timing information w/ enough context to allow comparisons.

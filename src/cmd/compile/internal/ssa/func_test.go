@@ -144,7 +144,12 @@ var emptyPass pass = pass{
 // supplied to one of the Bloc functions. Each of the bloc names and
 // valu names should be unique across the Fun.
 func Fun(c *Config, entry string, blocs ...bloc) fun {
-	f := c.NewFunc()
+	f := NewFunc()
+	f.Config = c
+	// TODO: Either mark some SSA tests as t.Parallel,
+	// or set up a shared Cache and Reset it between tests.
+	// But not both.
+	f.Cache = new(Cache)
 	f.pass = &emptyPass
 
 	blocks := make(map[string]*Block)

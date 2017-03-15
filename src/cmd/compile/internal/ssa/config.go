@@ -32,7 +32,6 @@ type Config struct {
 	LinkReg         int8                       // register number of link register if it is a general purpose register, -1 if not used
 	hasGReg         bool                       // has hardware g register
 	fe              Frontend                   // callbacks into compiler frontend
-	HTML            *HTMLWriter                // html writer, for debugging
 	ctxt            *obj.Link                  // Generic arch information
 	optimize        bool                       // Do optimization
 	noDuffDevice    bool                       // Don't use Duff's device
@@ -41,27 +40,7 @@ type Config struct {
 	OldArch         bool                       // True for older versions of architecture, e.g. true for PPC64BE, false for PPC64LE
 	NeedsFpScratch  bool                       // No direct move between GP and FP register sets
 	BigEndian       bool                       //
-	DebugTest       bool                       // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
-	curFunc         *Func
-
-	// TODO: more stuff. Compiler flags of interest, ...
-
-	// Given an environment variable used for debug hash match,
-	// what file (if any) receives the yes/no logging?
-	logfiles map[string]*os.File
-
-	// Storage for low-numbered values and blocks.
-	values [2000]Value
-	blocks [200]Block
-	locs   [2000]Location
-
-	// Reusable stackAllocState.
-	// See stackalloc.go's {new,put}StackAllocState.
-	stackAllocState *stackAllocState
-
-	domblockstore []ID         // scratch space for computing dominators
-	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
 }
 
 type TypeSource interface {
@@ -304,16 +283,6 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		opcodeTable[OpARMCALLudiv].reg.clobbers |= 1 << 12 // R12
 	}
 
-	// Assign IDs to preallocated values/blocks.
-	for i := range c.values {
-		c.values[i].ID = ID(i)
-	}
-	for i := range c.blocks {
-		c.blocks[i].ID = ID(i)
-	}
-
-	c.logfiles = make(map[string]*os.File)
-
 	// cutoff is compared with product of numblocks and numvalues,
 	// if product is smaller than cutoff, use old non-sparse method.
 	// cutoff == 0 implies all sparse.
@@ -342,18 +311,6 @@ func (c *Config) Frontend() Frontend      { return c.fe }
 func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
 func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
 
-// NewFunc returns a new, empty function object.
-// Caller must call f.Free() before calling NewFunc again.
-func (c *Config) NewFunc() *Func {
-	// TODO(khr): should this function take name, type, etc. as arguments?
-	if c.curFunc != nil {
-		c.Fatalf(src.NoXPos, "NewFunc called without previous Free")
-	}
-	f := &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
-	c.curFunc = f
-	return f
-}
-
 func (c *Config) Logf(msg string, args ...interface{})                 { c.fe.Logf(msg, args...) }
 func (c *Config) Log() bool                                            { return c.fe.Log() }
 func (c *Config) Fatalf(pos src.XPos, msg string, args ...interface{}) { c.fe.Fatalf(pos, msg, args...) }
@@ -362,8 +319,11 @@ func (c *Config) Warnl(pos src.XPos, msg string, args ...interface{})  { c.fe.Wa
 func (c *Config) Debug_checknil() bool                                 { return c.fe.Debug_checknil() }
 func (c *Config) Debug_wb() bool                                       { return c.fe.Debug_wb() }
 
-func (c *Config) logDebugHashMatch(evname, name string) {
-	file := c.logfiles[evname]
+func (f *Func) logDebugHashMatch(evname, name string) {
+	if f.logfiles == nil {
+		f.logfiles = make(map[string]*os.File)
+	}
+	file := f.logfiles[evname]
 	if file == nil {
 		file = os.Stdout
 		tmpfile := os.Getenv("GSHS_LOGFILE")
@@ -371,10 +331,10 @@ func (c *Config) logDebugHashMatch(evname, name string) {
 			var ok error
 			file, ok = os.Create(tmpfile)
 			if ok != nil {
-				c.Fatalf(src.NoXPos, "Could not open hash-testing logfile %s", tmpfile)
+				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
 			}
 		}
-		c.logfiles[evname] = file
+		f.logfiles[evname] = file
 	}
 	s := fmt.Sprintf("%s triggered %s\n", evname, name)
 	file.WriteString(s)
@@ -395,14 +355,13 @@ func (c *Config) logDebugHashMatch(evname, name string) {
 //  GSHS_LOGFILE
 // or standard out if that is empty or there is an error
 // opening the file.
-
-func (c *Config) DebugHashMatch(evname, name string) bool {
+func (f *Func) DebugHashMatch(evname, name string) bool {
 	evhash := os.Getenv(evname)
 	if evhash == "" {
 		return true // default behavior with no EV is "on"
 	}
 	if evhash == "y" || evhash == "Y" {
-		c.logDebugHashMatch(evname, name)
+		f.logDebugHashMatch(evname, name)
 		return true
 	}
 	if evhash == "n" || evhash == "N" {
@@ -417,7 +376,7 @@ func (c *Config) DebugHashMatch(evname, name string) bool {
 	}
 
 	if strings.HasSuffix(hstr, evhash) {
-		c.logDebugHashMatch(evname, name)
+		f.logDebugHashMatch(evname, name)
 		return true
 	}
 
@@ -430,13 +389,13 @@ func (c *Config) DebugHashMatch(evname, name string) bool {
 			break
 		}
 		if strings.HasSuffix(hstr, evv) {
-			c.logDebugHashMatch(ev, name)
+			f.logDebugHashMatch(ev, name)
 			return true
 		}
 	}
 	return false
 }
 
-func (c *Config) DebugNameMatch(evname, name string) bool {
+func DebugNameMatch(evname, name string) bool {
 	return os.Getenv(evname) == name
 }
