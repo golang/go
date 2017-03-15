@@ -1432,6 +1432,10 @@
 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
 	-> (Invalid)
 
+// Address comparison shows up in type assertions.
+(EqPtr x x) -> (ConstBool [1])
+(EqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a == b)])
+
 // De-virtualize interface calls into static calls.
 // Note that (ITab (IMake)) doesn't get
 // rewritten until after the first opt pass,

@@ -1366,7 +1366,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if n.Class == PFUNC {
 			// "value" of a function is the address of the function's closure
 			sym := Linksym(funcsym(n.Sym))
-			aux := &ssa.ExternSymbol{Typ: n.Type, Sym: sym}
+			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: sym})
 			return s.entryNewValue1A(ssa.OpAddr, typPtr(n.Type), aux, s.sb)
 		}
 		if s.canSSA(n) {
@@ -2137,7 +2137,8 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 
 	// Call growslice
 	s.startBlock(grow)
-	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(n.Type.Elem()))}, s.sb)
+	sym := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(n.Type.Elem()))})
+	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], sym, s.sb)
 
 	r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
 
@@ -4087,7 +4088,8 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	if !commaok {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
-		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{Typ: byteptr, Sym: Linksym(typenamesym(n.Left.Type))}, s.sb)
+		sym := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: byteptr, Sym: Linksym(typenamesym(n.Left.Type))})
+		taddr := s.newValue1A(ssa.OpAddr, byteptr, sym, s.sb)
 		if n.Left.Type.IsEmptyInterface() {
 			s.rtcall(panicdottypeE, false, nil, itab, target, taddr)
 		} else {
