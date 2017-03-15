@@ -337,6 +337,7 @@ var serveMuxTests = []struct {
 	{"GET", "codesearch.google.com", "/search/", 203, "codesearch.google.com/"},
 	{"GET", "codesearch.google.com", "/search/foo", 203, "codesearch.google.com/"},
 	{"GET", "codesearch.google.com", "/", 203, "codesearch.google.com/"},
+	{"GET", "codesearch.google.com:443", "/", 203, "codesearch.google.com/"},
 	{"GET", "images.google.com", "/search", 201, "/search"},
 	{"GET", "images.google.com", "/search/", 404, ""},
 	{"GET", "images.google.com", "/search/foo", 404, ""},
