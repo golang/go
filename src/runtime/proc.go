@@ -1399,6 +1399,7 @@ func needm(x byte) {
 	// running at all (that is, there's no garbage collection
 	// running right now).
 	mp.needextram = mp.schedlink == 0
+	extraMCount--
 	unlockextra(mp.schedlink.ptr())
 
 	// Save and block signals before installing g.
@@ -1484,6 +1485,7 @@ func oneNewExtraM() {
 	// Add m to the extra list.
 	mnext := lockextra(true)
 	mp.schedlink.set(mnext)
+	extraMCount++
 	unlockextra(mp)
 }
 
@@ -1525,6 +1527,7 @@ func dropm() {
 	unminit()
 
 	mnext := lockextra(true)
+	extraMCount++
 	mp.schedlink.set(mnext)
 
 	setg(nil)
@@ -1541,6 +1544,7 @@ func getm() uintptr {
 }
 
 var extram uintptr
+var extraMCount uint32 // Protected by lockextra
 var extraMWaiters uint32
 
 // lockextra locks the extra list and returns the list head.
