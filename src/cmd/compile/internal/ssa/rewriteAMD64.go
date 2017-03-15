@@ -16360,7 +16360,7 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (TESTQ (MOVQconst [c]) x)
-	// cond: c < 1<<31
+	// cond: is32Bit(c)
 	// result: (TESTQconst [c] x)
 	for {
 		v_0 := v.Args[0]
@@ -16369,7 +16369,7 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value, config *Config) bool {
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		if !(c < 1<<31) {
+		if !(is32Bit(c)) {
 			break
 		}
 		v.reset(OpAMD64TESTQconst)
@@ -16378,7 +16378,7 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (TESTQ x (MOVQconst [c]))
-	// cond: c < 1<<31
+	// cond: is32Bit(c)
 	// result: (TESTQconst [c] x)
 	for {
 		x := v.Args[0]
@@ -16387,7 +16387,7 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value, config *Config) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(c < 1<<31) {
+		if !(is32Bit(c)) {
 			break
 		}
 		v.reset(OpAMD64TESTQconst)
