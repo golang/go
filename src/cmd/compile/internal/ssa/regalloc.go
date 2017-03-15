@@ -495,7 +495,7 @@ func isLeaf(f *Func) bool {
 
 func (s *regAllocState) init(f *Func) {
 	s.f = f
-	s.f.RegAlloc = s.f.Config.locs[:0]
+	s.f.RegAlloc = s.f.Cache.locs[:0]
 	s.registers = f.Config.registers
 	if nr := len(s.registers); nr == 0 || nr > int(noRegister) || nr > int(unsafe.Sizeof(regMask(0))*8) {
 		s.f.Fatalf("bad number of registers: %d", nr)

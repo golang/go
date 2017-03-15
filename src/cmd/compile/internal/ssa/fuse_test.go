@@ -162,7 +162,6 @@ func BenchmarkFuse(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				fun := Fun(c, "entry", blocks...)
 				fuse(fun.f)
-				fun.f.Free()
 			}
 		})
 	}

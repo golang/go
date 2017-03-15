@@ -36,6 +36,5 @@ func benchmarkCopyElim(b *testing.B, n int) {
 	for i := 0; i < b.N; i++ {
 		fun := Fun(c, "entry", Bloc("entry", values...))
 		Copyelim(fun.f)
-		fun.f.Free()
 	}
 }

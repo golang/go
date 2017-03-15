@@ -82,6 +82,4 @@ func TestLoopConditionS390X(t *testing.T) {
 		OpS390XCMP:       1,
 		OpS390XCMPWconst: 0,
 	})
-
-	fun.f.Free()
 }

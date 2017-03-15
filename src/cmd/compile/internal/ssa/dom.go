@@ -70,9 +70,9 @@ const nscratchslices = 7
 // in make.bash.
 const minscratchblocks = 512
 
-func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID) {
+func (cache *Cache) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID) {
 	tot := maxBlockID * nscratchslices
-	scratch := cfg.domblockstore
+	scratch := cache.domblockstore
 	if len(scratch) < tot {
 		// req = min(1.5*tot, nscratchslices*minscratchblocks)
 		// 50% padding allows for graph growth in later phases.
@@ -81,7 +81,7 @@ func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID
 			req = nscratchslices * minscratchblocks
 		}
 		scratch = make([]ID, req)
-		cfg.domblockstore = scratch
+		cache.domblockstore = scratch
 	} else {
 		// Clear as much of scratch as we will (re)use
 		scratch = scratch[0:tot]
@@ -117,7 +117,7 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
 	// Adapted directly from the original TOPLAS article's "simple" algorithm
 
 	maxBlockID := entry.Func.NumBlocks()
-	semi, vertex, label, parent, ancestor, bucketHead, bucketLink := f.Config.scratchBlocksForDom(maxBlockID)
+	semi, vertex, label, parent, ancestor, bucketHead, bucketLink := f.Cache.scratchBlocksForDom(maxBlockID)
 
 	// This version uses integers for most of the computation,
 	// to make the work arrays smaller and pointer-free.

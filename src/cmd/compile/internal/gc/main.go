@@ -483,6 +483,11 @@ func Main() {
 			}
 		}
 
+		// Prepare for SSA compilation.
+		// This must be before peekitabs, because peekitabs
+		// can trigger function compilation.
+		initssaconfig()
+
 		// Just before compilation, compile itabs found on
 		// the right side of OCONVIFACE so that methods
 		// can be de-virtualized during compilation.

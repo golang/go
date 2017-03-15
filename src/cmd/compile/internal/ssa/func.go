@@ -8,6 +8,7 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 )
 
@@ -16,6 +17,7 @@ import (
 // Funcs are single-use; a new Func must be created for every compiled function.
 type Func struct {
 	Config *Config  // architecture information
+	Cache  *Cache   // re-usable cache
 	pass   *pass    // current pass information (name, options, etc.)
 	Name   string   // e.g. bytes·Compare
 	Type   Type     // type signature of the function.
@@ -23,6 +25,12 @@ type Func struct {
 	Entry  *Block   // the entry basic block
 	bid    idAlloc  // block ID allocator
 	vid    idAlloc  // value ID allocator
+
+	// Given an environment variable used for debug hash match,
+	// what file (if any) receives the yes/no logging?
+	logfiles   map[string]*os.File
+	HTMLWriter *HTMLWriter // html writer, for debugging
+	DebugTest  bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
 
 	scheduled bool // Values in Blocks are in final order
 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
@@ -52,6 +60,12 @@ type Func struct {
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
 
+// NewFunc returns a new, empty function object.
+// Caller must set f.Config and f.Cache before using f.
+func NewFunc() *Func {
+	return &Func{NamedValues: make(map[LocalSlot][]*Value)}
+}
+
 // NumBlocks returns an integer larger than the id of any Block in the Func.
 func (f *Func) NumBlocks() int {
 	return f.bid.num()
@@ -64,9 +78,9 @@ func (f *Func) NumValues() int {
 
 // newSparseSet returns a sparse set that can store at least up to n integers.
 func (f *Func) newSparseSet(n int) *sparseSet {
-	for i, scr := range f.Config.scrSparse {
+	for i, scr := range f.Cache.scrSparse {
 		if scr != nil && scr.cap() >= n {
-			f.Config.scrSparse[i] = nil
+			f.Cache.scrSparse[i] = nil
 			scr.clear()
 			return scr
 		}
@@ -76,13 +90,13 @@ func (f *Func) newSparseSet(n int) *sparseSet {
 
 // retSparseSet returns a sparse set to the config's cache of sparse sets to be reused by f.newSparseSet.
 func (f *Func) retSparseSet(ss *sparseSet) {
-	for i, scr := range f.Config.scrSparse {
+	for i, scr := range f.Cache.scrSparse {
 		if scr == nil {
-			f.Config.scrSparse[i] = ss
+			f.Cache.scrSparse[i] = ss
 			return
 		}
 	}
-	f.Config.scrSparse = append(f.Config.scrSparse, ss)
+	f.Cache.scrSparse = append(f.Cache.scrSparse, ss)
 }
 
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
@@ -94,8 +108,9 @@ func (f *Func) newValue(op Op, t Type, b *Block, pos src.XPos) *Value {
 		v.argstorage[0] = nil
 	} else {
 		ID := f.vid.get()
-		if int(ID) < len(f.Config.values) {
-			v = &f.Config.values[ID]
+		if int(ID) < len(f.Cache.values) {
+			v = &f.Cache.values[ID]
+			v.ID = ID
 		} else {
 			v = &Value{ID: ID}
 		}
@@ -120,8 +135,9 @@ func (f *Func) newValueNoBlock(op Op, t Type, pos src.XPos) *Value {
 		v.argstorage[0] = nil
 	} else {
 		ID := f.vid.get()
-		if int(ID) < len(f.Config.values) {
-			v = &f.Config.values[ID]
+		if int(ID) < len(f.Cache.values) {
+			v = &f.Cache.values[ID]
+			v.ID = ID
 		} else {
 			v = &Value{ID: ID}
 		}
@@ -190,8 +206,9 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
 		b.succstorage[0].b = nil
 	} else {
 		ID := f.bid.get()
-		if int(ID) < len(f.Config.blocks) {
-			b = &f.Config.blocks[ID]
+		if int(ID) < len(f.Cache.blocks) {
+			b = &f.Cache.blocks[ID]
+			b.ID = ID
 		} else {
 			b = &Block{ID: ID}
 		}
@@ -467,48 +484,6 @@ func (f *Func) ConstOffPtrSP(pos src.XPos, t Type, c int64, sp *Value) *Value {
 func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }
 func (f *Func) Log() bool                              { return f.Config.Log() }
 func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Pos, msg, args...) }
-
-func (f *Func) Free() {
-	// Clear cached CFG info.
-	f.invalidateCFG()
-
-	// Clear values.
-	n := f.vid.num()
-	if n > len(f.Config.values) {
-		n = len(f.Config.values)
-	}
-	for i := 1; i < n; i++ {
-		f.Config.values[i] = Value{}
-		f.Config.values[i].ID = ID(i)
-	}
-
-	// Clear blocks.
-	n = f.bid.num()
-	if n > len(f.Config.blocks) {
-		n = len(f.Config.blocks)
-	}
-	for i := 1; i < n; i++ {
-		f.Config.blocks[i] = Block{}
-		f.Config.blocks[i].ID = ID(i)
-	}
-
-	// Clear locs.
-	n = len(f.RegAlloc)
-	if n > len(f.Config.locs) {
-		n = len(f.Config.locs)
-	}
-	head := f.Config.locs[:n]
-	for i := range head {
-		head[i] = nil
-	}
-
-	// Unregister from config.
-	if f.Config.curFunc != f {
-		f.Fatalf("free of function which isn't the last one allocated")
-	}
-	f.Config.curFunc = nil
-	*f = Func{} // just in case
-}
 
 // postorder returns the reachable blocks in f in a postorder traversal.
 func (f *Func) postorder() []*Block {
