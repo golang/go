@@ -1299,7 +1299,7 @@ func gcDumpObject(label string, obj, off uintptr) {
 
 	skipped := false
 	size := s.elemsize
-	if s.state == _MSpanStack && size == 0 {
+	if s.state == _MSpanManual && size == 0 {
 		// We're printing something from a stack frame. We
 		// don't know how big it is, so just show up to an
 		// including off.

@@ -121,7 +121,7 @@ var mheap_ mheap
 // When a MSpan is in the heap free list, state == MSpanFree
 // and heapmap(s->start) == span, heapmap(s->start+s->npages-1) == span.
 //
-// When a MSpan is allocated, state == MSpanInUse or MSpanStack
+// When a MSpan is allocated, state == MSpanInUse or MSpanManual
 // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
 
 // Every MSpan is in one doubly-linked list,
@@ -129,25 +129,25 @@ var mheap_ mheap
 // MCentral's span lists.
 
 // An MSpan representing actual memory has state _MSpanInUse,
-// _MSpanStack, or _MSpanFree. Transitions between these states are
+// _MSpanManual, or _MSpanFree. Transitions between these states are
 // constrained as follows:
 //
-// * A span may transition from free to in-use or stack during any GC
+// * A span may transition from free to in-use or manual during any GC
 //   phase.
 //
 // * During sweeping (gcphase == _GCoff), a span may transition from
-//   in-use to free (as a result of sweeping) or stack to free (as a
+//   in-use to free (as a result of sweeping) or manual to free (as a
 //   result of stacks being freed).
 //
 // * During GC (gcphase != _GCoff), a span *must not* transition from
-//   stack or in-use to free. Because concurrent GC may read a pointer
+//   manual or in-use to free. Because concurrent GC may read a pointer
 //   and then look up its span, the span state must be monotonic.
 type mSpanState uint8
 
 const (
-	_MSpanDead  mSpanState = iota
-	_MSpanInUse            // allocated for garbage collected heap
-	_MSpanStack            // allocated for use by stack allocator
+	_MSpanDead   mSpanState = iota
+	_MSpanInUse             // allocated for garbage collected heap
+	_MSpanManual            // allocated for manual management (e.g., stack allocator)
 	_MSpanFree
 )
 
@@ -156,7 +156,7 @@ const (
 var mSpanStateNames = []string{
 	"_MSpanDead",
 	"_MSpanInUse",
-	"_MSpanStack",
+	"_MSpanManual",
 	"_MSpanFree",
 }
 
@@ -297,7 +297,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 }
 
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
-// It returns false for pointers into stack spans.
+// It returns false for pointers into _MSpanManual spans.
 // Non-preemptible because it is used by write barriers.
 //go:nowritebarrier
 //go:nosplit
@@ -313,7 +313,9 @@ func inheap(b uintptr) bool {
 	return true
 }
 
-// inHeapOrStack is a variant of inheap that returns true for pointers into stack spans.
+// inHeapOrStack is a variant of inheap that returns true for pointers
+// into any allocated heap span.
+//
 //go:nowritebarrier
 //go:nosplit
 func inHeapOrStack(b uintptr) bool {
@@ -326,7 +328,7 @@ func inHeapOrStack(b uintptr) bool {
 		return false
 	}
 	switch s.state {
-	case mSpanInUse, _MSpanStack:
+	case mSpanInUse, _MSpanManual:
 		return b < s.limit
 	default:
 		return false
@@ -669,7 +671,7 @@ func (h *mheap) allocStack(npage uintptr) *mspan {
 	lock(&h.lock)
 	s := h.allocSpanLocked(npage)
 	if s != nil {
-		s.state = _MSpanStack
+		s.state = _MSpanManual
 		s.stackfreelist = 0
 		s.allocCount = 0
 		s.sizeclass = 0
@@ -739,8 +741,8 @@ HaveSpan:
 		h.spans[p] = t
 		h.spans[p+t.npages-1] = t
 		t.needzero = s.needzero
-		s.state = _MSpanStack // prevent coalescing with s
-		t.state = _MSpanStack
+		s.state = _MSpanManual // prevent coalescing with s
+		t.state = _MSpanManual
 		h.freeSpanLocked(t, false, false, s.unusedsince)
 		s.state = _MSpanFree
 	}
@@ -892,7 +894,7 @@ func (h *mheap) freeStack(s *mspan) {
 // s must be on a busy list (h.busy or h.busylarge) or unlinked.
 func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince int64) {
 	switch s.state {
-	case _MSpanStack:
+	case _MSpanManual:
 		if s.allocCount != 0 {
 			throw("MHeap_FreeSpanLocked - invalid stack free")
 		}
