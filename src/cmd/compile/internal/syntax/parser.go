@@ -480,10 +480,13 @@ func (p *parser) funcDecl() *FuncDecl {
 
 	f.Name = p.name()
 	f.Type = p.funcType()
-	f.Body = p.funcBody()
+	if p.got(_Lbrace) {
+		f.Body = p.funcBody()
+		f.Rbrace = p.pos()
+		p.want(_Rbrace)
+	}
 
 	f.Pragma = p.pragma
-	f.EndLine = p.line
 
 	// TODO(gri) deal with function properties
 	// if noescape && body != nil {
@@ -700,18 +703,17 @@ func (p *parser) operand(keep_parens bool) Expr {
 		pos := p.pos()
 		p.next()
 		t := p.funcType()
-		if p.tok == _Lbrace {
-			p.fnest++
+		if p.got(_Lbrace) {
 			p.xnest++
 
 			f := new(FuncLit)
 			f.pos = pos
 			f.Type = t
 			f.Body = p.funcBody()
-			f.EndLine = p.line
+			f.Rbrace = p.pos()
+			p.want(_Rbrace)
 
 			p.xnest--
-			p.fnest--
 			return f
 		}
 		return t
@@ -920,7 +922,7 @@ func (p *parser) complitexpr() *CompositeLit {
 		}
 	}
 
-	x.EndLine = p.line
+	x.Rbrace = p.pos()
 	p.xnest--
 	p.want(_Rbrace)
 
@@ -1148,18 +1150,14 @@ func (p *parser) funcBody() []Stmt {
 		defer p.trace("funcBody")()
 	}
 
-	if p.got(_Lbrace) {
-		p.fnest++
-		body := p.stmtList()
-		p.fnest--
-		p.want(_Rbrace)
-		if body == nil {
-			body = []Stmt{new(EmptyStmt)}
-		}
-		return body
-	}
+	p.fnest++
+	body := p.stmtList()
+	p.fnest--
 
-	return nil
+	if body == nil {
+		body = []Stmt{new(EmptyStmt)}
+	}
+	return body
 }
 
 // Result = Parameters | Type .

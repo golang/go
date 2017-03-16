@@ -325,7 +325,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		yyerror("go:nosplit and go:systemstack cannot be combined")
 	}
 	f.Func.Pragma = pragma
-	lineno = makePos(fun.Pos().Base(), fun.EndLine, 0)
+	lineno = Ctxt.PosTable.XPos(fun.Rbrace)
 	f.Func.Endlineno = lineno
 
 	funcbody(f)
@@ -451,14 +451,14 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 			l[i] = p.wrapname(expr.ElemList[i], e)
 		}
 		n.List.Set(l)
-		lineno = makePos(expr.Pos().Base(), expr.EndLine, 0)
+		lineno = Ctxt.PosTable.XPos(expr.Rbrace)
 		return n
 	case *syntax.KeyValueExpr:
 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
 		closurehdr(p.typeExpr(expr.Type))
 		body := p.stmts(expr.Body)
-		lineno = makePos(expr.Pos().Base(), expr.EndLine, 0)
+		lineno = Ctxt.PosTable.XPos(expr.Rbrace)
 		return p.setlineno(expr, closurebody(body))
 	case *syntax.ParenExpr:
 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
