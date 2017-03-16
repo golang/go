@@ -14,6 +14,8 @@ func rewriteValuedec64(v *Value, config *Config) bool {
 		return rewriteValuedec64_OpAnd64(v, config)
 	case OpArg:
 		return rewriteValuedec64_OpArg(v, config)
+	case OpBitLen64:
+		return rewriteValuedec64_OpBitLen64(v, config)
 	case OpBswap64:
 		return rewriteValuedec64_OpBswap64(v, config)
 	case OpCom64:
@@ -277,6 +279,36 @@ func rewriteValuedec64_OpArg(v *Value, config *Config) bool {
 		return true
 	}
 	return false
+}
+func rewriteValuedec64_OpBitLen64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (BitLen64 x)
+	// cond:
+	// result: (Add32 <config.fe.TypeInt()> 		(BitLen32 <config.fe.TypeInt()> (Int64Hi x)) 		(BitLen32 <config.fe.TypeInt()> 			(Or32 <config.fe.TypeUInt32()> 				(Int64Lo x) 				(Zeromask (Int64Hi x)))))
+	for {
+		x := v.Args[0]
+		v.reset(OpAdd32)
+		v.Type = config.fe.TypeInt()
+		v0 := b.NewValue0(v.Pos, OpBitLen32, config.fe.TypeInt())
+		v1 := b.NewValue0(v.Pos, OpInt64Hi, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Pos, OpBitLen32, config.fe.TypeInt())
+		v3 := b.NewValue0(v.Pos, OpOr32, config.fe.TypeUInt32())
+		v4 := b.NewValue0(v.Pos, OpInt64Lo, config.fe.TypeUInt32())
+		v4.AddArg(x)
+		v3.AddArg(v4)
+		v5 := b.NewValue0(v.Pos, OpZeromask, config.fe.TypeUInt32())
+		v6 := b.NewValue0(v.Pos, OpInt64Hi, config.fe.TypeUInt32())
+		v6.AddArg(x)
+		v5.AddArg(v6)
+		v3.AddArg(v5)
+		v2.AddArg(v3)
+		v.AddArg(v2)
+		return true
+	}
 }
 func rewriteValuedec64_OpBswap64(v *Value, config *Config) bool {
 	b := v.Block

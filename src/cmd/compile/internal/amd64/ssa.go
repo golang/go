@@ -755,7 +755,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := gc.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSFL:
+	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRQ, ssa.OpAMD64BSRL:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()

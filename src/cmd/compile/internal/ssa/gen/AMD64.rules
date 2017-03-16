@@ -100,6 +100,9 @@
 (Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <TypeFlags> (BSFQ x)))
 (Ctz32 x) -> (Select0 (BSFQ (ORQ <config.Frontend().TypeUInt64()> (MOVQconst [1<<32]) x)))
 
+(BitLen64 <t> x) -> (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <TypeFlags> (BSRQ x))))
+(BitLen32 x) -> (BitLen64 (MOVLQZX <config.Frontend().TypeUInt64()> x))
+
 (Bswap64 x) -> (BSWAPQ x)
 (Bswap32 x) -> (BSWAPL x)
 
@@ -1394,6 +1397,7 @@
 (ORL x x) -> x
 (XORQ x x) -> (MOVQconst [0])
 (XORL x x) -> (MOVLconst [0])
+(NEGQ (ADDQconst [c] (NEGQ x))) && c != -(1<<31) -> (ADDQconst [-c] x)
 
 // checking AND against 0.
 (CMPQconst (ANDQ x y) [0]) -> (TESTQ x y)
@@ -2089,3 +2093,17 @@
 // Extension is unnecessary for trailing zeros.
 (BSFQ (ORQconst <t> [1<<8] (MOVBQZX x))) -> (BSFQ (ORQconst <t> [1<<8] x))
 (BSFQ (ORQconst <t> [1<<16] (MOVWQZX x))) -> (BSFQ (ORQconst <t> [1<<16] x))
+
+// Redundant sign/zero extensions
+(MOVLQSX x:(MOVLQSX _)) -> x
+(MOVLQSX x:(MOVWQSX _)) -> x
+(MOVLQSX x:(MOVBQSX _)) -> x
+(MOVWQSX x:(MOVWQSX _)) -> x
+(MOVWQSX x:(MOVBQSX _)) -> x
+(MOVBQSX x:(MOVBQSX _)) -> x
+(MOVLQZX x:(MOVLQZX _)) -> x
+(MOVLQZX x:(MOVWQZX _)) -> x
+(MOVLQZX x:(MOVBQZX _)) -> x
+(MOVWQZX x:(MOVWQZX _)) -> x
+(MOVWQZX x:(MOVBQZX _)) -> x
+(MOVBQZX x:(MOVBQZX _)) -> x

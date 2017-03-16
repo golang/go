@@ -250,6 +250,8 @@ func rewriteValueARM64(v *Value, config *Config) bool {
 		return rewriteValueARM64_OpAtomicStorePtrNoWB(v, config)
 	case OpAvg64u:
 		return rewriteValueARM64_OpAvg64u(v, config)
+	case OpBitLen64:
+		return rewriteValueARM64_OpBitLen64(v, config)
 	case OpBswap32:
 		return rewriteValueARM64_OpBswap32(v, config)
 	case OpBswap64:
@@ -8238,6 +8240,44 @@ func rewriteValueARM64_OpARM64SUB(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		return true
 	}
+	// match: (SUB x (SUB y z))
+	// cond:
+	// result: (SUB (ADD <v.Type> x z) y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64SUB {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARM64SUB)
+		v0 := b.NewValue0(v.Pos, OpARM64ADD, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUB (SUB x y) z)
+	// cond:
+	// result: (SUB x (ADD <y.Type> y z))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64SUB {
+			break
+		}
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		z := v.Args[1]
+		v.reset(OpARM64SUB)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpARM64ADD, y.Type)
+		v0.AddArg(y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (SUB x (SLLconst [c] y))
 	// cond:
 	// result: (SUBshiftLL x y [c])
@@ -9653,6 +9693,24 @@ func rewriteValueARM64_OpAvg64u(v *Value, config *Config) bool {
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM64_OpBitLen64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (BitLen64 x)
+	// cond:
+	// result: (SUB (MOVDconst [64]) (CLZ <config.fe.TypeInt()> x))
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64SUB)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, config.fe.TypeUInt64())
+		v0.AuxInt = 64
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpARM64CLZ, config.fe.TypeInt())
+		v1.AddArg(x)
+		v.AddArg(v1)
 		return true
 	}
 }

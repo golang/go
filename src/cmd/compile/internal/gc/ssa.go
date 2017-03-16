@@ -2706,6 +2706,51 @@ func init() {
 	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
 	// ReverseBytes inlines correctly, no need to intrinsify it.
 	// ReverseBytes16 lowers to a rotate, no need for anything special here.
+	addF("math/bits", "Len64",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpBitLen64, Types[TINT], args[0])
+		},
+		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
+	addF("math/bits", "Len32",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			if s.config.IntSize == 4 {
+				return s.newValue1(ssa.OpBitLen32, Types[TINT], args[0])
+			}
+			x := s.newValue1(ssa.OpZeroExt32to64, Types[TUINT64], args[0])
+			return s.newValue1(ssa.OpBitLen64, Types[TINT], x)
+		},
+		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
+	addF("math/bits", "Len16",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			if s.config.IntSize == 4 {
+				x := s.newValue1(ssa.OpZeroExt16to32, Types[TUINT32], args[0])
+				return s.newValue1(ssa.OpBitLen32, Types[TINT], x)
+			}
+			x := s.newValue1(ssa.OpZeroExt16to64, Types[TUINT64], args[0])
+			return s.newValue1(ssa.OpBitLen64, Types[TINT], x)
+		},
+		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
+	// Note: disabled on AMD64 because the Go code is faster!
+	addF("math/bits", "Len8",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			if s.config.IntSize == 4 {
+				x := s.newValue1(ssa.OpZeroExt8to32, Types[TUINT32], args[0])
+				return s.newValue1(ssa.OpBitLen32, Types[TINT], x)
+			}
+			x := s.newValue1(ssa.OpZeroExt8to64, Types[TUINT64], args[0])
+			return s.newValue1(ssa.OpBitLen64, Types[TINT], x)
+		},
+		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
+
+	addF("math/bits", "Len",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			if s.config.IntSize == 4 {
+				return s.newValue1(ssa.OpBitLen32, Types[TINT], args[0])
+			}
+			return s.newValue1(ssa.OpBitLen64, Types[TINT], args[0])
+		},
+		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
+	// LeadingZeros is handled because it trivially calls Len.
 
 	/******** sync/atomic ********/
 
