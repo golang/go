@@ -991,6 +991,11 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
 }
 
 func (h *mheap) scavenge(k int32, now, limit uint64) {
+	// Disallow malloc or panic while holding the heap lock. We do
+	// this here because this is an non-mallocgc entry-point to
+	// the mheap API.
+	gp := getg()
+	gp.m.mallocing++
 	lock(&h.lock)
 	var sumreleased uintptr
 	for i := 0; i < len(h.free); i++ {
@@ -998,6 +1003,7 @@ func (h *mheap) scavenge(k int32, now, limit uint64) {
 	}
 	sumreleased += scavengelist(&h.freelarge, now, limit)
 	unlock(&h.lock)
+	gp.m.mallocing--
 
 	if debug.gctrace > 0 {
 		if sumreleased > 0 {
