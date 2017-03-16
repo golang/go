@@ -8,14 +8,12 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 	"testing"
 )
 
 func TestReadForm(t *testing.T) {
-	testBody := regexp.MustCompile("\n").ReplaceAllString(message, "\r\n")
-	b := strings.NewReader(testBody)
+	b := strings.NewReader(strings.Replace(message, "\n", "\r\n", -1))
 	r := NewReader(b, boundary)
 	f, err := r.ReadForm(25)
 	if err != nil {
@@ -126,4 +124,45 @@ func (r *failOnReadAfterErrorReader) Read(p []byte) (n int, err error) {
 	n, err = r.r.Read(p)
 	r.sawErr = err
 	return
+}
+
+// TestReadForm_NonFileMaxMemory asserts that the ReadForm maxMemory limit is applied
+// while processing non-file form data as well as file form data.
+func TestReadForm_NonFileMaxMemory(t *testing.T) {
+	largeTextValue := strings.Repeat("1", (10<<20)+25)
+	message := `--MyBoundary
+Content-Disposition: form-data; name="largetext"
+
+` + largeTextValue + `
+--MyBoundary--
+`
+
+	testBody := strings.Replace(message, "\n", "\r\n", -1)
+	testCases := []struct {
+		name      string
+		maxMemory int64
+		err       error
+	}{
+		{"smaller", 50, nil},
+		{"exact-fit", 25, nil},
+		{"too-large", 0, ErrMessageTooLarge},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := strings.NewReader(testBody)
+			r := NewReader(b, boundary)
+			f, err := r.ReadForm(tc.maxMemory)
+			if err == nil {
+				defer f.RemoveAll()
+			}
+			if tc.err != err {
+				t.Fatalf("ReadForm error - got: %v; expected: %v", tc.err, err)
+			}
+			if err == nil {
+				if g := f.Value["largetext"][0]; g != largeTextValue {
+					t.Errorf("largetext mismatch: got size: %v, expected size: %v", len(g), len(largeTextValue))
+				}
+			}
+		})
+	}
 }
