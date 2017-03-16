@@ -311,7 +311,7 @@
 
 // large or unaligned zeroing uses a loop
 (Zero [s] {t} ptr mem)
-	&& (s > 16  || s%4 != 0) ->
+	&& (s > 16  || t.(Type).Alignment()%4 != 0) ->
 	(LoweredZero [t.(Type).Alignment()]
 		ptr
 		(ADDconst <ptr.Type> ptr [s-moveSize(t.(Type).Alignment(), config)])

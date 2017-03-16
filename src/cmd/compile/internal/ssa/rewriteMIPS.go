@@ -8926,14 +8926,14 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Zero [s] {t} ptr mem)
-	// cond: (s > 16  || s%4 != 0)
+	// cond: (s > 16  || t.(Type).Alignment()%4 != 0)
 	// result: (LoweredZero [t.(Type).Alignment()] 		ptr 		(ADDconst <ptr.Type> ptr [s-moveSize(t.(Type).Alignment(), config)]) 		mem)
 	for {
 		s := v.AuxInt
 		t := v.Aux
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(s > 16 || s%4 != 0) {
+		if !(s > 16 || t.(Type).Alignment()%4 != 0) {
 			break
 		}
 		v.reset(OpMIPSLoweredZero)
