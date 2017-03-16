@@ -186,7 +186,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 	s := list.first
 	if s == nil {
 		// no free stacks. Allocate another span worth.
-		s = mheap_.allocStack(_StackCacheSize >> _PageShift)
+		s = mheap_.allocManual(_StackCacheSize>>_PageShift, &memstats.stacks_inuse)
 		if s == nil {
 			throw("out of memory")
 		}
@@ -248,7 +248,7 @@ func stackpoolfree(x gclinkptr, order uint8) {
 		// By not freeing, we prevent step #4 until GC is done.
 		stackpool[order].remove(s)
 		s.manualFreeList = 0
-		mheap_.freeStack(s)
+		mheap_.freeManual(s, &memstats.stacks_inuse)
 	}
 }
 
@@ -390,7 +390,7 @@ func stackalloc(n uint32) stack {
 
 		if s == nil {
 			// Allocate a new stack from the heap.
-			s = mheap_.allocStack(npage)
+			s = mheap_.allocManual(npage, &memstats.stacks_inuse)
 			if s == nil {
 				throw("out of memory")
 			}
@@ -472,7 +472,7 @@ func stackfree(stk stack) {
 		if gcphase == _GCoff {
 			// Free the stack immediately if we're
 			// sweeping.
-			mheap_.freeStack(s)
+			mheap_.freeManual(s, &memstats.stacks_inuse)
 		} else {
 			// If the GC is running, we can't return a
 			// stack span to the heap because it could be
@@ -1166,7 +1166,7 @@ func freeStackSpans() {
 			if s.allocCount == 0 {
 				list.remove(s)
 				s.manualFreeList = 0
-				mheap_.freeStack(s)
+				mheap_.freeManual(s, &memstats.stacks_inuse)
 			}
 			s = next
 		}
@@ -1180,7 +1180,7 @@ func freeStackSpans() {
 		for s := stackLarge.free[i].first; s != nil; {
 			next := s.next
 			stackLarge.free[i].remove(s)
-			mheap_.freeStack(s)
+			mheap_.freeManual(s, &memstats.stacks_inuse)
 			s = next
 		}
 	}

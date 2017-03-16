@@ -664,11 +664,19 @@ func (h *mheap) alloc(npage uintptr, sizeclass int32, large bool, needzero bool)
 	return s
 }
 
-func (h *mheap) allocStack(npage uintptr) *mspan {
-	_g_ := getg()
-	if _g_ != _g_.m.g0 {
-		throw("mheap_allocstack not on g0 stack")
-	}
+// allocManual allocates a manually-managed span of npage pages and
+// adds the bytes used to *stat, which should be a memstats in-use
+// field. allocManual returns nil if allocation fails.
+//
+// The memory backing the returned span may not be zeroed if
+// span.needzero is set.
+//
+// allocManual must be called on the system stack to prevent stack
+// growth. Since this is used by the stack allocator, stack growth
+// during allocManual would self-deadlock.
+//
+//go:systemstack
+func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 	lock(&h.lock)
 	s := h.allocSpanLocked(npage)
 	if s != nil {
@@ -679,10 +687,10 @@ func (h *mheap) allocStack(npage uintptr) *mspan {
 		s.nelems = 0
 		s.elemsize = 0
 		s.limit = s.base() + s.npages<<_PageShift
-		memstats.stacks_inuse += uint64(s.npages << _PageShift)
+		*stat += uint64(s.npages << _PageShift)
 	}
 
-	// This unlock acts as a release barrier. See mHeap_Alloc_m.
+	// This unlock acts as a release barrier. See mheap.alloc_m.
 	unlock(&h.lock)
 
 	return s
@@ -880,14 +888,21 @@ func (h *mheap) freeSpan(s *mspan, acct int32) {
 	})
 }
 
-func (h *mheap) freeStack(s *mspan) {
-	_g_ := getg()
-	if _g_ != _g_.m.g0 {
-		throw("mheap_freestack not on g0 stack")
-	}
+// freeManual frees a manually-managed span returned by allocManual.
+// stat must be the same as the stat passed to the allocManual that
+// allocated s.
+//
+// This must only be called when gcphase == _GCoff. See mSpanState for
+// an explanation.
+//
+// freeManual must be called on the system stack to prevent stack
+// growth, just like allocManual.
+//
+//go:systemstack
+func (h *mheap) freeManual(s *mspan, stat *uint64) {
 	s.needzero = 1
 	lock(&h.lock)
-	memstats.stacks_inuse -= uint64(s.npages << _PageShift)
+	*stat -= uint64(s.npages << _PageShift)
 	h.freeSpanLocked(s, true, true, 0)
 	unlock(&h.lock)
 }
