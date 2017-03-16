@@ -183,9 +183,10 @@ var allAsmTests = []*asmTests{
 		tests: linuxARMTests,
 	},
 	{
-		arch:  "arm64",
-		os:    "linux",
-		tests: linuxARM64Tests,
+		arch:    "arm64",
+		os:      "linux",
+		imports: []string{"math/bits"},
+		tests:   linuxARM64Tests,
 	},
 }
 
@@ -576,6 +577,30 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		[]string{"\tBSFQ\t", "\tORQ\t\\$256,"},
 	},
+	{
+		`
+		func f45(a uint64) uint64 {
+			return bits.ReverseBytes64(a)
+		}
+		`,
+		[]string{"\tBSWAPQ\t"},
+	},
+	{
+		`
+		func f46(a uint32) uint32 {
+			return bits.ReverseBytes32(a)
+		}
+		`,
+		[]string{"\tBSWAPL\t"},
+	},
+	{
+		`
+		func f47(a uint16) uint16 {
+			return bits.ReverseBytes16(a)
+		}
+		`,
+		[]string{"\tROLW\t\\$8,"},
+	},
 }
 
 var linux386Tests = []*asmTest{
@@ -776,6 +801,23 @@ var linuxS390XTests = []*asmTest{
 		`,
 		[]string{"\tFLOGR\t", "\tOR\t\\$256,"},
 	},
+	// Intrinsic tests for math/bits
+	{
+		`
+		func f22(a uint64) uint64 {
+			return bits.ReverseBytes64(a)
+		}
+		`,
+		[]string{"\tMOVDBR\t"},
+	},
+	{
+		`
+		func f23(a uint32) uint32 {
+			return bits.ReverseBytes32(a)
+		}
+		`,
+		[]string{"\tMOVWBR\t"},
+	},
 }
 
 var linuxARMTests = []*asmTest{
@@ -853,6 +895,22 @@ var linuxARM64Tests = []*asmTest{
 		}
 		`,
 		[]string{"\tRORW\t[$]25,"},
+	},
+	{
+		`
+		func f22(a uint64) uint64 {
+			return bits.ReverseBytes64(a)
+		}
+		`,
+		[]string{"\tREV\t"},
+	},
+	{
+		`
+		func f23(a uint32) uint32 {
+			return bits.ReverseBytes32(a)
+		}
+		`,
+		[]string{"\tREVW\t"},
 	},
 }
 

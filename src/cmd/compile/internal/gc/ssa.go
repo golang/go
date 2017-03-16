@@ -2702,6 +2702,10 @@ func init() {
 			return s.newValue1(ssa.OpCtz64, Types[TINT], y)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X)
+	alias("math/bits", "ReverseBytes64", "runtime/internal/sys", "Bswap64", all...)
+	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
+	// ReverseBytes inlines correctly, no need to intrinsify it.
+	// ReverseBytes16 lowers to a rotate, no need for anything special here.
 
 	/******** sync/atomic ********/
 
