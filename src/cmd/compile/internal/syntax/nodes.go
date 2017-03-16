@@ -100,13 +100,13 @@ type (
 	// func Receiver Name Type { Body }
 	// func Receiver Name Type
 	FuncDecl struct {
-		Attr    map[string]bool // go:attr map
-		Recv    *Field          // nil means regular function
-		Name    *Name
-		Type    *FuncType
-		Body    []Stmt // nil means no body (forward declaration)
-		Pragma  Pragma // TODO(mdempsky): Cleaner solution.
-		EndLine uint   // TODO(mdempsky): Cleaner solution.
+		Attr   map[string]bool // go:attr map
+		Recv   *Field          // nil means regular function
+		Name   *Name
+		Type   *FuncType
+		Body   []Stmt  // nil means no body (forward declaration)
+		Pragma Pragma  // TODO(mdempsky): Cleaner solution.
+		Rbrace src.Pos // TODO(mdempsky): Cleaner solution.
 		decl
 	}
 )
@@ -146,8 +146,8 @@ type (
 	CompositeLit struct {
 		Type     Expr // nil means no literal type
 		ElemList []Expr
-		NKeys    int  // number of elements with keys
-		EndLine  uint // TODO(mdempsky): Cleaner solution.
+		NKeys    int     // number of elements with keys
+		Rbrace   src.Pos // TODO(mdempsky): Cleaner solution.
 		expr
 	}
 
@@ -159,9 +159,9 @@ type (
 
 	// func Type { Body }
 	FuncLit struct {
-		Type    *FuncType
-		Body    []Stmt
-		EndLine uint // TODO(mdempsky): Cleaner solution.
+		Type   *FuncType
+		Body   []Stmt
+		Rbrace src.Pos // TODO(mdempsky): Cleaner solution.
 		expr
 	}
 
