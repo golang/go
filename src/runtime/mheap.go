@@ -174,9 +174,10 @@ type mspan struct {
 	prev *mspan     // previous span in list, or nil if none
 	list *mSpanList // For debugging. TODO: Remove.
 
-	startAddr     uintptr   // address of first byte of span aka s.base()
-	npages        uintptr   // number of pages in span
-	stackfreelist gclinkptr // list of free stacks, avoids overloading freelist
+	startAddr uintptr // address of first byte of span aka s.base()
+	npages    uintptr // number of pages in span
+
+	manualFreeList gclinkptr // list of free objects in _MSpanManual spans
 
 	// freeindex is the slot index between 0 and nelems at which to begin scanning
 	// for the next free object in this span.
@@ -672,7 +673,7 @@ func (h *mheap) allocStack(npage uintptr) *mspan {
 	s := h.allocSpanLocked(npage)
 	if s != nil {
 		s.state = _MSpanManual
-		s.stackfreelist = 0
+		s.manualFreeList = 0
 		s.allocCount = 0
 		s.sizeclass = 0
 		s.nelems = 0
