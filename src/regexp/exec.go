@@ -309,12 +309,14 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 // onepass runs the machine over the input starting at pos.
 // It reports whether a match was found.
 // If so, m.matchcap holds the submatch information.
-func (m *machine) onepass(i input, pos int) bool {
+// ncap is the number of captures.
+func (m *machine) onepass(i input, pos, ncap int) bool {
 	startCond := m.re.cond
 	if startCond == ^syntax.EmptyOp(0) { // impossible
 		return false
 	}
 	m.matched = false
+	m.matchcap = m.matchcap[:ncap]
 	for i := range m.matchcap {
 		m.matchcap[i] = -1
 	}
@@ -428,7 +430,7 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 		size = len(s)
 	}
 	if m.op != notOnePass {
-		if !m.onepass(i, pos) {
+		if !m.onepass(i, pos, ncap) {
 			re.put(m)
 			return nil
 		}
