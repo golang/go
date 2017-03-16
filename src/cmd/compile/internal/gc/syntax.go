@@ -342,6 +342,7 @@ const (
 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
 	funcIsHiddenClosure
 	funcNoFramePointer // Must not use a frame pointer for this function
+	funcHasDefer       // contains a defer statement
 )
 
 func (f *Func) Dupok() bool           { return f.flags&funcDupok != 0 }
@@ -350,6 +351,7 @@ func (f *Func) Needctxt() bool        { return f.flags&funcNeedctxt != 0 }
 func (f *Func) ReflectMethod() bool   { return f.flags&funcReflectMethod != 0 }
 func (f *Func) IsHiddenClosure() bool { return f.flags&funcIsHiddenClosure != 0 }
 func (f *Func) NoFramePointer() bool  { return f.flags&funcNoFramePointer != 0 }
+func (f *Func) HasDefer() bool        { return f.flags&funcHasDefer != 0 }
 
 func (f *Func) SetDupok(b bool)           { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)         { f.flags.set(funcWrapper, b) }
@@ -357,6 +359,7 @@ func (f *Func) SetNeedctxt(b bool)        { f.flags.set(funcNeedctxt, b) }
 func (f *Func) SetReflectMethod(b bool)   { f.flags.set(funcReflectMethod, b) }
 func (f *Func) SetIsHiddenClosure(b bool) { f.flags.set(funcIsHiddenClosure, b) }
 func (f *Func) SetNoFramePointer(b bool)  { f.flags.set(funcNoFramePointer, b) }
+func (f *Func) SetHasDefer(b bool)        { f.flags.set(funcHasDefer, b) }
 
 type Op uint8
 

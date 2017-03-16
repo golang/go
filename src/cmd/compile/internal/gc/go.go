@@ -251,8 +251,6 @@ var Stksize int64 // stack size for current frame
 
 var stkptrsize int64 // prefix of stack containing pointers
 
-var hasdefer bool // flag that curfn has defer statement
-
 var Curfn *Node
 
 var Widthptr int

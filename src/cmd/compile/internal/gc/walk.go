@@ -247,7 +247,7 @@ func walkstmt(n *Node) *Node {
 		n.Right = walkstmt(n.Right)
 
 	case ODEFER:
-		hasdefer = true
+		Curfn.Func.SetHasDefer(true)
 		switch n.Left.Op {
 		case OPRINT, OPRINTN:
 			n.Left = walkprintfunc(n.Left, &n.Ninit)
