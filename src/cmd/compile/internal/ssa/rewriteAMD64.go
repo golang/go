@@ -374,6 +374,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpAtomicStorePtrNoWB(v, config)
 	case OpAvg64u:
 		return rewriteValueAMD64_OpAvg64u(v, config)
+	case OpBitLen32:
+		return rewriteValueAMD64_OpBitLen32(v, config)
+	case OpBitLen64:
+		return rewriteValueAMD64_OpBitLen64(v, config)
 	case OpBswap32:
 		return rewriteValueAMD64_OpBswap32(v, config)
 	case OpBswap64:
@@ -3995,6 +3999,19 @@ func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBQSX x:(MOVBQSX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVBQSX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64MOVBQSXload(v *Value, config *Config) bool {
@@ -4168,6 +4185,19 @@ func rewriteValueAMD64_OpAMD64MOVBQZX(v *Value, config *Config) bool {
 		x := v_0.Args[0]
 		v.reset(OpAMD64ANDLconst)
 		v.AuxInt = c & 0xff
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBQZX x:(MOVBQZX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVBQZX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
 		v.AddArg(x)
 		return true
 	}
@@ -5873,6 +5903,45 @@ func rewriteValueAMD64_OpAMD64MOVLQSX(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVLQSX x:(MOVLQSX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVLQSX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVLQSX x:(MOVWQSX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVWQSX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVLQSX x:(MOVBQSX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVBQSX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64MOVLQSXload(v *Value, config *Config) bool {
@@ -6023,6 +6092,45 @@ func rewriteValueAMD64_OpAMD64MOVLQZX(v *Value, config *Config) bool {
 		x := v_0.Args[0]
 		v.reset(OpAMD64ANDLconst)
 		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVLQZX x:(MOVLQZX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVLQZX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVLQZX x:(MOVWQZX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVWQZX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVLQZX x:(MOVBQZX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVBQZX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
 		v.AddArg(x)
 		return true
 	}
@@ -9742,6 +9850,32 @@ func rewriteValueAMD64_OpAMD64MOVWQSX(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVWQSX x:(MOVWQSX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVWQSX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWQSX x:(MOVBQSX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVBQSX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64MOVWQSXload(v *Value, config *Config) bool {
@@ -9917,6 +10051,32 @@ func rewriteValueAMD64_OpAMD64MOVWQZX(v *Value, config *Config) bool {
 		x := v_0.Args[0]
 		v.reset(OpAMD64ANDLconst)
 		v.AuxInt = c & 0xffff
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWQZX x:(MOVWQZX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVWQZX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWQZX x:(MOVBQZX _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVBQZX {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
 		v.AddArg(x)
 		return true
 	}
@@ -11960,6 +12120,28 @@ func rewriteValueAMD64_OpAMD64NEGQ(v *Value, config *Config) bool {
 		c := v_0.AuxInt
 		v.reset(OpAMD64MOVQconst)
 		v.AuxInt = -c
+		return true
+	}
+	// match: (NEGQ (ADDQconst [c] (NEGQ x)))
+	// cond: c != -(1<<31)
+	// result: (ADDQconst [-c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64ADDQconst {
+			break
+		}
+		c := v_0.AuxInt
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAMD64NEGQ {
+			break
+		}
+		x := v_0_0.Args[0]
+		if !(c != -(1 << 31)) {
+			break
+		}
+		v.reset(OpAMD64ADDQconst)
+		v.AuxInt = -c
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -17732,6 +17914,50 @@ func rewriteValueAMD64_OpAvg64u(v *Value, config *Config) bool {
 		v.reset(OpAMD64AVGQU)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpBitLen32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (BitLen32 x)
+	// cond:
+	// result: (BitLen64 (MOVLQZX <config.Frontend().TypeUInt64()> x))
+	for {
+		x := v.Args[0]
+		v.reset(OpBitLen64)
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVLQZX, config.Frontend().TypeUInt64())
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpBitLen64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (BitLen64 <t> x)
+	// cond:
+	// result: (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <TypeFlags> (BSRQ x))))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpAMD64ADDQconst)
+		v.AuxInt = 1
+		v0 := b.NewValue0(v.Pos, OpAMD64CMOVQEQ, t)
+		v1 := b.NewValue0(v.Pos, OpSelect0, t)
+		v2 := b.NewValue0(v.Pos, OpAMD64BSRQ, MakeTuple(config.fe.TypeUInt64(), TypeFlags))
+		v2.AddArg(x)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpAMD64MOVQconst, t)
+		v3.AuxInt = -1
+		v0.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpSelect1, TypeFlags)
+		v5 := b.NewValue0(v.Pos, OpAMD64BSRQ, MakeTuple(config.fe.TypeUInt64(), TypeFlags))
+		v5.AddArg(x)
+		v4.AddArg(v5)
+		v0.AddArg(v4)
+		v.AddArg(v0)
 		return true
 	}
 }

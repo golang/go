@@ -52,6 +52,8 @@ func rewriteValueMIPS(v *Value, config *Config) bool {
 		return rewriteValueMIPS_OpAtomicStorePtrNoWB(v, config)
 	case OpAvg32u:
 		return rewriteValueMIPS_OpAvg32u(v, config)
+	case OpBitLen32:
+		return rewriteValueMIPS_OpBitLen32(v, config)
 	case OpClosureCall:
 		return rewriteValueMIPS_OpClosureCall(v, config)
 	case OpCom16:
@@ -1004,6 +1006,25 @@ func rewriteValueMIPS_OpAvg32u(v *Value, config *Config) bool {
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueMIPS_OpBitLen32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (BitLen32 <t> x)
+	// cond:
+	// result: (SUB (MOVWconst [32]) (CLZ <t> x))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpMIPSSUB)
+		v0 := b.NewValue0(v.Pos, OpMIPSMOVWconst, config.fe.TypeUInt32())
+		v0.AuxInt = 32
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpMIPSCLZ, t)
+		v1.AddArg(x)
+		v.AddArg(v1)
 		return true
 	}
 }

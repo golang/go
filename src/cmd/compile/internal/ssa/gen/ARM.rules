@@ -91,6 +91,9 @@
 // 32 - CLZ(x&-x - 1)
 (Ctz32 <t> x) -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
 
+// bit length
+(BitLen32 <t> x) -> (RSBconst [32] (CLZ <t> x))
+
 // byte swap
 // let (a, b, c, d) be the bytes of x from high to low
 // t1 = x right rotate 16 bits -- (c,   d,   a,   b  )
@@ -1205,6 +1208,7 @@
 // generic simplifications
 (ADD x (RSBconst [0] y)) -> (SUB x y)
 (ADD (RSBconst [0] y) x) -> (SUB x y)
+(ADD <t> (RSBconst [c] x) (RSBconst [d] y)) -> (RSBconst [c+d] (ADD <t> x y))
 (SUB x x) -> (MOVWconst [0])
 (RSB x x) -> (MOVWconst [0])
 (AND x x) -> x

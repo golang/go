@@ -200,12 +200,12 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 	switch n.Op {
 	// Call is okay if inlinable and we have the budget for the body.
 	case OCALLFUNC:
-		if fn := n.Left.Func; fn != nil && fn.Inl.Len() != 0 {
-			*budget -= fn.InlCost
-			break
-		}
 		if isIntrinsicCall(n) {
 			*budget--
+			break
+		}
+		if fn := n.Left.Func; fn != nil && fn.Inl.Len() != 0 {
+			*budget -= fn.InlCost
 			break
 		}
 

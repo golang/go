@@ -86,6 +86,8 @@
 (Ctz64 <t> x) -> (CLZ (RBIT <t> x))
 (Ctz32 <t> x) -> (CLZW (RBITW <t> x))
 
+(BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <config.fe.TypeInt()> x))
+
 (Bswap64 x) -> (REV x)
 (Bswap32 x) -> (REVW x)
 
@@ -831,6 +833,8 @@
 (BIC x x) -> (MOVDconst [0])
 (AND x (MVN y)) -> (BIC x y)
 (CSELULT x (MOVDconst [0]) flag) -> (CSELULT0 x flag)
+(SUB x (SUB y z)) -> (SUB (ADD <v.Type> x z) y)
+(SUB (SUB x y) z) -> (SUB x (ADD <y.Type> y z))
 
 // remove redundant *const ops
 (ADDconst [0]  x) -> x

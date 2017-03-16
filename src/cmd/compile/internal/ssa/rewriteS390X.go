@@ -60,6 +60,8 @@ func rewriteValueS390X(v *Value, config *Config) bool {
 		return rewriteValueS390X_OpAtomicStorePtrNoWB(v, config)
 	case OpAvg64u:
 		return rewriteValueS390X_OpAvg64u(v, config)
+	case OpBitLen64:
+		return rewriteValueS390X_OpBitLen64(v, config)
 	case OpBswap32:
 		return rewriteValueS390X_OpBswap32(v, config)
 	case OpBswap64:
@@ -1135,6 +1137,24 @@ func rewriteValueS390X_OpAvg64u(v *Value, config *Config) bool {
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueS390X_OpBitLen64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (BitLen64 x)
+	// cond:
+	// result: (SUB (MOVDconst [64]) (FLOGR x))
+	for {
+		x := v.Args[0]
+		v.reset(OpS390XSUB)
+		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, config.fe.TypeUInt64())
+		v0.AuxInt = 64
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpS390XFLOGR, config.fe.TypeUInt64())
+		v1.AddArg(x)
+		v.AddArg(v1)
 		return true
 	}
 }
@@ -14730,6 +14750,28 @@ func rewriteValueS390X_OpS390XNEG(v *Value, config *Config) bool {
 		c := v_0.AuxInt
 		v.reset(OpS390XMOVDconst)
 		v.AuxInt = -c
+		return true
+	}
+	// match: (NEG (ADDconst [c] (NEG x)))
+	// cond: c != -(1<<31)
+	// result: (ADDconst [-c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpS390XADDconst {
+			break
+		}
+		c := v_0.AuxInt
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpS390XNEG {
+			break
+		}
+		x := v_0_0.Args[0]
+		if !(c != -(1 << 31)) {
+			break
+		}
+		v.reset(OpS390XADDconst)
+		v.AuxInt = -c
+		v.AddArg(x)
 		return true
 	}
 	return false

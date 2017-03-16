@@ -147,6 +147,9 @@
 // 32 - CLZ(x&-x - 1)
 (Ctz32 <t> x) -> (SUB (MOVWconst [32]) (CLZ <t> (SUBconst <t> [1] (AND <t> x (NEG <t> x)))))
 
+// bit length
+(BitLen32 <t> x) -> (SUB (MOVWconst [32]) (CLZ <t> x))
+
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)

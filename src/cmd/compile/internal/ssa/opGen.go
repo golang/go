@@ -533,6 +533,8 @@ const (
 	OpAMD64NOTL
 	OpAMD64BSFQ
 	OpAMD64BSFL
+	OpAMD64BSRQ
+	OpAMD64BSRL
 	OpAMD64CMOVQEQ
 	OpAMD64CMOVLEQ
 	OpAMD64BSWAPQ
@@ -1761,6 +1763,8 @@ const (
 	OpCom64
 	OpCtz32
 	OpCtz64
+	OpBitLen32
+	OpBitLen64
 	OpBswap32
 	OpBswap64
 	OpSqrt
@@ -6233,6 +6237,34 @@ var opcodeTable = [...]opInfo{
 		name:   "BSFL",
 		argLen: 1,
 		asm:    x86.ABSFL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:   "BSRQ",
+		argLen: 1,
+		asm:    x86.ABSRQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:   "BSRL",
+		argLen: 1,
+		asm:    x86.ABSRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -21426,6 +21458,16 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Ctz64",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "BitLen32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "BitLen64",
 		argLen:  1,
 		generic: true,
 	},
