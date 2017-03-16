@@ -47,6 +47,7 @@ func buildssa(fn *Node) *ssa.Func {
 	s.pushLine(fn.Pos)
 	defer s.popLine()
 
+	s.hasdefer = fn.Func.HasDefer()
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
 		s.cgoUnsafeArgs = true
 	}
@@ -218,6 +219,7 @@ type state struct {
 	placeholder *ssa.Value
 
 	cgoUnsafeArgs bool
+	hasdefer      bool // whether the function contains a defer statement
 }
 
 type funcLine struct {
@@ -877,7 +879,7 @@ func (s *state) stmt(n *Node) {
 // It returns a BlockRet block that ends the control flow. Its control value
 // will be set to the final memory state.
 func (s *state) exit() *ssa.Block {
-	if hasdefer {
+	if s.hasdefer {
 		s.rtcall(Deferreturn, true, nil)
 	}
 
@@ -3189,7 +3191,7 @@ func (s *state) canSSA(n *Node) bool {
 	case PEXTERN:
 		return false
 	case PPARAMOUT:
-		if hasdefer {
+		if s.hasdefer {
 			// TODO: handle this case?  Named return values must be
 			// in memory so that the deferred function can see them.
 			// Maybe do: if !strings.HasPrefix(n.String(), "~") { return false }

@@ -1092,7 +1092,7 @@ func livenessepilogue(lv *Liveness) {
 	// pointers to copy values back to the stack).
 	// TODO: if the output parameter is heap-allocated, then we
 	// don't need to keep the stack copy live?
-	if hasdefer {
+	if lv.fn.Func.HasDefer() {
 		for i, n := range lv.vars {
 			if n.Class == PPARAMOUT {
 				if n.IsOutputParamHeapAddr() {

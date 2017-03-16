@@ -340,7 +340,6 @@ func compile(fn *Node) {
 		return
 	}
 
-	hasdefer = false
 	walk(fn)
 	if nerrors != 0 {
 		return
