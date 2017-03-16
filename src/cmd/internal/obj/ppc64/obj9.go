@@ -474,7 +474,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			q = p
 
-			if ctxt.Flag_shared && cursym.Name != "runtime.duffzero" && cursym.Name != "runtime.duffcopy" && cursym.Name != "runtime.stackBarrier" {
+			if ctxt.Flag_shared && cursym.Name != "runtime.duffzero" && cursym.Name != "runtime.duffcopy" {
 				// When compiling Go into PIC, all functions must start
 				// with instructions to load the TOC pointer into r2:
 				//
@@ -485,10 +485,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// but it's a bit subtle. However, it is both safe and
 				// necessary to leave the prologue off duffzero and
 				// duffcopy as we rely on being able to jump to a specific
-				// instruction offset for them, and stackBarrier is only
-				// ever called from an overwritten LR-save slot on the
-				// stack (when r12 will not be remotely the right thing)
-				// but fortunately does not access global data.
+				// instruction offset for them.
 				//
 				// These are AWORDS because there is no (afaict) way to
 				// generate the addis instruction except as part of the
