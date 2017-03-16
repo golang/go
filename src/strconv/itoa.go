@@ -121,11 +121,19 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 				// are calculated by runtime functions on 32bit machines.
 				q := u / 1e9
 				us := uint(u - q*1e9) // u % 1e9 fits into a uint
-				for j := 9; j > 0; j-- {
-					i--
-					a[i] = byte(us%10 + '0')
-					us /= 10
+				for j := 4; j > 0; j-- {
+					is := us % 100 * 2
+					us /= 100
+					i -= 2
+					a[i+1] = smallsString[is+1]
+					a[i+0] = smallsString[is+0]
 				}
+
+				// us < 10, since it contains the last digit
+				// from the initial 9-digit us.
+				i--
+				a[i] = smallsString[us*2+1]
+
 				u = q
 			}
 			// u < 1e9
@@ -133,14 +141,22 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 
 		// u guaranteed to fit into a uint
 		us := uint(u)
-		for us >= 10 {
-			i--
-			a[i] = byte(us%10 + '0')
-			us /= 10
+		for us >= 100 {
+			is := us % 100 * 2
+			us /= 100
+			i -= 2
+			a[i+1] = smallsString[is+1]
+			a[i+0] = smallsString[is+0]
 		}
-		// us < 10
+
+		// us < 100
+		is := us * 2
 		i--
-		a[i] = byte(us + '0')
+		a[i] = smallsString[is+1]
+		if us >= 10 {
+			i--
+			a[i] = smallsString[is]
+		}
 
 	} else if s := shifts[base]; s > 0 {
 		// base is power of 2: use shifts and masks instead of / and %
