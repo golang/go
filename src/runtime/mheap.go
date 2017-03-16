@@ -326,10 +326,8 @@ func inHeapOrStack(b uintptr) bool {
 		return false
 	}
 	switch s.state {
-	case mSpanInUse:
+	case mSpanInUse, _MSpanStack:
 		return b < s.limit
-	case _MSpanStack:
-		return b < s.base()+s.npages<<_PageShift
 	default:
 		return false
 	}
@@ -653,6 +651,10 @@ func (h *mheap) allocStack(npage uintptr) *mspan {
 		s.state = _MSpanStack
 		s.stackfreelist = 0
 		s.allocCount = 0
+		s.sizeclass = 0
+		s.nelems = 0
+		s.elemsize = 0
+		s.limit = s.base() + s.npages<<_PageShift
 		memstats.stacks_inuse += uint64(s.npages << _PageShift)
 	}
 

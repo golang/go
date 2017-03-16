@@ -196,7 +196,8 @@ func stackpoolalloc(order uint8) gclinkptr {
 		if s.stackfreelist.ptr() != nil {
 			throw("bad stackfreelist")
 		}
-		for i := uintptr(0); i < _StackCacheSize; i += _FixedStack << order {
+		s.elemsize = _FixedStack << order
+		for i := uintptr(0); i < _StackCacheSize; i += s.elemsize {
 			x := gclinkptr(s.base() + i)
 			x.ptr().next = s.stackfreelist
 			s.stackfreelist = x
@@ -393,6 +394,7 @@ func stackalloc(n uint32) stack {
 			if s == nil {
 				throw("out of memory")
 			}
+			s.elemsize = uintptr(n)
 		}
 		v = unsafe.Pointer(s.base())
 	}
