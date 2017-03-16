@@ -3436,7 +3436,7 @@ func typecheckas2(n *Node) {
 	}
 
 mismatch:
-	yyerror("assignment count mismatch: want %d values, got %d", cl, cr)
+	yyerror("assignment count mismatch: cannot assign %d values to %d variables", cr, cl)
 
 	// second half of dance
 out:
