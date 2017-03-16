@@ -364,3 +364,28 @@ func BenchmarkDecodeInterfaceSlice(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkDecodeMap(b *testing.B) {
+	count := 10000
+	m := make(map[int]int, count)
+	for i := 0; i < count; i++ {
+		m[i] = i
+	}
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	err := enc.Encode(m)
+	if err != nil {
+		b.Fatal(err)
+	}
+	bbuf := benchmarkBuf{data: buf.Bytes()}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rm := make(map[int]int, 0)
+		bbuf.reset()
+		dec := NewDecoder(&bbuf)
+		err := dec.Decode(&rm)
+		if err != nil {
+			b.Fatal(i, err)
+		}
+	}
+}

@@ -545,11 +545,16 @@ func TestEndToEnd(t *testing.T) {
 	type T2 struct {
 		T string
 	}
+	type T3 struct {
+		X float64
+		Z *int
+	}
 	s1 := "string1"
 	s2 := "string2"
 	type T1 struct {
 		A, B, C  int
 		M        map[string]*float64
+		M2       map[int]T3
 		EmptyMap map[string]int // to check that we receive a non-nil map.
 		N        *[3]float64
 		Strs     *[2]string
@@ -561,11 +566,14 @@ func TestEndToEnd(t *testing.T) {
 	}
 	pi := 3.14159
 	e := 2.71828
+	meaning := 42
+	fingers := 5
 	t1 := &T1{
 		A:        17,
 		B:        18,
 		C:        -5,
 		M:        map[string]*float64{"pi": &pi, "e": &e},
+		M2:       map[int]T3{4: T3{X: pi, Z: &meaning}, 10: T3{X: e, Z: &fingers}},
 		EmptyMap: make(map[string]int),
 		N:        &[3]float64{1.5, 2.5, 3.5},
 		Strs:     &[2]string{s1, s2},
