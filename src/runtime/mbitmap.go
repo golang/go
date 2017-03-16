@@ -391,7 +391,7 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
 	// Consult the span table to find the block beginning.
 	s = mheap_.spans[idx]
 	if s == nil || p < s.base() || p >= s.limit || s.state != mSpanInUse {
-		if s == nil || s.state == _MSpanStack {
+		if s == nil || s.state == _MSpanManual {
 			// If s is nil, the virtual address has never been part of the heap.
 			// This pointer may be to some mmap'd region, so we allow it.
 			// Pointers into stacks are also ok, the runtime manages these explicitly.

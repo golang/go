@@ -124,7 +124,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 	aoff := uintptr(src) - mheap_.arena_start
 	idx := aoff >> _PageShift
 	s := mheap_.spans[idx]
-	if s.state == _MSpanStack {
+	if s.state == _MSpanManual {
 		// There are no heap bits for value stored on the stack.
 		// For a channel receive src might be on the stack of some
 		// other goroutine, so we can't unwind the stack even if
