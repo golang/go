@@ -9,14 +9,14 @@
 package main
 
 func f1() {
-	a, b := f()	// ERROR "mismatch|does not match"
+	a, b := f()	// ERROR "cannot assign|does not match"
 	_ = a
 	_ = b
 }
 
 func f2() {
 	var a, b int
-	a, b = f()	// ERROR "mismatch|does not match"
+	a, b = f()	// ERROR "cannot assign|does not match"
 	_ = a
 	_ = b
 }
