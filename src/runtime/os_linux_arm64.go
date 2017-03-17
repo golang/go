@@ -4,7 +4,12 @@
 
 package runtime
 
+const (
+        _ARM64_FEATURE_HAS_CRC32 = 0x80
+)
+
 var randomNumber uint32
+var supportCRC32 bool
 
 func archauxv(tag, val uintptr) {
 	switch tag {
@@ -14,6 +19,8 @@ func archauxv(tag, val uintptr) {
 		// it as a byte array.
 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
+        case _AT_HWCAP:
+                supportCRC32 = val & _ARM64_FEATURE_HAS_CRC32 != 0
 	}
 }
 

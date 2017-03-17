@@ -2564,7 +2564,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 |= ((uint32(v) & 0x20) << (31 - 5)) | ((uint32(v) & 0x1F) << 19)
 		o1 |= uint32(c.brdist(p, 0, 14, 2) << 5)
-		o1 |= uint32(p.Reg)
+		o1 |= uint32(p.Reg & 31)
 
 	case 41: /* eret, nop, others with no operands */
 		o1 = c.op0(p, p.As)
