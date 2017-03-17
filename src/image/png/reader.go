@@ -612,8 +612,20 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				}
 			}
 		case cbG8:
-			copy(gray.Pix[pixOffset:], cdat)
-			pixOffset += gray.Stride
+			if d.useTransparent {
+				ty := d.transparent[1]
+				for x := 0; x < width; x++ {
+					ycol := cdat[x]
+					acol := uint8(0xff)
+					if ycol == ty {
+						acol = 0x00
+					}
+					nrgba.SetNRGBA(x, y, color.NRGBA{ycol, ycol, ycol, acol})
+				}
+			} else {
+				copy(gray.Pix[pixOffset:], cdat)
+				pixOffset += gray.Stride
+			}
 		case cbGA8:
 			for x := 0; x < width; x++ {
 				ycol := cdat[2*x+0]
