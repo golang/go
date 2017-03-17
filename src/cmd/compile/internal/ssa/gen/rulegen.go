@@ -204,12 +204,13 @@ func genRules(arch arch) {
 		}
 
 		body := buf.String()
-		// Do a rough match to predict whether we need b, config, and/or fe.
+		// Do a rough match to predict whether we need b, config, fe, and/or types.
 		// It's not precise--thus the blank assignments--but it's good enough
 		// to avoid generating needless code and doing pointless nil checks.
 		hasb := strings.Contains(body, "b.")
 		hasconfig := strings.Contains(body, "config.") || strings.Contains(body, "config)")
 		hasfe := strings.Contains(body, "fe.")
+		hasts := strings.Contains(body, "types.")
 		fmt.Fprintf(w, "func rewriteValue%s_%s(v *Value) bool {\n", arch.name, op)
 		if hasb || hasconfig || hasfe {
 			fmt.Fprintln(w, "b := v.Block")
@@ -223,6 +224,10 @@ func genRules(arch arch) {
 			fmt.Fprintln(w, "fe := b.Func.fe")
 			fmt.Fprintln(w, "_ = fe")
 		}
+		if hasts {
+			fmt.Fprintln(w, "types := &b.Func.Config.Types")
+			fmt.Fprintln(w, "_ = types")
+		}
 		fmt.Fprint(w, body)
 		fmt.Fprintf(w, "}\n")
 	}
@@ -234,6 +239,8 @@ func genRules(arch arch) {
 	fmt.Fprintln(w, "_ = config")
 	fmt.Fprintln(w, "fe := b.Func.fe")
 	fmt.Fprintln(w, "_ = fe")
+	fmt.Fprintln(w, "types := &config.Types")
+	fmt.Fprintln(w, "_ = types")
 	fmt.Fprintf(w, "switch b.Kind {\n")
 	ops = nil
 	for op := range blockrules {
@@ -719,7 +726,7 @@ func typeName(typ string) string {
 	case "Flags", "Mem", "Void", "Int128":
 		return "Type" + typ
 	default:
-		return "fe.Type" + typ + "()"
+		return "types." + typ
 	}
 }
 

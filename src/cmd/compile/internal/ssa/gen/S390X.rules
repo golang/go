@@ -437,7 +437,7 @@
 (If (MOVDGTnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no) -> (GTF cmp yes no)
 (If (MOVDGEnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no) -> (GEF cmp yes no)
 
-(If cond yes no) -> (NE (CMPWconst [0] (MOVBZreg <fe.TypeBool()> cond)) yes no)
+(If cond yes no) -> (NE (CMPWconst [0] (MOVBZreg <types.Bool> cond)) yes no)
 
 // ***************************
 // Above: lowering rules

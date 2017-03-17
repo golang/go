@@ -154,72 +154,72 @@
 (Rsh8x32   x (MOVDconst [c])) && uint32(c) < 8  -> (SRAWconst (SignExt8to32  x) [c])
 (Rsh8Ux32  x (MOVDconst [c])) && uint32(c) < 8  -> (SRWconst (ZeroExt8to32  x) [c])
 
-(Rsh64x64 x y)  -> (SRAD x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
-(Rsh64Ux64 x y) -> (SRD  x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
-(Lsh64x64 x y)  -> (SLD  x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
+(Rsh64x64 x y)  -> (SRAD x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
+(Rsh64Ux64 x y) -> (SRD  x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
+(Lsh64x64 x y)  -> (SLD  x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
 
-(Rsh32x64 x y)  -> (SRAW x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] y))))
-(Rsh32Ux64 x y) -> (SRW  x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] y))))
-(Lsh32x64 x y)  -> (SLW  x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] y))))
+(Rsh32x64 x y)  -> (SRAW x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] y))))
+(Rsh32Ux64 x y) -> (SRW  x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] y))))
+(Lsh32x64 x y)  -> (SLW  x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] y))))
 
-(Rsh16x64 x y)  -> (SRAW (SignExt16to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] y))))
-(Rsh16Ux64 x y) -> (SRW  (ZeroExt16to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] y))))
-(Lsh16x64 x y)  -> (SLW  x                 (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] y))))
+(Rsh16x64 x y)  -> (SRAW (SignExt16to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] y))))
+(Rsh16Ux64 x y) -> (SRW  (ZeroExt16to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] y))))
+(Lsh16x64 x y)  -> (SLW  x                 (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] y))))
 
-(Rsh8x64 x y)  -> (SRAW (SignExt8to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] y))))
-(Rsh8Ux64 x y) -> (SRW  (ZeroExt8to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] y))))
-(Lsh8x64 x y)  -> (SLW  x                (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] y))))
-
-
-(Rsh64x32 x y)  -> (SRAD x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt32to64 y)))))
-(Rsh64Ux32 x y) -> (SRD x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt32to64 y)))))
-(Lsh64x32 x y)  -> (SLD x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt32to64 y)))))
-
-(Rsh32x32 x y)  -> (SRAW x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt32to64 y)))))
-(Rsh32Ux32 x y) -> (SRW x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt32to64 y)))))
-(Lsh32x32 x y)  -> (SLW x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt32to64 y)))))
-
-(Rsh16x32 x y)  -> (SRAW (SignExt16to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt32to64 y)))))
-(Rsh16Ux32 x y) -> (SRW  (ZeroExt16to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt32to64 y)))))
-(Lsh16x32 x y)  -> (SLW  x                 (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt32to64 y)))))
-
-(Rsh8x32 x y)  -> (SRAW (SignExt8to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt32to64 y)))))
-(Rsh8Ux32 x y) -> (SRW  (ZeroExt8to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt32to64 y)))))
-(Lsh8x32 x y)  -> (SLW  x                (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt32to64 y)))))
+(Rsh8x64 x y)  -> (SRAW (SignExt8to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] y))))
+(Rsh8Ux64 x y) -> (SRW  (ZeroExt8to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] y))))
+(Lsh8x64 x y)  -> (SLW  x                (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] y))))
 
 
-(Rsh64x16 x y)  -> (SRAD x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt16to64 y)))))
-(Rsh64Ux16 x y) -> (SRD x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt16to64 y)))))
-(Lsh64x16 x y)  -> (SLD x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt16to64 y)))))
+(Rsh64x32 x y)  -> (SRAD x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt32to64 y)))))
+(Rsh64Ux32 x y) -> (SRD x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt32to64 y)))))
+(Lsh64x32 x y)  -> (SLD x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt32to64 y)))))
 
-(Rsh32x16 x y)  -> (SRAW x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt16to64 y)))))
-(Rsh32Ux16 x y) -> (SRW x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt16to64 y)))))
-(Lsh32x16 x y)  -> (SLW x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt16to64 y)))))
+(Rsh32x32 x y)  -> (SRAW x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt32to64 y)))))
+(Rsh32Ux32 x y) -> (SRW x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt32to64 y)))))
+(Lsh32x32 x y)  -> (SLW x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt32to64 y)))))
 
-(Rsh16x16 x y)  -> (SRAW (SignExt16to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt16to64 y)))))
-(Rsh16Ux16 x y) -> (SRW  (ZeroExt16to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt16to64 y)))))
-(Lsh16x16 x y)  -> (SLW  x                 (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt16to64 y)))))
+(Rsh16x32 x y)  -> (SRAW (SignExt16to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt32to64 y)))))
+(Rsh16Ux32 x y) -> (SRW  (ZeroExt16to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt32to64 y)))))
+(Lsh16x32 x y)  -> (SLW  x                 (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt32to64 y)))))
 
-(Rsh8x16 x y)  -> (SRAW (SignExt8to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt16to64 y)))))
-(Rsh8Ux16 x y) -> (SRW  (ZeroExt8to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt16to64 y)))))
-(Lsh8x16 x y)  -> (SLW  x                (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt16to64 y)))))
+(Rsh8x32 x y)  -> (SRAW (SignExt8to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt32to64 y)))))
+(Rsh8Ux32 x y) -> (SRW  (ZeroExt8to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt32to64 y)))))
+(Lsh8x32 x y)  -> (SLW  x                (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt32to64 y)))))
 
 
-(Rsh64x8 x y)  -> (SRAD x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt8to64 y)))))
-(Rsh64Ux8 x y) -> (SRD x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt8to64 y)))))
-(Lsh64x8 x y)  -> (SLD x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt8to64 y)))))
+(Rsh64x16 x y)  -> (SRAD x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt16to64 y)))))
+(Rsh64Ux16 x y) -> (SRD x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt16to64 y)))))
+(Lsh64x16 x y)  -> (SLD x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt16to64 y)))))
 
-(Rsh32x8 x y)  -> (SRAW x (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt8to64 y)))))
-(Rsh32Ux8 x y) -> (SRW x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt8to64 y)))))
-(Lsh32x8 x y)  -> (SLW x  (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt8to64 y)))))
+(Rsh32x16 x y)  -> (SRAW x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt16to64 y)))))
+(Rsh32Ux16 x y) -> (SRW x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt16to64 y)))))
+(Lsh32x16 x y)  -> (SLW x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt16to64 y)))))
 
-(Rsh16x8 x y)  -> (SRAW (SignExt16to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt8to64 y)))))
-(Rsh16Ux8 x y) -> (SRW  (ZeroExt16to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt8to64 y)))))
-(Lsh16x8 x y)  -> (SLW  x                 (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt8to64 y)))))
+(Rsh16x16 x y)  -> (SRAW (SignExt16to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt16to64 y)))))
+(Rsh16Ux16 x y) -> (SRW  (ZeroExt16to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt16to64 y)))))
+(Lsh16x16 x y)  -> (SLW  x                 (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt16to64 y)))))
 
-(Rsh8x8 x y)  -> (SRAW (SignExt8to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt8to64 y)))))
-(Rsh8Ux8 x y) -> (SRW  (ZeroExt8to32 x) (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt8to64 y)))))
-(Lsh8x8 x y)  -> (SLW  x                (ORN y <fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt8to64 y)))))
+(Rsh8x16 x y)  -> (SRAW (SignExt8to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt16to64 y)))))
+(Rsh8Ux16 x y) -> (SRW  (ZeroExt8to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt16to64 y)))))
+(Lsh8x16 x y)  -> (SLW  x                (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt16to64 y)))))
+
+
+(Rsh64x8 x y)  -> (SRAD x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt8to64 y)))))
+(Rsh64Ux8 x y) -> (SRD x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt8to64 y)))))
+(Lsh64x8 x y)  -> (SLD x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-64] (ZeroExt8to64 y)))))
+
+(Rsh32x8 x y)  -> (SRAW x (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt8to64 y)))))
+(Rsh32Ux8 x y) -> (SRW x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt8to64 y)))))
+(Lsh32x8 x y)  -> (SLW x  (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-32] (ZeroExt8to64 y)))))
+
+(Rsh16x8 x y)  -> (SRAW (SignExt16to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt8to64 y)))))
+(Rsh16Ux8 x y) -> (SRW  (ZeroExt16to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt8to64 y)))))
+(Lsh16x8 x y)  -> (SLW  x                 (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-16] (ZeroExt8to64 y)))))
+
+(Rsh8x8 x y)  -> (SRAW (SignExt8to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt8to64 y)))))
+(Rsh8Ux8 x y) -> (SRW  (ZeroExt8to32 x) (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt8to64 y)))))
+(Lsh8x8 x y)  -> (SLW  x                (ORN y <types.Int64> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt8to64 y)))))
 
 // Cleaning up shift ops when input is masked
 (MaskIfNotCarry (ADDconstForCarry [c] (ANDconst [d] _))) && c < 0 && d > 0 && c + d < 0 -> (MOVDconst [-1])
@@ -233,7 +233,7 @@
 
 (Addr {sym} base) -> (MOVDaddr {sym} base)
 // (Addr {sym} base) -> (ADDconst {sym} base)
-(OffPtr [off] ptr) -> (ADD (MOVDconst <fe.TypeInt64()> [off]) ptr)
+(OffPtr [off] ptr) -> (ADD (MOVDconst <types.Int64> [off]) ptr)
 
 (And64 x y) -> (AND x y)
 (And32 x y) -> (AND x y)

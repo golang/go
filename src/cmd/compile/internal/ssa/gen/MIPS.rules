@@ -10,7 +10,7 @@
 (Add64F x y) -> (ADDD x y)
 
 (Select0 (Add32carry <t> x y)) -> (ADD <t.FieldType(0)> x y)
-(Select1 (Add32carry <t> x y)) -> (SGTU <fe.TypeBool()> x (ADD <t.FieldType(0)> x y))
+(Select1 (Add32carry <t> x y)) -> (SGTU <types.Bool> x (ADD <t.FieldType(0)> x y))
 (Add32withcarry <t> x y c) -> (ADD c (ADD <t> x y))
 
 (SubPtr x y) -> (SUB x y)
@@ -21,7 +21,7 @@
 (Sub64F x y) -> (SUBD x y)
 
 (Select0 (Sub32carry <t> x y)) -> (SUB <t.FieldType(0)> x y)
-(Select1 (Sub32carry <t> x y)) -> (SGTU <fe.TypeBool()> (SUB <t.FieldType(0)> x y) x)
+(Select1 (Sub32carry <t> x y)) -> (SGTU <types.Bool> (SUB <t.FieldType(0)> x y) x)
 (Sub32withcarry <t> x y c) -> (SUB (SUB <t> x y) c)
 
 (Mul32 x y) -> (MUL x y)
@@ -72,11 +72,11 @@
 (Rsh32x64 x (Const64 [c])) && uint32(c) < 32 -> (SRAconst x [c])
 (Rsh32Ux64 x (Const64 [c])) && uint32(c) < 32 -> (SRLconst x [c])
 (Lsh16x64 x (Const64 [c])) && uint32(c) < 16 -> (SLLconst x [c])
-(Rsh16x64 x (Const64 [c])) && uint32(c) < 16 -> (SRAconst (SLLconst <fe.TypeUInt32()> x [16]) [c+16])
-(Rsh16Ux64 x (Const64 [c])) && uint32(c) < 16 -> (SRLconst (SLLconst <fe.TypeUInt32()> x [16]) [c+16])
+(Rsh16x64 x (Const64 [c])) && uint32(c) < 16 -> (SRAconst (SLLconst <types.UInt32> x [16]) [c+16])
+(Rsh16Ux64 x (Const64 [c])) && uint32(c) < 16 -> (SRLconst (SLLconst <types.UInt32> x [16]) [c+16])
 (Lsh8x64 x (Const64 [c])) && uint32(c) < 8 -> (SLLconst x [c])
-(Rsh8x64 x (Const64 [c])) && uint32(c) < 8 -> (SRAconst (SLLconst <fe.TypeUInt32()> x [24]) [c+24])
-(Rsh8Ux64 x (Const64 [c])) && uint32(c) < 8 -> (SRLconst (SLLconst <fe.TypeUInt32()> x [24]) [c+24])
+(Rsh8x64 x (Const64 [c])) && uint32(c) < 8 -> (SRAconst (SLLconst <types.UInt32> x [24]) [c+24])
+(Rsh8Ux64 x (Const64 [c])) && uint32(c) < 8 -> (SRLconst (SLLconst <types.UInt32> x [24]) [c+24])
 
 // large constant shifts
 (Lsh32x64 _ (Const64 [c])) && uint32(c) >= 32 -> (MOVWconst [0])
@@ -88,8 +88,8 @@
 
 // large constant signed right shift, we leave the sign bit
 (Rsh32x64 x (Const64 [c])) && uint32(c) >= 32 -> (SRAconst x [31])
-(Rsh16x64 x (Const64 [c])) && uint32(c) >= 16 -> (SRAconst (SLLconst <fe.TypeUInt32()> x [16]) [31])
-(Rsh8x64 x (Const64 [c])) && uint32(c) >= 8 -> (SRAconst (SLLconst <fe.TypeUInt32()> x [24]) [31])
+(Rsh16x64 x (Const64 [c])) && uint32(c) >= 16 -> (SRAconst (SLLconst <types.UInt32> x [16]) [31])
+(Rsh8x64 x (Const64 [c])) && uint32(c) >= 8 -> (SRAconst (SLLconst <types.UInt32> x [24]) [31])
 
 // shifts
 // hardware instruction uses only the low 5 bits of the shift
@@ -118,17 +118,17 @@
 (Rsh8Ux16 <t> x y) -> (CMOVZ (SRL <t> (ZeroExt8to32 x) (ZeroExt16to32 y) ) (MOVWconst [0]) (SGTUconst [32] (ZeroExt16to32 y)))
 (Rsh8Ux8 <t> x y) -> (CMOVZ (SRL <t> (ZeroExt8to32 x) (ZeroExt8to32 y) ) (MOVWconst [0]) (SGTUconst [32] (ZeroExt8to32 y)))
 
-(Rsh32x32 x y) -> (SRA x ( CMOVZ <fe.TypeUInt32()> y (MOVWconst [-1]) (SGTUconst [32] y)))
-(Rsh32x16 x y) -> (SRA x ( CMOVZ <fe.TypeUInt32()> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
-(Rsh32x8 x y) -> (SRA x ( CMOVZ <fe.TypeUInt32()> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
+(Rsh32x32 x y) -> (SRA x ( CMOVZ <types.UInt32> y (MOVWconst [-1]) (SGTUconst [32] y)))
+(Rsh32x16 x y) -> (SRA x ( CMOVZ <types.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
+(Rsh32x8 x y) -> (SRA x ( CMOVZ <types.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
 
-(Rsh16x32 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <fe.TypeUInt32()> y (MOVWconst [-1]) (SGTUconst [32] y)))
-(Rsh16x16 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <fe.TypeUInt32()> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
-(Rsh16x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <fe.TypeUInt32()> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
+(Rsh16x32 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> y (MOVWconst [-1]) (SGTUconst [32] y)))
+(Rsh16x16 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
+(Rsh16x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
 
-(Rsh8x32 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <fe.TypeUInt32()> y (MOVWconst [-1]) (SGTUconst [32] y)))
-(Rsh8x16 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <fe.TypeUInt32()> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
-(Rsh8x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <fe.TypeUInt32()> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
+(Rsh8x32 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> y (MOVWconst [-1]) (SGTUconst [32] y)))
+(Rsh8x16 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
+(Rsh8x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
 
 // unary ops
 (Neg32 x) -> (NEG x)
@@ -153,7 +153,7 @@
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)
-(EqB x y) -> (XORconst [1] (XOR <fe.TypeBool()> x y))
+(EqB x y) -> (XORconst [1] (XOR <types.Bool> x y))
 (NeqB x y) -> (XOR x y)
 (Not x) -> (XORconst [1] x)
 
@@ -393,41 +393,41 @@
 
 // AtomicOr8(ptr,val) -> LoweredAtomicOr(ptr&^3,uint32(val) << ((ptr & 3) * 8))
 (AtomicOr8 ptr val mem) && !config.BigEndian ->
-	(LoweredAtomicOr (AND <fe.TypeUInt32().PtrTo()> (MOVWconst [^3]) ptr)
-		(SLL <fe.TypeUInt32()> (ZeroExt8to32 val)
-			(SLLconst <fe.TypeUInt32()> [3]
-				(ANDconst <fe.TypeUInt32()> [3] ptr))) mem)
+	(LoweredAtomicOr (AND <types.UInt32.PtrTo()> (MOVWconst [^3]) ptr)
+		(SLL <types.UInt32> (ZeroExt8to32 val)
+			(SLLconst <types.UInt32> [3]
+				(ANDconst <types.UInt32> [3] ptr))) mem)
 
 // AtomicAnd8(ptr,val) -> LoweredAtomicAnd(ptr&^3,(uint32(val) << ((ptr & 3) * 8)) | ^(uint32(0xFF) << ((ptr & 3) * 8))))
 (AtomicAnd8  ptr val mem) && !config.BigEndian ->
-	(LoweredAtomicAnd (AND <fe.TypeUInt32().PtrTo()> (MOVWconst [^3]) ptr)
-		(OR <fe.TypeUInt32()> (SLL <fe.TypeUInt32()> (ZeroExt8to32 val)
-			(SLLconst <fe.TypeUInt32()> [3]
-				(ANDconst  <fe.TypeUInt32()> [3] ptr)))
-		(NORconst [0] <fe.TypeUInt32()> (SLL <fe.TypeUInt32()>
-			(MOVWconst [0xff]) (SLLconst <fe.TypeUInt32()> [3]
-				(ANDconst <fe.TypeUInt32()> [3]
-					(XORconst <fe.TypeUInt32()> [3] ptr)))))) mem)
+	(LoweredAtomicAnd (AND <types.UInt32.PtrTo()> (MOVWconst [^3]) ptr)
+		(OR <types.UInt32> (SLL <types.UInt32> (ZeroExt8to32 val)
+			(SLLconst <types.UInt32> [3]
+				(ANDconst  <types.UInt32> [3] ptr)))
+		(NORconst [0] <types.UInt32> (SLL <types.UInt32>
+			(MOVWconst [0xff]) (SLLconst <types.UInt32> [3]
+				(ANDconst <types.UInt32> [3]
+					(XORconst <types.UInt32> [3] ptr)))))) mem)
 
 // AtomicOr8(ptr,val) -> LoweredAtomicOr(ptr&^3,uint32(val) << (((ptr^3) & 3) * 8))
 (AtomicOr8 ptr val mem) && config.BigEndian ->
-	(LoweredAtomicOr (AND <fe.TypeUInt32().PtrTo()> (MOVWconst [^3]) ptr)
-		(SLL <fe.TypeUInt32()> (ZeroExt8to32 val)
-			(SLLconst <fe.TypeUInt32()> [3]
-				(ANDconst <fe.TypeUInt32()> [3]
-					(XORconst <fe.TypeUInt32()> [3] ptr)))) mem)
+	(LoweredAtomicOr (AND <types.UInt32.PtrTo()> (MOVWconst [^3]) ptr)
+		(SLL <types.UInt32> (ZeroExt8to32 val)
+			(SLLconst <types.UInt32> [3]
+				(ANDconst <types.UInt32> [3]
+					(XORconst <types.UInt32> [3] ptr)))) mem)
 
 // AtomicAnd8(ptr,val) -> LoweredAtomicAnd(ptr&^3,(uint32(val) << (((ptr^3) & 3) * 8)) | ^(uint32(0xFF) << (((ptr^3) & 3) * 8))))
 (AtomicAnd8  ptr val mem) && config.BigEndian ->
-	(LoweredAtomicAnd (AND <fe.TypeUInt32().PtrTo()> (MOVWconst [^3]) ptr)
-		(OR <fe.TypeUInt32()> (SLL <fe.TypeUInt32()> (ZeroExt8to32 val)
-			(SLLconst <fe.TypeUInt32()> [3]
-				(ANDconst  <fe.TypeUInt32()> [3]
-					(XORconst <fe.TypeUInt32()> [3] ptr))))
-		(NORconst [0] <fe.TypeUInt32()> (SLL <fe.TypeUInt32()>
-			(MOVWconst [0xff]) (SLLconst <fe.TypeUInt32()> [3]
-				(ANDconst <fe.TypeUInt32()> [3]
-					(XORconst <fe.TypeUInt32()> [3] ptr)))))) mem)
+	(LoweredAtomicAnd (AND <types.UInt32.PtrTo()> (MOVWconst [^3]) ptr)
+		(OR <types.UInt32> (SLL <types.UInt32> (ZeroExt8to32 val)
+			(SLLconst <types.UInt32> [3]
+				(ANDconst  <types.UInt32> [3]
+					(XORconst <types.UInt32> [3] ptr))))
+		(NORconst [0] <types.UInt32> (SLL <types.UInt32>
+			(MOVWconst [0xff]) (SLLconst <types.UInt32> [3]
+				(ANDconst <types.UInt32> [3]
+					(XORconst <types.UInt32> [3] ptr)))))) mem)
 
 
 // checks

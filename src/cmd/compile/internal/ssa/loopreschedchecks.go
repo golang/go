@@ -197,7 +197,8 @@ func insertLoopReschedChecks(f *Func) {
 		// if sp < g.limit { goto sched }
 		// goto header
 
-		pt := f.fe.TypeUintptr()
+		types := &f.Config.Types
+		pt := types.Uintptr
 		g := test.NewValue1(bb.Pos, OpGetG, pt, mem0)
 		sp := test.NewValue0(bb.Pos, OpSP, pt)
 		cmpOp := OpLess64U
@@ -206,7 +207,7 @@ func insertLoopReschedChecks(f *Func) {
 		}
 		limaddr := test.NewValue1I(bb.Pos, OpOffPtr, pt, 2*pt.Size(), g)
 		lim := test.NewValue2(bb.Pos, OpLoad, pt, limaddr, mem0)
-		cmp := test.NewValue2(bb.Pos, cmpOp, f.fe.TypeBool(), sp, lim)
+		cmp := test.NewValue2(bb.Pos, cmpOp, types.Bool, sp, lim)
 		test.SetControl(cmp)
 
 		// if true, goto sched

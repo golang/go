@@ -88,17 +88,17 @@ func writebarrier(f *Func) {
 				}
 			}
 			if sb == nil {
-				sb = f.Entry.NewValue0(initpos, OpSB, f.fe.TypeUintptr())
+				sb = f.Entry.NewValue0(initpos, OpSB, f.Config.Types.Uintptr)
 			}
 			if sp == nil {
-				sp = f.Entry.NewValue0(initpos, OpSP, f.fe.TypeUintptr())
+				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
 			}
-			wbsym := &ExternSymbol{Typ: f.fe.TypeBool(), Sym: f.fe.Syslook("writeBarrier")}
-			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.fe.TypeUInt32().PtrTo(), wbsym, sb)
+			wbsym := &ExternSymbol{Typ: f.Config.Types.Bool, Sym: f.fe.Syslook("writeBarrier")}
+			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32.PtrTo(), wbsym, sb)
 			writebarrierptr = f.fe.Syslook("writebarrierptr")
 			typedmemmove = f.fe.Syslook("typedmemmove")
 			typedmemclr = f.fe.Syslook("typedmemclr")
-			const0 = f.ConstInt32(initpos, f.fe.TypeUInt32(), 0)
+			const0 = f.ConstInt32(initpos, f.Config.Types.UInt32, 0)
 
 			// allocate auxiliary data structures for computing store order
 			sset = f.newSparseSet(f.NumValues())
@@ -155,8 +155,9 @@ func writebarrier(f *Func) {
 
 		// set up control flow for write barrier test
 		// load word, test word, avoiding partial register write from load byte.
-		flag := b.NewValue2(pos, OpLoad, f.fe.TypeUInt32(), wbaddr, mem)
-		flag = b.NewValue2(pos, OpNeq32, f.fe.TypeBool(), flag, const0)
+		types := &f.Config.Types
+		flag := b.NewValue2(pos, OpLoad, types.UInt32, wbaddr, mem)
+		flag = b.NewValue2(pos, OpNeq32, types.Bool, flag, const0)
 		b.Kind = BlockIf
 		b.SetControl(flag)
 		b.Likely = BranchUnlikely
@@ -175,7 +176,7 @@ func writebarrier(f *Func) {
 			ptr := w.Args[0]
 			var typ interface{}
 			if w.Op != OpStoreWB {
-				typ = &ExternSymbol{Typ: f.fe.TypeUintptr(), Sym: w.Aux.(Type).Symbol()}
+				typ = &ExternSymbol{Typ: types.Uintptr, Sym: w.Aux.(Type).Symbol()}
 			}
 			pos = w.Pos
 
@@ -280,7 +281,7 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem
 	off := config.ctxt.FixedFrameSize()
 
 	if typ != nil { // for typedmemmove
-		taddr := b.NewValue1A(pos, OpAddr, b.Func.fe.TypeUintptr(), typ, sb)
+		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
 		off = round(off, taddr.Type.Alignment())
 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, TypeMem, ptr.Type, arg, taddr, mem)

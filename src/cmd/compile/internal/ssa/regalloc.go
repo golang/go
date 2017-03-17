@@ -2055,10 +2055,11 @@ func (e *edgeState) erase(loc Location) {
 func (e *edgeState) findRegFor(typ Type) Location {
 	// Which registers are possibilities.
 	var m regMask
+	types := &e.s.f.Config.Types
 	if typ.IsFloat() {
-		m = e.s.compatRegs(e.s.f.fe.TypeFloat64())
+		m = e.s.compatRegs(types.Float64)
 	} else {
-		m = e.s.compatRegs(e.s.f.fe.TypeInt64())
+		m = e.s.compatRegs(types.Int64)
 	}
 
 	// Pick a register. In priority order:
@@ -2082,7 +2083,7 @@ func (e *edgeState) findRegFor(typ Type) Location {
 	// No register is available. Allocate a temp location to spill a register to.
 	// The type of the slot is immaterial - it will not be live across
 	// any safepoint. Just use a type big enough to hold any register.
-	typ = e.s.f.fe.TypeInt64()
+	typ = types.Int64
 	t := LocalSlot{e.s.f.fe.Auto(typ), typ, 0}
 	// TODO: reuse these slots.
 
