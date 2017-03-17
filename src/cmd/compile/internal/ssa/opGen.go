@@ -1767,6 +1767,10 @@ const (
 	OpBitLen64
 	OpBswap32
 	OpBswap64
+	OpBitRev8
+	OpBitRev16
+	OpBitRev32
+	OpBitRev64
 	OpSqrt
 	OpPhi
 	OpCopy
@@ -21478,6 +21482,26 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Bswap64",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "BitRev8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "BitRev16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "BitRev32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "BitRev64",
 		argLen:  1,
 		generic: true,
 	},

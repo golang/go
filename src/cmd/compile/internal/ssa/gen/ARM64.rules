@@ -91,6 +91,11 @@
 (Bswap64 x) -> (REV x)
 (Bswap32 x) -> (REVW x)
 
+(BitRev64 x) -> (RBIT x)
+(BitRev32 x) -> (RBITW x)
+(BitRev16 x) -> (SRLconst [48] (RBIT <config.fe.TypeUInt64()> x))
+(BitRev8 x) -> (SRLconst [56] (RBIT <config.fe.TypeUInt64()> x))
+
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)

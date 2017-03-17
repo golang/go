@@ -2749,6 +2749,34 @@ func init() {
 		},
 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
 	// LeadingZeros is handled because it trivially calls Len.
+	addF("math/bits", "Reverse64",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpBitRev64, Types[TINT], args[0])
+		},
+		sys.ARM64)
+	addF("math/bits", "Reverse32",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpBitRev32, Types[TINT], args[0])
+		},
+		sys.ARM64)
+	addF("math/bits", "Reverse16",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpBitRev16, Types[TINT], args[0])
+		},
+		sys.ARM64)
+	addF("math/bits", "Reverse8",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpBitRev8, Types[TINT], args[0])
+		},
+		sys.ARM64)
+	addF("math/bits", "Reverse",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			if s.config.IntSize == 4 {
+				return s.newValue1(ssa.OpBitRev32, Types[TINT], args[0])
+			}
+			return s.newValue1(ssa.OpBitRev64, Types[TINT], args[0])
+		},
+		sys.ARM64)
 
 	/******** sync/atomic ********/
 
