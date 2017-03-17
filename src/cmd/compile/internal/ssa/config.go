@@ -15,10 +15,11 @@ import (
 // It is created once, early during compilation,
 // and shared across all compilations.
 type Config struct {
-	arch            string        // "amd64", etc.
-	IntSize         int64         // 4 or 8
-	PtrSize         int64         // 4 or 8
-	RegSize         int64         // 4 or 8
+	arch            string // "amd64", etc.
+	IntSize         int64  // 4 or 8
+	PtrSize         int64  // 4 or 8
+	RegSize         int64  // 4 or 8
+	Types           Types
 	lowerBlock      blockRewriter // lowering function
 	lowerValue      valueRewriter // lowering function
 	registers       []Register    // machine registers
@@ -44,24 +45,22 @@ type (
 	valueRewriter func(*Value) bool
 )
 
-type TypeSource interface {
-	TypeBool() Type
-	TypeInt8() Type
-	TypeInt16() Type
-	TypeInt32() Type
-	TypeInt64() Type
-	TypeUInt8() Type
-	TypeUInt16() Type
-	TypeUInt32() Type
-	TypeUInt64() Type
-	TypeInt() Type
-	TypeFloat32() Type
-	TypeFloat64() Type
-	TypeUintptr() Type
-	TypeString() Type
-	TypeBytePtr() Type // TODO: use unsafe.Pointer instead?
-
-	CanSSA(t Type) bool
+type Types struct {
+	Bool    Type
+	Int8    Type
+	Int16   Type
+	Int32   Type
+	Int64   Type
+	UInt8   Type
+	UInt16  Type
+	UInt32  Type
+	UInt64  Type
+	Int     Type
+	Float32 Type
+	Float64 Type
+	Uintptr Type
+	String  Type
+	BytePtr Type // TODO: use unsafe.Pointer instead?
 }
 
 type Logger interface {
@@ -87,7 +86,8 @@ type Logger interface {
 }
 
 type Frontend interface {
-	TypeSource
+	CanSSA(t Type) bool
+
 	Logger
 
 	// StringData returns a symbol pointing to the given string's contents.
@@ -135,8 +135,8 @@ type GCNode interface {
 }
 
 // NewConfig returns a new configuration object for the given architecture.
-func NewConfig(arch string, ctxt *obj.Link, optimize bool) *Config {
-	c := &Config{arch: arch}
+func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
+	c := &Config{arch: arch, Types: types}
 	switch arch {
 	case "amd64":
 		c.IntSize = 8

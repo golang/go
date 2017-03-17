@@ -22,7 +22,24 @@ var ssaConfig *ssa.Config
 var ssaCache *ssa.Cache
 
 func initssaconfig() {
-	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, Ctxt, Debug['N'] == 0)
+	types := ssa.Types{
+		Bool:    Types[TBOOL],
+		Int8:    Types[TINT8],
+		Int16:   Types[TINT16],
+		Int32:   Types[TINT32],
+		Int64:   Types[TINT64],
+		UInt8:   Types[TUINT8],
+		UInt16:  Types[TUINT16],
+		UInt32:  Types[TUINT32],
+		UInt64:  Types[TUINT64],
+		Float32: Types[TFLOAT32],
+		Float64: Types[TFLOAT64],
+		Int:     Types[TINT],
+		Uintptr: Types[TUINTPTR],
+		String:  Types[TSTRING],
+		BytePtr: ptrto(Types[TUINT8]),
+	}
+	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, types, Ctxt, Debug['N'] == 0)
 	if thearch.LinkArch.Name == "386" {
 		ssaConfig.Set387(thearch.Use387)
 	}
@@ -4672,22 +4689,6 @@ type ssafn struct {
 	stkptrsize int64 // prefix of stack containing pointers
 	log        bool
 }
-
-func (s *ssafn) TypeBool() ssa.Type    { return Types[TBOOL] }
-func (s *ssafn) TypeInt8() ssa.Type    { return Types[TINT8] }
-func (s *ssafn) TypeInt16() ssa.Type   { return Types[TINT16] }
-func (s *ssafn) TypeInt32() ssa.Type   { return Types[TINT32] }
-func (s *ssafn) TypeInt64() ssa.Type   { return Types[TINT64] }
-func (s *ssafn) TypeUInt8() ssa.Type   { return Types[TUINT8] }
-func (s *ssafn) TypeUInt16() ssa.Type  { return Types[TUINT16] }
-func (s *ssafn) TypeUInt32() ssa.Type  { return Types[TUINT32] }
-func (s *ssafn) TypeUInt64() ssa.Type  { return Types[TUINT64] }
-func (s *ssafn) TypeFloat32() ssa.Type { return Types[TFLOAT32] }
-func (s *ssafn) TypeFloat64() ssa.Type { return Types[TFLOAT64] }
-func (s *ssafn) TypeInt() ssa.Type     { return Types[TINT] }
-func (s *ssafn) TypeUintptr() ssa.Type { return Types[TUINTPTR] }
-func (s *ssafn) TypeString() ssa.Type  { return Types[TSTRING] }
-func (s *ssafn) TypeBytePtr() ssa.Type { return ptrto(Types[TUINT8]) }
 
 // StringData returns a symbol (a *Sym wrapped in an interface) which
 // is the data component of a global string constant containing s.

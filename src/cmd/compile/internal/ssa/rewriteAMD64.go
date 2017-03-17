@@ -6786,8 +6786,8 @@ func rewriteValueAMD64_OpAMD64MOVLstore(v *Value) bool {
 func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (MOVLstoreconst [sc] {s} (ADDQconst [off] ptr) mem)
 	// cond: ValAndOff(sc).canAdd(off)
 	// result: (MOVLstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
@@ -6934,7 +6934,7 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value) bool {
 		v.AuxInt = ValAndOff(a).Off()
 		v.Aux = s
 		v.AddArg(p)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, types.UInt64)
 		v0.AuxInt = ValAndOff(a).Val()&0xffffffff | ValAndOff(c).Val()<<32
 		v.AddArg(v0)
 		v.AddArg(mem)
@@ -6992,8 +6992,8 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value) bool {
 func rewriteValueAMD64_OpAMD64MOVLstoreconstidx1(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (MOVLstoreconstidx1 [c] {sym} ptr (SHLQconst [2] idx) mem)
 	// cond:
 	// result: (MOVLstoreconstidx4 [c] {sym} ptr idx mem)
@@ -7093,7 +7093,7 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconstidx1(v *Value) bool {
 		v.Aux = s
 		v.AddArg(p)
 		v.AddArg(i)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, types.UInt64)
 		v0.AuxInt = ValAndOff(a).Val()&0xffffffff | ValAndOff(c).Val()<<32
 		v.AddArg(v0)
 		v.AddArg(mem)
@@ -7104,8 +7104,8 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconstidx1(v *Value) bool {
 func rewriteValueAMD64_OpAMD64MOVLstoreconstidx4(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (MOVLstoreconstidx4 [x] {sym} (ADDQconst [c] ptr) idx mem)
 	// cond:
 	// result: (MOVLstoreconstidx4 [ValAndOff(x).add(c)] {sym} ptr idx mem)
@@ -7184,7 +7184,7 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconstidx4(v *Value) bool {
 		v0.AuxInt = 2
 		v0.AddArg(i)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpAMD64MOVQconst, fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpAMD64MOVQconst, types.UInt64)
 		v1.AuxInt = ValAndOff(a).Val()&0xffffffff | ValAndOff(c).Val()<<32
 		v.AddArg(v1)
 		v.AddArg(mem)
@@ -12037,8 +12037,8 @@ func rewriteValueAMD64_OpAMD64NOTQ(v *Value) bool {
 func rewriteValueAMD64_OpAMD64ORL(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (ORL x (MOVLconst [c]))
 	// cond:
 	// result: (ORLconst [c] x)
@@ -12304,7 +12304,7 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, fe.TypeUInt16())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, types.UInt16)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i
@@ -12379,7 +12379,7 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, fe.TypeUInt32())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, types.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i
@@ -12567,7 +12567,7 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value) bool {
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = 8
-		v1 := b.NewValue0(v.Pos, OpAMD64MOVWload, fe.TypeUInt16())
+		v1 := b.NewValue0(v.Pos, OpAMD64MOVWload, types.UInt16)
 		v1.AuxInt = i - 1
 		v1.Aux = s
 		v1.AddArg(p)
@@ -12707,7 +12707,7 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64BSWAPL, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpAMD64MOVLload, fe.TypeUInt32())
+		v1 := b.NewValue0(v.Pos, OpAMD64MOVLload, types.UInt32)
 		v1.AuxInt = i1 - 2
 		v1.Aux = s
 		v1.AddArg(p)
@@ -12903,8 +12903,8 @@ func rewriteValueAMD64_OpAMD64ORLconst(v *Value) bool {
 func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (ORQ x (MOVQconst [c]))
 	// cond: is32Bit(c)
 	// result: (ORQconst [c] x)
@@ -13222,7 +13222,7 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, types.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i
@@ -13668,7 +13668,7 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64BSWAPQ, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpAMD64MOVQload, fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpAMD64MOVQload, types.UInt64)
 		v1.AuxInt = i - 7
 		v1.Aux = s
 		v1.AddArg(p)
@@ -17355,8 +17355,8 @@ func rewriteValueAMD64_OpAndB(v *Value) bool {
 func rewriteValueAMD64_OpAtomicAdd32(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (AtomicAdd32 ptr val mem)
 	// cond:
 	// result: (AddTupleFirst32 (XADDLlock val ptr mem) val)
@@ -17365,7 +17365,7 @@ func rewriteValueAMD64_OpAtomicAdd32(v *Value) bool {
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpAMD64AddTupleFirst32)
-		v0 := b.NewValue0(v.Pos, OpAMD64XADDLlock, MakeTuple(fe.TypeUInt32(), TypeMem))
+		v0 := b.NewValue0(v.Pos, OpAMD64XADDLlock, MakeTuple(types.UInt32, TypeMem))
 		v0.AddArg(val)
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
@@ -17377,8 +17377,8 @@ func rewriteValueAMD64_OpAtomicAdd32(v *Value) bool {
 func rewriteValueAMD64_OpAtomicAdd64(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (AtomicAdd64 ptr val mem)
 	// cond:
 	// result: (AddTupleFirst64 (XADDQlock val ptr mem) val)
@@ -17387,7 +17387,7 @@ func rewriteValueAMD64_OpAtomicAdd64(v *Value) bool {
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpAMD64AddTupleFirst64)
-		v0 := b.NewValue0(v.Pos, OpAMD64XADDQlock, MakeTuple(fe.TypeUInt64(), TypeMem))
+		v0 := b.NewValue0(v.Pos, OpAMD64XADDQlock, MakeTuple(types.UInt64, TypeMem))
 		v0.AddArg(val)
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
@@ -17554,17 +17554,17 @@ func rewriteValueAMD64_OpAtomicOr8(v *Value) bool {
 func rewriteValueAMD64_OpAtomicStore32(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (AtomicStore32 ptr val mem)
 	// cond:
-	// result: (Select1 (XCHGL <MakeTuple(fe.TypeUInt32(),TypeMem)> val ptr mem))
+	// result: (Select1 (XCHGL <MakeTuple(types.UInt32,TypeMem)> val ptr mem))
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64XCHGL, MakeTuple(fe.TypeUInt32(), TypeMem))
+		v0 := b.NewValue0(v.Pos, OpAMD64XCHGL, MakeTuple(types.UInt32, TypeMem))
 		v0.AddArg(val)
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
@@ -17575,17 +17575,17 @@ func rewriteValueAMD64_OpAtomicStore32(v *Value) bool {
 func rewriteValueAMD64_OpAtomicStore64(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (AtomicStore64 ptr val mem)
 	// cond:
-	// result: (Select1 (XCHGQ <MakeTuple(fe.TypeUInt64(),TypeMem)> val ptr mem))
+	// result: (Select1 (XCHGQ <MakeTuple(types.UInt64,TypeMem)> val ptr mem))
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64XCHGQ, MakeTuple(fe.TypeUInt64(), TypeMem))
+		v0 := b.NewValue0(v.Pos, OpAMD64XCHGQ, MakeTuple(types.UInt64, TypeMem))
 		v0.AddArg(val)
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
@@ -17598,11 +17598,11 @@ func rewriteValueAMD64_OpAtomicStorePtrNoWB(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (AtomicStorePtrNoWB ptr val mem)
 	// cond: config.PtrSize == 8
-	// result: (Select1 (XCHGQ <MakeTuple(fe.TypeBytePtr(),TypeMem)> val ptr mem))
+	// result: (Select1 (XCHGQ <MakeTuple(types.BytePtr,TypeMem)> val ptr mem))
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
@@ -17611,7 +17611,7 @@ func rewriteValueAMD64_OpAtomicStorePtrNoWB(v *Value) bool {
 			break
 		}
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64XCHGQ, MakeTuple(fe.TypeBytePtr(), TypeMem))
+		v0 := b.NewValue0(v.Pos, OpAMD64XCHGQ, MakeTuple(types.BytePtr, TypeMem))
 		v0.AddArg(val)
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
@@ -17620,7 +17620,7 @@ func rewriteValueAMD64_OpAtomicStorePtrNoWB(v *Value) bool {
 	}
 	// match: (AtomicStorePtrNoWB ptr val mem)
 	// cond: config.PtrSize == 4
-	// result: (Select1 (XCHGL <MakeTuple(fe.TypeBytePtr(),TypeMem)> val ptr mem))
+	// result: (Select1 (XCHGL <MakeTuple(types.BytePtr,TypeMem)> val ptr mem))
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
@@ -17629,7 +17629,7 @@ func rewriteValueAMD64_OpAtomicStorePtrNoWB(v *Value) bool {
 			break
 		}
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64XCHGL, MakeTuple(fe.TypeBytePtr(), TypeMem))
+		v0 := b.NewValue0(v.Pos, OpAMD64XCHGL, MakeTuple(types.BytePtr, TypeMem))
 		v0.AddArg(val)
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
@@ -17654,15 +17654,15 @@ func rewriteValueAMD64_OpAvg64u(v *Value) bool {
 func rewriteValueAMD64_OpBitLen32(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (BitLen32 x)
 	// cond:
-	// result: (BitLen64 (MOVLQZX <fe.TypeUInt64()> x))
+	// result: (BitLen64 (MOVLQZX <types.UInt64> x))
 	for {
 		x := v.Args[0]
 		v.reset(OpBitLen64)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLQZX, fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVLQZX, types.UInt64)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -17671,8 +17671,8 @@ func rewriteValueAMD64_OpBitLen32(v *Value) bool {
 func rewriteValueAMD64_OpBitLen64(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (BitLen64 <t> x)
 	// cond:
 	// result: (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <TypeFlags> (BSRQ x))))
@@ -17683,7 +17683,7 @@ func rewriteValueAMD64_OpBitLen64(v *Value) bool {
 		v.AuxInt = 1
 		v0 := b.NewValue0(v.Pos, OpAMD64CMOVQEQ, t)
 		v1 := b.NewValue0(v.Pos, OpSelect0, t)
-		v2 := b.NewValue0(v.Pos, OpAMD64BSRQ, MakeTuple(fe.TypeUInt64(), TypeFlags))
+		v2 := b.NewValue0(v.Pos, OpAMD64BSRQ, MakeTuple(types.UInt64, TypeFlags))
 		v2.AddArg(x)
 		v1.AddArg(v2)
 		v0.AddArg(v1)
@@ -17691,7 +17691,7 @@ func rewriteValueAMD64_OpBitLen64(v *Value) bool {
 		v3.AuxInt = -1
 		v0.AddArg(v3)
 		v4 := b.NewValue0(v.Pos, OpSelect1, TypeFlags)
-		v5 := b.NewValue0(v.Pos, OpAMD64BSRQ, MakeTuple(fe.TypeUInt64(), TypeFlags))
+		v5 := b.NewValue0(v.Pos, OpAMD64BSRQ, MakeTuple(types.UInt64, TypeFlags))
 		v5.AddArg(x)
 		v4.AddArg(v5)
 		v0.AddArg(v4)
@@ -17930,17 +17930,17 @@ func rewriteValueAMD64_OpConvert(v *Value) bool {
 func rewriteValueAMD64_OpCtz32(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Ctz32 x)
 	// cond:
-	// result: (Select0 (BSFQ (ORQ <fe.TypeUInt64()> (MOVQconst [1<<32]) x)))
+	// result: (Select0 (BSFQ (ORQ <types.UInt64> (MOVQconst [1<<32]) x)))
 	for {
 		x := v.Args[0]
 		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpAMD64BSFQ, MakeTuple(fe.TypeUInt64(), TypeFlags))
-		v1 := b.NewValue0(v.Pos, OpAMD64ORQ, fe.TypeUInt64())
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVQconst, fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpAMD64BSFQ, MakeTuple(types.UInt64, TypeFlags))
+		v1 := b.NewValue0(v.Pos, OpAMD64ORQ, types.UInt64)
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVQconst, types.UInt64)
 		v2.AuxInt = 1 << 32
 		v1.AddArg(v2)
 		v1.AddArg(x)
@@ -17952,8 +17952,8 @@ func rewriteValueAMD64_OpCtz32(v *Value) bool {
 func rewriteValueAMD64_OpCtz64(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Ctz64 <t> x)
 	// cond:
 	// result: (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <TypeFlags> (BSFQ x)))
@@ -17962,7 +17962,7 @@ func rewriteValueAMD64_OpCtz64(v *Value) bool {
 		x := v.Args[0]
 		v.reset(OpAMD64CMOVQEQ)
 		v0 := b.NewValue0(v.Pos, OpSelect0, t)
-		v1 := b.NewValue0(v.Pos, OpAMD64BSFQ, MakeTuple(fe.TypeUInt64(), TypeFlags))
+		v1 := b.NewValue0(v.Pos, OpAMD64BSFQ, MakeTuple(types.UInt64, TypeFlags))
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -17970,7 +17970,7 @@ func rewriteValueAMD64_OpCtz64(v *Value) bool {
 		v2.AuxInt = 64
 		v.AddArg(v2)
 		v3 := b.NewValue0(v.Pos, OpSelect1, TypeFlags)
-		v4 := b.NewValue0(v.Pos, OpAMD64BSFQ, MakeTuple(fe.TypeUInt64(), TypeFlags))
+		v4 := b.NewValue0(v.Pos, OpAMD64BSFQ, MakeTuple(types.UInt64, TypeFlags))
 		v4.AddArg(x)
 		v3.AddArg(v4)
 		v.AddArg(v3)
@@ -18105,8 +18105,8 @@ func rewriteValueAMD64_OpDiv128u(v *Value) bool {
 func rewriteValueAMD64_OpDiv16(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Div16  x y)
 	// cond:
 	// result: (Select0 (DIVW  x y))
@@ -18114,7 +18114,7 @@ func rewriteValueAMD64_OpDiv16(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVW, MakeTuple(fe.TypeInt16(), fe.TypeInt16()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVW, MakeTuple(types.Int16, types.Int16))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -18124,8 +18124,8 @@ func rewriteValueAMD64_OpDiv16(v *Value) bool {
 func rewriteValueAMD64_OpDiv16u(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Div16u x y)
 	// cond:
 	// result: (Select0 (DIVWU x y))
@@ -18133,7 +18133,7 @@ func rewriteValueAMD64_OpDiv16u(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVWU, MakeTuple(fe.TypeUInt16(), fe.TypeUInt16()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVWU, MakeTuple(types.UInt16, types.UInt16))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -18143,8 +18143,8 @@ func rewriteValueAMD64_OpDiv16u(v *Value) bool {
 func rewriteValueAMD64_OpDiv32(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Div32  x y)
 	// cond:
 	// result: (Select0 (DIVL  x y))
@@ -18152,7 +18152,7 @@ func rewriteValueAMD64_OpDiv32(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVL, MakeTuple(fe.TypeInt32(), fe.TypeInt32()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVL, MakeTuple(types.Int32, types.Int32))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -18175,8 +18175,8 @@ func rewriteValueAMD64_OpDiv32F(v *Value) bool {
 func rewriteValueAMD64_OpDiv32u(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Div32u x y)
 	// cond:
 	// result: (Select0 (DIVLU x y))
@@ -18184,7 +18184,7 @@ func rewriteValueAMD64_OpDiv32u(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVLU, MakeTuple(fe.TypeUInt32(), fe.TypeUInt32()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVLU, MakeTuple(types.UInt32, types.UInt32))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -18194,8 +18194,8 @@ func rewriteValueAMD64_OpDiv32u(v *Value) bool {
 func rewriteValueAMD64_OpDiv64(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Div64  x y)
 	// cond:
 	// result: (Select0 (DIVQ  x y))
@@ -18203,7 +18203,7 @@ func rewriteValueAMD64_OpDiv64(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVQ, MakeTuple(fe.TypeInt64(), fe.TypeInt64()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVQ, MakeTuple(types.Int64, types.Int64))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -18226,8 +18226,8 @@ func rewriteValueAMD64_OpDiv64F(v *Value) bool {
 func rewriteValueAMD64_OpDiv64u(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Div64u x y)
 	// cond:
 	// result: (Select0 (DIVQU x y))
@@ -18235,7 +18235,7 @@ func rewriteValueAMD64_OpDiv64u(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVQU, MakeTuple(fe.TypeUInt64(), fe.TypeUInt64()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVQU, MakeTuple(types.UInt64, types.UInt64))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -18245,8 +18245,8 @@ func rewriteValueAMD64_OpDiv64u(v *Value) bool {
 func rewriteValueAMD64_OpDiv8(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Div8   x y)
 	// cond:
 	// result: (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
@@ -18254,11 +18254,11 @@ func rewriteValueAMD64_OpDiv8(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVW, MakeTuple(fe.TypeInt16(), fe.TypeInt16()))
-		v1 := b.NewValue0(v.Pos, OpSignExt8to16, fe.TypeInt16())
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVW, MakeTuple(types.Int16, types.Int16))
+		v1 := b.NewValue0(v.Pos, OpSignExt8to16, types.Int16)
 		v1.AddArg(x)
 		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpSignExt8to16, fe.TypeInt16())
+		v2 := b.NewValue0(v.Pos, OpSignExt8to16, types.Int16)
 		v2.AddArg(y)
 		v0.AddArg(v2)
 		v.AddArg(v0)
@@ -18268,8 +18268,8 @@ func rewriteValueAMD64_OpDiv8(v *Value) bool {
 func rewriteValueAMD64_OpDiv8u(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Div8u  x y)
 	// cond:
 	// result: (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
@@ -18277,11 +18277,11 @@ func rewriteValueAMD64_OpDiv8u(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVWU, MakeTuple(fe.TypeUInt16(), fe.TypeUInt16()))
-		v1 := b.NewValue0(v.Pos, OpZeroExt8to16, fe.TypeUInt16())
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVWU, MakeTuple(types.UInt16, types.UInt16))
+		v1 := b.NewValue0(v.Pos, OpZeroExt8to16, types.UInt16)
 		v1.AddArg(x)
 		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpZeroExt8to16, fe.TypeUInt16())
+		v2 := b.NewValue0(v.Pos, OpZeroExt8to16, types.UInt16)
 		v2.AddArg(y)
 		v0.AddArg(v2)
 		v.AddArg(v0)
@@ -19780,8 +19780,8 @@ func rewriteValueAMD64_OpLsh8x8(v *Value) bool {
 func rewriteValueAMD64_OpMod16(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Mod16  x y)
 	// cond:
 	// result: (Select1 (DIVW  x y))
@@ -19789,7 +19789,7 @@ func rewriteValueAMD64_OpMod16(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVW, MakeTuple(fe.TypeInt16(), fe.TypeInt16()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVW, MakeTuple(types.Int16, types.Int16))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -19799,8 +19799,8 @@ func rewriteValueAMD64_OpMod16(v *Value) bool {
 func rewriteValueAMD64_OpMod16u(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Mod16u x y)
 	// cond:
 	// result: (Select1 (DIVWU x y))
@@ -19808,7 +19808,7 @@ func rewriteValueAMD64_OpMod16u(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVWU, MakeTuple(fe.TypeUInt16(), fe.TypeUInt16()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVWU, MakeTuple(types.UInt16, types.UInt16))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -19818,8 +19818,8 @@ func rewriteValueAMD64_OpMod16u(v *Value) bool {
 func rewriteValueAMD64_OpMod32(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Mod32  x y)
 	// cond:
 	// result: (Select1 (DIVL  x y))
@@ -19827,7 +19827,7 @@ func rewriteValueAMD64_OpMod32(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVL, MakeTuple(fe.TypeInt32(), fe.TypeInt32()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVL, MakeTuple(types.Int32, types.Int32))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -19837,8 +19837,8 @@ func rewriteValueAMD64_OpMod32(v *Value) bool {
 func rewriteValueAMD64_OpMod32u(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Mod32u x y)
 	// cond:
 	// result: (Select1 (DIVLU x y))
@@ -19846,7 +19846,7 @@ func rewriteValueAMD64_OpMod32u(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVLU, MakeTuple(fe.TypeUInt32(), fe.TypeUInt32()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVLU, MakeTuple(types.UInt32, types.UInt32))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -19856,8 +19856,8 @@ func rewriteValueAMD64_OpMod32u(v *Value) bool {
 func rewriteValueAMD64_OpMod64(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Mod64  x y)
 	// cond:
 	// result: (Select1 (DIVQ  x y))
@@ -19865,7 +19865,7 @@ func rewriteValueAMD64_OpMod64(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVQ, MakeTuple(fe.TypeInt64(), fe.TypeInt64()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVQ, MakeTuple(types.Int64, types.Int64))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -19875,8 +19875,8 @@ func rewriteValueAMD64_OpMod64(v *Value) bool {
 func rewriteValueAMD64_OpMod64u(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Mod64u x y)
 	// cond:
 	// result: (Select1 (DIVQU x y))
@@ -19884,7 +19884,7 @@ func rewriteValueAMD64_OpMod64u(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVQU, MakeTuple(fe.TypeUInt64(), fe.TypeUInt64()))
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVQU, MakeTuple(types.UInt64, types.UInt64))
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -19894,8 +19894,8 @@ func rewriteValueAMD64_OpMod64u(v *Value) bool {
 func rewriteValueAMD64_OpMod8(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Mod8   x y)
 	// cond:
 	// result: (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
@@ -19903,11 +19903,11 @@ func rewriteValueAMD64_OpMod8(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVW, MakeTuple(fe.TypeInt16(), fe.TypeInt16()))
-		v1 := b.NewValue0(v.Pos, OpSignExt8to16, fe.TypeInt16())
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVW, MakeTuple(types.Int16, types.Int16))
+		v1 := b.NewValue0(v.Pos, OpSignExt8to16, types.Int16)
 		v1.AddArg(x)
 		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpSignExt8to16, fe.TypeInt16())
+		v2 := b.NewValue0(v.Pos, OpSignExt8to16, types.Int16)
 		v2.AddArg(y)
 		v0.AddArg(v2)
 		v.AddArg(v0)
@@ -19917,8 +19917,8 @@ func rewriteValueAMD64_OpMod8(v *Value) bool {
 func rewriteValueAMD64_OpMod8u(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Mod8u  x y)
 	// cond:
 	// result: (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
@@ -19926,11 +19926,11 @@ func rewriteValueAMD64_OpMod8u(v *Value) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64DIVWU, MakeTuple(fe.TypeUInt16(), fe.TypeUInt16()))
-		v1 := b.NewValue0(v.Pos, OpZeroExt8to16, fe.TypeUInt16())
+		v0 := b.NewValue0(v.Pos, OpAMD64DIVWU, MakeTuple(types.UInt16, types.UInt16))
+		v1 := b.NewValue0(v.Pos, OpZeroExt8to16, types.UInt16)
 		v1.AddArg(x)
 		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpZeroExt8to16, fe.TypeUInt16())
+		v2 := b.NewValue0(v.Pos, OpZeroExt8to16, types.UInt16)
 		v2.AddArg(y)
 		v0.AddArg(v2)
 		v.AddArg(v0)
@@ -19942,8 +19942,8 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Move [0] _ _ mem)
 	// cond:
 	// result: mem
@@ -19969,7 +19969,7 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		mem := v.Args[2]
 		v.reset(OpAMD64MOVBstore)
 		v.AddArg(dst)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, fe.TypeUInt8())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, types.UInt8)
 		v0.AddArg(src)
 		v0.AddArg(mem)
 		v.AddArg(v0)
@@ -19988,7 +19988,7 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		mem := v.Args[2]
 		v.reset(OpAMD64MOVWstore)
 		v.AddArg(dst)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, fe.TypeUInt16())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, types.UInt16)
 		v0.AddArg(src)
 		v0.AddArg(mem)
 		v.AddArg(v0)
@@ -20007,7 +20007,7 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		mem := v.Args[2]
 		v.reset(OpAMD64MOVLstore)
 		v.AddArg(dst)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, fe.TypeUInt32())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, types.UInt32)
 		v0.AddArg(src)
 		v0.AddArg(mem)
 		v.AddArg(v0)
@@ -20026,7 +20026,7 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		mem := v.Args[2]
 		v.reset(OpAMD64MOVQstore)
 		v.AddArg(dst)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, types.UInt64)
 		v0.AddArg(src)
 		v0.AddArg(mem)
 		v.AddArg(v0)
@@ -20065,14 +20065,14 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		v.reset(OpAMD64MOVBstore)
 		v.AuxInt = 2
 		v.AddArg(dst)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, fe.TypeUInt8())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, types.UInt8)
 		v0.AuxInt = 2
 		v0.AddArg(src)
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpAMD64MOVWstore, TypeMem)
 		v1.AddArg(dst)
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVWload, fe.TypeUInt16())
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVWload, types.UInt16)
 		v2.AddArg(src)
 		v2.AddArg(mem)
 		v1.AddArg(v2)
@@ -20093,14 +20093,14 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		v.reset(OpAMD64MOVBstore)
 		v.AuxInt = 4
 		v.AddArg(dst)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, fe.TypeUInt8())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, types.UInt8)
 		v0.AuxInt = 4
 		v0.AddArg(src)
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpAMD64MOVLstore, TypeMem)
 		v1.AddArg(dst)
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVLload, fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVLload, types.UInt32)
 		v2.AddArg(src)
 		v2.AddArg(mem)
 		v1.AddArg(v2)
@@ -20121,14 +20121,14 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		v.reset(OpAMD64MOVWstore)
 		v.AuxInt = 4
 		v.AddArg(dst)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, fe.TypeUInt16())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, types.UInt16)
 		v0.AuxInt = 4
 		v0.AddArg(src)
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpAMD64MOVLstore, TypeMem)
 		v1.AddArg(dst)
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVLload, fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVLload, types.UInt32)
 		v2.AddArg(src)
 		v2.AddArg(mem)
 		v1.AddArg(v2)
@@ -20149,14 +20149,14 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		v.reset(OpAMD64MOVLstore)
 		v.AuxInt = 3
 		v.AddArg(dst)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, fe.TypeUInt32())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, types.UInt32)
 		v0.AuxInt = 3
 		v0.AddArg(src)
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpAMD64MOVLstore, TypeMem)
 		v1.AddArg(dst)
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVLload, fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVLload, types.UInt32)
 		v2.AddArg(src)
 		v2.AddArg(mem)
 		v1.AddArg(v2)
@@ -20178,14 +20178,14 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		v.reset(OpAMD64MOVQstore)
 		v.AuxInt = s - 8
 		v.AddArg(dst)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, types.UInt64)
 		v0.AuxInt = s - 8
 		v0.AddArg(src)
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstore, TypeMem)
 		v1.AddArg(dst)
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVQload, fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVQload, types.UInt64)
 		v2.AddArg(src)
 		v2.AddArg(mem)
 		v1.AddArg(v2)
@@ -20216,7 +20216,7 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		v.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, OpAMD64MOVQstore, TypeMem)
 		v2.AddArg(dst)
-		v3 := b.NewValue0(v.Pos, OpAMD64MOVQload, fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpAMD64MOVQload, types.UInt64)
 		v3.AddArg(src)
 		v3.AddArg(mem)
 		v2.AddArg(v3)
@@ -20287,7 +20287,7 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		v.reset(OpAMD64REPMOVSQ)
 		v.AddArg(dst)
 		v.AddArg(src)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, types.UInt64)
 		v0.AuxInt = s / 8
 		v.AddArg(v0)
 		v.AddArg(mem)
@@ -20411,16 +20411,16 @@ func rewriteValueAMD64_OpNeg32(v *Value) bool {
 func rewriteValueAMD64_OpNeg32F(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Neg32F x)
 	// cond:
-	// result: (PXOR x (MOVSSconst <fe.TypeFloat32()> [f2i(math.Copysign(0, -1))]))
+	// result: (PXOR x (MOVSSconst <types.Float32> [f2i(math.Copysign(0, -1))]))
 	for {
 		x := v.Args[0]
 		v.reset(OpAMD64PXOR)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVSSconst, fe.TypeFloat32())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVSSconst, types.Float32)
 		v0.AuxInt = f2i(math.Copysign(0, -1))
 		v.AddArg(v0)
 		return true
@@ -20440,16 +20440,16 @@ func rewriteValueAMD64_OpNeg64(v *Value) bool {
 func rewriteValueAMD64_OpNeg64F(v *Value) bool {
 	b := v.Block
 	_ = b
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Neg64F x)
 	// cond:
-	// result: (PXOR x (MOVSDconst <fe.TypeFloat64()> [f2i(math.Copysign(0, -1))]))
+	// result: (PXOR x (MOVSDconst <types.Float64> [f2i(math.Copysign(0, -1))]))
 	for {
 		x := v.Args[0]
 		v.reset(OpAMD64PXOR)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVSDconst, fe.TypeFloat64())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVSDconst, types.Float64)
 		v0.AuxInt = f2i(math.Copysign(0, -1))
 		v.AddArg(v0)
 		return true
@@ -20654,8 +20654,8 @@ func rewriteValueAMD64_OpOffPtr(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (OffPtr [off] ptr)
 	// cond: config.PtrSize == 8 && is32Bit(off)
 	// result: (ADDQconst [off] ptr)
@@ -20680,7 +20680,7 @@ func rewriteValueAMD64_OpOffPtr(v *Value) bool {
 			break
 		}
 		v.reset(OpAMD64ADDQ)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, types.UInt64)
 		v0.AuxInt = off
 		v.AddArg(v0)
 		v.AddArg(ptr)
@@ -22133,8 +22133,8 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := b.Func.fe
-	_ = fe
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Zero [0] _ mem)
 	// cond:
 	// result: mem
@@ -22394,7 +22394,7 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstore, TypeMem)
 		v1.AddArg(destptr)
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVQconst, fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVQconst, types.UInt64)
 		v2.AuxInt = 0
 		v1.AddArg(v2)
 		v1.AddArg(mem)
@@ -22432,10 +22432,10 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
 		}
 		v.reset(OpAMD64REPSTOSQ)
 		v.AddArg(destptr)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, types.UInt64)
 		v0.AuxInt = s / 8
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpAMD64MOVQconst, fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpAMD64MOVQconst, types.UInt64)
 		v1.AuxInt = 0
 		v.AddArg(v1)
 		v.AddArg(mem)
@@ -22514,6 +22514,8 @@ func rewriteBlockAMD64(b *Block) bool {
 	_ = config
 	fe := b.Func.fe
 	_ = fe
+	types := &config.Types
+	_ = types
 	switch b.Kind {
 	case BlockAMD64EQ:
 		// match: (EQ (TESTL (SHLL (MOVLconst [1]) x) y))

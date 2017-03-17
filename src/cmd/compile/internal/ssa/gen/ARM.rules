@@ -34,12 +34,12 @@
 (Mul32uhilo x y) -> (MULLU x y)
 
 (Div32 x y) ->
-	(SUB (XOR <fe.TypeUInt32()>                                                                  // negate the result if one operand is negative
-		(Select0 <fe.TypeUInt32()> (CALLudiv {config.ctxt.Lookup("udiv", 0)}
-			(SUB <fe.TypeUInt32()> (XOR x <fe.TypeUInt32()> (Signmask x)) (Signmask x))   // negate x if negative
-			(SUB <fe.TypeUInt32()> (XOR y <fe.TypeUInt32()> (Signmask y)) (Signmask y)))) // negate y if negative
-		(Signmask (XOR <fe.TypeUInt32()> x y))) (Signmask (XOR <fe.TypeUInt32()> x y)))
-(Div32u x y) -> (Select0 <fe.TypeUInt32()> (CALLudiv {config.ctxt.Lookup("udiv", 0)} x y))
+	(SUB (XOR <types.UInt32>                                                                  // negate the result if one operand is negative
+		(Select0 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)}
+			(SUB <types.UInt32> (XOR x <types.UInt32> (Signmask x)) (Signmask x))   // negate x if negative
+			(SUB <types.UInt32> (XOR y <types.UInt32> (Signmask y)) (Signmask y)))) // negate y if negative
+		(Signmask (XOR <types.UInt32> x y))) (Signmask (XOR <types.UInt32> x y)))
+(Div32u x y) -> (Select0 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)} x y))
 (Div16 x y) -> (Div32 (SignExt16to32 x) (SignExt16to32 y))
 (Div16u x y) -> (Div32u (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Div8 x y) -> (Div32 (SignExt8to32 x) (SignExt8to32 y))
@@ -48,12 +48,12 @@
 (Div64F x y) -> (DIVD x y)
 
 (Mod32 x y) ->
-	(SUB (XOR <fe.TypeUInt32()>                                                                  // negate the result if x is negative
-		(Select1 <fe.TypeUInt32()> (CALLudiv {config.ctxt.Lookup("udiv", 0)}
-			(SUB <fe.TypeUInt32()> (XOR <fe.TypeUInt32()> x (Signmask x)) (Signmask x))   // negate x if negative
-			(SUB <fe.TypeUInt32()> (XOR <fe.TypeUInt32()> y (Signmask y)) (Signmask y)))) // negate y if negative
+	(SUB (XOR <types.UInt32>                                                                  // negate the result if x is negative
+		(Select1 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)}
+			(SUB <types.UInt32> (XOR <types.UInt32> x (Signmask x)) (Signmask x))   // negate x if negative
+			(SUB <types.UInt32> (XOR <types.UInt32> y (Signmask y)) (Signmask y)))) // negate y if negative
 		(Signmask x)) (Signmask x))
-(Mod32u x y) -> (Select1 <fe.TypeUInt32()> (CALLudiv {config.ctxt.Lookup("udiv", 0)} x y))
+(Mod32u x y) -> (Select1 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)} x y))
 (Mod16 x y) -> (Mod32 (SignExt16to32 x) (SignExt16to32 y))
 (Mod16u x y) -> (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Mod8 x y) -> (Mod32 (SignExt8to32 x) (SignExt8to32 y))
@@ -111,7 +111,7 @@
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)
-(EqB x y) -> (XORconst [1] (XOR <fe.TypeBool()> x y))
+(EqB x y) -> (XORconst [1] (XOR <types.Bool> x y))
 (NeqB x y) -> (XOR x y)
 (Not x) -> (XORconst [1] x)
 
@@ -160,11 +160,11 @@
 (Rsh32x64 x (Const64 [c])) && uint64(c) < 32 -> (SRAconst x [c])
 (Rsh32Ux64 x (Const64 [c])) && uint64(c) < 32 -> (SRLconst x [c])
 (Lsh16x64 x (Const64 [c])) && uint64(c) < 16 -> (SLLconst x [c])
-(Rsh16x64 x (Const64 [c])) && uint64(c) < 16 -> (SRAconst (SLLconst <fe.TypeUInt32()> x [16]) [c+16])
-(Rsh16Ux64 x (Const64 [c])) && uint64(c) < 16 -> (SRLconst (SLLconst <fe.TypeUInt32()> x [16]) [c+16])
+(Rsh16x64 x (Const64 [c])) && uint64(c) < 16 -> (SRAconst (SLLconst <types.UInt32> x [16]) [c+16])
+(Rsh16Ux64 x (Const64 [c])) && uint64(c) < 16 -> (SRLconst (SLLconst <types.UInt32> x [16]) [c+16])
 (Lsh8x64 x (Const64 [c])) && uint64(c) < 8 -> (SLLconst x [c])
-(Rsh8x64 x (Const64 [c])) && uint64(c) < 8 -> (SRAconst (SLLconst <fe.TypeUInt32()> x [24]) [c+24])
-(Rsh8Ux64 x (Const64 [c])) && uint64(c) < 8 -> (SRLconst (SLLconst <fe.TypeUInt32()> x [24]) [c+24])
+(Rsh8x64 x (Const64 [c])) && uint64(c) < 8 -> (SRAconst (SLLconst <types.UInt32> x [24]) [c+24])
+(Rsh8Ux64 x (Const64 [c])) && uint64(c) < 8 -> (SRLconst (SLLconst <types.UInt32> x [24]) [c+24])
 
 // large constant shifts
 (Lsh32x64 _ (Const64 [c])) && uint64(c) >= 32 -> (Const32 [0])
@@ -176,8 +176,8 @@
 
 // large constant signed right shift, we leave the sign bit
 (Rsh32x64 x (Const64 [c])) && uint64(c) >= 32 -> (SRAconst x [31])
-(Rsh16x64 x (Const64 [c])) && uint64(c) >= 16 -> (SRAconst (SLLconst <fe.TypeUInt32()> x [16]) [31])
-(Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 -> (SRAconst (SLLconst <fe.TypeUInt32()> x [24]) [31])
+(Rsh16x64 x (Const64 [c])) && uint64(c) >= 16 -> (SRAconst (SLLconst <types.UInt32> x [16]) [31])
+(Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 -> (SRAconst (SLLconst <types.UInt32> x [24]) [31])
 
 // constants
 (Const8 [val]) -> (MOVWconst [val])
@@ -204,7 +204,7 @@
 (SignExt16to32 x) -> (MOVHreg x)
 
 (Signmask x) -> (SRAconst x [31])
-(Zeromask x) -> (SRAconst (RSBshiftRL <fe.TypeInt32()> x x [1]) [31]) // sign bit of uint32(x)>>1 - x
+(Zeromask x) -> (SRAconst (RSBshiftRL <types.Int32> x x [1]) [31]) // sign bit of uint32(x)>>1 - x
 (Slicemask <t> x) -> (SRAconst (RSBconst <t> [0] x) [31])
 
 // float <-> int conversion

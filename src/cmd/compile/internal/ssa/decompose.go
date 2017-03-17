@@ -28,15 +28,15 @@ func decomposeBuiltIn(f *Func) {
 		case t.IsInteger() && t.Size() == 8 && f.Config.IntSize == 4:
 			var elemType Type
 			if t.IsSigned() {
-				elemType = f.fe.TypeInt32()
+				elemType = f.Config.Types.Int32
 			} else {
-				elemType = f.fe.TypeUInt32()
+				elemType = f.Config.Types.UInt32
 			}
 			hiName, loName := f.fe.SplitInt64(name)
 			newNames = append(newNames, hiName, loName)
 			for _, v := range f.NamedValues[name] {
 				hi := v.Block.NewValue1(v.Pos, OpInt64Hi, elemType, v)
-				lo := v.Block.NewValue1(v.Pos, OpInt64Lo, f.fe.TypeUInt32(), v)
+				lo := v.Block.NewValue1(v.Pos, OpInt64Lo, f.Config.Types.UInt32, v)
 				f.NamedValues[hiName] = append(f.NamedValues[hiName], hi)
 				f.NamedValues[loName] = append(f.NamedValues[loName], lo)
 			}
@@ -44,9 +44,9 @@ func decomposeBuiltIn(f *Func) {
 		case t.IsComplex():
 			var elemType Type
 			if t.Size() == 16 {
-				elemType = f.fe.TypeFloat64()
+				elemType = f.Config.Types.Float64
 			} else {
-				elemType = f.fe.TypeFloat32()
+				elemType = f.Config.Types.Float32
 			}
 			rName, iName := f.fe.SplitComplex(name)
 			newNames = append(newNames, rName, iName)
@@ -58,8 +58,8 @@ func decomposeBuiltIn(f *Func) {
 			}
 			delete(f.NamedValues, name)
 		case t.IsString():
-			ptrType := f.fe.TypeBytePtr()
-			lenType := f.fe.TypeInt()
+			ptrType := f.Config.Types.BytePtr
+			lenType := f.Config.Types.Int
 			ptrName, lenName := f.fe.SplitString(name)
 			newNames = append(newNames, ptrName, lenName)
 			for _, v := range f.NamedValues[name] {
@@ -70,8 +70,8 @@ func decomposeBuiltIn(f *Func) {
 			}
 			delete(f.NamedValues, name)
 		case t.IsSlice():
-			ptrType := f.fe.TypeBytePtr()
-			lenType := f.fe.TypeInt()
+			ptrType := f.Config.Types.BytePtr
+			lenType := f.Config.Types.Int
 			ptrName, lenName, capName := f.fe.SplitSlice(name)
 			newNames = append(newNames, ptrName, lenName, capName)
 			for _, v := range f.NamedValues[name] {
@@ -84,7 +84,7 @@ func decomposeBuiltIn(f *Func) {
 			}
 			delete(f.NamedValues, name)
 		case t.IsInterface():
-			ptrType := f.fe.TypeBytePtr()
+			ptrType := f.Config.Types.BytePtr
 			typeName, dataName := f.fe.SplitInterface(name)
 			newNames = append(newNames, typeName, dataName)
 			for _, v := range f.NamedValues[name] {
@@ -129,9 +129,9 @@ func decomposeBuiltInPhi(v *Value) {
 }
 
 func decomposeStringPhi(v *Value) {
-	fe := v.Block.Func.fe
-	ptrType := fe.TypeBytePtr()
-	lenType := fe.TypeInt()
+	types := &v.Block.Func.Config.Types
+	ptrType := types.BytePtr
+	lenType := types.Int
 
 	ptr := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
 	len := v.Block.NewValue0(v.Pos, OpPhi, lenType)
@@ -145,9 +145,9 @@ func decomposeStringPhi(v *Value) {
 }
 
 func decomposeSlicePhi(v *Value) {
-	fe := v.Block.Func.fe
-	ptrType := fe.TypeBytePtr()
-	lenType := fe.TypeInt()
+	types := &v.Block.Func.Config.Types
+	ptrType := types.BytePtr
+	lenType := types.Int
 
 	ptr := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
 	len := v.Block.NewValue0(v.Pos, OpPhi, lenType)
@@ -164,19 +164,19 @@ func decomposeSlicePhi(v *Value) {
 }
 
 func decomposeInt64Phi(v *Value) {
-	fe := v.Block.Func.fe
+	types := &v.Block.Func.Config.Types
 	var partType Type
 	if v.Type.IsSigned() {
-		partType = fe.TypeInt32()
+		partType = types.Int32
 	} else {
-		partType = fe.TypeUInt32()
+		partType = types.UInt32
 	}
 
 	hi := v.Block.NewValue0(v.Pos, OpPhi, partType)
-	lo := v.Block.NewValue0(v.Pos, OpPhi, fe.TypeUInt32())
+	lo := v.Block.NewValue0(v.Pos, OpPhi, types.UInt32)
 	for _, a := range v.Args {
 		hi.AddArg(a.Block.NewValue1(v.Pos, OpInt64Hi, partType, a))
-		lo.AddArg(a.Block.NewValue1(v.Pos, OpInt64Lo, fe.TypeUInt32(), a))
+		lo.AddArg(a.Block.NewValue1(v.Pos, OpInt64Lo, types.UInt32, a))
 	}
 	v.reset(OpInt64Make)
 	v.AddArg(hi)
@@ -184,13 +184,13 @@ func decomposeInt64Phi(v *Value) {
 }
 
 func decomposeComplexPhi(v *Value) {
-	fe := v.Block.Func.fe
+	types := &v.Block.Func.Config.Types
 	var partType Type
 	switch z := v.Type.Size(); z {
 	case 8:
-		partType = fe.TypeFloat32()
+		partType = types.Float32
 	case 16:
-		partType = fe.TypeFloat64()
+		partType = types.Float64
 	default:
 		v.Fatalf("decomposeComplexPhi: bad complex size %d", z)
 	}
@@ -207,7 +207,7 @@ func decomposeComplexPhi(v *Value) {
 }
 
 func decomposeInterfacePhi(v *Value) {
-	ptrType := v.Block.Func.fe.TypeBytePtr()
+	ptrType := v.Block.Func.Config.Types.BytePtr
 
 	itab := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
 	data := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
