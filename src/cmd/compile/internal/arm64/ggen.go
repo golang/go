@@ -10,12 +10,12 @@ import (
 	"cmd/internal/obj/arm64"
 )
 
-func defframe(ptxt *obj.Prog, fn *gc.Node) {
+func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
 	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
-	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
 
 	// arm64 requires that the frame size (not counting saved LR)
 	// be empty or be 8 mod 16. If not, pad it.
