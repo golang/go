@@ -1009,7 +1009,7 @@ opswitch:
 		n = walkexpr(n, init)
 
 	case OCONV, OCONVNOP:
-		if Thearch.LinkArch.Family == sys.ARM || Thearch.LinkArch.Family == sys.MIPS {
+		if thearch.LinkArch.Family == sys.ARM || thearch.LinkArch.Family == sys.MIPS {
 			if n.Left.Type.IsFloat() {
 				if n.Type.Etype == TINT64 {
 					n = mkcall("float64toint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
@@ -1035,7 +1035,7 @@ opswitch:
 			}
 		}
 
-		if Thearch.LinkArch.Family == sys.I386 {
+		if thearch.LinkArch.Family == sys.I386 {
 			if n.Left.Type.IsFloat() {
 				if n.Type.Etype == TINT64 {
 					n = mkcall("float64toint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))

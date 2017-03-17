@@ -1226,7 +1226,7 @@ func stataddr(nam *Node, n *Node) bool {
 		}
 
 		// Check for overflow.
-		if n.Type.Width != 0 && Thearch.MAXWIDTH/n.Type.Width <= int64(l) {
+		if n.Type.Width != 0 && thearch.MAXWIDTH/n.Type.Width <= int64(l) {
 			break
 		}
 		nam.Xoffset += int64(l) * n.Type.Width
