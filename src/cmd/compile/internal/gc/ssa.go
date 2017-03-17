@@ -4357,7 +4357,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	liveness(e.curfn, ptxt, gcargs, gclocals)
 
 	// Add frame prologue. Zero ambiguously live variables.
-	thearch.Defframe(ptxt, e.curfn, Stksize+s.maxarg)
+	thearch.Defframe(ptxt, e.curfn, e.stksize+s.maxarg)
 	if Debug['f'] != 0 {
 		frame(0)
 	}
@@ -4667,8 +4667,9 @@ func fieldIdx(n *Node) int {
 // ssafn holds frontend information about a function that the backend is processing.
 // It also exports a bunch of compiler services for the ssa backend.
 type ssafn struct {
-	curfn *Node
-	log   bool
+	curfn   *Node
+	stksize int64 // stack size for current frame
+	log     bool
 }
 
 func (s *ssafn) TypeBool() ssa.Type    { return Types[TBOOL] }

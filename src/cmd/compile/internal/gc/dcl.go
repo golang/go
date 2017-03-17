@@ -1199,8 +1199,6 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 }
 
 func funccompile(n *Node) {
-	Stksize = BADWIDTH
-
 	if n.Type == nil {
 		if nerrors == 0 {
 			Fatalf("funccompile missing type")
@@ -1215,7 +1213,6 @@ func funccompile(n *Node) {
 		Fatalf("funccompile %v inside %v", n.Func.Nname.Sym, Curfn.Func.Nname.Sym)
 	}
 
-	Stksize = 0
 	dclcontext = PAUTO
 	funcdepth = n.Func.Depth + 1
 	compile(n)

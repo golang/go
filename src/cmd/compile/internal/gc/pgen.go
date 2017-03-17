@@ -221,7 +221,7 @@ func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 var scratchFpMem *Node
 
 func (s *ssafn) AllocFrame(f *ssa.Func) {
-	Stksize = 0
+	s.stksize = 0
 	stkptrsize = 0
 	fn := s.curfn.Func
 
@@ -277,22 +277,22 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		if w >= thearch.MAXWIDTH || w < 0 {
 			Fatalf("bad width")
 		}
-		Stksize += w
-		Stksize = Rnd(Stksize, int64(n.Type.Align))
+		s.stksize += w
+		s.stksize = Rnd(s.stksize, int64(n.Type.Align))
 		if haspointers(n.Type) {
-			stkptrsize = Stksize
+			stkptrsize = s.stksize
 		}
 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
-			Stksize = Rnd(Stksize, int64(Widthptr))
+			s.stksize = Rnd(s.stksize, int64(Widthptr))
 		}
-		if Stksize >= 1<<31 {
+		if s.stksize >= 1<<31 {
 			yyerrorl(s.curfn.Pos, "stack frame too large (>2GB)")
 		}
 
-		n.Xoffset = -Stksize
+		n.Xoffset = -s.stksize
 	}
 
-	Stksize = Rnd(Stksize, int64(Widthreg))
+	s.stksize = Rnd(s.stksize, int64(Widthreg))
 	stkptrsize = Rnd(stkptrsize, int64(Widthreg))
 }
 
