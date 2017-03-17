@@ -382,7 +382,7 @@ type Arch struct {
 
 var pcloc int32
 
-var Thearch Arch
+var thearch Arch
 
 var (
 	staticbytes,

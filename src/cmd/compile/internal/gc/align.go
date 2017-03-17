@@ -20,7 +20,7 @@ func offmod(t *Type) {
 	for _, f := range t.Fields().Slice() {
 		f.Offset = int64(o)
 		o += int32(Widthptr)
-		if int64(o) >= Thearch.MAXWIDTH {
+		if int64(o) >= thearch.MAXWIDTH {
 			yyerror("interface too large")
 			o = int32(Widthptr)
 		}
@@ -74,7 +74,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 			lastzero = o
 		}
 		o += w
-		maxwidth := Thearch.MAXWIDTH
+		maxwidth := thearch.MAXWIDTH
 		// On 32-bit systems, reflect tables impose an additional constraint
 		// that each field start offset must fit in 31 bits.
 		if maxwidth < 1<<32 {
@@ -258,7 +258,7 @@ func dowidth(t *Type) {
 
 		dowidth(t.Elem())
 		if t.Elem().Width != 0 {
-			cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
+			cap := (uint64(thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
 			if uint64(t.NumElem()) > cap {
 				yyerror("type %L larger than address space", t)
 			}

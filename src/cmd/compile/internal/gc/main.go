@@ -112,9 +112,9 @@ func Main(archInit func(*Arch)) {
 
 	defer hidePanic()
 
-	archInit(&Thearch)
+	archInit(&thearch)
 
-	Ctxt = obj.Linknew(Thearch.LinkArch)
+	Ctxt = obj.Linknew(thearch.LinkArch)
 	Ctxt.DebugInfo = debuginfo
 	Ctxt.DiagFunc = yyerror
 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
@@ -208,11 +208,11 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
 	var flag_shared bool
 	var flag_dynlink bool
-	if supportsDynlink(Thearch.LinkArch.Arch) {
+	if supportsDynlink(thearch.LinkArch.Arch) {
 		flag.BoolVar(&flag_shared, "shared", false, "generate code that can be linked into a shared library")
 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
 	}
-	if Thearch.LinkArch.Family == sys.AMD64 {
+	if thearch.LinkArch.Family == sys.AMD64 {
 		flag.BoolVar(&flag_largemodel, "largemodel", false, "generate code that assumes a large memory model")
 	}
 	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
@@ -336,9 +336,9 @@ func Main(archInit func(*Arch)) {
 		Debug['l'] = 1 - Debug['l']
 	}
 
-	Widthint = Thearch.LinkArch.IntSize
-	Widthptr = Thearch.LinkArch.PtrSize
-	Widthreg = Thearch.LinkArch.RegSize
+	Widthint = thearch.LinkArch.IntSize
+	Widthptr = thearch.LinkArch.PtrSize
+	Widthreg = thearch.LinkArch.RegSize
 
 	initUniverse()
 

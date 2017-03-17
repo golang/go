@@ -508,7 +508,7 @@ func (lv *Liveness) progeffects(prog *obj.Prog) (uevar, varkill, avarinit []int3
 	varkill = lv.cache.varkill[:0]
 	avarinit = lv.cache.avarinit[:0]
 
-	info := Thearch.Proginfo(prog)
+	info := thearch.Proginfo(prog)
 
 	if info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
 		from := &prog.From
