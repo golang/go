@@ -23,7 +23,7 @@ var ssaExp ssaExport
 var ssaCache *ssa.Cache
 
 func initssaconfig() {
-	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, &ssaExp, Ctxt, Debug['N'] == 0)
+	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, Ctxt, Debug['N'] == 0)
 	if thearch.LinkArch.Name == "386" {
 		ssaConfig.Set387(thearch.Use387)
 	}
@@ -52,7 +52,7 @@ func buildssa(fn *Node) *ssa.Func {
 
 	ssaExp.log = printssa
 
-	s.f = ssa.NewFunc()
+	s.f = ssa.NewFunc(&ssaExp)
 	s.config = ssaConfig
 	s.f.Config = ssaConfig
 	s.f.Cache = ssaCache
@@ -74,7 +74,7 @@ func buildssa(fn *Node) *ssa.Func {
 	s.panics = map[funcLine]*ssa.Block{}
 
 	if name == os.Getenv("GOSSAFUNC") {
-		s.f.HTMLWriter = ssa.NewHTMLWriter("ssa.html", ssaConfig, name)
+		s.f.HTMLWriter = ssa.NewHTMLWriter("ssa.html", s.f.Frontend(), name)
 		// TODO: generate and print a mapping from nodes to values and blocks
 	}
 
@@ -239,13 +239,13 @@ func (s *state) label(sym *Sym) *ssaLabel {
 	return lab
 }
 
-func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
-func (s *state) Log() bool                              { return s.config.Log() }
-func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekPos(), msg, args...) }
-func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) {
-	s.config.Warnl(pos, msg, args...)
+func (s *state) Logf(msg string, args ...interface{}) { s.f.Logf(msg, args...) }
+func (s *state) Log() bool                            { return s.f.Log() }
+func (s *state) Fatalf(msg string, args ...interface{}) {
+	s.f.Frontend().Fatalf(s.peekPos(), msg, args...)
 }
-func (s *state) Debug_checknil() bool { return s.config.Debug_checknil() }
+func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) { s.f.Warnl(pos, msg, args...) }
+func (s *state) Debug_checknil() bool                                { return s.f.Frontend().Debug_checknil() }
 
 var (
 	// dummy node for the memory variable
@@ -3279,8 +3279,8 @@ func canSSAType(t *Type) bool {
 func (s *state) exprPtr(n *Node, bounded bool, lineno src.XPos) *ssa.Value {
 	p := s.expr(n)
 	if bounded || n.NonNil() {
-		if s.f.Config.Debug_checknil() && lineno.Line() > 1 {
-			s.f.Config.Warnl(lineno, "removed nil check")
+		if s.f.Frontend().Debug_checknil() && lineno.Line() > 1 {
+			s.f.Warnl(lineno, "removed nil check")
 		}
 		return p
 	}
@@ -4211,7 +4211,7 @@ func (s *SSAGenState) SetPos(pos src.XPos) {
 func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	var s SSAGenState
 
-	e := f.Config.Frontend().(*ssaExport)
+	e := f.Frontend().(*ssaExport)
 
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())

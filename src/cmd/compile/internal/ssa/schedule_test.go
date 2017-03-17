@@ -9,7 +9,7 @@ import "testing"
 func TestSchedule(t *testing.T) {
 	c := testConfig(t)
 	cases := []fun{
-		Fun(c, "entry",
+		Fun(c, DummyFrontend{t}, "entry",
 			Bloc("entry",
 				Valu("mem0", OpInitMem, TypeMem, 0, nil),
 				Valu("ptr", OpConst64, TypeInt64, 0xABCD, nil),
@@ -60,7 +60,7 @@ func TestStoreOrder(t *testing.T) {
 	// In the function below, v2 depends on v3 and v4, v4 depends on v3, and v3 depends on store v5.
 	// storeOrder did not handle this case correctly.
 	c := testConfig(t)
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("mem0", OpInitMem, TypeMem, 0, nil),
 			Valu("a", OpAdd64, TypeInt64, 0, nil, "b", "c"),                  // v2

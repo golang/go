@@ -887,9 +887,7 @@ func rewriteValueS390X_OpAndB(v *Value) bool {
 func rewriteValueS390X_OpAtomicAdd32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (AtomicAdd32 ptr val mem)
 	// cond:
@@ -911,9 +909,7 @@ func rewriteValueS390X_OpAtomicAdd32(v *Value) bool {
 func rewriteValueS390X_OpAtomicAdd64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (AtomicAdd64 ptr val mem)
 	// cond:
@@ -1105,9 +1101,7 @@ func rewriteValueS390X_OpAvg64u(v *Value) bool {
 func rewriteValueS390X_OpBitLen64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (BitLen64 x)
 	// cond:
@@ -1312,9 +1306,7 @@ func rewriteValueS390X_OpConvert(v *Value) bool {
 func rewriteValueS390X_OpCtz32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Ctz32 <t> x)
 	// cond:
@@ -1345,9 +1337,7 @@ func rewriteValueS390X_OpCtz32(v *Value) bool {
 func rewriteValueS390X_OpCtz64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Ctz64 <t> x)
 	// cond:
@@ -1486,9 +1476,7 @@ func rewriteValueS390X_OpCvt64to64F(v *Value) bool {
 func rewriteValueS390X_OpDiv16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div16  x y)
 	// cond:
@@ -1509,9 +1497,7 @@ func rewriteValueS390X_OpDiv16(v *Value) bool {
 func rewriteValueS390X_OpDiv16u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div16u x y)
 	// cond:
@@ -1532,9 +1518,7 @@ func rewriteValueS390X_OpDiv16u(v *Value) bool {
 func rewriteValueS390X_OpDiv32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div32  x y)
 	// cond:
@@ -1566,9 +1550,7 @@ func rewriteValueS390X_OpDiv32F(v *Value) bool {
 func rewriteValueS390X_OpDiv32u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div32u x y)
 	// cond:
@@ -1626,9 +1608,7 @@ func rewriteValueS390X_OpDiv64u(v *Value) bool {
 func rewriteValueS390X_OpDiv8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div8   x y)
 	// cond:
@@ -1649,9 +1629,7 @@ func rewriteValueS390X_OpDiv8(v *Value) bool {
 func rewriteValueS390X_OpDiv8u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div8u  x y)
 	// cond:
@@ -1672,9 +1650,7 @@ func rewriteValueS390X_OpDiv8u(v *Value) bool {
 func rewriteValueS390X_OpEq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq16  x y)
 	// cond:
@@ -1703,9 +1679,7 @@ func rewriteValueS390X_OpEq16(v *Value) bool {
 func rewriteValueS390X_OpEq32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq32  x y)
 	// cond:
@@ -1730,9 +1704,7 @@ func rewriteValueS390X_OpEq32(v *Value) bool {
 func rewriteValueS390X_OpEq32F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq32F x y)
 	// cond:
@@ -1757,9 +1729,7 @@ func rewriteValueS390X_OpEq32F(v *Value) bool {
 func rewriteValueS390X_OpEq64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq64  x y)
 	// cond:
@@ -1784,9 +1754,7 @@ func rewriteValueS390X_OpEq64(v *Value) bool {
 func rewriteValueS390X_OpEq64F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq64F x y)
 	// cond:
@@ -1811,9 +1779,7 @@ func rewriteValueS390X_OpEq64F(v *Value) bool {
 func rewriteValueS390X_OpEq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq8   x y)
 	// cond:
@@ -1842,9 +1808,7 @@ func rewriteValueS390X_OpEq8(v *Value) bool {
 func rewriteValueS390X_OpEqB(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (EqB   x y)
 	// cond:
@@ -1873,9 +1837,7 @@ func rewriteValueS390X_OpEqB(v *Value) bool {
 func rewriteValueS390X_OpEqPtr(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (EqPtr x y)
 	// cond:
@@ -1900,9 +1862,7 @@ func rewriteValueS390X_OpEqPtr(v *Value) bool {
 func rewriteValueS390X_OpGeq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq16  x y)
 	// cond:
@@ -1931,9 +1891,7 @@ func rewriteValueS390X_OpGeq16(v *Value) bool {
 func rewriteValueS390X_OpGeq16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq16U x y)
 	// cond:
@@ -1962,9 +1920,7 @@ func rewriteValueS390X_OpGeq16U(v *Value) bool {
 func rewriteValueS390X_OpGeq32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq32  x y)
 	// cond:
@@ -1989,9 +1945,7 @@ func rewriteValueS390X_OpGeq32(v *Value) bool {
 func rewriteValueS390X_OpGeq32F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq32F x y)
 	// cond:
@@ -2016,9 +1970,7 @@ func rewriteValueS390X_OpGeq32F(v *Value) bool {
 func rewriteValueS390X_OpGeq32U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq32U x y)
 	// cond:
@@ -2043,9 +1995,7 @@ func rewriteValueS390X_OpGeq32U(v *Value) bool {
 func rewriteValueS390X_OpGeq64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq64  x y)
 	// cond:
@@ -2070,9 +2020,7 @@ func rewriteValueS390X_OpGeq64(v *Value) bool {
 func rewriteValueS390X_OpGeq64F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq64F x y)
 	// cond:
@@ -2097,9 +2045,7 @@ func rewriteValueS390X_OpGeq64F(v *Value) bool {
 func rewriteValueS390X_OpGeq64U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq64U x y)
 	// cond:
@@ -2124,9 +2070,7 @@ func rewriteValueS390X_OpGeq64U(v *Value) bool {
 func rewriteValueS390X_OpGeq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq8   x y)
 	// cond:
@@ -2155,9 +2099,7 @@ func rewriteValueS390X_OpGeq8(v *Value) bool {
 func rewriteValueS390X_OpGeq8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq8U  x y)
 	// cond:
@@ -2206,9 +2148,7 @@ func rewriteValueS390X_OpGetG(v *Value) bool {
 func rewriteValueS390X_OpGreater16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater16  x y)
 	// cond:
@@ -2237,9 +2177,7 @@ func rewriteValueS390X_OpGreater16(v *Value) bool {
 func rewriteValueS390X_OpGreater16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater16U x y)
 	// cond:
@@ -2268,9 +2206,7 @@ func rewriteValueS390X_OpGreater16U(v *Value) bool {
 func rewriteValueS390X_OpGreater32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater32  x y)
 	// cond:
@@ -2295,9 +2231,7 @@ func rewriteValueS390X_OpGreater32(v *Value) bool {
 func rewriteValueS390X_OpGreater32F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater32F x y)
 	// cond:
@@ -2322,9 +2256,7 @@ func rewriteValueS390X_OpGreater32F(v *Value) bool {
 func rewriteValueS390X_OpGreater32U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater32U x y)
 	// cond:
@@ -2349,9 +2281,7 @@ func rewriteValueS390X_OpGreater32U(v *Value) bool {
 func rewriteValueS390X_OpGreater64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater64  x y)
 	// cond:
@@ -2376,9 +2306,7 @@ func rewriteValueS390X_OpGreater64(v *Value) bool {
 func rewriteValueS390X_OpGreater64F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater64F x y)
 	// cond:
@@ -2403,9 +2331,7 @@ func rewriteValueS390X_OpGreater64F(v *Value) bool {
 func rewriteValueS390X_OpGreater64U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater64U x y)
 	// cond:
@@ -2430,9 +2356,7 @@ func rewriteValueS390X_OpGreater64U(v *Value) bool {
 func rewriteValueS390X_OpGreater8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater8   x y)
 	// cond:
@@ -2461,9 +2385,7 @@ func rewriteValueS390X_OpGreater8(v *Value) bool {
 func rewriteValueS390X_OpGreater8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater8U  x y)
 	// cond:
@@ -2492,9 +2414,7 @@ func rewriteValueS390X_OpGreater8U(v *Value) bool {
 func rewriteValueS390X_OpHmul32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Hmul32  x y)
 	// cond:
@@ -2518,9 +2438,7 @@ func rewriteValueS390X_OpHmul32(v *Value) bool {
 func rewriteValueS390X_OpHmul32u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Hmul32u x y)
 	// cond:
@@ -2603,9 +2521,7 @@ func rewriteValueS390X_OpInterCall(v *Value) bool {
 func rewriteValueS390X_OpIsInBounds(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (IsInBounds idx len)
 	// cond:
@@ -2630,9 +2546,7 @@ func rewriteValueS390X_OpIsInBounds(v *Value) bool {
 func rewriteValueS390X_OpIsNonNil(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (IsNonNil p)
 	// cond:
@@ -2656,9 +2570,7 @@ func rewriteValueS390X_OpIsNonNil(v *Value) bool {
 func rewriteValueS390X_OpIsSliceInBounds(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (IsSliceInBounds idx len)
 	// cond:
@@ -2683,9 +2595,7 @@ func rewriteValueS390X_OpIsSliceInBounds(v *Value) bool {
 func rewriteValueS390X_OpLeq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq16  x y)
 	// cond:
@@ -2714,9 +2624,7 @@ func rewriteValueS390X_OpLeq16(v *Value) bool {
 func rewriteValueS390X_OpLeq16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq16U x y)
 	// cond:
@@ -2745,9 +2653,7 @@ func rewriteValueS390X_OpLeq16U(v *Value) bool {
 func rewriteValueS390X_OpLeq32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq32  x y)
 	// cond:
@@ -2772,9 +2678,7 @@ func rewriteValueS390X_OpLeq32(v *Value) bool {
 func rewriteValueS390X_OpLeq32F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq32F x y)
 	// cond:
@@ -2799,9 +2703,7 @@ func rewriteValueS390X_OpLeq32F(v *Value) bool {
 func rewriteValueS390X_OpLeq32U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq32U x y)
 	// cond:
@@ -2826,9 +2728,7 @@ func rewriteValueS390X_OpLeq32U(v *Value) bool {
 func rewriteValueS390X_OpLeq64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq64  x y)
 	// cond:
@@ -2853,9 +2753,7 @@ func rewriteValueS390X_OpLeq64(v *Value) bool {
 func rewriteValueS390X_OpLeq64F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq64F x y)
 	// cond:
@@ -2880,9 +2778,7 @@ func rewriteValueS390X_OpLeq64F(v *Value) bool {
 func rewriteValueS390X_OpLeq64U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq64U x y)
 	// cond:
@@ -2907,9 +2803,7 @@ func rewriteValueS390X_OpLeq64U(v *Value) bool {
 func rewriteValueS390X_OpLeq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq8   x y)
 	// cond:
@@ -2938,9 +2832,7 @@ func rewriteValueS390X_OpLeq8(v *Value) bool {
 func rewriteValueS390X_OpLeq8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq8U  x y)
 	// cond:
@@ -2969,9 +2861,7 @@ func rewriteValueS390X_OpLeq8U(v *Value) bool {
 func rewriteValueS390X_OpLess16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less16  x y)
 	// cond:
@@ -3000,9 +2890,7 @@ func rewriteValueS390X_OpLess16(v *Value) bool {
 func rewriteValueS390X_OpLess16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less16U x y)
 	// cond:
@@ -3031,9 +2919,7 @@ func rewriteValueS390X_OpLess16U(v *Value) bool {
 func rewriteValueS390X_OpLess32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less32  x y)
 	// cond:
@@ -3058,9 +2944,7 @@ func rewriteValueS390X_OpLess32(v *Value) bool {
 func rewriteValueS390X_OpLess32F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less32F x y)
 	// cond:
@@ -3085,9 +2969,7 @@ func rewriteValueS390X_OpLess32F(v *Value) bool {
 func rewriteValueS390X_OpLess32U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less32U x y)
 	// cond:
@@ -3112,9 +2994,7 @@ func rewriteValueS390X_OpLess32U(v *Value) bool {
 func rewriteValueS390X_OpLess64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less64  x y)
 	// cond:
@@ -3139,9 +3019,7 @@ func rewriteValueS390X_OpLess64(v *Value) bool {
 func rewriteValueS390X_OpLess64F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less64F x y)
 	// cond:
@@ -3166,9 +3044,7 @@ func rewriteValueS390X_OpLess64F(v *Value) bool {
 func rewriteValueS390X_OpLess64U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less64U x y)
 	// cond:
@@ -3193,9 +3069,7 @@ func rewriteValueS390X_OpLess64U(v *Value) bool {
 func rewriteValueS390X_OpLess8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less8   x y)
 	// cond:
@@ -3224,9 +3098,7 @@ func rewriteValueS390X_OpLess8(v *Value) bool {
 func rewriteValueS390X_OpLess8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less8U  x y)
 	// cond:
@@ -3393,9 +3265,7 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 func rewriteValueS390X_OpLsh16x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh16x16 <t> x y)
 	// cond:
@@ -3471,9 +3341,7 @@ func rewriteValueS390X_OpLsh16x64(v *Value) bool {
 func rewriteValueS390X_OpLsh16x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh16x8  <t> x y)
 	// cond:
@@ -3501,9 +3369,7 @@ func rewriteValueS390X_OpLsh16x8(v *Value) bool {
 func rewriteValueS390X_OpLsh32x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh32x16 <t> x y)
 	// cond:
@@ -3579,9 +3445,7 @@ func rewriteValueS390X_OpLsh32x64(v *Value) bool {
 func rewriteValueS390X_OpLsh32x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh32x8  <t> x y)
 	// cond:
@@ -3609,9 +3473,7 @@ func rewriteValueS390X_OpLsh32x8(v *Value) bool {
 func rewriteValueS390X_OpLsh64x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh64x16 <t> x y)
 	// cond:
@@ -3687,9 +3549,7 @@ func rewriteValueS390X_OpLsh64x64(v *Value) bool {
 func rewriteValueS390X_OpLsh64x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh64x8  <t> x y)
 	// cond:
@@ -3717,9 +3577,7 @@ func rewriteValueS390X_OpLsh64x8(v *Value) bool {
 func rewriteValueS390X_OpLsh8x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh8x16 <t> x y)
 	// cond:
@@ -3795,9 +3653,7 @@ func rewriteValueS390X_OpLsh8x64(v *Value) bool {
 func rewriteValueS390X_OpLsh8x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh8x8  <t> x y)
 	// cond:
@@ -3825,9 +3681,7 @@ func rewriteValueS390X_OpLsh8x8(v *Value) bool {
 func rewriteValueS390X_OpMod16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod16  x y)
 	// cond:
@@ -3848,9 +3702,7 @@ func rewriteValueS390X_OpMod16(v *Value) bool {
 func rewriteValueS390X_OpMod16u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod16u x y)
 	// cond:
@@ -3871,9 +3723,7 @@ func rewriteValueS390X_OpMod16u(v *Value) bool {
 func rewriteValueS390X_OpMod32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod32  x y)
 	// cond:
@@ -3892,9 +3742,7 @@ func rewriteValueS390X_OpMod32(v *Value) bool {
 func rewriteValueS390X_OpMod32u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod32u x y)
 	// cond:
@@ -3939,9 +3787,7 @@ func rewriteValueS390X_OpMod64u(v *Value) bool {
 func rewriteValueS390X_OpMod8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod8   x y)
 	// cond:
@@ -3962,9 +3808,7 @@ func rewriteValueS390X_OpMod8(v *Value) bool {
 func rewriteValueS390X_OpMod8u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod8u  x y)
 	// cond:
@@ -3985,9 +3829,7 @@ func rewriteValueS390X_OpMod8u(v *Value) bool {
 func rewriteValueS390X_OpMove(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Move [0] _ _ mem)
 	// cond:
@@ -4471,9 +4313,7 @@ func rewriteValueS390X_OpMul8(v *Value) bool {
 func rewriteValueS390X_OpNeg16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neg16  x)
 	// cond:
@@ -4534,9 +4374,7 @@ func rewriteValueS390X_OpNeg64F(v *Value) bool {
 func rewriteValueS390X_OpNeg8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neg8   x)
 	// cond:
@@ -4553,9 +4391,7 @@ func rewriteValueS390X_OpNeg8(v *Value) bool {
 func rewriteValueS390X_OpNeq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq16  x y)
 	// cond:
@@ -4584,9 +4420,7 @@ func rewriteValueS390X_OpNeq16(v *Value) bool {
 func rewriteValueS390X_OpNeq32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq32  x y)
 	// cond:
@@ -4611,9 +4445,7 @@ func rewriteValueS390X_OpNeq32(v *Value) bool {
 func rewriteValueS390X_OpNeq32F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq32F x y)
 	// cond:
@@ -4638,9 +4470,7 @@ func rewriteValueS390X_OpNeq32F(v *Value) bool {
 func rewriteValueS390X_OpNeq64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq64  x y)
 	// cond:
@@ -4665,9 +4495,7 @@ func rewriteValueS390X_OpNeq64(v *Value) bool {
 func rewriteValueS390X_OpNeq64F(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq64F x y)
 	// cond:
@@ -4692,9 +4520,7 @@ func rewriteValueS390X_OpNeq64F(v *Value) bool {
 func rewriteValueS390X_OpNeq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq8   x y)
 	// cond:
@@ -4723,9 +4549,7 @@ func rewriteValueS390X_OpNeq8(v *Value) bool {
 func rewriteValueS390X_OpNeqB(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (NeqB   x y)
 	// cond:
@@ -4754,9 +4578,7 @@ func rewriteValueS390X_OpNeqB(v *Value) bool {
 func rewriteValueS390X_OpNeqPtr(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (NeqPtr x y)
 	// cond:
@@ -4806,9 +4628,7 @@ func rewriteValueS390X_OpNot(v *Value) bool {
 func rewriteValueS390X_OpOffPtr(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (OffPtr [off] ptr:(SP))
 	// cond:
@@ -4942,9 +4762,7 @@ func rewriteValueS390X_OpRound64F(v *Value) bool {
 func rewriteValueS390X_OpRsh16Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux16 <t> x y)
 	// cond:
@@ -4974,9 +4792,7 @@ func rewriteValueS390X_OpRsh16Ux16(v *Value) bool {
 func rewriteValueS390X_OpRsh16Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux32 <t> x y)
 	// cond:
@@ -5004,9 +4820,7 @@ func rewriteValueS390X_OpRsh16Ux32(v *Value) bool {
 func rewriteValueS390X_OpRsh16Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux64 <t> x y)
 	// cond:
@@ -5034,9 +4848,7 @@ func rewriteValueS390X_OpRsh16Ux64(v *Value) bool {
 func rewriteValueS390X_OpRsh16Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux8  <t> x y)
 	// cond:
@@ -5066,9 +4878,7 @@ func rewriteValueS390X_OpRsh16Ux8(v *Value) bool {
 func rewriteValueS390X_OpRsh16x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x16 <t> x y)
 	// cond:
@@ -5101,9 +4911,7 @@ func rewriteValueS390X_OpRsh16x16(v *Value) bool {
 func rewriteValueS390X_OpRsh16x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x32 <t> x y)
 	// cond:
@@ -5134,9 +4942,7 @@ func rewriteValueS390X_OpRsh16x32(v *Value) bool {
 func rewriteValueS390X_OpRsh16x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x64 <t> x y)
 	// cond:
@@ -5167,9 +4973,7 @@ func rewriteValueS390X_OpRsh16x64(v *Value) bool {
 func rewriteValueS390X_OpRsh16x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x8  <t> x y)
 	// cond:
@@ -5202,9 +5006,7 @@ func rewriteValueS390X_OpRsh16x8(v *Value) bool {
 func rewriteValueS390X_OpRsh32Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32Ux16 <t> x y)
 	// cond:
@@ -5280,9 +5082,7 @@ func rewriteValueS390X_OpRsh32Ux64(v *Value) bool {
 func rewriteValueS390X_OpRsh32Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32Ux8  <t> x y)
 	// cond:
@@ -5310,9 +5110,7 @@ func rewriteValueS390X_OpRsh32Ux8(v *Value) bool {
 func rewriteValueS390X_OpRsh32x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32x16 <t> x y)
 	// cond:
@@ -5397,9 +5195,7 @@ func rewriteValueS390X_OpRsh32x64(v *Value) bool {
 func rewriteValueS390X_OpRsh32x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32x8  <t> x y)
 	// cond:
@@ -5430,9 +5226,7 @@ func rewriteValueS390X_OpRsh32x8(v *Value) bool {
 func rewriteValueS390X_OpRsh64Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64Ux16 <t> x y)
 	// cond:
@@ -5508,9 +5302,7 @@ func rewriteValueS390X_OpRsh64Ux64(v *Value) bool {
 func rewriteValueS390X_OpRsh64Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64Ux8  <t> x y)
 	// cond:
@@ -5538,9 +5330,7 @@ func rewriteValueS390X_OpRsh64Ux8(v *Value) bool {
 func rewriteValueS390X_OpRsh64x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64x16 <t> x y)
 	// cond:
@@ -5625,9 +5415,7 @@ func rewriteValueS390X_OpRsh64x64(v *Value) bool {
 func rewriteValueS390X_OpRsh64x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64x8  <t> x y)
 	// cond:
@@ -5658,9 +5446,7 @@ func rewriteValueS390X_OpRsh64x8(v *Value) bool {
 func rewriteValueS390X_OpRsh8Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux16 <t> x y)
 	// cond:
@@ -5690,9 +5476,7 @@ func rewriteValueS390X_OpRsh8Ux16(v *Value) bool {
 func rewriteValueS390X_OpRsh8Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux32 <t> x y)
 	// cond:
@@ -5720,9 +5504,7 @@ func rewriteValueS390X_OpRsh8Ux32(v *Value) bool {
 func rewriteValueS390X_OpRsh8Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux64 <t> x y)
 	// cond:
@@ -5750,9 +5532,7 @@ func rewriteValueS390X_OpRsh8Ux64(v *Value) bool {
 func rewriteValueS390X_OpRsh8Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux8  <t> x y)
 	// cond:
@@ -5782,9 +5562,7 @@ func rewriteValueS390X_OpRsh8Ux8(v *Value) bool {
 func rewriteValueS390X_OpRsh8x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x16 <t> x y)
 	// cond:
@@ -5817,9 +5595,7 @@ func rewriteValueS390X_OpRsh8x16(v *Value) bool {
 func rewriteValueS390X_OpRsh8x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x32 <t> x y)
 	// cond:
@@ -5850,9 +5626,7 @@ func rewriteValueS390X_OpRsh8x32(v *Value) bool {
 func rewriteValueS390X_OpRsh8x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x64 <t> x y)
 	// cond:
@@ -5883,9 +5657,7 @@ func rewriteValueS390X_OpRsh8x64(v *Value) bool {
 func rewriteValueS390X_OpRsh8x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x8  <t> x y)
 	// cond:
@@ -14241,9 +14013,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
 func rewriteValueS390X_OpS390XMOVWstoreconst(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (MOVWstoreconst [sc] {s} (ADDconst [off] ptr) mem)
 	// cond: ValAndOff(sc).canAdd(off)
@@ -14969,9 +14739,7 @@ func rewriteValueS390X_OpS390XNEGW(v *Value) bool {
 func rewriteValueS390X_OpS390XNOT(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (NOT x)
 	// cond: true
@@ -15009,9 +14777,7 @@ func rewriteValueS390X_OpS390XNOTW(v *Value) bool {
 func rewriteValueS390X_OpS390XOR(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (OR x (MOVDconst [c]))
 	// cond: isU32Bit(c)
@@ -16090,9 +15856,7 @@ func rewriteValueS390X_OpS390XOR(v *Value) bool {
 func rewriteValueS390X_OpS390XORW(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (ORW x (MOVDconst [c]))
 	// cond:
@@ -18826,7 +18590,7 @@ func rewriteValueS390X_OpZeroExt8to64(v *Value) bool {
 func rewriteBlockS390X(b *Block) bool {
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	switch b.Kind {
 	case BlockS390XEQ:

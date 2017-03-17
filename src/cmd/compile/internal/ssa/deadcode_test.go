@@ -12,7 +12,7 @@ import (
 
 func TestDeadLoop(t *testing.T) {
 	c := testConfig(t)
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Goto("exit")),
@@ -42,7 +42,7 @@ func TestDeadLoop(t *testing.T) {
 
 func TestDeadValue(t *testing.T) {
 	c := testConfig(t)
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("deadval", OpConst64, TypeInt64, 37, nil),
@@ -65,7 +65,7 @@ func TestDeadValue(t *testing.T) {
 
 func TestNeverTaken(t *testing.T) {
 	c := testConfig(t)
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("cond", OpConstBool, TypeBool, 0, nil),
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
@@ -100,7 +100,7 @@ func TestNeverTaken(t *testing.T) {
 
 func TestNestedDeadBlocks(t *testing.T) {
 	c := testConfig(t)
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("cond", OpConstBool, TypeBool, 0, nil),
@@ -152,7 +152,7 @@ func BenchmarkDeadCode(b *testing.B) {
 			}
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				fun := Fun(c, "entry", blocks...)
+				fun := Fun(c, DummyFrontend{b}, "entry", blocks...)
 				Deadcode(fun.f)
 			}
 		})

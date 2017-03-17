@@ -128,9 +128,7 @@ func rewriteValuedec64(v *Value) bool {
 func rewriteValuedec64_OpAdd64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Add64 x y)
 	// cond:
@@ -173,9 +171,7 @@ func rewriteValuedec64_OpAdd64(v *Value) bool {
 func rewriteValuedec64_OpAnd64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (And64 x y)
 	// cond:
@@ -208,7 +204,7 @@ func rewriteValuedec64_OpArg(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Arg {n} [off])
 	// cond: is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned()
@@ -295,9 +291,7 @@ func rewriteValuedec64_OpArg(v *Value) bool {
 func rewriteValuedec64_OpBitLen64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (BitLen64 x)
 	// cond:
@@ -329,9 +323,7 @@ func rewriteValuedec64_OpBitLen64(v *Value) bool {
 func rewriteValuedec64_OpBswap64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Bswap64 x)
 	// cond:
@@ -355,9 +347,7 @@ func rewriteValuedec64_OpBswap64(v *Value) bool {
 func rewriteValuedec64_OpCom64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Com64 x)
 	// cond:
@@ -381,9 +371,7 @@ func rewriteValuedec64_OpCom64(v *Value) bool {
 func rewriteValuedec64_OpConst64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Const64 <t> [c])
 	// cond: t.IsSigned()
@@ -426,9 +414,7 @@ func rewriteValuedec64_OpConst64(v *Value) bool {
 func rewriteValuedec64_OpCtz64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Ctz64 x)
 	// cond:
@@ -462,9 +448,7 @@ func rewriteValuedec64_OpCtz64(v *Value) bool {
 func rewriteValuedec64_OpEq64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq64 x y)
 	// cond:
@@ -495,9 +479,7 @@ func rewriteValuedec64_OpEq64(v *Value) bool {
 func rewriteValuedec64_OpGeq64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq64 x y)
 	// cond:
@@ -538,9 +520,7 @@ func rewriteValuedec64_OpGeq64(v *Value) bool {
 func rewriteValuedec64_OpGeq64U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq64U x y)
 	// cond:
@@ -581,9 +561,7 @@ func rewriteValuedec64_OpGeq64U(v *Value) bool {
 func rewriteValuedec64_OpGreater64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater64 x y)
 	// cond:
@@ -624,9 +602,7 @@ func rewriteValuedec64_OpGreater64(v *Value) bool {
 func rewriteValuedec64_OpGreater64U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater64U x y)
 	// cond:
@@ -701,9 +677,7 @@ func rewriteValuedec64_OpInt64Lo(v *Value) bool {
 func rewriteValuedec64_OpLeq64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq64 x y)
 	// cond:
@@ -744,9 +718,7 @@ func rewriteValuedec64_OpLeq64(v *Value) bool {
 func rewriteValuedec64_OpLeq64U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq64U x y)
 	// cond:
@@ -787,9 +759,7 @@ func rewriteValuedec64_OpLeq64U(v *Value) bool {
 func rewriteValuedec64_OpLess64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less64 x y)
 	// cond:
@@ -830,9 +800,7 @@ func rewriteValuedec64_OpLess64(v *Value) bool {
 func rewriteValuedec64_OpLess64U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less64U x y)
 	// cond:
@@ -875,7 +843,7 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Load <t> ptr mem)
 	// cond: is64BitInt(t) && !config.BigEndian && t.IsSigned()
@@ -978,9 +946,7 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 func rewriteValuedec64_OpLsh16x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh16x64 _ (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -1053,9 +1019,7 @@ func rewriteValuedec64_OpLsh16x64(v *Value) bool {
 func rewriteValuedec64_OpLsh32x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh32x64 _ (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -1128,9 +1092,7 @@ func rewriteValuedec64_OpLsh32x64(v *Value) bool {
 func rewriteValuedec64_OpLsh64x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh64x16 (Int64Make hi lo) s)
 	// cond:
@@ -1181,9 +1143,7 @@ func rewriteValuedec64_OpLsh64x16(v *Value) bool {
 func rewriteValuedec64_OpLsh64x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh64x32 (Int64Make hi lo) s)
 	// cond:
@@ -1234,9 +1194,7 @@ func rewriteValuedec64_OpLsh64x32(v *Value) bool {
 func rewriteValuedec64_OpLsh64x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh64x64 _ (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -1309,9 +1267,7 @@ func rewriteValuedec64_OpLsh64x64(v *Value) bool {
 func rewriteValuedec64_OpLsh64x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh64x8 (Int64Make hi lo) s)
 	// cond:
@@ -1362,9 +1318,7 @@ func rewriteValuedec64_OpLsh64x8(v *Value) bool {
 func rewriteValuedec64_OpLsh8x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh8x64 _ (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -1437,9 +1391,7 @@ func rewriteValuedec64_OpLsh8x64(v *Value) bool {
 func rewriteValuedec64_OpMul64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mul64 x y)
 	// cond:
@@ -1511,9 +1463,7 @@ func rewriteValuedec64_OpNeg64(v *Value) bool {
 func rewriteValuedec64_OpNeq64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq64 x y)
 	// cond:
@@ -1544,9 +1494,7 @@ func rewriteValuedec64_OpNeq64(v *Value) bool {
 func rewriteValuedec64_OpOr64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Or64 x y)
 	// cond:
@@ -1577,9 +1525,7 @@ func rewriteValuedec64_OpOr64(v *Value) bool {
 func rewriteValuedec64_OpRsh16Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux64 _ (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -1652,9 +1598,7 @@ func rewriteValuedec64_OpRsh16Ux64(v *Value) bool {
 func rewriteValuedec64_OpRsh16x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x64 x (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -1730,9 +1674,7 @@ func rewriteValuedec64_OpRsh16x64(v *Value) bool {
 func rewriteValuedec64_OpRsh32Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32Ux64 _ (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -1805,9 +1747,7 @@ func rewriteValuedec64_OpRsh32Ux64(v *Value) bool {
 func rewriteValuedec64_OpRsh32x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32x64 x (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -1881,9 +1821,7 @@ func rewriteValuedec64_OpRsh32x64(v *Value) bool {
 func rewriteValuedec64_OpRsh64Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64Ux16 (Int64Make hi lo) s)
 	// cond:
@@ -1934,9 +1872,7 @@ func rewriteValuedec64_OpRsh64Ux16(v *Value) bool {
 func rewriteValuedec64_OpRsh64Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64Ux32 (Int64Make hi lo) s)
 	// cond:
@@ -1987,9 +1923,7 @@ func rewriteValuedec64_OpRsh64Ux32(v *Value) bool {
 func rewriteValuedec64_OpRsh64Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64Ux64 _ (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -2062,9 +1996,7 @@ func rewriteValuedec64_OpRsh64Ux64(v *Value) bool {
 func rewriteValuedec64_OpRsh64Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64Ux8 (Int64Make hi lo) s)
 	// cond:
@@ -2115,9 +2047,7 @@ func rewriteValuedec64_OpRsh64Ux8(v *Value) bool {
 func rewriteValuedec64_OpRsh64x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64x16 (Int64Make hi lo) s)
 	// cond:
@@ -2180,9 +2110,7 @@ func rewriteValuedec64_OpRsh64x16(v *Value) bool {
 func rewriteValuedec64_OpRsh64x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64x32 (Int64Make hi lo) s)
 	// cond:
@@ -2243,9 +2171,7 @@ func rewriteValuedec64_OpRsh64x32(v *Value) bool {
 func rewriteValuedec64_OpRsh64x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64x64 x (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -2328,9 +2254,7 @@ func rewriteValuedec64_OpRsh64x64(v *Value) bool {
 func rewriteValuedec64_OpRsh64x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh64x8 (Int64Make hi lo) s)
 	// cond:
@@ -2393,9 +2317,7 @@ func rewriteValuedec64_OpRsh64x8(v *Value) bool {
 func rewriteValuedec64_OpRsh8Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux64 _ (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -2468,9 +2390,7 @@ func rewriteValuedec64_OpRsh8Ux64(v *Value) bool {
 func rewriteValuedec64_OpRsh8x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x64 x (Int64Make (Const32 [c]) _))
 	// cond: c != 0
@@ -2546,9 +2466,7 @@ func rewriteValuedec64_OpRsh8x64(v *Value) bool {
 func rewriteValuedec64_OpSignExt16to64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (SignExt16to64 x)
 	// cond:
@@ -2565,9 +2483,7 @@ func rewriteValuedec64_OpSignExt16to64(v *Value) bool {
 func rewriteValuedec64_OpSignExt32to64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (SignExt32to64 x)
 	// cond:
@@ -2585,9 +2501,7 @@ func rewriteValuedec64_OpSignExt32to64(v *Value) bool {
 func rewriteValuedec64_OpSignExt8to64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (SignExt8to64 x)
 	// cond:
@@ -2673,9 +2587,7 @@ func rewriteValuedec64_OpStore(v *Value) bool {
 func rewriteValuedec64_OpSub64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Sub64 x y)
 	// cond:
@@ -2767,9 +2679,7 @@ func rewriteValuedec64_OpTrunc64to8(v *Value) bool {
 func rewriteValuedec64_OpXor64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Xor64 x y)
 	// cond:
@@ -2800,9 +2710,7 @@ func rewriteValuedec64_OpXor64(v *Value) bool {
 func rewriteValuedec64_OpZeroExt16to64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (ZeroExt16to64 x)
 	// cond:
@@ -2819,9 +2727,7 @@ func rewriteValuedec64_OpZeroExt16to64(v *Value) bool {
 func rewriteValuedec64_OpZeroExt32to64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (ZeroExt32to64 x)
 	// cond:
@@ -2839,9 +2745,7 @@ func rewriteValuedec64_OpZeroExt32to64(v *Value) bool {
 func rewriteValuedec64_OpZeroExt8to64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (ZeroExt8to64 x)
 	// cond:
@@ -2858,7 +2762,7 @@ func rewriteValuedec64_OpZeroExt8to64(v *Value) bool {
 func rewriteBlockdec64(b *Block) bool {
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	switch b.Kind {
 	}

@@ -13209,9 +13209,7 @@ func rewriteValueARM_OpCvt64Fto32U(v *Value) bool {
 func rewriteValueARM_OpDiv16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div16 x y)
 	// cond:
@@ -13232,9 +13230,7 @@ func rewriteValueARM_OpDiv16(v *Value) bool {
 func rewriteValueARM_OpDiv16u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div16u x y)
 	// cond:
@@ -13257,7 +13253,7 @@ func rewriteValueARM_OpDiv32(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div32 x y)
 	// cond:
@@ -13328,7 +13324,7 @@ func rewriteValueARM_OpDiv32u(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div32u x y)
 	// cond:
@@ -13362,9 +13358,7 @@ func rewriteValueARM_OpDiv64F(v *Value) bool {
 func rewriteValueARM_OpDiv8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div8 x y)
 	// cond:
@@ -13385,9 +13379,7 @@ func rewriteValueARM_OpDiv8(v *Value) bool {
 func rewriteValueARM_OpDiv8u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div8u x y)
 	// cond:
@@ -13408,9 +13400,7 @@ func rewriteValueARM_OpDiv8u(v *Value) bool {
 func rewriteValueARM_OpEq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq16 x y)
 	// cond:
@@ -13484,9 +13474,7 @@ func rewriteValueARM_OpEq64F(v *Value) bool {
 func rewriteValueARM_OpEq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq8 x y)
 	// cond:
@@ -13509,9 +13497,7 @@ func rewriteValueARM_OpEq8(v *Value) bool {
 func rewriteValueARM_OpEqB(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (EqB x y)
 	// cond:
@@ -13548,9 +13534,7 @@ func rewriteValueARM_OpEqPtr(v *Value) bool {
 func rewriteValueARM_OpGeq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq16 x y)
 	// cond:
@@ -13573,9 +13557,7 @@ func rewriteValueARM_OpGeq16(v *Value) bool {
 func rewriteValueARM_OpGeq16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq16U x y)
 	// cond:
@@ -13666,9 +13648,7 @@ func rewriteValueARM_OpGeq64F(v *Value) bool {
 func rewriteValueARM_OpGeq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq8 x y)
 	// cond:
@@ -13691,9 +13671,7 @@ func rewriteValueARM_OpGeq8(v *Value) bool {
 func rewriteValueARM_OpGeq8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq8U x y)
 	// cond:
@@ -13725,9 +13703,7 @@ func rewriteValueARM_OpGetClosurePtr(v *Value) bool {
 func rewriteValueARM_OpGreater16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater16 x y)
 	// cond:
@@ -13750,9 +13726,7 @@ func rewriteValueARM_OpGreater16(v *Value) bool {
 func rewriteValueARM_OpGreater16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater16U x y)
 	// cond:
@@ -13843,9 +13817,7 @@ func rewriteValueARM_OpGreater64F(v *Value) bool {
 func rewriteValueARM_OpGreater8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater8 x y)
 	// cond:
@@ -13868,9 +13840,7 @@ func rewriteValueARM_OpGreater8(v *Value) bool {
 func rewriteValueARM_OpGreater8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater8U x y)
 	// cond:
@@ -13984,9 +13954,7 @@ func rewriteValueARM_OpIsSliceInBounds(v *Value) bool {
 func rewriteValueARM_OpLeq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq16 x y)
 	// cond:
@@ -14009,9 +13977,7 @@ func rewriteValueARM_OpLeq16(v *Value) bool {
 func rewriteValueARM_OpLeq16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq16U x y)
 	// cond:
@@ -14102,9 +14068,7 @@ func rewriteValueARM_OpLeq64F(v *Value) bool {
 func rewriteValueARM_OpLeq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq8 x y)
 	// cond:
@@ -14127,9 +14091,7 @@ func rewriteValueARM_OpLeq8(v *Value) bool {
 func rewriteValueARM_OpLeq8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq8U x y)
 	// cond:
@@ -14152,9 +14114,7 @@ func rewriteValueARM_OpLeq8U(v *Value) bool {
 func rewriteValueARM_OpLess16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less16 x y)
 	// cond:
@@ -14177,9 +14137,7 @@ func rewriteValueARM_OpLess16(v *Value) bool {
 func rewriteValueARM_OpLess16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less16U x y)
 	// cond:
@@ -14270,9 +14228,7 @@ func rewriteValueARM_OpLess64F(v *Value) bool {
 func rewriteValueARM_OpLess8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less8 x y)
 	// cond:
@@ -14295,9 +14251,7 @@ func rewriteValueARM_OpLess8(v *Value) bool {
 func rewriteValueARM_OpLess8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less8U x y)
 	// cond:
@@ -14443,9 +14397,7 @@ func rewriteValueARM_OpLoad(v *Value) bool {
 func rewriteValueARM_OpLsh16x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh16x16 x y)
 	// cond:
@@ -14532,9 +14484,7 @@ func rewriteValueARM_OpLsh16x64(v *Value) bool {
 func rewriteValueARM_OpLsh16x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh16x8  x y)
 	// cond:
@@ -14553,9 +14503,7 @@ func rewriteValueARM_OpLsh16x8(v *Value) bool {
 func rewriteValueARM_OpLsh32x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh32x16 x y)
 	// cond:
@@ -14642,9 +14590,7 @@ func rewriteValueARM_OpLsh32x64(v *Value) bool {
 func rewriteValueARM_OpLsh32x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh32x8  x y)
 	// cond:
@@ -14663,9 +14609,7 @@ func rewriteValueARM_OpLsh32x8(v *Value) bool {
 func rewriteValueARM_OpLsh8x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh8x16 x y)
 	// cond:
@@ -14752,9 +14696,7 @@ func rewriteValueARM_OpLsh8x64(v *Value) bool {
 func rewriteValueARM_OpLsh8x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh8x8  x y)
 	// cond:
@@ -14773,9 +14715,7 @@ func rewriteValueARM_OpLsh8x8(v *Value) bool {
 func rewriteValueARM_OpMod16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod16 x y)
 	// cond:
@@ -14796,9 +14736,7 @@ func rewriteValueARM_OpMod16(v *Value) bool {
 func rewriteValueARM_OpMod16u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod16u x y)
 	// cond:
@@ -14821,7 +14759,7 @@ func rewriteValueARM_OpMod32(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod32 x y)
 	// cond:
@@ -14873,7 +14811,7 @@ func rewriteValueARM_OpMod32u(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod32u x y)
 	// cond:
@@ -14894,9 +14832,7 @@ func rewriteValueARM_OpMod32u(v *Value) bool {
 func rewriteValueARM_OpMod8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod8 x y)
 	// cond:
@@ -14917,9 +14853,7 @@ func rewriteValueARM_OpMod8(v *Value) bool {
 func rewriteValueARM_OpMod8u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod8u x y)
 	// cond:
@@ -14942,7 +14876,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Move [0] _ _ mem)
 	// cond:
@@ -15348,9 +15282,7 @@ func rewriteValueARM_OpNeg8(v *Value) bool {
 func rewriteValueARM_OpNeq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq16 x y)
 	// cond:
@@ -15424,9 +15356,7 @@ func rewriteValueARM_OpNeq64F(v *Value) bool {
 func rewriteValueARM_OpNeq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq8 x y)
 	// cond:
@@ -15607,9 +15537,7 @@ func rewriteValueARM_OpRound64F(v *Value) bool {
 func rewriteValueARM_OpRsh16Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux16 x y)
 	// cond:
@@ -15639,9 +15567,7 @@ func rewriteValueARM_OpRsh16Ux16(v *Value) bool {
 func rewriteValueARM_OpRsh16Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux32 x y)
 	// cond:
@@ -15667,9 +15593,7 @@ func rewriteValueARM_OpRsh16Ux32(v *Value) bool {
 func rewriteValueARM_OpRsh16Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux64 x (Const64 [c]))
 	// cond: uint64(c) < 16
@@ -15713,9 +15637,7 @@ func rewriteValueARM_OpRsh16Ux64(v *Value) bool {
 func rewriteValueARM_OpRsh16Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux8  x y)
 	// cond:
@@ -15736,9 +15658,7 @@ func rewriteValueARM_OpRsh16Ux8(v *Value) bool {
 func rewriteValueARM_OpRsh16x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x16 x y)
 	// cond:
@@ -15765,9 +15685,7 @@ func rewriteValueARM_OpRsh16x16(v *Value) bool {
 func rewriteValueARM_OpRsh16x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x32 x y)
 	// cond:
@@ -15790,9 +15708,7 @@ func rewriteValueARM_OpRsh16x32(v *Value) bool {
 func rewriteValueARM_OpRsh16x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x64 x (Const64 [c]))
 	// cond: uint64(c) < 16
@@ -15841,9 +15757,7 @@ func rewriteValueARM_OpRsh16x64(v *Value) bool {
 func rewriteValueARM_OpRsh16x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x8  x y)
 	// cond:
@@ -15864,9 +15778,7 @@ func rewriteValueARM_OpRsh16x8(v *Value) bool {
 func rewriteValueARM_OpRsh32Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32Ux16 x y)
 	// cond:
@@ -15953,9 +15865,7 @@ func rewriteValueARM_OpRsh32Ux64(v *Value) bool {
 func rewriteValueARM_OpRsh32Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32Ux8  x y)
 	// cond:
@@ -15974,9 +15884,7 @@ func rewriteValueARM_OpRsh32Ux8(v *Value) bool {
 func rewriteValueARM_OpRsh32x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32x16 x y)
 	// cond:
@@ -16059,9 +15967,7 @@ func rewriteValueARM_OpRsh32x64(v *Value) bool {
 func rewriteValueARM_OpRsh32x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32x8  x y)
 	// cond:
@@ -16080,9 +15986,7 @@ func rewriteValueARM_OpRsh32x8(v *Value) bool {
 func rewriteValueARM_OpRsh8Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux16 x y)
 	// cond:
@@ -16112,9 +16016,7 @@ func rewriteValueARM_OpRsh8Ux16(v *Value) bool {
 func rewriteValueARM_OpRsh8Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux32 x y)
 	// cond:
@@ -16140,9 +16042,7 @@ func rewriteValueARM_OpRsh8Ux32(v *Value) bool {
 func rewriteValueARM_OpRsh8Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux64 x (Const64 [c]))
 	// cond: uint64(c) < 8
@@ -16186,9 +16086,7 @@ func rewriteValueARM_OpRsh8Ux64(v *Value) bool {
 func rewriteValueARM_OpRsh8Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux8  x y)
 	// cond:
@@ -16209,9 +16107,7 @@ func rewriteValueARM_OpRsh8Ux8(v *Value) bool {
 func rewriteValueARM_OpRsh8x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x16 x y)
 	// cond:
@@ -16238,9 +16134,7 @@ func rewriteValueARM_OpRsh8x16(v *Value) bool {
 func rewriteValueARM_OpRsh8x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x32 x y)
 	// cond:
@@ -16263,9 +16157,7 @@ func rewriteValueARM_OpRsh8x32(v *Value) bool {
 func rewriteValueARM_OpRsh8x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x64 x (Const64 [c]))
 	// cond: uint64(c) < 8
@@ -16314,9 +16206,7 @@ func rewriteValueARM_OpRsh8x64(v *Value) bool {
 func rewriteValueARM_OpRsh8x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x8  x y)
 	// cond:
@@ -16831,7 +16721,7 @@ func rewriteValueARM_OpZero(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Zero [0] _ mem)
 	// cond:
@@ -17112,9 +17002,7 @@ func rewriteValueARM_OpZeroExt8to32(v *Value) bool {
 func rewriteValueARM_OpZeromask(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Zeromask x)
 	// cond:
@@ -17134,7 +17022,7 @@ func rewriteValueARM_OpZeromask(v *Value) bool {
 func rewriteBlockARM(b *Block) bool {
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	switch b.Kind {
 	case BlockARMEQ:

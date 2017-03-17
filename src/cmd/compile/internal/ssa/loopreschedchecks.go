@@ -197,7 +197,7 @@ func insertLoopReschedChecks(f *Func) {
 		// if sp < g.limit { goto sched }
 		// goto header
 
-		pt := f.Config.Frontend().TypeUintptr()
+		pt := f.fe.TypeUintptr()
 		g := test.NewValue1(bb.Pos, OpGetG, pt, mem0)
 		sp := test.NewValue0(bb.Pos, OpSP, pt)
 		cmpOp := OpLess64U
@@ -206,7 +206,7 @@ func insertLoopReschedChecks(f *Func) {
 		}
 		limaddr := test.NewValue1I(bb.Pos, OpOffPtr, pt, 2*pt.Size(), g)
 		lim := test.NewValue2(bb.Pos, OpLoad, pt, limaddr, mem0)
-		cmp := test.NewValue2(bb.Pos, cmpOp, f.Config.fe.TypeBool(), sp, lim)
+		cmp := test.NewValue2(bb.Pos, cmpOp, f.fe.TypeBool(), sp, lim)
 		test.SetControl(cmp)
 
 		// if true, goto sched
@@ -224,7 +224,7 @@ func insertLoopReschedChecks(f *Func) {
 		// sched:
 		//    mem1 := call resched (mem0)
 		//    goto header
-		resched := f.Config.fe.Syslook("goschedguarded")
+		resched := f.fe.Syslook("goschedguarded")
 		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, TypeMem, resched, mem0)
 		sched.AddEdgeTo(h)
 		headerMemPhi.AddArg(mem1)

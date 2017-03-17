@@ -6,5 +6,5 @@ package ssa
 
 // stackframe calls back into the frontend to assign frame offsets.
 func stackframe(f *Func) {
-	f.Config.fe.AllocFrame(f)
+	f.fe.AllocFrame(f)
 }

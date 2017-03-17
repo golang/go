@@ -19,6 +19,7 @@ import (
 type Func struct {
 	Config *Config  // architecture information
 	Cache  *Cache   // re-usable cache
+	fe     Frontend // frontend state associated with this Func, callbacks into compiler frontend
 	pass   *pass    // current pass information (name, options, etc.)
 	Name   string   // e.g. bytes·Compare
 	Type   Type     // type signature of the function.
@@ -63,8 +64,8 @@ type Func struct {
 
 // NewFunc returns a new, empty function object.
 // Caller must set f.Config and f.Cache before using f.
-func NewFunc() *Func {
-	return &Func{NamedValues: make(map[LocalSlot][]*Value)}
+func NewFunc(fe Frontend) *Func {
+	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value)}
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.
@@ -165,7 +166,7 @@ func (f *Func) LogStat(key string, args ...interface{}) {
 	if f.pass != nil {
 		n = strings.Replace(f.pass.name, " ", "_", -1)
 	}
-	f.Config.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
+	f.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
 
 // freeValue frees a value. It must no longer be referenced.
@@ -482,9 +483,11 @@ func (f *Func) ConstOffPtrSP(pos src.XPos, t Type, c int64, sp *Value) *Value {
 
 }
 
-func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }
-func (f *Func) Log() bool                              { return f.Config.Log() }
-func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Pos, msg, args...) }
+func (f *Func) Frontend() Frontend                                  { return f.fe }
+func (f *Func) Warnl(pos src.XPos, msg string, args ...interface{}) { f.fe.Warnl(pos, msg, args...) }
+func (f *Func) Logf(msg string, args ...interface{})                { f.fe.Logf(msg, args...) }
+func (f *Func) Log() bool                                           { return f.fe.Log() }
+func (f *Func) Fatalf(msg string, args ...interface{})              { f.fe.Fatalf(f.Entry.Pos, msg, args...) }
 
 // postorder returns the reachable blocks in f in a postorder traversal.
 func (f *Func) postorder() []*Block {

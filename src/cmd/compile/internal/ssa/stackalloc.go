@@ -40,7 +40,7 @@ func newStackAllocState(f *Func) *stackAllocState {
 		return new(stackAllocState)
 	}
 	if s.f != nil {
-		f.Config.Fatalf(src.NoXPos, "newStackAllocState called without previous free")
+		f.fe.Fatalf(src.NoXPos, "newStackAllocState called without previous free")
 	}
 	return s
 }
@@ -246,7 +246,7 @@ func (s *stackAllocState) stackalloc() {
 			// If there is no unused stack slot, allocate a new one.
 			if i == len(locs) {
 				s.nAuto++
-				locs = append(locs, LocalSlot{N: f.Config.fe.Auto(v.Type), Type: v.Type, Off: 0})
+				locs = append(locs, LocalSlot{N: f.fe.Auto(v.Type), Type: v.Type, Off: 0})
 				locations[v.Type] = locs
 			}
 			// Use the stack variable at that index for v.

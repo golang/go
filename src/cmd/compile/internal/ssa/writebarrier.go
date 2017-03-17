@@ -38,7 +38,7 @@ func needwb(v *Value) bool {
 // A sequence of WB stores for many pointer fields of a single type will
 // be emitted together, with a single branch.
 func writebarrier(f *Func) {
-	if !f.Config.fe.UseWriteBarrier() {
+	if !f.fe.UseWriteBarrier() {
 		return
 	}
 
@@ -88,17 +88,17 @@ func writebarrier(f *Func) {
 				}
 			}
 			if sb == nil {
-				sb = f.Entry.NewValue0(initpos, OpSB, f.Config.fe.TypeUintptr())
+				sb = f.Entry.NewValue0(initpos, OpSB, f.fe.TypeUintptr())
 			}
 			if sp == nil {
-				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.fe.TypeUintptr())
+				sp = f.Entry.NewValue0(initpos, OpSP, f.fe.TypeUintptr())
 			}
-			wbsym := &ExternSymbol{Typ: f.Config.fe.TypeBool(), Sym: f.Config.fe.Syslook("writeBarrier")}
-			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.fe.TypeUInt32().PtrTo(), wbsym, sb)
-			writebarrierptr = f.Config.fe.Syslook("writebarrierptr")
-			typedmemmove = f.Config.fe.Syslook("typedmemmove")
-			typedmemclr = f.Config.fe.Syslook("typedmemclr")
-			const0 = f.ConstInt32(initpos, f.Config.fe.TypeUInt32(), 0)
+			wbsym := &ExternSymbol{Typ: f.fe.TypeBool(), Sym: f.fe.Syslook("writeBarrier")}
+			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.fe.TypeUInt32().PtrTo(), wbsym, sb)
+			writebarrierptr = f.fe.Syslook("writebarrierptr")
+			typedmemmove = f.fe.Syslook("typedmemmove")
+			typedmemclr = f.fe.Syslook("typedmemclr")
+			const0 = f.ConstInt32(initpos, f.fe.TypeUInt32(), 0)
 
 			// allocate auxiliary data structures for computing store order
 			sset = f.newSparseSet(f.NumValues())
@@ -155,8 +155,8 @@ func writebarrier(f *Func) {
 
 		// set up control flow for write barrier test
 		// load word, test word, avoiding partial register write from load byte.
-		flag := b.NewValue2(pos, OpLoad, f.Config.fe.TypeUInt32(), wbaddr, mem)
-		flag = b.NewValue2(pos, OpNeq32, f.Config.fe.TypeBool(), flag, const0)
+		flag := b.NewValue2(pos, OpLoad, f.fe.TypeUInt32(), wbaddr, mem)
+		flag = b.NewValue2(pos, OpNeq32, f.fe.TypeBool(), flag, const0)
 		b.Kind = BlockIf
 		b.SetControl(flag)
 		b.Likely = BranchUnlikely
@@ -175,7 +175,7 @@ func writebarrier(f *Func) {
 			ptr := w.Args[0]
 			var typ interface{}
 			if w.Op != OpStoreWB {
-				typ = &ExternSymbol{Typ: f.Config.fe.TypeUintptr(), Sym: w.Aux.(Type).Symbol()}
+				typ = &ExternSymbol{Typ: f.fe.TypeUintptr(), Sym: w.Aux.(Type).Symbol()}
 			}
 			pos = w.Pos
 
@@ -208,13 +208,13 @@ func writebarrier(f *Func) {
 			}
 
 			if f.NoWB {
-				f.Config.fe.Error(pos, "write barrier prohibited")
+				f.fe.Error(pos, "write barrier prohibited")
 			}
 			if !f.WBPos.IsKnown() {
 				f.WBPos = pos
 			}
-			if f.Config.fe.Debug_wb() {
-				f.Config.Warnl(pos, "write barrier")
+			if f.fe.Debug_wb() {
+				f.Warnl(pos, "write barrier")
 			}
 		}
 
@@ -266,7 +266,7 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem
 		// a function call). Marshaling the args to typedmemmove might clobber the
 		// value we're trying to move.
 		t := val.Type.ElemType()
-		tmp = config.fe.Auto(t)
+		tmp = b.Func.fe.Auto(t)
 		aux := &AutoSymbol{Typ: t, Node: tmp}
 		mem = b.NewValue1A(pos, OpVarDef, TypeMem, tmp, mem)
 		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), aux, sp)
@@ -280,7 +280,7 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem
 	off := config.ctxt.FixedFrameSize()
 
 	if typ != nil { // for typedmemmove
-		taddr := b.NewValue1A(pos, OpAddr, config.fe.TypeUintptr(), typ, sb)
+		taddr := b.NewValue1A(pos, OpAddr, b.Func.fe.TypeUintptr(), typ, sb)
 		off = round(off, taddr.Type.Alignment())
 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, TypeMem, ptr.Type, arg, taddr, mem)

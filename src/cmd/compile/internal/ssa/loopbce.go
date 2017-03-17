@@ -139,9 +139,9 @@ nextb:
 
 		if f.pass.debug > 1 {
 			if min.Op == OpConst64 {
-				b.Func.Config.Warnl(b.Pos, "Induction variable with minimum %d and increment %d", min.AuxInt, inc.AuxInt)
+				b.Func.Warnl(b.Pos, "Induction variable with minimum %d and increment %d", min.AuxInt, inc.AuxInt)
 			} else {
-				b.Func.Config.Warnl(b.Pos, "Induction variable with non-const minimum and increment %d", inc.AuxInt)
+				b.Func.Warnl(b.Pos, "Induction variable with non-const minimum and increment %d", inc.AuxInt)
 			}
 		}
 
@@ -205,7 +205,7 @@ func removeBoundsChecks(f *Func, m map[*Value]indVar) {
 			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
 				if v.Args[1] == iv.max {
 					if f.pass.debug > 0 {
-						f.Config.Warnl(b.Pos, "Found redundant %s", v.Op)
+						f.Warnl(b.Pos, "Found redundant %s", v.Op)
 					}
 					goto simplify
 				}
@@ -232,7 +232,7 @@ func removeBoundsChecks(f *Func, m map[*Value]indVar) {
 			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
 				if v.Args[1].Op == OpSliceCap && iv.max.Op == OpSliceLen && v.Args[1].Args[0] == iv.max.Args[0] {
 					if f.pass.debug > 0 {
-						f.Config.Warnl(b.Pos, "Found redundant %s (len promoted to cap)", v.Op)
+						f.Warnl(b.Pos, "Found redundant %s (len promoted to cap)", v.Op)
 					}
 					goto simplify
 				}
@@ -263,7 +263,7 @@ func removeBoundsChecks(f *Func, m map[*Value]indVar) {
 
 				if max := iv.max.AuxInt + add; 0 <= max && max <= limit { // handle overflow
 					if f.pass.debug > 0 {
-						f.Config.Warnl(b.Pos, "Found redundant (%s ind %d), ind < %d", v.Op, v.Args[1].AuxInt, iv.max.AuxInt+add)
+						f.Warnl(b.Pos, "Found redundant (%s ind %d), ind < %d", v.Op, v.Args[1].AuxInt, iv.max.AuxInt+add)
 					}
 					goto simplify
 				}
