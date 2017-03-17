@@ -98,8 +98,8 @@ func issue10979() {
 // issue11347
 // These should not crash.
 var a1, b1 /* ERROR cycle */ , c1 /* ERROR cycle */ b1 = 0 > 0<<""[""[c1]]>c1
-var a2, b2 /* ERROR cycle */ = 0 /* ERROR mismatch */ /* ERROR mismatch */ > 0<<""[b2]
-var a3, b3 /* ERROR cycle */ = int /* ERROR mismatch */ /* ERROR mismatch */ (1<<""[b3])
+var a2, b2 /* ERROR cycle */ = 0 /* ERROR cannot initialize */ /* ERROR cannot initialize */ > 0<<""[b2]
+var a3, b3 /* ERROR cycle */ = int /* ERROR cannot initialize */ /* ERROR cannot initialize */ (1<<""[b3])
 
 // issue10260
 // Check that error messages explain reason for interface assignment failures.
