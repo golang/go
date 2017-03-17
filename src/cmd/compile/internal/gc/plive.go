@@ -85,10 +85,11 @@ type BasicBlock struct {
 
 // A collection of global state used by liveness analysis.
 type Liveness struct {
-	fn   *Node
-	ptxt *obj.Prog
-	vars []*Node
-	cfg  []*BasicBlock
+	fn         *Node
+	ptxt       *obj.Prog
+	vars       []*Node
+	cfg        []*BasicBlock
+	stkptrsize int64
 
 	// An array with a bit vector for each safe point tracking
 	// live variables, indexed by bb.rpo.
@@ -601,12 +602,13 @@ func liveIndex(n *Node, vars []*Node) int32 {
 // Constructs a new liveness structure used to hold the global state of the
 // liveness computation. The cfg argument is a slice of *BasicBlocks and the
 // vars argument is a slice of *Nodes.
-func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node) *Liveness {
+func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node, stkptrsize int64) *Liveness {
 	result := Liveness{
-		fn:   fn,
-		ptxt: ptxt,
-		cfg:  cfg,
-		vars: vars,
+		fn:         fn,
+		ptxt:       ptxt,
+		cfg:        cfg,
+		vars:       vars,
+		stkptrsize: stkptrsize,
 	}
 
 	nblocks := int32(len(cfg))
@@ -872,8 +874,8 @@ func onebitwalktype1(t *Type, xoffset *int64, bv bvec) {
 }
 
 // Returns the number of words of local variables.
-func localswords() int32 {
-	return int32(stkptrsize / int64(Widthptr))
+func localswords(lv *Liveness) int32 {
+	return int32(lv.stkptrsize / int64(Widthptr))
 }
 
 // Returns the number of words of in and out arguments.
@@ -895,7 +897,7 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
 		node := vars[i]
 		switch node.Class {
 		case PAUTO:
-			xoffset = node.Xoffset + stkptrsize
+			xoffset = node.Xoffset + lv.stkptrsize
 			onebitwalktype1(node.Type, &xoffset, locals)
 
 		case PPARAM, PPARAMOUT:
@@ -1581,7 +1583,7 @@ func livenessemit(lv *Liveness, argssym, livesym *Sym) {
 	aoff := duint32(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
 	aoff = duint32(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
 
-	locals := bvalloc(localswords())
+	locals := bvalloc(localswords(lv))
 	loff := duint32(livesym, 0, uint32(len(lv.livevars))) // number of bitmaps
 	loff = duint32(livesym, loff, uint32(locals.n))       // number of bits in each bitmap
 
@@ -1609,21 +1611,21 @@ func printprog(p *obj.Prog) {
 // Entry pointer for liveness analysis. Constructs a complete CFG, solves for
 // the liveness of pointer variables in the function, and emits a runtime data
 // structure read by the garbage collector.
-func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
+func liveness(e *ssafn, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	// Change name to dump debugging information only for a specific function.
 	debugdelta := 0
 
-	if Curfn.Func.Nname.Sym.Name == "!" {
+	if e.curfn.Func.Nname.Sym.Name == "!" {
 		debugdelta = 2
 	}
 
 	debuglive += debugdelta
 	if debuglive >= 3 {
-		fmt.Printf("liveness: %s\n", Curfn.Func.Nname.Sym.Name)
+		fmt.Printf("liveness: %s\n", e.curfn.Func.Nname.Sym.Name)
 		printprog(firstp)
 	}
 
-	checkptxt(fn, firstp)
+	checkptxt(e.curfn, firstp)
 
 	// Construct the global liveness state.
 	cfg := newcfg(firstp)
@@ -1631,8 +1633,8 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	if debuglive >= 3 {
 		printcfg(cfg)
 	}
-	vars := getvariables(fn)
-	lv := newliveness(fn, firstp, cfg, vars)
+	vars := getvariables(e.curfn)
+	lv := newliveness(e.curfn, firstp, cfg, vars, e.stkptrsize)
 
 	// Run the dataflow framework.
 	livenessprologue(lv)
@@ -1658,7 +1660,7 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	livenessemit(lv, argssym, livesym)
 
 	// Free everything.
-	for _, ln := range fn.Func.Dcl {
+	for _, ln := range e.curfn.Func.Dcl {
 		if ln != nil {
 			ln.SetOpt(nil)
 		}

@@ -222,7 +222,7 @@ var scratchFpMem *Node
 
 func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stksize = 0
-	stkptrsize = 0
+	s.stkptrsize = 0
 	fn := s.curfn.Func
 
 	// Mark the PAUTO's unused.
@@ -280,7 +280,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		s.stksize += w
 		s.stksize = Rnd(s.stksize, int64(n.Type.Align))
 		if haspointers(n.Type) {
-			stkptrsize = s.stksize
+			s.stkptrsize = s.stksize
 		}
 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
 			s.stksize = Rnd(s.stksize, int64(Widthptr))
@@ -293,7 +293,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	}
 
 	s.stksize = Rnd(s.stksize, int64(Widthreg))
-	stkptrsize = Rnd(stkptrsize, int64(Widthreg))
+	s.stkptrsize = Rnd(s.stkptrsize, int64(Widthreg))
 }
 
 func compile(fn *Node) {
