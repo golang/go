@@ -10,12 +10,12 @@ import (
 	"cmd/internal/obj/arm"
 )
 
-func defframe(ptxt *obj.Prog, fn *gc.Node) {
+func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
 	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
-	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
 	ptxt.To.Offset = int64(frame)
 
 	// insert code to contain ambiguously live variables

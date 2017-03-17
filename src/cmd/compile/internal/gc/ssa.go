@@ -4355,7 +4355,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	liveness(e.curfn, ptxt, gcargs, gclocals)
 
 	// Add frame prologue. Zero ambiguously live variables.
-	thearch.Defframe(ptxt, e.curfn)
+	thearch.Defframe(ptxt, e.curfn, Stksize+Maxarg)
 	if Debug['f'] != 0 {
 		frame(0)
 	}
