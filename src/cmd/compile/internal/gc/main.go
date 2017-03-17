@@ -107,10 +107,12 @@ var benchfile string
 // Main parses flags and Go source files specified in the command-line
 // arguments, type-checks the parsed Go package, compiles functions to machine
 // code, and finally writes the compiled package definition to disk.
-func Main() {
+func Main(archInit func(*Arch)) {
 	timings.Start("fe", "init")
 
 	defer hidePanic()
+
+	archInit(&Thearch)
 
 	Ctxt = obj.Linknew(Thearch.LinkArch)
 	Ctxt.DebugInfo = debuginfo

@@ -1021,10 +1021,7 @@ var blockJump = [...]struct {
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
-	s.SetPos(b.Pos)
-
 	switch b.Kind {
-
 	case ssa.BlockDefer:
 		// defer returns in R3:
 		// 0 if we should continue executing

@@ -114,12 +114,6 @@ func opregreg(op obj.As, dest, src int16) *obj.Prog {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	if gc.Thearch.Use387 {
-		if ssaGenValue387(s, v) {
-			return // v was handled by 387 generation.
-		}
-	}
-
 	switch v.Op {
 	case ssa.Op386ADDL:
 		r := v.Reg()
@@ -778,13 +772,6 @@ var nefJumps = [2][2]gc.FloatingEQNEJump{
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
-	s.SetPos(b.Pos)
-
-	if gc.Thearch.Use387 {
-		// Empty the 387's FP stack before the block ends.
-		flush387(s)
-	}
-
 	switch b.Kind {
 	case ssa.BlockPlain:
 		if b.Succs[0].Block() != next {

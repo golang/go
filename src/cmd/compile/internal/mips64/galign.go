@@ -11,19 +11,19 @@ import (
 	"cmd/internal/obj/mips"
 )
 
-func Init() {
-	gc.Thearch.LinkArch = &mips.Linkmips64
+func Init(arch *gc.Arch) {
+	arch.LinkArch = &mips.Linkmips64
 	if obj.GOARCH == "mips64le" {
-		gc.Thearch.LinkArch = &mips.Linkmips64le
+		arch.LinkArch = &mips.Linkmips64le
 	}
-	gc.Thearch.REGSP = mips.REGSP
-	gc.Thearch.MAXWIDTH = 1 << 50
+	arch.REGSP = mips.REGSP
+	arch.MAXWIDTH = 1 << 50
 
-	gc.Thearch.Defframe = defframe
-	gc.Thearch.Ginsnop = ginsnop
-	gc.Thearch.Proginfo = proginfo
+	arch.Defframe = defframe
+	arch.Ginsnop = ginsnop
+	arch.Proginfo = proginfo
 
-	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
-	gc.Thearch.SSAGenValue = ssaGenValue
-	gc.Thearch.SSAGenBlock = ssaGenBlock
+	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+	arch.SSAGenValue = ssaGenValue
+	arch.SSAGenBlock = ssaGenBlock
 }

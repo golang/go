@@ -9,16 +9,16 @@ import (
 	"cmd/internal/obj/s390x"
 )
 
-func Init() {
-	gc.Thearch.LinkArch = &s390x.Links390x
-	gc.Thearch.REGSP = s390x.REGSP
-	gc.Thearch.MAXWIDTH = 1 << 50
+func Init(arch *gc.Arch) {
+	arch.LinkArch = &s390x.Links390x
+	arch.REGSP = s390x.REGSP
+	arch.MAXWIDTH = 1 << 50
 
-	gc.Thearch.Defframe = defframe
-	gc.Thearch.Ginsnop = ginsnop
-	gc.Thearch.Proginfo = proginfo
+	arch.Defframe = defframe
+	arch.Ginsnop = ginsnop
+	arch.Proginfo = proginfo
 
-	gc.Thearch.SSAMarkMoves = ssaMarkMoves
-	gc.Thearch.SSAGenValue = ssaGenValue
-	gc.Thearch.SSAGenBlock = ssaGenBlock
+	arch.SSAMarkMoves = ssaMarkMoves
+	arch.SSAGenValue = ssaGenValue
+	arch.SSAGenBlock = ssaGenBlock
 }

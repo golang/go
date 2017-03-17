@@ -12,9 +12,8 @@ import (
 	"math"
 )
 
-// Generates code for v using 387 instructions.  Reports whether
-// the instruction was handled by this routine.
-func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+// Generates code for v using 387 instructions.
+func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) {
 	// The SSA compiler pretends that it has an SSE backend.
 	// If we don't have one of those, we need to translate
 	// all the SSE ops to equivalent 387 ops. That's what this
@@ -28,7 +27,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_F0
 		popAndSave(s, v)
-		return true
+
 	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
 		p := gc.Prog(loadPush(v.Type))
 		p.From.Type = obj.TYPE_MEM
@@ -36,7 +35,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_F0
 		popAndSave(s, v)
-		return true
 
 	case ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1, ssa.Op386MOVSSloadidx4, ssa.Op386MOVSDloadidx8:
 		p := gc.Prog(loadPush(v.Type))
@@ -57,7 +55,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_F0
 		popAndSave(s, v)
-		return true
 
 	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore:
 		// Push to-be-stored value on top of stack.
@@ -77,7 +74,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
-		return true
 
 	case ssa.Op386MOVSSstoreidx1, ssa.Op386MOVSDstoreidx1, ssa.Op386MOVSSstoreidx4, ssa.Op386MOVSDstoreidx8:
 		push(s, v.Args[2])
@@ -105,7 +101,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 			p.To.Scale = 8
 			p.To.Index = v.Args[1].Reg()
 		}
-		return true
 
 	case ssa.Op386ADDSS, ssa.Op386ADDSD, ssa.Op386SUBSS, ssa.Op386SUBSD,
 		ssa.Op386MULSS, ssa.Op386MULSD, ssa.Op386DIVSS, ssa.Op386DIVSD:
@@ -151,8 +146,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 			s.AddrScratch(&p.From)
 		}
 
-		return true
-
 	case ssa.Op386UCOMISS, ssa.Op386UCOMISD:
 		push(s, v.Args[0])
 
@@ -183,19 +176,15 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_AX
 
-		return true
-
 	case ssa.Op386SQRTSD:
 		push(s, v.Args[0])
 		gc.Prog(x86.AFSQRT)
 		popAndSave(s, v)
-		return true
 
 	case ssa.Op386FCHS:
 		push(s, v.Args[0])
 		gc.Prog(x86.AFCHS)
 		popAndSave(s, v)
-		return true
 
 	case ssa.Op386CVTSL2SS, ssa.Op386CVTSL2SD:
 		p := gc.Prog(x86.AMOVL)
@@ -207,7 +196,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_F0
 		popAndSave(s, v)
-		return true
 
 	case ssa.Op386CVTTSD2SL, ssa.Op386CVTTSS2SL:
 		push(s, v.Args[0])
@@ -237,13 +225,11 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p = gc.Prog(x86.AFLDCW)
 		s.AddrScratch(&p.From)
 		p.From.Offset += 4
-		return true
 
 	case ssa.Op386CVTSS2SD:
 		// float32 -> float64 is a nop
 		push(s, v.Args[0])
 		popAndSave(s, v)
-		return true
 
 	case ssa.Op386CVTSD2SS:
 		// Round to nearest float32.
@@ -257,11 +243,11 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_F0
 		popAndSave(s, v)
-		return true
 
 	case ssa.OpLoadReg:
 		if !v.Type.IsFloat() {
-			return false
+			ssaGenValue(s, v)
+			return
 		}
 		// Load+push the value we need.
 		p := gc.Prog(loadPush(v.Type))
@@ -270,11 +256,11 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.To.Reg = x86.REG_F0
 		// Move the value to its assigned register.
 		popAndSave(s, v)
-		return true
 
 	case ssa.OpStoreReg:
 		if !v.Type.IsFloat() {
-			return false
+			ssaGenValue(s, v)
+			return
 		}
 		push(s, v.Args[0])
 		var op obj.As
@@ -288,21 +274,21 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x86.REG_F0
 		gc.AddrAuto(&p.To, v)
-		return true
 
 	case ssa.OpCopy:
 		if !v.Type.IsFloat() {
-			return false
+			ssaGenValue(s, v)
+			return
 		}
 		push(s, v.Args[0])
 		popAndSave(s, v)
-		return true
 
 	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
-		flush387(s)  // Calls must empty the FP stack.
-		return false // then issue the call as normal
+		flush387(s) // Calls must empty the FP stack.
+		fallthrough // then issue the call as normal
+	default:
+		ssaGenValue(s, v)
 	}
-	return false
 }
 
 // push pushes v onto the floating-point stack.  v must be in a register.
@@ -354,4 +340,11 @@ func flush387(s *gc.SSAGenState) {
 		p.To.Reg = x86.REG_F0
 		delete(s.SSEto387, k)
 	}
+}
+
+func ssaGenBlock387(s *gc.SSAGenState, b, next *ssa.Block) {
+	// Empty the 387's FP stack before the block ends.
+	flush387(s)
+
+	ssaGenBlock(s, b, next)
 }
