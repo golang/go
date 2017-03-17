@@ -78,7 +78,7 @@ var (
 	u2 = iface.([]int)
 	u3 = iface.(a /* ERROR "not a type" */ )
 	u4, ok = iface.(int)
-	u5, ok2, ok3 = iface /* ERROR "assignment count mismatch" */ .(int)
+	u5, ok2, ok3 = iface /* ERROR "cannot initialize" */ .(int)
 )
 
 // Constant expression initializations

@@ -219,7 +219,7 @@ func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", l, r)
 			return
 		}
-		check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
+		check.errorf(rhs[0].Pos(), "cannot initialize %d variables with %d values", l, r)
 		return
 	}
 
@@ -253,7 +253,7 @@ func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
 	}
 	if l != r {
 		check.useGetter(get, r)
-		check.errorf(rhs[0].Pos(), "assignment count mismatch (%d vs %d)", l, r)
+		check.errorf(rhs[0].Pos(), "cannot assign %d values to %d variables", r, l)
 		return
 	}
 

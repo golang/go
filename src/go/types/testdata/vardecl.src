@@ -28,39 +28,39 @@ var _ = f /* ERROR "used as value" */ ()
 // Identifier and expression arity must match.
 var _, _ = 1, 2
 var _ = 1, 2 /* ERROR "extra init expr 2" */
-var _, _ = 1 /* ERROR "assignment count mismatch" */
+var _, _ = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
 var _, _, _ /* ERROR "missing init expr for _" */ = 1, 2
 
 var _ = g /* ERROR "2-valued g" */ ()
 var _, _ = g()
-var _, _, _ = g /* ERROR "assignment count mismatch" */ ()
+var _, _, _ = g /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ()
 
 var _ = m["foo"]
 var _, _ = m["foo"]
-var _, _, _ = m  /* ERROR "assignment count mismatch" */ ["foo"]
+var _, _, _ = m  /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ["foo"]
 
 var _, _ int = 1, 2
 var _ int = 1, 2 /* ERROR "extra init expr 2" */
-var _, _ int = 1 /* ERROR "assignment count mismatch" */
+var _, _ int = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
 var _, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
 
 var (
 	_, _ = 1, 2
 	_ = 1, 2 /* ERROR "extra init expr 2" */
-	_, _ = 1 /* ERROR "assignment count mismatch" */
+	_, _ = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
 	_, _, _ /* ERROR "missing init expr for _" */ = 1, 2
 
 	_ = g /* ERROR "2-valued g" */ ()
 	_, _ = g()
-	_, _, _ = g /* ERROR "assignment count mismatch" */ ()
+	_, _, _ = g /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ()
 
 	_ = m["foo"]
 	_, _ = m["foo"]
-	_, _, _ = m /* ERROR "assignment count mismatch" */ ["foo"]
+	_, _, _ = m /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ["foo"]
 
 	_, _ int = 1, 2
 	_ int = 1, 2 /* ERROR "extra init expr 2" */
-	_, _ int = 1 /* ERROR "assignment count mismatch" */
+	_, _ int = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
 	_, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
 )
 
@@ -155,7 +155,7 @@ func (r T) _(a, b, c int) (u, v, w int) {
 func _() {
 	var a, b, c int
 	var x, y int
-	x, y = a /* ERROR assignment count mismatch */ , b, c
+	x, y = a /* ERROR cannot assign [0-9]+ values to [0-9]+ variables */ , b, c
 	_ = x
 	_ = y
 }
