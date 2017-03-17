@@ -895,10 +895,10 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const name = "test"
+	const name = "test-issue19592"
 	const server = "192.0.2.53:53"
-	const searchX = "test.x.golang.org."
-	const searchY = "test.y.golang.org."
+	const searchX = "test-issue19592.x.golang.org."
+	const searchY = "test-issue19592.y.golang.org."
 	const ip4 = "192.0.2.1"
 	const ip6 = "2001:db8::1"
 
