@@ -10,7 +10,7 @@ func TestWriteBarrierStoreOrder(t *testing.T) {
 	// Make sure writebarrier phase works even StoreWB ops are not in dependency order
 	c := testConfig(t)
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("start", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -34,7 +34,7 @@ func TestWriteBarrierPhi(t *testing.T) {
 	// See issue #19067.
 	c := testConfig(t)
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("start", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),

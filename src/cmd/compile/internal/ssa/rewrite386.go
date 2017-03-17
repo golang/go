@@ -4354,7 +4354,7 @@ func rewriteValue386_Op386MOVSDconst(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (MOVSDconst [c])
 	// cond: config.ctxt.Flag_shared
@@ -4843,7 +4843,7 @@ func rewriteValue386_Op386MOVSSconst(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (MOVSSconst [c])
 	// cond: config.ctxt.Flag_shared
@@ -7212,9 +7212,7 @@ func rewriteValue386_Op386NOTL(v *Value) bool {
 func rewriteValue386_Op386ORL(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (ORL x (MOVLconst [c]))
 	// cond:
@@ -9892,9 +9890,7 @@ func rewriteValue386_OpDiv64F(v *Value) bool {
 func rewriteValue386_OpDiv8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div8   x y)
 	// cond:
@@ -9915,9 +9911,7 @@ func rewriteValue386_OpDiv8(v *Value) bool {
 func rewriteValue386_OpDiv8u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div8u  x y)
 	// cond:
@@ -11169,9 +11163,7 @@ func rewriteValue386_OpMod32u(v *Value) bool {
 func rewriteValue386_OpMod8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod8   x y)
 	// cond:
@@ -11192,9 +11184,7 @@ func rewriteValue386_OpMod8(v *Value) bool {
 func rewriteValue386_OpMod8u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod8u  x y)
 	// cond:
@@ -11217,7 +11207,7 @@ func rewriteValue386_OpMove(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Move [0] _ _ mem)
 	// cond:
@@ -11605,7 +11595,7 @@ func rewriteValue386_OpNeg32F(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neg32F x)
 	// cond: !config.use387
@@ -11641,7 +11631,7 @@ func rewriteValue386_OpNeg64F(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neg64F x)
 	// cond: !config.use387
@@ -12965,7 +12955,7 @@ func rewriteValue386_OpZero(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Zero [0] _ mem)
 	// cond:
@@ -13291,7 +13281,7 @@ func rewriteValue386_OpZeromask(v *Value) bool {
 func rewriteBlock386(b *Block) bool {
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	switch b.Kind {
 	case Block386EQ:

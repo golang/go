@@ -684,7 +684,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (AtomicAnd8  ptr val mem)
 	// cond: !config.BigEndian
@@ -858,7 +858,7 @@ func rewriteValueMIPS_OpAtomicOr8(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (AtomicOr8 ptr val mem)
 	// cond: !config.BigEndian
@@ -984,9 +984,7 @@ func rewriteValueMIPS_OpAvg32u(v *Value) bool {
 func rewriteValueMIPS_OpBitLen32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (BitLen32 <t> x)
 	// cond:
@@ -1149,9 +1147,7 @@ func rewriteValueMIPS_OpConvert(v *Value) bool {
 func rewriteValueMIPS_OpCtz32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Ctz32 <t> x)
 	// cond:
@@ -1246,9 +1242,7 @@ func rewriteValueMIPS_OpCvt64Fto32F(v *Value) bool {
 func rewriteValueMIPS_OpDiv16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div16 x y)
 	// cond:
@@ -1271,9 +1265,7 @@ func rewriteValueMIPS_OpDiv16(v *Value) bool {
 func rewriteValueMIPS_OpDiv16u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div16u x y)
 	// cond:
@@ -1296,9 +1288,7 @@ func rewriteValueMIPS_OpDiv16u(v *Value) bool {
 func rewriteValueMIPS_OpDiv32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div32 x y)
 	// cond:
@@ -1330,9 +1320,7 @@ func rewriteValueMIPS_OpDiv32F(v *Value) bool {
 func rewriteValueMIPS_OpDiv32u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div32u x y)
 	// cond:
@@ -1364,9 +1352,7 @@ func rewriteValueMIPS_OpDiv64F(v *Value) bool {
 func rewriteValueMIPS_OpDiv8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div8 x y)
 	// cond:
@@ -1389,9 +1375,7 @@ func rewriteValueMIPS_OpDiv8(v *Value) bool {
 func rewriteValueMIPS_OpDiv8u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Div8u x y)
 	// cond:
@@ -1414,9 +1398,7 @@ func rewriteValueMIPS_OpDiv8u(v *Value) bool {
 func rewriteValueMIPS_OpEq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq16 x y)
 	// cond:
@@ -1440,9 +1422,7 @@ func rewriteValueMIPS_OpEq16(v *Value) bool {
 func rewriteValueMIPS_OpEq32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq32 x y)
 	// cond:
@@ -1496,9 +1476,7 @@ func rewriteValueMIPS_OpEq64F(v *Value) bool {
 func rewriteValueMIPS_OpEq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Eq8 x y)
 	// cond:
@@ -1522,9 +1500,7 @@ func rewriteValueMIPS_OpEq8(v *Value) bool {
 func rewriteValueMIPS_OpEqB(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (EqB x y)
 	// cond:
@@ -1544,9 +1520,7 @@ func rewriteValueMIPS_OpEqB(v *Value) bool {
 func rewriteValueMIPS_OpEqPtr(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (EqPtr x y)
 	// cond:
@@ -1566,9 +1540,7 @@ func rewriteValueMIPS_OpEqPtr(v *Value) bool {
 func rewriteValueMIPS_OpGeq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq16 x y)
 	// cond:
@@ -1592,9 +1564,7 @@ func rewriteValueMIPS_OpGeq16(v *Value) bool {
 func rewriteValueMIPS_OpGeq16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq16U x y)
 	// cond:
@@ -1618,9 +1588,7 @@ func rewriteValueMIPS_OpGeq16U(v *Value) bool {
 func rewriteValueMIPS_OpGeq32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq32 x y)
 	// cond:
@@ -1657,9 +1625,7 @@ func rewriteValueMIPS_OpGeq32F(v *Value) bool {
 func rewriteValueMIPS_OpGeq32U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq32U x y)
 	// cond:
@@ -1696,9 +1662,7 @@ func rewriteValueMIPS_OpGeq64F(v *Value) bool {
 func rewriteValueMIPS_OpGeq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq8 x y)
 	// cond:
@@ -1722,9 +1686,7 @@ func rewriteValueMIPS_OpGeq8(v *Value) bool {
 func rewriteValueMIPS_OpGeq8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Geq8U x y)
 	// cond:
@@ -1757,9 +1719,7 @@ func rewriteValueMIPS_OpGetClosurePtr(v *Value) bool {
 func rewriteValueMIPS_OpGreater16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater16 x y)
 	// cond:
@@ -1780,9 +1740,7 @@ func rewriteValueMIPS_OpGreater16(v *Value) bool {
 func rewriteValueMIPS_OpGreater16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater16U x y)
 	// cond:
@@ -1863,9 +1821,7 @@ func rewriteValueMIPS_OpGreater64F(v *Value) bool {
 func rewriteValueMIPS_OpGreater8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater8 x y)
 	// cond:
@@ -1886,9 +1842,7 @@ func rewriteValueMIPS_OpGreater8(v *Value) bool {
 func rewriteValueMIPS_OpGreater8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Greater8U x y)
 	// cond:
@@ -1909,9 +1863,7 @@ func rewriteValueMIPS_OpGreater8U(v *Value) bool {
 func rewriteValueMIPS_OpHmul32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Hmul32 x y)
 	// cond:
@@ -1930,9 +1882,7 @@ func rewriteValueMIPS_OpHmul32(v *Value) bool {
 func rewriteValueMIPS_OpHmul32u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Hmul32u x y)
 	// cond:
@@ -1979,9 +1929,7 @@ func rewriteValueMIPS_OpIsInBounds(v *Value) bool {
 func rewriteValueMIPS_OpIsNonNil(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (IsNonNil ptr)
 	// cond:
@@ -1999,9 +1947,7 @@ func rewriteValueMIPS_OpIsNonNil(v *Value) bool {
 func rewriteValueMIPS_OpIsSliceInBounds(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (IsSliceInBounds idx len)
 	// cond:
@@ -2021,9 +1967,7 @@ func rewriteValueMIPS_OpIsSliceInBounds(v *Value) bool {
 func rewriteValueMIPS_OpLeq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq16 x y)
 	// cond:
@@ -2047,9 +1991,7 @@ func rewriteValueMIPS_OpLeq16(v *Value) bool {
 func rewriteValueMIPS_OpLeq16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq16U x y)
 	// cond:
@@ -2073,9 +2015,7 @@ func rewriteValueMIPS_OpLeq16U(v *Value) bool {
 func rewriteValueMIPS_OpLeq32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq32 x y)
 	// cond:
@@ -2112,9 +2052,7 @@ func rewriteValueMIPS_OpLeq32F(v *Value) bool {
 func rewriteValueMIPS_OpLeq32U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq32U x y)
 	// cond:
@@ -2151,9 +2089,7 @@ func rewriteValueMIPS_OpLeq64F(v *Value) bool {
 func rewriteValueMIPS_OpLeq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq8 x y)
 	// cond:
@@ -2177,9 +2113,7 @@ func rewriteValueMIPS_OpLeq8(v *Value) bool {
 func rewriteValueMIPS_OpLeq8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Leq8U x y)
 	// cond:
@@ -2203,9 +2137,7 @@ func rewriteValueMIPS_OpLeq8U(v *Value) bool {
 func rewriteValueMIPS_OpLess16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less16 x y)
 	// cond:
@@ -2226,9 +2158,7 @@ func rewriteValueMIPS_OpLess16(v *Value) bool {
 func rewriteValueMIPS_OpLess16U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less16U x y)
 	// cond:
@@ -2309,9 +2239,7 @@ func rewriteValueMIPS_OpLess64F(v *Value) bool {
 func rewriteValueMIPS_OpLess8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less8 x y)
 	// cond:
@@ -2332,9 +2260,7 @@ func rewriteValueMIPS_OpLess8(v *Value) bool {
 func rewriteValueMIPS_OpLess8U(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Less8U x y)
 	// cond:
@@ -2478,9 +2404,7 @@ func rewriteValueMIPS_OpLoad(v *Value) bool {
 func rewriteValueMIPS_OpLsh16x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh16x16 <t> x y)
 	// cond:
@@ -2511,9 +2435,7 @@ func rewriteValueMIPS_OpLsh16x16(v *Value) bool {
 func rewriteValueMIPS_OpLsh16x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh16x32 <t> x y)
 	// cond:
@@ -2577,9 +2499,7 @@ func rewriteValueMIPS_OpLsh16x64(v *Value) bool {
 func rewriteValueMIPS_OpLsh16x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh16x8 <t> x y)
 	// cond:
@@ -2610,9 +2530,7 @@ func rewriteValueMIPS_OpLsh16x8(v *Value) bool {
 func rewriteValueMIPS_OpLsh32x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh32x16 <t> x y)
 	// cond:
@@ -2643,9 +2561,7 @@ func rewriteValueMIPS_OpLsh32x16(v *Value) bool {
 func rewriteValueMIPS_OpLsh32x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh32x32 <t> x y)
 	// cond:
@@ -2709,9 +2625,7 @@ func rewriteValueMIPS_OpLsh32x64(v *Value) bool {
 func rewriteValueMIPS_OpLsh32x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh32x8 <t> x y)
 	// cond:
@@ -2742,9 +2656,7 @@ func rewriteValueMIPS_OpLsh32x8(v *Value) bool {
 func rewriteValueMIPS_OpLsh8x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh8x16 <t> x y)
 	// cond:
@@ -2775,9 +2687,7 @@ func rewriteValueMIPS_OpLsh8x16(v *Value) bool {
 func rewriteValueMIPS_OpLsh8x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh8x32 <t> x y)
 	// cond:
@@ -2841,9 +2751,7 @@ func rewriteValueMIPS_OpLsh8x64(v *Value) bool {
 func rewriteValueMIPS_OpLsh8x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Lsh8x8 <t> x y)
 	// cond:
@@ -5998,9 +5906,7 @@ func rewriteValueMIPS_OpMIPSXORconst(v *Value) bool {
 func rewriteValueMIPS_OpMod16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod16 x y)
 	// cond:
@@ -6023,9 +5929,7 @@ func rewriteValueMIPS_OpMod16(v *Value) bool {
 func rewriteValueMIPS_OpMod16u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod16u x y)
 	// cond:
@@ -6048,9 +5952,7 @@ func rewriteValueMIPS_OpMod16u(v *Value) bool {
 func rewriteValueMIPS_OpMod32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod32 x y)
 	// cond:
@@ -6069,9 +5971,7 @@ func rewriteValueMIPS_OpMod32(v *Value) bool {
 func rewriteValueMIPS_OpMod32u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod32u x y)
 	// cond:
@@ -6090,9 +5990,7 @@ func rewriteValueMIPS_OpMod32u(v *Value) bool {
 func rewriteValueMIPS_OpMod8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod8 x y)
 	// cond:
@@ -6115,9 +6013,7 @@ func rewriteValueMIPS_OpMod8(v *Value) bool {
 func rewriteValueMIPS_OpMod8u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Mod8u x y)
 	// cond:
@@ -6142,7 +6038,7 @@ func rewriteValueMIPS_OpMove(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Move [0] _ _ mem)
 	// cond:
@@ -6740,9 +6636,7 @@ func rewriteValueMIPS_OpNeg8(v *Value) bool {
 func rewriteValueMIPS_OpNeq16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq16 x y)
 	// cond:
@@ -6768,9 +6662,7 @@ func rewriteValueMIPS_OpNeq16(v *Value) bool {
 func rewriteValueMIPS_OpNeq32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq32 x y)
 	// cond:
@@ -6826,9 +6718,7 @@ func rewriteValueMIPS_OpNeq64F(v *Value) bool {
 func rewriteValueMIPS_OpNeq8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Neq8 x y)
 	// cond:
@@ -6867,9 +6757,7 @@ func rewriteValueMIPS_OpNeqB(v *Value) bool {
 func rewriteValueMIPS_OpNeqPtr(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (NeqPtr x y)
 	// cond:
@@ -7019,9 +6907,7 @@ func rewriteValueMIPS_OpRound64F(v *Value) bool {
 func rewriteValueMIPS_OpRsh16Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux16 <t> x y)
 	// cond:
@@ -7054,9 +6940,7 @@ func rewriteValueMIPS_OpRsh16Ux16(v *Value) bool {
 func rewriteValueMIPS_OpRsh16Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux32 <t> x y)
 	// cond:
@@ -7085,9 +6969,7 @@ func rewriteValueMIPS_OpRsh16Ux32(v *Value) bool {
 func rewriteValueMIPS_OpRsh16Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux64 x (Const64 [c]))
 	// cond: uint32(c) < 16
@@ -7131,9 +7013,7 @@ func rewriteValueMIPS_OpRsh16Ux64(v *Value) bool {
 func rewriteValueMIPS_OpRsh16Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16Ux8 <t> x y)
 	// cond:
@@ -7166,9 +7046,7 @@ func rewriteValueMIPS_OpRsh16Ux8(v *Value) bool {
 func rewriteValueMIPS_OpRsh16x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x16 x y)
 	// cond:
@@ -7200,9 +7078,7 @@ func rewriteValueMIPS_OpRsh16x16(v *Value) bool {
 func rewriteValueMIPS_OpRsh16x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x32 x y)
 	// cond:
@@ -7230,9 +7106,7 @@ func rewriteValueMIPS_OpRsh16x32(v *Value) bool {
 func rewriteValueMIPS_OpRsh16x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x64 x (Const64 [c]))
 	// cond: uint32(c) < 16
@@ -7281,9 +7155,7 @@ func rewriteValueMIPS_OpRsh16x64(v *Value) bool {
 func rewriteValueMIPS_OpRsh16x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh16x8 x y)
 	// cond:
@@ -7315,9 +7187,7 @@ func rewriteValueMIPS_OpRsh16x8(v *Value) bool {
 func rewriteValueMIPS_OpRsh32Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32Ux16 <t> x y)
 	// cond:
@@ -7348,9 +7218,7 @@ func rewriteValueMIPS_OpRsh32Ux16(v *Value) bool {
 func rewriteValueMIPS_OpRsh32Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32Ux32 <t> x y)
 	// cond:
@@ -7414,9 +7282,7 @@ func rewriteValueMIPS_OpRsh32Ux64(v *Value) bool {
 func rewriteValueMIPS_OpRsh32Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32Ux8 <t> x y)
 	// cond:
@@ -7447,9 +7313,7 @@ func rewriteValueMIPS_OpRsh32Ux8(v *Value) bool {
 func rewriteValueMIPS_OpRsh32x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32x16 x y)
 	// cond:
@@ -7479,9 +7343,7 @@ func rewriteValueMIPS_OpRsh32x16(v *Value) bool {
 func rewriteValueMIPS_OpRsh32x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32x32 x y)
 	// cond:
@@ -7546,9 +7408,7 @@ func rewriteValueMIPS_OpRsh32x64(v *Value) bool {
 func rewriteValueMIPS_OpRsh32x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh32x8 x y)
 	// cond:
@@ -7578,9 +7438,7 @@ func rewriteValueMIPS_OpRsh32x8(v *Value) bool {
 func rewriteValueMIPS_OpRsh8Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux16 <t> x y)
 	// cond:
@@ -7613,9 +7471,7 @@ func rewriteValueMIPS_OpRsh8Ux16(v *Value) bool {
 func rewriteValueMIPS_OpRsh8Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux32 <t> x y)
 	// cond:
@@ -7644,9 +7500,7 @@ func rewriteValueMIPS_OpRsh8Ux32(v *Value) bool {
 func rewriteValueMIPS_OpRsh8Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux64 x (Const64 [c]))
 	// cond: uint32(c) < 8
@@ -7690,9 +7544,7 @@ func rewriteValueMIPS_OpRsh8Ux64(v *Value) bool {
 func rewriteValueMIPS_OpRsh8Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8Ux8 <t> x y)
 	// cond:
@@ -7725,9 +7577,7 @@ func rewriteValueMIPS_OpRsh8Ux8(v *Value) bool {
 func rewriteValueMIPS_OpRsh8x16(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x16 x y)
 	// cond:
@@ -7759,9 +7609,7 @@ func rewriteValueMIPS_OpRsh8x16(v *Value) bool {
 func rewriteValueMIPS_OpRsh8x32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x32 x y)
 	// cond:
@@ -7789,9 +7637,7 @@ func rewriteValueMIPS_OpRsh8x32(v *Value) bool {
 func rewriteValueMIPS_OpRsh8x64(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x64 x (Const64 [c]))
 	// cond: uint32(c) < 8
@@ -7840,9 +7686,7 @@ func rewriteValueMIPS_OpRsh8x64(v *Value) bool {
 func rewriteValueMIPS_OpRsh8x8(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Rsh8x8 x y)
 	// cond:
@@ -7874,9 +7718,7 @@ func rewriteValueMIPS_OpRsh8x8(v *Value) bool {
 func rewriteValueMIPS_OpSelect0(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Select0 (Add32carry <t> x y))
 	// cond:
@@ -8096,9 +7938,7 @@ func rewriteValueMIPS_OpSelect0(v *Value) bool {
 func rewriteValueMIPS_OpSelect1(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Select1 (Add32carry <t> x y))
 	// cond:
@@ -8671,7 +8511,7 @@ func rewriteValueMIPS_OpZero(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Zero [0] _ mem)
 	// cond:
@@ -9073,9 +8913,7 @@ func rewriteValueMIPS_OpZeroExt8to32(v *Value) bool {
 func rewriteValueMIPS_OpZeromask(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Zeromask x)
 	// cond:
@@ -9095,7 +8933,7 @@ func rewriteValueMIPS_OpZeromask(v *Value) bool {
 func rewriteBlockMIPS(b *Block) bool {
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	switch b.Kind {
 	case BlockMIPSEQ:

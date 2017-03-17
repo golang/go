@@ -28,7 +28,6 @@ type Config struct {
 	FPReg           int8          // register number of frame pointer, -1 if not used
 	LinkReg         int8          // register number of link register if it is a general purpose register, -1 if not used
 	hasGReg         bool          // has hardware g register
-	fe              Frontend      // callbacks into compiler frontend
 	ctxt            *obj.Link     // Generic arch information
 	optimize        bool          // Do optimization
 	noDuffDevice    bool          // Don't use Duff's device
@@ -136,8 +135,8 @@ type GCNode interface {
 }
 
 // NewConfig returns a new configuration object for the given architecture.
-func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config {
-	c := &Config{arch: arch, fe: fe}
+func NewConfig(arch string, ctxt *obj.Link, optimize bool) *Config {
+	c := &Config{arch: arch}
 	switch arch {
 	case "amd64":
 		c.IntSize = 8
@@ -266,7 +265,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.hasGReg = true
 		c.noDuffDevice = true
 	default:
-		fe.Fatalf(src.NoXPos, "arch %s not implemented", arch)
+		ctxt.Diag("arch %s not implemented", arch)
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
@@ -296,7 +295,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	if ev != "" {
 		v, err := strconv.ParseInt(ev, 10, 64)
 		if err != nil {
-			fe.Fatalf(src.NoXPos, "Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
+			ctxt.Diag("Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
 		}
 		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
 	}
@@ -309,14 +308,5 @@ func (c *Config) Set387(b bool) {
 	c.use387 = b
 }
 
-func (c *Config) Frontend() Frontend      { return c.fe }
 func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
 func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
-
-func (c *Config) Logf(msg string, args ...interface{})                 { c.fe.Logf(msg, args...) }
-func (c *Config) Log() bool                                            { return c.fe.Log() }
-func (c *Config) Fatalf(pos src.XPos, msg string, args ...interface{}) { c.fe.Fatalf(pos, msg, args...) }
-func (c *Config) Error(pos src.XPos, msg string, args ...interface{})  { c.fe.Error(pos, msg, args...) }
-func (c *Config) Warnl(pos src.XPos, msg string, args ...interface{})  { c.fe.Warnl(pos, msg, args...) }
-func (c *Config) Debug_checknil() bool                                 { return c.fe.Debug_checknil() }
-func (c *Config) Debug_wb() bool                                       { return c.fe.Debug_wb() }

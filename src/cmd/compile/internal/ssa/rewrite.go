@@ -392,12 +392,12 @@ func devirt(v *Value, sym interface{}, offset int64) *obj.LSym {
 	if !ok {
 		return nil
 	}
-	lsym := f.Config.Frontend().DerefItab(ext.Sym, offset)
+	lsym := f.fe.DerefItab(ext.Sym, offset)
 	if f.pass.debug > 0 {
 		if lsym != nil {
-			f.Config.Warnl(v.Pos, "de-virtualizing call")
+			f.Warnl(v.Pos, "de-virtualizing call")
 		} else {
-			f.Config.Warnl(v.Pos, "couldn't de-virtualize call")
+			f.Warnl(v.Pos, "couldn't de-virtualize call")
 		}
 	}
 	return lsym
@@ -510,7 +510,7 @@ func noteRule(s string) bool {
 // cond is true and the rule is fired.
 func warnRule(cond bool, v *Value, s string) bool {
 	if cond {
-		v.Block.Func.Config.Warnl(v.Pos, s)
+		v.Block.Func.Warnl(v.Pos, s)
 	}
 	return true
 }

@@ -10,7 +10,7 @@ func TestDeadStore(t *testing.T) {
 	c := testConfig(t)
 	elemType := &TypeImpl{Size_: 1, Name: "testtype"}
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr", Elem_: elemType} // dummy for testing
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("start", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -45,7 +45,7 @@ func TestDeadStorePhi(t *testing.T) {
 	// make sure we don't get into an infinite loop with phi values.
 	c := testConfig(t)
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("start", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -72,7 +72,7 @@ func TestDeadStoreTypes(t *testing.T) {
 	c := testConfig(t)
 	t1 := &TypeImpl{Size_: 8, Ptr: true, Name: "t1"}
 	t2 := &TypeImpl{Size_: 4, Ptr: true, Name: "t2"}
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("start", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -102,7 +102,7 @@ func TestDeadStoreUnsafe(t *testing.T) {
 	// can get to a point where the size is changed but type unchanged.
 	c := testConfig(t)
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	fun := Fun(c, "entry",
+	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("start", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),

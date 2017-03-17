@@ -16,7 +16,7 @@ func checkbce(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
-				f.Config.Warnl(v.Pos, "Found %v", v.Op)
+				f.Warnl(v.Pos, "Found %v", v.Op)
 			}
 		}
 	}

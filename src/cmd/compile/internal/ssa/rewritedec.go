@@ -108,7 +108,7 @@ func rewriteValuedec_OpLoad(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Load <t> ptr mem)
 	// cond: t.IsComplex() && t.Size() == 8
@@ -295,7 +295,7 @@ func rewriteValuedec_OpStore(v *Value) bool {
 	_ = b
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	// match: (Store {t} dst (ComplexMake real imag) mem)
 	// cond: t.(Type).Size() == 8
@@ -488,7 +488,7 @@ func rewriteValuedec_OpStringPtr(v *Value) bool {
 func rewriteBlockdec(b *Block) bool {
 	config := b.Func.Config
 	_ = config
-	fe := config.fe
+	fe := b.Func.fe
 	_ = fe
 	switch b.Kind {
 	}
