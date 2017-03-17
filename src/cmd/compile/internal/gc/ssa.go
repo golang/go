@@ -19,7 +19,6 @@ import (
 )
 
 var ssaConfig *ssa.Config
-var ssaExp ssaExport
 var ssaCache *ssa.Cache
 
 func initssaconfig() {
@@ -50,9 +49,12 @@ func buildssa(fn *Node) *ssa.Func {
 		s.cgoUnsafeArgs = true
 	}
 
-	ssaExp.log = printssa
+	fe := ssafn{
+		curfn: fn,
+		log:   printssa,
+	}
 
-	s.f = ssa.NewFunc(&ssaExp)
+	s.f = ssa.NewFunc(&fe)
 	s.config = ssaConfig
 	s.f.Config = ssaConfig
 	s.f.Cache = ssaCache
@@ -4219,7 +4221,7 @@ func (s *SSAGenState) SetPos(pos src.XPos) {
 func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	var s SSAGenState
 
-	e := f.Frontend().(*ssaExport)
+	e := f.Frontend().(*ssafn)
 
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())
@@ -4350,10 +4352,10 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	}
 
 	// Generate gc bitmaps.
-	liveness(Curfn, ptxt, gcargs, gclocals)
+	liveness(e.curfn, ptxt, gcargs, gclocals)
 
 	// Add frame prologue. Zero ambiguously live variables.
-	thearch.Defframe(ptxt)
+	thearch.Defframe(ptxt, e.curfn)
 	if Debug['f'] != 0 {
 		frame(0)
 	}
@@ -4660,41 +4662,43 @@ func fieldIdx(n *Node) int {
 	// so we don't have to recompute it each time we need it.
 }
 
-// ssaExport exports a bunch of compiler services for the ssa backend.
-type ssaExport struct {
-	log bool
+// ssafn holds frontend information about a function that the backend is processing.
+// It also exports a bunch of compiler services for the ssa backend.
+type ssafn struct {
+	curfn *Node
+	log   bool
 }
 
-func (s *ssaExport) TypeBool() ssa.Type    { return Types[TBOOL] }
-func (s *ssaExport) TypeInt8() ssa.Type    { return Types[TINT8] }
-func (s *ssaExport) TypeInt16() ssa.Type   { return Types[TINT16] }
-func (s *ssaExport) TypeInt32() ssa.Type   { return Types[TINT32] }
-func (s *ssaExport) TypeInt64() ssa.Type   { return Types[TINT64] }
-func (s *ssaExport) TypeUInt8() ssa.Type   { return Types[TUINT8] }
-func (s *ssaExport) TypeUInt16() ssa.Type  { return Types[TUINT16] }
-func (s *ssaExport) TypeUInt32() ssa.Type  { return Types[TUINT32] }
-func (s *ssaExport) TypeUInt64() ssa.Type  { return Types[TUINT64] }
-func (s *ssaExport) TypeFloat32() ssa.Type { return Types[TFLOAT32] }
-func (s *ssaExport) TypeFloat64() ssa.Type { return Types[TFLOAT64] }
-func (s *ssaExport) TypeInt() ssa.Type     { return Types[TINT] }
-func (s *ssaExport) TypeUintptr() ssa.Type { return Types[TUINTPTR] }
-func (s *ssaExport) TypeString() ssa.Type  { return Types[TSTRING] }
-func (s *ssaExport) TypeBytePtr() ssa.Type { return ptrto(Types[TUINT8]) }
+func (s *ssafn) TypeBool() ssa.Type    { return Types[TBOOL] }
+func (s *ssafn) TypeInt8() ssa.Type    { return Types[TINT8] }
+func (s *ssafn) TypeInt16() ssa.Type   { return Types[TINT16] }
+func (s *ssafn) TypeInt32() ssa.Type   { return Types[TINT32] }
+func (s *ssafn) TypeInt64() ssa.Type   { return Types[TINT64] }
+func (s *ssafn) TypeUInt8() ssa.Type   { return Types[TUINT8] }
+func (s *ssafn) TypeUInt16() ssa.Type  { return Types[TUINT16] }
+func (s *ssafn) TypeUInt32() ssa.Type  { return Types[TUINT32] }
+func (s *ssafn) TypeUInt64() ssa.Type  { return Types[TUINT64] }
+func (s *ssafn) TypeFloat32() ssa.Type { return Types[TFLOAT32] }
+func (s *ssafn) TypeFloat64() ssa.Type { return Types[TFLOAT64] }
+func (s *ssafn) TypeInt() ssa.Type     { return Types[TINT] }
+func (s *ssafn) TypeUintptr() ssa.Type { return Types[TUINTPTR] }
+func (s *ssafn) TypeString() ssa.Type  { return Types[TSTRING] }
+func (s *ssafn) TypeBytePtr() ssa.Type { return ptrto(Types[TUINT8]) }
 
 // StringData returns a symbol (a *Sym wrapped in an interface) which
 // is the data component of a global string constant containing s.
-func (*ssaExport) StringData(s string) interface{} {
+func (*ssafn) StringData(s string) interface{} {
 	// TODO: is idealstring correct?  It might not matter...
 	data := stringsym(s)
 	return &ssa.ExternSymbol{Typ: idealstring, Sym: data}
 }
 
-func (e *ssaExport) Auto(t ssa.Type) ssa.GCNode {
+func (e *ssafn) Auto(t ssa.Type) ssa.GCNode {
 	n := temp(t.(*Type)) // Note: adds new auto to Curfn.Func.Dcl list
 	return n
 }
 
-func (e *ssaExport) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
 	ptrType := ptrto(Types[TUINT8])
 	lenType := Types[TINT]
@@ -4708,7 +4712,7 @@ func (e *ssaExport) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlo
 	return ssa.LocalSlot{N: n, Type: ptrType, Off: name.Off}, ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(Widthptr)}
 }
 
-func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
 	t := ptrto(Types[TUINT8])
 	if n.Class == PAUTO && !n.Addrtaken() {
@@ -4725,7 +4729,7 @@ func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.Local
 	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + int64(Widthptr)}
 }
 
-func (e *ssaExport) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
+func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
 	ptrType := ptrto(name.Type.ElemType().(*Type))
 	lenType := Types[TINT]
@@ -4742,7 +4746,7 @@ func (e *ssaExport) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 		ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(2*Widthptr)}
 }
 
-func (e *ssaExport) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
 	s := name.Type.Size() / 2
 	var t *Type
@@ -4761,7 +4765,7 @@ func (e *ssaExport) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSl
 	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + s}
 }
 
-func (e *ssaExport) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
 	var t *Type
 	if name.Type.IsSigned() {
@@ -4782,7 +4786,7 @@ func (e *ssaExport) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 	return ssa.LocalSlot{N: n, Type: t, Off: name.Off + 4}, ssa.LocalSlot{N: n, Type: Types[TUINT32], Off: name.Off}
 }
 
-func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
+func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 	n := name.N.(*Node)
 	st := name.Type
 	ft := st.FieldType(i)
@@ -4796,7 +4800,7 @@ func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 	return ssa.LocalSlot{N: n, Type: ft, Off: name.Off + st.FieldOff(i)}
 }
 
-func (e *ssaExport) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
+func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 	n := name.N.(*Node)
 	at := name.Type
 	if at.NumElem() != 1 {
@@ -4810,13 +4814,13 @@ func (e *ssaExport) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 	return ssa.LocalSlot{N: n, Type: et, Off: name.Off}
 }
 
-func (e *ssaExport) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
+func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
 	return itabsym(it, offset)
 }
 
 // namedAuto returns a new AUTO variable with the given name and type.
 // These are exposed to the debugger.
-func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
+func (e *ssafn) namedAuto(name string, typ ssa.Type) ssa.GCNode {
 	t := typ.(*Type)
 	s := &Sym{Name: name, Pkg: localpkg}
 	n := nod(ONAME, nil, nil)
@@ -4828,62 +4832,62 @@ func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
 	n.SetAddable(true)
 	n.Esc = EscNever
 	n.Xoffset = 0
-	n.Name.Curfn = Curfn
-	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
+	n.Name.Curfn = e.curfn
+	e.curfn.Func.Dcl = append(e.curfn.Func.Dcl, n)
 
 	dowidth(t)
 	return n
 }
 
-func (e *ssaExport) CanSSA(t ssa.Type) bool {
+func (e *ssafn) CanSSA(t ssa.Type) bool {
 	return canSSAType(t.(*Type))
 }
 
-func (e *ssaExport) Line(pos src.XPos) string {
+func (e *ssafn) Line(pos src.XPos) string {
 	return linestr(pos)
 }
 
 // Log logs a message from the compiler.
-func (e *ssaExport) Logf(msg string, args ...interface{}) {
+func (e *ssafn) Logf(msg string, args ...interface{}) {
 	if e.log {
 		fmt.Printf(msg, args...)
 	}
 }
 
-func (e *ssaExport) Log() bool {
+func (e *ssafn) Log() bool {
 	return e.log
 }
 
 // Fatal reports a compiler error and exits.
-func (e *ssaExport) Fatalf(pos src.XPos, msg string, args ...interface{}) {
+func (e *ssafn) Fatalf(pos src.XPos, msg string, args ...interface{}) {
 	lineno = pos
 	Fatalf(msg, args...)
 }
 
 // Error reports a compiler error but keep going.
-func (e *ssaExport) Error(pos src.XPos, msg string, args ...interface{}) {
+func (e *ssafn) Error(pos src.XPos, msg string, args ...interface{}) {
 	yyerrorl(pos, msg, args...)
 }
 
 // Warnl reports a "warning", which is usually flag-triggered
 // logging output for the benefit of tests.
-func (e *ssaExport) Warnl(pos src.XPos, fmt_ string, args ...interface{}) {
+func (e *ssafn) Warnl(pos src.XPos, fmt_ string, args ...interface{}) {
 	Warnl(pos, fmt_, args...)
 }
 
-func (e *ssaExport) Debug_checknil() bool {
+func (e *ssafn) Debug_checknil() bool {
 	return Debug_checknil != 0
 }
 
-func (e *ssaExport) Debug_wb() bool {
+func (e *ssafn) Debug_wb() bool {
 	return Debug_wb != 0
 }
 
-func (e *ssaExport) UseWriteBarrier() bool {
+func (e *ssafn) UseWriteBarrier() bool {
 	return use_writebarrier
 }
 
-func (e *ssaExport) Syslook(name string) *obj.LSym {
+func (e *ssafn) Syslook(name string) *obj.LSym {
 	return Linksym(syslook(name).Sym)
 }
 

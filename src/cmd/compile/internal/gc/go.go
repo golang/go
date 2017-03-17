@@ -365,7 +365,7 @@ type Arch struct {
 	MAXWIDTH int64
 	Use387   bool // should 386 backend use 387 FP instructions instead of sse2.
 
-	Defframe func(*obj.Prog)
+	Defframe func(*obj.Prog, *Node)
 	Ginsnop  func()
 	Proginfo func(*obj.Prog) ProgInfo
 
