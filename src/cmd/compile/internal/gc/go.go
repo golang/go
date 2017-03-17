@@ -245,8 +245,6 @@ var dclcontext Class // PEXTERN/PAUTO
 
 var statuniqgen int // name generator for static temps
 
-var Stksize int64 // stack size for current frame
-
 var stkptrsize int64 // prefix of stack containing pointers
 
 var Curfn *Node
