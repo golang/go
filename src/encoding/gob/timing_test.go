@@ -171,7 +171,7 @@ func BenchmarkEncodeInt32Slice(b *testing.B) {
 	enc := NewEncoder(&buf)
 	a := make([]int32, 1000)
 	for i := range a {
-		a[i] = 1234
+		a[i] = int32(i * 100)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

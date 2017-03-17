@@ -8,7 +8,9 @@ package gob
 
 import (
 	"encoding"
+	"encoding/binary"
 	"math"
+	"math/bits"
 	"reflect"
 	"sync"
 )
@@ -107,14 +109,12 @@ func (state *encoderState) encodeUint(x uint64) {
 		state.b.WriteByte(uint8(x))
 		return
 	}
-	i := uint64Size
-	for x > 0 {
-		state.buf[i] = uint8(x)
-		x >>= 8
-		i--
-	}
-	state.buf[i] = uint8(i - uint64Size) // = loop count, negated
-	state.b.Write(state.buf[i : uint64Size+1])
+
+	binary.BigEndian.PutUint64(state.buf[1:], x)
+	bc := bits.LeadingZeros64(x) >> 3      // 8 - bytelen(x)
+	state.buf[bc] = uint8(bc - uint64Size) // and then we subtract 8 to get -bytelen(x)
+
+	state.b.Write(state.buf[bc : uint64Size+1])
 }
 
 // encodeInt writes an encoded signed integer to state.w.
