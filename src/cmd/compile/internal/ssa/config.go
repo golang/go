@@ -15,30 +15,35 @@ import (
 // It is created once, early during compilation,
 // and shared across all compilations.
 type Config struct {
-	arch            string                     // "amd64", etc.
-	IntSize         int64                      // 4 or 8
-	PtrSize         int64                      // 4 or 8
-	RegSize         int64                      // 4 or 8
-	lowerBlock      func(*Block, *Config) bool // lowering function
-	lowerValue      func(*Value, *Config) bool // lowering function
-	registers       []Register                 // machine registers
-	gpRegMask       regMask                    // general purpose integer register mask
-	fpRegMask       regMask                    // floating point register mask
-	specialRegMask  regMask                    // special register mask
-	FPReg           int8                       // register number of frame pointer, -1 if not used
-	LinkReg         int8                       // register number of link register if it is a general purpose register, -1 if not used
-	hasGReg         bool                       // has hardware g register
-	fe              Frontend                   // callbacks into compiler frontend
-	ctxt            *obj.Link                  // Generic arch information
-	optimize        bool                       // Do optimization
-	noDuffDevice    bool                       // Don't use Duff's device
-	nacl            bool                       // GOOS=nacl
-	use387          bool                       // GO386=387
-	OldArch         bool                       // True for older versions of architecture, e.g. true for PPC64BE, false for PPC64LE
-	NeedsFpScratch  bool                       // No direct move between GP and FP register sets
-	BigEndian       bool                       //
-	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
+	arch            string        // "amd64", etc.
+	IntSize         int64         // 4 or 8
+	PtrSize         int64         // 4 or 8
+	RegSize         int64         // 4 or 8
+	lowerBlock      blockRewriter // lowering function
+	lowerValue      valueRewriter // lowering function
+	registers       []Register    // machine registers
+	gpRegMask       regMask       // general purpose integer register mask
+	fpRegMask       regMask       // floating point register mask
+	specialRegMask  regMask       // special register mask
+	FPReg           int8          // register number of frame pointer, -1 if not used
+	LinkReg         int8          // register number of link register if it is a general purpose register, -1 if not used
+	hasGReg         bool          // has hardware g register
+	fe              Frontend      // callbacks into compiler frontend
+	ctxt            *obj.Link     // Generic arch information
+	optimize        bool          // Do optimization
+	noDuffDevice    bool          // Don't use Duff's device
+	nacl            bool          // GOOS=nacl
+	use387          bool          // GO386=387
+	OldArch         bool          // True for older versions of architecture, e.g. true for PPC64BE, false for PPC64LE
+	NeedsFpScratch  bool          // No direct move between GP and FP register sets
+	BigEndian       bool          //
+	sparsePhiCutoff uint64        // Sparse phi location algorithm used above this #blocks*#variables score
 }
+
+type (
+	blockRewriter func(*Block) bool
+	valueRewriter func(*Value) bool
+)
 
 type TypeSource interface {
 	TypeBool() Type

@@ -27,8 +27,8 @@
 
 (Hmul64 x y) -> (MULH x y)
 (Hmul64u x y) -> (UMULH x y)
-(Hmul32 x y) -> (SRAconst (MULL <config.fe.TypeInt64()> x y) [32])
-(Hmul32u x y) -> (SRAconst (UMULL <config.fe.TypeUInt64()> x y) [32])
+(Hmul32 x y) -> (SRAconst (MULL <fe.TypeInt64()> x y) [32])
+(Hmul32u x y) -> (SRAconst (UMULL <fe.TypeUInt64()> x y) [32])
 
 (Div64 x y) -> (DIV x y)
 (Div64u x y) -> (UDIV x y)
@@ -86,20 +86,20 @@
 (Ctz64 <t> x) -> (CLZ (RBIT <t> x))
 (Ctz32 <t> x) -> (CLZW (RBITW <t> x))
 
-(BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <config.fe.TypeInt()> x))
+(BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <fe.TypeInt()> x))
 
 (Bswap64 x) -> (REV x)
 (Bswap32 x) -> (REVW x)
 
 (BitRev64 x) -> (RBIT x)
 (BitRev32 x) -> (RBITW x)
-(BitRev16 x) -> (SRLconst [48] (RBIT <config.fe.TypeUInt64()> x))
-(BitRev8 x) -> (SRLconst [56] (RBIT <config.fe.TypeUInt64()> x))
+(BitRev16 x) -> (SRLconst [48] (RBIT <fe.TypeUInt64()> x))
+(BitRev8 x) -> (SRLconst [56] (RBIT <fe.TypeUInt64()> x))
 
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)
-(EqB x y) -> (XOR (MOVDconst [1]) (XOR <config.fe.TypeBool()> x y))
+(EqB x y) -> (XOR (MOVDconst [1]) (XOR <fe.TypeBool()> x y))
 (NeqB x y) -> (XOR x y)
 (Not x) -> (XOR (MOVDconst [1]) x)
 

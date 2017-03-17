@@ -6,420 +6,420 @@ package ssa
 import "math"
 
 var _ = math.MinInt8 // in case not otherwise used
-func rewriteValuegeneric(v *Value, config *Config) bool {
+func rewriteValuegeneric(v *Value) bool {
 	switch v.Op {
 	case OpAdd16:
-		return rewriteValuegeneric_OpAdd16(v, config)
+		return rewriteValuegeneric_OpAdd16(v)
 	case OpAdd32:
-		return rewriteValuegeneric_OpAdd32(v, config)
+		return rewriteValuegeneric_OpAdd32(v)
 	case OpAdd32F:
-		return rewriteValuegeneric_OpAdd32F(v, config)
+		return rewriteValuegeneric_OpAdd32F(v)
 	case OpAdd64:
-		return rewriteValuegeneric_OpAdd64(v, config)
+		return rewriteValuegeneric_OpAdd64(v)
 	case OpAdd64F:
-		return rewriteValuegeneric_OpAdd64F(v, config)
+		return rewriteValuegeneric_OpAdd64F(v)
 	case OpAdd8:
-		return rewriteValuegeneric_OpAdd8(v, config)
+		return rewriteValuegeneric_OpAdd8(v)
 	case OpAddPtr:
-		return rewriteValuegeneric_OpAddPtr(v, config)
+		return rewriteValuegeneric_OpAddPtr(v)
 	case OpAnd16:
-		return rewriteValuegeneric_OpAnd16(v, config)
+		return rewriteValuegeneric_OpAnd16(v)
 	case OpAnd32:
-		return rewriteValuegeneric_OpAnd32(v, config)
+		return rewriteValuegeneric_OpAnd32(v)
 	case OpAnd64:
-		return rewriteValuegeneric_OpAnd64(v, config)
+		return rewriteValuegeneric_OpAnd64(v)
 	case OpAnd8:
-		return rewriteValuegeneric_OpAnd8(v, config)
+		return rewriteValuegeneric_OpAnd8(v)
 	case OpArg:
-		return rewriteValuegeneric_OpArg(v, config)
+		return rewriteValuegeneric_OpArg(v)
 	case OpArraySelect:
-		return rewriteValuegeneric_OpArraySelect(v, config)
+		return rewriteValuegeneric_OpArraySelect(v)
 	case OpCom16:
-		return rewriteValuegeneric_OpCom16(v, config)
+		return rewriteValuegeneric_OpCom16(v)
 	case OpCom32:
-		return rewriteValuegeneric_OpCom32(v, config)
+		return rewriteValuegeneric_OpCom32(v)
 	case OpCom64:
-		return rewriteValuegeneric_OpCom64(v, config)
+		return rewriteValuegeneric_OpCom64(v)
 	case OpCom8:
-		return rewriteValuegeneric_OpCom8(v, config)
+		return rewriteValuegeneric_OpCom8(v)
 	case OpConstInterface:
-		return rewriteValuegeneric_OpConstInterface(v, config)
+		return rewriteValuegeneric_OpConstInterface(v)
 	case OpConstSlice:
-		return rewriteValuegeneric_OpConstSlice(v, config)
+		return rewriteValuegeneric_OpConstSlice(v)
 	case OpConstString:
-		return rewriteValuegeneric_OpConstString(v, config)
+		return rewriteValuegeneric_OpConstString(v)
 	case OpConvert:
-		return rewriteValuegeneric_OpConvert(v, config)
+		return rewriteValuegeneric_OpConvert(v)
 	case OpCvt32Fto64F:
-		return rewriteValuegeneric_OpCvt32Fto64F(v, config)
+		return rewriteValuegeneric_OpCvt32Fto64F(v)
 	case OpCvt64Fto32F:
-		return rewriteValuegeneric_OpCvt64Fto32F(v, config)
+		return rewriteValuegeneric_OpCvt64Fto32F(v)
 	case OpDiv16:
-		return rewriteValuegeneric_OpDiv16(v, config)
+		return rewriteValuegeneric_OpDiv16(v)
 	case OpDiv16u:
-		return rewriteValuegeneric_OpDiv16u(v, config)
+		return rewriteValuegeneric_OpDiv16u(v)
 	case OpDiv32:
-		return rewriteValuegeneric_OpDiv32(v, config)
+		return rewriteValuegeneric_OpDiv32(v)
 	case OpDiv32F:
-		return rewriteValuegeneric_OpDiv32F(v, config)
+		return rewriteValuegeneric_OpDiv32F(v)
 	case OpDiv32u:
-		return rewriteValuegeneric_OpDiv32u(v, config)
+		return rewriteValuegeneric_OpDiv32u(v)
 	case OpDiv64:
-		return rewriteValuegeneric_OpDiv64(v, config)
+		return rewriteValuegeneric_OpDiv64(v)
 	case OpDiv64F:
-		return rewriteValuegeneric_OpDiv64F(v, config)
+		return rewriteValuegeneric_OpDiv64F(v)
 	case OpDiv64u:
-		return rewriteValuegeneric_OpDiv64u(v, config)
+		return rewriteValuegeneric_OpDiv64u(v)
 	case OpDiv8:
-		return rewriteValuegeneric_OpDiv8(v, config)
+		return rewriteValuegeneric_OpDiv8(v)
 	case OpDiv8u:
-		return rewriteValuegeneric_OpDiv8u(v, config)
+		return rewriteValuegeneric_OpDiv8u(v)
 	case OpEq16:
-		return rewriteValuegeneric_OpEq16(v, config)
+		return rewriteValuegeneric_OpEq16(v)
 	case OpEq32:
-		return rewriteValuegeneric_OpEq32(v, config)
+		return rewriteValuegeneric_OpEq32(v)
 	case OpEq64:
-		return rewriteValuegeneric_OpEq64(v, config)
+		return rewriteValuegeneric_OpEq64(v)
 	case OpEq8:
-		return rewriteValuegeneric_OpEq8(v, config)
+		return rewriteValuegeneric_OpEq8(v)
 	case OpEqB:
-		return rewriteValuegeneric_OpEqB(v, config)
+		return rewriteValuegeneric_OpEqB(v)
 	case OpEqInter:
-		return rewriteValuegeneric_OpEqInter(v, config)
+		return rewriteValuegeneric_OpEqInter(v)
 	case OpEqPtr:
-		return rewriteValuegeneric_OpEqPtr(v, config)
+		return rewriteValuegeneric_OpEqPtr(v)
 	case OpEqSlice:
-		return rewriteValuegeneric_OpEqSlice(v, config)
+		return rewriteValuegeneric_OpEqSlice(v)
 	case OpGeq16:
-		return rewriteValuegeneric_OpGeq16(v, config)
+		return rewriteValuegeneric_OpGeq16(v)
 	case OpGeq16U:
-		return rewriteValuegeneric_OpGeq16U(v, config)
+		return rewriteValuegeneric_OpGeq16U(v)
 	case OpGeq32:
-		return rewriteValuegeneric_OpGeq32(v, config)
+		return rewriteValuegeneric_OpGeq32(v)
 	case OpGeq32U:
-		return rewriteValuegeneric_OpGeq32U(v, config)
+		return rewriteValuegeneric_OpGeq32U(v)
 	case OpGeq64:
-		return rewriteValuegeneric_OpGeq64(v, config)
+		return rewriteValuegeneric_OpGeq64(v)
 	case OpGeq64U:
-		return rewriteValuegeneric_OpGeq64U(v, config)
+		return rewriteValuegeneric_OpGeq64U(v)
 	case OpGeq8:
-		return rewriteValuegeneric_OpGeq8(v, config)
+		return rewriteValuegeneric_OpGeq8(v)
 	case OpGeq8U:
-		return rewriteValuegeneric_OpGeq8U(v, config)
+		return rewriteValuegeneric_OpGeq8U(v)
 	case OpGreater16:
-		return rewriteValuegeneric_OpGreater16(v, config)
+		return rewriteValuegeneric_OpGreater16(v)
 	case OpGreater16U:
-		return rewriteValuegeneric_OpGreater16U(v, config)
+		return rewriteValuegeneric_OpGreater16U(v)
 	case OpGreater32:
-		return rewriteValuegeneric_OpGreater32(v, config)
+		return rewriteValuegeneric_OpGreater32(v)
 	case OpGreater32U:
-		return rewriteValuegeneric_OpGreater32U(v, config)
+		return rewriteValuegeneric_OpGreater32U(v)
 	case OpGreater64:
-		return rewriteValuegeneric_OpGreater64(v, config)
+		return rewriteValuegeneric_OpGreater64(v)
 	case OpGreater64U:
-		return rewriteValuegeneric_OpGreater64U(v, config)
+		return rewriteValuegeneric_OpGreater64U(v)
 	case OpGreater8:
-		return rewriteValuegeneric_OpGreater8(v, config)
+		return rewriteValuegeneric_OpGreater8(v)
 	case OpGreater8U:
-		return rewriteValuegeneric_OpGreater8U(v, config)
+		return rewriteValuegeneric_OpGreater8U(v)
 	case OpIMake:
-		return rewriteValuegeneric_OpIMake(v, config)
+		return rewriteValuegeneric_OpIMake(v)
 	case OpInterCall:
-		return rewriteValuegeneric_OpInterCall(v, config)
+		return rewriteValuegeneric_OpInterCall(v)
 	case OpIsInBounds:
-		return rewriteValuegeneric_OpIsInBounds(v, config)
+		return rewriteValuegeneric_OpIsInBounds(v)
 	case OpIsNonNil:
-		return rewriteValuegeneric_OpIsNonNil(v, config)
+		return rewriteValuegeneric_OpIsNonNil(v)
 	case OpIsSliceInBounds:
-		return rewriteValuegeneric_OpIsSliceInBounds(v, config)
+		return rewriteValuegeneric_OpIsSliceInBounds(v)
 	case OpLeq16:
-		return rewriteValuegeneric_OpLeq16(v, config)
+		return rewriteValuegeneric_OpLeq16(v)
 	case OpLeq16U:
-		return rewriteValuegeneric_OpLeq16U(v, config)
+		return rewriteValuegeneric_OpLeq16U(v)
 	case OpLeq32:
-		return rewriteValuegeneric_OpLeq32(v, config)
+		return rewriteValuegeneric_OpLeq32(v)
 	case OpLeq32U:
-		return rewriteValuegeneric_OpLeq32U(v, config)
+		return rewriteValuegeneric_OpLeq32U(v)
 	case OpLeq64:
-		return rewriteValuegeneric_OpLeq64(v, config)
+		return rewriteValuegeneric_OpLeq64(v)
 	case OpLeq64U:
-		return rewriteValuegeneric_OpLeq64U(v, config)
+		return rewriteValuegeneric_OpLeq64U(v)
 	case OpLeq8:
-		return rewriteValuegeneric_OpLeq8(v, config)
+		return rewriteValuegeneric_OpLeq8(v)
 	case OpLeq8U:
-		return rewriteValuegeneric_OpLeq8U(v, config)
+		return rewriteValuegeneric_OpLeq8U(v)
 	case OpLess16:
-		return rewriteValuegeneric_OpLess16(v, config)
+		return rewriteValuegeneric_OpLess16(v)
 	case OpLess16U:
-		return rewriteValuegeneric_OpLess16U(v, config)
+		return rewriteValuegeneric_OpLess16U(v)
 	case OpLess32:
-		return rewriteValuegeneric_OpLess32(v, config)
+		return rewriteValuegeneric_OpLess32(v)
 	case OpLess32U:
-		return rewriteValuegeneric_OpLess32U(v, config)
+		return rewriteValuegeneric_OpLess32U(v)
 	case OpLess64:
-		return rewriteValuegeneric_OpLess64(v, config)
+		return rewriteValuegeneric_OpLess64(v)
 	case OpLess64U:
-		return rewriteValuegeneric_OpLess64U(v, config)
+		return rewriteValuegeneric_OpLess64U(v)
 	case OpLess8:
-		return rewriteValuegeneric_OpLess8(v, config)
+		return rewriteValuegeneric_OpLess8(v)
 	case OpLess8U:
-		return rewriteValuegeneric_OpLess8U(v, config)
+		return rewriteValuegeneric_OpLess8U(v)
 	case OpLoad:
-		return rewriteValuegeneric_OpLoad(v, config)
+		return rewriteValuegeneric_OpLoad(v)
 	case OpLsh16x16:
-		return rewriteValuegeneric_OpLsh16x16(v, config)
+		return rewriteValuegeneric_OpLsh16x16(v)
 	case OpLsh16x32:
-		return rewriteValuegeneric_OpLsh16x32(v, config)
+		return rewriteValuegeneric_OpLsh16x32(v)
 	case OpLsh16x64:
-		return rewriteValuegeneric_OpLsh16x64(v, config)
+		return rewriteValuegeneric_OpLsh16x64(v)
 	case OpLsh16x8:
-		return rewriteValuegeneric_OpLsh16x8(v, config)
+		return rewriteValuegeneric_OpLsh16x8(v)
 	case OpLsh32x16:
-		return rewriteValuegeneric_OpLsh32x16(v, config)
+		return rewriteValuegeneric_OpLsh32x16(v)
 	case OpLsh32x32:
-		return rewriteValuegeneric_OpLsh32x32(v, config)
+		return rewriteValuegeneric_OpLsh32x32(v)
 	case OpLsh32x64:
-		return rewriteValuegeneric_OpLsh32x64(v, config)
+		return rewriteValuegeneric_OpLsh32x64(v)
 	case OpLsh32x8:
-		return rewriteValuegeneric_OpLsh32x8(v, config)
+		return rewriteValuegeneric_OpLsh32x8(v)
 	case OpLsh64x16:
-		return rewriteValuegeneric_OpLsh64x16(v, config)
+		return rewriteValuegeneric_OpLsh64x16(v)
 	case OpLsh64x32:
-		return rewriteValuegeneric_OpLsh64x32(v, config)
+		return rewriteValuegeneric_OpLsh64x32(v)
 	case OpLsh64x64:
-		return rewriteValuegeneric_OpLsh64x64(v, config)
+		return rewriteValuegeneric_OpLsh64x64(v)
 	case OpLsh64x8:
-		return rewriteValuegeneric_OpLsh64x8(v, config)
+		return rewriteValuegeneric_OpLsh64x8(v)
 	case OpLsh8x16:
-		return rewriteValuegeneric_OpLsh8x16(v, config)
+		return rewriteValuegeneric_OpLsh8x16(v)
 	case OpLsh8x32:
-		return rewriteValuegeneric_OpLsh8x32(v, config)
+		return rewriteValuegeneric_OpLsh8x32(v)
 	case OpLsh8x64:
-		return rewriteValuegeneric_OpLsh8x64(v, config)
+		return rewriteValuegeneric_OpLsh8x64(v)
 	case OpLsh8x8:
-		return rewriteValuegeneric_OpLsh8x8(v, config)
+		return rewriteValuegeneric_OpLsh8x8(v)
 	case OpMod16:
-		return rewriteValuegeneric_OpMod16(v, config)
+		return rewriteValuegeneric_OpMod16(v)
 	case OpMod16u:
-		return rewriteValuegeneric_OpMod16u(v, config)
+		return rewriteValuegeneric_OpMod16u(v)
 	case OpMod32:
-		return rewriteValuegeneric_OpMod32(v, config)
+		return rewriteValuegeneric_OpMod32(v)
 	case OpMod32u:
-		return rewriteValuegeneric_OpMod32u(v, config)
+		return rewriteValuegeneric_OpMod32u(v)
 	case OpMod64:
-		return rewriteValuegeneric_OpMod64(v, config)
+		return rewriteValuegeneric_OpMod64(v)
 	case OpMod64u:
-		return rewriteValuegeneric_OpMod64u(v, config)
+		return rewriteValuegeneric_OpMod64u(v)
 	case OpMod8:
-		return rewriteValuegeneric_OpMod8(v, config)
+		return rewriteValuegeneric_OpMod8(v)
 	case OpMod8u:
-		return rewriteValuegeneric_OpMod8u(v, config)
+		return rewriteValuegeneric_OpMod8u(v)
 	case OpMul16:
-		return rewriteValuegeneric_OpMul16(v, config)
+		return rewriteValuegeneric_OpMul16(v)
 	case OpMul32:
-		return rewriteValuegeneric_OpMul32(v, config)
+		return rewriteValuegeneric_OpMul32(v)
 	case OpMul32F:
-		return rewriteValuegeneric_OpMul32F(v, config)
+		return rewriteValuegeneric_OpMul32F(v)
 	case OpMul64:
-		return rewriteValuegeneric_OpMul64(v, config)
+		return rewriteValuegeneric_OpMul64(v)
 	case OpMul64F:
-		return rewriteValuegeneric_OpMul64F(v, config)
+		return rewriteValuegeneric_OpMul64F(v)
 	case OpMul8:
-		return rewriteValuegeneric_OpMul8(v, config)
+		return rewriteValuegeneric_OpMul8(v)
 	case OpNeg16:
-		return rewriteValuegeneric_OpNeg16(v, config)
+		return rewriteValuegeneric_OpNeg16(v)
 	case OpNeg32:
-		return rewriteValuegeneric_OpNeg32(v, config)
+		return rewriteValuegeneric_OpNeg32(v)
 	case OpNeg32F:
-		return rewriteValuegeneric_OpNeg32F(v, config)
+		return rewriteValuegeneric_OpNeg32F(v)
 	case OpNeg64:
-		return rewriteValuegeneric_OpNeg64(v, config)
+		return rewriteValuegeneric_OpNeg64(v)
 	case OpNeg64F:
-		return rewriteValuegeneric_OpNeg64F(v, config)
+		return rewriteValuegeneric_OpNeg64F(v)
 	case OpNeg8:
-		return rewriteValuegeneric_OpNeg8(v, config)
+		return rewriteValuegeneric_OpNeg8(v)
 	case OpNeq16:
-		return rewriteValuegeneric_OpNeq16(v, config)
+		return rewriteValuegeneric_OpNeq16(v)
 	case OpNeq32:
-		return rewriteValuegeneric_OpNeq32(v, config)
+		return rewriteValuegeneric_OpNeq32(v)
 	case OpNeq64:
-		return rewriteValuegeneric_OpNeq64(v, config)
+		return rewriteValuegeneric_OpNeq64(v)
 	case OpNeq8:
-		return rewriteValuegeneric_OpNeq8(v, config)
+		return rewriteValuegeneric_OpNeq8(v)
 	case OpNeqB:
-		return rewriteValuegeneric_OpNeqB(v, config)
+		return rewriteValuegeneric_OpNeqB(v)
 	case OpNeqInter:
-		return rewriteValuegeneric_OpNeqInter(v, config)
+		return rewriteValuegeneric_OpNeqInter(v)
 	case OpNeqPtr:
-		return rewriteValuegeneric_OpNeqPtr(v, config)
+		return rewriteValuegeneric_OpNeqPtr(v)
 	case OpNeqSlice:
-		return rewriteValuegeneric_OpNeqSlice(v, config)
+		return rewriteValuegeneric_OpNeqSlice(v)
 	case OpNilCheck:
-		return rewriteValuegeneric_OpNilCheck(v, config)
+		return rewriteValuegeneric_OpNilCheck(v)
 	case OpNot:
-		return rewriteValuegeneric_OpNot(v, config)
+		return rewriteValuegeneric_OpNot(v)
 	case OpOffPtr:
-		return rewriteValuegeneric_OpOffPtr(v, config)
+		return rewriteValuegeneric_OpOffPtr(v)
 	case OpOr16:
-		return rewriteValuegeneric_OpOr16(v, config)
+		return rewriteValuegeneric_OpOr16(v)
 	case OpOr32:
-		return rewriteValuegeneric_OpOr32(v, config)
+		return rewriteValuegeneric_OpOr32(v)
 	case OpOr64:
-		return rewriteValuegeneric_OpOr64(v, config)
+		return rewriteValuegeneric_OpOr64(v)
 	case OpOr8:
-		return rewriteValuegeneric_OpOr8(v, config)
+		return rewriteValuegeneric_OpOr8(v)
 	case OpPhi:
-		return rewriteValuegeneric_OpPhi(v, config)
+		return rewriteValuegeneric_OpPhi(v)
 	case OpPtrIndex:
-		return rewriteValuegeneric_OpPtrIndex(v, config)
+		return rewriteValuegeneric_OpPtrIndex(v)
 	case OpRound32F:
-		return rewriteValuegeneric_OpRound32F(v, config)
+		return rewriteValuegeneric_OpRound32F(v)
 	case OpRound64F:
-		return rewriteValuegeneric_OpRound64F(v, config)
+		return rewriteValuegeneric_OpRound64F(v)
 	case OpRsh16Ux16:
-		return rewriteValuegeneric_OpRsh16Ux16(v, config)
+		return rewriteValuegeneric_OpRsh16Ux16(v)
 	case OpRsh16Ux32:
-		return rewriteValuegeneric_OpRsh16Ux32(v, config)
+		return rewriteValuegeneric_OpRsh16Ux32(v)
 	case OpRsh16Ux64:
-		return rewriteValuegeneric_OpRsh16Ux64(v, config)
+		return rewriteValuegeneric_OpRsh16Ux64(v)
 	case OpRsh16Ux8:
-		return rewriteValuegeneric_OpRsh16Ux8(v, config)
+		return rewriteValuegeneric_OpRsh16Ux8(v)
 	case OpRsh16x16:
-		return rewriteValuegeneric_OpRsh16x16(v, config)
+		return rewriteValuegeneric_OpRsh16x16(v)
 	case OpRsh16x32:
-		return rewriteValuegeneric_OpRsh16x32(v, config)
+		return rewriteValuegeneric_OpRsh16x32(v)
 	case OpRsh16x64:
-		return rewriteValuegeneric_OpRsh16x64(v, config)
+		return rewriteValuegeneric_OpRsh16x64(v)
 	case OpRsh16x8:
-		return rewriteValuegeneric_OpRsh16x8(v, config)
+		return rewriteValuegeneric_OpRsh16x8(v)
 	case OpRsh32Ux16:
-		return rewriteValuegeneric_OpRsh32Ux16(v, config)
+		return rewriteValuegeneric_OpRsh32Ux16(v)
 	case OpRsh32Ux32:
-		return rewriteValuegeneric_OpRsh32Ux32(v, config)
+		return rewriteValuegeneric_OpRsh32Ux32(v)
 	case OpRsh32Ux64:
-		return rewriteValuegeneric_OpRsh32Ux64(v, config)
+		return rewriteValuegeneric_OpRsh32Ux64(v)
 	case OpRsh32Ux8:
-		return rewriteValuegeneric_OpRsh32Ux8(v, config)
+		return rewriteValuegeneric_OpRsh32Ux8(v)
 	case OpRsh32x16:
-		return rewriteValuegeneric_OpRsh32x16(v, config)
+		return rewriteValuegeneric_OpRsh32x16(v)
 	case OpRsh32x32:
-		return rewriteValuegeneric_OpRsh32x32(v, config)
+		return rewriteValuegeneric_OpRsh32x32(v)
 	case OpRsh32x64:
-		return rewriteValuegeneric_OpRsh32x64(v, config)
+		return rewriteValuegeneric_OpRsh32x64(v)
 	case OpRsh32x8:
-		return rewriteValuegeneric_OpRsh32x8(v, config)
+		return rewriteValuegeneric_OpRsh32x8(v)
 	case OpRsh64Ux16:
-		return rewriteValuegeneric_OpRsh64Ux16(v, config)
+		return rewriteValuegeneric_OpRsh64Ux16(v)
 	case OpRsh64Ux32:
-		return rewriteValuegeneric_OpRsh64Ux32(v, config)
+		return rewriteValuegeneric_OpRsh64Ux32(v)
 	case OpRsh64Ux64:
-		return rewriteValuegeneric_OpRsh64Ux64(v, config)
+		return rewriteValuegeneric_OpRsh64Ux64(v)
 	case OpRsh64Ux8:
-		return rewriteValuegeneric_OpRsh64Ux8(v, config)
+		return rewriteValuegeneric_OpRsh64Ux8(v)
 	case OpRsh64x16:
-		return rewriteValuegeneric_OpRsh64x16(v, config)
+		return rewriteValuegeneric_OpRsh64x16(v)
 	case OpRsh64x32:
-		return rewriteValuegeneric_OpRsh64x32(v, config)
+		return rewriteValuegeneric_OpRsh64x32(v)
 	case OpRsh64x64:
-		return rewriteValuegeneric_OpRsh64x64(v, config)
+		return rewriteValuegeneric_OpRsh64x64(v)
 	case OpRsh64x8:
-		return rewriteValuegeneric_OpRsh64x8(v, config)
+		return rewriteValuegeneric_OpRsh64x8(v)
 	case OpRsh8Ux16:
-		return rewriteValuegeneric_OpRsh8Ux16(v, config)
+		return rewriteValuegeneric_OpRsh8Ux16(v)
 	case OpRsh8Ux32:
-		return rewriteValuegeneric_OpRsh8Ux32(v, config)
+		return rewriteValuegeneric_OpRsh8Ux32(v)
 	case OpRsh8Ux64:
-		return rewriteValuegeneric_OpRsh8Ux64(v, config)
+		return rewriteValuegeneric_OpRsh8Ux64(v)
 	case OpRsh8Ux8:
-		return rewriteValuegeneric_OpRsh8Ux8(v, config)
+		return rewriteValuegeneric_OpRsh8Ux8(v)
 	case OpRsh8x16:
-		return rewriteValuegeneric_OpRsh8x16(v, config)
+		return rewriteValuegeneric_OpRsh8x16(v)
 	case OpRsh8x32:
-		return rewriteValuegeneric_OpRsh8x32(v, config)
+		return rewriteValuegeneric_OpRsh8x32(v)
 	case OpRsh8x64:
-		return rewriteValuegeneric_OpRsh8x64(v, config)
+		return rewriteValuegeneric_OpRsh8x64(v)
 	case OpRsh8x8:
-		return rewriteValuegeneric_OpRsh8x8(v, config)
+		return rewriteValuegeneric_OpRsh8x8(v)
 	case OpSignExt16to32:
-		return rewriteValuegeneric_OpSignExt16to32(v, config)
+		return rewriteValuegeneric_OpSignExt16to32(v)
 	case OpSignExt16to64:
-		return rewriteValuegeneric_OpSignExt16to64(v, config)
+		return rewriteValuegeneric_OpSignExt16to64(v)
 	case OpSignExt32to64:
-		return rewriteValuegeneric_OpSignExt32to64(v, config)
+		return rewriteValuegeneric_OpSignExt32to64(v)
 	case OpSignExt8to16:
-		return rewriteValuegeneric_OpSignExt8to16(v, config)
+		return rewriteValuegeneric_OpSignExt8to16(v)
 	case OpSignExt8to32:
-		return rewriteValuegeneric_OpSignExt8to32(v, config)
+		return rewriteValuegeneric_OpSignExt8to32(v)
 	case OpSignExt8to64:
-		return rewriteValuegeneric_OpSignExt8to64(v, config)
+		return rewriteValuegeneric_OpSignExt8to64(v)
 	case OpSliceCap:
-		return rewriteValuegeneric_OpSliceCap(v, config)
+		return rewriteValuegeneric_OpSliceCap(v)
 	case OpSliceLen:
-		return rewriteValuegeneric_OpSliceLen(v, config)
+		return rewriteValuegeneric_OpSliceLen(v)
 	case OpSlicePtr:
-		return rewriteValuegeneric_OpSlicePtr(v, config)
+		return rewriteValuegeneric_OpSlicePtr(v)
 	case OpSlicemask:
-		return rewriteValuegeneric_OpSlicemask(v, config)
+		return rewriteValuegeneric_OpSlicemask(v)
 	case OpSqrt:
-		return rewriteValuegeneric_OpSqrt(v, config)
+		return rewriteValuegeneric_OpSqrt(v)
 	case OpStore:
-		return rewriteValuegeneric_OpStore(v, config)
+		return rewriteValuegeneric_OpStore(v)
 	case OpStringLen:
-		return rewriteValuegeneric_OpStringLen(v, config)
+		return rewriteValuegeneric_OpStringLen(v)
 	case OpStringPtr:
-		return rewriteValuegeneric_OpStringPtr(v, config)
+		return rewriteValuegeneric_OpStringPtr(v)
 	case OpStructSelect:
-		return rewriteValuegeneric_OpStructSelect(v, config)
+		return rewriteValuegeneric_OpStructSelect(v)
 	case OpSub16:
-		return rewriteValuegeneric_OpSub16(v, config)
+		return rewriteValuegeneric_OpSub16(v)
 	case OpSub32:
-		return rewriteValuegeneric_OpSub32(v, config)
+		return rewriteValuegeneric_OpSub32(v)
 	case OpSub32F:
-		return rewriteValuegeneric_OpSub32F(v, config)
+		return rewriteValuegeneric_OpSub32F(v)
 	case OpSub64:
-		return rewriteValuegeneric_OpSub64(v, config)
+		return rewriteValuegeneric_OpSub64(v)
 	case OpSub64F:
-		return rewriteValuegeneric_OpSub64F(v, config)
+		return rewriteValuegeneric_OpSub64F(v)
 	case OpSub8:
-		return rewriteValuegeneric_OpSub8(v, config)
+		return rewriteValuegeneric_OpSub8(v)
 	case OpTrunc16to8:
-		return rewriteValuegeneric_OpTrunc16to8(v, config)
+		return rewriteValuegeneric_OpTrunc16to8(v)
 	case OpTrunc32to16:
-		return rewriteValuegeneric_OpTrunc32to16(v, config)
+		return rewriteValuegeneric_OpTrunc32to16(v)
 	case OpTrunc32to8:
-		return rewriteValuegeneric_OpTrunc32to8(v, config)
+		return rewriteValuegeneric_OpTrunc32to8(v)
 	case OpTrunc64to16:
-		return rewriteValuegeneric_OpTrunc64to16(v, config)
+		return rewriteValuegeneric_OpTrunc64to16(v)
 	case OpTrunc64to32:
-		return rewriteValuegeneric_OpTrunc64to32(v, config)
+		return rewriteValuegeneric_OpTrunc64to32(v)
 	case OpTrunc64to8:
-		return rewriteValuegeneric_OpTrunc64to8(v, config)
+		return rewriteValuegeneric_OpTrunc64to8(v)
 	case OpXor16:
-		return rewriteValuegeneric_OpXor16(v, config)
+		return rewriteValuegeneric_OpXor16(v)
 	case OpXor32:
-		return rewriteValuegeneric_OpXor32(v, config)
+		return rewriteValuegeneric_OpXor32(v)
 	case OpXor64:
-		return rewriteValuegeneric_OpXor64(v, config)
+		return rewriteValuegeneric_OpXor64(v)
 	case OpXor8:
-		return rewriteValuegeneric_OpXor8(v, config)
+		return rewriteValuegeneric_OpXor8(v)
 	case OpZero:
-		return rewriteValuegeneric_OpZero(v, config)
+		return rewriteValuegeneric_OpZero(v)
 	case OpZeroExt16to32:
-		return rewriteValuegeneric_OpZeroExt16to32(v, config)
+		return rewriteValuegeneric_OpZeroExt16to32(v)
 	case OpZeroExt16to64:
-		return rewriteValuegeneric_OpZeroExt16to64(v, config)
+		return rewriteValuegeneric_OpZeroExt16to64(v)
 	case OpZeroExt32to64:
-		return rewriteValuegeneric_OpZeroExt32to64(v, config)
+		return rewriteValuegeneric_OpZeroExt32to64(v)
 	case OpZeroExt8to16:
-		return rewriteValuegeneric_OpZeroExt8to16(v, config)
+		return rewriteValuegeneric_OpZeroExt8to16(v)
 	case OpZeroExt8to32:
-		return rewriteValuegeneric_OpZeroExt8to32(v, config)
+		return rewriteValuegeneric_OpZeroExt8to32(v)
 	case OpZeroExt8to64:
-		return rewriteValuegeneric_OpZeroExt8to64(v, config)
+		return rewriteValuegeneric_OpZeroExt8to64(v)
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpAdd16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Add16  (Const16 [c])  (Const16 [d]))
@@ -737,7 +737,7 @@ func rewriteValuegeneric_OpAdd16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpAdd32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Add32  (Const32 [c])  (Const32 [d]))
@@ -1055,9 +1055,7 @@ func rewriteValuegeneric_OpAdd32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpAdd32F(v *Value) bool {
 	// match: (Add32F (Const32F [c]) (Const32F [d]))
 	// cond:
 	// result: (Const32F [f2i(float64(i2f32(c) + i2f32(d)))])
@@ -1112,7 +1110,7 @@ func rewriteValuegeneric_OpAdd32F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpAdd64(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Add64  (Const64 [c])  (Const64 [d]))
@@ -1430,9 +1428,7 @@ func rewriteValuegeneric_OpAdd64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpAdd64F(v *Value) bool {
 	// match: (Add64F (Const64F [c]) (Const64F [d]))
 	// cond:
 	// result: (Const64F [f2i(i2f(c) + i2f(d))])
@@ -1487,7 +1483,7 @@ func rewriteValuegeneric_OpAdd64F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpAdd8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Add8   (Const8 [c])   (Const8 [d]))
@@ -1805,9 +1801,7 @@ func rewriteValuegeneric_OpAdd8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAddPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpAddPtr(v *Value) bool {
 	// match: (AddPtr <t> x (Const64 [c]))
 	// cond:
 	// result: (OffPtr <t> x [c])
@@ -1844,7 +1838,7 @@ func rewriteValuegeneric_OpAddPtr(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAnd16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpAnd16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (And16  (Const16 [c])  (Const16 [d]))
@@ -2078,7 +2072,7 @@ func rewriteValuegeneric_OpAnd16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAnd32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpAnd32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (And32  (Const32 [c])  (Const32 [d]))
@@ -2312,7 +2306,7 @@ func rewriteValuegeneric_OpAnd32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAnd64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpAnd64(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (And64  (Const64 [c])  (Const64 [d]))
@@ -2598,7 +2592,7 @@ func rewriteValuegeneric_OpAnd64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAnd8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpAnd8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (And8   (Const8 [c])   (Const8 [d]))
@@ -2832,12 +2826,16 @@ func rewriteValuegeneric_OpAnd8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpArg(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Arg {n} [off])
 	// cond: v.Type.IsString()
-	// result: (StringMake     (Arg <config.fe.TypeBytePtr()> {n} [off])     (Arg <config.fe.TypeInt()> {n} [off+config.PtrSize]))
+	// result: (StringMake     (Arg <fe.TypeBytePtr()> {n} [off])     (Arg <fe.TypeInt()> {n} [off+config.PtrSize]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -2845,11 +2843,11 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpStringMake)
-		v0 := b.NewValue0(v.Pos, OpArg, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpArg, fe.TypeBytePtr())
 		v0.AuxInt = off
 		v0.Aux = n
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpArg, config.fe.TypeInt())
+		v1 := b.NewValue0(v.Pos, OpArg, fe.TypeInt())
 		v1.AuxInt = off + config.PtrSize
 		v1.Aux = n
 		v.AddArg(v1)
@@ -2857,7 +2855,7 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	}
 	// match: (Arg {n} [off])
 	// cond: v.Type.IsSlice()
-	// result: (SliceMake     (Arg <v.Type.ElemType().PtrTo()> {n} [off])     (Arg <config.fe.TypeInt()> {n} [off+config.PtrSize])     (Arg <config.fe.TypeInt()> {n} [off+2*config.PtrSize]))
+	// result: (SliceMake     (Arg <v.Type.ElemType().PtrTo()> {n} [off])     (Arg <fe.TypeInt()> {n} [off+config.PtrSize])     (Arg <fe.TypeInt()> {n} [off+2*config.PtrSize]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -2869,11 +2867,11 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 		v0.AuxInt = off
 		v0.Aux = n
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpArg, config.fe.TypeInt())
+		v1 := b.NewValue0(v.Pos, OpArg, fe.TypeInt())
 		v1.AuxInt = off + config.PtrSize
 		v1.Aux = n
 		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpArg, config.fe.TypeInt())
+		v2 := b.NewValue0(v.Pos, OpArg, fe.TypeInt())
 		v2.AuxInt = off + 2*config.PtrSize
 		v2.Aux = n
 		v.AddArg(v2)
@@ -2881,7 +2879,7 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	}
 	// match: (Arg {n} [off])
 	// cond: v.Type.IsInterface()
-	// result: (IMake     (Arg <config.fe.TypeBytePtr()> {n} [off])     (Arg <config.fe.TypeBytePtr()> {n} [off+config.PtrSize]))
+	// result: (IMake     (Arg <fe.TypeBytePtr()> {n} [off])     (Arg <fe.TypeBytePtr()> {n} [off+config.PtrSize]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -2889,11 +2887,11 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpIMake)
-		v0 := b.NewValue0(v.Pos, OpArg, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpArg, fe.TypeBytePtr())
 		v0.AuxInt = off
 		v0.Aux = n
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpArg, config.fe.TypeBytePtr())
+		v1 := b.NewValue0(v.Pos, OpArg, fe.TypeBytePtr())
 		v1.AuxInt = off + config.PtrSize
 		v1.Aux = n
 		v.AddArg(v1)
@@ -2901,7 +2899,7 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	}
 	// match: (Arg {n} [off])
 	// cond: v.Type.IsComplex() && v.Type.Size() == 16
-	// result: (ComplexMake     (Arg <config.fe.TypeFloat64()> {n} [off])     (Arg <config.fe.TypeFloat64()> {n} [off+8]))
+	// result: (ComplexMake     (Arg <fe.TypeFloat64()> {n} [off])     (Arg <fe.TypeFloat64()> {n} [off+8]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -2909,11 +2907,11 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpComplexMake)
-		v0 := b.NewValue0(v.Pos, OpArg, config.fe.TypeFloat64())
+		v0 := b.NewValue0(v.Pos, OpArg, fe.TypeFloat64())
 		v0.AuxInt = off
 		v0.Aux = n
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpArg, config.fe.TypeFloat64())
+		v1 := b.NewValue0(v.Pos, OpArg, fe.TypeFloat64())
 		v1.AuxInt = off + 8
 		v1.Aux = n
 		v.AddArg(v1)
@@ -2921,7 +2919,7 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	}
 	// match: (Arg {n} [off])
 	// cond: v.Type.IsComplex() && v.Type.Size() == 8
-	// result: (ComplexMake     (Arg <config.fe.TypeFloat32()> {n} [off])     (Arg <config.fe.TypeFloat32()> {n} [off+4]))
+	// result: (ComplexMake     (Arg <fe.TypeFloat32()> {n} [off])     (Arg <fe.TypeFloat32()> {n} [off+4]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
@@ -2929,35 +2927,35 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpComplexMake)
-		v0 := b.NewValue0(v.Pos, OpArg, config.fe.TypeFloat32())
+		v0 := b.NewValue0(v.Pos, OpArg, fe.TypeFloat32())
 		v0.AuxInt = off
 		v0.Aux = n
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpArg, config.fe.TypeFloat32())
+		v1 := b.NewValue0(v.Pos, OpArg, fe.TypeFloat32())
 		v1.AuxInt = off + 4
 		v1.Aux = n
 		v.AddArg(v1)
 		return true
 	}
 	// match: (Arg <t>)
-	// cond: t.IsStruct() && t.NumFields() == 0 && config.fe.CanSSA(t)
+	// cond: t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)
 	// result: (StructMake0)
 	for {
 		t := v.Type
-		if !(t.IsStruct() && t.NumFields() == 0 && config.fe.CanSSA(t)) {
+		if !(t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake0)
 		return true
 	}
 	// match: (Arg <t> {n} [off])
-	// cond: t.IsStruct() && t.NumFields() == 1 && config.fe.CanSSA(t)
+	// cond: t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)
 	// result: (StructMake1     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]))
 	for {
 		t := v.Type
 		off := v.AuxInt
 		n := v.Aux
-		if !(t.IsStruct() && t.NumFields() == 1 && config.fe.CanSSA(t)) {
+		if !(t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake1)
@@ -2968,13 +2966,13 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Arg <t> {n} [off])
-	// cond: t.IsStruct() && t.NumFields() == 2 && config.fe.CanSSA(t)
+	// cond: t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)
 	// result: (StructMake2     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]))
 	for {
 		t := v.Type
 		off := v.AuxInt
 		n := v.Aux
-		if !(t.IsStruct() && t.NumFields() == 2 && config.fe.CanSSA(t)) {
+		if !(t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake2)
@@ -2989,13 +2987,13 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Arg <t> {n} [off])
-	// cond: t.IsStruct() && t.NumFields() == 3 && config.fe.CanSSA(t)
+	// cond: t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)
 	// result: (StructMake3     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])     (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)]))
 	for {
 		t := v.Type
 		off := v.AuxInt
 		n := v.Aux
-		if !(t.IsStruct() && t.NumFields() == 3 && config.fe.CanSSA(t)) {
+		if !(t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake3)
@@ -3014,13 +3012,13 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Arg <t> {n} [off])
-	// cond: t.IsStruct() && t.NumFields() == 4 && config.fe.CanSSA(t)
+	// cond: t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)
 	// result: (StructMake4     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])     (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)])     (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
 	for {
 		t := v.Type
 		off := v.AuxInt
 		n := v.Aux
-		if !(t.IsStruct() && t.NumFields() == 4 && config.fe.CanSSA(t)) {
+		if !(t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake4)
@@ -3054,13 +3052,13 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Arg <t> {n} [off])
-	// cond: t.IsArray() && t.NumElem() == 1 && config.fe.CanSSA(t)
+	// cond: t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)
 	// result: (ArrayMake1 (Arg <t.ElemType()> {n} [off]))
 	for {
 		t := v.Type
 		off := v.AuxInt
 		n := v.Aux
-		if !(t.IsArray() && t.NumElem() == 1 && config.fe.CanSSA(t)) {
+		if !(t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpArrayMake1)
@@ -3072,9 +3070,7 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpArraySelect(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpArraySelect(v *Value) bool {
 	// match: (ArraySelect (ArrayMake1 x))
 	// cond:
 	// result: x
@@ -3125,9 +3121,7 @@ func rewriteValuegeneric_OpArraySelect(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCom16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpCom16(v *Value) bool {
 	// match: (Com16 (Com16 x))
 	// cond:
 	// result: x
@@ -3144,9 +3138,7 @@ func rewriteValuegeneric_OpCom16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCom32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpCom32(v *Value) bool {
 	// match: (Com32 (Com32 x))
 	// cond:
 	// result: x
@@ -3163,9 +3155,7 @@ func rewriteValuegeneric_OpCom32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCom64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpCom64(v *Value) bool {
 	// match: (Com64 (Com64 x))
 	// cond:
 	// result: x
@@ -3182,9 +3172,7 @@ func rewriteValuegeneric_OpCom64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCom8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpCom8(v *Value) bool {
 	// match: (Com8  (Com8  x))
 	// cond:
 	// result: x
@@ -3201,27 +3189,35 @@ func rewriteValuegeneric_OpCom8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpConstInterface(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpConstInterface(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (ConstInterface)
 	// cond:
-	// result: (IMake     (ConstNil <config.fe.TypeBytePtr()>)     (ConstNil <config.fe.TypeBytePtr()>))
+	// result: (IMake     (ConstNil <fe.TypeBytePtr()>)     (ConstNil <fe.TypeBytePtr()>))
 	for {
 		v.reset(OpIMake)
-		v0 := b.NewValue0(v.Pos, OpConstNil, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpConstNil, fe.TypeBytePtr())
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpConstNil, config.fe.TypeBytePtr())
+		v1 := b.NewValue0(v.Pos, OpConstNil, fe.TypeBytePtr())
 		v.AddArg(v1)
 		return true
 	}
 }
-func rewriteValuegeneric_OpConstSlice(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpConstSlice(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (ConstSlice)
 	// cond: config.PtrSize == 4
-	// result: (SliceMake     (ConstNil <v.Type.ElemType().PtrTo()>)     (Const32 <config.fe.TypeInt()> [0])     (Const32 <config.fe.TypeInt()> [0]))
+	// result: (SliceMake     (ConstNil <v.Type.ElemType().PtrTo()>)     (Const32 <fe.TypeInt()> [0])     (Const32 <fe.TypeInt()> [0]))
 	for {
 		if !(config.PtrSize == 4) {
 			break
@@ -3229,17 +3225,17 @@ func rewriteValuegeneric_OpConstSlice(v *Value, config *Config) bool {
 		v.reset(OpSliceMake)
 		v0 := b.NewValue0(v.Pos, OpConstNil, v.Type.ElemType().PtrTo())
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeInt())
+		v1 := b.NewValue0(v.Pos, OpConst32, fe.TypeInt())
 		v1.AuxInt = 0
 		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeInt())
+		v2 := b.NewValue0(v.Pos, OpConst32, fe.TypeInt())
 		v2.AuxInt = 0
 		v.AddArg(v2)
 		return true
 	}
 	// match: (ConstSlice)
 	// cond: config.PtrSize == 8
-	// result: (SliceMake     (ConstNil <v.Type.ElemType().PtrTo()>)     (Const64 <config.fe.TypeInt()> [0])     (Const64 <config.fe.TypeInt()> [0]))
+	// result: (SliceMake     (ConstNil <v.Type.ElemType().PtrTo()>)     (Const64 <fe.TypeInt()> [0])     (Const64 <fe.TypeInt()> [0]))
 	for {
 		if !(config.PtrSize == 8) {
 			break
@@ -3247,94 +3243,96 @@ func rewriteValuegeneric_OpConstSlice(v *Value, config *Config) bool {
 		v.reset(OpSliceMake)
 		v0 := b.NewValue0(v.Pos, OpConstNil, v.Type.ElemType().PtrTo())
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeInt())
+		v1 := b.NewValue0(v.Pos, OpConst64, fe.TypeInt())
 		v1.AuxInt = 0
 		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeInt())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeInt())
 		v2.AuxInt = 0
 		v.AddArg(v2)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpConstString(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpConstString(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (ConstString {s})
 	// cond: config.PtrSize == 4 && s.(string) == ""
-	// result: (StringMake (ConstNil) (Const32 <config.fe.TypeInt()> [0]))
+	// result: (StringMake (ConstNil) (Const32 <fe.TypeInt()> [0]))
 	for {
 		s := v.Aux
 		if !(config.PtrSize == 4 && s.(string) == "") {
 			break
 		}
 		v.reset(OpStringMake)
-		v0 := b.NewValue0(v.Pos, OpConstNil, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpConstNil, fe.TypeBytePtr())
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeInt())
+		v1 := b.NewValue0(v.Pos, OpConst32, fe.TypeInt())
 		v1.AuxInt = 0
 		v.AddArg(v1)
 		return true
 	}
 	// match: (ConstString {s})
 	// cond: config.PtrSize == 8 && s.(string) == ""
-	// result: (StringMake (ConstNil) (Const64 <config.fe.TypeInt()> [0]))
+	// result: (StringMake (ConstNil) (Const64 <fe.TypeInt()> [0]))
 	for {
 		s := v.Aux
 		if !(config.PtrSize == 8 && s.(string) == "") {
 			break
 		}
 		v.reset(OpStringMake)
-		v0 := b.NewValue0(v.Pos, OpConstNil, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpConstNil, fe.TypeBytePtr())
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeInt())
+		v1 := b.NewValue0(v.Pos, OpConst64, fe.TypeInt())
 		v1.AuxInt = 0
 		v.AddArg(v1)
 		return true
 	}
 	// match: (ConstString {s})
 	// cond: config.PtrSize == 4 && s.(string) != ""
-	// result: (StringMake     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}       (SB))     (Const32 <config.fe.TypeInt()> [int64(len(s.(string)))]))
+	// result: (StringMake     (Addr <fe.TypeBytePtr()> {fe.StringData(s.(string))}       (SB))     (Const32 <fe.TypeInt()> [int64(len(s.(string)))]))
 	for {
 		s := v.Aux
 		if !(config.PtrSize == 4 && s.(string) != "") {
 			break
 		}
 		v.reset(OpStringMake)
-		v0 := b.NewValue0(v.Pos, OpAddr, config.fe.TypeBytePtr())
-		v0.Aux = config.fe.StringData(s.(string))
-		v1 := b.NewValue0(v.Pos, OpSB, config.fe.TypeUintptr())
+		v0 := b.NewValue0(v.Pos, OpAddr, fe.TypeBytePtr())
+		v0.Aux = fe.StringData(s.(string))
+		v1 := b.NewValue0(v.Pos, OpSB, fe.TypeUintptr())
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeInt())
+		v2 := b.NewValue0(v.Pos, OpConst32, fe.TypeInt())
 		v2.AuxInt = int64(len(s.(string)))
 		v.AddArg(v2)
 		return true
 	}
 	// match: (ConstString {s})
 	// cond: config.PtrSize == 8 && s.(string) != ""
-	// result: (StringMake     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}       (SB))     (Const64 <config.fe.TypeInt()> [int64(len(s.(string)))]))
+	// result: (StringMake     (Addr <fe.TypeBytePtr()> {fe.StringData(s.(string))}       (SB))     (Const64 <fe.TypeInt()> [int64(len(s.(string)))]))
 	for {
 		s := v.Aux
 		if !(config.PtrSize == 8 && s.(string) != "") {
 			break
 		}
 		v.reset(OpStringMake)
-		v0 := b.NewValue0(v.Pos, OpAddr, config.fe.TypeBytePtr())
-		v0.Aux = config.fe.StringData(s.(string))
-		v1 := b.NewValue0(v.Pos, OpSB, config.fe.TypeUintptr())
+		v0 := b.NewValue0(v.Pos, OpAddr, fe.TypeBytePtr())
+		v0.Aux = fe.StringData(s.(string))
+		v1 := b.NewValue0(v.Pos, OpSB, fe.TypeUintptr())
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeInt())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeInt())
 		v2.AuxInt = int64(len(s.(string)))
 		v.AddArg(v2)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpConvert(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpConvert(v *Value) bool {
 	// match: (Convert (Add64 (Convert ptr mem) off) mem)
 	// cond:
 	// result: (Add64 ptr off)
@@ -3401,9 +3399,7 @@ func rewriteValuegeneric_OpConvert(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt32Fto64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpCvt32Fto64F(v *Value) bool {
 	// match: (Cvt32Fto64F (Const32F [c]))
 	// cond:
 	// result: (Const64F [c])
@@ -3419,9 +3415,7 @@ func rewriteValuegeneric_OpCvt32Fto64F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt64Fto32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpCvt64Fto32F(v *Value) bool {
 	// match: (Cvt64Fto32F (Const64F [c]))
 	// cond:
 	// result: (Const32F [f2i(float64(i2f32(c)))])
@@ -3437,9 +3431,13 @@ func rewriteValuegeneric_OpCvt64Fto32F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpDiv16(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Div16  (Const16 [c])  (Const16 [d]))
 	// cond: d != 0
 	// result: (Const16 [int64(int16(c)/int16(d))])
@@ -3486,7 +3484,7 @@ func rewriteValuegeneric_OpDiv16(v *Value, config *Config) bool {
 	}
 	// match: (Div16 <t> x (Const16 [-1<<15]))
 	// cond:
-	// result: (Rsh16Ux64 (And16 <t> x (Neg16 <t> x)) (Const64 <config.fe.TypeUInt64()> [15]))
+	// result: (Rsh16Ux64 (And16 <t> x (Neg16 <t> x)) (Const64 <fe.TypeUInt64()> [15]))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -3504,14 +3502,14 @@ func rewriteValuegeneric_OpDiv16(v *Value, config *Config) bool {
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = 15
 		v.AddArg(v2)
 		return true
 	}
 	// match: (Div16 <t> n (Const16 [c]))
 	// cond: isPowerOfTwo(c)
-	// result: (Rsh16x64     (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <config.fe.TypeUInt64()> [15])) (Const64 <config.fe.TypeUInt64()> [16-log2(c)])))     (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	// result: (Rsh16x64     (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <fe.TypeUInt64()> [15])) (Const64 <fe.TypeUInt64()> [16-log2(c)])))     (Const64 <fe.TypeUInt64()> [log2(c)]))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -3529,23 +3527,23 @@ func rewriteValuegeneric_OpDiv16(v *Value, config *Config) bool {
 		v1 := b.NewValue0(v.Pos, OpRsh16Ux64, t)
 		v2 := b.NewValue0(v.Pos, OpRsh16x64, t)
 		v2.AddArg(n)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = 15
 		v2.AddArg(v3)
 		v1.AddArg(v2)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 16 - log2(c)
 		v1.AddArg(v4)
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v5 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v5 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v5.AuxInt = log2(c)
 		v.AddArg(v5)
 		return true
 	}
 	// match: (Div16 <t> x (Const16 [c]))
 	// cond: smagicOK(16,c)
-	// result: (Sub16 <t>     (Rsh32x64 <t>       (Mul32 <config.fe.TypeUInt32()>         (Const32 <config.fe.TypeUInt32()> [int64(smagic(16,c).m)])         (SignExt16to32 x))       (Const64 <config.fe.TypeUInt64()> [16+smagic(16,c).s]))     (Rsh32x64 <t>       (SignExt16to32 x)       (Const64 <config.fe.TypeUInt64()> [31])))
+	// result: (Sub16 <t>     (Rsh32x64 <t>       (Mul32 <fe.TypeUInt32()>         (Const32 <fe.TypeUInt32()> [int64(smagic(16,c).m)])         (SignExt16to32 x))       (Const64 <fe.TypeUInt64()> [16+smagic(16,c).s]))     (Rsh32x64 <t>       (SignExt16to32 x)       (Const64 <fe.TypeUInt64()> [31])))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -3560,23 +3558,23 @@ func rewriteValuegeneric_OpDiv16(v *Value, config *Config) bool {
 		v.reset(OpSub16)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpRsh32x64, t)
-		v1 := b.NewValue0(v.Pos, OpMul32, config.fe.TypeUInt32())
-		v2 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v1 := b.NewValue0(v.Pos, OpMul32, fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v2.AuxInt = int64(smagic(16, c).m)
 		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
+		v3 := b.NewValue0(v.Pos, OpSignExt16to32, fe.TypeInt32())
 		v3.AddArg(x)
 		v1.AddArg(v3)
 		v0.AddArg(v1)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 16 + smagic(16, c).s
 		v0.AddArg(v4)
 		v.AddArg(v0)
 		v5 := b.NewValue0(v.Pos, OpRsh32x64, t)
-		v6 := b.NewValue0(v.Pos, OpSignExt16to32, config.fe.TypeInt32())
+		v6 := b.NewValue0(v.Pos, OpSignExt16to32, fe.TypeInt32())
 		v6.AddArg(x)
 		v5.AddArg(v6)
-		v7 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v7 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v7.AuxInt = 31
 		v5.AddArg(v7)
 		v.AddArg(v5)
@@ -3584,9 +3582,13 @@ func rewriteValuegeneric_OpDiv16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpDiv16u(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Div16u (Const16 [c])  (Const16 [d]))
 	// cond: d != 0
 	// result: (Const16 [int64(int16(uint16(c)/uint16(d)))])
@@ -3610,7 +3612,7 @@ func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
 	}
 	// match: (Div16u n (Const16 [c]))
 	// cond: isPowerOfTwo(c&0xffff)
-	// result: (Rsh16Ux64 n (Const64 <config.fe.TypeUInt64()> [log2(c&0xffff)]))
+	// result: (Rsh16Ux64 n (Const64 <fe.TypeUInt64()> [log2(c&0xffff)]))
 	for {
 		n := v.Args[0]
 		v_1 := v.Args[1]
@@ -3623,14 +3625,14 @@ func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
 		}
 		v.reset(OpRsh16Ux64)
 		v.AddArg(n)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = log2(c & 0xffff)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Div16u x (Const16 [c]))
 	// cond: umagicOK(16, c) && config.RegSize == 8
-	// result: (Trunc64to16     (Rsh64Ux64 <config.fe.TypeUInt64()>       (Mul64 <config.fe.TypeUInt64()>         (Const64 <config.fe.TypeUInt64()> [int64(1<<16+umagic(16,c).m)])         (ZeroExt16to64 x))       (Const64 <config.fe.TypeUInt64()> [16+umagic(16,c).s])))
+	// result: (Trunc64to16     (Rsh64Ux64 <fe.TypeUInt64()>       (Mul64 <fe.TypeUInt64()>         (Const64 <fe.TypeUInt64()> [int64(1<<16+umagic(16,c).m)])         (ZeroExt16to64 x))       (Const64 <fe.TypeUInt64()> [16+umagic(16,c).s])))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -3642,16 +3644,16 @@ func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpTrunc64to16)
-		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, config.fe.TypeUInt64())
-		v1 := b.NewValue0(v.Pos, OpMul64, config.fe.TypeUInt64())
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpMul64, fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = int64(1<<16 + umagic(16, c).m)
 		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpZeroExt16to64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpZeroExt16to64, fe.TypeUInt64())
 		v3.AddArg(x)
 		v1.AddArg(v3)
 		v0.AddArg(v1)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 16 + umagic(16, c).s
 		v0.AddArg(v4)
 		v.AddArg(v0)
@@ -3659,7 +3661,7 @@ func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
 	}
 	// match: (Div16u x (Const16 [c]))
 	// cond: umagicOK(16, c) && config.RegSize == 4 && umagic(16,c).m&1 == 0
-	// result: (Trunc32to16     (Rsh32Ux64 <config.fe.TypeUInt32()>       (Mul32 <config.fe.TypeUInt32()>         (Const32 <config.fe.TypeUInt32()> [int64(1<<15+umagic(16,c).m/2)])         (ZeroExt16to32 x))       (Const64 <config.fe.TypeUInt64()> [16+umagic(16,c).s-1])))
+	// result: (Trunc32to16     (Rsh32Ux64 <fe.TypeUInt32()>       (Mul32 <fe.TypeUInt32()>         (Const32 <fe.TypeUInt32()> [int64(1<<15+umagic(16,c).m/2)])         (ZeroExt16to32 x))       (Const64 <fe.TypeUInt64()> [16+umagic(16,c).s-1])))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -3671,16 +3673,16 @@ func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpTrunc32to16)
-		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Pos, OpMul32, config.fe.TypeUInt32())
-		v2 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, fe.TypeUInt32())
+		v1 := b.NewValue0(v.Pos, OpMul32, fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v2.AuxInt = int64(1<<15 + umagic(16, c).m/2)
 		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, fe.TypeUInt32())
 		v3.AddArg(x)
 		v1.AddArg(v3)
 		v0.AddArg(v1)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 16 + umagic(16, c).s - 1
 		v0.AddArg(v4)
 		v.AddArg(v0)
@@ -3688,7 +3690,7 @@ func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
 	}
 	// match: (Div16u x (Const16 [c]))
 	// cond: umagicOK(16, c) && config.RegSize == 4 && c&1 == 0
-	// result: (Trunc32to16     (Rsh32Ux64 <config.fe.TypeUInt32()>       (Mul32 <config.fe.TypeUInt32()>         (Const32 <config.fe.TypeUInt32()> [int64(1<<15+(umagic(16,c).m+1)/2)])         (Rsh32Ux64 <config.fe.TypeUInt32()> (ZeroExt16to32 x) (Const64 <config.fe.TypeUInt64()> [1])))       (Const64 <config.fe.TypeUInt64()> [16+umagic(16,c).s-2])))
+	// result: (Trunc32to16     (Rsh32Ux64 <fe.TypeUInt32()>       (Mul32 <fe.TypeUInt32()>         (Const32 <fe.TypeUInt32()> [int64(1<<15+(umagic(16,c).m+1)/2)])         (Rsh32Ux64 <fe.TypeUInt32()> (ZeroExt16to32 x) (Const64 <fe.TypeUInt64()> [1])))       (Const64 <fe.TypeUInt64()> [16+umagic(16,c).s-2])))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -3700,21 +3702,21 @@ func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpTrunc32to16)
-		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Pos, OpMul32, config.fe.TypeUInt32())
-		v2 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, fe.TypeUInt32())
+		v1 := b.NewValue0(v.Pos, OpMul32, fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v2.AuxInt = int64(1<<15 + (umagic(16, c).m+1)/2)
 		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpRsh32Ux64, config.fe.TypeUInt32())
-		v4 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+		v3 := b.NewValue0(v.Pos, OpRsh32Ux64, fe.TypeUInt32())
+		v4 := b.NewValue0(v.Pos, OpZeroExt16to32, fe.TypeUInt32())
 		v4.AddArg(x)
 		v3.AddArg(v4)
-		v5 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v5 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v5.AuxInt = 1
 		v3.AddArg(v5)
 		v1.AddArg(v3)
 		v0.AddArg(v1)
-		v6 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v6 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v6.AuxInt = 16 + umagic(16, c).s - 2
 		v0.AddArg(v6)
 		v.AddArg(v0)
@@ -3722,7 +3724,7 @@ func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
 	}
 	// match: (Div16u x (Const16 [c]))
 	// cond: umagicOK(16, c) && config.RegSize == 4
-	// result: (Trunc32to16     (Rsh32Ux64 <config.fe.TypeUInt32()>       (Avg32u         (Lsh32x64 <config.fe.TypeUInt32()> (ZeroExt16to32 x) (Const64 <config.fe.TypeUInt64()> [16]))         (Mul32 <config.fe.TypeUInt32()>           (Const32 <config.fe.TypeUInt32()> [int64(umagic(16,c).m)])           (ZeroExt16to32 x)))       (Const64 <config.fe.TypeUInt64()> [16+umagic(16,c).s-1])))
+	// result: (Trunc32to16     (Rsh32Ux64 <fe.TypeUInt32()>       (Avg32u         (Lsh32x64 <fe.TypeUInt32()> (ZeroExt16to32 x) (Const64 <fe.TypeUInt64()> [16]))         (Mul32 <fe.TypeUInt32()>           (Const32 <fe.TypeUInt32()> [int64(umagic(16,c).m)])           (ZeroExt16to32 x)))       (Const64 <fe.TypeUInt64()> [16+umagic(16,c).s-1])))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -3734,26 +3736,26 @@ func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpTrunc32to16)
-		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Pos, OpAvg32u, config.fe.TypeUInt32())
-		v2 := b.NewValue0(v.Pos, OpLsh32x64, config.fe.TypeUInt32())
-		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, fe.TypeUInt32())
+		v1 := b.NewValue0(v.Pos, OpAvg32u, fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpLsh32x64, fe.TypeUInt32())
+		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, fe.TypeUInt32())
 		v3.AddArg(x)
 		v2.AddArg(v3)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 16
 		v2.AddArg(v4)
 		v1.AddArg(v2)
-		v5 := b.NewValue0(v.Pos, OpMul32, config.fe.TypeUInt32())
-		v6 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v5 := b.NewValue0(v.Pos, OpMul32, fe.TypeUInt32())
+		v6 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v6.AuxInt = int64(umagic(16, c).m)
 		v5.AddArg(v6)
-		v7 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+		v7 := b.NewValue0(v.Pos, OpZeroExt16to32, fe.TypeUInt32())
 		v7.AddArg(x)
 		v5.AddArg(v7)
 		v1.AddArg(v5)
 		v0.AddArg(v1)
-		v8 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v8 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v8.AuxInt = 16 + umagic(16, c).s - 1
 		v0.AddArg(v8)
 		v.AddArg(v0)
@@ -3761,9 +3763,13 @@ func rewriteValuegeneric_OpDiv16u(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpDiv32(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Div32  (Const32 [c])  (Const32 [d]))
 	// cond: d != 0
 	// result: (Const32 [int64(int32(c)/int32(d))])
@@ -3810,7 +3816,7 @@ func rewriteValuegeneric_OpDiv32(v *Value, config *Config) bool {
 	}
 	// match: (Div32 <t> x (Const32 [-1<<31]))
 	// cond:
-	// result: (Rsh32Ux64 (And32 <t> x (Neg32 <t> x)) (Const64 <config.fe.TypeUInt64()> [31]))
+	// result: (Rsh32Ux64 (And32 <t> x (Neg32 <t> x)) (Const64 <fe.TypeUInt64()> [31]))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -3828,14 +3834,14 @@ func rewriteValuegeneric_OpDiv32(v *Value, config *Config) bool {
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = 31
 		v.AddArg(v2)
 		return true
 	}
 	// match: (Div32 <t> n (Const32 [c]))
 	// cond: isPowerOfTwo(c)
-	// result: (Rsh32x64     (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <config.fe.TypeUInt64()> [31])) (Const64 <config.fe.TypeUInt64()> [32-log2(c)])))     (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	// result: (Rsh32x64     (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <fe.TypeUInt64()> [31])) (Const64 <fe.TypeUInt64()> [32-log2(c)])))     (Const64 <fe.TypeUInt64()> [log2(c)]))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -3853,23 +3859,23 @@ func rewriteValuegeneric_OpDiv32(v *Value, config *Config) bool {
 		v1 := b.NewValue0(v.Pos, OpRsh32Ux64, t)
 		v2 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v2.AddArg(n)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = 31
 		v2.AddArg(v3)
 		v1.AddArg(v2)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 32 - log2(c)
 		v1.AddArg(v4)
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v5 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v5 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v5.AuxInt = log2(c)
 		v.AddArg(v5)
 		return true
 	}
 	// match: (Div32 <t> x (Const32 [c]))
 	// cond: smagicOK(32,c) && config.RegSize == 8
-	// result: (Sub32 <t>     (Rsh64x64 <t>       (Mul64 <config.fe.TypeUInt64()>         (Const64 <config.fe.TypeUInt64()> [int64(smagic(32,c).m)])         (SignExt32to64 x))       (Const64 <config.fe.TypeUInt64()> [32+smagic(32,c).s]))     (Rsh64x64 <t>       (SignExt32to64 x)       (Const64 <config.fe.TypeUInt64()> [63])))
+	// result: (Sub32 <t>     (Rsh64x64 <t>       (Mul64 <fe.TypeUInt64()>         (Const64 <fe.TypeUInt64()> [int64(smagic(32,c).m)])         (SignExt32to64 x))       (Const64 <fe.TypeUInt64()> [32+smagic(32,c).s]))     (Rsh64x64 <t>       (SignExt32to64 x)       (Const64 <fe.TypeUInt64()> [63])))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -3884,23 +3890,23 @@ func rewriteValuegeneric_OpDiv32(v *Value, config *Config) bool {
 		v.reset(OpSub32)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpRsh64x64, t)
-		v1 := b.NewValue0(v.Pos, OpMul64, config.fe.TypeUInt64())
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpMul64, fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = int64(smagic(32, c).m)
 		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpSignExt32to64, config.fe.TypeInt64())
+		v3 := b.NewValue0(v.Pos, OpSignExt32to64, fe.TypeInt64())
 		v3.AddArg(x)
 		v1.AddArg(v3)
 		v0.AddArg(v1)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 32 + smagic(32, c).s
 		v0.AddArg(v4)
 		v.AddArg(v0)
 		v5 := b.NewValue0(v.Pos, OpRsh64x64, t)
-		v6 := b.NewValue0(v.Pos, OpSignExt32to64, config.fe.TypeInt64())
+		v6 := b.NewValue0(v.Pos, OpSignExt32to64, fe.TypeInt64())
 		v6.AddArg(x)
 		v5.AddArg(v6)
-		v7 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v7 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v7.AuxInt = 63
 		v5.AddArg(v7)
 		v.AddArg(v5)
@@ -3908,7 +3914,7 @@ func rewriteValuegeneric_OpDiv32(v *Value, config *Config) bool {
 	}
 	// match: (Div32 <t> x (Const32 [c]))
 	// cond: smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 == 0
-	// result: (Sub32 <t>     (Rsh32x64 <t>       (Hmul32 <t>         (Const32 <config.fe.TypeUInt32()> [int64(int32(smagic(32,c).m/2))])         x)       (Const64 <config.fe.TypeUInt64()> [smagic(32,c).s-1]))     (Rsh32x64 <t>       x       (Const64 <config.fe.TypeUInt64()> [31])))
+	// result: (Sub32 <t>     (Rsh32x64 <t>       (Hmul32 <t>         (Const32 <fe.TypeUInt32()> [int64(int32(smagic(32,c).m/2))])         x)       (Const64 <fe.TypeUInt64()> [smagic(32,c).s-1]))     (Rsh32x64 <t>       x       (Const64 <fe.TypeUInt64()> [31])))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -3924,18 +3930,18 @@ func rewriteValuegeneric_OpDiv32(v *Value, config *Config) bool {
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v1 := b.NewValue0(v.Pos, OpHmul32, t)
-		v2 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v2.AuxInt = int64(int32(smagic(32, c).m / 2))
 		v1.AddArg(v2)
 		v1.AddArg(x)
 		v0.AddArg(v1)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = smagic(32, c).s - 1
 		v0.AddArg(v3)
 		v.AddArg(v0)
 		v4 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v4.AddArg(x)
-		v5 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v5 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v5.AuxInt = 31
 		v4.AddArg(v5)
 		v.AddArg(v4)
@@ -3943,7 +3949,7 @@ func rewriteValuegeneric_OpDiv32(v *Value, config *Config) bool {
 	}
 	// match: (Div32 <t> x (Const32 [c]))
 	// cond: smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 != 0
-	// result: (Sub32 <t>     (Rsh32x64 <t>       (Add32 <t>         (Hmul32 <t>           (Const32 <config.fe.TypeUInt32()> [int64(int32(smagic(32,c).m))])           x)         x)       (Const64 <config.fe.TypeUInt64()> [smagic(32,c).s]))     (Rsh32x64 <t>       x       (Const64 <config.fe.TypeUInt64()> [31])))
+	// result: (Sub32 <t>     (Rsh32x64 <t>       (Add32 <t>         (Hmul32 <t>           (Const32 <fe.TypeUInt32()> [int64(int32(smagic(32,c).m))])           x)         x)       (Const64 <fe.TypeUInt64()> [smagic(32,c).s]))     (Rsh32x64 <t>       x       (Const64 <fe.TypeUInt64()> [31])))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -3960,20 +3966,20 @@ func rewriteValuegeneric_OpDiv32(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v1 := b.NewValue0(v.Pos, OpAdd32, t)
 		v2 := b.NewValue0(v.Pos, OpHmul32, t)
-		v3 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v3 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v3.AuxInt = int64(int32(smagic(32, c).m))
 		v2.AddArg(v3)
 		v2.AddArg(x)
 		v1.AddArg(v2)
 		v1.AddArg(x)
 		v0.AddArg(v1)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = smagic(32, c).s
 		v0.AddArg(v4)
 		v.AddArg(v0)
 		v5 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v5.AddArg(x)
-		v6 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v6 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v6.AuxInt = 31
 		v5.AddArg(v6)
 		v.AddArg(v5)
@@ -3981,9 +3987,7 @@ func rewriteValuegeneric_OpDiv32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpDiv32F(v *Value) bool {
 	// match: (Div32F (Const32F [c]) (Const32F [d]))
 	// cond:
 	// result: (Const32F [f2i(float64(i2f32(c) / i2f32(d)))])
@@ -4037,9 +4041,13 @@ func rewriteValuegeneric_OpDiv32F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpDiv32u(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Div32u (Const32 [c])  (Const32 [d]))
 	// cond: d != 0
 	// result: (Const32 [int64(int32(uint32(c)/uint32(d)))])
@@ -4063,7 +4071,7 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 	}
 	// match: (Div32u n (Const32 [c]))
 	// cond: isPowerOfTwo(c&0xffffffff)
-	// result: (Rsh32Ux64 n (Const64 <config.fe.TypeUInt64()> [log2(c&0xffffffff)]))
+	// result: (Rsh32Ux64 n (Const64 <fe.TypeUInt64()> [log2(c&0xffffffff)]))
 	for {
 		n := v.Args[0]
 		v_1 := v.Args[1]
@@ -4076,14 +4084,14 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 		}
 		v.reset(OpRsh32Ux64)
 		v.AddArg(n)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = log2(c & 0xffffffff)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Div32u x (Const32 [c]))
 	// cond: umagicOK(32, c) && config.RegSize == 4 && umagic(32,c).m&1 == 0
-	// result: (Rsh32Ux64 <config.fe.TypeUInt32()>     (Hmul32u <config.fe.TypeUInt32()>       (Const32 <config.fe.TypeUInt32()> [int64(int32(1<<31+umagic(32,c).m/2))])       x)     (Const64 <config.fe.TypeUInt64()> [umagic(32,c).s-1]))
+	// result: (Rsh32Ux64 <fe.TypeUInt32()>     (Hmul32u <fe.TypeUInt32()>       (Const32 <fe.TypeUInt32()> [int64(int32(1<<31+umagic(32,c).m/2))])       x)     (Const64 <fe.TypeUInt64()> [umagic(32,c).s-1]))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -4095,21 +4103,21 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpRsh32Ux64)
-		v.Type = config.fe.TypeUInt32()
-		v0 := b.NewValue0(v.Pos, OpHmul32u, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v.Type = fe.TypeUInt32()
+		v0 := b.NewValue0(v.Pos, OpHmul32u, fe.TypeUInt32())
+		v1 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v1.AuxInt = int64(int32(1<<31 + umagic(32, c).m/2))
 		v0.AddArg(v1)
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = umagic(32, c).s - 1
 		v.AddArg(v2)
 		return true
 	}
 	// match: (Div32u x (Const32 [c]))
 	// cond: umagicOK(32, c) && config.RegSize == 4 && c&1 == 0
-	// result: (Rsh32Ux64 <config.fe.TypeUInt32()>     (Hmul32u <config.fe.TypeUInt32()>       (Const32 <config.fe.TypeUInt32()> [int64(int32(1<<31+(umagic(32,c).m+1)/2))])       (Rsh32Ux64 <config.fe.TypeUInt32()> x (Const64 <config.fe.TypeUInt64()> [1])))     (Const64 <config.fe.TypeUInt64()> [umagic(32,c).s-2]))
+	// result: (Rsh32Ux64 <fe.TypeUInt32()>     (Hmul32u <fe.TypeUInt32()>       (Const32 <fe.TypeUInt32()> [int64(int32(1<<31+(umagic(32,c).m+1)/2))])       (Rsh32Ux64 <fe.TypeUInt32()> x (Const64 <fe.TypeUInt64()> [1])))     (Const64 <fe.TypeUInt64()> [umagic(32,c).s-2]))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -4121,26 +4129,26 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpRsh32Ux64)
-		v.Type = config.fe.TypeUInt32()
-		v0 := b.NewValue0(v.Pos, OpHmul32u, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v.Type = fe.TypeUInt32()
+		v0 := b.NewValue0(v.Pos, OpHmul32u, fe.TypeUInt32())
+		v1 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v1.AuxInt = int64(int32(1<<31 + (umagic(32, c).m+1)/2))
 		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpRsh32Ux64, config.fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpRsh32Ux64, fe.TypeUInt32())
 		v2.AddArg(x)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = 1
 		v2.AddArg(v3)
 		v0.AddArg(v2)
 		v.AddArg(v0)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = umagic(32, c).s - 2
 		v.AddArg(v4)
 		return true
 	}
 	// match: (Div32u x (Const32 [c]))
 	// cond: umagicOK(32, c) && config.RegSize == 4
-	// result: (Rsh32Ux64 <config.fe.TypeUInt32()>     (Avg32u       x       (Hmul32u <config.fe.TypeUInt32()>         (Const32 <config.fe.TypeUInt32()> [int64(int32(umagic(32,c).m))])         x))     (Const64 <config.fe.TypeUInt64()> [umagic(32,c).s-1]))
+	// result: (Rsh32Ux64 <fe.TypeUInt32()>     (Avg32u       x       (Hmul32u <fe.TypeUInt32()>         (Const32 <fe.TypeUInt32()> [int64(int32(umagic(32,c).m))])         x))     (Const64 <fe.TypeUInt64()> [umagic(32,c).s-1]))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -4152,24 +4160,24 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpRsh32Ux64)
-		v.Type = config.fe.TypeUInt32()
-		v0 := b.NewValue0(v.Pos, OpAvg32u, config.fe.TypeUInt32())
+		v.Type = fe.TypeUInt32()
+		v0 := b.NewValue0(v.Pos, OpAvg32u, fe.TypeUInt32())
 		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpHmul32u, config.fe.TypeUInt32())
-		v2 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v1 := b.NewValue0(v.Pos, OpHmul32u, fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v2.AuxInt = int64(int32(umagic(32, c).m))
 		v1.AddArg(v2)
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = umagic(32, c).s - 1
 		v.AddArg(v3)
 		return true
 	}
 	// match: (Div32u x (Const32 [c]))
 	// cond: umagicOK(32, c) && config.RegSize == 8 && umagic(32,c).m&1 == 0
-	// result: (Trunc64to32     (Rsh64Ux64 <config.fe.TypeUInt64()>       (Mul64 <config.fe.TypeUInt64()>         (Const64 <config.fe.TypeUInt64()> [int64(1<<31+umagic(32,c).m/2)])         (ZeroExt32to64 x))       (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-1])))
+	// result: (Trunc64to32     (Rsh64Ux64 <fe.TypeUInt64()>       (Mul64 <fe.TypeUInt64()>         (Const64 <fe.TypeUInt64()> [int64(1<<31+umagic(32,c).m/2)])         (ZeroExt32to64 x))       (Const64 <fe.TypeUInt64()> [32+umagic(32,c).s-1])))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -4181,16 +4189,16 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpTrunc64to32)
-		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, config.fe.TypeUInt64())
-		v1 := b.NewValue0(v.Pos, OpMul64, config.fe.TypeUInt64())
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpMul64, fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = int64(1<<31 + umagic(32, c).m/2)
 		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpZeroExt32to64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpZeroExt32to64, fe.TypeUInt64())
 		v3.AddArg(x)
 		v1.AddArg(v3)
 		v0.AddArg(v1)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 32 + umagic(32, c).s - 1
 		v0.AddArg(v4)
 		v.AddArg(v0)
@@ -4198,7 +4206,7 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 	}
 	// match: (Div32u x (Const32 [c]))
 	// cond: umagicOK(32, c) && config.RegSize == 8 && c&1 == 0
-	// result: (Trunc64to32     (Rsh64Ux64 <config.fe.TypeUInt64()>       (Mul64 <config.fe.TypeUInt64()>         (Const64 <config.fe.TypeUInt64()> [int64(1<<31+(umagic(32,c).m+1)/2)])         (Rsh64Ux64 <config.fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <config.fe.TypeUInt64()> [1])))       (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-2])))
+	// result: (Trunc64to32     (Rsh64Ux64 <fe.TypeUInt64()>       (Mul64 <fe.TypeUInt64()>         (Const64 <fe.TypeUInt64()> [int64(1<<31+(umagic(32,c).m+1)/2)])         (Rsh64Ux64 <fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <fe.TypeUInt64()> [1])))       (Const64 <fe.TypeUInt64()> [32+umagic(32,c).s-2])))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -4210,21 +4218,21 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpTrunc64to32)
-		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, config.fe.TypeUInt64())
-		v1 := b.NewValue0(v.Pos, OpMul64, config.fe.TypeUInt64())
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpMul64, fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = int64(1<<31 + (umagic(32, c).m+1)/2)
 		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpRsh64Ux64, config.fe.TypeUInt64())
-		v4 := b.NewValue0(v.Pos, OpZeroExt32to64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpRsh64Ux64, fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpZeroExt32to64, fe.TypeUInt64())
 		v4.AddArg(x)
 		v3.AddArg(v4)
-		v5 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v5 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v5.AuxInt = 1
 		v3.AddArg(v5)
 		v1.AddArg(v3)
 		v0.AddArg(v1)
-		v6 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v6 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v6.AuxInt = 32 + umagic(32, c).s - 2
 		v0.AddArg(v6)
 		v.AddArg(v0)
@@ -4232,7 +4240,7 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 	}
 	// match: (Div32u x (Const32 [c]))
 	// cond: umagicOK(32, c) && config.RegSize == 8
-	// result: (Trunc64to32     (Rsh64Ux64 <config.fe.TypeUInt64()>       (Avg64u         (Lsh64x64 <config.fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <config.fe.TypeUInt64()> [32]))         (Mul64 <config.fe.TypeUInt64()>           (Const64 <config.fe.TypeUInt32()> [int64(umagic(32,c).m)])           (ZeroExt32to64 x)))       (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-1])))
+	// result: (Trunc64to32     (Rsh64Ux64 <fe.TypeUInt64()>       (Avg64u         (Lsh64x64 <fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <fe.TypeUInt64()> [32]))         (Mul64 <fe.TypeUInt64()>           (Const64 <fe.TypeUInt32()> [int64(umagic(32,c).m)])           (ZeroExt32to64 x)))       (Const64 <fe.TypeUInt64()> [32+umagic(32,c).s-1])))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -4244,26 +4252,26 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpTrunc64to32)
-		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, config.fe.TypeUInt64())
-		v1 := b.NewValue0(v.Pos, OpAvg64u, config.fe.TypeUInt64())
-		v2 := b.NewValue0(v.Pos, OpLsh64x64, config.fe.TypeUInt64())
-		v3 := b.NewValue0(v.Pos, OpZeroExt32to64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpAvg64u, fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpLsh64x64, fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpZeroExt32to64, fe.TypeUInt64())
 		v3.AddArg(x)
 		v2.AddArg(v3)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 32
 		v2.AddArg(v4)
 		v1.AddArg(v2)
-		v5 := b.NewValue0(v.Pos, OpMul64, config.fe.TypeUInt64())
-		v6 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt32())
+		v5 := b.NewValue0(v.Pos, OpMul64, fe.TypeUInt64())
+		v6 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt32())
 		v6.AuxInt = int64(umagic(32, c).m)
 		v5.AddArg(v6)
-		v7 := b.NewValue0(v.Pos, OpZeroExt32to64, config.fe.TypeUInt64())
+		v7 := b.NewValue0(v.Pos, OpZeroExt32to64, fe.TypeUInt64())
 		v7.AddArg(x)
 		v5.AddArg(v7)
 		v1.AddArg(v5)
 		v0.AddArg(v1)
-		v8 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v8 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v8.AuxInt = 32 + umagic(32, c).s - 1
 		v0.AddArg(v8)
 		v.AddArg(v0)
@@ -4271,9 +4279,13 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpDiv64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Div64  (Const64 [c])  (Const64 [d]))
 	// cond: d != 0
 	// result: (Const64 [c/d])
@@ -4320,7 +4332,7 @@ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
 	}
 	// match: (Div64 <t> x (Const64 [-1<<63]))
 	// cond:
-	// result: (Rsh64Ux64 (And64 <t> x (Neg64 <t> x)) (Const64 <config.fe.TypeUInt64()> [63]))
+	// result: (Rsh64Ux64 (And64 <t> x (Neg64 <t> x)) (Const64 <fe.TypeUInt64()> [63]))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -4338,14 +4350,14 @@ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = 63
 		v.AddArg(v2)
 		return true
 	}
 	// match: (Div64 <t> n (Const64 [c]))
 	// cond: isPowerOfTwo(c)
-	// result: (Rsh64x64     (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <config.fe.TypeUInt64()> [63])) (Const64 <config.fe.TypeUInt64()> [64-log2(c)])))     (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	// result: (Rsh64x64     (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <fe.TypeUInt64()> [63])) (Const64 <fe.TypeUInt64()> [64-log2(c)])))     (Const64 <fe.TypeUInt64()> [log2(c)]))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -4363,23 +4375,23 @@ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
 		v1 := b.NewValue0(v.Pos, OpRsh64Ux64, t)
 		v2 := b.NewValue0(v.Pos, OpRsh64x64, t)
 		v2.AddArg(n)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = 63
 		v2.AddArg(v3)
 		v1.AddArg(v2)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 64 - log2(c)
 		v1.AddArg(v4)
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v5 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v5 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v5.AuxInt = log2(c)
 		v.AddArg(v5)
 		return true
 	}
 	// match: (Div64 <t> x (Const64 [c]))
 	// cond: smagicOK(64,c) && smagic(64,c).m&1 == 0
-	// result: (Sub64 <t>     (Rsh64x64 <t>       (Hmul64 <t>         (Const64 <config.fe.TypeUInt64()> [int64(smagic(64,c).m/2)])         x)       (Const64 <config.fe.TypeUInt64()> [smagic(64,c).s-1]))     (Rsh64x64 <t>       x       (Const64 <config.fe.TypeUInt64()> [63])))
+	// result: (Sub64 <t>     (Rsh64x64 <t>       (Hmul64 <t>         (Const64 <fe.TypeUInt64()> [int64(smagic(64,c).m/2)])         x)       (Const64 <fe.TypeUInt64()> [smagic(64,c).s-1]))     (Rsh64x64 <t>       x       (Const64 <fe.TypeUInt64()> [63])))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -4395,18 +4407,18 @@ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpRsh64x64, t)
 		v1 := b.NewValue0(v.Pos, OpHmul64, t)
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = int64(smagic(64, c).m / 2)
 		v1.AddArg(v2)
 		v1.AddArg(x)
 		v0.AddArg(v1)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = smagic(64, c).s - 1
 		v0.AddArg(v3)
 		v.AddArg(v0)
 		v4 := b.NewValue0(v.Pos, OpRsh64x64, t)
 		v4.AddArg(x)
-		v5 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v5 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v5.AuxInt = 63
 		v4.AddArg(v5)
 		v.AddArg(v4)
@@ -4414,7 +4426,7 @@ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
 	}
 	// match: (Div64 <t> x (Const64 [c]))
 	// cond: smagicOK(64,c) && smagic(64,c).m&1 != 0
-	// result: (Sub64 <t>     (Rsh64x64 <t>       (Add64 <t>         (Hmul64 <t>           (Const64 <config.fe.TypeUInt64()> [int64(smagic(64,c).m)])           x)         x)       (Const64 <config.fe.TypeUInt64()> [smagic(64,c).s]))     (Rsh64x64 <t>       x       (Const64 <config.fe.TypeUInt64()> [63])))
+	// result: (Sub64 <t>     (Rsh64x64 <t>       (Add64 <t>         (Hmul64 <t>           (Const64 <fe.TypeUInt64()> [int64(smagic(64,c).m)])           x)         x)       (Const64 <fe.TypeUInt64()> [smagic(64,c).s]))     (Rsh64x64 <t>       x       (Const64 <fe.TypeUInt64()> [63])))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -4431,20 +4443,20 @@ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Pos, OpRsh64x64, t)
 		v1 := b.NewValue0(v.Pos, OpAdd64, t)
 		v2 := b.NewValue0(v.Pos, OpHmul64, t)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = int64(smagic(64, c).m)
 		v2.AddArg(v3)
 		v2.AddArg(x)
 		v1.AddArg(v2)
 		v1.AddArg(x)
 		v0.AddArg(v1)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = smagic(64, c).s
 		v0.AddArg(v4)
 		v.AddArg(v0)
 		v5 := b.NewValue0(v.Pos, OpRsh64x64, t)
 		v5.AddArg(x)
-		v6 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v6 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v6.AuxInt = 63
 		v5.AddArg(v6)
 		v.AddArg(v5)
@@ -4452,9 +4464,7 @@ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpDiv64F(v *Value) bool {
 	// match: (Div64F (Const64F [c]) (Const64F [d]))
 	// cond:
 	// result: (Const64F [f2i(i2f(c) / i2f(d))])
@@ -4508,9 +4518,13 @@ func rewriteValuegeneric_OpDiv64F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv64u(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpDiv64u(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Div64u (Const64 [c])  (Const64 [d]))
 	// cond: d != 0
 	// result: (Const64 [int64(uint64(c)/uint64(d))])
@@ -4534,7 +4548,7 @@ func rewriteValuegeneric_OpDiv64u(v *Value, config *Config) bool {
 	}
 	// match: (Div64u n (Const64 [c]))
 	// cond: isPowerOfTwo(c)
-	// result: (Rsh64Ux64 n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	// result: (Rsh64Ux64 n (Const64 <fe.TypeUInt64()> [log2(c)]))
 	for {
 		n := v.Args[0]
 		v_1 := v.Args[1]
@@ -4547,14 +4561,14 @@ func rewriteValuegeneric_OpDiv64u(v *Value, config *Config) bool {
 		}
 		v.reset(OpRsh64Ux64)
 		v.AddArg(n)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = log2(c)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Div64u x (Const64 [c]))
 	// cond: umagicOK(64, c) && config.RegSize == 8 && umagic(64,c).m&1 == 0
-	// result: (Rsh64Ux64 <config.fe.TypeUInt64()>     (Hmul64u <config.fe.TypeUInt64()>       (Const64 <config.fe.TypeUInt64()> [int64(1<<63+umagic(64,c).m/2)])       x)     (Const64 <config.fe.TypeUInt64()> [umagic(64,c).s-1]))
+	// result: (Rsh64Ux64 <fe.TypeUInt64()>     (Hmul64u <fe.TypeUInt64()>       (Const64 <fe.TypeUInt64()> [int64(1<<63+umagic(64,c).m/2)])       x)     (Const64 <fe.TypeUInt64()> [umagic(64,c).s-1]))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -4566,21 +4580,21 @@ func rewriteValuegeneric_OpDiv64u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpRsh64Ux64)
-		v.Type = config.fe.TypeUInt64()
-		v0 := b.NewValue0(v.Pos, OpHmul64u, config.fe.TypeUInt64())
-		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v.Type = fe.TypeUInt64()
+		v0 := b.NewValue0(v.Pos, OpHmul64u, fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v1.AuxInt = int64(1<<63 + umagic(64, c).m/2)
 		v0.AddArg(v1)
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = umagic(64, c).s - 1
 		v.AddArg(v2)
 		return true
 	}
 	// match: (Div64u x (Const64 [c]))
 	// cond: umagicOK(64, c) && config.RegSize == 8 && c&1 == 0
-	// result: (Rsh64Ux64 <config.fe.TypeUInt64()>     (Hmul64u <config.fe.TypeUInt64()>       (Const64 <config.fe.TypeUInt64()> [int64(1<<63+(umagic(64,c).m+1)/2)])       (Rsh64Ux64 <config.fe.TypeUInt64()> x (Const64 <config.fe.TypeUInt64()> [1])))     (Const64 <config.fe.TypeUInt64()> [umagic(64,c).s-2]))
+	// result: (Rsh64Ux64 <fe.TypeUInt64()>     (Hmul64u <fe.TypeUInt64()>       (Const64 <fe.TypeUInt64()> [int64(1<<63+(umagic(64,c).m+1)/2)])       (Rsh64Ux64 <fe.TypeUInt64()> x (Const64 <fe.TypeUInt64()> [1])))     (Const64 <fe.TypeUInt64()> [umagic(64,c).s-2]))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -4592,26 +4606,26 @@ func rewriteValuegeneric_OpDiv64u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpRsh64Ux64)
-		v.Type = config.fe.TypeUInt64()
-		v0 := b.NewValue0(v.Pos, OpHmul64u, config.fe.TypeUInt64())
-		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v.Type = fe.TypeUInt64()
+		v0 := b.NewValue0(v.Pos, OpHmul64u, fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v1.AuxInt = int64(1<<63 + (umagic(64, c).m+1)/2)
 		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpRsh64Ux64, config.fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpRsh64Ux64, fe.TypeUInt64())
 		v2.AddArg(x)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = 1
 		v2.AddArg(v3)
 		v0.AddArg(v2)
 		v.AddArg(v0)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = umagic(64, c).s - 2
 		v.AddArg(v4)
 		return true
 	}
 	// match: (Div64u x (Const64 [c]))
 	// cond: umagicOK(64, c) && config.RegSize == 8
-	// result: (Rsh64Ux64 <config.fe.TypeUInt64()>     (Avg64u       x       (Hmul64u <config.fe.TypeUInt64()>         (Const64 <config.fe.TypeUInt64()> [int64(umagic(64,c).m)])         x))     (Const64 <config.fe.TypeUInt64()> [umagic(64,c).s-1]))
+	// result: (Rsh64Ux64 <fe.TypeUInt64()>     (Avg64u       x       (Hmul64u <fe.TypeUInt64()>         (Const64 <fe.TypeUInt64()> [int64(umagic(64,c).m)])         x))     (Const64 <fe.TypeUInt64()> [umagic(64,c).s-1]))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -4623,26 +4637,30 @@ func rewriteValuegeneric_OpDiv64u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpRsh64Ux64)
-		v.Type = config.fe.TypeUInt64()
-		v0 := b.NewValue0(v.Pos, OpAvg64u, config.fe.TypeUInt64())
+		v.Type = fe.TypeUInt64()
+		v0 := b.NewValue0(v.Pos, OpAvg64u, fe.TypeUInt64())
 		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpHmul64u, config.fe.TypeUInt64())
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpHmul64u, fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = int64(umagic(64, c).m)
 		v1.AddArg(v2)
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = umagic(64, c).s - 1
 		v.AddArg(v3)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpDiv8(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Div8   (Const8  [c])  (Const8  [d]))
 	// cond: d != 0
 	// result: (Const8  [int64(int8(c)/int8(d))])
@@ -4689,7 +4707,7 @@ func rewriteValuegeneric_OpDiv8(v *Value, config *Config) bool {
 	}
 	// match: (Div8  <t> x (Const8  [-1<<7 ]))
 	// cond:
-	// result: (Rsh8Ux64  (And8  <t> x (Neg8  <t> x)) (Const64 <config.fe.TypeUInt64()> [7 ]))
+	// result: (Rsh8Ux64  (And8  <t> x (Neg8  <t> x)) (Const64 <fe.TypeUInt64()> [7 ]))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -4707,14 +4725,14 @@ func rewriteValuegeneric_OpDiv8(v *Value, config *Config) bool {
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v2 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v2.AuxInt = 7
 		v.AddArg(v2)
 		return true
 	}
 	// match: (Div8  <t> n (Const8  [c]))
 	// cond: isPowerOfTwo(c)
-	// result: (Rsh8x64     (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <config.fe.TypeUInt64()> [ 7])) (Const64 <config.fe.TypeUInt64()> [ 8-log2(c)])))     (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	// result: (Rsh8x64     (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <fe.TypeUInt64()> [ 7])) (Const64 <fe.TypeUInt64()> [ 8-log2(c)])))     (Const64 <fe.TypeUInt64()> [log2(c)]))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -4732,23 +4750,23 @@ func rewriteValuegeneric_OpDiv8(v *Value, config *Config) bool {
 		v1 := b.NewValue0(v.Pos, OpRsh8Ux64, t)
 		v2 := b.NewValue0(v.Pos, OpRsh8x64, t)
 		v2.AddArg(n)
-		v3 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v3 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v3.AuxInt = 7
 		v2.AddArg(v3)
 		v1.AddArg(v2)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 8 - log2(c)
 		v1.AddArg(v4)
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v5 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v5 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v5.AuxInt = log2(c)
 		v.AddArg(v5)
 		return true
 	}
 	// match: (Div8 <t> x (Const8 [c]))
 	// cond: smagicOK(8,c)
-	// result: (Sub8 <t>     (Rsh32x64 <t>       (Mul32 <config.fe.TypeUInt32()>         (Const32 <config.fe.TypeUInt32()> [int64(smagic(8,c).m)])         (SignExt8to32 x))       (Const64 <config.fe.TypeUInt64()> [8+smagic(8,c).s]))     (Rsh32x64 <t>       (SignExt8to32 x)       (Const64 <config.fe.TypeUInt64()> [31])))
+	// result: (Sub8 <t>     (Rsh32x64 <t>       (Mul32 <fe.TypeUInt32()>         (Const32 <fe.TypeUInt32()> [int64(smagic(8,c).m)])         (SignExt8to32 x))       (Const64 <fe.TypeUInt64()> [8+smagic(8,c).s]))     (Rsh32x64 <t>       (SignExt8to32 x)       (Const64 <fe.TypeUInt64()> [31])))
 	for {
 		t := v.Type
 		x := v.Args[0]
@@ -4763,23 +4781,23 @@ func rewriteValuegeneric_OpDiv8(v *Value, config *Config) bool {
 		v.reset(OpSub8)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpRsh32x64, t)
-		v1 := b.NewValue0(v.Pos, OpMul32, config.fe.TypeUInt32())
-		v2 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v1 := b.NewValue0(v.Pos, OpMul32, fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v2.AuxInt = int64(smagic(8, c).m)
 		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
+		v3 := b.NewValue0(v.Pos, OpSignExt8to32, fe.TypeInt32())
 		v3.AddArg(x)
 		v1.AddArg(v3)
 		v0.AddArg(v1)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 8 + smagic(8, c).s
 		v0.AddArg(v4)
 		v.AddArg(v0)
 		v5 := b.NewValue0(v.Pos, OpRsh32x64, t)
-		v6 := b.NewValue0(v.Pos, OpSignExt8to32, config.fe.TypeInt32())
+		v6 := b.NewValue0(v.Pos, OpSignExt8to32, fe.TypeInt32())
 		v6.AddArg(x)
 		v5.AddArg(v6)
-		v7 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v7 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v7.AuxInt = 31
 		v5.AddArg(v7)
 		v.AddArg(v5)
@@ -4787,9 +4805,13 @@ func rewriteValuegeneric_OpDiv8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv8u(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpDiv8u(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Div8u  (Const8  [c])  (Const8  [d]))
 	// cond: d != 0
 	// result: (Const8  [int64(int8(uint8(c)/uint8(d)))])
@@ -4813,7 +4835,7 @@ func rewriteValuegeneric_OpDiv8u(v *Value, config *Config) bool {
 	}
 	// match: (Div8u  n (Const8  [c]))
 	// cond: isPowerOfTwo(c&0xff)
-	// result: (Rsh8Ux64 n  (Const64 <config.fe.TypeUInt64()> [log2(c&0xff)]))
+	// result: (Rsh8Ux64 n  (Const64 <fe.TypeUInt64()> [log2(c&0xff)]))
 	for {
 		n := v.Args[0]
 		v_1 := v.Args[1]
@@ -4826,14 +4848,14 @@ func rewriteValuegeneric_OpDiv8u(v *Value, config *Config) bool {
 		}
 		v.reset(OpRsh8Ux64)
 		v.AddArg(n)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = log2(c & 0xff)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Div8u x (Const8 [c]))
 	// cond: umagicOK(8, c)
-	// result: (Trunc32to8     (Rsh32Ux64 <config.fe.TypeUInt32()>       (Mul32 <config.fe.TypeUInt32()>         (Const32 <config.fe.TypeUInt32()> [int64(1<<8+umagic(8,c).m)])         (ZeroExt8to32 x))       (Const64 <config.fe.TypeUInt64()> [8+umagic(8,c).s])))
+	// result: (Trunc32to8     (Rsh32Ux64 <fe.TypeUInt32()>       (Mul32 <fe.TypeUInt32()>         (Const32 <fe.TypeUInt32()> [int64(1<<8+umagic(8,c).m)])         (ZeroExt8to32 x))       (Const64 <fe.TypeUInt64()> [8+umagic(8,c).s])))
 	for {
 		x := v.Args[0]
 		v_1 := v.Args[1]
@@ -4845,16 +4867,16 @@ func rewriteValuegeneric_OpDiv8u(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpTrunc32to8)
-		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Pos, OpMul32, config.fe.TypeUInt32())
-		v2 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, fe.TypeUInt32())
+		v1 := b.NewValue0(v.Pos, OpMul32, fe.TypeUInt32())
+		v2 := b.NewValue0(v.Pos, OpConst32, fe.TypeUInt32())
 		v2.AuxInt = int64(1<<8 + umagic(8, c).m)
 		v1.AddArg(v2)
-		v3 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+		v3 := b.NewValue0(v.Pos, OpZeroExt8to32, fe.TypeUInt32())
 		v3.AddArg(x)
 		v1.AddArg(v3)
 		v0.AddArg(v1)
-		v4 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v4 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v4.AuxInt = 8 + umagic(8, c).s
 		v0.AddArg(v4)
 		v.AddArg(v0)
@@ -4862,7 +4884,7 @@ func rewriteValuegeneric_OpDiv8u(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpEq16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Eq16 x x)
@@ -4948,7 +4970,7 @@ func rewriteValuegeneric_OpEq16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpEq32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Eq32 x x)
@@ -5034,7 +5056,7 @@ func rewriteValuegeneric_OpEq32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpEq64(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Eq64 x x)
@@ -5120,7 +5142,7 @@ func rewriteValuegeneric_OpEq64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpEq8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Eq8  x x)
@@ -5206,9 +5228,7 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEqB(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpEqB(v *Value) bool {
 	// match: (EqB (ConstBool [c]) (ConstBool [d]))
 	// cond:
 	// result: (ConstBool [b2i(c == d)])
@@ -5262,9 +5282,13 @@ func rewriteValuegeneric_OpEqB(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEqInter(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpEqInter(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (EqInter x y)
 	// cond:
 	// result: (EqPtr  (ITab x) (ITab y))
@@ -5272,18 +5296,22 @@ func rewriteValuegeneric_OpEqInter(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpEqPtr)
-		v0 := b.NewValue0(v.Pos, OpITab, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpITab, fe.TypeBytePtr())
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpITab, config.fe.TypeBytePtr())
+		v1 := b.NewValue0(v.Pos, OpITab, fe.TypeBytePtr())
 		v1.AddArg(y)
 		v.AddArg(v1)
 		return true
 	}
 }
-func rewriteValuegeneric_OpEqPtr(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (EqPtr p (ConstNil))
 	// cond:
 	// result: (Not (IsNonNil p))
@@ -5294,7 +5322,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpNot)
-		v0 := b.NewValue0(v.Pos, OpIsNonNil, config.fe.TypeBool())
+		v0 := b.NewValue0(v.Pos, OpIsNonNil, fe.TypeBool())
 		v0.AddArg(p)
 		v.AddArg(v0)
 		return true
@@ -5309,16 +5337,20 @@ func rewriteValuegeneric_OpEqPtr(v *Value, config *Config) bool {
 		}
 		p := v.Args[1]
 		v.reset(OpNot)
-		v0 := b.NewValue0(v.Pos, OpIsNonNil, config.fe.TypeBool())
+		v0 := b.NewValue0(v.Pos, OpIsNonNil, fe.TypeBool())
 		v0.AddArg(p)
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpEqSlice(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpEqSlice(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (EqSlice x y)
 	// cond:
 	// result: (EqPtr  (SlicePtr x) (SlicePtr y))
@@ -5326,18 +5358,16 @@ func rewriteValuegeneric_OpEqSlice(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpEqPtr)
-		v0 := b.NewValue0(v.Pos, OpSlicePtr, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpSlicePtr, fe.TypeBytePtr())
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpSlicePtr, config.fe.TypeBytePtr())
+		v1 := b.NewValue0(v.Pos, OpSlicePtr, fe.TypeBytePtr())
 		v1.AddArg(y)
 		v.AddArg(v1)
 		return true
 	}
 }
-func rewriteValuegeneric_OpGeq16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGeq16(v *Value) bool {
 	// match: (Geq16 (Const16 [c]) (Const16 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c >= d)])
@@ -5358,9 +5388,7 @@ func rewriteValuegeneric_OpGeq16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGeq16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGeq16U(v *Value) bool {
 	// match: (Geq16U (Const16 [c]) (Const16 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint16(c) >= uint16(d))])
@@ -5381,9 +5409,7 @@ func rewriteValuegeneric_OpGeq16U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGeq32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGeq32(v *Value) bool {
 	// match: (Geq32 (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c >= d)])
@@ -5404,9 +5430,7 @@ func rewriteValuegeneric_OpGeq32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGeq32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGeq32U(v *Value) bool {
 	// match: (Geq32U (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint32(c) >= uint32(d))])
@@ -5427,9 +5451,7 @@ func rewriteValuegeneric_OpGeq32U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGeq64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGeq64(v *Value) bool {
 	// match: (Geq64 (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c >= d)])
@@ -5450,9 +5472,7 @@ func rewriteValuegeneric_OpGeq64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGeq64U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGeq64U(v *Value) bool {
 	// match: (Geq64U (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint64(c) >= uint64(d))])
@@ -5473,9 +5493,7 @@ func rewriteValuegeneric_OpGeq64U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGeq8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGeq8(v *Value) bool {
 	// match: (Geq8  (Const8  [c]) (Const8  [d]))
 	// cond:
 	// result: (ConstBool [b2i(c >= d)])
@@ -5496,9 +5514,7 @@ func rewriteValuegeneric_OpGeq8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGeq8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGeq8U(v *Value) bool {
 	// match: (Geq8U  (Const8  [c]) (Const8  [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint8(c)  >= uint8(d))])
@@ -5519,9 +5535,7 @@ func rewriteValuegeneric_OpGeq8U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGreater16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGreater16(v *Value) bool {
 	// match: (Greater16 (Const16 [c]) (Const16 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c > d)])
@@ -5542,9 +5556,7 @@ func rewriteValuegeneric_OpGreater16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGreater16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGreater16U(v *Value) bool {
 	// match: (Greater16U (Const16 [c]) (Const16 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint16(c) > uint16(d))])
@@ -5565,9 +5577,7 @@ func rewriteValuegeneric_OpGreater16U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGreater32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGreater32(v *Value) bool {
 	// match: (Greater32 (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c > d)])
@@ -5588,9 +5598,7 @@ func rewriteValuegeneric_OpGreater32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGreater32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGreater32U(v *Value) bool {
 	// match: (Greater32U (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint32(c) > uint32(d))])
@@ -5611,9 +5619,7 @@ func rewriteValuegeneric_OpGreater32U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGreater64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGreater64(v *Value) bool {
 	// match: (Greater64 (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c > d)])
@@ -5634,9 +5640,7 @@ func rewriteValuegeneric_OpGreater64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGreater64U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGreater64U(v *Value) bool {
 	// match: (Greater64U (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint64(c) > uint64(d))])
@@ -5657,9 +5661,7 @@ func rewriteValuegeneric_OpGreater64U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGreater8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGreater8(v *Value) bool {
 	// match: (Greater8  (Const8  [c]) (Const8  [d]))
 	// cond:
 	// result: (ConstBool [b2i(c > d)])
@@ -5680,9 +5682,7 @@ func rewriteValuegeneric_OpGreater8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpGreater8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpGreater8U(v *Value) bool {
 	// match: (Greater8U  (Const8  [c]) (Const8  [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint8(c)  > uint8(d))])
@@ -5703,9 +5703,7 @@ func rewriteValuegeneric_OpGreater8U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpIMake(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpIMake(v *Value) bool {
 	// match: (IMake typ (StructMake1 val))
 	// cond:
 	// result: (IMake typ val)
@@ -5738,9 +5736,7 @@ func rewriteValuegeneric_OpIMake(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpInterCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpInterCall(v *Value) bool {
 	// match: (InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
 	// cond: devirt(v, itab, off) != nil
 	// result: (StaticCall [argsize] {devirt(v, itab, off)} mem)
@@ -5784,9 +5780,7 @@ func rewriteValuegeneric_OpInterCall(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 	// match: (IsInBounds (ZeroExt8to32  _) (Const32 [c]))
 	// cond: (1 << 8)  <= c
 	// result: (ConstBool [1])
@@ -6223,9 +6217,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpIsNonNil(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
 	// match: (IsNonNil (ConstNil))
 	// cond:
 	// result: (ConstBool [0])
@@ -6240,9 +6232,7 @@ func rewriteValuegeneric_OpIsNonNil(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
 	// match: (IsSliceInBounds x x)
 	// cond:
 	// result: (ConstBool [1])
@@ -6393,9 +6383,7 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLeq16(v *Value) bool {
 	// match: (Leq16 (Const16 [c]) (Const16 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c <= d)])
@@ -6416,9 +6404,7 @@ func rewriteValuegeneric_OpLeq16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLeq16U(v *Value) bool {
 	// match: (Leq16U (Const16 [c]) (Const16 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint16(c) <= uint16(d))])
@@ -6439,9 +6425,7 @@ func rewriteValuegeneric_OpLeq16U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLeq32(v *Value) bool {
 	// match: (Leq32 (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c <= d)])
@@ -6462,9 +6446,7 @@ func rewriteValuegeneric_OpLeq32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLeq32U(v *Value) bool {
 	// match: (Leq32U (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint32(c) <= uint32(d))])
@@ -6485,9 +6467,7 @@ func rewriteValuegeneric_OpLeq32U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLeq64(v *Value) bool {
 	// match: (Leq64 (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c <= d)])
@@ -6508,9 +6488,7 @@ func rewriteValuegeneric_OpLeq64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq64U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLeq64U(v *Value) bool {
 	// match: (Leq64U (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint64(c) <= uint64(d))])
@@ -6531,9 +6509,7 @@ func rewriteValuegeneric_OpLeq64U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLeq8(v *Value) bool {
 	// match: (Leq8  (Const8  [c]) (Const8  [d]))
 	// cond:
 	// result: (ConstBool [b2i(c <= d)])
@@ -6554,9 +6530,7 @@ func rewriteValuegeneric_OpLeq8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLeq8U(v *Value) bool {
 	// match: (Leq8U  (Const8  [c]) (Const8  [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint8(c)  <= uint8(d))])
@@ -6577,9 +6551,7 @@ func rewriteValuegeneric_OpLeq8U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLess16(v *Value) bool {
 	// match: (Less16 (Const16 [c]) (Const16 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c < d)])
@@ -6600,9 +6572,7 @@ func rewriteValuegeneric_OpLess16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLess16U(v *Value) bool {
 	// match: (Less16U (Const16 [c]) (Const16 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint16(c) < uint16(d))])
@@ -6623,9 +6593,7 @@ func rewriteValuegeneric_OpLess16U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLess32(v *Value) bool {
 	// match: (Less32 (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c < d)])
@@ -6646,9 +6614,7 @@ func rewriteValuegeneric_OpLess32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLess32U(v *Value) bool {
 	// match: (Less32U (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint32(c) < uint32(d))])
@@ -6669,9 +6635,7 @@ func rewriteValuegeneric_OpLess32U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLess64(v *Value) bool {
 	// match: (Less64 (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (ConstBool [b2i(c < d)])
@@ -6692,9 +6656,7 @@ func rewriteValuegeneric_OpLess64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess64U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLess64U(v *Value) bool {
 	// match: (Less64U (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint64(c) < uint64(d))])
@@ -6715,9 +6677,7 @@ func rewriteValuegeneric_OpLess64U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLess8(v *Value) bool {
 	// match: (Less8  (Const8  [c]) (Const8  [d]))
 	// cond:
 	// result: (ConstBool [b2i(c < d)])
@@ -6738,9 +6698,7 @@ func rewriteValuegeneric_OpLess8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpLess8U(v *Value) bool {
 	// match: (Less8U  (Const8  [c]) (Const8  [d]))
 	// cond:
 	// result: (ConstBool [b2i(uint8(c)  < uint8(d))])
@@ -6761,9 +6719,13 @@ func rewriteValuegeneric_OpLess8U(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLoad(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Load <t1> p1 (Store {t2} p2 x _))
 	// cond: isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && t1.Size() == t2.(Type).Size()
 	// result: x
@@ -6786,24 +6748,24 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Load <t> _ _)
-	// cond: t.IsStruct() && t.NumFields() == 0 && config.fe.CanSSA(t)
+	// cond: t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)
 	// result: (StructMake0)
 	for {
 		t := v.Type
-		if !(t.IsStruct() && t.NumFields() == 0 && config.fe.CanSSA(t)) {
+		if !(t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake0)
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: t.IsStruct() && t.NumFields() == 1 && config.fe.CanSSA(t)
+	// cond: t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)
 	// result: (StructMake1     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(t.IsStruct() && t.NumFields() == 1 && config.fe.CanSSA(t)) {
+		if !(t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake1)
@@ -6817,13 +6779,13 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: t.IsStruct() && t.NumFields() == 2 && config.fe.CanSSA(t)
+	// cond: t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)
 	// result: (StructMake2     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(t.IsStruct() && t.NumFields() == 2 && config.fe.CanSSA(t)) {
+		if !(t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake2)
@@ -6844,13 +6806,13 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: t.IsStruct() && t.NumFields() == 3 && config.fe.CanSSA(t)
+	// cond: t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)
 	// result: (StructMake3     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(t.IsStruct() && t.NumFields() == 3 && config.fe.CanSSA(t)) {
+		if !(t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake3)
@@ -6878,13 +6840,13 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: t.IsStruct() && t.NumFields() == 4 && config.fe.CanSSA(t)
+	// cond: t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)
 	// result: (StructMake4     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(t.IsStruct() && t.NumFields() == 4 && config.fe.CanSSA(t)) {
+		if !(t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake4)
@@ -6930,13 +6892,13 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: t.IsArray() && t.NumElem() == 1 && config.fe.CanSSA(t)
+	// cond: t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)
 	// result: (ArrayMake1 (Load <t.ElemType()> ptr mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(t.IsArray() && t.NumElem() == 1 && config.fe.CanSSA(t)) {
+		if !(t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpArrayMake1)
@@ -6948,7 +6910,7 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh16x16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh16x16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh16x16  <t> x (Const16 [c]))
@@ -6986,7 +6948,7 @@ func rewriteValuegeneric_OpLsh16x16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh16x32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh16x32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh16x32  <t> x (Const32 [c]))
@@ -7024,9 +6986,13 @@ func rewriteValuegeneric_OpLsh16x32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh16x64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh16x64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Lsh16x64  (Const16 [c]) (Const64 [d]))
 	// cond:
 	// result: (Const16 [int64(int16(c) << uint64(d))])
@@ -7125,7 +7091,7 @@ func rewriteValuegeneric_OpLsh16x64(v *Value, config *Config) bool {
 	}
 	// match: (Lsh16x64 (Rsh16Ux64 (Lsh16x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
-	// result: (Lsh16x64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+	// result: (Lsh16x64 x (Const64 <fe.TypeUInt64()> [c1-c2+c3]))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpRsh16Ux64 {
@@ -7156,14 +7122,14 @@ func rewriteValuegeneric_OpLsh16x64(v *Value, config *Config) bool {
 		}
 		v.reset(OpLsh16x64)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = c1 - c2 + c3
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh16x8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh16x8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh16x8   <t> x (Const8  [c]))
@@ -7201,7 +7167,7 @@ func rewriteValuegeneric_OpLsh16x8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh32x16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh32x16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh32x16  <t> x (Const16 [c]))
@@ -7239,7 +7205,7 @@ func rewriteValuegeneric_OpLsh32x16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh32x32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh32x32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh32x32  <t> x (Const32 [c]))
@@ -7277,9 +7243,13 @@ func rewriteValuegeneric_OpLsh32x32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh32x64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh32x64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Lsh32x64  (Const32 [c]) (Const64 [d]))
 	// cond:
 	// result: (Const32 [int64(int32(c) << uint64(d))])
@@ -7378,7 +7348,7 @@ func rewriteValuegeneric_OpLsh32x64(v *Value, config *Config) bool {
 	}
 	// match: (Lsh32x64 (Rsh32Ux64 (Lsh32x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
-	// result: (Lsh32x64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+	// result: (Lsh32x64 x (Const64 <fe.TypeUInt64()> [c1-c2+c3]))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpRsh32Ux64 {
@@ -7409,14 +7379,14 @@ func rewriteValuegeneric_OpLsh32x64(v *Value, config *Config) bool {
 		}
 		v.reset(OpLsh32x64)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = c1 - c2 + c3
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh32x8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh32x8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh32x8   <t> x (Const8  [c]))
@@ -7454,7 +7424,7 @@ func rewriteValuegeneric_OpLsh32x8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh64x16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh64x16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh64x16  <t> x (Const16 [c]))
@@ -7492,7 +7462,7 @@ func rewriteValuegeneric_OpLsh64x16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh64x32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh64x32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh64x32  <t> x (Const32 [c]))
@@ -7530,9 +7500,13 @@ func rewriteValuegeneric_OpLsh64x32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh64x64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh64x64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Lsh64x64  (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (Const64 [c << uint64(d)])
@@ -7631,7 +7605,7 @@ func rewriteValuegeneric_OpLsh64x64(v *Value, config *Config) bool {
 	}
 	// match: (Lsh64x64 (Rsh64Ux64 (Lsh64x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
-	// result: (Lsh64x64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+	// result: (Lsh64x64 x (Const64 <fe.TypeUInt64()> [c1-c2+c3]))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpRsh64Ux64 {
@@ -7662,14 +7636,14 @@ func rewriteValuegeneric_OpLsh64x64(v *Value, config *Config) bool {
 		}
 		v.reset(OpLsh64x64)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = c1 - c2 + c3
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh64x8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh64x8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh64x8   <t> x (Const8  [c]))
@@ -7707,7 +7681,7 @@ func rewriteValuegeneric_OpLsh64x8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh8x16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh8x16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh8x16  <t> x (Const16 [c]))
@@ -7745,7 +7719,7 @@ func rewriteValuegeneric_OpLsh8x16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh8x32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh8x32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh8x32  <t> x (Const32 [c]))
@@ -7783,9 +7757,13 @@ func rewriteValuegeneric_OpLsh8x32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh8x64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh8x64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Lsh8x64   (Const8  [c]) (Const64 [d]))
 	// cond:
 	// result: (Const8  [int64(int8(c) << uint64(d))])
@@ -7884,7 +7862,7 @@ func rewriteValuegeneric_OpLsh8x64(v *Value, config *Config) bool {
 	}
 	// match: (Lsh8x64 (Rsh8Ux64 (Lsh8x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
-	// result: (Lsh8x64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+	// result: (Lsh8x64 x (Const64 <fe.TypeUInt64()> [c1-c2+c3]))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpRsh8Ux64 {
@@ -7915,14 +7893,14 @@ func rewriteValuegeneric_OpLsh8x64(v *Value, config *Config) bool {
 		}
 		v.reset(OpLsh8x64)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = c1 - c2 + c3
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh8x8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpLsh8x8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Lsh8x8   <t> x (Const8  [c]))
@@ -7960,7 +7938,7 @@ func rewriteValuegeneric_OpLsh8x8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMod16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Mod16 (Const16 [c]) (Const16 [d]))
@@ -8037,7 +8015,7 @@ func rewriteValuegeneric_OpMod16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod16u(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMod16u(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Mod16u (Const16 [c]) (Const16 [d]))
@@ -8113,7 +8091,7 @@ func rewriteValuegeneric_OpMod16u(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMod32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Mod32 (Const32 [c]) (Const32 [d]))
@@ -8190,7 +8168,7 @@ func rewriteValuegeneric_OpMod32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod32u(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMod32u(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Mod32u (Const32 [c]) (Const32 [d]))
@@ -8266,7 +8244,7 @@ func rewriteValuegeneric_OpMod32u(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMod64(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Mod64 (Const64 [c]) (Const64 [d]))
@@ -8343,7 +8321,7 @@ func rewriteValuegeneric_OpMod64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod64u(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMod64u(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Mod64u (Const64 [c]) (Const64 [d]))
@@ -8419,7 +8397,7 @@ func rewriteValuegeneric_OpMod64u(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMod8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Mod8  (Const8  [c]) (Const8  [d]))
@@ -8496,7 +8474,7 @@ func rewriteValuegeneric_OpMod8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod8u(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMod8u(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Mod8u  (Const8 [c])  (Const8  [d]))
@@ -8572,9 +8550,13 @@ func rewriteValuegeneric_OpMod8u(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMul16(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Mul16  (Const16 [c])  (Const16 [d]))
 	// cond:
 	// result: (Const16 [int64(int16(c*d))])
@@ -8628,7 +8610,7 @@ func rewriteValuegeneric_OpMul16(v *Value, config *Config) bool {
 	}
 	// match: (Mul16 <t> n (Const16 [c]))
 	// cond: isPowerOfTwo(c)
-	// result: (Lsh16x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	// result: (Lsh16x64 <t> n (Const64 <fe.TypeUInt64()> [log2(c)]))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -8643,14 +8625,14 @@ func rewriteValuegeneric_OpMul16(v *Value, config *Config) bool {
 		v.reset(OpLsh16x64)
 		v.Type = t
 		v.AddArg(n)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = log2(c)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Mul16 <t> n (Const16 [c]))
 	// cond: t.IsSigned() && isPowerOfTwo(-c)
-	// result: (Neg16 (Lsh16x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+	// result: (Neg16 (Lsh16x64 <t> n (Const64 <fe.TypeUInt64()> [log2(-c)])))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -8665,7 +8647,7 @@ func rewriteValuegeneric_OpMul16(v *Value, config *Config) bool {
 		v.reset(OpNeg16)
 		v0 := b.NewValue0(v.Pos, OpLsh16x64, t)
 		v0.AddArg(n)
-		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v1.AuxInt = log2(-c)
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -8756,9 +8738,13 @@ func rewriteValuegeneric_OpMul16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMul32(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Mul32  (Const32 [c])  (Const32 [d]))
 	// cond:
 	// result: (Const32 [int64(int32(c*d))])
@@ -8812,7 +8798,7 @@ func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
 	}
 	// match: (Mul32 <t> n (Const32 [c]))
 	// cond: isPowerOfTwo(c)
-	// result: (Lsh32x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	// result: (Lsh32x64 <t> n (Const64 <fe.TypeUInt64()> [log2(c)]))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -8827,14 +8813,14 @@ func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
 		v.reset(OpLsh32x64)
 		v.Type = t
 		v.AddArg(n)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = log2(c)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Mul32 <t> n (Const32 [c]))
 	// cond: t.IsSigned() && isPowerOfTwo(-c)
-	// result: (Neg32 (Lsh32x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+	// result: (Neg32 (Lsh32x64 <t> n (Const64 <fe.TypeUInt64()> [log2(-c)])))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -8849,7 +8835,7 @@ func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
 		v.reset(OpNeg32)
 		v0 := b.NewValue0(v.Pos, OpLsh32x64, t)
 		v0.AddArg(n)
-		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v1.AuxInt = log2(-c)
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -8978,9 +8964,7 @@ func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpMul32F(v *Value) bool {
 	// match: (Mul32F (Const32F [c]) (Const32F [d]))
 	// cond:
 	// result: (Const32F [f2i(float64(i2f32(c) * i2f32(d)))])
@@ -9067,9 +9051,13 @@ func rewriteValuegeneric_OpMul32F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMul64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Mul64  (Const64 [c])  (Const64 [d]))
 	// cond:
 	// result: (Const64 [c*d])
@@ -9123,7 +9111,7 @@ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
 	}
 	// match: (Mul64 <t> n (Const64 [c]))
 	// cond: isPowerOfTwo(c)
-	// result: (Lsh64x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	// result: (Lsh64x64 <t> n (Const64 <fe.TypeUInt64()> [log2(c)]))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -9138,14 +9126,14 @@ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
 		v.reset(OpLsh64x64)
 		v.Type = t
 		v.AddArg(n)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = log2(c)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Mul64 <t> n (Const64 [c]))
 	// cond: t.IsSigned() && isPowerOfTwo(-c)
-	// result: (Neg64 (Lsh64x64 <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+	// result: (Neg64 (Lsh64x64 <t> n (Const64 <fe.TypeUInt64()> [log2(-c)])))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -9160,7 +9148,7 @@ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
 		v.reset(OpNeg64)
 		v0 := b.NewValue0(v.Pos, OpLsh64x64, t)
 		v0.AddArg(n)
-		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v1.AuxInt = log2(-c)
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -9289,9 +9277,7 @@ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpMul64F(v *Value) bool {
 	// match: (Mul64F (Const64F [c]) (Const64F [d]))
 	// cond:
 	// result: (Const64F [f2i(i2f(c) * i2f(d))])
@@ -9378,9 +9364,13 @@ func rewriteValuegeneric_OpMul64F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMul8(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Mul8   (Const8 [c])   (Const8 [d]))
 	// cond:
 	// result: (Const8  [int64(int8(c*d))])
@@ -9434,7 +9424,7 @@ func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
 	}
 	// match: (Mul8  <t> n (Const8  [c]))
 	// cond: isPowerOfTwo(c)
-	// result: (Lsh8x64  <t> n (Const64 <config.fe.TypeUInt64()> [log2(c)]))
+	// result: (Lsh8x64  <t> n (Const64 <fe.TypeUInt64()> [log2(c)]))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -9449,14 +9439,14 @@ func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
 		v.reset(OpLsh8x64)
 		v.Type = t
 		v.AddArg(n)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = log2(c)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Mul8  <t> n (Const8  [c]))
 	// cond: t.IsSigned() && isPowerOfTwo(-c)
-	// result: (Neg8  (Lsh8x64  <t> n (Const64 <config.fe.TypeUInt64()> [log2(-c)])))
+	// result: (Neg8  (Lsh8x64  <t> n (Const64 <fe.TypeUInt64()> [log2(-c)])))
 	for {
 		t := v.Type
 		n := v.Args[0]
@@ -9471,7 +9461,7 @@ func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
 		v.reset(OpNeg8)
 		v0 := b.NewValue0(v.Pos, OpLsh8x64, t)
 		v0.AddArg(n)
-		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v1 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v1.AuxInt = log2(-c)
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -9562,9 +9552,7 @@ func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpNeg16(v *Value) bool {
 	// match: (Neg16  (Const16  [c]))
 	// cond:
 	// result: (Const16  [int64(-int16(c))])
@@ -9595,9 +9583,7 @@ func rewriteValuegeneric_OpNeg16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpNeg32(v *Value) bool {
 	// match: (Neg32  (Const32  [c]))
 	// cond:
 	// result: (Const32  [int64(-int32(c))])
@@ -9628,9 +9614,7 @@ func rewriteValuegeneric_OpNeg32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpNeg32F(v *Value) bool {
 	// match: (Neg32F (Const32F [c]))
 	// cond: i2f(c) != 0
 	// result: (Const32F [f2i(-i2f(c))])
@@ -9649,9 +9633,7 @@ func rewriteValuegeneric_OpNeg32F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpNeg64(v *Value) bool {
 	// match: (Neg64  (Const64  [c]))
 	// cond:
 	// result: (Const64  [-c])
@@ -9682,9 +9664,7 @@ func rewriteValuegeneric_OpNeg64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpNeg64F(v *Value) bool {
 	// match: (Neg64F (Const64F [c]))
 	// cond: i2f(c) != 0
 	// result: (Const64F [f2i(-i2f(c))])
@@ -9703,9 +9683,7 @@ func rewriteValuegeneric_OpNeg64F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpNeg8(v *Value) bool {
 	// match: (Neg8   (Const8   [c]))
 	// cond:
 	// result: (Const8   [int64( -int8(c))])
@@ -9736,7 +9714,7 @@ func rewriteValuegeneric_OpNeg8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeq16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpNeq16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Neq16 x x)
@@ -9822,7 +9800,7 @@ func rewriteValuegeneric_OpNeq16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeq32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpNeq32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Neq32 x x)
@@ -9908,7 +9886,7 @@ func rewriteValuegeneric_OpNeq32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeq64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpNeq64(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Neq64 x x)
@@ -9994,7 +9972,7 @@ func rewriteValuegeneric_OpNeq64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpNeq8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Neq8  x x)
@@ -10080,9 +10058,7 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeqB(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpNeqB(v *Value) bool {
 	// match: (NeqB (ConstBool [c]) (ConstBool [d]))
 	// cond:
 	// result: (ConstBool [b2i(c != d)])
@@ -10136,9 +10112,13 @@ func rewriteValuegeneric_OpNeqB(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeqInter(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpNeqInter(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (NeqInter x y)
 	// cond:
 	// result: (NeqPtr (ITab x) (ITab y))
@@ -10146,18 +10126,16 @@ func rewriteValuegeneric_OpNeqInter(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpNeqPtr)
-		v0 := b.NewValue0(v.Pos, OpITab, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpITab, fe.TypeBytePtr())
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpITab, config.fe.TypeBytePtr())
+		v1 := b.NewValue0(v.Pos, OpITab, fe.TypeBytePtr())
 		v1.AddArg(y)
 		v.AddArg(v1)
 		return true
 	}
 }
-func rewriteValuegeneric_OpNeqPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 	// match: (NeqPtr p (ConstNil))
 	// cond:
 	// result: (IsNonNil p)
@@ -10186,9 +10164,13 @@ func rewriteValuegeneric_OpNeqPtr(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpNeqSlice(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (NeqSlice x y)
 	// cond:
 	// result: (NeqPtr (SlicePtr x) (SlicePtr y))
@@ -10196,18 +10178,22 @@ func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpNeqPtr)
-		v0 := b.NewValue0(v.Pos, OpSlicePtr, config.fe.TypeBytePtr())
+		v0 := b.NewValue0(v.Pos, OpSlicePtr, fe.TypeBytePtr())
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpSlicePtr, config.fe.TypeBytePtr())
+		v1 := b.NewValue0(v.Pos, OpSlicePtr, fe.TypeBytePtr())
 		v1.AddArg(y)
 		v.AddArg(v1)
 		return true
 	}
 }
-func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (NilCheck (GetG mem) mem)
 	// cond:
 	// result: mem
@@ -10226,7 +10212,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (NilCheck (Load (OffPtr [c] (SP)) mem) mem)
-	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(config.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
 	// result: (Invalid)
 	for {
 		v_0 := v.Args[0]
@@ -10246,14 +10232,14 @@ func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
 		if mem != v.Args[1] {
 			break
 		}
-		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(config.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")) {
+		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")) {
 			break
 		}
 		v.reset(OpInvalid)
 		return true
 	}
 	// match: (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
-	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(config.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
 	// result: (Invalid)
 	for {
 		v_0 := v.Args[0]
@@ -10277,7 +10263,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
 		if mem != v.Args[1] {
 			break
 		}
-		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(config.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")) {
+		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")) {
 			break
 		}
 		v.reset(OpInvalid)
@@ -10285,9 +10271,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNot(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpNot(v *Value) bool {
 	// match: (Not (Eq64 x y))
 	// cond:
 	// result: (Neq64 x y)
@@ -10920,9 +10904,7 @@ func rewriteValuegeneric_OpNot(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOffPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpOffPtr(v *Value) bool {
 	// match: (OffPtr (OffPtr p [b]) [a])
 	// cond:
 	// result: (OffPtr p [a+b])
@@ -10957,7 +10939,7 @@ func rewriteValuegeneric_OpOffPtr(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOr16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpOr16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Or16  (Const16 [c])  (Const16 [d]))
@@ -11191,7 +11173,7 @@ func rewriteValuegeneric_OpOr16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOr32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpOr32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Or32  (Const32 [c])  (Const32 [d]))
@@ -11425,7 +11407,7 @@ func rewriteValuegeneric_OpOr32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOr64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpOr64(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Or64  (Const64 [c])  (Const64 [d]))
@@ -11659,7 +11641,7 @@ func rewriteValuegeneric_OpOr64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOr8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpOr8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Or8   (Const8 [c])   (Const8 [d]))
@@ -11893,9 +11875,7 @@ func rewriteValuegeneric_OpOr8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpPhi(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpPhi(v *Value) bool {
 	// match: (Phi (Const8  [c]) (Const8  [c]))
 	// cond:
 	// result: (Const8  [c])
@@ -11990,12 +11970,16 @@ func rewriteValuegeneric_OpPhi(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpPtrIndex(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (PtrIndex <t> ptr idx)
 	// cond: config.PtrSize == 4
-	// result: (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.ElemType().Size()])))
+	// result: (AddPtr ptr (Mul32 <fe.TypeInt()> idx (Const32 <fe.TypeInt()> [t.ElemType().Size()])))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -12005,9 +11989,9 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
 		}
 		v.reset(OpAddPtr)
 		v.AddArg(ptr)
-		v0 := b.NewValue0(v.Pos, OpMul32, config.fe.TypeInt())
+		v0 := b.NewValue0(v.Pos, OpMul32, fe.TypeInt())
 		v0.AddArg(idx)
-		v1 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeInt())
+		v1 := b.NewValue0(v.Pos, OpConst32, fe.TypeInt())
 		v1.AuxInt = t.ElemType().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -12015,7 +11999,7 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
 	}
 	// match: (PtrIndex <t> ptr idx)
 	// cond: config.PtrSize == 8
-	// result: (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.ElemType().Size()])))
+	// result: (AddPtr ptr (Mul64 <fe.TypeInt()> idx (Const64 <fe.TypeInt()> [t.ElemType().Size()])))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -12025,9 +12009,9 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
 		}
 		v.reset(OpAddPtr)
 		v.AddArg(ptr)
-		v0 := b.NewValue0(v.Pos, OpMul64, config.fe.TypeInt())
+		v0 := b.NewValue0(v.Pos, OpMul64, fe.TypeInt())
 		v0.AddArg(idx)
-		v1 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeInt())
+		v1 := b.NewValue0(v.Pos, OpConst64, fe.TypeInt())
 		v1.AuxInt = t.ElemType().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -12035,9 +12019,7 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRound32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpRound32F(v *Value) bool {
 	// match: (Round32F x:(Const32F))
 	// cond:
 	// result: x
@@ -12053,9 +12035,7 @@ func rewriteValuegeneric_OpRound32F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRound64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpRound64F(v *Value) bool {
 	// match: (Round64F x:(Const64F))
 	// cond:
 	// result: x
@@ -12071,7 +12051,7 @@ func rewriteValuegeneric_OpRound64F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16Ux16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh16Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh16Ux16 <t> x (Const16 [c]))
@@ -12109,7 +12089,7 @@ func rewriteValuegeneric_OpRsh16Ux16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16Ux32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh16Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh16Ux32 <t> x (Const32 [c]))
@@ -12147,9 +12127,13 @@ func rewriteValuegeneric_OpRsh16Ux32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16Ux64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh16Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Rsh16Ux64 (Const16 [c]) (Const64 [d]))
 	// cond:
 	// result: (Const16 [int64(int16(uint16(c) >> uint64(d)))])
@@ -12248,7 +12232,7 @@ func rewriteValuegeneric_OpRsh16Ux64(v *Value, config *Config) bool {
 	}
 	// match: (Rsh16Ux64 (Lsh16x64 (Rsh16Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
-	// result: (Rsh16Ux64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+	// result: (Rsh16Ux64 x (Const64 <fe.TypeUInt64()> [c1-c2+c3]))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh16x64 {
@@ -12279,14 +12263,14 @@ func rewriteValuegeneric_OpRsh16Ux64(v *Value, config *Config) bool {
 		}
 		v.reset(OpRsh16Ux64)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = c1 - c2 + c3
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh16Ux64 (Lsh16x64 x (Const64  [8])) (Const64  [8]))
 	// cond:
-	// result: (ZeroExt8to16  (Trunc16to8  <config.fe.TypeUInt8()>  x))
+	// result: (ZeroExt8to16  (Trunc16to8  <fe.TypeUInt8()>  x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh16x64 {
@@ -12308,14 +12292,14 @@ func rewriteValuegeneric_OpRsh16Ux64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpZeroExt8to16)
-		v0 := b.NewValue0(v.Pos, OpTrunc16to8, config.fe.TypeUInt8())
+		v0 := b.NewValue0(v.Pos, OpTrunc16to8, fe.TypeUInt8())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16Ux8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh16Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh16Ux8  <t> x (Const8  [c]))
@@ -12353,7 +12337,7 @@ func rewriteValuegeneric_OpRsh16Ux8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16x16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh16x16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh16x16  <t> x (Const16 [c]))
@@ -12391,7 +12375,7 @@ func rewriteValuegeneric_OpRsh16x16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16x32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh16x32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh16x32  <t> x (Const32 [c]))
@@ -12429,9 +12413,13 @@ func rewriteValuegeneric_OpRsh16x32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16x64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh16x64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Rsh16x64  (Const16 [c]) (Const64 [d]))
 	// cond:
 	// result: (Const16 [int64(int16(c) >> uint64(d))])
@@ -12514,7 +12502,7 @@ func rewriteValuegeneric_OpRsh16x64(v *Value, config *Config) bool {
 	}
 	// match: (Rsh16x64 (Lsh16x64 x (Const64  [8])) (Const64  [8]))
 	// cond:
-	// result: (SignExt8to16  (Trunc16to8  <config.fe.TypeInt8()>  x))
+	// result: (SignExt8to16  (Trunc16to8  <fe.TypeInt8()>  x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh16x64 {
@@ -12536,14 +12524,14 @@ func rewriteValuegeneric_OpRsh16x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpSignExt8to16)
-		v0 := b.NewValue0(v.Pos, OpTrunc16to8, config.fe.TypeInt8())
+		v0 := b.NewValue0(v.Pos, OpTrunc16to8, fe.TypeInt8())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16x8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh16x8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh16x8   <t> x (Const8  [c]))
@@ -12581,7 +12569,7 @@ func rewriteValuegeneric_OpRsh16x8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32Ux16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh32Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh32Ux16 <t> x (Const16 [c]))
@@ -12619,7 +12607,7 @@ func rewriteValuegeneric_OpRsh32Ux16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32Ux32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh32Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh32Ux32 <t> x (Const32 [c]))
@@ -12657,9 +12645,13 @@ func rewriteValuegeneric_OpRsh32Ux32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32Ux64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh32Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Rsh32Ux64 (Const32 [c]) (Const64 [d]))
 	// cond:
 	// result: (Const32 [int64(int32(uint32(c) >> uint64(d)))])
@@ -12758,7 +12750,7 @@ func rewriteValuegeneric_OpRsh32Ux64(v *Value, config *Config) bool {
 	}
 	// match: (Rsh32Ux64 (Lsh32x64 (Rsh32Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
-	// result: (Rsh32Ux64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+	// result: (Rsh32Ux64 x (Const64 <fe.TypeUInt64()> [c1-c2+c3]))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh32x64 {
@@ -12789,14 +12781,14 @@ func rewriteValuegeneric_OpRsh32Ux64(v *Value, config *Config) bool {
 		}
 		v.reset(OpRsh32Ux64)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = c1 - c2 + c3
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh32Ux64 (Lsh32x64 x (Const64 [24])) (Const64 [24]))
 	// cond:
-	// result: (ZeroExt8to32  (Trunc32to8  <config.fe.TypeUInt8()>  x))
+	// result: (ZeroExt8to32  (Trunc32to8  <fe.TypeUInt8()>  x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh32x64 {
@@ -12818,14 +12810,14 @@ func rewriteValuegeneric_OpRsh32Ux64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpZeroExt8to32)
-		v0 := b.NewValue0(v.Pos, OpTrunc32to8, config.fe.TypeUInt8())
+		v0 := b.NewValue0(v.Pos, OpTrunc32to8, fe.TypeUInt8())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh32Ux64 (Lsh32x64 x (Const64 [16])) (Const64 [16]))
 	// cond:
-	// result: (ZeroExt16to32 (Trunc32to16 <config.fe.TypeUInt16()> x))
+	// result: (ZeroExt16to32 (Trunc32to16 <fe.TypeUInt16()> x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh32x64 {
@@ -12847,14 +12839,14 @@ func rewriteValuegeneric_OpRsh32Ux64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpZeroExt16to32)
-		v0 := b.NewValue0(v.Pos, OpTrunc32to16, config.fe.TypeUInt16())
+		v0 := b.NewValue0(v.Pos, OpTrunc32to16, fe.TypeUInt16())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32Ux8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh32Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh32Ux8  <t> x (Const8  [c]))
@@ -12892,7 +12884,7 @@ func rewriteValuegeneric_OpRsh32Ux8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32x16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh32x16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh32x16  <t> x (Const16 [c]))
@@ -12930,7 +12922,7 @@ func rewriteValuegeneric_OpRsh32x16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32x32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh32x32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh32x32  <t> x (Const32 [c]))
@@ -12968,9 +12960,13 @@ func rewriteValuegeneric_OpRsh32x32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32x64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh32x64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Rsh32x64  (Const32 [c]) (Const64 [d]))
 	// cond:
 	// result: (Const32 [int64(int32(c) >> uint64(d))])
@@ -13053,7 +13049,7 @@ func rewriteValuegeneric_OpRsh32x64(v *Value, config *Config) bool {
 	}
 	// match: (Rsh32x64 (Lsh32x64 x (Const64 [24])) (Const64 [24]))
 	// cond:
-	// result: (SignExt8to32  (Trunc32to8  <config.fe.TypeInt8()>  x))
+	// result: (SignExt8to32  (Trunc32to8  <fe.TypeInt8()>  x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh32x64 {
@@ -13075,14 +13071,14 @@ func rewriteValuegeneric_OpRsh32x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpSignExt8to32)
-		v0 := b.NewValue0(v.Pos, OpTrunc32to8, config.fe.TypeInt8())
+		v0 := b.NewValue0(v.Pos, OpTrunc32to8, fe.TypeInt8())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh32x64 (Lsh32x64 x (Const64 [16])) (Const64 [16]))
 	// cond:
-	// result: (SignExt16to32 (Trunc32to16 <config.fe.TypeInt16()> x))
+	// result: (SignExt16to32 (Trunc32to16 <fe.TypeInt16()> x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh32x64 {
@@ -13104,14 +13100,14 @@ func rewriteValuegeneric_OpRsh32x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpSignExt16to32)
-		v0 := b.NewValue0(v.Pos, OpTrunc32to16, config.fe.TypeInt16())
+		v0 := b.NewValue0(v.Pos, OpTrunc32to16, fe.TypeInt16())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32x8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh32x8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh32x8   <t> x (Const8  [c]))
@@ -13149,7 +13145,7 @@ func rewriteValuegeneric_OpRsh32x8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64Ux16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh64Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh64Ux16 <t> x (Const16 [c]))
@@ -13187,7 +13183,7 @@ func rewriteValuegeneric_OpRsh64Ux16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64Ux32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh64Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh64Ux32 <t> x (Const32 [c]))
@@ -13225,9 +13221,13 @@ func rewriteValuegeneric_OpRsh64Ux32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64Ux64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh64Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Rsh64Ux64 (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (Const64 [int64(uint64(c) >> uint64(d))])
@@ -13326,7 +13326,7 @@ func rewriteValuegeneric_OpRsh64Ux64(v *Value, config *Config) bool {
 	}
 	// match: (Rsh64Ux64 (Lsh64x64 (Rsh64Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
-	// result: (Rsh64Ux64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+	// result: (Rsh64Ux64 x (Const64 <fe.TypeUInt64()> [c1-c2+c3]))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh64x64 {
@@ -13357,14 +13357,14 @@ func rewriteValuegeneric_OpRsh64Ux64(v *Value, config *Config) bool {
 		}
 		v.reset(OpRsh64Ux64)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = c1 - c2 + c3
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh64Ux64 (Lsh64x64 x (Const64 [56])) (Const64 [56]))
 	// cond:
-	// result: (ZeroExt8to64  (Trunc64to8  <config.fe.TypeUInt8()>  x))
+	// result: (ZeroExt8to64  (Trunc64to8  <fe.TypeUInt8()>  x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh64x64 {
@@ -13386,14 +13386,14 @@ func rewriteValuegeneric_OpRsh64Ux64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpZeroExt8to64)
-		v0 := b.NewValue0(v.Pos, OpTrunc64to8, config.fe.TypeUInt8())
+		v0 := b.NewValue0(v.Pos, OpTrunc64to8, fe.TypeUInt8())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh64Ux64 (Lsh64x64 x (Const64 [48])) (Const64 [48]))
 	// cond:
-	// result: (ZeroExt16to64 (Trunc64to16 <config.fe.TypeUInt16()> x))
+	// result: (ZeroExt16to64 (Trunc64to16 <fe.TypeUInt16()> x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh64x64 {
@@ -13415,14 +13415,14 @@ func rewriteValuegeneric_OpRsh64Ux64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpZeroExt16to64)
-		v0 := b.NewValue0(v.Pos, OpTrunc64to16, config.fe.TypeUInt16())
+		v0 := b.NewValue0(v.Pos, OpTrunc64to16, fe.TypeUInt16())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh64Ux64 (Lsh64x64 x (Const64 [32])) (Const64 [32]))
 	// cond:
-	// result: (ZeroExt32to64 (Trunc64to32 <config.fe.TypeUInt32()> x))
+	// result: (ZeroExt32to64 (Trunc64to32 <fe.TypeUInt32()> x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh64x64 {
@@ -13444,14 +13444,14 @@ func rewriteValuegeneric_OpRsh64Ux64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpZeroExt32to64)
-		v0 := b.NewValue0(v.Pos, OpTrunc64to32, config.fe.TypeUInt32())
+		v0 := b.NewValue0(v.Pos, OpTrunc64to32, fe.TypeUInt32())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64Ux8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh64Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh64Ux8  <t> x (Const8  [c]))
@@ -13489,7 +13489,7 @@ func rewriteValuegeneric_OpRsh64Ux8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64x16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh64x16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh64x16  <t> x (Const16 [c]))
@@ -13527,7 +13527,7 @@ func rewriteValuegeneric_OpRsh64x16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64x32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh64x32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh64x32  <t> x (Const32 [c]))
@@ -13565,9 +13565,13 @@ func rewriteValuegeneric_OpRsh64x32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64x64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh64x64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Rsh64x64  (Const64 [c]) (Const64 [d]))
 	// cond:
 	// result: (Const64 [c >> uint64(d)])
@@ -13650,7 +13654,7 @@ func rewriteValuegeneric_OpRsh64x64(v *Value, config *Config) bool {
 	}
 	// match: (Rsh64x64 (Lsh64x64 x (Const64 [56])) (Const64 [56]))
 	// cond:
-	// result: (SignExt8to64  (Trunc64to8  <config.fe.TypeInt8()>  x))
+	// result: (SignExt8to64  (Trunc64to8  <fe.TypeInt8()>  x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh64x64 {
@@ -13672,14 +13676,14 @@ func rewriteValuegeneric_OpRsh64x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpSignExt8to64)
-		v0 := b.NewValue0(v.Pos, OpTrunc64to8, config.fe.TypeInt8())
+		v0 := b.NewValue0(v.Pos, OpTrunc64to8, fe.TypeInt8())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh64x64 (Lsh64x64 x (Const64 [48])) (Const64 [48]))
 	// cond:
-	// result: (SignExt16to64 (Trunc64to16 <config.fe.TypeInt16()> x))
+	// result: (SignExt16to64 (Trunc64to16 <fe.TypeInt16()> x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh64x64 {
@@ -13701,14 +13705,14 @@ func rewriteValuegeneric_OpRsh64x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpSignExt16to64)
-		v0 := b.NewValue0(v.Pos, OpTrunc64to16, config.fe.TypeInt16())
+		v0 := b.NewValue0(v.Pos, OpTrunc64to16, fe.TypeInt16())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh64x64 (Lsh64x64 x (Const64 [32])) (Const64 [32]))
 	// cond:
-	// result: (SignExt32to64 (Trunc64to32 <config.fe.TypeInt32()> x))
+	// result: (SignExt32to64 (Trunc64to32 <fe.TypeInt32()> x))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh64x64 {
@@ -13730,14 +13734,14 @@ func rewriteValuegeneric_OpRsh64x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpSignExt32to64)
-		v0 := b.NewValue0(v.Pos, OpTrunc64to32, config.fe.TypeInt32())
+		v0 := b.NewValue0(v.Pos, OpTrunc64to32, fe.TypeInt32())
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64x8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh64x8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh64x8   <t> x (Const8  [c]))
@@ -13775,7 +13779,7 @@ func rewriteValuegeneric_OpRsh64x8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8Ux16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh8Ux16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh8Ux16 <t> x (Const16 [c]))
@@ -13813,7 +13817,7 @@ func rewriteValuegeneric_OpRsh8Ux16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8Ux32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh8Ux32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh8Ux32 <t> x (Const32 [c]))
@@ -13851,9 +13855,13 @@ func rewriteValuegeneric_OpRsh8Ux32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8Ux64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh8Ux64(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Rsh8Ux64  (Const8  [c]) (Const64 [d]))
 	// cond:
 	// result: (Const8  [int64(int8(uint8(c) >> uint64(d)))])
@@ -13952,7 +13960,7 @@ func rewriteValuegeneric_OpRsh8Ux64(v *Value, config *Config) bool {
 	}
 	// match: (Rsh8Ux64 (Lsh8x64 (Rsh8Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
-	// result: (Rsh8Ux64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+	// result: (Rsh8Ux64 x (Const64 <fe.TypeUInt64()> [c1-c2+c3]))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpLsh8x64 {
@@ -13983,14 +13991,14 @@ func rewriteValuegeneric_OpRsh8Ux64(v *Value, config *Config) bool {
 		}
 		v.reset(OpRsh8Ux64)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt64())
+		v0 := b.NewValue0(v.Pos, OpConst64, fe.TypeUInt64())
 		v0.AuxInt = c1 - c2 + c3
 		v.AddArg(v0)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8Ux8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh8Ux8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh8Ux8  <t> x (Const8  [c]))
@@ -14028,7 +14036,7 @@ func rewriteValuegeneric_OpRsh8Ux8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8x16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh8x16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh8x16  <t> x (Const16 [c]))
@@ -14066,7 +14074,7 @@ func rewriteValuegeneric_OpRsh8x16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8x32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh8x32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh8x32  <t> x (Const32 [c]))
@@ -14104,7 +14112,7 @@ func rewriteValuegeneric_OpRsh8x32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8x64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh8x64(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh8x64   (Const8  [c]) (Const64 [d]))
@@ -14189,7 +14197,7 @@ func rewriteValuegeneric_OpRsh8x64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8x8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpRsh8x8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Rsh8x8   <t> x (Const8  [c]))
@@ -14227,9 +14235,7 @@ func rewriteValuegeneric_OpRsh8x8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt16to32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSignExt16to32(v *Value) bool {
 	// match: (SignExt16to32 (Const16 [c]))
 	// cond:
 	// result: (Const32 [int64( int16(c))])
@@ -14270,9 +14276,7 @@ func rewriteValuegeneric_OpSignExt16to32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt16to64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSignExt16to64(v *Value) bool {
 	// match: (SignExt16to64 (Const16 [c]))
 	// cond:
 	// result: (Const64 [int64( int16(c))])
@@ -14313,9 +14317,7 @@ func rewriteValuegeneric_OpSignExt16to64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt32to64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSignExt32to64(v *Value) bool {
 	// match: (SignExt32to64 (Const32 [c]))
 	// cond:
 	// result: (Const64 [int64( int32(c))])
@@ -14356,9 +14358,7 @@ func rewriteValuegeneric_OpSignExt32to64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt8to16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSignExt8to16(v *Value) bool {
 	// match: (SignExt8to16  (Const8  [c]))
 	// cond:
 	// result: (Const16 [int64(  int8(c))])
@@ -14399,9 +14399,7 @@ func rewriteValuegeneric_OpSignExt8to16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt8to32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSignExt8to32(v *Value) bool {
 	// match: (SignExt8to32  (Const8  [c]))
 	// cond:
 	// result: (Const32 [int64(  int8(c))])
@@ -14442,9 +14440,7 @@ func rewriteValuegeneric_OpSignExt8to32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt8to64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSignExt8to64(v *Value) bool {
 	// match: (SignExt8to64  (Const8  [c]))
 	// cond:
 	// result: (Const64 [int64(  int8(c))])
@@ -14485,9 +14481,7 @@ func rewriteValuegeneric_OpSignExt8to64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSliceCap(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSliceCap(v *Value) bool {
 	// match: (SliceCap (SliceMake _ _ (Const64 <t> [c])))
 	// cond:
 	// result: (Const64 <t> [c])
@@ -14562,9 +14556,7 @@ func rewriteValuegeneric_OpSliceCap(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSliceLen(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSliceLen(v *Value) bool {
 	// match: (SliceLen (SliceMake _ (Const64 <t> [c]) _))
 	// cond:
 	// result: (Const64 <t> [c])
@@ -14622,9 +14614,7 @@ func rewriteValuegeneric_OpSliceLen(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSlicePtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSlicePtr(v *Value) bool {
 	// match: (SlicePtr (SliceMake (SlicePtr x) _ _))
 	// cond:
 	// result: (SlicePtr x)
@@ -14644,9 +14634,7 @@ func rewriteValuegeneric_OpSlicePtr(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSlicemask(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSlicemask(v *Value) bool {
 	// match: (Slicemask (Const32 [x]))
 	// cond: x > 0
 	// result: (Const32 [-1])
@@ -14711,9 +14699,7 @@ func rewriteValuegeneric_OpSlicemask(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSqrt(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSqrt(v *Value) bool {
 	// match: (Sqrt (Const64F [c]))
 	// cond:
 	// result: (Const64F [f2i(math.Sqrt(i2f(c)))])
@@ -14729,9 +14715,13 @@ func rewriteValuegeneric_OpSqrt(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpStore(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (Store _ (StructMake0) mem)
 	// cond:
 	// result: mem
@@ -14889,7 +14879,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Store {t} dst (Load src mem) mem)
-	// cond: !config.fe.CanSSA(t.(Type))
+	// cond: !fe.CanSSA(t.(Type))
 	// result: (Move {t} [t.(Type).Size()] dst src mem)
 	for {
 		t := v.Aux
@@ -14903,7 +14893,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		if mem != v.Args[2] {
 			break
 		}
-		if !(!config.fe.CanSSA(t.(Type))) {
+		if !(!fe.CanSSA(t.(Type))) {
 			break
 		}
 		v.reset(OpMove)
@@ -14915,7 +14905,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Store {t} dst (Load src mem) (VarDef {x} mem))
-	// cond: !config.fe.CanSSA(t.(Type))
+	// cond: !fe.CanSSA(t.(Type))
 	// result: (Move {t} [t.(Type).Size()] dst src (VarDef {x} mem))
 	for {
 		t := v.Aux
@@ -14934,7 +14924,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 		if mem != v_2.Args[0] {
 			break
 		}
-		if !(!config.fe.CanSSA(t.(Type))) {
+		if !(!fe.CanSSA(t.(Type))) {
 			break
 		}
 		v.reset(OpMove)
@@ -15046,9 +15036,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpStringLen(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpStringLen(v *Value) bool {
 	// match: (StringLen (StringMake _ (Const64 <t> [c])))
 	// cond:
 	// result: (Const64 <t> [c])
@@ -15070,9 +15058,7 @@ func rewriteValuegeneric_OpStringLen(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpStringPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpStringPtr(v *Value) bool {
 	// match: (StringPtr (StringMake (Const64 <t> [c]) _))
 	// cond:
 	// result: (Const64 <t> [c])
@@ -15094,9 +15080,13 @@ func rewriteValuegeneric_OpStringPtr(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpStructSelect(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	// match: (StructSelect (StructMake1 x))
 	// cond:
 	// result: x
@@ -15265,7 +15255,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (StructSelect [i] x:(Load <t> ptr mem))
-	// cond: !config.fe.CanSSA(t)
+	// cond: !fe.CanSSA(t)
 	// result: @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 	for {
 		i := v.AuxInt
@@ -15276,7 +15266,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
 		t := x.Type
 		ptr := x.Args[0]
 		mem := x.Args[1]
-		if !(!config.fe.CanSSA(t)) {
+		if !(!fe.CanSSA(t)) {
 			break
 		}
 		b = x.Block
@@ -15308,7 +15298,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpSub16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Sub16  (Const16 [c]) (Const16 [d]))
@@ -15512,7 +15502,7 @@ func rewriteValuegeneric_OpSub16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpSub32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Sub32  (Const32 [c]) (Const32 [d]))
@@ -15716,9 +15706,7 @@ func rewriteValuegeneric_OpSub32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSub32F(v *Value) bool {
 	// match: (Sub32F (Const32F [c]) (Const32F [d]))
 	// cond:
 	// result: (Const32F [f2i(float64(i2f32(c) - i2f32(d)))])
@@ -15756,7 +15744,7 @@ func rewriteValuegeneric_OpSub32F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpSub64(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Sub64  (Const64 [c]) (Const64 [d]))
@@ -15960,9 +15948,7 @@ func rewriteValuegeneric_OpSub64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpSub64F(v *Value) bool {
 	// match: (Sub64F (Const64F [c]) (Const64F [d]))
 	// cond:
 	// result: (Const64F [f2i(i2f(c) - i2f(d))])
@@ -16000,7 +15986,7 @@ func rewriteValuegeneric_OpSub64F(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpSub8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Sub8   (Const8 [c]) (Const8 [d]))
@@ -16204,9 +16190,7 @@ func rewriteValuegeneric_OpSub8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc16to8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpTrunc16to8(v *Value) bool {
 	// match: (Trunc16to8  (Const16 [c]))
 	// cond:
 	// result: (Const8   [int64(int8(c))])
@@ -16271,9 +16255,7 @@ func rewriteValuegeneric_OpTrunc16to8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc32to16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpTrunc32to16(v *Value) bool {
 	// match: (Trunc32to16 (Const32 [c]))
 	// cond:
 	// result: (Const16  [int64(int16(c))])
@@ -16364,9 +16346,7 @@ func rewriteValuegeneric_OpTrunc32to16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc32to8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpTrunc32to8(v *Value) bool {
 	// match: (Trunc32to8  (Const32 [c]))
 	// cond:
 	// result: (Const8   [int64(int8(c))])
@@ -16431,9 +16411,7 @@ func rewriteValuegeneric_OpTrunc32to8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc64to16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpTrunc64to16(v *Value) bool {
 	// match: (Trunc64to16 (Const64 [c]))
 	// cond:
 	// result: (Const16  [int64(int16(c))])
@@ -16524,9 +16502,7 @@ func rewriteValuegeneric_OpTrunc64to16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc64to32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpTrunc64to32(v *Value) bool {
 	// match: (Trunc64to32 (Const64 [c]))
 	// cond:
 	// result: (Const32  [int64(int32(c))])
@@ -16643,9 +16619,7 @@ func rewriteValuegeneric_OpTrunc64to32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc64to8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpTrunc64to8(v *Value) bool {
 	// match: (Trunc64to8  (Const64 [c]))
 	// cond:
 	// result: (Const8   [int64(int8(c))])
@@ -16710,7 +16684,7 @@ func rewriteValuegeneric_OpTrunc64to8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpXor16(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpXor16(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Xor16  (Const16 [c])  (Const16 [d]))
@@ -16928,7 +16902,7 @@ func rewriteValuegeneric_OpXor16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpXor32(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpXor32(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Xor32  (Const32 [c])  (Const32 [d]))
@@ -17146,7 +17120,7 @@ func rewriteValuegeneric_OpXor32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpXor64(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpXor64(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Xor64  (Const64 [c])  (Const64 [d]))
@@ -17364,7 +17338,7 @@ func rewriteValuegeneric_OpXor64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpXor8(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpXor8(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Xor8   (Const8 [c])   (Const8 [d]))
@@ -17582,9 +17556,11 @@ func rewriteValuegeneric_OpXor8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpZero(v *Value) bool {
 	b := v.Block
 	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (Zero (Load (OffPtr [c] (SP)) mem) mem)
 	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize
 	// result: mem
@@ -17616,9 +17592,7 @@ func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt16to32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpZeroExt16to32(v *Value) bool {
 	// match: (ZeroExt16to32 (Const16 [c]))
 	// cond:
 	// result: (Const32 [int64(uint16(c))])
@@ -17659,9 +17633,7 @@ func rewriteValuegeneric_OpZeroExt16to32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt16to64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpZeroExt16to64(v *Value) bool {
 	// match: (ZeroExt16to64 (Const16 [c]))
 	// cond:
 	// result: (Const64 [int64(uint16(c))])
@@ -17702,9 +17674,7 @@ func rewriteValuegeneric_OpZeroExt16to64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt32to64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpZeroExt32to64(v *Value) bool {
 	// match: (ZeroExt32to64 (Const32 [c]))
 	// cond:
 	// result: (Const64 [int64(uint32(c))])
@@ -17745,9 +17715,7 @@ func rewriteValuegeneric_OpZeroExt32to64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt8to16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpZeroExt8to16(v *Value) bool {
 	// match: (ZeroExt8to16  (Const8  [c]))
 	// cond:
 	// result: (Const16 [int64( uint8(c))])
@@ -17788,9 +17756,7 @@ func rewriteValuegeneric_OpZeroExt8to16(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt8to32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpZeroExt8to32(v *Value) bool {
 	// match: (ZeroExt8to32  (Const8  [c]))
 	// cond:
 	// result: (Const32 [int64( uint8(c))])
@@ -17831,9 +17797,7 @@ func rewriteValuegeneric_OpZeroExt8to32(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt8to64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
+func rewriteValuegeneric_OpZeroExt8to64(v *Value) bool {
 	// match: (ZeroExt8to64  (Const8  [c]))
 	// cond:
 	// result: (Const64 [int64( uint8(c))])
@@ -17874,7 +17838,11 @@ func rewriteValuegeneric_OpZeroExt8to64(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteBlockgeneric(b *Block, config *Config) bool {
+func rewriteBlockgeneric(b *Block) bool {
+	config := b.Func.Config
+	_ = config
+	fe := config.fe
+	_ = fe
 	switch b.Kind {
 	case BlockIf:
 		// match: (If (Not cond) yes no)
