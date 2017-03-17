@@ -10,11 +10,11 @@ import (
 	"cmd/internal/obj/ppc64"
 )
 
-func defframe(ptxt *obj.Prog) {
+func defframe(ptxt *obj.Prog, fn *gc.Node) {
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
+	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
 	ptxt.To.Offset = int64(frame)
 
@@ -27,7 +27,7 @@ func defframe(ptxt *obj.Prog) {
 	lo := hi
 
 	// iterate through declarations - they are sorted in decreasing xoffset order.
-	for _, n := range gc.Curfn.Func.Dcl {
+	for _, n := range fn.Func.Dcl {
 		if !n.Name.Needzero() {
 			continue
 		}
