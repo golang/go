@@ -33,7 +33,7 @@ func BenchmarkMultiPassBlock(b *testing.B) { benchFnBlock(b, multi, genFunction)
 // benchFnPass runs passFunc b.N times across a single function.
 func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
 	b.ReportAllocs()
-	c := NewConfig("amd64", nil, true)
+	c := testConfig(b)
 	fun := Fun(c, DummyFrontend{b}, "entry", bg(size)...)
 	CheckFunc(fun.f)
 	b.ResetTimer()
@@ -48,7 +48,7 @@ func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
 // benchFnPass runs passFunc across a function with b.N blocks.
 func benchFnBlock(b *testing.B, fn passFunc, bg blockGen) {
 	b.ReportAllocs()
-	c := NewConfig("amd64", nil, true)
+	c := testConfig(b)
 	fun := Fun(c, DummyFrontend{b}, "entry", bg(b.N)...)
 	CheckFunc(fun.f)
 	b.ResetTimer()

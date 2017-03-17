@@ -8,7 +8,7 @@ import (
 
 func TestFuseEliminatesOneBranch(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", nil, true)
+	c := testConfig(t)
 	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
@@ -36,7 +36,7 @@ func TestFuseEliminatesOneBranch(t *testing.T) {
 
 func TestFuseEliminatesBothBranches(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", nil, true)
+	c := testConfig(t)
 	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
@@ -69,7 +69,7 @@ func TestFuseEliminatesBothBranches(t *testing.T) {
 
 func TestFuseHandlesPhis(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", nil, true)
+	c := testConfig(t)
 	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
@@ -102,7 +102,7 @@ func TestFuseHandlesPhis(t *testing.T) {
 }
 
 func TestFuseEliminatesEmptyBlocks(t *testing.T) {
-	c := NewConfig("amd64", nil, true)
+	c := testConfig(t)
 	fun := Fun(c, DummyFrontend{t}, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
