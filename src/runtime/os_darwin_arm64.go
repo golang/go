@@ -4,6 +4,8 @@
 
 package runtime
 
+var supportCRC32 = false
+
 //go:nosplit
 func cputicks() int64 {
 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
