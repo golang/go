@@ -3417,9 +3417,17 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
 
 // do *left = right for type t.
 func (s *state) storeType(t *Type, left, right *ssa.Value, skip skipMask) {
+	if skip == 0 && (!haspointers(t) || ssa.IsStackAddr(left)) {
+		// Known to not have write barrier. Store the whole type.
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, left, right, s.mem())
+		return
+	}
+
 	// store scalar fields first, so write barrier stores for
 	// pointer fields can be grouped together, and scalar values
 	// don't need to be live across the write barrier call.
+	// TODO: if the writebarrier pass knows how to reorder stores,
+	// we can do a single store here as long as skip==0.
 	s.storeTypeScalars(t, left, right, skip)
 	if skip&skipPtr == 0 && haspointers(t) {
 		s.storeTypePtrs(t, left, right)
