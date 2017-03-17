@@ -240,6 +240,20 @@ func minit() {
 		_g_.m.procid = uint64(*(*uint32)(unsafe.Pointer(&_g_.m.procid)))
 	}
 
+	// On FreeBSD before about April 2017 there was a bug such
+	// that calling execve from a thread other than the main
+	// thread did not reset the signal stack. That would confuse
+	// minitSignals, which calls minitSignalStack, which checks
+	// whether there is currently a signal stack and uses it if
+	// present. To avoid this confusion, explicitly disable the
+	// signal stack on the main thread when not running in a
+	// library. This can be removed when we are confident that all
+	// FreeBSD users are running a patched kernel. See issue #15658.
+	if gp := getg(); !isarchive && !islibrary && gp.m == &m0 && gp == gp.m.g0 {
+		st := stackt{ss_flags: _SS_DISABLE}
+		sigaltstack(&st, nil)
+	}
+
 	minitSignals()
 }
 
