@@ -1096,7 +1096,12 @@ func TestLinuxSendfile(t *testing.T) {
 		// and will error out if we specify that with `-e trace='.
 		syscalls = "sendfile"
 	case "mips64":
-		t.Skip("TODO: update this test to be robust against various versions of strace on mips64. See golang.org/issue/33430")
+		t.Skip("TODO: update this test to be robust against various versions of strace on mips64. See golang.org/issue/18008")
+	}
+
+	// Attempt to run strace, and skip on failure - this test requires SYS_PTRACE.
+	if err := exec.Command("strace", "-f", "-q", "-e", "trace="+syscalls, os.Args[0], "-test.run=^$").Run(); err != nil {
+		t.Skipf("skipping; failed to run strace: %v", err)
 	}
 
 	var buf bytes.Buffer
