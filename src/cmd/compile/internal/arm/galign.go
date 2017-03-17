@@ -10,16 +10,16 @@ import (
 	"cmd/internal/obj/arm"
 )
 
-func Init() {
-	gc.Thearch.LinkArch = &arm.Linkarm
-	gc.Thearch.REGSP = arm.REGSP
-	gc.Thearch.MAXWIDTH = (1 << 32) - 1
+func Init(arch *gc.Arch) {
+	arch.LinkArch = &arm.Linkarm
+	arch.REGSP = arm.REGSP
+	arch.MAXWIDTH = (1 << 32) - 1
 
-	gc.Thearch.Defframe = defframe
-	gc.Thearch.Ginsnop = ginsnop
-	gc.Thearch.Proginfo = proginfo
+	arch.Defframe = defframe
+	arch.Ginsnop = ginsnop
+	arch.Proginfo = proginfo
 
-	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
-	gc.Thearch.SSAGenValue = ssaGenValue
-	gc.Thearch.SSAGenBlock = ssaGenBlock
+	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+	arch.SSAGenValue = ssaGenValue
+	arch.SSAGenBlock = ssaGenBlock
 }

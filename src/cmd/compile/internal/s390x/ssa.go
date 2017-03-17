@@ -751,8 +751,6 @@ var blockJump = [...]struct {
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
-	s.SetPos(b.Pos)
-
 	switch b.Kind {
 	case ssa.BlockPlain:
 		if b.Succs[0].Block() != next {

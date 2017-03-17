@@ -12,20 +12,20 @@ import (
 
 var leaptr = x86.ALEAQ
 
-func Init() {
-	gc.Thearch.LinkArch = &x86.Linkamd64
+func Init(arch *gc.Arch) {
+	arch.LinkArch = &x86.Linkamd64
 	if obj.GOARCH == "amd64p32" {
-		gc.Thearch.LinkArch = &x86.Linkamd64p32
+		arch.LinkArch = &x86.Linkamd64p32
 		leaptr = x86.ALEAL
 	}
-	gc.Thearch.REGSP = x86.REGSP
-	gc.Thearch.MAXWIDTH = 1 << 50
+	arch.REGSP = x86.REGSP
+	arch.MAXWIDTH = 1 << 50
 
-	gc.Thearch.Defframe = defframe
-	gc.Thearch.Ginsnop = ginsnop
-	gc.Thearch.Proginfo = proginfo
+	arch.Defframe = defframe
+	arch.Ginsnop = ginsnop
+	arch.Proginfo = proginfo
 
-	gc.Thearch.SSAMarkMoves = ssaMarkMoves
-	gc.Thearch.SSAGenValue = ssaGenValue
-	gc.Thearch.SSAGenBlock = ssaGenBlock
+	arch.SSAMarkMoves = ssaMarkMoves
+	arch.SSAGenValue = ssaGenValue
+	arch.SSAGenBlock = ssaGenBlock
 }
