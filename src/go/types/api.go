@@ -347,6 +347,9 @@ func (init *Initializer) String() string {
 // file set, and the package path the package is identified with.
 // The clean path must not be empty or dot (".").
 func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, info *Info) (*Package, error) {
+	if path == "" || path == "." {
+		panic(`path must not be "" or "."`)
+	}
 	pkg := NewPackage(path, "")
 	return pkg, NewChecker(conf, fset, pkg, info).Files(files)
 }
