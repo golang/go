@@ -252,6 +252,14 @@ func rewriteValueARM64(v *Value, config *Config) bool {
 		return rewriteValueARM64_OpAvg64u(v, config)
 	case OpBitLen64:
 		return rewriteValueARM64_OpBitLen64(v, config)
+	case OpBitRev16:
+		return rewriteValueARM64_OpBitRev16(v, config)
+	case OpBitRev32:
+		return rewriteValueARM64_OpBitRev32(v, config)
+	case OpBitRev64:
+		return rewriteValueARM64_OpBitRev64(v, config)
+	case OpBitRev8:
+		return rewriteValueARM64_OpBitRev8(v, config)
 	case OpBswap32:
 		return rewriteValueARM64_OpBswap32(v, config)
 	case OpBswap64:
@@ -9711,6 +9719,64 @@ func rewriteValueARM64_OpBitLen64(v *Value, config *Config) bool {
 		v1 := b.NewValue0(v.Pos, OpARM64CLZ, config.fe.TypeInt())
 		v1.AddArg(x)
 		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueARM64_OpBitRev16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (BitRev16 x)
+	// cond:
+	// result: (SRLconst [48] (RBIT <config.fe.TypeUInt64()> x))
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64SRLconst)
+		v.AuxInt = 48
+		v0 := b.NewValue0(v.Pos, OpARM64RBIT, config.fe.TypeUInt64())
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM64_OpBitRev32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (BitRev32 x)
+	// cond:
+	// result: (RBITW x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64RBITW)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_OpBitRev64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (BitRev64 x)
+	// cond:
+	// result: (RBIT x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64RBIT)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_OpBitRev8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (BitRev8 x)
+	// cond:
+	// result: (SRLconst [56] (RBIT <config.fe.TypeUInt64()> x))
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64SRLconst)
+		v.AuxInt = 56
+		v0 := b.NewValue0(v.Pos, OpARM64RBIT, config.fe.TypeUInt64())
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 }
