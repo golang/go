@@ -4204,6 +4204,8 @@ type SSAGenState struct {
 	SSEto387 map[int16]int16
 	// Some architectures require a 64-bit temporary for FP-related register shuffling. Examples include x86-387, PPC, and Sparc V8.
 	ScratchFpMem *Node
+
+	maxarg int64 // largest frame size for arguments to calls made by the function
 }
 
 // Pc returns the current Prog.
@@ -4355,7 +4357,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	liveness(e.curfn, ptxt, gcargs, gclocals)
 
 	// Add frame prologue. Zero ambiguously live variables.
-	thearch.Defframe(ptxt, e.curfn, Stksize+Maxarg)
+	thearch.Defframe(ptxt, e.curfn, Stksize+s.maxarg)
 	if Debug['f'] != 0 {
 		frame(0)
 	}
@@ -4631,8 +4633,8 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 		}
 		p.To.Reg = v.Args[0].Reg()
 	}
-	if Maxarg < v.AuxInt {
-		Maxarg = v.AuxInt
+	if s.maxarg < v.AuxInt {
+		s.maxarg = v.AuxInt
 	}
 	return p
 }

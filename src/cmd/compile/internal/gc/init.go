@@ -90,8 +90,6 @@ func fninit(n []*Node) {
 	addvar(gatevar, Types[TUINT8], PEXTERN)
 
 	// (2)
-	Maxarg = 0
-
 	fn := nod(ODCLFUNC, nil, nil)
 	initsym := lookup("init")
 	fn.Func.Nname = newname(initsym)

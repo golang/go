@@ -1200,7 +1200,6 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 
 func funccompile(n *Node) {
 	Stksize = BADWIDTH
-	Maxarg = 0
 
 	if n.Type == nil {
 		if nerrors == 0 {
