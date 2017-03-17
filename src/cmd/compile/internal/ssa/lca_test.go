@@ -22,7 +22,7 @@ func lcaEqual(f *Func, lca1, lca2 lca) bool {
 }
 
 func testLCAgen(t *testing.T, bg blockGen, size int) {
-	c := NewConfig("amd64", nil, true)
+	c := testConfig(t)
 	fun := Fun(c, DummyFrontend{t}, "entry", bg(size)...)
 	CheckFunc(fun.f)
 	if size == 4 {
