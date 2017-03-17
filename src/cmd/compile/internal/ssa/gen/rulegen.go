@@ -156,11 +156,11 @@ func genRules(arch arch) {
 	fmt.Fprintln(w, "var _ = math.MinInt8 // in case not otherwise used")
 
 	// Main rewrite routine is a switch on v.Op.
-	fmt.Fprintf(w, "func rewriteValue%s(v *Value, config *Config) bool {\n", arch.name)
+	fmt.Fprintf(w, "func rewriteValue%s(v *Value) bool {\n", arch.name)
 	fmt.Fprintf(w, "switch v.Op {\n")
 	for _, op := range ops {
 		fmt.Fprintf(w, "case %s:\n", op)
-		fmt.Fprintf(w, "return rewriteValue%s_%s(v, config)\n", arch.name, op)
+		fmt.Fprintf(w, "return rewriteValue%s_%s(v)\n", arch.name, op)
 	}
 	fmt.Fprintf(w, "}\n")
 	fmt.Fprintf(w, "return false\n")
@@ -169,47 +169,71 @@ func genRules(arch arch) {
 	// Generate a routine per op. Note that we don't make one giant routine
 	// because it is too big for some compilers.
 	for _, op := range ops {
-		fmt.Fprintf(w, "func rewriteValue%s_%s(v *Value, config *Config) bool {\n", arch.name, op)
-		fmt.Fprintln(w, "b := v.Block")
-		fmt.Fprintln(w, "_ = b")
+		buf := new(bytes.Buffer)
 		var canFail bool
 		for i, rule := range oprules[op] {
 			match, cond, result := rule.parse()
-			fmt.Fprintf(w, "// match: %s\n", match)
-			fmt.Fprintf(w, "// cond: %s\n", cond)
-			fmt.Fprintf(w, "// result: %s\n", result)
+			fmt.Fprintf(buf, "// match: %s\n", match)
+			fmt.Fprintf(buf, "// cond: %s\n", cond)
+			fmt.Fprintf(buf, "// result: %s\n", result)
 
 			canFail = false
-			fmt.Fprintf(w, "for {\n")
-			if genMatch(w, arch, match, rule.loc) {
+			fmt.Fprintf(buf, "for {\n")
+			if genMatch(buf, arch, match, rule.loc) {
 				canFail = true
 			}
 
 			if cond != "" {
-				fmt.Fprintf(w, "if !(%s) {\nbreak\n}\n", cond)
+				fmt.Fprintf(buf, "if !(%s) {\nbreak\n}\n", cond)
 				canFail = true
 			}
 			if !canFail && i != len(oprules[op])-1 {
 				log.Fatalf("unconditional rule %s is followed by other rules", match)
 			}
 
-			genResult(w, arch, result, rule.loc)
+			genResult(buf, arch, result, rule.loc)
 			if *genLog {
-				fmt.Fprintf(w, "logRule(\"%s\")\n", rule.loc)
+				fmt.Fprintf(buf, "logRule(\"%s\")\n", rule.loc)
 			}
-			fmt.Fprintf(w, "return true\n")
+			fmt.Fprintf(buf, "return true\n")
 
-			fmt.Fprintf(w, "}\n")
+			fmt.Fprintf(buf, "}\n")
 		}
 		if canFail {
-			fmt.Fprintf(w, "return false\n")
+			fmt.Fprintf(buf, "return false\n")
 		}
+
+		body := buf.String()
+		// Do a rough match to predict whether we need b, config, and/or fe.
+		// It's not precise--thus the blank assignments--but it's good enough
+		// to avoid generating needless code and doing pointless nil checks.
+		hasb := strings.Contains(body, "b.")
+		hasconfig := strings.Contains(body, "config.")
+		hasfe := strings.Contains(body, "fe.")
+		fmt.Fprintf(w, "func rewriteValue%s_%s(v *Value) bool {\n", arch.name, op)
+		if hasb || hasconfig || hasfe {
+			fmt.Fprintln(w, "b := v.Block")
+			fmt.Fprintln(w, "_ = b")
+		}
+		if hasconfig || hasfe {
+			fmt.Fprintln(w, "config := b.Func.Config")
+			fmt.Fprintln(w, "_ = config")
+		}
+		if hasfe {
+			fmt.Fprintln(w, "fe := config.fe")
+			fmt.Fprintln(w, "_ = fe")
+		}
+		fmt.Fprint(w, body)
 		fmt.Fprintf(w, "}\n")
 	}
 
 	// Generate block rewrite function. There are only a few block types
 	// so we can make this one function with a switch.
-	fmt.Fprintf(w, "func rewriteBlock%s(b *Block, config *Config) bool {\n", arch.name)
+	fmt.Fprintf(w, "func rewriteBlock%s(b *Block) bool {\n", arch.name)
+	fmt.Fprintln(w, "config := b.Func.Config")
+	fmt.Fprintln(w, "_ = config")
+	fmt.Fprintln(w, "fe := config.fe")
+	fmt.Fprintln(w, "_ = fe")
 	fmt.Fprintf(w, "switch b.Kind {\n")
 	ops = nil
 	for op := range blockrules {
@@ -695,7 +719,7 @@ func typeName(typ string) string {
 	case "Flags", "Mem", "Void", "Int128":
 		return "Type" + typ
 	default:
-		return "config.fe.Type" + typ + "()"
+		return "fe.Type" + typ + "()"
 	}
 }
 

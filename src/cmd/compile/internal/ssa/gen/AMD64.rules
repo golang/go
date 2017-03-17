@@ -78,8 +78,8 @@
 (Neg32  x) -> (NEGL x)
 (Neg16  x) -> (NEGL x)
 (Neg8   x) -> (NEGL x)
-(Neg32F x) -> (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
-(Neg64F x) -> (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
+(Neg32F x) -> (PXOR x (MOVSSconst <fe.TypeFloat32()> [f2i(math.Copysign(0, -1))]))
+(Neg64F x) -> (PXOR x (MOVSDconst <fe.TypeFloat64()> [f2i(math.Copysign(0, -1))]))
 
 (Com64 x) -> (NOTQ x)
 (Com32 x) -> (NOTL x)
@@ -98,10 +98,10 @@
 
 // Lowering other arithmetic
 (Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <TypeFlags> (BSFQ x)))
-(Ctz32 x) -> (Select0 (BSFQ (ORQ <config.Frontend().TypeUInt64()> (MOVQconst [1<<32]) x)))
+(Ctz32 x) -> (Select0 (BSFQ (ORQ <fe.TypeUInt64()> (MOVQconst [1<<32]) x)))
 
 (BitLen64 <t> x) -> (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <TypeFlags> (BSRQ x))))
-(BitLen32 x) -> (BitLen64 (MOVLQZX <config.Frontend().TypeUInt64()> x))
+(BitLen32 x) -> (BitLen64 (MOVLQZX <fe.TypeUInt64()> x))
 
 (Bswap64 x) -> (BSWAPQ x)
 (Bswap32 x) -> (BSWAPL x)
@@ -472,10 +472,10 @@
 
 // Atomic stores.  We use XCHG to prevent the hardware reordering a subsequent load.
 // TODO: most runtime uses of atomic stores don't need that property.  Use normal stores for those?
-(AtomicStore32 ptr val mem) -> (Select1 (XCHGL <MakeTuple(config.Frontend().TypeUInt32(),TypeMem)> val ptr mem))
-(AtomicStore64 ptr val mem) -> (Select1 (XCHGQ <MakeTuple(config.Frontend().TypeUInt64(),TypeMem)> val ptr mem))
-(AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 8 -> (Select1 (XCHGQ <MakeTuple(config.Frontend().TypeBytePtr(),TypeMem)> val ptr mem))
-(AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 4 -> (Select1 (XCHGL <MakeTuple(config.Frontend().TypeBytePtr(),TypeMem)> val ptr mem))
+(AtomicStore32 ptr val mem) -> (Select1 (XCHGL <MakeTuple(fe.TypeUInt32(),TypeMem)> val ptr mem))
+(AtomicStore64 ptr val mem) -> (Select1 (XCHGQ <MakeTuple(fe.TypeUInt64(),TypeMem)> val ptr mem))
+(AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 8 -> (Select1 (XCHGQ <MakeTuple(fe.TypeBytePtr(),TypeMem)> val ptr mem))
+(AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 4 -> (Select1 (XCHGL <MakeTuple(fe.TypeBytePtr(),TypeMem)> val ptr mem))
 
 // Atomic exchanges.
 (AtomicExchange32 ptr val mem) -> (XCHGL val ptr mem)
@@ -553,8 +553,8 @@
 (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no) -> (NEF  cmp yes no)
 
 // Disabled because it interferes with the pattern match above and makes worse code.
-// (SETNEF x) -> (ORQ (SETNE <config.Frontend().TypeInt8()> x) (SETNAN <config.Frontend().TypeInt8()> x))
-// (SETEQF x) -> (ANDQ (SETEQ <config.Frontend().TypeInt8()> x) (SETORD <config.Frontend().TypeInt8()> x))
+// (SETNEF x) -> (ORQ (SETNE <fe.TypeInt8()> x) (SETNAN <fe.TypeInt8()> x))
+// (SETEQF x) -> (ANDQ (SETEQ <fe.TypeInt8()> x) (SETORD <fe.TypeInt8()> x))
 
 // fold constants into instructions
 (ADDQ x (MOVQconst [c])) && is32Bit(c) -> (ADDQconst [c] x)

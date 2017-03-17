@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-func applyRewrite(f *Func, rb func(*Block, *Config) bool, rv func(*Value, *Config) bool) {
+func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	// repeat rewrites until we find no more rewrites
 	var curb *Block
 	var curv *Value
@@ -27,7 +27,6 @@ func applyRewrite(f *Func, rb func(*Block, *Config) bool, rv func(*Value, *Confi
 			// TODO(khr): print source location also
 		}
 	}()
-	config := f.Config
 	for {
 		change := false
 		for _, b := range f.Blocks {
@@ -37,7 +36,7 @@ func applyRewrite(f *Func, rb func(*Block, *Config) bool, rv func(*Value, *Confi
 				}
 			}
 			curb = b
-			if rb(b, config) {
+			if rb(b) {
 				change = true
 			}
 			curb = nil
@@ -66,7 +65,7 @@ func applyRewrite(f *Func, rb func(*Block, *Config) bool, rv func(*Value, *Confi
 
 				// apply rewrite function
 				curv = v
-				if rv(v, config) {
+				if rv(v) {
 					change = true
 				}
 				curv = nil
