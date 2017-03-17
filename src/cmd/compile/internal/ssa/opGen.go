@@ -538,6 +538,8 @@ const (
 	OpAMD64CMOVLEQ
 	OpAMD64BSWAPQ
 	OpAMD64BSWAPL
+	OpAMD64POPCNTQ
+	OpAMD64POPCNTL
 	OpAMD64SQRTSD
 	OpAMD64SBBQcarrymask
 	OpAMD64SBBLcarrymask
@@ -1778,6 +1780,10 @@ const (
 	OpBitRev16
 	OpBitRev32
 	OpBitRev64
+	OpPopCount8
+	OpPopCount16
+	OpPopCount32
+	OpPopCount64
 	OpSqrt
 	OpPhi
 	OpCopy
@@ -6359,6 +6365,34 @@ var opcodeTable = [...]opInfo{
 		resultInArg0: true,
 		clobberFlags: true,
 		asm:          x86.ABSWAPL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "POPCNTQ",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.APOPCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "POPCNTL",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.APOPCNTL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -21677,6 +21711,26 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "BitRev64",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PopCount8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PopCount16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PopCount32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PopCount64",
 		argLen:  1,
 		generic: true,
 	},

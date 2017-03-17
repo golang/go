@@ -767,6 +767,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpAMD64POPCNTQ, ssa.OpAMD64POPCNTL:
+		if v.Args[0].Reg() != v.Reg() {
+			// POPCNT on Intel has a false dependency on the destination register.
+			// Zero the destination to break the dependency.
+			p := s.Prog(x86.AMOVQ)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 0
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
+		}
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
 		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
 		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,

@@ -106,6 +106,11 @@
 (Bswap64 x) -> (BSWAPQ x)
 (Bswap32 x) -> (BSWAPL x)
 
+(PopCount64 x) -> (POPCNTQ x)
+(PopCount32 x) -> (POPCNTL x)
+(PopCount16 x) -> (POPCNTL (MOVWQZX <types.UInt32> x))
+(PopCount8 x) -> (POPCNTL (MOVBQZX <types.UInt32> x))
+
 (Sqrt x) -> (SQRTSD x)
 
 // Lowering extension
