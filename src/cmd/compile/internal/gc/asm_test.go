@@ -699,6 +699,34 @@ var linuxAMD64Tests = []*asmTest{
 		`,
 		[]string{"\tBSRQ\t"},
 	},
+	{
+		`
+		func pop1(x uint64) int {
+			return bits.OnesCount64(x)
+		}`,
+		[]string{"\tPOPCNTQ\t", "support_popcnt"},
+	},
+	{
+		`
+		func pop2(x uint32) int {
+			return bits.OnesCount32(x)
+		}`,
+		[]string{"\tPOPCNTL\t", "support_popcnt"},
+	},
+	{
+		`
+		func pop3(x uint16) int {
+			return bits.OnesCount16(x)
+		}`,
+		[]string{"\tPOPCNTL\t", "support_popcnt"},
+	},
+	{
+		`
+		func pop4(x uint) int {
+			return bits.OnesCount(x)
+		}`,
+		[]string{"\tPOPCNTQ\t", "support_popcnt"},
+	},
 	// see issue 19595.
 	// We want to merge load+op in f58, but not in f59.
 	{

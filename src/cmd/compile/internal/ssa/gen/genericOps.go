@@ -250,6 +250,11 @@ var genericOps = []opData{
 	{name: "BitRev32", argLength: 1}, // Reverse the bits in arg[0]
 	{name: "BitRev64", argLength: 1}, // Reverse the bits in arg[0]
 
+	{name: "PopCount8", argLength: 1},  // Count bits in arg[0]
+	{name: "PopCount16", argLength: 1}, // Count bits in arg[0]
+	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
+	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
+
 	{name: "Sqrt", argLength: 1}, // sqrt(arg0), float64 only
 
 	// Data movement, max argument length for Phi is indefinite so just pick

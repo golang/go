@@ -187,3 +187,6 @@ func racewriterange(addr, size uintptr)
 // memory sanitizer
 func msanread(addr, size uintptr)
 func msanwrite(addr, size uintptr)
+
+// architecture variants
+var support_popcnt bool

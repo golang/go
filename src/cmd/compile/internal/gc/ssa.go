@@ -2823,6 +2823,54 @@ func init() {
 			return s.newValue1(ssa.OpBitRev64, Types[TINT], args[0])
 		},
 		sys.ARM64)
+	makeOnesCount := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: Types[TBOOL], Sym: Linksym(syslook("support_popcnt").Sym)})
+			addr := s.entryNewValue1A(ssa.OpAddr, Types[TBOOL].PtrTo(), aux, s.sb)
+			v := s.newValue2(ssa.OpLoad, Types[TBOOL], addr, s.mem())
+			b := s.endBlock()
+			b.Kind = ssa.BlockIf
+			b.SetControl(v)
+			bTrue := s.f.NewBlock(ssa.BlockPlain)
+			bFalse := s.f.NewBlock(ssa.BlockPlain)
+			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			b.AddEdgeTo(bTrue)
+			b.AddEdgeTo(bFalse)
+			b.Likely = ssa.BranchLikely // most machines have popcnt nowadays
+
+			// We have the intrinsic - use it directly.
+			s.startBlock(bTrue)
+			op := op64
+			if s.config.IntSize == 4 {
+				op = op32
+			}
+			s.vars[n] = s.newValue1(op, Types[TINT], args[0])
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Call the pure Go version.
+			s.startBlock(bFalse)
+			a := s.call(n, callNormal)
+			s.vars[n] = s.newValue2(ssa.OpLoad, Types[TINT], a, s.mem())
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Merge results.
+			s.startBlock(bEnd)
+			return s.variable(n, Types[TINT])
+		}
+	}
+	addF("math/bits", "OnesCount64",
+		makeOnesCount(ssa.OpPopCount64, ssa.OpPopCount64),
+		sys.AMD64)
+	addF("math/bits", "OnesCount32",
+		makeOnesCount(ssa.OpPopCount32, ssa.OpPopCount32),
+		sys.AMD64)
+	addF("math/bits", "OnesCount16",
+		makeOnesCount(ssa.OpPopCount16, ssa.OpPopCount16),
+		sys.AMD64)
+	// Note: no OnesCount8, the Go implementation is faster - just a table load.
+	addF("math/bits", "OnesCount",
+		makeOnesCount(ssa.OpPopCount64, ssa.OpPopCount32),
+		sys.AMD64)
 
 	/******** sync/atomic ********/
 

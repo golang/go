@@ -686,6 +686,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpOr8(v)
 	case OpOrB:
 		return rewriteValueAMD64_OpOrB(v)
+	case OpPopCount16:
+		return rewriteValueAMD64_OpPopCount16(v)
+	case OpPopCount32:
+		return rewriteValueAMD64_OpPopCount32(v)
+	case OpPopCount64:
+		return rewriteValueAMD64_OpPopCount64(v)
+	case OpPopCount8:
+		return rewriteValueAMD64_OpPopCount8(v)
 	case OpRound32F:
 		return rewriteValueAMD64_OpRound32F(v)
 	case OpRound64F:
@@ -33464,6 +33472,62 @@ func rewriteValueAMD64_OpOrB(v *Value) bool {
 		v.reset(OpAMD64ORL)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpPopCount16(v *Value) bool {
+	b := v.Block
+	_ = b
+	types := &b.Func.Config.Types
+	_ = types
+	// match: (PopCount16 x)
+	// cond:
+	// result: (POPCNTL (MOVWQZX <types.UInt32> x))
+	for {
+		x := v.Args[0]
+		v.reset(OpAMD64POPCNTL)
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, types.UInt32)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpPopCount32(v *Value) bool {
+	// match: (PopCount32 x)
+	// cond:
+	// result: (POPCNTL x)
+	for {
+		x := v.Args[0]
+		v.reset(OpAMD64POPCNTL)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpPopCount64(v *Value) bool {
+	// match: (PopCount64 x)
+	// cond:
+	// result: (POPCNTQ x)
+	for {
+		x := v.Args[0]
+		v.reset(OpAMD64POPCNTQ)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpPopCount8(v *Value) bool {
+	b := v.Block
+	_ = b
+	types := &b.Func.Config.Types
+	_ = types
+	// match: (PopCount8 x)
+	// cond:
+	// result: (POPCNTL (MOVBQZX <types.UInt32> x))
+	for {
+		x := v.Args[0]
+		v.reset(OpAMD64POPCNTL)
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, types.UInt32)
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 }
