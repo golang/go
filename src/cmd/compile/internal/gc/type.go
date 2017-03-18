@@ -487,6 +487,11 @@ func typMap(k, v *Type) *Type {
 	return t
 }
 
+// typPtrCacheEnabled controls whether *T Types are cached in T.
+// Caching is disabled just before starting the backend.
+// This allows the backend to run concurrently.
+var typPtrCacheEnabled = true
+
 // typPtr returns the pointer type pointing to t.
 func typPtr(elem *Type) *Type {
 	if elem == nil {
@@ -501,14 +506,16 @@ func typPtr(elem *Type) *Type {
 	}
 
 	if Tptr == 0 {
-		Fatalf("typPtr: Tptr not intialized")
+		Fatalf("typPtr: Tptr not initialized")
 	}
 
 	t := typ(Tptr)
 	t.Extra = PtrType{Elem: elem}
 	t.Width = int64(Widthptr)
 	t.Align = uint8(Widthptr)
-	elem.ptrTo = t
+	if typPtrCacheEnabled {
+		elem.ptrTo = t
+	}
 	return t
 }
 
