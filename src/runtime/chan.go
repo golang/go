@@ -109,8 +109,8 @@ func chanbuf(c *hchan, i uint) unsafe.Pointer {
 
 // entry point for c <- x from compiled code
 //go:nosplit
-func chansend1(t *chantype, c *hchan, elem unsafe.Pointer) {
-	chansend(t, c, elem, true, getcallerpc(unsafe.Pointer(&t)))
+func chansend1(c *hchan, elem unsafe.Pointer) {
+	chansend(c, elem, true, getcallerpc(unsafe.Pointer(&c)))
 }
 
 /*
@@ -125,14 +125,7 @@ func chansend1(t *chantype, c *hchan, elem unsafe.Pointer) {
  * been closed.  it is easiest to loop and re-run
  * the operation; we'll see that it's now closed.
  */
-func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
-	if raceenabled {
-		raceReadObjectPC(t.elem, ep, callerpc, funcPC(chansend))
-	}
-	if msanenabled {
-		msanread(ep, t.elem.size)
-	}
-
+func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	if c == nil {
 		if !block {
 			return false
@@ -391,13 +384,13 @@ func closechan(c *hchan) {
 
 // entry points for <- c from compiled code
 //go:nosplit
-func chanrecv1(t *chantype, c *hchan, elem unsafe.Pointer) {
-	chanrecv(t, c, elem, true)
+func chanrecv1(c *hchan, elem unsafe.Pointer) {
+	chanrecv(c, elem, true)
 }
 
 //go:nosplit
-func chanrecv2(t *chantype, c *hchan, elem unsafe.Pointer) (received bool) {
-	_, received = chanrecv(t, c, elem, true)
+func chanrecv2(c *hchan, elem unsafe.Pointer) (received bool) {
+	_, received = chanrecv(c, elem, true)
 	return
 }
 
@@ -407,7 +400,7 @@ func chanrecv2(t *chantype, c *hchan, elem unsafe.Pointer) (received bool) {
 // Otherwise, if c is closed, zeros *ep and returns (true, false).
 // Otherwise, fills in *ep with an element and returns (true, true).
 // A non-nil ep must point to the heap or the caller's stack.
-func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, received bool) {
+func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool) {
 	// raceenabled: don't need to check ep, as it is always on the stack
 	// or is new memory allocated by reflect.
 
@@ -600,8 +593,8 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 //		... bar
 //	}
 //
-func selectnbsend(t *chantype, c *hchan, elem unsafe.Pointer) (selected bool) {
-	return chansend(t, c, elem, false, getcallerpc(unsafe.Pointer(&t)))
+func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
+	return chansend(c, elem, false, getcallerpc(unsafe.Pointer(&c)))
 }
 
 // compiler implements
@@ -621,8 +614,8 @@ func selectnbsend(t *chantype, c *hchan, elem unsafe.Pointer) (selected bool) {
 //		... bar
 //	}
 //
-func selectnbrecv(t *chantype, elem unsafe.Pointer, c *hchan) (selected bool) {
-	selected, _ = chanrecv(t, c, elem, false)
+func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected bool) {
+	selected, _ = chanrecv(c, elem, false)
 	return
 }
 
@@ -643,20 +636,20 @@ func selectnbrecv(t *chantype, elem unsafe.Pointer, c *hchan) (selected bool) {
 //		... bar
 //	}
 //
-func selectnbrecv2(t *chantype, elem unsafe.Pointer, received *bool, c *hchan) (selected bool) {
+func selectnbrecv2(elem unsafe.Pointer, received *bool, c *hchan) (selected bool) {
 	// TODO(khr): just return 2 values from this function, now that it is in Go.
-	selected, *received = chanrecv(t, c, elem, false)
+	selected, *received = chanrecv(c, elem, false)
 	return
 }
 
 //go:linkname reflect_chansend reflect.chansend
-func reflect_chansend(t *chantype, c *hchan, elem unsafe.Pointer, nb bool) (selected bool) {
-	return chansend(t, c, elem, !nb, getcallerpc(unsafe.Pointer(&t)))
+func reflect_chansend(c *hchan, elem unsafe.Pointer, nb bool) (selected bool) {
+	return chansend(c, elem, !nb, getcallerpc(unsafe.Pointer(&c)))
 }
 
 //go:linkname reflect_chanrecv reflect.chanrecv
-func reflect_chanrecv(t *chantype, c *hchan, nb bool, elem unsafe.Pointer) (selected bool, received bool) {
-	return chanrecv(t, c, elem, !nb)
+func reflect_chanrecv(c *hchan, nb bool, elem unsafe.Pointer) (selected bool, received bool) {
+	return chanrecv(c, elem, !nb)
 }
 
 //go:linkname reflect_chanlen reflect.chanlen

@@ -203,7 +203,7 @@ func walkstmt(n *Node) *Node {
 		n.Ninit.Set(nil)
 
 		n.Left = walkexpr(n.Left, &init)
-		n = mkcall1(chanfn("chanrecv1", 2, n.Left.Type), nil, &init, typename(n.Left.Type), n.Left, nodnil())
+		n = mkcall1(chanfn("chanrecv1", 2, n.Left.Type), nil, &init, n.Left, nodnil())
 		n = walkexpr(n, &init)
 
 		n = addinit(n, init.Slice())
@@ -719,7 +719,7 @@ opswitch:
 
 			n1 := nod(OADDR, n.Left, nil)
 			r := n.Right.Left // the channel
-			n = mkcall1(chanfn("chanrecv1", 2, r.Type), nil, init, typename(r.Type), r, n1)
+			n = mkcall1(chanfn("chanrecv1", 2, r.Type), nil, init, r, n1)
 			n = walkexpr(n, init)
 			break opswitch
 
@@ -790,7 +790,7 @@ opswitch:
 		n1.Etype = 1 // addr does not escape
 		fn := chanfn("chanrecv2", 2, r.Left.Type)
 		ok := n.List.Second()
-		call := mkcall1(fn, ok.Type, init, typename(r.Left.Type), r.Left, n1)
+		call := mkcall1(fn, ok.Type, init, r.Left, n1)
 		n = nod(OAS, ok, call)
 		n = typecheck(n, Etop)
 
@@ -1599,7 +1599,7 @@ opswitch:
 		n1 = assignconv(n1, n.Left.Type.Elem(), "chan send")
 		n1 = walkexpr(n1, init)
 		n1 = nod(OADDR, n1, nil)
-		n = mkcall1(chanfn("chansend1", 2, n.Left.Type), nil, init, typename(n.Left.Type), n.Left, n1)
+		n = mkcall1(chanfn("chansend1", 2, n.Left.Type), nil, init, n.Left, n1)
 
 	case OCLOSURE:
 		n = walkclosure(n, init)
