@@ -46,6 +46,21 @@ func initssaconfig() {
 		Float64Ptr: typPtr(Types[TFLOAT64]),
 		BytePtrPtr: typPtr(typPtr(Types[TUINT8])),
 	}
+	// Generate a few pointer types that are uncommon in the frontend but common in the backend.
+	// Caching is disabled in the backend, so generating these here avoids allocations.
+	_ = typPtr(Types[TINTER])                 // *interface{}
+	_ = typPtr(typPtr(Types[TSTRING]))        // **string
+	_ = typPtr(typPtr(idealstring))           // **string
+	_ = typPtr(typSlice(Types[TINTER]))       // *[]interface{}
+	_ = typPtr(typPtr(bytetype))              // **byte
+	_ = typPtr(typSlice(bytetype))            // *[]byte
+	_ = typPtr(typSlice(Types[TSTRING]))      // *[]string
+	_ = typPtr(typSlice(idealstring))         // *[]string
+	_ = typPtr(typPtr(typPtr(Types[TUINT8]))) // ***uint8
+	_ = typPtr(Types[TINT16])                 // *int16
+	_ = typPtr(Types[TINT64])                 // *int64
+	_ = typPtr(errortype)                     // *error
+	typPtrCacheEnabled = false
 	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, types, Ctxt, Debug['N'] == 0)
 	if thearch.LinkArch.Name == "386" {
 		ssaConfig.Set387(thearch.Use387)
