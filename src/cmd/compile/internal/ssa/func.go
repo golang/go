@@ -551,14 +551,13 @@ func (f *Func) invalidateCFG() {
 // opening the file.
 func (f *Func) DebugHashMatch(evname, name string) bool {
 	evhash := os.Getenv(evname)
-	if evhash == "" {
+	switch evhash {
+	case "":
 		return true // default behavior with no EV is "on"
-	}
-	if evhash == "y" || evhash == "Y" {
+	case "y", "Y":
 		f.logDebugHashMatch(evname, name)
 		return true
-	}
-	if evhash == "n" || evhash == "N" {
+	case "n", "N":
 		return false
 	}
 	// Check the hash of the name against a partial input hash.
@@ -597,11 +596,10 @@ func (f *Func) logDebugHashMatch(evname, name string) {
 	file := f.logfiles[evname]
 	if file == nil {
 		file = os.Stdout
-		tmpfile := os.Getenv("GSHS_LOGFILE")
-		if tmpfile != "" {
-			var ok error
-			file, ok = os.Create(tmpfile)
-			if ok != nil {
+		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
+			var err error
+			file, err = os.Create(tmpfile)
+			if err != nil {
 				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
 			}
 		}
