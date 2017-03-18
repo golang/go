@@ -860,6 +860,9 @@ func interfacefield(n *Node) *Field {
 }
 
 func tointerface(l []*Node) *Type {
+	if len(l) == 0 {
+		return Types[TINTER]
+	}
 	t := typ(TINTER)
 	tointerface0(t, l)
 	return t
