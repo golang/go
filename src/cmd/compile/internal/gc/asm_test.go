@@ -32,6 +32,7 @@ func TestAssembly(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
+	nameRegexp := regexp.MustCompile("func \\w+")
 	t.Run("platform", func(t *testing.T) {
 		for _, ats := range allAsmTests {
 			ats := ats
@@ -40,9 +41,9 @@ func TestAssembly(t *testing.T) {
 
 				asm := ats.compileToAsm(tt, dir)
 
-				for i, at := range ats.tests {
-					fa := funcAsm(asm, i)
-
+				for _, at := range ats.tests {
+					funcName := nameRegexp.FindString(at.function)[5:]
+					fa := funcAsm(asm, funcName)
 					at.verifyAsm(tt, fa)
 				}
 			})
@@ -50,13 +51,13 @@ func TestAssembly(t *testing.T) {
 	})
 }
 
-// funcAsm returns the assembly listing for f{funcIndex}
-func funcAsm(asm string, funcIndex int) string {
-	if i := strings.Index(asm, fmt.Sprintf("TEXT\t\"\".f%d(SB)", funcIndex)); i >= 0 {
+// funcAsm returns the assembly listing for the given function name.
+func funcAsm(asm string, funcName string) string {
+	if i := strings.Index(asm, fmt.Sprintf("TEXT\t\"\".%s(SB)", funcName)); i >= 0 {
 		asm = asm[i:]
 	}
 
-	if i := strings.Index(asm, fmt.Sprintf("TEXT\t\"\".f%d(SB)", funcIndex+1)); i >= 0 {
+	if i := strings.Index(asm[1:], "TEXT\t\"\"."); i >= 0 {
 		asm = asm[:i+1]
 	}
 
@@ -474,11 +475,11 @@ var linuxAMD64Tests = []*asmTest{
 	// Rotate after inlining (see issue 18254).
 	{
 		`
-		func g(x uint32, k uint) uint32 {
-			return x<<k | x>>(32-k)
-		}
 		func f32(x uint32) uint32 {
 			return g(x, 7)
+		}
+		func g(x uint32, k uint) uint32 {
+			return x<<k | x>>(32-k)
 		}
 		`,
 		[]string{"\tROLL\t[$]7,"},
@@ -697,6 +698,26 @@ var linuxAMD64Tests = []*asmTest{
 		}
 		`,
 		[]string{"\tBSRQ\t"},
+	},
+	// see issue 19595.
+	// We want to merge load+op in f58, but not in f59.
+	{
+		`
+		func f58(p, q *int) {
+			x := *p
+			*q += x
+		}`,
+		[]string{"\tADDQ\t\\("},
+	},
+	{
+		`
+		func f59(p, q *int) {
+			x := *p
+			for i := 0; i < 10; i++ {
+				*q += x
+			}
+		}`,
+		[]string{"\tADDQ\t[A-Z]"},
 	},
 }
 

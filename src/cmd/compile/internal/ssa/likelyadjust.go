@@ -443,6 +443,14 @@ func (ln *loopnest) findExits() {
 	ln.initializedExits = true
 }
 
+// depth returns the loop nesting level of block b.
+func (ln *loopnest) depth(b ID) int16 {
+	if l := ln.b2l[b]; l != nil {
+		return l.depth
+	}
+	return 0
+}
+
 // recordIfExit checks sl (the loop containing b) to see if it
 // is outside of loop l, and if so, records b as an exit block
 // from l and returns true.
