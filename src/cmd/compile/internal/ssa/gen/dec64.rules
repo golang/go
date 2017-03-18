@@ -12,23 +12,23 @@
 
 (Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && t.IsSigned() ->
 	(Int64Make
-		(Load <types.Int32> (OffPtr <types.Int32.PtrTo()> [4] ptr) mem)
+		(Load <types.Int32> (OffPtr <types.Int32Ptr> [4] ptr) mem)
 		(Load <types.UInt32> ptr mem))
 
 (Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && !t.IsSigned() ->
 	(Int64Make
-		(Load <types.UInt32> (OffPtr <types.UInt32.PtrTo()> [4] ptr) mem)
+		(Load <types.UInt32> (OffPtr <types.UInt32Ptr> [4] ptr) mem)
 		(Load <types.UInt32> ptr mem))
 
 (Load <t> ptr mem) && is64BitInt(t) && config.BigEndian && t.IsSigned() ->
 	(Int64Make
 		(Load <types.Int32> ptr mem)
-		(Load <types.UInt32> (OffPtr <types.UInt32.PtrTo()> [4] ptr) mem))
+		(Load <types.UInt32> (OffPtr <types.UInt32Ptr> [4] ptr) mem))
 
 (Load <t> ptr mem) && is64BitInt(t) && config.BigEndian && !t.IsSigned() ->
 	(Int64Make
 		(Load <types.UInt32> ptr mem)
-		(Load <types.UInt32> (OffPtr <types.UInt32.PtrTo()> [4] ptr) mem))
+		(Load <types.UInt32> (OffPtr <types.UInt32Ptr> [4] ptr) mem))
 
 (Store {t} dst (Int64Make hi lo) mem) && t.(Type).Size() == 8 && !config.BigEndian ->
 	(Store {hi.Type}

@@ -23,21 +23,28 @@ var ssaCache *ssa.Cache
 
 func initssaconfig() {
 	types := ssa.Types{
-		Bool:    Types[TBOOL],
-		Int8:    Types[TINT8],
-		Int16:   Types[TINT16],
-		Int32:   Types[TINT32],
-		Int64:   Types[TINT64],
-		UInt8:   Types[TUINT8],
-		UInt16:  Types[TUINT16],
-		UInt32:  Types[TUINT32],
-		UInt64:  Types[TUINT64],
-		Float32: Types[TFLOAT32],
-		Float64: Types[TFLOAT64],
-		Int:     Types[TINT],
-		Uintptr: Types[TUINTPTR],
-		String:  Types[TSTRING],
-		BytePtr: ptrto(Types[TUINT8]),
+		Bool:       Types[TBOOL],
+		Int8:       Types[TINT8],
+		Int16:      Types[TINT16],
+		Int32:      Types[TINT32],
+		Int64:      Types[TINT64],
+		UInt8:      Types[TUINT8],
+		UInt16:     Types[TUINT16],
+		UInt32:     Types[TUINT32],
+		UInt64:     Types[TUINT64],
+		Float32:    Types[TFLOAT32],
+		Float64:    Types[TFLOAT64],
+		Int:        Types[TINT],
+		Uintptr:    Types[TUINTPTR],
+		String:     Types[TSTRING],
+		BytePtr:    ptrto(Types[TUINT8]),
+		Int32Ptr:   ptrto(Types[TINT32]),
+		UInt32Ptr:  ptrto(Types[TUINT32]),
+		IntPtr:     ptrto(Types[TINT]),
+		UintptrPtr: ptrto(Types[TUINTPTR]),
+		Float32Ptr: ptrto(Types[TFLOAT32]),
+		Float64Ptr: ptrto(Types[TFLOAT64]),
+		BytePtrPtr: ptrto(ptrto(Types[TUINT8])),
 	}
 	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, types, Ctxt, Debug['N'] == 0)
 	if thearch.LinkArch.Name == "386" {
@@ -1344,12 +1351,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 	switch n.Op {
 	case OARRAYBYTESTRTMP:
 		slice := s.expr(n.Left)
-		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), slice)
+		ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, slice)
 		len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
 		return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
 	case OSTRARRAYBYTETMP:
 		str := s.expr(n.Left)
-		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), str)
+		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, str)
 		len := s.newValue1(ssa.OpStringLen, Types[TINT], str)
 		return s.newValue3(ssa.OpSliceMake, n.Type, ptr, len, len)
 	case OCFUNC:
@@ -1914,7 +1921,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
 				s.boundsCheck(i, len)
 			}
-			ptrtyp := ptrto(Types[TUINT8])
+			ptrtyp := s.f.Config.Types.BytePtr
 			ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
 			if Isconst(n.Right, CTINT) {
 				ptr = s.newValue1I(ssa.OpOffPtr, ptrtyp, n.Right.Int64(), ptr)
@@ -2139,7 +2146,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 			// Tell liveness we're about to build a new slice
 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, sn, s.mem())
 		}
-		capaddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), int64(array_cap), addr)
+		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(array_cap), addr)
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TINT], capaddr, r[2], s.mem())
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, pt, addr, r[0], s.mem())
 		// load the value we just stored to avoid having to spill it
@@ -2160,7 +2167,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	if inplace {
 		l = s.variable(&lenVar, Types[TINT]) // generates phi for len
 		nl = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
-		lenaddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), int64(array_nel), addr)
+		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(array_nel), addr)
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TINT], lenaddr, nl, s.mem())
 	}
 
@@ -2515,7 +2522,7 @@ func init() {
 				// for the backend instead of slicebytetostringtmp calls
 				// when not instrumenting.
 				slice := args[0]
-				ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), slice)
+				ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, slice)
 				len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
 				return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
 			},
@@ -2523,7 +2530,7 @@ func init() {
 	}
 	add("runtime", "KeepAlive",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			data := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), args[0])
+			data := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, args[0])
 			s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, data, s.mem())
 			return nil
 		},
@@ -2569,9 +2576,9 @@ func init() {
 		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
 	addF("runtime/internal/atomic", "Loadp",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			v := s.newValue2(ssa.OpAtomicLoadPtr, ssa.MakeTuple(ptrto(Types[TUINT8]), ssa.TypeMem), args[0], s.mem())
+			v := s.newValue2(ssa.OpAtomicLoadPtr, ssa.MakeTuple(s.f.Config.Types.BytePtr, ssa.TypeMem), args[0], s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
-			return s.newValue1(ssa.OpSelect0, ptrto(Types[TUINT8]), v)
+			return s.newValue1(ssa.OpSelect0, s.f.Config.Types.BytePtr, v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
 
@@ -2995,7 +3002,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			s.nilCheck(itab)
 		}
 		itabidx := fn.Xoffset + 3*int64(Widthptr) + 8 // offset of fun field in runtime.itab
-		itab = s.newValue1I(ssa.OpOffPtr, ptrto(Types[TUINTPTR]), itabidx, itab)
+		itab = s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
 		if k == callNormal {
 			codeptr = s.newValue2(ssa.OpLoad, Types[TUINTPTR], itab, s.mem())
 		} else {
@@ -3018,7 +3025,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		if k != callNormal {
 			argStart += int64(2 * Widthptr)
 		}
-		addr := s.constOffPtrSP(ptrto(Types[TUINTPTR]), argStart)
+		addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TUINTPTR], addr, rcvr, s.mem())
 	}
 
@@ -3027,9 +3034,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// Write argsize and closure (args to Newproc/Deferproc).
 		argStart := Ctxt.FixedFrameSize()
 		argsize := s.constInt32(Types[TUINT32], int32(stksize))
-		addr := s.constOffPtrSP(ptrto(Types[TUINT32]), argStart)
+		addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TUINT32], addr, argsize, s.mem())
-		addr = s.constOffPtrSP(ptrto(Types[TUINTPTR]), argStart+int64(Widthptr))
+		addr = s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TUINTPTR], addr, closure, s.mem())
 		stksize += 2 * int64(Widthptr)
 	}
@@ -3188,7 +3195,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p)
 	case OCLOSUREVAR:
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset,
-			s.entryNewValue0(ssa.OpGetClosurePtr, ptrto(Types[TUINT8])))
+			s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr))
 	case OCONVNOP:
 		addr := s.addr(n.Left, bounded)
 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
@@ -3465,22 +3472,22 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
 			return
 		}
 		len := s.newValue1(ssa.OpStringLen, Types[TINT], right)
-		lenAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), s.config.IntSize, left)
+		lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.IntSize, left)
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TINT], lenAddr, len, s.mem())
 	case t.IsSlice():
 		if skip&skipLen == 0 {
 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], right)
-			lenAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), s.config.IntSize, left)
+			lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.IntSize, left)
 			s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TINT], lenAddr, len, s.mem())
 		}
 		if skip&skipCap == 0 {
 			cap := s.newValue1(ssa.OpSliceCap, Types[TINT], right)
-			capAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), 2*s.config.IntSize, left)
+			capAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, 2*s.config.IntSize, left)
 			s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TINT], capAddr, cap, s.mem())
 		}
 	case t.IsInterface():
 		// itab field doesn't need a write barrier (even though it is a pointer).
-		itab := s.newValue1(ssa.OpITab, ptrto(Types[TUINT8]), right)
+		itab := s.newValue1(ssa.OpITab, s.f.Config.Types.BytePtr, right)
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, Types[TUINTPTR], left, itab, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
@@ -3505,16 +3512,16 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 	case t.IsPtrShaped():
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, left, right, s.mem())
 	case t.IsString():
-		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), right)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, ptrto(Types[TUINT8]), left, ptr, s.mem())
+		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, right)
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, s.f.Config.Types.BytePtr, left, ptr, s.mem())
 	case t.IsSlice():
-		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), right)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, ptrto(Types[TUINT8]), left, ptr, s.mem())
+		ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, right)
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, s.f.Config.Types.BytePtr, left, ptr, s.mem())
 	case t.IsInterface():
 		// itab field is treated as a scalar.
-		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
-		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(ptrto(Types[TUINT8])), s.config.PtrSize, left)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, ptrto(Types[TUINT8]), idataAddr, idata, s.mem())
+		idata := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, right)
+		idataAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.BytePtrPtr, s.config.PtrSize, left)
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, s.f.Config.Types.BytePtr, idataAddr, idata, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
 		for i := 0; i < n; i++ {
@@ -3948,7 +3955,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	iface := s.expr(n.Left)            // input interface
 	target := s.expr(typename(n.Type)) // target type
-	byteptr := ptrto(Types[TUINT8])
+	byteptr := s.f.Config.Types.BytePtr
 
 	if n.Type.IsInterface() {
 		if n.Type.IsEmptyInterface() {

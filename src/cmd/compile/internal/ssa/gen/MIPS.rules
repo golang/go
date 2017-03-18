@@ -393,14 +393,14 @@
 
 // AtomicOr8(ptr,val) -> LoweredAtomicOr(ptr&^3,uint32(val) << ((ptr & 3) * 8))
 (AtomicOr8 ptr val mem) && !config.BigEndian ->
-	(LoweredAtomicOr (AND <types.UInt32.PtrTo()> (MOVWconst [^3]) ptr)
+	(LoweredAtomicOr (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr)
 		(SLL <types.UInt32> (ZeroExt8to32 val)
 			(SLLconst <types.UInt32> [3]
 				(ANDconst <types.UInt32> [3] ptr))) mem)
 
 // AtomicAnd8(ptr,val) -> LoweredAtomicAnd(ptr&^3,(uint32(val) << ((ptr & 3) * 8)) | ^(uint32(0xFF) << ((ptr & 3) * 8))))
 (AtomicAnd8  ptr val mem) && !config.BigEndian ->
-	(LoweredAtomicAnd (AND <types.UInt32.PtrTo()> (MOVWconst [^3]) ptr)
+	(LoweredAtomicAnd (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr)
 		(OR <types.UInt32> (SLL <types.UInt32> (ZeroExt8to32 val)
 			(SLLconst <types.UInt32> [3]
 				(ANDconst  <types.UInt32> [3] ptr)))
@@ -411,7 +411,7 @@
 
 // AtomicOr8(ptr,val) -> LoweredAtomicOr(ptr&^3,uint32(val) << (((ptr^3) & 3) * 8))
 (AtomicOr8 ptr val mem) && config.BigEndian ->
-	(LoweredAtomicOr (AND <types.UInt32.PtrTo()> (MOVWconst [^3]) ptr)
+	(LoweredAtomicOr (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr)
 		(SLL <types.UInt32> (ZeroExt8to32 val)
 			(SLLconst <types.UInt32> [3]
 				(ANDconst <types.UInt32> [3]
@@ -419,7 +419,7 @@
 
 // AtomicAnd8(ptr,val) -> LoweredAtomicAnd(ptr&^3,(uint32(val) << (((ptr^3) & 3) * 8)) | ^(uint32(0xFF) << (((ptr^3) & 3) * 8))))
 (AtomicAnd8  ptr val mem) && config.BigEndian ->
-	(LoweredAtomicAnd (AND <types.UInt32.PtrTo()> (MOVWconst [^3]) ptr)
+	(LoweredAtomicAnd (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr)
 		(OR <types.UInt32> (SLL <types.UInt32> (ZeroExt8to32 val)
 			(SLLconst <types.UInt32> [3]
 				(ANDconst  <types.UInt32> [3]

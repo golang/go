@@ -847,7 +847,7 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 	_ = types
 	// match: (Load <t> ptr mem)
 	// cond: is64BitInt(t) && !config.BigEndian && t.IsSigned()
-	// result: (Int64Make 		(Load <types.Int32> (OffPtr <types.Int32.PtrTo()> [4] ptr) mem) 		(Load <types.UInt32> ptr mem))
+	// result: (Int64Make 		(Load <types.Int32> (OffPtr <types.Int32Ptr> [4] ptr) mem) 		(Load <types.UInt32> ptr mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -857,7 +857,7 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 		}
 		v.reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpLoad, types.Int32)
-		v1 := b.NewValue0(v.Pos, OpOffPtr, types.Int32.PtrTo())
+		v1 := b.NewValue0(v.Pos, OpOffPtr, types.Int32Ptr)
 		v1.AuxInt = 4
 		v1.AddArg(ptr)
 		v0.AddArg(v1)
@@ -871,7 +871,7 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 	}
 	// match: (Load <t> ptr mem)
 	// cond: is64BitInt(t) && !config.BigEndian && !t.IsSigned()
-	// result: (Int64Make 		(Load <types.UInt32> (OffPtr <types.UInt32.PtrTo()> [4] ptr) mem) 		(Load <types.UInt32> ptr mem))
+	// result: (Int64Make 		(Load <types.UInt32> (OffPtr <types.UInt32Ptr> [4] ptr) mem) 		(Load <types.UInt32> ptr mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -881,7 +881,7 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 		}
 		v.reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpLoad, types.UInt32)
-		v1 := b.NewValue0(v.Pos, OpOffPtr, types.UInt32.PtrTo())
+		v1 := b.NewValue0(v.Pos, OpOffPtr, types.UInt32Ptr)
 		v1.AuxInt = 4
 		v1.AddArg(ptr)
 		v0.AddArg(v1)
@@ -895,7 +895,7 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 	}
 	// match: (Load <t> ptr mem)
 	// cond: is64BitInt(t) && config.BigEndian && t.IsSigned()
-	// result: (Int64Make 		(Load <types.Int32> ptr mem) 		(Load <types.UInt32> (OffPtr <types.UInt32.PtrTo()> [4] ptr) mem))
+	// result: (Int64Make 		(Load <types.Int32> ptr mem) 		(Load <types.UInt32> (OffPtr <types.UInt32Ptr> [4] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -909,7 +909,7 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpLoad, types.UInt32)
-		v2 := b.NewValue0(v.Pos, OpOffPtr, types.UInt32.PtrTo())
+		v2 := b.NewValue0(v.Pos, OpOffPtr, types.UInt32Ptr)
 		v2.AuxInt = 4
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -919,7 +919,7 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 	}
 	// match: (Load <t> ptr mem)
 	// cond: is64BitInt(t) && config.BigEndian && !t.IsSigned()
-	// result: (Int64Make 		(Load <types.UInt32> ptr mem) 		(Load <types.UInt32> (OffPtr <types.UInt32.PtrTo()> [4] ptr) mem))
+	// result: (Int64Make 		(Load <types.UInt32> ptr mem) 		(Load <types.UInt32> (OffPtr <types.UInt32Ptr> [4] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -933,7 +933,7 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpLoad, types.UInt32)
-		v2 := b.NewValue0(v.Pos, OpOffPtr, types.UInt32.PtrTo())
+		v2 := b.NewValue0(v.Pos, OpOffPtr, types.UInt32Ptr)
 		v2.AuxInt = 4
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
