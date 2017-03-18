@@ -916,7 +916,13 @@ func orderstmt(n *Node, order *Order) {
 
 		n.Left = orderexpr(n.Left, order, nil)
 		n.Right = orderexpr(n.Right, order, nil)
-		n.Right = orderaddrtemp(n.Right, order)
+		if instrumenting {
+			// Force copying to the stack so that (chan T)(nil) <- x
+			// is still instrumented as a read of x.
+			n.Right = ordercopyexpr(n.Right, n.Right.Type, order, 0)
+		} else {
+			n.Right = orderaddrtemp(n.Right, order)
+		}
 		order.out = append(order.out, n)
 		cleantemp(t, order)
 

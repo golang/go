@@ -225,21 +225,21 @@ func walkselect(sel *Node) {
 		case OSEND:
 			// if selectnbsend(c, v) { body } else { default body }
 			ch := n.Left
-			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), ch, n.Right)
+			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), Types[TBOOL], &r.Ninit, ch, n.Right)
 
 		case OSELRECV:
 			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
 			r = nod(OIF, nil, nil)
 			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
-			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, ch)
+			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, n.Left, ch)
 
 		case OSELRECV2:
 			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
 			r = nod(OIF, nil, nil)
 			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
-			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.List.First(), ch)
+			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, n.Left, n.List.First(), ch)
 		}
 
 		r.Left = typecheck(r.Left, Erv)

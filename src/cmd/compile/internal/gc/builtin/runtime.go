@@ -115,9 +115,9 @@ func mapiternext(hiter *any)
 
 // *byte is really *runtime.Type
 func makechan(chanType *byte, hint int64) (hchan chan any)
-func chanrecv1(chanType *byte, hchan <-chan any, elem *any)
-func chanrecv2(chanType *byte, hchan <-chan any, elem *any) bool
-func chansend1(chanType *byte, hchan chan<- any, elem *any)
+func chanrecv1(hchan <-chan any, elem *any)
+func chanrecv2(hchan <-chan any, elem *any) bool
+func chansend1(hchan chan<- any, elem *any)
 func closechan(hchan any)
 
 var writeBarrier struct {
@@ -135,9 +135,9 @@ func typedmemmove(typ *byte, dst *any, src *any)
 func typedmemclr(typ *byte, dst *any)
 func typedslicecopy(typ *byte, dst any, src any) int
 
-func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
-func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
-func selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool
+func selectnbsend(hchan chan<- any, elem *any) bool
+func selectnbrecv(elem *any, hchan <-chan any) bool
+func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
 
 func newselect(sel *byte, selsize int64, size int32)
 func selectsend(sel *byte, hchan chan<- any, elem *any)
