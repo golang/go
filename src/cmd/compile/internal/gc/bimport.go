@@ -526,11 +526,15 @@ func (p *importer) typ() *Type {
 		functypefield0(t, nil, params, result)
 
 	case interfaceTag:
-		t = p.newtyp(TINTER)
 		if p.int() != 0 {
 			formatErrorf("unexpected embedded interface")
 		}
-		t.SetFields(p.methodList())
+		if ml := p.methodList(); len(ml) == 0 {
+			t = Types[TINTER]
+		} else {
+			t = p.newtyp(TINTER)
+			t.SetFields(ml)
+		}
 		checkwidth(t)
 
 	case mapTag:
