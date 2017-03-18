@@ -100,4 +100,4 @@ package main
 
 // BUG(rsc): The implementation of -r is a bit slow.
 // BUG(gri): If -w fails, the restored original file may not have some of the
-//           original file attributes.
+// original file attributes.
