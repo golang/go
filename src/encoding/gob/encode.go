@@ -209,13 +209,7 @@ func encUint(i *encInstr, state *encoderState, v reflect.Value) {
 // swizzling.
 func floatBits(f float64) uint64 {
 	u := math.Float64bits(f)
-	var v uint64
-	for i := 0; i < 8; i++ {
-		v <<= 8
-		v |= u & 0xFF
-		u >>= 8
-	}
-	return v
+	return bits.ReverseBytes64(u)
 }
 
 // encFloat encodes the floating point value (float32 float64) referenced by v.
