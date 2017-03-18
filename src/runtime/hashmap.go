@@ -1139,8 +1139,8 @@ func ismapkey(t *_type) bool {
 // Reflect stubs. Called from ../reflect/asm_*.s
 
 //go:linkname reflect_makemap reflect.makemap
-func reflect_makemap(t *maptype) *hmap {
-	return makemap(t, 0, nil, nil)
+func reflect_makemap(t *maptype, cap int) *hmap {
+	return makemap(t, int64(cap), nil, nil)
 }
 
 //go:linkname reflect_mapaccess reflect.mapaccess
