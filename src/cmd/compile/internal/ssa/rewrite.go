@@ -153,11 +153,36 @@ func canMergeSym(x, y interface{}) bool {
 
 // canMergeLoad reports whether the load can be merged into target without
 // invalidating the schedule.
-func canMergeLoad(target, load *Value) bool {
+// It also checks that the other non-load argument x is something we
+// are ok with clobbering (all our current load+op instructions clobber
+// their input register).
+func canMergeLoad(target, load, x *Value) bool {
 	if target.Block.ID != load.Block.ID {
 		// If the load is in a different block do not merge it.
 		return false
 	}
+
+	// We can't merge the load into the target if the load
+	// has more than one use.
+	if load.Uses != 1 {
+		return false
+	}
+
+	// The register containing x is going to get clobbered.
+	// Don't merge if we still need the value of x.
+	// We don't have liveness information here, but we can
+	// approximate x dying with:
+	//  1) target is x's only use.
+	//  2) target is not in a deeper loop than x.
+	if x.Uses != 1 {
+		return false
+	}
+	loopnest := x.Block.Func.loopnest()
+	loopnest.calculateDepths()
+	if loopnest.depth(target.Block.ID) > loopnest.depth(x.Block.ID) {
+		return false
+	}
+
 	mem := load.MemoryArg()
 
 	// We need the load's memory arg to still be alive at target. That
@@ -258,6 +283,7 @@ search:
 			}
 		}
 	}
+
 	return true
 }
 
