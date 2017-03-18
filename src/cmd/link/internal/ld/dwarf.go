@@ -1521,10 +1521,20 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	}
 
 	// Needed by the prettyprinter code for interface inspection.
-	defgotype(ctxt, lookupOrDiag(ctxt, "type.runtime._type"))
-
-	defgotype(ctxt, lookupOrDiag(ctxt, "type.runtime.interfacetype"))
-	defgotype(ctxt, lookupOrDiag(ctxt, "type.runtime.itab"))
+	for _, typ := range []string{
+		"type.runtime._type",
+		"type.runtime.arraytype",
+		"type.runtime.chantype",
+		"type.runtime.functype",
+		"type.runtime.maptype",
+		"type.runtime.ptrtype",
+		"type.runtime.slicetype",
+		"type.runtime.structtype",
+		"type.runtime.interfacetype",
+		"type.runtime.itab",
+		"type.runtime.imethod"} {
+		defgotype(ctxt, lookupOrDiag(ctxt, typ))
+	}
 
 	genasmsym(ctxt, defdwsymb)
 
