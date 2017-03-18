@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"math/bits"
 	"reflect"
 )
 
@@ -313,12 +314,7 @@ func decUint64(i *decInstr, state *decoderState, value reflect.Value) {
 // (for example) transmit more compactly. This routine does the
 // unswizzling.
 func float64FromBits(u uint64) float64 {
-	var v uint64
-	for i := 0; i < 8; i++ {
-		v <<= 8
-		v |= u & 0xFF
-		u >>= 8
-	}
+	v := bits.ReverseBytes64(u)
 	return math.Float64frombits(v)
 }
 
