@@ -5850,6 +5850,24 @@ func TestMapAlloc(t *testing.T) {
 	if allocs > 0.5 {
 		t.Errorf("allocs per map assignment: want 0 got %f", allocs)
 	}
+
+	const size = 1000
+	tmp := 0
+	val := ValueOf(&tmp).Elem()
+	allocs = testing.AllocsPerRun(100, func() {
+		mv := MakeMapWithSize(TypeOf(map[int]int{}), size)
+		// Only adding half of the capacity to not trigger re-allocations due too many overloaded buckets.
+		for i := 0; i < size/2; i++ {
+			val.SetInt(int64(i))
+			mv.SetMapIndex(val, val)
+		}
+	})
+	if allocs > 10 {
+		t.Errorf("allocs per map assignment: want at most 10 got %f", allocs)
+	}
+	// Empirical testing shows that with capacity hint single run will trigger 3 allocations and without 91. I set
+	// the threshold to 10, to not make it overly brittle if something changes in the initial allocation of the
+	// map, but to still catch a regression where we keep re-allocating in the hashmap as new entries are added.
 }
 
 func TestChanAlloc(t *testing.T) {
