@@ -46,21 +46,28 @@ type (
 )
 
 type Types struct {
-	Bool    Type
-	Int8    Type
-	Int16   Type
-	Int32   Type
-	Int64   Type
-	UInt8   Type
-	UInt16  Type
-	UInt32  Type
-	UInt64  Type
-	Int     Type
-	Float32 Type
-	Float64 Type
-	Uintptr Type
-	String  Type
-	BytePtr Type // TODO: use unsafe.Pointer instead?
+	Bool       Type
+	Int8       Type
+	Int16      Type
+	Int32      Type
+	Int64      Type
+	UInt8      Type
+	UInt16     Type
+	UInt32     Type
+	UInt64     Type
+	Int        Type
+	Float32    Type
+	Float64    Type
+	Uintptr    Type
+	String     Type
+	BytePtr    Type // TODO: use unsafe.Pointer instead?
+	Int32Ptr   Type
+	UInt32Ptr  Type
+	IntPtr     Type
+	UintptrPtr Type
+	Float32Ptr Type
+	Float64Ptr Type
+	BytePtrPtr Type
 }
 
 type Logger interface {

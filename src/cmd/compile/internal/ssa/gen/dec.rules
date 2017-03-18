@@ -15,24 +15,24 @@
   (ComplexMake
     (Load <types.Float32> ptr mem)
     (Load <types.Float32>
-      (OffPtr <types.Float32.PtrTo()> [4] ptr)
+      (OffPtr <types.Float32Ptr> [4] ptr)
       mem)
     )
 (Store {t} dst (ComplexMake real imag) mem) && t.(Type).Size() == 8 ->
   (Store {types.Float32}
-    (OffPtr <types.Float32.PtrTo()> [4] dst)
+    (OffPtr <types.Float32Ptr> [4] dst)
     imag
     (Store {types.Float32} dst real mem))
 (Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
   (ComplexMake
     (Load <types.Float64> ptr mem)
     (Load <types.Float64>
-      (OffPtr <types.Float64.PtrTo()> [8] ptr)
+      (OffPtr <types.Float64Ptr> [8] ptr)
       mem)
     )
 (Store {t} dst (ComplexMake real imag) mem) && t.(Type).Size() == 16 ->
   (Store {types.Float64}
-    (OffPtr <types.Float64.PtrTo()> [8] dst)
+    (OffPtr <types.Float64Ptr> [8] dst)
     imag
     (Store {types.Float64} dst real mem))
 
@@ -44,11 +44,11 @@
   (StringMake
     (Load <types.BytePtr> ptr mem)
     (Load <types.Int>
-      (OffPtr <types.Int.PtrTo()> [config.PtrSize] ptr)
+      (OffPtr <types.IntPtr> [config.PtrSize] ptr)
       mem))
 (Store dst (StringMake ptr len) mem) ->
   (Store {types.Int}
-    (OffPtr <types.Int.PtrTo()> [config.PtrSize] dst)
+    (OffPtr <types.IntPtr> [config.PtrSize] dst)
     len
     (Store {types.BytePtr} dst ptr mem))
 
@@ -61,17 +61,17 @@
   (SliceMake
     (Load <t.ElemType().PtrTo()> ptr mem)
     (Load <types.Int>
-      (OffPtr <types.Int.PtrTo()> [config.PtrSize] ptr)
+      (OffPtr <types.IntPtr> [config.PtrSize] ptr)
       mem)
     (Load <types.Int>
-      (OffPtr <types.Int.PtrTo()> [2*config.PtrSize] ptr)
+      (OffPtr <types.IntPtr> [2*config.PtrSize] ptr)
       mem))
 (Store dst (SliceMake ptr len cap) mem) ->
   (Store {types.Int}
-    (OffPtr <types.Int.PtrTo()> [2*config.PtrSize] dst)
+    (OffPtr <types.IntPtr> [2*config.PtrSize] dst)
     cap
     (Store {types.Int}
-      (OffPtr <types.Int.PtrTo()> [config.PtrSize] dst)
+      (OffPtr <types.IntPtr> [config.PtrSize] dst)
       len
       (Store {types.BytePtr} dst ptr mem)))
 
@@ -83,10 +83,10 @@
   (IMake
     (Load <types.BytePtr> ptr mem)
     (Load <types.BytePtr>
-      (OffPtr <types.BytePtr.PtrTo()> [config.PtrSize] ptr)
+      (OffPtr <types.BytePtrPtr> [config.PtrSize] ptr)
       mem))
 (Store dst (IMake itab data) mem) ->
   (Store {types.BytePtr}
-    (OffPtr <types.BytePtr.PtrTo()> [config.PtrSize] dst)
+    (OffPtr <types.BytePtrPtr> [config.PtrSize] dst)
     data
     (Store {types.Uintptr} dst itab mem))
