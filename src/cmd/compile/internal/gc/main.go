@@ -184,8 +184,7 @@ func Main(archInit func(*Arch)) {
 	objabi.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
 	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
 	flag.StringVar(&buildid, "buildid", "", "record `id` as the build id in the export metadata")
-	var dashc int
-	flag.IntVar(&dashc, "c", 0, "makes -c work")
+	flag.IntVar(&nBackendWorkers, "c", 1, "concurrency during compilation, 1 means no concurrency")
 	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
 	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")
@@ -280,6 +279,12 @@ func Main(archInit func(*Arch)) {
 	}
 	if compiling_runtime && Debug['N'] != 0 {
 		log.Fatal("cannot disable optimizations while compiling runtime")
+	}
+	if nBackendWorkers < 1 {
+		log.Fatalf("-c must be at least 1, got %d", nBackendWorkers)
+	}
+	if nBackendWorkers > 1 && !concurrentBackendAllowed() {
+		log.Fatalf("cannot use concurrent backend compilation with provided flags; invoked as %v", os.Args)
 	}
 
 	// parse -d argument
@@ -572,9 +577,23 @@ func Main(archInit func(*Arch)) {
 			fninit(xtop)
 		}
 
+		compileFunctions()
+
+		// We autogenerate and compile some small functions
+		// such as method wrappers and equality/hash routines
+		// while exporting code.
+		// Disable concurrent compilation from here on,
+		// at least until this convoluted structure has been unwound.
+		nBackendWorkers = 1
+
 		if compiling_runtime {
 			checknowritebarrierrec()
 		}
+
+		// Check whether any of the functions we have compiled have gigantic stack frames.
+		obj.SortSlice(largeStackFrames, func(i, j int) bool {
+			return largeStackFrames[i].Before(largeStackFrames[j])
+		})
 		for _, largePos := range largeStackFrames {
 			yyerrorl(largePos, "stack frame too large (>2GB)")
 		}
@@ -597,6 +616,10 @@ func Main(archInit func(*Arch)) {
 	dumpobj()
 	if asmhdr != "" {
 		dumpasmhdr()
+	}
+
+	if len(compilequeue) != 0 {
+		Fatalf("%d uncompiled functions", len(compilequeue))
 	}
 
 	if nerrors+nsavederrors != 0 {
@@ -1046,4 +1069,38 @@ func clearImports() {
 
 func IsAlias(sym *types.Sym) bool {
 	return sym.Def != nil && asNode(sym.Def).Sym != sym
+}
+
+// By default, assume any debug flags are incompatible with concurrent compilation.
+// A few are safe and potentially in common use for normal compiles, though; mark them as such here.
+var concurrentFlagOK = [256]bool{
+	'B': true, // disabled bounds checking
+	'C': true, // disable printing of columns in error messages
+	'I': true, // add `directory` to import search path
+	'N': true, // disable optimizations
+	'l': true, // disable inlining
+}
+
+func concurrentBackendAllowed() bool {
+	for i, x := range Debug {
+		if x != 0 && !concurrentFlagOK[i] {
+			return false
+		}
+	}
+	// Debug_asm by itself is ok, because all printing occurs
+	// while writing the object file, and that is non-concurrent.
+	// Adding Debug_vlog, however, causes Debug_asm to also print
+	// while flushing the plist, which happens concurrently.
+	if Debug_vlog || debugstr != "" || debuglive > 0 {
+		return false
+	}
+	// TODO: test and add builders for GOEXPERIMENT values, and enable
+	if os.Getenv("GOEXPERIMENT") != "" {
+		return false
+	}
+	// TODO: fix races and enable the following flags
+	if Ctxt.Flag_shared || Ctxt.Flag_dynlink || flag_race {
+		return false
+	}
+	return true
 }

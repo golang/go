@@ -10,6 +10,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/src"
+	"sync"
 )
 
 const (
@@ -177,7 +178,10 @@ var exportlist []*Node
 
 var importlist []*Node // imported functions and methods with inlinable bodies
 
-var funcsyms []*types.Sym
+var (
+	funcsymsmu sync.Mutex // protects funcsyms and associated package lookups (see func funcsym)
+	funcsyms   []*types.Sym
+)
 
 var dclcontext Class // PEXTERN/PAUTO
 

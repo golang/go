@@ -224,6 +224,9 @@ func dumpglobls() {
 		ggloblnod(n)
 	}
 
+	obj.SortSlice(funcsyms, func(i, j int) bool {
+		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
+	})
 	for _, s := range funcsyms {
 		sf := s.Pkg.Lookup(funcsymname(s)).Linksym()
 		dsymptr(sf, 0, s.Linksym(), 0)
