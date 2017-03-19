@@ -1112,18 +1112,6 @@ func typehash(t *Type) uint32 {
 	return binary.LittleEndian.Uint32(h[:4])
 }
 
-// ptrto returns the Type *t.
-// The returned struct must not be modified.
-func ptrto(t *Type) *Type {
-	if Tptr == 0 {
-		Fatalf("ptrto: no tptr")
-	}
-	if t == nil {
-		Fatalf("ptrto: nil ptr")
-	}
-	return typPtr(t)
-}
-
 func frame(context int) {
 	if context != 0 {
 		fmt.Printf("--- external frame ---\n")
@@ -1826,7 +1814,7 @@ func hashmem(t *Type) *Node {
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := nod(OTFUNC, nil, nil)
-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(ptrto(t))))
+	tfn.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
 	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
@@ -2123,7 +2111,7 @@ func isdirectiface(t *Type) bool {
 // itabType loads the _type field from a runtime.itab struct.
 func itabType(itab *Node) *Node {
 	typ := nodSym(ODOTPTR, itab, nil)
-	typ.Type = ptrto(Types[TUINT8])
+	typ.Type = typPtr(Types[TUINT8])
 	typ.Typecheck = 1
 	typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
 	typ.SetBounded(true)          // guaranteed not to fault
@@ -2140,7 +2128,7 @@ func ifaceData(n *Node, t *Type) *Node {
 		ptr.Typecheck = 1
 		return ptr
 	}
-	ptr.Type = ptrto(t)
+	ptr.Type = typPtr(t)
 	ptr.SetBounded(true)
 	ptr.Typecheck = 1
 	ind := nod(OIND, ptr, nil)

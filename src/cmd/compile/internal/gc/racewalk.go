@@ -216,7 +216,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		instrumentnode(&n.Left, init, 0, 0)
 		if n.Left.Type.IsMap() {
 			n1 := nod(OCONVNOP, n.Left, nil)
-			n1.Type = ptrto(Types[TUINT8])
+			n1.Type = typPtr(Types[TUINT8])
 			n1 = nod(OIND, n1, nil)
 			n1 = typecheck(n1, Erv)
 			callinstr(&n1, init, 0, skip)
@@ -568,7 +568,7 @@ func uintptraddr(n *Node) *Node {
 
 func detachexpr(n *Node, init *Nodes) *Node {
 	addr := nod(OADDR, n, nil)
-	l := temp(ptrto(n.Type))
+	l := temp(typPtr(n.Type))
 	as := nod(OAS, l, addr)
 	as = typecheck(as, Etop)
 	as = walkexpr(as, init)

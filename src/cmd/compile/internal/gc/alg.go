@@ -198,7 +198,7 @@ func genhash(sym *Sym, t *Type) {
 	tfn := nod(OTFUNC, nil, nil)
 	fn.Func.Nname.Name.Param.Ntype = tfn
 
-	n := nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)))
+	n := nod(ODCLFIELD, newname(lookup("p")), typenod(typPtr(t)))
 	tfn.List.Append(n)
 	np := n.Left
 	n = nod(ODCLFIELD, newname(lookup("h")), typenod(Types[TUINTPTR]))
@@ -349,7 +349,7 @@ func hashfor(t *Type) *Node {
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := nod(OTFUNC, nil, nil)
-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(ptrto(t))))
+	tfn.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
 	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn = typecheck(tfn, Etype)
@@ -376,10 +376,10 @@ func geneq(sym *Sym, t *Type) {
 	tfn := nod(OTFUNC, nil, nil)
 	fn.Func.Nname.Name.Param.Ntype = tfn
 
-	n := nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)))
+	n := nod(ODCLFIELD, newname(lookup("p")), typenod(typPtr(t)))
 	tfn.List.Append(n)
 	np := n.Left
-	n = nod(ODCLFIELD, newname(lookup("q")), typenod(ptrto(t)))
+	n = nod(ODCLFIELD, newname(lookup("q")), typenod(typPtr(t)))
 	tfn.List.Append(n)
 	nq := n.Left
 	n = nod(ODCLFIELD, nil, typenod(Types[TBOOL]))

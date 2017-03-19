@@ -343,7 +343,7 @@ func transformclosure(xfunc *Node) {
 				// and v remains PAUTOHEAP with &v heapaddr
 				// (accesses will implicitly deref &v).
 				addr := newname(lookupf("&%s", v.Sym.Name))
-				addr.Type = ptrto(v.Type)
+				addr.Type = typPtr(v.Type)
 				addr.Class = PPARAM
 				v.Name.Param.Heapaddr = addr
 				fld.Nname = addr
@@ -382,7 +382,7 @@ func transformclosure(xfunc *Node) {
 
 			cv.Type = v.Type
 			if !v.Name.Byval() {
-				cv.Type = ptrto(v.Type)
+				cv.Type = typPtr(v.Type)
 			}
 			offset = Rnd(offset, int64(cv.Type.Align))
 			cv.Xoffset = offset
@@ -634,7 +634,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 		ptr.Name.Param.Ntype = typenod(rcvrtype)
 		body = append(body, nod(OAS, ptr, cv))
 	} else {
-		ptr.Name.Param.Ntype = typenod(ptrto(rcvrtype))
+		ptr.Name.Param.Ntype = typenod(typPtr(rcvrtype))
 		body = append(body, nod(OAS, ptr, nod(OADDR, cv, nil)))
 	}
 

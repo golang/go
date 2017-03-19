@@ -1154,7 +1154,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 		a := nod(OADDR, src, nil)
 		a.Pos = src.Pos
 		e.nodeEscState(a).Loopdepth = e.nodeEscState(src).Loopdepth
-		a.Type = ptrto(src.Type)
+		a.Type = typPtr(src.Type)
 		e.escflows(dst, a, e.stepAssign(nil, originalDst, src, dstwhy))
 
 	// Flowing multiple returns to a single dst happens when
@@ -1552,7 +1552,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 					// Introduce ODDDARG node to represent ... allocation.
 					arg = nod(ODDDARG, nil, nil)
 					arr := typArray(n.Type.Elem(), int64(len(args)))
-					arg.Type = ptrto(arr) // make pointer so it will be tracked
+					arg.Type = typPtr(arr) // make pointer so it will be tracked
 					arg.Pos = call.Pos
 					e.track(arg)
 					call.Right = arg
@@ -1616,7 +1616,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 			arg = nod(ODDDARG, nil, nil)
 			arg.Pos = call.Pos
 			arr := typArray(param.Type.Elem(), int64(len(args)-i))
-			arg.Type = ptrto(arr) // make pointer so it will be tracked
+			arg.Type = typPtr(arr) // make pointer so it will be tracked
 			e.track(arg)
 			call.Right = arg
 		}

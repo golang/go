@@ -195,7 +195,7 @@ func walkrange(n *Node) *Node {
 		init = append(init, nod(OAS, hn, nod(OLEN, ha, nil)))
 
 		if v2 != nil {
-			hp = temp(ptrto(n.Type.Elem()))
+			hp = temp(typPtr(n.Type.Elem()))
 			tmp := nod(OINDEX, ha, nodintconst(0))
 			tmp.SetBounded(true)
 			init = append(init, nod(OAS, hp, nod(OADDR, tmp, nil)))

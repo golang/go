@@ -37,14 +37,14 @@ func initssaconfig() {
 		Int:        Types[TINT],
 		Uintptr:    Types[TUINTPTR],
 		String:     Types[TSTRING],
-		BytePtr:    ptrto(Types[TUINT8]),
-		Int32Ptr:   ptrto(Types[TINT32]),
-		UInt32Ptr:  ptrto(Types[TUINT32]),
-		IntPtr:     ptrto(Types[TINT]),
-		UintptrPtr: ptrto(Types[TUINTPTR]),
-		Float32Ptr: ptrto(Types[TFLOAT32]),
-		Float64Ptr: ptrto(Types[TFLOAT64]),
-		BytePtrPtr: ptrto(ptrto(Types[TUINT8])),
+		BytePtr:    typPtr(Types[TUINT8]),
+		Int32Ptr:   typPtr(Types[TINT32]),
+		UInt32Ptr:  typPtr(Types[TUINT32]),
+		IntPtr:     typPtr(Types[TINT]),
+		UintptrPtr: typPtr(Types[TUINTPTR]),
+		Float32Ptr: typPtr(Types[TFLOAT32]),
+		Float64Ptr: typPtr(Types[TFLOAT64]),
+		BytePtrPtr: typPtr(typPtr(Types[TUINT8])),
 	}
 	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, types, Ctxt, Debug['N'] == 0)
 	if thearch.LinkArch.Name == "386" {
@@ -126,7 +126,7 @@ func buildssa(fn *Node) *ssa.Func {
 		switch n.Class {
 		case PPARAM, PPARAMOUT:
 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
-			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, ptrto(n.Type), aux, s.sp)
+			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, typPtr(n.Type), aux, s.sp)
 			if n.Class == PPARAMOUT && s.canSSA(n) {
 				// Save ssa-able PPARAMOUT variables so we can
 				// store them back to the stack at the end of
@@ -1367,7 +1367,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			// "value" of a function is the address of the function's closure
 			sym := Linksym(funcsym(n.Sym))
 			aux := &ssa.ExternSymbol{Typ: n.Type, Sym: sym}
-			return s.entryNewValue1A(ssa.OpAddr, ptrto(n.Type), aux, s.sb)
+			return s.entryNewValue1A(ssa.OpAddr, typPtr(n.Type), aux, s.sb)
 		}
 		if s.canSSA(n) {
 			return s.variable(n, n.Type)
@@ -1875,7 +1875,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.addr(n.Left, n.Bounded())
 
 	case OINDREGSP:
-		addr := s.constOffPtrSP(ptrto(n.Type), n.Xoffset)
+		addr := s.constOffPtrSP(typPtr(n.Type), n.Xoffset)
 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
 
 	case OIND:
@@ -1902,7 +1902,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 	case ODOTPTR:
 		p := s.exprPtr(n.Left, false, n.Pos)
-		p = s.newValue1I(ssa.OpOffPtr, ptrto(n.Type), n.Xoffset, p)
+		p = s.newValue1I(ssa.OpOffPtr, typPtr(n.Type), n.Xoffset, p)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case OINDEX:
@@ -2094,7 +2094,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	// *(ptr+len+2) = e3
 
 	et := n.Type.Elem()
-	pt := ptrto(et)
+	pt := typPtr(et)
 
 	// Evaluate slice
 	sn := n.List.First() // the slice node is the first in the list
@@ -3083,7 +3083,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		return nil
 	}
 	fp := res.Field(0)
-	return s.constOffPtrSP(ptrto(fp.Type), fp.Offset+Ctxt.FixedFrameSize())
+	return s.constOffPtrSP(typPtr(fp.Type), fp.Offset+Ctxt.FixedFrameSize())
 }
 
 // etypesign returns the signed-ness of e, for integer/pointer etypes.
@@ -3122,7 +3122,7 @@ func (s *state) lookupSymbol(n *Node, sym interface{}) interface{} {
 // If bounded is true then this address does not require a nil check for its operand
 // even if that would otherwise be implied.
 func (s *state) addr(n *Node, bounded bool) *ssa.Value {
-	t := ptrto(n.Type)
+	t := typPtr(n.Type)
 	switch n.Op {
 	case ONAME:
 		switch n.Class {
@@ -3183,7 +3183,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			if !n.Bounded() {
 				s.boundsCheck(i, len)
 			}
-			return s.newValue2(ssa.OpPtrIndex, ptrto(n.Left.Type.Elem()), a, i)
+			return s.newValue2(ssa.OpPtrIndex, typPtr(n.Left.Type.Elem()), a, i)
 		}
 	case OIND:
 		return s.exprPtr(n.Left, bounded, n.Pos)
@@ -3429,7 +3429,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
 	res := make([]*ssa.Value, len(results))
 	for i, t := range results {
 		off = Rnd(off, t.Alignment())
-		ptr := s.constOffPtrSP(ptrto(t), off)
+		ptr := s.constOffPtrSP(typPtr(t), off)
 		res[i] = s.newValue2(ssa.OpLoad, t, ptr, s.mem())
 		off += t.Size()
 	}
@@ -3555,13 +3555,13 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	switch {
 	case t.IsSlice():
 		elemtype = t.Elem()
-		ptrtype = ptrto(elemtype)
+		ptrtype = typPtr(elemtype)
 		ptr = s.newValue1(ssa.OpSlicePtr, ptrtype, v)
 		len = s.newValue1(ssa.OpSliceLen, Types[TINT], v)
 		cap = s.newValue1(ssa.OpSliceCap, Types[TINT], v)
 	case t.IsString():
 		elemtype = Types[TUINT8]
-		ptrtype = ptrto(elemtype)
+		ptrtype = typPtr(elemtype)
 		ptr = s.newValue1(ssa.OpStringPtr, ptrtype, v)
 		len = s.newValue1(ssa.OpStringLen, Types[TINT], v)
 		cap = len
@@ -3570,7 +3570,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 			s.Fatalf("bad ptr to array in slice %v\n", t)
 		}
 		elemtype = t.Elem().Elem()
-		ptrtype = ptrto(elemtype)
+		ptrtype = typPtr(elemtype)
 		s.nilCheck(v)
 		ptr = v
 		len = s.constInt(Types[TINT], t.Elem().NumElem())
@@ -4100,7 +4100,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		if direct {
 			return s.newValue1(ssa.OpIData, n.Type, iface), nil
 		}
-		p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
+		p := s.newValue1(ssa.OpIData, typPtr(n.Type), iface)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem()), nil
 	}
 
@@ -4117,11 +4117,11 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		if direct {
 			s.vars[valVar] = s.newValue1(ssa.OpIData, n.Type, iface)
 		} else {
-			p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
+			p := s.newValue1(ssa.OpIData, typPtr(n.Type), iface)
 			s.vars[valVar] = s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 		}
 	} else {
-		p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
+		p := s.newValue1(ssa.OpIData, typPtr(n.Type), iface)
 		store := s.newValue3I(ssa.OpMove, ssa.TypeMem, n.Type.Size(), addr, p, s.mem())
 		store.Aux = n.Type
 		s.vars[&memVar] = store
@@ -4712,7 +4712,7 @@ func (e *ssafn) Auto(t ssa.Type) ssa.GCNode {
 
 func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
-	ptrType := ptrto(Types[TUINT8])
+	ptrType := typPtr(Types[TUINT8])
 	lenType := Types[TINT]
 	if n.Class == PAUTO && !n.Addrtaken() {
 		// Split this string up into two separate variables.
@@ -4726,7 +4726,7 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 
 func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
-	t := ptrto(Types[TUINT8])
+	t := typPtr(Types[TUINT8])
 	if n.Class == PAUTO && !n.Addrtaken() {
 		// Split this interface up into two separate variables.
 		f := ".itab"
@@ -4743,7 +4743,7 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 
 func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
-	ptrType := ptrto(name.Type.ElemType().(*Type))
+	ptrType := typPtr(name.Type.ElemType().(*Type))
 	lenType := Types[TINT]
 	if n.Class == PAUTO && !n.Addrtaken() {
 		// Split this slice up into three separate variables.

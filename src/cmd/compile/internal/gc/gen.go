@@ -112,7 +112,7 @@ func moveToHeap(n *Node) {
 
 	// Allocate a local stack variable to hold the pointer to the heap copy.
 	// temp will add it to the function declaration list automatically.
-	heapaddr := temp(ptrto(n.Type))
+	heapaddr := temp(typPtr(n.Type))
 	heapaddr.Sym = lookup("&" + n.Sym.Name)
 	heapaddr.Orig.Sym = heapaddr.Sym
 
