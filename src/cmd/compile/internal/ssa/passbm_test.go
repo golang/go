@@ -34,7 +34,7 @@ func BenchmarkMultiPassBlock(b *testing.B) { benchFnBlock(b, multi, genFunction)
 func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
 	b.ReportAllocs()
 	c := testConfig(b)
-	fun := Fun(c, DummyFrontend{b}, "entry", bg(size)...)
+	fun := c.Fun("entry", bg(size)...)
 	CheckFunc(fun.f)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -49,7 +49,7 @@ func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
 func benchFnBlock(b *testing.B, fn passFunc, bg blockGen) {
 	b.ReportAllocs()
 	c := testConfig(b)
-	fun := Fun(c, DummyFrontend{b}, "entry", bg(b.N)...)
+	fun := c.Fun("entry", bg(b.N)...)
 	CheckFunc(fun.f)
 	b.ResetTimer()
 	for i := 0; i < passCount; i++ {

@@ -41,7 +41,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 	)
 
 	c := testConfig(b)
-	fun := Fun(c, DummyFrontend{b}, "entry", blocs...)
+	fun := c.Fun("entry", blocs...)
 
 	CheckFunc(fun.f)
 	b.SetBytes(int64(depth)) // helps for eyeballing linearity
@@ -65,7 +65,7 @@ func isNilCheck(b *Block) bool {
 func TestNilcheckSimple(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -102,7 +102,7 @@ func TestNilcheckSimple(t *testing.T) {
 func TestNilcheckDomOrder(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -138,7 +138,7 @@ func TestNilcheckDomOrder(t *testing.T) {
 func TestNilcheckAddr(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -171,7 +171,7 @@ func TestNilcheckAddr(t *testing.T) {
 func TestNilcheckAddPtr(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -206,7 +206,7 @@ func TestNilcheckAddPtr(t *testing.T) {
 func TestNilcheckPhi(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -250,7 +250,7 @@ func TestNilcheckPhi(t *testing.T) {
 func TestNilcheckKeepRemove(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -298,7 +298,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
 func TestNilcheckInFalseBranch(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -349,7 +349,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
 func TestNilcheckUser(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
@@ -388,7 +388,7 @@ func TestNilcheckUser(t *testing.T) {
 func TestNilcheckBug(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),

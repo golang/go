@@ -23,7 +23,7 @@ func lcaEqual(f *Func, lca1, lca2 lca) bool {
 
 func testLCAgen(t *testing.T, bg blockGen, size int) {
 	c := testConfig(t)
-	fun := Fun(c, DummyFrontend{t}, "entry", bg(size)...)
+	fun := c.Fun("entry", bg(size)...)
 	CheckFunc(fun.f)
 	if size == 4 {
 		t.Logf(fun.f.String())

@@ -16,20 +16,48 @@ var CheckFunc = checkFunc
 var Opt = opt
 var Deadcode = deadcode
 var Copyelim = copyelim
-var TestCtxt = obj.Linknew(&x86.Linkamd64)
 
-func testConfig(t testing.TB) *Config {
-	return NewConfig("amd64", dummyTypes, TestCtxt, true)
+var testCtxts = map[string]*obj.Link{
+	"amd64": obj.Linknew(&x86.Linkamd64),
+	"s390x": obj.Linknew(&s390x.Links390x),
 }
 
-func testConfigS390X(t testing.TB) *Config {
-	return NewConfig("s390x", dummyTypes, obj.Linknew(&s390x.Links390x), true)
+func testConfig(tb testing.TB) *Conf      { return testConfigArch(tb, "amd64") }
+func testConfigS390X(tb testing.TB) *Conf { return testConfigArch(tb, "s390x") }
+
+func testConfigArch(tb testing.TB, arch string) *Conf {
+	ctxt, ok := testCtxts[arch]
+	if !ok {
+		tb.Fatalf("unknown arch %s", arch)
+	}
+	if ctxt.Arch.IntSize != 8 {
+		tb.Fatal("dummyTypes is 64-bit only")
+	}
+	c := &Conf{
+		config: NewConfig(arch, dummyTypes, ctxt, true),
+		tb:     tb,
+	}
+	return c
+}
+
+type Conf struct {
+	config *Config
+	tb     testing.TB
+	fe     Frontend
+}
+
+func (c *Conf) Frontend() Frontend {
+	if c.fe == nil {
+		c.fe = DummyFrontend{t: c.tb, ctxt: c.config.ctxt}
+	}
+	return c.fe
 }
 
 // DummyFrontend is a test-only frontend.
 // It assumes 64 bit integers and pointers.
 type DummyFrontend struct {
-	t testing.TB
+	t    testing.TB
+	ctxt *obj.Link
 }
 
 type DummyAuto struct {
@@ -85,8 +113,8 @@ func (DummyFrontend) Line(_ src.XPos) string {
 }
 func (DummyFrontend) AllocFrame(f *Func) {
 }
-func (DummyFrontend) Syslook(s string) *obj.LSym {
-	return obj.Linklookup(TestCtxt, s, 0)
+func (d DummyFrontend) Syslook(s string) *obj.LSym {
+	return obj.Linklookup(d.ctxt, s, 0)
 }
 func (DummyFrontend) UseWriteBarrier() bool {
 	return true // only writebarrier_test cares

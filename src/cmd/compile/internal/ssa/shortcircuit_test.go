@@ -9,7 +9,7 @@ import "testing"
 func TestShortCircuit(t *testing.T) {
 	c := testConfig(t)
 
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("arg1", OpArg, TypeInt64, 0, nil),
