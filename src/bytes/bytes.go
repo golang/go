@@ -46,9 +46,8 @@ func explode(s []byte, n int) [][]byte {
 	return a[0:na]
 }
 
-// Count counts the number of non-overlapping instances of sep in s.
-// If sep is an empty slice, Count returns 1 + the number of Unicode code points in s.
-func Count(s, sep []byte) int {
+// countGeneric actualy implements Count
+func countGeneric(s, sep []byte) int {
 	n := 0
 	// special case
 	if len(sep) == 0 {

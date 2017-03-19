@@ -10,6 +10,7 @@ package bytes
 // indexShortStr requires 2 <= len(c) <= shortStringLen
 func indexShortStr(s, c []byte) int // ../runtime/asm_$GOARCH.s
 func supportAVX2() bool             // ../runtime/asm_$GOARCH.s
+func supportPOPCNT() bool           // ../runtime/asm_$GOARCH.s
 
 var shortStringLen int
 
@@ -92,6 +93,18 @@ func Index(s, sep []byte) int {
 		}
 	}
 	return -1
+}
+
+// Special case for when we must count occurences of a single byte.
+func countByte(s []byte, c byte) int
+
+// Count counts the number of non-overlapping instances of sep in s.
+// If sep is an empty slice, Count returns 1 + the number of Unicode code points in s.
+func Count(s, sep []byte) int {
+	if len(sep) == 1 && supportPOPCNT() {
+		return countByte(s, sep[0])
+	}
+	return countGeneric(s, sep)
 }
 
 // primeRK is the prime base used in Rabin-Karp algorithm.

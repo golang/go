@@ -39,3 +39,9 @@ func Index(s, sep []byte) int {
 	}
 	return -1
 }
+
+// Count counts the number of non-overlapping instances of sep in s.
+// If sep is an empty slice, Count returns 1 + the number of Unicode code points in s.
+func Count(s, sep []byte) int {
+	return countGeneric(s, sep)
+}
