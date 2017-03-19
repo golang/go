@@ -396,6 +396,79 @@ func TestIndexRune(t *testing.T) {
 	}
 }
 
+// test count of a single byte across page offsets
+func TestCountByte(t *testing.T) {
+	b := make([]byte, 5015) // bigger than a page
+	windows := []int{1, 2, 3, 4, 15, 16, 17, 31, 32, 33, 63, 64, 65, 128}
+	testCountWindow := func(i, window int) {
+		for j := 0; j < window; j++ {
+			b[i+j] = byte(100)
+			p := Count(b[i:i+window], []byte{100})
+			if p != j+1 {
+				t.Errorf("TestCountByte.Count(%q, 100) = %d", b[i:i+window], p)
+			}
+			pGeneric := CountGeneric(b[i:i+window], []byte{100})
+			if pGeneric != j+1 {
+				t.Errorf("TestCountByte.CountGeneric(%q, 100) = %d", b[i:i+window], p)
+			}
+		}
+	}
+
+	maxWnd := windows[len(windows)-1]
+
+	for i := 0; i <= 2*maxWnd; i++ {
+		for _, window := range windows {
+			if window > len(b[i:]) {
+				window = len(b[i:])
+			}
+			testCountWindow(i, window)
+			for j := 0; j < window; j++ {
+				b[i+j] = byte(0)
+			}
+		}
+	}
+	for i := 4096 - (maxWnd + 1); i < len(b); i++ {
+		for _, window := range windows {
+			if window > len(b[i:]) {
+				window = len(b[i:])
+			}
+			testCountWindow(i, window)
+			for j := 0; j < window; j++ {
+				b[i+j] = byte(0)
+			}
+		}
+	}
+}
+
+// Make sure we don't count bytes outside our window
+func TestCountByteNoMatch(t *testing.T) {
+	b := make([]byte, 5015)
+	windows := []int{1, 2, 3, 4, 15, 16, 17, 31, 32, 33, 63, 64, 65, 128}
+	for i := 0; i <= len(b); i++ {
+		for _, window := range windows {
+			if window > len(b[i:]) {
+				window = len(b[i:])
+			}
+			// Fill the window with non-match
+			for j := 0; j < window; j++ {
+				b[i+j] = byte(100)
+			}
+			// Try to find something that doesn't exist
+			p := Count(b[i:i+window], []byte{0})
+			if p != 0 {
+				t.Errorf("TestCountByteNoMatch(%q, 0) = %d", b[i:i+window], p)
+			}
+			pGeneric := CountGeneric(b[i:i+window], []byte{0})
+			if pGeneric != 0 {
+				t.Errorf("TestCountByteNoMatch.CountGeneric(%q, 100) = %d", b[i:i+window], p)
+			}
+			for j := 0; j < window; j++ {
+				b[i+j] = byte(0)
+			}
+		}
+	}
+}
+
 var bmbuf []byte
 
 func valName(x int) string {
@@ -586,6 +659,26 @@ func BenchmarkCountEasy(b *testing.B) {
 		}
 		buf[n-1] = '\x00'
 		buf[n-7] = '\x00'
+	})
+}
+
+func BenchmarkCountSingle(b *testing.B) {
+	benchBytes(b, indexSizes, func(b *testing.B, n int) {
+		buf := bmbuf[0:n]
+		step := 8
+		for i := 0; i < len(buf); i += step {
+			buf[i] = 1
+		}
+		expect := (len(buf) + (step - 1)) / step
+		for i := 0; i < b.N; i++ {
+			j := Count(buf, []byte{1})
+			if j != expect {
+				b.Fatal("bad count", j, expect)
+			}
+		}
+		for i := 0; i < len(buf); i++ {
+			buf[i] = 0
+		}
 	})
 }
 

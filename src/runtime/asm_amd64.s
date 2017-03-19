@@ -91,8 +91,13 @@ testbmi1:
 testbmi2:
 	MOVB    $0, runtime·support_bmi2(SB)
 	TESTL   $(1<<8), runtime·cpuid_ebx7(SB) // check for BMI2 bit
-	JEQ     nocpuinfo
+	JEQ     testpopcnt
 	MOVB    $1, runtime·support_bmi2(SB)
+testpopcnt:
+	MOVB	$0, runtime·support_popcnt(SB)
+	TESTL	$(1<<23), runtime·cpuid_ecx(SB) // check for POPCNT bit
+	JEQ     nocpuinfo
+	MOVB    $1, runtime·support_popcnt(SB)
 nocpuinfo:	
 	
 	// if there is an _cgo_init, call it.
@@ -1694,6 +1699,11 @@ TEXT strings·supportAVX2(SB),NOSPLIT,$0-1
 
 TEXT bytes·supportAVX2(SB),NOSPLIT,$0-1
 	MOVBLZX runtime·support_avx2(SB), AX
+	MOVB AX, ret+0(FP)
+	RET
+
+TEXT bytes·supportPOPCNT(SB),NOSPLIT,$0-1
+	MOVBLZX runtime·support_popcnt(SB), AX
 	MOVB AX, ret+0(FP)
 	RET
 

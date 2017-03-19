@@ -17,6 +17,7 @@ runtime/asm_amd64.s: [GOARCH] cannot check cross-package assembly function: Comp
 runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package bytes
 runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportAVX2 is in package strings
 runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportAVX2 is in package bytes
+runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportPOPCNT is in package bytes
 
 // Intentionally missing declarations. These are special assembly routines.
 // Some are jumped into from other routines, with values in specific registers.
