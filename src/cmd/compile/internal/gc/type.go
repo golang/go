@@ -494,11 +494,19 @@ func typMap(k, v *Type) *Type {
 
 // typPtr returns the pointer type pointing to t.
 func typPtr(elem *Type) *Type {
+	if elem == nil {
+		Fatalf("typPtr: pointer to elem Type is nil")
+	}
+
 	if t := elem.ptrTo; t != nil {
 		if t.Elem() != elem {
-			Fatalf("elem mismatch")
+			Fatalf("typPtr: elem mismatch")
 		}
 		return t
+	}
+
+	if Tptr == 0 {
+		Fatalf("typPtr: Tptr not intialized")
 	}
 
 	t := typ(Tptr)
@@ -1217,7 +1225,7 @@ func (t *Type) ElemType() ssa.Type {
 	return t.Elem()
 }
 func (t *Type) PtrTo() ssa.Type {
-	return ptrto(t)
+	return typPtr(t)
 }
 
 func (t *Type) NumFields() int {

@@ -937,14 +937,14 @@ var thisT *Type
 
 func fakethis() *Node {
 	if thisT == nil {
-		thisT = ptrto(typ(TSTRUCT))
+		thisT = typPtr(typ(TSTRUCT))
 	}
 	return nod(ODCLFIELD, nil, typenod(thisT))
 }
 
 func fakethisfield() *Field {
 	if thisT == nil {
-		thisT = ptrto(typ(TSTRUCT))
+		thisT = typPtr(typ(TSTRUCT))
 	}
 	f := newField()
 	f.Type = thisT
@@ -1046,7 +1046,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 	// if t0 == *t and t0 has a sym,
 	// we want to see *t, not t0, in the method name.
 	if t != t0 && t0.Sym != nil {
-		t0 = ptrto(t)
+		t0 = typPtr(t)
 	}
 
 	suffix = ""

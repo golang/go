@@ -843,7 +843,7 @@ opswitch:
 
 		// don't generate a = *var if a is _
 		if !isblank(a) {
-			var_ := temp(ptrto(t.Val()))
+			var_ := temp(typPtr(t.Val()))
 			var_.Typecheck = 1
 			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
 			n.List.SetFirst(var_)
@@ -954,7 +954,7 @@ opswitch:
 			init.Append(nod(OAS, c, n.Left))
 
 			// Get the itab out of the interface.
-			tmp := temp(ptrto(Types[TUINT8]))
+			tmp := temp(typPtr(Types[TUINT8]))
 			init.Append(nod(OAS, tmp, typecheck(nod(OITAB, c, nil), Erv)))
 
 			// Get the type out of the itab.
@@ -963,7 +963,7 @@ opswitch:
 			init.Append(nif)
 
 			// Build the result.
-			e := nod(OEFACE, tmp, ifaceData(c, ptrto(Types[TUINT8])))
+			e := nod(OEFACE, tmp, ifaceData(c, typPtr(Types[TUINT8])))
 			e.Type = n.Type // assign type manually, typecheck doesn't understand OEFACE.
 			e.Typecheck = 1
 			n = e
@@ -1203,14 +1203,14 @@ opswitch:
 			}
 
 			if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
-				n = mkcall1(mapfn(p, t), ptrto(t.Val()), init, typename(t), map_, key)
+				n = mkcall1(mapfn(p, t), typPtr(t.Val()), init, typename(t), map_, key)
 			} else {
 				p = "mapaccess1_fat"
 				z := zeroaddr(w)
-				n = mkcall1(mapfn(p, t), ptrto(t.Val()), init, typename(t), map_, key, z)
+				n = mkcall1(mapfn(p, t), typPtr(t.Val()), init, typename(t), map_, key, z)
 			}
 		}
-		n.Type = ptrto(t.Val())
+		n.Type = typPtr(t.Val())
 		n.SetNonNil(true) // mapaccess1* and mapassign always return non-nil pointers.
 		n = nod(OIND, n, nil)
 		n.Type = t.Val()
@@ -1975,7 +1975,7 @@ func callnew(t *Type) *Node {
 	dowidth(t)
 	fn := syslook("newobject")
 	fn = substArgTypes(fn, t)
-	v := mkcall1(fn, ptrto(t), nil, typename(t))
+	v := mkcall1(fn, typPtr(t), nil, typename(t))
 	v.SetNonNil(true)
 	return v
 }
@@ -3025,8 +3025,8 @@ func eqfor(t *Type, needsize *int) *Node {
 		n := newname(sym)
 		n.Class = PFUNC
 		ntype := nod(OTFUNC, nil, nil)
-		ntype.List.Append(nod(ODCLFIELD, nil, typenod(ptrto(t))))
-		ntype.List.Append(nod(ODCLFIELD, nil, typenod(ptrto(t))))
+		ntype.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
+		ntype.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
 		ntype.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
 		ntype = typecheck(ntype, Etype)
 		n.Type = ntype.Type
@@ -3071,7 +3071,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		tab := nod(OITAB, l, nil)
 		rtyp := typename(r.Type)
 		if l.Type.IsEmptyInterface() {
-			tab.Type = ptrto(Types[TUINT8])
+			tab.Type = typPtr(Types[TUINT8])
 			tab.Typecheck = 1
 			eqtype = nod(eq, tab, rtyp)
 		} else {
@@ -3128,13 +3128,13 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		}
 
 		// eq algs take pointers
-		pl := temp(ptrto(t))
+		pl := temp(typPtr(t))
 		al := nod(OAS, pl, nod(OADDR, cmpl, nil))
 		al.Right.Etype = 1 // addr does not escape
 		al = typecheck(al, Etop)
 		init.Append(al)
 
-		pr := temp(ptrto(t))
+		pr := temp(typPtr(t))
 		ar := nod(OAS, pr, nod(OADDR, cmpr, nil))
 		ar.Right.Etype = 1 // addr does not escape
 		ar = typecheck(ar, Etop)

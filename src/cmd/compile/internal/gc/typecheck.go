@@ -492,7 +492,7 @@ OpSwitch:
 		if l.Op == OTYPE {
 			ok |= Etype
 			n.Op = OTYPE
-			n.Type = ptrto(l.Type)
+			n.Type = typPtr(l.Type)
 			n.Left = nil
 			break OpSwitch
 		}
@@ -823,7 +823,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		n.Type = ptrto(t)
+		n.Type = typPtr(t)
 		break OpSwitch
 
 	case OCOMPLIT:
@@ -1871,7 +1871,7 @@ OpSwitch:
 		}
 
 		n.Left = l
-		n.Type = ptrto(t)
+		n.Type = typPtr(t)
 		break OpSwitch
 
 	case OPRINT, OPRINTN:
@@ -1933,7 +1933,7 @@ OpSwitch:
 		if !t.IsInterface() {
 			Fatalf("OITAB of %v", t)
 		}
-		n.Type = ptrto(Types[TUINTPTR])
+		n.Type = typPtr(Types[TUINTPTR])
 		break OpSwitch
 
 	case OIDATA:
@@ -1954,9 +1954,9 @@ OpSwitch:
 			Fatalf("OSPTR of %v", t)
 		}
 		if t.IsString() {
-			n.Type = ptrto(Types[TUINT8])
+			n.Type = typPtr(Types[TUINT8])
 		} else {
-			n.Type = ptrto(t.Elem())
+			n.Type = typPtr(t.Elem())
 		}
 		break OpSwitch
 

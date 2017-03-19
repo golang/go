@@ -535,7 +535,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 				*out = append(*out, nod(OAS, a, val))
 			}
 			ptr := nod(OADDR, a, nil)
-			n.Type = ptrto(val.Type)
+			n.Type = typPtr(val.Type)
 			gdata(&n, ptr, Widthptr)
 		}
 
@@ -828,7 +828,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	}
 
 	// make new auto *array (3 declare)
-	vauto := temp(ptrto(t))
+	vauto := temp(typPtr(t))
 
 	// set auto to point at new temp or heap (3 assign)
 	var a *Node

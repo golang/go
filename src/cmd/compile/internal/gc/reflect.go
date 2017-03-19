@@ -111,10 +111,10 @@ func mapbucket(t *Type) *Type {
 	dowidth(keytype)
 	dowidth(valtype)
 	if keytype.Width > MAXKEYSIZE {
-		keytype = ptrto(keytype)
+		keytype = typPtr(keytype)
 	}
 	if valtype.Width > MAXVALSIZE {
-		valtype = ptrto(valtype)
+		valtype = typPtr(valtype)
 	}
 
 	field := make([]*Field, 0, 5)
@@ -158,7 +158,7 @@ func mapbucket(t *Type) *Type {
 	// Arrange for the bucket to have no pointers by changing
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
-	otyp := ptrto(bucket)
+	otyp := typPtr(bucket)
 	if !haspointers(t.Val()) && !haspointers(t.Key()) && t.Val().Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
 		otyp = Types[TUINTPTR]
 	}
@@ -197,8 +197,8 @@ func hmap(t *Type) *Type {
 		makefield("B", Types[TUINT8]),
 		makefield("noverflow", Types[TUINT16]),
 		makefield("hash0", Types[TUINT32]),
-		makefield("buckets", ptrto(bucket)),
-		makefield("oldbuckets", ptrto(bucket)),
+		makefield("buckets", typPtr(bucket)),
+		makefield("oldbuckets", typPtr(bucket)),
 		makefield("nevacuate", Types[TUINTPTR]),
 		makefield("overflow", Types[TUNSAFEPTR]),
 	}
@@ -235,12 +235,12 @@ func hiter(t *Type) *Type {
 	// }
 	// must match ../../../../runtime/hashmap.go:hiter.
 	var field [12]*Field
-	field[0] = makefield("key", ptrto(t.Key()))
-	field[1] = makefield("val", ptrto(t.Val()))
-	field[2] = makefield("t", ptrto(Types[TUINT8]))
-	field[3] = makefield("h", ptrto(hmap(t)))
-	field[4] = makefield("buckets", ptrto(mapbucket(t)))
-	field[5] = makefield("bptr", ptrto(mapbucket(t)))
+	field[0] = makefield("key", typPtr(t.Key()))
+	field[1] = makefield("val", typPtr(t.Val()))
+	field[2] = makefield("t", typPtr(Types[TUINT8]))
+	field[3] = makefield("h", typPtr(hmap(t)))
+	field[4] = makefield("buckets", typPtr(mapbucket(t)))
+	field[5] = makefield("bptr", typPtr(mapbucket(t)))
 	field[6] = makefield("overflow0", Types[TUNSAFEPTR])
 	field[7] = makefield("overflow1", Types[TUNSAFEPTR])
 	field[8] = makefield("startBucket", Types[TUINTPTR])
@@ -310,7 +310,7 @@ func methods(t *Type) []*Sig {
 	it := t
 
 	if !isdirectiface(it) {
-		it = ptrto(t)
+		it = typPtr(t)
 	}
 
 	// make list of methods for t,
@@ -845,7 +845,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	sptrWeak := true
 	var sptr *Sym
 	if !t.IsPtr() || t.ptrTo != nil {
-		tptr := ptrto(t)
+		tptr := typPtr(t)
 		if t.Sym != nil || methods(tptr) != nil {
 			sptrWeak = false
 		}
@@ -994,7 +994,7 @@ func typenamesym(t *Type) *Sym {
 func typename(t *Type) *Node {
 	s := typenamesym(t)
 	n := nod(OADDR, s.Def, nil)
-	n.Type = ptrto(s.Def.Type)
+	n.Type = typPtr(s.Def.Type)
 	n.SetAddable(true)
 	n.Typecheck = 1
 	return n
@@ -1016,7 +1016,7 @@ func itabname(t, itype *Type) *Node {
 	}
 
 	n := nod(OADDR, s.Def, nil)
-	n.Type = ptrto(s.Def.Type)
+	n.Type = typPtr(s.Def.Type)
 	n.SetAddable(true)
 	n.Typecheck = 1
 	return n
@@ -1473,7 +1473,7 @@ func dumptypestructs() {
 		t := signatlist[i]
 		dtypesym(t)
 		if t.Sym != nil {
-			dtypesym(ptrto(t))
+			dtypesym(typPtr(t))
 		}
 	}
 
@@ -1550,14 +1550,14 @@ func dumptypestructs() {
 	// but using runtime means fewer copies in .6 files.
 	if myimportpath == "runtime" {
 		for i := EType(1); i <= TBOOL; i++ {
-			dtypesym(ptrto(Types[i]))
+			dtypesym(typPtr(Types[i]))
 		}
-		dtypesym(ptrto(Types[TSTRING]))
-		dtypesym(ptrto(Types[TUNSAFEPTR]))
+		dtypesym(typPtr(Types[TSTRING]))
+		dtypesym(typPtr(Types[TUNSAFEPTR]))
 
 		// emit type structs for error and func(error) string.
 		// The latter is the type of an auto-generated wrapper.
-		dtypesym(ptrto(errortype))
+		dtypesym(typPtr(errortype))
 
 		dtypesym(functype(nil, []*Node{nod(ODCLFIELD, nil, typenod(errortype))}, []*Node{nod(ODCLFIELD, nil, typenod(Types[TSTRING]))}))
 
@@ -1861,7 +1861,7 @@ func zeroaddr(size int64) *Node {
 		s.Def = x
 	}
 	z := nod(OADDR, s.Def, nil)
-	z.Type = ptrto(Types[TUINT8])
+	z.Type = typPtr(Types[TUINT8])
 	z.SetAddable(true)
 	z.Typecheck = 1
 	return z
