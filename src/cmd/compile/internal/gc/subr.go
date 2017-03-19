@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -27,7 +28,10 @@ type Error struct {
 
 var errors []Error
 
-var largeStackFrames []src.XPos // positions of functions whose stack frames are too large (rare)
+var (
+	largeStackFramesMu sync.Mutex // protects largeStackFrames
+	largeStackFrames   []src.XPos // positions of functions whose stack frames are too large (rare)
+)
 
 func errorexit() {
 	flusherrors()

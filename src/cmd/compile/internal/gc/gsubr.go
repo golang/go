@@ -51,10 +51,12 @@ type Progs struct {
 }
 
 // newProgs returns a new Progs for fn.
-func newProgs(fn *Node) *Progs {
+// worker indicates which of the backend workers will use the Progs.
+func newProgs(fn *Node, worker int) *Progs {
 	pp := new(Progs)
 	if Ctxt.CanReuseProgs() {
-		pp.progcache = sharedProgArray[:]
+		sz := len(sharedProgArray) / nBackendWorkers
+		pp.progcache = sharedProgArray[sz*worker : sz*(worker+1)]
 	}
 	pp.curfn = fn
 

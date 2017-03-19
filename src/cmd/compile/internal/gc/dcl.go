@@ -1058,6 +1058,16 @@ func funcsymname(s *types.Sym) string {
 
 // funcsym returns s·f.
 func funcsym(s *types.Sym) *types.Sym {
+	// funcsymsmu here serves to protect not just mutations of funcsyms (below),
+	// but also the package lookup of the func sym name,
+	// since this function gets called concurrently from the backend.
+	// There are no other concurrent package lookups in the backend,
+	// except for the types package, which is protected separately.
+	// Reusing funcsymsmu to also cover this package lookup
+	// avoids a general, broader, expensive package lookup mutex.
+	// Note makefuncsym also does package look-up of func sym names,
+	// but that it is only called serially, from the front end.
+	funcsymsmu.Lock()
 	sf, existed := s.Pkg.LookupOK(funcsymname(s))
 	// Don't export s·f when compiling for dynamic linking.
 	// When dynamically linking, the necessary function
@@ -1066,6 +1076,7 @@ func funcsym(s *types.Sym) *types.Sym {
 	if !Ctxt.Flag_dynlink && !existed {
 		funcsyms = append(funcsyms, s)
 	}
+	funcsymsmu.Unlock()
 	return sf
 }
 

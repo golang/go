@@ -14,6 +14,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 )
 
 type itabEntry struct {
@@ -32,9 +33,13 @@ type ptabEntry struct {
 }
 
 // runtime interface and reflection data structures
-var signatlist = make(map[*types.Type]bool)
-var itabs []itabEntry
-var ptabs []ptabEntry
+var (
+	signatlistmu sync.Mutex // protects signatlist
+	signatlist   = make(map[*types.Type]bool)
+
+	itabs []itabEntry
+	ptabs []ptabEntry
+)
 
 type Sig struct {
 	name   string
@@ -903,12 +908,16 @@ func typesymname(t *types.Type) string {
 
 // Fake package for runtime type info (headers)
 // Don't access directly, use typeLookup below.
-var typepkg = types.NewPkg("type", "type")
+var (
+	typepkgmu sync.Mutex // protects typepkg lookups
+	typepkg   = types.NewPkg("type", "type")
+)
 
 func typeLookup(name string) *types.Sym {
-	// Keep this wrapper function as a future
-	// version may protect typepkg with a mutex.
-	return typepkg.Lookup(name)
+	typepkgmu.Lock()
+	s := typepkg.Lookup(name)
+	typepkgmu.Unlock()
+	return s
 }
 
 func typesym(t *types.Type) *types.Sym {
@@ -935,7 +944,9 @@ func typenamesym(t *types.Type) *types.Sym {
 		Fatalf("typenamesym %v", t)
 	}
 	s := typesym(t)
+	signatlistmu.Lock()
 	addsignat(t)
+	signatlistmu.Unlock()
 	return s
 }
 
