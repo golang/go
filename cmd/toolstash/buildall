@@ -37,9 +37,12 @@ if [ "$pattern" = "" ]; then
 	pattern=.
 fi
 
+targets="$(go tool dist list; echo linux/386/387)"
+targets="$(echo "$targets" | tr '/' '-' | sort | egrep "$pattern" | egrep -v 'android-arm|darwin-arm')"
+
 # put linux, nacl first in the target list to get all the architectures up front.
-targets="$((ls runtime | 9 sed -n 's/^rt0_(.*)_(.*)\.s/\1-\2/p'; echo linux-386-387) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
-	$(ls runtime | 9 sed -n 's/^rt0_(.*)_(.*)\.s/\1-\2/p' | egrep -v 'android-arm|darwin-arm' | egrep "$pattern" | egrep -v 'linux|nacl')"
+targets="$(echo "$targets" | egrep 'linux|nacl') $(echo "$targets" | egrep -v 'linux|nacl')"
+
 if [ "$sete" = true ]; then
 	set -e
 fi
