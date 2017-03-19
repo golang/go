@@ -19,7 +19,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
 
 	// construct lots of values with args that have aux values and place
 	// them in an order that triggers the bug
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("start", OpInitMem, TypeMem, 0, nil),
 			Valu("sp", OpSP, TypeBytePtr, 0, nil),
@@ -87,7 +87,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
 func TestZCSE(t *testing.T) {
 	c := testConfig(t)
 
-	fun := Fun(c, DummyFrontend{t}, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("start", OpInitMem, TypeMem, 0, nil),
 			Valu("sp", OpSP, TypeBytePtr, 0, nil),

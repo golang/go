@@ -44,13 +44,12 @@ func TestLoopConditionS390X(t *testing.T) {
 	//   done:
 	//
 	c := testConfigS390X(t)
-	fe := DummyFrontend{t}
-	fun := Fun(c, fe, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("SP", OpSP, TypeUInt64, 0, nil),
 			Valu("ret", OpAddr, TypeInt64Ptr, 0, nil, "SP"),
-			Valu("N", OpArg, TypeInt64, 0, fe.Auto(TypeInt64)),
+			Valu("N", OpArg, TypeInt64, 0, c.Frontend().Auto(TypeInt64)),
 			Valu("starti", OpConst64, TypeInt64, 0, nil),
 			Valu("startsum", OpConst64, TypeInt64, 0, nil),
 			Goto("b1")),

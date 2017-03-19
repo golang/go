@@ -8,7 +8,7 @@ import "testing"
 
 func TestLiveControlOps(t *testing.T) {
 	c := testConfig(t)
-	f := Fun(c, DummyFrontend{t}, "entry",
+	f := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("x", OpAMD64MOVLconst, TypeInt8, 1, nil),

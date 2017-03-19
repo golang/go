@@ -10,29 +10,28 @@ import (
 
 func TestShiftConstAMD64(t *testing.T) {
 	c := testConfig(t)
-	fe := DummyFrontend{t}
-	fun := makeConstShiftFunc(c, fe, 18, OpLsh64x64, TypeUInt64)
+	fun := makeConstShiftFunc(c, 18, OpLsh64x64, TypeUInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
 
-	fun = makeConstShiftFunc(c, fe, 66, OpLsh64x64, TypeUInt64)
+	fun = makeConstShiftFunc(c, 66, OpLsh64x64, TypeUInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
 
-	fun = makeConstShiftFunc(c, fe, 18, OpRsh64Ux64, TypeUInt64)
+	fun = makeConstShiftFunc(c, 18, OpRsh64Ux64, TypeUInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
 
-	fun = makeConstShiftFunc(c, fe, 66, OpRsh64Ux64, TypeUInt64)
+	fun = makeConstShiftFunc(c, 66, OpRsh64Ux64, TypeUInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
 
-	fun = makeConstShiftFunc(c, fe, 18, OpRsh64x64, TypeInt64)
+	fun = makeConstShiftFunc(c, 18, OpRsh64x64, TypeInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
 
-	fun = makeConstShiftFunc(c, fe, 66, OpRsh64x64, TypeInt64)
+	fun = makeConstShiftFunc(c, 66, OpRsh64x64, TypeInt64)
 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
 }
 
-func makeConstShiftFunc(c *Config, fe Frontend, amount int64, op Op, typ Type) fun {
+func makeConstShiftFunc(c *Conf, amount int64, op Op, typ Type) fun {
 	ptyp := &TypeImpl{Size_: 8, Ptr: true, Name: "ptr"}
-	fun := Fun(c, fe, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("SP", OpSP, TypeUInt64, 0, nil),
@@ -77,9 +76,8 @@ func TestShiftToExtensionAMD64(t *testing.T) {
 		{8, OpLsh16x64, OpRsh16x64, TypeInt16},
 	}
 	c := testConfig(t)
-	fe := DummyFrontend{t}
 	for _, tc := range tests {
-		fun := makeShiftExtensionFunc(c, fe, tc.amount, tc.left, tc.right, tc.typ)
+		fun := makeShiftExtensionFunc(c, tc.amount, tc.left, tc.right, tc.typ)
 		checkOpcodeCounts(t, fun.f, ops)
 	}
 }
@@ -89,9 +87,9 @@ func TestShiftToExtensionAMD64(t *testing.T) {
 //   (rshift (lshift (Const64 [amount])) (Const64 [amount]))
 //
 // This may be equivalent to a sign or zero extension.
-func makeShiftExtensionFunc(c *Config, fe Frontend, amount int64, lshift, rshift Op, typ Type) fun {
+func makeShiftExtensionFunc(c *Conf, amount int64, lshift, rshift Op, typ Type) fun {
 	ptyp := &TypeImpl{Size_: 8, Ptr: true, Name: "ptr"}
-	fun := Fun(c, fe, "entry",
+	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("SP", OpSP, TypeUInt64, 0, nil),
