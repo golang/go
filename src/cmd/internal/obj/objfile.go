@@ -380,7 +380,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 
 func (w *objWriter) writeSym(s *LSym) {
 	ctxt := w.ctxt
-	if ctxt.Debugasm != 0 {
+	if ctxt.Debugasm {
 		w.writeSymDebug(s)
 	}
 

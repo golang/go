@@ -719,9 +719,9 @@ type Pcdata struct {
 type Link struct {
 	Headtype      HeadType
 	Arch          *LinkArch
-	Debugasm      int32
-	Debugvlog     int32
-	Debugdivmod   int32
+	Debugasm      bool
+	Debugvlog     bool
+	Debugdivmod   bool
 	Debugpcln     string
 	Flag_shared   bool
 	Flag_dynlink  bool

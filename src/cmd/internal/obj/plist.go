@@ -15,7 +15,7 @@ type Plist struct {
 }
 
 func Flushplist(ctxt *Link, plist *Plist) {
-	flushplist(ctxt, plist, ctxt.Debugasm == 0)
+	flushplist(ctxt, plist, !ctxt.Debugasm)
 }
 func FlushplistNoFree(ctxt *Link, plist *Plist) {
 	flushplist(ctxt, plist, false)
@@ -28,7 +28,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 
 	var plink *Prog
 	for p := plist.Firstpc; p != nil; p = plink {
-		if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
+		if ctxt.Debugasm && ctxt.Debugvlog {
 			fmt.Printf("obj: %v\n", p)
 		}
 		plink = p.Link

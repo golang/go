@@ -355,7 +355,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if autosize == 0 && cursym.Text.Mark&LEAF == 0 {
-				if ctxt.Debugvlog != 0 {
+				if ctxt.Debugvlog {
 					ctxt.Logf("save suppressed in: %s\n", cursym.Name)
 				}
 
@@ -549,7 +549,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
 				ctxt.Diag("cannot divide in NOSPLIT function")
 			}
-			if ctxt.Debugdivmod != 0 {
+			if ctxt.Debugdivmod {
 				break
 			}
 			if p.From.Type != obj.TYPE_REG {

@@ -597,7 +597,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 	var otxt int64
 	var q *obj.Prog
 	for bflag != 0 {
-		if ctxt.Debugvlog != 0 {
+		if ctxt.Debugvlog {
 			ctxt.Logf("%5.2f span1\n", obj.Cputime())
 		}
 		bflag = 0
