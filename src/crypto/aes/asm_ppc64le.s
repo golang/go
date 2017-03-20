@@ -7,7 +7,7 @@
 // licensed under OpenSSL and CRYPTOGAMS licenses depending on where you obtain
 // it. For further details see http://www.openssl.org/~appro/cryptogams/.
 
-// Original code can be found at the link bellow:
+// Original code can be found at the link below:
 // https://git.openssl.org/?p=openssl.git;a=blob;f=crypto/aes/asm/aesp8-ppc.pl
 
 // The code is based on 627c953376 from 4 Jun 2016. I changed some function
