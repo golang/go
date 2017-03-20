@@ -12,7 +12,21 @@ import (
 
 const (
 	_WorkbufSize = 2048 // in bytes; larger values result in less contention
+
+	// workbufAlloc is the number of bytes to allocate at a time
+	// for new workbufs. This must be a multiple of pageSize and
+	// should be a multiple of _WorkbufSize.
+	//
+	// Larger values reduce workbuf allocation overhead. Smaller
+	// values reduce heap fragmentation.
+	workbufAlloc = 32 << 10
 )
+
+func init() {
+	if workbufAlloc%pageSize != 0 || workbufAlloc%_WorkbufSize != 0 {
+		throw("bad workbufAlloc")
+	}
+}
 
 // Garbage collector work pool abstraction.
 //
@@ -318,7 +332,29 @@ func getempty() *workbuf {
 		}
 	}
 	if b == nil {
-		b = (*workbuf)(persistentalloc(unsafe.Sizeof(*b), sys.CacheLineSize, &memstats.gc_sys))
+		// Allocate more workbufs.
+		var s *mspan
+		systemstack(func() {
+			s = mheap_.allocManual(workbufAlloc/pageSize, &memstats.gc_sys)
+		})
+		if s == nil {
+			throw("out of memory")
+		}
+		// Record the new span in the busy list.
+		lock(&work.wbufSpans.lock)
+		work.wbufSpans.busy.insert(s)
+		unlock(&work.wbufSpans.lock)
+		// Slice up the span into new workbufs. Return one and
+		// put the rest on the empty list.
+		for i := uintptr(0); i+_WorkbufSize <= workbufAlloc; i += _WorkbufSize {
+			newb := (*workbuf)(unsafe.Pointer(s.base() + i))
+			newb.nobj = 0
+			if i == 0 {
+				b = newb
+			} else {
+				putempty(newb)
+			}
+		}
 	}
 	return b
 }
