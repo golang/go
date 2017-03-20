@@ -205,7 +205,7 @@ var importedObjectTests = []struct {
 }{
 	{"math.Pi", "const Pi untyped float"},
 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
-	{"io.ReadWriter", "type ReadWriter interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},
+	{"io.ReadWriter", "type ReadWriter interface{Reader; Writer}"},
 	{"math.Sin", "func Sin(x float64) float64"},
 	// TODO(gri) add more tests
 }

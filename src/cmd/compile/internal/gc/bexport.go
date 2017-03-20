@@ -753,39 +753,7 @@ func (p *exporter) typ(t *Type) {
 
 	case TINTER:
 		p.tag(interfaceTag)
-		// gc doesn't separate between embedded interfaces
-		// and methods declared explicitly with an interface
-		p.int(0) // no embedded interfaces
-
-		// Because the compiler flattens interfaces containing
-		// embedded interfaces, it is possible to create interface
-		// types that recur through an unnamed type.
-		// If trackAllTypes is disabled, such recursion is not
-		// detected, leading to a stack overflow during export
-		// (issue #16369).
-		// As a crude work-around we terminate deep recursion
-		// through interface types with an empty interface and
-		// report an error.
-		// This will catch endless recursion, but is unlikely
-		// to trigger for valid, deeply nested types given the
-		// high threshold.
-		// It would be ok to continue without reporting an error
-		// since the export format is valid. But a subsequent
-		// import would import an incorrect type. The textual
-		// exporter does not report an error but importing the
-		// resulting package will lead to a syntax error during
-		// import.
-		// TODO(gri) remove this once we have a permanent fix
-		// for the issue.
-		if p.nesting > 100 {
-			p.int(0) // 0 methods to indicate empty interface
-			yyerrorl(t.Pos, "cannot export unnamed recursive interface")
-			break
-		}
-
-		p.nesting++
 		p.methodList(t)
-		p.nesting--
 
 	case TMAP:
 		p.tag(mapTag)
@@ -830,17 +798,43 @@ func (p *exporter) field(f *Field) {
 }
 
 func (p *exporter) methodList(t *Type) {
-	if p.trace && t.NumFields() > 0 {
-		p.tracef("methods {>")
-		defer p.tracef("<\n} ")
+	var embeddeds, methods []*Field
+
+	for _, m := range t.Methods().Slice() {
+		if m.Sym != nil {
+			methods = append(methods, m)
+		} else {
+			embeddeds = append(embeddeds, m)
+		}
 	}
 
-	p.int(t.NumFields())
-	for _, m := range t.Fields().Slice() {
+	if p.trace && len(embeddeds) > 0 {
+		p.tracef("embeddeds {>")
+	}
+	p.int(len(embeddeds))
+	for _, m := range embeddeds {
+		if p.trace {
+			p.tracef("\n")
+		}
+		p.pos(m.Nname)
+		p.typ(m.Type)
+	}
+	if p.trace && len(embeddeds) > 0 {
+		p.tracef("<\n} ")
+	}
+
+	if p.trace && len(methods) > 0 {
+		p.tracef("methods {>")
+	}
+	p.int(len(methods))
+	for _, m := range methods {
 		if p.trace {
 			p.tracef("\n")
 		}
 		p.method(m)
+	}
+	if p.trace && len(methods) > 0 {
+		p.tracef("<\n} ")
 	}
 }
 

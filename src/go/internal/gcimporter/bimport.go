@@ -492,12 +492,13 @@ func (p *importer) typ(parent *types.Package) types.Type {
 			p.record(nil)
 		}
 
-		// no embedded interfaces with gc compiler
-		if p.int() != 0 {
-			errorf("unexpected embedded interface")
+		var embeddeds []*types.Named
+		for n := p.int(); n > 0; n-- {
+			p.pos()
+			embeddeds = append(embeddeds, p.typ(parent).(*types.Named))
 		}
 
-		t := types.NewInterface(p.methodList(parent), nil)
+		t := types.NewInterface(p.methodList(parent), embeddeds)
 		if p.trackAllTypes {
 			p.typList[n] = t
 		}
