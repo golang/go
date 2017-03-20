@@ -2176,7 +2176,8 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr b
 	if p.Name == "main" {
 		gcargs[1] = "main"
 	}
-	if p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal")) {
+	compilingRuntime := p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal"))
+	if compilingRuntime {
 		// runtime compiles with a special gc flag to emit
 		// additional reflect type data.
 		gcargs = append(gcargs, "-+")
@@ -2211,7 +2212,22 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr b
 		}
 	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", b.WorkDir, buildGcflags, gcargs, "-D", p.Internal.LocalPrefix, importArgs}
+	gcflags := buildGcflags
+	if compilingRuntime {
+		// Remove -N, if present.
+		// It is not possible to build the runtime with no optimizations,
+		// because the compiler cannot eliminate enough write barriers.
+		gcflags = make([]string, len(buildGcflags))
+		copy(gcflags, buildGcflags)
+		for i := 0; i < len(gcflags); i++ {
+			if gcflags[i] == "-N" {
+				copy(gcflags[i:], gcflags[i+1:])
+				gcflags = gcflags[:len(gcflags)-1]
+				i--
+			}
+		}
+	}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", b.WorkDir, gcflags, gcargs, "-D", p.Internal.LocalPrefix, importArgs}
 	if ofile == archive {
 		args = append(args, "-pack")
 	}

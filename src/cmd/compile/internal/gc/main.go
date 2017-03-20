@@ -268,6 +268,9 @@ func Main(archInit func(*Arch)) {
 	} else if flag_race || flag_msan {
 		instrumenting = true
 	}
+	if compiling_runtime && Debug['N'] != 0 {
+		log.Fatal("cannot disable optimizations while compiling runtime")
+	}
 
 	// parse -d argument
 	if debugstr != "" {
