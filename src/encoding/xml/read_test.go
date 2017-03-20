@@ -752,3 +752,159 @@ func TestInvalidInnerXMLType(t *testing.T) {
 		t.Errorf("NotInnerXML = %v, want nil", v.NotInnerXML)
 	}
 }
+
+type Child struct {
+	G struct {
+		I int
+	}
+}
+
+type ChildToEmbed struct {
+	X bool
+}
+
+type Parent struct {
+	I        int
+	IPtr     *int
+	Is       []int
+	IPtrs    []*int
+	F        float32
+	FPtr     *float32
+	Fs       []float32
+	FPtrs    []*float32
+	B        bool
+	BPtr     *bool
+	Bs       []bool
+	BPtrs    []*bool
+	Bytes    []byte
+	BytesPtr *[]byte
+	S        string
+	SPtr     *string
+	Ss       []string
+	SPtrs    []*string
+	MyI      MyInt
+	Child    Child
+	Children []Child
+	ChildPtr *Child
+	ChildToEmbed
+}
+
+const (
+	emptyXML = `
+<Parent>
+    <I></I>
+    <IPtr></IPtr>
+    <Is></Is>
+    <IPtrs></IPtrs>
+    <F></F>
+    <FPtr></FPtr>
+    <Fs></Fs>
+    <FPtrs></FPtrs>
+    <B></B>
+    <BPtr></BPtr>
+    <Bs></Bs>
+    <BPtrs></BPtrs>
+    <Bytes></Bytes>
+    <BytesPtr></BytesPtr>
+    <S></S>
+    <SPtr></SPtr>
+    <Ss></Ss>
+    <SPtrs></SPtrs>
+    <MyI></MyI>
+    <Child></Child>
+    <Children></Children>
+    <ChildPtr></ChildPtr>
+    <X></X>
+</Parent>
+`
+)
+
+// github.com/golang/go/issues/13417
+func TestUnmarshalEmptyValues(t *testing.T) {
+	// Test first with a zero-valued dst.
+	v := new(Parent)
+	if err := Unmarshal([]byte(emptyXML), v); err != nil {
+		t.Fatalf("zero: Unmarshal failed: got %v", err)
+	}
+
+	zBytes, zInt, zStr, zFloat, zBool := []byte{}, 0, "", float32(0), false
+	want := &Parent{
+		IPtr:         &zInt,
+		Is:           []int{zInt},
+		IPtrs:        []*int{&zInt},
+		FPtr:         &zFloat,
+		Fs:           []float32{zFloat},
+		FPtrs:        []*float32{&zFloat},
+		BPtr:         &zBool,
+		Bs:           []bool{zBool},
+		BPtrs:        []*bool{&zBool},
+		Bytes:        []byte{},
+		BytesPtr:     &zBytes,
+		SPtr:         &zStr,
+		Ss:           []string{zStr},
+		SPtrs:        []*string{&zStr},
+		Children:     []Child{{}},
+		ChildPtr:     new(Child),
+		ChildToEmbed: ChildToEmbed{},
+	}
+	if !reflect.DeepEqual(v, want) {
+		t.Fatalf("zero: Unmarshal:\nhave:  %#+v\nwant: %#+v", v, want)
+	}
+
+	// Test with a pre-populated dst.
+	// Multiple addressable copies, as pointer-to fields will replace value during unmarshal.
+	vBytes0, vInt0, vStr0, vFloat0, vBool0 := []byte("x"), 1, "x", float32(1), true
+	vBytes1, vInt1, vStr1, vFloat1, vBool1 := []byte("x"), 1, "x", float32(1), true
+	vInt2, vStr2, vFloat2, vBool2 := 1, "x", float32(1), true
+	v = &Parent{
+		I:            vInt0,
+		IPtr:         &vInt1,
+		Is:           []int{vInt0},
+		IPtrs:        []*int{&vInt2},
+		F:            vFloat0,
+		FPtr:         &vFloat1,
+		Fs:           []float32{vFloat0},
+		FPtrs:        []*float32{&vFloat2},
+		B:            vBool0,
+		BPtr:         &vBool1,
+		Bs:           []bool{vBool0},
+		BPtrs:        []*bool{&vBool2},
+		Bytes:        vBytes0,
+		BytesPtr:     &vBytes1,
+		S:            vStr0,
+		SPtr:         &vStr1,
+		Ss:           []string{vStr0},
+		SPtrs:        []*string{&vStr2},
+		MyI:          MyInt(vInt0),
+		Child:        Child{G: struct{ I int }{I: vInt0}},
+		Children:     []Child{{G: struct{ I int }{I: vInt0}}},
+		ChildPtr:     &Child{G: struct{ I int }{I: vInt0}},
+		ChildToEmbed: ChildToEmbed{X: vBool0},
+	}
+	if err := Unmarshal([]byte(emptyXML), v); err != nil {
+		t.Fatalf("populated: Unmarshal failed: got %v", err)
+	}
+
+	want = &Parent{
+		IPtr:     &zInt,
+		Is:       []int{vInt0, zInt},
+		IPtrs:    []*int{&vInt0, &zInt},
+		FPtr:     &zFloat,
+		Fs:       []float32{vFloat0, zFloat},
+		FPtrs:    []*float32{&vFloat0, &zFloat},
+		BPtr:     &zBool,
+		Bs:       []bool{vBool0, zBool},
+		BPtrs:    []*bool{&vBool0, &zBool},
+		Bytes:    []byte{},
+		BytesPtr: &zBytes,
+		SPtr:     &zStr,
+		Ss:       []string{vStr0, zStr},
+		SPtrs:    []*string{&vStr0, &zStr},
+		Child:    Child{G: struct{ I int }{I: vInt0}}, // I should == zInt0? (zero value)
+		Children: []Child{{G: struct{ I int }{I: vInt0}}, {}},
+		ChildPtr: &Child{G: struct{ I int }{I: vInt0}}, // I should == zInt0? (zero value)
+	}
+	if !reflect.DeepEqual(v, want) {
+		t.Fatalf("populated: Unmarshal:\nhave:  %#+v\nwant: %#+v", v, want)
+	}
+}
