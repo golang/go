@@ -533,7 +533,7 @@ func (p *importer) typ() *Type {
 			t = Types[TINTER]
 		} else {
 			t = p.newtyp(TINTER)
-			t.SetFields(ml)
+			t.SetInterface(ml)
 		}
 		checkwidth(t)
 

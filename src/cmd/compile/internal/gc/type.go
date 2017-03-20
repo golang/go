@@ -865,6 +865,7 @@ func (t *Type) FieldSlice() []*Field {
 
 // SetFields sets struct/interface type t's fields/methods to fields.
 func (t *Type) SetFields(fields []*Field) {
+	t.wantEtype(TSTRUCT)
 	for _, f := range fields {
 		// If type T contains a field F with a go:notinheap
 		// type, then T must also be go:notinheap. Otherwise,
@@ -877,6 +878,11 @@ func (t *Type) SetFields(fields []*Field) {
 		}
 	}
 	t.Fields().Set(fields)
+}
+
+func (t *Type) SetInterface(methods []*Field) {
+	t.wantEtype(TINTER)
+	t.Fields().Set(methods)
 }
 
 func (t *Type) isDDDArray() bool {

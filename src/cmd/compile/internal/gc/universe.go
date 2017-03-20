@@ -382,7 +382,7 @@ func makeErrorInterface() *Type {
 	field.Type = f
 
 	t := typ(TINTER)
-	t.SetFields([]*Field{field})
+	t.SetInterface([]*Field{field})
 	return t
 }
 
