@@ -1722,6 +1722,9 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 			p.want(_Semi)
 			if p.tok != _Lbrace {
 				post = p.simpleStmt(nil, false)
+				if a, _ := post.(*AssignStmt); a != nil && a.Op == Def {
+					p.syntax_error_at(a.Pos(), "cannot declare in post statement of for loop")
+				}
 			}
 		} else if p.tok != _Lbrace {
 			condStmt = p.simpleStmt(nil, false)
