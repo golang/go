@@ -65,7 +65,6 @@ const (
 	// pseudo-types for frame layout
 	TFUNCARGS
 	TCHANARGS
-	TINTERMETH
 
 	// pseudo-types for import/export
 	TDDDFIELD // wrapper: contained type is a ... field
@@ -420,8 +419,6 @@ func typ(et EType) *Type {
 		t.Extra = new(ForwardType)
 	case TFUNC:
 		t.Extra = new(FuncType)
-	case TINTERMETH:
-		t.Extra = InterMethType{}
 	case TSTRUCT:
 		t.Extra = new(StructType)
 	case TINTER:
@@ -807,8 +804,6 @@ func (t *Type) Nname() *Node {
 	switch t.Etype {
 	case TFUNC:
 		return t.Extra.(*FuncType).Nname
-	case TINTERMETH:
-		return t.Extra.(InterMethType).Nname
 	}
 	Fatalf("Type.Nname %v %v", t.Etype, t)
 	return nil
@@ -819,8 +814,6 @@ func (t *Type) SetNname(n *Node) {
 	switch t.Etype {
 	case TFUNC:
 		t.Extra.(*FuncType).Nname = n
-	case TINTERMETH:
-		t.Extra = InterMethType{Nname: n}
 	default:
 		Fatalf("Type.SetNname %v %v", t.Etype, t)
 	}
@@ -846,6 +839,7 @@ func (t *Type) Fields() *Fields {
 	case TSTRUCT:
 		return &t.Extra.(*StructType).fields
 	case TINTER:
+		dowidth(t)
 		return &t.Extra.(*InterType).fields
 	}
 	Fatalf("Fields: type %v does not have fields", t)
@@ -882,7 +876,7 @@ func (t *Type) SetFields(fields []*Field) {
 
 func (t *Type) SetInterface(methods []*Field) {
 	t.wantEtype(TINTER)
-	t.Fields().Set(methods)
+	t.Methods().Set(methods)
 }
 
 func (t *Type) isDDDArray() bool {

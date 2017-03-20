@@ -3571,8 +3571,15 @@ func copytype(n *Node, t *Type) {
 	if n.Name != nil {
 		t.Vargen = n.Name.Vargen
 	}
-	t.methods = Fields{}
-	t.allMethods = Fields{}
+
+	// spec: "The declared type does not inherit any methods bound
+	// to the existing type, but the method set of an interface
+	// type [...] remains unchanged."
+	if !t.IsInterface() {
+		t.methods = Fields{}
+		t.allMethods = Fields{}
+	}
+
 	t.nod = n
 	t.SetDeferwidth(false)
 	t.ptrTo = ptrTo

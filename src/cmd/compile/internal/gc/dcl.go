@@ -7,7 +7,6 @@ package gc
 import (
 	"cmd/internal/src"
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -705,24 +704,19 @@ func structfield(n *Node) *Field {
 // checkdupfields emits errors for duplicately named fields or methods in
 // a list of struct or interface types.
 func checkdupfields(what string, ts ...*Type) {
-	lno := lineno
-
 	seen := make(map[*Sym]bool)
 	for _, t := range ts {
 		for _, f := range t.Fields().Slice() {
-			if f.Sym == nil || f.Nname == nil || isblank(f.Nname) {
+			if f.Sym == nil || isblanksym(f.Sym) || f.Nname == nil {
 				continue
 			}
 			if seen[f.Sym] {
-				lineno = f.Nname.Pos
-				yyerror("duplicate %s %s", what, f.Sym.Name)
+				yyerrorl(f.Nname.Pos, "duplicate %s %s", what, f.Sym.Name)
 				continue
 			}
 			seen[f.Sym] = true
 		}
 	}
-
-	lineno = lno
 }
 
 // convert a parsed id/type list into
@@ -805,50 +799,26 @@ func interfacefield(n *Node) *Field {
 		yyerror("interface method cannot have annotation")
 	}
 
-	f := newField()
-	f.SetIsddd(n.Isddd())
+	// MethodSpec = MethodName Signature | InterfaceTypeName .
+	//
+	// If Left != nil, then Left is MethodName and Right is Signature.
+	// Otherwise, Right is InterfaceTypeName.
 
 	if n.Right != nil {
-		if n.Left != nil {
-			// queue resolution of method type for later.
-			// right now all we need is the name list.
-			// avoids cycles for recursive interface types.
-			n.Type = typ(TINTERMETH)
-			n.Type.SetNname(n.Right)
-			n.Left.Type = n.Type
-			queuemethod(n)
-
-			if n.Left.Op == ONAME {
-				f.Nname = n.Left
-				f.Embedded = n.Embedded
-				f.Sym = f.Nname.Sym
-			}
-		} else {
-			n.Right = typecheck(n.Right, Etype)
-			n.Type = n.Right.Type
-
-			if n.Embedded != 0 {
-				checkembeddedtype(n.Type)
-			}
-
-			if n.Type != nil {
-				switch n.Type.Etype {
-				case TINTER:
-					break
-
-				case TFORW:
-					yyerror("interface type loop involving %v", n.Type)
-					f.SetBroke(true)
-
-				default:
-					yyerror("interface contains embedded non-interface %v", n.Type)
-					f.SetBroke(true)
-				}
-			}
-		}
+		n.Right = typecheck(n.Right, Etype)
+		n.Type = n.Right.Type
+		n.Right = nil
 	}
 
-	n.Right = nil
+	f := newField()
+	if n.Left != nil {
+		f.Nname = n.Left
+		f.Sym = f.Nname.Sym
+	} else {
+		// Placeholder ONAME just to hold Pos.
+		// TODO(mdempsky): Add Pos directly to Field instead.
+		f.Nname = newname(nblank.Sym)
+	}
 
 	f.Type = n.Type
 	if f.Type == nil {
@@ -876,31 +846,12 @@ func tointerface0(t *Type, l []*Node) *Type {
 	var fields []*Field
 	for _, n := range l {
 		f := interfacefield(n)
-
-		if n.Left == nil && f.Type.IsInterface() {
-			// embedded interface, inline methods
-			for _, t1 := range f.Type.Fields().Slice() {
-				f = newField()
-				f.Type = t1.Type
-				f.SetBroke(t1.Broke())
-				f.Sym = t1.Sym
-				if f.Sym != nil {
-					f.Nname = newname(f.Sym)
-				}
-				fields = append(fields, f)
-			}
-		} else {
-			fields = append(fields, f)
-		}
 		if f.Broke() {
 			t.SetBroke(true)
 		}
+		fields = append(fields, f)
 	}
-	sort.Sort(methcmp(fields))
 	t.SetInterface(fields)
-
-	checkdupfields("method", t)
-	checkwidth(t)
 
 	return t
 }

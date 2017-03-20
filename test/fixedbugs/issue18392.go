@@ -7,5 +7,8 @@
 package p
 
 type A interface {
-	Fn(A.Fn) // ERROR "type A has no method A.Fn"
+	// TODO(mdempsky): This should be an error, but this error is
+	// nonsense. The error should actually mention that there's a
+	// type loop.
+	Fn(A.Fn) // ERROR "type A has no method Fn"
 }
