@@ -150,9 +150,8 @@ type Type struct {
 	sliceOf *Type
 	ptrTo   *Type
 
-	Sym    *Sym     // symbol containing name, for named types
-	Vargen int32    // unique name for OTYPE/ONAME
-	Pos    src.XPos // position at which this type was declared, implicitly or explicitly
+	Sym    *Sym  // symbol containing name, for named types
+	Vargen int32 // unique name for OTYPE/ONAME
 
 	Etype  EType // kind of type
 	Trecur uint8 // to detect loops
@@ -408,7 +407,6 @@ func typ(et EType) *Type {
 	t := &Type{
 		Etype: et,
 		Width: BADWIDTH,
-		Pos:   lineno,
 	}
 	t.Orig = t
 	// TODO(josharian): lazily initialize some of these?
