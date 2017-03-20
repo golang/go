@@ -239,60 +239,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	 * find leaf subroutines
 	 * strip NOPs
 	 * expand RET
-	 * expand BECOME pseudo
 	 */
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f noops\n", obj.Cputime())
 	}
 
 	var q *obj.Prog
-	var q1 *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {
 		switch p.As {
-		/* too hard, just leave alone */
 		case obj.ATEXT:
 			q = p
+			p.Mark |= LEAF
 
-			p.Mark |= LABEL | LEAF | SYNC
-			if p.Link != nil {
-				p.Link.Mark |= LABEL
-			}
-
-		case ASYNC,
-			AWORD:
+		case ABL, ABCL:
 			q = p
-			p.Mark |= LABEL | SYNC
-			continue
-
-		case AMOVW, AMOVWZ, AMOVD:
-			q = p
-			if p.From.Reg >= REG_RESERVED || p.To.Reg >= REG_RESERVED {
-				p.Mark |= LABEL | SYNC
-			}
-			continue
-
-		case AFABS,
-			AFADD,
-			AFDIV,
-			AFMADD,
-			AFMOVD,
-			AFMOVS,
-			AFMSUB,
-			AFMUL,
-			AFNABS,
-			AFNEG,
-			ALEDBR,
-			ALDEBR,
-			AFSUB:
-			q = p
-
-			p.Mark |= FLOAT
-			continue
-
-		case ABL,
-			ABCL,
-			obj.ADUFFZERO,
-			obj.ADUFFCOPY:
 			cursym.Text.Mark &^= LEAF
 			fallthrough
 
@@ -320,54 +280,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			ACMPUBLE,
 			ACMPUBLT,
 			ACMPUBNE:
+			q = p
 			p.Mark |= BRANCH
-			q = p
-			q1 = p.Pcond
-			if q1 != nil {
-				for q1.As == obj.ANOP {
-					q1 = q1.Link
-					p.Pcond = q1
+			if p.Pcond != nil {
+				q := p.Pcond
+				for q.As == obj.ANOP {
+					q = q.Link
+					p.Pcond = q
 				}
-
-				if q1.Mark&LEAF == 0 {
-					q1.Mark |= LABEL
-				}
-			} else {
-				p.Mark |= LABEL
 			}
-			q1 = p.Link
-			if q1 != nil {
-				q1.Mark |= LABEL
-			}
-			continue
-
-		case AFCMPO, AFCMPU:
-			q = p
-			p.Mark |= FCMP | FLOAT
-			continue
-
-		case obj.ARET:
-			q = p
-			if p.Link != nil {
-				p.Link.Mark |= LABEL
-			}
-			continue
 
 		case obj.ANOP:
-			q1 = p.Link
-			q.Link = q1 /* q is non-nop */
-			q1.Mark |= p.Mark
-			continue
+			q.Link = p.Link /* q is non-nop */
+			p.Link.Mark |= p.Mark
 
 		default:
 			q = p
-			continue
 		}
 	}
 
 	autosize := int32(0)
-	var p1 *obj.Prog
-	var p2 *obj.Prog
 	var pLast *obj.Prog
 	var pPre *obj.Prog
 	var pPreempt *obj.Prog
@@ -397,7 +329,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			p.To.Offset = int64(autosize)
 
-			q = p
+			q := p
 
 			if p.From3.Offset&obj.NOSPLIT == 0 {
 				p, pPreempt = stacksplitPre(ctxt, p, autosize) // emit pre part of split check
@@ -476,7 +408,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q = obj.Appendp(ctxt, q)
 				q.As = ABEQ
 				q.To.Type = obj.TYPE_BRANCH
-				p1 = q
+				p1 := q
 
 				q = obj.Appendp(ctxt, q)
 				q.As = AMOVD
@@ -504,7 +436,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q = obj.Appendp(ctxt, q)
 				q.As = ABNE
 				q.To.Type = obj.TYPE_BRANCH
-				p2 = q
+				p2 := q
 
 				q = obj.Appendp(ctxt, q)
 				q.As = AADD
@@ -530,11 +462,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 		case obj.ARET:
-			if p.From.Type == obj.TYPE_CONST {
-				ctxt.Diag("using BECOME (%v) is not supported!", p)
-				break
-			}
-
 			retTarget := p.To.Sym
 
 			if cursym.Text.Mark&LEAF != 0 {
@@ -608,55 +535,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		}
 	}
 	if wasSplit {
-		pLast = stacksplitPost(ctxt, pLast, pPre, pPreempt, autosize) // emit post part of split check
+		stacksplitPost(ctxt, pLast, pPre, pPreempt, autosize) // emit post part of split check
 	}
 }
 
-/*
-// instruction scheduling
-	if(debug['Q'] == 0)
-		return;
-
-	curtext = nil;
-	q = nil;	// p - 1
-	q1 = firstp;	// top of block
-	o = 0;		// count of instructions
-	for(p = firstp; p != nil; p = p1) {
-		p1 = p->link;
-		o++;
-		if(p->mark & NOSCHED){
-			if(q1 != p){
-				sched(q1, q);
-			}
-			for(; p != nil; p = p->link){
-				if(!(p->mark & NOSCHED))
-					break;
-				q = p;
-			}
-			p1 = p;
-			q1 = p;
-			o = 0;
-			continue;
-		}
-		if(p->mark & (LABEL|SYNC)) {
-			if(q1 != p)
-				sched(q1, q);
-			q1 = p;
-			o = 1;
-		}
-		if(p->mark & (BRANCH|SYNC)) {
-			sched(q1, p);
-			q1 = p1;
-			o = 0;
-		}
-		if(o >= NSCHED) {
-			sched(q1, p);
-			q1 = p1;
-			o = 0;
-		}
-		q = p;
-	}
-*/
 func stacksplitPre(ctxt *obj.Link, p *obj.Prog, framesize int32) (*obj.Prog, *obj.Prog) {
 	var q *obj.Prog
 
