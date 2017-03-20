@@ -795,6 +795,16 @@ var work struct {
 	empty lfstack                  // lock-free list of empty blocks workbuf
 	pad0  [sys.CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
 
+	wbufSpans struct {
+		lock mutex
+		// busy is a list of all spans containing workbufs on
+		// one of the workbuf lists.
+		busy mSpanList
+	}
+
+	// Restore 64-bit alignment on 32-bit.
+	_ uint32
+
 	// bytesMarked is the number of bytes marked this cycle. This
 	// includes bytes blackened in scanned objects, noscan objects
 	// that go straight to black, and permagrey objects scanned by
