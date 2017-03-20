@@ -962,6 +962,8 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
 
 	c := ts.Client()
 	c.Timeout = time.Second
+	// Force separate connection for each:
+	c.Transport.(*Transport).DisableKeepAlives = true
 
 	fetch := func(num int, response chan<- string) {
 		resp, err := c.Get(ts.URL)
