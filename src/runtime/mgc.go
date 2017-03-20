@@ -797,6 +797,9 @@ var work struct {
 
 	wbufSpans struct {
 		lock mutex
+		// free is a list of spans dedicated to workbufs, but
+		// that don't currently contain any workbufs.
+		free mSpanList
 		// busy is a list of all spans containing workbufs on
 		// one of the workbuf lists.
 		busy mSpanList
@@ -1480,6 +1483,10 @@ func gcMarkTermination() {
 	// world stopped.
 	mProf_Flush()
 
+	// Prepare workbufs for freeing by the sweeper. We do this
+	// asynchronously because it can take non-trivial time.
+	prepareFreeWorkbufs()
+
 	// Free stack spans. This must be done between GC cycles.
 	systemstack(freeStackSpans)
 
@@ -1922,6 +1929,10 @@ func gcSweep(mode gcMode) {
 		// Sweep all spans eagerly.
 		for sweepone() != ^uintptr(0) {
 			sweep.npausesweep++
+		}
+		// Free workbufs eagerly.
+		prepareFreeWorkbufs()
+		for freeSomeWbufs(false) {
 		}
 		// All "free" events for this mark/sweep cycle have
 		// now happened, so we can make this profile cycle

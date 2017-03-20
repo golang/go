@@ -56,6 +56,9 @@ func bgsweep(c chan int) {
 			sweep.nbgsweep++
 			Gosched()
 		}
+		for freeSomeWbufs(true) {
+			Gosched()
+		}
 		lock(&sweep.lock)
 		if !gosweepdone() {
 			// This can happen if a GC runs between

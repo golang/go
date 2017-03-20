@@ -1204,6 +1204,31 @@ func (list *mSpanList) insertBack(span *mspan) {
 	span.list = list
 }
 
+// takeAll removes all spans from other and inserts them at the front
+// of list.
+func (list *mSpanList) takeAll(other *mSpanList) {
+	if other.isEmpty() {
+		return
+	}
+
+	// Reparent everything in other to list.
+	for s := other.first; s != nil; s = s.next {
+		s.list = list
+	}
+
+	// Concatenate the lists.
+	if list.isEmpty() {
+		*list = *other
+	} else {
+		// Neither list is empty. Put other before list.
+		other.last.next = list.first
+		list.first.prev = other.last
+		list.first = other.first
+	}
+
+	other.first, other.last = nil, nil
+}
+
 const (
 	_KindSpecialFinalizer = 1
 	_KindSpecialProfile   = 2
