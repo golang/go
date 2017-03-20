@@ -535,7 +535,6 @@ func (p *importer) typ() *Type {
 			t = p.newtyp(TINTER)
 			t.SetInterface(ml)
 		}
-		checkwidth(t)
 
 	case mapTag:
 		t = p.newtyp(TMAP)

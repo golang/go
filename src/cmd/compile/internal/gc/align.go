@@ -4,6 +4,10 @@
 
 package gc
 
+import (
+	"sort"
+)
+
 // machine size and rounding alignment is dictated around
 // the size of a pointer, set in betypeinit (see ../amd64/galign.go).
 var defercalc int
@@ -13,6 +17,47 @@ func Rnd(o int64, r int64) int64 {
 		Fatalf("rnd %d", r)
 	}
 	return (o + r - 1) &^ (r - 1)
+}
+
+// expandiface computes the method set for interface type t by
+// expanding embedded interfaces.
+func expandiface(t *Type) {
+	var fields []*Field
+	for _, m := range t.Methods().Slice() {
+		if m.Sym != nil {
+			fields = append(fields, m)
+			continue
+		}
+
+		if !m.Type.IsInterface() {
+			yyerrorl(m.Nname.Pos, "interface contains embedded non-interface %v", m.Type)
+			m.SetBroke(true)
+			t.SetBroke(true)
+			// Add to fields so that error messages
+			// include the broken embedded type when
+			// printing t.
+			// TODO(mdempsky): Revisit this.
+			fields = append(fields, m)
+			continue
+		}
+
+		// Embedded interface: duplicate all methods
+		// (including broken ones, if any) and add to t's
+		// method set.
+		for _, t1 := range m.Type.Fields().Slice() {
+			f := newField()
+			f.Type = t1.Type
+			f.SetBroke(t1.Broke())
+			f.Sym = t1.Sym
+			f.Nname = m.Nname // preserve embedding position
+			fields = append(fields, f)
+		}
+	}
+	sort.Sort(methcmp(fields))
+
+	// Access fields directly to avoid recursively calling dowidth
+	// within Type.Fields().
+	t.Extra.(*InterType).fields.Set(fields)
 }
 
 func offmod(t *Type) {
@@ -203,9 +248,8 @@ func dowidth(t *Type) {
 
 	case TINTER: // implemented as 2 pointers
 		w = 2 * int64(Widthptr)
-
 		t.Align = uint8(Widthptr)
-		offmod(t)
+		expandiface(t)
 
 	case TCHAN: // implemented as pointer
 		w = int64(Widthptr)
@@ -314,6 +358,14 @@ func dowidth(t *Type) {
 			Fatalf("invalid alignment for %v", t)
 		}
 		t.Align = uint8(w)
+	}
+
+	if t.Etype == TINTER {
+		// We defer calling these functions until after
+		// setting t.Width and t.Align so the recursive calls
+		// to dowidth within t.Fields() will succeed.
+		checkdupfields("method", t)
+		offmod(t)
 	}
 
 	lineno = lno
