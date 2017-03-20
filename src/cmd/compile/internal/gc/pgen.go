@@ -12,7 +12,6 @@ import (
 	"cmd/internal/sys"
 	"fmt"
 	"sort"
-	"strings"
 )
 
 // "Portable" code generation.
@@ -278,11 +277,6 @@ func compile(fn *Node) {
 	dowidth(fn.Type)
 
 	if fn.Nbody.Len() == 0 {
-		if pure_go || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
-			yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
-			return
-		}
-
 		emitptrargsmap()
 		return
 	}
