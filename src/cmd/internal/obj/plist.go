@@ -102,8 +102,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 			continue
 		}
 		found := false
-		var p *Prog
-		for p = s.Text; p != nil; p = p.Link {
+		for p := s.Text; p != nil; p = p.Link {
 			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
 				found = true
 				break
@@ -111,7 +110,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 		}
 
 		if !found {
-			p = Appendp(ctxt, s.Text)
+			p := Appendp(ctxt, s.Text)
 			p.As = AFUNCDATA
 			p.From.Type = TYPE_CONST
 			p.From.Offset = FUNCDATA_ArgsPointerMaps
