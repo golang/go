@@ -897,7 +897,7 @@ func tointerface0(t *Type, l []*Node) *Type {
 		}
 	}
 	sort.Sort(methcmp(fields))
-	t.SetFields(fields)
+	t.SetInterface(fields)
 
 	checkdupfields("method", t)
 	checkwidth(t)
