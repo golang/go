@@ -526,9 +526,6 @@ func (p *importer) typ() *Type {
 		functypefield0(t, nil, params, result)
 
 	case interfaceTag:
-		if p.int() != 0 {
-			formatErrorf("unexpected embedded interface")
-		}
 		if ml := p.methodList(); len(ml) == 0 {
 			t = Types[TINTER]
 		} else {
@@ -604,12 +601,18 @@ func (p *importer) field() *Field {
 }
 
 func (p *importer) methodList() (methods []*Field) {
-	if n := p.int(); n > 0 {
-		methods = make([]*Field, n)
-		for i := range methods {
-			methods[i] = p.method()
-		}
+	for n := p.int(); n > 0; n-- {
+		f := newField()
+		f.Nname = newname(nblank.Sym)
+		f.Nname.Pos = p.pos()
+		f.Type = p.typ()
+		methods = append(methods, f)
 	}
+
+	for n := p.int(); n > 0; n-- {
+		methods = append(methods, p.method())
+	}
+
 	return
 }
 
