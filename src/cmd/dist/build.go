@@ -791,7 +791,7 @@ func shouldbuild(file, dir string) bool {
 	name := filepath.Base(file)
 	excluded := func(list []string, ok string) bool {
 		for _, x := range list {
-			if x == ok {
+			if x == ok || ok == "android" && x == "linux" {
 				continue
 			}
 			i := strings.Index(name, x)
