@@ -272,7 +272,7 @@ loop:
 end:
 	RET
 
-// Version bellow is based on "Fast SHA512 Implementations on Intel
+// Version below is based on "Fast SHA512 Implementations on Intel
 // Architecture Processors" White-paper
 // http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-sha512-implementations-ia-processors-paper.pdf
 // AVX2 version by Intel, same algorithm in Linux kernel:
