@@ -319,6 +319,10 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 
 	funcbody(f)
 
+	if f.Nbody.Len() == 0 && (pure_go || strings.HasPrefix(f.Func.Nname.Sym.Name, "init.")) {
+		yyerrorl(f.Pos, "missing function body for %q", f.Func.Nname.Sym.Name)
+	}
+
 	return f
 }
 
