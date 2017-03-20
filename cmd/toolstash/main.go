@@ -275,14 +275,26 @@ func compareTool() {
 		log.Fatalf("unknown tool %s", tool)
 
 	case tool == "compile" || strings.HasSuffix(tool, "g"): // compiler
-		cmdN := append([]string{cmd[0], "-N"}, cmd[1:]...)
+		useDashN := true
+		for _, s := range cmd {
+			if s == "-+" {
+				// Compiling runtime. Don't use -N.
+				useDashN = false
+				break
+			}
+		}
+		cmdN := injectflags(cmd, nil, useDashN)
 		_, ok := cmpRun(false, cmdN)
 		if !ok {
-			log.Printf("compiler output differs, even with optimizers disabled (-N)")
-			cmd = append([]string{cmd[0], "-v", "-N", "-m=2"}, cmd[1:]...)
+			if useDashN {
+				log.Printf("compiler output differs, with optimizers disabled (-N)")
+			} else {
+				log.Printf("compiler output differs")
+			}
+			cmd = injectflags(cmd, []string{"-v", "-m=2"}, useDashN)
 			break
 		}
-		cmd = append([]string{cmd[0], "-v", "-m=2"}, cmd[1:]...)
+		cmd = injectflags(cmd, []string{"-v", "-m=2"}, false)
 		log.Printf("compiler output differs, only with optimizers enabled")
 
 	case tool == "asm" || strings.HasSuffix(tool, "a"): // assembler
@@ -293,11 +305,21 @@ func compareTool() {
 		extra = "-v=2"
 	}
 
-	cmdS := append([]string{cmd[0], extra}, cmd[1:]...)
+	cmdS := injectflags(cmd, []string{extra}, false)
 	outfile, _ = cmpRun(true, cmdS)
 
 	fmt.Fprintf(os.Stderr, "\n%s\n", compareLogs(outfile))
 	os.Exit(2)
+}
+
+func injectflags(cmd []string, extra []string, addDashN bool) []string {
+	x := []string{cmd[0]}
+	if addDashN {
+		x = append(x, "-N")
+	}
+	x = append(x, extra...)
+	x = append(x, cmd[1:]...)
+	return x
 }
 
 func cmpRun(keepLog bool, cmd []string) (outfile string, match bool) {
