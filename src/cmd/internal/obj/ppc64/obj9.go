@@ -274,7 +274,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	 * expand RET
 	 * expand BECOME pseudo
 	 */
-	if ctxt.Debugvlog != 0 {
+	if ctxt.Debugvlog {
 		ctxt.Logf("%5.2f noops\n", obj.Cputime())
 	}
 

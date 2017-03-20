@@ -168,7 +168,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	 * expand RET
 	 * expand BECOME pseudo
 	 */
-	if ctxt.Debugvlog != 0 {
+	if ctxt.Debugvlog {
 		ctxt.Logf("%5.2f noops\n", obj.Cputime())
 	}
 
@@ -340,7 +340,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.Spadj = +autosize
 			} else if cursym.Text.Mark&LEAF == 0 {
 				if cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
-					if ctxt.Debugvlog != 0 {
+					if ctxt.Debugvlog {
 						ctxt.Logf("save suppressed in: %s\n", cursym.Name)
 					}
 

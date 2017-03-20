@@ -587,7 +587,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 	 * around jmps to fix. this is rare.
 	 */
 	for bflag != 0 {
-		if ctxt.Debugvlog != 0 {
+		if ctxt.Debugvlog {
 			ctxt.Logf("%5.2f span1\n", obj.Cputime())
 		}
 		bflag = 0
@@ -687,7 +687,7 @@ func checkpool(ctxt *obj.Link, p *obj.Prog, skip int) {
 func flushpool(ctxt *obj.Link, p *obj.Prog, skip int) {
 	if ctxt.Blitrl != nil {
 		if skip != 0 {
-			if ctxt.Debugvlog != 0 && skip == 1 {
+			if ctxt.Debugvlog && skip == 1 {
 				fmt.Printf("note: flush literal pool at %#x: len=%d ref=%x\n", uint64(p.Pc+4), pool.size, pool.start)
 			}
 			q := ctxt.NewProg()

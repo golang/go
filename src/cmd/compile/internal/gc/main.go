@@ -32,10 +32,12 @@ var (
 
 var (
 	Debug_append   int
+	Debug_asm      bool
 	Debug_closure  int
 	debug_dclstack int
 	Debug_panic    int
 	Debug_slice    int
+	Debug_vlog     bool
 	Debug_wb       int
 	Debug_pctab    string
 )
@@ -174,7 +176,7 @@ func Main(archInit func(*Arch)) {
 	obj.Flagfn1("I", "add `directory` to import search path", addidir)
 	obj.Flagcount("K", "debug missing line numbers", &Debug['K'])
 	obj.Flagcount("N", "disable optimizations", &Debug['N'])
-	obj.Flagcount("S", "print assembly listing", &Debug['S'])
+	flag.BoolVar(&Debug_asm, "S", false, "print assembly listing")
 	obj.Flagfn0("V", "print compiler version", doversion)
 	obj.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
 	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
@@ -203,7 +205,7 @@ func Main(archInit func(*Arch)) {
 	obj.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
 	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
 	flag.BoolVar(&safemode, "u", false, "reject unsafe code")
-	obj.Flagcount("v", "increase debug verbosity", &Debug['v'])
+	flag.BoolVar(&Debug_vlog, "v", false, "increase debug verbosity")
 	obj.Flagcount("w", "debug type checking", &Debug['w'])
 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
 	var flag_shared bool
@@ -226,8 +228,8 @@ func Main(archInit func(*Arch)) {
 	Ctxt.Flag_dynlink = flag_dynlink
 	Ctxt.Flag_optimize = Debug['N'] == 0
 
-	Ctxt.Debugasm = int32(Debug['S'])
-	Ctxt.Debugvlog = int32(Debug['v'])
+	Ctxt.Debugasm = Debug_asm
+	Ctxt.Debugvlog = Debug_vlog
 
 	if flag.NArg() < 1 {
 		usage()
