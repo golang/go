@@ -4253,6 +4253,11 @@ type SSAGenState struct {
 	stackMapIndex map[*ssa.Value]int
 }
 
+// Prog appends a new Prog.
+func (s *SSAGenState) Prog(as obj.As) *obj.Prog {
+	return Prog(as)
+}
+
 // Pc returns the current Prog.
 func (s *SSAGenState) Pc() *obj.Prog {
 	return pc
@@ -4411,11 +4416,11 @@ type FloatingEQNEJump struct {
 	Index int
 }
 
-func oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ssa.BranchPrediction, branches []Branch) []Branch {
-	p := Prog(jumps.Jump)
+func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ssa.BranchPrediction) {
+	p := s.Prog(jumps.Jump)
 	p.To.Type = obj.TYPE_BRANCH
 	to := jumps.Index
-	branches = append(branches, Branch{p, b.Succs[to].Block()})
+	s.Branches = append(s.Branches, Branch{p, b.Succs[to].Block()})
 	if to == 1 {
 		likely = -likely
 	}
@@ -4431,22 +4436,21 @@ func oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ssa.BranchPredictio
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 1
 	}
-	return branches
 }
 
 func SSAGenFPJump(s *SSAGenState, b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
 	likely := b.Likely
 	switch next {
 	case b.Succs[0].Block():
-		s.Branches = oneFPJump(b, &jumps[0][0], likely, s.Branches)
-		s.Branches = oneFPJump(b, &jumps[0][1], likely, s.Branches)
+		s.oneFPJump(b, &jumps[0][0], likely)
+		s.oneFPJump(b, &jumps[0][1], likely)
 	case b.Succs[1].Block():
-		s.Branches = oneFPJump(b, &jumps[1][0], likely, s.Branches)
-		s.Branches = oneFPJump(b, &jumps[1][1], likely, s.Branches)
+		s.oneFPJump(b, &jumps[1][0], likely)
+		s.oneFPJump(b, &jumps[1][1], likely)
 	default:
-		s.Branches = oneFPJump(b, &jumps[1][0], likely, s.Branches)
-		s.Branches = oneFPJump(b, &jumps[1][1], likely, s.Branches)
-		q := Prog(obj.AJMP)
+		s.oneFPJump(b, &jumps[1][0], likely)
+		s.oneFPJump(b, &jumps[1][1], likely)
+		q := s.Prog(obj.AJMP)
 		q.To.Type = obj.TYPE_BRANCH
 		s.Branches = append(s.Branches, Branch{q, b.Succs[1].Block()})
 	}
@@ -4621,7 +4625,7 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 	if !ok {
 		Fatalf("missing stack map index for %v", v.LongString())
 	}
-	p := Prog(obj.APCDATA)
+	p := s.Prog(obj.APCDATA)
 	Addrconst(&p.From, obj.PCDATA_StackMapIndex)
 	Addrconst(&p.To, int64(idx))
 
@@ -4637,7 +4641,7 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 		thearch.Ginsnop()
 	}
 
-	p = Prog(obj.ACALL)
+	p = s.Prog(obj.ACALL)
 	if sym, ok := v.Aux.(*obj.LSym); ok {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN

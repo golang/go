@@ -93,7 +93,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			}
 		}
 
-		p := gc.Prog(as)
+		p := s.Prog(as)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x
 		p.To.Type = obj.TYPE_REG
@@ -101,7 +101,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if isHILO(x) && isHILO(y) || isHILO(x) && isFPreg(y) || isFPreg(x) && isHILO(y) {
 			// cannot move between special registers, use TMP as intermediate
 			p.To.Reg = mips.REGTMP
-			p = gc.Prog(mips.AMOVW)
+			p = s.Prog(mips.AMOVW)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = mips.REGTMP
 			p.To.Type = obj.TYPE_REG
@@ -118,14 +118,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			return
 		}
 		r := v.Reg()
-		p := gc.Prog(loadByType(v.Type, r))
+		p := s.Prog(loadByType(v.Type, r))
 		gc.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 		if isHILO(r) {
 			// cannot directly load, load to TMP and move
 			p.To.Reg = mips.REGTMP
-			p = gc.Prog(mips.AMOVW)
+			p = s.Prog(mips.AMOVW)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = mips.REGTMP
 			p.To.Type = obj.TYPE_REG
@@ -139,14 +139,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r := v.Args[0].Reg()
 		if isHILO(r) {
 			// cannot directly store, move to TMP and store
-			p := gc.Prog(mips.AMOVW)
+			p := s.Prog(mips.AMOVW)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = r
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = mips.REGTMP
 			r = mips.REGTMP
 		}
-		p := gc.Prog(storeByType(v.Type, r))
+		p := s.Prog(storeByType(v.Type, r))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
 		gc.AddrAuto(&p.To, v)
@@ -168,7 +168,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPSDIVF,
 		ssa.OpMIPSDIVD,
 		ssa.OpMIPSMUL:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.Reg = v.Args[0].Reg()
@@ -176,7 +176,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpMIPSSGT,
 		ssa.OpMIPSSGTU:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.Reg = v.Args[1].Reg()
@@ -184,7 +184,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpMIPSSGTzero,
 		ssa.OpMIPSSGTUzero:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.Reg = mips.REGZERO
@@ -201,7 +201,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPSSRAconst,
 		ssa.OpMIPSSGTconst,
 		ssa.OpMIPSSGTUconst:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.Reg = v.Args[0].Reg()
@@ -212,13 +212,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPSDIV,
 		ssa.OpMIPSDIVU:
 		// result in hi,lo
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.Reg = v.Args[0].Reg()
 	case ssa.OpMIPSMOVWconst:
 		r := v.Reg()
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
@@ -226,7 +226,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if isFPreg(r) || isHILO(r) {
 			// cannot move into FP or special registers, use TMP as intermediate
 			p.To.Reg = mips.REGTMP
-			p = gc.Prog(mips.AMOVW)
+			p = s.Prog(mips.AMOVW)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = mips.REGTMP
 			p.To.Type = obj.TYPE_REG
@@ -234,7 +234,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 	case ssa.OpMIPSMOVFconst,
 		ssa.OpMIPSMOVDconst:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_FCONST
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
@@ -243,7 +243,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if v.Reg() != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
 		p.Reg = v.Args[1].Reg()
@@ -253,7 +253,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if v.Reg() != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.Reg = mips.REGZERO
@@ -265,12 +265,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPSCMPGED,
 		ssa.OpMIPSCMPGTF,
 		ssa.OpMIPSCMPGTD:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.Reg = v.Args[1].Reg()
 	case ssa.OpMIPSMOVWaddr:
-		p := gc.Prog(mips.AMOVW)
+		p := s.Prog(mips.AMOVW)
 		p.From.Type = obj.TYPE_ADDR
 		var wantreg string
 		// MOVW $sym+off(base), R
@@ -305,7 +305,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPSMOVWload,
 		ssa.OpMIPSMOVFload,
 		ssa.OpMIPSMOVDload:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.From, v)
@@ -316,7 +316,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPSMOVWstore,
 		ssa.OpMIPSMOVFstore,
 		ssa.OpMIPSMOVDstore:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
@@ -325,7 +325,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpMIPSMOVBstorezero,
 		ssa.OpMIPSMOVHstorezero,
 		ssa.OpMIPSMOVWstorezero:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = mips.REGZERO
 		p.To.Type = obj.TYPE_MEM
@@ -350,7 +350,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				if v.Reg() == v.Args[0].Reg() {
 					return
 				}
-				p := gc.Prog(mips.AMOVW)
+				p := s.Prog(mips.AMOVW)
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = v.Args[0].Reg()
 				p.To.Type = obj.TYPE_REG
@@ -370,14 +370,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPSNEGD,
 		ssa.OpMIPSSQRTD,
 		ssa.OpMIPSCLZ:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpMIPSNEG:
 		// SUB from REGZERO
-		p := gc.Prog(mips.ASUBU)
+		p := s.Prog(mips.ASUBU)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.Reg = mips.REGZERO
@@ -402,23 +402,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			sz = 1
 			mov = mips.AMOVB
 		}
-		p := gc.Prog(mips.ASUBU)
+		p := s.Prog(mips.ASUBU)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = sz
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = mips.REG_R1
-		p2 := gc.Prog(mov)
+		p2 := s.Prog(mov)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = mips.REGZERO
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = mips.REG_R1
 		p2.To.Offset = sz
-		p3 := gc.Prog(mips.AADDU)
+		p3 := s.Prog(mips.AADDU)
 		p3.From.Type = obj.TYPE_CONST
 		p3.From.Offset = sz
 		p3.To.Type = obj.TYPE_REG
 		p3.To.Reg = mips.REG_R1
-		p4 := gc.Prog(mips.ABNE)
+		p4 := s.Prog(mips.ABNE)
 		p4.From.Type = obj.TYPE_REG
 		p4.From.Reg = v.Args[1].Reg()
 		p4.Reg = mips.REG_R1
@@ -445,33 +445,33 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			sz = 1
 			mov = mips.AMOVB
 		}
-		p := gc.Prog(mips.ASUBU)
+		p := s.Prog(mips.ASUBU)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = sz
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = mips.REG_R1
-		p2 := gc.Prog(mov)
+		p2 := s.Prog(mov)
 		p2.From.Type = obj.TYPE_MEM
 		p2.From.Reg = mips.REG_R1
 		p2.From.Offset = sz
 		p2.To.Type = obj.TYPE_REG
 		p2.To.Reg = mips.REGTMP
-		p3 := gc.Prog(mov)
+		p3 := s.Prog(mov)
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_MEM
 		p3.To.Reg = mips.REG_R2
-		p4 := gc.Prog(mips.AADDU)
+		p4 := s.Prog(mips.AADDU)
 		p4.From.Type = obj.TYPE_CONST
 		p4.From.Offset = sz
 		p4.To.Type = obj.TYPE_REG
 		p4.To.Reg = mips.REG_R1
-		p5 := gc.Prog(mips.AADDU)
+		p5 := s.Prog(mips.AADDU)
 		p5.From.Type = obj.TYPE_CONST
 		p5.From.Offset = sz
 		p5.To.Type = obj.TYPE_REG
 		p5.To.Reg = mips.REG_R2
-		p6 := gc.Prog(mips.ABNE)
+		p6 := s.Prog(mips.ABNE)
 		p6.From.Type = obj.TYPE_REG
 		p6.From.Reg = v.Args[2].Reg()
 		p6.Reg = mips.REG_R1
@@ -480,35 +480,35 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpMIPSCALLstatic, ssa.OpMIPSCALLclosure, ssa.OpMIPSCALLinter:
 		s.Call(v)
 	case ssa.OpMIPSLoweredAtomicLoad:
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p := gc.Prog(mips.AMOVW)
+		p := s.Prog(mips.AMOVW)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 	case ssa.OpMIPSLoweredAtomicStore:
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p := gc.Prog(mips.AMOVW)
+		p := s.Prog(mips.AMOVW)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 	case ssa.OpMIPSLoweredAtomicStorezero:
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p := gc.Prog(mips.AMOVW)
+		p := s.Prog(mips.AMOVW)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = mips.REGZERO
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 	case ssa.OpMIPSLoweredAtomicExchange:
 		// SYNC
 		// MOVW Rarg1, Rtmp
@@ -516,33 +516,33 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// SC	Rtmp, (Rarg0)
 		// BEQ	Rtmp, -3(PC)
 		// SYNC
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p := gc.Prog(mips.AMOVW)
+		p := s.Prog(mips.AMOVW)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = mips.REGTMP
 
-		p1 := gc.Prog(mips.ALL)
+		p1 := s.Prog(mips.ALL)
 		p1.From.Type = obj.TYPE_MEM
 		p1.From.Reg = v.Args[0].Reg()
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = v.Reg0()
 
-		p2 := gc.Prog(mips.ASC)
+		p2 := s.Prog(mips.ASC)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = mips.REGTMP
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = v.Args[0].Reg()
 
-		p3 := gc.Prog(mips.ABEQ)
+		p3 := s.Prog(mips.ABEQ)
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
 
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 	case ssa.OpMIPSLoweredAtomicAdd:
 		// SYNC
 		// LL	(Rarg0), Rout
@@ -551,36 +551,36 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// BEQ	Rtmp, -3(PC)
 		// SYNC
 		// ADDU Rarg1, Rout
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p := gc.Prog(mips.ALL)
+		p := s.Prog(mips.ALL)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 
-		p1 := gc.Prog(mips.AADDU)
+		p1 := s.Prog(mips.AADDU)
 		p1.From.Type = obj.TYPE_REG
 		p1.From.Reg = v.Args[1].Reg()
 		p1.Reg = v.Reg0()
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = mips.REGTMP
 
-		p2 := gc.Prog(mips.ASC)
+		p2 := s.Prog(mips.ASC)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = mips.REGTMP
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = v.Args[0].Reg()
 
-		p3 := gc.Prog(mips.ABEQ)
+		p3 := s.Prog(mips.ABEQ)
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
 
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p4 := gc.Prog(mips.AADDU)
+		p4 := s.Prog(mips.AADDU)
 		p4.From.Type = obj.TYPE_REG
 		p4.From.Reg = v.Args[1].Reg()
 		p4.Reg = v.Reg0()
@@ -595,36 +595,36 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// BEQ	Rtmp, -3(PC)
 		// SYNC
 		// ADDU $auxInt, Rout
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p := gc.Prog(mips.ALL)
+		p := s.Prog(mips.ALL)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 
-		p1 := gc.Prog(mips.AADDU)
+		p1 := s.Prog(mips.AADDU)
 		p1.From.Type = obj.TYPE_CONST
 		p1.From.Offset = v.AuxInt
 		p1.Reg = v.Reg0()
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = mips.REGTMP
 
-		p2 := gc.Prog(mips.ASC)
+		p2 := s.Prog(mips.ASC)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = mips.REGTMP
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = v.Args[0].Reg()
 
-		p3 := gc.Prog(mips.ABEQ)
+		p3 := s.Prog(mips.ABEQ)
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
 
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p4 := gc.Prog(mips.AADDU)
+		p4 := s.Prog(mips.AADDU)
 		p4.From.Type = obj.TYPE_CONST
 		p4.From.Offset = v.AuxInt
 		p4.Reg = v.Reg0()
@@ -639,34 +639,34 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// SC	Rtmp, (Rarg0)
 		// BEQ	Rtmp, -3(PC)
 		// SYNC
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p := gc.Prog(mips.ALL)
+		p := s.Prog(mips.ALL)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = mips.REGTMP
 
-		p1 := gc.Prog(v.Op.Asm())
+		p1 := s.Prog(v.Op.Asm())
 		p1.From.Type = obj.TYPE_REG
 		p1.From.Reg = v.Args[1].Reg()
 		p1.Reg = mips.REGTMP
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = mips.REGTMP
 
-		p2 := gc.Prog(mips.ASC)
+		p2 := s.Prog(mips.ASC)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = mips.REGTMP
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = v.Args[0].Reg()
 
-		p3 := gc.Prog(mips.ABEQ)
+		p3 := s.Prog(mips.ABEQ)
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
 
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
 	case ssa.OpMIPSLoweredAtomicCas:
 		// MOVW $0, Rout
@@ -677,52 +677,52 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// SC	Rout, (Rarg0)
 		// BEQ	Rout, -4(PC)
 		// SYNC
-		p := gc.Prog(mips.AMOVW)
+		p := s.Prog(mips.AMOVW)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = mips.REGZERO
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p1 := gc.Prog(mips.ALL)
+		p1 := s.Prog(mips.ALL)
 		p1.From.Type = obj.TYPE_MEM
 		p1.From.Reg = v.Args[0].Reg()
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = mips.REGTMP
 
-		p2 := gc.Prog(mips.ABNE)
+		p2 := s.Prog(mips.ABNE)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = v.Args[1].Reg()
 		p2.Reg = mips.REGTMP
 		p2.To.Type = obj.TYPE_BRANCH
 
-		p3 := gc.Prog(mips.AMOVW)
+		p3 := s.Prog(mips.AMOVW)
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = v.Args[2].Reg()
 		p3.To.Type = obj.TYPE_REG
 		p3.To.Reg = v.Reg0()
 
-		p4 := gc.Prog(mips.ASC)
+		p4 := s.Prog(mips.ASC)
 		p4.From.Type = obj.TYPE_REG
 		p4.From.Reg = v.Reg0()
 		p4.To.Type = obj.TYPE_MEM
 		p4.To.Reg = v.Args[0].Reg()
 
-		p5 := gc.Prog(mips.ABEQ)
+		p5 := s.Prog(mips.ABEQ)
 		p5.From.Type = obj.TYPE_REG
 		p5.From.Reg = v.Reg0()
 		p5.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p5, p1)
 
-		gc.Prog(mips.ASYNC)
+		s.Prog(mips.ASYNC)
 
-		p6 := gc.Prog(obj.ANOP)
+		p6 := s.Prog(obj.ANOP)
 		gc.Patch(p2, p6)
 
 	case ssa.OpMIPSLoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
-		p := gc.Prog(mips.AMOVB)
+		p := s.Prog(mips.AMOVB)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.From, v)
@@ -740,12 +740,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if v.Op == ssa.OpMIPSFPFlagFalse {
 			cmov = mips.ACMOVT
 		}
-		p := gc.Prog(mips.AMOVW)
+		p := s.Prog(mips.AMOVW)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-		p1 := gc.Prog(cmov)
+		p1 := s.Prog(cmov)
 		p1.From.Type = obj.TYPE_REG
 		p1.From.Reg = mips.REGZERO
 		p1.To.Type = obj.TYPE_REG
@@ -776,7 +776,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	switch b.Kind {
 	case ssa.BlockPlain:
 		if b.Succs[0].Block() != next {
-			p := gc.Prog(obj.AJMP)
+			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
@@ -784,23 +784,23 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		// defer returns in R1:
 		// 0 if we should continue executing
 		// 1 if we should jump to deferreturn call
-		p := gc.Prog(mips.ABNE)
+		p := s.Prog(mips.ABNE)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = mips.REGZERO
 		p.Reg = mips.REG_R1
 		p.To.Type = obj.TYPE_BRANCH
 		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
 		if b.Succs[0].Block() != next {
-			p := gc.Prog(obj.AJMP)
+			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
 	case ssa.BlockExit:
-		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
-		gc.Prog(obj.ARET)
+		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:
-		p := gc.Prog(obj.ARET)
+		p := s.Prog(obj.ARET)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = b.Aux.(*obj.LSym)
@@ -812,18 +812,18 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = gc.Prog(jmp.invasm)
+			p = s.Prog(jmp.invasm)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
 		case b.Succs[1].Block():
-			p = gc.Prog(jmp.asm)
+			p = s.Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		default:
-			p = gc.Prog(jmp.asm)
+			p = s.Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			q := gc.Prog(obj.AJMP)
+			q := s.Prog(obj.AJMP)
 			q.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
 		}
