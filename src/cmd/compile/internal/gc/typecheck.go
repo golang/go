@@ -3822,6 +3822,7 @@ func typecheckdef(n *Node) *Node {
 		}
 		n.Walkdef = 1
 		n.Type = typ(TFORW)
+		n.Type.nod = n
 		n.Type.Sym = n.Sym // TODO(gri) this also happens in typecheckdeftype(n) - where should it happen?
 		nerrors0 := nerrors
 		typecheckdeftype(n)
