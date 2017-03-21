@@ -114,7 +114,7 @@ func newIntValue(val int, p *int) *intValue {
 }
 
 func (i *intValue) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 64)
+	v, err := strconv.ParseInt(s, 0, strconv.IntSize)
 	*i = intValue(v)
 	return err
 }
@@ -150,7 +150,7 @@ func newUintValue(val uint, p *uint) *uintValue {
 }
 
 func (i *uintValue) Set(s string) error {
-	v, err := strconv.ParseUint(s, 0, 64)
+	v, err := strconv.ParseUint(s, 0, strconv.IntSize)
 	*i = uintValue(v)
 	return err
 }
