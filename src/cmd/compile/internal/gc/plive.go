@@ -1109,15 +1109,6 @@ func livenessemit(lv *Liveness, argssym, livesym *Sym) {
 // structure read by the garbage collector.
 // Returns a map from GC safe points to their corresponding stack map index.
 func liveness(e *ssafn, f *ssa.Func, argssym, livesym *Sym) map[*ssa.Value]int {
-	// Change name to dump debugging information only for a specific function.
-	debugdelta := 0
-
-	if e.curfn.Func.Nname.Sym.Name == "!" {
-		debugdelta = 2
-	}
-
-	debuglive += debugdelta
-
 	// Construct the global liveness state.
 	vars := getvariables(e.curfn)
 	lv := newliveness(e.curfn, f, vars, e.stkptrsize)
@@ -1133,8 +1124,5 @@ func liveness(e *ssafn, f *ssa.Func, argssym, livesym *Sym) map[*ssa.Value]int {
 
 	// Emit the live pointer map data structures
 	livenessemit(lv, argssym, livesym)
-
-	debuglive -= debugdelta
-
 	return lv.stackMapIndex
 }
