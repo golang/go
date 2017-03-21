@@ -688,7 +688,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value) bool {
 	_ = types
 	// match: (AtomicAnd8  ptr val mem)
 	// cond: !config.BigEndian
-	// result: (LoweredAtomicAnd (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr) 		(OR <types.UInt32> (SLL <types.UInt32> (ZeroExt8to32 val) 			(SLLconst <types.UInt32> [3] 				(ANDconst  <types.UInt32> [3] ptr))) 		(NORconst [0] <types.UInt32> (SLL <types.UInt32> 			(MOVWconst [0xff]) (SLLconst <types.UInt32> [3] 				(ANDconst <types.UInt32> [3] 					(XORconst <types.UInt32> [3] ptr)))))) mem)
+	// result: (LoweredAtomicAnd (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr) 		(OR <types.UInt32> (SLL <types.UInt32> (ZeroExt8to32 val) 			(SLLconst <types.UInt32> [3] 				(ANDconst  <types.UInt32> [3] ptr))) 		(NORconst [0] <types.UInt32> (SLL <types.UInt32> 			(MOVWconst [0xff]) (SLLconst <types.UInt32> [3] 				(ANDconst <types.UInt32> [3] ptr))))) mem)
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
@@ -726,10 +726,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value) bool {
 		v10.AuxInt = 3
 		v11 := b.NewValue0(v.Pos, OpMIPSANDconst, types.UInt32)
 		v11.AuxInt = 3
-		v12 := b.NewValue0(v.Pos, OpMIPSXORconst, types.UInt32)
-		v12.AuxInt = 3
-		v12.AddArg(ptr)
-		v11.AddArg(v12)
+		v11.AddArg(ptr)
 		v10.AddArg(v11)
 		v8.AddArg(v10)
 		v7.AddArg(v8)

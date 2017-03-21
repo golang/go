@@ -406,8 +406,7 @@
 				(ANDconst  <types.UInt32> [3] ptr)))
 		(NORconst [0] <types.UInt32> (SLL <types.UInt32>
 			(MOVWconst [0xff]) (SLLconst <types.UInt32> [3]
-				(ANDconst <types.UInt32> [3]
-					(XORconst <types.UInt32> [3] ptr)))))) mem)
+				(ANDconst <types.UInt32> [3] ptr))))) mem)
 
 // AtomicOr8(ptr,val) -> LoweredAtomicOr(ptr&^3,uint32(val) << (((ptr^3) & 3) * 8))
 (AtomicOr8 ptr val mem) && config.BigEndian ->
