@@ -3954,6 +3954,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 // If commaok is false, resok will be nil.
 func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	iface := s.expr(n.Left)            // input interface
+	lineno = n.Pos                     // for typename call
 	target := s.expr(typename(n.Type)) // target type
 	byteptr := s.f.Config.Types.BytePtr
 
