@@ -175,6 +175,12 @@ the interface value.  (A nil interface value is identified by the empty string
 and transmits no value.) Upon receipt, the decoder verifies that the unpacked
 concrete item satisfies the interface of the receiving variable.
 
+If a value is passed to Encode and the type is not a struct (or pointer to struct,
+etc.), for simplicity of processing it is represented as a struct of one field.
+The only visible effect of this is to encode a zero byte after the value, just as
+after the last field of an encoded struct, so that the decode algorithm knows when
+the top-level value is complete.
+
 The representation of types is described below.  When a type is defined on a given
 connection between an Encoder and Decoder, it is assigned a signed integer type
 id.  When Encoder.Encode(v) is called, it makes sure there is an id assigned for
