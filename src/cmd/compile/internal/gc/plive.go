@@ -186,6 +186,17 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (pos int32, effect liveEffect) {
 		return -1, 0
 	}
 
+	// AllocFrame has dropped unused variables from
+	// lv.fn.Func.Dcl, but they might still be referenced by
+	// OpVarFoo pseudo-ops. Ignore them to prevent "lost track of
+	// variable" ICEs (issue 19632).
+	switch v.Op {
+	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
+		if !n.Used() {
+			return -1, 0
+		}
+	}
+
 	pos = liveIndex(n, lv.vars)
 	if pos < 0 {
 		return -1, 0
