@@ -413,8 +413,8 @@ func localswords(lv *Liveness) int32 {
 }
 
 // Returns the number of words of in and out arguments.
-func argswords() int32 {
-	return int32(Curfn.Type.ArgWidth() / int64(Widthptr))
+func argswords(lv *Liveness) int32 {
+	return int32(lv.fn.Type.ArgWidth() / int64(Widthptr))
 }
 
 // Generates live pointer value maps for arguments and local variables. The
@@ -1082,7 +1082,7 @@ func finishgclocals(sym *Sym) {
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
 func livenessemit(lv *Liveness, argssym, livesym *Sym) {
-	args := bvalloc(argswords())
+	args := bvalloc(argswords(lv))
 	aoff := duint32(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
 	aoff = duint32(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
 
