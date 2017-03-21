@@ -3751,7 +3751,9 @@ func sysmon() {
 				if scavengelimit < forcegcperiod {
 					maxsleep = scavengelimit / 2
 				}
+				osRelax(true)
 				notetsleep(&sched.sysmonnote, maxsleep)
+				osRelax(false)
 				lock(&sched.lock)
 				atomic.Store(&sched.sysmonwait, 0)
 				noteclear(&sched.sysmonnote)

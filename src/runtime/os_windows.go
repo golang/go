@@ -50,6 +50,7 @@ const (
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod%1 "winmm.dll"
+//go:cgo_import_dynamic runtime._timeEndPeriod timeEndPeriod%1 "winmm.dll"
 
 type stdFunction unsafe.Pointer
 
@@ -96,6 +97,7 @@ var (
 	_WriteConsoleW,
 	_WriteFile,
 	_timeBeginPeriod,
+	_timeEndPeriod,
 	_ stdFunction
 
 	// Following syscalls are only available on some Windows PCs.
@@ -268,6 +270,21 @@ var useLoadLibraryEx bool
 
 var timeBeginPeriodRetValue uint32
 
+// osRelax is called by the scheduler when transitioning to and from
+// all Ps being idle.
+//
+// On Windows, it adjusts the system-wide timer resolution. Go needs a
+// high resolution timer while running and there's little extra cost
+// if we're already using the CPU, but if all Ps are idle there's no
+// need to consume extra power to drive the high-res timer.
+func osRelax(relax bool) uint32 {
+	if relax {
+		return uint32(stdcall1(_timeEndPeriod, 1))
+	} else {
+		return uint32(stdcall1(_timeBeginPeriod, 1))
+	}
+}
+
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
 	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
@@ -287,7 +304,7 @@ func osinit() {
 
 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
 
-	timeBeginPeriodRetValue = uint32(stdcall1(_timeBeginPeriod, 1))
+	timeBeginPeriodRetValue = osRelax(false)
 
 	ncpu = getproccount()
 
