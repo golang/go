@@ -16,11 +16,6 @@ type loop struct {
 	children []*loop  // loops nested directly within this loop. Initialized by assembleChildren().
 	exits    []*Block // exits records blocks reached by exits from this loop. Initialized by findExits().
 
-	// Loops aren't that common, so rather than force regalloc to keep
-	// a map or slice for its data, just put it here.
-	spills  []*Value
-	scratch int32
-
 	// Next three fields used by regalloc and/or
 	// aid in computation of inner-ness and list of blocks.
 	nBlocks int32 // Number of blocks in this loop but not within inner loops

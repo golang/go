@@ -369,6 +369,7 @@ var passes = [...]pass{
 	{name: "late nilcheck", fn: nilcheckelim2},
 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
+	{name: "loop rotate", fn: loopRotate},
 	{name: "stackframe", fn: stackframe, required: true},
 	{name: "trim", fn: trim}, // remove empty blocks
 }
@@ -427,6 +428,8 @@ var passOrder = [...]constraint{
 	{"schedule", "flagalloc"},
 	// regalloc needs flags to be allocated first.
 	{"flagalloc", "regalloc"},
+	// loopRotate will confuse regalloc.
+	{"regalloc", "loop rotate"},
 	// stackframe needs to know about spilled registers.
 	{"regalloc", "stackframe"},
 	// trim needs regalloc to be done first.
