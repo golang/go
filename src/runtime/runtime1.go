@@ -259,6 +259,12 @@ func check() {
 		throw("atomicor8")
 	}
 
+	m = [4]byte{0xff, 0xff, 0xff, 0xff}
+	atomic.And8(&m[1], 0x1)
+	if m[0] != 0xff || m[1] != 0x1 || m[2] != 0xff || m[3] != 0xff {
+		throw("atomicand8")
+	}
+
 	*(*uint64)(unsafe.Pointer(&j)) = ^uint64(0)
 	if j == j {
 		throw("float64nan")
