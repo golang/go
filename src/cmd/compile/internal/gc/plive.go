@@ -74,9 +74,6 @@ type progeffectscache struct {
 	textavarinit []int32
 	retuevar     []int32
 	tailuevar    []int32
-	uevar        [3]int32
-	varkill      [3]int32
-	avarinit     [3]int32
 	initialized  bool
 }
 
