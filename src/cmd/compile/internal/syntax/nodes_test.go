@@ -145,7 +145,7 @@ var fields = []test{
 }
 
 var stmts = []test{
-	{"EmptyStmt", `@;`},
+	{"EmptyStmt", `@`},
 
 	{"LabeledStmt", `L@:`},
 	{"LabeledStmt", `L@: ;`},
@@ -189,44 +189,52 @@ var stmts = []test{
 
 	{"ReturnStmt", `@return`},
 	{"ReturnStmt", `@return x`},
-	{"ReturnStmt", `@return a, b, c`},
+	{"ReturnStmt", `@return a, b, a + b*f(1, 2, 3)`},
 
 	{"IfStmt", `@if cond {}`},
+	{"IfStmt", `@if cond { f() } else {}`},
+	{"IfStmt", `@if cond { f() } else { g(); h() }`},
 	{"ForStmt", `@for {}`},
+	{"ForStmt", `@for { f() }`},
 	{"SwitchStmt", `@switch {}`},
+	{"SwitchStmt", `@switch { default: }`},
+	{"SwitchStmt", `@switch { default: x++ }`},
 	{"SelectStmt", `@select {}`},
+	{"SelectStmt", `@select { default: }`},
+	{"SelectStmt", `@select { default: ch <- false }`},
 }
 
 var ranges = []test{
-	{"RangeClause", `for @range s {}`},
-	{"RangeClause", `for _, i = @range s {}`},
-	{"RangeClause", `for x, i = @range s {}`},
-	{"RangeClause", `for _, i := @range s {}`},
-	{"RangeClause", `for x, i := @range s {}`},
+	{"RangeClause", `@range s`},
+	{"RangeClause", `i = @range s`},
+	{"RangeClause", `i := @range s`},
+	{"RangeClause", `_, x = @range s`},
+	{"RangeClause", `i, x = @range s`},
+	{"RangeClause", `_, x := @range s.f`},
+	{"RangeClause", `i, x := @range f(i)`},
 }
 
 var guards = []test{
-	{"TypeSwitchGuard", `switch x@.(type) {}`},
-	{"TypeSwitchGuard", `switch x := x@.(type) {}`},
-	{"TypeSwitchGuard", `switch a = b; x@.(type) {}`},
-	{"TypeSwitchGuard", `switch a := b; x := x@.(type) {}`},
+	{"TypeSwitchGuard", `x@.(type)`},
+	{"TypeSwitchGuard", `x := x@.(type)`},
 }
 
 var cases = []test{
-	{"CaseClause", ` switch { @case x: }`},
-	{"CaseClause", ` switch { @case x, y, z: }`},
-	{"CaseClause", ` switch { @case x == 1, y == 2: }`},
-	{"CaseClause", ` switch { @default: }`},
+	{"CaseClause", `@case x:`},
+	{"CaseClause", `@case x, y, z:`},
+	{"CaseClause", `@case x == 1, y == 2:`},
+	{"CaseClause", `@default:`},
 }
 
 var comms = []test{
-	{"CommClause", `select { @case <-ch: }`},
-	{"CommClause", `select { @case x <- ch: }`},
-	{"CommClause", `select { @case x = <-ch: }`},
-	{"CommClause", `select { @case x := <-ch: }`},
-	{"CommClause", `select { @case x, ok = <-ch: }`},
-	{"CommClause", `select { @case x, ok := <-ch: }`},
-	{"CommClause", `select { @default: }`},
+	{"CommClause", `@case <-ch:`},
+	{"CommClause", `@case x <- ch:`},
+	{"CommClause", `@case x = <-ch:`},
+	{"CommClause", `@case x := <-ch:`},
+	{"CommClause", `@case x, ok = <-ch: f(1, 2, 3)`},
+	{"CommClause", `@case x, ok := <-ch: x++`},
+	{"CommClause", `@default:`},
+	{"CommClause", `@default: ch <- true`},
 }
 
 func TestPos(t *testing.T) {
@@ -252,23 +260,23 @@ func TestPos(t *testing.T) {
 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Type.ParamList[0] },
 	)
 
-	testPos(t, stmts, "package p; func _() { ", " } ",
+	testPos(t, stmts, "package p; func _() { ", "; }",
 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0] },
 	)
 
-	testPos(t, ranges, "package p; func _() { ", " } ",
+	testPos(t, ranges, "package p; func _() { for ", " {} }",
 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*ForStmt).Init.(*RangeClause) },
 	)
 
-	testPos(t, guards, "package p; func _() { ", " } ",
+	testPos(t, guards, "package p; func _() { switch ", " {} }",
 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*SwitchStmt).Tag.(*TypeSwitchGuard) },
 	)
 
-	testPos(t, cases, "package p; func _() { ", " } ",
+	testPos(t, cases, "package p; func _() { switch { ", " } }",
 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*SwitchStmt).Body[0] },
 	)
 
-	testPos(t, comms, "package p; func _() { ", " } ",
+	testPos(t, comms, "package p; func _() { select { ", " } }",
 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*SelectStmt).Body[0] },
 	)
 }
@@ -278,14 +286,14 @@ func testPos(t *testing.T, list []test, prefix, suffix string, extract func(*Fil
 		// complete source, compute @ position, and strip @ from source
 		src, index := stripAt(prefix + test.snippet + suffix)
 		if index < 0 {
-			t.Errorf("missing @: %s", src)
+			t.Errorf("missing @: %s (%s)", src, test.nodetyp)
 			continue
 		}
 
 		// build syntaxt tree
 		file, err := ParseBytes(nil, []byte(src), nil, nil, 0)
 		if err != nil {
-			t.Errorf("parse error: %s: %v", src, err)
+			t.Errorf("parse error: %s: %v (%s)", src, err, test.nodetyp)
 			continue
 		}
 
@@ -297,8 +305,8 @@ func testPos(t *testing.T, list []test, prefix, suffix string, extract func(*Fil
 		}
 
 		// verify node position with expected position as indicated by @
-		if col := int(node.Pos().Col()); col != index+colbase {
-			t.Errorf("pos error: %s: col = %d, want %d", src, col, index+colbase)
+		if pos := int(node.Pos().Col()); pos != index+colbase {
+			t.Errorf("pos error: %s: pos = %d, want %d (%s)", src, pos, index+colbase, test.nodetyp)
 			continue
 		}
 	}
