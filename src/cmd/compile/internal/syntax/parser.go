@@ -480,7 +480,8 @@ func (p *parser) funcDecl() *FuncDecl {
 
 	f.Name = p.name()
 	f.Type = p.funcType()
-	if p.got(_Lbrace) {
+	if lbrace := p.pos(); p.got(_Lbrace) {
+		f.Lbrace = lbrace
 		f.Body = p.funcBody()
 		f.Rbrace = p.pos()
 		p.want(_Rbrace)
@@ -703,11 +704,12 @@ func (p *parser) operand(keep_parens bool) Expr {
 		pos := p.pos()
 		p.next()
 		t := p.funcType()
-		if p.got(_Lbrace) {
+		if lbrace := p.pos(); p.got(_Lbrace) {
 			p.xnest++
 
 			f := new(FuncLit)
 			f.pos = pos
+			f.Lbrace = lbrace
 			f.Type = t
 			f.Body = p.funcBody()
 			f.Rbrace = p.pos()
@@ -900,6 +902,7 @@ func (p *parser) complitexpr() *CompositeLit {
 	x := new(CompositeLit)
 	x.pos = p.pos()
 
+	x.Lbrace = p.pos()
 	p.want(_Lbrace)
 	p.xnest++
 
@@ -1625,6 +1628,7 @@ func (p *parser) blockStmt() *BlockStmt {
 	s.pos = p.pos()
 	p.want(_Lbrace)
 	s.Body = p.stmtList()
+	s.Rbrace = p.pos()
 	p.want(_Rbrace)
 
 	return s
@@ -1653,26 +1657,27 @@ func (p *parser) forStmt() Stmt {
 	s.pos = p.pos()
 
 	s.Init, s.Cond, s.Post = p.header(_For)
-	s.Body = p.stmtBody("for clause")
+	s.Body, s.Lbrace, s.Rbrace = p.stmtBody("for clause")
 
 	return s
 }
 
 // stmtBody parses if and for statement bodies.
-func (p *parser) stmtBody(context string) []Stmt {
+func (p *parser) stmtBody(context string) (body []Stmt, lbrace, rbrace src.Pos) {
 	if trace {
 		defer p.trace("stmtBody")()
 	}
 
+	lbrace = p.pos()
 	if !p.got(_Lbrace) {
 		p.syntax_error("expecting { after " + context)
 		p.advance(_Name, _Rbrace)
 	}
-
-	body := p.stmtList()
+	body = p.stmtList()
+	rbrace = p.pos()
 	p.want(_Rbrace)
 
-	return body
+	return
 }
 
 func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleStmt) {
@@ -1764,7 +1769,7 @@ func (p *parser) ifStmt() *IfStmt {
 	s.pos = p.pos()
 
 	s.Init, s.Cond, _ = p.header(_If)
-	s.Then = p.stmtBody("if clause")
+	s.Then, s.Lbrace, s.Rbrace = p.stmtBody("if clause")
 
 	if p.got(_Else) {
 		switch p.tok {
@@ -1798,6 +1803,7 @@ func (p *parser) switchStmt() *SwitchStmt {
 	for p.tok != _EOF && p.tok != _Rbrace {
 		s.Body = append(s.Body, p.caseClause())
 	}
+	s.Rbrace = p.pos()
 	p.want(_Rbrace)
 
 	return s
@@ -1819,6 +1825,7 @@ func (p *parser) selectStmt() *SelectStmt {
 	for p.tok != _EOF && p.tok != _Rbrace {
 		s.Body = append(s.Body, p.commClause())
 	}
+	s.Rbrace = p.pos()
 	p.want(_Rbrace)
 
 	return s
@@ -1845,6 +1852,7 @@ func (p *parser) caseClause() *CaseClause {
 		p.advance(_Case, _Default, _Rbrace)
 	}
 
+	c.Colon = p.pos()
 	p.want(_Colon)
 	c.Body = p.stmtList()
 
@@ -1884,6 +1892,7 @@ func (p *parser) commClause() *CommClause {
 		p.advance(_Case, _Default, _Rbrace)
 	}
 
+	c.Colon = p.pos()
 	p.want(_Colon)
 	c.Body = p.stmtList()
 
