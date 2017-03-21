@@ -66,8 +66,15 @@ func direntNamlen(buf []byte) (uint64, bool) {
 	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
 }
 
+//sysnb pipe() (r int, w int, err error)
+
 func Pipe(p []int) error {
-	return Pipe2(p, 0)
+	if len(p) != 2 {
+		return EINVAL
+	}
+	var err error
+	p[0], p[1], err = pipe()
+	return err
 }
 
 //sysnb pipe2(p *[2]_C_int, flags int) (err error)
