@@ -712,7 +712,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value, config *Config) bool {
 	_ = b
 	// match: (AtomicAnd8  ptr val mem)
 	// cond: !config.BigEndian
-	// result: (LoweredAtomicAnd (AND <config.fe.TypeUInt32().PtrTo()> (MOVWconst [^3]) ptr) 		(OR <config.fe.TypeUInt32()> (SLL <config.fe.TypeUInt32()> (ZeroExt8to32 val) 			(SLLconst <config.fe.TypeUInt32()> [3] 				(ANDconst  <config.fe.TypeUInt32()> [3] ptr))) 		(NORconst [0] <config.fe.TypeUInt32()> (SLL <config.fe.TypeUInt32()> 			(MOVWconst [0xff]) (SLLconst <config.fe.TypeUInt32()> [3] 				(ANDconst <config.fe.TypeUInt32()> [3] 					(XORconst <config.fe.TypeUInt32()> [3] ptr)))))) mem)
+	// result: (LoweredAtomicAnd (AND <config.fe.TypeUInt32().PtrTo()> (MOVWconst [^3]) ptr) 		(OR <config.fe.TypeUInt32()> (SLL <config.fe.TypeUInt32()> (ZeroExt8to32 val) 			(SLLconst <config.fe.TypeUInt32()> [3] 				(ANDconst  <config.fe.TypeUInt32()> [3] ptr))) 		(NORconst [0] <config.fe.TypeUInt32()> (SLL <config.fe.TypeUInt32()> 			(MOVWconst [0xff]) (SLLconst <config.fe.TypeUInt32()> [3] 				(ANDconst <config.fe.TypeUInt32()> [3] ptr))))) mem)
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
@@ -750,10 +750,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value, config *Config) bool {
 		v10.AuxInt = 3
 		v11 := b.NewValue0(v.Line, OpMIPSANDconst, config.fe.TypeUInt32())
 		v11.AuxInt = 3
-		v12 := b.NewValue0(v.Line, OpMIPSXORconst, config.fe.TypeUInt32())
-		v12.AuxInt = 3
-		v12.AddArg(ptr)
-		v11.AddArg(v12)
+		v11.AddArg(ptr)
 		v10.AddArg(v11)
 		v8.AddArg(v10)
 		v7.AddArg(v8)
