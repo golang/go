@@ -42,6 +42,11 @@ type SysProcAttr struct {
 	GidMappingsEnableSetgroups bool
 }
 
+var (
+	none  = [...]byte{'n', 'o', 'n', 'e', 0}
+	slash = [...]byte{'/', 0}
+)
+
 // Implemented in runtime package.
 func runtime_BeforeFork()
 func runtime_AfterFork()
@@ -203,6 +208,19 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		_, _, err1 = RawSyscall(SYS_UNSHARE, sys.Unshareflags, 0, 0)
 		if err1 != 0 {
 			goto childerror
+		}
+		// The unshare system call in Linux doesn't unshare mount points
+		// mounted with --shared. Systemd mounts / with --shared. For a
+		// long discussion of the pros and cons of this see debian bug 739593.
+		// The Go model of unsharing is more like Plan 9, where you ask
+		// to unshare and the namespaces are unconditionally unshared.
+		// To make this model work we must further mark / as MS_PRIVATE.
+		// This is what the standard unshare command does.
+		if sys.Unshareflags&CLONE_NEWNS == CLONE_NEWNS {
+			_, _, err1 = RawSyscall6(SYS_MOUNT, uintptr(unsafe.Pointer(&none[0])), uintptr(unsafe.Pointer(&slash[0])), 0, MS_REC|MS_PRIVATE, 0, 0)
+			if err1 != 0 {
+				goto childerror
+			}
 		}
 	}
 
