@@ -345,6 +345,9 @@ func jarKey(host string, psl PublicSuffixList) string {
 			// Storing cookies under host is a safe stopgap.
 			return host
 		}
+		// Only len(suffix) is used to determine the jar key from
+		// here on, so it is okay if psl.PublicSuffix("www.buggy.psl")
+		// returns "com" as the jar key is generated from host.
 	}
 	prevDot := strings.LastIndex(host[:i-1], ".")
 	return host[prevDot+1:]
