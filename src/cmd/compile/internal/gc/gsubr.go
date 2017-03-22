@@ -30,35 +30,66 @@
 
 package gc
 
-import "cmd/internal/obj"
+import (
+	"cmd/internal/obj"
+	"cmd/internal/src"
+)
 
-func Prog(as obj.As) *obj.Prog {
-	var p *obj.Prog
+// Progs accumulates Progs for a function and converts them into machine code.
+type Progs struct {
+	Text *obj.Prog // ATEXT Prog for this function
+	next *obj.Prog // next Prog
+	pc   int64     // virtual PC; count of Progs
+	pos  src.XPos  // position to use for new Progs
+}
 
-	p = pc
-	pc = Ctxt.NewProg()
-	Clearp(pc)
-	p.Link = pc
+// newProgs returns a new Progs for fn.
+func newProgs(fn *Node) *Progs {
+	pp := new(Progs)
 
-	if !lineno.IsKnown() && Debug['K'] != 0 {
+	// prime the pump
+	pp.next = Ctxt.NewProg()
+	pp.clearp(pp.next)
+
+	pp.pos = fn.Pos
+	pp.settext(fn)
+	return pp
+}
+
+// Flush converts from pp to machine code.
+func (pp *Progs) Flush() {
+	plist := &obj.Plist{Firstpc: pp.Text}
+	obj.Flushplist(Ctxt, plist)
+	// Clear pp to enable GC and avoid abuse.
+	*pp = Progs{}
+}
+
+// Prog adds a Prog with instruction As to pp.
+func (pp *Progs) Prog(as obj.As) *obj.Prog {
+	p := pp.next
+	pp.next = Ctxt.NewProg()
+	pp.clearp(pp.next)
+	p.Link = pp.next
+
+	if !pp.pos.IsKnown() && Debug['K'] != 0 {
 		Warn("prog: unknown position (line 0)")
 	}
 
 	p.As = as
-	p.Pos = lineno
+	p.Pos = pp.pos
 	return p
 }
 
-func Clearp(p *obj.Prog) {
+func (pp *Progs) clearp(p *obj.Prog) {
 	obj.Nopout(p)
 	p.As = obj.AEND
-	p.Pc = int64(pcloc)
-	pcloc++
+	p.Pc = pp.pc
+	pp.pc++
 }
 
-func Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset int64, ttype obj.AddrType, treg int16, toffset int64) *obj.Prog {
+func (pp *Progs) Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset int64, ttype obj.AddrType, treg int16, toffset int64) *obj.Prog {
 	q := Ctxt.NewProg()
-	Clearp(q)
+	pp.clearp(q)
 	q.As = as
 	q.Pos = p.Pos
 	q.From.Type = ftype
@@ -70,6 +101,54 @@ func Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset in
 	q.Link = p.Link
 	p.Link = q
 	return q
+}
+
+func (pp *Progs) settext(fn *Node) {
+	if pp.Text != nil {
+		Fatalf("Progs.settext called twice")
+	}
+
+	ptxt := pp.Prog(obj.ATEXT)
+	if nam := fn.Func.Nname; !isblank(nam) {
+		ptxt.From.Type = obj.TYPE_MEM
+		ptxt.From.Name = obj.NAME_EXTERN
+		ptxt.From.Sym = Linksym(nam.Sym)
+		if fn.Func.Pragma&Systemstack != 0 {
+			ptxt.From.Sym.Set(obj.AttrCFunc, true)
+		}
+	}
+
+	ptxt.From3 = new(obj.Addr)
+	if fn.Func.Dupok() {
+		ptxt.From3.Offset |= obj.DUPOK
+	}
+	if fn.Func.Wrapper() {
+		ptxt.From3.Offset |= obj.WRAPPER
+	}
+	if fn.Func.NoFramePointer() {
+		ptxt.From3.Offset |= obj.NOFRAME
+	}
+	if fn.Func.Needctxt() {
+		ptxt.From3.Offset |= obj.NEEDCTXT
+	}
+	if fn.Func.Pragma&Nosplit != 0 {
+		ptxt.From3.Offset |= obj.NOSPLIT
+	}
+	if fn.Func.ReflectMethod() {
+		ptxt.From3.Offset |= obj.REFLECTMETHOD
+	}
+
+	// Clumsy but important.
+	// See test/recover.go for test cases and src/reflect/value.go
+	// for the actual functions being considered.
+	if myimportpath == "reflect" {
+		switch fn.Func.Nname.Sym.Name {
+		case "callReflect", "callMethod":
+			ptxt.From3.Offset |= obj.WRAPPER
+		}
+	}
+
+	pp.Text = ptxt
 }
 
 func ggloblnod(nam *Node) {

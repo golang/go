@@ -10,11 +10,11 @@ import (
 	"cmd/internal/obj/arm64"
 )
 
-func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
 	// fill in argument size, stack size
-	ptxt.To.Type = obj.TYPE_TEXTSIZE
+	pp.Text.To.Type = obj.TYPE_TEXTSIZE
 
-	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
 
 	// arm64 requires that the frame size (not counting saved LR)
@@ -23,12 +23,12 @@ func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
 		frame += 8
 	}
 
-	ptxt.To.Offset = int64(frame)
+	pp.Text.To.Offset = int64(frame)
 
 	// insert code to zero ambiguously live variables
 	// so that the garbage collector only sees initialized values
 	// when it looks for pointers.
-	p := ptxt
+	p := pp.Text
 
 	hi := int64(0)
 	lo := hi
@@ -53,7 +53,7 @@ func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
 		}
 
 		// zero old range
-		p = zerorange(p, int64(frame), lo, hi)
+		p = zerorange(pp, p, int64(frame), lo, hi)
 
 		// set new range
 		hi = n.Xoffset + n.Type.Width
@@ -62,49 +62,49 @@ func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
 	}
 
 	// zero final range
-	zerorange(p, int64(frame), lo, hi)
+	zerorange(pp, p, int64(frame), lo, hi)
 }
 
 var darwin = obj.GOOS == "darwin"
 
-func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	cnt := hi - lo
 	if cnt == 0 {
 		return p
 	}
 	if cnt < int64(4*gc.Widthptr) {
 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
-			p = gc.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+frame+lo+i)
+			p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+frame+lo+i)
 		}
 	} else if cnt <= int64(128*gc.Widthptr) && !darwin { // darwin ld64 cannot handle BR26 reloc with non-zero addend
-		p = gc.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
-		p = gc.Appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGRT1, 0)
+		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
+		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGRT1, 0)
 		p.Reg = arm64.REGRT1
-		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.Duffzero
 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
 	} else {
-		p = gc.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGTMP, 0)
-		p = gc.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
-		p = gc.Appendpp(p, arm64.AADD, obj.TYPE_REG, arm64.REGTMP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
+		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGTMP, 0)
+		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
+		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_REG, arm64.REGTMP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
 		p.Reg = arm64.REGRT1
-		p = gc.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, arm64.REGTMP, 0)
-		p = gc.Appendpp(p, arm64.AADD, obj.TYPE_REG, arm64.REGTMP, 0, obj.TYPE_REG, arm64.REGRT2, 0)
+		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, arm64.REGTMP, 0)
+		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_REG, arm64.REGTMP, 0, obj.TYPE_REG, arm64.REGRT2, 0)
 		p.Reg = arm64.REGRT1
-		p = gc.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGRT1, int64(gc.Widthptr))
+		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGRT1, int64(gc.Widthptr))
 		p.Scond = arm64.C_XPRE
 		p1 := p
-		p = gc.Appendpp(p, arm64.ACMP, obj.TYPE_REG, arm64.REGRT1, 0, obj.TYPE_NONE, 0, 0)
+		p = pp.Appendpp(p, arm64.ACMP, obj.TYPE_REG, arm64.REGRT1, 0, obj.TYPE_NONE, 0, 0)
 		p.Reg = arm64.REGRT2
-		p = gc.Appendpp(p, arm64.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
+		p = pp.Appendpp(p, arm64.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
 		gc.Patch(p, p1)
 	}
 
 	return p
 }
 
-func ginsnop() {
-	p := gc.Prog(arm64.AHINT)
+func ginsnop(pp *gc.Progs) {
+	p := pp.Prog(arm64.AHINT)
 	p.From.Type = obj.TYPE_CONST
 }

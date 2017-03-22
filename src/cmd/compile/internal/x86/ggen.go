@@ -10,18 +10,18 @@ import (
 	"cmd/internal/obj/x86"
 )
 
-func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
 	// fill in argument size, stack size
-	ptxt.To.Type = obj.TYPE_TEXTSIZE
+	pp.Text.To.Type = obj.TYPE_TEXTSIZE
 
-	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
-	ptxt.To.Offset = int64(frame)
+	pp.Text.To.Offset = int64(frame)
 
 	// insert code to zero ambiguously live variables
 	// so that the garbage collector only sees initialized values
 	// when it looks for pointers.
-	p := ptxt
+	p := pp.Text
 
 	hi := int64(0)
 	lo := hi
@@ -44,7 +44,7 @@ func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
 		}
 
 		// zero old range
-		p = zerorange(p, int64(frame), lo, hi, &ax)
+		p = zerorange(pp, p, int64(frame), lo, hi, &ax)
 
 		// set new range
 		hi = n.Xoffset + n.Type.Width
@@ -53,39 +53,39 @@ func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
 	}
 
 	// zero final range
-	zerorange(p, int64(frame), lo, hi, &ax)
+	zerorange(pp, p, int64(frame), lo, hi, &ax)
 }
 
-func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Prog {
+func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Prog {
 	cnt := hi - lo
 	if cnt == 0 {
 		return p
 	}
 	if *ax == 0 {
-		p = gc.Appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
 		*ax = 1
 	}
 
 	if cnt <= int64(4*gc.Widthreg) {
 		for i := int64(0); i < cnt; i += int64(gc.Widthreg) {
-			p = gc.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i)
+			p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i)
 		}
 	} else if !gc.Nacl && cnt <= int64(128*gc.Widthreg) {
-		p = gc.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
-		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(gc.Widthreg)))
+		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
+		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(gc.Widthreg)))
 		p.To.Sym = gc.Duffzero
 	} else {
-		p = gc.Appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
-		p = gc.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
-		p = gc.Appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
-		p = gc.Appendpp(p, x86.ASTOSL, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
+		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
+		p = pp.Appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+		p = pp.Appendpp(p, x86.ASTOSL, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
 	}
 
 	return p
 }
 
-func ginsnop() {
-	p := gc.Prog(x86.AXCHGL)
+func ginsnop(pp *gc.Progs) {
+	p := pp.Prog(x86.AXCHGL)
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = x86.REG_AX
 	p.To.Type = obj.TYPE_REG

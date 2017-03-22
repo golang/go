@@ -1171,7 +1171,6 @@ func funccompile(n *Node) {
 	funcdepth = n.Func.Depth + 1
 	compile(n)
 	Curfn = nil
-	pc = nil
 	funcdepth = 0
 	dclcontext = PEXTERN
 }
