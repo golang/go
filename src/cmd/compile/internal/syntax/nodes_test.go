@@ -261,23 +261,23 @@ func TestPos(t *testing.T) {
 	)
 
 	testPos(t, stmts, "package p; func _() { ", "; }",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0] },
+		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body.List[0] },
 	)
 
 	testPos(t, ranges, "package p; func _() { for ", " {} }",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*ForStmt).Init.(*RangeClause) },
+		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body.List[0].(*ForStmt).Init.(*RangeClause) },
 	)
 
 	testPos(t, guards, "package p; func _() { switch ", " {} }",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*SwitchStmt).Tag.(*TypeSwitchGuard) },
+		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body.List[0].(*SwitchStmt).Tag.(*TypeSwitchGuard) },
 	)
 
 	testPos(t, cases, "package p; func _() { switch { ", " } }",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*SwitchStmt).Body[0] },
+		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body.List[0].(*SwitchStmt).Body[0] },
 	)
 
 	testPos(t, comms, "package p; func _() { select { ", " } }",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*SelectStmt).Body[0] },
+		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body.List[0].(*SelectStmt).Body[0] },
 	)
 }
 

@@ -480,11 +480,8 @@ func (p *parser) funcDecl() *FuncDecl {
 
 	f.Name = p.name()
 	f.Type = p.funcType()
-	if lbrace := p.pos(); p.got(_Lbrace) {
-		f.Lbrace = lbrace
-		f.Body = p.funcBody()
-		f.Rbrace = p.pos()
-		p.want(_Rbrace)
+	if p.tok == _Lbrace {
+		f.Body = p.blockStmt("")
 	}
 
 	f.Pragma = p.pragma
@@ -704,16 +701,13 @@ func (p *parser) operand(keep_parens bool) Expr {
 		pos := p.pos()
 		p.next()
 		t := p.funcType()
-		if lbrace := p.pos(); p.got(_Lbrace) {
+		if p.tok == _Lbrace {
 			p.xnest++
 
 			f := new(FuncLit)
 			f.pos = pos
-			f.Lbrace = lbrace
 			f.Type = t
-			f.Body = p.funcBody()
-			f.Rbrace = p.pos()
-			p.want(_Rbrace)
+			f.Body = p.blockStmt("")
 
 			p.xnest--
 			return f
@@ -902,7 +896,6 @@ func (p *parser) complitexpr() *CompositeLit {
 	x := new(CompositeLit)
 	x.pos = p.pos()
 
-	x.Lbrace = p.pos()
 	p.want(_Lbrace)
 	p.xnest++
 
@@ -1619,15 +1612,21 @@ func (p *parser) labeledStmt(label *Name) Stmt {
 	return s
 }
 
-func (p *parser) blockStmt() *BlockStmt {
+func (p *parser) blockStmt(context string) *BlockStmt {
 	if trace {
 		defer p.trace("blockStmt")()
 	}
 
 	s := new(BlockStmt)
 	s.pos = p.pos()
-	p.want(_Lbrace)
-	s.Body = p.stmtList()
+
+	if !p.got(_Lbrace) {
+		p.syntax_error("expecting { after " + context)
+		p.advance(_Name, _Rbrace)
+		// TODO(gri) may be better to return here than to continue (#19663)
+	}
+
+	s.List = p.stmtList()
 	s.Rbrace = p.pos()
 	p.want(_Rbrace)
 
@@ -1657,29 +1656,14 @@ func (p *parser) forStmt() Stmt {
 	s.pos = p.pos()
 
 	s.Init, s.Cond, s.Post = p.header(_For)
-	s.Body, s.Lbrace, s.Rbrace = p.stmtBody("for clause")
+	s.Body = p.blockStmt("for clause")
 
 	return s
 }
 
-// stmtBody parses if and for statement bodies.
-func (p *parser) stmtBody(context string) (body []Stmt, lbrace, rbrace src.Pos) {
-	if trace {
-		defer p.trace("stmtBody")()
-	}
-
-	lbrace = p.pos()
-	if !p.got(_Lbrace) {
-		p.syntax_error("expecting { after " + context)
-		p.advance(_Name, _Rbrace)
-	}
-	body = p.stmtList()
-	rbrace = p.pos()
-	p.want(_Rbrace)
-
-	return
-}
-
+// TODO(gri) This function is now so heavily influenced by the keyword that
+//           it may not make sense anymore to combine all three cases. It
+//           may be simpler to just split it up for each statement kind.
 func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleStmt) {
 	p.want(keyword)
 
@@ -1769,14 +1753,14 @@ func (p *parser) ifStmt() *IfStmt {
 	s.pos = p.pos()
 
 	s.Init, s.Cond, _ = p.header(_If)
-	s.Then, s.Lbrace, s.Rbrace = p.stmtBody("if clause")
+	s.Then = p.blockStmt("if clause")
 
 	if p.got(_Else) {
 		switch p.tok {
 		case _If:
 			s.Else = p.ifStmt()
 		case _Lbrace:
-			s.Else = p.blockStmt()
+			s.Else = p.blockStmt("")
 		default:
 			p.syntax_error("else must be followed by if or statement block")
 			p.advance(_Name, _Rbrace)
@@ -1849,7 +1833,7 @@ func (p *parser) caseClause() *CaseClause {
 
 	default:
 		p.syntax_error("expecting case or default or }")
-		p.advance(_Case, _Default, _Rbrace)
+		p.advance(_Colon, _Case, _Default, _Rbrace)
 	}
 
 	c.Colon = p.pos()
@@ -1889,7 +1873,7 @@ func (p *parser) commClause() *CommClause {
 
 	default:
 		p.syntax_error("expecting case or default or }")
-		p.advance(_Case, _Default, _Rbrace)
+		p.advance(_Colon, _Case, _Default, _Rbrace)
 	}
 
 	c.Colon = p.pos()
@@ -1926,7 +1910,7 @@ func (p *parser) stmt() Stmt {
 
 	switch p.tok {
 	case _Lbrace:
-		return p.blockStmt()
+		return p.blockStmt("")
 
 	case _Var:
 		return p.declStmt(p.varDecl)

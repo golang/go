@@ -23,10 +23,7 @@ var src_ = flag.String("src", "parser.go", "source file to parse")
 var verify = flag.Bool("verify", false, "verify idempotent printing")
 
 func TestParse(t *testing.T) {
-	_, err := ParseFile(*src_, nil, nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
 }
 
 func TestStdLib(t *testing.T) {
@@ -81,7 +78,7 @@ func TestStdLib(t *testing.T) {
 	dm := float64(m2.TotalAlloc-m1.TotalAlloc) / 1e6
 
 	fmt.Printf("parsed %d lines (%d files) in %v (%d lines/s)\n", lines, count, dt, int64(float64(lines)/dt.Seconds()))
-	fmt.Printf("allocated %.3fMb (%dB/line, %.3fMb/s)\n", dm, uint64(dm*(1<<20)/float64(lines)), dm/dt.Seconds())
+	fmt.Printf("allocated %.3fMb (%.3fMb/s)\n", dm, dm/dt.Seconds())
 }
 
 func walkDirs(t *testing.T, dir string, action func(string)) {
