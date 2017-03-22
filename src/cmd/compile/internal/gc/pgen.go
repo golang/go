@@ -316,12 +316,15 @@ func compile(fn *Node) {
 
 	setlineno(fn)
 
-	nam := fn.Func.Nname
-	if isblank(nam) {
-		nam = nil
+	ptxt := Prog(obj.ATEXT)
+	if nam := fn.Func.Nname; !isblank(nam) {
+		ptxt.From.Type = obj.TYPE_MEM
+		ptxt.From.Name = obj.NAME_EXTERN
+		ptxt.From.Sym = Linksym(nam.Sym)
+		if fn.Func.Pragma&Systemstack != 0 {
+			ptxt.From.Sym.Set(obj.AttrCFunc, true)
+		}
 	}
-	ptxt := Gins(obj.ATEXT, nam, nil)
-	fnsym := ptxt.From.Sym
 
 	ptxt.From3 = new(obj.Addr)
 	if fn.Func.Dupok() {
@@ -342,9 +345,6 @@ func compile(fn *Node) {
 	if fn.Func.ReflectMethod() {
 		ptxt.From3.Offset |= obj.REFLECTMETHOD
 	}
-	if fn.Func.Pragma&Systemstack != 0 {
-		ptxt.From.Sym.Set(obj.AttrCFunc, true)
-	}
 
 	// Clumsy but important.
 	// See test/recover.go for test cases and src/reflect/value.go
@@ -357,10 +357,10 @@ func compile(fn *Node) {
 
 	genssa(ssafn, ptxt)
 
+	fieldtrack(ptxt.From.Sym, fn.Func.FieldTrack)
+
 	obj.Flushplist(Ctxt, plist) // convert from Prog list to machine code
 	ptxt = nil                  // nil to prevent misuse; Prog may have been freed by Flushplist
-
-	fieldtrack(fnsym, fn.Func.FieldTrack)
 }
 
 func debuginfo(fnsym *obj.LSym) []*dwarf.Var {
