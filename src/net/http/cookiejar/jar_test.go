@@ -19,6 +19,9 @@ var tNow = time.Date(2013, 1, 1, 12, 0, 0, 0, time.UTC)
 
 // testPSL implements PublicSuffixList with just two rules: "co.uk"
 // and the default rule "*".
+// The implementation has two intentional bugs:
+//    PublicSuffix("www.buggy.psl") == "xy"
+//    PublicSuffix("www2.buggy.psl") == "com"
 type testPSL struct{}
 
 func (testPSL) String() string {
@@ -27,6 +30,12 @@ func (testPSL) String() string {
 func (testPSL) PublicSuffix(d string) string {
 	if d == "co.uk" || strings.HasSuffix(d, ".co.uk") {
 		return "co.uk"
+	}
+	if d == "www.buggy.psl" {
+		return "xy"
+	}
+	if d == "www2.buggy.psl" {
+		return "com"
 	}
 	return d[strings.LastIndex(d, ".")+1:]
 }
@@ -187,6 +196,8 @@ var jarKeyTests = map[string]string{
 	"co.uk":               "co.uk",
 	"uk":                  "uk",
 	"192.168.0.5":         "192.168.0.5",
+	"www.buggy.psl":       "www.buggy.psl",
+	"www2.buggy.psl":      "buggy.psl",
 	// The following are actual outputs of canonicalHost for
 	// malformed inputs to canonicalHost (see above).
 	"":              "",
