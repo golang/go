@@ -16,18 +16,18 @@ import (
 // Must be between 256 and 4096.
 const clearLoopCutoff = 1024
 
-func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
 	// fill in argument size, stack size
-	ptxt.To.Type = obj.TYPE_TEXTSIZE
+	pp.Text.To.Type = obj.TYPE_TEXTSIZE
 
-	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
-	ptxt.To.Offset = int64(frame)
+	pp.Text.To.Offset = int64(frame)
 
 	// insert code to zero ambiguously live variables
 	// so that the garbage collector only sees initialized values
 	// when it looks for pointers.
-	p := ptxt
+	p := pp.Text
 
 	hi := int64(0)
 	lo := hi
@@ -52,7 +52,7 @@ func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
 		}
 
 		// zero old range
-		p = zerorange(p, int64(frame), lo, hi)
+		p = zerorange(pp, p, int64(frame), lo, hi)
 
 		// set new range
 		hi = n.Xoffset + n.Type.Width
@@ -61,11 +61,11 @@ func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
 	}
 
 	// zero final range
-	zerorange(p, int64(frame), lo, hi)
+	zerorange(pp, p, int64(frame), lo, hi)
 }
 
 // zerorange clears the stack in the given range.
-func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	cnt := hi - lo
 	if cnt == 0 {
 		return p
@@ -80,7 +80,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	// need to create a copy of the stack pointer that we can adjust.
 	// We also need to do this if we are going to loop.
 	if offset < 0 || offset > 4096-clearLoopCutoff || cnt > clearLoopCutoff {
-		p = gc.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset, obj.TYPE_REG, s390x.REGRT1, 0)
+		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset, obj.TYPE_REG, s390x.REGRT1, 0)
 		p.Reg = int16(s390x.REGSP)
 		reg = s390x.REGRT1
 		offset = 0
@@ -90,16 +90,16 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	if cnt > clearLoopCutoff {
 		n := cnt - (cnt % 256)
 		end := int16(s390x.REGRT2)
-		p = gc.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset+n, obj.TYPE_REG, end, 0)
+		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset+n, obj.TYPE_REG, end, 0)
 		p.Reg = reg
-		p = gc.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
+		p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
 		p.From3 = new(obj.Addr)
 		p.From3.Type = obj.TYPE_CONST
 		p.From3.Offset = 256
 		pl := p
-		p = gc.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, 256, obj.TYPE_REG, reg, 0)
-		p = gc.Appendpp(p, s390x.ACMP, obj.TYPE_REG, reg, 0, obj.TYPE_REG, end, 0)
-		p = gc.Appendpp(p, s390x.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
+		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, 256, obj.TYPE_REG, reg, 0)
+		p = pp.Appendpp(p, s390x.ACMP, obj.TYPE_REG, reg, 0, obj.TYPE_REG, end, 0)
+		p = pp.Appendpp(p, s390x.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
 		gc.Patch(p, pl)
 
 		cnt -= n
@@ -126,11 +126,11 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 			case 2:
 				ins = s390x.AMOVH
 			}
-			p = gc.Appendpp(p, ins, obj.TYPE_CONST, 0, 0, obj.TYPE_MEM, reg, offset)
+			p = pp.Appendpp(p, ins, obj.TYPE_CONST, 0, 0, obj.TYPE_MEM, reg, offset)
 
 		// Handle clears that would require multiple move instructions with XC.
 		default:
-			p = gc.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
+			p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
 			p.From3 = new(obj.Addr)
 			p.From3.Type = obj.TYPE_CONST
 			p.From3.Offset = n
@@ -143,8 +143,8 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	return p
 }
 
-func ginsnop() {
-	p := gc.Prog(s390x.AOR)
+func ginsnop(pp *gc.Progs) {
+	p := pp.Prog(s390x.AOR)
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = int16(s390x.REG_R0)
 	p.To.Type = obj.TYPE_REG

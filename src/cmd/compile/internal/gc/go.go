@@ -285,8 +285,6 @@ var writearchive bool
 
 var Nacl bool
 
-var pc *obj.Prog
-
 var nodfp *Node
 
 var disable_checknil int
@@ -300,8 +298,8 @@ type Arch struct {
 	MAXWIDTH int64
 	Use387   bool // should 386 backend use 387 FP instructions instead of sse2.
 
-	Defframe func(*obj.Prog, *Node, int64)
-	Ginsnop  func()
+	Defframe func(*Progs, *Node, int64)
+	Ginsnop  func(*Progs)
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
@@ -313,8 +311,6 @@ type Arch struct {
 	// for all values in the block before SSAGenBlock.
 	SSAGenBlock func(s *SSAGenState, b, next *ssa.Block)
 }
-
-var pcloc int32
 
 var thearch Arch
 

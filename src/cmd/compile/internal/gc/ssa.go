@@ -4234,6 +4234,8 @@ type Branch struct {
 
 // SSAGenState contains state needed during Prog generation.
 type SSAGenState struct {
+	pp *Progs
+
 	// Branches remembers all the branch instructions we've seen
 	// and where they would like to go.
 	Branches []Branch
@@ -4255,33 +4257,33 @@ type SSAGenState struct {
 
 // Prog appends a new Prog.
 func (s *SSAGenState) Prog(as obj.As) *obj.Prog {
-	return Prog(as)
+	return s.pp.Prog(as)
 }
 
 // Pc returns the current Prog.
 func (s *SSAGenState) Pc() *obj.Prog {
-	return pc
+	return s.pp.next
 }
 
 // SetPos sets the current source position.
 func (s *SSAGenState) SetPos(pos src.XPos) {
-	lineno = pos
+	s.pp.pos = pos
 }
 
-// genssa appends entries to ptxt for each instruction in f.
-func genssa(f *ssa.Func, ptxt *obj.Prog) {
+// genssa appends entries to pp for each instruction in f.
+func genssa(f *ssa.Func, pp *Progs) {
 	var s SSAGenState
 
 	e := f.Frontend().(*ssafn)
 
 	// Generate GC bitmaps.
-	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
-	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
+	gcargs := makefuncdatasym(pp, "gcargs·", obj.FUNCDATA_ArgsPointerMaps)
+	gclocals := makefuncdatasym(pp, "gclocals·", obj.FUNCDATA_LocalsPointerMaps)
 	s.stackMapIndex = liveness(e, f, gcargs, gclocals)
 
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())
-
+	s.pp = pp
 	var valueProgs map[*obj.Prog]*ssa.Value
 	var blockProgs map[*obj.Prog]*ssa.Block
 	var logProgs = e.log
@@ -4289,7 +4291,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog) {
 		valueProgs = make(map[*obj.Prog]*ssa.Value, f.NumValues())
 		blockProgs = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
 		f.Logf("genssa %s\n", f.Name)
-		blockProgs[pc] = f.Blocks[0]
+		blockProgs[s.pp.next] = f.Blocks[0]
 	}
 
 	if thearch.Use387 {
@@ -4301,11 +4303,11 @@ func genssa(f *ssa.Func, ptxt *obj.Prog) {
 
 	// Emit basic blocks
 	for i, b := range f.Blocks {
-		s.bstart[b.ID] = pc
+		s.bstart[b.ID] = s.pp.next
 		// Emit values in block
 		thearch.SSAMarkMoves(&s, b)
 		for _, v := range b.Values {
-			x := pc
+			x := s.pp.next
 			s.SetPos(v.Pos)
 
 			switch v.Op {
@@ -4331,7 +4333,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog) {
 			}
 
 			if logProgs {
-				for ; x != pc; x = x.Link {
+				for ; x != s.pp.next; x = x.Link {
 					valueProgs[x] = v
 				}
 			}
@@ -4345,11 +4347,11 @@ func genssa(f *ssa.Func, ptxt *obj.Prog) {
 			// line numbers for otherwise empty blocks.
 			next = f.Blocks[i+1]
 		}
-		x := pc
+		x := s.pp.next
 		s.SetPos(b.Pos)
 		thearch.SSAGenBlock(&s, b, next)
 		if logProgs {
-			for ; x != pc; x = x.Link {
+			for ; x != s.pp.next; x = x.Link {
 				blockProgs[x] = b
 			}
 		}
@@ -4361,7 +4363,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog) {
 	}
 
 	if logProgs {
-		for p := ptxt; p != nil; p = p.Link {
+		for p := pp.Text; p != nil; p = p.Link {
 			var s string
 			if v, ok := valueProgs[p]; ok {
 				s = v.String()
@@ -4376,12 +4378,12 @@ func genssa(f *ssa.Func, ptxt *obj.Prog) {
 			// LineHist is defunct now - this code won't do
 			// anything.
 			// TODO: fix this (ideally without a global variable)
-			// saved := ptxt.Ctxt.LineHist.PrintFilenameOnly
-			// ptxt.Ctxt.LineHist.PrintFilenameOnly = true
+			// saved := pp.Text.Ctxt.LineHist.PrintFilenameOnly
+			// pp.Text.Ctxt.LineHist.PrintFilenameOnly = true
 			var buf bytes.Buffer
 			buf.WriteString("<code>")
 			buf.WriteString("<dl class=\"ssa-gen\">")
-			for p := ptxt; p != nil; p = p.Link {
+			for p := pp.Text; p != nil; p = p.Link {
 				buf.WriteString("<dt class=\"ssa-prog-src\">")
 				if v, ok := valueProgs[p]; ok {
 					buf.WriteString(v.HTML())
@@ -4397,12 +4399,12 @@ func genssa(f *ssa.Func, ptxt *obj.Prog) {
 			buf.WriteString("</dl>")
 			buf.WriteString("</code>")
 			f.HTMLWriter.WriteColumn("genssa", buf.String())
-			// ptxt.Ctxt.LineHist.PrintFilenameOnly = saved
+			// pp.Text.Ctxt.LineHist.PrintFilenameOnly = saved
 		}
 	}
 
 	// Add frame prologue. Zero ambiguously live variables.
-	thearch.Defframe(ptxt, e.curfn, e.stksize+s.maxarg)
+	thearch.Defframe(s.pp, e.curfn, e.stksize+s.maxarg)
 	if Debug['f'] != 0 {
 		frame(0)
 	}
@@ -4638,7 +4640,7 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 		// insert an actual hardware NOP that will have the right line number.
 		// This is different from obj.ANOP, which is a virtual no-op
 		// that doesn't make it into the instruction stream.
-		thearch.Ginsnop()
+		thearch.Ginsnop(s.pp)
 	}
 
 	p = s.Prog(obj.ACALL)
