@@ -461,8 +461,9 @@ var builddeps = map[string][]string{
 	},
 
 	"encoding/base64": {
-		"io",      // encoding/base64
-		"strconv", // encoding/base64
+		"encoding/binary", // encoding/base64
+		"io",              // encoding/base64
+		"strconv",         // encoding/base64
 	},
 
 	"encoding/binary": {
