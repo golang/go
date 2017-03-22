@@ -109,44 +109,6 @@ func isfat(t *Type) bool {
 	return false
 }
 
-// Naddr rewrites a to refer to n.
-// It assumes that a is zeroed on entry.
-func Naddr(a *obj.Addr, n *Node) {
-	if n == nil {
-		return
-	}
-
-	if n.Op != ONAME {
-		Debug['h'] = 1
-		Dump("naddr", n)
-		Fatalf("naddr: bad %v %v", n.Op, Ctxt.Dconv(a))
-	}
-
-	a.Offset = n.Xoffset
-	s := n.Sym
-
-	if s == nil {
-		Fatalf("naddr: nil sym %v", n)
-	}
-
-	a.Type = obj.TYPE_MEM
-	switch n.Class {
-	default:
-		Fatalf("naddr: ONAME class %v %d\n", n.Sym, n.Class)
-
-	case PEXTERN, PFUNC:
-		a.Name = obj.NAME_EXTERN
-
-	case PAUTO:
-		a.Name = obj.NAME_AUTO
-
-	case PPARAM, PPARAMOUT:
-		a.Name = obj.NAME_PARAM
-	}
-
-	a.Sym = Linksym(s)
-}
-
 func Addrconst(a *obj.Addr, v int64) {
 	a.Sym = nil
 	a.Type = obj.TYPE_CONST
@@ -276,18 +238,4 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 	}
 	p.To.Val = to
 	p.To.Offset = to.Pc
-}
-
-// Gins inserts instruction as. f is from, t is to.
-func Gins(as obj.As, f, t *Node) *obj.Prog {
-	switch as {
-	case obj.ATEXT, obj.AFUNCDATA:
-	default:
-		Fatalf("unhandled gins op %v", as)
-	}
-
-	p := Prog(as)
-	Naddr(&p.From, f)
-	Naddr(&p.To, t)
-	return p
 }
