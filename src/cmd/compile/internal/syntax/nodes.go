@@ -97,13 +97,12 @@ type (
 	// func Receiver Name Type { Body }
 	// func Receiver Name Type
 	FuncDecl struct {
-		Attr           map[string]bool // go:attr map
-		Recv           *Field          // nil means regular function
-		Name           *Name
-		Type           *FuncType
-		Body           []Stmt // nil means no body (forward declaration)
-		Lbrace, Rbrace src.Pos
-		Pragma         Pragma // TODO(mdempsky): Cleaner solution.
+		Attr   map[string]bool // go:attr map
+		Recv   *Field          // nil means regular function
+		Name   *Name
+		Type   *FuncType
+		Body   *BlockStmt // nil means no body (forward declaration)
+		Pragma Pragma     // TODO(mdempsky): Cleaner solution.
 		decl
 	}
 )
@@ -141,10 +140,10 @@ type (
 
 	// Type { ElemList[0], ElemList[1], ... }
 	CompositeLit struct {
-		Type           Expr // nil means no literal type
-		ElemList       []Expr
-		NKeys          int // number of elements with keys
-		Lbrace, Rbrace src.Pos
+		Type     Expr // nil means no literal type
+		ElemList []Expr
+		NKeys    int // number of elements with keys
+		Rbrace   src.Pos
 		expr
 	}
 
@@ -156,9 +155,8 @@ type (
 
 	// func Type { Body }
 	FuncLit struct {
-		Type           *FuncType
-		Body           []Stmt
-		Lbrace, Rbrace src.Pos
+		Type *FuncType
+		Body *BlockStmt
 		expr
 	}
 
@@ -323,7 +321,7 @@ type (
 	}
 
 	BlockStmt struct {
-		Body   []Stmt
+		List   []Stmt
 		Rbrace src.Pos
 		stmt
 	}
@@ -367,20 +365,18 @@ type (
 	}
 
 	IfStmt struct {
-		Init           SimpleStmt
-		Cond           Expr
-		Then           []Stmt
-		Lbrace, Rbrace src.Pos // of Then branch
-		Else           Stmt    // either *IfStmt or *BlockStmt
+		Init SimpleStmt
+		Cond Expr
+		Then *BlockStmt
+		Else Stmt // either *IfStmt or *BlockStmt
 		stmt
 	}
 
 	ForStmt struct {
-		Init           SimpleStmt // incl. *RangeClause
-		Cond           Expr
-		Post           SimpleStmt
-		Body           []Stmt
-		Lbrace, Rbrace src.Pos
+		Init SimpleStmt // incl. *RangeClause
+		Cond Expr
+		Post SimpleStmt
+		Body *BlockStmt
 		stmt
 	}
 

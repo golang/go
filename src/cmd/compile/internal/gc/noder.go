@@ -297,7 +297,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 
 	var body []*Node
 	if fun.Body != nil {
-		body = p.stmts(fun.Body)
+		body = p.stmts(fun.Body.List)
 		if body == nil {
 			body = []*Node{p.nod(fun, OEMPTY, nil, nil)}
 		}
@@ -314,7 +314,11 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		yyerror("go:nosplit and go:systemstack cannot be combined")
 	}
 	f.Func.Pragma = pragma
-	lineno = Ctxt.PosTable.XPos(fun.Rbrace)
+	var rbrace src.Pos
+	if fun.Body != nil {
+		rbrace = fun.Body.Rbrace
+	}
+	lineno = Ctxt.PosTable.XPos(rbrace)
 	f.Func.Endlineno = lineno
 
 	funcbody(f)
@@ -450,8 +454,8 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
 		closurehdr(p.typeExpr(expr.Type))
-		body := p.stmts(expr.Body)
-		lineno = Ctxt.PosTable.XPos(expr.Rbrace)
+		body := p.stmts(expr.Body.List)
+		lineno = Ctxt.PosTable.XPos(expr.Body.Rbrace)
 		return p.setlineno(expr, closurebody(body))
 	case *syntax.ParenExpr:
 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
@@ -676,7 +680,12 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 	case *syntax.LabeledStmt:
 		return p.labeledStmt(stmt)
 	case *syntax.BlockStmt:
-		return p.body(stmt.Body)
+		l := p.blockStmt(stmt)
+		if len(l) == 0 {
+			// TODO(mdempsky): Line number?
+			return nod(OEMPTY, nil, nil)
+		}
+		return liststmt(l)
 	case *syntax.ExprStmt:
 		return p.wrapname(stmt, p.expr(stmt.X))
 	case *syntax.SendStmt:
@@ -781,18 +790,9 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 	panic("unhandled Stmt")
 }
 
-func (p *noder) body(body []syntax.Stmt) *Node {
-	l := p.bodyList(body)
-	if len(l) == 0 {
-		// TODO(mdempsky): Line number?
-		return nod(OEMPTY, nil, nil)
-	}
-	return liststmt(l)
-}
-
-func (p *noder) bodyList(body []syntax.Stmt) []*Node {
+func (p *noder) blockStmt(stmt *syntax.BlockStmt) []*Node {
 	markdcl()
-	nodes := p.stmts(body)
+	nodes := p.stmts(stmt.List)
 	popdcl()
 	return nodes
 }
@@ -806,7 +806,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) *Node {
 	if stmt.Cond != nil {
 		n.Left = p.expr(stmt.Cond)
 	}
-	n.Nbody.Set(p.bodyList(stmt.Then))
+	n.Nbody.Set(p.blockStmt(stmt.Then))
 	if stmt.Else != nil {
 		e := p.stmt(stmt.Else)
 		if e.Op == OBLOCK && e.Ninit.Len() == 0 {
@@ -848,7 +848,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
 			n.Right = p.stmt(stmt.Post)
 		}
 	}
-	n.Nbody.Set(p.bodyList(stmt.Body))
+	n.Nbody.Set(p.blockStmt(stmt.Body))
 	popdcl()
 	return n
 }
