@@ -740,7 +740,6 @@ type Link struct {
 	Rep           int
 	Repn          int
 	Lock          int
-	Asmode        int
 	AsmBuf        AsmBuf // instruction buffer for x86
 	Instoffset    int64
 	Autosize      int32

@@ -2254,7 +2254,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 			// Can't use SP as the index register
 			return Yxxx
 		}
-		if ctxt.Asmode == 64 {
+		if ctxt.Arch.Family == sys.AMD64 {
 			switch a.Name {
 			case obj.NAME_EXTERN, obj.NAME_STATIC, obj.NAME_GOTREF:
 				// Global variables can't use index registers and their
@@ -2379,7 +2379,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		REG_R13B,
 		REG_R14B,
 		REG_R15B:
-		if ctxt.Asmode != 64 {
+		if ctxt.Arch.Family == sys.I386 {
 			return Yxxx
 		}
 		fallthrough
@@ -2409,7 +2409,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		REG_R13,
 		REG_R14,
 		REG_R15:
-		if ctxt.Asmode != 64 {
+		if ctxt.Arch.Family == sys.I386 {
 			return Yxxx
 		}
 		fallthrough
@@ -2580,7 +2580,7 @@ func asmidx(ctxt *obj.Link, scale int, index int, base int) {
 		REG_R13,
 		REG_R14,
 		REG_R15:
-		if ctxt.Asmode != 64 {
+		if ctxt.Arch.Family == sys.I386 {
 			goto bad
 		}
 		fallthrough
@@ -2628,7 +2628,7 @@ bas:
 		REG_R13,
 		REG_R14,
 		REG_R15:
-		if ctxt.Asmode != 64 {
+		if ctxt.Arch.Family == sys.I386 {
 			goto bad
 		}
 		fallthrough
@@ -4359,7 +4359,6 @@ func nacltrunc(ctxt *obj.Link, reg int) {
 
 func asmins(ctxt *obj.Link, p *obj.Prog) {
 	ctxt.AsmBuf.Reset()
-	ctxt.Asmode = int(p.Mode)
 
 	if ctxt.Headtype == obj.Hnacl && p.Mode == 32 {
 		switch p.As {
@@ -4462,7 +4461,6 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 	ctxt.Rexflag = 0
 	ctxt.Vexflag = 0
 	mark := ctxt.AsmBuf.Len()
-	ctxt.Asmode = int(p.Mode)
 	doasm(ctxt, p)
 	if ctxt.Rexflag != 0 && ctxt.Vexflag == 0 {
 		/*
