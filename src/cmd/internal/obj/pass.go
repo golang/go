@@ -142,8 +142,6 @@ func linkpatch(ctxt *Link, sym *LSym) {
 	var name string
 	var q *Prog
 
-	ctxt.Cursym = sym
-
 	for p := sym.Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
 		if p.From3 != nil {
