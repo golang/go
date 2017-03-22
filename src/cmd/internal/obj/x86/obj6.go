@@ -73,11 +73,8 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 }
 
 func progedit(ctxt *obj.Link, p *obj.Prog) {
-	// Maintain information about code generation mode.
-	if ctxt.Mode == 0 {
-		ctxt.Mode = ctxt.Arch.RegSize * 8
-	}
-	p.Mode = int8(ctxt.Mode)
+	// TODO(josharian): eliminate Prog.Mode
+	p.Mode = int8(ctxt.Arch.RegSize * 8)
 
 	// Thread-local storage references use the TLS pseudo-register.
 	// As a register, TLS refers to the thread-local storage base, and it

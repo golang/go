@@ -32,6 +32,7 @@ package x86
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -3299,7 +3300,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 		if ycover[ft+int(yt.from)] != 0 && ycover[f3t+int(yt.from3)] != 0 && ycover[tt+int(yt.to)] != 0 {
 			switch o.prefix {
 			case Px1: /* first option valid only in 32-bit mode */
-				if ctxt.Mode == 64 && z == 0 {
+				if ctxt.Arch.Family == sys.AMD64 && z == 0 {
 					z += int(yt.zoffset) + xo
 					continue
 				}

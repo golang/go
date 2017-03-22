@@ -31,6 +31,7 @@ package mips
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 	"log"
 	"sort"
@@ -47,14 +48,14 @@ const (
 )
 
 type Optab struct {
-	as    obj.As
-	a1    uint8
-	a2    uint8
-	a3    uint8
-	type_ int8
-	size  int8
-	param int16
-	mode  int
+	as     obj.As
+	a1     uint8
+	a2     uint8
+	a3     uint8
+	type_  int8
+	size   int8
+	param  int16
+	family sys.ArchFamily // 0 means both Mips32 and Mips64
 }
 
 var optab = []Optab{
@@ -465,7 +466,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
 
 		cursym.Size = c
 	}
-	if ctxt.Mode&Mips64 != 0 {
+	if ctxt.Arch.Family == sys.MIPS64 {
 		c += -c & (mips64FuncAlign - 1)
 	}
 	cursym.Size = c
@@ -702,7 +703,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	c3 := &xcmp[a3]
 	for i := range ops {
 		op := &ops[i]
-		if int(op.a2) == a2 && c1[op.a1] && c3[op.a3] && (ctxt.Mode&op.mode == op.mode) {
+		if int(op.a2) == a2 && c1[op.a1] && c3[op.a3] && (op.family == 0 || ctxt.Arch.Family == op.family) {
 			p.Optab = uint16(cap(optab) - cap(ops) + i + 1)
 			return op
 		}
@@ -1068,7 +1069,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	add := AADDU
 
-	if ctxt.Mode&Mips64 != 0 {
+	if ctxt.Arch.Family == sys.MIPS64 {
 		add = AADDVU
 	}
 	switch o.type_ {
@@ -1081,7 +1082,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 1: /* mov r1,r2 ==> OR r1,r0,r2 */
 		a := AOR
-		if p.As == AMOVW && ctxt.Mode&Mips64 != 0 {
+		if p.As == AMOVW && ctxt.Arch.Family == sys.MIPS64 {
 			a = AADDU // sign-extended to high 32 bits
 		}
 		o1 = OP_RRR(oprrr(ctxt, a), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))

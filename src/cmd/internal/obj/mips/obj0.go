@@ -38,18 +38,6 @@ import (
 )
 
 func progedit(ctxt *obj.Link, p *obj.Prog) {
-	// Maintain information about code generation mode.
-	if ctxt.Mode == 0 {
-		switch ctxt.Arch.Family {
-		default:
-			ctxt.Diag("unsupported arch family")
-		case sys.MIPS:
-			ctxt.Mode = Mips32
-		case sys.MIPS64:
-			ctxt.Mode = Mips64
-		}
-	}
-
 	p.From.Class = 0
 	p.To.Class = 0
 
@@ -89,7 +77,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	case AMOVD:
 		if p.From.Type == obj.TYPE_FCONST {
 			i64 := math.Float64bits(p.From.Val.(float64))
-			if i64 == 0 && ctxt.Mode&Mips64 != 0 {
+			if i64 == 0 && ctxt.Arch.Family == sys.MIPS64 {
 				p.As = AMOVV
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REGZERO
@@ -285,7 +273,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	var mov, add obj.As
-	if ctxt.Mode&Mips64 != 0 {
+	if ctxt.Arch.Family == sys.MIPS64 {
 		add = AADDV
 		mov = AMOVV
 	} else {
@@ -303,7 +291,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			autosize = int32(textstksiz + ctxt.FixedFrameSize())
 			if (p.Mark&LEAF != 0) && autosize <= int32(ctxt.FixedFrameSize()) {
 				autosize = 0
-			} else if autosize&4 != 0 && ctxt.Mode&Mips64 != 0 {
+			} else if autosize&4 != 0 && ctxt.Arch.Family == sys.MIPS64 {
 				autosize += 4
 			}
 
@@ -534,7 +522,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		}
 	}
 
-	if ctxt.Mode&Mips32 != 0 {
+	if ctxt.Arch.Family == sys.MIPS {
 		// rewrite MOVD into two MOVF in 32-bit mode to avoid unaligned memory access
 		for p = cursym.Text; p != nil; p = p1 {
 			p1 = p.Link
@@ -633,7 +621,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 
 	var mov, add, sub obj.As
 
-	if ctxt.Mode&Mips64 != 0 {
+	if ctxt.Arch.Family == sys.MIPS64 {
 		add = AADDV
 		mov = AMOVV
 		sub = ASUBVU
