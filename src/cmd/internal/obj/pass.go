@@ -32,21 +32,21 @@ package obj
 
 // Code and data passes.
 
-func brloop(ctxt *Link, p *Prog) *Prog {
-	var q *Prog
-
+// brloop returns the ultimate destination of the series of unconditional jumps beginning at p.
+// In the case of an infinite loop, brloop returns nil.
+func brloop(p *Prog) *Prog {
 	c := 0
-	for q = p; q != nil; q = q.Pcond {
+	for q := p; q != nil; q = q.Pcond {
 		if q.As != AJMP || q.Pcond == nil {
-			break
+			return q
 		}
 		c++
 		if c >= 5000 {
+			// infinite loop
 			return nil
 		}
 	}
-
-	return q
+	panic("unreachable")
 }
 
 // checkaddr checks that a has an expected encoding, especially TYPE_CONST vs TYPE_ADDR.
@@ -169,16 +169,18 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		p.Pcond = q
 	}
 
-	if ctxt.Flag_optimize {
-		for p := sym.Text; p != nil; p = p.Link {
-			if p.Pcond != nil {
-				p.Pcond = brloop(ctxt, p.Pcond)
-				if p.Pcond != nil {
-					if p.To.Type == TYPE_BRANCH {
-						p.To.Offset = p.Pcond.Pc
-					}
-				}
-			}
+	if !ctxt.Flag_optimize {
+		return
+	}
+
+	// Collapse series of jumps to jumps.
+	for p := sym.Text; p != nil; p = p.Link {
+		if p.Pcond == nil {
+			continue
+		}
+		p.Pcond = brloop(p.Pcond)
+		if p.Pcond != nil && p.To.Type == TYPE_BRANCH {
+			p.To.Offset = p.Pcond.Pc
 		}
 	}
 }
