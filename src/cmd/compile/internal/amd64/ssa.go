@@ -945,10 +945,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.BlockAMD64EQF:
-		gc.SSAGenFPJump(s, b, next, &eqfJumps)
+		s.FPJump(b, next, &eqfJumps)
 
 	case ssa.BlockAMD64NEF:
-		gc.SSAGenFPJump(s, b, next, &nefJumps)
+		s.FPJump(b, next, &nefJumps)
 
 	case ssa.BlockAMD64EQ, ssa.BlockAMD64NE,
 		ssa.BlockAMD64LT, ssa.BlockAMD64GE,

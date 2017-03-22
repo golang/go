@@ -4438,7 +4438,7 @@ func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ss
 	}
 }
 
-func SSAGenFPJump(s *SSAGenState, b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
+func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
 	likely := b.Likely
 	switch next {
 	case b.Succs[0].Block():
