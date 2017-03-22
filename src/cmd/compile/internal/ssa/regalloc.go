@@ -2176,6 +2176,7 @@ func (s *regAllocState) computeLive() {
 	// out to all of them.
 	po := f.postorder()
 	s.loopnest = f.loopnest()
+	s.loopnest.calculateDepths()
 	for {
 		changed := false
 
