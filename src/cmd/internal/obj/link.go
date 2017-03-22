@@ -748,7 +748,6 @@ type Link struct {
 	Pc            int64
 	DiagFunc      func(string, ...interface{})
 	DebugInfo     func(fn *LSym) []*dwarf.Var
-	Mode          int
 	Cursym        *LSym
 	Version       int
 	Errors        int

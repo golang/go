@@ -12,7 +12,8 @@ import "encoding/binary"
 type ArchFamily byte
 
 const (
-	AMD64 ArchFamily = iota
+	NoArch ArchFamily = iota
+	AMD64
 	ARM
 	ARM64
 	I386
