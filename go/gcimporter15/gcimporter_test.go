@@ -249,7 +249,10 @@ var importedObjectTests = []struct {
 }{
 	{"math.Pi", "const Pi untyped float"},
 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
-	{"io.ReadWriter", "type ReadWriter interface{Reader; Writer}"},
+	// Go 1.7 and 1.8 don't know about embedded interfaces. Leave this
+	// test out for now - the code is tested in the std library anyway.
+	// TODO(gri) enable again once we're off 1.7 and 1.8.
+	// {"io.ReadWriter", "type ReadWriter interface{Reader; Writer}"},
 	{"math.Sin", "func Sin(x float64) float64"},
 	// TODO(gri) add more tests
 }
