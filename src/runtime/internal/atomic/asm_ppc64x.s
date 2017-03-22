@@ -165,32 +165,12 @@ TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
 TEXT runtime∕internal∕atomic·Or8(SB), NOSPLIT, $0-9
 	MOVD	ptr+0(FP), R3
 	MOVBZ	val+8(FP), R4
-#ifdef  GOARCH_ppc64
-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
-	// R5 = (R3 << 0) & ~3
-	RLDCR	$0, R3, $~3, R5
-	// Compute val shift.
-	// Big endian.  ptr = ptr ^ 3
-	XOR	$3, R3
-	// R6 = ((ptr & 3) * 8) = (ptr << 3) & (3*8)
-	RLDC	$3, R3, $(3*8), R6
-	// Shift val for aligned ptr.  R4 = val << R6
-	SLD	R6, R4, R4
-	SYNC
-
-again:
-	LWAR	(R5), R6
-	OR	R4, R6
-	STWCCC	R6, (R5)
-	BNE	again
-#else
 	SYNC
 again:
 	LBAR	(R3), R6
 	OR	R4, R6
 	STBCCC	R6, (R3)
 	BNE	again
-#endif
 	ISYNC
 	RET
 
@@ -198,34 +178,11 @@ again:
 TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-9
 	MOVD	ptr+0(FP), R3
 	MOVBZ	val+8(FP), R4
-#ifdef  GOARCH_ppc64
-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
-	// R5 = (R3 << 0) & ~3
-	RLDCR	$0, R3, $~3, R5
-	// Compute val shift.
-	// Big endian.  ptr = ptr ^ 3
-	XOR	$3, R3
-	// R6 = ((ptr & 3) * 8) = (ptr << 3) & (3*8)
-	RLDC	$3, R3, $(3*8), R6
-	// Shift val for aligned ptr.  R4 = val << R6 | ^(0xFF << R6)
-	MOVD	$0xFF, R7
-	SLD	R6, R4
-	SLD	R6, R7
-	XOR	$-1, R7
-	OR	R7, R4
-	SYNC
-again:
-	LWAR	(R5), R6
-	AND	R4, R6
-	STWCCC	R6, (R5)
-	BNE	again
-#else
 	SYNC
 again:
 	LBAR	(R3),R6
 	AND	R4,R6
 	STBCCC	R6,(R3)
 	BNE	again
-#endif
 	ISYNC
 	RET
