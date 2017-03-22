@@ -585,7 +585,7 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
 	_g_.m.mcache.local_tinyallocs = 0
 
-	s := h.allocSpanLocked(npage)
+	s := h.allocSpanLocked(npage, &memstats.heap_inuse)
 	if s != nil {
 		// Record span info, because gc needs to be
 		// able to map interior pointer to containing span.
@@ -664,9 +664,12 @@ func (h *mheap) alloc(npage uintptr, sizeclass int32, large bool, needzero bool)
 	return s
 }
 
-// allocManual allocates a manually-managed span of npage pages and
-// adds the bytes used to *stat, which should be a memstats in-use
-// field. allocManual returns nil if allocation fails.
+// allocManual allocates a manually-managed span of npage pages.
+// allocManual returns nil if allocation fails.
+//
+// allocManual adds the bytes used to *stat, which should be a
+// memstats in-use field. Unlike allocations in the GC'd heap, the
+// allocation does *not* count toward heap_inuse or heap_sys.
 //
 // The memory backing the returned span may not be zeroed if
 // span.needzero is set.
@@ -678,7 +681,7 @@ func (h *mheap) alloc(npage uintptr, sizeclass int32, large bool, needzero bool)
 //go:systemstack
 func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 	lock(&h.lock)
-	s := h.allocSpanLocked(npage)
+	s := h.allocSpanLocked(npage, stat)
 	if s != nil {
 		s.state = _MSpanManual
 		s.manualFreeList = 0
@@ -687,7 +690,8 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 		s.nelems = 0
 		s.elemsize = 0
 		s.limit = s.base() + s.npages<<_PageShift
-		*stat += uint64(s.npages << _PageShift)
+		// Manually manged memory doesn't count toward heap_sys.
+		memstats.heap_sys -= uint64(s.npages << _PageShift)
 	}
 
 	// This unlock acts as a release barrier. See mheap.alloc_m.
@@ -699,7 +703,7 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 // Allocates a span of the given size.  h must be locked.
 // The returned span has been removed from the
 // free list, but its state is still MSpanFree.
-func (h *mheap) allocSpanLocked(npage uintptr) *mspan {
+func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 	var list *mSpanList
 	var s *mspan
 
@@ -762,7 +766,7 @@ HaveSpan:
 		h.spans[p+n] = s
 	}
 
-	memstats.heap_inuse += uint64(npage << _PageShift)
+	*stat += uint64(npage << _PageShift)
 	memstats.heap_idle -= uint64(npage << _PageShift)
 
 	//println("spanalloc", hex(s.start<<_PageShift))
@@ -903,7 +907,8 @@ func (h *mheap) freeManual(s *mspan, stat *uint64) {
 	s.needzero = 1
 	lock(&h.lock)
 	*stat -= uint64(s.npages << _PageShift)
-	h.freeSpanLocked(s, true, true, 0)
+	memstats.heap_sys += uint64(s.npages << _PageShift)
+	h.freeSpanLocked(s, false, true, 0)
 	unlock(&h.lock)
 }
 
@@ -1096,8 +1101,6 @@ func (h *mheap) scavenge(k int32, now, limit uint64) {
 		if sumreleased > 0 {
 			print("scvg", k, ": ", sumreleased>>20, " MB released\n")
 		}
-		// TODO(dvyukov): these stats are incorrect as we don't subtract stack usage from heap.
-		// But we can't call ReadMemStats on g0 holding locks.
 		print("scvg", k, ": inuse: ", memstats.heap_inuse>>20, ", idle: ", memstats.heap_idle>>20, ", sys: ", memstats.heap_sys>>20, ", released: ", memstats.heap_released>>20, ", consumed: ", (memstats.heap_sys-memstats.heap_released)>>20, " (MB)\n")
 	}
 }
