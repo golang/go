@@ -95,7 +95,7 @@ func Index(s, sep []byte) int {
 	return -1
 }
 
-// Special case for when we must count occurences of a single byte.
+// Special case for when we must count occurrences of a single byte.
 func countByte(s []byte, c byte) int
 
 // Count counts the number of non-overlapping instances of sep in s.
