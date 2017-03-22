@@ -807,10 +807,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.Block386EQF:
-		gc.SSAGenFPJump(s, b, next, &eqfJumps)
+		s.FPJump(b, next, &eqfJumps)
 
 	case ssa.Block386NEF:
-		gc.SSAGenFPJump(s, b, next, &nefJumps)
+		s.FPJump(b, next, &nefJumps)
 
 	case ssa.Block386EQ, ssa.Block386NE,
 		ssa.Block386LT, ssa.Block386GE,
