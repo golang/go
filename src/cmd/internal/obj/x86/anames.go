@@ -687,7 +687,6 @@ var Anames = []string{
 	"RETFL",
 	"RETFQ",
 	"SWAPGS",
-	"MODE",
 	"CRC32B",
 	"CRC32Q",
 	"IMUL3Q",

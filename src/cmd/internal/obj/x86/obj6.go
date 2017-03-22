@@ -79,17 +79,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	}
 	p.Mode = int8(ctxt.Mode)
 
-	switch p.As {
-	case AMODE:
-		if p.From.Type == obj.TYPE_CONST || (p.From.Type == obj.TYPE_MEM && p.From.Reg == REG_NONE) {
-			switch int(p.From.Offset) {
-			case 16, 32, 64:
-				ctxt.Mode = int(p.From.Offset)
-			}
-		}
-		obj.Nopout(p)
-	}
-
 	// Thread-local storage references use the TLS pseudo-register.
 	// As a register, TLS refers to the thread-local storage base, and it
 	// can only be loaded into another register:
