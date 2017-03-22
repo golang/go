@@ -209,12 +209,13 @@
 //
 // Usage:
 //
-// 	go doc [-u] [-c] [package|[package.]symbol[.method]]
+// 	go doc [-u] [-c] [package|[package.]symbol[.methodOrField]]
 //
 // Doc prints the documentation comments associated with the item identified by its
-// arguments (a package, const, func, type, var, or method) followed by a one-line
-// summary of each of the first-level items "under" that item (package-level
-// declarations for a package, methods for a type, etc.).
+// arguments (a package, const, func, type, var, method, or struct field)
+// followed by a one-line summary of each of the first-level items "under"
+// that item (package-level declarations for a package, methods for a type,
+// etc.).
 //
 // Doc accepts zero, one, or two arguments.
 //
@@ -232,9 +233,9 @@
 // which is schematically one of these:
 //
 // 	go doc <pkg>
-// 	go doc <sym>[.<method>]
-// 	go doc [<pkg>.]<sym>[.<method>]
-// 	go doc [<pkg>.][<sym>.]<method>
+// 	go doc <sym>[.<methodOrField>]
+// 	go doc [<pkg>.]<sym>[.<methodOrField>]
+// 	go doc [<pkg>.][<sym>.]<methodOrField>
 //
 // The first item in this list matched by the argument is the one whose documentation
 // is printed. (See the examples below.) However, if the argument starts with a capital
@@ -254,10 +255,10 @@
 // elements like . and ... are not implemented by go doc.
 //
 // When run with two arguments, the first must be a full package path (not just a
-// suffix), and the second is a symbol or symbol and method; this is similar to the
-// syntax accepted by godoc:
+// suffix), and the second is a symbol, or symbol with method or struct field.
+// This is similar to the syntax accepted by godoc:
 //
-// 	go doc <pkg> <sym>[.<method>]
+// 	go doc <pkg> <sym>[.<methodOrField>]
 //
 // In all forms, when matching symbols, lower-case letters in the argument match
 // either case but upper-case letters match exactly. This means that there may be
@@ -308,7 +309,7 @@
 // 		when showing the package's top-level documentation.
 // 	-u
 // 		Show documentation for unexported as well as exported
-// 		symbols and methods.
+// 		symbols, methods, and fields.
 //
 //
 // Print Go environment information
