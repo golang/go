@@ -31,7 +31,6 @@ package mips
 
 import (
 	"cmd/internal/obj"
-	"cmd/internal/sys"
 )
 
 //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p mips
@@ -218,11 +217,6 @@ const (
 	NOSCHED = 1 << 7
 
 	NSCHED = 20
-)
-
-const (
-	Mips32 = sys.MIPS
-	Mips64 = sys.MIPS64
 )
 
 const (
