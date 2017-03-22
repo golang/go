@@ -49,31 +49,23 @@ func brloop(ctxt *Link, p *Prog) *Prog {
 	return q
 }
 
+// checkaddr checks that a has an expected encoding, especially TYPE_CONST vs TYPE_ADDR.
 func checkaddr(ctxt *Link, p *Prog, a *Addr) {
-	// Check expected encoding, especially TYPE_CONST vs TYPE_ADDR.
 	switch a.Type {
-	case TYPE_NONE:
+	case TYPE_NONE, TYPE_REGREG2, TYPE_REGLIST:
 		return
 
-	case TYPE_BRANCH:
+	case TYPE_BRANCH, TYPE_TEXTSIZE:
 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 {
 			break
 		}
 		return
 
-	case TYPE_TEXTSIZE:
-		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 {
-			break
-		}
-		return
-
-		//if(a->u.bits != 0)
-	//	break;
 	case TYPE_MEM:
 		return
 
-		// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
 	case TYPE_CONST:
+		// TODO(rsc): After fixing SHRQ, check a.Index != 0 too.
 		if a.Name != 0 || a.Sym != nil || a.Reg != 0 {
 			ctxt.Diag("argument is TYPE_CONST, should be TYPE_ADDR, in %v", p)
 			return
@@ -90,9 +82,9 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 		}
 		return
 
-	// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
-	// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
 	case TYPE_REG:
+		// TODO(rsc): After fixing PINSRQ, check a.Offset != 0 too.
+		// TODO(rsc): After fixing SHRQ, check a.Index != 0 too.
 		if a.Scale != 0 || a.Name != 0 || a.Sym != nil {
 			break
 		}
@@ -107,27 +99,15 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 		}
 		return
 
-	case TYPE_SHIFT:
+	case TYPE_SHIFT, TYPE_REGREG:
 		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
 			break
 		}
 		return
 
-	case TYPE_REGREG:
-		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
-			break
-		}
-		return
-
-	case TYPE_REGREG2:
-		return
-
-	case TYPE_REGLIST:
-		return
-
-	// Expect sym and name to be set, nothing else.
-	// Technically more is allowed, but this is only used for *name(SB).
 	case TYPE_INDIR:
+		// Expect sym and name to be set, nothing else.
+		// Technically more is allowed, but this is only used for *name(SB).
 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.Val != nil {
 			break
 		}
