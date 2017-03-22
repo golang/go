@@ -33,13 +33,12 @@ type mstats struct {
 	// Statistics about malloc heap.
 	// Protected by mheap.lock
 	//
-	// In mstats, heap_sys and heap_inuse includes stack memory,
-	// while in MemStats stack memory is separated out from the
-	// heap stats.
+	// Like MemStats, heap_sys and heap_inuse do not count memory
+	// in manually-managed spans.
 	heap_alloc    uint64 // bytes allocated and not yet freed (same as alloc above)
-	heap_sys      uint64 // virtual address space obtained from system
+	heap_sys      uint64 // virtual address space obtained from system for GC'd heap
 	heap_idle     uint64 // bytes in idle spans
-	heap_inuse    uint64 // bytes in non-idle spans
+	heap_inuse    uint64 // bytes in _MSpanInUse spans
 	heap_released uint64 // bytes released to the os
 	heap_objects  uint64 // total number of allocated objects
 
@@ -59,7 +58,7 @@ type mstats struct {
 
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
-	stacks_inuse uint64 // this number is included in heap_inuse above; differs from MemStats.StackInuse
+	stacks_inuse uint64 // bytes in manually-managed stack spans
 	stacks_sys   uint64 // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
 	mspan_inuse  uint64 // mspan structures
 	mspan_sys    uint64
@@ -459,10 +458,9 @@ func readmemstats_m(stats *MemStats) {
 	// cannot change MemStats because of backward compatibility.
 	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
 
-	// Stack numbers are part of the heap numbers, separate those out for user consumption
+	// memstats.stacks_sys is only memory mapped directly for OS stacks.
+	// Add in heap-allocated stack memory for user consumption.
 	stats.StackSys += stats.StackInuse
-	stats.HeapInuse -= stats.StackInuse
-	stats.HeapSys -= stats.StackInuse
 }
 
 //go:linkname readGCStats runtime/debug.readGCStats
@@ -511,6 +509,9 @@ func updatememstats() {
 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
 	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +
 		memstats.mcache_sys + memstats.buckhash_sys + memstats.gc_sys + memstats.other_sys
+
+	// We also count stacks_inuse as sys memory.
+	memstats.sys += memstats.stacks_inuse
 
 	// Calculate memory allocator stats.
 	// During program execution we only count number of frees and amount of freed memory.
