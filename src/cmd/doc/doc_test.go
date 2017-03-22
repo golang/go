@@ -390,6 +390,29 @@ var tests = []test{
 		nil,
 	},
 
+	// Field.
+	{
+		"field",
+		[]string{p, `ExportedType.ExportedField`},
+		[]string{
+			`ExportedField int`,
+			`Comment before exported field.`,
+			`Comment on line with exported field.`,
+		},
+		nil,
+	},
+
+	// Field  with -u.
+	{
+		"method with -u",
+		[]string{"-u", p, `ExportedType.unexportedField`},
+		[]string{
+			`unexportedField int`,
+			`Comment on line with unexported field.`,
+		},
+		nil,
+	},
+
 	// Case matching off.
 	{
 		"case matching off",
