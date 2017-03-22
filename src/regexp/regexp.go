@@ -76,7 +76,8 @@ import (
 )
 
 // Regexp is the representation of a compiled regular expression.
-// A Regexp is safe for concurrent use by multiple goroutines.
+// A Regexp is safe for concurrent use by multiple goroutines,
+// except for configuration methods, such as Longest.
 type Regexp struct {
 	// read-only after Compile
 	regexpRO
@@ -159,6 +160,8 @@ func CompilePOSIX(expr string) (*Regexp, error) {
 // That is, when matching against text, the regexp returns a match that
 // begins as early as possible in the input (leftmost), and among those
 // it chooses a match that is as long as possible.
+// This method modifies the Regexp and may not be called concurrently
+// with any other methods.
 func (re *Regexp) Longest() {
 	re.longest = true
 }
