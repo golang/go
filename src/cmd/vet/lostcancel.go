@@ -104,7 +104,11 @@ func checkLostCancel(f *File, node ast.Node) {
 	var sig *types.Signature
 	switch node := node.(type) {
 	case *ast.FuncDecl:
-		sig, _ = f.pkg.defs[node.Name].Type().(*types.Signature)
+		obj := f.pkg.defs[node.Name]
+		if obj == nil {
+			return // type error (e.g. duplicate function declaration)
+		}
+		sig, _ = obj.Type().(*types.Signature)
 		g = cfg.New(node.Body, mayReturn)
 	case *ast.FuncLit:
 		sig, _ = f.pkg.types[node.Type].Type.(*types.Signature)
