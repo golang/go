@@ -553,7 +553,7 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 
 // makeFuncDebugEntry makes a DWARF Debugging Information Entry
 // for TEXT symbol s.
-func makeFuncDebugEntry(ctxt *Link, s *LSym) {
+func makeFuncDebugEntry(ctxt *Link, curfn interface{}, s *LSym) {
 	dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
 	if dsym.Size != 0 {
 		return
@@ -562,7 +562,7 @@ func makeFuncDebugEntry(ctxt *Link, s *LSym) {
 	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
 	var vars []*dwarf.Var
 	if ctxt.DebugInfo != nil {
-		vars = ctxt.DebugInfo(s)
+		vars = ctxt.DebugInfo(s, curfn)
 	}
 	dwarf.PutFunc(dwCtxt{ctxt}, dsym, s.Name, s.Version == 0, s, s.Size, vars)
 	ctxt.Data = append(ctxt.Data, dsym)

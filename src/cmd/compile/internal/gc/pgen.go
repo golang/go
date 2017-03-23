@@ -310,13 +310,14 @@ func compile(fn *Node) {
 	pp.Flush()
 }
 
-func debuginfo(fnsym *obj.LSym) []*dwarf.Var {
-	if expect := Linksym(Curfn.Func.Nname.Sym); fnsym != expect {
+func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
+	fn := curfn.(*Node)
+	if expect := Linksym(fn.Func.Nname.Sym); fnsym != expect {
 		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
 	}
 
 	var vars []*dwarf.Var
-	for _, n := range Curfn.Func.Dcl {
+	for _, n := range fn.Func.Dcl {
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
 		}

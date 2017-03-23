@@ -746,7 +746,7 @@ type Link struct {
 	Armsize       int32
 	Pc            int64
 	DiagFunc      func(string, ...interface{})
-	DebugInfo     func(fn *LSym) []*dwarf.Var
+	DebugInfo     func(fn *LSym, curfn interface{}) []*dwarf.Var // if non-nil, curfn is a *gc.Node
 	Cursym        *LSym
 	Version       int
 	Errors        int
