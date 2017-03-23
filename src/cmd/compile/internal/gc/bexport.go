@@ -183,9 +183,6 @@ type exporter struct {
 	written int // bytes written
 	indent  int // for p.trace
 	trace   bool
-
-	// work-around for issue #16369 only
-	nesting int // amount of "nesting" of interface types
 }
 
 // export writes the exportlist for localpkg to out and returns the number of bytes written.
