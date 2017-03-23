@@ -635,9 +635,11 @@
 
 (SHLL x (ANDLconst [31] y)) -> (SHLL x y)
 (SHLQ x (ANDQconst [63] y)) -> (SHLQ x y)
+(SHLQ x (ANDLconst [63] y)) -> (SHLQ x y)
 
 (SHRL x (ANDLconst [31] y)) -> (SHRL x y)
 (SHRQ x (ANDQconst [63] y)) -> (SHRQ x y)
+(SHRQ x (ANDLconst [63] y)) -> (SHRQ x y)
 
 // Rotate instructions
 
@@ -1196,6 +1198,7 @@
 (CMPLconst (SHRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n) -> (FlagLT_ULT)
 (CMPQconst (SHRQconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 64 && (1<<uint64(64-c)) <= uint64(n) -> (FlagLT_ULT)
 (CMPQconst (ANDQconst _ [m]) [n]) && 0 <= m && m < n -> (FlagLT_ULT)
+(CMPQconst (ANDLconst _ [m]) [n]) && 0 <= m && m < n -> (FlagLT_ULT)
 (CMPLconst (ANDLconst _ [m]) [n]) && 0 <= int32(m) && int32(m) < int32(n) -> (FlagLT_ULT)
 (CMPWconst (ANDLconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < int16(n) -> (FlagLT_ULT)
 (CMPBconst (ANDLconst _ [m]) [n]) && 0 <= int8(m) && int8(m) < int8(n) -> (FlagLT_ULT)
