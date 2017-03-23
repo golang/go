@@ -79,7 +79,6 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 		maxalign = 1
 	}
 	lastzero := int64(0)
-	var w int64
 	for _, f := range t.Fields().Slice() {
 		if f.Type == nil {
 			// broken field, just skip it so that other valid fields
@@ -91,10 +90,6 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 		if int32(f.Type.Align) > maxalign {
 			maxalign = int32(f.Type.Align)
 		}
-		if f.Type.Width < 0 {
-			Fatalf("invalid width %d", f.Type.Width)
-		}
-		w = f.Type.Width
 		if f.Type.Align > 0 {
 			o = Rnd(o, int64(f.Type.Align))
 		}
@@ -115,6 +110,10 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 			}
 		}
 
+		w := f.Type.Width
+		if w < 0 {
+			Fatalf("invalid width %d", f.Type.Width)
+		}
 		if w == 0 {
 			lastzero = o
 		}
