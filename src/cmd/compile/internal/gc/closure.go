@@ -11,6 +11,7 @@ import (
 // function literals aka closures
 func closurehdr(ntype *Node) {
 	n := nod(OCLOSURE, nil, nil)
+	n.Func.SetIsHiddenClosure(Curfn != nil)
 	n.Func.Ntype = ntype
 	n.Func.Depth = funcdepth
 	n.Func.Outerfunc = Curfn
@@ -209,6 +210,7 @@ func makeclosure(func_ *Node) *Node {
 
 	// create the function
 	xfunc := nod(ODCLFUNC, nil, nil)
+	xfunc.Func.SetIsHiddenClosure(Curfn != nil)
 
 	xfunc.Func.Nname = newfuncname(closurename(func_))
 	xfunc.Func.Nname.Sym.SetExported(true) // disable export
