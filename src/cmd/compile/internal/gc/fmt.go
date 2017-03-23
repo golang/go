@@ -339,7 +339,7 @@ func (m fmtMode) prepareArgs(args []interface{}) {
 				args[i] = (*fmtSymErr)(arg)
 			case Nodes:
 				args[i] = fmtNodesErr(arg)
-			case Val, int32, int64, string:
+			case Val, int32, int64, string, EType:
 				// OK: printing these types doesn't depend on mode
 			default:
 				Fatalf("mode.prepareArgs type %T", arg)
@@ -358,7 +358,7 @@ func (m fmtMode) prepareArgs(args []interface{}) {
 				args[i] = (*fmtSymDbg)(arg)
 			case Nodes:
 				args[i] = fmtNodesDbg(arg)
-			case Val, int32, int64, string:
+			case Val, int32, int64, string, EType:
 				// OK: printing these types doesn't depend on mode
 			default:
 				Fatalf("mode.prepareArgs type %T", arg)
@@ -377,7 +377,7 @@ func (m fmtMode) prepareArgs(args []interface{}) {
 				args[i] = (*fmtSymTypeId)(arg)
 			case Nodes:
 				args[i] = fmtNodesTypeId(arg)
-			case Val, int32, int64, string:
+			case Val, int32, int64, string, EType:
 				// OK: printing these types doesn't depend on mode
 			default:
 				Fatalf("mode.prepareArgs type %T", arg)
@@ -396,7 +396,7 @@ func (m fmtMode) prepareArgs(args []interface{}) {
 				args[i] = (*fmtSymTypeIdName)(arg)
 			case Nodes:
 				args[i] = fmtNodesTypeIdName(arg)
-			case Val, int32, int64, string:
+			case Val, int32, int64, string, EType:
 				// OK: printing these types doesn't depend on mode
 			default:
 				Fatalf("mode.prepareArgs type %T", arg)
@@ -935,7 +935,7 @@ func (t *Type) typefmt(flag FmtFlag, mode fmtMode) string {
 	}
 
 	// Don't know how to handle - fall back to detailed prints.
-	return mode.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.Elem())
+	return mode.Sprintf("%v <%v>", t.Etype, t.Sym)
 }
 
 // Statements which may be rendered with a simplestmt as init.
