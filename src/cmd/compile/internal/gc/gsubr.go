@@ -37,15 +37,17 @@ import (
 
 // Progs accumulates Progs for a function and converts them into machine code.
 type Progs struct {
-	Text *obj.Prog // ATEXT Prog for this function
-	next *obj.Prog // next Prog
-	pc   int64     // virtual PC; count of Progs
-	pos  src.XPos  // position to use for new Progs
+	Text  *obj.Prog // ATEXT Prog for this function
+	next  *obj.Prog // next Prog
+	pc    int64     // virtual PC; count of Progs
+	pos   src.XPos  // position to use for new Progs
+	curfn *Node     // fn these Progs are for
 }
 
 // newProgs returns a new Progs for fn.
 func newProgs(fn *Node) *Progs {
 	pp := new(Progs)
+	pp.curfn = fn
 
 	// prime the pump
 	pp.next = Ctxt.NewProg()
@@ -58,7 +60,7 @@ func newProgs(fn *Node) *Progs {
 
 // Flush converts from pp to machine code.
 func (pp *Progs) Flush() {
-	plist := &obj.Plist{Firstpc: pp.Text}
+	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.curfn}
 	obj.Flushplist(Ctxt, plist)
 	// Clear pp to enable GC and avoid abuse.
 	*pp = Progs{}

@@ -12,6 +12,7 @@ import (
 
 type Plist struct {
 	Firstpc *Prog
+	Curfn   interface{} // holds a *gc.Node, if non-nil
 }
 
 func Flushplist(ctxt *Link, plist *Plist) {
@@ -127,7 +128,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 		ctxt.Arch.Preprocess(ctxt, s)
 		ctxt.Arch.Assemble(ctxt, s)
 		linkpcln(ctxt, s)
-		makeFuncDebugEntry(ctxt, s)
+		makeFuncDebugEntry(ctxt, plist.Curfn, s)
 		if freeProgs {
 			s.Text = nil
 		}
