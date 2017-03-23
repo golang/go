@@ -4,7 +4,10 @@
 
 package ssa
 
-import "testing"
+import (
+	"cmd/internal/src"
+	"testing"
+)
 
 func TestLiveControlOps(t *testing.T) {
 	c := testConfig(t)
@@ -39,8 +42,8 @@ func TestSpillWithLoop(t *testing.T) {
 	f := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("ptr", OpArg, TypeInt64Ptr, 0, c.Frontend().Auto(TypeInt64)),
-			Valu("cond", OpArg, TypeBool, 0, c.Frontend().Auto(TypeBool)),
+			Valu("ptr", OpArg, TypeInt64Ptr, 0, c.Frontend().Auto(src.NoXPos, TypeInt64)),
+			Valu("cond", OpArg, TypeBool, 0, c.Frontend().Auto(src.NoXPos, TypeBool)),
 			Valu("ld", OpAMD64MOVQload, TypeInt64, 0, nil, "ptr", "mem"), // this value needs a spill
 			Goto("loop"),
 		),

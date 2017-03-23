@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
 	"sort"
@@ -208,7 +209,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	}
 
 	if f.Config.NeedsFpScratch {
-		scratchFpMem = temp(Types[TUINT64])
+		scratchFpMem = tempAt(src.NoXPos, s.curfn, Types[TUINT64])
 		scratchFpMem.SetUsed(scratchUsed)
 	}
 

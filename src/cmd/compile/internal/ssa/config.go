@@ -101,7 +101,7 @@ type Frontend interface {
 
 	// Auto returns a Node for an auto variable of the given type.
 	// The SSA compiler uses this function to allocate space for spills.
-	Auto(Type) GCNode
+	Auto(src.XPos, Type) GCNode
 
 	// Given the name for a compound type, returns the name we should use
 	// for the parts of that compound type.

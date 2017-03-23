@@ -76,7 +76,7 @@ func (d *DummyAuto) String() string {
 func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }
-func (DummyFrontend) Auto(t Type) GCNode {
+func (DummyFrontend) Auto(pos src.XPos, t Type) GCNode {
 	return &DummyAuto{t: t, s: "aDummyAuto"}
 }
 func (d DummyFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {

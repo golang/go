@@ -92,6 +92,7 @@ func buildssa(fn *Node) *ssa.Func {
 		curfn: fn,
 		log:   printssa,
 	}
+	s.curfn = fn
 
 	s.f = ssa.NewFunc(&fe)
 	s.config = ssaConfig
@@ -202,6 +203,9 @@ type state struct {
 
 	// function we're building
 	f *ssa.Func
+
+	// Node for function
+	curfn *Node
 
 	// labels and labeled control flow nodes (OFOR, OFORUNTIL, OSWITCH, OSELECT) in f
 	labels       map[string]*ssaLabel
@@ -4082,7 +4086,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	if commaok && !canSSAType(n.Type) {
 		// unSSAable type, use temporary.
 		// TODO: get rid of some of these temporaries.
-		tmp = temp(n.Type)
+		tmp = tempAt(n.Pos, s.curfn, n.Type)
 		addr = s.addr(tmp, false)
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, tmp, s.mem())
 	}
@@ -4713,8 +4717,8 @@ func (e *ssafn) StringData(s string) interface{} {
 	return aux
 }
 
-func (e *ssafn) Auto(t ssa.Type) ssa.GCNode {
-	n := temp(t.(*Type)) // Note: adds new auto to Curfn.Func.Dcl list
+func (e *ssafn) Auto(pos src.XPos, t ssa.Type) ssa.GCNode {
+	n := tempAt(pos, e.curfn, t.(*Type)) // Note: adds new auto to e.curfn.Func.Dcl list
 	return n
 }
 
