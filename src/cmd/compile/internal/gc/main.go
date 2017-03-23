@@ -919,7 +919,7 @@ func importfile(f *Val, indent []byte) {
 			fmt.Printf("importing %s (%s)\n", path_, file)
 		}
 		imp.ReadByte() // skip \n after $$B
-		Import(imp)
+		Import(imp, importpkg)
 
 	default:
 		yyerror("no import in %q", path_)
