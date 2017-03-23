@@ -715,11 +715,8 @@ func TestDialerLocalAddr(t *testing.T) {
 }
 
 func TestDialerDualStack(t *testing.T) {
-	// This test is known to be flaky. Don't frighten regular
-	// users about it; only fail on the build dashboard.
-	if testenv.Builder() == "" {
-		testenv.SkipFlaky(t, 13324)
-	}
+	testenv.SkipFlaky(t, 13324)
+
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
