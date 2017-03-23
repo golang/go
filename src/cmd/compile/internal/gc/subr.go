@@ -342,7 +342,6 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
 		}
 		n = &x.Node
 		n.Func = &x.Func
-		n.Func.SetIsHiddenClosure(Curfn != nil)
 	case ONAME:
 		var x struct {
 			Node
