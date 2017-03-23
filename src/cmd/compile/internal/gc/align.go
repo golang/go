@@ -159,14 +159,6 @@ func dowidth(t *Type) {
 		return
 	}
 
-	if t.Width > 0 {
-		if t.Align == 0 {
-			// See issue 11354
-			Fatalf("zero alignment with nonzero size %v", t)
-		}
-		return
-	}
-
 	if t.Width == -2 {
 		if !t.Broke() {
 			t.SetBroke(true)
@@ -174,6 +166,10 @@ func dowidth(t *Type) {
 		}
 
 		t.Width = 0
+		return
+	}
+
+	if t.WidthCalculated() {
 		return
 	}
 
@@ -266,7 +262,7 @@ func dowidth(t *Type) {
 		if t1.Elem().Width >= 1<<16 {
 			yyerror("channel element type too large (>64kB)")
 		}
-		t.Width = 1
+		w = 1 // anything will do
 
 	case TMAP: // implemented as pointer
 		w = int64(Widthptr)
@@ -353,7 +349,7 @@ func dowidth(t *Type) {
 
 	t.Width = w
 	if t.Align == 0 {
-		if w > 8 || w&(w-1) != 0 {
+		if w > 8 || w&(w-1) != 0 || w == 0 {
 			Fatalf("invalid alignment for %v", t)
 		}
 		t.Align = uint8(w)

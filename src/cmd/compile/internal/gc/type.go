@@ -891,6 +891,10 @@ func (t *Type) isDDDArray() bool {
 	return t.Extra.(*ArrayType).Bound < 0
 }
 
+func (t *Type) WidthCalculated() bool {
+	return t.Align > 0
+}
+
 // ArgWidth returns the total aligned argument size for a function.
 // It includes the receiver, parameters, and results.
 func (t *Type) ArgWidth() int64 {
