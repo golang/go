@@ -290,63 +290,21 @@ func (p *noder) declName(name *syntax.Name) *Node {
 }
 
 func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
-	f := p.funcHeader(fun)
-	if f == nil {
-		return nil
-	}
-
-	var body []*Node
-	if fun.Body != nil {
-		body = p.stmts(fun.Body.List)
-		if body == nil {
-			body = []*Node{p.nod(fun, OEMPTY, nil, nil)}
-		}
-	}
-
-	pragma := fun.Pragma
-
-	f.Nbody.Set(body)
-	f.SetNoescape(pragma&Noescape != 0)
-	if f.Noescape() && len(body) != 0 {
-		yyerror("can only use //go:noescape with external func implementations")
-	}
-	if pragma&Systemstack != 0 && pragma&Nosplit != 0 {
-		yyerror("go:nosplit and go:systemstack cannot be combined")
-	}
-	f.Func.Pragma = pragma
-	var rbrace src.Pos
-	if fun.Body != nil {
-		rbrace = fun.Body.Rbrace
-	}
-	lineno = Ctxt.PosTable.XPos(rbrace)
-	f.Func.Endlineno = lineno
-
-	funcbody(f)
-
-	if f.Nbody.Len() == 0 && (pure_go || strings.HasPrefix(f.Func.Nname.Sym.Name, "init.")) {
-		yyerrorl(f.Pos, "missing function body for %q", f.Func.Nname.Sym.Name)
-	}
-
-	return f
-}
-
-func (p *noder) funcHeader(fun *syntax.FuncDecl) *Node {
 	name := p.name(fun.Name)
 	t := p.signature(fun.Recv, fun.Type)
 	f := p.nod(fun, ODCLFUNC, nil, nil)
 
 	if fun.Recv == nil {
-		// FunctionName Signature
 		if name.Name == "init" {
 			name = renameinit()
 			if t.List.Len() > 0 || t.Rlist.Len() > 0 {
-				yyerror("func init must have no arguments and no return values")
+				yyerrorl(f.Pos, "func init must have no arguments and no return values")
 			}
 		}
 
 		if localpkg.Name == "main" && name.Name == "main" {
 			if t.List.Len() > 0 || t.Rlist.Len() > 0 {
-				yyerror("func main must have no arguments and no return values")
+				yyerrorl(f.Pos, "func main must have no arguments and no return values")
 			}
 		}
 	} else {
@@ -356,13 +314,42 @@ func (p *noder) funcHeader(fun *syntax.FuncDecl) *Node {
 
 	f.Func.Nname = newfuncname(name)
 	f.Func.Nname.Name.Defn = f
-	f.Func.Nname.Name.Param.Ntype = t // TODO: check if nname already has an ntype
+	f.Func.Nname.Name.Param.Ntype = t
+
+	pragma := fun.Pragma
+	f.Func.Pragma = fun.Pragma
+	f.SetNoescape(pragma&Noescape != 0)
+	if pragma&Systemstack != 0 && pragma&Nosplit != 0 {
+		yyerrorl(f.Pos, "go:nosplit and go:systemstack cannot be combined")
+	}
 
 	if fun.Recv == nil {
 		declare(f.Func.Nname, PFUNC)
 	}
 
 	funchdr(f)
+
+	if fun.Body != nil {
+		if f.Noescape() {
+			yyerrorl(f.Pos, "can only use //go:noescape with external func implementations")
+		}
+
+		body := p.stmts(fun.Body.List)
+		if body == nil {
+			body = []*Node{p.nod(fun, OEMPTY, nil, nil)}
+		}
+		f.Nbody.Set(body)
+
+		lineno = Ctxt.PosTable.XPos(fun.Body.Rbrace)
+		f.Func.Endlineno = lineno
+	} else {
+		if pure_go || strings.HasPrefix(f.Func.Nname.Sym.Name, "init.") {
+			yyerrorl(f.Pos, "missing function body for %q", f.Func.Nname.Sym.Name)
+		}
+	}
+
+	funcbody(f)
+
 	return f
 }
 
