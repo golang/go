@@ -450,14 +450,3 @@ E7:	SUBQ $1, BX		// i--
 
 	MOVQ DX, r+64(FP)
 	RET
-
-// func bitLen(x Word) (n int)
-TEXT ·bitLen(SB),NOSPLIT,$0
-	BSRQ x+0(FP), AX
-	JZ Z1
-	ADDQ $1, AX
-	MOVQ AX, n+8(FP)
-	RET
-
-Z1:	MOVQ $0, n+8(FP)
-	RET

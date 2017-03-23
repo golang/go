@@ -644,7 +644,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 // Length of x in bits. x must be normalized.
 func (x nat) bitLen() int {
 	if i := len(x) - 1; i >= 0 {
-		return i*_W + bitLen(x[i])
+		return i*_W + bits.Len(uint(x[i]))
 	}
 	return 0
 }

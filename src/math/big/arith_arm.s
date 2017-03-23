@@ -292,11 +292,3 @@ TEXT ·mulWW(SB),NOSPLIT,$0
 	MOVW	R4, z1+8(FP)
 	MOVW	R3, z0+12(FP)
 	RET
-
-// func bitLen(x Word) (n int)
-TEXT ·bitLen(SB),NOSPLIT,$0
-	MOVW	x+0(FP), R0
-	CLZ 	R0, R0
-	RSB	$32, R0
-	MOVW	R0, n+4(FP)
-	RET
