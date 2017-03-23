@@ -241,6 +241,9 @@ type regAllocState struct {
 	// current state of each (preregalloc) Value
 	values []valState
 
+	// ID of SP, SB values
+	sp, sb ID
+
 	// For each Value, map from its value ID back to the
 	// preregalloc Value it was derived from.
 	orig []*Value
@@ -709,8 +712,8 @@ func (s *regAllocState) compatRegs(t Type) regMask {
 }
 
 func (s *regAllocState) regalloc(f *Func) {
-	liveSet := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(liveSet)
+	regValLiveSet := f.newSparseSet(f.NumValues()) // set of values that may be live in register
+	defer f.retSparseSet(regValLiveSet)
 	var oldSched []*Value
 	var phis []*Value
 	var phiRegs []register
@@ -733,32 +736,42 @@ func (s *regAllocState) regalloc(f *Func) {
 	for _, b := range f.Blocks {
 		s.curBlock = b
 
-		// Initialize liveSet and uses fields for this block.
+		// Initialize regValLiveSet and uses fields for this block.
 		// Walk backwards through the block doing liveness analysis.
-		liveSet.clear()
+		regValLiveSet.clear()
 		for _, e := range s.live[b.ID] {
 			s.addUse(e.ID, int32(len(b.Values))+e.dist, e.pos) // pseudo-uses from beyond end of block
-			liveSet.add(e.ID)
+			regValLiveSet.add(e.ID)
 		}
 		if v := b.Control; v != nil && s.values[v.ID].needReg {
 			s.addUse(v.ID, int32(len(b.Values)), b.Pos) // pseudo-use by control value
-			liveSet.add(v.ID)
+			regValLiveSet.add(v.ID)
 		}
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
-			liveSet.remove(v.ID)
+			regValLiveSet.remove(v.ID)
 			if v.Op == OpPhi {
 				// Remove v from the live set, but don't add
 				// any inputs. This is the state the len(b.Preds)>1
 				// case below desires; it wants to process phis specially.
 				continue
 			}
+			if opcodeTable[v.Op].call {
+				// Function call clobbers all the registers but SP and SB.
+				regValLiveSet.clear()
+				if s.sp != 0 && s.values[s.sp].uses != nil {
+					regValLiveSet.add(s.sp)
+				}
+				if s.sb != 0 && s.values[s.sb].uses != nil {
+					regValLiveSet.add(s.sb)
+				}
+			}
 			for _, a := range v.Args {
 				if !s.values[a.ID].needReg {
 					continue
 				}
 				s.addUse(a.ID, int32(i), v.Pos)
-				liveSet.add(a.ID)
+				regValLiveSet.add(a.ID)
 			}
 		}
 		if s.f.pass.debug > regDebug {
@@ -808,7 +821,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// live but only used by some other successor of p.
 			for r := register(0); r < s.numRegs; r++ {
 				v := s.regs[r].v
-				if v != nil && !liveSet.contains(v.ID) {
+				if v != nil && !regValLiveSet.contains(v.ID) {
 					s.freeReg(r)
 				}
 			}
@@ -864,7 +877,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					continue
 				}
 				a := v.Args[idx]
-				if !liveSet.contains(a.ID) {
+				if !regValLiveSet.contains(a.ID) {
 					// Input is dead beyond the phi, deallocate
 					// anywhere else it might live.
 					s.freeRegs(s.values[a.ID].regs)
@@ -930,6 +943,17 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				// register-based phi
 				s.assignReg(r, v, v)
+			}
+
+			// Deallocate any values which are no longer live. Phis are excluded.
+			for r := register(0); r < s.numRegs; r++ {
+				if phiUsed>>r&1 != 0 {
+					continue
+				}
+				v := s.regs[r].v
+				if v != nil && !regValLiveSet.contains(v.ID) {
+					s.freeReg(r)
+				}
 			}
 
 			// Save the starting state for use by merge edges.
@@ -1034,12 +1058,14 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.assignReg(s.SPReg, v, v)
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
+				s.sp = v.ID
 				continue
 			}
 			if v.Op == OpSB {
 				s.assignReg(s.SBReg, v, v)
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
+				s.sb = v.ID
 				continue
 			}
 			if v.Op == OpSelect0 || v.Op == OpSelect1 {
@@ -1435,16 +1461,16 @@ func (s *regAllocState) regalloc(f *Func) {
 		s.endRegs[b.ID] = regList
 
 		if checkEnabled {
-			liveSet.clear()
+			regValLiveSet.clear()
 			for _, x := range s.live[b.ID] {
-				liveSet.add(x.ID)
+				regValLiveSet.add(x.ID)
 			}
 			for r := register(0); r < s.numRegs; r++ {
 				v := s.regs[r].v
 				if v == nil {
 					continue
 				}
-				if !liveSet.contains(v.ID) {
+				if !regValLiveSet.contains(v.ID) {
 					s.f.Fatalf("val %s is in reg but not live at end of %s", v, b)
 				}
 			}
