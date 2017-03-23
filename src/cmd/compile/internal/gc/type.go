@@ -864,15 +864,6 @@ func (t *Type) FieldSlice() []*Field {
 
 // SetFields sets struct/interface type t's fields/methods to fields.
 func (t *Type) SetFields(fields []*Field) {
-	// If we've calculated the width of t before,
-	// then some other type such as a function signature
-	// might now have the wrong type.
-	// Rather than try to track and invalidate those,
-	// enforce that SetFields cannot be called once
-	// t's width has been calculated.
-	if t.WidthCalculated() {
-		Fatalf("SetFields of %v: width previously calculated", t)
-	}
 	t.wantEtype(TSTRUCT)
 	for _, f := range fields {
 		// If type T contains a field F with a go:notinheap

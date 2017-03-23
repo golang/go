@@ -362,6 +362,10 @@ func transformclosure(xfunc *Node) {
 			xfunc.Func.Dcl = append(decls, xfunc.Func.Dcl...)
 		}
 
+		// Recalculate param offsets.
+		if f.Type.Width > 0 {
+			Fatalf("transformclosure: width is already calculated")
+		}
 		dowidth(f.Type)
 		xfunc.Type = f.Type // update type of ODCLFUNC
 	} else {
