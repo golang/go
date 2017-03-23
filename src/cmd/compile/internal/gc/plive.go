@@ -99,10 +99,10 @@ func getvariables(fn *Node) []*Node {
 			// already, but for some compiler-introduced names it seems not to be,
 			// so fix that here.
 			// Later, when we want to find the index of a node in the variables list,
-			// we will check that n.Curfn == Curfn and n.Opt() != nil. Then n.Opt().(int32)
+			// we will check that n.Curfn == lv.fn and n.Opt() != nil. Then n.Opt().(int32)
 			// is the index in the variables list.
 			n.SetOpt(nil)
-			n.Name.Curfn = Curfn
+			n.Name.Curfn = fn
 		}
 
 		if livenessShouldTrack(n) {
@@ -194,7 +194,7 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (pos int32, effect liveEffect) {
 		}
 	}
 
-	pos = liveIndex(n, lv.vars)
+	pos = lv.liveIndex(n)
 	if pos < 0 {
 		return -1, 0
 	}
@@ -268,8 +268,8 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 // liveIndex returns the index of n in the set of tracked vars.
 // If n is not a tracked var, liveIndex returns -1.
 // If n is not a tracked var but should be tracked, liveIndex crashes.
-func liveIndex(n *Node, vars []*Node) int32 {
-	if n == nil || n.Name.Curfn != Curfn || !livenessShouldTrack(n) {
+func (lv *Liveness) liveIndex(n *Node) int32 {
+	if n == nil || n.Name.Curfn != lv.fn || !livenessShouldTrack(n) {
 		return -1
 	}
 
@@ -277,7 +277,7 @@ func liveIndex(n *Node, vars []*Node) int32 {
 	if !ok {
 		Fatalf("lost track of variable in liveness: %v (%p, %p)", n, n, n.Orig)
 	}
-	if pos >= int32(len(vars)) || vars[pos] != n {
+	if pos >= int32(len(lv.vars)) || lv.vars[pos] != n {
 		Fatalf("bad bookkeeping in liveness: %v (%p, %p)", n, n, n.Orig)
 	}
 	return pos
@@ -666,7 +666,7 @@ func livenessepilogue(lv *Liveness) {
 					if !n.Name.Needzero() {
 						n.Name.SetNeedzero(true)
 						if debuglive >= 1 {
-							Warnl(v.Pos, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
+							Warnl(v.Pos, "%v: %L is ambiguously live", lv.fn.Func.Nname, n)
 						}
 					}
 				}
@@ -732,7 +732,7 @@ func livenessepilogue(lv *Liveness) {
 	// input parameters.
 	for j, n := range lv.vars {
 		if n.Class != PPARAM && lv.livevars[0].Get(int32(j)) {
-			Fatalf("internal error: %v %L recorded as live on entry", Curfn.Func.Nname, n)
+			Fatalf("internal error: %v %L recorded as live on entry", lv.fn.Func.Nname, n)
 		}
 	}
 }
@@ -867,21 +867,21 @@ Outer:
 }
 
 func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
-	if debuglive == 0 || Curfn.Func.Nname.Sym.Name == "init" || strings.HasPrefix(Curfn.Func.Nname.Sym.Name, ".") {
+	if debuglive == 0 || lv.fn.Func.Nname.Sym.Name == "init" || strings.HasPrefix(lv.fn.Func.Nname.Sym.Name, ".") {
 		return
 	}
 	if live.IsEmpty() {
 		return
 	}
 
-	pos := Curfn.Func.Nname.Pos
+	pos := lv.fn.Func.Nname.Pos
 	if v != nil {
 		pos = v.Pos
 	}
 
 	s := "live at "
 	if v == nil {
-		s += fmt.Sprintf("entry to %s:", Curfn.Func.Nname.Sym.Name)
+		s += fmt.Sprintf("entry to %s:", lv.fn.Func.Nname.Sym.Name)
 	} else if sym, ok := v.Aux.(*obj.LSym); ok {
 		fn := sym.Name
 		if pos := strings.Index(fn, "."); pos >= 0 {
@@ -943,7 +943,7 @@ func (lv *Liveness) printeffect(printed bool, name string, pos int32, x bool) bo
 // This format synthesizes the information used during the multiple passes
 // into a single presentation.
 func livenessprintdebug(lv *Liveness) {
-	fmt.Printf("liveness: %s\n", Curfn.Func.Nname.Sym.Name)
+	fmt.Printf("liveness: %s\n", lv.fn.Func.Nname.Sym.Name)
 
 	pcdata := 0
 	for i, b := range lv.f.Blocks {
@@ -982,7 +982,7 @@ func livenessprintdebug(lv *Liveness) {
 
 		if b == lv.f.Entry {
 			live := lv.livevars[pcdata]
-			fmt.Printf("(%s) function entry\n", linestr(Curfn.Func.Nname.Pos))
+			fmt.Printf("(%s) function entry\n", linestr(lv.fn.Func.Nname.Pos))
 			fmt.Printf("\tlive=")
 			printed = false
 			for j, n := range lv.vars {
