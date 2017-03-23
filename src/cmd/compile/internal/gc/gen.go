@@ -8,6 +8,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"fmt"
 )
 
@@ -218,4 +219,11 @@ func temp(t *Type) *Node {
 	tempname(&n, t)
 	n.Sym.Def.SetUsed(true)
 	return n.Orig
+}
+
+func tempAt(pos src.XPos, curfn *Node, t *Type) *Node {
+	// TODO(mdempsky/josharian): Remove all reads and writes of lineno and Curfn.
+	lineno = pos
+	Curfn = curfn
+	return temp(t)
 }

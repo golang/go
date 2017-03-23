@@ -2080,13 +2080,7 @@ func (e *edgeState) findRegFor(typ Type) Location {
 		return &e.s.registers[pickReg(x)]
 	}
 
-	// No register is available. Allocate a temp location to spill a register to.
-	// The type of the slot is immaterial - it will not be live across
-	// any safepoint. Just use a type big enough to hold any register.
-	typ = types.Int64
-	t := LocalSlot{e.s.f.fe.Auto(typ), typ, 0}
-	// TODO: reuse these slots.
-
+	// No register is available.
 	// Pick a register to spill.
 	for _, vid := range e.cachedVals {
 		a := e.cache[vid]
@@ -2094,6 +2088,11 @@ func (e *edgeState) findRegFor(typ Type) Location {
 			if r, ok := e.s.f.getHome(c.ID).(*Register); ok && m>>uint(r.num)&1 != 0 {
 				if !c.rematerializeable() {
 					x := e.p.NewValue1(c.Pos, OpStoreReg, c.Type, c)
+					// Allocate a temp location to spill a register to.
+					// The type of the slot is immaterial - it will not be live across
+					// any safepoint. Just use a type big enough to hold any register.
+					t := LocalSlot{e.s.f.fe.Auto(c.Pos, types.Int64), types.Int64, 0}
+					// TODO: reuse these slots.
 					e.set(t, vid, x, false, c.Pos)
 					if e.s.f.pass.debug > regDebug {
 						fmt.Printf("  SPILL %s->%s %s\n", r.Name(), t.Name(), x.LongString())

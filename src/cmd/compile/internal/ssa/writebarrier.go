@@ -267,7 +267,7 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem
 		// a function call). Marshaling the args to typedmemmove might clobber the
 		// value we're trying to move.
 		t := val.Type.ElemType()
-		tmp = b.Func.fe.Auto(t)
+		tmp = b.Func.fe.Auto(val.Pos, t)
 		aux := &AutoSymbol{Typ: t, Node: tmp}
 		mem = b.NewValue1A(pos, OpVarDef, TypeMem, tmp, mem)
 		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), aux, sp)

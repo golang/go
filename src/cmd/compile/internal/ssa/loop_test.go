@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/src"
 	"testing"
 )
 
@@ -49,7 +50,7 @@ func TestLoopConditionS390X(t *testing.T) {
 			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("SP", OpSP, TypeUInt64, 0, nil),
 			Valu("ret", OpAddr, TypeInt64Ptr, 0, nil, "SP"),
-			Valu("N", OpArg, TypeInt64, 0, c.Frontend().Auto(TypeInt64)),
+			Valu("N", OpArg, TypeInt64, 0, c.Frontend().Auto(src.NoXPos, TypeInt64)),
 			Valu("starti", OpConst64, TypeInt64, 0, nil),
 			Valu("startsum", OpConst64, TypeInt64, 0, nil),
 			Goto("b1")),
