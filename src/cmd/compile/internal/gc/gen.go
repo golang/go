@@ -225,5 +225,7 @@ func tempAt(pos src.XPos, curfn *Node, t *Type) *Node {
 	// TODO(mdempsky/josharian): Remove all reads and writes of lineno and Curfn.
 	lineno = pos
 	Curfn = curfn
-	return temp(t)
+	n := temp(t)
+	Curfn = nil
+	return n
 }
