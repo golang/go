@@ -87,6 +87,7 @@ func genplt(ctxt *ld.Link) {
 	//
 	// This assumes "case 1" from the ABI, where the caller needs
 	// us to save and restore the TOC pointer.
+	var stubs []*ld.Symbol
 	for _, s := range ctxt.Textp {
 		for i := range s.R {
 			r := &s.R[i]
@@ -108,7 +109,7 @@ func genplt(ctxt *ld.Link) {
 			if stub.Size == 0 {
 				// Need outer to resolve .TOC.
 				stub.Outer = s
-				ctxt.Textp = append(ctxt.Textp, stub)
+				stubs = append(stubs, stub)
 				gencallstub(ctxt, 1, stub, r.Sym)
 			}
 
@@ -121,6 +122,11 @@ func genplt(ctxt *ld.Link) {
 			ctxt.Arch.ByteOrder.PutUint32(s.P[r.Off+4:], o1)
 		}
 	}
+	// Put call stubs at the beginning (instead of the end).
+	// So when resolving the relocations to calls to the stubs,
+	// the addresses are known and trampolines can be inserted
+	// when necessary.
+	ctxt.Textp = append(stubs, ctxt.Textp...)
 }
 
 func genaddmoduledata(ctxt *ld.Link) {
