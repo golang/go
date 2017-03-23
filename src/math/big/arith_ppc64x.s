@@ -175,12 +175,3 @@ end:
 
 TEXT ·divWVW(SB), NOSPLIT, $0
 	BR ·divWVW_g(SB)
-
-// func bitLen(x Word) int
-TEXT ·bitLen(SB), NOSPLIT, $0
-	MOVD   x+0(FP), R4
-	CNTLZD R4, R4
-	MOVD   $64, R5
-	SUB    R4, R5
-	MOVD   R5, n+8(FP)
-	RET

@@ -49,7 +49,3 @@ func addMulVVW(z, x []Word, y Word) (c Word) {
 func divWVW(z []Word, xn Word, x []Word, y Word) (r Word) {
 	return divWVW_g(z, xn, x, y)
 }
-
-func bitLen(x Word) (n int) {
-	return bitLen_g(x)
-}

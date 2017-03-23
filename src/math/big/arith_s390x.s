@@ -1237,13 +1237,3 @@ E7:	SUB	$1, R7		// i--
 
 	MOVD	R10, r+64(FP)
 	RET
-
-// func bitLen(x Word) (n int)
-TEXT ·bitLen(SB),NOSPLIT,$0
-	MOVD  x+0(FP), R2
-	FLOGR R2, R2 // clobbers R3
-	MOVD  $64, R3
-	SUB   R2, R3
-	MOVD  R3, n+8(FP)
-	RET
-

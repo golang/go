@@ -76,42 +76,10 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 	return
 }
 
-// Length of x in bits.
-func bitLen_g(x Word) int {
-	return bits.Len(uint(x))
-}
-
-// log2 computes the integer binary logarithm of x.
-// The result is the integer n for which 2^n <= x < 2^(n+1).
-// If x == 0, the result is -1.
-func log2(x Word) int {
-	// TODO(gri) Replace with call to bits.Len once we have a fast
-	// implementation for the same platforms currently supporting math/big.
-	return bitLen(x) - 1
-}
-
 // nlz returns the number of leading zeros in x.
+// Wraps bits.LeadingZeros call for convenience.
 func nlz(x Word) uint {
-	// TODO(gri) Replace with call to bits.LeadingZeros once we have a fast
-	// implementation for the same platforms currently supporting math/big.
-	return uint(_W - bitLen(x))
-}
-
-// nlz64 returns the number of leading zeros in x.
-func nlz64(x uint64) uint {
-	// TODO(gri) Replace with call to bits.LeadingZeros64 once we have a fast
-	// implementation for the same platforms currently supporting math/big.
-	switch _W {
-	case 32:
-		w := x >> 32
-		if w == 0 {
-			return 32 + nlz(Word(x))
-		}
-		return nlz(Word(w))
-	case 64:
-		return nlz(Word(x))
-	}
-	panic("unreachable")
+	return uint(bits.LeadingZeros(uint(x)))
 }
 
 // q = (u1<<_W + u0 - r)/y

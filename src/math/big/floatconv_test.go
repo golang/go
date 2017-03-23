@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"math/bits"
 	"strconv"
 	"testing"
 )
@@ -328,9 +329,9 @@ func TestFloat64Text(t *testing.T) {
 
 // actualPrec returns the number of actually used mantissa bits.
 func actualPrec(x float64) uint {
-	if bits := math.Float64bits(x); x != 0 && bits&(0x7ff<<52) == 0 {
+	if mant := math.Float64bits(x); x != 0 && mant&(0x7ff<<52) == 0 {
 		// x is denormalized
-		return 64 - nlz64(bits&(1<<52-1))
+		return 64 - uint(bits.LeadingZeros64(mant&(1<<52-1)))
 	}
 	return 53
 }

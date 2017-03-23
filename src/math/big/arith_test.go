@@ -395,32 +395,3 @@ func BenchmarkAddMulVVW(b *testing.B) {
 		})
 	}
 }
-
-func testWordBitLen(t *testing.T, fname string, f func(Word) int) {
-	for i := 0; i <= _W; i++ {
-		x := Word(1) << uint(i-1) // i == 0 => x == 0
-		n := f(x)
-		if n != i {
-			t.Errorf("got %d; want %d for %s(%#x)", n, i, fname, x)
-		}
-	}
-}
-
-func TestWordBitLen(t *testing.T) {
-	testWordBitLen(t, "bitLen", bitLen)
-	testWordBitLen(t, "bitLen_g", bitLen_g)
-}
-
-// runs b.N iterations of bitLen called on a Word containing (1 << nbits)-1.
-func BenchmarkBitLen(b *testing.B) {
-	// Individual bitLen tests. Numbers chosen to examine both sides
-	// of powers-of-two boundaries.
-	for _, nbits := range []uint{0, 1, 2, 3, 4, 5, 8, 9, 16, 17, 31} {
-		testword := Word((uint64(1) << nbits) - 1)
-		b.Run(fmt.Sprint(nbits), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				bitLen(testword)
-			}
-		})
-	}
-}

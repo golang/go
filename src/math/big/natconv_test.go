@@ -8,9 +8,17 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/bits"
 	"strings"
 	"testing"
 )
+
+// log2 computes the integer binary logarithm of x.
+// The result is the integer n for which 2^n <= x < 2^(n+1).
+// If x == 0, the result is -1.
+func log2(x Word) int {
+	return bits.Len(uint(x)) - 1
+}
 
 func itoa(x nat, base int) []byte {
 	// special cases

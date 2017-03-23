@@ -165,13 +165,3 @@ TEXT ·addMulVVW(SB),NOSPLIT,$0
 // func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
 TEXT ·divWVW(SB),NOSPLIT,$0
 	B ·divWVW_g(SB)
-
-
-// func bitLen(x Word) (n int)
-TEXT ·bitLen(SB),NOSPLIT,$0
-	MOVD	x+0(FP), R0
-	CLZ	R0, R0
-	MOVD	$64, R1
-	SUB	R0, R1, R0
-	MOVD	R0, n+8(FP)
-	RET
