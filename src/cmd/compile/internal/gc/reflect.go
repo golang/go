@@ -363,7 +363,7 @@ func methods(t *Type) []*Sig {
 
 		if !sig.isym.Siggen() {
 			sig.isym.SetSiggen(true)
-			if !eqtype(this, it) || this.Width < Types[Tptr].Width {
+			if !eqtype(this, it) || this.Width < int64(Widthptr) {
 				compiling_wrappers = 1
 				genwrapper(it, f, sig.isym, 1)
 				compiling_wrappers = 0
