@@ -1003,7 +1003,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 	suffix = ""
 	if iface != 0 {
 		dowidth(t0)
-		if t0.Width < Types[Tptr].Width {
+		if t0.Width < int64(Widthptr) {
 			suffix = "·i"
 		}
 	}
