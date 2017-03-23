@@ -12,6 +12,8 @@ import (
 	"testing"
 )
 
+var zero_ float64
+
 func TestFloatSetFloat64String(t *testing.T) {
 	inf := math.Inf(0)
 	nan := math.NaN()
@@ -22,7 +24,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 	}{
 		// basics
 		{"0", 0},
-		{"-0", -0},
+		{"-0", -zero_},
 		{"+0", 0},
 		{"1", 1},
 		{"-1", -1},
@@ -36,10 +38,10 @@ func TestFloatSetFloat64String(t *testing.T) {
 
 		// various zeros
 		{"0e100", 0},
-		{"-0e+100", 0},
+		{"-0e+100", -zero_},
 		{"+0e-100", 0},
 		{"0E100", 0},
-		{"-0E+100", 0},
+		{"-0E+100", -zero_},
 		{"+0E-100", 0},
 
 		// various decimal exponent formats
@@ -78,7 +80,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 
 		// decimal mantissa, binary exponent
 		{"0p0", 0},
-		{"-0p0", -0},
+		{"-0p0", -zero_},
 		{"1p10", 1 << 10},
 		{"1p+10", 1 << 10},
 		{"+1p-10", 1.0 / (1 << 10)},
@@ -88,9 +90,9 @@ func TestFloatSetFloat64String(t *testing.T) {
 
 		// binary mantissa, decimal exponent
 		{"0b0", 0},
-		{"-0b0", -0},
+		{"-0b0", -zero_},
 		{"0b0e+10", 0},
-		{"-0b0e-10", -0},
+		{"-0b0e-10", -zero_},
 		{"0b1010", 10},
 		{"0B1010E2", 1000},
 		{"0b.1", 0.5},
@@ -99,7 +101,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 
 		// binary mantissa, binary exponent
 		{"0b0p+10", 0},
-		{"-0b0p-10", -0},
+		{"-0b0p-10", -zero_},
 		{"0b.1010p4", 10},
 		{"0b1p-1", 0.5},
 		{"0b001p-3", 0.125},
@@ -108,9 +110,9 @@ func TestFloatSetFloat64String(t *testing.T) {
 
 		// hexadecimal mantissa and exponent
 		{"0x0", 0},
-		{"-0x0", -0},
+		{"-0x0", -zero_},
 		{"0x0p+10", 0},
-		{"-0x0p-10", -0},
+		{"-0x0p-10", -zero_},
 		{"0xff", 255},
 		{"0X.8p1", 1},
 		{"-0X0.00008p16", -0.5},
@@ -134,8 +136,8 @@ func TestFloatSetFloat64String(t *testing.T) {
 		}
 		f, _ := x.Float64()
 		want := new(Float).SetFloat64(test.x)
-		if x.Cmp(want) != 0 {
-			t.Errorf("%s: got %s (%v); want %v", test.s, &x, f, test.x)
+		if x.Cmp(want) != 0 || x.Signbit() != want.Signbit() {
+			t.Errorf("%s: got %v (%v); want %v", test.s, &x, f, test.x)
 		}
 	}
 }
