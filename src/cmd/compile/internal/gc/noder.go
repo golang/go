@@ -136,7 +136,7 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
 
 func (p *noder) importDecl(imp *syntax.ImportDecl) {
 	val := p.basicLit(imp.Path)
-	ipkg := importfile(&val, nil)
+	ipkg := importfile(&val)
 
 	if ipkg == nil {
 		if nerrors == 0 {
