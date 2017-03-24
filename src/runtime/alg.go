@@ -206,16 +206,16 @@ func strequal(p, q unsafe.Pointer) bool {
 	return *(*string)(p) == *(*string)(q)
 }
 func interequal(p, q unsafe.Pointer) bool {
-	return ifaceeq(*(*iface)(p), *(*iface)(q))
+	x := *(*iface)(p)
+	y := *(*iface)(q)
+	return x.tab == y.tab && ifaceeq(x.tab, x.data, y.data)
 }
 func nilinterequal(p, q unsafe.Pointer) bool {
-	return efaceeq(*(*eface)(p), *(*eface)(q))
+	x := *(*eface)(p)
+	y := *(*eface)(q)
+	return x._type == y._type && efaceeq(x._type, x.data, y.data)
 }
-func efaceeq(x, y eface) bool {
-	t := x._type
-	if t != y._type {
-		return false
-	}
+func efaceeq(t *_type, x, y unsafe.Pointer) bool {
 	if t == nil {
 		return true
 	}
@@ -224,27 +224,23 @@ func efaceeq(x, y eface) bool {
 		panic(errorString("comparing uncomparable type " + t.string()))
 	}
 	if isDirectIface(t) {
-		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)))
+		return eq(noescape(unsafe.Pointer(&x)), noescape(unsafe.Pointer(&y)))
 	}
-	return eq(x.data, y.data)
+	return eq(x, y)
 }
-func ifaceeq(x, y iface) bool {
-	xtab := x.tab
-	if xtab != y.tab {
-		return false
-	}
-	if xtab == nil {
+func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
+	if tab == nil {
 		return true
 	}
-	t := xtab._type
+	t := tab._type
 	eq := t.alg.equal
 	if eq == nil {
 		panic(errorString("comparing uncomparable type " + t.string()))
 	}
 	if isDirectIface(t) {
-		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)))
+		return eq(noescape(unsafe.Pointer(&x)), noescape(unsafe.Pointer(&y)))
 	}
-	return eq(x.data, y.data)
+	return eq(x, y)
 }
 
 // Testing adapters for hash quality tests (see hash_test.go)

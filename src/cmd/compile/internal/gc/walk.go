@@ -1560,24 +1560,29 @@ opswitch:
 
 		n.Right = cheapexpr(n.Right, init)
 		n.Left = cheapexpr(n.Left, init)
-		fn = substArgTypes(fn, n.Right.Type, n.Left.Type)
-		r := mkcall1(fn, n.Type, init, n.Left, n.Right)
-		// TODO(marvin): Fix Node.EType type union.
-		if Op(n.Etype) == ONE {
-			r = nod(ONOT, r, nil)
-		}
+		lt := nod(OITAB, n.Left, nil)
+		rt := nod(OITAB, n.Right, nil)
+		ld := nod(OIDATA, n.Left, nil)
+		rd := nod(OIDATA, n.Right, nil)
+		ld.Type = Types[TUNSAFEPTR]
+		rd.Type = Types[TUNSAFEPTR]
+		ld.Typecheck = 1
+		rd.Typecheck = 1
+		call := mkcall1(fn, n.Type, init, lt, ld, rd)
 
-		// check itable/type before full compare.
+		// Check itable/type before full compare.
+		// Note: short-circuited because order matters.
 		// TODO(marvin): Fix Node.EType type union.
+		var cmp *Node
 		if Op(n.Etype) == OEQ {
-			r = nod(OANDAND, nod(OEQ, nod(OITAB, n.Left, nil), nod(OITAB, n.Right, nil)), r)
+			cmp = nod(OANDAND, nod(OEQ, lt, rt), call)
 		} else {
-			r = nod(OOROR, nod(ONE, nod(OITAB, n.Left, nil), nod(OITAB, n.Right, nil)), r)
+			cmp = nod(OOROR, nod(ONE, lt, rt), nod(ONOT, call, nil))
 		}
-		r = typecheck(r, Erv)
-		r = walkexpr(r, init)
-		r.Type = n.Type
-		n = r
+		cmp = typecheck(cmp, Erv)
+		cmp = walkexpr(cmp, init)
+		cmp.Type = n.Type
+		n = cmp
 
 	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
 		if isStaticCompositeLiteral(n) {
