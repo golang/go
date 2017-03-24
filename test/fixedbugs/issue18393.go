@@ -17,7 +17,7 @@ import 42 // error on line 20
 var x     // error on line 24, not 30
 
 
-// ERROR "missing import path"
+// ERROR "import path must be a string"
 
 
 

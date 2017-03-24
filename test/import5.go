@@ -21,7 +21,7 @@ import _ "go/parser"
 //import "greek/αβ"
 
 // Import paths must be strings.
-import 42    // ERROR "missing import path; require quoted string"
-import 'a'   // ERROR "missing import path; require quoted string"
-import 3.14  // ERROR "missing import path; require quoted string"
-import 0.25i // ERROR "missing import path; require quoted string"
+import 42    // ERROR "import path must be a string"
+import 'a'   // ERROR "import path must be a string"
+import 3.14  // ERROR "import path must be a string"
+import 0.25i // ERROR "import path must be a string"
