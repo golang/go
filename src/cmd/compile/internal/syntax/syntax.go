@@ -65,7 +65,7 @@ func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHand
 	var p parser
 	p.init(base, src, errh, pragh)
 	p.next()
-	return p.file(), p.first
+	return p.fileOrNil(), p.first
 }
 
 // ParseBytes behaves like Parse but it reads the source from the []byte slice provided.
