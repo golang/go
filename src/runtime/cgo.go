@@ -50,3 +50,5 @@ func cgoUse(interface{}) { throw("cgoUse should not be called") }
 // so it emits the test and keeps the call, giving the desired
 // escape analysis result. The test is cheaper than the call.
 var cgoAlwaysFalse bool
+
+var cgo_yield = &_cgo_yield
