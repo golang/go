@@ -498,7 +498,10 @@ opswitch:
 		Dump("walk", n)
 		Fatalf("walkexpr: switch 1 unknown op %+S", n)
 
-	case OTYPE, ONONAME, OINDREGSP, OEMPTY, OGETG:
+	case ONONAME, OINDREGSP, OEMPTY, OGETG:
+
+	case OTYPE, ONAME, OLITERAL:
+		// TODO(mdempsky): Just return n; see discussion on CL 38655.
 
 	case ONOT, OMINUS, OPLUS, OCOM, OREAL, OIMAG, ODOTMETH, ODOTINTER,
 		OIND, OSPTR, OITAB, OIDATA, ODOTTYPE, ODOTTYPE2, OADDR:
@@ -593,7 +596,7 @@ opswitch:
 	case ORECOVER:
 		n = mkcall("gorecover", n.Type, init, nod(OADDR, nodfp, nil))
 
-	case OLITERAL, OCLOSUREVAR, OCFUNC, ONAME:
+	case OCLOSUREVAR, OCFUNC:
 		n.SetAddable(true)
 
 	case OCALLINTER:
