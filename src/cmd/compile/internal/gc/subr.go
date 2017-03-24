@@ -1181,7 +1181,11 @@ func updateHasCall(n *Node) {
 	}
 
 	switch n.Op {
-	case OLITERAL, ONAME:
+	case OLITERAL, ONAME, OTYPE:
+		if b || n.HasCall() {
+			Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
+		}
+		return
 	case OAS:
 		if needwritebarrier(n.Left) {
 			b = true
