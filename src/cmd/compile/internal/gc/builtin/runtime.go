@@ -87,8 +87,10 @@ func panicdottypeE(have, want, iface *byte)
 func panicdottypeI(have, want, iface *byte)
 func panicnildottype(want *byte)
 
-func ifaceeq(i1 any, i2 any) (ret bool)
-func efaceeq(i1 any, i2 any) (ret bool)
+// interface equality. Type/itab pointers are already known to be equal, so
+// we only need to pass one.
+func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
+func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
 
 // *byte is really *runtime.Type
 func makemap(mapType *byte, hint int64, mapbuf *any, bucketbuf *any) (hmap map[any]any)
