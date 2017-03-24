@@ -107,7 +107,7 @@ func down(h Interface, i0, n int) bool {
 			break
 		}
 		j := j1 // left child
-		if j2 := j1 + 1; j2 < n && !h.Less(j1, j2) {
+		if j2 := j1 + 1; j2 < n && h.Less(j2, j1) {
 			j = j2 // = 2*i + 2  // right child
 		}
 		if !h.Less(j, i) {
