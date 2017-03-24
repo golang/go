@@ -498,24 +498,15 @@ opswitch:
 		Dump("walk", n)
 		Fatalf("walkexpr: switch 1 unknown op %+S", n)
 
-	case OTYPE,
-		ONONAME,
-		OINDREGSP,
-		OEMPTY,
-		OGETG:
+	case OTYPE, ONONAME, OINDREGSP, OEMPTY, OGETG:
 
-	case ONOT,
-		OMINUS,
-		OPLUS,
-		OCOM,
-		OREAL,
-		OIMAG,
-		ODOTMETH,
-		ODOTINTER:
+	case ONOT, OMINUS, OPLUS, OCOM, OREAL, OIMAG, ODOTMETH, ODOTINTER,
+		OIND, OSPTR, OITAB, OIDATA, ODOTTYPE, ODOTTYPE2, OADDR:
 		n.Left = walkexpr(n.Left, init)
 
-	case OIND:
+	case OEFACE, OAND, OSUB, OMUL, OLT, OLE, OGE, OGT, OADD, OOR, OXOR:
 		n.Left = walkexpr(n.Left, init)
+		n.Right = walkexpr(n.Right, init)
 
 	case ODOT:
 		usefield(n)
@@ -530,13 +521,6 @@ opswitch:
 			checknil(n.Left, init)
 		}
 
-		n.Left = walkexpr(n.Left, init)
-
-	case OEFACE:
-		n.Left = walkexpr(n.Left, init)
-		n.Right = walkexpr(n.Right, init)
-
-	case OSPTR, OITAB, OIDATA:
 		n.Left = walkexpr(n.Left, init)
 
 	case OLEN, OCAP:
@@ -563,19 +547,6 @@ opswitch:
 		if Debug['m'] != 0 && n.Etype != 0 && !Isconst(n.Right, CTINT) {
 			Warn("shift bounds check elided")
 		}
-
-	case OAND,
-		OSUB,
-		OMUL,
-		OLT,
-		OLE,
-		OGE,
-		OGT,
-		OADD,
-		OOR,
-		OXOR:
-		n.Left = walkexpr(n.Left, init)
-		n.Right = walkexpr(n.Right, init)
 
 	case OCOMPLEX:
 		// Use results from call expression as arguments for complex.
@@ -622,13 +593,7 @@ opswitch:
 	case ORECOVER:
 		n = mkcall("gorecover", n.Type, init, nod(OADDR, nodfp, nil))
 
-	case OLITERAL:
-		n.SetAddable(true)
-
-	case OCLOSUREVAR, OCFUNC:
-		n.SetAddable(true)
-
-	case ONAME:
+	case OLITERAL, OCLOSUREVAR, OCFUNC, ONAME:
 		n.SetAddable(true)
 
 	case OCALLINTER:
@@ -794,7 +759,7 @@ opswitch:
 		n = nod(OAS, ok, call)
 		n = typecheck(n, Etop)
 
-		// a,b = m[i];
+	// a,b = m[i]
 	case OAS2MAPR:
 		init.AppendNodes(&n.Ninit)
 
@@ -873,9 +838,6 @@ opswitch:
 		walkexprlistsafe(n.List.Slice(), init)
 		e := n.Rlist.First() // i.(T)
 		e.Left = walkexpr(e.Left, init)
-
-	case ODOTTYPE, ODOTTYPE2:
-		n.Left = walkexpr(n.Left, init)
 
 	case OCONVIFACE:
 		n.Left = walkexpr(n.Left, init)
@@ -1241,9 +1203,6 @@ opswitch:
 		} else {
 			n = reduceSlice(n)
 		}
-
-	case OADDR:
-		n.Left = walkexpr(n.Left, init)
 
 	case ONEW:
 		if n.Esc == EscNone {
