@@ -1614,9 +1614,10 @@ opswitch:
 	// walk of y%1 may have replaced it by 0.
 	// Check whether n with its updated args is itself now a constant.
 	t := n.Type
-
 	evconst(n)
-	n.Type = t
+	if n.Type != t {
+		Fatalf("evconst changed Type: %v had type %v, now %v", n, t, n.Type)
+	}
 	if n.Op == OLITERAL {
 		n = typecheck(n, Erv)
 	}
