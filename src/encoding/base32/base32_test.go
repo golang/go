@@ -455,3 +455,33 @@ func BenchmarkDecodeString(b *testing.B) {
 		StdEncoding.DecodeString(data)
 	}
 }
+
+func TestWithCustomPadding(t *testing.T) {
+	for _, testcase := range pairs {
+		defaultPadding := StdEncoding.EncodeToString([]byte(testcase.decoded))
+		customPadding := StdEncoding.WithPadding('@').EncodeToString([]byte(testcase.decoded))
+		expected := strings.Replace(defaultPadding, "=", "@", -1)
+
+		if expected != customPadding {
+			t.Errorf("Expected custom %s, got %s", expected, customPadding)
+		}
+		if testcase.encoded != defaultPadding {
+			t.Errorf("Expected %s, got %s", testcase.encoded, defaultPadding)
+		}
+	}
+}
+
+func TestWithoutPadding(t *testing.T) {
+	for _, testcase := range pairs {
+		defaultPadding := StdEncoding.EncodeToString([]byte(testcase.decoded))
+		customPadding := StdEncoding.WithPadding(NoPadding).EncodeToString([]byte(testcase.decoded))
+		expected := strings.TrimRight(defaultPadding, "=")
+
+		if expected != customPadding {
+			t.Errorf("Expected custom %s, got %s", expected, customPadding)
+		}
+		if testcase.encoded != defaultPadding {
+			t.Errorf("Expected %s, got %s", testcase.encoded, defaultPadding)
+		}
+	}
+}
