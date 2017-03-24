@@ -1161,22 +1161,36 @@ func funccompile(n *Node) {
 	dclcontext = PEXTERN
 }
 
-func funcsym(s *Sym) *Sym {
-	if s.Fsym != nil {
-		return s.Fsym
-	}
-
-	s1 := Pkglookup(s.Name+"·f", s.Pkg)
-	if !Ctxt.Flag_dynlink && s1.Def == nil {
-		s1.Def = newfuncname(s1)
-		s1.Def.Func.Shortname = s
-		funcsyms = append(funcsyms, s1.Def)
-	}
-	s.Fsym = s1
-	return s1
+func (s *Sym) funcsymname() string {
+	return s.Name + "·f"
 }
 
+// funcsym returns s·f.
+func funcsym(s *Sym) *Sym {
+	sf, existed := s.Pkg.LookupOK(s.funcsymname())
+	// Don't export s·f when compiling for dynamic linking.
+	// When dynamically linking, the necessary function
+	// symbols will be created explicitly with makefuncsym.
+	// See the makefuncsym comment for details.
+	if !Ctxt.Flag_dynlink && !existed {
+		funcsyms = append(funcsyms, s)
+	}
+	return sf
+}
+
+// makefuncsym ensures that s·f is exported.
+// It is only used with -dynlink.
+// When not compiling for dynamic linking,
+// the funcsyms are created as needed by
+// the packages that use them.
+// Normally we emit the s·f stubs as DUPOK syms,
+// but DUPOK doesn't work across shared library boundaries.
+// So instead, when dynamic linking, we only create
+// the s·f stubs in s's package.
 func makefuncsym(s *Sym) {
+	if !Ctxt.Flag_dynlink {
+		Fatalf("makefuncsym dynlink")
+	}
 	if isblanksym(s) {
 		return
 	}
@@ -1185,13 +1199,9 @@ func makefuncsym(s *Sym) {
 		// not get a funcsym.
 		return
 	}
-	s1 := funcsym(s)
-	if s1.Def != nil {
-		return
+	if _, existed := s.Pkg.LookupOK(s.funcsymname()); !existed {
+		funcsyms = append(funcsyms, s)
 	}
-	s1.Def = newfuncname(s1)
-	s1.Def.Func.Shortname = s
-	funcsyms = append(funcsyms, s1.Def)
 }
 
 type nowritebarrierrecChecker struct {
