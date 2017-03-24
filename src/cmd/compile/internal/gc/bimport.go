@@ -50,8 +50,11 @@ type importer struct {
 	read        int // bytes read
 }
 
-// Import populates imp from the serialized package data.
-func Import(in *bufio.Reader, imp *Pkg) {
+// Import populates imp from the serialized package data read from in.
+func Import(imp *Pkg, in *bufio.Reader) {
+	inimport = true
+	defer func() { inimport = false }()
+
 	p := importer{
 		in:      in,
 		imp:     imp,
@@ -319,13 +322,13 @@ func (p *importer) obj(tag int) {
 		sym := p.qualifiedName()
 		typ := p.typ()
 		val := p.value(typ)
-		importconst(sym, idealType(typ), nodlit(val))
+		importconst(p.imp, sym, idealType(typ), nodlit(val))
 
 	case aliasTag:
 		p.pos()
 		sym := p.qualifiedName()
 		typ := p.typ()
-		importalias(sym, typ)
+		importalias(p.imp, sym, typ)
 
 	case typeTag:
 		p.typ()
@@ -334,7 +337,7 @@ func (p *importer) obj(tag int) {
 		p.pos()
 		sym := p.qualifiedName()
 		typ := p.typ()
-		importvar(sym, typ)
+		importvar(p.imp, sym, typ)
 
 	case funcTag:
 		p.pos()
@@ -343,7 +346,7 @@ func (p *importer) obj(tag int) {
 		result := p.paramList()
 
 		sig := functypefield(nil, params, result)
-		importsym(sym, ONAME)
+		importsym(p.imp, sym, ONAME)
 		if sym.Def != nil && sym.Def.Op == ONAME {
 			// function was imported before (via another import)
 			if !eqtype(sig, sym.Def.Type) {
@@ -441,7 +444,7 @@ func (p *importer) typ() *Type {
 		p.pos()
 		tsym := p.qualifiedName()
 
-		t = pkgtype(tsym)
+		t = pkgtype(p.imp, tsym)
 		p.typList = append(p.typList, t)
 
 		// read underlying type

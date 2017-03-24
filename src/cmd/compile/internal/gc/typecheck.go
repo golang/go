@@ -2143,7 +2143,7 @@ OpSwitch:
 		}
 	}
 
-	if safemode && importpkg == nil && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
+	if safemode && !inimport && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
 		yyerror("cannot use unsafe.Pointer")
 	}
 
@@ -3472,7 +3472,7 @@ func typecheckfunc(n *Node) {
 		addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
 	}
 
-	if Ctxt.Flag_dynlink && importpkg == nil && n.Func.Nname != nil {
+	if Ctxt.Flag_dynlink && !inimport && n.Func.Nname != nil {
 		makefuncsym(n.Func.Nname.Sym)
 	}
 }
