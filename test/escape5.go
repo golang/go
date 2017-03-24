@@ -9,6 +9,8 @@
 
 package foo
 
+import "runtime"
+
 func noleak(p *int) int { // ERROR "p does not escape"
 	return *p
 }
@@ -148,4 +150,16 @@ func f10() {
 	var x [1 << 30]byte         // ERROR "moved to heap: x"
 	var y = make([]byte, 1<<30) // ERROR "make\(\[\]byte, 1 << 30\) escapes to heap"
 	_ = x[0] + y[0]
+}
+
+// Test for issue 19687 (passing to unnamed parameters does not escape).
+func f11(**int) {
+}
+func f12(_ **int) {
+}
+func f13() {
+	var x *int
+	f11(&x)               // ERROR "&x does not escape"
+	f12(&x)               // ERROR "&x does not escape"
+	runtime.KeepAlive(&x) // ERROR "&x does not escape"
 }

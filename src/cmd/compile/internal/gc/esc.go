@@ -2118,4 +2118,13 @@ func (e *EscState) esctag(fn *Node) {
 		case EscHeap: // touched by escflood, moved to heap
 		}
 	}
+
+	// Unnamed parameters are unused and therefore do not escape.
+	// (Unnamed parameters are not in the Dcl list in the loop above
+	// so we need to mark them separately.)
+	for _, f := range fn.Type.Params().Fields().Slice() {
+		if f.Sym == nil || isblanksym(f.Sym) {
+			f.Note = mktag(EscNone)
+		}
+	}
 }
