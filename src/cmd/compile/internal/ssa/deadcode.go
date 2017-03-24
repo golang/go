@@ -6,13 +6,13 @@ package ssa
 
 // findlive returns the reachable blocks and live values in f.
 func findlive(f *Func) (reachable []bool, live []bool) {
-	reachable = reachableBlocks(f)
+	reachable = ReachableBlocks(f)
 	live = liveValues(f, reachable)
 	return
 }
 
-// reachableBlocks returns the reachable blocks in f.
-func reachableBlocks(f *Func) []bool {
+// ReachableBlocks returns the reachable blocks in f.
+func ReachableBlocks(f *Func) []bool {
 	reachable := make([]bool, f.NumBlocks())
 	reachable[f.Entry.ID] = true
 	p := []*Block{f.Entry} // stack-like worklist
@@ -106,7 +106,7 @@ func deadcode(f *Func) {
 	}
 
 	// Find reachable blocks.
-	reachable := reachableBlocks(f)
+	reachable := ReachableBlocks(f)
 
 	// Get rid of edges from dead to live code.
 	for _, b := range f.Blocks {
