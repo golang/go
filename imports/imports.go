@@ -18,6 +18,7 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
@@ -46,6 +47,13 @@ type Options struct {
 func Process(filename string, src []byte, opt *Options) ([]byte, error) {
 	if opt == nil {
 		opt = &Options{Comments: true, TabIndent: true, TabWidth: 8}
+	}
+	if src == nil {
+		b, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return nil, err
+		}
+		src = b
 	}
 
 	fileSet := token.NewFileSet()
