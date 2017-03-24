@@ -133,8 +133,8 @@ func moveToHeap(n *Node) {
 		// Preserve a copy so we can still write code referring to the original,
 		// and substitute that copy into the function declaration list
 		// so that analyses of the local (on-stack) variables use it.
-		stackcopy := nod(ONAME, nil, nil)
-		stackcopy.Sym = n.Sym
+		stackcopy := newname(n.Sym)
+		stackcopy.SetAddable(false)
 		stackcopy.Type = n.Type
 		stackcopy.Xoffset = n.Xoffset
 		stackcopy.Class = n.Class
@@ -200,19 +200,16 @@ func tempname(nn *Node, t *Type) {
 	// Add a preceding . to avoid clash with legal names.
 	s := lookupN(".autotmp_", statuniqgen)
 	statuniqgen++
-	n := nod(ONAME, nil, nil)
-	n.Sym = s
+	n := newname(s)
 	s.Def = n
 	n.Type = t
 	n.Class = PAUTO
-	n.SetAddable(true)
 	n.Esc = EscNever
 	n.Name.Curfn = Curfn
 	n.Name.SetAutoTemp(true)
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 
 	dowidth(t)
-	n.Xoffset = 0
 	*nn = *n
 }
 

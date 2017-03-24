@@ -623,13 +623,10 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	if int(cv.Type.Align) > Widthptr {
 		cv.Xoffset = int64(cv.Type.Align)
 	}
-	ptr := nod(ONAME, nil, nil)
-	ptr.Sym = lookup("rcvr")
+	ptr := newname(lookup("rcvr"))
 	ptr.Class = PAUTO
-	ptr.SetAddable(true)
 	ptr.SetUsed(true)
 	ptr.Name.Curfn = xfunc
-	ptr.Xoffset = 0
 	xfunc.Func.Dcl = append(xfunc.Func.Dcl, ptr)
 	var body []*Node
 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
