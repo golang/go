@@ -283,18 +283,6 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 	return init
 }
 
-// newname returns a new ONAME Node associated with symbol s.
-func newname(s *Sym) *Node {
-	if s == nil {
-		Fatalf("newname nil")
-	}
-	n := nod(ONAME, nil, nil)
-	n.Sym = s
-	n.SetAddable(true)
-	n.Xoffset = 0
-	return n
-}
-
 // newnoname returns a new ONONAME Node associated with symbol s.
 func newnoname(s *Sym) *Node {
 	if s == nil {
@@ -366,8 +354,7 @@ func oldname(s *Sym) *Node {
 		c := n.Name.Param.Innermost
 		if c == nil || c.Name.Funcdepth != funcdepth {
 			// Do not have a closure var for the active closure yet; make one.
-			c = nod(ONAME, nil, nil)
-			c.Sym = s
+			c = newname(s)
 			c.Class = PAUTOHEAP
 			c.SetIsClosureVar(true)
 			c.SetIsddd(n.Isddd())
@@ -380,7 +367,6 @@ func oldname(s *Sym) *Node {
 			c.Name.Param.Outer = n.Name.Param.Innermost
 			n.Name.Param.Innermost = c
 
-			c.Xoffset = 0
 			Curfn.Func.Cvars.Append(c)
 		}
 

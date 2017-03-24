@@ -226,8 +226,7 @@ func nodarg(t interface{}, fp int) *Node {
 		funarg = t.StructType().Funarg
 
 		// Build fake variable name for whole arg struct.
-		n = nod(ONAME, nil, nil)
-		n.Sym = lookup(".args")
+		n = newname(lookup(".args"))
 		n.Type = t
 		first := t.Field(0)
 		if first == nil {
@@ -237,7 +236,6 @@ func nodarg(t interface{}, fp int) *Node {
 			Fatalf("nodarg: offset not computed for %v", t)
 		}
 		n.Xoffset = first.Offset
-		n.SetAddable(true)
 
 	case *Field:
 		funarg = t.Funarg
@@ -275,14 +273,12 @@ func nodarg(t interface{}, fp int) *Node {
 		// Build fake name for individual variable.
 		// This is safe because if there was a real declared name
 		// we'd have used it above.
-		n = nod(ONAME, nil, nil)
+		n = newname(lookup("__"))
 		n.Type = t.Type
-		n.Sym = t.Sym
 		if t.Offset == BADWIDTH {
 			Fatalf("nodarg: offset not computed for %v", t)
 		}
 		n.Xoffset = t.Offset
-		n.SetAddable(true)
 		n.Orig = t.Nname
 	}
 

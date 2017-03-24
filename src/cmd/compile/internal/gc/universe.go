@@ -102,15 +102,13 @@ func lexinit() {
 	for _, s := range builtinFuncs {
 		// TODO(marvin): Fix Node.EType type union.
 		s2 := Pkglookup(s.name, builtinpkg)
-		s2.Def = nod(ONAME, nil, nil)
-		s2.Def.Sym = s2
+		s2.Def = newname(s2)
 		s2.Def.Etype = EType(s.op)
 	}
 
 	for _, s := range unsafeFuncs {
 		s2 := Pkglookup(s.name, unsafepkg)
-		s2.Def = nod(ONAME, nil, nil)
-		s2.Def.Sym = s2
+		s2.Def = newname(s2)
 		s2.Def.Etype = EType(s.op)
 	}
 
@@ -132,16 +130,14 @@ func lexinit() {
 
 	s = lookup("_")
 	s.Block = -100
-	s.Def = nod(ONAME, nil, nil)
-	s.Def.Sym = s
+	s.Def = newname(s)
 	Types[TBLANK] = typ(TBLANK)
 	s.Def.Type = Types[TBLANK]
 	nblank = s.Def
 
 	s = Pkglookup("_", builtinpkg)
 	s.Block = -100
-	s.Def = nod(ONAME, nil, nil)
-	s.Def.Sym = s
+	s.Def = newname(s)
 	Types[TBLANK] = typ(TBLANK)
 	s.Def.Type = Types[TBLANK]
 
@@ -464,9 +460,7 @@ func finishUniverse() {
 		s1.Block = s.Block
 	}
 
-	nodfp = nod(ONAME, nil, nil)
+	nodfp = newname(lookup(".fp"))
 	nodfp.Type = Types[TINT32]
-	nodfp.Xoffset = 0
 	nodfp.Class = PPARAM
-	nodfp.Sym = lookup(".fp")
 }

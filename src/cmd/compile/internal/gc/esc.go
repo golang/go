@@ -1440,9 +1440,9 @@ func (e *EscState) initEscRetval(call *Node, fntype *Type) {
 	cE := e.nodeEscState(call)
 	cE.Retval.Set(nil) // Suspect this is not nil for indirect calls.
 	for i, f := range fntype.Results().Fields().Slice() {
-		ret := nod(ONAME, nil, nil)
 		buf := fmt.Sprintf(".out%d", i)
-		ret.Sym = lookup(buf)
+		ret := newname(lookup(buf))
+		ret.SetAddable(false) // TODO(mdempsky): Seems suspicious.
 		ret.Type = f.Type
 		ret.Class = PAUTO
 		ret.Name.Curfn = Curfn

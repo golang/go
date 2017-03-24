@@ -332,7 +332,11 @@ func importdot(opkg *Pkg, pack *Node) {
 	}
 }
 
-func nod(op Op, nleft *Node, nright *Node) *Node {
+func nod(op Op, nleft, nright *Node) *Node {
+	return nodl(lineno, op, nleft, nright)
+}
+
+func nodl(pos src.XPos, op Op, nleft, nright *Node) *Node {
 	var n *Node
 	switch op {
 	case OCLOSURE, ODCLFUNC:
@@ -343,14 +347,7 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
 		n = &x.Node
 		n.Func = &x.Func
 	case ONAME:
-		var x struct {
-			Node
-			Name
-			Param
-		}
-		n = &x.Node
-		n.Name = &x.Name
-		n.Name.Param = &x.Param
+		Fatalf("use newname instead")
 	case OLABEL, OPACK:
 		var x struct {
 			Node
@@ -364,12 +361,34 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
 	n.Op = op
 	n.Left = nleft
 	n.Right = nright
-	n.Pos = lineno
+	n.Pos = pos
 	n.Xoffset = BADWIDTH
 	n.Orig = n
-	if n.Name != nil {
-		n.Name.Curfn = Curfn
+	return n
+}
+
+// newname returns a new ONAME Node associated with symbol s.
+func newname(s *Sym) *Node {
+	if s == nil {
+		Fatalf("newname nil")
 	}
+
+	var x struct {
+		Node
+		Name
+		Param
+	}
+	n := &x.Node
+	n.Name = &x.Name
+	n.Name.Param = &x.Param
+
+	n.Op = ONAME
+	n.Pos = lineno
+	n.Name.Curfn = Curfn
+	n.Orig = n
+
+	n.Sym = s
+	n.SetAddable(true)
 	return n
 }
 
