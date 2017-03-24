@@ -216,9 +216,10 @@ func dumpglobls() {
 		ggloblnod(n)
 	}
 
-	for _, n := range funcsyms {
-		dsymptr(n.Sym, 0, n.Sym.Def.Func.Shortname, 0)
-		ggloblsym(n.Sym, int32(Widthptr), obj.DUPOK|obj.RODATA)
+	for _, s := range funcsyms {
+		sf := s.Pkg.Lookup(s.funcsymname())
+		dsymptr(sf, 0, s, 0)
+		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
 
 	// Do not reprocess funcsyms on next dumpglobls call.

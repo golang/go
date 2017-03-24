@@ -58,7 +58,6 @@ type Sym struct {
 	Label   *Node // corresponding label (ephemeral)
 	Origpkg *Pkg  // original package for . import
 	Lsym    *obj.LSym
-	Fsym    *Sym // funcsym
 }
 
 const (
@@ -239,7 +238,7 @@ var exportlist []*Node
 
 var importlist []*Node // imported functions and methods with inlinable bodies
 
-var funcsyms []*Node
+var funcsyms []*Sym
 
 var dclcontext Class // PEXTERN/PAUTO
 

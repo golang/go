@@ -254,14 +254,20 @@ var nopkg = &Pkg{
 }
 
 func (pkg *Pkg) Lookup(name string) *Sym {
+	s, _ := pkg.LookupOK(name)
+	return s
+}
+
+// LookupOK looks up name in pkg and reports whether it previously existed.
+func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 	if pkg == nil {
 		pkg = nopkg
 	}
 	if s := pkg.Syms[name]; s != nil {
-		return s
+		return s, true
 	}
 
-	s := &Sym{
+	s = &Sym{
 		Name: name,
 		Pkg:  pkg,
 	}
@@ -269,7 +275,7 @@ func (pkg *Pkg) Lookup(name string) *Sym {
 		initSyms = append(initSyms, s)
 	}
 	pkg.Syms[name] = s
-	return s
+	return s, false
 }
 
 func (pkg *Pkg) LookupBytes(name []byte) *Sym {
