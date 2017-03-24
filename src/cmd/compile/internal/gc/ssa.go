@@ -3294,10 +3294,7 @@ func canSSAType(t *Type) bool {
 		// We can't do larger arrays because dynamic indexing is
 		// not supported on SSA variables.
 		// TODO: allow if all indexes are constant.
-		if t.NumElem() == 0 {
-			return true
-		}
-		if t.NumElem() == 1 {
+		if t.NumElem() <= 1 {
 			return canSSAType(t.Elem())
 		}
 		return false
