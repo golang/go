@@ -745,7 +745,7 @@ func loadsys() {
 	inimport = false
 }
 
-func importfile(f *Val, indent []byte) *Pkg {
+func importfile(f *Val) *Pkg {
 	path_, ok := f.U.(string)
 	if !ok {
 		yyerror("import path must be a string")
