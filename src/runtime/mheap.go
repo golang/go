@@ -1426,24 +1426,24 @@ type gcBitsHeader struct {
 }
 
 //go:notinheap
-type gcBits struct {
+type gcBitsArena struct {
 	// gcBitsHeader // side step recursive type bug (issue 14620) by including fields by hand.
 	free uintptr // free is the index into bits of the next free byte; read/write atomically
-	next *gcBits
+	next *gcBitsArena
 	bits [gcBitsChunkBytes - gcBitsHeaderBytes]uint8
 }
 
 var gcBitsArenas struct {
 	lock     mutex
-	free     *gcBits
-	next     *gcBits // Read atomically. Write atomically under lock.
-	current  *gcBits
-	previous *gcBits
+	free     *gcBitsArena
+	next     *gcBitsArena // Read atomically. Write atomically under lock.
+	current  *gcBitsArena
+	previous *gcBitsArena
 }
 
 // tryAlloc allocates from b or returns nil if b does not have enough room.
 // This is safe to call concurrently.
-func (b *gcBits) tryAlloc(bytes uintptr) *uint8 {
+func (b *gcBitsArena) tryAlloc(bytes uintptr) *uint8 {
 	if b == nil || atomic.Loaduintptr(&b.free)+bytes > uintptr(len(b.bits)) {
 		return nil
 	}
@@ -1464,7 +1464,7 @@ func newMarkBits(nelems uintptr) *uint8 {
 	bytesNeeded := blocksNeeded * 8
 
 	// Try directly allocating from the current head arena.
-	head := (*gcBits)(atomic.Loadp(unsafe.Pointer(&gcBitsArenas.next)))
+	head := (*gcBitsArena)(atomic.Loadp(unsafe.Pointer(&gcBitsArenas.next)))
 	if p := head.tryAlloc(bytesNeeded); p != nil {
 		return p
 	}
@@ -1555,11 +1555,11 @@ func nextMarkBitArenaEpoch() {
 
 // newArenaMayUnlock allocates and zeroes a gcBits arena.
 // The caller must hold gcBitsArena.lock. This may temporarily release it.
-func newArenaMayUnlock() *gcBits {
-	var result *gcBits
+func newArenaMayUnlock() *gcBitsArena {
+	var result *gcBitsArena
 	if gcBitsArenas.free == nil {
 		unlock(&gcBitsArenas.lock)
-		result = (*gcBits)(sysAlloc(gcBitsChunkBytes, &memstats.gc_sys))
+		result = (*gcBitsArena)(sysAlloc(gcBitsChunkBytes, &memstats.gc_sys))
 		if result == nil {
 			throw("runtime: cannot allocate memory")
 		}
@@ -1572,7 +1572,7 @@ func newArenaMayUnlock() *gcBits {
 	result.next = nil
 	// If result.bits is not 8 byte aligned adjust index so
 	// that &result.bits[result.free] is 8 byte aligned.
-	if uintptr(unsafe.Offsetof(gcBits{}.bits))&7 == 0 {
+	if uintptr(unsafe.Offsetof(gcBitsArena{}.bits))&7 == 0 {
 		result.free = 0
 	} else {
 		result.free = 8 - (uintptr(unsafe.Pointer(&result.bits[0])) & 7)
