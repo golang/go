@@ -567,7 +567,7 @@ var linuxAMD64Tests = []*asmTest{
 			return bits.TrailingZeros64(a)
 		}
 		`,
-		[]string{"\tBSFQ\t", "\tMOVQ\t\\$64,", "\tCMOVQEQ\t"},
+		[]string{"\tBSFQ\t", "\tMOVL\t\\$64,", "\tCMOVQEQ\t"},
 	},
 	{
 		`
