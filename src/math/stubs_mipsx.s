@@ -12,11 +12,20 @@ TEXT ·Asin(SB),NOSPLIT,$0
 TEXT ·Acos(SB),NOSPLIT,$0
 	JMP	·acos(SB)
 
+TEXT ·Asinh(SB),NOSPLIT,$0
+        JMP ·asinh(SB)
+
+TEXT ·Acosh(SB),NOSPLIT,$0
+        JMP ·acosh(SB)
+
 TEXT ·Atan2(SB),NOSPLIT,$0
 	JMP	·atan2(SB)
 
 TEXT ·Atan(SB),NOSPLIT,$0
 	JMP	·atan(SB)
+
+TEXT ·Atanh(SB),NOSPLIT,$0
+	JMP	·atanh(SB)
 
 TEXT ·Dim(SB),NOSPLIT,$0
 	JMP	·dim(SB)
@@ -26,6 +35,12 @@ TEXT ·Min(SB),NOSPLIT,$0
 
 TEXT ·Max(SB),NOSPLIT,$0
 	JMP	·max(SB)
+
+TEXT ·Erf(SB),NOSPLIT,$0
+	JMP	·erf(SB)
+
+TEXT ·Erfc(SB),NOSPLIT,$0
+	JMP	·erfc(SB)
 
 TEXT ·Exp2(SB),NOSPLIT,$0
 	JMP	·exp2(SB)
@@ -92,4 +107,10 @@ TEXT ·Tan(SB),NOSPLIT,$0
 
 TEXT ·Tanh(SB),NOSPLIT,$0
         JMP ·tanh(SB)
+
+TEXT ·Cbrt(SB),NOSPLIT,$0
+        JMP ·cbrt(SB)
+
+TEXT ·Pow(SB),NOSPLIT,$0
+        JMP ·pow(SB)
 
