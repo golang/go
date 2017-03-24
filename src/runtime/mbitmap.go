@@ -182,10 +182,8 @@ type markBits struct {
 
 //go:nosplit
 func (s *mspan) allocBitsForIndex(allocBitIndex uintptr) markBits {
-	whichByte := allocBitIndex / 8
-	whichBit := allocBitIndex % 8
-	bytePtr := addb(s.allocBits, whichByte)
-	return markBits{bytePtr, uint8(1 << whichBit), allocBitIndex}
+	bytep, mask := s.allocBits.bitp(allocBitIndex)
+	return markBits{bytep, mask, allocBitIndex}
 }
 
 // refillaCache takes 8 bytes s.allocBits starting at whichByte
@@ -193,7 +191,7 @@ func (s *mspan) allocBitsForIndex(allocBitIndex uintptr) markBits {
 // can be used. It then places these 8 bytes into the cached 64 bit
 // s.allocCache.
 func (s *mspan) refillAllocCache(whichByte uintptr) {
-	bytes := (*[8]uint8)(unsafe.Pointer(addb(s.allocBits, whichByte)))
+	bytes := (*[8]uint8)(unsafe.Pointer(s.allocBits.bytep(whichByte)))
 	aCache := uint64(0)
 	aCache |= uint64(bytes[0])
 	aCache |= uint64(bytes[1]) << (1 * 8)
@@ -265,10 +263,8 @@ func (s *mspan) isFree(index uintptr) bool {
 	if index < s.freeindex {
 		return false
 	}
-	whichByte := index / 8
-	whichBit := index % 8
-	byteVal := *addb(s.allocBits, whichByte)
-	return byteVal&uint8(1<<whichBit) == 0
+	bytep, mask := s.allocBits.bitp(index)
+	return *bytep&mask == 0
 }
 
 func (s *mspan) objIndex(p uintptr) uintptr {
@@ -290,14 +286,12 @@ func markBitsForAddr(p uintptr) markBits {
 }
 
 func (s *mspan) markBitsForIndex(objIndex uintptr) markBits {
-	whichByte := objIndex / 8
-	bitMask := uint8(1 << (objIndex % 8)) // low 3 bits hold the bit index
-	bytePtr := addb(s.gcmarkBits, whichByte)
-	return markBits{bytePtr, bitMask, objIndex}
+	bytep, mask := s.gcmarkBits.bitp(objIndex)
+	return markBits{bytep, mask, objIndex}
 }
 
 func (s *mspan) markBitsForBase() markBits {
-	return markBits{s.gcmarkBits, uint8(1), 0}
+	return markBits{(*uint8)(s.gcmarkBits), uint8(1), 0}
 }
 
 // isMarked reports whether mark bit m is set.
@@ -827,11 +821,11 @@ func (s *mspan) countAlloc() int {
 	count := 0
 	maxIndex := s.nelems / 8
 	for i := uintptr(0); i < maxIndex; i++ {
-		mrkBits := *addb(s.gcmarkBits, i)
+		mrkBits := *s.gcmarkBits.bytep(i)
 		count += int(oneBitCount[mrkBits])
 	}
 	if bitsInLastByte := s.nelems % 8; bitsInLastByte != 0 {
-		mrkBits := *addb(s.gcmarkBits, maxIndex)
+		mrkBits := *s.gcmarkBits.bytep(maxIndex)
 		mask := uint8((1 << bitsInLastByte) - 1)
 		bits := mrkBits & mask
 		count += int(oneBitCount[bits])
