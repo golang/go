@@ -229,8 +229,8 @@ type mspan struct {
 	// The sweep will free the old allocBits and set allocBits to the
 	// gcmarkBits. The gcmarkBits are replaced with a fresh zeroed
 	// out memory.
-	allocBits  *uint8
-	gcmarkBits *uint8
+	allocBits  *gcBits
+	gcmarkBits *gcBits
 
 	// sweep generation:
 	// if sweepgen == h->sweepgen - 2, the span needs sweeping
@@ -1417,6 +1417,22 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr) {
 	}
 }
 
+// gcBits is an alloc/mark bitmap. This is always used as *gcBits.
+//
+//go:notinheap
+type gcBits uint8
+
+// bytep returns a pointer to the n'th byte of b.
+func (b *gcBits) bytep(n uintptr) *uint8 {
+	return addb((*uint8)(b), n)
+}
+
+// bitp returns a pointer to the byte containing bit n and a mask for
+// selecting that bit from *bytep.
+func (b *gcBits) bitp(n uintptr) (bytep *uint8, mask uint8) {
+	return b.bytep(n / 8), 1 << (n % 8)
+}
+
 const gcBitsChunkBytes = uintptr(64 << 10)
 const gcBitsHeaderBytes = unsafe.Sizeof(gcBitsHeader{})
 
@@ -1430,7 +1446,7 @@ type gcBitsArena struct {
 	// gcBitsHeader // side step recursive type bug (issue 14620) by including fields by hand.
 	free uintptr // free is the index into bits of the next free byte; read/write atomically
 	next *gcBitsArena
-	bits [gcBitsChunkBytes - gcBitsHeaderBytes]uint8
+	bits [gcBitsChunkBytes - gcBitsHeaderBytes]gcBits
 }
 
 var gcBitsArenas struct {
@@ -1443,7 +1459,7 @@ var gcBitsArenas struct {
 
 // tryAlloc allocates from b or returns nil if b does not have enough room.
 // This is safe to call concurrently.
-func (b *gcBitsArena) tryAlloc(bytes uintptr) *uint8 {
+func (b *gcBitsArena) tryAlloc(bytes uintptr) *gcBits {
 	if b == nil || atomic.Loaduintptr(&b.free)+bytes > uintptr(len(b.bits)) {
 		return nil
 	}
@@ -1459,7 +1475,7 @@ func (b *gcBitsArena) tryAlloc(bytes uintptr) *uint8 {
 
 // newMarkBits returns a pointer to 8 byte aligned bytes
 // to be used for a span's mark bits.
-func newMarkBits(nelems uintptr) *uint8 {
+func newMarkBits(nelems uintptr) *gcBits {
 	blocksNeeded := uintptr((nelems + 63) / 64)
 	bytesNeeded := blocksNeeded * 8
 
@@ -1515,7 +1531,7 @@ func newMarkBits(nelems uintptr) *uint8 {
 // allocation bits. For spans not being initialized the
 // the mark bits are repurposed as allocation bits when
 // the span is swept.
-func newAllocBits(nelems uintptr) *uint8 {
+func newAllocBits(nelems uintptr) *gcBits {
 	return newMarkBits(nelems)
 }
 
