@@ -125,6 +125,12 @@ type (
 		aExpr()
 	}
 
+	// Placeholder for an expression that failed to parse
+	// correctly and where we can't provide a better node.
+	BadExpr struct {
+		expr
+	}
+
 	// Value
 	Name struct {
 		Value string

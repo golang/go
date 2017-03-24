@@ -416,7 +416,7 @@ func (p *noder) exprs(exprs []syntax.Expr) []*Node {
 func (p *noder) expr(expr syntax.Expr) *Node {
 	p.lineno(expr)
 	switch expr := expr.(type) {
-	case nil:
+	case nil, *syntax.BadExpr:
 		return nil
 	case *syntax.Name:
 		return p.mkname(expr)
