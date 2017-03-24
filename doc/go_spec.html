@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 12, 2017",
+	"Subtitle": "Version of March 24, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -2295,7 +2295,8 @@ The key is interpreted as a field name for struct literals,
 an index for array and slice literals, and a key for map literals.
 For map literals, all elements must have a key. It is an error
 to specify multiple elements with the same field name or
-constant key value.
+constant key value. For non-constant map keys, see the section on
+<a href="#Order_of_evaluation">evaluation order</a>.
 </p>
 
 <p>
