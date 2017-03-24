@@ -719,22 +719,22 @@ func findpkg(name string) (file string, ok bool) {
 func loadsys() {
 	block = 1
 
-	importpkg = Runtimepkg
+	inimport = true
 	typecheckok = true
 	defercheckwidth()
 
 	typs := runtimeTypes()
 	for _, d := range runtimeDecls {
-		sym := Pkglookup(d.name, importpkg)
+		sym := Pkglookup(d.name, Runtimepkg)
 		typ := typs[d.typ]
 		switch d.tag {
 		case funcTag:
-			importsym(sym, ONAME)
+			importsym(Runtimepkg, sym, ONAME)
 			n := newfuncname(sym)
 			n.Type = typ
 			declare(n, PFUNC)
 		case varTag:
-			importvar(sym, typ)
+			importvar(Runtimepkg, sym, typ)
 		default:
 			Fatalf("unhandled declaration tag %v", d.tag)
 		}
@@ -742,27 +742,23 @@ func loadsys() {
 
 	typecheckok = false
 	resumecheckwidth()
-	importpkg = nil
+	inimport = false
 }
 
-func importfile(f *Val, indent []byte) {
-	if importpkg != nil {
-		Fatalf("importpkg not nil")
-	}
-
+func importfile(f *Val, indent []byte) *Pkg {
 	path_, ok := f.U.(string)
 	if !ok {
 		yyerror("import statement not a string")
-		return
+		return nil
 	}
 
 	if len(path_) == 0 {
 		yyerror("import path is empty")
-		return
+		return nil
 	}
 
 	if isbadimport(path_) {
-		return
+		return nil
 	}
 
 	// The package name main is no longer reserved,
@@ -789,15 +785,14 @@ func importfile(f *Val, indent []byte) {
 			errorexit()
 		}
 
-		importpkg = unsafepkg
 		imported_unsafe = true
-		return
+		return unsafepkg
 	}
 
 	if islocalname(path_) {
 		if path_[0] == '/' {
 			yyerror("import path cannot be absolute path")
-			return
+			return nil
 		}
 
 		prefix := Ctxt.Pathname
@@ -807,7 +802,7 @@ func importfile(f *Val, indent []byte) {
 		path_ = path.Join(prefix, path_)
 
 		if isbadimport(path_) {
-			return
+			return nil
 		}
 	}
 
@@ -817,10 +812,9 @@ func importfile(f *Val, indent []byte) {
 		errorexit()
 	}
 
-	importpkg = mkpkg(path_)
-
+	importpkg := mkpkg(path_)
 	if importpkg.Imported {
-		return
+		return importpkg
 	}
 
 	importpkg.Imported = true
@@ -913,18 +907,21 @@ func importfile(f *Val, indent []byte) {
 	switch c {
 	case '\n':
 		yyerror("cannot import %s: old export format no longer supported (recompile library)", path_)
+		return nil
 
 	case 'B':
 		if Debug_export != 0 {
 			fmt.Printf("importing %s (%s)\n", path_, file)
 		}
 		imp.ReadByte() // skip \n after $$B
-		Import(imp, importpkg)
+		Import(importpkg, imp)
 
 	default:
 		yyerror("no import in %q", path_)
 		errorexit()
 	}
+
+	return importpkg
 }
 
 func pkgnotused(lineno src.XPos, path string, name string) {

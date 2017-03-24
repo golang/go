@@ -165,7 +165,7 @@ func declare(n *Node, ctxt Class) {
 	s := n.Sym
 
 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
-	if importpkg == nil && !typecheckok && s.Pkg != localpkg {
+	if !inimport && !typecheckok && s.Pkg != localpkg {
 		yyerror("cannot declare name %v", s)
 	}
 

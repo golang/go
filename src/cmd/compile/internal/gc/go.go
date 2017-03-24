@@ -168,7 +168,7 @@ var Debug_typeassert int
 
 var localpkg *Pkg // package being compiled
 
-var importpkg *Pkg // package being imported
+var inimport bool // set during import
 
 var itabpkg *Pkg // fake pkg for itab entries
 
