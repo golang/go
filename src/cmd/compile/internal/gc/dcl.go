@@ -686,9 +686,9 @@ func structfield(n *Node) *Field {
 	case string:
 		f.Note = u
 	default:
-		yyerror("field annotation must be string")
+		yyerror("field tag must be a string")
 	case nil:
-		// noop
+		// no-op
 	}
 
 	if n.Left != nil && n.Left.Op == ONAME {

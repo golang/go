@@ -192,7 +192,7 @@ func (p *parser) advance(followlist ...token) {
 	}
 
 	// compute follow set
-	// TODO(gri) the args are constants - do as constant expressions?
+	// (not speed critical, advance is only called in error situations)
 	var followset uint64 = 1 << _EOF // never skip over EOF
 	for _, tok := range followlist {
 		followset |= 1 << tok
@@ -281,7 +281,7 @@ func (p *parser) file() *File {
 
 		case _Func:
 			p.next()
-			f.DeclList = append(f.DeclList, p.funcDecl())
+			f.DeclList = appendDecl(f.DeclList, p.funcDecl())
 
 		default:
 			if p.tok == _Lbrace && len(f.DeclList) > 0 && emptyFuncDecl(f.DeclList[len(f.DeclList)-1]) {
@@ -323,7 +323,7 @@ func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
 	if p.got(_Lparen) {
 		g := new(Group)
 		for p.tok != _EOF && p.tok != _Rparen {
-			list = append(list, f(g))
+			list = appendDecl(list, f(g))
 			if !p.osemi(_Rparen) {
 				break
 			}
@@ -332,7 +332,14 @@ func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
 		return list
 	}
 
-	return append(list, f(nil))
+	return appendDecl(list, f(nil))
+}
+
+func appendDecl(list []Decl, d Decl) []Decl {
+	if d != nil {
+		return append(list, d)
+	}
+	return list
 }
 
 func (p *parser) importDecl(group *Group) Decl {
@@ -353,11 +360,11 @@ func (p *parser) importDecl(group *Group) Decl {
 		d.LocalPkgName = n
 		p.next()
 	}
-	if p.tok == _Literal && p.kind == StringLit {
-		d.Path = p.oliteral()
-	} else {
-		p.syntax_error("missing import path; require quoted string")
+	d.Path = p.oliteral()
+	if d.Path == nil {
+		p.syntax_error("missing import path")
 		p.advance(_Semi, _Rparen)
+		return nil
 	}
 	d.Group = group
 
@@ -400,6 +407,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 	if d.Type == nil {
 		p.syntax_error("in type declaration")
 		p.advance(_Semi, _Rparen)
+		return nil
 	}
 	d.Group = group
 	d.Pragma = p.pragma
@@ -443,18 +451,16 @@ func (p *parser) funcDecl() *FuncDecl {
 	f := new(FuncDecl)
 	f.pos = p.pos()
 
-	badRecv := false
 	if p.tok == _Lparen {
 		rcvr := p.paramList()
 		switch len(rcvr) {
 		case 0:
 			p.error("method has no receiver")
-			badRecv = true
-		case 1:
-			f.Recv = rcvr[0]
 		default:
 			p.error("method has multiple receivers")
-			badRecv = true
+			fallthrough
+		case 1:
+			f.Recv = rcvr[0]
 		}
 	}
 
@@ -491,9 +497,6 @@ func (p *parser) funcDecl() *FuncDecl {
 	// 	p.error("can only use //go:noescape with external func implementations")
 	// }
 
-	if badRecv {
-		return nil // TODO(gri) better solution
-	}
 	return f
 }
 
