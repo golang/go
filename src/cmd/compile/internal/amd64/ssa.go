@@ -956,12 +956,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		ssa.BlockAMD64ULT, ssa.BlockAMD64UGT,
 		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
 		jmp := blockJump[b.Kind]
-		likely := b.Likely
 		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
 			p = s.Prog(jmp.invasm)
-			likely *= -1
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
 		case b.Succs[1].Block():
@@ -975,19 +973,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			q := s.Prog(obj.AJMP)
 			q.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
-		}
-
-		// liblink reorders the instruction stream as it sees fit.
-		// Pass along what we know so liblink can make use of it.
-		// TODO: Once we've fully switched to SSA,
-		// make liblink leave our output alone.
-		switch likely {
-		case ssa.BranchUnlikely:
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = 0
-		case ssa.BranchLikely:
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = 1
 		}
 
 	default:

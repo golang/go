@@ -789,12 +789,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		ssa.BlockS390XLE, ssa.BlockS390XGT,
 		ssa.BlockS390XGEF, ssa.BlockS390XGTF:
 		jmp := blockJump[b.Kind]
-		likely := b.Likely
 		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
 			p = s.Prog(jmp.invasm)
-			likely *= -1
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
 		case b.Succs[1].Block():
