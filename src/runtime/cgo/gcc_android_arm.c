@@ -10,13 +10,6 @@
 
 #define magic1 (0x23581321U)
 
-// PTHREAD_KEYS_MAX has been added to sys/limits.h at head in bionic:
-// https://android.googlesource.com/platform/bionic/+/master/libc/include/sys/limits.h
-// TODO(crawshaw): remove this definition when NDK r10d is required.
-#ifndef PTHREAD_KEYS_MAX
-#define PTHREAD_KEYS_MAX 128
-#endif
-
 // inittls allocates a thread-local storage slot for g.
 //
 // It finds the first available slot using pthread_key_create and uses
@@ -32,7 +25,11 @@ inittls(void **tlsg, void **tlsbase)
 		fatalf("pthread_key_create failed: %d", err);
 	}
 	pthread_setspecific(k, (void*)magic1);
-	for (i=0; i<PTHREAD_KEYS_MAX; i++) {
+	// If thread local slots are laid out as we expect, our magic word will
+	// be located at some low offset from tlsbase. However, just in case something went
+	// wrong, the search is limited to sensible offsets. PTHREAD_KEYS_MAX was the
+	// original limit, but issue 19472 made a higher limit necessary.
+	for (i=0; i<384; i++) {
 		if (*(tlsbase+i) == (void*)magic1) {
 			*tlsg = (void*)(i*sizeof(void *));
 			pthread_setspecific(k, 0);
