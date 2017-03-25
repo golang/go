@@ -431,9 +431,7 @@
 
 // fold constants into instructions
 (ADDL x (MOVLconst [c])) -> (ADDLconst [c] x)
-(ADDL (MOVLconst [c]) x) -> (ADDLconst [c] x)
 (ADDLcarry x (MOVLconst [c])) -> (ADDLconstcarry [c] x)
-(ADDLcarry (MOVLconst [c]) x) -> (ADDLconstcarry [c] x)
 (ADCL x (MOVLconst [c]) f) -> (ADCLconst [c] x f)
 (ADCL (MOVLconst [c]) x f) -> (ADCLconst [c] x f)
 
@@ -443,10 +441,8 @@
 (SBBL x (MOVLconst [c]) f) -> (SBBLconst [c] x f)
 
 (MULL x (MOVLconst [c])) -> (MULLconst [c] x)
-(MULL (MOVLconst [c]) x) -> (MULLconst [c] x)
 
 (ANDL x (MOVLconst [c])) -> (ANDLconst [c] x)
-(ANDL (MOVLconst [c]) x) -> (ANDLconst [c] x)
 
 (ANDLconst [c] (ANDLconst [d] x)) -> (ANDLconst [c & d] x)
 
@@ -455,10 +451,8 @@
 (MULLconst [c] (MULLconst [d] x)) -> (MULLconst [int64(int32(c * d))] x)
 
 (ORL x (MOVLconst [c])) -> (ORLconst [c] x)
-(ORL (MOVLconst [c]) x) -> (ORLconst [c] x)
 
 (XORL x (MOVLconst [c])) -> (XORLconst [c] x)
-(XORL (MOVLconst [c]) x) -> (XORLconst [c] x)
 
 (SHLL x (MOVLconst [c])) -> (SHLLconst [c&31] x)
 (SHRL x (MOVLconst [c])) -> (SHRLconst [c&31] x)
@@ -479,26 +473,17 @@
 
 // Rotate instructions
 
-(ADDL (SHLLconst [c] x) (SHRLconst [32-c] x)) -> (ROLLconst [c   ] x)
-( ORL (SHLLconst [c] x) (SHRLconst [32-c] x)) -> (ROLLconst [c   ] x)
-(XORL (SHLLconst [c] x) (SHRLconst [32-c] x)) -> (ROLLconst [c   ] x)
-(ADDL (SHRLconst [c] x) (SHLLconst [32-c] x)) -> (ROLLconst [32-c] x)
-( ORL (SHRLconst [c] x) (SHLLconst [32-c] x)) -> (ROLLconst [32-c] x)
-(XORL (SHRLconst [c] x) (SHLLconst [32-c] x)) -> (ROLLconst [32-c] x)
+(ADDL (SHLLconst [c] x) (SHRLconst [d] x)) && d == 32-c -> (ROLLconst [c] x)
+( ORL (SHLLconst [c] x) (SHRLconst [d] x)) && d == 32-c -> (ROLLconst [c] x)
+(XORL (SHLLconst [c] x) (SHRLconst [d] x)) && d == 32-c -> (ROLLconst [c] x)
 
-(ADDL <t> (SHLLconst x [c]) (SHRWconst x [16-c])) && c < 16 && t.Size() == 2 -> (ROLWconst x [   c])
-( ORL <t> (SHLLconst x [c]) (SHRWconst x [16-c])) && c < 16 && t.Size() == 2 -> (ROLWconst x [   c])
-(XORL <t> (SHLLconst x [c]) (SHRWconst x [16-c])) && c < 16 && t.Size() == 2 -> (ROLWconst x [   c])
-(ADDL <t> (SHRWconst x [c]) (SHLLconst x [16-c])) && c > 0  && t.Size() == 2 -> (ROLWconst x [16-c])
-( ORL <t> (SHRWconst x [c]) (SHLLconst x [16-c])) && c > 0  && t.Size() == 2 -> (ROLWconst x [16-c])
-(XORL <t> (SHRWconst x [c]) (SHLLconst x [16-c])) && c > 0  && t.Size() == 2 -> (ROLWconst x [16-c])
+(ADDL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == 16-c && t.Size() == 2 -> (ROLWconst x [c])
+( ORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == 16-c && t.Size() == 2 -> (ROLWconst x [c])
+(XORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == 16-c && t.Size() == 2 -> (ROLWconst x [c])
 
-(ADDL <t> (SHLLconst x [c]) (SHRBconst x [ 8-c])) && c < 8 && t.Size() == 1 -> (ROLBconst x [   c])
-( ORL <t> (SHLLconst x [c]) (SHRBconst x [ 8-c])) && c < 8 && t.Size() == 1 -> (ROLBconst x [   c])
-(XORL <t> (SHLLconst x [c]) (SHRBconst x [ 8-c])) && c < 8 && t.Size() == 1 -> (ROLBconst x [   c])
-(ADDL <t> (SHRBconst x [c]) (SHLLconst x [ 8-c])) && c > 0 && t.Size() == 1 -> (ROLBconst x [ 8-c])
-( ORL <t> (SHRBconst x [c]) (SHLLconst x [ 8-c])) && c > 0 && t.Size() == 1 -> (ROLBconst x [ 8-c])
-(XORL <t> (SHRBconst x [c]) (SHLLconst x [ 8-c])) && c > 0 && t.Size() == 1 -> (ROLBconst x [ 8-c])
+(ADDL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == 8-c && t.Size() == 1 -> (ROLBconst x [c])
+( ORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == 8-c && t.Size() == 1 -> (ROLBconst x [c])
+(XORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == 8-c && t.Size() == 1 -> (ROLBconst x [c])
 
 (ROLLconst [c] (ROLLconst [d] x)) -> (ROLLconst [(c+d)&31] x)
 (ROLWconst [c] (ROLWconst [d] x)) -> (ROLWconst [(c+d)&15] x)
@@ -559,9 +544,9 @@
 (MULLconst [c] x) && isPowerOfTwo(c-2) && c >= 34 -> (LEAL2 (SHLLconst <v.Type> [log2(c-2)] x) x)
 (MULLconst [c] x) && isPowerOfTwo(c-4) && c >= 68 -> (LEAL4 (SHLLconst <v.Type> [log2(c-4)] x) x)
 (MULLconst [c] x) && isPowerOfTwo(c-8) && c >= 136 -> (LEAL8 (SHLLconst <v.Type> [log2(c-8)] x) x)
-(MULLconst [c] x) && c%3 == 0 && isPowerOfTwo(c/3)-> (SHLLconst [log2(c/3)] (LEAL2 <v.Type> x x))
-(MULLconst [c] x) && c%5 == 0 && isPowerOfTwo(c/5)-> (SHLLconst [log2(c/5)] (LEAL4 <v.Type> x x))
-(MULLconst [c] x) && c%9 == 0 && isPowerOfTwo(c/9)-> (SHLLconst [log2(c/9)] (LEAL8 <v.Type> x x))
+(MULLconst [c] x) && c%3 == 0 && isPowerOfTwo(c/3) -> (SHLLconst [log2(c/3)] (LEAL2 <v.Type> x x))
+(MULLconst [c] x) && c%5 == 0 && isPowerOfTwo(c/5) -> (SHLLconst [log2(c/5)] (LEAL4 <v.Type> x x))
+(MULLconst [c] x) && c%9 == 0 && isPowerOfTwo(c/9) -> (SHLLconst [log2(c/9)] (LEAL8 <v.Type> x x))
 
 // combine add/shift into LEAL
 (ADDL x (SHLLconst [3] y)) -> (LEAL8 x y)
@@ -569,19 +554,16 @@
 (ADDL x (SHLLconst [1] y)) -> (LEAL2 x y)
 (ADDL x (ADDL y y)) -> (LEAL2 x y)
 (ADDL x (ADDL x y)) -> (LEAL2 y x)
-(ADDL x (ADDL y x)) -> (LEAL2 y x)
 
 // combine ADDL/ADDLconst into LEAL1
 (ADDLconst [c] (ADDL x y)) -> (LEAL1 [c] x y)
 (ADDL (ADDLconst [c] x) y) -> (LEAL1 [c] x y)
-(ADDL x (ADDLconst [c] y)) -> (LEAL1 [c] x y)
 
 // fold ADDL into LEAL
 (ADDLconst [c] (LEAL [d] {s} x)) && is32Bit(c+d) -> (LEAL [c+d] {s} x)
 (LEAL [c] {s} (ADDLconst [d] x)) && is32Bit(c+d) -> (LEAL [c+d] {s} x)
 (LEAL [c] {s} (ADDL x y)) && x.Op != OpSB && y.Op != OpSB -> (LEAL1 [c] {s} x y)
 (ADDL x (LEAL [c] {s} y)) && x.Op != OpSB && y.Op != OpSB -> (LEAL1 [c] {s} x y)
-(ADDL (LEAL [c] {s} x) y) && x.Op != OpSB && y.Op != OpSB -> (LEAL1 [c] {s} x y)
 
 // fold ADDLconst into LEALx
 (ADDLconst [c] (LEAL1 [d] {s} x y)) && is32Bit(c+d) -> (LEAL1 [c+d] {s} x y)
@@ -589,7 +571,6 @@
 (ADDLconst [c] (LEAL4 [d] {s} x y)) && is32Bit(c+d) -> (LEAL4 [c+d] {s} x y)
 (ADDLconst [c] (LEAL8 [d] {s} x y)) && is32Bit(c+d) -> (LEAL8 [c+d] {s} x y)
 (LEAL1 [c] {s} (ADDLconst [d] x) y) && is32Bit(c+d)   && x.Op != OpSB -> (LEAL1 [c+d] {s} x y)
-(LEAL1 [c] {s} x (ADDLconst [d] y)) && is32Bit(c+d)   && y.Op != OpSB -> (LEAL1 [c+d] {s} x y)
 (LEAL2 [c] {s} (ADDLconst [d] x) y) && is32Bit(c+d)   && x.Op != OpSB -> (LEAL2 [c+d] {s} x y)
 (LEAL2 [c] {s} x (ADDLconst [d] y)) && is32Bit(c+2*d) && y.Op != OpSB -> (LEAL2 [c+2*d] {s} x y)
 (LEAL4 [c] {s} (ADDLconst [d] x) y) && is32Bit(c+d)   && x.Op != OpSB -> (LEAL4 [c+d] {s} x y)
@@ -599,12 +580,8 @@
 
 // fold shifts into LEALx
 (LEAL1 [c] {s} x (SHLLconst [1] y)) -> (LEAL2 [c] {s} x y)
-(LEAL1 [c] {s} (SHLLconst [1] x) y) -> (LEAL2 [c] {s} y x)
 (LEAL1 [c] {s} x (SHLLconst [2] y)) -> (LEAL4 [c] {s} x y)
-(LEAL1 [c] {s} (SHLLconst [2] x) y) -> (LEAL4 [c] {s} y x)
 (LEAL1 [c] {s} x (SHLLconst [3] y)) -> (LEAL8 [c] {s} x y)
-(LEAL1 [c] {s} (SHLLconst [3] x) y) -> (LEAL8 [c] {s} y x)
-
 (LEAL2 [c] {s} x (SHLLconst [1] y)) -> (LEAL4 [c] {s} x y)
 (LEAL2 [c] {s} x (SHLLconst [2] y)) -> (LEAL8 [c] {s} x y)
 (LEAL4 [c] {s} x (SHLLconst [1] y)) -> (LEAL8 [c] {s} x y)
@@ -888,8 +865,6 @@
 // LEAL into LEAL1
 (LEAL1 [off1] {sym1} (LEAL [off2] {sym2} x) y) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
        (LEAL1 [off1+off2] {mergeSym(sym1,sym2)} x y)
-(LEAL1 [off1] {sym1} x (LEAL [off2] {sym2} y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && y.Op != OpSB ->
-       (LEAL1 [off1+off2] {mergeSym(sym1,sym2)} x y)
 
 // LEAL1 into LEAL
 (LEAL [off1] {sym1} (LEAL1 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
@@ -1128,14 +1103,12 @@
 (CMPWconst x [0]) -> (TESTW x x)
 (CMPBconst x [0]) -> (TESTB x x)
 
-// Move shifts to second argument of ORs.  Helps load combining rules below.
-(ORL x:(SHLLconst _) y) && y.Op != Op386SHLLconst -> (ORL y x)
-
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
 // designed to match the way encoding/binary.LittleEndian does it.
-(ORL                  x0:(MOVBload [i]   {s} p mem)
-    s0:(SHLLconst [8] x1:(MOVBload [i+1] {s} p mem)))
+(ORL                  x0:(MOVBload [i0] {s} p mem)
+    s0:(SHLLconst [8] x1:(MOVBload [i1] {s} p mem)))
+  && i1 == i0+1
   && x0.Uses == 1
   && x1.Uses == 1
   && s0.Uses == 1
@@ -1143,12 +1116,14 @@
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
-  -> @mergePoint(b,x0,x1) (MOVWload [i] {s} p mem)
+  -> @mergePoint(b,x0,x1) (MOVWload [i0] {s} p mem)
 
 (ORL o0:(ORL
-                       x0:(MOVWload [i]   {s} p mem)
-    s0:(SHLLconst [16] x1:(MOVBload [i+2] {s} p mem)))
-    s1:(SHLLconst [24] x2:(MOVBload [i+3] {s} p mem)))
+                       x0:(MOVWload [i0] {s} p mem)
+    s0:(SHLLconst [16] x1:(MOVBload [i2] {s} p mem)))
+    s1:(SHLLconst [24] x2:(MOVBload [i3] {s} p mem)))
+  && i2 == i0+2
+  && i3 == i0+3
   && x0.Uses == 1
   && x1.Uses == 1
   && x2.Uses == 1
@@ -1162,10 +1137,11 @@
   && clobber(s0)
   && clobber(s1)
   && clobber(o0)
-  -> @mergePoint(b,x0,x1,x2) (MOVLload [i] {s} p mem)
+  -> @mergePoint(b,x0,x1,x2) (MOVLload [i0] {s} p mem)
 
-(ORL                  x0:(MOVBloadidx1 [i]   {s} p idx mem)
-    s0:(SHLLconst [8] x1:(MOVBloadidx1 [i+1] {s} p idx mem)))
+(ORL                  x0:(MOVBloadidx1 [i0] {s} p idx mem)
+    s0:(SHLLconst [8] x1:(MOVBloadidx1 [i1] {s} p idx mem)))
+  && i1==i0+1
   && x0.Uses == 1
   && x1.Uses == 1
   && s0.Uses == 1
@@ -1173,12 +1149,14 @@
   && clobber(x0)
   && clobber(x1)
   && clobber(s0)
-  -> @mergePoint(b,x0,x1) (MOVWloadidx1 <v.Type> [i] {s} p idx mem)
+  -> @mergePoint(b,x0,x1) (MOVWloadidx1 <v.Type> [i0] {s} p idx mem)
 
 (ORL o0:(ORL
-                       x0:(MOVWloadidx1 [i]   {s} p idx mem)
-    s0:(SHLLconst [16] x1:(MOVBloadidx1 [i+2] {s} p idx mem)))
-    s1:(SHLLconst [24] x2:(MOVBloadidx1 [i+3] {s} p idx mem)))
+                       x0:(MOVWloadidx1 [i0] {s} p idx mem)
+    s0:(SHLLconst [16] x1:(MOVBloadidx1 [i2] {s} p idx mem)))
+    s1:(SHLLconst [24] x2:(MOVBloadidx1 [i3] {s} p idx mem)))
+  && i2 == i0+2
+  && i3 == i0+3
   && x0.Uses == 1
   && x1.Uses == 1
   && x2.Uses == 1
@@ -1192,7 +1170,7 @@
   && clobber(s0)
   && clobber(s1)
   && clobber(o0)
-  -> @mergePoint(b,x0,x1,x2) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
+  -> @mergePoint(b,x0,x1,x2) (MOVLloadidx1 <v.Type> [i0] {s} p idx mem)
 
 // Combine constant stores into larger (unaligned) stores.
 (MOVBstoreconst [c] {s} p x:(MOVBstoreconst [a] {s} p mem))

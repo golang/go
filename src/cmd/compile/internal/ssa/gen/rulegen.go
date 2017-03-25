@@ -30,7 +30,7 @@ import (
 //  sexpr [&& extra conditions] -> [@block] sexpr
 //
 // sexpr are s-expressions (lisp-like parenthesized groupings)
-// sexpr ::= (opcode sexpr*)
+// sexpr ::= [variable:](opcode sexpr*)
 //         | variable
 //         | <type>
 //         | [auxint]
@@ -39,7 +39,7 @@ import (
 // aux      ::= variable | {code}
 // type     ::= variable | {code}
 // variable ::= some token
-// opcode   ::= one of the opcodes from ../op.go (without the Op prefix)
+// opcode   ::= one of the opcodes from the *Ops.go files
 
 // extra conditions is just a chunk of Go that evaluates to a boolean. It may use
 // variables declared in the matching sexpr. The variable "v" is predefined to be
@@ -119,15 +119,17 @@ func genRules(arch arch) {
 		}
 
 		loc := fmt.Sprintf("%s.rules:%d", arch.name, ruleLineno)
-		r := Rule{rule: rule, loc: loc}
-		if rawop := strings.Split(rule, " ")[0][1:]; isBlock(rawop, arch) {
-			blockrules[rawop] = append(blockrules[rawop], r)
-		} else {
-			// Do fancier value op matching.
-			match, _, _ := r.parse()
-			op, oparch, _, _, _, _ := parseValue(match, arch, loc)
-			opname := fmt.Sprintf("Op%s%s", oparch, op.name)
-			oprules[opname] = append(oprules[opname], r)
+		for _, crule := range commute(rule, arch) {
+			r := Rule{rule: crule, loc: loc}
+			if rawop := strings.Split(crule, " ")[0][1:]; isBlock(rawop, arch) {
+				blockrules[rawop] = append(blockrules[rawop], r)
+			} else {
+				// Do fancier value op matching.
+				match, _, _ := r.parse()
+				op, oparch, _, _, _, _ := parseValue(match, arch, loc)
+				opname := fmt.Sprintf("Op%s%s", oparch, op.name)
+				oprules[opname] = append(oprules[opname], r)
+			}
 		}
 		rule = ""
 		ruleLineno = 0
@@ -751,4 +753,170 @@ func isVariable(s string) bool {
 		panic("bad variable regexp")
 	}
 	return b
+}
+
+// commute returns all equivalent rules to r after applying all possible
+// argument swaps to the commutable ops in r.
+// Potentially exponential, be careful.
+func commute(r string, arch arch) []string {
+	match, cond, result := Rule{rule: r}.parse()
+	a := commute1(match, varCount(match), arch)
+	for i, m := range a {
+		if cond != "" {
+			m += " && " + cond
+		}
+		m += " -> " + result
+		a[i] = m
+	}
+	if len(a) == 1 && normalizeWhitespace(r) != normalizeWhitespace(a[0]) {
+		fmt.Println(normalizeWhitespace(r))
+		fmt.Println(normalizeWhitespace(a[0]))
+		panic("commute() is not the identity for noncommuting rule")
+	}
+	if false && len(a) > 1 {
+		fmt.Println(r)
+		for _, x := range a {
+			fmt.Println("  " + x)
+		}
+	}
+	return a
+}
+
+func commute1(m string, cnt map[string]int, arch arch) []string {
+	if m[0] == '<' || m[0] == '[' || m[0] == '{' || isVariable(m) {
+		return []string{m}
+	}
+	// Split up input.
+	var prefix string
+	colon := strings.Index(m, ":")
+	if colon >= 0 && isVariable(m[:colon]) {
+		prefix = m[:colon+1]
+		m = m[colon+1:]
+	}
+	if m[0] != '(' || m[len(m)-1] != ')' {
+		panic("non-compound expr in commute1: " + m)
+	}
+	s := split(m[1 : len(m)-1])
+	op := s[0]
+
+	// Figure out if the op is commutative or not.
+	commutative := false
+	for _, x := range genericOps {
+		if op == x.name {
+			if x.commutative {
+				commutative = true
+			}
+			break
+		}
+	}
+	if arch.name != "generic" {
+		for _, x := range arch.ops {
+			if op == x.name {
+				if x.commutative {
+					commutative = true
+				}
+				break
+			}
+		}
+	}
+	var idx0, idx1 int
+	if commutative {
+		// Find indexes of two args we can swap.
+		for i, arg := range s {
+			if i == 0 || arg[0] == '<' || arg[0] == '[' || arg[0] == '{' {
+				continue
+			}
+			if idx0 == 0 {
+				idx0 = i
+				continue
+			}
+			if idx1 == 0 {
+				idx1 = i
+				break
+			}
+		}
+		if idx1 == 0 {
+			panic("couldn't find first two args of commutative op " + s[0])
+		}
+		if cnt[s[idx0]] == 1 && cnt[s[idx1]] == 1 || s[idx0] == s[idx1] && cnt[s[idx0]] == 2 {
+			// When we have (Add x y) with no ther uses of x and y in the matching rule,
+			// then we can skip the commutative match (Add y x).
+			commutative = false
+		}
+	}
+
+	// Recursively commute arguments.
+	a := make([][]string, len(s))
+	for i, arg := range s {
+		a[i] = commute1(arg, cnt, arch)
+	}
+
+	// Choose all possibilities from all args.
+	r := crossProduct(a)
+
+	// If commutative, do that again with its two args reversed.
+	if commutative {
+		a[idx0], a[idx1] = a[idx1], a[idx0]
+		r = append(r, crossProduct(a)...)
+	}
+
+	// Construct result.
+	for i, x := range r {
+		r[i] = prefix + "(" + x + ")"
+	}
+	return r
+}
+
+// varCount returns a map which counts the number of occurrences of
+// Value variables in m.
+func varCount(m string) map[string]int {
+	cnt := map[string]int{}
+	varCount1(m, cnt)
+	return cnt
+}
+func varCount1(m string, cnt map[string]int) {
+	if m[0] == '<' || m[0] == '[' || m[0] == '{' {
+		return
+	}
+	if isVariable(m) {
+		cnt[m]++
+		return
+	}
+	// Split up input.
+	colon := strings.Index(m, ":")
+	if colon >= 0 && isVariable(m[:colon]) {
+		cnt[m[:colon]]++
+		m = m[colon+1:]
+	}
+	if m[0] != '(' || m[len(m)-1] != ')' {
+		panic("non-compound expr in commute1: " + m)
+	}
+	s := split(m[1 : len(m)-1])
+	for _, arg := range s[1:] {
+		varCount1(arg, cnt)
+	}
+}
+
+// crossProduct returns all possible values
+// x[0][i] + " " + x[1][j] + " " + ... + " " + x[len(x)-1][k]
+// for all valid values of i, j, ..., k.
+func crossProduct(x [][]string) []string {
+	if len(x) == 1 {
+		return x[0]
+	}
+	var r []string
+	for _, tail := range crossProduct(x[1:]) {
+		for _, first := range x[0] {
+			r = append(r, first+" "+tail)
+		}
+	}
+	return r
+}
+
+// normalizeWhitespace replaces 2+ whitespace sequences with a single space.
+func normalizeWhitespace(x string) string {
+	x = strings.Join(strings.Fields(x), " ")
+	x = strings.Replace(x, "( ", "(", -1)
+	x = strings.Replace(x, " )", ")", -1)
+	return x
 }

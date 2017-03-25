@@ -244,47 +244,11 @@
 (Neq16 (Const16 <t> [c]) (Add16 (Const16 <t> [d]) x)) -> (Neq16 (Const16 <t> [int64(int16(c-d))]) x)
 (Neq8  (Const8  <t> [c]) (Add8  (Const8  <t> [d]) x)) -> (Neq8 (Const8 <t> [int64(int8(c-d))]) x)
 
-// canonicalize: swap arguments for commutative operations when one argument is a constant.
-(Eq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Eq64 (Const64 <t> [c]) x)
-(Eq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Eq32 (Const32 <t> [c]) x)
-(Eq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Eq16 (Const16 <t> [c]) x)
-(Eq8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (Eq8  (Const8  <t> [c]) x)
-
-(Neq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Neq64 (Const64 <t> [c]) x)
-(Neq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Neq32 (Const32 <t> [c]) x)
-(Neq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Neq16 (Const16 <t> [c]) x)
-(Neq8  x (Const8 <t>  [c])) && x.Op != OpConst8  -> (Neq8  (Const8  <t> [c]) x)
-
-// AddPtr is not canonicalized because nilcheck ptr checks the first argument to be non-nil.
-(Add64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [c]) x)
-(Add32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Add32 (Const32 <t> [c]) x)
-(Add16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Add16 (Const16 <t> [c]) x)
-(Add8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (Add8  (Const8  <t> [c]) x)
-
-(Mul64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Mul64 (Const64 <t> [c]) x)
-(Mul32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Mul32 (Const32 <t> [c]) x)
-(Mul16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Mul16 (Const16 <t> [c]) x)
-(Mul8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (Mul8  (Const8  <t> [c]) x)
-
+// Canonicalize x-const to x+(-const)
 (Sub64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [-c]) x)
 (Sub32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Add32 (Const32 <t> [int64(int32(-c))]) x)
 (Sub16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Add16 (Const16 <t> [int64(int16(-c))]) x)
 (Sub8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (Add8  (Const8  <t> [int64(int8(-c))]) x)
-
-(And64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (And64 (Const64 <t> [c]) x)
-(And32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (And32 (Const32 <t> [c]) x)
-(And16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (And16 (Const16 <t> [c]) x)
-(And8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (And8  (Const8  <t> [c]) x)
-
-(Or64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Or64 (Const64 <t> [c]) x)
-(Or32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Or32 (Const32 <t> [c]) x)
-(Or16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Or16 (Const16 <t> [c]) x)
-(Or8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (Or8  (Const8  <t> [c]) x)
-
-(Xor64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Xor64 (Const64 <t> [c]) x)
-(Xor32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Xor32 (Const32 <t> [c]) x)
-(Xor16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Xor16 (Const16 <t> [c]) x)
-(Xor8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (Xor8  (Const8  <t> [c]) x)
 
 // fold negation into comparison operators
 (Not (Eq64 x y)) -> (Neq64 x y)
@@ -635,50 +599,14 @@
 (And32 x (And32 x y)) -> (And32 x y)
 (And16 x (And16 x y)) -> (And16 x y)
 (And8  x (And8  x y)) -> (And8  x y)
-(And64 x (And64 y x)) -> (And64 x y)
-(And32 x (And32 y x)) -> (And32 x y)
-(And16 x (And16 y x)) -> (And16 x y)
-(And8  x (And8  y x)) -> (And8  x y)
-(And64 (And64 x y) x) -> (And64 x y)
-(And32 (And32 x y) x) -> (And32 x y)
-(And16 (And16 x y) x) -> (And16 x y)
-(And8  (And8  x y) x) -> (And8  x y)
-(And64 (And64 x y) y) -> (And64 x y)
-(And32 (And32 x y) y) -> (And32 x y)
-(And16 (And16 x y) y) -> (And16 x y)
-(And8  (And8  x y) y) -> (And8  x y)
 (Or64 x (Or64 x y)) -> (Or64 x y)
 (Or32 x (Or32 x y)) -> (Or32 x y)
 (Or16 x (Or16 x y)) -> (Or16 x y)
 (Or8  x (Or8  x y)) -> (Or8  x y)
-(Or64 x (Or64 y x)) -> (Or64 x y)
-(Or32 x (Or32 y x)) -> (Or32 x y)
-(Or16 x (Or16 y x)) -> (Or16 x y)
-(Or8  x (Or8  y x)) -> (Or8  x y)
-(Or64 (Or64 x y) x) -> (Or64 x y)
-(Or32 (Or32 x y) x) -> (Or32 x y)
-(Or16 (Or16 x y) x) -> (Or16 x y)
-(Or8  (Or8  x y) x) -> (Or8  x y)
-(Or64 (Or64 x y) y) -> (Or64 x y)
-(Or32 (Or32 x y) y) -> (Or32 x y)
-(Or16 (Or16 x y) y) -> (Or16 x y)
-(Or8  (Or8  x y) y) -> (Or8  x y)
 (Xor64 x (Xor64 x y)) -> y
 (Xor32 x (Xor32 x y)) -> y
 (Xor16 x (Xor16 x y)) -> y
 (Xor8  x (Xor8  x y)) -> y
-(Xor64 x (Xor64 y x)) -> y
-(Xor32 x (Xor32 y x)) -> y
-(Xor16 x (Xor16 y x)) -> y
-(Xor8  x (Xor8  y x)) -> y
-(Xor64 (Xor64 x y) x) -> y
-(Xor32 (Xor32 x y) x) -> y
-(Xor16 (Xor16 x y) x) -> y
-(Xor8  (Xor8  x y) x) -> y
-(Xor64 (Xor64 x y) y) -> x
-(Xor32 (Xor32 x y) y) -> x
-(Xor16 (Xor16 x y) y) -> x
-(Xor8  (Xor8  x y) y) -> x
 
 (Trunc64to8  (And64 (Const64 [y]) x)) && y&0xFF == 0xFF -> (Trunc64to8 x)
 (Trunc64to16 (And64 (Const64 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc64to16 x)
@@ -732,9 +660,7 @@
 
 // user nil checks
 (NeqPtr p (ConstNil)) -> (IsNonNil p)
-(NeqPtr (ConstNil) p) -> (IsNonNil p)
 (EqPtr p (ConstNil)) -> (Not (IsNonNil p))
-(EqPtr (ConstNil) p) -> (Not (IsNonNil p))
 (IsNonNil (ConstNil)) -> (ConstBool [0])
 
 // slice and interface comparisons
@@ -912,7 +838,6 @@
 
 // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
 (Convert (Add64 (Convert ptr mem) off) mem) -> (Add64 ptr off)
-(Convert (Add64 off (Convert ptr mem)) mem) -> (Add64 ptr off)
 (Convert (Convert ptr mem) mem) -> ptr
 
 // Decompose compound argument values
@@ -1238,34 +1163,10 @@
 // Reassociate expressions involving
 // constants such that constants come first,
 // exposing obvious constant-folding opportunities.
-// First, re-write (op x (op y z)) to (op (op y z) x) if
-// the op is commutative, to reduce the number of subsequent
-// matching rules for folding. Then, reassociate
-// (op (op y C) x) to (op C (op x y)) or similar, where C
+// Reassociate (op (op y C) x) to (op C (op x y)) or similar, where C
 // is constant, which pushes constants to the outside
 // of the expression. At that point, any constant-folding
 // opportunities should be obvious.
-
-(Add64 x l:(Add64 _ _)) && (x.Op != OpAdd64 && x.Op != OpConst64) -> (Add64 l x)
-(Add32 x l:(Add32 _ _)) && (x.Op != OpAdd32 && x.Op != OpConst32) -> (Add32 l x)
-(Add16 x l:(Add16 _ _)) && (x.Op != OpAdd16 && x.Op != OpConst16) -> (Add16 l x)
-(Add8  x l:(Add8  _ _)) && (x.Op != OpAdd8  && x.Op != OpConst8)  -> (Add8  l x)
-(And64 x l:(And64 _ _)) && (x.Op != OpAnd64 && x.Op != OpConst64) -> (And64 l x)
-(And32 x l:(And32 _ _)) && (x.Op != OpAnd32 && x.Op != OpConst32) -> (And32 l x)
-(And16 x l:(And16 _ _)) && (x.Op != OpAnd16 && x.Op != OpConst16) -> (And16 l x)
-(And8  x l:(And8  _ _)) && (x.Op != OpAnd8  && x.Op != OpConst8)  -> (And8  l x)
-(Or64 x l:(Or64 _ _)) && (x.Op != OpOr64 && x.Op != OpConst64) -> (Or64 l x)
-(Or32 x l:(Or32 _ _)) && (x.Op != OpOr32 && x.Op != OpConst32) -> (Or32 l x)
-(Or16 x l:(Or16 _ _)) && (x.Op != OpOr16 && x.Op != OpConst16) -> (Or16 l x)
-(Or8  x l:(Or8  _ _)) && (x.Op != OpOr8  && x.Op != OpConst8)  -> (Or8  l x)
-(Xor64 x l:(Xor64 _ _)) && (x.Op != OpXor64 && x.Op != OpConst64) -> (Xor64 l x)
-(Xor32 x l:(Xor32 _ _)) && (x.Op != OpXor32 && x.Op != OpConst32) -> (Xor32 l x)
-(Xor16 x l:(Xor16 _ _)) && (x.Op != OpXor16 && x.Op != OpConst16) -> (Xor16 l x)
-(Xor8  x l:(Xor8  _ _)) && (x.Op != OpXor8  && x.Op != OpConst8)  -> (Xor8  l x)
-(Mul64 x l:(Mul64 _ _)) && (x.Op != OpMul64 && x.Op != OpConst64) -> (Mul64 l x)
-(Mul32 x l:(Mul32 _ _)) && (x.Op != OpMul32 && x.Op != OpConst32) -> (Mul32 l x)
-(Mul16 x l:(Mul16 _ _)) && (x.Op != OpMul16 && x.Op != OpConst16) -> (Mul16 l x)
-(Mul8  x l:(Mul8  _ _)) && (x.Op != OpMul8  && x.Op != OpConst8)  -> (Mul8  l x)
 
 // x + (C + z) -> C + (x + z)
 (Add64 (Add64 i:(Const64 <t>) z) x) && (z.Op != OpConst64 && x.Op != OpConst64) -> (Add64 i (Add64 <t> z x))
@@ -1379,19 +1280,13 @@
 
 // floating point optimizations
 (Add32F x (Const32F [0])) -> x
-(Add32F (Const32F [0]) x) -> x
 (Add64F x (Const64F [0])) -> x
-(Add64F (Const64F [0]) x) -> x
 (Sub32F x (Const32F [0])) -> x
 (Sub64F x (Const64F [0])) -> x
 (Mul32F x (Const32F [f2i(1)])) -> x
-(Mul32F (Const32F [f2i(1)]) x) -> x
 (Mul64F x (Const64F [f2i(1)])) -> x
-(Mul64F (Const64F [f2i(1)]) x) -> x
 (Mul32F x (Const32F [f2i(-1)])) -> (Neg32F x)
-(Mul32F (Const32F [f2i(-1)]) x) -> (Neg32F x)
 (Mul64F x (Const64F [f2i(-1)])) -> (Neg64F x)
-(Mul64F (Const64F [f2i(-1)]) x) -> (Neg64F x)
 (Div32F x (Const32F [f2i(1)])) -> x
 (Div64F x (Const64F [f2i(1)])) -> x
 (Div32F x (Const32F [f2i(-1)])) -> (Neg32F x)
