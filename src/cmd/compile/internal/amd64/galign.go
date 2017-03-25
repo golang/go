@@ -27,4 +27,6 @@ func Init(arch *gc.Arch) {
 	arch.SSAMarkMoves = ssaMarkMoves
 	arch.SSAGenValue = ssaGenValue
 	arch.SSAGenBlock = ssaGenBlock
+
+	x86.InstInit()
 }
