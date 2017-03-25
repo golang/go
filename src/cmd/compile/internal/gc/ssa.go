@@ -4419,40 +4419,24 @@ type FloatingEQNEJump struct {
 	Index int
 }
 
-func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ssa.BranchPrediction) {
+func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump) {
 	p := s.Prog(jumps.Jump)
 	p.To.Type = obj.TYPE_BRANCH
 	to := jumps.Index
 	s.Branches = append(s.Branches, Branch{p, b.Succs[to].Block()})
-	if to == 1 {
-		likely = -likely
-	}
-	// liblink reorders the instruction stream as it sees fit.
-	// Pass along what we know so liblink can make use of it.
-	// TODO: Once we've fully switched to SSA,
-	// make liblink leave our output alone.
-	switch likely {
-	case ssa.BranchUnlikely:
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-	case ssa.BranchLikely:
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 1
-	}
 }
 
 func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
-	likely := b.Likely
 	switch next {
 	case b.Succs[0].Block():
-		s.oneFPJump(b, &jumps[0][0], likely)
-		s.oneFPJump(b, &jumps[0][1], likely)
+		s.oneFPJump(b, &jumps[0][0])
+		s.oneFPJump(b, &jumps[0][1])
 	case b.Succs[1].Block():
-		s.oneFPJump(b, &jumps[1][0], likely)
-		s.oneFPJump(b, &jumps[1][1], likely)
+		s.oneFPJump(b, &jumps[1][0])
+		s.oneFPJump(b, &jumps[1][1])
 	default:
-		s.oneFPJump(b, &jumps[1][0], likely)
-		s.oneFPJump(b, &jumps[1][1], likely)
+		s.oneFPJump(b, &jumps[1][0])
+		s.oneFPJump(b, &jumps[1][1])
 		q := s.Prog(obj.AJMP)
 		q.To.Type = obj.TYPE_BRANCH
 		s.Branches = append(s.Branches, Branch{q, b.Succs[1].Block()})
