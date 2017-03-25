@@ -38,7 +38,6 @@ sync/cond_test.go: assignment copies lock value to c2: sync.Cond contains sync.n
 // Except for the runtime/pprof case, the API is not exported.
 cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have signature Seek(int64, int) (int64, error)
 cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have signature Seek(int64, int) (int64, error)
-cmd/internal/obj/link.go: method Peek(i int) byte should have signature Peek(int) ([]byte, error)
 fmt/print.go: method WriteByte(c byte) should have signature WriteByte(byte) error
 runtime/pprof/pprof.go: method WriteTo(w io.Writer, debug int) error should have signature WriteTo(io.Writer) (int64, error)
 
