@@ -1494,8 +1494,6 @@ func (p *parser) bad() *BadExpr {
 var ImplicitOne = &BasicLit{Value: "1"}
 
 // SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
-//
-// simpleStmt may return missing_stmt if labelOk is set.
 func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 	if trace {
 		defer p.trace("simpleStmt")()
@@ -1627,7 +1625,7 @@ func (p *parser) newAssignStmt(pos src.Pos, op Operator, lhs, rhs Expr) *AssignS
 	return a
 }
 
-func (p *parser) labeledStmt(label *Name) Stmt {
+func (p *parser) labeledStmtOrNil(label *Name) Stmt {
 	if trace {
 		defer p.trace("labeledStmt")()
 	}
@@ -1638,17 +1636,25 @@ func (p *parser) labeledStmt(label *Name) Stmt {
 
 	p.want(_Colon)
 
-	if p.tok != _Rbrace && p.tok != _EOF {
-		s.Stmt = p.stmt()
-		if s.Stmt == missing_stmt {
-			// report error at line of ':' token
-			p.syntax_error_at(label.Pos(), "missing statement after label")
-			// we are already at the end of the labeled statement - no need to advance
-			return missing_stmt
-		}
+	if p.tok == _Rbrace {
+		// We expect a statement (incl. an empty statement), which must be
+		// terminated by a semicolon. Because semicolons may be omitted before
+		// an _Rbrace, seeing an _Rbrace implies an empty statement.
+		e := new(EmptyStmt)
+		e.pos = p.pos()
+		s.Stmt = e
+		return s
 	}
 
-	return s
+	s.Stmt = p.stmtOrNil()
+	if s.Stmt != nil {
+		return s
+	}
+
+	// report error at line of ':' token
+	p.syntax_error_at(s.pos, "missing statement after label")
+	// we are already at the end of the labeled statement - no need to advance
+	return nil // avoids follow-on errors (see e.g., fixedbugs/bug274.go)
 }
 
 func (p *parser) blockStmt(context string) *BlockStmt {
@@ -1922,17 +1928,12 @@ func (p *parser) commClause() *CommClause {
 	return c
 }
 
-// TODO(gri) find a better solution
-var missing_stmt Stmt = new(EmptyStmt) // = nod(OXXX, nil, nil)
-
 // Statement =
 // 	Declaration | LabeledStmt | SimpleStmt |
 // 	GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
 // 	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
 // 	DeferStmt .
-//
-// stmt may return missing_stmt.
-func (p *parser) stmt() Stmt {
+func (p *parser) stmtOrNil() Stmt {
 	if trace {
 		defer p.trace("stmt " + p.tok.String())()
 	}
@@ -1942,7 +1943,7 @@ func (p *parser) stmt() Stmt {
 	if p.tok == _Name {
 		lhs := p.exprList()
 		if label, ok := lhs.(*Name); ok && p.tok == _Colon {
-			return p.labeledStmt(label)
+			return p.labeledStmtOrNil(label)
 		}
 		return p.simpleStmt(lhs, false)
 	}
@@ -2026,7 +2027,7 @@ func (p *parser) stmt() Stmt {
 		return s
 	}
 
-	return missing_stmt
+	return nil
 }
 
 // StatementList = { Statement ";" } .
@@ -2036,8 +2037,8 @@ func (p *parser) stmtList() (l []Stmt) {
 	}
 
 	for p.tok != _EOF && p.tok != _Rbrace && p.tok != _Case && p.tok != _Default {
-		s := p.stmt()
-		if s == missing_stmt {
+		s := p.stmtOrNil()
+		if s == nil {
 			break
 		}
 		l = append(l, s)
