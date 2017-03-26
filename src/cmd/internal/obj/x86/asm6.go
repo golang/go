@@ -3029,7 +3029,7 @@ putrelv:
 
 		r := obj.Addrel(ctxt.Cursym)
 		*r = rel
-		r.Off = int32(ctxt.Curp.Pc + int64(asmbuf.Len()))
+		r.Off = int32(p.Pc + int64(asmbuf.Len()))
 	}
 
 	asmbuf.PutInt32(v)
@@ -3322,8 +3322,6 @@ func (asmbuf *AsmBuf) asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uin
 }
 
 func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
-	ctxt.Curp = p // TODO
-
 	o := opindex[p.As&obj.AMask]
 
 	if o == nil {
