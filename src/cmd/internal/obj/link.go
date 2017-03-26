@@ -735,11 +735,6 @@ type Link struct {
 	Printp        *Prog
 	Blitrl        *Prog
 	Elitrl        *Prog
-	Rexflag       int
-	Vexflag       int
-	Rep           int
-	Repn          int
-	Lock          int
 	Instoffset    int64
 	Autosize      int32
 	Armsize       int32
