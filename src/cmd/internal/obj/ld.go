@@ -87,6 +87,5 @@ func Appendp(ctxt *Link, q *Prog) *Prog {
 	p.Link = q.Link
 	q.Link = p
 	p.Pos = q.Pos
-	p.Mode = q.Mode
 	return p
 }
