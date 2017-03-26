@@ -605,8 +605,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
 	}
 
-	ctxt.Cursym = cursym
-
 	if cursym.Text == nil || cursym.Text.Link == nil {
 		return
 	}
@@ -687,7 +685,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	if cursym.Text.From3Offset()&obj.NOSPLIT == 0 {
-		p = stacksplit(ctxt, p, autoffset, int32(textarg)) // emit split check
+		p = stacksplit(ctxt, cursym, p, autoffset, int32(textarg)) // emit split check
 	}
 
 	if autoffset != 0 {
@@ -1021,7 +1019,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 // Appends to (does not overwrite) p.
 // Assumes g is in CX.
 // Returns last new instruction.
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *obj.Prog {
+func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, framesize int32, textarg int32) *obj.Prog {
 	cmp := ACMPQ
 	lea := ALEAQ
 	mov := AMOVQ
@@ -1045,7 +1043,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.From.Reg = REG_SP
 		indir_cx(ctxt, p, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if ctxt.Cursym.CFunc() {
+		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 	} else if framesize <= obj.StackBig {
@@ -1067,7 +1065,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.From.Reg = REG_AX
 		indir_cx(ctxt, p, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if ctxt.Cursym.CFunc() {
+		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 	} else {
@@ -1091,7 +1089,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.As = mov
 		indir_cx(ctxt, p, &p.From)
 		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-		if ctxt.Cursym.CFunc() {
+		if cursym.CFunc() {
 			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 		p.To.Type = obj.TYPE_REG
@@ -1141,7 +1139,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	jls.To.Type = obj.TYPE_BRANCH
 
 	var last *obj.Prog
-	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
+	for last = cursym.Text; last.Link != nil; last = last.Link {
 	}
 
 	// Now we are at the end of the function, but logically
@@ -1152,8 +1150,8 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	spfix.Spadj = -framesize
 
 	pcdata := obj.Appendp(ctxt, spfix)
-	pcdata.Pos = ctxt.Cursym.Text.Pos
-	pcdata.Mode = ctxt.Cursym.Text.Mode
+	pcdata.Pos = cursym.Text.Pos
+	pcdata.Mode = cursym.Text.Mode
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
 	pcdata.From.Offset = obj.PCDATA_StackMapIndex
@@ -1161,16 +1159,16 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
 
 	call := obj.Appendp(ctxt, pcdata)
-	call.Pos = ctxt.Cursym.Text.Pos
-	call.Mode = ctxt.Cursym.Text.Mode
+	call.Pos = cursym.Text.Pos
+	call.Mode = cursym.Text.Mode
 	call.As = obj.ACALL
 	call.To.Type = obj.TYPE_BRANCH
 	call.To.Name = obj.NAME_EXTERN
 	morestack := "runtime.morestack"
 	switch {
-	case ctxt.Cursym.CFunc():
+	case cursym.CFunc():
 		morestack = "runtime.morestackc"
-	case ctxt.Cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
+	case cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
 		morestack = "runtime.morestack_noctxt"
 	}
 	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
@@ -1187,7 +1185,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	jmp := obj.Appendp(ctxt, callend)
 	jmp.As = obj.AJMP
 	jmp.To.Type = obj.TYPE_BRANCH
-	jmp.Pcond = ctxt.Cursym.Text.Link
+	jmp.Pcond = cursym.Text.Link
 	jmp.Spadj = +framesize
 
 	jls.Pcond = call
