@@ -1763,8 +1763,6 @@ func spadjop(ctxt *obj.Link, p *obj.Prog, l, q obj.As) obj.As {
 }
 
 func span6(ctxt *obj.Link, s *obj.LSym) {
-	ctxt.Cursym = s
-
 	if s.P != nil {
 		return
 	}
@@ -1775,7 +1773,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 	var asmbuf AsmBuf
 
-	for p := ctxt.Cursym.Text; p != nil; p = p.Link {
+	for p := s.Text; p != nil; p = p.Link {
 		if p.To.Type == obj.TYPE_BRANCH {
 			if p.Pcond == nil {
 				p.Pcond = p
@@ -1915,7 +1913,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 			p.Rel = nil
 
 			p.Pc = int64(c)
-			asmbuf.asmins(ctxt, p)
+			asmbuf.asmins(ctxt, s, p)
 			m := asmbuf.Len()
 			if int(p.Isize) != m {
 				p.Isize = uint8(m)
@@ -2755,7 +2753,7 @@ bad:
 	return
 }
 
-func (asmbuf *AsmBuf) relput4(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+func (asmbuf *AsmBuf) relput4(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj.Addr) {
 	var rel obj.Reloc
 
 	v := vaddr(ctxt, p, a, &rel)
@@ -2763,7 +2761,7 @@ func (asmbuf *AsmBuf) relput4(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		if rel.Siz != 4 {
 			ctxt.Diag("bad reloc")
 		}
-		r := obj.Addrel(ctxt.Cursym)
+		r := obj.Addrel(cursym)
 		*r = rel
 		r.Off = int32(p.Pc + int64(asmbuf.Len()))
 	}
@@ -2771,23 +2769,6 @@ func (asmbuf *AsmBuf) relput4(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 	asmbuf.PutInt32(int32(v))
 }
 
-/*
-static void
-relput8(Prog *p, Addr *a)
-{
-	vlong v;
-	Reloc rel, *r;
-
-	v = vaddr(ctxt, p, a, &rel);
-	if(rel.siz != 0) {
-		r = addrel(ctxt->cursym);
-		*r = rel;
-		r->siz = 8;
-		r->off = p->pc + ctxt->andptr - ctxt->and;
-	}
-	put8(ctxt, v);
-}
-*/
 func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 	if r != nil {
 		*r = obj.Reloc{}
@@ -2839,7 +2820,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 	return a.Offset
 }
 
-func (asmbuf *AsmBuf) asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int) {
+func (asmbuf *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int) {
 	var base int
 	var rel obj.Reloc
 
@@ -3027,7 +3008,7 @@ putrelv:
 			goto bad
 		}
 
-		r := obj.Addrel(ctxt.Cursym)
+		r := obj.Addrel(cursym)
 		*r = rel
 		r.Off = int32(p.Pc + int64(asmbuf.Len()))
 	}
@@ -3040,12 +3021,12 @@ bad:
 	return
 }
 
-func (asmbuf *AsmBuf) asmand(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, ra *obj.Addr) {
-	asmbuf.asmandsz(ctxt, p, a, reg[ra.Reg], regrex[ra.Reg], 0)
+func (asmbuf *AsmBuf) asmand(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj.Addr, ra *obj.Addr) {
+	asmbuf.asmandsz(ctxt, cursym, p, a, reg[ra.Reg], regrex[ra.Reg], 0)
 }
 
-func (asmbuf *AsmBuf) asmando(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, o int) {
-	asmbuf.asmandsz(ctxt, p, a, o, 0, 0)
+func (asmbuf *AsmBuf) asmando(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj.Addr, o int) {
+	asmbuf.asmandsz(ctxt, cursym, p, a, o, 0, 0)
 }
 
 func bytereg(a *obj.Addr, t *uint8) {
@@ -3321,7 +3302,7 @@ func (asmbuf *AsmBuf) asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uin
 	asmbuf.Put1(opcode)
 }
 
-func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
+func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	o := opindex[p.As&obj.AMask]
 
 	if o == nil {
@@ -3519,7 +3500,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 					}
 					asmbuf.Put1(byte(op))
 				}
-				asmbuf.asmand(ctxt, p, &p.From, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
 
 			case Zmb_r:
 				bytereg(&p.From, &p.Ft)
@@ -3527,24 +3508,24 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			case Zm_r:
 				asmbuf.Put1(byte(op))
-				asmbuf.asmand(ctxt, p, &p.From, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
 
 			case Zm2_r:
 				asmbuf.Put2(byte(op), o.op[z+1])
-				asmbuf.asmand(ctxt, p, &p.From, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
 
 			case Zm_r_xm:
 				asmbuf.mediaop(ctxt, o, op, int(yt.zoffset), z)
-				asmbuf.asmand(ctxt, p, &p.From, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
 
 			case Zm_r_xm_nr:
 				ctxt.Rexflag = 0
 				asmbuf.mediaop(ctxt, o, op, int(yt.zoffset), z)
-				asmbuf.asmand(ctxt, p, &p.From, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
 
 			case Zm_r_i_xm:
 				asmbuf.mediaop(ctxt, o, op, int(yt.zoffset), z)
-				asmbuf.asmand(ctxt, p, &p.From, p.From3)
+				asmbuf.asmand(ctxt, cursym, p, &p.From, p.From3)
 				asmbuf.Put1(byte(p.To.Offset))
 
 			case Zibm_r, Zibr_m:
@@ -3558,9 +3539,9 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 					asmbuf.Put1(byte(op))
 				}
 				if yt.zcase == Zibr_m {
-					asmbuf.asmand(ctxt, p, &p.To, p.From3)
+					asmbuf.asmand(ctxt, cursym, p, &p.To, p.From3)
 				} else {
-					asmbuf.asmand(ctxt, p, p.From3, &p.To)
+					asmbuf.asmand(ctxt, cursym, p, p.From3, &p.To)
 				}
 				asmbuf.Put1(byte(p.From.Offset))
 
@@ -3570,20 +3551,20 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 					ctxt.Diag("asmins: Zaut sb type ADDR")
 				}
 				p.From.Type = obj.TYPE_MEM
-				asmbuf.asmand(ctxt, p, &p.From, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
 				p.From.Type = obj.TYPE_ADDR
 
 			case Zm_o:
 				asmbuf.Put1(byte(op))
-				asmbuf.asmando(ctxt, p, &p.From, int(o.op[z+1]))
+				asmbuf.asmando(ctxt, cursym, p, &p.From, int(o.op[z+1]))
 
 			case Zr_m:
 				asmbuf.Put1(byte(op))
-				asmbuf.asmand(ctxt, p, &p.To, &p.From)
+				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.From)
 
 			case Zvex_rm_v_r:
 				asmbuf.asmvex(ctxt, &p.From, p.From3, &p.To, o.op[z], o.op[z+1])
-				asmbuf.asmand(ctxt, p, &p.From, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
 
 			case Zvex_i_r_v:
 				asmbuf.asmvex(ctxt, p.From3, &p.To, nil, o.op[z], o.op[z+1])
@@ -3598,37 +3579,37 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			case Zvex_i_rm_v_r:
 				asmbuf.asmvex(ctxt, &p.From, p.From3, &p.To, o.op[z], o.op[z+1])
-				asmbuf.asmand(ctxt, p, &p.From, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
 				asmbuf.Put1(byte(p.From3.Offset))
 
 			case Zvex_i_rm_r:
 				asmbuf.asmvex(ctxt, p.From3, nil, &p.To, o.op[z], o.op[z+1])
-				asmbuf.asmand(ctxt, p, p.From3, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, p.From3, &p.To)
 				asmbuf.Put1(byte(p.From.Offset))
 
 			case Zvex_v_rm_r:
 				asmbuf.asmvex(ctxt, p.From3, &p.From, &p.To, o.op[z], o.op[z+1])
-				asmbuf.asmand(ctxt, p, p.From3, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, p.From3, &p.To)
 
 			case Zvex_r_v_rm:
 				asmbuf.asmvex(ctxt, &p.To, p.From3, &p.From, o.op[z], o.op[z+1])
-				asmbuf.asmand(ctxt, p, &p.To, &p.From)
+				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.From)
 
 			case Zr_m_xm:
 				asmbuf.mediaop(ctxt, o, op, int(yt.zoffset), z)
-				asmbuf.asmand(ctxt, p, &p.To, &p.From)
+				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.From)
 
 			case Zr_m_xm_nr:
 				ctxt.Rexflag = 0
 				asmbuf.mediaop(ctxt, o, op, int(yt.zoffset), z)
-				asmbuf.asmand(ctxt, p, &p.To, &p.From)
+				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.From)
 
 			case Zo_m:
 				asmbuf.Put1(byte(op))
-				asmbuf.asmando(ctxt, p, &p.To, int(o.op[z+1]))
+				asmbuf.asmando(ctxt, cursym, p, &p.To, int(o.op[z+1]))
 
 			case Zcallindreg:
-				r = obj.Addrel(ctxt.Cursym)
+				r = obj.Addrel(cursym)
 				r.Off = int32(p.Pc)
 				r.Type = obj.R_CALLIND
 				r.Siz = 0
@@ -3636,21 +3617,21 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			case Zo_m64:
 				asmbuf.Put1(byte(op))
-				asmbuf.asmandsz(ctxt, p, &p.To, int(o.op[z+1]), 0, 1)
+				asmbuf.asmandsz(ctxt, cursym, p, &p.To, int(o.op[z+1]), 0, 1)
 
 			case Zm_ibo:
 				asmbuf.Put1(byte(op))
-				asmbuf.asmando(ctxt, p, &p.From, int(o.op[z+1]))
+				asmbuf.asmando(ctxt, cursym, p, &p.From, int(o.op[z+1]))
 				asmbuf.Put1(byte(vaddr(ctxt, p, &p.To, nil)))
 
 			case Zibo_m:
 				asmbuf.Put1(byte(op))
-				asmbuf.asmando(ctxt, p, &p.To, int(o.op[z+1]))
+				asmbuf.asmando(ctxt, cursym, p, &p.To, int(o.op[z+1]))
 				asmbuf.Put1(byte(vaddr(ctxt, p, &p.From, nil)))
 
 			case Zibo_m_xm:
 				z = asmbuf.mediaop(ctxt, o, op, int(yt.zoffset), z)
-				asmbuf.asmando(ctxt, p, &p.To, int(o.op[z+1]))
+				asmbuf.asmando(ctxt, cursym, p, &p.To, int(o.op[z+1]))
 				asmbuf.Put1(byte(vaddr(ctxt, p, &p.From, nil)))
 
 			case Z_ib, Zib_:
@@ -3676,7 +3657,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 					v = vaddr(ctxt, p, &p.From, nil)
 					asmbuf.PutInt16(int16(v))
 				} else {
-					asmbuf.relput4(ctxt, p, &p.From)
+					asmbuf.relput4(ctxt, cursym, p, &p.From)
 				}
 
 			case Zo_iw:
@@ -3697,7 +3678,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 					ctxt.Rexflag |= regrex[p.To.Reg] & Rxb
 					asmbuf.Put1(byte(0xb8 + reg[p.To.Reg]))
 					if rel.Type != 0 {
-						r = obj.Addrel(ctxt.Cursym)
+						r = obj.Addrel(cursym)
 						*r = rel
 						r.Off = int32(p.Pc + int64(asmbuf.Len()))
 					}
@@ -3708,7 +3689,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 					//p->mark |= 0100;
 					//print("sign: %llux %v\n", v, p);
 					asmbuf.Put1(0xc7)
-					asmbuf.asmando(ctxt, p, &p.To, 0)
+					asmbuf.asmando(ctxt, cursym, p, &p.To, 0)
 
 					asmbuf.PutInt32(int32(v)) // need all 8
 				} else {
@@ -3716,7 +3697,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 					ctxt.Rexflag |= regrex[p.To.Reg] & Rxb
 					asmbuf.Put1(byte(op + reg[p.To.Reg]))
 					if rel.Type != 0 {
-						r = obj.Addrel(ctxt.Cursym)
+						r = obj.Addrel(cursym)
 						*r = rel
 						r.Off = int32(p.Pc + int64(asmbuf.Len()))
 					}
@@ -3726,7 +3707,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			case Zib_rr:
 				asmbuf.Put1(byte(op))
-				asmbuf.asmand(ctxt, p, &p.To, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.To)
 				asmbuf.Put1(byte(vaddr(ctxt, p, &p.From, nil)))
 
 			case Z_il, Zil_:
@@ -3740,34 +3721,34 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 					v = vaddr(ctxt, p, a, nil)
 					asmbuf.PutInt16(int16(v))
 				} else {
-					asmbuf.relput4(ctxt, p, a)
+					asmbuf.relput4(ctxt, cursym, p, a)
 				}
 
 			case Zm_ilo, Zilo_m:
 				asmbuf.Put1(byte(op))
 				if yt.zcase == Zilo_m {
 					a = &p.From
-					asmbuf.asmando(ctxt, p, &p.To, int(o.op[z+1]))
+					asmbuf.asmando(ctxt, cursym, p, &p.To, int(o.op[z+1]))
 				} else {
 					a = &p.To
-					asmbuf.asmando(ctxt, p, &p.From, int(o.op[z+1]))
+					asmbuf.asmando(ctxt, cursym, p, &p.From, int(o.op[z+1]))
 				}
 
 				if o.prefix == Pe {
 					v = vaddr(ctxt, p, a, nil)
 					asmbuf.PutInt16(int16(v))
 				} else {
-					asmbuf.relput4(ctxt, p, a)
+					asmbuf.relput4(ctxt, cursym, p, a)
 				}
 
 			case Zil_rr:
 				asmbuf.Put1(byte(op))
-				asmbuf.asmand(ctxt, p, &p.To, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.To)
 				if o.prefix == Pe {
 					v = vaddr(ctxt, p, &p.From, nil)
 					asmbuf.PutInt16(int16(v))
 				} else {
-					asmbuf.relput4(ctxt, p, &p.From)
+					asmbuf.relput4(ctxt, cursym, p, &p.From)
 				}
 
 			case Z_rp:
@@ -3781,7 +3762,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 			case Zclr:
 				ctxt.Rexflag &^= Pw
 				asmbuf.Put1(byte(op))
-				asmbuf.asmand(ctxt, p, &p.To, &p.To)
+				asmbuf.asmand(ctxt, cursym, p, &p.To, &p.To)
 
 			case Zcallcon, Zjmpcon:
 				if yt.zcase == Zcallcon {
@@ -3789,7 +3770,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 				} else {
 					asmbuf.Put1(o.op[z+1])
 				}
-				r = obj.Addrel(ctxt.Cursym)
+				r = obj.Addrel(cursym)
 				r.Off = int32(p.Pc + int64(asmbuf.Len()))
 				r.Type = obj.R_PCREL
 				r.Siz = 4
@@ -3798,7 +3779,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			case Zcallind:
 				asmbuf.Put2(byte(op), o.op[z+1])
-				r = obj.Addrel(ctxt.Cursym)
+				r = obj.Addrel(cursym)
 				r.Off = int32(p.Pc + int64(asmbuf.Len()))
 				if p.Mode == 64 {
 					r.Type = obj.R_PCREL
@@ -3831,7 +3812,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 					asmbuf.Put(bpduff1)
 				}
 				asmbuf.Put1(byte(op))
-				r = obj.Addrel(ctxt.Cursym)
+				r = obj.Addrel(cursym)
 				r.Off = int32(p.Pc + int64(asmbuf.Len()))
 				r.Sym = p.To.Sym
 				r.Add = p.To.Offset
@@ -3857,7 +3838,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 					}
 
 					asmbuf.Put1(o.op[z+1])
-					r = obj.Addrel(ctxt.Cursym)
+					r = obj.Addrel(cursym)
 					r.Off = int32(p.Pc + int64(asmbuf.Len()))
 					r.Sym = p.To.Sym
 					r.Type = obj.R_PCREL
@@ -3947,7 +3928,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 				v = vaddr(ctxt, p, &p.From, &rel)
 				if rel.Siz != 0 {
 					rel.Siz = uint8(op)
-					r = obj.Addrel(ctxt.Cursym)
+					r = obj.Addrel(cursym)
 					*r = rel
 					r.Off = int32(p.Pc + int64(asmbuf.Len()))
 				}
@@ -3985,20 +3966,20 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 
 				case 1: /* r,m */
 					asmbuf.Put1(t[0])
-					asmbuf.asmando(ctxt, p, &p.To, int(t[1]))
+					asmbuf.asmando(ctxt, cursym, p, &p.To, int(t[1]))
 
 				case 2: /* m,r */
 					asmbuf.Put1(t[0])
-					asmbuf.asmando(ctxt, p, &p.From, int(t[1]))
+					asmbuf.asmando(ctxt, cursym, p, &p.From, int(t[1]))
 
 				case 3: /* r,m - 2op */
 					asmbuf.Put2(t[0], t[1])
-					asmbuf.asmando(ctxt, p, &p.To, int(t[2]))
+					asmbuf.asmando(ctxt, cursym, p, &p.To, int(t[2]))
 					ctxt.Rexflag |= regrex[p.From.Reg] & (Rxr | 0x40)
 
 				case 4: /* m,r - 2op */
 					asmbuf.Put2(t[0], t[1])
-					asmbuf.asmando(ctxt, p, &p.From, int(t[2]))
+					asmbuf.asmando(ctxt, cursym, p, &p.From, int(t[2]))
 					ctxt.Rexflag |= regrex[p.To.Reg] & (Rxr | 0x40)
 
 				case 5: /* load full pointer, trash heap */
@@ -4025,7 +4006,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 						asmbuf.Put2(0x0f, 0xb5)
 					}
 
-					asmbuf.asmand(ctxt, p, &p.From, &p.To)
+					asmbuf.asmand(ctxt, cursym, p, &p.From, &p.To)
 
 				case 6: /* double shift */
 					if t[0] == Pw {
@@ -4045,7 +4026,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 
 					case obj.TYPE_CONST:
 						asmbuf.Put2(0x0f, t[0])
-						asmbuf.asmandsz(ctxt, p, &p.To, reg[p.From3.Reg], regrex[p.From3.Reg], 0)
+						asmbuf.asmandsz(ctxt, cursym, p, &p.To, reg[p.From3.Reg], regrex[p.From3.Reg], 0)
 						asmbuf.Put1(byte(p.From.Offset))
 
 					case obj.TYPE_REG:
@@ -4055,7 +4036,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 
 						case REG_CL, REG_CX:
 							asmbuf.Put2(0x0f, t[1])
-							asmbuf.asmandsz(ctxt, p, &p.To, reg[p.From3.Reg], regrex[p.From3.Reg], 0)
+							asmbuf.asmandsz(ctxt, cursym, p, &p.To, reg[p.From3.Reg], regrex[p.From3.Reg], 0)
 						}
 					}
 
@@ -4093,7 +4074,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 								// instruction.
 								dst := p.To.Reg
 								asmbuf.Put1(0xe8)
-								r = obj.Addrel(ctxt.Cursym)
+								r = obj.Addrel(cursym)
 								r.Off = int32(p.Pc + int64(asmbuf.Len()))
 								r.Type = obj.R_CALL
 								r.Siz = 4
@@ -4101,7 +4082,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 								asmbuf.PutInt32(0)
 
 								asmbuf.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
-								r = obj.Addrel(ctxt.Cursym)
+								r = obj.Addrel(cursym)
 								r.Off = int32(p.Pc + int64(asmbuf.Len()))
 								r.Type = obj.R_TLS_IE
 								r.Siz = 4
@@ -4118,7 +4099,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 								pp.From.Scale = 0
 								asmbuf.Put2(0x65, // GS
 									0x8B)
-								asmbuf.asmand(ctxt, p, &pp.From, &p.To)
+								asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 							}
 						case obj.Hplan9:
 							if ctxt.Plan9privates == nil {
@@ -4131,7 +4112,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 							pp.From.Offset = 0
 							pp.From.Index = REG_NONE
 							asmbuf.Put1(0x8B)
-							asmbuf.asmand(ctxt, p, &pp.From, &p.To)
+							asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 
 						case obj.Hwindows, obj.Hwindowsgui:
 							// Windows TLS base is always 0x14(FS).
@@ -4144,7 +4125,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 							pp.From.Scale = 0
 							asmbuf.Put2(0x64, // FS
 								0x8B)
-							asmbuf.asmand(ctxt, p, &pp.From, &p.To)
+							asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 						}
 						break
 					}
@@ -4169,7 +4150,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 						ctxt.Rexflag = Pw | (regrex[p.To.Reg] & Rxr)
 
 						asmbuf.Put2(0x8B, byte(0x05|(reg[p.To.Reg]<<3)))
-						r = obj.Addrel(ctxt.Cursym)
+						r = obj.Addrel(cursym)
 						r.Off = int32(p.Pc + int64(asmbuf.Len()))
 						r.Type = obj.R_TLS_IE
 						r.Siz = 4
@@ -4188,7 +4169,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 						pp.From.Index = REG_NONE
 						ctxt.Rexflag |= Pw
 						asmbuf.Put1(0x8B)
-						asmbuf.asmand(ctxt, p, &pp.From, &p.To)
+						asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 
 					case obj.Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
 						// TLS base is 0(FS).
@@ -4203,7 +4184,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 						ctxt.Rexflag |= Pw
 						asmbuf.Put2(0x64, // FS
 							0x8B)
-						asmbuf.asmand(ctxt, p, &pp.From, &p.To)
+						asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 
 					case obj.Hwindows, obj.Hwindowsgui:
 						// Windows TLS base is always 0x28(GS).
@@ -4218,7 +4199,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
 						ctxt.Rexflag |= Pw
 						asmbuf.Put2(0x65, // GS
 							0x8B)
-						asmbuf.asmand(ctxt, p, &pp.From, &p.To)
+						asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 					}
 				}
 				return
@@ -4249,15 +4230,15 @@ bad:
 				breg := byteswapreg(ctxt, &p.To)
 				if breg != REG_AX {
 					asmbuf.Put1(0x87) // xchg lhs,bx
-					asmbuf.asmando(ctxt, p, &p.From, reg[breg])
+					asmbuf.asmando(ctxt, cursym, p, &p.From, reg[breg])
 					subreg(&pp, z, breg)
-					asmbuf.doasm(ctxt, &pp)
+					asmbuf.doasm(ctxt, cursym, &pp)
 					asmbuf.Put1(0x87) // xchg lhs,bx
-					asmbuf.asmando(ctxt, p, &p.From, reg[breg])
+					asmbuf.asmando(ctxt, cursym, p, &p.From, reg[breg])
 				} else {
 					asmbuf.Put1(byte(0x90 + reg[z])) // xchg lsh,ax
 					subreg(&pp, z, REG_AX)
-					asmbuf.doasm(ctxt, &pp)
+					asmbuf.doasm(ctxt, cursym, &pp)
 					asmbuf.Put1(byte(0x90 + reg[z])) // xchg lsh,ax
 				}
 				return
@@ -4267,15 +4248,15 @@ bad:
 				// We certainly don't want to exchange
 				// with AX if the op is MUL or DIV.
 				asmbuf.Put1(0x87) // xchg lhs,bx
-				asmbuf.asmando(ctxt, p, &p.From, reg[REG_BX])
+				asmbuf.asmando(ctxt, cursym, p, &p.From, reg[REG_BX])
 				subreg(&pp, z, REG_BX)
-				asmbuf.doasm(ctxt, &pp)
+				asmbuf.doasm(ctxt, cursym, &pp)
 				asmbuf.Put1(0x87) // xchg lhs,bx
-				asmbuf.asmando(ctxt, p, &p.From, reg[REG_BX])
+				asmbuf.asmando(ctxt, cursym, p, &p.From, reg[REG_BX])
 			} else {
 				asmbuf.Put1(byte(0x90 + reg[z])) // xchg lsh,ax
 				subreg(&pp, z, REG_AX)
-				asmbuf.doasm(ctxt, &pp)
+				asmbuf.doasm(ctxt, cursym, &pp)
 				asmbuf.Put1(byte(0x90 + reg[z])) // xchg lsh,ax
 			}
 			return
@@ -4289,15 +4270,15 @@ bad:
 				breg := byteswapreg(ctxt, &p.From)
 				if breg != REG_AX {
 					asmbuf.Put1(0x87) //xchg rhs,bx
-					asmbuf.asmando(ctxt, p, &p.To, reg[breg])
+					asmbuf.asmando(ctxt, cursym, p, &p.To, reg[breg])
 					subreg(&pp, z, breg)
-					asmbuf.doasm(ctxt, &pp)
+					asmbuf.doasm(ctxt, cursym, &pp)
 					asmbuf.Put1(0x87) // xchg rhs,bx
-					asmbuf.asmando(ctxt, p, &p.To, reg[breg])
+					asmbuf.asmando(ctxt, cursym, p, &p.To, reg[breg])
 				} else {
 					asmbuf.Put1(byte(0x90 + reg[z])) // xchg rsh,ax
 					subreg(&pp, z, REG_AX)
-					asmbuf.doasm(ctxt, &pp)
+					asmbuf.doasm(ctxt, cursym, &pp)
 					asmbuf.Put1(byte(0x90 + reg[z])) // xchg rsh,ax
 				}
 				return
@@ -4305,15 +4286,15 @@ bad:
 
 			if isax(&p.From) {
 				asmbuf.Put1(0x87) // xchg rhs,bx
-				asmbuf.asmando(ctxt, p, &p.To, reg[REG_BX])
+				asmbuf.asmando(ctxt, cursym, p, &p.To, reg[REG_BX])
 				subreg(&pp, z, REG_BX)
-				asmbuf.doasm(ctxt, &pp)
+				asmbuf.doasm(ctxt, cursym, &pp)
 				asmbuf.Put1(0x87) // xchg rhs,bx
-				asmbuf.asmando(ctxt, p, &p.To, reg[REG_BX])
+				asmbuf.asmando(ctxt, cursym, p, &p.To, reg[REG_BX])
 			} else {
 				asmbuf.Put1(byte(0x90 + reg[z])) // xchg rsh,ax
 				subreg(&pp, z, REG_AX)
-				asmbuf.doasm(ctxt, &pp)
+				asmbuf.doasm(ctxt, cursym, &pp)
 				asmbuf.Put1(byte(0x90 + reg[z])) // xchg rsh,ax
 			}
 			return
@@ -4457,7 +4438,7 @@ func (asmbuf *AsmBuf) nacltrunc(ctxt *obj.Link, reg int) {
 	asmbuf.Put2(0x89, byte(3<<6|reg<<3|reg))
 }
 
-func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, p *obj.Prog) {
+func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	asmbuf.Reset()
 
 	if ctxt.Headtype == obj.Hnacl && p.Mode == 32 {
@@ -4561,7 +4542,7 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, p *obj.Prog) {
 	ctxt.Rexflag = 0
 	ctxt.Vexflag = 0
 	mark := asmbuf.Len()
-	asmbuf.doasm(ctxt, p)
+	asmbuf.doasm(ctxt, cursym, p)
 	if ctxt.Rexflag != 0 && ctxt.Vexflag == 0 {
 		/*
 		 * as befits the whole approach of the architecture,
@@ -4585,8 +4566,8 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, p *obj.Prog) {
 	}
 
 	n := asmbuf.Len()
-	for i := len(ctxt.Cursym.R) - 1; i >= 0; i-- {
-		r := &ctxt.Cursym.R[i]
+	for i := len(cursym.R) - 1; i >= 0; i-- {
+		r := &cursym.R[i]
 		if int64(r.Off) < p.Pc {
 			break
 		}
