@@ -250,7 +250,6 @@ type Prog struct {
 	Ft     uint8    // for x86 back end: type index of Prog.From
 	Tt     uint8    // for x86 back end: type index of Prog.To
 	Isize  uint8    // for x86 back end: size of the instruction in bytes
-	Mode   int8     // for x86 back end: 32- or 64-bit mode
 }
 
 // From3Type returns From3.Type, or TYPE_NONE when From3 is nil.

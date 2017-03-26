@@ -832,7 +832,6 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 
 	pcdata := obj.Appendp(ctxt, spfix)
 	pcdata.Pos = ctxt.Cursym.Text.Pos
-	pcdata.Mode = ctxt.Cursym.Text.Mode
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
 	pcdata.From.Offset = obj.PCDATA_StackMapIndex
