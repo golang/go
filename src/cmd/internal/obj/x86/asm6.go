@@ -2577,7 +2577,7 @@ type AsmBuf struct {
 	vexflag int
 	rep     int
 	repn    int
-	lock    int
+	lock    bool
 }
 
 // Put1 appends one byte to the end of the buffer.
@@ -4477,7 +4477,7 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		}
 
 		if p.As == ALOCK {
-			asmbuf.lock++
+			asmbuf.lock = true
 			return
 		}
 
@@ -4539,9 +4539,9 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			asmbuf.repn = 0
 		}
 
-		if asmbuf.lock != 0 {
+		if asmbuf.lock {
 			asmbuf.Put1(0xf0)
-			asmbuf.lock = 0
+			asmbuf.lock = false
 		}
 	}
 
