@@ -252,8 +252,6 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 }
 
 func linkpcln(ctxt *Link, cursym *LSym) {
-	ctxt.Cursym = cursym
-
 	pcln := &cursym.Pcln
 
 	npcdata := 0
