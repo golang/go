@@ -1155,10 +1155,6 @@ func aconsize(ctxt *obj.Link) int {
 	return C_LACON
 }
 
-func prasm(p *obj.Prog) {
-	fmt.Printf("%v\n", p)
-}
-
 func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	a1 := int(p.Optab)
 	if a1 != 0 {
@@ -1201,7 +1197,6 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 
 	ctxt.Diag("illegal combination %v; %v %v %v, %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type, p.To.Type)
 	ctxt.Diag("from %d %d to %d %d\n", p.From.Type, p.From.Name, p.To.Type, p.To.Name)
-	prasm(p)
 	if ops == nil {
 		ops = optab
 	}
@@ -1485,8 +1480,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	}
 	switch o.type_ {
 	default:
-		ctxt.Diag("unknown asm %d", o.type_)
-		prasm(p)
+		ctxt.Diag("%v: unknown asm %d", p, o.type_)
 
 	case 0: /* pseudo ops */
 		if false { /*debug['G']*/
@@ -1706,8 +1700,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 		if false {
 			if rt == r || rf == REGPC&15 || r == REGPC&15 || rt == REGPC&15 {
-				ctxt.Diag("bad registers in MUL")
-				prasm(p)
+				ctxt.Diag("%v: bad registers in MUL", p)
 			}
 		}
 
@@ -2573,8 +2566,7 @@ func oprrr(ctxt *obj.Link, a obj.As, sc int) uint32 {
 		return o&(0xf<<28) | 0x12fff3<<4
 	}
 
-	ctxt.Diag("bad rrr %d", a)
-	prasm(ctxt.Curp)
+	ctxt.Diag("%v: bad rrr %d", ctxt.Curp, a)
 	return 0
 }
 
@@ -2627,8 +2619,7 @@ func opbra(ctxt *obj.Link, p *obj.Prog, a obj.As, sc int) uint32 {
 		return 0xe<<28 | 0x5<<25
 	}
 
-	ctxt.Diag("bad bra %v", a)
-	prasm(ctxt.Curp)
+	ctxt.Diag("%v: bad bra %v", ctxt.Curp, a)
 	return 0
 }
 
@@ -2767,8 +2758,7 @@ func omvl(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 		aclass(ctxt, a)
 		v := immrot(^uint32(ctxt.Instoffset))
 		if v == 0 {
-			ctxt.Diag("missing literal")
-			prasm(p)
+			ctxt.Diag("%v: missing literal", p)
 			return 0
 		}
 

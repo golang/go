@@ -524,10 +524,6 @@ var pool struct {
 	size  uint32
 }
 
-func prasm(p *obj.Prog) {
-	fmt.Printf("%v\n", p)
-}
-
 func span7(ctxt *obj.Link, cursym *obj.LSym) {
 	p := cursym.Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
@@ -1255,7 +1251,6 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	}
 
 	ctxt.Diag("illegal combination %v %v %v %v, %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type, p.To.Type)
-	prasm(p)
 	if ops == nil {
 		ops = optab
 	}
@@ -1934,8 +1929,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	}
 	switch o.type_ {
 	default:
-		ctxt.Diag("unknown asm %d", o.type_)
-		prasm(p)
+		ctxt.Diag("%v: unknown asm %d", p, o.type_)
 
 	case 0: /* pseudo ops */
 		break
@@ -3489,8 +3483,7 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 		return FPOP1S(0, 0, 3, 5)
 	}
 
-	ctxt.Diag("bad rrr %d %v", a, a)
-	prasm(ctxt.Curp)
+	ctxt.Diag("%v: bad rrr %d %v", ctxt.Curp, a, a)
 	return 0
 }
 
@@ -3676,8 +3669,7 @@ func opirr(ctxt *obj.Link, a obj.As) uint32 {
 		return SYSOP(0, 0, 3, 2, 0, 0, 0x1F)
 	}
 
-	ctxt.Diag("bad irr %v", a)
-	prasm(ctxt.Curp)
+	ctxt.Diag("%v: bad irr %v", ctxt.Curp, a)
 	return 0
 }
 
@@ -3786,8 +3778,7 @@ func opimm(ctxt *obj.Link, a obj.As) uint32 {
 		return SYSOP(0, 0, 3, 3, 0, 2, 0x1F)
 	}
 
-	ctxt.Diag("bad imm %v", a)
-	prasm(ctxt.Curp)
+	ctxt.Diag("%v: bad imm %v", ctxt.Curp, a)
 	return 0
 }
 
@@ -3870,8 +3861,7 @@ func opbra(ctxt *obj.Link, a obj.As) uint32 {
 		return 1<<31 | 5<<26
 	}
 
-	ctxt.Diag("bad bra %v", a)
-	prasm(ctxt.Curp)
+	ctxt.Diag("%v: bad bra %v", ctxt.Curp, a)
 	return 0
 }
 
@@ -3887,8 +3877,7 @@ func opbrr(ctxt *obj.Link, a obj.As) uint32 {
 		return OPBLR(2) /* RET */
 	}
 
-	ctxt.Diag("bad brr %v", a)
-	prasm(ctxt.Curp)
+	ctxt.Diag("%v: bad brr %v", ctxt.Curp, a)
 	return 0
 }
 
@@ -3919,8 +3908,7 @@ func op0(ctxt *obj.Link, a obj.As) uint32 {
 		return SYSHINT(5)
 	}
 
-	ctxt.Diag("bad op0 %v", a)
-	prasm(ctxt.Curp)
+	ctxt.Diag("%v: bad op0 %v", ctxt.Curp, a)
 	return 0
 }
 
