@@ -443,6 +443,9 @@ func Main(archInit func(*Arch)) {
 			if nerrors != 0 {
 				Curfn.Nbody.Set(nil) // type errors; do not compile
 			}
+			// Now that we've checked whether n terminates,
+			// we can eliminate some obviously dead code.
+			deadcode(Curfn)
 			fcount++
 		}
 	}

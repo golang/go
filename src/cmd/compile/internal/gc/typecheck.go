@@ -3842,13 +3842,7 @@ func markbreak(n *Node, implicit *Node) {
 				lab.SetHasBreak(true)
 			}
 		}
-
-	case OFOR,
-		OFORUNTIL,
-		OSWITCH,
-		OTYPESW,
-		OSELECT,
-		ORANGE:
+	case OFOR, OFORUNTIL, OSWITCH, OTYPESW, OSELECT, ORANGE:
 		implicit = n
 		fallthrough
 	default:
@@ -3883,8 +3877,7 @@ func markbreaklist(l Nodes, implicit *Node) {
 	}
 }
 
-// Isterminating whether the Nodes list ends with a terminating
-// statement.
+// isterminating reports whether the Nodes list ends with a terminating statement.
 func (l Nodes) isterminating() bool {
 	s := l.Slice()
 	c := len(s)
@@ -3894,7 +3887,7 @@ func (l Nodes) isterminating() bool {
 	return s[c-1].isterminating()
 }
 
-// Isterminating returns whether the node n, the last one in a
+// Isterminating reports whether the node n, the last one in a
 // statement list, is a terminating statement.
 func (n *Node) isterminating() bool {
 	switch n.Op {
@@ -3906,11 +3899,7 @@ func (n *Node) isterminating() bool {
 	case OBLOCK:
 		return n.List.isterminating()
 
-	case OGOTO,
-		ORETURN,
-		ORETJMP,
-		OPANIC,
-		OXFALL:
+	case OGOTO, ORETURN, ORETJMP, OPANIC, OXFALL:
 		return true
 
 	case OFOR, OFORUNTIL:
@@ -3948,6 +3937,7 @@ func (n *Node) isterminating() bool {
 	return false
 }
 
+// checkreturn makes sure that fn terminates appropriately.
 func checkreturn(fn *Node) {
 	if fn.Type.Results().NumFields() != 0 && fn.Nbody.Len() != 0 {
 		markbreaklist(fn.Nbody, nil)
@@ -3955,4 +3945,49 @@ func checkreturn(fn *Node) {
 			yyerrorl(fn.Func.Endlineno, "missing return at end of function")
 		}
 	}
+}
+
+func deadcode(fn *Node) {
+	deadcodeslice(fn.Nbody)
+}
+
+func deadcodeslice(nn Nodes) {
+	for _, n := range nn.Slice() {
+		if n == nil {
+			continue
+		}
+		if n.Op == OIF && Isconst(n.Left, CTBOOL) {
+			var dead *Nodes
+			if n.Left.Bool() {
+				dead = &n.Rlist
+			} else {
+				dead = &n.Nbody
+			}
+			// TODO(mdempsky/josharian): eliminate need for haslabelgoto
+			// by checking labels and gotos earlier. See issue 19699.
+			if !(*dead).haslabelgoto() {
+				*dead = Nodes{}
+			}
+		}
+		deadcodeslice(n.Ninit)
+		deadcodeslice(n.Nbody)
+		deadcodeslice(n.List)
+		deadcodeslice(n.Rlist)
+	}
+}
+
+// haslabelgoto reports whether the Nodes list contains any label or goto statements.
+func (l Nodes) haslabelgoto() bool {
+	for _, n := range l.Slice() {
+		if n == nil {
+			continue
+		}
+		if n.Op == OLABEL || n.Op == OGOTO {
+			return true
+		}
+		if n.Ninit.haslabelgoto() || n.Nbody.haslabelgoto() || n.List.haslabelgoto() || n.Rlist.haslabelgoto() {
+			return true
+		}
+	}
+	return false
 }
