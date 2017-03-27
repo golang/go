@@ -476,3 +476,49 @@ func main() {
 	fmt.Printf("main=%p\n", main)
 }
 `
+
+func TestBuildingWindowsGUI(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows only test")
+	}
+	tmpdir, err := ioutil.TempDir("", "TestBuildingWindowsGUI")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "a.go")
+	err = ioutil.WriteFile(src, []byte(`package main; func main() {}`), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags", "-H=windowsgui", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building test executable failed: %s %s", err, out)
+	}
+
+	f, err := Open(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	const _IMAGE_SUBSYSTEM_WINDOWS_GUI = 2
+
+	switch oh := f.OptionalHeader.(type) {
+	case *OptionalHeader32:
+		if oh.Subsystem != _IMAGE_SUBSYSTEM_WINDOWS_GUI {
+			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, _IMAGE_SUBSYSTEM_WINDOWS_GUI)
+		}
+	case *OptionalHeader64:
+		if oh.Subsystem != _IMAGE_SUBSYSTEM_WINDOWS_GUI {
+			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, _IMAGE_SUBSYSTEM_WINDOWS_GUI)
+		}
+	default:
+		t.Fatalf("unexpected OptionalHeader type: have %T, but want *pe.OptionalHeader32 or *pe.OptionalHeader64", oh)
+	}
+}
