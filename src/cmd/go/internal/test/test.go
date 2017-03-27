@@ -162,6 +162,9 @@ const testFlag2 = `
 	-cover
 	    Enable coverage analysis.
 
+	    BUG: If a compilation or test fails with coverage enabled,
+	    the reported line numbers may be incorrect.
+
 	-covermode set,count,atomic
 	    Set the mode for coverage analysis for the package[s]
 	    being tested. The default is "set" unless -race is enabled,
