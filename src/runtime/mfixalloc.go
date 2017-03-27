@@ -29,7 +29,7 @@ type fixalloc struct {
 	first  func(arg, p unsafe.Pointer) // called first time p is returned
 	arg    unsafe.Pointer
 	list   *mlink
-	chunk  unsafe.Pointer
+	chunk  uintptr // use uintptr instead of unsafe.Pointer to avoid write barriers
 	nchunk uint32
 	inuse  uintptr // in-use bytes now
 	stat   *uint64
@@ -54,7 +54,7 @@ func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg uns
 	f.first = first
 	f.arg = arg
 	f.list = nil
-	f.chunk = nil
+	f.chunk = 0
 	f.nchunk = 0
 	f.inuse = 0
 	f.stat = stat
@@ -77,15 +77,15 @@ func (f *fixalloc) alloc() unsafe.Pointer {
 		return v
 	}
 	if uintptr(f.nchunk) < f.size {
-		f.chunk = persistentalloc(_FixAllocChunk, 0, f.stat)
+		f.chunk = uintptr(persistentalloc(_FixAllocChunk, 0, f.stat))
 		f.nchunk = _FixAllocChunk
 	}
 
-	v := f.chunk
+	v := unsafe.Pointer(f.chunk)
 	if f.first != nil {
 		f.first(f.arg, v)
 	}
-	f.chunk = add(f.chunk, f.size)
+	f.chunk = f.chunk + f.size
 	f.nchunk -= uint32(f.size)
 	f.inuse += f.size
 	return v
