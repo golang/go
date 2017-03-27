@@ -570,7 +570,6 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 	var m int
 	var o *Optab
 	for p = p.Link; p != nil; p = p.Link {
-		ctxt.Curp = p
 		p.Pc = c
 		o = oplook(ctxt, p)
 		m = int(o.size)
@@ -658,7 +657,6 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 	var out [6]uint32
 	for p := cursym.Text.Link; p != nil; p = p.Link {
 		ctxt.Pc = p.Pc
-		ctxt.Curp = p
 		o = oplook(ctxt, p)
 		if int(o.size) > 4*len(out) {
 			log.Fatalf("out array in span9 is too small, need at least %d for %v", o.size/4, p)

@@ -730,7 +730,6 @@ type Link struct {
 	Sym_mod       *LSym
 	Sym_modu      *LSym
 	Plan9privates *LSym
-	Curp          *Prog
 	Printp        *Prog
 	Blitrl        *Prog
 	Elitrl        *Prog
