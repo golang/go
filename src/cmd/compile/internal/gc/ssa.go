@@ -2156,9 +2156,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 
 	// Call growslice
 	s.startBlock(grow)
-	sym := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(n.Type.Elem()))})
-	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], sym, s.sb)
-
+	taddr := s.expr(n.Left)
 	r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
 
 	if inplace {
@@ -3969,9 +3967,8 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 // commaok indicates whether to panic or return a bool.
 // If commaok is false, resok will be nil.
 func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
-	iface := s.expr(n.Left)            // input interface
-	lineno = n.Pos                     // for typename call
-	target := s.expr(typename(n.Type)) // target type
+	iface := s.expr(n.Left)   // input interface
+	target := s.expr(n.Right) // target type
 	byteptr := s.f.Config.Types.BytePtr
 
 	if n.Type.IsInterface() {
@@ -4105,8 +4102,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	if !commaok {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
-		sym := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: byteptr, Sym: Linksym(typenamesym(n.Left.Type))})
-		taddr := s.newValue1A(ssa.OpAddr, byteptr, sym, s.sb)
+		taddr := s.expr(n.Right.Right)
 		if n.Left.Type.IsEmptyInterface() {
 			s.rtcall(panicdottypeE, false, nil, itab, target, taddr)
 		} else {

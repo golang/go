@@ -4,7 +4,9 @@
 
 package gc
 
-import "sort"
+import (
+	"sort"
+)
 
 const (
 	// expression switch
@@ -825,16 +827,16 @@ func (s *typeSwitch) walk(sw *Node) {
 // case body if the variable is of type t.
 func (s *typeSwitch) typeone(t *Node) *Node {
 	var name *Node
-	var init []*Node
+	var init Nodes
 	if t.Rlist.Len() == 0 {
 		name = nblank
 		nblank = typecheck(nblank, Erv|Easgn)
 	} else {
 		name = t.Rlist.First()
-		init = []*Node{nod(ODCL, name, nil)}
+		init.Append(nod(ODCL, name, nil))
 		a := nod(OAS, name, nil)
 		a = typecheck(a, Etop)
-		init = append(init, a)
+		init.Append(a)
 	}
 
 	a := nod(OAS2, nil, nil)
@@ -843,13 +845,15 @@ func (s *typeSwitch) typeone(t *Node) *Node {
 	b.Type = t.Left.Type // interface.(type)
 	a.Rlist.Set1(b)
 	a = typecheck(a, Etop)
-	init = append(init, a)
+	a = walkexpr(a, &init)
+	init.Append(a)
 
 	c := nod(OIF, nil, nil)
 	c.Left = s.okname
 	c.Nbody.Set1(t.Right) // if ok { goto l }
 
-	return liststmt(append(init, c))
+	init.Append(c)
+	return init.asblock()
 }
 
 // walkCases generates an AST implementing the cases in cc.
