@@ -1457,6 +1457,24 @@ func BenchmarkCountTortureOverlapping(b *testing.B) {
 	}
 }
 
+func BenchmarkCountByte(b *testing.B) {
+	indexSizes := []int{10, 32, 4 << 10, 4 << 20, 64 << 20}
+	benchStr := Repeat(benchmarkString,
+		(indexSizes[len(indexSizes)-1]+len(benchmarkString)-1)/len(benchmarkString))
+	benchFunc := func(b *testing.B, benchStr string) {
+		b.SetBytes(int64(len(benchStr)))
+		for i := 0; i < b.N; i++ {
+			Count(benchStr, "=")
+		}
+	}
+	for _, size := range indexSizes {
+		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+			benchFunc(b, benchStr[:size])
+		})
+	}
+
+}
+
 var makeFieldsInput = func() string {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
