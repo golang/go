@@ -1026,9 +1026,11 @@ func (l *Link) hostlink() {
 	case obj.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
 	case obj.Hwindows:
-		argv = append(argv, "-mconsole")
-	case obj.Hwindowsgui:
-		argv = append(argv, "-mwindows")
+		if windowsgui {
+			argv = append(argv, "-mwindows")
+		} else {
+			argv = append(argv, "-mconsole")
+		}
 	}
 
 	switch Buildmode {

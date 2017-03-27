@@ -44,12 +44,12 @@ import (
 
 var (
 	pkglistfornote []byte
+	windowsgui     bool // writes a "GUI binary" instead of a "console binary"
 )
 
 func init() {
 	flag.Var(&Linkmode, "linkmode", "set link `mode`")
 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
-	flag.Var(&Headtype, "H", "set header `type`")
 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
 }
 
@@ -88,6 +88,7 @@ var (
 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
 
+	flagHeadtype    = flag.String("H", "", "set header `type`")
 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
 	FlagDataAddr    = flag.Int64("D", -1, "set data segment `address`")
@@ -123,6 +124,18 @@ func Main() {
 	obj.Flagcount("v", "print link trace", &ctxt.Debugvlog)
 
 	obj.Flagparse(usage)
+
+	switch *flagHeadtype {
+	case "":
+	case "windowsgui":
+		Headtype = obj.Hwindows
+		windowsgui = true
+	default:
+		if err := Headtype.Set(*flagHeadtype); err != nil {
+			Errorf(nil, "%v", err)
+			usage()
+		}
+	}
 
 	startProfile()
 	if Buildmode == BuildmodeUnset {
