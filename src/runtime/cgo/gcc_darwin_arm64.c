@@ -110,7 +110,9 @@ init_working_dir()
 	}
 	CFStringRef url_str_ref = CFURLGetString(url_ref);
 	char buf[MAXPATHLEN];
-	if (!CFStringGetCString(url_str_ref, buf, sizeof(buf), kCFStringEncodingUTF8)) {
+	Boolean res = CFStringGetCString(url_str_ref, buf, sizeof(buf), kCFStringEncodingUTF8);
+	CFRelease(url_ref);
+	if (!res) {
 		fprintf(stderr, "runtime/cgo: cannot get URL string\n");
 		return;
 	}
