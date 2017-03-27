@@ -8,8 +8,10 @@ package strings
 
 // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
 // indexShortStr requires 2 <= len(c) <= shortStringLen
-func indexShortStr(s, c string) int // ../runtime/asm_$GOARCH.s
-func supportAVX2() bool             // ../runtime/asm_$GOARCH.s
+func indexShortStr(s, c string) int  // ../runtime/asm_$GOARCH.s
+func supportAVX2() bool              // ../runtime/asm_$GOARCH.s
+func supportPOPCNT() bool            // ../runtime/asm_$GOARCH.s
+func countByte(s string, c byte) int // ../runtime/asm_$GOARCH.s
 
 var shortStringLen int
 
@@ -92,4 +94,13 @@ func Index(s, substr string) int {
 		}
 	}
 	return -1
+}
+
+// Count counts the number of non-overlapping instances of substr in s.
+// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
+func Count(s, substr string) int {
+	if len(substr) == 1 && supportPOPCNT() {
+		return countByte(s, byte(substr[0]))
+	}
+	return countGeneric(s, substr)
 }

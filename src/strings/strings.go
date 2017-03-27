@@ -72,9 +72,8 @@ func hashStrRev(sep string) (uint32, uint32) {
 	return hash, pow
 }
 
-// Count counts the number of non-overlapping instances of substr in s.
-// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
-func Count(s, substr string) int {
+// countGeneric implements Count.
+func countGeneric(s, substr string) int {
 	// special case
 	if len(substr) == 0 {
 		return utf8.RuneCountInString(s) + 1
