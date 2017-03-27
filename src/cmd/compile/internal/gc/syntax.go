@@ -382,7 +382,7 @@ const (
 	OADDSTR          // +{List} (string addition, list elements are strings)
 	OADDR            // &Left
 	OANDAND          // Left && Right
-	OAPPEND          // append(List)
+	OAPPEND          // append(List); after walk, Left may contain elem type descriptor
 	OARRAYBYTESTR    // Type(Left) (Type is string, Left is a []byte)
 	OARRAYBYTESTRTMP // Type(Left) (Type is string, Left is a []byte, ephemeral)
 	OARRAYRUNESTR    // Type(Left) (Type is string, Left is a []rune)
@@ -430,8 +430,8 @@ const (
 	ODOTMETH   // Left.Sym (Left is non-interface, Right is method name)
 	ODOTINTER  // Left.Sym (Left is interface, Right is method name)
 	OXDOT      // Left.Sym (before rewrite to one of the preceding)
-	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved)
-	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE)
+	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved); after walk, .Right contains address of interface type descriptor and .Right.Right contains address of concrete type descriptor
+	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE); after walk, .Right contains address of interface type descriptor
 	OEQ        // Left == Right
 	ONE        // Left != Right
 	OLT        // Left < Right

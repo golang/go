@@ -504,7 +504,7 @@ opswitch:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
 
 	case ONOT, OMINUS, OPLUS, OCOM, OREAL, OIMAG, ODOTMETH, ODOTINTER,
-		OIND, OSPTR, OITAB, OIDATA, ODOTTYPE, ODOTTYPE2, OADDR:
+		OIND, OSPTR, OITAB, OIDATA, OADDR:
 		n.Left = walkexpr(n.Left, init)
 
 	case OEFACE, OAND, OSUB, OMUL, OLT, OLE, OGE, OGT, OADD, OOR, OXOR:
@@ -514,6 +514,14 @@ opswitch:
 	case ODOT:
 		usefield(n)
 		n.Left = walkexpr(n.Left, init)
+
+	case ODOTTYPE, ODOTTYPE2:
+		n.Left = walkexpr(n.Left, init)
+		// Set up interface type addresses for back end.
+		n.Right = typename(n.Type)
+		if n.Op == ODOTTYPE {
+			n.Right.Right = typename(n.Left.Type)
+		}
 
 	case ODOTPTR:
 		usefield(n)
@@ -706,6 +714,8 @@ opswitch:
 			if r.Op == OAPPEND {
 				// Left in place for back end.
 				// Do not add a new write barrier.
+				// Set up address of type for back end.
+				r.Left = typename(r.Type.Elem())
 				break opswitch
 			}
 			// Otherwise, lowered for race detector.
@@ -839,8 +849,7 @@ opswitch:
 
 	case OAS2DOTTYPE:
 		walkexprlistsafe(n.List.Slice(), init)
-		e := n.Rlist.First() // i.(T)
-		e.Left = walkexpr(e.Left, init)
+		n.Rlist.SetFirst(walkexpr(n.Rlist.First(), init))
 
 	case OCONVIFACE:
 		n.Left = walkexpr(n.Left, init)
