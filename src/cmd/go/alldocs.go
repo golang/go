@@ -1437,6 +1437,9 @@
 // 	-cover
 // 	    Enable coverage analysis.
 //
+// 	    BUG: If a compilation or test fails with coverage enabled,
+// 	    the reported line numbers may be incorrect.
+//
 // 	-covermode set,count,atomic
 // 	    Set the mode for coverage analysis for the package[s]
 // 	    being tested. The default is "set" unless -race is enabled,
@@ -1458,6 +1461,11 @@
 // 	    Specify a list of GOMAXPROCS values for which the tests or
 // 	    benchmarks should be executed.  The default is the current value
 // 	    of GOMAXPROCS.
+//
+// 	-list regexp
+// 	    List tests, benchmarks, or examples matching the regular expression.
+// 	    No tests, benchmarks or examples will be run. This will only
+// 	    list top-level tests. No subtest or subbenchmarks will be shown.
 //
 // 	-parallel n
 // 	    Allow parallel execution of test functions that call t.Parallel.
