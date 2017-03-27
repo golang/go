@@ -145,3 +145,20 @@ func TestTLSServerClientTransportType(t *testing.T) {
 		t.Errorf("got %T, want *http.Transport", client.Transport)
 	}
 }
+
+type onlyCloseListener struct {
+	net.Listener
+}
+
+func (onlyCloseListener) Close() error { return nil }
+
+// Issue 19729: panic in Server.Close for values created directly
+// without a constructor (so the unexported client field is nil).
+func TestServerZeroValueClose(t *testing.T) {
+	ts := &Server{
+		Listener: onlyCloseListener{},
+		Config:   &http.Server{},
+	}
+
+	ts.Close() // tests that it doesn't panic
+}
