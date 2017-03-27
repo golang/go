@@ -279,16 +279,6 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 		return true
 	}
 
-	if n.Op == OIF && Isconst(n.Left, CTBOOL) {
-		var taken Nodes // statements for the branch that is always taken
-		if n.Left.Bool() {
-			taken = n.Nbody // then case
-		} else {
-			taken = n.Rlist // else case
-		}
-		return ishairylist(n.Ninit, budget, reason) || ishairylist(taken, budget, reason)
-	}
-
 	return ishairy(n.Left, budget, reason) || ishairy(n.Right, budget, reason) ||
 		ishairylist(n.List, budget, reason) || ishairylist(n.Rlist, budget, reason) ||
 		ishairylist(n.Ninit, budget, reason) || ishairylist(n.Nbody, budget, reason)

@@ -1469,22 +1469,8 @@ func (p *exporter) stmt(n *Node) {
 		p.pos(n)
 		p.stmtList(n.Ninit)
 		p.expr(n.Left)
-		nbody := n.Nbody
-		rlist := n.Rlist
-		if Isconst(n.Left, CTBOOL) {
-			// if false { ... } or if true { ... }
-			// Only export the taken branch.
-			// This is more efficient,
-			// and avoids trying to export
-			// un-exportable nodes.
-			if n.Left.Bool() {
-				rlist = Nodes{}
-			} else {
-				nbody = Nodes{}
-			}
-		}
-		p.stmtList(nbody)
-		p.stmtList(rlist)
+		p.stmtList(n.Nbody)
+		p.stmtList(n.Rlist)
 
 	case OFOR:
 		p.op(OFOR)
