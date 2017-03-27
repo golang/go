@@ -4317,68 +4317,53 @@ bad:
 // If a is empty, it returns BX to account for MULB-like instructions
 // that might use DX and AX.
 func byteswapreg(ctxt *obj.Link, a *obj.Addr) int {
-	cand := 1
-	canc := cand
-	canb := canc
-	cana := canb
-
+	cana, canb, canc, cand := true, true, true, true
 	if a.Type == obj.TYPE_NONE {
-		cand = 0
-		cana = cand
+		cana, cand = false, false
 	}
 
 	if a.Type == obj.TYPE_REG || ((a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && a.Name == obj.NAME_NONE) {
 		switch a.Reg {
 		case REG_NONE:
-			cand = 0
-			cana = cand
-
+			cana, cand = false, false
 		case REG_AX, REG_AL, REG_AH:
-			cana = 0
-
+			cana = false
 		case REG_BX, REG_BL, REG_BH:
-			canb = 0
-
+			canb = false
 		case REG_CX, REG_CL, REG_CH:
-			canc = 0
-
+			canc = false
 		case REG_DX, REG_DL, REG_DH:
-			cand = 0
+			cand = false
 		}
 	}
 
 	if a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR {
 		switch a.Index {
 		case REG_AX:
-			cana = 0
-
+			cana = false
 		case REG_BX:
-			canb = 0
-
+			canb = false
 		case REG_CX:
-			canc = 0
-
+			canc = false
 		case REG_DX:
-			cand = 0
+			cand = false
 		}
 	}
 
-	if cana != 0 {
+	switch {
+	case cana:
 		return REG_AX
-	}
-	if canb != 0 {
+	case canb:
 		return REG_BX
-	}
-	if canc != 0 {
+	case canc:
 		return REG_CX
-	}
-	if cand != 0 {
+	case cand:
 		return REG_DX
+	default:
+		ctxt.Diag("impossible byte register")
+		log.Fatalf("bad code")
+		return 0
 	}
-
-	ctxt.Diag("impossible byte register")
-	log.Fatalf("bad code")
-	return 0
 }
 
 func isbadbyte(a *obj.Addr) bool {
