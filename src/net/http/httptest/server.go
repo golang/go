@@ -209,8 +209,10 @@ func (s *Server) Close() {
 	}
 
 	// Also close the client idle connections.
-	if t, ok := s.client.Transport.(closeIdleTransport); ok {
-		t.CloseIdleConnections()
+	if s.client != nil {
+		if t, ok := s.client.Transport.(closeIdleTransport); ok {
+			t.CloseIdleConnections()
+		}
 	}
 
 	s.wg.Wait()
