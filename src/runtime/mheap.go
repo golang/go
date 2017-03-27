@@ -29,10 +29,10 @@ const minPhysPageSize = 4096
 //go:notinheap
 type mheap struct {
 	lock      mutex
-	free      [_MaxMHeapList]mSpanList // free lists of given length
-	freelarge mSpanList                // free lists length >= _MaxMHeapList
-	busy      [_MaxMHeapList]mSpanList // busy lists of large objects of given length
-	busylarge mSpanList                // busy lists of large objects length >= _MaxMHeapList
+	free      [_MaxMHeapList]mSpanList // free lists of given length up to _MaxMHeapList
+	freelarge mTreap                   // free treap of length >= _MaxMHeapList
+	busy      [_MaxMHeapList]mSpanList // busy lists of large spans of given length
+	busylarge mSpanList                // busy lists of large spans length >= _MaxMHeapList
 	sweepgen  uint32                   // sweep generation, see comment in mspan
 	sweepdone uint32                   // all spans are swept
 
@@ -71,7 +71,7 @@ type mheap struct {
 	// on the swept stack.
 	sweepSpans [2]gcSweepBuf
 
-	_ uint32 // align uint64 fields on 32-bit for atomics
+	// _ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	pagesInUse        uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
@@ -107,6 +107,7 @@ type mheap struct {
 
 	spanalloc             fixalloc // allocator for span*
 	cachealloc            fixalloc // allocator for mcache*
+	treapalloc            fixalloc // allocator for treapNodes* used by large objects
 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
 	specialprofilealloc   fixalloc // allocator for specialprofile*
 	speciallock           mutex    // lock for special record allocators.
@@ -403,6 +404,7 @@ func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
 
 // Initialize the heap.
 func (h *mheap) init(spansStart, spansBytes uintptr) {
+	h.treapalloc.init(unsafe.Sizeof(treapNode{}), nil, nil, &memstats.other_sys)
 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
@@ -423,7 +425,6 @@ func (h *mheap) init(spansStart, spansBytes uintptr) {
 		h.busy[i].init()
 	}
 
-	h.freelarge.init()
 	h.busylarge.init()
 	for i := range h.central {
 		h.central[i].mcentral.init(int32(i))
@@ -468,7 +469,7 @@ retry:
 		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 			list.remove(s)
 			// swept spans are at the end of the list
-			list.insertBack(s)
+			list.insertBack(s) // Puts it back on a busy list. s is not in the treap at this point.
 			unlock(&h.lock)
 			snpages := s.npages
 			if s.sweep(false) {
@@ -656,6 +657,7 @@ func (h *mheap) allocStack(npage uintptr) *mspan {
 
 	// This unlock acts as a release barrier. See mHeap_Alloc_m.
 	unlock(&h.lock)
+
 	return s
 }
 
@@ -671,13 +673,12 @@ func (h *mheap) allocSpanLocked(npage uintptr) *mspan {
 		list = &h.free[i]
 		if !list.isEmpty() {
 			s = list.first
+			list.remove(s)
 			goto HaveSpan
 		}
 	}
-
 	// Best fit in list of large spans.
-	list = &h.freelarge
-	s = h.allocLarge(npage)
+	s = h.allocLarge(npage) // allocLarge removed s from h.freelarge for us
 	if s == nil {
 		if !h.grow(npage) {
 			return nil
@@ -695,10 +696,6 @@ HaveSpan:
 	}
 	if s.npages < npage {
 		throw("MHeap_AllocLocked - bad npages")
-	}
-	list.remove(s)
-	if s.inList() {
-		throw("still in list")
 	}
 	if s.npreleased > 0 {
 		sysUsed(unsafe.Pointer(s.base()), s.npages<<_PageShift)
@@ -740,24 +737,24 @@ HaveSpan:
 	return s
 }
 
-// Allocate a span of exactly npage pages from the list of large spans.
-func (h *mheap) allocLarge(npage uintptr) *mspan {
-	return bestFit(&h.freelarge, npage, nil)
+// Large spans have a minimum size of 1MByte. The maximum number of large spans to support
+// 1TBytes is 1 million, experimentation using random sizes indicates that the depth of
+// the tree is less that 2x that of a perfectly balanced tree. For 1TByte can be referenced
+// by a perfectly balanced tree with a a depth of 20. Twice that is an acceptable 40.
+func (h *mheap) isLargeSpan(npages uintptr) bool {
+	return npages >= uintptr(len(h.free))
 }
 
-// Search list for smallest span with >= npage pages.
-// If there are multiple smallest spans, take the one
+// Allocate a span of exactly npage pages from the treap of large spans.
+func (h *mheap) allocLarge(npage uintptr) *mspan {
+	return bestFitTreap(&h.freelarge, npage, nil)
+}
+
+// Search treap for smallest span with >= npage pages.
+// If there are multiple smallest spans, select the one
 // with the earliest starting address.
-func bestFit(list *mSpanList, npage uintptr, best *mspan) *mspan {
-	for s := list.first; s != nil; s = s.next {
-		if s.npages < npage {
-			continue
-		}
-		if best == nil || s.npages < best.npages || (s.npages == best.npages && s.base() < best.base()) {
-			best = s
-		}
-	}
-	return best
+func bestFitTreap(treap *mTreap, npage uintptr, best *mspan) *mspan {
+	return treap.remove(npage)
 }
 
 // Try to add at least npage pages of memory to the heap,
@@ -907,41 +904,56 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 	// Coalesce with earlier, later spans.
 	p := (s.base() - h.arena_start) >> _PageShift
 	if p > 0 {
-		t := h.spans[p-1]
-		if t != nil && t.state == _MSpanFree {
-			s.startAddr = t.startAddr
-			s.npages += t.npages
-			s.npreleased = t.npreleased // absorb released pages
-			s.needzero |= t.needzero
-			p -= t.npages
+		before := h.spans[p-1]
+		if before != nil && before.state == _MSpanFree {
+			// Now adjust s.
+			s.startAddr = before.startAddr
+			s.npages += before.npages
+			s.npreleased = before.npreleased // absorb released pages
+			s.needzero |= before.needzero
+			p -= before.npages
 			h.spans[p] = s
-			h.freeList(t.npages).remove(t)
-			t.state = _MSpanDead
-			h.spanalloc.free(unsafe.Pointer(t))
-		}
-	}
-	if (p + s.npages) < uintptr(len(h.spans)) {
-		t := h.spans[p+s.npages]
-		if t != nil && t.state == _MSpanFree {
-			s.npages += t.npages
-			s.npreleased += t.npreleased
-			s.needzero |= t.needzero
-			h.spans[p+s.npages-1] = s
-			h.freeList(t.npages).remove(t)
-			t.state = _MSpanDead
-			h.spanalloc.free(unsafe.Pointer(t))
+			// The size is potentially changing so the treap needs to delete adjacent nodes and
+			// insert back as a combined node.
+			if h.isLargeSpan(before.npages) {
+				// We have a t, it is large so it has to be in the treap so we can remove it.
+				h.freelarge.removeSpan(before)
+			} else {
+				h.freeList(before.npages).remove(before)
+			}
+			before.state = _MSpanDead
+			h.spanalloc.free(unsafe.Pointer(before))
 		}
 	}
 
-	// Insert s into appropriate list.
-	h.freeList(s.npages).insert(s)
+	// Now check to see if next (greater addresses) span is free and can be coalesced.
+	if (p + s.npages) < uintptr(len(h.spans)) {
+		after := h.spans[p+s.npages]
+		if after != nil && after.state == _MSpanFree {
+			s.npages += after.npages
+			s.npreleased += after.npreleased
+			s.needzero |= after.needzero
+			h.spans[p+s.npages-1] = s
+			if h.isLargeSpan(after.npages) {
+				h.freelarge.removeSpan(after)
+			} else {
+				h.freeList(after.npages).remove(after)
+			}
+			after.state = _MSpanDead
+			h.spanalloc.free(unsafe.Pointer(after))
+		}
+	}
+
+	// Insert s into appropriate list or treap.
+	if h.isLargeSpan(s.npages) {
+		h.freelarge.insert(s)
+	} else {
+		h.freeList(s.npages).insert(s)
+	}
 }
 
 func (h *mheap) freeList(npages uintptr) *mSpanList {
-	if npages < uintptr(len(h.free)) {
-		return &h.free[npages]
-	}
-	return &h.freelarge
+	return &h.free[npages]
 }
 
 func (h *mheap) busyList(npages uintptr) *mSpanList {
@@ -949,6 +961,39 @@ func (h *mheap) busyList(npages uintptr) *mSpanList {
 		return &h.busy[npages]
 	}
 	return &h.busylarge
+}
+
+func scavengeTreapNode(t *treapNode, now, limit uint64) uintptr {
+	s := t.spanKey
+	var sumreleased uintptr
+	if (now-uint64(s.unusedsince)) > limit && s.npreleased != s.npages {
+		start := s.base()
+		end := start + s.npages<<_PageShift
+		if physPageSize > _PageSize {
+			// We can only release pages in
+			// physPageSize blocks, so round start
+			// and end in. (Otherwise, madvise
+			// will round them *out* and release
+			// more memory than we want.)
+			start = (start + physPageSize - 1) &^ (physPageSize - 1)
+			end &^= physPageSize - 1
+			if end <= start {
+				// start and end don't span a
+				// whole physical page.
+				return sumreleased
+			}
+		}
+		len := end - start
+		released := len - (s.npreleased << _PageShift)
+		if physPageSize > _PageSize && released == 0 {
+			return sumreleased
+		}
+		memstats.heap_released += uint64(released)
+		sumreleased += released
+		s.npreleased = len >> _PageShift
+		sysUnused(unsafe.Pointer(start), len)
+	}
+	return sumreleased
 }
 
 func scavengelist(list *mSpanList, now, limit uint64) uintptr {
@@ -1001,7 +1046,7 @@ func (h *mheap) scavenge(k int32, now, limit uint64) {
 	for i := 0; i < len(h.free); i++ {
 		sumreleased += scavengelist(&h.free[i], now, limit)
 	}
-	sumreleased += scavengelist(&h.freelarge, now, limit)
+	sumreleased += scavengetreap(h.freelarge.treap, now, limit)
 	unlock(&h.lock)
 	gp.m.mallocing--
 
@@ -1056,7 +1101,8 @@ func (list *mSpanList) init() {
 
 func (list *mSpanList) remove(span *mspan) {
 	if span.list != list {
-		println("runtime: failed MSpanList_Remove", span, span.prev, span.list, list)
+		print("runtime: failed MSpanList_Remove span.npages=", span.npages,
+			" span=", span, " prev=", span.prev, " span.list=", span.list, " list=", list, "\n")
 		throw("MSpanList_Remove")
 	}
 	if list.first == span {
@@ -1098,7 +1144,7 @@ func (list *mSpanList) insert(span *mspan) {
 
 func (list *mSpanList) insertBack(span *mspan) {
 	if span.next != nil || span.prev != nil || span.list != nil {
-		println("failed MSpanList_InsertBack", span, span.next, span.prev, span.list)
+		println("runtime: failed MSpanList_InsertBack", span, span.next, span.prev, span.list)
 		throw("MSpanList_InsertBack")
 	}
 	span.prev = list.last
