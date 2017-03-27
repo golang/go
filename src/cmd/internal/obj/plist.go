@@ -136,7 +136,6 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 
 	// Add to running list in ctxt.
 	ctxt.Text = append(ctxt.Text, text...)
-	ctxt.Curp = nil
 	if freeProgs {
 		ctxt.freeProgs()
 	}

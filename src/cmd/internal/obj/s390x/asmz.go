@@ -415,8 +415,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 			p.Pc = pc
 			ctxt.Pc = p.Pc
-			ctxt.Curp = p
-			asmout(ctxt, &buffer)
+			asmout(ctxt, p, &buffer)
 			if pc == int64(len(buffer)) {
 				switch p.As {
 				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA, obj.ATEXT:
@@ -2549,8 +2548,7 @@ func branchMask(ctxt *obj.Link, p *obj.Prog) uint32 {
 	return 0xF
 }
 
-func asmout(ctxt *obj.Link, asm *[]byte) {
-	p := ctxt.Curp
+func asmout(ctxt *obj.Link, p *obj.Prog, asm *[]byte) {
 	o := oplook(ctxt, p)
 	ctxt.Printp = p
 
