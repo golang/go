@@ -112,7 +112,7 @@ L6:
 	MOVD    $sinhxadd<>+0(SB), R2
 	FMOVD   0(R2), F0
 	MOVD    sinhrlog2<>+0(SB), R2
-	WORD    $0xB3C10062     //ldgr  %f6,%r2
+	LDGR    R2, F6
 	WFMSDB  V4, V6, V0, V16
 	FMOVD   sinhrodataL21<>+8(SB), F6
 	WFADB   V0, V16, V0
@@ -168,7 +168,7 @@ L6:
 	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
 	BYTE    $0x30
 	BYTE    $0x59
-	WORD    $0xB3C10021     //ldgr %f2,%r1
+	LDGR    R1, F2
 	FMUL    F2, F0
 	FMOVD   F0, ret+8(FP)
 	RET
@@ -177,7 +177,7 @@ L20:
 	MOVD    $sinhxadd<>+0(SB), R2
 	FMOVD   0(R2), F2
 	MOVD    sinhrlog2<>+0(SB), R2
-	WORD    $0xB3C10002     //ldgr  %f0,%r2
+	LDGR    R2, F0
 	WFMSDB  V4, V0, V2, V6
 	FMOVD   sinhrodataL21<>+8(SB), F0
 	FADD    F6, F2
@@ -193,13 +193,13 @@ L20:
 	FMOVD   0(R2), F3
 	MOVD    $sinhe6<>+0(SB), R2
 	FMOVD   0(R2), F5
-	WORD    $0xB3CD0026     //lgdr %r2,%f6
+	LGDR    F6, R2
 	RLL     $3, R2, R2
 	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
 	BYTE    $0x30
 	BYTE    $0x59
 	WFMADB  V2, V1, V0, V1
-	WORD    $0xB3C10001     //ldgr  %f0,%r1
+	LDGR    R1, F0
 	MOVD    $sinhe5<>+0(SB), R1
 	WFMADB  V2, V3, V5, V3
 	FMOVD   0(R1), F5
@@ -214,7 +214,7 @@ L20:
 	WORD    $0xEC32000F     //risbgn %r3,%r2,64-64+0,64-64+0+16-1,64-0-16
 	BYTE    $0x30
 	BYTE    $0x59
-	WORD    $0xB3C10063     //ldgr  %f6,%r3
+	LDGR    R3, F6
 	WFADB   V0, V6, V16
 	MOVD    $sinhe4<>+0(SB), R1
 	WFMADB  V1, V7, V5, V1
@@ -245,7 +245,7 @@ L9:
 	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
 	BYTE    $0x30
 	BYTE    $0x59
-	WORD    $0xB3C10021     //ldgr %f2,%r1
+	LDGR    R1, F2
 	FMUL    F2, F0
 	FMOVD   F0, ret+8(FP)
 	RET

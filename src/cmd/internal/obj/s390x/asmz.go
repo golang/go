@@ -201,6 +201,8 @@ var optab = []Optab{
 	Optab{AFMOVD, C_FREG, C_NONE, C_NONE, C_LOREG, 35, 0},
 	Optab{AFMOVD, C_FREG, C_NONE, C_NONE, C_ADDR, 74, 0},
 	Optab{AFMOVD, C_ZCON, C_NONE, C_NONE, C_FREG, 67, 0},
+	Optab{ALDGR, C_REG, C_NONE, C_NONE, C_FREG, 81, 0},
+	Optab{ALGDR, C_FREG, C_NONE, C_NONE, C_REG, 81, 0},
 	Optab{ACEFBRA, C_REG, C_NONE, C_NONE, C_FREG, 82, 0},
 	Optab{ACFEBRA, C_FREG, C_NONE, C_NONE, C_REG, 83, 0},
 	Optab{AFIEBR, C_SCON, C_FREG, C_NONE, C_FREG, 48, 0},
@@ -266,7 +268,7 @@ var optab = []Optab{
 	Optab{ADWORD, C_DCON, C_NONE, C_NONE, C_NONE, 31, 0},
 
 	// fast synchronization
-	Optab{ASYNC, C_NONE, C_NONE, C_NONE, C_NONE, 81, 0},
+	Optab{ASYNC, C_NONE, C_NONE, C_NONE, C_NONE, 80, 0},
 
 	// store clock
 	Optab{ASTCK, C_NONE, C_NONE, C_NONE, C_SAUTO, 88, REGSP},
@@ -3474,8 +3476,16 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			zRSY(op_CSG, uint32(p.From.Reg), uint32(p.Reg), uint32(p.To.Reg), uint32(v), asm)
 		}
 
-	case 81: // sync
+	case 80: // sync
 		zRR(op_BCR, 0xE, 0, asm)
+
+	case 81: // float to fixed and fixed to float moves (no conversion)
+		switch p.As {
+		case ALDGR:
+			zRRE(op_LDGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+		case ALGDR:
+			zRRE(op_LGDR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+		}
 
 	case 82: // fixed to float conversion
 		var opcode uint32

@@ -108,7 +108,7 @@ L2:
 	WFMDB   V0, V0, V1
 	FMOVD   0(R1), F7
 	WFMDB   V1, V1, V2
-	WORD    $0xB3CD0013     //lgdr  %r1,%f3
+	LGDR    F3, R1
 	MOVD    $sincosxlim<>+0(SB), R2
 	WORD    $0xA7110001     //tmll  %r1,1
 	BEQ     L6
@@ -245,7 +245,7 @@ L21:
 	WFMSDB  V0, V2, V3, V2
 	FMOVD   0(R1), F3
 	WFCHDBS V3, V1, V3
-	WORD    $0xB3CD0012     //lgdr %r1,%f2
+	LGDR    F2, R1
 	BEQ     L36
 	MOVD    $sincosxadd<>+0(SB), R2
 	FMOVD   0(R2), F4
