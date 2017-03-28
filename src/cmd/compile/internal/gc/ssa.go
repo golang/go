@@ -256,9 +256,6 @@ type state struct {
 	// list of PPARAMOUT (return) variables.
 	returns []*Node
 
-	// A dummy value used during phi construction.
-	placeholder *ssa.Value
-
 	cgoUnsafeArgs bool
 	hasdefer      bool // whether the function contains a defer statement
 }
