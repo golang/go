@@ -747,14 +747,14 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		p.Reg = REGSP
 	} else if framesize <= obj.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
-		//	MOVW $-framesize(SP), R2
+		//	MOVW $-(framesize-StackSmall)(SP), R2
 		//	CMP stackguard, R2
 		p = obj.Appendp(ctxt, p)
 
 		p.As = AMOVW
 		p.From.Type = obj.TYPE_ADDR
 		p.From.Reg = REGSP
-		p.From.Offset = int64(-framesize)
+		p.From.Offset = -(int64(framesize) - obj.StackSmall)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
