@@ -222,9 +222,10 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
 	p := &onePassProg{
 		Start:  prog.Start,
 		NumCap: prog.NumCap,
+		Inst:   make([]onePassInst, len(prog.Inst)),
 	}
-	for _, inst := range prog.Inst {
-		p.Inst = append(p.Inst, onePassInst{Inst: inst})
+	for i, inst := range prog.Inst {
+		p.Inst[i] = onePassInst{Inst: inst}
 	}
 
 	// rewrites one or more common Prog constructs that enable some otherwise

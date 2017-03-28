@@ -7,6 +7,7 @@ package regexp
 import (
 	"reflect"
 	"regexp/syntax"
+	"strings"
 	"testing"
 )
 
@@ -173,6 +174,7 @@ var onePassTests = []struct {
 	{`^.bc(d|e)*$`, onePass},
 	{`^(?:(?:aa)|.)$`, notOnePass},
 	{`^(?:(?:a{1,2}){1,2})$`, notOnePass},
+	{`^l` + strings.Repeat("o", 2<<8) + `ng$`, onePass},
 }
 
 func TestCompileOnePass(t *testing.T) {
@@ -221,5 +223,25 @@ func TestRunOnePass(t *testing.T) {
 		if !re.MatchString(test.match) {
 			t.Errorf("onepass %q did not match %q", test.re, test.match)
 		}
+	}
+}
+
+func BenchmarkCompileOnepass(b *testing.B) {
+	for _, test := range onePassTests {
+		if test.onePass == notOnePass {
+			continue
+		}
+		name := test.re
+		if len(name) > 20 {
+			name = name[:20] + "..."
+		}
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				if _, err := Compile(test.re); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }
