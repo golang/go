@@ -219,10 +219,7 @@ func main() {
 	}
 
 	tool = cmd[0]
-	if i := strings.LastIndex(tool, "/"); i >= 0 {
-		tool = tool[i+1:]
-	}
-	if i := strings.LastIndex(tool, `\`); i >= 0 {
+	if i := strings.LastIndexAny(tool, `/\`); i >= 0 {
 		tool = tool[i+1:]
 	}
 
