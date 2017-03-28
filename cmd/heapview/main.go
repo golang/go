@@ -39,7 +39,7 @@ func toolsDir() string {
 		log.Println("error: GOPATH not set. Can't find client files")
 		os.Exit(1)
 	}
-	return filepath.Join(filepath.SplitList(gopath)[0], "/src/golang.org/x/tools")
+	return filepath.Join(filepath.SplitList(gopath)[0], "src/golang.org/x/tools")
 }
 
 var parseFlags = func() {
