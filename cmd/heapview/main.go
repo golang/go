@@ -8,6 +8,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"io"
 	"log"
 	"net/http"
@@ -34,12 +35,12 @@ var index = `<!DOCTYPE html>
 `
 
 func toolsDir() string {
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		log.Println("error: GOPATH not set. Can't find client files")
+	p, err := build.Import("golang.org/x/tools", "", build.FindOnly)
+	if err != nil {
+		log.Println("error: can't find client files:", err)
 		os.Exit(1)
 	}
-	return filepath.Join(filepath.SplitList(gopath)[0], "src/golang.org/x/tools")
+	return p.Dir
 }
 
 var parseFlags = func() {
@@ -47,19 +48,21 @@ var parseFlags = func() {
 }
 
 var addHandlers = func() {
+	toolsDir := toolsDir()
+
 	// Directly serve typescript code in client directory for development.
 	http.Handle("/client/", http.StripPrefix("/client",
-		http.FileServer(http.Dir(filepath.Join(toolsDir(), "cmd/heapview/client")))))
+		http.FileServer(http.Dir(filepath.Join(toolsDir, "cmd/heapview/client")))))
 
 	// Serve typescript.js and moduleloader.js for development.
 	http.HandleFunc("/js/typescript.js", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join(toolsDir(), "third_party/typescript/typescript.js"))
+		http.ServeFile(w, r, filepath.Join(toolsDir, "third_party/typescript/typescript.js"))
 	})
 	http.HandleFunc("/js/moduleloader.js", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join(toolsDir(), "third_party/moduleloader/moduleloader.js"))
+		http.ServeFile(w, r, filepath.Join(toolsDir, "third_party/moduleloader/moduleloader.js"))
 	})
 	http.HandleFunc("/js/customelements.js", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join(toolsDir(), "third_party/webcomponents/customelements.js"))
+		http.ServeFile(w, r, filepath.Join(toolsDir, "third_party/webcomponents/customelements.js"))
 	})
 
 	// Serve index.html using html string above.
