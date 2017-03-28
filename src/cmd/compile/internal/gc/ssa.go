@@ -3003,7 +3003,8 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// Make a PFUNC node out of that, then evaluate it.
 		// We get back an SSA value representing &sync.(*Mutex).Unlock·f.
 		// We can then pass that to defer or go.
-		n2 := newname(fn.Sym)
+		n2 := newnamel(fn.Pos, fn.Sym)
+		n2.Name.Curfn = s.curfn
 		n2.Class = PFUNC
 		n2.Pos = fn.Pos
 		n2.Type = Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
