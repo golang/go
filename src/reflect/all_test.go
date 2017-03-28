@@ -1681,6 +1681,11 @@ func (p Point) GCMethod(k int) int {
 }
 
 // This will be index 3.
+func (p Point) NoArgs() {
+	// Exercise no-argument/no-result paths.
+}
+
+// This will be index 4.
 func (p Point) TotalDist(points ...Point) int {
 	tot := 0
 	for _, q := range points {
@@ -1709,6 +1714,15 @@ func TestMethod(t *testing.T) {
 		t.Errorf("Type MethodByName returned %d; want 275", i)
 	}
 
+	m, ok = TypeOf(p).MethodByName("NoArgs")
+	if !ok {
+		t.Fatalf("method by name failed")
+	}
+	n := len(m.Func.Call([]Value{ValueOf(p)}))
+	if n != 0 {
+		t.Errorf("NoArgs returned %d values; want 0", n)
+	}
+
 	i = TypeOf(&p).Method(1).Func.Call([]Value{ValueOf(&p), ValueOf(12)})[0].Int()
 	if i != 300 {
 		t.Errorf("Pointer Type Method returned %d; want 300", i)
@@ -1721,6 +1735,15 @@ func TestMethod(t *testing.T) {
 	i = m.Func.Call([]Value{ValueOf(&p), ValueOf(13)})[0].Int()
 	if i != 325 {
 		t.Errorf("Pointer Type MethodByName returned %d; want 325", i)
+	}
+
+	m, ok = TypeOf(&p).MethodByName("NoArgs")
+	if !ok {
+		t.Fatalf("method by name failed")
+	}
+	n = len(m.Func.Call([]Value{ValueOf(&p)}))
+	if n != 0 {
+		t.Errorf("NoArgs returned %d values; want 0", n)
 	}
 
 	// Curried method of value.
@@ -1741,6 +1764,8 @@ func TestMethod(t *testing.T) {
 	if i != 375 {
 		t.Errorf("Value MethodByName returned %d; want 375", i)
 	}
+	v = ValueOf(p).MethodByName("NoArgs")
+	v.Call(nil)
 
 	// Curried method of pointer.
 	v = ValueOf(&p).Method(1)
@@ -1759,6 +1784,8 @@ func TestMethod(t *testing.T) {
 	if i != 425 {
 		t.Errorf("Pointer Value MethodByName returned %d; want 425", i)
 	}
+	v = ValueOf(&p).MethodByName("NoArgs")
+	v.Call(nil)
 
 	// Curried method of interface value.
 	// Have to wrap interface value in a struct to get at it.
@@ -1808,6 +1835,9 @@ func TestMethodValue(t *testing.T) {
 	if i != 275 {
 		t.Errorf("Value MethodByName returned %d; want 275", i)
 	}
+	v = ValueOf(p).MethodByName("NoArgs")
+	ValueOf(v.Interface()).Call(nil)
+	v.Interface().(func())()
 
 	// Curried method of pointer.
 	v = ValueOf(&p).Method(1)
@@ -1826,6 +1856,9 @@ func TestMethodValue(t *testing.T) {
 	if i != 325 {
 		t.Errorf("Pointer Value MethodByName returned %d; want 325", i)
 	}
+	v = ValueOf(&p).MethodByName("NoArgs")
+	ValueOf(v.Interface()).Call(nil)
+	v.Interface().(func())()
 
 	// Curried method of pointer to pointer.
 	pp := &p
@@ -1881,7 +1914,7 @@ func TestVariadicMethodValue(t *testing.T) {
 
 	// Curried method of value.
 	tfunc := TypeOf((func(...Point) int)(nil))
-	v := ValueOf(p).Method(3)
+	v := ValueOf(p).Method(4)
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Variadic Method Type is %s; want %s", tt, tfunc)
 	}
