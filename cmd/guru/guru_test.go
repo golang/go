@@ -269,8 +269,8 @@ func TestGuru(t *testing.T) {
 			t.Errorf("Create(%s) failed: %s", got, err)
 			continue
 		}
-		defer gotfh.Close()
 		defer os.Remove(got)
+		defer gotfh.Close()
 
 		// Run the guru on each query, redirecting its output
 		// and error (if any) to the foo.got file.
