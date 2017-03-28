@@ -569,6 +569,8 @@ const (
 // data statements for the constant
 // part of the composite literal.
 
+var statuniqgen int // name generator for static temps
+
 // staticname returns a name backed by a static data symbol.
 // Callers should call n.Name.SetReadonly(true) on the
 // returned node for readonly nodes.
