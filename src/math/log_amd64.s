@@ -41,6 +41,7 @@ TEXT ·Log(SB),NOSPLIT,$0
 	SHRQ    $52, BX
 	ANDL    $0x7FF, BX
 	SUBL    $0x3FE, BX
+	XORPS   X1, X1 // break dependency for CVTSL2SD
 	CVTSL2SD BX, X1 // x1= k, x2= f1
 	// if f1 < math.Sqrt2/2 { k -= 1; f1 *= 2 }
 	MOVSD   $HSqrt2, X0 // x0= 0.7071, x1= k, x2= f1
