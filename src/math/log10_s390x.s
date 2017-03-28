@@ -108,7 +108,7 @@ L8:
 	ORW     $0x45000000, R2
 L4:
 	FMOVD   log10rodataL19<>+120(SB), F2
-	WORD    $0xB3C10041     //ldgr  %f4,%r1
+	LDGR    R1, F4
 	WFMADB  V4, V0, V2, V0
 	FMOVD   log10rodataL19<>+112(SB), F4
 	FMOVD   log10rodataL19<>+104(SB), F6

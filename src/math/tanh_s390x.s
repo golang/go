@@ -59,7 +59,7 @@ GLOBL tanhtab<>+0(SB), RODATA, $128
 
 TEXT ·tanhAsm(SB),NOSPLIT,$0-16
 	FMOVD   x+0(FP), F0
-	//specail case Tanh(±0) = ±0
+	// special case Tanh(±0) = ±0
 	FMOVD   $(0.0), F1
 	FCMPU   F0, F1
 	BEQ     tanhIsZero
@@ -72,10 +72,10 @@ L2:
 	MOVD    $tanhxadd<>+0(SB), R2
 	FMOVD   0(R2), F2
 	MOVD    tanhrlog2<>+0(SB), R2
-	WORD    $0xB3C10042     //ldgr %f4,%r2
+	LDGR    R2, F4
 	WFMSDB  V0, V4, V2, V4
 	MOVD    $tanhtab<>+0(SB), R3
-	WORD    $0xB3CD0024     //lgdr %r2,%f4
+	LGDR    F4, R2
 	WORD    $0xEC4239BC     //risbg %r4,%r2,57,128+60,3
 	BYTE    $0x03
 	BYTE    $0x55
@@ -86,7 +86,7 @@ L2:
 	BYTE    $0x30
 	BYTE    $0x59
 	WORD    $0x68543000     //ld %f5,0(%r4,%r3)
-	WORD    $0xB3C10061     //ldgr %f6,%r1
+	LDGR    R1, F6
 	BLT     L3
 	MOVD    $tanhxzero<>+0(SB), R1
 	FMOVD   0(R1), F2

@@ -244,6 +244,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	CMPUBGT	R9, $256, 0(PC)        // ec920000007d
 	CMPUBGE	R2, $0, 0(PC)          // ec2a0000007d
 
+	LGDR	F1, R12                // b3cd00c1
+	LDGR	R2, F15                // b3c100f2
+
 	CEFBRA	R0, F15                // b39400f0
 	CDFBRA	R1, F14                // b39500e1
 	CEGBRA	R2, F13                // b3a400d2

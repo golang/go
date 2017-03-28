@@ -291,6 +291,10 @@ const (
 	AFIEBR
 	AFIDBR
 
+	// move from GPR to FPR and vice versa
+	ALDGR
+	ALGDR
+
 	// convert from int32/int64 to float/float64
 	ACEFBRA
 	ACDFBRA
