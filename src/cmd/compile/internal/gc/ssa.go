@@ -4076,7 +4076,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		targetITab = target
 	} else {
 		// Looking for pointer to itab for target type and source interface.
-		targetITab = s.expr(itabname(n.Type, n.Left.Type))
+		targetITab = s.expr(n.List.First())
 	}
 
 	var tmp *Node       // temporary for use with large types
