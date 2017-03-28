@@ -2127,6 +2127,7 @@ func convas(n *Node, init *Nodes) *Node {
 		n.Right = assignconv(n.Right, lt, "assignment")
 		n.Right = walkexpr(n.Right, init)
 	}
+	dowidth(n.Right.Type)
 
 out:
 	updateHasCall(n)
