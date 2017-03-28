@@ -876,7 +876,7 @@ func fakethis() *Node {
 	if thisT == nil {
 		thisT = typPtr(typ(TSTRUCT))
 	}
-	return nod(ODCLFIELD, nil, typenod(thisT))
+	return anonfield(thisT)
 }
 
 func fakethisfield() *Field {

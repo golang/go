@@ -473,7 +473,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 
 	typ := nod(OTSTRUCT, nil, nil)
 
-	typ.List.Set1(nod(ODCLFIELD, newname(lookup(".F")), typenod(Types[TUINTPTR])))
+	typ.List.Set1(namedfield(".F", Types[TUINTPTR]))
 	for _, v := range func_.Func.Cvars.Slice() {
 		if v.Op == OXXX {
 			continue
@@ -674,8 +674,8 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	}
 
 	typ := nod(OTSTRUCT, nil, nil)
-	typ.List.Set1(nod(ODCLFIELD, newname(lookup("F")), typenod(Types[TUINTPTR])))
-	typ.List.Append(nod(ODCLFIELD, newname(lookup("R")), typenod(n.Left.Type)))
+	typ.List.Set1(namedfield("F", Types[TUINTPTR]))
+	typ.List.Append(namedfield("R", n.Left.Type))
 
 	clos := nod(OCOMPLIT, nil, nod(OIND, typ, nil))
 	clos.Esc = n.Esc

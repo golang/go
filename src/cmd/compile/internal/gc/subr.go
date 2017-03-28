@@ -1722,7 +1722,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	dclcontext = PEXTERN
 	markdcl()
 
-	this := nod(ODCLFIELD, newname(lookup(".this")), typenod(rcvr))
+	this := namedfield(".this", rcvr)
 	this.Left.Name.Param.Ntype = this.Right
 	in := structargs(method.Type.Params(), true)
 	out := structargs(method.Type.Results(), false)
@@ -1736,7 +1736,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		// Add a dummy padding argument after the
 		// receiver to make up the difference.
 		tpad := typArray(Types[TUINT8], int64(Widthptr)-rcvr.Width)
-		pad := nod(ODCLFIELD, newname(lookup(".pad")), typenod(tpad))
+		pad := namedfield(".pad", tpad)
 		l = append(l, pad)
 	}
 
@@ -1842,10 +1842,10 @@ func hashmem(t *Type) *Node {
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := nod(OTFUNC, nil, nil)
-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	tfn.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn.List.Append(anonfield(typPtr(t)))
+	tfn.List.Append(anonfield(Types[TUINTPTR]))
+	tfn.List.Append(anonfield(Types[TUINTPTR]))
+	tfn.Rlist.Append(anonfield(Types[TUINTPTR]))
 	tfn = typecheck(tfn, Etype)
 	n.Type = tfn.Type
 	return n

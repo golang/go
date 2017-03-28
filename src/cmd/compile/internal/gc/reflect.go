@@ -1559,7 +1559,7 @@ func dumptypestructs() {
 		// The latter is the type of an auto-generated wrapper.
 		dtypesym(typPtr(errortype))
 
-		dtypesym(functype(nil, []*Node{nod(ODCLFIELD, nil, typenod(errortype))}, []*Node{nod(ODCLFIELD, nil, typenod(Types[TSTRING]))}))
+		dtypesym(functype(nil, []*Node{anonfield(errortype)}, []*Node{anonfield(Types[TSTRING])}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(Runtimepkg)
