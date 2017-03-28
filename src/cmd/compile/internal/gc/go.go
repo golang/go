@@ -242,8 +242,6 @@ var funcsyms []*Sym
 
 var dclcontext Class // PEXTERN/PAUTO
 
-var statuniqgen int // name generator for static temps
-
 var Curfn *Node
 
 var Widthptr int

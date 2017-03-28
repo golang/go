@@ -10,6 +10,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
+	"strconv"
 )
 
 func Sysfunc(name string) *obj.LSym {
@@ -182,6 +183,17 @@ func moveToHeap(n *Node) {
 	}
 }
 
+// autotmpname returns the name for an autotmp variable numbered n.
+func autotmpname(n int) string {
+	// Give each tmp a different name so that they can be registerized.
+	// Add a preceding . to avoid clashing with legal names.
+	const prefix = ".autotmp_"
+	// Start with a buffer big enough to hold a large n.
+	b := []byte(prefix + "      ")[:len(prefix)]
+	b = strconv.AppendInt(b, int64(n), 10)
+	return internString(b)
+}
+
 // make a new Node off the books
 func tempname(nn *Node, t *Type) {
 	if Curfn == nil {
@@ -191,16 +203,14 @@ func tempname(nn *Node, t *Type) {
 		Dump("tempname", Curfn)
 		Fatalf("adding tempname to wrong closure function")
 	}
-
 	if t == nil {
 		Fatalf("tempname called with nil type")
 	}
 
-	// give each tmp a different name so that there
-	// a chance to registerizer them.
-	// Add a preceding . to avoid clash with legal names.
-	s := lookupN(".autotmp_", statuniqgen)
-	statuniqgen++
+	s := &Sym{
+		Name: autotmpname(len(Curfn.Func.Dcl)),
+		Pkg:  localpkg,
+	}
 	n := newname(s)
 	s.Def = n
 	n.Type = t
