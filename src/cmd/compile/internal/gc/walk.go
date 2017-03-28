@@ -521,6 +521,9 @@ opswitch:
 		if n.Op == ODOTTYPE {
 			n.Right.Right = typename(n.Left.Type)
 		}
+		if !n.Type.IsInterface() && !n.Left.Type.IsEmptyInterface() {
+			n.List.Set1(itabname(n.Type, n.Left.Type))
+		}
 
 	case ODOTPTR:
 		usefield(n)
