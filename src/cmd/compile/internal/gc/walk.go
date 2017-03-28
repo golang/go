@@ -2999,9 +2999,9 @@ func eqfor(t *Type, needsize *int) *Node {
 		n := newname(sym)
 		n.Class = PFUNC
 		ntype := nod(OTFUNC, nil, nil)
-		ntype.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
-		ntype.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
-		ntype.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
+		ntype.List.Append(anonfield(typPtr(t)))
+		ntype.List.Append(anonfield(typPtr(t)))
+		ntype.Rlist.Append(anonfield(Types[TBOOL]))
 		ntype = typecheck(ntype, Etype)
 		n.Type = ntype.Type
 		*needsize = 0
@@ -3600,7 +3600,7 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
 	for _, n1 := range n.List.Slice() {
 		buf = fmt.Sprintf("a%d", num)
 		num++
-		a = nod(ODCLFIELD, newname(lookup(buf)), typenod(n1.Type))
+		a = namedfield(buf, n1.Type)
 		t.List.Append(a)
 		printargs = append(printargs, a.Left)
 	}
