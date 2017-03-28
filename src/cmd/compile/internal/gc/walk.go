@@ -1266,6 +1266,23 @@ opswitch:
 			// across most architectures.
 			// See the commit description for CL 26758 for details.
 			maxRewriteLen := 6
+			// Some architectures can load unaligned byte sequence as 1 word.
+			// So we can cover longer strings with the same amount of code.
+			canCombineLoads := false
+			combine64bit := false
+			// TODO: does this improve performance on any other architectures?
+			switch thearch.LinkArch.Family {
+			case sys.AMD64:
+				// Larger compare require longer instructions, so keep this reasonably low.
+				// Data from CL 26758 shows that longer strings are rare.
+				// If we really want we can do 16 byte SSE comparisons in the future.
+				maxRewriteLen = 16
+				canCombineLoads = true
+				combine64bit = true
+			case sys.I386:
+				maxRewriteLen = 8
+				canCombineLoads = true
+			}
 			var and Op
 			switch cmp {
 			case OEQ:
@@ -1284,10 +1301,47 @@ opswitch:
 				}
 				// TODO(marvin): Fix Node.EType type union.
 				r := nod(cmp, nod(OLEN, ncs, nil), nodintconst(int64(len(s))))
-				for i := 0; i < len(s); i++ {
-					cb := nodintconst(int64(s[i]))
-					ncb := nod(OINDEX, ncs, nodintconst(int64(i)))
-					r = nod(and, r, nod(cmp, ncb, cb))
+				remains := len(s)
+				for i := 0; remains > 0; {
+					if remains == 1 || !canCombineLoads {
+						cb := nodintconst(int64(s[i]))
+						ncb := nod(OINDEX, ncs, nodintconst(int64(i)))
+						r = nod(and, r, nod(cmp, ncb, cb))
+						remains--
+						i++
+						continue
+					}
+					var step int
+					var convType *Type
+					switch {
+					case remains >= 8 && combine64bit:
+						convType = Types[TINT64]
+						step = 8
+					case remains >= 4:
+						convType = Types[TUINT32]
+						step = 4
+					case remains >= 2:
+						convType = Types[TUINT16]
+						step = 2
+					}
+					ncsubstr := nod(OINDEX, ncs, nodintconst(int64(i)))
+					ncsubstr = conv(ncsubstr, convType)
+					csubstr := int64(s[i])
+					// Calculate large constant from bytes as sequence of shifts and ors.
+					// Like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
+					// ssa will combine this into a single large load.
+					for offset := 1; offset < step; offset++ {
+						b := nod(OINDEX, ncs, nodintconst(int64(i+offset)))
+						b = conv(b, convType)
+						b = nod(OLSH, b, nodintconst(int64(8*offset)))
+						ncsubstr = nod(OOR, ncsubstr, b)
+						csubstr = csubstr | int64(s[i+offset])<<uint8(8*offset)
+					}
+					csubstrPart := nodintconst(csubstr)
+					// Compare "step" bytes as once
+					r = nod(and, r, nod(cmp, csubstrPart, ncsubstr))
+					remains -= step
+					i += step
 				}
 				r = typecheck(r, Erv)
 				r = walkexpr(r, init)

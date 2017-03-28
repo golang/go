@@ -776,6 +776,28 @@ var linuxAMD64Tests = []*asmTest{
 		}`,
 		[]string{"\tADDSD\t"},
 	},
+	// Check that compare to constant string uses 2/4/8 byte compares
+	{
+		`
+		func f65(a string) bool {
+		    return a == "xx"
+		}`,
+		[]string{"\tCMPW\t[A-Z]"},
+	},
+	{
+		`
+		func f66(a string) bool {
+		    return a == "xxxx"
+		}`,
+		[]string{"\tCMPL\t[A-Z]"},
+	},
+	{
+		`
+		func f67(a string) bool {
+		    return a == "xxxxxxxx"
+		}`,
+		[]string{"\tCMPQ\t[A-Z]"},
+	},
 }
 
 var linux386Tests = []*asmTest{
