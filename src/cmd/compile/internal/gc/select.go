@@ -254,7 +254,7 @@ func walkselect(sel *Node) {
 
 	// generate sel-struct
 	setlineno(sel)
-	selv = temp(selecttype(int32(sel.Xoffset)))
+	selv = temp(selecttype(sel.Xoffset))
 	r = nod(OAS, selv, nil)
 	r = typecheck(r, Etop)
 	init = append(init, r)
@@ -327,35 +327,32 @@ out:
 }
 
 // Keep in sync with src/runtime/select.go.
-func selecttype(size int32) *Type {
+func selecttype(size int64) *Type {
 	// TODO(dvyukov): it's possible to generate Scase only once
 	// and then cache; and also cache Select per size.
 
-	scase := nod(OTSTRUCT, nil, nil)
-	scase.List.Append(namedfield("elem", typPtr(Types[TUINT8])))
-	scase.List.Append(namedfield("chan", typPtr(Types[TUINT8])))
-	scase.List.Append(namedfield("pc", Types[TUINTPTR]))
-	scase.List.Append(namedfield("kind", Types[TUINT16]))
-	scase.List.Append(namedfield("receivedp", typPtr(Types[TUINT8])))
-	scase.List.Append(namedfield("releasetime", Types[TUINT64]))
-	scase = typecheck(scase, Etype)
-	scase.Type.SetNoalg(true)
-	scase.Type.SetLocal(true)
+	scase := tostruct([]*Node{
+		namedfield("elem", typPtr(Types[TUINT8])),
+		namedfield("chan", typPtr(Types[TUINT8])),
+		namedfield("pc", Types[TUINTPTR]),
+		namedfield("kind", Types[TUINT16]),
+		namedfield("receivedp", typPtr(Types[TUINT8])),
+		namedfield("releasetime", Types[TUINT64]),
+	})
+	scase.SetNoalg(true)
+	scase.SetLocal(true)
 
-	sel := nod(OTSTRUCT, nil, nil)
-	sel.List.Append(namedfield("tcase", Types[TUINT16]))
-	sel.List.Append(namedfield("ncase", Types[TUINT16]))
-	sel.List.Append(namedfield("pollorder", typPtr(Types[TUINT8])))
-	sel.List.Append(namedfield("lockorder", typPtr(Types[TUINT8])))
-	arr := nod(OTARRAY, nodintconst(int64(size)), scase)
-	sel.List.Append(nod(ODCLFIELD, newname(lookup("scase")), arr))
-	arr = nod(OTARRAY, nodintconst(int64(size)), typenod(Types[TUINT16]))
-	sel.List.Append(nod(ODCLFIELD, newname(lookup("lockorderarr")), arr))
-	arr = nod(OTARRAY, nodintconst(int64(size)), typenod(Types[TUINT16]))
-	sel.List.Append(nod(ODCLFIELD, newname(lookup("pollorderarr")), arr))
-	sel = typecheck(sel, Etype)
-	sel.Type.SetNoalg(true)
-	sel.Type.SetLocal(true)
+	sel := tostruct([]*Node{
+		namedfield("tcase", Types[TUINT16]),
+		namedfield("ncase", Types[TUINT16]),
+		namedfield("pollorder", typPtr(Types[TUINT8])),
+		namedfield("lockorder", typPtr(Types[TUINT8])),
+		namedfield("scase", typArray(scase, size)),
+		namedfield("lockorderarr", typArray(Types[TUINT16], size)),
+		namedfield("pollorderarr", typArray(Types[TUINT16], size)),
+	})
+	sel.SetNoalg(true)
+	sel.SetLocal(true)
 
-	return sel.Type
+	return sel
 }
