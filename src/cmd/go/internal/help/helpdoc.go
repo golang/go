@@ -71,8 +71,19 @@ An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
 strings containing slashes.  Such a pattern expands to all package
 directories found in the GOPATH trees with names matching the
-patterns.  As a special case, x/... matches x as well as x's subdirectories.
-For example, net/... expands to net and packages in its subdirectories.
+patterns.
+
+To make common patterns more convenient, there are two special cases.
+First, /... at the end of the pattern can match an empty string,
+so that net/... matches both net and packages in its subdirectories, like net/http.
+Second, any slash-separated pattern element containing a wildcard never
+participates in a match of the "vendor" element in the path of a vendored
+package, so that ./... does not match packages in subdirectories of
+./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
+Note, however, that a directory named vendor that itself contains code
+is not a vendored package: cmd/vendor would be a command named vendor,
+and the pattern cmd/... matches it.
+See golang.org/s/go15vendor for more about vendoring.
 
 An import path can also name a package to be downloaded from
 a remote repository.  Run 'go help importpath' for details.

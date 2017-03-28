@@ -25,9 +25,43 @@ var matchPatternTests = `
 	match net net/http netchan
 	not not/http not/net/http
 	
+	# Special cases. Quoting docs:
+
+	# First, /... at the end of the pattern can match an empty string,
+	# so that net/... matches both net and packages in its subdirectories, like net/http.
 	pattern net/...
 	match net net/http
 	not not/http not/net/http netchan
+
+	# Second, any slash-separted pattern element containing a wildcard never
+	# participates in a match of the "vendor" element in the path of a vendored
+	# package, so that ./... does not match packages in subdirectories of
+	# ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
+	# Note, however, that a directory named vendor that itself contains code
+	# is not a vendored package: cmd/vendor would be a command named vendor,
+	# and the pattern cmd/... matches it.
+	pattern ./...
+	match ./vendor ./mycode/vendor
+	not ./vendor/foo ./mycode/vendor/foo
+	
+	pattern ./vendor/...
+	match ./vendor/foo ./vendor/foo/vendor
+	not ./vendor/foo/vendor/bar
+	
+	pattern mycode/vendor/...
+	match mycode/vendor mycode/vendor/foo mycode/vendor/foo/vendor
+	not mycode/vendor/foo/vendor/bar
+	
+	pattern x/vendor/y
+	match x/vendor/y
+	not x/vendor
+	
+	pattern x/vendor/y/...
+	match x/vendor/y x/vendor/y/z x/vendor/y/vendor x/vendor/y/z/vendor
+	not x/vendor/y/vendor/z
+	
+	pattern .../vendor/...
+	match x/vendor/y x/vendor/y/z x/vendor/y/vendor x/vendor/y/z/vendor
 `
 
 func TestMatchPattern(t *testing.T) {

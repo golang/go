@@ -20,18 +20,18 @@ func TestVendorImports(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("list", "-f", "{{.ImportPath}} {{.Imports}}", "vend/...")
+	tg.run("list", "-f", "{{.ImportPath}} {{.Imports}}", "vend/...", "vend/vendor/...", "vend/x/vendor/...")
 	want := `
 		vend [vend/vendor/p r]
 		vend/dir1 []
 		vend/hello [fmt vend/vendor/strings]
 		vend/subdir [vend/vendor/p r]
+		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r vend/dir1 vend/vendor/vend/dir1/dir2]
+		vend/x/invalid [vend/x/invalid/vendor/foo]
 		vend/vendor/p []
 		vend/vendor/q []
 		vend/vendor/strings []
 		vend/vendor/vend/dir1/dir2 []
-		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r vend/dir1 vend/vendor/vend/dir1/dir2]
-		vend/x/invalid [vend/x/invalid/vendor/foo]
 		vend/x/vendor/p []
 		vend/x/vendor/p/p [notfound]
 		vend/x/vendor/r []
