@@ -2043,11 +2043,8 @@ func addinit(n *Node, init []*Node) *Node {
 	if len(init) == 0 {
 		return n
 	}
-
-	switch n.Op {
-	// There may be multiple refs to this node;
-	// introduce OCONVNOP to hold init list.
-	case ONAME, OLITERAL:
+	if n.mayBeShared() {
+		// Introduce OCONVNOP to hold init list.
 		n = nod(OCONVNOP, n, nil)
 		n.Type = n.Left.Type
 		n.Typecheck = 1

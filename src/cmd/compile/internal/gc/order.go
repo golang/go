@@ -314,6 +314,14 @@ func orderstmtinplace(n *Node) *Node {
 
 // Orderinit moves n's init list to order->out.
 func orderinit(n *Node, order *Order) {
+	if n.mayBeShared() {
+		// For concurrency safety, don't mutate potentially shared nodes.
+		// First, ensure that no work is required here.
+		if n.Ninit.Len() > 0 {
+			Fatalf("orderinit shared node with ninit")
+		}
+		return
+	}
 	orderstmtlist(n.Ninit, order)
 	n.Ninit.Set(nil)
 }
@@ -1107,7 +1115,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		var s []*Node
 
 		cleantempnopop(mark, order, &s)
-		n.Right.Ninit.Prepend(s...)
+		n.Right = addinit(n.Right, s)
 		n.Right = orderexprinplace(n.Right, order)
 
 	case OCALLFUNC,

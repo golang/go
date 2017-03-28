@@ -500,6 +500,7 @@ opswitch:
 
 	case OTYPE, ONAME, OLITERAL:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
+		// Perhaps refactor to use Node.mayBeShared for these instead.
 
 	case ONOT, OMINUS, OPLUS, OCOM, OREAL, OIMAG, ODOTMETH, ODOTINTER,
 		OIND, OSPTR, OITAB, OIDATA, OADDR:

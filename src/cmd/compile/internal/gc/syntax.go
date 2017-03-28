@@ -14,7 +14,7 @@ import (
 // A Node is a single node in the syntax tree.
 // Actually the syntax tree is a syntax DAG, because there is only one
 // node with Op=ONAME for a given instance of a variable x.
-// The same is true for Op=OTYPE and Op=OLITERAL.
+// The same is true for Op=OTYPE and Op=OLITERAL. See Node.mayBeShared.
 type Node struct {
 	// Tree structure.
 	// Generic recursive walks should follow these fields.
@@ -177,6 +177,16 @@ func (n *Node) Iota() int64 {
 
 func (n *Node) SetIota(x int64) {
 	n.Xoffset = x
+}
+
+// mayBeShared reports whether n may occur in multiple places in the AST.
+// Extra care must be taken when mutating such a node.
+func (n *Node) mayBeShared() bool {
+	switch n.Op {
+	case ONAME, OLITERAL, OTYPE:
+		return true
+	}
+	return false
 }
 
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
