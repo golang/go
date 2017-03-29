@@ -797,3 +797,67 @@ func TestIssue12417(t *testing.T) {
 		}
 	}
 }
+
+func tokenMap(mapping func(t Token) Token) func(TokenReader) TokenReader {
+	return func(src TokenReader) TokenReader {
+		return mapper{
+			t: src,
+			f: mapping,
+		}
+	}
+}
+
+type mapper struct {
+	t TokenReader
+	f func(Token) Token
+}
+
+func (m mapper) Token() (Token, error) {
+	tok, err := m.t.Token()
+	if err != nil {
+		return nil, err
+	}
+	return m.f(tok), nil
+}
+
+func TestNewTokenDecoderIdempotent(t *testing.T) {
+	d := NewDecoder(strings.NewReader(`<br/>`))
+	d2 := NewTokenDecoder(d)
+	if d != d2 {
+		t.Error("NewTokenDecoder did not detect underlying Decoder")
+	}
+}
+
+func TestWrapDecoder(t *testing.T) {
+	d := NewDecoder(strings.NewReader(`<quote>[Re-enter Clown with a letter, and FABIAN]</quote>`))
+	m := tokenMap(func(t Token) Token {
+		switch tok := t.(type) {
+		case StartElement:
+			if tok.Name.Local == "quote" {
+				tok.Name.Local = "blocking"
+				return tok
+			}
+		case EndElement:
+			if tok.Name.Local == "quote" {
+				tok.Name.Local = "blocking"
+				return tok
+			}
+		}
+		return t
+	})
+
+	d = NewTokenDecoder(m(d))
+
+	o := struct {
+		XMLName  Name   `xml:"blocking"`
+		Chardata string `xml:",chardata"`
+	}{}
+
+	if err := d.Decode(&o); err != nil {
+		t.Fatal("Got unexpected error while decoding:", err)
+	}
+
+	if o.Chardata != "[Re-enter Clown with a letter, and FABIAN]" {
+		t.Fatalf("Got unexpected chardata: `%s`\n", o.Chardata)
+	}
+}
