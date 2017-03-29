@@ -20447,10 +20447,206 @@ func rewriteValuegeneric_OpSqrt_0(v *Value) bool {
 func rewriteValuegeneric_OpStore_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
 	fe := b.Func.fe
 	_ = fe
+	// match: (Store {t1} p1 (Load <t2> p2 mem) mem)
+	// cond: isSamePtr(p1, p2) && 	t2.Size() == t1.(*types.Type).Size()
+	// result: mem
+	for {
+		t1 := v.Aux
+		p1 := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpLoad {
+			break
+		}
+		t2 := v_1.Type
+		p2 := v_1.Args[0]
+		mem := v_1.Args[1]
+		if mem != v.Args[2] {
+			break
+		}
+		if !(isSamePtr(p1, p2) && t2.Size() == t1.(*types.Type).Size()) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Store {t1} (OffPtr [o1] p1) (Load <t2> (OffPtr [o1] p2) oldmem) mem:(Store {t3} (OffPtr [o3] p3) _ oldmem))
+	// cond: isSamePtr(p1, p2) && 	isSamePtr(p1, p3) && 	t2.Size() == t1.(*types.Type).Size() && 	!overlap(o1, t2.Size(), o3, t3.(*types.Type).Size())
+	// result: mem
+	for {
+		t1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpOffPtr {
+			break
+		}
+		o1 := v_0.AuxInt
+		p1 := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpLoad {
+			break
+		}
+		t2 := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpOffPtr {
+			break
+		}
+		if v_1_0.AuxInt != o1 {
+			break
+		}
+		p2 := v_1_0.Args[0]
+		oldmem := v_1.Args[1]
+		mem := v.Args[2]
+		if mem.Op != OpStore {
+			break
+		}
+		t3 := mem.Aux
+		mem_0 := mem.Args[0]
+		if mem_0.Op != OpOffPtr {
+			break
+		}
+		o3 := mem_0.AuxInt
+		p3 := mem_0.Args[0]
+		if oldmem != mem.Args[2] {
+			break
+		}
+		if !(isSamePtr(p1, p2) && isSamePtr(p1, p3) && t2.Size() == t1.(*types.Type).Size() && !overlap(o1, t2.Size(), o3, t3.(*types.Type).Size())) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Store {t1} (OffPtr [o1] p1) (Load <t2> (OffPtr [o1] p2) oldmem) mem:(Store {t3} (OffPtr [o3] p3) _ (Store {t4} (OffPtr [o4] p4) _ oldmem)))
+	// cond: isSamePtr(p1, p2) && 	isSamePtr(p1, p3) && 	isSamePtr(p1, p4) && 	t2.Size() == t1.(*types.Type).Size() && 	!overlap(o1, t2.Size(), o3, t3.(*types.Type).Size()) && 	!overlap(o1, t2.Size(), o4, t4.(*types.Type).Size())
+	// result: mem
+	for {
+		t1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpOffPtr {
+			break
+		}
+		o1 := v_0.AuxInt
+		p1 := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpLoad {
+			break
+		}
+		t2 := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpOffPtr {
+			break
+		}
+		if v_1_0.AuxInt != o1 {
+			break
+		}
+		p2 := v_1_0.Args[0]
+		oldmem := v_1.Args[1]
+		mem := v.Args[2]
+		if mem.Op != OpStore {
+			break
+		}
+		t3 := mem.Aux
+		mem_0 := mem.Args[0]
+		if mem_0.Op != OpOffPtr {
+			break
+		}
+		o3 := mem_0.AuxInt
+		p3 := mem_0.Args[0]
+		mem_2 := mem.Args[2]
+		if mem_2.Op != OpStore {
+			break
+		}
+		t4 := mem_2.Aux
+		mem_2_0 := mem_2.Args[0]
+		if mem_2_0.Op != OpOffPtr {
+			break
+		}
+		o4 := mem_2_0.AuxInt
+		p4 := mem_2_0.Args[0]
+		if oldmem != mem_2.Args[2] {
+			break
+		}
+		if !(isSamePtr(p1, p2) && isSamePtr(p1, p3) && isSamePtr(p1, p4) && t2.Size() == t1.(*types.Type).Size() && !overlap(o1, t2.Size(), o3, t3.(*types.Type).Size()) && !overlap(o1, t2.Size(), o4, t4.(*types.Type).Size())) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Store {t1} (OffPtr [o1] p1) (Load <t2> (OffPtr [o1] p2) oldmem) mem:(Store {t3} (OffPtr [o3] p3) _ (Store {t4} (OffPtr [o4] p4) _ (Store {t5} (OffPtr [o5] p5) _ oldmem))))
+	// cond: isSamePtr(p1, p2) && 	isSamePtr(p1, p3) && 	isSamePtr(p1, p4) && 	isSamePtr(p1, p5) && 	t2.Size() == t1.(*types.Type).Size() && 	!overlap(o1, t2.Size(), o3, t3.(*types.Type).Size()) && 	!overlap(o1, t2.Size(), o4, t4.(*types.Type).Size()) && 	!overlap(o1, t2.Size(), o5, t5.(*types.Type).Size())
+	// result: mem
+	for {
+		t1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpOffPtr {
+			break
+		}
+		o1 := v_0.AuxInt
+		p1 := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpLoad {
+			break
+		}
+		t2 := v_1.Type
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpOffPtr {
+			break
+		}
+		if v_1_0.AuxInt != o1 {
+			break
+		}
+		p2 := v_1_0.Args[0]
+		oldmem := v_1.Args[1]
+		mem := v.Args[2]
+		if mem.Op != OpStore {
+			break
+		}
+		t3 := mem.Aux
+		mem_0 := mem.Args[0]
+		if mem_0.Op != OpOffPtr {
+			break
+		}
+		o3 := mem_0.AuxInt
+		p3 := mem_0.Args[0]
+		mem_2 := mem.Args[2]
+		if mem_2.Op != OpStore {
+			break
+		}
+		t4 := mem_2.Aux
+		mem_2_0 := mem_2.Args[0]
+		if mem_2_0.Op != OpOffPtr {
+			break
+		}
+		o4 := mem_2_0.AuxInt
+		p4 := mem_2_0.Args[0]
+		mem_2_2 := mem_2.Args[2]
+		if mem_2_2.Op != OpStore {
+			break
+		}
+		t5 := mem_2_2.Aux
+		mem_2_2_0 := mem_2_2.Args[0]
+		if mem_2_2_0.Op != OpOffPtr {
+			break
+		}
+		o5 := mem_2_2_0.AuxInt
+		p5 := mem_2_2_0.Args[0]
+		if oldmem != mem_2_2.Args[2] {
+			break
+		}
+		if !(isSamePtr(p1, p2) && isSamePtr(p1, p3) && isSamePtr(p1, p4) && isSamePtr(p1, p5) && t2.Size() == t1.(*types.Type).Size() && !overlap(o1, t2.Size(), o3, t3.(*types.Type).Size()) && !overlap(o1, t2.Size(), o4, t4.(*types.Type).Size()) && !overlap(o1, t2.Size(), o5, t5.(*types.Type).Size())) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
 	// match: (Store _ (StructMake0) mem)
 	// cond:
 	// result: mem
@@ -20633,6 +20829,15 @@ func rewriteValuegeneric_OpStore_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpStore_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	fe := b.Func.fe
+	_ = fe
 	// match: (Store {t} dst (Load src mem) (VarDef {x} mem))
 	// cond: !fe.CanSSA(t.(*types.Type))
 	// result: (Move {t} [t.(*types.Type).Size()] dst src (VarDef {x} mem))
@@ -20729,13 +20934,6 @@ func rewriteValuegeneric_OpStore_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpStore_10(v *Value) bool {
-	b := v.Block
-	_ = b
-	config := b.Func.Config
-	_ = config
 	// match: (Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
 	// cond: isConstZero(x) 	&& mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize
 	// result: mem
