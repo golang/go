@@ -628,3 +628,15 @@ func isARMImmRot(v uint32) bool {
 
 	return false
 }
+
+// overlap reports whether the ranges given by the given offset and
+// size pairs overlap.
+func overlap(offset1, size1, offset2, size2 int64) bool {
+	if offset1 >= offset2 && offset2+size2 > offset1 {
+		return true
+	}
+	if offset2 >= offset1 && offset1+size1 > offset2 {
+		return true
+	}
+	return false
+}
