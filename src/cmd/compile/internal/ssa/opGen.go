@@ -2475,7 +2475,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "HMULL",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AIMULL,
 		reg: regInfo{
@@ -2492,7 +2491,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "HMULLU",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AMULL,
 		reg: regInfo{
@@ -2509,7 +2507,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "MULLQU",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AMULL,
 		reg: regInfo{
@@ -2857,10 +2854,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "TESTL",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.ATESTL,
+		name:   "TESTL",
+		argLen: 2,
+		asm:    x86.ATESTL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
@@ -2869,10 +2865,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "TESTW",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.ATESTW,
+		name:   "TESTW",
+		argLen: 2,
+		asm:    x86.ATESTW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
@@ -2881,10 +2876,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "TESTB",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.ATESTB,
+		name:   "TESTB",
+		argLen: 2,
+		asm:    x86.ATESTB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
@@ -3664,11 +3658,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "LEAL1",
-		auxType:     auxSymOff,
-		argLen:      2,
-		commutative: true,
-		symEffect:   SymAddr,
+		name:      "LEAL1",
+		auxType:   auxSymOff,
+		argLen:    2,
+		symEffect: SymAddr,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
@@ -3847,12 +3840,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVBloadidx1",
-		auxType:     auxSymOff,
-		argLen:      3,
-		commutative: true,
-		symEffect:   SymRead,
-		asm:         x86.AMOVBLZX,
+		name:      "MOVBloadidx1",
+		auxType:   auxSymOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AMOVBLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
@@ -3864,12 +3856,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVWloadidx1",
-		auxType:     auxSymOff,
-		argLen:      3,
-		commutative: true,
-		symEffect:   SymRead,
-		asm:         x86.AMOVWLZX,
+		name:      "MOVWloadidx1",
+		auxType:   auxSymOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AMOVWLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
@@ -3897,12 +3888,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVLloadidx1",
-		auxType:     auxSymOff,
-		argLen:      3,
-		commutative: true,
-		symEffect:   SymRead,
-		asm:         x86.AMOVL,
+		name:      "MOVLloadidx1",
+		auxType:   auxSymOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
@@ -3930,12 +3920,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVBstoreidx1",
-		auxType:     auxSymOff,
-		argLen:      4,
-		commutative: true,
-		symEffect:   SymWrite,
-		asm:         x86.AMOVB,
+		name:      "MOVBstoreidx1",
+		auxType:   auxSymOff,
+		argLen:    4,
+		symEffect: SymWrite,
+		asm:       x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
@@ -3945,12 +3934,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVWstoreidx1",
-		auxType:     auxSymOff,
-		argLen:      4,
-		commutative: true,
-		symEffect:   SymWrite,
-		asm:         x86.AMOVW,
+		name:      "MOVWstoreidx1",
+		auxType:   auxSymOff,
+		argLen:    4,
+		symEffect: SymWrite,
+		asm:       x86.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
@@ -3974,12 +3962,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVLstoreidx1",
-		auxType:     auxSymOff,
-		argLen:      4,
-		commutative: true,
-		symEffect:   SymWrite,
-		asm:         x86.AMOVL,
+		name:      "MOVLstoreidx1",
+		auxType:   auxSymOff,
+		argLen:    4,
+		symEffect: SymWrite,
+		asm:       x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
@@ -4962,7 +4949,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "HMULQ",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AIMULQ,
 		reg: regInfo{
@@ -4979,7 +4965,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "HMULL",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AIMULL,
 		reg: regInfo{
@@ -4996,7 +4981,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "HMULQU",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AMULQ,
 		reg: regInfo{
@@ -5013,7 +4997,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "HMULLU",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AMULL,
 		reg: regInfo{
@@ -5142,7 +5125,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "MULQU2",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AMULQ,
 		reg: regInfo{
@@ -5526,10 +5508,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "TESTQ",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.ATESTQ,
+		name:   "TESTQ",
+		argLen: 2,
+		asm:    x86.ATESTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5538,10 +5519,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "TESTL",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.ATESTL,
+		name:   "TESTL",
+		argLen: 2,
+		asm:    x86.ATESTL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5550,10 +5530,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "TESTW",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.ATESTW,
+		name:   "TESTW",
+		argLen: 2,
+		asm:    x86.ATESTW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5562,10 +5541,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "TESTB",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.ATESTB,
+		name:   "TESTB",
+		argLen: 2,
+		asm:    x86.ATESTB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5651,7 +5629,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SHLQconst",
-		auxType:      auxInt8,
+		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5667,7 +5645,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SHLLconst",
-		auxType:      auxInt8,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5747,7 +5725,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SHRQconst",
-		auxType:      auxInt8,
+		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5763,7 +5741,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SHRLconst",
-		auxType:      auxInt8,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5779,7 +5757,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SHRWconst",
-		auxType:      auxInt8,
+		auxType:      auxInt16,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5875,7 +5853,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SARQconst",
-		auxType:      auxInt8,
+		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5891,7 +5869,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SARLconst",
-		auxType:      auxInt8,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5907,7 +5885,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SARWconst",
-		auxType:      auxInt8,
+		auxType:      auxInt16,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5939,7 +5917,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "ROLQconst",
-		auxType:      auxInt8,
+		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5955,7 +5933,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "ROLLconst",
-		auxType:      auxInt8,
+		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -5971,7 +5949,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "ROLWconst",
-		auxType:      auxInt8,
+		auxType:      auxInt16,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -6829,11 +6807,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "LEAQ1",
-		auxType:     auxSymOff,
-		argLen:      2,
-		commutative: true,
-		symEffect:   SymAddr,
+		name:      "LEAQ1",
+		auxType:   auxSymOff,
+		argLen:    2,
+		symEffect: SymAddr,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -7104,12 +7081,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVBloadidx1",
-		auxType:     auxSymOff,
-		argLen:      3,
-		commutative: true,
-		symEffect:   SymRead,
-		asm:         x86.AMOVBLZX,
+		name:      "MOVBloadidx1",
+		auxType:   auxSymOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AMOVBLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -7121,12 +7097,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVWloadidx1",
-		auxType:     auxSymOff,
-		argLen:      3,
-		commutative: true,
-		symEffect:   SymRead,
-		asm:         x86.AMOVWLZX,
+		name:      "MOVWloadidx1",
+		auxType:   auxSymOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AMOVWLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -7154,12 +7129,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVLloadidx1",
-		auxType:     auxSymOff,
-		argLen:      3,
-		commutative: true,
-		symEffect:   SymRead,
-		asm:         x86.AMOVL,
+		name:      "MOVLloadidx1",
+		auxType:   auxSymOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -7187,12 +7161,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVQloadidx1",
-		auxType:     auxSymOff,
-		argLen:      3,
-		commutative: true,
-		symEffect:   SymRead,
-		asm:         x86.AMOVQ,
+		name:      "MOVQloadidx1",
+		auxType:   auxSymOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -7220,12 +7193,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVBstoreidx1",
-		auxType:     auxSymOff,
-		argLen:      4,
-		commutative: true,
-		symEffect:   SymWrite,
-		asm:         x86.AMOVB,
+		name:      "MOVBstoreidx1",
+		auxType:   auxSymOff,
+		argLen:    4,
+		symEffect: SymWrite,
+		asm:       x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -7235,12 +7207,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVWstoreidx1",
-		auxType:     auxSymOff,
-		argLen:      4,
-		commutative: true,
-		symEffect:   SymWrite,
-		asm:         x86.AMOVW,
+		name:      "MOVWstoreidx1",
+		auxType:   auxSymOff,
+		argLen:    4,
+		symEffect: SymWrite,
+		asm:       x86.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -7264,12 +7235,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVLstoreidx1",
-		auxType:     auxSymOff,
-		argLen:      4,
-		commutative: true,
-		symEffect:   SymWrite,
-		asm:         x86.AMOVL,
+		name:      "MOVLstoreidx1",
+		auxType:   auxSymOff,
+		argLen:    4,
+		symEffect: SymWrite,
+		asm:       x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -7293,12 +7263,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "MOVQstoreidx1",
-		auxType:     auxSymOff,
-		argLen:      4,
-		commutative: true,
-		symEffect:   SymWrite,
-		asm:         x86.AMOVQ,
+		name:      "MOVQstoreidx1",
+		auxType:   auxSymOff,
+		argLen:    4,
+		symEffect: SymWrite,
+		asm:       x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -16565,10 +16534,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "NOR",
-		argLen:      2,
-		commutative: true,
-		asm:         ppc64.ANOR,
+		name:   "NOR",
+		argLen: 2,
+		asm:    ppc64.ANOR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -18314,7 +18282,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "MULHD",
 		argLen:       2,
-		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
 		asm:          s390x.AMULHD,
@@ -18331,7 +18298,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "MULHDU",
 		argLen:       2,
-		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
 		asm:          s390x.AMULHDU,
@@ -18919,7 +18885,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SLDconst",
-		auxType: auxInt8,
+		auxType: auxInt64,
 		argLen:  1,
 		asm:     s390x.ASLD,
 		reg: regInfo{
@@ -18933,7 +18899,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SLWconst",
-		auxType: auxInt8,
+		auxType: auxInt32,
 		argLen:  1,
 		asm:     s390x.ASLW,
 		reg: regInfo{
@@ -18975,7 +18941,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SRDconst",
-		auxType: auxInt8,
+		auxType: auxInt64,
 		argLen:  1,
 		asm:     s390x.ASRD,
 		reg: regInfo{
@@ -18989,7 +18955,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SRWconst",
-		auxType: auxInt8,
+		auxType: auxInt32,
 		argLen:  1,
 		asm:     s390x.ASRW,
 		reg: regInfo{
@@ -19033,7 +18999,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SRADconst",
-		auxType:      auxInt8,
+		auxType:      auxInt64,
 		argLen:       1,
 		clobberFlags: true,
 		asm:          s390x.ASRAD,
@@ -19048,7 +19014,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SRAWconst",
-		auxType:      auxInt8,
+		auxType:      auxInt32,
 		argLen:       1,
 		clobberFlags: true,
 		asm:          s390x.ASRAW,
@@ -19063,7 +19029,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "RLLGconst",
-		auxType: auxInt8,
+		auxType: auxInt64,
 		argLen:  1,
 		asm:     s390x.ARLLG,
 		reg: regInfo{
@@ -19077,7 +19043,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "RLLconst",
-		auxType: auxInt8,
+		auxType: auxInt32,
 		argLen:  1,
 		asm:     s390x.ARLL,
 		reg: regInfo{
@@ -19897,7 +19863,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVBZloadidx",
 		auxType:      auxSymOff,
 		argLen:       3,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymRead,
 		asm:          s390x.AMOVBZ,
@@ -19915,7 +19880,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVHZloadidx",
 		auxType:      auxSymOff,
 		argLen:       3,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymRead,
 		asm:          s390x.AMOVHZ,
@@ -19933,7 +19897,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVWZloadidx",
 		auxType:      auxSymOff,
 		argLen:       3,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymRead,
 		asm:          s390x.AMOVWZ,
@@ -19951,7 +19914,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVDloadidx",
 		auxType:      auxSymOff,
 		argLen:       3,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymRead,
 		asm:          s390x.AMOVD,
@@ -19969,7 +19931,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVHBRloadidx",
 		auxType:      auxSymOff,
 		argLen:       3,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymRead,
 		asm:          s390x.AMOVHBR,
@@ -19987,7 +19948,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVWBRloadidx",
 		auxType:      auxSymOff,
 		argLen:       3,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymRead,
 		asm:          s390x.AMOVWBR,
@@ -20005,7 +19965,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVDBRloadidx",
 		auxType:      auxSymOff,
 		argLen:       3,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymRead,
 		asm:          s390x.AMOVDBR,
@@ -20023,7 +19982,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVBstoreidx",
 		auxType:      auxSymOff,
 		argLen:       4,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymWrite,
 		asm:          s390x.AMOVB,
@@ -20039,7 +19997,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVHstoreidx",
 		auxType:      auxSymOff,
 		argLen:       4,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymWrite,
 		asm:          s390x.AMOVH,
@@ -20055,7 +20012,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVWstoreidx",
 		auxType:      auxSymOff,
 		argLen:       4,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymWrite,
 		asm:          s390x.AMOVW,
@@ -20071,7 +20027,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVDstoreidx",
 		auxType:      auxSymOff,
 		argLen:       4,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymWrite,
 		asm:          s390x.AMOVD,
@@ -20087,7 +20042,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVHBRstoreidx",
 		auxType:      auxSymOff,
 		argLen:       4,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymWrite,
 		asm:          s390x.AMOVHBR,
@@ -20103,7 +20057,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVWBRstoreidx",
 		auxType:      auxSymOff,
 		argLen:       4,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymWrite,
 		asm:          s390x.AMOVWBR,
@@ -20119,7 +20072,6 @@ var opcodeTable = [...]opInfo{
 		name:         "MOVDBRstoreidx",
 		auxType:      auxSymOff,
 		argLen:       4,
-		commutative:  true,
 		clobberFlags: true,
 		symEffect:    SymWrite,
 		asm:          s390x.AMOVDBR,
@@ -20694,16 +20646,14 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "Add32F",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Add32F",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "Add64F",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Add64F",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "Sub8",
@@ -20765,16 +20715,14 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "Mul32F",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Mul32F",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "Mul64F",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Mul64F",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "Div32F",
@@ -20787,40 +20735,34 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "Hmul32",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Hmul32",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "Hmul32u",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Hmul32u",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "Hmul64",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Hmul64",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "Hmul64u",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Hmul64u",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "Mul32uhilo",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Mul32uhilo",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "Mul64uhilo",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Mul64uhilo",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "Avg32u",
@@ -21270,16 +21212,14 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "Eq32F",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Eq32F",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "Eq64F",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Eq64F",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "Neq8",
@@ -21322,16 +21262,14 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "Neq32F",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Neq32F",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "Neq64F",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "Neq64F",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "Less8",

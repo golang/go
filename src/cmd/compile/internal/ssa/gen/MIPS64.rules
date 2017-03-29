@@ -579,11 +579,16 @@
 (MOVVreg x) && x.Uses == 1 -> (MOVVnop x)
 
 // fold constant into arithmatic ops
+(ADDV (MOVVconst [c]) x) && is32Bit(c) -> (ADDVconst [c] x)
 (ADDV x (MOVVconst [c])) && is32Bit(c) -> (ADDVconst [c] x)
 (SUBV x (MOVVconst [c])) && is32Bit(c) -> (SUBVconst [c] x)
+(AND (MOVVconst [c]) x) && is32Bit(c) -> (ANDconst [c] x)
 (AND x (MOVVconst [c])) && is32Bit(c) -> (ANDconst [c] x)
+(OR  (MOVVconst [c]) x) && is32Bit(c) -> (ORconst  [c] x)
 (OR  x (MOVVconst [c])) && is32Bit(c) -> (ORconst  [c] x)
+(XOR (MOVVconst [c]) x) && is32Bit(c) -> (XORconst [c] x)
 (XOR x (MOVVconst [c])) && is32Bit(c) -> (XORconst [c] x)
+(NOR (MOVVconst [c]) x) && is32Bit(c) -> (NORconst [c] x)
 (NOR x (MOVVconst [c])) && is32Bit(c) -> (NORconst [c] x)
 
 (SLLV _ (MOVVconst [c])) && uint64(c)>=64 -> (MOVVconst [0])
@@ -615,6 +620,7 @@
 
 // generic simplifications
 (ADDV x (NEGV y)) -> (SUBV x y)
+(ADDV (NEGV y) x) -> (SUBV x y)
 (SUBV x x) -> (MOVVconst [0])
 (SUBV (MOVVconst [0]) x) -> (NEGV x)
 (AND x x) -> x
