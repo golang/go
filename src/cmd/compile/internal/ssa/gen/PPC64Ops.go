@@ -224,7 +224,7 @@ func init() {
 		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                // arg0&^arg1
 		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                 // arg0|arg1
 		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                  // arg0|^arg1
-		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},               // ^(arg0|arg1)
+		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR"},                                  // ^(arg0|arg1)
 		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true}, // arg0^arg1
 		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true}, // arg0^^arg1
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                  // -arg0 (integer)
