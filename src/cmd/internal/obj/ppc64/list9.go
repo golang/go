@@ -35,11 +35,11 @@ import (
 )
 
 func init() {
-	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, Rconv)
+	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, rconv)
 	obj.RegisterOpcode(obj.ABasePPC64, Anames)
 }
 
-func Rconv(r int) string {
+func rconv(r int) string {
 	if r == 0 {
 		return "NONE"
 	}

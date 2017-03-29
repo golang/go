@@ -542,7 +542,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
 	r := obj.Appendp(ctxt, q)
 	r.RegTo2 = 1
 	q.As = obj.ACALL
-	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
+	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
 	q.To.Type = obj.TYPE_MEM
 	q.To.Name = obj.NAME_EXTERN
 	q.To.Sym.Set(obj.AttrLocal, true)

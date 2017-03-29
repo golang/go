@@ -3207,7 +3207,7 @@ func isax(a *obj.Addr) bool {
 
 func subreg(p *obj.Prog, from int, to int) {
 	if false { /* debug['Q'] */
-		fmt.Printf("\n%v\ts/%v/%v/\n", p, Rconv(from), Rconv(to))
+		fmt.Printf("\n%v\ts/%v/%v/\n", p, rconv(from), rconv(to))
 	}
 
 	if int(p.From.Reg) == from {
@@ -4084,7 +4084,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 								r.Off = int32(p.Pc + int64(asmbuf.Len()))
 								r.Type = obj.R_CALL
 								r.Siz = 4
-								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
+								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
 								asmbuf.PutInt32(0)
 
 								asmbuf.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
