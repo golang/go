@@ -467,7 +467,7 @@ func (e *OpError) Error() string {
 var (
 	// aLongTimeAgo is a non-zero time, far in the past, used for
 	// immediate cancelation of dials.
-	aLongTimeAgo = time.Unix(233431200, 0)
+	aLongTimeAgo = time.Unix(1, 0)
 
 	// nonDeadline and noCancel are just zero values for
 	// readability with functions taking too many parameters.
