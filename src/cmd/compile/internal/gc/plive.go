@@ -291,7 +291,14 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 		return n, ssa.SymWrite
 
 	case ssa.OpVarLive:
-		return v.Aux.(*Node), ssa.SymRead
+		switch a := v.Aux.(type) {
+		case *ssa.ArgSymbol:
+			return a.Node.(*Node), ssa.SymRead
+		case *ssa.AutoSymbol:
+			return a.Node.(*Node), ssa.SymRead
+		default:
+			Fatalf("unknown VarLive aux type: %s", v.LongString())
+		}
 	case ssa.OpVarDef, ssa.OpVarKill:
 		return v.Aux.(*Node), ssa.SymWrite
 	case ssa.OpKeepAlive:

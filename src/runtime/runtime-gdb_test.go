@@ -84,7 +84,7 @@ func main() {
 	slicevar := make([]string, 0, 16)
 	slicevar = append(slicevar, mapvar["abc"])
 	fmt.Println("hi") // line 13
-	_ = ptrvar
+	runtime.KeepAlive(ptrvar)
 	gslice = slicevar
 	runtime.KeepAlive(mapvar)
 }

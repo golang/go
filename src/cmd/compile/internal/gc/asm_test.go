@@ -973,12 +973,22 @@ var linuxAMD64Tests = []*asmTest{
 		// make sure assembly output has matching offset and base register.
 		`
 		func f72(a, b int) int {
-			var x [16]byte // use some frame
-			_ = x
+			//go:noinline
+			func() {_, _ = a, b} () // use some frame
 			return b
 		}
 		`,
 		[]string{"b\\+40\\(SP\\)"},
+	},
+	{
+		// check that stack store is optimized away
+		`
+		func $() int {
+			var x int
+			return *(&x)
+		}
+		`,
+		[]string{"TEXT\t.*, [$]0-8"},
 	},
 }
 
@@ -1014,6 +1024,16 @@ var linux386Tests = []*asmTest{
 			return 19*a + a*n
 		}`,
 		[]string{"\tADDL\t[$]19", "\tIMULL"}, // (n+19)*a
+	},
+	{
+		// check that stack store is optimized away
+		`
+		func $() int {
+			var x int
+			return *(&x)
+		}
+		`,
+		[]string{"TEXT\t.*, [$]0-4"},
 	},
 }
 
@@ -1293,6 +1313,16 @@ var linuxS390XTests = []*asmTest{
 		`,
 		[]string{"\tFLOGR\t"},
 	},
+	{
+		// check that stack store is optimized away
+		`
+		func $() int {
+			var x int
+			return *(&x)
+		}
+		`,
+		[]string{"TEXT\t.*, [$]0-8"},
+	},
 }
 
 var linuxARMTests = []*asmTest{
@@ -1404,12 +1434,22 @@ var linuxARMTests = []*asmTest{
 		// make sure assembly output has matching offset and base register.
 		`
 		func f13(a, b int) int {
-			var x [16]byte // use some frame
-			_ = x
+			//go:noinline
+			func() {_, _ = a, b} () // use some frame
 			return b
 		}
 		`,
 		[]string{"b\\+4\\(FP\\)"},
+	},
+	{
+		// check that stack store is optimized away
+		`
+		func $() int {
+			var x int
+			return *(&x)
+		}
+		`,
+		[]string{"TEXT\t.*, [$]-4-4"},
 	},
 }
 
@@ -1584,6 +1624,16 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(FP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(FP\\)"},
 	},
+	{
+		// check that stack store is optimized away
+		`
+		func $() int {
+			var x int
+			return *(&x)
+		}
+		`,
+		[]string{"TEXT\t.*, [$]-8-8"},
+	},
 }
 
 var linuxMIPSTests = []*asmTest{
@@ -1666,6 +1716,16 @@ var linuxMIPSTests = []*asmTest{
 		}
 		`,
 		[]string{"\tCLZ\t"},
+	},
+	{
+		// check that stack store is optimized away
+		`
+		func $() int {
+			var x int
+			return *(&x)
+		}
+		`,
+		[]string{"TEXT\t.*, [$]-4-4"},
 	},
 }
 
@@ -1750,6 +1810,16 @@ var linuxPPC64LETests = []*asmTest{
 		}
 		`,
 		[]string{"\tROTL\t"},
+	},
+	{
+		// check that stack store is optimized away
+		`
+		func $() int {
+			var x int
+			return *(&x)
+		}
+		`,
+		[]string{"TEXT\t.*, [$]0-8"},
 	},
 }
 
