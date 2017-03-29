@@ -98,7 +98,7 @@ fi
 
 GOGCCFLAGS=$(go env GOGCCFLAGS)
 if [ "$goos" = "android" ]; then
-	GOGCCFLAGS="${GOGCCFLAGS} -pie"
+	GOGCCFLAGS="${GOGCCFLAGS} -pie -fuse-ld=gold"
 fi
 
 status=0
