@@ -621,19 +621,60 @@
 (SARB x (MOVQconst [c])) -> (SARBconst [min(c&31,7)] x)
 (SARB x (MOVLconst [c])) -> (SARBconst [min(c&31,7)] x)
 
-(SARL x (ANDLconst [31] y)) -> (SARL x y)
-(SARQ x (ANDQconst [63] y)) -> (SARQ x y)
+// Operations which don't affect the low 6/5 bits of the shift amount are NOPs.
+(SHLQ x (ADDQconst [c] y)) && c & 63 == 0 -> (SHLQ x y)
+(SHRQ x (ADDQconst [c] y)) && c & 63 == 0 -> (SHRQ x y)
+(SARQ x (ADDQconst [c] y)) && c & 63 == 0 -> (SARQ x y)
+(SHLQ x (NEGQ <t> (ADDQconst [c] y))) && c & 63 == 0 -> (SHLQ x (NEGQ <t> y))
+(SHRQ x (NEGQ <t> (ADDQconst [c] y))) && c & 63 == 0 -> (SHRQ x (NEGQ <t> y))
+(SARQ x (NEGQ <t> (ADDQconst [c] y))) && c & 63 == 0 -> (SARQ x (NEGQ <t> y))
+(SHLQ x (ANDQconst [c] y)) && c & 63 == 63 -> (SHLQ x y)
+(SHRQ x (ANDQconst [c] y)) && c & 63 == 63 -> (SHRQ x y)
+(SARQ x (ANDQconst [c] y)) && c & 63 == 63 -> (SARQ x y)
+(SHLQ x (NEGQ <t> (ANDQconst [c] y))) && c & 63 == 63 -> (SHLQ x (NEGQ <t> y))
+(SHRQ x (NEGQ <t> (ANDQconst [c] y))) && c & 63 == 63 -> (SHRQ x (NEGQ <t> y))
+(SARQ x (NEGQ <t> (ANDQconst [c] y))) && c & 63 == 63 -> (SARQ x (NEGQ <t> y))
 
-(SHLL x (ANDLconst [31] y)) -> (SHLL x y)
-(SHLQ x (ANDQconst [63] y)) -> (SHLQ x y)
-(SHLQ x (ANDLconst [63] y)) -> (SHLQ x y)
+(SHLL x (ADDQconst [c] y)) && c & 31 == 0 -> (SHLL x y)
+(SHRL x (ADDQconst [c] y)) && c & 31 == 0 -> (SHRL x y)
+(SARL x (ADDQconst [c] y)) && c & 31 == 0 -> (SARL x y)
+(SHLL x (NEGQ <t> (ADDQconst [c] y))) && c & 31 == 0 -> (SHLL x (NEGQ <t> y))
+(SHRL x (NEGQ <t> (ADDQconst [c] y))) && c & 31 == 0 -> (SHRL x (NEGQ <t> y))
+(SARL x (NEGQ <t> (ADDQconst [c] y))) && c & 31 == 0 -> (SARL x (NEGQ <t> y))
+(SHLL x (ANDQconst [c] y)) && c & 31 == 31 -> (SHLL x y)
+(SHRL x (ANDQconst [c] y)) && c & 31 == 31 -> (SHRL x y)
+(SARL x (ANDQconst [c] y)) && c & 31 == 31 -> (SARL x y)
+(SHLL x (NEGQ <t> (ANDQconst [c] y))) && c & 31 == 31 -> (SHLL x (NEGQ <t> y))
+(SHRL x (NEGQ <t> (ANDQconst [c] y))) && c & 31 == 31 -> (SHRL x (NEGQ <t> y))
+(SARL x (NEGQ <t> (ANDQconst [c] y))) && c & 31 == 31 -> (SARL x (NEGQ <t> y))
 
-(SHRL x (ANDLconst [31] y)) -> (SHRL x y)
-(SHRQ x (ANDQconst [63] y)) -> (SHRQ x y)
-(SHRQ x (ANDLconst [63] y)) -> (SHRQ x y)
+(SHLQ x (ADDLconst [c] y)) && c & 63 == 0 -> (SHLQ x y)
+(SHRQ x (ADDLconst [c] y)) && c & 63 == 0 -> (SHRQ x y)
+(SARQ x (ADDLconst [c] y)) && c & 63 == 0 -> (SARQ x y)
+(SHLQ x (NEGL <t> (ADDLconst [c] y))) && c & 63 == 0 -> (SHLQ x (NEGL <t> y))
+(SHRQ x (NEGL <t> (ADDLconst [c] y))) && c & 63 == 0 -> (SHRQ x (NEGL <t> y))
+(SARQ x (NEGL <t> (ADDLconst [c] y))) && c & 63 == 0 -> (SARQ x (NEGL <t> y))
+(SHLQ x (ANDLconst [c] y)) && c & 63 == 63 -> (SHLQ x y)
+(SHRQ x (ANDLconst [c] y)) && c & 63 == 63 -> (SHRQ x y)
+(SARQ x (ANDLconst [c] y)) && c & 63 == 63 -> (SARQ x y)
+(SHLQ x (NEGL <t> (ANDLconst [c] y))) && c & 63 == 63 -> (SHLQ x (NEGL <t> y))
+(SHRQ x (NEGL <t> (ANDLconst [c] y))) && c & 63 == 63 -> (SHRQ x (NEGL <t> y))
+(SARQ x (NEGL <t> (ANDLconst [c] y))) && c & 63 == 63 -> (SARQ x (NEGL <t> y))
 
-// Rotate instructions
+(SHLL x (ADDLconst [c] y)) && c & 31 == 0 -> (SHLL x y)
+(SHRL x (ADDLconst [c] y)) && c & 31 == 0 -> (SHRL x y)
+(SARL x (ADDLconst [c] y)) && c & 31 == 0 -> (SARL x y)
+(SHLL x (NEGL <t> (ADDLconst [c] y))) && c & 31 == 0 -> (SHLL x (NEGL <t> y))
+(SHRL x (NEGL <t> (ADDLconst [c] y))) && c & 31 == 0 -> (SHRL x (NEGL <t> y))
+(SARL x (NEGL <t> (ADDLconst [c] y))) && c & 31 == 0 -> (SARL x (NEGL <t> y))
+(SHLL x (ANDLconst [c] y)) && c & 31 == 31 -> (SHLL x y)
+(SHRL x (ANDLconst [c] y)) && c & 31 == 31 -> (SHRL x y)
+(SARL x (ANDLconst [c] y)) && c & 31 == 31 -> (SARL x y)
+(SHLL x (NEGL <t> (ANDLconst [c] y))) && c & 31 == 31 -> (SHLL x (NEGL <t> y))
+(SHRL x (NEGL <t> (ANDLconst [c] y))) && c & 31 == 31 -> (SHRL x (NEGL <t> y))
+(SARL x (NEGL <t> (ANDLconst [c] y))) && c & 31 == 31 -> (SARL x (NEGL <t> y))
 
+// Constant rotate instructions
 (ADDQ (SHLQconst x [c]) (SHRQconst x [d])) && d==64-c -> (ROLQconst x [c])
 ( ORQ (SHLQconst x [c]) (SHRQconst x [d])) && d==64-c -> (ROLQconst x [c])
 (XORQ (SHLQconst x [c]) (SHRQconst x [d])) && d==64-c -> (ROLQconst x [c])
@@ -655,10 +696,109 @@
 (ROLWconst [c] (ROLWconst [d] x)) -> (ROLWconst [(c+d)&15] x)
 (ROLBconst [c] (ROLBconst [d] x)) -> (ROLBconst [(c+d)& 7] x)
 
-// TODO: non-constant rotates if shift amount is known to be bounded (shift & 63 or something).
+// Non-constant rotates.
+// We want to issue a rotate when the Go source contains code like
+//     y &= 63
+//     x << y | x >> (64-y)
+// The shift rules above convert << to SHLx and >> to SHRx.
+// SHRx converts its shift argument from 64-y to -y.
+// A tricky situation occurs when y==0. Then the original code would be:
+//     x << 0 | x >> 64
+// But x >> 64 is 0, not x. So there's an additional mask that is ANDed in
+// to force the second term to 0. We don't need that mask, but we must match
+// it in order to strip it out.
+(ORQ (SHLQ x y) (ANDQ (SHRQ x (NEGQ y)) (SBBQcarrymask (CMPQconst (NEGQ (ADDQconst (ANDQconst y [63]) [-64])) [64])))) -> (ROLQ x y)
+(ORQ (SHLQ x y) (ANDQ (SHRQ x (NEGL y)) (SBBQcarrymask (CMPLconst (NEGL (ADDLconst (ANDLconst y [63]) [-64])) [64])))) -> (ROLQ x y)
+(ORQ (SHRQ x y) (ANDQ (SHLQ x (NEGQ y)) (SBBQcarrymask (CMPQconst (NEGQ (ADDQconst (ANDQconst y [63]) [-64])) [64])))) -> (RORQ x y)
+(ORQ (SHRQ x y) (ANDQ (SHLQ x (NEGL y)) (SBBQcarrymask (CMPLconst (NEGL (ADDLconst (ANDLconst y [63]) [-64])) [64])))) -> (RORQ x y)
+
+(ORL (SHLL x y) (ANDL (SHRL x (NEGQ y)) (SBBLcarrymask (CMPQconst (NEGQ (ADDQconst (ANDQconst y [31]) [-32])) [32])))) -> (ROLL x y)
+(ORL (SHLL x y) (ANDL (SHRL x (NEGL y)) (SBBLcarrymask (CMPLconst (NEGL (ADDLconst (ANDLconst y [31]) [-32])) [32])))) -> (ROLL x y)
+(ORL (SHRL x y) (ANDL (SHLL x (NEGQ y)) (SBBLcarrymask (CMPQconst (NEGQ (ADDQconst (ANDQconst y [31]) [-32])) [32])))) -> (RORL x y)
+(ORL (SHRL x y) (ANDL (SHLL x (NEGL y)) (SBBLcarrymask (CMPLconst (NEGL (ADDLconst (ANDLconst y [31]) [-32])) [32])))) -> (RORL x y)
+
+// Help with rotate detection
+(CMPQconst (NEGQ (ADDQconst [-16] (ANDQconst [15] _))) [32]) -> (FlagLT_ULT)
+(CMPQconst (NEGQ (ADDQconst [ -8] (ANDQconst  [7] _))) [32]) -> (FlagLT_ULT)
+
+(ORL (SHLL x (ANDQconst y [15]))
+     (ANDL (SHRW x (NEGQ (ADDQconst (ANDQconst y [15]) [-16])))
+           (SBBLcarrymask (CMPQconst (NEGQ (ADDQconst (ANDQconst y [15]) [-16])) [16]))))
+  && v.Type.Size() == 2
+  -> (ROLW x y)
+(ORL (SHLL x (ANDLconst y [15]))
+     (ANDL (SHRW x (NEGL (ADDLconst (ANDLconst y [15]) [-16])))
+           (SBBLcarrymask (CMPLconst (NEGL (ADDLconst (ANDLconst y [15]) [-16])) [16]))))
+  && v.Type.Size() == 2
+  -> (ROLW x y)
+(ORL (SHRW x (ANDQconst y [15]))
+     (SHLL x (NEGQ (ADDQconst (ANDQconst y [15]) [-16]))))
+  && v.Type.Size() == 2
+  -> (RORW x y)
+(ORL (SHRW x (ANDLconst y [15]))
+     (SHLL x (NEGL (ADDLconst (ANDLconst y [15]) [-16]))))
+  && v.Type.Size() == 2
+  -> (RORW x y)
+
+(ORL (SHLL x (ANDQconst y [ 7]))
+     (ANDL (SHRB x (NEGQ (ADDQconst (ANDQconst y [ 7]) [ -8])))
+           (SBBLcarrymask (CMPQconst (NEGQ (ADDQconst (ANDQconst y [ 7]) [ -8])) [ 8]))))
+  && v.Type.Size() == 1
+  -> (ROLB x y)
+(ORL (SHLL x (ANDLconst y [ 7]))
+     (ANDL (SHRB x (NEGL (ADDLconst (ANDLconst y [ 7]) [ -8])))
+           (SBBLcarrymask (CMPLconst (NEGL (ADDLconst (ANDLconst y [ 7]) [ -8])) [ 8]))))
+  && v.Type.Size() == 1
+  -> (ROLB x y)
+(ORL (SHRB x (ANDQconst y [ 7]))
+     (SHLL x (NEGQ (ADDQconst (ANDQconst y [ 7]) [ -8]))))
+  && v.Type.Size() == 1
+  -> (RORB x y)
+(ORL (SHRB x (ANDLconst y [ 7]))
+     (SHLL x (NEGL (ADDLconst (ANDLconst y [ 7]) [ -8]))))
+  && v.Type.Size() == 1
+  -> (RORB x y)
+
+// rotate left negative = rotate right
+(ROLQ x (NEGQ y)) -> (RORQ x y)
+(ROLQ x (NEGL y)) -> (RORQ x y)
+(ROLL x (NEGQ y)) -> (RORL x y)
+(ROLL x (NEGL y)) -> (RORL x y)
+(ROLW x (NEGQ y)) -> (RORW x y)
+(ROLW x (NEGL y)) -> (RORW x y)
+(ROLB x (NEGQ y)) -> (RORB x y)
+(ROLB x (NEGL y)) -> (RORB x y)
+
+// rotate right negative = rotate left
+(RORQ x (NEGQ y)) -> (ROLQ x y)
+(RORQ x (NEGL y)) -> (ROLQ x y)
+(RORL x (NEGQ y)) -> (ROLL x y)
+(RORL x (NEGL y)) -> (ROLL x y)
+(RORW x (NEGQ y)) -> (ROLW x y)
+(RORW x (NEGL y)) -> (ROLW x y)
+(RORB x (NEGQ y)) -> (ROLB x y)
+(RORB x (NEGL y)) -> (ROLB x y)
+
+// rotate by constants
+(ROLQ x (MOVQconst [c])) -> (ROLQconst [c&63] x)
+(ROLQ x (MOVLconst [c])) -> (ROLQconst [c&63] x)
+(ROLL x (MOVQconst [c])) -> (ROLLconst [c&31] x)
+(ROLL x (MOVLconst [c])) -> (ROLLconst [c&31] x)
+(ROLW x (MOVQconst [c])) -> (ROLWconst [c&15] x)
+(ROLW x (MOVLconst [c])) -> (ROLWconst [c&15] x)
+(ROLB x (MOVQconst [c])) -> (ROLBconst [c&7 ] x)
+(ROLB x (MOVLconst [c])) -> (ROLBconst [c&7 ] x)
+
+(RORQ x (MOVQconst [c])) -> (ROLQconst [(-c)&63] x)
+(RORQ x (MOVLconst [c])) -> (ROLQconst [(-c)&63] x)
+(RORL x (MOVQconst [c])) -> (ROLLconst [(-c)&31] x)
+(RORL x (MOVLconst [c])) -> (ROLLconst [(-c)&31] x)
+(RORW x (MOVQconst [c])) -> (ROLWconst [(-c)&15] x)
+(RORW x (MOVLconst [c])) -> (ROLWconst [(-c)&15] x)
+(RORB x (MOVQconst [c])) -> (ROLBconst [(-c)&7 ] x)
+(RORB x (MOVLconst [c])) -> (ROLBconst [(-c)&7 ] x)
 
 // Constant shift simplifications
-
 (SHLQconst x [0]) -> x
 (SHRQconst x [0]) -> x
 (SARQconst x [0]) -> x
@@ -1171,6 +1311,7 @@
 (CMPLconst (ANDLconst _ [m]) [n]) && 0 <= int32(m) && int32(m) < int32(n) -> (FlagLT_ULT)
 (CMPWconst (ANDLconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < int16(n) -> (FlagLT_ULT)
 (CMPBconst (ANDLconst _ [m]) [n]) && 0 <= int8(m) && int8(m) < int8(n) -> (FlagLT_ULT)
+
 // TODO: DIVxU also.
 
 // Absorb flag constants into SBB ops.

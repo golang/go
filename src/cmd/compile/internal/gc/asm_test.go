@@ -800,6 +800,63 @@ var linuxAMD64Tests = []*asmTest{
 		}`,
 		[]string{"\tCMPQ\t[A-Z]"},
 	},
+	// Non-constant rotate
+	{
+		`func rot64l(x uint64, y int) uint64 {
+			z := uint(y & 63)
+			return x << z | x >> (64-z)
+		}`,
+		[]string{"\tROLQ\t"},
+	},
+	{
+		`func rot64r(x uint64, y int) uint64 {
+			z := uint(y & 63)
+			return x >> z | x << (64-z)
+		}`,
+		[]string{"\tRORQ\t"},
+	},
+	{
+		`func rot32l(x uint32, y int) uint32 {
+			z := uint(y & 31)
+			return x << z | x >> (32-z)
+		}`,
+		[]string{"\tROLL\t"},
+	},
+	{
+		`func rot32r(x uint32, y int) uint32 {
+			z := uint(y & 31)
+			return x >> z | x << (32-z)
+		}`,
+		[]string{"\tRORL\t"},
+	},
+	{
+		`func rot16l(x uint16, y int) uint16 {
+			z := uint(y & 15)
+			return x << z | x >> (16-z)
+		}`,
+		[]string{"\tROLW\t"},
+	},
+	{
+		`func rot16r(x uint16, y int) uint16 {
+			z := uint(y & 15)
+			return x >> z | x << (16-z)
+		}`,
+		[]string{"\tRORW\t"},
+	},
+	{
+		`func rot8l(x uint8, y int) uint8 {
+			z := uint(y & 7)
+			return x << z | x >> (8-z)
+		}`,
+		[]string{"\tROLB\t"},
+	},
+	{
+		`func rot8r(x uint8, y int) uint8 {
+			z := uint(y & 7)
+			return x >> z | x << (8-z)
+		}`,
+		[]string{"\tRORB\t"},
+	},
 }
 
 var linux386Tests = []*asmTest{
