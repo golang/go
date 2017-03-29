@@ -239,15 +239,6 @@ func f14() {
 
 func g14() string
 
-func f15() {
-	var x string
-	_ = &x
-	x = g15()      // ERROR "live at call to g15: x$"
-	printstring(x) // ERROR "live at call to printstring: x$"
-}
-
-func g15() string
-
 // Checking that various temporaries do not persist or cause
 // ambiguously live values that must be zeroed.
 // The exact temporary names are inconsequential but we are
@@ -384,10 +375,9 @@ func f25(b bool) {
 		return
 	}
 	var x string
-	_ = &x
-	x = g15()      // ERROR "live at call to g15: x$"
-	printstring(x) // ERROR "live at call to printstring: x$"
-} // ERROR "live at call to deferreturn: x$"
+	x = g14()
+	printstring(x)
+}
 
 func g25()
 
@@ -641,6 +631,9 @@ type T40 struct {
 	m map[int]int
 }
 
+//go:noescape
+func useT40(*T40)
+
 func newT40() *T40 {
 	ret := T40{}
 	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret$"
@@ -658,7 +651,7 @@ func good40() {
 	ret.m = make(map[int]int) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
-	_ = t
+	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
 }
 
 func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"

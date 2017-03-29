@@ -14,6 +14,9 @@ package main
 
 func printnl()
 
+//go:noescape
+func useT40(*T40)
+
 type T40 struct {
 	m map[int]int
 }
@@ -27,7 +30,7 @@ func newT40() *T40 {
 func bad40() {
 	t := newT40() // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
 	printnl()     // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
-	_ = t
+	useT40(t)     // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
 }
 
 func good40() {
@@ -35,5 +38,5 @@ func good40() {
 	ret.m = make(map[int]int) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
-	_ = t
+	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
 }

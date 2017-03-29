@@ -936,7 +936,16 @@ func (s *state) stmt(n *Node) {
 		if !n.Left.Addrtaken() {
 			s.Fatalf("VARLIVE variable %v must have Addrtaken set", n.Left)
 		}
-		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, n.Left, s.mem())
+		var aux interface{}
+		switch n.Left.Class() {
+		case PAUTO:
+			aux = s.lookupSymbol(n.Left, &ssa.AutoSymbol{Node: n.Left})
+		case PPARAM, PPARAMOUT:
+			aux = s.lookupSymbol(n.Left, &ssa.ArgSymbol{Node: n.Left})
+		default:
+			s.Fatalf("VARLIVE variable %v must be Auto or Arg", n.Left)
+		}
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, aux, s.mem())
 
 	case OCHECKNIL:
 		p := s.expr(n.Left)
