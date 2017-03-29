@@ -24,7 +24,7 @@
 // removeSpan: which removes a specific span from the treap
 //
 // _mheap.lock must be held when manipulating this data structure.
-//
+
 package runtime
 
 import (
