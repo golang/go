@@ -238,15 +238,15 @@ func archArm64() *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// Note that there is no list of names as there is for 386 and amd64.
-	register[arm64.Rconv(arm64.REGSP)] = int16(arm64.REGSP)
+	register[obj.Rconv(arm64.REGSP)] = int16(arm64.REGSP)
 	for i := arm64.REG_R0; i <= arm64.REG_R31; i++ {
-		register[arm64.Rconv(i)] = int16(i)
+		register[obj.Rconv(i)] = int16(i)
 	}
 	for i := arm64.REG_F0; i <= arm64.REG_F31; i++ {
-		register[arm64.Rconv(i)] = int16(i)
+		register[obj.Rconv(i)] = int16(i)
 	}
 	for i := arm64.REG_V0; i <= arm64.REG_V31; i++ {
-		register[arm64.Rconv(i)] = int16(i)
+		register[obj.Rconv(i)] = int16(i)
 	}
 	register["LR"] = arm64.REGLINK
 	register["DAIF"] = arm64.REG_DAIF
