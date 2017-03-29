@@ -719,7 +719,7 @@ var basicnames = []string{
 	TBLANK:      "blank",
 }
 
-func (t *Type) typefmt(flag FmtFlag, mode fmtMode) string {
+func (t *Type) typefmt(flag FmtFlag, mode fmtMode, depth int) string {
 	if t == nil {
 		return "<T>"
 	}
@@ -770,7 +770,7 @@ func (t *Type) typefmt(flag FmtFlag, mode fmtMode) string {
 	}
 
 	if mode == FDbg {
-		return t.Etype.String() + "-" + t.typefmt(flag, 0)
+		return t.Etype.String() + "-" + t.typefmt(flag, 0, depth)
 	}
 
 	switch t.Etype {
@@ -778,36 +778,36 @@ func (t *Type) typefmt(flag FmtFlag, mode fmtMode) string {
 		switch mode {
 		case FTypeId, FTypeIdName:
 			if flag&FmtShort != 0 {
-				return "*" + t.Elem().tconv(FmtShort, mode)
+				return "*" + t.Elem().tconv(FmtShort, mode, depth)
 			}
 		}
-		return "*" + t.Elem().modeString(mode)
+		return "*" + t.Elem().modeString(mode, depth)
 
 	case TARRAY:
 		if t.isDDDArray() {
-			return "[...]" + t.Elem().modeString(mode)
+			return "[...]" + t.Elem().modeString(mode, depth)
 		}
-		return mode.Sprintf("[%d]%v", t.NumElem(), t.Elem())
+		return "[" + strconv.FormatInt(t.NumElem(), 10) + "]" + t.Elem().modeString(mode, depth)
 
 	case TSLICE:
-		return "[]" + t.Elem().modeString(mode)
+		return "[]" + t.Elem().modeString(mode, depth)
 
 	case TCHAN:
 		switch t.ChanDir() {
 		case Crecv:
-			return "<-chan " + t.Elem().modeString(mode)
+			return "<-chan " + t.Elem().modeString(mode, depth)
 
 		case Csend:
-			return "chan<- " + t.Elem().modeString(mode)
+			return "chan<- " + t.Elem().modeString(mode, depth)
 		}
 
 		if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().ChanDir() == Crecv {
-			return "chan (" + t.Elem().modeString(mode) + ")"
+			return "chan (" + t.Elem().modeString(mode, depth) + ")"
 		}
-		return "chan " + t.Elem().modeString(mode)
+		return "chan " + t.Elem().modeString(mode, depth)
 
 	case TMAP:
-		return "map[" + t.Key().modeString(mode) + "]" + t.Val().modeString(mode)
+		return "map[" + t.Key().modeString(mode, depth) + "]" + t.Val().modeString(mode, depth)
 
 	case TINTER:
 		if t.IsEmptyInterface() {
@@ -830,7 +830,7 @@ func (t *Type) typefmt(flag FmtFlag, mode fmtMode) string {
 			default:
 				buf = append(buf, f.Sym.sconv(FmtUnsigned, mode)...)
 			}
-			buf = append(buf, f.Type.tconv(FmtShort, mode)...)
+			buf = append(buf, f.Type.tconv(FmtShort, mode, depth)...)
 		}
 		if t.NumFields() != 0 {
 			buf = append(buf, ' ')
@@ -845,12 +845,12 @@ func (t *Type) typefmt(flag FmtFlag, mode fmtMode) string {
 		} else {
 			if t.Recv() != nil {
 				buf = append(buf, "method"...)
-				buf = append(buf, t.Recvs().modeString(mode)...)
+				buf = append(buf, t.Recvs().modeString(mode, depth)...)
 				buf = append(buf, ' ')
 			}
 			buf = append(buf, "func"...)
 		}
-		buf = append(buf, t.Params().modeString(mode)...)
+		buf = append(buf, t.Params().modeString(mode, depth)...)
 
 		switch t.Results().NumFields() {
 		case 0:
@@ -858,11 +858,11 @@ func (t *Type) typefmt(flag FmtFlag, mode fmtMode) string {
 
 		case 1:
 			buf = append(buf, ' ')
-			buf = append(buf, t.Results().Field(0).Type.modeString(mode)...) // struct->field->field's type
+			buf = append(buf, t.Results().Field(0).Type.modeString(mode, depth)...) // struct->field->field's type
 
 		default:
 			buf = append(buf, ' ')
-			buf = append(buf, t.Results().modeString(mode)...)
+			buf = append(buf, t.Results().modeString(mode, depth)...)
 		}
 		return string(buf)
 
@@ -872,15 +872,15 @@ func (t *Type) typefmt(flag FmtFlag, mode fmtMode) string {
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
 			if mt.Bucket == t {
-				return "map.bucket[" + m.Key().modeString(mode) + "]" + m.Val().modeString(mode)
+				return "map.bucket[" + m.Key().modeString(mode, depth) + "]" + m.Val().modeString(mode, depth)
 			}
 
 			if mt.Hmap == t {
-				return "map.hdr[" + m.Key().modeString(mode) + "]" + m.Val().modeString(mode)
+				return "map.hdr[" + m.Key().modeString(mode, depth) + "]" + m.Val().modeString(mode, depth)
 			}
 
 			if mt.Hiter == t {
-				return "map.iter[" + m.Key().modeString(mode) + "]" + m.Val().modeString(mode)
+				return "map.iter[" + m.Key().modeString(mode, depth) + "]" + m.Val().modeString(mode, depth)
 			}
 
 			Fatalf("unknown internal map type")
@@ -899,7 +899,7 @@ func (t *Type) typefmt(flag FmtFlag, mode fmtMode) string {
 				if i != 0 {
 					buf = append(buf, ", "...)
 				}
-				buf = append(buf, fldconv(f, flag1, mode)...)
+				buf = append(buf, fldconv(f, flag1, mode, depth)...)
 			}
 			buf = append(buf, ')')
 		} else {
@@ -909,7 +909,7 @@ func (t *Type) typefmt(flag FmtFlag, mode fmtMode) string {
 					buf = append(buf, ';')
 				}
 				buf = append(buf, ' ')
-				buf = append(buf, fldconv(f, FmtLong, mode)...)
+				buf = append(buf, fldconv(f, FmtLong, mode, depth)...)
 			}
 			if t.NumFields() != 0 {
 				buf = append(buf, ' ')
@@ -1748,24 +1748,33 @@ func (s *Sym) sconv(flag FmtFlag, mode fmtMode) string {
 	return s.symfmt(flag, mode)
 }
 
-func (t *Type) String() string                 { return t.tconv(0, FErr) }
-func (t *Type) modeString(mode fmtMode) string { return t.tconv(0, mode) }
+func (t *Type) String() string {
+	// This is an external entry point, so we pass depth 0 to tconv.
+	// The implementation of tconv (including typefmt and fldconv)
+	// must take care not to use a type in a formatting string
+	// to avoid resetting the recursion counter.
+	return t.tconv(0, FErr, 0)
+}
+
+func (t *Type) modeString(mode fmtMode, depth int) string {
+	return t.tconv(0, mode, depth)
+}
 
 // ShortString generates a short description of t.
 // It is used in autogenerated method names, reflection,
 // and itab names.
 func (t *Type) ShortString() string {
-	return t.tconv(FmtLeft, FErr)
+	return t.tconv(FmtLeft, FErr, 0)
 }
 
 // LongString generates a complete description of t.
 // It is useful for reflection,
 // or when a unique fingerprint or hash of a type is required.
 func (t *Type) LongString() string {
-	return t.tconv(FmtLeft|FmtUnsigned, FErr)
+	return t.tconv(FmtLeft|FmtUnsigned, FErr, 0)
 }
 
-func fldconv(f *Field, flag FmtFlag, mode fmtMode) string {
+func fldconv(f *Field, flag FmtFlag, mode fmtMode, depth int) string {
 	if f == nil {
 		return "<T>"
 	}
@@ -1812,9 +1821,9 @@ func fldconv(f *Field, flag FmtFlag, mode fmtMode) string {
 
 	var typ string
 	if f.Isddd() {
-		typ = mode.Sprintf("...%v", f.Type.Elem())
+		typ = "..." + f.Type.Elem().modeString(mode, depth)
 	} else {
-		typ = mode.Sprintf("%v", f.Type)
+		typ = f.Type.modeString(mode, depth)
 	}
 
 	str := typ
@@ -1834,7 +1843,9 @@ func fldconv(f *Field, flag FmtFlag, mode fmtMode) string {
 func (t *Type) format(s fmt.State, verb rune, mode fmtMode) {
 	switch verb {
 	case 'v', 'S', 'L':
-		fmt.Fprint(s, t.tconv(fmtFlag(s, verb), mode))
+		// This is an external entry point, so we pass depth 0 to tconv.
+		// See comments in Type.String.
+		fmt.Fprint(s, t.tconv(fmtFlag(s, verb), mode, 0))
 
 	default:
 		fmt.Fprintf(s, "%%!%c(*Type=%p)", verb, t)
@@ -1842,24 +1853,22 @@ func (t *Type) format(s fmt.State, verb rune, mode fmtMode) {
 }
 
 // See #16897 before changing the implementation of tconv.
-func (t *Type) tconv(flag FmtFlag, mode fmtMode) string {
+func (t *Type) tconv(flag FmtFlag, mode fmtMode, depth int) string {
 	if t == nil {
 		return "<T>"
 	}
 
-	if t.Trecur > 4 {
+	if depth > 100 {
 		return "<...>"
 	}
 
-	t.Trecur++
 	flag, mode = flag.update(mode)
 	if mode == FTypeIdName {
 		flag |= FmtUnsigned
 	}
 
-	str := t.typefmt(flag, mode)
+	str := t.typefmt(flag, mode, depth+1)
 
-	t.Trecur--
 	return str
 }
 
