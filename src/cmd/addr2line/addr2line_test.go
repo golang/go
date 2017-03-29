@@ -89,16 +89,25 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 func TestAddr2Line(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	syms := loadSyms(t)
-
 	tmpDir, err := ioutil.TempDir("", "TestAddr2Line")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	exepath := filepath.Join(tmpDir, "testaddr2line.exe")
-	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
+	// Build copy of test binary with debug symbols,
+	// since the one running now may not have them.
+	exepath := filepath.Join(tmpDir, "testaddr2line_test.exe")
+	out, err := exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", exepath, "cmd/addr2line").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go test -c -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
+	}
+	os.Args[0] = exepath
+
+	syms := loadSyms(t)
+
+	exepath = filepath.Join(tmpDir, "testaddr2line.exe")
+	out, err = exec.Command(testenv.GoToolPath(t), "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
 	}

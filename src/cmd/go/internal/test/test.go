@@ -862,7 +862,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			Build:     &build.Package{Name: "main"},
 			Pkgdir:    testDir,
 			Fake:      true,
-			OmitDWARF: !testC && !testNeedBinary,
+			OmitDebug: !testC && !testNeedBinary,
 		},
 	}
 

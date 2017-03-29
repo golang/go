@@ -76,7 +76,7 @@ func runRun(cmd *base.Command, args []string) {
 	if p.Error != nil {
 		base.Fatalf("%s", p.Error)
 	}
-	p.Internal.OmitDWARF = true
+	p.Internal.OmitDebug = true
 	if len(p.DepsErrors) > 0 {
 		// Since these are errors in dependencies,
 		// the same error might show up multiple times,
