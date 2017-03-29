@@ -54,8 +54,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 		case obj.Hlinux,
 			obj.Hnacl,
 			obj.Hplan9,
-			obj.Hwindows,
-			obj.Hwindowsgui:
+			obj.Hwindows:
 			return false
 		}
 
@@ -63,7 +62,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 	}
 
 	switch ctxt.Headtype {
-	case obj.Hplan9, obj.Hwindows, obj.Hwindowsgui:
+	case obj.Hplan9, obj.Hwindows:
 		return false
 	case obj.Hlinux:
 		return !ctxt.Flag_shared
@@ -163,7 +162,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	}
 
 	// TODO: Remove.
-	if (ctxt.Headtype == obj.Hwindows || ctxt.Headtype == obj.Hwindowsgui) && ctxt.Arch.Family == sys.AMD64 || ctxt.Headtype == obj.Hplan9 {
+	if ctxt.Headtype == obj.Hwindows && ctxt.Arch.Family == sys.AMD64 || ctxt.Headtype == obj.Hplan9 {
 		if p.From.Scale == 1 && p.From.Index == REG_TLS {
 			p.From.Scale = 2
 		}

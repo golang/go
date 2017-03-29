@@ -431,7 +431,7 @@ func (ctxt *Link) loadlib() {
 	determineLinkMode(ctxt)
 
 	// Recalculate pe parameters now that we have Linkmode set.
-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+	if Headtype == obj.Hwindows {
 		Peinit(ctxt)
 	}
 
@@ -573,7 +573,7 @@ func (ctxt *Link) loadlib() {
 			if *flagLibGCC != "none" {
 				hostArchive(ctxt, *flagLibGCC)
 			}
-			if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+			if Headtype == obj.Hwindows {
 				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
 					hostArchive(ctxt, p)
 				}
@@ -1213,7 +1213,7 @@ func (l *Link) hostlink() {
 			}
 		}
 	}
-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+	if Headtype == obj.Hwindows {
 		// libmingw32 and libmingwex have some inter-dependencies,
 		// so must use linker groups.
 		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
@@ -1954,7 +1954,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 			put(ctxt, nil, s.Name, FileSym, s.Value, nil)
 
 		case obj.SHOSTOBJ:
-			if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui || Iself {
+			if Headtype == obj.Hwindows || Iself {
 				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
 			}
 

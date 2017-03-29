@@ -148,7 +148,7 @@ func Main() {
 
 	if *flagOutfile == "" {
 		*flagOutfile = "a.out"
-		if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+		if Headtype == obj.Hwindows {
 			*flagOutfile += ".exe"
 		}
 	}
@@ -204,7 +204,7 @@ func Main() {
 		ctxt.domacho()
 	}
 	ctxt.dostkcheck()
-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+	if Headtype == obj.Hwindows {
 		ctxt.dope()
 	}
 	ctxt.addexport()

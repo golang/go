@@ -63,7 +63,7 @@ func (ctxt *Link) computeTLSOffset() {
 	default:
 		log.Fatalf("unknown thread-local storage offset for %v", Headtype)
 
-	case obj.Hplan9, obj.Hwindows, obj.Hwindowsgui:
+	case obj.Hplan9, obj.Hwindows:
 		break
 
 		/*
