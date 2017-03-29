@@ -109,7 +109,7 @@ type PackageInternal struct {
 	ExeName      string               // desired name for temporary executable
 	CoverMode    string               // preprocess Go source files with the coverage tool in this mode
 	CoverVars    map[string]*CoverVar // variables created by coverage analysis
-	OmitDWARF    bool                 // tell linker not to write DWARF information
+	OmitDebug    bool                 // tell linker not to write debug information
 	BuildID      string               // expected build ID for generated package
 	GobinSubdir  bool                 // install target would be subdir of GOBIN
 }

@@ -2417,8 +2417,8 @@ func (gcToolchain) ld(b *Builder, root *Action, out string, allactions []*Action
 	if cfg.BuildContext.InstallSuffix != "" {
 		ldflags = append(ldflags, "-installsuffix", cfg.BuildContext.InstallSuffix)
 	}
-	if root.Package.Internal.OmitDWARF {
-		ldflags = append(ldflags, "-w")
+	if root.Package.Internal.OmitDebug {
+		ldflags = append(ldflags, "-s", "-w")
 	}
 	if cfg.BuildBuildmode == "plugin" {
 		pluginpath := root.Package.ImportPath
