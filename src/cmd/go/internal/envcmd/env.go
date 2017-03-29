@@ -6,6 +6,7 @@
 package envcmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"runtime"
@@ -18,8 +19,7 @@ import (
 )
 
 var CmdEnv = &base.Command{
-	Run:       runEnv,
-	UsageLine: "env [var ...]",
+	UsageLine: "env [-json] [var ...]",
 	Short:     "print Go environment information",
 	Long: `
 Env prints Go environment information.
@@ -28,8 +28,17 @@ By default env prints information as a shell script
 (on Windows, a batch file).  If one or more variable
 names is given as arguments,  env prints the value of
 each named variable on its own line.
+
+The -json flag prints the environment in JSON format
+instead of as a shell script.
 	`,
 }
+
+func init() {
+	CmdEnv.Run = runEnv // break init cycle
+}
+
+var envJson = CmdEnv.Flag.Bool("json", false, "")
 
 func MkEnv() []cfg.EnvVar {
 	var b work.Builder
@@ -107,9 +116,23 @@ func runEnv(cmd *base.Command, args []string) {
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
 	if len(args) > 0 {
-		for _, name := range args {
-			fmt.Printf("%s\n", findEnv(env, name))
+		if *envJson {
+			var es []cfg.EnvVar
+			for _, name := range args {
+				e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
+				es = append(es, e)
+			}
+			printEnvAsJSON(es)
+		} else {
+			for _, name := range args {
+				fmt.Printf("%s\n", findEnv(env, name))
+			}
 		}
+		return
+	}
+
+	if *envJson {
+		printEnvAsJSON(env)
 		return
 	}
 
@@ -136,5 +159,20 @@ func runEnv(cmd *base.Command, args []string) {
 				fmt.Printf("set %s=%s\n", e.Name, e.Value)
 			}
 		}
+	}
+}
+
+func printEnvAsJSON(env []cfg.EnvVar) {
+	m := make(map[string]string)
+	for _, e := range env {
+		if e.Name == "TERM" {
+			continue
+		}
+		m[e.Name] = e.Value
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "\t")
+	if err := enc.Encode(m); err != nil {
+		base.Fatalf("%s", err)
 	}
 }
