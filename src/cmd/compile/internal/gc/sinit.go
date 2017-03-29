@@ -924,30 +924,28 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 
 func maplit(n *Node, m *Node, init *Nodes) {
 	// make the map var
-	nerr := nerrors
-
 	a := nod(OMAKE, nil, nil)
 	a.List.Set2(typenod(n.Type), nodintconst(int64(n.List.Len())))
 	litas(m, a, init)
 
-	// count the initializers
-	b := 0
+	// Split the initializers into static and dynamic.
+	var stat, dyn []*Node
 	for _, r := range n.List.Slice() {
 		if r.Op != OKEY {
 			Fatalf("maplit: rhs not OKEY: %v", r)
 		}
-		index := r.Left
-		value := r.Right
-
-		if isliteral(index) && isliteral(value) {
-			b++
+		if isliteral(r.Left) && isliteral(r.Right) {
+			stat = append(stat, r)
+		} else {
+			dyn = append(dyn, r)
 		}
 	}
 
-	if b != 0 {
+	// Add static entries.
+	if len(stat) > 0 {
 		// build types [count]Tindex and [count]Tvalue
-		tk := typArray(n.Type.Key(), int64(b))
-		tv := typArray(n.Type.Val(), int64(b))
+		tk := typArray(n.Type.Key(), int64(len(stat)))
+		tv := typArray(n.Type.Val(), int64(len(stat)))
 
 		// TODO(josharian): suppress alg generation for these types?
 		dowidth(tk)
@@ -959,31 +957,23 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		vstatv := staticname(tv)
 		vstatv.Name.SetReadonly(true)
 
-		b := int64(0)
-		for _, r := range n.List.Slice() {
-			if r.Op != OKEY {
-				Fatalf("maplit: rhs not OKEY: %v", r)
-			}
+		for i, r := range stat {
 			index := r.Left
 			value := r.Right
 
-			if isliteral(index) && isliteral(value) {
-				// build vstatk[b] = index
-				setlineno(index)
-				lhs := nod(OINDEX, vstatk, nodintconst(b))
-				as := nod(OAS, lhs, index)
-				as = typecheck(as, Etop)
-				genAsStatic(as)
+			// build vstatk[b] = index
+			setlineno(index)
+			lhs := nod(OINDEX, vstatk, nodintconst(int64(i)))
+			as := nod(OAS, lhs, index)
+			as = typecheck(as, Etop)
+			genAsStatic(as)
 
-				// build vstatv[b] = value
-				setlineno(value)
-				lhs = nod(OINDEX, vstatv, nodintconst(b))
-				as = nod(OAS, lhs, value)
-				as = typecheck(as, Etop)
-				genAsStatic(as)
-
-				b++
-			}
+			// build vstatv[b] = value
+			setlineno(value)
+			lhs = nod(OINDEX, vstatv, nodintconst(int64(i)))
+			as = nod(OAS, lhs, value)
+			as = typecheck(as, Etop)
+			genAsStatic(as)
 		}
 
 		// loop adding structure elements to map
@@ -1012,28 +1002,28 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		init.Append(loop)
 	}
 
-	// put in dynamic entries one-at-a-time
-	var key, val *Node
-	for _, r := range n.List.Slice() {
-		if r.Op != OKEY {
-			Fatalf("maplit: rhs not OKEY: %v", r)
-		}
-		index := r.Left
-		value := r.Right
+	// Add dynamic entries.
+	addMapEntries(m, dyn, init)
+}
 
-		if isliteral(index) && isliteral(value) {
-			continue
-		}
+func addMapEntries(m *Node, dyn []*Node, init *Nodes) {
+	if len(dyn) == 0 {
+		return
+	}
 
-		// build list of var[c] = expr.
-		// use temporary so that mapassign1 can have addressable key, val.
-		if key == nil {
-			key = temp(m.Type.Key())
-			val = temp(m.Type.Val())
-		}
+	nerr := nerrors
+
+	// Build list of var[c] = expr.
+	// Use temporaries so that mapassign1 can have addressable key, val.
+	// TODO(josharian): avoid map key temporaries for mapfast_* assignments with literal keys.
+	key := temp(m.Type.Key())
+	val := temp(m.Type.Val())
+
+	for _, r := range dyn {
+		index, value := r.Left, r.Right
 
 		setlineno(index)
-		a = nod(OAS, key, index)
+		a := nod(OAS, key, index)
 		a = typecheck(a, Etop)
 		a = walkstmt(a)
 		init.Append(a)
@@ -1055,14 +1045,12 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		}
 	}
 
-	if key != nil {
-		a = nod(OVARKILL, key, nil)
-		a = typecheck(a, Etop)
-		init.Append(a)
-		a = nod(OVARKILL, val, nil)
-		a = typecheck(a, Etop)
-		init.Append(a)
-	}
+	a := nod(OVARKILL, key, nil)
+	a = typecheck(a, Etop)
+	init.Append(a)
+	a = nod(OVARKILL, val, nil)
+	a = typecheck(a, Etop)
+	init.Append(a)
 }
 
 func anylit(n *Node, var_ *Node, init *Nodes) {
