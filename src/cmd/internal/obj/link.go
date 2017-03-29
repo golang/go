@@ -810,7 +810,6 @@ const (
 	Hplan9
 	Hsolaris
 	Hwindows
-	Hwindowsgui
 )
 
 func (h *HeadType) Set(s string) error {
@@ -835,8 +834,6 @@ func (h *HeadType) Set(s string) error {
 		*h = Hsolaris
 	case "windows":
 		*h = Hwindows
-	case "windowsgui":
-		*h = Hwindowsgui
 	default:
 		return fmt.Errorf("invalid headtype: %q", s)
 	}
@@ -865,8 +862,6 @@ func (h *HeadType) String() string {
 		return "solaris"
 	case Hwindows:
 		return "windows"
-	case Hwindowsgui:
-		return "windowsgui"
 	}
 	return fmt.Sprintf("HeadType(%d)", *h)
 }

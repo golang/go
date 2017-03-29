@@ -228,7 +228,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
 		}
-		if ld.Headtype == obj.Hwindows || ld.Headtype == obj.Hwindowsgui {
+		if ld.Headtype == obj.Hwindows {
 			// nothing to do, the relocation will be laid out in pereloc1
 			return true
 		} else {
@@ -342,7 +342,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			return true
 		}
 
-		if ld.Headtype == obj.Hwindows || ld.Headtype == obj.Hwindowsgui {
+		if ld.Headtype == obj.Hwindows {
 			// nothing to do, the relocation will be laid out in pereloc1
 			return true
 		}
@@ -718,8 +718,7 @@ func asmb(ctxt *ld.Link) {
 		ld.Flag8 = true /* 64-bit addresses */
 
 	case obj.Hnacl,
-		obj.Hwindows,
-		obj.Hwindowsgui:
+		obj.Hwindows:
 		break
 	}
 
@@ -750,8 +749,7 @@ func asmb(ctxt *ld.Link) {
 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 			symo = ld.Rnd(symo, int64(*ld.FlagRound))
 
-		case obj.Hwindows,
-			obj.Hwindowsgui:
+		case obj.Hwindows:
 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 			symo = ld.Rnd(symo, ld.PEFILEALIGN)
 		}
@@ -788,7 +786,7 @@ func asmb(ctxt *ld.Link) {
 				ld.Cflush()
 			}
 
-		case obj.Hwindows, obj.Hwindowsgui:
+		case obj.Hwindows:
 			if ctxt.Debugvlog != 0 {
 				ctxt.Logf("%5.2f dwarf\n", obj.Cputime())
 			}
@@ -833,8 +831,7 @@ func asmb(ctxt *ld.Link) {
 		obj.Hnacl:
 		ld.Asmbelf(ctxt, symo)
 
-	case obj.Hwindows,
-		obj.Hwindowsgui:
+	case obj.Hwindows:
 		ld.Asmbpe(ctxt)
 	}
 

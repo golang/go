@@ -474,7 +474,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				o = 8 + r.Sym.Value
 			} else if Iself || Headtype == obj.Hplan9 || Headtype == obj.Hdarwin || isAndroidX86 {
 				o = int64(ctxt.Tlsoffset) + r.Add
-			} else if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+			} else if Headtype == obj.Hwindows {
 				o = r.Add
 			} else {
 				log.Fatalf("unexpected R_TLS_LE relocation for %v", Headtype)
@@ -548,7 +548,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 							o += Symaddr(rs)
 						}
 					}
-				} else if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+				} else if Headtype == obj.Hwindows {
 					// nothing to do
 				} else {
 					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, Headtype)
@@ -580,7 +580,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				// IMAGE_REL_I386_DIR32, IMAGE_REL_AMD64_ADDR64 and IMAGE_REL_AMD64_ADDR32.
 				// Do not replace R_DWARFREF with R_ADDR for windows -
 				// let PE code emit correct relocations.
-				if Headtype != obj.Hwindows && Headtype != obj.Hwindowsgui {
+				if Headtype != obj.Hwindows {
 					r.Type = obj.R_ADDR
 				}
 
@@ -659,7 +659,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 					} else {
 						o += int64(r.Siz)
 					}
-				} else if (Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui) && SysArch.Family == sys.AMD64 { // only amd64 needs PCREL
+				} else if Headtype == obj.Hwindows && SysArch.Family == sys.AMD64 { // only amd64 needs PCREL
 					// PE/COFF's PC32 relocation uses the address after the relocated
 					// bytes as the base. Compensate by skewing the addend.
 					o += int64(r.Siz)
@@ -745,7 +745,7 @@ func (ctxt *Link) reloc() {
 }
 
 func dynrelocsym(ctxt *Link, s *Symbol) {
-	if (Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui) && Linkmode != LinkExternal {
+	if Headtype == obj.Hwindows && Linkmode != LinkExternal {
 		rel := ctxt.Syms.Lookup(".rel", 0)
 		if s == rel {
 			return
@@ -813,7 +813,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
 func dynreloc(ctxt *Link, data *[obj.SXREF][]*Symbol) {
 	// -d suppresses dynamic loader format, so we may as well not
 	// compute these sections or mark their symbols as reachable.
-	if *FlagD && Headtype != obj.Hwindows && Headtype != obj.Hwindowsgui {
+	if *FlagD && Headtype != obj.Hwindows {
 		return
 	}
 	if ctxt.Debugvlog != 0 {
@@ -2197,7 +2197,7 @@ func (ctxt *Link) address() {
 	Segdata.Vaddr = va
 	Segdata.Fileoff = va - Segtext.Vaddr + Segtext.Fileoff
 	Segdata.Filelen = 0
-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+	if Headtype == obj.Hwindows {
 		Segdata.Fileoff = Segtext.Fileoff + uint64(Rnd(int64(Segtext.Length), PEFILEALIGN))
 	}
 	if Headtype == obj.Hplan9 {
@@ -2240,7 +2240,7 @@ func (ctxt *Link) address() {
 	Segdwarf.Vaddr = va
 	Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(*FlagRound)))
 	Segdwarf.Filelen = 0
-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+	if Headtype == obj.Hwindows {
 		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
 	}
 	for s := Segdwarf.Sect; s != nil; s = s.Next {
@@ -2250,7 +2250,7 @@ func (ctxt *Link) address() {
 		}
 		s.Vaddr = va
 		va += uint64(vlen)
-		if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+		if Headtype == obj.Hwindows {
 			va = uint64(Rnd(int64(va), PEFILEALIGN))
 		}
 		Segdwarf.Length = va - Segdwarf.Vaddr

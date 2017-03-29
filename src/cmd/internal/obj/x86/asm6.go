@@ -4120,7 +4120,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							asmbuf.Put1(0x8B)
 							asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 
-						case obj.Hwindows, obj.Hwindowsgui:
+						case obj.Hwindows:
 							// Windows TLS base is always 0x14(FS).
 							pp.From = p.From
 
@@ -4192,7 +4192,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							0x8B)
 						asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 
-					case obj.Hwindows, obj.Hwindowsgui:
+					case obj.Hwindows:
 						// Windows TLS base is always 0x28(GS).
 						pp.From = p.From
 

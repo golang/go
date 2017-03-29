@@ -133,7 +133,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hwindows, obj.Hwindowsgui: /* PE executable */
+	case obj.Hwindows: /* PE executable */
 		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
 		return
 	}
