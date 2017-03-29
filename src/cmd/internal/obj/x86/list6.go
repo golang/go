@@ -168,11 +168,11 @@ var Register = []string{
 }
 
 func init() {
-	obj.RegisterRegister(REG_AL, REG_AL+len(Register), Rconv)
+	obj.RegisterRegister(REG_AL, REG_AL+len(Register), rconv)
 	obj.RegisterOpcode(obj.ABaseAMD64, Anames)
 }
 
-func Rconv(r int) string {
+func rconv(r int) string {
 	if REG_AL <= r && r-REG_AL < len(Register) {
 		return Register[r-REG_AL]
 	}

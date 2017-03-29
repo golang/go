@@ -55,11 +55,11 @@ var strcond = [16]string{
 }
 
 func init() {
-	obj.RegisterRegister(obj.RBaseARM64, REG_SPECIAL+1024, Rconv)
+	obj.RegisterRegister(obj.RBaseARM64, REG_SPECIAL+1024, rconv)
 	obj.RegisterOpcode(obj.ABaseARM64, Anames)
 }
 
-func Rconv(r int) string {
+func rconv(r int) string {
 	if r == REGG {
 		return "g"
 	}
