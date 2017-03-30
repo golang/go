@@ -1003,6 +1003,10 @@ func (l *Link) hostlink() {
 
 	if !*FlagS && !debug_s {
 		argv = append(argv, "-gdwarf-2")
+	} else if Headtype == obj.Hdarwin {
+		// Recent versions of macOS print
+		//	ld: warning: option -s is obsolete and being ignored
+		// so do not pass any arguments.
 	} else {
 		argv = append(argv, "-s")
 	}
