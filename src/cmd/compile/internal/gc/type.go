@@ -245,8 +245,7 @@ type StructType struct {
 	// Map links such structs back to their map type.
 	Map *Type
 
-	Funarg      Funarg // type of function arguments for arg struct
-	Haspointers uint8  // 0 unknown, 1 no, 2 yes
+	Funarg Funarg // type of function arguments for arg struct
 }
 
 // Fnstruct records the kind of function argument
@@ -304,9 +303,8 @@ func (t *Type) ChanType() *ChanType {
 
 // ArrayType contains Type fields specific to array types.
 type ArrayType struct {
-	Elem        *Type // element type
-	Bound       int64 // number of elements; <0 if unknown yet
-	Haspointers uint8 // 0 unknown, 1 no, 2 yes
+	Elem  *Type // element type
+	Bound int64 // number of elements; <0 if unknown yet
 }
 
 // SliceType contains Type fields specific to slice types.
@@ -1315,38 +1313,19 @@ func haspointers(t *Type) bool {
 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL:
 		return false
 
-	case TSLICE:
-		return true
-
 	case TARRAY:
-		at := t.Extra.(*ArrayType)
-		if at.Haspointers != 0 {
-			return at.Haspointers-1 != 0
+		if t.NumElem() == 0 { // empty array has no pointers
+			return false
 		}
-
-		ret := false
-		if t.NumElem() != 0 { // non-empty array
-			ret = haspointers(t.Elem())
-		}
-
-		at.Haspointers = 1 + uint8(obj.Bool2int(ret))
-		return ret
+		return haspointers(t.Elem())
 
 	case TSTRUCT:
-		st := t.StructType()
-		if st.Haspointers != 0 {
-			return st.Haspointers-1 != 0
-		}
-
-		ret := false
 		for _, t1 := range t.Fields().Slice() {
 			if haspointers(t1.Type) {
-				ret = true
-				break
+				return true
 			}
 		}
-		st.Haspointers = 1 + uint8(obj.Bool2int(ret))
-		return ret
+		return false
 	}
 
 	return true

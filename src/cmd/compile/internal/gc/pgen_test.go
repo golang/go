@@ -11,11 +11,17 @@ import (
 )
 
 func typeWithoutPointers() *Type {
-	return &Type{Etype: TSTRUCT, Extra: &StructType{Haspointers: 1}} // haspointers -> false
+	t := typ(TSTRUCT)
+	f := &Field{Type: typ(TINT)}
+	t.SetFields([]*Field{f})
+	return t
 }
 
 func typeWithPointers() *Type {
-	return &Type{Etype: TSTRUCT, Extra: &StructType{Haspointers: 2}} // haspointers -> true
+	t := typ(TSTRUCT)
+	f := &Field{Type: typ(TPTR64)}
+	t.SetFields([]*Field{f})
+	return t
 }
 
 // Test all code paths for cmpstackvarlt.
