@@ -34,7 +34,7 @@ func TestSizeof(t *testing.T) {
 		{StructType{}, 12, 24},
 		{InterType{}, 4, 8},
 		{ChanType{}, 8, 16},
-		{ArrayType{}, 16, 24},
+		{ArrayType{}, 12, 16},
 		{InterMethType{}, 4, 8},
 		{DDDFieldType{}, 4, 8},
 		{FuncArgsType{}, 4, 8},
