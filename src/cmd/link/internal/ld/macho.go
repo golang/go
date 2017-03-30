@@ -449,7 +449,7 @@ func Asmbmacho(ctxt *Link) {
 			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
 		} else {
 			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
-			ms.vsize = ms.filesize
+			ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
 		}
 	}
 

@@ -430,6 +430,10 @@ func (ctxt *Link) loadlib() {
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
 
+	if Headtype == obj.Hdarwin && Linkmode == LinkExternal {
+		*FlagTextAddr = 0
+	}
+
 	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
 		toc := ctxt.Syms.Lookup(".TOC.", 0)
 		toc.Type = obj.SDYNIMPORT
