@@ -15,14 +15,38 @@ import "strings"
 //  - When doing sub-register operations, we try to write the whole
 //    destination register to avoid a partial-register write.
 //  - Unused portions of AuxInt (or the Val portion of ValAndOff) are
-//    filled by sign-extending the used portion.  Users of AuxInt which interpret
+//    filled by sign-extending the used portion. Users of AuxInt which interpret
 //    AuxInt as unsigned (e.g. shifts) must be careful.
-
-// Suffixes encode the bit width of various instructions.
-// D (double word) = 64 bit (frequently omitted)
-// W (word)        = 32 bit
-// H (half word)   = 16 bit
-// B (byte)        = 8 bit
+//  - The SB 'register' is implemented using instruction-relative addressing. This
+//    places some limitations on when and how memory operands that are addressed
+//    relative to SB can be used:
+//
+//     1. Pseudo-instructions do not always map to a single machine instruction when
+//        using the SB 'register' to address data. This is because many machine
+//        instructions do not have relative long (RL suffix) equivalents. For example,
+//        ADDload, which is assembled as AG.
+//
+//     2. Loads and stores using relative addressing require the data be aligned
+//        according to its size (8-bytes for double words, 4-bytes for words
+//        and so on).
+//
+//    We can always work around these by inserting LARL instructions (load address
+//    relative long) in the assembler, but typically this results in worse code
+//    generation because the address can't be re-used. Inserting instructions in the
+//    assembler also means clobbering the temp register and it is a long-term goal
+//    to prevent the compiler doing this so that it can be allocated as a normal
+//    register.
+//
+// For more information about the z/Architecture, the instruction set and the
+// addressing modes it supports take a look at the z/Architecture Principles of
+// Operation: http://publibfp.boulder.ibm.com/epubs/pdf/dz9zr010.pdf
+//
+// Suffixes encode the bit width of pseudo-instructions.
+// D (double word)  = 64 bit (frequently omitted)
+// W (word)         = 32 bit
+// H (half word)    = 16 bit
+// B (byte)         = 8 bit
+// S (single prec.) = 32 bit (double precision is omitted)
 
 // copied from ../../s390x/reg.go
 var regNamesS390X = []string{
