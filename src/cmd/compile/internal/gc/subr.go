@@ -27,6 +27,8 @@ type Error struct {
 
 var errors []Error
 
+var largeStackFrames []src.XPos // positions of functions whose stack frames are too large (rare)
+
 func errorexit() {
 	flusherrors()
 	if outfile != "" {

@@ -235,10 +235,6 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
 			s.stksize = Rnd(s.stksize, int64(Widthptr))
 		}
-		if s.stksize >= 1<<31 {
-			yyerrorl(s.curfn.Pos, "stack frame too large (>2GB)")
-		}
-
 		n.Xoffset = -s.stksize
 	}
 
@@ -289,6 +285,10 @@ func compile(fn *Node) {
 	pp := newProgs(fn)
 	genssa(ssafn, pp)
 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
+	if pp.Text.To.Offset >= 1<<31 {
+		largeStackFrames = append(largeStackFrames, fn.Pos)
+		return
+	}
 	pp.Flush()
 }
 
