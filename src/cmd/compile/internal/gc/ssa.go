@@ -66,6 +66,24 @@ func initssaconfig() {
 		ssaConfig.Set387(thearch.Use387)
 	}
 	ssaCache = new(ssa.Cache)
+
+	// Set up some runtime functions we'll need to call.
+	Newproc = Sysfunc("newproc")
+	Deferproc = Sysfunc("deferproc")
+	Deferreturn = Sysfunc("deferreturn")
+	Duffcopy = Sysfunc("duffcopy")
+	Duffzero = Sysfunc("duffzero")
+	panicindex = Sysfunc("panicindex")
+	panicslice = Sysfunc("panicslice")
+	panicdivide = Sysfunc("panicdivide")
+	growslice = Sysfunc("growslice")
+	panicdottypeE = Sysfunc("panicdottypeE")
+	panicdottypeI = Sysfunc("panicdottypeI")
+	panicnildottype = Sysfunc("panicnildottype")
+	assertE2I = Sysfunc("assertE2I")
+	assertE2I2 = Sysfunc("assertE2I2")
+	assertI2I = Sysfunc("assertI2I")
+	assertI2I2 = Sysfunc("assertI2I2")
 }
 
 // buildssa builds an SSA function.
