@@ -523,6 +523,9 @@ func Main(archInit func(*Arch)) {
 		if compiling_runtime {
 			checknowritebarrierrec()
 		}
+		for _, largePos := range largeStackFrames {
+			yyerrorl(largePos, "stack frame too large (>2GB)")
+		}
 	}
 
 	// Phase 9: Check external declarations.
