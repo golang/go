@@ -4306,8 +4306,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		s.SSEto387 = map[int16]int16{}
 	}
 
-	s.ScratchFpMem = scratchFpMem
-	scratchFpMem = nil
+	s.ScratchFpMem = e.scratchFpMem
 
 	// Emit basic blocks
 	for i, b := range f.Blocks {
@@ -4686,11 +4685,12 @@ func fieldIdx(n *Node) int {
 // ssafn holds frontend information about a function that the backend is processing.
 // It also exports a bunch of compiler services for the ssa backend.
 type ssafn struct {
-	curfn      *Node
-	strings    map[string]interface{} // map from constant string to data symbols
-	stksize    int64                  // stack size for current frame
-	stkptrsize int64                  // prefix of stack containing pointers
-	log        bool
+	curfn        *Node
+	strings      map[string]interface{} // map from constant string to data symbols
+	scratchFpMem *Node                  // temp for floating point register / memory moves on some architectures
+	stksize      int64                  // stack size for current frame
+	stkptrsize   int64                  // prefix of stack containing pointers
+	log          bool
 }
 
 // StringData returns a symbol (a *Sym wrapped in an interface) which

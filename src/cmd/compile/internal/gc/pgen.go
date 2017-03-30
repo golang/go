@@ -171,8 +171,6 @@ func (s byStackVar) Len() int           { return len(s) }
 func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
 func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-var scratchFpMem *Node
-
 func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stksize = 0
 	s.stkptrsize = 0
@@ -208,9 +206,8 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 	}
 
-	if f.Config.NeedsFpScratch {
-		scratchFpMem = tempAt(src.NoXPos, s.curfn, Types[TUINT64])
-		scratchFpMem.SetUsed(scratchUsed)
+	if f.Config.NeedsFpScratch && scratchUsed {
+		s.scratchFpMem = tempAt(src.NoXPos, s.curfn, Types[TUINT64])
 	}
 
 	sort.Sort(byStackVar(fn.Dcl))
