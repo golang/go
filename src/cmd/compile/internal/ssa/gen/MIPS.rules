@@ -591,16 +591,11 @@
 (MOVWreg x) && x.Uses == 1 -> (MOVWnop x)
 
 // fold constant into arithmatic ops
-(ADD (MOVWconst [c]) x) -> (ADDconst [c] x)
 (ADD x (MOVWconst [c])) -> (ADDconst [c] x)
 (SUB x (MOVWconst [c])) -> (SUBconst [c] x)
-(AND (MOVWconst [c]) x) -> (ANDconst [c] x)
 (AND x (MOVWconst [c])) -> (ANDconst [c] x)
-(OR  (MOVWconst [c]) x) -> (ORconst  [c] x)
 (OR  x (MOVWconst [c])) -> (ORconst  [c] x)
-(XOR (MOVWconst [c]) x) -> (XORconst [c] x)
 (XOR x (MOVWconst [c])) -> (XORconst [c] x)
-(NOR (MOVWconst [c]) x) -> (NORconst [c] x)
 (NOR x (MOVWconst [c])) -> (NORconst [c] x)
 
 (SLL _ (MOVWconst [c])) && uint32(c)>=32 -> (MOVWconst [0])
@@ -616,8 +611,8 @@
 (SGTU x (MOVWconst [0])) -> (SGTUzero x)
 
 // mul with constant
-(Select1 (MULTU x (MOVWconst [c]))) && x.Op != OpMIPSMOVWconst-> (Select1 (MULTU (MOVWconst [c]) x ))
-(Select0 (MULTU x (MOVWconst [c]))) && x.Op != OpMIPSMOVWconst-> (Select0 (MULTU (MOVWconst [c]) x ))
+(Select1 (MULTU x (MOVWconst [c]))) && x.Op != OpMIPSMOVWconst -> (Select1 (MULTU (MOVWconst [c]) x ))
+(Select0 (MULTU x (MOVWconst [c]))) && x.Op != OpMIPSMOVWconst -> (Select0 (MULTU (MOVWconst [c]) x ))
 
 (Select1 (MULTU (MOVWconst [0]) _ )) -> (MOVWconst [0])
 (Select0 (MULTU (MOVWconst [0]) _ )) -> (MOVWconst [0])
@@ -635,7 +630,6 @@
 
 // generic simplifications
 (ADD x (NEG y)) -> (SUB x y)
-(ADD (NEG y) x) -> (SUB x y)
 (SUB x x) -> (MOVWconst [0])
 (SUB (MOVWconst [0]) x) -> (NEG x)
 (AND x x) -> x
@@ -729,12 +723,12 @@
 
 // conditional move
 (CMOVZ _ b (MOVWconst [0])) -> b
-(CMOVZ a _ (MOVWconst [c])) && c!=0-> a
+(CMOVZ a _ (MOVWconst [c])) && c!=0 -> a
 (CMOVZzero _ (MOVWconst [0])) -> (MOVWconst [0])
-(CMOVZzero a (MOVWconst [c])) && c!=0-> a
+(CMOVZzero a (MOVWconst [c])) && c!=0 -> a
 (CMOVZ a (MOVWconst [0]) c) -> (CMOVZzero a c)
 
 // atomic
 (LoweredAtomicStore ptr (MOVWconst [0]) mem) -> (LoweredAtomicStorezero ptr mem)
-(LoweredAtomicAdd ptr (MOVWconst [c]) mem) && is16Bit(c)-> (LoweredAtomicAddconst [c] ptr mem)
+(LoweredAtomicAdd ptr (MOVWconst [c]) mem) && is16Bit(c) -> (LoweredAtomicAddconst [c] ptr mem)
 

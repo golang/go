@@ -558,6 +558,28 @@
 (Move [1] dst src mem) -> (MOVBstore dst (MOVBZload src mem) mem)
 (Move [2] dst src mem) ->
         (MOVHstore dst (MOVHZload src mem) mem)
+(Move [4] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
+	(MOVWstore dst (MOVWload src mem) mem)
+(Move [4] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
+	(MOVHstore [2] dst (MOVHZload [2] src mem)
+		(MOVHstore dst (MOVHZload src mem) mem))
+(Move [4] dst src mem) ->
+	(MOVBstore [3] dst (MOVBZload [3] src mem)
+		(MOVBstore [2] dst (MOVBZload [2] src mem)
+			(MOVBstore [1] dst (MOVBZload [1] src mem)
+				(MOVBstore dst (MOVBZload src mem) mem))))
+
+(Move [8] {t} dst src mem) && t.(Type).Alignment()%8 == 0 ->
+	(MOVDstore dst (MOVDload src mem) mem)
+(Move [8] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
+	(MOVWstore [4] dst (MOVWZload [4] src mem)
+		(MOVWstore dst (MOVWZload src mem) mem))
+(Move [8] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
+	(MOVHstore [6] dst (MOVHZload [6] src mem)
+		(MOVHstore [4] dst (MOVHZload [4] src mem)
+			(MOVHstore [2] dst (MOVHZload [2] src mem)
+				(MOVHstore dst (MOVHZload src mem) mem))))
+
 (Move [3] dst src mem) ->
         (MOVBstore [2] dst (MOVBZload [2] src mem)
                 (MOVHstore dst (MOVHload src mem) mem))
@@ -607,9 +629,6 @@
 (AND x (MOVDconst [c])) && isU16Bit(c) -> (ANDconst [c] x)
 (XOR x (MOVDconst [c])) && isU32Bit(c) -> (XORconst [c] x)
 (OR x (MOVDconst [c])) && isU32Bit(c) -> (ORconst [c] x)
-(AND (MOVDconst [c]) x) && isU16Bit(c) -> (ANDconst [c] x)
-(XOR (MOVDconst [c]) x) && isU32Bit(c) -> (XORconst [c] x)
-(OR (MOVDconst [c]) x) && isU32Bit(c) -> (ORconst [c] x)
 
 // Simplify consts
 (ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c&d] x)
@@ -675,7 +694,6 @@
 
 // Arithmetic constant ops
 
-(ADD (MOVDconst [c]) x) && is32Bit(c) -> (ADDconst [c] x)
 (ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
 (ADDconst [c] (ADDconst [d] x)) && is32Bit(c+d) -> (ADDconst [c+d] x)
 (ADDconst [0] x) -> x
@@ -847,9 +865,7 @@
 (AND x:(MOVBZload _ _) (MOVDconst [c])) -> (ANDconst [c&0xFF] x)
 
 // floating-point fused multiply-add/sub
-(FADD z (FMUL x y)) -> (FMADD x y z)
 (FADD (FMUL x y) z) -> (FMADD x y z)
 (FSUB (FMUL x y) z) -> (FMSUB x y z)
-(FADDS z (FMULS x y)) -> (FMADDS x y z)
 (FADDS (FMULS x y) z) -> (FMADDS x y z)
 (FSUBS (FMULS x y) z) -> (FMSUBS x y z)
