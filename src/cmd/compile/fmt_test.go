@@ -654,6 +654,7 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/syntax.token %s":            "",
 	"cmd/internal/src.Pos %s":                         "",
 	"cmd/internal/src.Pos %v":                         "",
+	"cmd/internal/src.XPos %v":                        "",
 	"error %v":                                        "",
 	"float64 %.2f":                                    "",
 	"float64 %.3f":                                    "",
