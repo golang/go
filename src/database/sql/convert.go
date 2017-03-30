@@ -270,6 +270,11 @@ func convertAssign(dest, src interface{}) error {
 		return nil
 	}
 
+	// The following conversions use a string value as an intermediate representation
+	// to convert between various numeric types.
+	//
+	// This also allows scanning into user defined types such as "type Int int64".
+	// For symmetry, also check for string destination types.
 	switch dv.Kind() {
 	case reflect.Ptr:
 		if src == nil {
@@ -306,6 +311,15 @@ func convertAssign(dest, src interface{}) error {
 		}
 		dv.SetFloat(f64)
 		return nil
+	case reflect.String:
+		switch v := src.(type) {
+		case string:
+			dv.SetString(v)
+			return nil
+		case []byte:
+			dv.SetString(string(v))
+			return nil
+		}
 	}
 
 	return fmt.Errorf("unsupported Scan, storing driver.Value type %T into type %T", src, dest)

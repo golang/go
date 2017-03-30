@@ -3155,6 +3155,24 @@ func TestPing(t *testing.T) {
 	}
 }
 
+// Issue 18101.
+func TestTypedString(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	type Str string
+	var scanned Str
+
+	err := db.QueryRow("SELECT|people|name|name=?", "Alice").Scan(&scanned)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := Str("Alice")
+	if scanned != expected {
+		t.Errorf("expected %+v, got %+v", expected, scanned)
+	}
+}
+
 func BenchmarkConcurrentDBExec(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentDBExecTest)
