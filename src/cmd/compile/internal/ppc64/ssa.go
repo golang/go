@@ -917,75 +917,171 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 
 	case ssa.OpPPC64LoweredMove:
-		// Similar to how this is done on ARM,
-		// except that PPC MOVDU x,off(y) is *(y+off) = x; y=y+off,
-		// not store-and-increment.
-		// Inputs must be valid pointers to memory,
-		// so adjust arg0 and arg1 as part of the expansion.
-		// arg2 should be src+size-align,
-		//
-		// ADD    -8,R3,R3
-		// ADD    -8,R4,R4
-		// MOVDU	8(R4), Rtmp
-		// MOVDU 	Rtmp, 8(R3)
-		// CMP	R4, Rarg2
-		// BL	-3(PC)
-		// arg2 is the address of the last element of src
-		// auxint is alignment
-		var sz int64
-		var movu obj.As
-		switch {
-		case v.AuxInt%8 == 0:
-			sz = 8
-			movu = ppc64.AMOVDU
-		case v.AuxInt%4 == 0:
-			sz = 4
-			movu = ppc64.AMOVWZU // MOVWU instruction not implemented
-		case v.AuxInt%2 == 0:
-			sz = 2
-			movu = ppc64.AMOVHU
-		default:
-			sz = 1
-			movu = ppc64.AMOVBU
+
+		// This will be used when moving more
+		// than 8 bytes.  Moves start with as
+		// as many 8 byte moves as possible, then
+		// 4, 2, or 1 byte(s) as remaining.  This will
+		// work and be efficient for power8 or later.
+		// If there are 64 or more bytes, then a
+		// loop is generated to move 32 bytes and
+		// update the src and dst addresses on each
+		// iteration. When < 64 bytes, the appropriate
+		// number of moves are generated based on the
+		// size.
+		// When moving >= 64 bytes a loop is used
+		//	MOVD len/32,REG_TMP
+		//	MOVD REG_TMP,CTR
+		// top:
+		//	MOVD (R4),R7
+		//	MOVD 8(R4),R8
+		//	MOVD 16(R4),R9
+		//	MOVD 24(R4),R10
+		//	ADD  R4,$32
+		//	MOVD R7,(R3)
+		//	MOVD R8,8(R3)
+		//	MOVD R9,16(R3)
+		//	MOVD R10,24(R3)
+		//	ADD  R3,$32
+		//	BC 16,0,top
+		// Bytes not moved by this loop are moved
+		// with a combination of the following instructions,
+		// starting with the largest sizes and generating as
+		// many as needed, using the appropriate offset value.
+		//	MOVD  n(R4),R7
+		//	MOVD  R7,n(R3)
+		//	MOVW  n1(R4),R7
+		//	MOVW  R7,n1(R3)
+		//	MOVH  n2(R4),R7
+		//	MOVH  R7,n2(R3)
+		//	MOVB  n3(R4),R7
+		//	MOVB  R7,n3(R3)
+
+		// Each loop iteration moves 32 bytes
+		ctr := v.AuxInt / 32
+
+		// Remainder after the loop
+		rem := v.AuxInt % 32
+
+		dst_reg := v.Args[0].Reg()
+		src_reg := v.Args[1].Reg()
+
+		// The set of registers used here, must match the clobbered reg list
+		// in PPC64Ops.go.
+		useregs := []int16{ppc64.REG_R7, ppc64.REG_R8, ppc64.REG_R9, ppc64.REG_R10}
+		offset := int64(0)
+
+		// top of the loop
+		var top *obj.Prog
+		// Only generate looping code when loop counter is > 1 for >= 64 bytes
+		if ctr > 1 {
+			// Set up the CTR
+			p := s.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = ctr
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REGTMP
+
+			p = s.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REGTMP
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REG_CTR
+
+			// Generate all the MOVDs for loads
+			// based off the same register, increasing
+			// the offset by 8 for each instruction
+			for _, rg := range useregs {
+				p := s.Prog(ppc64.AMOVD)
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = src_reg
+				p.From.Offset = offset
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = rg
+				if top == nil {
+					top = p
+				}
+				offset += 8
+			}
+			// increment the src_reg for next iteration
+			p = s.Prog(ppc64.AADD)
+			p.Reg = src_reg
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 32
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = src_reg
+
+			// generate the MOVDs for stores, based
+			// off the same register, using the same
+			// offsets as in the loads.
+			offset = int64(0)
+			for _, rg := range useregs {
+				p := s.Prog(ppc64.AMOVD)
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = rg
+				p.To.Type = obj.TYPE_MEM
+				p.To.Reg = dst_reg
+				p.To.Offset = offset
+				offset += 8
+			}
+			// increment the dst_reg for next iteration
+			p = s.Prog(ppc64.AADD)
+			p.Reg = dst_reg
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 32
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = dst_reg
+
+			// BC with BO_BCTR generates bdnz to branch on nonzero CTR
+			// to loop top.
+			p = s.Prog(ppc64.ABC)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = ppc64.BO_BCTR
+			p.Reg = ppc64.REG_R0
+			p.To.Type = obj.TYPE_BRANCH
+			gc.Patch(p, top)
+
+			// src_reg and dst_reg were incremented in the loop, so
+			// later instructions start with offset 0.
+			offset = int64(0)
 		}
 
-		p := s.Prog(ppc64.AADD)
-		p.Reg = v.Args[0].Reg()
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = -sz
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Args[0].Reg()
+		// No loop was generated for one iteration, so
+		// add 32 bytes to the remainder to move those bytes.
+		if ctr == 1 {
+			rem += 32
+		}
 
-		p = s.Prog(ppc64.AADD)
-		p.Reg = v.Args[1].Reg()
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = -sz
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Args[1].Reg()
+		// Generate all the remaining load and store pairs, starting with
+		// as many 8 byte moves as possible, then 4, 2, 1.
+		for rem > 0 {
+			op, size := ppc64.AMOVB, int64(1)
+			switch {
+			case rem >= 8:
+				op, size = ppc64.AMOVD, 8
+			case rem >= 4:
+				op, size = ppc64.AMOVW, 4
+			case rem >= 2:
+				op, size = ppc64.AMOVH, 2
+			}
+			// Load
+			p := s.Prog(op)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REG_R7
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = src_reg
+			p.From.Offset = offset
 
-		p = s.Prog(movu)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[1].Reg()
-		p.From.Offset = sz
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = ppc64.REGTMP
-
-		p2 := s.Prog(movu)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = ppc64.REGTMP
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = v.Args[0].Reg()
-		p2.To.Offset = sz
-
-		p3 := s.Prog(ppc64.ACMPU)
-		p3.From.Reg = v.Args[1].Reg()
-		p3.From.Type = obj.TYPE_REG
-		p3.To.Reg = v.Args[2].Reg()
-		p3.To.Type = obj.TYPE_REG
-
-		p4 := s.Prog(ppc64.ABLT)
-		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p)
+			// Store
+			p = s.Prog(op)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REG_R7
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = dst_reg
+			p.To.Offset = offset
+			rem -= size
+			offset += size
+		}
 
 	case ssa.OpPPC64CALLstatic:
 		s.Call(v)

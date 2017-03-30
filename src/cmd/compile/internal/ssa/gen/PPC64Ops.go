@@ -349,26 +349,41 @@ func init() {
 			typ:            "Mem",
 			faultOnNilArg0: true,
 		},
+		// Loop code:
+		//	MOVD len/32,REG_TMP  only for loop
+		//	MOVD REG_TMP,CTR     only for loop
+		// loop:
+		//	MOVD (R4),R7
+		//	MOVD 8(R4),R8
+		//	MOVD 16(R4),R9
+		//	MOVD 24(R4),R10
+		//	ADD  R4,$32          only with loop
+		//	MOVD R7,(R3)
+		//	MOVD R8,8(R3)
+		//	MOVD R9,16(R3)
+		//	MOVD R10,24(R3)
+		//	ADD  R3,$32          only with loop
+		//	BC 16,0,loop         only with loop
+		// Bytes not moved by this loop are moved
+		// with a combination of the following instructions,
+		// starting with the largest sizes and generating as
+		// many as needed, using the appropriate offset value.
+		//	MOVD  n(R4),R7
+		//	MOVD  R7,n(R3)
+		//	MOVW  n1(R4),R7
+		//	MOVW  R7,n1(R3)
+		//	MOVH  n2(R4),R7
+		//	MOVH  R7,n2(R3)
+		//	MOVB  n3(R4),R7
+		//	MOVB  R7,n3(R3)
 
-		// large or unaligned move
-		// arg0 = address of dst memory (in R3, changed as side effect)
-		// arg1 = address of src memory (in R4, changed as side effect)
-		// arg2 = address of the last element of src
-		// arg3 = mem
-		// returns mem
-		//  ADD -8,R3,R3 // intermediate value not valid GC ptr, cannot expose to opt+GC
-		//  ADD -8,R4,R4 // intermediate value not valid GC ptr, cannot expose to opt+GC
-		//	MOVDU	8(R4), Rtmp
-		//	MOVDU	Rtmp, 8(R3)
-		//	CMP	R4, Rarg2
-		//	BLT	-3(PC)
 		{
 			name:      "LoweredMove",
 			aux:       "Int64",
-			argLength: 4,
+			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R3"), buildReg("R4"), gp},
-				clobbers: buildReg("R3 R4"),
+				inputs:   []regMask{buildReg("R3"), buildReg("R4")},
+				clobbers: buildReg("R3 R4 R7 R8 R9 R10"),
 			},
 			clobberFlags:   true,
 			typ:            "Mem",
