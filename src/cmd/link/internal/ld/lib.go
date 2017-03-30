@@ -1228,7 +1228,7 @@ func (l *Link) hostlink() {
 		l.Logf("%s", out)
 	}
 
-	if !*FlagS && !debug_s && Headtype == obj.Hdarwin {
+	if !*FlagS && !*FlagW && !debug_s && Headtype == obj.Hdarwin {
 		// Skip combining dwarf on arm.
 		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
 			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
