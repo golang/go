@@ -20,6 +20,7 @@ import (
 )
 
 func TestDWARF(t *testing.T) {
+	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {

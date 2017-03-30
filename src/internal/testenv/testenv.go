@@ -151,6 +151,15 @@ func MustHaveExternalNetwork(t *testing.T) {
 	}
 }
 
+var haveCGO bool
+
+// MustHaveCGO calls t.Skip if cgo is not available.
+func MustHaveCGO(t *testing.T) {
+	if !haveCGO {
+		t.Skipf("skipping test: no cgo")
+	}
+}
+
 // HasSymlink reports whether the current system can use os.Symlink.
 func HasSymlink() bool {
 	ok, _ := hasSymlink()
