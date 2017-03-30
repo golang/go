@@ -1426,10 +1426,10 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
 // embedded fields at depth d, so callers can decide whether to retry at
 // a greater depth.
 func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more bool) {
-	if t.Trecur != 0 {
+	if t.Recur() {
 		return
 	}
-	t.Trecur = 1
+	t.SetRecur(true)
 
 	var u *Type
 	d--
@@ -1471,7 +1471,7 @@ func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more
 	}
 
 out:
-	t.Trecur = 0
+	t.SetRecur(false)
 	return c, more
 }
 
@@ -1585,10 +1585,10 @@ func expand0(t *Type, followptr bool) {
 }
 
 func expand1(t *Type, top, followptr bool) {
-	if t.Trecur != 0 {
+	if t.Recur() {
 		return
 	}
-	t.Trecur = 1
+	t.SetRecur(true)
 
 	if !top {
 		expand0(t, followptr)
@@ -1615,7 +1615,7 @@ func expand1(t *Type, top, followptr bool) {
 	}
 
 out:
-	t.Trecur = 0
+	t.SetRecur(false)
 }
 
 func expandmeth(t *Type) {

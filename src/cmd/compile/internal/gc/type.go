@@ -153,9 +153,8 @@ type Type struct {
 	Sym    *Sym  // symbol containing name, for named types
 	Vargen int32 // unique name for OTYPE/ONAME
 
-	Etype  EType // kind of type
-	Trecur uint8 // to detect loops
-	Align  uint8 // the required alignment of this type, in bytes
+	Etype EType // kind of type
+	Align uint8 // the required alignment of this type, in bytes
 
 	flags bitset8
 }
@@ -166,6 +165,7 @@ const (
 	typeBroke                 // broken type definition
 	typeNoalg                 // suppress hash and eq algorithm generation
 	typeDeferwidth
+	typeRecur
 )
 
 func (t *Type) Local() bool      { return t.flags&typeLocal != 0 }
@@ -173,12 +173,14 @@ func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
 func (t *Type) Broke() bool      { return t.flags&typeBroke != 0 }
 func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
 func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
+func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
 
 func (t *Type) SetLocal(b bool)      { t.flags.set(typeLocal, b) }
 func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
 func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
 func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
+func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
 
 // MapType contains Type fields specific to maps.
 type MapType struct {
