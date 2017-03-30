@@ -80,9 +80,6 @@ type Logger interface {
 	// Fatal reports a compiler error and exits.
 	Fatalf(pos src.XPos, msg string, args ...interface{})
 
-	// Error reports a compiler error but keep going.
-	Error(pos src.XPos, msg string, args ...interface{})
-
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
 	Warnl(pos src.XPos, fmt_ string, args ...interface{})
 

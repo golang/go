@@ -1223,6 +1223,9 @@ func checknowritebarrierrec() {
 	visitBottomUp(xtop, func(list []*Node, recursive bool) {
 		// Functions with write barriers have depth 0.
 		for _, n := range list {
+			if n.Func.WBPos.IsKnown() && n.Func.Pragma&Nowritebarrier != 0 {
+				yyerrorl(n.Func.WBPos, "write barrier prohibited")
+			}
 			if n.Func.WBPos.IsKnown() && n.Func.Pragma&Yeswritebarrierrec == 0 {
 				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBPos}
 			}
