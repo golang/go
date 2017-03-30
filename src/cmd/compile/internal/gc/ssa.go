@@ -373,10 +373,6 @@ func (s *state) peekPos() src.XPos {
 	return s.line[len(s.line)-1]
 }
 
-func (s *state) Error(msg string, args ...interface{}) {
-	yyerrorl(s.peekPos(), msg, args...)
-}
-
 // newValue0 adds a new value with no arguments to the current block.
 func (s *state) newValue0(op ssa.Op, t ssa.Type) *ssa.Value {
 	return s.curBlock.NewValue0(s.peekPos(), op, t)
