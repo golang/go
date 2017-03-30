@@ -208,9 +208,6 @@ func writebarrier(f *Func) {
 				memElse.Aux = w.Aux
 			}
 
-			if f.NoWB {
-				f.fe.Error(pos, "write barrier prohibited")
-			}
 			if !f.WBPos.IsKnown() {
 				f.WBPos = pos
 			}

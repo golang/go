@@ -122,9 +122,6 @@ func buildssa(fn *Node) *ssa.Func {
 	if fn.Func.Pragma&Nosplit != 0 {
 		s.f.NoSplit = true
 	}
-	if fn.Func.Pragma&Nowritebarrier != 0 {
-		s.f.NoWB = true
-	}
 	defer func() {
 		if s.f.WBPos.IsKnown() {
 			fn.Func.WBPos = s.f.WBPos
@@ -197,10 +194,6 @@ func buildssa(fn *Node) *ssa.Func {
 		s.popLine()
 	}
 
-	if nerrors > 0 {
-		return nil
-	}
-
 	s.insertPhis()
 
 	// Don't carry reference this around longer than necessary
@@ -208,10 +201,6 @@ func buildssa(fn *Node) *ssa.Func {
 
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
-	if nerrors > 0 {
-		return nil
-	}
-
 	return s.f
 }
 
@@ -4882,11 +4871,6 @@ func (e *ssafn) Log() bool {
 func (e *ssafn) Fatalf(pos src.XPos, msg string, args ...interface{}) {
 	lineno = pos
 	Fatalf(msg, args...)
-}
-
-// Error reports a compiler error but keep going.
-func (e *ssafn) Error(pos src.XPos, msg string, args ...interface{}) {
-	yyerrorl(pos, msg, args...)
 }
 
 // Warnl reports a "warning", which is usually flag-triggered

@@ -124,7 +124,6 @@ func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, arg
 func (d DummyFrontend) Log() bool                            { return true }
 
 func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
-func (d DummyFrontend) Error(_ src.XPos, msg string, args ...interface{})  { d.t.Errorf(msg, args...) }
 func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
 func (d DummyFrontend) Debug_checknil() bool                               { return false }
 func (d DummyFrontend) Debug_wb() bool                                     { return false }

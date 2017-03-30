@@ -269,19 +269,12 @@ func compile(fn *Node) {
 	if instrumenting {
 		instrument(fn)
 	}
-	if nerrors != 0 {
-		return
-	}
 
 	// From this point, there should be no uses of Curfn. Enforce that.
 	Curfn = nil
 
 	// Build an SSA backend function.
 	ssafn := buildssa(fn)
-	if nerrors != 0 {
-		return
-	}
-
 	pp := newProgs(fn)
 	genssa(ssafn, pp)
 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
