@@ -329,19 +329,19 @@ func hashfor(t *Type) *Node {
 	case AMEM:
 		Fatalf("hashfor with AMEM type")
 	case AINTER:
-		sym = Pkglookup("interhash", Runtimepkg)
+		sym = Runtimepkg.Lookup("interhash")
 	case ANILINTER:
-		sym = Pkglookup("nilinterhash", Runtimepkg)
+		sym = Runtimepkg.Lookup("nilinterhash")
 	case ASTRING:
-		sym = Pkglookup("strhash", Runtimepkg)
+		sym = Runtimepkg.Lookup("strhash")
 	case AFLOAT32:
-		sym = Pkglookup("f32hash", Runtimepkg)
+		sym = Runtimepkg.Lookup("f32hash")
 	case AFLOAT64:
-		sym = Pkglookup("f64hash", Runtimepkg)
+		sym = Runtimepkg.Lookup("f64hash")
 	case ACPLX64:
-		sym = Pkglookup("c64hash", Runtimepkg)
+		sym = Runtimepkg.Lookup("c64hash")
 	case ACPLX128:
-		sym = Pkglookup("c128hash", Runtimepkg)
+		sym = Runtimepkg.Lookup("c128hash")
 	default:
 		sym = typesymprefix(".hash", t)
 	}

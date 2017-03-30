@@ -147,7 +147,7 @@ func dumpobj1(outfile string, mode int) {
 	externdcl = tmp
 
 	if zerosize > 0 {
-		zero := Pkglookup("zero", mappkg)
+		zero := mappkg.Lookup("zero")
 		ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
 	}
 
@@ -318,7 +318,7 @@ var slicebytes_gen int
 func slicebytes(nam *Node, s string, len int) {
 	slicebytes_gen++
 	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
-	sym := Pkglookup(symname, localpkg)
+	sym := localpkg.Lookup(symname)
 	sym.Def = newname(sym)
 
 	off := dsname(sym, 0, s)

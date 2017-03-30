@@ -790,7 +790,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 
 	sizeofAlg := 2 * Widthptr
 	if dcommontype_algarray == nil {
-		dcommontype_algarray = Pkglookup("algarray", Runtimepkg)
+		dcommontype_algarray = Runtimepkg.Lookup("algarray")
 	}
 	dowidth(t)
 	alg := algtype(t)
@@ -912,18 +912,18 @@ func typesym(t *Type) *Sym {
 		name = "noalg." + name
 	}
 
-	return Pkglookup(name, typepkg)
+	return typepkg.Lookup(name)
 }
 
 // tracksym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
 func tracksym(t *Type, f *Field) *Sym {
-	return Pkglookup(t.ShortString()+"."+f.Sym.Name, trackpkg)
+	return trackpkg.Lookup(t.ShortString() + "." + f.Sym.Name)
 }
 
 func typesymprefix(prefix string, t *Type) *Sym {
 	p := prefix + "." + t.ShortString()
-	s := Pkglookup(p, typepkg)
+	s := typepkg.Lookup(p)
 
 	//print("algsym: %s -> %+S\n", p, s);
 
@@ -961,7 +961,7 @@ func itabname(t, itype *Type) *Node {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
 		Fatalf("itabname(%v, %v)", t, itype)
 	}
-	s := Pkglookup(t.ShortString()+","+itype.ShortString(), itabpkg)
+	s := itabpkg.Lookup(t.ShortString() + "," + itype.ShortString())
 	if s.Def == nil {
 		n := newname(s)
 		n.Type = Types[TUINT8]
@@ -1457,7 +1457,7 @@ func dumptypestructs() {
 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
 		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR))
 
-		ilink := Pkglookup(i.t.ShortString()+","+i.itype.ShortString(), itablinkpkg)
+		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString())
 		dsymptr(ilink, 0, i.sym, 0)
 		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
 	}
@@ -1549,7 +1549,7 @@ func dalgsym(t *Type) *Sym {
 		// we use one algorithm table for all AMEM types of a given size
 		p := fmt.Sprintf(".alg%d", t.Width)
 
-		s = Pkglookup(p, typepkg)
+		s = typepkg.Lookup(p)
 
 		if s.AlgGen() {
 			return s
@@ -1559,20 +1559,20 @@ func dalgsym(t *Type) *Sym {
 		// make hash closure
 		p = fmt.Sprintf(".hashfunc%d", t.Width)
 
-		hashfunc = Pkglookup(p, typepkg)
+		hashfunc = typepkg.Lookup(p)
 
 		ot := 0
-		ot = dsymptr(hashfunc, ot, Pkglookup("memhash_varlen", Runtimepkg), 0)
+		ot = dsymptr(hashfunc, ot, Runtimepkg.Lookup("memhash_varlen"), 0)
 		ot = duintxx(hashfunc, ot, uint64(t.Width), Widthptr) // size encoded in closure
 		ggloblsym(hashfunc, int32(ot), obj.DUPOK|obj.RODATA)
 
 		// make equality closure
 		p = fmt.Sprintf(".eqfunc%d", t.Width)
 
-		eqfunc = Pkglookup(p, typepkg)
+		eqfunc = typepkg.Lookup(p)
 
 		ot = 0
-		ot = dsymptr(eqfunc, ot, Pkglookup("memequal_varlen", Runtimepkg), 0)
+		ot = dsymptr(eqfunc, ot, Runtimepkg.Lookup("memequal_varlen"), 0)
 		ot = duintxx(eqfunc, ot, uint64(t.Width), Widthptr)
 		ggloblsym(eqfunc, int32(ot), obj.DUPOK|obj.RODATA)
 	} else {
@@ -1659,7 +1659,7 @@ func dgcptrmask(t *Type) *Sym {
 	fillptrmask(t, ptrmask)
 	p := fmt.Sprintf("gcbits.%x", ptrmask)
 
-	sym := Pkglookup(p, Runtimepkg)
+	sym := Runtimepkg.Lookup(p)
 	if !sym.Uniq() {
 		sym.SetUniq(true)
 		for i, x := range ptrmask {
@@ -1809,7 +1809,7 @@ func zeroaddr(size int64) *Node {
 	if zerosize < size {
 		zerosize = size
 	}
-	s := Pkglookup("zero", mappkg)
+	s := mappkg.Lookup("zero")
 	if s.Def == nil {
 		x := newname(s)
 		x.Type = Types[TUINT8]

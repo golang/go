@@ -61,7 +61,7 @@ func pushdcl(s *Sym) *Sym {
 func popdcl() {
 	d := dclstack
 	for ; d != nil && d.Name != ""; d = d.Link {
-		s := Pkglookup(d.Name, d.Pkg)
+		s := d.Pkg.Lookup(d.Name)
 		lno := s.Lastlineno
 		dcopy(s, d)
 		d.Lastlineno = lno
@@ -91,7 +91,7 @@ func dumpdclstack() {
 	for d := dclstack; d != nil; d = d.Link {
 		fmt.Printf("%6d  %p", i, d)
 		if d.Name != "" {
-			fmt.Printf("  '%s'  %v\n", d.Name, Pkglookup(d.Name, d.Pkg))
+			fmt.Printf("  '%s'  %v\n", d.Name, d.Pkg.Lookup(d.Name))
 		} else {
 			fmt.Printf("  ---\n")
 		}
@@ -860,9 +860,9 @@ func embedded(s *Sym, pkg *Pkg) *Node {
 		n = newname(lookup(name))
 	} else if s.Pkg == builtinpkg {
 		// The name of embedded builtins belongs to pkg.
-		n = newname(Pkglookup(name, pkg))
+		n = newname(pkg.Lookup(name))
 	} else {
-		n = newname(Pkglookup(name, s.Pkg))
+		n = newname(s.Pkg.Lookup(name))
 	}
 	n = nod(ODCLFIELD, n, oldname(s))
 	n.Embedded = 1
@@ -1015,7 +1015,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 		spkg = methodsym_toppkg
 	}
 
-	s = Pkglookup(p, spkg)
+	s = spkg.Lookup(p)
 
 	return s
 
@@ -1046,7 +1046,7 @@ func methodname(s *Sym, recv *Type) *Sym {
 		p = fmt.Sprintf("%v.%v", tsym, s)
 	}
 
-	s = Pkglookup(p, tsym.Pkg)
+	s = tsym.Pkg.Lookup(p)
 
 	return s
 }
