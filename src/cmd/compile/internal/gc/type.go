@@ -1309,6 +1309,49 @@ func (t *Type) IsUntyped() bool {
 	return false
 }
 
+func haspointers(t *Type) bool {
+	switch t.Etype {
+	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
+		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL:
+		return false
+
+	case TSLICE:
+		return true
+
+	case TARRAY:
+		at := t.Extra.(*ArrayType)
+		if at.Haspointers != 0 {
+			return at.Haspointers-1 != 0
+		}
+
+		ret := false
+		if t.NumElem() != 0 { // non-empty array
+			ret = haspointers(t.Elem())
+		}
+
+		at.Haspointers = 1 + uint8(obj.Bool2int(ret))
+		return ret
+
+	case TSTRUCT:
+		st := t.StructType()
+		if st.Haspointers != 0 {
+			return st.Haspointers-1 != 0
+		}
+
+		ret := false
+		for _, t1 := range t.Fields().Slice() {
+			if haspointers(t1.Type) {
+				ret = true
+				break
+			}
+		}
+		st.Haspointers = 1 + uint8(obj.Bool2int(ret))
+		return ret
+	}
+
+	return true
+}
+
 // HasPointer returns whether t contains heap pointer.
 // This is used for write barrier insertion, so we ignore
 // pointers to go:notinheap types.
