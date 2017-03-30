@@ -552,6 +552,13 @@ func (c *gcControllerState) revise() {
 // endCycle updates the GC controller state at the end of the
 // concurrent part of the GC cycle.
 func (c *gcControllerState) endCycle() {
+	if work.userForced {
+		// Forced GC means this cycle didn't start at the
+		// trigger, so where it finished isn't good
+		// information about how to adjust the trigger.
+		return
+	}
+
 	h_t := c.triggerRatio // For debugging
 
 	// Proportional response gain for the trigger controller. Must
