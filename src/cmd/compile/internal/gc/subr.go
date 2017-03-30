@@ -211,10 +211,6 @@ func lookup(name string) *Sym {
 	return localpkg.Lookup(name)
 }
 
-func lookupf(format string, a ...interface{}) *Sym {
-	return lookup(fmt.Sprintf(format, a...))
-}
-
 // lookupN looks up the symbol starting with prefix and ending with
 // the decimal n. If prefix is too long, lookupN panics.
 func lookupN(prefix string, n int) *Sym {

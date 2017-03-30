@@ -196,7 +196,7 @@ func closurename(n *Node) *Sym {
 	default:
 		Fatalf("closurename called for %S", n)
 	}
-	n.Sym = lookupf("%s.%s%d", outer, prefix, gen)
+	n.Sym = lookup(fmt.Sprintf("%s.%s%d", outer, prefix, gen))
 	return n.Sym
 }
 
@@ -344,7 +344,7 @@ func transformclosure(xfunc *Node) {
 				// we introduce function param &v *T
 				// and v remains PAUTOHEAP with &v heapaddr
 				// (accesses will implicitly deref &v).
-				addr := newname(lookupf("&%s", v.Sym.Name))
+				addr := newname(lookup("&" + v.Sym.Name))
 				addr.Type = typPtr(v.Type)
 				addr.Class = PPARAM
 				v.Name.Param.Heapaddr = addr
@@ -394,7 +394,7 @@ func transformclosure(xfunc *Node) {
 			} else {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
-				addr := newname(lookupf("&%s", v.Sym.Name))
+				addr := newname(lookup("&" + v.Sym.Name))
 				addr.Name.Param.Ntype = nod(OIND, typenod(v.Type), nil)
 				addr.Class = PAUTO
 				addr.SetUsed(true)
