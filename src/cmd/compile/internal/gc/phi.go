@@ -430,14 +430,15 @@ func (s *sparseSet) clear() {
 
 // Variant to use for small functions.
 type simplePhiState struct {
-	s       *state                 // SSA state
-	f       *ssa.Func              // function to work on
-	fwdrefs []*ssa.Value           // list of FwdRefs to be processed
-	defvars []map[*Node]*ssa.Value // defined variables at end of each block
+	s         *state                 // SSA state
+	f         *ssa.Func              // function to work on
+	fwdrefs   []*ssa.Value           // list of FwdRefs to be processed
+	defvars   []map[*Node]*ssa.Value // defined variables at end of each block
+	reachable []bool                 // which blocks are reachable
 }
 
 func (s *simplePhiState) insertPhis() {
-	reachable := ssa.ReachableBlocks(s.f)
+	s.reachable = ssa.ReachableBlocks(s.f)
 
 	// Find FwdRef ops.
 	for _, b := range s.f.Blocks {
@@ -465,7 +466,7 @@ loop:
 			// No variable should be live at entry.
 			s.s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, var_, v)
 		}
-		if !reachable[b.ID] {
+		if !s.reachable[b.ID] {
 			// This block is dead.
 			// It doesn't matter what we use here as long as it is well-formed.
 			v.Op = ssa.OpUnknown
@@ -520,6 +521,11 @@ func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t ssa.Type, var_ *Node,
 			break
 		}
 		b = b.Preds[0].Block()
+		if !s.reachable[b.ID] {
+			// This is rare; it happens with oddly interleaved infinite loops in dead code.
+			// See issue 19783.
+			break
+		}
 	}
 	// Generate a FwdRef for the variable and return that.
 	v := b.NewValue0A(line, ssa.OpFwdRef, t, var_)
