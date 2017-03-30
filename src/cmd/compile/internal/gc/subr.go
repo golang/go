@@ -215,17 +215,13 @@ func lookupf(format string, a ...interface{}) *Sym {
 	return lookup(fmt.Sprintf(format, a...))
 }
 
-func lookupBytes(name []byte) *Sym {
-	return localpkg.LookupBytes(name)
-}
-
 // lookupN looks up the symbol starting with prefix and ending with
 // the decimal n. If prefix is too long, lookupN panics.
 func lookupN(prefix string, n int) *Sym {
 	var buf [20]byte // plenty long enough for all current users
 	copy(buf[:], prefix)
 	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
-	return lookupBytes(b)
+	return localpkg.LookupBytes(b)
 }
 
 // autolabel generates a new Name node for use with
