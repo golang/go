@@ -868,10 +868,10 @@ opswitch:
 		}
 
 		if staticbytes == nil {
-			staticbytes = newname(Pkglookup("staticbytes", Runtimepkg))
+			staticbytes = newname(Runtimepkg.Lookup("staticbytes"))
 			staticbytes.Class = PEXTERN
 			staticbytes.Type = typArray(Types[TUINT8], 256)
-			zerobase = newname(Pkglookup("zerobase", Runtimepkg))
+			zerobase = newname(Runtimepkg.Lookup("zerobase"))
 			zerobase.Class = PEXTERN
 			zerobase.Type = Types[TUINTPTR]
 		}

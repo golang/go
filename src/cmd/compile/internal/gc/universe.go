@@ -85,7 +85,7 @@ func lexinit() {
 		if int(etype) >= len(Types) {
 			Fatalf("lexinit: %s bad etype", s.name)
 		}
-		s2 := Pkglookup(s.name, builtinpkg)
+		s2 := builtinpkg.Lookup(s.name)
 		t := Types[etype]
 		if t == nil {
 			t = typ(etype)
@@ -101,13 +101,13 @@ func lexinit() {
 
 	for _, s := range builtinFuncs {
 		// TODO(marvin): Fix Node.EType type union.
-		s2 := Pkglookup(s.name, builtinpkg)
+		s2 := builtinpkg.Lookup(s.name)
 		s2.Def = newname(s2)
 		s2.Def.Etype = EType(s.op)
 	}
 
 	for _, s := range unsafeFuncs {
-		s2 := Pkglookup(s.name, unsafepkg)
+		s2 := unsafepkg.Lookup(s.name)
 		s2.Def = newname(s2)
 		s2.Def.Etype = EType(s.op)
 	}
@@ -116,13 +116,13 @@ func lexinit() {
 	idealbool = typ(TBOOL)
 	Types[TANY] = typ(TANY)
 
-	s := Pkglookup("true", builtinpkg)
+	s := builtinpkg.Lookup("true")
 	s.Def = nodbool(true)
 	s.Def.Sym = lookup("true")
 	s.Def.Name = new(Name)
 	s.Def.Type = idealbool
 
-	s = Pkglookup("false", builtinpkg)
+	s = builtinpkg.Lookup("false")
 	s.Def = nodbool(false)
 	s.Def.Sym = lookup("false")
 	s.Def.Name = new(Name)
@@ -135,21 +135,21 @@ func lexinit() {
 	s.Def.Type = Types[TBLANK]
 	nblank = s.Def
 
-	s = Pkglookup("_", builtinpkg)
+	s = builtinpkg.Lookup("_")
 	s.Block = -100
 	s.Def = newname(s)
 	Types[TBLANK] = typ(TBLANK)
 	s.Def.Type = Types[TBLANK]
 
 	Types[TNIL] = typ(TNIL)
-	s = Pkglookup("nil", builtinpkg)
+	s = builtinpkg.Lookup("nil")
 	var v Val
 	v.U = new(NilVal)
 	s.Def = nodlit(v)
 	s.Def.Sym = s
 	s.Def.Name = new(Name)
 
-	s = Pkglookup("iota", builtinpkg)
+	s = builtinpkg.Lookup("iota")
 	s.Def = nod(OIOTA, nil, nil)
 	s.Def.Sym = s
 	s.Def.Name = new(Name)
@@ -172,7 +172,7 @@ func typeinit() {
 
 	t := typ(TUNSAFEPTR)
 	Types[TUNSAFEPTR] = t
-	t.Sym = Pkglookup("Pointer", unsafepkg)
+	t.Sym = unsafepkg.Lookup("Pointer")
 	t.Sym.Def = typenod(t)
 	t.Sym.Def.Name = new(Name)
 	dowidth(Types[TUNSAFEPTR])
@@ -384,7 +384,7 @@ func makeErrorInterface() *Type {
 
 func lexinit1() {
 	// error type
-	s := Pkglookup("error", builtinpkg)
+	s := builtinpkg.Lookup("error")
 	errortype = makeErrorInterface()
 	errortype.Sym = s
 	// TODO: If we can prove that it's safe to set errortype.Orig here
@@ -402,14 +402,14 @@ func lexinit1() {
 	// type aliases, albeit at the cost of having to deal with it everywhere).
 
 	// byte alias
-	s = Pkglookup("byte", builtinpkg)
+	s = builtinpkg.Lookup("byte")
 	bytetype = typ(TUINT8)
 	bytetype.Sym = s
 	s.Def = typenod(bytetype)
 	s.Def.Name = new(Name)
 
 	// rune alias
-	s = Pkglookup("rune", builtinpkg)
+	s = builtinpkg.Lookup("rune")
 	runetype = typ(TINT32)
 	runetype.Sym = s
 	s.Def = typenod(runetype)
@@ -417,7 +417,7 @@ func lexinit1() {
 
 	// backend-dependent builtin types (e.g. int).
 	for _, s := range typedefs {
-		s1 := Pkglookup(s.name, builtinpkg)
+		s1 := builtinpkg.Lookup(s.name)
 
 		sameas := s.sameas32
 		if *s.width == 8 {

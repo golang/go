@@ -560,7 +560,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 		spkg = makepartialcall_gopkg
 	}
 
-	sym := Pkglookup(p, spkg)
+	sym := spkg.Lookup(p)
 
 	if sym.Uniq() {
 		return sym.Def

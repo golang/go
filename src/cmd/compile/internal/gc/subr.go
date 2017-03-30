@@ -285,15 +285,11 @@ func (pkg *Pkg) LookupBytes(name []byte) *Sym {
 	return pkg.Lookup(str)
 }
 
-func Pkglookup(name string, pkg *Pkg) *Sym {
-	return pkg.Lookup(name)
-}
-
 func restrictlookup(name string, pkg *Pkg) *Sym {
 	if !exportname(name) && pkg != localpkg {
 		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
 	}
-	return Pkglookup(name, pkg)
+	return pkg.Lookup(name)
 }
 
 // find all the exported symbols in package opkg
@@ -1116,7 +1112,7 @@ func (n *Node) labeledControl() *Node {
 }
 
 func syslook(name string) *Node {
-	s := Pkglookup(name, Runtimepkg)
+	s := Runtimepkg.Lookup(name)
 	if s == nil || s.Def == nil {
 		Fatalf("syslook: can't find runtime.%s", name)
 	}
@@ -1833,7 +1829,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 }
 
 func hashmem(t *Type) *Node {
-	sym := Pkglookup("memhash", Runtimepkg)
+	sym := Runtimepkg.Lookup("memhash")
 
 	n := newname(sym)
 	n.Class = PFUNC
