@@ -24,6 +24,7 @@ func TestDWARF(t *testing.T) {
 		t.Skip("DWARF is not supported on Windows")
 	}
 
+	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
