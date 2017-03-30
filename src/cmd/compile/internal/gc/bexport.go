@@ -265,11 +265,6 @@ func export(out *bufio.Writer, trace bool) int {
 			Fatalf("exporter: unexpected symbol: %v", sym)
 		}
 
-		// TODO(gri) Should we do this check?
-		// if !sym.Export() {
-		// 	continue
-		// }
-
 		if sym.Def == nil {
 			Fatalf("exporter: unknown export symbol: %v", sym)
 		}
@@ -331,11 +326,6 @@ func export(out *bufio.Writer, trace bool) int {
 		if strings.Contains(sym.Name, ".") {
 			Fatalf("exporter: unexpected symbol: %v", sym)
 		}
-
-		// TODO(gri) Should we do this check?
-		// if !sym.Export() {
-		// 	continue
-		// }
 
 		if sym.Def == nil {
 			Fatalf("exporter: unknown export symbol: %v", sym)

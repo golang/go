@@ -61,7 +61,7 @@ type Sym struct {
 }
 
 const (
-	symExport = 1 << iota // to be exported
+	symExport = 1 << iota // added to exportlist (no need to add again)
 	symPackage
 	symExported // already written out by export
 	symUniq
