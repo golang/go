@@ -10,6 +10,11 @@ import (
 	"errors"
 )
 
+// This file contains two implementations of AES-GCM. The first implementation
+// (gcmAsm) uses the KMCTR instruction to encrypt using AES in counter mode and
+// the KIMD instruction for GHASH. The second implementation (gcmKMA) uses the
+// newer KMA instruction which performs both operations.
+
 // gcmCount represents a 16-byte big-endian count value.
 type gcmCount [16]byte
 
@@ -71,12 +76,16 @@ var _ gcmAble = (*aesCipherAsm)(nil)
 func (c *aesCipherAsm) NewGCM(nonceSize int) (cipher.AEAD, error) {
 	var hk gcmHashKey
 	c.Encrypt(hk[:], hk[:])
-	g := &gcmAsm{
+	g := gcmAsm{
 		block:     c,
 		hashKey:   hk,
 		nonceSize: nonceSize,
 	}
-	return g, nil
+	if hasKMA {
+		g := gcmKMA{g}
+		return &g, nil
+	}
+	return &g, nil
 }
 
 func (g *gcmAsm) NonceSize() int {
@@ -266,5 +275,92 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	}
 
 	g.counterCrypt(out, ciphertext, &counter)
+	return ret, nil
+}
+
+// supportsKMA reports whether the message-security-assist 8 facility is available.
+// This function call may be expensive so hasKMA should be queried instead.
+func supportsKMA() bool
+
+// hasKMA contains the result of supportsKMA.
+var hasKMA = supportsKMA()
+
+// gcmKMA implements the cipher.AEAD interface using the KMA instruction. It should
+// only be used if hasKMA is true.
+type gcmKMA struct {
+	gcmAsm
+}
+
+// flags for the KMA instruction
+const (
+	kmaHS      = 1 << 10 // hash subkey supplied
+	kmaLAAD    = 1 << 9  // last series of additional authenticated data
+	kmaLPC     = 1 << 8  // last series of plaintext or ciphertext blocks
+	kmaDecrypt = 1 << 7  // decrypt
+)
+
+// kmaGCM executes the encryption or decryption operation given by fn. The tag
+// will be calculated and written to tag. cnt should contain the current
+// counter state and will be overwritten with the updated counter state.
+// TODO(mundaym): could pass in hash subkey
+//go:noescape
+func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
+
+// Seal encrypts and authenticates plaintext. See the cipher.AEAD interface for
+// details.
+func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
+	if len(nonce) != g.nonceSize {
+		panic("cipher: incorrect nonce length given to GCM")
+	}
+	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
+		panic("cipher: message too large for GCM")
+	}
+
+	ret, out := sliceForAppend(dst, len(plaintext)+gcmTagSize)
+
+	counter := g.deriveCounter(nonce)
+	fc := g.block.function | kmaLAAD | kmaLPC
+
+	var tag [gcmTagSize]byte
+	kmaGCM(fc, g.block.key, out[:len(plaintext)], plaintext, data, &tag, &counter)
+	copy(out[len(plaintext):], tag[:])
+
+	return ret
+}
+
+// Open authenticates and decrypts ciphertext. See the cipher.AEAD interface
+// for details.
+func (g *gcmKMA) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+	if len(nonce) != g.nonceSize {
+		panic("cipher: incorrect nonce length given to GCM")
+	}
+	if len(ciphertext) < gcmTagSize {
+		return nil, errOpen
+	}
+	if uint64(len(ciphertext)) > ((1<<32)-2)*BlockSize+gcmTagSize {
+		return nil, errOpen
+	}
+
+	tag := ciphertext[len(ciphertext)-gcmTagSize:]
+	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
+	ret, out := sliceForAppend(dst, len(ciphertext))
+
+	counter := g.deriveCounter(nonce)
+	fc := g.block.function | kmaLAAD | kmaLPC | kmaDecrypt
+
+	var expectedTag [gcmTagSize]byte
+	kmaGCM(fc, g.block.key, out[:len(ciphertext)], ciphertext, data, &expectedTag, &counter)
+
+	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
+		// The AESNI code decrypts and authenticates concurrently, and
+		// so overwrites dst in the event of a tag mismatch. That
+		// behavior is mimicked here in order to be consistent across
+		// platforms.
+		for i := range out {
+			out[i] = 0
+		}
+		return nil, errOpen
+	}
+
 	return ret, nil
 }
