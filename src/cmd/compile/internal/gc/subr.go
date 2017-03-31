@@ -1783,7 +1783,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		as.Right.Type = rcvr
 		fn.Nbody.Append(as)
 		n := nod(ORETJMP, nil, nil)
-		n.Left = newname(methodsym(method.Sym, methodrcvr, 0))
+		n.Left = newname(methodsym(method.Sym, methodrcvr, false))
 		fn.Nbody.Append(n)
 		// When tail-calling, we can't use a frame pointer.
 		fn.Func.SetNoFramePointer(true)

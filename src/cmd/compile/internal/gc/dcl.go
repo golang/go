@@ -956,28 +956,19 @@ func functypefield0(t *Type, this *Field, in, out []*Field) {
 
 var methodsym_toppkg *Pkg
 
-func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
-	var s *Sym
-	var p string
-	var suffix string
-	var spkg *Pkg
+func methodsym(nsym *Sym, t0 *Type, iface bool) *Sym {
+	if t0 == nil {
+		Fatalf("methodsym: nil receiver type")
+	}
 
 	t := t0
-	if t == nil {
-		goto bad
-	}
-	s = t.Sym
+	s := t.Sym
 	if s == nil && t.IsPtr() {
 		t = t.Elem()
 		if t == nil {
-			goto bad
+			Fatalf("methodsym: ptrto nil")
 		}
 		s = t.Sym
-	}
-
-	spkg = nil
-	if s != nil {
-		spkg = s.Pkg
 	}
 
 	// if t0 == *t and t0 has a sym,
@@ -986,26 +977,27 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 		t0 = typPtr(t)
 	}
 
-	suffix = ""
-	if iface != 0 {
+	suffix := ""
+	if iface {
 		dowidth(t0)
 		if t0.Width < int64(Widthptr) {
 			suffix = "·i"
 		}
 	}
 
+	var spkg *Pkg
+	if s != nil {
+		spkg = s.Pkg
+	}
+	pkgprefix := ""
 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
-		if t0.Sym == nil && t0.IsPtr() {
-			p = fmt.Sprintf("(%-S).%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
-		} else {
-			p = fmt.Sprintf("%-S.%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
-		}
+		pkgprefix = "." + nsym.Pkg.Prefix
+	}
+	var p string
+	if t0.Sym == nil && t0.IsPtr() {
+		p = fmt.Sprintf("(%-S)%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
 	} else {
-		if t0.Sym == nil && t0.IsPtr() {
-			p = fmt.Sprintf("(%-S).%s%s", t0, nsym.Name, suffix)
-		} else {
-			p = fmt.Sprintf("%-S.%s%s", t0, nsym.Name, suffix)
-		}
+		p = fmt.Sprintf("%-S%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
 	}
 
 	if spkg == nil {
@@ -1015,13 +1007,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 		spkg = methodsym_toppkg
 	}
 
-	s = spkg.Lookup(p)
-
-	return s
-
-bad:
-	yyerror("illegal receiver type: %v", t0)
-	return nil
+	return spkg.Lookup(p)
 }
 
 // methodname is a misnomer because this now returns a Sym, rather
