@@ -207,9 +207,10 @@ func TestLineBreaker(t *testing.T) {
 
 func TestFuzz(t *testing.T) {
 	testRoundtrip := func(block Block) bool {
-		for key := range block.Headers {
-			if strings.Contains(key, ":") {
-				// Keys with colons cannot be encoded.
+		for key, val := range block.Headers {
+			if strings.ContainsAny(key, ":\r\n") || strings.ContainsAny(val, "\r\n") || strings.TrimSpace(key) != key || strings.TrimSpace(val) != val {
+				// Keys with colons or newlines cannot be encoded.
+				// Keys/values with surrounding spaces might lose theirs.
 				return true
 			}
 		}
