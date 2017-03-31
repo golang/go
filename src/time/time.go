@@ -798,6 +798,12 @@ func (d Duration) Truncate(m Duration) Duration {
 	return d - d%m
 }
 
+// lessThanHalf reports whether x+x < y but avoids overflow,
+// assuming x and y are both positive (Duration is signed).
+func lessThanHalf(x, y Duration) bool {
+	return uint64(x)+uint64(x) < uint64(y)
+}
+
 // Round returns the result of rounding d to the nearest multiple of m.
 // The rounding behavior for halfway values is to round away from zero.
 // If the result exceeds the maximum (or minimum)
@@ -811,7 +817,7 @@ func (d Duration) Round(m Duration) Duration {
 	r := d % m
 	if d < 0 {
 		r = -r
-		if r+r < m {
+		if lessThanHalf(r, m) {
 			return d + r
 		}
 		if d1 := d - m + r; d1 < d {
@@ -819,7 +825,7 @@ func (d Duration) Round(m Duration) Duration {
 		}
 		return minDuration // overflow
 	}
-	if r+r < m {
+	if lessThanHalf(r, m) {
 		return d - r
 	}
 	if d1 := d + m - r; d1 > d {
@@ -1400,7 +1406,7 @@ func (t Time) Round(d Duration) Time {
 		return t
 	}
 	_, r := div(t, d)
-	if r+r < d {
+	if lessThanHalf(r, d) {
 		return t.Add(-r)
 	}
 	return t.Add(d - r)
