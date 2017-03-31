@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/internal/gcprog"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 	"fmt"
 	"os"
 	"sort"
@@ -936,7 +937,7 @@ func typenamesym(t *Type) *Sym {
 	}
 	s := typesym(t)
 	if s.Def == nil {
-		n := newname(s)
+		n := newnamel(src.NoXPos, s)
 		n.Type = Types[TUINT8]
 		n.Class = PEXTERN
 		n.Typecheck = 1
