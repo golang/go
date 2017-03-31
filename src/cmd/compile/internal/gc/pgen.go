@@ -207,7 +207,6 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		if ls, ok := l.(ssa.LocalSlot); ok {
 			ls.N.(*Node).SetUsed(true)
 		}
-
 	}
 
 	scratchUsed := false
@@ -215,7 +214,11 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		for _, v := range b.Values {
 			switch a := v.Aux.(type) {
 			case *ssa.ArgSymbol:
-				a.Node.(*Node).SetUsed(true)
+				n := a.Node.(*Node)
+				// Don't modify nodfp; it is a global.
+				if n != nodfp {
+					n.SetUsed(true)
+				}
 			case *ssa.AutoSymbol:
 				a.Node.(*Node).SetUsed(true)
 			}
