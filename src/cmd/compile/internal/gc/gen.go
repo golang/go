@@ -195,12 +195,12 @@ func autotmpname(n int) string {
 }
 
 // make a new Node off the books
-func tempname(nn *Node, t *Type) {
-	if Curfn == nil {
+func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *Type) {
+	if curfn == nil {
 		Fatalf("no curfn for tempname")
 	}
-	if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
-		Dump("tempname", Curfn)
+	if curfn.Func.Closure != nil && curfn.Op == OCLOSURE {
+		Dump("tempname", curfn)
 		Fatalf("adding tempname to wrong closure function")
 	}
 	if t == nil {
@@ -208,17 +208,17 @@ func tempname(nn *Node, t *Type) {
 	}
 
 	s := &Sym{
-		Name: autotmpname(len(Curfn.Func.Dcl)),
+		Name: autotmpname(len(curfn.Func.Dcl)),
 		Pkg:  localpkg,
 	}
-	n := newname(s)
+	n := newnamel(pos, s)
 	s.Def = n
 	n.Type = t
 	n.Class = PAUTO
 	n.Esc = EscNever
-	n.Name.Curfn = Curfn
+	n.Name.Curfn = curfn
 	n.Name.SetAutoTemp(true)
-	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
+	curfn.Func.Dcl = append(curfn.Func.Dcl, n)
 
 	dowidth(t)
 	*nn = *n
@@ -226,16 +226,14 @@ func tempname(nn *Node, t *Type) {
 
 func temp(t *Type) *Node {
 	var n Node
-	tempname(&n, t)
+	tempnamel(lineno, Curfn, &n, t)
 	n.Sym.Def.SetUsed(true)
 	return n.Orig
 }
 
 func tempAt(pos src.XPos, curfn *Node, t *Type) *Node {
-	// TODO(mdempsky/josharian): Remove all reads and writes of lineno and Curfn.
-	lineno = pos
-	Curfn = curfn
-	n := temp(t)
-	Curfn = nil
-	return n
+	var n Node
+	tempnamel(pos, curfn, &n, t)
+	n.Sym.Def.SetUsed(true)
+	return n.Orig
 }

@@ -365,8 +365,16 @@ func nodl(pos src.XPos, op Op, nleft, nright *Node) *Node {
 
 // newname returns a new ONAME Node associated with symbol s.
 func newname(s *Sym) *Node {
+	n := newnamel(lineno, s)
+	n.Name.Curfn = Curfn
+	return n
+}
+
+// newname returns a new ONAME Node associated with symbol s at position pos.
+// The caller is responsible for setting n.Name.Curfn.
+func newnamel(pos src.XPos, s *Sym) *Node {
 	if s == nil {
-		Fatalf("newname nil")
+		Fatalf("newnamel nil")
 	}
 
 	var x struct {
@@ -379,8 +387,7 @@ func newname(s *Sym) *Node {
 	n.Name.Param = &x.Param
 
 	n.Op = ONAME
-	n.Pos = lineno
-	n.Name.Curfn = Curfn
+	n.Pos = pos
 	n.Orig = n
 
 	n.Sym = s
