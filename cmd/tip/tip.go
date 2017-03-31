@@ -56,15 +56,14 @@ func main() {
 
 	p := &Proxy{builder: b}
 	go p.run()
-	http.Handle("/", httpsOnlyHandler{p})
-	http.HandleFunc("/_ah/health", p.serveHealthCheck)
+	mux := newServeMux(p)
 
 	log.Printf("Starting up tip server for builder %q", os.Getenv(k))
 
 	errc := make(chan error)
 
 	go func() {
-		errc <- http.ListenAndServe(":8080", nil)
+		errc <- http.ListenAndServe(":8080", mux)
 	}()
 	if *autoCertDomain != "" {
 		log.Printf("Listening on port 443 with LetsEncrypt support on domain %q", *autoCertDomain)
@@ -74,6 +73,7 @@ func main() {
 		}
 		s := &http.Server{
 			Addr:      ":https",
+			Handler:   mux,
 			TLSConfig: &tls.Config{GetCertificate: m.GetCertificate},
 		}
 		go func() {
@@ -245,6 +245,13 @@ func (p *Proxy) poll() {
 	p.cmd = cmd
 }
 
+func newServeMux(p *Proxy) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/", httpsOnlyHandler{p})
+	mux.HandleFunc("/_ah/health", p.serveHealthCheck)
+	return mux
+}
+
 func waitReady(b Builder, hostport string) error {
 	var err error
 	deadline := time.Now().Add(startTimeout)
@@ -360,20 +367,36 @@ func getOK(url string) (body []byte, err error) {
 	return body, nil
 }
 
-// httpsOnlyHandler redirects requests to "http://example.com/foo?bar"
-// to "https://example.com/foo?bar"
+// httpsOnlyHandler redirects requests to "http://example.com/foo?bar" to
+// "https://example.com/foo?bar". It should be used when the server is listening
+// for HTTP traffic behind a proxy that terminates TLS traffic, not when the Go
+// server is terminating TLS directly.
 type httpsOnlyHandler struct {
 	h http.Handler
 }
 
+// isProxiedReq checks whether the server is running behind a proxy that may be
+// terminating TLS.
+func isProxiedReq(r *http.Request) bool {
+	if _, ok := r.Header["X-Appengine-Https"]; ok {
+		return true
+	}
+	if _, ok := r.Header["X-Forwarded-Proto"]; ok {
+		return true
+	}
+	return false
+}
+
 func (h httpsOnlyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("X-Appengine-Https") == "off" {
+	if r.Header.Get("X-Appengine-Https") == "off" || r.Header.Get("X-Forwarded-Proto") == "http" ||
+		(!isProxiedReq(r) && r.TLS == nil) {
 		r.URL.Scheme = "https"
 		r.URL.Host = r.Host
 		http.Redirect(w, r, r.URL.String(), http.StatusFound)
 		return
 	}
-	if r.Header.Get("X-Appengine-Https") == "on" {
+	if r.Header.Get("X-Appengine-Https") == "on" || r.Header.Get("X-Forwarded-Proto") == "https" ||
+		(!isProxiedReq(r) && r.TLS != nil) {
 		// Only set this header when we're actually in production.
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000; preload")
 	}
