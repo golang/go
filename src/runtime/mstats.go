@@ -94,11 +94,23 @@ type mstats struct {
 	last_gc_nanotime uint64 // last gc (monotonic time)
 	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
 
+	// triggerRatio is the heap growth ratio that triggers marking.
+	//
+	// E.g., if this is 0.6, then GC should start when the live
+	// heap has reached 1.6 times the heap size marked by the
+	// previous cycle. This should be ≤ GOGC/100 so the trigger
+	// heap size is less than the goal heap size. This is set
+	// during mark termination for the next cycle's trigger.
+	triggerRatio float64
+
 	// gc_trigger is the heap size that triggers marking.
 	//
 	// When heap_live ≥ gc_trigger, the mark phase will start.
 	// This is also the heap size by which proportional sweeping
 	// must be complete.
+	//
+	// This is computed from triggerRatio during mark termination
+	// for the next cycle's trigger.
 	gc_trigger uint64
 
 	// heap_live is the number of bytes considered live by the GC.
