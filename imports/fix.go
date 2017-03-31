@@ -73,8 +73,11 @@ type packageInfo struct {
 	Globals map[string]bool // symbol => true
 }
 
-// dirPackageInfo gets information from other files in the package.
-func dirPackageInfo(srcDir, filename string) (*packageInfo, error) {
+// dirPackageInfo exposes the dirPackageInfoFile function so that it can be overridden.
+var dirPackageInfo = dirPackageInfoFile
+
+// dirPackageInfoFile gets information from other files in the package.
+func dirPackageInfoFile(pkgName, srcDir, filename string) (*packageInfo, error) {
 	considerTests := strings.HasSuffix(filename, "_test.go")
 
 	// Handle file from stdin
@@ -178,7 +181,7 @@ func fixImports(fset *token.FileSet, f *ast.File, filename string) (added []stri
 			}
 			if !loadedPackageInfo {
 				loadedPackageInfo = true
-				packageInfo, _ = dirPackageInfo(srcDir, filename)
+				packageInfo, _ = dirPackageInfo(f.Name.Name, srcDir, filename)
 			}
 			if decls[pkgName] == nil && (packageInfo == nil || !packageInfo.Globals[pkgName]) {
 				refs[pkgName][v.Sel.Name] = true
