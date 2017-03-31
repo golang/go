@@ -564,39 +564,49 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 	//Transport Name:   Disconnected
 	//
 	want := make(map[string]string)
-	var name string
+	group := make(map[string]string) // name / values for single adapter
+	getValue := func(name string) string {
+		value, found := group[name]
+		if !found {
+			t.Fatalf("%q has no %q line in it", group, name)
+		}
+		if value == "" {
+			t.Fatalf("%q has empty %q value", group, name)
+		}
+		return value
+	}
+	processGroup := func() {
+		if len(group) == 0 {
+			return
+		}
+		tname := strings.ToLower(getValue("Transport Name"))
+		if tname == "n/a" {
+			// skip these
+			return
+		}
+		addr := strings.ToLower(getValue("Physical Address"))
+		if addr == "disabled" || addr == "n/a" {
+			// skip these
+			return
+		}
+		addr = strings.Replace(addr, "-", ":", -1)
+		cname := getValue("Connection Name")
+		want[cname] = addr
+		group = nil
+	}
 	lines := bytes.Split(out, []byte{'\r', '\n'})
 	for _, line := range lines {
-		if bytes.Contains(line, []byte("Connection Name:")) {
-			f := bytes.Split(line, []byte{':'})
-			if len(f) != 2 {
-				t.Fatalf("unexpected \"Connection Name\" line: %q", line)
-			}
-			name = string(bytes.TrimSpace(f[1]))
-			if name == "" {
-				t.Fatalf("empty name on \"Connection Name\" line: %q", line)
-			}
+		if len(line) == 0 {
+			processGroup()
+			continue
 		}
-		if bytes.Contains(line, []byte("Physical Address:")) {
-			if name == "" {
-				t.Fatalf("no matching name found: %q", string(out))
-			}
-			f := bytes.Split(line, []byte{':'})
-			if len(f) != 2 {
-				t.Fatalf("unexpected \"Physical Address\" line: %q", line)
-			}
-			addr := string(bytes.ToLower(bytes.TrimSpace(f[1])))
-			if addr == "" {
-				t.Fatalf("empty address on \"Physical Address\" line: %q", line)
-			}
-			if addr == "disabled" || addr == "n/a" {
-				continue
-			}
-			addr = strings.Replace(addr, "-", ":", -1)
-			want[name] = addr
-			name = ""
+		i := bytes.IndexByte(line, ':')
+		if i == -1 {
+			t.Fatalf("line %q has no : in it", line)
 		}
+		group[string(line[:i])] = string(bytes.TrimSpace(line[i+1:]))
 	}
+	processGroup()
 
 	for name, wantAddr := range want {
 		haveAddr, ok := have[name]
