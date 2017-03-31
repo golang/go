@@ -297,7 +297,10 @@ func TestUnshareMountNameSpace(t *testing.T) {
 
 	o, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("unshare failed: %v, %v", o, err)
+		if strings.Contains(err.Error(), ": permission denied") {
+			t.Skipf("Skipping test (golang.org/issue/19698); unshare failed due to permissions: %s, %v", o, err)
+		}
+		t.Fatalf("unshare failed: %s, %v", o, err)
 	}
 
 	// How do we tell if the namespace was really unshared? It turns out
