@@ -2384,7 +2384,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 			return false
 		}
 
-		n.Sym = methodsym(n.Sym, t, 0)
+		n.Sym = methodsym(n.Sym, t, false)
 		n.Xoffset = f1.Offset
 		n.Type = f1.Type
 		n.Op = ODOTINTER
@@ -2410,7 +2410,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 		return false
 	}
 
-	n.Sym = methodsym(n.Sym, t, 0)
+	n.Sym = methodsym(n.Sym, t, false)
 	n.Xoffset = f2.Offset
 	n.Type = f2.Type
 	n.Op = ODOTMETH
@@ -2529,7 +2529,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 			return nil
 		}
 
-		n.Sym = methodsym(n.Sym, n.Left.Type, 0)
+		n.Sym = methodsym(n.Sym, n.Left.Type, false)
 		n.Xoffset = f2.Offset
 		n.Type = f2.Type
 

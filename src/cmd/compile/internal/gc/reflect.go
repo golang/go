@@ -356,8 +356,8 @@ func methods(t *Type) []*Sig {
 			sig.pkg = method.Pkg
 		}
 
-		sig.isym = methodsym(method, it, 1)
-		sig.tsym = methodsym(method, t, 0)
+		sig.isym = methodsym(method, it, true)
+		sig.tsym = methodsym(method, t, false)
 		sig.type_ = methodfunc(f.Type, t)
 		sig.mtype = methodfunc(f.Type, nil)
 
@@ -423,7 +423,7 @@ func imethods(t *Type) []*Sig {
 		// IfaceType.Method is not in the reflect data.
 		// Generate the method body, so that compiled
 		// code can refer to it.
-		isym := methodsym(method, t, 0)
+		isym := methodsym(method, t, false)
 		if !isym.Siggen() {
 			isym.SetSiggen(true)
 			genwrapper(t, f, isym, 0)
