@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
+	"time"
 )
 
 var defaultMaxCount *int = flag.Int("quickchecks", 100, "The default number of iterations for each check")
@@ -43,8 +44,14 @@ func randFloat64(rand *rand.Rand) float64 {
 	return f
 }
 
-// randInt64 returns a random integer taking half the range of an int64.
-func randInt64(rand *rand.Rand) int64 { return rand.Int63() - 1<<62 }
+// randInt64 returns a random int64.
+func randInt64(rand *rand.Rand) int64 {
+	x := rand.Int63() - 1<<62
+	// x in [-2⁶²,2⁶²), so top two bits are 00 or 11, never 10 or 01.
+	// Mix in some bits from the middle.
+	x ^= x<<29 ^ x<<43
+	return x
+}
 
 // complexSize is the maximum length of arbitrary values that contain other
 // values.
@@ -193,7 +200,7 @@ var defaultConfig Config
 // getRand returns the *rand.Rand to use for a given Config.
 func (c *Config) getRand() *rand.Rand {
 	if c.Rand == nil {
-		return rand.New(rand.NewSource(0))
+		return rand.New(rand.NewSource(time.Now().UnixNano()))
 	}
 	return c.Rand
 }
