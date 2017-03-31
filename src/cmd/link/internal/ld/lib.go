@@ -647,6 +647,12 @@ func (ctxt *Link) loadlib() {
 				if !s.Attr.OnList() {
 					ctxt.Textp = append(ctxt.Textp, s)
 					s.Attr |= AttrOnList
+					// dupok symbols may be defined in multiple packages. its
+					// associated package is chosen sort of arbitrarily (the
+					// first containing package that the linker loads). canonicalize
+					// it here to the package with which it will be laid down
+					// in text.
+					s.File = pathtoprefix(lib.Pkg)
 				}
 			}
 		}
