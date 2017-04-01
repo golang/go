@@ -44,6 +44,9 @@ func testFile(t *testing.T, fh *FileHeader, efn, econtent string) File {
 	if fh.Filename != efn {
 		t.Errorf("filename = %q, want %q", fh.Filename, efn)
 	}
+	if fh.Size != int64(len(econtent)) {
+		t.Errorf("size = %d, want %d", fh.Size, len(econtent))
+	}
 	f, err := fh.Open()
 	if err != nil {
 		t.Fatal("opening file:", err)
