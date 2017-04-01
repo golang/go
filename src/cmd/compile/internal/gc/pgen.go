@@ -327,7 +327,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
 		switch n.Class {
 		case PAUTO:
 			if !n.Used() {
-				continue
+				Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
 			}
 			name = obj.NAME_AUTO
 
