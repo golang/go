@@ -942,7 +942,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
 	}
 
 	// Add static entries.
-	if len(stat) > 0 {
+	if len(stat) > 25 {
+		// For a large number of static entries, put them in an array and loop.
+
 		// build types [count]Tindex and [count]Tvalue
 		tk := typArray(n.Type.Key(), int64(len(stat)))
 		tv := typArray(n.Type.Val(), int64(len(stat)))
@@ -1000,6 +1002,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		loop = typecheck(loop, Etop)
 		loop = walkstmt(loop)
 		init.Append(loop)
+	} else {
+		// For a small number of static entries, just add them directly.
+		addMapEntries(m, stat, init)
 	}
 
 	// Add dynamic entries.
