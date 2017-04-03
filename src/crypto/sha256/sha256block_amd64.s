@@ -559,11 +559,8 @@
 	ADDL  y3, h                        // h = t1 + S0 + MAJ					// --
 
 TEXT ·block(SB), 0, $536-32
-	CMPB runtime·support_avx2(SB), $0
-	JE   noavx2bmi2
-	CMPB runtime·support_bmi2(SB), $1  // check for RORXL instruction
+	CMPB ·useAVX2(SB), $1
 	JE   avx2
-noavx2bmi2:
 
 	MOVQ p_base+8(FP), SI
 	MOVQ p_len+16(FP), DX

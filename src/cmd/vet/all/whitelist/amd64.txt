@@ -15,10 +15,6 @@ runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument fram
 runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package strings
 runtime/asm_amd64.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
 runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package bytes
-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportAVX2 is in package strings
-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportAVX2 is in package bytes
-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportPOPCNT is in package strings
-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportPOPCNT is in package bytes
 runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: countByte is in package strings
 runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: countByte is in package bytes
 

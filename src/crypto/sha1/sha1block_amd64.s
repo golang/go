@@ -1457,23 +1457,6 @@ TEXT ·blockAVX2(SB),$1408-32
 
 	CALC // RET is inside macros
 
-
-// func checkAVX2() bool
-// returns whether AVX2, BMI1 and BMI2 are supported
-TEXT ·checkAVX2(SB),NOSPLIT,$0
-	CMPB runtime·support_avx2(SB), $0
-	JE   noavx2
-	CMPB runtime·support_bmi1(SB), $0  // check for ANDNL instruction
-	JE   noavx2
-	CMPB runtime·support_bmi2(SB), $0  // check for RORXL instruction
-	JE   noavx2
-        MOVB    $1, ret+0(FP)
-	RET
-noavx2:
-        MOVB    $0, ret+0(FP)
-	RET
-
-
 DATA K_XMM_AR<>+0x00(SB)/4,$0x5a827999
 DATA K_XMM_AR<>+0x04(SB)/4,$0x5a827999
 DATA K_XMM_AR<>+0x08(SB)/4,$0x5a827999

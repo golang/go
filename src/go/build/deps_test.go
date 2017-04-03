@@ -43,6 +43,7 @@ var pkgDeps = map[string][]string{
 	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
 	"sync/atomic":             {"unsafe"},
 	"unsafe":                  {},
+	"internal/cpu":            {"runtime"},
 
 	"L0": {
 		"errors",
@@ -52,11 +53,12 @@ var pkgDeps = map[string][]string{
 		"sync",
 		"sync/atomic",
 		"unsafe",
+		"internal/cpu",
 	},
 
 	// L1 adds simple functions and strings processing,
 	// but not Unicode tables.
-	"math":          {"unsafe"},
+	"math":          {"internal/cpu", "unsafe"},
 	"math/bits":     {},
 	"math/cmplx":    {"math"},
 	"math/rand":     {"L0", "math"},

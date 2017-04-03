@@ -4,19 +4,19 @@
 
 package bytes
 
+import "internal/cpu"
+
 //go:noescape
 
 // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
 // indexShortStr requires 2 <= len(c) <= shortStringLen
-func indexShortStr(s, c []byte) int  // ../runtime/asm_$GOARCH.s
-func supportAVX2() bool              // ../runtime/asm_$GOARCH.s
-func supportPOPCNT() bool            // ../runtime/asm_$GOARCH.s
-func countByte(s []byte, c byte) int // ../runtime/asm_$GOARCH.s
+func indexShortStr(s, c []byte) int  // ../runtime/asm_amd64.s
+func countByte(s []byte, c byte) int // ../runtime/asm_amd64.s
 
 var shortStringLen int
 
 func init() {
-	if supportAVX2() {
+	if cpu.X86.HasAVX2 {
 		shortStringLen = 63
 	} else {
 		shortStringLen = 31
@@ -99,7 +99,7 @@ func Index(s, sep []byte) int {
 // Count counts the number of non-overlapping instances of sep in s.
 // If sep is an empty slice, Count returns 1 + the number of Unicode code points in s.
 func Count(s, sep []byte) int {
-	if len(sep) == 1 && supportPOPCNT() {
+	if len(sep) == 1 && cpu.X86.HasPOPCNT {
 		return countByte(s, sep[0])
 	}
 	return countGeneric(s, sep)

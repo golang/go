@@ -6,20 +6,9 @@
 
 #define Big		0x4330000000000000 // 2**52
 
-// func hasSSE4() bool
-// returns whether SSE4.1 is supported
-TEXT ·hasSSE4(SB),NOSPLIT,$0
-	XORQ AX, AX
-	INCL AX
-	CPUID
-	SHRQ $19, CX
-	ANDQ $1, CX
-	MOVB CX, ret+0(FP)
-	RET
-
 // func Floor(x float64) float64
 TEXT ·Floor(SB),NOSPLIT,$0
-	CMPB    math·useSSE4(SB), $1
+	CMPB    ·useSSE41(SB), $1
 	JNE     nosse4
 	ROUNDSD $1, x+0(FP), X0
 	MOVQ X0, ret+8(FP)
@@ -47,7 +36,7 @@ isBig_floor:
 
 // func Ceil(x float64) float64
 TEXT ·Ceil(SB),NOSPLIT,$0
-	CMPB    math·useSSE4(SB), $1
+	CMPB    ·useSSE41(SB), $1
 	JNE     nosse4
 	ROUNDSD $2, x+0(FP), X0
 	MOVQ X0, ret+8(FP)
