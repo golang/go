@@ -588,15 +588,6 @@ func (c *gcControllerState) endCycle() float64 {
 	// Finally, we adjust the trigger for next time by this error,
 	// damped by the proportional gain.
 	triggerRatio := memstats.triggerRatio + triggerGain*triggerError
-	if triggerRatio < 0 {
-		// This can happen if the mutator is allocating very
-		// quickly or the GC is scanning very slowly.
-		triggerRatio = 0
-	} else if triggerRatio > goalGrowthRatio*0.95 {
-		// Ensure there's always a little margin so that the
-		// mutator assist ratio isn't infinity.
-		triggerRatio = goalGrowthRatio * 0.95
-	}
 
 	if debug.gcpacertrace > 0 {
 		// Print controller state in terms of the design
@@ -763,6 +754,104 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		traceGoUnpark(gp, 0)
 	}
 	return gp
+}
+
+// gcSetTriggerRatio sets the trigger ratio and updates everything
+// derived from it: the absolute trigger, the heap goal, and sweep
+// pacing.
+//
+// GC must *not* be in the middle of marking or sweeping.
+//
+// This depends on gcpercent, memstats.heap_marked, and
+// memstats.heap_live. These must be up to date.
+//
+// mheap_.lock must be held or the world must be stopped.
+func gcSetTriggerRatio(triggerRatio float64) {
+	// Set the trigger ratio, capped to reasonable bounds.
+	if triggerRatio < 0 {
+		// This can happen if the mutator is allocating very
+		// quickly or the GC is scanning very slowly.
+		triggerRatio = 0
+	} else if gcpercent >= 0 {
+		// Ensure there's always a little margin so that the
+		// mutator assist ratio isn't infinity.
+		maxTriggerRatio := 0.95 * float64(gcpercent) / 100
+		if triggerRatio > maxTriggerRatio {
+			triggerRatio = maxTriggerRatio
+		}
+	}
+	memstats.triggerRatio = triggerRatio
+
+	// Compute the absolute GC trigger from the trigger ratio.
+	//
+	// We trigger the next GC cycle when the allocated heap has
+	// grown by the trigger ratio over the marked heap size.
+	trigger := ^uint64(0)
+	if gcpercent >= 0 {
+		trigger = uint64(float64(memstats.heap_marked) * (1 + triggerRatio))
+		// Don't trigger below the minimum heap size.
+		minTrigger := heapminimum
+		if !gosweepdone() {
+			// Concurrent sweep happens in the heap growth
+			// from heap_live to gc_trigger, so ensure
+			// that concurrent sweep has some heap growth
+			// in which to perform sweeping before we
+			// start the next GC cycle.
+			sweepMin := atomic.Load64(&memstats.heap_live) + sweepMinHeapDistance*uint64(gcpercent)/100
+			if sweepMin > minTrigger {
+				minTrigger = sweepMin
+			}
+		}
+		if trigger < minTrigger {
+			trigger = minTrigger
+		}
+		if int64(trigger) < 0 {
+			print("runtime: next_gc=", memstats.next_gc, " heap_marked=", memstats.heap_marked, " heap_live=", memstats.heap_live, " initialHeapLive=", work.initialHeapLive, "triggerRatio=", triggerRatio, " minTrigger=", minTrigger, "\n")
+			throw("gc_trigger underflow")
+		}
+	}
+	memstats.gc_trigger = trigger
+
+	// Compute the next GC goal, which is when the allocated heap
+	// has grown by GOGC/100 over the heap marked by the last
+	// cycle.
+	goal := ^uint64(0)
+	if gcpercent >= 0 {
+		goal = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
+		if goal < trigger {
+			// The trigger ratio is always less than GOGC/100, but
+			// other bounds on the trigger may have raised it.
+			// Push up the goal, too.
+			goal = trigger
+		}
+	}
+	memstats.next_gc = goal
+	if trace.enabled {
+		traceNextGC()
+	}
+
+	// Compute the sweep pacing.
+	if gosweepdone() {
+		mheap_.sweepPagesPerByte = 0
+		mheap_.pagesSwept = 0
+	} else {
+		// Concurrent sweep needs to sweep all of the in-use
+		// pages by the time the allocated heap reaches the GC
+		// trigger. Compute the ratio of in-use pages to sweep
+		// per byte allocated.
+		heapDistance := int64(trigger) - int64(atomic.Load64(&memstats.heap_live))
+		// Add a little margin so rounding errors and
+		// concurrent sweep are less likely to leave pages
+		// unswept when GC starts.
+		heapDistance -= 1024 * 1024
+		if heapDistance < _PageSize {
+			// Avoid setting the sweep ratio extremely high
+			heapDistance = _PageSize
+		}
+		mheap_.sweepPagesPerByte = float64(mheap_.pagesInUse) / float64(heapDistance)
+		mheap_.pagesSwept = 0
+		mheap_.spanBytesAlloc = 0
+	}
 }
 
 // gcGoalUtilization is the goal CPU utilization for background
@@ -1373,7 +1462,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	// we don't need to scan gc's internal state).  We also
 	// need to switch to g0 so we can shrink the stack.
 	systemstack(func() {
-		gcMark(startTime, nextTriggerRatio)
+		gcMark(startTime)
 		// Must return immediately.
 		// The outer function's stack may have moved
 		// during gcMark (it shrinks stacks, including the
@@ -1391,7 +1480,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 			// the concurrent mark process.
 			gcResetMarkState()
 			initCheckmarks()
-			gcMark(startTime, memstats.triggerRatio)
+			gcMark(startTime)
 			clearCheckmarks()
 		}
 
@@ -1411,7 +1500,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 			// At this point all objects will be found during the gcMark which
 			// does a complete STW mark and object scan.
 			setGCPhase(_GCmarktermination)
-			gcMark(startTime, memstats.triggerRatio)
+			gcMark(startTime)
 			setGCPhase(_GCoff) // marking is done, turn off wb.
 			gcSweep(work.mode)
 		}
@@ -1430,6 +1519,9 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	if gcphase != _GCoff {
 		throw("gc done but gcphase != _GCoff")
 	}
+
+	// Update GC trigger and pacing for the next cycle.
+	gcSetTriggerRatio(nextTriggerRatio)
 
 	// Update timing memstats
 	now := nanotime()
@@ -1757,9 +1849,8 @@ func gcMarkWorkAvailable(p *p) bool {
 // gcMark runs the mark (or, for concurrent GC, mark termination)
 // All gcWork caches must be empty.
 // STW is in effect at this point.
-// It sets the trigger for the next cycle using nextTriggerRatio.
 //TODO go:nowritebarrier
-func gcMark(start_time int64, nextTriggerRatio float64) {
+func gcMark(start_time int64) {
 	if debug.allocfreetrace > 0 {
 		tracegc()
 	}
@@ -1855,55 +1946,14 @@ func gcMark(start_time int64, nextTriggerRatio float64) {
 	// Update the marked heap stat.
 	memstats.heap_marked = work.bytesMarked
 
-	// Update the GC trigger ratio.
-	memstats.triggerRatio = nextTriggerRatio
-
-	// Trigger the next GC cycle when the allocated heap has grown
-	// by triggerRatio over the marked heap size. Assume that
-	// we're in steady state, so the marked heap size is the
-	// same now as it was at the beginning of the GC cycle.
-	memstats.gc_trigger = uint64(float64(memstats.heap_marked) * (1 + memstats.triggerRatio))
-	if memstats.gc_trigger < heapminimum {
-		memstats.gc_trigger = heapminimum
-	}
-	if int64(memstats.gc_trigger) < 0 {
-		print("next_gc=", memstats.next_gc, " bytesMarked=", work.bytesMarked, " heap_live=", memstats.heap_live, " initialHeapLive=", work.initialHeapLive, "\n")
-		throw("gc_trigger underflow")
-	}
-
 	// Update other GC heap size stats. This must happen after
 	// cachestats (which flushes local statistics to these) and
 	// flushallmcaches (which modifies heap_live).
 	memstats.heap_live = work.bytesMarked
 	memstats.heap_scan = uint64(gcController.scanWork)
 
-	minTrigger := memstats.heap_live + sweepMinHeapDistance*uint64(gcpercent)/100
-	if memstats.gc_trigger < minTrigger {
-		// The allocated heap is already past the trigger.
-		// This can happen if the triggerRatio is very low and
-		// the marked heap is less than the live heap size.
-		//
-		// Concurrent sweep happens in the heap growth from
-		// heap_live to gc_trigger, so bump gc_trigger up to ensure
-		// that concurrent sweep has some heap growth in which
-		// to perform sweeping before we start the next GC
-		// cycle.
-		memstats.gc_trigger = minTrigger
-	}
-
-	// The next GC cycle should finish before the allocated heap
-	// has grown by GOGC/100.
-	memstats.next_gc = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
-	if gcpercent < 0 {
-		memstats.next_gc = ^uint64(0)
-	}
-	if memstats.next_gc < memstats.gc_trigger {
-		memstats.next_gc = memstats.gc_trigger
-	}
-
 	if trace.enabled {
 		traceHeapAlloc()
-		traceNextGC()
 	}
 }
 
@@ -1945,23 +1995,6 @@ func gcSweep(mode gcMode) {
 		mProf_Flush()
 		return
 	}
-
-	// Concurrent sweep needs to sweep all of the in-use pages by
-	// the time the allocated heap reaches the GC trigger. Compute
-	// the ratio of in-use pages to sweep per byte allocated.
-	heapDistance := int64(memstats.gc_trigger) - int64(memstats.heap_live)
-	// Add a little margin so rounding errors and concurrent
-	// sweep are less likely to leave pages unswept when GC starts.
-	heapDistance -= 1024 * 1024
-	if heapDistance < _PageSize {
-		// Avoid setting the sweep ratio extremely high
-		heapDistance = _PageSize
-	}
-	lock(&mheap_.lock)
-	mheap_.sweepPagesPerByte = float64(mheap_.pagesInUse) / float64(heapDistance)
-	mheap_.pagesSwept = 0
-	mheap_.spanBytesAlloc = 0
-	unlock(&mheap_.lock)
 
 	// Background sweep.
 	lock(&sweep.lock)
