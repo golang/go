@@ -75,8 +75,26 @@ type mheap struct {
 	_ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
+	//
+	// These parameters represent a linear function from heap_live
+	// to page sweep count. The proportional sweep system works to
+	// stay in the black by keeping the current page sweep count
+	// above this line at the current heap_live.
+	//
+	// The line has slope sweepPagesPerByte and passes through a
+	// basis point at (sweepHeapLiveBasis, pagesSweptBasis). At
+	// any given time, the system is at (memstats.heap_live,
+	// pagesSwept) in this space.
+	//
+	// It's important that the line pass through a point we
+	// control rather than simply starting at a (0,0) origin
+	// because that lets us adjust sweep pacing at any time while
+	// accounting for current progress. If we could only adjust
+	// the slope, it would create a discontinuity in debt if any
+	// progress has already been made.
 	pagesInUse         uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
 	pagesSwept         uint64  // pages swept this cycle; updated atomically
+	pagesSweptBasis    uint64  // pagesSwept to use as the origin of the sweep ratio; updated atomically
 	sweepHeapLiveBasis uint64  // value of heap_live to use as the origin of sweep ratio; written with lock, read without
 	sweepPagesPerByte  float64 // proportional sweep ratio; written with lock, read without
 	// TODO(austin): pagesInUse should be a uintptr, but the 386

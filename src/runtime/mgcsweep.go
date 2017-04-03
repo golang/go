@@ -397,13 +397,20 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 		traceGCSweepStart()
 	}
 
+retry:
+	sweptBasis := atomic.Load64(&mheap_.pagesSweptBasis)
+
 	// Fix debt if necessary.
 	newHeapLive := uintptr(atomic.Load64(&memstats.heap_live)-mheap_.sweepHeapLiveBasis) + spanBytes
 	pagesTarget := int64(mheap_.sweepPagesPerByte*float64(newHeapLive)) - int64(callerSweepPages)
-	for pagesTarget > int64(atomic.Load64(&mheap_.pagesSwept)) {
+	for pagesTarget > int64(atomic.Load64(&mheap_.pagesSwept)-sweptBasis) {
 		if gosweepone() == ^uintptr(0) {
 			mheap_.sweepPagesPerByte = 0
 			break
+		}
+		if atomic.Load64(&mheap_.pagesSweptBasis) != sweptBasis {
+			// Sweep pacing changed. Recompute debt.
+			goto retry
 		}
 	}
 
