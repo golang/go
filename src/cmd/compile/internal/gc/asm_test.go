@@ -719,6 +719,35 @@ var linuxAMD64Tests = []*asmTest{
 		}`,
 		[]string{"\tADDQ\t[A-Z]"},
 	},
+	// Floating-point strength reduction
+	{
+		`
+		func f60(f float64) float64 {
+			return f * 2.0
+		}`,
+		[]string{"\tADDSD\t"},
+	},
+	{
+		`
+		func f62(f float64) float64 {
+			return f / 16.0
+		}`,
+		[]string{"\tMULSD\t"},
+	},
+	{
+		`
+		func f63(f float64) float64 {
+			return f / 0.125
+		}`,
+		[]string{"\tMULSD\t"},
+	},
+	{
+		`
+		func f64(f float64) float64 {
+			return f / 0.5
+		}`,
+		[]string{"\tADDSD\t"},
+	},
 }
 
 var linux386Tests = []*asmTest{

@@ -596,3 +596,47 @@ func isConstZero(v *Value) bool {
 	}
 	return false
 }
+
+// reciprocalExact64 reports whether 1/c is exactly representable.
+func reciprocalExact64(c float64) bool {
+	b := math.Float64bits(c)
+	man := b & (1<<52 - 1)
+	if man != 0 {
+		return false // not a power of 2, denormal, or NaN
+	}
+	exp := b >> 52 & (1<<11 - 1)
+	// exponent bias is 0x3ff.  So taking the reciprocal of a number
+	// changes the exponent to 0x7fe-exp.
+	switch exp {
+	case 0:
+		return false // ±0
+	case 0x7ff:
+		return false // ±inf
+	case 0x7fe:
+		return false // exponent is not representable
+	default:
+		return true
+	}
+}
+
+// reciprocalExact32 reports whether 1/c is exactly representable.
+func reciprocalExact32(c float32) bool {
+	b := math.Float32bits(c)
+	man := b & (1<<23 - 1)
+	if man != 0 {
+		return false // not a power of 2, denormal, or NaN
+	}
+	exp := b >> 23 & (1<<8 - 1)
+	// exponent bias is 0x7f.  So taking the reciprocal of a number
+	// changes the exponent to 0xfe-exp.
+	switch exp {
+	case 0:
+		return false // ±0
+	case 0xff:
+		return false // ±inf
+	case 0xfe:
+		return false // exponent is not representable
+	default:
+		return true
+	}
+}

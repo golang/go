@@ -1392,10 +1392,10 @@
 (Mul32F (Const32F [f2i(-1)]) x) -> (Neg32F x)
 (Mul64F x (Const64F [f2i(-1)])) -> (Neg64F x)
 (Mul64F (Const64F [f2i(-1)]) x) -> (Neg64F x)
-(Div32F x (Const32F [f2i(1)])) -> x
-(Div64F x (Const64F [f2i(1)])) -> x
-(Div32F x (Const32F [f2i(-1)])) -> (Neg32F x)
-(Div64F x (Const64F [f2i(-1)])) -> (Neg32F x)
+(Mul32F x (Const32F [f2i(2)])) -> (Add32F x x)
+(Mul64F x (Const64F [f2i(2)])) -> (Add64F x x)
+(Div32F x (Const32F <t> [c])) && reciprocalExact32(float32(i2f(c))) -> (Mul32F x (Const32F <t> [f2i(1/i2f(c))]))
+(Div64F x (Const64F <t> [c])) && reciprocalExact64(i2f(c))          -> (Mul64F x (Const64F <t> [f2i(1/i2f(c))]))
 
 (Sqrt (Const64F [c])) -> (Const64F [f2i(math.Sqrt(i2f(c)))])
 
