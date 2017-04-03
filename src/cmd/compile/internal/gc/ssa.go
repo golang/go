@@ -1965,7 +1965,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 					return s.newValue0(ssa.OpUnknown, n.Type)
 				}
 				i = s.extendIndex(i, panicindex)
-				s.boundsCheck(i, s.constInt(Types[TINT], bound))
+				if !n.Bounded() {
+					s.boundsCheck(i, s.constInt(Types[TINT], bound))
+				}
 				return s.newValue1I(ssa.OpArraySelect, n.Type, 0, a)
 			}
 			p := s.addr(n, false)
