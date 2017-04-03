@@ -48,11 +48,11 @@ func explode(s []byte, n int) [][]byte {
 
 // countGeneric actually implements Count
 func countGeneric(s, sep []byte) int {
-	n := 0
 	// special case
 	if len(sep) == 0 {
 		return utf8.RuneCount(s) + 1
 	}
+	n := 0
 	for {
 		i := Index(s, sep)
 		if i == -1 {
