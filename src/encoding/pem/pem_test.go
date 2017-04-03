@@ -206,11 +206,20 @@ func TestLineBreaker(t *testing.T) {
 }
 
 func TestFuzz(t *testing.T) {
+	// PEM is a text-based format. Assume header fields with leading/trailing spaces
+	// or embedded newlines will not round trip correctly and don't need to be tested.
+	isBad := func(s string) bool {
+		return strings.ContainsAny(s, "\r\n") || strings.TrimSpace(s) != s
+	}
+
 	testRoundtrip := func(block Block) bool {
+		if isBad(block.Type) {
+			return true
+		}
 		for key, val := range block.Headers {
-			if strings.ContainsAny(key, ":\r\n") || strings.ContainsAny(val, "\r\n") || strings.TrimSpace(key) != key || strings.TrimSpace(val) != val {
-				// Keys with colons or newlines cannot be encoded.
-				// Keys/values with surrounding spaces might lose theirs.
+			// Reject bad key/val.
+			// Also, keys with colons cannot be encoded, because : is the key: val separator.
+			if isBad(key) || isBad(val) || strings.Contains(key, ":") {
 				return true
 			}
 		}
