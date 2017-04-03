@@ -74,11 +74,11 @@ func (ctxt *Link) AddImport(pkg string) {
 	ctxt.Imports = append(ctxt.Imports, pkg)
 }
 
-func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f *LSym, l int32) {
+func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f string, l int32) {
 	pos := ctxt.PosTable.Pos(xpos)
 	if !pos.IsKnown() {
 		pos = src.Pos{}
 	}
 	// TODO(gri) Should this use relative or absolute line number?
-	return Linklookup(ctxt, pos.SymFilename(), 0), int32(pos.RelLine())
+	return pos.SymFilename(), int32(pos.RelLine())
 }

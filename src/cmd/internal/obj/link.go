@@ -401,8 +401,8 @@ type Pcln struct {
 	Pcdata      []Pcdata
 	Funcdata    []*LSym
 	Funcdataoff []int64
-	File        []*LSym
-	Lastfile    *LSym
+	File        []string
+	Lastfile    string
 	Lastindex   int
 	InlTree     InlTree // per-function inlining tree extracted from the global tree
 }
