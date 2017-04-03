@@ -51,14 +51,3 @@ done:
 	NOTL AX
 	MOVL AX, ret+16(FP)
 	RET
-
-// func haveSSE42() bool
-TEXT ·haveSSE42(SB),NOSPLIT,$0
-	XORQ AX, AX
-	INCL AX
-	CPUID
-	SHRQ $20, CX
-	ANDQ $1, CX
-	MOVB CX, ret+0(FP)
-	RET
-

@@ -134,36 +134,6 @@ loop:
 	MOVL DX, retC+104(FP)
 	RET
 
-// func haveSSE42() bool
-TEXT ·haveSSE42(SB),NOSPLIT,$0
-	XORQ AX, AX
-	INCL AX
-	CPUID
-	SHRQ $20, CX
-	ANDQ $1, CX
-	MOVB CX, ret+0(FP)
-	RET
-
-// func haveCLMUL() bool
-TEXT ·haveCLMUL(SB),NOSPLIT,$0
-	XORQ AX, AX
-	INCL AX
-	CPUID
-	SHRQ $1, CX
-	ANDQ $1, CX
-	MOVB CX, ret+0(FP)
-	RET
-
-// func haveSSE41() bool
-TEXT ·haveSSE41(SB),NOSPLIT,$0
-	XORQ AX, AX
-	INCL AX
-	CPUID
-	SHRQ $19, CX
-	ANDQ $1, CX
-	MOVB CX, ret+0(FP)
-	RET
-
 // CRC32 polynomial data
 //
 // These constants are lifted from the

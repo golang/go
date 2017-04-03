@@ -1706,27 +1706,6 @@ big_loop_avx2_exit:
 	VZEROUPPER
 	JMP loop
 
-
-TEXT strings·supportAVX2(SB),NOSPLIT,$0-1
-	MOVBLZX runtime·support_avx2(SB), AX
-	MOVB AX, ret+0(FP)
-	RET
-
-TEXT bytes·supportAVX2(SB),NOSPLIT,$0-1
-	MOVBLZX runtime·support_avx2(SB), AX
-	MOVB AX, ret+0(FP)
-	RET
-
-TEXT strings·supportPOPCNT(SB),NOSPLIT,$0-1
-	MOVBLZX runtime·support_popcnt(SB), AX
-	MOVB AX, ret+0(FP)
-	RET
-
-TEXT bytes·supportPOPCNT(SB),NOSPLIT,$0-1
-	MOVBLZX runtime·support_popcnt(SB), AX
-	MOVB AX, ret+0(FP)
-	RET
-
 TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
 	MOVQ s+0(FP), DI
 	// We want len in DX and AX, because PCMPESTRI implicitly consumes them
