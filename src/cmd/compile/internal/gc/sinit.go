@@ -927,7 +927,7 @@ func maplit(n *Node, m *Node, init *Nodes) {
 	nerr := nerrors
 
 	a := nod(OMAKE, nil, nil)
-	a.List.Set2(typenod(n.Type), nodintconst(int64(len(n.List.Slice()))))
+	a.List.Set2(typenod(n.Type), nodintconst(int64(n.List.Len())))
 	litas(m, a, init)
 
 	// count the initializers
