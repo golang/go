@@ -8094,6 +8094,26 @@ func rewriteValueARM64_OpARM64SRLconst(v *Value) bool {
 		v.AuxInt = int64(uint64(d) >> uint64(c))
 		return true
 	}
+	// match: (SRLconst [c] y:(SLLconst [c] _))
+	// cond: c <= 8
+	// result: (RORconst [c] y)
+	for {
+		c := v.AuxInt
+		y := v.Args[0]
+		if y.Op != OpARM64SLLconst {
+			break
+		}
+		if y.AuxInt != c {
+			break
+		}
+		if !(c <= 8) {
+			break
+		}
+		v.reset(OpARM64RORconst)
+		v.AuxInt = c
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64SUB(v *Value) bool {
