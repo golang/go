@@ -491,17 +491,12 @@ func (c *gcControllerState) startCycle() {
 
 // revise updates the assist ratio during the GC cycle to account for
 // improved estimates. This should be called either under STW or
-// whenever memstats.heap_scan or memstats.heap_live is updated (with
-// mheap_.lock held).
+// whenever memstats.heap_scan, memstats.heap_live, or
+// memstats.next_gc is updated (with mheap_.lock held).
 //
 // It should only be called when gcBlackenEnabled != 0 (because this
 // is when assists are enabled and the necessary statistics are
 // available).
-//
-// TODO: Consider removing the periodic controller update altogether.
-// Since we switched to allocating black, in theory we shouldn't have
-// to change the assist ratio. However, this is still a useful hook
-// that we've found many uses for when experimenting.
 func (c *gcControllerState) revise() {
 	// Compute the expected scan work remaining.
 	//
@@ -757,10 +752,11 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 }
 
 // gcSetTriggerRatio sets the trigger ratio and updates everything
-// derived from it: the absolute trigger, the heap goal, and sweep
-// pacing.
+// derived from it: the absolute trigger, the heap goal, mark pacing,
+// and sweep pacing.
 //
-// GC must *not* be in the middle of marking or sweeping.
+// This can be called any time. If GC is the in the middle of a
+// concurrent phase, it will adjust the pacing of that phase.
 //
 // This depends on gcpercent, memstats.heap_marked, and
 // memstats.heap_live. These must be up to date.
@@ -830,15 +826,20 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		traceNextGC()
 	}
 
-	// Compute the sweep pacing.
+	// Update mark pacing.
+	if gcphase != _GCoff {
+		gcController.revise()
+	}
+
+	// Update sweep pacing.
 	if gosweepdone() {
 		mheap_.sweepPagesPerByte = 0
-		mheap_.pagesSwept = 0
 	} else {
 		// Concurrent sweep needs to sweep all of the in-use
 		// pages by the time the allocated heap reaches the GC
 		// trigger. Compute the ratio of in-use pages to sweep
-		// per byte allocated.
+		// per byte allocated, accounting for the fact that
+		// some might already be swept.
 		heapLiveBasis := atomic.Load64(&memstats.heap_live)
 		heapDistance := int64(trigger) - int64(heapLiveBasis)
 		// Add a little margin so rounding errors and
@@ -849,9 +850,18 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			// Avoid setting the sweep ratio extremely high
 			heapDistance = _PageSize
 		}
-		mheap_.sweepPagesPerByte = float64(mheap_.pagesInUse) / float64(heapDistance)
-		mheap_.pagesSwept = 0
-		mheap_.sweepHeapLiveBasis = heapLiveBasis
+		pagesSwept := atomic.Load64(&mheap_.pagesSwept)
+		sweepDistancePages := int64(mheap_.pagesInUse) - int64(pagesSwept)
+		if sweepDistancePages <= 0 {
+			mheap_.sweepPagesPerByte = 0
+		} else {
+			mheap_.sweepPagesPerByte = float64(sweepDistancePages) / float64(heapDistance)
+			mheap_.sweepHeapLiveBasis = heapLiveBasis
+			// Write pagesSweptBasis last, since this
+			// signals concurrent sweeps to recompute
+			// their debt.
+			atomic.Store64(&mheap_.pagesSweptBasis, pagesSwept)
+		}
 	}
 }
 
@@ -1972,6 +1982,7 @@ func gcSweep(mode gcMode) {
 		// with an empty swept list.
 		throw("non-empty swept list")
 	}
+	mheap_.pagesSwept = 0
 	unlock(&mheap_.lock)
 
 	if !_ConcurrentSweep || mode == gcForceBlockMode {
@@ -1979,7 +1990,6 @@ func gcSweep(mode gcMode) {
 		// Record that no proportional sweeping has to happen.
 		lock(&mheap_.lock)
 		mheap_.sweepPagesPerByte = 0
-		mheap_.pagesSwept = 0
 		unlock(&mheap_.lock)
 		// Sweep all spans eagerly.
 		for sweepone() != ^uintptr(0) {
