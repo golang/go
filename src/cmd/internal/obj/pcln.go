@@ -131,11 +131,6 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 		return oldval
 	}
 	f, l := linkgetlineFromPos(ctxt, p.Pos)
-	if f == nil {
-		//	print("getline failed for %s %v\n", ctxt->cursym->name, p);
-		return oldval
-	}
-
 	if arg == nil {
 		return l
 	}

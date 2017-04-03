@@ -299,12 +299,14 @@ func (w *objWriter) writeRefs(s *LSym) {
 			w.writeRef(d, false)
 		}
 		for _, f := range pc.File {
-			w.writeRef(f, true)
+			fsym := Linklookup(w.ctxt, f, 0)
+			w.writeRef(fsym, true)
 		}
 		for _, call := range pc.InlTree.nodes {
 			w.writeRef(call.Func, false)
 			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
-			w.writeRef(f, true)
+			fsym := Linklookup(w.ctxt, f, 0)
+			w.writeRef(fsym, true)
 		}
 	}
 }
@@ -467,13 +469,15 @@ func (w *objWriter) writeSym(s *LSym) {
 	}
 	w.writeInt(int64(len(pc.File)))
 	for _, f := range pc.File {
-		w.writeRefIndex(f)
+		fsym := Linklookup(ctxt, f, 0)
+		w.writeRefIndex(fsym)
 	}
 	w.writeInt(int64(len(pc.InlTree.nodes)))
 	for _, call := range pc.InlTree.nodes {
 		w.writeInt(int64(call.Parent))
 		f, l := linkgetlineFromPos(w.ctxt, call.Pos)
-		w.writeRefIndex(f)
+		fsym := Linklookup(ctxt, f, 0)
+		w.writeRefIndex(fsym)
 		w.writeInt(int64(l))
 		w.writeRefIndex(call.Func)
 	}
