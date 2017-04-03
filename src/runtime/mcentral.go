@@ -126,9 +126,6 @@ havespan:
 	// mcache. If it gets uncached, we'll adjust this.
 	atomic.Xadd64(&c.nmalloc, int64(n))
 	usedBytes := uintptr(s.allocCount) * s.elemsize
-	if usedBytes > 0 {
-		reimburseSweepCredit(usedBytes)
-	}
 	atomic.Xadd64(&memstats.heap_live, int64(spanBytes)-int64(usedBytes))
 	if trace.enabled {
 		// heap_live changed.

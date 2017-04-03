@@ -839,7 +839,8 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		// pages by the time the allocated heap reaches the GC
 		// trigger. Compute the ratio of in-use pages to sweep
 		// per byte allocated.
-		heapDistance := int64(trigger) - int64(atomic.Load64(&memstats.heap_live))
+		heapLiveBasis := atomic.Load64(&memstats.heap_live)
+		heapDistance := int64(trigger) - int64(heapLiveBasis)
 		// Add a little margin so rounding errors and
 		// concurrent sweep are less likely to leave pages
 		// unswept when GC starts.
@@ -850,7 +851,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		}
 		mheap_.sweepPagesPerByte = float64(mheap_.pagesInUse) / float64(heapDistance)
 		mheap_.pagesSwept = 0
-		mheap_.spanBytesAlloc = 0
+		mheap_.sweepHeapLiveBasis = heapLiveBasis
 	}
 }
 
