@@ -32,6 +32,7 @@ func Exit(code int) {
 }
 
 var (
+	blockprofile   string
 	cpuprofile     string
 	memprofile     string
 	memprofilerate int64
@@ -72,6 +73,17 @@ func startProfile() {
 	} else {
 		// Not doing memory profiling; disable it entirely.
 		runtime.MemProfileRate = 0
+	}
+	if blockprofile != "" {
+		f, err := os.Create(blockprofile)
+		if err != nil {
+			Fatalf("%v", err)
+		}
+		runtime.SetBlockProfileRate(1)
+		atExit(func() {
+			pprof.Lookup("block").WriteTo(f, 0)
+			f.Close()
+		})
 	}
 	if traceprofile != "" && traceHandler != nil {
 		traceHandler(traceprofile)
