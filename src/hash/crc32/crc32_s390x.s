@@ -227,7 +227,7 @@ final_fold:
 	// Note: To compensate the division by x^32, use the vector unpack
 	// instruction to move the leftmost word into the leftmost doubleword
 	// of the vector register.  The rightmost doubleword is multiplied
-	// with zero to not contribute to the intermedate results.
+	// with zero to not contribute to the intermediate results.
 
 
 	// T1(x) = floor( R(x) / x^32 ) GF2MUL u

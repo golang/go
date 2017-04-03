@@ -260,7 +260,7 @@ func BenchmarkBinomial(b *testing.B) {
 var divisionSignsTests = []struct {
 	x, y int64
 	q, r int64 // T-division
-	d, m int64 // Euclidian division
+	d, m int64 // Euclidean division
 }{
 	{5, 3, 1, 2, 1, 2},
 	{-5, 3, -1, -2, -2, 1},

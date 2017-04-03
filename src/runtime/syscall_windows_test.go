@@ -1055,7 +1055,7 @@ func BenchmarkRunningGoProgram(b *testing.B) {
 		cmd := exec.Command(exe)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			b.Fatalf("runing main.exe failed: %v\n%s", err, out)
+			b.Fatalf("running main.exe failed: %v\n%s", err, out)
 		}
 	}
 }
