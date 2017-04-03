@@ -29,8 +29,12 @@ type bulkBvec struct {
 
 func bvbulkalloc(nbit int32, count int32) bulkBvec {
 	nword := (nbit + WORDBITS - 1) / WORDBITS
+	size := int64(nword) * int64(count)
+	if int64(int32(size*4)) != size*4 {
+		Fatalf("bvbulkalloc too big: nbit=%d count=%d nword=%d size=%d", nbit, count, nword, size)
+	}
 	return bulkBvec{
-		words: make([]uint32, nword*count),
+		words: make([]uint32, size),
 		nbit:  nbit,
 		nword: nword,
 	}
