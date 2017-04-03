@@ -33,7 +33,7 @@ func TestContextLabels(t *testing.T) {
 
 	// Add a single label.
 	ctx = WithLabels(ctx, Labels("key", "value"))
-	// Retreive it with Label.
+	// Retrieve it with Label.
 	v, ok := Label(ctx, "key")
 	if !ok || v != "value" {
 		t.Errorf(`Label(ctx, "key"): got %v, %v; want "value", ok`, v, ok)

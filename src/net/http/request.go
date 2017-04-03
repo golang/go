@@ -639,7 +639,7 @@ type requestBodyReadError struct{ error }
 func idnaASCII(v string) (string, error) {
 	// TODO: Consider removing this check after verifying performance is okay.
 	// Right now punycode verification, length checks, context checks, and the
-	// permissable character tests are all omitted. It also prevents the ToASCII
+	// permissible character tests are all omitted. It also prevents the ToASCII
 	// call from salvaging an invalid IDN, when possible. As a result it may be
 	// possible to have two IDNs that appear identical to the user where the
 	// ASCII-only version causes an error downstream whereas the non-ASCII

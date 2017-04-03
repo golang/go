@@ -8,7 +8,7 @@
 //   SI: data
 //   BX: data len
 //   AL: byte sought
-// This require the POPCNT instruction
+// This requires the POPCNT instruction
 TEXT ·countByte(SB),NOSPLIT,$0-40
 	MOVQ s+0(FP), SI
 	MOVQ s_len+8(FP), BX

@@ -239,7 +239,7 @@ var comms = []test{
 
 func TestPos(t *testing.T) {
 	// TODO(gri) Once we have a general tree walker, we can use that to find
-	// the first occurence of the respective node and we don't need to hand-
+	// the first occurrence of the respective node and we don't need to hand-
 	// extract the node for each specific kind of construct.
 
 	testPos(t, decls, "package p; ", "",

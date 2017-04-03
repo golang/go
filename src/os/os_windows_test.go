@@ -849,7 +849,7 @@ func main() {
 		args := os.CommandLineToArgv(exe + cmd)
 		out, err := osexec.Command(args[0], args[1:]...).CombinedOutput()
 		if err != nil {
-			t.Fatalf("runing %q failed: %v\n%v", args, err, string(out))
+			t.Fatalf("running %q failed: %v\n%v", args, err, string(out))
 		}
 		if want, have := fmt.Sprintf("%q", args), string(out); want != have {
 			t.Errorf("wrong output of executing %q: have %q want %q", args, have, want)

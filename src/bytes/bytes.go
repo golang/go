@@ -46,7 +46,7 @@ func explode(s []byte, n int) [][]byte {
 	return a[0:na]
 }
 
-// countGeneric actualy implements Count
+// countGeneric actually implements Count
 func countGeneric(s, sep []byte) int {
 	n := 0
 	// special case

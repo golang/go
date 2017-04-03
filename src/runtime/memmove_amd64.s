@@ -407,7 +407,7 @@ gobble_big_data_fwd:
 gobble_mem_fwd_loop:
 	PREFETCHNTA 0x1C0(SI)
 	PREFETCHNTA 0x280(SI)
-	// Prefetch values were choosen empirically.
+	// Prefetch values were chosen empirically.
 	// Approach for prefetch usage as in 7.6.6 of [1]
 	// [1] 64-ia-32-architectures-optimization-manual.pdf
 	// http://www.intel.ru/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf

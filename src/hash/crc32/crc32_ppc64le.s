@@ -246,7 +246,7 @@ startConst:
 	LVX	(R4+off112),V23
 	ADD	$128,R4		// bump up to next 128 bytes in buffer
 
-	VXOR	V16,V8,V16	// xor in inital CRC in V8
+	VXOR	V16,V8,V16	// xor in initial CRC in V8
 
 next:
 	BC	18,0,first_warm_up_done

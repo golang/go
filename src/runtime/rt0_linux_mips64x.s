@@ -30,7 +30,7 @@ TEXT main(SB),NOSPLIT,$-8
 	// in external linking, glibc jumps to main with argc in R4
 	// and argv in R5
 
-	// initalize REGSB = PC&0xffffffff00000000
+	// initialize REGSB = PC&0xffffffff00000000
 	BGEZAL	R0, 1(PC)
 	SRLV	$32, R31, RSB
 	SLLV	$32, RSB

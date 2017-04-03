@@ -428,7 +428,7 @@ func XTestAllocs(t testingT, testingShort func() bool, testingAllocsPerRun func(
 		limit := test.limit
 		if runtime.Compiler == "gccgo" {
 			// gccgo does not yet do escape analysis.
-			// TOOD(iant): Remove this when gccgo does do escape analysis.
+			// TODO(iant): Remove this when gccgo does do escape analysis.
 			limit = test.gccgoLimit
 		}
 		numRuns := 100
