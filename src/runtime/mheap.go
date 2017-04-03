@@ -75,10 +75,10 @@ type mheap struct {
 	_ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
-	pagesInUse        uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
-	spanBytesAlloc    uint64  // bytes of spans allocated this cycle; updated atomically
-	pagesSwept        uint64  // pages swept this cycle; updated atomically
-	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
+	pagesInUse         uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
+	pagesSwept         uint64  // pages swept this cycle; updated atomically
+	sweepHeapLiveBasis uint64  // value of heap_live to use as the origin of sweep ratio; written with lock, read without
+	sweepPagesPerByte  float64 // proportional sweep ratio; written with lock, read without
 	// TODO(austin): pagesInUse should be a uintptr, but the 386
 	// compiler can't 8-byte align fields.
 
