@@ -46,11 +46,7 @@ func randFloat64(rand *rand.Rand) float64 {
 
 // randInt64 returns a random int64.
 func randInt64(rand *rand.Rand) int64 {
-	x := rand.Int63() - 1<<62
-	// x in [-2⁶²,2⁶²), so top two bits are 00 or 11, never 10 or 01.
-	// Mix in some bits from the middle.
-	x ^= x<<29 ^ x<<43
-	return x
+	return int64(rand.Uint64())
 }
 
 // complexSize is the maximum length of arbitrary values that contain other
