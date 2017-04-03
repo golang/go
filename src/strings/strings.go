@@ -75,11 +75,11 @@ func hashStrRev(sep string) (uint32, uint32) {
 // Count counts the number of non-overlapping instances of substr in s.
 // If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
 func Count(s, substr string) int {
-	n := 0
 	// special case
 	if len(substr) == 0 {
 		return utf8.RuneCountInString(s) + 1
 	}
+	n := 0
 	for {
 		i := Index(s, substr)
 		if i == -1 {
