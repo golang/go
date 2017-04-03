@@ -133,3 +133,24 @@ func TestFloatConvert(t *testing.T) {
 		t.Errorf("cvt12 got %d, wanted 3", got)
 	}
 }
+
+var sinkFloat float64
+
+func BenchmarkMul2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var m float64 = 1
+		for j := 0; j < 500; j++ {
+			m *= 2
+		}
+		sinkFloat = m
+	}
+}
+func BenchmarkMulNeg2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var m float64 = 1
+		for j := 0; j < 500; j++ {
+			m *= -2
+		}
+		sinkFloat = m
+	}
+}
