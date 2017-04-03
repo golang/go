@@ -74,6 +74,7 @@ func bgsweep(c chan int) {
 //go:nowritebarrier
 func sweepone() uintptr {
 	_g_ := getg()
+	sweepRatio := mheap_.sweepPagesPerByte // For debugging
 
 	// increment locks to ensure that the goroutine is not preempted
 	// in the middle of sweep thus leaving the span in an inconsistent state for next GC
@@ -119,7 +120,7 @@ func sweepone() uintptr {
 	// last one print trace information.
 	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepdone) != 0 {
 		if debug.gcpacertrace > 0 {
-			print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
+			print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages at ", sweepRatio, " pages/byte\n")
 		}
 	}
 	_g_.m.locks--
