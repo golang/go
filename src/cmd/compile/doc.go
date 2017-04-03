@@ -44,6 +44,8 @@ Flags:
 		Print compiler version and exit.
 	-asmhdr file
 		Write assembly header to file.
+	-blockprofile file
+		Write block profile for the compilation to file.
 	-complete
 		Assume package has no non-Go components.
 	-cpuprofile file
