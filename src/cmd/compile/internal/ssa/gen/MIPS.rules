@@ -611,9 +611,6 @@
 (SGTU x (MOVWconst [0])) -> (SGTUzero x)
 
 // mul with constant
-(Select1 (MULTU x (MOVWconst [c]))) && x.Op != OpMIPSMOVWconst -> (Select1 (MULTU (MOVWconst [c]) x ))
-(Select0 (MULTU x (MOVWconst [c]))) && x.Op != OpMIPSMOVWconst -> (Select0 (MULTU (MOVWconst [c]) x ))
-
 (Select1 (MULTU (MOVWconst [0]) _ )) -> (MOVWconst [0])
 (Select0 (MULTU (MOVWconst [0]) _ )) -> (MOVWconst [0])
 (Select1 (MULTU (MOVWconst [1]) x )) -> x

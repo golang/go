@@ -7886,58 +7886,6 @@ func rewriteValueMIPS_OpSelect0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	// match: (Select0 (MULTU x (MOVWconst [c])))
-	// cond: x.Op != OpMIPSMOVWconst
-	// result: (Select0 (MULTU (MOVWconst [c]) x ))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpMIPSMULTU {
-			break
-		}
-		x := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		if v_0_1.Op != OpMIPSMOVWconst {
-			break
-		}
-		c := v_0_1.AuxInt
-		if !(x.Op != OpMIPSMOVWconst) {
-			break
-		}
-		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpMIPSMULTU, MakeTuple(types.UInt32, types.UInt32))
-		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, types.UInt32)
-		v1.AuxInt = c
-		v0.AddArg(v1)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (Select0 (MULTU (MOVWconst [c]) x))
-	// cond: x.Op != OpMIPSMOVWconst
-	// result: (Select0 (MULTU (MOVWconst [c]) x ))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpMIPSMULTU {
-			break
-		}
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpMIPSMOVWconst {
-			break
-		}
-		c := v_0_0.AuxInt
-		x := v_0.Args[1]
-		if !(x.Op != OpMIPSMOVWconst) {
-			break
-		}
-		v.reset(OpSelect0)
-		v0 := b.NewValue0(v.Pos, OpMIPSMULTU, MakeTuple(types.UInt32, types.UInt32))
-		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, types.UInt32)
-		v1.AuxInt = c
-		v0.AddArg(v1)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
 	// match: (Select0 (MULTU (MOVWconst [0]) _))
 	// cond:
 	// result: (MOVWconst [0])
@@ -8245,58 +8193,6 @@ func rewriteValueMIPS_OpSelect1(v *Value) bool {
 		v0.AddArg(y)
 		v.AddArg(v0)
 		v.AddArg(x)
-		return true
-	}
-	// match: (Select1 (MULTU x (MOVWconst [c])))
-	// cond: x.Op != OpMIPSMOVWconst
-	// result: (Select1 (MULTU (MOVWconst [c]) x ))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpMIPSMULTU {
-			break
-		}
-		x := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		if v_0_1.Op != OpMIPSMOVWconst {
-			break
-		}
-		c := v_0_1.AuxInt
-		if !(x.Op != OpMIPSMOVWconst) {
-			break
-		}
-		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpMIPSMULTU, MakeTuple(types.UInt32, types.UInt32))
-		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, types.UInt32)
-		v1.AuxInt = c
-		v0.AddArg(v1)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (Select1 (MULTU (MOVWconst [c]) x))
-	// cond: x.Op != OpMIPSMOVWconst
-	// result: (Select1 (MULTU (MOVWconst [c]) x ))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpMIPSMULTU {
-			break
-		}
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpMIPSMOVWconst {
-			break
-		}
-		c := v_0_0.AuxInt
-		x := v_0.Args[1]
-		if !(x.Op != OpMIPSMOVWconst) {
-			break
-		}
-		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpMIPSMULTU, MakeTuple(types.UInt32, types.UInt32))
-		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, types.UInt32)
-		v1.AuxInt = c
-		v0.AddArg(v1)
-		v0.AddArg(x)
-		v.AddArg(v0)
 		return true
 	}
 	// match: (Select1 (MULTU (MOVWconst [0]) _))
