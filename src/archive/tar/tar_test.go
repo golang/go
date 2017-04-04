@@ -6,10 +6,13 @@ package tar
 
 import (
 	"bytes"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -67,26 +70,42 @@ func TestFileInfoHeaderDir(t *testing.T) {
 }
 
 func TestFileInfoHeaderSymlink(t *testing.T) {
-	h, err := FileInfoHeader(symlink{}, "some-target")
+	testenv.MustHaveSymlink(t)
+
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping broken test: see issue 17541")
+	}
+	tmpdir, err := ioutil.TempDir("", "TestFileInfoHeaderSymlink")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g, e := h.Name, "some-symlink"; g != e {
+	defer os.RemoveAll(tmpdir)
+
+	link := filepath.Join(tmpdir, "link")
+	target := tmpdir
+	err = os.Symlink(target, link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Lstat(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h, err := FileInfoHeader(fi, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, e := h.Name, fi.Name(); g != e {
 		t.Errorf("Name = %q; want %q", g, e)
 	}
-	if g, e := h.Linkname, "some-target"; g != e {
+	if g, e := h.Linkname, target; g != e {
 		t.Errorf("Linkname = %q; want %q", g, e)
 	}
+	if g, e := h.Typeflag, byte(TypeSymlink); g != e {
+		t.Errorf("Typeflag = %v; want %v", g, e)
+	}
 }
-
-type symlink struct{}
-
-func (symlink) Name() string       { return "some-symlink" }
-func (symlink) Size() int64        { return 0 }
-func (symlink) Mode() os.FileMode  { return os.ModeSymlink }
-func (symlink) ModTime() time.Time { return time.Time{} }
-func (symlink) IsDir() bool        { return false }
-func (symlink) Sys() interface{}   { return nil }
 
 func TestRoundTrip(t *testing.T) {
 	data := []byte("some file contents")
