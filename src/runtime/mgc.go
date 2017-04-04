@@ -178,20 +178,21 @@ func gcinit() {
 		throw("size of Workbuf is suboptimal")
 	}
 
-	_ = setGCPercent(readgogc())
+	// No sweep on the first cycle.
+	mheap_.sweepdone = 1
 
 	// Set a reasonable initial GC trigger.
 	memstats.triggerRatio = 7 / 8.0
-	memstats.gc_trigger = heapminimum
-	// Compute the goal heap size based on the trigger:
-	//   trigger = marked * (1 + triggerRatio)
-	//   marked = trigger / (1 + triggerRatio)
-	//   goal = marked * (1 + GOGC/100)
-	//        = trigger / (1 + triggerRatio) * (1 + GOGC/100)
-	memstats.next_gc = uint64(float64(memstats.gc_trigger) / (1 + memstats.triggerRatio) * (1 + float64(gcpercent)/100))
-	if gcpercent < 0 {
-		memstats.next_gc = ^uint64(0)
-	}
+
+	// Fake a heap_marked value so it looks like a trigger at
+	// heapminimum is the appropriate growth from heap_marked.
+	// This will go into computing the initial GC goal.
+	memstats.heap_marked = uint64(float64(heapminimum) / (1 + memstats.triggerRatio))
+
+	// Set gcpercent from the environment. This will also compute
+	// and set the GC trigger and goal.
+	_ = setGCPercent(readgogc())
+
 	work.startSema = 1
 	work.markDoneSema = 1
 }
@@ -226,12 +227,8 @@ func setGCPercent(in int32) (out int32) {
 	}
 	gcpercent = in
 	heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
-	if memstats.triggerRatio > float64(gcpercent)/100 {
-		memstats.triggerRatio = float64(gcpercent) / 100
-	}
-	// This is either in gcinit or followed by a STW GC, both of
-	// which will reset other stats like memstats.gc_trigger and
-	// memstats.next_gc to appropriate values.
+	// Update pacing in response to gcpercent change.
+	gcSetTriggerRatio(memstats.triggerRatio)
 	unlock(&mheap_.lock)
 	return out
 }
