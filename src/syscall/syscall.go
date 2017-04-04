@@ -22,7 +22,10 @@
 // Go repository should be migrated to use the corresponding
 // package in the golang.org/x/sys repository. That is also where updates
 // required by new systems or versions should be applied.
-// See https://golang.org/s/go1.4-syscall for more information.
+// Signal, Errno and SysProcAttr are not yet available in
+// golang.org/x/sys and must still be referenced from the
+// syscall package. See https://golang.org/s/go1.4-syscall
+// for more information.
 //
 package syscall
 
