@@ -160,6 +160,8 @@ func TestSetGCPercent(t *testing.T) {
 	runtime.ReadMemStats(&ms)
 	ngc1 := ms.NumGC
 	SetGCPercent(10)
+	// It may require an allocation to actually force the GC.
+	setGCPercentSink = make([]byte, 1<<20)
 	runtime.ReadMemStats(&ms)
 	ngc2 := ms.NumGC
 	if ngc1 == ngc2 {
