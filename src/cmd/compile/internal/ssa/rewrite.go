@@ -16,17 +16,6 @@ import (
 
 func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	// repeat rewrites until we find no more rewrites
-	var curb *Block
-	var curv *Value
-	defer func() {
-		if curb != nil {
-			curb.Fatalf("panic during rewrite of block %s\n", curb.LongString())
-		}
-		if curv != nil {
-			curv.Fatalf("panic during rewrite of value %s\n", curv.LongString())
-			// TODO(khr): print source location also
-		}
-	}()
 	for {
 		change := false
 		for _, b := range f.Blocks {
@@ -35,11 +24,9 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 					b.SetControl(b.Control.Args[0])
 				}
 			}
-			curb = b
 			if rb(b) {
 				change = true
 			}
-			curb = nil
 			for _, v := range b.Values {
 				change = phielimValue(v) || change
 
@@ -64,11 +51,9 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 				}
 
 				// apply rewrite function
-				curv = v
 				if rv(v) {
 					change = true
 				}
-				curv = nil
 			}
 		}
 		if !change {
