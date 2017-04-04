@@ -117,7 +117,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 	ctxt.Diag("invalid encoding for argument %v", p)
 }
 
-func linkpatch(ctxt *Link, sym *LSym) {
+func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 	var c int32
 	var name string
 	var q *Prog
@@ -130,7 +130,7 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		checkaddr(ctxt, p, &p.To)
 
 		if ctxt.Arch.Progedit != nil {
-			ctxt.Arch.Progedit(ctxt, p)
+			ctxt.Arch.Progedit(ctxt, p, newprog)
 		}
 		if p.To.Type != TYPE_BRANCH {
 			continue

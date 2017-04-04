@@ -524,7 +524,7 @@ var pool struct {
 	size  uint32
 }
 
-func span7(ctxt *obj.Link, cursym *obj.LSym) {
+func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	p := cursym.Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
@@ -557,19 +557,19 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 
 		switch o.flag & (LFROM | LTO) {
 		case LFROM:
-			addpool(ctxt, p, &p.From)
+			addpool(ctxt, newprog, p, &p.From)
 
 		case LTO:
-			addpool(ctxt, p, &p.To)
+			addpool(ctxt, newprog, p, &p.To)
 			break
 		}
 
 		if p.As == AB || p.As == obj.ARET || p.As == AERET { /* TODO: other unconditional operations */
-			checkpool(ctxt, p, 0)
+			checkpool(ctxt, newprog, p, 0)
 		}
 		c += int64(m)
 		if ctxt.Blitrl != nil {
-			checkpool(ctxt, p, 1)
+			checkpool(ctxt, newprog, p, 1)
 		}
 	}
 
@@ -598,14 +598,14 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 			if (o.type_ == 7 || o.type_ == 39) && p.Pcond != nil { // 7: BEQ and like, 39: CBZ and like
 				otxt := p.Pcond.Pc - c
 				if otxt <= -(1<<18)+10 || otxt >= (1<<18)-10 {
-					q := ctxt.NewProg()
+					q := newprog()
 					q.Link = p.Link
 					p.Link = q
 					q.As = AB
 					q.To.Type = obj.TYPE_BRANCH
 					q.Pcond = p.Pcond
 					p.Pcond = q
-					q = ctxt.NewProg()
+					q = newprog()
 					q.Link = p.Link
 					p.Link = q
 					q.As = AB
@@ -670,21 +670,21 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
  * to go out of range of a 1Mb PC-relative offset
  * drop the pool now, and branch round it.
  */
-func checkpool(ctxt *obj.Link, p *obj.Prog, skip int) {
+func checkpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, skip int) {
 	if pool.size >= 0xffff0 || !ispcdisp(int32(p.Pc+4+int64(pool.size)-int64(pool.start)+8)) {
-		flushpool(ctxt, p, skip)
+		flushpool(ctxt, newprog, p, skip)
 	} else if p.Link == nil {
-		flushpool(ctxt, p, 2)
+		flushpool(ctxt, newprog, p, 2)
 	}
 }
 
-func flushpool(ctxt *obj.Link, p *obj.Prog, skip int) {
+func flushpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, skip int) {
 	if ctxt.Blitrl != nil {
 		if skip != 0 {
 			if ctxt.Debugvlog && skip == 1 {
 				fmt.Printf("note: flush literal pool at %#x: len=%d ref=%x\n", uint64(p.Pc+4), pool.size, pool.start)
 			}
-			q := ctxt.NewProg()
+			q := newprog()
 			q.As = AB
 			q.To.Type = obj.TYPE_BRANCH
 			q.Pcond = p.Link
@@ -715,10 +715,10 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int) {
 /*
  * TODO: hash
  */
-func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+func addpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, a *obj.Addr) {
 	c := aclass(ctxt, a)
 	lit := ctxt.Instoffset
-	t := *ctxt.NewProg()
+	t := *newprog()
 	t.As = AWORD
 	sz := 4
 
@@ -789,7 +789,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		}
 	}
 
-	q := ctxt.NewProg()
+	q := newprog()
 	*q = t
 	q.Pc = int64(pool.size)
 	if ctxt.Blitrl == nil {

@@ -552,7 +552,7 @@ var oprange [ALAST & obj.AMask][]Optab
 
 var xcmp [C_NCLASS][C_NCLASS]bool
 
-func span9(ctxt *obj.Link, cursym *obj.LSym) {
+func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	p := cursym.Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
@@ -609,14 +609,14 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 			if (o.type_ == 16 || o.type_ == 17) && p.Pcond != nil {
 				otxt = p.Pcond.Pc - c
 				if otxt < -(1<<15)+10 || otxt >= (1<<15)-10 {
-					q = ctxt.NewProg()
+					q = newprog()
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR
 					q.To.Type = obj.TYPE_BRANCH
 					q.Pcond = p.Pcond
 					p.Pcond = q
-					q = ctxt.NewProg()
+					q = newprog()
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR

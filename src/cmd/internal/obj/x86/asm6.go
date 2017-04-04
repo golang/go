@@ -1762,7 +1762,7 @@ func spadjop(ctxt *obj.Link, p *obj.Prog, l, q obj.As) obj.As {
 	return q
 }
 
-func span6(ctxt *obj.Link, s *obj.LSym) {
+func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	if s.P != nil {
 		return
 	}

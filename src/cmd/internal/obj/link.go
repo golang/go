@@ -224,7 +224,8 @@ const (
 // Each Prog is charged to a specific source line in the debug information,
 // specified by Pos.Line().
 // Every Prog has a Ctxt field that defines its context.
-// Progs should be allocated using ctxt.NewProg(), not new(Prog).
+// For performance reasons, Progs usually are usually bulk allocated, cached, and reused;
+// those bulk allocators should always be used, rather than new(Prog).
 //
 // The other fields not yet mentioned are for use by the back ends and should
 // be left zeroed by creators of Prog lists.
@@ -789,9 +790,9 @@ type SymVer struct {
 // LinkArch is the definition of a single architecture.
 type LinkArch struct {
 	*sys.Arch
-	Preprocess func(*Link, *LSym)
-	Assemble   func(*Link, *LSym)
-	Progedit   func(*Link, *Prog)
+	Preprocess func(*Link, *LSym, ProgAlloc)
+	Assemble   func(*Link, *LSym, ProgAlloc)
+	Progedit   func(*Link, *Prog, ProgAlloc)
 	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
 }
 

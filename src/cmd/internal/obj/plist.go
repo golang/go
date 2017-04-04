@@ -15,6 +15,10 @@ type Plist struct {
 	Curfn   interface{} // holds a *gc.Node, if non-nil
 }
 
+// ProgAlloc is a function that allocates Progs.
+// It is used to provide access to cached/bulk-allocated Progs to the assemblers.
+type ProgAlloc func() *Prog
+
 func Flushplist(ctxt *Link, plist *Plist) {
 	flushplist(ctxt, plist, !ctxt.Debugasm)
 }
@@ -97,6 +101,8 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 		etext = p
 	}
 
+	newprog := ProgAlloc(ctxt.NewProg)
+
 	// Add reference to Go arguments for C or assembly functions without them.
 	for _, s := range text {
 		if !strings.HasPrefix(s.Name, "\"\".") {
@@ -111,7 +117,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 		}
 
 		if !found {
-			p := Appendp(ctxt, s.Text)
+			p := Appendp(s.Text, newprog)
 			p.As = AFUNCDATA
 			p.From.Type = TYPE_CONST
 			p.From.Offset = FUNCDATA_ArgsPointerMaps
@@ -124,9 +130,9 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 	// Turn functions into machine code images.
 	for _, s := range text {
 		mkfwd(s)
-		linkpatch(ctxt, s)
-		ctxt.Arch.Preprocess(ctxt, s)
-		ctxt.Arch.Assemble(ctxt, s)
+		linkpatch(ctxt, s, newprog)
+		ctxt.Arch.Preprocess(ctxt, s, newprog)
+		ctxt.Arch.Assemble(ctxt, s, newprog)
 		linkpcln(ctxt, s)
 		makeFuncDebugEntry(ctxt, plist.Curfn, s)
 		if freeProgs {
