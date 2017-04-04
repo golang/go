@@ -76,8 +76,8 @@ func mkfwd(sym *LSym) {
 	}
 }
 
-func Appendp(ctxt *Link, q *Prog) *Prog {
-	p := ctxt.NewProg()
+func Appendp(q *Prog, newprog ProgAlloc) *Prog {
+	p := newprog()
 	p.Link = q.Link
 	q.Link = p
 	p.Pos = q.Pos

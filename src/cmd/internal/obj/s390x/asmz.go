@@ -385,7 +385,7 @@ var oprange [ALAST & obj.AMask][]Optab
 
 var xcmp [C_NCLASS][C_NCLASS]bool
 
-func spanz(ctxt *obj.Link, cursym *obj.LSym) {
+func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	p := cursym.Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return

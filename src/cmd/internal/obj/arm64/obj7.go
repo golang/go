@@ -48,9 +48,9 @@ var complements = []obj.As{
 	ACMNW: ACMPW,
 }
 
-func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize int32) *obj.Prog {
 	// MOV	g_stackguard(g), R1
-	p = obj.Appendp(ctxt, p)
+	p = obj.Appendp(p, newprog)
 
 	p.As = AMOVD
 	p.From.Type = obj.TYPE_MEM
@@ -67,7 +67,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		// small stack: SP < stackguard
 		//	MOV	SP, R2
 		//	CMP	stackguard, R2
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(p, newprog)
 
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_REG
@@ -75,7 +75,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(p, newprog)
 		p.As = ACMP
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R1
@@ -84,7 +84,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	SUB	$(framesize-StackSmall), SP, R2
 		//	CMP	stackguard, R2
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(p, newprog)
 
 		p.As = ASUB
 		p.From.Type = obj.TYPE_CONST
@@ -93,7 +93,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(p, newprog)
 		p.As = ACMP
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R1
@@ -110,19 +110,19 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		//	SUB	R1, R2
 		//	MOV	$(framesize+(StackGuard-StackSmall)), R3
 		//	CMP	R3, R2
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(p, newprog)
 
 		p.As = ACMP
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = obj.StackPreempt
 		p.Reg = REG_R1
 
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(p, newprog)
 		q = p
 		p.As = ABEQ
 		p.To.Type = obj.TYPE_BRANCH
 
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(p, newprog)
 		p.As = AADD
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = obj.StackGuard
@@ -130,21 +130,21 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(p, newprog)
 		p.As = ASUB
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(p, newprog)
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(framesize) + (obj.StackGuard - obj.StackSmall)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R3
 
-		p = obj.Appendp(ctxt, p)
+		p = obj.Appendp(p, newprog)
 		p.As = ACMP
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R3
@@ -152,7 +152,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	}
 
 	// BLS	do-morestack
-	bls := obj.Appendp(ctxt, p)
+	bls := obj.Appendp(p, newprog)
 	bls.As = ABLS
 	bls.To.Type = obj.TYPE_BRANCH
 
@@ -163,11 +163,11 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	// Now we are at the end of the function, but logically
 	// we are still in function prologue. We need to fix the
 	// SP data and PCDATA.
-	spfix := obj.Appendp(ctxt, last)
+	spfix := obj.Appendp(last, newprog)
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := obj.Appendp(ctxt, spfix)
+	pcdata := obj.Appendp(spfix, newprog)
 	pcdata.Pos = ctxt.Cursym.Text.Pos
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
@@ -176,7 +176,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
 
 	// MOV	LR, R3
-	movlr := obj.Appendp(ctxt, pcdata)
+	movlr := obj.Appendp(pcdata, newprog)
 	movlr.As = AMOVD
 	movlr.From.Type = obj.TYPE_REG
 	movlr.From.Reg = REGLINK
@@ -189,7 +189,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 
 	debug := movlr
 	if false {
-		debug = obj.Appendp(ctxt, debug)
+		debug = obj.Appendp(debug, newprog)
 		debug.As = AMOVD
 		debug.From.Type = obj.TYPE_CONST
 		debug.From.Offset = int64(framesize)
@@ -198,7 +198,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	}
 
 	// BL	runtime.morestack(SB)
-	call := obj.Appendp(ctxt, debug)
+	call := obj.Appendp(debug, newprog)
 	call.As = ABL
 	call.To.Type = obj.TYPE_BRANCH
 	morestack := "runtime.morestack"
@@ -211,7 +211,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
 
 	// B	start
-	jmp := obj.Appendp(ctxt, call)
+	jmp := obj.Appendp(call, newprog)
 	jmp.As = AB
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.Pcond = ctxt.Cursym.Text.Link
@@ -224,7 +224,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	return bls
 }
 
-func progedit(ctxt *obj.Link, p *obj.Prog) {
+func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	p.From.Class = 0
 	p.To.Class = 0
 
@@ -326,12 +326,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	}
 
 	if ctxt.Flag_dynlink {
-		rewriteToUseGot(ctxt, p)
+		rewriteToUseGot(ctxt, p, newprog)
 	}
 }
 
 // Rewrite p, if necessary, to access global data via the global offset table.
-func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
 		//     ADUFFxxx $offset
 		// becomes
@@ -354,13 +354,13 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 		p.To.Name = obj.NAME_NONE
 		p.To.Offset = 0
 		p.To.Sym = nil
-		p1 := obj.Appendp(ctxt, p)
+		p1 := obj.Appendp(p, newprog)
 		p1.As = AADD
 		p1.From.Type = obj.TYPE_CONST
 		p1.From.Offset = offset
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = REGTMP
-		p2 := obj.Appendp(ctxt, p1)
+		p2 := obj.Appendp(p1, newprog)
 		p2.As = obj.ACALL
 		p2.To.Type = obj.TYPE_REG
 		p2.To.Reg = REGTMP
@@ -381,7 +381,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 		p.From.Type = obj.TYPE_MEM
 		p.From.Name = obj.NAME_GOTREF
 		if p.From.Offset != 0 {
-			q := obj.Appendp(ctxt, p)
+			q := obj.Appendp(p, newprog)
 			q.As = AADD
 			q.From.Type = obj.TYPE_CONST
 			q.From.Offset = p.From.Offset
@@ -415,8 +415,8 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	if source.Type != obj.TYPE_MEM {
 		ctxt.Diag("don't know how to handle %v with -dynlink", p)
 	}
-	p1 := obj.Appendp(ctxt, p)
-	p2 := obj.Appendp(ctxt, p1)
+	p1 := obj.Appendp(p, newprog)
+	p2 := obj.Appendp(p1, newprog)
 	p1.As = AMOVD
 	p1.From.Type = obj.TYPE_MEM
 	p1.From.Sym = source.Sym
@@ -441,7 +441,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	obj.Nopout(p)
 }
 
-func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	ctxt.Cursym = cursym
 
 	if cursym.Text == nil || cursym.Text.Link == nil {
@@ -561,7 +561,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if !(p.From3.Offset&obj.NOSPLIT != 0) {
-				p = stacksplit(ctxt, p, ctxt.Autosize) // emit split check
+				p = stacksplit(ctxt, p, newprog, ctxt.Autosize) // emit split check
 			}
 
 			aoffset = ctxt.Autosize
@@ -583,7 +583,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// Store link register before decrementing SP, so if a signal comes
 				// during the execution of the function prologue, the traceback
 				// code will not see a half-updated stack frame.
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.Pos = p.Pos
 				q.As = ASUB
 				q.From.Type = obj.TYPE_CONST
@@ -592,7 +592,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGTMP
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.Pos = p.Pos
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_REG
@@ -600,7 +600,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.To.Type = obj.TYPE_MEM
 				q.To.Reg = REGTMP
 
-				q1 = obj.Appendp(ctxt, q)
+				q1 = obj.Appendp(q, newprog)
 				q1.Pos = p.Pos
 				q1.As = AMOVD
 				q1.From.Type = obj.TYPE_REG
@@ -610,7 +610,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q1.Spadj = ctxt.Autosize
 			} else {
 				// small frame, update SP and save LR in a single MOVD.W instruction
-				q1 = obj.Appendp(ctxt, q)
+				q1 = obj.Appendp(q, newprog)
 				q1.As = AMOVD
 				q1.Pos = p.Pos
 				q1.From.Type = obj.TYPE_REG
@@ -641,7 +641,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				// It is a liblink NOP, not a ARM64 NOP: it encodes to 0 instruction bytes.
 				q = q1
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_MEM
 				q.From.Reg = REGG
@@ -649,18 +649,18 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R1
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.As = ACMP
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REGZERO
 				q.Reg = REG_R1
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.As = ABEQ
 				q.To.Type = obj.TYPE_BRANCH
 				q1 = q
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_MEM
 				q.From.Reg = REG_R1
@@ -668,7 +668,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R2
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = int64(ctxt.Autosize) + 8
@@ -676,18 +676,18 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R3
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.As = ACMP
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REG_R2
 				q.Reg = REG_R3
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.As = ABNE
 				q.To.Type = obj.TYPE_BRANCH
 				q2 = q
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = 8
@@ -695,7 +695,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R4
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REG_R4
@@ -703,7 +703,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.To.Reg = REG_R1
 				q.To.Offset = 0 // Panic.argp
 
-				q = obj.Appendp(ctxt, q)
+				q = obj.Appendp(q, newprog)
 
 				q.As = obj.ANOP
 				q1.Pcond = q
@@ -744,7 +744,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.To.Reg = REGLINK
 				p.Spadj = -aoffset
 				if ctxt.Autosize > aoffset {
-					q = ctxt.NewProg()
+					q = newprog()
 					q.As = AADD
 					q.From.Type = obj.TYPE_CONST
 					q.From.Offset = int64(ctxt.Autosize) - int64(aoffset)
@@ -759,7 +759,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if p.As != obj.ARET {
-				q = ctxt.NewProg()
+				q = newprog()
 				q.Pos = p.Pos
 				q.Link = p.Link
 				p.Link = q

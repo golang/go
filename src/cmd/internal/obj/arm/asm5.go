@@ -279,7 +279,7 @@ var deferreturn *obj.LSym
 // p->pc if extra padding is necessary.
 // In rare cases, asmoutnacl might split p into two instructions.
 // origPC is the PC for this Prog (no padding is taken into account).
-func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint32) int {
+func asmoutnacl(ctxt *obj.Link, newprog obj.ProgAlloc, origPC int32, p *obj.Prog, o *Optab, out []uint32) int {
 	size := int(o.size)
 
 	// instruction specific
@@ -406,7 +406,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			// split it into two instructions:
 			// 	ADD $-100004, R13
 			// 	MOVW R14, 0(R13)
-			q := ctxt.NewProg()
+			q := newprog()
 
 			p.Scond &^= C_WBIT
 			*q = *p
@@ -486,7 +486,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				if p.Scond&(C_PBIT|C_WBIT) != 0 {
 					ctxt.Diag("unsupported instruction (.P/.W): %v", p)
 				}
-				q := ctxt.NewProg()
+				q := newprog()
 				*q = *p
 				var a2 *obj.Addr
 				if p.To.Type == obj.TYPE_MEM {
@@ -547,7 +547,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 	return size
 }
 
-func span5(ctxt *obj.Link, cursym *obj.LSym) {
+func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var p *obj.Prog
 	var op *obj.Prog
 
@@ -572,7 +572,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 	var o *Optab
 	for ; p != nil || ctxt.Blitrl != nil; op, p = p, p.Link {
 		if p == nil {
-			if checkpool(ctxt, op, 0) {
+			if checkpool(ctxt, newprog, op, 0) {
 				p = op
 				continue
 			}
@@ -588,7 +588,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 		if ctxt.Headtype != obj.Hnacl {
 			m = int(o.size)
 		} else {
-			m = asmoutnacl(ctxt, c, p, o, nil)
+			m = asmoutnacl(ctxt, newprog, c, p, o, nil)
 			c = int32(p.Pc)     // asmoutnacl might change pc for alignment
 			o = oplook(ctxt, p) // asmoutnacl might change p in rare cases
 		}
@@ -600,7 +600,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 		// must check literal pool here in case p generates many instructions
 		if ctxt.Blitrl != nil {
 			i = m
-			if checkpool(ctxt, op, i) {
+			if checkpool(ctxt, newprog, op, i) {
 				p = op
 				continue
 			}
@@ -613,19 +613,19 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 
 		switch o.flag & (LFROM | LTO | LPOOL) {
 		case LFROM:
-			addpool(ctxt, p, &p.From)
+			addpool(ctxt, newprog, p, &p.From)
 
 		case LTO:
-			addpool(ctxt, p, &p.To)
+			addpool(ctxt, newprog, p, &p.To)
 
 		case LPOOL:
 			if p.Scond&C_SCOND == C_SCOND_NONE {
-				flushpool(ctxt, p, 0, 0)
+				flushpool(ctxt, newprog, p, 0, 0)
 			}
 		}
 
 		if p.As == AMOVW && p.To.Type == obj.TYPE_REG && p.To.Reg == REGPC && p.Scond&C_SCOND == C_SCOND_NONE {
-			flushpool(ctxt, p, 0, 0)
+			flushpool(ctxt, newprog, p, 0, 0)
 		}
 		c += int32(m)
 	}
@@ -685,7 +685,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			if ctxt.Headtype != obj.Hnacl {
 				m = int(o.size)
 			} else {
-				m = asmoutnacl(ctxt, c, p, o, nil)
+				m = asmoutnacl(ctxt, newprog, c, p, o, nil)
 			}
 			if p.Pc != int64(opc) {
 				bflag = 1
@@ -746,7 +746,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			asmout(ctxt, p, o, out[:])
 			m = int(o.size)
 		} else {
-			m = asmoutnacl(ctxt, c, p, o, out[:])
+			m = asmoutnacl(ctxt, newprog, c, p, o, out[:])
 			if int64(opc) != p.Pc {
 				ctxt.Diag("asmoutnacl broken: pc changed (%d->%d) in last stage: %v", opc, int32(p.Pc), p)
 			}
@@ -795,22 +795,22 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
  * drop the pool now, and branch round it.
  * this happens only in extended basic blocks that exceed 4k.
  */
-func checkpool(ctxt *obj.Link, p *obj.Prog, sz int) bool {
+func checkpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, sz int) bool {
 	if pool.size >= 0xff0 || immaddr(int32((p.Pc+int64(sz)+4)+4+int64(12+pool.size)-int64(pool.start+8))) == 0 {
-		return flushpool(ctxt, p, 1, 0)
+		return flushpool(ctxt, newprog, p, 1, 0)
 	} else if p.Link == nil {
-		return flushpool(ctxt, p, 2, 0)
+		return flushpool(ctxt, newprog, p, 2, 0)
 	}
 	return false
 }
 
-func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) bool {
+func flushpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, skip int, force int) bool {
 	if ctxt.Blitrl != nil {
 		if skip != 0 {
 			if false && skip == 1 {
 				fmt.Printf("note: flush literal pool at %x: len=%d ref=%x\n", uint64(p.Pc+4), pool.size, pool.start)
 			}
-			q := ctxt.NewProg()
+			q := newprog()
 			q.As = AB
 			q.To.Type = obj.TYPE_BRANCH
 			q.Pcond = p.Link
@@ -822,7 +822,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) bool {
 		}
 		if ctxt.Headtype == obj.Hnacl && pool.size%16 != 0 {
 			// if pool is not multiple of 16 bytes, add an alignment marker
-			q := ctxt.NewProg()
+			q := newprog()
 
 			q.As = ADATABUNDLEEND
 			ctxt.Elitrl.Link = q
@@ -850,7 +850,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) bool {
 	return false
 }
 
-func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+func addpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, a *obj.Addr) {
 	var t obj.Prog
 
 	c := aclass(ctxt, a)
@@ -894,7 +894,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 
 	if ctxt.Headtype == obj.Hnacl && pool.size%16 == 0 {
 		// start a new data bundle
-		q := ctxt.NewProg()
+		q := newprog()
 		q.As = ADATABUNDLE
 		q.Pc = int64(pool.size)
 		pool.size += 4
@@ -908,7 +908,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		ctxt.Elitrl = q
 	}
 
-	q := ctxt.NewProg()
+	q := newprog()
 	*q = t
 	q.Pc = int64(pool.size)
 
