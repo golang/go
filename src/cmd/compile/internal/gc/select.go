@@ -4,6 +4,8 @@
 
 package gc
 
+import "cmd/compile/internal/types"
+
 // select
 func typecheckselect(sel *Node) {
 	var ncase *Node
@@ -225,21 +227,21 @@ func walkselect(sel *Node) {
 		case OSEND:
 			// if selectnbsend(c, v) { body } else { default body }
 			ch := n.Left
-			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), Types[TBOOL], &r.Ninit, ch, n.Right)
+			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), types.Types[TBOOL], &r.Ninit, ch, n.Right)
 
 		case OSELRECV:
 			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
 			r = nod(OIF, nil, nil)
 			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
-			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, n.Left, ch)
+			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), types.Types[TBOOL], &r.Ninit, n.Left, ch)
 
 		case OSELRECV2:
 			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
 			r = nod(OIF, nil, nil)
 			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
-			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, n.Left, n.List.First(), ch)
+			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), types.Types[TBOOL], &r.Ninit, n.Left, n.List.First(), ch)
 		}
 
 		r.Left = typecheck(r.Left, Erv)
@@ -258,7 +260,7 @@ func walkselect(sel *Node) {
 	r = nod(OAS, selv, nil)
 	r = typecheck(r, Etop)
 	init = append(init, r)
-	var_ = conv(conv(nod(OADDR, selv, nil), Types[TUNSAFEPTR]), typPtr(Types[TUINT8]))
+	var_ = conv(conv(nod(OADDR, selv, nil), types.Types[TUNSAFEPTR]), types.NewPtr(types.Types[TUINT8]))
 	r = mkcall("newselect", nil, nil, var_, nodintconst(selv.Type.Width), nodintconst(sel.Xoffset))
 	r = typecheck(r, Etop)
 	init = append(init, r)
@@ -297,8 +299,8 @@ func walkselect(sel *Node) {
 
 	// run the select
 	setlineno(sel)
-	chosen = temp(Types[TINT])
-	r = nod(OAS, chosen, mkcall("selectgo", Types[TINT], nil, var_))
+	chosen = temp(types.Types[TINT])
+	r = nod(OAS, chosen, mkcall("selectgo", types.Types[TINT], nil, var_))
 	r = typecheck(r, Etop)
 	init = append(init, r)
 
@@ -327,29 +329,29 @@ out:
 }
 
 // Keep in sync with src/runtime/select.go.
-func selecttype(size int64) *Type {
+func selecttype(size int64) *types.Type {
 	// TODO(dvyukov): it's possible to generate Scase only once
 	// and then cache; and also cache Select per size.
 
 	scase := tostruct([]*Node{
-		namedfield("elem", typPtr(Types[TUINT8])),
-		namedfield("chan", typPtr(Types[TUINT8])),
-		namedfield("pc", Types[TUINTPTR]),
-		namedfield("kind", Types[TUINT16]),
-		namedfield("receivedp", typPtr(Types[TUINT8])),
-		namedfield("releasetime", Types[TUINT64]),
+		namedfield("elem", types.NewPtr(types.Types[TUINT8])),
+		namedfield("chan", types.NewPtr(types.Types[TUINT8])),
+		namedfield("pc", types.Types[TUINTPTR]),
+		namedfield("kind", types.Types[TUINT16]),
+		namedfield("receivedp", types.NewPtr(types.Types[TUINT8])),
+		namedfield("releasetime", types.Types[TUINT64]),
 	})
 	scase.SetNoalg(true)
 	scase.SetLocal(true)
 
 	sel := tostruct([]*Node{
-		namedfield("tcase", Types[TUINT16]),
-		namedfield("ncase", Types[TUINT16]),
-		namedfield("pollorder", typPtr(Types[TUINT8])),
-		namedfield("lockorder", typPtr(Types[TUINT8])),
-		namedfield("scase", typArray(scase, size)),
-		namedfield("lockorderarr", typArray(Types[TUINT16], size)),
-		namedfield("pollorderarr", typArray(Types[TUINT16], size)),
+		namedfield("tcase", types.Types[TUINT16]),
+		namedfield("ncase", types.Types[TUINT16]),
+		namedfield("pollorder", types.NewPtr(types.Types[TUINT8])),
+		namedfield("lockorder", types.NewPtr(types.Types[TUINT8])),
+		namedfield("scase", types.NewArray(scase, size)),
+		namedfield("lockorderarr", types.NewArray(types.Types[TUINT16], size)),
+		namedfield("pollorderarr", types.NewArray(types.Types[TUINT16], size)),
 	})
 	sel.SetNoalg(true)
 	sel.SetLocal(true)

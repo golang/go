@@ -4,7 +4,10 @@
 
 package gc
 
-import "fmt"
+import (
+	"cmd/compile/internal/types"
+	"fmt"
+)
 
 // static initialization
 const (
@@ -43,7 +46,7 @@ func init1(n *Node, out *[]*Node) {
 	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class == PFUNC {
 		// Methods called as Type.Method(receiver, ...).
 		// Definitions for method expressions are stored in type->nname.
-		init1(n.Type.Nname(), out)
+		init1(asNode(n.Type.FuncType().Nname), out)
 	}
 
 	if n.Op != ONAME {
@@ -214,7 +217,7 @@ func init2(n *Node, out *[]*Node) {
 		init2list(n.Func.Closure.Nbody, out)
 	}
 	if n.Op == ODOTMETH || n.Op == OCALLPART {
-		init2(n.Type.Nname(), out)
+		init2(asNode(n.Type.FuncType().Nname), out)
 	}
 }
 
@@ -424,7 +427,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		initplan(r)
 		// Init slice.
 		bound := r.Right.Int64()
-		ta := typArray(r.Type.Elem(), bound)
+		ta := types.NewArray(r.Type.Elem(), bound)
 		a := staticname(ta)
 		inittemps[r] = a
 		n := *l
@@ -535,7 +538,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 				*out = append(*out, nod(OAS, a, val))
 			}
 			ptr := nod(OADDR, a, nil)
-			n.Type = typPtr(val.Type)
+			n.Type = types.NewPtr(val.Type)
 			gdata(&n, ptr, Widthptr)
 		}
 
@@ -574,7 +577,7 @@ var statuniqgen int // name generator for static temps
 // staticname returns a name backed by a static data symbol.
 // Callers should call n.Name.SetReadonly(true) on the
 // returned node for readonly nodes.
-func staticname(t *Type) *Node {
+func staticname(t *types.Type) *Node {
 	// Don't use lookupN; it interns the resulting string, but these are all unique.
 	n := newname(lookup(fmt.Sprintf("statictmp_%d", statuniqgen)))
 	statuniqgen++
@@ -768,7 +771,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 
 func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	// make an array type corresponding the number of elements we have
-	t := typArray(n.Type.Elem(), n.Right.Int64())
+	t := types.NewArray(n.Type.Elem(), n.Right.Int64())
 	dowidth(t)
 
 	if ctxt == inNonInitFunction {
@@ -786,7 +789,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		}
 
 		var v Node
-		nodconst(&v, Types[TINT], t.NumElem())
+		nodconst(&v, types.Types[TINT], t.NumElem())
 
 		nam.Xoffset += int64(array_array)
 		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)
@@ -831,7 +834,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	}
 
 	// make new auto *array (3 declare)
-	vauto := temp(typPtr(t))
+	vauto := temp(types.NewPtr(t))
 
 	// set auto to point at new temp or heap (3 assign)
 	var a *Node
@@ -946,8 +949,8 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		// For a large number of static entries, put them in an array and loop.
 
 		// build types [count]Tindex and [count]Tvalue
-		tk := typArray(n.Type.Key(), int64(len(stat)))
-		tv := typArray(n.Type.Val(), int64(len(stat)))
+		tk := types.NewArray(n.Type.Key(), int64(len(stat)))
+		tv := types.NewArray(n.Type.Val(), int64(len(stat)))
 
 		// TODO(josharian): suppress alg generation for these types?
 		dowidth(tk)
@@ -982,7 +985,7 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		// for i = 0; i < len(vstatk); i++ {
 		//	map[vstatk[i]] = vstatv[i]
 		// }
-		i := temp(Types[TINT])
+		i := temp(types.Types[TINT])
 		rhs := nod(OINDEX, vstatv, i)
 		rhs.SetBounded(true)
 

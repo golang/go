@@ -1,13 +1,8 @@
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file provides methods that let us export a Type as an ../ssa:Type.
-// We don't export this package's Type directly because it would lead
-// to an import cycle with this package and ../ssa.
-// TODO: move Type to its own package, then we don't need to dance around import cycles.
-
-package gc
+package types
 
 import (
 	"cmd/compile/internal/ssa"
@@ -15,6 +10,11 @@ import (
 	"cmd/internal/src"
 	"fmt"
 )
+
+// Dummy Node so we can refer to *Node without actually
+// having a gc.Node. Necessary to break import cycles.
+// TODO(gri) try to eliminate soon
+type Node struct{ _ int }
 
 // EType describes a kind of type.
 type EType uint8
@@ -98,23 +98,23 @@ var Types [NTYPE]*Type
 
 var (
 	// Predeclared alias types. Kept separate for better error messages.
-	bytetype *Type
-	runetype *Type
+	Bytetype *Type
+	Runetype *Type
 
 	// Predeclared error interface type.
-	errortype *Type
+	Errortype *Type
 
 	// Types to represent untyped string and boolean constants.
-	idealstring *Type
-	idealbool   *Type
+	Idealstring *Type
+	Idealbool   *Type
 
 	// Types to represent untyped numeric constants.
 	// Note: Currently these are only used within the binary export
 	// data format. The rest of the compiler only uses Types[TIDEAL].
-	idealint     = typ(TIDEAL)
-	idealrune    = typ(TIDEAL)
-	idealfloat   = typ(TIDEAL)
-	idealcomplex = typ(TIDEAL)
+	Idealint     = New(TIDEAL)
+	Idealrune    = New(TIDEAL)
+	Idealfloat   = New(TIDEAL)
+	Idealcomplex = New(TIDEAL)
 )
 
 // A Type represents a Go type.
@@ -143,11 +143,11 @@ type Type struct {
 	methods    Fields
 	allMethods Fields
 
-	nod  *Node // canonical OTYPE node
+	Nod  *Node // canonical OTYPE node
 	Orig *Type // original type (type literal or predefined type)
 
-	sliceOf *Type
-	ptrTo   *Type
+	SliceOf *Type
+	PtrBase *Type
 
 	Sym    *Sym  // symbol containing name, for named types
 	Vargen int32 // unique name for OTYPE/ONAME
@@ -260,7 +260,7 @@ func (t *Type) StructType() *StructType {
 
 // InterType contains Type fields specific to interface types.
 type InterType struct {
-	fields Fields
+	Fields Fields
 }
 
 // PtrType contains Type fields specific to pointer types.
@@ -396,8 +396,8 @@ func (f *Fields) Append(s ...*Field) {
 	*f.s = append(*f.s, s...)
 }
 
-// typ returns a new Type of the specified kind.
-func typ(et EType) *Type {
+// New returns a new Type of the specified kind.
+func New(et EType) *Type {
 	t := &Type{
 		Etype: et,
 		Width: BADWIDTH,
@@ -429,138 +429,120 @@ func typ(et EType) *Type {
 	return t
 }
 
-// typArray returns a new fixed-length array Type.
-func typArray(elem *Type, bound int64) *Type {
+// NewArray returns a new fixed-length array Type.
+func NewArray(elem *Type, bound int64) *Type {
 	if bound < 0 {
-		Fatalf("typArray: invalid bound %v", bound)
+		Fatalf("NewArray: invalid bound %v", bound)
 	}
-	t := typ(TARRAY)
+	t := New(TARRAY)
 	t.Extra = &ArrayType{Elem: elem, Bound: bound}
 	t.SetNotInHeap(elem.NotInHeap())
 	return t
 }
 
-// typSlice returns the slice Type with element type elem.
-func typSlice(elem *Type) *Type {
-	if t := elem.sliceOf; t != nil {
+// NewSlice returns the slice Type with element type elem.
+func NewSlice(elem *Type) *Type {
+	if t := elem.SliceOf; t != nil {
 		if t.Elem() != elem {
 			Fatalf("elem mismatch")
 		}
 		return t
 	}
 
-	t := typ(TSLICE)
+	t := New(TSLICE)
 	t.Extra = SliceType{Elem: elem}
-	elem.sliceOf = t
+	elem.SliceOf = t
 	return t
 }
 
-// typDDDArray returns a new [...]T array Type.
-func typDDDArray(elem *Type) *Type {
-	t := typ(TARRAY)
+// NewDDDArray returns a new [...]T array Type.
+func NewDDDArray(elem *Type) *Type {
+	t := New(TARRAY)
 	t.Extra = &ArrayType{Elem: elem, Bound: -1}
 	t.SetNotInHeap(elem.NotInHeap())
 	return t
 }
 
-// typChan returns a new chan Type with direction dir.
-func typChan(elem *Type, dir ChanDir) *Type {
-	t := typ(TCHAN)
+// NewChan returns a new chan Type with direction dir.
+func NewChan(elem *Type, dir ChanDir) *Type {
+	t := New(TCHAN)
 	ct := t.ChanType()
 	ct.Elem = elem
 	ct.Dir = dir
 	return t
 }
 
-// typMap returns a new map Type with key type k and element (aka value) type v.
-func typMap(k, v *Type) *Type {
-	t := typ(TMAP)
+// NewMap returns a new map Type with key type k and element (aka value) type v.
+func NewMap(k, v *Type) *Type {
+	t := New(TMAP)
 	mt := t.MapType()
 	mt.Key = k
 	mt.Val = v
 	return t
 }
 
-// typPtrCacheEnabled controls whether *T Types are cached in T.
+// NewPtrCacheEnabled controls whether *T Types are cached in T.
 // Caching is disabled just before starting the backend.
 // This allows the backend to run concurrently.
-var typPtrCacheEnabled = true
+var NewPtrCacheEnabled = true
 
-// typPtr returns the pointer type pointing to t.
-func typPtr(elem *Type) *Type {
+// NewPtr returns the pointer type pointing to t.
+func NewPtr(elem *Type) *Type {
 	if elem == nil {
-		Fatalf("typPtr: pointer to elem Type is nil")
+		Fatalf("NewPtr: pointer to elem Type is nil")
 	}
 
-	if t := elem.ptrTo; t != nil {
+	if t := elem.PtrBase; t != nil {
 		if t.Elem() != elem {
-			Fatalf("typPtr: elem mismatch")
+			Fatalf("NewPtr: elem mismatch")
 		}
 		return t
 	}
 
 	if Tptr == 0 {
-		Fatalf("typPtr: Tptr not initialized")
+		Fatalf("NewPtr: Tptr not initialized")
 	}
 
-	t := typ(Tptr)
+	t := New(Tptr)
 	t.Extra = PtrType{Elem: elem}
 	t.Width = int64(Widthptr)
 	t.Align = uint8(Widthptr)
-	if typPtrCacheEnabled {
-		elem.ptrTo = t
+	if NewPtrCacheEnabled {
+		elem.PtrBase = t
 	}
 	return t
 }
 
-// typDDDField returns a new TDDDFIELD type for slice type s.
-func typDDDField(s *Type) *Type {
-	t := typ(TDDDFIELD)
+// NewDDDField returns a new TDDDFIELD type for slice type s.
+func NewDDDField(s *Type) *Type {
+	t := New(TDDDFIELD)
 	t.Extra = DDDFieldType{T: s}
 	return t
 }
 
-// typChanArgs returns a new TCHANARGS type for channel type c.
-func typChanArgs(c *Type) *Type {
-	t := typ(TCHANARGS)
+// NewChanArgs returns a new TCHANARGS type for channel type c.
+func NewChanArgs(c *Type) *Type {
+	t := New(TCHANARGS)
 	t.Extra = ChanArgsType{T: c}
 	return t
 }
 
-// typFuncArgs returns a new TFUNCARGS type for func type f.
-func typFuncArgs(f *Type) *Type {
-	t := typ(TFUNCARGS)
+// NewFuncArgs returns a new TFUNCARGS type for func type f.
+func NewFuncArgs(f *Type) *Type {
+	t := New(TFUNCARGS)
 	t.Extra = FuncArgsType{T: f}
 	return t
 }
 
-func newField() *Field {
+func NewField() *Field {
 	return &Field{
 		Offset: BADWIDTH,
 	}
 }
 
-// substArgTypes substitutes the given list of types for
-// successive occurrences of the "any" placeholder in the
-// type syntax expression n.Type.
-// The result of substArgTypes MUST be assigned back to old, e.g.
-// 	n.Left = substArgTypes(n.Left, t1, t2)
-func substArgTypes(old *Node, types ...*Type) *Node {
-	n := *old // make shallow copy
-
-	for _, t := range types {
-		dowidth(t)
-	}
-	n.Type = substAny(n.Type, &types)
-	if len(types) > 0 {
-		Fatalf("substArgTypes: too many argument types")
-	}
-	return &n
-}
-
-// substAny walks t, replacing instances of "any" with successive
+// SubstAny walks t, replacing instances of "any" with successive
 // elements removed from types.  It returns the substituted type.
-func substAny(t *Type, types *[]*Type) *Type {
+func SubstAny(t *Type, types *[]*Type) *Type {
 	if t == nil {
 		return nil
 	}
@@ -577,36 +559,36 @@ func substAny(t *Type, types *[]*Type) *Type {
 		*types = (*types)[1:]
 
 	case TPTR32, TPTR64:
-		elem := substAny(t.Elem(), types)
+		elem := SubstAny(t.Elem(), types)
 		if elem != t.Elem() {
 			t = t.Copy()
 			t.Extra = PtrType{Elem: elem}
 		}
 
 	case TARRAY:
-		elem := substAny(t.Elem(), types)
+		elem := SubstAny(t.Elem(), types)
 		if elem != t.Elem() {
 			t = t.Copy()
 			t.Extra.(*ArrayType).Elem = elem
 		}
 
 	case TSLICE:
-		elem := substAny(t.Elem(), types)
+		elem := SubstAny(t.Elem(), types)
 		if elem != t.Elem() {
 			t = t.Copy()
 			t.Extra = SliceType{Elem: elem}
 		}
 
 	case TCHAN:
-		elem := substAny(t.Elem(), types)
+		elem := SubstAny(t.Elem(), types)
 		if elem != t.Elem() {
 			t = t.Copy()
 			t.Extra.(*ChanType).Elem = elem
 		}
 
 	case TMAP:
-		key := substAny(t.Key(), types)
-		val := substAny(t.Val(), types)
+		key := SubstAny(t.Key(), types)
+		val := SubstAny(t.Val(), types)
 		if key != t.Key() || val != t.Val() {
 			t = t.Copy()
 			t.Extra.(*MapType).Key = key
@@ -614,9 +596,9 @@ func substAny(t *Type, types *[]*Type) *Type {
 		}
 
 	case TFUNC:
-		recvs := substAny(t.Recvs(), types)
-		params := substAny(t.Params(), types)
-		results := substAny(t.Results(), types)
+		recvs := SubstAny(t.Recvs(), types)
+		params := SubstAny(t.Params(), types)
+		results := SubstAny(t.Results(), types)
 		if recvs != t.Recvs() || params != t.Params() || results != t.Results() {
 			t = t.Copy()
 			t.FuncType().Receiver = recvs
@@ -628,7 +610,7 @@ func substAny(t *Type, types *[]*Type) *Type {
 		fields := t.FieldSlice()
 		var nfs []*Field
 		for i, f := range fields {
-			nft := substAny(f.Type, types)
+			nft := SubstAny(f.Type, types)
 			if nft == f.Type {
 				continue
 			}
@@ -695,9 +677,9 @@ type Iter struct {
 	s []*Field
 }
 
-// iterFields returns the first field or method in struct or interface type t
+// IterFields returns the first field or method in struct or interface type t
 // and an Iter value to continue iterating across the rest.
-func iterFields(t *Type) (*Field, Iter) {
+func IterFields(t *Type) (*Field, Iter) {
 	return t.Fields().Iter()
 }
 
@@ -739,15 +721,15 @@ func (t *Type) Recv() *Field {
 	return s.Field(0)
 }
 
-// recvsParamsResults stores the accessor functions for a function Type's
+// RecvsParamsResults stores the accessor functions for a function Type's
 // receiver, parameters, and result parameters, in that order.
 // It can be used to iterate over all of a function's parameter lists.
-var recvsParamsResults = [3]func(*Type) *Type{
+var RecvsParamsResults = [3]func(*Type) *Type{
 	(*Type).Recvs, (*Type).Params, (*Type).Results,
 }
 
-// paramsResults is like recvsParamsResults, but omits receiver parameters.
-var paramsResults = [2]func(*Type) *Type{
+// ParamsResults is like RecvsParamsResults, but omits receiver parameters.
+var ParamsResults = [2]func(*Type) *Type{
 	(*Type).Params, (*Type).Results,
 }
 
@@ -838,8 +820,8 @@ func (t *Type) Fields() *Fields {
 	case TSTRUCT:
 		return &t.Extra.(*StructType).fields
 	case TINTER:
-		dowidth(t)
-		return &t.Extra.(*InterType).fields
+		Dowidth(t)
+		return &t.Extra.(*InterType).Fields
 	}
 	Fatalf("Fields: type %v does not have fields", t)
 	return nil
@@ -887,7 +869,7 @@ func (t *Type) SetInterface(methods []*Field) {
 	t.Methods().Set(methods)
 }
 
-func (t *Type) isDDDArray() bool {
+func (t *Type) IsDDDArray() bool {
 	if t.Etype != TARRAY {
 		return false
 	}
@@ -906,12 +888,12 @@ func (t *Type) ArgWidth() int64 {
 }
 
 func (t *Type) Size() int64 {
-	dowidth(t)
+	Dowidth(t)
 	return t.Width
 }
 
 func (t *Type) Alignment() int64 {
-	dowidth(t)
+	Dowidth(t)
 	return int64(t.Align)
 }
 
@@ -1001,12 +983,12 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		// for error messages. Treat them as equal.
 		switch t.Etype {
 		case TUINT8:
-			if (t == Types[TUINT8] || t == bytetype) && (x == Types[TUINT8] || x == bytetype) {
+			if (t == Types[TUINT8] || t == Bytetype) && (x == Types[TUINT8] || x == Bytetype) {
 				return ssa.CMPeq
 			}
 
 		case TINT32:
-			if (t == Types[runetype.Etype] || t == runetype) && (x == Types[runetype.Etype] || x == runetype) {
+			if (t == Types[Runetype.Etype] || t == Runetype) && (x == Types[Runetype.Etype] || x == Runetype) {
 				return ssa.CMPeq
 			}
 		}
@@ -1101,7 +1083,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		return ssa.CMPeq
 
 	case TFUNC:
-		for _, f := range recvsParamsResults {
+		for _, f := range RecvsParamsResults {
 			// Loop over fields in structs, ignoring argument names.
 			tfs := f(t).FieldSlice()
 			xfs := f(x).FieldSlice()
@@ -1163,8 +1145,8 @@ var unsignedEType = [...]EType{
 	TUINTPTR: TUINTPTR,
 }
 
-// toUnsigned returns the unsigned equivalent of integer type t.
-func (t *Type) toUnsigned() *Type {
+// ToUnsigned returns the unsigned equivalent of integer type t.
+func (t *Type) ToUnsigned() *Type {
 	if !t.IsInteger() {
 		Fatalf("unsignedType(%v)", t)
 	}
@@ -1255,7 +1237,7 @@ func (t *Type) ElemType() ssa.Type {
 	return t.Elem()
 }
 func (t *Type) PtrTo() ssa.Type {
-	return typPtr(t)
+	return NewPtr(t)
 }
 
 func (t *Type) NumFields() int {
@@ -1268,7 +1250,7 @@ func (t *Type) FieldOff(i int) int64 {
 	return t.Field(i).Offset
 }
 func (t *Type) FieldName(i int) string {
-	return t.Field(i).Sym.Name
+	return FieldName(t.Field(i))
 }
 
 func (t *Type) NumElem() int64 {
@@ -1281,8 +1263,8 @@ func (t *Type) NumElem() int64 {
 }
 
 // SetNumElem sets the number of elements in an array type.
-// The only allowed use is on array types created with typDDDArray.
-// For other uses, create a new array with typArray instead.
+// The only allowed use is on array types created with NewDDDArray.
+// For other uses, create a new array with NewArray instead.
 func (t *Type) SetNumElem(n int64) {
 	t.wantEtype(TARRAY)
 	at := t.Extra.(*ArrayType)
@@ -1309,7 +1291,7 @@ func (t *Type) IsUntyped() bool {
 	if t == nil {
 		return false
 	}
-	if t == idealstring || t == idealbool {
+	if t == Idealstring || t == Idealbool {
 		return true
 	}
 	switch t.Etype {
@@ -1319,7 +1301,7 @@ func (t *Type) IsUntyped() bool {
 	return false
 }
 
-func haspointers(t *Type) bool {
+func Haspointers(t *Type) bool {
 	switch t.Etype {
 	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL:
@@ -1329,11 +1311,11 @@ func haspointers(t *Type) bool {
 		if t.NumElem() == 0 { // empty array has no pointers
 			return false
 		}
-		return haspointers(t.Elem())
+		return Haspointers(t.Elem())
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
-			if haspointers(t1.Type) {
+			if Haspointers(t1.Type) {
 				return true
 			}
 		}
@@ -1350,9 +1332,22 @@ func (t *Type) HasPointer() bool {
 	if t.IsPtr() && t.Elem().NotInHeap() {
 		return false
 	}
-	return haspointers(t)
+	return Haspointers(t)
 }
 
 func (t *Type) Symbol() *obj.LSym {
-	return Linksym(typenamesym(t))
+	return TypeLinkSym(t)
+}
+
+// Tie returns 'T' if t is a concrete type,
+// 'I' if t is an interface type, and 'E' if t is an empty interface type.
+// It is used to build calls to the conv* and assert* runtime routines.
+func (t *Type) Tie() byte {
+	if t.IsEmptyInterface() {
+		return 'E'
+	}
+	if t.IsInterface() {
+		return 'I'
+	}
+	return 'T'
 }

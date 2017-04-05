@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
 	"strings"
@@ -67,7 +68,7 @@ func instrument(fn *Node) {
 		// getcallerpc. We use -widthptr(FP) for x86.
 		// BUG: this will not work on arm.
 		nodpc := *nodfp
-		nodpc.Type = Types[TUINTPTR]
+		nodpc.Type = types.Types[TUINTPTR]
 		nodpc.Xoffset = int64(-Widthptr)
 		nd := mkcall("racefuncenter", nil, nil, &nodpc)
 		fn.Func.Enter.Prepend(nd)
@@ -216,7 +217,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		instrumentnode(&n.Left, init, 0, 0)
 		if n.Left.Type.IsMap() {
 			n1 := nod(OCONVNOP, n.Left, nil)
-			n1.Type = typPtr(Types[TUINT8])
+			n1.Type = types.NewPtr(types.Types[TUINT8])
 			n1 = nod(OIND, n1, nil)
 			n1 = typecheck(n1, Erv)
 			callinstr(&n1, init, 0, skip)
@@ -561,14 +562,14 @@ func makeaddable(n *Node) {
 func uintptraddr(n *Node) *Node {
 	r := nod(OADDR, n, nil)
 	r.SetBounded(true)
-	r = conv(r, Types[TUNSAFEPTR])
-	r = conv(r, Types[TUINTPTR])
+	r = conv(r, types.Types[TUNSAFEPTR])
+	r = conv(r, types.Types[TUINTPTR])
 	return r
 }
 
 func detachexpr(n *Node, init *Nodes) *Node {
 	addr := nod(OADDR, n, nil)
-	l := temp(typPtr(n.Type))
+	l := temp(types.NewPtr(n.Type))
 	as := nod(OAS, l, addr)
 	as = typecheck(as, Etop)
 	as = walkexpr(as, init)

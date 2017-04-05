@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -16,7 +17,7 @@ import (
 
 // "Portable" code generation.
 
-func makefuncdatasym(pp *Progs, nameprefix string, funcdatakind int64, curfn *Node) *Sym {
+func makefuncdatasym(pp *Progs, nameprefix string, funcdatakind int64, curfn *Node) *types.Sym {
 	// This symbol requires a unique, reproducible name;
 	// unique to avoid duplicate symbols,
 	// and reproducible for reproducible builds and toolstash.
@@ -165,8 +166,8 @@ func cmpstackvarlt(a, b *Node) bool {
 		return a.Used()
 	}
 
-	ap := haspointers(a.Type)
-	bp := haspointers(b.Type)
+	ap := types.Haspointers(a.Type)
+	bp := types.Haspointers(b.Type)
 	if ap != bp {
 		return ap
 	}
@@ -230,7 +231,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	}
 
 	if f.Config.NeedsFpScratch && scratchUsed {
-		s.scratchFpMem = tempAt(src.NoXPos, s.curfn, Types[TUINT64])
+		s.scratchFpMem = tempAt(src.NoXPos, s.curfn, types.Types[TUINT64])
 	}
 
 	sort.Sort(byStackVar(fn.Dcl))
@@ -252,7 +253,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 		s.stksize += w
 		s.stksize = Rnd(s.stksize, int64(n.Type.Align))
-		if haspointers(n.Type) {
+		if types.Haspointers(n.Type) {
 			s.stkptrsize = s.stksize
 		}
 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
@@ -379,7 +380,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
 
 // fieldtrack adds R_USEFIELD relocations to fnsym to record any
 // struct fields that it used.
-func fieldtrack(fnsym *obj.LSym, tracked map[*Sym]struct{}) {
+func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
 	if fnsym == nil {
 		return
 	}
@@ -387,7 +388,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*Sym]struct{}) {
 		return
 	}
 
-	trackSyms := make([]*Sym, 0, len(tracked))
+	trackSyms := make([]*types.Sym, 0, len(tracked))
 	for sym := range tracked {
 		trackSyms = append(trackSyms, sym)
 	}
@@ -399,7 +400,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*Sym]struct{}) {
 	}
 }
 
-type symByName []*Sym
+type symByName []*types.Sym
 
 func (a symByName) Len() int           { return len(a) }
 func (a symByName) Less(i, j int) bool { return a[i].Name < a[j].Name }

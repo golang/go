@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"fmt"
 	"strconv"
 	"strings"
@@ -131,7 +132,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
 		fn := n.Left
 		if n.Op == OCALLMETH {
-			fn = n.Left.Sym.Def
+			fn = asNode(n.Left.Sym.Def)
 		}
 		if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Name.Defn != nil {
 			m := v.visit(fn.Name.Defn)
@@ -458,7 +459,7 @@ func (e *EscState) stepAssignWhere(dst, src *Node, why string, where *Node) *Esc
 }
 
 // funcSym returns fn.Func.Nname.Sym if no nils are encountered along the way.
-func funcSym(fn *Node) *Sym {
+func funcSym(fn *Node) *types.Sym {
 	if fn == nil || fn.Func.Nname == nil {
 		return nil
 	}
@@ -466,7 +467,7 @@ func funcSym(fn *Node) *Sym {
 }
 
 // curfnSym returns n.Curfn.Nname.Sym if no nils are encountered along the way.
-func (e *EscState) curfnSym(n *Node) *Sym {
+func (e *EscState) curfnSym(n *Node) *types.Sym {
 	nE := e.nodeEscState(n)
 	return funcSym(nE.Curfn)
 }
@@ -563,7 +564,7 @@ func (e *EscState) escfunc(fn *Node) {
 
 		case PPARAM:
 			lnE.Loopdepth = 1
-			if ln.Type != nil && !haspointers(ln.Type) {
+			if ln.Type != nil && !types.Haspointers(ln.Type) {
 				break
 			}
 			if Curfn.Nbody.Len() == 0 && !Curfn.Noescape() {
@@ -621,7 +622,7 @@ func (e *EscState) escloopdepth(n *Node) {
 		// after escape analysis. in the future, maybe pull label & goto analysis out of walk and put before esc
 		// if(n.Left.Sym.Label != nil)
 		//	fatal("escape analysis messed up analyzing label: %+N", n);
-		n.Left.Sym.Label = &nonlooping
+		n.Left.Sym.Label = asTypesNode(&nonlooping)
 
 	case OGOTO:
 		if n.Left == nil || n.Left.Sym == nil {
@@ -630,8 +631,8 @@ func (e *EscState) escloopdepth(n *Node) {
 
 		// If we come past one that's uninitialized, this must be a (harmless) forward jump
 		// but if it's set to nonlooping the label must have preceded this goto.
-		if n.Left.Sym.Label == &nonlooping {
-			n.Left.Sym.Label = &looping
+		if asNode(n.Left.Sym.Label) == &nonlooping {
+			n.Left.Sym.Label = asTypesNode(&looping)
 		}
 	}
 
@@ -720,11 +721,11 @@ func (e *EscState) esc(n *Node, parent *Node) {
 		}
 
 	case OLABEL:
-		if n.Left.Sym.Label == &nonlooping {
+		if asNode(n.Left.Sym.Label) == &nonlooping {
 			if Debug['m'] > 2 {
 				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
 			}
-		} else if n.Left.Sym.Label == &looping {
+		} else if asNode(n.Left.Sym.Label) == &looping {
 			if Debug['m'] > 2 {
 				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
 			}
@@ -1158,7 +1159,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 		a := nod(OADDR, src, nil)
 		a.Pos = src.Pos
 		e.nodeEscState(a).Loopdepth = e.nodeEscState(src).Loopdepth
-		a.Type = typPtr(src.Type)
+		a.Type = types.NewPtr(src.Type)
 		e.escflows(dst, a, e.stepAssign(nil, originalDst, src, dstwhy))
 
 	// Flowing multiple returns to a single dst happens when
@@ -1170,7 +1171,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 
 		// A non-pointer escaping from a struct does not concern us.
 	case ODOT:
-		if src.Type != nil && !haspointers(src.Type) {
+		if src.Type != nil && !types.Haspointers(src.Type) {
 			break
 		}
 		fallthrough
@@ -1191,7 +1192,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 
 	case ODOTTYPE,
 		ODOTTYPE2:
-		if src.Type != nil && !haspointers(src.Type) {
+		if src.Type != nil && !types.Haspointers(src.Type) {
 			break
 		}
 		e.escassign(dst, src.Left, e.stepAssign(step, originalDst, src, dstwhy))
@@ -1396,7 +1397,7 @@ func (e *EscState) addDereference(n *Node) *Node {
 	e.nodeEscState(ind).Loopdepth = e.nodeEscState(n).Loopdepth
 	ind.Pos = n.Pos
 	t := n.Type
-	if t.IsKind(Tptr) {
+	if t.IsKind(types.Tptr) {
 		// This should model our own sloppy use of OIND to encode
 		// decreasing levels of indirection; i.e., "indirecting" an array
 		// might yield the type of an element. To be enhanced...
@@ -1440,7 +1441,7 @@ func escNoteOutputParamFlow(e uint16, vargen int32, level Level) uint16 {
 	return (e &^ (bitsMaskForTag << shift)) | encodedFlow
 }
 
-func (e *EscState) initEscRetval(call *Node, fntype *Type) {
+func (e *EscState) initEscRetval(call *Node, fntype *types.Type) {
 	cE := e.nodeEscState(call)
 	cE.Retval.Set(nil) // Suspect this is not nil for indirect calls.
 	for i, f := range fntype.Results().Fields().Slice() {
@@ -1464,7 +1465,7 @@ func (e *EscState) initEscRetval(call *Node, fntype *Type) {
 // different for methods vs plain functions and for imported vs
 // this-package
 func (e *EscState) esccall(call *Node, parent *Node) {
-	var fntype *Type
+	var fntype *types.Type
 	var indirect bool
 	var fn *Node
 	switch call.Op {
@@ -1477,7 +1478,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 		indirect = fn.Op != ONAME || fn.Class != PFUNC
 
 	case OCALLMETH:
-		fn = call.Left.Sym.Def
+		fn = asNode(call.Left.Sym.Def)
 		if fn != nil {
 			fntype = fn.Type
 		} else {
@@ -1514,7 +1515,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 		if call.Op != OCALLFUNC {
 			rf := fntype.Recv()
 			r := call.Left.Left
-			if haspointers(rf.Type) {
+			if types.Haspointers(rf.Type) {
 				e.escassignSinkWhy(call, r, "receiver in indirect call")
 			}
 		} else { // indirect and OCALLFUNC = could be captured variables, too. (#14409)
@@ -1555,8 +1556,8 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 				if n.Isddd() && !call.Isddd() {
 					// Introduce ODDDARG node to represent ... allocation.
 					arg = nod(ODDDARG, nil, nil)
-					arr := typArray(n.Type.Elem(), int64(len(args)))
-					arg.Type = typPtr(arr) // make pointer so it will be tracked
+					arr := types.NewArray(n.Type.Elem(), int64(len(args)))
+					arg.Type = types.NewPtr(arr) // make pointer so it will be tracked
 					arg.Pos = call.Pos
 					e.track(arg)
 					call.Right = arg
@@ -1603,7 +1604,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 	if call.Op != OCALLFUNC {
 		rf := fntype.Recv()
 		r := call.Left.Left
-		if haspointers(rf.Type) {
+		if types.Haspointers(rf.Type) {
 			e.escassignfromtag(rf.Note, cE.Retval, r, call)
 		}
 	}
@@ -1620,8 +1621,8 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 			// Introduce ODDDARG node to represent ... allocation.
 			arg = nod(ODDDARG, nil, nil)
 			arg.Pos = call.Pos
-			arr := typArray(param.Type.Elem(), int64(len(rest)))
-			arg.Type = typPtr(arr) // make pointer so it will be tracked
+			arr := types.NewArray(param.Type.Elem(), int64(len(rest)))
+			arg.Type = types.NewPtr(arr) // make pointer so it will be tracked
 			e.track(arg)
 			call.Right = arg
 
@@ -1643,7 +1644,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 			}
 		}
 
-		if haspointers(param.Type) && e.escassignfromtag(note, cE.Retval, arg, call)&EscMask == EscNone && parent.Op != ODEFER && parent.Op != OPROC {
+		if types.Haspointers(param.Type) && e.escassignfromtag(note, cE.Retval, arg, call)&EscMask == EscNone && parent.Op != ODEFER && parent.Op != OPROC {
 			a := arg
 			for a.Op == OCONVNOP {
 				a = a.Left
@@ -1673,7 +1674,7 @@ func (e *EscState) escflows(dst, src *Node, why *EscStep) {
 	}
 
 	// Don't bother building a graph for scalars.
-	if src.Type != nil && !haspointers(src.Type) && !isReflectHeaderDataField(src) {
+	if src.Type != nil && !types.Haspointers(src.Type) && !isReflectHeaderDataField(src) {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v::NOT flows:: %S <- %S\n", linestr(lineno), dst, src)
 		}
@@ -2036,7 +2037,7 @@ const uintptrEscapesTag = "uintptr-escapes"
 func (e *EscState) esctag(fn *Node) {
 	fn.Esc = EscFuncTagged
 
-	name := func(s *Sym, narg int) string {
+	name := func(s *types.Sym, narg int) string {
 		if s != nil {
 			return s.Name
 		}
@@ -2048,7 +2049,7 @@ func (e *EscState) esctag(fn *Node) {
 	if fn.Nbody.Len() == 0 {
 		if fn.Noescape() {
 			for _, f := range fn.Type.Params().Fields().Slice() {
-				if haspointers(f.Type) {
+				if types.Haspointers(f.Type) {
 					f.Note = mktag(EscNone)
 				}
 			}
@@ -2103,7 +2104,7 @@ func (e *EscState) esctag(fn *Node) {
 		switch ln.Esc & EscMask {
 		case EscNone, // not touched by escflood
 			EscReturn:
-			if haspointers(ln.Type) { // don't bother tagging for scalars
+			if types.Haspointers(ln.Type) { // don't bother tagging for scalars
 				if ln.Name.Param.Field.Note != uintptrEscapesTag {
 					ln.Name.Param.Field.Note = mktag(int(ln.Esc))
 				}

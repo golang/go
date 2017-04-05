@@ -7,6 +7,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
@@ -114,7 +115,7 @@ func moveToHeap(n *Node) {
 
 	// Allocate a local stack variable to hold the pointer to the heap copy.
 	// temp will add it to the function declaration list automatically.
-	heapaddr := temp(typPtr(n.Type))
+	heapaddr := temp(types.NewPtr(n.Type))
 	heapaddr.Sym = lookup("&" + n.Sym.Name)
 	heapaddr.Orig.Sym = heapaddr.Sym
 
@@ -191,11 +192,12 @@ func autotmpname(n int) string {
 	// Start with a buffer big enough to hold a large n.
 	b := []byte(prefix + "      ")[:len(prefix)]
 	b = strconv.AppendInt(b, int64(n), 10)
-	return internString(b)
+	_ = b
+	return types.InternString(b)
 }
 
 // make a new Node off the books
-func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *Type) {
+func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *types.Type) {
 	if curfn == nil {
 		Fatalf("no curfn for tempname")
 	}
@@ -207,12 +209,12 @@ func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *Type) {
 		Fatalf("tempname called with nil type")
 	}
 
-	s := &Sym{
+	s := &types.Sym{
 		Name: autotmpname(len(curfn.Func.Dcl)),
 		Pkg:  localpkg,
 	}
 	n := newnamel(pos, s)
-	s.Def = n
+	s.Def = asTypesNode(n)
 	n.Type = t
 	n.Class = PAUTO
 	n.Esc = EscNever
@@ -224,16 +226,16 @@ func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *Type) {
 	*nn = *n
 }
 
-func temp(t *Type) *Node {
+func temp(t *types.Type) *Node {
 	var n Node
 	tempnamel(lineno, Curfn, &n, t)
-	n.Sym.Def.SetUsed(true)
+	asNode(n.Sym.Def).SetUsed(true)
 	return n.Orig
 }
 
-func tempAt(pos src.XPos, curfn *Node, t *Type) *Node {
+func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
 	var n Node
 	tempnamel(pos, curfn, &n, t)
-	n.Sym.Def.SetUsed(true)
+	asNode(n.Sym.Def).SetUsed(true)
 	return n.Orig
 }

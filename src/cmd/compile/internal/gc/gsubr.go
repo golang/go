@@ -31,6 +31,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 )
@@ -194,13 +195,13 @@ func ggloblnod(nam *Node) {
 	if nam.Name.Readonly() {
 		flags = obj.RODATA
 	}
-	if nam.Type != nil && !haspointers(nam.Type) {
+	if nam.Type != nil && !types.Haspointers(nam.Type) {
 		flags |= obj.NOPTR
 	}
 	Ctxt.Globl(s, nam.Type.Width, flags)
 }
 
-func ggloblsym(s *Sym, width int32, flags int16) {
+func ggloblsym(s *types.Sym, width int32, flags int16) {
 	ggloblLSym(Linksym(s), width, flags)
 }
 
@@ -212,7 +213,7 @@ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
 	Ctxt.Globl(s, int64(width), int(flags))
 }
 
-func isfat(t *Type) bool {
+func isfat(t *types.Type) bool {
 	if t != nil {
 		switch t.Etype {
 		case TSTRUCT, TARRAY, TSLICE, TSTRING,
@@ -231,8 +232,8 @@ func Addrconst(a *obj.Addr, v int64) {
 }
 
 // nodarg returns a Node for the function argument denoted by t,
-// which is either the entire function argument or result struct (t is a  struct *Type)
-// or a specific argument (t is a *Field within a struct *Type).
+// which is either the entire function argument or result struct (t is a  struct *types.Type)
+// or a specific argument (t is a *types.Field within a struct *types.Type).
 //
 // If fp is 0, the node is for use by a caller invoking the given
 // function, preparing the arguments before the call
@@ -247,12 +248,12 @@ func Addrconst(a *obj.Addr, v int64) {
 func nodarg(t interface{}, fp int) *Node {
 	var n *Node
 
-	var funarg Funarg
+	var funarg types.Funarg
 	switch t := t.(type) {
 	default:
 		Fatalf("bad nodarg %T(%v)", t, t)
 
-	case *Type:
+	case *types.Type:
 		// Entire argument struct, not just one arg
 		if !t.IsFuncArgStruct() {
 			Fatalf("nodarg: bad type %v", t)
@@ -271,7 +272,7 @@ func nodarg(t interface{}, fp int) *Node {
 		}
 		n.Xoffset = first.Offset
 
-	case *Field:
+	case *types.Field:
 		funarg = t.Funarg
 		if fp == 1 {
 			// NOTE(rsc): This should be using t.Nname directly,
@@ -285,7 +286,7 @@ func nodarg(t interface{}, fp int) *Node {
 			// toward time for the Go 1.7 beta).
 			// At some quieter time (assuming we've never seen these Fatalfs happen)
 			// we could change this code to use "expect" directly.
-			expect := t.Nname
+			expect := asNode(t.Nname)
 			if expect.isParamHeapCopy() {
 				expect = expect.Name.Param.Stackcopy
 			}
@@ -293,7 +294,7 @@ func nodarg(t interface{}, fp int) *Node {
 			for _, n := range Curfn.Func.Dcl {
 				if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
 					if n != expect {
-						Fatalf("nodarg: unexpected node: %v (%p %v) vs %v (%p %v)", n, n, n.Op, t.Nname, t.Nname, t.Nname.Op)
+						Fatalf("nodarg: unexpected node: %v (%p %v) vs %v (%p %v)", n, n, n.Op, asNode(t.Nname), asNode(t.Nname), asNode(t.Nname).Op)
 					}
 					return n
 				}
@@ -313,7 +314,7 @@ func nodarg(t interface{}, fp int) *Node {
 			Fatalf("nodarg: offset not computed for %v", t)
 		}
 		n.Xoffset = t.Offset
-		n.Orig = t.Nname
+		n.Orig = asNode(t.Nname)
 	}
 
 	// Rewrite argument named _ to __,
@@ -333,7 +334,7 @@ func nodarg(t interface{}, fp int) *Node {
 
 	case 1: // reading arguments inside call
 		n.Class = PPARAM
-		if funarg == FunargResults {
+		if funarg == types.FunargResults {
 			n.Class = PPARAMOUT
 		}
 	}

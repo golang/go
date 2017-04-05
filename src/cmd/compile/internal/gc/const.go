@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"math/big"
 	"strings"
@@ -132,7 +133,7 @@ func (n *Node) Bool() bool {
 
 // truncate float literal fv to 32-bit or 64-bit precision
 // according to type; return truncated value.
-func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
+func truncfltlit(oldv *Mpflt, t *types.Type) *Mpflt {
 	if t == nil {
 		return oldv
 	}
@@ -147,7 +148,7 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 	// convert large precision literal floating
 	// into limited precision (float64 or float32)
 	switch t.Etype {
-	case TFLOAT64:
+	case types.TFLOAT64:
 		d := fv.Float64()
 		fv.SetFloat64(d)
 
@@ -172,7 +173,7 @@ const (
 // implicit conversion.
 // The result of convlit MUST be assigned back to n, e.g.
 // 	n.Left = convlit(n.Left, t)
-func convlit(n *Node, t *Type) *Node {
+func convlit(n *Node, t *types.Type) *Node {
 	return convlit1(n, t, false, noReuse)
 }
 
@@ -180,7 +181,7 @@ func convlit(n *Node, t *Type) *Node {
 // It returns a new node if necessary.
 // The result of convlit1 MUST be assigned back to n, e.g.
 // 	n.Left = convlit1(n.Left, t, explicit, reuse)
-func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 	if n == nil || t == nil || n.Type == nil || t.IsUntyped() || n.Type == t {
 		return n
 	}
@@ -198,11 +199,11 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 
 	switch n.Op {
 	default:
-		if n.Type == idealbool {
+		if n.Type == types.Idealbool {
 			if t.IsBoolean() {
 				n.Type = t
 			} else {
-				n.Type = Types[TBOOL]
+				n.Type = types.Types[TBOOL]
 			}
 		}
 
@@ -240,17 +241,17 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 			default:
 				// If trying to convert to non-complex type,
 				// leave as complex128 and let typechecker complain.
-				t = Types[TCOMPLEX128]
+				t = types.Types[TCOMPLEX128]
 				fallthrough
-			case TCOMPLEX128:
+			case types.TCOMPLEX128:
 				n.Type = t
-				n.Left = convlit(n.Left, Types[TFLOAT64])
-				n.Right = convlit(n.Right, Types[TFLOAT64])
+				n.Left = convlit(n.Left, types.Types[TFLOAT64])
+				n.Right = convlit(n.Right, types.Types[TFLOAT64])
 
 			case TCOMPLEX64:
 				n.Type = t
-				n.Left = convlit(n.Left, Types[TFLOAT32])
-				n.Right = convlit(n.Right, Types[TFLOAT32])
+				n.Left = convlit(n.Left, types.Types[TFLOAT32])
+				n.Right = convlit(n.Right, types.Types[TFLOAT32])
 			}
 		}
 
@@ -263,14 +264,14 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 	}
 
 	ct := consttype(n)
-	var et EType
+	var et types.EType
 	if ct < 0 {
 		goto bad
 	}
 
 	et = t.Etype
 	if et == TINTER {
-		if ct == CTNIL && n.Type == Types[TNIL] {
+		if ct == CTNIL && n.Type == types.Types[TNIL] {
 			n.Type = t
 			return n
 		}
@@ -361,7 +362,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 			case CTCPLX:
 				overflow(n.Val(), t)
 			}
-		} else if et == TSTRING && (ct == CTINT || ct == CTRUNE) && explicit {
+		} else if et == types.TSTRING && (ct == CTINT || ct == CTRUNE) && explicit {
 			n.SetVal(tostr(n.Val()))
 		} else {
 			goto bad
@@ -492,7 +493,7 @@ func toint(v Val) Val {
 	return v
 }
 
-func doesoverflow(v Val, t *Type) bool {
+func doesoverflow(v Val, t *types.Type) bool {
 	switch u := v.U.(type) {
 	case *Mpint:
 		if !t.IsInteger() {
@@ -517,7 +518,7 @@ func doesoverflow(v Val, t *Type) bool {
 	return false
 }
 
-func overflow(v Val, t *Type) {
+func overflow(v Val, t *types.Type) {
 	// v has already been converted
 	// to appropriate form for t.
 	if t == nil || t.Etype == TIDEAL {
@@ -702,7 +703,7 @@ func evconst(n *Node) {
 	nr := n.Right
 	var rv Val
 	var lno src.XPos
-	var wr EType
+	var wr types.EType
 	var v Val
 	var norig *Node
 	var nn *Node
@@ -750,7 +751,7 @@ func evconst(n *Node) {
 
 		case OCOM_ | CTINT_,
 			OCOM_ | CTRUNE_:
-			var et EType = Txxx
+			var et types.EType = Txxx
 			if nl.Type != nil {
 				et = nl.Type.Etype
 			}
@@ -836,7 +837,7 @@ func evconst(n *Node) {
 	// right must be unsigned.
 	// left can be ideal.
 	case OLSH, ORSH:
-		nr = defaultlit(nr, Types[TUINT])
+		nr = defaultlit(nr, types.Types[TUINT])
 
 		n.Right = nr
 		if nr.Type != nil && (nr.Type.IsSigned() || !nr.Type.IsInteger()) {
@@ -1219,16 +1220,16 @@ func nodlit(v Val) *Node {
 		Fatalf("nodlit ctype %d", v.Ctype())
 
 	case CTSTR:
-		n.Type = idealstring
+		n.Type = types.Idealstring
 
 	case CTBOOL:
-		n.Type = idealbool
+		n.Type = types.Idealbool
 
 	case CTINT, CTRUNE, CTFLT, CTCPLX:
-		n.Type = Types[TIDEAL]
+		n.Type = types.Types[TIDEAL]
 
 	case CTNIL:
-		n.Type = Types[TNIL]
+		n.Type = types.Types[TNIL]
 	}
 
 	return n
@@ -1240,7 +1241,7 @@ func nodcplxlit(r Val, i Val) *Node {
 
 	c := new(Mpcplx)
 	n := nod(OLITERAL, nil, nil)
-	n.Type = Types[TIDEAL]
+	n.Type = types.Types[TIDEAL]
 	n.SetVal(Val{c})
 
 	if r.Ctype() != CTFLT || i.Ctype() != CTFLT {
@@ -1318,13 +1319,13 @@ func idealkind(n *Node) Ctype {
 
 // The result of defaultlit MUST be assigned back to n, e.g.
 // 	n.Left = defaultlit(n.Left, t)
-func defaultlit(n *Node, t *Type) *Node {
+func defaultlit(n *Node, t *types.Type) *Node {
 	return defaultlitreuse(n, t, noReuse)
 }
 
 // The result of defaultlitreuse MUST be assigned back to n, e.g.
 // 	n.Left = defaultlitreuse(n.Left, t, reuse)
-func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
+func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 	if n == nil || !n.Type.IsUntyped() {
 		return n
 	}
@@ -1337,7 +1338,7 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
 
 	lno := setlineno(n)
 	ctype := idealkind(n)
-	var t1 *Type
+	var t1 *types.Type
 	switch ctype {
 	default:
 		if t != nil {
@@ -1356,7 +1357,7 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
 		}
 
 		if n.Val().Ctype() == CTSTR {
-			t1 := Types[TSTRING]
+			t1 := types.Types[TSTRING]
 			n = convlit1(n, t1, false, reuse)
 			break
 		}
@@ -1367,26 +1368,26 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
 		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)
 
 	case CTBOOL:
-		t1 := Types[TBOOL]
+		t1 := types.Types[TBOOL]
 		if t != nil && t.IsBoolean() {
 			t1 = t
 		}
 		n = convlit1(n, t1, false, reuse)
 
 	case CTINT:
-		t1 = Types[TINT]
+		t1 = types.Types[TINT]
 		goto num
 
 	case CTRUNE:
-		t1 = runetype
+		t1 = types.Runetype
 		goto num
 
 	case CTFLT:
-		t1 = Types[TFLOAT64]
+		t1 = types.Types[TFLOAT64]
 		goto num
 
 	case CTCPLX:
-		t1 = Types[TCOMPLEX128]
+		t1 = types.Types[TCOMPLEX128]
 		goto num
 	}
 
@@ -1446,32 +1447,32 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
 	}
 
 	if l.Type.IsBoolean() {
-		l = convlit(l, Types[TBOOL])
-		r = convlit(r, Types[TBOOL])
+		l = convlit(l, types.Types[TBOOL])
+		r = convlit(r, types.Types[TBOOL])
 	}
 
 	lkind := idealkind(l)
 	rkind := idealkind(r)
 	if lkind == CTCPLX || rkind == CTCPLX {
-		l = convlit(l, Types[TCOMPLEX128])
-		r = convlit(r, Types[TCOMPLEX128])
+		l = convlit(l, types.Types[TCOMPLEX128])
+		r = convlit(r, types.Types[TCOMPLEX128])
 		return l, r
 	}
 
 	if lkind == CTFLT || rkind == CTFLT {
-		l = convlit(l, Types[TFLOAT64])
-		r = convlit(r, Types[TFLOAT64])
+		l = convlit(l, types.Types[TFLOAT64])
+		r = convlit(r, types.Types[TFLOAT64])
 		return l, r
 	}
 
 	if lkind == CTRUNE || rkind == CTRUNE {
-		l = convlit(l, runetype)
-		r = convlit(r, runetype)
+		l = convlit(l, types.Runetype)
+		r = convlit(r, types.Runetype)
 		return l, r
 	}
 
-	l = convlit(l, Types[TINT])
-	r = convlit(r, Types[TINT])
+	l = convlit(l, types.Types[TINT])
+	r = convlit(r, types.Types[TINT])
 
 	return l, r
 }
@@ -1673,13 +1674,13 @@ func isgoconst(n *Node) bool {
 		}
 
 	case ONAME:
-		l := n.Sym.Def
+		l := asNode(n.Sym.Def)
 		if l != nil && l.Op == OLITERAL && n.Val().Ctype() != CTNIL {
 			return true
 		}
 
 	case ONONAME:
-		if n.Sym.Def != nil && n.Sym.Def.Op == OIOTA {
+		if asNode(n.Sym.Def) != nil && asNode(n.Sym.Def).Op == OIOTA {
 			return true
 		}
 

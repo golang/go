@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"fmt"
 )
 
@@ -155,7 +156,7 @@ func typecheckclosure(func_ *Node, top int) {
 
 var closurename_closgen int
 
-func closurename(n *Node) *Sym {
+func closurename(n *Node) *types.Sym {
 	if n.Sym != nil {
 		return n.Sym
 	}
@@ -282,7 +283,7 @@ func capturevars(xfunc *Node) {
 		}
 
 		if Debug['m'] > 1 {
-			var name *Sym
+			var name *types.Sym
 			if v.Name.Curfn != nil && v.Name.Curfn.Func.Nname != nil {
 				name = v.Name.Curfn.Func.Nname.Sym
 			}
@@ -327,35 +328,35 @@ func transformclosure(xfunc *Node) {
 		f := xfunc.Func.Nname
 
 		// We are going to insert captured variables before input args.
-		var params []*Field
+		var params []*types.Field
 		var decls []*Node
 		for _, v := range func_.Func.Cvars.Slice() {
 			if v.Op == OXXX {
 				continue
 			}
-			fld := newField()
-			fld.Funarg = FunargParams
+			fld := types.NewField()
+			fld.Funarg = types.FunargParams
 			if v.Name.Byval() {
 				// If v is captured by value, we merely downgrade it to PPARAM.
 				v.Class = PPARAM
-				fld.Nname = v
+				fld.Nname = asTypesNode(v)
 			} else {
 				// If v of type T is captured by reference,
 				// we introduce function param &v *T
 				// and v remains PAUTOHEAP with &v heapaddr
 				// (accesses will implicitly deref &v).
 				addr := newname(lookup("&" + v.Sym.Name))
-				addr.Type = typPtr(v.Type)
+				addr.Type = types.NewPtr(v.Type)
 				addr.Class = PPARAM
 				v.Name.Param.Heapaddr = addr
-				fld.Nname = addr
+				fld.Nname = asTypesNode(addr)
 			}
 
-			fld.Type = fld.Nname.Type
-			fld.Sym = fld.Nname.Sym
+			fld.Type = asNode(fld.Nname).Type
+			fld.Sym = asNode(fld.Nname).Sym
 
 			params = append(params, fld)
-			decls = append(decls, fld.Nname)
+			decls = append(decls, asNode(fld.Nname))
 		}
 
 		if len(params) > 0 {
@@ -380,7 +381,7 @@ func transformclosure(xfunc *Node) {
 
 			cv.Type = v.Type
 			if !v.Name.Byval() {
-				cv.Type = typPtr(v.Type)
+				cv.Type = types.NewPtr(v.Type)
 			}
 			offset = Rnd(offset, int64(cv.Type.Align))
 			cv.Xoffset = offset
@@ -395,7 +396,7 @@ func transformclosure(xfunc *Node) {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
 				addr := newname(lookup("&" + v.Sym.Name))
-				addr.Type = typPtr(v.Type)
+				addr.Type = types.NewPtr(v.Type)
 				addr.Class = PAUTO
 				addr.SetUsed(true)
 				addr.Name.Curfn = xfunc
@@ -473,7 +474,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 
 	typ := nod(OTSTRUCT, nil, nil)
 
-	typ.List.Set1(namedfield(".F", Types[TUINTPTR]))
+	typ.List.Set1(namedfield(".F", types.Types[TUINTPTR]))
 	for _, v := range func_.Func.Cvars.Slice() {
 		if v.Op == OXXX {
 			continue
@@ -513,7 +514,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 	return walkexpr(clos, init)
 }
 
-func typecheckpartialcall(fn *Node, sym *Sym) {
+func typecheckpartialcall(fn *Node, sym *types.Sym) {
 	switch fn.Op {
 	case ODOTINTER, ODOTMETH:
 		break
@@ -530,9 +531,9 @@ func typecheckpartialcall(fn *Node, sym *Sym) {
 	fn.Type = xfunc.Type
 }
 
-var makepartialcall_gopkg *Pkg
+var makepartialcall_gopkg *types.Pkg
 
-func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	var p string
 
 	rcvrtype := fn.Left.Type
@@ -549,7 +550,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 		Fatalf("missing base type for %v", rcvrtype)
 	}
 
-	var spkg *Pkg
+	var spkg *types.Pkg
 	if basetype.Sym != nil {
 		spkg = basetype.Sym.Pkg
 	}
@@ -563,7 +564,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	sym := spkg.Lookup(p)
 
 	if sym.Uniq() {
-		return sym.Def
+		return asNode(sym.Def)
 	}
 	sym.SetUniq(true)
 
@@ -629,7 +630,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 		ptr.Type = rcvrtype
 		body = append(body, nod(OAS, ptr, cv))
 	} else {
-		ptr.Type = typPtr(rcvrtype)
+		ptr.Type = types.NewPtr(rcvrtype)
 		body = append(body, nod(OAS, ptr, nod(OADDR, cv, nil)))
 	}
 
@@ -650,7 +651,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	xfunc.Nbody.Set(body)
 
 	xfunc = typecheck(xfunc, Etop)
-	sym.Def = xfunc
+	sym.Def = asTypesNode(xfunc)
 	xtop = append(xtop, xfunc)
 	Curfn = savecurfn
 
@@ -674,7 +675,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	}
 
 	typ := nod(OTSTRUCT, nil, nil)
-	typ.List.Set1(namedfield("F", Types[TUINTPTR]))
+	typ.List.Set1(namedfield("F", types.Types[TUINTPTR]))
 	typ.List.Append(namedfield("R", n.Left.Type))
 
 	clos := nod(OCOMPLIT, nil, nod(OIND, typ, nil))

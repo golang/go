@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"sort"
 )
 
@@ -58,7 +59,7 @@ func typecheckswitch(n *Node) {
 
 	var nilonly string
 	var top int
-	var t *Type
+	var t *types.Type
 
 	if n.Left != nil && n.Left.Op == OTYPESW {
 		// type switch
@@ -76,7 +77,7 @@ func typecheckswitch(n *Node) {
 			n.Left = defaultlit(n.Left, nil)
 			t = n.Left.Type
 		} else {
-			t = Types[TBOOL]
+			t = types.Types[TBOOL]
 		}
 		if t != nil {
 			switch {
@@ -84,10 +85,10 @@ func typecheckswitch(n *Node) {
 				yyerrorl(n.Pos, "cannot switch on %L", n.Left)
 			case t.IsSlice():
 				nilonly = "slice"
-			case t.IsArray() && !t.IsComparable():
+			case t.IsArray() && !IsComparable(t):
 				yyerrorl(n.Pos, "cannot switch on %L", n.Left)
 			case t.IsStruct():
-				if f := t.IncomparableField(); f != nil {
+				if f := IncomparableField(t); f != nil {
 					yyerrorl(n.Pos, "cannot switch on %L (struct containing %v cannot be compared)", n.Left, f.Type)
 				}
 			case t.Etype == TFUNC:
@@ -137,13 +138,13 @@ func typecheckswitch(n *Node) {
 						}
 					case nilonly != "" && !isnil(n1):
 						yyerrorl(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
-					case t.IsInterface() && !n1.Type.IsInterface() && !n1.Type.IsComparable():
+					case t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type):
 						yyerrorl(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)
 					}
 
 				// type switch
 				case Etype:
-					var missing, have *Field
+					var missing, have *types.Field
 					var ptr int
 					switch {
 					case n1.Op == OLITERAL && n1.Type.IsKind(TNIL):
@@ -705,10 +706,10 @@ func (s *typeSwitch) walk(sw *Node) {
 	a = typecheck(a, Etop)
 	cas = append(cas, a)
 
-	s.okname = temp(Types[TBOOL])
+	s.okname = temp(types.Types[TBOOL])
 	s.okname = typecheck(s.okname, Erv)
 
-	s.hashname = temp(Types[TUINT32])
+	s.hashname = temp(types.Types[TUINT32])
 	s.hashname = typecheck(s.hashname, Erv)
 
 	// set up labels and jumps
@@ -750,7 +751,7 @@ func (s *typeSwitch) walk(sw *Node) {
 
 	// Load hash from type or itab.
 	h := nodSym(ODOTPTR, itab, nil)
-	h.Type = Types[TUINT32]
+	h.Type = types.Types[TUINT32]
 	h.Typecheck = 1
 	if cond.Right.Type.IsEmptyInterface() {
 		h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type

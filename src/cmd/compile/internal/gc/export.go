@@ -7,6 +7,7 @@ package gc
 import (
 	"bufio"
 	"bytes"
+	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"fmt"
 	"unicode"
@@ -44,8 +45,8 @@ func exportsym(n *Node) {
 	}
 
 	// Ensure original types are on exportlist before type aliases.
-	if n.Sym.isAlias() {
-		exportlist = append(exportlist, n.Sym.Def)
+	if IsAlias(n.Sym) {
+		exportlist = append(exportlist, asNode(n.Sym.Def))
 	}
 
 	exportlist = append(exportlist, n)
@@ -65,7 +66,7 @@ func initname(s string) bool {
 
 // exportedsym reports whether a symbol will be visible
 // to files that import our package.
-func exportedsym(sym *Sym) bool {
+func exportedsym(sym *types.Sym) bool {
 	// Builtins are visible everywhere.
 	if sym.Pkg == builtinpkg || sym.Origpkg == builtinpkg {
 		return true
@@ -141,7 +142,7 @@ func reexportdep(n *Node) {
 }
 
 // methodbyname sorts types by symbol name.
-type methodbyname []*Field
+type methodbyname []*types.Field
 
 func (x methodbyname) Len() int           { return len(x) }
 func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
@@ -174,7 +175,7 @@ func dumpexport() {
 		// (use empty package map to avoid collisions)
 		savedPkgMap := pkgMap
 		savedPkgs := pkgs
-		pkgMap = make(map[string]*Pkg)
+		pkgMap = make(map[string]*types.Pkg)
 		pkgs = nil
 		Import(mkpkg(""), bufio.NewReader(&copy)) // must not die
 		pkgs = savedPkgs
@@ -191,14 +192,14 @@ func dumpexport() {
 
 // importsym declares symbol s as an imported object representable by op.
 // pkg is the package being imported
-func importsym(pkg *Pkg, s *Sym, op Op) {
-	if s.Def != nil && s.Def.Op != op {
+func importsym(pkg *types.Pkg, s *types.Sym, op Op) {
+	if asNode(s.Def) != nil && asNode(s.Def).Op != op {
 		pkgstr := fmt.Sprintf("during import %q", pkg.Path)
 		redeclare(s, pkgstr)
 	}
 
 	// mark the symbol so it is not reexported
-	if s.Def == nil {
+	if asNode(s.Def) == nil {
 		if exportname(s.Name) || initname(s.Name) {
 			s.SetExport(true)
 		} else {
@@ -210,28 +211,28 @@ func importsym(pkg *Pkg, s *Sym, op Op) {
 // pkgtype returns the named type declared by symbol s.
 // If no such type has been declared yet, a forward declaration is returned.
 // pkg is the package being imported
-func pkgtype(pkg *Pkg, s *Sym) *Type {
+func pkgtype(pkg *types.Pkg, s *types.Sym) *types.Type {
 	importsym(pkg, s, OTYPE)
-	if s.Def == nil || s.Def.Op != OTYPE {
-		t := typ(TFORW)
+	if asNode(s.Def) == nil || asNode(s.Def).Op != OTYPE {
+		t := types.New(TFORW)
 		t.Sym = s
-		s.Def = typenod(t)
-		s.Def.Name = new(Name)
+		s.Def = asTypesNode(typenod(t))
+		asNode(s.Def).Name = new(Name)
 	}
 
-	if s.Def.Type == nil {
+	if asNode(s.Def).Type == nil {
 		Fatalf("pkgtype %v", s)
 	}
-	return s.Def.Type
+	return asNode(s.Def).Type
 }
 
 // importconst declares symbol s as an imported constant with type t and value n.
 // pkg is the package being imported
-func importconst(pkg *Pkg, s *Sym, t *Type, n *Node) {
+func importconst(pkg *types.Pkg, s *types.Sym, t *types.Type, n *Node) {
 	importsym(pkg, s, OLITERAL)
 	n = convlit(n, t)
 
-	if s.Def != nil { // TODO: check if already the same.
+	if asNode(s.Def) != nil { // TODO: check if already the same.
 		return
 	}
 
@@ -256,13 +257,13 @@ func importconst(pkg *Pkg, s *Sym, t *Type, n *Node) {
 
 // importvar declares symbol s as an imported variable with type t.
 // pkg is the package being imported
-func importvar(pkg *Pkg, s *Sym, t *Type) {
+func importvar(pkg *types.Pkg, s *types.Sym, t *types.Type) {
 	importsym(pkg, s, ONAME)
-	if s.Def != nil && s.Def.Op == ONAME {
-		if eqtype(t, s.Def.Type) {
+	if asNode(s.Def) != nil && asNode(s.Def).Op == ONAME {
+		if eqtype(t, asNode(s.Def).Type) {
 			return
 		}
-		yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, pkg.Path)
+		yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, asNode(s.Def).Type, s.Importdef.Path, t, pkg.Path)
 	}
 
 	n := newname(s)
@@ -277,13 +278,13 @@ func importvar(pkg *Pkg, s *Sym, t *Type) {
 
 // importalias declares symbol s as an imported type alias with type t.
 // pkg is the package being imported
-func importalias(pkg *Pkg, s *Sym, t *Type) {
+func importalias(pkg *types.Pkg, s *types.Sym, t *types.Type) {
 	importsym(pkg, s, OTYPE)
-	if s.Def != nil && s.Def.Op == OTYPE {
-		if eqtype(t, s.Def.Type) {
+	if asNode(s.Def) != nil && asNode(s.Def).Op == OTYPE {
+		if eqtype(t, asNode(s.Def).Type) {
 			return
 		}
-		yyerror("inconsistent definition for type alias %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, pkg.Path)
+		yyerror("inconsistent definition for type alias %v during import\n\t%v (in %q)\n\t%v (in %q)", s, asNode(s.Def).Type, s.Importdef.Path, t, pkg.Path)
 	}
 
 	n := newname(s)

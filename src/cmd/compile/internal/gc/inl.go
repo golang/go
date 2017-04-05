@@ -28,13 +28,14 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
 )
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
-func fnpkg(fn *Node) *Pkg {
+func fnpkg(fn *Node) *types.Pkg {
 	if fn.IsMethod() {
 		// method
 		rcvr := fn.Type.Recv().Type
@@ -171,7 +172,7 @@ func caninl(fn *Node) {
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
 	// this is so export can find the body of a method
-	fn.Type.SetNname(n)
+	fn.Type.FuncType().Nname = asTypesNode(n)
 
 	if Debug['m'] > 1 {
 		fmt.Printf("%v: can inline %#v as: %#v { %#v }\n", fn.Line(), n, fn.Type, n.Func.Inl)
@@ -210,7 +211,7 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 		}
 
 		if n.isMethodCalledAsFunction() {
-			if d := n.Left.Sym.Def; d != nil && d.Func.Inl.Len() != 0 {
+			if d := asNode(n.Left.Sym.Def); d != nil && d.Func.Inl.Len() != 0 {
 				*budget -= d.Func.InlCost
 				break
 			}
@@ -229,7 +230,7 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 		if t.Nname() == nil {
 			Fatalf("no function definition for [%p] %+v\n", t, t)
 		}
-		if inlfn := t.Nname().Func; inlfn.Inl.Len() != 0 {
+		if inlfn := asNode(t.FuncType().Nname).Func; inlfn.Inl.Len() != 0 {
 			*budget -= inlfn.InlCost
 			break
 		}
@@ -507,8 +508,8 @@ func inlnode(n *Node) *Node {
 		}
 		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall(n) { // normal case
 			n = mkinlcall(n, n.Left, n.Isddd())
-		} else if n.isMethodCalledAsFunction() && n.Left.Sym.Def != nil {
-			n = mkinlcall(n, n.Left.Sym.Def, n.Isddd())
+		} else if n.isMethodCalledAsFunction() && asNode(n.Left.Sym.Def) != nil {
+			n = mkinlcall(n, asNode(n.Left.Sym.Def), n.Isddd())
 		}
 
 	case OCALLMETH:
@@ -525,7 +526,7 @@ func inlnode(n *Node) *Node {
 			Fatalf("no function definition for [%p] %+v\n", n.Left.Type, n.Left.Type)
 		}
 
-		n = mkinlcall(n, n.Left.Type.Nname(), n.Isddd())
+		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname), n.Isddd())
 	}
 
 	lineno = lno
@@ -549,11 +550,11 @@ func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
 	return n
 }
 
-func tinlvar(t *Field, inlvars map[*Node]*Node) *Node {
-	if t.Nname != nil && !isblank(t.Nname) {
-		inlvar := inlvars[t.Nname]
+func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
+	if asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
+		inlvar := inlvars[asNode(t.Nname)]
 		if inlvar == nil {
-			Fatalf("missing inlvar for %v\n", t.Nname)
+			Fatalf("missing inlvar for %v\n", asNode(t.Nname))
 		}
 		return inlvar
 	}
@@ -631,10 +632,10 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	// temporaries for return values.
 	var m *Node
 	for _, t := range fn.Type.Results().Fields().Slice() {
-		if t != nil && t.Nname != nil && !isblank(t.Nname) {
-			m = inlvar(t.Nname)
+		if t != nil && asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
+			m = inlvar(asNode(t.Nname))
 			m = typecheck(m, Erv)
-			inlvars[t.Nname] = m
+			inlvars[asNode(t.Nname)] = m
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
@@ -650,8 +651,8 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		// method call with a receiver.
 		t := fn.Type.Recv()
 
-		if t != nil && t.Nname != nil && !isblank(t.Nname) && inlvars[t.Nname] == nil {
-			Fatalf("missing inlvar for %v\n", t.Nname)
+		if t != nil && t.Nname != nil && !isblank(asNode(t.Nname)) && inlvars[asNode(t.Nname)] == nil {
+			Fatalf("missing inlvar for %v\n", asNode(t.Nname))
 		}
 		if n.Left.Left == nil {
 			Fatalf("method call without receiver: %+v", n)
@@ -669,7 +670,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	// check if inlined function is variadic.
 	variadic := false
 
-	var varargtype *Type
+	var varargtype *types.Type
 	varargcount := 0
 	for _, t := range fn.Type.Params().Fields().Slice() {
 		if t.Isddd() {
@@ -719,8 +720,8 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		// append receiver inlvar to LHS.
 		t := fn.Type.Recv()
 
-		if t != nil && t.Nname != nil && !isblank(t.Nname) && inlvars[t.Nname] == nil {
-			Fatalf("missing inlvar for %v\n", t.Nname)
+		if t != nil && t.Nname != nil && !isblank(asNode(t.Nname)) && inlvars[asNode(t.Nname)] == nil {
+			Fatalf("missing inlvar for %v\n", asNode(t.Nname))
 		}
 		if t == nil {
 			Fatalf("method call unknown receiver type: %+v", n)
@@ -753,7 +754,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		}
 	} else {
 		// match arguments except final variadic (unless the call is dotted itself)
-		t, it := iterFields(fn.Type.Params())
+		t, it := types.IterFields(fn.Type.Params())
 		for t != nil {
 			if li >= n.List.Len() {
 				break
@@ -799,7 +800,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 			as.Right = nodnil()
 			as.Right.Type = varargtype
 		} else {
-			varslicetype := typSlice(varargtype.Elem())
+			varslicetype := types.NewSlice(varargtype.Elem())
 			as.Right = nod(OCOMPLIT, nil, typenod(varslicetype))
 			as.Right.List.Set(varargs)
 		}
@@ -911,7 +912,7 @@ func inlvar(var_ *Node) *Node {
 }
 
 // Synthesize a variable to store the inlined function's results in.
-func retvar(t *Field, i int) *Node {
+func retvar(t *types.Field, i int) *Node {
 	n := newname(lookupN("~r", i))
 	n.Type = t.Type
 	n.Class = PAUTO
@@ -923,7 +924,7 @@ func retvar(t *Field, i int) *Node {
 
 // Synthesize a variable to store the inlined function's arguments
 // when they come from a multiple return call.
-func argvar(t *Type, i int) *Node {
+func argvar(t *types.Type, i int) *Node {
 	n := newname(lookupN("~arg", i))
 	n.Type = t.Elem()
 	n.Class = PAUTO

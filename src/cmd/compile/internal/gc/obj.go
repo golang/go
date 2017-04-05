@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"crypto/sha256"
@@ -173,7 +174,7 @@ func dumpptabs() {
 	}
 	for _, exportn := range exportlist {
 		s := exportn.Sym
-		n := s.Def
+		n := asNode(s.Def)
 		if n == nil {
 			continue
 		}
@@ -188,10 +189,10 @@ func dumpptabs() {
 		}
 		if n.Type.Etype == TFUNC && n.Class == PFUNC {
 			// function
-			ptabs = append(ptabs, ptabEntry{s: s, t: s.Def.Type})
+			ptabs = append(ptabs, ptabEntry{s: s, t: asNode(s.Def).Type})
 		} else {
 			// variable
-			ptabs = append(ptabs, ptabEntry{s: s, t: typPtr(s.Def.Type)})
+			ptabs = append(ptabs, ptabEntry{s: s, t: types.NewPtr(asNode(s.Def).Type)})
 		}
 	}
 }
@@ -217,7 +218,7 @@ func dumpglobls() {
 	}
 
 	for _, s := range funcsyms {
-		sf := s.Pkg.Lookup(s.funcsymname())
+		sf := s.Pkg.Lookup(funcsymname(s))
 		dsymptr(sf, 0, s, 0)
 		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
@@ -226,7 +227,7 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
-func Linksym(s *Sym) *obj.LSym {
+func Linksym(s *types.Sym) *obj.LSym {
 	if s == nil {
 		return nil
 	}
@@ -247,7 +248,7 @@ func Linksym(s *Sym) *obj.LSym {
 	return ls
 }
 
-func duintxx(s *Sym, off int, v uint64, wid int) int {
+func duintxx(s *types.Sym, off int, v uint64, wid int) int {
 	return duintxxLSym(Linksym(s), off, v, wid)
 }
 
@@ -260,23 +261,23 @@ func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
 	return int(obj.Setuintxx(Ctxt, s, int64(off), v, int64(wid)))
 }
 
-func duint8(s *Sym, off int, v uint8) int {
+func duint8(s *types.Sym, off int, v uint8) int {
 	return duintxx(s, off, uint64(v), 1)
 }
 
-func duint16(s *Sym, off int, v uint16) int {
+func duint16(s *types.Sym, off int, v uint16) int {
 	return duintxx(s, off, uint64(v), 2)
 }
 
-func duint32(s *Sym, off int, v uint32) int {
+func duint32(s *types.Sym, off int, v uint32) int {
 	return duintxx(s, off, uint64(v), 4)
 }
 
-func duintptr(s *Sym, off int, v uint64) int {
+func duintptr(s *types.Sym, off int, v uint64) int {
 	return duintxx(s, off, v, Widthptr)
 }
 
-func dbvec(s *Sym, off int, bv bvec) int {
+func dbvec(s *types.Sym, off int, bv bvec) int {
 	// Runtime reads the bitmaps as byte arrays. Oblige.
 	for j := 0; int32(j) < bv.n; j += 8 {
 		word := bv.b[j/32]
@@ -319,7 +320,7 @@ func slicebytes(nam *Node, s string, len int) {
 	slicebytes_gen++
 	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
 	sym := localpkg.Lookup(symname)
-	sym.Def = newname(sym)
+	sym.Def = asTypesNode(newname(sym))
 
 	off := dsname(sym, 0, s)
 	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
@@ -333,7 +334,7 @@ func slicebytes(nam *Node, s string, len int) {
 	duintxx(nam.Sym, off, uint64(len), Widthint)
 }
 
-func dsname(s *Sym, off int, t string) int {
+func dsname(s *types.Sym, off int, t string) int {
 	return dsnameLSym(Linksym(s), off, t)
 }
 
@@ -342,7 +343,7 @@ func dsnameLSym(s *obj.LSym, off int, t string) int {
 	return off + len(t)
 }
 
-func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
+func dsymptr(s *types.Sym, off int, x *types.Sym, xoff int) int {
 	return dsymptrLSym(Linksym(s), off, Linksym(x), xoff)
 }
 
