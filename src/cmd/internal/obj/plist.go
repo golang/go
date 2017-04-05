@@ -19,13 +19,7 @@ type Plist struct {
 // It is used to provide access to cached/bulk-allocated Progs to the assemblers.
 type ProgAlloc func() *Prog
 
-func Flushplist(ctxt *Link, plist *Plist) {
-	flushplist(ctxt, plist, !ctxt.Debugasm)
-}
-func FlushplistNoFree(ctxt *Link, plist *Plist) {
-	flushplist(ctxt, plist, false)
-}
-func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 	// Build list of symbols, and assign instructions to lists.
 	var curtext *LSym
 	var etext *Prog
@@ -101,7 +95,9 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 		etext = p
 	}
 
-	newprog := ProgAlloc(ctxt.NewProg)
+	if newprog == nil {
+		newprog = ctxt.NewProg
+	}
 
 	// Add reference to Go arguments for C or assembly functions without them.
 	for _, s := range text {
@@ -135,16 +131,10 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
 		ctxt.Arch.Assemble(ctxt, s, newprog)
 		linkpcln(ctxt, s)
 		makeFuncDebugEntry(ctxt, plist.Curfn, s)
-		if freeProgs {
-			s.Text = nil
-		}
 	}
 
 	// Add to running list in ctxt.
 	ctxt.Text = append(ctxt.Text, text...)
-	if freeProgs {
-		ctxt.freeProgs()
-	}
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

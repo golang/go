@@ -35,22 +35,33 @@ import (
 	"cmd/internal/src"
 )
 
+var sharedProgArray *[10000]obj.Prog // *T instead of T to work around issue 19839
+
+func init() {
+	sharedProgArray = new([10000]obj.Prog)
+}
+
 // Progs accumulates Progs for a function and converts them into machine code.
 type Progs struct {
-	Text  *obj.Prog // ATEXT Prog for this function
-	next  *obj.Prog // next Prog
-	pc    int64     // virtual PC; count of Progs
-	pos   src.XPos  // position to use for new Progs
-	curfn *Node     // fn these Progs are for
+	Text      *obj.Prog  // ATEXT Prog for this function
+	next      *obj.Prog  // next Prog
+	pc        int64      // virtual PC; count of Progs
+	pos       src.XPos   // position to use for new Progs
+	curfn     *Node      // fn these Progs are for
+	progcache []obj.Prog // local progcache
+	cacheidx  int        // first free element of progcache
 }
 
 // newProgs returns a new Progs for fn.
 func newProgs(fn *Node) *Progs {
 	pp := new(Progs)
+	if Ctxt.CanReuseProgs() {
+		pp.progcache = sharedProgArray[:]
+	}
 	pp.curfn = fn
 
 	// prime the pump
-	pp.next = Ctxt.NewProg()
+	pp.next = pp.NewProg()
 	pp.clearp(pp.next)
 
 	pp.pos = fn.Pos
@@ -58,18 +69,41 @@ func newProgs(fn *Node) *Progs {
 	return pp
 }
 
+func (pp *Progs) NewProg() *obj.Prog {
+	if pp.cacheidx < len(pp.progcache) {
+		p := &pp.progcache[pp.cacheidx]
+		p.Ctxt = Ctxt
+		pp.cacheidx++
+		return p
+	}
+	p := new(obj.Prog)
+	p.Ctxt = Ctxt
+	return p
+}
+
 // Flush converts from pp to machine code.
 func (pp *Progs) Flush() {
 	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.curfn}
-	obj.Flushplist(Ctxt, plist)
-	// Clear pp to enable GC and avoid abuse.
+	obj.Flushplist(Ctxt, plist, pp.NewProg)
+}
+
+// Free clears pp and any associated resources.
+func (pp *Progs) Free() {
+	if Ctxt.CanReuseProgs() {
+		// Clear progs to enable GC and avoid abuse.
+		s := pp.progcache[:pp.cacheidx]
+		for i := range s {
+			s[i] = obj.Prog{}
+		}
+	}
+	// Clear pp to avoid abuse.
 	*pp = Progs{}
 }
 
 // Prog adds a Prog with instruction As to pp.
 func (pp *Progs) Prog(as obj.As) *obj.Prog {
 	p := pp.next
-	pp.next = Ctxt.NewProg()
+	pp.next = pp.NewProg()
 	pp.clearp(pp.next)
 	p.Link = pp.next
 
@@ -90,7 +124,7 @@ func (pp *Progs) clearp(p *obj.Prog) {
 }
 
 func (pp *Progs) Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset int64, ttype obj.AddrType, treg int16, toffset int64) *obj.Prog {
-	q := Ctxt.NewProg()
+	q := pp.NewProg()
 	pp.clearp(q)
 	q.As = as
 	q.Pos = p.Pos

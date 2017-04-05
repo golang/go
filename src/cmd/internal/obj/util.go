@@ -163,22 +163,13 @@ func (p *Prog) String() string {
 }
 
 func (ctxt *Link) NewProg() *Prog {
-	var p *Prog
-	if i := ctxt.allocIdx; i < len(ctxt.progs) {
-		p = &ctxt.progs[i]
-		ctxt.allocIdx = i + 1
-	} else {
-		p = new(Prog) // should be the only call to this; all others should use ctxt.NewProg
-	}
+	p := new(Prog)
 	p.Ctxt = ctxt
 	return p
 }
-func (ctxt *Link) freeProgs() {
-	s := ctxt.progs[:ctxt.allocIdx]
-	for i := range s {
-		s[i] = Prog{}
-	}
-	ctxt.allocIdx = 0
+
+func (ctxt *Link) CanReuseProgs() bool {
+	return !ctxt.Debugasm
 }
 
 func (ctxt *Link) Dconv(a *Addr) string {

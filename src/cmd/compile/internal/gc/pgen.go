@@ -301,11 +301,12 @@ func compile(fn *Node) {
 	pp := newProgs(fn)
 	genssa(ssafn, pp)
 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
-	if pp.Text.To.Offset >= 1<<31 {
+	if pp.Text.To.Offset < 1<<31 {
+		pp.Flush()
+	} else {
 		largeStackFrames = append(largeStackFrames, fn.Pos)
-		return
 	}
-	pp.Flush()
+	pp.Free()
 }
 
 func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
