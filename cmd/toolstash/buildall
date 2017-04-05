@@ -57,7 +57,11 @@ do
 		export GO386=387
 	fi
 	if $cmp; then
-		go build $work -a -toolexec 'toolstash -cmp' std cmd
+		if [ "$GOOS" = "android" ]; then
+			go build $work -a -toolexec 'toolstash -cmp' std
+		else
+			go build $work -a -toolexec 'toolstash -cmp' std cmd
+		fi
 	else
 		go build $work -a std
 	fi
