@@ -38,16 +38,24 @@ func checkLinear(typ string, tries int, f func(n int)) {
 	n := tries
 	fails := 0
 	var buf bytes.Buffer
+	inversions := 0
 	for {
 		t1 := timeF(n)
 		t2 := timeF(2 * n)
 		if debug {
 			println(n, t1.String(), 2*n, t2.String())
 		}
-		fmt.Fprintf(&buf, "%d %v %d %v\n", n, t1, 2*n, t2)
-		// should be 2x (linear); allow up to 2.5x
-		if t1*3/2 < t2 && t2 < t1*5/2 {
+		fmt.Fprintf(&buf, "%d %v %d %v (%.1fX)\n", n, t1, 2*n, t2, float64(t2)/float64(t1))
+		// should be 2x (linear); allow up to 3x
+		if t1*3/2 < t2 && t2 < t1*3 {
 			return
+		}
+		if t2 < t1 {
+			if inversions++; inversions >= 5 {
+				// The system must be overloaded (some builders). Give up.
+				return
+			}
+			continue // try again; don't increment fails
 		}
 		// Once the test runs long enough for n ops,
 		// try to get the right ratio at least once.
