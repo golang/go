@@ -612,6 +612,11 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				}
 			}
 		case cbG8:
+			if d.useTransparent {
+				// Match error from Go 1.7 and earlier.
+				// Go 1.9 will decode this properly.
+				return nil, chunkOrderError
+			}
 			copy(gray.Pix[pixOffset:], cdat)
 			pixOffset += gray.Stride
 		case cbGA8:
