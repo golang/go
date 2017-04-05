@@ -955,10 +955,6 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		if p.Name == "main" && goarch == "arm" {
 			importPaths = append(importPaths, "math")
 		}
-		// In coverage atomic mode everything depends on sync/atomic.
-		if testCoverMode == "atomic" && (!p.Standard || (p.ImportPath != "runtime/cgo" && p.ImportPath != "runtime/race" && p.ImportPath != "sync/atomic")) {
-			importPaths = append(importPaths, "sync/atomic")
-		}
 	}
 
 	// Runtime and its internal packages depend on runtime/internal/sys,

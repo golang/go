@@ -545,6 +545,10 @@ func runTest(cmd *Command, args []string) {
 
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
+		// sync/atomic import is inserted by the cover tool. See #18486
+		if testCover && testCoverMode == "atomic" {
+			ensureImport(p, "sync/atomic")
+		}
 		buildTest, runTest, printTest, err := b.test(p)
 		if err != nil {
 			str := err.Error()
@@ -634,6 +638,23 @@ func runTest(cmd *Command, args []string) {
 	}
 
 	b.do(root)
+}
+
+// ensures that package p imports the named package.
+func ensureImport(p *Package, pkg string) {
+	for _, d := range p.deps {
+		if d.Name == pkg {
+			return
+		}
+	}
+
+	a := loadPackage(pkg, &importStack{})
+	if a.Error != nil {
+		fatalf("load %s: %v", pkg, a.Error)
+	}
+	computeStale(a)
+
+	p.imports = append(p.imports, a)
 }
 
 func contains(x []string, s string) bool {
