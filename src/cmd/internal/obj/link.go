@@ -749,10 +749,6 @@ type Link struct {
 	// state for writing objects
 	Text []*LSym
 	Data []*LSym
-
-	// Cache of Progs
-	allocIdx int
-	progs    [10000]Prog
 }
 
 func (ctxt *Link) Diag(format string, args ...interface{}) {
