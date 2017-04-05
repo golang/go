@@ -8,6 +8,7 @@ package pprof
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"internal/testenv"
 	"math/big"
@@ -85,7 +86,7 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 	})
 }
 
-func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []uintptr)) {
+func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []uintptr, map[string][]string)) {
 	p, err := profile.Parse(bytes.NewReader(valBytes))
 	if err != nil {
 		t.Fatal(err)
@@ -96,7 +97,7 @@ func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []uintptr)) {
 		for i := range sample.Location {
 			stk[i] = uintptr(sample.Location[i].Address)
 		}
-		f(count, stk)
+		f(count, stk, sample.Label)
 	}
 }
 
@@ -164,6 +165,15 @@ func testCPUProfile(t *testing.T, need []string, f func(dur time.Duration)) {
 	t.FailNow()
 }
 
+func contains(slice []string, s string) bool {
+	for i := range slice {
+		if slice[i] == s {
+			return true
+		}
+	}
+	return false
+}
+
 func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Duration) (ok bool) {
 	ok = true
 
@@ -171,7 +181,7 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
 	have := make([]uintptr, len(need))
 	var samples uintptr
 	var buf bytes.Buffer
-	parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
+	parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr, labels map[string][]string) {
 		fmt.Fprintf(&buf, "%d:", count)
 		samples += count
 		for _, pc := range stk {
@@ -182,6 +192,13 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
 			}
 			fmt.Fprintf(&buf, "(%s)", f.Name())
 			for i, name := range need {
+				if semi := strings.Index(name, ";"); semi > -1 {
+					kv := strings.SplitN(name[semi+1:], "=", 2)
+					if len(kv) != 2 || !contains(labels[kv[0]], kv[1]) {
+						continue
+					}
+					name = name[:semi]
+				}
 				if strings.Contains(f.Name(), name) {
 					have[i] += count
 				}
@@ -296,7 +313,7 @@ func TestGoroutineSwitch(t *testing.T) {
 
 		// Read profile to look for entries for runtime.gogo with an attempt at a traceback.
 		// The special entry
-		parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
+		parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr, _ map[string][]string) {
 			// An entry with two frames with 'System' in its top frame
 			// exists to record a PC without a traceback. Those are okay.
 			if len(stk) == 2 {
@@ -653,4 +670,12 @@ func TestEmptyCallStack(t *testing.T) {
 	if !strings.Contains(got, lostevent) {
 		t.Fatalf("got:\n\t%q\ndoes not contain:\n\t%q\n", got, lostevent)
 	}
+}
+
+func TestCPUProfileLabel(t *testing.T) {
+	testCPUProfile(t, []string{"runtime/pprof.cpuHogger;key=value"}, func(dur time.Duration) {
+		Do(context.Background(), Labels("key", "value"), func(context.Context) {
+			cpuHogger(cpuHog1, dur)
+		})
+	})
 }
