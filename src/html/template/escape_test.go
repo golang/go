@@ -69,17 +69,7 @@ func TestEscape(t *testing.T) {
 			"&lt;Goodbye&gt;!",
 		},
 		{
-			"overescaping1",
-			"Hello, {{.C | html}}!",
-			"Hello, &lt;Cincinatti&gt;!",
-		},
-		{
-			"overescaping2",
-			"Hello, {{html .C}}!",
-			"Hello, &lt;Cincinatti&gt;!",
-		},
-		{
-			"overescaping3",
+			"overescaping",
 			"{{with .C}}{{$msg := .}}Hello, {{$msg}}!{{end}}",
 			"Hello, &lt;Cincinatti&gt;!",
 		},
@@ -214,11 +204,6 @@ func TestEscape(t *testing.T) {
 			`<script>alert(["\u003ca\u003e","\u003cb\u003e"])</script>`,
 		},
 		{
-			"jsObjValueNotOverEscaped",
-			"<button onclick='alert({{.A | html}})'>",
-			`<button onclick='alert([&#34;\u003ca\u003e&#34;,&#34;\u003cb\u003e&#34;])'>`,
-		},
-		{
 			"jsStr",
 			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
 			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
@@ -232,12 +217,6 @@ func TestEscape(t *testing.T) {
 			"jsMarshaler",
 			`<button onclick='alert({{.M}})'>`,
 			`<button onclick='alert({&#34;\u003cfoo\u003e&#34;:&#34;O&#39;Reilly&#34;})'>`,
-		},
-		{
-			"jsStrNotUnderEscaped",
-			"<button onclick='alert({{.C | urlquery}})'>",
-			// URL escaped, then quoted for JS.
-			`<button onclick='alert(&#34;%3CCincinatti%3E&#34;)'>`,
 		},
 		{
 			"jsRe",
@@ -970,8 +949,32 @@ func TestErrors(t *testing.T) {
 			`<a=foo>`,
 			`: expected space, attr name, or end of tag, but got "=foo>"`,
 		},
+		{
+			`Hello, {{. | html}}!`,
+			// Piping to html is disallowed.
+			`predefined escaper "html" disallowed in template`,
+		},
+		{
+			`Hello, {{. | html | print}}!`,
+			// html is disallowed, even if it is not the last command in the pipeline.
+			`predefined escaper "html" disallowed in template`,
+		},
+		{
+			`Hello, {{html .}}!`,
+			// Calling html is disallowed.
+			`predefined escaper "html" disallowed in template`,
+		},
+		{
+			`Hello, {{. | urlquery | html}}!`,
+			// urlquery is disallowed; first disallowed escaper in the pipeline is reported in error.
+			`predefined escaper "urlquery" disallowed in template`,
+		},
+		{
+			`<script>function do{{. | js}}() { return 1 }</script>`,
+			// js is disallowed.
+			`predefined escaper "js" disallowed in template`,
+		},
 	}
-
 	for _, test := range tests {
 		buf := new(bytes.Buffer)
 		tmpl, err := New("z").Parse(test.input)
@@ -1519,58 +1522,13 @@ func TestEnsurePipelineContains(t *testing.T) {
 			[]string{},
 		},
 		{
-			"{{.X | html}}",
-			".X | html",
-			[]string{},
-		},
-		{
 			"{{.X}}",
 			".X | html",
 			[]string{"html"},
 		},
 		{
-			"{{.X | html}}",
-			".X | html | urlquery",
-			[]string{"urlquery"},
-		},
-		{
-			"{{.X | html | urlquery}}",
-			".X | html | urlquery",
-			[]string{"urlquery"},
-		},
-		{
-			"{{.X | html | urlquery}}",
-			".X | html | urlquery",
-			[]string{"html", "urlquery"},
-		},
-		{
-			"{{.X | html | urlquery}}",
-			".X | html | urlquery",
-			[]string{"html"},
-		},
-		{
-			"{{.X | urlquery}}",
-			".X | html | urlquery",
-			[]string{"html", "urlquery"},
-		},
-		{
-			"{{.X | html | print}}",
-			".X | urlquery | html | print",
-			[]string{"urlquery", "html"},
-		},
-		{
-			"{{($).X | html | print}}",
-			"($).X | urlquery | html | print",
-			[]string{"urlquery", "html"},
-		},
-		{
 			"{{.X | print 2 | .f 3}}",
 			".X | print 2 | .f 3 | urlquery | html",
-			[]string{"urlquery", "html"},
-		},
-		{
-			"{{.X | html | print 2 | .f 3}}",
-			".X | urlquery | html | print 2 | .f 3",
 			[]string{"urlquery", "html"},
 		},
 		{
@@ -1605,11 +1563,7 @@ func TestEnsurePipelineContains(t *testing.T) {
 func TestEscapeMalformedPipelines(t *testing.T) {
 	tests := []string{
 		"{{ 0 | $ }}",
-		"{{ 0 | $ | urlquery }}",
-		"{{ 0 | $ | urlquery | html }}",
 		"{{ 0 | (nil) }}",
-		"{{ 0 | (nil) | html }}",
-		"{{ 0 | (nil) | html | urlquery }}",
 	}
 	for _, test := range tests {
 		var b bytes.Buffer

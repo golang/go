@@ -183,6 +183,27 @@ const (
 	//   Look for missing semicolons inside branches, and maybe add
 	//   parentheses to make it clear which interpretation you intend.
 	ErrSlashAmbig
+
+	// ErrPredefinedEscaper: "predefined escaper ... disallowed in template"
+	// Example:
+	//   <a href="{{.X | urlquery}}">
+	// Discussion:
+	//   Package html/template already contextually escapes all pipelines to
+	//   produce HTML output safe against code injection. Manually escaping
+	//   pipeline output using the predefined escapers "html", "urlquery", or "js"
+	//   is unnecessary, and might affect the correctness or safety of the escaped
+	//   pipeline output. In the above example, "urlquery" should simply be
+	//   removed from the pipeline so that escaping is performed solely by the
+	//   contextual autoescaper.
+	//   If the predefined escaper occurs in the middle of a pipeline where
+	//   subsequent commands expect escaped input, e.g.
+	//     {{.X | html | makeALink}}
+	//   where makeALink does
+	//     return "<a href='+input+'>link</a>"
+	//   consider refactoring the surrounding template to make use of the
+	//   contextual autoescaper, i.e.
+	//     <a href='{{.X}}'>link</a>
+	ErrPredefinedEscaper
 )
 
 func (e *Error) Error() string {
