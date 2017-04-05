@@ -38,6 +38,7 @@ var (
 	memprofilerate int64
 	traceprofile   string
 	traceHandler   func(string)
+	mutexprofile   string
 )
 
 func startProfile() {
@@ -82,6 +83,17 @@ func startProfile() {
 		runtime.SetBlockProfileRate(1)
 		atExit(func() {
 			pprof.Lookup("block").WriteTo(f, 0)
+			f.Close()
+		})
+	}
+	if mutexprofile != "" {
+		f, err := os.Create(mutexprofile)
+		if err != nil {
+			Fatalf("%v", err)
+		}
+		startMutexProfiling()
+		atExit(func() {
+			pprof.Lookup("mutex").WriteTo(f, 0)
 			f.Close()
 		})
 	}
