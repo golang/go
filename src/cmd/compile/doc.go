@@ -77,6 +77,8 @@ Flags:
 		Set runtime.MemProfileRate for the compilation to rate.
 	-msan
 		Insert calls to C/C++ memory sanitizer.
+	-mutexprofile file
+		Write mutex profile for the compilation to file.
 	-nolocalimports
 		Disallow local (relative) imports.
 	-o file
