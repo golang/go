@@ -2428,7 +2428,10 @@ func TestIssue16158(t *testing.T) {
 	err := Unmarshal([]byte(data), &struct {
 		B byte `xml:"b,attr,omitempty"`
 	}{})
-	if err == nil {
-		t.Errorf("Unmarshal: expected error, got nil")
+
+	// For Go 1.8.1 we've restored the old "no errors reported" behavior.
+	// We'll try again in Go 1.9 to report errors.
+	if err != nil {
+		t.Errorf("Unmarshal: expected nil, got error")
 	}
 }
