@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"reflect"
 	"sort"
 	"testing"
@@ -12,24 +13,24 @@ import (
 
 func TestSortingByMethodNameAndPackagePath(t *testing.T) {
 	data := []*Sig{
-		&Sig{name: "b", pkg: &Pkg{Path: "abc"}},
+		&Sig{name: "b", pkg: &types.Pkg{Path: "abc"}},
 		&Sig{name: "b", pkg: nil},
 		&Sig{name: "c", pkg: nil},
-		&Sig{name: "c", pkg: &Pkg{Path: "uvw"}},
+		&Sig{name: "c", pkg: &types.Pkg{Path: "uvw"}},
 		&Sig{name: "c", pkg: nil},
-		&Sig{name: "b", pkg: &Pkg{Path: "xyz"}},
-		&Sig{name: "a", pkg: &Pkg{Path: "abc"}},
+		&Sig{name: "b", pkg: &types.Pkg{Path: "xyz"}},
+		&Sig{name: "a", pkg: &types.Pkg{Path: "abc"}},
 		&Sig{name: "b", pkg: nil},
 	}
 	want := []*Sig{
-		&Sig{name: "a", pkg: &Pkg{Path: "abc"}},
+		&Sig{name: "a", pkg: &types.Pkg{Path: "abc"}},
 		&Sig{name: "b", pkg: nil},
 		&Sig{name: "b", pkg: nil},
-		&Sig{name: "b", pkg: &Pkg{Path: "abc"}},
-		&Sig{name: "b", pkg: &Pkg{Path: "xyz"}},
+		&Sig{name: "b", pkg: &types.Pkg{Path: "abc"}},
+		&Sig{name: "b", pkg: &types.Pkg{Path: "xyz"}},
 		&Sig{name: "c", pkg: nil},
 		&Sig{name: "c", pkg: nil},
-		&Sig{name: "c", pkg: &Pkg{Path: "uvw"}},
+		&Sig{name: "c", pkg: &types.Pkg{Path: "uvw"}},
 	}
 	if len(data) != len(want) {
 		t.Fatal("want and data must match")

@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -346,6 +347,35 @@ func Main(archInit func(*Arch)) {
 	Widthint = thearch.LinkArch.IntSize
 	Widthptr = thearch.LinkArch.PtrSize
 	Widthreg = thearch.LinkArch.RegSize
+
+	// initialize types package
+	// (we need to do this to break dependencies that otherwise
+	// would lead to import cycles)
+	types.Widthptr = Widthptr
+	types.Dowidth = dowidth
+	types.Fatalf = Fatalf
+	types.Sconv = func(s *types.Sym, flag, mode int) string {
+		return sconv(s, FmtFlag(flag), fmtMode(mode))
+	}
+	types.Tconv = func(t *types.Type, flag, mode, depth int) string {
+		return tconv(t, FmtFlag(flag), fmtMode(mode), depth)
+	}
+	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune, mode int) {
+		symFormat(sym, s, verb, fmtMode(mode))
+	}
+	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
+		typeFormat(t, s, verb, fmtMode(mode))
+	}
+	types.Cmptyp = cmptyp
+	types.FieldName = func(f *types.Field) string {
+		return f.Sym.Name
+	}
+	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+		return Linksym(typenamesym(t))
+	}
+	types.FmtLeft = int(FmtLeft)
+	types.FmtUnsigned = int(FmtUnsigned)
+	types.FErr = FErr
 
 	initUniverse()
 
@@ -752,7 +782,7 @@ func loadsys() {
 	inimport = false
 }
 
-func importfile(f *Val) *Pkg {
+func importfile(f *Val) *types.Pkg {
 	path_, ok := f.U.(string)
 	if !ok {
 		yyerror("import path must be a string")
@@ -964,32 +994,36 @@ func mkpackage(pkgname string) {
 
 func clearImports() {
 	for _, s := range localpkg.Syms {
-		if s.Def == nil {
+		if asNode(s.Def) == nil {
 			continue
 		}
-		if s.Def.Op == OPACK {
+		if asNode(s.Def).Op == OPACK {
 			// throw away top-level package name leftover
 			// from previous file.
 			// leave s->block set to cause redeclaration
 			// errors if a conflicting top-level name is
 			// introduced by a different file.
-			if !s.Def.Used() && nsyntaxerrors == 0 {
-				pkgnotused(s.Def.Pos, s.Def.Name.Pkg.Path, s.Name)
+			if !asNode(s.Def).Used() && nsyntaxerrors == 0 {
+				pkgnotused(asNode(s.Def).Pos, asNode(s.Def).Name.Pkg.Path, s.Name)
 			}
 			s.Def = nil
 			continue
 		}
 
-		if s.isAlias() {
+		if IsAlias(s) {
 			// throw away top-level name left over
 			// from previous import . "x"
-			if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used() && nsyntaxerrors == 0 {
-				pkgnotused(s.Def.Name.Pack.Pos, s.Def.Name.Pack.Name.Pkg.Path, "")
-				s.Def.Name.Pack.SetUsed(true)
+			if asNode(s.Def).Name != nil && asNode(s.Def).Name.Pack != nil && !asNode(s.Def).Name.Pack.Used() && nsyntaxerrors == 0 {
+				pkgnotused(asNode(s.Def).Name.Pack.Pos, asNode(s.Def).Name.Pack.Name.Pkg.Path, "")
+				asNode(s.Def).Name.Pack.SetUsed(true)
 			}
 
 			s.Def = nil
 			continue
 		}
 	}
+}
+
+func IsAlias(sym *types.Sym) bool {
+	return sym.Def != nil && asNode(sym.Def).Sym != sym
 }

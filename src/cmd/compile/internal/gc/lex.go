@@ -104,17 +104,6 @@ func pragmaValue(verb string) syntax.Pragma {
 	return 0
 }
 
-var internedStrings = map[string]string{}
-
-func internString(b []byte) string {
-	s, ok := internedStrings[string(b)] // string(b) here doesn't allocate
-	if !ok {
-		s = string(b)
-		internedStrings[s] = s
-	}
-	return s
-}
-
 // pragcgo is called concurrently if files are parsed concurrently.
 func (p *noder) pragcgo(pos src.Pos, text string) string {
 	f := pragmaFields(text)

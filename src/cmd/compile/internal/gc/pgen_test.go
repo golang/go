@@ -5,22 +5,23 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"reflect"
 	"sort"
 	"testing"
 )
 
-func typeWithoutPointers() *Type {
-	t := typ(TSTRUCT)
-	f := &Field{Type: typ(TINT)}
-	t.SetFields([]*Field{f})
+func typeWithoutPointers() *types.Type {
+	t := types.New(TSTRUCT)
+	f := &types.Field{Type: types.New(TINT)}
+	t.SetFields([]*types.Field{f})
 	return t
 }
 
-func typeWithPointers() *Type {
-	t := typ(TSTRUCT)
-	f := &Field{Type: typ(TPTR64)}
-	t.SetFields([]*Field{f})
+func typeWithPointers() *types.Type {
+	t := types.New(TSTRUCT)
+	f := &types.Field{Type: types.New(TPTR64)}
+	t.SetFields([]*types.Field{f})
 	return t
 }
 
@@ -86,38 +87,38 @@ func TestCmpstackvar(t *testing.T) {
 			true,
 		},
 		{
-			Node{Class: PAUTO, Type: &Type{}, Name: &Name{flags: nameNeedzero}},
-			Node{Class: PAUTO, Type: &Type{}, Name: &Name{}},
+			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{flags: nameNeedzero}},
+			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}},
 			true,
 		},
 		{
-			Node{Class: PAUTO, Type: &Type{}, Name: &Name{}},
-			Node{Class: PAUTO, Type: &Type{}, Name: &Name{flags: nameNeedzero}},
+			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}},
+			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{flags: nameNeedzero}},
 			false,
 		},
 		{
-			Node{Class: PAUTO, Type: &Type{Width: 1}, Name: &Name{}},
-			Node{Class: PAUTO, Type: &Type{Width: 2}, Name: &Name{}},
+			Node{Class: PAUTO, Type: &types.Type{Width: 1}, Name: &Name{}},
+			Node{Class: PAUTO, Type: &types.Type{Width: 2}, Name: &Name{}},
 			false,
 		},
 		{
-			Node{Class: PAUTO, Type: &Type{Width: 2}, Name: &Name{}},
-			Node{Class: PAUTO, Type: &Type{Width: 1}, Name: &Name{}},
+			Node{Class: PAUTO, Type: &types.Type{Width: 2}, Name: &Name{}},
+			Node{Class: PAUTO, Type: &types.Type{Width: 1}, Name: &Name{}},
 			true,
 		},
 		{
-			Node{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
-			Node{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "xyz"}},
+			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
+			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}},
 			true,
 		},
 		{
-			Node{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
-			Node{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
+			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
+			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
 			false,
 		},
 		{
-			Node{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "xyz"}},
-			Node{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
+			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}},
+			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
 			false,
 		},
 	}
@@ -135,41 +136,41 @@ func TestCmpstackvar(t *testing.T) {
 
 func TestStackvarSort(t *testing.T) {
 	inp := []*Node{
-		{Class: PFUNC, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PFUNC, Xoffset: 0, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PFUNC, Xoffset: 10, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PFUNC, Xoffset: 20, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, flags: nodeUsed, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: typeWithoutPointers(), Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{}, Name: &Name{flags: nameNeedzero}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{Width: 1}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{Width: 2}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
-		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "xyz"}},
+		{Class: PFUNC, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PFUNC, Xoffset: 0, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PFUNC, Xoffset: 10, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PFUNC, Xoffset: 20, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, flags: nodeUsed, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: typeWithoutPointers(), Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{}, Name: &Name{flags: nameNeedzero}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{Width: 1}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{Width: 2}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
+		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}},
 	}
 	want := []*Node{
-		{Class: PFUNC, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PFUNC, Xoffset: 0, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PFUNC, Xoffset: 10, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PFUNC, Xoffset: 20, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, flags: nodeUsed, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{}, Name: &Name{flags: nameNeedzero}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{Width: 2}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{Width: 1}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
-		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "xyz"}},
-		{Class: PAUTO, Type: typeWithoutPointers(), Name: &Name{}, Sym: &Sym{}},
+		{Class: PFUNC, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PFUNC, Xoffset: 0, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PFUNC, Xoffset: 10, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PFUNC, Xoffset: 20, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, flags: nodeUsed, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{}, Name: &Name{flags: nameNeedzero}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{Width: 2}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{Width: 1}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
+		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}},
+		{Class: PAUTO, Type: typeWithoutPointers(), Name: &Name{}, Sym: &types.Sym{}},
 	}
 	// haspointers updates Type.Haspointers as a side effect, so
 	// exercise this function on all inputs so that reflect.DeepEqual
 	// doesn't produce false positives.
 	for i := range want {
-		haspointers(want[i].Type)
-		haspointers(inp[i].Type)
+		types.Haspointers(want[i].Type)
+		types.Haspointers(inp[i].Type)
 	}
 
 	sort.Sort(byStackVar(inp))

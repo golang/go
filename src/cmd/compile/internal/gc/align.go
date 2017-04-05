@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"sort"
 )
 
@@ -21,8 +22,8 @@ func Rnd(o int64, r int64) int64 {
 
 // expandiface computes the method set for interface type t by
 // expanding embedded interfaces.
-func expandiface(t *Type) {
-	var fields []*Field
+func expandiface(t *types.Type) {
+	var fields []*types.Field
 	for _, m := range t.Methods().Slice() {
 		if m.Sym != nil {
 			fields = append(fields, m)
@@ -30,7 +31,7 @@ func expandiface(t *Type) {
 		}
 
 		if !m.Type.IsInterface() {
-			yyerrorl(m.Nname.Pos, "interface contains embedded non-interface %v", m.Type)
+			yyerrorl(asNode(m.Nname).Pos, "interface contains embedded non-interface %v", m.Type)
 			m.SetBroke(true)
 			t.SetBroke(true)
 			// Add to fields so that error messages
@@ -45,7 +46,7 @@ func expandiface(t *Type) {
 		// (including broken ones, if any) and add to t's
 		// method set.
 		for _, t1 := range m.Type.Fields().Slice() {
-			f := newField()
+			f := types.NewField()
 			f.Type = t1.Type
 			f.SetBroke(t1.Broke())
 			f.Sym = t1.Sym
@@ -57,10 +58,10 @@ func expandiface(t *Type) {
 
 	// Access fields directly to avoid recursively calling dowidth
 	// within Type.Fields().
-	t.Extra.(*InterType).fields.Set(fields)
+	t.Extra.(*types.InterType).Fields.Set(fields)
 }
 
-func offmod(t *Type) {
+func offmod(t *types.Type) {
 	o := int32(0)
 	for _, f := range t.Fields().Slice() {
 		f.Offset = int64(o)
@@ -72,7 +73,7 @@ func offmod(t *Type) {
 	}
 }
 
-func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 	starto := o
 	maxalign := int32(flag)
 	if maxalign < 1 {
@@ -94,7 +95,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 			o = Rnd(o, int64(f.Type.Align))
 		}
 		f.Offset = o
-		if f.Nname != nil {
+		if asNode(f.Nname) != nil {
 			// addrescapes has similar code to update these offsets.
 			// Usually addrescapes runs after widstruct,
 			// in which case we could drop this,
@@ -102,11 +103,11 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 			// NOTE(rsc): This comment may be stale.
 			// It's possible the ordering has changed and this is
 			// now the common case. I'm not sure.
-			if f.Nname.Name.Param.Stackcopy != nil {
-				f.Nname.Name.Param.Stackcopy.Xoffset = o
-				f.Nname.Xoffset = 0
+			if asNode(f.Nname).Name.Param.Stackcopy != nil {
+				asNode(f.Nname).Name.Param.Stackcopy.Xoffset = o
+				asNode(f.Nname).Xoffset = 0
 			} else {
-				f.Nname.Xoffset = o
+				asNode(f.Nname).Xoffset = o
 			}
 		}
 
@@ -150,7 +151,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 	return o
 }
 
-func dowidth(t *Type) {
+func dowidth(t *types.Type) {
 	if Widthptr == 0 {
 		Fatalf("dowidth without betypeinit")
 	}
@@ -162,7 +163,7 @@ func dowidth(t *Type) {
 	if t.Width == -2 {
 		if !t.Broke() {
 			t.SetBroke(true)
-			yyerrorl(t.nod.Pos, "invalid recursive type %v", t)
+			yyerrorl(asNode(t.Nod).Pos, "invalid recursive type %v", t)
 		}
 
 		t.Width = 0
@@ -183,8 +184,8 @@ func dowidth(t *Type) {
 	defercalc++
 
 	lno := lineno
-	if t.nod != nil {
-		lineno = t.nod.Pos
+	if asNode(t.Nod) != nil {
+		lineno = asNode(t.Nod).Pos
 	}
 
 	t.Width = -2
@@ -253,7 +254,7 @@ func dowidth(t *Type) {
 
 		// make fake type to check later to
 		// trigger channel argument check.
-		t1 := typChanArgs(t)
+		t1 := types.NewChanArgs(t)
 		checkwidth(t1)
 
 	case TCHANARGS:
@@ -290,7 +291,7 @@ func dowidth(t *Type) {
 		if t.Elem() == nil {
 			break
 		}
-		if t.isDDDArray() {
+		if t.IsDDDArray() {
 			if !t.Broke() {
 				yyerror("use of [...] array outside of array literal")
 				t.SetBroke(true)
@@ -325,7 +326,7 @@ func dowidth(t *Type) {
 	// make fake type to check later to
 	// trigger function argument computation.
 	case TFUNC:
-		t1 := typFuncArgs(t)
+		t1 := types.NewFuncArgs(t)
 		checkwidth(t1)
 		w = int64(Widthptr) // width of func type is pointer
 
@@ -336,7 +337,7 @@ func dowidth(t *Type) {
 		w = widstruct(t1, t1.Recvs(), 0, 0)
 		w = widstruct(t1, t1.Params(), w, Widthreg)
 		w = widstruct(t1, t1.Results(), w, Widthreg)
-		t1.Extra.(*FuncType).Argwid = w
+		t1.Extra.(*types.FuncType).Argwid = w
 		if w%int64(Widthreg) != 0 {
 			Warn("bad type %v %d\n", t1, w)
 		}
@@ -388,9 +389,9 @@ func dowidth(t *Type) {
 // is needed immediately.  checkwidth makes sure the
 // size is evaluated eventually.
 
-var deferredTypeStack []*Type
+var deferredTypeStack []*types.Type
 
-func checkwidth(t *Type) {
+func checkwidth(t *types.Type) {
 	if t == nil {
 		return
 	}

@@ -8,6 +8,7 @@ package gc
 
 import (
 	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/types"
 	"cmd/internal/src"
 )
 
@@ -26,7 +27,7 @@ type Node struct {
 	Rlist Nodes
 
 	// most nodes
-	Type *Type
+	Type *types.Type
 	Orig *Node // original form, for printing, and tracking copies of ONAMEs
 
 	// func
@@ -35,7 +36,7 @@ type Node struct {
 	// ONAME, OTYPE, OPACK, OLABEL, some OLITERAL
 	Name *Name
 
-	Sym *Sym        // various
+	Sym *types.Sym  // various
 	E   interface{} // Opt or Val, see methods below
 
 	// Various. Usually an offset into a struct. For example:
@@ -54,11 +55,11 @@ type Node struct {
 	Esc uint16 // EscXXX
 
 	Op        Op
-	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
-	Class     Class // PPARAM, PAUTO, PEXTERN, etc
-	Embedded  uint8 // ODCLFIELD embedded type
-	Walkdef   uint8 // tracks state during typecheckdef; 2 == loop detected
-	Typecheck uint8 // tracks state during typechecking; 2 == loop detected
+	Etype     types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+	Class     Class       // PPARAM, PAUTO, PEXTERN, etc
+	Embedded  uint8       // ODCLFIELD embedded type
+	Walkdef   uint8       // tracks state during typecheckdef; 2 == loop detected
+	Typecheck uint8       // tracks state during typechecking; 2 == loop detected
 	Initorder uint8
 	Likely    int8 // likeliness of if statement
 	hasVal    int8 // +1 for Val, -1 for Opt, 0 for not yet set
@@ -191,13 +192,13 @@ func (n *Node) mayBeShared() bool {
 
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
 type Name struct {
-	Pack      *Node  // real package for import . names
-	Pkg       *Pkg   // pkg for OPACK nodes
-	Defn      *Node  // initializing assignment
-	Curfn     *Node  // function for local variables
-	Param     *Param // additional fields for ONAME, OTYPE
-	Decldepth int32  // declaration loop depth, increased for every loop or label
-	Vargen    int32  // unique name for ONAME within a function.  Function outputs are numbered starting at one.
+	Pack      *Node      // real package for import . names
+	Pkg       *types.Pkg // pkg for OPACK nodes
+	Defn      *Node      // initializing assignment
+	Curfn     *Node      // function for local variables
+	Param     *Param     // additional fields for ONAME, OTYPE
+	Decldepth int32      // declaration loop depth, increased for every loop or label
+	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
 	Funcdepth int32
 
 	flags bitset8
@@ -234,7 +235,7 @@ type Param struct {
 	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
 
 	// ONAME PPARAM
-	Field *Field // TFIELD in arg struct
+	Field *types.Field // TFIELD in arg struct
 
 	// ONAME closure linkage
 	// Consider:
@@ -317,7 +318,7 @@ type Param struct {
 
 // Func holds Node fields used only with function-like nodes.
 type Func struct {
-	Shortname  *Sym
+	Shortname  *types.Sym
 	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
 	Exit       Nodes
 	Cvars      Nodes   // closure params
@@ -325,7 +326,7 @@ type Func struct {
 	Inldcl     Nodes   // copy of dcl for use in inlining
 	Closgen    int
 	Outerfunc  *Node // outer function (for closure)
-	FieldTrack map[*Sym]struct{}
+	FieldTrack map[*types.Sym]struct{}
 	Ntype      *Node // signature
 	Top        int   // top context (Ecall, Eproc, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC

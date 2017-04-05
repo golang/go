@@ -6,6 +6,7 @@ package gc
 
 import (
 	"bytes"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"crypto/md5"
@@ -209,13 +210,13 @@ func setlineno(n *Node) src.XPos {
 	return lno
 }
 
-func lookup(name string) *Sym {
+func lookup(name string) *types.Sym {
 	return localpkg.Lookup(name)
 }
 
 // lookupN looks up the symbol starting with prefix and ending with
 // the decimal n. If prefix is too long, lookupN panics.
-func lookupN(prefix string, n int) *Sym {
+func lookupN(prefix string, n int) *types.Sym {
 	var buf [20]byte // plenty long enough for all current users
 	copy(buf[:], prefix)
 	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
@@ -241,49 +242,7 @@ func autolabel(prefix string) *Node {
 	return newname(lookupN(prefix, int(n)))
 }
 
-var initSyms []*Sym
-
-var nopkg = &Pkg{
-	Syms: make(map[string]*Sym),
-}
-
-func (pkg *Pkg) Lookup(name string) *Sym {
-	s, _ := pkg.LookupOK(name)
-	return s
-}
-
-// LookupOK looks up name in pkg and reports whether it previously existed.
-func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
-	if pkg == nil {
-		pkg = nopkg
-	}
-	if s := pkg.Syms[name]; s != nil {
-		return s, true
-	}
-
-	s = &Sym{
-		Name: name,
-		Pkg:  pkg,
-	}
-	if name == "init" {
-		initSyms = append(initSyms, s)
-	}
-	pkg.Syms[name] = s
-	return s, false
-}
-
-func (pkg *Pkg) LookupBytes(name []byte) *Sym {
-	if pkg == nil {
-		pkg = nopkg
-	}
-	if s := pkg.Syms[string(name)]; s != nil {
-		return s
-	}
-	str := internString(name)
-	return pkg.Lookup(str)
-}
-
-func restrictlookup(name string, pkg *Pkg) *Sym {
+func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
 	if !exportname(name) && pkg != localpkg {
 		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
 	}
@@ -292,8 +251,8 @@ func restrictlookup(name string, pkg *Pkg) *Sym {
 
 // find all the exported symbols in package opkg
 // and make them available in the current package
-func importdot(opkg *Pkg, pack *Node) {
-	var s1 *Sym
+func importdot(opkg *types.Pkg, pack *Node) {
+	var s1 *types.Sym
 	var pkgerror string
 
 	n := 0
@@ -313,11 +272,11 @@ func importdot(opkg *Pkg, pack *Node) {
 
 		s1.Def = s.Def
 		s1.Block = s.Block
-		if s1.Def.Name == nil {
-			Dump("s1def", s1.Def)
+		if asNode(s1.Def).Name == nil {
+			Dump("s1def", asNode(s1.Def))
 			Fatalf("missing Name")
 		}
-		s1.Def.Name.Pack = pack
+		asNode(s1.Def).Name.Pack = pack
 		s1.Origpkg = opkg
 		n++
 	}
@@ -364,7 +323,7 @@ func nodl(pos src.XPos, op Op, nleft, nright *Node) *Node {
 }
 
 // newname returns a new ONAME Node associated with symbol s.
-func newname(s *Sym) *Node {
+func newname(s *types.Sym) *Node {
 	n := newnamel(lineno, s)
 	n.Name.Curfn = Curfn
 	return n
@@ -372,7 +331,7 @@ func newname(s *Sym) *Node {
 
 // newname returns a new ONAME Node associated with symbol s at position pos.
 // The caller is responsible for setting n.Name.Curfn.
-func newnamel(pos src.XPos, s *Sym) *Node {
+func newnamel(pos src.XPos, s *types.Sym) *Node {
 	if s == nil {
 		Fatalf("newnamel nil")
 	}
@@ -397,7 +356,7 @@ func newnamel(pos src.XPos, s *Sym) *Node {
 
 // nodSym makes a Node with Op op and with the Left field set to left
 // and the Sym field set to sym. This is for ODOT and friends.
-func nodSym(op Op, left *Node, sym *Sym) *Node {
+func nodSym(op Op, left *Node, sym *types.Sym) *Node {
 	n := nod(op, left, nil)
 	n.Sym = sym
 	return n
@@ -413,7 +372,7 @@ func saveorignode(n *Node) {
 }
 
 // methcmp sorts by symbol, then by package path for unexported symbols.
-type methcmp []*Field
+type methcmp []*types.Field
 
 func (x methcmp) Len() int      { return len(x) }
 func (x methcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
@@ -446,7 +405,7 @@ func nodintconst(v int64) *Node {
 	c.SetAddable(true)
 	c.SetVal(Val{new(Mpint)})
 	c.Val().U.(*Mpint).SetInt64(v)
-	c.Type = Types[TIDEAL]
+	c.Type = types.Types[TIDEAL]
 	return c
 }
 
@@ -455,11 +414,11 @@ func nodfltconst(v *Mpflt) *Node {
 	c.SetAddable(true)
 	c.SetVal(Val{newMpflt()})
 	c.Val().U.(*Mpflt).Set(v)
-	c.Type = Types[TIDEAL]
+	c.Type = types.Types[TIDEAL]
 	return c
 }
 
-func nodconst(n *Node, t *Type, v int64) {
+func nodconst(n *Node, t *types.Type, v int64) {
 	*n = Node{}
 	n.Op = OLITERAL
 	n.SetAddable(true)
@@ -475,14 +434,14 @@ func nodconst(n *Node, t *Type, v int64) {
 func nodnil() *Node {
 	c := nodintconst(0)
 	c.SetVal(Val{new(NilVal)})
-	c.Type = Types[TNIL]
+	c.Type = types.Types[TNIL]
 	return c
 }
 
 func nodbool(b bool) *Node {
 	c := nodintconst(0)
 	c.SetVal(Val{b})
-	c.Type = idealbool
+	c.Type = types.Idealbool
 	return c
 }
 
@@ -531,7 +490,7 @@ func isnil(n *Node) bool {
 	return Isconst(n.Orig, CTNIL)
 }
 
-func isptrto(t *Type, et EType) bool {
+func isptrto(t *types.Type, et types.EType) bool {
 	if t == nil {
 		return false
 	}
@@ -555,14 +514,14 @@ func isblank(n *Node) bool {
 	return isblanksym(n.Sym)
 }
 
-func isblanksym(s *Sym) bool {
+func isblanksym(s *types.Sym) bool {
 	return s != nil && s.Name == "_"
 }
 
 // methtype returns the underlying type, if any,
 // that owns methods with receiver parameter t.
 // The result is either a named type or an anonymous struct.
-func methtype(t *Type) *Type {
+func methtype(t *types.Type) *types.Type {
 	if t == nil {
 		return nil
 	}
@@ -594,7 +553,7 @@ func methtype(t *Type) *Type {
 	return nil
 }
 
-func cplxsubtype(et EType) EType {
+func cplxsubtype(et types.EType) types.EType {
 	switch et {
 	case TCOMPLEX64:
 		return TFLOAT32
@@ -613,21 +572,21 @@ func cplxsubtype(et EType) EType {
 // named, it is only identical to the other if they are the same
 // pointer (t1 == t2), so there's no chance of chasing cycles
 // ad infinitum, so no need for a depth counter.
-func eqtype(t1, t2 *Type) bool {
+func eqtype(t1, t2 *types.Type) bool {
 	return eqtype1(t1, t2, true, nil)
 }
 
 // eqtypeIgnoreTags is like eqtype but it ignores struct tags for struct identity.
-func eqtypeIgnoreTags(t1, t2 *Type) bool {
+func eqtypeIgnoreTags(t1, t2 *types.Type) bool {
 	return eqtype1(t1, t2, false, nil)
 }
 
 type typePair struct {
-	t1 *Type
-	t2 *Type
+	t1 *types.Type
+	t2 *types.Type
 }
 
-func eqtype1(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) bool {
+func eqtype1(t1, t2 *types.Type, cmpTags bool, assumedEqual map[typePair]struct{}) bool {
 	if t1 == t2 {
 		return true
 	}
@@ -639,9 +598,9 @@ func eqtype1(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) boo
 		// separate for error messages. Treat them as equal.
 		switch t1.Etype {
 		case TUINT8:
-			return (t1 == Types[TUINT8] || t1 == bytetype) && (t2 == Types[TUINT8] || t2 == bytetype)
+			return (t1 == types.Types[TUINT8] || t1 == types.Bytetype) && (t2 == types.Types[TUINT8] || t2 == types.Bytetype)
 		case TINT32:
-			return (t1 == Types[TINT32] || t1 == runetype) && (t2 == Types[TINT32] || t2 == runetype)
+			return (t1 == types.Types[TINT32] || t1 == types.Runetype) && (t2 == types.Types[TINT32] || t2 == types.Runetype)
 		default:
 			return false
 		}
@@ -686,7 +645,7 @@ func eqtype1(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) boo
 		// Check parameters and result parameters for type equality.
 		// We intentionally ignore receiver parameters for type
 		// equality, because they're never relevant.
-		for _, f := range paramsResults {
+		for _, f := range types.ParamsResults {
 			// Loop over fields in structs, ignoring argument names.
 			fs1, fs2 := f(t1).FieldSlice(), f(t2).FieldSlice()
 			if len(fs1) != len(fs2) {
@@ -724,7 +683,7 @@ func eqtype1(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) boo
 // Are t1 and t2 equal struct types when field names are ignored?
 // For deciding whether the result struct from g can be copied
 // directly when compiling f(g()).
-func eqtypenoname(t1 *Type, t2 *Type) bool {
+func eqtypenoname(t1 *types.Type, t2 *types.Type) bool {
 	if t1 == nil || t2 == nil || !t1.IsStruct() || !t2.IsStruct() {
 		return false
 	}
@@ -744,7 +703,7 @@ func eqtypenoname(t1 *Type, t2 *Type) bool {
 // Is type src assignment compatible to type dst?
 // If so, return op code to use in conversion.
 // If not, return 0.
-func assignop(src *Type, dst *Type, why *string) Op {
+func assignop(src *types.Type, dst *types.Type, why *string) Op {
 	if why != nil {
 		*why = ""
 	}
@@ -791,7 +750,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 
 	// 3. dst is an interface type and src implements dst.
 	if dst.IsInterface() && src.Etype != TNIL {
-		var missing, have *Field
+		var missing, have *types.Field
 		var ptr int
 		if implements(src, dst, &missing, &have, &ptr) {
 			return OCONVIFACE
@@ -831,7 +790,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	}
 
 	if src.IsInterface() && dst.Etype != TBLANK {
-		var missing, have *Field
+		var missing, have *types.Field
 		var ptr int
 		if why != nil && implements(dst, src, &missing, &have, &ptr) {
 			*why = ": need type assertion"
@@ -842,7 +801,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	// 4. src is a bidirectional channel value, dst is a channel type,
 	// src and dst have identical element types, and
 	// either src or dst is not a named type.
-	if src.IsChan() && src.ChanDir() == Cboth && dst.IsChan() {
+	if src.IsChan() && src.ChanDir() == types.Cboth && dst.IsChan() {
 		if eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
 			return OCONVNOP
 		}
@@ -875,7 +834,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 // Can we convert a value of type src to a value of type dst?
 // If so, return op code to use in conversion (maybe OCONVNOP).
 // If not, return 0.
-func convertop(src *Type, dst *Type, why *string) Op {
+func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	if why != nil {
 		*why = ""
 	}
@@ -950,10 +909,10 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	}
 
 	if src.IsSlice() && dst.IsString() {
-		if src.Elem().Etype == bytetype.Etype {
+		if src.Elem().Etype == types.Bytetype.Etype {
 			return OARRAYBYTESTR
 		}
-		if src.Elem().Etype == runetype.Etype {
+		if src.Elem().Etype == types.Runetype.Etype {
 			return OARRAYRUNESTR
 		}
 	}
@@ -961,10 +920,10 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	// 7. src is a string and dst is []byte or []rune.
 	// String to slice.
 	if src.IsString() && dst.IsSlice() {
-		if dst.Elem().Etype == bytetype.Etype {
+		if dst.Elem().Etype == types.Bytetype.Etype {
 			return OSTRARRAYBYTE
 		}
-		if dst.Elem().Etype == runetype.Etype {
+		if dst.Elem().Etype == types.Runetype.Etype {
 			return OSTRARRAYRUNE
 		}
 	}
@@ -982,12 +941,12 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	return 0
 }
 
-func assignconv(n *Node, t *Type, context string) *Node {
+func assignconv(n *Node, t *types.Type, context string) *Node {
 	return assignconvfn(n, t, func() string { return context })
 }
 
 // Convert node n for assignment to type t.
-func assignconvfn(n *Node, t *Type, context func() string) *Node {
+func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 	if n == nil || n.Type == nil || n.Type.Broke() {
 		return n
 	}
@@ -1007,10 +966,10 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 
 	// Convert ideal bool from comparison to plain bool
 	// if the next step is non-bool (like interface{}).
-	if n.Type == idealbool && !t.IsBoolean() {
+	if n.Type == types.Idealbool && !t.IsBoolean() {
 		if n.Op == ONAME || n.Op == OLITERAL {
 			r := nod(OCONVNOP, n, nil)
-			r.Type = Types[TBOOL]
+			r.Type = types.Types[TBOOL]
 			r.Typecheck = 1
 			r.SetImplicit(true)
 			n = r
@@ -1132,11 +1091,11 @@ func syslook(name string) *Node {
 	if s == nil || s.Def == nil {
 		Fatalf("syslook: can't find runtime.%s", name)
 	}
-	return s.Def
+	return asNode(s.Def)
 }
 
 // typehash computes a hash value for type t to use in type switch statements.
-func typehash(t *Type) uint32 {
+func typehash(t *types.Type) uint32 {
 	p := t.LongString()
 
 	// Using MD5 is overkill, but reduces accidental collisions.
@@ -1229,7 +1188,7 @@ out:
 	n.SetHasCall(b)
 }
 
-func badtype(op Op, tl *Type, tr *Type) {
+func badtype(op Op, tl *types.Type, tr *types.Type) {
 	fmt_ := ""
 	if tl != nil {
 		fmt_ += fmt.Sprintf("\n\t%v", tl)
@@ -1358,7 +1317,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 	return cheapexpr(n, init)
 }
 
-func copyexpr(n *Node, t *Type, init *Nodes) *Node {
+func copyexpr(n *Node, t *types.Type, init *Nodes) *Node {
 	l := temp(t)
 	a := nod(OAS, l, n)
 	a = typecheck(a, Etop)
@@ -1383,7 +1342,7 @@ func cheapexpr(n *Node, init *Nodes) *Node {
 // A Dlist stores a pointer to a TFIELD Type embedded within
 // a TSTRUCT or TINTER Type.
 type Dlist struct {
-	field *Field
+	field *types.Field
 }
 
 // dotlist is used by adddot1 to record the path of embedded fields
@@ -1394,7 +1353,7 @@ var dotlist = make([]Dlist, 10)
 // lookdot0 returns the number of fields or methods named s associated
 // with Type t. If exactly one exists, it will be returned in *save
 // (if save is not nil).
-func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
+func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) int {
 	u := t
 	if u.IsPtr() {
 		u = u.Elem()
@@ -1433,13 +1392,13 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
 // in reverse order. If none exist, more will indicate whether t contains any
 // embedded fields at depth d, so callers can decide whether to retry at
 // a greater depth.
-func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more bool) {
+func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase bool) (c int, more bool) {
 	if t.Recur() {
 		return
 	}
 	t.SetRecur(true)
 
-	var u *Type
+	var u *types.Type
 	d--
 	if d < 0 {
 		// We've reached our target depth. If t has any fields/methods
@@ -1487,7 +1446,7 @@ out:
 // a selection expression x.f, where x is of type t and f is the symbol s.
 // If no such path exists, dotpath returns nil.
 // If there are multiple shortest paths to the same depth, ambig is true.
-func dotpath(s *Sym, t *Type, save **Field, ignorecase bool) (path []Dlist, ambig bool) {
+func dotpath(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) (path []Dlist, ambig bool) {
 	// The embedding of types within structs imposes a tree structure onto
 	// types: structs parent the types they embed, and types parent their
 	// fields or methods. Our goal here is to find the shortest path to
@@ -1555,13 +1514,13 @@ func adddot(n *Node) *Node {
 // with unique tasks and they return
 // the actual methods.
 type Symlink struct {
-	field     *Field
+	field     *types.Field
 	followptr bool
 }
 
 var slist []Symlink
 
-func expand0(t *Type, followptr bool) {
+func expand0(t *types.Type, followptr bool) {
 	u := t
 	if u.IsPtr() {
 		followptr = true
@@ -1592,7 +1551,7 @@ func expand0(t *Type, followptr bool) {
 	}
 }
 
-func expand1(t *Type, top, followptr bool) {
+func expand1(t *types.Type, top, followptr bool) {
 	if t.Recur() {
 		return
 	}
@@ -1626,7 +1585,7 @@ out:
 	t.SetRecur(false)
 }
 
-func expandmeth(t *Type) {
+func expandmeth(t *types.Type) {
 	if t == nil || t.AllMethods().Len() != 0 {
 		return
 	}
@@ -1642,12 +1601,12 @@ func expandmeth(t *Type) {
 	expand1(t, true, false)
 
 	// check each method to be uniquely reachable
-	var ms []*Field
+	var ms []*types.Field
 	for i, sl := range slist {
 		slist[i].field = nil
 		sl.field.Sym.SetUniq(false)
 
-		var f *Field
+		var f *types.Field
 		if path, _ := dotpath(sl.field.Sym, t, &f, false); path == nil {
 			continue
 		}
@@ -1675,7 +1634,7 @@ func expandmeth(t *Type) {
 }
 
 // Given funarg struct list, return list of ODCLFIELD Node fn args.
-func structargs(tl *Type, mustname bool) []*Node {
+func structargs(tl *types.Type, mustname bool) []*Node {
 	var args []*Node
 	gen := 0
 	for _, t := range tl.Fields().Slice() {
@@ -1720,7 +1679,7 @@ func structargs(tl *Type, mustname bool) []*Node {
 //	rcvr - U
 //	method - M func (t T)(), a TFIELD type struct
 //	newnam - the eventual mangled name of this function
-func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface int) {
 	if false && Debug['r'] != 0 {
 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
 	}
@@ -1743,7 +1702,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		// that the interface call will pass in.
 		// Add a dummy padding argument after the
 		// receiver to make up the difference.
-		tpad := typArray(Types[TUINT8], int64(Widthptr)-rcvr.Width)
+		tpad := types.NewArray(types.Types[TUINT8], int64(Widthptr)-rcvr.Width)
 		pad := namedfield(".pad", tpad)
 		l = append(l, pad)
 	}
@@ -1844,29 +1803,29 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	funccompile(fn)
 }
 
-func hashmem(t *Type) *Node {
+func hashmem(t *types.Type) *Node {
 	sym := Runtimepkg.Lookup("memhash")
 
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := nod(OTFUNC, nil, nil)
-	tfn.List.Append(anonfield(typPtr(t)))
-	tfn.List.Append(anonfield(Types[TUINTPTR]))
-	tfn.List.Append(anonfield(Types[TUINTPTR]))
-	tfn.Rlist.Append(anonfield(Types[TUINTPTR]))
+	tfn.List.Append(anonfield(types.NewPtr(t)))
+	tfn.List.Append(anonfield(types.Types[TUINTPTR]))
+	tfn.List.Append(anonfield(types.Types[TUINTPTR]))
+	tfn.Rlist.Append(anonfield(types.Types[TUINTPTR]))
 	tfn = typecheck(tfn, Etype)
 	n.Type = tfn.Type
 	return n
 }
 
-func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Field {
+func ifacelookdot(s *types.Sym, t *types.Type, followptr *bool, ignorecase bool) *types.Field {
 	*followptr = false
 
 	if t == nil {
 		return nil
 	}
 
-	var m *Field
+	var m *types.Field
 	path, ambig := dotpath(s, t, &m, ignorecase)
 	if path == nil {
 		if ambig {
@@ -1890,7 +1849,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Field {
 	return m
 }
 
-func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
+func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool {
 	t0 := t
 	if t == nil {
 		return false
@@ -1997,7 +1956,7 @@ func (l Nodes) asblock() *Node {
 	return n
 }
 
-func ngotype(n *Node) *Sym {
+func ngotype(n *Node) *types.Sym {
 	if n.Type != nil {
 		return typenamesym(n.Type)
 	}
@@ -2031,18 +1990,18 @@ func pathtoprefix(s string) string {
 	return s
 }
 
-var pkgMap = make(map[string]*Pkg)
-var pkgs []*Pkg
+var pkgMap = make(map[string]*types.Pkg)
+var pkgs []*types.Pkg
 
-func mkpkg(path string) *Pkg {
+func mkpkg(path string) *types.Pkg {
 	if p := pkgMap[path]; p != nil {
 		return p
 	}
 
-	p := new(Pkg)
+	p := new(types.Pkg)
 	p.Path = path
 	p.Prefix = pathtoprefix(path)
-	p.Syms = make(map[string]*Sym)
+	p.Syms = make(map[string]*types.Sym)
 	pkgMap[path] = p
 	pkgs = append(pkgs, p)
 	return p
@@ -2128,7 +2087,7 @@ func checknil(x *Node, init *Nodes) {
 
 // Can this type be stored directly in an interface word?
 // Yes, if the representation is a single pointer.
-func isdirectiface(t *Type) bool {
+func isdirectiface(t *types.Type) bool {
 	switch t.Etype {
 	case TPTR32,
 		TPTR64,
@@ -2153,7 +2112,7 @@ func isdirectiface(t *Type) bool {
 // itabType loads the _type field from a runtime.itab struct.
 func itabType(itab *Node) *Node {
 	typ := nodSym(ODOTPTR, itab, nil)
-	typ.Type = typPtr(Types[TUINT8])
+	typ.Type = types.NewPtr(types.Types[TUINT8])
 	typ.Typecheck = 1
 	typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
 	typ.SetBounded(true)          // guaranteed not to fault
@@ -2163,31 +2122,18 @@ func itabType(itab *Node) *Node {
 // ifaceData loads the data field from an interface.
 // The concrete type must be known to have type t.
 // It follows the pointer if !isdirectiface(t).
-func ifaceData(n *Node, t *Type) *Node {
+func ifaceData(n *Node, t *types.Type) *Node {
 	ptr := nodSym(OIDATA, n, nil)
 	if isdirectiface(t) {
 		ptr.Type = t
 		ptr.Typecheck = 1
 		return ptr
 	}
-	ptr.Type = typPtr(t)
+	ptr.Type = types.NewPtr(t)
 	ptr.SetBounded(true)
 	ptr.Typecheck = 1
 	ind := nod(OIND, ptr, nil)
 	ind.Type = t
 	ind.Typecheck = 1
 	return ind
-}
-
-// iet returns 'T' if t is a concrete type,
-// 'I' if t is an interface type, and 'E' if t is an empty interface type.
-// It is used to build calls to the conv* and assert* runtime routines.
-func (t *Type) iet() byte {
-	if t.IsEmptyInterface() {
-		return 'E'
-	}
-	if t.IsInterface() {
-		return 'I'
-	}
-	return 'T'
 }

@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 )
@@ -147,7 +148,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 
 	ipkg.Direct = true
 
-	var my *Sym
+	var my *types.Sym
 	if imp.LocalPkgName != nil {
 		my = p.name(imp.LocalPkgName)
 	} else {
@@ -173,7 +174,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		lineno = pack.Pos
 		redeclare(my, "as imported package name")
 	}
-	my.Def = pack
+	my.Def = asTypesNode(pack)
 	my.Lastlineno = pack.Pos
 	my.Block = 1 // at top level
 }
@@ -521,7 +522,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		return p.nod(expr, OTMAP, p.typeExpr(expr.Key), p.typeExpr(expr.Value))
 	case *syntax.ChanType:
 		n := p.nod(expr, OTCHAN, p.typeExpr(expr.Elem), nil)
-		n.Etype = EType(p.chanDir(expr.Dir))
+		n.Etype = types.EType(p.chanDir(expr.Dir))
 		return n
 
 	case *syntax.TypeSwitchGuard:
@@ -549,14 +550,14 @@ func (p *noder) typeExprOrNil(typ syntax.Expr) *Node {
 	return nil
 }
 
-func (p *noder) chanDir(dir syntax.ChanDir) ChanDir {
+func (p *noder) chanDir(dir syntax.ChanDir) types.ChanDir {
 	switch dir {
 	case 0:
-		return Cboth
+		return types.Cboth
 	case syntax.SendOnly:
-		return Csend
+		return types.Csend
 	case syntax.RecvOnly:
-		return Crecv
+		return types.Crecv
 	}
 	panic("unhandled ChanDir")
 }
@@ -605,7 +606,7 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
 	return n
 }
 
-func (p *noder) packname(expr syntax.Expr) *Sym {
+func (p *noder) packname(expr syntax.Expr) *types.Sym {
 	switch expr := expr.(type) {
 	case *syntax.Name:
 		name := p.name(expr)
@@ -615,13 +616,13 @@ func (p *noder) packname(expr syntax.Expr) *Sym {
 		return name
 	case *syntax.SelectorExpr:
 		name := p.name(expr.X.(*syntax.Name))
-		var pkg *Pkg
-		if name.Def == nil || name.Def.Op != OPACK {
+		var pkg *types.Pkg
+		if asNode(name.Def) == nil || asNode(name.Def).Op != OPACK {
 			yyerror("%v is not a package", name)
 			pkg = localpkg
 		} else {
-			name.Def.SetUsed(true)
-			pkg = name.Def.Name.Pkg
+			asNode(name.Def).SetUsed(true)
+			pkg = asNode(name.Def).Name.Pkg
 		}
 		return restrictlookup(expr.Sel.Value, pkg)
 	}
@@ -681,7 +682,7 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
 			n := p.nod(stmt, OASOP, p.expr(stmt.Lhs), p.expr(stmt.Rhs))
 			n.SetImplicit(stmt.Rhs == syntax.ImplicitOne)
-			n.Etype = EType(p.binOp(stmt.Op))
+			n.Etype = types.EType(p.binOp(stmt.Op))
 			return n
 		}
 
@@ -757,7 +758,7 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 				if ln.Class != PPARAMOUT {
 					break
 				}
-				if ln.Sym.Def != ln {
+				if asNode(ln.Sym.Def) != ln {
 					yyerror("%s is shadowed during return", ln.Sym.Name)
 				}
 			}
@@ -1030,7 +1031,7 @@ func (p *noder) basicLit(lit *syntax.BasicLit) Val {
 	}
 }
 
-func (p *noder) name(name *syntax.Name) *Sym {
+func (p *noder) name(name *syntax.Name) *types.Sym {
 	return lookup(name.Value)
 }
 
@@ -1125,7 +1126,7 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 	return 0
 }
 
-func mkname(sym *Sym) *Node {
+func mkname(sym *types.Sym) *Node {
 	n := oldname(sym)
 	if n.Name != nil && n.Name.Pack != nil {
 		n.Name.Pack.SetUsed(true)

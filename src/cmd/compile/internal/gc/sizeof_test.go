@@ -7,6 +7,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -26,20 +27,21 @@ func TestSizeof(t *testing.T) {
 		{Name{}, 36, 56},
 		{Param{}, 28, 56},
 		{Node{}, 84, 136},
-		{Sym{}, 60, 104},
-		{Type{}, 52, 88},
-		{MapType{}, 20, 40},
-		{ForwardType{}, 20, 32},
-		{FuncType{}, 28, 48},
-		{StructType{}, 12, 24},
-		{InterType{}, 4, 8},
-		{ChanType{}, 8, 16},
-		{ArrayType{}, 12, 16},
-		{DDDFieldType{}, 4, 8},
-		{FuncArgsType{}, 4, 8},
-		{ChanArgsType{}, 4, 8},
-		{PtrType{}, 4, 8},
-		{SliceType{}, 4, 8},
+		// TODO(gri) test the ones below in the types package
+		{types.Sym{}, 60, 104},
+		{types.Type{}, 52, 88},
+		{types.MapType{}, 20, 40},
+		{types.ForwardType{}, 20, 32},
+		{types.FuncType{}, 28, 48},
+		{types.StructType{}, 12, 24},
+		{types.InterType{}, 4, 8},
+		{types.ChanType{}, 8, 16},
+		{types.ArrayType{}, 12, 16},
+		{types.DDDFieldType{}, 4, 8},
+		{types.FuncArgsType{}, 4, 8},
+		{types.ChanArgsType{}, 4, 8},
+		{types.PtrType{}, 4, 8},
+		{types.SliceType{}, 4, 8},
 	}
 
 	for _, tt := range tests {

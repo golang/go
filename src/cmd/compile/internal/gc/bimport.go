@@ -10,6 +10,7 @@ package gc
 
 import (
 	"bufio"
+	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
@@ -25,19 +26,19 @@ import (
 
 type importer struct {
 	in      *bufio.Reader
-	imp     *Pkg   // imported package
-	buf     []byte // reused for reading strings
-	version int    // export format version
+	imp     *types.Pkg // imported package
+	buf     []byte     // reused for reading strings
+	version int        // export format version
 
 	// object lists, in order of deserialization
 	strList       []string
-	pkgList       []*Pkg
-	typList       []*Type
+	pkgList       []*types.Pkg
+	typList       []*types.Type
 	funcList      []*Node // nil entry means already declared
 	trackAllTypes bool
 
 	// for delayed type verification
-	cmpList []struct{ pt, t *Type }
+	cmpList []struct{ pt, t *types.Type }
 
 	// position encoding
 	posInfoFormat bool
@@ -51,7 +52,7 @@ type importer struct {
 }
 
 // Import populates imp from the serialized package data read from in.
-func Import(imp *Pkg, in *bufio.Reader) {
+func Import(imp *types.Pkg, in *bufio.Reader) {
 	inimport = true
 	defer func() { inimport = false }()
 
@@ -255,7 +256,7 @@ func (p *importer) verifyTypes() {
 // the same name appears in an error message.
 var numImport = make(map[string]int)
 
-func (p *importer) pkg() *Pkg {
+func (p *importer) pkg() *types.Pkg {
 	// if the package was seen before, i is its index (>= 0)
 	i := p.tagOrIndex()
 	if i >= 0 {
@@ -307,10 +308,10 @@ func (p *importer) pkg() *Pkg {
 	return pkg
 }
 
-func idealType(typ *Type) *Type {
+func idealType(typ *types.Type) *types.Type {
 	if typ.IsUntyped() {
 		// canonicalize ideal types
-		typ = Types[TIDEAL]
+		typ = types.Types[TIDEAL]
 	}
 	return typ
 }
@@ -347,10 +348,10 @@ func (p *importer) obj(tag int) {
 
 		sig := functypefield(nil, params, result)
 		importsym(p.imp, sym, ONAME)
-		if sym.Def != nil && sym.Def.Op == ONAME {
+		if asNode(sym.Def) != nil && asNode(sym.Def).Op == ONAME {
 			// function was imported before (via another import)
-			if !eqtype(sig, sym.Def.Type) {
-				p.formatErrorf("inconsistent definition for func %v during import\n\t%v\n\t%v", sym, sym.Def.Type, sig)
+			if !eqtype(sig, asNode(sym.Def).Type) {
+				p.formatErrorf("inconsistent definition for func %v during import\n\t%v\n\t%v", sym, asNode(sym.Def).Type, sig)
 			}
 			p.funcList = append(p.funcList, nil)
 			break
@@ -398,8 +399,8 @@ func (p *importer) pos() src.XPos {
 	return xpos
 }
 
-func (p *importer) newtyp(etype EType) *Type {
-	t := typ(etype)
+func (p *importer) newtyp(etype types.EType) *types.Type {
+	t := types.New(etype)
 	if p.trackAllTypes {
 		p.typList = append(p.typList, t)
 	}
@@ -407,19 +408,19 @@ func (p *importer) newtyp(etype EType) *Type {
 }
 
 // importtype declares that pt, an imported named type, has underlying type t.
-func (p *importer) importtype(pt, t *Type) {
+func (p *importer) importtype(pt, t *types.Type) {
 	if pt.Etype == TFORW {
-		copytype(pt.nod, t)
+		copytype(asNode(pt.Nod), t)
 		pt.Sym.Importdef = p.imp
 		pt.Sym.Lastlineno = lineno
-		declare(pt.nod, PEXTERN)
+		declare(asNode(pt.Nod), PEXTERN)
 		checkwidth(pt)
 	} else {
 		// pt.Orig and t must be identical.
 		if p.trackAllTypes {
 			// If we track all types, t may not be fully set up yet.
 			// Collect the types and verify identity later.
-			p.cmpList = append(p.cmpList, struct{ pt, t *Type }{pt, t})
+			p.cmpList = append(p.cmpList, struct{ pt, t *types.Type }{pt, t})
 		} else if !eqtype(pt.Orig, t) {
 			yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, p.imp.Path)
 		}
@@ -430,7 +431,7 @@ func (p *importer) importtype(pt, t *Type) {
 	}
 }
 
-func (p *importer) typ() *Type {
+func (p *importer) typ() *types.Type {
 	// if the type was seen before, i is its index (>= 0)
 	i := p.tagOrIndex()
 	if i >= 0 {
@@ -438,7 +439,7 @@ func (p *importer) typ() *Type {
 	}
 
 	// otherwise, i is the type tag (< 0)
-	var t *Type
+	var t *types.Type
 	switch i {
 	case namedTag:
 		p.pos()
@@ -488,7 +489,7 @@ func (p *importer) typ() *Type {
 			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
 			// out by typecheck's lookdot as this $$.ttype. So by providing
 			// this back link here we avoid special casing there.
-			n.Type.SetNname(n)
+			n.Type.FuncType().Nname = asTypesNode(n)
 
 			if Debug['E'] > 0 {
 				fmt.Printf("import [%q] meth %v \n", p.imp.Path, n)
@@ -504,16 +505,16 @@ func (p *importer) typ() *Type {
 		t = p.newtyp(TARRAY)
 		bound := p.int64()
 		elem := p.typ()
-		t.Extra = &ArrayType{Elem: elem, Bound: bound}
+		t.Extra = &types.ArrayType{Elem: elem, Bound: bound}
 
 	case sliceTag:
 		t = p.newtyp(TSLICE)
 		elem := p.typ()
-		t.Extra = SliceType{Elem: elem}
+		t.Extra = types.SliceType{Elem: elem}
 
 	case dddTag:
 		t = p.newtyp(TDDDFIELD)
-		t.Extra = DDDFieldType{T: p.typ()}
+		t.Extra = types.DDDFieldType{T: p.typ()}
 
 	case structTag:
 		t = p.newtyp(TSTRUCT)
@@ -521,8 +522,8 @@ func (p *importer) typ() *Type {
 		checkwidth(t)
 
 	case pointerTag:
-		t = p.newtyp(Tptr)
-		t.Extra = PtrType{Elem: p.typ()}
+		t = p.newtyp(types.Tptr)
+		t.Extra = types.PtrType{Elem: p.typ()}
 
 	case signatureTag:
 		t = p.newtyp(TFUNC)
@@ -532,7 +533,7 @@ func (p *importer) typ() *Type {
 
 	case interfaceTag:
 		if ml := p.methodList(); len(ml) == 0 {
-			t = Types[TINTER]
+			t = types.Types[TINTER]
 		} else {
 			t = p.newtyp(TINTER)
 			t.SetInterface(ml)
@@ -547,7 +548,7 @@ func (p *importer) typ() *Type {
 	case chanTag:
 		t = p.newtyp(TCHAN)
 		ct := t.ChanType()
-		ct.Dir = ChanDir(p.int())
+		ct.Dir = types.ChanDir(p.int())
 		ct.Elem = p.typ()
 
 	default:
@@ -561,15 +562,15 @@ func (p *importer) typ() *Type {
 	return t
 }
 
-func (p *importer) qualifiedName() *Sym {
+func (p *importer) qualifiedName() *types.Sym {
 	name := p.string()
 	pkg := p.pkg()
 	return pkg.Lookup(name)
 }
 
-func (p *importer) fieldList() (fields []*Field) {
+func (p *importer) fieldList() (fields []*types.Field) {
 	if n := p.int(); n > 0 {
-		fields = make([]*Field, n)
+		fields = make([]*types.Field, n)
 		for i := range fields {
 			fields[i] = p.field()
 		}
@@ -577,13 +578,13 @@ func (p *importer) fieldList() (fields []*Field) {
 	return
 }
 
-func (p *importer) field() *Field {
+func (p *importer) field() *types.Field {
 	p.pos()
 	sym, alias := p.fieldName()
 	typ := p.typ()
 	note := p.string()
 
-	f := newField()
+	f := types.NewField()
 	if sym.Name == "" {
 		// anonymous field: typ must be T or *T and T must be a type name
 		s := typ.Sym
@@ -598,18 +599,18 @@ func (p *importer) field() *Field {
 	}
 
 	f.Sym = sym
-	f.Nname = newname(sym)
+	f.Nname = asTypesNode(newname(sym))
 	f.Type = typ
 	f.Note = note
 
 	return f
 }
 
-func (p *importer) methodList() (methods []*Field) {
+func (p *importer) methodList() (methods []*types.Field) {
 	for n := p.int(); n > 0; n-- {
-		f := newField()
-		f.Nname = newname(nblank.Sym)
-		f.Nname.Pos = p.pos()
+		f := types.NewField()
+		f.Nname = asTypesNode(newname(nblank.Sym))
+		asNode(f.Nname).Pos = p.pos()
 		f.Type = p.typ()
 		methods = append(methods, f)
 	}
@@ -621,20 +622,20 @@ func (p *importer) methodList() (methods []*Field) {
 	return
 }
 
-func (p *importer) method() *Field {
+func (p *importer) method() *types.Field {
 	p.pos()
 	sym := p.methodName()
 	params := p.paramList()
 	result := p.paramList()
 
-	f := newField()
+	f := types.NewField()
 	f.Sym = sym
-	f.Nname = newname(sym)
+	f.Nname = asTypesNode(newname(sym))
 	f.Type = functypefield(fakethisfield(), params, result)
 	return f
 }
 
-func (p *importer) fieldName() (*Sym, bool) {
+func (p *importer) fieldName() (*types.Sym, bool) {
 	name := p.string()
 	if p.version == 0 && name == "_" {
 		// version 0 didn't export a package for _ field names
@@ -663,7 +664,7 @@ func (p *importer) fieldName() (*Sym, bool) {
 	return pkg.Lookup(name), alias
 }
 
-func (p *importer) methodName() *Sym {
+func (p *importer) methodName() *types.Sym {
 	name := p.string()
 	if p.version == 0 && name == "_" {
 		// version 0 didn't export a package for _ method names
@@ -677,7 +678,7 @@ func (p *importer) methodName() *Sym {
 	return pkg.Lookup(name)
 }
 
-func (p *importer) paramList() []*Field {
+func (p *importer) paramList() []*types.Field {
 	i := p.int()
 	if i == 0 {
 		return nil
@@ -689,19 +690,19 @@ func (p *importer) paramList() []*Field {
 		named = false
 	}
 	// i > 0
-	fs := make([]*Field, i)
+	fs := make([]*types.Field, i)
 	for i := range fs {
 		fs[i] = p.param(named)
 	}
 	return fs
 }
 
-func (p *importer) param(named bool) *Field {
-	f := newField()
+func (p *importer) param(named bool) *types.Field {
+	f := types.NewField()
 	f.Type = p.typ()
 	if f.Type.Etype == TDDDFIELD {
 		// TDDDFIELD indicates wrapped ... slice type
-		f.Type = typSlice(f.Type.DDDField())
+		f.Type = types.NewSlice(f.Type.DDDField())
 		f.SetIsddd(true)
 	}
 
@@ -717,7 +718,7 @@ func (p *importer) param(named bool) *Field {
 			pkg = p.pkg()
 		}
 		f.Sym = pkg.Lookup(name)
-		f.Nname = newname(f.Sym)
+		f.Nname = asTypesNode(newname(f.Sym))
 	}
 
 	// TODO(gri) This is compiler-specific (escape info).
@@ -727,7 +728,7 @@ func (p *importer) param(named bool) *Field {
 	return f
 }
 
-func (p *importer) value(typ *Type) (x Val) {
+func (p *importer) value(typ *types.Type) (x Val) {
 	switch tag := p.tagOrIndex(); tag {
 	case falseTag:
 		x.U = false
@@ -738,13 +739,13 @@ func (p *importer) value(typ *Type) (x Val) {
 	case int64Tag:
 		u := new(Mpint)
 		u.SetInt64(p.int64())
-		u.Rune = typ == idealrune
+		u.Rune = typ == types.Idealrune
 		x.U = u
 
 	case floatTag:
 		f := newMpflt()
 		p.float(f)
-		if typ == idealint || typ.IsInteger() {
+		if typ == types.Idealint || typ.IsInteger() {
 			// uncommon case: large int encoded as float
 			u := new(Mpint)
 			u.SetFloat(f)
@@ -885,7 +886,7 @@ func (p *importer) node() *Node {
 			// (issue 16317).
 			if typ.IsUnsafePtr() {
 				n = nod(OCONV, n, nil)
-				n.Type = Types[TUINTPTR]
+				n.Type = types.Types[TUINTPTR]
 			}
 			n = nod(OCONV, n, nil)
 			n.Type = typ
@@ -1059,7 +1060,7 @@ func (p *importer) node() *Node {
 
 	case OASOP:
 		n := nodl(p.pos(), OASOP, nil, nil)
-		n.Etype = EType(p.int())
+		n.Etype = types.EType(p.int())
 		n.Left = p.expr()
 		if !p.bool() {
 			n.Right = nodintconst(1)
@@ -1189,7 +1190,7 @@ func (p *importer) exprsOrNil() (a, b *Node) {
 	return
 }
 
-func (p *importer) fieldSym() *Sym {
+func (p *importer) fieldSym() *types.Sym {
 	name := p.string()
 	pkg := localpkg
 	if !exportname(name) {
@@ -1198,7 +1199,7 @@ func (p *importer) fieldSym() *Sym {
 	return pkg.Lookup(name)
 }
 
-func (p *importer) sym() *Sym {
+func (p *importer) sym() *types.Sym {
 	name := p.string()
 	pkg := localpkg
 	if name != "_" {

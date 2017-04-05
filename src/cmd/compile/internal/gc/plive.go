@@ -16,6 +16,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"crypto/md5"
 	"fmt"
@@ -84,7 +85,7 @@ type progeffectscache struct {
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
 func livenessShouldTrack(n *Node) bool {
-	return n.Op == ONAME && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && haspointers(n.Type)
+	return n.Op == ONAME && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && types.Haspointers(n.Type)
 }
 
 // getvariables returns the list of on-stack variables that we need to track.
@@ -320,7 +321,7 @@ func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
 // and then simply copied into bv at the correct offset on future calls with
 // the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, onebitwalktype1
 // accounts for 40% of the 6g execution time.
-func onebitwalktype1(t *Type, xoffset *int64, bv bvec) {
+func onebitwalktype1(t *types.Type, xoffset *int64, bv bvec) {
 	if t.Align > 0 && *xoffset&int64(t.Align-1) != 0 {
 		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)
 	}
@@ -1050,7 +1051,7 @@ func livenessprintdebug(lv *Liveness) {
 	fmt.Printf("\n")
 }
 
-func finishgclocals(sym *Sym) {
+func finishgclocals(sym *types.Sym) {
 	ls := Linksym(sym)
 	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
 	ls.Set(obj.AttrDuplicateOK, true)
@@ -1068,7 +1069,7 @@ func finishgclocals(sym *Sym) {
 // first word dumped is the total number of bitmaps. The second word is the
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
-func livenessemit(lv *Liveness, argssym, livesym *Sym) {
+func livenessemit(lv *Liveness, argssym, livesym *types.Sym) {
 	args := bvalloc(argswords(lv))
 	aoff := duint32(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
 	aoff = duint32(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
@@ -1095,7 +1096,7 @@ func livenessemit(lv *Liveness, argssym, livesym *Sym) {
 // pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
 // Returns a map from GC safe points to their corresponding stack map index.
-func liveness(e *ssafn, f *ssa.Func, argssym, livesym *Sym) map[*ssa.Value]int {
+func liveness(e *ssafn, f *ssa.Func, argssym, livesym *types.Sym) map[*ssa.Value]int {
 	// Construct the global liveness state.
 	vars := getvariables(e.curfn)
 	lv := newliveness(e.curfn, f, vars, e.stkptrsize)

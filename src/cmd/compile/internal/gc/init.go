@@ -4,6 +4,8 @@
 
 package gc
 
+import "cmd/compile/internal/types"
+
 // a function named init is a special case.
 // it is called by the initialization before
 // main is run. to make it unique within a
@@ -12,7 +14,7 @@ package gc
 
 var renameinit_initgen int
 
-func renameinit() *Sym {
+func renameinit() *types.Sym {
 	renameinit_initgen++
 	return lookupN("init.", renameinit_initgen)
 }
@@ -42,7 +44,7 @@ func anyinit(n []*Node) bool {
 	}
 
 	// are there any imported init functions
-	for _, s := range initSyms {
+	for _, s := range types.InitSyms {
 		if s.Def != nil {
 			return true
 		}
@@ -81,7 +83,7 @@ func fninit(n []*Node) {
 
 	// (1)
 	gatevar := newname(lookup("initdone·"))
-	addvar(gatevar, Types[TUINT8], PEXTERN)
+	addvar(gatevar, types.Types[TUINT8], PEXTERN)
 
 	// (2)
 	fn := nod(ODCLFUNC, nil, nil)
@@ -116,10 +118,10 @@ func fninit(n []*Node) {
 	r = append(r, a)
 
 	// (6)
-	for _, s := range initSyms {
+	for _, s := range types.InitSyms {
 		if s.Def != nil && s != initsym {
 			// could check that it is fn of no args/returns
-			a = nod(OCALL, s.Def, nil)
+			a = nod(OCALL, asNode(s.Def), nil)
 			r = append(r, a)
 		}
 	}
@@ -134,7 +136,7 @@ func fninit(n []*Node) {
 		if s.Def == nil {
 			break
 		}
-		a = nod(OCALL, s.Def, nil)
+		a = nod(OCALL, asNode(s.Def), nil)
 		r = append(r, a)
 	}
 

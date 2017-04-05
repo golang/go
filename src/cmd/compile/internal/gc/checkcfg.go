@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/src"
 )
 
@@ -76,7 +77,7 @@ func (l *cfLabel) defined() bool { return l.defNode != nil }
 func (l *cfLabel) used() bool { return l.useNode != nil }
 
 // label returns the label associated with sym, creating it if necessary.
-func (c *controlflow) label(sym *Sym) *cfLabel {
+func (c *controlflow) label(sym *types.Sym) *cfLabel {
 	lab := c.labels[sym.Name]
 	if lab == nil {
 		lab = new(cfLabel)
@@ -253,8 +254,8 @@ func (c *controlflow) checkgoto(from *Node, to *Node) {
 	// Decide what to complain about. Unwind to.Sym until where it
 	// forked from from.Sym, and keep track of the innermost block
 	// and declaration we jumped into/over.
-	var block *Sym
-	var dcl *Sym
+	var block *types.Sym
+	var dcl *types.Sym
 
 	// If to.Sym is longer, unwind until it's the same length.
 	ts := to.Sym
@@ -290,7 +291,7 @@ func (c *controlflow) checkgoto(from *Node, to *Node) {
 // dcldepth returns the declaration depth for a dclstack Sym; that is,
 // the sum of the block nesting level and the number of declarations
 // in scope.
-func dcldepth(s *Sym) int {
+func dcldepth(s *types.Sym) int {
 	n := 0
 	for ; s != nil; s = s.Link {
 		n++

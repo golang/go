@@ -4,7 +4,10 @@
 
 package gc
 
-import "fmt"
+import (
+	"cmd/compile/internal/types"
+	"fmt"
+)
 
 // AlgKind describes the kind of algorithms used for comparing and
 // hashing a Type.
@@ -35,21 +38,21 @@ const (
 )
 
 // IsComparable reports whether t is a comparable type.
-func (t *Type) IsComparable() bool {
+func IsComparable(t *types.Type) bool {
 	a, _ := algtype1(t)
 	return a != ANOEQ
 }
 
 // IsRegularMemory reports whether t can be compared/hashed as regular memory.
-func (t *Type) IsRegularMemory() bool {
+func IsRegularMemory(t *types.Type) bool {
 	a, _ := algtype1(t)
 	return a == AMEM
 }
 
 // IncomparableField returns an incomparable Field of struct Type t, if any.
-func (t *Type) IncomparableField() *Field {
+func IncomparableField(t *types.Type) *types.Field {
 	for _, f := range t.FieldSlice() {
-		if !f.Type.IsComparable() {
+		if !IsComparable(f.Type) {
 			return f
 		}
 	}
@@ -58,7 +61,7 @@ func (t *Type) IncomparableField() *Field {
 
 // algtype is like algtype1, except it returns the fixed-width AMEMxx variants
 // instead of the general AMEM kind when possible.
-func algtype(t *Type) AlgKind {
+func algtype(t *types.Type) AlgKind {
 	a, _ := algtype1(t)
 	if a == AMEM {
 		switch t.Width {
@@ -83,7 +86,7 @@ func algtype(t *Type) AlgKind {
 // algtype1 returns the AlgKind used for comparing and hashing Type t.
 // If it returns ANOEQ, it also returns the component type of t that
 // makes it incomparable.
-func algtype1(t *Type) (AlgKind, *Type) {
+func algtype1(t *types.Type) (AlgKind, *types.Type) {
 	if t.Broke() {
 		return AMEM, nil
 	}
@@ -181,7 +184,7 @@ func algtype1(t *Type) (AlgKind, *Type) {
 }
 
 // Generate a helper function to compute the hash of a value of type t.
-func genhash(sym *Sym, t *Type) {
+func genhash(sym *types.Sym, t *types.Type) {
 	if Debug['r'] != 0 {
 		fmt.Printf("genhash %v %v\n", sym, t)
 	}
@@ -198,13 +201,13 @@ func genhash(sym *Sym, t *Type) {
 	tfn := nod(OTFUNC, nil, nil)
 	fn.Func.Nname.Name.Param.Ntype = tfn
 
-	n := namedfield("p", typPtr(t))
+	n := namedfield("p", types.NewPtr(t))
 	tfn.List.Append(n)
 	np := n.Left
-	n = namedfield("h", Types[TUINTPTR])
+	n = namedfield("h", types.Types[TUINTPTR])
 	tfn.List.Append(n)
 	nh := n.Left
-	n = anonfield(Types[TUINTPTR]) // return value
+	n = anonfield(types.Types[TUINTPTR]) // return value
 	tfn.Rlist.Append(n)
 
 	funchdr(fn)
@@ -217,7 +220,7 @@ func genhash(sym *Sym, t *Type) {
 	default:
 		Fatalf("genhash %v", t)
 
-	case TARRAY:
+	case types.TARRAY:
 		// An array of pure memory would be handled by the
 		// standard algorithm, so the element type must not be
 		// pure memory.
@@ -225,7 +228,7 @@ func genhash(sym *Sym, t *Type) {
 
 		n := nod(ORANGE, nil, nod(OIND, np, nil))
 		ni := newname(lookup("i"))
-		ni.Type = Types[TINT]
+		ni.Type = types.Types[TINT]
 		n.List.Set1(ni)
 		n.SetColas(true)
 		colasdefn(n.List.Slice(), n)
@@ -244,7 +247,7 @@ func genhash(sym *Sym, t *Type) {
 
 		fn.Nbody.Append(n)
 
-	case TSTRUCT:
+	case types.TSTRUCT:
 		// Walk the struct using memhash for runs of AMEM
 		// and calling specific hash functions for the others.
 		for i, fields := 0, t.FieldSlice(); i < len(fields); {
@@ -257,7 +260,7 @@ func genhash(sym *Sym, t *Type) {
 			}
 
 			// Hash non-memory fields with appropriate hash function.
-			if !f.Type.IsRegularMemory() {
+			if !IsRegularMemory(f.Type) {
 				hashel := hashfor(f.Type)
 				call := nod(OCALL, hashel, nil)
 				nx := nodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
@@ -322,8 +325,8 @@ func genhash(sym *Sym, t *Type) {
 	safemode = old_safemode
 }
 
-func hashfor(t *Type) *Node {
-	var sym *Sym
+func hashfor(t *types.Type) *Node {
+	var sym *types.Sym
 
 	switch a, _ := algtype1(t); a {
 	case AMEM:
@@ -349,9 +352,9 @@ func hashfor(t *Type) *Node {
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := nod(OTFUNC, nil, nil)
-	tfn.List.Append(anonfield(typPtr(t)))
-	tfn.List.Append(anonfield(Types[TUINTPTR]))
-	tfn.Rlist.Append(anonfield(Types[TUINTPTR]))
+	tfn.List.Append(anonfield(types.NewPtr(t)))
+	tfn.List.Append(anonfield(types.Types[TUINTPTR]))
+	tfn.Rlist.Append(anonfield(types.Types[TUINTPTR]))
 	tfn = typecheck(tfn, Etype)
 	n.Type = tfn.Type
 	return n
@@ -359,7 +362,7 @@ func hashfor(t *Type) *Node {
 
 // geneq generates a helper function to
 // check equality of two values of type t.
-func geneq(sym *Sym, t *Type) {
+func geneq(sym *types.Sym, t *types.Type) {
 	if Debug['r'] != 0 {
 		fmt.Printf("geneq %v %v\n", sym, t)
 	}
@@ -376,13 +379,13 @@ func geneq(sym *Sym, t *Type) {
 	tfn := nod(OTFUNC, nil, nil)
 	fn.Func.Nname.Name.Param.Ntype = tfn
 
-	n := namedfield("p", typPtr(t))
+	n := namedfield("p", types.NewPtr(t))
 	tfn.List.Append(n)
 	np := n.Left
-	n = namedfield("q", typPtr(t))
+	n = namedfield("q", types.NewPtr(t))
 	tfn.List.Append(n)
 	nq := n.Left
-	n = anonfield(Types[TBOOL])
+	n = anonfield(types.Types[TBOOL])
 	tfn.Rlist.Append(n)
 
 	funchdr(fn)
@@ -404,7 +407,7 @@ func geneq(sym *Sym, t *Type) {
 		nrange := nod(ORANGE, nil, nod(OIND, np, nil))
 
 		ni := newname(lookup("i"))
-		ni.Type = Types[TINT]
+		ni.Type = types.Types[TINT]
 		nrange.List.Set1(ni)
 		nrange.SetColas(true)
 		colasdefn(nrange.List.Slice(), nrange)
@@ -452,7 +455,7 @@ func geneq(sym *Sym, t *Type) {
 			}
 
 			// Compare non-memory fields with field equality.
-			if !f.Type.IsRegularMemory() {
+			if !IsRegularMemory(f.Type) {
 				and(eqfield(np, nq, f.Sym))
 				i++
 				continue
@@ -521,7 +524,7 @@ func geneq(sym *Sym, t *Type) {
 
 // eqfield returns the node
 // 	p.field == q.field
-func eqfield(p *Node, q *Node, field *Sym) *Node {
+func eqfield(p *Node, q *Node, field *types.Sym) *Node {
 	nx := nodSym(OXDOT, p, field)
 	ny := nodSym(OXDOT, q, field)
 	ne := nod(OEQ, nx, ny)
@@ -530,7 +533,7 @@ func eqfield(p *Node, q *Node, field *Sym) *Node {
 
 // eqmem returns the node
 // 	memequal(&p.field, &q.field [, size])
-func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
+func eqmem(p *Node, q *Node, field *types.Sym, size int64) *Node {
 	nx := nod(OADDR, nodSym(OXDOT, p, field), nil)
 	nx.Etype = 1 // does not escape
 	ny := nod(OADDR, nodSym(OXDOT, q, field), nil)
@@ -549,7 +552,7 @@ func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
 	return call
 }
 
-func eqmemfunc(size int64, t *Type) (fn *Node, needsize bool) {
+func eqmemfunc(size int64, t *types.Type) (fn *Node, needsize bool) {
 	switch size {
 	default:
 		fn = syslook("memequal")
@@ -567,7 +570,7 @@ func eqmemfunc(size int64, t *Type) (fn *Node, needsize bool) {
 // t is the parent struct type, and start is the field index at which to start the run.
 // size is the length in bytes of the memory included in the run.
 // next is the index just after the end of the memory run.
-func memrun(t *Type, start int) (size int64, next int) {
+func memrun(t *types.Type, start int) (size int64, next int) {
 	next = start
 	for {
 		next++
@@ -579,7 +582,7 @@ func memrun(t *Type, start int) (size int64, next int) {
 			break
 		}
 		// Also, stop before a blank or non-memory field.
-		if f := t.Field(next); isblanksym(f.Sym) || !f.Type.IsRegularMemory() {
+		if f := t.Field(next); isblanksym(f.Sym) || !IsRegularMemory(f.Type) {
 			break
 		}
 	}
@@ -588,7 +591,7 @@ func memrun(t *Type, start int) (size int64, next int) {
 
 // ispaddedfield reports whether the i'th field of struct type t is followed
 // by padding.
-func ispaddedfield(t *Type, i int) bool {
+func ispaddedfield(t *types.Type, i int) bool {
 	if !t.IsStruct() {
 		Fatalf("ispaddedfield called non-struct %v", t)
 	}
