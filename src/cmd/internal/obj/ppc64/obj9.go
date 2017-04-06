@@ -1051,6 +1051,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 
 var Linkppc64 = obj.LinkArch{
 	Arch:       sys.ArchPPC64,
+	Init:       buildop,
 	Preprocess: preprocess,
 	Assemble:   span9,
 	Progedit:   progedit,
@@ -1058,6 +1059,7 @@ var Linkppc64 = obj.LinkArch{
 
 var Linkppc64le = obj.LinkArch{
 	Arch:       sys.ArchPPC64LE,
+	Init:       buildop,
 	Preprocess: preprocess,
 	Assemble:   span9,
 	Progedit:   progedit,

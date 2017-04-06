@@ -1398,6 +1398,7 @@ func compound(ctxt *obj.Link, p *obj.Prog) bool {
 
 var Linkmips64 = obj.LinkArch{
 	Arch:       sys.ArchMIPS64,
+	Init:       buildop,
 	Preprocess: preprocess,
 	Assemble:   span0,
 	Progedit:   progedit,
@@ -1405,6 +1406,7 @@ var Linkmips64 = obj.LinkArch{
 
 var Linkmips64le = obj.LinkArch{
 	Arch:       sys.ArchMIPS64LE,
+	Init:       buildop,
 	Preprocess: preprocess,
 	Assemble:   span0,
 	Progedit:   progedit,
@@ -1412,6 +1414,7 @@ var Linkmips64le = obj.LinkArch{
 
 var Linkmips = obj.LinkArch{
 	Arch:       sys.ArchMIPS,
+	Init:       buildop,
 	Preprocess: preprocess,
 	Assemble:   span0,
 	Progedit:   progedit,
@@ -1419,6 +1422,7 @@ var Linkmips = obj.LinkArch{
 
 var Linkmipsle = obj.LinkArch{
 	Arch:       sys.ArchMIPSLE,
+	Init:       buildop,
 	Preprocess: preprocess,
 	Assemble:   span0,
 	Progedit:   progedit,

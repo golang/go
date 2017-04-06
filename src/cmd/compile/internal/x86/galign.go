@@ -33,6 +33,4 @@ func Init(arch *gc.Arch) {
 	arch.Ginsnop = ginsnop
 
 	arch.SSAMarkMoves = ssaMarkMoves
-
-	x86.InstInit()
 }

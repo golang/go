@@ -557,7 +557,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	if oprange[AAND&obj.AMask] == nil {
-		buildop(ctxt)
+		ctxt.Diag("arm ops not initialized, call arm.buildop first")
 	}
 
 	ctxt.Cursym = cursym
@@ -1296,6 +1296,13 @@ func opset(a, b0 obj.As) {
 }
 
 func buildop(ctxt *obj.Link) {
+	if oprange[AAND&obj.AMask] != nil {
+		// Already initialized; stop now.
+		// This happens in the cmd/asm tests,
+		// each of which re-initializes the arch.
+		return
+	}
+
 	var n int
 
 	for i := 0; i < C_GOK; i++ {

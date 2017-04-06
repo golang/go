@@ -561,7 +561,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	ctxt.Autosize = int32(p.To.Offset)
 
 	if oprange[AANDN&obj.AMask] == nil {
-		buildop(ctxt)
+		ctxt.Diag("ppc64 ops not initialized, call ppc64.buildop first")
 	}
 
 	c := int64(0)
@@ -1052,6 +1052,13 @@ func opset(a, b0 obj.As) {
 }
 
 func buildop(ctxt *obj.Link) {
+	if oprange[AANDN&obj.AMask] != nil {
+		// Already initialized; stop now.
+		// This happens in the cmd/asm tests,
+		// each of which re-initializes the arch.
+		return
+	}
+
 	var n int
 
 	for i := 0; i < C_NCLASS; i++ {

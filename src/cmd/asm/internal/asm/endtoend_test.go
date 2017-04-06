@@ -28,6 +28,7 @@ import (
 func testEndToEnd(t *testing.T, goarch, file string) {
 	input := filepath.Join("testdata", file+".s")
 	architecture, ctxt := setArch(goarch)
+	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
 	parser := NewParser(ctxt, architecture, lexer)
 	pList := new(obj.Plist)

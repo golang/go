@@ -394,7 +394,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	ctxt.Autosize = int32(p.To.Offset)
 
 	if oprange[AORW&obj.AMask] == nil {
-		buildop(ctxt)
+		ctxt.Diag("s390x ops not initialized, call s390x.buildop first")
 	}
 
 	buffer := make([]byte, 0)
@@ -772,6 +772,13 @@ func opset(a, b obj.As) {
 }
 
 func buildop(ctxt *obj.Link) {
+	if oprange[AORW&obj.AMask] != nil {
+		// Already initialized; stop now.
+		// This happens in the cmd/asm tests,
+		// each of which re-initializes the arch.
+		return
+	}
+
 	for i := 0; i < C_NCLASS; i++ {
 		for n := 0; n < C_NCLASS; n++ {
 			if cmp(n, i) {
