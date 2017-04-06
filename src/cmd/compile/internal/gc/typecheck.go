@@ -1604,8 +1604,7 @@ OpSwitch:
 		}
 
 		if funarg != nil {
-			_, it := iterFields(funarg) // Skip first field
-			for t := it.Next(); t != nil; t = it.Next() {
+			for _, t := range funarg.FieldSlice()[1:] {
 				if assignop(t.Type, n.Type.Elem(), nil) == 0 {
 					yyerror("cannot append %v value to []%v", t.Type, n.Type.Elem())
 				}
@@ -2591,11 +2590,12 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 					}
 				}
 
-				tn, it := iterFields(n.Type)
+				lfs := tstruct.FieldSlice()
+				rfs := n.Type.FieldSlice()
 				var why string
-				for _, tl := range tstruct.Fields().Slice() {
+				for i, tl := range lfs {
 					if tl.Isddd() {
-						for ; tn != nil; tn = it.Next() {
+						for _, tn := range rfs[i:] {
 							if assignop(tn.Type, tl.Type.Elem(), &why) == 0 {
 								if call != nil {
 									yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type.Elem(), call, why)
@@ -2604,13 +2604,13 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 								}
 							}
 						}
-
 						goto out
 					}
 
-					if tn == nil {
+					if i >= len(rfs) {
 						goto notenough
 					}
+					tn := rfs[i]
 					if assignop(tn.Type, tl.Type, &why) == 0 {
 						if call != nil {
 							yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type, call, why)
@@ -2618,11 +2618,9 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 							yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type, desc(), why)
 						}
 					}
-
-					tn = it.Next()
 				}
 
-				if tn != nil {
+				if len(rfs) > len(lfs) {
 					goto toomany
 				}
 				goto out
@@ -3055,14 +3053,12 @@ func typecheckcomplit(n *Node) *Node {
 		bad := 0
 		if n.List.Len() != 0 && nokeys(n.List) {
 			// simple list of variables
-			f, it := iterFields(t)
-
 			ls := n.List.Slice()
-			for i1, n1 := range ls {
+			for i, n1 := range ls {
 				setlineno(n1)
-				ls[i1] = typecheck(ls[i1], Erv)
-				n1 = ls[i1]
-				if f == nil {
+				n1 = typecheck(n1, Erv)
+				ls[i] = n1
+				if i >= t.NumFields() {
 					if bad == 0 {
 						yyerror("too many values in struct initializer")
 					}
@@ -3070,6 +3066,7 @@ func typecheckcomplit(n *Node) *Node {
 					continue
 				}
 
+				f := t.Field(i)
 				s := f.Sym
 				if s != nil && !exportname(s.Name) && s.Pkg != localpkg {
 					yyerror("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
@@ -3078,11 +3075,9 @@ func typecheckcomplit(n *Node) *Node {
 				n1 = assignconv(n1, f.Type, "field value")
 				n1 = nodSym(OSTRUCTKEY, n1, f.Sym)
 				n1.Xoffset = f.Offset
-				ls[i1] = n1
-				f = it.Next()
+				ls[i] = n1
 			}
-
-			if f != nil {
+			if len(ls) < t.NumFields() {
 				yyerror("too few values in struct initializer")
 			}
 		} else {
@@ -3384,17 +3379,15 @@ func typecheckas2(n *Node) {
 				goto mismatch
 			}
 			n.Op = OAS2FUNC
-			t, s := iterFields(r.Type)
-			for _, n3 := range n.List.Slice() {
-				if t.Type != nil && n3.Type != nil {
-					checkassignto(t.Type, n3)
+			for i, l := range n.List.Slice() {
+				f := r.Type.Field(i)
+				if f.Type != nil && l.Type != nil {
+					checkassignto(f.Type, l)
 				}
-				if n3.Name != nil && n3.Name.Defn == n && n3.Name.Param.Ntype == nil {
-					n3.Type = t.Type
+				if l.Name != nil && l.Name.Defn == n && l.Name.Param.Ntype == nil {
+					l.Type = f.Type
 				}
-				t = s.Next()
 			}
-
 			goto out
 		}
 	}

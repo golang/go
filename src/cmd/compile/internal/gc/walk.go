@@ -1697,20 +1697,16 @@ func fncall(l *Node, rt *Type) bool {
 // a expression list. called in
 //	expr-list = func()
 func ascompatet(op Op, nl Nodes, nr *Type) []*Node {
-	r, saver := iterFields(nr)
+	if nl.Len() != nr.NumFields() {
+		Fatalf("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
+	}
 
 	var nn, mm Nodes
-	var ullmanOverflow bool
-	var i int
-	for i = 0; i < nl.Len(); i++ {
-		if r == nil {
-			break
-		}
-		l := nl.Index(i)
+	for i, l := range nl.Slice() {
 		if isblank(l) {
-			r = saver.Next()
 			continue
 		}
+		r := nr.Field(i)
 
 		// any lv that causes a fn call must be
 		// deferred until all the return arguments
@@ -1729,19 +1725,10 @@ func ascompatet(op Op, nl Nodes, nr *Type) []*Node {
 		updateHasCall(a)
 		if a.HasCall() {
 			Dump("ascompatet ucount", a)
-			ullmanOverflow = true
+			Fatalf("ascompatet: too many function calls evaluating parameters")
 		}
 
 		nn.Append(a)
-		r = saver.Next()
-	}
-
-	if i < nl.Len() || r != nil {
-		Fatalf("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
-	}
-
-	if ullmanOverflow {
-		Fatalf("ascompatet: too many function calls evaluating parameters")
 	}
 	return append(nn.Slice(), mm.Slice()...)
 }
