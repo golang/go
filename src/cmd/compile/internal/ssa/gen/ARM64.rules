@@ -1148,8 +1148,11 @@
 ( ORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [   c] x)
 (XORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [   c] x)
 
-// Replace SRL-of-SLL with ROR-of-SLL to avoid hardware bug.
-(SRLconst [c] y:(SLLconst [c] _)) && c <= 8 -> (RORconst [c] y)
+// Generic rules rewrite certain AND to a pair of shifts.
+// However, on ARM64 the bitmask can fit into an instruction.
+// Rewrite it back to AND.
+(SRLconst [c] (SLLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [1<<uint(64-c)-1] x) // mask out high bits
+(SLLconst [c] (SRLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [^(1<<uint(c)-1)] x) // mask out low bits
 
 // do combined loads
 // little endian loads
