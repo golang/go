@@ -960,9 +960,6 @@ func (p *importer) node() *Node {
 
 	case ODOTTYPE:
 		n := nodl(p.pos(), ODOTTYPE, p.expr(), nil)
-		if p.bool() {
-			Fatalf("impossible")
-		}
 		n.Type = p.typ()
 		return n
 
@@ -986,13 +983,8 @@ func (p *importer) node() *Node {
 	// 	unreachable - mapped to OCONV case below by exporter
 
 	case OCONV:
-		n := nodl(p.pos(), OCONV, nil, nil)
+		n := nodl(p.pos(), OCONV, p.expr(), nil)
 		n.Type = p.typ()
-		exprs := p.exprList()
-		if len(exprs) != 1 {
-			Fatalf("impossible")
-		}
-		n.Left = exprs[0]
 		return n
 
 	case OCOPY, OCOMPLEX, OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
