@@ -45,6 +45,7 @@
 #define SYS_epoll_wait		    4250
 #define SYS_clock_gettime	    4263
 #define SYS_epoll_create1	    4326
+#define SYS_brk			    4045
 
 TEXT runtime·exit(SB),NOSPLIT,$0-4
 	MOVW	code+0(FP), R4
@@ -464,4 +465,13 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0-4
 	MOVW	$1, R6	// FD_CLOEXEC
 	MOVW	$SYS_fcntl, R2
 	SYSCALL
+	RET
+
+// func sbrk0() uintptr
+TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
+	// Implemented as brk(NULL).
+	MOVW	$0, R4
+	MOVW	$SYS_brk, R2
+	SYSCALL
+	MOVW	R2, ret+0(FP)
 	RET

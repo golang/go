@@ -21,6 +21,7 @@
 #define SYS_close		  6
 #define SYS_getpid		 20
 #define SYS_kill		 37
+#define SYS_brk			 45
 #define SYS_fcntl		 55
 #define SYS_gettimeofday	 78
 #define SYS_select		 82	// always return -ENOSYS
@@ -421,4 +422,12 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVD    $2, R4  // F_SETFD
 	MOVD    $1, R5  // FD_CLOEXEC
 	SYSCALL	$SYS_fcntl
+	RET
+
+// func sbrk0() uintptr
+TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0
+	// Implemented as brk(NULL).
+	MOVD	$0, R3
+	SYSCALL	$SYS_brk
+	MOVD	R3, ret+0(FP)
 	RET

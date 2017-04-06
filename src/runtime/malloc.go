@@ -312,6 +312,15 @@ func mallocinit() {
 		// When that gets used up, we'll start asking the kernel
 		// for any memory anywhere.
 
+		// We want to start the arena low, but if we're linked
+		// against C code, it's possible global constructors
+		// have called malloc and adjusted the process' brk.
+		// Query the brk so we can avoid trying to map the
+		// arena over it (which will cause the kernel to put
+		// the arena somewhere else, likely at a high
+		// address).
+		procBrk := sbrk0()
+
 		// If we fail to allocate, try again with a smaller arena.
 		// This is necessary on Android L where we share a process
 		// with ART, which reserves virtual memory aggressively.
@@ -336,6 +345,12 @@ func mallocinit() {
 			// to a MB boundary.
 			p = round(firstmoduledata.end+(1<<18), 1<<20)
 			pSize = bitmapSize + spansSize + arenaSize + _PageSize
+			if p <= procBrk && procBrk < p+pSize {
+				// Move the start above the brk,
+				// leaving some room for future brk
+				// expansion.
+				p = round(procBrk+(1<<20), 1<<20)
+			}
 			p = uintptr(sysReserve(unsafe.Pointer(p), pSize, &reserved))
 			if p != 0 {
 				break

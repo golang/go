@@ -46,6 +46,7 @@
 #define SYS_faccessat		48
 #define SYS_socket		198
 #define SYS_connect		203
+#define SYS_brk			214
 
 TEXT runtime·exit(SB),NOSPLIT,$-8-4
 	MOVW	code+0(FP), R0
@@ -482,4 +483,13 @@ TEXT runtime·socket(SB),NOSPLIT,$0-20
 	MOVD	$SYS_socket, R8
 	SVC
 	MOVW	R0, ret+16(FP)
+	RET
+
+// func sbrk0() uintptr
+TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
+	// Implemented as brk(NULL).
+	MOVD	$0, R0
+	MOVD	$SYS_brk, R8
+	SVC
+	MOVD	R0, ret+0(FP)
 	RET

@@ -596,3 +596,12 @@ TEXT runtime·socket(SB),NOSPLIT,$0-16
 	INVOKE_SYSCALL
 	MOVL	AX, ret+12(FP)
 	RET
+
+// func sbrk0() uintptr
+TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
+	// Implemented as brk(NULL).
+	MOVL	$45, AX  // syscall - brk
+	MOVL	$0, BX  // NULL
+	INVOKE_SYSCALL
+	MOVL	AX, ret+0(FP)
+	RET
