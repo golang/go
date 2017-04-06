@@ -48,6 +48,7 @@
 #define SYS_access (SYS_BASE + 33)
 #define SYS_connect (SYS_BASE + 283)
 #define SYS_socket (SYS_BASE + 281)
+#define SYS_brk (SYS_BASE + 45)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 
@@ -503,4 +504,13 @@ TEXT runtime·socket(SB),NOSPLIT,$0
 	MOVW	$SYS_socket, R7
 	SWI	$0
 	MOVW	R0, ret+12(FP)
+	RET
+
+// func sbrk0() uintptr
+TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
+	// Implemented as brk(NULL).
+	MOVW	$0, R0
+	MOVW	$SYS_brk, R7
+	SWI	$0
+	MOVW	R0, ret+0(FP)
 	RET
