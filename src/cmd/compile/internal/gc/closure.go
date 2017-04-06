@@ -395,7 +395,7 @@ func transformclosure(xfunc *Node) {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
 				addr := newname(lookup("&" + v.Sym.Name))
-				addr.Name.Param.Ntype = nod(OIND, typenod(v.Type), nil)
+				addr.Type = typPtr(v.Type)
 				addr.Class = PAUTO
 				addr.SetUsed(true)
 				addr.Name.Curfn = xfunc
@@ -626,10 +626,10 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	xfunc.Func.Dcl = append(xfunc.Func.Dcl, ptr)
 	var body []*Node
 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
-		ptr.Name.Param.Ntype = typenod(rcvrtype)
+		ptr.Type = rcvrtype
 		body = append(body, nod(OAS, ptr, cv))
 	} else {
-		ptr.Name.Param.Ntype = typenod(typPtr(rcvrtype))
+		ptr.Type = typPtr(rcvrtype)
 		body = append(body, nod(OAS, ptr, nod(OADDR, cv, nil)))
 	}
 

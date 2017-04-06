@@ -1273,11 +1273,11 @@ func (p *exporter) expr(n *Node) {
 		p.op(ODOTTYPE)
 		p.pos(n)
 		p.expr(n.Left)
-		if p.bool(n.Right != nil) {
-			p.expr(n.Right)
-		} else {
-			p.typ(n.Type)
+		if n.Right != nil {
+			Fatalf("impossible")
 		}
+		p.bool(false)
+		p.typ(n.Type)
 
 	case OINDEX, OINDEXMAP:
 		p.op(OINDEX)
