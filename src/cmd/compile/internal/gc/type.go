@@ -126,7 +126,6 @@ type Type struct {
 	// TMAP: *MapType
 	// TFORW: *ForwardType
 	// TFUNC: *FuncType
-	// TINTERMETHOD: InterMethType
 	// TSTRUCT: *StructType
 	// TINTER: *InterType
 	// TDDDFIELD: DDDFieldType
@@ -230,11 +229,6 @@ type FuncType struct {
 func (t *Type) FuncType() *FuncType {
 	t.wantEtype(TFUNC)
 	return t.Extra.(*FuncType)
-}
-
-// InterMethType contains Type fields specific to interface method pseudo-types.
-type InterMethType struct {
-	Nname *Node
 }
 
 // StructType contains Type fields specific to struct types.
