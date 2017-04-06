@@ -33,8 +33,6 @@ package arm
 import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
-	"fmt"
-	"math"
 )
 
 var progedit_tlsfallback *obj.LSym
@@ -108,22 +106,16 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case AMOVF:
 		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.Val.(float64)) < 0 && (chipzero5(ctxt, p.From.Val.(float64)) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
 			f32 := float32(p.From.Val.(float64))
-			i32 := math.Float32bits(f32)
-			literal := fmt.Sprintf("$f32.%08x", i32)
-			s := ctxt.Lookup(literal, 0)
 			p.From.Type = obj.TYPE_MEM
-			p.From.Sym = s
+			p.From.Sym = ctxt.Float32Sym(f32)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
 
 	case AMOVD:
 		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.Val.(float64)) < 0 && (chipzero5(ctxt, p.From.Val.(float64)) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
-			i64 := math.Float64bits(p.From.Val.(float64))
-			literal := fmt.Sprintf("$f64.%016x", i64)
-			s := ctxt.Lookup(literal, 0)
 			p.From.Type = obj.TYPE_MEM
-			p.From.Sym = s
+			p.From.Sym = ctxt.Float64Sym(p.From.Val.(float64))
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
