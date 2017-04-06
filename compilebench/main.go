@@ -158,7 +158,7 @@ func main() {
 				continue
 			}
 			if runRE == nil || runRE.MatchString(tt.name) {
-				runBuild(tt.name, tt.dir)
+				runBuild(tt.name, tt.dir, i)
 			}
 		}
 	}
@@ -213,7 +213,7 @@ func runSize(name, path string) {
 	}
 }
 
-func runBuild(name, dir string) {
+func runBuild(name, dir string, count int) {
 	switch name {
 	case "BenchmarkStdCmd":
 		runStdCmd()
@@ -299,7 +299,11 @@ func runBuild(name, dir string) {
 		if err != nil {
 			log.Print(err)
 		}
-		if err := ioutil.WriteFile(*flagCpuprofile, out, 0666); err != nil {
+		outpath := *flagCpuprofile
+		if *flagCount != 1 {
+			outpath = fmt.Sprintf("%s_%d", outpath, count)
+		}
+		if err := ioutil.WriteFile(outpath, out, 0666); err != nil {
 			log.Print(err)
 		}
 		os.Remove(pkg.Dir + "/_compilebench_.cpuprof")
