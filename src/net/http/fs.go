@@ -315,7 +315,7 @@ func scanETag(s string) (etag string, remain string) {
 		case c == '"':
 			return string(s[:i+1]), s[i+1:]
 		default:
-			break
+			return "", ""
 		}
 	}
 	return "", ""

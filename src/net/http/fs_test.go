@@ -1264,10 +1264,10 @@ func Test_scanETag(t *testing.T) {
 		{`"etag-2"`, `"etag-2"`, ""},
 		{`"etag-1", "etag-2"`, `"etag-1"`, `, "etag-2"`},
 		{"", "", ""},
-		{"", "", ""},
 		{"W/", "", ""},
 		{`W/"truc`, "", ""},
 		{`w/"case-sensitive"`, "", ""},
+		{`"spaced etag"`, "", ""},
 	}
 	for _, test := range tests {
 		etag, remain := ExportScanETag(test.in)
