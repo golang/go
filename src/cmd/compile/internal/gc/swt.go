@@ -182,10 +182,10 @@ func typecheckswitch(n *Node) {
 				nvar := ncase.Rlist.First()
 				if ll.Len() == 1 && ll.First().Type != nil && !ll.First().Type.IsKind(TNIL) {
 					// single entry type switch
-					nvar.Name.Param.Ntype = typenod(ll.First().Type)
+					nvar.Type = ll.First().Type
 				} else {
 					// multiple entry type switch or default
-					nvar.Name.Param.Ntype = typenod(n.Type)
+					nvar.Type = n.Type
 				}
 
 				nvar = typecheck(nvar, Erv|Easgn)
