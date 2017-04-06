@@ -364,7 +364,6 @@ func makeOnePass(p *onePassProg) *onePassProg {
 			}
 		case syntax.InstMatch, syntax.InstFail:
 			m[pc] = inst.Op == syntax.InstMatch
-			break
 		case syntax.InstRune:
 			m[pc] = false
 			if len(inst.Next) > 0 {
