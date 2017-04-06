@@ -541,7 +541,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
 	switch tok.ScanToken {
 	case scanner.Ident:
 		if p.arch.Family == sys.ARM64 {
-				p.errorf("rhs of shift must be integer: %s", str)
+			p.errorf("rhs of shift must be integer: %s", str)
 		} else {
 			r2, ok := p.registerReference(str)
 			if !ok {
@@ -567,7 +567,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
 		p.errorf("unexpected %s in register shift", tok.String())
 	}
 	if p.arch.Family == sys.ARM64 {
-		return int64(int64(r1 & 31)<<16 | int64(op)<<22 | int64(uint16(count)))
+		return int64(int64(r1&31)<<16 | int64(op)<<22 | int64(uint16(count)))
 	} else {
 		return int64((r1 & 15) | op<<5 | count)
 	}
@@ -585,7 +585,7 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 		a.Type = obj.TYPE_INDIR
 	}
 	// Weirdness with statics: Might now have "<>".
-	isStatic := 0 // TODO: Really a boolean, but Linklookup wants a "version" integer.
+	isStatic := 0 // TODO: Really a boolean, but ctxt.Lookup wants a "version" integer.
 	if p.peek() == '<' {
 		isStatic = 1
 		p.next()
@@ -594,7 +594,7 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	if p.peek() == '+' || p.peek() == '-' {
 		a.Offset = int64(p.expr())
 	}
-	a.Sym = obj.Linklookup(p.ctxt, name, isStatic)
+	a.Sym = p.ctxt.Lookup(name, isStatic)
 	if p.peek() == scanner.EOF {
 		if prefix == 0 && p.isJump {
 			// Symbols without prefix or suffix are jump labels.

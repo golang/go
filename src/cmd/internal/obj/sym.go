@@ -82,10 +82,6 @@ func (ctxt *Link) Lookup(name string, v int) *LSym {
 	return s
 }
 
-func Linklookup(ctxt *Link, name string, v int) *LSym {
-	return ctxt.Lookup(name, v)
-}
-
 func Linksymfmt(s *LSym) string {
 	if s == nil {
 		return "<nil>"

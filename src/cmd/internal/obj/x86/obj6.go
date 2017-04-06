@@ -243,7 +243,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			f32 := float32(p.From.Val.(float64))
 			i32 := math.Float32bits(f32)
 			literal := fmt.Sprintf("$f32.%08x", i32)
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
@@ -283,7 +283,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		if p.From.Type == obj.TYPE_FCONST {
 			i64 := math.Float64bits(p.From.Val.(float64))
 			literal := fmt.Sprintf("$f64.%016x", i64)
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Sym = s
@@ -332,9 +332,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		//     CALL $reg
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
+			sym = ctxt.Lookup("runtime.duffzero", 0)
 		} else {
-			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
+			sym = ctxt.Lookup("runtime.duffcopy", 0)
 		}
 		offset := p.To.Offset
 		p.As = mov
@@ -435,7 +435,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p1.As = ALEAL
 		p1.From.Type = obj.TYPE_MEM
 		p1.From.Name = obj.NAME_STATIC
-		p1.From.Sym = obj.Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
+		p1.From.Sym = ctxt.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = REG_BX
 
@@ -542,7 +542,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	r := obj.Appendp(q, newprog)
 	r.RegTo2 = 1
 	q.As = obj.ACALL
-	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
+	q.To.Sym = ctxt.Lookup("__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
 	q.To.Type = obj.TYPE_MEM
 	q.To.Name = obj.NAME_EXTERN
 	q.To.Sym.Set(obj.AttrLocal, true)
@@ -598,7 +598,7 @@ func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if ctxt.Headtype == obj.Hplan9 && ctxt.Plan9privates == nil {
-		ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
+		ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
 	}
 
 	if cursym.Text == nil || cursym.Text.Link == nil {
@@ -1165,7 +1165,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	case cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
 		morestack = "runtime.morestack_noctxt"
 	}
-	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
+	call.To.Sym = ctxt.Lookup(morestack, 0)
 	// When compiling 386 code for dynamic linking, the call needs to be adjusted
 	// to follow PIC rules. This in turn can insert more instructions, so we need
 	// to keep track of the start of the call (where the jump will be to) and the

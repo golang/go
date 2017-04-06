@@ -62,7 +62,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				break
 			}
 			literal := fmt.Sprintf("$f32.%08x", i32)
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			s.Size = 4
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
@@ -78,7 +78,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				break
 			}
 			literal := fmt.Sprintf("$f64.%016x", i64)
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
@@ -95,7 +95,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				int64(uint32(val)) != val &&
 				int64(uint64(val)&(0xffffffff<<32)) != val {
 				literal := fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
-				s := obj.Linklookup(ctxt, literal, 0)
+				s := ctxt.Lookup(literal, 0)
 				s.Size = 8
 				p.From.Type = obj.TYPE_MEM
 				p.From.Sym = s
@@ -700,11 +700,11 @@ func stacksplitPost(ctxt *obj.Link, p *obj.Prog, pPre *obj.Prog, pPreempt *obj.P
 	p.As = ABL
 	p.To.Type = obj.TYPE_BRANCH
 	if ctxt.Cursym.CFunc() {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+		p.To.Sym = ctxt.Lookup("runtime.morestackc", 0)
 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+		p.To.Sym = ctxt.Lookup("runtime.morestack_noctxt", 0)
 	} else {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+		p.To.Sym = ctxt.Lookup("runtime.morestack", 0)
 	}
 
 	// BR	start

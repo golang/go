@@ -454,7 +454,7 @@ func dimportpath(p *Pkg) {
 		str = p.Path
 	}
 
-	s := obj.Linklookup(Ctxt, "type..importpath."+p.Prefix+".", 0)
+	s := Ctxt.Lookup("type..importpath."+p.Prefix+".", 0)
 	ot := dnameData(s, 0, str, "", nil, false)
 	ggloblLSym(s, int32(ot), obj.DUPOK|obj.RODATA)
 	p.Pathsym = s
@@ -475,7 +475,7 @@ func dgopkgpathLSym(s *obj.LSym, ot int, pkg *Pkg) int {
 		// type..importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := obj.Linklookup(Ctxt, `type..importpath."".`, 0)
+		ns := Ctxt.Lookup(`type..importpath."".`, 0)
 		return dsymptrLSym(s, ot, ns, 0)
 	}
 
@@ -494,7 +494,7 @@ func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *Pkg) int {
 		// type..importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := obj.Linklookup(Ctxt, `type..importpath."".`, 0)
+		ns := Ctxt.Lookup(`type..importpath."".`, 0)
 		return dsymptrOffLSym(s, ot, ns, 0)
 	}
 
@@ -598,7 +598,7 @@ func dname(name, tag string, pkg *Pkg, exported bool) *obj.LSym {
 		sname = fmt.Sprintf(`%s"".%d`, sname, dnameCount)
 		dnameCount++
 	}
-	s := obj.Linklookup(Ctxt, sname, 0)
+	s := Ctxt.Lookup(sname, 0)
 	if len(s.P) > 0 {
 		return s
 	}
@@ -1466,7 +1466,7 @@ func dumptypestructs() {
 	// process ptabs
 	if localpkg.Name == "main" && len(ptabs) > 0 {
 		ot := 0
-		s := obj.Linklookup(Ctxt, "go.plugin.tabs", 0)
+		s := Ctxt.Lookup("go.plugin.tabs", 0)
 		for _, p := range ptabs {
 			// Dump ptab symbol into go.pluginsym package.
 			//
@@ -1481,7 +1481,7 @@ func dumptypestructs() {
 		ggloblLSym(s, int32(ot), int16(obj.RODATA))
 
 		ot = 0
-		s = obj.Linklookup(Ctxt, "go.plugin.exports", 0)
+		s = Ctxt.Lookup("go.plugin.exports", 0)
 		for _, p := range ptabs {
 			ot = dsymptrLSym(s, ot, Linksym(p.s), 0)
 		}

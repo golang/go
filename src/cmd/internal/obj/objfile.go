@@ -299,13 +299,13 @@ func (w *objWriter) writeRefs(s *LSym) {
 			w.writeRef(d, false)
 		}
 		for _, f := range pc.File {
-			fsym := Linklookup(w.ctxt, f, 0)
+			fsym := w.ctxt.Lookup(f, 0)
 			w.writeRef(fsym, true)
 		}
 		for _, call := range pc.InlTree.nodes {
 			w.writeRef(call.Func, false)
 			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
-			fsym := Linklookup(w.ctxt, f, 0)
+			fsym := w.ctxt.Lookup(f, 0)
 			w.writeRef(fsym, true)
 		}
 	}
@@ -469,14 +469,14 @@ func (w *objWriter) writeSym(s *LSym) {
 	}
 	w.writeInt(int64(len(pc.File)))
 	for _, f := range pc.File {
-		fsym := Linklookup(ctxt, f, 0)
+		fsym := ctxt.Lookup(f, 0)
 		w.writeRefIndex(fsym)
 	}
 	w.writeInt(int64(len(pc.InlTree.nodes)))
 	for _, call := range pc.InlTree.nodes {
 		w.writeInt(int64(call.Parent))
 		f, l := linkgetlineFromPos(w.ctxt, call.Pos)
-		fsym := Linklookup(ctxt, f, 0)
+		fsym := ctxt.Lookup(f, 0)
 		w.writeRefIndex(fsym)
 		w.writeInt(int64(l))
 		w.writeRefIndex(call.Func)
@@ -558,7 +558,7 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 // makeFuncDebugEntry makes a DWARF Debugging Information Entry
 // for TEXT symbol s.
 func makeFuncDebugEntry(ctxt *Link, curfn interface{}, s *LSym) {
-	dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
+	dsym := ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
 	if dsym.Size != 0 {
 		return
 	}
