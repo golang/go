@@ -45,6 +45,15 @@ TEXT	foo(SB), 7, $-8
 	ADD	R1->33, R2
 	AND	R1@>33, R2
 
+// logical ops
+// make sure constants get encoded into an instruction when it could
+	AND	$(1<<63), R1   // AND	$-9223372036854775808, R1 // 21004192
+	AND	$(1<<63-1), R1 // AND	$9223372036854775807, R1  // 21f84092
+	ORR	$(1<<63), R1   // ORR	$-9223372036854775808, R1 // 210041b2
+	ORR	$(1<<63-1), R1 // ORR	$9223372036854775807, R1  // 21f840b2
+	EOR	$(1<<63), R1   // EOR	$-9223372036854775808, R1 // 210041d2
+	EOR	$(1<<63-1), R1 // EOR	$9223372036854775807, R1  // 21f840d2
+
 //
 // CLS
 //
