@@ -180,29 +180,22 @@ func runStdCmd() {
 	runCmd("BenchmarkStdCmd", cmd)
 }
 
-func runCmdGoSize() {
-	runSize("BenchmarkCmdGoSize", filepath.Join(runtime.GOROOT(), "bin/go"))
-}
-
-func runHelloSize() {
-	cmd := exec.Command("go", "build", "-o", "_hello_", filepath.Join(runtime.GOROOT(), "test/helloworld.go"))
+// path is either a path to a file ("$GOROOT/test/helloworld.go") or a package path ("cmd/go").
+func runSize(name, path string) {
+	cmd := exec.Command("go", "build", "-o", "_compilebenchout_", path)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		log.Print(err)
 		return
 	}
-	defer os.Remove("_hello_")
-	runSize("BenchmarkHelloSize", "_hello_")
-}
-
-func runSize(name, file string) {
-	info, err := os.Stat(file)
+	defer os.Remove("_compilebenchout_")
+	info, err := os.Stat("_compilebenchout_")
 	if err != nil {
 		log.Print(err)
 		return
 	}
-	out, err := exec.Command("size", file).CombinedOutput()
+	out, err := exec.Command("size", "_compilebenchout_").CombinedOutput()
 	if err != nil {
 		log.Printf("size: %v\n%s", err, out)
 		return
@@ -226,10 +219,10 @@ func runBuild(name, dir string) {
 		runStdCmd()
 		return
 	case "BenchmarkCmdGoSize":
-		runCmdGoSize()
+		runSize("BenchmarkCmdGoSize", "cmd/go")
 		return
 	case "BenchmarkHelloSize":
-		runHelloSize()
+		runSize("BenchmarkHelloSize", filepath.Join(runtime.GOROOT(), "test/helloworld.go"))
 		return
 	}
 
