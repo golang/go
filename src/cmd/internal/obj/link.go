@@ -786,6 +786,7 @@ type SymVer struct {
 // LinkArch is the definition of a single architecture.
 type LinkArch struct {
 	*sys.Arch
+	Init       func(*Link)
 	Preprocess func(*Link, *LSym, ProgAlloc)
 	Assemble   func(*Link, *LSym, ProgAlloc)
 	Progedit   func(*Link, *Prog, ProgAlloc)

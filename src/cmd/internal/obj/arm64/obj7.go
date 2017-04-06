@@ -799,6 +799,7 @@ var unaryDst = map[obj.As]bool{
 
 var Linkarm64 = obj.LinkArch{
 	Arch:       sys.ArchARM64,
+	Init:       buildop,
 	Preprocess: preprocess,
 	Assemble:   span7,
 	Progedit:   progedit,

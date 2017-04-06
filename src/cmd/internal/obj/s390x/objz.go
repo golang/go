@@ -715,6 +715,7 @@ var unaryDst = map[obj.As]bool{
 
 var Links390x = obj.LinkArch{
 	Arch:       sys.ArchS390X,
+	Init:       buildop,
 	Preprocess: preprocess,
 	Assemble:   spanz,
 	Progedit:   progedit,

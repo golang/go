@@ -42,6 +42,8 @@ func main() {
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	defer ctxt.Bso.Flush()
 
+	architecture.Init(ctxt)
+
 	// Create object file, write header.
 	out, err := os.Create(*flags.OutputFile)
 	if err != nil {

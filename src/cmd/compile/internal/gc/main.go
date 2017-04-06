@@ -238,6 +238,8 @@ func Main(archInit func(*Arch)) {
 		usage()
 	}
 
+	thearch.LinkArch.Init(Ctxt)
+
 	if outfile == "" {
 		p := flag.Arg(0)
 		if i := strings.LastIndex(p, "/"); i >= 0 {

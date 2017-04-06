@@ -171,8 +171,6 @@ func archX86(linkArch *obj.LinkArch) *Arch {
 	instructions["PSRLDQ"] = x86.APSRLO
 	instructions["PADDD"] = x86.APADDL
 
-	x86.InstInit()
-
 	return &Arch{
 		LinkArch:       linkArch,
 		Instructions:   instructions,

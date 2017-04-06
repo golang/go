@@ -382,7 +382,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	ctxt.Autosize = int32(p.To.Offset + ctxt.FixedFrameSize())
 
 	if oprange[AOR&obj.AMask] == nil {
-		buildop(ctxt)
+		ctxt.Diag("mips ops not initialized, call mips.buildop first")
 	}
 
 	c := int64(0)
@@ -668,7 +668,7 @@ func prasm(p *obj.Prog) {
 
 func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	if oprange[AOR&obj.AMask] == nil {
-		buildop(ctxt)
+		ctxt.Diag("mips ops not initialized, call mips.buildop first")
 	}
 
 	a1 := int(p.Optab)
@@ -833,6 +833,13 @@ func opset(a, b0 obj.As) {
 }
 
 func buildop(ctxt *obj.Link) {
+	if oprange[AOR&obj.AMask] != nil {
+		// Already initialized; stop now.
+		// This happens in the cmd/asm tests,
+		// each of which re-initializes the arch.
+		return
+	}
+
 	var n int
 
 	for i := 0; i < C_NCLASS; i++ {

@@ -883,8 +883,8 @@ var ymmxmm0f38 = []ytab{
  * two values match the Ytypes of the p->from and p->to operands.  The function
  * oclass in span.c computes the specific Ytype of an operand and then the set
  * of more general Ytypes that it satisfies is implied by the ycover table, set
- * up in InstInit.  For example, oclass distinguishes the constants 0 and 1
- * from the more general 8-bit constants, but InstInit says
+ * up in instinit.  For example, oclass distinguishes the constants 0 and 1
+ * from the more general 8-bit constants, but instinit says
  *
  *        ycover[Yi0*Ymax + Ys32] = 1;
  *        ycover[Yi1*Ymax + Ys32] = 1;
@@ -1768,7 +1768,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	if ycover[0] == 0 {
-		ctxt.Diag("x86 tables not initialized, call x86.InstInit first")
+		ctxt.Diag("x86 tables not initialized, call x86.instinit first")
 	}
 
 	var asmbuf AsmBuf
@@ -1965,7 +1965,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	}
 }
 
-func InstInit() {
+func instinit(ctxt *obj.Link) {
 	if ycover[0] != 0 {
 		// Already initialized; stop now.
 		// This happens in the cmd/asm tests,
@@ -1976,7 +1976,7 @@ func InstInit() {
 	for i := 1; optab[i].as != 0; i++ {
 		c := optab[i].as
 		if opindex[c&obj.AMask] != nil {
-			log.Fatalf("phase error in optab: %d (%v)", i, c)
+			ctxt.Diag("phase error in optab: %d (%v)", i, c)
 		}
 		opindex[c&obj.AMask] = &optab[i]
 	}

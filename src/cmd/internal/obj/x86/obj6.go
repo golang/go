@@ -1234,6 +1234,7 @@ var unaryDst = map[obj.As]bool{
 
 var Linkamd64 = obj.LinkArch{
 	Arch:       sys.ArchAMD64,
+	Init:       instinit,
 	Preprocess: preprocess,
 	Assemble:   span6,
 	Progedit:   progedit,
@@ -1242,6 +1243,7 @@ var Linkamd64 = obj.LinkArch{
 
 var Linkamd64p32 = obj.LinkArch{
 	Arch:       sys.ArchAMD64P32,
+	Init:       instinit,
 	Preprocess: preprocess,
 	Assemble:   span6,
 	Progedit:   progedit,
@@ -1250,6 +1252,7 @@ var Linkamd64p32 = obj.LinkArch{
 
 var Link386 = obj.LinkArch{
 	Arch:       sys.Arch386,
+	Init:       instinit,
 	Preprocess: preprocess,
 	Assemble:   span6,
 	Progedit:   progedit,
