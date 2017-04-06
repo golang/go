@@ -1273,10 +1273,6 @@ func (p *exporter) expr(n *Node) {
 		p.op(ODOTTYPE)
 		p.pos(n)
 		p.expr(n.Left)
-		if n.Right != nil {
-			Fatalf("impossible")
-		}
-		p.bool(false)
 		p.typ(n.Type)
 
 	case OINDEX, OINDEXMAP:
@@ -1311,13 +1307,8 @@ func (p *exporter) expr(n *Node) {
 	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
 		p.op(OCONV)
 		p.pos(n)
+		p.expr(n.Left)
 		p.typ(n.Type)
-		if n.Left != nil {
-			p.expr(n.Left)
-			p.op(OEND)
-		} else {
-			p.exprList(n.List) // emits terminating OEND
-		}
 
 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
 		p.op(op)
