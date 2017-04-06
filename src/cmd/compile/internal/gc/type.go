@@ -1063,11 +1063,10 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 			return ssa.CMPgt // bucket maps are least
 		} // If t != t.Map.Bucket, fall through to general case
 
-		fallthrough
-	case TINTER:
-		t1, ti := iterFields(t)
-		x1, xi := iterFields(x)
-		for ; t1 != nil && x1 != nil; t1, x1 = ti.Next(), xi.Next() {
+		tfs := t.FieldSlice()
+		xfs := x.FieldSlice()
+		for i := 0; i < len(tfs) && i < len(xfs); i++ {
+			t1, x1 := tfs[i], xfs[i]
 			if t1.Embedded != x1.Embedded {
 				return cmpForNe(t1.Embedded < x1.Embedded)
 			}
@@ -1081,17 +1080,36 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 				return c
 			}
 		}
-		if t1 != x1 {
-			return cmpForNe(t1 == nil)
+		if len(tfs) != len(xfs) {
+			return cmpForNe(len(tfs) < len(xfs))
+		}
+		return ssa.CMPeq
+
+	case TINTER:
+		tfs := t.FieldSlice()
+		xfs := x.FieldSlice()
+		for i := 0; i < len(tfs) && i < len(xfs); i++ {
+			t1, x1 := tfs[i], xfs[i]
+			if c := t1.Sym.cmpsym(x1.Sym); c != ssa.CMPeq {
+				return c
+			}
+			if c := t1.Type.cmp(x1.Type); c != ssa.CMPeq {
+				return c
+			}
+		}
+		if len(tfs) != len(xfs) {
+			return cmpForNe(len(tfs) < len(xfs))
 		}
 		return ssa.CMPeq
 
 	case TFUNC:
 		for _, f := range recvsParamsResults {
 			// Loop over fields in structs, ignoring argument names.
-			ta, ia := iterFields(f(t))
-			tb, ib := iterFields(f(x))
-			for ; ta != nil && tb != nil; ta, tb = ia.Next(), ib.Next() {
+			tfs := f(t).FieldSlice()
+			xfs := f(x).FieldSlice()
+			for i := 0; i < len(tfs) && i < len(xfs); i++ {
+				ta := tfs[i]
+				tb := xfs[i]
 				if ta.Isddd() != tb.Isddd() {
 					return cmpForNe(!ta.Isddd())
 				}
@@ -1099,8 +1117,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 					return c
 				}
 			}
-			if ta != tb {
-				return cmpForNe(ta == nil)
+			if len(tfs) != len(xfs) {
+				return cmpForNe(len(tfs) < len(xfs))
 			}
 		}
 		return ssa.CMPeq

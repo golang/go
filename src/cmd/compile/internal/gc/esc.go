@@ -1608,72 +1608,59 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 		}
 	}
 
-	var arg *Node
-	var note string
-	param, it := iterFields(fntype.Params())
-	i := 0
-	for ; i < len(args); i++ {
-		arg = args[i]
-		note = param.Note
+	for i, param := range fntype.Params().FieldSlice() {
+		note := param.Note
+		var arg *Node
 		if param.Isddd() && !call.Isddd() {
+			rest := args[i:]
+			if len(rest) == 0 {
+				break
+			}
+
 			// Introduce ODDDARG node to represent ... allocation.
 			arg = nod(ODDDARG, nil, nil)
 			arg.Pos = call.Pos
-			arr := typArray(param.Type.Elem(), int64(len(args)-i))
+			arr := typArray(param.Type.Elem(), int64(len(rest)))
 			arg.Type = typPtr(arr) // make pointer so it will be tracked
 			e.track(arg)
 			call.Right = arg
-		}
 
-		if haspointers(param.Type) {
-			if e.escassignfromtag(note, cE.Retval, arg, call)&EscMask == EscNone && parent.Op != ODEFER && parent.Op != OPROC {
-				a := arg
-				for a.Op == OCONVNOP {
-					a = a.Left
+			// Store arguments into slice for ... arg.
+			for _, a := range rest {
+				if Debug['m'] > 3 {
+					fmt.Printf("%v::esccall:: ... <- %S\n", linestr(lineno), a)
 				}
-				switch a.Op {
-				// The callee has already been analyzed, so its arguments have esc tags.
-				// The argument is marked as not escaping at all.
-				// Record that fact so that any temporary used for
-				// synthesizing this expression can be reclaimed when
-				// the function returns.
-				// This 'noescape' is even stronger than the usual esc == EscNone.
-				// arg.Esc == EscNone means that arg does not escape the current function.
-				// arg.SetNoescape(true) here means that arg does not escape this statement
-				// in the current function.
-				case OCALLPART,
-					OCLOSURE,
-					ODDDARG,
-					OARRAYLIT,
-					OSLICELIT,
-					OPTRLIT,
-					OSTRUCTLIT:
-					a.SetNoescape(true)
+				if note == uintptrEscapesTag {
+					e.escassignSinkWhyWhere(arg, a, "arg to uintptrescapes ...", call)
+				} else {
+					e.escassignWhyWhere(arg, a, "arg to ...", call)
 				}
+			}
+		} else {
+			arg = args[i]
+			if note == uintptrEscapesTag {
+				e.escassignSinkWhy(arg, arg, "escaping uintptr")
 			}
 		}
 
-		if arg != args[i] {
-			// This occurs when function parameter field Isddd and call not Isddd
-			break
-		}
-
-		if note == uintptrEscapesTag {
-			e.escassignSinkWhy(arg, arg, "escaping uintptr")
-		}
-
-		param = it.Next()
-	}
-
-	// Store arguments into slice for ... arg.
-	for ; i < len(args); i++ {
-		if Debug['m'] > 3 {
-			fmt.Printf("%v::esccall:: ... <- %S\n", linestr(lineno), args[i])
-		}
-		if note == uintptrEscapesTag {
-			e.escassignSinkWhyWhere(arg, args[i], "arg to uintptrescapes ...", call)
-		} else {
-			e.escassignWhyWhere(arg, args[i], "arg to ...", call)
+		if haspointers(param.Type) && e.escassignfromtag(note, cE.Retval, arg, call)&EscMask == EscNone && parent.Op != ODEFER && parent.Op != OPROC {
+			a := arg
+			for a.Op == OCONVNOP {
+				a = a.Left
+			}
+			switch a.Op {
+			// The callee has already been analyzed, so its arguments have esc tags.
+			// The argument is marked as not escaping at all.
+			// Record that fact so that any temporary used for
+			// synthesizing this expression can be reclaimed when
+			// the function returns.
+			// This 'noescape' is even stronger than the usual esc == EscNone.
+			// arg.Esc == EscNone means that arg does not escape the current function.
+			// arg.SetNoescape(true) here means that arg does not escape this statement
+			// in the current function.
+			case OCALLPART, OCLOSURE, ODDDARG, OARRAYLIT, OSLICELIT, OPTRLIT, OSTRUCTLIT:
+				a.SetNoescape(true)
+			}
 		}
 	}
 }

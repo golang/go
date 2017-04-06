@@ -390,33 +390,36 @@ func ordercall(n *Node, order *Order) {
 	ordercallargs(&n.List, order)
 
 	if n.Op == OCALLFUNC {
-		t, it := iterFields(n.Left.Type.Params())
-		for i := range n.List.Slice() {
-			// Check for "unsafe-uintptr" tag provided by escape analysis.
-			// If present and the argument is really a pointer being converted
-			// to uintptr, arrange for the pointer to be kept alive until the call
-			// returns, by copying it into a temp and marking that temp
+		keepAlive := func(i int) {
+			// If the argument is really a pointer being converted to uintptr,
+			// arrange for the pointer to be kept alive until the call returns,
+			// by copying it into a temp and marking that temp
 			// still alive when we pop the temp stack.
-			if t == nil {
-				break
+			xp := n.List.Addr(i)
+			for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
+				xp = &(*xp).Left
 			}
-			if t.Note == unsafeUintptrTag || t.Note == uintptrEscapesTag {
-				xp := n.List.Addr(i)
-				for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
-					xp = &(*xp).Left
+			x := *xp
+			if x.Type.IsPtr() {
+				x = ordercopyexpr(x, x.Type, order, 0)
+				x.Name.SetKeepalive(true)
+				*xp = x
+			}
+		}
+
+		for i, t := range n.Left.Type.Params().FieldSlice() {
+			// Check for "unsafe-uintptr" tag provided by escape analysis.
+			if t.Isddd() && !n.Isddd() {
+				if t.Note == uintptrEscapesTag {
+					for ; i < n.List.Len(); i++ {
+						keepAlive(i)
+					}
 				}
-				x := *xp
-				if x.Type.IsPtr() {
-					x = ordercopyexpr(x, x.Type, order, 0)
-					x.Name.SetKeepalive(true)
-					*xp = x
+			} else {
+				if t.Note == unsafeUintptrTag || t.Note == uintptrEscapesTag {
+					keepAlive(i)
 				}
 			}
-			next := it.Next()
-			if next == nil && t.Isddd() && t.Note == uintptrEscapesTag {
-				next = t
-			}
-			t = next
 		}
 	}
 }

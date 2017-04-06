@@ -655,19 +655,32 @@ func eqtype1(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) boo
 	assumedEqual[typePair{t1, t2}] = struct{}{}
 
 	switch t1.Etype {
-	case TINTER, TSTRUCT:
-		t1, i1 := iterFields(t1)
-		t2, i2 := iterFields(t2)
-		for ; t1 != nil && t2 != nil; t1, t2 = i1.Next(), i2.Next() {
-			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, cmpTags, assumedEqual) || cmpTags && t1.Note != t2.Note {
+	case TINTER:
+		if t1.NumFields() != t2.NumFields() {
+			return false
+		}
+		for i, f1 := range t1.FieldSlice() {
+			f2 := t2.Field(i)
+			if f1.Sym != f2.Sym || !eqtype1(f1.Type, f2.Type, cmpTags, assumedEqual) {
 				return false
 			}
 		}
+		return true
 
-		if t1 == nil && t2 == nil {
-			return true
+	case TSTRUCT:
+		if t1.NumFields() != t2.NumFields() {
+			return false
 		}
-		return false
+		for i, f1 := range t1.FieldSlice() {
+			f2 := t2.Field(i)
+			if f1.Sym != f2.Sym || f1.Embedded != f2.Embedded || !eqtype1(f1.Type, f2.Type, cmpTags, assumedEqual) {
+				return false
+			}
+			if cmpTags && f1.Note != f2.Note {
+				return false
+			}
+		}
+		return true
 
 	case TFUNC:
 		// Check parameters and result parameters for type equality.
@@ -675,15 +688,15 @@ func eqtype1(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) boo
 		// equality, because they're never relevant.
 		for _, f := range paramsResults {
 			// Loop over fields in structs, ignoring argument names.
-			ta, ia := iterFields(f(t1))
-			tb, ib := iterFields(f(t2))
-			for ; ta != nil && tb != nil; ta, tb = ia.Next(), ib.Next() {
-				if ta.Isddd() != tb.Isddd() || !eqtype1(ta.Type, tb.Type, cmpTags, assumedEqual) {
+			fs1, fs2 := f(t1).FieldSlice(), f(t2).FieldSlice()
+			if len(fs1) != len(fs2) {
+				return false
+			}
+			for i, f1 := range fs1 {
+				f2 := fs2[i]
+				if f1.Isddd() != f2.Isddd() || !eqtype1(f1.Type, f2.Type, cmpTags, assumedEqual) {
 					return false
 				}
-			}
-			if ta != nil || tb != nil {
-				return false
 			}
 		}
 		return true
@@ -716,18 +729,16 @@ func eqtypenoname(t1 *Type, t2 *Type) bool {
 		return false
 	}
 
-	f1, i1 := iterFields(t1)
-	f2, i2 := iterFields(t2)
-	for {
+	if t1.NumFields() != t2.NumFields() {
+		return false
+	}
+	for i, f1 := range t1.FieldSlice() {
+		f2 := t2.Field(i)
 		if !eqtype(f1.Type, f2.Type) {
 			return false
 		}
-		if f1 == nil {
-			return true
-		}
-		f1 = i1.Next()
-		f2 = i2.Next()
 	}
+	return true
 }
 
 // Is type src assignment compatible to type dst?
