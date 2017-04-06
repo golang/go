@@ -33,7 +33,6 @@ package arm64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
-	"fmt"
 	"math"
 )
 
@@ -259,36 +258,27 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case AFMOVS:
 		if p.From.Type == obj.TYPE_FCONST {
 			f32 := float32(p.From.Val.(float64))
-			i32 := math.Float32bits(f32)
-			if i32 == 0 {
+			if math.Float32bits(f32) == 0 {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REGZERO
 				break
 			}
-			literal := fmt.Sprintf("$f32.%08x", i32)
-			s := ctxt.Lookup(literal, 0)
-			s.Size = 4
 			p.From.Type = obj.TYPE_MEM
-			p.From.Sym = s
-			p.From.Sym.Set(obj.AttrLocal, true)
+			p.From.Sym = ctxt.Float32Sym(f32)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
 
 	case AFMOVD:
 		if p.From.Type == obj.TYPE_FCONST {
-			i64 := math.Float64bits(p.From.Val.(float64))
-			if i64 == 0 {
+			f64 := p.From.Val.(float64)
+			if math.Float64bits(f64) == 0 {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REGZERO
 				break
 			}
-			literal := fmt.Sprintf("$f64.%016x", i64)
-			s := ctxt.Lookup(literal, 0)
-			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
-			p.From.Sym = s
-			p.From.Sym.Set(obj.AttrLocal, true)
+			p.From.Sym = ctxt.Float64Sym(f64)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}

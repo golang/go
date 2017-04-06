@@ -32,7 +32,9 @@
 package obj
 
 import (
+	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 )
@@ -79,6 +81,32 @@ func (ctxt *Link) Lookup(name string, v int) *LSym {
 		Size:    0,
 	}
 	ctxt.Hash[SymVer{name, v}] = s
+	return s
+}
+
+func (ctxt *Link) Float32Sym(f float32) *LSym {
+	i := math.Float32bits(f)
+	name := fmt.Sprintf("$f32.%08x", i)
+	s := ctxt.Lookup(name, 0)
+	s.Size = 4
+	s.Set(AttrLocal, true)
+	return s
+}
+
+func (ctxt *Link) Float64Sym(f float64) *LSym {
+	i := math.Float64bits(f)
+	name := fmt.Sprintf("$f64.%016x", i)
+	s := ctxt.Lookup(name, 0)
+	s.Size = 8
+	s.Set(AttrLocal, true)
+	return s
+}
+
+func (ctxt *Link) Int64Sym(i int64) *LSym {
+	name := fmt.Sprintf("$i64.%016x", uint64(i))
+	s := ctxt.Lookup(name, 0)
+	s.Size = 8
+	s.Set(AttrLocal, true)
 	return s
 }
 

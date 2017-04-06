@@ -33,7 +33,6 @@ package x86
 import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
-	"fmt"
 	"math"
 	"strings"
 )
@@ -241,13 +240,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		AUCOMISS:
 		if p.From.Type == obj.TYPE_FCONST {
 			f32 := float32(p.From.Val.(float64))
-			i32 := math.Float32bits(f32)
-			literal := fmt.Sprintf("$f32.%08x", i32)
-			s := ctxt.Lookup(literal, 0)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
-			p.From.Sym = s
-			p.From.Sym.Set(obj.AttrLocal, true)
+			p.From.Sym = ctxt.Float32Sym(f32)
 			p.From.Offset = 0
 		}
 
@@ -281,13 +276,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		ACOMISD,
 		AUCOMISD:
 		if p.From.Type == obj.TYPE_FCONST {
-			i64 := math.Float64bits(p.From.Val.(float64))
-			literal := fmt.Sprintf("$f64.%016x", i64)
-			s := ctxt.Lookup(literal, 0)
+			f64 := p.From.Val.(float64)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Name = obj.NAME_EXTERN
-			p.From.Sym = s
-			p.From.Sym.Set(obj.AttrLocal, true)
+			p.From.Sym = ctxt.Float64Sym(f64)
 			p.From.Offset = 0
 		}
 	}
