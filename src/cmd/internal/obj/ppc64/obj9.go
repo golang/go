@@ -59,7 +59,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			f32 := float32(p.From.Val.(float64))
 			i32 := math.Float32bits(f32)
 			literal := fmt.Sprintf("$f32.%08x", i32)
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			s.Size = 4
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
@@ -72,7 +72,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		if p.From.Type == obj.TYPE_FCONST {
 			i64 := math.Float64bits(p.From.Val.(float64))
 			literal := fmt.Sprintf("$f64.%016x", i64)
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
@@ -85,7 +85,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case AMOVD:
 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
 			literal := fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
@@ -131,9 +131,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		//     BL (CTR)
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
+			sym = ctxt.Lookup("runtime.duffzero", 0)
 		} else {
-			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
+			sym = ctxt.Lookup("runtime.duffcopy", 0)
 		}
 		offset := p.To.Offset
 		p.As = AMOVD
@@ -504,7 +504,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				rel := obj.Addrel(ctxt.Cursym)
 				rel.Off = 0
 				rel.Siz = 8
-				rel.Sym = obj.Linklookup(ctxt, ".TOC.", 0)
+				rel.Sym = ctxt.Lookup(".TOC.", 0)
 				rel.Type = obj.R_ADDRPOWER_PCREL
 			}
 
@@ -965,11 +965,11 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 
 	var morestacksym *obj.LSym
 	if ctxt.Cursym.CFunc() {
-		morestacksym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+		morestacksym = ctxt.Lookup("runtime.morestackc", 0)
 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
-		morestacksym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+		morestacksym = ctxt.Lookup("runtime.morestack_noctxt", 0)
 	} else {
-		morestacksym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+		morestacksym = ctxt.Lookup("runtime.morestack", 0)
 	}
 
 	if ctxt.Flag_shared {

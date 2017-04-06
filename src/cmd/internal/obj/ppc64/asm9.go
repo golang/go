@@ -2244,7 +2244,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 				// that knows the name of the tls variable. Possibly
 				// we could add some assembly syntax so that the name
 				// of the variable does not have to be assumed.
-				rel.Sym = obj.Linklookup(ctxt, "runtime.tls_g", 0)
+				rel.Sym = ctxt.Lookup("runtime.tls_g", 0)
 				rel.Type = obj.R_POWER_TLS
 			}
 			o1 = AOP_RRR(opstorex(ctxt, p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(r))
@@ -2270,7 +2270,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 				rel := obj.Addrel(ctxt.Cursym)
 				rel.Off = int32(ctxt.Pc)
 				rel.Siz = 4
-				rel.Sym = obj.Linklookup(ctxt, "runtime.tls_g", 0)
+				rel.Sym = ctxt.Lookup("runtime.tls_g", 0)
 				rel.Type = obj.R_POWER_TLS
 			}
 			o1 = AOP_RRR(oploadx(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))

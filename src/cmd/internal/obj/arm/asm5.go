@@ -337,7 +337,7 @@ func asmoutnacl(ctxt *obj.Link, newprog obj.ProgAlloc, origPC int32, p *obj.Prog
 		// align the last instruction (the actual BL) to the last instruction in a bundle
 		if p.As == ABL {
 			if deferreturn == nil {
-				deferreturn = obj.Linklookup(ctxt, "runtime.deferreturn", 0)
+				deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
 			}
 			if p.To.Sym == deferreturn {
 				p.Pc = ((int64(origPC) + 15) &^ 15) + 16 - int64(size)

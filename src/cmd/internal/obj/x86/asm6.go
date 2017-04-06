@@ -1832,7 +1832,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	errors := ctxt.Errors
 	var deferreturn *obj.LSym
 	if ctxt.Headtype == obj.Hnacl {
-		deferreturn = obj.Linklookup(ctxt, "runtime.deferreturn", 0)
+		deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
 	}
 	for {
 		loop := int32(0)
@@ -4084,7 +4084,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 								r.Off = int32(p.Pc + int64(asmbuf.Len()))
 								r.Type = obj.R_CALL
 								r.Siz = 4
-								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
+								r.Sym = ctxt.Lookup("__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
 								asmbuf.PutInt32(0)
 
 								asmbuf.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
@@ -4109,7 +4109,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							}
 						case obj.Hplan9:
 							if ctxt.Plan9privates == nil {
-								ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
+								ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
 							}
 							pp.From = obj.Addr{}
 							pp.From.Type = obj.TYPE_MEM
@@ -4165,7 +4165,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 					case obj.Hplan9:
 						if ctxt.Plan9privates == nil {
-							ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
+							ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
 						}
 						pp.From = obj.Addr{}
 						pp.From.Type = obj.TYPE_MEM

@@ -208,7 +208,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
 		morestack = "runtime.morestack_noctxt"
 	}
-	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
+	call.To.Sym = ctxt.Lookup(morestack, 0)
 
 	// B	start
 	jmp := obj.Appendp(call, newprog)
@@ -266,7 +266,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				break
 			}
 			literal := fmt.Sprintf("$f32.%08x", i32)
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			s.Size = 4
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
@@ -284,7 +284,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				break
 			}
 			literal := fmt.Sprintf("$f64.%016x", i64)
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
@@ -340,9 +340,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		//     CALL REGTMP
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
+			sym = ctxt.Lookup("runtime.duffzero", 0)
 		} else {
-			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
+			sym = ctxt.Lookup("runtime.duffcopy", 0)
 		}
 		offset := p.To.Offset
 		p.As = AMOVD

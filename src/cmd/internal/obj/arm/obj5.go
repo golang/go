@@ -68,7 +68,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			if obj.GOARM < 7 {
 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
 				if progedit_tlsfallback == nil {
-					progedit_tlsfallback = obj.Linklookup(ctxt, "runtime.read_tls_fallback", 0)
+					progedit_tlsfallback = ctxt.Lookup("runtime.read_tls_fallback", 0)
 				}
 
 				// MOVW	LR, R11
@@ -110,7 +110,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			f32 := float32(p.From.Val.(float64))
 			i32 := math.Float32bits(f32)
 			literal := fmt.Sprintf("$f32.%08x", i32)
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
 			p.From.Name = obj.NAME_EXTERN
@@ -121,7 +121,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.Val.(float64)) < 0 && (chipzero5(ctxt, p.From.Val.(float64)) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
 			i64 := math.Float64bits(p.From.Val.(float64))
 			literal := fmt.Sprintf("$f64.%016x", i64)
-			s := obj.Linklookup(ctxt, literal, 0)
+			s := ctxt.Lookup(literal, 0)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
 			p.From.Name = obj.NAME_EXTERN
@@ -144,9 +144,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		//     CALL (R9)
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
+			sym = ctxt.Lookup("runtime.duffzero", 0)
 		} else {
-			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
+			sym = ctxt.Lookup("runtime.duffcopy", 0)
 		}
 		offset := p.To.Offset
 		p.As = AMOVW
@@ -650,7 +650,7 @@ func softfloat(ctxt *obj.Link, newprog obj.ProgAlloc, cursym *obj.LSym) {
 		return
 	}
 
-	symsfloat := obj.Linklookup(ctxt, "_sfloat", 0)
+	symsfloat := ctxt.Lookup("_sfloat", 0)
 
 	wasfloat := 0
 	for p := cursym.Text; p != nil; p = p.Link {
@@ -859,7 +859,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
 		morestack = "runtime.morestack_noctxt"
 	}
-	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
+	call.To.Sym = ctxt.Lookup(morestack, 0)
 
 	// B start
 	b := obj.Appendp(call, newprog)
@@ -875,10 +875,10 @@ func initdiv(ctxt *obj.Link) {
 	if ctxt.Sym_div != nil {
 		return
 	}
-	ctxt.Sym_div = obj.Linklookup(ctxt, "_div", 0)
-	ctxt.Sym_divu = obj.Linklookup(ctxt, "_divu", 0)
-	ctxt.Sym_mod = obj.Linklookup(ctxt, "_mod", 0)
-	ctxt.Sym_modu = obj.Linklookup(ctxt, "_modu", 0)
+	ctxt.Sym_div = ctxt.Lookup("_div", 0)
+	ctxt.Sym_divu = ctxt.Lookup("_divu", 0)
+	ctxt.Sym_mod = ctxt.Lookup("_mod", 0)
+	ctxt.Sym_modu = ctxt.Lookup("_modu", 0)
 }
 
 var unaryDst = map[obj.As]bool{

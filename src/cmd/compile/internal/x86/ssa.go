@@ -452,7 +452,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(x86.ALEAL)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Name = obj.NAME_EXTERN
-		p.From.Sym = obj.Linklookup(gc.Ctxt, literal, 0)
+		p.From.Sym = gc.Ctxt.Lookup(literal, 0)
 		p.From.Sym.Set(obj.AttrLocal, true)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
