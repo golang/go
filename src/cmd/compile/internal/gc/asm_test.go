@@ -1327,6 +1327,22 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		[]string{"\tCLZ\t"},
 	},
+	{
+		`
+		func f34(a uint64) uint64 {
+			return a & ((1<<63)-1)
+		}
+		`,
+		[]string{"\tAND\t"},
+	},
+	{
+		`
+		func f35(a uint64) uint64 {
+			return a & (1<<63)
+		}
+		`,
+		[]string{"\tAND\t"},
+	},
 }
 
 var linuxMIPSTests = []*asmTest{
