@@ -133,12 +133,6 @@ import (
 // (suspected) format errors, and whenever a change is made to the format.
 const debugFormat = false // default: false
 
-// forceObjFileStability enforces additional constraints in export data
-// and other parts of the compiler to eliminate object file differences
-// only due to the choice of export format.
-// TODO(gri) disable and remove once there is only one export format again
-const forceObjFileStability = true
-
 // Current export format version. Increase with each format change.
 // 4: type name objects support type aliases, uses aliasTag
 // 3: Go1.8 encoding (same as version 2, aliasTag defined but never used)
@@ -979,7 +973,7 @@ func parName(f *Field, numbered bool) string {
 	// Functions that can be inlined use numbered parameters so we can distinguish them
 	// from other names in their context after inlining (i.e., the parameter numbering
 	// is a form of parameter rewriting). See issue 4326 for an example and test case.
-	if forceObjFileStability || numbered {
+	if numbered {
 		if !strings.Contains(name, "·") && f.Nname != nil && f.Nname.Name != nil && f.Nname.Name.Vargen > 0 {
 			name = fmt.Sprintf("%s·%d", name, f.Nname.Name.Vargen) // append Vargen
 		}
