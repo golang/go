@@ -198,7 +198,7 @@ func runtime_Semrelease(sema *uint32)
 // It returns an error when fd cannot be used.
 func (fd *FD) incref() error {
 	if !fd.fdmu.incref() {
-		return ErrClosing
+		return errClosing(fd.isFile)
 	}
 	return nil
 }
@@ -217,7 +217,7 @@ func (fd *FD) decref() error {
 // It returns an error when fd cannot be used for reading.
 func (fd *FD) readLock() error {
 	if !fd.fdmu.rwlock(true) {
-		return ErrClosing
+		return errClosing(fd.isFile)
 	}
 	return nil
 }
@@ -235,7 +235,7 @@ func (fd *FD) readUnlock() {
 // It returns an error when fd cannot be used for writing.
 func (fd *FD) writeLock() error {
 	if !fd.fdmu.rwlock(false) {
-		return ErrClosing
+		return errClosing(fd.isFile)
 	}
 	return nil
 }

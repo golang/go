@@ -37,7 +37,7 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
 			break
 		}
 		if err1 == syscall.EAGAIN {
-			if err1 = dstFD.pd.waitWrite(); err1 == nil {
+			if err1 = dstFD.pd.waitWrite(dstFD.isFile); err1 == nil {
 				continue
 			}
 		}

@@ -18,7 +18,7 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 		return 0, err
 	}
 	defer fd.writeUnlock()
-	if err := fd.pd.prepareWrite(); err != nil {
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
 		return 0, err
 	}
 
@@ -65,7 +65,7 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 		n += int64(wrote)
 		consume(v, int64(wrote))
 		if e0 == syscall.EAGAIN {
-			if err = fd.pd.waitWrite(); err == nil {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
 				continue
 			}
 		} else if e0 != 0 {

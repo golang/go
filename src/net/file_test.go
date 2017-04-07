@@ -90,7 +90,7 @@ func TestFileConn(t *testing.T) {
 			f, err = c1.File()
 		}
 		if err := c1.Close(); err != nil {
-			if perr := parseCloseError(err); perr != nil {
+			if perr := parseCloseError(err, false); perr != nil {
 				t.Error(perr)
 			}
 			t.Error(err)
@@ -256,7 +256,7 @@ func TestFilePacketConn(t *testing.T) {
 			f, err = c1.File()
 		}
 		if err := c1.Close(); err != nil {
-			if perr := parseCloseError(err); perr != nil {
+			if perr := parseCloseError(err, false); perr != nil {
 				t.Error(perr)
 			}
 			t.Error(err)

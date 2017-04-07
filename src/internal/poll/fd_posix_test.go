@@ -20,17 +20,17 @@ var eofErrorTests = []struct {
 }{
 	{100, nil, &FD{ZeroReadIsEOF: true}, nil},
 	{100, io.EOF, &FD{ZeroReadIsEOF: true}, io.EOF},
-	{100, ErrClosing, &FD{ZeroReadIsEOF: true}, ErrClosing},
+	{100, ErrNetClosing, &FD{ZeroReadIsEOF: true}, ErrNetClosing},
 	{0, nil, &FD{ZeroReadIsEOF: true}, io.EOF},
 	{0, io.EOF, &FD{ZeroReadIsEOF: true}, io.EOF},
-	{0, ErrClosing, &FD{ZeroReadIsEOF: true}, ErrClosing},
+	{0, ErrNetClosing, &FD{ZeroReadIsEOF: true}, ErrNetClosing},
 
 	{100, nil, &FD{ZeroReadIsEOF: false}, nil},
 	{100, io.EOF, &FD{ZeroReadIsEOF: false}, io.EOF},
-	{100, ErrClosing, &FD{ZeroReadIsEOF: false}, ErrClosing},
+	{100, ErrNetClosing, &FD{ZeroReadIsEOF: false}, ErrNetClosing},
 	{0, nil, &FD{ZeroReadIsEOF: false}, nil},
 	{0, io.EOF, &FD{ZeroReadIsEOF: false}, io.EOF},
-	{0, ErrClosing, &FD{ZeroReadIsEOF: false}, ErrClosing},
+	{0, ErrNetClosing, &FD{ZeroReadIsEOF: false}, ErrNetClosing},
 }
 
 func TestEOFError(t *testing.T) {

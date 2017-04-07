@@ -160,7 +160,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 
 	fd := o.fd
 	// Notify runtime netpoll about starting IO.
-	err := fd.pd.prepare(int(o.mode))
+	err := fd.pd.prepare(int(o.mode), fd.isFile)
 	if err != nil {
 		return 0, err
 	}
@@ -188,7 +188,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 		return 0, err
 	}
 	// Wait for our request to complete.
-	err = fd.pd.wait(int(o.mode))
+	err = fd.pd.wait(int(o.mode), fd.isFile)
 	if err == nil {
 		// All is good. Extract our IO results and return.
 		if o.errno != 0 {
@@ -200,7 +200,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 	// IO is interrupted by "close" or "timeout"
 	netpollErr := err
 	switch netpollErr {
-	case ErrClosing, ErrTimeout:
+	case ErrNetClosing, ErrFileClosing, ErrTimeout:
 		// will deal with those.
 	default:
 		panic("unexpected runtime.netpoll error: " + netpollErr.Error())
@@ -380,7 +380,7 @@ func (fd *FD) destroy() error {
 // the destroy method when there are no remaining references.
 func (fd *FD) Close() error {
 	if !fd.fdmu.increfAndClose() {
-		return ErrClosing
+		return errClosing(fd.isFile)
 	}
 	// unblock pending reader and writer
 	fd.pd.evict()
