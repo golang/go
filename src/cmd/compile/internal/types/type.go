@@ -671,37 +671,6 @@ func (f *Field) Copy() *Field {
 	return &nf
 }
 
-// Iter provides an abstraction for iterating across struct fields and
-// interface methods.
-type Iter struct {
-	s []*Field
-}
-
-// IterFields returns the first field or method in struct or interface type t
-// and an Iter value to continue iterating across the rest.
-func IterFields(t *Type) (*Field, Iter) {
-	return t.Fields().Iter()
-}
-
-// Iter returns the first field in fs and an Iter value to continue iterating
-// across its successor fields.
-// Deprecated: New code should use Slice instead.
-func (fs *Fields) Iter() (*Field, Iter) {
-	i := Iter{s: fs.Slice()}
-	f := i.Next()
-	return f, i
-}
-
-// Next returns the next field or method, if any.
-func (i *Iter) Next() *Field {
-	if len(i.s) == 0 {
-		return nil
-	}
-	f := i.s[0]
-	i.s = i.s[1:]
-	return f
-}
-
 func (t *Type) wantEtype(et EType) {
 	if t.Etype != et {
 		Fatalf("want %v, but have %v", et, t)
