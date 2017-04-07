@@ -11,8 +11,23 @@ package poll
 
 import "errors"
 
-// ErrClosing is returned when a descriptor is used after it has been closed.
-var ErrClosing = errors.New("use of closed file or network connection")
+// ErrNetClosing is returned when a network descriptor is used after
+// it has been closed. Keep this string consistent because of issue
+// #4373: since historically programs have not been able to detect
+// this error, they look for the string.
+var ErrNetClosing = errors.New("use of closed network connection")
+
+// ErrFileClosing is returned when a file descriptor is used after it
+// has been closed.
+var ErrFileClosing = errors.New("use of closed file")
+
+// Return the appropriate closing error based on isFile.
+func errClosing(isFile bool) error {
+	if isFile {
+		return ErrFileClosing
+	}
+	return ErrNetClosing
+}
 
 // ErrTimeout is returned for an expired deadline.
 var ErrTimeout error = &TimeoutError{}

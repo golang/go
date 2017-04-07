@@ -25,27 +25,27 @@ func (pd *pollDesc) evict() {
 	}
 }
 
-func (pd *pollDesc) prepare(mode int) error {
+func (pd *pollDesc) prepare(mode int, isFile bool) error {
 	if pd.closing {
-		return ErrClosing
+		return errClosing(isFile)
 	}
 	return nil
 }
 
-func (pd *pollDesc) prepareRead() error { return pd.prepare('r') }
+func (pd *pollDesc) prepareRead(isFile bool) error { return pd.prepare('r', isFile) }
 
-func (pd *pollDesc) prepareWrite() error { return pd.prepare('w') }
+func (pd *pollDesc) prepareWrite(isFile bool) error { return pd.prepare('w', isFile) }
 
-func (pd *pollDesc) wait(mode int) error {
+func (pd *pollDesc) wait(mode int, isFile bool) error {
 	if pd.closing {
-		return ErrClosing
+		return errClosing(isFile)
 	}
 	return ErrTimeout
 }
 
-func (pd *pollDesc) waitRead() error { return pd.wait('r') }
+func (pd *pollDesc) waitRead(isFile bool) error { return pd.wait('r', isFile) }
 
-func (pd *pollDesc) waitWrite() error { return pd.wait('w') }
+func (pd *pollDesc) waitWrite(isFile bool) error { return pd.wait('w', isFile) }
 
 func (pd *pollDesc) waitCanceled(mode int) {}
 

@@ -29,6 +29,12 @@ type FD struct {
 	wtimer    *time.Timer
 	rtimedout atomicBool // set true when read deadline has been reached
 	wtimedout atomicBool // set true when write deadline has been reached
+
+	// Whether this is a normal file.
+	// On Plan 9 we do not use this package for ordinary files,
+	// so this is always false, but the field is present because
+	// shared code in fd_mutex.go checks it.
+	isFile bool
 }
 
 // We need this to close out a file descriptor when it is unlocked,
@@ -45,7 +51,7 @@ func (fd *FD) destroy() error {
 // is in the net package.
 func (fd *FD) Close() error {
 	if !fd.fdmu.increfAndClose() {
-		return ErrClosing
+		return errClosing(fd.isFile)
 	}
 	return nil
 }

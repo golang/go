@@ -54,7 +54,7 @@ func TestCloseRead(t *testing.T) {
 			err = c.CloseRead()
 		}
 		if err != nil {
-			if perr := parseCloseError(err); perr != nil {
+			if perr := parseCloseError(err, true); perr != nil {
 				t.Error(perr)
 			}
 			t.Fatal(err)
@@ -94,7 +94,7 @@ func TestCloseWrite(t *testing.T) {
 			err = c.CloseWrite()
 		}
 		if err != nil {
-			if perr := parseCloseError(err); perr != nil {
+			if perr := parseCloseError(err, true); perr != nil {
 				t.Error(perr)
 			}
 			t.Error(err)
@@ -139,7 +139,7 @@ func TestCloseWrite(t *testing.T) {
 			err = c.CloseWrite()
 		}
 		if err != nil {
-			if perr := parseCloseError(err); perr != nil {
+			if perr := parseCloseError(err, true); perr != nil {
 				t.Error(perr)
 			}
 			t.Fatal(err)
@@ -184,7 +184,7 @@ func TestConnClose(t *testing.T) {
 		defer c.Close()
 
 		if err := c.Close(); err != nil {
-			if perr := parseCloseError(err); perr != nil {
+			if perr := parseCloseError(err, false); perr != nil {
 				t.Error(perr)
 			}
 			t.Fatal(err)
@@ -215,7 +215,7 @@ func TestListenerClose(t *testing.T) {
 
 		dst := ln.Addr().String()
 		if err := ln.Close(); err != nil {
-			if perr := parseCloseError(err); perr != nil {
+			if perr := parseCloseError(err, false); perr != nil {
 				t.Error(perr)
 			}
 			t.Fatal(err)
@@ -269,7 +269,7 @@ func TestPacketConnClose(t *testing.T) {
 		defer c.Close()
 
 		if err := c.Close(); err != nil {
-			if perr := parseCloseError(err); perr != nil {
+			if perr := parseCloseError(err, false); perr != nil {
 				t.Error(perr)
 			}
 			t.Fatal(err)
@@ -292,7 +292,7 @@ func TestListenCloseListen(t *testing.T) {
 		}
 		addr := ln.Addr().String()
 		if err := ln.Close(); err != nil {
-			if perr := parseCloseError(err); perr != nil {
+			if perr := parseCloseError(err, false); perr != nil {
 				t.Error(perr)
 			}
 			t.Fatal(err)

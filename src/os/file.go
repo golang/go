@@ -102,7 +102,7 @@ func (f *File) Read(b []byte) (n int, err error) {
 	}
 	n, e := f.read(b)
 	if e != nil {
-		if e == poll.ErrClosing {
+		if e == poll.ErrFileClosing {
 			e = ErrClosed
 		}
 		if e == io.EOF {

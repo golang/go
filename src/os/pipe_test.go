@@ -144,6 +144,8 @@ func TestClosedPipeRace(t *testing.T) {
 		t.Error("Read of closed pipe unexpectedly succeeded")
 	} else if pe, ok := err.(*os.PathError); !ok {
 		t.Errorf("Read of closed pipe returned unexpected error type %T; expected os.PathError", pe)
+	} else if pe.Err != os.ErrClosed {
+		t.Errorf("got error %q but expected %q", pe.Err, os.ErrClosed)
 	} else {
 		t.Logf("Read returned expected error %q", err)
 	}

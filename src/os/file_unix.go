@@ -87,20 +87,18 @@ func newFile(fd uintptr, name string, pollable bool) *File {
 		pollable = false
 	}
 
-	if pollable {
-		if err := f.pfd.Init(); err != nil {
-			// An error here indicates a failure to register
-			// with the netpoll system. That can happen for
-			// a file descriptor that is not supported by
-			// epoll/kqueue; for example, disk files on
-			// GNU/Linux systems. We assume that any real error
-			// will show up in later I/O.
-		} else {
-			// We successfully registered with netpoll, so put
-			// the file into nonblocking mode.
-			if err := syscall.SetNonblock(fdi, true); err == nil {
-				f.nonblock = true
-			}
+	if err := f.pfd.Init("file", pollable); err != nil {
+		// An error here indicates a failure to register
+		// with the netpoll system. That can happen for
+		// a file descriptor that is not supported by
+		// epoll/kqueue; for example, disk files on
+		// GNU/Linux systems. We assume that any real error
+		// will show up in later I/O.
+	} else if pollable {
+		// We successfully registered with netpoll, so put
+		// the file into nonblocking mode.
+		if err := syscall.SetNonblock(fdi, true); err == nil {
+			f.nonblock = true
 		}
 	}
 
