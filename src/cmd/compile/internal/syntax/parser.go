@@ -18,6 +18,7 @@ const trace = false
 type parser struct {
 	base *src.PosBase
 	errh ErrorHandler
+	mode Mode
 	scanner
 
 	first  error  // first error encountered
@@ -28,9 +29,10 @@ type parser struct {
 	indent []byte // tracing support
 }
 
-func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) {
 	p.base = base
 	p.errh = errh
+	p.mode = mode
 	p.scanner.init(
 		r,
 		// Error and pragma handlers for scanner.
@@ -494,6 +496,9 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	f.Type = p.funcType()
 	if p.tok == _Lbrace {
 		f.Body = p.blockStmt("")
+		if p.mode&CheckBranches != 0 {
+			checkBranches(f.Body, p.errh)
+		}
 	}
 
 	f.Pragma = p.pragma
@@ -722,6 +727,9 @@ func (p *parser) operand(keep_parens bool) Expr {
 			f.pos = pos
 			f.Type = t
 			f.Body = p.blockStmt("")
+			if p.mode&CheckBranches != 0 {
+				checkBranches(f.Body, p.errh)
+			}
 
 			p.xnest--
 			return f

@@ -53,12 +53,12 @@ func f() {
 
 	switch {
 	case z:
-		labelname:
+		labelname:	// ERROR "label labelname defined and not used"
 	}
 
 	switch {
 	case z:
-		labelname: ;
+		labelname: ;	// ERROR "label labelname already defined at LINE-5"
 	case false:
 	}
 }
