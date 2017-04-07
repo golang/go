@@ -226,9 +226,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	 * strip NOPs
 	 * expand RET
 	 */
-	if ctxt.Debugvlog {
-		ctxt.Logf("%5.2f noops\n", obj.Cputime())
-	}
 
 	var q *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {

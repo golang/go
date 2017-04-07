@@ -644,9 +644,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var opc int32
 	var out [6 + 3]uint32
 	for {
-		if ctxt.Debugvlog {
-			ctxt.Logf("%5.2f span1\n", obj.Cputime())
-		}
 		bflag = 0
 		c = 0
 		times++
