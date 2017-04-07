@@ -309,8 +309,9 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 		// if it is an unsafe.Pointer
 		case TUINTPTR:
 			if n.Type.Etype == TUNSAFEPTR {
-				n.SetVal(Val{new(Mpint)})
-				n.Val().U.(*Mpint).SetInt64(0)
+				i := new(Mpint)
+				i.SetInt64(0)
+				n.SetVal(Val{i})
 			} else {
 				goto bad
 			}
@@ -458,7 +459,7 @@ func toint(v Val) Val {
 	case *Mpflt:
 		i := new(Mpint)
 		if !i.SetFloat(u) {
-			if i.Ovf {
+			if i.checkOverflow(0) {
 				yyerror("integer too large")
 			} else {
 				// The value of u cannot be represented as an integer;
@@ -1518,7 +1519,7 @@ func nonnegintconst(n *Node) int64 {
 	// Mpint, so we still have to guard the conversion.
 	v := toint(n.Val())
 	vi, ok := v.U.(*Mpint)
-	if !ok || vi.Val.Sign() < 0 || vi.Cmp(maxintval[TINT32]) > 0 {
+	if !ok || vi.CmpInt64(0) < 0 || vi.Cmp(maxintval[TINT32]) > 0 {
 		return -1
 	}
 
