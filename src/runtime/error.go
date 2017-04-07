@@ -74,8 +74,6 @@ func typestring(x interface{}) string {
 
 // For calling from C.
 // Prints an argument passed to panic.
-// There's room for arbitrary complexity here, but we keep it
-// simple and handle just a few important cases: int, string, and Stringer.
 func printany(i interface{}) {
 	switch v := i.(type) {
 	case nil:
@@ -84,7 +82,37 @@ func printany(i interface{}) {
 		print(v.String())
 	case error:
 		print(v.Error())
+	case bool:
+		print(v)
 	case int:
+		print(v)
+	case int8:
+		print(v)
+	case int16:
+		print(v)
+	case int32:
+		print(v)
+	case int64:
+		print(v)
+	case uint:
+		print(v)
+	case uint8:
+		print(v)
+	case uint16:
+		print(v)
+	case uint32:
+		print(v)
+	case uint64:
+		print(v)
+	case uintptr:
+		print(v)
+	case float32:
+		print(v)
+	case float64:
+		print(v)
+	case complex64:
+		print(v)
+	case complex128:
 		print(v)
 	case string:
 		print(v)
