@@ -3215,12 +3215,12 @@ func eqfor(t *types.Type) (n *Node, needsize bool) {
 		sym := typesymprefix(".eq", t)
 		n := newname(sym)
 		n.SetClass(PFUNC)
-		ntype := nod(OTFUNC, nil, nil)
-		ntype.List.Append(anonfield(types.NewPtr(t)))
-		ntype.List.Append(anonfield(types.NewPtr(t)))
-		ntype.Rlist.Append(anonfield(types.Types[TBOOL]))
-		ntype = typecheck(ntype, Etype)
-		n.Type = ntype.Type
+		n.Type = functype(nil, []*Node{
+			anonfield(types.NewPtr(t)),
+			anonfield(types.NewPtr(t)),
+		}, []*Node{
+			anonfield(types.Types[TBOOL]),
+		})
 		return n, false
 	}
 	Fatalf("eqfor %v", t)
