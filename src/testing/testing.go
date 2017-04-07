@@ -450,8 +450,9 @@ func (c *common) Fail() {
 // Failed reports whether the function has failed.
 func (c *common) Failed() bool {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.failed
+	failed := c.failed
+	c.mu.RUnlock()
+	return failed || c.raceErrors+race.Errors() > 0
 }
 
 // FailNow marks the function as having failed and stops its execution.

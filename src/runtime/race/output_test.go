@@ -181,10 +181,12 @@ func TestFail(t *testing.T) {
 	}()
 	x = 43
 	<-done
+	t.Log(t.Failed())
 }
 `, `
 ==================
 --- FAIL: TestFail \(0...s\)
+.*main_test.go:13: true
 .*testing.go:.*: race detected during execution of test
 FAIL`},
 
