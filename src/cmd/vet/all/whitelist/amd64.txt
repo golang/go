@@ -36,4 +36,4 @@ runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
 runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
 runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
 runtime/asm_amd64.s: [amd64] indexShortStr: function indexShortStr missing Go declaration
-
+runtime/asm_amd64.s: [amd64] countByte: function countByte missing Go declaration
