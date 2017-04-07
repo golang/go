@@ -3502,39 +3502,6 @@ func stringtoarraylit(n *Node) *Node {
 
 var ntypecheckdeftype int
 
-var methodqueue []*Node
-
-func domethod(n *Node) {
-	nt := asNode(n.Type.FuncType().Nname)
-	nt = typecheck(nt, Etype)
-	if nt.Type == nil {
-		// type check failed; leave empty func
-		// TODO(mdempsky): Fix Type rekinding.
-		n.Type.Etype = TFUNC
-		n.Type.Nod = nil
-		return
-	}
-
-	// If we have
-	//	type I interface {
-	//		M(_ int)
-	//	}
-	// then even though I.M looks like it doesn't care about the
-	// value of its argument, a specific implementation of I may
-	// care. The _ would suppress the assignment to that argument
-	// while generating a call, so remove it.
-	for _, t := range nt.Type.Params().Fields().Slice() {
-		if t.Sym != nil && t.Sym.Name == "_" {
-			t.Sym = nil
-		}
-	}
-
-	// TODO(mdempsky): Fix Type rekinding.
-	*n.Type = *nt.Type
-	n.Type.Nod = nil
-	checkwidth(n.Type)
-}
-
 type mapqueueval struct {
 	n   *Node
 	lno src.XPos
@@ -3629,19 +3596,9 @@ ret:
 	lineno = lno
 
 	// if there are no type definitions going on, it's safe to
-	// try to resolve the method types for the interfaces
+	// try to validate the map key types for the interfaces
 	// we just read.
 	if ntypecheckdeftype == 1 {
-		for {
-			s := methodqueue
-			if len(s) == 0 {
-				break
-			}
-			methodqueue = nil
-			for _, n := range s {
-				domethod(n)
-			}
-		}
 		for _, e := range mapqueue {
 			lineno = e.lno
 			if !IsComparable(e.n.Type) {
@@ -3653,15 +3610,6 @@ ret:
 	}
 
 	ntypecheckdeftype--
-}
-
-func queuemethod(n *Node) {
-	if ntypecheckdeftype == 0 {
-		domethod(n)
-		return
-	}
-
-	methodqueue = append(methodqueue, n)
 }
 
 func typecheckdef(n *Node) *Node {
