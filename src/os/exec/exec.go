@@ -274,9 +274,8 @@ func (c *Cmd) closeDescriptors(closers []io.Closer) {
 // copying stdin, stdout, and stderr, and exits with a zero exit
 // status.
 //
-// If the command fails to run or doesn't complete successfully, the
-// error is of type *ExitError. Other error types may be
-// returned for I/O problems.
+// If the command starts but does not complete successfully, the error is of
+// type *ExitError. Other error types may be returned for other situations.
 func (c *Cmd) Run() error {
 	if err := c.Start(); err != nil {
 		return err
