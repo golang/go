@@ -1091,54 +1091,54 @@ func (p *importer) node() *Node {
 		return nodl(p.pos(), op, p.expr(), nil)
 
 	case OIF:
-		markdcl()
+		types.Markdcl(lineno)
 		n := nodl(p.pos(), OIF, nil, nil)
 		n.Ninit.Set(p.stmtList())
 		n.Left = p.expr()
 		n.Nbody.Set(p.stmtList())
 		n.Rlist.Set(p.stmtList())
-		popdcl()
+		types.Popdcl()
 		return n
 
 	case OFOR:
-		markdcl()
+		types.Markdcl(lineno)
 		n := nodl(p.pos(), OFOR, nil, nil)
 		n.Ninit.Set(p.stmtList())
 		n.Left, n.Right = p.exprsOrNil()
 		n.Nbody.Set(p.stmtList())
-		popdcl()
+		types.Popdcl()
 		return n
 
 	case ORANGE:
-		markdcl()
+		types.Markdcl(lineno)
 		n := nodl(p.pos(), ORANGE, nil, nil)
 		n.List.Set(p.stmtList())
 		n.Right = p.expr()
 		n.Nbody.Set(p.stmtList())
-		popdcl()
+		types.Popdcl()
 		return n
 
 	case OSELECT, OSWITCH:
-		markdcl()
+		types.Markdcl(lineno)
 		n := nodl(p.pos(), op, nil, nil)
 		n.Ninit.Set(p.stmtList())
 		n.Left, _ = p.exprsOrNil()
 		n.List.Set(p.stmtList())
-		popdcl()
+		types.Popdcl()
 		return n
 
 	// case OCASE, OXCASE:
 	// 	unreachable - mapped to OXCASE case below by exporter
 
 	case OXCASE:
-		markdcl()
+		types.Markdcl(lineno)
 		n := nodl(p.pos(), OXCASE, nil, nil)
-		n.Xoffset = int64(block)
+		n.Xoffset = int64(types.Block)
 		n.List.Set(p.exprList())
 		// TODO(gri) eventually we must declare variables for type switch
 		// statements (type switch statements are not yet exported)
 		n.Nbody.Set(p.stmtList())
-		popdcl()
+		types.Popdcl()
 		return n
 
 	// case OFALL:
@@ -1146,7 +1146,7 @@ func (p *importer) node() *Node {
 
 	case OXFALL:
 		n := nodl(p.pos(), OXFALL, nil, nil)
-		n.Xoffset = int64(block)
+		n.Xoffset = int64(types.Block)
 		return n
 
 	case OBREAK, OCONTINUE:
@@ -1162,7 +1162,7 @@ func (p *importer) node() *Node {
 
 	case OGOTO, OLABEL:
 		n := nodl(p.pos(), op, newname(p.expr().Sym), nil)
-		n.Sym = dclstack // context, for goto restrictions
+		n.Sym = types.Dclstack // context, for goto restrictions
 		return n
 
 	case OEND:

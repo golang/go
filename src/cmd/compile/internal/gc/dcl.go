@@ -15,99 +15,12 @@ import (
 
 var externdcl []*Node
 
-var blockgen int32 // max block number
-
-var block int32 // current block number
-
-// dclstack maintains a stack of shadowed symbol declarations so that
-// popdcl can restore their declarations when a block scope ends.
-// The stack is maintained as a linked list, using Sym's Link field.
-//
-// In practice, the "stack" actually ends up forming a tree: goto and label
-// statements record the current state of dclstack so that checkgoto can
-// validate that a goto statement does not jump over any declarations or
-// into a new block scope.
-//
-// Finally, the Syms in this list are not "real" Syms as they don't actually
-// represent object names. Sym is just a convenient type for saving shadowed
-// Sym definitions, and only a subset of its fields are actually used.
-var dclstack *types.Sym
-
-func dcopy(a, b *types.Sym) {
-	a.Pkg = b.Pkg
-	a.Name = b.Name
-	a.Def = b.Def
-	a.Block = b.Block
-	a.Lastlineno = b.Lastlineno
-}
-
-func push() *types.Sym {
-	d := new(types.Sym)
-	d.Lastlineno = lineno
-	d.Link = dclstack
-	dclstack = d
-	return d
-}
-
-// pushdcl pushes the current declaration for symbol s (if any) so that
-// it can be shadowed by a new declaration within a nested block scope.
-func pushdcl(s *types.Sym) *types.Sym {
-	d := push()
-	dcopy(d, s)
-	return d
-}
-
-// popdcl pops the innermost block scope and restores all symbol declarations
-// to their previous state.
-func popdcl() {
-	d := dclstack
-	for ; d != nil && d.Name != ""; d = d.Link {
-		s := d.Pkg.Lookup(d.Name)
-		lno := s.Lastlineno
-		dcopy(s, d)
-		d.Lastlineno = lno
-	}
-
-	if d == nil {
-		Fatalf("popdcl: no mark")
-	}
-
-	dclstack = d.Link // pop mark
-	block = d.Block
-}
-
-// markdcl records the start of a new block scope for declarations.
-func markdcl() {
-	d := push()
-	d.Name = "" // used as a mark in fifo
-	d.Block = block
-
-	blockgen++
-	block = blockgen
-}
-
-// keep around for debugging
-func dumpdclstack() {
-	i := 0
-	for d := dclstack; d != nil; d = d.Link {
-		fmt.Printf("%6d  %p", i, d)
-		if d.Name != "" {
-			fmt.Printf("  '%s'  %v\n", d.Name, d.Pkg.Lookup(d.Name))
-		} else {
-			fmt.Printf("  ---\n")
-		}
-		i++
-	}
-}
-
 func testdclstack() {
-	for d := dclstack; d != nil; d = d.Link {
-		if d.Name == "" {
-			if nerrors != 0 {
-				errorexit()
-			}
-			Fatalf("mark left on the stack")
+	if !types.IsDclstackValid() {
+		if nerrors != 0 {
+			errorexit()
 		}
+		Fatalf("mark left on the dclstack")
 	}
 }
 
@@ -191,7 +104,7 @@ func declare(n *Node, ctxt Class) {
 			vargen++
 			gen = vargen
 		}
-		pushdcl(s)
+		types.Pushdcl(s, lineno)
 		n.Name.Curfn = Curfn
 	}
 
@@ -199,7 +112,7 @@ func declare(n *Node, ctxt Class) {
 		n.Xoffset = 0
 	}
 
-	if s.Block == block {
+	if s.Block == types.Block {
 		// functype will print errors about duplicate function arguments.
 		// Don't repeat the error here.
 		if ctxt != PPARAM && ctxt != PPARAMOUT {
@@ -207,7 +120,7 @@ func declare(n *Node, ctxt Class) {
 		}
 	}
 
-	s.Block = block
+	s.Block = types.Block
 	s.Lastlineno = lineno
 	s.Def = asTypesNode(n)
 	n.Name.Vargen = int32(gen)
@@ -418,7 +331,7 @@ func colasdefn(left []*Node, defn *Node) {
 		}
 
 		n.Sym.SetUniq(false)
-		if n.Sym.Block == block {
+		if n.Sym.Block == types.Block {
 			continue
 		}
 
@@ -597,7 +510,7 @@ var funcdepth int32   // len(funcstack) during parsing, but then forced to be th
 // start the function.
 // called before funcargs; undone at end of funcbody.
 func funcstart(n *Node) {
-	markdcl()
+	types.Markdcl(lineno)
 	funcstack = append(funcstack, Curfn)
 	funcdepth++
 	Curfn = n
@@ -611,7 +524,7 @@ func funcbody(n *Node) {
 	if dclcontext != PAUTO {
 		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)
 	}
-	popdcl()
+	types.Popdcl()
 	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
 	funcdepth--
 	if funcdepth == 0 {

@@ -381,7 +381,6 @@ func Main(archInit func(*Arch)) {
 
 	initUniverse()
 
-	blockgen = 1
 	dclcontext = PEXTERN
 	nerrors = 0
 
@@ -756,7 +755,7 @@ func findpkg(name string) (file string, ok bool) {
 // so that the compiler can generate calls to them,
 // but does not make them visible to user code.
 func loadsys() {
-	block = 1
+	types.Block = 1
 
 	inimport = true
 	typecheckok = true

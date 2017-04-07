@@ -85,7 +85,7 @@ type linkname struct {
 }
 
 func (p *noder) node() {
-	block = 1
+	types.Block = 1
 	imported_unsafe = false
 
 	p.lineno(p.file.PkgName)
@@ -726,10 +726,10 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 			n.Left = p.newname(stmt.Label)
 		}
 		if op == OGOTO {
-			n.Sym = dclstack // context, for goto restriction
+			n.Sym = types.Dclstack // context, for goto restriction
 		}
 		if op == OXFALL {
-			n.Xoffset = int64(block)
+			n.Xoffset = int64(types.Block)
 		}
 		return n
 	case *syntax.CallStmt:
@@ -777,14 +777,14 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 }
 
 func (p *noder) blockStmt(stmt *syntax.BlockStmt) []*Node {
-	markdcl()
+	types.Markdcl(lineno)
 	nodes := p.stmts(stmt.List)
-	popdcl()
+	types.Popdcl()
 	return nodes
 }
 
 func (p *noder) ifStmt(stmt *syntax.IfStmt) *Node {
-	markdcl()
+	types.Markdcl(lineno)
 	n := p.nod(stmt, OIF, nil, nil)
 	if stmt.Init != nil {
 		n.Ninit.Set1(p.stmt(stmt.Init))
@@ -801,12 +801,12 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) *Node {
 			n.Rlist.Set1(e)
 		}
 	}
-	popdcl()
+	types.Popdcl()
 	return n
 }
 
 func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
-	markdcl()
+	types.Markdcl(lineno)
 	var n *Node
 	if r, ok := stmt.Init.(*syntax.RangeClause); ok {
 		if stmt.Cond != nil || stmt.Post != nil {
@@ -835,12 +835,12 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
 		}
 	}
 	n.Nbody.Set(p.blockStmt(stmt.Body))
-	popdcl()
+	types.Popdcl()
 	return n
 }
 
 func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
-	markdcl()
+	types.Markdcl(lineno)
 	n := p.nod(stmt, OSWITCH, nil, nil)
 	if stmt.Init != nil {
 		n.Ninit.Set1(p.stmt(stmt.Init))
@@ -856,7 +856,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
 
 	n.List.Set(p.caseClauses(stmt.Body, tswitch))
 
-	popdcl()
+	types.Popdcl()
 	return n
 }
 
@@ -864,7 +864,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node) []*Node
 	var nodes []*Node
 	for _, clause := range clauses {
 		p.lineno(clause)
-		markdcl()
+		types.Markdcl(lineno)
 		n := p.nod(clause, OXCASE, nil, nil)
 		if clause.Cases != nil {
 			n.List.Set(p.exprList(clause.Cases))
@@ -876,9 +876,9 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node) []*Node
 			// keep track of the instances for reporting unused
 			nn.Name.Defn = tswitch
 		}
-		n.Xoffset = int64(block)
+		n.Xoffset = int64(types.Block)
 		n.Nbody.Set(p.stmts(clause.Body))
-		popdcl()
+		types.Popdcl()
 		nodes = append(nodes, n)
 	}
 	return nodes
@@ -894,14 +894,14 @@ func (p *noder) commClauses(clauses []*syntax.CommClause) []*Node {
 	var nodes []*Node
 	for _, clause := range clauses {
 		p.lineno(clause)
-		markdcl()
+		types.Markdcl(lineno)
 		n := p.nod(clause, OXCASE, nil, nil)
 		if clause.Comm != nil {
 			n.List.Set1(p.stmt(clause.Comm))
 		}
-		n.Xoffset = int64(block)
+		n.Xoffset = int64(types.Block)
 		n.Nbody.Set(p.stmts(clause.Body))
-		popdcl()
+		types.Popdcl()
 		nodes = append(nodes, n)
 	}
 	return nodes
@@ -909,7 +909,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause) []*Node {
 
 func (p *noder) labeledStmt(label *syntax.LabeledStmt) *Node {
 	lhs := p.nod(label, OLABEL, p.newname(label.Label), nil)
-	lhs.Sym = dclstack
+	lhs.Sym = types.Dclstack
 
 	var ls *Node
 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
