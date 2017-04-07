@@ -397,16 +397,22 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 				return nil
 			}
 			if p == h.arena_end {
+				// The new reservation is contiguous
+				// with the old reservation.
 				h.arena_end = new_end
 				h.arena_reserved = reserved
 			} else if h.arena_start <= p && p+p_size-h.arena_start-1 <= _MaxMem {
+				// We were able to reserve more memory
+				// within the arena space, but it's
+				// not contiguous with our previous
+				// reservation. Skip over the unused
+				// address space.
+				//
 				// Keep everything page-aligned.
 				// Our pages are bigger than hardware pages.
 				h.arena_end = p + p_size
 				used := p + (-p & (_PageSize - 1))
-				h.mapBits(used)
-				h.mapSpans(used)
-				h.arena_used = used
+				h.setArenaUsed(used, false)
 				h.arena_reserved = reserved
 			} else {
 				// We haven't added this allocation to
@@ -422,12 +428,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 		// Keep taking from our reservation.
 		p := h.arena_used
 		sysMap(unsafe.Pointer(p), n, h.arena_reserved, &memstats.heap_sys)
-		h.mapBits(p + n)
-		h.mapSpans(p + n)
-		h.arena_used = p + n
-		if raceenabled {
-			racemapshadow(unsafe.Pointer(p), n)
-		}
+		h.setArenaUsed(p+n, true)
 
 		if p&(_PageSize-1) != 0 {
 			throw("misrounded allocation in MHeap_SysAlloc")
@@ -460,14 +461,9 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 	p_end := p + p_size
 	p += -p & (_PageSize - 1)
 	if p+n > h.arena_used {
-		h.mapBits(p + n)
-		h.mapSpans(p + n)
-		h.arena_used = p + n
+		h.setArenaUsed(p+n, true)
 		if p_end > h.arena_end {
 			h.arena_end = p_end
-		}
-		if raceenabled {
-			racemapshadow(unsafe.Pointer(p), n)
 		}
 	}
 
