@@ -2997,7 +2997,6 @@ func TestIssue18719(t *testing.T) {
 	// canceled context.
 
 	cancel()
-	waitForRowsClose(t, rows, 5*time.Second)
 }
 
 func TestConcurrency(t *testing.T) {
