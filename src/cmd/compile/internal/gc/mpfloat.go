@@ -38,7 +38,7 @@ func newMpflt() *Mpflt {
 }
 
 func (a *Mpflt) SetInt(b *Mpint) {
-	if b.Ovf {
+	if b.checkOverflow(0) {
 		// sign doesn't really matter but copy anyway
 		a.Val.SetInf(b.Val.Sign() < 0)
 		return
