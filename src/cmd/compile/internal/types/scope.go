@@ -46,10 +46,9 @@ func push(pos src.XPos) *Sym {
 
 // Pushdcl pushes the current declaration for symbol s (if any) so that
 // it can be shadowed by a new declaration within a nested block scope.
-func Pushdcl(s *Sym, pos src.XPos) *Sym {
+func Pushdcl(s *Sym, pos src.XPos) {
 	d := push(pos)
 	dcopy(d, s)
-	return d
 }
 
 // Popdcl pops the innermost block scope and restores all symbol declarations
