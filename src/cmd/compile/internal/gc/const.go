@@ -705,6 +705,7 @@ func evconst(n *Node) {
 	var rv Val
 	var lno src.XPos
 	var wr types.EType
+	var ctype uint32
 	var v Val
 	var norig *Node
 	var nn *Node
@@ -717,7 +718,13 @@ func evconst(n *Node) {
 			v = copyval(v)
 		}
 
-		switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
+		// rune values are int values for the purpose of constant folding.
+		ctype = uint32(v.Ctype())
+		if ctype == CTRUNE_ {
+			ctype = CTINT_
+		}
+
+		switch uint32(n.Op)<<16 | ctype {
 		default:
 			if !n.Diag() {
 				yyerror("illegal constant expression %v %v", n.Op, nl.Type)
@@ -734,7 +741,6 @@ func evconst(n *Node) {
 			}
 			fallthrough
 		case OCONV_ | CTINT_,
-			OCONV_ | CTRUNE_,
 			OCONV_ | CTFLT_,
 			OCONV_ | CTCPLX_,
 			OCONV_ | CTSTR_,
@@ -742,16 +748,13 @@ func evconst(n *Node) {
 			nl = convlit1(nl, n.Type, true, false)
 			v = nl.Val()
 
-		case OPLUS_ | CTINT_,
-			OPLUS_ | CTRUNE_:
+		case OPLUS_ | CTINT_:
 			break
 
-		case OMINUS_ | CTINT_,
-			OMINUS_ | CTRUNE_:
+		case OMINUS_ | CTINT_:
 			v.U.(*Mpint).Neg()
 
-		case OCOM_ | CTINT_,
-			OCOM_ | CTRUNE_:
+		case OCOM_ | CTINT_:
 			var et types.EType = Txxx
 			if nl.Type != nil {
 				et = nl.Type.Etype
@@ -899,25 +902,27 @@ func evconst(n *Node) {
 		Fatalf("constant type mismatch %v(%d) %v(%d)", nl.Type, v.Ctype(), nr.Type, rv.Ctype())
 	}
 
+	// rune values are int values for the purpose of constant folding.
+	ctype = uint32(v.Ctype())
+	if ctype == CTRUNE_ {
+		ctype = CTINT_
+	}
+
 	// run op
-	switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
+	switch uint32(n.Op)<<16 | ctype {
 	default:
 		goto illegal
 
-	case OADD_ | CTINT_,
-		OADD_ | CTRUNE_:
+	case OADD_ | CTINT_:
 		v.U.(*Mpint).Add(rv.U.(*Mpint))
 
-	case OSUB_ | CTINT_,
-		OSUB_ | CTRUNE_:
+	case OSUB_ | CTINT_:
 		v.U.(*Mpint).Sub(rv.U.(*Mpint))
 
-	case OMUL_ | CTINT_,
-		OMUL_ | CTRUNE_:
+	case OMUL_ | CTINT_:
 		v.U.(*Mpint).Mul(rv.U.(*Mpint))
 
-	case ODIV_ | CTINT_,
-		ODIV_ | CTRUNE_:
+	case ODIV_ | CTINT_:
 		if rv.U.(*Mpint).CmpInt64(0) == 0 {
 			yyerror("division by zero")
 			v.U.(*Mpint).SetOverflow()
@@ -926,8 +931,7 @@ func evconst(n *Node) {
 
 		v.U.(*Mpint).Quo(rv.U.(*Mpint))
 
-	case OMOD_ | CTINT_,
-		OMOD_ | CTRUNE_:
+	case OMOD_ | CTINT_:
 		if rv.U.(*Mpint).CmpInt64(0) == 0 {
 			yyerror("division by zero")
 			v.U.(*Mpint).SetOverflow()
@@ -936,28 +940,22 @@ func evconst(n *Node) {
 
 		v.U.(*Mpint).Rem(rv.U.(*Mpint))
 
-	case OLSH_ | CTINT_,
-		OLSH_ | CTRUNE_:
+	case OLSH_ | CTINT_:
 		v.U.(*Mpint).Lsh(rv.U.(*Mpint))
 
-	case ORSH_ | CTINT_,
-		ORSH_ | CTRUNE_:
+	case ORSH_ | CTINT_:
 		v.U.(*Mpint).Rsh(rv.U.(*Mpint))
 
-	case OOR_ | CTINT_,
-		OOR_ | CTRUNE_:
+	case OOR_ | CTINT_:
 		v.U.(*Mpint).Or(rv.U.(*Mpint))
 
-	case OAND_ | CTINT_,
-		OAND_ | CTRUNE_:
+	case OAND_ | CTINT_:
 		v.U.(*Mpint).And(rv.U.(*Mpint))
 
-	case OANDNOT_ | CTINT_,
-		OANDNOT_ | CTRUNE_:
+	case OANDNOT_ | CTINT_:
 		v.U.(*Mpint).AndNot(rv.U.(*Mpint))
 
-	case OXOR_ | CTINT_,
-		OXOR_ | CTRUNE_:
+	case OXOR_ | CTINT_:
 		v.U.(*Mpint).Xor(rv.U.(*Mpint))
 
 	case OADD_ | CTFLT_:
@@ -1015,43 +1013,37 @@ func evconst(n *Node) {
 	case ONE_ | CTNIL_:
 		goto setfalse
 
-	case OEQ_ | CTINT_,
-		OEQ_ | CTRUNE_:
+	case OEQ_ | CTINT_:
 		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) == 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case ONE_ | CTINT_,
-		ONE_ | CTRUNE_:
+	case ONE_ | CTINT_:
 		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) != 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OLT_ | CTINT_,
-		OLT_ | CTRUNE_:
+	case OLT_ | CTINT_:
 		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) < 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OLE_ | CTINT_,
-		OLE_ | CTRUNE_:
+	case OLE_ | CTINT_:
 		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) <= 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OGE_ | CTINT_,
-		OGE_ | CTRUNE_:
+	case OGE_ | CTINT_:
 		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) >= 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OGT_ | CTINT_,
-		OGT_ | CTRUNE_:
+	case OGT_ | CTINT_:
 		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) > 0 {
 			goto settrue
 		}
