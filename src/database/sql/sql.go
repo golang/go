@@ -1504,6 +1504,14 @@ func (tx *Tx) grabConn(ctx context.Context) (*driverConn, error) {
 	return tx.dc, nil
 }
 
+// closemuRUnlockRelease is used as a func(error) method value in
+// ExecContext and QueryContext. Unlocking in the releaseConn keeps
+// the driver conn from being returned to the connection pool until
+// the Rows has been closed.
+func (tx *Tx) closemuRUnlockRelease(error) {
+	tx.closemu.RUnlock()
+}
+
 // Closes all Stmts prepared for this transaction.
 func (tx *Tx) closePrepared() {
 	tx.stmts.Lock()
@@ -1713,13 +1721,13 @@ func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 // For example: an INSERT and UPDATE.
 func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}) (Result, error) {
 	tx.closemu.RLock()
-	defer tx.closemu.RUnlock()
 
 	dc, err := tx.grabConn(ctx)
 	if err != nil {
+		tx.closemu.RUnlock()
 		return nil, err
 	}
-	return tx.db.execDC(ctx, dc, func(error) {}, query, args)
+	return tx.db.execDC(ctx, dc, tx.closemuRUnlockRelease, query, args)
 }
 
 // Exec executes a query that doesn't return rows.
@@ -1731,14 +1739,14 @@ func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 // QueryContext executes a query that returns rows, typically a SELECT.
 func (tx *Tx) QueryContext(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
 	tx.closemu.RLock()
-	defer tx.closemu.RUnlock()
 
 	dc, err := tx.grabConn(ctx)
 	if err != nil {
+		tx.closemu.RUnlock()
 		return nil, err
 	}
-	releaseConn := func(error) {}
-	return tx.db.queryDC(ctx, dc, releaseConn, query, args)
+
+	return tx.db.queryDC(ctx, dc, tx.closemuRUnlockRelease, query, args)
 }
 
 // Query executes a query that returns rows, typically a SELECT.
