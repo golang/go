@@ -505,16 +505,16 @@ func (p *importer) typ() *types.Type {
 		t = p.newtyp(TARRAY)
 		bound := p.int64()
 		elem := p.typ()
-		t.Extra = &types.ArrayType{Elem: elem, Bound: bound}
+		t.Extra = &types.Array{Elem: elem, Bound: bound}
 
 	case sliceTag:
 		t = p.newtyp(TSLICE)
 		elem := p.typ()
-		t.Extra = types.SliceType{Elem: elem}
+		t.Extra = types.Slice{Elem: elem}
 
 	case dddTag:
 		t = p.newtyp(TDDDFIELD)
-		t.Extra = types.DDDFieldType{T: p.typ()}
+		t.Extra = types.DDDField{T: p.typ()}
 
 	case structTag:
 		t = p.newtyp(TSTRUCT)
@@ -523,7 +523,7 @@ func (p *importer) typ() *types.Type {
 
 	case pointerTag:
 		t = p.newtyp(types.Tptr)
-		t.Extra = types.PtrType{Elem: p.typ()}
+		t.Extra = types.Ptr{Elem: p.typ()}
 
 	case signatureTag:
 		t = p.newtyp(TFUNC)

@@ -58,7 +58,7 @@ func expandiface(t *types.Type) {
 
 	// Access fields directly to avoid recursively calling dowidth
 	// within Type.Fields().
-	t.Extra.(*types.InterType).Fields.Set(fields)
+	t.Extra.(*types.Interface).Fields.Set(fields)
 }
 
 func offmod(t *types.Type) {
@@ -337,7 +337,7 @@ func dowidth(t *types.Type) {
 		w = widstruct(t1, t1.Recvs(), 0, 0)
 		w = widstruct(t1, t1.Params(), w, Widthreg)
 		w = widstruct(t1, t1.Results(), w, Widthreg)
-		t1.Extra.(*types.FuncType).Argwid = w
+		t1.Extra.(*types.Func).Argwid = w
 		if w%int64(Widthreg) != 0 {
 			Warn("bad type %v %d\n", t1, w)
 		}
