@@ -1558,12 +1558,6 @@ func (a typesByString) Len() int           { return len(a) }
 func (a typesByString) Less(i, j int) bool { return a[i].s < a[j].s }
 func (a typesByString) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-type pkgByPath []*types.Pkg
-
-func (a pkgByPath) Len() int           { return len(a) }
-func (a pkgByPath) Less(i, j int) bool { return a[i].Path < a[j].Path }
-func (a pkgByPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
 func dalgsym(t *types.Type) *types.Sym {
 	var s *types.Sym
 	var hashfunc *types.Sym
