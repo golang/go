@@ -326,7 +326,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		declare(f.Func.Nname, PFUNC)
 	}
 
-	funchdr(f, fun.Pos())
+	funchdr(f)
 
 	if fun.Body != nil {
 		if f.Noescape() {
@@ -347,7 +347,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		}
 	}
 
-	funcbody(f, fun.Pos())
+	funcbody(f)
 
 	return f
 }
@@ -777,14 +777,14 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 }
 
 func (p *noder) blockStmt(stmt *syntax.BlockStmt) []*Node {
-	markdcl(stmt.Pos())
+	markdcl()
 	nodes := p.stmts(stmt.List)
-	popdcl(stmt.Rbrace)
+	popdcl()
 	return nodes
 }
 
 func (p *noder) ifStmt(stmt *syntax.IfStmt) *Node {
-	markdcl(stmt.Pos())
+	markdcl()
 	n := p.nod(stmt, OIF, nil, nil)
 	if stmt.Init != nil {
 		n.Ninit.Set1(p.stmt(stmt.Init))
@@ -801,12 +801,12 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) *Node {
 			n.Rlist.Set1(e)
 		}
 	}
-	popdcl(lastPopdclPos)
+	popdcl()
 	return n
 }
 
 func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
-	markdcl(stmt.Pos())
+	markdcl()
 	var n *Node
 	if r, ok := stmt.Init.(*syntax.RangeClause); ok {
 		if stmt.Cond != nil || stmt.Post != nil {
@@ -835,12 +835,12 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
 		}
 	}
 	n.Nbody.Set(p.blockStmt(stmt.Body))
-	popdcl(stmt.Body.Rbrace)
+	popdcl()
 	return n
 }
 
 func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
-	markdcl(stmt.Pos())
+	markdcl()
 	n := p.nod(stmt, OSWITCH, nil, nil)
 	if stmt.Init != nil {
 		n.Ninit.Set1(p.stmt(stmt.Init))
@@ -854,17 +854,17 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
 		tswitch = nil
 	}
 
-	n.List.Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
+	n.List.Set(p.caseClauses(stmt.Body, tswitch))
 
-	popdcl(stmt.Rbrace)
+	popdcl()
 	return n
 }
 
-func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace src.Pos) []*Node {
+func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node) []*Node {
 	var nodes []*Node
-	for i, clause := range clauses {
+	for _, clause := range clauses {
 		p.lineno(clause)
-		markdcl(clause.Pos())
+		markdcl()
 		n := p.nod(clause, OXCASE, nil, nil)
 		if clause.Cases != nil {
 			n.List.Set(p.exprList(clause.Cases))
@@ -878,11 +878,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace 
 		}
 		n.Xoffset = int64(block)
 		n.Nbody.Set(p.stmts(clause.Body))
-		if i+1 < len(clauses) {
-			popdcl(clauses[i+1].Pos())
-		} else {
-			popdcl(rbrace)
-		}
+		popdcl()
 		nodes = append(nodes, n)
 	}
 	return nodes
@@ -890,26 +886,22 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace 
 
 func (p *noder) selectStmt(stmt *syntax.SelectStmt) *Node {
 	n := p.nod(stmt, OSELECT, nil, nil)
-	n.List.Set(p.commClauses(stmt.Body, stmt.Rbrace))
+	n.List.Set(p.commClauses(stmt.Body))
 	return n
 }
 
-func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace src.Pos) []*Node {
+func (p *noder) commClauses(clauses []*syntax.CommClause) []*Node {
 	var nodes []*Node
-	for i, clause := range clauses {
+	for _, clause := range clauses {
 		p.lineno(clause)
-		markdcl(clause.Pos())
+		markdcl()
 		n := p.nod(clause, OXCASE, nil, nil)
 		if clause.Comm != nil {
 			n.List.Set1(p.stmt(clause.Comm))
 		}
 		n.Xoffset = int64(block)
 		n.Nbody.Set(p.stmts(clause.Body))
-		if i+1 < len(clauses) {
-			popdcl(clauses[i+1].Pos())
-		} else {
-			popdcl(rbrace)
-		}
+		popdcl()
 		nodes = append(nodes, n)
 	}
 	return nodes
