@@ -1312,16 +1312,16 @@ opswitch:
 						continue
 					}
 					var step int
-					var convType *Type
+					var convType *types.Type
 					switch {
 					case remains >= 8 && combine64bit:
-						convType = Types[TINT64]
+						convType = types.Types[TINT64]
 						step = 8
 					case remains >= 4:
-						convType = Types[TUINT32]
+						convType = types.Types[TUINT32]
 						step = 4
 					case remains >= 2:
-						convType = Types[TUINT16]
+						convType = types.Types[TUINT16]
 						step = 2
 					}
 					ncsubstr := nod(OINDEX, ncs, nodintconst(int64(i)))
