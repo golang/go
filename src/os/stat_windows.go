@@ -71,9 +71,14 @@ func Stat(name string) (FileInfo, error) {
 		if fi.Mode()&ModeSymlink == 0 {
 			return fi, nil
 		}
-		name, err = Readlink(name)
+		newname, err := Readlink(name)
 		if err != nil {
 			return fi, err
+		}
+		if isAbs(newname) {
+			name = newname
+		} else {
+			name = dirname(name) + `\` + newname
 		}
 	}
 	return nil, &PathError{"Stat", name, syscall.ELOOP}
