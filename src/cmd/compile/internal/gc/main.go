@@ -368,7 +368,6 @@ func Main(archInit func(*Arch)) {
 	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
 		typeFormat(t, s, verb, fmtMode(mode))
 	}
-	types.Cmptyp = cmptyp
 	types.FieldName = func(f *types.Field) string {
 		return f.Sym.Name
 	}

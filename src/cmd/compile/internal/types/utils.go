@@ -5,7 +5,6 @@
 package types
 
 import (
-	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"fmt"
 )
@@ -26,7 +25,6 @@ var (
 	Tconv       func(*Type, int, int, int) string // orig: func tconv(t *Type, flag FmtFlag, mode fmtMode, depth int) string
 	FormatSym   func(*Sym, fmt.State, rune, int)  // orig: func symFormat(sym *Sym, s fmt.State, verb rune, mode fmtMode)
 	FormatType  func(*Type, fmt.State, rune, int) // orig: func typeFormat(t *Type, s fmt.State, verb rune, mode fmtMode)
-	Cmptyp      func(_, _ *Type) ssa.Cmp
 	FieldName   func(*Field) string
 	TypeLinkSym func(*Type) *obj.LSym
 
