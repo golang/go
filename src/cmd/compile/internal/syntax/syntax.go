@@ -14,6 +14,11 @@ import (
 // Mode describes the parser mode.
 type Mode uint
 
+// Modes supported by the parser.
+const (
+	CheckBranches Mode = 1 << iota // check correct use of labels, break, continue, and goto statements
+)
+
 // Error describes a syntax error. Error implements the error interface.
 type Error struct {
 	Pos src.Pos
@@ -63,7 +68,7 @@ func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHand
 	}()
 
 	var p parser
-	p.init(base, src, errh, pragh)
+	p.init(base, src, errh, pragh, mode)
 	p.next()
 	return p.fileOrNil(), p.first
 }
