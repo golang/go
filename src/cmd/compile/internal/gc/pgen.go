@@ -310,18 +310,13 @@ func compile(fn *Node) {
 	pp.Free()
 }
 
-func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
+func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
 	fn := curfn.(*Node)
 	if expect := Linksym(fn.Func.Nname.Sym); fnsym != expect {
 		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
 	}
 
-	scopes := make([]dwarf.Scope, len(fn.Func.scopes.Scopes))
-
-	for i := range scopes {
-		scopes[i] = dwarf.Scope{Scope: fn.Func.scopes.Scopes[i]}
-	}
-
+	var vars []*dwarf.Var
 	for _, n := range fn.Func.Dcl {
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
@@ -368,14 +363,8 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
 			continue
 		}
 
-		var scope int32 = 0
-		// Only record scope information when inlining is disabled.
-		if Debug['l'] == 0 {
-			scope = findScope(n.Pos, scopes)
-		}
-
 		typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
-		scopes[scope].Vars = append(scopes[scope].Vars, &dwarf.Var{
+		vars = append(vars, &dwarf.Var{
 			Name:   n.Sym.Name,
 			Abbrev: abbrev,
 			Offset: int32(offs),
@@ -384,13 +373,9 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
 	}
 
 	// Stable sort so that ties are broken with declaration order.
-	for i := range scopes {
-		sort.Stable(dwarf.VarsByOffset(scopes[i].Vars))
-	}
+	sort.Stable(dwarf.VarsByOffset(vars))
 
-	scopeRanges(fnsym, scopes)
-
-	return scopes
+	return vars
 }
 
 // fieldtrack adds R_USEFIELD relocations to fnsym to record any

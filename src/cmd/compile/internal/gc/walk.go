@@ -7,7 +7,6 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
 	"strings"
@@ -3662,7 +3661,7 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
 
 	oldfn := Curfn
 	Curfn = nil
-	funchdr(fn, src.NoPos)
+	funchdr(fn)
 
 	a = nod(n.Op, nil, nil)
 	a.List.Set(printargs)
@@ -3671,7 +3670,7 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
 
 	fn.Nbody.Set1(a)
 
-	funcbody(fn, src.NoPos)
+	funcbody(fn)
 
 	fn = typecheck(fn, Etop)
 	typecheckslice(fn.Nbody.Slice(), Etop)

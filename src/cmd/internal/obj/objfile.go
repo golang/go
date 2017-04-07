@@ -542,14 +542,10 @@ func (c dwCtxt) SymValue(s dwarf.Sym) int64 {
 	return 0
 }
 func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+	rsym := data.(*LSym)
 	ls := s.(*LSym)
 	size := c.PtrSize()
-	if data != nil {
-		rsym := data.(*LSym)
-		ls.WriteAddr(c.Link, ls.Size, size, rsym, value)
-	} else {
-		ls.WriteInt(c.Link, ls.Size, size, value)
-	}
+	ls.WriteAddr(c.Link, ls.Size, size, rsym, value)
 }
 func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	ls := s.(*LSym)
@@ -557,10 +553,6 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
 	r := &ls.R[len(ls.R)-1]
 	r.Type = R_DWARFREF
-}
-
-func (s *LSym) Len() int64 {
-	return s.Size
 }
 
 // makeFuncDebugEntry makes a DWARF Debugging Information Entry
@@ -572,21 +564,10 @@ func makeFuncDebugEntry(ctxt *Link, curfn interface{}, s *LSym) {
 	}
 	dsym.Type = SDWARFINFO
 	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
-
-	drsym := ctxt.Lookup(dwarf.RangePrefix+s.Name, int(s.Version))
-	if drsym.Size != 0 {
-		return
-	}
-	drsym.Type = SDWARFRANGE
-	drsym.Set(AttrDuplicateOK, s.DuplicateOK())
-
-	var scopes []dwarf.Scope
+	var vars []*dwarf.Var
 	if ctxt.DebugInfo != nil {
-		scopes = ctxt.DebugInfo(s, curfn)
+		vars = ctxt.DebugInfo(s, curfn)
 	}
-	err := dwarf.PutFunc(dwCtxt{ctxt}, dsym, drsym, s.Name, s.Version == 0, s, s.Size, scopes)
-	if err != nil {
-		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
-	}
-	ctxt.Data = append(ctxt.Data, dsym, drsym)
+	dwarf.PutFunc(dwCtxt{ctxt}, dsym, s.Name, s.Version == 0, s, s.Size, vars)
+	ctxt.Data = append(ctxt.Data, dsym)
 }
