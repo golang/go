@@ -34,7 +34,7 @@ type ptabEntry struct {
 }
 
 // runtime interface and reflection data structures
-var signatlist = make(map[*Type]bool)
+var signatlist []*Type
 var itabs []itabEntry
 var ptabs []ptabEntry
 
@@ -933,22 +933,24 @@ func typesymprefix(prefix string, t *Type) *Sym {
 
 func typenamesym(t *Type) *Sym {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
-		Fatalf("typenamesym %v", t)
+		Fatalf("typename %v", t)
 	}
 	s := typesym(t)
-	addsignat(t)
-	return s
-}
-
-func typename(t *Type) *Node {
-	s := typenamesym(t)
 	if s.Def == nil {
 		n := newnamel(src.NoXPos, s)
 		n.Type = Types[TUINT8]
 		n.Class = PEXTERN
 		n.Typecheck = 1
 		s.Def = n
+
+		signatlist = append(signatlist, t)
 	}
+
+	return s.Def.Sym
+}
+
+func typename(t *Type) *Node {
+	s := typenamesym(t)
 	n := nod(OADDR, s.Def, nil)
 	n.Type = typPtr(s.Def.Type)
 	n.SetAddable(true)
@@ -1415,35 +1417,21 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
 	return syms[methodnum]
 }
 
-func addsignat(t *Type) {
-	signatlist[t] = true
-}
-
 func dumptypestructs() {
 	// copy types from externdcl list to signatlist
 	for _, n := range externdcl {
 		if n.Op == OTYPE {
-			addsignat(n.Type)
+			signatlist = append(signatlist, n.Type)
 		}
 	}
 
-	// Process signatlist. Use a loop, as dtypesym adds
-	// entries to signatlist while it is being processed.
-	signats := make([]typeAndStr, len(signatlist))
-	for len(signatlist) > 0 {
-		signats = signats[:0]
-		// Transfer entries to a slice and sort, for reproducible builds.
-		for t := range signatlist {
-			signats = append(signats, typeAndStr{t: t, s: t.LongString()})
-			delete(signatlist, t)
-		}
-		sort.Sort(typesByLongString(signats))
-		for _, ts := range signats {
-			t := ts.t
-			dtypesym(t)
-			if t.Sym != nil {
-				dtypesym(typPtr(t))
-			}
+	// Process signatlist.  This can't use range, as entries are
+	// added to the list while it is being processed.
+	for i := 0; i < len(signatlist); i++ {
+		t := signatlist[i]
+		dtypesym(t)
+		if t.Sym != nil {
+			dtypesym(typPtr(t))
 		}
 	}
 
@@ -1538,18 +1526,6 @@ func dumptypestructs() {
 		dimportpath(mkpkg("main"))
 	}
 }
-
-type typeAndStr struct {
-	t *Type
-	s string
-}
-
-// TODO(josharian): simplify this to just use Type.cmp once issue 19869 has been fixed.
-type typesByLongString []typeAndStr
-
-func (a typesByLongString) Len() int           { return len(a) }
-func (a typesByLongString) Less(i, j int) bool { return a[i].s < a[j].s }
-func (a typesByLongString) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type pkgByPath []*Pkg
 

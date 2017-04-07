@@ -976,8 +976,6 @@ func (r *Sym) cmpsym(s *Sym) ssa.Cmp {
 // cmp compares two *Types t and x, returning ssa.CMPlt,
 // ssa.CMPeq, ssa.CMPgt as t<x, t==x, t>x, for an arbitrary
 // and optimizer-centric notion of comparison.
-// TODO(josharian): make this safe for recursive interface types
-// and use in signatlist sorting. See issue 19869.
 func (t *Type) cmp(x *Type) ssa.Cmp {
 	// This follows the structure of eqtype in subr.go
 	// with two exceptions.
