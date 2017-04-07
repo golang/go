@@ -564,74 +564,70 @@ func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
 
 var inlgen int
 
-// if *np is a call, and fn is a function with an inlinable body, substitute *np with an OINLCALL.
+// If n is a call, and fn is a function with an inlinable body,
+// return an OINLCALL.
 // On return ninit has the parameter assignments, the nbody is the
 // inlined function body and list, rlist contain the input, output
 // parameters.
 // The result of mkinlcall1 MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall1(n.Left, fn, isddd)
 func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
-	// For variadic fn.
 	if fn.Func.Inl.Len() == 0 {
+		// No inlinable body.
 		return n
 	}
 
 	if fn == Curfn || fn.Name.Defn == Curfn {
+		// Can't recursively inline a function into itself.
 		return n
 	}
-
-	inlvars := make(map[*Node]*Node)
 
 	if Debug['l'] < 2 {
 		typecheckinl(fn)
 	}
 
-	// Bingo, we have a function node, and it has an inlineable body
+	// We have a function node, and it has an inlineable body.
 	if Debug['m'] > 1 {
 		fmt.Printf("%v: inlining call to %v %#v { %#v }\n", n.Line(), fn.Sym, fn.Type, fn.Func.Inl)
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: inlining call to %v\n", n.Line(), fn)
 	}
-
 	if Debug['m'] > 2 {
 		fmt.Printf("%v: Before inlining: %+v\n", n.Line(), n)
 	}
 
 	ninit := n.Ninit
 
-	//dumplist("ninit pre", ninit);
-
+	// Find declarations corresponding to inlineable body.
 	var dcl []*Node
 	if fn.Name.Defn != nil {
-		// local function
-		dcl = fn.Func.Inldcl.Slice()
+		dcl = fn.Func.Inldcl.Slice() // local function
 	} else {
-		// imported function
-		dcl = fn.Func.Dcl
+		dcl = fn.Func.Dcl // imported function
 	}
 
-	var retvars []*Node
-	i := 0
-
-	// Make temp names to use instead of the originals
+	// Make temp names to use instead of the originals.
+	inlvars := make(map[*Node]*Node)
 	for _, ln := range dcl {
+		if ln.Op != ONAME {
+			continue
+		}
 		if ln.Class == PPARAMOUT { // return values handled below.
 			continue
 		}
 		if ln.isParamStackCopy() { // ignore the on-stack copy of a parameter that moved to the heap
 			continue
 		}
-		if ln.Op == ONAME {
-			inlvars[ln] = typecheck(inlvar(ln), Erv)
-			if ln.Class == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class == PPARAM {
-				ninit.Append(nod(ODCL, inlvars[ln], nil))
-			}
+		inlvars[ln] = typecheck(inlvar(ln), Erv)
+		if ln.Class == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class == PPARAM {
+			ninit.Append(nod(ODCL, inlvars[ln], nil))
 		}
 	}
 
 	// temporaries for return values.
-	var m *Node
-	for _, t := range fn.Type.Results().Fields().Slice() {
+	var retvars []*Node
+	for i, t := range fn.Type.Results().Fields().Slice() {
+		var m *Node
 		if t != nil && asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
 			m = inlvar(asNode(t.Nname))
 			m = typecheck(m, Erv)
@@ -639,152 +635,73 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
-			i++
 		}
 
 		ninit.Append(nod(ODCL, m, nil))
 		retvars = append(retvars, m)
 	}
 
-	// assign receiver.
-	if fn.IsMethod() && n.Left.Op == ODOTMETH {
-		// method call with a receiver.
-		t := fn.Type.Recv()
-
-		if t != nil && t.Nname != nil && !isblank(asNode(t.Nname)) && inlvars[asNode(t.Nname)] == nil {
-			Fatalf("missing inlvar for %v\n", asNode(t.Nname))
-		}
-		if n.Left.Left == nil {
-			Fatalf("method call without receiver: %+v", n)
-		}
-		if t == nil {
-			Fatalf("method call unknown receiver type: %+v", n)
-		}
-		as := nod(OAS, tinlvar(t, inlvars), n.Left.Left)
-		if as != nil {
-			as = typecheck(as, Etop)
-			ninit.Append(as)
-		}
-	}
-
-	// check if inlined function is variadic.
-	variadic := false
-
-	var varargtype *types.Type
-	varargcount := 0
-	for _, t := range fn.Type.Params().Fields().Slice() {
-		if t.Isddd() {
-			variadic = true
-			varargtype = t.Type
-		}
-	}
-
-	// but if argument is dotted too forget about variadicity.
-	if variadic && isddd {
-		variadic = false
-	}
-
-	// check if argument is actually a returned tuple from call.
-	multiret := 0
-
-	if n.List.Len() == 1 {
-		switch n.List.First().Op {
-		case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH:
-			if n.List.First().Left.Type.Results().NumFields() > 1 {
-				multiret = n.List.First().Left.Type.Results().NumFields() - 1
-			}
-		}
-	}
-
-	if variadic {
-		varargcount = n.List.Len() + multiret
-		if n.Left.Op != ODOTMETH {
-			varargcount -= fn.Type.Recvs().NumFields()
-		}
-		varargcount -= fn.Type.Params().NumFields() - 1
-	}
-
-	// assign arguments to the parameters' temp names
+	// Assign arguments to the parameters' temp names.
 	as := nod(OAS2, nil, nil)
-
 	as.Rlist.Set(n.List.Slice())
-	li := 0
 
-	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
-	if fn.IsMethod() && n.Left.Op != ODOTMETH {
-		// non-method call to method
-		if n.List.Len() == 0 {
-			Fatalf("non-method call to method without first arg: %+v", n)
-		}
+	// For non-dotted calls to variadic functions, we assign the
+	// variadic parameter's temp name separately.
+	var vas *Node
 
-		// append receiver inlvar to LHS.
-		t := fn.Type.Recv()
+	if fn.IsMethod() {
+		rcv := fn.Type.Recv()
 
-		if t != nil && t.Nname != nil && !isblank(asNode(t.Nname)) && inlvars[asNode(t.Nname)] == nil {
-			Fatalf("missing inlvar for %v\n", asNode(t.Nname))
+		if n.Left.Op == ODOTMETH {
+			// For x.M(...), assign x directly to the
+			// receiver parameter.
+			if n.Left.Left == nil {
+				Fatalf("method call without receiver: %+v", n)
+			}
+			ras := nod(OAS, tinlvar(rcv, inlvars), n.Left.Left)
+			ras = typecheck(ras, Etop)
+			ninit.Append(ras)
+		} else {
+			// For T.M(...), add the receiver parameter to
+			// as.List, so it's assigned by the normal
+			// arguments.
+			if as.Rlist.Len() == 0 {
+				Fatalf("non-method call to method without first arg: %+v", n)
+			}
+			as.List.Append(tinlvar(rcv, inlvars))
 		}
-		if t == nil {
-			Fatalf("method call unknown receiver type: %+v", n)
-		}
-		as.List.Append(tinlvar(t, inlvars))
-		li++
 	}
 
-	// append ordinary arguments to LHS.
-	chkargcount := n.List.Len() > 1
-
-	var vararg *Node    // the slice argument to a variadic call
-	var varargs []*Node // the list of LHS names to put in vararg.
-	if !chkargcount {
-		// 0 or 1 expression on RHS.
-		var i int
-		for _, t := range fn.Type.Params().Fields().Slice() {
-			if variadic && t.Isddd() {
-				vararg = tinlvar(t, inlvars)
-				for i = 0; i < varargcount && li < n.List.Len(); i++ {
-					m = argvar(varargtype, i)
-					varargs = append(varargs, m)
-					as.List.Append(m)
-				}
-
-				break
-			}
-
-			as.List.Append(tinlvar(t, inlvars))
-		}
-	} else {
-		// match arguments except final variadic (unless the call is dotted itself)
-		t, it := types.IterFields(fn.Type.Params())
-		for t != nil {
-			if li >= n.List.Len() {
-				break
-			}
-			if variadic && t.Isddd() {
-				break
-			}
-			as.List.Append(tinlvar(t, inlvars))
-			t = it.Next()
-			li++
+	for _, param := range fn.Type.Params().Fields().Slice() {
+		// For ordinary parameters or variadic parameters in
+		// dotted calls, just add the variable to the
+		// assignment list, and we're done.
+		if !param.Isddd() || isddd {
+			as.List.Append(tinlvar(param, inlvars))
+			continue
 		}
 
-		// match varargcount arguments with variadic parameters.
-		if variadic && t != nil && t.Isddd() {
-			vararg = tinlvar(t, inlvars)
-			var i int
-			for i = 0; i < varargcount && li < n.List.Len(); i++ {
-				m = argvar(varargtype, i)
-				varargs = append(varargs, m)
-				as.List.Append(m)
-				li++
-			}
+		// Otherwise, we need to collect the remaining values
+		// to pass as a slice.
 
-			if i == varargcount {
-				t = it.Next()
-			}
+		numvals := n.List.Len()
+		if numvals == 1 && n.List.First().Type.IsFuncArgStruct() {
+			numvals = n.List.First().Type.NumFields()
 		}
 
-		if li < n.List.Len() || t != nil {
-			Fatalf("arg count mismatch: %#v vs %.v\n", fn.Type.Params(), n.List)
+		x := as.List.Len()
+		for as.List.Len() < numvals {
+			as.List.Append(argvar(param.Type, as.List.Len()))
+		}
+		varargs := as.List.Slice()[x:]
+
+		vas = nod(OAS, tinlvar(param, inlvars), nil)
+		if len(varargs) == 0 {
+			vas.Right = nodnil()
+			vas.Right.Type = param.Type
+		} else {
+			vas.Right = nod(OCOMPLIT, nil, typenod(param.Type))
+			vas.Right.List.Set(varargs)
 		}
 	}
 
@@ -793,23 +710,12 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		ninit.Append(as)
 	}
 
-	// turn the variadic args into a slice.
-	if variadic {
-		as = nod(OAS, vararg, nil)
-		if varargcount == 0 {
-			as.Right = nodnil()
-			as.Right.Type = varargtype
-		} else {
-			varslicetype := types.NewSlice(varargtype.Elem())
-			as.Right = nod(OCOMPLIT, nil, typenod(varslicetype))
-			as.Right.List.Set(varargs)
-		}
-
-		as = typecheck(as, Etop)
-		ninit.Append(as)
+	if vas != nil {
+		vas = typecheck(vas, Etop)
+		ninit.Append(vas)
 	}
 
-	// zero the outparams
+	// Zero the return parameters.
 	for _, n := range retvars {
 		as = nod(OAS, n, nil)
 		as = typecheck(as, Etop)
@@ -838,7 +744,6 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	//dumplist("ninit post", ninit);
 
 	call := nod(OINLCALL, nil, nil)
-
 	call.Ninit.Set(ninit.Slice())
 	call.Nbody.Set(body)
 	call.Rlist.Set(retvars)
