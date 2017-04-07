@@ -586,9 +586,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	 * around jmps to fix. this is rare.
 	 */
 	for bflag != 0 {
-		if ctxt.Debugvlog {
-			ctxt.Logf("%5.2f span1\n", obj.Cputime())
-		}
 		bflag = 0
 		c = 0
 		for p = cursym.Text.Link; p != nil; p = p.Link {
