@@ -134,13 +134,9 @@ func subtract1(p *byte) *byte {
 	return (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) - 1))
 }
 
-// mHeap_MapBits is called each time arena_used is extended.
-// It maps any additional bitmap memory needed for the new arena memory.
-// It must be called with the expected new value of arena_used,
-// *before* h.arena_used has been updated.
-// Waiting to update arena_used until after the memory has been mapped
-// avoids faults when other threads try access the bitmap immediately
-// after observing the change to arena_used.
+// mapBits maps any additional bitmap memory needed for the new arena memory.
+//
+// Don't call this directly. Call mheap.setArenaUsed.
 //
 //go:nowritebarrier
 func (h *mheap) mapBits(arena_used uintptr) {

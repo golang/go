@@ -93,7 +93,7 @@ type mheap struct {
 	bitmap         uintptr // Points to one byte past the end of the bitmap
 	bitmap_mapped  uintptr
 	arena_start    uintptr
-	arena_used     uintptr // always mHeap_Map{Bits,Spans} before updating
+	arena_used     uintptr // One byte past usable heap arena. Set with setArenaUsed.
 	arena_end      uintptr
 	arena_reserved bool
 
@@ -435,14 +435,35 @@ func (h *mheap) init(spansStart, spansBytes uintptr) {
 	sp.cap = int(spansBytes / sys.PtrSize)
 }
 
-// mHeap_MapSpans makes sure that the spans are mapped
+// setArenaUsed extends the usable arena to address arena_used and
+// maps auxiliary VM regions for any newly usable arena space.
+//
+// racemap indicates that this memory should be managed by the race
+// detector. racemap should be true unless this is covering a VM hole.
+func (h *mheap) setArenaUsed(arena_used uintptr, racemap bool) {
+	// Map auxiliary structures *before* h.arena_used is updated.
+	// Waiting to update arena_used until after the memory has been mapped
+	// avoids faults when other threads try access these regions immediately
+	// after observing the change to arena_used.
+
+	// Map the bitmap.
+	h.mapBits(arena_used)
+
+	// Map spans array.
+	h.mapSpans(arena_used)
+
+	// Tell the race detector about the new heap memory.
+	if racemap && raceenabled {
+		racemapshadow(unsafe.Pointer(h.arena_used), arena_used-h.arena_used)
+	}
+
+	h.arena_used = arena_used
+}
+
+// mapSpans makes sure that the spans are mapped
 // up to the new value of arena_used.
 //
-// It must be called with the expected new value of arena_used,
-// *before* h.arena_used has been updated.
-// Waiting to update arena_used until after the memory has been mapped
-// avoids faults when other threads try access the bitmap immediately
-// after observing the change to arena_used.
+// Don't call this directly. Call mheap.setArenaUsed.
 func (h *mheap) mapSpans(arena_used uintptr) {
 	// Map spans array, PageSize at a time.
 	n := arena_used
