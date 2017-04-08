@@ -108,7 +108,7 @@ var (
 	xtestFiles = flag.Bool("x", false, "consider only external test files in a directory")
 	allErrors  = flag.Bool("e", false, "report all errors, not just the first 10")
 	verbose    = flag.Bool("v", false, "verbose mode")
-	compiler   = flag.String("c", "source", "compiler used for installed packages (gc, gccgo, or source)")
+	compiler   = flag.String("c", defaultCompiler, "compiler used for installed packages (gc, gccgo, or source)")
 
 	// additional output control
 	printAST      = flag.Bool("ast", false, "print AST (forces -seq)")

@@ -8,6 +8,8 @@ package main
 
 import "go/types"
 
+const defaultCompiler = "source"
+
 func SizesFor(compiler, arch string) types.Sizes {
 	return types.SizesFor(compiler, arch)
 }

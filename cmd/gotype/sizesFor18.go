@@ -11,6 +11,8 @@ package main
 
 import "go/types"
 
+const defaultCompiler = "gc"
+
 var gcArchSizes = map[string]*types.StdSizes{
 	"386":      {4, 4},
 	"arm":      {4, 4},
