@@ -35,7 +35,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-4
 	// nothing to do as nacl/arm does not use TLS at all.
 	MOVW	g, R0 // preserve R0 across call to setg<>
 	RET
-#endif
+#else
 	// If the host does not support MRC the linker will replace it with
 	// a call to runtime.read_tls_fallback which jumps to __kuser_get_tls.
 	// The replacement function saves LR in R11 over the call to read_tls_fallback.
@@ -46,6 +46,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-4
 	MOVW	g, 0(R0)
 	MOVW	g, R0 // preserve R0 across call to setg<>
 	RET
+#endif
 
 // load_g loads the g register from pthread-provided
 // thread-local memory, for use after calling externally compiled
@@ -54,7 +55,7 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 #ifdef GOOS_nacl
 	// nothing to do as nacl/arm does not use TLS at all.
 	RET
-#endif
+#else
 	// See save_g
 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	BIC $3, R0 // Darwin/ARM might return unaligned pointer
@@ -62,6 +63,7 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	ADD	R11, R0
 	MOVW	0(R0), g
 	RET
+#endif
 
 // This is called from rt0_go, which runs on the system stack
 // using the initial stack allocated by the OS.
