@@ -194,8 +194,9 @@ type WordDecoder struct {
 
 // Decode decodes an RFC 2047 encoded-word.
 func (d *WordDecoder) Decode(word string) (string, error) {
-	// See https://tools.ietf.org/html/rfc2047#section-2
-	if len(word) < 9 || !strings.HasPrefix(word, "=?") || !strings.HasSuffix(word, "?=") || strings.Count(word, "?") != 4 {
+	// See https://tools.ietf.org/html/rfc2047#section-2 for details.
+	// Our decoder is permissive, we accept empty encoded-text.
+	if len(word) < 8 || !strings.HasPrefix(word, "=?") || !strings.HasSuffix(word, "?=") || strings.Count(word, "?") != 4 {
 		return "", errInvalidWord
 	}
 	word = word[2 : len(word)-2]
@@ -208,7 +209,7 @@ func (d *WordDecoder) Decode(word string) (string, error) {
 	if len(charset) == 0 {
 		return "", errInvalidWord
 	}
-	if len(word) <= split+3 {
+	if len(word) < split+3 {
 		return "", errInvalidWord
 	}
 	encoding := word[split+1]
