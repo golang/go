@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 )
 
 // traverseLink is a sentinel error for fastWalk, similar to filepath.SkipDir.
@@ -48,6 +49,12 @@ func fastWalk(root string, walkFn func(path string, typ os.FileMode) error) erro
 	if n := runtime.NumCPU(); n > numWorkers {
 		numWorkers = n
 	}
+
+	// Make sure to wait for all workers to finish, otherwise walkFn could
+	// still be called after returning.
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
 	w := &walker{
 		fn:       walkFn,
 		enqueuec: make(chan walkItem, numWorkers), // buffered for performance
@@ -60,7 +67,8 @@ func fastWalk(root string, walkFn func(path string, typ os.FileMode) error) erro
 	defer close(w.donec)
 	// TODO(bradfitz): start the workers as needed? maybe not worth it.
 	for i := 0; i < numWorkers; i++ {
-		go w.doWork()
+		wg.Add(1)
+		go w.doWork(&wg)
 	}
 	todo := []walkItem{{dir: root}}
 	out := 0
@@ -103,7 +111,8 @@ func fastWalk(root string, walkFn func(path string, typ os.FileMode) error) erro
 
 // doWork reads directories as instructed (via workc) and runs the
 // user's callback function.
-func (w *walker) doWork() {
+func (w *walker) doWork(wg *sync.WaitGroup) {
+	defer wg.Done()
 	for {
 		select {
 		case <-w.donec:
