@@ -2650,8 +2650,6 @@ func TestGoGetInternalWildcard(t *testing.T) {
 }
 
 func TestGoVetWithExternalTests(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
@@ -2662,15 +2660,32 @@ func TestGoVetWithExternalTests(t *testing.T) {
 }
 
 func TestGoVetWithTags(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
 	tg.run("install", "cmd/vet")
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("vet", "-tags", "tagtest", "vetpkg")
-	tg.grepBoth(`c\.go.*wrong number of args for format`, "go get vetpkg did not run scan tagged file")
+	tg.grepBoth(`c\.go.*wrong number of args for format`, "go vet vetpkg did not run scan tagged file")
+}
+
+func TestGoVetWithFlagsOn(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.run("install", "cmd/vet")
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.runFail("vet", "-printf", "vetpkg")
+	tg.grepBoth("missing argument for Printf", "go vet -printf vetpkg did not find missing argument for Printf")
+}
+
+func TestGoVetWithFlagsOff(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.run("install", "cmd/vet")
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("vet", "-printf=false", "vetpkg")
 }
 
 // Issue 9767, 19769.

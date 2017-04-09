@@ -23,6 +23,8 @@ import (
 	"strings"
 )
 
+// Important! If you add flags here, make sure to update cmd/go/internal/vet/vetflag.go.
+
 var (
 	verbose = flag.Bool("v", false, "verbose")
 	source  = flag.Bool("source", false, "import from source instead of compiled object files")

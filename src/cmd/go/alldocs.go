@@ -798,14 +798,12 @@
 //
 // Usage:
 //
-// 	go vet [-n] [-x] [build flags] [packages]
+// 	go vet [-n] [-x] [build flags] [vet flags] [packages]
 //
 // Vet runs the Go vet command on the packages named by the import paths.
 //
-// For more about vet, see 'go doc cmd/vet'.
+// For more about vet and its flags, see 'go doc cmd/vet'.
 // For more about specifying packages, see 'go help packages'.
-//
-// To run the vet tool with specific options, run 'go tool vet'.
 //
 // The -n flag prints commands that would be executed.
 // The -x flag prints commands as they are executed.
