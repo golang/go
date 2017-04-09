@@ -6,64 +6,55 @@ package test
 
 import (
 	"flag"
-	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/cmdflag"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
+
+const cmd = "test"
 
 // The flag handling part of go test is large and distracting.
 // We can't use the flag package because some of the flags from
 // our command line are for us, and some are for 6.out, and
 // some are for both.
 
-// testFlagSpec defines a flag we know about.
-type testFlagSpec struct {
-	name       string
-	boolVar    *bool
-	flagValue  flag.Value
-	passToTest bool // pass to Test
-	multiOK    bool // OK to have multiple instances
-	present    bool // flag has been seen
-}
-
 // testFlagDefn is the set of flags we process.
-var testFlagDefn = []*testFlagSpec{
+var testFlagDefn = []*cmdflag.Defn{
 	// local.
-	{name: "c", boolVar: &testC},
-	{name: "i", boolVar: &cfg.BuildI},
-	{name: "o"},
-	{name: "cover", boolVar: &testCover},
-	{name: "covermode"},
-	{name: "coverpkg"},
-	{name: "exec"},
+	{Name: "c", BoolVar: &testC},
+	{Name: "i", BoolVar: &cfg.BuildI},
+	{Name: "o"},
+	{Name: "cover", BoolVar: &testCover},
+	{Name: "covermode"},
+	{Name: "coverpkg"},
+	{Name: "exec"},
 
-	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
-	{name: "bench", passToTest: true},
-	{name: "benchmem", boolVar: new(bool), passToTest: true},
-	{name: "benchtime", passToTest: true},
-	{name: "count", passToTest: true},
-	{name: "coverprofile", passToTest: true},
-	{name: "cpu", passToTest: true},
-	{name: "cpuprofile", passToTest: true},
-	{name: "memprofile", passToTest: true},
-	{name: "memprofilerate", passToTest: true},
-	{name: "blockprofile", passToTest: true},
-	{name: "blockprofilerate", passToTest: true},
-	{name: "mutexprofile", passToTest: true},
-	{name: "mutexprofilefraction", passToTest: true},
-	{name: "outputdir", passToTest: true},
-	{name: "parallel", passToTest: true},
-	{name: "run", passToTest: true},
-	{name: "short", boolVar: new(bool), passToTest: true},
-	{name: "timeout", passToTest: true},
-	{name: "trace", passToTest: true},
-	{name: "v", boolVar: &testV, passToTest: true},
+	// Passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+	{Name: "bench", PassToTest: true},
+	{Name: "benchmem", BoolVar: new(bool), PassToTest: true},
+	{Name: "benchtime", PassToTest: true},
+	{Name: "count", PassToTest: true},
+	{Name: "coverprofile", PassToTest: true},
+	{Name: "cpu", PassToTest: true},
+	{Name: "cpuprofile", PassToTest: true},
+	{Name: "memprofile", PassToTest: true},
+	{Name: "memprofilerate", PassToTest: true},
+	{Name: "blockprofile", PassToTest: true},
+	{Name: "blockprofilerate", PassToTest: true},
+	{Name: "mutexprofile", PassToTest: true},
+	{Name: "mutexprofilefraction", PassToTest: true},
+	{Name: "outputdir", PassToTest: true},
+	{Name: "parallel", PassToTest: true},
+	{Name: "run", PassToTest: true},
+	{Name: "short", BoolVar: new(bool), PassToTest: true},
+	{Name: "timeout", PassToTest: true},
+	{Name: "trace", PassToTest: true},
+	{Name: "v", BoolVar: &testV, PassToTest: true},
 }
 
 // add build flags to testFlagDefn
@@ -75,9 +66,9 @@ func init() {
 			// test overrides the build -v flag
 			return
 		}
-		testFlagDefn = append(testFlagDefn, &testFlagSpec{
-			name:      f.Name,
-			flagValue: f.Value,
+		testFlagDefn = append(testFlagDefn, &cmdflag.Defn{
+			Name:  f.Name,
+			Value: f.Value,
 		})
 	})
 }
@@ -112,7 +103,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			inPkg = false
 		}
 
-		f, value, extraWord := testFlag(args, i)
+		f, value, extraWord := cmdflag.Parse(cmd, testFlagDefn, args, i)
 		if f == nil {
 			// This is a flag we do not know; we must assume
 			// that any args we see after this might be flag
@@ -131,24 +122,24 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			passToTest = append(passToTest, args[i])
 			continue
 		}
-		if f.flagValue != nil {
-			if err := f.flagValue.Set(value); err != nil {
-				base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
+		if f.Value != nil {
+			if err := f.Value.Set(value); err != nil {
+				base.Fatalf("invalid flag argument for -%s: %v", f.Name, err)
 			}
 		} else {
 			// Test-only flags.
-			// Arguably should be handled by f.flagValue, but aren't.
-			switch f.name {
+			// Arguably should be handled by f.Value, but aren't.
+			switch f.Name {
 			// bool flags.
 			case "c", "i", "v", "cover":
-				setBoolFlag(f.boolVar, value)
+				cmdflag.SetBool(cmd, f.BoolVar, value)
 			case "o":
 				testO = value
 				testNeedBinary = true
 			case "exec":
 				xcmd, err := str.SplitQuotedFields(value)
 				if err != nil {
-					base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
+					base.Fatalf("invalid flag argument for -%s: %v", f.Name, err)
 				}
 				work.ExecCmd = xcmd
 			case "bench":
@@ -186,8 +177,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		if extraWord {
 			i++
 		}
-		if f.passToTest {
-			passToTest = append(passToTest, "-test."+f.name+"="+value)
+		if f.PassToTest {
+			passToTest = append(passToTest, "-test."+f.Name+"="+value)
 		}
 	}
 
@@ -210,90 +201,4 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 
 	passToTest = append(passToTest, explicitArgs...)
 	return
-}
-
-// testFlag sees if argument i is a known flag and returns its definition, value, and whether it consumed an extra word.
-func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) {
-	arg := args[i]
-	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
-		arg = arg[1:]
-	}
-	switch arg {
-	case "-?", "-h", "-help":
-		base.Usage()
-	}
-	if arg == "" || arg[0] != '-' {
-		return
-	}
-	name := arg[1:]
-	// If there's already "test.", drop it for now.
-	name = strings.TrimPrefix(name, "test.")
-	equals := strings.Index(name, "=")
-	if equals >= 0 {
-		value = name[equals+1:]
-		name = name[:equals]
-	}
-	for _, f = range testFlagDefn {
-		if name == f.name {
-			// Booleans are special because they have modes -x, -x=true, -x=false.
-			if f.boolVar != nil || isBoolFlag(f.flagValue) {
-				if equals < 0 { // otherwise, it's been set and will be verified in setBoolFlag
-					value = "true"
-				} else {
-					// verify it parses
-					setBoolFlag(new(bool), value)
-				}
-			} else { // Non-booleans must have a value.
-				extra = equals < 0
-				if extra {
-					if i+1 >= len(args) {
-						testSyntaxError("missing argument for flag " + f.name)
-					}
-					value = args[i+1]
-				}
-			}
-			if f.present && !f.multiOK {
-				testSyntaxError(f.name + " flag may be set only once")
-			}
-			f.present = true
-			return
-		}
-	}
-	f = nil
-	return
-}
-
-// isBoolFlag reports whether v is a bool flag.
-func isBoolFlag(v flag.Value) bool {
-	vv, ok := v.(interface {
-		IsBoolFlag() bool
-	})
-	if ok {
-		return vv.IsBoolFlag()
-	}
-	return false
-}
-
-// setBoolFlag sets the addressed boolean to the value.
-func setBoolFlag(flag *bool, value string) {
-	x, err := strconv.ParseBool(value)
-	if err != nil {
-		testSyntaxError("illegal bool flag value " + value)
-	}
-	*flag = x
-}
-
-// setIntFlag sets the addressed integer to the value.
-func setIntFlag(flag *int, value string) {
-	x, err := strconv.Atoi(value)
-	if err != nil {
-		testSyntaxError("illegal int flag value " + value)
-	}
-	*flag = x
-}
-
-func testSyntaxError(msg string) {
-	fmt.Fprintf(os.Stderr, "go test: %s\n", msg)
-	fmt.Fprintf(os.Stderr, `run "go help test" or "go help testflag" for more information`+"\n")
-	os.Exit(2)
 }

@@ -12,24 +12,18 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
-	"cmd/go/internal/work"
 )
 
-func init() {
-	work.AddBuildFlags(CmdVet)
-}
-
 var CmdVet = &base.Command{
-	Run:       runVet,
-	UsageLine: "vet [-n] [-x] [build flags] [packages]",
-	Short:     "run go tool vet on packages",
+	Run:         runVet,
+	CustomFlags: true,
+	UsageLine:   "vet [-n] [-x] [build flags] [vet flags] [packages]",
+	Short:       "run go tool vet on packages",
 	Long: `
 Vet runs the Go vet command on the packages named by the import paths.
 
-For more about vet, see 'go doc cmd/vet'.
+For more about vet and its flags, see 'go doc cmd/vet'.
 For more about specifying packages, see 'go help packages'.
-
-To run the vet tool with specific options, run 'go tool vet'.
 
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
@@ -41,21 +35,22 @@ See also: go fmt, go fix.
 }
 
 func runVet(cmd *base.Command, args []string) {
-	for _, p := range load.Packages(args) {
+	vetFlags, packages := vetFlags(args)
+	for _, p := range load.Packages(packages) {
 		// Vet expects to be given a set of files all from the same package.
 		// Run once for package p and once for package p_test.
 		if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles) > 0 {
-			runVetFiles(p, str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
+			runVetFiles(p, vetFlags, str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
 		}
 		if len(p.XTestGoFiles) > 0 {
-			runVetFiles(p, str.StringList(p.XTestGoFiles))
+			runVetFiles(p, vetFlags, str.StringList(p.XTestGoFiles))
 		}
 	}
 }
 
-func runVetFiles(p *load.Package, files []string) {
+func runVetFiles(p *load.Package, flags, files []string) {
 	for i := range files {
 		files[i] = filepath.Join(p.Dir, files[i])
 	}
-	base.Run(cfg.BuildToolexec, base.Tool("vet"), base.RelPaths(files))
+	base.Run(cfg.BuildToolexec, base.Tool("vet"), flags, base.RelPaths(files))
 }
