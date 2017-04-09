@@ -185,7 +185,7 @@ func (p *Package) writeDefs() {
 	for _, key := range nameKeys(p.Name) {
 		n := p.Name[key]
 		if n.Const != "" {
-			fmt.Fprintf(fgo2, "const _C%s_%s = %s\n", n.Kind, n.Go, n.Const)
+			fmt.Fprintf(fgo2, "const %s = %s\n", n.Mangle, n.Const)
 		}
 	}
 	fmt.Fprintf(fgo2, "\n")
