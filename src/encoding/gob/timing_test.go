@@ -289,7 +289,7 @@ func BenchmarkDecodeInterfaceSlice(b *testing.B) {
 }
 
 func BenchmarkDecodeMap(b *testing.B) {
-	count := 10000
+	count := 1000
 	m := make(map[int]int, count)
 	for i := 0; i < count; i++ {
 		m[i] = i
@@ -303,7 +303,7 @@ func BenchmarkDecodeMap(b *testing.B) {
 	bbuf := benchmarkBuf{data: buf.Bytes()}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rm := make(map[int]int, 0)
+		var rm map[int]int
 		bbuf.reset()
 		dec := NewDecoder(&bbuf)
 		err := dec.Decode(&rm)
