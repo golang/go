@@ -49,16 +49,7 @@ type Sig struct {
 	offset int32
 }
 
-// byMethodNameAndPackagePath sorts method signatures by name, then package path.
-type byMethodNameAndPackagePath []*Sig
-
-func (x byMethodNameAndPackagePath) Len() int      { return len(x) }
-func (x byMethodNameAndPackagePath) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x byMethodNameAndPackagePath) Less(i, j int) bool {
-	return siglt(x[i], x[j])
-}
-
-// siglt reports whether a < b
+// siglt sorts method signatures by name, then package path.
 func siglt(a, b *Sig) bool {
 	if a.name != b.name {
 		return a.name < b.name
@@ -382,7 +373,7 @@ func methods(t *types.Type) []*Sig {
 		}
 	}
 
-	sort.Sort(byMethodNameAndPackagePath(ms))
+	obj.SortSlice(ms, func(i, j int) bool { return siglt(ms[i], ms[j]) })
 	return ms
 }
 

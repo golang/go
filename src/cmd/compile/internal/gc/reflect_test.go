@@ -6,12 +6,12 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"reflect"
-	"sort"
 	"testing"
 )
 
-func TestSortingByMethodNameAndPackagePath(t *testing.T) {
+func TestSortingBySigLT(t *testing.T) {
 	data := []*Sig{
 		&Sig{name: "b", pkg: &types.Pkg{Path: "abc"}},
 		&Sig{name: "b", pkg: nil},
@@ -38,11 +38,10 @@ func TestSortingByMethodNameAndPackagePath(t *testing.T) {
 	if reflect.DeepEqual(data, want) {
 		t.Fatal("data must be shuffled")
 	}
-	sort.Sort(byMethodNameAndPackagePath(data))
+	obj.SortSlice(data, func(i, j int) bool { return siglt(data[i], data[j]) })
 	if !reflect.DeepEqual(data, want) {
 		t.Logf("want: %#v", want)
 		t.Logf("data: %#v", data)
 		t.Errorf("sorting failed")
 	}
-
 }
