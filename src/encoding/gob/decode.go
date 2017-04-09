@@ -557,11 +557,10 @@ func decodeIntoValue(state *decoderState, op decOp, isPtr bool, value reflect.Va
 // Because the internals of maps are not visible to us, we must
 // use reflection rather than pointer magic.
 func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value reflect.Value, keyOp, elemOp decOp, ovfl error) {
-	if value.IsNil() {
-		// Allocate map.
-		value.Set(reflect.MakeMap(mtyp))
-	}
 	n := int(state.decodeUint())
+	if value.IsNil() {
+		value.Set(reflect.MakeMapWithSize(mtyp, n))
+	}
 	keyIsPtr := mtyp.Key().Kind() == reflect.Ptr
 	elemIsPtr := mtyp.Elem().Kind() == reflect.Ptr
 	keyInstr := &decInstr{keyOp, 0, nil, ovfl}
