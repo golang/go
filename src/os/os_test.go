@@ -1451,6 +1451,26 @@ func TestReadAtOffset(t *testing.T) {
 	}
 }
 
+// Verify that ReadAt doesn't allow negative offset.
+func TestReadAtNegativeOffset(t *testing.T) {
+	f := newFile("TestReadAtNegativeOffset", t)
+	defer Remove(f.Name())
+	defer f.Close()
+
+	const data = "hello, world\n"
+	io.WriteString(f, data)
+
+	f.Seek(0, 0)
+	b := make([]byte, 5)
+
+	n, err := f.ReadAt(b, -10)
+
+	const wantsub = "negative offset"
+	if !strings.Contains(fmt.Sprint(err), wantsub) || n != 0 {
+		t.Errorf("ReadAt(-10) = %v, %v; want 0, ...%q...", n, err, wantsub)
+	}
+}
+
 func TestWriteAt(t *testing.T) {
 	f := newFile("TestWriteAt", t)
 	defer Remove(f.Name())
@@ -1470,6 +1490,20 @@ func TestWriteAt(t *testing.T) {
 	}
 	if string(b) != "hello, WORLD\n" {
 		t.Fatalf("after write: have %q want %q", string(b), "hello, WORLD\n")
+	}
+}
+
+// Verify that WriteAt doesn't allow negative offset.
+func TestWriteAtNegativeOffset(t *testing.T) {
+	f := newFile("TestWriteAtNegativeOffset", t)
+	defer Remove(f.Name())
+	defer f.Close()
+
+	n, err := f.WriteAt([]byte("WORLD"), -10)
+
+	const wantsub = "negative offset"
+	if !strings.Contains(fmt.Sprint(err), wantsub) || n != 0 {
+		t.Errorf("WriteAt(-10) = %v, %v; want 0, ...%q...", n, err, wantsub)
 	}
 }
 
