@@ -457,10 +457,8 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 		}
 	}
 
-	// Apple's LLVM-based gcc does not include the enumeration
-	// names and values in its DWARF debug output. In case we're
-	// using such a gcc, create a data block initialized with the values.
-	// We can read them out of the object file.
+	// We create a data block initialized with the values,
+	// so we can read them out of the object file.
 	fmt.Fprintf(&b, "long long __cgodebug_ints[] = {\n")
 	for _, n := range names {
 		if n.Kind == "iconst" {
@@ -493,7 +491,6 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 
 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
 	types := make([]dwarf.Type, len(names))
-	enums := make([]dwarf.Offset, len(names))
 	nameToIndex := make(map[*Name]int)
 	for i, n := range names {
 		nameToIndex[n] = i
@@ -512,26 +509,6 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			break
 		}
 		switch e.Tag {
-		case dwarf.TagEnumerationType:
-			offset := e.Offset
-			for {
-				e, err := r.Next()
-				if err != nil {
-					fatalf("reading DWARF entry: %s", err)
-				}
-				if e.Tag == 0 {
-					break
-				}
-				if e.Tag == dwarf.TagEnumerator {
-					entryName := e.Val(dwarf.AttrName).(string)
-					if strings.HasPrefix(entryName, "__cgo_enum__") {
-						n, _ := strconv.Atoi(entryName[len("__cgo_enum__"):])
-						if 0 <= n && n < len(names) {
-							enums[n] = offset
-						}
-					}
-				}
-			}
 		case dwarf.TagVariable:
 			name, _ := e.Val(dwarf.AttrName).(string)
 			typOff, _ := e.Val(dwarf.AttrType).(dwarf.Offset)
@@ -558,15 +535,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			if err != nil {
 				fatalf("malformed __cgo__ name: %s", name)
 			}
-			if enums[i] != 0 {
-				t, err := d.Type(enums[i])
-				if err != nil {
-					fatalf("loading DWARF type: %s", err)
-				}
-				types[i] = t
-			} else {
-				types[i] = t.Type
-			}
+			types[i] = t.Type
 		}
 		if e.Tag != dwarf.TagCompileUnit {
 			r.SkipChildren()
@@ -590,15 +559,6 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			n.FuncType = conv.FuncType(f, pos)
 		} else {
 			n.Type = conv.Type(types[i], pos)
-			if enums[i] != 0 && n.Type.EnumValues != nil {
-				k := fmt.Sprintf("__cgo_enum__%d", i)
-				n.Kind = "iconst"
-				n.Const = fmt.Sprintf("%#x", n.Type.EnumValues[k])
-				// Remove injected enum to ensure the value will deep-compare
-				// equally in future loads of the same constant.
-				delete(n.Type.EnumValues, k)
-			}
-			// Prefer debug data over DWARF debug output, if we have it.
 			switch n.Kind {
 			case "iconst":
 				if i < len(ints) {
