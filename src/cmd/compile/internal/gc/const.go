@@ -815,6 +815,9 @@ func evconst(n *Node) {
 	// check for compatible general types (numeric, string, etc)
 	if wl != wr {
 		if wl == TINTER || wr == TINTER {
+			if n.Op == ONE {
+				goto settrue
+			}
 			goto setfalse
 		}
 		goto illegal
