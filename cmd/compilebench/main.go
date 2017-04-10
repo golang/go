@@ -9,7 +9,7 @@
 //	compilebench [options]
 //
 // It times the compilation of various packages and prints results in
-// the format used by package testing (and expected by rsc.io/benchstat).
+// the format used by package testing (and expected by golang.org/x/perf/cmd/benchstat).
 //
 // The options are:
 //
