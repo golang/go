@@ -194,13 +194,7 @@ func genhash(sym *types.Sym, t *types.Type) {
 	types.Markdcl(lineno)
 
 	// func sym(p *T, h uintptr) uintptr
-	fn := nod(ODCLFUNC, nil, nil)
-
-	fn.Func.Nname = newname(sym)
-	fn.Func.Nname.Class = PFUNC
 	tfn := nod(OTFUNC, nil, nil)
-	fn.Func.Nname.Name.Param.Ntype = tfn
-
 	n := namedfield("p", types.NewPtr(t))
 	tfn.List.Append(n)
 	np := n.Left
@@ -210,8 +204,7 @@ func genhash(sym *types.Sym, t *types.Type) {
 	n = anonfield(types.Types[TUINTPTR]) // return value
 	tfn.Rlist.Append(n)
 
-	funchdr(fn)
-	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
+	fn := dclfunc(sym, tfn)
 
 	// genhash is only called for types that have equality but
 	// cannot be handled by the standard algorithms,
@@ -372,13 +365,7 @@ func geneq(sym *types.Sym, t *types.Type) {
 	types.Markdcl(lineno)
 
 	// func sym(p, q *T) bool
-	fn := nod(ODCLFUNC, nil, nil)
-
-	fn.Func.Nname = newname(sym)
-	fn.Func.Nname.Class = PFUNC
 	tfn := nod(OTFUNC, nil, nil)
-	fn.Func.Nname.Name.Param.Ntype = tfn
-
 	n := namedfield("p", types.NewPtr(t))
 	tfn.List.Append(n)
 	np := n.Left
@@ -388,8 +375,7 @@ func geneq(sym *types.Sym, t *types.Type) {
 	n = anonfield(types.Types[TBOOL])
 	tfn.Rlist.Append(n)
 
-	funchdr(fn)
-	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
+	fn := dclfunc(sym, tfn)
 
 	// geneq is only called for types that have equality but
 	// cannot be handled by the standard algorithms,

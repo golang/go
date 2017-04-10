@@ -86,13 +86,8 @@ func fninit(n []*Node) {
 	addvar(gatevar, types.Types[TUINT8], PEXTERN)
 
 	// (2)
-	fn := nod(ODCLFUNC, nil, nil)
 	initsym := lookup("init")
-	fn.Func.Nname = newname(initsym)
-	fn.Func.Nname.Name.Defn = fn
-	fn.Func.Nname.Name.Param.Ntype = nod(OTFUNC, nil, nil)
-	declare(fn.Func.Nname, PFUNC)
-	funchdr(fn)
+	fn := dclfunc(initsym, nod(OTFUNC, nil, nil))
 
 	// (3)
 	a := nod(OIF, nil, nil)

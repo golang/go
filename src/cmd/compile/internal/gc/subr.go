@@ -1710,14 +1710,9 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 	t.List.Set(append(l, in...))
 	t.Rlist.Set(out)
 
-	fn := nod(ODCLFUNC, nil, nil)
+	fn := dclfunc(newnam, t)
 	fn.Func.SetDupok(true)
-	fn.Func.Nname = newname(newnam)
-	fn.Func.Nname.Name.Defn = fn
-	fn.Func.Nname.Name.Param.Ntype = t
 	fn.Func.Nname.Sym.SetExported(true) // prevent export; see closure.go
-	declare(fn.Func.Nname, PFUNC)
-	funchdr(fn)
 
 	// arg list
 	var args []*Node
