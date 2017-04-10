@@ -656,6 +656,108 @@ func testCopy1041() {
 	}
 }
 
+//go:noinline
+func tu2copy_ssa(docopy bool, data [2]byte, x *[2]byte) {
+	if docopy {
+		*x = data
+	}
+}
+func testUnalignedCopy2() {
+	var a [2]byte
+	t2 := [2]byte{2, 3}
+	tu2copy_ssa(true, t2, &a)
+	want2 := [2]byte{2, 3}
+	if a != want2 {
+		fmt.Printf("tu2copy got=%v, want %v\n", a, want2)
+		failed = true
+	}
+}
+
+//go:noinline
+func tu3copy_ssa(docopy bool, data [3]byte, x *[3]byte) {
+	if docopy {
+		*x = data
+	}
+}
+func testUnalignedCopy3() {
+	var a [3]byte
+	t3 := [3]byte{3, 4, 5}
+	tu3copy_ssa(true, t3, &a)
+	want3 := [3]byte{3, 4, 5}
+	if a != want3 {
+		fmt.Printf("tu3copy got=%v, want %v\n", a, want3)
+		failed = true
+	}
+}
+
+//go:noinline
+func tu4copy_ssa(docopy bool, data [4]byte, x *[4]byte) {
+	if docopy {
+		*x = data
+	}
+}
+func testUnalignedCopy4() {
+	var a [4]byte
+	t4 := [4]byte{4, 5, 6, 7}
+	tu4copy_ssa(true, t4, &a)
+	want4 := [4]byte{4, 5, 6, 7}
+	if a != want4 {
+		fmt.Printf("tu4copy got=%v, want %v\n", a, want4)
+		failed = true
+	}
+}
+
+//go:noinline
+func tu5copy_ssa(docopy bool, data [5]byte, x *[5]byte) {
+	if docopy {
+		*x = data
+	}
+}
+func testUnalignedCopy5() {
+	var a [5]byte
+	t5 := [5]byte{5, 6, 7, 8, 9}
+	tu5copy_ssa(true, t5, &a)
+	want5 := [5]byte{5, 6, 7, 8, 9}
+	if a != want5 {
+		fmt.Printf("tu5copy got=%v, want %v\n", a, want5)
+		failed = true
+	}
+}
+
+//go:noinline
+func tu6copy_ssa(docopy bool, data [6]byte, x *[6]byte) {
+	if docopy {
+		*x = data
+	}
+}
+func testUnalignedCopy6() {
+	var a [6]byte
+	t6 := [6]byte{6, 7, 8, 9, 10, 11}
+	tu6copy_ssa(true, t6, &a)
+	want6 := [6]byte{6, 7, 8, 9, 10, 11}
+	if a != want6 {
+		fmt.Printf("tu6copy got=%v, want %v\n", a, want6)
+		failed = true
+	}
+}
+
+//go:noinline
+func tu7copy_ssa(docopy bool, data [7]byte, x *[7]byte) {
+	if docopy {
+		*x = data
+	}
+}
+func testUnalignedCopy7() {
+	var a [7]byte
+	t7 := [7]byte{7, 8, 9, 10, 11, 12, 13}
+	tu7copy_ssa(true, t7, &a)
+	want7 := [7]byte{7, 8, 9, 10, 11, 12, 13}
+	if a != want7 {
+		fmt.Printf("tu7copy got=%v, want %v\n", a, want7)
+		failed = true
+	}
+}
+
 var failed bool
 
 func main() {
@@ -690,6 +792,12 @@ func main() {
 	testCopy1039()
 	testCopy1040()
 	testCopy1041()
+	testUnalignedCopy2()
+	testUnalignedCopy3()
+	testUnalignedCopy4()
+	testUnalignedCopy5()
+	testUnalignedCopy6()
+	testUnalignedCopy7()
 	if failed {
 		panic("failed")
 	}

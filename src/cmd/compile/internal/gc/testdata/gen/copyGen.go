@@ -20,6 +20,8 @@ import (
 
 var sizes = [...]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 23, 24, 25, 31, 32, 33, 63, 64, 65, 1023, 1024, 1025, 1024 + 7, 1024 + 8, 1024 + 9, 1024 + 15, 1024 + 16, 1024 + 17}
 
+var usizes = [...]int{2, 3, 4, 5, 6, 7}
+
 func main() {
 	w := new(bytes.Buffer)
 	fmt.Fprintf(w, "// run\n")
@@ -66,11 +68,44 @@ func main() {
 		fmt.Fprintf(w, "}\n")
 	}
 
+	for _, s := range usizes {
+		// function being tested
+		fmt.Fprintf(w, "//go:noinline\n")
+		fmt.Fprintf(w, "func tu%dcopy_ssa(docopy bool, data [%d]byte, x *[%d]byte) {\n", s, s, s)
+		fmt.Fprintf(w, "  if docopy {\n")
+		fmt.Fprintf(w, "    *x = data\n")
+		fmt.Fprintf(w, "  }\n")
+		fmt.Fprintf(w, "}\n")
+
+		// testing harness
+		fmt.Fprintf(w, "func testUnalignedCopy%d() {\n", s)
+		fmt.Fprintf(w, "  var a [%d]byte\n", s)
+		fmt.Fprintf(w, "  t%d := [%d]byte{", s, s)
+		for i := 0; i < s; i++ {
+			fmt.Fprintf(w, " %d,", s+i)
+		}
+		fmt.Fprintf(w, "}\n")
+		fmt.Fprintf(w, "  tu%dcopy_ssa(true, t%d, &a)\n", s, s)
+		fmt.Fprintf(w, "  want%d := [%d]byte{", s, s)
+		for i := 0; i < s; i++ {
+			fmt.Fprintf(w, " %d,", s+i)
+		}
+		fmt.Fprintf(w, "}\n")
+		fmt.Fprintf(w, "  if a != want%d {\n", s)
+		fmt.Fprintf(w, "    fmt.Printf(\"tu%dcopy got=%%v, want %%v\\n\", a, want%d)\n", s, s)
+		fmt.Fprintf(w, "    failed=true\n")
+		fmt.Fprintf(w, "  }\n")
+		fmt.Fprintf(w, "}\n")
+	}
+
 	// boilerplate at end
 	fmt.Fprintf(w, "var failed bool\n")
 	fmt.Fprintf(w, "func main() {\n")
 	for _, s := range sizes {
 		fmt.Fprintf(w, "  testCopy%d()\n", s)
+	}
+	for _, s := range usizes {
+		fmt.Fprintf(w, "  testUnalignedCopy%d()\n", s)
 	}
 	fmt.Fprintf(w, "  if failed {\n")
 	fmt.Fprintf(w, "    panic(\"failed\")\n")
