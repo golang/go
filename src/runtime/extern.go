@@ -166,33 +166,26 @@ import "runtime/internal/sys"
 // program counter, file name, and line number within the file of the corresponding
 // call. The boolean ok is false if it was not possible to recover the information.
 func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
-	// Ask for two PCs: the one we were asked for
-	// and what it called, so that we can see if it
-	// "called" sigpanic.
-	var rpc [2]uintptr
+	// Make room for three PCs: the one we were asked for,
+	// what it called, so that CallersFrames can see if it "called"
+	// sigpanic, and possibly a PC for skipPleaseUseCallersFrames.
+	var rpc [3]uintptr
 	if callers(1+skip-1, rpc[:]) < 2 {
 		return
 	}
-	f := findfunc(rpc[1])
-	if !f.valid() {
-		// TODO(rsc): Probably a bug?
-		// The C version said "have retpc at least"
-		// but actually returned pc=0.
-		ok = true
+	var stackExpander stackExpander
+	callers := stackExpander.init(rpc[:])
+	// We asked for one extra, so skip that one. If this is sigpanic,
+	// stepping over this frame will set up state in Frames so the
+	// next frame is correct.
+	callers, _, ok = stackExpander.next(callers)
+	if !ok {
 		return
 	}
-	pc = rpc[1]
-	xpc := pc
-	g := findfunc(rpc[0])
-	// All architectures turn faults into apparent calls to sigpanic.
-	// If we see a call to sigpanic, we do not back up the PC to find
-	// the line number of the call instruction, because there is no call.
-	if xpc > f.entry && (!g.valid() || g.entry != funcPC(sigpanic)) {
-		xpc--
-	}
-	file, line32 := funcline(f, xpc)
-	line = int(line32)
-	ok = true
+	_, frame, _ := stackExpander.next(callers)
+	pc = frame.PC
+	file = frame.File
+	line = frame.Line
 	return
 }
 
