@@ -3652,17 +3652,12 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
 		printargs = append(printargs, a.Left)
 	}
 
-	fn := nod(ODCLFUNC, nil, nil)
-	walkprintfunc_prgen++
-	buf = fmt.Sprintf("print·%d", walkprintfunc_prgen)
-	fn.Func.Nname = newname(lookup(buf))
-	fn.Func.Nname.Name.Defn = fn
-	fn.Func.Nname.Name.Param.Ntype = t
-	declare(fn.Func.Nname, PFUNC)
-
 	oldfn := Curfn
 	Curfn = nil
-	funchdr(fn)
+
+	walkprintfunc_prgen++
+	sym := lookupN("print·%d", walkprintfunc_prgen)
+	fn := dclfunc(sym, t)
 
 	a = nod(n.Op, nil, nil)
 	a.List.Set(printargs)

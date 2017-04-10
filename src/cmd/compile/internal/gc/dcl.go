@@ -1100,6 +1100,21 @@ func makefuncsym(s *types.Sym) {
 	}
 }
 
+func dclfunc(sym *types.Sym, tfn *Node) *Node {
+	if tfn.Op != OTFUNC {
+		Fatalf("expected OTFUNC node, got %v", tfn)
+	}
+
+	fn := nod(ODCLFUNC, nil, nil)
+	fn.Func.Nname = newname(sym)
+	fn.Func.Nname.Name.Defn = fn
+	fn.Func.Nname.Name.Param.Ntype = tfn
+	declare(fn.Func.Nname, PFUNC)
+	funchdr(fn)
+	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
+	return fn
+}
+
 type nowritebarrierrecChecker struct {
 	curfn  *Node
 	stable bool
