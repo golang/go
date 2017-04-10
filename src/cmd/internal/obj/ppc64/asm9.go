@@ -564,13 +564,13 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Diag("ppc64 ops not initialized, call ppc64.buildop first")
 	}
 
-	c := int64(0)
-	p.Pc = c
+	pc := int64(0)
+	p.Pc = pc
 
 	var m int
 	var o *Optab
 	for p = p.Link; p != nil; p = p.Link {
-		p.Pc = c
+		p.Pc = pc
 		o = oplook(ctxt, p)
 		m = int(o.size)
 		if m == 0 {
@@ -580,10 +580,10 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			continue
 		}
 
-		c += int64(m)
+		pc += int64(m)
 	}
 
-	cursym.Size = c
+	cursym.Size = pc
 
 	/*
 	 * if any procedure is large enough to
@@ -597,14 +597,14 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var q *obj.Prog
 	for bflag != 0 {
 		bflag = 0
-		c = 0
+		pc = 0
 		for p = cursym.Text.Link; p != nil; p = p.Link {
-			p.Pc = c
+			p.Pc = pc
 			o = oplook(ctxt, p)
 
 			// very large conditional branches
 			if (o.type_ == 16 || o.type_ == 17) && p.Pcond != nil {
-				otxt = p.Pcond.Pc - c
+				otxt = p.Pcond.Pc - pc
 				if otxt < -(1<<15)+10 || otxt >= (1<<15)-10 {
 					q = newprog()
 					q.Link = p.Link
@@ -634,14 +634,14 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				continue
 			}
 
-			c += int64(m)
+			pc += int64(m)
 		}
 
-		cursym.Size = c
+		cursym.Size = pc
 	}
 
-	c += -c & (funcAlign - 1)
-	cursym.Size = c
+	pc += -pc & (funcAlign - 1)
+	cursym.Size = pc
 
 	/*
 	 * lay out the code, emitting code and data relocations.
