@@ -558,8 +558,8 @@ func ambiguityError(fset *token.FileSet, objects []types.Object) error {
 			buf.WriteString(", ")
 		}
 		posn := fset.Position(obj.Pos())
-		fmt.Fprintf(&buf, "%s at %s:%d",
-			objectKind(obj), filepath.Base(posn.Filename), posn.Column)
+		fmt.Fprintf(&buf, "%s at %s:%d:%d",
+			objectKind(obj), filepath.Base(posn.Filename), posn.Line, posn.Column)
 	}
 	return fmt.Errorf("ambiguous specifier %s matches %s",
 		objects[0].Name(), buf.String())
