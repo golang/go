@@ -203,7 +203,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 	case ErrClosing, ErrTimeout:
 		// will deal with those.
 	default:
-		panic("net: unexpected runtime.netpoll error: " + netpollErr.Error())
+		panic("unexpected runtime.netpoll error: " + netpollErr.Error())
 	}
 	// Cancel our request.
 	if canCancelIO {
