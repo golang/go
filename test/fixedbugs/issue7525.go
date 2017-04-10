@@ -11,9 +11,7 @@ package main
 import "unsafe"
 
 var x struct {
-	a [unsafe.Sizeof(x.a)]int // ERROR "array bound|typechecking loop|invalid expression"
+	a [unsafe.Sizeof(x.a)]int   // ERROR "array bound|typechecking loop|invalid expression"
 	b [unsafe.Offsetof(x.b)]int // ERROR "array bound"
-	c [unsafe.Alignof(x.c)]int // ERROR "array bound|invalid expression"
-	d [len(x.d)]int // ERROR "array bound|invalid array"
-	e [cap(x.e)]int // ERROR "array bound|invalid array"
+	c [unsafe.Alignof(x.c)]int  // ERROR "array bound|invalid expression"
 }
