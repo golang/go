@@ -176,6 +176,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		},
 	}
 	prog.To.Val = int32(argSize)
+	p.ctxt.InitTextSym(prog)
 
 	p.append(prog, "", true)
 }
