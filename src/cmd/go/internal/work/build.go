@@ -2499,21 +2499,32 @@ func (gcToolchain) cc(b *Builder, p *load.Package, objdir, ofile, cfile string) 
 type gccgoToolchain struct{}
 
 var GccgoName, GccgoBin string
+var gccgoErr error
 
 func init() {
 	GccgoName = os.Getenv("GCCGO")
 	if GccgoName == "" {
 		GccgoName = "gccgo"
 	}
-	GccgoBin, _ = exec.LookPath(GccgoName)
+	GccgoBin, gccgoErr = exec.LookPath(GccgoName)
 }
 
 func (gccgoToolchain) compiler() string {
+	checkGccgoBin()
 	return GccgoBin
 }
 
 func (gccgoToolchain) linker() string {
+	checkGccgoBin()
 	return GccgoBin
+}
+
+func checkGccgoBin() {
+	if gccgoErr == nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "cmd/go: gccgo: %s\n", gccgoErr)
+	os.Exit(2)
 }
 
 func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
