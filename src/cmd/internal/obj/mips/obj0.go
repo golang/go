@@ -38,6 +38,8 @@ import (
 )
 
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+	c := ctxt0{ctxt: ctxt, newprog: newprog}
+
 	p.From.Class = 0
 	p.To.Class = 0
 
@@ -73,7 +75,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case AMOVD:
 		if p.From.Type == obj.TYPE_FCONST {
 			f64 := p.From.Val.(float64)
-			if math.Float64bits(f64) == 0 && ctxt.Arch.Family == sys.MIPS64 {
+			if math.Float64bits(f64) == 0 && c.ctxt.Arch.Family == sys.MIPS64 {
 				p.As = AMOVV
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REGZERO
@@ -125,20 +127,20 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// TODO(minux): add morestack short-cuts with small fixed frame-size.
-	ctxt.Cursym = cursym
+	c := ctxt0{ctxt: ctxt, newprog: newprog, cursym: cursym}
 
 	// a switch for enabling/disabling instruction scheduling
 	nosched := true
 
-	if cursym.Text == nil || cursym.Text.Link == nil {
+	if c.cursym.Text == nil || c.cursym.Text.Link == nil {
 		return
 	}
 
-	p := cursym.Text
+	p := c.cursym.Text
 	textstksiz := p.To.Offset
 
-	cursym.Args = p.To.Val.(int32)
-	cursym.Locals = int32(textstksiz)
+	c.cursym.Args = p.To.Val.(int32)
+	c.cursym.Locals = int32(textstksiz)
 
 	/*
 	 * find leaf subroutines
@@ -149,7 +151,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	var q *obj.Prog
 	var q1 *obj.Prog
-	for p := cursym.Text; p != nil; p = p.Link {
+	for p := c.cursym.Text; p != nil; p = p.Link {
 		switch p.As {
 		/* too hard, just leave alone */
 		case obj.ATEXT:
@@ -195,7 +197,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			AJAL,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
-			cursym.Text.Mark &^= LEAF
+			c.cursym.Text.Mark &^= LEAF
 			fallthrough
 
 		case AJMP,
@@ -260,7 +262,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	var mov, add obj.As
-	if ctxt.Arch.Family == sys.MIPS64 {
+	if c.ctxt.Arch.Family == sys.MIPS64 {
 		add = AADDV
 		mov = AMOVV
 	} else {
@@ -271,21 +273,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	autosize := int32(0)
 	var p1 *obj.Prog
 	var p2 *obj.Prog
-	for p := cursym.Text; p != nil; p = p.Link {
+	for p := c.cursym.Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
 		case obj.ATEXT:
 			autosize = int32(textstksiz + ctxt.FixedFrameSize())
 			if (p.Mark&LEAF != 0) && autosize <= int32(ctxt.FixedFrameSize()) {
 				autosize = 0
-			} else if autosize&4 != 0 && ctxt.Arch.Family == sys.MIPS64 {
+			} else if autosize&4 != 0 && c.ctxt.Arch.Family == sys.MIPS64 {
 				autosize += 4
 			}
 
 			p.To.Offset = int64(autosize) - ctxt.FixedFrameSize()
 
 			if p.From3.Offset&obj.NOSPLIT == 0 {
-				p = stacksplit(ctxt, p, newprog, autosize) // emit split check
+				p = c.stacksplit(p, autosize) // emit split check
 			}
 
 			q = p
@@ -313,22 +315,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGSP
 				q.Spadj = +autosize
-			} else if cursym.Text.Mark&LEAF == 0 {
-				if cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
+			} else if c.cursym.Text.Mark&LEAF == 0 {
+				if c.cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
 					if ctxt.Debugvlog {
-						ctxt.Logf("save suppressed in: %s\n", cursym.Name)
+						ctxt.Logf("save suppressed in: %s\n", c.cursym.Name)
 					}
 
-					cursym.Text.Mark |= LEAF
+					c.cursym.Text.Mark |= LEAF
 				}
 			}
 
-			if cursym.Text.Mark&LEAF != 0 {
-				cursym.Set(obj.AttrLeaf, true)
+			if c.cursym.Text.Mark&LEAF != 0 {
+				c.cursym.Set(obj.AttrLeaf, true)
 				break
 			}
 
-			if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
+			if c.cursym.Text.From3.Offset&obj.WRAPPER != 0 {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOV	g_panic(g), R1
@@ -349,7 +351,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.As = mov
 				q.From.Type = obj.TYPE_MEM
 				q.From.Reg = REGG
-				q.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // G.panic
+				q.From.Offset = 4 * int64(c.ctxt.Arch.PtrSize) // G.panic
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R1
 
@@ -419,7 +421,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.To.Name = obj.NAME_NONE // clear fields as we may modify p to other instruction
 			p.To.Sym = nil
 
-			if cursym.Text.Mark&LEAF != 0 {
+			if c.cursym.Text.Mark&LEAF != 0 {
 				if autosize == 0 {
 					p.As = AJMP
 					p.From = obj.Addr{}
@@ -443,7 +445,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.To.Reg = REGSP
 				p.Spadj = -autosize
 
-				q = newprog()
+				q = c.newprog()
 				q.As = AJMP
 				q.Pos = p.Pos
 				q.To.Type = obj.TYPE_MEM
@@ -468,7 +470,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			if autosize != 0 {
-				q = newprog()
+				q = c.newprog()
 				q.As = add
 				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_CONST
@@ -481,7 +483,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.Link = q
 			}
 
-			q1 = newprog()
+			q1 = c.newprog()
 			q1.As = AJMP
 			q1.Pos = p.Pos
 			if retSym != nil { // retjmp
@@ -509,9 +511,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	if ctxt.Arch.Family == sys.MIPS {
+	if c.ctxt.Arch.Family == sys.MIPS {
 		// rewrite MOVD into two MOVF in 32-bit mode to avoid unaligned memory access
-		for p = cursym.Text; p != nil; p = p1 {
+		for p = c.cursym.Text; p != nil; p = p1 {
 			p1 = p.Link
 
 			if p.As != AMOVD {
@@ -522,14 +524,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			p.As = AMOVF
-			q = newprog()
+			q = c.newprog()
 			*q = *p
 			q.Link = p.Link
 			p.Link = q
 			p1 = q.Link
 
 			var regOff int16
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if c.ctxt.Arch.ByteOrder == binary.BigEndian {
 				regOff = 1 // load odd register first
 			}
 			if p.From.Type == obj.TYPE_MEM {
@@ -549,24 +551,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if nosched {
 		// if we don't do instruction scheduling, simply add
 		// NOP after each branch instruction.
-		for p = cursym.Text; p != nil; p = p.Link {
+		for p = c.cursym.Text; p != nil; p = p.Link {
 			if p.Mark&BRANCH != 0 {
-				addnop(ctxt, p, newprog)
+				c.addnop(p)
 			}
 		}
 		return
 	}
 
 	// instruction scheduling
-	q = nil          // p - 1
-	q1 = cursym.Text // top of block
-	o := 0           // count of instructions
-	for p = cursym.Text; p != nil; p = p1 {
+	q = nil            // p - 1
+	q1 = c.cursym.Text // top of block
+	o := 0             // count of instructions
+	for p = c.cursym.Text; p != nil; p = p1 {
 		p1 = p.Link
 		o++
 		if p.Mark&NOSCHED != 0 {
 			if q1 != p {
-				sched(ctxt, newprog, q1, q)
+				c.sched(q1, q)
 			}
 			for ; p != nil; p = p.Link {
 				if p.Mark&NOSCHED == 0 {
@@ -581,18 +583,18 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 		if p.Mark&(LABEL|SYNC) != 0 {
 			if q1 != p {
-				sched(ctxt, newprog, q1, q)
+				c.sched(q1, q)
 			}
 			q1 = p
 			o = 1
 		}
 		if p.Mark&(BRANCH|SYNC) != 0 {
-			sched(ctxt, newprog, q1, p)
+			c.sched(q1, p)
 			q1 = p1
 			o = 0
 		}
 		if o >= NSCHED {
-			sched(ctxt, newprog, q1, p)
+			c.sched(q1, p)
 			q1 = p1
 			o = 0
 		}
@@ -600,7 +602,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 }
 
-func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize int32) *obj.Prog {
+func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	// Leaf function with no frame is effectively NOSPLIT.
 	if framesize == 0 {
 		return p
@@ -608,7 +610,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 
 	var mov, add, sub obj.As
 
-	if ctxt.Arch.Family == sys.MIPS64 {
+	if c.ctxt.Arch.Family == sys.MIPS64 {
 		add = AADDV
 		mov = AMOVV
 		sub = ASUBVU
@@ -619,14 +621,14 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 	}
 
 	// MOV	g_stackguard(g), R1
-	p = obj.Appendp(p, newprog)
+	p = obj.Appendp(p, c.newprog)
 
 	p.As = mov
 	p.From.Type = obj.TYPE_MEM
 	p.From.Reg = REGG
-	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
-	if ctxt.Cursym.CFunc() {
-		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+	p.From.Offset = 2 * int64(c.ctxt.Arch.PtrSize) // G.stackguard0
+	if c.cursym.CFunc() {
+		p.From.Offset = 3 * int64(c.ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R1
@@ -635,7 +637,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 	if framesize <= obj.StackSmall {
 		// small stack: SP < stackguard
 		//	AGTU	SP, stackguard, R1
-		p = obj.Appendp(p, newprog)
+		p = obj.Appendp(p, c.newprog)
 
 		p.As = ASGTU
 		p.From.Type = obj.TYPE_REG
@@ -647,7 +649,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	ADD	$-(framesize-StackSmall), SP, R2
 		//	SGTU	R2, stackguard, R1
-		p = obj.Appendp(p, newprog)
+		p = obj.Appendp(p, c.newprog)
 
 		p.As = add
 		p.From.Type = obj.TYPE_CONST
@@ -656,7 +658,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
-		p = obj.Appendp(p, newprog)
+		p = obj.Appendp(p, c.newprog)
 		p.As = ASGTU
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R2
@@ -679,7 +681,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 		//	SUB	R1, R2
 		//	MOV	$(framesize+(StackGuard-StackSmall)), R1
 		//	SGTU	R2, R1, R1
-		p = obj.Appendp(p, newprog)
+		p = obj.Appendp(p, c.newprog)
 
 		p.As = mov
 		p.From.Type = obj.TYPE_CONST
@@ -687,7 +689,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
-		p = obj.Appendp(p, newprog)
+		p = obj.Appendp(p, c.newprog)
 		q = p
 		p.As = ABEQ
 		p.From.Type = obj.TYPE_REG
@@ -696,7 +698,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 		p.To.Type = obj.TYPE_BRANCH
 		p.Mark |= BRANCH
 
-		p = obj.Appendp(p, newprog)
+		p = obj.Appendp(p, c.newprog)
 		p.As = add
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = obj.StackGuard
@@ -704,21 +706,21 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
-		p = obj.Appendp(p, newprog)
+		p = obj.Appendp(p, c.newprog)
 		p.As = sub
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
-		p = obj.Appendp(p, newprog)
+		p = obj.Appendp(p, c.newprog)
 		p.As = mov
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(framesize) + obj.StackGuard - obj.StackSmall
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R1
 
-		p = obj.Appendp(p, newprog)
+		p = obj.Appendp(p, c.newprog)
 		p.As = ASGTU
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R2
@@ -728,7 +730,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 	}
 
 	// q1: BNE	R1, done
-	p = obj.Appendp(p, newprog)
+	p = obj.Appendp(p, c.newprog)
 	q1 := p
 
 	p.As = ABNE
@@ -738,7 +740,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 	p.Mark |= BRANCH
 
 	// MOV	LINK, R3
-	p = obj.Appendp(p, newprog)
+	p = obj.Appendp(p, c.newprog)
 
 	p.As = mov
 	p.From.Type = obj.TYPE_REG
@@ -751,29 +753,29 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 	}
 
 	// JAL	runtime.morestack(SB)
-	p = obj.Appendp(p, newprog)
+	p = obj.Appendp(p, c.newprog)
 
 	p.As = AJAL
 	p.To.Type = obj.TYPE_BRANCH
-	if ctxt.Cursym.CFunc() {
-		p.To.Sym = ctxt.Lookup("runtime.morestackc", 0)
-	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
-		p.To.Sym = ctxt.Lookup("runtime.morestack_noctxt", 0)
+	if c.cursym.CFunc() {
+		p.To.Sym = c.ctxt.Lookup("runtime.morestackc", 0)
+	} else if c.cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt", 0)
 	} else {
-		p.To.Sym = ctxt.Lookup("runtime.morestack", 0)
+		p.To.Sym = c.ctxt.Lookup("runtime.morestack", 0)
 	}
 	p.Mark |= BRANCH
 
 	// JMP	start
-	p = obj.Appendp(p, newprog)
+	p = obj.Appendp(p, c.newprog)
 
 	p.As = AJMP
 	p.To.Type = obj.TYPE_BRANCH
-	p.Pcond = ctxt.Cursym.Text.Link
+	p.Pcond = c.cursym.Text.Link
 	p.Mark |= BRANCH
 
 	// placeholder for q1's jump target
-	p = obj.Appendp(p, newprog)
+	p = obj.Appendp(p, c.newprog)
 
 	p.As = obj.ANOP // zero-width place holder
 	q1.Pcond = p
@@ -781,8 +783,8 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
 	return p
 }
 
-func addnop(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
-	q := newprog()
+func (c *ctxt0) addnop(p *obj.Prog) {
+	q := c.newprog()
 	// we want to use the canonical NOP (SLL $0,R0,R0) here,
 	// however, as the assembler will always replace $0
 	// as R0, we have to resort to manually encode the SLL
@@ -825,7 +827,7 @@ type Sch struct {
 	comp    bool
 }
 
-func sched(ctxt *obj.Link, newprog obj.ProgAlloc, p0, pe *obj.Prog) {
+func (c *ctxt0) sched(p0, pe *obj.Prog) {
 	var sch [NSCHED]Sch
 
 	/*
@@ -834,7 +836,7 @@ func sched(ctxt *obj.Link, newprog obj.ProgAlloc, p0, pe *obj.Prog) {
 	s := sch[:]
 	for p := p0; ; p = p.Link {
 		s[0].p = *p
-		markregused(ctxt, &s[0])
+		c.markregused(&s[0])
 		if p == pe {
 			break
 		}
@@ -868,7 +870,7 @@ func sched(ctxt *obj.Link, newprog obj.ProgAlloc, p0, pe *obj.Prog) {
 				}
 			}
 			for u := t[1:]; -cap(u) <= -cap(s); u = u[1:] {
-				if depend(ctxt, &u[0], &t[0]) {
+				if c.depend(&u[0], &t[0]) {
 					goto no2
 				}
 			}
@@ -910,14 +912,14 @@ func sched(ctxt *obj.Link, newprog obj.ProgAlloc, p0, pe *obj.Prog) {
 		}
 		for s[0].nop != 0 {
 			s[0].nop--
-			addnop(ctxt, p, newprog)
+			c.addnop(p)
 		}
 	}
 }
 
-func markregused(ctxt *obj.Link, s *Sch) {
+func (c *ctxt0) markregused(s *Sch) {
 	p := &s.p
-	s.comp = compound(ctxt, p)
+	s.comp = c.compound(p)
 	s.nop = 0
 	if s.comp {
 		s.set.ireg |= 1 << (REGTMP - REG_R0)
@@ -934,7 +936,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 	 */
 	switch p.As {
 	case obj.ATEXT:
-		ctxt.Autosize = int32(p.To.Offset + 8)
+		c.autosize = int32(p.To.Offset + 8)
 		ad = 1
 
 	case AJAL:
@@ -1063,7 +1065,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 	 */
 	cls := int(p.To.Class)
 	if cls == 0 {
-		cls = aclass(ctxt, &p.To) + 1
+		cls = c.aclass(&p.To) + 1
 		p.To.Class = int8(cls)
 	}
 	cls--
@@ -1105,7 +1107,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 			break
 		}
 		s.size = uint8(sz)
-		s.soffset = regoff(ctxt, &p.To)
+		s.soffset = c.regoff(&p.To)
 
 		m := uint32(ANYMEM)
 		if cls == REGSB {
@@ -1153,7 +1155,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 			break
 		}
 		s.size = uint8(sz)
-		s.soffset = regoff(ctxt, &p.To)
+		s.soffset = c.regoff(&p.To)
 
 		if ar != 0 {
 			s.used.cc |= E_MEMSP
@@ -1168,7 +1170,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 			break
 		}
 		s.size = uint8(sz)
-		s.soffset = regoff(ctxt, &p.To)
+		s.soffset = c.regoff(&p.To)
 
 		if ar != 0 {
 			s.used.cc |= E_MEMSB
@@ -1182,7 +1184,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 	 */
 	cls = int(p.From.Class)
 	if cls == 0 {
-		cls = aclass(ctxt, &p.From) + 1
+		cls = c.aclass(&p.From) + 1
 		p.From.Class = int8(cls)
 	}
 	cls--
@@ -1224,7 +1226,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 			p.Mark |= LOAD
 		}
 		s.size = uint8(sz)
-		s.soffset = regoff(ctxt, &p.From)
+		s.soffset = c.regoff(&p.From)
 
 		m := uint32(ANYMEM)
 		if cls == REGSB {
@@ -1267,7 +1269,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 			break
 		}
 		s.size = uint8(sz)
-		s.soffset = regoff(ctxt, &p.From)
+		s.soffset = c.regoff(&p.From)
 
 		s.used.cc |= E_MEMSP
 
@@ -1281,7 +1283,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 			break
 		}
 		s.size = uint8(sz)
-		s.soffset = regoff(ctxt, &p.From)
+		s.soffset = c.regoff(&p.From)
 
 		s.used.cc |= E_MEMSB
 	}
@@ -1301,7 +1303,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
  * test to see if two instructions can be
  * interchanged without changing semantics
  */
-func depend(ctxt *obj.Link, sa, sb *Sch) bool {
+func (c *ctxt0) depend(sa, sb *Sch) bool {
 	if sa.set.ireg&(sb.set.ireg|sb.used.ireg) != 0 {
 		return true
 	}
@@ -1323,7 +1325,7 @@ func depend(ctxt *obj.Link, sa, sb *Sch) bool {
 	 */
 	if sa.used.cc&sb.used.cc&E_MEM != 0 {
 		if sa.p.Reg == sb.p.Reg {
-			if regoff(ctxt, &sa.p.From) == regoff(ctxt, &sb.p.From) {
+			if c.regoff(&sa.p.From) == c.regoff(&sb.p.From) {
 				return true
 			}
 		}
@@ -1382,8 +1384,8 @@ func conflict(sa, sb *Sch) bool {
 	return false
 }
 
-func compound(ctxt *obj.Link, p *obj.Prog) bool {
-	o := oplook(ctxt, p)
+func (c *ctxt0) compound(p *obj.Prog) bool {
+	o := c.oplook(p)
 	if o.size != 4 {
 		return true
 	}
