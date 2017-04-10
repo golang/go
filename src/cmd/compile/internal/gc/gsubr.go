@@ -185,6 +185,8 @@ func (pp *Progs) settext(fn *Node) {
 		}
 	}
 
+	Ctxt.InitTextSym(ptxt)
+
 	pp.Text = ptxt
 }
 

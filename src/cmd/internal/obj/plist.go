@@ -6,7 +6,6 @@ package obj
 
 import (
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -42,33 +41,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 			if s == nil {
 				// func _() { }
 				curtext = nil
-
 				continue
 			}
-			if s.FuncInfo == nil {
-				s.FuncInfo = new(FuncInfo)
-			}
-
-			if s.Text != nil {
-				log.Fatalf("duplicate TEXT for %s", s.Name)
-			}
-			if s.OnList() {
-				log.Fatalf("symbol %s listed multiple times", s.Name)
-			}
-			s.Set(AttrOnList, true)
 			text = append(text, s)
-			flag := int(p.From3Offset())
-			if flag&DUPOK != 0 {
-				s.Set(AttrDuplicateOK, true)
-			}
-			if flag&NOSPLIT != 0 {
-				s.Set(AttrNoSplit, true)
-			}
-			if flag&REFLECTMETHOD != 0 {
-				s.Set(AttrReflectMethod, true)
-			}
-			s.Type = STEXT
-			s.Text = p
 			etext = p
 			curtext = s
 			continue
@@ -137,13 +112,47 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 	ctxt.Text = append(ctxt.Text, text...)
 }
 
+func (ctxt *Link) InitTextSym(p *Prog) {
+	if p.As != ATEXT {
+		ctxt.Diag("InitTextSym non-ATEXT: %v", p)
+	}
+	s := p.From.Sym
+	if s == nil {
+		// func _() { }
+		return
+	}
+	if s.FuncInfo != nil {
+		ctxt.Diag("InitTextSym double init for %s", s.Name)
+	}
+	s.FuncInfo = new(FuncInfo)
+	if s.Text != nil {
+		ctxt.Diag("duplicate TEXT for %s", s.Name)
+	}
+	if s.OnList() {
+		ctxt.Diag("symbol %s listed multiple times", s.Name)
+	}
+	s.Set(AttrOnList, true)
+	flag := int(p.From3Offset())
+	if flag&DUPOK != 0 {
+		s.Set(AttrDuplicateOK, true)
+	}
+	if flag&NOSPLIT != 0 {
+		s.Set(AttrNoSplit, true)
+	}
+	if flag&REFLECTMETHOD != 0 {
+		s.Set(AttrReflectMethod, true)
+	}
+	s.Type = STEXT
+	s.Text = p
+}
+
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 	if s.SeenGlobl() {
 		fmt.Printf("duplicate %v\n", s)
 	}
 	s.Set(AttrSeenGlobl, true)
 	if s.OnList() {
-		log.Fatalf("symbol %s listed multiple times", s.Name)
+		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
 	s.Set(AttrOnList, true)
 	ctxt.Data = append(ctxt.Data, s)
