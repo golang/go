@@ -83,16 +83,30 @@
 // ignores leading and trailing space.) These are examples of an example:
 //
 //     func ExampleHello() {
-//             fmt.Println("hello")
-//             // Output: hello
+//         fmt.Println("hello")
+//         // Output: hello
 //     }
 //
 //     func ExampleSalutations() {
-//             fmt.Println("hello, and")
-//             fmt.Println("goodbye")
-//             // Output:
-//             // hello, and
-//             // goodbye
+//         fmt.Println("hello, and")
+//         fmt.Println("goodbye")
+//         // Output:
+//         // hello, and
+//         // goodbye
+//     }
+//
+// The comment prefix "Unordered output:" is like "Output:", but matches any
+// line order:
+//
+//     func ExamplePerm() {
+//         for _, value := range Perm(4) {
+//             fmt.Println(value)
+//         }
+//         // Unordered output: 4
+//         // 2
+//         // 1
+//         // 3
+//         // 0
 //     }
 //
 // Example functions without output comments are compiled but not executed.
