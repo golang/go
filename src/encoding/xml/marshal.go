@@ -775,6 +775,20 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
 
 var ddBytes = []byte("--")
 
+// indirect drills into interfaces and pointers, returning the pointed-at value.
+// If it encounters a nil interface or pointer, indirect returns that nil value.
+// This can turn into an infinite loop given a cyclic chain,
+// but it matches the Go 1 behavior.
+func indirect(vf reflect.Value) reflect.Value {
+	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Ptr {
+		if vf.IsNil() {
+			return vf
+		}
+		vf = vf.Elem()
+	}
+	return vf
+}
+
 func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 	s := parentStack{p: p}
 	for i := range tinfo.fields {
@@ -816,17 +830,9 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 					continue
 				}
 			}
-			// Drill into interfaces and pointers.
-			// This can turn into an infinite loop given a cyclic chain,
-			// but it matches the Go 1 behavior.
-			for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Ptr {
-				if vf.IsNil() {
-					return nil
-				}
-				vf = vf.Elem()
-			}
 
 			var scratch [64]byte
+			vf = indirect(vf)
 			switch vf.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				if err := emit(p, strconv.AppendInt(scratch[:0], vf.Int(), 10)); err != nil {
@@ -861,6 +867,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			if err := s.trim(finfo.parents); err != nil {
 				return err
 			}
+			vf = indirect(vf)
 			k := vf.Kind()
 			if !(k == reflect.String || k == reflect.Slice && vf.Type().Elem().Kind() == reflect.Uint8) {
 				return fmt.Errorf("xml: bad type for comment field of %s", val.Type())
@@ -901,6 +908,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			continue
 
 		case fInnerXml:
+			vf = indirect(vf)
 			iface := vf.Interface()
 			switch raw := iface.(type) {
 			case []byte:

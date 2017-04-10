@@ -220,3 +220,19 @@ func f22(x *int) (y *int) {
 	*p = x // no barrier
 	return
 }
+
+type T23 struct {
+	p *int
+	a int
+}
+
+var t23 T23
+var i23 int
+
+func f23() {
+	// zeroing global needs write barrier for the hybrid barrier.
+	t23 = T23{} // ERROR "write barrier"
+	// also test partial assignments
+	t23 = T23{a: 1}    // ERROR "write barrier"
+	t23 = T23{p: &i23} // ERROR "write barrier"
+}

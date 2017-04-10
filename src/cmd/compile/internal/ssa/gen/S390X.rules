@@ -440,7 +440,7 @@
 (If (MOVDGTnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no) -> (GTF cmp yes no)
 (If (MOVDGEnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no) -> (GEF cmp yes no)
 
-(If cond yes no) -> (NE (CMPWconst [0] (MOVBZreg cond)) yes no)
+(If cond yes no) -> (NE (CMPWconst [0] (MOVBZreg <config.fe.TypeBool()> cond)) yes no)
 
 // ***************************
 // Above: lowering rules
@@ -448,7 +448,15 @@
 // ***************************
 // TODO: Should the optimizations be a separate pass?
 
-// if a register move has only 1 use, just use the same register without emitting instruction
+// Fold unnecessary type conversions.
+(MOVDreg <t> x) && t.Compare(x.Type) == CMPeq -> x
+(MOVDnop <t> x) && t.Compare(x.Type) == CMPeq -> x
+
+// Propagate constants through type conversions.
+(MOVDreg (MOVDconst [c])) -> (MOVDconst [c])
+(MOVDnop (MOVDconst [c])) -> (MOVDconst [c])
+
+// If a register move has only 1 use, just use the same register without emitting instruction.
 // MOVDnop doesn't emit instruction, only for ensuring the type.
 (MOVDreg x) && x.Uses == 1 -> (MOVDnop x)
 

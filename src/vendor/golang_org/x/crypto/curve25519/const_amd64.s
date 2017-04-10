@@ -7,8 +7,8 @@
 
 // +build amd64,!gccgo,!appengine
 
-DATA ·REDMASK51(SB)/8, $0x0007FFFFFFFFFFFF
-GLOBL ·REDMASK51(SB), 8, $8
+// These constants cannot be encoded in non-MOVQ immediates.
+// We access them directly from memory instead.
 
 DATA ·_121666_213(SB)/8, $996687872
 GLOBL ·_121666_213(SB), 8, $8

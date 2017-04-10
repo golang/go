@@ -14517,7 +14517,7 @@ func rewriteValueARM_OpLrot16(v *Value, config *Config) bool {
 	_ = b
 	// match: (Lrot16 <t> x [c])
 	// cond:
-	// result: (OR (SLLconst <t> x [c&15]) (SRLconst <t> x [16-c&15]))
+	// result: (OR (SLLconst <t> x [c&15]) (SRLconst <t> (ZeroExt16to32 x) [16-c&15]))
 	for {
 		t := v.Type
 		c := v.AuxInt
@@ -14529,7 +14529,9 @@ func rewriteValueARM_OpLrot16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpARMSRLconst, t)
 		v1.AuxInt = 16 - c&15
-		v1.AddArg(x)
+		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v2.AddArg(x)
+		v1.AddArg(v2)
 		v.AddArg(v1)
 		return true
 	}
@@ -14554,7 +14556,7 @@ func rewriteValueARM_OpLrot8(v *Value, config *Config) bool {
 	_ = b
 	// match: (Lrot8 <t> x [c])
 	// cond:
-	// result: (OR (SLLconst <t> x [c&7]) (SRLconst <t> x [8-c&7]))
+	// result: (OR (SLLconst <t> x [c&7]) (SRLconst <t> (ZeroExt8to32 x) [8-c&7]))
 	for {
 		t := v.Type
 		c := v.AuxInt
@@ -14566,7 +14568,9 @@ func rewriteValueARM_OpLrot8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpARMSRLconst, t)
 		v1.AuxInt = 8 - c&7
-		v1.AddArg(x)
+		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v2.AddArg(x)
+		v1.AddArg(v2)
 		v.AddArg(v1)
 		return true
 	}

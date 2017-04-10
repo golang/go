@@ -563,6 +563,7 @@ func (c *Config) Clone() *Config {
 		Certificates:                c.Certificates,
 		NameToCertificate:           c.NameToCertificate,
 		GetCertificate:              c.GetCertificate,
+		GetClientCertificate:        c.GetClientCertificate,
 		GetConfigForClient:          c.GetConfigForClient,
 		VerifyPeerCertificate:       c.VerifyPeerCertificate,
 		RootCAs:                     c.RootCAs,

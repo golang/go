@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"testing"
 )
@@ -19,6 +20,10 @@ var Copyelim = copyelim
 func testConfig(t testing.TB) *Config {
 	testCtxt := &obj.Link{Arch: &x86.Linkamd64}
 	return NewConfig("amd64", DummyFrontend{t}, testCtxt, true)
+}
+
+func testConfigS390X(t testing.TB) *Config {
+	return NewConfig("s390x", DummyFrontend{t}, obj.Linknew(&s390x.Links390x), true)
 }
 
 // DummyFrontend is a test-only frontend.
