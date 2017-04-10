@@ -369,9 +369,12 @@ OpSwitch:
 			n.Left = indexlit(typecheck(n.Left, Erv))
 			l := n.Left
 			if consttype(l) != CTINT {
-				if l.Type != nil && l.Type.IsInteger() && l.Op != OLITERAL {
+				switch {
+				case l.Type == nil:
+					// Error already reported elsewhere.
+				case l.Type.IsInteger() && l.Op != OLITERAL:
 					yyerror("non-constant array bound %v", l)
-				} else {
+				default:
 					yyerror("invalid array bound %v", l)
 				}
 				n.Type = nil
