@@ -554,51 +554,37 @@
 (Zero [s] ptr mem) -> (LoweredZero [s] ptr mem)
 
 // moves
+// Only the MOVD and MOVW instructions require 4 byte
+// alignment in the offset field.  The other MOVx instructions
+// allow any alignment.
 (Move [0] _ _ mem) -> mem
 (Move [1] dst src mem) -> (MOVBstore dst (MOVBZload src mem) mem)
 (Move [2] dst src mem) ->
         (MOVHstore dst (MOVHZload src mem) mem)
-(Move [4] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
-	(MOVWstore dst (MOVWload src mem) mem)
-(Move [4] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
-	(MOVHstore [2] dst (MOVHZload [2] src mem)
-		(MOVHstore dst (MOVHZload src mem) mem))
 (Move [4] dst src mem) ->
-	(MOVBstore [3] dst (MOVBZload [3] src mem)
-		(MOVBstore [2] dst (MOVBZload [2] src mem)
-			(MOVBstore [1] dst (MOVBZload [1] src mem)
-				(MOVBstore dst (MOVBZload src mem) mem))))
-
-(Move [8] {t} dst src mem) && t.(Type).Alignment()%8 == 0 ->
-	(MOVDstore dst (MOVDload src mem) mem)
+	(MOVWstore dst (MOVWZload src mem) mem)
+// MOVD for load and store must have offsets that are multiple of 4
 (Move [8] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
+	(MOVDstore dst (MOVDload src mem) mem)
+(Move [8] dst src mem) ->
 	(MOVWstore [4] dst (MOVWZload [4] src mem)
 		(MOVWstore dst (MOVWZload src mem) mem))
-(Move [8] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
-	(MOVHstore [6] dst (MOVHZload [6] src mem)
-		(MOVHstore [4] dst (MOVHZload [4] src mem)
-			(MOVHstore [2] dst (MOVHZload [2] src mem)
-				(MOVHstore dst (MOVHZload src mem) mem))))
-
 (Move [3] dst src mem) ->
         (MOVBstore [2] dst (MOVBZload [2] src mem)
                 (MOVHstore dst (MOVHload src mem) mem))
-(Move [4] dst src mem) ->
-        (MOVWstore dst (MOVWload src mem) mem)
 (Move [5] dst src mem) ->
         (MOVBstore [4] dst (MOVBZload [4] src mem)
-                (MOVWstore dst (MOVWload src mem) mem))
+                (MOVWstore dst (MOVWZload src mem) mem))
 (Move [6] dst src mem) ->
         (MOVHstore [4] dst (MOVHZload [4] src mem)
-                (MOVWstore dst (MOVWload src mem) mem))
+                (MOVWstore dst (MOVWZload src mem) mem))
 (Move [7] dst src mem) ->
         (MOVBstore [6] dst (MOVBZload [6] src mem)
                 (MOVHstore [4] dst (MOVHZload [4] src mem)
-                        (MOVWstore dst (MOVWload src mem) mem)))
-(Move [8] dst src mem) ->
-        (MOVDstore dst (MOVDload src mem) mem)
+                        (MOVWstore dst (MOVWZload src mem) mem)))
 
-// Large move uses a loop
+// Large move uses a loop. Since the address is computed and the
+// offset is zero, any alignment can be used.
 (Move [s] dst src mem) && s > 8 ->
         (LoweredMove [s] dst src mem)
 
