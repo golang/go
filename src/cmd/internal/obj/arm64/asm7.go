@@ -541,15 +541,15 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	bflag := 1
-	c := int64(0)
-	p.Pc = c
+	pc := int64(0)
+	p.Pc = pc
 	var m int
 	var o *Optab
 	for p = p.Link; p != nil; p = p.Link {
-		if p.As == ADWORD && (c&7) != 0 {
-			c += 4
+		if p.As == ADWORD && (pc&7) != 0 {
+			pc += 4
 		}
-		p.Pc = c
+		p.Pc = pc
 		o = oplook(ctxt, p)
 		m = int(o.size)
 		if m == 0 {
@@ -571,13 +571,13 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if p.As == AB || p.As == obj.ARET || p.As == AERET { /* TODO: other unconditional operations */
 			checkpool(ctxt, newprog, p, 0)
 		}
-		c += int64(m)
+		pc += int64(m)
 		if ctxt.Blitrl != nil {
 			checkpool(ctxt, newprog, p, 1)
 		}
 	}
 
-	cursym.Size = c
+	cursym.Size = pc
 
 	/*
 	 * if any procedure is large enough to
@@ -587,17 +587,17 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	 */
 	for bflag != 0 {
 		bflag = 0
-		c = 0
+		pc = 0
 		for p = cursym.Text.Link; p != nil; p = p.Link {
-			if p.As == ADWORD && (c&7) != 0 {
-				c += 4
+			if p.As == ADWORD && (pc&7) != 0 {
+				pc += 4
 			}
-			p.Pc = c
+			p.Pc = pc
 			o = oplook(ctxt, p)
 
 			/* very large branches */
 			if (o.type_ == 7 || o.type_ == 39) && p.Pcond != nil { // 7: BEQ and like, 39: CBZ and like
-				otxt := p.Pcond.Pc - c
+				otxt := p.Pcond.Pc - pc
 				if otxt <= -(1<<18)+10 || otxt >= (1<<18)-10 {
 					q := newprog()
 					q.Link = p.Link
@@ -624,12 +624,12 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				continue
 			}
 
-			c += int64(m)
+			pc += int64(m)
 		}
 	}
 
-	c += -c & (funcAlign - 1)
-	cursym.Size = c
+	pc += -pc & (funcAlign - 1)
+	cursym.Size = pc
 
 	/*
 	 * lay out the code, emitting code and data relocations.
@@ -717,7 +717,7 @@ func flushpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, skip int) {
  * TODO: hash
  */
 func addpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, a *obj.Addr) {
-	c := aclass(ctxt, a)
+	cls := aclass(ctxt, a)
 	lit := ctxt.Instoffset
 	t := *newprog()
 	t.As = AWORD
@@ -727,18 +727,18 @@ func addpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, a *obj.Addr) {
 	//	MOVD addr, REGTMP
 	//	MOVD REGTMP, R
 	// where addr is the address of the DWORD containing the address of foo.
-	if p.As == AMOVD || c == C_ADDR || c == C_VCON || int64(lit) != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
+	if p.As == AMOVD || cls == C_ADDR || cls == C_VCON || int64(lit) != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
 		// conservative: don't know if we want signed or unsigned extension.
 		// in case of ambiguity, store 64-bit
 		t.As = ADWORD
 		sz = 8
 	}
 
-	switch c {
+	switch cls {
 	// TODO(aram): remove.
 	default:
 		if a.Name != obj.NAME_EXTERN {
-			fmt.Printf("addpool: %v in %v shouldn't go to default case\n", DRconv(c), p)
+			fmt.Printf("addpool: %v in %v shouldn't go to default case\n", DRconv(cls), p)
 		}
 
 		t.To.Offset = a.Offset
@@ -775,7 +775,7 @@ func addpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, a *obj.Addr) {
 		C_LCON,
 		C_VCON:
 		if a.Name == obj.NAME_EXTERN {
-			fmt.Printf("addpool: %v in %v needs reloc\n", DRconv(c), p)
+			fmt.Printf("addpool: %v in %v needs reloc\n", DRconv(cls), p)
 		}
 
 		t.To.Type = obj.TYPE_CONST
@@ -1013,14 +1013,14 @@ func oregclass(l int64) int {
  * return the offset value to use in the instruction,
  * scaled if necessary
  */
-func offsetshift(ctxt *obj.Link, p *obj.Prog, v int64, c int) int64 {
+func offsetshift(ctxt *obj.Link, p *obj.Prog, v int64, cls int) int64 {
 	s := 0
-	if c >= C_SEXT1 && c <= C_SEXT16 {
-		s = c - C_SEXT1
-	} else if c >= C_UAUTO4K && c <= C_UAUTO64K {
-		s = c - C_UAUTO4K
-	} else if c >= C_UOREG4K && c <= C_UOREG64K {
-		s = c - C_UOREG4K
+	if cls >= C_SEXT1 && cls <= C_SEXT16 {
+		s = cls - C_SEXT1
+	} else if cls >= C_UAUTO4K && cls <= C_UAUTO64K {
+		s = cls - C_UAUTO4K
+	} else if cls >= C_UOREG4K && cls <= C_UOREG64K {
+		s = cls - C_UOREG4K
 	}
 	vs := v >> uint(s)
 	if vs<<uint(s) != v {
@@ -4254,7 +4254,7 @@ func omovlit(ctxt *obj.Link, as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32
 
 // load a constant (MOVCON or BITCON) in a into rt
 func omovconst(ctxt *obj.Link, as obj.As, p *obj.Prog, a *obj.Addr, rt int) (o1 uint32) {
-	if c := oclass(a); c == C_BITCON || c == C_ABCON || c == C_ABCON0 {
+	if cls := oclass(a); cls == C_BITCON || cls == C_ABCON || cls == C_ABCON0 {
 		// or $bitcon, REGZERO, rt
 		mode := 64
 		var as1 obj.As
@@ -4299,18 +4299,18 @@ func omovconst(ctxt *obj.Link, as obj.As, p *obj.Prog, a *obj.Addr, rt int) (o1 
 }
 
 func opbfm(ctxt *obj.Link, p *obj.Prog, a obj.As, r int, s int, rf int, rt int) uint32 {
-	var c uint32
+	var b uint32
 	o := opirr(ctxt, p, a)
 	if (o & (1 << 31)) == 0 {
-		c = 32
+		b = 32
 	} else {
-		c = 64
+		b = 64
 	}
-	if r < 0 || uint32(r) >= c {
+	if r < 0 || uint32(r) >= b {
 		ctxt.Diag("illegal bit number\n%v", p)
 	}
 	o |= (uint32(r) & 0x3F) << 16
-	if s < 0 || uint32(s) >= c {
+	if s < 0 || uint32(s) >= b {
 		ctxt.Diag("illegal bit number\n%v", p)
 	}
 	o |= (uint32(s) & 0x3F) << 10
@@ -4319,14 +4319,14 @@ func opbfm(ctxt *obj.Link, p *obj.Prog, a obj.As, r int, s int, rf int, rt int) 
 }
 
 func opextr(ctxt *obj.Link, p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) uint32 {
-	var c uint32
+	var b uint32
 	o := opirr(ctxt, p, a)
 	if (o & (1 << 31)) != 0 {
-		c = 63
+		b = 63
 	} else {
-		c = 31
+		b = 31
 	}
-	if v < 0 || uint32(v) > c {
+	if v < 0 || uint32(v) > b {
 		ctxt.Diag("illegal bit number\n%v", p)
 	}
 	o |= uint32(v) << 10

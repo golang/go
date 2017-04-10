@@ -385,13 +385,13 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Diag("mips ops not initialized, call mips.buildop first")
 	}
 
-	c := int64(0)
-	p.Pc = c
+	pc := int64(0)
+	p.Pc = pc
 
 	var m int
 	var o *Optab
 	for p = p.Link; p != nil; p = p.Link {
-		p.Pc = c
+		p.Pc = pc
 		o = oplook(ctxt, p)
 		m = int(o.size)
 		if m == 0 {
@@ -401,10 +401,10 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			continue
 		}
 
-		c += int64(m)
+		pc += int64(m)
 	}
 
-	cursym.Size = c
+	cursym.Size = pc
 
 	/*
 	 * if any procedure is large enough to
@@ -418,14 +418,14 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var q *obj.Prog
 	for bflag != 0 {
 		bflag = 0
-		c = 0
+		pc = 0
 		for p = cursym.Text.Link; p != nil; p = p.Link {
-			p.Pc = c
+			p.Pc = pc
 			o = oplook(ctxt, p)
 
 			// very large conditional branches
 			if o.type_ == 6 && p.Pcond != nil {
-				otxt = p.Pcond.Pc - c
+				otxt = p.Pcond.Pc - pc
 				if otxt < -(1<<17)+10 || otxt >= (1<<17)-10 {
 					q = newprog()
 					q.Link = p.Link
@@ -457,15 +457,15 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				continue
 			}
 
-			c += int64(m)
+			pc += int64(m)
 		}
 
-		cursym.Size = c
+		cursym.Size = pc
 	}
 	if ctxt.Arch.Family == sys.MIPS64 {
-		c += -c & (mips64FuncAlign - 1)
+		pc += -pc & (mips64FuncAlign - 1)
 	}
-	cursym.Size = c
+	cursym.Size = pc
 
 	/*
 	 * lay out the code, emitting code and data relocations.

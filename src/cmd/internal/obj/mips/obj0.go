@@ -938,11 +938,11 @@ func markregused(ctxt *obj.Link, s *Sch) {
 		ad = 1
 
 	case AJAL:
-		c := p.Reg
-		if c == 0 {
-			c = REGLINK
+		r := p.Reg
+		if r == 0 {
+			r = REGLINK
 		}
-		s.set.ireg |= 1 << uint(c-REG_R0)
+		s.set.ireg |= 1 << uint(r-REG_R0)
 		ar = 1
 		ad = 1
 
@@ -1061,15 +1061,15 @@ func markregused(ctxt *obj.Link, s *Sch) {
 	/*
 	 * flags based on 'to' field
 	 */
-	c := int(p.To.Class)
-	if c == 0 {
-		c = aclass(ctxt, &p.To) + 1
-		p.To.Class = int8(c)
+	cls := int(p.To.Class)
+	if cls == 0 {
+		cls = aclass(ctxt, &p.To) + 1
+		p.To.Class = int8(cls)
 	}
-	c--
-	switch c {
+	cls--
+	switch cls {
 	default:
-		fmt.Printf("unknown class %d %v\n", c, p)
+		fmt.Printf("unknown class %d %v\n", cls, p)
 
 	case C_ZCON,
 		C_SCON,
@@ -1099,8 +1099,8 @@ func markregused(ctxt *obj.Link, s *Sch) {
 	case C_ZOREG,
 		C_SOREG,
 		C_LOREG:
-		c = int(p.To.Reg)
-		s.used.ireg |= 1 << uint(c-REG_R0)
+		cls = int(p.To.Reg)
+		s.used.ireg |= 1 << uint(cls-REG_R0)
 		if ad != 0 {
 			break
 		}
@@ -1108,10 +1108,10 @@ func markregused(ctxt *obj.Link, s *Sch) {
 		s.soffset = regoff(ctxt, &p.To)
 
 		m := uint32(ANYMEM)
-		if c == REGSB {
+		if cls == REGSB {
 			m = E_MEMSB
 		}
-		if c == REGSP {
+		if cls == REGSP {
 			m = E_MEMSP
 		}
 
@@ -1180,15 +1180,15 @@ func markregused(ctxt *obj.Link, s *Sch) {
 	/*
 	 * flags based on 'from' field
 	 */
-	c = int(p.From.Class)
-	if c == 0 {
-		c = aclass(ctxt, &p.From) + 1
-		p.From.Class = int8(c)
+	cls = int(p.From.Class)
+	if cls == 0 {
+		cls = aclass(ctxt, &p.From) + 1
+		p.From.Class = int8(cls)
 	}
-	c--
-	switch c {
+	cls--
+	switch cls {
 	default:
-		fmt.Printf("unknown class %d %v\n", c, p)
+		fmt.Printf("unknown class %d %v\n", cls, p)
 
 	case C_ZCON,
 		C_SCON,
@@ -1218,8 +1218,8 @@ func markregused(ctxt *obj.Link, s *Sch) {
 	case C_ZOREG,
 		C_SOREG,
 		C_LOREG:
-		c = int(p.From.Reg)
-		s.used.ireg |= 1 << uint(c-REG_R0)
+		cls = int(p.From.Reg)
+		s.used.ireg |= 1 << uint(cls-REG_R0)
 		if ld != 0 {
 			p.Mark |= LOAD
 		}
@@ -1227,10 +1227,10 @@ func markregused(ctxt *obj.Link, s *Sch) {
 		s.soffset = regoff(ctxt, &p.From)
 
 		m := uint32(ANYMEM)
-		if c == REGSB {
+		if cls == REGSB {
 			m = E_MEMSB
 		}
-		if c == REGSP {
+		if cls == REGSP {
 			m = E_MEMSP
 		}
 
@@ -1238,11 +1238,11 @@ func markregused(ctxt *obj.Link, s *Sch) {
 
 	case C_SACON,
 		C_LACON:
-		c = int(p.From.Reg)
-		if c == 0 {
-			c = REGSP
+		cls = int(p.From.Reg)
+		if cls == 0 {
+			cls = REGSP
 		}
-		s.used.ireg |= 1 << uint(c-REG_R0)
+		s.used.ireg |= 1 << uint(cls-REG_R0)
 
 	case C_SECON,
 		C_LECON:
@@ -1286,12 +1286,12 @@ func markregused(ctxt *obj.Link, s *Sch) {
 		s.used.cc |= E_MEMSB
 	}
 
-	c = int(p.Reg)
-	if c != 0 {
-		if REG_F0 <= c && c <= REG_F31 {
-			s.used.freg |= 1 << uint(c-REG_F0)
+	cls = int(p.Reg)
+	if cls != 0 {
+		if REG_F0 <= cls && cls <= REG_F31 {
+			s.used.freg |= 1 << uint(cls-REG_F0)
 		} else {
-			s.used.ireg |= 1 << uint(c-REG_R0)
+			s.used.ireg |= 1 << uint(cls-REG_R0)
 		}
 	}
 	s.set.ireg &^= (1 << (REGZERO - REG_R0)) /* R0 can't be set */
