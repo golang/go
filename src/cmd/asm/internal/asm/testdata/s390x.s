@@ -186,13 +186,13 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	LAO	R1, R2, (R3)          // eb21300000f6
 	LAOG	R4, R5, (R6)          // eb54600000e6
 
-	XC	$8, (R15), n-8(SP)       // XC  (R15), $8, n-8(SP)       // d707f010f000
-	NC	$8, (R15), n-8(SP)       // NC  (R15), $8, n-8(SP)       // d407f010f000
-	OC	$8, (R15), n-8(SP)       // OC  (R15), $8, n-8(SP)       // d607f010f000
-	MVC	$8, (R15), n-8(SP)       // MVC (R15), $8, n-8(SP)       // d207f010f000
-	CLC	$8, (R15), n-8(SP)       // CLC (R15), $8, n-8(SP)       // d507f000f010
-	XC	$256, -8(R15), -8(R15)   // XC  -8(R15), $256, -8(R15)   // b90400afc2a8fffffff8d7ffa000a000
-	MVC	$256, 8192(R1), 8192(R2) // MVC 8192(R1), $256, 8192(R2) // b90400a2c2a800002000b90400b1c2b800002000d2ffa000b000
+	XC	$8, (R15), n-8(SP)       // d707f010f000
+	NC	$8, (R15), n-8(SP)       // d407f010f000
+	OC	$8, (R15), n-8(SP)       // d607f010f000
+	MVC	$8, (R15), n-8(SP)       // d207f010f000
+	CLC	$8, (R15), n-8(SP)       // d507f000f010
+	XC	$256, -8(R15), -8(R15)   // b90400afc2a8fffffff8d7ffa000a000
+	MVC	$256, 8192(R1), 8192(R2) // b90400a2c2a800002000b90400b1c2b800002000d2ffa000b000
 
 	CMP	R1, R2                 // b9200012
 	CMP	R3, $32767             // a73f7fff
@@ -291,67 +291,64 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	FMSUB	F4, F5, F5             // b31f5045
 	FMSUBS	F6, F6, F7             // b30f7066
 
-	VL	(R15), V1              // e710f0000006
-	VST	V1, (R15)              // e710f000000e
-	VL	(R15), V31             // e7f0f0000806
-	VST	V31, (R15)             // e7f0f000080e
-	VESLB	$5, V14                // e7ee00050030
-	VESRAG	$0, V15, V16           // e70f0000383a
-	VLM	(R15), V8, V23         // e787f0000436
-	VSTM	V8, V23, (R15)         // e787f000043e
-	VONE	V1                     // e710ffff0044
-	VZERO	V16                    // e70000000844
-	VGBM	$52428, V31            // e7f0cccc0844
-	VREPIB	$255, V4               // e74000ff0045
-	VREPIH	$-1, V16               // e700ffff1845
-	VREPIF	$-32768, V0            // e70080002045
-	VREPIG	$32767, V31            // e7f07fff3845
-	VREPG	$1, V4, V16            // e7040001384d
-	VREPB	$4, V31, V1            // e71f0004044d
-	VFTCIDB	$4095, V1, V2          // e721fff0304a
-	WFTCIDB	$3276, V15, V16        // e70fccc8384a
-	VPOPCT	V8, V19                // e73800000850
-	VFEEZBS	V1, V2, V31            // e7f120300880
-	WFCHDBS	V22, V23, V4           // e746701836eb
-	VMNH	V1, V2, V30            // e7e1200018fe
-	VO	V2, V1, V0             // e7021000006a
-	VERLLVF	V2, V30, V27           // e7be20002c73
-	VSCBIB	V0, V23, V24           // e78700000cf5
-	VNOT	V16, V1                // e7101000046b
-	VCLZF	V16, V17               // e71000002c53
-	VLVGP	R3, R4, V8             // e78340000062
-
-	// Some vector instructions have their inputs reordered.
-	// Typically the reordering puts the length/index input into From3.
-	VGEG	$1, 8(R15)(V30*1), V31  // VGEG    8(R15)(V30*1), $1, V31  // e7fef0081c12
-	VSCEG	$1, V31, 16(R15)(V30*1) // VSCEG   V31, $1, 16(R15)(V30*1) // e7fef0101c1a
-	VGEF	$0, 2048(R15)(V1*1), V2 // VGEF    2048(R15)(V1*1), $0, V2 // e721f8000013
-	VSCEF	$0, V2, 4095(R15)(V1*1) // VSCEF   V2, $0, 4095(R15)(V1*1) // e721ffff001b
-	VLL	R0, (R15), V1           // VLL     (R15), R0, V1           // e710f0000037
-	VSTL	R0, V16, (R15)          // VSTL    V16, R0, (R15)          // e700f000083f
-	VGMH	$8, $16, V12            // VGMH    $16, $8, V12            // e7c008101046
-	VLEIB	$15, $255, V0           // VLEIB   $255, $15, V0           // e70000fff040
-	VLEIH	$7, $-32768, V15        // VLEIH   $-32768, $7, V15        // e7f080007041
-	VLEIF	$2, $-43, V16           // VLEIF   $-43, $2, V16           // e700ffd52843
-	VLEIG	$1, $32767, V31         // VLEIG   $32767, $1, V31         // e7f07fff1842
-	VSLDB	$3, V1, V16, V18        // VSLDB   V1, V16, $3, V18        // e72100030a77
-	VERIMB	$2, V31, V1, V2         // VERIMB  V31, V1, $2, V2         // e72f10020472
-	VSEL	V1, V2, V3, V4          // VSEL    V2, V3, V1, V4          // e7412000308d
-	VGFMAH	V21, V31, V24, V0       // VGFMAH  V31, V24, V21, V0       // e705f10087bc
-	VFMADB	V16, V8, V9, V10        // VFMADB  V8, V9, V16, V10        // e7a08300948f
-	WFMADB	V17, V18, V19, V20      // WFMADB  V18, V19, V17, V20      // e74123083f8f
-	VFMSDB	V2, V25, V24, V31       // VFMSDB  V25, V24, V2, V31       // e7f293008b8e
-	WFMSDB	V31, V2, V3, V4         // WFMSDB  V2, V3, V31, V4         // e74f2308348e
-	VPERM	V31, V0, V2, V3         // VPERM   V0, V2, V31, V3         // e73f0000248c
-	VPDI	$1, V2, V31, V1         // VPDI    V2, V31, $1, V1         // e712f0001284
-	VLEG	$1, (R3), V1            // VLEG    (R3), $1, V1            // e71030001002
-	VLEF	$2, (R0), V31           // VLEF    (R0), $2, V31           // e7f000002803
-	VLEH	$3, (R12), V16          // VLEH    (R12), $3, V16          // e700c0003801
-	VLEB	$15, 4095(R9), V15      // VLEB    4095(R9), $15, V15      // e7f09ffff000
-	VSTEG	$1, V30, (R1)(R2*1)     // VSTEG   V30, $1, (R1)(R2*1)     // e7e21000180a
-	VSTEF	$3, V2, (R9)            // VSTEF   V2, $3, (R9)            // e7209000300b
-	VSTEH	$7, V31, (R2)           // VSTEH   V31, $7, (R2)           // e7f020007809
-	VSTEB	$15, V29, 4094(R12)     // VSTEB   V29, $15, 4094(R12)     // e7d0cffef808
+	VL	(R15), V1               // e710f0000006
+	VST	V1, (R15)               // e710f000000e
+	VL	(R15), V31              // e7f0f0000806
+	VST	V31, (R15)              // e7f0f000080e
+	VESLB	$5, V14                 // e7ee00050030
+	VESRAG	$0, V15, V16            // e70f0000383a
+	VLM	(R15), V8, V23          // e787f0000436
+	VSTM	V8, V23, (R15)          // e787f000043e
+	VONE	V1                      // e710ffff0044
+	VZERO	V16                     // e70000000844
+	VGBM	$52428, V31             // e7f0cccc0844
+	VREPIB	$255, V4                // e74000ff0045
+	VREPIH	$-1, V16                // e700ffff1845
+	VREPIF	$-32768, V0             // e70080002045
+	VREPIG	$32767, V31             // e7f07fff3845
+	VREPG	$1, V4, V16             // e7040001384d
+	VREPB	$4, V31, V1             // e71f0004044d
+	VFTCIDB	$4095, V1, V2           // e721fff0304a
+	WFTCIDB	$3276, V15, V16         // e70fccc8384a
+	VPOPCT	V8, V19                 // e73800000850
+	VFEEZBS	V1, V2, V31             // e7f120300880
+	WFCHDBS	V22, V23, V4            // e746701836eb
+	VMNH	V1, V2, V30             // e7e1200018fe
+	VO	V2, V1, V0              // e7021000006a
+	VERLLVF	V2, V30, V27            // e7be20002c73
+	VSCBIB	V0, V23, V24            // e78700000cf5
+	VNOT	V16, V1                 // e7101000046b
+	VCLZF	V16, V17                // e71000002c53
+	VLVGP	R3, R4, V8              // e78340000062
+	VGEG	$1, 8(R15)(V30*1), V31  // e7fef0081c12
+	VSCEG	$1, V31, 16(R15)(V30*1) // e7fef0101c1a
+	VGEF	$0, 2048(R15)(V1*1), V2 // e721f8000013
+	VSCEF	$0, V2, 4095(R15)(V1*1) // e721ffff001b
+	VLL	R0, (R15), V1           // e710f0000037
+	VSTL	R0, V16, (R15)          // e700f000083f
+	VGMH	$8, $16, V12            // e7c008101046
+	VLEIB	$15, $255, V0           // e70000fff040
+	VLEIH	$7, $-32768, V15        // e7f080007041
+	VLEIF	$2, $-43, V16           // e700ffd52843
+	VLEIG	$1, $32767, V31         // e7f07fff1842
+	VSLDB	$3, V1, V16, V18        // e72100030a77
+	VERIMB	$2, V31, V1, V2         // e72f10020472
+	VSEL	V1, V2, V3, V4          // e7412000308d
+	VGFMAH	V21, V31, V24, V0       // e705f10087bc
+	VFMADB	V16, V8, V9, V10        // e7a08300948f
+	WFMADB	V17, V18, V19, V20      // e74123083f8f
+	VFMSDB	V2, V25, V24, V31       // e7f293008b8e
+	WFMSDB	V31, V2, V3, V4         // e74f2308348e
+	VPERM	V31, V0, V2, V3         // e73f0000248c
+	VPDI	$1, V2, V31, V1         // e712f0001284
+	VLEG	$1, (R3), V1            // e71030001002
+	VLEF	$2, (R0), V31           // e7f000002803
+	VLEH	$3, (R12), V16          // e700c0003801
+	VLEB	$15, 4095(R9), V15      // e7f09ffff000
+	VSTEG	$1, V30, (R1)(R2*1)     // e7e21000180a
+	VSTEF	$3, V2, (R9)            // e7209000300b
+	VSTEH	$7, V31, (R2)           // e7f020007809
+	VSTEB	$15, V29, 4094(R12)     // e7d0cffef808
 
 	RET
 

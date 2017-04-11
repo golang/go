@@ -531,15 +531,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpS390XMVC:
 		vo := v.AuxValAndOff()
 		p := s.Prog(s390x.AMVC)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[1].Reg()
-		p.From.Offset = vo.Off()
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = vo.Val()
+		p.From3 = new(obj.Addr)
+		p.From3.Type = obj.TYPE_MEM
+		p.From3.Reg = v.Args[1].Reg()
+		p.From3.Offset = vo.Off()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		p.To.Offset = vo.Off()
-		p.From3 = new(obj.Addr)
-		p.From3.Type = obj.TYPE_CONST
-		p.From3.Offset = vo.Val()
 	case ssa.OpS390XSTMG2, ssa.OpS390XSTMG3, ssa.OpS390XSTMG4,
 		ssa.OpS390XSTM2, ssa.OpS390XSTM3, ssa.OpS390XSTM4:
 		for i := 2; i < len(v.Args)-1; i++ {
@@ -567,13 +567,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		//      MVC  $rem, 0(R2), 0(R1) // if rem > 0
 		// arg2 is the last address to move in the loop + 256
 		mvc := s.Prog(s390x.AMVC)
-		mvc.From.Type = obj.TYPE_MEM
-		mvc.From.Reg = v.Args[1].Reg()
+		mvc.From.Type = obj.TYPE_CONST
+		mvc.From.Offset = 256
+		mvc.From3 = new(obj.Addr)
+		mvc.From3.Type = obj.TYPE_MEM
+		mvc.From3.Reg = v.Args[1].Reg()
 		mvc.To.Type = obj.TYPE_MEM
 		mvc.To.Reg = v.Args[0].Reg()
-		mvc.From3 = new(obj.Addr)
-		mvc.From3.Type = obj.TYPE_CONST
-		mvc.From3.Offset = 256
 
 		for i := 0; i < 2; i++ {
 			movd := s.Prog(s390x.AMOVD)
@@ -596,13 +596,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		if v.AuxInt > 0 {
 			mvc := s.Prog(s390x.AMVC)
-			mvc.From.Type = obj.TYPE_MEM
-			mvc.From.Reg = v.Args[1].Reg()
+			mvc.From.Type = obj.TYPE_CONST
+			mvc.From.Offset = v.AuxInt
+			mvc.From3 = new(obj.Addr)
+			mvc.From3.Type = obj.TYPE_MEM
+			mvc.From3.Reg = v.Args[1].Reg()
 			mvc.To.Type = obj.TYPE_MEM
 			mvc.To.Reg = v.Args[0].Reg()
-			mvc.From3 = new(obj.Addr)
-			mvc.From3.Type = obj.TYPE_CONST
-			mvc.From3.Offset = v.AuxInt
 		}
 	case ssa.OpS390XLoweredZero:
 		// Input must be valid pointers to memory,

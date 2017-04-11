@@ -68,38 +68,6 @@ func IsS390xNEG(op obj.As) bool {
 	return false
 }
 
-// IsS390xWithLength reports whether the op (as defined by an s390x.A* constant)
-// refers to an instruction which takes a length as its first argument.
-func IsS390xWithLength(op obj.As) bool {
-	switch op {
-	case s390x.AMVC, s390x.ACLC, s390x.AXC, s390x.AOC, s390x.ANC:
-		return true
-	case s390x.AVLL, s390x.AVSTL:
-		return true
-	}
-	return false
-}
-
-// IsS390xWithIndex reports whether the op (as defined by an s390x.A* constant)
-// refers to an instruction which takes an index as its first argument.
-func IsS390xWithIndex(op obj.As) bool {
-	switch op {
-	case s390x.AVSCEG, s390x.AVSCEF, s390x.AVGEG, s390x.AVGEF:
-		return true
-	case s390x.AVGMG, s390x.AVGMF, s390x.AVGMH, s390x.AVGMB:
-		return true
-	case s390x.AVLEIG, s390x.AVLEIF, s390x.AVLEIH, s390x.AVLEIB:
-		return true
-	case s390x.AVLEG, s390x.AVLEF, s390x.AVLEH, s390x.AVLEB:
-		return true
-	case s390x.AVSTEG, s390x.AVSTEF, s390x.AVSTEH, s390x.AVSTEB:
-		return true
-	case s390x.AVPDI:
-		return true
-	}
-	return false
-}
-
 func s390xRegisterNumber(name string, n int16) (int16, bool) {
 	switch name {
 	case "AR":
