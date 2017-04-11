@@ -66,13 +66,13 @@ func TempFile(dir, prefix string) (f *os.File, err error) {
 	return
 }
 
-// TempDir creates a new temporary directory in the directory dir
-// with a name beginning with prefix and returns the path of the
-// new directory. If dir is the empty string, TempDir uses the
-// default directory for temporary files (see os.TempDir).
-// Multiple programs calling TempDir simultaneously
-// will not choose the same directory. It is the caller's responsibility
-// to remove the directory when no longer needed.
+// TempDir creates a new temporary directory in the directory dir with
+// a name beginning with prefix with mode 0700 and returns the path of
+// the new directory. If dir is the empty string, TempDir uses the
+// default directory for temporary files (see os.TempDir).  Multiple
+// programs calling TempDir simultaneously will not choose the same
+// directory. It is the caller's responsibility to remove the
+// directory when no longer needed.
 func TempDir(dir, prefix string) (name string, err error) {
 	if dir == "" {
 		dir = os.TempDir()
