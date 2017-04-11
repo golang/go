@@ -511,7 +511,8 @@ func typelinksinit() {
 			for _, tl := range md.typelinks {
 				t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
 				for _, candidate := range typehash[t.hash] {
-					if typesEqual(t, candidate) {
+					seen := map[_typePair]struct{}{}
+					if typesEqual(t, candidate, seen) {
 						t = candidate
 						break
 					}
@@ -522,6 +523,11 @@ func typelinksinit() {
 
 		prev = md
 	}
+}
+
+type _typePair struct {
+	t1 *_type
+	t2 *_type
 }
 
 // typesEqual reports whether two types are equal.
@@ -536,7 +542,17 @@ func typelinksinit() {
 // back into earlier ones.
 //
 // Only typelinksinit needs this function.
-func typesEqual(t, v *_type) bool {
+func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+	tp := _typePair{t, v}
+	if _, ok := seen[tp]; ok {
+		return true
+	}
+
+	// mark these types as seen, and thus equivalent which prevents an infinite loop if
+	// the two types are identical, but recursively defined and loaded from
+	// different modules
+	seen[tp] = struct{}{}
+
 	if t == v {
 		return true
 	}
@@ -568,11 +584,11 @@ func typesEqual(t, v *_type) bool {
 	case kindArray:
 		at := (*arraytype)(unsafe.Pointer(t))
 		av := (*arraytype)(unsafe.Pointer(v))
-		return typesEqual(at.elem, av.elem) && at.len == av.len
+		return typesEqual(at.elem, av.elem, seen) && at.len == av.len
 	case kindChan:
 		ct := (*chantype)(unsafe.Pointer(t))
 		cv := (*chantype)(unsafe.Pointer(v))
-		return ct.dir == cv.dir && typesEqual(ct.elem, cv.elem)
+		return ct.dir == cv.dir && typesEqual(ct.elem, cv.elem, seen)
 	case kindFunc:
 		ft := (*functype)(unsafe.Pointer(t))
 		fv := (*functype)(unsafe.Pointer(v))
@@ -581,13 +597,13 @@ func typesEqual(t, v *_type) bool {
 		}
 		tin, vin := ft.in(), fv.in()
 		for i := 0; i < len(tin); i++ {
-			if !typesEqual(tin[i], vin[i]) {
+			if !typesEqual(tin[i], vin[i], seen) {
 				return false
 			}
 		}
 		tout, vout := ft.out(), fv.out()
 		for i := 0; i < len(tout); i++ {
-			if !typesEqual(tout[i], vout[i]) {
+			if !typesEqual(tout[i], vout[i], seen) {
 				return false
 			}
 		}
@@ -616,7 +632,7 @@ func typesEqual(t, v *_type) bool {
 			}
 			tityp := resolveTypeOff(unsafe.Pointer(tm), tm.ityp)
 			vityp := resolveTypeOff(unsafe.Pointer(vm), vm.ityp)
-			if !typesEqual(tityp, vityp) {
+			if !typesEqual(tityp, vityp, seen) {
 				return false
 			}
 		}
@@ -624,15 +640,15 @@ func typesEqual(t, v *_type) bool {
 	case kindMap:
 		mt := (*maptype)(unsafe.Pointer(t))
 		mv := (*maptype)(unsafe.Pointer(v))
-		return typesEqual(mt.key, mv.key) && typesEqual(mt.elem, mv.elem)
+		return typesEqual(mt.key, mv.key, seen) && typesEqual(mt.elem, mv.elem, seen)
 	case kindPtr:
 		pt := (*ptrtype)(unsafe.Pointer(t))
 		pv := (*ptrtype)(unsafe.Pointer(v))
-		return typesEqual(pt.elem, pv.elem)
+		return typesEqual(pt.elem, pv.elem, seen)
 	case kindSlice:
 		st := (*slicetype)(unsafe.Pointer(t))
 		sv := (*slicetype)(unsafe.Pointer(v))
-		return typesEqual(st.elem, sv.elem)
+		return typesEqual(st.elem, sv.elem, seen)
 	case kindStruct:
 		st := (*structtype)(unsafe.Pointer(t))
 		sv := (*structtype)(unsafe.Pointer(v))
@@ -648,7 +664,7 @@ func typesEqual(t, v *_type) bool {
 			if tf.name.pkgPath() != vf.name.pkgPath() {
 				return false
 			}
-			if !typesEqual(tf.typ, vf.typ) {
+			if !typesEqual(tf.typ, vf.typ, seen) {
 				return false
 			}
 			if tf.name.tag() != vf.name.tag() {
