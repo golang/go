@@ -12,7 +12,19 @@ package main
 
 var x int
 
-func f() {
+func f1() {
+	switch x {
+	case 1:
+		continue // ERROR "continue is not in a loop$"
+	}
+	select {
+	default:
+		continue // ERROR "continue is not in a loop$"
+	}
+
+}
+
+func f2() {
 L1:
 	for {
 		if x == 0 {
@@ -31,7 +43,7 @@ L2:
 			break L2
 		}
 		if x == 1 {
-			continue L2 // ERROR "invalid continue label .*L2|continue is not in a loop"
+			continue L2 // ERROR "invalid continue label .*L2|continue is not in a loop$"
 		}
 		goto L2
 	}
@@ -49,7 +61,7 @@ L3:
 			break L3
 		}
 		if x == 12 {
-			continue L3 // ERROR "invalid continue label .*L3|continue is not in a loop"
+			continue L3 // ERROR "invalid continue label .*L3|continue is not in a loop$"
 		}
 		goto L3
 	}
@@ -60,7 +72,7 @@ L4:
 			break L4 // ERROR "invalid break label .*L4"
 		}
 		if x == 14 {
-			continue L4 // ERROR "invalid continue label .*L4|continue is not in a loop"
+			continue L4 // ERROR "invalid continue label .*L4|continue is not in a loop$"
 		}
 		if x == 15 {
 			goto L4
@@ -68,12 +80,12 @@ L4:
 	}
 
 L5:
-	f()
+	f2()
 	if x == 16 {
 		break L5 // ERROR "invalid break label .*L5"
 	}
 	if x == 17 {
-		continue L5 // ERROR "invalid continue label .*L5|continue is not in a loop"
+		continue L5 // ERROR "invalid continue label .*L5|continue is not in a loop$"
 	}
 	if x == 18 {
 		goto L5
@@ -91,12 +103,12 @@ L5:
 		}
 	}
 
-	continue // ERROR "continue is not in a loop"
+	continue // ERROR "continue is not in a loop$"
 	for {
 		continue on // ERROR "continue label not defined: on"
 	}
 
-	break // ERROR "break is not in a loop"
+	break // ERROR "break is not in a loop, switch, or select"
 	for {
 		break dance // ERROR "break label not defined: dance"
 	}
