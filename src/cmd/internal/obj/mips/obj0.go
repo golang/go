@@ -286,7 +286,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			p.To.Offset = int64(autosize) - ctxt.FixedFrameSize()
 
-			if p.From3.Offset&obj.NOSPLIT == 0 {
+			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, autosize) // emit split check
 			}
 
@@ -316,7 +316,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Reg = REGSP
 				q.Spadj = +autosize
 			} else if c.cursym.Text.Mark&LEAF == 0 {
-				if c.cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
+				if c.cursym.Text.From.Sym.NoSplit() {
 					if ctxt.Debugvlog {
 						ctxt.Logf("save suppressed in: %s\n", c.cursym.Name)
 					}
@@ -330,7 +330,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 
-			if c.cursym.Text.From3.Offset&obj.WRAPPER != 0 {
+			if c.cursym.Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOV	g_panic(g), R1
@@ -759,7 +759,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.To.Type = obj.TYPE_BRANCH
 	if c.cursym.CFunc() {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestackc", 0)
-	} else if c.cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+	} else if !c.cursym.Text.From.Sym.NeedCtxt() {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt", 0)
 	} else {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack", 0)

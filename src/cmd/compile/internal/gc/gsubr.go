@@ -155,24 +155,24 @@ func (pp *Progs) settext(fn *Node) {
 		}
 	}
 
-	ptxt.From3 = new(obj.Addr)
+	var flag int
 	if fn.Func.Dupok() {
-		ptxt.From3.Offset |= obj.DUPOK
+		flag |= obj.DUPOK
 	}
 	if fn.Func.Wrapper() {
-		ptxt.From3.Offset |= obj.WRAPPER
+		flag |= obj.WRAPPER
 	}
 	if fn.Func.NoFramePointer() {
-		ptxt.From3.Offset |= obj.NOFRAME
+		flag |= obj.NOFRAME
 	}
 	if fn.Func.Needctxt() {
-		ptxt.From3.Offset |= obj.NEEDCTXT
+		flag |= obj.NEEDCTXT
 	}
 	if fn.Func.Pragma&Nosplit != 0 {
-		ptxt.From3.Offset |= obj.NOSPLIT
+		flag |= obj.NOSPLIT
 	}
 	if fn.Func.ReflectMethod() {
-		ptxt.From3.Offset |= obj.REFLECTMETHOD
+		flag |= obj.REFLECTMETHOD
 	}
 
 	// Clumsy but important.
@@ -181,11 +181,11 @@ func (pp *Progs) settext(fn *Node) {
 	if myimportpath == "reflect" {
 		switch fn.Func.Nname.Sym.Name {
 		case "callReflect", "callMethod":
-			ptxt.From3.Offset |= obj.WRAPPER
+			flag |= obj.WRAPPER
 		}
 	}
 
-	Ctxt.InitTextSym(ptxt)
+	Ctxt.InitTextSym(ptxt, flag)
 
 	pp.Text = ptxt
 }

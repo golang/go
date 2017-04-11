@@ -204,7 +204,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	switch {
 	case c.cursym.CFunc():
 		morestack = "runtime.morestackc"
-	case c.cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
+	case !c.cursym.Text.From.Sym.NeedCtxt():
 		morestack = "runtime.morestack_noctxt"
 	}
 	call.To.Sym = c.ctxt.Lookup(morestack, 0)
@@ -552,7 +552,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				c.cursym.Text.Mark |= LEAF
 			}
 
-			if !(p.From3.Offset&obj.NOSPLIT != 0) {
+			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
 
@@ -614,7 +614,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.Spadj = aoffset
 			}
 
-			if c.cursym.Text.From3.Offset&obj.WRAPPER != 0 {
+			if c.cursym.Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOV g_panic(g), R1
