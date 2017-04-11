@@ -204,13 +204,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	textstksiz := p.To.Offset
 	if textstksiz == -8 {
 		// Compatibility hack.
-		p.From3.Offset |= obj.NOFRAME
+		p.From.Sym.Set(obj.AttrNoFrame, true)
 		textstksiz = 0
 	}
 	if textstksiz%8 != 0 {
 		c.ctxt.Diag("frame size %d not a multiple of 8", textstksiz)
 	}
-	if p.From3.Offset&obj.NOFRAME != 0 {
+	if p.From.Sym.NoFrame() {
 		if textstksiz != 0 {
 			c.ctxt.Diag("NOFRAME functions must have a frame size of 0, not %d", textstksiz)
 		}
@@ -293,10 +293,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			if p.Mark&LEAF != 0 && autosize == 0 {
 				// A leaf function with no locals has no frame.
-				p.From3.Offset |= obj.NOFRAME
+				p.From.Sym.Set(obj.AttrNoFrame, true)
 			}
 
-			if p.From3.Offset&obj.NOFRAME == 0 {
+			if !p.From.Sym.NoFrame() {
 				// If there is a stack frame at all, it includes
 				// space to save the LR.
 				autosize += int32(c.ctxt.FixedFrameSize())
@@ -305,14 +305,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if p.Mark&LEAF != 0 && autosize < obj.StackSmall {
 				// A leaf function with a small stack can be marked
 				// NOSPLIT, avoiding a stack check.
-				p.From3.Offset |= obj.NOSPLIT
+				p.From.Sym.Set(obj.AttrNoSplit, true)
 			}
 
 			p.To.Offset = int64(autosize)
 
 			q := p
 
-			if p.From3.Offset&obj.NOSPLIT == 0 {
+			if !p.From.Sym.NoSplit() {
 				p, pPreempt = c.stacksplitPre(p, autosize) // emit pre part of split check
 				pPre = p
 				wasSplit = true //need post part of split
@@ -352,7 +352,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 
-			if c.cursym.Text.From3.Offset&obj.WRAPPER != 0 {
+			if c.cursym.Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOVD g_panic(g), R3
@@ -682,7 +682,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 	p.To.Type = obj.TYPE_BRANCH
 	if c.cursym.CFunc() {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestackc", 0)
-	} else if c.cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+	} else if !c.cursym.Text.From.Sym.NeedCtxt() {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt", 0)
 	} else {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack", 0)

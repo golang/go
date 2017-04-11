@@ -162,6 +162,8 @@ go	src=..
 		regexp
 			testdata
 				+
+		runtime
+			textflag.h
 		strconv
 			testdata
 				+

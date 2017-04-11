@@ -62,6 +62,11 @@ Diff:
 	for _, line := range lines {
 		lineno++
 
+		// Ignore include of textflag.h.
+		if strings.HasPrefix(line, "#include ") {
+			continue
+		}
+
 		// The general form of a test input line is:
 		//	// comment
 		//	INST args [// printed form] [// hex encoding]

@@ -165,10 +165,6 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		As:   obj.ATEXT,
 		Pos:  p.pos(),
 		From: nameAddr,
-		From3: &obj.Addr{
-			Type:   obj.TYPE_CONST,
-			Offset: flag,
-		},
 		To: obj.Addr{
 			Type:   obj.TYPE_TEXTSIZE,
 			Offset: frameSize,
@@ -176,7 +172,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		},
 	}
 	prog.To.Val = int32(argSize)
-	p.ctxt.InitTextSym(prog)
+	p.ctxt.InitTextSym(prog, int(flag))
 
 	p.append(prog, "", true)
 }

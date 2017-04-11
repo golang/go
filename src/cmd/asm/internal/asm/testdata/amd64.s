@@ -6,7 +6,9 @@
 // the old assembler's (6a's) grammar and hand-writing complete
 // instructions for each rule, to guarantee we cover the same space.
 
-TEXT	foo(SB), 7, $0
+#include "../../../../../runtime/textflag.h"
+
+TEXT	foo(SB), DUPOK|NOSPLIT, $0
 
 // LTYPE1 nonrem	{ outcode($1, &$2); }
 	NEGQ	R11

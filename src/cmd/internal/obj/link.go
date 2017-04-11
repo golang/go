@@ -261,14 +261,6 @@ func (p *Prog) From3Type() AddrType {
 	return p.From3.Type
 }
 
-// From3Offset returns From3.Offset, or 0 when From3 is nil.
-func (p *Prog) From3Offset() int64 {
-	if p.From3 == nil {
-		return 0
-	}
-	return p.From3.Offset
-}
-
 // An As denotes an assembler opcode.
 // There are some portable opcodes, declared here in package obj,
 // that are common to all architectures.
@@ -347,6 +339,9 @@ const (
 	AttrCFunc
 	AttrNoSplit
 	AttrLeaf
+	AttrWrapper
+	AttrNeedCtxt
+	AttrNoFrame
 	AttrSeenGlobl
 	AttrOnList
 
@@ -379,6 +374,9 @@ func (a Attribute) SeenGlobl() bool     { return a&AttrSeenGlobl != 0 }
 func (a Attribute) OnList() bool        { return a&AttrOnList != 0 }
 func (a Attribute) ReflectMethod() bool { return a&AttrReflectMethod != 0 }
 func (a Attribute) Local() bool         { return a&AttrLocal != 0 }
+func (a Attribute) Wrapper() bool       { return a&AttrWrapper != 0 }
+func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
+func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -386,6 +384,45 @@ func (a *Attribute) Set(flag Attribute, value bool) {
 	} else {
 		*a &^= flag
 	}
+}
+
+var textAttrStrings = [...]struct {
+	bit Attribute
+	s   string
+}{
+	{bit: AttrDuplicateOK, s: "DUPOK"},
+	{bit: AttrMakeTypelink, s: ""},
+	{bit: AttrCFunc, s: "CFUNC"},
+	{bit: AttrNoSplit, s: "NOSPLIT"},
+	{bit: AttrLeaf, s: "LEAF"},
+	{bit: AttrSeenGlobl, s: ""},
+	{bit: AttrOnList, s: ""},
+	{bit: AttrReflectMethod, s: "REFLECTMETHOD"},
+	{bit: AttrLocal, s: "LOCAL"},
+	{bit: AttrWrapper, s: "WRAPPER"},
+	{bit: AttrNeedCtxt, s: "NEEDCTXT"},
+	{bit: AttrNoFrame, s: "NOFRAME"},
+}
+
+// TextAttrString formats a for printing in as part of a TEXT prog.
+func (a Attribute) TextAttrString() string {
+	var s string
+	for _, x := range textAttrStrings {
+		if a&x.bit != 0 {
+			if x.s != "" {
+				s += x.s + "|"
+			}
+			a &^= x.bit
+		}
+	}
+	if a != 0 {
+		s += fmt.Sprintf("UnknownAttribute(%d)|", a)
+	}
+	// Chop off trailing |, if present.
+	if len(s) > 0 {
+		s = s[:len(s)-1]
+	}
+	return s
 }
 
 // The compiler needs LSym to satisfy fmt.Stringer, because it stores

@@ -143,15 +143,23 @@ func (p *Prog) String() string {
 		sep = ", "
 	}
 	if p.From3Type() != TYPE_NONE {
-		if p.From3.Type == TYPE_CONST && p.As == ATEXT {
-			// Special case - omit $.
-			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
-		} else if quadOpAmd64 {
+		if quadOpAmd64 {
 			fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.From3.Reg)))
 		} else {
 			fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, p.From3))
 		}
 		sep = ", "
+	}
+	if p.As == ATEXT {
+		// If there are attributes, print them. Otherwise, skip the comma.
+		// In short, print one of these two:
+		// TEXT	foo(SB), DUPOK|NOSPLIT, $0
+		// TEXT	foo(SB), $0
+		s := p.From.Sym.Attribute.TextAttrString()
+		if s != "" {
+			fmt.Fprintf(&buf, "%s%s", sep, s)
+			sep = ", "
+		}
 	}
 	if p.To.Type != TYPE_NONE {
 		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To))

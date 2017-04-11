@@ -112,7 +112,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 	ctxt.Text = append(ctxt.Text, text...)
 }
 
-func (ctxt *Link) InitTextSym(p *Prog) {
+func (ctxt *Link) InitTextSym(p *Prog, flag int) {
 	if p.As != ATEXT {
 		ctxt.Diag("InitTextSym non-ATEXT: %v", p)
 	}
@@ -132,16 +132,12 @@ func (ctxt *Link) InitTextSym(p *Prog) {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
 	s.Set(AttrOnList, true)
-	flag := int(p.From3Offset())
-	if flag&DUPOK != 0 {
-		s.Set(AttrDuplicateOK, true)
-	}
-	if flag&NOSPLIT != 0 {
-		s.Set(AttrNoSplit, true)
-	}
-	if flag&REFLECTMETHOD != 0 {
-		s.Set(AttrReflectMethod, true)
-	}
+	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
+	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
+	s.Set(AttrReflectMethod, flag&REFLECTMETHOD != 0)
+	s.Set(AttrWrapper, flag&WRAPPER != 0)
+	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
+	s.Set(AttrNoFrame, flag&NOFRAME != 0)
 	s.Type = STEXT
 	s.Text = p
 }

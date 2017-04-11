@@ -5,7 +5,9 @@
 // This input was created by taking the ppc64 testcase and modified
 // by hand.
 
-TEXT foo(SB),7,$0
+#include "../../../../../runtime/textflag.h"
+
+TEXT foo(SB),DUPOK|NOSPLIT,$0
 
 //inst:
 //

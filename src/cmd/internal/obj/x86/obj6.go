@@ -609,8 +609,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	var bpsize int
 	if ctxt.Arch.Family == sys.AMD64 && ctxt.Framepointer_enabled &&
-		p.From3.Offset&obj.NOFRAME == 0 && // (1) below
-		!(autoffset == 0 && p.From3.Offset&obj.NOSPLIT != 0) && // (2) below
+		!p.From.Sym.NoFrame() && // (1) below
+		!(autoffset == 0 && p.From.Sym.NoSplit()) && // (2) below
 		!(autoffset == 0 && !hasCall) { // (3) below
 		// Make room to save a base pointer.
 		// There are 2 cases we must avoid:
@@ -637,7 +637,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	// TODO(rsc): Remove 'ctxt.Arch.Family == sys.AMD64 &&'.
-	if ctxt.Arch.Family == sys.AMD64 && autoffset < obj.StackSmall && p.From3Offset()&obj.NOSPLIT == 0 {
+	if ctxt.Arch.Family == sys.AMD64 && autoffset < obj.StackSmall && !p.From.Sym.NoSplit() {
 		leaf := true
 	LeafSearch:
 		for q := p; q != nil; q = q.Link {
@@ -659,16 +659,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		if leaf {
-			p.From3.Offset |= obj.NOSPLIT
+			p.From.Sym.Set(obj.AttrNoSplit, true)
 		}
 	}
 
-	if p.From3Offset()&obj.NOSPLIT == 0 || p.From3Offset()&obj.WRAPPER != 0 {
+	if !p.From.Sym.NoSplit() || p.From.Sym.Wrapper() {
 		p = obj.Appendp(p, newprog)
 		p = load_g_cx(ctxt, p, newprog) // load g into CX
 	}
 
-	if cursym.Text.From3Offset()&obj.NOSPLIT == 0 {
+	if !cursym.Text.From.Sym.NoSplit() {
 		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg)) // emit split check
 	}
 
@@ -709,7 +709,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Reg = REG_BP
 	}
 
-	if cursym.Text.From3Offset()&obj.WRAPPER != 0 {
+	if cursym.Text.From.Sym.Wrapper() {
 		// if g._panic != nil && g._panic.argp == FP {
 		//   g._panic.argp = bottom-of-frame
 		// }
@@ -1150,7 +1150,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	switch {
 	case cursym.CFunc():
 		morestack = "runtime.morestackc"
-	case cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
+	case !cursym.Text.From.Sym.NeedCtxt():
 		morestack = "runtime.morestack_noctxt"
 	}
 	call.To.Sym = ctxt.Lookup(morestack, 0)

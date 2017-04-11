@@ -357,7 +357,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-			if p.From3.Offset&obj.NOSPLIT == 0 {
+			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, autosize) // emit split check
 			}
 
@@ -373,7 +373,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.To.Reg = REGSP
 			p.Spadj = autosize
 
-			if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
+			if cursym.Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOVW g_panic(g), R1
@@ -534,7 +534,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 		case ADIV, ADIVU, AMOD, AMODU:
-			if cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
+			if cursym.Text.From.Sym.NoSplit() {
 				ctxt.Diag("cannot divide in NOSPLIT function")
 			}
 			const debugdivmod = false
@@ -842,7 +842,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	switch {
 	case c.cursym.CFunc():
 		morestack = "runtime.morestackc"
-	case c.cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
+	case !c.cursym.Text.From.Sym.NeedCtxt():
 		morestack = "runtime.morestack_noctxt"
 	}
 	call.To.Sym = c.ctxt.Lookup(morestack, 0)
