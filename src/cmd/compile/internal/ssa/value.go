@@ -246,14 +246,12 @@ type ExternSymbol struct {
 // ArgSymbol is an aux value that encodes an argument or result
 // variable's constant offset from FP (FP = SP + framesize).
 type ArgSymbol struct {
-	Typ  Type   // Go type
 	Node GCNode // A *gc.Node referring to the argument/result variable.
 }
 
 // AutoSymbol is an aux value that encodes a local variable's
 // constant offset from SP.
 type AutoSymbol struct {
-	Typ  Type   // Go type
 	Node GCNode // A *gc.Node referring to a local (auto) variable.
 }
 

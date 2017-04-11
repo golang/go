@@ -265,7 +265,7 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem
 		// value we're trying to move.
 		t := val.Type.ElemType()
 		tmp = b.Func.fe.Auto(val.Pos, t)
-		aux := &AutoSymbol{Typ: t, Node: tmp}
+		aux := &AutoSymbol{Node: tmp}
 		mem = b.NewValue1A(pos, OpVarDef, TypeMem, tmp, mem)
 		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), aux, sp)
 		siz := t.Size()
