@@ -1971,7 +1971,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 			put(ctxt, s, s.Extname, UndefinedSym, 0, nil)
 
 		case obj.STLSBSS:
-			if Linkmode == LinkExternal && Headtype != obj.Hopenbsd {
+			if Linkmode == LinkExternal {
 				put(ctxt, s, s.Name, TLSSym, Symaddr(s), s.Gotype)
 			}
 		}
