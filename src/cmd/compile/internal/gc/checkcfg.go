@@ -53,8 +53,10 @@ type controlflow struct {
 	// Gotos that jump forward; required for deferred checkgoto calls.
 	fwdGotos []*Node
 
-	// Unlabeled break and continue statement tracking.
-	innerloop *Node
+	// Breaks are allowed in loops, switches, and selects.
+	allowBreak bool
+	// Continues are allowed only in loops.
+	allowContinue bool
 
 	// Position stack. The current position is top of stack.
 	pos []src.XPos
@@ -131,8 +133,10 @@ func (c *controlflow) stmt(n *Node) {
 	case OCONTINUE, OBREAK:
 		if n.Left == nil {
 			// plain break/continue
-			if c.innerloop == nil {
+			if n.Op == OCONTINUE && !c.allowContinue {
 				c.err("%v is not in a loop", n.Op)
+			} else if !c.allowBreak {
+				c.err("%v is not in a loop, switch, or select", n.Op)
 			}
 			break
 		}
@@ -166,8 +170,13 @@ func (c *controlflow) stmt(n *Node) {
 
 	case OFOR, OFORUNTIL, OSWITCH, OSELECT:
 		// set up for continue/break in body
-		innerloop := c.innerloop
-		c.innerloop = n
+		allowBreak := c.allowBreak
+		allowContinue := c.allowContinue
+		c.allowBreak = true
+		switch n.Op {
+		case OFOR, OFORUNTIL:
+			c.allowContinue = true
+		}
 		lab := c.labeledNodes[n]
 		if lab != nil {
 			// labeled for loop
@@ -179,7 +188,8 @@ func (c *controlflow) stmt(n *Node) {
 		checkedNbody = true
 
 		// tear down continue/break
-		c.innerloop = innerloop
+		c.allowBreak = allowBreak
+		c.allowContinue = allowContinue
 		if lab != nil {
 			lab.ctlNode = nil
 		}
