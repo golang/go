@@ -75,9 +75,12 @@ func Stat(name string) (FileInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-		if isAbs(newname) {
+		switch {
+		case isAbs(newname):
 			name = newname
-		} else {
+		case len(newname) > 0 && IsPathSeparator(newname[0]):
+			name = volumeName(name) + newname
+		default:
 			name = dirname(name) + `\` + newname
 		}
 	}
