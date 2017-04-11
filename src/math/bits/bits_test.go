@@ -342,12 +342,20 @@ func TestRotateLeft(t *testing.T) {
 		if got8 != want8 {
 			t.Fatalf("RotateLeft8(%#02x, %d) == %#02x; want %#02x", x8, k, got8, want8)
 		}
+		got8 = RotateLeft8(want8, -int(k))
+		if got8 != x8 {
+			t.Fatalf("RotateLeft8(%#02x, -%d) == %#02x; want %#02x", want8, k, got8, x8)
+		}
 
 		x16 := uint16(m)
 		got16 := RotateLeft16(x16, int(k))
 		want16 := x16<<(k&0xf) | x16>>(16-k&0xf)
 		if got16 != want16 {
 			t.Fatalf("RotateLeft16(%#04x, %d) == %#04x; want %#04x", x16, k, got16, want16)
+		}
+		got16 = RotateLeft16(want16, -int(k))
+		if got16 != x16 {
+			t.Fatalf("RotateLeft16(%#04x, -%d) == %#04x; want %#04x", want16, k, got16, x16)
 		}
 
 		x32 := uint32(m)
@@ -356,12 +364,20 @@ func TestRotateLeft(t *testing.T) {
 		if got32 != want32 {
 			t.Fatalf("RotateLeft32(%#08x, %d) == %#08x; want %#08x", x32, k, got32, want32)
 		}
+		got32 = RotateLeft32(want32, -int(k))
+		if got32 != x32 {
+			t.Fatalf("RotateLeft32(%#08x, -%d) == %#08x; want %#08x", want32, k, got32, x32)
+		}
 		if UintSize == 32 {
 			x := uint(m)
 			got := RotateLeft(x, int(k))
 			want := x<<(k&0x1f) | x>>(32-k&0x1f)
 			if got != want {
 				t.Fatalf("RotateLeft(%#08x, %d) == %#08x; want %#08x", x, k, got, want)
+			}
+			got = RotateLeft(want, -int(k))
+			if got != x {
+				t.Fatalf("RotateLeft(%#08x, -%d) == %#08x; want %#08x", want, k, got, x)
 			}
 		}
 
@@ -371,12 +387,20 @@ func TestRotateLeft(t *testing.T) {
 		if got64 != want64 {
 			t.Fatalf("RotateLeft64(%#016x, %d) == %#016x; want %#016x", x64, k, got64, want64)
 		}
+		got64 = RotateLeft64(want64, -int(k))
+		if got64 != x64 {
+			t.Fatalf("RotateLeft64(%#016x, -%d) == %#016x; want %#016x", want64, k, got64, x64)
+		}
 		if UintSize == 64 {
 			x := uint(m)
 			got := RotateLeft(x, int(k))
 			want := x<<(k&0x3f) | x>>(64-k&0x3f)
 			if got != want {
 				t.Fatalf("RotateLeft(%#016x, %d) == %#016x; want %#016x", x, k, got, want)
+			}
+			got = RotateLeft(want, -int(k))
+			if got != x {
+				t.Fatalf("RotateLeft(%#08x, -%d) == %#08x; want %#08x", want, k, got, x)
 			}
 		}
 	}
@@ -418,96 +442,6 @@ func BenchmarkRotateLeft64(b *testing.B) {
 	var s uint64
 	for i := 0; i < b.N; i++ {
 		s += RotateLeft64(uint64(Input), i)
-	}
-	Output = int(s)
-}
-
-func TestRotateRight(t *testing.T) {
-	var m uint64 = deBruijn64
-
-	for k := uint(0); k < 128; k++ {
-		x8 := uint8(m)
-		got8 := RotateRight8(x8, int(k))
-		want8 := x8>>(k&0x7) | x8<<(8-k&0x7)
-		if got8 != want8 {
-			t.Fatalf("RotateRight8(%#02x, %d) == %#02x; want %#02x", x8, k, got8, want8)
-		}
-
-		x16 := uint16(m)
-		got16 := RotateRight16(x16, int(k))
-		want16 := x16>>(k&0xf) | x16<<(16-k&0xf)
-		if got16 != want16 {
-			t.Fatalf("RotateRight16(%#04x, %d) == %#04x; want %#04x", x16, k, got16, want16)
-		}
-
-		x32 := uint32(m)
-		got32 := RotateRight32(x32, int(k))
-		want32 := x32>>(k&0x1f) | x32<<(32-k&0x1f)
-		if got32 != want32 {
-			t.Fatalf("RotateRight32(%#08x, %d) == %#08x; want %#08x", x32, k, got32, want32)
-		}
-		if UintSize == 32 {
-			x := uint(m)
-			got := RotateRight(x, int(k))
-			want := x>>(k&0x1f) | x<<(32-k&0x1f)
-			if got != want {
-				t.Fatalf("RotateRight(%#08x, %d) == %#08x; want %#08x", x, k, got, want)
-			}
-		}
-
-		x64 := uint64(m)
-		got64 := RotateRight64(x64, int(k))
-		want64 := x64>>(k&0x3f) | x64<<(64-k&0x3f)
-		if got64 != want64 {
-			t.Fatalf("RotateRight64(%#016x, %d) == %#016x; want %#016x", x64, k, got64, want64)
-		}
-		if UintSize == 64 {
-			x := uint(m)
-			got := RotateRight(x, int(k))
-			want := x>>(k&0x3f) | x<<(64-k&0x3f)
-			if got != want {
-				t.Fatalf("RotateRight(%#016x, %d) == %#016x; want %#016x", x, k, got, want)
-			}
-		}
-	}
-}
-
-func BenchmarkRotateRight(b *testing.B) {
-	var s uint
-	for i := 0; i < b.N; i++ {
-		s += RotateRight(uint(Input), i)
-	}
-	Output = int(s)
-}
-
-func BenchmarkRotateRight8(b *testing.B) {
-	var s uint8
-	for i := 0; i < b.N; i++ {
-		s += RotateRight8(uint8(Input), i)
-	}
-	Output = int(s)
-}
-
-func BenchmarkRotateRight16(b *testing.B) {
-	var s uint16
-	for i := 0; i < b.N; i++ {
-		s += RotateRight16(uint16(Input), i)
-	}
-	Output = int(s)
-}
-
-func BenchmarkRotateRight32(b *testing.B) {
-	var s uint32
-	for i := 0; i < b.N; i++ {
-		s += RotateRight32(uint32(Input), i)
-	}
-	Output = int(s)
-}
-
-func BenchmarkRotateRight64(b *testing.B) {
-	var s uint64
-	for i := 0; i < b.N; i++ {
-		s += RotateRight64(uint64(Input), i)
 	}
 	Output = int(s)
 }
