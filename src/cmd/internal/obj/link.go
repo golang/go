@@ -727,12 +727,8 @@ type Link struct {
 	InlTree       InlTree // global inlining tree used by gc/inl.go
 	Imports       []string
 	Plan9privates *LSym
-	Instoffset    int64
-	Autosize      int32
-	Pc            int64
 	DiagFunc      func(string, ...interface{})
 	DebugInfo     func(fn *LSym, curfn interface{}) []*dwarf.Var // if non-nil, curfn is a *gc.Node
-	Cursym        *LSym
 	Version       int
 	Errors        int
 
