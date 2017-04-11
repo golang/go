@@ -82,7 +82,6 @@ func open(name string) (*Plugin, error) {
 	p := &Plugin{
 		pluginpath: pluginpath,
 		loaded:     make(chan struct{}),
-		syms:       syms,
 	}
 	plugins[filepath] = p
 	pluginsMu.Unlock()
@@ -97,13 +96,13 @@ func open(name string) (*Plugin, error) {
 	}
 
 	// Fill out the value of each plugin symbol.
+	updatedSyms := map[string]interface{}{}
 	for symName, sym := range syms {
 		isFunc := symName[0] == '.'
 		if isFunc {
 			delete(syms, symName)
 			symName = symName[1:]
 		}
-
 		cname := C.CString(pluginpath + "." + symName)
 		p := C.pluginLookup(h, cname, &cErr)
 		C.free(unsafe.Pointer(cname))
@@ -116,8 +115,12 @@ func open(name string) (*Plugin, error) {
 		} else {
 			(*valp)[1] = p
 		}
-		syms[symName] = sym
+		// we can't add to syms during iteration as we'll end up processing
+		// some symbols twice with the inability to tell if the symbol is a function
+		updatedSyms[symName] = sym
 	}
+	p.syms = updatedSyms
+
 	close(p.loaded)
 	return p, nil
 }
