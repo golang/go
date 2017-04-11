@@ -109,7 +109,7 @@ func linksFor(node ast.Node) (links []link) {
 			}
 		case *ast.ValueSpec:
 			for _, n := range n.Names {
-				linkMap[n] = link{mode: identVal}
+				linkMap[n] = link{mode: identVal, name: n.Name}
 			}
 		case *ast.TypeSpec:
 			linkMap[n.Name] = link{mode: identDef}
