@@ -449,7 +449,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 		case obj.R_TLS_LE:
 			isAndroidX86 := obj.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
 
-			if Linkmode == LinkExternal && Iself && Headtype != obj.Hopenbsd && !isAndroidX86 {
+			if Linkmode == LinkExternal && Iself && !isAndroidX86 {
 				r.Done = 0
 				if r.Sym == nil {
 					r.Sym = ctxt.Tlsg
@@ -483,7 +483,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 		case obj.R_TLS_IE:
 			isAndroidX86 := obj.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
 
-			if Linkmode == LinkExternal && Iself && Headtype != obj.Hopenbsd && !isAndroidX86 {
+			if Linkmode == LinkExternal && Iself && !isAndroidX86 {
 				r.Done = 0
 				if r.Sym == nil {
 					r.Sym = ctxt.Tlsg
@@ -1570,7 +1570,7 @@ func (ctxt *Link) dodata() {
 
 	if len(data[obj.STLSBSS]) > 0 {
 		var sect *Section
-		if Iself && (Linkmode == LinkExternal || !*FlagD) && Headtype != obj.Hopenbsd {
+		if Iself && (Linkmode == LinkExternal || !*FlagD) {
 			sect = addsection(&Segdata, ".tbss", 06)
 			sect.Align = int32(SysArch.PtrSize)
 			sect.Vaddr = 0

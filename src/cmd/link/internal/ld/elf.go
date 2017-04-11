@@ -1894,14 +1894,11 @@ func (ctxt *Link) doelf() {
 	Addstring(shstrtab, ".bss")
 	Addstring(shstrtab, ".noptrbss")
 
-	// generate .tbss section (except for OpenBSD where it's not supported)
-	// for dynamic internal linker or external linking, so that various
-	// binutils could correctly calculate PT_TLS size.
-	// see https://golang.org/issue/5200.
-	if Headtype != obj.Hopenbsd {
-		if !*FlagD || Linkmode == LinkExternal {
-			Addstring(shstrtab, ".tbss")
-		}
+	// generate .tbss section for dynamic internal linker or external
+	// linking, so that various binutils could correctly calculate
+	// PT_TLS size. See https://golang.org/issue/5200.
+	if !*FlagD || Linkmode == LinkExternal {
+		Addstring(shstrtab, ".tbss")
 	}
 	if Headtype == obj.Hnetbsd {
 		Addstring(shstrtab, ".note.netbsd.ident")
@@ -2525,23 +2522,18 @@ func Asmbelf(ctxt *Link, symo int64) {
 		/*
 		 * Thread-local storage segment (really just size).
 		 */
-		// Do not emit PT_TLS for OpenBSD since ld.so(1) does
-		// not currently support it. This is handled
-		// appropriately in runtime/cgo.
-		if Headtype != obj.Hopenbsd {
-			tlssize := uint64(0)
-			for sect := Segdata.Sect; sect != nil; sect = sect.Next {
-				if sect.Name == ".tbss" {
-					tlssize = sect.Length
-				}
+		tlssize := uint64(0)
+		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+			if sect.Name == ".tbss" {
+				tlssize = sect.Length
 			}
-			if tlssize != 0 {
-				ph := newElfPhdr()
-				ph.type_ = PT_TLS
-				ph.flags = PF_R
-				ph.memsz = tlssize
-				ph.align = uint64(SysArch.RegSize)
-			}
+		}
+		if tlssize != 0 {
+			ph := newElfPhdr()
+			ph.type_ = PT_TLS
+			ph.flags = PF_R
+			ph.memsz = tlssize
+			ph.align = uint64(SysArch.RegSize)
 		}
 	}
 
