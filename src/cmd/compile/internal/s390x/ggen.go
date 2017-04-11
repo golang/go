@@ -42,10 +42,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 		end := int16(s390x.REGRT2)
 		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, off+n, obj.TYPE_REG, end, 0)
 		p.Reg = reg
-		p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, off, obj.TYPE_MEM, reg, off)
-		p.From3 = new(obj.Addr)
-		p.From3.Type = obj.TYPE_CONST
-		p.From3.Offset = 256
+		p = pp.Appendpp(p, s390x.ACLEAR, obj.TYPE_CONST, 0, 256, obj.TYPE_MEM, reg, off)
 		pl := p
 		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, 256, obj.TYPE_REG, reg, 0)
 		p = pp.Appendpp(p, s390x.ACMP, obj.TYPE_REG, reg, 0, obj.TYPE_REG, end, 0)
@@ -78,12 +75,9 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 			}
 			p = pp.Appendpp(p, ins, obj.TYPE_CONST, 0, 0, obj.TYPE_MEM, reg, off)
 
-		// Handle clears that would require multiple move instructions with XC.
+		// Handle clears that would require multiple move instructions with CLEAR (assembled as XC).
 		default:
-			p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, off, obj.TYPE_MEM, reg, off)
-			p.From3 = new(obj.Addr)
-			p.From3.Type = obj.TYPE_CONST
-			p.From3.Offset = n
+			p = pp.Appendpp(p, s390x.ACLEAR, obj.TYPE_CONST, 0, n, obj.TYPE_MEM, reg, off)
 		}
 
 		cnt -= n

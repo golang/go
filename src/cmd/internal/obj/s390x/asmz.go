@@ -276,9 +276,9 @@ var optab = []Optab{
 	Optab{ASTCK, C_NONE, C_NONE, C_NONE, C_SOREG, 88, 0},
 
 	// storage and storage
-	Optab{AMVC, C_LOREG, C_NONE, C_SCON, C_LOREG, 84, 0},
-	Optab{AMVC, C_LOREG, C_NONE, C_SCON, C_LAUTO, 84, REGSP},
-	Optab{AMVC, C_LAUTO, C_NONE, C_SCON, C_LAUTO, 84, REGSP},
+	Optab{AMVC, C_SCON, C_NONE, C_LOREG, C_LOREG, 84, 0},
+	Optab{AMVC, C_SCON, C_NONE, C_LOREG, C_LAUTO, 84, REGSP},
+	Optab{AMVC, C_SCON, C_NONE, C_LAUTO, C_LAUTO, 84, REGSP},
 
 	// address
 	Optab{ALARL, C_LCON, C_NONE, C_NONE, C_REG, 85, 0},
@@ -299,22 +299,22 @@ var optab = []Optab{
 	// VRX store
 	Optab{AVST, C_VREG, C_NONE, C_NONE, C_SOREG, 100, 0},
 	Optab{AVST, C_VREG, C_NONE, C_NONE, C_SAUTO, 100, REGSP},
-	Optab{AVSTEG, C_VREG, C_NONE, C_SCON, C_SOREG, 100, 0},
-	Optab{AVSTEG, C_VREG, C_NONE, C_SCON, C_SAUTO, 100, REGSP},
+	Optab{AVSTEG, C_SCON, C_VREG, C_NONE, C_SOREG, 100, 0},
+	Optab{AVSTEG, C_SCON, C_VREG, C_NONE, C_SAUTO, 100, REGSP},
 
 	// VRX load
 	Optab{AVL, C_SOREG, C_NONE, C_NONE, C_VREG, 101, 0},
 	Optab{AVL, C_SAUTO, C_NONE, C_NONE, C_VREG, 101, REGSP},
-	Optab{AVLEG, C_SOREG, C_NONE, C_SCON, C_VREG, 101, 0},
-	Optab{AVLEG, C_SAUTO, C_NONE, C_SCON, C_VREG, 101, REGSP},
+	Optab{AVLEG, C_SCON, C_NONE, C_SOREG, C_VREG, 101, 0},
+	Optab{AVLEG, C_SCON, C_NONE, C_SAUTO, C_VREG, 101, REGSP},
 
 	// VRV scatter
-	Optab{AVSCEG, C_VREG, C_NONE, C_SCON, C_SOREG, 102, 0},
-	Optab{AVSCEG, C_VREG, C_NONE, C_SCON, C_SAUTO, 102, REGSP},
+	Optab{AVSCEG, C_SCON, C_VREG, C_NONE, C_SOREG, 102, 0},
+	Optab{AVSCEG, C_SCON, C_VREG, C_NONE, C_SAUTO, 102, REGSP},
 
 	// VRV gather
-	Optab{AVGEG, C_SOREG, C_NONE, C_SCON, C_VREG, 103, 0},
-	Optab{AVGEG, C_SAUTO, C_NONE, C_SCON, C_VREG, 103, REGSP},
+	Optab{AVGEG, C_SCON, C_NONE, C_SOREG, C_VREG, 103, 0},
+	Optab{AVGEG, C_SCON, C_NONE, C_SAUTO, C_VREG, 103, REGSP},
 
 	// VRS element shift/rotate and load gr to/from vr element
 	Optab{AVESLG, C_SCON, C_VREG, C_NONE, C_VREG, 104, 0},
@@ -335,19 +335,19 @@ var optab = []Optab{
 	Optab{AVLM, C_SAUTO, C_VREG, C_NONE, C_VREG, 106, REGSP},
 
 	// VRS store with length
-	Optab{AVSTL, C_VREG, C_NONE, C_REG, C_SOREG, 107, 0},
-	Optab{AVSTL, C_VREG, C_NONE, C_REG, C_SAUTO, 107, REGSP},
+	Optab{AVSTL, C_REG, C_VREG, C_NONE, C_SOREG, 107, 0},
+	Optab{AVSTL, C_REG, C_VREG, C_NONE, C_SAUTO, 107, REGSP},
 
 	// VRS load with length
-	Optab{AVLL, C_SOREG, C_NONE, C_REG, C_VREG, 108, 0},
-	Optab{AVLL, C_SAUTO, C_NONE, C_REG, C_VREG, 108, REGSP},
+	Optab{AVLL, C_REG, C_NONE, C_SOREG, C_VREG, 108, 0},
+	Optab{AVLL, C_REG, C_NONE, C_SAUTO, C_VREG, 108, REGSP},
 
 	// VRI-a
 	Optab{AVGBM, C_ANDCON, C_NONE, C_NONE, C_VREG, 109, 0},
 	Optab{AVZERO, C_NONE, C_NONE, C_NONE, C_VREG, 109, 0},
 	Optab{AVREPIG, C_ADDCON, C_NONE, C_NONE, C_VREG, 109, 0},
 	Optab{AVREPIG, C_SCON, C_NONE, C_NONE, C_VREG, 109, 0},
-	Optab{AVLEIG, C_ADDCON, C_NONE, C_SCON, C_VREG, 109, 0},
+	Optab{AVLEIG, C_SCON, C_NONE, C_ADDCON, C_VREG, 109, 0},
 	Optab{AVLEIG, C_SCON, C_NONE, C_SCON, C_VREG, 109, 0},
 
 	// VRI-b generate mask
@@ -358,8 +358,8 @@ var optab = []Optab{
 
 	// VRI-d element rotate and insert under mask and
 	// shift left double by byte
-	Optab{AVERIMG, C_VREG, C_VREG, C_SCON, C_VREG, 112, 0},
-	Optab{AVSLDB, C_VREG, C_VREG, C_SCON, C_VREG, 112, 0},
+	Optab{AVERIMG, C_SCON, C_VREG, C_VREG, C_VREG, 112, 0},
+	Optab{AVSLDB, C_SCON, C_VREG, C_VREG, C_VREG, 112, 0},
 
 	// VRI-d fp test data class immediate
 	Optab{AVFTCIDB, C_SCON, C_VREG, C_NONE, C_VREG, 113, 0},
@@ -379,7 +379,7 @@ var optab = []Optab{
 	Optab{AVAQ, C_VREG, C_VREG, C_NONE, C_VREG, 118, 0},
 	Optab{AVAQ, C_VREG, C_NONE, C_NONE, C_VREG, 118, 0},
 	Optab{AVNOT, C_VREG, C_NONE, C_NONE, C_VREG, 118, 0},
-	Optab{AVPDI, C_VREG, C_VREG, C_SCON, C_VREG, 123, 0},
+	Optab{AVPDI, C_SCON, C_VREG, C_VREG, C_VREG, 123, 0},
 
 	// VRR-c shifts
 	Optab{AVERLLVG, C_VREG, C_VREG, C_NONE, C_VREG, 119, 0},
@@ -3542,16 +3542,16 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		// M4 is reserved and must be 0
 		zRRF(opcode, 5, 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
 
-	case 84: // storage-and-storage operations $length mem mem (length in From3)
-		l := c.regoff(p.From3)
+	case 84: // storage-and-storage operations $length mem mem
+		l := c.regoff(&p.From)
 		if l < 1 || l > 256 {
 			c.ctxt.Diag("number of bytes (%v) not in range [1,256]", l)
 		}
-		if p.From.Index != 0 || p.To.Index != 0 {
+		if p.From3.Index != 0 || p.To.Index != 0 {
 			c.ctxt.Diag("cannot use index reg")
 		}
 		b1 := p.To.Reg
-		b2 := p.From.Reg
+		b2 := p.From3.Reg
 		if b1 == 0 {
 			b1 = o.param
 		}
@@ -3559,7 +3559,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			b2 = o.param
 		}
 		d1 := c.regoff(&p.To)
-		d2 := c.regoff(&p.From)
+		d2 := c.regoff(p.From3)
 		if d1 < 0 || d1 >= DISP12 {
 			if b2 == REGTMP {
 				c.ctxt.Diag("REGTMP conflict")
@@ -3891,51 +3891,51 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 	case 100: // VRX STORE
 		op, m3, _ := vop(p.As)
-		if p.From3 != nil {
-			m3 = uint32(c.vregoff(p.From3))
+		v1 := p.From.Reg
+		if p.Reg != 0 {
+			m3 = uint32(c.vregoff(&p.From))
+			v1 = p.Reg
 		}
 		b2 := p.To.Reg
 		if b2 == 0 {
 			b2 = o.param
 		}
 		d2 := uint32(c.vregoff(&p.To))
-		zVRX(op, uint32(p.From.Reg), uint32(p.To.Index), uint32(b2), d2, m3, asm)
+		zVRX(op, uint32(v1), uint32(p.To.Index), uint32(b2), d2, m3, asm)
 
 	case 101: // VRX LOAD
 		op, m3, _ := vop(p.As)
+		src := &p.From
 		if p.From3 != nil {
-			m3 = uint32(c.vregoff(p.From3))
+			m3 = uint32(c.vregoff(&p.From))
+			src = p.From3
 		}
-		b2 := p.From.Reg
+		b2 := src.Reg
 		if b2 == 0 {
 			b2 = o.param
 		}
-		d2 := uint32(c.vregoff(&p.From))
-		zVRX(op, uint32(p.To.Reg), uint32(p.From.Index), uint32(b2), d2, m3, asm)
+		d2 := uint32(c.vregoff(src))
+		zVRX(op, uint32(p.To.Reg), uint32(src.Index), uint32(b2), d2, m3, asm)
 
 	case 102: // VRV SCATTER
-		op, m3, _ := vop(p.As)
-		if p.From3 != nil {
-			m3 = uint32(c.vregoff(p.From3))
-		}
+		op, _, _ := vop(p.As)
+		m3 := uint32(c.vregoff(&p.From))
 		b2 := p.To.Reg
 		if b2 == 0 {
 			b2 = o.param
 		}
 		d2 := uint32(c.vregoff(&p.To))
-		zVRV(op, uint32(p.From.Reg), uint32(p.To.Index), uint32(b2), d2, m3, asm)
+		zVRV(op, uint32(p.Reg), uint32(p.To.Index), uint32(b2), d2, m3, asm)
 
 	case 103: // VRV GATHER
-		op, m3, _ := vop(p.As)
-		if p.From3 != nil {
-			m3 = uint32(c.vregoff(p.From3))
-		}
-		b2 := p.From.Reg
+		op, _, _ := vop(p.As)
+		m3 := uint32(c.vregoff(&p.From))
+		b2 := p.From3.Reg
 		if b2 == 0 {
 			b2 = o.param
 		}
-		d2 := uint32(c.vregoff(&p.From))
-		zVRV(op, uint32(p.To.Reg), uint32(p.From.Index), uint32(b2), d2, m3, asm)
+		d2 := uint32(c.vregoff(p.From3))
+		zVRV(op, uint32(p.To.Reg), uint32(p.From3.Index), uint32(b2), d2, m3, asm)
 
 	case 104: // VRS SHIFT/ROTATE and LOAD GR FROM VR ELEMENT
 		op, m4, _ := vop(p.As)
@@ -3971,35 +3971,36 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		if reg == 0 {
 			reg = o.param
 		}
-		zVRS(op, uint32(p.From.Reg), uint32(p.From3.Reg), uint32(reg), offset, 0, asm)
+		zVRS(op, uint32(p.Reg), uint32(p.From.Reg), uint32(reg), offset, 0, asm)
 
 	case 108: // VRS LOAD WITH LENGTH
 		op, _, _ := vop(p.As)
-		offset := uint32(c.vregoff(&p.From))
-		reg := p.From.Reg
+		offset := uint32(c.vregoff(p.From3))
+		reg := p.From3.Reg
 		if reg == 0 {
 			reg = o.param
 		}
-		zVRS(op, uint32(p.To.Reg), uint32(p.From3.Reg), uint32(reg), offset, 0, asm)
+		zVRS(op, uint32(p.To.Reg), uint32(p.From.Reg), uint32(reg), offset, 0, asm)
 
 	case 109: // VRI-a
 		op, m3, _ := vop(p.As)
 		i2 := uint32(c.vregoff(&p.From))
+		if p.From3 != nil {
+			m3 = uint32(c.vregoff(&p.From))
+			i2 = uint32(c.vregoff(p.From3))
+		}
 		switch p.As {
 		case AVZERO:
 			i2 = 0
 		case AVONE:
 			i2 = 0xffff
 		}
-		if p.From3 != nil {
-			m3 = uint32(c.vregoff(p.From3))
-		}
 		zVRIa(op, uint32(p.To.Reg), i2, m3, asm)
 
 	case 110:
 		op, m4, _ := vop(p.As)
-		i2 := uint32(c.vregoff(p.From3))
-		i3 := uint32(c.vregoff(&p.From))
+		i2 := uint32(c.vregoff(&p.From))
+		i3 := uint32(c.vregoff(p.From3))
 		zVRIb(op, uint32(p.To.Reg), i2, i3, m4, asm)
 
 	case 111:
@@ -4009,8 +4010,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 	case 112:
 		op, m5, _ := vop(p.As)
-		i4 := uint32(c.vregoff(p.From3))
-		zVRId(op, uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), i4, m5, asm)
+		i4 := uint32(c.vregoff(&p.From))
+		zVRId(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.From3.Reg), i4, m5, asm)
 
 	case 113:
 		op, m4, _ := vop(p.As)
@@ -4027,8 +4028,6 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		op, m3, m5 := vop(p.As)
 		m4 := singleElementMask(p.As)
 		zVRRa(op, uint32(p.From.Reg), uint32(p.To.Reg), m5, m4, m3, asm)
-
-	case 116: // VRR-a
 
 	case 117: // VRR-b
 		op, m4, m5 := vop(p.As)
@@ -4056,18 +4055,18 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		op, m6, _ := vop(p.As)
 		m5 := singleElementMask(p.As)
 		v1 := uint32(p.To.Reg)
-		v2 := uint32(p.From3.Reg)
-		v3 := uint32(p.From.Reg)
-		v4 := uint32(p.Reg)
+		v2 := uint32(p.From.Reg)
+		v3 := uint32(p.Reg)
+		v4 := uint32(p.From3.Reg)
 		zVRRd(op, v1, v2, v3, m6, m5, v4, asm)
 
 	case 121: // VRR-e
 		op, m6, _ := vop(p.As)
 		m5 := singleElementMask(p.As)
 		v1 := uint32(p.To.Reg)
-		v2 := uint32(p.From3.Reg)
-		v3 := uint32(p.From.Reg)
-		v4 := uint32(p.Reg)
+		v2 := uint32(p.From.Reg)
+		v3 := uint32(p.Reg)
+		v4 := uint32(p.From3.Reg)
 		zVRRe(op, v1, v2, v3, m6, m5, v4, asm)
 
 	case 122: // VRR-f LOAD VRS FROM GRS DISJOINT
@@ -4076,8 +4075,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 	case 123: // VPDI $m4, V2, V3, V1
 		op, _, _ := vop(p.As)
-		m4 := c.regoff(p.From3)
-		zVRRc(op, uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), 0, 0, uint32(m4), asm)
+		m4 := c.regoff(&p.From)
+		zVRRc(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.From3.Reg), 0, 0, uint32(m4), asm)
 	}
 }
 

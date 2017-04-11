@@ -623,12 +623,11 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				return
 			}
 		case sys.S390X:
-			if arch.IsS390xWithLength(op) || arch.IsS390xWithIndex(op) {
-				prog.From = a[1]
-				prog.From3 = newAddr(a[0])
-			} else {
+			prog.From = a[0]
+			if a[1].Type == obj.TYPE_REG {
 				prog.Reg = p.getRegister(prog, op, &a[1])
-				prog.From = a[0]
+			} else {
+				prog.From3 = newAddr(a[1])
 			}
 			prog.To = a[2]
 		default:
@@ -711,9 +710,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			}
 		}
 		if p.arch.Family == sys.S390X {
-			prog.From = a[1]
-			prog.Reg = p.getRegister(prog, op, &a[2])
-			prog.From3 = newAddr(a[0])
+			if a[1].Type != obj.TYPE_REG {
+				p.errorf("second operand must be a register in %s instruction", op)
+				return
+			}
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.From3 = newAddr(a[2])
 			prog.To = a[3]
 			break
 		}
