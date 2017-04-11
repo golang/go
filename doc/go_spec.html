@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of April 12, 2017",
+	"Subtitle": "Version of April 17, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -3582,6 +3582,33 @@ IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
 occurs is implementation-specific.
 </p>
 
+<p>
+An implementation may combine multiple floating-point operations into a single
+fused operation, possibly across statements, and produce a result that differs
+from the value obtained by executing and rounding the instructions individually.
+A floating-point type <a href="#Conversions">conversion</a> explicitly rounds to
+the precision of the target type, preventing fusion that would discard that rounding.
+</p>
+
+<p>
+For instance, some architectures provide a "fused multiply and add" (FMA) instruction
+that computes <code>x*y + z</code> without rounding the intermediate result <code>x*y</code>.
+These examples show when a Go implementation can use that instruction:
+</p>
+
+<pre>
+// FMA allowed for computing r, because x*y is not explicitly rounded:
+r  = x*y + z
+r  = z;   r += x*y
+t  = x*y; r = t + z
+*p = x*y; r = *p + z
+r  = x*y + float64(z)
+
+// FMA disallowed for computing r, because it would omit rounding of x*y:
+r  = float64(x*y) + z
+r  = z; r += float64(x*y)
+t  = float64(x*y); r = t + z
+</pre>
 
 <h4 id="String_concatenation">String concatenation</h4>
 
@@ -3640,7 +3667,7 @@ These terms and the result of the comparisons are defined as follows:
 	</li>
 
 	<li>
-	Floating point values are comparable and ordered,
+	Floating-point values are comparable and ordered,
 	as defined by the IEEE-754 standard.
 	</li>
 
