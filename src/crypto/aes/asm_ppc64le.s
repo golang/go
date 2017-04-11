@@ -84,7 +84,7 @@ TEXT ·doEncryptKeyAsm(SB),NOSPLIT|NOFRAME,$0
 	ANDCC $0x3f, BITS, TEMP        // andi. 0,4,0x3f   multiple of 64
 	BC 0x06, 2, enc_key_abort      // bne-  .Lenc_key_abort
 
-	MOVW $·rcon(SB), PTR           // PTR point to rcon addr
+	MOVD $·rcon(SB), PTR           // PTR point to rcon addr
 
 	// Get key from memory and write aligned into VR
 	NEG INP, R9                    // neg   9,3        R9 is ~INP + 1
