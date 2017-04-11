@@ -727,7 +727,6 @@ type Link struct {
 	InlTree       InlTree // global inlining tree used by gc/inl.go
 	Imports       []string
 	Plan9privates *LSym
-	Printp        *Prog
 	Instoffset    int64
 	Autosize      int32
 	Pc            int64
