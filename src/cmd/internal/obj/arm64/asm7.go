@@ -732,7 +732,7 @@ func (c *ctxt7) flushpool(p *obj.Prog, skip int) {
 func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 	cls := c.aclass(a)
 	lit := c.instoffset
-	t := *c.newprog()
+	t := c.newprog()
 	t.As = AWORD
 	sz := 4
 
@@ -804,7 +804,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 	}
 
 	q := c.newprog()
-	*q = t
+	*q = *t
 	q.Pc = int64(c.pool.size)
 	if c.blitrl == nil {
 		c.blitrl = q
