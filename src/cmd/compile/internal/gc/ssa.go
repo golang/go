@@ -157,7 +157,7 @@ func buildssa(fn *Node) *ssa.Func {
 	for _, n := range fn.Func.Dcl {
 		switch n.Class {
 		case PPARAM, PPARAMOUT:
-			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
+			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), aux, s.sp)
 			if n.Class == PPARAMOUT && s.canSSA(n) {
 				// Save ssa-able PPARAMOUT variables so we can
@@ -3212,18 +3212,18 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			}
 			if n == nodfp {
 				// Special arg that points to the frame pointer (Used by ORECOVER).
-				aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
+				aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
 				return s.entryNewValue1A(ssa.OpAddr, t, aux, s.sp)
 			}
 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			return nil
 		case PAUTO:
-			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Typ: n.Type, Node: n})
+			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Node: n})
 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
 		case PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
 			// ensure that we reuse symbols for out parameters so
 			// that cse works on their addresses
-			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
+			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
 		default:
 			s.Fatalf("variable address class %v not implemented", classnames[n.Class])
