@@ -786,16 +786,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 func (c *ctxt0) addnop(p *obj.Prog) {
 	q := c.newprog()
-	// we want to use the canonical NOP (SLL $0,R0,R0) here,
-	// however, as the assembler will always replace $0
-	// as R0, we have to resort to manually encode the SLL
-	// instruction as WORD $0.
-	q.As = AWORD
+	q.As = ANOOP
 	q.Pos = p.Pos
-	q.From.Type = obj.TYPE_CONST
-	q.From.Name = obj.NAME_NONE
-	q.From.Offset = 0
-
 	q.Link = p.Link
 	p.Link = q
 }

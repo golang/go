@@ -299,6 +299,7 @@ const (
 	ADIVW
 	AGOK
 	ALL
+	ALLV
 	ALUI
 	AMOVB
 	AMOVBU
@@ -323,12 +324,14 @@ const (
 	ANEGD
 	ANEGF
 	ANEGW
+	ANOOP // hardware nop
 	ANOR
 	AOR
 	AREM
 	AREMU
 	ARFE
 	ASC
+	ASCV
 	ASGT
 	ASGTU
 	ASLL
