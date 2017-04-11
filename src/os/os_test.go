@@ -1813,6 +1813,23 @@ func TestStatRelativeSymlink(t *testing.T) {
 	if !SameFile(st, st1) {
 		t.Error("Stat doesn't follow relative symlink")
 	}
+
+	if runtime.GOOS == "windows" {
+		Remove(link)
+		err = Symlink(target[len(filepath.VolumeName(target)):], link)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		st1, err := Stat(link)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !SameFile(st, st1) {
+			t.Error("Stat doesn't follow relative symlink")
+		}
+	}
 }
 
 func TestReadAtEOF(t *testing.T) {
