@@ -2538,6 +2538,57 @@ func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, obj string,
 	if p.Internal.LocalPrefix != "" {
 		gcargs = append(gcargs, "-fgo-relative-import-path="+p.Internal.LocalPrefix)
 	}
+
+	// Handle vendor directories
+	savedirs := []string{}
+	for _, incdir := range importArgs {
+		if incdir != "-I" {
+			savedirs = append(savedirs, incdir)
+		}
+	}
+
+	for _, path := range p.Imports {
+		// If this is a new vendor path, add it to the list of importArgs
+		if i := strings.LastIndex(path, "/vendor"); i >= 0 {
+			for _, dir := range savedirs {
+				// Check if the vendor path is already included in dir
+				if strings.HasSuffix(dir, path[:i+len("/vendor")]) {
+					continue
+				}
+				// Make sure this vendor path is not already in the list for importArgs
+				vendorPath := dir + "/" + path[:i+len("/vendor")]
+				for _, imp := range importArgs {
+					if imp == "-I" {
+						continue
+					}
+					// This vendorPath is already in the list
+					if imp == vendorPath {
+						goto nextSuffixPath
+					}
+				}
+				// New vendorPath not yet in the importArgs list, so add it
+				importArgs = append(importArgs, "-I", vendorPath)
+			nextSuffixPath:
+			}
+		} else if strings.HasPrefix(path, "vendor/") {
+			for _, dir := range savedirs {
+				// Make sure this vendor path is not already in the list for importArgs
+				vendorPath := dir + "/" + path[len("/vendor"):]
+				for _, imp := range importArgs {
+					if imp == "-I" {
+						continue
+					}
+					if imp == vendorPath {
+						goto nextPrefixPath
+					}
+				}
+				// This vendor path is needed and not already in the list, so add it
+				importArgs = append(importArgs, "-I", vendorPath)
+			nextPrefixPath:
+			}
+		}
+	}
+
 	args := str.StringList(tools.compiler(), importArgs, "-c", gcargs, "-o", ofile, buildGccgoflags)
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
