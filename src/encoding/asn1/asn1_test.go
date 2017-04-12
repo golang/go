@@ -7,6 +7,7 @@ package asn1
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"strings"
@@ -386,6 +387,8 @@ var tagAndLengthData = []tagAndLengthTest{
 	{[]byte{0xa0, 0x81, 0x7f}, false, tagAndLength{}},
 	// Tag numbers which would overflow int32 are rejected. (The value below is 2^31.)
 	{[]byte{0x1f, 0x88, 0x80, 0x80, 0x80, 0x00, 0x00}, false, tagAndLength{}},
+	// Tag numbers that fit in an int32 are valid. (The value below is 2^31 - 1.)
+	{[]byte{0x1f, 0x87, 0xFF, 0xFF, 0xFF, 0x7F, 0x00}, true, tagAndLength{tag: math.MaxInt32}},
 	// Long tag number form may not be used for tags that fit in short form.
 	{[]byte{0x1f, 0x1e, 0x00}, false, tagAndLength{}},
 }
