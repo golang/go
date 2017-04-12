@@ -567,8 +567,8 @@
 (CMP (MOVDconst [c]) x) && is32Bit(c) -> (InvertFlags (CMPconst x [c]))
 (CMPW x (MOVDconst [c])) -> (CMPWconst x [c])
 (CMPW (MOVDconst [c]) x) -> (InvertFlags (CMPWconst x [c]))
-(CMPU x (MOVDconst [c])) && is32Bit(c) -> (CMPUconst x [int64(uint32(c))])
-(CMPU (MOVDconst [c]) x) && is32Bit(c) -> (InvertFlags (CMPUconst x [int64(uint32(c))]))
+(CMPU x (MOVDconst [c])) && isU32Bit(c) -> (CMPUconst x [int64(uint32(c))])
+(CMPU (MOVDconst [c]) x) && isU32Bit(c) -> (InvertFlags (CMPUconst x [int64(uint32(c))]))
 (CMPWU x (MOVDconst [c])) -> (CMPWUconst x [int64(uint32(c))])
 (CMPWU (MOVDconst [c]) x) -> (InvertFlags (CMPWUconst x [int64(uint32(c))]))
 
