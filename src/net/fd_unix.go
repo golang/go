@@ -210,7 +210,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 }
 
 func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
-	n, sa, err = fd.pfd.RecvFrom(p)
+	n, sa, err = fd.pfd.ReadFrom(p)
 	runtime.KeepAlive(fd)
 	return n, sa, wrapSyscallError("recvfrom", err)
 }

@@ -6,7 +6,7 @@ package poll
 
 import "syscall"
 
-// Setsockopt wraps the Windows setsockopt network call.
+// Setsockopt wraps the setsockopt network call.
 func (fd *FD) Setsockopt(level, optname int32, optval *byte, optlen int32) error {
 	if err := fd.incref(); err != nil {
 		return err
@@ -15,7 +15,7 @@ func (fd *FD) Setsockopt(level, optname int32, optval *byte, optlen int32) error
 	return syscall.Setsockopt(fd.Sysfd, level, optname, optval, optlen)
 }
 
-// WSAIoctl wraps the Windows WSAIoctl call.
+// WSAIoctl wraps the WSAIoctl network call.
 func (fd *FD) WSAIoctl(iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *syscall.Overlapped, completionRoutine uintptr) error {
 	if err := fd.incref(); err != nil {
 		return err
