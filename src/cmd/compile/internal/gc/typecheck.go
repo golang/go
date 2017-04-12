@@ -23,11 +23,12 @@ const (
 	Ecomplit              // type in composite literal
 )
 
-// type check the whole tree of an expression.
+// type checks the whole tree of an expression.
 // calculates expression types.
 // evaluates compile time constants.
 // marks variables that escape the local frame.
-// rewrites n->op to be more specific in some cases.
+// rewrites n.Op to be more specific in some cases.
+
 var typecheckdefstack []*Node
 
 // resolve ONONAME to definition, if any.
@@ -2180,10 +2181,6 @@ OpSwitch:
 		return n
 	}
 
-	/* TODO
-	if(n->type == T)
-		fatal("typecheck nil type");
-	*/
 	return n
 }
 
@@ -2449,8 +2446,6 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 	if n.Left.Type == t || n.Left.Type.Sym == nil {
 		mt := methtype(t)
 		if mt != nil {
-			// Use f2->method, not f2->xmethod: adddot has
-			// already inserted all the necessary embedded dots.
 			f2 = lookdot1(n, s, mt, mt.Methods(), dostrcmp)
 		}
 	}
@@ -2527,7 +2522,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 		}
 		if pll.Implicit() && ll.Type.IsPtr() && ll.Type.Sym != nil && asNode(ll.Type.Sym.Def) != nil && asNode(ll.Type.Sym.Def).Op == OTYPE {
 			// It is invalid to automatically dereference a named pointer type when selecting a method.
-			// Make n->left == ll to clarify error message.
+			// Make n.Left == ll to clarify error message.
 			n.Left = ll
 			return nil
 		}
@@ -2536,7 +2531,6 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 		n.Xoffset = f2.Offset
 		n.Type = f2.Type
 
-		//		print("lookdot found [%p] %T\n", f2->type, f2->type);
 		n.Op = ODOTMETH
 
 		return f2
@@ -2918,7 +2912,7 @@ func typecheckcomplit(n *Node) *Node {
 		return n
 	}
 
-	// Save original node (including n->right)
+	// Save original node (including n.Right)
 	norig := nod(n.Op, nil, nil)
 
 	*norig = *n
@@ -3734,7 +3728,7 @@ func typecheckdef(n *Node) *Node {
 			}
 			if nsavederrors+nerrors > 0 {
 				// Can have undefined variables in x := foo
-				// that make x have an n->ndefn == nil.
+				// that make x have an n.name.Defn == nil.
 				// If there are other errors anyway, don't
 				// bother adding to the noise.
 				break
@@ -3749,7 +3743,7 @@ func typecheckdef(n *Node) *Node {
 			break
 		}
 
-		n.Name.Defn = typecheck(n.Name.Defn, Etop) // fills in n->type
+		n.Name.Defn = typecheck(n.Name.Defn, Etop) // fills in n.Type
 
 	case OTYPE:
 		if p := n.Name.Param; p.Alias {
