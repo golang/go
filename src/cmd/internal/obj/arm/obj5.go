@@ -537,7 +537,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
 				ctxt.Diag("cannot divide in NOSPLIT function")
 			}
-			if ctxt.Debugdivmod {
+			const debugdivmod = false
+			if debugdivmod {
 				break
 			}
 			if p.From.Type != obj.TYPE_REG {

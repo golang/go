@@ -715,7 +715,6 @@ type Link struct {
 	Arch          *LinkArch
 	Debugasm      bool
 	Debugvlog     bool
-	Debugdivmod   bool
 	Debugpcln     string
 	Flag_shared   bool
 	Flag_dynlink  bool
