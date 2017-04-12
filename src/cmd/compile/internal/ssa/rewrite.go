@@ -284,6 +284,20 @@ func isAuto(s interface{}) bool {
 	return ok
 }
 
+func fitsARM64Offset(off, align int64, sym interface{}) bool {
+	// only small offset (between -256 and 256) or offset that is a multiple of data size
+	// can be encoded in the instructions
+	// since this rewriting takes place before stack allocation, the offset to SP is unknown,
+	// so don't do it for args and locals with unaligned offset
+	if !is32Bit(off) {
+		return false
+	}
+	if align == 1 {
+		return true
+	}
+	return !isArg(sym) && (off%align == 0 || off < 256 && off > -256 && !isAuto(sym))
+}
+
 // isSameSym returns whether sym is the same as the given named symbol
 func isSameSym(sym interface{}, name string) bool {
 	s, ok := sym.(fmt.Stringer)
