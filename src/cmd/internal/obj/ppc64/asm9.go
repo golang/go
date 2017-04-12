@@ -1985,29 +1985,48 @@ const (
 	DS_FORM
 )
 
-// opform returns the form (D_FORM or DS_FORM) of an instruction. Used to decide on
-// which relocation to use with a load or store and only supports the needed
-// instructions.
+// This function determines when a non-indexed load or store is D or
+// DS form for use in finding the size of the offset field in the instruction.
+// The size is needed when setting the offset value in the instruction
+// and when generating relocation for that field.
+// DS form instructions include: ld, ldu, lwa, std, stdu.  All other
+// loads and stores with an offset field are D form.  This function should
+// only be called with the same opcodes as are handled by opstore and opload.
 func (c *ctxt9) opform(insn uint32) int {
 	switch insn {
 	default:
 		c.ctxt.Diag("bad insn in loadform: %x", insn)
 	case OPVCC(58, 0, 0, 0), // ld
+		OPVCC(58, 0, 0, 1),        // ldu
 		OPVCC(58, 0, 0, 0) | 1<<1, // lwa
-		OPVCC(62, 0, 0, 0):        // std
+		OPVCC(62, 0, 0, 0),        // std
+		OPVCC(62, 0, 0, 1):        //stdu
 		return DS_FORM
 	case OP_ADDI, // add
 		OPVCC(32, 0, 0, 0), // lwz
-		OPVCC(42, 0, 0, 0), // lha
-		OPVCC(40, 0, 0, 0), // lhz
+		OPVCC(33, 0, 0, 0), // lwzu
 		OPVCC(34, 0, 0, 0), // lbz
-		OPVCC(50, 0, 0, 0), // lfd
+		OPVCC(35, 0, 0, 0), // lbzu
+		OPVCC(40, 0, 0, 0), // lhz
+		OPVCC(41, 0, 0, 0), // lhzu
+		OPVCC(42, 0, 0, 0), // lha
+		OPVCC(43, 0, 0, 0), // lhau
+		OPVCC(46, 0, 0, 0), // lmw
 		OPVCC(48, 0, 0, 0), // lfs
+		OPVCC(49, 0, 0, 0), // lfsu
+		OPVCC(50, 0, 0, 0), // lfd
+		OPVCC(51, 0, 0, 0), // lfdu
 		OPVCC(36, 0, 0, 0), // stw
-		OPVCC(44, 0, 0, 0), // sth
+		OPVCC(37, 0, 0, 0), // stwu
 		OPVCC(38, 0, 0, 0), // stb
+		OPVCC(39, 0, 0, 0), // stbu
+		OPVCC(44, 0, 0, 0), // sth
+		OPVCC(45, 0, 0, 0), // sthu
+		OPVCC(47, 0, 0, 0), // stmw
+		OPVCC(52, 0, 0, 0), // stfs
+		OPVCC(53, 0, 0, 0), // stfsu
 		OPVCC(54, 0, 0, 0), // stfd
-		OPVCC(52, 0, 0, 0): // stfs
+		OPVCC(55, 0, 0, 0): // stfdu
 		return D_FORM
 	}
 	return 0
@@ -2268,7 +2287,12 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			if int32(int16(v)) != v {
 				log.Fatalf("mishandled instruction %v", p)
 			}
-			o1 = AOP_IRR(c.opstore(p.As), uint32(p.From.Reg), uint32(r), uint32(v))
+			// Offsets in DS form stores must be a multiple of 4
+			inst := c.opstore(p.As)
+			if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+				log.Fatalf("invalid offset for DS form load/store %v", p)
+			}
+			o1 = AOP_IRR(inst, uint32(p.From.Reg), uint32(r), uint32(v))
 		}
 
 	case 8: /* mov soreg, r ==> lbz/lhz/lwz o(r) */
@@ -2294,7 +2318,12 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			if int32(int16(v)) != v {
 				log.Fatalf("mishandled instruction %v", p)
 			}
-			o1 = AOP_IRR(c.opload(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
+			// Offsets in DS form loads must be a multiple of 4
+			inst := c.opload(p.As)
+			if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+				log.Fatalf("invalid offset for DS form load/store %v", p)
+			}
+			o1 = AOP_IRR(inst, uint32(p.To.Reg), uint32(r), uint32(v))
 		}
 
 	case 9: /* movb soreg, r ==> lbz o(r),r2; extsb r2,r2 */
@@ -2789,8 +2818,13 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = int(o.param)
 		}
+		// Offsets in DS form stores must be a multiple of 4
+		inst := c.opstore(p.As)
+		if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+			log.Fatalf("invalid offset for DS form load/store %v", p)
+		}
 		o1 = AOP_IRR(OP_ADDIS, REGTMP, uint32(r), uint32(high16adjusted(v)))
-		o2 = AOP_IRR(c.opstore(p.As), uint32(p.From.Reg), REGTMP, uint32(v))
+		o2 = AOP_IRR(inst, uint32(p.From.Reg), REGTMP, uint32(v))
 
 	case 36: /* mov bz/h/hz lext/lauto/lreg,r ==> lbz/lha/lhz etc */
 		v := c.regoff(&p.From)
@@ -3120,19 +3154,34 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	/* relocation operations */
 	case 74:
 		v := c.vregoff(&p.To)
-		o1, o2 = c.symbolAccess(p.To.Sym, v, p.From.Reg, c.opstore(p.As))
+		// Offsets in DS form stores must be a multiple of 4
+		inst := c.opstore(p.As)
+		if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+			log.Fatalf("invalid offset for DS form load/store %v", p)
+		}
+		o1, o2 = c.symbolAccess(p.To.Sym, v, p.From.Reg, inst)
 
 	//if(dlm) reloc(&p->to, p->pc, 1);
 
 	case 75:
 		v := c.vregoff(&p.From)
-		o1, o2 = c.symbolAccess(p.From.Sym, v, p.To.Reg, c.opload(p.As))
+		// Offsets in DS form loads must be a multiple of 4
+		inst := c.opload(p.As)
+		if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+			log.Fatalf("invalid offset for DS form load/store %v", p)
+		}
+		o1, o2 = c.symbolAccess(p.From.Sym, v, p.To.Reg, inst)
 
 	//if(dlm) reloc(&p->from, p->pc, 1);
 
 	case 76:
 		v := c.vregoff(&p.From)
-		o1, o2 = c.symbolAccess(p.From.Sym, v, p.To.Reg, c.opload(p.As))
+		// Offsets in DS form loads must be a multiple of 4
+		inst := c.opload(p.As)
+		if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+			log.Fatalf("invalid offset for DS form load/store %v", p)
+		}
+		o1, o2 = c.symbolAccess(p.From.Sym, v, p.To.Reg, inst)
 		o3 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 
 		//if(dlm) reloc(&p->from, p->pc, 1);

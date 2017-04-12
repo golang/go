@@ -24,7 +24,7 @@ TEXT foo(SB),DUPOK|NOSPLIT,$0
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	MOVW	foo<>+3(SB), R2
+	MOVW	foo<>+4(SB), R2
 	MOVW	16(R1), R2
 
 //	LMOVW regaddr ',' rreg
@@ -61,7 +61,7 @@ TEXT foo(SB),DUPOK|NOSPLIT,$0
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	FMOVD	foo<>+3(SB), F2
+	FMOVD	foo<>+4(SB), F2
 	FMOVD	16(R1), F2
 
 //	LFMOV regaddr ',' freg
@@ -86,7 +86,7 @@ TEXT foo(SB),DUPOK|NOSPLIT,$0
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	FMOVD	F2, foo<>+3(SB)
+	FMOVD	F2, foo<>+4(SB)
 	FMOVD	F2, 16(R1)
 
 //	LFMOV freg ',' regaddr
@@ -132,7 +132,7 @@ TEXT foo(SB),DUPOK|NOSPLIT,$0
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	FMOVD	F1, foo<>+3(SB)
+	FMOVD	F1, foo<>+4(SB)
 	FMOVD	F1, 16(R2)
 
 //	LMOVW freg ',' regaddr
