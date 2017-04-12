@@ -39,6 +39,11 @@ import (
 	"strings"
 )
 
+var (
+	plan9privates *obj.LSym
+	deferreturn   *obj.LSym
+)
+
 // Instruction layout.
 
 const (
@@ -1830,10 +1835,6 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	n := 0
 	var c int32
 	errors := ctxt.Errors
-	var deferreturn *obj.LSym
-	if ctxt.Headtype == obj.Hnacl {
-		deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
-	}
 	for {
 		loop := int32(0)
 		for i := range s.R {
@@ -1971,6 +1972,13 @@ func instinit(ctxt *obj.Link) {
 		// This happens in the cmd/asm tests,
 		// each of which re-initializes the arch.
 		return
+	}
+
+	switch ctxt.Headtype {
+	case obj.Hplan9:
+		plan9privates = ctxt.Lookup("_privates", 0)
+	case obj.Hnacl:
+		deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
 	}
 
 	for i := 1; optab[i].as != 0; i++ {
@@ -4108,13 +4116,10 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 								asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 							}
 						case obj.Hplan9:
-							if ctxt.Plan9privates == nil {
-								ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
-							}
 							pp.From = obj.Addr{}
 							pp.From.Type = obj.TYPE_MEM
 							pp.From.Name = obj.NAME_EXTERN
-							pp.From.Sym = ctxt.Plan9privates
+							pp.From.Sym = plan9privates
 							pp.From.Offset = 0
 							pp.From.Index = REG_NONE
 							asmbuf.Put1(0x8B)
@@ -4164,13 +4169,10 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						asmbuf.PutInt32(0)
 
 					case obj.Hplan9:
-						if ctxt.Plan9privates == nil {
-							ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
-						}
 						pp.From = obj.Addr{}
 						pp.From.Type = obj.TYPE_MEM
 						pp.From.Name = obj.NAME_EXTERN
-						pp.From.Sym = ctxt.Plan9privates
+						pp.From.Sym = plan9privates
 						pp.From.Offset = 0
 						pp.From.Index = REG_NONE
 						asmbuf.rexflag |= Pw
