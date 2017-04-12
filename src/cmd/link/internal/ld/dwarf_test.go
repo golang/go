@@ -12,11 +12,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestRuntimeTypeDIEs(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
 	dir, err := ioutil.TempDir("", "TestRuntimeTypeDIEs")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
