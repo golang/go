@@ -720,10 +720,35 @@ func genhash(ctxt *Link, lib *Library) {
 	}
 
 	h := sha1.New()
-	if _, err := io.CopyN(h, f, atolwhex(arhdr.size)); err != nil {
-		Errorf(nil, "bad read of %s for hash generation: %v", lib.File, err)
+
+	// To compute the hash of a package, we hash the first line of
+	// __.PKGDEF (which contains the toolchain version and any
+	// GOEXPERIMENT flags) and the export data (which is between
+	// the first two occurences of "\n$$").
+
+	pkgDefBytes := make([]byte, atolwhex(arhdr.size))
+	_, err = io.ReadFull(f, pkgDefBytes)
+	if err != nil {
+		Errorf(nil, "%s: error reading package data: %v", lib.File, err)
 		return
 	}
+	firstEOL := bytes.Index(pkgDefBytes, []byte("\n"))
+	if firstEOL < 0 {
+		Errorf(nil, "cannot parse package data of %s for hash generation, no newline found", lib.File)
+		return
+	}
+	firstDoubleDollar := bytes.Index(pkgDefBytes, []byte("\n$$"))
+	if firstDoubleDollar < 0 {
+		Errorf(nil, "cannot parse package data of %s for hash generation, no \\n$$ found", lib.File)
+		return
+	}
+	secondDoubleDollar := bytes.Index(pkgDefBytes[firstDoubleDollar+1:], []byte("\n$$"))
+	if secondDoubleDollar < 0 {
+		Errorf(nil, "cannot parse package data of %s for hash generation, only one \\n$$ found", lib.File)
+		return
+	}
+	h.Write(pkgDefBytes[0:firstEOL])
+	h.Write(pkgDefBytes[firstDoubleDollar : firstDoubleDollar+secondDoubleDollar])
 	lib.hash = hex.EncodeToString(h.Sum(nil))
 }
 
