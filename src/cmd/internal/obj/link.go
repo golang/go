@@ -725,7 +725,6 @@ type Link struct {
 	PosTable      src.PosTable
 	InlTree       InlTree // global inlining tree used by gc/inl.go
 	Imports       []string
-	Plan9privates *LSym
 	DiagFunc      func(string, ...interface{})
 	DebugInfo     func(fn *LSym, curfn interface{}) []*dwarf.Var // if non-nil, curfn is a *gc.Node
 	Errors        int

@@ -589,10 +589,6 @@ func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
-	if ctxt.Headtype == obj.Hplan9 && ctxt.Plan9privates == nil {
-		ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
-	}
-
 	if cursym.Text == nil || cursym.Text.Link == nil {
 		return
 	}
