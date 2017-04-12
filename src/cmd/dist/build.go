@@ -782,9 +782,8 @@ func matchtag(tag string) bool {
 
 // shouldbuild reports whether we should build this file.
 // It applies the same rules that are used with context tags
-// in package go/build, except that the GOOS and GOARCH
-// can appear anywhere in the file name, not just after _.
-// In particular, they can be the entire file name (like windows.c).
+// in package go/build, except it's less picky about the order
+// of GOOS and GOARCH.
 // We also allow the special tag cmd_go_bootstrap.
 // See ../go/bootstrap.go and package go/build.
 func shouldbuild(file, dir string) bool {
@@ -796,7 +795,7 @@ func shouldbuild(file, dir string) bool {
 				continue
 			}
 			i := strings.Index(name, x)
-			if i < 0 {
+			if i <= 0 || name[i-1] != '_' {
 				continue
 			}
 			i += len(x)
