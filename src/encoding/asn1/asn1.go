@@ -22,6 +22,7 @@ package asn1
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -293,16 +294,24 @@ type Flag bool
 // given byte slice. It returns the value and the new offset.
 func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) {
 	offset = initOffset
+	var ret64 int64
 	for shifted := 0; offset < len(bytes); shifted++ {
-		if shifted == 4 {
+		// 5 * 7 bits per byte == 35 bits of data
+		// Thus the representation is either non-minimal or too large for an int32
+		if shifted == 5 {
 			err = StructuralError{"base 128 integer too large"}
 			return
 		}
-		ret <<= 7
+		ret64 <<= 7
 		b := bytes[offset]
-		ret |= int(b & 0x7f)
+		ret64 |= int64(b & 0x7f)
 		offset++
 		if b&0x80 == 0 {
+			ret = int(ret64)
+			// Ensure that the returned value fits in an int on all platforms
+			if ret64 > math.MaxInt32 {
+				err = StructuralError{"base 128 integer too large"}
+			}
 			return
 		}
 	}
