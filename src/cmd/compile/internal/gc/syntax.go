@@ -9,6 +9,7 @@ package gc
 import (
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 )
 
@@ -331,6 +332,7 @@ type Func struct {
 	Top        int   // top context (Ecall, Eproc, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC
 	Nname      *Node
+	lsym       *obj.LSym
 
 	Inl     Nodes // copy of the body for use in inlining
 	InlCost int32

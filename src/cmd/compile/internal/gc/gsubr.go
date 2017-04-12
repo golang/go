@@ -144,34 +144,45 @@ func (pp *Progs) settext(fn *Node) {
 	if pp.Text != nil {
 		Fatalf("Progs.settext called twice")
 	}
-
 	ptxt := pp.Prog(obj.ATEXT)
-	if nam := fn.Func.Nname; !isblank(nam) {
+	if fn.Func.lsym != nil {
+		fn.Func.lsym.Text = ptxt
 		ptxt.From.Type = obj.TYPE_MEM
 		ptxt.From.Name = obj.NAME_EXTERN
-		ptxt.From.Sym = Linksym(nam.Sym)
-		if fn.Func.Pragma&Systemstack != 0 {
-			ptxt.From.Sym.Set(obj.AttrCFunc, true)
+		ptxt.From.Sym = fn.Func.lsym
+	}
+	pp.Text = ptxt
+}
+
+func (f *Func) initLSym() {
+	if f.lsym != nil {
+		Fatalf("Func.initLSym called twice")
+	}
+
+	if nam := f.Nname; !isblank(nam) {
+		f.lsym = Linksym(nam.Sym)
+		if f.Pragma&Systemstack != 0 {
+			f.lsym.Set(obj.AttrCFunc, true)
 		}
 	}
 
 	var flag int
-	if fn.Func.Dupok() {
+	if f.Dupok() {
 		flag |= obj.DUPOK
 	}
-	if fn.Func.Wrapper() {
+	if f.Wrapper() {
 		flag |= obj.WRAPPER
 	}
-	if fn.Func.NoFramePointer() {
+	if f.NoFramePointer() {
 		flag |= obj.NOFRAME
 	}
-	if fn.Func.Needctxt() {
+	if f.Needctxt() {
 		flag |= obj.NEEDCTXT
 	}
-	if fn.Func.Pragma&Nosplit != 0 {
+	if f.Pragma&Nosplit != 0 {
 		flag |= obj.NOSPLIT
 	}
-	if fn.Func.ReflectMethod() {
+	if f.ReflectMethod() {
 		flag |= obj.REFLECTMETHOD
 	}
 
@@ -179,15 +190,13 @@ func (pp *Progs) settext(fn *Node) {
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
 	if myimportpath == "reflect" {
-		switch fn.Func.Nname.Sym.Name {
+		switch f.Nname.Sym.Name {
 		case "callReflect", "callMethod":
 			flag |= obj.WRAPPER
 		}
 	}
 
-	Ctxt.InitTextSym(ptxt, flag)
-
-	pp.Text = ptxt
+	Ctxt.InitTextSym(f.lsym, flag)
 }
 
 func ggloblnod(nam *Node) {
