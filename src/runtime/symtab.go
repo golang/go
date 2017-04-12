@@ -13,6 +13,7 @@ import (
 // Frames may be used to get function/file/line information for a
 // slice of PC values returned by Callers.
 type Frames struct {
+	// callers is a slice of PCs that have not yet been expanded.
 	callers []uintptr
 
 	// If previous caller in iteration was a panic, then
@@ -20,16 +21,12 @@ type Frames struct {
 	// instead of the return address of the call.
 	wasPanic bool
 
-	// Frames to return for subsequent calls to the Next method.
-	// Used for non-Go or inlined frames.
-	framesNext []Frame
+	// expander expands the current PC into a sequence of Frames.
+	expander pcExpander
 
-	// This buffer is used when expanding PCs into multiple frames.
-	// Initially it points to the scratch space.
-	frames []Frame
-
-	// Scratch space to avoid allocation.
-	scratch [4]Frame
+	// skip > 0 indicates that skip frames in the first expansion
+	// should be skipped over and callers[1] should also be skipped.
+	skip int
 }
 
 // Frame is the information returned by Frames for each call frame.
@@ -59,138 +56,194 @@ type Frame struct {
 // Do not change the slice until you are done with the Frames.
 func CallersFrames(callers []uintptr) *Frames {
 	ci := &Frames{}
-	ci.frames = ci.scratch[:0]
+	ci.init(callers)
+	return ci
+}
+
+func (ci *Frames) init(callers []uintptr) {
 	if len(callers) >= 1 {
 		pc := callers[0]
 		s := pc - skipPC
 		if s >= 0 && s < sizeofSkipFunction {
 			// Ignore skip frame callers[0] since this means the caller trimmed the PC slice.
 			ci.callers = callers[1:]
-			return ci
+			return
 		}
 	}
 	if len(callers) >= 2 {
 		pc := callers[1]
 		s := pc - skipPC
-		if s >= 0 && s < sizeofSkipFunction {
-			// Expand callers[0] and skip s logical frames at this PC.
-			ci.frames = ci.expandPC(ci.frames[:0], callers[0])
-			ci.framesNext = ci.frames[int(s):]
-			ci.callers = callers[2:]
-			return ci
+		if s > 0 && s < sizeofSkipFunction {
+			// Skip the first s inlined frames when we expand the first PC.
+			ci.skip = int(s)
 		}
 	}
 	ci.callers = callers
-	return ci
 }
 
 // Next returns frame information for the next caller.
 // If more is false, there are no more callers (the Frame value is valid).
 func (ci *Frames) Next() (frame Frame, more bool) {
-	if len(ci.framesNext) > 0 {
-		// We have saved up frames to return.
-		f := ci.framesNext[0]
-		ci.framesNext = ci.framesNext[1:]
-		return f, len(ci.framesNext) > 0 || len(ci.callers) > 0
+	if !ci.expander.more {
+		// Expand the next PC.
+		if len(ci.callers) == 0 {
+			ci.wasPanic = false
+			return Frame{}, false
+		}
+		ci.expander.init(ci.callers[0], ci.wasPanic)
+		ci.callers = ci.callers[1:]
+		ci.wasPanic = ci.expander.funcInfo.valid() && ci.expander.funcInfo.entry == sigpanicPC
+		if ci.skip > 0 {
+			for ; ci.skip > 0; ci.skip-- {
+				ci.expander.next()
+			}
+			ci.skip = 0
+			// Drop skipPleaseUseCallersFrames.
+			ci.callers = ci.callers[1:]
+		}
+		if !ci.expander.more {
+			// No symbolic information for this PC.
+			// However, we return at least one frame for
+			// every PC, so return an invalid frame.
+			return Frame{}, len(ci.callers) > 0
+		}
 	}
 
-	if len(ci.callers) == 0 {
-		ci.wasPanic = false
-		return Frame{}, false
-	}
-	pc := ci.callers[0]
-	ci.callers = ci.callers[1:]
-	more = len(ci.callers) > 0
-
-	ci.frames = ci.expandPC(ci.frames[:0], pc)
-	if len(ci.frames) == 0 {
-		// Expansion failed, so there's no useful symbolic information.
-		return Frame{}, more
-	}
-
-	ci.framesNext = ci.frames[1:]
-	return ci.frames[0], more || len(ci.framesNext) > 0
+	frame = ci.expander.next()
+	return frame, ci.expander.more || len(ci.callers) > 0
 }
 
-// expandPC appends the frames corresponding to pc to frames
-// and returns the new slice.
-func (ci *Frames) expandPC(frames []Frame, pc uintptr) []Frame {
-	f := FuncForPC(pc)
-	if f == nil {
-		ci.wasPanic = false
+// A pcExpander expands a single PC into a sequence of Frames.
+type pcExpander struct {
+	// more indicates that the next call to next will return a
+	// valid frame.
+	more bool
+
+	// pc is the pc being expanded.
+	pc uintptr
+
+	// frames is a pre-expanded set of Frames to return from the
+	// iterator. If this is set, then this is everything that will
+	// be returned from the iterator.
+	frames []Frame
+
+	// funcInfo is the funcInfo of the function containing pc.
+	funcInfo funcInfo
+
+	// inlTree is the inlining tree of the function containing pc.
+	inlTree *[1 << 20]inlinedCall
+
+	// file and line are the file name and line number of the next
+	// frame.
+	file string
+	line int32
+
+	// inlIndex is the inlining index of the next frame, or -1 if
+	// the next frame is an outermost frame.
+	inlIndex int32
+}
+
+// init initializes this pcExpander to expand pc. It sets ex.more if
+// pc expands to any Frames.
+//
+// A pcExpander can be reused by calling init again.
+//
+// If pc was a "call" to sigpanic, panicCall should be true. In this
+// case, pc is treated as the address of a faulting instruction
+// instead of the return address of a call.
+func (ex *pcExpander) init(pc uintptr, panicCall bool) {
+	ex.more = false
+
+	ex.funcInfo = findfunc(pc)
+	if !ex.funcInfo.valid() {
 		if cgoSymbolizer != nil {
-			frames = expandCgoFrames(frames, pc)
+			// Pre-expand cgo frames. We could do this
+			// incrementally, too, but there's no way to
+			// avoid allocation in this case anyway.
+			ex.frames = expandCgoFrames(pc)
+			ex.more = len(ex.frames) > 0
 		}
-		return frames
+		return
 	}
 
-	entry := f.Entry()
-	xpc := pc
-	if xpc > entry && !ci.wasPanic {
-		xpc--
+	ex.more = true
+	entry := ex.funcInfo.entry
+	ex.pc = pc
+	if ex.pc > entry && !panicCall {
+		ex.pc--
 	}
-	ci.wasPanic = entry == sigpanicPC
 
-	frames = expandInlinedCalls(frames, xpc, f)
-	return frames
+	// file and line are the innermost position at pc.
+	ex.file, ex.line = funcline1(ex.funcInfo, ex.pc, false)
+
+	// Get inlining tree at pc
+	inldata := funcdata(ex.funcInfo, _FUNCDATA_InlTree)
+	if inldata != nil {
+		ex.inlTree = (*[1 << 20]inlinedCall)(inldata)
+		ex.inlIndex = pcdatavalue(ex.funcInfo, _PCDATA_InlTreeIndex, ex.pc, nil)
+	} else {
+		ex.inlTree = nil
+		ex.inlIndex = -1
+	}
 }
 
-// expandInlinedCalls expands xpc into multiple frames using the inlining
-// info in fn. expandInlinedCalls appends to frames and returns the new
-// slice. The resulting slice has at least one frame for the physical frame
-// that contains xpc (i.e., the function represented by fn).
-func expandInlinedCalls(frames []Frame, xpc uintptr, fn *Func) []Frame {
-	entry := fn.Entry()
+// next returns the next Frame in the expansion of pc and sets ex.more
+// if there are more Frames to follow.
+func (ex *pcExpander) next() Frame {
+	if !ex.more {
+		return Frame{}
+	}
 
-	// file and line are the innermost position at xpc.
-	file, line := fn.FileLine(xpc)
+	if len(ex.frames) > 0 {
+		// Return pre-expended frame.
+		frame := ex.frames[0]
+		ex.frames = ex.frames[1:]
+		ex.more = len(ex.frames) > 0
+		return frame
+	}
 
-	funcInfo := fn.funcInfo()
-	inldata := funcdata(funcInfo, _FUNCDATA_InlTree)
-	if inldata != nil {
-		inltree := (*[1 << 20]inlinedCall)(inldata)
-		ix := pcdatavalue(funcInfo, _PCDATA_InlTreeIndex, xpc, nil)
-		for ix >= 0 {
-			call := inltree[ix]
-			frames = append(frames, Frame{
-				PC:       xpc,
-				Func:     nil, // nil for inlined functions
-				Function: funcnameFromNameoff(funcInfo, call.func_),
-				File:     file,
-				Line:     line,
-				Entry:    entry,
-			})
-			file = funcfile(funcInfo, call.file)
-			line = int(call.line)
-			ix = call.parent
+	if ex.inlIndex >= 0 {
+		// Return inner inlined frame.
+		call := ex.inlTree[ex.inlIndex]
+		frame := Frame{
+			PC:       ex.pc,
+			Func:     nil, // nil for inlined functions
+			Function: funcnameFromNameoff(ex.funcInfo, call.func_),
+			File:     ex.file,
+			Line:     int(ex.line),
+			Entry:    ex.funcInfo.entry,
 		}
+		ex.file = funcfile(ex.funcInfo, call.file)
+		ex.line = call.line
+		ex.inlIndex = call.parent
+		return frame
 	}
 
-	physicalFrame := Frame{
-		PC:       xpc,
-		Func:     fn,
-		Function: fn.Name(),
-		File:     file,
-		Line:     line,
-		Entry:    entry,
+	// No inlining or pre-expanded frames.
+	ex.more = false
+	return Frame{
+		PC:       ex.pc,
+		Func:     ex.funcInfo._Func(),
+		Function: funcname(ex.funcInfo),
+		File:     ex.file,
+		Line:     int(ex.line),
+		Entry:    ex.funcInfo.entry,
 	}
-	frames = append(frames, physicalFrame)
-
-	return frames
 }
 
 // expandCgoFrames expands frame information for pc, known to be
 // a non-Go function, using the cgoSymbolizer hook. expandCgoFrames
-// appends to frames and returns the new slice.
-func expandCgoFrames(frames []Frame, pc uintptr) []Frame {
+// returns nil if pc could not be expanded.
+func expandCgoFrames(pc uintptr) []Frame {
 	arg := cgoSymbolizerArg{pc: pc}
 	callCgoSymbolizer(&arg)
 
 	if arg.file == nil && arg.funcName == nil {
 		// No useful information from symbolizer.
-		return frames
+		return nil
 	}
 
+	var frames []Frame
 	for {
 		frames = append(frames, Frame{
 			PC:       pc,
@@ -487,7 +540,7 @@ func moduledataverify1(datap *moduledata) {
 // FuncForPC returns a *Func describing the function that contains the
 // given program counter address, or else nil.
 func FuncForPC(pc uintptr) *Func {
-	return (*Func)(unsafe.Pointer(findfunc(pc)._func))
+	return findfunc(pc)._Func()
 }
 
 // Name returns the name of the function.
@@ -527,6 +580,10 @@ type funcInfo struct {
 
 func (f funcInfo) valid() bool {
 	return f._func != nil
+}
+
+func (f funcInfo) _Func() *Func {
+	return (*Func)(unsafe.Pointer(f._func))
 }
 
 func findfunc(pc uintptr) funcInfo {
