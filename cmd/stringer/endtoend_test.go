@@ -33,7 +33,7 @@ func TestEndToEnd(t *testing.T) {
 	defer os.RemoveAll(dir)
 	// Create stringer in temporary directory.
 	stringer := filepath.Join(dir, "stringer.exe")
-	err = run("go", "build", "-o", stringer, "stringer.go")
+	err = run("go", "build", "-o", stringer)
 	if err != nil {
 		t.Fatalf("building stringer: %s", err)
 	}
