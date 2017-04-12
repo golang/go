@@ -55,7 +55,6 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt := new(Link)
 	ctxt.Hash = make(map[SymVer]*LSym)
 	ctxt.Arch = arch
-	ctxt.Version = 0
 	ctxt.Pathname = WorkingDir()
 
 	ctxt.Headtype.Set(GOOS)

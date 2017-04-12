@@ -728,7 +728,6 @@ type Link struct {
 	Plan9privates *LSym
 	DiagFunc      func(string, ...interface{})
 	DebugInfo     func(fn *LSym, curfn interface{}) []*dwarf.Var // if non-nil, curfn is a *gc.Node
-	Version       int
 	Errors        int
 
 	Framepointer_enabled bool
