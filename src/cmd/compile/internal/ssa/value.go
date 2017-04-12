@@ -237,7 +237,6 @@ func (v *Value) isGenericIntConst() bool {
 // ExternSymbol is an aux value that encodes a variable's
 // constant offset from the static base pointer.
 type ExternSymbol struct {
-	Typ Type // Go type
 	Sym *obj.LSym
 	// Note: the offset for an external symbol is not
 	// calculated until link time.

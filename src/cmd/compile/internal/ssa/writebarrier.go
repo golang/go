@@ -93,7 +93,7 @@ func writebarrier(f *Func) {
 			if sp == nil {
 				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
 			}
-			wbsym := &ExternSymbol{Typ: f.Config.Types.Bool, Sym: f.fe.Syslook("writeBarrier")}
+			wbsym := &ExternSymbol{Sym: f.fe.Syslook("writeBarrier")}
 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
 			writebarrierptr = f.fe.Syslook("writebarrierptr")
 			typedmemmove = f.fe.Syslook("typedmemmove")
@@ -176,7 +176,7 @@ func writebarrier(f *Func) {
 			ptr := w.Args[0]
 			var typ interface{}
 			if w.Op != OpStoreWB {
-				typ = &ExternSymbol{Typ: types.Uintptr, Sym: w.Aux.(Type).Symbol()}
+				typ = &ExternSymbol{Sym: w.Aux.(Type).Symbol()}
 			}
 			pos = w.Pos
 
