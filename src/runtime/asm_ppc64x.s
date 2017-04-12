@@ -85,14 +85,14 @@ nocgo:
 	// start this M
 	BL	runtime·mstart(SB)
 
-	MOVD	R0, 1(R0)
+	MOVD	R0, 0(R0)
 	RET
 
 DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
-	MOVD	R0, 2(R0) // TODO: TD
+	MOVD	R0, 0(R0) // TODO: TD
 	RET
 
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0

@@ -189,7 +189,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	size+24(FP), R6
 	SYSCALL	$SYS_rt_sigprocmask
 	BVC	2(PC)
-	MOVD	R0, 0xf1(R0)	// crash
+	MOVD	R0, 0xf0(R0)	// crash
 	RET
 
 TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
@@ -273,7 +273,7 @@ TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
 	MOVD	n+8(FP), R4
 	SYSCALL	$SYS_munmap
 	BVC	2(PC)
-	MOVD	R0, 0xf3(R0)
+	MOVD	R0, 0xf0(R0)
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
@@ -366,7 +366,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0
 	MOVD	old+8(FP), R4
 	SYSCALL	$SYS_sigaltstack
 	BVC	2(PC)
-	MOVD	R0, 0xf1(R0)  // crash
+	MOVD	R0, 0xf0(R0)  // crash
 	RET
 
 TEXT runtime·osyield(SB),NOSPLIT|NOFRAME,$0
