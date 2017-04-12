@@ -138,23 +138,24 @@ func truncfltlit(oldv *Mpflt, t *types.Type) *Mpflt {
 		return oldv
 	}
 
-	var v Val
-	v.U = oldv
-	overflow(v, t)
+	if overflow(Val{oldv}, t) {
+		// If there was overflow, simply continuing would set the
+		// value to Inf which in turn would lead to spurious follow-on
+		// errors. Avoid this by returning the existing value.
+		return oldv
+	}
 
 	fv := newMpflt()
-	fv.Set(oldv)
 
 	// convert large precision literal floating
 	// into limited precision (float64 or float32)
 	switch t.Etype {
+	case types.TFLOAT32:
+		fv.SetFloat64(oldv.Float32())
 	case types.TFLOAT64:
-		d := fv.Float64()
-		fv.SetFloat64(d)
-
-	case TFLOAT32:
-		d := fv.Float32()
-		fv.SetFloat64(d)
+		fv.SetFloat64(oldv.Float64())
+	default:
+		Fatalf("truncfltlit: unexpected Etype %v", t.Etype)
 	}
 
 	return fv
@@ -169,19 +170,19 @@ func trunccmplxlit(oldv *Mpcplx, t *types.Type) *Mpcplx {
 	}
 
 	if overflow(Val{oldv}, t) {
-		// Avoid setting to Inf if there was an overflow. It's never
-		// useful, and it'll cause spourious and confusing 'constant Inf
-		// overflows float32' errors down the road.
+		// If there was overflow, simply continuing would set the
+		// value to Inf which in turn would lead to spurious follow-on
+		// errors. Avoid this by returning the existing value.
 		return oldv
 	}
 
 	cv := newMpcmplx()
 
 	switch t.Etype {
-	case TCOMPLEX64:
+	case types.TCOMPLEX64:
 		cv.Real.SetFloat64(oldv.Real.Float32())
 		cv.Imag.SetFloat64(oldv.Imag.Float32())
-	case TCOMPLEX128:
+	case types.TCOMPLEX128:
 		cv.Real.SetFloat64(oldv.Real.Float64())
 		cv.Imag.SetFloat64(oldv.Imag.Float64())
 	default:
