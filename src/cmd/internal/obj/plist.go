@@ -112,11 +112,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 	ctxt.Text = append(ctxt.Text, text...)
 }
 
-func (ctxt *Link) InitTextSym(p *Prog, flag int) {
-	if p.As != ATEXT {
-		ctxt.Diag("InitTextSym non-ATEXT: %v", p)
-	}
-	s := p.From.Sym
+func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	if s == nil {
 		// func _() { }
 		return
@@ -139,7 +135,6 @@ func (ctxt *Link) InitTextSym(p *Prog, flag int) {
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
 	s.Type = STEXT
-	s.Text = p
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

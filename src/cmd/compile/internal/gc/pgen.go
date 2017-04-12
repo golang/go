@@ -297,6 +297,9 @@ func compile(fn *Node) {
 	// From this point, there should be no uses of Curfn. Enforce that.
 	Curfn = nil
 
+	// Set up the function's LSym early to avoid data races with the assemblers.
+	fn.Func.initLSym()
+
 	// Build an SSA backend function.
 	ssafn := buildssa(fn)
 	pp := newProgs(fn)
