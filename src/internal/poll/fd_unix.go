@@ -69,7 +69,7 @@ func (fd *FD) Close() error {
 	return fd.decref()
 }
 
-// Shutdown wraps the shutdown call.
+// Shutdown wraps the shutdown network call.
 func (fd *FD) Shutdown(how int) error {
 	if err := fd.incref(); err != nil {
 		return err
@@ -147,8 +147,8 @@ func (fd *FD) Pread(p []byte, off int64) (int, error) {
 	}
 }
 
-// RecvFrom wraps the recvfrom network call.
-func (fd *FD) RecvFrom(p []byte) (int, syscall.Sockaddr, error) {
+// ReadFrom wraps the recvfrom network call.
+func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
 	if err := fd.readLock(); err != nil {
 		return 0, nil, err
 	}

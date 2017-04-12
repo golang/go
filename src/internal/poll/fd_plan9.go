@@ -50,6 +50,7 @@ func (fd *FD) Close() error {
 	return nil
 }
 
+// Read implements io.Reader.
 func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
 	if fd.rtimedout.isSet() {
 		return 0, ErrTimeout
@@ -73,6 +74,7 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
 	return n, err
 }
 
+// Write implements io.Writer.
 func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
 	if fd.wtimedout.isSet() {
 		return 0, ErrTimeout
