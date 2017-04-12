@@ -10,7 +10,6 @@ import (
 	"internal/poll"
 	"internal/testenv"
 	"io"
-	"net/internal/socktest"
 	"runtime"
 	"sync"
 	"testing"
@@ -71,70 +70,6 @@ func TestDialLocal(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.Close()
-}
-
-func TestDialTimeoutFDLeak(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9":
-		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
-	case "openbsd":
-		testenv.SkipFlaky(t, 15157)
-	}
-
-	const T = 100 * time.Millisecond
-
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		origTestHookDialChannel := testHookDialChannel
-		testHookDialChannel = func() { time.Sleep(2 * T) }
-		defer func() { testHookDialChannel = origTestHookDialChannel }()
-		if runtime.GOOS == "plan9" {
-			break
-		}
-		fallthrough
-	default:
-		sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
-			time.Sleep(2 * T)
-			return nil, poll.ErrTimeout
-		})
-		defer sw.Set(socktest.FilterConnect, nil)
-	}
-
-	// Avoid tracking open-close jitterbugs between netFD and
-	// socket that leads to confusion of information inside
-	// socktest.Switch.
-	// It may happen when the Dial call bumps against TCP
-	// simultaneous open. See selfConnect in tcpsock_posix.go.
-	defer func() { sw.Set(socktest.FilterClose, nil) }()
-	var mu sync.Mutex
-	var attempts int
-	sw.Set(socktest.FilterClose, func(so *socktest.Status) (socktest.AfterFilter, error) {
-		mu.Lock()
-		attempts++
-		mu.Unlock()
-		return nil, nil
-	})
-
-	const N = 100
-	var wg sync.WaitGroup
-	wg.Add(N)
-	for i := 0; i < N; i++ {
-		go func() {
-			defer wg.Done()
-			// This dial never starts to send any SYN
-			// segment because of above socket filter and
-			// test hook.
-			c, err := DialTimeout("tcp", "127.0.0.1:0", T)
-			if err == nil {
-				t.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
-				c.Close()
-			}
-		}()
-	}
-	wg.Wait()
-	if attempts < N {
-		t.Errorf("got %d; want >= %d", attempts, N)
-	}
 }
 
 func TestDialerDualStackFDLeak(t *testing.T) {
