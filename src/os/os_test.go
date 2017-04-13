@@ -886,6 +886,18 @@ func TestRenameFailed(t *testing.T) {
 	}
 }
 
+func TestRenameNotExisting(t *testing.T) {
+	defer chtmpdir(t)()
+	from, to := "doesnt-exist", "dest"
+
+	Mkdir(to, 0777)
+	defer Remove(to)
+
+	if err := Rename(from, to); !IsNotExist(err) {
+		t.Errorf("Rename(%q, %q) = %v; want an IsNotExist error", from, to, err)
+	}
+}
+
 func TestRenameToDirFailed(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
