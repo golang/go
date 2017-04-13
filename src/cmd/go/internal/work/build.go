@@ -255,6 +255,13 @@ func pkgsNotMain(pkgs []*load.Package) (res []*load.Package) {
 	return res
 }
 
+func oneMainPkg(pkgs []*load.Package) []*load.Package {
+	if len(pkgs) != 1 || pkgs[0].Name != "main" {
+		base.Fatalf("-buildmode=%s requires exactly one main package", cfg.BuildBuildmode)
+	}
+	return pkgs
+}
+
 var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 
 func BuildModeInit() {
@@ -265,12 +272,7 @@ func BuildModeInit() {
 	case "archive":
 		pkgsFilter = pkgsNotMain
 	case "c-archive":
-		pkgsFilter = func(p []*load.Package) []*load.Package {
-			if len(p) != 1 || p[0].Name != "main" {
-				base.Fatalf("-buildmode=c-archive requires exactly one main package")
-			}
-			return p
-		}
+		pkgsFilter = oneMainPkg
 		switch platform {
 		case "darwin/arm", "darwin/arm64":
 			codegenArg = "-shared"
@@ -347,7 +349,7 @@ func BuildModeInit() {
 		}
 		ldBuildmode = "shared"
 	case "plugin":
-		pkgsFilter = pkgsMain
+		pkgsFilter = oneMainPkg
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
@@ -454,9 +456,10 @@ func runBuild(cmd *base.Command, args []string) {
 		return
 	}
 
+	pkgs = pkgsFilter(load.Packages(args))
+
 	var a *Action
 	if cfg.BuildBuildmode == "shared" {
-		pkgs := pkgsFilter(load.Packages(args))
 		if libName, err := libname(args, pkgs); err != nil {
 			base.Fatalf("%s", err.Error())
 		} else {
@@ -464,7 +467,7 @@ func runBuild(cmd *base.Command, args []string) {
 		}
 	} else {
 		a = &Action{}
-		for _, p := range pkgsFilter(load.Packages(args)) {
+		for _, p := range pkgs {
 			a.Deps = append(a.Deps, b.Action(ModeBuild, depMode, p))
 		}
 	}
