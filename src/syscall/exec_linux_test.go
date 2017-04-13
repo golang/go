@@ -207,9 +207,10 @@ func TestGroupCleanup(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
-	expected := "uid=0(root) gid=0(root) groups=0(root)"
+	expected := "uid=0(root) gid=0(root)"
 	// Just check prefix because some distros reportedly output a
 	// context parameter; see https://golang.org/issue/16224.
+	// Alpine does not output groups; see https://golang.org/issue/19938.
 	if !strings.HasPrefix(strOut, expected) {
 		t.Errorf("id command output: %q, expected prefix: %q", strOut, expected)
 	}
@@ -247,6 +248,7 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 		"uid=0(root) gid=0(root) groups=0(root),65534(nobody)",
 		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
 		"uid=0(root) gid=0(root) groups=0(root),65534",
+		"uid=0(root) gid=0(root) groups=0(root),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody)", // Alpine; see https://golang.org/issue/19938
 	}
 	for _, e := range expected {
 		if strOut == e {
