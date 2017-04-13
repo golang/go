@@ -107,9 +107,6 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 		linkpcln(ctxt, s)
 		makeFuncDebugEntry(ctxt, plist.Curfn, s)
 	}
-
-	// Add to running list in ctxt.
-	ctxt.Text = append(ctxt.Text, text...)
 }
 
 func (ctxt *Link) InitTextSym(s *LSym, flag int) {
@@ -135,6 +132,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
 	s.Type = STEXT
+	ctxt.Text = append(ctxt.Text, s)
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
