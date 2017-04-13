@@ -16,17 +16,9 @@ type Frames struct {
 	// callers is a slice of PCs that have not yet been expanded.
 	callers []uintptr
 
-	// If previous caller in iteration was a panic, then
-	// ci.callers[0] is the address of the faulting instruction
-	// instead of the return address of the call.
-	wasPanic bool
-
-	// expander expands the current PC into a sequence of Frames.
-	expander pcExpander
-
-	// skip > 0 indicates that skip frames in the first expansion
-	// should be skipped over and callers[1] should also be skipped.
-	skip int
+	// stackExpander expands callers into a sequence of Frames,
+	// tracking the necessary state across PCs.
+	stackExpander stackExpander
 }
 
 // Frame is the information returned by Frames for each call frame.
@@ -51,23 +43,48 @@ type Frame struct {
 	Entry uintptr
 }
 
+// stackExpander expands a call stack of PCs into a sequence of
+// Frames. It tracks state across PCs necessary to perform this
+// expansion.
+//
+// This is the core of the Frames implementation, but is a separate
+// internal API to make it possible to use within the runtime without
+// heap-allocating the PC slice. The only difference with the public
+// Frames API is that the caller is responsible for threading the PC
+// slice between expansion steps in this API. If escape analysis were
+// smarter, we may not need this (though it may have to be a lot
+// smarter).
+type stackExpander struct {
+	// pcExpander expands the current PC into a sequence of Frames.
+	pcExpander pcExpander
+
+	// If previous caller in iteration was a panic, then the next
+	// PC in the call stack is the address of the faulting
+	// instruction instead of the return address of the call.
+	wasPanic bool
+
+	// skip > 0 indicates that skip frames in the expansion of the
+	// first PC should be skipped over and callers[1] should also
+	// be skipped.
+	skip int
+}
+
 // CallersFrames takes a slice of PC values returned by Callers and
 // prepares to return function/file/line information.
 // Do not change the slice until you are done with the Frames.
 func CallersFrames(callers []uintptr) *Frames {
 	ci := &Frames{}
-	ci.init(callers)
+	ci.callers = ci.stackExpander.init(callers)
 	return ci
 }
 
-func (ci *Frames) init(callers []uintptr) {
+func (se *stackExpander) init(callers []uintptr) []uintptr {
 	if len(callers) >= 1 {
 		pc := callers[0]
 		s := pc - skipPC
 		if s >= 0 && s < sizeofSkipFunction {
 			// Ignore skip frame callers[0] since this means the caller trimmed the PC slice.
-			ci.callers = callers[1:]
-			return
+			return callers[1:]
 		}
 	}
 	if len(callers) >= 2 {
@@ -75,42 +92,48 @@ func (ci *Frames) init(callers []uintptr) {
 		s := pc - skipPC
 		if s > 0 && s < sizeofSkipFunction {
 			// Skip the first s inlined frames when we expand the first PC.
-			ci.skip = int(s)
+			se.skip = int(s)
 		}
 	}
-	ci.callers = callers
+	return callers
 }
 
 // Next returns frame information for the next caller.
 // If more is false, there are no more callers (the Frame value is valid).
 func (ci *Frames) Next() (frame Frame, more bool) {
-	if !ci.expander.more {
+	ci.callers, frame, more = ci.stackExpander.next(ci.callers)
+	return
+}
+
+func (se *stackExpander) next(callers []uintptr) (ncallers []uintptr, frame Frame, more bool) {
+	ncallers = callers
+	if !se.pcExpander.more {
 		// Expand the next PC.
-		if len(ci.callers) == 0 {
-			ci.wasPanic = false
-			return Frame{}, false
+		if len(ncallers) == 0 {
+			se.wasPanic = false
+			return ncallers, Frame{}, false
 		}
-		ci.expander.init(ci.callers[0], ci.wasPanic)
-		ci.callers = ci.callers[1:]
-		ci.wasPanic = ci.expander.funcInfo.valid() && ci.expander.funcInfo.entry == sigpanicPC
-		if ci.skip > 0 {
-			for ; ci.skip > 0; ci.skip-- {
-				ci.expander.next()
+		se.pcExpander.init(ncallers[0], se.wasPanic)
+		ncallers = ncallers[1:]
+		se.wasPanic = se.pcExpander.funcInfo.valid() && se.pcExpander.funcInfo.entry == sigpanicPC
+		if se.skip > 0 {
+			for ; se.skip > 0; se.skip-- {
+				se.pcExpander.next()
 			}
-			ci.skip = 0
+			se.skip = 0
 			// Drop skipPleaseUseCallersFrames.
-			ci.callers = ci.callers[1:]
+			ncallers = ncallers[1:]
 		}
-		if !ci.expander.more {
+		if !se.pcExpander.more {
 			// No symbolic information for this PC.
 			// However, we return at least one frame for
 			// every PC, so return an invalid frame.
-			return Frame{}, len(ci.callers) > 0
+			return ncallers, Frame{}, len(ncallers) > 0
 		}
 	}
 
-	frame = ci.expander.next()
-	return frame, ci.expander.more || len(ci.callers) > 0
+	frame = se.pcExpander.next()
+	return ncallers, frame, se.pcExpander.more || len(ncallers) > 0
 }
 
 // A pcExpander expands a single PC into a sequence of Frames.
