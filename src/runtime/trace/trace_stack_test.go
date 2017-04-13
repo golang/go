@@ -276,9 +276,10 @@ func TestTraceSymbolize(t *testing.T) {
 				continue
 			}
 			for _, f := range ev.Stk {
-				t.Logf("  %v:%v", f.Fn, f.Line)
+				t.Logf("  %v :: %s:%v", f.Fn, f.File, f.Line)
 			}
 			t.Logf("---")
 		}
+		t.Logf("======")
 	}
 }
