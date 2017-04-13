@@ -175,7 +175,12 @@ func runCmd(name string, cmd *exec.Cmd) {
 }
 
 func runStdCmd() {
-	cmd := exec.Command("go", "build", "-a", "std", "cmd")
+	args := []string{"build", "-a"}
+	if *flagCompilerFlags != "" {
+		args = append(args, "-gcflags", *flagCompilerFlags)
+	}
+	args = append(args, "std", "cmd")
+	cmd := exec.Command("go", args...)
 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
 	runCmd("BenchmarkStdCmd", cmd)
 }
