@@ -139,6 +139,7 @@ func closeDB(t testing.TB, db *DB) {
 			t.Errorf("Error closing fakeConn: %v", err)
 		}
 	})
+	db.mu.Lock()
 	for i, dc := range db.freeConn {
 		if n := len(dc.openStmt); n > 0 {
 			// Just a sanity check. This is legal in
@@ -149,6 +150,8 @@ func closeDB(t testing.TB, db *DB) {
 			t.Errorf("while closing db, freeConn %d/%d had %d open stmts; want 0", i, len(db.freeConn), n)
 		}
 	}
+	db.mu.Unlock()
+
 	err := db.Close()
 	if err != nil {
 		t.Fatalf("error closing DB: %v", err)
@@ -1298,6 +1301,69 @@ func TestTxErrBadConn(t *testing.T) {
 	}
 }
 
+func TestConnQuery(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	var name string
+	err = conn.QueryRowContext(ctx, "SELECT|people|name|age=?", 3).Scan(&name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name != "Chris" {
+		t.Fatalf("unexpected result, got %q want Chris", name)
+	}
+
+	err = conn.PingContext(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestConnTx(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	insertName, insertAge := "Nancy", 33
+	_, err = tx.ExecContext(ctx, "INSERT|people|name=?,age=?,photo=APHOTO", insertName, insertAge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tx.Commit()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var selectName string
+	err = conn.QueryRowContext(ctx, "SELECT|people|name|age=?", insertAge).Scan(&selectName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selectName != insertName {
+		t.Fatalf("got %q want %q", selectName, insertName)
+	}
+}
+
 // Tests fix for issue 2542, that we release a lock when querying on
 // a closed connection.
 func TestIssue2542Deadlock(t *testing.T) {
@@ -2336,6 +2402,28 @@ func TestManyErrBadConn(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = stmt.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Conn
+	db = manyErrBadConnSetup()
+	defer closeDB(t, db)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = conn.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Ping
+	db = manyErrBadConnSetup()
+	defer closeDB(t, db)
+	err = db.PingContext(ctx)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
