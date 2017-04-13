@@ -20,11 +20,20 @@ func fixLongPath(path string) string {
 func rename(oldname, newname string) error {
 	fi, err := Lstat(newname)
 	if err == nil && fi.IsDir() {
+		// if we cannot stat oldname we should
+		// return that error in favor of EEXIST
+		fi, err = Lstat(oldname)
+		if err != nil {
+			if pErr, ok := err.(*PathError); ok {
+				err = pErr.Err
+			}
+			return &LinkError{"rename", oldname, newname, err}
+		}
 		return &LinkError{"rename", oldname, newname, syscall.EEXIST}
 	}
-	e := syscall.Rename(oldname, newname)
-	if e != nil {
-		return &LinkError{"rename", oldname, newname, e}
+	err = syscall.Rename(oldname, newname)
+	if err != nil {
+		return &LinkError{"rename", oldname, newname, err}
 	}
 	return nil
 }
