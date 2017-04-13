@@ -560,7 +560,10 @@ func (ctxt *Link) dwarfSym(s *LSym) *LSym {
 	if s.Type != STEXT {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
-	return ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+	if s.FuncInfo.dwarfSym == nil {
+		s.FuncInfo.dwarfSym = ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+	}
+	return s.FuncInfo.dwarfSym
 }
 
 // populateDWARF fills in the DWARF Debugging Information Entry for TEXT symbol s.

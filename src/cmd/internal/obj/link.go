@@ -324,11 +324,12 @@ type LSym struct {
 
 // A FuncInfo contains extra fields for STEXT symbols.
 type FuncInfo struct {
-	Args   int32
-	Locals int32
-	Text   *Prog
-	Autom  []*Auto
-	Pcln   Pcln
+	Args     int32
+	Locals   int32
+	Text     *Prog
+	Autom    []*Auto
+	Pcln     Pcln
+	dwarfSym *LSym
 }
 
 // Attribute is a set of symbol attributes.
