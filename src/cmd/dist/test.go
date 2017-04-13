@@ -340,7 +340,8 @@ var stdOutErrAreTerminals func() bool
 func (t *tester) registerTests() {
 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-vetall") {
 		// Run vet over std and cmd and call it quits.
-		for osarch := range cgoEnabled {
+		for k := range cgoEnabled {
+			osarch := k
 			t.tests = append(t.tests, distTest{
 				name:    "vet/" + osarch,
 				heading: "go vet std cmd",
