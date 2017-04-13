@@ -106,7 +106,7 @@ func tTag(c context, s []byte) (context, int) {
 		}, len(s)
 	}
 
-	attrName := string(s[i:j])
+	attrName := strings.ToLower(string(s[i:j]))
 	if c.element == elementScript && attrName == "type" {
 		attr = attrScriptType
 	} else {
