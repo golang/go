@@ -105,7 +105,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 		ctxt.Arch.Preprocess(ctxt, s, newprog)
 		ctxt.Arch.Assemble(ctxt, s, newprog)
 		linkpcln(ctxt, s)
-		makeFuncDebugEntry(ctxt, plist.Curfn, s)
+		ctxt.populateDWARF(plist.Curfn, s)
 	}
 }
 
@@ -133,6 +133,12 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
 	s.Type = STEXT
 	ctxt.Text = append(ctxt.Text, s)
+
+	// Set up DWARF entry for s.
+	dsym := ctxt.dwarfSym(s)
+	dsym.Type = SDWARFINFO
+	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
+	ctxt.Data = append(ctxt.Data, dsym)
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
