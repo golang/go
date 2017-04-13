@@ -2214,6 +2214,20 @@ func TestCoverageImportMainLoop(t *testing.T) {
 	tg.grepStderr("not an importable package", "did not detect import main")
 }
 
+func TestPluginNonMain(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pkg := filepath.Join(wd, "testdata", "testdep", "p2")
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.runFail("build", "-buildmode=plugin", pkg)
+}
+
 func TestTestEmpty(t *testing.T) {
 	if !canRace {
 		t.Skip("no race detector")
