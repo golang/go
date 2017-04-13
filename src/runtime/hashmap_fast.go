@@ -490,8 +490,7 @@ again:
 
 	if inserti == nil {
 		// all current buckets are full, allocate a new one.
-		newb := (*bmap)(newobject(t.bucket))
-		h.setoverflow(t, b, newb)
+		newb := h.newoverflow(t, b)
 		inserti = &newb.tophash[0]
 		insertk = add(unsafe.Pointer(newb), dataOffset)
 		val = add(insertk, bucketCnt*4)
@@ -579,8 +578,7 @@ again:
 
 	if inserti == nil {
 		// all current buckets are full, allocate a new one.
-		newb := (*bmap)(newobject(t.bucket))
-		h.setoverflow(t, b, newb)
+		newb := h.newoverflow(t, b)
 		inserti = &newb.tophash[0]
 		insertk = add(unsafe.Pointer(newb), dataOffset)
 		val = add(insertk, bucketCnt*8)
@@ -673,8 +671,7 @@ again:
 
 	if inserti == nil {
 		// all current buckets are full, allocate a new one.
-		newb := (*bmap)(newobject(t.bucket))
-		h.setoverflow(t, b, newb)
+		newb := h.newoverflow(t, b)
 		inserti = &newb.tophash[0]
 		insertk = add(unsafe.Pointer(newb), dataOffset)
 		val = add(insertk, bucketCnt*2*sys.PtrSize)
