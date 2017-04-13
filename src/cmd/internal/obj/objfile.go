@@ -555,19 +555,24 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 	r.Type = R_DWARFREF
 }
 
-// makeFuncDebugEntry makes a DWARF Debugging Information Entry
-// for TEXT symbol s.
-func makeFuncDebugEntry(ctxt *Link, curfn interface{}, s *LSym) {
-	dsym := ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
-	if dsym.Size != 0 {
-		return
+// dwarfSym returns the DWARF symbol for TEXT symbol.
+func (ctxt *Link) dwarfSym(s *LSym) *LSym {
+	if s.Type != STEXT {
+		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
-	dsym.Type = SDWARFINFO
-	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
+	return ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+}
+
+// populateDWARF fills in the DWARF Debugging Information Entry for TEXT symbol s.
+// The DWARF symbol must already have been initialized in InitTextSym.
+func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
+	dsym := ctxt.dwarfSym(s)
+	if dsym.Size != 0 {
+		ctxt.Diag("makeFuncDebugEntry double process %v", s)
+	}
 	var vars []*dwarf.Var
 	if ctxt.DebugInfo != nil {
 		vars = ctxt.DebugInfo(s, curfn)
 	}
 	dwarf.PutFunc(dwCtxt{ctxt}, dsym, s.Name, s.Version == 0, s, s.Size, vars)
-	ctxt.Data = append(ctxt.Data, dsym)
 }
