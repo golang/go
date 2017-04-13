@@ -12,7 +12,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -123,9 +126,10 @@ func bootstrapBuildTools() {
 				}
 			}
 			srcFile := pathf("%s/%s", src, name)
+			dstFile := pathf("%s/%s", dst, name)
 			text := readfile(srcFile)
-			text = bootstrapFixImports(text, srcFile)
-			writefile(text, pathf("%s/%s", dst, name), 0)
+			text = bootstrapRewriteFile(text, srcFile)
+			writefile(text, dstFile, 0)
 		}
 	}
 
@@ -158,7 +162,18 @@ func bootstrapBuildTools() {
 	// https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
 	// Use the math_big_pure_go build tag to disable the assembly in math/big
 	// which may contain unsupported instructions.
-	run(workspace, ShowOutput|CheckExit, pathf("%s/bin/go", goroot_bootstrap), "install", "-gcflags=-l", "-tags=math_big_pure_go", "-v", "bootstrap/cmd/...")
+	cmd := []string{
+		pathf("%s/bin/go", goroot_bootstrap),
+		"install",
+		"-gcflags=-l",
+		"-tags=math_big_pure_go",
+		"-v",
+	}
+	if tool := os.Getenv("GOBOOTSTRAP_TOOLEXEC"); tool != "" {
+		cmd = append(cmd, "-toolexec="+tool)
+	}
+	cmd = append(cmd, "bootstrap/cmd/...")
+	run(workspace, ShowOutput|CheckExit, cmd...)
 
 	// Copy binaries into tool binary directory.
 	for _, name := range bootstrapDirs {
@@ -172,6 +187,53 @@ func bootstrapBuildTools() {
 	}
 
 	xprintf("\n")
+}
+
+var ssaRewriteFileSubstring = filepath.ToSlash("src/cmd/compile/internal/ssa/rewrite")
+
+// isUnneededSSARewriteFile reports whether srcFile is a
+// src/cmd/compile/internal/ssa/rewriteARCHNAME.go file for an
+// architecture that isn't for the current runtime.GOARCH.
+//
+// When unneeded is true archCaps is the rewrite base filename without
+// the "rewrite" prefix or ".go" suffix: AMD64, 386, ARM, ARM64, etc.
+func isUnneededSSARewriteFile(srcFile string) (archCaps string, unneeded bool) {
+	if !strings.Contains(srcFile, ssaRewriteFileSubstring) {
+		return "", false
+	}
+	fileArch := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(srcFile), "rewrite"), ".go")
+	if fileArch == "" {
+		return "", false
+	}
+	b := fileArch[0]
+	if b == '_' || ('a' <= b && b <= 'z') {
+		return "", false
+	}
+	archCaps = fileArch
+	fileArch = strings.ToLower(fileArch)
+	if fileArch == strings.TrimSuffix(runtime.GOARCH, "le") {
+		return "", false
+	}
+	if fileArch == strings.TrimSuffix(os.Getenv("GOARCH"), "le") {
+		return "", false
+	}
+	return archCaps, true
+}
+
+func bootstrapRewriteFile(text, srcFile string) string {
+	// During bootstrap, generate dummy rewrite files for
+	// irrelevant architectures. We only need to build a bootstrap
+	// binary that works for the current runtime.GOARCH.
+	// This saves 6+ seconds of bootstrap.
+	if archCaps, ok := isUnneededSSARewriteFile(srcFile); ok {
+		return fmt.Sprintf(`package ssa
+
+func rewriteValue%s(v *Value) bool { panic("unused during bootstrap") }
+func rewriteBlock%s(b *Block) bool { panic("unused during bootstrap") }
+`, archCaps, archCaps)
+	}
+
+	return bootstrapFixImports(text, srcFile)
 }
 
 func bootstrapFixImports(text, srcFile string) string {
