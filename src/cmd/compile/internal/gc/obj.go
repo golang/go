@@ -227,25 +227,24 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
+func linksymname(s *types.Sym) string {
+	if isblanksym(s) {
+		return "_"
+	}
+	if s.Linkname != "" {
+		return s.Linkname
+	}
+	return s.Pkg.Prefix + "." + s.Name
+}
+
 func Linksym(s *types.Sym) *obj.LSym {
 	if s == nil {
 		return nil
 	}
-	if s.Lsym != nil {
-		return s.Lsym
+	if s.Lsym == nil {
+		s.Lsym = Ctxt.Lookup(linksymname(s), 0)
 	}
-	var name string
-	if isblanksym(s) {
-		name = "_"
-	} else if s.Linkname != "" {
-		name = s.Linkname
-	} else {
-		name = s.Pkg.Prefix + "." + s.Name
-	}
-
-	ls := Ctxt.Lookup(name, 0)
-	s.Lsym = ls
-	return ls
+	return s.Lsym
 }
 
 func duintxx(s *types.Sym, off int, v uint64, wid int) int {
