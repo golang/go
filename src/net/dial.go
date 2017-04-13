@@ -135,23 +135,26 @@ func (d *Dialer) fallbackDelay() time.Duration {
 	}
 }
 
-func parseNetwork(ctx context.Context, net string) (afnet string, proto int, err error) {
-	i := last(net, ':')
+func parseNetwork(ctx context.Context, network string, needsProto bool) (afnet string, proto int, err error) {
+	i := last(network, ':')
 	if i < 0 { // no colon
-		switch net {
+		switch network {
 		case "tcp", "tcp4", "tcp6":
 		case "udp", "udp4", "udp6":
 		case "ip", "ip4", "ip6":
+			if needsProto {
+				return "", 0, UnknownNetworkError(network)
+			}
 		case "unix", "unixgram", "unixpacket":
 		default:
-			return "", 0, UnknownNetworkError(net)
+			return "", 0, UnknownNetworkError(network)
 		}
-		return net, 0, nil
+		return network, 0, nil
 	}
-	afnet = net[:i]
+	afnet = network[:i]
 	switch afnet {
 	case "ip", "ip4", "ip6":
-		protostr := net[i+1:]
+		protostr := network[i+1:]
 		proto, i, ok := dtoi(protostr)
 		if !ok || i != len(protostr) {
 			proto, err = lookupProtocol(ctx, protostr)
@@ -161,14 +164,14 @@ func parseNetwork(ctx context.Context, net string) (afnet string, proto int, err
 		}
 		return afnet, proto, nil
 	}
-	return "", 0, UnknownNetworkError(net)
+	return "", 0, UnknownNetworkError(network)
 }
 
 // resolveAddrList resolves addr using hint and returns a list of
 // addresses. The result contains at least one address when error is
 // nil.
 func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (addrList, error) {
-	afnet, _, err := parseNetwork(ctx, network)
+	afnet, _, err := parseNetwork(ctx, network, true)
 	if err != nil {
 		return nil, err
 	}

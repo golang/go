@@ -113,7 +113,7 @@ func (c *IPConn) writeMsg(b, oob []byte, addr *IPAddr) (n, oobn int, err error) 
 }
 
 func dialIP(ctx context.Context, netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
-	network, proto, err := parseNetwork(ctx, netProto)
+	network, proto, err := parseNetwork(ctx, netProto, true)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func dialIP(ctx context.Context, netProto string, laddr, raddr *IPAddr) (*IPConn
 }
 
 func listenIP(ctx context.Context, netProto string, laddr *IPAddr) (*IPConn, error) {
-	network, proto, err := parseNetwork(ctx, netProto)
+	network, proto, err := parseNetwork(ctx, netProto, true)
 	if err != nil {
 		return nil, err
 	}

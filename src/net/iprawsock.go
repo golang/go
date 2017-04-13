@@ -71,7 +71,7 @@ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
 	if net == "" { // a hint wildcard for Go 1.0 undocumented behavior
 		net = "ip"
 	}
-	afnet, _, err := parseNetwork(context.Background(), net)
+	afnet, _, err := parseNetwork(context.Background(), net, false)
 	if err != nil {
 		return nil, err
 	}
