@@ -53,7 +53,7 @@ func main() {
 	i2 = I2(i) // ERROR "invalid|missing N method"
 
 	e = E(t) // ok
-	t = T(e) // ERROR "need explicit|need type assertion|incompatible" "as type [*]T"
+	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
 }
 
 type M interface {
@@ -80,7 +80,6 @@ var m2 M = jj // ERROR "incompatible|wrong type for M method"
 
 var m3 = M(ii) // ERROR "invalid|missing"
 var m4 = M(jj) // ERROR "invalid|wrong type for M method"
-
 
 type B1 interface {
 	_() // ERROR "methods must have a unique non-blank name"
