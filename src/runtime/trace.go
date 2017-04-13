@@ -764,10 +764,22 @@ func (tab *traceStackTable) newStack(n int) *traceStack {
 	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*sys.PtrSize))
 }
 
+// allFrames returns all of the Frames corresponding to pcs.
+func allFrames(pcs []uintptr) []Frame {
+	frames := make([]Frame, 0, len(pcs))
+	ci := CallersFrames(pcs)
+	for {
+		f, more := ci.Next()
+		frames = append(frames, f)
+		if !more {
+			return frames
+		}
+	}
+}
+
 // dump writes all previously cached stacks to trace buffers,
 // releases all memory and resets state.
 func (tab *traceStackTable) dump() {
-	frames := make(map[uintptr]traceFrame)
 	var tmp [(2 + 4*traceStackSize) * traceBytesPerNumber]byte
 	buf := traceFlush(0).ptr()
 	for _, stk := range tab.tab {
@@ -775,11 +787,12 @@ func (tab *traceStackTable) dump() {
 		for ; stk != nil; stk = stk.link.ptr() {
 			tmpbuf := tmp[:0]
 			tmpbuf = traceAppend(tmpbuf, uint64(stk.id))
-			tmpbuf = traceAppend(tmpbuf, uint64(stk.n))
-			for _, pc := range stk.stack() {
+			frames := allFrames(stk.stack())
+			tmpbuf = traceAppend(tmpbuf, uint64(len(frames)))
+			for _, f := range frames {
 				var frame traceFrame
-				frame, buf = traceFrameForPC(buf, frames, pc)
-				tmpbuf = traceAppend(tmpbuf, uint64(pc))
+				frame, buf = traceFrameForPC(buf, f)
+				tmpbuf = traceAppend(tmpbuf, uint64(f.PC))
 				tmpbuf = traceAppend(tmpbuf, uint64(frame.funcID))
 				tmpbuf = traceAppend(tmpbuf, uint64(frame.fileID))
 				tmpbuf = traceAppend(tmpbuf, uint64(frame.line))
@@ -809,26 +822,17 @@ type traceFrame struct {
 	line   uint64
 }
 
-func traceFrameForPC(buf *traceBuf, frames map[uintptr]traceFrame, pc uintptr) (traceFrame, *traceBuf) {
-	if frame, ok := frames[pc]; ok {
-		return frame, buf
-	}
-
+func traceFrameForPC(buf *traceBuf, f Frame) (traceFrame, *traceBuf) {
 	var frame traceFrame
-	f := findfunc(pc)
-	if !f.valid() {
-		frames[pc] = frame
-		return frame, buf
-	}
 
-	fn := funcname(f)
+	fn := f.Function
 	const maxLen = 1 << 10
 	if len(fn) > maxLen {
 		fn = fn[len(fn)-maxLen:]
 	}
 	frame.funcID, buf = traceString(buf, fn)
-	file, line := funcline(f, pc-sys.PCQuantum)
-	frame.line = uint64(line)
+	frame.line = uint64(f.Line)
+	file := f.File
 	if len(file) > maxLen {
 		file = file[len(file)-maxLen:]
 	}
