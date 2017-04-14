@@ -166,7 +166,7 @@ var allAsmTests = []*asmTests{
 	{
 		arch:    "amd64",
 		os:      "linux",
-		imports: []string{"encoding/binary", "math/bits"},
+		imports: []string{"encoding/binary", "math/bits", "unsafe"},
 		tests:   linuxAMD64Tests,
 	},
 	{
@@ -868,6 +868,35 @@ var linuxAMD64Tests = []*asmTest{
 			return x >> z | x << (8-z)
 		}`,
 		[]string{"\tRORB\t"},
+	},
+	// Check that array compare uses 2/4/8 byte compares
+	{
+		`
+		func f68(a,b [2]byte) bool {
+		    return a == b
+		}`,
+		[]string{"\tCMPW\t[A-Z]"},
+	},
+	{
+		`
+		func f69(a,b [3]uint16) bool {
+		    return a == b
+		}`,
+		[]string{"\tCMPL\t[A-Z]"},
+	},
+	{
+		`
+		func f70(a,b [15]byte) bool {
+		    return a == b
+		}`,
+		[]string{"\tCMPQ\t[A-Z]"},
+	},
+	{
+		`
+		func f71(a,b unsafe.Pointer) bool { // This was a TODO in mapaccess1_faststr
+		    return *((*[4]byte)(a)) != *((*[4]byte)(b))
+		}`,
+		[]string{"\tCMPL\t[A-Z]"},
 	},
 }
 
