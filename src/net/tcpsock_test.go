@@ -32,28 +32,28 @@ func BenchmarkTCP4PersistentTimeout(b *testing.B) {
 }
 
 func BenchmarkTCP6OneShot(b *testing.B) {
-	if !supportsIPv6 {
+	if !supportsIPv6() {
 		b.Skip("ipv6 is not supported")
 	}
 	benchmarkTCP(b, false, false, "[::1]:0")
 }
 
 func BenchmarkTCP6OneShotTimeout(b *testing.B) {
-	if !supportsIPv6 {
+	if !supportsIPv6() {
 		b.Skip("ipv6 is not supported")
 	}
 	benchmarkTCP(b, false, true, "[::1]:0")
 }
 
 func BenchmarkTCP6Persistent(b *testing.B) {
-	if !supportsIPv6 {
+	if !supportsIPv6() {
 		b.Skip("ipv6 is not supported")
 	}
 	benchmarkTCP(b, true, false, "[::1]:0")
 }
 
 func BenchmarkTCP6PersistentTimeout(b *testing.B) {
-	if !supportsIPv6 {
+	if !supportsIPv6() {
 		b.Skip("ipv6 is not supported")
 	}
 	benchmarkTCP(b, true, true, "[::1]:0")
@@ -163,7 +163,7 @@ func BenchmarkTCP4ConcurrentReadWrite(b *testing.B) {
 }
 
 func BenchmarkTCP6ConcurrentReadWrite(b *testing.B) {
-	if !supportsIPv6 {
+	if !supportsIPv6() {
 		b.Skip("ipv6 is not supported")
 	}
 	benchmarkTCPConcurrentReadWrite(b, "[::1]:0")
@@ -372,7 +372,7 @@ func TestTCPListenerName(t *testing.T) {
 func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	if !supportsIPv6 {
+	if !supportsIPv6() {
 		t.Skip("IPv6 is not supported")
 	}
 

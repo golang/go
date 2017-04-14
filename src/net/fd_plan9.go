@@ -24,13 +24,7 @@ type netFD struct {
 	isStream          bool
 }
 
-var (
-	netdir string // default network
-)
-
-func sysInit() {
-	netdir = "/net"
-}
+var netdir = "/net" // default network
 
 func newFD(net, name string, listen, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
 	ret := &netFD{

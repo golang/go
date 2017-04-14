@@ -13,31 +13,24 @@ import (
 	"syscall"
 )
 
-func probeIPv4Stack() bool {
+// Probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
+// capabilities which are controlled by the IPV6_V6ONLY socket option
+// and kernel configuration.
+//
+// Should we try to use the IPv4 socket interface if we're only
+// dealing with IPv4 sockets? As long as the host system understands
+// IPv4-mapped IPv6, it's okay to pass IPv4-mapeed IPv6 addresses to
+// the IPv6 interface. That simplifies our code and is most
+// general. Unfortunately, we need to run on kernels built without
+// IPv6 support too. So probe the kernel to figure it out.
+func (p *ipStackCapabilities) probe() {
 	s, err := socketFunc(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 	switch err {
 	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
-		return false
 	case nil:
 		poll.CloseFunc(s)
+		p.ipv4Enabled = true
 	}
-	return true
-}
-
-// Should we try to use the IPv4 socket interface if we're
-// only dealing with IPv4 sockets?  As long as the host system
-// understands IPv6, it's okay to pass IPv4 addresses to the IPv6
-// interface. That simplifies our code and is most general.
-// Unfortunately, we need to run on kernels built without IPv6
-// support too. So probe the kernel to figure it out.
-//
-// probeIPv6Stack probes both basic IPv6 capability and IPv6 IPv4-
-// mapping capability which is controlled by IPV6_V6ONLY socket
-// option and/or kernel state "net.inet6.ip6.v6only".
-// It returns two boolean values. If the first boolean value is
-// true, kernel supports basic IPv6 functionality. If the second
-// boolean value is true, kernel supports IPv6 IPv4-mapping.
-func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	var probes = []struct {
 		laddr TCPAddr
 		value int
@@ -47,23 +40,13 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 		// IPv4-mapped IPv6 address communication capability
 		{laddr: TCPAddr{IP: IPv4(127, 0, 0, 1)}, value: 0},
 	}
-	var supps [2]bool
 	switch runtime.GOOS {
 	case "dragonfly", "openbsd":
-		// Some released versions of DragonFly BSD pretend to
-		// accept IPV6_V6ONLY=0 successfully, but the state
-		// still stays IPV6_V6ONLY=1. Eventually DragonFly BSD
-		// stops pretending, but the transition period would
-		// cause unpredictable behavior and we need to avoid
-		// it.
-		//
-		// OpenBSD also doesn't support IPV6_V6ONLY=0 but it
-		// never pretends to accept IPV6_V6OLY=0. It always
-		// returns an error and we don't need to probe the
-		// capability.
+		// The latest DragonFly BSD and OpenBSD kernels don't
+		// support IPV6_V6ONLY=0. They always return an error
+		// and we don't need to probe the capability.
 		probes = probes[:1]
 	}
-
 	for i := range probes {
 		s, err := socketFunc(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 		if err != nil {
@@ -78,51 +61,55 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 		if err := syscall.Bind(s, sa); err != nil {
 			continue
 		}
-		supps[i] = true
+		if i == 0 {
+			p.ipv6Enabled = true
+		} else {
+			p.ipv4MappedIPv6Enabled = true
+		}
 	}
-
-	return supps[0], supps[1]
 }
 
-// favoriteAddrFamily returns the appropriate address family to
-// the given net, laddr, raddr and mode. At first it figures
-// address family out from the net. If mode indicates "listen"
-// and laddr is a wildcard, it assumes that the user wants to
-// make a passive connection with a wildcard address family, both
-// AF_INET and AF_INET6, and a wildcard address like following:
+// favoriteAddrFamily returns the appropriate address family for the
+// given network, laddr, raddr and mode.
 //
-//	1. A wild-wild listen, "tcp" + ""
-//	If the platform supports both IPv6 and IPv6 IPv4-mapping
-//	capabilities, or does not support IPv4, we assume that
-//	the user wants to listen on both IPv4 and IPv6 wildcard
-//	addresses over an AF_INET6 socket with IPV6_V6ONLY=0.
-//	Otherwise we prefer an IPv4 wildcard address listen over
-//	an AF_INET socket.
+// If mode indicates "listen" and laddr is a wildcard, we assume that
+// the user wants to make a passive-open connection with a wildcard
+// address family, both AF_INET and AF_INET6, and a wildcard address
+// like the following:
 //
-//	2. A wild-ipv4wild listen, "tcp" + "0.0.0.0"
-//	Same as 1.
+//	- A listen for a wildcard communication domain, "tcp" or
+//	  "udp", with a wildcard address: If the platform supports
+//	  both IPv6 and IPv4-mapped IPv6 communication capabilities,
+//	  or does not support IPv4, we use a dual stack, AF_INET6 and
+//	  IPV6_V6ONLY=0, wildcard address listen. The dual stack
+//	  wildcard address listen may fall back to an IPv6-only,
+//	  AF_INET6 and IPV6_V6ONLY=1, wildcard address listen.
+//	  Otherwise we prefer an IPv4-only, AF_INET, wildcard address
+//	  listen.
 //
-//	3. A wild-ipv6wild listen, "tcp" + "[::]"
-//	Almost same as 1 but we prefer an IPv6 wildcard address
-//	listen over an AF_INET6 socket with IPV6_V6ONLY=0 when
-//	the platform supports IPv6 capability but not IPv6 IPv4-
-//	mapping capability.
+//	- A listen for a wildcard communication domain, "tcp" or
+//	  "udp", with an IPv4 wildcard address: same as above.
 //
-//	4. A ipv4-ipv4wild listen, "tcp4" + "" or "0.0.0.0"
-//	We use an IPv4 (AF_INET) wildcard address listen.
+//	- A listen for a wildcard communication domain, "tcp" or
+//	  "udp", with an IPv6 wildcard address: same as above.
 //
-//	5. A ipv6-ipv6wild listen, "tcp6" + "" or "[::]"
-//	We use an IPv6 (AF_INET6, IPV6_V6ONLY=1) wildcard address
-//	listen.
+//	- A listen for an IPv4 communication domain, "tcp4" or "udp4",
+//	  with an IPv4 wildcard address: We use an IPv4-only, AF_INET,
+//	  wildcard address listen.
 //
-// Otherwise guess: if the addresses are IPv4 then returns AF_INET,
-// or else returns AF_INET6.  It also returns a boolean value what
+//	- A listen for an IPv6 communication domain, "tcp6" or "udp6",
+//	  with an IPv6 wildcard address: We use an IPv6-only, AF_INET6
+//	  and IPV6_V6ONLY=1, wildcard address listen.
+//
+// Otherwise guess: If the addresses are IPv4 then returns AF_INET,
+// or else returns AF_INET6. It also returns a boolean value what
 // designates IPV6_V6ONLY option.
 //
-// Note that OpenBSD allows neither "net.inet6.ip6.v6only=1" change
-// nor IPPROTO_IPV6 level IPV6_V6ONLY socket option setting.
-func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family int, ipv6only bool) {
-	switch net[len(net)-1] {
+// Note that the latest DragonFly BSD and OpenBSD kernels allow
+// neither "net.inet6.ip6.v6only=1" change nor IPPROTO_IPV6 level
+// IPV6_V6ONLY socket option setting.
+func favoriteAddrFamily(network string, laddr, raddr sockaddr, mode string) (family int, ipv6only bool) {
+	switch network[len(network)-1] {
 	case '4':
 		return syscall.AF_INET, false
 	case '6':
@@ -130,7 +117,7 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family 
 	}
 
 	if mode == "listen" && (laddr == nil || laddr.isWildcard()) {
-		if supportsIPv4map || !supportsIPv4 {
+		if supportsIPv4map() || !supportsIPv4() {
 			return syscall.AF_INET6, false
 		}
 		if laddr == nil {
@@ -146,7 +133,6 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family 
 	return syscall.AF_INET6, false
 }
 
-// Internet sockets (TCP, UDP, IP)
 func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string) (fd *netFD, err error) {
 	if (runtime.GOOS == "windows" || runtime.GOOS == "openbsd" || runtime.GOOS == "nacl") && mode == "dial" && raddr.isWildcard() {
 		raddr = raddr.toLocal(net)

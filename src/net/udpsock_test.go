@@ -15,7 +15,7 @@ import (
 func BenchmarkUDP6LinkLocalUnicast(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
-	if !supportsIPv6 {
+	if !supportsIPv6() {
 		b.Skip("IPv6 is not supported")
 	}
 	ifi := loopbackInterface()
@@ -279,7 +279,7 @@ func TestUDPConnLocalAndRemoteNames(t *testing.T) {
 func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	if !supportsIPv6 {
+	if !supportsIPv6() {
 		t.Skip("IPv6 is not supported")
 	}
 

@@ -214,7 +214,7 @@ func TestDialAddrError(t *testing.T) {
 	case "nacl", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
-	if !supportsIPv4 || !supportsIPv6 {
+	if !supportsIPv4() || !supportsIPv6() {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
