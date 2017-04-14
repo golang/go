@@ -849,15 +849,20 @@ func argNum(raw rawEvent, ver int) int {
 		if ver < 1007 {
 			narg++ // there was an unused arg before 1.7
 		}
+		return narg
+	}
+	narg++ // timestamp
+	if ver < 1007 {
+		narg++ // sequence
+	}
+	switch raw.typ {
+	case EvGCSweepDone:
+		if ver < 1009 {
+			narg -= 2 // 1.9 added two arguments
+		}
 	case EvGCStart, EvGoStart, EvGoUnblock:
 		if ver < 1007 {
 			narg-- // 1.7 added an additional seq arg
-		}
-		fallthrough
-	default:
-		narg++ // timestamp
-		if ver < 1007 {
-			narg++ // sequence
 		}
 	}
 	return narg
@@ -881,7 +886,7 @@ const (
 	EvGCScanStart       = 9  // GC mark termination start [timestamp]
 	EvGCScanDone        = 10 // GC mark termination done [timestamp]
 	EvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
-	EvGCSweepDone       = 12 // GC sweep done [timestamp]
+	EvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
 	EvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
 	EvGoStart           = 14 // goroutine starts running [timestamp, goroutine id, seq]
 	EvGoEnd             = 15 // goroutine ends [timestamp]
@@ -935,7 +940,7 @@ var EventDescriptions = [EvCount]struct {
 	EvGCScanStart:       {"GCScanStart", 1005, false, []string{}},
 	EvGCScanDone:        {"GCScanDone", 1005, false, []string{}},
 	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}},
-	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{}},
+	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}}, // before 1.9, format was {}
 	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}},
 	EvGoStart:           {"GoStart", 1005, false, []string{"g", "seq"}}, // in 1.5 format it was {"g"}
 	EvGoEnd:             {"GoEnd", 1005, false, []string{}},

@@ -190,7 +190,7 @@ func (s *mspan) sweep(preserve bool) bool {
 	}
 
 	if trace.enabled {
-		traceGCSweepSpan()
+		traceGCSweepSpan(s.npages * _PageSize)
 	}
 
 	atomic.Xadd64(&mheap_.pagesSwept, int64(s.npages))
@@ -301,6 +301,9 @@ func (s *mspan) sweep(preserve bool) bool {
 	s.allocCount = nalloc
 	wasempty := s.nextFreeIndex() == s.nelems
 	s.freeindex = 0 // reset allocation index to start of span.
+	if trace.enabled {
+		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
+	}
 
 	// gcmarkBits becomes the allocBits.
 	// get a fresh cleared gcmarkBits in preparation for next GC
