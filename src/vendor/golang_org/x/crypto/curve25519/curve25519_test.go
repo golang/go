@@ -27,3 +27,13 @@ func TestBaseScalarMult(t *testing.T) {
 		t.Errorf("incorrect result: got %s, want %s", result, expectedHex)
 	}
 }
+
+func BenchmarkScalarBaseMult(b *testing.B) {
+	var in, out [32]byte
+	in[0] = 1
+
+	b.SetBytes(32)
+	for i := 0; i < b.N; i++ {
+		ScalarBaseMult(&out, &in)
+	}
+}
