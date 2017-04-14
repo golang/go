@@ -9,7 +9,7 @@ package route
 // This file contains duplicates of encoding/binary package.
 //
 // This package is supposed to be used by the net package of standard
-// library. Therefore a package set used in the package must be the
+// library. Therefore the package set used in the package must be the
 // same as net package.
 
 var (

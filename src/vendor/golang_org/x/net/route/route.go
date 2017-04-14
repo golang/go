@@ -24,19 +24,68 @@ var (
 	errMessageTooShort    = errors.New("message too short")
 	errInvalidMessage     = errors.New("invalid message")
 	errInvalidAddr        = errors.New("invalid address")
+	errShortBuffer        = errors.New("short buffer")
 )
 
 // A RouteMessage represents a message conveying an address prefix, a
 // nexthop address and an output interface.
+//
+// Unlike other messages, this message can be used to query adjacency
+// information for the given address prefix, to add a new route, and
+// to delete or modify the existing route from the routing information
+// base inside the kernel by writing and reading route messages on a
+// routing socket.
+//
+// For the manipulation of routing information, the route message must
+// contain appropriate fields that include:
+//
+//	Version       = <must be specified>
+//	Type          = <must be specified>
+//	Flags         = <must be specified>
+//	Index         = <must be specified if necessary>
+//	ID            = <must be specified>
+//	Seq           = <must be specified>
+//	Addrs         = <must be specified>
+//
+// The Type field specifies a type of manipulation, the Flags field
+// specifies a class of target information and the Addrs field
+// specifies target information like the following:
+//
+//	route.RouteMessage{
+//		Version: RTM_VERSION,
+//		Type: RTM_GET,
+//		Flags: RTF_UP | RTF_HOST,
+//		ID: uintptr(os.Getpid()),
+//		Seq: 1,
+//		Addrs: []route.Addrs{
+//			RTAX_DST: &route.Inet4Addr{ ... },
+//			RTAX_IFP: &route.LinkAddr{ ... },
+//			RTAX_BRD: &route.Inet4Addr{ ... },
+//		},
+//	}
+//
+// The values for the above fields depend on the implementation of
+// each operating system.
+//
+// The Err field on a response message contains an error value on the
+// requested operation. If non-nil, the requested operation is failed.
 type RouteMessage struct {
-	Version int    // message version
-	Type    int    // message type
-	Flags   int    // route flags
-	Index   int    // interface index when atatched
-	Addrs   []Addr // addresses
+	Version int     // message version
+	Type    int     // message type
+	Flags   int     // route flags
+	Index   int     // interface index when atatched
+	ID      uintptr // sender's identifier; usually process ID
+	Seq     int     // sequence number
+	Err     error   // error on requested operation
+	Addrs   []Addr  // addresses
 
 	extOff int    // offset of header extension
 	raw    []byte // raw message
+}
+
+// Marshal returns the binary encoding of m.
+func (m *RouteMessage) Marshal() ([]byte, error) {
+	return m.marshal()
 }
 
 // A RIBType reprensents a type of routing information base.

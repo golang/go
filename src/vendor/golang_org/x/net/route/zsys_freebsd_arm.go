@@ -10,6 +10,8 @@ const (
 	sysAF_LINK   = 0x12
 	sysAF_INET6  = 0x1c
 
+	sysSOCK_RAW = 0x3
+
 	sysNET_RT_DUMP     = 0x1
 	sysNET_RT_FLAGS    = 0x2
 	sysNET_RT_IFLIST   = 0x3
@@ -114,4 +116,8 @@ const (
 	sizeofIfDataFreeBSD9Emu  = 0x60
 	sizeofIfDataFreeBSD10Emu = 0x60
 	sizeofIfDataFreeBSD11Emu = 0x98
+
+	sizeofSockaddrStorage = 0x80
+	sizeofSockaddrInet    = 0x10
+	sizeofSockaddrInet6   = 0x1c
 )
