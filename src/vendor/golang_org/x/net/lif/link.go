@@ -31,15 +31,15 @@ func (ll *Link) fetch(s uintptr) {
 	}
 	ioc := int64(sysSIOCGLIFINDEX)
 	if err := ioctl(s, uintptr(ioc), unsafe.Pointer(&lifr)); err == nil {
-		ll.Index = int(littleEndian.Uint32(lifr.Lifru[:4]))
+		ll.Index = int(nativeEndian.Uint32(lifr.Lifru[:4]))
 	}
 	ioc = int64(sysSIOCGLIFFLAGS)
 	if err := ioctl(s, uintptr(ioc), unsafe.Pointer(&lifr)); err == nil {
-		ll.Flags = int(littleEndian.Uint64(lifr.Lifru[:8]))
+		ll.Flags = int(nativeEndian.Uint64(lifr.Lifru[:8]))
 	}
 	ioc = int64(sysSIOCGLIFMTU)
 	if err := ioctl(s, uintptr(ioc), unsafe.Pointer(&lifr)); err == nil {
-		ll.MTU = int(littleEndian.Uint32(lifr.Lifru[:4]))
+		ll.MTU = int(nativeEndian.Uint32(lifr.Lifru[:4]))
 	}
 	switch ll.Type {
 	case sysIFT_IPV4, sysIFT_IPV6, sysIFT_6TO4:
@@ -84,7 +84,11 @@ func links(eps []endpoint, name string) ([]Link, error) {
 		b := make([]byte, lifn.Count*sizeofLifreq)
 		lifc.Family = uint16(ep.af)
 		lifc.Len = lifn.Count * sizeofLifreq
-		littleEndian.PutUint64(lifc.Lifcu[:], uint64(uintptr(unsafe.Pointer(&b[0]))))
+		if len(lifc.Lifcu) == 8 {
+			nativeEndian.PutUint64(lifc.Lifcu[:], uint64(uintptr(unsafe.Pointer(&b[0]))))
+		} else {
+			nativeEndian.PutUint32(lifc.Lifcu[:], uint32(uintptr(unsafe.Pointer(&b[0]))))
+		}
 		ioc = int64(sysSIOCGLIFCONF)
 		if err := ioctl(ep.s, uintptr(ioc), unsafe.Pointer(&lifc)); err != nil {
 			continue

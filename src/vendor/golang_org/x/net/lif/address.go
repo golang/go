@@ -67,7 +67,7 @@ func Addrs(af int, name string) ([]Addr, error) {
 				continue
 			}
 			sa := (*sockaddrStorage)(unsafe.Pointer(&lifr.Lifru[0]))
-			l := int(littleEndian.Uint32(lifr.Lifru1[:4]))
+			l := int(nativeEndian.Uint32(lifr.Lifru1[:4]))
 			if l == 0 {
 				continue
 			}
@@ -77,7 +77,7 @@ func Addrs(af int, name string) ([]Addr, error) {
 				copy(a.IP[:], lifr.Lifru[4:8])
 				as = append(as, a)
 			case sysAF_INET6:
-				a := &Inet6Addr{PrefixLen: l, ZoneID: int(littleEndian.Uint32(lifr.Lifru[24:28]))}
+				a := &Inet6Addr{PrefixLen: l, ZoneID: int(nativeEndian.Uint32(lifr.Lifru[24:28]))}
 				copy(a.IP[:], lifr.Lifru[8:24])
 				as = append(as, a)
 			}
