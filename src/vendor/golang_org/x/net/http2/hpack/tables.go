@@ -4,73 +4,199 @@
 
 package hpack
 
+import (
+	"fmt"
+)
+
+// headerFieldTable implements a list of HeaderFields.
+// This is used to implement the static and dynamic tables.
+type headerFieldTable struct {
+	// For static tables, entries are never evicted.
+	//
+	// For dynamic tables, entries are evicted from ents[0] and added to the end.
+	// Each entry has a unique id that starts at one and increments for each
+	// entry that is added. This unique id is stable across evictions, meaning
+	// it can be used as a pointer to a specific entry. As in hpack, unique ids
+	// are 1-based. The unique id for ents[k] is k + evictCount + 1.
+	//
+	// Zero is not a valid unique id.
+	//
+	// evictCount should not overflow in any remotely practical situation. In
+	// practice, we will have one dynamic table per HTTP/2 connection. If we
+	// assume a very powerful server that handles 1M QPS per connection and each
+	// request adds (then evicts) 100 entries from the table, it would still take
+	// 2M years for evictCount to overflow.
+	ents       []HeaderField
+	evictCount uint64
+
+	// byName maps a HeaderField name to the unique id of the newest entry with
+	// the same name. See above for a definition of "unique id".
+	byName map[string]uint64
+
+	// byNameValue maps a HeaderField name/value pair to the unique id of the newest
+	// entry with the same name and value. See above for a definition of "unique id".
+	byNameValue map[pairNameValue]uint64
+}
+
+type pairNameValue struct {
+	name, value string
+}
+
+func (t *headerFieldTable) init() {
+	t.byName = make(map[string]uint64)
+	t.byNameValue = make(map[pairNameValue]uint64)
+}
+
+// len reports the number of entries in the table.
+func (t *headerFieldTable) len() int {
+	return len(t.ents)
+}
+
+// addEntry adds a new entry.
+func (t *headerFieldTable) addEntry(f HeaderField) {
+	id := uint64(t.len()) + t.evictCount + 1
+	t.byName[f.Name] = id
+	t.byNameValue[pairNameValue{f.Name, f.Value}] = id
+	t.ents = append(t.ents, f)
+}
+
+// evictOldest evicts the n oldest entries in the table.
+func (t *headerFieldTable) evictOldest(n int) {
+	if n > t.len() {
+		panic(fmt.Sprintf("evictOldest(%v) on table with %v entries", n, t.len()))
+	}
+	for k := 0; k < n; k++ {
+		f := t.ents[k]
+		id := t.evictCount + uint64(k) + 1
+		if t.byName[f.Name] == id {
+			delete(t.byName, f.Name)
+		}
+		if p := (pairNameValue{f.Name, f.Value}); t.byNameValue[p] == id {
+			delete(t.byNameValue, p)
+		}
+	}
+	copy(t.ents, t.ents[n:])
+	for k := t.len() - n; k < t.len(); k++ {
+		t.ents[k] = HeaderField{} // so strings can be garbage collected
+	}
+	t.ents = t.ents[:t.len()-n]
+	if t.evictCount+uint64(n) < t.evictCount {
+		panic("evictCount overflow")
+	}
+	t.evictCount += uint64(n)
+}
+
+// search finds f in the table. If there is no match, i is 0.
+// If both name and value match, i is the matched index and nameValueMatch
+// becomes true. If only name matches, i points to that index and
+// nameValueMatch becomes false.
+//
+// The returned index is a 1-based HPACK index. For dynamic tables, HPACK says
+// that index 1 should be the newest entry, but t.ents[0] is the oldest entry,
+// meaning t.ents is reversed for dynamic tables. Hence, when t is a dynamic
+// table, the return value i actually refers to the entry t.ents[t.len()-i].
+//
+// All tables are assumed to be a dynamic tables except for the global
+// staticTable pointer.
+//
+// See Section 2.3.3.
+func (t *headerFieldTable) search(f HeaderField) (i uint64, nameValueMatch bool) {
+	if !f.Sensitive {
+		if id := t.byNameValue[pairNameValue{f.Name, f.Value}]; id != 0 {
+			return t.idToIndex(id), true
+		}
+	}
+	if id := t.byName[f.Name]; id != 0 {
+		return t.idToIndex(id), false
+	}
+	return 0, false
+}
+
+// idToIndex converts a unique id to an HPACK index.
+// See Section 2.3.3.
+func (t *headerFieldTable) idToIndex(id uint64) uint64 {
+	if id <= t.evictCount {
+		panic(fmt.Sprintf("id (%v) <= evictCount (%v)", id, t.evictCount))
+	}
+	k := id - t.evictCount - 1 // convert id to an index t.ents[k]
+	if t != staticTable {
+		return uint64(t.len()) - k // dynamic table
+	}
+	return k + 1
+}
+
 func pair(name, value string) HeaderField {
 	return HeaderField{Name: name, Value: value}
 }
 
 // http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-07#appendix-B
-var staticTable = [...]HeaderField{
-	pair(":authority", ""), // index 1 (1-based)
-	pair(":method", "GET"),
-	pair(":method", "POST"),
-	pair(":path", "/"),
-	pair(":path", "/index.html"),
-	pair(":scheme", "http"),
-	pair(":scheme", "https"),
-	pair(":status", "200"),
-	pair(":status", "204"),
-	pair(":status", "206"),
-	pair(":status", "304"),
-	pair(":status", "400"),
-	pair(":status", "404"),
-	pair(":status", "500"),
-	pair("accept-charset", ""),
-	pair("accept-encoding", "gzip, deflate"),
-	pair("accept-language", ""),
-	pair("accept-ranges", ""),
-	pair("accept", ""),
-	pair("access-control-allow-origin", ""),
-	pair("age", ""),
-	pair("allow", ""),
-	pair("authorization", ""),
-	pair("cache-control", ""),
-	pair("content-disposition", ""),
-	pair("content-encoding", ""),
-	pair("content-language", ""),
-	pair("content-length", ""),
-	pair("content-location", ""),
-	pair("content-range", ""),
-	pair("content-type", ""),
-	pair("cookie", ""),
-	pair("date", ""),
-	pair("etag", ""),
-	pair("expect", ""),
-	pair("expires", ""),
-	pair("from", ""),
-	pair("host", ""),
-	pair("if-match", ""),
-	pair("if-modified-since", ""),
-	pair("if-none-match", ""),
-	pair("if-range", ""),
-	pair("if-unmodified-since", ""),
-	pair("last-modified", ""),
-	pair("link", ""),
-	pair("location", ""),
-	pair("max-forwards", ""),
-	pair("proxy-authenticate", ""),
-	pair("proxy-authorization", ""),
-	pair("range", ""),
-	pair("referer", ""),
-	pair("refresh", ""),
-	pair("retry-after", ""),
-	pair("server", ""),
-	pair("set-cookie", ""),
-	pair("strict-transport-security", ""),
-	pair("transfer-encoding", ""),
-	pair("user-agent", ""),
-	pair("vary", ""),
-	pair("via", ""),
-	pair("www-authenticate", ""),
+var staticTable = newStaticTable()
+
+func newStaticTable() *headerFieldTable {
+	t := &headerFieldTable{}
+	t.init()
+	t.addEntry(pair(":authority", ""))
+	t.addEntry(pair(":method", "GET"))
+	t.addEntry(pair(":method", "POST"))
+	t.addEntry(pair(":path", "/"))
+	t.addEntry(pair(":path", "/index.html"))
+	t.addEntry(pair(":scheme", "http"))
+	t.addEntry(pair(":scheme", "https"))
+	t.addEntry(pair(":status", "200"))
+	t.addEntry(pair(":status", "204"))
+	t.addEntry(pair(":status", "206"))
+	t.addEntry(pair(":status", "304"))
+	t.addEntry(pair(":status", "400"))
+	t.addEntry(pair(":status", "404"))
+	t.addEntry(pair(":status", "500"))
+	t.addEntry(pair("accept-charset", ""))
+	t.addEntry(pair("accept-encoding", "gzip, deflate"))
+	t.addEntry(pair("accept-language", ""))
+	t.addEntry(pair("accept-ranges", ""))
+	t.addEntry(pair("accept", ""))
+	t.addEntry(pair("access-control-allow-origin", ""))
+	t.addEntry(pair("age", ""))
+	t.addEntry(pair("allow", ""))
+	t.addEntry(pair("authorization", ""))
+	t.addEntry(pair("cache-control", ""))
+	t.addEntry(pair("content-disposition", ""))
+	t.addEntry(pair("content-encoding", ""))
+	t.addEntry(pair("content-language", ""))
+	t.addEntry(pair("content-length", ""))
+	t.addEntry(pair("content-location", ""))
+	t.addEntry(pair("content-range", ""))
+	t.addEntry(pair("content-type", ""))
+	t.addEntry(pair("cookie", ""))
+	t.addEntry(pair("date", ""))
+	t.addEntry(pair("etag", ""))
+	t.addEntry(pair("expect", ""))
+	t.addEntry(pair("expires", ""))
+	t.addEntry(pair("from", ""))
+	t.addEntry(pair("host", ""))
+	t.addEntry(pair("if-match", ""))
+	t.addEntry(pair("if-modified-since", ""))
+	t.addEntry(pair("if-none-match", ""))
+	t.addEntry(pair("if-range", ""))
+	t.addEntry(pair("if-unmodified-since", ""))
+	t.addEntry(pair("last-modified", ""))
+	t.addEntry(pair("link", ""))
+	t.addEntry(pair("location", ""))
+	t.addEntry(pair("max-forwards", ""))
+	t.addEntry(pair("proxy-authenticate", ""))
+	t.addEntry(pair("proxy-authorization", ""))
+	t.addEntry(pair("range", ""))
+	t.addEntry(pair("referer", ""))
+	t.addEntry(pair("refresh", ""))
+	t.addEntry(pair("retry-after", ""))
+	t.addEntry(pair("server", ""))
+	t.addEntry(pair("set-cookie", ""))
+	t.addEntry(pair("strict-transport-security", ""))
+	t.addEntry(pair("transfer-encoding", ""))
+	t.addEntry(pair("user-agent", ""))
+	t.addEntry(pair("vary", ""))
+	t.addEntry(pair("via", ""))
+	t.addEntry(pair("www-authenticate", ""))
+	return t
 }
 
 var huffmanCodes = [256]uint32{

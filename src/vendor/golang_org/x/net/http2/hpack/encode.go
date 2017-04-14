@@ -39,13 +39,14 @@ func NewEncoder(w io.Writer) *Encoder {
 		tableSizeUpdate: false,
 		w:               w,
 	}
+	e.dynTab.table.init()
 	e.dynTab.setMaxSize(initialHeaderTableSize)
 	return e
 }
 
 // WriteField encodes f into a single Write to e's underlying Writer.
 // This function may also produce bytes for "Header Table Size Update"
-// if necessary.  If produced, it is done before encoding f.
+// if necessary. If produced, it is done before encoding f.
 func (e *Encoder) WriteField(f HeaderField) error {
 	e.buf = e.buf[:0]
 
@@ -88,29 +89,17 @@ func (e *Encoder) WriteField(f HeaderField) error {
 // only name matches, i points to that index and nameValueMatch
 // becomes false.
 func (e *Encoder) searchTable(f HeaderField) (i uint64, nameValueMatch bool) {
-	for idx, hf := range staticTable {
-		if !constantTimeStringCompare(hf.Name, f.Name) {
-			continue
-		}
-		if i == 0 {
-			i = uint64(idx + 1)
-		}
-		if f.Sensitive {
-			continue
-		}
-		if !constantTimeStringCompare(hf.Value, f.Value) {
-			continue
-		}
-		i = uint64(idx + 1)
-		nameValueMatch = true
-		return
+	i, nameValueMatch = staticTable.search(f)
+	if nameValueMatch {
+		return i, true
 	}
 
-	j, nameValueMatch := e.dynTab.search(f)
+	j, nameValueMatch := e.dynTab.table.search(f)
 	if nameValueMatch || (i == 0 && j != 0) {
-		i = j + uint64(len(staticTable))
+		return j + uint64(staticTable.len()), nameValueMatch
 	}
-	return
+
+	return i, false
 }
 
 // SetMaxDynamicTableSize changes the dynamic header table size to v.

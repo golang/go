@@ -5,116 +5,15 @@
 package hpack
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"reflect"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
-
-func TestStaticTable(t *testing.T) {
-	fromSpec := `
-          +-------+-----------------------------+---------------+
-          | 1     | :authority                  |               |
-          | 2     | :method                     | GET           |
-          | 3     | :method                     | POST          |
-          | 4     | :path                       | /             |
-          | 5     | :path                       | /index.html   |
-          | 6     | :scheme                     | http          |
-          | 7     | :scheme                     | https         |
-          | 8     | :status                     | 200           |
-          | 9     | :status                     | 204           |
-          | 10    | :status                     | 206           |
-          | 11    | :status                     | 304           |
-          | 12    | :status                     | 400           |
-          | 13    | :status                     | 404           |
-          | 14    | :status                     | 500           |
-          | 15    | accept-charset              |               |
-          | 16    | accept-encoding             | gzip, deflate |
-          | 17    | accept-language             |               |
-          | 18    | accept-ranges               |               |
-          | 19    | accept                      |               |
-          | 20    | access-control-allow-origin |               |
-          | 21    | age                         |               |
-          | 22    | allow                       |               |
-          | 23    | authorization               |               |
-          | 24    | cache-control               |               |
-          | 25    | content-disposition         |               |
-          | 26    | content-encoding            |               |
-          | 27    | content-language            |               |
-          | 28    | content-length              |               |
-          | 29    | content-location            |               |
-          | 30    | content-range               |               |
-          | 31    | content-type                |               |
-          | 32    | cookie                      |               |
-          | 33    | date                        |               |
-          | 34    | etag                        |               |
-          | 35    | expect                      |               |
-          | 36    | expires                     |               |
-          | 37    | from                        |               |
-          | 38    | host                        |               |
-          | 39    | if-match                    |               |
-          | 40    | if-modified-since           |               |
-          | 41    | if-none-match               |               |
-          | 42    | if-range                    |               |
-          | 43    | if-unmodified-since         |               |
-          | 44    | last-modified               |               |
-          | 45    | link                        |               |
-          | 46    | location                    |               |
-          | 47    | max-forwards                |               |
-          | 48    | proxy-authenticate          |               |
-          | 49    | proxy-authorization         |               |
-          | 50    | range                       |               |
-          | 51    | referer                     |               |
-          | 52    | refresh                     |               |
-          | 53    | retry-after                 |               |
-          | 54    | server                      |               |
-          | 55    | set-cookie                  |               |
-          | 56    | strict-transport-security   |               |
-          | 57    | transfer-encoding           |               |
-          | 58    | user-agent                  |               |
-          | 59    | vary                        |               |
-          | 60    | via                         |               |
-          | 61    | www-authenticate            |               |
-          +-------+-----------------------------+---------------+
-`
-	bs := bufio.NewScanner(strings.NewReader(fromSpec))
-	re := regexp.MustCompile(`\| (\d+)\s+\| (\S+)\s*\| (\S(.*\S)?)?\s+\|`)
-	for bs.Scan() {
-		l := bs.Text()
-		if !strings.Contains(l, "|") {
-			continue
-		}
-		m := re.FindStringSubmatch(l)
-		if m == nil {
-			continue
-		}
-		i, err := strconv.Atoi(m[1])
-		if err != nil {
-			t.Errorf("Bogus integer on line %q", l)
-			continue
-		}
-		if i < 1 || i > len(staticTable) {
-			t.Errorf("Bogus index %d on line %q", i, l)
-			continue
-		}
-		if got, want := staticTable[i-1].Name, m[2]; got != want {
-			t.Errorf("header index %d name = %q; want %q", i, got, want)
-		}
-		if got, want := staticTable[i-1].Value, m[3]; got != want {
-			t.Errorf("header index %d value = %q; want %q", i, got, want)
-		}
-	}
-	if err := bs.Err(); err != nil {
-		t.Error(err)
-	}
-}
 
 func (d *Decoder) mustAt(idx int) HeaderField {
 	if hf, ok := d.at(uint64(idx)); !ok {
@@ -132,49 +31,14 @@ func TestDynamicTableAt(t *testing.T) {
 	}
 	d.dynTab.add(pair("foo", "bar"))
 	d.dynTab.add(pair("blake", "miz"))
-	if got, want := at(len(staticTable)+1), (pair("blake", "miz")); got != want {
+	if got, want := at(staticTable.len()+1), (pair("blake", "miz")); got != want {
 		t.Errorf("at(dyn 1) = %v; want %v", got, want)
 	}
-	if got, want := at(len(staticTable)+2), (pair("foo", "bar")); got != want {
+	if got, want := at(staticTable.len()+2), (pair("foo", "bar")); got != want {
 		t.Errorf("at(dyn 2) = %v; want %v", got, want)
 	}
 	if got, want := at(3), (pair(":method", "POST")); got != want {
 		t.Errorf("at(3) = %v; want %v", got, want)
-	}
-}
-
-func TestDynamicTableSearch(t *testing.T) {
-	dt := dynamicTable{}
-	dt.setMaxSize(4096)
-
-	dt.add(pair("foo", "bar"))
-	dt.add(pair("blake", "miz"))
-	dt.add(pair(":method", "GET"))
-
-	tests := []struct {
-		hf        HeaderField
-		wantI     uint64
-		wantMatch bool
-	}{
-		// Name and Value match
-		{pair("foo", "bar"), 3, true},
-		{pair(":method", "GET"), 1, true},
-
-		// Only name match because of Sensitive == true
-		{HeaderField{"blake", "miz", true}, 2, false},
-
-		// Only Name matches
-		{pair("foo", "..."), 3, false},
-		{pair("blake", "..."), 2, false},
-		{pair(":method", "..."), 1, false},
-
-		// None match
-		{pair("foo-", "bar"), 0, false},
-	}
-	for _, tt := range tests {
-		if gotI, gotMatch := dt.search(tt.hf); gotI != tt.wantI || gotMatch != tt.wantMatch {
-			t.Errorf("d.search(%+v) = %v, %v; want %v, %v", tt.hf, gotI, gotMatch, tt.wantI, tt.wantMatch)
-		}
 	}
 }
 
@@ -196,7 +60,7 @@ func TestDynamicTableSizeEvict(t *testing.T) {
 	if want := uint32(6 + 32); d.dynTab.size != want {
 		t.Fatalf("after setMaxSize, size = %d; want %d", d.dynTab.size, want)
 	}
-	if got, want := d.mustAt(len(staticTable)+1), (pair("foo", "bar")); got != want {
+	if got, want := d.mustAt(staticTable.len()+1), (pair("foo", "bar")); got != want {
 		t.Errorf("at(dyn 1) = %v; want %v", got, want)
 	}
 	add(pair("long", strings.Repeat("x", 500)))
@@ -255,9 +119,9 @@ func TestDecoderDecode(t *testing.T) {
 }
 
 func (dt *dynamicTable) reverseCopy() (hf []HeaderField) {
-	hf = make([]HeaderField, len(dt.ents))
+	hf = make([]HeaderField, len(dt.table.ents))
 	for i := range hf {
-		hf[i] = dt.ents[len(dt.ents)-1-i]
+		hf[i] = dt.table.ents[len(dt.table.ents)-1-i]
 	}
 	return
 }

@@ -7,6 +7,8 @@ package hpack
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
+	"math/rand"
 	"reflect"
 	"strings"
 	"testing"
@@ -101,17 +103,20 @@ func TestEncoderSearchTable(t *testing.T) {
 		wantMatch bool
 	}{
 		// Name and Value match
-		{pair("foo", "bar"), uint64(len(staticTable) + 3), true},
-		{pair("blake", "miz"), uint64(len(staticTable) + 2), true},
+		{pair("foo", "bar"), uint64(staticTable.len()) + 3, true},
+		{pair("blake", "miz"), uint64(staticTable.len()) + 2, true},
 		{pair(":method", "GET"), 2, true},
 
-		// Only name match because Sensitive == true
-		{HeaderField{":method", "GET", true}, 2, false},
+		// Only name match because Sensitive == true. This is allowed to match
+		// any ":method" entry. The current implementation uses the last entry
+		// added in newStaticTable.
+		{HeaderField{":method", "GET", true}, 3, false},
 
 		// Only Name matches
-		{pair("foo", "..."), uint64(len(staticTable) + 3), false},
-		{pair("blake", "..."), uint64(len(staticTable) + 2), false},
-		{pair(":method", "..."), 2, false},
+		{pair("foo", "..."), uint64(staticTable.len()) + 3, false},
+		{pair("blake", "..."), uint64(staticTable.len()) + 2, false},
+		// As before, this is allowed to match any ":method" entry.
+		{pair(":method", "..."), 3, false},
 
 		// None match
 		{pair("foo-", "bar"), 0, false},
@@ -327,4 +332,55 @@ func TestEncoderSetMaxDynamicTableSizeLimit(t *testing.T) {
 
 func removeSpace(s string) string {
 	return strings.Replace(s, " ", "", -1)
+}
+
+func BenchmarkEncoderSearchTable(b *testing.B) {
+	e := NewEncoder(nil)
+
+	// A sample of possible header fields.
+	// This is not based on any actual data from HTTP/2 traces.
+	var possible []HeaderField
+	for _, f := range staticTable.ents {
+		if f.Value == "" {
+			possible = append(possible, f)
+			continue
+		}
+		// Generate 5 random values, except for cookie and set-cookie,
+		// which we know can have many values in practice.
+		num := 5
+		if f.Name == "cookie" || f.Name == "set-cookie" {
+			num = 25
+		}
+		for i := 0; i < num; i++ {
+			f.Value = fmt.Sprintf("%s-%d", f.Name, i)
+			possible = append(possible, f)
+		}
+	}
+	for k := 0; k < 10; k++ {
+		f := HeaderField{
+			Name:      fmt.Sprintf("x-header-%d", k),
+			Sensitive: rand.Int()%2 == 0,
+		}
+		for i := 0; i < 5; i++ {
+			f.Value = fmt.Sprintf("%s-%d", f.Name, i)
+			possible = append(possible, f)
+		}
+	}
+
+	// Add a random sample to the dynamic table. This very loosely simulates
+	// a history of 100 requests with 20 header fields per request.
+	for r := 0; r < 100*20; r++ {
+		f := possible[rand.Int31n(int32(len(possible)))]
+		// Skip if this is in the staticTable verbatim.
+		if _, has := staticTable.search(f); !has {
+			e.dynTab.add(f)
+		}
+	}
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		for _, f := range possible {
+			e.searchTable(f)
+		}
+	}
 }
