@@ -1399,6 +1399,11 @@ func TestEscapeText(t *testing.T) {
 			`<script type="text/template">`,
 			context{state: stateText},
 		},
+		// covering issue 19968
+		{
+			`<script type="TEXT/JAVASCRIPT">`,
+			context{state: stateJS, element: elementScript},
+		},
 		{
 			`<script type="notjs">`,
 			context{state: stateText},
