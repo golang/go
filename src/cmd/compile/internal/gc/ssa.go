@@ -4326,9 +4326,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 	e := f.Frontend().(*ssafn)
 
 	// Generate GC bitmaps.
-	gcargs := makefuncdatasym(pp, "gcargs·", obj.FUNCDATA_ArgsPointerMaps, e.curfn)
-	gclocals := makefuncdatasym(pp, "gclocals·", obj.FUNCDATA_LocalsPointerMaps, e.curfn)
-	s.stackMapIndex = liveness(e, f, gcargs, gclocals)
+	s.stackMapIndex = liveness(e, f)
 
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())

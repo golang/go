@@ -330,6 +330,8 @@ type FuncInfo struct {
 	Autom    []*Auto
 	Pcln     Pcln
 	dwarfSym *LSym
+	GCArgs   LSym
+	GCLocals LSym
 }
 
 // Attribute is a set of symbol attributes.
