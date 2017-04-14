@@ -479,7 +479,7 @@ func (r *objReader) readRef() {
 	name := r.readSymName()
 	v := r.readInt()
 	if v != 0 && v != 1 {
-		log.Fatalf("invalid symbol version %d", v)
+		log.Fatalf("invalid symbol version for %q: %d", name, v)
 	}
 	if v == 1 {
 		v = r.localSymVersion

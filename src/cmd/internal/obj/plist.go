@@ -139,6 +139,15 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	dsym.Type = SDWARFINFO
 	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
 	ctxt.Data = append(ctxt.Data, dsym)
+
+	// Set up the function's gcargs and gclocals.
+	// They will be filled in later if needed.
+	gcargs := &s.FuncInfo.GCArgs
+	gcargs.Set(AttrDuplicateOK, true)
+	gcargs.Type = SRODATA
+	gclocals := &s.FuncInfo.GCLocals
+	gclocals.Set(AttrDuplicateOK, true)
+	gclocals.Type = SRODATA
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

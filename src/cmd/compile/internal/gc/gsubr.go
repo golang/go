@@ -145,13 +145,29 @@ func (pp *Progs) settext(fn *Node) {
 		Fatalf("Progs.settext called twice")
 	}
 	ptxt := pp.Prog(obj.ATEXT)
-	if fn.Func.lsym != nil {
-		fn.Func.lsym.Text = ptxt
-		ptxt.From.Type = obj.TYPE_MEM
-		ptxt.From.Name = obj.NAME_EXTERN
-		ptxt.From.Sym = fn.Func.lsym
-	}
 	pp.Text = ptxt
+
+	if fn.Func.lsym == nil {
+		// func _() { }
+		return
+	}
+
+	fn.Func.lsym.Text = ptxt
+	ptxt.From.Type = obj.TYPE_MEM
+	ptxt.From.Name = obj.NAME_EXTERN
+	ptxt.From.Sym = fn.Func.lsym
+
+	p := pp.Prog(obj.AFUNCDATA)
+	Addrconst(&p.From, obj.FUNCDATA_ArgsPointerMaps)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = &fn.Func.lsym.FuncInfo.GCArgs
+
+	p = pp.Prog(obj.AFUNCDATA)
+	Addrconst(&p.From, obj.FUNCDATA_LocalsPointerMaps)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = &fn.Func.lsym.FuncInfo.GCLocals
 }
 
 func (f *Func) initLSym() {

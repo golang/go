@@ -1051,32 +1051,18 @@ func livenessprintdebug(lv *Liveness) {
 	fmt.Printf("\n")
 }
 
-func finishgclocals(sym *types.Sym) {
-	ls := Linksym(sym)
-	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
-	ls.Set(obj.AttrDuplicateOK, true)
-	sv := obj.SymVer{Name: ls.Name, Version: 0}
-	ls2, ok := Ctxt.Hash[sv]
-	if ok {
-		sym.Lsym = ls2
-	} else {
-		Ctxt.Hash[sv] = ls
-		ggloblsym(sym, int32(ls.Size), obj.RODATA)
-	}
-}
-
 // Dumps a slice of bitmaps to a symbol as a sequence of uint32 values. The
 // first word dumped is the total number of bitmaps. The second word is the
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
-func livenessemit(lv *Liveness, argssym, livesym *types.Sym) {
+func livenessemit(lv *Liveness, argssym, livesym *obj.LSym) {
 	args := bvalloc(argswords(lv))
-	aoff := duint32(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
-	aoff = duint32(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
+	aoff := duint32LSym(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
+	aoff = duint32LSym(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
 
 	locals := bvalloc(localswords(lv))
-	loff := duint32(livesym, 0, uint32(len(lv.livevars))) // number of bitmaps
-	loff = duint32(livesym, loff, uint32(locals.n))       // number of bits in each bitmap
+	loff := duint32LSym(livesym, 0, uint32(len(lv.livevars))) // number of bitmaps
+	loff = duint32LSym(livesym, loff, uint32(locals.n))       // number of bits in each bitmap
 
 	for _, live := range lv.livevars {
 		args.Clear()
@@ -1084,19 +1070,24 @@ func livenessemit(lv *Liveness, argssym, livesym *types.Sym) {
 
 		onebitlivepointermap(lv, live, lv.vars, args, locals)
 
-		aoff = dbvec(argssym, aoff, args)
-		loff = dbvec(livesym, loff, locals)
+		aoff = dbvecLSym(argssym, aoff, args)
+		loff = dbvecLSym(livesym, loff, locals)
 	}
 
-	finishgclocals(livesym)
-	finishgclocals(argssym)
+	// Give these LSyms content-addressable names,
+	// so that they can be de-duplicated.
+	// This provides significant binary size savings.
+	// It is safe to rename these LSyms because
+	// they are tracked separately from ctxt.Hash.
+	argssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(argssym.P))
+	livesym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(livesym.P))
 }
 
 // Entry pointer for liveness analysis. Solves for the liveness of
 // pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
 // Returns a map from GC safe points to their corresponding stack map index.
-func liveness(e *ssafn, f *ssa.Func, argssym, livesym *types.Sym) map[*ssa.Value]int {
+func liveness(e *ssafn, f *ssa.Func) map[*ssa.Value]int {
 	// Construct the global liveness state.
 	vars := getvariables(e.curfn)
 	lv := newliveness(e.curfn, f, vars, e.stkptrsize)
@@ -1111,6 +1102,8 @@ func liveness(e *ssafn, f *ssa.Func, argssym, livesym *types.Sym) map[*ssa.Value
 	}
 
 	// Emit the live pointer map data structures
-	livenessemit(lv, argssym, livesym)
+	if ls := e.curfn.Func.lsym; ls != nil {
+		livenessemit(lv, &ls.FuncInfo.GCArgs, &ls.FuncInfo.GCLocals)
+	}
 	return lv.stackMapIndex
 }
