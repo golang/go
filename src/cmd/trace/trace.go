@@ -481,7 +481,13 @@ func generateTrace(params *traceParams) (ViewerData, error) {
 			}
 			ctx.emitSlice(&fakeMarkStart, text)
 		case trace.EvGCSweepStart:
-			ctx.emitSlice(ev, "SWEEP")
+			slice := ctx.emitSlice(ev, "SWEEP")
+			if done := ev.Link; done != nil && done.Args[0] != 0 {
+				slice.Arg = struct {
+					Swept     uint64 `json:"Swept bytes"`
+					Reclaimed uint64 `json:"Reclaimed bytes"`
+				}{done.Args[0], done.Args[1]}
+			}
 		case trace.EvGoStart, trace.EvGoStartLabel:
 			info := getGInfo(ev.G)
 			if ev.Type == trace.EvGoStartLabel {
@@ -574,8 +580,8 @@ func (ctx *traceContext) proc(ev *trace.Event) uint64 {
 	}
 }
 
-func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
-	ctx.emit(&ViewerEvent{
+func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
+	sl := &ViewerEvent{
 		Name:     name,
 		Phase:    "X",
 		Time:     ctx.time(ev),
@@ -583,7 +589,9 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
 		Tid:      ctx.proc(ev),
 		Stack:    ctx.stack(ev.Stk),
 		EndStack: ctx.stack(ev.Link.Stk),
-	})
+	}
+	ctx.emit(sl)
+	return sl
 }
 
 type heapCountersArg struct {
