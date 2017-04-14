@@ -932,12 +932,39 @@ func traceGCScanDone() {
 	traceEvent(traceEvGCScanDone, -1)
 }
 
+// traceGCSweepStart prepares to trace a sweep loop. This does not
+// emit any events until traceGCSweepSpan is called.
+//
+// traceGCSweepStart must be paired with traceGCSweepDone and there
+// must be no preemption points between these two calls.
 func traceGCSweepStart() {
-	traceEvent(traceEvGCSweepStart, 1)
+	// Delay the actual GCSweepStart event until the first span
+	// sweep. If we don't sweep anything, don't emit any events.
+	_p_ := getg().m.p.ptr()
+	if _p_.traceSweep {
+		throw("double traceGCSweepStart")
+	}
+	_p_.traceSweep = true
+}
+
+// traceGCSweepSpan traces the sweep of a single page.
+//
+// This may be called outside a traceGCSweepStart/traceGCSweepDone
+// pair; however, it will not emit any trace events in this case.
+func traceGCSweepSpan() {
+	_p_ := getg().m.p.ptr()
+	if _p_.traceSweep {
+		traceEvent(traceEvGCSweepStart, 1)
+		_p_.traceSweep = false
+	}
 }
 
 func traceGCSweepDone() {
-	traceEvent(traceEvGCSweepDone, -1)
+	_p_ := getg().m.p.ptr()
+	if !_p_.traceSweep {
+		traceEvent(traceEvGCSweepDone, -1)
+	}
+	_p_.traceSweep = false
 }
 
 func traceGCMarkAssistStart() {

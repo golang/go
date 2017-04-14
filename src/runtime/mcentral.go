@@ -43,6 +43,10 @@ func (c *mcentral) cacheSpan() *mspan {
 	deductSweepCredit(spanBytes, 0)
 
 	lock(&c.lock)
+	traceDone := false
+	if trace.enabled {
+		traceGCSweepStart()
+	}
 	sg := mheap_.sweepgen
 retry:
 	var s *mspan
@@ -92,6 +96,10 @@ retry:
 		// all subsequent ones must also be either swept or in process of sweeping
 		break
 	}
+	if trace.enabled {
+		traceGCSweepDone()
+		traceDone = true
+	}
 	unlock(&c.lock)
 
 	// Replenish central list if empty.
@@ -106,6 +114,9 @@ retry:
 	// At this point s is a non-empty span, queued at the end of the empty list,
 	// c is unlocked.
 havespan:
+	if trace.enabled && !traceDone {
+		traceGCSweepDone()
+	}
 	cap := int32((s.npages << _PageShift) / s.elemsize)
 	n := cap - int32(s.allocCount)
 	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {

@@ -490,6 +490,11 @@ type p struct {
 
 	tracebuf traceBufPtr
 
+	// traceSweep indicates the next traceGCSweepSpan should emit
+	// a sweep start event. This is used to defer the sweep start
+	// event until a span has actually been swept.
+	traceSweep bool
+
 	palloc persistentAlloc // per-P to avoid mutex
 
 	// Per-P GC state

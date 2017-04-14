@@ -576,7 +576,13 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
 		// If GC kept a bit for whether there were any marks
 		// in a span, we could release these free spans
 		// at the end of GC and eliminate this entirely.
+		if trace.enabled {
+			traceGCSweepStart()
+		}
 		h.reclaim(npage)
+		if trace.enabled {
+			traceGCSweepDone()
+		}
 	}
 
 	// transfer stats from cache to global
