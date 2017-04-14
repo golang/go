@@ -4,6 +4,7 @@
 
 package arm64
 
+// This order should be strictly consistent to that in a.out.go
 var cnames7 = []string{
 	"NONE",
 	"REG",
@@ -16,13 +17,13 @@ var cnames7 = []string{
 	"SPR",
 	"COND",
 	"ZCON",
+	"ABCON0",
 	"ADDCON0",
+	"ABCON",
 	"ADDCON",
+	"MBCON",
 	"MOVCON",
 	"BITCON",
-	"ABCON0",
-	"ABCON",
-	"MBCON",
 	"LCON",
 	"VCON",
 	"FCON",
