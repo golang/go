@@ -761,7 +761,7 @@ type Link struct {
 	Flag_optimize bool
 	Bso           *bufio.Writer
 	Pathname      string
-	Hash          map[SymVer]*LSym
+	hash          map[SymVer]*LSym
 	PosTable      src.PosTable
 	InlTree       InlTree // global inlining tree used by gc/inl.go
 	Imports       []string

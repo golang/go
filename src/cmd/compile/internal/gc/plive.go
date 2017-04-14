@@ -1135,7 +1135,7 @@ func livenessemit(lv *Liveness, argssym, livesym *obj.LSym) {
 	// so that they can be de-duplicated.
 	// This provides significant binary size savings.
 	// It is safe to rename these LSyms because
-	// they are tracked separately from ctxt.Hash.
+	// they are tracked separately from ctxt.hash.
 	argssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(argssym.P))
 	livesym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(livesym.P))
 }
