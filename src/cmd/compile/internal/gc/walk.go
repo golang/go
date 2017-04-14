@@ -3243,11 +3243,25 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	// inline or call an eq alg.
 	t := n.Left.Type
 	var inline bool
+
+	maxcmpsize := int64(4)
+	unalignedLoad := false
+	switch thearch.LinkArch.Family {
+	case sys.AMD64, sys.ARM64, sys.S390X:
+		// Keep this low enough, to generate less code than function call.
+		maxcmpsize = 16
+		unalignedLoad = true
+	case sys.I386:
+		maxcmpsize = 8
+		unalignedLoad = true
+	}
+
 	switch t.Etype {
 	default:
 		return n
 	case TARRAY:
-		inline = t.NumElem() <= 1 || (t.NumElem() <= 4 && issimple[t.Elem().Etype])
+		// We can compare several elements at once with 2/4/8 byte integer compares
+		inline = t.NumElem() <= 1 || (issimple[t.Elem().Etype] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
 	case TSTRUCT:
 		inline = t.NumFields() <= 4
 	}
@@ -3333,11 +3347,54 @@ func walkcompare(n *Node, init *Nodes) *Node {
 			)
 		}
 	} else {
-		for i := 0; int64(i) < t.NumElem(); i++ {
-			compare(
-				nod(OINDEX, cmpl, nodintconst(int64(i))),
-				nod(OINDEX, cmpr, nodintconst(int64(i))),
-			)
+		step := int64(1)
+		remains := t.NumElem() * t.Elem().Width
+		combine64bit := unalignedLoad && Widthreg == 8 && t.Elem().Width <= 4 && t.Elem().IsInteger()
+		combine32bit := unalignedLoad && t.Elem().Width <= 2 && t.Elem().IsInteger()
+		combine16bit := unalignedLoad && t.Elem().Width == 1 && t.Elem().IsInteger()
+		for i := int64(0); remains > 0; {
+			var convType *types.Type
+			switch {
+			case remains >= 8 && combine64bit:
+				convType = types.Types[TINT64]
+				step = 8 / t.Elem().Width
+			case remains >= 4 && combine32bit:
+				convType = types.Types[TUINT32]
+				step = 4 / t.Elem().Width
+			case remains >= 2 && combine16bit:
+				convType = types.Types[TUINT16]
+				step = 2 / t.Elem().Width
+			default:
+				step = 1
+			}
+			if step == 1 {
+				compare(
+					nod(OINDEX, cmpl, nodintconst(int64(i))),
+					nod(OINDEX, cmpr, nodintconst(int64(i))),
+				)
+				i++
+				remains -= t.Elem().Width
+			} else {
+				cmplw := nod(OINDEX, cmpl, nodintconst(int64(i)))
+				cmplw = conv(cmplw, convType)
+				cmprw := nod(OINDEX, cmpr, nodintconst(int64(i)))
+				cmprw = conv(cmprw, convType)
+				// For code like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
+				// ssa will generate a single large load.
+				for offset := int64(1); offset < step; offset++ {
+					lb := nod(OINDEX, cmpl, nodintconst(int64(i+offset)))
+					lb = conv(lb, convType)
+					lb = nod(OLSH, lb, nodintconst(int64(8*t.Elem().Width*offset)))
+					cmplw = nod(OOR, cmplw, lb)
+					rb := nod(OINDEX, cmpr, nodintconst(int64(i+offset)))
+					rb = conv(rb, convType)
+					rb = nod(OLSH, rb, nodintconst(int64(8*t.Elem().Width*offset)))
+					cmprw = nod(OOR, cmprw, rb)
+				}
+				compare(cmplw, cmprw)
+				i += step
+				remains -= step * t.Elem().Width
+			}
 		}
 	}
 	if expr == nil {
