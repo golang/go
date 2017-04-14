@@ -1,10 +1,3 @@
--------- @describe ref-pkg-import2 --------
-import of package "hash/fnv"
-	func  New32  func() hash.Hash32
-	func  New32a func() hash.Hash32
-	func  New64  func() hash.Hash64
-	func  New64a func() hash.Hash64
-
 -------- @describe ref-pkg-import --------
 import of package "lib"
 	const Const  untyped int = 3
@@ -17,6 +10,10 @@ import of package "lib"
 	type  Type   int
 		method (Type) Method(x *int) *int
 	var   Var    int
+
+-------- @describe ref-pkg-import2 --------
+import of package "lib/sublib"
+	const C untyped int = 0
 
 -------- @describe ref-const --------
 reference to const lib.Const untyped int of value 3

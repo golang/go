@@ -225,7 +225,7 @@ func TestGuru(t *testing.T) {
 		"testdata/src/freevars/main.go",
 		"testdata/src/implements/main.go",
 		"testdata/src/implements-methods/main.go",
-		// "testdata/src/imports/main.go", // disabled until golang.org/issue/19464 is fixed
+		"testdata/src/imports/main.go",
 		"testdata/src/peers/main.go",
 		"testdata/src/pointsto/main.go",
 		"testdata/src/referrers/main.go",

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hash/fnv" // @describe ref-pkg-import2 "fnv"
-	"lib"      // @describe ref-pkg-import "lib"
+	"lib"        // @describe ref-pkg-import "lib"
+	"lib/sublib" // @describe ref-pkg-import2 "sublib"
 )
 
 // Tests that import another package.  (To make the tests run quickly,
@@ -25,5 +25,5 @@ func main() {
 
 	var _ lib.Type // @describe ref-pkg "lib"
 
-	fnv.New32()
+	_ = sublib.C
 }
