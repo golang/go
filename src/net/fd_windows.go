@@ -13,9 +13,6 @@ import (
 	"unsafe"
 )
 
-func sysInit() {
-}
-
 // canUseConnectEx reports whether we can use the ConnectEx Windows API call
 // for the given network type.
 func canUseConnectEx(net string) bool {

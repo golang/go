@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Internet protocol family sockets for Plan 9
-
 package net
 
 import (
@@ -11,6 +9,18 @@ import (
 	"os"
 	"syscall"
 )
+
+// Probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
+// capabilities.
+//
+// Plan 9 uses IPv6 natively, see ip(3).
+func (p *ipStackCapabilities) probe() {
+	p.ipv4Enabled = probe(netdir+"/iproute", "4i")
+	p.ipv6Enabled = probe(netdir+"/iproute", "6i")
+	if p.ipv4Enabled && p.ipv6Enabled {
+		p.ipv4MappedIPv6Enabled = true
+	}
+}
 
 func probe(filename, query string) bool {
 	var file *file
@@ -34,23 +44,6 @@ func probe(filename, query string) bool {
 	}
 	file.close()
 	return r
-}
-
-func probeIPv4Stack() bool {
-	return probe(netdir+"/iproute", "4i")
-}
-
-// probeIPv6Stack returns two boolean values. If the first boolean
-// value is true, kernel supports basic IPv6 functionality. If the
-// second boolean value is true, kernel supports IPv6 IPv4-mapping.
-func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
-	// Plan 9 uses IPv6 natively, see ip(3).
-	r := probe(netdir+"/iproute", "6i")
-	v := false
-	if r {
-		v = probe(netdir+"/iproute", "4i")
-	}
-	return r, v
 }
 
 // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).

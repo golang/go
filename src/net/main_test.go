@@ -70,7 +70,7 @@ var (
 )
 
 func setupTestData() {
-	if supportsIPv4 {
+	if supportsIPv4() {
 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
 			{"tcp", "localhost:1", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 1}, nil},
 			{"tcp4", "localhost:2", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 2}, nil},
@@ -85,7 +85,7 @@ func setupTestData() {
 		}...)
 	}
 
-	if supportsIPv6 {
+	if supportsIPv6() {
 		resolveTCPAddrTests = append(resolveTCPAddrTests, resolveTCPAddrTest{"tcp6", "localhost:3", &TCPAddr{IP: IPv6loopback, Port: 3}, nil})
 		resolveUDPAddrTests = append(resolveUDPAddrTests, resolveUDPAddrTest{"udp6", "localhost:3", &UDPAddr{IP: IPv6loopback, Port: 3}, nil})
 		resolveIPAddrTests = append(resolveIPAddrTests, resolveIPAddrTest{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil})

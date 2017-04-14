@@ -96,12 +96,6 @@ var (
 	netCgo bool // set true in conf_netcgo.go for build tag "netcgo"
 )
 
-func init() {
-	sysInit()
-	supportsIPv4 = probeIPv4Stack()
-	supportsIPv6, supportsIPv4map = probeIPv6Stack()
-}
-
 // Addr represents a network end point address.
 //
 // The two methods Network and String conventionally return strings

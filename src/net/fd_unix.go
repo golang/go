@@ -28,9 +28,6 @@ type netFD struct {
 	raddr       Addr
 }
 
-func sysInit() {
-}
-
 func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
 	ret := &netFD{
 		pfd: poll.FD{

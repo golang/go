@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Internet protocol family sockets
-
 package net
 
 import (
 	"context"
+	"sync"
 )
 
 // BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
@@ -17,20 +16,36 @@ import (
 // both address families are to be supported.
 // See inet6(4) for details.
 
-var (
-	// supportsIPv4 reports whether the platform supports IPv4
-	// networking functionality.
-	supportsIPv4 bool
+type ipStackCapabilities struct {
+	sync.Once             // guards following
+	ipv4Enabled           bool
+	ipv6Enabled           bool
+	ipv4MappedIPv6Enabled bool
+}
 
-	// supportsIPv6 reports whether the platform supports IPv6
-	// networking functionality.
-	supportsIPv6 bool
+var ipStackCaps ipStackCapabilities
 
-	// supportsIPv4map reports whether the platform supports
-	// mapping an IPv4 address inside an IPv6 address at transport
-	// layer protocols. See RFC 4291, RFC 4038 and RFC 3493.
-	supportsIPv4map bool
-)
+// supportsIPv4 reports whether the platform supports IPv4 networking
+// functionality.
+func supportsIPv4() bool {
+	ipStackCaps.Once.Do(ipStackCaps.probe)
+	return ipStackCaps.ipv4Enabled
+}
+
+// supportsIPv6 reports whether the platform supports IPv6 networking
+// functionality.
+func supportsIPv6() bool {
+	ipStackCaps.Once.Do(ipStackCaps.probe)
+	return ipStackCaps.ipv6Enabled
+}
+
+// supportsIPv4map reports whether the platform supports mapping an
+// IPv4 address inside an IPv6 address at transport layer
+// protocols. See RFC 4291, RFC 4038 and RFC 3493.
+func supportsIPv4map() bool {
+	ipStackCaps.Once.Do(ipStackCaps.probe)
+	return ipStackCaps.ipv4MappedIPv6Enabled
+}
 
 // An addrList represents a list of network endpoint addresses.
 type addrList []Addr

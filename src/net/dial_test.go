@@ -31,7 +31,7 @@ func TestProhibitionaryDialArg(t *testing.T) {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
-	if !supportsIPv4map {
+	if !supportsIPv4map() {
 		t.Skip("mapping ipv4 address inside ipv6 address not supported")
 	}
 
@@ -81,7 +81,7 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 	case "openbsd":
 		testenv.SkipFlaky(t, 15157)
 	}
-	if !supportsIPv4 || !supportsIPv6 {
+	if !supportsIPv4() || !supportsIPv6() {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
@@ -190,7 +190,7 @@ func dialClosedPort() (actual, expected time.Duration) {
 func TestDialParallel(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	if !supportsIPv4 || !supportsIPv6 {
+	if !supportsIPv4() || !supportsIPv6() {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
@@ -361,7 +361,7 @@ func lookupSlowFast(ctx context.Context, fn func(context.Context, string) ([]IPA
 func TestDialerFallbackDelay(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	if !supportsIPv4 || !supportsIPv6 {
+	if !supportsIPv4() || !supportsIPv6() {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
@@ -427,7 +427,7 @@ func TestDialerFallbackDelay(t *testing.T) {
 }
 
 func TestDialParallelSpuriousConnection(t *testing.T) {
-	if !supportsIPv4 || !supportsIPv6 {
+	if !supportsIPv4() || !supportsIPv6() {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
@@ -536,7 +536,7 @@ func TestDialerPartialDeadline(t *testing.T) {
 }
 
 func TestDialerLocalAddr(t *testing.T) {
-	if !supportsIPv4 || !supportsIPv6 {
+	if !supportsIPv4() || !supportsIPv6() {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
@@ -590,7 +590,7 @@ func TestDialerLocalAddr(t *testing.T) {
 		{"tcp", "::1", &UnixAddr{}, &AddrError{Err: "some error"}},
 	}
 
-	if supportsIPv4map {
+	if supportsIPv4map() {
 		tests = append(tests, test{
 			"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, nil,
 		})
@@ -652,7 +652,7 @@ func TestDialerLocalAddr(t *testing.T) {
 func TestDialerDualStack(t *testing.T) {
 	testenv.SkipFlaky(t, 13324)
 
-	if !supportsIPv4 || !supportsIPv6 {
+	if !supportsIPv4() || !supportsIPv6() {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
@@ -755,7 +755,7 @@ func TestDialCancel(t *testing.T) {
 	}
 
 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
-	if !supportsIPv4 {
+	if !supportsIPv4() {
 		blackholeIPPort = JoinHostPort(slowDst6, "1234")
 	}
 

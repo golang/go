@@ -262,13 +262,13 @@ func validateInterfaceMulticastAddrs(ifat []Addr) (*routeStats, error) {
 
 func checkUnicastStats(ifStats *ifStats, uniStats *routeStats) error {
 	// Test the existence of connected unicast routes for IPv4.
-	if supportsIPv4 && ifStats.loop+ifStats.other > 0 && uniStats.ipv4 == 0 {
+	if supportsIPv4() && ifStats.loop+ifStats.other > 0 && uniStats.ipv4 == 0 {
 		return fmt.Errorf("num IPv4 unicast routes = 0; want >0; summary: %+v, %+v", ifStats, uniStats)
 	}
 	// Test the existence of connected unicast routes for IPv6.
 	// We can assume the existence of ::1/128 when at least one
 	// loopback interface is installed.
-	if supportsIPv6 && ifStats.loop > 0 && uniStats.ipv6 == 0 {
+	if supportsIPv6() && ifStats.loop > 0 && uniStats.ipv6 == 0 {
 		return fmt.Errorf("num IPv6 unicast routes = 0; want >0; summary: %+v, %+v", ifStats, uniStats)
 	}
 	return nil
@@ -290,7 +290,7 @@ func checkMulticastStats(ifStats *ifStats, uniStats, multiStats *routeStats) err
 		// We can assume the existence of connected multicast
 		// route clones when at least two connected unicast
 		// routes, ::1/128 and other, are installed.
-		if supportsIPv6 && ifStats.loop > 0 && uniStats.ipv6 > 1 && multiStats.ipv6 == 0 {
+		if supportsIPv6() && ifStats.loop > 0 && uniStats.ipv6 > 1 && multiStats.ipv6 == 0 {
 			return fmt.Errorf("num IPv6 multicast route clones = 0; want >0; summary: %+v, %+v, %+v", ifStats, uniStats, multiStats)
 		}
 	}

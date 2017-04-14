@@ -215,7 +215,7 @@ var addrListTests = []struct {
 }
 
 func TestAddrList(t *testing.T) {
-	if !supportsIPv4 || !supportsIPv6 {
+	if !supportsIPv4() || !supportsIPv6() {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 

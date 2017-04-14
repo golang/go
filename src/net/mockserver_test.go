@@ -31,20 +31,20 @@ func testUnixAddr() string {
 func newLocalListener(network string) (Listener, error) {
 	switch network {
 	case "tcp":
-		if supportsIPv4 {
+		if supportsIPv4() {
 			if ln, err := Listen("tcp4", "127.0.0.1:0"); err == nil {
 				return ln, nil
 			}
 		}
-		if supportsIPv6 {
+		if supportsIPv6() {
 			return Listen("tcp6", "[::1]:0")
 		}
 	case "tcp4":
-		if supportsIPv4 {
+		if supportsIPv4() {
 			return Listen("tcp4", "127.0.0.1:0")
 		}
 	case "tcp6":
-		if supportsIPv6 {
+		if supportsIPv6() {
 			return Listen("tcp6", "[::1]:0")
 		}
 	case "unix", "unixpacket":
@@ -333,18 +333,18 @@ func timeoutTransmitter(c Conn, d, min, max time.Duration, ch chan<- error) {
 func newLocalPacketListener(network string) (PacketConn, error) {
 	switch network {
 	case "udp":
-		if supportsIPv4 {
+		if supportsIPv4() {
 			return ListenPacket("udp4", "127.0.0.1:0")
 		}
-		if supportsIPv6 {
+		if supportsIPv6() {
 			return ListenPacket("udp6", "[::1]:0")
 		}
 	case "udp4":
-		if supportsIPv4 {
+		if supportsIPv4() {
 			return ListenPacket("udp4", "127.0.0.1:0")
 		}
 	case "udp6":
-		if supportsIPv6 {
+		if supportsIPv6() {
 			return ListenPacket("udp6", "[::1]:0")
 		}
 	case "unixgram":
