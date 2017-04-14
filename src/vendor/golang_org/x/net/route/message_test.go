@@ -33,9 +33,26 @@ func TestFetchAndParseRIB(t *testing.T) {
 	}
 }
 
+var (
+	rtmonSock int
+	rtmonErr  error
+)
+
+func init() {
+	// We need to keep rtmonSock alive to avoid treading on
+	// recycled socket descriptors.
+	rtmonSock, rtmonErr = syscall.Socket(sysAF_ROUTE, sysSOCK_RAW, sysAF_UNSPEC)
+}
+
+// TestMonitorAndParseRIB leaks a worker goroutine and a socket
+// descriptor but that's intentional.
 func TestMonitorAndParseRIB(t *testing.T) {
 	if testing.Short() || os.Getuid() != 0 {
 		t.Skip("must be root")
+	}
+
+	if rtmonErr != nil {
+		t.Fatal(rtmonErr)
 	}
 
 	// We suppose that using an IPv4 link-local address and the
@@ -49,16 +66,18 @@ func TestMonitorAndParseRIB(t *testing.T) {
 	}
 	pv.teardown()
 
-	s, err := syscall.Socket(syscall.AF_ROUTE, syscall.SOCK_RAW, syscall.AF_UNSPEC)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer syscall.Close(s)
-
 	go func() {
 		b := make([]byte, os.Getpagesize())
 		for {
-			n, err := syscall.Read(s, b)
+			// There's no easy way to unblock this read
+			// call because the routing message exchange
+			// over routing socket is a connectionless
+			// message-oriented protocol, no control plane
+			// for signaling connectivity, and we cannot
+			// use the net package of standard library due
+			// to the lack of support for routing socket
+			// and circular dependency.
+			n, err := syscall.Read(rtmonSock, b)
 			if err != nil {
 				return
 			}
@@ -114,5 +133,101 @@ func TestParseRIBWithFuzz(t *testing.T) {
 		for typ := RIBType(0); typ < 256; typ++ {
 			ParseRIB(typ, []byte(fuzz))
 		}
+	}
+}
+
+func TestRouteMessage(t *testing.T) {
+	s, err := syscall.Socket(sysAF_ROUTE, sysSOCK_RAW, sysAF_UNSPEC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.Close(s)
+
+	var ms []RouteMessage
+	for _, af := range []int{sysAF_INET, sysAF_INET6} {
+		rs, err := fetchAndParseRIB(af, sysNET_RT_DUMP)
+		if err != nil || len(rs) == 0 {
+			continue
+		}
+		switch af {
+		case sysAF_INET:
+			ms = append(ms, []RouteMessage{
+				{
+					Type: sysRTM_GET,
+					Addrs: []Addr{
+						&Inet4Addr{IP: [4]byte{127, 0, 0, 1}},
+						nil,
+						nil,
+						nil,
+						&LinkAddr{},
+						&Inet4Addr{},
+						nil,
+						&Inet4Addr{},
+					},
+				},
+				{
+					Type: sysRTM_GET,
+					Addrs: []Addr{
+						&Inet4Addr{IP: [4]byte{127, 0, 0, 1}},
+					},
+				},
+			}...)
+		case sysAF_INET6:
+			ms = append(ms, []RouteMessage{
+				{
+					Type: sysRTM_GET,
+					Addrs: []Addr{
+						&Inet6Addr{IP: [16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
+						nil,
+						nil,
+						nil,
+						&LinkAddr{},
+						&Inet6Addr{},
+						nil,
+						&Inet6Addr{},
+					},
+				},
+				{
+					Type: sysRTM_GET,
+					Addrs: []Addr{
+						&Inet6Addr{IP: [16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
+					},
+				},
+			}...)
+		}
+	}
+	for i, m := range ms {
+		m.ID = uintptr(os.Getpid())
+		m.Seq = i + 1
+		wb, err := m.Marshal()
+		if err != nil {
+			t.Fatalf("%v: %v", m, err)
+		}
+		if _, err := syscall.Write(s, wb); err != nil {
+			t.Fatalf("%v: %v", m, err)
+		}
+		rb := make([]byte, os.Getpagesize())
+		n, err := syscall.Read(s, rb)
+		if err != nil {
+			t.Fatalf("%v: %v", m, err)
+		}
+		rms, err := ParseRIB(0, rb[:n])
+		if err != nil {
+			t.Fatalf("%v: %v", m, err)
+		}
+		for _, rm := range rms {
+			err := rm.(*RouteMessage).Err
+			if err != nil {
+				t.Errorf("%v: %v", m, err)
+			}
+		}
+		ss, err := msgs(rms).validate()
+		if err != nil {
+			t.Fatalf("%v: %v", m, err)
+		}
+		for _, s := range ss {
+			t.Log(s)
+		}
+
 	}
 }

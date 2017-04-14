@@ -14,6 +14,8 @@ package route
 #include <net/if_dl.h>
 #include <net/route.h>
 
+#include <netinet/in.h>
+
 struct if_data_freebsd7 {
 	u_char ifi_type;
 	u_char ifi_physical;
@@ -222,6 +224,8 @@ const (
 	sysAF_LINK   = C.AF_LINK
 	sysAF_INET6  = C.AF_INET6
 
+	sysSOCK_RAW = C.SOCK_RAW
+
 	sysNET_RT_DUMP     = C.NET_RT_DUMP
 	sysNET_RT_FLAGS    = C.NET_RT_FLAGS
 	sysNET_RT_IFLIST   = C.NET_RT_IFLIST
@@ -326,4 +330,8 @@ const (
 	sizeofIfDataFreeBSD9Emu  = C.sizeof_struct_if_data_freebsd9
 	sizeofIfDataFreeBSD10Emu = C.sizeof_struct_if_data_freebsd10
 	sizeofIfDataFreeBSD11Emu = C.sizeof_struct_if_data_freebsd11
+
+	sizeofSockaddrStorage = C.sizeof_struct_sockaddr_storage
+	sizeofSockaddrInet    = C.sizeof_struct_sockaddr_in
+	sizeofSockaddrInet6   = C.sizeof_struct_sockaddr_in6
 )

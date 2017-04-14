@@ -42,26 +42,30 @@ func (m *InterfaceMessage) Sys() []Sys {
 	}
 }
 
-func probeRoutingStack() (int, map[int]parseFn) {
+func probeRoutingStack() (int, map[int]*wireFormat) {
 	rtm := &wireFormat{extOff: 40, bodyOff: sizeofRtMsghdrNetBSD7}
+	rtm.parse = rtm.parseRouteMessage
 	ifm := &wireFormat{extOff: 16, bodyOff: sizeofIfMsghdrNetBSD7}
+	ifm.parse = ifm.parseInterfaceMessage
 	ifam := &wireFormat{extOff: sizeofIfaMsghdrNetBSD7, bodyOff: sizeofIfaMsghdrNetBSD7}
+	ifam.parse = ifam.parseInterfaceAddrMessage
 	ifanm := &wireFormat{extOff: sizeofIfAnnouncemsghdrNetBSD7, bodyOff: sizeofIfAnnouncemsghdrNetBSD7}
+	ifanm.parse = ifanm.parseInterfaceAnnounceMessage
 	// NetBSD 6 and above kernels require 64-bit aligned access to
 	// routing facilities.
-	return 8, map[int]parseFn{
-		sysRTM_ADD:        rtm.parseRouteMessage,
-		sysRTM_DELETE:     rtm.parseRouteMessage,
-		sysRTM_CHANGE:     rtm.parseRouteMessage,
-		sysRTM_GET:        rtm.parseRouteMessage,
-		sysRTM_LOSING:     rtm.parseRouteMessage,
-		sysRTM_REDIRECT:   rtm.parseRouteMessage,
-		sysRTM_MISS:       rtm.parseRouteMessage,
-		sysRTM_LOCK:       rtm.parseRouteMessage,
-		sysRTM_RESOLVE:    rtm.parseRouteMessage,
-		sysRTM_NEWADDR:    ifam.parseInterfaceAddrMessage,
-		sysRTM_DELADDR:    ifam.parseInterfaceAddrMessage,
-		sysRTM_IFANNOUNCE: ifanm.parseInterfaceAnnounceMessage,
-		sysRTM_IFINFO:     ifm.parseInterfaceMessage,
+	return 8, map[int]*wireFormat{
+		sysRTM_ADD:        rtm,
+		sysRTM_DELETE:     rtm,
+		sysRTM_CHANGE:     rtm,
+		sysRTM_GET:        rtm,
+		sysRTM_LOSING:     rtm,
+		sysRTM_REDIRECT:   rtm,
+		sysRTM_MISS:       rtm,
+		sysRTM_LOCK:       rtm,
+		sysRTM_RESOLVE:    rtm,
+		sysRTM_NEWADDR:    ifam,
+		sysRTM_DELADDR:    ifam,
+		sysRTM_IFANNOUNCE: ifanm,
+		sysRTM_IFINFO:     ifm,
 	}
 }

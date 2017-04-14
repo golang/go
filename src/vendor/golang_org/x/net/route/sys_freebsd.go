@@ -54,7 +54,7 @@ func (m *InterfaceMessage) Sys() []Sys {
 	}
 }
 
-func probeRoutingStack() (int, map[int]parseFn) {
+func probeRoutingStack() (int, map[int]*wireFormat) {
 	var p uintptr
 	wordSize := int(unsafe.Sizeof(p))
 	align := int(unsafe.Sizeof(p))
@@ -130,21 +130,26 @@ func probeRoutingStack() (int, map[int]parseFn) {
 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11
 		}
 	}
-	return align, map[int]parseFn{
-		sysRTM_ADD:        rtm.parseRouteMessage,
-		sysRTM_DELETE:     rtm.parseRouteMessage,
-		sysRTM_CHANGE:     rtm.parseRouteMessage,
-		sysRTM_GET:        rtm.parseRouteMessage,
-		sysRTM_LOSING:     rtm.parseRouteMessage,
-		sysRTM_REDIRECT:   rtm.parseRouteMessage,
-		sysRTM_MISS:       rtm.parseRouteMessage,
-		sysRTM_LOCK:       rtm.parseRouteMessage,
-		sysRTM_RESOLVE:    rtm.parseRouteMessage,
-		sysRTM_NEWADDR:    ifam.parseInterfaceAddrMessage,
-		sysRTM_DELADDR:    ifam.parseInterfaceAddrMessage,
-		sysRTM_IFINFO:     ifm.parseInterfaceMessage,
-		sysRTM_NEWMADDR:   ifmam.parseInterfaceMulticastAddrMessage,
-		sysRTM_DELMADDR:   ifmam.parseInterfaceMulticastAddrMessage,
-		sysRTM_IFANNOUNCE: ifanm.parseInterfaceAnnounceMessage,
+	rtm.parse = rtm.parseRouteMessage
+	ifm.parse = ifm.parseInterfaceMessage
+	ifam.parse = ifam.parseInterfaceAddrMessage
+	ifmam.parse = ifmam.parseInterfaceMulticastAddrMessage
+	ifanm.parse = ifanm.parseInterfaceAnnounceMessage
+	return align, map[int]*wireFormat{
+		sysRTM_ADD:        rtm,
+		sysRTM_DELETE:     rtm,
+		sysRTM_CHANGE:     rtm,
+		sysRTM_GET:        rtm,
+		sysRTM_LOSING:     rtm,
+		sysRTM_REDIRECT:   rtm,
+		sysRTM_MISS:       rtm,
+		sysRTM_LOCK:       rtm,
+		sysRTM_RESOLVE:    rtm,
+		sysRTM_NEWADDR:    ifam,
+		sysRTM_DELADDR:    ifam,
+		sysRTM_IFINFO:     ifm,
+		sysRTM_NEWMADDR:   ifmam,
+		sysRTM_DELMADDR:   ifmam,
+		sysRTM_IFANNOUNCE: ifanm,
 	}
 }

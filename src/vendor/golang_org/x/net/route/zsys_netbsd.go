@@ -10,6 +10,8 @@ const (
 	sysAF_LINK   = 0x12
 	sysAF_INET6  = 0x18
 
+	sysSOCK_RAW = 0x3
+
 	sysNET_RT_DUMP   = 0x1
 	sysNET_RT_FLAGS  = 0x2
 	sysNET_RT_IFLIST = 0x5
@@ -88,4 +90,8 @@ const (
 
 	sizeofRtMsghdrNetBSD7  = 0x78
 	sizeofRtMetricsNetBSD7 = 0x50
+
+	sizeofSockaddrStorage = 0x80
+	sizeofSockaddrInet    = 0x10
+	sizeofSockaddrInet6   = 0x1c
 )
