@@ -190,7 +190,7 @@ func (s *mspan) sweep(preserve bool) bool {
 	}
 
 	if trace.enabled {
-		traceGCSweepStart()
+		traceGCSweepSpan()
 	}
 
 	atomic.Xadd64(&mheap_.pagesSwept, int64(s.npages))
@@ -364,9 +364,6 @@ func (s *mspan) sweep(preserve bool) bool {
 		// it on the swept in-use list.
 		mheap_.sweepSpans[sweepgen/2%2].push(s)
 	}
-	if trace.enabled {
-		traceGCSweepDone()
-	}
 	return res
 }
 
@@ -394,6 +391,10 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 		return
 	}
 
+	if trace.enabled {
+		traceGCSweepStart()
+	}
+
 	// Account for this span allocation.
 	spanBytesAlloc := atomic.Xadd64(&mheap_.spanBytesAlloc, int64(spanBytes))
 
@@ -404,6 +405,10 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 			mheap_.sweepPagesPerByte = 0
 			break
 		}
+	}
+
+	if trace.enabled {
+		traceGCSweepDone()
 	}
 }
 
