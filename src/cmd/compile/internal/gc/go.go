@@ -265,5 +265,10 @@ var (
 	assertE2I,
 	assertE2I2,
 	assertI2I,
-	assertI2I2 *obj.LSym
+	assertI2I2,
+	goschedguarded,
+	writeBarrier,
+	writebarrierptr,
+	typedmemmove,
+	typedmemclr *obj.LSym
 )

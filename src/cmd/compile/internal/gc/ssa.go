@@ -85,6 +85,11 @@ func initssaconfig() {
 	assertE2I2 = Sysfunc("assertE2I2")
 	assertI2I = Sysfunc("assertI2I")
 	assertI2I2 = Sysfunc("assertI2I2")
+	goschedguarded = Sysfunc("goschedguarded")
+	writeBarrier = Sysfunc("writeBarrier")
+	writebarrierptr = Sysfunc("writebarrierptr")
+	typedmemmove = Sysfunc("typedmemmove")
+	typedmemclr = Sysfunc("typedmemclr")
 }
 
 // buildssa builds an SSA function.
@@ -4942,7 +4947,20 @@ func (e *ssafn) UseWriteBarrier() bool {
 }
 
 func (e *ssafn) Syslook(name string) *obj.LSym {
-	return Linksym(syslook(name).Sym)
+	switch name {
+	case "goschedguarded":
+		return goschedguarded
+	case "writeBarrier":
+		return writeBarrier
+	case "writebarrierptr":
+		return writebarrierptr
+	case "typedmemmove":
+		return typedmemmove
+	case "typedmemclr":
+		return typedmemclr
+	}
+	Fatalf("unknown Syslook func %v", name)
+	return nil
 }
 
 func (n *Node) Typ() ssa.Type {
