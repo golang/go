@@ -255,9 +255,8 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 		throw("bad hmap size")
 	}
 
-	if hint < 0 || int64(int32(hint)) != hint {
-		panic(plainError("makemap: size out of range"))
-		// TODO: make hint an int, then none of this nonsense
+	if hint < 0 || hint > int64(maxSliceCap(t.bucket.size)) {
+		hint = 0
 	}
 
 	if !ismapkey(t.key) {
