@@ -11,7 +11,7 @@
 // making 1 the default and -l disable.  -ll and more is useful to flush out bugs.
 // These additional levels (beyond -l) may be buggy and are not supported.
 //      0: disabled
-//      1: 40-nodes leaf functions, oneliners, lazy typechecking (default)
+//      1: 80-nodes leaf functions, oneliners, lazy typechecking (default)
 //      2: early typechecking of all imported bodies
 //      3: allow variadic functions
 //      4: allow non-leaf functions , (breaks runtime.Caller)
