@@ -305,13 +305,13 @@ func makeOnePass(p *onePassProg) *onePassProg {
 	var (
 		instQueue    = newQueue(len(p.Inst))
 		visitQueue   = newQueue(len(p.Inst))
-		check        func(uint32, map[uint32]bool) bool
+		check        func(uint32, []bool) bool
 		onePassRunes = make([][]rune, len(p.Inst))
 	)
 
 	// check that paths from Alt instructions are unambiguous, and rebuild the new
 	// program as a onepass program
-	check = func(pc uint32, m map[uint32]bool) (ok bool) {
+	check = func(pc uint32, m []bool) (ok bool) {
 		ok = true
 		inst := &p.Inst[pc]
 		if visitQueue.contains(pc) {
@@ -442,7 +442,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 
 	instQueue.clear()
 	instQueue.insert(uint32(p.Start))
-	m := make(map[uint32]bool, len(p.Inst))
+	m := make([]bool, len(p.Inst))
 	for !instQueue.empty() {
 		visitQueue.clear()
 		pc := instQueue.next()
