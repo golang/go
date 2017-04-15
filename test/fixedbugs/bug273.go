@@ -48,15 +48,6 @@ func bigcap() {
 	g1 = make([]block, 10, big)
 }
 
-var g3 map[block]block
-func badmapcap() {
-	g3 = make(map[block]block, minus1)
-}
-
-func bigmapcap() {
-	g3 = make(map[block]block, big)
-}
-
 type cblock [1<<16-1]byte
 
 var g4 chan cblock
@@ -78,8 +69,6 @@ func main() {
 	shouldfail(badcap, "badcap")
 	shouldfail(badcap1, "badcap1")
 	shouldfail(bigcap, "bigcap")
-	shouldfail(badmapcap, "badmapcap")
-	shouldfail(bigmapcap, "bigmapcap")
 	shouldfail(badchancap, "badchancap")
 	shouldfail(bigchancap, "bigchancap")
 	shouldfail(overflowchan, "overflowchan")

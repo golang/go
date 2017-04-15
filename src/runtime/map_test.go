@@ -588,6 +588,14 @@ func TestMapLargeValNoPointer(t *testing.T) {
 	}
 }
 
+// Test that making a map with a large or invalid hint
+// doesn't panic. (Issue 19926).
+func TestIgnoreBogusMapHint(t *testing.T) {
+	for _, hint := range []int64{-1, 1 << 62} {
+		_ = make(map[int]int, hint)
+	}
+}
+
 func benchmarkMapPop(b *testing.B, n int) {
 	m := map[int]int{}
 	for i := 0; i < b.N; i++ {
