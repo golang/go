@@ -2203,6 +2203,9 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr b
 	if p.Internal.BuildID != "" {
 		gcargs = append(gcargs, "-buildid", p.Internal.BuildID)
 	}
+	if p.Internal.OmitDebug {
+		gcargs = append(gcargs, "-dwarf=false")
+	}
 
 	for _, path := range p.Imports {
 		if i := strings.LastIndex(path, "/vendor/"); i >= 0 {
