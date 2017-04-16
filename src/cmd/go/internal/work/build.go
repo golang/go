@@ -2203,7 +2203,8 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr b
 	if p.Internal.BuildID != "" {
 		gcargs = append(gcargs, "-buildid", p.Internal.BuildID)
 	}
-	if p.Internal.OmitDebug {
+	platform := cfg.Goos + "/" + cfg.Goarch
+	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || platform == "darwin/arm" || platform == "darwin/arm64" {
 		gcargs = append(gcargs, "-dwarf=false")
 	}
 
