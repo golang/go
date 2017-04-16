@@ -318,7 +318,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 		fmt.Fprintf(ctxt.Bso, "v=%d ", s.Version)
 	}
 	if s.Type != 0 {
-		fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
+		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
 	}
 	if s.DuplicateOK() {
 		fmt.Fprintf(ctxt.Bso, "dupok ")
