@@ -1943,7 +1943,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 				continue
 			}
 			if len(s.P) > 0 {
-				Errorf(s, "should not be bss (size=%d type=%d special=%v)", len(s.P), s.Type, s.Attr.Special())
+				Errorf(s, "should not be bss (size=%d type=%v special=%v)", len(s.P), s.Type, s.Attr.Special())
 			}
 			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
 

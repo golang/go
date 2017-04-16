@@ -341,7 +341,7 @@ func testDWARF(t *testing.T, linktype int) {
 	args = append(args, src)
 	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
 	if err != nil {
-		t.Fatalf("building test executable failed: %s %s", err, out)
+		t.Fatalf("building test executable for linktype %d failed: %s %s", linktype, err, out)
 	}
 	out, err = exec.Command(exe).CombinedOutput()
 	if err != nil {

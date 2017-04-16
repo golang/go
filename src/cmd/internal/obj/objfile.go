@@ -128,6 +128,12 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 		}
 	}
 	for _, s := range ctxt.Data {
+		if len(s.P) > 0 {
+			switch s.Type {
+			case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
+				ctxt.Diag("cannot provide data for %v sym %v", s.Type, s.Name)
+			}
+		}
 		w.wr.Write(s.P)
 	}
 
