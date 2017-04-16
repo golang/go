@@ -177,6 +177,18 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 
 		case IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.bss
 			s.Type = SNOPTRBSS
+			// It seems like this shouldn't happen, but it does, with symbol "runtime/cgo(.bss)".
+			// TODO: Figure out why and either document why it is ok or fix it at the source--
+			// either by eliminating the all-zero data or
+			// by making this SNOPTRDATA (IMAGE_SCN_CNT_INITIALIZED_DATA) to begin with.
+			if len(data) > 0 {
+				for _, x := range data {
+					if x != 0 {
+						Errorf(s, "non-zero data in .bss section: %q", data)
+					}
+				}
+				s.Type = SNOPTRDATA
+			}
 
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.data
 			s.Type = SNOPTRDATA

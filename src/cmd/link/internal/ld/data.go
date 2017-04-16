@@ -1141,21 +1141,16 @@ func addinitarrdata(ctxt *Link, s *Symbol) {
 }
 
 func dosymtype(ctxt *Link) {
-	for _, s := range ctxt.Syms.Allsym {
-		if len(s.P) > 0 {
-			if s.Type == SBSS {
-				s.Type = SDATA
-			}
-			if s.Type == SNOPTRBSS {
-				s.Type = SNOPTRDATA
-			}
-		}
-		// Create a new entry in the .init_array section that points to the
-		// library initializer function.
-		switch Buildmode {
-		case BuildmodeCArchive, BuildmodeCShared:
-			if s.Name == *flagEntrySymbol {
-				addinitarrdata(ctxt, s)
+	switch Buildmode {
+	case BuildmodeCArchive, BuildmodeCShared:
+		for _, s := range ctxt.Syms.Allsym {
+			// Create a new entry in the .init_array section that points to the
+			// library initializer function.
+			switch Buildmode {
+			case BuildmodeCArchive, BuildmodeCShared:
+				if s.Name == *flagEntrySymbol {
+					addinitarrdata(ctxt, s)
+				}
 			}
 		}
 	}

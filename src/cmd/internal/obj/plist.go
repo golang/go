@@ -171,7 +171,11 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 	if flag&RODATA != 0 {
 		s.Type = objabi.SRODATA
 	} else if flag&NOPTR != 0 {
-		s.Type = objabi.SNOPTRBSS
+		if s.Type == objabi.SDATA {
+			s.Type = objabi.SNOPTRDATA
+		} else {
+			s.Type = objabi.SNOPTRBSS
+		}
 	} else if flag&TLSBSS != 0 {
 		s.Type = objabi.STLSBSS
 	}

@@ -73,8 +73,13 @@ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
 	if off < 0 || siz < 0 || off >= 1<<30 {
 		ctxt.Diag("prepwrite: bad off=%d siz=%d s=%v", off, siz, s)
 	}
-	if s.Type == objabi.SBSS || s.Type == objabi.STLSBSS {
-		ctxt.Diag("cannot supply data for BSS var")
+	switch s.Type {
+	case objabi.Sxxx, objabi.SBSS:
+		s.Type = objabi.SDATA
+	case objabi.SNOPTRBSS:
+		s.Type = objabi.SNOPTRDATA
+	case objabi.STLSBSS:
+		ctxt.Diag("cannot supply data for %v var %v", s.Type, s.Name)
 	}
 	l := off + int64(siz)
 	s.Grow(l)

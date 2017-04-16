@@ -259,10 +259,6 @@ func addGCLocals() {
 }
 
 func duintxx(s *obj.LSym, off int, v uint64, wid int) int {
-	if s.Type == 0 {
-		// TODO(josharian): Do this in obj.prepwrite instead.
-		s.Type = objabi.SDATA
-	}
 	if off&(wid-1) != 0 {
 		Fatalf("duintxxLSym: misaligned: v=%d wid=%d off=%d", v, wid, off)
 	}
