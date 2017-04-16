@@ -152,8 +152,7 @@ func (ats *asmTests) runGo(t *testing.T, args ...string) string {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		fmt.Printf(stdout.String())
-		t.Fatalf("error running cmd: %v", err)
+		t.Fatalf("error running cmd: %v\nstdout:\n%sstderr:\n%s\n", err, stdout.String(), stderr.String())
 	}
 
 	if s := stderr.String(); s != "" {
