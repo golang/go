@@ -181,26 +181,3 @@ func Addrel(s *LSym) *Reloc {
 	s.R = append(s.R, Reloc{})
 	return &s.R[len(s.R)-1]
 }
-
-func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	if s.Size < off+wid {
-		s.Size = off + wid
-		s.Grow(s.Size)
-	}
-
-	switch wid {
-	case 1:
-		s.P[off] = uint8(v)
-	case 2:
-		ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(v))
-	case 4:
-		ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(v))
-	case 8:
-		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], v)
-	}
-
-	return off + wid
-}
