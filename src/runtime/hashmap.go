@@ -174,6 +174,10 @@ func (b *bmap) overflow(t *maptype) *bmap {
 	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-sys.PtrSize))
 }
 
+func (b *bmap) setoverflow(t *maptype, ovf *bmap) {
+	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-sys.PtrSize)) = ovf
+}
+
 // incrnoverflow increments h.noverflow.
 // noverflow counts the number of overflow buckets.
 // This is used to trigger same-size map growth.
@@ -207,7 +211,7 @@ func (h *hmap) newoverflow(t *maptype, b *bmap) *bmap {
 		h.createOverflow()
 		*h.extra.overflow[0] = append(*h.extra.overflow[0], ovf)
 	}
-	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-sys.PtrSize)) = ovf
+	b.setoverflow(t, ovf)
 	return ovf
 }
 
