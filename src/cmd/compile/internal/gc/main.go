@@ -164,9 +164,6 @@ func Main(archInit func(*Arch)) {
 	mappkg.Prefix = "go.map"
 
 	Nacl = obj.GOOS == "nacl"
-	if Nacl {
-		flag_largemodel = true
-	}
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
 	obj.Flagcount("%", "debug non-static initializers", &Debug['%'])
@@ -214,9 +211,6 @@ func Main(archInit func(*Arch)) {
 	if supportsDynlink(thearch.LinkArch.Arch) {
 		flag.BoolVar(&flag_shared, "shared", false, "generate code that can be linked into a shared library")
 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
-	}
-	if thearch.LinkArch.Family == sys.AMD64 {
-		flag.BoolVar(&flag_largemodel, "largemodel", false, "generate code that assumes a large memory model")
 	}
 	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
