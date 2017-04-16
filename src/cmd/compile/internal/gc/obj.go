@@ -252,12 +252,15 @@ func duintxx(s *types.Sym, off int, v uint64, wid int) int {
 }
 
 func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
-	// Update symbol data directly instead of generating a
-	// DATA instruction that liblink will have to interpret later.
-	// This reduces compilation time and memory usage.
-	off = int(Rnd(int64(off), int64(wid)))
-
-	return int(obj.Setuintxx(Ctxt, s, int64(off), v, int64(wid)))
+	if s.Type == 0 {
+		// TODO(josharian): Do this in obj.prepwrite instead.
+		s.Type = obj.SDATA
+	}
+	if off&(wid-1) != 0 {
+		Fatalf("duintxxLSym: misaligned: v=%d wid=%d off=%d", v, wid, off)
+	}
+	s.WriteInt(Ctxt, int64(off), wid, int64(v))
+	return off + wid
 }
 
 func duint8(s *types.Sym, off int, v uint8) int {
