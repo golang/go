@@ -47,6 +47,7 @@ expect issue13635.go C.uchar C.schar C.ushort C.uint C.ulong C.longlong C.ulongl
 check issue13830.go
 check issue16116.go
 check issue16591.go
+check issue18889.go
 
 if ! go build issue14669.go; then
 	exit 1

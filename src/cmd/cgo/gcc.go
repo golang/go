@@ -1086,6 +1086,10 @@ func (p *Package) rewriteRef(f *File) {
 			}
 		case "expr":
 			if r.Name.Kind == "func" {
+				if builtinDefs[r.Name.C] != "" {
+					error_(r.Pos(), "use of builtin '%s' not in function call", fixGo(r.Name.C))
+				}
+
 				// Function is being used in an expression, to e.g. pass around a C function pointer.
 				// Create a new Name for this Ref which causes the variable to be declared in Go land.
 				fpName := "fp_" + r.Name.Go
