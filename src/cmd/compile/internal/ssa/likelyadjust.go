@@ -35,6 +35,9 @@ type loop struct {
 func (sdom SparseTree) outerinner(outer, inner *loop) {
 	// There could be other outer loops found in some random order,
 	// locate the new outer loop appropriately among them.
+
+	// Outer loop headers dominate inner loop headers.
+	// Use this to put the "new" "outer" loop in the right place.
 	oldouter := inner.outer
 	for oldouter != nil && sdom.isAncestor(outer.header, oldouter.header) {
 		inner = oldouter
@@ -44,7 +47,7 @@ func (sdom SparseTree) outerinner(outer, inner *loop) {
 		return
 	}
 	if oldouter != nil {
-		outer.outer = oldouter
+		sdom.outerinner(oldouter, outer)
 	}
 
 	inner.outer = outer
@@ -259,6 +262,18 @@ func (l *loop) LongString() string {
 	return fmt.Sprintf("hdr:%s%s%s", l.header, i, o)
 }
 
+func (l *loop) isWithinOrEq(ll *loop) bool {
+	if ll == nil { // nil means whole program
+		return true
+	}
+	for ; l != nil; l = l.outer {
+		if l == ll {
+			return true
+		}
+	}
+	return false
+}
+
 // nearestOuterLoop returns the outer loop of loop most nearly
 // containing block b; the header must dominate b.  loop itself
 // is assumed to not be that loop. For acceptable performance,
@@ -278,8 +293,8 @@ func loopnestfor(f *Func) *loopnest {
 
 	// Reducible-loop-nest-finding.
 	for _, b := range po {
-		if f.pass.debug > 3 {
-			fmt.Printf("loop finding (0) at %s\n", b)
+		if f.pass != nil && f.pass.debug > 3 {
+			fmt.Printf("loop finding at %s\n", b)
 		}
 
 		var innermost *loop // innermost header reachable from this block
@@ -299,6 +314,9 @@ func loopnestfor(f *Func) *loopnest {
 			l := b2l[bb.ID]
 
 			if sdom.isAncestorEq(bb, b) { // Found a loop header
+				if f.pass != nil && f.pass.debug > 4 {
+					fmt.Printf("loop finding    succ %s of %s is header\n", bb.String(), b.String())
+				}
 				if l == nil {
 					l = &loop{header: bb, isInner: true}
 					loops = append(loops, l)
@@ -310,6 +328,13 @@ func loopnestfor(f *Func) *loopnest {
 				// header dominates b?
 				if l != nil && !sdom.isAncestorEq(l.header, b) {
 					l = l.nearestOuterLoop(sdom, b)
+				}
+				if f.pass != nil && f.pass.debug > 4 {
+					if l == nil {
+						fmt.Printf("loop finding    succ %s of %s has no loop\n", bb.String(), b.String())
+					} else {
+						fmt.Printf("loop finding    succ %s of %s provides loop with header %s\n", bb.String(), b.String(), l.header.String())
+					}
 				}
 			}
 
@@ -340,7 +365,7 @@ func loopnestfor(f *Func) *loopnest {
 	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops}
 
 	// Curious about the loopiness? "-d=ssa/likelyadjust/stats"
-	if f.pass.stats > 0 && len(loops) > 0 {
+	if f.pass != nil && f.pass.stats > 0 && len(loops) > 0 {
 		ln.assembleChildren()
 		ln.calculateDepths()
 		ln.findExits()
@@ -365,7 +390,7 @@ func loopnestfor(f *Func) *loopnest {
 		}
 	}
 
-	if f.pass.debug > 1 && len(loops) > 0 {
+	if f.pass != nil && f.pass.debug > 1 && len(loops) > 0 {
 		fmt.Printf("Loops in %s:\n", f.Name)
 		for _, l := range loops {
 			fmt.Printf("%s, b=", l.LongString())

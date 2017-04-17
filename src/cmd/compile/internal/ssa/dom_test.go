@@ -454,7 +454,39 @@ func generateDominatorMap(fut fun) map[string]string {
 	return doms
 }
 
-func TestDominatorsPostTricky(t *testing.T) {
+func TestDominatorsPostTrickyA(t *testing.T) {
+	testDominatorsPostTricky(t, "b8", "b11", "b10", "b8", "b14", "b15")
+}
+
+func TestDominatorsPostTrickyB(t *testing.T) {
+	testDominatorsPostTricky(t, "b11", "b8", "b10", "b8", "b14", "b15")
+}
+
+func TestDominatorsPostTrickyC(t *testing.T) {
+	testDominatorsPostTricky(t, "b8", "b11", "b8", "b10", "b14", "b15")
+}
+
+func TestDominatorsPostTrickyD(t *testing.T) {
+	testDominatorsPostTricky(t, "b11", "b8", "b8", "b10", "b14", "b15")
+}
+
+func TestDominatorsPostTrickyE(t *testing.T) {
+	testDominatorsPostTricky(t, "b8", "b11", "b10", "b8", "b15", "b14")
+}
+
+func TestDominatorsPostTrickyF(t *testing.T) {
+	testDominatorsPostTricky(t, "b11", "b8", "b10", "b8", "b15", "b14")
+}
+
+func TestDominatorsPostTrickyG(t *testing.T) {
+	testDominatorsPostTricky(t, "b8", "b11", "b8", "b10", "b15", "b14")
+}
+
+func TestDominatorsPostTrickyH(t *testing.T) {
+	testDominatorsPostTricky(t, "b11", "b8", "b8", "b10", "b15", "b14")
+}
+
+func testDominatorsPostTricky(t *testing.T, b7then, b7else, b12then, b12else, b13then, b13else string) {
 	c := testConfig(t)
 	fun := c.Fun("b1",
 		Bloc("b1",
@@ -466,11 +498,11 @@ func TestDominatorsPostTricky(t *testing.T) {
 		Bloc("b5",
 			Goto("b7")),
 		Bloc("b7",
-			If("p", "b8", "b11")),
+			If("p", b7then, b7else)),
 		Bloc("b8",
 			Goto("b13")),
 		Bloc("b13",
-			If("p", "b14", "b15")),
+			If("p", b13then, b13else)),
 		Bloc("b14",
 			Goto("b10")),
 		Bloc("b15",
@@ -482,7 +514,7 @@ func TestDominatorsPostTricky(t *testing.T) {
 		Bloc("b11",
 			Goto("b12")),
 		Bloc("b12",
-			If("p", "b10", "b8")),
+			If("p", b12then, b12else)),
 		Bloc("b10",
 			Goto("b6")),
 		Bloc("b6",

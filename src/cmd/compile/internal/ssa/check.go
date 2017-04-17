@@ -273,6 +273,23 @@ func checkFunc(f *Func) {
 		}
 	}
 
+	// Check loop construction
+	if f.RegAlloc == nil && f.pass != nil { // non-nil pass allows better-targeted debug printing
+		ln := f.loopnest()
+		po := f.postorder() // use po to avoid unreachable blocks.
+		for _, b := range po {
+			for _, s := range b.Succs {
+				bb := s.Block()
+				if ln.b2l[b.ID] == nil && ln.b2l[bb.ID] != nil && bb != ln.b2l[bb.ID].header {
+					f.Fatalf("block %s not in loop branches to non-header block %s in loop", b.String(), bb.String())
+				}
+				if ln.b2l[b.ID] != nil && ln.b2l[bb.ID] != nil && bb != ln.b2l[bb.ID].header && !ln.b2l[b.ID].isWithinOrEq(ln.b2l[bb.ID]) {
+					f.Fatalf("block %s in loop branches to non-header block %s in non-containing loop", b.String(), bb.String())
+				}
+			}
+		}
+	}
+
 	// Check use counts
 	uses := make([]int32, f.NumValues())
 	for _, b := range f.Blocks {
