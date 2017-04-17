@@ -6784,7 +6784,7 @@ func rewriteValueS390X_OpS390XCMPU(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (CMPU x (MOVDconst [c]))
-	// cond: is32Bit(c)
+	// cond: isU32Bit(c)
 	// result: (CMPUconst x [int64(uint32(c))])
 	for {
 		x := v.Args[0]
@@ -6793,7 +6793,7 @@ func rewriteValueS390X_OpS390XCMPU(v *Value, config *Config) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(is32Bit(c)) {
+		if !(isU32Bit(c)) {
 			break
 		}
 		v.reset(OpS390XCMPUconst)
@@ -6802,7 +6802,7 @@ func rewriteValueS390X_OpS390XCMPU(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (CMPU (MOVDconst [c]) x)
-	// cond: is32Bit(c)
+	// cond: isU32Bit(c)
 	// result: (InvertFlags (CMPUconst x [int64(uint32(c))]))
 	for {
 		v_0 := v.Args[0]
@@ -6811,7 +6811,7 @@ func rewriteValueS390X_OpS390XCMPU(v *Value, config *Config) bool {
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		if !(is32Bit(c)) {
+		if !(isU32Bit(c)) {
 			break
 		}
 		v.reset(OpS390XInvertFlags)
