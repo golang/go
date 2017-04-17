@@ -480,7 +480,8 @@ type Link struct {
 	Flag_optimize bool
 	Bso           *bufio.Writer
 	Pathname      string
-	hash          map[SymVer]*LSym
+	hash          map[string]*LSym // name -> sym mapping for version == 0
+	vhash         map[string]*LSym // name -> sym mapping for version == 1
 	PosTable      src.PosTable
 	InlTree       InlTree // global inlining tree used by gc/inl.go
 	Imports       []string
@@ -520,11 +521,6 @@ func (ctxt *Link) FixedFrameSize() int64 {
 	default:
 		return int64(ctxt.Arch.PtrSize)
 	}
-}
-
-type SymVer struct {
-	Name    string
-	Version int // TODO: make int16 to match LSym.Version?
 }
 
 // LinkArch is the definition of a single architecture.

@@ -12,7 +12,8 @@ import (
 
 func TestLinkgetlineFromPos(t *testing.T) {
 	ctxt := new(Link)
-	ctxt.hash = make(map[SymVer]*LSym)
+	ctxt.hash = make(map[string]*LSym)
+	ctxt.vhash = make(map[string]*LSym)
 
 	afile := src.NewFileBase("a.go", "a.go")
 	bfile := src.NewFileBase("b.go", "/foo/bar/b.go")
