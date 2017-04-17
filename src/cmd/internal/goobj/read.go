@@ -159,45 +159,6 @@ type objReader struct {
 	pkgprefix  string
 }
 
-// importPathToPrefix returns the prefix that will be used in the
-// final symbol table for the given import path.
-// We escape '%', '"', all control characters and non-ASCII bytes,
-// and any '.' after the final slash.
-//
-// See ../../../cmd/ld/lib.c:/^pathtoprefix and
-// ../../../cmd/gc/subr.c:/^pathtoprefix.
-func importPathToPrefix(s string) string {
-	// find index of last slash, if any, or else -1.
-	// used for determining whether an index is after the last slash.
-	slash := strings.LastIndex(s, "/")
-
-	// check for chars that need escaping
-	n := 0
-	for r := 0; r < len(s); r++ {
-		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
-			n++
-		}
-	}
-
-	// quick exit
-	if n == 0 {
-		return s
-	}
-
-	// escape
-	const hex = "0123456789abcdef"
-	p := make([]byte, 0, len(s)+2*n)
-	for r := 0; r < len(s); r++ {
-		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
-			p = append(p, '%', hex[c>>4], hex[c&0xF])
-		} else {
-			p = append(p, c)
-		}
-	}
-
-	return string(p)
-}
-
 // init initializes r to read package p from f.
 func (r *objReader) init(f io.ReadSeeker, p *Package) {
 	r.f = f
@@ -206,7 +167,7 @@ func (r *objReader) init(f io.ReadSeeker, p *Package) {
 	r.limit, _ = f.Seek(0, io.SeekEnd)
 	f.Seek(r.offset, io.SeekStart)
 	r.b = bufio.NewReader(f)
-	r.pkgprefix = importPathToPrefix(p.ImportPath) + "."
+	r.pkgprefix = objabi.PathToPrefix(p.ImportPath) + "."
 }
 
 // error records that an error occurred.

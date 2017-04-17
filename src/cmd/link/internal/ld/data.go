@@ -1059,7 +1059,7 @@ func addstrdata1(ctxt *Link, arg string) {
 	if eq < 0 || dot < 0 {
 		Exitf("-X flag requires argument of the form importpath.name=value")
 	}
-	addstrdata(ctxt, pathtoprefix(arg[:dot])+arg[dot:eq], arg[eq+1:])
+	addstrdata(ctxt, objabi.PathToPrefix(arg[:dot])+arg[dot:eq], arg[eq+1:])
 }
 
 func addstrdata(ctxt *Link, name string, value string) {

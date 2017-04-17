@@ -68,7 +68,7 @@ func LoadObjFile(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn strin
 }
 
 func (r *objReader) loadObjFile() {
-	pkg := pathtoprefix(r.lib.Pkg)
+	pkg := objabi.PathToPrefix(r.lib.Pkg)
 
 	// Magic header
 	var buf [8]uint8
@@ -168,7 +168,7 @@ func (r *objReader) readSym() {
 	typ := r.readSymIndex()
 	data := r.readData()
 	nreloc := r.readInt()
-	pkg := pathtoprefix(r.lib.Pkg)
+	pkg := objabi.PathToPrefix(r.lib.Pkg)
 	isdup := false
 
 	var dup *Symbol
@@ -345,7 +345,7 @@ func (r *objReader) patchDWARFName(s *Symbol) {
 	if p == -1 {
 		return
 	}
-	pkgprefix := []byte(pathtoprefix(r.lib.Pkg) + ".")
+	pkgprefix := []byte(objabi.PathToPrefix(r.lib.Pkg) + ".")
 	patched := bytes.Replace(s.P[:e], emptyPkg, pkgprefix, -1)
 
 	s.P = append(patched, s.P[e:]...)
@@ -478,7 +478,7 @@ func (r *objReader) readData() []byte {
 
 // readSymName reads a symbol name, replacing all "". with pkg.
 func (r *objReader) readSymName() string {
-	pkg := pathtoprefix(r.lib.Pkg)
+	pkg := objabi.PathToPrefix(r.lib.Pkg)
 	n := r.readInt()
 	if n == 0 {
 		r.readInt64()

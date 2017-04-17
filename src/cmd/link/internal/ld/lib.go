@@ -651,7 +651,7 @@ func (ctxt *Link) loadlib() {
 					// first containing package that the linker loads). canonicalize
 					// it here to the package with which it will be laid down
 					// in text.
-					s.File = pathtoprefix(lib.Pkg)
+					s.File = objabi.PathToPrefix(lib.Pkg)
 				}
 			}
 		}
@@ -752,7 +752,7 @@ func genhash(ctxt *Link, lib *Library) {
 }
 
 func objfile(ctxt *Link, lib *Library) {
-	pkg := pathtoprefix(lib.Pkg)
+	pkg := objabi.PathToPrefix(lib.Pkg)
 
 	if ctxt.Debugvlog > 1 {
 		ctxt.Logf("%5.2f ldobj: %s (%s)\n", Cputime(), lib.File, pkg)
@@ -1312,7 +1312,7 @@ func hostlinkArchArgs() []string {
 // compiled by a non-Go compiler) it returns the Hostobj pointer. If
 // it is a Go object, it returns nil.
 func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, file string, whence int) *Hostobj {
-	pkg := pathtoprefix(lib.Pkg)
+	pkg := objabi.PathToPrefix(lib.Pkg)
 
 	eof := f.Offset() + length
 	start := f.Offset()
@@ -1570,35 +1570,6 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 	}
 
 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
-}
-
-// Copied from ../gc/subr.c:/^pathtoprefix; must stay in sync.
-/*
- * Convert raw string to the prefix that will be used in the symbol table.
- * Invalid bytes turn into %xx.	 Right now the only bytes that need
- * escaping are %, ., and ", but we escape all control characters too.
- *
- * If you edit this, edit ../gc/subr.c:/^pathtoprefix too.
- * If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
- */
-func pathtoprefix(s string) string {
-	slash := strings.LastIndex(s, "/")
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c <= ' ' || i >= slash && c == '.' || c == '%' || c == '"' || c >= 0x7F {
-			var buf bytes.Buffer
-			for i := 0; i < len(s); i++ {
-				c := s[i]
-				if c <= ' ' || i >= slash && c == '.' || c == '%' || c == '"' || c >= 0x7F {
-					fmt.Fprintf(&buf, "%%%02x", c)
-					continue
-				}
-				buf.WriteByte(c)
-			}
-			return buf.String()
-		}
-	}
-	return s
 }
 
 func addsection(seg *Segment, name string, rwx int) *Section {
