@@ -606,7 +606,6 @@ var knownFormats = map[string]string{
 	"[]cmd/compile/internal/ssa.ID %v":                "",
 	"[]string %v":                                     "",
 	"bool %v":                                         "",
-	"byte %02x":                                       "",
 	"byte %08b":                                       "",
 	"byte %c":                                         "",
 	"cmd/compile/internal/arm.shift %d":               "",

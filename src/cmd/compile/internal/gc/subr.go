@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"bytes"
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -1958,33 +1957,6 @@ func ngotype(n *Node) *types.Sym {
 	return nil
 }
 
-// Convert raw string to the prefix that will be used in the symbol
-// table. All control characters, space, '%' and '"', as well as
-// non-7-bit clean bytes turn into %xx. The period needs escaping
-// only in the last segment of the path, and it makes for happier
-// users if we escape that as little as possible.
-//
-// If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
-func pathtoprefix(s string) string {
-	slash := strings.LastIndex(s, "/")
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c <= ' ' || i >= slash && c == '.' || c == '%' || c == '"' || c >= 0x7F {
-			var buf bytes.Buffer
-			for i := 0; i < len(s); i++ {
-				c := s[i]
-				if c <= ' ' || i >= slash && c == '.' || c == '%' || c == '"' || c >= 0x7F {
-					fmt.Fprintf(&buf, "%%%02x", c)
-					continue
-				}
-				buf.WriteByte(c)
-			}
-			return buf.String()
-		}
-	}
-	return s
-}
-
 var pkgMap = make(map[string]*types.Pkg)
 var pkgs []*types.Pkg
 
@@ -1995,7 +1967,7 @@ func mkpkg(path string) *types.Pkg {
 
 	p := new(types.Pkg)
 	p.Path = path
-	p.Prefix = pathtoprefix(path)
+	p.Prefix = objabi.PathToPrefix(path)
 	p.Syms = make(map[string]*types.Sym)
 	pkgMap[path] = p
 	pkgs = append(pkgs, p)
