@@ -78,12 +78,16 @@ func TestFcntlFlock(t *testing.T) {
 	}
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "" {
 		// parent
-		name := filepath.Join(os.TempDir(), "TestFcntlFlock")
+		tempDir, err := ioutil.TempDir("", "TestFcntlFlock")
+		if err != nil {
+			t.Fatalf("Failed to create temp dir: %v", err)
+		}
+		name := filepath.Join(tempDir, "TestFcntlFlock")
 		fd, err := syscall.Open(name, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0)
 		if err != nil {
 			t.Fatalf("Open failed: %v", err)
 		}
-		defer syscall.Unlink(name)
+		defer os.RemoveAll(tempDir)
 		defer syscall.Close(fd)
 		if err := syscall.Ftruncate(fd, 1<<20); err != nil {
 			t.Fatalf("Ftruncate(1<<20) failed: %v", err)
