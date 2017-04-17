@@ -12,12 +12,19 @@ import (
 )
 
 func TestTempFile(t *testing.T) {
-	f, err := TempFile("/_not_exists_", "foo")
+	dir, err := TempDir("", "TestTempFile_BadDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	nonexistentDir := filepath.Join(dir, "_not_exists_")
+	f, err := TempFile(nonexistentDir, "foo")
 	if f != nil || err == nil {
-		t.Errorf("TempFile(`/_not_exists_`, `foo`) = %v, %v", f, err)
+		t.Errorf("TempFile(%q, `foo`) = %v, %v", nonexistentDir, f, err)
 	}
 
-	dir := os.TempDir()
+	dir = os.TempDir()
 	f, err = TempFile(dir, "ioutil_test")
 	if f == nil || err != nil {
 		t.Errorf("TempFile(dir, `ioutil_test`) = %v, %v", f, err)
