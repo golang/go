@@ -160,12 +160,12 @@ func main() {
 	fmt.Fprintf(w, "// results show the expected result for the elements left of, equal to and right of the index.\n")
 	fmt.Fprintf(w, "type result struct{l, e, r bool}\n")
 	fmt.Fprintf(w, "var (\n")
-	fmt.Fprintf(w, "	_eq = result{l: false, e: true, r: false}\n")
-	fmt.Fprintf(w, "	_ne = result{l: true, e: false, r: true}\n")
-	fmt.Fprintf(w, "	_lt = result{l: true, e: false, r: false}\n")
-	fmt.Fprintf(w, "	_le = result{l: true, e: true, r: false}\n")
-	fmt.Fprintf(w, "	_gt = result{l: false, e: false, r: true}\n")
-	fmt.Fprintf(w, "	_ge = result{l: false, e: true, r: true}\n")
+	fmt.Fprintf(w, "	eq = result{l: false, e: true, r: false}\n")
+	fmt.Fprintf(w, "	ne = result{l: true, e: false, r: true}\n")
+	fmt.Fprintf(w, "	lt = result{l: true, e: false, r: false}\n")
+	fmt.Fprintf(w, "	le = result{l: true, e: true, r: false}\n")
+	fmt.Fprintf(w, "	gt = result{l: false, e: false, r: true}\n")
+	fmt.Fprintf(w, "	ge = result{l: false, e: true, r: true}\n")
 	fmt.Fprintf(w, ")\n")
 
 	operators := []struct{ op, name string }{
@@ -207,7 +207,7 @@ func main() {
 			sig := sigString(r)
 			for _, op := range operators {
 				fmt.Fprintf(w, "{idx: %v,", i)
-				fmt.Fprintf(w, "exp: _%v,", op.name)
+				fmt.Fprintf(w, "exp: %v,", op.name)
 				fmt.Fprintf(w, "fn:  %v_%v_%v},\n", op.name, sig, typ)
 			}
 		}
