@@ -517,16 +517,29 @@ func copyLocalData(dstbase string) (pkgpath string, err error) {
 		}
 	}
 
-	// Copy timezone file.
-	//
-	// Typical apps have the zoneinfo.zip in the root of their app bundle,
-	// read by the time package as the working directory at initialization.
-	// As we move the working directory to the GOROOT pkg directory, we
-	// install the zoneinfo.zip file in the pkgpath.
 	if underGoRoot {
+		// Copy timezone file.
+		//
+		// Typical apps have the zoneinfo.zip in the root of their app bundle,
+		// read by the time package as the working directory at initialization.
+		// As we move the working directory to the GOROOT pkg directory, we
+		// install the zoneinfo.zip file in the pkgpath.
 		err := cp(
 			filepath.Join(dstbase, pkgpath),
 			filepath.Join(cwd, "lib", "time", "zoneinfo.zip"),
+		)
+		if err != nil {
+			return "", err
+		}
+		// Copy src/runtime/textflag.h for (at least) Test386EndToEnd in
+		// cmd/asm/internal/asm.
+		runtimePath := filepath.Join(dstbase, "src", "runtime")
+		if err := os.MkdirAll(runtimePath, 0755); err != nil {
+			return "", err
+		}
+		err = cp(
+			filepath.Join(runtimePath, "textflag.h"),
+			filepath.Join(cwd, "src", "runtime", "textflag.h"),
 		)
 		if err != nil {
 			return "", err
