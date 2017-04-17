@@ -186,23 +186,30 @@ const (
 
 	// ErrPredefinedEscaper: "predefined escaper ... disallowed in template"
 	// Example:
-	//   <a href="{{.X | urlquery}}">
+	//   <div class={{. | html}}>Hello<div>
 	// Discussion:
 	//   Package html/template already contextually escapes all pipelines to
 	//   produce HTML output safe against code injection. Manually escaping
-	//   pipeline output using the predefined escapers "html", "urlquery", or "js"
-	//   is unnecessary, and might affect the correctness or safety of the escaped
-	//   pipeline output. In the above example, "urlquery" should simply be
-	//   removed from the pipeline so that escaping is performed solely by the
-	//   contextual autoescaper.
-	//   If the predefined escaper occurs in the middle of a pipeline where
-	//   subsequent commands expect escaped input, e.g.
+	//   pipeline output using the predefined escapers "html" or "urlquery" is
+	//   unnecessary, and may affect the correctness or safety of the escaped
+	//   pipeline output in Go 1.8 and earlier.
+	//
+	//   In most cases, such as the given example, this error can be resolved by
+	//   simply removing the predefined escaper from the pipeline and letting the
+	//   contextual autoescaper handle the escaping of the pipeline. In other
+	//   instances, where the predefined escaper occurs in the middle of a
+	//   pipeline where subsequent commands expect escaped input, e.g.
 	//     {{.X | html | makeALink}}
 	//   where makeALink does
-	//     return "<a href='+input+'>link</a>"
+	//     return `<a href="`+input+`">link</a>`
 	//   consider refactoring the surrounding template to make use of the
 	//   contextual autoescaper, i.e.
-	//     <a href='{{.X}}'>link</a>
+	//     <a href="{{.X}}">link</a>
+	//
+	//   To ease migration to Go 1.9 and beyond, "html" and "urlquery" will
+	//   continue to be allowed as the last command in a pipeline. However, if the
+	//   pipeline occurs in an unquoted attribute value context, "html" is
+	//   disallowed. Avoid using "html" and "urlquery" entirely in new templates.
 	ErrPredefinedEscaper
 )
 
