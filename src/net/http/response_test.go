@@ -318,7 +318,7 @@ var respTests = []respTest{
 	{
 		"HTTP/1.0 303\r\n\r\n",
 		Response{
-			Status:        "303 ",
+			Status:        "303",
 			StatusCode:    303,
 			Proto:         "HTTP/1.0",
 			ProtoMajor:    1,
@@ -531,6 +531,29 @@ some body`,
 			ContentLength: 23,
 		},
 		"\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00",
+	},
+
+	// Issue 19989: two spaces between HTTP version and status.
+	{
+		"HTTP/1.0  401 Unauthorized\r\n" +
+			"Content-type: text/html\r\n" +
+			"WWW-Authenticate: Basic realm=\"\"\r\n\r\n" +
+			"Your Authentication failed.\r\n",
+		Response{
+			Status:     "401 Unauthorized",
+			StatusCode: 401,
+			Proto:      "HTTP/1.0",
+			ProtoMajor: 1,
+			ProtoMinor: 0,
+			Request:    dummyReq("GET"),
+			Header: Header{
+				"Content-Type":     {"text/html"},
+				"Www-Authenticate": {`Basic realm=""`},
+			},
+			Close:         true,
+			ContentLength: -1,
+		},
+		"Your Authentication failed.\r\n",
 	},
 }
 

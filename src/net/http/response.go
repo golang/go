@@ -153,23 +153,23 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 		}
 		return nil, err
 	}
-	f := strings.SplitN(line, " ", 3)
-	if len(f) < 2 {
+	if i := strings.IndexByte(line, ' '); i == -1 {
 		return nil, &badStringError{"malformed HTTP response", line}
+	} else {
+		resp.Proto = line[:i]
+		resp.Status = strings.TrimLeft(line[i+1:], " ")
 	}
-	reasonPhrase := ""
-	if len(f) > 2 {
-		reasonPhrase = f[2]
+	statusCode := resp.Status
+	if i := strings.IndexByte(resp.Status, ' '); i != -1 {
+		statusCode = resp.Status[:i]
 	}
-	if len(f[1]) != 3 {
-		return nil, &badStringError{"malformed HTTP status code", f[1]}
+	if len(statusCode) != 3 {
+		return nil, &badStringError{"malformed HTTP status code", statusCode}
 	}
-	resp.StatusCode, err = strconv.Atoi(f[1])
+	resp.StatusCode, err = strconv.Atoi(statusCode)
 	if err != nil || resp.StatusCode < 0 {
-		return nil, &badStringError{"malformed HTTP status code", f[1]}
+		return nil, &badStringError{"malformed HTTP status code", statusCode}
 	}
-	resp.Status = f[1] + " " + reasonPhrase
-	resp.Proto = f[0]
 	var ok bool
 	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {
 		return nil, &badStringError{"malformed HTTP version", resp.Proto}
