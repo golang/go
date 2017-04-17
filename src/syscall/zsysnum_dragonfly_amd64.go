@@ -301,4 +301,5 @@ const (
 	SYS_LPATHCONF              = 533 // { int lpathconf(char *path, int name); }
 	SYS_VMM_GUEST_CTL          = 534 // { int vmm_guest_ctl(int op, struct vmm_guest_options *options); }
 	SYS_VMM_GUEST_SYNC_ADDR    = 535 // { int vmm_guest_sync_addr(long *dstaddr, long *srcaddr); }
+	SYS_ACCEPT4                = 541 // { int accept4(int s, caddr_t name, int *anamelen, int flags); }
 )
