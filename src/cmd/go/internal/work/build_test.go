@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -181,7 +180,6 @@ func TestRespectGroupSticky(t *testing.T) {
 	}
 
 	var b Builder
-	b.Init()
 
 	// Check that `cp` is called instead of `mv` by looking at the output
 	// of `(*Builder).ShowCmd` afterwards as a sanity check.
@@ -191,21 +189,20 @@ func TestRespectGroupSticky(t *testing.T) {
 		return cmdBuf.WriteString(fmt.Sprint(a...))
 	}
 
-	stickydir := path.Join(os.TempDir(), "GroupSticky")
-	if err := os.Mkdir(stickydir, 0755); err != nil {
+	stickydir, err := ioutil.TempDir("", "GroupSticky")
+	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(stickydir)
 
-	// Mkdir doesn't always correctly set the group sticky bit.
 	// Change stickydir's permissions to include group sticky bit.
 	if err := os.Chmod(stickydir, 0755|os.ModeSetgid); err != nil {
 		t.Fatal(err)
 	}
 
-	pkgfile, err := ioutil.TempFile(b.WorkDir, "")
+	pkgfile, err := ioutil.TempFile("", "pkgfile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile(%q): %v", b.WorkDir, err)
+		t.Fatalf("ioutil.TempFile(\"\", \"pkgfile\"): %v", err)
 	}
 	defer os.Remove(pkgfile.Name())
 	defer pkgfile.Close()
