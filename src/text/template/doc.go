@@ -315,7 +315,8 @@ Predefined global functions are named as follows.
 		or the returned error value is non-nil, execution stops.
 	html
 		Returns the escaped HTML equivalent of the textual
-		representation of its arguments.
+		representation of its arguments. This function is unavailable
+		in html/template, with a few exceptions.
 	index
 		Returns the result of indexing its first argument by the
 		following arguments. Thus "index x 1 2 3" is, in Go syntax,
@@ -341,6 +342,8 @@ Predefined global functions are named as follows.
 	urlquery
 		Returns the escaped value of the textual representation of
 		its arguments in a form suitable for embedding in a URL query.
+		This function is unavailable in html/template, with a few
+		exceptions.
 
 The boolean functions take any zero value to be false and a non-zero
 value to be true.
