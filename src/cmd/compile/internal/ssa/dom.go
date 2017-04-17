@@ -22,40 +22,42 @@ const (
 func postorder(f *Func) []*Block {
 	return postorderWithNumbering(f, []int32{})
 }
+
+type blockAndIndex struct {
+	b     *Block
+	index int // index is the number of successor edges of b that have already been explored.
+}
+
+// postorderWithNumbering provides a DFS postordering.
+// This seems to make loop-finding more robust.
 func postorderWithNumbering(f *Func, ponums []int32) []*Block {
 	mark := make([]markKind, f.NumBlocks())
 
 	// result ordering
 	var order []*Block
 
-	// stack of blocks
-	var s []*Block
-	s = append(s, f.Entry)
-	mark[f.Entry.ID] = notExplored
+	// stack of blocks and next child to visit
+	var s []blockAndIndex
+	s = append(s, blockAndIndex{b: f.Entry})
+	mark[f.Entry.ID] = explored
 	for len(s) > 0 {
-		b := s[len(s)-1]
-		switch mark[b.ID] {
-		case explored:
-			// Children have all been visited. Pop & output block.
-			s = s[:len(s)-1]
-			mark[b.ID] = done
+		tos := len(s) - 1
+		x := s[tos]
+		b := x.b
+		i := x.index
+		if i < len(b.Succs) {
+			s[tos].index++
+			bb := b.Succs[i].Block()
+			if mark[bb.ID] == notFound {
+				mark[bb.ID] = explored
+				s = append(s, blockAndIndex{b: bb})
+			}
+		} else {
+			s = s[:tos]
 			if len(ponums) > 0 {
 				ponums[b.ID] = int32(len(order))
 			}
 			order = append(order, b)
-		case notExplored:
-			// Children have not been visited yet. Mark as explored
-			// and queue any children we haven't seen yet.
-			mark[b.ID] = explored
-			for _, e := range b.Succs {
-				c := e.b
-				if mark[c.ID] == notFound {
-					mark[c.ID] = notExplored
-					s = append(s, c)
-				}
-			}
-		default:
-			b.Fatalf("bad stack state %v %d", b, mark[b.ID])
 		}
 	}
 	return order

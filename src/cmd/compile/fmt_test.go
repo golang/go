@@ -638,7 +638,6 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/ssa.Type %s":                "",
 	"cmd/compile/internal/ssa.Type %v":                "",
 	"cmd/compile/internal/ssa.ValAndOff %s":           "",
-	"cmd/compile/internal/ssa.markKind %d":            "",
 	"cmd/compile/internal/ssa.rbrank %d":              "",
 	"cmd/compile/internal/ssa.regMask %d":             "",
 	"cmd/compile/internal/ssa.register %d":            "",
