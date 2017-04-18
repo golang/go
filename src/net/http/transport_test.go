@@ -959,7 +959,7 @@ func TestTransportExpect100Continue(t *testing.T) {
 	}
 }
 
-func TestSocks5Proxy(t *testing.T) {
+func TestSOCKS5Proxy(t *testing.T) {
 	defer afterTest(t)
 	ch := make(chan string, 1)
 	l := newLocalListener(t)
@@ -996,9 +996,9 @@ func TestSocks5Proxy(t *testing.T) {
 		var ipLen int
 		switch buf[3] {
 		case 1:
-			ipLen = 4
+			ipLen = net.IPv4len
 		case 4:
-			ipLen = 16
+			ipLen = net.IPv6len
 		default:
 			t.Errorf("socks5 proxy second read: unexpected address type %v", buf[4])
 			return
