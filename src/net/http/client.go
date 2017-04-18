@@ -524,10 +524,12 @@ func (c *Client) Do(req *Request) (*Response, error) {
 		if len(reqs) > 0 {
 			loc := resp.Header.Get("Location")
 			if loc == "" {
+				resp.closeBody()
 				return nil, uerr(fmt.Errorf("%d response missing Location header", resp.StatusCode))
 			}
 			u, err := req.URL.Parse(loc)
 			if err != nil {
+				resp.closeBody()
 				return nil, uerr(fmt.Errorf("failed to parse Location header %q: %v", loc, err))
 			}
 			ireq := reqs[0]
@@ -542,6 +544,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
 			if includeBody && ireq.GetBody != nil {
 				req.Body, err = ireq.GetBody()
 				if err != nil {
+					resp.closeBody()
 					return nil, uerr(err)
 				}
 				req.ContentLength = ireq.ContentLength
