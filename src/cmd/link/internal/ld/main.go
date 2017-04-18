@@ -32,7 +32,7 @@ package ld
 
 import (
 	"bufio"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"flag"
 	"log"
@@ -114,21 +114,21 @@ func Main() {
 	}
 
 	// TODO(matloob): define these above and then check flag values here
-	if SysArch.Family == sys.AMD64 && obj.GOOS == "plan9" {
+	if SysArch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
 		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
 	}
-	obj.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
-	obj.Flagfn1("L", "add specified `directory` to library path", func(a string) { Lflag(ctxt, a) })
-	obj.Flagfn0("V", "print version and exit", doversion)
-	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
-	obj.Flagcount("v", "print link trace", &ctxt.Debugvlog)
+	objabi.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
+	objabi.Flagfn1("L", "add specified `directory` to library path", func(a string) { Lflag(ctxt, a) })
+	objabi.Flagfn0("V", "print version and exit", doversion)
+	objabi.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
+	objabi.Flagcount("v", "print link trace", &ctxt.Debugvlog)
 
-	obj.Flagparse(usage)
+	objabi.Flagparse(usage)
 
 	switch *flagHeadtype {
 	case "":
 	case "windowsgui":
-		Headtype = obj.Hwindows
+		Headtype = objabi.Hwindows
 		windowsgui = true
 	default:
 		if err := Headtype.Set(*flagHeadtype); err != nil {
@@ -148,7 +148,7 @@ func Main() {
 
 	if *flagOutfile == "" {
 		*flagOutfile = "a.out"
-		if Headtype == obj.Hwindows {
+		if Headtype == objabi.Hwindows {
 			*flagOutfile += ".exe"
 		}
 	}
@@ -157,8 +157,8 @@ func Main() {
 
 	libinit(ctxt) // creates outfile
 
-	if Headtype == obj.Hunknown {
-		Headtype.Set(obj.GOOS)
+	if Headtype == objabi.Hunknown {
+		Headtype.Set(objabi.GOOS)
 	}
 
 	ctxt.computeTLSOffset()
@@ -200,11 +200,11 @@ func Main() {
 	ctxt.callgraph()
 
 	ctxt.doelf()
-	if Headtype == obj.Hdarwin {
+	if Headtype == objabi.Hdarwin {
 		ctxt.domacho()
 	}
 	ctxt.dostkcheck()
-	if Headtype == obj.Hwindows {
+	if Headtype == objabi.Hwindows {
 		ctxt.dope()
 	}
 	ctxt.addexport()
@@ -223,7 +223,7 @@ func Main() {
 	ctxt.hostlink()
 	ctxt.archive()
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f cpu time\n", obj.Cputime())
+		ctxt.Logf("%5.2f cpu time\n", Cputime())
 		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
 		ctxt.Logf("%d liveness data\n", liveness)
 	}

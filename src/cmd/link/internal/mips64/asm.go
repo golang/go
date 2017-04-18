@@ -31,7 +31,7 @@
 package mips64
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
@@ -66,7 +66,7 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	default:
 		return -1
 
-	case obj.R_ADDR:
+	case objabi.R_ADDR:
 		switch r.Siz {
 		case 4:
 			ld.Cput(ld.R_MIPS_32)
@@ -76,17 +76,17 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 			return -1
 		}
 
-	case obj.R_ADDRMIPS:
+	case objabi.R_ADDRMIPS:
 		ld.Cput(ld.R_MIPS_LO16)
 
-	case obj.R_ADDRMIPSU:
+	case objabi.R_ADDRMIPSU:
 		ld.Cput(ld.R_MIPS_HI16)
 
-	case obj.R_ADDRMIPSTLS:
+	case objabi.R_ADDRMIPSTLS:
 		ld.Cput(ld.R_MIPS_TLS_TPREL_LO16)
 
-	case obj.R_CALLMIPS,
-		obj.R_JMPMIPS:
+	case objabi.R_CALLMIPS,
+		objabi.R_JMPMIPS:
 		ld.Cput(ld.R_MIPS_26)
 	}
 	ld.Thearch.Vput(uint64(r.Xadd))
@@ -108,8 +108,8 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		default:
 			return -1
 
-		case obj.R_ADDRMIPS,
-			obj.R_ADDRMIPSU:
+		case objabi.R_ADDRMIPS,
+			objabi.R_ADDRMIPSU:
 			r.Done = 0
 
 			// set up addend for eventual relocation via outer symbol.
@@ -120,16 +120,16 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 				rs = rs.Outer
 			}
 
-			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+			if rs.Type != objabi.SHOSTOBJ && rs.Type != objabi.SDYNIMPORT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
 
 			return 0
 
-		case obj.R_ADDRMIPSTLS,
-			obj.R_CALLMIPS,
-			obj.R_JMPMIPS:
+		case objabi.R_ADDRMIPSTLS,
+			objabi.R_CALLMIPS,
+			objabi.R_JMPMIPS:
 			r.Done = 0
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
@@ -138,26 +138,26 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	}
 
 	switch r.Type {
-	case obj.R_CONST:
+	case objabi.R_CONST:
 		*val = r.Add
 		return 0
 
-	case obj.R_GOTOFF:
+	case objabi.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
 		return 0
 
-	case obj.R_ADDRMIPS,
-		obj.R_ADDRMIPSU:
+	case objabi.R_ADDRMIPS,
+		objabi.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
-		if r.Type == obj.R_ADDRMIPS {
+		if r.Type == objabi.R_ADDRMIPS {
 			*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
 		} else {
 			*val = int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff)
 		}
 		return 0
 
-	case obj.R_ADDRMIPSTLS:
+	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
 		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
 		if t < -32768 || t >= 32678 {
@@ -167,8 +167,8 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
 		return 0
 
-	case obj.R_CALLMIPS,
-		obj.R_JMPMIPS:
+	case objabi.R_CALLMIPS,
+		objabi.R_JMPMIPS:
 		// Low 26 bits = (S + A) >> 2
 		t := ld.Symaddr(r.Sym) + r.Add
 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
@@ -185,7 +185,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 
 func asmb(ctxt *ld.Link) {
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f asmb\n", obj.Cputime())
+		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
 	}
 
 	if ld.Iself {
@@ -202,21 +202,21 @@ func asmb(ctxt *ld.Link) {
 
 	if ld.Segrodata.Filelen > 0 {
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f rodatblk\n", obj.Cputime())
+			ctxt.Logf("%5.2f rodatblk\n", ld.Cputime())
 		}
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 	if ld.Segrelrodata.Filelen > 0 {
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f rodatblk\n", obj.Cputime())
+			ctxt.Logf("%5.2f rodatblk\n", ld.Cputime())
 		}
 		ld.Cseek(int64(ld.Segrelrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrelrodata.Vaddr), int64(ld.Segrelrodata.Filelen))
 	}
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f datblk\n", obj.Cputime())
+		ctxt.Logf("%5.2f datblk\n", ld.Cputime())
 	}
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
@@ -233,7 +233,7 @@ func asmb(ctxt *ld.Link) {
 	if !*ld.FlagS {
 		// TODO: rationalize
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f sym\n", obj.Cputime())
+			ctxt.Logf("%5.2f sym\n", ld.Cputime())
 		}
 		switch ld.Headtype {
 		default:
@@ -242,7 +242,7 @@ func asmb(ctxt *ld.Link) {
 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
 			}
 
-		case obj.Hplan9:
+		case objabi.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 		}
 
@@ -251,7 +251,7 @@ func asmb(ctxt *ld.Link) {
 		default:
 			if ld.Iself {
 				if ctxt.Debugvlog != 0 {
-					ctxt.Logf("%5.2f elfsym\n", obj.Cputime())
+					ctxt.Logf("%5.2f elfsym\n", ld.Cputime())
 				}
 				ld.Asmelfsym(ctxt)
 				ld.Cflush()
@@ -262,7 +262,7 @@ func asmb(ctxt *ld.Link) {
 				}
 			}
 
-		case obj.Hplan9:
+		case objabi.Hplan9:
 			ld.Asmplan9sym(ctxt)
 			ld.Cflush()
 
@@ -279,12 +279,12 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f header\n", obj.Cputime())
+		ctxt.Logf("%5.2f header\n", ld.Cputime())
 	}
 	ld.Cseek(0)
 	switch ld.Headtype {
 	default:
-	case obj.Hplan9: /* plan 9 */
+	case objabi.Hplan9: /* plan 9 */
 		magic := uint32(4*18*18 + 7)
 		if ld.SysArch == sys.ArchMIPS64LE {
 			magic = uint32(4*26*26 + 7)
@@ -298,11 +298,11 @@ func asmb(ctxt *ld.Link) {
 		ld.Thearch.Lput(0)
 		ld.Thearch.Lput(uint32(ld.Lcsize))
 
-	case obj.Hlinux,
-		obj.Hfreebsd,
-		obj.Hnetbsd,
-		obj.Hopenbsd,
-		obj.Hnacl:
+	case objabi.Hlinux,
+		objabi.Hfreebsd,
+		objabi.Hnetbsd,
+		objabi.Hopenbsd,
+		objabi.Hnacl:
 		ld.Asmbelf(ctxt, int64(symo))
 	}
 

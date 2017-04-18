@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/gcprog"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
 	"os"
@@ -677,38 +678,38 @@ func dmethodptrOffLSym(s *obj.LSym, ot int, x *obj.LSym) int {
 	r.Off = int32(ot)
 	r.Siz = 4
 	r.Sym = x
-	r.Type = obj.R_METHODOFF
+	r.Type = objabi.R_METHODOFF
 	return ot + 4
 }
 
 var kinds = []int{
-	TINT:        obj.KindInt,
-	TUINT:       obj.KindUint,
-	TINT8:       obj.KindInt8,
-	TUINT8:      obj.KindUint8,
-	TINT16:      obj.KindInt16,
-	TUINT16:     obj.KindUint16,
-	TINT32:      obj.KindInt32,
-	TUINT32:     obj.KindUint32,
-	TINT64:      obj.KindInt64,
-	TUINT64:     obj.KindUint64,
-	TUINTPTR:    obj.KindUintptr,
-	TFLOAT32:    obj.KindFloat32,
-	TFLOAT64:    obj.KindFloat64,
-	TBOOL:       obj.KindBool,
-	TSTRING:     obj.KindString,
-	TPTR32:      obj.KindPtr,
-	TPTR64:      obj.KindPtr,
-	TSTRUCT:     obj.KindStruct,
-	TINTER:      obj.KindInterface,
-	TCHAN:       obj.KindChan,
-	TMAP:        obj.KindMap,
-	TARRAY:      obj.KindArray,
-	TSLICE:      obj.KindSlice,
-	TFUNC:       obj.KindFunc,
-	TCOMPLEX64:  obj.KindComplex64,
-	TCOMPLEX128: obj.KindComplex128,
-	TUNSAFEPTR:  obj.KindUnsafePointer,
+	TINT:        objabi.KindInt,
+	TUINT:       objabi.KindUint,
+	TINT8:       objabi.KindInt8,
+	TUINT8:      objabi.KindUint8,
+	TINT16:      objabi.KindInt16,
+	TUINT16:     objabi.KindUint16,
+	TINT32:      objabi.KindInt32,
+	TUINT32:     objabi.KindUint32,
+	TINT64:      objabi.KindInt64,
+	TUINT64:     objabi.KindUint64,
+	TUINTPTR:    objabi.KindUintptr,
+	TFLOAT32:    objabi.KindFloat32,
+	TFLOAT64:    objabi.KindFloat64,
+	TBOOL:       objabi.KindBool,
+	TSTRING:     objabi.KindString,
+	TPTR32:      objabi.KindPtr,
+	TPTR64:      objabi.KindPtr,
+	TSTRUCT:     objabi.KindStruct,
+	TINTER:      objabi.KindInterface,
+	TCHAN:       objabi.KindChan,
+	TMAP:        objabi.KindMap,
+	TARRAY:      objabi.KindArray,
+	TSLICE:      objabi.KindSlice,
+	TFUNC:       objabi.KindFunc,
+	TCOMPLEX64:  objabi.KindComplex64,
+	TCOMPLEX128: objabi.KindComplex128,
+	TUNSAFEPTR:  objabi.KindUnsafePointer,
 }
 
 // typeptrdata returns the length in bytes of the prefix of t
@@ -867,13 +868,13 @@ func dcommontype(s *types.Sym, ot int, t *types.Type) int {
 
 	i = kinds[t.Etype]
 	if !types.Haspointers(t) {
-		i |= obj.KindNoPointers
+		i |= objabi.KindNoPointers
 	}
 	if isdirectiface(t) {
-		i |= obj.KindDirectIface
+		i |= objabi.KindDirectIface
 	}
 	if useGCProg {
-		i |= obj.KindGCProg
+		i |= objabi.KindGCProg
 	}
 	ot = duint8(s, ot, uint8(i)) // kind
 	if algsym == nil {

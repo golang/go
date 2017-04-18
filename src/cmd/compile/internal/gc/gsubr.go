@@ -33,6 +33,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -158,13 +159,13 @@ func (pp *Progs) settext(fn *Node) {
 	ptxt.From.Sym = fn.Func.lsym
 
 	p := pp.Prog(obj.AFUNCDATA)
-	Addrconst(&p.From, obj.FUNCDATA_ArgsPointerMaps)
+	Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = &fn.Func.lsym.Func.GCArgs
 
 	p = pp.Prog(obj.AFUNCDATA)
-	Addrconst(&p.From, obj.FUNCDATA_LocalsPointerMaps)
+	Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = &fn.Func.lsym.Func.GCLocals

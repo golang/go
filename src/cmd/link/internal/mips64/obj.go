@@ -31,14 +31,14 @@
 package mips64
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
 )
 
 func Init() {
-	if obj.GOARCH == "mips64le" {
+	if objabi.GOARCH == "mips64le" {
 		ld.SysArch = sys.ArchMIPS64LE
 	} else {
 		ld.SysArch = sys.ArchMIPS64
@@ -89,7 +89,7 @@ func archinit(ctxt *ld.Link) {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.Headtype)
 
-	case obj.Hplan9: /* plan 9 */
+	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32
 
 		if *ld.FlagTextAddr == -1 {
@@ -102,7 +102,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 16 * 1024
 		}
 
-	case obj.Hlinux: /* mips64 elf */
+	case objabi.Hlinux: /* mips64 elf */
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if *ld.FlagTextAddr == -1 {
@@ -115,7 +115,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hnacl:
+	case objabi.Hnacl:
 		ld.Elfinit(ctxt)
 		ld.HEADR = 0x10000
 		ld.Funcalign = 16

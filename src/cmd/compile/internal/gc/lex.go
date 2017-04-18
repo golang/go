@@ -6,7 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/syntax"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
 	"strings"
@@ -64,7 +64,7 @@ const (
 func pragmaValue(verb string) syntax.Pragma {
 	switch verb {
 	case "go:nointerface":
-		if obj.Fieldtrack_enabled != 0 {
+		if objabi.Fieldtrack_enabled != 0 {
 			return Nointerface
 		}
 	case "go:noescape":

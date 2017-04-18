@@ -8,10 +8,11 @@ import (
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
+	"cmd/internal/objabi"
 )
 
 // no floating point in note handlers on Plan 9
-var isPlan9 = obj.GOOS == "plan9"
+var isPlan9 = objabi.GOOS == "plan9"
 
 func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
 	// fill in argument size, stack size

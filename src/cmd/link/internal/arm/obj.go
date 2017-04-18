@@ -31,7 +31,7 @@
 package arm
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
@@ -76,7 +76,7 @@ func archinit(ctxt *ld.Link) {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.Headtype)
 
-	case obj.Hplan9: /* plan 9 */
+	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32
 
 		if *ld.FlagTextAddr == -1 {
@@ -89,10 +89,10 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hlinux, /* arm elf */
-		obj.Hfreebsd,
-		obj.Hnetbsd,
-		obj.Hopenbsd:
+	case objabi.Hlinux, /* arm elf */
+		objabi.Hfreebsd,
+		objabi.Hnetbsd,
+		objabi.Hopenbsd:
 		*ld.FlagD = false
 		// with dynamic linking
 		ld.Elfinit(ctxt)
@@ -107,7 +107,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hnacl:
+	case objabi.Hnacl:
 		ld.Elfinit(ctxt)
 		ld.HEADR = 0x10000
 		ld.Funcalign = 16
@@ -121,7 +121,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hdarwin: /* apple MACH */
+	case objabi.Hdarwin: /* apple MACH */
 		*ld.FlagW = true // disable DWARF generation
 		ld.Machoinit()
 		ld.HEADR = ld.INITIAL_MACHO_HEADR

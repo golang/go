@@ -5,6 +5,7 @@
 package obj
 
 import (
+	"cmd/internal/objabi"
 	"fmt"
 	"strings"
 )
@@ -54,7 +55,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 				continue
 			}
 			if p.To.Sym.Name == "go_args_stackmap" {
-				if p.From.Type != TYPE_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
+				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_ArgsPointerMaps {
 					ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
 				}
 				p.To.Sym = ctxt.Lookup(fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
@@ -81,7 +82,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 		}
 		found := false
 		for p := s.Func.Text; p != nil; p = p.Link {
-			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
+			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
 				found = true
 				break
 			}
@@ -91,7 +92,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 			p := Appendp(s.Func.Text, newprog)
 			p.As = AFUNCDATA
 			p.From.Type = TYPE_CONST
-			p.From.Offset = FUNCDATA_ArgsPointerMaps
+			p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
 			p.To.Type = TYPE_MEM
 			p.To.Name = NAME_EXTERN
 			p.To.Sym = ctxt.Lookup(fmt.Sprintf("%s.args_stackmap", s.Name), int(s.Version))
@@ -131,12 +132,12 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrWrapper, flag&WRAPPER != 0)
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
-	s.Type = STEXT
+	s.Type = objabi.STEXT
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entry for s.
 	dsym := ctxt.dwarfSym(s)
-	dsym.Type = SDWARFINFO
+	dsym.Type = objabi.SDWARFINFO
 	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
 	ctxt.Data = append(ctxt.Data, dsym)
 
@@ -144,10 +145,10 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	// They will be filled in later if needed.
 	gcargs := &s.Func.GCArgs
 	gcargs.Set(AttrDuplicateOK, true)
-	gcargs.Type = SRODATA
+	gcargs.Type = objabi.SRODATA
 	gclocals := &s.Func.GCLocals
 	gclocals.Set(AttrDuplicateOK, true)
-	gclocals.Type = SRODATA
+	gclocals.Type = objabi.SRODATA
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
@@ -161,17 +162,17 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 	s.Set(AttrOnList, true)
 	ctxt.Data = append(ctxt.Data, s)
 	s.Size = size
-	if s.Type == 0 || s.Type == SXREF {
-		s.Type = SBSS
+	if s.Type == 0 || s.Type == objabi.SXREF {
+		s.Type = objabi.SBSS
 	}
 	if flag&DUPOK != 0 {
 		s.Set(AttrDuplicateOK, true)
 	}
 	if flag&RODATA != 0 {
-		s.Type = SRODATA
+		s.Type = objabi.SRODATA
 	} else if flag&NOPTR != 0 {
-		s.Type = SNOPTRBSS
+		s.Type = objabi.SNOPTRBSS
 	} else if flag&TLSBSS != 0 {
-		s.Type = STLSBSS
+		s.Type = objabi.STLSBSS
 	}
 }

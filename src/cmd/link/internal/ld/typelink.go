@@ -5,9 +5,8 @@
 package ld
 
 import (
+	"cmd/internal/objabi"
 	"sort"
-
-	"cmd/internal/obj"
 )
 
 type byTypeStr []typelinkSortKey
@@ -34,7 +33,7 @@ func (ctxt *Link) typelink() {
 	sort.Sort(typelinks)
 
 	tl := ctxt.Syms.Lookup("runtime.typelink", 0)
-	tl.Type = obj.STYPELINK
+	tl.Type = objabi.STYPELINK
 	tl.Attr |= AttrReachable | AttrLocal
 	tl.Size = int64(4 * len(typelinks))
 	tl.P = make([]byte, tl.Size)
@@ -44,6 +43,6 @@ func (ctxt *Link) typelink() {
 		r.Sym = s.Type
 		r.Off = int32(i * 4)
 		r.Siz = 4
-		r.Type = obj.R_ADDROFF
+		r.Type = objabi.R_ADDROFF
 	}
 }

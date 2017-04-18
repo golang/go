@@ -5,7 +5,7 @@
 package main
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/link/internal/amd64"
 	"cmd/link/internal/arm"
 	"cmd/link/internal/arm64"
@@ -34,9 +34,9 @@ import (
 // via the ld.Thearch.Archinit function.
 
 func main() {
-	switch obj.GOARCH {
+	switch objabi.GOARCH {
 	default:
-		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", obj.GOARCH)
+		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", objabi.GOARCH)
 		os.Exit(2)
 	case "386":
 		x86.Init()

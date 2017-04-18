@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
+	"cmd/internal/objabi"
 )
 
 func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
@@ -65,7 +66,7 @@ func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
 	zerorange(pp, p, int64(frame), lo, hi)
 }
 
-var darwin = obj.GOOS == "darwin"
+var darwin = objabi.GOOS == "darwin"
 
 func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	cnt := hi - lo

@@ -15,6 +15,7 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 )
@@ -4663,7 +4664,7 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 		Fatalf("missing stack map index for %v", v.LongString())
 	}
 	p := s.Prog(obj.APCDATA)
-	Addrconst(&p.From, obj.PCDATA_StackMapIndex)
+	Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
 	Addrconst(&p.To, int64(idx))
 
 	if sym, _ := v.Aux.(*obj.LSym); sym == Deferreturn {

@@ -6,7 +6,7 @@ package ld
 
 import (
 	"bytes"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"debug/elf"
 	"fmt"
@@ -65,12 +65,12 @@ func uncommonSize() int    { return 4 + 2 + 2 + 4 + 4 }         // runtime.uncom
 
 // Type.commonType.kind
 func decodetypeKind(s *Symbol) uint8 {
-	return s.P[2*SysArch.PtrSize+7] & obj.KindMask //  0x13 / 0x1f
+	return s.P[2*SysArch.PtrSize+7] & objabi.KindMask //  0x13 / 0x1f
 }
 
 // Type.commonType.kind
 func decodetypeUsegcprog(s *Symbol) uint8 {
-	return s.P[2*SysArch.PtrSize+7] & obj.KindGCProg //  0x13 / 0x1f
+	return s.P[2*SysArch.PtrSize+7] & objabi.KindGCProg //  0x13 / 0x1f
 }
 
 // Type.commonType.size
@@ -104,7 +104,7 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
 
 // Type.commonType.gc
 func decodetypeGcprog(ctxt *Link, s *Symbol) []byte {
-	if s.Type == obj.SDYNIMPORT {
+	if s.Type == objabi.SDYNIMPORT {
 		addr := decodetypeGcprogShlib(ctxt, s)
 		sect := findShlibSection(ctxt, s.File, addr)
 		if sect != nil {
@@ -135,7 +135,7 @@ func decodetypeGcprogShlib(ctxt *Link, s *Symbol) uint64 {
 }
 
 func decodetypeGcmask(ctxt *Link, s *Symbol) []byte {
-	if s.Type == obj.SDYNIMPORT {
+	if s.Type == objabi.SDYNIMPORT {
 		addr := decodetypeGcprogShlib(ctxt, s)
 		ptrdata := decodetypePtrdata(ctxt.Arch, s)
 		sect := findShlibSection(ctxt, s.File, addr)

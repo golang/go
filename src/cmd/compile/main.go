@@ -14,7 +14,7 @@ import (
 	"cmd/compile/internal/ppc64"
 	"cmd/compile/internal/s390x"
 	"cmd/compile/internal/x86"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"fmt"
 	"log"
 	"os"
@@ -40,9 +40,9 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("compile: ")
 
-	archInit, ok := archInits[obj.GOARCH]
+	archInit, ok := archInits[objabi.GOARCH]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.GOARCH)
+		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", objabi.GOARCH)
 		os.Exit(2)
 	}
 

@@ -3,7 +3,7 @@ package ld
 import (
 	"bytes"
 	"cmd/internal/bio"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
@@ -444,7 +444,7 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 
 func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f ldelf %s\n", obj.Cputime(), pn)
+		ctxt.Logf("%5.2f ldelf %s\n", Cputime(), pn)
 	}
 
 	localSymVersion := ctxt.Syms.IncVersion()
@@ -718,21 +718,21 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			goto bad
 
 		case ElfSectFlagAlloc:
-			s.Type = obj.SRODATA
+			s.Type = objabi.SRODATA
 
 		case ElfSectFlagAlloc + ElfSectFlagWrite:
 			if sect.type_ == ElfSectNobits {
-				s.Type = obj.SNOPTRBSS
+				s.Type = objabi.SNOPTRBSS
 			} else {
-				s.Type = obj.SNOPTRDATA
+				s.Type = objabi.SNOPTRDATA
 			}
 
 		case ElfSectFlagAlloc + ElfSectFlagExec:
-			s.Type = obj.STEXT
+			s.Type = objabi.STEXT
 		}
 
 		if sect.name == ".got" || sect.name == ".toc" {
-			s.Type = obj.SELFGOT
+			s.Type = objabi.SELFGOT
 		}
 		if sect.type_ == ElfSectProgbits {
 			s.P = sect.base
@@ -761,8 +761,8 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			if uint64(s.Size) < sym.size {
 				s.Size = int64(sym.size)
 			}
-			if s.Type == 0 || s.Type == obj.SXREF {
-				s.Type = obj.SNOPTRBSS
+			if s.Type == 0 || s.Type == objabi.SXREF {
+				s.Type = objabi.SNOPTRBSS
 			}
 			continue
 		}
@@ -804,14 +804,14 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 		s.Sub = sect.sym.Sub
 		sect.sym.Sub = s
-		s.Type = sect.sym.Type | s.Type&^obj.SMASK | obj.SSUB
+		s.Type = sect.sym.Type | s.Type&^objabi.SMASK | objabi.SSUB
 		if !s.Attr.CgoExportDynamic() {
 			s.Dynimplib = "" // satisfy dynimport
 		}
 		s.Value = int64(sym.value)
 		s.Size = int64(sym.size)
 		s.Outer = sect.sym
-		if sect.sym.Type == obj.STEXT {
+		if sect.sym.Type == objabi.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Errorf(s, "%s: duplicate symbol definition", pn)
 			}
@@ -838,7 +838,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		if s.Sub != nil {
 			s.Sub = listsort(s.Sub)
 		}
-		if s.Type == obj.STEXT {
+		if s.Type == objabi.STEXT {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
@@ -923,7 +923,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 				rp.Sym = sym.sym
 			}
 
-			rp.Type = 256 + obj.RelocType(info)
+			rp.Type = 256 + objabi.RelocType(info)
 			rp.Siz = relSize(ctxt, pn, uint32(info))
 			if rela != 0 {
 				rp.Add = int64(add)
@@ -1051,7 +1051,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
 				// set dupok generally. See http://codereview.appspot.com/5823055/
 				// comment #5 for details.
 				if s != nil && sym.other == 2 {
-					s.Type |= obj.SHIDDEN
+					s.Type |= objabi.SHIDDEN
 					s.Attr |= AttrDuplicateOK
 				}
 			}
@@ -1068,7 +1068,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
 				// so put it in the hash table.
 				if needSym != 0 {
 					s = ctxt.Syms.Lookup(sym.name, localSymVersion)
-					s.Type |= obj.SHIDDEN
+					s.Type |= objabi.SHIDDEN
 				}
 
 				break
@@ -1080,14 +1080,14 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
 				// don't bother to add them into the hash table
 				s = ctxt.Syms.newsym(sym.name, localSymVersion)
 
-				s.Type |= obj.SHIDDEN
+				s.Type |= objabi.SHIDDEN
 			}
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
 				s = ctxt.Syms.Lookup(sym.name, 0)
 				if sym.other == 2 {
-					s.Type |= obj.SHIDDEN
+					s.Type |= objabi.SHIDDEN
 				}
 			}
 
@@ -1098,7 +1098,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
 	}
 
 	if s != nil && s.Type == 0 && sym.type_ != ElfSymTypeSection {
-		s.Type = obj.SXREF
+		s.Type = objabi.SXREF
 	}
 	sym.sym = s
 

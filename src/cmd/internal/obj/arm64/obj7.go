@@ -32,6 +32,7 @@ package arm64
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"math"
 )
@@ -62,7 +63,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.To.Reg = REG_R1
 
 	q := (*obj.Prog)(nil)
-	if framesize <= obj.StackSmall {
+	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
 		//	MOV	SP, R2
 		//	CMP	stackguard, R2
@@ -79,7 +80,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R1
 		p.Reg = REG_R2
-	} else if framesize <= obj.StackBig {
+	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	SUB	$(framesize-StackSmall), SP, R2
 		//	CMP	stackguard, R2
@@ -87,7 +88,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 		p.As = ASUB
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) - obj.StackSmall
+		p.From.Offset = int64(framesize) - objabi.StackSmall
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
@@ -113,7 +114,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 		p.As = ACMP
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = obj.StackPreempt
+		p.From.Offset = objabi.StackPreempt
 		p.Reg = REG_R1
 
 		p = obj.Appendp(p, c.newprog)
@@ -124,7 +125,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = AADD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = obj.StackGuard
+		p.From.Offset = objabi.StackGuard
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
@@ -139,7 +140,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + (obj.StackGuard - obj.StackSmall)
+		p.From.Offset = int64(framesize) + (objabi.StackGuard - objabi.StackSmall)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R3
 
@@ -170,7 +171,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	pcdata.Pos = c.cursym.Func.Text.Pos
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
-	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
 	pcdata.To.Type = obj.TYPE_CONST
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
 
@@ -401,7 +402,7 @@ func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
 	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
 		return
 	}
-	if source.Sym.Type == obj.STLSBSS {
+	if source.Sym.Type == objabi.STLSBSS {
 		return
 	}
 	if source.Type != obj.TYPE_MEM {

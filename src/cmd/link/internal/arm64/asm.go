@@ -31,7 +31,7 @@
 package arm64
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/link/internal/ld"
 	"encoding/binary"
 	"fmt"
@@ -43,14 +43,14 @@ func gentext(ctxt *ld.Link) {
 		return
 	}
 	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == obj.STEXT {
+	if addmoduledata.Type == objabi.STEXT {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
 	}
 	addmoduledata.Attr |= ld.AttrReachable
 	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = obj.STEXT
+	initfunc.Type = objabi.STEXT
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
 	o := func(op uint32) {
@@ -67,7 +67,7 @@ func gentext(ctxt *ld.Link) {
 	rel.Off = 0
 	rel.Siz = 8
 	rel.Sym = ctxt.Moduledata
-	rel.Type = obj.R_ADDRARM64
+	rel.Type = objabi.R_ADDRARM64
 
 	// 8:	14000000 	bl	0 <runtime.addmoduledata>
 	// 	8: R_AARCH64_CALL26	runtime.addmoduledata
@@ -76,13 +76,13 @@ func gentext(ctxt *ld.Link) {
 	rel.Off = 8
 	rel.Siz = 4
 	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	rel.Type = obj.R_CALLARM64 // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
+	rel.Type = objabi.R_CALLARM64 // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
 
 	ctxt.Textp = append(ctxt.Textp, initfunc)
 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
-	initarray_entry.Type = obj.SINITARR
+	initarray_entry.Type = objabi.SINITARR
 	ld.Addaddr(ctxt, initarray_entry, initfunc)
 }
 
@@ -99,7 +99,7 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	default:
 		return -1
 
-	case obj.R_ADDR:
+	case objabi.R_ADDR:
 		switch r.Siz {
 		case 4:
 			ld.Thearch.Vput(ld.R_AARCH64_ABS32 | uint64(elfsym)<<32)
@@ -109,29 +109,29 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 			return -1
 		}
 
-	case obj.R_ADDRARM64:
+	case objabi.R_ADDRARM64:
 		// two relocations: R_AARCH64_ADR_PREL_PG_HI21 and R_AARCH64_ADD_ABS_LO12_NC
 		ld.Thearch.Vput(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_AARCH64_ADD_ABS_LO12_NC | uint64(elfsym)<<32)
 
-	case obj.R_ARM64_TLS_LE:
+	case objabi.R_ARM64_TLS_LE:
 		ld.Thearch.Vput(ld.R_AARCH64_TLSLE_MOVW_TPREL_G0 | uint64(elfsym)<<32)
 
-	case obj.R_ARM64_TLS_IE:
+	case objabi.R_ARM64_TLS_IE:
 		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC | uint64(elfsym)<<32)
 
-	case obj.R_ARM64_GOTPCREL:
+	case objabi.R_ARM64_GOTPCREL:
 		ld.Thearch.Vput(ld.R_AARCH64_ADR_GOT_PAGE | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_AARCH64_LD64_GOT_LO12_NC | uint64(elfsym)<<32)
 
-	case obj.R_CALLARM64:
+	case objabi.R_CALLARM64:
 		if r.Siz != 4 {
 			return -1
 		}
@@ -156,7 +156,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	// ld64 has a bug handling MACHO_ARM64_RELOC_UNSIGNED with !extern relocation.
 	// see cmd/internal/ld/data.go for details. The workaround is that don't use !extern
 	// UNSIGNED relocation at all.
-	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_CALLARM64 || r.Type == obj.R_ADDRARM64 || r.Type == obj.R_ADDR {
+	if rs.Type == objabi.SHOSTOBJ || r.Type == objabi.R_CALLARM64 || r.Type == objabi.R_ADDRARM64 || r.Type == objabi.R_ADDR {
 		if rs.Dynid < 0 {
 			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
 			return -1
@@ -176,10 +176,10 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 	default:
 		return -1
 
-	case obj.R_ADDR:
+	case objabi.R_ADDR:
 		v |= ld.MACHO_ARM64_RELOC_UNSIGNED << 28
 
-	case obj.R_CALLARM64:
+	case objabi.R_CALLARM64:
 		if r.Xadd != 0 {
 			ld.Errorf(s, "ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", rs.Name, r.Xadd)
 		}
@@ -187,7 +187,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_BRANCH26 << 28
 
-	case obj.R_ADDRARM64:
+	case objabi.R_ADDRARM64:
 		r.Siz = 4
 		// Two relocation entries: MACHO_ARM64_RELOC_PAGEOFF12 MACHO_ARM64_RELOC_PAGE21
 		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
@@ -233,7 +233,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		default:
 			return -1
 
-		case obj.R_ARM64_GOTPCREL:
+		case objabi.R_ARM64_GOTPCREL:
 			var o1, o2 uint32
 			if ctxt.Arch.ByteOrder == binary.BigEndian {
 				o1 = uint32(*val >> 32)
@@ -250,12 +250,12 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
 			// add + R_ADDRARM64.
-			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == obj.STEXT && ctxt.DynlinkingGo() {
+			if !(r.Sym.Version != 0 || (r.Sym.Type&objabi.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == objabi.STEXT && ctxt.DynlinkingGo() {
 				if o2&0xffc00000 != 0xf9400000 {
 					ld.Errorf(s, "R_ARM64_GOTPCREL against unexpected instruction %x", o2)
 				}
 				o2 = 0x91000000 | (o2 & 0x000003ff)
-				r.Type = obj.R_ADDRARM64
+				r.Type = objabi.R_ADDRARM64
 			}
 			if ctxt.Arch.ByteOrder == binary.BigEndian {
 				*val = int64(o1)<<32 | int64(o2)
@@ -264,7 +264,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			}
 			fallthrough
 
-		case obj.R_ADDRARM64:
+		case objabi.R_ADDRARM64:
 			r.Done = 0
 
 			// set up addend for eventual relocation via outer symbol.
@@ -275,7 +275,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 				rs = rs.Outer
 			}
 
-			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+			if rs.Type != objabi.SHOSTOBJ && rs.Type != objabi.SDYNIMPORT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
@@ -285,7 +285,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			// the BR26 relocation should be fully resolved at link time.
 			// That is the reason why the next if block is disabled. When the bug in ld64
 			// is fixed, we can enable this block and also enable duff's device in cmd/7g.
-			if false && ld.Headtype == obj.Hdarwin {
+			if false && ld.Headtype == objabi.Hdarwin {
 				var o0, o1 uint32
 
 				if ctxt.Arch.ByteOrder == binary.BigEndian {
@@ -314,9 +314,9 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 
 			return 0
 
-		case obj.R_CALLARM64,
-			obj.R_ARM64_TLS_LE,
-			obj.R_ARM64_TLS_IE:
+		case objabi.R_CALLARM64,
+			objabi.R_ARM64_TLS_LE,
+			objabi.R_ARM64_TLS_IE:
 			r.Done = 0
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
@@ -325,15 +325,15 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	}
 
 	switch r.Type {
-	case obj.R_CONST:
+	case objabi.R_CONST:
 		*val = r.Add
 		return 0
 
-	case obj.R_GOTOFF:
+	case objabi.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
 		return 0
 
-	case obj.R_ADDRARM64:
+	case objabi.R_ADDRARM64:
 		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
 		if t >= 1<<32 || t < -1<<32 {
 			ld.Errorf(s, "program too large, address relocation distance = %d", t)
@@ -360,9 +360,9 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		}
 		return 0
 
-	case obj.R_ARM64_TLS_LE:
+	case objabi.R_ARM64_TLS_LE:
 		r.Done = 0
-		if ld.Headtype != obj.Hlinux {
+		if ld.Headtype != objabi.Hlinux {
 			ld.Errorf(s, "TLS reloc on unsupported OS %v", ld.Headtype)
 		}
 		// The TCB is two pointers. This is not documented anywhere, but is
@@ -374,7 +374,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		*val |= v << 5
 		return 0
 
-	case obj.R_CALLARM64:
+	case objabi.R_CALLARM64:
 		t := (ld.Symaddr(r.Sym) + r.Add) - (s.Value + int64(r.Off))
 		if t >= 1<<27 || t < -1<<27 {
 			ld.Errorf(s, "program too large, call relocation distance = %d", t)
@@ -393,7 +393,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 
 func asmb(ctxt *ld.Link) {
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f asmb\n", obj.Cputime())
+		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
 	}
 
 	if ld.Iself {
@@ -410,21 +410,21 @@ func asmb(ctxt *ld.Link) {
 
 	if ld.Segrodata.Filelen > 0 {
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f rodatblk\n", obj.Cputime())
+			ctxt.Logf("%5.2f rodatblk\n", ld.Cputime())
 		}
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 	if ld.Segrelrodata.Filelen > 0 {
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f relrodatblk\n", obj.Cputime())
+			ctxt.Logf("%5.2f relrodatblk\n", ld.Cputime())
 		}
 		ld.Cseek(int64(ld.Segrelrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrelrodata.Vaddr), int64(ld.Segrelrodata.Filelen))
 	}
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f datblk\n", obj.Cputime())
+		ctxt.Logf("%5.2f datblk\n", ld.Cputime())
 	}
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
@@ -434,7 +434,7 @@ func asmb(ctxt *ld.Link) {
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	machlink := uint32(0)
-	if ld.Headtype == obj.Hdarwin {
+	if ld.Headtype == objabi.Hdarwin {
 		machlink = uint32(ld.Domacholink(ctxt))
 	}
 
@@ -446,7 +446,7 @@ func asmb(ctxt *ld.Link) {
 	if !*ld.FlagS {
 		// TODO: rationalize
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f sym\n", obj.Cputime())
+			ctxt.Logf("%5.2f sym\n", ld.Cputime())
 		}
 		switch ld.Headtype {
 		default:
@@ -455,10 +455,10 @@ func asmb(ctxt *ld.Link) {
 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
 			}
 
-		case obj.Hplan9:
+		case objabi.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 
-		case obj.Hdarwin:
+		case objabi.Hdarwin:
 			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 		}
 
@@ -467,7 +467,7 @@ func asmb(ctxt *ld.Link) {
 		default:
 			if ld.Iself {
 				if ctxt.Debugvlog != 0 {
-					ctxt.Logf("%5.2f elfsym\n", obj.Cputime())
+					ctxt.Logf("%5.2f elfsym\n", ld.Cputime())
 				}
 				ld.Asmelfsym(ctxt)
 				ld.Cflush()
@@ -478,7 +478,7 @@ func asmb(ctxt *ld.Link) {
 				}
 			}
 
-		case obj.Hplan9:
+		case objabi.Hplan9:
 			ld.Asmplan9sym(ctxt)
 			ld.Cflush()
 
@@ -492,7 +492,7 @@ func asmb(ctxt *ld.Link) {
 				ld.Cflush()
 			}
 
-		case obj.Hdarwin:
+		case objabi.Hdarwin:
 			if ld.Linkmode == ld.LinkExternal {
 				ld.Machoemitreloc(ctxt)
 			}
@@ -500,12 +500,12 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f header\n", obj.Cputime())
+		ctxt.Logf("%5.2f header\n", ld.Cputime())
 	}
 	ld.Cseek(0)
 	switch ld.Headtype {
 	default:
-	case obj.Hplan9: /* plan 9 */
+	case objabi.Hplan9: /* plan 9 */
 		ld.Thearch.Lput(0x647)                      /* magic */
 		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
 		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
@@ -515,14 +515,14 @@ func asmb(ctxt *ld.Link) {
 		ld.Thearch.Lput(0)
 		ld.Thearch.Lput(uint32(ld.Lcsize))
 
-	case obj.Hlinux,
-		obj.Hfreebsd,
-		obj.Hnetbsd,
-		obj.Hopenbsd,
-		obj.Hnacl:
+	case objabi.Hlinux,
+		objabi.Hfreebsd,
+		objabi.Hnetbsd,
+		objabi.Hopenbsd,
+		objabi.Hnacl:
 		ld.Asmbelf(ctxt, int64(symo))
 
-	case obj.Hdarwin:
+	case objabi.Hdarwin:
 		ld.Asmbmacho(ctxt)
 	}
 

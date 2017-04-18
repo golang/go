@@ -6,7 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
 	"strings"
@@ -3477,7 +3477,7 @@ func usemethod(n *Node) {
 }
 
 func usefield(n *Node) {
-	if obj.Fieldtrack_enabled == 0 {
+	if objabi.Fieldtrack_enabled == 0 {
 		return
 	}
 

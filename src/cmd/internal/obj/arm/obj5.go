@@ -32,6 +32,7 @@ package arm
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
 
@@ -62,7 +63,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())
 			}
 
-			if obj.GOARM < 7 {
+			if objabi.GOARM < 7 {
 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
 				if progedit_tlsfallback == nil {
 					progedit_tlsfallback = ctxt.Lookup("runtime.read_tls_fallback", 0)
@@ -205,7 +206,7 @@ func (c *ctxt5) rewriteToUseGot(p *obj.Prog) {
 	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
 		return
 	}
-	if source.Sym.Type == obj.STLSBSS {
+	if source.Sym.Type == objabi.STLSBSS {
 		return
 	}
 	if source.Type != obj.TYPE_MEM {
@@ -632,7 +633,7 @@ func isfloatreg(a *obj.Addr) bool {
 }
 
 func (c *ctxt5) softfloat() {
-	if obj.GOARM > 5 {
+	if objabi.GOARM > 5 {
 		return
 	}
 
@@ -722,7 +723,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R1
 
-	if framesize <= obj.StackSmall {
+	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
 		//	CMP	stackguard, SP
 		p = obj.Appendp(p, c.newprog)
@@ -731,7 +732,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R1
 		p.Reg = REGSP
-	} else if framesize <= obj.StackBig {
+	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	MOVW $-(framesize-StackSmall)(SP), R2
 		//	CMP stackguard, R2
@@ -740,7 +741,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.As = AMOVW
 		p.From.Type = obj.TYPE_ADDR
 		p.From.Reg = REGSP
-		p.From.Offset = -(int64(framesize) - obj.StackSmall)
+		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
@@ -764,14 +765,14 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 		p.As = ACMP
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(uint32(obj.StackPreempt & (1<<32 - 1)))
+		p.From.Offset = int64(uint32(objabi.StackPreempt & (1<<32 - 1)))
 		p.Reg = REG_R1
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVW
 		p.From.Type = obj.TYPE_ADDR
 		p.From.Reg = REGSP
-		p.From.Offset = obj.StackGuard
+		p.From.Offset = objabi.StackGuard
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 		p.Scond = C_SCOND_NE
@@ -787,7 +788,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVW
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = int64(framesize) + (obj.StackGuard - obj.StackSmall)
+		p.From.Offset = int64(framesize) + (objabi.StackGuard - objabi.StackSmall)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R3
 		p.Scond = C_SCOND_NE
@@ -820,7 +821,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	pcdata.Pos = c.cursym.Func.Text.Pos
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
-	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
 	pcdata.To.Type = obj.TYPE_CONST
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
 

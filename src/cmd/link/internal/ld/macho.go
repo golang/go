@@ -5,7 +5,7 @@
 package ld
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"sort"
 	"strings"
@@ -302,31 +302,31 @@ func (ctxt *Link) domacho() {
 	// empirically, string table must begin with " \x00".
 	s := ctxt.Syms.Lookup(".machosymstr", 0)
 
-	s.Type = obj.SMACHOSYMSTR
+	s.Type = objabi.SMACHOSYMSTR
 	s.Attr |= AttrReachable
 	Adduint8(ctxt, s, ' ')
 	Adduint8(ctxt, s, '\x00')
 
 	s = ctxt.Syms.Lookup(".machosymtab", 0)
-	s.Type = obj.SMACHOSYMTAB
+	s.Type = objabi.SMACHOSYMTAB
 	s.Attr |= AttrReachable
 
 	if Linkmode != LinkExternal {
 		s := ctxt.Syms.Lookup(".plt", 0) // will be __symbol_stub
-		s.Type = obj.SMACHOPLT
+		s.Type = objabi.SMACHOPLT
 		s.Attr |= AttrReachable
 
 		s = ctxt.Syms.Lookup(".got", 0) // will be __nl_symbol_ptr
-		s.Type = obj.SMACHOGOT
+		s.Type = objabi.SMACHOGOT
 		s.Attr |= AttrReachable
 		s.Align = 4
 
 		s = ctxt.Syms.Lookup(".linkedit.plt", 0) // indirect table for .plt
-		s.Type = obj.SMACHOINDIRECTPLT
+		s.Type = objabi.SMACHOINDIRECTPLT
 		s.Attr |= AttrReachable
 
 		s = ctxt.Syms.Lookup(".linkedit.got", 0) // indirect table for .got
-		s.Type = obj.SMACHOINDIRECTGOT
+		s.Type = objabi.SMACHOINDIRECTGOT
 		s.Attr |= AttrReachable
 	}
 }
@@ -603,7 +603,7 @@ func Asmbmacho(ctxt *Link) {
 }
 
 func symkind(s *Symbol) int {
-	if s.Type == obj.SDYNIMPORT {
+	if s.Type == objabi.SDYNIMPORT {
 		return SymKindUndef
 	}
 	if s.Attr.CgoExport() {
@@ -659,7 +659,7 @@ func (x machoscmp) Less(i, j int) bool {
 func machogenasmsym(ctxt *Link) {
 	genasmsym(ctxt, addsym)
 	for _, s := range ctxt.Syms.Allsym {
-		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
+		if s.Type == objabi.SDYNIMPORT || s.Type == objabi.SHOSTOBJ {
 			if s.Attr.Reachable() {
 				addsym(ctxt, s, "", DataSym, 0, nil)
 			}
@@ -704,7 +704,7 @@ func machoShouldExport(ctxt *Link, s *Symbol) bool {
 	if strings.HasPrefix(s.Name, "go.link.pkghash") {
 		return true
 	}
-	return s.Type >= obj.SELFSECT // only writable sections
+	return s.Type >= objabi.SELFSECT // only writable sections
 }
 
 func machosymtab(ctxt *Link) {
@@ -732,7 +732,7 @@ func machosymtab(ctxt *Link) {
 		// replace "·" as ".", because DTrace cannot handle it.
 		Addstring(symstr, strings.Replace(s.Extname, "·", ".", -1))
 
-		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
+		if s.Type == objabi.SDYNIMPORT || s.Type == objabi.SHOSTOBJ {
 			Adduint8(ctxt, symtab, 0x01)                // type N_EXT, external symbol
 			Adduint8(ctxt, symtab, 0)                   // no section
 			Adduint16(ctxt, symtab, 0)                  // desc

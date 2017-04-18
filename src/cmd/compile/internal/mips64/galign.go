@@ -7,13 +7,13 @@ package mips64
 import (
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
-	"cmd/internal/obj"
 	"cmd/internal/obj/mips"
+	"cmd/internal/objabi"
 )
 
 func Init(arch *gc.Arch) {
 	arch.LinkArch = &mips.Linkmips64
-	if obj.GOARCH == "mips64le" {
+	if objabi.GOARCH == "mips64le" {
 		arch.LinkArch = &mips.Linkmips64le
 	}
 	arch.REGSP = mips.REGSP

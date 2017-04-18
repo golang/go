@@ -32,6 +32,7 @@ package x86
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"math"
 	"strings"
@@ -50,10 +51,10 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 
 	if ctxt.Arch.Family == sys.I386 {
 		switch ctxt.Headtype {
-		case obj.Hlinux,
-			obj.Hnacl,
-			obj.Hplan9,
-			obj.Hwindows:
+		case objabi.Hlinux,
+			objabi.Hnacl,
+			objabi.Hplan9,
+			objabi.Hwindows:
 			return false
 		}
 
@@ -61,9 +62,9 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 	}
 
 	switch ctxt.Headtype {
-	case obj.Hplan9, obj.Hwindows:
+	case objabi.Hplan9, objabi.Hwindows:
 		return false
-	case obj.Hlinux:
+	case objabi.Hlinux:
 		return !ctxt.Flag_shared
 	}
 
@@ -123,7 +124,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		// TODO(rsc): Remove the Hsolaris special case. It exists only to
 		// guarantee we are producing byte-identical binaries as before this code.
 		// But it should be unnecessary.
-		if (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 && ctxt.Headtype != obj.Hsolaris {
+		if (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 && ctxt.Headtype != objabi.Hsolaris {
 			obj.Nopout(p)
 		}
 		if p.From.Type == obj.TYPE_MEM && p.From.Index == REG_TLS && REG_AX <= p.From.Reg && p.From.Reg <= REG_R15 {
@@ -161,7 +162,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	}
 
 	// TODO: Remove.
-	if ctxt.Headtype == obj.Hwindows && ctxt.Arch.Family == sys.AMD64 || ctxt.Headtype == obj.Hplan9 {
+	if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64 || ctxt.Headtype == objabi.Hplan9 {
 		if p.From.Scale == 1 && p.From.Index == REG_TLS {
 			p.From.Scale = 2
 		}
@@ -199,7 +200,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 	}
 
-	if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
 		if p.From3 != nil {
 			nacladdr(ctxt, p, p.From3)
 		}
@@ -496,7 +497,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		if a.Sym == nil || (a.Type != obj.TYPE_MEM && a.Type != obj.TYPE_ADDR) || a.Reg != 0 {
 			return false
 		}
-		if a.Sym.Type == obj.STLSBSS {
+		if a.Sym.Type == objabi.STLSBSS {
 			return false
 		}
 		return a.Name == obj.NAME_EXTERN || a.Name == obj.NAME_STATIC || a.Name == obj.NAME_GOTREF
@@ -637,7 +638,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	// TODO(rsc): Remove 'ctxt.Arch.Family == sys.AMD64 &&'.
-	if ctxt.Arch.Family == sys.AMD64 && autoffset < obj.StackSmall && !p.From.Sym.NoSplit() {
+	if ctxt.Arch.Family == sys.AMD64 && autoffset < objabi.StackSmall && !p.From.Sym.NoSplit() {
 		leaf := true
 	LeafSearch:
 		for q := p; q != nil; q = q.Link {
@@ -651,7 +652,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 				fallthrough
 			case obj.ADUFFCOPY, obj.ADUFFZERO:
-				if autoffset >= obj.StackSmall-8 {
+				if autoffset >= objabi.StackSmall-8 {
 					leaf = false
 					break LeafSearch
 				}
@@ -741,7 +742,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // g_panic
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_BX
-		if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+		if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
 			p.As = AMOVL
 			p.From.Type = obj.TYPE_MEM
 			p.From.Reg = REG_R15
@@ -759,7 +760,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Reg = REG_BX
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_BX
-		if ctxt.Headtype == obj.Hnacl || ctxt.Arch.Family == sys.I386 {
+		if ctxt.Headtype == objabi.Hnacl || ctxt.Arch.Family == sys.I386 {
 			p.As = ATESTL
 		}
 
@@ -786,7 +787,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Offset = int64(autoffset) + int64(ctxt.Arch.RegSize)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_DI
-		if ctxt.Headtype == obj.Hnacl || ctxt.Arch.Family == sys.I386 {
+		if ctxt.Headtype == objabi.Hnacl || ctxt.Arch.Family == sys.I386 {
 			p.As = ALEAL
 		}
 
@@ -801,7 +802,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Offset = 0 // Panic.argp
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_DI
-		if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+		if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
 			p.As = ACMPL
 			p.From.Type = obj.TYPE_MEM
 			p.From.Reg = REG_R15
@@ -826,7 +827,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = REG_BX
 		p.To.Offset = 0 // Panic.argp
-		if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+		if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
 			p.As = AMOVL
 			p.To.Type = obj.TYPE_MEM
 			p.To.Reg = REG_R15
@@ -958,7 +959,7 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
 }
 
 func indir_cx(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
-	if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
 		a.Type = obj.TYPE_MEM
 		a.Reg = REG_R15
 		a.Index = REG_CX
@@ -1009,7 +1010,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	mov := AMOVQ
 	sub := ASUBQ
 
-	if ctxt.Headtype == obj.Hnacl || ctxt.Arch.Family == sys.I386 {
+	if ctxt.Headtype == objabi.Hnacl || ctxt.Arch.Family == sys.I386 {
 		cmp = ACMPL
 		lea = ALEAL
 		mov = AMOVL
@@ -1017,7 +1018,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	}
 
 	var q1 *obj.Prog
-	if framesize <= obj.StackSmall {
+	if framesize <= objabi.StackSmall {
 		// small stack: SP <= stackguard
 		//	CMPQ SP, stackguard
 		p = obj.Appendp(p, newprog)
@@ -1030,7 +1031,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
-	} else if framesize <= obj.StackBig {
+	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAQ -xxx(SP), AX
 		//	CMPQ AX, stackguard
@@ -1039,7 +1040,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = lea
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = REG_SP
-		p.From.Offset = -(int64(framesize) - obj.StackSmall)
+		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_AX
 
@@ -1084,9 +1085,9 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_SI
 		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = obj.StackPreempt
+		p.To.Offset = objabi.StackPreempt
 		if ctxt.Arch.Family == sys.I386 {
-			p.To.Offset = int64(uint32(obj.StackPreempt & (1<<32 - 1)))
+			p.To.Offset = int64(uint32(objabi.StackPreempt & (1<<32 - 1)))
 		}
 
 		p = obj.Appendp(p, newprog)
@@ -1098,7 +1099,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = lea
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = REG_SP
-		p.From.Offset = obj.StackGuard
+		p.From.Offset = objabi.StackGuard
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_AX
 
@@ -1114,7 +1115,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_AX
 		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = int64(framesize) + (obj.StackGuard - obj.StackSmall)
+		p.To.Offset = int64(framesize) + (objabi.StackGuard - objabi.StackSmall)
 	}
 
 	// common
@@ -1137,7 +1138,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	pcdata.Pos = cursym.Func.Text.Pos
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
-	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
 	pcdata.To.Type = obj.TYPE_CONST
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
 

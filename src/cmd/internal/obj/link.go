@@ -33,6 +33,7 @@ package obj
 import (
 	"bufio"
 	"cmd/internal/dwarf"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
@@ -308,7 +309,7 @@ const (
 // An LSym is the sort of symbol that is written to an object file.
 type LSym struct {
 	Name    string
-	Type    SymKind
+	Type    objabi.SymKind
 	Version int16
 	Attribute
 
@@ -447,287 +448,12 @@ type Pcln struct {
 	InlTree     InlTree // per-function inlining tree extracted from the global tree
 }
 
-// A SymKind describes the kind of memory represented by a symbol.
-type SymKind int16
-
-// Defined SymKind values.
-//
-// TODO(rsc): Give idiomatic Go names.
-// TODO(rsc): Reduce the number of symbol types in the object files.
-//go:generate stringer -type=SymKind
-const (
-	Sxxx SymKind = iota
-	STEXT
-	SELFRXSECT
-
-	// Read-only sections.
-	STYPE
-	SSTRING
-	SGOSTRING
-	SGOFUNC
-	SGCBITS
-	SRODATA
-	SFUNCTAB
-
-	SELFROSECT
-	SMACHOPLT
-
-	// Read-only sections with relocations.
-	//
-	// Types STYPE-SFUNCTAB above are written to the .rodata section by default.
-	// When linking a shared object, some conceptually "read only" types need to
-	// be written to by relocations and putting them in a section called
-	// ".rodata" interacts poorly with the system linkers. The GNU linkers
-	// support this situation by arranging for sections of the name
-	// ".data.rel.ro.XXX" to be mprotected read only by the dynamic linker after
-	// relocations have applied, so when the Go linker is creating a shared
-	// object it checks all objects of the above types and bumps any object that
-	// has a relocation to it to the corresponding type below, which are then
-	// written to sections with appropriate magic names.
-	STYPERELRO
-	SSTRINGRELRO
-	SGOSTRINGRELRO
-	SGOFUNCRELRO
-	SGCBITSRELRO
-	SRODATARELRO
-	SFUNCTABRELRO
-
-	// Part of .data.rel.ro if it exists, otherwise part of .rodata.
-	STYPELINK
-	SITABLINK
-	SSYMTAB
-	SPCLNTAB
-
-	// Writable sections.
-	SELFSECT
-	SMACHO
-	SMACHOGOT
-	SWINDOWS
-	SELFGOT
-	SNOPTRDATA
-	SINITARR
-	SDATA
-	SBSS
-	SNOPTRBSS
-	STLSBSS
-	SXREF
-	SMACHOSYMSTR
-	SMACHOSYMTAB
-	SMACHOINDIRECTPLT
-	SMACHOINDIRECTGOT
-	SFILE
-	SFILEPATH
-	SCONST
-	SDYNIMPORT
-	SHOSTOBJ
-	SDWARFSECT
-	SDWARFINFO
-	SSUB       = SymKind(1 << 8)
-	SMASK      = SymKind(SSUB - 1)
-	SHIDDEN    = SymKind(1 << 9)
-	SCONTAINER = SymKind(1 << 10) // has a sub-symbol
-)
-
-// ReadOnly are the symbol kinds that form read-only sections. In some
-// cases, if they will require relocations, they are transformed into
-// rel-ro sections using RelROMap.
-var ReadOnly = []SymKind{
-	STYPE,
-	SSTRING,
-	SGOSTRING,
-	SGOFUNC,
-	SGCBITS,
-	SRODATA,
-	SFUNCTAB,
-}
-
-// RelROMap describes the transformation of read-only symbols to rel-ro
-// symbols.
-var RelROMap = map[SymKind]SymKind{
-	STYPE:     STYPERELRO,
-	SSTRING:   SSTRINGRELRO,
-	SGOSTRING: SGOSTRINGRELRO,
-	SGOFUNC:   SGOFUNCRELRO,
-	SGCBITS:   SGCBITSRELRO,
-	SRODATA:   SRODATARELRO,
-	SFUNCTAB:  SFUNCTABRELRO,
-}
-
 type Reloc struct {
 	Off  int32
 	Siz  uint8
-	Type RelocType
+	Type objabi.RelocType
 	Add  int64
 	Sym  *LSym
-}
-
-type RelocType int32
-
-//go:generate stringer -type=RelocType
-const (
-	R_ADDR RelocType = 1 + iota
-	// R_ADDRPOWER relocates a pair of "D-form" instructions (instructions with 16-bit
-	// immediates in the low half of the instruction word), usually addis followed by
-	// another add or a load, inserting the "high adjusted" 16 bits of the address of
-	// the referenced symbol into the immediate field of the first instruction and the
-	// low 16 bits into that of the second instruction.
-	R_ADDRPOWER
-	// R_ADDRARM64 relocates an adrp, add pair to compute the address of the
-	// referenced symbol.
-	R_ADDRARM64
-	// R_ADDRMIPS (only used on mips/mips64) resolves to the low 16 bits of an external
-	// address, by encoding it into the instruction.
-	R_ADDRMIPS
-	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
-	// holding the data being relocated to the referenced symbol.
-	R_ADDROFF
-	// R_WEAKADDROFF resolves just like R_ADDROFF but is a weak relocation.
-	// A weak relocation does not make the symbol it refers to reachable,
-	// and is only honored by the linker if the symbol is in some other way
-	// reachable.
-	R_WEAKADDROFF
-	R_SIZE
-	R_CALL
-	R_CALLARM
-	R_CALLARM64
-	R_CALLIND
-	R_CALLPOWER
-	// R_CALLMIPS (only used on mips64) resolves to non-PC-relative target address
-	// of a CALL (JAL) instruction, by encoding the address into the instruction.
-	R_CALLMIPS
-	R_CONST
-	R_PCREL
-	// R_TLS_LE, used on 386, amd64, and ARM, resolves to the offset of the
-	// thread-local symbol from the thread local base and is used to implement the
-	// "local exec" model for tls access (r.Sym is not set on intel platforms but is
-	// set to a TLS symbol -- runtime.tlsg -- in the linker when externally linking).
-	R_TLS_LE
-	// R_TLS_IE, used 386, amd64, and ARM resolves to the PC-relative offset to a GOT
-	// slot containing the offset from the thread-local symbol from the thread local
-	// base and is used to implemented the "initial exec" model for tls access (r.Sym
-	// is not set on intel platforms but is set to a TLS symbol -- runtime.tlsg -- in
-	// the linker when externally linking).
-	R_TLS_IE
-	R_GOTOFF
-	R_PLT0
-	R_PLT1
-	R_PLT2
-	R_USEFIELD
-	// R_USETYPE resolves to an *rtype, but no relocation is created. The
-	// linker uses this as a signal that the pointed-to type information
-	// should be linked into the final binary, even if there are no other
-	// direct references. (This is used for types reachable by reflection.)
-	R_USETYPE
-	// R_METHODOFF resolves to a 32-bit offset from the beginning of the section
-	// holding the data being relocated to the referenced symbol.
-	// It is a variant of R_ADDROFF used when linking from the uncommonType of a
-	// *rtype, and may be set to zero by the linker if it determines the method
-	// text is unreachable by the linked program.
-	R_METHODOFF
-	R_POWER_TOC
-	R_GOTPCREL
-	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
-	// of a JMP instruction, by encoding the address into the instruction.
-	// The stack nosplit check ignores this since it is not a function call.
-	R_JMPMIPS
-	// R_DWARFREF resolves to the offset of the symbol from its section.
-	R_DWARFREF
-
-	// Platform dependent relocations. Architectures with fixed width instructions
-	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be
-	// stuffed into a 32-bit instruction, so an address needs to be spread across
-	// several instructions, and in turn this requires a sequence of relocations, each
-	// updating a part of an instruction. This leads to relocation codes that are
-	// inherently processor specific.
-
-	// Arm64.
-
-	// Set a MOV[NZ] immediate field to bits [15:0] of the offset from the thread
-	// local base to the thread local variable defined by the referenced (thread
-	// local) symbol. Error if the offset does not fit into 16 bits.
-	R_ARM64_TLS_LE
-
-	// Relocates an ADRP; LD64 instruction sequence to load the offset between
-	// the thread local base and the thread local variable defined by the
-	// referenced (thread local) symbol from the GOT.
-	R_ARM64_TLS_IE
-
-	// R_ARM64_GOTPCREL relocates an adrp, ld64 pair to compute the address of the GOT
-	// slot of the referenced symbol.
-	R_ARM64_GOTPCREL
-
-	// PPC64.
-
-	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
-	// access. It resolves to the offset of the thread-local symbol from the
-	// thread pointer (R13) and inserts this value into the low 16 bits of an
-	// instruction word.
-	R_POWER_TLS_LE
-
-	// R_POWER_TLS_IE is used to implement the "initial exec" model for tls access. It
-	// relocates a D-form, DS-form instruction sequence like R_ADDRPOWER_DS. It
-	// inserts to the offset of GOT slot for the thread-local symbol from the TOC (the
-	// GOT slot is filled by the dynamic linker with the offset of the thread-local
-	// symbol from the thread pointer (R13)).
-	R_POWER_TLS_IE
-
-	// R_POWER_TLS marks an X-form instruction such as "MOVD 0(R13)(R31*1), g" as
-	// accessing a particular thread-local symbol. It does not affect code generation
-	// but is used by the system linker when relaxing "initial exec" model code to
-	// "local exec" model code.
-	R_POWER_TLS
-
-	// R_ADDRPOWER_DS is similar to R_ADDRPOWER above, but assumes the second
-	// instruction is a "DS-form" instruction, which has an immediate field occupying
-	// bits [15:2] of the instruction word. Bits [15:2] of the address of the
-	// relocated symbol are inserted into this field; it is an error if the last two
-	// bits of the address are not 0.
-	R_ADDRPOWER_DS
-
-	// R_ADDRPOWER_PCREL relocates a D-form, DS-form instruction sequence like
-	// R_ADDRPOWER_DS but inserts the offset of the GOT slot for the referenced symbol
-	// from the TOC rather than the symbol's address.
-	R_ADDRPOWER_GOT
-
-	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
-	// inserts the displacement from the place being relocated to the address of the
-	// the relocated symbol instead of just its address.
-	R_ADDRPOWER_PCREL
-
-	// R_ADDRPOWER_TOCREL relocates two D-form instructions like R_ADDRPOWER, but
-	// inserts the offset from the TOC to the address of the relocated symbol
-	// rather than the symbol's address.
-	R_ADDRPOWER_TOCREL
-
-	// R_ADDRPOWER_TOCREL relocates a D-form, DS-form instruction sequence like
-	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the the
-	// relocated symbol rather than the symbol's address.
-	R_ADDRPOWER_TOCREL_DS
-
-	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
-	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
-	R_PCRELDBL
-
-	// R_ADDRMIPSU (only used on mips/mips64) resolves to the sign-adjusted "upper" 16
-	// bits (bit 16-31) of an external address, by encoding it into the instruction.
-	R_ADDRMIPSU
-	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
-	// address (offset from thread pointer), by encoding it into the instruction.
-	R_ADDRMIPSTLS
-)
-
-// IsDirectJump returns whether r is a relocation for a direct jump.
-// A direct jump is a CALL or JMP instruction that takes the target address
-// as immediate. The address is embedded into the instruction, possibly
-// with limited width.
-// An indirect jump is a CALL or JMP instruction that takes the target address
-// in register or memory.
-func (r RelocType) IsDirectJump() bool {
-	switch r {
-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLPOWER, R_CALLMIPS, R_JMPMIPS:
-		return true
-	}
-	return false
 }
 
 type Auto struct {
@@ -737,12 +463,6 @@ type Auto struct {
 	Gotype  *LSym
 }
 
-// Auto.name
-const (
-	A_AUTO = 1 + iota
-	A_PARAM
-)
-
 type Pcdata struct {
 	P []byte
 }
@@ -750,7 +470,7 @@ type Pcdata struct {
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
-	Headtype      HeadType
+	Headtype      objabi.HeadType
 	Arch          *LinkArch
 	Debugasm      bool
 	Debugvlog     bool
@@ -815,75 +535,4 @@ type LinkArch struct {
 	Assemble   func(*Link, *LSym, ProgAlloc)
 	Progedit   func(*Link, *Prog, ProgAlloc)
 	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
-}
-
-// HeadType is the executable header type.
-type HeadType uint8
-
-const (
-	Hunknown HeadType = iota
-	Hdarwin
-	Hdragonfly
-	Hfreebsd
-	Hlinux
-	Hnacl
-	Hnetbsd
-	Hopenbsd
-	Hplan9
-	Hsolaris
-	Hwindows
-)
-
-func (h *HeadType) Set(s string) error {
-	switch s {
-	case "darwin":
-		*h = Hdarwin
-	case "dragonfly":
-		*h = Hdragonfly
-	case "freebsd":
-		*h = Hfreebsd
-	case "linux", "android":
-		*h = Hlinux
-	case "nacl":
-		*h = Hnacl
-	case "netbsd":
-		*h = Hnetbsd
-	case "openbsd":
-		*h = Hopenbsd
-	case "plan9":
-		*h = Hplan9
-	case "solaris":
-		*h = Hsolaris
-	case "windows":
-		*h = Hwindows
-	default:
-		return fmt.Errorf("invalid headtype: %q", s)
-	}
-	return nil
-}
-
-func (h *HeadType) String() string {
-	switch *h {
-	case Hdarwin:
-		return "darwin"
-	case Hdragonfly:
-		return "dragonfly"
-	case Hfreebsd:
-		return "freebsd"
-	case Hlinux:
-		return "linux"
-	case Hnacl:
-		return "nacl"
-	case Hnetbsd:
-		return "netbsd"
-	case Hopenbsd:
-		return "openbsd"
-	case Hplan9:
-		return "plan9"
-	case Hsolaris:
-		return "solaris"
-	case Hwindows:
-		return "windows"
-	}
-	return fmt.Sprintf("HeadType(%d)", *h)
 }

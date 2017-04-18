@@ -7,13 +7,13 @@ package mips
 import (
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
-	"cmd/internal/obj"
 	"cmd/internal/obj/mips"
+	"cmd/internal/objabi"
 )
 
 func Init(arch *gc.Arch) {
 	arch.LinkArch = &mips.Linkmips
-	if obj.GOARCH == "mipsle" {
+	if objabi.GOARCH == "mipsle" {
 		arch.LinkArch = &mips.Linkmipsle
 	}
 	arch.REGSP = mips.REGSP

@@ -5,7 +5,7 @@
 package ld
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
@@ -460,8 +460,8 @@ func Peinit(ctxt *Link) {
 
 	if Linkmode == LinkInternal {
 		// some mingw libs depend on this symbol, for example, FindPESectionByName
-		ctxt.xdefine("__image_base__", obj.SDATA, PEBASE)
-		ctxt.xdefine("_image_base__", obj.SDATA, PEBASE)
+		ctxt.xdefine("__image_base__", objabi.SDATA, PEBASE)
+		ctxt.xdefine("_image_base__", objabi.SDATA, PEBASE)
 	}
 
 	HEADR = PEFILEHEADR
@@ -516,7 +516,7 @@ func initdynimport(ctxt *Link) *Dll {
 	dr = nil
 	var m *Imp
 	for _, s := range ctxt.Syms.Allsym {
-		if !s.Attr.Reachable() || s.Type != obj.SDYNIMPORT {
+		if !s.Attr.Reachable() || s.Type != objabi.SDYNIMPORT {
 			continue
 		}
 		for d = dr; d != nil; d = d.next {
@@ -558,7 +558,7 @@ func initdynimport(ctxt *Link) *Dll {
 		// Add real symbol name
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
-				m.s.Type = obj.SDATA
+				m.s.Type = objabi.SDATA
 				Symgrow(m.s, int64(SysArch.PtrSize))
 				dynName := m.s.Extname
 				// only windows/386 requires stdcall decoration
@@ -567,21 +567,21 @@ func initdynimport(ctxt *Link) *Dll {
 				}
 				dynSym := ctxt.Syms.Lookup(dynName, 0)
 				dynSym.Attr |= AttrReachable
-				dynSym.Type = obj.SHOSTOBJ
+				dynSym.Type = objabi.SHOSTOBJ
 				r := Addrel(m.s)
 				r.Sym = dynSym
 				r.Off = 0
 				r.Siz = uint8(SysArch.PtrSize)
-				r.Type = obj.R_ADDR
+				r.Type = objabi.R_ADDR
 			}
 		}
 	} else {
 		dynamic := ctxt.Syms.Lookup(".windynamic", 0)
 		dynamic.Attr |= AttrReachable
-		dynamic.Type = obj.SWINDOWS
+		dynamic.Type = objabi.SWINDOWS
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
-				m.s.Type = obj.SWINDOWS | obj.SSUB
+				m.s.Type = objabi.SWINDOWS | objabi.SSUB
 				m.s.Sub = dynamic.Sub
 				dynamic.Sub = m.s
 				m.s.Value = dynamic.Size
@@ -919,9 +919,9 @@ dwarfLoop:
 		dottext := ctxt.Syms.Lookup(".text", 0)
 		Lputl(0)
 		Lputl(uint32(dottext.Dynid))
-		switch obj.GOARCH {
+		switch objabi.GOARCH {
 		default:
-			Errorf(dottext, "unknown architecture for PE: %q\n", obj.GOARCH)
+			Errorf(dottext, "unknown architecture for PE: %q\n", objabi.GOARCH)
 		case "386":
 			Wputl(IMAGE_REL_I386_DIR32)
 		case "amd64":
@@ -936,7 +936,7 @@ func (ctxt *Link) dope() {
 	rel := ctxt.Syms.Lookup(".rel", 0)
 
 	rel.Attr |= AttrReachable
-	rel.Type = obj.SELFROSECT
+	rel.Type = objabi.SELFROSECT
 
 	initdynimport(ctxt)
 	initdynexport(ctxt)
@@ -1009,7 +1009,7 @@ func writePESymTableRecords(ctxt *Link) int {
 		// Only windows/386 requires underscore prefix on external symbols.
 		if SysArch.Family == sys.I386 &&
 			Linkmode == LinkExternal &&
-			(s.Type == obj.SHOSTOBJ || s.Attr.CgoExport()) {
+			(s.Type == objabi.SHOSTOBJ || s.Attr.CgoExport()) {
 			s.Name = "_" + s.Name
 		}
 
@@ -1020,10 +1020,10 @@ func writePESymTableRecords(ctxt *Link) int {
 		// it still belongs to the .data section, not the .bss section.
 		// Same for runtime.epclntab (type STEXT), it belongs to .text
 		// section, not the .data section.
-		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != obj.SDATA && Linkmode == LinkExternal {
+		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != objabi.SDATA && Linkmode == LinkExternal {
 			value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
 			sect = bsssect
-		} else if uint64(s.Value) >= Segdata.Vaddr && s.Type != obj.STEXT {
+		} else if uint64(s.Value) >= Segdata.Vaddr && s.Type != objabi.STEXT {
 			value = int64(uint64(s.Value) - Segdata.Vaddr)
 			sect = datasect
 		} else if uint64(s.Value) >= Segtext.Vaddr {
@@ -1041,7 +1041,7 @@ func writePESymTableRecords(ctxt *Link) int {
 			typ = 0x0308 // "array of structs"
 		}
 		class := IMAGE_SYM_CLASS_EXTERNAL
-		if s.Version != 0 || (s.Type&obj.SHIDDEN != 0) || s.Attr.Local() {
+		if s.Version != 0 || (s.Type&objabi.SHIDDEN != 0) || s.Attr.Local() {
 			class = IMAGE_SYM_CLASS_STATIC
 		}
 		writeOneSymbol(s, value, sect, typ, uint8(class))
@@ -1143,9 +1143,9 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
 	// However, the entire Go runtime is initialized from just one function, so it is unlikely
 	// that this will need to grow in the future.
 	var size int
-	switch obj.GOARCH {
+	switch objabi.GOARCH {
 	default:
-		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.GOARCH)
+		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", objabi.GOARCH)
 		os.Exit(2)
 	case "386":
 		size = 4
@@ -1162,7 +1162,7 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
 	init_entry := ctxt.Syms.Lookup(*flagEntrySymbol, 0)
 	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
 
-	switch obj.GOARCH {
+	switch objabi.GOARCH {
 	case "386":
 		Lputl(uint32(addr))
 	case "amd64":

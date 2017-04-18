@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -73,7 +74,7 @@ func dumpobj1(outfile string, mode int) {
 	}
 
 	printheader := func() {
-		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.GOOS, obj.GOARCH, obj.Version, obj.Expstring())
+		fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
 		if buildid != "" {
 			fmt.Fprintf(bout, "build id %q\n", buildid)
 		}
@@ -277,7 +278,7 @@ func duintxx(s *types.Sym, off int, v uint64, wid int) int {
 func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
 	if s.Type == 0 {
 		// TODO(josharian): Do this in obj.prepwrite instead.
-		s.Type = obj.SDATA
+		s.Type = objabi.SDATA
 	}
 	if off&(wid-1) != 0 {
 		Fatalf("duintxxLSym: misaligned: v=%d wid=%d off=%d", v, wid, off)

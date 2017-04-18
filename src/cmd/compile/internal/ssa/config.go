@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"os"
 	"strconv"
@@ -202,7 +203,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.FPReg = framepointerRegARM64
 		c.LinkReg = linkRegARM64
 		c.hasGReg = true
-		c.noDuffDevice = obj.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
+		c.noDuffDevice = objabi.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
 	case "ppc64":
 		c.BigEndian = true
 		fallthrough
@@ -271,11 +272,11 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
-	c.nacl = obj.GOOS == "nacl"
+	c.nacl = objabi.GOOS == "nacl"
 
 	// Don't use Duff's device on Plan 9 AMD64, because floating
 	// point operations are not allowed in note handler.
-	if obj.GOOS == "plan9" && arch == "amd64" {
+	if objabi.GOOS == "plan9" && arch == "amd64" {
 		c.noDuffDevice = true
 	}
 

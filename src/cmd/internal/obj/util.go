@@ -6,57 +6,12 @@ package obj
 
 import (
 	"bytes"
+	"cmd/internal/objabi"
 	"fmt"
-	"log"
-	"os"
 	"strings"
-	"time"
 )
 
 const REG_NONE = 0
-
-var start time.Time
-
-func Cputime() float64 {
-	if start.IsZero() {
-		start = time.Now()
-	}
-	return time.Since(start).Seconds()
-}
-
-func envOr(key, value string) string {
-	if x := os.Getenv(key); x != "" {
-		return x
-	}
-	return value
-}
-
-var (
-	GOROOT  = envOr("GOROOT", defaultGOROOT)
-	GOARCH  = envOr("GOARCH", defaultGOARCH)
-	GOOS    = envOr("GOOS", defaultGOOS)
-	GO386   = envOr("GO386", defaultGO386)
-	GOARM   = goarm()
-	Version = version
-)
-
-func goarm() int {
-	switch v := envOr("GOARM", defaultGOARM); v {
-	case "5":
-		return 5
-	case "6":
-		return 6
-	case "7":
-		return 7
-	}
-	// Fail here, rather than validate at multiple call sites.
-	log.Fatalf("Invalid GOARM value. Must be 5, 6, or 7.")
-	panic("unreachable")
-}
-
-func Getgoextlinkenabled() string {
-	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
-}
 
 func (p *Prog) Line() string {
 	return p.Ctxt.OutermostPos(p.Pos).Format(false)
@@ -240,7 +195,7 @@ func Dconv(p *Prog, a *Addr) string {
 		}
 
 	case TYPE_TEXTSIZE:
-		if a.Val.(int32) == ArgsSizeUnknown {
+		if a.Val.(int32) == objabi.ArgsSizeUnknown {
 			str = fmt.Sprintf("$%d", a.Offset)
 		} else {
 			str = fmt.Sprintf("$%d-%d", a.Offset, a.Val.(int32))
@@ -263,7 +218,7 @@ func Dconv(p *Prog, a *Addr) string {
 	case TYPE_SHIFT:
 		v := int(a.Offset)
 		ops := "<<>>->@>"
-		switch GOARCH {
+		switch objabi.GOARCH {
 		case "arm":
 			op := ops[((v>>5)&3)<<1:]
 			if v&(1<<4) != 0 {
@@ -278,7 +233,7 @@ func Dconv(p *Prog, a *Addr) string {
 			op := ops[((v>>22)&3)<<1:]
 			str = fmt.Sprintf("R%d%c%c%d", (v>>16)&31, op[0], op[1], (v>>10)&63)
 		default:
-			panic("TYPE_SHIFT is not supported on " + GOARCH)
+			panic("TYPE_SHIFT is not supported on " + objabi.GOARCH)
 		}
 
 	case TYPE_REGREG:

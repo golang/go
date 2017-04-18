@@ -6,7 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
 	"math"
@@ -2463,7 +2463,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 		}
 		n.Xoffset = f1.Offset
 		n.Type = f1.Type
-		if obj.Fieldtrack_enabled > 0 {
+		if objabi.Fieldtrack_enabled > 0 {
 			dotField[typeSymKey{t.Orig, s}] = f1
 		}
 		if t.IsInterface() {

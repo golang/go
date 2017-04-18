@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
@@ -250,7 +251,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
 			if Ctxt.FixedFrameSize() == 0 {
 				offs -= int64(Widthptr)
 			}
-			if obj.Framepointer_enabled(obj.GOOS, obj.GOARCH) {
+			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
 				offs -= int64(Widthptr)
 			}
 
@@ -297,7 +298,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
 	if fnsym == nil {
 		return
 	}
-	if obj.Fieldtrack_enabled == 0 || len(tracked) == 0 {
+	if objabi.Fieldtrack_enabled == 0 || len(tracked) == 0 {
 		return
 	}
 
@@ -309,7 +310,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
 	for _, sym := range trackSyms {
 		r := obj.Addrel(fnsym)
 		r.Sym = Linksym(sym)
-		r.Type = obj.R_USEFIELD
+		r.Type = objabi.R_USEFIELD
 	}
 }
 

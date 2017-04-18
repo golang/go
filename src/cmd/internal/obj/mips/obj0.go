@@ -31,6 +31,7 @@ package mips
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
@@ -634,7 +635,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.To.Reg = REG_R1
 
 	var q *obj.Prog
-	if framesize <= obj.StackSmall {
+	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
 		//	AGTU	SP, stackguard, R1
 		p = obj.Appendp(p, c.newprog)
@@ -645,7 +646,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.Reg = REG_R1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R1
-	} else if framesize <= obj.StackBig {
+	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	ADD	$-(framesize-StackSmall), SP, R2
 		//	SGTU	R2, stackguard, R1
@@ -653,7 +654,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 		p.As = add
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = -(int64(framesize) - obj.StackSmall)
+		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
@@ -685,7 +686,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 		p.As = mov
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = obj.StackPreempt
+		p.From.Offset = objabi.StackPreempt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
@@ -701,7 +702,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = add
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = obj.StackGuard
+		p.From.Offset = objabi.StackGuard
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
@@ -716,7 +717,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = mov
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + obj.StackGuard - obj.StackSmall
+		p.From.Offset = int64(framesize) + objabi.StackGuard - objabi.StackSmall
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R1
 

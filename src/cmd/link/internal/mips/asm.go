@@ -31,7 +31,7 @@
 package mips
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/link/internal/ld"
 	"fmt"
 	"log"
@@ -54,22 +54,22 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	default:
 		return -1
 
-	case obj.R_ADDR:
+	case objabi.R_ADDR:
 		if r.Siz != 4 {
 			return -1
 		}
 		ld.Thearch.Lput(ld.R_MIPS_32 | uint32(elfsym)<<8)
 
-	case obj.R_ADDRMIPS:
+	case objabi.R_ADDRMIPS:
 		ld.Thearch.Lput(ld.R_MIPS_LO16 | uint32(elfsym)<<8)
 
-	case obj.R_ADDRMIPSU:
+	case objabi.R_ADDRMIPSU:
 		ld.Thearch.Lput(ld.R_MIPS_HI16 | uint32(elfsym)<<8)
 
-	case obj.R_ADDRMIPSTLS:
+	case objabi.R_ADDRMIPSTLS:
 		ld.Thearch.Lput(ld.R_MIPS_TLS_TPREL_LO16 | uint32(elfsym)<<8)
 
-	case obj.R_CALLMIPS, obj.R_JMPMIPS:
+	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 		ld.Thearch.Lput(ld.R_MIPS_26 | uint32(elfsym)<<8)
 	}
 
@@ -87,11 +87,11 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 func applyrel(r *ld.Reloc, s *ld.Symbol, val *int64, t int64) {
 	o := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
 	switch r.Type {
-	case obj.R_ADDRMIPS, obj.R_ADDRMIPSTLS:
+	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSTLS:
 		*val = int64(o&0xffff0000 | uint32(t)&0xffff)
-	case obj.R_ADDRMIPSU:
+	case objabi.R_ADDRMIPSU:
 		*val = int64(o&0xffff0000 | uint32((t+(1<<15))>>16)&0xffff)
-	case obj.R_CALLMIPS, obj.R_JMPMIPS:
+	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 		*val = int64(o&0xfc000000 | uint32(t>>2)&^0xfc000000)
 	}
 }
@@ -102,7 +102,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		default:
 			return -1
 
-		case obj.R_ADDRMIPS, obj.R_ADDRMIPSU:
+		case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
 
 			r.Done = 0
 
@@ -114,14 +114,14 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 				rs = rs.Outer
 			}
 
-			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+			if rs.Type != objabi.SHOSTOBJ && rs.Type != objabi.SDYNIMPORT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
 			applyrel(r, s, val, r.Xadd)
 			return 0
 
-		case obj.R_ADDRMIPSTLS, obj.R_CALLMIPS, obj.R_JMPMIPS:
+		case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 			r.Done = 0
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
@@ -131,20 +131,20 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	}
 
 	switch r.Type {
-	case obj.R_CONST:
+	case objabi.R_CONST:
 		*val = r.Add
 		return 0
 
-	case obj.R_GOTOFF:
+	case objabi.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
 		return 0
 
-	case obj.R_ADDRMIPS, obj.R_ADDRMIPSU:
+	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
 		applyrel(r, s, val, t)
 		return 0
 
-	case obj.R_CALLMIPS, obj.R_JMPMIPS:
+	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 		t := ld.Symaddr(r.Sym) + r.Add
 
 		if t&3 != 0 {
@@ -159,7 +159,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		applyrel(r, s, val, t)
 		return 0
 
-	case obj.R_ADDRMIPSTLS:
+	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
 		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
 		if t < -32768 || t >= 32678 {
@@ -178,7 +178,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 
 func asmb(ctxt *ld.Link) {
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f asmb\n", obj.Cputime())
+		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
 	}
 
 	if ld.Iself {
@@ -195,7 +195,7 @@ func asmb(ctxt *ld.Link) {
 
 	if ld.Segrodata.Filelen > 0 {
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f rodatblk\n", obj.Cputime())
+			ctxt.Logf("%5.2f rodatblk\n", ld.Cputime())
 		}
 
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
@@ -203,7 +203,7 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f datblk\n", obj.Cputime())
+		ctxt.Logf("%5.2f datblk\n", ld.Cputime())
 	}
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
@@ -222,21 +222,21 @@ func asmb(ctxt *ld.Link) {
 			ld.Errorf(nil, "unsupported executable format")
 		}
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f sym\n", obj.Cputime())
+			ctxt.Logf("%5.2f sym\n", ld.Cputime())
 		}
 		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 		symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
 
 		ld.Cseek(int64(symo))
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f elfsym\n", obj.Cputime())
+			ctxt.Logf("%5.2f elfsym\n", ld.Cputime())
 		}
 		ld.Asmelfsym(ctxt)
 		ld.Cflush()
 		ld.Cwrite(ld.Elfstrdat)
 
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f dwarf\n", obj.Cputime())
+			ctxt.Logf("%5.2f dwarf\n", ld.Cputime())
 		}
 
 		if ld.Linkmode == ld.LinkExternal {
@@ -245,14 +245,14 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f header\n", obj.Cputime())
+		ctxt.Logf("%5.2f header\n", ld.Cputime())
 	}
 
 	ld.Cseek(0)
 	switch ld.Headtype {
 	default:
 		ld.Errorf(nil, "unsupported operating system")
-	case obj.Hlinux:
+	case objabi.Hlinux:
 		ld.Asmbelf(ctxt, int64(symo))
 	}
 

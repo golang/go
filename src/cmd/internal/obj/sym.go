@@ -32,38 +32,25 @@
 package obj
 
 import (
+	"cmd/internal/objabi"
 	"fmt"
 	"log"
 	"math"
-	"os"
-	"path/filepath"
 )
-
-// WorkingDir returns the current working directory
-// (or "/???" if the directory cannot be identified),
-// with "/" as separator.
-func WorkingDir() string {
-	var path string
-	path, _ = os.Getwd()
-	if path == "" {
-		path = "/???"
-	}
-	return filepath.ToSlash(path)
-}
 
 func Linknew(arch *LinkArch) *Link {
 	ctxt := new(Link)
 	ctxt.hash = make(map[SymVer]*LSym)
 	ctxt.Arch = arch
-	ctxt.Pathname = WorkingDir()
+	ctxt.Pathname = objabi.WorkingDir()
 
-	ctxt.Headtype.Set(GOOS)
+	ctxt.Headtype.Set(objabi.GOOS)
 	if ctxt.Headtype < 0 {
-		log.Fatalf("unknown goos %s", GOOS)
+		log.Fatalf("unknown goos %s", objabi.GOOS)
 	}
 
 	ctxt.Flag_optimize = true
-	ctxt.Framepointer_enabled = Framepointer_enabled(GOOS, arch.Name)
+	ctxt.Framepointer_enabled = objabi.Framepointer_enabled(objabi.GOOS, arch.Name)
 	return ctxt
 }
 

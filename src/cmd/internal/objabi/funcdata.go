@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package obj
+package objabi
 
 // This file defines the IDs for PCDATA and FUNCDATA instructions
 // in Go binaries.

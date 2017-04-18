@@ -32,6 +32,7 @@ package arm
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"fmt"
 	"log"
 	"math"
@@ -602,7 +603,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		p.Pc = int64(pc)
 		o = c.oplook(p)
-		if ctxt.Headtype != obj.Hnacl {
+		if ctxt.Headtype != objabi.Hnacl {
 			m = int(o.size)
 		} else {
 			m = c.asmoutnacl(pc, p, o, nil)
@@ -696,7 +697,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			*/
 			opc = int32(p.Pc)
 
-			if ctxt.Headtype != obj.Hnacl {
+			if ctxt.Headtype != objabi.Hnacl {
 				m = int(o.size)
 			} else {
 				m = c.asmoutnacl(pc, p, o, nil)
@@ -756,7 +757,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		c.pc = p.Pc
 		o = c.oplook(p)
 		opc = int32(p.Pc)
-		if ctxt.Headtype != obj.Hnacl {
+		if ctxt.Headtype != objabi.Hnacl {
 			c.asmout(p, o, out[:])
 			m = int(o.size)
 		} else {
@@ -834,7 +835,7 @@ func (c *ctxt5) flushpool(p *obj.Prog, skip int, force int) bool {
 		} else if force == 0 && (p.Pc+int64(12+c.pool.size)-int64(c.pool.start) < 2048) { // 12 take into account the maximum nacl literal pool alignment padding size
 			return false
 		}
-		if c.ctxt.Headtype == obj.Hnacl && c.pool.size%16 != 0 {
+		if c.ctxt.Headtype == objabi.Hnacl && c.pool.size%16 != 0 {
 			// if pool is not multiple of 16 bytes, add an alignment marker
 			q := c.newprog()
 
@@ -902,7 +903,7 @@ func (c *ctxt5) addpool(p *obj.Prog, a *obj.Addr) {
 		}
 	}
 
-	if c.ctxt.Headtype == obj.Hnacl && c.pool.size%16 == 0 {
+	if c.ctxt.Headtype == objabi.Hnacl && c.pool.size%16 == 0 {
 		// start a new data bundle
 		q := c.newprog()
 		q.As = ADATABUNDLE
@@ -1019,7 +1020,7 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 			}
 
 			c.instoffset = 0 // s.b. unused but just in case
-			if a.Sym.Type == obj.STLSBSS {
+			if a.Sym.Type == objabi.STLSBSS {
 				if c.ctxt.Flag_shared {
 					return C_TLS_IE
 				} else {
@@ -1584,7 +1585,7 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			rel.Sym = p.To.Sym
 			v += int32(p.To.Offset)
 			rel.Add = int64(o1) | (int64(v)>>2)&0xffffff
-			rel.Type = obj.R_CALLARM
+			rel.Type = objabi.R_CALLARM
 			break
 		}
 
@@ -1612,7 +1613,7 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 0
-		rel.Type = obj.R_CALLIND
+		rel.Type = objabi.R_CALLIND
 
 	case 8: /* sll $c,[R],R -> mov (R<<$c),R */
 		c.aclass(&p.From)
@@ -1661,13 +1662,13 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 			if c.ctxt.Flag_shared {
 				if p.To.Name == obj.NAME_GOTREF {
-					rel.Type = obj.R_GOTPCREL
+					rel.Type = objabi.R_GOTPCREL
 				} else {
-					rel.Type = obj.R_PCREL
+					rel.Type = objabi.R_PCREL
 				}
 				rel.Add += c.pc - p.Rel.Pc - 8
 			} else {
-				rel.Type = obj.R_ADDR
+				rel.Type = objabi.R_ADDR
 			}
 			o1 = 0
 		}
@@ -2080,7 +2081,7 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
-		rel.Type = obj.R_TLS_LE
+		rel.Type = objabi.R_TLS_LE
 		o1 = 0
 
 	case 104: /* word tlsvar, initial exec */
@@ -2094,7 +2095,7 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
-		rel.Type = obj.R_TLS_IE
+		rel.Type = objabi.R_TLS_IE
 		rel.Add = c.pc - p.Rel.Pc - 8 - int64(rel.Siz)
 
 	case 68: /* floating point store -> ADDR */
@@ -2849,7 +2850,7 @@ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
 
 func (c *ctxt5) chipzero5(e float64) int {
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if obj.GOARM < 7 || e != 0 {
+	if objabi.GOARM < 7 || e != 0 {
 		return -1
 	}
 	return 0
@@ -2857,7 +2858,7 @@ func (c *ctxt5) chipzero5(e float64) int {
 
 func (c *ctxt5) chipfloat5(e float64) int {
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if obj.GOARM < 7 {
+	if objabi.GOARM < 7 {
 		return -1
 	}
 

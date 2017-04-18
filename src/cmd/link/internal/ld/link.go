@@ -32,7 +32,7 @@ package ld
 
 import (
 	"bufio"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"debug/elf"
 	"fmt"
@@ -42,7 +42,7 @@ import (
 type Symbol struct {
 	Name        string
 	Extname     string
-	Type        obj.SymKind
+	Type        objabi.SymKind
 	Version     int16
 	Attr        Attribute
 	Localentry  uint8
@@ -146,15 +146,15 @@ func (a *Attribute) Set(flag Attribute, value bool) {
 //
 // Some relocations are created by cmd/link.
 type Reloc struct {
-	Off     int32         // offset to rewrite
-	Siz     uint8         // number of bytes to rewrite, 1, 2, or 4
-	Done    uint8         // set to 1 when relocation is complete
-	Variant RelocVariant  // variation on Type
-	Type    obj.RelocType // the relocation type
-	Add     int64         // addend
-	Xadd    int64         // addend passed to external linker
-	Sym     *Symbol       // symbol the relocation addresses
-	Xsym    *Symbol       // symbol passed to external linker
+	Off     int32            // offset to rewrite
+	Siz     uint8            // number of bytes to rewrite, 1, 2, or 4
+	Done    uint8            // set to 1 when relocation is complete
+	Variant RelocVariant     // variation on Type
+	Type    objabi.RelocType // the relocation type
+	Add     int64            // addend
+	Xadd    int64            // addend passed to external linker
+	Sym     *Symbol          // symbol the relocation addresses
+	Xsym    *Symbol          // symbol passed to external linker
 }
 
 type Auto struct {
