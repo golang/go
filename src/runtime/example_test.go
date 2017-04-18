@@ -19,10 +19,9 @@ func ExampleFrames() {
 
 		frames := runtime.CallersFrames(pc[:n])
 		var frame runtime.Frame
-		more := true
-		for more {
+		for i, more := 0, true; more && i < 5; i++ {
 			frame, more = frames.Next()
-			fmt.Printf("- more:%v | %s\n", more, frame.Function)
+			fmt.Printf("- %s\n", frame.Function)
 		}
 	}
 
@@ -31,9 +30,9 @@ func ExampleFrames() {
 
 	a()
 	// Output:
-	// - more:true | runtime.Callers
-	// - more:true | runtime_test.ExampleFrames.func1
-	// - more:true | runtime_test.ExampleFrames.func2
-	// - more:true | runtime_test.ExampleFrames.func3
-	// - more:false | runtime_test.ExampleFrames
+	// - runtime.Callers
+	// - runtime_test.ExampleFrames.func1
+	// - runtime_test.ExampleFrames.func2
+	// - runtime_test.ExampleFrames.func3
+	// - runtime_test.ExampleFrames
 }
