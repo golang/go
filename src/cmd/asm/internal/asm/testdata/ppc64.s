@@ -582,6 +582,15 @@ label1:
 	CMPB  R2,R2,R1
 
 //
+// rotate extended mnemonics map onto other shift instructions
+//
+
+	ROTL	$12,R2,R3
+	ROTL	R2,R3,R4
+	ROTLW	$9,R2,R3
+	ROTLW	R2,R3,R4
+
+//
 // rotate and mask
 //
 //	LRLWM  imm ',' rreg ',' imm ',' rreg
@@ -616,6 +625,17 @@ label1:
 	RLDICL	$1, R2, $61, R6
 
 	RLDIMI  $7, R2, $52, R7
+
+// opcodes for right and left shifts, const and reg shift counts
+
+	SLD	$4, R3, R4
+	SLD	R2, R3, R4
+	SLW	$4, R3, R4
+	SLW	R2, R3, R4
+	SRD	$8, R3, R4
+	SRD	R2, R3, R4
+	SRW	$8, R3, R4
+	SRW	R2, R3, R4
 
 //
 // load/store multiple

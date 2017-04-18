@@ -1543,6 +1543,54 @@ var linuxPPC64LETests = []*asmTest{
 		`,
 		[]string{"\tFMSUBS\t"},
 	},
+	{
+		`
+		func f4(x uint32) uint32 {
+			return x<<7 | x>>25
+		}
+		`,
+		[]string{"\tROTLW\t"},
+	},
+	{
+		`
+		func f5(x uint32) uint32 {
+			return x<<7 + x>>25
+		}
+		`,
+		[]string{"\tROTLW\t"},
+	},
+	{
+		`
+		func f6(x uint32) uint32 {
+			return x<<7 ^ x>>25
+		}
+		`,
+		[]string{"\tROTLW\t"},
+	},
+	{
+		`
+		func f7(x uint64) uint64 {
+			return x<<7 | x>>57
+		}
+		`,
+		[]string{"\tROTL\t"},
+	},
+	{
+		`
+		func f8(x uint64) uint64 {
+			return x<<7 + x>>57
+		}
+		`,
+		[]string{"\tROTL\t"},
+	},
+	{
+		`
+		func f9(x uint64) uint64 {
+			return x<<7 ^ x>>57
+		}
+		`,
+		[]string{"\tROTL\t"},
+	},
 }
 
 // TestLineNumber checks to make sure the generated assembly has line numbers

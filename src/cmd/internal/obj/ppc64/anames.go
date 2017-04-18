@@ -301,6 +301,8 @@ var Anames = []string{
 	"RLDCLCC",
 	"RLDICL",
 	"RLDICLCC",
+	"ROTL",
+	"ROTLW",
 	"SLBIA",
 	"SLBIE",
 	"SLBMFEE",

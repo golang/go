@@ -85,6 +85,15 @@
 (ConstNil) -> (MOVDconst [0])
 (ConstBool [b]) -> (MOVDconst [b])
 
+// Rotate generation
+(ADD (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (ROTLconst [c] x)
+( OR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (ROTLconst [c] x)
+(XOR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (ROTLconst [c] x)
+
+(ADD (SLWconst x [c]) (SRWconst x [d])) && d == 32-c -> (ROTLWconst [c] x)
+( OR (SLWconst x [c]) (SRWconst x [d])) && d == 32-c -> (ROTLWconst [c] x)
+(XOR (SLWconst x [c]) (SRWconst x [d])) && d == 32-c -> (ROTLWconst [c] x)
+
 (Lsh64x64  x (Const64 [c])) && uint64(c) < 64 -> (SLDconst x [c])
 (Rsh64x64  x (Const64 [c])) && uint64(c) < 64 -> (SRADconst x [c])
 (Rsh64Ux64 x (Const64 [c])) && uint64(c) < 64 -> (SRDconst x [c])

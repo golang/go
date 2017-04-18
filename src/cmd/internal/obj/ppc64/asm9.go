@@ -1655,11 +1655,13 @@ func buildop(ctxt *obj.Link) {
 			opset(ASLWCC, r0)
 			opset(ASRW, r0)
 			opset(ASRWCC, r0)
+			opset(AROTLW, r0)
 
 		case ASLD:
 			opset(ASLDCC, r0)
 			opset(ASRD, r0)
 			opset(ASRDCC, r0)
+			opset(AROTL, r0)
 
 		case ASRAW: /* sraw Rb,Rs,Ra; srawi sh,Rs,Ra */
 			opset(ASRAWCC, r0)
@@ -1971,10 +1973,12 @@ const (
 	OP_ORI    = 24<<26 | 0<<1 | 0<<10 | 0
 	OP_ORIS   = 25<<26 | 0<<1 | 0<<10 | 0
 	OP_RLWINM = 21<<26 | 0<<1 | 0<<10 | 0
+	OP_RLWNM  = 23<<26 | 0<<1 | 0<<10 | 0
 	OP_SUBF   = 31<<26 | 40<<1 | 0<<10 | 0
 	OP_RLDIC  = 30<<26 | 4<<1 | 0<<10 | 0
 	OP_RLDICR = 30<<26 | 2<<1 | 0<<10 | 0
 	OP_RLDICL = 30<<26 | 0<<1 | 0<<10 | 0
+	OP_RLDCL  = 30<<26 | 8<<1 | 0<<10 | 0
 )
 
 func oclass(a *obj.Addr) int {
@@ -2258,7 +2262,15 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		o1 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
+		// AROTL and AROTLW are extended mnemonics, which map to RLDCL and RLWNM.
+		switch p.As {
+		case AROTL:
+			o1 = AOP_RLDIC(OP_RLDCL, uint32(p.To.Reg), uint32(r), uint32(p.From.Reg), uint32(0))
+		case AROTLW:
+			o1 = OP_RLW(OP_RLWNM, uint32(p.To.Reg), uint32(r), uint32(p.From.Reg), 0, 31)
+		default:
+			o1 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
+		}
 
 	case 7: /* mov r, soreg ==> stw o(r) */
 		r := int(p.To.Reg)
@@ -2636,32 +2648,28 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(p.To.Reg)
 		}
 		var a int
+		op := uint32(0)
 		switch p.As {
 		case ASLD, ASLDCC:
 			a = int(63 - v)
-			o1 = OP_RLDICR
+			op = OP_RLDICR
 
 		case ASRD, ASRDCC:
 			a = int(v)
 			v = 64 - v
-			o1 = OP_RLDICL
-
+			op = OP_RLDICL
+		case AROTL:
+			a = int(0)
+			op = OP_RLDICL
 		default:
 			c.ctxt.Diag("unexpected op in sldi case\n%v", p)
 			a = 0
 			o1 = 0
 		}
 
-		o1 = AOP_RRR(o1, uint32(r), uint32(p.To.Reg), (uint32(v) & 0x1F))
-		o1 |= (uint32(a) & 31) << 6
-		if v&0x20 != 0 {
-			o1 |= 1 << 1
-		}
-		if a&0x20 != 0 {
-			o1 |= 1 << 5 /* mb[5] is top bit */
-		}
+		o1 = AOP_RLDIC(op, uint32(p.To.Reg), uint32(r), uint32(v), uint32(a))
 		if p.As == ASLDCC || p.As == ASRDCC {
-			o1 |= 1 /* Rc */
+			o1 |= 1 // Set the condition code bit
 		}
 
 	case 26: /* mov $lsext/auto/oreg,,r2 ==> addis+addi */
@@ -2978,18 +2986,18 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			v = 32
 		}
 		var mask [2]uint8
-		if p.As == ASRW || p.As == ASRWCC { /* shift right */
-			mask[0] = uint8(v)
-			mask[1] = 31
+		switch p.As {
+		case AROTLW:
+			mask[0], mask[1] = 0, 31
+		case ASRW, ASRWCC:
+			mask[0], mask[1] = uint8(v), 31
 			v = 32 - v
-		} else {
-			mask[0] = 0
-			mask[1] = uint8(31 - v)
+		default:
+			mask[0], mask[1] = 0, uint8(31-v)
 		}
-
 		o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(r), uint32(v), uint32(mask[0]), uint32(mask[1]))
 		if p.As == ASLWCC || p.As == ASRWCC {
-			o1 |= 1 /* Rc */
+			o1 |= 1 // set the condition code
 		}
 
 	case 58: /* logical $andcon,[s],a */
