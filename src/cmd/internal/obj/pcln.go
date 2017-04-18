@@ -34,19 +34,19 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 	val := int32(-1)
 	oldval := val
-	if func_.Text == nil {
+	if func_.Func.Text == nil {
 		return
 	}
 
-	pc := func_.Text.Pc
+	pc := func_.Func.Text.Pc
 
 	if dbg {
-		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Text)
+		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Func.Text)
 	}
 
 	started := false
 	var delta uint32
-	for p := func_.Text; p != nil; p = p.Link {
+	for p := func_.Func.Text; p != nil; p = p.Link {
 		// Update val. If it's not changing, keep going.
 		val = valfunc(ctxt, func_, val, p, 0, arg)
 
@@ -107,7 +107,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 	if started {
 		if dbg {
-			ctxt.Logf("%6x done\n", uint64(func_.Text.Pc+func_.Size))
+			ctxt.Logf("%6x done\n", uint64(func_.Func.Text.Pc+func_.Size))
 		}
 		addvarint(dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
 		addvarint(dst, 0) // terminator
@@ -247,11 +247,11 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 }
 
 func linkpcln(ctxt *Link, cursym *LSym) {
-	pcln := &cursym.Pcln
+	pcln := &cursym.Func.Pcln
 
 	npcdata := 0
 	nfuncdata := 0
-	for p := cursym.Text; p != nil; p = p.Link {
+	for p := cursym.Func.Text; p != nil; p = p.Link {
 		// Find the highest ID of any used PCDATA table. This ignores PCDATA table
 		// that consist entirely of "-1", since that's the assumed default value.
 		//   From.Offset is table ID
@@ -288,7 +288,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	// tabulate which pc and func data we have.
 	havepc := make([]uint32, (npcdata+31)/32)
 	havefunc := make([]uint32, (nfuncdata+31)/32)
-	for p := cursym.Text; p != nil; p = p.Link {
+	for p := cursym.Func.Text; p != nil; p = p.Link {
 		if p.As == AFUNCDATA {
 			if (havefunc[p.From.Offset/32]>>uint64(p.From.Offset%32))&1 != 0 {
 				ctxt.Diag("multiple definitions for FUNCDATA $%d", p.From.Offset)
@@ -312,7 +312,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	// funcdata
 	if nfuncdata > 0 {
 		var i int
-		for p := cursym.Text; p != nil; p = p.Link {
+		for p := cursym.Func.Text; p != nil; p = p.Link {
 			if p.As == AFUNCDATA {
 				i = int(p.From.Offset)
 				pcln.Funcdataoff[i] = p.To.Offset

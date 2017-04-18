@@ -542,7 +542,7 @@ var pstatefield = []struct {
 }
 
 func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
-	p := cursym.Text
+	p := cursym.Func.Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
 	}
@@ -601,7 +601,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for bflag != 0 {
 		bflag = 0
 		pc = 0
-		for p = c.cursym.Text.Link; p != nil; p = p.Link {
+		for p = c.cursym.Func.Text.Link; p != nil; p = p.Link {
 			if p.As == ADWORD && (pc&7) != 0 {
 				pc += 4
 			}
@@ -652,7 +652,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	psz := int32(0)
 	var i int
 	var out [6]uint32
-	for p := c.cursym.Text.Link; p != nil; p = p.Link {
+	for p := c.cursym.Func.Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)
 

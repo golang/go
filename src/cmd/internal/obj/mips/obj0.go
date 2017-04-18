@@ -132,15 +132,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// a switch for enabling/disabling instruction scheduling
 	nosched := true
 
-	if c.cursym.Text == nil || c.cursym.Text.Link == nil {
+	if c.cursym.Func.Text == nil || c.cursym.Func.Text.Link == nil {
 		return
 	}
 
-	p := c.cursym.Text
+	p := c.cursym.Func.Text
 	textstksiz := p.To.Offset
 
-	c.cursym.Args = p.To.Val.(int32)
-	c.cursym.Locals = int32(textstksiz)
+	c.cursym.Func.Args = p.To.Val.(int32)
+	c.cursym.Func.Locals = int32(textstksiz)
 
 	/*
 	 * find leaf subroutines
@@ -151,7 +151,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	var q *obj.Prog
 	var q1 *obj.Prog
-	for p := c.cursym.Text; p != nil; p = p.Link {
+	for p := c.cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		/* too hard, just leave alone */
 		case obj.ATEXT:
@@ -197,7 +197,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			AJAL,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
-			c.cursym.Text.Mark &^= LEAF
+			c.cursym.Func.Text.Mark &^= LEAF
 			fallthrough
 
 		case AJMP,
@@ -273,7 +273,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	autosize := int32(0)
 	var p1 *obj.Prog
 	var p2 *obj.Prog
-	for p := c.cursym.Text; p != nil; p = p.Link {
+	for p := c.cursym.Func.Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
 		case obj.ATEXT:
@@ -315,22 +315,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGSP
 				q.Spadj = +autosize
-			} else if c.cursym.Text.Mark&LEAF == 0 {
-				if c.cursym.Text.From.Sym.NoSplit() {
+			} else if c.cursym.Func.Text.Mark&LEAF == 0 {
+				if c.cursym.Func.Text.From.Sym.NoSplit() {
 					if ctxt.Debugvlog {
 						ctxt.Logf("save suppressed in: %s\n", c.cursym.Name)
 					}
 
-					c.cursym.Text.Mark |= LEAF
+					c.cursym.Func.Text.Mark |= LEAF
 				}
 			}
 
-			if c.cursym.Text.Mark&LEAF != 0 {
+			if c.cursym.Func.Text.Mark&LEAF != 0 {
 				c.cursym.Set(obj.AttrLeaf, true)
 				break
 			}
 
-			if c.cursym.Text.From.Sym.Wrapper() {
+			if c.cursym.Func.Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOV	g_panic(g), R1
@@ -421,7 +421,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.To.Name = obj.NAME_NONE // clear fields as we may modify p to other instruction
 			p.To.Sym = nil
 
-			if c.cursym.Text.Mark&LEAF != 0 {
+			if c.cursym.Func.Text.Mark&LEAF != 0 {
 				if autosize == 0 {
 					p.As = AJMP
 					p.From = obj.Addr{}
@@ -513,7 +513,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	if c.ctxt.Arch.Family == sys.MIPS {
 		// rewrite MOVD into two MOVF in 32-bit mode to avoid unaligned memory access
-		for p = c.cursym.Text; p != nil; p = p1 {
+		for p = c.cursym.Func.Text; p != nil; p = p1 {
 			p1 = p.Link
 
 			if p.As != AMOVD {
@@ -551,7 +551,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if nosched {
 		// if we don't do instruction scheduling, simply add
 		// NOP after each branch instruction.
-		for p = c.cursym.Text; p != nil; p = p.Link {
+		for p = c.cursym.Func.Text; p != nil; p = p.Link {
 			if p.Mark&BRANCH != 0 {
 				c.addnop(p)
 			}
@@ -560,10 +560,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	// instruction scheduling
-	q = nil            // p - 1
-	q1 = c.cursym.Text // top of block
-	o := 0             // count of instructions
-	for p = c.cursym.Text; p != nil; p = p1 {
+	q = nil                 // p - 1
+	q1 = c.cursym.Func.Text // top of block
+	o := 0                  // count of instructions
+	for p = c.cursym.Func.Text; p != nil; p = p1 {
 		p1 = p.Link
 		o++
 		if p.Mark&NOSCHED != 0 {
@@ -759,7 +759,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.To.Type = obj.TYPE_BRANCH
 	if c.cursym.CFunc() {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestackc", 0)
-	} else if !c.cursym.Text.From.Sym.NeedCtxt() {
+	} else if !c.cursym.Func.Text.From.Sym.NeedCtxt() {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt", 0)
 	} else {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack", 0)
@@ -771,7 +771,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 	p.As = AJMP
 	p.To.Type = obj.TYPE_BRANCH
-	p.Pcond = c.cursym.Text.Link
+	p.Pcond = c.cursym.Func.Text.Link
 	p.Mark |= BRANCH
 
 	// placeholder for q1's jump target

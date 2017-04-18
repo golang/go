@@ -1778,7 +1778,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 	var asmbuf AsmBuf
 
-	for p := s.Text; p != nil; p = p.Link {
+	for p := s.Func.Text; p != nil; p = p.Link {
 		if p.To.Type == obj.TYPE_BRANCH {
 			if p.Pcond == nil {
 				p.Pcond = p
@@ -1804,7 +1804,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 	var q *obj.Prog
 	var count int64 // rough count of number of instructions
-	for p := s.Text; p != nil; p = p.Link {
+	for p := s.Func.Text; p != nil; p = p.Link {
 		count++
 		p.Back = 2 // use short branches first time through
 		q = p.Pcond
@@ -1843,7 +1843,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		s.R = s.R[:0]
 		s.P = s.P[:0]
 		c = 0
-		for p := s.Text; p != nil; p = p.Link {
+		for p := s.Func.Text; p != nil; p = p.Link {
 			if ctxt.Headtype == obj.Hnacl && p.Isize > 0 {
 
 				// pad everything to avoid crossing 32-byte boundary

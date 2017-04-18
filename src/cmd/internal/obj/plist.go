@@ -80,7 +80,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 			continue
 		}
 		found := false
-		for p := s.Text; p != nil; p = p.Link {
+		for p := s.Func.Text; p != nil; p = p.Link {
 			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
 				found = true
 				break
@@ -88,7 +88,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 		}
 
 		if !found {
-			p := Appendp(s.Text, newprog)
+			p := Appendp(s.Func.Text, newprog)
 			p.As = AFUNCDATA
 			p.From.Type = TYPE_CONST
 			p.From.Offset = FUNCDATA_ArgsPointerMaps
@@ -114,11 +114,11 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 		// func _() { }
 		return
 	}
-	if s.FuncInfo != nil {
+	if s.Func != nil {
 		ctxt.Diag("InitTextSym double init for %s", s.Name)
 	}
-	s.FuncInfo = new(FuncInfo)
-	if s.Text != nil {
+	s.Func = new(FuncInfo)
+	if s.Func.Text != nil {
 		ctxt.Diag("duplicate TEXT for %s", s.Name)
 	}
 	if s.OnList() {
@@ -142,10 +142,10 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 
 	// Set up the function's gcargs and gclocals.
 	// They will be filled in later if needed.
-	gcargs := &s.FuncInfo.GCArgs
+	gcargs := &s.Func.GCArgs
 	gcargs.Set(AttrDuplicateOK, true)
 	gcargs.Type = SRODATA
-	gclocals := &s.FuncInfo.GCLocals
+	gclocals := &s.Func.GCLocals
 	gclocals.Set(AttrDuplicateOK, true)
 	gclocals.Type = SRODATA
 }

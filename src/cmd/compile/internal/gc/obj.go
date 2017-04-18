@@ -237,10 +237,10 @@ func dumpglobls() {
 func addGCLocals() {
 	seen := make(map[string]bool)
 	for _, s := range Ctxt.Text {
-		if s.FuncInfo == nil {
+		if s.Func == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{&s.FuncInfo.GCArgs, &s.FuncInfo.GCLocals} {
+		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals} {
 			if seen[gcsym.Name] {
 				continue
 			}
