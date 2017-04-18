@@ -311,7 +311,7 @@ func textsectionmap(ctxt *Link) uint32 {
 	t.Attr |= AttrReachable
 	nsections := int64(0)
 
-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segtext.Sections {
 		if sect.Name == ".text" {
 			nsections++
 		} else {
@@ -332,8 +332,8 @@ func textsectionmap(ctxt *Link) uint32 {
 	// order of creation starting with 1. These symbols provide the section's
 	// address after relocation by the linker.
 
-	textbase := Segtext.Sect.Vaddr
-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+	textbase := Segtext.Sections[0].Vaddr
+	for _, sect := range Segtext.Sections {
 		if sect.Name != ".text" {
 			break
 		}

@@ -141,12 +141,12 @@ const (
 )
 
 type Segment struct {
-	Rwx     uint8  // permission as usual unix bits (5 = r-x etc)
-	Vaddr   uint64 // virtual address
-	Length  uint64 // length in memory
-	Fileoff uint64 // file offset
-	Filelen uint64 // length on disk
-	Sect    *Section
+	Rwx      uint8  // permission as usual unix bits (5 = r-x etc)
+	Vaddr    uint64 // virtual address
+	Length   uint64 // length in memory
+	Fileoff  uint64 // file offset
+	Filelen  uint64 // length on disk
+	Sections []*Section
 }
 
 type Section struct {
@@ -156,7 +156,6 @@ type Section struct {
 	Name    string
 	Vaddr   uint64
 	Length  uint64
-	Next    *Section
 	Seg     *Segment
 	Elfsect *ElfShdr
 	Reloff  uint64
@@ -1603,16 +1602,12 @@ func pathtoprefix(s string) string {
 }
 
 func addsection(seg *Segment, name string, rwx int) *Section {
-	var l **Section
-
-	for l = &seg.Sect; *l != nil; l = &(*l).Next {
-	}
 	sect := new(Section)
 	sect.Rwx = uint8(rwx)
 	sect.Name = name
 	sect.Seg = seg
 	sect.Align = int32(SysArch.PtrSize) // everything is at least pointer-aligned
-	*l = sect
+	seg.Sections = append(seg.Sections, sect)
 	return sect
 }
 
@@ -1913,7 +1908,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 	n := 0
 
 	// Generate base addresses for all text sections if there are multiple
-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segtext.Sections {
 		if n == 0 {
 			n++
 			continue

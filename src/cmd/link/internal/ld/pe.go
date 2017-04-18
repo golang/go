@@ -887,8 +887,8 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 	}
 
 	peemitsectreloc(text, func() int {
-		n := perelocsect(ctxt, Segtext.Sect, ctxt.Textp, Segtext.Vaddr)
-		for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
+		n := perelocsect(ctxt, Segtext.Sections[0], ctxt.Textp, Segtext.Vaddr)
+		for _, sect := range Segtext.Sections[1:] {
 			n += perelocsect(ctxt, sect, datap, Segtext.Vaddr)
 		}
 		return n
@@ -896,14 +896,14 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 
 	peemitsectreloc(data, func() int {
 		var n int
-		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+		for _, sect := range Segdata.Sections {
 			n += perelocsect(ctxt, sect, datap, Segdata.Vaddr)
 		}
 		return n
 	})
 
 dwarfLoop:
-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdwarf.Sections {
 		for i, name := range shNames {
 			if sect.Name == name {
 				peemitsectreloc(&sh[i], func() int {

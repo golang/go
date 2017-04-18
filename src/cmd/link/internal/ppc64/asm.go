@@ -880,7 +880,7 @@ func asmb(ctxt *ld.Link) {
 		ld.Asmbelfsetup()
 	}
 
-	for sect := ld.Segtext.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range ld.Segtext.Sections {
 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 		// Handle additional text sections with Codeblk
 		if sect.Name == ".text" {
