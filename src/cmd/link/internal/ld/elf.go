@@ -1831,7 +1831,7 @@ func Elfemitreloc(ctxt *Link) {
 		Cput(0)
 	}
 
-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segtext.Sections {
 		if sect.Name == ".text" {
 			elfrelocsect(ctxt, sect, ctxt.Textp)
 		} else {
@@ -1839,16 +1839,16 @@ func Elfemitreloc(ctxt *Link) {
 		}
 	}
 
-	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segrodata.Sections {
 		elfrelocsect(ctxt, sect, datap)
 	}
-	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segrelrodata.Sections {
 		elfrelocsect(ctxt, sect, datap)
 	}
-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdata.Sections {
 		elfrelocsect(ctxt, sect, datap)
 	}
-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdwarf.Sections {
 		elfrelocsect(ctxt, sect, dwarfp)
 	}
 }
@@ -2167,7 +2167,7 @@ func Asmbelfsetup() {
 	/* This null SHdr must appear before all others */
 	elfshname("")
 
-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segtext.Sections {
 		// There could be multiple .text sections. Instead check the Elfsect
 		// field to determine if already has an ElfShdr and if not, create one.
 		if sect.Name == ".text" {
@@ -2178,16 +2178,16 @@ func Asmbelfsetup() {
 			elfshalloc(sect)
 		}
 	}
-	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segrodata.Sections {
 		elfshalloc(sect)
 	}
-	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segrelrodata.Sections {
 		elfshalloc(sect)
 	}
-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdata.Sections {
 		elfshalloc(sect)
 	}
-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdwarf.Sections {
 		elfshalloc(sect)
 	}
 }
@@ -2216,7 +2216,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 	elfreserve := int64(ELFRESERVE)
 
 	numtext := int64(0)
-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segtext.Sections {
 		if sect.Name == ".text" {
 			numtext++
 		}
@@ -2367,10 +2367,10 @@ func Asmbelf(ctxt *Link, symo int64) {
 	// Additions to the reserved area must be above this line.
 
 	elfphload(&Segtext)
-	if Segrodata.Sect != nil {
+	if len(Segrodata.Sections) > 0 {
 		elfphload(&Segrodata)
 	}
-	if Segrelrodata.Sect != nil {
+	if len(Segrelrodata.Sections) > 0 {
 		elfphload(&Segrelrodata)
 		elfphrelro(&Segrelrodata)
 	}
@@ -2523,7 +2523,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		 * Thread-local storage segment (really just size).
 		 */
 		tlssize := uint64(0)
-		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+		for _, sect := range Segdata.Sections {
 			if sect.Name == ".tbss" {
 				tlssize = sect.Length
 			}
@@ -2566,33 +2566,33 @@ elfobj:
 		elfshname(".strtab")
 	}
 
-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segtext.Sections {
 		elfshbits(sect)
 	}
-	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segrodata.Sections {
 		elfshbits(sect)
 	}
-	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segrelrodata.Sections {
 		elfshbits(sect)
 	}
-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdata.Sections {
 		elfshbits(sect)
 	}
-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdwarf.Sections {
 		elfshbits(sect)
 	}
 
 	if Linkmode == LinkExternal {
-		for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+		for _, sect := range Segtext.Sections {
 			elfshreloc(sect)
 		}
-		for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
+		for _, sect := range Segrodata.Sections {
 			elfshreloc(sect)
 		}
-		for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
+		for _, sect := range Segrelrodata.Sections {
 			elfshreloc(sect)
 		}
-		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+		for _, sect := range Segdata.Sections {
 			elfshreloc(sect)
 		}
 		for _, s := range dwarfp {

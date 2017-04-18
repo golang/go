@@ -192,10 +192,10 @@ func asmb(ctxt *ld.Link) {
 		ld.Asmbelfsetup()
 	}
 
-	sect := ld.Segtext.Sect
+	sect := ld.Segtext.Sections[0]
 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
-	for sect = sect.Next; sect != nil; sect = sect.Next {
+	for _, sect = range ld.Segtext.Sections[1:] {
 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
 	}

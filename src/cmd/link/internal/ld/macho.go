@@ -472,7 +472,7 @@ func Asmbmacho(ctxt *Link) {
 		ms.prot2 = 5
 	}
 
-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segtext.Sections {
 		machoshbits(ctxt, ms, sect, "__TEXT")
 	}
 
@@ -488,7 +488,7 @@ func Asmbmacho(ctxt *Link) {
 		ms.prot2 = 3
 	}
 
-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdata.Sections {
 		machoshbits(ctxt, ms, sect, "__DATA")
 	}
 
@@ -501,7 +501,7 @@ func Asmbmacho(ctxt *Link) {
 			ms.fileoffset = Segdwarf.Fileoff
 			ms.filesize = Segdwarf.Filelen
 		}
-		for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+		for _, sect := range Segdwarf.Sections {
 			machoshbits(ctxt, ms, sect, "__DWARF")
 		}
 	}
@@ -892,14 +892,14 @@ func Machoemitreloc(ctxt *Link) {
 		Cput(0)
 	}
 
-	machorelocsect(ctxt, Segtext.Sect, ctxt.Textp)
-	for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
+	machorelocsect(ctxt, Segtext.Sections[0], ctxt.Textp)
+	for _, sect := range Segtext.Sections[1:] {
 		machorelocsect(ctxt, sect, datap)
 	}
-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdata.Sections {
 		machorelocsect(ctxt, sect, datap)
 	}
-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdwarf.Sections {
 		machorelocsect(ctxt, sect, dwarfp)
 	}
 }

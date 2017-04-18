@@ -1618,7 +1618,7 @@ func dwarfaddpeheaders(ctxt *Link) {
 	if *FlagW { // disable dwarf
 		return
 	}
-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdwarf.Sections {
 		h := newPEDWARFSection(ctxt, sect.Name, int64(sect.Length))
 		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
 		if uint64(h.PointerToRawData) != fileoff {

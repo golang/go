@@ -605,7 +605,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			// to the start of the first text section, even if there are multiple.
 
 			if r.Sym.Sect.Name == ".text" {
-				o = Symaddr(r.Sym) - int64(Segtext.Sect.Vaddr) + r.Add
+				o = Symaddr(r.Sym) - int64(Segtext.Sections[0].Vaddr) + r.Add
 			} else {
 				o = Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr) + r.Add
 			}
@@ -1856,23 +1856,23 @@ func (ctxt *Link) dodata() {
 	/* number the sections */
 	n := int32(1)
 
-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segtext.Sections {
 		sect.Extnum = int16(n)
 		n++
 	}
-	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segrodata.Sections {
 		sect.Extnum = int16(n)
 		n++
 	}
-	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segrelrodata.Sections {
 		sect.Extnum = int16(n)
 		n++
 	}
-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdata.Sections {
 		sect.Extnum = int16(n)
 		n++
 	}
-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+	for _, sect := range Segdwarf.Sections {
 		sect.Extnum = int16(n)
 		n++
 	}
@@ -2024,7 +2024,7 @@ func (ctxt *Link) textaddress() {
 	// Assign PCs in text segment.
 	// Could parallelize, by assigning to text
 	// and then letting threads copy down, but probably not worth it.
-	sect := Segtext.Sect
+	sect := Segtext.Sections[0]
 
 	sect.Align = int32(Funcalign)
 
@@ -2132,7 +2132,7 @@ func (ctxt *Link) address() {
 	Segtext.Rwx = 05
 	Segtext.Vaddr = va
 	Segtext.Fileoff = uint64(HEADR)
-	for s := Segtext.Sect; s != nil; s = s.Next {
+	for _, s := range Segtext.Sections {
 		va = uint64(Rnd(int64(va), int64(s.Align)))
 		s.Vaddr = va
 		va += s.Length
@@ -2144,7 +2144,7 @@ func (ctxt *Link) address() {
 		va += 32 // room for the "halt sled"
 	}
 
-	if Segrodata.Sect != nil {
+	if len(Segrodata.Sections) > 0 {
 		// align to page boundary so as not to mix
 		// rodata and executable text.
 		//
@@ -2164,7 +2164,7 @@ func (ctxt *Link) address() {
 		Segrodata.Vaddr = va
 		Segrodata.Fileoff = va - Segtext.Vaddr + Segtext.Fileoff
 		Segrodata.Filelen = 0
-		for s := Segrodata.Sect; s != nil; s = s.Next {
+		for _, s := range Segrodata.Sections {
 			va = uint64(Rnd(int64(va), int64(s.Align)))
 			s.Vaddr = va
 			va += s.Length
@@ -2173,7 +2173,7 @@ func (ctxt *Link) address() {
 		Segrodata.Length = va - Segrodata.Vaddr
 		Segrodata.Filelen = Segrodata.Length
 	}
-	if Segrelrodata.Sect != nil {
+	if len(Segrelrodata.Sections) > 0 {
 		// align to page boundary so as not to mix
 		// rodata, rel-ro data, and executable text.
 		va = uint64(Rnd(int64(va), int64(*FlagRound)))
@@ -2182,7 +2182,7 @@ func (ctxt *Link) address() {
 		Segrelrodata.Vaddr = va
 		Segrelrodata.Fileoff = va - Segrodata.Vaddr + Segrodata.Fileoff
 		Segrelrodata.Filelen = 0
-		for s := Segrelrodata.Sect; s != nil; s = s.Next {
+		for _, s := range Segrelrodata.Sections {
 			va = uint64(Rnd(int64(va), int64(s.Align)))
 			s.Vaddr = va
 			va += s.Length
@@ -2208,13 +2208,13 @@ func (ctxt *Link) address() {
 	var bss *Section
 	var noptrbss *Section
 	var vlen int64
-	for s := Segdata.Sect; s != nil; s = s.Next {
+	for i, s := range Segdata.Sections {
 		if Iself && s.Name == ".tbss" {
 			continue
 		}
 		vlen = int64(s.Length)
-		if s.Next != nil && !(Iself && s.Next.Name == ".tbss") {
-			vlen = int64(s.Next.Vaddr - s.Vaddr)
+		if i+1 < len(Segdata.Sections) && !(Iself && Segdata.Sections[i+1].Name == ".tbss") {
+			vlen = int64(Segdata.Sections[i+1].Vaddr - s.Vaddr)
 		}
 		s.Vaddr = va
 		va += uint64(vlen)
@@ -2243,10 +2243,10 @@ func (ctxt *Link) address() {
 	if Headtype == obj.Hwindows {
 		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
 	}
-	for s := Segdwarf.Sect; s != nil; s = s.Next {
+	for i, s := range Segdwarf.Sections {
 		vlen = int64(s.Length)
-		if s.Next != nil {
-			vlen = int64(s.Next.Vaddr - s.Vaddr)
+		if i+1 < len(Segdwarf.Sections) {
+			vlen = int64(Segdwarf.Sections[i+1].Vaddr - s.Vaddr)
 		}
 		s.Vaddr = va
 		va += uint64(vlen)
@@ -2259,7 +2259,7 @@ func (ctxt *Link) address() {
 	Segdwarf.Filelen = va - Segdwarf.Vaddr
 
 	var (
-		text     = Segtext.Sect
+		text     = Segtext.Sections[0]
 		rodata   = ctxt.Syms.Lookup("runtime.rodata", 0).Sect
 		itablink = ctxt.Syms.Lookup("runtime.itablink", 0).Sect
 		symtab   = ctxt.Syms.Lookup("runtime.symtab", 0).Sect
@@ -2268,8 +2268,10 @@ func (ctxt *Link) address() {
 	)
 	lasttext := text
 	// Could be multiple .text sections
-	for sect := text.Next; sect != nil && sect.Name == ".text"; sect = sect.Next {
-		lasttext = sect
+	for _, sect := range Segtext.Sections {
+		if sect.Name == ".text" {
+			lasttext = sect
+		}
 	}
 
 	for _, s := range datap {
@@ -2303,10 +2305,14 @@ func (ctxt *Link) address() {
 	// If there are multiple text sections, create runtime.text.n for
 	// their section Vaddr, using n for index
 	n := 1
-	for sect := Segtext.Sect.Next; sect != nil && sect.Name == ".text"; sect = sect.Next {
-		symname := fmt.Sprintf("runtime.text.%d", n)
-		ctxt.xdefine(symname, obj.STEXT, int64(sect.Vaddr))
-		n++
+	for _, sect := range Segtext.Sections[1:] {
+		if sect.Name == ".text" {
+			symname := fmt.Sprintf("runtime.text.%d", n)
+			ctxt.xdefine(symname, obj.STEXT, int64(sect.Vaddr))
+			n++
+		} else {
+			break
+		}
 	}
 
 	ctxt.xdefine("runtime.rodata", obj.SRODATA, int64(rodata.Vaddr))
