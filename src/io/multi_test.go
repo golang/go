@@ -175,13 +175,26 @@ func (f readerFunc) Read(p []byte) (int, error) {
 	return f(p)
 }
 
+// callDepth returns the logical call depth for the given PCs.
+func callDepth(callers []uintptr) (depth int) {
+	frames := runtime.CallersFrames(callers)
+	more := true
+	for more {
+		_, more = frames.Next()
+		depth++
+	}
+	return
+}
+
 // Test that MultiReader properly flattens chained multiReaders when Read is called
 func TestMultiReaderFlatten(t *testing.T) {
 	pc := make([]uintptr, 1000) // 1000 should fit the full stack
-	var myDepth = runtime.Callers(0, pc)
+	n := runtime.Callers(0, pc)
+	var myDepth = callDepth(pc[:n])
 	var readDepth int // will contain the depth from which fakeReader.Read was called
 	var r Reader = MultiReader(readerFunc(func(p []byte) (int, error) {
-		readDepth = runtime.Callers(1, pc)
+		n := runtime.Callers(1, pc)
+		readDepth = callDepth(pc[:n])
 		return 0, errors.New("irrelevant")
 	}))
 
