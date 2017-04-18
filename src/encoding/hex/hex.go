@@ -12,10 +12,7 @@ import (
 	"io"
 )
 
-var hextable = [16]byte{
-	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-	'a', 'b', 'c', 'd', 'e', 'f',
-}
+const hextable = "0123456789abcdef"
 
 // EncodedLen returns the length of an encoding of n source bytes.
 // Specifically, it returns n * 2.
