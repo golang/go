@@ -59,7 +59,7 @@ func mkfwd(sym *LSym) {
 	}
 
 	i := 0
-	for p := sym.Text; p != nil && p.Link != nil; p = p.Link {
+	for p := sym.Func.Text; p != nil && p.Link != nil; p = p.Link {
 		i--
 		if i < 0 {
 			i = LOG - 1

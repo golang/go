@@ -152,7 +152,7 @@ func (pp *Progs) settext(fn *Node) {
 		return
 	}
 
-	fn.Func.lsym.Text = ptxt
+	fn.Func.lsym.Func.Text = ptxt
 	ptxt.From.Type = obj.TYPE_MEM
 	ptxt.From.Name = obj.NAME_EXTERN
 	ptxt.From.Sym = fn.Func.lsym
@@ -161,13 +161,13 @@ func (pp *Progs) settext(fn *Node) {
 	Addrconst(&p.From, obj.FUNCDATA_ArgsPointerMaps)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = &fn.Func.lsym.FuncInfo.GCArgs
+	p.To.Sym = &fn.Func.lsym.Func.GCArgs
 
 	p = pp.Prog(obj.AFUNCDATA)
 	Addrconst(&p.From, obj.FUNCDATA_LocalsPointerMaps)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = &fn.Func.lsym.FuncInfo.GCLocals
+	p.To.Sym = &fn.Func.lsym.Func.GCLocals
 }
 
 func (f *Func) initLSym() {

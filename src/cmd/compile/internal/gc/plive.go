@@ -1160,7 +1160,7 @@ func liveness(e *ssafn, f *ssa.Func) map[*ssa.Value]int {
 
 	// Emit the live pointer map data structures
 	if ls := e.curfn.Func.lsym; ls != nil {
-		livenessemit(lv, &ls.FuncInfo.GCArgs, &ls.FuncInfo.GCLocals)
+		livenessemit(lv, &ls.Func.GCArgs, &ls.Func.GCLocals)
 	}
 	return lv.stackMapIndex
 }

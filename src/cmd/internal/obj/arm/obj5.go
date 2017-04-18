@@ -248,7 +248,7 @@ const (
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	autosize := int32(0)
 
-	if cursym.Text == nil || cursym.Text.Link == nil {
+	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
 		return
 	}
 
@@ -256,13 +256,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	c.softfloat()
 
-	p := c.cursym.Text
+	p := c.cursym.Func.Text
 	autoffset := int32(p.To.Offset)
 	if autoffset < 0 {
 		autoffset = 0
 	}
-	cursym.Locals = autoffset
-	cursym.Args = p.To.Val.(int32)
+	cursym.Func.Locals = autoffset
+	cursym.Func.Args = p.To.Val.(int32)
 
 	/*
 	 * find leaf subroutines
@@ -272,7 +272,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	 */
 	var q1 *obj.Prog
 	var q *obj.Prog
-	for p := cursym.Text; p != nil; p = p.Link {
+	for p := cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		case obj.ATEXT:
 			p.Mark |= LEAF
@@ -282,7 +282,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		case ADIV, ADIVU, AMOD, AMODU:
 			q = p
-			cursym.Text.Mark &^= LEAF
+			cursym.Func.Text.Mark &^= LEAF
 			continue
 
 		case obj.ANOP:
@@ -297,7 +297,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ABX,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
-			cursym.Text.Mark &^= LEAF
+			cursym.Func.Text.Mark &^= LEAF
 			fallthrough
 
 		case AB,
@@ -330,27 +330,27 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	var q2 *obj.Prog
-	for p := cursym.Text; p != nil; p = p.Link {
+	for p := cursym.Func.Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
 		case obj.ATEXT:
 			autosize = int32(p.To.Offset + 4)
 			if autosize <= 4 {
-				if cursym.Text.Mark&LEAF != 0 {
+				if cursym.Func.Text.Mark&LEAF != 0 {
 					p.To.Offset = -4
 					autosize = 0
 				}
 			}
 
-			if autosize == 0 && cursym.Text.Mark&LEAF == 0 {
+			if autosize == 0 && cursym.Func.Text.Mark&LEAF == 0 {
 				if ctxt.Debugvlog {
 					ctxt.Logf("save suppressed in: %s\n", cursym.Name)
 				}
 
-				cursym.Text.Mark |= LEAF
+				cursym.Func.Text.Mark |= LEAF
 			}
 
-			if cursym.Text.Mark&LEAF != 0 {
+			if cursym.Func.Text.Mark&LEAF != 0 {
 				cursym.Set(obj.AttrLeaf, true)
 				if autosize == 0 {
 					break
@@ -373,7 +373,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.To.Reg = REGSP
 			p.Spadj = autosize
 
-			if cursym.Text.From.Sym.Wrapper() {
+			if cursym.Func.Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
 				//	MOVW g_panic(g), R1
@@ -486,7 +486,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		case obj.ARET:
 			nocache(p)
-			if cursym.Text.Mark&LEAF != 0 {
+			if cursym.Func.Text.Mark&LEAF != 0 {
 				if autosize == 0 {
 					p.As = AB
 					p.From = obj.Addr{}
@@ -534,7 +534,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 		case ADIV, ADIVU, AMOD, AMODU:
-			if cursym.Text.From.Sym.NoSplit() {
+			if cursym.Func.Text.From.Sym.NoSplit() {
 				ctxt.Diag("cannot divide in NOSPLIT function")
 			}
 			const debugdivmod = false
@@ -639,13 +639,13 @@ func (c *ctxt5) softfloat() {
 	symsfloat := c.ctxt.Lookup("_sfloat", 0)
 
 	wasfloat := 0
-	for p := c.cursym.Text; p != nil; p = p.Link {
+	for p := c.cursym.Func.Text; p != nil; p = p.Link {
 		if p.Pcond != nil {
 			p.Pcond.Mark |= LABEL
 		}
 	}
 	var next *obj.Prog
-	for p := c.cursym.Text; p != nil; p = p.Link {
+	for p := c.cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		case AMOVW:
 			if isfloatreg(&p.To) || isfloatreg(&p.From) {
@@ -806,7 +806,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	bls.To.Type = obj.TYPE_BRANCH
 
 	var last *obj.Prog
-	for last = c.cursym.Text; last.Link != nil; last = last.Link {
+	for last = c.cursym.Func.Text; last.Link != nil; last = last.Link {
 	}
 
 	// Now we are at the end of the function, but logically
@@ -817,7 +817,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	spfix.Spadj = -framesize
 
 	pcdata := obj.Appendp(spfix, c.newprog)
-	pcdata.Pos = c.cursym.Text.Pos
+	pcdata.Pos = c.cursym.Func.Text.Pos
 	pcdata.As = obj.APCDATA
 	pcdata.From.Type = obj.TYPE_CONST
 	pcdata.From.Offset = obj.PCDATA_StackMapIndex
@@ -842,7 +842,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	switch {
 	case c.cursym.CFunc():
 		morestack = "runtime.morestackc"
-	case !c.cursym.Text.From.Sym.NeedCtxt():
+	case !c.cursym.Func.Text.From.Sym.NeedCtxt():
 		morestack = "runtime.morestack_noctxt"
 	}
 	call.To.Sym = c.ctxt.Lookup(morestack, 0)
@@ -851,7 +851,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	b := obj.Appendp(call, c.newprog)
 	b.As = obj.AJMP
 	b.To.Type = obj.TYPE_BRANCH
-	b.Pcond = c.cursym.Text.Link
+	b.Pcond = c.cursym.Func.Text.Link
 	b.Spadj = +framesize
 
 	return bls

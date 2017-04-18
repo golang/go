@@ -122,7 +122,7 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 	var name string
 	var q *Prog
 
-	for p := sym.Text; p != nil; p = p.Link {
+	for p := sym.Func.Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
 		if p.From3 != nil {
 			checkaddr(ctxt, p, p.From3)
@@ -145,7 +145,7 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 			continue
 		}
 		c = int32(p.To.Offset)
-		for q = sym.Text; q != nil; {
+		for q = sym.Func.Text; q != nil; {
 			if int64(c) == q.Pc {
 				break
 			}
@@ -174,7 +174,7 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 	}
 
 	// Collapse series of jumps to jumps.
-	for p := sym.Text; p != nil; p = p.Link {
+	for p := sym.Func.Text; p != nil; p = p.Link {
 		if p.Pcond == nil {
 			continue
 		}

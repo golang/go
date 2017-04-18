@@ -318,8 +318,7 @@ type LSym struct {
 	P      []byte
 	R      []Reloc
 
-	// TODO(mdempsky): De-anonymize field.
-	*FuncInfo
+	Func *FuncInfo
 }
 
 // A FuncInfo contains extra fields for STEXT symbols.

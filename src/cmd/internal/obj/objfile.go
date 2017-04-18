@@ -153,7 +153,7 @@ func (w *objWriter) addLengths(s *LSym) {
 		return
 	}
 
-	pc := &s.Pcln
+	pc := &s.Func.Pcln
 
 	data := 0
 	data += len(pc.Pcsp.P)
@@ -167,7 +167,7 @@ func (w *objWriter) addLengths(s *LSym) {
 	w.nData += data
 	w.nPcdata += len(pc.Pcdata)
 
-	w.nAutom += len(s.Autom)
+	w.nAutom += len(s.Func.Autom)
 	w.nFuncdata += len(pc.Funcdataoff)
 	w.nFile += len(pc.File)
 }
@@ -223,7 +223,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	// Data block
 	for _, s := range ctxt.Text {
 		w.wr.Write(s.P)
-		pc := &s.Pcln
+		pc := &s.Func.Pcln
 		w.wr.Write(pc.Pcsp.P)
 		w.wr.Write(pc.Pcfile.P)
 		w.wr.Write(pc.Pcline.P)
@@ -290,11 +290,11 @@ func (w *objWriter) writeRefs(s *LSym) {
 	}
 
 	if s.Type == STEXT {
-		for _, a := range s.Autom {
+		for _, a := range s.Func.Autom {
 			w.writeRef(a.Asym, false)
 			w.writeRef(a.Gotype, false)
 		}
-		pc := &s.Pcln
+		pc := &s.Func.Pcln
 		for _, d := range pc.Funcdata {
 			w.writeRef(d, false)
 		}
@@ -331,14 +331,14 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 	if s.Type == STEXT {
-		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
+		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Func.Args), uint64(s.Func.Locals))
 		if s.Leaf() {
 			fmt.Fprintf(ctxt.Bso, " leaf")
 		}
 	}
 	fmt.Fprintf(ctxt.Bso, "\n")
 	if s.Type == STEXT {
-		for p := s.Text; p != nil; p = p.Link {
+		for p := s.Func.Text; p != nil; p = p.Link {
 			fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
 		}
 	}
@@ -419,8 +419,8 @@ func (w *objWriter) writeSym(s *LSym) {
 		return
 	}
 
-	w.writeInt(int64(s.Args))
-	w.writeInt(int64(s.Locals))
+	w.writeInt(int64(s.Func.Args))
+	w.writeInt(int64(s.Func.Locals))
 	if s.NoSplit() {
 		w.writeInt(1)
 	} else {
@@ -437,8 +437,8 @@ func (w *objWriter) writeSym(s *LSym) {
 		flags |= 1 << 2
 	}
 	w.writeInt(flags)
-	w.writeInt(int64(len(s.Autom)))
-	for _, a := range s.Autom {
+	w.writeInt(int64(len(s.Func.Autom)))
+	for _, a := range s.Func.Autom {
 		w.writeRefIndex(a.Asym)
 		w.writeInt(int64(a.Aoffset))
 		if a.Name == NAME_AUTO {
@@ -451,7 +451,7 @@ func (w *objWriter) writeSym(s *LSym) {
 		w.writeRefIndex(a.Gotype)
 	}
 
-	pc := &s.Pcln
+	pc := &s.Func.Pcln
 	w.writeInt(int64(len(pc.Pcsp.P)))
 	w.writeInt(int64(len(pc.Pcfile.P)))
 	w.writeInt(int64(len(pc.Pcline.P)))
@@ -560,10 +560,10 @@ func (ctxt *Link) dwarfSym(s *LSym) *LSym {
 	if s.Type != STEXT {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
-	if s.FuncInfo.dwarfSym == nil {
-		s.FuncInfo.dwarfSym = ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+	if s.Func.dwarfSym == nil {
+		s.Func.dwarfSym = ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
 	}
-	return s.FuncInfo.dwarfSym
+	return s.Func.dwarfSym
 }
 
 // populateDWARF fills in the DWARF Debugging Information Entry for TEXT symbol s.

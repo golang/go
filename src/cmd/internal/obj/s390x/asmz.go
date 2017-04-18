@@ -400,7 +400,7 @@ var oprange [ALAST & obj.AMask][]Optab
 var xcmp [C_NCLASS][C_NCLASS]bool
 
 func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
-	p := cursym.Text
+	p := cursym.Func.Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
 	}
@@ -422,7 +422,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		changed = false
 		buffer = buffer[:0]
 		c.cursym.R = make([]obj.Reloc, 0)
-		for p := c.cursym.Text; p != nil; p = p.Link {
+		for p := c.cursym.Func.Text; p != nil; p = p.Link {
 			pc := int64(len(buffer))
 			if pc != p.Pc {
 				changed = true
