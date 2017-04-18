@@ -270,7 +270,9 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 		if data[0] != 3 || data[2] == 0 {
 			return fmt.Errorf("malformed profile")
 		}
-		b.period = int64(data[2]) * 1000
+		// data[2] is sampling rate in Hz. Convert to sampling
+		// period in nanoseconds.
+		b.period = 1e9 / int64(data[2])
 		b.havePeriod = true
 		data = data[3:]
 	}

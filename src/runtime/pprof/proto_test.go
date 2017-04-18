@@ -40,7 +40,7 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
 	// A test server with mock cpu profile data.
 	var buf bytes.Buffer
 
-	b := []uint64{3, 0, 2000} // empty profile with 2ms sample period
+	b := []uint64{3, 0, 500} // empty profile at 500 Hz (2ms sample period)
 	p, err := translateCPUProfile(b)
 	if err != nil {
 		t.Fatalf("translateCPUProfile: %v", err)
@@ -103,7 +103,7 @@ func TestConvertCPUProfile(t *testing.T) {
 	addr1, addr2, map1, map2 := testPCs(t)
 
 	b := []uint64{
-		3, 0, 2000, // periodMs = 2000
+		3, 0, 500, // hz = 500
 		5, 0, 10, uint64(addr1), uint64(addr1 + 2), // 10 samples in addr1
 		5, 0, 40, uint64(addr2), uint64(addr2 + 2), // 40 samples in addr2
 		5, 0, 10, uint64(addr1), uint64(addr1 + 2), // 10 samples in addr1
