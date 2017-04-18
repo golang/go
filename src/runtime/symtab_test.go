@@ -26,10 +26,14 @@ func TestCaller(t *testing.T) {
 	}
 }
 
+// These are marked noinline so that we can use FuncForPC
+// in testCallerBar.
+//go:noinline
 func testCallerFoo(t *testing.T) {
 	testCallerBar(t)
 }
 
+//go:noinline
 func testCallerBar(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		pc, file, line, ok := runtime.Caller(i)
