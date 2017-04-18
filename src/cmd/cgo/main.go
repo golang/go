@@ -17,7 +17,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
-	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -265,29 +265,27 @@ func main() {
 	// concern is other cgo wrappers for the same functions.
 	// Use the beginning of the md5 of the input to disambiguate.
 	h := md5.New()
-	for _, input := range goFiles {
-		if *srcDir != "" {
-			input = filepath.Join(*srcDir, input)
-		}
-		f, err := os.Open(input)
-		if err != nil {
-			fatalf("%s", err)
-		}
-		io.Copy(h, f)
-		f.Close()
-	}
-	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
-
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {
 		if *srcDir != "" {
 			input = filepath.Join(*srcDir, input)
 		}
+
+		b, err := ioutil.ReadFile(input)
+		if err != nil {
+			fatalf("%s", err)
+		}
+		if _, err = h.Write(b); err != nil {
+			fatalf("%s", err)
+		}
+
 		f := new(File)
-		f.ReadGo(input)
+		f.ParseGo(input, b)
 		f.DiscardCgoDirectives()
 		fs[i] = f
 	}
+
+	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
 
 	if *objDir == "" {
 		// make sure that _obj directory exists, so that we can write

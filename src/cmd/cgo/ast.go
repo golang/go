@@ -17,8 +17,8 @@ import (
 	"strings"
 )
 
-func parse(name string, flags parser.Mode) *ast.File {
-	ast1, err := parser.ParseFile(fset, name, nil, flags)
+func parse(name string, src []byte, flags parser.Mode) *ast.File {
+	ast1, err := parser.ParseFile(fset, name, src, flags)
 	if err != nil {
 		if list, ok := err.(scanner.ErrorList); ok {
 			// If err is a scanner.ErrorList, its String will print just
@@ -39,12 +39,12 @@ func sourceLine(n ast.Node) int {
 	return fset.Position(n.Pos()).Line
 }
 
-// ReadGo populates f with information learned from reading the
-// Go source file with the given file name. It gathers the C preamble
+// ParseGo populates f with information learned from the Go source code
+// which was read from the named file. It gathers the C preamble
 // attached to the import "C" comment, a list of references to C.xxx,
 // a list of exported functions, and the actual AST, to be rewritten and
 // printed.
-func (f *File) ReadGo(name string) {
+func (f *File) ParseGo(name string, src []byte) {
 	// Create absolute path for file, so that it will be used in error
 	// messages and recorded in debug line number information.
 	// This matches the rest of the toolchain. See golang.org/issue/5122.
@@ -58,8 +58,8 @@ func (f *File) ReadGo(name string) {
 	// so we use ast1 to look for the doc comments on import "C"
 	// and on exported functions, and we use ast2 for translating
 	// and reprinting.
-	ast1 := parse(name, parser.ParseComments)
-	ast2 := parse(name, 0)
+	ast1 := parse(name, src, parser.ParseComments)
+	ast2 := parse(name, src, 0)
 
 	f.Package = ast1.Name.Name
 	f.Name = make(map[string]*Name)
