@@ -195,6 +195,9 @@ func init() {
 		{name: "SLDconst", argLength: 1, reg: gp11, asm: "SLD", aux: "Int64"},   // arg0 << aux, 64 bits
 		{name: "SLWconst", argLength: 1, reg: gp11, asm: "SLW", aux: "Int64"},   // arg0 << aux, 32 bits
 
+		{name: "ROTLconst", argLength: 1, reg: gp11, asm: "ROTL", aux: "Int64"},   // arg0 rotate left by auxInt bits
+		{name: "ROTLWconst", argLength: 1, reg: gp11, asm: "ROTLW", aux: "Int64"}, // uint32(arg0) rotate left by auxInt bits
+
 		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},   // arg0/arg1
 		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"}, // arg0/arg1
 

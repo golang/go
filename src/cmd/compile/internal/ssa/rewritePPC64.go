@@ -4391,6 +4391,110 @@ func rewriteValuePPC64_OpOrB(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
+	// match: (ADD (SLDconst x [c]) (SRDconst x [d]))
+	// cond: d == 64-c
+	// result: (ROTLconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SLDconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SRDconst {
+			break
+		}
+		d := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 64-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (ADD (SRDconst x [d]) (SLDconst x [c]))
+	// cond: d == 64-c
+	// result: (ROTLconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SRDconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SLDconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 64-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (ADD (SLWconst x [c]) (SRWconst x [d]))
+	// cond: d == 32-c
+	// result: (ROTLWconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SLWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SRWconst {
+			break
+		}
+		d := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 32-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLWconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (ADD (SRWconst x [d]) (SLWconst x [c]))
+	// cond: d == 32-c
+	// result: (ROTLWconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SRWconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SLWconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 32-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLWconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
 	// match: (ADD x (MOVDconst [c]))
 	// cond: is32Bit(c)
 	// result: (ADDconst [c] x)
@@ -7362,6 +7466,110 @@ func rewriteValuePPC64_OpPPC64NotEqual(v *Value) bool {
 	return false
 }
 func rewriteValuePPC64_OpPPC64OR(v *Value) bool {
+	// match: (OR (SLDconst x [c]) (SRDconst x [d]))
+	// cond: d == 64-c
+	// result: (ROTLconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SLDconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SRDconst {
+			break
+		}
+		d := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 64-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (OR (SRDconst x [d]) (SLDconst x [c]))
+	// cond: d == 64-c
+	// result: (ROTLconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SRDconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SLDconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 64-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (OR (SLWconst x [c]) (SRWconst x [d]))
+	// cond: d == 32-c
+	// result: (ROTLWconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SLWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SRWconst {
+			break
+		}
+		d := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 32-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLWconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (OR (SRWconst x [d]) (SLWconst x [c]))
+	// cond: d == 32-c
+	// result: (ROTLWconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SRWconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SLWconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 32-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLWconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
 	// match: (OR (MOVDconst [c]) (MOVDconst [d]))
 	// cond:
 	// result: (MOVDconst [c|d])
@@ -7521,6 +7729,110 @@ func rewriteValuePPC64_OpPPC64SUB(v *Value) bool {
 	return false
 }
 func rewriteValuePPC64_OpPPC64XOR(v *Value) bool {
+	// match: (XOR (SLDconst x [c]) (SRDconst x [d]))
+	// cond: d == 64-c
+	// result: (ROTLconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SLDconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SRDconst {
+			break
+		}
+		d := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 64-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (XOR (SRDconst x [d]) (SLDconst x [c]))
+	// cond: d == 64-c
+	// result: (ROTLconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SRDconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SLDconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 64-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (XOR (SLWconst x [c]) (SRWconst x [d]))
+	// cond: d == 32-c
+	// result: (ROTLWconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SLWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SRWconst {
+			break
+		}
+		d := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 32-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLWconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (XOR (SRWconst x [d]) (SLWconst x [c]))
+	// cond: d == 32-c
+	// result: (ROTLWconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64SRWconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64SLWconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(d == 32-c) {
+			break
+		}
+		v.reset(OpPPC64ROTLWconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
 	// match: (XOR (MOVDconst [c]) (MOVDconst [d]))
 	// cond:
 	// result: (MOVDconst [c^d])
