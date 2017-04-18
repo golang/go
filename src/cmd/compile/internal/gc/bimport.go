@@ -1161,9 +1161,7 @@ func (p *importer) node() *Node {
 	// 	unreachable - not emitted by exporter
 
 	case OGOTO, OLABEL:
-		n := nodl(p.pos(), op, newname(p.expr().Sym), nil)
-		n.Sym = types.Dclstack // context, for goto restrictions
-		return n
+		return nodl(p.pos(), op, newname(p.expr().Sym), nil)
 
 	case OEND:
 		return nil

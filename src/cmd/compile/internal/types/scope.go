@@ -14,19 +14,19 @@ import (
 var blockgen int32 = 1 // max block number
 var Block int32        // current block number
 
-// Dclstack maintains a stack of shadowed symbol declarations so that
+// dclstack maintains a stack of shadowed symbol declarations so that
 // popdcl can restore their declarations when a block scope ends.
 // The stack is maintained as a linked list, using Sym's Link field.
 //
 // In practice, the "stack" actually ends up forming a tree: goto and label
-// statements record the current state of Dclstack so that checkgoto can
+// statements record the current state of dclstack so that checkgoto can
 // validate that a goto statement does not jump over any declarations or
 // into a new block scope.
 //
 // Finally, the Syms in this list are not "real" Syms as they don't actually
 // represent object names. Sym is just a convenient type for saving shadowed
 // Sym definitions, and only a subset of its fields are actually used.
-var Dclstack *Sym
+var dclstack *Sym
 
 func dcopy(a, b *Sym) {
 	a.Pkg = b.Pkg
@@ -39,8 +39,8 @@ func dcopy(a, b *Sym) {
 func push(pos src.XPos) *Sym {
 	d := new(Sym)
 	d.Lastlineno = pos
-	d.Link = Dclstack
-	Dclstack = d
+	d.Link = dclstack
+	dclstack = d
 	return d
 }
 
@@ -54,7 +54,7 @@ func Pushdcl(s *Sym, pos src.XPos) {
 // Popdcl pops the innermost block scope and restores all symbol declarations
 // to their previous state.
 func Popdcl() {
-	d := Dclstack
+	d := dclstack
 	for ; d != nil && d.Name != ""; d = d.Link {
 		s := d.Pkg.Lookup(d.Name)
 		lno := s.Lastlineno
@@ -66,7 +66,7 @@ func Popdcl() {
 		Fatalf("popdcl: no mark")
 	}
 
-	Dclstack = d.Link // pop mark
+	dclstack = d.Link // pop mark
 	Block = d.Block
 }
 
@@ -83,7 +83,7 @@ func Markdcl(lineno src.XPos) {
 // keep around for debugging
 func DumpDclstack() {
 	i := 0
-	for d := Dclstack; d != nil; d = d.Link {
+	for d := dclstack; d != nil; d = d.Link {
 		fmt.Printf("%6d  %p", i, d)
 		if d.Name != "" {
 			fmt.Printf("  '%s'  %v\n", d.Name, d.Pkg.Lookup(d.Name))
@@ -95,7 +95,7 @@ func DumpDclstack() {
 }
 
 func IsDclstackValid() bool {
-	for d := Dclstack; d != nil; d = d.Link {
+	for d := dclstack; d != nil; d = d.Link {
 		if d.Name == "" {
 			return false
 		}
