@@ -192,7 +192,6 @@ func autotmpname(n int) string {
 	// Start with a buffer big enough to hold a large n.
 	b := []byte(prefix + "      ")[:len(prefix)]
 	b = strconv.AppendInt(b, int64(n), 10)
-	_ = b
 	return types.InternString(b)
 }
 
