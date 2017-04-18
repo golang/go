@@ -14,7 +14,7 @@ func (sw *Switch) Socket(family, sotype, proto int) (s int, err error) {
 
 	so := &Status{Cookie: cookie(family, sotype, proto)}
 	sw.fmu.RLock()
-	f, _ := sw.fltab[FilterSocket]
+	f := sw.fltab[FilterSocket]
 	sw.fmu.RUnlock()
 
 	af, err := f.apply(so)
@@ -47,7 +47,7 @@ func (sw *Switch) Close(s int) (err error) {
 		return syscall.Close(s)
 	}
 	sw.fmu.RLock()
-	f, _ := sw.fltab[FilterClose]
+	f := sw.fltab[FilterClose]
 	sw.fmu.RUnlock()
 
 	af, err := f.apply(so)
@@ -77,7 +77,7 @@ func (sw *Switch) Connect(s int, sa syscall.Sockaddr) (err error) {
 		return syscall.Connect(s, sa)
 	}
 	sw.fmu.RLock()
-	f, _ := sw.fltab[FilterConnect]
+	f := sw.fltab[FilterConnect]
 	sw.fmu.RUnlock()
 
 	af, err := f.apply(so)
@@ -106,7 +106,7 @@ func (sw *Switch) Listen(s, backlog int) (err error) {
 		return syscall.Listen(s, backlog)
 	}
 	sw.fmu.RLock()
-	f, _ := sw.fltab[FilterListen]
+	f := sw.fltab[FilterListen]
 	sw.fmu.RUnlock()
 
 	af, err := f.apply(so)
@@ -135,7 +135,7 @@ func (sw *Switch) Accept(s int) (ns int, sa syscall.Sockaddr, err error) {
 		return syscall.Accept(s)
 	}
 	sw.fmu.RLock()
-	f, _ := sw.fltab[FilterAccept]
+	f := sw.fltab[FilterAccept]
 	sw.fmu.RUnlock()
 
 	af, err := f.apply(so)
@@ -168,7 +168,7 @@ func (sw *Switch) GetsockoptInt(s, level, opt int) (soerr int, err error) {
 		return syscall.GetsockoptInt(s, level, opt)
 	}
 	sw.fmu.RLock()
-	f, _ := sw.fltab[FilterGetsockoptInt]
+	f := sw.fltab[FilterGetsockoptInt]
 	sw.fmu.RUnlock()
 
 	af, err := f.apply(so)

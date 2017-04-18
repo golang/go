@@ -805,7 +805,7 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
 	}
 	t.idleLRU.remove(pconn)
 	key := pconn.cacheKey
-	pconns, _ := t.idleConn[key]
+	pconns := t.idleConn[key]
 	switch len(pconns) {
 	case 0:
 		// Nothing

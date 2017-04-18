@@ -245,7 +245,7 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 // Precondition: the Uses and Defs maps are populated.
 //
 func (info *Info) ObjectOf(id *ast.Ident) Object {
-	if obj, _ := info.Defs[id]; obj != nil {
+	if obj := info.Defs[id]; obj != nil {
 		return obj
 	}
 	return info.Uses[id]

@@ -15,7 +15,7 @@ func (sw *Switch) Accept4(s, flags int) (ns int, sa syscall.Sockaddr, err error)
 		return syscall.Accept4(s, flags)
 	}
 	sw.fmu.RLock()
-	f, _ := sw.fltab[FilterAccept]
+	f := sw.fltab[FilterAccept]
 	sw.fmu.RUnlock()
 
 	af, err := f.apply(so)
