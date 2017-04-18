@@ -19,8 +19,35 @@ TEXT ·mulWW(SB), NOSPLIT, $0
 	MOVD   R7, z0+24(FP)
 	RET
 
+// func addVV(z, y, y []Word) (c Word)
+// z[i] = x[i] + y[i] for all i, carrying
 TEXT ·addVV(SB), NOSPLIT, $0
-	BR ·addVV_g(SB)
+	MOVD  z_len+8(FP), R7
+	MOVD  x+24(FP), R8
+	MOVD  y+48(FP), R9
+	MOVD  z+0(FP), R10
+
+	MOVD  R0, R4
+	MOVD  R0, R6  // R6 will be the address index
+	ADDC R4, R4   // clear CA
+	MOVD  R7, CTR
+
+	CMP   R0, R7
+	BEQ   done
+
+loop:
+	MOVD  (R8)(R6), R11   // x[i]
+	MOVD  (R9)(R6), R12   // y[i]
+	ADDE  R12, R11, R15   // x[i] + y[i] + CA
+	MOVD  R15, (R10)(R6)  // z[i]
+
+	ADD $8, R6
+	BC  16, 0, loop	// bdnz
+
+done:
+	ADDZE R4
+	MOVD  R4, c+72(FP)
+	RET
 
 // func subVV(z, x, y []Word) (c Word)
 // z[i] = x[i] - y[i] for all i, carrying
@@ -30,32 +57,30 @@ TEXT ·subVV(SB), NOSPLIT, $0
 	MOVD y+48(FP), R9
 	MOVD z+0(FP), R10
 
-	MOVD $0, R4  // c = 0
-	MOVD $0, R5  // i = 0
-	MOVD $1, R29 // work around lack of ADDI
-	MOVD $8, R28 // work around lack of scaled addressing
-
+	MOVD  R0, R4  // c = 0
+	MOVD  R0, R6
 	SUBC R0, R0  // clear CA
-	JMP  sublend
+	MOVD  R7, CTR
+
+	CMP R0, R7
+	BEQ  sublend
 
 // amd64 saves and restores CF, but I believe they only have to do that because all of
 // their math operations clobber it - we should just be able to recover it at the end.
 subloop:
-	MULLD R5, R28, R6
 	MOVD  (R8)(R6), R11 // x[i]
 	MOVD  (R9)(R6), R12 // y[i]
 
 	SUBE R12, R11, R15
 	MOVD R15, (R10)(R6)
 
-	ADD R29, R5 // i++
+	ADD $8, R6
+	BC  16, 0, subloop  // bdnz
 
 sublend:
-	CMP R5, R7
-	BLT subloop
 
 	ADDZE R4
-	XOR   R29, R4
+	XOR   $1, R4
 	MOVD  R4, c+72(FP)
 	RET
 
