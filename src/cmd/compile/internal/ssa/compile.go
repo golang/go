@@ -5,7 +5,7 @@
 package ssa
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
 	"log"
@@ -352,7 +352,7 @@ var passes = [...]pass{
 	{name: "fuse", fn: fuse},
 	{name: "dse", fn: dse},
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
-		disabled: obj.Preemptibleloops_enabled == 0}, // insert resched checks in loops.
+		disabled: objabi.Preemptibleloops_enabled == 0}, // insert resched checks in loops.
 	{name: "tighten", fn: tighten}, // move values closer to their uses
 	{name: "lower", fn: lower, required: true},
 	{name: "lowered cse", fn: cse},

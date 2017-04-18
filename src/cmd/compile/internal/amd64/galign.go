@@ -6,15 +6,15 @@ package amd64
 
 import (
 	"cmd/compile/internal/gc"
-	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
+	"cmd/internal/objabi"
 )
 
 var leaptr = x86.ALEAQ
 
 func Init(arch *gc.Arch) {
 	arch.LinkArch = &x86.Linkamd64
-	if obj.GOARCH == "amd64p32" {
+	if objabi.GOARCH == "amd64p32" {
 		arch.LinkArch = &x86.Linkamd64p32
 		leaptr = x86.ALEAL
 	}

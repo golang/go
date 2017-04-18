@@ -31,7 +31,7 @@
 package mips
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
@@ -40,7 +40,7 @@ import (
 // Reading object files.
 
 func Init() {
-	if obj.GOARCH == "mipsle" {
+	if objabi.GOARCH == "mipsle" {
 		ld.SysArch = sys.ArchMIPSLE
 	} else {
 		ld.SysArch = sys.ArchMIPS
@@ -90,7 +90,7 @@ func archinit(ctxt *ld.Link) {
 	switch ld.Headtype {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.Headtype)
-	case obj.Hlinux: /* mips elf */
+	case objabi.Hlinux: /* mips elf */
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if *ld.FlagTextAddr == -1 {

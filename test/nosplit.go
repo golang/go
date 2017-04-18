@@ -310,7 +310,7 @@ TestCases:
 					size += (880 - 128) - 128
 					// Noopt builds have a larger stackguard.
 					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
-					// This increase is included in obj.StackGuard
+					// This increase is included in objabi.StackGuard
 					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
 						if s == "-N" {
 							size += 880

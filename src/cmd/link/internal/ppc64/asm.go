@@ -31,7 +31,7 @@
 package ppc64
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/link/internal/ld"
 	"encoding/binary"
 	"fmt"
@@ -91,7 +91,7 @@ func genplt(ctxt *ld.Link) {
 	for _, s := range ctxt.Textp {
 		for i := range s.R {
 			r := &s.R[i]
-			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != obj.SDYNIMPORT {
+			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != objabi.SDYNIMPORT {
 				continue
 			}
 
@@ -131,12 +131,12 @@ func genplt(ctxt *ld.Link) {
 
 func genaddmoduledata(ctxt *ld.Link) {
 	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == obj.STEXT {
+	if addmoduledata.Type == objabi.STEXT {
 		return
 	}
 	addmoduledata.Attr |= ld.AttrReachable
 	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = obj.STEXT
+	initfunc.Type = objabi.STEXT
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
 	o := func(op uint32) {
@@ -147,7 +147,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 8
 	rel.Sym = ctxt.Syms.Lookup(".TOC.", 0)
-	rel.Type = obj.R_ADDRPOWER_PCREL
+	rel.Type = objabi.R_ADDRPOWER_PCREL
 	o(0x3c4c0000)
 	// addi r2, r2, .TOC.-func@l
 	o(0x38420000)
@@ -160,7 +160,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 8
 	rel.Sym = ctxt.Syms.Lookup("local.moduledata", 0)
-	rel.Type = obj.R_ADDRPOWER_GOT
+	rel.Type = objabi.R_ADDRPOWER_GOT
 	o(0x3c620000)
 	// ld r3, local.moduledata@got@l(r3)
 	o(0xe8630000)
@@ -169,7 +169,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 4
 	rel.Sym = addmoduledata
-	rel.Type = obj.R_CALLPOWER
+	rel.Type = objabi.R_CALLPOWER
 	o(0x48000001)
 	// nop
 	o(0x60000000)
@@ -186,7 +186,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	ctxt.Textp = append(ctxt.Textp, initfunc)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
-	initarray_entry.Type = obj.SINITARR
+	initarray_entry.Type = objabi.SINITARR
 	ld.Addaddr(ctxt, initarray_entry, initfunc)
 }
 
@@ -211,7 +211,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 
 	plt := ctxt.Syms.Lookup(".plt", 0)
 
-	stub.Type = obj.STEXT
+	stub.Type = objabi.STEXT
 
 	// Save TOC pointer in TOC save slot
 	ld.Adduint32(ctxt, stub, 0xf8410018) // std r2,24(r1)
@@ -226,7 +226,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		r.Off += int32(r.Siz)
 	}
-	r.Type = obj.R_POWER_TOC
+	r.Type = objabi.R_POWER_TOC
 	r.Variant = ld.RV_POWER_HA
 	ld.Adduint32(ctxt, stub, 0x3d820000) // addis r12,r2,targ@plt@toc@ha
 	r = ld.Addrel(stub)
@@ -237,7 +237,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		r.Off += int32(r.Siz)
 	}
-	r.Type = obj.R_POWER_TOC
+	r.Type = objabi.R_POWER_TOC
 	r.Variant = ld.RV_POWER_LO
 	ld.Adduint32(ctxt, stub, 0xe98c0000) // ld r12,targ@plt@toc@l(r12)
 
@@ -258,7 +258,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 		// Handle relocations found in ELF object files.
 	case 256 + ld.R_PPC64_REL24:
-		r.Type = obj.R_CALLPOWER
+		r.Type = objabi.R_CALLPOWER
 
 		// This is a local call, so the caller isn't setting
 		// up r12 and r2 is the same for the caller and
@@ -267,7 +267,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		// to use r12 to compute r2.)
 		r.Add += int64(r.Sym.Localentry) * 4
 
-		if targ.Type == obj.SDYNIMPORT {
+		if targ.Type == objabi.SDYNIMPORT {
 			// Should have been handled in elfsetupplt
 			ld.Errorf(s, "unexpected R_PPC64_REL24 for dyn import")
 		}
@@ -275,18 +275,18 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		return true
 
 	case 256 + ld.R_PPC_REL32:
-		r.Type = obj.R_PCREL
+		r.Type = objabi.R_PCREL
 		r.Add += 4
 
-		if targ.Type == obj.SDYNIMPORT {
+		if targ.Type == objabi.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_PPC_REL32 for dyn import")
 		}
 
 		return true
 
 	case 256 + ld.R_PPC64_ADDR64:
-		r.Type = obj.R_ADDR
-		if targ.Type == obj.SDYNIMPORT {
+		r.Type = objabi.R_ADDR
+		if targ.Type == objabi.SDYNIMPORT {
 			// These happen in .toc sections
 			ld.Adddynsym(ctxt, targ)
 
@@ -300,56 +300,56 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		return true
 
 	case 256 + ld.R_PPC64_TOC16:
-		r.Type = obj.R_POWER_TOC
+		r.Type = objabi.R_POWER_TOC
 		r.Variant = ld.RV_POWER_LO | ld.RV_CHECK_OVERFLOW
 		return true
 
 	case 256 + ld.R_PPC64_TOC16_LO:
-		r.Type = obj.R_POWER_TOC
+		r.Type = objabi.R_POWER_TOC
 		r.Variant = ld.RV_POWER_LO
 		return true
 
 	case 256 + ld.R_PPC64_TOC16_HA:
-		r.Type = obj.R_POWER_TOC
+		r.Type = objabi.R_POWER_TOC
 		r.Variant = ld.RV_POWER_HA | ld.RV_CHECK_OVERFLOW
 		return true
 
 	case 256 + ld.R_PPC64_TOC16_HI:
-		r.Type = obj.R_POWER_TOC
+		r.Type = objabi.R_POWER_TOC
 		r.Variant = ld.RV_POWER_HI | ld.RV_CHECK_OVERFLOW
 		return true
 
 	case 256 + ld.R_PPC64_TOC16_DS:
-		r.Type = obj.R_POWER_TOC
+		r.Type = objabi.R_POWER_TOC
 		r.Variant = ld.RV_POWER_DS | ld.RV_CHECK_OVERFLOW
 		return true
 
 	case 256 + ld.R_PPC64_TOC16_LO_DS:
-		r.Type = obj.R_POWER_TOC
+		r.Type = objabi.R_POWER_TOC
 		r.Variant = ld.RV_POWER_DS
 		return true
 
 	case 256 + ld.R_PPC64_REL16_LO:
-		r.Type = obj.R_PCREL
+		r.Type = objabi.R_PCREL
 		r.Variant = ld.RV_POWER_LO
 		r.Add += 2 // Compensate for relocation size of 2
 		return true
 
 	case 256 + ld.R_PPC64_REL16_HI:
-		r.Type = obj.R_PCREL
+		r.Type = objabi.R_PCREL
 		r.Variant = ld.RV_POWER_HI | ld.RV_CHECK_OVERFLOW
 		r.Add += 2
 		return true
 
 	case 256 + ld.R_PPC64_REL16_HA:
-		r.Type = obj.R_PCREL
+		r.Type = objabi.R_PCREL
 		r.Variant = ld.RV_POWER_HA | ld.RV_CHECK_OVERFLOW
 		r.Add += 2
 		return true
 	}
 
 	// Handle references to ELF symbols from our own object files.
-	if targ.Type != obj.SDYNIMPORT {
+	if targ.Type != objabi.SDYNIMPORT {
 		return true
 	}
 
@@ -366,7 +366,7 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	default:
 		return -1
 
-	case obj.R_ADDR:
+	case objabi.R_ADDR:
 		switch r.Siz {
 		case 4:
 			ld.Thearch.Vput(ld.R_PPC64_ADDR32 | uint64(elfsym)<<32)
@@ -376,56 +376,56 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 			return -1
 		}
 
-	case obj.R_POWER_TLS:
+	case objabi.R_POWER_TLS:
 		ld.Thearch.Vput(ld.R_PPC64_TLS | uint64(elfsym)<<32)
 
-	case obj.R_POWER_TLS_LE:
+	case objabi.R_POWER_TLS_LE:
 		ld.Thearch.Vput(ld.R_PPC64_TPREL16 | uint64(elfsym)<<32)
 
-	case obj.R_POWER_TLS_IE:
+	case objabi.R_POWER_TLS_IE:
 		ld.Thearch.Vput(ld.R_PPC64_GOT_TPREL16_HA | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_PPC64_GOT_TPREL16_LO_DS | uint64(elfsym)<<32)
 
-	case obj.R_ADDRPOWER:
+	case objabi.R_ADDRPOWER:
 		ld.Thearch.Vput(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_PPC64_ADDR16_LO | uint64(elfsym)<<32)
 
-	case obj.R_ADDRPOWER_DS:
+	case objabi.R_ADDRPOWER_DS:
 		ld.Thearch.Vput(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_PPC64_ADDR16_LO_DS | uint64(elfsym)<<32)
 
-	case obj.R_ADDRPOWER_GOT:
+	case objabi.R_ADDRPOWER_GOT:
 		ld.Thearch.Vput(ld.R_PPC64_GOT16_HA | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_PPC64_GOT16_LO_DS | uint64(elfsym)<<32)
 
-	case obj.R_ADDRPOWER_PCREL:
+	case objabi.R_ADDRPOWER_PCREL:
 		ld.Thearch.Vput(ld.R_PPC64_REL16_HA | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_PPC64_REL16_LO | uint64(elfsym)<<32)
 		r.Xadd += 4
 
-	case obj.R_ADDRPOWER_TOCREL:
+	case objabi.R_ADDRPOWER_TOCREL:
 		ld.Thearch.Vput(ld.R_PPC64_TOC16_HA | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_PPC64_TOC16_LO | uint64(elfsym)<<32)
 
-	case obj.R_ADDRPOWER_TOCREL_DS:
+	case objabi.R_ADDRPOWER_TOCREL_DS:
 		ld.Thearch.Vput(ld.R_PPC64_TOC16_HA | uint64(elfsym)<<32)
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_PPC64_TOC16_LO_DS | uint64(elfsym)<<32)
 
-	case obj.R_CALLPOWER:
+	case objabi.R_CALLPOWER:
 		if r.Siz != 4 {
 			return -1
 		}
@@ -496,11 +496,11 @@ func archrelocaddr(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	}
 
 	switch r.Type {
-	case obj.R_ADDRPOWER:
+	case objabi.R_ADDRPOWER:
 		o1 |= (uint32(t) >> 16) & 0xffff
 		o2 |= uint32(t) & 0xffff
 
-	case obj.R_ADDRPOWER_DS:
+	case objabi.R_ADDRPOWER_DS:
 		o1 |= (uint32(t) >> 16) & 0xffff
 		if t&3 != 0 {
 			ld.Errorf(s, "bad DS reloc for %s: %d", s.Name, ld.Symaddr(r.Sym))
@@ -524,7 +524,7 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
 
 	t := ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
 	switch r.Type {
-	case obj.R_CALLPOWER:
+	case objabi.R_CALLPOWER:
 
 		// If branch offset is too far then create a trampoline.
 
@@ -588,19 +588,19 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		default:
 			return -1
 
-		case obj.R_POWER_TLS, obj.R_POWER_TLS_LE, obj.R_POWER_TLS_IE:
+		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
 			r.Done = 0
 			// check Outer is nil, Type is TLSBSS?
 			r.Xadd = r.Add
 			r.Xsym = r.Sym
 			return 0
 
-		case obj.R_ADDRPOWER,
-			obj.R_ADDRPOWER_DS,
-			obj.R_ADDRPOWER_TOCREL,
-			obj.R_ADDRPOWER_TOCREL_DS,
-			obj.R_ADDRPOWER_GOT,
-			obj.R_ADDRPOWER_PCREL:
+		case objabi.R_ADDRPOWER,
+			objabi.R_ADDRPOWER_DS,
+			objabi.R_ADDRPOWER_TOCREL,
+			objabi.R_ADDRPOWER_TOCREL_DS,
+			objabi.R_ADDRPOWER_GOT,
+			objabi.R_ADDRPOWER_PCREL:
 			r.Done = 0
 
 			// set up addend for eventual relocation via outer symbol.
@@ -611,14 +611,14 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 				rs = rs.Outer
 			}
 
-			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+			if rs.Type != objabi.SHOSTOBJ && rs.Type != objabi.SDYNIMPORT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
 
 			return 0
 
-		case obj.R_CALLPOWER:
+		case objabi.R_CALLPOWER:
 			r.Done = 0
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
@@ -627,18 +627,18 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	}
 
 	switch r.Type {
-	case obj.R_CONST:
+	case objabi.R_CONST:
 		*val = r.Add
 		return 0
 
-	case obj.R_GOTOFF:
+	case objabi.R_GOTOFF:
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
 		return 0
 
-	case obj.R_ADDRPOWER, obj.R_ADDRPOWER_DS:
+	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS:
 		return archrelocaddr(ctxt, r, s, val)
 
-	case obj.R_CALLPOWER:
+	case objabi.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
 
 		t := ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
@@ -654,12 +654,12 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		*val |= int64(uint32(t) &^ 0xfc000003)
 		return 0
 
-	case obj.R_POWER_TOC: // S + A - .TOC.
+	case objabi.R_POWER_TOC: // S + A - .TOC.
 		*val = ld.Symaddr(r.Sym) + r.Add - symtoc(ctxt, s)
 
 		return 0
 
-	case obj.R_POWER_TLS_LE:
+	case objabi.R_POWER_TLS_LE:
 		// The thread pointer points 0x7000 bytes after the start of the the
 		// thread local storage area as documented in section "3.7.2 TLS
 		// Runtime Handling" of "Power Architecture 64-Bit ELF V2 ABI
@@ -790,7 +790,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		r.Sym = glink
 		r.Off = int32(glink.Size)
 		r.Siz = 4
-		r.Type = obj.R_CALLPOWER
+		r.Type = objabi.R_CALLPOWER
 		ld.Adduint32(ctxt, glink, 0x48000000) // b .glink
 
 		// In the ppc64 ABI, the dynamic linker is responsible
@@ -845,7 +845,7 @@ func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
 	r.Off = int32(glink.Size)
 	r.Sym = ctxt.Syms.Lookup(".plt", 0)
 	r.Siz = 8
-	r.Type = obj.R_ADDRPOWER
+	r.Type = objabi.R_ADDRPOWER
 
 	ld.Adduint32(ctxt, glink, 0x3d600000) // addis r11,0,.plt@ha
 	ld.Adduint32(ctxt, glink, 0x396b0000) // addi r11,r11,.plt@l
@@ -873,7 +873,7 @@ func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
 
 func asmb(ctxt *ld.Link) {
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f asmb\n", obj.Cputime())
+		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
 	}
 
 	if ld.Iself {
@@ -892,21 +892,21 @@ func asmb(ctxt *ld.Link) {
 
 	if ld.Segrodata.Filelen > 0 {
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f rodatblk\n", obj.Cputime())
+			ctxt.Logf("%5.2f rodatblk\n", ld.Cputime())
 		}
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 	if ld.Segrelrodata.Filelen > 0 {
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f relrodatblk\n", obj.Cputime())
+			ctxt.Logf("%5.2f relrodatblk\n", ld.Cputime())
 		}
 		ld.Cseek(int64(ld.Segrelrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrelrodata.Vaddr), int64(ld.Segrelrodata.Filelen))
 	}
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f datblk\n", obj.Cputime())
+		ctxt.Logf("%5.2f datblk\n", ld.Cputime())
 	}
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
@@ -923,7 +923,7 @@ func asmb(ctxt *ld.Link) {
 	if !*ld.FlagS {
 		// TODO: rationalize
 		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f sym\n", obj.Cputime())
+			ctxt.Logf("%5.2f sym\n", ld.Cputime())
 		}
 		switch ld.Headtype {
 		default:
@@ -932,7 +932,7 @@ func asmb(ctxt *ld.Link) {
 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
 			}
 
-		case obj.Hplan9:
+		case objabi.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 		}
 
@@ -941,7 +941,7 @@ func asmb(ctxt *ld.Link) {
 		default:
 			if ld.Iself {
 				if ctxt.Debugvlog != 0 {
-					ctxt.Logf("%5.2f elfsym\n", obj.Cputime())
+					ctxt.Logf("%5.2f elfsym\n", ld.Cputime())
 				}
 				ld.Asmelfsym(ctxt)
 				ld.Cflush()
@@ -952,7 +952,7 @@ func asmb(ctxt *ld.Link) {
 				}
 			}
 
-		case obj.Hplan9:
+		case objabi.Hplan9:
 			ld.Asmplan9sym(ctxt)
 			ld.Cflush()
 
@@ -969,12 +969,12 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f header\n", obj.Cputime())
+		ctxt.Logf("%5.2f header\n", ld.Cputime())
 	}
 	ld.Cseek(0)
 	switch ld.Headtype {
 	default:
-	case obj.Hplan9: /* plan 9 */
+	case objabi.Hplan9: /* plan 9 */
 		ld.Thearch.Lput(0x647)                      /* magic */
 		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
 		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
@@ -984,11 +984,11 @@ func asmb(ctxt *ld.Link) {
 		ld.Thearch.Lput(0)
 		ld.Thearch.Lput(uint32(ld.Lcsize))
 
-	case obj.Hlinux,
-		obj.Hfreebsd,
-		obj.Hnetbsd,
-		obj.Hopenbsd,
-		obj.Hnacl:
+	case objabi.Hlinux,
+		objabi.Hfreebsd,
+		objabi.Hnetbsd,
+		objabi.Hopenbsd,
+		objabi.Hnacl:
 		ld.Asmbelf(ctxt, int64(symo))
 	}
 

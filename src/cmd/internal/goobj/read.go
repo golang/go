@@ -12,7 +12,7 @@ package goobj
 import (
 	"bufio"
 	"bytes"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"errors"
 	"fmt"
 	"io"
@@ -20,113 +20,16 @@ import (
 	"strings"
 )
 
-// A SymKind describes the kind of memory represented by a symbol.
-type SymKind int
-
-// This list is taken from include/link.h.
-
-// Defined SymKind values.
-// TODO(rsc): Give idiomatic Go names.
-// TODO(rsc): Reduce the number of symbol types in the object files.
-const (
-	// readonly, executable
-	STEXT      = SymKind(obj.STEXT)
-	SELFRXSECT = SymKind(obj.SELFRXSECT)
-
-	// readonly, non-executable
-	STYPE      = SymKind(obj.STYPE)
-	SSTRING    = SymKind(obj.SSTRING)
-	SGOSTRING  = SymKind(obj.SGOSTRING)
-	SGOFUNC    = SymKind(obj.SGOFUNC)
-	SRODATA    = SymKind(obj.SRODATA)
-	SFUNCTAB   = SymKind(obj.SFUNCTAB)
-	STYPELINK  = SymKind(obj.STYPELINK)
-	SITABLINK  = SymKind(obj.SITABLINK)
-	SSYMTAB    = SymKind(obj.SSYMTAB) // TODO: move to unmapped section
-	SPCLNTAB   = SymKind(obj.SPCLNTAB)
-	SELFROSECT = SymKind(obj.SELFROSECT)
-
-	// writable, non-executable
-	SMACHOPLT  = SymKind(obj.SMACHOPLT)
-	SELFSECT   = SymKind(obj.SELFSECT)
-	SMACHO     = SymKind(obj.SMACHO) // Mach-O __nl_symbol_ptr
-	SMACHOGOT  = SymKind(obj.SMACHOGOT)
-	SWINDOWS   = SymKind(obj.SWINDOWS)
-	SELFGOT    = SymKind(obj.SELFGOT)
-	SNOPTRDATA = SymKind(obj.SNOPTRDATA)
-	SINITARR   = SymKind(obj.SINITARR)
-	SDATA      = SymKind(obj.SDATA)
-	SBSS       = SymKind(obj.SBSS)
-	SNOPTRBSS  = SymKind(obj.SNOPTRBSS)
-	STLSBSS    = SymKind(obj.STLSBSS)
-
-	// not mapped
-	SXREF             = SymKind(obj.SXREF)
-	SMACHOSYMSTR      = SymKind(obj.SMACHOSYMSTR)
-	SMACHOSYMTAB      = SymKind(obj.SMACHOSYMTAB)
-	SMACHOINDIRECTPLT = SymKind(obj.SMACHOINDIRECTPLT)
-	SMACHOINDIRECTGOT = SymKind(obj.SMACHOINDIRECTGOT)
-	SFILE             = SymKind(obj.SFILE)
-	SFILEPATH         = SymKind(obj.SFILEPATH)
-	SCONST            = SymKind(obj.SCONST)
-	SDYNIMPORT        = SymKind(obj.SDYNIMPORT)
-	SHOSTOBJ          = SymKind(obj.SHOSTOBJ)
-)
-
-var symKindStrings = []string{
-	SBSS:              "SBSS",
-	SCONST:            "SCONST",
-	SDATA:             "SDATA",
-	SDYNIMPORT:        "SDYNIMPORT",
-	SELFROSECT:        "SELFROSECT",
-	SELFRXSECT:        "SELFRXSECT",
-	SELFSECT:          "SELFSECT",
-	SFILE:             "SFILE",
-	SFILEPATH:         "SFILEPATH",
-	SFUNCTAB:          "SFUNCTAB",
-	SGOFUNC:           "SGOFUNC",
-	SGOSTRING:         "SGOSTRING",
-	SHOSTOBJ:          "SHOSTOBJ",
-	SINITARR:          "SINITARR",
-	SMACHO:            "SMACHO",
-	SMACHOGOT:         "SMACHOGOT",
-	SMACHOINDIRECTGOT: "SMACHOINDIRECTGOT",
-	SMACHOINDIRECTPLT: "SMACHOINDIRECTPLT",
-	SMACHOPLT:         "SMACHOPLT",
-	SMACHOSYMSTR:      "SMACHOSYMSTR",
-	SMACHOSYMTAB:      "SMACHOSYMTAB",
-	SNOPTRBSS:         "SNOPTRBSS",
-	SNOPTRDATA:        "SNOPTRDATA",
-	SPCLNTAB:          "SPCLNTAB",
-	SRODATA:           "SRODATA",
-	SSTRING:           "SSTRING",
-	SSYMTAB:           "SSYMTAB",
-	STEXT:             "STEXT",
-	STLSBSS:           "STLSBSS",
-	STYPE:             "STYPE",
-	STYPELINK:         "STYPELINK",
-	SITABLINK:         "SITABLINK",
-	SWINDOWS:          "SWINDOWS",
-	SXREF:             "SXREF",
-}
-
-func (k SymKind) String() string {
-	if k < 0 || int(k) >= len(symKindStrings) {
-		return fmt.Sprintf("SymKind(%d)", k)
-	}
-	return symKindStrings[k]
-}
-
 // A Sym is a named symbol in an object file.
 type Sym struct {
-	SymID         // symbol identifier (name and version)
-	Kind  SymKind // kind of symbol
-	DupOK bool    // are duplicate definitions okay?
-	Size  int     // size of corresponding data
-	Type  SymID   // symbol for Go type information
-	Data  Data    // memory image of symbol
-	Reloc []Reloc // relocations to apply to Data
-	Func  *Func   // additional data for functions
+	SymID                // symbol identifier (name and version)
+	Kind  objabi.SymKind // kind of symbol
+	DupOK bool           // are duplicate definitions okay?
+	Size  int            // size of corresponding data
+	Type  SymID          // symbol for Go type information
+	Data  Data           // memory image of symbol
+	Reloc []Reloc        // relocations to apply to Data
+	Func  *Func          // additional data for functions
 }
 
 // A SymID - the combination of Name and Version - uniquely identifies
@@ -172,7 +75,7 @@ type Reloc struct {
 	// The Type records the form of address expected in the bytes
 	// described by the previous fields: absolute, PC-relative, and so on.
 	// TODO(rsc): The interpretation of Type is not exposed by this package.
-	Type obj.RelocType
+	Type objabi.RelocType
 }
 
 // A Var describes a variable in a function stack frame: a declared
@@ -646,7 +549,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 		typ := r.readInt()
 		s := &Sym{SymID: r.readSymID()}
 		r.p.Syms = append(r.p.Syms, s)
-		s.Kind = SymKind(typ)
+		s.Kind = objabi.SymKind(typ)
 		flags := r.readInt()
 		s.DupOK = flags&1 != 0
 		s.Size = r.readInt()
@@ -657,12 +560,12 @@ func (r *objReader) parseObject(prefix []byte) error {
 			rel := &s.Reloc[i]
 			rel.Offset = r.readInt()
 			rel.Size = r.readInt()
-			rel.Type = obj.RelocType(r.readInt())
+			rel.Type = objabi.RelocType(r.readInt())
 			rel.Add = r.readInt()
 			rel.Sym = r.readSymID()
 		}
 
-		if s.Kind == STEXT {
+		if s.Kind == objabi.STEXT {
 			f := new(Func)
 			s.Func = f
 			f.Args = r.readInt()

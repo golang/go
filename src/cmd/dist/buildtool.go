@@ -51,6 +51,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/bio",
 	"cmd/internal/gcprog",
 	"cmd/internal/dwarf",
+	"cmd/internal/objabi",
 	"cmd/internal/obj",
 	"cmd/internal/obj/arm",
 	"cmd/internal/obj/arm64",
@@ -96,7 +97,7 @@ func bootstrapBuildTools() {
 	}
 	xprintf("##### Building Go toolchain using %s.\n", goroot_bootstrap)
 
-	mkzbootstrap(pathf("%s/src/cmd/internal/obj/zbootstrap.go", goroot))
+	mkzbootstrap(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
 
 	// Use $GOROOT/pkg/bootstrap as the bootstrap workspace root.
 	// We use a subdirectory of $GOROOT/pkg because that's the

@@ -89,10 +89,10 @@
 
 // count trailing zero for ARMv5 and ARMv6
 // 32 - CLZ(x&-x - 1)
-(Ctz32 <t> x) && obj.GOARM<=6 -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
+(Ctz32 <t> x) && objabi.GOARM<=6 -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
 
 // count trailing zero for ARMv7
-(Ctz32 <t> x) && obj.GOARM==7 -> (CLZ <t> (RBIT <t> x))
+(Ctz32 <t> x) && objabi.GOARM==7 -> (CLZ <t> (RBIT <t> x))
 
 // bit length
 (BitLen32 <t> x) -> (RSBconst [32] (CLZ <t> x))
@@ -106,13 +106,13 @@
 // t5 = x right rotate 8 bits  -- (d,   a,   b,   c  )
 // result = t4 ^ t5            -- (d,   c,   b,   a  )
 // using shifted ops this can be done in 4 instructions.
-(Bswap32 <t> x) && obj.GOARM==5 ->
+(Bswap32 <t> x) && objabi.GOARM==5 ->
 	(XOR <t>
 		(SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8])
 		(SRRconst <t> x [8]))
 
 // byte swap for ARMv6 and above
-(Bswap32 x) && obj.GOARM>=6 -> (REV x)
+(Bswap32 x) && objabi.GOARM>=6 -> (REV x)
 
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)

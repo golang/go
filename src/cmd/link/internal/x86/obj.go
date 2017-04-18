@@ -31,7 +31,7 @@
 package x86
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
@@ -75,7 +75,7 @@ func archinit(ctxt *ld.Link) {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.Headtype)
 
-	case obj.Hplan9: /* plan 9 */
+	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32
 
 		if *ld.FlagTextAddr == -1 {
@@ -88,7 +88,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hdarwin: /* apple MACH */
+	case objabi.Hdarwin: /* apple MACH */
 		ld.Machoinit()
 
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
@@ -102,10 +102,10 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hlinux, /* elf32 executable */
-		obj.Hfreebsd,
-		obj.Hnetbsd,
-		obj.Hopenbsd:
+	case objabi.Hlinux, /* elf32 executable */
+		objabi.Hfreebsd,
+		objabi.Hnetbsd,
+		objabi.Hopenbsd:
 		ld.Elfinit(ctxt)
 
 		ld.HEADR = ld.ELFRESERVE
@@ -119,7 +119,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hnacl:
+	case objabi.Hnacl:
 		ld.Elfinit(ctxt)
 		ld.HEADR = 0x10000
 		ld.Funcalign = 32
@@ -133,7 +133,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hwindows: /* PE executable */
+	case objabi.Hwindows: /* PE executable */
 		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
 		return
 	}

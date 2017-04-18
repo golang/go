@@ -31,7 +31,7 @@
 package s390x
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
@@ -77,7 +77,7 @@ func archinit(ctxt *ld.Link) {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.Headtype)
 
-	case obj.Hlinux: // s390x ELF
+	case objabi.Hlinux: // s390x ELF
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if *ld.FlagTextAddr == -1 {

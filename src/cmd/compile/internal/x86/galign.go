@@ -6,8 +6,8 @@ package x86
 
 import (
 	"cmd/compile/internal/gc"
-	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
+	"cmd/internal/objabi"
 	"fmt"
 	"os"
 )
@@ -15,7 +15,7 @@ import (
 func Init(arch *gc.Arch) {
 	arch.LinkArch = &x86.Link386
 	arch.REGSP = x86.REGSP
-	switch v := obj.GO386; v {
+	switch v := objabi.GO386; v {
 	case "387":
 		arch.Use387 = true
 		arch.SSAGenValue = ssaGenValue387

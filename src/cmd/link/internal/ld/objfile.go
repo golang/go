@@ -5,119 +5,13 @@
 package ld
 
 // Reading of Go object files.
-//
-// Originally, Go object files were Plan 9 object files, but no longer.
-// Now they are more like standard object files, in that each symbol is defined
-// by an associated memory image (bytes) and a list of relocations to apply
-// during linking. We do not (yet?) use a standard file format, however.
-// For now, the format is chosen to be as simple as possible to read and write.
-// It may change for reasons of efficiency, or we may even switch to a
-// standard file format if there are compelling benefits to doing so.
-// See golang.org/s/go13linker for more background.
-//
-// The file format is:
-//
-//	- magic header: "\x00\x00go19ld"
-//	- byte 1 - version number
-//	- sequence of strings giving dependencies (imported packages)
-//	- empty string (marks end of sequence)
-//	- sequence of symbol references used by the defined symbols
-//	- byte 0xff (marks end of sequence)
-//	- sequence of integer lengths:
-//		- total data length
-//		- total number of relocations
-//		- total number of pcdata
-//		- total number of automatics
-//		- total number of funcdata
-//		- total number of files
-//	- data, the content of the defined symbols
-//	- sequence of defined symbols
-//	- byte 0xff (marks end of sequence)
-//	- magic footer: "\xff\xffgo19ld"
-//
-// All integers are stored in a zigzag varint format.
-// See golang.org/s/go12symtab for a definition.
-//
-// Data blocks and strings are both stored as an integer
-// followed by that many bytes.
-//
-// A symbol reference is a string name followed by a version.
-//
-// A symbol points to other symbols using an index into the symbol
-// reference sequence. Index 0 corresponds to a nil Object* pointer.
-// In the symbol layout described below "symref index" stands for this
-// index.
-//
-// Each symbol is laid out as the following fields (taken from Object*):
-//
-//	- byte 0xfe (sanity check for synchronization)
-//	- type [int]
-//	- name & version [symref index]
-//	- flags [int]
-//		1<<0 dupok
-//		1<<1 local
-//		1<<2 add to typelink table
-//	- size [int]
-//	- gotype [symref index]
-//	- p [data block]
-//	- nr [int]
-//	- r [nr relocations, sorted by off]
-//
-// If type == STEXT, there are a few more fields:
-//
-//	- args [int]
-//	- locals [int]
-//	- nosplit [int]
-//	- flags [int]
-//		1<<0 leaf
-//		1<<1 C function
-//		1<<2 function may call reflect.Type.Method
-//	- nlocal [int]
-//	- local [nlocal automatics]
-//	- pcln [pcln table]
-//
-// Each relocation has the encoding:
-//
-//	- off [int]
-//	- siz [int]
-//	- type [int]
-//	- add [int]
-//	- sym [symref index]
-//
-// Each local has the encoding:
-//
-//	- asym [symref index]
-//	- offset [int]
-//	- type [int]
-//	- gotype [symref index]
-//
-// The pcln table has the encoding:
-//
-//	- pcsp [data block]
-//	- pcfile [data block]
-//	- pcline [data block]
-//	- pcinline [data block]
-//	- npcdata [int]
-//	- pcdata [npcdata data blocks]
-//	- nfuncdata [int]
-//	- funcdata [nfuncdata symref index]
-//	- funcdatasym [nfuncdata ints]
-//	- nfile [int]
-//	- file [nfile symref index]
-//	- ninlinedcall [int]
-//	- inlinedcall [ninlinedcall int symref int symref]
-//
-// The file layout and meaning of type integers are architecture-independent.
-//
-// TODO(rsc): The file format is good for a first pass but needs work.
-//	- There are SymID in the object file that should really just be strings.
 
 import (
 	"bufio"
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"crypto/sha1"
 	"encoding/base64"
 	"io"
@@ -264,7 +158,7 @@ func (r *objReader) readSym() {
 	if c, err := r.rd.ReadByte(); c != symPrefix || err != nil {
 		log.Fatalln("readSym out of sync")
 	}
-	t := obj.SymKind(r.readInt())
+	t := objabi.SymKind(r.readInt())
 	s := r.readSymIndex()
 	flags := r.readInt()
 	dupok := flags&1 != 0
@@ -278,8 +172,8 @@ func (r *objReader) readSym() {
 	isdup := false
 
 	var dup *Symbol
-	if s.Type != 0 && s.Type != obj.SXREF {
-		if (t == obj.SDATA || t == obj.SBSS || t == obj.SNOPTRBSS) && len(data) == 0 && nreloc == 0 {
+	if s.Type != 0 && s.Type != objabi.SXREF {
+		if (t == objabi.SDATA || t == objabi.SBSS || t == objabi.SNOPTRBSS) && len(data) == 0 && nreloc == 0 {
 			if s.Size < int64(size) {
 				s.Size = int64(size)
 			}
@@ -289,10 +183,10 @@ func (r *objReader) readSym() {
 			return
 		}
 
-		if (s.Type == obj.SDATA || s.Type == obj.SBSS || s.Type == obj.SNOPTRBSS) && len(s.P) == 0 && len(s.R) == 0 {
+		if (s.Type == objabi.SDATA || s.Type == objabi.SBSS || s.Type == objabi.SNOPTRBSS) && len(s.P) == 0 && len(s.R) == 0 {
 			goto overwrite
 		}
-		if s.Type != obj.SBSS && s.Type != obj.SNOPTRBSS && !dupok && !s.Attr.DuplicateOK() {
+		if s.Type != objabi.SBSS && s.Type != objabi.SNOPTRBSS && !dupok && !s.Attr.DuplicateOK() {
 			log.Fatalf("duplicate symbol %s (types %d and %d) in %s and %s", s.Name, s.Type, t, s.File, r.pn)
 		}
 		if len(s.P) > 0 {
@@ -307,13 +201,13 @@ overwrite:
 	if dupok {
 		s.Attr |= AttrDuplicateOK
 	}
-	if t == obj.SXREF {
+	if t == objabi.SXREF {
 		log.Fatalf("bad sxref")
 	}
 	if t == 0 {
 		log.Fatalf("missing type for %s in %s", s.Name, r.pn)
 	}
-	if t == obj.SBSS && (s.Type == obj.SRODATA || s.Type == obj.SNOPTRBSS) {
+	if t == objabi.SBSS && (s.Type == objabi.SRODATA || s.Type == objabi.SNOPTRBSS) {
 		t = s.Type
 	}
 	s.Type = t
@@ -339,14 +233,14 @@ overwrite:
 			s.R[i] = Reloc{
 				Off:  r.readInt32(),
 				Siz:  r.readUint8(),
-				Type: obj.RelocType(r.readInt32()),
+				Type: objabi.RelocType(r.readInt32()),
 				Add:  r.readInt64(),
 				Sym:  r.readSymIndex(),
 			}
 		}
 	}
 
-	if s.Type == obj.STEXT {
+	if s.Type == objabi.STEXT {
 		s.FuncInfo = new(FuncInfo)
 		pc := s.FuncInfo
 
@@ -432,7 +326,7 @@ overwrite:
 			}
 		}
 	}
-	if s.Type == obj.SDWARFINFO {
+	if s.Type == objabi.SDWARFINFO {
 		r.patchDWARFName(s)
 	}
 }
@@ -495,7 +389,7 @@ func (r *objReader) readRef() {
 		if err != nil {
 			log.Panicf("failed to parse $-symbol %s: %v", s.Name, err)
 		}
-		s.Type = obj.SRODATA
+		s.Type = objabi.SRODATA
 		s.Attr |= AttrLocal
 		switch s.Name[:5] {
 		case "$f32.":

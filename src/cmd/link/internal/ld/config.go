@@ -5,7 +5,7 @@
 package ld
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
 	"log"
@@ -34,7 +34,7 @@ const (
 
 func (mode *BuildMode) Set(s string) error {
 	badmode := func() error {
-		return fmt.Errorf("buildmode %s not supported on %s/%s", s, obj.GOOS, obj.GOARCH)
+		return fmt.Errorf("buildmode %s not supported on %s/%s", s, objabi.GOOS, objabi.GOARCH)
 	}
 	switch s {
 	default:
@@ -42,17 +42,17 @@ func (mode *BuildMode) Set(s string) error {
 	case "exe":
 		*mode = BuildmodeExe
 	case "pie":
-		switch obj.GOOS {
+		switch objabi.GOOS {
 		case "android", "linux":
 		default:
 			return badmode()
 		}
 		*mode = BuildmodePIE
 	case "c-archive":
-		switch obj.GOOS {
+		switch objabi.GOOS {
 		case "darwin", "linux":
 		case "windows":
-			switch obj.GOARCH {
+			switch objabi.GOARCH {
 			case "amd64", "386":
 			default:
 				return badmode()
@@ -62,16 +62,16 @@ func (mode *BuildMode) Set(s string) error {
 		}
 		*mode = BuildmodeCArchive
 	case "c-shared":
-		switch obj.GOARCH {
+		switch objabi.GOARCH {
 		case "386", "amd64", "arm", "arm64":
 		default:
 			return badmode()
 		}
 		*mode = BuildmodeCShared
 	case "shared":
-		switch obj.GOOS {
+		switch objabi.GOOS {
 		case "linux":
-			switch obj.GOARCH {
+			switch objabi.GOARCH {
 			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
 			default:
 				return badmode()
@@ -81,15 +81,15 @@ func (mode *BuildMode) Set(s string) error {
 		}
 		*mode = BuildmodeShared
 	case "plugin":
-		switch obj.GOOS {
+		switch objabi.GOOS {
 		case "linux":
-			switch obj.GOARCH {
+			switch objabi.GOARCH {
 			case "386", "amd64", "arm", "arm64", "s390x":
 			default:
 				return badmode()
 			}
 		case "darwin":
-			switch obj.GOARCH {
+			switch objabi.GOARCH {
 			case "amd64":
 			default:
 				return badmode()
@@ -168,7 +168,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		}()
 	}
 
-	switch obj.GOOS {
+	switch objabi.GOOS {
 	case "android":
 		return true, "android"
 	case "darwin":
@@ -185,7 +185,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
 	if iscgo && SysArch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS) {
-		return true, obj.GOARCH + " does not support internal cgo"
+		return true, objabi.GOARCH + " does not support internal cgo"
 	}
 
 	// Some build modes require work the internal linker cannot do (yet).
@@ -195,7 +195,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	case BuildmodeCShared:
 		return true, "buildmode=c-shared"
 	case BuildmodePIE:
-		switch obj.GOOS + "/" + obj.GOARCH {
+		switch objabi.GOOS + "/" + objabi.GOARCH {
 		case "linux/amd64":
 		default:
 			// Internal linking does not support TLS_IE.
@@ -225,7 +225,7 @@ func determineLinkMode(ctxt *Link) {
 		// default value of -linkmode. If it is not set when the
 		// linker is called we take the value it was set to when
 		// cmd/link was compiled. (See make.bash.)
-		switch obj.Getgoextlinkenabled() {
+		switch objabi.Getgoextlinkenabled() {
 		case "0":
 			if needed, reason := mustLinkExternal(ctxt); needed {
 				Exitf("internal linking requested via GO_EXTLINK_ENABLED, but external linking required: %s", reason)

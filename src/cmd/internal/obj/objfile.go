@@ -3,118 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Writing of Go object files.
-//
-// Originally, Go object files were Plan 9 object files, but no longer.
-// Now they are more like standard object files, in that each symbol is defined
-// by an associated memory image (bytes) and a list of relocations to apply
-// during linking. We do not (yet?) use a standard file format, however.
-// For now, the format is chosen to be as simple as possible to read and write.
-// It may change for reasons of efficiency, or we may even switch to a
-// standard file format if there are compelling benefits to doing so.
-// See golang.org/s/go13linker for more background.
-//
-// The file format is:
-//
-//	- magic header: "\x00\x00go19ld"
-//	- byte 1 - version number
-//	- sequence of strings giving dependencies (imported packages)
-//	- empty string (marks end of sequence)
-//	- sequence of symbol references used by the defined symbols
-//	- byte 0xff (marks end of sequence)
-//	- sequence of integer lengths:
-//		- total data length
-//		- total number of relocations
-//		- total number of pcdata
-//		- total number of automatics
-//		- total number of funcdata
-//		- total number of files
-//	- data, the content of the defined symbols
-//	- sequence of defined symbols
-//	- byte 0xff (marks end of sequence)
-//	- magic footer: "\xff\xffgo19ld"
-//
-// All integers are stored in a zigzag varint format.
-// See golang.org/s/go12symtab for a definition.
-//
-// Data blocks and strings are both stored as an integer
-// followed by that many bytes.
-//
-// A symbol reference is a string name followed by a version.
-//
-// A symbol points to other symbols using an index into the symbol
-// reference sequence. Index 0 corresponds to a nil LSym* pointer.
-// In the symbol layout described below "symref index" stands for this
-// index.
-//
-// Each symbol is laid out as the following fields (taken from LSym*):
-//
-//	- byte 0xfe (sanity check for synchronization)
-//	- type [int]
-//	- name & version [symref index]
-//	- flags [int]
-//		1<<0 dupok
-//		1<<1 local
-//		1<<2 add to typelink table
-//	- size [int]
-//	- gotype [symref index]
-//	- p [data block]
-//	- nr [int]
-//	- r [nr relocations, sorted by off]
-//
-// If type == STEXT, there are a few more fields:
-//
-//	- args [int]
-//	- locals [int]
-//	- nosplit [int]
-//	- flags [int]
-//		1<<0 leaf
-//		1<<1 C function
-//		1<<2 function may call reflect.Type.Method
-//	- nlocal [int]
-//	- local [nlocal automatics]
-//	- pcln [pcln table]
-//
-// Each relocation has the encoding:
-//
-//	- off [int]
-//	- siz [int]
-//	- type [int]
-//	- add [int]
-//	- sym [symref index]
-//
-// Each local has the encoding:
-//
-//	- asym [symref index]
-//	- offset [int]
-//	- type [int]
-//	- gotype [symref index]
-//
-// The pcln table has the encoding:
-//
-//	- pcsp [data block]
-//	- pcfile [data block]
-//	- pcline [data block]
-//	- pcinline [data block]
-//	- npcdata [int]
-//	- pcdata [npcdata data blocks]
-//	- nfuncdata [int]
-//	- funcdata [nfuncdata symref index]
-//	- funcdatasym [nfuncdata ints]
-//	- nfile [int]
-//	- file [nfile symref index]
-//	- ninlinedcall [int]
-//	- inlinedcall [ninlinedcall int symref int symref]
-//
-// The file layout and meaning of type integers are architecture-independent.
-//
-// TODO(rsc): The file format is good for a first pass but needs work.
-//	- There are SymID in the object file that should really just be strings.
 
 package obj
 
 import (
 	"bufio"
 	"cmd/internal/dwarf"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
 	"log"
@@ -149,7 +44,7 @@ func (w *objWriter) addLengths(s *LSym) {
 	w.nData += len(s.P)
 	w.nReloc += len(s.R)
 
-	if s.Type != STEXT {
+	if s.Type != objabi.STEXT {
 		return
 	}
 
@@ -289,7 +184,7 @@ func (w *objWriter) writeRefs(s *LSym) {
 		w.writeRef(s.R[i].Sym, false)
 	}
 
-	if s.Type == STEXT {
+	if s.Type == objabi.STEXT {
 		for _, a := range s.Func.Autom {
 			w.writeRef(a.Asym, false)
 			w.writeRef(a.Gotype, false)
@@ -330,14 +225,14 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 		fmt.Fprintf(ctxt.Bso, "nosplit ")
 	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
-	if s.Type == STEXT {
+	if s.Type == objabi.STEXT {
 		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Func.Args), uint64(s.Func.Locals))
 		if s.Leaf() {
 			fmt.Fprintf(ctxt.Bso, " leaf")
 		}
 	}
 	fmt.Fprintf(ctxt.Bso, "\n")
-	if s.Type == STEXT {
+	if s.Type == objabi.STEXT {
 		for p := s.Func.Text; p != nil; p = p.Link {
 			fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
 		}
@@ -369,7 +264,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 		name := ""
 		if r.Sym != nil {
 			name = r.Sym.Name
-		} else if r.Type == R_TLS_LE {
+		} else if r.Type == objabi.R_TLS_LE {
 			name = "TLS"
 		}
 		if ctxt.Arch.InFamily(sys.ARM, sys.PPC64) {
@@ -415,7 +310,7 @@ func (w *objWriter) writeSym(s *LSym) {
 		w.writeRefIndex(r.Sym)
 	}
 
-	if s.Type != STEXT {
+	if s.Type != objabi.STEXT {
 		return
 	}
 
@@ -442,9 +337,9 @@ func (w *objWriter) writeSym(s *LSym) {
 		w.writeRefIndex(a.Asym)
 		w.writeInt(int64(a.Aoffset))
 		if a.Name == NAME_AUTO {
-			w.writeInt(A_AUTO)
+			w.writeInt(objabi.A_AUTO)
 		} else if a.Name == NAME_PARAM {
-			w.writeInt(A_PARAM)
+			w.writeInt(objabi.A_PARAM)
 		} else {
 			log.Fatalf("%s: invalid local variable type %d", s.Name, a.Name)
 		}
@@ -552,12 +447,12 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 	rsym := t.(*LSym)
 	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
 	r := &ls.R[len(ls.R)-1]
-	r.Type = R_DWARFREF
+	r.Type = objabi.R_DWARFREF
 }
 
 // dwarfSym returns the DWARF symbol for TEXT symbol.
 func (ctxt *Link) dwarfSym(s *LSym) *LSym {
-	if s.Type != STEXT {
+	if s.Type != objabi.STEXT {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
 	if s.Func.dwarfSym == nil {

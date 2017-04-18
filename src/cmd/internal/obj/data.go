@@ -32,6 +32,7 @@
 package obj
 
 import (
+	"cmd/internal/objabi"
 	"log"
 	"math"
 )
@@ -72,7 +73,7 @@ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
 	if off < 0 || siz < 0 || off >= 1<<30 {
 		ctxt.Diag("prepwrite: bad off=%d siz=%d s=%v", off, siz, s)
 	}
-	if s.Type == SBSS || s.Type == STLSBSS {
+	if s.Type == objabi.SBSS || s.Type == objabi.STLSBSS {
 		ctxt.Diag("cannot supply data for BSS var")
 	}
 	l := off + int64(siz)
@@ -125,7 +126,7 @@ func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64)
 	}
 	r.Siz = uint8(siz)
 	r.Sym = rsym
-	r.Type = R_ADDR
+	r.Type = objabi.R_ADDR
 	r.Add = roff
 }
 
@@ -141,7 +142,7 @@ func (s *LSym) WriteOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
 	}
 	r.Siz = 4
 	r.Sym = rsym
-	r.Type = R_ADDROFF
+	r.Type = objabi.R_ADDROFF
 	r.Add = roff
 }
 
@@ -157,7 +158,7 @@ func (s *LSym) WriteWeakOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
 	}
 	r.Siz = 4
 	r.Sym = rsym
-	r.Type = R_WEAKADDROFF
+	r.Type = objabi.R_WEAKADDROFF
 	r.Add = roff
 }
 

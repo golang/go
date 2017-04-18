@@ -32,7 +32,7 @@ package ld
 
 import (
 	"cmd/internal/bio"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -101,7 +101,7 @@ func hostArchive(ctxt *Link, name string) {
 		var load []uint64
 		for _, s := range ctxt.Syms.Allsym {
 			for _, r := range s.R {
-				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF {
+				if r.Sym != nil && r.Sym.Type&objabi.SMASK == objabi.SXREF {
 					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
 						load = append(load, off)
 						loaded[off] = true
@@ -166,7 +166,7 @@ func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
 
 		// For Mach-O and PE/386 files we strip a leading
 		// underscore from the symbol name.
-		if obj.GOOS == "darwin" || (obj.GOOS == "windows" && obj.GOARCH == "386") {
+		if objabi.GOOS == "darwin" || (objabi.GOOS == "windows" && objabi.GOARCH == "386") {
 			if name[0] == '_' && len(name) > 1 {
 				name = name[1:]
 			}

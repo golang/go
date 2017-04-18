@@ -12,7 +12,7 @@ import (
 	"unicode"
 
 	"cmd/asm/internal/flags"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -43,7 +43,7 @@ func NewTokenizer(name string, r io.Reader, file *os.File) *Tokenizer {
 	s.IsIdentRune = isIdentRune
 	return &Tokenizer{
 		s:    &s,
-		base: src.NewFileBase(name, obj.AbsFile(obj.WorkingDir(), name, *flags.TrimPath)),
+		base: src.NewFileBase(name, objabi.AbsFile(objabi.WorkingDir(), name, *flags.TrimPath)),
 		line: 1,
 		file: file,
 	}

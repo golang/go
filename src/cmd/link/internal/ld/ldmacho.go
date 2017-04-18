@@ -2,7 +2,7 @@ package ld
 
 import (
 	"cmd/internal/bio"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
@@ -602,16 +602,16 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 		if sect.segname == "__TEXT" {
 			if sect.name == "__text" {
-				s.Type = obj.STEXT
+				s.Type = objabi.STEXT
 			} else {
-				s.Type = obj.SRODATA
+				s.Type = objabi.SRODATA
 			}
 		} else {
 			if sect.name == "__bss" {
-				s.Type = obj.SNOPTRBSS
+				s.Type = objabi.SNOPTRBSS
 				s.P = s.P[:0]
 			} else {
-				s.Type = obj.SNOPTRDATA
+				s.Type = objabi.SNOPTRDATA
 			}
 		}
 
@@ -663,7 +663,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
-		s.Type = outer.Type | obj.SSUB
+		s.Type = outer.Type | objabi.SSUB
 		s.Sub = outer.Sub
 		outer.Sub = s
 		s.Outer = outer
@@ -671,7 +671,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		if !s.Attr.CgoExportDynamic() {
 			s.Dynimplib = "" // satisfy dynimport
 		}
-		if outer.Type == obj.STEXT {
+		if outer.Type == objabi.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Errorf(s, "%s: duplicate symbol definition", pn)
 			}
@@ -702,7 +702,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			}
 		}
 
-		if s.Type == obj.STEXT {
+		if s.Type == objabi.STEXT {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
@@ -772,7 +772,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 				// want to make it pc-relative aka relative to rp->off+4
 				// but the scatter asks for relative to off = sect->rel[j+1].value - sect->addr.
 				// adjust rp->add accordingly.
-				rp.Type = obj.R_PCREL
+				rp.Type = objabi.R_PCREL
 
 				rp.Add += int64(uint64(int64(rp.Off)+4) - (uint64(sect.rel[j+1].value) - sect.addr))
 
@@ -828,7 +828,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			}
 
 			rp.Siz = rel.length
-			rp.Type = 512 + (obj.RelocType(rel.type_) << 1) + obj.RelocType(rel.pcrel)
+			rp.Type = 512 + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
 			rp.Off = int32(rel.addr)
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).

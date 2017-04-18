@@ -6,7 +6,7 @@ package ld
 
 import (
 	"cmd/internal/bio"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"debug/pe"
 	"errors"
@@ -127,7 +127,7 @@ func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 
 func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) error {
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f ldpe %s\n", obj.Cputime(), pn)
+		ctxt.Logf("%5.2f ldpe %s\n", Cputime(), pn)
 	}
 
 	localSymVersion := ctxt.Syms.IncVersion()
@@ -173,16 +173,16 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 
 		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
-			s.Type = obj.SRODATA
+			s.Type = objabi.SRODATA
 
 		case IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.bss
-			s.Type = obj.SNOPTRBSS
+			s.Type = objabi.SNOPTRBSS
 
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.data
-			s.Type = obj.SNOPTRDATA
+			s.Type = objabi.SNOPTRDATA
 
 		case IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ: //.text
-			s.Type = obj.STEXT
+			s.Type = objabi.STEXT
 
 		default:
 			return fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
@@ -243,12 +243,12 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
 				IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
 				IMAGE_REL_AMD64_ADDR32NB:
-				rp.Type = obj.R_PCREL
+				rp.Type = objabi.R_PCREL
 
 				rp.Add = int64(int32(Le32(sectdata[rsect][rp.Off:])))
 
 			case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
-				rp.Type = obj.R_ADDR
+				rp.Type = objabi.R_ADDR
 
 				// load addend from image
 				rp.Add = int64(int32(Le32(sectdata[rsect][rp.Off:])))
@@ -256,7 +256,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 			case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
 				rp.Siz = 8
 
-				rp.Type = obj.R_ADDR
+				rp.Type = objabi.R_ADDR
 
 				// load addend from image
 				rp.Add = int64(Le64(sectdata[rsect][rp.Off:]))
@@ -313,11 +313,11 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		}
 
 		if pesym.SectionNumber == 0 { // extern
-			if s.Type == obj.SDYNIMPORT {
+			if s.Type == objabi.SDYNIMPORT {
 				s.Plt = -2 // flag for dynimport in PE object files.
 			}
-			if s.Type == obj.SXREF && pesym.Value > 0 { // global data
-				s.Type = obj.SNOPTRDATA
+			if s.Type == objabi.SXREF && pesym.Value > 0 { // global data
+				s.Type = objabi.SNOPTRDATA
 				s.Size = int64(pesym.Value)
 			}
 
@@ -345,11 +345,11 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		sectsym := sectsyms[sect]
 		s.Sub = sectsym.Sub
 		sectsym.Sub = s
-		s.Type = sectsym.Type | obj.SSUB
+		s.Type = sectsym.Type | objabi.SSUB
 		s.Value = int64(pesym.Value)
 		s.Size = 4
 		s.Outer = sectsym
-		if sectsym.Type == obj.STEXT {
+		if sectsym.Type == objabi.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Errorf(s, "%s: duplicate symbol definition", pn)
 			}
@@ -367,7 +367,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		if s.Sub != nil {
 			s.Sub = listsort(s.Sub)
 		}
-		if s.Type == obj.STEXT {
+		if s.Type == objabi.STEXT {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
@@ -433,7 +433,7 @@ func readpesym(ctxt *Link, f *pe.File, sym *pe.COFFSymbol, sectsyms map[*pe.Sect
 	}
 
 	if s != nil && s.Type == 0 && (sym.StorageClass != IMAGE_SYM_CLASS_STATIC || sym.Value != 0) {
-		s.Type = obj.SXREF
+		s.Type = objabi.SXREF
 	}
 	if strings.HasPrefix(symname, "__imp_") {
 		s.Got = -2 // flag for __imp_

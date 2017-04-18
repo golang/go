@@ -5,7 +5,7 @@
 package ld
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
 	"strings"
@@ -46,7 +46,7 @@ import (
 // Any unreached text symbols are removed from ctxt.Textp.
 func deadcode(ctxt *Link) {
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f deadcode\n", obj.Cputime())
+		ctxt.Logf("%5.2f deadcode\n", Cputime())
 	}
 
 	d := &deadcodepass{
@@ -156,7 +156,7 @@ type deadcodepass struct {
 
 func (d *deadcodepass) cleanupReloc(r *Reloc) {
 	if r.Sym.Attr.Reachable() {
-		r.Type = obj.R_ADDROFF
+		r.Type = objabi.R_ADDROFF
 	} else {
 		if d.ctxt.Debugvlog > 1 {
 			d.ctxt.Logf("removing method %s\n", r.Sym.Name)
@@ -190,7 +190,7 @@ func (d *deadcodepass) mark(s, parent *Symbol) {
 func (d *deadcodepass) markMethod(m methodref) {
 	for _, r := range m.r {
 		d.mark(r.Sym, m.src)
-		r.Type = obj.R_ADDROFF
+		r.Type = objabi.R_ADDROFF
 	}
 }
 
@@ -208,7 +208,7 @@ func (d *deadcodepass) init() {
 		// Mark all symbols defined in this library as reachable when
 		// building a shared library.
 		for _, s := range d.ctxt.Syms.Allsym {
-			if s.Type != 0 && s.Type != obj.SDYNIMPORT {
+			if s.Type != 0 && s.Type != objabi.SDYNIMPORT {
 				d.mark(s, nil)
 			}
 		}
@@ -246,7 +246,7 @@ func (d *deadcodepass) flood() {
 	for len(d.markQueue) > 0 {
 		s := d.markQueue[0]
 		d.markQueue = d.markQueue[1:]
-		if s.Type == obj.STEXT {
+		if s.Type == objabi.STEXT {
 			if d.ctxt.Debugvlog > 1 {
 				d.ctxt.Logf("marktext %s\n", s.Name)
 			}
@@ -281,13 +281,13 @@ func (d *deadcodepass) flood() {
 			if r.Sym == nil {
 				continue
 			}
-			if r.Type == obj.R_WEAKADDROFF {
+			if r.Type == objabi.R_WEAKADDROFF {
 				// An R_WEAKADDROFF relocation is not reason
 				// enough to mark the pointed-to symbol as
 				// reachable.
 				continue
 			}
-			if r.Type != obj.R_METHODOFF {
+			if r.Type != objabi.R_METHODOFF {
 				d.mark(r.Sym, s)
 				continue
 			}

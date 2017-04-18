@@ -31,6 +31,7 @@ package ppc64
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -742,7 +743,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			}
 			c.instoffset = a.Offset
 			if a.Sym != nil { // use relocation
-				if a.Sym.Type == obj.STLSBSS {
+				if a.Sym.Type == objabi.STLSBSS {
 					if c.ctxt.Flag_shared {
 						return C_TLS_IE
 					} else {
@@ -809,7 +810,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			if s == nil {
 				break
 			}
-			if s.Type == obj.SCONST {
+			if s.Type == objabi.SCONST {
 				c.instoffset = a.Offset
 				goto consize
 			}
@@ -2052,17 +2053,17 @@ func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32) (o1, o2
 	if c.ctxt.Flag_shared {
 		switch form {
 		case D_FORM:
-			rel.Type = obj.R_ADDRPOWER_TOCREL
+			rel.Type = objabi.R_ADDRPOWER_TOCREL
 		case DS_FORM:
-			rel.Type = obj.R_ADDRPOWER_TOCREL_DS
+			rel.Type = objabi.R_ADDRPOWER_TOCREL_DS
 		}
 
 	} else {
 		switch form {
 		case D_FORM:
-			rel.Type = obj.R_ADDRPOWER
+			rel.Type = objabi.R_ADDRPOWER
 		case DS_FORM:
-			rel.Type = obj.R_ADDRPOWER_DS
+			rel.Type = objabi.R_ADDRPOWER_DS
 		}
 	}
 	return
@@ -2280,7 +2281,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 				// we could add some assembly syntax so that the name
 				// of the variable does not have to be assumed.
 				rel.Sym = c.ctxt.Lookup("runtime.tls_g", 0)
-				rel.Type = obj.R_POWER_TLS
+				rel.Type = objabi.R_POWER_TLS
 			}
 			o1 = AOP_RRR(c.opstorex(p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(r))
 		} else {
@@ -2311,7 +2312,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 				rel.Off = int32(c.pc)
 				rel.Siz = 4
 				rel.Sym = c.ctxt.Lookup("runtime.tls_g", 0)
-				rel.Type = obj.R_POWER_TLS
+				rel.Type = objabi.R_POWER_TLS
 			}
 			o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
 		} else {
@@ -2379,7 +2380,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			}
 
 			rel.Add = int64(v)
-			rel.Type = obj.R_CALLPOWER
+			rel.Type = objabi.R_CALLPOWER
 		}
 		o2 = 0x60000000 // nop, sometimes overwritten by ld r2, 24(r1) when dynamic linking
 
@@ -2787,7 +2788,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			rel.Siz = 8
 			rel.Sym = p.From.Sym
 			rel.Add = p.From.Offset
-			rel.Type = obj.R_ADDR
+			rel.Type = objabi.R_ADDR
 			o2 = 0
 			o1 = o2
 		}
@@ -3195,7 +3196,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
-		rel.Type = obj.R_POWER_TLS_LE
+		rel.Type = objabi.R_POWER_TLS_LE
 
 	case 80:
 		if p.From.Offset != 0 {
@@ -3207,7 +3208,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
-		rel.Type = obj.R_POWER_TLS_IE
+		rel.Type = objabi.R_POWER_TLS_IE
 
 	case 81:
 		v := c.vregoff(&p.To)
@@ -3221,7 +3222,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
-		rel.Type = obj.R_ADDRPOWER_GOT
+		rel.Type = objabi.R_ADDRPOWER_GOT
 	case 82: /* vector instructions, VX-form and VC-form */
 		if p.From.Type == obj.TYPE_REG {
 			/* reg reg none OR reg reg reg */

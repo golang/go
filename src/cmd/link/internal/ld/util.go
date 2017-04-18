@@ -13,6 +13,16 @@ import (
 	"time"
 )
 
+var startTime time.Time
+
+// TODO(josharian): delete. See issue 19865.
+func Cputime() float64 {
+	if startTime.IsZero() {
+		startTime = time.Now()
+	}
+	return time.Since(startTime).Seconds()
+}
+
 func cstring(x []byte) string {
 	i := bytes.IndexByte(x, '\x00')
 	if i >= 0 {

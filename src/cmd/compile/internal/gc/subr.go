@@ -7,7 +7,7 @@ package gc
 import (
 	"bytes"
 	"cmd/compile/internal/types"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"crypto/md5"
 	"encoding/binary"
@@ -168,7 +168,7 @@ func Fatalf(fmt_ string, args ...interface{}) {
 	fmt.Printf("\n")
 
 	// If this is a released compiler version, ask for a bug report.
-	if strings.HasPrefix(obj.Version, "release") {
+	if strings.HasPrefix(objabi.Version, "release") {
 		fmt.Printf("\n")
 		fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
 		fmt.Printf("https://golang.org/issue/new\n")

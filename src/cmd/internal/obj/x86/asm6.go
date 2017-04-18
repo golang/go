@@ -32,6 +32,7 @@ package x86
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
@@ -1844,7 +1845,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		s.P = s.P[:0]
 		c = 0
 		for p := s.Func.Text; p != nil; p = p.Link {
-			if ctxt.Headtype == obj.Hnacl && p.Isize > 0 {
+			if ctxt.Headtype == objabi.Hnacl && p.Isize > 0 {
 
 				// pad everything to avoid crossing 32-byte boundary
 				if c>>5 != (c+int32(p.Isize)-1)>>5 {
@@ -1939,7 +1940,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	if ctxt.Headtype == obj.Hnacl {
+	if ctxt.Headtype == objabi.Hnacl {
 		c = naclpad(ctxt, s, c, -c&31)
 	}
 
@@ -1975,9 +1976,9 @@ func instinit(ctxt *obj.Link) {
 	}
 
 	switch ctxt.Headtype {
-	case obj.Hplan9:
+	case objabi.Hplan9:
 		plan9privates = ctxt.Lookup("_privates", 0)
-	case obj.Hnacl:
+	case objabi.Hnacl:
 		deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
 	}
 
@@ -2121,7 +2122,7 @@ func instinit(ctxt *obj.Link) {
 	}
 }
 
-var isAndroid = (obj.GOOS == "android")
+var isAndroid = (objabi.GOOS == "android")
 
 func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
@@ -2159,11 +2160,11 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 					}
 					log.Fatalf("unknown TLS base register for %v", ctxt.Headtype)
 
-				case obj.Hdarwin,
-					obj.Hdragonfly,
-					obj.Hfreebsd,
-					obj.Hnetbsd,
-					obj.Hopenbsd:
+				case objabi.Hdarwin,
+					objabi.Hdragonfly,
+					objabi.Hfreebsd,
+					objabi.Hnetbsd,
+					objabi.Hopenbsd:
 					return 0x65 // GS
 				}
 			}
@@ -2172,7 +2173,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 			default:
 				log.Fatalf("unknown TLS base register for %v", ctxt.Headtype)
 
-			case obj.Hlinux:
+			case objabi.Hlinux:
 				if isAndroid {
 					return 0x64 // FS
 				}
@@ -2183,14 +2184,14 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 					return 0x64 // FS
 				}
 
-			case obj.Hdragonfly,
-				obj.Hfreebsd,
-				obj.Hnetbsd,
-				obj.Hopenbsd,
-				obj.Hsolaris:
+			case objabi.Hdragonfly,
+				objabi.Hfreebsd,
+				objabi.Hnetbsd,
+				objabi.Hopenbsd,
+				objabi.Hsolaris:
 				return 0x64 // FS
 
-			case obj.Hdarwin:
+			case objabi.Hdarwin:
 				return 0x65 // GS
 			}
 		}
@@ -2800,13 +2801,13 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 
 		if a.Name == obj.NAME_GOTREF {
 			r.Siz = 4
-			r.Type = obj.R_GOTPCREL
+			r.Type = objabi.R_GOTPCREL
 		} else if isextern(s) || (ctxt.Arch.Family != sys.AMD64 && !ctxt.Flag_shared) {
 			r.Siz = 4
-			r.Type = obj.R_ADDR
+			r.Type = objabi.R_ADDR
 		} else {
 			r.Siz = 4
-			r.Type = obj.R_PCREL
+			r.Type = objabi.R_PCREL
 		}
 
 		r.Off = -1 // caller must fill in
@@ -2822,8 +2823,8 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 			log.Fatalf("reloc")
 		}
 
-		if !ctxt.Flag_shared || isAndroid || ctxt.Headtype == obj.Hdarwin {
-			r.Type = obj.R_TLS_LE
+		if !ctxt.Flag_shared || isAndroid || ctxt.Headtype == objabi.Hdarwin {
+			r.Type = objabi.R_TLS_LE
 			r.Siz = 4
 			r.Off = -1 // caller must fill in
 			r.Add = a.Offset
@@ -2992,7 +2993,7 @@ func (asmbuf *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a 
 	if REG_AX <= base && base <= REG_R15 {
 		if a.Index == REG_TLS && !ctxt.Flag_shared {
 			rel = obj.Reloc{}
-			rel.Type = obj.R_TLS_LE
+			rel.Type = objabi.R_TLS_LE
 			rel.Siz = 4
 			rel.Sym = nil
 			rel.Add = int64(v)
@@ -3625,7 +3626,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			case Zcallindreg:
 				r = obj.Addrel(cursym)
 				r.Off = int32(p.Pc)
-				r.Type = obj.R_CALLIND
+				r.Type = objabi.R_CALLIND
 				r.Siz = 0
 				fallthrough
 
@@ -3786,7 +3787,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				}
 				r = obj.Addrel(cursym)
 				r.Off = int32(p.Pc + int64(asmbuf.Len()))
-				r.Type = obj.R_PCREL
+				r.Type = objabi.R_PCREL
 				r.Siz = 4
 				r.Add = p.To.Offset
 				asmbuf.PutInt32(0)
@@ -3796,9 +3797,9 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				r = obj.Addrel(cursym)
 				r.Off = int32(p.Pc + int64(asmbuf.Len()))
 				if ctxt.Arch.Family == sys.AMD64 {
-					r.Type = obj.R_PCREL
+					r.Type = objabi.R_PCREL
 				} else {
-					r.Type = obj.R_ADDR
+					r.Type = objabi.R_ADDR
 				}
 				r.Siz = 4
 				r.Add = p.To.Offset
@@ -3830,7 +3831,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				r.Off = int32(p.Pc + int64(asmbuf.Len()))
 				r.Sym = p.To.Sym
 				r.Add = p.To.Offset
-				r.Type = obj.R_CALL
+				r.Type = objabi.R_CALL
 				r.Siz = 4
 				asmbuf.PutInt32(0)
 
@@ -3855,7 +3856,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					r = obj.Addrel(cursym)
 					r.Off = int32(p.Pc + int64(asmbuf.Len()))
 					r.Sym = p.To.Sym
-					r.Type = obj.R_PCREL
+					r.Type = objabi.R_PCREL
 					r.Siz = 4
 					asmbuf.PutInt32(0)
 					break
@@ -4072,8 +4073,8 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						default:
 							log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
-						case obj.Hlinux,
-							obj.Hnacl:
+						case objabi.Hlinux,
+							objabi.Hnacl:
 							if ctxt.Flag_shared {
 								// Note that this is not generating the same insns as the other cases.
 								//     MOV TLS, dst
@@ -4090,7 +4091,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 								asmbuf.Put1(0xe8)
 								r = obj.Addrel(cursym)
 								r.Off = int32(p.Pc + int64(asmbuf.Len()))
-								r.Type = obj.R_CALL
+								r.Type = objabi.R_CALL
 								r.Siz = 4
 								r.Sym = ctxt.Lookup("__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
 								asmbuf.PutInt32(0)
@@ -4098,7 +4099,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 								asmbuf.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
 								r = obj.Addrel(cursym)
 								r.Off = int32(p.Pc + int64(asmbuf.Len()))
-								r.Type = obj.R_TLS_IE
+								r.Type = objabi.R_TLS_IE
 								r.Siz = 4
 								r.Add = 2
 								asmbuf.PutInt32(0)
@@ -4115,7 +4116,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 									0x8B)
 								asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 							}
-						case obj.Hplan9:
+						case objabi.Hplan9:
 							pp.From = obj.Addr{}
 							pp.From.Type = obj.TYPE_MEM
 							pp.From.Name = obj.NAME_EXTERN
@@ -4125,7 +4126,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							asmbuf.Put1(0x8B)
 							asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 
-						case obj.Hwindows:
+						case objabi.Hwindows:
 							// Windows TLS base is always 0x14(FS).
 							pp.From = p.From
 
@@ -4145,7 +4146,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					default:
 						log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
-					case obj.Hlinux:
+					case objabi.Hlinux:
 						if !ctxt.Flag_shared {
 							log.Fatalf("unknown TLS base location for linux without -shared")
 						}
@@ -4163,12 +4164,12 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						asmbuf.Put2(0x8B, byte(0x05|(reg[p.To.Reg]<<3)))
 						r = obj.Addrel(cursym)
 						r.Off = int32(p.Pc + int64(asmbuf.Len()))
-						r.Type = obj.R_TLS_IE
+						r.Type = objabi.R_TLS_IE
 						r.Siz = 4
 						r.Add = -4
 						asmbuf.PutInt32(0)
 
-					case obj.Hplan9:
+					case objabi.Hplan9:
 						pp.From = obj.Addr{}
 						pp.From.Type = obj.TYPE_MEM
 						pp.From.Name = obj.NAME_EXTERN
@@ -4179,7 +4180,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						asmbuf.Put1(0x8B)
 						asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 
-					case obj.Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
+					case objabi.Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
 						// TLS base is 0(FS).
 						pp.From = p.From
 
@@ -4194,7 +4195,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							0x8B)
 						asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
 
-					case obj.Hwindows:
+					case objabi.Hwindows:
 						// Windows TLS base is always 0x28(GS).
 						pp.From = p.From
 
@@ -4434,7 +4435,7 @@ func (asmbuf *AsmBuf) nacltrunc(ctxt *obj.Link, reg int) {
 func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	asmbuf.Reset()
 
-	if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.I386 {
+	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.I386 {
 		switch p.As {
 		case obj.ARET:
 			asmbuf.Put(naclret8)
@@ -4452,7 +4453,7 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		}
 	}
 
-	if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
 		if p.As == AREP {
 			asmbuf.rep++
 			return
@@ -4567,7 +4568,7 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		if asmbuf.rexflag != 0 {
 			r.Off++
 		}
-		if r.Type == obj.R_PCREL {
+		if r.Type == objabi.R_PCREL {
 			if ctxt.Arch.Family == sys.AMD64 || p.As == obj.AJMP || p.As == obj.ACALL {
 				// PC-relative addressing is relative to the end of the instruction,
 				// but the relocations applied by the linker are relative to the end
@@ -4585,14 +4586,14 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				r.Add += int64(r.Off) - p.Pc + int64(r.Siz)
 			}
 		}
-		if r.Type == obj.R_GOTPCREL && ctxt.Arch.Family == sys.I386 {
+		if r.Type == objabi.R_GOTPCREL && ctxt.Arch.Family == sys.I386 {
 			// On 386, R_GOTPCREL makes the same assumptions as R_PCREL.
 			r.Add += int64(r.Off) - p.Pc + int64(r.Siz)
 		}
 
 	}
 
-	if ctxt.Arch.Family == sys.AMD64 && ctxt.Headtype == obj.Hnacl && p.As != ACMPL && p.As != ACMPQ && p.To.Type == obj.TYPE_REG {
+	if ctxt.Arch.Family == sys.AMD64 && ctxt.Headtype == objabi.Hnacl && p.As != ACMPL && p.As != ACMPQ && p.To.Type == obj.TYPE_REG {
 		switch p.To.Reg {
 		case REG_SP:
 			asmbuf.Put(naclspfix)

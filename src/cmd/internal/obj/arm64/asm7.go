@@ -32,6 +32,7 @@ package arm64
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"fmt"
 	"log"
 	"math"
@@ -1100,7 +1101,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 			}
 			c.instoffset = a.Offset
 			if a.Sym != nil { // use relocation
-				if a.Sym.Type == obj.STLSBSS {
+				if a.Sym.Type == objabi.STLSBSS {
 					if c.ctxt.Flag_shared {
 						return C_TLS_IE
 					} else {
@@ -1187,7 +1188,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 			if a.Sym == nil {
 				break
 			}
-			if a.Sym.Type == obj.STLSBSS {
+			if a.Sym.Type == objabi.STLSBSS {
 				c.ctxt.Diag("taking address of TLS variable is not supported")
 			}
 			c.instoffset = a.Offset
@@ -2035,7 +2036,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
 		rel.Add = p.To.Offset
-		rel.Type = obj.R_CALLARM64
+		rel.Type = objabi.R_CALLARM64
 
 	case 6: /* b ,O(R); bl ,O(R) */
 		o1 = c.opbrr(p, p.As)
@@ -2044,7 +2045,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 0
-		rel.Type = obj.R_CALLIND
+		rel.Type = objabi.R_CALLIND
 
 	case 7: /* beq s */
 		o1 = c.opbra(p, p.As)
@@ -2116,7 +2117,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			rel.Siz = 8
 			rel.Sym = p.To.Sym
 			rel.Add = p.To.Offset
-			rel.Type = obj.R_ADDR
+			rel.Type = objabi.R_ADDR
 			o2 = 0
 			o1 = o2
 		}
@@ -2164,7 +2165,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			rel.Siz = 4
 			rel.Sym = p.To.Sym
 			rel.Add = p.To.Offset
-			rel.Type = obj.R_ADDR
+			rel.Type = objabi.R_ADDR
 			o1 = 0
 		}
 
@@ -2875,7 +2876,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 8
 		rel.Sym = p.To.Sym
 		rel.Add = p.To.Offset
-		rel.Type = obj.R_ADDRARM64
+		rel.Type = objabi.R_ADDRARM64
 		o3 = c.olsr12u(p, int32(c.opstr12(p, p.As)), 0, REGTMP, int(p.From.Reg))
 
 	case 65: /* movT addr,R -> adrp + add + movT (REGTMP), R */
@@ -2886,7 +2887,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = obj.R_ADDRARM64
+		rel.Type = objabi.R_ADDRARM64
 		o3 = c.olsr12u(p, int32(c.opldr12(p, p.As)), 0, REGTMP, int(p.To.Reg))
 
 	case 66: /* ldp O(R)!, (r1, r2); ldp (R)O!, (r1, r2) */
@@ -2927,7 +2928,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = obj.R_ADDRARM64
+		rel.Type = objabi.R_ADDRARM64
 
 	case 69: /* LE model movd $tlsvar, reg -> movz reg, 0 + reloc */
 		o1 = c.opirr(p, AMOVZ)
@@ -2936,7 +2937,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
-		rel.Type = obj.R_ARM64_TLS_LE
+		rel.Type = objabi.R_ARM64_TLS_LE
 		if p.From.Offset != 0 {
 			c.ctxt.Diag("invalid offset on MOVW $tlsvar")
 		}
@@ -2949,7 +2950,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Add = 0
-		rel.Type = obj.R_ARM64_TLS_IE
+		rel.Type = objabi.R_ARM64_TLS_IE
 		if p.From.Offset != 0 {
 			c.ctxt.Diag("invalid offset on MOVW $tlsvar")
 		}
@@ -2962,7 +2963,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Add = 0
-		rel.Type = obj.R_ARM64_GOTPCREL
+		rel.Type = objabi.R_ARM64_GOTPCREL
 
 	// This is supposed to be something that stops execution.
 	// It's not supposed to be reached, ever, but if it is, we'd

@@ -13,7 +13,7 @@ import (
 
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -66,7 +66,7 @@ func yyerrorpos(pos src.Pos, format string, args ...interface{}) {
 var pathPrefix string
 
 func absFilename(name string) string {
-	return obj.AbsFile(Ctxt.Pathname, name, pathPrefix)
+	return objabi.AbsFile(Ctxt.Pathname, name, pathPrefix)
 }
 
 // noder transforms package syntax's AST into a Node tree.

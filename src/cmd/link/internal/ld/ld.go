@@ -32,7 +32,6 @@
 package ld
 
 import (
-	"cmd/internal/obj"
 	"io/ioutil"
 	"os"
 	"path"
@@ -105,7 +104,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 	}
 
 	if ctxt.Debugvlog > 1 {
-		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlibnamefile: %s\n", obj.Cputime(), srcref, objref, file, pkg, shlibnamefile)
+		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlibnamefile: %s\n", Cputime(), srcref, objref, file, pkg, shlibnamefile)
 	}
 
 	ctxt.Library = append(ctxt.Library, &Library{})

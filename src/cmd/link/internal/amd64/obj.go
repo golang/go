@@ -31,7 +31,7 @@
 package amd64
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
@@ -39,7 +39,7 @@ import (
 
 func Init() {
 	ld.SysArch = sys.ArchAMD64
-	if obj.GOARCH == "amd64p32" {
+	if objabi.GOARCH == "amd64p32" {
 		ld.SysArch = sys.ArchAMD64P32
 	}
 
@@ -80,7 +80,7 @@ func archinit(ctxt *ld.Link) {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.Headtype)
 
-	case obj.Hplan9: /* plan 9 */
+	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32 + 8
 
 		if *ld.FlagTextAddr == -1 {
@@ -93,7 +93,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x200000
 		}
 
-	case obj.Hdarwin: /* apple MACH */
+	case objabi.Hdarwin: /* apple MACH */
 		ld.Machoinit()
 
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
@@ -107,12 +107,12 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagDataAddr = 0
 		}
 
-	case obj.Hlinux, /* elf64 executable */
-		obj.Hfreebsd,   /* freebsd */
-		obj.Hnetbsd,    /* netbsd */
-		obj.Hopenbsd,   /* openbsd */
-		obj.Hdragonfly, /* dragonfly */
-		obj.Hsolaris:   /* solaris */
+	case objabi.Hlinux, /* elf64 executable */
+		objabi.Hfreebsd,   /* freebsd */
+		objabi.Hnetbsd,    /* netbsd */
+		objabi.Hopenbsd,   /* openbsd */
+		objabi.Hdragonfly, /* dragonfly */
+		objabi.Hsolaris:   /* solaris */
 		ld.Elfinit(ctxt)
 
 		ld.HEADR = ld.ELFRESERVE
@@ -126,7 +126,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hnacl:
+	case objabi.Hnacl:
 		ld.Elfinit(ctxt)
 		*ld.FlagW = true // disable dwarf, which gets confused and is useless anyway
 		ld.HEADR = 0x10000
@@ -141,7 +141,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hwindows: /* PE executable */
+	case objabi.Hwindows: /* PE executable */
 		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
 		return
 	}
