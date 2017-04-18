@@ -289,9 +289,11 @@ const (
 // It is embedded in other, public struct types, but always
 // with a unique tag like `reflect:"array"` or `reflect:"ptr"`
 // so that code cannot convert from, say, *arrayType to *ptrType.
+//
+// rtype must be kept in sync with ../runtime/type.go:/^type._type.
 type rtype struct {
 	size       uintptr
-	ptrdata    uintptr
+	ptrdata    uintptr  // number of bytes in the type that can contain pointers
 	hash       uint32   // hash of type; avoids computation in hash tables
 	tflag      tflag    // extra type information flags
 	align      uint8    // alignment of variable with this type
