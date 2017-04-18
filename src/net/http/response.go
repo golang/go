@@ -321,3 +321,9 @@ func (r *Response) Write(w io.Writer) error {
 	// Success
 	return nil
 }
+
+func (r *Response) closeBody() {
+	if r.Body != nil {
+		r.Body.Close()
+	}
+}
