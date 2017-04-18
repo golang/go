@@ -725,9 +725,6 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 		if stmt.Label != nil {
 			n.Left = p.newname(stmt.Label)
 		}
-		if op == OGOTO {
-			n.Sym = types.Dclstack // context, for goto restriction
-		}
 		if op == OXFALL {
 			n.Xoffset = int64(types.Block)
 		}
@@ -909,7 +906,6 @@ func (p *noder) commClauses(clauses []*syntax.CommClause) []*Node {
 
 func (p *noder) labeledStmt(label *syntax.LabeledStmt) *Node {
 	lhs := p.nod(label, OLABEL, p.newname(label.Label), nil)
-	lhs.Sym = types.Dclstack // context, for goto restriction
 
 	var ls *Node
 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
