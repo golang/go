@@ -211,12 +211,13 @@ func compile(fn *Node) {
 	ssafn := buildssa(fn)
 	pp := newProgs(fn)
 	genssa(ssafn, pp)
-	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
 	if pp.Text.To.Offset < 1<<31 {
 		pp.Flush()
 	} else {
 		largeStackFrames = append(largeStackFrames, fn.Pos)
 	}
+	// fieldtrack must be called after pp.Flush. See issue 20014.
+	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
 	pp.Free()
 }
 
