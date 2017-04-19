@@ -18,7 +18,6 @@ import (
 // allows using Sym pointer equality to test for Go identifier uniqueness when
 // handling selector expressions.
 type Sym struct {
-	Link      *Sym
 	Importdef *Pkg   // where imported definition was found
 	Linkname  string // link name
 

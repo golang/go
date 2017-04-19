@@ -4,10 +4,7 @@
 
 package types
 
-import (
-	"cmd/internal/src"
-	"fmt"
-)
+import "cmd/internal/src"
 
 // Declaration stack & operations
 
@@ -16,17 +13,11 @@ var Block int32        // current block number
 
 // dclstack maintains a stack of shadowed symbol declarations so that
 // popdcl can restore their declarations when a block scope ends.
-// The stack is maintained as a linked list, using Sym's Link field.
 //
-// In practice, the "stack" actually ends up forming a tree: goto and label
-// statements record the current state of dclstack so that checkgoto can
-// validate that a goto statement does not jump over any declarations or
-// into a new block scope.
-//
-// Finally, the Syms in this list are not "real" Syms as they don't actually
+// The Syms on this stack are not "real" Syms as they don't actually
 // represent object names. Sym is just a convenient type for saving shadowed
 // Sym definitions, and only a subset of its fields are actually used.
-var dclstack *Sym
+var dclstack []*Sym
 
 func dcopy(a, b *Sym) {
 	a.Pkg = b.Pkg
@@ -39,8 +30,7 @@ func dcopy(a, b *Sym) {
 func push(pos src.XPos) *Sym {
 	d := new(Sym)
 	d.Lastlineno = pos
-	d.Link = dclstack
-	dclstack = d
+	dclstack = append(dclstack, d)
 	return d
 }
 
@@ -54,48 +44,38 @@ func Pushdcl(s *Sym, pos src.XPos) {
 // Popdcl pops the innermost block scope and restores all symbol declarations
 // to their previous state.
 func Popdcl() {
-	d := dclstack
-	for ; d != nil && d.Name != ""; d = d.Link {
+	i := len(dclstack)
+	for ; i > 0; i-- {
+		d := dclstack[i-1]
+		if d.Name == "" {
+			break
+		}
 		s := d.Pkg.Lookup(d.Name)
 		lno := s.Lastlineno
 		dcopy(s, d)
 		d.Lastlineno = lno
 	}
 
-	if d == nil {
+	if i == 0 {
 		Fatalf("popdcl: no mark")
 	}
 
-	dclstack = d.Link // pop mark
-	Block = d.Block
+	Block = dclstack[i-1].Block
+	dclstack = dclstack[:i-1] // pop mark
 }
 
 // Markdcl records the start of a new block scope for declarations.
 func Markdcl(lineno src.XPos) {
 	d := push(lineno)
-	d.Name = "" // used as a mark in fifo
+	d.Name = "" // used as stack mark
 	d.Block = Block
 
 	blockgen++
 	Block = blockgen
 }
 
-// keep around for debugging
-func DumpDclstack() {
-	i := 0
-	for d := dclstack; d != nil; d = d.Link {
-		fmt.Printf("%6d  %p", i, d)
-		if d.Name != "" {
-			fmt.Printf("  '%s'  %v\n", d.Name, d.Pkg.Lookup(d.Name))
-		} else {
-			fmt.Printf("  ---\n")
-		}
-		i++
-	}
-}
-
 func IsDclstackValid() bool {
-	for d := dclstack; d != nil; d = d.Link {
+	for _, d := range dclstack {
 		if d.Name == "" {
 			return false
 		}
