@@ -53,8 +53,6 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 			sym.Code = 'D'
 		case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
 			sym.Code = 'B'
-		case objabi.SXREF, objabi.SCONST:
-			sym.Code = 'X' // should not see
 		}
 		if s.Version != 0 {
 			sym.Code += 'a' - 'A'

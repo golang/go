@@ -558,9 +558,6 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
 				break
 			}
 			c.instoffset = a.Offset
-			if s.Type == objabi.SCONST {
-				goto consize
-			}
 
 			return C_SYMADDR
 
