@@ -356,6 +356,12 @@ type (
 	BranchStmt struct {
 		Tok   token // Break, Continue, Fallthrough, or Goto
 		Label *Name
+		// Target is the continuation of the control flow after executing
+		// the branch; it is computed by the parser if CheckBranches is set.
+		// Target is a *LabeledStmt for gotos, and a *SwitchStmt, *SelectStmt,
+		// or *ForStmt for breaks and continues, depending on the context of
+		// the branch. Target is not set for fallthroughs.
+		Target Stmt
 		stmt
 	}
 

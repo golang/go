@@ -9,7 +9,7 @@ import (
 	"fmt"
 )
 
-// TODO(gri) do this while parsing instead of in a separate pass?
+// TODO(gri) consider making this part of the parser code
 
 // checkBranches checks correct use of labels and branch
 // statements (break, continue, goto) in a function body.
@@ -25,7 +25,7 @@ func checkBranches(body *BlockStmt, errh ErrorHandler) {
 
 	// scope of all labels in this body
 	ls := &labelScope{errh: errh}
-	fwdGotos := ls.blockBranches(nil, 0, nil, body.Pos(), body.List)
+	fwdGotos := ls.blockBranches(nil, targets{}, nil, body.Pos(), body.List)
 
 	// If there are any forward gotos left, no matching label was
 	// found for them. Either those labels were never defined, or
@@ -91,12 +91,12 @@ func (ls *labelScope) declare(b *block, s *LabeledStmt) *label {
 // gotoTarget returns the labeled statement matching the given name and
 // declared in block b or any of its enclosing blocks. The result is nil
 // if the label is not defined, or doesn't match a valid labeled statement.
-func (ls *labelScope) gotoTarget(b *block, name string) *label {
+func (ls *labelScope) gotoTarget(b *block, name string) *LabeledStmt {
 	if l := ls.labels[name]; l != nil {
 		l.used = true // even if it's not a valid target
 		for ; b != nil; b = b.parent {
 			if l.parent == b {
-				return l
+				return l.lstmt
 			}
 		}
 	}
@@ -121,17 +121,18 @@ func (ls *labelScope) enclosingTarget(b *block, name string) *LabeledStmt {
 	return nil
 }
 
-// context flags
-const (
-	breakOk = 1 << iota
-	continueOk
-)
+// targets describes the target statements within which break
+// or continue statements are valid.
+type targets struct {
+	breaks    Stmt     // *ForStmt, *SwitchStmt, *SelectStmt, or nil
+	continues *ForStmt // or nil
+}
 
 // blockBranches processes a block's body starting at start and returns the
 // list of unresolved (forward) gotos. parent is the immediately enclosing
-// block (or nil), context provides information about the enclosing statements,
+// block (or nil), ctxt provides information about the enclosing statements,
 // and lstmt is the labeled statement asociated with this block, or nil.
-func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledStmt, start src.Pos, body []Stmt) []*BranchStmt {
+func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledStmt, start src.Pos, body []Stmt) []*BranchStmt {
 	b := &block{parent: parent, start: start, lstmt: lstmt}
 
 	var varPos src.Pos
@@ -159,8 +160,10 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 		return false
 	}
 
-	innerBlock := func(flags uint, start src.Pos, body []Stmt) {
-		fwdGotos = append(fwdGotos, ls.blockBranches(b, context|flags, lstmt, start, body)...)
+	innerBlock := func(ctxt targets, start src.Pos, body []Stmt) {
+		// Unresolved forward gotos from the inner block
+		// become forward gotos for the current block.
+		fwdGotos = append(fwdGotos, ls.blockBranches(b, ctxt, lstmt, start, body)...)
 	}
 
 	for _, stmt := range body {
@@ -183,6 +186,7 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 				i := 0
 				for _, fwd := range fwdGotos {
 					if fwd.Label.Value == name {
+						fwd.Target = s
 						l.used = true
 						if jumpsOverVarDecl(fwd) {
 							ls.err(
@@ -209,11 +213,15 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 			if s.Label == nil {
 				switch s.Tok {
 				case _Break:
-					if context&breakOk == 0 {
+					if t := ctxt.breaks; t != nil {
+						s.Target = t
+					} else {
 						ls.err(s.Pos(), "break is not in a loop, switch, or select")
 					}
 				case _Continue:
-					if context&continueOk == 0 {
+					if t := ctxt.continues; t != nil {
+						s.Target = t
+					} else {
 						ls.err(s.Pos(), "continue is not in a loop")
 					}
 				case _Fallthrough:
@@ -234,12 +242,10 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 				// "for", "switch", or "select" statement, and that is the one
 				// whose execution terminates."
 				if t := ls.enclosingTarget(b, name); t != nil {
-					valid := false
-					switch t.Stmt.(type) {
+					switch t := t.Stmt.(type) {
 					case *SwitchStmt, *SelectStmt, *ForStmt:
-						valid = true
-					}
-					if !valid {
+						s.Target = t
+					default:
 						ls.err(s.Label.Pos(), "invalid break label %s", name)
 					}
 				} else {
@@ -250,7 +256,9 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 				// spec: "If there is a label, it must be that of an enclosing
 				// "for" statement, and that is the one whose execution advances."
 				if t := ls.enclosingTarget(b, name); t != nil {
-					if _, ok := t.Stmt.(*ForStmt); !ok {
+					if t, ok := t.Stmt.(*ForStmt); ok {
+						s.Target = t
+					} else {
 						ls.err(s.Label.Pos(), "invalid continue label %s", name)
 					}
 				} else {
@@ -258,7 +266,9 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 				}
 
 			case _Goto:
-				if ls.gotoTarget(b, name) == nil {
+				if t := ls.gotoTarget(b, name); t != nil {
+					s.Target = t
+				} else {
 					// label may be declared later - add goto to forward gotos
 					fwdGotos = append(fwdGotos, s)
 				}
@@ -275,27 +285,27 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 			}
 
 		case *BlockStmt:
-			// Unresolved forward gotos from the nested block
-			// become forward gotos for the current block.
-			innerBlock(0, s.Pos(), s.List)
+			innerBlock(ctxt, s.Pos(), s.List)
 
 		case *IfStmt:
-			innerBlock(0, s.Then.Pos(), s.Then.List)
+			innerBlock(ctxt, s.Then.Pos(), s.Then.List)
 			if s.Else != nil {
-				innerBlock(0, s.Else.Pos(), []Stmt{s.Else})
+				innerBlock(ctxt, s.Else.Pos(), []Stmt{s.Else})
 			}
 
 		case *ForStmt:
-			innerBlock(breakOk|continueOk, s.Body.Pos(), s.Body.List)
+			innerBlock(targets{s, s}, s.Body.Pos(), s.Body.List)
 
 		case *SwitchStmt:
+			inner := targets{s, ctxt.continues}
 			for _, cc := range s.Body {
-				innerBlock(breakOk, cc.Pos(), cc.Body)
+				innerBlock(inner, cc.Pos(), cc.Body)
 			}
 
 		case *SelectStmt:
+			inner := targets{s, ctxt.continues}
 			for _, cc := range s.Body {
-				innerBlock(breakOk, cc.Pos(), cc.Body)
+				innerBlock(inner, cc.Pos(), cc.Body)
 			}
 		}
 	}
