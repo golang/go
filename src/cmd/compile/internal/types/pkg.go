@@ -45,7 +45,7 @@ func NewPkg(path, name string) *Pkg {
 	return p
 }
 
-var Nopkg = &Pkg{
+var nopkg = &Pkg{
 	Syms: make(map[string]*Sym),
 }
 
@@ -58,8 +58,9 @@ var InitSyms []*Sym
 
 // LookupOK looks up name in pkg and reports whether it previously existed.
 func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
+	// TODO(gri) remove this check in favor of specialized lookup
 	if pkg == nil {
-		pkg = Nopkg
+		pkg = nopkg
 	}
 	if s := pkg.Syms[name]; s != nil {
 		return s, true
@@ -77,8 +78,9 @@ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 }
 
 func (pkg *Pkg) LookupBytes(name []byte) *Sym {
+	// TODO(gri) remove this check in favor of specialized lookup
 	if pkg == nil {
-		pkg = Nopkg
+		pkg = nopkg
 	}
 	if s := pkg.Syms[string(name)]; s != nil {
 		return s
