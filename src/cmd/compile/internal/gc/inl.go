@@ -111,7 +111,8 @@ func caninl(fn *Node) {
 		return
 	}
 
-	// If marked "go:cgo_unsafe_args", don't inline
+	// If marked "go:cgo_unsafe_args", don't inline, since the
+	// function makes assumptions about its argument frame layout.
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
 		reason = "marked go:cgo_unsafe_args"
 		return
