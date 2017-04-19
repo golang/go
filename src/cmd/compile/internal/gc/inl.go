@@ -206,6 +206,16 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 			*budget--
 			break
 		}
+		// Functions that call runtime.getcaller{pc,sp} can not be inlined
+		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
+		if n.Left.Op == ONAME && n.Left.Class == PFUNC && isRuntimePkg(n.Left.Sym.Pkg) {
+			fn := n.Left.Sym.Name
+			if fn == "getcallerpc" || fn == "getcallersp" {
+				*reason = "call to " + fn
+				return true
+			}
+		}
+
 		if fn := n.Left.Func; fn != nil && fn.Inl.Len() != 0 {
 			*budget -= fn.InlCost
 			break
