@@ -121,8 +121,6 @@ var abiSymKindToSymKind = [...]SymKind{
 	SBSS,
 	SNOPTRBSS,
 	STLSBSS,
-	SXREF,
-	SCONST,
 	SDWARFINFO,
 }
 

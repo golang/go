@@ -162,7 +162,7 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 	s.Set(AttrOnList, true)
 	ctxt.Data = append(ctxt.Data, s)
 	s.Size = size
-	if s.Type == 0 || s.Type == objabi.SXREF {
+	if s.Type == 0 {
 		s.Type = objabi.SBSS
 	}
 	if flag&DUPOK != 0 {

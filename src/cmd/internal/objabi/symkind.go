@@ -54,10 +54,6 @@ const (
 	SNOPTRBSS
 	// Thread-local data that is initally all 0s
 	STLSBSS
-	// TODO(mwhudson): outside of the linker, these values are
-	// only checked for, not set, so they should be removed.
-	SXREF
-	SCONST
 	// Debugging data
 	SDWARFINFO
 )

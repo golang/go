@@ -606,10 +606,6 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			if s == nil {
 				break
 			}
-			if s.Type == objabi.SCONST {
-				c.instoffset = a.Offset
-				goto consize
-			}
 
 			c.instoffset = a.Offset
 			if s.Type == objabi.STLSBSS {
