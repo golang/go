@@ -1957,23 +1957,6 @@ func ngotype(n *Node) *types.Sym {
 	return nil
 }
 
-var pkgMap = make(map[string]*types.Pkg)
-var pkgs []*types.Pkg
-
-func mkpkg(path string) *types.Pkg {
-	if p := pkgMap[path]; p != nil {
-		return p
-	}
-
-	p := new(types.Pkg)
-	p.Path = path
-	p.Prefix = objabi.PathToPrefix(path)
-	p.Syms = make(map[string]*types.Sym)
-	pkgMap[path] = p
-	pkgs = append(pkgs, p)
-	return p
-}
-
 // The result of addinit MUST be assigned back to n, e.g.
 // 	n.Left = addinit(n.Left, init)
 func addinit(n *Node, init []*Node) *Node {

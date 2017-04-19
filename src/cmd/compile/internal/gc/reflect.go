@@ -1501,7 +1501,7 @@ func dumptypestructs() {
 	}
 
 	// generate import strings for imported packages
-	for _, p := range pkgs {
+	for _, p := range types.PkgList {
 		if p.Direct {
 			dimportpath(p)
 		}
@@ -1535,7 +1535,7 @@ func dumptypestructs() {
 		if flag_msan {
 			dimportpath(msanpkg)
 		}
-		dimportpath(mkpkg("main"))
+		dimportpath(types.NewPkg("main"))
 	}
 }
 
