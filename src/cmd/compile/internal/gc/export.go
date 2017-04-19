@@ -173,13 +173,9 @@ func dumpexport() {
 
 		// verify that we can read the copied export data back in
 		// (use empty package map to avoid collisions)
-		savedPkgMap := types.PkgMap
-		savedPkgs := types.PkgList
-		types.PkgMap = make(map[string]*types.Pkg)
-		types.PkgList = nil
-		Import(types.NewPkg("", ""), bufio.NewReader(&copy)) // must not die
-		types.PkgList = savedPkgs
-		types.PkgMap = savedPkgMap
+		types.CleanroomDo(func() {
+			Import(types.NewPkg("", ""), bufio.NewReader(&copy)) // must not die
+		})
 	} else {
 		size = export(bout.Writer, Debug_export != 0)
 	}

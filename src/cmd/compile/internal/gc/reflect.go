@@ -1501,10 +1501,8 @@ func dumptypestructs() {
 	}
 
 	// generate import strings for imported packages
-	for _, p := range types.PkgList {
-		if p.Direct {
-			dimportpath(p)
-		}
+	for _, p := range types.ImportedPkgList() {
+		dimportpath(p)
 	}
 
 	// do basic types if compiling package runtime.
