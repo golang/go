@@ -42,7 +42,7 @@ import (
 type Symbol struct {
 	Name        string
 	Extname     string
-	Type        objabi.SymKind
+	Type        SymKind
 	Version     int16
 	Attr        Attribute
 	Localentry  uint8

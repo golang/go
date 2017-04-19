@@ -33,7 +33,7 @@ func (ctxt *Link) typelink() {
 	sort.Sort(typelinks)
 
 	tl := ctxt.Syms.Lookup("runtime.typelink", 0)
-	tl.Type = objabi.STYPELINK
+	tl.Type = STYPELINK
 	tl.Attr |= AttrReachable | AttrLocal
 	tl.Size = int64(4 * len(typelinks))
 	tl.P = make([]byte, tl.Size)

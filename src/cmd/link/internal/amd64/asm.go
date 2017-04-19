@@ -59,14 +59,14 @@ func gentext(ctxt *ld.Link) {
 		return
 	}
 	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == objabi.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+	if addmoduledata.Type == ld.STEXT && ld.Buildmode != ld.BuildmodePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
 	}
 	addmoduledata.Attr |= ld.AttrReachable
 	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = objabi.STEXT
+	initfunc.Type = ld.STEXT
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
 	o := func(op ...uint8) {
@@ -92,7 +92,7 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
-	initarray_entry.Type = objabi.SINITARR
+	initarray_entry.Type = ld.SINITARR
 	ld.Addaddr(ctxt, initarray_entry, initfunc)
 }
 
@@ -108,10 +108,10 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 		// Handle relocations found in ELF object files.
 	case 256 + ld.R_X86_64_PC32:
-		if targ.Type == objabi.SDYNIMPORT {
+		if targ.Type == ld.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ.Name)
 		}
-		if targ.Type == 0 || targ.Type == objabi.SXREF {
+		if targ.Type == 0 || targ.Type == ld.SXREF {
 			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
 		}
 		r.Type = objabi.R_PCREL
@@ -121,7 +121,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	case 256 + ld.R_X86_64_PLT32:
 		r.Type = objabi.R_PCREL
 		r.Add += 4
-		if targ.Type == objabi.SDYNIMPORT {
+		if targ.Type == ld.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
 			r.Add += int64(targ.Plt)
@@ -130,7 +130,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		return true
 
 	case 256 + ld.R_X86_64_GOTPCREL, 256 + ld.R_X86_64_GOTPCRELX, 256 + ld.R_X86_64_REX_GOTPCRELX:
-		if targ.Type != objabi.SDYNIMPORT {
+		if targ.Type != ld.SDYNIMPORT {
 			// have symbol
 			if r.Off >= 2 && s.P[r.Off-2] == 0x8b {
 				// turn MOVQ of GOT entry into LEAQ of symbol itself
@@ -153,7 +153,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		return true
 
 	case 256 + ld.R_X86_64_64:
-		if targ.Type == objabi.SDYNIMPORT {
+		if targ.Type == ld.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = objabi.R_ADDR
@@ -166,13 +166,13 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		// TODO: What is the difference between all these?
 		r.Type = objabi.R_ADDR
 
-		if targ.Type == objabi.SDYNIMPORT {
+		if targ.Type == ld.SDYNIMPORT {
 			ld.Errorf(s, "unexpected reloc for dynamic symbol %s", targ.Name)
 		}
 		return true
 
 	case 512 + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
-		if targ.Type == objabi.SDYNIMPORT {
+		if targ.Type == ld.SDYNIMPORT {
 			addpltsym(ctxt, targ)
 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
 			r.Add = int64(targ.Plt)
@@ -189,13 +189,13 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		512 + ld.MACHO_X86_64_RELOC_SIGNED_4*2 + 1:
 		r.Type = objabi.R_PCREL
 
-		if targ.Type == objabi.SDYNIMPORT {
+		if targ.Type == ld.SDYNIMPORT {
 			ld.Errorf(s, "unexpected pc-relative reloc for dynamic symbol %s", targ.Name)
 		}
 		return true
 
 	case 512 + ld.MACHO_X86_64_RELOC_GOT_LOAD*2 + 1:
-		if targ.Type != objabi.SDYNIMPORT {
+		if targ.Type != ld.SDYNIMPORT {
 			// have symbol
 			// turn MOVQ of GOT entry into LEAQ of symbol itself
 			if r.Off < 2 || s.P[r.Off-2] != 0x8b {
@@ -211,7 +211,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 		// fall through
 	case 512 + ld.MACHO_X86_64_RELOC_GOT*2 + 1:
-		if targ.Type != objabi.SDYNIMPORT {
+		if targ.Type != ld.SDYNIMPORT {
 			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
 		}
 		addgotsym(ctxt, targ)
@@ -224,7 +224,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	switch r.Type {
 	case objabi.R_CALL,
 		objabi.R_PCREL:
-		if targ.Type != objabi.SDYNIMPORT {
+		if targ.Type != ld.SDYNIMPORT {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
 		}
@@ -240,7 +240,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		}
 
 	case objabi.R_ADDR:
-		if s.Type == objabi.STEXT && ld.Iself {
+		if s.Type == ld.STEXT && ld.Iself {
 			if ld.Headtype == objabi.Hsolaris {
 				addpltsym(ctxt, targ)
 				r.Sym = ctxt.Syms.Lookup(".plt", 0)
@@ -294,7 +294,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			// linking, in which case the relocation will be
 			// prepared in the 'reloc' phase and passed to the
 			// external linker in the 'asmb' phase.
-			if s.Type != objabi.SDATA && s.Type != objabi.SRODATA {
+			if s.Type != ld.SDATA && s.Type != ld.SRODATA {
 				break
 			}
 		}
@@ -331,7 +331,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			ld.Adddynsym(ctxt, targ)
 
 			got := ctxt.Syms.Lookup(".got", 0)
-			s.Type = got.Type | objabi.SSUB
+			s.Type = got.Type | ld.SSUB
 			s.Outer = got
 			s.Sub = got.Sub
 			got.Sub = s
@@ -384,7 +384,7 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 
 	case objabi.R_CALL:
 		if r.Siz == 4 {
-			if r.Xsym.Type == objabi.SDYNIMPORT {
+			if r.Xsym.Type == ld.SDYNIMPORT {
 				if ctxt.DynlinkingGo() {
 					ld.Thearch.Vput(ld.R_X86_64_PLT32 | uint64(elfsym)<<32)
 				} else {
@@ -399,7 +399,7 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 
 	case objabi.R_PCREL:
 		if r.Siz == 4 {
-			if r.Xsym.Type == objabi.SDYNIMPORT && r.Xsym.ElfType == elf.STT_FUNC {
+			if r.Xsym.Type == ld.SDYNIMPORT && r.Xsym.ElfType == elf.STT_FUNC {
 				ld.Thearch.Vput(ld.R_X86_64_PLT32 | uint64(elfsym)<<32)
 			} else {
 				ld.Thearch.Vput(ld.R_X86_64_PC32 | uint64(elfsym)<<32)
@@ -425,7 +425,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
 
 	rs := r.Xsym
 
-	if rs.Type == objabi.SHOSTOBJ || r.Type == objabi.R_PCREL || r.Type == objabi.R_GOTPCREL {
+	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_PCREL || r.Type == objabi.R_GOTPCREL {
 		if rs.Dynid < 0 {
 			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
 			return -1

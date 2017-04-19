@@ -83,7 +83,7 @@ var dwarfp []*Symbol
 
 func writeabbrev(ctxt *Link, syms []*Symbol) []*Symbol {
 	s := ctxt.Syms.Lookup(".debug_abbrev", 0)
-	s.Type = objabi.SDWARFSECT
+	s.Type = SDWARFSECT
 	abbrevsym = s
 	Addbytes(s, dwarf.GetAbbrev())
 	return append(syms, s)
@@ -148,7 +148,7 @@ func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version in
 		if abbrev != dwarf.DW_ABRV_VARIABLE || version == 0 {
 			sym := ctxt.Syms.Lookup(dwarf.InfoPrefix+name, version)
 			sym.Attr |= AttrHidden
-			sym.Type = objabi.SDWARFINFO
+			sym.Type = SDWARFINFO
 			die.Sym = sym
 		}
 	}
@@ -202,7 +202,7 @@ func find(ctxt *Link, name string) *Symbol {
 	// The string allocation below is optimized away because it is only used in a map lookup.
 	s := ctxt.Syms.ROLookup(string(n), 0)
 	prefixBuf = n[:len(dwarf.InfoPrefix)]
-	if s != nil && s.Type == objabi.SDWARFINFO {
+	if s != nil && s.Type == SDWARFINFO {
 		return s
 	}
 	return nil
@@ -340,7 +340,7 @@ func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) {
 
 	sym := ctxt.Syms.Lookup(dtolsym(def.Sym).Name+"..def", 0)
 	sym.Attr |= AttrHidden
-	sym.Type = objabi.SDWARFINFO
+	sym.Type = SDWARFINFO
 	def.Sym = sym
 
 	// The typedef entry must be created after the def,
@@ -660,7 +660,7 @@ func mkinternaltype(ctxt *Link, abbrev int, typename, keyname, valname string, f
 	name := mkinternaltypename(typename, keyname, valname)
 	symname := dwarf.InfoPrefix + name
 	s := ctxt.Syms.ROLookup(symname, 0)
-	if s != nil && s.Type == objabi.SDWARFINFO {
+	if s != nil && s.Type == SDWARFINFO {
 		return s
 	}
 	die := newdie(ctxt, &dwtypes, abbrev, name, 0)
@@ -996,7 +996,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 	if linesec == nil {
 		linesec = ctxt.Syms.Lookup(".debug_line", 0)
 	}
-	linesec.Type = objabi.SDWARFSECT
+	linesec.Type = SDWARFSECT
 	linesec.R = linesec.R[:0]
 
 	ls := linesec
@@ -1082,7 +1082,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 
 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
 		dsym.Attr |= AttrHidden | AttrReachable
-		dsym.Type = objabi.SDWARFINFO
+		dsym.Type = SDWARFINFO
 		for _, r := range dsym.R {
 			if r.Type == objabi.R_DWARFREF && r.Sym.Size == 0 {
 				if Buildmode == BuildmodeShared {
@@ -1179,7 +1179,7 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
 	if framesec == nil {
 		framesec = ctxt.Syms.Lookup(".debug_frame", 0)
 	}
-	framesec.Type = objabi.SDWARFSECT
+	framesec.Type = SDWARFSECT
 	framesec.R = framesec.R[:0]
 	fs := framesec
 	syms = append(syms, fs)
@@ -1301,7 +1301,7 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol) []*Symbol {
 		infosec = ctxt.Syms.Lookup(".debug_info", 0)
 	}
 	infosec.R = infosec.R[:0]
-	infosec.Type = objabi.SDWARFINFO
+	infosec.Type = SDWARFINFO
 	infosec.Attr |= AttrReachable
 	syms = append(syms, infosec)
 
@@ -1367,7 +1367,7 @@ func ispubtype(die *dwarf.DWDie) bool {
 
 func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*Symbol) []*Symbol {
 	s := ctxt.Syms.Lookup(sname, 0)
-	s.Type = objabi.SDWARFSECT
+	s.Type = SDWARFSECT
 	syms = append(syms, s)
 
 	for compunit := dwroot.Child; compunit != nil; compunit = compunit.Link {
@@ -1407,7 +1407,7 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*S
  */
 func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
 	s := ctxt.Syms.Lookup(".debug_aranges", 0)
-	s.Type = objabi.SDWARFSECT
+	s.Type = SDWARFSECT
 	// The first tuple is aligned to a multiple of the size of a single tuple
 	// (twice the size of an address)
 	headersize := int(Rnd(4+2+4+1+1, int64(SysArch.PtrSize*2))) // don't count unit_length field itself
@@ -1451,7 +1451,7 @@ func writegdbscript(ctxt *Link, syms []*Symbol) []*Symbol {
 
 	if gdbscript != "" {
 		s := ctxt.Syms.Lookup(".debug_gdb_scripts", 0)
-		s.Type = objabi.SDWARFSECT
+		s.Type = SDWARFSECT
 		syms = append(syms, s)
 		Adduint8(ctxt, s, 1) // magic 1 byte?
 		Addstring(s, gdbscript)

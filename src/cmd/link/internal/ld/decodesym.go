@@ -104,7 +104,7 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
 
 // Type.commonType.gc
 func decodetypeGcprog(ctxt *Link, s *Symbol) []byte {
-	if s.Type == objabi.SDYNIMPORT {
+	if s.Type == SDYNIMPORT {
 		addr := decodetypeGcprogShlib(ctxt, s)
 		sect := findShlibSection(ctxt, s.File, addr)
 		if sect != nil {
@@ -135,7 +135,7 @@ func decodetypeGcprogShlib(ctxt *Link, s *Symbol) uint64 {
 }
 
 func decodetypeGcmask(ctxt *Link, s *Symbol) []byte {
-	if s.Type == objabi.SDYNIMPORT {
+	if s.Type == SDYNIMPORT {
 		addr := decodetypeGcprogShlib(ctxt, s)
 		ptrdata := decodetypePtrdata(ctxt.Arch, s)
 		sect := findShlibSection(ctxt, s.File, addr)

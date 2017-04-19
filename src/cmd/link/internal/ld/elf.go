@@ -1451,7 +1451,7 @@ func elfdynhash(ctxt *Link) {
 
 	nsym := Nelfsym
 	s := ctxt.Syms.Lookup(".hash", 0)
-	s.Type = objabi.SELFROSECT
+	s.Type = SELFROSECT
 	s.Attr |= AttrReachable
 
 	i := nsym
@@ -1856,7 +1856,7 @@ func Elfemitreloc(ctxt *Link) {
 func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
 	s := ctxt.Syms.Lookup(sectionName, 0)
 	s.Attr |= AttrReachable
-	s.Type = objabi.SELFROSECT
+	s.Type = SELFROSECT
 	// namesz
 	Adduint32(ctxt, s, uint32(len(ELF_NOTE_GO_NAME)))
 	// descsz
@@ -1884,7 +1884,7 @@ func (ctxt *Link) doelf() {
 	/* predefine strings we need for section headers */
 	shstrtab := ctxt.Syms.Lookup(".shstrtab", 0)
 
-	shstrtab.Type = objabi.SELFROSECT
+	shstrtab.Type = SELFROSECT
 	shstrtab.Attr |= AttrReachable
 
 	Addstring(shstrtab, "")
@@ -1992,7 +1992,7 @@ func (ctxt *Link) doelf() {
 		/* dynamic symbol table - first entry all zeros */
 		s := ctxt.Syms.Lookup(".dynsym", 0)
 
-		s.Type = objabi.SELFROSECT
+		s.Type = SELFROSECT
 		s.Attr |= AttrReachable
 		if elf64 {
 			s.Size += ELF64SYMSIZE
@@ -2003,7 +2003,7 @@ func (ctxt *Link) doelf() {
 		/* dynamic string table */
 		s = ctxt.Syms.Lookup(".dynstr", 0)
 
-		s.Type = objabi.SELFROSECT
+		s.Type = SELFROSECT
 		s.Attr |= AttrReachable
 		if s.Size == 0 {
 			Addstring(s, "")
@@ -2013,30 +2013,30 @@ func (ctxt *Link) doelf() {
 		/* relocation table */
 		s = ctxt.Syms.Lookup(elfRelType, 0)
 		s.Attr |= AttrReachable
-		s.Type = objabi.SELFROSECT
+		s.Type = SELFROSECT
 
 		/* global offset table */
 		s = ctxt.Syms.Lookup(".got", 0)
 
 		s.Attr |= AttrReachable
-		s.Type = objabi.SELFGOT // writable
+		s.Type = SELFGOT // writable
 
 		/* ppc64 glink resolver */
 		if SysArch.Family == sys.PPC64 {
 			s := ctxt.Syms.Lookup(".glink", 0)
 			s.Attr |= AttrReachable
-			s.Type = objabi.SELFRXSECT
+			s.Type = SELFRXSECT
 		}
 
 		/* hash */
 		s = ctxt.Syms.Lookup(".hash", 0)
 
 		s.Attr |= AttrReachable
-		s.Type = objabi.SELFROSECT
+		s.Type = SELFROSECT
 
 		s = ctxt.Syms.Lookup(".got.plt", 0)
 		s.Attr |= AttrReachable
-		s.Type = objabi.SELFSECT // writable
+		s.Type = SELFSECT // writable
 
 		s = ctxt.Syms.Lookup(".plt", 0)
 
@@ -2044,30 +2044,30 @@ func (ctxt *Link) doelf() {
 		if SysArch.Family == sys.PPC64 {
 			// In the ppc64 ABI, .plt is a data section
 			// written by the dynamic linker.
-			s.Type = objabi.SELFSECT
+			s.Type = SELFSECT
 		} else {
-			s.Type = objabi.SELFRXSECT
+			s.Type = SELFRXSECT
 		}
 
 		Thearch.Elfsetupplt(ctxt)
 
 		s = ctxt.Syms.Lookup(elfRelType+".plt", 0)
 		s.Attr |= AttrReachable
-		s.Type = objabi.SELFROSECT
+		s.Type = SELFROSECT
 
 		s = ctxt.Syms.Lookup(".gnu.version", 0)
 		s.Attr |= AttrReachable
-		s.Type = objabi.SELFROSECT
+		s.Type = SELFROSECT
 
 		s = ctxt.Syms.Lookup(".gnu.version_r", 0)
 		s.Attr |= AttrReachable
-		s.Type = objabi.SELFROSECT
+		s.Type = SELFROSECT
 
 		/* define dynamic elf table */
 		s = ctxt.Syms.Lookup(".dynamic", 0)
 
 		s.Attr |= AttrReachable
-		s.Type = objabi.SELFSECT // writable
+		s.Type = SELFSECT // writable
 
 		/*
 		 * .dynamic table
@@ -2120,7 +2120,7 @@ func (ctxt *Link) doelf() {
 		// part of the .note.go.abihash section in data.go:func address().
 		s := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
 		s.Attr |= AttrLocal
-		s.Type = objabi.SRODATA
+		s.Type = SRODATA
 		s.Attr |= AttrSpecial
 		s.Attr |= AttrReachable
 		s.Size = int64(sha1.Size)
@@ -2596,10 +2596,10 @@ elfobj:
 			elfshreloc(sect)
 		}
 		for _, s := range dwarfp {
-			if len(s.R) > 0 || s.Type == objabi.SDWARFINFO {
+			if len(s.R) > 0 || s.Type == SDWARFINFO {
 				elfshreloc(s.Sect)
 			}
-			if s.Type == objabi.SDWARFINFO {
+			if s.Type == SDWARFINFO {
 				break
 			}
 		}
@@ -2715,7 +2715,7 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
 		/* type */
 		t := STB_GLOBAL << 4
 
-		if s.Attr.CgoExport() && s.Type&objabi.SMASK == objabi.STEXT {
+		if s.Attr.CgoExport() && s.Type&SMASK == STEXT {
 			t |= STT_FUNC
 		} else {
 			t |= STT_OBJECT
@@ -2726,14 +2726,14 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
 		Adduint8(ctxt, d, 0)
 
 		/* section where symbol is defined */
-		if s.Type == objabi.SDYNIMPORT {
+		if s.Type == SDYNIMPORT {
 			Adduint16(ctxt, d, SHN_UNDEF)
 		} else {
 			Adduint16(ctxt, d, 1)
 		}
 
 		/* value */
-		if s.Type == objabi.SDYNIMPORT {
+		if s.Type == SDYNIMPORT {
 			Adduint64(ctxt, d, 0)
 		} else {
 			Addaddr(ctxt, d, s)
@@ -2757,7 +2757,7 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
 		Adduint32(ctxt, d, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
 
 		/* value */
-		if s.Type == objabi.SDYNIMPORT {
+		if s.Type == SDYNIMPORT {
 			Adduint32(ctxt, d, 0)
 		} else {
 			Addaddr(ctxt, d, s)
@@ -2770,9 +2770,9 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
 		t := STB_GLOBAL << 4
 
 		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
-		if SysArch.Family == sys.I386 && s.Attr.CgoExport() && s.Type&objabi.SMASK == objabi.STEXT {
+		if SysArch.Family == sys.I386 && s.Attr.CgoExport() && s.Type&SMASK == STEXT {
 			t |= STT_FUNC
-		} else if SysArch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type&objabi.SMASK == objabi.STEXT {
+		} else if SysArch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type&SMASK == STEXT {
 			t |= STT_FUNC
 		} else {
 			t |= STT_OBJECT
@@ -2781,7 +2781,7 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
 		Adduint8(ctxt, d, 0)
 
 		/* shndx */
-		if s.Type == objabi.SDYNIMPORT {
+		if s.Type == SDYNIMPORT {
 			Adduint16(ctxt, d, SHN_UNDEF)
 		} else {
 			Adduint16(ctxt, d, 1)

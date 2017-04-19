@@ -208,7 +208,7 @@ func (d *deadcodepass) init() {
 		// Mark all symbols defined in this library as reachable when
 		// building a shared library.
 		for _, s := range d.ctxt.Syms.Allsym {
-			if s.Type != 0 && s.Type != objabi.SDYNIMPORT {
+			if s.Type != 0 && s.Type != SDYNIMPORT {
 				d.mark(s, nil)
 			}
 		}
@@ -246,7 +246,7 @@ func (d *deadcodepass) flood() {
 	for len(d.markQueue) > 0 {
 		s := d.markQueue[0]
 		d.markQueue = d.markQueue[1:]
-		if s.Type == objabi.STEXT {
+		if s.Type == STEXT {
 			if d.ctxt.Debugvlog > 1 {
 				d.ctxt.Logf("marktext %s\n", s.Name)
 			}

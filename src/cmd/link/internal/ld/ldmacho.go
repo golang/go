@@ -602,16 +602,16 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 		if sect.segname == "__TEXT" {
 			if sect.name == "__text" {
-				s.Type = objabi.STEXT
+				s.Type = STEXT
 			} else {
-				s.Type = objabi.SRODATA
+				s.Type = SRODATA
 			}
 		} else {
 			if sect.name == "__bss" {
-				s.Type = objabi.SNOPTRBSS
+				s.Type = SNOPTRBSS
 				s.P = s.P[:0]
 			} else {
-				s.Type = objabi.SNOPTRDATA
+				s.Type = SNOPTRDATA
 			}
 		}
 
@@ -663,7 +663,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
-		s.Type = outer.Type | objabi.SSUB
+		s.Type = outer.Type | SSUB
 		s.Sub = outer.Sub
 		outer.Sub = s
 		s.Outer = outer
@@ -671,7 +671,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		if !s.Attr.CgoExportDynamic() {
 			s.Dynimplib = "" // satisfy dynimport
 		}
-		if outer.Type == objabi.STEXT {
+		if outer.Type == STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Errorf(s, "%s: duplicate symbol definition", pn)
 			}
@@ -702,7 +702,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			}
 		}
 
-		if s.Type == objabi.STEXT {
+		if s.Type == STEXT {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}

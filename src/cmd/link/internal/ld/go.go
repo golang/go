@@ -190,12 +190,12 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			s = ctxt.Syms.Lookup(local, 0)
 			if local != f[1] {
 			}
-			if s.Type == 0 || s.Type == objabi.SXREF || s.Type == objabi.SHOSTOBJ {
+			if s.Type == 0 || s.Type == SXREF || s.Type == SHOSTOBJ {
 				s.Dynimplib = lib
 				s.Extname = remote
 				s.Dynimpvers = q
-				if s.Type != objabi.SHOSTOBJ {
-					s.Type = objabi.SDYNIMPORT
+				if s.Type != SHOSTOBJ {
+					s.Type = SDYNIMPORT
 				}
 				havedynamic = 1
 			}
@@ -209,7 +209,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			}
 			local = f[1]
 			s = ctxt.Syms.Lookup(local, 0)
-			s.Type = objabi.SHOSTOBJ
+			s.Type = SHOSTOBJ
 			s.Size = 0
 			continue
 		}
@@ -347,7 +347,7 @@ func fieldtrack(ctxt *Link) {
 				buf.WriteString("\n")
 			}
 
-			s.Type = objabi.SCONST
+			s.Type = SCONST
 			s.Value = 0
 		}
 	}
