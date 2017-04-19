@@ -90,7 +90,7 @@ func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 func makefield(name string, t *types.Type) *types.Field {
 	f := types.NewField()
 	f.Type = t
-	f.Sym = types.Nopkg.Lookup(name)
+	f.Sym = (*types.Pkg)(nil).Lookup(name)
 	return f
 }
 
