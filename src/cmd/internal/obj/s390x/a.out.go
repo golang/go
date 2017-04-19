@@ -138,7 +138,6 @@ const (
 
 	REG_RESERVED // end of allocated registers
 
-	REGZERO = REG_R0  // set to zero
 	REGARG  = -1      // -1 disables passing the first argument in register
 	REGRT1  = REG_R3  // used during zeroing of the stack - not reserved
 	REGRT2  = REG_R4  // used during zeroing of the stack - not reserved
