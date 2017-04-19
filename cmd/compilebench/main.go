@@ -34,6 +34,9 @@
 //	-memprofilerate rate
 //		Set runtime.MemProfileRate during compilation.
 //
+//	-obj
+//		Report object file statistics.
+//
 //	-run regexp
 //		Only run benchmarks with names matching regexp.
 //
@@ -60,6 +63,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"go/build"
@@ -84,6 +88,7 @@ var (
 
 var (
 	flagAlloc          = flag.Bool("alloc", false, "report allocations")
+	flagObj            = flag.Bool("obj", false, "report object file stats")
 	flagCompiler       = flag.String("compile", "", "use `exe` as the cmd/compile binary")
 	flagCompilerFlags  = flag.String("compileflags", "", "additional `flags` to pass to compile")
 	flagRun            = flag.String("run", "", "run benchmarks matching `regexp`")
@@ -268,7 +273,7 @@ func runBuild(name, dir string, count int) {
 	}
 	end := time.Now()
 
-	var allocs, bytes int64
+	var allocs, allocbytes int64
 	if *flagAlloc || *flagMemprofile != "" {
 		out, err := ioutil.ReadFile(pkg.Dir + "/_compilebench_.memprof")
 		if err != nil {
@@ -285,7 +290,7 @@ func runBuild(name, dir string, count int) {
 			}
 			switch f[1] {
 			case "TotalAlloc":
-				bytes = val
+				allocbytes = val
 			case "Mallocs":
 				allocs = val
 			}
@@ -317,11 +322,25 @@ func runBuild(name, dir string, count int) {
 	wallns := end.Sub(start).Nanoseconds()
 	userns := cmd.ProcessState.UserTime().Nanoseconds()
 
+	fmt.Printf("%s 1 %d ns/op %d user-ns/op", name, wallns, userns)
 	if *flagAlloc {
-		fmt.Printf("%s 1 %d ns/op %d user-ns/op %d B/op %d allocs/op\n", name, wallns, userns, bytes, allocs)
-	} else {
-		fmt.Printf("%s 1 %d ns/op %d user-ns/op\n", name, wallns, userns)
+		fmt.Printf(" %d B/op %d allocs/op", allocbytes, allocs)
 	}
 
-	os.Remove(pkg.Dir + "/_compilebench_.o")
+	opath := pkg.Dir + "/_compilebench_.o"
+	if *flagObj {
+		// TODO(josharian): object files are big; just read enough to find what we seek.
+		data, err := ioutil.ReadFile(opath)
+		if err != nil {
+			log.Print(err)
+		}
+		// Find start of export data.
+		i := bytes.Index(data, []byte("\n$$B\n")) + len("\n$$B\n")
+		// Count bytes to end of export data.
+		nexport := bytes.Index(data[i:], []byte("\n$$\n"))
+		fmt.Printf(" %d object-bytes %d export-bytes", len(data), nexport)
+	}
+	fmt.Println()
+
+	os.Remove(opath)
 }
