@@ -213,6 +213,11 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	CMPWU	R1, R2                 // 1512
 	CMPWU	R3, $4294967295        // c23fffffffff
 
+	TMHH	R1, $65535             // a712ffff
+	TMHL	R2, $1                 // a7230001
+	TMLH	R3, $0                 // a7300000
+	TMLL	R4, $32768             // a7418000
+
 	BNE	0(PC)                  // a7740000
 	BEQ	0(PC)                  // a7840000
 	BLT	0(PC)                  // a7440000

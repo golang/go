@@ -252,6 +252,9 @@ var optab = []Optab{
 	Optab{AFCMPO, C_FREG, C_NONE, C_NONE, C_FREG, 70, 0},
 	Optab{AFCMPO, C_FREG, C_REG, C_NONE, C_FREG, 70, 0},
 
+	// test under mask
+	Optab{ATMHH, C_REG, C_NONE, C_NONE, C_ANDCON, 91, 0},
+
 	// 32-bit access registers
 	Optab{AMOVW, C_AREG, C_NONE, C_NONE, C_REG, 68, 0},
 	Optab{AMOVWZ, C_AREG, C_NONE, C_NONE, C_REG, 68, 0},
@@ -951,6 +954,10 @@ func buildop(ctxt *obj.Link) {
 			opset(ACMPW, r)
 		case ACMPU:
 			opset(ACMPWU, r)
+		case ATMHH:
+			opset(ATMHL, r)
+			opset(ATMLH, r)
+			opset(ATMLL, r)
 		case ACEFBRA:
 			opset(ACDFBRA, r)
 			opset(ACEGBRA, r)
@@ -3703,6 +3710,20 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		} else {
 			zRIE(_c, opcode, uint32(p.From.Reg), mask, uint32(v), 0, 0, 0, uint32(c.regoff(p.GetFrom3())), asm)
 		}
+
+	case 91: // test under mask (immediate)
+		var opcode uint32
+		switch p.As {
+		case ATMHH:
+			opcode = op_TMHH
+		case ATMHL:
+			opcode = op_TMHL
+		case ATMLH:
+			opcode = op_TMLH
+		case ATMLL:
+			opcode = op_TMLL
+		}
+		zRI(opcode, uint32(p.From.Reg), uint32(c.vregoff(&p.To)), asm)
 
 	case 93: // GOT lookup
 		v := c.vregoff(&p.To)
