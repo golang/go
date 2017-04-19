@@ -240,7 +240,6 @@ func (root *mTreap) removeSpan(span *mspan) {
 		}
 	}
 	root.removeNode(t)
-	return
 }
 
 // scavengetreap visits each node in the treap and scavenges the
