@@ -711,7 +711,7 @@ func livenessepilogue(lv *Liveness) {
 			}
 
 			// Annotate ambiguously live variables so that they can
-			// be zeroed at function entry.
+			// be zeroed at function entry and at VARKILL points.
 			// liveout is dead here and used as a temporary.
 			liveout.AndNot(any, all)
 			if !liveout.IsEmpty() {
