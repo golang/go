@@ -25,18 +25,18 @@ func checkBranches(body *BlockStmt, errh ErrorHandler) {
 
 	// scope of all labels in this body
 	ls := &labelScope{errh: errh}
-	fwdGo2s := ls.blockBranches(nil, 0, nil, body.Pos(), body.List)
+	fwdGotos := ls.blockBranches(nil, 0, nil, body.Pos(), body.List)
 
 	// If there are any forward gotos left, no matching label was
 	// found for them. Either those labels were never defined, or
 	// they are inside blocks and not reachable from the gotos.
-	for _, go2 := range fwdGo2s {
-		name := go2.Label.Value
+	for _, fwd := range fwdGotos {
+		name := fwd.Label.Value
 		if l := ls.labels[name]; l != nil {
 			l.used = true // avoid "defined and not used" error
-			ls.err(go2.Label.Pos(), "goto %s jumps into block starting at %s", name, l.parent.start)
+			ls.err(fwd.Label.Pos(), "goto %s jumps into block starting at %s", name, l.parent.start)
 		} else {
-			ls.err(go2.Label.Pos(), "label %s not defined", name)
+			ls.err(fwd.Label.Pos(), "label %s not defined", name)
 		}
 	}
 
@@ -136,7 +136,7 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 
 	var varPos src.Pos
 	var varName Expr
-	var fwdGo2s, badGo2s []*BranchStmt
+	var fwdGotos, badGotos []*BranchStmt
 
 	recordVarDecl := func(pos src.Pos, name Expr) {
 		varPos = pos
@@ -145,13 +145,13 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 		// declaration is invalid. The goto may still jump out
 		// of the block and be ok, but we don't know that yet.
 		// Remember all forward gotos as potential bad gotos.
-		badGo2s = append(badGo2s[:0], fwdGo2s...)
+		badGotos = append(badGotos[:0], fwdGotos...)
 	}
 
-	jumpsOverVarDecl := func(go2 *BranchStmt) bool {
+	jumpsOverVarDecl := func(fwd *BranchStmt) bool {
 		if varPos.IsKnown() {
-			for _, bad := range badGo2s {
-				if go2 == bad {
+			for _, bad := range badGotos {
+				if fwd == bad {
 					return true
 				}
 			}
@@ -160,7 +160,7 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 	}
 
 	innerBlock := func(flags uint, start src.Pos, body []Stmt) {
-		fwdGo2s = append(fwdGo2s, ls.blockBranches(b, context|flags, lstmt, start, body)...)
+		fwdGotos = append(fwdGotos, ls.blockBranches(b, context|flags, lstmt, start, body)...)
 	}
 
 	for _, stmt := range body {
@@ -181,23 +181,23 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 				l := ls.declare(b, s)
 				// resolve matching forward gotos
 				i := 0
-				for _, go2 := range fwdGo2s {
-					if go2.Label.Value == name {
+				for _, fwd := range fwdGotos {
+					if fwd.Label.Value == name {
 						l.used = true
-						if jumpsOverVarDecl(go2) {
+						if jumpsOverVarDecl(fwd) {
 							ls.err(
-								go2.Label.Pos(),
+								fwd.Label.Pos(),
 								"goto %s jumps over declaration of %s at %s",
 								name, String(varName), varPos,
 							)
 						}
 					} else {
 						// no match - keep forward goto
-						fwdGo2s[i] = go2
+						fwdGotos[i] = fwd
 						i++
 					}
 				}
-				fwdGo2s = fwdGo2s[:i]
+				fwdGotos = fwdGotos[:i]
 				lstmt = s
 			}
 			// process labeled statement
@@ -260,7 +260,7 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 			case _Goto:
 				if ls.gotoTarget(b, name) == nil {
 					// label may be declared later - add goto to forward gotos
-					fwdGo2s = append(fwdGo2s, s)
+					fwdGotos = append(fwdGotos, s)
 				}
 
 			case _Fallthrough:
@@ -300,5 +300,5 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 		}
 	}
 
-	return fwdGo2s
+	return fwdGotos
 }
