@@ -151,11 +151,12 @@ func caninl(fn *Node) {
 	}
 
 	const maxBudget = 80
-	budget := int32(maxBudget) // allowed hairyness
-	if ishairylist(fn.Nbody, &budget, &reason) {
+	visitor := hairyVisitor{budget: maxBudget}
+	if visitor.visitList(fn.Nbody) {
+		reason = visitor.reason
 		return
 	}
-	if budget < 0 {
+	if visitor.budget < 0 {
 		reason = "function too complex"
 		return
 	}
@@ -169,7 +170,7 @@ func caninl(fn *Node) {
 	fn.Nbody.Set(inlcopylist(n.Func.Inl.Slice()))
 	inldcl := inlcopylist(n.Name.Defn.Func.Dcl)
 	n.Func.Inldcl.Set(inldcl)
-	n.Func.InlCost = maxBudget - budget
+	n.Func.InlCost = maxBudget - visitor.budget
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
 	// this is so export can find the body of a method
@@ -184,17 +185,24 @@ func caninl(fn *Node) {
 	Curfn = savefn
 }
 
+// hairyVisitor visits a function body to determine its inlining
+// hairiness and whether or not it can be inlined.
+type hairyVisitor struct {
+	budget int32
+	reason string
+}
+
 // Look for anything we want to punt on.
-func ishairylist(ll Nodes, budget *int32, reason *string) bool {
+func (v *hairyVisitor) visitList(ll Nodes) bool {
 	for _, n := range ll.Slice() {
-		if ishairy(n, budget, reason) {
+		if v.visit(n) {
 			return true
 		}
 	}
 	return false
 }
 
-func ishairy(n *Node, budget *int32, reason *string) bool {
+func (v *hairyVisitor) visit(n *Node) bool {
 	if n == nil {
 		return false
 	}
@@ -203,7 +211,7 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 	// Call is okay if inlinable and we have the budget for the body.
 	case OCALLFUNC:
 		if isIntrinsicCall(n) {
-			*budget--
+			v.budget--
 			break
 		}
 		// Functions that call runtime.getcaller{pc,sp} can not be inlined
@@ -211,24 +219,24 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 		if n.Left.Op == ONAME && n.Left.Class == PFUNC && isRuntimePkg(n.Left.Sym.Pkg) {
 			fn := n.Left.Sym.Name
 			if fn == "getcallerpc" || fn == "getcallersp" {
-				*reason = "call to " + fn
+				v.reason = "call to " + fn
 				return true
 			}
 		}
 
 		if fn := n.Left.Func; fn != nil && fn.Inl.Len() != 0 {
-			*budget -= fn.InlCost
+			v.budget -= fn.InlCost
 			break
 		}
 
 		if n.isMethodCalledAsFunction() {
 			if d := asNode(n.Left.Sym.Def); d != nil && d.Func.Inl.Len() != 0 {
-				*budget -= d.Func.InlCost
+				v.budget -= d.Func.InlCost
 				break
 			}
 		}
 		if Debug['l'] < 4 {
-			*reason = "non-leaf function"
+			v.reason = "non-leaf function"
 			return true
 		}
 
@@ -242,18 +250,18 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 			Fatalf("no function definition for [%p] %+v\n", t, t)
 		}
 		if inlfn := asNode(t.FuncType().Nname).Func; inlfn.Inl.Len() != 0 {
-			*budget -= inlfn.InlCost
+			v.budget -= inlfn.InlCost
 			break
 		}
 		if Debug['l'] < 4 {
-			*reason = "non-leaf method"
+			v.reason = "non-leaf method"
 			return true
 		}
 
 	// Things that are too hairy, irrespective of the budget
 	case OCALL, OCALLINTER, OPANIC, ORECOVER:
 		if Debug['l'] < 4 {
-			*reason = "non-leaf op " + n.Op.String()
+			v.reason = "non-leaf op " + n.Op.String()
 			return true
 		}
 
@@ -269,30 +277,30 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 		ODCLTYPE, // can't print yet
 		OBREAK,
 		ORETJMP:
-		*reason = "unhandled op " + n.Op.String()
+		v.reason = "unhandled op " + n.Op.String()
 		return true
 	}
 
-	(*budget)--
+	v.budget--
 	// TODO(mdempsky/josharian): Hacks to appease toolstash; remove.
 	// See issue 17566 and CL 31674 for discussion.
 	switch n.Op {
 	case OSTRUCTKEY:
-		(*budget)--
+		v.budget--
 	case OSLICE, OSLICEARR, OSLICESTR:
-		(*budget)--
+		v.budget--
 	case OSLICE3, OSLICE3ARR:
-		*budget -= 2
+		v.budget -= 2
 	}
 
-	if *budget < 0 {
-		*reason = "function too complex"
+	if v.budget < 0 {
+		v.reason = "function too complex"
 		return true
 	}
 
-	return ishairy(n.Left, budget, reason) || ishairy(n.Right, budget, reason) ||
-		ishairylist(n.List, budget, reason) || ishairylist(n.Rlist, budget, reason) ||
-		ishairylist(n.Ninit, budget, reason) || ishairylist(n.Nbody, budget, reason)
+	return v.visit(n.Left) || v.visit(n.Right) ||
+		v.visitList(n.List) || v.visitList(n.Rlist) ||
+		v.visitList(n.Ninit) || v.visitList(n.Nbody)
 }
 
 // Inlcopy and inlcopylist recursively copy the body of a function.
