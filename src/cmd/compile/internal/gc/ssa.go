@@ -4375,8 +4375,24 @@ func genssa(f *ssa.Func, pp *Progs) {
 			case ssa.OpGetG:
 				// nothing to do when there's a g register,
 				// and checkLower complains if there's not
-			case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
+			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
 				// nothing to do; already used by liveness
+			case ssa.OpVarKill:
+				// Zero variable if it is ambiguously live.
+				// After the VARKILL anything this variable references
+				// might be collected. If it were to become live again later,
+				// the GC will see references to already-collected objects.
+				// See issue 20029.
+				n := v.Aux.(*Node)
+				if n.Name.Needzero() {
+					if n.Class != PAUTO {
+						v.Fatalf("zero of variable which isn't PAUTO %v", n)
+					}
+					if n.Type.Size()%int64(Widthptr) != 0 {
+						v.Fatalf("zero of variable not a multiple of ptr size %v", n)
+					}
+					thearch.ZeroAuto(s.pp, n)
+				}
 			case ssa.OpPhi:
 				CheckLoweredPhi(v)
 

@@ -121,6 +121,26 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
 	return p
 }
 
+func zeroAuto(pp *gc.Progs, n *gc.Node) {
+	// Note: this code must not clobber any registers.
+	op := x86.AMOVQ
+	if gc.Widthptr == 4 {
+		op = x86.AMOVL
+	}
+	sym := gc.Linksym(n.Sym)
+	size := n.Type.Size()
+	for i := int64(0); i < size; i += int64(gc.Widthptr) {
+		p := pp.Prog(op)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_AUTO
+		p.To.Reg = x86.REG_SP
+		p.To.Offset = n.Xoffset + i
+		p.To.Sym = sym
+	}
+}
+
 func ginsnop(pp *gc.Progs) {
 	// This is actually not the x86 NOP anymore,
 	// but at the point where it gets used, AX is dead
