@@ -12,20 +12,6 @@ import (
 	"math"
 )
 
-var condOps = map[ssa.Op]obj.As{
-	ssa.OpPPC64Equal:        ppc64.ABEQ,
-	ssa.OpPPC64NotEqual:     ppc64.ABNE,
-	ssa.OpPPC64LessThan:     ppc64.ABLT,
-	ssa.OpPPC64GreaterEqual: ppc64.ABGE,
-	ssa.OpPPC64GreaterThan:  ppc64.ABGT,
-	ssa.OpPPC64LessEqual:    ppc64.ABLE,
-
-	ssa.OpPPC64FLessThan:     ppc64.ABLT, // 1 branch for FCMP
-	ssa.OpPPC64FGreaterThan:  ppc64.ABGT, // 1 branch for FCMP
-	ssa.OpPPC64FLessEqual:    ppc64.ABLT, // 2 branches for FCMP <=, second is BEQ
-	ssa.OpPPC64FGreaterEqual: ppc64.ABGT, // 2 branches for FCMP >=, second is BEQ
-}
-
 // iselOp encodes mapping of comparison operations onto ISEL operands
 type iselOp struct {
 	cond        int64
