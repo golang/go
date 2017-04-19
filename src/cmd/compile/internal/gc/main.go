@@ -122,15 +122,15 @@ func Main(archInit func(*Arch)) {
 	Ctxt.DiagFunc = yyerror
 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
 
-	localpkg = mkpkg("")
+	localpkg = types.NewPkg("")
 	localpkg.Prefix = "\"\""
 
 	// pseudo-package, for scoping
-	builtinpkg = mkpkg("go.builtin")
+	builtinpkg = types.NewPkg("go.builtin")
 	builtinpkg.Prefix = "go.builtin" // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
-	unsafepkg = mkpkg("unsafe")
+	unsafepkg = types.NewPkg("unsafe")
 	unsafepkg.Name = "unsafe"
 
 	// Pseudo-package that contains the compiler's builtin
@@ -138,28 +138,28 @@ func Main(archInit func(*Arch)) {
 	// separate package to avoid conflicts with package runtime's
 	// actual declarations, which may differ intentionally but
 	// insignificantly.
-	Runtimepkg = mkpkg("go.runtime")
+	Runtimepkg = types.NewPkg("go.runtime")
 	Runtimepkg.Name = "runtime"
 	Runtimepkg.Prefix = "runtime"
 
 	// pseudo-packages used in symbol tables
-	itabpkg = mkpkg("go.itab")
+	itabpkg = types.NewPkg("go.itab")
 	itabpkg.Name = "go.itab"
 	itabpkg.Prefix = "go.itab" // not go%2eitab
 
-	itablinkpkg = mkpkg("go.itablink")
+	itablinkpkg = types.NewPkg("go.itablink")
 	itablinkpkg.Name = "go.itablink"
 	itablinkpkg.Prefix = "go.itablink" // not go%2eitablink
 
-	trackpkg = mkpkg("go.track")
+	trackpkg = types.NewPkg("go.track")
 	trackpkg.Name = "go.track"
 	trackpkg.Prefix = "go.track" // not go%2etrack
 
-	typepkg = mkpkg("type")
+	typepkg = types.NewPkg("type")
 	typepkg.Name = "type"
 
 	// pseudo-package used for map zero values
-	mappkg = mkpkg("go.map")
+	mappkg = types.NewPkg("go.map")
 	mappkg.Name = "go.map"
 	mappkg.Prefix = "go.map"
 
@@ -261,11 +261,11 @@ func Main(archInit func(*Arch)) {
 	startProfile()
 
 	if flag_race {
-		racepkg = mkpkg("runtime/race")
+		racepkg = types.NewPkg("runtime/race")
 		racepkg.Name = "race"
 	}
 	if flag_msan {
-		msanpkg = mkpkg("runtime/msan")
+		msanpkg = types.NewPkg("runtime/msan")
 		msanpkg.Name = "msan"
 	}
 	if flag_race && flag_msan {
@@ -850,7 +850,7 @@ func importfile(f *Val) *types.Pkg {
 		errorexit()
 	}
 
-	importpkg := mkpkg(path_)
+	importpkg := types.NewPkg(path_)
 	if importpkg.Imported {
 		return importpkg
 	}

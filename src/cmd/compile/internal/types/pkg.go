@@ -4,7 +4,10 @@
 
 package types
 
-import "cmd/internal/obj"
+import (
+	"cmd/internal/obj"
+	"cmd/internal/objabi"
+)
 
 type Pkg struct {
 	Name     string // package name, e.g. "sys"
@@ -14,6 +17,23 @@ type Pkg struct {
 	Imported bool   // export data of this package was parsed
 	Direct   bool   // imported directly
 	Syms     map[string]*Sym
+}
+
+var PkgMap = make(map[string]*Pkg)
+var PkgList []*Pkg
+
+func NewPkg(path string) *Pkg {
+	if p := PkgMap[path]; p != nil {
+		return p
+	}
+
+	p := new(Pkg)
+	p.Path = path
+	p.Prefix = objabi.PathToPrefix(path)
+	p.Syms = make(map[string]*Sym)
+	PkgMap[path] = p
+	PkgList = append(PkgList, p)
+	return p
 }
 
 var Nopkg = &Pkg{

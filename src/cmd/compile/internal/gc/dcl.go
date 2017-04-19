@@ -916,7 +916,7 @@ func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
 
 	if spkg == nil {
 		if methodsym_toppkg == nil {
-			methodsym_toppkg = mkpkg("go")
+			methodsym_toppkg = types.NewPkg("go")
 		}
 		spkg = methodsym_toppkg
 	}
