@@ -3957,16 +3957,10 @@ func deadcodeslice(nn Nodes) {
 			continue
 		}
 		if n.Op == OIF && Isconst(n.Left, CTBOOL) {
-			var dead *Nodes
 			if n.Left.Bool() {
-				dead = &n.Rlist
+				n.Rlist = Nodes{}
 			} else {
-				dead = &n.Nbody
-			}
-			// TODO(mdempsky/josharian): eliminate need for haslabelgoto
-			// by checking labels and gotos earlier. See issue 19699.
-			if !(*dead).haslabelgoto() {
-				*dead = Nodes{}
+				n.Nbody = Nodes{}
 			}
 		}
 		deadcodeslice(n.Ninit)
@@ -3974,20 +3968,4 @@ func deadcodeslice(nn Nodes) {
 		deadcodeslice(n.List)
 		deadcodeslice(n.Rlist)
 	}
-}
-
-// haslabelgoto reports whether the Nodes list contains any label or goto statements.
-func (l Nodes) haslabelgoto() bool {
-	for _, n := range l.Slice() {
-		if n == nil {
-			continue
-		}
-		if n.Op == OLABEL || n.Op == OGOTO {
-			return true
-		}
-		if n.Ninit.haslabelgoto() || n.Nbody.haslabelgoto() || n.List.haslabelgoto() || n.Rlist.haslabelgoto() {
-			return true
-		}
-	}
-	return false
 }
