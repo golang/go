@@ -568,3 +568,32 @@ func TestPanicInlined(t *testing.T) {
 	pt := new(point)
 	pt.negate()
 }
+
+// Test for issues #3934 and #20018.
+// We want to delay exiting until a panic print is complete.
+func TestPanicRace(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+
+	exe, err := buildTestProg(t, "testprog")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := testEnv(exec.Command(exe, "PanicRace")).CombinedOutput()
+	if err == nil {
+		t.Error("program exited successfully, should have failed")
+	}
+
+	t.Logf("%s\n", got)
+
+	wants := []string{
+		"panic: crash",
+		"PanicRace",
+		"created by ",
+	}
+	for _, want := range wants {
+		if !bytes.Contains(got, []byte(want)) {
+			t.Errorf("did not find expected string %q", want)
+		}
+	}
+}

@@ -720,7 +720,6 @@ var (
 	allm        *m
 	allp        [_MaxGomaxprocs + 1]*p
 	gomaxprocs  int32
-	panicking   uint32
 	ncpu        int32
 	forcegc     forcegcstate
 	sched       schedt
