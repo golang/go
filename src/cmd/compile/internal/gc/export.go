@@ -177,7 +177,7 @@ func dumpexport() {
 		savedPkgs := types.PkgList
 		types.PkgMap = make(map[string]*types.Pkg)
 		types.PkgList = nil
-		Import(types.NewPkg(""), bufio.NewReader(&copy)) // must not die
+		Import(types.NewPkg("", ""), bufio.NewReader(&copy)) // must not die
 		types.PkgList = savedPkgs
 		types.PkgMap = savedPkgMap
 	} else {

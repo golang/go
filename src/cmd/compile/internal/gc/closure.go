@@ -556,7 +556,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	}
 	if spkg == nil {
 		if makepartialcall_gopkg == nil {
-			makepartialcall_gopkg = types.NewPkg("go")
+			makepartialcall_gopkg = types.NewPkg("go", "")
 		}
 		spkg = makepartialcall_gopkg
 	}

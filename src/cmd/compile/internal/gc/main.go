@@ -122,45 +122,38 @@ func Main(archInit func(*Arch)) {
 	Ctxt.DiagFunc = yyerror
 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
 
-	localpkg = types.NewPkg("")
+	localpkg = types.NewPkg("", "")
 	localpkg.Prefix = "\"\""
 
 	// pseudo-package, for scoping
-	builtinpkg = types.NewPkg("go.builtin")
-	builtinpkg.Prefix = "go.builtin" // not go%2ebuiltin
+	builtinpkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
+	builtinpkg.Prefix = "go.builtin"            // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
-	unsafepkg = types.NewPkg("unsafe")
-	unsafepkg.Name = "unsafe"
+	unsafepkg = types.NewPkg("unsafe", "unsafe")
 
 	// Pseudo-package that contains the compiler's builtin
 	// declarations for package runtime. These are declared in a
 	// separate package to avoid conflicts with package runtime's
 	// actual declarations, which may differ intentionally but
 	// insignificantly.
-	Runtimepkg = types.NewPkg("go.runtime")
-	Runtimepkg.Name = "runtime"
+	Runtimepkg = types.NewPkg("go.runtime", "runtime")
 	Runtimepkg.Prefix = "runtime"
 
 	// pseudo-packages used in symbol tables
-	itabpkg = types.NewPkg("go.itab")
-	itabpkg.Name = "go.itab"
+	itabpkg = types.NewPkg("go.itab", "go.itab")
 	itabpkg.Prefix = "go.itab" // not go%2eitab
 
-	itablinkpkg = types.NewPkg("go.itablink")
-	itablinkpkg.Name = "go.itablink"
+	itablinkpkg = types.NewPkg("go.itablink", "go.itablink")
 	itablinkpkg.Prefix = "go.itablink" // not go%2eitablink
 
-	trackpkg = types.NewPkg("go.track")
-	trackpkg.Name = "go.track"
+	trackpkg = types.NewPkg("go.track", "go.track")
 	trackpkg.Prefix = "go.track" // not go%2etrack
 
-	typepkg = types.NewPkg("type")
-	typepkg.Name = "type"
+	typepkg = types.NewPkg("type", "type")
 
 	// pseudo-package used for map zero values
-	mappkg = types.NewPkg("go.map")
-	mappkg.Name = "go.map"
+	mappkg = types.NewPkg("go.map", "go.map")
 	mappkg.Prefix = "go.map"
 
 	Nacl = objabi.GOOS == "nacl"
@@ -261,12 +254,10 @@ func Main(archInit func(*Arch)) {
 	startProfile()
 
 	if flag_race {
-		racepkg = types.NewPkg("runtime/race")
-		racepkg.Name = "race"
+		racepkg = types.NewPkg("runtime/race", "race")
 	}
 	if flag_msan {
-		msanpkg = types.NewPkg("runtime/msan")
-		msanpkg.Name = "msan"
+		msanpkg = types.NewPkg("runtime/msan", "msan")
 	}
 	if flag_race && flag_msan {
 		log.Fatal("cannot use both -race and -msan")
@@ -850,7 +841,7 @@ func importfile(f *Val) *types.Pkg {
 		errorexit()
 	}
 
-	importpkg := types.NewPkg(path_)
+	importpkg := types.NewPkg(path_, "")
 	if importpkg.Imported {
 		return importpkg
 	}

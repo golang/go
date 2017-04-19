@@ -291,7 +291,7 @@ func (p *importer) pkg() *types.Pkg {
 	// add package to pkgList
 	pkg := p.imp
 	if path != "" {
-		pkg = types.NewPkg(path)
+		pkg = types.NewPkg(path, "")
 	}
 	if pkg.Name == "" {
 		pkg.Name = name

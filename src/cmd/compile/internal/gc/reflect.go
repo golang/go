@@ -1535,7 +1535,7 @@ func dumptypestructs() {
 		if flag_msan {
 			dimportpath(msanpkg)
 		}
-		dimportpath(types.NewPkg("main"))
+		dimportpath(types.NewPkg("main", ""))
 	}
 }
 

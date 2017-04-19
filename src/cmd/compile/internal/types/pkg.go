@@ -7,11 +7,12 @@ package types
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"fmt"
 )
 
 type Pkg struct {
-	Name     string // package name, e.g. "sys"
 	Path     string // string literal used in import statement, e.g. "runtime/internal/sys"
+	Name     string // package name, e.g. "sys"
 	Pathsym  *obj.LSym
 	Prefix   string // escaped path for use in symbol table
 	Imported bool   // export data of this package was parsed
@@ -22,17 +23,25 @@ type Pkg struct {
 var PkgMap = make(map[string]*Pkg)
 var PkgList []*Pkg
 
-func NewPkg(path string) *Pkg {
+// NewPkg returns a new Pkg for the given package path and name.
+// Unless name is the empty string, if the package exists already,
+// the existing package name and the provided name must match.
+func NewPkg(path, name string) *Pkg {
 	if p := PkgMap[path]; p != nil {
+		if name != "" && p.Name != name {
+			panic(fmt.Sprintf("conflicting package names %s and %s for path %q", p.Name, name, path))
+		}
 		return p
 	}
 
 	p := new(Pkg)
 	p.Path = path
+	p.Name = name
 	p.Prefix = objabi.PathToPrefix(path)
 	p.Syms = make(map[string]*Sym)
 	PkgMap[path] = p
 	PkgList = append(PkgList, p)
+
 	return p
 }
 
