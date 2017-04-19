@@ -47,7 +47,6 @@ func testError(t *testing.T) {
 	if e := recover(); e != nil {
 		t.Error(e.(gobError).err) // Will re-panic if not one of our errors, such as a runtime error.
 	}
-	return
 }
 
 func newDecBuffer(data []byte) *decBuffer {

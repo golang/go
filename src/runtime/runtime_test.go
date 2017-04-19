@@ -79,7 +79,6 @@ func defer1() {
 			panic("bad recover")
 		}
 	}(1, 2, 3)
-	return
 }
 
 func BenchmarkDefer10(b *testing.B) {
