@@ -51,21 +51,35 @@ var (
 // Each option accepts an optional argument, as in "gcprog=2"
 var debugtab = []struct {
 	name string
+	help string
 	val  interface{} // must be *int or *string
 }{
-	{"append", &Debug_append},         // print information about append compilation
-	{"closure", &Debug_closure},       // print information about closure compilation
-	{"disablenil", &disable_checknil}, // disable nil checks
-	{"dclstack", &debug_dclstack},     // run internal dclstack checks
-	{"gcprog", &Debug_gcprog},         // print dump of GC programs
-	{"nil", &Debug_checknil},          // print information about nil checks
-	{"panic", &Debug_panic},           // do not hide any compiler panic
-	{"slice", &Debug_slice},           // print information about slice compilation
-	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
-	{"wb", &Debug_wb},                 // print information about write barriers
-	{"export", &Debug_export},         // print export data
-	{"pctab", &Debug_pctab},           // print named pc-value table
+	{"append", "print information about append compilation", &Debug_append},
+	{"closure", "print information about closure compilation", &Debug_closure},
+	{"disablenil", "disable nil checks", &disable_checknil},
+	{"dclstack", "run internal dclstack check", &debug_dclstack},
+	{"gcprog", "print dump of GC programs", &Debug_gcprog},
+	{"nil", "print information about nil checks", &Debug_checknil},
+	{"panic", "do not hide any compiler panic", &Debug_panic},
+	{"slice", "print information about slice compilation", &Debug_slice},
+	{"typeassert", "print information about type assertion inlining", &Debug_typeassert},
+	{"wb", "print information about write barriers", &Debug_wb},
+	{"export", "print export data", &Debug_export},
+	{"pctab", "print named pc-value table", &Debug_pctab},
 }
+
+const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
+
+<key> is one of:
+
+`
+
+const debugHelpFooter = `
+<value> is key-specific.
+
+Key "pctab" supports values:
+	"pctospadj", "pctofile", "pctoline", "pctoinline", "pctopcdata"
+`
 
 func usage() {
 	fmt.Printf("usage: compile [options] file.go...\n")
@@ -171,7 +185,7 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
 	flag.StringVar(&buildid, "buildid", "", "record `id` as the build id in the export metadata")
 	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
-	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`")
+	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
 	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")
 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
 	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
@@ -223,7 +237,7 @@ func Main(archInit func(*Arch)) {
 		Ctxt.DebugInfo = debuginfo
 	}
 
-	if flag.NArg() < 1 {
+	if flag.NArg() < 1 && debugstr != "help" && debugstr != "ssa/help" {
 		usage()
 	}
 
@@ -272,6 +286,23 @@ func Main(archInit func(*Arch)) {
 		for _, name := range strings.Split(debugstr, ",") {
 			if name == "" {
 				continue
+			}
+			// display help about the -d option itself and quit
+			if name == "help" {
+				fmt.Printf(debugHelpHeader)
+				maxLen := len("ssa/help")
+				for _, t := range debugtab {
+					if len(t.name) > maxLen {
+						maxLen = len(t.name)
+					}
+				}
+				for _, t := range debugtab {
+					fmt.Printf("\t%-*s\t%s\n", maxLen, t.name, t.help)
+				}
+				// ssa options have their own help
+				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
+				fmt.Printf(debugHelpFooter)
+				os.Exit(0)
 			}
 			val, valstring, haveInt := 1, "", true
 			if i := strings.IndexAny(name, "=:"); i >= 0 {

@@ -687,6 +687,7 @@ var knownFormats = map[string]string{
 	"reflect.Type %s":  "",
 	"rune %#U":         "",
 	"rune %c":          "",
+	"string %-*s":      "",
 	"string %-16s":     "",
 	"string %.*s":      "",
 	"string %q":        "",
