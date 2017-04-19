@@ -308,7 +308,9 @@ func TestNoHelperGoroutines(t *testing.T) {
 
 func TestBreakpoint(t *testing.T) {
 	output := runTestProg(t, "testprog", "Breakpoint")
-	want := "runtime.Breakpoint()"
+	// If runtime.Breakpoint() is inlined, then the stack trace prints
+	// "runtime.Breakpoint(...)" instead of "runtime.Breakpoint()".
+	want := "runtime.Breakpoint("
 	if !strings.Contains(output, want) {
 		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
 	}
