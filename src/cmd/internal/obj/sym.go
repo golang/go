@@ -101,10 +101,3 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 		s.Set(AttrLocal, true)
 	})
 }
-
-func Linksymfmt(s *LSym) string {
-	if s == nil {
-		return "<nil>"
-	}
-	return s.Name
-}
