@@ -25,21 +25,19 @@ func checkBranches(body *BlockStmt, errh ErrorHandler) {
 
 	// scope of all labels in this body
 	ls := &labelScope{errh: errh}
-	fwdGo2s := ls.blockBranches(nil, 0, nil, body.List)
+	fwdGo2s := ls.blockBranches(nil, 0, nil, body.Pos(), body.List)
 
 	// If there are any forward gotos left, no matching label was
 	// found for them. Either those labels were never defined, or
 	// they are inside blocks and not reachable from the gotos.
 	for _, go2 := range fwdGo2s {
-		var msg string
 		name := go2.Label.Value
-		if alt, found := ls.labels[name]; found {
-			msg = "goto %s jumps into block"
-			alt.used = true // avoid "defined and not used" error
+		if l := ls.labels[name]; l != nil {
+			l.used = true // avoid "defined and not used" error
+			ls.err(go2.Label.Pos(), "goto %s jumps into block starting at %s", name, l.parent.start)
 		} else {
-			msg = "label %s not defined"
+			ls.err(go2.Label.Pos(), "label %s not defined", name)
 		}
-		ls.err(go2.Label.Pos(), msg, name)
 	}
 
 	// spec: "It is illegal to define a label that is never used."
@@ -64,7 +62,8 @@ type label struct {
 
 type block struct {
 	parent *block       // immediately enclosing block, or nil
-	lstmt  *LabeledStmt // labeled statement to which this block belongs, or nil
+	start  src.Pos      // start of block
+	lstmt  *LabeledStmt // labeled statement associated with this block, or nil
 }
 
 func (ls *labelScope) err(pos src.Pos, format string, args ...interface{}) {
@@ -128,11 +127,12 @@ const (
 	continueOk
 )
 
-// blockBranches processes a block's body and returns the list of unresolved (forward) gotos.
-// parent is the immediately enclosing block (or nil), context provides information about the
-// enclosing statements, and lstmt is the labeled statement this body belongs to, or nil.
-func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledStmt, body []Stmt) []*BranchStmt {
-	b := &block{parent: parent, lstmt: lstmt}
+// blockBranches processes a block's body starting at start and returns the
+// list of unresolved (forward) gotos. parent is the immediately enclosing
+// block (or nil), context provides information about the enclosing statements,
+// and lstmt is the labeled statement asociated with this block, or nil.
+func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledStmt, start src.Pos, body []Stmt) []*BranchStmt {
+	b := &block{parent: parent, start: start, lstmt: lstmt}
 
 	var varPos src.Pos
 	var varName Expr
@@ -159,8 +159,8 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 		return false
 	}
 
-	innerBlock := func(flags uint, body []Stmt) {
-		fwdGo2s = append(fwdGo2s, ls.blockBranches(b, context|flags, lstmt, body)...)
+	innerBlock := func(flags uint, start src.Pos, body []Stmt) {
+		fwdGo2s = append(fwdGo2s, ls.blockBranches(b, context|flags, lstmt, start, body)...)
 	}
 
 	for _, stmt := range body {
@@ -277,25 +277,25 @@ func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledS
 		case *BlockStmt:
 			// Unresolved forward gotos from the nested block
 			// become forward gotos for the current block.
-			innerBlock(0, s.List)
+			innerBlock(0, s.Pos(), s.List)
 
 		case *IfStmt:
-			innerBlock(0, s.Then.List)
+			innerBlock(0, s.Then.Pos(), s.Then.List)
 			if s.Else != nil {
-				innerBlock(0, []Stmt{s.Else})
+				innerBlock(0, s.Else.Pos(), []Stmt{s.Else})
 			}
 
 		case *ForStmt:
-			innerBlock(breakOk|continueOk, s.Body.List)
+			innerBlock(breakOk|continueOk, s.Body.Pos(), s.Body.List)
 
 		case *SwitchStmt:
 			for _, cc := range s.Body {
-				innerBlock(breakOk, cc.Body)
+				innerBlock(breakOk, cc.Pos(), cc.Body)
 			}
 
 		case *SelectStmt:
 			for _, cc := range s.Body {
-				innerBlock(breakOk, cc.Body)
+				innerBlock(breakOk, cc.Pos(), cc.Body)
 			}
 		}
 	}
