@@ -173,16 +173,16 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 
 		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
-			s.Type = objabi.SRODATA
+			s.Type = SRODATA
 
 		case IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.bss
-			s.Type = objabi.SNOPTRBSS
+			s.Type = SNOPTRBSS
 
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.data
-			s.Type = objabi.SNOPTRDATA
+			s.Type = SNOPTRDATA
 
 		case IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ: //.text
-			s.Type = objabi.STEXT
+			s.Type = STEXT
 
 		default:
 			return fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
@@ -313,11 +313,11 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		}
 
 		if pesym.SectionNumber == 0 { // extern
-			if s.Type == objabi.SDYNIMPORT {
+			if s.Type == SDYNIMPORT {
 				s.Plt = -2 // flag for dynimport in PE object files.
 			}
-			if s.Type == objabi.SXREF && pesym.Value > 0 { // global data
-				s.Type = objabi.SNOPTRDATA
+			if s.Type == SXREF && pesym.Value > 0 { // global data
+				s.Type = SNOPTRDATA
 				s.Size = int64(pesym.Value)
 			}
 
@@ -345,11 +345,11 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		sectsym := sectsyms[sect]
 		s.Sub = sectsym.Sub
 		sectsym.Sub = s
-		s.Type = sectsym.Type | objabi.SSUB
+		s.Type = sectsym.Type | SSUB
 		s.Value = int64(pesym.Value)
 		s.Size = 4
 		s.Outer = sectsym
-		if sectsym.Type == objabi.STEXT {
+		if sectsym.Type == STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Errorf(s, "%s: duplicate symbol definition", pn)
 			}
@@ -367,7 +367,7 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
 		if s.Sub != nil {
 			s.Sub = listsort(s.Sub)
 		}
-		if s.Type == objabi.STEXT {
+		if s.Type == STEXT {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
@@ -433,7 +433,7 @@ func readpesym(ctxt *Link, f *pe.File, sym *pe.COFFSymbol, sectsyms map[*pe.Sect
 	}
 
 	if s != nil && s.Type == 0 && (sym.StorageClass != IMAGE_SYM_CLASS_STATIC || sym.Value != 0) {
-		s.Type = objabi.SXREF
+		s.Type = SXREF
 	}
 	if strings.HasPrefix(symname, "__imp_") {
 		s.Got = -2 // flag for __imp_

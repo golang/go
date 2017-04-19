@@ -45,15 +45,15 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 		seen[s.SymID] = true
 		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: int64(s.Size), Type: s.Type.Name, Code: '?'}
 		switch s.Kind {
-		case objabi.STEXT, objabi.SELFRXSECT:
+		case objabi.STEXT:
 			sym.Code = 'T'
-		case objabi.STYPE, objabi.SSTRING, objabi.SGOSTRING, objabi.SGOFUNC, objabi.SRODATA, objabi.SFUNCTAB, objabi.STYPELINK, objabi.SITABLINK, objabi.SSYMTAB, objabi.SPCLNTAB, objabi.SELFROSECT:
+		case objabi.SRODATA:
 			sym.Code = 'R'
-		case objabi.SMACHOPLT, objabi.SELFSECT, objabi.SMACHO, objabi.SMACHOGOT, objabi.SNOPTRDATA, objabi.SINITARR, objabi.SDATA, objabi.SWINDOWS:
+		case objabi.SDATA:
 			sym.Code = 'D'
 		case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
 			sym.Code = 'B'
-		case objabi.SXREF, objabi.SMACHOSYMSTR, objabi.SMACHOSYMTAB, objabi.SMACHOINDIRECTPLT, objabi.SMACHOINDIRECTGOT, objabi.SFILE, objabi.SFILEPATH, objabi.SCONST, objabi.SDYNIMPORT, objabi.SHOSTOBJ:
+		case objabi.SXREF, objabi.SCONST:
 			sym.Code = 'X' // should not see
 		}
 		if s.Version != 0 {

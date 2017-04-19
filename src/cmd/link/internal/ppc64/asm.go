@@ -91,7 +91,7 @@ func genplt(ctxt *ld.Link) {
 	for _, s := range ctxt.Textp {
 		for i := range s.R {
 			r := &s.R[i]
-			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != objabi.SDYNIMPORT {
+			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != ld.SDYNIMPORT {
 				continue
 			}
 
@@ -131,12 +131,12 @@ func genplt(ctxt *ld.Link) {
 
 func genaddmoduledata(ctxt *ld.Link) {
 	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == objabi.STEXT {
+	if addmoduledata.Type == ld.STEXT {
 		return
 	}
 	addmoduledata.Attr |= ld.AttrReachable
 	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = objabi.STEXT
+	initfunc.Type = ld.STEXT
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
 	o := func(op uint32) {
@@ -186,7 +186,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 	ctxt.Textp = append(ctxt.Textp, initfunc)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
-	initarray_entry.Type = objabi.SINITARR
+	initarray_entry.Type = ld.SINITARR
 	ld.Addaddr(ctxt, initarray_entry, initfunc)
 }
 
@@ -211,7 +211,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 
 	plt := ctxt.Syms.Lookup(".plt", 0)
 
-	stub.Type = objabi.STEXT
+	stub.Type = ld.STEXT
 
 	// Save TOC pointer in TOC save slot
 	ld.Adduint32(ctxt, stub, 0xf8410018) // std r2,24(r1)
@@ -267,7 +267,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		// to use r12 to compute r2.)
 		r.Add += int64(r.Sym.Localentry) * 4
 
-		if targ.Type == objabi.SDYNIMPORT {
+		if targ.Type == ld.SDYNIMPORT {
 			// Should have been handled in elfsetupplt
 			ld.Errorf(s, "unexpected R_PPC64_REL24 for dyn import")
 		}
@@ -278,7 +278,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 		r.Type = objabi.R_PCREL
 		r.Add += 4
 
-		if targ.Type == objabi.SDYNIMPORT {
+		if targ.Type == ld.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_PPC_REL32 for dyn import")
 		}
 
@@ -286,7 +286,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 
 	case 256 + ld.R_PPC64_ADDR64:
 		r.Type = objabi.R_ADDR
-		if targ.Type == objabi.SDYNIMPORT {
+		if targ.Type == ld.SDYNIMPORT {
 			// These happen in .toc sections
 			ld.Adddynsym(ctxt, targ)
 
@@ -349,7 +349,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	}
 
 	// Handle references to ELF symbols from our own object files.
-	if targ.Type != objabi.SDYNIMPORT {
+	if targ.Type != ld.SDYNIMPORT {
 		return true
 	}
 
@@ -611,7 +611,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 				rs = rs.Outer
 			}
 
-			if rs.Type != objabi.SHOSTOBJ && rs.Type != objabi.SDYNIMPORT && rs.Sect == nil {
+			if rs.Type != ld.SHOSTOBJ && rs.Type != ld.SDYNIMPORT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs

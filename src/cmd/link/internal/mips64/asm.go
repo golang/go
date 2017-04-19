@@ -120,7 +120,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 				rs = rs.Outer
 			}
 
-			if rs.Type != objabi.SHOSTOBJ && rs.Type != objabi.SDYNIMPORT && rs.Sect == nil {
+			if rs.Type != ld.SHOSTOBJ && rs.Type != ld.SDYNIMPORT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs

@@ -460,8 +460,8 @@ func Peinit(ctxt *Link) {
 
 	if Linkmode == LinkInternal {
 		// some mingw libs depend on this symbol, for example, FindPESectionByName
-		ctxt.xdefine("__image_base__", objabi.SDATA, PEBASE)
-		ctxt.xdefine("_image_base__", objabi.SDATA, PEBASE)
+		ctxt.xdefine("__image_base__", SDATA, PEBASE)
+		ctxt.xdefine("_image_base__", SDATA, PEBASE)
 	}
 
 	HEADR = PEFILEHEADR
@@ -516,7 +516,7 @@ func initdynimport(ctxt *Link) *Dll {
 	dr = nil
 	var m *Imp
 	for _, s := range ctxt.Syms.Allsym {
-		if !s.Attr.Reachable() || s.Type != objabi.SDYNIMPORT {
+		if !s.Attr.Reachable() || s.Type != SDYNIMPORT {
 			continue
 		}
 		for d = dr; d != nil; d = d.next {
@@ -558,7 +558,7 @@ func initdynimport(ctxt *Link) *Dll {
 		// Add real symbol name
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
-				m.s.Type = objabi.SDATA
+				m.s.Type = SDATA
 				Symgrow(m.s, int64(SysArch.PtrSize))
 				dynName := m.s.Extname
 				// only windows/386 requires stdcall decoration
@@ -567,7 +567,7 @@ func initdynimport(ctxt *Link) *Dll {
 				}
 				dynSym := ctxt.Syms.Lookup(dynName, 0)
 				dynSym.Attr |= AttrReachable
-				dynSym.Type = objabi.SHOSTOBJ
+				dynSym.Type = SHOSTOBJ
 				r := Addrel(m.s)
 				r.Sym = dynSym
 				r.Off = 0
@@ -578,10 +578,10 @@ func initdynimport(ctxt *Link) *Dll {
 	} else {
 		dynamic := ctxt.Syms.Lookup(".windynamic", 0)
 		dynamic.Attr |= AttrReachable
-		dynamic.Type = objabi.SWINDOWS
+		dynamic.Type = SWINDOWS
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
-				m.s.Type = objabi.SWINDOWS | objabi.SSUB
+				m.s.Type = SWINDOWS | SSUB
 				m.s.Sub = dynamic.Sub
 				dynamic.Sub = m.s
 				m.s.Value = dynamic.Size
@@ -936,7 +936,7 @@ func (ctxt *Link) dope() {
 	rel := ctxt.Syms.Lookup(".rel", 0)
 
 	rel.Attr |= AttrReachable
-	rel.Type = objabi.SELFROSECT
+	rel.Type = SELFROSECT
 
 	initdynimport(ctxt)
 	initdynexport(ctxt)
@@ -1009,7 +1009,7 @@ func writePESymTableRecords(ctxt *Link) int {
 		// Only windows/386 requires underscore prefix on external symbols.
 		if SysArch.Family == sys.I386 &&
 			Linkmode == LinkExternal &&
-			(s.Type == objabi.SHOSTOBJ || s.Attr.CgoExport()) {
+			(s.Type == SHOSTOBJ || s.Attr.CgoExport()) {
 			s.Name = "_" + s.Name
 		}
 
@@ -1020,10 +1020,10 @@ func writePESymTableRecords(ctxt *Link) int {
 		// it still belongs to the .data section, not the .bss section.
 		// Same for runtime.epclntab (type STEXT), it belongs to .text
 		// section, not the .data section.
-		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != objabi.SDATA && Linkmode == LinkExternal {
+		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != SDATA && Linkmode == LinkExternal {
 			value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
 			sect = bsssect
-		} else if uint64(s.Value) >= Segdata.Vaddr && s.Type != objabi.STEXT {
+		} else if uint64(s.Value) >= Segdata.Vaddr && s.Type != STEXT {
 			value = int64(uint64(s.Value) - Segdata.Vaddr)
 			sect = datasect
 		} else if uint64(s.Value) >= Segtext.Vaddr {
@@ -1041,7 +1041,7 @@ func writePESymTableRecords(ctxt *Link) int {
 			typ = 0x0308 // "array of structs"
 		}
 		class := IMAGE_SYM_CLASS_EXTERNAL
-		if s.Version != 0 || (s.Type&objabi.SHIDDEN != 0) || s.Attr.Local() {
+		if s.Version != 0 || (s.Type&SHIDDEN != 0) || s.Attr.Local() {
 			class = IMAGE_SYM_CLASS_STATIC
 		}
 		writeOneSymbol(s, value, sect, typ, uint8(class))
