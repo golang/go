@@ -252,6 +252,7 @@ var (
 	chatty               = flag.Bool("test.v", false, "verbose: print additional output")
 	count                = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
 	coverProfile         = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
+	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarch maching `regexp` then exit")
 	match                = flag.String("test.run", "", "run only tests and examples matching `regexp`")
 	memProfile           = flag.String("test.memprofile", "", "write a memory profile to `file`")
 	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")
@@ -907,6 +908,11 @@ func (m *M) Run() int {
 		flag.Parse()
 	}
 
+	if len(*matchList) != 0 {
+		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.examples)
+		return 0
+	}
+
 	parseCpuList()
 
 	m.before()
@@ -942,6 +948,29 @@ func (t *T) report() {
 			t.flushToParent(format, "SKIP", t.name, dstr)
 		} else {
 			t.flushToParent(format, "PASS", t.name, dstr)
+		}
+	}
+}
+
+func listTests(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
+	if _, err := matchString(*matchList, "non-empty"); err != nil {
+		fmt.Fprintf(os.Stderr, "testing: invalid regexp in -test.list (%q): %s\n", *matchList, err)
+		os.Exit(1)
+	}
+
+	for _, test := range tests {
+		if ok, _ := matchString(*matchList, test.Name); ok {
+			fmt.Println(test.Name)
+		}
+	}
+	for _, bench := range benchmarks {
+		if ok, _ := matchString(*matchList, bench.Name); ok {
+			fmt.Println(bench.Name)
+		}
+	}
+	for _, example := range examples {
+		if ok, _ := matchString(*matchList, example.Name); ok && example.Output != "" {
+			fmt.Println(example.Name)
 		}
 	}
 }
