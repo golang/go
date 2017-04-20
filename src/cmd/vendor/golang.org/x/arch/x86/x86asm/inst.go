@@ -72,16 +72,22 @@ const (
 
 	// The REX prefixes must be in the range [PrefixREX, PrefixREX+0x10).
 	// the other bits are set or not according to the intended use.
-	PrefixREX  Prefix = 0x40 // REX 64-bit extension prefix
-	PrefixREXW Prefix = 0x08 // extension bit W (64-bit instruction width)
-	PrefixREXR Prefix = 0x04 // extension bit R (r field in modrm)
-	PrefixREXX Prefix = 0x02 // extension bit X (index field in sib)
-	PrefixREXB Prefix = 0x01 // extension bit B (r/m field in modrm or base field in sib)
+	PrefixREX       Prefix = 0x40 // REX 64-bit extension prefix
+	PrefixREXW      Prefix = 0x08 // extension bit W (64-bit instruction width)
+	PrefixREXR      Prefix = 0x04 // extension bit R (r field in modrm)
+	PrefixREXX      Prefix = 0x02 // extension bit X (index field in sib)
+	PrefixREXB      Prefix = 0x01 // extension bit B (r/m field in modrm or base field in sib)
+	PrefixVEX2Bytes Prefix = 0xC5 // Short form of vex prefix
+	PrefixVEX3Bytes Prefix = 0xC4 // Long form of vex prefix
 )
 
 // IsREX reports whether p is a REX prefix byte.
 func (p Prefix) IsREX() bool {
 	return p&0xF0 == PrefixREX
+}
+
+func (p Prefix) IsVEX() bool {
+	return p&0xFF == PrefixVEX2Bytes || p&0xFF == PrefixVEX3Bytes
 }
 
 func (p Prefix) String() string {

@@ -15,8 +15,8 @@
 		{
 			"canonical": "golang.org/x/arch/x86/x86asm",
 			"local": "golang.org/x/arch/x86/x86asm",
-			"revision": "ad6a463afcf9bd5b38c81fa9ba612dae11859d40",
-			"revisionTime": "2015-08-28T15:42:14Z"
+			"revision": "58ea1a195b1a354bcd572b7ef6bbbd264dc63732",
+			"revisionTime": "2017-02-16T08:17:04Z"
 		},
 		{
 			"canonical": "golang.org/x/arch/arm/armasm",

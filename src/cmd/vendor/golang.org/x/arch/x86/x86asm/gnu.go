@@ -432,7 +432,7 @@ SuffixLoop:
 		}
 	}
 	for _, p := range inst.Prefix {
-		if p == 0 {
+		if p == 0 || p.IsVEX() {
 			break
 		}
 		if p&PrefixImplicit != 0 {
@@ -530,6 +530,8 @@ func gnuArg(inst *Inst, x Arg, usedPrefixes *bool) string {
 			if x == DX {
 				return "(%dx)"
 			}
+		case VMOVDQA, VMOVDQU, VMOVNTDQA, VMOVNTDQ:
+			return strings.Replace(gccRegName[x], "xmm", "ymm", -1)
 		}
 		return gccRegName[x]
 	case Mem:
