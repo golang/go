@@ -66,9 +66,6 @@ TEXT ·Mod(SB),NOSPLIT,$0
 TEXT ·Remainder(SB),NOSPLIT,$0
 	BR ·remainder(SB)
 
-TEXT ·Sincos(SB),NOSPLIT,$0
-	BR ·sincos(SB)
-
 TEXT ·Sin(SB),NOSPLIT,$0
 	BR ·sin(SB)
 

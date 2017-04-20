@@ -75,9 +75,6 @@ TEXT ·Mod(SB),NOSPLIT,$0
 TEXT ·Remainder(SB),NOSPLIT,$0
 	JMP ·remainder(SB)
 
-TEXT ·Sincos(SB),NOSPLIT,$0
-	JMP ·sincos(SB)
-
 TEXT ·Sin(SB),NOSPLIT,$0
 	JMP ·sin(SB)
 

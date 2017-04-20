@@ -52,9 +52,6 @@ TEXT ·Mod(SB),NOSPLIT,$0
 TEXT ·Remainder(SB),NOSPLIT,$0
 	BR ·remainder(SB)
 
-TEXT ·Sincos(SB),NOSPLIT,$0
-	BR ·sincos(SB)
-
 TEXT ·Tan(SB),NOSPLIT,$0
 	BR ·tan(SB)
 
