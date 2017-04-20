@@ -29,20 +29,32 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		args = append(args, plan9Arg(&inst, pc, symname, a))
 	}
 
+	var rep string
 	var last Prefix
 	for _, p := range inst.Prefix {
-		if p == 0 || p.IsREX() {
+		if p == 0 || p.IsREX() || p.IsVEX() {
 			break
 		}
-		last = p
+
+		switch {
+		// Don't show prefixes implied by the instruction text.
+		case p&0xFF00 == PrefixImplicit:
+			continue
+		// Only REP and REPN are recognized repeaters. Plan 9 syntax
+		// treats them as separate opcodes.
+		case p&0xFF == PrefixREP:
+			rep = "REP; "
+		case p&0xFF == PrefixREPN:
+			rep = "REPNE; "
+		default:
+			last = p
+		}
 	}
 
 	prefix := ""
 	switch last & 0xFF {
 	case 0, 0x66, 0x67:
 		// ignore
-	case PrefixREPN:
-		prefix += "REPNE "
 	default:
 		prefix += last.String() + " "
 	}
@@ -69,7 +81,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		op += " " + strings.Join(args, ", ")
 	}
 
-	return prefix + op
+	return rep + prefix + op
 }
 
 func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg Arg) string {

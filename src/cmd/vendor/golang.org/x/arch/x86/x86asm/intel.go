@@ -88,6 +88,13 @@ func IntelSyntax(inst Inst) string {
 			if p.IsREX() {
 				inst.Prefix[i] |= PrefixImplicit
 			}
+			if p.IsVEX() {
+				if p == PrefixVEX3Bytes {
+					inst.Prefix[i+2] |= PrefixImplicit
+				}
+				inst.Prefix[i] |= PrefixImplicit
+				inst.Prefix[i+1] |= PrefixImplicit
+			}
 		}
 	}
 
@@ -353,6 +360,8 @@ func intelArg(inst *Inst, arg Arg) string {
 			prefix = "qword "
 		case 16:
 			prefix = "xmmword "
+		case 32:
+			prefix = "ymmword "
 		}
 		switch inst.Op {
 		case INVLPG:
@@ -434,7 +443,12 @@ func intelArg(inst *Inst, arg Arg) string {
 		return fmt.Sprintf(".%+#x", int64(a))
 	case Reg:
 		if int(a) < len(intelReg) && intelReg[a] != "" {
-			return intelReg[a]
+			switch inst.Op {
+			case VMOVDQA, VMOVDQU, VMOVNTDQA, VMOVNTDQ:
+				return strings.Replace(intelReg[a], "xmm", "ymm", -1)
+			default:
+				return intelReg[a]
+			}
 		}
 	}
 	return strings.ToLower(arg.String())

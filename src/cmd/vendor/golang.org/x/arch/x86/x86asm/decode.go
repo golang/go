@@ -84,6 +84,7 @@ const (
 	xArgImm16u       // arg imm8 but record as unsigned
 	xArgM            // arg m
 	xArgM128         // arg m128
+	xArgM256         // arg m256
 	xArgM1428byte    // arg m14/28byte
 	xArgM16          // arg m16
 	xArgM16and16     // arg m16&16
@@ -155,12 +156,14 @@ const (
 	xArgXmm1         // arg xmm1
 	xArgXmm2         // arg xmm2
 	xArgXmm2M128     // arg xmm2/m128
+	xArgYmm2M256     // arg ymm2/m256
 	xArgXmm2M16      // arg xmm2/m16
 	xArgXmm2M32      // arg xmm2/m32
 	xArgXmm2M64      // arg xmm2/m64
 	xArgXmmM128      // arg xmm/m128
 	xArgXmmM32       // arg xmm/m32
 	xArgXmmM64       // arg xmm/m64
+	xArgYmm1         // arg ymm1
 	xArgRmf16        // arg r/m16 but force mod=3
 	xArgRmf32        // arg r/m32 but force mod=3
 	xArgRmf64        // arg r/m64 but force mod=3
@@ -258,6 +261,8 @@ func decode1(src []byte, mode int, gnuCompat bool) (Inst, error) {
 		rex           Prefix // rex byte if present (or 0)
 		rexUsed       Prefix // bits used in rex byte
 		rexIndex      = -1   // index of rex byte
+		vex           Prefix // use vex encoding
+		vexIndex      = -1   // index of vex prefix
 
 		addrMode = mode // address mode (width in bits)
 		dataMode = mode // operand mode (width in bits)
@@ -398,6 +403,33 @@ ReadPrefixes:
 				inst.Prefix[addrSizeIndex] |= PrefixIgnored
 			}
 			addrSizeIndex = pos
+
+		//Group 5 - Vex encoding
+		case 0xC5:
+			if pos == 0 && (mode == 64 || (mode == 32 && pos+1 < len(src) && src[pos+1]&0xc0 == 0xc0)) {
+				vex = p
+				vexIndex = pos
+				inst.Prefix[pos] = p
+				inst.Prefix[pos+1] = Prefix(src[pos+1])
+				pos += 1
+				continue
+			} else {
+				nprefix = pos
+				break ReadPrefixes
+			}
+		case 0xC4:
+			if pos == 0 && (mode == 64 || (mode == 32 && pos+2 < len(src) && src[pos+1]&0xc0 == 0xc0)) {
+				vex = p
+				vexIndex = pos
+				inst.Prefix[pos] = p
+				inst.Prefix[pos+1] = Prefix(src[pos+1])
+				inst.Prefix[pos+2] = Prefix(src[pos+2])
+				pos += 2
+				continue
+			} else {
+				nprefix = pos
+				break ReadPrefixes
+			}
 		}
 
 		if pos >= len(inst.Prefix) {
@@ -408,7 +440,7 @@ ReadPrefixes:
 	}
 
 	// Read REX prefix.
-	if pos < len(src) && mode == 64 && Prefix(src[pos]).IsREX() {
+	if pos < len(src) && mode == 64 && Prefix(src[pos]).IsREX() && vex == 0 {
 		rex = Prefix(src[pos])
 		rexIndex = pos
 		if pos >= len(inst.Prefix) {
@@ -514,11 +546,11 @@ Decode:
 					scale = sib >> 6
 					index = (sib >> 3) & 07
 					base = sib & 07
-					if rex&PrefixREXB != 0 {
+					if rex&PrefixREXB != 0 || vex == 0xC4 && inst.Prefix[vexIndex+1]&0x20 == 0 {
 						rexUsed |= PrefixREXB
 						base |= 8
 					}
-					if rex&PrefixREXX != 0 {
+					if rex&PrefixREXX != 0 || vex == 0xC4 && inst.Prefix[vexIndex+1]&0x40 == 0 {
 						rexUsed |= PrefixREXX
 						index |= 8
 					}
@@ -779,6 +811,34 @@ Decode:
 					if rex&prefix == prefix {
 						ok = true
 					}
+				} else if prefix == 0xC5 || prefix == 0xC4 {
+					if vex == prefix {
+						ok = true
+					}
+				} else if vex != 0 && (prefix == 0x0F || prefix == 0x0F38 || prefix == 0x0F3A ||
+					prefix == 0x66 || prefix == 0xF2 || prefix == 0xF3) {
+					var vexM, vexP Prefix
+					if vex == 0xC5 {
+						vexM = 1 // 2 byte vex always implies 0F
+						vexP = inst.Prefix[vexIndex+1]
+					} else {
+						vexM = inst.Prefix[vexIndex+1]
+						vexP = inst.Prefix[vexIndex+2]
+					}
+					switch prefix {
+					case 0x66:
+						ok = vexP&3 == 1
+					case 0xF3:
+						ok = vexP&3 == 2
+					case 0xF2:
+						ok = vexP&3 == 3
+					case 0x0F:
+						ok = vexM&3 == 1
+					case 0x0F38:
+						ok = vexM&3 == 2
+					case 0x0F3A:
+						ok = vexM&3 == 3
+					}
 				} else {
 					if prefix == 0xF3 {
 						sawF3 = true
@@ -993,6 +1053,7 @@ Decode:
 
 		case xArgM,
 			xArgM128,
+			xArgM256,
 			xArgM1428byte,
 			xArgM16,
 			xArgM16and16,
@@ -1041,7 +1102,7 @@ Decode:
 
 		case xArgMoffs8, xArgMoffs16, xArgMoffs32, xArgMoffs64:
 			// TODO(rsc): Can address be 64 bits?
-			mem = Mem{Disp: immc}
+			mem = Mem{Disp: int64(immc)}
 			if segIndex >= 0 {
 				mem.Segment = prefixToSegment(inst.Prefix[segIndex])
 				inst.Prefix[segIndex] |= PrefixImplicit
@@ -1052,6 +1113,15 @@ Decode:
 				inst.PCRel = displen
 				inst.PCRelOff = dispoff
 			}
+			narg++
+
+		case xArgYmm1:
+			base := baseReg[x]
+			index := Reg(regop)
+			if inst.Prefix[vexIndex+1]&0x80 == 0 {
+				index += 8
+			}
+			inst.Args[narg] = base + index
 			narg++
 
 		case xArgR8, xArgR16, xArgR32, xArgR64, xArgXmm, xArgXmm1, xArgDR0dashDR7:
@@ -1115,10 +1185,10 @@ Decode:
 			}
 			inst.Args[narg] = base + index
 			narg++
-
 		case xArgRM8, xArgRM16, xArgRM32, xArgRM64, xArgR32M16, xArgR32M8, xArgR64M16,
 			xArgMmM32, xArgMmM64, xArgMm2M64,
-			xArgXmm2M16, xArgXmm2M32, xArgXmm2M64, xArgXmmM64, xArgXmmM128, xArgXmmM32, xArgXmm2M128:
+			xArgXmm2M16, xArgXmm2M32, xArgXmm2M64, xArgXmmM64, xArgXmmM128, xArgXmmM32, xArgXmm2M128,
+			xArgYmm2M256:
 			if haveMem {
 				inst.Args[narg] = mem
 				inst.MemBytes = int(memBytes[decodeOp(x)])
@@ -1138,6 +1208,10 @@ Decode:
 						rexUsed |= PrefixREX
 						index -= 4
 						base = SPB
+					}
+				case xArgYmm2M256:
+					if vex == 0xC4 && inst.Prefix[vexIndex+1]&0x40 == 0x40 {
+						index += 8
 					}
 				}
 				inst.Args[narg] = base + index
@@ -1522,8 +1596,10 @@ var baseReg = [...]Reg{
 	xArgSTi:        F0,
 	xArgTR0dashTR7: TR0,
 	xArgXmm1:       X0,
+	xArgYmm1:       X0,
 	xArgXmm2:       X0,
 	xArgXmm2M128:   X0,
+	xArgYmm2M256:   X0,
 	xArgXmm2M16:    X0,
 	xArgXmm2M32:    X0,
 	xArgXmm2M64:    X0,
@@ -1579,6 +1655,7 @@ var fixedArg = [...]Arg{
 // by a memory argument of the given form.
 var memBytes = [...]int8{
 	xArgM128:       128 / 8,
+	xArgM256:       256 / 8,
 	xArgM16:        16 / 8,
 	xArgM16and16:   (16 + 16) / 8,
 	xArgM16colon16: (16 + 16) / 8,
@@ -1607,6 +1684,7 @@ var memBytes = [...]int8{
 	xArgRM64:       64 / 8,
 	xArgRM8:        8 / 8,
 	xArgXmm2M128:   128 / 8,
+	xArgYmm2M256:   256 / 8,
 	xArgXmm2M16:    16 / 8,
 	xArgXmm2M32:    32 / 8,
 	xArgXmm2M64:    64 / 8,
