@@ -87,6 +87,33 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 	})
 }
 
+func TestCPUProfileInlining(t *testing.T) {
+	testCPUProfile(t, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}, func(dur time.Duration) {
+		cpuHogger(inlinedCaller, dur)
+	})
+}
+
+func inlinedCaller() {
+	inlinedCallee()
+}
+
+func inlinedCallee() {
+	// We could just use cpuHog1, but for loops prevent inlining
+	// right now. :(
+	foo := salt1
+	i := 0
+loop:
+	if foo > 0 {
+		foo *= foo
+	} else {
+		foo *= foo + 1
+	}
+	if i++; i < 1e5 {
+		goto loop
+	}
+	salt1 = foo
+}
+
 func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Location, map[string][]string)) {
 	p, err := profile.Parse(bytes.NewReader(valBytes))
 	if err != nil {
