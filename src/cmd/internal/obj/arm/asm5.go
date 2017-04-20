@@ -1314,12 +1314,12 @@ func buildop(ctxt *obj.Link) {
 		return
 	}
 
-	deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
+	deferreturn = ctxt.Lookup("runtime.deferreturn")
 
-	symdiv = ctxt.Lookup("_div", 0)
-	symdivu = ctxt.Lookup("_divu", 0)
-	symmod = ctxt.Lookup("_mod", 0)
-	symmodu = ctxt.Lookup("_modu", 0)
+	symdiv = ctxt.Lookup("_div")
+	symdivu = ctxt.Lookup("_divu")
+	symmod = ctxt.Lookup("_mod")
+	symmodu = ctxt.Lookup("_modu")
 
 	var n int
 

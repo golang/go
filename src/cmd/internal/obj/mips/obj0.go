@@ -759,11 +759,11 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.As = AJAL
 	p.To.Type = obj.TYPE_BRANCH
 	if c.cursym.CFunc() {
-		p.To.Sym = c.ctxt.Lookup("runtime.morestackc", 0)
+		p.To.Sym = c.ctxt.Lookup("runtime.morestackc")
 	} else if !c.cursym.Func.Text.From.Sym.NeedCtxt() {
-		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt", 0)
+		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt")
 	} else {
-		p.To.Sym = c.ctxt.Lookup("runtime.morestack", 0)
+		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
 	}
 	p.Mark |= BRANCH
 

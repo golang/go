@@ -266,7 +266,7 @@ func Linksym(s *types.Sym) *obj.LSym {
 		return nil
 	}
 	if s.Lsym == nil {
-		s.Lsym = Ctxt.Lookup(linksymname(s), 0)
+		s.Lsym = Ctxt.Lookup(linksymname(s))
 	}
 	return s.Lsym
 }
@@ -337,7 +337,7 @@ func stringsym(s string) (data *obj.LSym) {
 	const prefix = "go.string."
 	symdataname := prefix + symname
 
-	symdata := Ctxt.Lookup(symdataname, 0)
+	symdata := Ctxt.Lookup(symdataname)
 
 	if !symdata.SeenGlobl() {
 		// string data

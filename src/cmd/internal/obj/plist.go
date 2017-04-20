@@ -58,7 +58,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_ArgsPointerMaps {
 					ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
 				}
-				p.To.Sym = ctxt.Lookup(fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
+				p.To.Sym = ctxt.LookupDerived(curtext, curtext.Name+".args_stackmap")
 			}
 
 		}
@@ -95,7 +95,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 			p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
 			p.To.Type = TYPE_MEM
 			p.To.Name = NAME_EXTERN
-			p.To.Sym = ctxt.Lookup(fmt.Sprintf("%s.args_stackmap", s.Name), int(s.Version))
+			p.To.Sym = ctxt.LookupDerived(s, s.Name+".args_stackmap")
 		}
 	}
 

@@ -325,9 +325,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		//     CALL $reg
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = ctxt.Lookup("runtime.duffzero", 0)
+			sym = ctxt.Lookup("runtime.duffzero")
 		} else {
-			sym = ctxt.Lookup("runtime.duffcopy", 0)
+			sym = ctxt.Lookup("runtime.duffcopy")
 		}
 		offset := p.To.Offset
 		p.As = mov
@@ -428,7 +428,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p1.As = ALEAL
 		p1.From.Type = obj.TYPE_MEM
 		p1.From.Name = obj.NAME_STATIC
-		p1.From.Sym = ctxt.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
+		p1.From.Sym = ctxt.Lookup("_GLOBAL_OFFSET_TABLE_")
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = REG_BX
 
@@ -536,7 +536,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	r.RegTo2 = 1
 	q.As = obj.ACALL
 	thunkname := "__x86.get_pc_thunk." + strings.ToLower(rconv(int(dst)))
-	q.To.Sym = ctxt.LookupInit(thunkname, 0, func(s *obj.LSym) { s.Set(obj.AttrLocal, true) })
+	q.To.Sym = ctxt.LookupInit(thunkname, func(s *obj.LSym) { s.Set(obj.AttrLocal, true) })
 	q.To.Type = obj.TYPE_MEM
 	q.To.Name = obj.NAME_EXTERN
 	r.As = p.As
@@ -1154,7 +1154,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	case !cursym.Func.Text.From.Sym.NeedCtxt():
 		morestack = "runtime.morestack_noctxt"
 	}
-	call.To.Sym = ctxt.Lookup(morestack, 0)
+	call.To.Sym = ctxt.Lookup(morestack)
 	// When compiling 386 code for dynamic linking, the call needs to be adjusted
 	// to follow PIC rules. This in turn can insert more instructions, so we need
 	// to keep track of the start of the call (where the jump will be to) and the

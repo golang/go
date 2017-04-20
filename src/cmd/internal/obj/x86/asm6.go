@@ -1977,9 +1977,9 @@ func instinit(ctxt *obj.Link) {
 
 	switch ctxt.Headtype {
 	case objabi.Hplan9:
-		plan9privates = ctxt.Lookup("_privates", 0)
+		plan9privates = ctxt.Lookup("_privates")
 	case objabi.Hnacl:
-		deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
+		deferreturn = ctxt.Lookup("runtime.deferreturn")
 	}
 
 	for i := 1; optab[i].as != 0; i++ {
@@ -4093,7 +4093,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 								r.Off = int32(p.Pc + int64(asmbuf.Len()))
 								r.Type = objabi.R_CALL
 								r.Siz = 4
-								r.Sym = ctxt.Lookup("__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
+								r.Sym = ctxt.Lookup("__x86.get_pc_thunk." + strings.ToLower(rconv(int(dst))))
 								asmbuf.PutInt32(0)
 
 								asmbuf.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))

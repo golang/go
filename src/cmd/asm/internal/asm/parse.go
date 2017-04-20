@@ -585,16 +585,20 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 		a.Type = obj.TYPE_INDIR
 	}
 	// Weirdness with statics: Might now have "<>".
-	isStatic := 0 // TODO: Really a boolean, but ctxt.Lookup wants a "version" integer.
+	isStatic := false
 	if p.peek() == '<' {
-		isStatic = 1
+		isStatic = true
 		p.next()
 		p.get('>')
 	}
 	if p.peek() == '+' || p.peek() == '-' {
 		a.Offset = int64(p.expr())
 	}
-	a.Sym = p.ctxt.Lookup(name, isStatic)
+	if isStatic {
+		a.Sym = p.ctxt.LookupStatic(name)
+	} else {
+		a.Sym = p.ctxt.Lookup(name)
+	}
 	if p.peek() == scanner.EOF {
 		if prefix == 0 && p.isJump {
 			// Symbols without prefix or suffix are jump labels.
@@ -607,7 +611,7 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	p.get('(')
 	reg := p.get(scanner.Ident).String()
 	p.get(')')
-	p.setPseudoRegister(a, reg, isStatic != 0, prefix)
+	p.setPseudoRegister(a, reg, isStatic, prefix)
 }
 
 // setPseudoRegister sets the NAME field of addr for a pseudo-register reference such as (SB).

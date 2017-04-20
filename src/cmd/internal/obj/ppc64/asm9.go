@@ -2292,7 +2292,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 				// that knows the name of the tls variable. Possibly
 				// we could add some assembly syntax so that the name
 				// of the variable does not have to be assumed.
-				rel.Sym = c.ctxt.Lookup("runtime.tls_g", 0)
+				rel.Sym = c.ctxt.Lookup("runtime.tls_g")
 				rel.Type = objabi.R_POWER_TLS
 			}
 			o1 = AOP_RRR(c.opstorex(p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(r))
@@ -2323,7 +2323,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 				rel := obj.Addrel(c.cursym)
 				rel.Off = int32(c.pc)
 				rel.Siz = 4
-				rel.Sym = c.ctxt.Lookup("runtime.tls_g", 0)
+				rel.Sym = c.ctxt.Lookup("runtime.tls_g")
 				rel.Type = objabi.R_POWER_TLS
 			}
 			o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))

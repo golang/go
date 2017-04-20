@@ -151,17 +151,13 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
 		return
 	}
 	var m map[string]int
-	switch s.Version {
-	case 0:
+	if !s.Static() {
 		m = w.refIdx
-	case 1:
+	} else {
 		m = w.vrefIdx
-	default:
-		log.Fatalf("%s: invalid version number %d", s.Name, s.Version)
 	}
 
-	idx := m[s.Name]
-	if idx != 0 {
+	if idx := m[s.Name]; idx != 0 {
 		s.RefIdx = idx
 		return
 	}
@@ -171,7 +167,12 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
 	} else {
 		w.writeString(s.Name)
 	}
-	w.writeInt(int64(s.Version))
+	// Write "version".
+	if s.Static() {
+		w.writeInt(1)
+	} else {
+		w.writeInt(0)
+	}
 	w.nRefs++
 	s.RefIdx = w.nRefs
 	m[s.Name] = w.nRefs
@@ -194,13 +195,13 @@ func (w *objWriter) writeRefs(s *LSym) {
 			w.writeRef(d, false)
 		}
 		for _, f := range pc.File {
-			fsym := w.ctxt.Lookup(f, 0)
+			fsym := w.ctxt.Lookup(f)
 			w.writeRef(fsym, true)
 		}
 		for _, call := range pc.InlTree.nodes {
 			w.writeRef(call.Func, false)
 			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
-			fsym := w.ctxt.Lookup(f, 0)
+			fsym := w.ctxt.Lookup(f)
 			w.writeRef(fsym, true)
 		}
 	}
@@ -209,11 +210,11 @@ func (w *objWriter) writeRefs(s *LSym) {
 func (w *objWriter) writeSymDebug(s *LSym) {
 	ctxt := w.ctxt
 	fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
-	if s.Version != 0 {
-		fmt.Fprintf(ctxt.Bso, "v=%d ", s.Version)
-	}
 	if s.Type != 0 {
 		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
+	}
+	if s.Static() {
+		fmt.Fprint(ctxt.Bso, "static ")
 	}
 	if s.DuplicateOK() {
 		fmt.Fprintf(ctxt.Bso, "dupok ")
@@ -364,14 +365,14 @@ func (w *objWriter) writeSym(s *LSym) {
 	}
 	w.writeInt(int64(len(pc.File)))
 	for _, f := range pc.File {
-		fsym := ctxt.Lookup(f, 0)
+		fsym := ctxt.Lookup(f)
 		w.writeRefIndex(fsym)
 	}
 	w.writeInt(int64(len(pc.InlTree.nodes)))
 	for _, call := range pc.InlTree.nodes {
 		w.writeInt(int64(call.Parent))
 		f, l := linkgetlineFromPos(w.ctxt, call.Pos)
-		fsym := ctxt.Lookup(f, 0)
+		fsym := ctxt.Lookup(f)
 		w.writeRefIndex(fsym)
 		w.writeInt(int64(l))
 		w.writeRefIndex(call.Func)
@@ -456,7 +457,7 @@ func (ctxt *Link) dwarfSym(s *LSym) *LSym {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
 	if s.Func.dwarfSym == nil {
-		s.Func.dwarfSym = ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+		s.Func.dwarfSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
 	}
 	return s.Func.dwarfSym
 }
@@ -472,5 +473,5 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
 	if ctxt.DebugInfo != nil {
 		vars = ctxt.DebugInfo(s, curfn)
 	}
-	dwarf.PutFunc(dwCtxt{ctxt}, dsym, s.Name, s.Version == 0, s, s.Size, vars)
+	dwarf.PutFunc(dwCtxt{ctxt}, dsym, s.Name, !s.Static(), s, s.Size, vars)
 }

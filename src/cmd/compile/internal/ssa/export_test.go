@@ -114,7 +114,7 @@ func (DummyFrontend) Line(_ src.XPos) string {
 func (DummyFrontend) AllocFrame(f *Func) {
 }
 func (d DummyFrontend) Syslook(s string) *obj.LSym {
-	return d.ctxt.Lookup(s, 0)
+	return d.ctxt.Lookup(s)
 }
 func (DummyFrontend) UseWriteBarrier() bool {
 	return true // only writebarrier_test cares
