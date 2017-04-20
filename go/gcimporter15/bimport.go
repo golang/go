@@ -28,9 +28,10 @@ type importer struct {
 	version int    // export format version
 
 	// object lists
-	strList       []string         // in order of appearance
-	pkgList       []*types.Package // in order of appearance
-	typList       []types.Type     // in order of appearance
+	strList       []string           // in order of appearance
+	pkgList       []*types.Package   // in order of appearance
+	typList       []types.Type       // in order of appearance
+	interfaceList []*types.Interface // for delayed completion only
 	trackAllTypes bool
 
 	// position encoding
@@ -49,12 +50,13 @@ type importer struct {
 // and returns the number of bytes consumed and a reference to the package.
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
-func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, _ *types.Package, err error) {
+func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
 	// catch panics and return them as errors
 	defer func() {
 		if e := recover(); e != nil {
 			// The package (filename) causing the problem is added to this
 			// error by a wrapper in the caller (Import in gcimporter.go).
+			// Return a (possibly nil or incomplete) package unchanged (see #16088).
 			err = fmt.Errorf("cannot import, possibly version skew (%v) - reinstall package", e)
 		}
 	}()
@@ -119,7 +121,7 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 	p.typList = append(p.typList, predeclared...)
 
 	// read package data
-	pkg := p.pkg()
+	pkg = p.pkg()
 
 	// read objects of phase 1 only (see cmd/compiler/internal/gc/bexport.go)
 	objcount := 0
@@ -140,15 +142,9 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 	// ignore compiler-specific import data
 
 	// complete interfaces
-	for _, typ := range p.typList {
-		// If we only record named types (!p.trackAllTypes),
-		// we must check the underlying types here. If we
-		// track all types, the Underlying() method call is
-		// not needed.
-		// TODO(gri) Remove if p.trackAllTypes is gone.
-		if it, ok := typ.Underlying().(*types.Interface); ok {
-			it.Complete()
-		}
+	// TODO(gri) re-investigate if we still need to do this in a delayed fashion
+	for _, typ := range p.interfaceList {
+		typ.Complete()
 	}
 
 	// record all referenced packages as imports
@@ -500,6 +496,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		}
 
 		t := types.NewInterface(p.methodList(parent), embeddeds)
+		p.interfaceList = append(p.interfaceList, t)
 		if p.trackAllTypes {
 			p.typList[n] = t
 		}
