@@ -123,12 +123,17 @@ var optab = []Optab{
 	{AWORD, C_NONE, C_NONE, C_TLS_LE, 103, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_TLS_IE, 104, 4, 0, 0, 0},
 	{AMOVW, C_NCON, C_NONE, C_REG, 12, 4, 0, 0, 0},
+	{AMOVW, C_SCON, C_NONE, C_REG, 12, 4, 0, 0, 0},
 	{AMOVW, C_LCON, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
 	{AMOVW, C_LCONADDR, C_NONE, C_REG, 12, 4, 0, LFROM | LPCREL, 4},
 	{AADD, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0},
 	{AADD, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
 	{AMVN, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
 	{ACMP, C_NCON, C_REG, C_NONE, 13, 8, 0, 0, 0},
+	{AADD, C_SCON, C_REG, C_REG, 13, 8, 0, 0, 0},
+	{AADD, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+	{AMVN, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+	{ACMP, C_SCON, C_REG, C_NONE, 13, 8, 0, 0, 0},
 	{AADD, C_LCON, C_REG, C_REG, 13, 8, 0, LFROM, 0},
 	{AADD, C_LCON, C_NONE, C_REG, 13, 8, 0, LFROM, 0},
 	{AMVN, C_LCON, C_NONE, C_REG, 13, 8, 0, LFROM, 0},
@@ -1123,6 +1128,9 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 			if immrot(^uint32(c.instoffset)) != 0 {
 				return C_NCON
 			}
+			if uint32(c.instoffset) <= 0xffff && objabi.GOARM == 7 {
+				return C_SCON
+			}
 			return C_LCON
 
 		case obj.NAME_EXTERN,
@@ -1217,7 +1225,7 @@ func cmp(a int, b int) bool {
 	}
 	switch a {
 	case C_LCON:
-		if b == C_RCON || b == C_NCON {
+		if b == C_RCON || b == C_NCON || b == C_SCON {
 			return true
 		}
 
@@ -1674,14 +1682,22 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 12: /* movw $lcon, reg */
-		o1 = c.omvl(p, &p.From, int(p.To.Reg))
+		if o.a1 == C_SCON {
+			o1 = c.omvs(p, &p.From, int(p.To.Reg))
+		} else {
+			o1 = c.omvl(p, &p.From, int(p.To.Reg))
+		}
 
 		if o.flag&LPCREL != 0 {
 			o2 = c.oprrr(p, AADD, int(p.Scond)) | (uint32(p.To.Reg)&15)<<0 | (REGPC&15)<<16 | (uint32(p.To.Reg)&15)<<12
 		}
 
 	case 13: /* op $lcon, [R], R */
-		o1 = c.omvl(p, &p.From, REGTMP)
+		if o.a1 == C_SCON {
+			o1 = c.omvs(p, &p.From, REGTMP)
+		} else {
+			o1 = c.omvl(p, &p.From, REGTMP)
+		}
 
 		if o1 == 0 {
 			break
@@ -2825,6 +2841,17 @@ func (c *ctxt5) ofsr(a obj.As, r int, v int32, b int, sc int, p *obj.Prog) uint3
 	}
 
 	return o
+}
+
+// MOVW $"lower 16-bit", Reg
+func (c *ctxt5) omvs(p *obj.Prog, a *obj.Addr, dr int) uint32 {
+	var o1 uint32
+	o1 = ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
+	o1 |= 0x30 << 20
+	o1 |= (uint32(dr) & 15) << 12
+	o1 |= uint32(a.Offset) & 0x0fff
+	o1 |= (uint32(a.Offset) & 0xf000) << 4
+	return o1
 }
 
 func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
