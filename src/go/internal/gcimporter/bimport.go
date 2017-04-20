@@ -26,9 +26,10 @@ type importer struct {
 	version int    // export format version
 
 	// object lists
-	strList       []string         // in order of appearance
-	pkgList       []*types.Package // in order of appearance
-	typList       []types.Type     // in order of appearance
+	strList       []string           // in order of appearance
+	pkgList       []*types.Package   // in order of appearance
+	typList       []types.Type       // in order of appearance
+	interfaceList []*types.Interface // for delayed completion only
 	trackAllTypes bool
 
 	// position encoding
@@ -139,15 +140,9 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 	// ignore compiler-specific import data
 
 	// complete interfaces
-	for _, typ := range p.typList {
-		// If we only record named types (!p.trackAllTypes),
-		// we must check the underlying types here. If we
-		// track all types, the Underlying() method call is
-		// not needed.
-		// TODO(gri) Remove if p.trackAllTypes is gone.
-		if it, ok := typ.Underlying().(*types.Interface); ok {
-			it.Complete()
-		}
+	// TODO(gri) re-investigate if we still need to do this in a delayed fashion
+	for _, typ := range p.interfaceList {
+		typ.Complete()
 	}
 
 	// record all referenced packages as imports
@@ -499,6 +494,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		}
 
 		t := types.NewInterface(p.methodList(parent), embeddeds)
+		p.interfaceList = append(p.interfaceList, t)
 		if p.trackAllTypes {
 			p.typList[n] = t
 		}
