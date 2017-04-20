@@ -14,31 +14,31 @@ var _ = objabi.GOROOT // in case not otherwise used
 func rewriteValuedec(v *Value) bool {
 	switch v.Op {
 	case OpComplexImag:
-		return rewriteValuedec_OpComplexImag(v)
+		return rewriteValuedec_OpComplexImag_0(v)
 	case OpComplexReal:
-		return rewriteValuedec_OpComplexReal(v)
+		return rewriteValuedec_OpComplexReal_0(v)
 	case OpIData:
-		return rewriteValuedec_OpIData(v)
+		return rewriteValuedec_OpIData_0(v)
 	case OpITab:
-		return rewriteValuedec_OpITab(v)
+		return rewriteValuedec_OpITab_0(v)
 	case OpLoad:
-		return rewriteValuedec_OpLoad(v)
+		return rewriteValuedec_OpLoad_0(v)
 	case OpSliceCap:
-		return rewriteValuedec_OpSliceCap(v)
+		return rewriteValuedec_OpSliceCap_0(v)
 	case OpSliceLen:
-		return rewriteValuedec_OpSliceLen(v)
+		return rewriteValuedec_OpSliceLen_0(v)
 	case OpSlicePtr:
-		return rewriteValuedec_OpSlicePtr(v)
+		return rewriteValuedec_OpSlicePtr_0(v)
 	case OpStore:
-		return rewriteValuedec_OpStore(v)
+		return rewriteValuedec_OpStore_0(v)
 	case OpStringLen:
-		return rewriteValuedec_OpStringLen(v)
+		return rewriteValuedec_OpStringLen_0(v)
 	case OpStringPtr:
-		return rewriteValuedec_OpStringPtr(v)
+		return rewriteValuedec_OpStringPtr_0(v)
 	}
 	return false
 }
-func rewriteValuedec_OpComplexImag(v *Value) bool {
+func rewriteValuedec_OpComplexImag_0(v *Value) bool {
 	// match: (ComplexImag (ComplexMake _ imag))
 	// cond:
 	// result: imag
@@ -55,7 +55,7 @@ func rewriteValuedec_OpComplexImag(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpComplexReal(v *Value) bool {
+func rewriteValuedec_OpComplexReal_0(v *Value) bool {
 	// match: (ComplexReal (ComplexMake real _))
 	// cond:
 	// result: real
@@ -72,7 +72,7 @@ func rewriteValuedec_OpComplexReal(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpIData(v *Value) bool {
+func rewriteValuedec_OpIData_0(v *Value) bool {
 	// match: (IData (IMake _ data))
 	// cond:
 	// result: data
@@ -89,7 +89,7 @@ func rewriteValuedec_OpIData(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpITab(v *Value) bool {
+func rewriteValuedec_OpITab_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (ITab (IMake itab _))
@@ -108,7 +108,7 @@ func rewriteValuedec_OpITab(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpLoad(v *Value) bool {
+func rewriteValuedec_OpLoad_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	config := b.Func.Config
@@ -244,7 +244,7 @@ func rewriteValuedec_OpLoad(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpSliceCap(v *Value) bool {
+func rewriteValuedec_OpSliceCap_0(v *Value) bool {
 	// match: (SliceCap (SliceMake _ _ cap))
 	// cond:
 	// result: cap
@@ -261,7 +261,7 @@ func rewriteValuedec_OpSliceCap(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpSliceLen(v *Value) bool {
+func rewriteValuedec_OpSliceLen_0(v *Value) bool {
 	// match: (SliceLen (SliceMake _ len _))
 	// cond:
 	// result: len
@@ -278,7 +278,7 @@ func rewriteValuedec_OpSliceLen(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpSlicePtr(v *Value) bool {
+func rewriteValuedec_OpSlicePtr_0(v *Value) bool {
 	// match: (SlicePtr (SliceMake ptr _ _))
 	// cond:
 	// result: ptr
@@ -295,7 +295,7 @@ func rewriteValuedec_OpSlicePtr(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStore(v *Value) bool {
+func rewriteValuedec_OpStore_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	config := b.Func.Config
@@ -456,7 +456,7 @@ func rewriteValuedec_OpStore(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStringLen(v *Value) bool {
+func rewriteValuedec_OpStringLen_0(v *Value) bool {
 	// match: (StringLen (StringMake _ len))
 	// cond:
 	// result: len
@@ -473,7 +473,7 @@ func rewriteValuedec_OpStringLen(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStringPtr(v *Value) bool {
+func rewriteValuedec_OpStringPtr_0(v *Value) bool {
 	// match: (StringPtr (StringMake ptr _))
 	// cond:
 	// result: ptr
