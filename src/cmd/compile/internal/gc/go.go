@@ -230,8 +230,9 @@ type Arch struct {
 	MAXWIDTH int64
 	Use387   bool // should 386 backend use 387 FP instructions instead of sse2.
 
-	Defframe func(*Progs, *Node, int64)
-	Ginsnop  func(*Progs)
+	PadFrame  func(int64) int64
+	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+	Ginsnop   func(*Progs)
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
