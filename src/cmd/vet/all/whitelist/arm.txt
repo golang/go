@@ -19,6 +19,7 @@ runtime/duff_arm.s: [arm] duffcopy: function duffcopy missing Go declaration
 runtime/tls_arm.s: [arm] save_g: function save_g missing Go declaration
 runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
 runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
+runtime/vlop_arm.s: [arm] udiv: function udiv missing Go declaration
 
 // Clearer using FP than SP, but that requires named offsets.
 runtime/asm_arm.s: [arm] rt0_go: use of 4(R13) points beyond argument frame

@@ -270,5 +270,6 @@ var (
 	writeBarrier,
 	writebarrierptr,
 	typedmemmove,
-	typedmemclr *obj.LSym
+	typedmemclr,
+	Udiv *obj.LSym
 )

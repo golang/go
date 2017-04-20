@@ -8151,10 +8151,8 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "CALLudiv",
-		auxType:      auxSymOff,
 		argLen:       2,
 		clobberFlags: true,
-		symEffect:    SymNone,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2}, // R1
