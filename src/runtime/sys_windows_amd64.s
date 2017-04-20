@@ -474,6 +474,8 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 #define time_hi2 8
 
 TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+	CMPB	runtime·useQPCTime(SB), $0
+	JNE	useQPC
 	MOVQ	$_INTERRUPT_TIME, DI
 loop:
 	MOVL	time_hi1(DI), AX
@@ -487,8 +489,13 @@ loop:
 	SUBQ	runtime·startNano(SB), CX
 	MOVQ	CX, ret+0(FP)
 	RET
+useQPC:
+	JMP	runtime·nanotimeQPC(SB)
+	RET
 
 TEXT time·now(SB),NOSPLIT,$0-24
+	CMPB	runtime·useQPCTime(SB), $0
+	JNE	useQPC
 	MOVQ	$_INTERRUPT_TIME, DI
 loop:
 	MOVL	time_hi1(DI), AX
@@ -528,4 +535,7 @@ wall:
 	IMULQ	$1000000000, DX
 	SUBQ	DX, CX
 	MOVL	CX, nsec+8(FP)
+	RET
+useQPC:
+	JMP	runtime·nowQPC(SB)
 	RET
