@@ -308,9 +308,8 @@ const (
 
 // An LSym is the sort of symbol that is written to an object file.
 type LSym struct {
-	Name    string
-	Type    objabi.SymKind
-	Version int16
+	Name string
+	Type objabi.SymKind
 	Attribute
 
 	RefIdx int // Index of this symbol in the symbol reference list.
@@ -347,6 +346,7 @@ const (
 	AttrNoFrame
 	AttrSeenGlobl
 	AttrOnList
+	AttrStatic
 
 	// MakeTypelink means that the type should have an entry in the typelink table.
 	AttrMakeTypelink
@@ -380,6 +380,7 @@ func (a Attribute) Local() bool         { return a&AttrLocal != 0 }
 func (a Attribute) Wrapper() bool       { return a&AttrWrapper != 0 }
 func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
 func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
+func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -405,6 +406,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrWrapper, s: "WRAPPER"},
 	{bit: AttrNeedCtxt, s: "NEEDCTXT"},
 	{bit: AttrNoFrame, s: "NOFRAME"},
+	{bit: AttrStatic, s: "STATIC"},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.
@@ -480,8 +482,8 @@ type Link struct {
 	Flag_optimize bool
 	Bso           *bufio.Writer
 	Pathname      string
-	hash          map[string]*LSym // name -> sym mapping for version == 0
-	vhash         map[string]*LSym // name -> sym mapping for version == 1
+	hash          map[string]*LSym // name -> sym mapping
+	statichash    map[string]*LSym // name -> sym mapping for static syms
 	PosTable      src.PosTable
 	InlTree       InlTree // global inlining tree used by gc/inl.go
 	Imports       []string

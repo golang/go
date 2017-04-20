@@ -66,7 +66,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			if objabi.GOARM < 7 {
 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
 				if progedit_tlsfallback == nil {
-					progedit_tlsfallback = ctxt.Lookup("runtime.read_tls_fallback", 0)
+					progedit_tlsfallback = ctxt.Lookup("runtime.read_tls_fallback")
 				}
 
 				// MOVW	LR, R11
@@ -136,9 +136,9 @@ func (c *ctxt5) rewriteToUseGot(p *obj.Prog) {
 		//     CALL (R9)
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = c.ctxt.Lookup("runtime.duffzero", 0)
+			sym = c.ctxt.Lookup("runtime.duffzero")
 		} else {
-			sym = c.ctxt.Lookup("runtime.duffcopy", 0)
+			sym = c.ctxt.Lookup("runtime.duffcopy")
 		}
 		offset := p.To.Offset
 		p.As = AMOVW
@@ -637,7 +637,7 @@ func (c *ctxt5) softfloat() {
 		return
 	}
 
-	symsfloat := c.ctxt.Lookup("_sfloat", 0)
+	symsfloat := c.ctxt.Lookup("_sfloat")
 
 	wasfloat := 0
 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
@@ -846,7 +846,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	case !c.cursym.Func.Text.From.Sym.NeedCtxt():
 		morestack = "runtime.morestack_noctxt"
 	}
-	call.To.Sym = c.ctxt.Lookup(morestack, 0)
+	call.To.Sym = c.ctxt.Lookup(morestack)
 
 	// B start
 	b := obj.Appendp(call, c.newprog)

@@ -208,7 +208,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	case !c.cursym.Func.Text.From.Sym.NeedCtxt():
 		morestack = "runtime.morestack_noctxt"
 	}
-	call.To.Sym = c.ctxt.Lookup(morestack, 0)
+	call.To.Sym = c.ctxt.Lookup(morestack)
 
 	// B	start
 	jmp := obj.Appendp(call, c.newprog)
@@ -333,9 +333,9 @@ func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
 		//     CALL REGTMP
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = c.ctxt.Lookup("runtime.duffzero", 0)
+			sym = c.ctxt.Lookup("runtime.duffzero")
 		} else {
-			sym = c.ctxt.Lookup("runtime.duffcopy", 0)
+			sym = c.ctxt.Lookup("runtime.duffcopy")
 		}
 		offset := p.To.Offset
 		p.As = AMOVD

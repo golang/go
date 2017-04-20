@@ -447,7 +447,7 @@ func dimportpath(p *types.Pkg) {
 		str = p.Path
 	}
 
-	s := Ctxt.Lookup("type..importpath."+p.Prefix+".", 0)
+	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
 	ot := dnameData(s, 0, str, "", nil, false)
 	ggloblLSym(s, int32(ot), obj.DUPOK|obj.RODATA)
 	p.Pathsym = s
@@ -468,7 +468,7 @@ func dgopkgpathLSym(s *obj.LSym, ot int, pkg *types.Pkg) int {
 		// type..importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := Ctxt.Lookup(`type..importpath."".`, 0)
+		ns := Ctxt.Lookup(`type..importpath."".`)
 		return dsymptrLSym(s, ot, ns, 0)
 	}
 
@@ -487,7 +487,7 @@ func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *types.Pkg) int {
 		// type..importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := Ctxt.Lookup(`type..importpath."".`, 0)
+		ns := Ctxt.Lookup(`type..importpath."".`)
 		return dsymptrOffLSym(s, ot, ns, 0)
 	}
 
@@ -591,7 +591,7 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
 		sname = fmt.Sprintf(`%s"".%d`, sname, dnameCount)
 		dnameCount++
 	}
-	s := Ctxt.Lookup(sname, 0)
+	s := Ctxt.Lookup(sname)
 	if len(s.P) > 0 {
 		return s
 	}
@@ -1478,7 +1478,7 @@ func dumptypestructs() {
 	// process ptabs
 	if localpkg.Name == "main" && len(ptabs) > 0 {
 		ot := 0
-		s := Ctxt.Lookup("go.plugin.tabs", 0)
+		s := Ctxt.Lookup("go.plugin.tabs")
 		for _, p := range ptabs {
 			// Dump ptab symbol into go.pluginsym package.
 			//
@@ -1493,7 +1493,7 @@ func dumptypestructs() {
 		ggloblLSym(s, int32(ot), int16(obj.RODATA))
 
 		ot = 0
-		s = Ctxt.Lookup("go.plugin.exports", 0)
+		s = Ctxt.Lookup("go.plugin.exports")
 		for _, p := range ptabs {
 			ot = dsymptrLSym(s, ot, Linksym(p.s), 0)
 		}

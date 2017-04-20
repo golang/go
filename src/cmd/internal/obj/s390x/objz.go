@@ -682,11 +682,11 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 	p.As = ABL
 	p.To.Type = obj.TYPE_BRANCH
 	if c.cursym.CFunc() {
-		p.To.Sym = c.ctxt.Lookup("runtime.morestackc", 0)
+		p.To.Sym = c.ctxt.Lookup("runtime.morestackc")
 	} else if !c.cursym.Func.Text.From.Sym.NeedCtxt() {
-		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt", 0)
+		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt")
 	} else {
-		p.To.Sym = c.ctxt.Lookup("runtime.morestack", 0)
+		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
 	}
 
 	// BR	start

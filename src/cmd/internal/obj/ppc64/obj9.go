@@ -119,9 +119,9 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
 		//     BL (CTR)
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = c.ctxt.Lookup("runtime.duffzero", 0)
+			sym = c.ctxt.Lookup("runtime.duffzero")
 		} else {
-			sym = c.ctxt.Lookup("runtime.duffcopy", 0)
+			sym = c.ctxt.Lookup("runtime.duffcopy")
 		}
 		offset := p.To.Offset
 		p.As = AMOVD
@@ -489,7 +489,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				rel := obj.Addrel(c.cursym)
 				rel.Off = 0
 				rel.Siz = 8
-				rel.Sym = c.ctxt.Lookup(".TOC.", 0)
+				rel.Sym = c.ctxt.Lookup(".TOC.")
 				rel.Type = objabi.R_ADDRPOWER_PCREL
 			}
 
@@ -950,11 +950,11 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 	var morestacksym *obj.LSym
 	if c.cursym.CFunc() {
-		morestacksym = c.ctxt.Lookup("runtime.morestackc", 0)
+		morestacksym = c.ctxt.Lookup("runtime.morestackc")
 	} else if !c.cursym.Func.Text.From.Sym.NeedCtxt() {
-		morestacksym = c.ctxt.Lookup("runtime.morestack_noctxt", 0)
+		morestacksym = c.ctxt.Lookup("runtime.morestack_noctxt")
 	} else {
-		morestacksym = c.ctxt.Lookup("runtime.morestack", 0)
+		morestacksym = c.ctxt.Lookup("runtime.morestack")
 	}
 
 	if c.ctxt.Flag_shared {
