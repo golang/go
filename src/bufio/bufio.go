@@ -513,7 +513,7 @@ func (b *Reader) writeBuf(w io.Writer) (int64, error) {
 
 // Writer implements buffering for an io.Writer object.
 // If an error occurs writing to a Writer, no more data will be
-// accepted and all subsequent writes will return the error.
+// accepted and all subsequent writes, and Flush, will return the error.
 // After all data has been written, the client should call the
 // Flush method to guarantee all data has been forwarded to
 // the underlying io.Writer.
