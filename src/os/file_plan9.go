@@ -35,7 +35,9 @@ func (f *File) Fd() uintptr {
 	return uintptr(f.fd)
 }
 
-// NewFile returns a new File with the given file descriptor and name.
+// NewFile returns a new File with the given file descriptor and
+// name. The returned value will be nil if fd is not a valid file
+// descriptor.
 func NewFile(fd uintptr, name string) *File {
 	fdi := int(fd)
 	if fdi < 0 {
