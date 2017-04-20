@@ -1833,7 +1833,7 @@ for a min function that chooses the least of a list of integers:
 </p>
 <pre>
 func Min(a ...int) int {
-    min := int(^uint(0) >> 1)  // largest int
+    min := int(^uint(0) &gt;&gt; 1)  // largest int
     for _, i := range a {
         if i &lt; min {
             min = i
