@@ -17355,12 +17355,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagEQ {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (EQ (FlagLT_ULT) yes no)
@@ -17371,13 +17367,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (EQ (FlagLT_UGT) yes no)
@@ -17388,13 +17380,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (EQ (FlagGT_ULT) yes no)
@@ -17405,13 +17393,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (EQ (FlagGT_UGT) yes no)
@@ -17422,13 +17406,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (EQ (InvertFlags cmp) yes no)
@@ -17440,12 +17420,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cmp := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMEQ
 			b.SetControl(cmp)
-			_ = yes
-			_ = no
 			return true
 		}
 	case BlockARMGE:
@@ -17457,12 +17433,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagEQ {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (GE (FlagLT_ULT) yes no)
@@ -17473,13 +17445,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (GE (FlagLT_UGT) yes no)
@@ -17490,13 +17458,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (GE (FlagGT_ULT) yes no)
@@ -17507,12 +17471,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (GE (FlagGT_UGT) yes no)
@@ -17523,12 +17483,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (GE (InvertFlags cmp) yes no)
@@ -17540,12 +17496,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cmp := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMLE
 			b.SetControl(cmp)
-			_ = yes
-			_ = no
 			return true
 		}
 	case BlockARMGT:
@@ -17557,13 +17509,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagEQ {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (GT (FlagLT_ULT) yes no)
@@ -17574,13 +17522,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (GT (FlagLT_UGT) yes no)
@@ -17591,13 +17535,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (GT (FlagGT_ULT) yes no)
@@ -17608,12 +17548,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (GT (FlagGT_UGT) yes no)
@@ -17624,12 +17560,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (GT (InvertFlags cmp) yes no)
@@ -17641,12 +17573,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cmp := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMLT
 			b.SetControl(cmp)
-			_ = yes
-			_ = no
 			return true
 		}
 	case BlockIf:
@@ -17659,12 +17587,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMEQ
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (If (NotEqual cc) yes no)
@@ -17676,12 +17600,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMNE
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (If (LessThan cc) yes no)
@@ -17693,12 +17613,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMLT
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (If (LessThanU cc) yes no)
@@ -17710,12 +17626,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMULT
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (If (LessEqual cc) yes no)
@@ -17727,12 +17639,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMLE
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (If (LessEqualU cc) yes no)
@@ -17744,12 +17652,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMULE
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (If (GreaterThan cc) yes no)
@@ -17761,12 +17665,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMGT
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (If (GreaterThanU cc) yes no)
@@ -17778,12 +17678,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMUGT
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (If (GreaterEqual cc) yes no)
@@ -17795,12 +17691,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMGE
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (If (GreaterEqualU cc) yes no)
@@ -17812,12 +17704,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMUGE
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (If cond yes no)
@@ -17827,15 +17715,11 @@ func rewriteBlockARM(b *Block) bool {
 			v := b.Control
 			_ = v
 			cond := b.Control
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMNE
 			v0 := b.NewValue0(v.Pos, OpARMCMPconst, TypeFlags)
 			v0.AuxInt = 0
 			v0.AddArg(cond)
 			b.SetControl(v0)
-			_ = yes
-			_ = no
 			return true
 		}
 	case BlockARMLE:
@@ -17847,12 +17731,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagEQ {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (LE (FlagLT_ULT) yes no)
@@ -17863,12 +17743,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (LE (FlagLT_UGT) yes no)
@@ -17879,12 +17755,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (LE (FlagGT_ULT) yes no)
@@ -17895,13 +17767,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (LE (FlagGT_UGT) yes no)
@@ -17912,13 +17780,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (LE (InvertFlags cmp) yes no)
@@ -17930,12 +17794,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cmp := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMGE
 			b.SetControl(cmp)
-			_ = yes
-			_ = no
 			return true
 		}
 	case BlockARMLT:
@@ -17947,13 +17807,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagEQ {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (LT (FlagLT_ULT) yes no)
@@ -17964,12 +17820,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (LT (FlagLT_UGT) yes no)
@@ -17980,12 +17832,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (LT (FlagGT_ULT) yes no)
@@ -17996,13 +17844,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (LT (FlagGT_UGT) yes no)
@@ -18013,13 +17857,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (LT (InvertFlags cmp) yes no)
@@ -18031,12 +17871,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cmp := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMGT
 			b.SetControl(cmp)
-			_ = yes
-			_ = no
 			return true
 		}
 	case BlockARMNE:
@@ -18056,12 +17892,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMEQ
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (CMPconst [0] (NotEqual cc)) yes no)
@@ -18080,12 +17912,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMNE
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (CMPconst [0] (LessThan cc)) yes no)
@@ -18104,12 +17932,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMLT
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (CMPconst [0] (LessThanU cc)) yes no)
@@ -18128,12 +17952,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMULT
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (CMPconst [0] (LessEqual cc)) yes no)
@@ -18152,12 +17972,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMLE
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (CMPconst [0] (LessEqualU cc)) yes no)
@@ -18176,12 +17992,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMULE
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (CMPconst [0] (GreaterThan cc)) yes no)
@@ -18200,12 +18012,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMGT
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (CMPconst [0] (GreaterThanU cc)) yes no)
@@ -18224,12 +18032,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMUGT
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (CMPconst [0] (GreaterEqual cc)) yes no)
@@ -18248,12 +18052,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMGE
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (CMPconst [0] (GreaterEqualU cc)) yes no)
@@ -18272,12 +18072,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cc := v_0.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMUGE
 			b.SetControl(cc)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (FlagEQ) yes no)
@@ -18288,13 +18084,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagEQ {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (NE (FlagLT_ULT) yes no)
@@ -18305,12 +18097,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (FlagLT_UGT) yes no)
@@ -18321,12 +18109,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (FlagGT_ULT) yes no)
@@ -18337,12 +18121,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (FlagGT_UGT) yes no)
@@ -18353,12 +18133,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (NE (InvertFlags cmp) yes no)
@@ -18370,12 +18146,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cmp := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMNE
 			b.SetControl(cmp)
-			_ = yes
-			_ = no
 			return true
 		}
 	case BlockARMUGE:
@@ -18387,12 +18159,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagEQ {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (UGE (FlagLT_ULT) yes no)
@@ -18403,13 +18171,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (UGE (FlagLT_UGT) yes no)
@@ -18420,12 +18184,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (UGE (FlagGT_ULT) yes no)
@@ -18436,13 +18196,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (UGE (FlagGT_UGT) yes no)
@@ -18453,12 +18209,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (UGE (InvertFlags cmp) yes no)
@@ -18470,12 +18222,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cmp := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMULE
 			b.SetControl(cmp)
-			_ = yes
-			_ = no
 			return true
 		}
 	case BlockARMUGT:
@@ -18487,13 +18235,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagEQ {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (UGT (FlagLT_ULT) yes no)
@@ -18504,13 +18248,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (UGT (FlagLT_UGT) yes no)
@@ -18521,12 +18261,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (UGT (FlagGT_ULT) yes no)
@@ -18537,13 +18273,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (UGT (FlagGT_UGT) yes no)
@@ -18554,12 +18286,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (UGT (InvertFlags cmp) yes no)
@@ -18571,12 +18299,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cmp := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMULT
 			b.SetControl(cmp)
-			_ = yes
-			_ = no
 			return true
 		}
 	case BlockARMULE:
@@ -18588,12 +18312,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagEQ {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (ULE (FlagLT_ULT) yes no)
@@ -18604,12 +18324,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (ULE (FlagLT_UGT) yes no)
@@ -18620,13 +18336,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (ULE (FlagGT_ULT) yes no)
@@ -18637,12 +18349,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (ULE (FlagGT_UGT) yes no)
@@ -18653,13 +18361,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (ULE (InvertFlags cmp) yes no)
@@ -18671,12 +18375,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cmp := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMUGE
 			b.SetControl(cmp)
-			_ = yes
-			_ = no
 			return true
 		}
 	case BlockARMULT:
@@ -18688,13 +18388,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagEQ {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (ULT (FlagLT_ULT) yes no)
@@ -18705,12 +18401,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (ULT (FlagLT_UGT) yes no)
@@ -18721,13 +18413,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagLT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (ULT (FlagGT_ULT) yes no)
@@ -18738,12 +18426,8 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_ULT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			_ = yes
-			_ = no
 			return true
 		}
 		// match: (ULT (FlagGT_UGT) yes no)
@@ -18754,13 +18438,9 @@ func rewriteBlockARM(b *Block) bool {
 			if v.Op != OpARMFlagGT_UGT {
 				break
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.swapSuccessors()
-			_ = no
-			_ = yes
 			return true
 		}
 		// match: (ULT (InvertFlags cmp) yes no)
@@ -18772,12 +18452,8 @@ func rewriteBlockARM(b *Block) bool {
 				break
 			}
 			cmp := v.Args[0]
-			yes := b.Succs[0]
-			no := b.Succs[1]
 			b.Kind = BlockARMUGT
 			b.SetControl(cmp)
-			_ = yes
-			_ = no
 			return true
 		}
 	}
