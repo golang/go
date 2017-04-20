@@ -14,563 +14,563 @@ var _ = objabi.GOROOT // in case not otherwise used
 func rewriteValueMIPS64(v *Value) bool {
 	switch v.Op {
 	case OpAdd16:
-		return rewriteValueMIPS64_OpAdd16(v)
+		return rewriteValueMIPS64_OpAdd16_0(v)
 	case OpAdd32:
-		return rewriteValueMIPS64_OpAdd32(v)
+		return rewriteValueMIPS64_OpAdd32_0(v)
 	case OpAdd32F:
-		return rewriteValueMIPS64_OpAdd32F(v)
+		return rewriteValueMIPS64_OpAdd32F_0(v)
 	case OpAdd64:
-		return rewriteValueMIPS64_OpAdd64(v)
+		return rewriteValueMIPS64_OpAdd64_0(v)
 	case OpAdd64F:
-		return rewriteValueMIPS64_OpAdd64F(v)
+		return rewriteValueMIPS64_OpAdd64F_0(v)
 	case OpAdd8:
-		return rewriteValueMIPS64_OpAdd8(v)
+		return rewriteValueMIPS64_OpAdd8_0(v)
 	case OpAddPtr:
-		return rewriteValueMIPS64_OpAddPtr(v)
+		return rewriteValueMIPS64_OpAddPtr_0(v)
 	case OpAddr:
-		return rewriteValueMIPS64_OpAddr(v)
+		return rewriteValueMIPS64_OpAddr_0(v)
 	case OpAnd16:
-		return rewriteValueMIPS64_OpAnd16(v)
+		return rewriteValueMIPS64_OpAnd16_0(v)
 	case OpAnd32:
-		return rewriteValueMIPS64_OpAnd32(v)
+		return rewriteValueMIPS64_OpAnd32_0(v)
 	case OpAnd64:
-		return rewriteValueMIPS64_OpAnd64(v)
+		return rewriteValueMIPS64_OpAnd64_0(v)
 	case OpAnd8:
-		return rewriteValueMIPS64_OpAnd8(v)
+		return rewriteValueMIPS64_OpAnd8_0(v)
 	case OpAndB:
-		return rewriteValueMIPS64_OpAndB(v)
+		return rewriteValueMIPS64_OpAndB_0(v)
 	case OpAvg64u:
-		return rewriteValueMIPS64_OpAvg64u(v)
+		return rewriteValueMIPS64_OpAvg64u_0(v)
 	case OpClosureCall:
-		return rewriteValueMIPS64_OpClosureCall(v)
+		return rewriteValueMIPS64_OpClosureCall_0(v)
 	case OpCom16:
-		return rewriteValueMIPS64_OpCom16(v)
+		return rewriteValueMIPS64_OpCom16_0(v)
 	case OpCom32:
-		return rewriteValueMIPS64_OpCom32(v)
+		return rewriteValueMIPS64_OpCom32_0(v)
 	case OpCom64:
-		return rewriteValueMIPS64_OpCom64(v)
+		return rewriteValueMIPS64_OpCom64_0(v)
 	case OpCom8:
-		return rewriteValueMIPS64_OpCom8(v)
+		return rewriteValueMIPS64_OpCom8_0(v)
 	case OpConst16:
-		return rewriteValueMIPS64_OpConst16(v)
+		return rewriteValueMIPS64_OpConst16_0(v)
 	case OpConst32:
-		return rewriteValueMIPS64_OpConst32(v)
+		return rewriteValueMIPS64_OpConst32_0(v)
 	case OpConst32F:
-		return rewriteValueMIPS64_OpConst32F(v)
+		return rewriteValueMIPS64_OpConst32F_0(v)
 	case OpConst64:
-		return rewriteValueMIPS64_OpConst64(v)
+		return rewriteValueMIPS64_OpConst64_0(v)
 	case OpConst64F:
-		return rewriteValueMIPS64_OpConst64F(v)
+		return rewriteValueMIPS64_OpConst64F_0(v)
 	case OpConst8:
-		return rewriteValueMIPS64_OpConst8(v)
+		return rewriteValueMIPS64_OpConst8_0(v)
 	case OpConstBool:
-		return rewriteValueMIPS64_OpConstBool(v)
+		return rewriteValueMIPS64_OpConstBool_0(v)
 	case OpConstNil:
-		return rewriteValueMIPS64_OpConstNil(v)
+		return rewriteValueMIPS64_OpConstNil_0(v)
 	case OpConvert:
-		return rewriteValueMIPS64_OpConvert(v)
+		return rewriteValueMIPS64_OpConvert_0(v)
 	case OpCvt32Fto32:
-		return rewriteValueMIPS64_OpCvt32Fto32(v)
+		return rewriteValueMIPS64_OpCvt32Fto32_0(v)
 	case OpCvt32Fto64:
-		return rewriteValueMIPS64_OpCvt32Fto64(v)
+		return rewriteValueMIPS64_OpCvt32Fto64_0(v)
 	case OpCvt32Fto64F:
-		return rewriteValueMIPS64_OpCvt32Fto64F(v)
+		return rewriteValueMIPS64_OpCvt32Fto64F_0(v)
 	case OpCvt32to32F:
-		return rewriteValueMIPS64_OpCvt32to32F(v)
+		return rewriteValueMIPS64_OpCvt32to32F_0(v)
 	case OpCvt32to64F:
-		return rewriteValueMIPS64_OpCvt32to64F(v)
+		return rewriteValueMIPS64_OpCvt32to64F_0(v)
 	case OpCvt64Fto32:
-		return rewriteValueMIPS64_OpCvt64Fto32(v)
+		return rewriteValueMIPS64_OpCvt64Fto32_0(v)
 	case OpCvt64Fto32F:
-		return rewriteValueMIPS64_OpCvt64Fto32F(v)
+		return rewriteValueMIPS64_OpCvt64Fto32F_0(v)
 	case OpCvt64Fto64:
-		return rewriteValueMIPS64_OpCvt64Fto64(v)
+		return rewriteValueMIPS64_OpCvt64Fto64_0(v)
 	case OpCvt64to32F:
-		return rewriteValueMIPS64_OpCvt64to32F(v)
+		return rewriteValueMIPS64_OpCvt64to32F_0(v)
 	case OpCvt64to64F:
-		return rewriteValueMIPS64_OpCvt64to64F(v)
+		return rewriteValueMIPS64_OpCvt64to64F_0(v)
 	case OpDiv16:
-		return rewriteValueMIPS64_OpDiv16(v)
+		return rewriteValueMIPS64_OpDiv16_0(v)
 	case OpDiv16u:
-		return rewriteValueMIPS64_OpDiv16u(v)
+		return rewriteValueMIPS64_OpDiv16u_0(v)
 	case OpDiv32:
-		return rewriteValueMIPS64_OpDiv32(v)
+		return rewriteValueMIPS64_OpDiv32_0(v)
 	case OpDiv32F:
-		return rewriteValueMIPS64_OpDiv32F(v)
+		return rewriteValueMIPS64_OpDiv32F_0(v)
 	case OpDiv32u:
-		return rewriteValueMIPS64_OpDiv32u(v)
+		return rewriteValueMIPS64_OpDiv32u_0(v)
 	case OpDiv64:
-		return rewriteValueMIPS64_OpDiv64(v)
+		return rewriteValueMIPS64_OpDiv64_0(v)
 	case OpDiv64F:
-		return rewriteValueMIPS64_OpDiv64F(v)
+		return rewriteValueMIPS64_OpDiv64F_0(v)
 	case OpDiv64u:
-		return rewriteValueMIPS64_OpDiv64u(v)
+		return rewriteValueMIPS64_OpDiv64u_0(v)
 	case OpDiv8:
-		return rewriteValueMIPS64_OpDiv8(v)
+		return rewriteValueMIPS64_OpDiv8_0(v)
 	case OpDiv8u:
-		return rewriteValueMIPS64_OpDiv8u(v)
+		return rewriteValueMIPS64_OpDiv8u_0(v)
 	case OpEq16:
-		return rewriteValueMIPS64_OpEq16(v)
+		return rewriteValueMIPS64_OpEq16_0(v)
 	case OpEq32:
-		return rewriteValueMIPS64_OpEq32(v)
+		return rewriteValueMIPS64_OpEq32_0(v)
 	case OpEq32F:
-		return rewriteValueMIPS64_OpEq32F(v)
+		return rewriteValueMIPS64_OpEq32F_0(v)
 	case OpEq64:
-		return rewriteValueMIPS64_OpEq64(v)
+		return rewriteValueMIPS64_OpEq64_0(v)
 	case OpEq64F:
-		return rewriteValueMIPS64_OpEq64F(v)
+		return rewriteValueMIPS64_OpEq64F_0(v)
 	case OpEq8:
-		return rewriteValueMIPS64_OpEq8(v)
+		return rewriteValueMIPS64_OpEq8_0(v)
 	case OpEqB:
-		return rewriteValueMIPS64_OpEqB(v)
+		return rewriteValueMIPS64_OpEqB_0(v)
 	case OpEqPtr:
-		return rewriteValueMIPS64_OpEqPtr(v)
+		return rewriteValueMIPS64_OpEqPtr_0(v)
 	case OpGeq16:
-		return rewriteValueMIPS64_OpGeq16(v)
+		return rewriteValueMIPS64_OpGeq16_0(v)
 	case OpGeq16U:
-		return rewriteValueMIPS64_OpGeq16U(v)
+		return rewriteValueMIPS64_OpGeq16U_0(v)
 	case OpGeq32:
-		return rewriteValueMIPS64_OpGeq32(v)
+		return rewriteValueMIPS64_OpGeq32_0(v)
 	case OpGeq32F:
-		return rewriteValueMIPS64_OpGeq32F(v)
+		return rewriteValueMIPS64_OpGeq32F_0(v)
 	case OpGeq32U:
-		return rewriteValueMIPS64_OpGeq32U(v)
+		return rewriteValueMIPS64_OpGeq32U_0(v)
 	case OpGeq64:
-		return rewriteValueMIPS64_OpGeq64(v)
+		return rewriteValueMIPS64_OpGeq64_0(v)
 	case OpGeq64F:
-		return rewriteValueMIPS64_OpGeq64F(v)
+		return rewriteValueMIPS64_OpGeq64F_0(v)
 	case OpGeq64U:
-		return rewriteValueMIPS64_OpGeq64U(v)
+		return rewriteValueMIPS64_OpGeq64U_0(v)
 	case OpGeq8:
-		return rewriteValueMIPS64_OpGeq8(v)
+		return rewriteValueMIPS64_OpGeq8_0(v)
 	case OpGeq8U:
-		return rewriteValueMIPS64_OpGeq8U(v)
+		return rewriteValueMIPS64_OpGeq8U_0(v)
 	case OpGetClosurePtr:
-		return rewriteValueMIPS64_OpGetClosurePtr(v)
+		return rewriteValueMIPS64_OpGetClosurePtr_0(v)
 	case OpGreater16:
-		return rewriteValueMIPS64_OpGreater16(v)
+		return rewriteValueMIPS64_OpGreater16_0(v)
 	case OpGreater16U:
-		return rewriteValueMIPS64_OpGreater16U(v)
+		return rewriteValueMIPS64_OpGreater16U_0(v)
 	case OpGreater32:
-		return rewriteValueMIPS64_OpGreater32(v)
+		return rewriteValueMIPS64_OpGreater32_0(v)
 	case OpGreater32F:
-		return rewriteValueMIPS64_OpGreater32F(v)
+		return rewriteValueMIPS64_OpGreater32F_0(v)
 	case OpGreater32U:
-		return rewriteValueMIPS64_OpGreater32U(v)
+		return rewriteValueMIPS64_OpGreater32U_0(v)
 	case OpGreater64:
-		return rewriteValueMIPS64_OpGreater64(v)
+		return rewriteValueMIPS64_OpGreater64_0(v)
 	case OpGreater64F:
-		return rewriteValueMIPS64_OpGreater64F(v)
+		return rewriteValueMIPS64_OpGreater64F_0(v)
 	case OpGreater64U:
-		return rewriteValueMIPS64_OpGreater64U(v)
+		return rewriteValueMIPS64_OpGreater64U_0(v)
 	case OpGreater8:
-		return rewriteValueMIPS64_OpGreater8(v)
+		return rewriteValueMIPS64_OpGreater8_0(v)
 	case OpGreater8U:
-		return rewriteValueMIPS64_OpGreater8U(v)
+		return rewriteValueMIPS64_OpGreater8U_0(v)
 	case OpHmul32:
-		return rewriteValueMIPS64_OpHmul32(v)
+		return rewriteValueMIPS64_OpHmul32_0(v)
 	case OpHmul32u:
-		return rewriteValueMIPS64_OpHmul32u(v)
+		return rewriteValueMIPS64_OpHmul32u_0(v)
 	case OpHmul64:
-		return rewriteValueMIPS64_OpHmul64(v)
+		return rewriteValueMIPS64_OpHmul64_0(v)
 	case OpHmul64u:
-		return rewriteValueMIPS64_OpHmul64u(v)
+		return rewriteValueMIPS64_OpHmul64u_0(v)
 	case OpInterCall:
-		return rewriteValueMIPS64_OpInterCall(v)
+		return rewriteValueMIPS64_OpInterCall_0(v)
 	case OpIsInBounds:
-		return rewriteValueMIPS64_OpIsInBounds(v)
+		return rewriteValueMIPS64_OpIsInBounds_0(v)
 	case OpIsNonNil:
-		return rewriteValueMIPS64_OpIsNonNil(v)
+		return rewriteValueMIPS64_OpIsNonNil_0(v)
 	case OpIsSliceInBounds:
-		return rewriteValueMIPS64_OpIsSliceInBounds(v)
+		return rewriteValueMIPS64_OpIsSliceInBounds_0(v)
 	case OpLeq16:
-		return rewriteValueMIPS64_OpLeq16(v)
+		return rewriteValueMIPS64_OpLeq16_0(v)
 	case OpLeq16U:
-		return rewriteValueMIPS64_OpLeq16U(v)
+		return rewriteValueMIPS64_OpLeq16U_0(v)
 	case OpLeq32:
-		return rewriteValueMIPS64_OpLeq32(v)
+		return rewriteValueMIPS64_OpLeq32_0(v)
 	case OpLeq32F:
-		return rewriteValueMIPS64_OpLeq32F(v)
+		return rewriteValueMIPS64_OpLeq32F_0(v)
 	case OpLeq32U:
-		return rewriteValueMIPS64_OpLeq32U(v)
+		return rewriteValueMIPS64_OpLeq32U_0(v)
 	case OpLeq64:
-		return rewriteValueMIPS64_OpLeq64(v)
+		return rewriteValueMIPS64_OpLeq64_0(v)
 	case OpLeq64F:
-		return rewriteValueMIPS64_OpLeq64F(v)
+		return rewriteValueMIPS64_OpLeq64F_0(v)
 	case OpLeq64U:
-		return rewriteValueMIPS64_OpLeq64U(v)
+		return rewriteValueMIPS64_OpLeq64U_0(v)
 	case OpLeq8:
-		return rewriteValueMIPS64_OpLeq8(v)
+		return rewriteValueMIPS64_OpLeq8_0(v)
 	case OpLeq8U:
-		return rewriteValueMIPS64_OpLeq8U(v)
+		return rewriteValueMIPS64_OpLeq8U_0(v)
 	case OpLess16:
-		return rewriteValueMIPS64_OpLess16(v)
+		return rewriteValueMIPS64_OpLess16_0(v)
 	case OpLess16U:
-		return rewriteValueMIPS64_OpLess16U(v)
+		return rewriteValueMIPS64_OpLess16U_0(v)
 	case OpLess32:
-		return rewriteValueMIPS64_OpLess32(v)
+		return rewriteValueMIPS64_OpLess32_0(v)
 	case OpLess32F:
-		return rewriteValueMIPS64_OpLess32F(v)
+		return rewriteValueMIPS64_OpLess32F_0(v)
 	case OpLess32U:
-		return rewriteValueMIPS64_OpLess32U(v)
+		return rewriteValueMIPS64_OpLess32U_0(v)
 	case OpLess64:
-		return rewriteValueMIPS64_OpLess64(v)
+		return rewriteValueMIPS64_OpLess64_0(v)
 	case OpLess64F:
-		return rewriteValueMIPS64_OpLess64F(v)
+		return rewriteValueMIPS64_OpLess64F_0(v)
 	case OpLess64U:
-		return rewriteValueMIPS64_OpLess64U(v)
+		return rewriteValueMIPS64_OpLess64U_0(v)
 	case OpLess8:
-		return rewriteValueMIPS64_OpLess8(v)
+		return rewriteValueMIPS64_OpLess8_0(v)
 	case OpLess8U:
-		return rewriteValueMIPS64_OpLess8U(v)
+		return rewriteValueMIPS64_OpLess8U_0(v)
 	case OpLoad:
-		return rewriteValueMIPS64_OpLoad(v)
+		return rewriteValueMIPS64_OpLoad_0(v)
 	case OpLsh16x16:
-		return rewriteValueMIPS64_OpLsh16x16(v)
+		return rewriteValueMIPS64_OpLsh16x16_0(v)
 	case OpLsh16x32:
-		return rewriteValueMIPS64_OpLsh16x32(v)
+		return rewriteValueMIPS64_OpLsh16x32_0(v)
 	case OpLsh16x64:
-		return rewriteValueMIPS64_OpLsh16x64(v)
+		return rewriteValueMIPS64_OpLsh16x64_0(v)
 	case OpLsh16x8:
-		return rewriteValueMIPS64_OpLsh16x8(v)
+		return rewriteValueMIPS64_OpLsh16x8_0(v)
 	case OpLsh32x16:
-		return rewriteValueMIPS64_OpLsh32x16(v)
+		return rewriteValueMIPS64_OpLsh32x16_0(v)
 	case OpLsh32x32:
-		return rewriteValueMIPS64_OpLsh32x32(v)
+		return rewriteValueMIPS64_OpLsh32x32_0(v)
 	case OpLsh32x64:
-		return rewriteValueMIPS64_OpLsh32x64(v)
+		return rewriteValueMIPS64_OpLsh32x64_0(v)
 	case OpLsh32x8:
-		return rewriteValueMIPS64_OpLsh32x8(v)
+		return rewriteValueMIPS64_OpLsh32x8_0(v)
 	case OpLsh64x16:
-		return rewriteValueMIPS64_OpLsh64x16(v)
+		return rewriteValueMIPS64_OpLsh64x16_0(v)
 	case OpLsh64x32:
-		return rewriteValueMIPS64_OpLsh64x32(v)
+		return rewriteValueMIPS64_OpLsh64x32_0(v)
 	case OpLsh64x64:
-		return rewriteValueMIPS64_OpLsh64x64(v)
+		return rewriteValueMIPS64_OpLsh64x64_0(v)
 	case OpLsh64x8:
-		return rewriteValueMIPS64_OpLsh64x8(v)
+		return rewriteValueMIPS64_OpLsh64x8_0(v)
 	case OpLsh8x16:
-		return rewriteValueMIPS64_OpLsh8x16(v)
+		return rewriteValueMIPS64_OpLsh8x16_0(v)
 	case OpLsh8x32:
-		return rewriteValueMIPS64_OpLsh8x32(v)
+		return rewriteValueMIPS64_OpLsh8x32_0(v)
 	case OpLsh8x64:
-		return rewriteValueMIPS64_OpLsh8x64(v)
+		return rewriteValueMIPS64_OpLsh8x64_0(v)
 	case OpLsh8x8:
-		return rewriteValueMIPS64_OpLsh8x8(v)
+		return rewriteValueMIPS64_OpLsh8x8_0(v)
 	case OpMIPS64ADDV:
-		return rewriteValueMIPS64_OpMIPS64ADDV(v)
+		return rewriteValueMIPS64_OpMIPS64ADDV_0(v)
 	case OpMIPS64ADDVconst:
-		return rewriteValueMIPS64_OpMIPS64ADDVconst(v)
+		return rewriteValueMIPS64_OpMIPS64ADDVconst_0(v)
 	case OpMIPS64AND:
-		return rewriteValueMIPS64_OpMIPS64AND(v)
+		return rewriteValueMIPS64_OpMIPS64AND_0(v)
 	case OpMIPS64ANDconst:
-		return rewriteValueMIPS64_OpMIPS64ANDconst(v)
+		return rewriteValueMIPS64_OpMIPS64ANDconst_0(v)
 	case OpMIPS64MOVBUload:
-		return rewriteValueMIPS64_OpMIPS64MOVBUload(v)
+		return rewriteValueMIPS64_OpMIPS64MOVBUload_0(v)
 	case OpMIPS64MOVBUreg:
-		return rewriteValueMIPS64_OpMIPS64MOVBUreg(v)
+		return rewriteValueMIPS64_OpMIPS64MOVBUreg_0(v)
 	case OpMIPS64MOVBload:
-		return rewriteValueMIPS64_OpMIPS64MOVBload(v)
+		return rewriteValueMIPS64_OpMIPS64MOVBload_0(v)
 	case OpMIPS64MOVBreg:
-		return rewriteValueMIPS64_OpMIPS64MOVBreg(v)
+		return rewriteValueMIPS64_OpMIPS64MOVBreg_0(v)
 	case OpMIPS64MOVBstore:
-		return rewriteValueMIPS64_OpMIPS64MOVBstore(v)
+		return rewriteValueMIPS64_OpMIPS64MOVBstore_0(v)
 	case OpMIPS64MOVBstorezero:
-		return rewriteValueMIPS64_OpMIPS64MOVBstorezero(v)
+		return rewriteValueMIPS64_OpMIPS64MOVBstorezero_0(v)
 	case OpMIPS64MOVDload:
-		return rewriteValueMIPS64_OpMIPS64MOVDload(v)
+		return rewriteValueMIPS64_OpMIPS64MOVDload_0(v)
 	case OpMIPS64MOVDstore:
-		return rewriteValueMIPS64_OpMIPS64MOVDstore(v)
+		return rewriteValueMIPS64_OpMIPS64MOVDstore_0(v)
 	case OpMIPS64MOVFload:
-		return rewriteValueMIPS64_OpMIPS64MOVFload(v)
+		return rewriteValueMIPS64_OpMIPS64MOVFload_0(v)
 	case OpMIPS64MOVFstore:
-		return rewriteValueMIPS64_OpMIPS64MOVFstore(v)
+		return rewriteValueMIPS64_OpMIPS64MOVFstore_0(v)
 	case OpMIPS64MOVHUload:
-		return rewriteValueMIPS64_OpMIPS64MOVHUload(v)
+		return rewriteValueMIPS64_OpMIPS64MOVHUload_0(v)
 	case OpMIPS64MOVHUreg:
-		return rewriteValueMIPS64_OpMIPS64MOVHUreg(v)
+		return rewriteValueMIPS64_OpMIPS64MOVHUreg_0(v)
 	case OpMIPS64MOVHload:
-		return rewriteValueMIPS64_OpMIPS64MOVHload(v)
+		return rewriteValueMIPS64_OpMIPS64MOVHload_0(v)
 	case OpMIPS64MOVHreg:
-		return rewriteValueMIPS64_OpMIPS64MOVHreg(v)
+		return rewriteValueMIPS64_OpMIPS64MOVHreg_0(v)
 	case OpMIPS64MOVHstore:
-		return rewriteValueMIPS64_OpMIPS64MOVHstore(v)
+		return rewriteValueMIPS64_OpMIPS64MOVHstore_0(v)
 	case OpMIPS64MOVHstorezero:
-		return rewriteValueMIPS64_OpMIPS64MOVHstorezero(v)
+		return rewriteValueMIPS64_OpMIPS64MOVHstorezero_0(v)
 	case OpMIPS64MOVVload:
-		return rewriteValueMIPS64_OpMIPS64MOVVload(v)
+		return rewriteValueMIPS64_OpMIPS64MOVVload_0(v)
 	case OpMIPS64MOVVreg:
-		return rewriteValueMIPS64_OpMIPS64MOVVreg(v)
+		return rewriteValueMIPS64_OpMIPS64MOVVreg_0(v)
 	case OpMIPS64MOVVstore:
-		return rewriteValueMIPS64_OpMIPS64MOVVstore(v)
+		return rewriteValueMIPS64_OpMIPS64MOVVstore_0(v)
 	case OpMIPS64MOVVstorezero:
-		return rewriteValueMIPS64_OpMIPS64MOVVstorezero(v)
+		return rewriteValueMIPS64_OpMIPS64MOVVstorezero_0(v)
 	case OpMIPS64MOVWUload:
-		return rewriteValueMIPS64_OpMIPS64MOVWUload(v)
+		return rewriteValueMIPS64_OpMIPS64MOVWUload_0(v)
 	case OpMIPS64MOVWUreg:
-		return rewriteValueMIPS64_OpMIPS64MOVWUreg(v)
+		return rewriteValueMIPS64_OpMIPS64MOVWUreg_0(v)
 	case OpMIPS64MOVWload:
-		return rewriteValueMIPS64_OpMIPS64MOVWload(v)
+		return rewriteValueMIPS64_OpMIPS64MOVWload_0(v)
 	case OpMIPS64MOVWreg:
-		return rewriteValueMIPS64_OpMIPS64MOVWreg(v)
+		return rewriteValueMIPS64_OpMIPS64MOVWreg_0(v) || rewriteValueMIPS64_OpMIPS64MOVWreg_10(v)
 	case OpMIPS64MOVWstore:
-		return rewriteValueMIPS64_OpMIPS64MOVWstore(v)
+		return rewriteValueMIPS64_OpMIPS64MOVWstore_0(v)
 	case OpMIPS64MOVWstorezero:
-		return rewriteValueMIPS64_OpMIPS64MOVWstorezero(v)
+		return rewriteValueMIPS64_OpMIPS64MOVWstorezero_0(v)
 	case OpMIPS64NEGV:
-		return rewriteValueMIPS64_OpMIPS64NEGV(v)
+		return rewriteValueMIPS64_OpMIPS64NEGV_0(v)
 	case OpMIPS64NOR:
-		return rewriteValueMIPS64_OpMIPS64NOR(v)
+		return rewriteValueMIPS64_OpMIPS64NOR_0(v)
 	case OpMIPS64NORconst:
-		return rewriteValueMIPS64_OpMIPS64NORconst(v)
+		return rewriteValueMIPS64_OpMIPS64NORconst_0(v)
 	case OpMIPS64OR:
-		return rewriteValueMIPS64_OpMIPS64OR(v)
+		return rewriteValueMIPS64_OpMIPS64OR_0(v)
 	case OpMIPS64ORconst:
-		return rewriteValueMIPS64_OpMIPS64ORconst(v)
+		return rewriteValueMIPS64_OpMIPS64ORconst_0(v)
 	case OpMIPS64SGT:
-		return rewriteValueMIPS64_OpMIPS64SGT(v)
+		return rewriteValueMIPS64_OpMIPS64SGT_0(v)
 	case OpMIPS64SGTU:
-		return rewriteValueMIPS64_OpMIPS64SGTU(v)
+		return rewriteValueMIPS64_OpMIPS64SGTU_0(v)
 	case OpMIPS64SGTUconst:
-		return rewriteValueMIPS64_OpMIPS64SGTUconst(v)
+		return rewriteValueMIPS64_OpMIPS64SGTUconst_0(v)
 	case OpMIPS64SGTconst:
-		return rewriteValueMIPS64_OpMIPS64SGTconst(v)
+		return rewriteValueMIPS64_OpMIPS64SGTconst_0(v) || rewriteValueMIPS64_OpMIPS64SGTconst_10(v)
 	case OpMIPS64SLLV:
-		return rewriteValueMIPS64_OpMIPS64SLLV(v)
+		return rewriteValueMIPS64_OpMIPS64SLLV_0(v)
 	case OpMIPS64SLLVconst:
-		return rewriteValueMIPS64_OpMIPS64SLLVconst(v)
+		return rewriteValueMIPS64_OpMIPS64SLLVconst_0(v)
 	case OpMIPS64SRAV:
-		return rewriteValueMIPS64_OpMIPS64SRAV(v)
+		return rewriteValueMIPS64_OpMIPS64SRAV_0(v)
 	case OpMIPS64SRAVconst:
-		return rewriteValueMIPS64_OpMIPS64SRAVconst(v)
+		return rewriteValueMIPS64_OpMIPS64SRAVconst_0(v)
 	case OpMIPS64SRLV:
-		return rewriteValueMIPS64_OpMIPS64SRLV(v)
+		return rewriteValueMIPS64_OpMIPS64SRLV_0(v)
 	case OpMIPS64SRLVconst:
-		return rewriteValueMIPS64_OpMIPS64SRLVconst(v)
+		return rewriteValueMIPS64_OpMIPS64SRLVconst_0(v)
 	case OpMIPS64SUBV:
-		return rewriteValueMIPS64_OpMIPS64SUBV(v)
+		return rewriteValueMIPS64_OpMIPS64SUBV_0(v)
 	case OpMIPS64SUBVconst:
-		return rewriteValueMIPS64_OpMIPS64SUBVconst(v)
+		return rewriteValueMIPS64_OpMIPS64SUBVconst_0(v)
 	case OpMIPS64XOR:
-		return rewriteValueMIPS64_OpMIPS64XOR(v)
+		return rewriteValueMIPS64_OpMIPS64XOR_0(v)
 	case OpMIPS64XORconst:
-		return rewriteValueMIPS64_OpMIPS64XORconst(v)
+		return rewriteValueMIPS64_OpMIPS64XORconst_0(v)
 	case OpMod16:
-		return rewriteValueMIPS64_OpMod16(v)
+		return rewriteValueMIPS64_OpMod16_0(v)
 	case OpMod16u:
-		return rewriteValueMIPS64_OpMod16u(v)
+		return rewriteValueMIPS64_OpMod16u_0(v)
 	case OpMod32:
-		return rewriteValueMIPS64_OpMod32(v)
+		return rewriteValueMIPS64_OpMod32_0(v)
 	case OpMod32u:
-		return rewriteValueMIPS64_OpMod32u(v)
+		return rewriteValueMIPS64_OpMod32u_0(v)
 	case OpMod64:
-		return rewriteValueMIPS64_OpMod64(v)
+		return rewriteValueMIPS64_OpMod64_0(v)
 	case OpMod64u:
-		return rewriteValueMIPS64_OpMod64u(v)
+		return rewriteValueMIPS64_OpMod64u_0(v)
 	case OpMod8:
-		return rewriteValueMIPS64_OpMod8(v)
+		return rewriteValueMIPS64_OpMod8_0(v)
 	case OpMod8u:
-		return rewriteValueMIPS64_OpMod8u(v)
+		return rewriteValueMIPS64_OpMod8u_0(v)
 	case OpMove:
-		return rewriteValueMIPS64_OpMove(v)
+		return rewriteValueMIPS64_OpMove_0(v) || rewriteValueMIPS64_OpMove_10(v)
 	case OpMul16:
-		return rewriteValueMIPS64_OpMul16(v)
+		return rewriteValueMIPS64_OpMul16_0(v)
 	case OpMul32:
-		return rewriteValueMIPS64_OpMul32(v)
+		return rewriteValueMIPS64_OpMul32_0(v)
 	case OpMul32F:
-		return rewriteValueMIPS64_OpMul32F(v)
+		return rewriteValueMIPS64_OpMul32F_0(v)
 	case OpMul64:
-		return rewriteValueMIPS64_OpMul64(v)
+		return rewriteValueMIPS64_OpMul64_0(v)
 	case OpMul64F:
-		return rewriteValueMIPS64_OpMul64F(v)
+		return rewriteValueMIPS64_OpMul64F_0(v)
 	case OpMul8:
-		return rewriteValueMIPS64_OpMul8(v)
+		return rewriteValueMIPS64_OpMul8_0(v)
 	case OpNeg16:
-		return rewriteValueMIPS64_OpNeg16(v)
+		return rewriteValueMIPS64_OpNeg16_0(v)
 	case OpNeg32:
-		return rewriteValueMIPS64_OpNeg32(v)
+		return rewriteValueMIPS64_OpNeg32_0(v)
 	case OpNeg32F:
-		return rewriteValueMIPS64_OpNeg32F(v)
+		return rewriteValueMIPS64_OpNeg32F_0(v)
 	case OpNeg64:
-		return rewriteValueMIPS64_OpNeg64(v)
+		return rewriteValueMIPS64_OpNeg64_0(v)
 	case OpNeg64F:
-		return rewriteValueMIPS64_OpNeg64F(v)
+		return rewriteValueMIPS64_OpNeg64F_0(v)
 	case OpNeg8:
-		return rewriteValueMIPS64_OpNeg8(v)
+		return rewriteValueMIPS64_OpNeg8_0(v)
 	case OpNeq16:
-		return rewriteValueMIPS64_OpNeq16(v)
+		return rewriteValueMIPS64_OpNeq16_0(v)
 	case OpNeq32:
-		return rewriteValueMIPS64_OpNeq32(v)
+		return rewriteValueMIPS64_OpNeq32_0(v)
 	case OpNeq32F:
-		return rewriteValueMIPS64_OpNeq32F(v)
+		return rewriteValueMIPS64_OpNeq32F_0(v)
 	case OpNeq64:
-		return rewriteValueMIPS64_OpNeq64(v)
+		return rewriteValueMIPS64_OpNeq64_0(v)
 	case OpNeq64F:
-		return rewriteValueMIPS64_OpNeq64F(v)
+		return rewriteValueMIPS64_OpNeq64F_0(v)
 	case OpNeq8:
-		return rewriteValueMIPS64_OpNeq8(v)
+		return rewriteValueMIPS64_OpNeq8_0(v)
 	case OpNeqB:
-		return rewriteValueMIPS64_OpNeqB(v)
+		return rewriteValueMIPS64_OpNeqB_0(v)
 	case OpNeqPtr:
-		return rewriteValueMIPS64_OpNeqPtr(v)
+		return rewriteValueMIPS64_OpNeqPtr_0(v)
 	case OpNilCheck:
-		return rewriteValueMIPS64_OpNilCheck(v)
+		return rewriteValueMIPS64_OpNilCheck_0(v)
 	case OpNot:
-		return rewriteValueMIPS64_OpNot(v)
+		return rewriteValueMIPS64_OpNot_0(v)
 	case OpOffPtr:
-		return rewriteValueMIPS64_OpOffPtr(v)
+		return rewriteValueMIPS64_OpOffPtr_0(v)
 	case OpOr16:
-		return rewriteValueMIPS64_OpOr16(v)
+		return rewriteValueMIPS64_OpOr16_0(v)
 	case OpOr32:
-		return rewriteValueMIPS64_OpOr32(v)
+		return rewriteValueMIPS64_OpOr32_0(v)
 	case OpOr64:
-		return rewriteValueMIPS64_OpOr64(v)
+		return rewriteValueMIPS64_OpOr64_0(v)
 	case OpOr8:
-		return rewriteValueMIPS64_OpOr8(v)
+		return rewriteValueMIPS64_OpOr8_0(v)
 	case OpOrB:
-		return rewriteValueMIPS64_OpOrB(v)
+		return rewriteValueMIPS64_OpOrB_0(v)
 	case OpRound32F:
-		return rewriteValueMIPS64_OpRound32F(v)
+		return rewriteValueMIPS64_OpRound32F_0(v)
 	case OpRound64F:
-		return rewriteValueMIPS64_OpRound64F(v)
+		return rewriteValueMIPS64_OpRound64F_0(v)
 	case OpRsh16Ux16:
-		return rewriteValueMIPS64_OpRsh16Ux16(v)
+		return rewriteValueMIPS64_OpRsh16Ux16_0(v)
 	case OpRsh16Ux32:
-		return rewriteValueMIPS64_OpRsh16Ux32(v)
+		return rewriteValueMIPS64_OpRsh16Ux32_0(v)
 	case OpRsh16Ux64:
-		return rewriteValueMIPS64_OpRsh16Ux64(v)
+		return rewriteValueMIPS64_OpRsh16Ux64_0(v)
 	case OpRsh16Ux8:
-		return rewriteValueMIPS64_OpRsh16Ux8(v)
+		return rewriteValueMIPS64_OpRsh16Ux8_0(v)
 	case OpRsh16x16:
-		return rewriteValueMIPS64_OpRsh16x16(v)
+		return rewriteValueMIPS64_OpRsh16x16_0(v)
 	case OpRsh16x32:
-		return rewriteValueMIPS64_OpRsh16x32(v)
+		return rewriteValueMIPS64_OpRsh16x32_0(v)
 	case OpRsh16x64:
-		return rewriteValueMIPS64_OpRsh16x64(v)
+		return rewriteValueMIPS64_OpRsh16x64_0(v)
 	case OpRsh16x8:
-		return rewriteValueMIPS64_OpRsh16x8(v)
+		return rewriteValueMIPS64_OpRsh16x8_0(v)
 	case OpRsh32Ux16:
-		return rewriteValueMIPS64_OpRsh32Ux16(v)
+		return rewriteValueMIPS64_OpRsh32Ux16_0(v)
 	case OpRsh32Ux32:
-		return rewriteValueMIPS64_OpRsh32Ux32(v)
+		return rewriteValueMIPS64_OpRsh32Ux32_0(v)
 	case OpRsh32Ux64:
-		return rewriteValueMIPS64_OpRsh32Ux64(v)
+		return rewriteValueMIPS64_OpRsh32Ux64_0(v)
 	case OpRsh32Ux8:
-		return rewriteValueMIPS64_OpRsh32Ux8(v)
+		return rewriteValueMIPS64_OpRsh32Ux8_0(v)
 	case OpRsh32x16:
-		return rewriteValueMIPS64_OpRsh32x16(v)
+		return rewriteValueMIPS64_OpRsh32x16_0(v)
 	case OpRsh32x32:
-		return rewriteValueMIPS64_OpRsh32x32(v)
+		return rewriteValueMIPS64_OpRsh32x32_0(v)
 	case OpRsh32x64:
-		return rewriteValueMIPS64_OpRsh32x64(v)
+		return rewriteValueMIPS64_OpRsh32x64_0(v)
 	case OpRsh32x8:
-		return rewriteValueMIPS64_OpRsh32x8(v)
+		return rewriteValueMIPS64_OpRsh32x8_0(v)
 	case OpRsh64Ux16:
-		return rewriteValueMIPS64_OpRsh64Ux16(v)
+		return rewriteValueMIPS64_OpRsh64Ux16_0(v)
 	case OpRsh64Ux32:
-		return rewriteValueMIPS64_OpRsh64Ux32(v)
+		return rewriteValueMIPS64_OpRsh64Ux32_0(v)
 	case OpRsh64Ux64:
-		return rewriteValueMIPS64_OpRsh64Ux64(v)
+		return rewriteValueMIPS64_OpRsh64Ux64_0(v)
 	case OpRsh64Ux8:
-		return rewriteValueMIPS64_OpRsh64Ux8(v)
+		return rewriteValueMIPS64_OpRsh64Ux8_0(v)
 	case OpRsh64x16:
-		return rewriteValueMIPS64_OpRsh64x16(v)
+		return rewriteValueMIPS64_OpRsh64x16_0(v)
 	case OpRsh64x32:
-		return rewriteValueMIPS64_OpRsh64x32(v)
+		return rewriteValueMIPS64_OpRsh64x32_0(v)
 	case OpRsh64x64:
-		return rewriteValueMIPS64_OpRsh64x64(v)
+		return rewriteValueMIPS64_OpRsh64x64_0(v)
 	case OpRsh64x8:
-		return rewriteValueMIPS64_OpRsh64x8(v)
+		return rewriteValueMIPS64_OpRsh64x8_0(v)
 	case OpRsh8Ux16:
-		return rewriteValueMIPS64_OpRsh8Ux16(v)
+		return rewriteValueMIPS64_OpRsh8Ux16_0(v)
 	case OpRsh8Ux32:
-		return rewriteValueMIPS64_OpRsh8Ux32(v)
+		return rewriteValueMIPS64_OpRsh8Ux32_0(v)
 	case OpRsh8Ux64:
-		return rewriteValueMIPS64_OpRsh8Ux64(v)
+		return rewriteValueMIPS64_OpRsh8Ux64_0(v)
 	case OpRsh8Ux8:
-		return rewriteValueMIPS64_OpRsh8Ux8(v)
+		return rewriteValueMIPS64_OpRsh8Ux8_0(v)
 	case OpRsh8x16:
-		return rewriteValueMIPS64_OpRsh8x16(v)
+		return rewriteValueMIPS64_OpRsh8x16_0(v)
 	case OpRsh8x32:
-		return rewriteValueMIPS64_OpRsh8x32(v)
+		return rewriteValueMIPS64_OpRsh8x32_0(v)
 	case OpRsh8x64:
-		return rewriteValueMIPS64_OpRsh8x64(v)
+		return rewriteValueMIPS64_OpRsh8x64_0(v)
 	case OpRsh8x8:
-		return rewriteValueMIPS64_OpRsh8x8(v)
+		return rewriteValueMIPS64_OpRsh8x8_0(v)
 	case OpSelect0:
-		return rewriteValueMIPS64_OpSelect0(v)
+		return rewriteValueMIPS64_OpSelect0_0(v)
 	case OpSelect1:
-		return rewriteValueMIPS64_OpSelect1(v)
+		return rewriteValueMIPS64_OpSelect1_0(v) || rewriteValueMIPS64_OpSelect1_10(v) || rewriteValueMIPS64_OpSelect1_20(v)
 	case OpSignExt16to32:
-		return rewriteValueMIPS64_OpSignExt16to32(v)
+		return rewriteValueMIPS64_OpSignExt16to32_0(v)
 	case OpSignExt16to64:
-		return rewriteValueMIPS64_OpSignExt16to64(v)
+		return rewriteValueMIPS64_OpSignExt16to64_0(v)
 	case OpSignExt32to64:
-		return rewriteValueMIPS64_OpSignExt32to64(v)
+		return rewriteValueMIPS64_OpSignExt32to64_0(v)
 	case OpSignExt8to16:
-		return rewriteValueMIPS64_OpSignExt8to16(v)
+		return rewriteValueMIPS64_OpSignExt8to16_0(v)
 	case OpSignExt8to32:
-		return rewriteValueMIPS64_OpSignExt8to32(v)
+		return rewriteValueMIPS64_OpSignExt8to32_0(v)
 	case OpSignExt8to64:
-		return rewriteValueMIPS64_OpSignExt8to64(v)
+		return rewriteValueMIPS64_OpSignExt8to64_0(v)
 	case OpSlicemask:
-		return rewriteValueMIPS64_OpSlicemask(v)
+		return rewriteValueMIPS64_OpSlicemask_0(v)
 	case OpStaticCall:
-		return rewriteValueMIPS64_OpStaticCall(v)
+		return rewriteValueMIPS64_OpStaticCall_0(v)
 	case OpStore:
-		return rewriteValueMIPS64_OpStore(v)
+		return rewriteValueMIPS64_OpStore_0(v)
 	case OpSub16:
-		return rewriteValueMIPS64_OpSub16(v)
+		return rewriteValueMIPS64_OpSub16_0(v)
 	case OpSub32:
-		return rewriteValueMIPS64_OpSub32(v)
+		return rewriteValueMIPS64_OpSub32_0(v)
 	case OpSub32F:
-		return rewriteValueMIPS64_OpSub32F(v)
+		return rewriteValueMIPS64_OpSub32F_0(v)
 	case OpSub64:
-		return rewriteValueMIPS64_OpSub64(v)
+		return rewriteValueMIPS64_OpSub64_0(v)
 	case OpSub64F:
-		return rewriteValueMIPS64_OpSub64F(v)
+		return rewriteValueMIPS64_OpSub64F_0(v)
 	case OpSub8:
-		return rewriteValueMIPS64_OpSub8(v)
+		return rewriteValueMIPS64_OpSub8_0(v)
 	case OpSubPtr:
-		return rewriteValueMIPS64_OpSubPtr(v)
+		return rewriteValueMIPS64_OpSubPtr_0(v)
 	case OpTrunc16to8:
-		return rewriteValueMIPS64_OpTrunc16to8(v)
+		return rewriteValueMIPS64_OpTrunc16to8_0(v)
 	case OpTrunc32to16:
-		return rewriteValueMIPS64_OpTrunc32to16(v)
+		return rewriteValueMIPS64_OpTrunc32to16_0(v)
 	case OpTrunc32to8:
-		return rewriteValueMIPS64_OpTrunc32to8(v)
+		return rewriteValueMIPS64_OpTrunc32to8_0(v)
 	case OpTrunc64to16:
-		return rewriteValueMIPS64_OpTrunc64to16(v)
+		return rewriteValueMIPS64_OpTrunc64to16_0(v)
 	case OpTrunc64to32:
-		return rewriteValueMIPS64_OpTrunc64to32(v)
+		return rewriteValueMIPS64_OpTrunc64to32_0(v)
 	case OpTrunc64to8:
-		return rewriteValueMIPS64_OpTrunc64to8(v)
+		return rewriteValueMIPS64_OpTrunc64to8_0(v)
 	case OpXor16:
-		return rewriteValueMIPS64_OpXor16(v)
+		return rewriteValueMIPS64_OpXor16_0(v)
 	case OpXor32:
-		return rewriteValueMIPS64_OpXor32(v)
+		return rewriteValueMIPS64_OpXor32_0(v)
 	case OpXor64:
-		return rewriteValueMIPS64_OpXor64(v)
+		return rewriteValueMIPS64_OpXor64_0(v)
 	case OpXor8:
-		return rewriteValueMIPS64_OpXor8(v)
+		return rewriteValueMIPS64_OpXor8_0(v)
 	case OpZero:
-		return rewriteValueMIPS64_OpZero(v)
+		return rewriteValueMIPS64_OpZero_0(v) || rewriteValueMIPS64_OpZero_10(v)
 	case OpZeroExt16to32:
-		return rewriteValueMIPS64_OpZeroExt16to32(v)
+		return rewriteValueMIPS64_OpZeroExt16to32_0(v)
 	case OpZeroExt16to64:
-		return rewriteValueMIPS64_OpZeroExt16to64(v)
+		return rewriteValueMIPS64_OpZeroExt16to64_0(v)
 	case OpZeroExt32to64:
-		return rewriteValueMIPS64_OpZeroExt32to64(v)
+		return rewriteValueMIPS64_OpZeroExt32to64_0(v)
 	case OpZeroExt8to16:
-		return rewriteValueMIPS64_OpZeroExt8to16(v)
+		return rewriteValueMIPS64_OpZeroExt8to16_0(v)
 	case OpZeroExt8to32:
-		return rewriteValueMIPS64_OpZeroExt8to32(v)
+		return rewriteValueMIPS64_OpZeroExt8to32_0(v)
 	case OpZeroExt8to64:
-		return rewriteValueMIPS64_OpZeroExt8to64(v)
+		return rewriteValueMIPS64_OpZeroExt8to64_0(v)
 	}
 	return false
 }
-func rewriteValueMIPS64_OpAdd16(v *Value) bool {
+func rewriteValueMIPS64_OpAdd16_0(v *Value) bool {
 	// match: (Add16 x y)
 	// cond:
 	// result: (ADDV x y)
@@ -583,7 +583,7 @@ func rewriteValueMIPS64_OpAdd16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAdd32(v *Value) bool {
+func rewriteValueMIPS64_OpAdd32_0(v *Value) bool {
 	// match: (Add32 x y)
 	// cond:
 	// result: (ADDV x y)
@@ -596,7 +596,7 @@ func rewriteValueMIPS64_OpAdd32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAdd32F(v *Value) bool {
+func rewriteValueMIPS64_OpAdd32F_0(v *Value) bool {
 	// match: (Add32F x y)
 	// cond:
 	// result: (ADDF x y)
@@ -609,7 +609,7 @@ func rewriteValueMIPS64_OpAdd32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAdd64(v *Value) bool {
+func rewriteValueMIPS64_OpAdd64_0(v *Value) bool {
 	// match: (Add64 x y)
 	// cond:
 	// result: (ADDV x y)
@@ -622,7 +622,7 @@ func rewriteValueMIPS64_OpAdd64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAdd64F(v *Value) bool {
+func rewriteValueMIPS64_OpAdd64F_0(v *Value) bool {
 	// match: (Add64F x y)
 	// cond:
 	// result: (ADDD x y)
@@ -635,7 +635,7 @@ func rewriteValueMIPS64_OpAdd64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAdd8(v *Value) bool {
+func rewriteValueMIPS64_OpAdd8_0(v *Value) bool {
 	// match: (Add8 x y)
 	// cond:
 	// result: (ADDV x y)
@@ -648,7 +648,7 @@ func rewriteValueMIPS64_OpAdd8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAddPtr(v *Value) bool {
+func rewriteValueMIPS64_OpAddPtr_0(v *Value) bool {
 	// match: (AddPtr x y)
 	// cond:
 	// result: (ADDV x y)
@@ -661,7 +661,7 @@ func rewriteValueMIPS64_OpAddPtr(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAddr(v *Value) bool {
+func rewriteValueMIPS64_OpAddr_0(v *Value) bool {
 	// match: (Addr {sym} base)
 	// cond:
 	// result: (MOVVaddr {sym} base)
@@ -674,7 +674,7 @@ func rewriteValueMIPS64_OpAddr(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAnd16(v *Value) bool {
+func rewriteValueMIPS64_OpAnd16_0(v *Value) bool {
 	// match: (And16 x y)
 	// cond:
 	// result: (AND x y)
@@ -687,7 +687,7 @@ func rewriteValueMIPS64_OpAnd16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAnd32(v *Value) bool {
+func rewriteValueMIPS64_OpAnd32_0(v *Value) bool {
 	// match: (And32 x y)
 	// cond:
 	// result: (AND x y)
@@ -700,7 +700,7 @@ func rewriteValueMIPS64_OpAnd32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAnd64(v *Value) bool {
+func rewriteValueMIPS64_OpAnd64_0(v *Value) bool {
 	// match: (And64 x y)
 	// cond:
 	// result: (AND x y)
@@ -713,7 +713,7 @@ func rewriteValueMIPS64_OpAnd64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAnd8(v *Value) bool {
+func rewriteValueMIPS64_OpAnd8_0(v *Value) bool {
 	// match: (And8 x y)
 	// cond:
 	// result: (AND x y)
@@ -726,7 +726,7 @@ func rewriteValueMIPS64_OpAnd8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAndB(v *Value) bool {
+func rewriteValueMIPS64_OpAndB_0(v *Value) bool {
 	// match: (AndB x y)
 	// cond:
 	// result: (AND x y)
@@ -739,7 +739,7 @@ func rewriteValueMIPS64_OpAndB(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpAvg64u(v *Value) bool {
+func rewriteValueMIPS64_OpAvg64u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Avg64u <t> x y)
@@ -761,7 +761,7 @@ func rewriteValueMIPS64_OpAvg64u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpClosureCall(v *Value) bool {
+func rewriteValueMIPS64_OpClosureCall_0(v *Value) bool {
 	// match: (ClosureCall [argwid] entry closure mem)
 	// cond:
 	// result: (CALLclosure [argwid] entry closure mem)
@@ -778,7 +778,7 @@ func rewriteValueMIPS64_OpClosureCall(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCom16(v *Value) bool {
+func rewriteValueMIPS64_OpCom16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -796,7 +796,7 @@ func rewriteValueMIPS64_OpCom16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCom32(v *Value) bool {
+func rewriteValueMIPS64_OpCom32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -814,7 +814,7 @@ func rewriteValueMIPS64_OpCom32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCom64(v *Value) bool {
+func rewriteValueMIPS64_OpCom64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -832,7 +832,7 @@ func rewriteValueMIPS64_OpCom64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCom8(v *Value) bool {
+func rewriteValueMIPS64_OpCom8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -850,7 +850,7 @@ func rewriteValueMIPS64_OpCom8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpConst16(v *Value) bool {
+func rewriteValueMIPS64_OpConst16_0(v *Value) bool {
 	// match: (Const16 [val])
 	// cond:
 	// result: (MOVVconst [val])
@@ -861,7 +861,7 @@ func rewriteValueMIPS64_OpConst16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpConst32(v *Value) bool {
+func rewriteValueMIPS64_OpConst32_0(v *Value) bool {
 	// match: (Const32 [val])
 	// cond:
 	// result: (MOVVconst [val])
@@ -872,7 +872,7 @@ func rewriteValueMIPS64_OpConst32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpConst32F(v *Value) bool {
+func rewriteValueMIPS64_OpConst32F_0(v *Value) bool {
 	// match: (Const32F [val])
 	// cond:
 	// result: (MOVFconst [val])
@@ -883,7 +883,7 @@ func rewriteValueMIPS64_OpConst32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpConst64(v *Value) bool {
+func rewriteValueMIPS64_OpConst64_0(v *Value) bool {
 	// match: (Const64 [val])
 	// cond:
 	// result: (MOVVconst [val])
@@ -894,7 +894,7 @@ func rewriteValueMIPS64_OpConst64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpConst64F(v *Value) bool {
+func rewriteValueMIPS64_OpConst64F_0(v *Value) bool {
 	// match: (Const64F [val])
 	// cond:
 	// result: (MOVDconst [val])
@@ -905,7 +905,7 @@ func rewriteValueMIPS64_OpConst64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpConst8(v *Value) bool {
+func rewriteValueMIPS64_OpConst8_0(v *Value) bool {
 	// match: (Const8 [val])
 	// cond:
 	// result: (MOVVconst [val])
@@ -916,7 +916,7 @@ func rewriteValueMIPS64_OpConst8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpConstBool(v *Value) bool {
+func rewriteValueMIPS64_OpConstBool_0(v *Value) bool {
 	// match: (ConstBool [b])
 	// cond:
 	// result: (MOVVconst [b])
@@ -927,7 +927,7 @@ func rewriteValueMIPS64_OpConstBool(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpConstNil(v *Value) bool {
+func rewriteValueMIPS64_OpConstNil_0(v *Value) bool {
 	// match: (ConstNil)
 	// cond:
 	// result: (MOVVconst [0])
@@ -937,7 +937,7 @@ func rewriteValueMIPS64_OpConstNil(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpConvert(v *Value) bool {
+func rewriteValueMIPS64_OpConvert_0(v *Value) bool {
 	// match: (Convert x mem)
 	// cond:
 	// result: (MOVVconvert x mem)
@@ -950,7 +950,7 @@ func rewriteValueMIPS64_OpConvert(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCvt32Fto32(v *Value) bool {
+func rewriteValueMIPS64_OpCvt32Fto32_0(v *Value) bool {
 	// match: (Cvt32Fto32 x)
 	// cond:
 	// result: (TRUNCFW x)
@@ -961,7 +961,7 @@ func rewriteValueMIPS64_OpCvt32Fto32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCvt32Fto64(v *Value) bool {
+func rewriteValueMIPS64_OpCvt32Fto64_0(v *Value) bool {
 	// match: (Cvt32Fto64 x)
 	// cond:
 	// result: (TRUNCFV x)
@@ -972,7 +972,7 @@ func rewriteValueMIPS64_OpCvt32Fto64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCvt32Fto64F(v *Value) bool {
+func rewriteValueMIPS64_OpCvt32Fto64F_0(v *Value) bool {
 	// match: (Cvt32Fto64F x)
 	// cond:
 	// result: (MOVFD x)
@@ -983,7 +983,7 @@ func rewriteValueMIPS64_OpCvt32Fto64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCvt32to32F(v *Value) bool {
+func rewriteValueMIPS64_OpCvt32to32F_0(v *Value) bool {
 	// match: (Cvt32to32F x)
 	// cond:
 	// result: (MOVWF x)
@@ -994,7 +994,7 @@ func rewriteValueMIPS64_OpCvt32to32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCvt32to64F(v *Value) bool {
+func rewriteValueMIPS64_OpCvt32to64F_0(v *Value) bool {
 	// match: (Cvt32to64F x)
 	// cond:
 	// result: (MOVWD x)
@@ -1005,7 +1005,7 @@ func rewriteValueMIPS64_OpCvt32to64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCvt64Fto32(v *Value) bool {
+func rewriteValueMIPS64_OpCvt64Fto32_0(v *Value) bool {
 	// match: (Cvt64Fto32 x)
 	// cond:
 	// result: (TRUNCDW x)
@@ -1016,7 +1016,7 @@ func rewriteValueMIPS64_OpCvt64Fto32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCvt64Fto32F(v *Value) bool {
+func rewriteValueMIPS64_OpCvt64Fto32F_0(v *Value) bool {
 	// match: (Cvt64Fto32F x)
 	// cond:
 	// result: (MOVDF x)
@@ -1027,7 +1027,7 @@ func rewriteValueMIPS64_OpCvt64Fto32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCvt64Fto64(v *Value) bool {
+func rewriteValueMIPS64_OpCvt64Fto64_0(v *Value) bool {
 	// match: (Cvt64Fto64 x)
 	// cond:
 	// result: (TRUNCDV x)
@@ -1038,7 +1038,7 @@ func rewriteValueMIPS64_OpCvt64Fto64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCvt64to32F(v *Value) bool {
+func rewriteValueMIPS64_OpCvt64to32F_0(v *Value) bool {
 	// match: (Cvt64to32F x)
 	// cond:
 	// result: (MOVVF x)
@@ -1049,7 +1049,7 @@ func rewriteValueMIPS64_OpCvt64to32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpCvt64to64F(v *Value) bool {
+func rewriteValueMIPS64_OpCvt64to64F_0(v *Value) bool {
 	// match: (Cvt64to64F x)
 	// cond:
 	// result: (MOVVD x)
@@ -1060,7 +1060,7 @@ func rewriteValueMIPS64_OpCvt64to64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpDiv16(v *Value) bool {
+func rewriteValueMIPS64_OpDiv16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1083,7 +1083,7 @@ func rewriteValueMIPS64_OpDiv16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpDiv16u(v *Value) bool {
+func rewriteValueMIPS64_OpDiv16u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1106,7 +1106,7 @@ func rewriteValueMIPS64_OpDiv16u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpDiv32(v *Value) bool {
+func rewriteValueMIPS64_OpDiv32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1129,7 +1129,7 @@ func rewriteValueMIPS64_OpDiv32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpDiv32F(v *Value) bool {
+func rewriteValueMIPS64_OpDiv32F_0(v *Value) bool {
 	// match: (Div32F x y)
 	// cond:
 	// result: (DIVF x y)
@@ -1142,7 +1142,7 @@ func rewriteValueMIPS64_OpDiv32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpDiv32u(v *Value) bool {
+func rewriteValueMIPS64_OpDiv32u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1165,7 +1165,7 @@ func rewriteValueMIPS64_OpDiv32u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpDiv64(v *Value) bool {
+func rewriteValueMIPS64_OpDiv64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1184,7 +1184,7 @@ func rewriteValueMIPS64_OpDiv64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpDiv64F(v *Value) bool {
+func rewriteValueMIPS64_OpDiv64F_0(v *Value) bool {
 	// match: (Div64F x y)
 	// cond:
 	// result: (DIVD x y)
@@ -1197,7 +1197,7 @@ func rewriteValueMIPS64_OpDiv64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpDiv64u(v *Value) bool {
+func rewriteValueMIPS64_OpDiv64u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1216,7 +1216,7 @@ func rewriteValueMIPS64_OpDiv64u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpDiv8(v *Value) bool {
+func rewriteValueMIPS64_OpDiv8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1239,7 +1239,7 @@ func rewriteValueMIPS64_OpDiv8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpDiv8u(v *Value) bool {
+func rewriteValueMIPS64_OpDiv8u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1262,7 +1262,7 @@ func rewriteValueMIPS64_OpDiv8u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpEq16(v *Value) bool {
+func rewriteValueMIPS64_OpEq16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1288,7 +1288,7 @@ func rewriteValueMIPS64_OpEq16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpEq32(v *Value) bool {
+func rewriteValueMIPS64_OpEq32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1314,7 +1314,7 @@ func rewriteValueMIPS64_OpEq32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpEq32F(v *Value) bool {
+func rewriteValueMIPS64_OpEq32F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Eq32F x y)
@@ -1331,7 +1331,7 @@ func rewriteValueMIPS64_OpEq32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpEq64(v *Value) bool {
+func rewriteValueMIPS64_OpEq64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1353,7 +1353,7 @@ func rewriteValueMIPS64_OpEq64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpEq64F(v *Value) bool {
+func rewriteValueMIPS64_OpEq64F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Eq64F x y)
@@ -1370,7 +1370,7 @@ func rewriteValueMIPS64_OpEq64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpEq8(v *Value) bool {
+func rewriteValueMIPS64_OpEq8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1396,7 +1396,7 @@ func rewriteValueMIPS64_OpEq8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpEqB(v *Value) bool {
+func rewriteValueMIPS64_OpEqB_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1418,7 +1418,7 @@ func rewriteValueMIPS64_OpEqB(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpEqPtr(v *Value) bool {
+func rewriteValueMIPS64_OpEqPtr_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1440,7 +1440,7 @@ func rewriteValueMIPS64_OpEqPtr(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGeq16(v *Value) bool {
+func rewriteValueMIPS64_OpGeq16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1466,7 +1466,7 @@ func rewriteValueMIPS64_OpGeq16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGeq16U(v *Value) bool {
+func rewriteValueMIPS64_OpGeq16U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1492,7 +1492,7 @@ func rewriteValueMIPS64_OpGeq16U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGeq32(v *Value) bool {
+func rewriteValueMIPS64_OpGeq32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1518,7 +1518,7 @@ func rewriteValueMIPS64_OpGeq32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGeq32F(v *Value) bool {
+func rewriteValueMIPS64_OpGeq32F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Geq32F x y)
@@ -1535,7 +1535,7 @@ func rewriteValueMIPS64_OpGeq32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGeq32U(v *Value) bool {
+func rewriteValueMIPS64_OpGeq32U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1561,7 +1561,7 @@ func rewriteValueMIPS64_OpGeq32U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGeq64(v *Value) bool {
+func rewriteValueMIPS64_OpGeq64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1583,7 +1583,7 @@ func rewriteValueMIPS64_OpGeq64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGeq64F(v *Value) bool {
+func rewriteValueMIPS64_OpGeq64F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Geq64F x y)
@@ -1600,7 +1600,7 @@ func rewriteValueMIPS64_OpGeq64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGeq64U(v *Value) bool {
+func rewriteValueMIPS64_OpGeq64U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1622,7 +1622,7 @@ func rewriteValueMIPS64_OpGeq64U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGeq8(v *Value) bool {
+func rewriteValueMIPS64_OpGeq8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1648,7 +1648,7 @@ func rewriteValueMIPS64_OpGeq8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGeq8U(v *Value) bool {
+func rewriteValueMIPS64_OpGeq8U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1674,7 +1674,7 @@ func rewriteValueMIPS64_OpGeq8U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGetClosurePtr(v *Value) bool {
+func rewriteValueMIPS64_OpGetClosurePtr_0(v *Value) bool {
 	// match: (GetClosurePtr)
 	// cond:
 	// result: (LoweredGetClosurePtr)
@@ -1683,7 +1683,7 @@ func rewriteValueMIPS64_OpGetClosurePtr(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGreater16(v *Value) bool {
+func rewriteValueMIPS64_OpGreater16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1704,7 +1704,7 @@ func rewriteValueMIPS64_OpGreater16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGreater16U(v *Value) bool {
+func rewriteValueMIPS64_OpGreater16U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1725,7 +1725,7 @@ func rewriteValueMIPS64_OpGreater16U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGreater32(v *Value) bool {
+func rewriteValueMIPS64_OpGreater32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1746,7 +1746,7 @@ func rewriteValueMIPS64_OpGreater32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGreater32F(v *Value) bool {
+func rewriteValueMIPS64_OpGreater32F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Greater32F x y)
@@ -1763,7 +1763,7 @@ func rewriteValueMIPS64_OpGreater32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGreater32U(v *Value) bool {
+func rewriteValueMIPS64_OpGreater32U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1784,7 +1784,7 @@ func rewriteValueMIPS64_OpGreater32U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGreater64(v *Value) bool {
+func rewriteValueMIPS64_OpGreater64_0(v *Value) bool {
 	// match: (Greater64 x y)
 	// cond:
 	// result: (SGT x y)
@@ -1797,7 +1797,7 @@ func rewriteValueMIPS64_OpGreater64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGreater64F(v *Value) bool {
+func rewriteValueMIPS64_OpGreater64F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Greater64F x y)
@@ -1814,7 +1814,7 @@ func rewriteValueMIPS64_OpGreater64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGreater64U(v *Value) bool {
+func rewriteValueMIPS64_OpGreater64U_0(v *Value) bool {
 	// match: (Greater64U x y)
 	// cond:
 	// result: (SGTU x y)
@@ -1827,7 +1827,7 @@ func rewriteValueMIPS64_OpGreater64U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGreater8(v *Value) bool {
+func rewriteValueMIPS64_OpGreater8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1848,7 +1848,7 @@ func rewriteValueMIPS64_OpGreater8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpGreater8U(v *Value) bool {
+func rewriteValueMIPS64_OpGreater8U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1869,7 +1869,7 @@ func rewriteValueMIPS64_OpGreater8U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpHmul32(v *Value) bool {
+func rewriteValueMIPS64_OpHmul32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1895,7 +1895,7 @@ func rewriteValueMIPS64_OpHmul32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpHmul32u(v *Value) bool {
+func rewriteValueMIPS64_OpHmul32u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1921,7 +1921,7 @@ func rewriteValueMIPS64_OpHmul32u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpHmul64(v *Value) bool {
+func rewriteValueMIPS64_OpHmul64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1940,7 +1940,7 @@ func rewriteValueMIPS64_OpHmul64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpHmul64u(v *Value) bool {
+func rewriteValueMIPS64_OpHmul64u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -1959,7 +1959,7 @@ func rewriteValueMIPS64_OpHmul64u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpInterCall(v *Value) bool {
+func rewriteValueMIPS64_OpInterCall_0(v *Value) bool {
 	// match: (InterCall [argwid] entry mem)
 	// cond:
 	// result: (CALLinter [argwid] entry mem)
@@ -1974,7 +1974,7 @@ func rewriteValueMIPS64_OpInterCall(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpIsInBounds(v *Value) bool {
+func rewriteValueMIPS64_OpIsInBounds_0(v *Value) bool {
 	// match: (IsInBounds idx len)
 	// cond:
 	// result: (SGTU len idx)
@@ -1987,7 +1987,7 @@ func rewriteValueMIPS64_OpIsInBounds(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpIsNonNil(v *Value) bool {
+func rewriteValueMIPS64_OpIsNonNil_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2005,7 +2005,7 @@ func rewriteValueMIPS64_OpIsNonNil(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpIsSliceInBounds(v *Value) bool {
+func rewriteValueMIPS64_OpIsSliceInBounds_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2027,7 +2027,7 @@ func rewriteValueMIPS64_OpIsSliceInBounds(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLeq16(v *Value) bool {
+func rewriteValueMIPS64_OpLeq16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2053,7 +2053,7 @@ func rewriteValueMIPS64_OpLeq16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLeq16U(v *Value) bool {
+func rewriteValueMIPS64_OpLeq16U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2079,7 +2079,7 @@ func rewriteValueMIPS64_OpLeq16U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLeq32(v *Value) bool {
+func rewriteValueMIPS64_OpLeq32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2105,7 +2105,7 @@ func rewriteValueMIPS64_OpLeq32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLeq32F(v *Value) bool {
+func rewriteValueMIPS64_OpLeq32F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Leq32F x y)
@@ -2122,7 +2122,7 @@ func rewriteValueMIPS64_OpLeq32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLeq32U(v *Value) bool {
+func rewriteValueMIPS64_OpLeq32U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2148,7 +2148,7 @@ func rewriteValueMIPS64_OpLeq32U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLeq64(v *Value) bool {
+func rewriteValueMIPS64_OpLeq64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2170,7 +2170,7 @@ func rewriteValueMIPS64_OpLeq64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLeq64F(v *Value) bool {
+func rewriteValueMIPS64_OpLeq64F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Leq64F x y)
@@ -2187,7 +2187,7 @@ func rewriteValueMIPS64_OpLeq64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLeq64U(v *Value) bool {
+func rewriteValueMIPS64_OpLeq64U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2209,7 +2209,7 @@ func rewriteValueMIPS64_OpLeq64U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLeq8(v *Value) bool {
+func rewriteValueMIPS64_OpLeq8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2235,7 +2235,7 @@ func rewriteValueMIPS64_OpLeq8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLeq8U(v *Value) bool {
+func rewriteValueMIPS64_OpLeq8U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2261,7 +2261,7 @@ func rewriteValueMIPS64_OpLeq8U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLess16(v *Value) bool {
+func rewriteValueMIPS64_OpLess16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2282,7 +2282,7 @@ func rewriteValueMIPS64_OpLess16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLess16U(v *Value) bool {
+func rewriteValueMIPS64_OpLess16U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2303,7 +2303,7 @@ func rewriteValueMIPS64_OpLess16U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLess32(v *Value) bool {
+func rewriteValueMIPS64_OpLess32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2324,7 +2324,7 @@ func rewriteValueMIPS64_OpLess32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLess32F(v *Value) bool {
+func rewriteValueMIPS64_OpLess32F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Less32F x y)
@@ -2341,7 +2341,7 @@ func rewriteValueMIPS64_OpLess32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLess32U(v *Value) bool {
+func rewriteValueMIPS64_OpLess32U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2362,7 +2362,7 @@ func rewriteValueMIPS64_OpLess32U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLess64(v *Value) bool {
+func rewriteValueMIPS64_OpLess64_0(v *Value) bool {
 	// match: (Less64 x y)
 	// cond:
 	// result: (SGT y x)
@@ -2375,7 +2375,7 @@ func rewriteValueMIPS64_OpLess64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLess64F(v *Value) bool {
+func rewriteValueMIPS64_OpLess64F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Less64F x y)
@@ -2392,7 +2392,7 @@ func rewriteValueMIPS64_OpLess64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLess64U(v *Value) bool {
+func rewriteValueMIPS64_OpLess64U_0(v *Value) bool {
 	// match: (Less64U x y)
 	// cond:
 	// result: (SGTU y x)
@@ -2405,7 +2405,7 @@ func rewriteValueMIPS64_OpLess64U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLess8(v *Value) bool {
+func rewriteValueMIPS64_OpLess8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2426,7 +2426,7 @@ func rewriteValueMIPS64_OpLess8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLess8U(v *Value) bool {
+func rewriteValueMIPS64_OpLess8U_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2447,7 +2447,7 @@ func rewriteValueMIPS64_OpLess8U(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLoad(v *Value) bool {
+func rewriteValueMIPS64_OpLoad_0(v *Value) bool {
 	// match: (Load <t> ptr mem)
 	// cond: t.IsBoolean()
 	// result: (MOVBUload ptr mem)
@@ -2600,7 +2600,7 @@ func rewriteValueMIPS64_OpLoad(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpLsh16x16(v *Value) bool {
+func rewriteValueMIPS64_OpLsh16x16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2632,7 +2632,7 @@ func rewriteValueMIPS64_OpLsh16x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh16x32(v *Value) bool {
+func rewriteValueMIPS64_OpLsh16x32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2664,7 +2664,7 @@ func rewriteValueMIPS64_OpLsh16x32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh16x64(v *Value) bool {
+func rewriteValueMIPS64_OpLsh16x64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2692,7 +2692,7 @@ func rewriteValueMIPS64_OpLsh16x64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh16x8(v *Value) bool {
+func rewriteValueMIPS64_OpLsh16x8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2724,7 +2724,7 @@ func rewriteValueMIPS64_OpLsh16x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh32x16(v *Value) bool {
+func rewriteValueMIPS64_OpLsh32x16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2756,7 +2756,7 @@ func rewriteValueMIPS64_OpLsh32x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh32x32(v *Value) bool {
+func rewriteValueMIPS64_OpLsh32x32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2788,7 +2788,7 @@ func rewriteValueMIPS64_OpLsh32x32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh32x64(v *Value) bool {
+func rewriteValueMIPS64_OpLsh32x64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2816,7 +2816,7 @@ func rewriteValueMIPS64_OpLsh32x64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh32x8(v *Value) bool {
+func rewriteValueMIPS64_OpLsh32x8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2848,7 +2848,7 @@ func rewriteValueMIPS64_OpLsh32x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh64x16(v *Value) bool {
+func rewriteValueMIPS64_OpLsh64x16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2880,7 +2880,7 @@ func rewriteValueMIPS64_OpLsh64x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh64x32(v *Value) bool {
+func rewriteValueMIPS64_OpLsh64x32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2912,7 +2912,7 @@ func rewriteValueMIPS64_OpLsh64x32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh64x64(v *Value) bool {
+func rewriteValueMIPS64_OpLsh64x64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2940,7 +2940,7 @@ func rewriteValueMIPS64_OpLsh64x64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh64x8(v *Value) bool {
+func rewriteValueMIPS64_OpLsh64x8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -2972,7 +2972,7 @@ func rewriteValueMIPS64_OpLsh64x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh8x16(v *Value) bool {
+func rewriteValueMIPS64_OpLsh8x16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -3004,7 +3004,7 @@ func rewriteValueMIPS64_OpLsh8x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh8x32(v *Value) bool {
+func rewriteValueMIPS64_OpLsh8x32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -3036,7 +3036,7 @@ func rewriteValueMIPS64_OpLsh8x32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh8x64(v *Value) bool {
+func rewriteValueMIPS64_OpLsh8x64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -3064,7 +3064,7 @@ func rewriteValueMIPS64_OpLsh8x64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpLsh8x8(v *Value) bool {
+func rewriteValueMIPS64_OpLsh8x8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -3096,7 +3096,7 @@ func rewriteValueMIPS64_OpLsh8x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMIPS64ADDV(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64ADDV_0(v *Value) bool {
 	// match: (ADDV x (MOVVconst [c]))
 	// cond: is32Bit(c)
 	// result: (ADDVconst [c] x)
@@ -3165,7 +3165,7 @@ func rewriteValueMIPS64_OpMIPS64ADDV(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64ADDVconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64ADDVconst_0(v *Value) bool {
 	// match: (ADDVconst [off1] (MOVVaddr [off2] {sym} ptr))
 	// cond:
 	// result: (MOVVaddr [off1+off2] {sym} ptr)
@@ -3251,7 +3251,7 @@ func rewriteValueMIPS64_OpMIPS64ADDVconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64AND(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64AND_0(v *Value) bool {
 	// match: (AND x (MOVVconst [c]))
 	// cond: is32Bit(c)
 	// result: (ANDconst [c] x)
@@ -3303,7 +3303,7 @@ func rewriteValueMIPS64_OpMIPS64AND(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64ANDconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64ANDconst_0(v *Value) bool {
 	// match: (ANDconst [0] _)
 	// cond:
 	// result: (MOVVconst [0])
@@ -3360,7 +3360,7 @@ func rewriteValueMIPS64_OpMIPS64ANDconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVBUload(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVBUload_0(v *Value) bool {
 	// match: (MOVBUload [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVBUload [off1+off2] {sym} ptr mem)
@@ -3410,7 +3410,7 @@ func rewriteValueMIPS64_OpMIPS64MOVBUload(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVBUreg(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVBUreg_0(v *Value) bool {
 	// match: (MOVBUreg x:(MOVBUload _ _))
 	// cond:
 	// result: (MOVVreg x)
@@ -3450,7 +3450,7 @@ func rewriteValueMIPS64_OpMIPS64MOVBUreg(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVBload(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVBload_0(v *Value) bool {
 	// match: (MOVBload [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVBload  [off1+off2] {sym} ptr mem)
@@ -3500,7 +3500,7 @@ func rewriteValueMIPS64_OpMIPS64MOVBload(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVBreg(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVBreg_0(v *Value) bool {
 	// match: (MOVBreg x:(MOVBload _ _))
 	// cond:
 	// result: (MOVVreg x)
@@ -3540,7 +3540,7 @@ func rewriteValueMIPS64_OpMIPS64MOVBreg(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVBstore(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVBstore_0(v *Value) bool {
 	// match: (MOVBstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVBstore [off1+off2] {sym} ptr val mem)
@@ -3742,7 +3742,7 @@ func rewriteValueMIPS64_OpMIPS64MOVBstore(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVBstorezero(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVBstorezero_0(v *Value) bool {
 	// match: (MOVBstorezero [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVBstorezero [off1+off2] {sym} ptr mem)
@@ -3792,7 +3792,7 @@ func rewriteValueMIPS64_OpMIPS64MOVBstorezero(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVDload(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVDload_0(v *Value) bool {
 	// match: (MOVDload [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVDload  [off1+off2] {sym} ptr mem)
@@ -3842,7 +3842,7 @@ func rewriteValueMIPS64_OpMIPS64MOVDload(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVDstore(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVDstore_0(v *Value) bool {
 	// match: (MOVDstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVDstore [off1+off2] {sym} ptr val mem)
@@ -3896,7 +3896,7 @@ func rewriteValueMIPS64_OpMIPS64MOVDstore(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVFload(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVFload_0(v *Value) bool {
 	// match: (MOVFload [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVFload  [off1+off2] {sym} ptr mem)
@@ -3946,7 +3946,7 @@ func rewriteValueMIPS64_OpMIPS64MOVFload(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVFstore(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVFstore_0(v *Value) bool {
 	// match: (MOVFstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVFstore [off1+off2] {sym} ptr val mem)
@@ -4000,7 +4000,7 @@ func rewriteValueMIPS64_OpMIPS64MOVFstore(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVHUload(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVHUload_0(v *Value) bool {
 	// match: (MOVHUload [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVHUload [off1+off2] {sym} ptr mem)
@@ -4050,7 +4050,7 @@ func rewriteValueMIPS64_OpMIPS64MOVHUload(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVHUreg(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVHUreg_0(v *Value) bool {
 	// match: (MOVHUreg x:(MOVBUload _ _))
 	// cond:
 	// result: (MOVVreg x)
@@ -4114,7 +4114,7 @@ func rewriteValueMIPS64_OpMIPS64MOVHUreg(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVHload(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVHload_0(v *Value) bool {
 	// match: (MOVHload [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVHload  [off1+off2] {sym} ptr mem)
@@ -4164,7 +4164,7 @@ func rewriteValueMIPS64_OpMIPS64MOVHload(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVHreg(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVHreg_0(v *Value) bool {
 	// match: (MOVHreg x:(MOVBload _ _))
 	// cond:
 	// result: (MOVVreg x)
@@ -4252,7 +4252,7 @@ func rewriteValueMIPS64_OpMIPS64MOVHreg(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVHstore(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVHstore_0(v *Value) bool {
 	// match: (MOVHstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVHstore [off1+off2] {sym} ptr val mem)
@@ -4412,7 +4412,7 @@ func rewriteValueMIPS64_OpMIPS64MOVHstore(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVHstorezero(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVHstorezero_0(v *Value) bool {
 	// match: (MOVHstorezero [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVHstorezero [off1+off2] {sym} ptr mem)
@@ -4462,7 +4462,7 @@ func rewriteValueMIPS64_OpMIPS64MOVHstorezero(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVVload(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVVload_0(v *Value) bool {
 	// match: (MOVVload [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVVload  [off1+off2] {sym} ptr mem)
@@ -4512,7 +4512,7 @@ func rewriteValueMIPS64_OpMIPS64MOVVload(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVVreg(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVVreg_0(v *Value) bool {
 	// match: (MOVVreg x)
 	// cond: x.Uses == 1
 	// result: (MOVVnop x)
@@ -4540,7 +4540,7 @@ func rewriteValueMIPS64_OpMIPS64MOVVreg(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVVstore(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVVstore_0(v *Value) bool {
 	// match: (MOVVstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVVstore [off1+off2] {sym} ptr val mem)
@@ -4616,7 +4616,7 @@ func rewriteValueMIPS64_OpMIPS64MOVVstore(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVVstorezero(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVVstorezero_0(v *Value) bool {
 	// match: (MOVVstorezero [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVVstorezero [off1+off2] {sym} ptr mem)
@@ -4666,7 +4666,7 @@ func rewriteValueMIPS64_OpMIPS64MOVVstorezero(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVWUload(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVWUload_0(v *Value) bool {
 	// match: (MOVWUload [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVWUload [off1+off2] {sym} ptr mem)
@@ -4716,7 +4716,7 @@ func rewriteValueMIPS64_OpMIPS64MOVWUload(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVWUreg(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVWUreg_0(v *Value) bool {
 	// match: (MOVWUreg x:(MOVBUload _ _))
 	// cond:
 	// result: (MOVVreg x)
@@ -4804,7 +4804,7 @@ func rewriteValueMIPS64_OpMIPS64MOVWUreg(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVWload(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVWload_0(v *Value) bool {
 	// match: (MOVWload [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVWload  [off1+off2] {sym} ptr mem)
@@ -4854,7 +4854,7 @@ func rewriteValueMIPS64_OpMIPS64MOVWload(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVWreg(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVWreg_0(v *Value) bool {
 	// match: (MOVWreg x:(MOVBload _ _))
 	// cond:
 	// result: (MOVVreg x)
@@ -4975,6 +4975,9 @@ func rewriteValueMIPS64_OpMIPS64MOVWreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVWreg_10(v *Value) bool {
 	// match: (MOVWreg (MOVVconst [c]))
 	// cond:
 	// result: (MOVVconst [int64(int32(c))])
@@ -4990,7 +4993,7 @@ func rewriteValueMIPS64_OpMIPS64MOVWreg(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVWstore(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVWstore_0(v *Value) bool {
 	// match: (MOVWstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVWstore [off1+off2] {sym} ptr val mem)
@@ -5108,7 +5111,7 @@ func rewriteValueMIPS64_OpMIPS64MOVWstore(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64MOVWstorezero(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64MOVWstorezero_0(v *Value) bool {
 	// match: (MOVWstorezero [off1] {sym} (ADDVconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2)
 	// result: (MOVWstorezero [off1+off2] {sym} ptr mem)
@@ -5158,7 +5161,7 @@ func rewriteValueMIPS64_OpMIPS64MOVWstorezero(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64NEGV(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64NEGV_0(v *Value) bool {
 	// match: (NEGV (MOVVconst [c]))
 	// cond:
 	// result: (MOVVconst [-c])
@@ -5174,7 +5177,7 @@ func rewriteValueMIPS64_OpMIPS64NEGV(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64NOR(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64NOR_0(v *Value) bool {
 	// match: (NOR x (MOVVconst [c]))
 	// cond: is32Bit(c)
 	// result: (NORconst [c] x)
@@ -5213,7 +5216,7 @@ func rewriteValueMIPS64_OpMIPS64NOR(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64NORconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64NORconst_0(v *Value) bool {
 	// match: (NORconst [c] (MOVVconst [d]))
 	// cond:
 	// result: (MOVVconst [^(c|d)])
@@ -5230,7 +5233,7 @@ func rewriteValueMIPS64_OpMIPS64NORconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64OR(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64OR_0(v *Value) bool {
 	// match: (OR x (MOVVconst [c]))
 	// cond: is32Bit(c)
 	// result: (ORconst  [c] x)
@@ -5282,7 +5285,7 @@ func rewriteValueMIPS64_OpMIPS64OR(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64ORconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64ORconst_0(v *Value) bool {
 	// match: (ORconst [0] x)
 	// cond:
 	// result: x
@@ -5342,7 +5345,7 @@ func rewriteValueMIPS64_OpMIPS64ORconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SGT(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SGT_0(v *Value) bool {
 	// match: (SGT (MOVVconst [c]) x)
 	// cond: is32Bit(c)
 	// result: (SGTconst  [c] x)
@@ -5363,7 +5366,7 @@ func rewriteValueMIPS64_OpMIPS64SGT(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SGTU(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SGTU_0(v *Value) bool {
 	// match: (SGTU (MOVVconst [c]) x)
 	// cond: is32Bit(c)
 	// result: (SGTUconst [c] x)
@@ -5384,7 +5387,7 @@ func rewriteValueMIPS64_OpMIPS64SGTU(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SGTUconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SGTUconst_0(v *Value) bool {
 	// match: (SGTUconst [c] (MOVVconst [d]))
 	// cond: uint64(c)>uint64(d)
 	// result: (MOVVconst [1])
@@ -5487,7 +5490,7 @@ func rewriteValueMIPS64_OpMIPS64SGTUconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SGTconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
 	// match: (SGTconst [c] (MOVVconst [d]))
 	// cond: int64(c)>int64(d)
 	// result: (MOVVconst [1])
@@ -5650,6 +5653,9 @@ func rewriteValueMIPS64_OpMIPS64SGTconst(v *Value) bool {
 		v.AuxInt = 0
 		return true
 	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SGTconst_10(v *Value) bool {
 	// match: (SGTconst [c] (MOVWUreg _))
 	// cond: int64(c) < 0
 	// result: (MOVVconst [0])
@@ -5702,7 +5708,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SLLV(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SLLV_0(v *Value) bool {
 	// match: (SLLV _ (MOVVconst [c]))
 	// cond: uint64(c)>=64
 	// result: (MOVVconst [0])
@@ -5736,7 +5742,7 @@ func rewriteValueMIPS64_OpMIPS64SLLV(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SLLVconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SLLVconst_0(v *Value) bool {
 	// match: (SLLVconst [c] (MOVVconst [d]))
 	// cond:
 	// result: (MOVVconst [int64(d)<<uint64(c)])
@@ -5753,7 +5759,7 @@ func rewriteValueMIPS64_OpMIPS64SLLVconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SRAV(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SRAV_0(v *Value) bool {
 	// match: (SRAV x (MOVVconst [c]))
 	// cond: uint64(c)>=64
 	// result: (SRAVconst x [63])
@@ -5789,7 +5795,7 @@ func rewriteValueMIPS64_OpMIPS64SRAV(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SRAVconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SRAVconst_0(v *Value) bool {
 	// match: (SRAVconst [c] (MOVVconst [d]))
 	// cond:
 	// result: (MOVVconst [int64(d)>>uint64(c)])
@@ -5806,7 +5812,7 @@ func rewriteValueMIPS64_OpMIPS64SRAVconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SRLV(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SRLV_0(v *Value) bool {
 	// match: (SRLV _ (MOVVconst [c]))
 	// cond: uint64(c)>=64
 	// result: (MOVVconst [0])
@@ -5840,7 +5846,7 @@ func rewriteValueMIPS64_OpMIPS64SRLV(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SRLVconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SRLVconst_0(v *Value) bool {
 	// match: (SRLVconst [c] (MOVVconst [d]))
 	// cond:
 	// result: (MOVVconst [int64(uint64(d)>>uint64(c))])
@@ -5857,7 +5863,7 @@ func rewriteValueMIPS64_OpMIPS64SRLVconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SUBV(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SUBV_0(v *Value) bool {
 	// match: (SUBV x (MOVVconst [c]))
 	// cond: is32Bit(c)
 	// result: (SUBVconst [c] x)
@@ -5906,7 +5912,7 @@ func rewriteValueMIPS64_OpMIPS64SUBV(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64SUBVconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64SUBVconst_0(v *Value) bool {
 	// match: (SUBVconst [0] x)
 	// cond:
 	// result: x
@@ -5974,7 +5980,7 @@ func rewriteValueMIPS64_OpMIPS64SUBVconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64XOR(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64XOR_0(v *Value) bool {
 	// match: (XOR x (MOVVconst [c]))
 	// cond: is32Bit(c)
 	// result: (XORconst [c] x)
@@ -6025,7 +6031,7 @@ func rewriteValueMIPS64_OpMIPS64XOR(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMIPS64XORconst(v *Value) bool {
+func rewriteValueMIPS64_OpMIPS64XORconst_0(v *Value) bool {
 	// match: (XORconst [0] x)
 	// cond:
 	// result: x
@@ -6087,7 +6093,7 @@ func rewriteValueMIPS64_OpMIPS64XORconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMod16(v *Value) bool {
+func rewriteValueMIPS64_OpMod16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6110,7 +6116,7 @@ func rewriteValueMIPS64_OpMod16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMod16u(v *Value) bool {
+func rewriteValueMIPS64_OpMod16u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6133,7 +6139,7 @@ func rewriteValueMIPS64_OpMod16u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMod32(v *Value) bool {
+func rewriteValueMIPS64_OpMod32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6156,7 +6162,7 @@ func rewriteValueMIPS64_OpMod32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMod32u(v *Value) bool {
+func rewriteValueMIPS64_OpMod32u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6179,7 +6185,7 @@ func rewriteValueMIPS64_OpMod32u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMod64(v *Value) bool {
+func rewriteValueMIPS64_OpMod64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6198,7 +6204,7 @@ func rewriteValueMIPS64_OpMod64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMod64u(v *Value) bool {
+func rewriteValueMIPS64_OpMod64u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6217,7 +6223,7 @@ func rewriteValueMIPS64_OpMod64u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMod8(v *Value) bool {
+func rewriteValueMIPS64_OpMod8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6240,7 +6246,7 @@ func rewriteValueMIPS64_OpMod8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMod8u(v *Value) bool {
+func rewriteValueMIPS64_OpMod8u_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6263,11 +6269,9 @@ func rewriteValueMIPS64_OpMod8u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMove(v *Value) bool {
+func rewriteValueMIPS64_OpMove_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
 	types := &b.Func.Config.Types
 	_ = types
 	// match: (Move [0] _ _ mem)
@@ -6559,6 +6563,15 @@ func rewriteValueMIPS64_OpMove(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
+	return false
+}
+func rewriteValueMIPS64_OpMove_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Move [3] dst src mem)
 	// cond:
 	// result: (MOVBstore [2] dst (MOVBload [2] src mem) 		(MOVBstore [1] dst (MOVBload [1] src mem) 			(MOVBstore dst (MOVBload src mem) mem)))
@@ -6776,7 +6789,7 @@ func rewriteValueMIPS64_OpMove(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpMul16(v *Value) bool {
+func rewriteValueMIPS64_OpMul16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6795,7 +6808,7 @@ func rewriteValueMIPS64_OpMul16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMul32(v *Value) bool {
+func rewriteValueMIPS64_OpMul32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6814,7 +6827,7 @@ func rewriteValueMIPS64_OpMul32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMul32F(v *Value) bool {
+func rewriteValueMIPS64_OpMul32F_0(v *Value) bool {
 	// match: (Mul32F x y)
 	// cond:
 	// result: (MULF x y)
@@ -6827,7 +6840,7 @@ func rewriteValueMIPS64_OpMul32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMul64(v *Value) bool {
+func rewriteValueMIPS64_OpMul64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6846,7 +6859,7 @@ func rewriteValueMIPS64_OpMul64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMul64F(v *Value) bool {
+func rewriteValueMIPS64_OpMul64F_0(v *Value) bool {
 	// match: (Mul64F x y)
 	// cond:
 	// result: (MULD x y)
@@ -6859,7 +6872,7 @@ func rewriteValueMIPS64_OpMul64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpMul8(v *Value) bool {
+func rewriteValueMIPS64_OpMul8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6878,7 +6891,7 @@ func rewriteValueMIPS64_OpMul8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeg16(v *Value) bool {
+func rewriteValueMIPS64_OpNeg16_0(v *Value) bool {
 	// match: (Neg16 x)
 	// cond:
 	// result: (NEGV x)
@@ -6889,7 +6902,7 @@ func rewriteValueMIPS64_OpNeg16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeg32(v *Value) bool {
+func rewriteValueMIPS64_OpNeg32_0(v *Value) bool {
 	// match: (Neg32 x)
 	// cond:
 	// result: (NEGV x)
@@ -6900,7 +6913,7 @@ func rewriteValueMIPS64_OpNeg32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeg32F(v *Value) bool {
+func rewriteValueMIPS64_OpNeg32F_0(v *Value) bool {
 	// match: (Neg32F x)
 	// cond:
 	// result: (NEGF x)
@@ -6911,7 +6924,7 @@ func rewriteValueMIPS64_OpNeg32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeg64(v *Value) bool {
+func rewriteValueMIPS64_OpNeg64_0(v *Value) bool {
 	// match: (Neg64 x)
 	// cond:
 	// result: (NEGV x)
@@ -6922,7 +6935,7 @@ func rewriteValueMIPS64_OpNeg64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeg64F(v *Value) bool {
+func rewriteValueMIPS64_OpNeg64F_0(v *Value) bool {
 	// match: (Neg64F x)
 	// cond:
 	// result: (NEGD x)
@@ -6933,7 +6946,7 @@ func rewriteValueMIPS64_OpNeg64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeg8(v *Value) bool {
+func rewriteValueMIPS64_OpNeg8_0(v *Value) bool {
 	// match: (Neg8 x)
 	// cond:
 	// result: (NEGV x)
@@ -6944,7 +6957,7 @@ func rewriteValueMIPS64_OpNeg8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeq16(v *Value) bool {
+func rewriteValueMIPS64_OpNeq16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6970,7 +6983,7 @@ func rewriteValueMIPS64_OpNeq16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeq32(v *Value) bool {
+func rewriteValueMIPS64_OpNeq32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -6996,7 +7009,7 @@ func rewriteValueMIPS64_OpNeq32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeq32F(v *Value) bool {
+func rewriteValueMIPS64_OpNeq32F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Neq32F x y)
@@ -7013,7 +7026,7 @@ func rewriteValueMIPS64_OpNeq32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeq64(v *Value) bool {
+func rewriteValueMIPS64_OpNeq64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7035,7 +7048,7 @@ func rewriteValueMIPS64_OpNeq64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeq64F(v *Value) bool {
+func rewriteValueMIPS64_OpNeq64F_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Neq64F x y)
@@ -7052,7 +7065,7 @@ func rewriteValueMIPS64_OpNeq64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeq8(v *Value) bool {
+func rewriteValueMIPS64_OpNeq8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7078,7 +7091,7 @@ func rewriteValueMIPS64_OpNeq8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeqB(v *Value) bool {
+func rewriteValueMIPS64_OpNeqB_0(v *Value) bool {
 	// match: (NeqB x y)
 	// cond:
 	// result: (XOR x y)
@@ -7091,7 +7104,7 @@ func rewriteValueMIPS64_OpNeqB(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNeqPtr(v *Value) bool {
+func rewriteValueMIPS64_OpNeqPtr_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7113,7 +7126,7 @@ func rewriteValueMIPS64_OpNeqPtr(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNilCheck(v *Value) bool {
+func rewriteValueMIPS64_OpNilCheck_0(v *Value) bool {
 	// match: (NilCheck ptr mem)
 	// cond:
 	// result: (LoweredNilCheck ptr mem)
@@ -7126,7 +7139,7 @@ func rewriteValueMIPS64_OpNilCheck(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpNot(v *Value) bool {
+func rewriteValueMIPS64_OpNot_0(v *Value) bool {
 	// match: (Not x)
 	// cond:
 	// result: (XORconst [1] x)
@@ -7138,7 +7151,7 @@ func rewriteValueMIPS64_OpNot(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpOffPtr(v *Value) bool {
+func rewriteValueMIPS64_OpOffPtr_0(v *Value) bool {
 	// match: (OffPtr [off] ptr:(SP))
 	// cond:
 	// result: (MOVVaddr [off] ptr)
@@ -7165,7 +7178,7 @@ func rewriteValueMIPS64_OpOffPtr(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpOr16(v *Value) bool {
+func rewriteValueMIPS64_OpOr16_0(v *Value) bool {
 	// match: (Or16 x y)
 	// cond:
 	// result: (OR x y)
@@ -7178,7 +7191,7 @@ func rewriteValueMIPS64_OpOr16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpOr32(v *Value) bool {
+func rewriteValueMIPS64_OpOr32_0(v *Value) bool {
 	// match: (Or32 x y)
 	// cond:
 	// result: (OR x y)
@@ -7191,7 +7204,7 @@ func rewriteValueMIPS64_OpOr32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpOr64(v *Value) bool {
+func rewriteValueMIPS64_OpOr64_0(v *Value) bool {
 	// match: (Or64 x y)
 	// cond:
 	// result: (OR x y)
@@ -7204,7 +7217,7 @@ func rewriteValueMIPS64_OpOr64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpOr8(v *Value) bool {
+func rewriteValueMIPS64_OpOr8_0(v *Value) bool {
 	// match: (Or8 x y)
 	// cond:
 	// result: (OR x y)
@@ -7217,7 +7230,7 @@ func rewriteValueMIPS64_OpOr8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpOrB(v *Value) bool {
+func rewriteValueMIPS64_OpOrB_0(v *Value) bool {
 	// match: (OrB x y)
 	// cond:
 	// result: (OR x y)
@@ -7230,7 +7243,7 @@ func rewriteValueMIPS64_OpOrB(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRound32F(v *Value) bool {
+func rewriteValueMIPS64_OpRound32F_0(v *Value) bool {
 	// match: (Round32F x)
 	// cond:
 	// result: x
@@ -7242,7 +7255,7 @@ func rewriteValueMIPS64_OpRound32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRound64F(v *Value) bool {
+func rewriteValueMIPS64_OpRound64F_0(v *Value) bool {
 	// match: (Round64F x)
 	// cond:
 	// result: x
@@ -7254,7 +7267,7 @@ func rewriteValueMIPS64_OpRound64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh16Ux16(v *Value) bool {
+func rewriteValueMIPS64_OpRsh16Ux16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7288,7 +7301,7 @@ func rewriteValueMIPS64_OpRsh16Ux16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh16Ux32(v *Value) bool {
+func rewriteValueMIPS64_OpRsh16Ux32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7322,7 +7335,7 @@ func rewriteValueMIPS64_OpRsh16Ux32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh16Ux64(v *Value) bool {
+func rewriteValueMIPS64_OpRsh16Ux64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7352,7 +7365,7 @@ func rewriteValueMIPS64_OpRsh16Ux64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh16Ux8(v *Value) bool {
+func rewriteValueMIPS64_OpRsh16Ux8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7386,7 +7399,7 @@ func rewriteValueMIPS64_OpRsh16Ux8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh16x16(v *Value) bool {
+func rewriteValueMIPS64_OpRsh16x16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7420,7 +7433,7 @@ func rewriteValueMIPS64_OpRsh16x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh16x32(v *Value) bool {
+func rewriteValueMIPS64_OpRsh16x32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7454,7 +7467,7 @@ func rewriteValueMIPS64_OpRsh16x32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh16x64(v *Value) bool {
+func rewriteValueMIPS64_OpRsh16x64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7484,7 +7497,7 @@ func rewriteValueMIPS64_OpRsh16x64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh16x8(v *Value) bool {
+func rewriteValueMIPS64_OpRsh16x8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7518,7 +7531,7 @@ func rewriteValueMIPS64_OpRsh16x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh32Ux16(v *Value) bool {
+func rewriteValueMIPS64_OpRsh32Ux16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7552,7 +7565,7 @@ func rewriteValueMIPS64_OpRsh32Ux16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh32Ux32(v *Value) bool {
+func rewriteValueMIPS64_OpRsh32Ux32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7586,7 +7599,7 @@ func rewriteValueMIPS64_OpRsh32Ux32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh32Ux64(v *Value) bool {
+func rewriteValueMIPS64_OpRsh32Ux64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7616,7 +7629,7 @@ func rewriteValueMIPS64_OpRsh32Ux64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh32Ux8(v *Value) bool {
+func rewriteValueMIPS64_OpRsh32Ux8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7650,7 +7663,7 @@ func rewriteValueMIPS64_OpRsh32Ux8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh32x16(v *Value) bool {
+func rewriteValueMIPS64_OpRsh32x16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7684,7 +7697,7 @@ func rewriteValueMIPS64_OpRsh32x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh32x32(v *Value) bool {
+func rewriteValueMIPS64_OpRsh32x32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7718,7 +7731,7 @@ func rewriteValueMIPS64_OpRsh32x32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh32x64(v *Value) bool {
+func rewriteValueMIPS64_OpRsh32x64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7748,7 +7761,7 @@ func rewriteValueMIPS64_OpRsh32x64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh32x8(v *Value) bool {
+func rewriteValueMIPS64_OpRsh32x8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7782,7 +7795,7 @@ func rewriteValueMIPS64_OpRsh32x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh64Ux16(v *Value) bool {
+func rewriteValueMIPS64_OpRsh64Ux16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7814,7 +7827,7 @@ func rewriteValueMIPS64_OpRsh64Ux16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh64Ux32(v *Value) bool {
+func rewriteValueMIPS64_OpRsh64Ux32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7846,7 +7859,7 @@ func rewriteValueMIPS64_OpRsh64Ux32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh64Ux64(v *Value) bool {
+func rewriteValueMIPS64_OpRsh64Ux64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7874,7 +7887,7 @@ func rewriteValueMIPS64_OpRsh64Ux64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh64Ux8(v *Value) bool {
+func rewriteValueMIPS64_OpRsh64Ux8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7906,7 +7919,7 @@ func rewriteValueMIPS64_OpRsh64Ux8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh64x16(v *Value) bool {
+func rewriteValueMIPS64_OpRsh64x16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7938,7 +7951,7 @@ func rewriteValueMIPS64_OpRsh64x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh64x32(v *Value) bool {
+func rewriteValueMIPS64_OpRsh64x32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7970,7 +7983,7 @@ func rewriteValueMIPS64_OpRsh64x32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh64x64(v *Value) bool {
+func rewriteValueMIPS64_OpRsh64x64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -7998,7 +8011,7 @@ func rewriteValueMIPS64_OpRsh64x64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh64x8(v *Value) bool {
+func rewriteValueMIPS64_OpRsh64x8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -8030,7 +8043,7 @@ func rewriteValueMIPS64_OpRsh64x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh8Ux16(v *Value) bool {
+func rewriteValueMIPS64_OpRsh8Ux16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -8064,7 +8077,7 @@ func rewriteValueMIPS64_OpRsh8Ux16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh8Ux32(v *Value) bool {
+func rewriteValueMIPS64_OpRsh8Ux32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -8098,7 +8111,7 @@ func rewriteValueMIPS64_OpRsh8Ux32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh8Ux64(v *Value) bool {
+func rewriteValueMIPS64_OpRsh8Ux64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -8128,7 +8141,7 @@ func rewriteValueMIPS64_OpRsh8Ux64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh8Ux8(v *Value) bool {
+func rewriteValueMIPS64_OpRsh8Ux8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -8162,7 +8175,7 @@ func rewriteValueMIPS64_OpRsh8Ux8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh8x16(v *Value) bool {
+func rewriteValueMIPS64_OpRsh8x16_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -8196,7 +8209,7 @@ func rewriteValueMIPS64_OpRsh8x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh8x32(v *Value) bool {
+func rewriteValueMIPS64_OpRsh8x32_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -8230,7 +8243,7 @@ func rewriteValueMIPS64_OpRsh8x32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh8x64(v *Value) bool {
+func rewriteValueMIPS64_OpRsh8x64_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -8260,7 +8273,7 @@ func rewriteValueMIPS64_OpRsh8x64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpRsh8x8(v *Value) bool {
+func rewriteValueMIPS64_OpRsh8x8_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	types := &b.Func.Config.Types
@@ -8294,7 +8307,7 @@ func rewriteValueMIPS64_OpRsh8x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSelect0(v *Value) bool {
+func rewriteValueMIPS64_OpSelect0_0(v *Value) bool {
 	// match: (Select0 (DIVVU _ (MOVVconst [1])))
 	// cond:
 	// result: (MOVVconst [0])
@@ -8382,7 +8395,7 @@ func rewriteValueMIPS64_OpSelect0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpSelect1(v *Value) bool {
+func rewriteValueMIPS64_OpSelect1_0(v *Value) bool {
 	// match: (Select1 (MULVU x (MOVVconst [-1])))
 	// cond:
 	// result: (NEGV x)
@@ -8587,6 +8600,9 @@ func rewriteValueMIPS64_OpSelect1(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	return false
+}
+func rewriteValueMIPS64_OpSelect1_10(v *Value) bool {
 	// match: (Select1 (MULVU (MOVVconst [0]) _))
 	// cond:
 	// result: (MOVVconst [0])
@@ -8798,6 +8814,9 @@ func rewriteValueMIPS64_OpSelect1(v *Value) bool {
 		v.AuxInt = c * d
 		return true
 	}
+	return false
+}
+func rewriteValueMIPS64_OpSelect1_20(v *Value) bool {
 	// match: (Select1 (DIVV (MOVVconst [c]) (MOVVconst [d])))
 	// cond:
 	// result: (MOVVconst [int64(c)/int64(d)])
@@ -8844,7 +8863,7 @@ func rewriteValueMIPS64_OpSelect1(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpSignExt16to32(v *Value) bool {
+func rewriteValueMIPS64_OpSignExt16to32_0(v *Value) bool {
 	// match: (SignExt16to32 x)
 	// cond:
 	// result: (MOVHreg x)
@@ -8855,7 +8874,7 @@ func rewriteValueMIPS64_OpSignExt16to32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSignExt16to64(v *Value) bool {
+func rewriteValueMIPS64_OpSignExt16to64_0(v *Value) bool {
 	// match: (SignExt16to64 x)
 	// cond:
 	// result: (MOVHreg x)
@@ -8866,7 +8885,7 @@ func rewriteValueMIPS64_OpSignExt16to64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSignExt32to64(v *Value) bool {
+func rewriteValueMIPS64_OpSignExt32to64_0(v *Value) bool {
 	// match: (SignExt32to64 x)
 	// cond:
 	// result: (MOVWreg x)
@@ -8877,7 +8896,7 @@ func rewriteValueMIPS64_OpSignExt32to64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSignExt8to16(v *Value) bool {
+func rewriteValueMIPS64_OpSignExt8to16_0(v *Value) bool {
 	// match: (SignExt8to16 x)
 	// cond:
 	// result: (MOVBreg x)
@@ -8888,7 +8907,7 @@ func rewriteValueMIPS64_OpSignExt8to16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSignExt8to32(v *Value) bool {
+func rewriteValueMIPS64_OpSignExt8to32_0(v *Value) bool {
 	// match: (SignExt8to32 x)
 	// cond:
 	// result: (MOVBreg x)
@@ -8899,7 +8918,7 @@ func rewriteValueMIPS64_OpSignExt8to32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSignExt8to64(v *Value) bool {
+func rewriteValueMIPS64_OpSignExt8to64_0(v *Value) bool {
 	// match: (SignExt8to64 x)
 	// cond:
 	// result: (MOVBreg x)
@@ -8910,7 +8929,7 @@ func rewriteValueMIPS64_OpSignExt8to64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSlicemask(v *Value) bool {
+func rewriteValueMIPS64_OpSlicemask_0(v *Value) bool {
 	b := v.Block
 	_ = b
 	// match: (Slicemask <t> x)
@@ -8927,7 +8946,7 @@ func rewriteValueMIPS64_OpSlicemask(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpStaticCall(v *Value) bool {
+func rewriteValueMIPS64_OpStaticCall_0(v *Value) bool {
 	// match: (StaticCall [argwid] {target} mem)
 	// cond:
 	// result: (CALLstatic [argwid] {target} mem)
@@ -8942,7 +8961,7 @@ func rewriteValueMIPS64_OpStaticCall(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpStore(v *Value) bool {
+func rewriteValueMIPS64_OpStore_0(v *Value) bool {
 	// match: (Store {t} ptr val mem)
 	// cond: t.(Type).Size() == 1
 	// result: (MOVBstore ptr val mem)
@@ -9047,7 +9066,7 @@ func rewriteValueMIPS64_OpStore(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpSub16(v *Value) bool {
+func rewriteValueMIPS64_OpSub16_0(v *Value) bool {
 	// match: (Sub16 x y)
 	// cond:
 	// result: (SUBV x y)
@@ -9060,7 +9079,7 @@ func rewriteValueMIPS64_OpSub16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSub32(v *Value) bool {
+func rewriteValueMIPS64_OpSub32_0(v *Value) bool {
 	// match: (Sub32 x y)
 	// cond:
 	// result: (SUBV x y)
@@ -9073,7 +9092,7 @@ func rewriteValueMIPS64_OpSub32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSub32F(v *Value) bool {
+func rewriteValueMIPS64_OpSub32F_0(v *Value) bool {
 	// match: (Sub32F x y)
 	// cond:
 	// result: (SUBF x y)
@@ -9086,7 +9105,7 @@ func rewriteValueMIPS64_OpSub32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSub64(v *Value) bool {
+func rewriteValueMIPS64_OpSub64_0(v *Value) bool {
 	// match: (Sub64 x y)
 	// cond:
 	// result: (SUBV x y)
@@ -9099,7 +9118,7 @@ func rewriteValueMIPS64_OpSub64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSub64F(v *Value) bool {
+func rewriteValueMIPS64_OpSub64F_0(v *Value) bool {
 	// match: (Sub64F x y)
 	// cond:
 	// result: (SUBD x y)
@@ -9112,7 +9131,7 @@ func rewriteValueMIPS64_OpSub64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSub8(v *Value) bool {
+func rewriteValueMIPS64_OpSub8_0(v *Value) bool {
 	// match: (Sub8 x y)
 	// cond:
 	// result: (SUBV x y)
@@ -9125,7 +9144,7 @@ func rewriteValueMIPS64_OpSub8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpSubPtr(v *Value) bool {
+func rewriteValueMIPS64_OpSubPtr_0(v *Value) bool {
 	// match: (SubPtr x y)
 	// cond:
 	// result: (SUBV x y)
@@ -9138,7 +9157,7 @@ func rewriteValueMIPS64_OpSubPtr(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpTrunc16to8(v *Value) bool {
+func rewriteValueMIPS64_OpTrunc16to8_0(v *Value) bool {
 	// match: (Trunc16to8 x)
 	// cond:
 	// result: x
@@ -9150,7 +9169,7 @@ func rewriteValueMIPS64_OpTrunc16to8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpTrunc32to16(v *Value) bool {
+func rewriteValueMIPS64_OpTrunc32to16_0(v *Value) bool {
 	// match: (Trunc32to16 x)
 	// cond:
 	// result: x
@@ -9162,7 +9181,7 @@ func rewriteValueMIPS64_OpTrunc32to16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpTrunc32to8(v *Value) bool {
+func rewriteValueMIPS64_OpTrunc32to8_0(v *Value) bool {
 	// match: (Trunc32to8 x)
 	// cond:
 	// result: x
@@ -9174,7 +9193,7 @@ func rewriteValueMIPS64_OpTrunc32to8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpTrunc64to16(v *Value) bool {
+func rewriteValueMIPS64_OpTrunc64to16_0(v *Value) bool {
 	// match: (Trunc64to16 x)
 	// cond:
 	// result: x
@@ -9186,7 +9205,7 @@ func rewriteValueMIPS64_OpTrunc64to16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpTrunc64to32(v *Value) bool {
+func rewriteValueMIPS64_OpTrunc64to32_0(v *Value) bool {
 	// match: (Trunc64to32 x)
 	// cond:
 	// result: x
@@ -9198,7 +9217,7 @@ func rewriteValueMIPS64_OpTrunc64to32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpTrunc64to8(v *Value) bool {
+func rewriteValueMIPS64_OpTrunc64to8_0(v *Value) bool {
 	// match: (Trunc64to8 x)
 	// cond:
 	// result: x
@@ -9210,7 +9229,7 @@ func rewriteValueMIPS64_OpTrunc64to8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpXor16(v *Value) bool {
+func rewriteValueMIPS64_OpXor16_0(v *Value) bool {
 	// match: (Xor16 x y)
 	// cond:
 	// result: (XOR x y)
@@ -9223,7 +9242,7 @@ func rewriteValueMIPS64_OpXor16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpXor32(v *Value) bool {
+func rewriteValueMIPS64_OpXor32_0(v *Value) bool {
 	// match: (Xor32 x y)
 	// cond:
 	// result: (XOR x y)
@@ -9236,7 +9255,7 @@ func rewriteValueMIPS64_OpXor32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpXor64(v *Value) bool {
+func rewriteValueMIPS64_OpXor64_0(v *Value) bool {
 	// match: (Xor64 x y)
 	// cond:
 	// result: (XOR x y)
@@ -9249,7 +9268,7 @@ func rewriteValueMIPS64_OpXor64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpXor8(v *Value) bool {
+func rewriteValueMIPS64_OpXor8_0(v *Value) bool {
 	// match: (Xor8 x y)
 	// cond:
 	// result: (XOR x y)
@@ -9262,11 +9281,9 @@ func rewriteValueMIPS64_OpXor8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpZero(v *Value) bool {
+func rewriteValueMIPS64_OpZero_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
 	types := &b.Func.Config.Types
 	_ = types
 	// match: (Zero [0] _ mem)
@@ -9527,6 +9544,15 @@ func rewriteValueMIPS64_OpZero(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
+	return false
+}
+func rewriteValueMIPS64_OpZero_10(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (Zero [3] ptr mem)
 	// cond:
 	// result: (MOVBstore [2] ptr (MOVVconst [0]) 		(MOVBstore [1] ptr (MOVVconst [0]) 			(MOVBstore [0] ptr (MOVVconst [0]) mem)))
@@ -9736,7 +9762,7 @@ func rewriteValueMIPS64_OpZero(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS64_OpZeroExt16to32(v *Value) bool {
+func rewriteValueMIPS64_OpZeroExt16to32_0(v *Value) bool {
 	// match: (ZeroExt16to32 x)
 	// cond:
 	// result: (MOVHUreg x)
@@ -9747,7 +9773,7 @@ func rewriteValueMIPS64_OpZeroExt16to32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpZeroExt16to64(v *Value) bool {
+func rewriteValueMIPS64_OpZeroExt16to64_0(v *Value) bool {
 	// match: (ZeroExt16to64 x)
 	// cond:
 	// result: (MOVHUreg x)
@@ -9758,7 +9784,7 @@ func rewriteValueMIPS64_OpZeroExt16to64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpZeroExt32to64(v *Value) bool {
+func rewriteValueMIPS64_OpZeroExt32to64_0(v *Value) bool {
 	// match: (ZeroExt32to64 x)
 	// cond:
 	// result: (MOVWUreg x)
@@ -9769,7 +9795,7 @@ func rewriteValueMIPS64_OpZeroExt32to64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpZeroExt8to16(v *Value) bool {
+func rewriteValueMIPS64_OpZeroExt8to16_0(v *Value) bool {
 	// match: (ZeroExt8to16 x)
 	// cond:
 	// result: (MOVBUreg x)
@@ -9780,7 +9806,7 @@ func rewriteValueMIPS64_OpZeroExt8to16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpZeroExt8to32(v *Value) bool {
+func rewriteValueMIPS64_OpZeroExt8to32_0(v *Value) bool {
 	// match: (ZeroExt8to32 x)
 	// cond:
 	// result: (MOVBUreg x)
@@ -9791,7 +9817,7 @@ func rewriteValueMIPS64_OpZeroExt8to32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS64_OpZeroExt8to64(v *Value) bool {
+func rewriteValueMIPS64_OpZeroExt8to64_0(v *Value) bool {
 	// match: (ZeroExt8to64 x)
 	// cond:
 	// result: (MOVBUreg x)
