@@ -57,9 +57,6 @@ TEXT ·Mod(SB),NOSPLIT,$0
 TEXT ·Remainder(SB),NOSPLIT,$0
 	B ·remainder(SB)
 
-TEXT ·Sincos(SB),NOSPLIT,$0
-	B ·sincos(SB)
-
 TEXT ·Sin(SB),NOSPLIT,$0
 	B ·sin(SB)
 
