@@ -34,12 +34,12 @@
 (Mul32uhilo x y) -> (MULLU x y)
 
 (Div32 x y) ->
-	(SUB (XOR <types.UInt32>                                                                  // negate the result if one operand is negative
-		(Select0 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)}
+	(SUB (XOR <types.UInt32>                                                        // negate the result if one operand is negative
+		(Select0 <types.UInt32> (CALLudiv
 			(SUB <types.UInt32> (XOR x <types.UInt32> (Signmask x)) (Signmask x))   // negate x if negative
 			(SUB <types.UInt32> (XOR y <types.UInt32> (Signmask y)) (Signmask y)))) // negate y if negative
 		(Signmask (XOR <types.UInt32> x y))) (Signmask (XOR <types.UInt32> x y)))
-(Div32u x y) -> (Select0 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)} x y))
+(Div32u x y) -> (Select0 <types.UInt32> (CALLudiv x y))
 (Div16 x y) -> (Div32 (SignExt16to32 x) (SignExt16to32 y))
 (Div16u x y) -> (Div32u (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Div8 x y) -> (Div32 (SignExt8to32 x) (SignExt8to32 y))
@@ -48,12 +48,12 @@
 (Div64F x y) -> (DIVD x y)
 
 (Mod32 x y) ->
-	(SUB (XOR <types.UInt32>                                                                  // negate the result if x is negative
-		(Select1 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)}
+	(SUB (XOR <types.UInt32>                                                        // negate the result if x is negative
+		(Select1 <types.UInt32> (CALLudiv
 			(SUB <types.UInt32> (XOR <types.UInt32> x (Signmask x)) (Signmask x))   // negate x if negative
 			(SUB <types.UInt32> (XOR <types.UInt32> y (Signmask y)) (Signmask y)))) // negate y if negative
 		(Signmask x)) (Signmask x))
-(Mod32u x y) -> (Select1 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)} x y))
+(Mod32u x y) -> (Select1 <types.UInt32> (CALLudiv x y))
 (Mod16 x y) -> (Mod32 (SignExt16to32 x) (SignExt16to32 y))
 (Mod16u x y) -> (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Mod8 x y) -> (Mod32 (SignExt8to32 x) (SignExt8to32 y))

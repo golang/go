@@ -91,6 +91,7 @@ func initssaconfig() {
 	writebarrierptr = Sysfunc("writebarrierptr")
 	typedmemmove = Sysfunc("typedmemmove")
 	typedmemclr = Sysfunc("typedmemclr")
+	Udiv = Sysfunc("udiv")
 }
 
 // buildssa builds an SSA function.

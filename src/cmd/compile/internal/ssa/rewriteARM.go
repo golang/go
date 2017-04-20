@@ -13582,13 +13582,11 @@ func rewriteValueARM_OpDiv16u(v *Value) bool {
 func rewriteValueARM_OpDiv32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
 	types := &b.Func.Config.Types
 	_ = types
 	// match: (Div32 x y)
 	// cond:
-	// result: (SUB (XOR <types.UInt32> 		(Select0 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)} 			(SUB <types.UInt32> (XOR x <types.UInt32> (Signmask x)) (Signmask x)) 			(SUB <types.UInt32> (XOR y <types.UInt32> (Signmask y)) (Signmask y)))) 		(Signmask (XOR <types.UInt32> x y))) (Signmask (XOR <types.UInt32> x y)))
+	// result: (SUB (XOR <types.UInt32> 		(Select0 <types.UInt32> (CALLudiv 			(SUB <types.UInt32> (XOR x <types.UInt32> (Signmask x)) (Signmask x)) 			(SUB <types.UInt32> (XOR y <types.UInt32> (Signmask y)) (Signmask y)))) 		(Signmask (XOR <types.UInt32> x y))) (Signmask (XOR <types.UInt32> x y)))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
@@ -13596,7 +13594,6 @@ func rewriteValueARM_OpDiv32(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpARMXOR, types.UInt32)
 		v1 := b.NewValue0(v.Pos, OpSelect0, types.UInt32)
 		v2 := b.NewValue0(v.Pos, OpARMCALLudiv, MakeTuple(types.UInt32, types.UInt32))
-		v2.Aux = config.ctxt.Lookup("udiv", 0)
 		v3 := b.NewValue0(v.Pos, OpARMSUB, types.UInt32)
 		v4 := b.NewValue0(v.Pos, OpARMXOR, types.UInt32)
 		v4.AddArg(x)
@@ -13653,20 +13650,17 @@ func rewriteValueARM_OpDiv32F(v *Value) bool {
 func rewriteValueARM_OpDiv32u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
 	types := &b.Func.Config.Types
 	_ = types
 	// match: (Div32u x y)
 	// cond:
-	// result: (Select0 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)} x y))
+	// result: (Select0 <types.UInt32> (CALLudiv x y))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect0)
 		v.Type = types.UInt32
 		v0 := b.NewValue0(v.Pos, OpARMCALLudiv, MakeTuple(types.UInt32, types.UInt32))
-		v0.Aux = config.ctxt.Lookup("udiv", 0)
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -15088,13 +15082,11 @@ func rewriteValueARM_OpMod16u(v *Value) bool {
 func rewriteValueARM_OpMod32(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
 	types := &b.Func.Config.Types
 	_ = types
 	// match: (Mod32 x y)
 	// cond:
-	// result: (SUB (XOR <types.UInt32> 		(Select1 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)} 			(SUB <types.UInt32> (XOR <types.UInt32> x (Signmask x)) (Signmask x)) 			(SUB <types.UInt32> (XOR <types.UInt32> y (Signmask y)) (Signmask y)))) 		(Signmask x)) (Signmask x))
+	// result: (SUB (XOR <types.UInt32> 		(Select1 <types.UInt32> (CALLudiv 			(SUB <types.UInt32> (XOR <types.UInt32> x (Signmask x)) (Signmask x)) 			(SUB <types.UInt32> (XOR <types.UInt32> y (Signmask y)) (Signmask y)))) 		(Signmask x)) (Signmask x))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
@@ -15102,7 +15094,6 @@ func rewriteValueARM_OpMod32(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpARMXOR, types.UInt32)
 		v1 := b.NewValue0(v.Pos, OpSelect1, types.UInt32)
 		v2 := b.NewValue0(v.Pos, OpARMCALLudiv, MakeTuple(types.UInt32, types.UInt32))
-		v2.Aux = config.ctxt.Lookup("udiv", 0)
 		v3 := b.NewValue0(v.Pos, OpARMSUB, types.UInt32)
 		v4 := b.NewValue0(v.Pos, OpARMXOR, types.UInt32)
 		v4.AddArg(x)
@@ -15140,20 +15131,17 @@ func rewriteValueARM_OpMod32(v *Value) bool {
 func rewriteValueARM_OpMod32u(v *Value) bool {
 	b := v.Block
 	_ = b
-	config := b.Func.Config
-	_ = config
 	types := &b.Func.Config.Types
 	_ = types
 	// match: (Mod32u x y)
 	// cond:
-	// result: (Select1 <types.UInt32> (CALLudiv {config.ctxt.Lookup("udiv", 0)} x y))
+	// result: (Select1 <types.UInt32> (CALLudiv x y))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpSelect1)
 		v.Type = types.UInt32
 		v0 := b.NewValue0(v.Pos, OpARMCALLudiv, MakeTuple(types.UInt32, types.UInt32))
-		v0.Aux = config.ctxt.Lookup("udiv", 0)
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)

@@ -152,10 +152,7 @@ func init() {
 			},
 			clobberFlags: true,
 			typ:          "(UInt32,UInt32)",
-			aux:          "SymOff",
-			// TODO(mdempsky): Should this be true?
-			call:      false,
-			symEffect: "None",
+			call:         false, // TODO(mdempsky): Should this be true?
 		},
 
 		{name: "ADDS", argLength: 2, reg: gp21carry, asm: "ADD", commutative: true}, // arg0 + arg1, set carry flag
