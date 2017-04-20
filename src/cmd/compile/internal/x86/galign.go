@@ -29,7 +29,7 @@ func Init(arch *gc.Arch) {
 	}
 	arch.MAXWIDTH = (1 << 32) - 1
 
-	arch.Defframe = defframe
+	arch.ZeroRange = zerorange
 	arch.Ginsnop = ginsnop
 
 	arch.SSAMarkMoves = ssaMarkMoves

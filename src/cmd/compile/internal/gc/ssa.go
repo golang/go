@@ -4456,14 +4456,66 @@ func genssa(f *ssa.Func, pp *Progs) {
 		}
 	}
 
-	// Add frame prologue. Zero ambiguously live variables.
-	thearch.Defframe(s.pp, e.curfn, e.stksize+s.maxarg)
+	defframe(&s, e)
 	if Debug['f'] != 0 {
 		frame(0)
 	}
 
 	f.HTMLWriter.Close()
 	f.HTMLWriter = nil
+}
+
+func defframe(s *SSAGenState, e *ssafn) {
+	pp := s.pp
+
+	frame := Rnd(s.maxarg+e.stksize, int64(Widthreg))
+	if thearch.PadFrame != nil {
+		frame = thearch.PadFrame(frame)
+	}
+
+	// Fill in argument and frame size.
+	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+	pp.Text.To.Val = int32(Rnd(e.curfn.Type.ArgWidth(), int64(Widthreg)))
+	pp.Text.To.Offset = frame
+
+	// Insert code to zero ambiguously live variables so that the
+	// garbage collector only sees initialized values when it
+	// looks for pointers.
+	p := pp.Text
+	var lo, hi int64
+
+	// Opaque state for backend to use. Current backends use it to
+	// keep track of which helper registers have been zeroed.
+	var state uint32
+
+	// Iterate through declarations. They are sorted in decreasing Xoffset order.
+	for _, n := range e.curfn.Func.Dcl {
+		if !n.Name.Needzero() {
+			continue
+		}
+		if n.Class != PAUTO {
+			Fatalf("needzero class %d", n.Class)
+		}
+		if n.Type.Size()%int64(Widthptr) != 0 || n.Xoffset%int64(Widthptr) != 0 || n.Type.Size() == 0 {
+			Fatalf("var %L has size %d offset %d", n, n.Type.Size(), n.Xoffset)
+		}
+
+		if lo != hi && n.Xoffset+n.Type.Size() >= lo-int64(2*Widthreg) {
+			// Merge with range we already have.
+			lo = n.Xoffset
+			continue
+		}
+
+		// Zero old range
+		p = thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
+
+		// Set new range.
+		lo = n.Xoffset
+		hi = lo + n.Type.Size()
+	}
+
+	// Zero final range.
+	thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
 }
 
 type FloatingEQNEJump struct {

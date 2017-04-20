@@ -16,83 +16,33 @@ import (
 // Must be between 256 and 4096.
 const clearLoopCutoff = 1024
 
-func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
-	// fill in argument size, stack size
-	pp.Text.To.Type = obj.TYPE_TEXTSIZE
-
-	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
-	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
-	pp.Text.To.Offset = int64(frame)
-
-	// insert code to zero ambiguously live variables
-	// so that the garbage collector only sees initialized values
-	// when it looks for pointers.
-	p := pp.Text
-
-	hi := int64(0)
-	lo := hi
-
-	// iterate through declarations - they are sorted in decreasing xoffset order.
-	for _, n := range fn.Func.Dcl {
-		if !n.Name.Needzero() {
-			continue
-		}
-		if n.Class != gc.PAUTO {
-			gc.Fatalf("needzero class %d", n.Class)
-		}
-		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
-			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
-		}
-
-		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
-			// merge with range we already have
-			lo = n.Xoffset
-
-			continue
-		}
-
-		// zero old range
-		p = zerorange(pp, p, int64(frame), lo, hi)
-
-		// set new range
-		hi = n.Xoffset + n.Type.Width
-
-		lo = n.Xoffset
-	}
-
-	// zero final range
-	zerorange(pp, p, int64(frame), lo, hi)
-}
-
 // zerorange clears the stack in the given range.
-func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
-	cnt := hi - lo
+func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 	if cnt == 0 {
 		return p
 	}
 
 	// Adjust the frame to account for LR.
-	frame += gc.Ctxt.FixedFrameSize()
-	offset := frame + lo
+	off += gc.Ctxt.FixedFrameSize()
 	reg := int16(s390x.REGSP)
 
-	// If the offset cannot fit in a 12-bit unsigned displacement then we
+	// If the off cannot fit in a 12-bit unsigned displacement then we
 	// need to create a copy of the stack pointer that we can adjust.
 	// We also need to do this if we are going to loop.
-	if offset < 0 || offset > 4096-clearLoopCutoff || cnt > clearLoopCutoff {
-		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset, obj.TYPE_REG, s390x.REGRT1, 0)
+	if off < 0 || off > 4096-clearLoopCutoff || cnt > clearLoopCutoff {
+		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, off, obj.TYPE_REG, s390x.REGRT1, 0)
 		p.Reg = int16(s390x.REGSP)
 		reg = s390x.REGRT1
-		offset = 0
+		off = 0
 	}
 
 	// Generate a loop of large clears.
 	if cnt > clearLoopCutoff {
 		n := cnt - (cnt % 256)
 		end := int16(s390x.REGRT2)
-		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset+n, obj.TYPE_REG, end, 0)
+		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, off+n, obj.TYPE_REG, end, 0)
 		p.Reg = reg
-		p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
+		p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, off, obj.TYPE_MEM, reg, off)
 		p.From3 = new(obj.Addr)
 		p.From3.Type = obj.TYPE_CONST
 		p.From3.Offset = 256
@@ -126,18 +76,18 @@ func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.
 			case 2:
 				ins = s390x.AMOVH
 			}
-			p = pp.Appendpp(p, ins, obj.TYPE_CONST, 0, 0, obj.TYPE_MEM, reg, offset)
+			p = pp.Appendpp(p, ins, obj.TYPE_CONST, 0, 0, obj.TYPE_MEM, reg, off)
 
 		// Handle clears that would require multiple move instructions with XC.
 		default:
-			p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
+			p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, off, obj.TYPE_MEM, reg, off)
 			p.From3 = new(obj.Addr)
 			p.From3.Type = obj.TYPE_CONST
 			p.From3.Offset = n
 		}
 
 		cnt -= n
-		offset += n
+		off += n
 	}
 
 	return p
