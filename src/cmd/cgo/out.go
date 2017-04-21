@@ -1298,7 +1298,7 @@ const gccProlog = `
 */
 #define __cgo_compile_assert_eq(x, y, name) typedef char name[(x-y)*(x-y)*-2+1];
 
-// Check at compile time that the sizes we use match our expectations.
+/* Check at compile time that the sizes we use match our expectations. */
 #define __cgo_size_assert(t, n) __cgo_compile_assert_eq(sizeof(t), n, _cgo_sizeof_##t##_is_not_##n)
 
 __cgo_size_assert(char, 1)
