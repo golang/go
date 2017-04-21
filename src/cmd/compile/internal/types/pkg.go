@@ -68,6 +68,13 @@ var nopkg = &Pkg{
 	Syms: make(map[string]*Sym),
 }
 
+// fake package for runtime type info (headers)
+var typepkg = NewPkg("type", "type")
+
+func TypePkgLookup(name string) *Sym {
+	return typepkg.Lookup(name)
+}
+
 func (pkg *Pkg) Lookup(name string) *Sym {
 	s, _ := pkg.LookupOK(name)
 	return s
