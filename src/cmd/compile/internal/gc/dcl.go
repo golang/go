@@ -104,7 +104,7 @@ func declare(n *Node, ctxt Class) {
 			vargen++
 			gen = vargen
 		}
-		types.Pushdcl(s, lineno)
+		types.Pushdcl(s)
 		n.Name.Curfn = Curfn
 	}
 
@@ -510,7 +510,7 @@ var funcdepth int32   // len(funcstack) during parsing, but then forced to be th
 // start the function.
 // called before funcargs; undone at end of funcbody.
 func funcstart(n *Node) {
-	types.Markdcl(lineno)
+	types.Markdcl()
 	funcstack = append(funcstack, Curfn)
 	funcdepth++
 	Curfn = n
