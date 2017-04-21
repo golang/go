@@ -449,7 +449,7 @@ func dimportpath(p *types.Pkg) {
 
 	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
 	ot := dnameData(s, 0, str, "", nil, false)
-	ggloblLSym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
 	p.Pathsym = s
 }
 
@@ -592,7 +592,7 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
 		return s
 	}
 	ot := dnameData(s, 0, name, tag, pkg, exported)
-	ggloblLSym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
 	return s
 }
 
@@ -1319,7 +1319,7 @@ ok:
 	}
 
 	ot = dextratypeData(s, ot, t)
-	ggloblsym(s, int32(ot), int16(dupok|obj.RODATA))
+	ggloblsym(s.Linksym(), int32(ot), int16(dupok|obj.RODATA))
 
 	// The linker will leave a table of all the typelinks for
 	// types in the binary, so the runtime can find them.
@@ -1469,11 +1469,11 @@ func dumptypestructs() {
 		o += len(imethods(i.itype)) * Widthptr         // skip fun method pointers
 		// at runtime the itab will contain pointers to types, other itabs and
 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
-		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR))
+		ggloblsym(i.sym.Linksym(), int32(o), int16(obj.DUPOK|obj.NOPTR))
 
 		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString())
 		dsymptr(ilink.Linksym(), 0, i.sym.Linksym(), 0)
-		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
+		ggloblsym(ilink.Linksym(), int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
 	}
 
 	// process ptabs
@@ -1491,14 +1491,14 @@ func dumptypestructs() {
 			ot = dsymptrOff(s, ot, nsym, 0)
 			ot = dsymptrOff(s, ot, dtypesym(p.t).Linksym(), 0)
 		}
-		ggloblLSym(s, int32(ot), int16(obj.RODATA))
+		ggloblsym(s, int32(ot), int16(obj.RODATA))
 
 		ot = 0
 		s = Ctxt.Lookup("go.plugin.exports")
 		for _, p := range ptabs {
 			ot = dsymptr(s, ot, p.s.Linksym(), 0)
 		}
-		ggloblLSym(s, int32(ot), int16(obj.RODATA))
+		ggloblsym(s, int32(ot), int16(obj.RODATA))
 	}
 
 	// generate import strings for imported packages
@@ -1581,7 +1581,7 @@ func dalgsym(t *types.Type) *types.Sym {
 		ot := 0
 		ot = dsymptr(hashfunc.Linksym(), ot, memhashvarlen, 0)
 		ot = duintptr(hashfunc.Linksym(), ot, uint64(t.Width)) // size encoded in closure
-		ggloblsym(hashfunc, int32(ot), obj.DUPOK|obj.RODATA)
+		ggloblsym(hashfunc.Linksym(), int32(ot), obj.DUPOK|obj.RODATA)
 
 		// make equality closure
 		p = fmt.Sprintf(".eqfunc%d", t.Width)
@@ -1591,7 +1591,7 @@ func dalgsym(t *types.Type) *types.Sym {
 		ot = 0
 		ot = dsymptr(eqfunc.Linksym(), ot, memequalvarlen, 0)
 		ot = duintptr(eqfunc.Linksym(), ot, uint64(t.Width))
-		ggloblsym(eqfunc, int32(ot), obj.DUPOK|obj.RODATA)
+		ggloblsym(eqfunc.Linksym(), int32(ot), obj.DUPOK|obj.RODATA)
 	} else {
 		// generate an alg table specific to this type
 		s = typesymprefix(".alg", t)
@@ -1607,9 +1607,9 @@ func dalgsym(t *types.Type) *types.Sym {
 		// make Go funcs (closures) for calling hash and equal from Go
 		dsymptr(hashfunc.Linksym(), 0, hash.Linksym(), 0)
 
-		ggloblsym(hashfunc, int32(Widthptr), obj.DUPOK|obj.RODATA)
+		ggloblsym(hashfunc.Linksym(), int32(Widthptr), obj.DUPOK|obj.RODATA)
 		dsymptr(eqfunc.Linksym(), 0, eq.Linksym(), 0)
-		ggloblsym(eqfunc, int32(Widthptr), obj.DUPOK|obj.RODATA)
+		ggloblsym(eqfunc.Linksym(), int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
 
 	// ../../../../runtime/alg.go:/typeAlg
@@ -1617,7 +1617,7 @@ func dalgsym(t *types.Type) *types.Sym {
 
 	ot = dsymptr(s.Linksym(), ot, hashfunc.Linksym(), 0)
 	ot = dsymptr(s.Linksym(), ot, eqfunc.Linksym(), 0)
-	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	ggloblsym(s.Linksym(), int32(ot), obj.DUPOK|obj.RODATA)
 	return s
 }
 
@@ -1682,7 +1682,7 @@ func dgcptrmask(t *types.Type) *types.Sym {
 		for i, x := range ptrmask {
 			duint8(sym.Linksym(), i, x)
 		}
-		ggloblsym(sym, int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
+		ggloblsym(sym.Linksym(), int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
 	}
 	return sym
 }
@@ -1756,7 +1756,7 @@ func (p *GCProg) writeByte(x byte) {
 func (p *GCProg) end() {
 	p.w.End()
 	duint32(p.sym.Linksym(), 0, uint32(p.symoff-4))
-	ggloblsym(p.sym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
+	ggloblsym(p.sym.Linksym(), int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
 	if Debug_gcprog > 0 {
 		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.sym)
 	}

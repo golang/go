@@ -150,7 +150,7 @@ func dumpobj1(outfile string, mode int) {
 
 	if zerosize > 0 {
 		zero := mappkg.Lookup("zero")
-		ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
+		ggloblsym(zero.Linksym(), int32(zerosize), obj.DUPOK|obj.RODATA)
 	}
 
 	addGCLocals()
@@ -223,7 +223,7 @@ func dumpglobls() {
 	for _, s := range funcsyms {
 		sf := s.Pkg.Lookup(funcsymname(s))
 		dsymptr(sf.Linksym(), 0, s.Linksym(), 0)
-		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
+		ggloblsym(sf.Linksym(), int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
 
 	// Do not reprocess funcsyms on next dumpglobls call.
@@ -310,7 +310,7 @@ func stringsym(s string) (data *obj.LSym) {
 	if !symdata.SeenGlobl() {
 		// string data
 		off := dsname(symdata, 0, s)
-		ggloblLSym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 	}
 
 	return symdata
@@ -325,7 +325,7 @@ func slicebytes(nam *Node, s string, len int) {
 	sym.Def = asTypesNode(newname(sym))
 
 	off := dsname(sym.Linksym(), 0, s)
-	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
+	ggloblsym(sym.Linksym(), int32(off), obj.NOPTR|obj.LOCAL)
 
 	if nam.Op != ONAME {
 		Fatalf("slicebytes %v", nam)

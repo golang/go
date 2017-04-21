@@ -51,7 +51,7 @@ func emitptrargsmap() {
 		off = dbvec(lsym, off, bv)
 	}
 
-	ggloblLSym(lsym, int32(off), obj.RODATA|obj.LOCAL)
+	ggloblsym(lsym, int32(off), obj.RODATA|obj.LOCAL)
 }
 
 // cmpstackvarlt reports whether the stack variable a sorts before b.
