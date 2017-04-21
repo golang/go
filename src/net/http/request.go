@@ -329,6 +329,14 @@ func (r *Request) WithContext(ctx context.Context) *Request {
 	r2 := new(Request)
 	*r2 = *r
 	r2.ctx = ctx
+
+	// Deep copy the URL because it isn't
+	// a map and the URL is mutable by users
+	// of WithContext.
+	r2URL := new(url.URL)
+	*r2URL = *r.URL
+	r2.URL = r2URL
+
 	return r2
 }
 

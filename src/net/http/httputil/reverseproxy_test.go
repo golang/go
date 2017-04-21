@@ -698,3 +698,41 @@ func BenchmarkServeHTTP(b *testing.B) {
 		proxy.ServeHTTP(w, r)
 	}
 }
+
+func TestServeHTTPDeepCopy(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello Gopher!"))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type result struct {
+		before, after string
+	}
+
+	resultChan := make(chan result, 1)
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		before := r.URL.String()
+		proxyHandler.ServeHTTP(w, r)
+		after := r.URL.String()
+		resultChan <- result{before: before, after: after}
+	}))
+	defer frontend.Close()
+
+	want := result{before: "/", after: "/"}
+
+	res, err := frontend.Client().Get(frontend.URL)
+	if err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	res.Body.Close()
+
+	got := <-resultChan
+	if got != want {
+		t.Errorf("got = %+v; want = %+v", got, want)
+	}
+}

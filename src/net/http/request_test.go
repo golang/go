@@ -7,6 +7,7 @@ package http_test
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -782,6 +783,21 @@ func TestMaxBytesReaderStickyError(t *testing.T) {
 		if err := isSticky(rc); err != nil {
 			t.Errorf("%d. error: %v", i, err)
 		}
+	}
+}
+
+func TestWithContextDeepCopiesURL(t *testing.T) {
+	req, err := NewRequest("POST", "https://golang.org/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reqCopy := req.WithContext(context.Background())
+	reqCopy.URL.Scheme = "http"
+
+	firstURL, secondURL := req.URL.String(), reqCopy.URL.String()
+	if firstURL == secondURL {
+		t.Errorf("unexpected change to original request's URL")
 	}
 }
 
