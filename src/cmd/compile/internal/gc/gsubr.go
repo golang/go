@@ -37,11 +37,7 @@ import (
 	"cmd/internal/src"
 )
 
-var sharedProgArray *[10000]obj.Prog // *T instead of T to work around issue 19839
-
-func init() {
-	sharedProgArray = new([10000]obj.Prog)
-}
+var sharedProgArray *[10000]obj.Prog = new([10000]obj.Prog) // *T instead of T to work around issue 19839
 
 // Progs accumulates Progs for a function and converts them into machine code.
 type Progs struct {
