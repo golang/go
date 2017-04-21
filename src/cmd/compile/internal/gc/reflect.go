@@ -1025,28 +1025,11 @@ func isreflexive(t *types.Type) bool {
 // need the key to be updated.
 func needkeyupdate(t *types.Type) bool {
 	switch t.Etype {
-	case TBOOL,
-		TINT,
-		TUINT,
-		TINT8,
-		TUINT8,
-		TINT16,
-		TUINT16,
-		TINT32,
-		TUINT32,
-		TINT64,
-		TUINT64,
-		TUINTPTR,
-		TPTR32,
-		TPTR64,
-		TUNSAFEPTR,
-		TCHAN:
+	case TBOOL, TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32,
+		TINT64, TUINT64, TUINTPTR, TPTR32, TPTR64, TUNSAFEPTR, TCHAN:
 		return false
 
-	case TFLOAT32, // floats can be +0/-0
-		TFLOAT64,
-		TCOMPLEX64,
-		TCOMPLEX128,
+	case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, // floats and complex can be +0/-0
 		TINTER,
 		TSTRING: // strings might have smaller backing stores
 		return true
