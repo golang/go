@@ -313,6 +313,9 @@ func BuildModeInit() {
 		pkgsFilter = pkgsMain
 		ldBuildmode = "exe"
 	case "pie":
+		if cfg.BuildRace {
+			base.Fatalf("-buildmode=pie not supported when -race is enabled")
+		}
 		if gccgo {
 			base.Fatalf("-buildmode=pie not supported by gccgo")
 		} else {
