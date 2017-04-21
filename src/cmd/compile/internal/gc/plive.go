@@ -502,7 +502,7 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
 // Returns true for instructions that are safe points that must be annotated
 // with liveness information.
 func issafepoint(v *ssa.Value) bool {
-	return v.Op.IsCall() || v.Op == ssa.OpARMCALLudiv
+	return v.Op.IsCall()
 }
 
 // Initializes the sets for solving the live variables. Visits all the

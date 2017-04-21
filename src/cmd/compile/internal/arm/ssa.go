@@ -625,8 +625,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMCALLstatic, ssa.OpARMCALLclosure, ssa.OpARMCALLinter:
 		s.Call(v)
 	case ssa.OpARMCALLudiv:
-		v.Aux = gc.Udiv
-		s.Call(v)
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Udiv
 	case ssa.OpARMDUFFZERO:
 		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM
