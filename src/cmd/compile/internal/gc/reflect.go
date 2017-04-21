@@ -507,7 +507,7 @@ func isExportedField(ft *types.Field) (bool, *types.Pkg) {
 }
 
 // dnameField dumps a reflect.name for a struct field.
-func dnameField(s *types.Sym, ot int, spkg *types.Pkg, ft *types.Field) int {
+func dnameField(lsym *obj.LSym, ot int, spkg *types.Pkg, ft *types.Field) int {
 	var name string
 	if ft.Sym != nil {
 		name = ft.Sym.Name
@@ -517,7 +517,7 @@ func dnameField(s *types.Sym, ot int, spkg *types.Pkg, ft *types.Field) int {
 		fpkg = nil
 	}
 	nsym := dname(name, ft.Note, fpkg, isExported)
-	return dsymptr(s.Linksym(), ot, nsym, 0)
+	return dsymptr(lsym, ot, nsym, 0)
 }
 
 // dnameData writes the contents of a reflect.name into s at offset ot.
@@ -599,7 +599,7 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
 // dextratype dumps the fields of a runtime.uncommontype.
 // dataAdd is the offset in bytes after the header where the
 // backing array of the []method field is written (by dextratypeData).
-func dextratype(s *types.Sym, ot int, t *types.Type, dataAdd int) int {
+func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
 	m := methods(t)
 	if t.Sym == nil && len(m) == 0 {
 		return ot
@@ -613,7 +613,7 @@ func dextratype(s *types.Sym, ot int, t *types.Type, dataAdd int) int {
 		dtypesym(a.type_)
 	}
 
-	ot = dgopkgpathOff(s.Linksym(), ot, typePkg(t))
+	ot = dgopkgpathOff(lsym, ot, typePkg(t))
 
 	dataAdd += uncommonSize(t)
 	mcount := len(m)
@@ -624,10 +624,10 @@ func dextratype(s *types.Sym, ot int, t *types.Type, dataAdd int) int {
 		Fatalf("methods are too far away on %v: %d", t, dataAdd)
 	}
 
-	ot = duint16(s.Linksym(), ot, uint16(mcount))
-	ot = duint16(s.Linksym(), ot, 0)
-	ot = duint32(s.Linksym(), ot, uint32(dataAdd))
-	ot = duint32(s.Linksym(), ot, 0)
+	ot = duint16(lsym, ot, uint16(mcount))
+	ot = duint16(lsym, ot, 0)
+	ot = duint32(lsym, ot, uint32(dataAdd))
+	ot = duint32(lsym, ot, 0)
 	return ot
 }
 
@@ -777,7 +777,7 @@ var (
 )
 
 // dcommontype dumps the contents of a reflect.rtype (runtime._type).
-func dcommontype(s *types.Sym, ot int, t *types.Type) int {
+func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
 	if ot != 0 {
 		Fatalf("dcommontype %d", ot)
 	}
@@ -820,10 +820,9 @@ func dcommontype(s *types.Sym, ot int, t *types.Type) int {
 	//		str           nameOff
 	//		ptrToThis     typeOff
 	//	}
-	ot = duintptr(s.Linksym(), ot, uint64(t.Width))
-	ot = duintptr(s.Linksym(), ot, uint64(ptrdata))
-
-	ot = duint32(s.Linksym(), ot, typehash(t))
+	ot = duintptr(lsym, ot, uint64(t.Width))
+	ot = duintptr(lsym, ot, uint64(ptrdata))
+	ot = duint32(lsym, ot, typehash(t))
 
 	var tflag uint8
 	if uncommonSize(t) != 0 {
@@ -852,7 +851,7 @@ func dcommontype(s *types.Sym, ot int, t *types.Type) int {
 		}
 	}
 
-	ot = duint8(s.Linksym(), ot, tflag)
+	ot = duint8(lsym, ot, tflag)
 
 	// runtime (and common sense) expects alignment to be a power of two.
 	i := int(t.Align)
@@ -863,8 +862,8 @@ func dcommontype(s *types.Sym, ot int, t *types.Type) int {
 	if i&(i-1) != 0 {
 		Fatalf("invalid alignment %d for %v", t.Align, t)
 	}
-	ot = duint8(s.Linksym(), ot, t.Align) // align
-	ot = duint8(s.Linksym(), ot, t.Align) // fieldAlign
+	ot = duint8(lsym, ot, t.Align) // align
+	ot = duint8(lsym, ot, t.Align) // fieldAlign
 
 	i = kinds[t.Etype]
 	if !types.Haspointers(t) {
@@ -876,23 +875,23 @@ func dcommontype(s *types.Sym, ot int, t *types.Type) int {
 	if useGCProg {
 		i |= objabi.KindGCProg
 	}
-	ot = duint8(s.Linksym(), ot, uint8(i)) // kind
+	ot = duint8(lsym, ot, uint8(i)) // kind
 	if algsym == nil {
-		ot = dsymptr(s.Linksym(), ot, algarray, int(alg)*sizeofAlg)
+		ot = dsymptr(lsym, ot, algarray, int(alg)*sizeofAlg)
 	} else {
-		ot = dsymptr(s.Linksym(), ot, algsym.Linksym(), 0)
+		ot = dsymptr(lsym, ot, algsym.Linksym(), 0)
 	}
-	ot = dsymptr(s.Linksym(), ot, gcsym, 0) // gcdata
+	ot = dsymptr(lsym, ot, gcsym, 0) // gcdata
 
 	nsym := dname(p, "", nil, exported)
-	ot = dsymptrOff(s.Linksym(), ot, nsym, 0) // str
+	ot = dsymptrOff(lsym, ot, nsym, 0) // str
 	// ptrToThis
 	if sptr == nil {
-		ot = duint32(s.Linksym(), ot, 0)
+		ot = duint32(lsym, ot, 0)
 	} else if sptrWeak {
-		ot = dsymptrWeakOff(s.Linksym(), ot, sptr.Linksym())
+		ot = dsymptrWeakOff(lsym, ot, sptr.Linksym())
 	} else {
-		ot = dsymptrOff(s.Linksym(), ot, sptr.Linksym(), 0)
+		ot = dsymptrOff(lsym, ot, sptr.Linksym(), 0)
 	}
 
 	return ot
@@ -1102,34 +1101,34 @@ ok:
 	ot := 0
 	switch t.Etype {
 	default:
-		ot = dcommontype(s, ot, t)
-		ot = dextratype(s, ot, t, 0)
+		ot = dcommontype(s.Linksym(), ot, t)
+		ot = dextratype(s.Linksym(), ot, t, 0)
 
 	case TARRAY:
 		// ../../../../runtime/type.go:/arrayType
 		s1 := dtypesym(t.Elem())
 		t2 := types.NewSlice(t.Elem())
 		s2 := dtypesym(t2)
-		ot = dcommontype(s, ot, t)
+		ot = dcommontype(s.Linksym(), ot, t)
 		ot = dsymptr(s.Linksym(), ot, s1.Linksym(), 0)
 		ot = dsymptr(s.Linksym(), ot, s2.Linksym(), 0)
 		ot = duintptr(s.Linksym(), ot, uint64(t.NumElem()))
-		ot = dextratype(s, ot, t, 0)
+		ot = dextratype(s.Linksym(), ot, t, 0)
 
 	case TSLICE:
 		// ../../../../runtime/type.go:/sliceType
 		s1 := dtypesym(t.Elem())
-		ot = dcommontype(s, ot, t)
+		ot = dcommontype(s.Linksym(), ot, t)
 		ot = dsymptr(s.Linksym(), ot, s1.Linksym(), 0)
-		ot = dextratype(s, ot, t, 0)
+		ot = dextratype(s.Linksym(), ot, t, 0)
 
 	case TCHAN:
 		// ../../../../runtime/type.go:/chanType
 		s1 := dtypesym(t.Elem())
-		ot = dcommontype(s, ot, t)
+		ot = dcommontype(s.Linksym(), ot, t)
 		ot = dsymptr(s.Linksym(), ot, s1.Linksym(), 0)
 		ot = duintptr(s.Linksym(), ot, uint64(t.ChanDir()))
-		ot = dextratype(s, ot, t, 0)
+		ot = dextratype(s.Linksym(), ot, t, 0)
 
 	case TFUNC:
 		for _, t1 := range t.Recvs().Fields().Slice() {
@@ -1144,7 +1143,7 @@ ok:
 			dtypesym(t1.Type)
 		}
 
-		ot = dcommontype(s, ot, t)
+		ot = dcommontype(s.Linksym(), ot, t)
 		inCount := t.Recvs().NumFields() + t.Params().NumFields()
 		outCount := t.Results().NumFields()
 		if isddd {
@@ -1157,7 +1156,7 @@ ok:
 		}
 
 		dataAdd := (inCount + t.Results().NumFields()) * Widthptr
-		ot = dextratype(s, ot, t, dataAdd)
+		ot = dextratype(s.Linksym(), ot, t, dataAdd)
 
 		// Array of rtype pointers follows funcType.
 		for _, t1 := range t.Recvs().Fields().Slice() {
@@ -1178,7 +1177,7 @@ ok:
 		}
 
 		// ../../../../runtime/type.go:/interfaceType
-		ot = dcommontype(s, ot, t)
+		ot = dcommontype(s.Linksym(), ot, t)
 
 		var tpkg *types.Pkg
 		if t.Sym != nil && t != types.Types[t.Etype] && t != types.Errortype {
@@ -1190,7 +1189,7 @@ ok:
 		ot = duintptr(s.Linksym(), ot, uint64(n))
 		ot = duintptr(s.Linksym(), ot, uint64(n))
 		dataAdd := imethodSize() * n
-		ot = dextratype(s, ot, t, dataAdd)
+		ot = dextratype(s.Linksym(), ot, t, dataAdd)
 
 		lsym := s.Linksym()
 		for _, a := range m {
@@ -1212,7 +1211,7 @@ ok:
 		s2 := dtypesym(t.Val())
 		s3 := dtypesym(mapbucket(t))
 		s4 := dtypesym(hmap(t))
-		ot = dcommontype(s, ot, t)
+		ot = dcommontype(s.Linksym(), ot, t)
 		ot = dsymptr(s.Linksym(), ot, s1.Linksym(), 0)
 		ot = dsymptr(s.Linksym(), ot, s2.Linksym(), 0)
 		ot = dsymptr(s.Linksym(), ot, s3.Linksym(), 0)
@@ -1236,13 +1235,13 @@ ok:
 		ot = duint16(s.Linksym(), ot, uint16(mapbucket(t).Width))
 		ot = duint8(s.Linksym(), ot, uint8(obj.Bool2int(isreflexive(t.Key()))))
 		ot = duint8(s.Linksym(), ot, uint8(obj.Bool2int(needkeyupdate(t.Key()))))
-		ot = dextratype(s, ot, t, 0)
+		ot = dextratype(s.Linksym(), ot, t, 0)
 
 	case TPTR32, TPTR64:
 		if t.Elem().Etype == TANY {
 			// ../../../../runtime/type.go:/UnsafePointerType
-			ot = dcommontype(s, ot, t)
-			ot = dextratype(s, ot, t, 0)
+			ot = dcommontype(s.Linksym(), ot, t)
+			ot = dextratype(s.Linksym(), ot, t, 0)
 
 			break
 		}
@@ -1250,9 +1249,9 @@ ok:
 		// ../../../../runtime/type.go:/ptrType
 		s1 := dtypesym(t.Elem())
 
-		ot = dcommontype(s, ot, t)
+		ot = dcommontype(s.Linksym(), ot, t)
 		ot = dsymptr(s.Linksym(), ot, s1.Linksym(), 0)
-		ot = dextratype(s, ot, t, 0)
+		ot = dextratype(s.Linksym(), ot, t, 0)
 
 	// ../../../../runtime/type.go:/structType
 	// for security, only the exported fields.
@@ -1264,7 +1263,7 @@ ok:
 			n++
 		}
 
-		ot = dcommontype(s, ot, t)
+		ot = dcommontype(s.Linksym(), ot, t)
 		pkg := localpkg
 		if t.Sym != nil {
 			pkg = t.Sym.Pkg
@@ -1284,11 +1283,11 @@ ok:
 		ot = duintptr(s.Linksym(), ot, uint64(n))
 
 		dataAdd := n * structfieldSize()
-		ot = dextratype(s, ot, t, dataAdd)
+		ot = dextratype(s.Linksym(), ot, t, dataAdd)
 
 		for _, f := range t.Fields().Slice() {
 			// ../../../../runtime/type.go:/structField
-			ot = dnameField(s, ot, pkg, f)
+			ot = dnameField(s.Linksym(), ot, pkg, f)
 			ot = dsymptr(s.Linksym(), ot, dtypesym(f.Type).Linksym(), 0)
 			offsetAnon := uint64(f.Offset) << 1
 			if offsetAnon>>1 != uint64(f.Offset) {
