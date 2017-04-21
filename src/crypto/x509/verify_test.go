@@ -1415,7 +1415,7 @@ func TestUnknownAuthorityError(t *testing.T) {
 			hintCert: c,
 		}
 		actual := uae.Error()
-		if strings.Compare(actual, tt.expected) != 0 {
+		if actual != tt.expected {
 			t.Errorf("#%d: UnknownAuthorityError.Error() response invalid actual: %s expected: %s", i, actual, tt.expected)
 		}
 	}
