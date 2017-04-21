@@ -793,13 +793,13 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
 	}
 
 	sptrWeak := true
-	var sptr *types.Sym
+	var sptr *obj.LSym
 	if !t.IsPtr() || t.PtrBase != nil {
 		tptr := types.NewPtr(t)
 		if t.Sym != nil || methods(tptr) != nil {
 			sptrWeak = false
 		}
-		sptr = dtypesym(tptr)
+		sptr = dtypesym(tptr).Linksym()
 	}
 
 	gcsym, useGCProg, ptrdata := dgcsym(t)
@@ -888,9 +888,9 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
 	if sptr == nil {
 		ot = duint32(lsym, ot, 0)
 	} else if sptrWeak {
-		ot = dsymptrWeakOff(lsym, ot, sptr.Linksym())
+		ot = dsymptrWeakOff(lsym, ot, sptr)
 	} else {
-		ot = dsymptrOff(lsym, ot, sptr.Linksym(), 0)
+		ot = dsymptrOff(lsym, ot, sptr, 0)
 	}
 
 	return ot
