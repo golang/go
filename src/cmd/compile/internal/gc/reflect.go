@@ -1338,7 +1338,8 @@ ok:
 			keep = true
 		}
 	}
-	s.Lsym.Set(obj.AttrMakeTypelink, keep)
+	// TODO(josharian): add lsym local variable above, use here instead of calling Linksym()
+	s.Linksym().Set(obj.AttrMakeTypelink, keep)
 
 	return s
 }
