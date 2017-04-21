@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This is a derived work from OpenSSL of SHA-2 using assembly optimizations. The
+// original code was written by Andy Polyakov <appro@openssl.org> and it's dual
+// licensed under OpenSSL and CRYPTOGAMS licenses depending on where you obtain
+// it. For further details see http://www.openssl.org/~appro/cryptogams/.
+
 #include "textflag.h"
 
 // SHA256 block routine. See sha256block.go for Go equivalent.
@@ -44,226 +49,368 @@
 // H6 = g + H6
 // H7 = h + H7
 
-// Wt = Mt; for 0 <= t <= 15
-#define MSGSCHEDULE0(index) \
-	MOVWZ	(index*4)(R26), R7; \
-	RLWNM	$24, R7, $-1, R11; \
-	RLWMI	$8, R7, $0x00FF0000, R11; \
-	RLWMI	$8, R7, $0x000000FF, R11; \
-	MOVWZ	R11, R7; \
-	MOVWZ	R7, (index*4)(R27)
+#define CTX	R3
+#define INP	R4
+#define END	R5
+#define TBL	R6
+#define IDX	R7
+#define CNT	R8
+#define LEN	R9
+#define OFFLOAD	R11
+#define TEMP	R12
 
-// Wt = SIGMA1(Wt-2) + Wt-7 + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 63
-//   SIGMA0(x) = ROTR(7,x) XOR ROTR(18,x) XOR SHR(3,x)
-//   SIGMA1(x) = ROTR(17,x) XOR ROTR(19,x) XOR SHR(10,x)
-#define MSGSCHEDULE1(index) \
-	MOVWZ	((index-2)*4)(R27), R7; \
-	MOVWZ	R7, R9; \
-	RLWNM	$32-17, R7, $-1, R7; \
-	MOVWZ	R9, R10; \
-	RLWNM	$32-19, R9, $-1, R9; \
-	SRW	$10, R10; \
-	MOVWZ	((index-15)*4)(R27), R8; \
-	XOR	R9, R7; \
-	MOVWZ	R8, R9; \
-	XOR	R10, R7; \
-	RLWNM	$32-7, R8, $-1, R8; \
-	MOVWZ	R9, R10; \
-	SRW	$3, R10; \
-	RLWNM	$32-18, R9, $-1, R9; \
-	MOVWZ	((index-7)*4)(R27), R11; \
-	ADD	R11, R7; \
-	XOR	R9, R8; \
-	XOR	R10, R8; \
-	MOVWZ	((index-16)*4)(R27), R11; \
-	ADD	R11, R8; \
-	ADD	R8, R7; \
-	MOVWZ	R7, ((index)*4)(R27)
+#define HEX00	R0
+#define HEX10	R10
+#define HEX20	R25
+#define HEX30	R26
+#define HEX40	R27
+#define HEX50	R28
+#define HEX60	R29
+#define HEX70	R31
 
-// T1 = h + BIGSIGMA1(e) + Ch(e, f, g) + Kt + Wt
-//   BIGSIGMA1(x) = ROTR(6,x) XOR ROTR(11,x) XOR ROTR(25,x)
-//   Ch(x, y, z) = (x AND y) XOR (NOT x AND z)
-#define SHA256T1(const, e, f, g, h) \
-	ADD	R7, h; \
-	MOVWZ	e, R7; \
-	ADD	$const, h; \
-	MOVWZ	e, R9; \
-	RLWNM	$32-6, R7, $-1, R7; \
-	MOVWZ	e, R10; \
-	RLWNM	$32-11, R9, $-1, R9; \
-	XOR	R9, R7; \
-	MOVWZ	e, R9; \
-	RLWNM	$32-25, R10, $-1, R10; \
-	AND	f, R9; \
-	XOR	R7, R10; \
-	MOVWZ	e, R7; \
-	NOR	R7, R7, R7; \
-	ADD	R10, h; \
-	AND	g, R7; \
-	XOR	R9, R7; \
-	ADD	h, R7
+// V0-V7 are A-H
+// V8-V23 are used for the message schedule
+#define KI	V24
+#define FUNC	V25
+#define S0	V26
+#define S1	V27
+#define s0	V28
+#define s1	V29
+#define LEMASK	V31	// Permutation control register for little endian
 
-// T2 = BIGSIGMA0(a) + Maj(a, b, c)
-//   BIGSIGMA0(x) = ROTR(2,x) XOR ROTR(13,x) XOR ROTR(22,x)
-//   Maj(x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
-#define SHA256T2(a, b, c) \
-	MOVWZ	a, R28; \
-	MOVWZ	c, R8; \
-	RLWNM	$32-2, R28, $-1, R28; \
-	MOVWZ	a, R10; \
-	AND	b, R8; \
-	RLWNM	$32-13, R10, $-1, R10; \
-	MOVWZ	a, R9; \
-	AND	c, R9; \
-	XOR	R10, R28; \
-	XOR	R9, R8; \
-	MOVWZ	a, R10; \
-	MOVWZ	b, R9; \
-	RLWNM	$32-22, R10, $-1, R10; \
-	AND	a, R9; \
-	XOR	R9, R8; \
-	XOR	R10, R28; \
-	ADD	R28, R8
+// 4 copies of each Kt, to fill all 4 words of a vector register
+DATA  ·kcon+0x000(SB)/8, $0x428a2f98428a2f98
+DATA  ·kcon+0x008(SB)/8, $0x428a2f98428a2f98
+DATA  ·kcon+0x010(SB)/8, $0x7137449171374491
+DATA  ·kcon+0x018(SB)/8, $0x7137449171374491
+DATA  ·kcon+0x020(SB)/8, $0xb5c0fbcfb5c0fbcf
+DATA  ·kcon+0x028(SB)/8, $0xb5c0fbcfb5c0fbcf
+DATA  ·kcon+0x030(SB)/8, $0xe9b5dba5e9b5dba5
+DATA  ·kcon+0x038(SB)/8, $0xe9b5dba5e9b5dba5
+DATA  ·kcon+0x040(SB)/8, $0x3956c25b3956c25b
+DATA  ·kcon+0x048(SB)/8, $0x3956c25b3956c25b
+DATA  ·kcon+0x050(SB)/8, $0x59f111f159f111f1
+DATA  ·kcon+0x058(SB)/8, $0x59f111f159f111f1
+DATA  ·kcon+0x060(SB)/8, $0x923f82a4923f82a4
+DATA  ·kcon+0x068(SB)/8, $0x923f82a4923f82a4
+DATA  ·kcon+0x070(SB)/8, $0xab1c5ed5ab1c5ed5
+DATA  ·kcon+0x078(SB)/8, $0xab1c5ed5ab1c5ed5
+DATA  ·kcon+0x080(SB)/8, $0xd807aa98d807aa98
+DATA  ·kcon+0x088(SB)/8, $0xd807aa98d807aa98
+DATA  ·kcon+0x090(SB)/8, $0x12835b0112835b01
+DATA  ·kcon+0x098(SB)/8, $0x12835b0112835b01
+DATA  ·kcon+0x0A0(SB)/8, $0x243185be243185be
+DATA  ·kcon+0x0A8(SB)/8, $0x243185be243185be
+DATA  ·kcon+0x0B0(SB)/8, $0x550c7dc3550c7dc3
+DATA  ·kcon+0x0B8(SB)/8, $0x550c7dc3550c7dc3
+DATA  ·kcon+0x0C0(SB)/8, $0x72be5d7472be5d74
+DATA  ·kcon+0x0C8(SB)/8, $0x72be5d7472be5d74
+DATA  ·kcon+0x0D0(SB)/8, $0x80deb1fe80deb1fe
+DATA  ·kcon+0x0D8(SB)/8, $0x80deb1fe80deb1fe
+DATA  ·kcon+0x0E0(SB)/8, $0x9bdc06a79bdc06a7
+DATA  ·kcon+0x0E8(SB)/8, $0x9bdc06a79bdc06a7
+DATA  ·kcon+0x0F0(SB)/8, $0xc19bf174c19bf174
+DATA  ·kcon+0x0F8(SB)/8, $0xc19bf174c19bf174
+DATA  ·kcon+0x100(SB)/8, $0xe49b69c1e49b69c1
+DATA  ·kcon+0x108(SB)/8, $0xe49b69c1e49b69c1
+DATA  ·kcon+0x110(SB)/8, $0xefbe4786efbe4786
+DATA  ·kcon+0x118(SB)/8, $0xefbe4786efbe4786
+DATA  ·kcon+0x120(SB)/8, $0x0fc19dc60fc19dc6
+DATA  ·kcon+0x128(SB)/8, $0x0fc19dc60fc19dc6
+DATA  ·kcon+0x130(SB)/8, $0x240ca1cc240ca1cc
+DATA  ·kcon+0x138(SB)/8, $0x240ca1cc240ca1cc
+DATA  ·kcon+0x140(SB)/8, $0x2de92c6f2de92c6f
+DATA  ·kcon+0x148(SB)/8, $0x2de92c6f2de92c6f
+DATA  ·kcon+0x150(SB)/8, $0x4a7484aa4a7484aa
+DATA  ·kcon+0x158(SB)/8, $0x4a7484aa4a7484aa
+DATA  ·kcon+0x160(SB)/8, $0x5cb0a9dc5cb0a9dc
+DATA  ·kcon+0x168(SB)/8, $0x5cb0a9dc5cb0a9dc
+DATA  ·kcon+0x170(SB)/8, $0x76f988da76f988da
+DATA  ·kcon+0x178(SB)/8, $0x76f988da76f988da
+DATA  ·kcon+0x180(SB)/8, $0x983e5152983e5152
+DATA  ·kcon+0x188(SB)/8, $0x983e5152983e5152
+DATA  ·kcon+0x190(SB)/8, $0xa831c66da831c66d
+DATA  ·kcon+0x198(SB)/8, $0xa831c66da831c66d
+DATA  ·kcon+0x1A0(SB)/8, $0xb00327c8b00327c8
+DATA  ·kcon+0x1A8(SB)/8, $0xb00327c8b00327c8
+DATA  ·kcon+0x1B0(SB)/8, $0xbf597fc7bf597fc7
+DATA  ·kcon+0x1B8(SB)/8, $0xbf597fc7bf597fc7
+DATA  ·kcon+0x1C0(SB)/8, $0xc6e00bf3c6e00bf3
+DATA  ·kcon+0x1C8(SB)/8, $0xc6e00bf3c6e00bf3
+DATA  ·kcon+0x1D0(SB)/8, $0xd5a79147d5a79147
+DATA  ·kcon+0x1D8(SB)/8, $0xd5a79147d5a79147
+DATA  ·kcon+0x1E0(SB)/8, $0x06ca635106ca6351
+DATA  ·kcon+0x1E8(SB)/8, $0x06ca635106ca6351
+DATA  ·kcon+0x1F0(SB)/8, $0x1429296714292967
+DATA  ·kcon+0x1F8(SB)/8, $0x1429296714292967
+DATA  ·kcon+0x200(SB)/8, $0x27b70a8527b70a85
+DATA  ·kcon+0x208(SB)/8, $0x27b70a8527b70a85
+DATA  ·kcon+0x210(SB)/8, $0x2e1b21382e1b2138
+DATA  ·kcon+0x218(SB)/8, $0x2e1b21382e1b2138
+DATA  ·kcon+0x220(SB)/8, $0x4d2c6dfc4d2c6dfc
+DATA  ·kcon+0x228(SB)/8, $0x4d2c6dfc4d2c6dfc
+DATA  ·kcon+0x230(SB)/8, $0x53380d1353380d13
+DATA  ·kcon+0x238(SB)/8, $0x53380d1353380d13
+DATA  ·kcon+0x240(SB)/8, $0x650a7354650a7354
+DATA  ·kcon+0x248(SB)/8, $0x650a7354650a7354
+DATA  ·kcon+0x250(SB)/8, $0x766a0abb766a0abb
+DATA  ·kcon+0x258(SB)/8, $0x766a0abb766a0abb
+DATA  ·kcon+0x260(SB)/8, $0x81c2c92e81c2c92e
+DATA  ·kcon+0x268(SB)/8, $0x81c2c92e81c2c92e
+DATA  ·kcon+0x270(SB)/8, $0x92722c8592722c85
+DATA  ·kcon+0x278(SB)/8, $0x92722c8592722c85
+DATA  ·kcon+0x280(SB)/8, $0xa2bfe8a1a2bfe8a1
+DATA  ·kcon+0x288(SB)/8, $0xa2bfe8a1a2bfe8a1
+DATA  ·kcon+0x290(SB)/8, $0xa81a664ba81a664b
+DATA  ·kcon+0x298(SB)/8, $0xa81a664ba81a664b
+DATA  ·kcon+0x2A0(SB)/8, $0xc24b8b70c24b8b70
+DATA  ·kcon+0x2A8(SB)/8, $0xc24b8b70c24b8b70
+DATA  ·kcon+0x2B0(SB)/8, $0xc76c51a3c76c51a3
+DATA  ·kcon+0x2B8(SB)/8, $0xc76c51a3c76c51a3
+DATA  ·kcon+0x2C0(SB)/8, $0xd192e819d192e819
+DATA  ·kcon+0x2C8(SB)/8, $0xd192e819d192e819
+DATA  ·kcon+0x2D0(SB)/8, $0xd6990624d6990624
+DATA  ·kcon+0x2D8(SB)/8, $0xd6990624d6990624
+DATA  ·kcon+0x2E0(SB)/8, $0xf40e3585f40e3585
+DATA  ·kcon+0x2E8(SB)/8, $0xf40e3585f40e3585
+DATA  ·kcon+0x2F0(SB)/8, $0x106aa070106aa070
+DATA  ·kcon+0x2F8(SB)/8, $0x106aa070106aa070
+DATA  ·kcon+0x300(SB)/8, $0x19a4c11619a4c116
+DATA  ·kcon+0x308(SB)/8, $0x19a4c11619a4c116
+DATA  ·kcon+0x310(SB)/8, $0x1e376c081e376c08
+DATA  ·kcon+0x318(SB)/8, $0x1e376c081e376c08
+DATA  ·kcon+0x320(SB)/8, $0x2748774c2748774c
+DATA  ·kcon+0x328(SB)/8, $0x2748774c2748774c
+DATA  ·kcon+0x330(SB)/8, $0x34b0bcb534b0bcb5
+DATA  ·kcon+0x338(SB)/8, $0x34b0bcb534b0bcb5
+DATA  ·kcon+0x340(SB)/8, $0x391c0cb3391c0cb3
+DATA  ·kcon+0x348(SB)/8, $0x391c0cb3391c0cb3
+DATA  ·kcon+0x350(SB)/8, $0x4ed8aa4a4ed8aa4a
+DATA  ·kcon+0x358(SB)/8, $0x4ed8aa4a4ed8aa4a
+DATA  ·kcon+0x360(SB)/8, $0x5b9cca4f5b9cca4f
+DATA  ·kcon+0x368(SB)/8, $0x5b9cca4f5b9cca4f
+DATA  ·kcon+0x370(SB)/8, $0x682e6ff3682e6ff3
+DATA  ·kcon+0x378(SB)/8, $0x682e6ff3682e6ff3
+DATA  ·kcon+0x380(SB)/8, $0x748f82ee748f82ee
+DATA  ·kcon+0x388(SB)/8, $0x748f82ee748f82ee
+DATA  ·kcon+0x390(SB)/8, $0x78a5636f78a5636f
+DATA  ·kcon+0x398(SB)/8, $0x78a5636f78a5636f
+DATA  ·kcon+0x3A0(SB)/8, $0x84c8781484c87814
+DATA  ·kcon+0x3A8(SB)/8, $0x84c8781484c87814
+DATA  ·kcon+0x3B0(SB)/8, $0x8cc702088cc70208
+DATA  ·kcon+0x3B8(SB)/8, $0x8cc702088cc70208
+DATA  ·kcon+0x3C0(SB)/8, $0x90befffa90befffa
+DATA  ·kcon+0x3C8(SB)/8, $0x90befffa90befffa
+DATA  ·kcon+0x3D0(SB)/8, $0xa4506ceba4506ceb
+DATA  ·kcon+0x3D8(SB)/8, $0xa4506ceba4506ceb
+DATA  ·kcon+0x3E0(SB)/8, $0xbef9a3f7bef9a3f7
+DATA  ·kcon+0x3E8(SB)/8, $0xbef9a3f7bef9a3f7
+DATA  ·kcon+0x3F0(SB)/8, $0xc67178f2c67178f2
+DATA  ·kcon+0x3F8(SB)/8, $0xc67178f2c67178f2
+DATA  ·kcon+0x400(SB)/8, $0x0000000000000000
+DATA  ·kcon+0x408(SB)/8, $0x0000000000000000
+DATA  ·kcon+0x410(SB)/8, $0x1011121310111213	// permutation control vectors
+DATA  ·kcon+0x418(SB)/8, $0x1011121300010203
+DATA  ·kcon+0x420(SB)/8, $0x1011121310111213
+DATA  ·kcon+0x428(SB)/8, $0x0405060700010203
+DATA  ·kcon+0x430(SB)/8, $0x1011121308090a0b
+DATA  ·kcon+0x438(SB)/8, $0x0405060700010203
+GLOBL ·kcon(SB), RODATA, $1088
 
-// Calculate T1 and T2, then e = d + T1 and a = T1 + T2.
-// The values for e and a are stored in d and h, ready for rotation.
-#define SHA256ROUND(index, const, a, b, c, d, e, f, g, h) \
-	SHA256T1(const, e, f, g, h); \
-	SHA256T2(a, b, c); \
-	MOVWZ	R8, h; \
-	ADD	R7, d; \
-	ADD	R7, h
+#define SHA256ROUND0(a, b, c, d, e, f, g, h, xi) \
+	VSEL		g, f, e, FUNC; \
+	VSHASIGMAW	$15, e, $1, S1; \
+	VADDUWM		xi, h, h; \
+	VSHASIGMAW	$0, a, $1, S0; \
+	VADDUWM		FUNC, h, h; \
+	VXOR		b, a, FUNC; \
+	VADDUWM		S1, h, h; \
+	VSEL		b, c, FUNC, FUNC; \
+	VADDUWM		KI, g, g; \
+	VADDUWM		h, d, d; \
+	VADDUWM		FUNC, S0, S0; \
+	LVX		(TBL)(IDX), KI; \
+	ADD		$16, IDX; \
+	VADDUWM		S0, h, h
 
-#define SHA256ROUND0(index, const, a, b, c, d, e, f, g, h) \
-	MSGSCHEDULE0(index); \
-	SHA256ROUND(index, const, a, b, c, d, e, f, g, h)
-
-#define SHA256ROUND1(index, const, a, b, c, d, e, f, g, h) \
-	MSGSCHEDULE1(index); \
-	SHA256ROUND(index, const, a, b, c, d, e, f, g, h)
+#define SHA256ROUND1(a, b, c, d, e, f, g, h, xi, xj, xj_1, xj_9, xj_14) \
+	VSHASIGMAW	$0, xj_1, $0, s0; \
+	VSEL		g, f, e, FUNC; \
+	VSHASIGMAW	$15, e, $1, S1; \
+	VADDUWM		xi, h, h; \
+	VSHASIGMAW	$0, a, $1, S0; \
+	VSHASIGMAW	$15, xj_14, $0, s1; \
+	VADDUWM		FUNC, h, h; \
+	VXOR		b, a, FUNC; \
+	VADDUWM		xj_9, xj, xj; \
+	VADDUWM		S1, h, h; \
+	VSEL		b, c, FUNC, FUNC; \
+	VADDUWM		KI, g, g; \
+	VADDUWM		h, d, d; \
+	VADDUWM		FUNC, S0, S0; \
+	VADDUWM		s0, xj, xj; \
+	LVX		(TBL)(IDX), KI; \
+	ADD		$16, IDX; \
+	VADDUWM		S0, h, h; \
+	VADDUWM		s1, xj, xj
 
 // func block(dig *digest, p []byte)
-TEXT ·block(SB),0,$296-32
-	MOVD	p_base+8(FP), R26
-	MOVD	p_len+16(FP), R29
-	SRD	$6, R29
-	SLD	$6, R29
+TEXT ·block(SB),0,$128-32
+	MOVD	dig+0(FP), CTX
+	MOVD	p_base+8(FP), INP
+	MOVD	p_len+16(FP), LEN
 
-	ADD	R26, R29, R28
+	SRD	$6, LEN
+	SLD	$6, LEN
 
-	MOVD	R28, 256(R1)
-	CMP	R26, R28
+	ADD	INP, LEN, END
+
+	CMP	INP, END
 	BEQ	end
 
-	MOVD	dig+0(FP), R27
-	MOVWZ	(0*4)(R27), R14		// a = H0
-	MOVWZ	(1*4)(R27), R15		// b = H1
-	MOVWZ	(2*4)(R27), R16		// c = H2
-	MOVWZ	(3*4)(R27), R17		// d = H3
-	MOVWZ	(4*4)(R27), R18		// e = H4
-	MOVWZ	(5*4)(R27), R19		// f = H5
-	MOVWZ	(6*4)(R27), R20		// g = H6
-	MOVWZ	(7*4)(R27), R21		// h = H7
+	MOVD	$·kcon(SB), TBL
+	MOVD	R1, OFFLOAD
+
+	MOVD	R0, CNT
+	MOVWZ	$0x10, HEX10
+	MOVWZ	$0x20, HEX20
+	MOVWZ	$0x30, HEX30
+	MOVWZ	$0x40, HEX40
+	MOVWZ	$0x50, HEX50
+	MOVWZ	$0x60, HEX60
+	MOVWZ	$0x70, HEX70
+
+	MOVWZ	$8, IDX
+	LVSL	(IDX)(R0), LEMASK
+	VSPLTISB	$0x0F, KI
+	VXOR	KI, LEMASK, LEMASK
+
+	LXVW4X	(CTX)(HEX00), VS32	// v0 = vs32
+	LXVW4X	(CTX)(HEX10), VS36	// v4 = vs36
+
+	// unpack the input values into vector registers
+	VSLDOI	$4, V0, V0, V1
+	VSLDOI	$8, V0, V0, V2
+	VSLDOI	$12, V0, V0, V3
+	VSLDOI	$4, V4, V4, V5
+	VSLDOI	$8, V4, V4, V6
+	VSLDOI	$12, V4, V4, V7
 
 loop:
-	MOVD	R1, R27		// R27: message schedule
+	LVX	(TBL)(HEX00), KI
+	MOVWZ	$16, IDX
 
-	SHA256ROUND0(0, 0x428a2f98, R14, R15, R16, R17, R18, R19, R20, R21)
-	SHA256ROUND0(1, 0x71374491, R21, R14, R15, R16, R17, R18, R19, R20)
-	SHA256ROUND0(2, 0xb5c0fbcf, R20, R21, R14, R15, R16, R17, R18, R19)
-	SHA256ROUND0(3, 0xe9b5dba5, R19, R20, R21, R14, R15, R16, R17, R18)
-	SHA256ROUND0(4, 0x3956c25b, R18, R19, R20, R21, R14, R15, R16, R17)
-	SHA256ROUND0(5, 0x59f111f1, R17, R18, R19, R20, R21, R14, R15, R16)
-	SHA256ROUND0(6, 0x923f82a4, R16, R17, R18, R19, R20, R21, R14, R15)
-	SHA256ROUND0(7, 0xab1c5ed5, R15, R16, R17, R18, R19, R20, R21, R14)
-	SHA256ROUND0(8, 0xd807aa98, R14, R15, R16, R17, R18, R19, R20, R21)
-	SHA256ROUND0(9, 0x12835b01, R21, R14, R15, R16, R17, R18, R19, R20)
-	SHA256ROUND0(10, 0x243185be, R20, R21, R14, R15, R16, R17, R18, R19)
-	SHA256ROUND0(11, 0x550c7dc3, R19, R20, R21, R14, R15, R16, R17, R18)
-	SHA256ROUND0(12, 0x72be5d74, R18, R19, R20, R21, R14, R15, R16, R17)
-	SHA256ROUND0(13, 0x80deb1fe, R17, R18, R19, R20, R21, R14, R15, R16)
-	SHA256ROUND0(14, 0x9bdc06a7, R16, R17, R18, R19, R20, R21, R14, R15)
-	SHA256ROUND0(15, 0xc19bf174, R15, R16, R17, R18, R19, R20, R21, R14)
+	LXVD2X	(INP)(R0), VS40	// load v8 (=vs40) in advance
+	ADD	$16, INP
 
-	SHA256ROUND1(16, 0xe49b69c1, R14, R15, R16, R17, R18, R19, R20, R21)
-	SHA256ROUND1(17, 0xefbe4786, R21, R14, R15, R16, R17, R18, R19, R20)
-	SHA256ROUND1(18, 0x0fc19dc6, R20, R21, R14, R15, R16, R17, R18, R19)
-	SHA256ROUND1(19, 0x240ca1cc, R19, R20, R21, R14, R15, R16, R17, R18)
-	SHA256ROUND1(20, 0x2de92c6f, R18, R19, R20, R21, R14, R15, R16, R17)
-	SHA256ROUND1(21, 0x4a7484aa, R17, R18, R19, R20, R21, R14, R15, R16)
-	SHA256ROUND1(22, 0x5cb0a9dc, R16, R17, R18, R19, R20, R21, R14, R15)
-	SHA256ROUND1(23, 0x76f988da, R15, R16, R17, R18, R19, R20, R21, R14)
-	SHA256ROUND1(24, 0x983e5152, R14, R15, R16, R17, R18, R19, R20, R21)
-	SHA256ROUND1(25, 0xa831c66d, R21, R14, R15, R16, R17, R18, R19, R20)
-	SHA256ROUND1(26, 0xb00327c8, R20, R21, R14, R15, R16, R17, R18, R19)
-	SHA256ROUND1(27, 0xbf597fc7, R19, R20, R21, R14, R15, R16, R17, R18)
-	SHA256ROUND1(28, 0xc6e00bf3, R18, R19, R20, R21, R14, R15, R16, R17)
-	SHA256ROUND1(29, 0xd5a79147, R17, R18, R19, R20, R21, R14, R15, R16)
-	SHA256ROUND1(30, 0x06ca6351, R16, R17, R18, R19, R20, R21, R14, R15)
-	SHA256ROUND1(31, 0x14292967, R15, R16, R17, R18, R19, R20, R21, R14)
-	SHA256ROUND1(32, 0x27b70a85, R14, R15, R16, R17, R18, R19, R20, R21)
-	SHA256ROUND1(33, 0x2e1b2138, R21, R14, R15, R16, R17, R18, R19, R20)
-	SHA256ROUND1(34, 0x4d2c6dfc, R20, R21, R14, R15, R16, R17, R18, R19)
-	SHA256ROUND1(35, 0x53380d13, R19, R20, R21, R14, R15, R16, R17, R18)
-	SHA256ROUND1(36, 0x650a7354, R18, R19, R20, R21, R14, R15, R16, R17)
-	SHA256ROUND1(37, 0x766a0abb, R17, R18, R19, R20, R21, R14, R15, R16)
-	SHA256ROUND1(38, 0x81c2c92e, R16, R17, R18, R19, R20, R21, R14, R15)
-	SHA256ROUND1(39, 0x92722c85, R15, R16, R17, R18, R19, R20, R21, R14)
-	SHA256ROUND1(40, 0xa2bfe8a1, R14, R15, R16, R17, R18, R19, R20, R21)
-	SHA256ROUND1(41, 0xa81a664b, R21, R14, R15, R16, R17, R18, R19, R20)
-	SHA256ROUND1(42, 0xc24b8b70, R20, R21, R14, R15, R16, R17, R18, R19)
-	SHA256ROUND1(43, 0xc76c51a3, R19, R20, R21, R14, R15, R16, R17, R18)
-	SHA256ROUND1(44, 0xd192e819, R18, R19, R20, R21, R14, R15, R16, R17)
-	SHA256ROUND1(45, 0xd6990624, R17, R18, R19, R20, R21, R14, R15, R16)
-	SHA256ROUND1(46, 0xf40e3585, R16, R17, R18, R19, R20, R21, R14, R15)
-	SHA256ROUND1(47, 0x106aa070, R15, R16, R17, R18, R19, R20, R21, R14)
-	SHA256ROUND1(48, 0x19a4c116, R14, R15, R16, R17, R18, R19, R20, R21)
-	SHA256ROUND1(49, 0x1e376c08, R21, R14, R15, R16, R17, R18, R19, R20)
-	SHA256ROUND1(50, 0x2748774c, R20, R21, R14, R15, R16, R17, R18, R19)
-	SHA256ROUND1(51, 0x34b0bcb5, R19, R20, R21, R14, R15, R16, R17, R18)
-	SHA256ROUND1(52, 0x391c0cb3, R18, R19, R20, R21, R14, R15, R16, R17)
-	SHA256ROUND1(53, 0x4ed8aa4a, R17, R18, R19, R20, R21, R14, R15, R16)
-	SHA256ROUND1(54, 0x5b9cca4f, R16, R17, R18, R19, R20, R21, R14, R15)
-	SHA256ROUND1(55, 0x682e6ff3, R15, R16, R17, R18, R19, R20, R21, R14)
-	SHA256ROUND1(56, 0x748f82ee, R14, R15, R16, R17, R18, R19, R20, R21)
-	SHA256ROUND1(57, 0x78a5636f, R21, R14, R15, R16, R17, R18, R19, R20)
-	SHA256ROUND1(58, 0x84c87814, R20, R21, R14, R15, R16, R17, R18, R19)
-	SHA256ROUND1(59, 0x8cc70208, R19, R20, R21, R14, R15, R16, R17, R18)
-	SHA256ROUND1(60, 0x90befffa, R18, R19, R20, R21, R14, R15, R16, R17)
-	SHA256ROUND1(61, 0xa4506ceb, R17, R18, R19, R20, R21, R14, R15, R16)
-	SHA256ROUND1(62, 0xbef9a3f7, R16, R17, R18, R19, R20, R21, R14, R15)
-	SHA256ROUND1(63, 0xc67178f2, R15, R16, R17, R18, R19, R20, R21, R14)
+	STVX	V0, (OFFLOAD+HEX00)
+	STVX	V1, (OFFLOAD+HEX10)
+	STVX	V2, (OFFLOAD+HEX20)
+	STVX	V3, (OFFLOAD+HEX30)
+	STVX	V4, (OFFLOAD+HEX40)
+	STVX	V5, (OFFLOAD+HEX50)
+	STVX	V6, (OFFLOAD+HEX60)
+	STVX	V7, (OFFLOAD+HEX70)
 
-	MOVD	dig+0(FP), R27
-	MOVWZ	(0*4)(R27), R11
-	ADD	R11, R14	// H0 = a + H0
-	MOVWZ	R14, (0*4)(R27)
-	MOVWZ	(1*4)(R27), R11
-	ADD	R11, R15	// H1 = b + H1
-	MOVWZ	R15, (1*4)(R27)
-	MOVWZ	(2*4)(R27), R11
-	ADD	R11, R16	// H2 = c + H2
-	MOVWZ	R16, (2*4)(R27)
-	MOVWZ	(3*4)(R27), R11
-	ADD	R11, R17	// H3 = d + H3
-	MOVWZ	R17, (3*4)(R27)
-	MOVWZ	(4*4)(R27), R11
-	ADD	R11, R18	// H4 = e + H4
-	MOVWZ	R18, (4*4)(R27)
-	MOVWZ	(5*4)(R27), R11
-	ADD	R11, R19	// H5 = f + H5
-	MOVWZ	R19, (5*4)(R27)
-	MOVWZ	(6*4)(R27), R11
-	ADD	R11, R20	// H6 = g + H6
-	MOVWZ	R20, (6*4)(R27)
-	MOVWZ	(7*4)(R27), R11
-	ADD	R11, R21	// H7 = h + H7
-	MOVWZ	R21, (7*4)(R27)
+	VADDUWM	KI, V7, V7	// h+K[i]
+	LVX	(TBL)(IDX), KI
+	ADD	$16, IDX
 
-	ADD	$64, R26
-	MOVD	256(R1), R11
-	CMPU	R26, R11
+	VPERM	V8, V8, LEMASK, V8
+	SHA256ROUND0(V0, V1, V2, V3, V4, V5, V6, V7, V8)
+	VSLDOI	$4, V8, V8, V9
+	SHA256ROUND0(V7, V0, V1, V2, V3, V4, V5, V6, V9)
+	VSLDOI	$4, V9, V9, V10
+	SHA256ROUND0(V6, V7, V0, V1, V2, V3, V4, V5, V10)
+	LXVD2X	(INP)(R0), VS44	// load v12 (=vs44) in advance
+	ADD	$16, INP, INP
+	VSLDOI	$4, V10, V10, V11
+	SHA256ROUND0(V5, V6, V7, V0, V1, V2, V3, V4, V11)
+	VPERM	V12, V12, LEMASK, V12
+	SHA256ROUND0(V4, V5, V6, V7, V0, V1, V2, V3, V12)
+	VSLDOI	$4, V12, V12, V13
+	SHA256ROUND0(V3, V4, V5, V6, V7, V0, V1, V2, V13)
+	VSLDOI	$4, V13, V13, V14
+	SHA256ROUND0(V2, V3, V4, V5, V6, V7, V0, V1, V14)
+	LXVD2X	(INP)(R0), VS48	// load v16 (=vs48) in advance
+	ADD	$16, INP, INP
+	VSLDOI	$4, V14, V14, V15
+	SHA256ROUND0(V1, V2, V3, V4, V5, V6, V7, V0, V15)
+	VPERM	V16, V16, LEMASK, V16
+	SHA256ROUND0(V0, V1, V2, V3, V4, V5, V6, V7, V16)
+	VSLDOI	$4, V16, V16, V17
+	SHA256ROUND0(V7, V0, V1, V2, V3, V4, V5, V6, V17)
+	VSLDOI	$4, V17, V17, V18
+	SHA256ROUND0(V6, V7, V0, V1, V2, V3, V4, V5, V18)
+	VSLDOI	$4, V18, V18, V19
+	LXVD2X	(INP)(R0), VS52	// load v20 (=vs52) in advance
+	ADD	$16, INP, INP
+	SHA256ROUND0(V5, V6, V7, V0, V1, V2, V3, V4, V19)
+	VPERM	V20, V20, LEMASK, V20
+	SHA256ROUND0(V4, V5, V6, V7, V0, V1, V2, V3, V20)
+	VSLDOI	$4, V20, V20, V21
+	SHA256ROUND0(V3, V4, V5, V6, V7, V0, V1, V2, V21)
+	VSLDOI	$4, V21, V21, V22
+	SHA256ROUND0(V2, V3, V4, V5, V6, V7, V0, V1, V22)
+	VSLDOI	$4, V22, V22, V23
+	SHA256ROUND1(V1, V2, V3, V4, V5, V6, V7, V0, V23, V8, V9, V17, V22)
+
+	MOVWZ	$3, TEMP
+	MOVWZ	TEMP, CTR
+
+L16_xx:
+	SHA256ROUND1(V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V18, V23)
+	SHA256ROUND1(V7, V0, V1, V2, V3, V4, V5, V6, V9, V10, V11, V19, V8)
+	SHA256ROUND1(V6, V7, V0, V1, V2, V3, V4, V5, V10, V11, V12, V20, V9)
+	SHA256ROUND1(V5, V6, V7, V0, V1, V2, V3, V4, V11, V12, V13, V21, V10)
+	SHA256ROUND1(V4, V5, V6, V7, V0, V1, V2, V3, V12, V13, V14, V22, V11)
+	SHA256ROUND1(V3, V4, V5, V6, V7, V0, V1, V2, V13, V14, V15, V23, V12)
+	SHA256ROUND1(V2, V3, V4, V5, V6, V7, V0, V1, V14, V15, V16, V8, V13)
+	SHA256ROUND1(V1, V2, V3, V4, V5, V6, V7, V0, V15, V16, V17, V9, V14)
+	SHA256ROUND1(V0, V1, V2, V3, V4, V5, V6, V7, V16, V17, V18, V10, V15)
+	SHA256ROUND1(V7, V0, V1, V2, V3, V4, V5, V6, V17, V18, V19, V11, V16)
+	SHA256ROUND1(V6, V7, V0, V1, V2, V3, V4, V5, V18, V19, V20, V12, V17)
+	SHA256ROUND1(V5, V6, V7, V0, V1, V2, V3, V4, V19, V20, V21, V13, V18)
+	SHA256ROUND1(V4, V5, V6, V7, V0, V1, V2, V3, V20, V21, V22, V14, V19)
+	SHA256ROUND1(V3, V4, V5, V6, V7, V0, V1, V2, V21, V22, V23, V15, V20)
+	SHA256ROUND1(V2, V3, V4, V5, V6, V7, V0, V1, V22, V23, V8, V16, V21)
+	SHA256ROUND1(V1, V2, V3, V4, V5, V6, V7, V0, V23, V8, V9, V17, V22)
+
+	BC	0x10, 0, L16_xx		// bdnz
+
+	LVX	(OFFLOAD)(HEX00), V10
+
+	LVX	(OFFLOAD)(HEX10), V11
+	VADDUWM	V10, V0, V0
+	LVX	(OFFLOAD)(HEX20), V12
+	VADDUWM	V11, V1, V1
+	LVX	(OFFLOAD)(HEX30), V13
+	VADDUWM	V12, V2, V2
+	LVX	(OFFLOAD)(HEX40), V14
+	VADDUWM	V13, V3, V3
+	LVX	(OFFLOAD)(HEX50), V15
+	VADDUWM	V14, V4, V4
+	LVX	(OFFLOAD)(HEX60), V16
+	VADDUWM	V15, V5, V5
+	LVX	(OFFLOAD)(HEX70), V17
+	VADDUWM	V16, V6, V6
+	VADDUWM	V17, V7, V7
+
+	CMPU	INP, END
 	BLT	loop
+
+	LVX	(TBL)(IDX), V8
+	ADD	$16, IDX
+	VPERM	V0, V1, KI, V0
+	LVX	(TBL)(IDX), V9
+	VPERM	V4, V5, KI, V4
+	VPERM	V0, V2, V8, V0
+	VPERM	V4, V6, V8, V4
+	VPERM	V0, V3, V9, V0
+	VPERM	V4, V7, V9, V4
+	STXVD2X	VS32, (CTX+HEX00)	// v0 = vs32
+	STXVD2X	VS36, (CTX+HEX10)	// v4 = vs36
 
 end:
 	RET
+
