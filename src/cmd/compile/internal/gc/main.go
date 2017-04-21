@@ -150,8 +150,6 @@ func Main(archInit func(*Arch)) {
 	trackpkg = types.NewPkg("go.track", "go.track")
 	trackpkg.Prefix = "go.track" // not go%2etrack
 
-	typepkg = types.NewPkg("type", "type")
-
 	// pseudo-package used for map zero values
 	mappkg = types.NewPkg("go.map", "go.map")
 	mappkg.Prefix = "go.map"
