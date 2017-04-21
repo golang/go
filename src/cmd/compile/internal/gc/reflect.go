@@ -649,8 +649,7 @@ func typePkg(t *types.Type) *types.Pkg {
 
 // dextratypeData dumps the backing array for the []method field of
 // runtime.uncommontype.
-func dextratypeData(s *types.Sym, ot int, t *types.Type) int {
-	lsym := s.Linksym()
+func dextratypeData(lsym *obj.LSym, ot int, t *types.Type) int {
 	for _, a := range methods(t) {
 		// ../../../../runtime/type.go:/method
 		exported := exportname(a.name)
@@ -1300,7 +1299,7 @@ ok:
 		}
 	}
 
-	ot = dextratypeData(s, ot, t)
+	ot = dextratypeData(s.Linksym(), ot, t)
 	ggloblsym(s.Linksym(), int32(ot), int16(dupok|obj.RODATA))
 
 	// The linker will leave a table of all the typelinks for
