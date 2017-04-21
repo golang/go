@@ -31,7 +31,7 @@ type Sym struct {
 	flags   bitset8
 	Label   *Node // corresponding label (ephemeral)
 	Origpkg *Pkg  // original package for . import
-	Lsym    *obj.LSym
+	lsym    *obj.LSym
 }
 
 const (
@@ -78,8 +78,8 @@ func (sym *Sym) Linksym() *obj.LSym {
 	if sym == nil {
 		return nil
 	}
-	if sym.Lsym == nil {
-		sym.Lsym = Ctxt.Lookup(sym.LinksymName())
+	if sym.lsym == nil {
+		sym.lsym = Ctxt.Lookup(sym.LinksymName())
 	}
-	return sym.Lsym
+	return sym.lsym
 }
