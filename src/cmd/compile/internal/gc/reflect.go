@@ -453,11 +453,7 @@ func dimportpath(p *types.Pkg) {
 	p.Pathsym = s
 }
 
-func dgopkgpath(s *types.Sym, ot int, pkg *types.Pkg) int {
-	return dgopkgpathLSym(s.Linksym(), ot, pkg)
-}
-
-func dgopkgpathLSym(s *obj.LSym, ot int, pkg *types.Pkg) int {
+func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == nil {
 		return duintptr(s, ot, 0)
 	}
@@ -476,8 +472,8 @@ func dgopkgpathLSym(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	return dsymptr(s, ot, pkg.Pathsym, 0)
 }
 
-// dgopkgpathOffLSym writes an offset relocation in s at offset ot to the pkg path symbol.
-func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *types.Pkg) int {
+// dgopkgpathOff writes an offset relocation in s at offset ot to the pkg path symbol.
+func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == nil {
 		return duint32(s, ot, 0)
 	}
@@ -561,7 +557,7 @@ func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported b
 	ot = int(s.WriteBytes(Ctxt, int64(ot), b))
 
 	if pkg != nil {
-		ot = dgopkgpathOffLSym(s, ot, pkg)
+		ot = dgopkgpathOff(s, ot, pkg)
 	}
 
 	return ot
@@ -617,7 +613,7 @@ func dextratype(s *types.Sym, ot int, t *types.Type, dataAdd int) int {
 		dtypesym(a.type_)
 	}
 
-	ot = dgopkgpathOffLSym(s.Linksym(), ot, typePkg(t))
+	ot = dgopkgpathOff(s.Linksym(), ot, typePkg(t))
 
 	dataAdd += uncommonSize(t)
 	mcount := len(m)
@@ -665,14 +661,14 @@ func dextratypeData(s *types.Sym, ot int, t *types.Type) int {
 		nsym := dname(a.name, "", pkg, exported)
 
 		ot = dsymptrOff(lsym, ot, nsym, 0)
-		ot = dmethodptrOffLSym(lsym, ot, dtypesym(a.mtype).Linksym())
-		ot = dmethodptrOffLSym(lsym, ot, a.isym.Linksym())
-		ot = dmethodptrOffLSym(lsym, ot, a.tsym.Linksym())
+		ot = dmethodptrOff(lsym, ot, dtypesym(a.mtype).Linksym())
+		ot = dmethodptrOff(lsym, ot, a.isym.Linksym())
+		ot = dmethodptrOff(lsym, ot, a.tsym.Linksym())
 	}
 	return ot
 }
 
-func dmethodptrOffLSym(s *obj.LSym, ot int, x *obj.LSym) int {
+func dmethodptrOff(s *obj.LSym, ot int, x *obj.LSym) int {
 	duint32(s, ot, 0)
 	r := obj.Addrel(s)
 	r.Off = int32(ot)
@@ -1201,7 +1197,7 @@ ok:
 		if t.Sym != nil && t != types.Types[t.Etype] && t != types.Errortype {
 			tpkg = t.Sym.Pkg
 		}
-		ot = dgopkgpath(s, ot, tpkg)
+		ot = dgopkgpath(s.Linksym(), ot, tpkg)
 
 		ot = dsymptr(s.Linksym(), ot, s.Linksym(), ot+Widthptr+2*Widthint+uncommonSize(t))
 		ot = duintptr(s.Linksym(), ot, uint64(n))
@@ -1295,7 +1291,7 @@ ok:
 				break
 			}
 		}
-		ot = dgopkgpath(s, ot, pkg)
+		ot = dgopkgpath(s.Linksym(), ot, pkg)
 		ot = dsymptr(s.Linksym(), ot, s.Linksym(), ot+Widthptr+2*Widthint+uncommonSize(t))
 		ot = duintptr(s.Linksym(), ot, uint64(n))
 		ot = duintptr(s.Linksym(), ot, uint64(n))
