@@ -459,7 +459,7 @@ func dgopkgpath(s *types.Sym, ot int, pkg *types.Pkg) int {
 
 func dgopkgpathLSym(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == nil {
-		return duintxx(s, ot, 0, Widthptr)
+		return duintptr(s, ot, 0)
 	}
 
 	if pkg == localpkg && myimportpath == "" {
@@ -479,7 +479,7 @@ func dgopkgpathLSym(s *obj.LSym, ot int, pkg *types.Pkg) int {
 // dgopkgpathOffLSym writes an offset relocation in s at offset ot to the pkg path symbol.
 func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == nil {
-		return duintxx(s, ot, 0, 4)
+		return duint32(s, ot, 0)
 	}
 	if pkg == localpkg && myimportpath == "" {
 		// If we don't know the full import path of the package being compiled
@@ -673,7 +673,7 @@ func dextratypeData(s *types.Sym, ot int, t *types.Type) int {
 }
 
 func dmethodptrOffLSym(s *obj.LSym, ot int, x *obj.LSym) int {
-	duintxx(s, ot, 0, 4)
+	duint32(s, ot, 0)
 	r := obj.Addrel(s)
 	r.Off = int32(ot)
 	r.Siz = 4
@@ -1204,8 +1204,8 @@ ok:
 		ot = dgopkgpath(s, ot, tpkg)
 
 		ot = dsymptr(s.Linksym(), ot, s.Linksym(), ot+Widthptr+2*Widthint+uncommonSize(t))
-		ot = duintxx(s.Linksym(), ot, uint64(n), Widthint)
-		ot = duintxx(s.Linksym(), ot, uint64(n), Widthint)
+		ot = duintptr(s.Linksym(), ot, uint64(n))
+		ot = duintptr(s.Linksym(), ot, uint64(n))
 		dataAdd := imethodSize() * n
 		ot = dextratype(s, ot, t, dataAdd)
 
@@ -1297,8 +1297,8 @@ ok:
 		}
 		ot = dgopkgpath(s, ot, pkg)
 		ot = dsymptr(s.Linksym(), ot, s.Linksym(), ot+Widthptr+2*Widthint+uncommonSize(t))
-		ot = duintxx(s.Linksym(), ot, uint64(n), Widthint)
-		ot = duintxx(s.Linksym(), ot, uint64(n), Widthint)
+		ot = duintptr(s.Linksym(), ot, uint64(n))
+		ot = duintptr(s.Linksym(), ot, uint64(n))
 
 		dataAdd := n * structfieldSize()
 		ot = dextratype(s, ot, t, dataAdd)
@@ -1575,7 +1575,7 @@ func dalgsym(t *types.Type) *types.Sym {
 
 		ot := 0
 		ot = dsymptr(hashfunc.Linksym(), ot, Runtimepkg.Lookup("memhash_varlen").Linksym(), 0)
-		ot = duintxx(hashfunc.Linksym(), ot, uint64(t.Width), Widthptr) // size encoded in closure
+		ot = duintptr(hashfunc.Linksym(), ot, uint64(t.Width)) // size encoded in closure
 		ggloblsym(hashfunc, int32(ot), obj.DUPOK|obj.RODATA)
 
 		// make equality closure
@@ -1585,7 +1585,7 @@ func dalgsym(t *types.Type) *types.Sym {
 
 		ot = 0
 		ot = dsymptr(eqfunc.Linksym(), ot, Runtimepkg.Lookup("memequal_varlen").Linksym(), 0)
-		ot = duintxx(eqfunc.Linksym(), ot, uint64(t.Width), Widthptr)
+		ot = duintptr(eqfunc.Linksym(), ot, uint64(t.Width))
 		ggloblsym(eqfunc, int32(ot), obj.DUPOK|obj.RODATA)
 	} else {
 		// generate an alg table specific to this type

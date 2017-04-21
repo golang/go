@@ -332,8 +332,8 @@ func slicebytes(nam *Node, s string, len int) {
 	}
 	off = int(nam.Xoffset)
 	off = dsymptr(nam.Sym.Linksym(), off, sym.Linksym(), 0)
-	off = duintxx(nam.Sym.Linksym(), off, uint64(len), Widthint)
-	duintxx(nam.Sym.Linksym(), off, uint64(len), Widthint)
+	off = duintptr(nam.Sym.Linksym(), off, uint64(len))
+	duintptr(nam.Sym.Linksym(), off, uint64(len))
 }
 
 func dsname(s *obj.LSym, off int, t string) int {
