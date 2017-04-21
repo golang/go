@@ -882,7 +882,7 @@ func dcommontype(s *types.Sym, ot int, t *types.Type) int {
 	} else {
 		ot = dsymptr(s.Linksym(), ot, algsym.Linksym(), 0)
 	}
-	ot = dsymptr(s.Linksym(), ot, gcsym.Linksym(), 0) // gcdata
+	ot = dsymptr(s.Linksym(), ot, gcsym, 0) // gcdata
 
 	nsym := dname(p, "", nil, exported)
 	ot = dsymptrOff(s.Linksym(), ot, nsym, 0) // str
@@ -1658,33 +1658,34 @@ const maxPtrmaskBytes = 2048
 // dgcsym emits and returns a data symbol containing GC information for type t,
 // along with a boolean reporting whether the UseGCProg bit should be set in
 // the type kind, and the ptrdata field to record in the reflect type information.
-func dgcsym(t *types.Type) (sym *types.Sym, useGCProg bool, ptrdata int64) {
+func dgcsym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
 	ptrdata = typeptrdata(t)
 	if ptrdata/int64(Widthptr) <= maxPtrmaskBytes*8 {
-		sym = dgcptrmask(t)
+		lsym = dgcptrmask(t)
 		return
 	}
 
 	useGCProg = true
-	sym, ptrdata = dgcprog(t)
+	lsym, ptrdata = dgcprog(t)
 	return
 }
 
 // dgcptrmask emits and returns the symbol containing a pointer mask for type t.
-func dgcptrmask(t *types.Type) *types.Sym {
+func dgcptrmask(t *types.Type) *obj.LSym {
 	ptrmask := make([]byte, (typeptrdata(t)/int64(Widthptr)+7)/8)
 	fillptrmask(t, ptrmask)
 	p := fmt.Sprintf("gcbits.%x", ptrmask)
 
 	sym := Runtimepkg.Lookup(p)
+	lsym := sym.Linksym()
 	if !sym.Uniq() {
 		sym.SetUniq(true)
 		for i, x := range ptrmask {
-			duint8(sym.Linksym(), i, x)
+			duint8(lsym, i, x)
 		}
-		ggloblsym(sym.Linksym(), int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
+		ggloblsym(lsym, int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
 	}
-	return sym
+	return lsym
 }
 
 // fillptrmask fills in ptrmask with 1s corresponding to the
@@ -1714,51 +1715,51 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 // along with the size of the data described by the program (in the range [typeptrdata(t), t.Width]).
 // In practice, the size is typeptrdata(t) except for non-trivial arrays.
 // For non-trivial arrays, the program describes the full t.Width size.
-func dgcprog(t *types.Type) (*types.Sym, int64) {
+func dgcprog(t *types.Type) (*obj.LSym, int64) {
 	dowidth(t)
 	if t.Width == BADWIDTH {
 		Fatalf("dgcprog: %v badwidth", t)
 	}
-	sym := typesymprefix(".gcprog", t)
+	lsym := typesymprefix(".gcprog", t).Linksym()
 	var p GCProg
-	p.init(sym)
+	p.init(lsym)
 	p.emit(t, 0)
 	offset := p.w.BitIndex() * int64(Widthptr)
 	p.end()
 	if ptrdata := typeptrdata(t); offset < ptrdata || offset > t.Width {
 		Fatalf("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Width)
 	}
-	return sym, offset
+	return lsym, offset
 }
 
 type GCProg struct {
-	sym    *types.Sym
+	lsym   *obj.LSym
 	symoff int
 	w      gcprog.Writer
 }
 
 var Debug_gcprog int // set by -d gcprog
 
-func (p *GCProg) init(sym *types.Sym) {
-	p.sym = sym
+func (p *GCProg) init(lsym *obj.LSym) {
+	p.lsym = lsym
 	p.symoff = 4 // first 4 bytes hold program length
 	p.w.Init(p.writeByte)
 	if Debug_gcprog > 0 {
-		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", sym)
+		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", lsym)
 		p.w.Debug(os.Stderr)
 	}
 }
 
 func (p *GCProg) writeByte(x byte) {
-	p.symoff = duint8(p.sym.Linksym(), p.symoff, x)
+	p.symoff = duint8(p.lsym, p.symoff, x)
 }
 
 func (p *GCProg) end() {
 	p.w.End()
-	duint32(p.sym.Linksym(), 0, uint32(p.symoff-4))
-	ggloblsym(p.sym.Linksym(), int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
+	duint32(p.lsym, 0, uint32(p.symoff-4))
+	ggloblsym(p.lsym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
 	if Debug_gcprog > 0 {
-		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.sym)
+		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.lsym)
 	}
 }
 
