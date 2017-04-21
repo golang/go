@@ -105,6 +105,10 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fi, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = ioutil.WriteFile(filepath.Join(dir, "abc"), []byte("abc"), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -113,7 +117,7 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 		link := filepath.Join(tmpdir, test.name+"_link")
 		err := test.mklink(link, dir)
 		if err != nil {
-			t.Errorf("creating link for %s test failed: %v", test.name, err)
+			t.Errorf("creating link for %q test failed: %v", test.name, err)
 			continue
 		}
 
@@ -132,15 +136,21 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 			continue
 		}
 
-		fi, err := os.Stat(link)
+		fi1, err := os.Stat(link)
 		if err != nil {
 			t.Errorf("failed to stat link %v: %v", link, err)
 			continue
 		}
-		expected := filepath.Base(dir)
-		got := fi.Name()
-		if !fi.IsDir() || expected != got {
-			t.Errorf("link should point to %v but points to %v instead", expected, got)
+		if !fi1.IsDir() {
+			t.Errorf("%q should be a directory", link)
+			continue
+		}
+		if fi1.Name() != filepath.Base(link) {
+			t.Errorf("Stat(%q).Name() = %q, want %q", link, fi1.Name(), filepath.Base(link))
+			continue
+		}
+		if !os.SameFile(fi, fi1) {
+			t.Errorf("%q should point to %q", link, dir)
 			continue
 		}
 	}

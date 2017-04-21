@@ -63,25 +63,27 @@ func (file *File) Stat() (FileInfo, error) {
 func Stat(name string) (FileInfo, error) {
 	var fi FileInfo
 	var err error
+	link := name
 	for i := 0; i < 255; i++ {
-		fi, err = Lstat(name)
+		fi, err = Lstat(link)
 		if err != nil {
 			return nil, err
 		}
 		if fi.Mode()&ModeSymlink == 0 {
+			fi.(*fileStat).name = basename(name)
 			return fi, nil
 		}
-		newname, err := Readlink(name)
+		newlink, err := Readlink(link)
 		if err != nil {
 			return nil, err
 		}
 		switch {
-		case isAbs(newname):
-			name = newname
-		case len(newname) > 0 && IsPathSeparator(newname[0]):
-			name = volumeName(name) + newname
+		case isAbs(newlink):
+			link = newlink
+		case len(newlink) > 0 && IsPathSeparator(newlink[0]):
+			link = volumeName(link) + newlink
 		default:
-			name = dirname(name) + `\` + newname
+			link = dirname(link) + `\` + newlink
 		}
 	}
 	return nil, &PathError{"Stat", name, syscall.ELOOP}
