@@ -156,7 +156,7 @@ again:
 //	{
 //		outcode($1, &$2, NREG, &$4);
 //	}
-	CSET	GT, R1
+	CSET	GT, R1	// e1d79f9a
 //
 // CSEL/CSINC/CSNEG/CSINV
 //
@@ -164,16 +164,18 @@ again:
 //	{
 //		outgcode($1, &$2, $6.reg, &$4, &$8);
 //	}
-	CSEL	LT, R1, R2, ZR
-	CSINC	GT, R1, ZR, R3
-	CSNEG	MI, R1, R2, R3
-	CSINV	CS, R1, R2, R3 // CSINV HS, R1, R2, R3
+	CSEL	LT, R1, R2, ZR	// 3fb0829a
+	CSINC	GT, R1, ZR, R3	// 23c49f9a
+	CSNEG	MI, R1, R2, R3	// 234482da
+	CSINV	CS, R1, R2, R3	// CSINV HS, R1, R2, R3 // 232082da
 
 //		LTYPES cond ',' reg ',' reg
 //	{
 //		outcode($1, &$2, $4.reg, &$6);
 //	}
-	CSEL	LT, R1, R2
+	CINC	EQ, R4, R9	// 8914849a
+	CINV	PL, R11, R22	// 76418bda
+	CNEG	LS, R13, R7	// a7858dda
 //
 // CCMN
 //
@@ -181,7 +183,7 @@ again:
 //	{
 //		outgcode($1, &$2, $6.reg, &$4, &$8);
 //	}
-	CCMN	MI, ZR, R1, $4
+	CCMN	MI, ZR, R1, $4	// e44341ba
 
 //
 // FADDD
@@ -217,7 +219,7 @@ again:
 //	{
 //		outgcode($1, &$2, $6.reg, &$4, &$8);
 //	}
-//	FCCMP	LT, F1, F2, $1
+	FCCMPS	LT, F1, F2, $1	// 41b4211e
 
 //
 // FMULA
