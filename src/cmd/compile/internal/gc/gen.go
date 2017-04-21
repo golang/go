@@ -15,7 +15,7 @@ import (
 )
 
 func Sysfunc(name string) *obj.LSym {
-	return Linksym(Runtimepkg.Lookup(name))
+	return Runtimepkg.Lookup(name).Linksym()
 }
 
 // addrescapes tags node n as having had its address taken

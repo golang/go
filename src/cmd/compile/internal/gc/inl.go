@@ -762,7 +762,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	if callBase != nil {
 		parent = callBase.InliningIndex()
 	}
-	newIndex := Ctxt.InlTree.Add(parent, n.Pos, Linksym(fn.Sym))
+	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
 	setpos := &setPos{
 		bases:       make(map[*src.PosBase]*src.PosBase),
 		newInlIndex: newIndex,

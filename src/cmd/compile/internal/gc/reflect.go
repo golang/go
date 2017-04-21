@@ -409,7 +409,7 @@ func imethods(t *types.Type) []*Sig {
 		methods = append(methods, &sig)
 
 		// Compiler can only refer to wrappers for non-blank methods.
-		if isblanksym(method) {
+		if method.IsBlank() {
 			continue
 		}
 
@@ -454,7 +454,7 @@ func dimportpath(p *types.Pkg) {
 }
 
 func dgopkgpath(s *types.Sym, ot int, pkg *types.Pkg) int {
-	return dgopkgpathLSym(Linksym(s), ot, pkg)
+	return dgopkgpathLSym(s.Linksym(), ot, pkg)
 }
 
 func dgopkgpathLSym(s *obj.LSym, ot int, pkg *types.Pkg) int {
@@ -521,7 +521,7 @@ func dnameField(s *types.Sym, ot int, spkg *types.Pkg, ft *types.Field) int {
 		fpkg = nil
 	}
 	nsym := dname(name, ft.Note, fpkg, isExported)
-	return dsymptrLSym(Linksym(s), ot, nsym, 0)
+	return dsymptrLSym(s.Linksym(), ot, nsym, 0)
 }
 
 // dnameData writes the contents of a reflect.name into s at offset ot.
@@ -617,7 +617,7 @@ func dextratype(s *types.Sym, ot int, t *types.Type, dataAdd int) int {
 		dtypesym(a.type_)
 	}
 
-	ot = dgopkgpathOffLSym(Linksym(s), ot, typePkg(t))
+	ot = dgopkgpathOffLSym(s.Linksym(), ot, typePkg(t))
 
 	dataAdd += uncommonSize(t)
 	mcount := len(m)
@@ -654,7 +654,7 @@ func typePkg(t *types.Type) *types.Pkg {
 // dextratypeData dumps the backing array for the []method field of
 // runtime.uncommontype.
 func dextratypeData(s *types.Sym, ot int, t *types.Type) int {
-	lsym := Linksym(s)
+	lsym := s.Linksym()
 	for _, a := range methods(t) {
 		// ../../../../runtime/type.go:/method
 		exported := exportname(a.name)
@@ -665,9 +665,9 @@ func dextratypeData(s *types.Sym, ot int, t *types.Type) int {
 		nsym := dname(a.name, "", pkg, exported)
 
 		ot = dsymptrOffLSym(lsym, ot, nsym, 0)
-		ot = dmethodptrOffLSym(lsym, ot, Linksym(dtypesym(a.mtype)))
-		ot = dmethodptrOffLSym(lsym, ot, Linksym(a.isym))
-		ot = dmethodptrOffLSym(lsym, ot, Linksym(a.tsym))
+		ot = dmethodptrOffLSym(lsym, ot, dtypesym(a.mtype).Linksym())
+		ot = dmethodptrOffLSym(lsym, ot, a.isym.Linksym())
+		ot = dmethodptrOffLSym(lsym, ot, a.tsym.Linksym())
 	}
 	return ot
 }
@@ -885,14 +885,14 @@ func dcommontype(s *types.Sym, ot int, t *types.Type) int {
 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
 
 	nsym := dname(p, "", nil, exported)
-	ot = dsymptrOffLSym(Linksym(s), ot, nsym, 0) // str
+	ot = dsymptrOffLSym(s.Linksym(), ot, nsym, 0) // str
 	// ptrToThis
 	if sptr == nil {
 		ot = duint32(s, ot, 0)
 	} else if sptrWeak {
-		ot = dsymptrWeakOffLSym(Linksym(s), ot, Linksym(sptr))
+		ot = dsymptrWeakOffLSym(s.Linksym(), ot, sptr.Linksym())
 	} else {
-		ot = dsymptrOffLSym(Linksym(s), ot, Linksym(sptr), 0)
+		ot = dsymptrOffLSym(s.Linksym(), ot, sptr.Linksym(), 0)
 	}
 
 	return ot
@@ -1209,7 +1209,7 @@ ok:
 		dataAdd := imethodSize() * n
 		ot = dextratype(s, ot, t, dataAdd)
 
-		lsym := Linksym(s)
+		lsym := s.Linksym()
 		for _, a := range m {
 			// ../../../../runtime/type.go:/imethod
 			exported := exportname(a.name)
@@ -1220,7 +1220,7 @@ ok:
 			nsym := dname(a.name, "", pkg, exported)
 
 			ot = dsymptrOffLSym(lsym, ot, nsym, 0)
-			ot = dsymptrOffLSym(lsym, ot, Linksym(dtypesym(a.type_)), 0)
+			ot = dsymptrOffLSym(lsym, ot, dtypesym(a.type_).Linksym(), 0)
 		}
 
 	// ../../../../runtime/type.go:/mapType
@@ -1352,7 +1352,7 @@ func peekitabs() {
 		if len(methods) == 0 {
 			continue
 		}
-		tab.lsym = Linksym(tab.sym)
+		tab.lsym = tab.sym.Linksym()
 		tab.entries = methods
 	}
 }
@@ -1375,7 +1375,7 @@ func genfun(t, it *types.Type) []*obj.LSym {
 	// so we can find the intersect in a single pass
 	for _, m := range methods {
 		if m.name == sigs[0].name {
-			out = append(out, Linksym(m.isym))
+			out = append(out, m.isym.Linksym())
 			sigs = sigs[1:]
 			if len(sigs) == 0 {
 				break
@@ -1488,14 +1488,14 @@ func dumptypestructs() {
 			// }
 			nsym := dname(p.s.Name, "", nil, true)
 			ot = dsymptrOffLSym(s, ot, nsym, 0)
-			ot = dsymptrOffLSym(s, ot, Linksym(dtypesym(p.t)), 0)
+			ot = dsymptrOffLSym(s, ot, dtypesym(p.t).Linksym(), 0)
 		}
 		ggloblLSym(s, int32(ot), int16(obj.RODATA))
 
 		ot = 0
 		s = Ctxt.Lookup("go.plugin.exports")
 		for _, p := range ptabs {
-			ot = dsymptrLSym(s, ot, Linksym(p.s), 0)
+			ot = dsymptrLSym(s, ot, p.s.Linksym(), 0)
 		}
 		ggloblLSym(s, int32(ot), int16(obj.RODATA))
 	}

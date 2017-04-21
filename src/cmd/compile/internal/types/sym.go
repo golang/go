@@ -59,3 +59,27 @@ func (sym *Sym) SetUniq(b bool)     { sym.flags.set(symUniq, b) }
 func (sym *Sym) SetSiggen(b bool)   { sym.flags.set(symSiggen, b) }
 func (sym *Sym) SetAsm(b bool)      { sym.flags.set(symAsm, b) }
 func (sym *Sym) SetAlgGen(b bool)   { sym.flags.set(symAlgGen, b) }
+
+func (sym *Sym) IsBlank() bool {
+	return sym != nil && sym.Name == "_"
+}
+
+func (sym *Sym) LinksymName() string {
+	if sym.IsBlank() {
+		return "_"
+	}
+	if sym.Linkname != "" {
+		return sym.Linkname
+	}
+	return sym.Pkg.Prefix + "." + sym.Name
+}
+
+func (sym *Sym) Linksym() *obj.LSym {
+	if sym == nil {
+		return nil
+	}
+	if sym.Lsym == nil {
+		sym.Lsym = Ctxt.Lookup(sym.LinksymName())
+	}
+	return sym.Lsym
+}

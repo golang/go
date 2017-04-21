@@ -607,7 +607,7 @@ func checkdupfields(what string, ts ...*types.Type) {
 	seen := make(map[*types.Sym]bool)
 	for _, t := range ts {
 		for _, f := range t.Fields().Slice() {
-			if f.Sym == nil || isblanksym(f.Sym) || asNode(f.Nname) == nil {
+			if f.Sym == nil || f.Sym.IsBlank() || asNode(f.Nname) == nil {
 				continue
 			}
 			if seen[f.Sym] {
@@ -935,7 +935,7 @@ func methodname(s *types.Sym, recv *types.Type) *types.Sym {
 	}
 
 	tsym := recv.Sym
-	if tsym == nil || isblanksym(s) {
+	if tsym == nil || s.IsBlank() {
 		return s
 	}
 
@@ -1000,7 +1000,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) {
 		return
 	}
 
-	if isblanksym(msym) {
+	if msym.IsBlank() {
 		return
 	}
 
@@ -1087,7 +1087,7 @@ func makefuncsym(s *types.Sym) {
 	if !Ctxt.Flag_dynlink {
 		Fatalf("makefuncsym dynlink")
 	}
-	if isblanksym(s) {
+	if s.IsBlank() {
 		return
 	}
 	if compiling_runtime && s.Name == "getg" {

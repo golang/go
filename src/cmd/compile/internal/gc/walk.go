@@ -3202,7 +3202,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	if t.IsStruct() {
 		for _, f := range t.Fields().Slice() {
 			sym := f.Sym
-			if isblanksym(sym) {
+			if sym.IsBlank() {
 				continue
 			}
 			compare(

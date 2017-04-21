@@ -2109,7 +2109,7 @@ func (e *EscState) esctag(fn *Node) {
 	// (Unnamed parameters are not in the Dcl list in the loop above
 	// so we need to mark them separately.)
 	for _, f := range fn.Type.Params().Fields().Slice() {
-		if f.Sym == nil || isblanksym(f.Sym) {
+		if f.Sym == nil || f.Sym.IsBlank() {
 			f.Note = mktag(EscNone)
 		}
 	}

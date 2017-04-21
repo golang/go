@@ -901,7 +901,7 @@ OpSwitch:
 			checkwidth(t)
 		}
 
-		if isblanksym(n.Sym) {
+		if n.Sym.IsBlank() {
 			yyerror("cannot refer to blank field or method")
 			n.Type = nil
 			return n
@@ -2010,7 +2010,7 @@ OpSwitch:
 	case OLABEL:
 		ok |= Etop
 		decldepth++
-		if isblanksym(n.Left.Sym) {
+		if n.Left.Sym.IsBlank() {
 			// Empty identifier is valid but useless.
 			// Eliminate now to simplify life later.
 			// See issues 7538, 11589, 11593.
@@ -3097,7 +3097,7 @@ func typecheckcomplit(n *Node) *Node {
 					// the field to the right of the dot,
 					// so s will be non-nil, but an OXDOT
 					// is never a valid struct literal key.
-					if key.Sym == nil || key.Op == OXDOT || isblanksym(key.Sym) {
+					if key.Sym == nil || key.Op == OXDOT || key.Sym.IsBlank() {
 						yyerror("invalid field name %v in struct initializer", key)
 						l.Left = typecheck(l.Left, Erv)
 						continue

@@ -23,7 +23,7 @@ func emitptrargsmap() {
 		return
 	}
 	sym := lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
-	lsym := Linksym(sym)
+	lsym := sym.Linksym()
 
 	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
@@ -223,7 +223,7 @@ func compile(fn *Node) {
 
 func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
 	fn := curfn.(*Node)
-	if expect := Linksym(fn.Func.Nname.Sym); fnsym != expect {
+	if expect := fn.Func.Nname.Sym.Linksym(); fnsym != expect {
 		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
 	}
 
@@ -262,7 +262,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
 			continue
 		}
 
-		gotype := Linksym(ngotype(n))
+		gotype := ngotype(n).Linksym()
 		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
 			Asym:    Ctxt.Lookup(n.Sym.Name),
 			Aoffset: int32(n.Xoffset),
@@ -306,7 +306,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
 	sort.Sort(symByName(trackSyms))
 	for _, sym := range trackSyms {
 		r := obj.Addrel(fnsym)
-		r.Sym = Linksym(sym)
+		r.Sym = sym.Linksym()
 		r.Type = objabi.R_USEFIELD
 	}
 }
