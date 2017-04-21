@@ -507,7 +507,15 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 	fmt.Fprintf(&b, "\t1\n")
 	fmt.Fprintf(&b, "};\n")
 
-	d, ints, floats := p.gccDebug(b.Bytes())
+	// do the same work for strings.
+	for i, n := range names {
+		if n.Kind == "sconst" {
+			fmt.Fprintf(&b, "const char __cgodebug_str__%d[] = %s;\n", i, n.C)
+			fmt.Fprintf(&b, "const unsigned long long __cgodebug_strlen__%d = sizeof(%s)-1;\n", i, n.C)
+		}
+	}
+
+	d, ints, floats, strs := p.gccDebug(b.Bytes(), len(names))
 
 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
 	types := make([]dwarf.Type, len(names))
@@ -591,6 +599,10 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			case "fconst":
 				if i < len(floats) {
 					n.Const = fmt.Sprintf("%f", floats[i])
+				}
+			case "sconst":
+				if i < len(strs) {
+					n.Const = fmt.Sprintf("%q", strs[i])
 				}
 			}
 		}
@@ -1282,7 +1294,7 @@ func (p *Package) gccCmd() []string {
 
 // gccDebug runs gcc -gdwarf-2 over the C program stdin and
 // returns the corresponding DWARF data and, if present, debug data block.
-func (p *Package) gccDebug(stdin []byte) (d *dwarf.Data, ints []int64, floats []float64) {
+func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int64, floats []float64, strs []string) {
 	runGcc(stdin, p.gccCmd())
 
 	isDebugInts := func(s string) bool {
@@ -1292,6 +1304,45 @@ func (p *Package) gccDebug(stdin []byte) (d *dwarf.Data, ints []int64, floats []
 	isDebugFloats := func(s string) bool {
 		// Some systems use leading _ to denote non-assembly symbols.
 		return s == "__cgodebug_floats" || s == "___cgodebug_floats"
+	}
+	indexOfDebugStr := func(s string) int {
+		// Some systems use leading _ to denote non-assembly symbols.
+		if strings.HasPrefix(s, "___") {
+			s = s[1:]
+		}
+		if strings.HasPrefix(s, "__cgodebug_str__") {
+			if n, err := strconv.Atoi(s[len("__cgodebug_str__"):]); err == nil {
+				return n
+			}
+		}
+		return -1
+	}
+	indexOfDebugStrlen := func(s string) int {
+		// Some systems use leading _ to denote non-assembly symbols.
+		if strings.HasPrefix(s, "___") {
+			s = s[1:]
+		}
+		if strings.HasPrefix(s, "__cgodebug_strlen__") {
+			if n, err := strconv.Atoi(s[len("__cgodebug_strlen__"):]); err == nil {
+				return n
+			}
+		}
+		return -1
+	}
+
+	strs = make([]string, nnames)
+
+	strdata := make(map[int]string, nnames)
+	strlens := make(map[int]int, nnames)
+
+	buildStrings := func() {
+		for n, strlen := range strlens {
+			data := strdata[n]
+			if len(data) <= strlen {
+				fatalf("invalid string literal")
+			}
+			strs[n] = string(data[:strlen])
+		}
 	}
 
 	if f, err := macho.Open(gccTmp()); err == nil {
@@ -1333,10 +1384,43 @@ func (p *Package) gccDebug(stdin []byte) (d *dwarf.Data, ints []int64, floats []
 							}
 						}
 					}
+				default:
+					if n := indexOfDebugStr(s.Name); n != -1 {
+						// Found it. Now find data section.
+						if i := int(s.Sect) - 1; 0 <= i && i < len(f.Sections) {
+							sect := f.Sections[i]
+							if sect.Addr <= s.Value && s.Value < sect.Addr+sect.Size {
+								if sdat, err := sect.Data(); err == nil {
+									data := sdat[s.Value-sect.Addr:]
+									strdata[n] = string(data)
+								}
+							}
+						}
+						break
+					}
+					if n := indexOfDebugStrlen(s.Name); n != -1 {
+						// Found it. Now find data section.
+						if i := int(s.Sect) - 1; 0 <= i && i < len(f.Sections) {
+							sect := f.Sections[i]
+							if sect.Addr <= s.Value && s.Value < sect.Addr+sect.Size {
+								if sdat, err := sect.Data(); err == nil {
+									data := sdat[s.Value-sect.Addr:]
+									strlen := bo.Uint64(data[:8])
+									if strlen > (1<<(uint(p.IntSize*8)-1) - 1) { // greater than MaxInt?
+										fatalf("string literal too big")
+									}
+									strlens[n] = int(strlen)
+								}
+							}
+						}
+						break
+					}
 				}
 			}
+
+			buildStrings()
 		}
-		return d, ints, floats
+		return d, ints, floats, strs
 	}
 
 	if f, err := elf.Open(gccTmp()); err == nil {
@@ -1379,10 +1463,43 @@ func (p *Package) gccDebug(stdin []byte) (d *dwarf.Data, ints []int64, floats []
 							}
 						}
 					}
+				default:
+					if n := indexOfDebugStr(s.Name); n != -1 {
+						// Found it. Now find data section.
+						if i := int(s.Section); 0 <= i && i < len(f.Sections) {
+							sect := f.Sections[i]
+							if sect.Addr <= s.Value && s.Value < sect.Addr+sect.Size {
+								if sdat, err := sect.Data(); err == nil {
+									data := sdat[s.Value-sect.Addr:]
+									strdata[n] = string(data)
+								}
+							}
+						}
+						break
+					}
+					if n := indexOfDebugStrlen(s.Name); n != -1 {
+						// Found it. Now find data section.
+						if i := int(s.Section); 0 <= i && i < len(f.Sections) {
+							sect := f.Sections[i]
+							if sect.Addr <= s.Value && s.Value < sect.Addr+sect.Size {
+								if sdat, err := sect.Data(); err == nil {
+									data := sdat[s.Value-sect.Addr:]
+									strlen := bo.Uint64(data[:8])
+									if strlen > (1<<(uint(p.IntSize*8)-1) - 1) { // greater than MaxInt?
+										fatalf("string literal too big")
+									}
+									strlens[n] = int(strlen)
+								}
+							}
+						}
+						break
+					}
 				}
 			}
+
+			buildStrings()
 		}
-		return d, ints, floats
+		return d, ints, floats, strs
 	}
 
 	if f, err := pe.Open(gccTmp()); err == nil {
@@ -1420,9 +1537,41 @@ func (p *Package) gccDebug(stdin []byte) (d *dwarf.Data, ints []int64, floats []
 						}
 					}
 				}
+			default:
+				if n := indexOfDebugStr(s.Name); n != -1 {
+					if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+						sect := f.Sections[i]
+						if s.Value < sect.Size {
+							if sdat, err := sect.Data(); err == nil {
+								data := sdat[s.Value:]
+								strdata[n] = string(data)
+							}
+						}
+					}
+					break
+				}
+				if n := indexOfDebugStrlen(s.Name); n != -1 {
+					if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+						sect := f.Sections[i]
+						if s.Value < sect.Size {
+							if sdat, err := sect.Data(); err == nil {
+								data := sdat[s.Value:]
+								strlen := bo.Uint64(data[:8])
+								if strlen > (1<<(uint(p.IntSize*8)-1) - 1) { // greater than MaxInt?
+									fatalf("string literal too big")
+								}
+								strlens[n] = int(strlen)
+							}
+						}
+					}
+					break
+				}
 			}
 		}
-		return d, ints, floats
+
+		buildStrings()
+
+		return d, ints, floats, strs
 	}
 
 	fatalf("cannot parse gcc output %s as ELF, Mach-O, PE object", gccTmp())
