@@ -1441,19 +1441,20 @@ func dumptypestructs() {
 		//   unused [2]byte
 		//   fun    [1]uintptr // variable sized
 		// }
-		o := dsymptr(i.sym.Linksym(), 0, dtypesym(i.itype).Linksym(), 0)
-		o = dsymptr(i.sym.Linksym(), o, dtypesym(i.t).Linksym(), 0)
-		o += Widthptr                                  // skip link field
-		o = duint32(i.sym.Linksym(), o, typehash(i.t)) // copy of type hash
-		o += 4                                         // skip bad/inhash/unused fields
-		o += len(imethods(i.itype)) * Widthptr         // skip fun method pointers
+		ilsym := i.sym.Linksym()
+		o := dsymptr(ilsym, 0, dtypesym(i.itype).Linksym(), 0)
+		o = dsymptr(ilsym, o, dtypesym(i.t).Linksym(), 0)
+		o += Widthptr                          // skip link field
+		o = duint32(ilsym, o, typehash(i.t))   // copy of type hash
+		o += 4                                 // skip bad/inhash/unused fields
+		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
 		// at runtime the itab will contain pointers to types, other itabs and
 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
-		ggloblsym(i.sym.Linksym(), int32(o), int16(obj.DUPOK|obj.NOPTR))
+		ggloblsym(ilsym, int32(o), int16(obj.DUPOK|obj.NOPTR))
 
-		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString())
-		dsymptr(ilink.Linksym(), 0, i.sym.Linksym(), 0)
-		ggloblsym(ilink.Linksym(), int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
+		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString()).Linksym()
+		dsymptr(ilink, 0, ilsym, 0)
+		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
 	}
 
 	// process ptabs
