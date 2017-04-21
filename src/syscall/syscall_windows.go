@@ -348,7 +348,7 @@ func Seek(fd Handle, offset int64, whence int) (newoffset int64, err error) {
 	// use GetFileType to check pipe, pipe can't do seek
 	ft, _ := GetFileType(fd)
 	if ft == FILE_TYPE_PIPE {
-		return 0, EPIPE
+		return 0, ESPIPE
 	}
 	rlo, e := SetFilePointer(fd, lo, &hi, w)
 	if e != nil {
