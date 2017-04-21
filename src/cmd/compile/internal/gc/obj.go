@@ -222,7 +222,7 @@ func dumpglobls() {
 
 	for _, s := range funcsyms {
 		sf := s.Pkg.Lookup(funcsymname(s))
-		dsymptr(sf, 0, s, 0)
+		dsymptrLSym(sf.Linksym(), 0, s.Linksym(), 0)
 		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
 
@@ -251,10 +251,6 @@ func addGCLocals() {
 	}
 }
 
-func duintxx(s *types.Sym, off int, v uint64, wid int) int {
-	return duintxxLSym(s.Linksym(), off, v, wid)
-}
-
 func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
 	if s.Type == 0 {
 		// TODO(josharian): Do this in obj.prepwrite instead.
@@ -267,28 +263,20 @@ func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
 	return off + wid
 }
 
-func duint8(s *types.Sym, off int, v uint8) int {
-	return duintxx(s, off, uint64(v), 1)
-}
-
-func duint16(s *types.Sym, off int, v uint16) int {
-	return duintxx(s, off, uint64(v), 2)
-}
-
-func duint32(s *types.Sym, off int, v uint32) int {
-	return duintxx(s, off, uint64(v), 4)
-}
-
-func duintptr(s *types.Sym, off int, v uint64) int {
-	return duintxx(s, off, v, Widthptr)
-}
-
 func duint8LSym(s *obj.LSym, off int, v uint8) int {
 	return duintxxLSym(s, off, uint64(v), 1)
 }
 
+func duint16LSym(s *obj.LSym, off int, v uint16) int {
+	return duintxxLSym(s, off, uint64(v), 2)
+}
+
 func duint32LSym(s *obj.LSym, off int, v uint32) int {
 	return duintxxLSym(s, off, uint64(v), 4)
+}
+
+func duintptrLSym(s *obj.LSym, off int, v uint64) int {
+	return duintxxLSym(s, off, v, Widthptr)
 }
 
 func dbvecLSym(s *obj.LSym, off int, bv bvec) int {
@@ -336,29 +324,21 @@ func slicebytes(nam *Node, s string, len int) {
 	sym := localpkg.Lookup(symname)
 	sym.Def = asTypesNode(newname(sym))
 
-	off := dsname(sym, 0, s)
+	off := dsnameLSym(sym.Linksym(), 0, s)
 	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
 
 	if nam.Op != ONAME {
 		Fatalf("slicebytes %v", nam)
 	}
 	off = int(nam.Xoffset)
-	off = dsymptr(nam.Sym, off, sym, 0)
-	off = duintxx(nam.Sym, off, uint64(len), Widthint)
-	duintxx(nam.Sym, off, uint64(len), Widthint)
-}
-
-func dsname(s *types.Sym, off int, t string) int {
-	return dsnameLSym(s.Linksym(), off, t)
+	off = dsymptrLSym(nam.Sym.Linksym(), off, sym.Linksym(), 0)
+	off = duintxxLSym(nam.Sym.Linksym(), off, uint64(len), Widthint)
+	duintxxLSym(nam.Sym.Linksym(), off, uint64(len), Widthint)
 }
 
 func dsnameLSym(s *obj.LSym, off int, t string) int {
 	s.WriteString(Ctxt, int64(off), len(t), t)
 	return off + len(t)
-}
-
-func dsymptr(s *types.Sym, off int, x *types.Sym, xoff int) int {
-	return dsymptrLSym(s.Linksym(), off, x.Linksym(), xoff)
 }
 
 func dsymptrLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
