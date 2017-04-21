@@ -225,11 +225,7 @@ func ggloblnod(nam *Node) {
 	Ctxt.Globl(s, nam.Type.Width, flags)
 }
 
-func ggloblsym(s *types.Sym, width int32, flags int16) {
-	ggloblLSym(s.Linksym(), width, flags)
-}
-
-func ggloblLSym(s *obj.LSym, width int32, flags int16) {
+func ggloblsym(s *obj.LSym, width int32, flags int16) {
 	if flags&obj.LOCAL != 0 {
 		s.Set(obj.AttrLocal, true)
 		flags &^= obj.LOCAL
