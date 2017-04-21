@@ -361,11 +361,12 @@ func Main(archInit func(*Arch)) {
 		return f.Sym.Name
 	}
 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
-		return Linksym(typenamesym(t))
+		return typenamesym(t).Linksym()
 	}
 	types.FmtLeft = int(FmtLeft)
 	types.FmtUnsigned = int(FmtUnsigned)
 	types.FErr = FErr
+	types.Ctxt = Ctxt
 
 	initUniverse()
 

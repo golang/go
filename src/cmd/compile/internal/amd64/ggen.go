@@ -127,7 +127,7 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 	if gc.Widthptr == 4 {
 		op = x86.AMOVL
 	}
-	sym := gc.Linksym(n.Sym)
+	sym := n.Sym.Linksym()
 	size := n.Type.Size()
 	for i := int64(0); i < size; i += int64(gc.Widthptr) {
 		p := pp.Prog(op)

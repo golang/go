@@ -27,6 +27,7 @@ var (
 	FormatType  func(*Type, fmt.State, rune, int) // orig: func typeFormat(t *Type, s fmt.State, verb rune, mode fmtMode)
 	FieldName   func(*Field) string
 	TypeLinkSym func(*Type) *obj.LSym
+	Ctxt        *obj.Link
 
 	FmtLeft     int
 	FmtUnsigned int

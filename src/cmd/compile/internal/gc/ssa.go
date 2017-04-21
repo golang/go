@@ -762,7 +762,7 @@ func (s *state) stmt(n *Node) {
 		s.stmtList(n.List)
 		b := s.exit()
 		b.Kind = ssa.BlockRetJmp // override BlockRet
-		b.Aux = Linksym(n.Left.Sym)
+		b.Aux = n.Left.Sym.Linksym()
 
 	case OCONTINUE, OBREAK:
 		var to *ssa.Block
@@ -1387,12 +1387,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 		len := s.newValue1(ssa.OpStringLen, types.Types[TINT], str)
 		return s.newValue3(ssa.OpSliceMake, n.Type, ptr, len, len)
 	case OCFUNC:
-		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: Linksym(n.Left.Sym)})
+		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: n.Left.Sym.Linksym()})
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
 	case ONAME:
 		if n.Class == PFUNC {
 			// "value" of a function is the address of the function's closure
-			sym := Linksym(funcsym(n.Sym))
+			sym := funcsym(n.Sym).Linksym()
 			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: sym})
 			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), aux, s.sb)
 		}
@@ -2833,7 +2833,7 @@ func init() {
 		sys.ARM64)
 	makeOnesCount := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: Linksym(syslook("support_popcnt").Sym)})
+			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: syslook("support_popcnt").Sym.Linksym()})
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
 			v := s.newValue2(ssa.OpLoad, types.Types[TBOOL], addr, s.mem())
 			b := s.endBlock()
@@ -3131,7 +3131,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	case codeptr != nil:
 		call = s.newValue2(ssa.OpInterCall, ssa.TypeMem, codeptr, s.mem())
 	case sym != nil:
-		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Linksym(sym), s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, sym.Linksym(), s.mem())
 	default:
 		Fatalf("bad call type %v %v", n.Op, n)
 	}
@@ -3204,7 +3204,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		switch n.Class {
 		case PEXTERN:
 			// global variable
-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: Linksym(n.Sym)})
+			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: n.Sym.Linksym()})
 			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
 			// TODO: Make OpAddr use AuxInt as well as Aux.
 			if n.Xoffset != 0 {
@@ -4599,12 +4599,12 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	case *ssa.ArgSymbol:
 		n := sym.Node.(*Node)
 		a.Name = obj.NAME_PARAM
-		a.Sym = Linksym(n.Orig.Sym)
+		a.Sym = n.Orig.Sym.Linksym()
 		a.Offset += n.Xoffset
 	case *ssa.AutoSymbol:
 		n := sym.Node.(*Node)
 		a.Name = obj.NAME_AUTO
-		a.Sym = Linksym(n.Sym)
+		a.Sym = n.Sym.Linksym()
 		a.Offset += n.Xoffset
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
@@ -4706,7 +4706,7 @@ func AutoVar(v *ssa.Value) (*Node, int64) {
 func AddrAuto(a *obj.Addr, v *ssa.Value) {
 	n, off := AutoVar(v)
 	a.Type = obj.TYPE_MEM
-	a.Sym = Linksym(n.Sym)
+	a.Sym = n.Sym.Linksym()
 	a.Reg = int16(thearch.REGSP)
 	a.Offset = n.Xoffset + off
 	if n.Class == PPARAM || n.Class == PPARAMOUT {
@@ -4722,7 +4722,7 @@ func (s *SSAGenState) AddrScratch(a *obj.Addr) {
 	}
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_AUTO
-	a.Sym = Linksym(s.ScratchFpMem.Sym)
+	a.Sym = s.ScratchFpMem.Sym.Linksym()
 	a.Reg = int16(thearch.REGSP)
 	a.Offset = s.ScratchFpMem.Xoffset
 }

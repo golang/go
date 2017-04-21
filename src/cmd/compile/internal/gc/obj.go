@@ -251,28 +251,8 @@ func addGCLocals() {
 	}
 }
 
-func linksymname(s *types.Sym) string {
-	if isblanksym(s) {
-		return "_"
-	}
-	if s.Linkname != "" {
-		return s.Linkname
-	}
-	return s.Pkg.Prefix + "." + s.Name
-}
-
-func Linksym(s *types.Sym) *obj.LSym {
-	if s == nil {
-		return nil
-	}
-	if s.Lsym == nil {
-		s.Lsym = Ctxt.Lookup(linksymname(s))
-	}
-	return s.Lsym
-}
-
 func duintxx(s *types.Sym, off int, v uint64, wid int) int {
-	return duintxxLSym(Linksym(s), off, v, wid)
+	return duintxxLSym(s.Linksym(), off, v, wid)
 }
 
 func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
@@ -369,7 +349,7 @@ func slicebytes(nam *Node, s string, len int) {
 }
 
 func dsname(s *types.Sym, off int, t string) int {
-	return dsnameLSym(Linksym(s), off, t)
+	return dsnameLSym(s.Linksym(), off, t)
 }
 
 func dsnameLSym(s *obj.LSym, off int, t string) int {
@@ -378,7 +358,7 @@ func dsnameLSym(s *obj.LSym, off int, t string) int {
 }
 
 func dsymptr(s *types.Sym, off int, x *types.Sym, xoff int) int {
-	return dsymptrLSym(Linksym(s), off, Linksym(x), xoff)
+	return dsymptrLSym(s.Linksym(), off, x.Linksym(), xoff)
 }
 
 func dsymptrLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
@@ -407,7 +387,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 	if nam.Sym == nil {
 		Fatalf("gdata nil nam sym")
 	}
-	s := Linksym(nam.Sym)
+	s := nam.Sym.Linksym()
 
 	switch nr.Op {
 	case OLITERAL:
@@ -454,13 +434,13 @@ func gdata(nam *Node, nr *Node, wid int) {
 			Fatalf("gdata ADDR left op %v", nr.Left.Op)
 		}
 		to := nr.Left
-		s.WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(to.Sym), to.Xoffset)
+		s.WriteAddr(Ctxt, nam.Xoffset, wid, to.Sym.Linksym(), to.Xoffset)
 
 	case ONAME:
 		if nr.Class != PFUNC {
 			Fatalf("gdata NAME not PFUNC %d", nr.Class)
 		}
-		s.WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(funcsym(nr.Sym)), nr.Xoffset)
+		s.WriteAddr(Ctxt, nam.Xoffset, wid, funcsym(nr.Sym).Linksym(), nr.Xoffset)
 
 	default:
 		Fatalf("gdata unhandled op %v %v\n", nr, nr.Op)

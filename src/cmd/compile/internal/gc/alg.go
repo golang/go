@@ -157,7 +157,7 @@ func algtype1(t *types.Type) (AlgKind, *types.Type) {
 		fields := t.FieldSlice()
 
 		// One-field struct is same as that one field alone.
-		if len(fields) == 1 && !isblanksym(fields[0].Sym) {
+		if len(fields) == 1 && !fields[0].Sym.IsBlank() {
 			return algtype1(fields[0].Type)
 		}
 
@@ -171,7 +171,7 @@ func algtype1(t *types.Type) (AlgKind, *types.Type) {
 
 			// Blank fields, padded fields, fields with non-memory
 			// equality need special compare.
-			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, i) {
+			if a != AMEM || f.Sym.IsBlank() || ispaddedfield(t, i) {
 				ret = ASPECIAL
 			}
 		}
@@ -247,7 +247,7 @@ func genhash(sym *types.Sym, t *types.Type) {
 			f := fields[i]
 
 			// Skip blank fields.
-			if isblanksym(f.Sym) {
+			if f.Sym.IsBlank() {
 				i++
 				continue
 			}
@@ -435,7 +435,7 @@ func geneq(sym *types.Sym, t *types.Type) {
 			f := fields[i]
 
 			// Skip blank-named fields.
-			if isblanksym(f.Sym) {
+			if f.Sym.IsBlank() {
 				i++
 				continue
 			}
@@ -568,7 +568,7 @@ func memrun(t *types.Type, start int) (size int64, next int) {
 			break
 		}
 		// Also, stop before a blank or non-memory field.
-		if f := t.Field(next); isblanksym(f.Sym) || !IsRegularMemory(f.Type) {
+		if f := t.Field(next); f.Sym.IsBlank() || !IsRegularMemory(f.Type) {
 			break
 		}
 	}

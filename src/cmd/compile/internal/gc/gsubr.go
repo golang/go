@@ -173,7 +173,7 @@ func (f *Func) initLSym() {
 	}
 
 	if nam := f.Nname; !isblank(nam) {
-		f.lsym = Linksym(nam.Sym)
+		f.lsym = nam.Sym.Linksym()
 		if f.Pragma&Systemstack != 0 {
 			f.lsym.Set(obj.AttrCFunc, true)
 		}
@@ -213,8 +213,8 @@ func (f *Func) initLSym() {
 }
 
 func ggloblnod(nam *Node) {
-	s := Linksym(nam.Sym)
-	s.Gotype = Linksym(ngotype(nam))
+	s := nam.Sym.Linksym()
+	s.Gotype = ngotype(nam).Linksym()
 	flags := 0
 	if nam.Name.Readonly() {
 		flags = obj.RODATA
@@ -226,7 +226,7 @@ func ggloblnod(nam *Node) {
 }
 
 func ggloblsym(s *types.Sym, width int32, flags int16) {
-	ggloblLSym(Linksym(s), width, flags)
+	ggloblLSym(s.Linksym(), width, flags)
 }
 
 func ggloblLSym(s *obj.LSym, width int32, flags int16) {
@@ -316,7 +316,7 @@ func nodarg(t interface{}, fp int) *Node {
 			}
 
 			for _, n := range Curfn.Func.Dcl {
-				if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
+				if (n.Class == PPARAM || n.Class == PPARAMOUT) && !t.Sym.IsBlank() && n.Sym == t.Sym {
 					if n != expect {
 						Fatalf("nodarg: unexpected node: %v (%p %v) vs %v (%p %v)", n, n, n.Op, asNode(t.Nname), asNode(t.Nname), asNode(t.Nname).Op)
 					}
@@ -324,7 +324,7 @@ func nodarg(t interface{}, fp int) *Node {
 				}
 			}
 
-			if !isblanksym(expect.Sym) {
+			if !expect.Sym.IsBlank() {
 				Fatalf("nodarg: did not find node in dcl list: %v", expect)
 			}
 		}

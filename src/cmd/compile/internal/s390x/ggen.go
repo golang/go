@@ -102,7 +102,7 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 	p.To.Name = obj.NAME_AUTO
 	p.To.Reg = s390x.REGSP
 	p.To.Offset = n.Xoffset
-	p.To.Sym = gc.Linksym(n.Sym)
+	p.To.Sym = n.Sym.Linksym()
 }
 
 func ginsnop(pp *gc.Progs) {

@@ -510,11 +510,7 @@ func isblank(n *Node) bool {
 	if n == nil {
 		return false
 	}
-	return isblanksym(n.Sym)
-}
-
-func isblanksym(s *types.Sym) bool {
-	return s != nil && s.Name == "_"
+	return n.Sym.IsBlank()
 }
 
 // methtype returns the underlying type, if any,
