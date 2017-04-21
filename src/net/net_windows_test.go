@@ -503,21 +503,26 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
 	}
 }
 
-func getmacSpeaksEnglish(t *testing.T) bool {
+// check that getmac exists as a powershell command, and that it
+// speaks English.
+func checkGetmac(t *testing.T) {
 	out, err := runCmd("getmac", "/?")
 	if err != nil {
+		if strings.Contains(err.Error(), "term 'getmac' is not recognized as the name of a cmdlet") {
+			t.Skipf("getmac not available")
+		}
 		t.Fatal(err)
 	}
-	return bytes.Contains(out, []byte("network adapters on a system"))
+	if !bytes.Contains(out, []byte("network adapters on a system")) {
+		t.Skipf("skipping test on non-English system")
+	}
 }
 
 func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 	if isWindowsXP(t) {
 		t.Skip("Windows XP does not have powershell command")
 	}
-	if !getmacSpeaksEnglish(t) {
-		t.Skip("English version of getmac required for this test")
-	}
+	checkGetmac(t)
 
 	ift, err := Interfaces()
 	if err != nil {
