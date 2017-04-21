@@ -1276,12 +1276,12 @@ func livenessprintdebug(lv *Liveness) {
 // remaining bytes are the raw bitmaps.
 func livenessemit(lv *Liveness, argssym, livesym *obj.LSym) {
 	args := bvalloc(argswords(lv))
-	aoff := duint32LSym(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
-	aoff = duint32LSym(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
+	aoff := duint32(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
+	aoff = duint32(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
 
 	locals := bvalloc(localswords(lv))
-	loff := duint32LSym(livesym, 0, uint32(len(lv.livevars))) // number of bitmaps
-	loff = duint32LSym(livesym, loff, uint32(locals.n))       // number of bits in each bitmap
+	loff := duint32(livesym, 0, uint32(len(lv.livevars))) // number of bitmaps
+	loff = duint32(livesym, loff, uint32(locals.n))       // number of bits in each bitmap
 
 	for _, live := range lv.livevars {
 		args.Clear()
@@ -1289,8 +1289,8 @@ func livenessemit(lv *Liveness, argssym, livesym *obj.LSym) {
 
 		onebitlivepointermap(lv, live, lv.vars, args, locals)
 
-		aoff = dbvecLSym(argssym, aoff, args)
-		loff = dbvecLSym(livesym, loff, locals)
+		aoff = dbvec(argssym, aoff, args)
+		loff = dbvec(livesym, loff, locals)
 	}
 
 	// Give these LSyms content-addressable names,

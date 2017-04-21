@@ -222,7 +222,7 @@ func dumpglobls() {
 
 	for _, s := range funcsyms {
 		sf := s.Pkg.Lookup(funcsymname(s))
-		dsymptrLSym(sf.Linksym(), 0, s.Linksym(), 0)
+		dsymptr(sf.Linksym(), 0, s.Linksym(), 0)
 		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
 
@@ -251,7 +251,7 @@ func addGCLocals() {
 	}
 }
 
-func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
+func duintxx(s *obj.LSym, off int, v uint64, wid int) int {
 	if s.Type == 0 {
 		// TODO(josharian): Do this in obj.prepwrite instead.
 		s.Type = objabi.SDATA
@@ -263,27 +263,27 @@ func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
 	return off + wid
 }
 
-func duint8LSym(s *obj.LSym, off int, v uint8) int {
-	return duintxxLSym(s, off, uint64(v), 1)
+func duint8(s *obj.LSym, off int, v uint8) int {
+	return duintxx(s, off, uint64(v), 1)
 }
 
-func duint16LSym(s *obj.LSym, off int, v uint16) int {
-	return duintxxLSym(s, off, uint64(v), 2)
+func duint16(s *obj.LSym, off int, v uint16) int {
+	return duintxx(s, off, uint64(v), 2)
 }
 
-func duint32LSym(s *obj.LSym, off int, v uint32) int {
-	return duintxxLSym(s, off, uint64(v), 4)
+func duint32(s *obj.LSym, off int, v uint32) int {
+	return duintxx(s, off, uint64(v), 4)
 }
 
-func duintptrLSym(s *obj.LSym, off int, v uint64) int {
-	return duintxxLSym(s, off, v, Widthptr)
+func duintptr(s *obj.LSym, off int, v uint64) int {
+	return duintxx(s, off, v, Widthptr)
 }
 
-func dbvecLSym(s *obj.LSym, off int, bv bvec) int {
+func dbvec(s *obj.LSym, off int, bv bvec) int {
 	// Runtime reads the bitmaps as byte arrays. Oblige.
 	for j := 0; int32(j) < bv.n; j += 8 {
 		word := bv.b[j/32]
-		off = duint8LSym(s, off, uint8(word>>(uint(j)%32)))
+		off = duint8(s, off, uint8(word>>(uint(j)%32)))
 	}
 	return off
 }
@@ -309,7 +309,7 @@ func stringsym(s string) (data *obj.LSym) {
 
 	if !symdata.SeenGlobl() {
 		// string data
-		off := dsnameLSym(symdata, 0, s)
+		off := dsname(symdata, 0, s)
 		ggloblLSym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 	}
 
@@ -324,37 +324,37 @@ func slicebytes(nam *Node, s string, len int) {
 	sym := localpkg.Lookup(symname)
 	sym.Def = asTypesNode(newname(sym))
 
-	off := dsnameLSym(sym.Linksym(), 0, s)
+	off := dsname(sym.Linksym(), 0, s)
 	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
 
 	if nam.Op != ONAME {
 		Fatalf("slicebytes %v", nam)
 	}
 	off = int(nam.Xoffset)
-	off = dsymptrLSym(nam.Sym.Linksym(), off, sym.Linksym(), 0)
-	off = duintxxLSym(nam.Sym.Linksym(), off, uint64(len), Widthint)
-	duintxxLSym(nam.Sym.Linksym(), off, uint64(len), Widthint)
+	off = dsymptr(nam.Sym.Linksym(), off, sym.Linksym(), 0)
+	off = duintxx(nam.Sym.Linksym(), off, uint64(len), Widthint)
+	duintxx(nam.Sym.Linksym(), off, uint64(len), Widthint)
 }
 
-func dsnameLSym(s *obj.LSym, off int, t string) int {
+func dsname(s *obj.LSym, off int, t string) int {
 	s.WriteString(Ctxt, int64(off), len(t), t)
 	return off + len(t)
 }
 
-func dsymptrLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+func dsymptr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	off = int(Rnd(int64(off), int64(Widthptr)))
 	s.WriteAddr(Ctxt, int64(off), Widthptr, x, int64(xoff))
 	off += Widthptr
 	return off
 }
 
-func dsymptrOffLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+func dsymptrOff(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	s.WriteOff(Ctxt, int64(off), x, int64(xoff))
 	off += 4
 	return off
 }
 
-func dsymptrWeakOffLSym(s *obj.LSym, off int, x *obj.LSym) int {
+func dsymptrWeakOff(s *obj.LSym, off int, x *obj.LSym) int {
 	s.WriteWeakOff(Ctxt, int64(off), x, 0)
 	off += 4
 	return off
