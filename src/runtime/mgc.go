@@ -537,7 +537,7 @@ func (c *gcControllerState) revise() {
 	}
 
 	// Compute the heap distance remaining.
-	heapDistance := int64(memstats.next_gc) - int64(memstats.heap_live)
+	heapDistance := int64(memstats.next_gc) - int64(atomic.Load64(&memstats.heap_live))
 	if heapDistance <= 0 {
 		// This shouldn't happen, but if it does, avoid
 		// dividing by zero or setting the assist negative.
@@ -1073,6 +1073,10 @@ func (t gcTrigger) test() bool {
 	}
 	switch t.kind {
 	case gcTriggerHeap:
+		// Non-atomic access to heap_live for performance. If
+		// we are going to trigger on this, this thread just
+		// atomically wrote heap_live anyway and we'll see our
+		// own write.
 		return memstats.heap_live >= memstats.gc_trigger
 	case gcTriggerTime:
 		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
@@ -1157,7 +1161,7 @@ func gcStart(mode gcMode, trigger gcTrigger) {
 	now := nanotime()
 	work.stwprocs, work.maxprocs = gcprocs(), gomaxprocs
 	work.tSweepTerm = now
-	work.heap0 = memstats.heap_live
+	work.heap0 = atomic.Load64(&memstats.heap_live)
 	work.pauseNS = 0
 	work.mode = mode
 
@@ -1985,7 +1989,7 @@ func gcResetMarkState() {
 	unlock(&allglock)
 
 	work.bytesMarked = 0
-	work.initialHeapLive = memstats.heap_live
+	work.initialHeapLive = atomic.Load64(&memstats.heap_live)
 	work.markrootDone = false
 }
 

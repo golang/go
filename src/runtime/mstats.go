@@ -121,6 +121,8 @@ type mstats struct {
 	// leads to a conservative GC rate rather than a GC rate that
 	// is potentially too low.
 	//
+	// Reads should likewise be atomic (or during STW).
+	//
 	// Whenever this is updated, call traceHeapAlloc() and
 	// gcController.revise().
 	heap_live uint64
