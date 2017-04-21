@@ -770,7 +770,11 @@ const (
 	tflagNamed     = 1 << 2
 )
 
-var dcommontype_algarray *types.Sym
+var (
+	algarray       *obj.LSym
+	memhashvarlen  *obj.LSym
+	memequalvarlen *obj.LSym
+)
 
 // dcommontype dumps the contents of a reflect.rtype (runtime._type).
 func dcommontype(s *types.Sym, ot int, t *types.Type) int {
@@ -779,8 +783,8 @@ func dcommontype(s *types.Sym, ot int, t *types.Type) int {
 	}
 
 	sizeofAlg := 2 * Widthptr
-	if dcommontype_algarray == nil {
-		dcommontype_algarray = Runtimepkg.Lookup("algarray")
+	if algarray == nil {
+		algarray = Sysfunc("algarray")
 	}
 	dowidth(t)
 	alg := algtype(t)
@@ -874,7 +878,7 @@ func dcommontype(s *types.Sym, ot int, t *types.Type) int {
 	}
 	ot = duint8(s.Linksym(), ot, uint8(i)) // kind
 	if algsym == nil {
-		ot = dsymptr(s.Linksym(), ot, dcommontype_algarray.Linksym(), int(alg)*sizeofAlg)
+		ot = dsymptr(s.Linksym(), ot, algarray, int(alg)*sizeofAlg)
 	} else {
 		ot = dsymptr(s.Linksym(), ot, algsym.Linksym(), 0)
 	}
@@ -1564,13 +1568,18 @@ func dalgsym(t *types.Type) *types.Sym {
 		}
 		s.SetAlgGen(true)
 
+		if memhashvarlen == nil {
+			memhashvarlen = Sysfunc("memhash_varlen")
+			memequalvarlen = Sysfunc("memequal_varlen")
+		}
+
 		// make hash closure
 		p = fmt.Sprintf(".hashfunc%d", t.Width)
 
 		hashfunc = types.TypePkgLookup(p)
 
 		ot := 0
-		ot = dsymptr(hashfunc.Linksym(), ot, Runtimepkg.Lookup("memhash_varlen").Linksym(), 0)
+		ot = dsymptr(hashfunc.Linksym(), ot, memhashvarlen, 0)
 		ot = duintptr(hashfunc.Linksym(), ot, uint64(t.Width)) // size encoded in closure
 		ggloblsym(hashfunc, int32(ot), obj.DUPOK|obj.RODATA)
 
@@ -1580,7 +1589,7 @@ func dalgsym(t *types.Type) *types.Sym {
 		eqfunc = types.TypePkgLookup(p)
 
 		ot = 0
-		ot = dsymptr(eqfunc.Linksym(), ot, Runtimepkg.Lookup("memequal_varlen").Linksym(), 0)
+		ot = dsymptr(eqfunc.Linksym(), ot, memequalvarlen, 0)
 		ot = duintptr(eqfunc.Linksym(), ot, uint64(t.Width))
 		ggloblsym(eqfunc, int32(ot), obj.DUPOK|obj.RODATA)
 	} else {
