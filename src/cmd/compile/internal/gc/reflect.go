@@ -1098,36 +1098,37 @@ func dtypesym(t *types.Type) *types.Sym {
 
 ok:
 	ot := 0
+	lsym := s.Linksym()
 	switch t.Etype {
 	default:
-		ot = dcommontype(s.Linksym(), ot, t)
-		ot = dextratype(s.Linksym(), ot, t, 0)
+		ot = dcommontype(lsym, ot, t)
+		ot = dextratype(lsym, ot, t, 0)
 
 	case TARRAY:
 		// ../../../../runtime/type.go:/arrayType
 		s1 := dtypesym(t.Elem())
 		t2 := types.NewSlice(t.Elem())
 		s2 := dtypesym(t2)
-		ot = dcommontype(s.Linksym(), ot, t)
-		ot = dsymptr(s.Linksym(), ot, s1.Linksym(), 0)
-		ot = dsymptr(s.Linksym(), ot, s2.Linksym(), 0)
-		ot = duintptr(s.Linksym(), ot, uint64(t.NumElem()))
-		ot = dextratype(s.Linksym(), ot, t, 0)
+		ot = dcommontype(lsym, ot, t)
+		ot = dsymptr(lsym, ot, s1.Linksym(), 0)
+		ot = dsymptr(lsym, ot, s2.Linksym(), 0)
+		ot = duintptr(lsym, ot, uint64(t.NumElem()))
+		ot = dextratype(lsym, ot, t, 0)
 
 	case TSLICE:
 		// ../../../../runtime/type.go:/sliceType
 		s1 := dtypesym(t.Elem())
-		ot = dcommontype(s.Linksym(), ot, t)
-		ot = dsymptr(s.Linksym(), ot, s1.Linksym(), 0)
-		ot = dextratype(s.Linksym(), ot, t, 0)
+		ot = dcommontype(lsym, ot, t)
+		ot = dsymptr(lsym, ot, s1.Linksym(), 0)
+		ot = dextratype(lsym, ot, t, 0)
 
 	case TCHAN:
 		// ../../../../runtime/type.go:/chanType
 		s1 := dtypesym(t.Elem())
-		ot = dcommontype(s.Linksym(), ot, t)
-		ot = dsymptr(s.Linksym(), ot, s1.Linksym(), 0)
-		ot = duintptr(s.Linksym(), ot, uint64(t.ChanDir()))
-		ot = dextratype(s.Linksym(), ot, t, 0)
+		ot = dcommontype(lsym, ot, t)
+		ot = dsymptr(lsym, ot, s1.Linksym(), 0)
+		ot = duintptr(lsym, ot, uint64(t.ChanDir()))
+		ot = dextratype(lsym, ot, t, 0)
 
 	case TFUNC:
 		for _, t1 := range t.Recvs().Fields().Slice() {
@@ -1142,30 +1143,30 @@ ok:
 			dtypesym(t1.Type)
 		}
 
-		ot = dcommontype(s.Linksym(), ot, t)
+		ot = dcommontype(lsym, ot, t)
 		inCount := t.Recvs().NumFields() + t.Params().NumFields()
 		outCount := t.Results().NumFields()
 		if isddd {
 			outCount |= 1 << 15
 		}
-		ot = duint16(s.Linksym(), ot, uint16(inCount))
-		ot = duint16(s.Linksym(), ot, uint16(outCount))
+		ot = duint16(lsym, ot, uint16(inCount))
+		ot = duint16(lsym, ot, uint16(outCount))
 		if Widthptr == 8 {
 			ot += 4 // align for *rtype
 		}
 
 		dataAdd := (inCount + t.Results().NumFields()) * Widthptr
-		ot = dextratype(s.Linksym(), ot, t, dataAdd)
+		ot = dextratype(lsym, ot, t, dataAdd)
 
 		// Array of rtype pointers follows funcType.
 		for _, t1 := range t.Recvs().Fields().Slice() {
-			ot = dsymptr(s.Linksym(), ot, dtypesym(t1.Type).Linksym(), 0)
+			ot = dsymptr(lsym, ot, dtypesym(t1.Type).Linksym(), 0)
 		}
 		for _, t1 := range t.Params().Fields().Slice() {
-			ot = dsymptr(s.Linksym(), ot, dtypesym(t1.Type).Linksym(), 0)
+			ot = dsymptr(lsym, ot, dtypesym(t1.Type).Linksym(), 0)
 		}
 		for _, t1 := range t.Results().Fields().Slice() {
-			ot = dsymptr(s.Linksym(), ot, dtypesym(t1.Type).Linksym(), 0)
+			ot = dsymptr(lsym, ot, dtypesym(t1.Type).Linksym(), 0)
 		}
 
 	case TINTER:
@@ -1176,21 +1177,20 @@ ok:
 		}
 
 		// ../../../../runtime/type.go:/interfaceType
-		ot = dcommontype(s.Linksym(), ot, t)
+		ot = dcommontype(lsym, ot, t)
 
 		var tpkg *types.Pkg
 		if t.Sym != nil && t != types.Types[t.Etype] && t != types.Errortype {
 			tpkg = t.Sym.Pkg
 		}
-		ot = dgopkgpath(s.Linksym(), ot, tpkg)
+		ot = dgopkgpath(lsym, ot, tpkg)
 
-		ot = dsymptr(s.Linksym(), ot, s.Linksym(), ot+Widthptr+2*Widthint+uncommonSize(t))
-		ot = duintptr(s.Linksym(), ot, uint64(n))
-		ot = duintptr(s.Linksym(), ot, uint64(n))
+		ot = dsymptr(lsym, ot, lsym, ot+Widthptr+2*Widthint+uncommonSize(t))
+		ot = duintptr(lsym, ot, uint64(n))
+		ot = duintptr(lsym, ot, uint64(n))
 		dataAdd := imethodSize() * n
-		ot = dextratype(s.Linksym(), ot, t, dataAdd)
+		ot = dextratype(lsym, ot, t, dataAdd)
 
-		lsym := s.Linksym()
 		for _, a := range m {
 			// ../../../../runtime/type.go:/imethod
 			exported := exportname(a.name)
@@ -1210,37 +1210,37 @@ ok:
 		s2 := dtypesym(t.Val())
 		s3 := dtypesym(mapbucket(t))
 		s4 := dtypesym(hmap(t))
-		ot = dcommontype(s.Linksym(), ot, t)
-		ot = dsymptr(s.Linksym(), ot, s1.Linksym(), 0)
-		ot = dsymptr(s.Linksym(), ot, s2.Linksym(), 0)
-		ot = dsymptr(s.Linksym(), ot, s3.Linksym(), 0)
-		ot = dsymptr(s.Linksym(), ot, s4.Linksym(), 0)
+		ot = dcommontype(lsym, ot, t)
+		ot = dsymptr(lsym, ot, s1.Linksym(), 0)
+		ot = dsymptr(lsym, ot, s2.Linksym(), 0)
+		ot = dsymptr(lsym, ot, s3.Linksym(), 0)
+		ot = dsymptr(lsym, ot, s4.Linksym(), 0)
 		if t.Key().Width > MAXKEYSIZE {
-			ot = duint8(s.Linksym(), ot, uint8(Widthptr))
-			ot = duint8(s.Linksym(), ot, 1) // indirect
+			ot = duint8(lsym, ot, uint8(Widthptr))
+			ot = duint8(lsym, ot, 1) // indirect
 		} else {
-			ot = duint8(s.Linksym(), ot, uint8(t.Key().Width))
-			ot = duint8(s.Linksym(), ot, 0) // not indirect
+			ot = duint8(lsym, ot, uint8(t.Key().Width))
+			ot = duint8(lsym, ot, 0) // not indirect
 		}
 
 		if t.Val().Width > MAXVALSIZE {
-			ot = duint8(s.Linksym(), ot, uint8(Widthptr))
-			ot = duint8(s.Linksym(), ot, 1) // indirect
+			ot = duint8(lsym, ot, uint8(Widthptr))
+			ot = duint8(lsym, ot, 1) // indirect
 		} else {
-			ot = duint8(s.Linksym(), ot, uint8(t.Val().Width))
-			ot = duint8(s.Linksym(), ot, 0) // not indirect
+			ot = duint8(lsym, ot, uint8(t.Val().Width))
+			ot = duint8(lsym, ot, 0) // not indirect
 		}
 
-		ot = duint16(s.Linksym(), ot, uint16(mapbucket(t).Width))
-		ot = duint8(s.Linksym(), ot, uint8(obj.Bool2int(isreflexive(t.Key()))))
-		ot = duint8(s.Linksym(), ot, uint8(obj.Bool2int(needkeyupdate(t.Key()))))
-		ot = dextratype(s.Linksym(), ot, t, 0)
+		ot = duint16(lsym, ot, uint16(mapbucket(t).Width))
+		ot = duint8(lsym, ot, uint8(obj.Bool2int(isreflexive(t.Key()))))
+		ot = duint8(lsym, ot, uint8(obj.Bool2int(needkeyupdate(t.Key()))))
+		ot = dextratype(lsym, ot, t, 0)
 
 	case TPTR32, TPTR64:
 		if t.Elem().Etype == TANY {
 			// ../../../../runtime/type.go:/UnsafePointerType
-			ot = dcommontype(s.Linksym(), ot, t)
-			ot = dextratype(s.Linksym(), ot, t, 0)
+			ot = dcommontype(lsym, ot, t)
+			ot = dextratype(lsym, ot, t, 0)
 
 			break
 		}
@@ -1248,9 +1248,9 @@ ok:
 		// ../../../../runtime/type.go:/ptrType
 		s1 := dtypesym(t.Elem())
 
-		ot = dcommontype(s.Linksym(), ot, t)
-		ot = dsymptr(s.Linksym(), ot, s1.Linksym(), 0)
-		ot = dextratype(s.Linksym(), ot, t, 0)
+		ot = dcommontype(lsym, ot, t)
+		ot = dsymptr(lsym, ot, s1.Linksym(), 0)
+		ot = dextratype(lsym, ot, t, 0)
 
 	// ../../../../runtime/type.go:/structType
 	// for security, only the exported fields.
@@ -1262,7 +1262,7 @@ ok:
 			n++
 		}
 
-		ot = dcommontype(s.Linksym(), ot, t)
+		ot = dcommontype(lsym, ot, t)
 		pkg := localpkg
 		if t.Sym != nil {
 			pkg = t.Sym.Pkg
@@ -1276,18 +1276,18 @@ ok:
 				break
 			}
 		}
-		ot = dgopkgpath(s.Linksym(), ot, pkg)
-		ot = dsymptr(s.Linksym(), ot, s.Linksym(), ot+Widthptr+2*Widthint+uncommonSize(t))
-		ot = duintptr(s.Linksym(), ot, uint64(n))
-		ot = duintptr(s.Linksym(), ot, uint64(n))
+		ot = dgopkgpath(lsym, ot, pkg)
+		ot = dsymptr(lsym, ot, lsym, ot+Widthptr+2*Widthint+uncommonSize(t))
+		ot = duintptr(lsym, ot, uint64(n))
+		ot = duintptr(lsym, ot, uint64(n))
 
 		dataAdd := n * structfieldSize()
-		ot = dextratype(s.Linksym(), ot, t, dataAdd)
+		ot = dextratype(lsym, ot, t, dataAdd)
 
 		for _, f := range t.Fields().Slice() {
 			// ../../../../runtime/type.go:/structField
-			ot = dnameField(s.Linksym(), ot, pkg, f)
-			ot = dsymptr(s.Linksym(), ot, dtypesym(f.Type).Linksym(), 0)
+			ot = dnameField(lsym, ot, pkg, f)
+			ot = dsymptr(lsym, ot, dtypesym(f.Type).Linksym(), 0)
 			offsetAnon := uint64(f.Offset) << 1
 			if offsetAnon>>1 != uint64(f.Offset) {
 				Fatalf("%v: bad field offset for %s", t, f.Sym.Name)
@@ -1295,12 +1295,12 @@ ok:
 			if f.Embedded != 0 {
 				offsetAnon |= 1
 			}
-			ot = duintptr(s.Linksym(), ot, offsetAnon)
+			ot = duintptr(lsym, ot, offsetAnon)
 		}
 	}
 
-	ot = dextratypeData(s.Linksym(), ot, t)
-	ggloblsym(s.Linksym(), int32(ot), int16(dupok|obj.RODATA))
+	ot = dextratypeData(lsym, ot, t)
+	ggloblsym(lsym, int32(ot), int16(dupok|obj.RODATA))
 
 	// The linker will leave a table of all the typelinks for
 	// types in the binary, so the runtime can find them.
@@ -1319,8 +1319,7 @@ ok:
 			keep = true
 		}
 	}
-	// TODO(josharian): add lsym local variable above, use here instead of calling Linksym()
-	s.Linksym().Set(obj.AttrMakeTypelink, keep)
+	lsym.Set(obj.AttrMakeTypelink, keep)
 
 	return s
 }
