@@ -774,14 +774,14 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 }
 
 func (p *noder) blockStmt(stmt *syntax.BlockStmt) []*Node {
-	types.Markdcl(lineno)
+	types.Markdcl()
 	nodes := p.stmts(stmt.List)
 	types.Popdcl()
 	return nodes
 }
 
 func (p *noder) ifStmt(stmt *syntax.IfStmt) *Node {
-	types.Markdcl(lineno)
+	types.Markdcl()
 	n := p.nod(stmt, OIF, nil, nil)
 	if stmt.Init != nil {
 		n.Ninit.Set1(p.stmt(stmt.Init))
@@ -803,7 +803,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) *Node {
 }
 
 func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
-	types.Markdcl(lineno)
+	types.Markdcl()
 	var n *Node
 	if r, ok := stmt.Init.(*syntax.RangeClause); ok {
 		if stmt.Cond != nil || stmt.Post != nil {
@@ -837,7 +837,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
 }
 
 func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
-	types.Markdcl(lineno)
+	types.Markdcl()
 	n := p.nod(stmt, OSWITCH, nil, nil)
 	if stmt.Init != nil {
 		n.Ninit.Set1(p.stmt(stmt.Init))
@@ -861,7 +861,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node) []*Node
 	var nodes []*Node
 	for _, clause := range clauses {
 		p.lineno(clause)
-		types.Markdcl(lineno)
+		types.Markdcl()
 		n := p.nod(clause, OXCASE, nil, nil)
 		if clause.Cases != nil {
 			n.List.Set(p.exprList(clause.Cases))
@@ -891,7 +891,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause) []*Node {
 	var nodes []*Node
 	for _, clause := range clauses {
 		p.lineno(clause)
-		types.Markdcl(lineno)
+		types.Markdcl()
 		n := p.nod(clause, OXCASE, nil, nil)
 		if clause.Comm != nil {
 			n.List.Set1(p.stmt(clause.Comm))
