@@ -788,7 +788,7 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
 	}
 	dowidth(t)
 	alg := algtype(t)
-	var algsym *types.Sym
+	var algsym *obj.LSym
 	if alg == ASPECIAL || alg == AMEM {
 		algsym = dalgsym(t)
 	}
@@ -879,7 +879,7 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
 	if algsym == nil {
 		ot = dsymptr(lsym, ot, algarray, int(alg)*sizeofAlg)
 	} else {
-		ot = dsymptr(lsym, ot, algsym.Linksym(), 0)
+		ot = dsymptr(lsym, ot, algsym, 0)
 	}
 	ot = dsymptr(lsym, ot, gcsym, 0) // gcdata
 
@@ -1531,10 +1531,10 @@ func (a typesByString) Len() int           { return len(a) }
 func (a typesByString) Less(i, j int) bool { return a[i].s < a[j].s }
 func (a typesByString) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-func dalgsym(t *types.Type) *types.Sym {
-	var s *types.Sym
-	var hashfunc *types.Sym
-	var eqfunc *types.Sym
+func dalgsym(t *types.Type) *obj.LSym {
+	var lsym *obj.LSym
+	var hashfunc *obj.LSym
+	var eqfunc *obj.LSym
 
 	// dalgsym is only called for a type that needs an algorithm table,
 	// which implies that the type is comparable (or else it would use ANOEQ).
@@ -1543,10 +1543,10 @@ func dalgsym(t *types.Type) *types.Sym {
 		// we use one algorithm table for all AMEM types of a given size
 		p := fmt.Sprintf(".alg%d", t.Width)
 
-		s = types.TypePkgLookup(p)
-
+		s := types.TypePkgLookup(p)
+		lsym = s.Linksym()
 		if s.AlgGen() {
-			return s
+			return lsym
 		}
 		s.SetAlgGen(true)
 
@@ -1558,49 +1558,49 @@ func dalgsym(t *types.Type) *types.Sym {
 		// make hash closure
 		p = fmt.Sprintf(".hashfunc%d", t.Width)
 
-		hashfunc = types.TypePkgLookup(p)
+		hashfunc = types.TypePkgLookup(p).Linksym()
 
 		ot := 0
-		ot = dsymptr(hashfunc.Linksym(), ot, memhashvarlen, 0)
-		ot = duintptr(hashfunc.Linksym(), ot, uint64(t.Width)) // size encoded in closure
-		ggloblsym(hashfunc.Linksym(), int32(ot), obj.DUPOK|obj.RODATA)
+		ot = dsymptr(hashfunc, ot, memhashvarlen, 0)
+		ot = duintptr(hashfunc, ot, uint64(t.Width)) // size encoded in closure
+		ggloblsym(hashfunc, int32(ot), obj.DUPOK|obj.RODATA)
 
 		// make equality closure
 		p = fmt.Sprintf(".eqfunc%d", t.Width)
 
-		eqfunc = types.TypePkgLookup(p)
+		eqfunc = types.TypePkgLookup(p).Linksym()
 
 		ot = 0
-		ot = dsymptr(eqfunc.Linksym(), ot, memequalvarlen, 0)
-		ot = duintptr(eqfunc.Linksym(), ot, uint64(t.Width))
-		ggloblsym(eqfunc.Linksym(), int32(ot), obj.DUPOK|obj.RODATA)
+		ot = dsymptr(eqfunc, ot, memequalvarlen, 0)
+		ot = duintptr(eqfunc, ot, uint64(t.Width))
+		ggloblsym(eqfunc, int32(ot), obj.DUPOK|obj.RODATA)
 	} else {
 		// generate an alg table specific to this type
-		s = typesymprefix(".alg", t)
+		s := typesymprefix(".alg", t)
+		lsym = s.Linksym()
 
 		hash := typesymprefix(".hash", t)
 		eq := typesymprefix(".eq", t)
-		hashfunc = typesymprefix(".hashfunc", t)
-		eqfunc = typesymprefix(".eqfunc", t)
+		hashfunc = typesymprefix(".hashfunc", t).Linksym()
+		eqfunc = typesymprefix(".eqfunc", t).Linksym()
 
 		genhash(hash, t)
 		geneq(eq, t)
 
 		// make Go funcs (closures) for calling hash and equal from Go
-		dsymptr(hashfunc.Linksym(), 0, hash.Linksym(), 0)
-
-		ggloblsym(hashfunc.Linksym(), int32(Widthptr), obj.DUPOK|obj.RODATA)
-		dsymptr(eqfunc.Linksym(), 0, eq.Linksym(), 0)
-		ggloblsym(eqfunc.Linksym(), int32(Widthptr), obj.DUPOK|obj.RODATA)
+		dsymptr(hashfunc, 0, hash.Linksym(), 0)
+		ggloblsym(hashfunc, int32(Widthptr), obj.DUPOK|obj.RODATA)
+		dsymptr(eqfunc, 0, eq.Linksym(), 0)
+		ggloblsym(eqfunc, int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
 
 	// ../../../../runtime/alg.go:/typeAlg
 	ot := 0
 
-	ot = dsymptr(s.Linksym(), ot, hashfunc.Linksym(), 0)
-	ot = dsymptr(s.Linksym(), ot, eqfunc.Linksym(), 0)
-	ggloblsym(s.Linksym(), int32(ot), obj.DUPOK|obj.RODATA)
-	return s
+	ot = dsymptr(lsym, ot, hashfunc, 0)
+	ot = dsymptr(lsym, ot, eqfunc, 0)
+	ggloblsym(lsym, int32(ot), obj.DUPOK|obj.RODATA)
+	return lsym
 }
 
 // maxPtrmaskBytes is the maximum length of a GC ptrmask bitmap,
