@@ -53,9 +53,6 @@ func usage() {
 	os.Exit(2)
 }
 
-type lookupFunc func(addr uint64) (sym string, base uint64)
-type disasmFunc func(code []byte, pc uint64, lookup lookupFunc) (text string, size int)
-
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("objdump: ")
