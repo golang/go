@@ -36,13 +36,12 @@ var basicTypes = [...]struct {
 var typedefs = [...]struct {
 	name     string
 	etype    types.EType
-	width    *int
 	sameas32 types.EType
 	sameas64 types.EType
 }{
-	{"int", TINT, &Widthptr, TINT32, TINT64},
-	{"uint", TUINT, &Widthptr, TUINT32, TUINT64},
-	{"uintptr", TUINTPTR, &Widthptr, TUINT32, TUINT64},
+	{"int", TINT, TINT32, TINT64},
+	{"uint", TUINT, TUINT32, TUINT64},
+	{"uintptr", TUINTPTR, TUINT32, TUINT64},
 }
 
 var builtinFuncs = [...]struct {
@@ -276,7 +275,6 @@ func typeinit() {
 
 	// binary
 	okfor[OADD] = okforadd[:]
-
 	okfor[OAND] = okforand[:]
 	okfor[OANDAND] = okforbool[:]
 	okfor[OANDNOT] = okforand[:]
@@ -298,19 +296,16 @@ func typeinit() {
 
 	// unary
 	okfor[OCOM] = okforand[:]
-
 	okfor[OMINUS] = okforarith[:]
 	okfor[ONOT] = okforbool[:]
 	okfor[OPLUS] = okforarith[:]
 
 	// special
 	okfor[OCAP] = okforcap[:]
-
 	okfor[OLEN] = okforlen[:]
 
 	// comparison
 	iscmp[OLT] = true
-
 	iscmp[OGT] = true
 	iscmp[OGE] = true
 	iscmp[OLE] = true
@@ -353,7 +348,6 @@ func typeinit() {
 
 	// simple aliases
 	simtype[TMAP] = types.Tptr
-
 	simtype[TCHAN] = types.Tptr
 	simtype[TFUNC] = types.Tptr
 	simtype[TUNSAFEPTR] = types.Tptr
@@ -424,7 +418,7 @@ func lexinit1() {
 		s1 := builtinpkg.Lookup(s.name)
 
 		sameas := s.sameas32
-		if *s.width == 8 {
+		if Widthptr == 8 {
 			sameas = s.sameas64
 		}
 
