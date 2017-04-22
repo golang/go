@@ -1185,7 +1185,7 @@ ok:
 		}
 		ot = dgopkgpath(lsym, ot, tpkg)
 
-		ot = dsymptr(lsym, ot, lsym, ot+Widthptr+2*Widthptr+uncommonSize(t))
+		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
 		ot = duintptr(lsym, ot, uint64(n))
 		ot = duintptr(lsym, ot, uint64(n))
 		dataAdd := imethodSize() * n
@@ -1277,7 +1277,7 @@ ok:
 			}
 		}
 		ot = dgopkgpath(lsym, ot, pkg)
-		ot = dsymptr(lsym, ot, lsym, ot+Widthptr+2*Widthptr+uncommonSize(t))
+		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
 		ot = duintptr(lsym, ot, uint64(n))
 		ot = duintptr(lsym, ot, uint64(n))
 

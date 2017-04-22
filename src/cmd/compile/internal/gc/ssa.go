@@ -1602,12 +1602,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		if ft.IsFloat() || tt.IsFloat() {
 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
-			if s.config.PtrSize == 4 && thearch.LinkArch.Name != "amd64p32" && thearch.LinkArch.Family != sys.MIPS {
+			if s.config.RegSize == 4 && thearch.LinkArch.Family != sys.MIPS {
 				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 					conv = conv1
 				}
 			}
-			if thearch.LinkArch.Name == "arm64" {
+			if thearch.LinkArch.Family == sys.ARM64 {
 				if conv1, ok1 := uint64fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 					conv = conv1
 				}
@@ -2494,17 +2494,10 @@ func init() {
 	intrinsics = map[intrinsicKey]intrinsicBuilder{}
 
 	var all []*sys.Arch
-	var i4 []*sys.Arch
-	var i8 []*sys.Arch
 	var p4 []*sys.Arch
 	var p8 []*sys.Arch
 	for _, a := range sys.Archs {
 		all = append(all, a)
-		if a.PtrSize == 4 {
-			i4 = append(i4, a)
-		} else {
-			i8 = append(i8, a)
-		}
 		if a.PtrSize == 4 {
 			p4 = append(p4, a)
 		} else {
@@ -2689,8 +2682,8 @@ func init() {
 
 	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
 	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", i4...)
-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", i8...)
+	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", p4...)
+	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", p8...)
 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load", p4...)
 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load64", p8...)
 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store", p4...)
@@ -3476,11 +3469,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, ptr, arg, s.mem())
 		off += size
 	}
-	off = Rnd(off, int64(Widthptr))
-	if thearch.LinkArch.Name == "amd64p32" {
-		// amd64p32 wants 8-byte alignment of the start of the return values.
-		off = Rnd(off, 8)
-	}
+	off = Rnd(off, int64(Widthreg))
 
 	// Issue call
 	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, fn, s.mem())
