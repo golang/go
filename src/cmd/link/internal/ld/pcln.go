@@ -230,7 +230,7 @@ func (ctxt *Link) pclntab() {
 	setuint32(ctxt, ftab, 0, 0xfffffffb)
 	setuint8(ctxt, ftab, 6, uint8(SysArch.MinLC))
 	setuint8(ctxt, ftab, 7, uint8(SysArch.PtrSize))
-	setuintxx(ctxt, ftab, 8, uint64(nfunc), int64(SysArch.PtrSize))
+	setuint(ctxt, ftab, 8, uint64(nfunc))
 	pclntabPclntabOffset = int32(8 + SysArch.PtrSize)
 
 	funcnameoff := make(map[string]int32)
@@ -282,7 +282,7 @@ func (ctxt *Link) pclntab() {
 		funcstart += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
 
 		setaddr(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), s)
-		setuintxx(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart), int64(SysArch.PtrSize))
+		setuint(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart))
 
 		// Write runtime._func. Keep in sync with ../../../../runtime/runtime2.go:/_func
 		// and package debug/gosym.
@@ -375,7 +375,7 @@ func (ctxt *Link) pclntab() {
 			}
 			for i := 0; i < len(pcln.Funcdata); i++ {
 				if pcln.Funcdata[i] == nil {
-					setuintxx(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]), int64(SysArch.PtrSize))
+					setuint(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]))
 				} else {
 					// TODO: Dedup.
 					funcdataBytes += pcln.Funcdata[i].Size
