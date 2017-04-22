@@ -405,7 +405,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 		case string:
 			symdata := stringsym(u)
 			s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
-			s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthint, int64(len(u)))
+			s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
 
 		default:
 			Fatalf("gdata unhandled OLITERAL %v", nr)

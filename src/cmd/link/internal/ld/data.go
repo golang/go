@@ -129,7 +129,7 @@ func Adduint64(ctxt *Link, s *Symbol, v uint64) int64 {
 }
 
 func adduint(ctxt *Link, s *Symbol, v uint64) int64 {
-	return adduintxx(ctxt, s, v, SysArch.IntSize)
+	return adduintxx(ctxt, s, v, SysArch.PtrSize)
 }
 
 func setuint8(ctxt *Link, s *Symbol, r int64, v uint8) int64 {

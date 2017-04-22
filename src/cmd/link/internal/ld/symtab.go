@@ -318,7 +318,7 @@ func textsectionmap(ctxt *Link) uint32 {
 			break
 		}
 	}
-	Symgrow(t, nsections*(2*int64(SysArch.IntSize)+int64(SysArch.PtrSize)))
+	Symgrow(t, nsections*(2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize)))
 
 	off := int64(0)
 	n := 0
@@ -337,8 +337,8 @@ func textsectionmap(ctxt *Link) uint32 {
 		if sect.Name != ".text" {
 			break
 		}
-		off = setuintxx(ctxt, t, off, sect.Vaddr-textbase, int64(SysArch.IntSize))
-		off = setuintxx(ctxt, t, off, sect.Length, int64(SysArch.IntSize))
+		off = setuintxx(ctxt, t, off, sect.Vaddr-textbase, int64(SysArch.PtrSize))
+		off = setuintxx(ctxt, t, off, sect.Length, int64(SysArch.PtrSize))
 		if n == 0 {
 			s := ctxt.Syms.ROLookup("runtime.text", 0)
 			if s == nil {
