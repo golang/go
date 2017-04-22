@@ -54,6 +54,11 @@ func main() {
 
 	e = E(t) // ok
 	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
+
+	// cannot type-assert non-interfaces
+	f := 2.0
+	_ = f.(int) // ERROR "non-interface type"
+
 }
 
 type M interface {

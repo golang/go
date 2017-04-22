@@ -68,6 +68,12 @@ func _() {
 		w  int64   = 1.0 << 33   // 1.0<<33 is a constant shift expression
 		_, _, _, _, _, _, _, _, _, _ = j, k, m, n, o, u, u1, u2, v, w
 	)
+
+	// non constants arguments trigger a different path
+	f2 := 1.2
+	s2 := "hi"
+	_ = f2 << 2 // ERROR "shift of type float64"
+	_ = s2 << 2 // ERROR "shift of type string"
 }
 
 // shifts in comparisons w/ untyped operands
