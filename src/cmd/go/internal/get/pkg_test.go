@@ -5,7 +5,6 @@
 package get
 
 import (
-	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"reflect"
 	"strings"
@@ -80,13 +79,5 @@ func TestParseMetaGoImports(t *testing.T) {
 		if !reflect.DeepEqual(out, tt.out) {
 			t.Errorf("test#%d:\n\thave %q\n\twant %q", i, out, tt.out)
 		}
-	}
-}
-
-func pkgImportPath(path string) *load.Package {
-	return &load.Package{
-		PackagePublic: load.PackagePublic{
-			ImportPath: path,
-		},
 	}
 }
