@@ -42,6 +42,8 @@ var (
 	_ = funny([]T{}) // ok because []T{} is a T; passes []T{[]T{}}
 )
 
+func Foo(n int) {}
+
 func bad(args ...int) {
 	print(1, 2, args...)	// ERROR "[.][.][.]"
 	println(args...)	// ERROR "[.][.][.]"
@@ -58,4 +60,6 @@ func bad(args ...int) {
 	_ = unsafe.Sizeof(x...)	// ERROR "[.][.][.]"
 	_ = [...]byte("foo") // ERROR "[.][.][.]"
 	_ = [...][...]int{{1,2,3},{4,5,6}}	// ERROR "[.][.][.]"
+
+	Foo(x...) // ERROR "invalid use of [.][.][.] in call"
 }

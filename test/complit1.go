@@ -22,6 +22,10 @@ var (
 	_ = m[0][:]            // ERROR "slice of unaddressable value"
 	_ = f()[:]             // ERROR "slice of unaddressable value"
 
+	_ = 301[:]  // ERROR "cannot slice"
+	_ = 3.1[:]  // ERROR "cannot slice"
+	_ = true[:] // ERROR "cannot slice"
+
 	// these are okay because they are slicing a pointer to an array
 	_ = (&[3]int{1, 2, 3})[:]
 	_ = mp[0][:]
@@ -35,10 +39,15 @@ type T struct {
 	next *T
 }
 
+type TP *T
+type Ti int
+
 var (
 	_ = &T{0, 0, "", nil}               // ok
 	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal|omit types within composite literal"
 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal|omit types within composite literal"
+	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid pointer type"
+	_ = &Ti{}                           // ERROR "invalid pointer type"
 )
 
 type M map[T]T
