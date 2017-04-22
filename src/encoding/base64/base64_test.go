@@ -63,7 +63,7 @@ func rawRef(ref string) string {
 }
 
 // Both URL and unpadding conversions
-func rawUrlRef(ref string) string {
+func rawURLRef(ref string) string {
 	return rawRef(urlRef(ref))
 }
 
@@ -83,12 +83,12 @@ var encodingTests = []encodingTest{
 	{StdEncoding, stdRef},
 	{URLEncoding, urlRef},
 	{RawStdEncoding, rawRef},
-	{RawURLEncoding, rawUrlRef},
+	{RawURLEncoding, rawURLRef},
 	{funnyEncoding, funnyRef},
 	{StdEncoding.Strict(), stdRef},
 	{URLEncoding.Strict(), urlRef},
 	{RawStdEncoding.Strict(), rawRef},
-	{RawURLEncoding.Strict(), rawUrlRef},
+	{RawURLEncoding.Strict(), rawURLRef},
 	{funnyEncoding.Strict(), funnyRef},
 }
 
