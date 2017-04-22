@@ -210,11 +210,11 @@ func decodetypeFuncOutType(arch *sys.Arch, s *Symbol, i int) *Symbol {
 
 // Type.StructType.fields.Slice::length
 func decodetypeStructFieldCount(arch *sys.Arch, s *Symbol) int {
-	return int(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.IntSize))
+	return int(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.PtrSize))
 }
 
 func decodetypeStructFieldArrayOff(s *Symbol, i int) int {
-	off := commonsize() + 2*SysArch.PtrSize + 2*SysArch.IntSize
+	off := commonsize() + 2*SysArch.PtrSize + 2*SysArch.PtrSize
 	if decodetypeHasUncommon(s) {
 		off += uncommonSize()
 	}
@@ -255,12 +255,12 @@ func decodetypeStructFieldType(s *Symbol, i int) *Symbol {
 
 func decodetypeStructFieldOffs(arch *sys.Arch, s *Symbol, i int) int64 {
 	off := decodetypeStructFieldArrayOff(s, i)
-	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.IntSize) >> 1)
+	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.PtrSize) >> 1)
 }
 
 // InterfaceType.methods.length
 func decodetypeIfaceMethodCount(arch *sys.Arch, s *Symbol) int64 {
-	return int64(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.IntSize))
+	return int64(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.PtrSize))
 }
 
 // methodsig is a fully qualified typed method signature, like
@@ -342,7 +342,7 @@ func decodetypeMethods(arch *sys.Arch, s *Symbol) []methodsig {
 	off := commonsize() // reflect.rtype
 	switch decodetypeKind(s) & kindMask {
 	case kindStruct: // reflect.structType
-		off += 2*SysArch.PtrSize + 2*SysArch.IntSize
+		off += 2*SysArch.PtrSize + 2*SysArch.PtrSize
 	case kindPtr: // reflect.ptrType
 		off += SysArch.PtrSize
 	case kindFunc: // reflect.funcType
@@ -356,7 +356,7 @@ func decodetypeMethods(arch *sys.Arch, s *Symbol) []methodsig {
 	case kindMap: // reflect.mapType
 		off += 4*SysArch.PtrSize + 8
 	case kindInterface: // reflect.interfaceType
-		off += SysArch.PtrSize + 2*SysArch.IntSize
+		off += SysArch.PtrSize + 2*SysArch.PtrSize
 	default:
 		// just Sizeof(rtype)
 	}

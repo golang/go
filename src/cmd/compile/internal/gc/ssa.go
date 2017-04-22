@@ -492,7 +492,7 @@ func (s *state) constFloat64(t ssa.Type, c float64) *ssa.Value {
 	return s.f.ConstFloat64(s.peekPos(), t, c)
 }
 func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
-	if s.config.IntSize == 8 {
+	if s.config.PtrSize == 8 {
 		return s.constInt64(t, c)
 	}
 	if int64(int32(c)) != c {
@@ -1164,12 +1164,12 @@ func (s *state) concreteEtype(t *types.Type) types.EType {
 	default:
 		return e
 	case TINT:
-		if s.config.IntSize == 8 {
+		if s.config.PtrSize == 8 {
 			return TINT64
 		}
 		return TINT32
 	case TUINT:
-		if s.config.IntSize == 8 {
+		if s.config.PtrSize == 8 {
 			return TUINT64
 		}
 		return TUINT32
@@ -1602,7 +1602,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		if ft.IsFloat() || tt.IsFloat() {
 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
-			if s.config.IntSize == 4 && thearch.LinkArch.Name != "amd64p32" && thearch.LinkArch.Family != sys.MIPS {
+			if s.config.PtrSize == 4 && thearch.LinkArch.Name != "amd64p32" && thearch.LinkArch.Family != sys.MIPS {
 				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 					conv = conv1
 				}
@@ -2500,7 +2500,7 @@ func init() {
 	var p8 []*sys.Arch
 	for _, a := range sys.Archs {
 		all = append(all, a)
-		if a.IntSize == 4 {
+		if a.PtrSize == 4 {
 			i4 = append(i4, a)
 		} else {
 			i8 = append(i8, a)
@@ -2765,7 +2765,7 @@ func init() {
 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
 	addF("math/bits", "Len32",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			if s.config.IntSize == 4 {
+			if s.config.PtrSize == 4 {
 				return s.newValue1(ssa.OpBitLen32, types.Types[TINT], args[0])
 			}
 			x := s.newValue1(ssa.OpZeroExt32to64, types.Types[TUINT64], args[0])
@@ -2774,7 +2774,7 @@ func init() {
 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
 	addF("math/bits", "Len16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			if s.config.IntSize == 4 {
+			if s.config.PtrSize == 4 {
 				x := s.newValue1(ssa.OpZeroExt16to32, types.Types[TUINT32], args[0])
 				return s.newValue1(ssa.OpBitLen32, types.Types[TINT], x)
 			}
@@ -2785,7 +2785,7 @@ func init() {
 	// Note: disabled on AMD64 because the Go code is faster!
 	addF("math/bits", "Len8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			if s.config.IntSize == 4 {
+			if s.config.PtrSize == 4 {
 				x := s.newValue1(ssa.OpZeroExt8to32, types.Types[TUINT32], args[0])
 				return s.newValue1(ssa.OpBitLen32, types.Types[TINT], x)
 			}
@@ -2796,7 +2796,7 @@ func init() {
 
 	addF("math/bits", "Len",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			if s.config.IntSize == 4 {
+			if s.config.PtrSize == 4 {
 				return s.newValue1(ssa.OpBitLen32, types.Types[TINT], args[0])
 			}
 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], args[0])
@@ -2825,7 +2825,7 @@ func init() {
 		sys.ARM64)
 	addF("math/bits", "Reverse",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			if s.config.IntSize == 4 {
+			if s.config.PtrSize == 4 {
 				return s.newValue1(ssa.OpBitRev32, types.Types[TINT], args[0])
 			}
 			return s.newValue1(ssa.OpBitRev64, types.Types[TINT], args[0])
@@ -2849,7 +2849,7 @@ func init() {
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
 			op := op64
-			if s.config.IntSize == 4 {
+			if s.config.PtrSize == 4 {
 				op = op32
 			}
 			s.vars[n] = s.newValue1(op, types.Types[TINT], args[0])
@@ -3545,17 +3545,17 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 			return
 		}
 		len := s.newValue1(ssa.OpStringLen, types.Types[TINT], right)
-		lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.IntSize, left)
+		lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.PtrSize, left)
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], lenAddr, len, s.mem())
 	case t.IsSlice():
 		if skip&skipLen == 0 {
 			len := s.newValue1(ssa.OpSliceLen, types.Types[TINT], right)
-			lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.IntSize, left)
+			lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.PtrSize, left)
 			s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], lenAddr, len, s.mem())
 		}
 		if skip&skipCap == 0 {
 			cap := s.newValue1(ssa.OpSliceCap, types.Types[TINT], right)
-			capAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, 2*s.config.IntSize, left)
+			capAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, 2*s.config.PtrSize, left)
 			s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], capAddr, cap, s.mem())
 		}
 	case t.IsInterface():
@@ -4615,10 +4615,10 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 // panic using the given function if v does not fit in an int (only on 32-bit archs).
 func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
 	size := v.Type.Size()
-	if size == s.config.IntSize {
+	if size == s.config.PtrSize {
 		return v
 	}
-	if size > s.config.IntSize {
+	if size > s.config.PtrSize {
 		// truncate 64-bit indexes on 32-bit pointer archs. Test the
 		// high word and branch to out-of-bounds failure if it is not 0.
 		if Debug['B'] == 0 {
@@ -4632,7 +4632,7 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
 	// Extend value to the required size
 	var op ssa.Op
 	if v.Type.IsSigned() {
-		switch 10*size + s.config.IntSize {
+		switch 10*size + s.config.PtrSize {
 		case 14:
 			op = ssa.OpSignExt8to32
 		case 18:
@@ -4647,7 +4647,7 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
 			s.Fatalf("bad signed index extension %s", v.Type)
 		}
 	} else {
-		switch 10*size + s.config.IntSize {
+		switch 10*size + s.config.PtrSize {
 		case 14:
 			op = ssa.OpZeroExt8to32
 		case 18:

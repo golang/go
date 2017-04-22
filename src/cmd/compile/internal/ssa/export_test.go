@@ -30,7 +30,7 @@ func testConfigArch(tb testing.TB, arch string) *Conf {
 	if !ok {
 		tb.Fatalf("unknown arch %s", arch)
 	}
-	if ctxt.Arch.IntSize != 8 {
+	if ctxt.Arch.PtrSize != 8 {
 		tb.Fatal("dummyTypes is 64-bit only")
 	}
 	c := &Conf{

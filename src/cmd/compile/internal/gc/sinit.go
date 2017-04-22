@@ -333,9 +333,9 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 		n.Xoffset = l.Xoffset + int64(array_array)
 		gdata(&n, nod(OADDR, a, nil), Widthptr)
 		n.Xoffset = l.Xoffset + int64(array_nel)
-		gdata(&n, r.Right, Widthint)
+		gdata(&n, r.Right, Widthptr)
 		n.Xoffset = l.Xoffset + int64(array_cap)
-		gdata(&n, r.Right, Widthint)
+		gdata(&n, r.Right, Widthptr)
 		return true
 
 	case OARRAYLIT, OSTRUCTLIT:
@@ -434,9 +434,9 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		n.Xoffset = l.Xoffset + int64(array_array)
 		gdata(&n, nod(OADDR, a, nil), Widthptr)
 		n.Xoffset = l.Xoffset + int64(array_nel)
-		gdata(&n, r.Right, Widthint)
+		gdata(&n, r.Right, Widthptr)
 		n.Xoffset = l.Xoffset + int64(array_cap)
-		gdata(&n, r.Right, Widthint)
+		gdata(&n, r.Right, Widthptr)
 
 		// Fall through to init underlying array.
 		l = a
@@ -797,9 +797,9 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		nam.Xoffset += int64(array_array)
 		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)
 		nam.Xoffset += int64(array_nel) - int64(array_array)
-		gdata(&nam, &v, Widthint)
+		gdata(&nam, &v, Widthptr)
 		nam.Xoffset += int64(array_cap) - int64(array_nel)
-		gdata(&nam, &v, Widthint)
+		gdata(&nam, &v, Widthptr)
 
 		return
 	}

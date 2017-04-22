@@ -25,7 +25,7 @@ func decomposeBuiltIn(f *Func) {
 	for _, name := range f.Names {
 		t := name.Type
 		switch {
-		case t.IsInteger() && t.Size() == 8 && f.Config.IntSize == 4:
+		case t.IsInteger() && t.Size() == 8 && f.Config.PtrSize == 4:
 			var elemType Type
 			if t.IsSigned() {
 				elemType = f.Config.Types.Int32
@@ -95,8 +95,8 @@ func decomposeBuiltIn(f *Func) {
 			}
 			delete(f.NamedValues, name)
 		case t.IsFloat():
-			// floats are never decomposed, even ones bigger than IntSize
-		case t.Size() > f.Config.IntSize:
+			// floats are never decomposed, even ones bigger than PtrSize
+		case t.Size() > f.Config.PtrSize:
 			f.Fatalf("undecomposed named type %v %v", name, t)
 		default:
 			newNames = append(newNames, name)
@@ -107,7 +107,7 @@ func decomposeBuiltIn(f *Func) {
 
 func decomposeBuiltInPhi(v *Value) {
 	switch {
-	case v.Type.IsInteger() && v.Type.Size() == 8 && v.Block.Func.Config.IntSize == 4:
+	case v.Type.IsInteger() && v.Type.Size() == 8 && v.Block.Func.Config.PtrSize == 4:
 		if v.Block.Func.Config.arch == "amd64p32" {
 			// Even though ints are 32 bits, we have 64-bit ops.
 			break
@@ -122,8 +122,8 @@ func decomposeBuiltInPhi(v *Value) {
 	case v.Type.IsInterface():
 		decomposeInterfacePhi(v)
 	case v.Type.IsFloat():
-		// floats are never decomposed, even ones bigger than IntSize
-	case v.Type.Size() > v.Block.Func.Config.IntSize:
+		// floats are never decomposed, even ones bigger than PtrSize
+	case v.Type.Size() > v.Block.Func.Config.PtrSize:
 		v.Fatalf("undecomposed type %s", v.Type)
 	}
 }

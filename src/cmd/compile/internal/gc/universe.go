@@ -40,8 +40,8 @@ var typedefs = [...]struct {
 	sameas32 types.EType
 	sameas64 types.EType
 }{
-	{"int", TINT, &Widthint, TINT32, TINT64},
-	{"uint", TUINT, &Widthint, TUINT32, TUINT64},
+	{"int", TINT, &Widthptr, TINT32, TINT64},
+	{"uint", TUINT, &Widthptr, TUINT32, TUINT64},
 	{"uintptr", TUINTPTR, &Widthptr, TUINT32, TUINT64},
 }
 
@@ -359,12 +359,12 @@ func typeinit() {
 	simtype[TUNSAFEPTR] = types.Tptr
 
 	array_array = int(Rnd(0, int64(Widthptr)))
-	array_nel = int(Rnd(int64(array_array)+int64(Widthptr), int64(Widthint)))
-	array_cap = int(Rnd(int64(array_nel)+int64(Widthint), int64(Widthint)))
-	sizeof_Array = int(Rnd(int64(array_cap)+int64(Widthint), int64(Widthptr)))
+	array_nel = int(Rnd(int64(array_array)+int64(Widthptr), int64(Widthptr)))
+	array_cap = int(Rnd(int64(array_nel)+int64(Widthptr), int64(Widthptr)))
+	sizeof_Array = int(Rnd(int64(array_cap)+int64(Widthptr), int64(Widthptr)))
 
 	// string is same as slice wo the cap
-	sizeof_String = int(Rnd(int64(array_nel)+int64(Widthint), int64(Widthptr)))
+	sizeof_String = int(Rnd(int64(array_nel)+int64(Widthptr), int64(Widthptr)))
 
 	dowidth(types.Types[TSTRING])
 	dowidth(types.Idealstring)
