@@ -6,12 +6,10 @@ package ssa
 
 import (
 	"cmd/internal/obj"
-	"crypto/sha1"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
@@ -570,20 +568,6 @@ func min(x, y int64) int64 {
 		return x
 	}
 	return y
-}
-
-func experiment(f *Func) bool {
-	hstr := ""
-	for _, b := range sha1.Sum([]byte(f.Name)) {
-		hstr += fmt.Sprintf("%08b", b)
-	}
-	r := strings.HasSuffix(hstr, "00011")
-	_ = r
-	r = f.Name == "(*fmt).fmt_integer"
-	if r {
-		fmt.Printf("             enabled for %s\n", f.Name)
-	}
-	return r
 }
 
 func isConstZero(v *Value) bool {
