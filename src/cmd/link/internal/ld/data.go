@@ -140,6 +140,10 @@ func setuint32(ctxt *Link, s *Symbol, r int64, v uint32) int64 {
 	return setuintxx(ctxt, s, r, uint64(v), 4)
 }
 
+func setuint(ctxt *Link, s *Symbol, r int64, v uint64) int64 {
+	return setuintxx(ctxt, s, r, v, int64(SysArch.PtrSize))
+}
+
 func Addaddrplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
 	if s.Type == 0 {
 		s.Type = objabi.SDATA

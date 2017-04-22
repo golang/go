@@ -214,7 +214,7 @@ func decodetypeStructFieldCount(arch *sys.Arch, s *Symbol) int {
 }
 
 func decodetypeStructFieldArrayOff(s *Symbol, i int) int {
-	off := commonsize() + 2*SysArch.PtrSize + 2*SysArch.PtrSize
+	off := commonsize() + 4*SysArch.PtrSize
 	if decodetypeHasUncommon(s) {
 		off += uncommonSize()
 	}
@@ -342,7 +342,7 @@ func decodetypeMethods(arch *sys.Arch, s *Symbol) []methodsig {
 	off := commonsize() // reflect.rtype
 	switch decodetypeKind(s) & kindMask {
 	case kindStruct: // reflect.structType
-		off += 2*SysArch.PtrSize + 2*SysArch.PtrSize
+		off += 4 * SysArch.PtrSize
 	case kindPtr: // reflect.ptrType
 		off += SysArch.PtrSize
 	case kindFunc: // reflect.funcType
@@ -356,7 +356,7 @@ func decodetypeMethods(arch *sys.Arch, s *Symbol) []methodsig {
 	case kindMap: // reflect.mapType
 		off += 4*SysArch.PtrSize + 8
 	case kindInterface: // reflect.interfaceType
-		off += SysArch.PtrSize + 2*SysArch.PtrSize
+		off += 3 * SysArch.PtrSize
 	default:
 		// just Sizeof(rtype)
 	}
