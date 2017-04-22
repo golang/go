@@ -621,7 +621,16 @@ func formatGoSource(buf *bytes.Buffer, text []byte, links []analysis.Link, patte
 	// linkWriter, so we have to add line spans as another pass.
 	n := 1
 	for _, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
-		fmt.Fprintf(saved, "<span id=\"L%d\" class=\"ln\">%6d\t</span>", n, n)
+		// The line numbers are inserted into the document via a CSS ::before
+		// pseudo-element. This prevents them from being copied when users
+		// highlight and copy text.
+		// ::before is supported in 98% of browsers: https://caniuse.com/#feat=css-gencontent
+		// This is also the trick Github uses to hide line numbers.
+		//
+		// The first tab for the code snippet needs to start in column 9, so
+		// it indents a full 8 spaces, hence the two nbsp's. Otherwise the tab
+		// character only indents about two spaces.
+		fmt.Fprintf(saved, `<span id="L%d" class="ln" data-content="%6d">&nbsp;&nbsp;</span>`, n, n)
 		n++
 		saved.Write(line)
 		saved.WriteByte('\n')
