@@ -8,10 +8,16 @@ import (
 	"cmd/internal/src"
 	"crypto/sha1"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"strings"
 )
+
+type writeSyncer interface {
+	io.Writer
+	Sync() error
+}
 
 // A Func represents a Go func declaration (or function literal) and its body.
 // This package compiles each Func independently.
@@ -30,7 +36,7 @@ type Func struct {
 
 	// Given an environment variable used for debug hash match,
 	// what file (if any) receives the yes/no logging?
-	logfiles   map[string]*os.File
+	logfiles   map[string]writeSyncer
 	HTMLWriter *HTMLWriter // html writer, for debugging
 	DebugTest  bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
 
@@ -590,7 +596,7 @@ func (f *Func) DebugHashMatch(evname, name string) bool {
 
 func (f *Func) logDebugHashMatch(evname, name string) {
 	if f.logfiles == nil {
-		f.logfiles = make(map[string]*os.File)
+		f.logfiles = make(map[string]writeSyncer)
 	}
 	file := f.logfiles[evname]
 	if file == nil {
@@ -604,8 +610,7 @@ func (f *Func) logDebugHashMatch(evname, name string) {
 		}
 		f.logfiles[evname] = file
 	}
-	s := fmt.Sprintf("%s triggered %s\n", evname, name)
-	file.WriteString(s)
+	fmt.Fprintf(file, "%s triggered %s\n", evname, name)
 	file.Sync()
 }
 

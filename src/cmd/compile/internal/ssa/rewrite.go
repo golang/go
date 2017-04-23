@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/internal/obj"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -561,7 +562,7 @@ func logRule(s string) {
 	}
 }
 
-var ruleFile *os.File
+var ruleFile io.Writer
 
 func min(x, y int64) int64 {
 	if x < y {
