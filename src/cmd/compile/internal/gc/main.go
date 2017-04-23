@@ -626,13 +626,6 @@ func Main(archInit func(*Arch)) {
 
 		compileFunctions()
 
-		// We autogenerate and compile some small functions
-		// such as method wrappers and equality/hash routines
-		// while exporting code.
-		// Disable concurrent compilation from here on,
-		// at least until this convoluted structure has been unwound.
-		nBackendWorkers = 1
-
 		if nowritebarrierrecCheck != nil {
 			// Write barriers are now known. Check the
 			// call graph.
