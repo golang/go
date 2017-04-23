@@ -19,10 +19,10 @@ import (
 // "Portable" code generation.
 
 func emitptrargsmap() {
-	if Curfn.Func.Nname.Sym.Name == "_" {
+	if Curfn.funcname() == "_" {
 		return
 	}
-	sym := lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
+	sym := lookup(fmt.Sprintf("%s.args_stackmap", Curfn.funcname()))
 	lsym := sym.Linksym()
 
 	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))

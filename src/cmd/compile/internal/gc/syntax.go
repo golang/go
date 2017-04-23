@@ -191,6 +191,11 @@ func (n *Node) mayBeShared() bool {
 	return false
 }
 
+// funcname returns the name of the function n.
+func (n *Node) funcname() string {
+	return n.Func.Nname.Sym.Name
+}
+
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
 type Name struct {
 	Pack      *Node      // real package for import . names
