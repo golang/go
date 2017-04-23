@@ -6,17 +6,16 @@ package gc
 
 import "cmd/compile/internal/types"
 
-// a function named init is a special case.
-// it is called by the initialization before
-// main is run. to make it unique within a
-// package and also uncallable, the name,
-// normally "pkg.init", is altered to "pkg.init.1".
-
-var renameinit_initgen int
+// A function named init is a special case.
+// It is called by the initialization before main is run.
+// To make it unique within a package and also uncallable,
+// the name, normally "pkg.init", is altered to "pkg.init.0".
+var renameinitgen int
 
 func renameinit() *types.Sym {
-	renameinit_initgen++
-	return lookupN("init.", renameinit_initgen)
+	s := lookupN("init.", renameinitgen)
+	renameinitgen++
+	return s
 }
 
 // anyinit reports whether there any interesting init statements.
@@ -39,7 +38,7 @@ func anyinit(n []*Node) bool {
 	}
 
 	// is there an explicit init function
-	if s := lookup("init.1"); s.Def != nil {
+	if renameinitgen > 0 {
 		return true
 	}
 
@@ -126,11 +125,8 @@ func fninit(n []*Node) {
 
 	// (8)
 	// could check that it is fn of no args/returns
-	for i := 1; ; i++ {
+	for i := 0; i < renameinitgen; i++ {
 		s := lookupN("init.", i)
-		if s.Def == nil {
-			break
-		}
 		a = nod(OCALL, asNode(s.Def), nil)
 		r = append(r, a)
 	}
