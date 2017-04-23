@@ -17,8 +17,7 @@ func shortcircuit(f *Func) {
 	//    x = phi(a, ...)
 	//
 	// We can replace the "a" in the phi with the constant true.
-	ct := f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, true)
-	cf := f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, false)
+	var ct, cf *Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != OpPhi {
@@ -37,8 +36,14 @@ func shortcircuit(f *Func) {
 					continue
 				}
 				if e.i == 0 {
+					if ct == nil {
+						ct = f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, true)
+					}
 					v.SetArg(i, ct)
 				} else {
+					if cf == nil {
+						cf = f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, false)
+					}
 					v.SetArg(i, cf)
 				}
 			}
