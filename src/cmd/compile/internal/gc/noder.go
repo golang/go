@@ -342,8 +342,8 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		lineno = Ctxt.PosTable.XPos(fun.Body.Rbrace)
 		f.Func.Endlineno = lineno
 	} else {
-		if pure_go || strings.HasPrefix(f.Func.Nname.Sym.Name, "init.") {
-			yyerrorl(f.Pos, "missing function body for %q", f.Func.Nname.Sym.Name)
+		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
+			yyerrorl(f.Pos, "missing function body for %q", f.funcname())
 		}
 	}
 

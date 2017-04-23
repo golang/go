@@ -819,13 +819,13 @@ func (lv *Liveness) clobber() {
 		// Clobber only functions where the hash of the function name matches a pattern.
 		// Useful for binary searching for a miscompiled function.
 		hstr := ""
-		for _, b := range sha1.Sum([]byte(lv.fn.Func.Nname.Sym.Name)) {
+		for _, b := range sha1.Sum([]byte(lv.fn.funcname())) {
 			hstr += fmt.Sprintf("%08b", b)
 		}
 		if !strings.HasSuffix(hstr, h) {
 			return
 		}
-		fmt.Printf("\t\t\tCLOBBERDEAD %s\n", lv.fn.Func.Nname.Sym.Name)
+		fmt.Printf("\t\t\tCLOBBERDEAD %s\n", lv.fn.funcname())
 	}
 	if lv.f.Name == "forkAndExecInChild" {
 		// forkAndExecInChild calls vfork (on linux/amd64, anyway).
@@ -1087,7 +1087,7 @@ Outer:
 }
 
 func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
-	if debuglive == 0 || lv.fn.Func.Nname.Sym.Name == "init" || strings.HasPrefix(lv.fn.Func.Nname.Sym.Name, ".") {
+	if debuglive == 0 || lv.fn.funcname() == "init" || strings.HasPrefix(lv.fn.funcname(), ".") {
 		return
 	}
 	if live.IsEmpty() {
@@ -1101,7 +1101,7 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
 
 	s := "live at "
 	if v == nil {
-		s += fmt.Sprintf("entry to %s:", lv.fn.Func.Nname.Sym.Name)
+		s += fmt.Sprintf("entry to %s:", lv.fn.funcname())
 	} else if sym, ok := v.Aux.(*obj.LSym); ok {
 		fn := sym.Name
 		if pos := strings.Index(fn, "."); pos >= 0 {
@@ -1163,7 +1163,7 @@ func (lv *Liveness) printeffect(printed bool, name string, pos int32, x bool) bo
 // This format synthesizes the information used during the multiple passes
 // into a single presentation.
 func livenessprintdebug(lv *Liveness) {
-	fmt.Printf("liveness: %s\n", lv.fn.Func.Nname.Sym.Name)
+	fmt.Printf("liveness: %s\n", lv.fn.funcname())
 
 	pcdata := 0
 	for i, b := range lv.f.Blocks {

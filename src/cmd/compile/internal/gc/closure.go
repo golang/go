@@ -173,7 +173,7 @@ func closurename(n *Node) *types.Sym {
 		gen = closurename_closgen
 	case n.Func.Outerfunc.Op == ODCLFUNC:
 		// The outermost closure inside of a named function.
-		outer = n.Func.Outerfunc.Func.Nname.Sym.Name
+		outer = n.Func.Outerfunc.funcname()
 
 		prefix = "func"
 

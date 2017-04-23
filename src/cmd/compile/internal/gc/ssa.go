@@ -96,7 +96,7 @@ func initssaconfig() {
 
 // buildssa builds an SSA function.
 func buildssa(fn *Node) *ssa.Func {
-	name := fn.Func.Nname.Sym.Name
+	name := fn.funcname()
 	printssa := name == os.Getenv("GOSSAFUNC")
 	if printssa {
 		fmt.Println("generating SSA for", name)
