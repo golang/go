@@ -32,6 +32,7 @@ type importer struct {
 
 	// object lists, in order of deserialization
 	strList       []string
+	pathList      []string
 	pkgList       []*types.Pkg
 	typList       []*types.Type
 	funcList      []*Node // nil entry means already declared
@@ -57,10 +58,11 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 	defer func() { inimport = false }()
 
 	p := importer{
-		in:      in,
-		imp:     imp,
-		version: -1,           // unknown version
-		strList: []string{""}, // empty string is mapped to 0
+		in:       in,
+		imp:      imp,
+		version:  -1,           // unknown version
+		strList:  []string{""}, // empty string is mapped to 0
+		pathList: []string{""}, // empty path is mapped to 0
 	}
 
 	// read version info
@@ -94,10 +96,10 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
 
 	// read version specific flags - extend as necessary
 	switch p.version {
-	// case 5:
+	// case 6:
 	// 	...
 	//	fallthrough
-	case 4, 3, 2, 1:
+	case 5, 4, 3, 2, 1:
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.bool()
 		p.posInfoFormat = p.bool()
@@ -270,7 +272,12 @@ func (p *importer) pkg() *types.Pkg {
 
 	// read package data
 	name := p.string()
-	path := p.string()
+	var path string
+	if p.version >= 5 {
+		path = p.path()
+	} else {
+		path = p.string()
+	}
 
 	// we should never see an empty package name
 	if name == "" {
@@ -382,14 +389,27 @@ func (p *importer) pos() src.XPos {
 
 	file := p.prevFile
 	line := p.prevLine
-	if delta := p.int(); delta != 0 {
-		// line changed
-		line += delta
-	} else if n := p.int(); n >= 0 {
-		// file changed
-		file = p.prevFile[:n] + p.string()
+	delta := p.int()
+	line += delta
+	if p.version >= 5 {
+		if delta == deltaNewFile {
+			if n := p.int(); n >= 0 {
+				// file changed
+				file = p.path()
+				line = n
+			}
+		}
+	} else {
+		if delta == 0 {
+			if n := p.int(); n >= 0 {
+				// file changed
+				file = p.prevFile[:n] + p.string()
+				line = p.int()
+			}
+		}
+	}
+	if file != p.prevFile {
 		p.prevFile = file
-		line = p.int()
 		p.posBase = src.NewFileBase(file, file)
 	}
 	p.prevLine = line
@@ -397,6 +417,26 @@ func (p *importer) pos() src.XPos {
 	pos := src.MakePos(p.posBase, uint(line), 0)
 	xpos := Ctxt.PosTable.XPos(pos)
 	return xpos
+}
+
+func (p *importer) path() string {
+	if p.debugFormat {
+		p.marker('p')
+	}
+	// if the path was seen before, i is its index (>= 0)
+	// (the empty string is at index 0)
+	i := p.rawInt64()
+	if i >= 0 {
+		return p.pathList[i]
+	}
+	// otherwise, i is the negative path length (< 0)
+	a := make([]string, -i)
+	for n := range a {
+		a[n] = p.string()
+	}
+	s := strings.Join(a, "/")
+	p.pathList = append(p.pathList, s)
+	return s
 }
 
 func (p *importer) newtyp(etype types.EType) *types.Type {
