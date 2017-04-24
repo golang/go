@@ -1394,9 +1394,9 @@ func addsignat(t *types.Type) {
 	signatlist[formalType(t)] = true
 }
 
-func dumptypestructs() {
-	// copy types from externdcl list to signatlist
-	for _, n := range externdcl {
+func dumptypestructs(dcls []*Node) {
+	// copy types from dcl list to signatlist
+	for _, n := range dcls {
 		if n.Op == OTYPE {
 			addsignat(n.Type)
 		}
@@ -1421,7 +1421,9 @@ func dumptypestructs() {
 			}
 		}
 	}
+}
 
+func dumptabs() {
 	// process itabs
 	for _, i := range itabs {
 		// dump empty itab symbol into i.sym
@@ -1474,18 +1476,22 @@ func dumptypestructs() {
 		}
 		ggloblsym(s, int32(ot), int16(obj.RODATA))
 	}
+}
 
+func dumpimportstrings() {
 	// generate import strings for imported packages
 	for _, p := range types.ImportedPkgList() {
 		dimportpath(p)
 	}
+}
 
+func dumpbasictypes() {
 	// do basic types if compiling package runtime.
 	// they have to be in at least one package,
 	// and runtime is always loaded implicitly,
 	// so this is as good as any.
 	// another possible choice would be package main,
-	// but using runtime means fewer copies in .6 files.
+	// but using runtime means fewer copies in object files.
 	if myimportpath == "runtime" {
 		for i := types.EType(1); i <= TBOOL; i++ {
 			dtypesym(types.NewPtr(types.Types[i]))
