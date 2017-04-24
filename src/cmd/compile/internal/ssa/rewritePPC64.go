@@ -69,6 +69,10 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpAtomicStore64_0(v)
 	case OpAvg64u:
 		return rewriteValuePPC64_OpAvg64u_0(v)
+	case OpBitLen32:
+		return rewriteValuePPC64_OpBitLen32_0(v)
+	case OpBitLen64:
+		return rewriteValuePPC64_OpBitLen64_0(v)
 	case OpClosureCall:
 		return rewriteValuePPC64_OpClosureCall_0(v)
 	case OpCom16:
@@ -97,6 +101,10 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpConstNil_0(v)
 	case OpConvert:
 		return rewriteValuePPC64_OpConvert_0(v)
+	case OpCtz32:
+		return rewriteValuePPC64_OpCtz32_0(v)
+	case OpCtz64:
+		return rewriteValuePPC64_OpCtz64_0(v)
 	case OpCvt32Fto32:
 		return rewriteValuePPC64_OpCvt32Fto32_0(v)
 	case OpCvt32Fto64:
@@ -465,6 +473,14 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64XOR_0(v)
 	case OpPPC64XORconst:
 		return rewriteValuePPC64_OpPPC64XORconst_0(v)
+	case OpPopCount16:
+		return rewriteValuePPC64_OpPopCount16_0(v)
+	case OpPopCount32:
+		return rewriteValuePPC64_OpPopCount32_0(v)
+	case OpPopCount64:
+		return rewriteValuePPC64_OpPopCount64_0(v)
+	case OpPopCount8:
+		return rewriteValuePPC64_OpPopCount8_0(v)
 	case OpRound32F:
 		return rewriteValuePPC64_OpRound32F_0(v)
 	case OpRound64F:
@@ -988,6 +1004,46 @@ func rewriteValuePPC64_OpAvg64u_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValuePPC64_OpBitLen32_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	types := &b.Func.Config.Types
+	_ = types
+	// match: (BitLen32 x)
+	// cond:
+	// result: (SUB (MOVDconst [32]) (CNTLZW <types.Int> x))
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64SUB)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, types.Int64)
+		v0.AuxInt = 32
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64CNTLZW, types.Int)
+		v1.AddArg(x)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValuePPC64_OpBitLen64_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	types := &b.Func.Config.Types
+	_ = types
+	// match: (BitLen64 x)
+	// cond:
+	// result: (SUB (MOVDconst [64]) (CNTLZD <types.Int> x))
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64SUB)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, types.Int64)
+		v0.AuxInt = 64
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpPPC64CNTLZD, types.Int)
+		v1.AddArg(x)
+		v.AddArg(v1)
+		return true
+	}
+}
 func rewriteValuePPC64_OpClosureCall_0(v *Value) bool {
 	// match: (ClosureCall [argwid] entry closure mem)
 	// cond:
@@ -1152,6 +1208,50 @@ func rewriteValuePPC64_OpConvert_0(v *Value) bool {
 		v.Type = t
 		v.AddArg(x)
 		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	types := &b.Func.Config.Types
+	_ = types
+	// match: (Ctz32 x)
+	// cond:
+	// result: (POPCNTW (MOVWZreg (ANDN <types.Int> (ADDconst <types.Int> [-1] x) x)))
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64POPCNTW)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, types.Int64)
+		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, types.Int)
+		v2 := b.NewValue0(v.Pos, OpPPC64ADDconst, types.Int)
+		v2.AuxInt = -1
+		v2.AddArg(x)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValuePPC64_OpCtz64_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	types := &b.Func.Config.Types
+	_ = types
+	// match: (Ctz64 x)
+	// cond:
+	// result: (POPCNTD (ANDN <types.Int64> (ADDconst <types.Int64> [-1] x) x))
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64POPCNTD)
+		v0 := b.NewValue0(v.Pos, OpPPC64ANDN, types.Int64)
+		v1 := b.NewValue0(v.Pos, OpPPC64ADDconst, types.Int64)
+		v1.AuxInt = -1
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -7943,6 +8043,68 @@ func rewriteValuePPC64_OpPPC64XORconst_0(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValuePPC64_OpPopCount16_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	types := &b.Func.Config.Types
+	_ = types
+	// match: (PopCount16 x)
+	// cond:
+	// result: (POPCNTW (MOVHZreg x))
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64POPCNTW)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, types.Int64)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValuePPC64_OpPopCount32_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	types := &b.Func.Config.Types
+	_ = types
+	// match: (PopCount32 x)
+	// cond:
+	// result: (POPCNTW (MOVWZreg x))
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64POPCNTW)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, types.Int64)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValuePPC64_OpPopCount64_0(v *Value) bool {
+	// match: (PopCount64 x)
+	// cond:
+	// result: (POPCNTD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64POPCNTD)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValuePPC64_OpPopCount8_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	types := &b.Func.Config.Types
+	_ = types
+	// match: (PopCount8 x)
+	// cond:
+	// result: (POPCNTB (MOVBreg x))
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64POPCNTB)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVBreg, types.Int64)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 }
 func rewriteValuePPC64_OpRound32F_0(v *Value) bool {
 	// match: (Round32F x)
