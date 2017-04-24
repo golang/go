@@ -136,8 +136,11 @@ func dumpobj1(outfile string, mode int) {
 	externs := len(externdcl)
 
 	dumpglobls()
-	dumpptabs()
-	dumptypestructs()
+	addptabs()
+	dumptypestructs(externdcl)
+	dumptabs()
+	dumpimportstrings()
+	dumpbasictypes()
 
 	// Dump extra globals.
 	tmp := externdcl
@@ -171,7 +174,7 @@ func dumpobj1(outfile string, mode int) {
 	bout.Close()
 }
 
-func dumpptabs() {
+func addptabs() {
 	if !Ctxt.Flag_dynlink || localpkg.Name != "main" {
 		return
 	}
