@@ -64,8 +64,8 @@ tail:
 	JBE	move_129through256
 	// TODO: use branch table and BSR to make this just a single dispatch
 
-	TESTB	$1, runtime·useRepMovs(SB)
-	JZ	avxUnaligned
+	TESTB	$1, runtime·useAVXmemmove(SB)
+	JNZ	avxUnaligned
 
 /*
  * check and set for backwards

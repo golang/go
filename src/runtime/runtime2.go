@@ -727,10 +727,12 @@ var (
 	newprocs    int32
 
 	// Information about what cpu features are available.
-	// Set on startup in asm_{x86,amd64}.s.
+	// Set on startup in asm_{386,amd64,amd64p32}.s.
+	cpuid_eax         uint32
 	cpuid_ecx         uint32
 	cpuid_edx         uint32
-	cpuid_ebx7        uint32
+	cpuid_ebx7        uint32 // not set on amd64p32
+	isIntel           bool
 	lfenceBeforeRdtsc bool
 	support_avx       bool
 	support_avx2      bool

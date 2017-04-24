@@ -67,14 +67,16 @@ has_cpuid:
 	JNE	notintel
 	CMPL	CX, $0x6C65746E  // "ntel"
 	JNE	notintel
+	MOVB	$1, runtime·isIntel(SB)
 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
 notintel:
 
 	// Load EAX=1 cpuid flags
 	MOVL	$1, AX
 	CPUID
-	MOVL	CX, AX // Move to global variable clobbers CX when generating PIC
-	MOVL	AX, runtime·cpuid_ecx(SB)
+	MOVL	CX, DI // Move to global variable clobbers CX when generating PIC
+	MOVL	AX, runtime·cpuid_eax(SB)
+	MOVL	DI, runtime·cpuid_ecx(SB)
 	MOVL	DX, runtime·cpuid_edx(SB)
 
 	// Check for MMX support
