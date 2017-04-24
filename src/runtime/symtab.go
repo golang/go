@@ -23,23 +23,34 @@ type Frames struct {
 
 // Frame is the information returned by Frames for each call frame.
 type Frame struct {
-	// Program counter for this frame; multiple frames may have
-	// the same PC value.
+	// PC is the program counter for the location in this frame.
+	// For a frame that calls another frame, this will be the
+	// program counter of a call instruction. Because of inlining,
+	// multiple frames may have the same PC value, but different
+	// symbolic information.
 	PC uintptr
 
-	// Func for this frame; may be nil for non-Go code or fully
-	// inlined functions.
+	// Func is the Func value of this call frame. This may be nil
+	// for non-Go code or fully inlined functions.
 	Func *Func
 
-	// Function name, file name, and line number for this call frame.
-	// May be the empty string or zero if not known.
+	// Function is the package path-qualified function name of
+	// this call frame. If non-empty, this string uniquely
+	// identifies a single function in the program.
+	// This may be the empty string if not known.
 	// If Func is not nil then Function == Func.Name().
 	Function string
-	File     string
-	Line     int
 
-	// Entry point for the function; may be zero if not known.
-	// If Func is not nil then Entry == Func.Entry().
+	// File and Line are the file name and line number of the
+	// location in this frame. For non-leaf frames, this will be
+	// the location of a call. These may be the empty string and
+	// zero, respectively, if not known.
+	File string
+	Line int
+
+	// Entry point program counter for the function; may be zero
+	// if not known. If Func is not nil then Entry ==
+	// Func.Entry().
 	Entry uintptr
 }
 
