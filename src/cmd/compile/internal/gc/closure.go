@@ -319,7 +319,7 @@ func transformclosure(xfunc *Node) {
 		//		byref++
 		//	}(42)
 		// becomes:
-		//	func(a int, byval int, &byref *int) {
+		//	func(byval int, &byref *int, a int) {
 		//		println(byval)
 		//		(*&byref)++
 		//	}(byval, &byref, 42)
