@@ -41,12 +41,14 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	JNE	notintel
 	CMPL	CX, $0x6C65746E  // "ntel"
 	JNE	notintel
+	MOVB	$1, runtime·isIntel(SB)
 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
 notintel:
 
 	// Load EAX=1 cpuid flags
 	MOVQ	$1, AX
 	CPUID
+	MOVL	AX, runtime·cpuid_eax(SB)
 	MOVL	CX, runtime·cpuid_ecx(SB)
 	MOVL	DX, runtime·cpuid_edx(SB)
 

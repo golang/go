@@ -32,8 +32,19 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	CPUID
 	CMPQ	AX, $0
 	JE	nocpuinfo
+
+	CMPL	BX, $0x756E6547  // "Genu"
+	JNE	notintel
+	CMPL	DX, $0x49656E69  // "ineI"
+	JNE	notintel
+	CMPL	CX, $0x6C65746E  // "ntel"
+	JNE	notintel
+	MOVB	$1, runtime·isIntel(SB)
+notintel:
+
 	MOVQ	$1, AX
 	CPUID
+	MOVL	AX, runtime·cpuid_eax(SB)
 	MOVL	CX, runtime·cpuid_ecx(SB)
 	MOVL	DX, runtime·cpuid_edx(SB)
 nocpuinfo:	
