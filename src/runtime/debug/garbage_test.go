@@ -5,6 +5,7 @@
 package debug_test
 
 import (
+	"internal/testenv"
 	"runtime"
 	. "runtime/debug"
 	"testing"
@@ -110,6 +111,8 @@ var (
 )
 
 func TestSetGCPercent(t *testing.T) {
+	testenv.SkipFlaky(t, 20076)
+
 	// Test that the variable is being set and returned correctly.
 	old := SetGCPercent(123)
 	new := SetGCPercent(old)
