@@ -121,7 +121,7 @@ type mheap struct {
 	// gets its own cache line.
 	central [_NumSizeClasses]struct {
 		mcentral mcentral
-		pad      [sys.CacheLineSize]byte
+		pad      [sys.CacheLineSize - unsafe.Sizeof(mcentral{})%sys.CacheLineSize]byte
 	}
 
 	spanalloc             fixalloc // allocator for span*
