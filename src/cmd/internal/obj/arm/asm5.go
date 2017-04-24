@@ -86,16 +86,22 @@ var optab = []Optab{
 	{obj.ATEXT, C_ADDR, C_NONE, C_TEXTSIZE, 0, 0, 0, 0, 0},
 	{AADD, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
 	{AADD, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+	{AAND, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
+	{AAND, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
 	{AMVN, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
 	{ACMP, C_REG, C_REG, C_NONE, 1, 4, 0, 0, 0},
 	{AADD, C_RCON, C_REG, C_REG, 2, 4, 0, 0, 0},
 	{AADD, C_RCON, C_NONE, C_REG, 2, 4, 0, 0, 0},
+	{AAND, C_RCON, C_REG, C_REG, 2, 4, 0, 0, 0},
+	{AAND, C_RCON, C_NONE, C_REG, 2, 4, 0, 0, 0},
 	{AMOVW, C_RCON, C_NONE, C_REG, 2, 4, 0, 0, 0},
 	{AMVN, C_RCON, C_NONE, C_REG, 2, 4, 0, 0, 0},
 	{ACMP, C_RCON, C_REG, C_NONE, 2, 4, 0, 0, 0},
 	{AADD, C_SHIFT, C_REG, C_REG, 3, 4, 0, 0, 0},
 	{AADD, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
+	{AAND, C_SHIFT, C_REG, C_REG, 3, 4, 0, 0, 0},
+	{AAND, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AMVN, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{ACMP, C_SHIFT, C_REG, C_NONE, 3, 4, 0, 0, 0},
 	{AMOVW, C_RACON, C_NONE, C_REG, 4, 4, REGSP, 0, 0},
@@ -128,14 +134,22 @@ var optab = []Optab{
 	{AMOVW, C_LCONADDR, C_NONE, C_REG, 12, 4, 0, LFROM | LPCREL, 4},
 	{AADD, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0},
 	{AADD, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+	{AAND, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0},
+	{AAND, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
 	{AMVN, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
 	{ACMP, C_NCON, C_REG, C_NONE, 13, 8, 0, 0, 0},
 	{AADD, C_SCON, C_REG, C_REG, 13, 8, 0, 0, 0},
 	{AADD, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+	{AAND, C_SCON, C_REG, C_REG, 13, 8, 0, 0, 0},
+	{AAND, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
 	{AMVN, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
 	{ACMP, C_SCON, C_REG, C_NONE, 13, 8, 0, 0, 0},
+	{AADD, C_RCON2, C_REG, C_REG, 106, 8, 0, 0, 0},
+	// TODO: RCON2: how to do AND and BIC?
 	{AADD, C_LCON, C_REG, C_REG, 13, 8, 0, LFROM, 0},
 	{AADD, C_LCON, C_NONE, C_REG, 13, 8, 0, LFROM, 0},
+	{AAND, C_LCON, C_REG, C_REG, 13, 8, 0, LFROM, 0},
+	{AAND, C_LCON, C_NONE, C_REG, 13, 8, 0, LFROM, 0},
 	{AMVN, C_LCON, C_NONE, C_REG, 13, 8, 0, LFROM, 0},
 	{ACMP, C_LCON, C_REG, C_NONE, 13, 8, 0, LFROM, 0},
 	{AMOVB, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
@@ -957,6 +971,21 @@ func immrot(v uint32) int32 {
 	return 0
 }
 
+// immrot2 returns bits encoding the immediate constant fields of two instructions,
+// such that the encoded constants x, y satisfy x|y==v, x&y==0.
+// Returns 0,0 if no such decomposition of v exists.
+func immrot2(v uint32) (uint32, uint32) {
+	for i := uint(1); i < 32; i++ {
+		m := uint32(1<<i - 1)
+		if x, y := immrot(v&m), immrot(v&^m); x != 0 && y != 0 {
+			return uint32(x), uint32(y)
+		}
+	}
+	// TODO: handle some more cases, like where
+	// the wraparound from the rotate could help.
+	return 0, 0
+}
+
 func immaddr(v int32) int32 {
 	if v >= 0 && v <= 0xfff {
 		return v&0xfff | 1<<24 | 1<<23 /* pre indexing */ /* pre indexing, up */
@@ -1131,6 +1160,9 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 			if uint32(c.instoffset) <= 0xffff && objabi.GOARM == 7 {
 				return C_SCON
 			}
+			if x, y := immrot2(uint32(c.instoffset)); x != 0 && y != 0 {
+				return C_RCON2
+			}
 			return C_LCON
 
 		case obj.NAME_EXTERN,
@@ -1195,6 +1227,16 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
 		a2 = C_REG
 	}
 
+	// If Scond != 0, we must use the constant pool instead of
+	// splitting the instruction in two. The most common reason is
+	// .S (flag updating) instructions. There may be others.
+	if a1 == C_RCON2 && p.Scond != 0 {
+		a1 = C_LCON
+	}
+	if a3 == C_RCON2 && p.Scond != 0 {
+		a3 = C_LCON
+	}
+
 	if false { /*debug['O']*/
 		fmt.Printf("oplook %v %v %v %v\n", p.As, DRconv(a1), DRconv(a2), DRconv(a3))
 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
@@ -1225,7 +1267,7 @@ func cmp(a int, b int) bool {
 	}
 	switch a {
 	case C_LCON:
-		if b == C_RCON || b == C_NCON || b == C_SCON {
+		if b == C_RCON || b == C_NCON || b == C_SCON || b == C_RCON2 {
 			return true
 		}
 
@@ -1365,7 +1407,6 @@ func buildop(ctxt *obj.Link) {
 			log.Fatalf("bad code")
 
 		case AADD:
-			opset(AAND, r0)
 			opset(AEOR, r0)
 			opset(ASUB, r0)
 			opset(ARSB, r0)
@@ -1373,6 +1414,9 @@ func buildop(ctxt *obj.Link) {
 			opset(ASBC, r0)
 			opset(ARSC, r0)
 			opset(AORR, r0)
+
+		case AAND:
+			opset(AAND, r0)
 			opset(ABIC, r0)
 
 		case ACMP:
@@ -1562,6 +1606,33 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = rt
 		}
 		o1 |= (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
+
+	case 106: /* op $I,R,R where I can be decomposed into 2 immediates */
+		c.aclass(&p.From)
+		r := int(p.Reg)
+		rt := int(p.To.Reg)
+		x, y := immrot2(uint32(c.instoffset))
+		var as2 obj.As
+		switch p.As {
+		case AADD, ASUB, AORR, AEOR:
+			as2 = p.As // ADD, SUB, ORR, EOR
+		case ARSB:
+			as2 = AADD // RSB -> RSB/ADD pair
+		case AADC:
+			as2 = AADD // ADC -> ADC/ADD pair
+		case ASBC:
+			as2 = ASUB // SBC -> SBC/SUB pair
+		case ARSC:
+			as2 = AADD // RSC -> RSC/ADD pair
+		default:
+			c.ctxt.Diag("unknown second op for %v", p)
+		}
+		o1 = c.oprrr(p, p.As, int(p.Scond))
+		o2 = c.oprrr(p, as2, int(p.Scond))
+		o1 |= (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
+		o2 |= (uint32(rt)&15)<<16 | (uint32(rt)&15)<<12
+		o1 |= x
+		o2 |= y
 
 	case 3: /* add R<<[IR],[R],R */
 		o1 = c.mov(p)
