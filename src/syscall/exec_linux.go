@@ -195,14 +195,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 	}
 
-	// Chroot
-	if chroot != nil {
-		_, _, err1 = RawSyscall(SYS_CHROOT, uintptr(unsafe.Pointer(chroot)), 0, 0)
-		if err1 != 0 {
-			goto childerror
-		}
-	}
-
 	// Unshare
 	if sys.Unshareflags != 0 {
 		_, _, err1 = RawSyscall(SYS_UNSHARE, sys.Unshareflags, 0, 0)
@@ -221,6 +213,14 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 			if err1 != 0 {
 				goto childerror
 			}
+		}
+	}
+
+	// Chroot
+	if chroot != nil {
+		_, _, err1 = RawSyscall(SYS_CHROOT, uintptr(unsafe.Pointer(chroot)), 0, 0)
+		if err1 != 0 {
+			goto childerror
 		}
 	}
 
