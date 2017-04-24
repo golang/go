@@ -32,8 +32,8 @@ func netpollinit() {
 		closeonexec(epfd)
 		return
 	}
-	println("netpollinit: failed to create epoll descriptor", -epfd)
-	throw("netpollinit: failed to create descriptor")
+	println("runtime: epollcreate failed with", -epfd)
+	throw("runtime: netpollinit failed")
 }
 
 func netpolldescriptor() uintptr {
@@ -53,7 +53,7 @@ func netpollclose(fd uintptr) int32 {
 }
 
 func netpollarm(pd *pollDesc, mode int) {
-	throw("unused")
+	throw("runtime: unused")
 }
 
 // polls for ready network connections
@@ -72,7 +72,7 @@ retry:
 	if n < 0 {
 		if n != -_EINTR {
 			println("runtime: epollwait on fd", epfd, "failed with", -n)
-			throw("epollwait failed")
+			throw("runtime: netpoll failed")
 		}
 		goto retry
 	}
