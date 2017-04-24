@@ -254,26 +254,26 @@ func testOnesCount(t *testing.T, x uint64, want int) {
 	if x <= 1<<8-1 {
 		got := OnesCount8(uint8(x))
 		if got != want {
-			t.Fatalf("OnesCount8(%#02x) == %d; want %d", x, got, want)
+			t.Fatalf("OnesCount8(%#02x) == %d; want %d", uint8(x), got, want)
 		}
 	}
 
 	if x <= 1<<16-1 {
 		got := OnesCount16(uint16(x))
 		if got != want {
-			t.Fatalf("OnesCount16(%#04x) == %d; want %d", x, got, want)
+			t.Fatalf("OnesCount16(%#04x) == %d; want %d", uint16(x), got, want)
 		}
 	}
 
 	if x <= 1<<32-1 {
 		got := OnesCount32(uint32(x))
 		if got != want {
-			t.Fatalf("OnesCount32(%#08x) == %d; want %d", x, got, want)
+			t.Fatalf("OnesCount32(%#08x) == %d; want %d", uint32(x), got, want)
 		}
 		if UintSize == 32 {
 			got = OnesCount(uint(x))
 			if got != want {
-				t.Fatalf("OnesCount(%#08x) == %d; want %d", x, got, want)
+				t.Fatalf("OnesCount(%#08x) == %d; want %d", uint32(x), got, want)
 			}
 		}
 	}

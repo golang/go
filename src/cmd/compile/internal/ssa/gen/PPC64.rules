@@ -244,6 +244,17 @@
 // (Addr {sym} base) -> (ADDconst {sym} base)
 (OffPtr [off] ptr) -> (ADD (MOVDconst <typ.Int64> [off]) ptr)
 
+(Ctz64 x) -> (POPCNTD (ANDN <types.Int64> (ADDconst <types.Int64> [-1] x) x))
+(Ctz32 x) -> (POPCNTW (MOVWZreg (ANDN <types.Int> (ADDconst <types.Int> [-1] x) x)))
+
+(BitLen64 x) -> (SUB (MOVDconst [64]) (CNTLZD <types.Int> x))
+(BitLen32 x) -> (SUB (MOVDconst [32]) (CNTLZW <types.Int> x))
+
+(PopCount64 x) -> (POPCNTD x)
+(PopCount32 x) -> (POPCNTW (MOVWZreg x))
+(PopCount16 x) -> (POPCNTW (MOVHZreg x))
+(PopCount8 x) -> (POPCNTB (MOVBreg x))
+
 (And64 x y) -> (AND x y)
 (And32 x y) -> (AND x y)
 (And16 x y) -> (AND x y)
