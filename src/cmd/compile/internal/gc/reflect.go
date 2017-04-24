@@ -901,8 +901,18 @@ func typesymname(t *types.Type) string {
 	return name
 }
 
+// Fake package for runtime type info (headers)
+// Don't access directly, use typeLookup below.
+var typepkg = types.NewPkg("type", "type")
+
+func typeLookup(name string) *types.Sym {
+	// Keep this wrapper function as a future
+	// version may protect typepkg with a mutex.
+	return typepkg.Lookup(name)
+}
+
 func typesym(t *types.Type) *types.Sym {
-	return types.TypePkgLookup(typesymname(t))
+	return typeLookup(typesymname(t))
 }
 
 // tracksym returns the symbol for tracking use of field/method f, assumed
@@ -913,7 +923,7 @@ func tracksym(t *types.Type, f *types.Field) *types.Sym {
 
 func typesymprefix(prefix string, t *types.Type) *types.Sym {
 	p := prefix + "." + t.ShortString()
-	s := types.TypePkgLookup(p)
+	s := typeLookup(p)
 
 	//print("algsym: %s -> %+S\n", p, s);
 
@@ -1541,7 +1551,7 @@ func dalgsym(t *types.Type) *obj.LSym {
 		// we use one algorithm table for all AMEM types of a given size
 		p := fmt.Sprintf(".alg%d", t.Width)
 
-		s := types.TypePkgLookup(p)
+		s := typeLookup(p)
 		lsym = s.Linksym()
 		if s.AlgGen() {
 			return lsym
@@ -1556,7 +1566,7 @@ func dalgsym(t *types.Type) *obj.LSym {
 		// make hash closure
 		p = fmt.Sprintf(".hashfunc%d", t.Width)
 
-		hashfunc = types.TypePkgLookup(p).Linksym()
+		hashfunc = typeLookup(p).Linksym()
 
 		ot := 0
 		ot = dsymptr(hashfunc, ot, memhashvarlen, 0)
@@ -1566,7 +1576,7 @@ func dalgsym(t *types.Type) *obj.LSym {
 		// make equality closure
 		p = fmt.Sprintf(".eqfunc%d", t.Width)
 
-		eqfunc = types.TypePkgLookup(p).Linksym()
+		eqfunc = typeLookup(p).Linksym()
 
 		ot = 0
 		ot = dsymptr(eqfunc, ot, memequalvarlen, 0)
