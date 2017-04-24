@@ -609,10 +609,18 @@ func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
 	})
 }
 
-var specialBytes = []byte(`\.+*?()|[]{}^$`)
+// Bitmap used by func special to check whether a character needs to be escaped.
+var specialBytes [16]byte
 
+// special reports whether byte b needs to be escaped by QuoteMeta.
 func special(b byte) bool {
-	return bytes.IndexByte(specialBytes, b) >= 0
+	return b < utf8.RuneSelf && specialBytes[b%16]&(1<<(b/16)) != 0
+}
+
+func init() {
+	for _, b := range []byte(`\.+*?()|[]{}^$`) {
+		specialBytes[b%16] |= 1 << (b / 16)
+	}
 }
 
 // QuoteMeta returns a string that quotes all regular expression metacharacters
