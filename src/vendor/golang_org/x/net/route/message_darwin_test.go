@@ -7,21 +7,28 @@ package route
 import "testing"
 
 func TestFetchAndParseRIBOnDarwin(t *testing.T) {
-	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
-		for _, typ := range []RIBType{sysNET_RT_FLAGS, sysNET_RT_DUMP2, sysNET_RT_IFLIST2} {
-			ms, err := fetchAndParseRIB(af, typ)
+	for _, typ := range []RIBType{sysNET_RT_FLAGS, sysNET_RT_DUMP2, sysNET_RT_IFLIST2} {
+		var lastErr error
+		var ms []Message
+		for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
+			rs, err := fetchAndParseRIB(af, typ)
 			if err != nil {
-				t.Error(err)
+				lastErr = err
 				continue
 			}
-			ss, err := msgs(ms).validate()
-			if err != nil {
-				t.Errorf("%v %d %v", addrFamily(af), typ, err)
-				continue
-			}
-			for _, s := range ss {
-				t.Log(s)
-			}
+			ms = append(ms, rs...)
+		}
+		if len(ms) == 0 && lastErr != nil {
+			t.Error(typ, lastErr)
+			continue
+		}
+		ss, err := msgs(ms).validate()
+		if err != nil {
+			t.Error(typ, err)
+			continue
+		}
+		for _, s := range ss {
+			t.Log(s)
 		}
 	}
 }

@@ -6,26 +6,32 @@ package route
 
 import (
 	"testing"
-	"time"
 	"unsafe"
 )
 
 func TestFetchAndParseRIBOnFreeBSD(t *testing.T) {
-	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
-		for _, typ := range []RIBType{sysNET_RT_IFMALIST} {
-			ms, err := fetchAndParseRIB(af, typ)
+	for _, typ := range []RIBType{sysNET_RT_IFMALIST} {
+		var lastErr error
+		var ms []Message
+		for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
+			rs, err := fetchAndParseRIB(af, typ)
 			if err != nil {
-				t.Error(err)
+				lastErr = err
 				continue
 			}
-			ss, err := msgs(ms).validate()
-			if err != nil {
-				t.Errorf("%v %d %v", addrFamily(af), typ, err)
-				continue
-			}
-			for _, s := range ss {
-				t.Log(s)
-			}
+			ms = append(ms, rs...)
+		}
+		if len(ms) == 0 && lastErr != nil {
+			t.Error(typ, lastErr)
+			continue
+		}
+		ss, err := msgs(ms).validate()
+		if err != nil {
+			t.Error(typ, err)
+			continue
+		}
+		for _, s := range ss {
+			t.Log(s)
 		}
 	}
 }
@@ -48,58 +54,38 @@ func TestFetchAndParseRIBOnFreeBSD10AndAbove(t *testing.T) {
 		{typ: sysNET_RT_IFLIST},
 		{typ: sysNET_RT_IFLISTL},
 	}
-	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
+	for i := range tests {
 		var lastErr error
-		for i := 0; i < 3; i++ {
-			for j := range tests {
-				var err error
-				if tests[j].b, err = FetchRIB(af, tests[j].typ, 0); err != nil {
-					lastErr = err
-					time.Sleep(10 * time.Millisecond)
-				}
-			}
-			if lastErr == nil {
-				break
-			}
-		}
-		if lastErr != nil {
-			t.Error(af, lastErr)
-			continue
-		}
-		for i := range tests {
-			var err error
-			if tests[i].msgs, err = ParseRIB(tests[i].typ, tests[i].b); err != nil {
-				lastErr = err
-				t.Error(af, err)
-			}
-		}
-		if lastErr != nil {
-			continue
-		}
-		for i := range tests {
-			var err error
-			tests[i].ss, err = msgs(tests[i].msgs).validate()
+		for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
+			rs, err := fetchAndParseRIB(af, tests[i].typ)
 			if err != nil {
 				lastErr = err
-				t.Error(af, err)
-			}
-			for _, s := range tests[i].ss {
-				t.Log(s)
-			}
-		}
-		if lastErr != nil {
-			continue
-		}
-		for i := len(tests) - 1; i > 0; i-- {
-			if len(tests[i].ss) != len(tests[i-1].ss) {
-				t.Errorf("got %v; want %v", tests[i].ss, tests[i-1].ss)
 				continue
 			}
-			for j, s1 := range tests[i].ss {
-				s0 := tests[i-1].ss[j]
-				if s1 != s0 {
-					t.Errorf("got %s; want %s", s1, s0)
-				}
+			tests[i].msgs = append(tests[i].msgs, rs...)
+		}
+		if len(tests[i].msgs) == 0 && lastErr != nil {
+			t.Error(tests[i].typ, lastErr)
+			continue
+		}
+		tests[i].ss, lastErr = msgs(tests[i].msgs).validate()
+		if lastErr != nil {
+			t.Error(tests[i].typ, lastErr)
+			continue
+		}
+		for _, s := range tests[i].ss {
+			t.Log(s)
+		}
+	}
+	for i := len(tests) - 1; i > 0; i-- {
+		if len(tests[i].ss) != len(tests[i-1].ss) {
+			t.Errorf("got %v; want %v", tests[i].ss, tests[i-1].ss)
+			continue
+		}
+		for j, s1 := range tests[i].ss {
+			s0 := tests[i-1].ss[j]
+			if s1 != s0 {
+				t.Errorf("got %s; want %s", s1, s0)
 			}
 		}
 	}
