@@ -594,7 +594,7 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
 		} else {
 			mname := p.newname(method.Name)
 			sig := p.typeExpr(method.Type)
-			sig.Left = fakethis()
+			sig.Left = fakeRecv()
 			n = p.nod(method, ODCLFIELD, mname, sig)
 			ifacedcl(n)
 		}

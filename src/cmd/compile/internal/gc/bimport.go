@@ -631,7 +631,7 @@ func (p *importer) method() *types.Field {
 	f := types.NewField()
 	f.Sym = sym
 	f.Nname = asTypesNode(newname(sym))
-	f.Type = functypefield(fakethisfield(), params, result)
+	f.Type = functypefield(fakeRecvField(), params, result)
 	return f
 }
 
