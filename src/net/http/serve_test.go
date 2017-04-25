@@ -661,7 +661,6 @@ func tryTimeouts(t *testing.T, testFunc func(timeout time.Duration) error) {
 
 // Test that the HTTP/2 server RSTs stream on slow write.
 func TestHTTP2WriteDeadlineEnforcedPerStream(t *testing.T) {
-	t.Skip("disabled until Issue 18437 is fixed")
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -723,7 +722,6 @@ func testHTTP2WriteDeadlineEnforcedPerStream(timeout time.Duration) error {
 
 // Test that the HTTP/2 server does not send RST when WriteDeadline not set.
 func TestHTTP2NoWriteDeadline(t *testing.T) {
-	t.Skip("disabled until Issue 18437 is fixed")
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
