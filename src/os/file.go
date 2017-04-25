@@ -38,6 +38,7 @@ package os
 
 import (
 	"errors"
+	"internal/poll"
 	"io"
 	"syscall"
 )
@@ -101,6 +102,9 @@ func (f *File) Read(b []byte) (n int, err error) {
 	}
 	n, e := f.read(b)
 	if e != nil {
+		if e == poll.ErrClosing {
+			e = ErrClosed
+		}
 		if e == io.EOF {
 			err = e
 		} else {

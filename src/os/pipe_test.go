@@ -13,8 +13,10 @@ import (
 	"os"
 	osexec "os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestEPIPE(t *testing.T) {
@@ -110,4 +112,39 @@ func TestStdPipeHelper(t *testing.T) {
 	// so just exit normally here to cause a failure in the caller.
 	// For descriptor 3, a normal exit is expected.
 	os.Exit(0)
+}
+
+func TestClosedPipeRace(t *testing.T) {
+	switch runtime.GOOS {
+	case "freebsd":
+		t.Skip("FreeBSD does not use the poller; issue 19093")
+	}
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	// Close the read end of the pipe in a goroutine while we are
+	// writing to the write end.
+	go func() {
+		// Give the main goroutine a chance to enter the Read call.
+		// This is sloppy but the test will pass even if we close
+		// before the read.
+		time.Sleep(20 * time.Millisecond)
+
+		if err := r.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	if _, err := r.Read(make([]byte, 1)); err == nil {
+		t.Error("Read of closed pipe unexpectedly succeeded")
+	} else if pe, ok := err.(*os.PathError); !ok {
+		t.Errorf("Read of closed pipe returned unexpected error type %T; expected os.PathError", pe)
+	} else {
+		t.Logf("Read returned expected error %q", err)
+	}
 }
