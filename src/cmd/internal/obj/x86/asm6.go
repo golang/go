@@ -882,19 +882,19 @@ var ymmxmm0f38 = []ytab{
 }
 
 /*
- * You are doasm, holding in your hand a Prog* with p->as set to, say, ACRC32,
- * and p->from and p->to as operands (Addr*).  The linker scans optab to find
- * the entry with the given p->as and then looks through the ytable for that
- * instruction (the second field in the optab struct) for a line whose first
- * two values match the Ytypes of the p->from and p->to operands.  The function
- * oclass in span.c computes the specific Ytype of an operand and then the set
+ * You are doasm, holding in your hand a *obj.Prog with p.As set to, say,
+ * ACRC32, and p.From and p.To as operands (obj.Addr).  The linker scans optab
+ * to find the entry with the given p.As and then looks through the ytable for
+ * that instruction (the second field in the optab struct) for a line whose
+ * first two values match the Ytypes of the p.From and p.To operands.  The
+ * function oclass computes the specific Ytype of an operand and then the set
  * of more general Ytypes that it satisfies is implied by the ycover table, set
  * up in instinit.  For example, oclass distinguishes the constants 0 and 1
  * from the more general 8-bit constants, but instinit says
  *
- *        ycover[Yi0*Ymax + Ys32] = 1;
- *        ycover[Yi1*Ymax + Ys32] = 1;
- *        ycover[Yi8*Ymax + Ys32] = 1;
+ *        ycover[Yi0*Ymax+Ys32] = 1
+ *        ycover[Yi1*Ymax+Ys32] = 1
+ *        ycover[Yi8*Ymax+Ys32] = 1
  *
  * which means that Yi0, Yi1, and Yi8 all count as Ys32 (signed 32)
  * if that's what an instruction can handle.
@@ -908,22 +908,20 @@ var ymmxmm0f38 = []ytab{
  * is, the Ztype) and the z bytes.
  *
  * For example, let's look at AADDL.  The optab line says:
- *        { AADDL,        yaddl,  Px, 0x83,(00),0x05,0x81,(00),0x01,0x03 },
+ *        {AADDL, yaddl, Px, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
  *
  * and yaddl says
- *        uchar   yaddl[] =
- *        {
- *                Yi8,    Yml,    Zibo_m, 2,
- *                Yi32,   Yax,    Zil_,   1,
- *                Yi32,   Yml,    Zilo_m, 2,
- *                Yrl,    Yml,    Zr_m,   1,
- *                Yml,    Yrl,    Zm_r,   1,
- *                0
- *        };
+ *        var yaddl = []ytab{
+ *                {Yi8, Ynone, Yml, Zibo_m, 2},
+ *                {Yi32, Ynone, Yax, Zil_, 1},
+ *                {Yi32, Ynone, Yml, Zilo_m, 2},
+ *                {Yrl, Ynone, Yml, Zr_m, 1},
+ *                {Yml, Ynone, Yrl, Zm_r, 1},
+ *        }
  *
  * so there are 5 possible types of ADDL instruction that can be laid down, and
  * possible states used to lay them down (Ztype and z pointer, assuming z
- * points at {0x83,(00),0x05,0x81,(00),0x01,0x03}) are:
+ * points at [23]uint8{0x83, 00, 0x05,0x81, 00, 0x01, 0x03}) are:
  *
  *        Yi8, Yml -> Zibo_m, z (0x83, 00)
  *        Yi32, Yax -> Zil_, z+2 (0x05)
@@ -934,7 +932,7 @@ var ymmxmm0f38 = []ytab{
  * The Pconstant in the optab line controls the prefix bytes to emit.  That's
  * relatively straightforward as this program goes.
  *
- * The switch on t[2] in doasm implements the various Z cases.  Zibo_m, for
+ * The switch on yt.zcase in doasm implements the various Z cases.  Zibo_m, for
  * example, is an opcode byte (z[0]) then an asmando (which is some kind of
  * encoded addressing mode for the Yml arg), and then a single immediate byte.
  * Zilo_m is the same but a long (32-bit) immediate.
