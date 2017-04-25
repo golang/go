@@ -16,7 +16,7 @@ func (file *File) Stat() (FileInfo, error) {
 	if file == nil {
 		return nil, ErrInvalid
 	}
-	if file == nil || file.pfd.Sysfd < 0 {
+	if file == nil {
 		return nil, syscall.EINVAL
 	}
 	if file.isdir() {

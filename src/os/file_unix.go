@@ -183,14 +183,13 @@ func (f *File) Close() error {
 }
 
 func (file *file) close() error {
-	if file == nil || file.pfd.Sysfd == badFd {
+	if file == nil {
 		return syscall.EINVAL
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
 		err = &PathError{"close", file.name, e}
 	}
-	file.pfd.Sysfd = badFd // so it can't be closed again
 
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(file, nil)

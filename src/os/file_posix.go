@@ -165,8 +165,5 @@ func (f *File) checkValid(op string) error {
 	if f == nil {
 		return ErrInvalid
 	}
-	if f.pfd.Sysfd == badFd {
-		return &PathError{op, f.name, ErrClosed}
-	}
 	return nil
 }
