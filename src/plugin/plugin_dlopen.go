@@ -39,6 +39,47 @@ import (
 	"unsafe"
 )
 
+// avoid a dependency on strings
+func lastIndexByte(s string, c byte) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
+}
+
+// pathToPrefix converts raw string to the prefix that will be used in the symbol
+// table. If modifying, modify the version in internal/obj/sym.go as well.
+func pathToPrefix(s string) string {
+	slash := lastIndexByte(s, '/')
+	// check for chars that need escaping
+	n := 0
+	for r := 0; r < len(s); r++ {
+		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
+			n++
+		}
+	}
+
+	// quick exit
+	if n == 0 {
+		return s
+	}
+
+	// escape
+	const hex = "0123456789abcdef"
+	p := make([]byte, 0, len(s)+2*n)
+	for r := 0; r < len(s); r++ {
+		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
+			p = append(p, '%', hex[c>>4], hex[c&0xF])
+		} else {
+			p = append(p, c)
+		}
+	}
+
+	return string(p)
+}
+
 func open(name string) (*Plugin, error) {
 	cPath := (*C.char)(C.malloc(C.PATH_MAX + 1))
 	defer C.free(unsafe.Pointer(cPath))
@@ -103,7 +144,7 @@ func open(name string) (*Plugin, error) {
 			delete(syms, symName)
 			symName = symName[1:]
 		}
-		cname := C.CString(pluginpath + "." + symName)
+		cname := C.CString(pathToPrefix(pluginpath) + "." + symName)
 		p := C.pluginLookup(h, cname, &cErr)
 		C.free(unsafe.Pointer(cname))
 		if p == nil {

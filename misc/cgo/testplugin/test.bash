@@ -16,7 +16,7 @@ goarch=$(go env GOARCH)
 
 function cleanup() {
 	rm -f plugin*.so unnamed*.so iface*.so
-	rm -rf host pkg sub iface issue18676
+	rm -rf host pkg sub iface issue18676 issue19534
 }
 trap cleanup EXIT
 
@@ -44,3 +44,9 @@ LD_LIBRARY_PATH=$(pwd) ./iface
 GOPATH=$(pwd) go build -buildmode=plugin -o plugin.so src/issue18676/plugin.go
 GOPATH=$(pwd) go build -o issue18676 src/issue18676/main.go
 timeout 10s ./issue18676
+
+# Test for issue 19534 - that we can load a plugin built in a path with non-alpha
+# characters
+GOPATH=$(pwd) go build -buildmode=plugin -ldflags='-pluginpath=issue.19534' -o plugin.so src/issue19534/plugin.go
+GOPATH=$(pwd) go build -o issue19534 src/issue19534/main.go
+./issue19534
