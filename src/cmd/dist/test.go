@@ -750,6 +750,10 @@ func (t *tester) internalLink() bool {
 	if t.goarch == "arm64" || t.goarch == "mips64" || t.goarch == "mips64le" || t.goarch == "mips" || t.goarch == "mipsle" {
 		return false
 	}
+	if isAlpineLinux() {
+		// Issue 18243.
+		return false
+	}
 	return true
 }
 
