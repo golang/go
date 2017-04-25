@@ -122,29 +122,22 @@ func (fd *FD) Read(p []byte) (int, error) {
 
 // Pread wraps the pread system call.
 func (fd *FD) Pread(p []byte, off int64) (int, error) {
-	if err := fd.readLock(); err != nil {
-		return 0, err
-	}
-	defer fd.readUnlock()
-	if err := fd.pd.prepareRead(); err != nil {
+	// Call incref, not readLock, because since pread specifies the
+	// offset it is independent from other reads.
+	// Similarly, using the poller doesn't make sense for pread.
+	if err := fd.incref(); err != nil {
 		return 0, err
 	}
 	if fd.IsStream && len(p) > maxRW {
 		p = p[:maxRW]
 	}
-	for {
-		n, err := syscall.Pread(fd.Sysfd, p, off)
-		if err != nil {
-			n = 0
-			if err == syscall.EAGAIN {
-				if err = fd.pd.waitRead(); err == nil {
-					continue
-				}
-			}
-		}
-		err = fd.eofError(n, err)
-		return n, err
+	n, err := syscall.Pread(fd.Sysfd, p, off)
+	if err != nil {
+		n = 0
 	}
+	fd.decref()
+	err = fd.eofError(n, err)
+	return n, err
 }
 
 // ReadFrom wraps the recvfrom network call.
@@ -233,13 +226,13 @@ func (fd *FD) Write(p []byte) (int, error) {
 
 // Pwrite wraps the pwrite system call.
 func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
-	if err := fd.writeLock(); err != nil {
+	// Call incref, not writeLock, because since pwrite specifies the
+	// offset it is independent from other writes.
+	// Similarly, using the poller doesn't make sense for pwrite.
+	if err := fd.incref(); err != nil {
 		return 0, err
 	}
-	defer fd.writeUnlock()
-	if err := fd.pd.prepareWrite(); err != nil {
-		return 0, err
-	}
+	defer fd.decref()
 	var nn int
 	for {
 		max := len(p)
@@ -252,11 +245,6 @@ func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
 		}
 		if nn == len(p) {
 			return nn, err
-		}
-		if err == syscall.EAGAIN {
-			if err = fd.pd.waitWrite(); err == nil {
-				continue
-			}
 		}
 		if err != nil {
 			return nn, err

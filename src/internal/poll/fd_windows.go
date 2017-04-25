@@ -509,10 +509,12 @@ func (fd *FD) readConsole(b []byte) (int, error) {
 
 // Pread emulates the Unix pread system call.
 func (fd *FD) Pread(b []byte, off int64) (int, error) {
-	if err := fd.readLock(); err != nil {
+	// Call incref, not readLock, because since pread specifies the
+	// offset it is independent from other reads.
+	if err := fd.incref(); err != nil {
 		return 0, err
 	}
-	defer fd.readUnlock()
+	defer fd.decref()
 
 	fd.l.Lock()
 	defer fd.l.Unlock()
@@ -643,10 +645,12 @@ func (fd *FD) writeConsole(b []byte) (int, error) {
 
 // Pwrite emulates the Unix pwrite system call.
 func (fd *FD) Pwrite(b []byte, off int64) (int, error) {
-	if err := fd.writeLock(); err != nil {
+	// Call incref, not writeLock, because since pwrite specifies the
+	// offset it is independent from other writes.
+	if err := fd.incref(); err != nil {
 		return 0, err
 	}
-	defer fd.writeUnlock()
+	defer fd.decref()
 
 	fd.l.Lock()
 	defer fd.l.Unlock()
