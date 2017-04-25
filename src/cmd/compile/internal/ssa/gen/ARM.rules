@@ -430,21 +430,34 @@
 
 // fold offset into address
 (ADDconst [off1] (MOVWaddr [off2] {sym} ptr)) -> (MOVWaddr [off1+off2] {sym} ptr)
+(SUBconst [off1] (MOVWaddr [off2] {sym} ptr)) -> (MOVWaddr [off2-off1] {sym} ptr)
 
 // fold address into load/store
 (MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBload [off1+off2] {sym} ptr mem)
+(MOVBload [off1] {sym} (SUBconst [off2] ptr) mem) -> (MOVBload [off1-off2] {sym} ptr mem)
 (MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBUload [off1+off2] {sym} ptr mem)
+(MOVBUload [off1] {sym} (SUBconst [off2] ptr) mem) -> (MOVBUload [off1-off2] {sym} ptr mem)
 (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVHload [off1+off2] {sym} ptr mem)
+(MOVHload [off1] {sym} (SUBconst [off2] ptr) mem) -> (MOVHload [off1-off2] {sym} ptr mem)
 (MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVHUload [off1+off2] {sym} ptr mem)
+(MOVHUload [off1] {sym} (SUBconst [off2] ptr) mem) -> (MOVHUload [off1-off2] {sym} ptr mem)
 (MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVWload [off1+off2] {sym} ptr mem)
+(MOVWload [off1] {sym} (SUBconst [off2] ptr) mem) -> (MOVWload [off1-off2] {sym} ptr mem)
 (MOVFload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVFload [off1+off2] {sym} ptr mem)
+(MOVFload [off1] {sym} (SUBconst [off2] ptr) mem) -> (MOVFload [off1-off2] {sym} ptr mem)
 (MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVDload [off1+off2] {sym} ptr mem)
+(MOVDload [off1] {sym} (SUBconst [off2] ptr) mem) -> (MOVDload [off1-off2] {sym} ptr mem)
 
 (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVBstore [off1+off2] {sym} ptr val mem)
+(MOVBstore [off1] {sym} (SUBconst [off2] ptr) val mem) -> (MOVBstore [off1-off2] {sym} ptr val mem)
 (MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVHstore [off1+off2] {sym} ptr val mem)
+(MOVHstore [off1] {sym} (SUBconst [off2] ptr) val mem) -> (MOVHstore [off1-off2] {sym} ptr val mem)
 (MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVWstore [off1+off2] {sym} ptr val mem)
+(MOVWstore [off1] {sym} (SUBconst [off2] ptr) val mem) -> (MOVWstore [off1-off2] {sym} ptr val mem)
 (MOVFstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVFstore [off1+off2] {sym} ptr val mem)
+(MOVFstore [off1] {sym} (SUBconst [off2] ptr) val mem) -> (MOVFstore [off1-off2] {sym} ptr val mem)
 (MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVDstore [off1+off2] {sym} ptr val mem)
+(MOVDstore [off1] {sym} (SUBconst [off2] ptr) val mem) -> (MOVDstore [off1-off2] {sym} ptr val mem)
 
 (MOVBload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
 	(MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
@@ -783,6 +796,8 @@
 (BICconst [c] _) && int32(c)==-1 -> (MOVWconst [0])
 
 // generic constant folding
+(ADDconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) -> (SUBconst [int64(int32(-c))] x)
+(SUBconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) -> (ADDconst [int64(int32(-c))] x)
 (ADDconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(c+d))])
 (ADDconst [c] (ADDconst [d] x)) -> (ADDconst [int64(int32(c+d))] x)
 (ADDconst [c] (SUBconst [d] x)) -> (ADDconst [int64(int32(c-d))] x)
@@ -815,6 +830,7 @@
 (XORconst [c] (MOVWconst [d])) -> (MOVWconst [c^d])
 (XORconst [c] (XORconst [d] x)) -> (XORconst [c^d] x)
 (BICconst [c] (MOVWconst [d])) -> (MOVWconst [d&^c])
+(BICconst [c] (BICconst [d] x)) -> (BICconst [int64(int32(c|d))] x)
 (MVN (MOVWconst [c])) -> (MOVWconst [^c])
 (MOVBreg (MOVWconst [c])) -> (MOVWconst [int64(int8(c))])
 (MOVBUreg (MOVWconst [c])) -> (MOVWconst [int64(uint8(c))])
