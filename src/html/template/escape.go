@@ -64,7 +64,7 @@ var funcMap = template.FuncMap{
 
 // predefinedEscapers contains template predefined escapers.
 var predefinedEscapers = map[string]bool{
-	"html" :    true,
+	"html":     true,
 	"urlquery": true,
 	"js":       true,
 }
@@ -155,8 +155,8 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		for _, ident := range allIdents(idNode.Args[0]) {
 			if _, ok := predefinedEscapers[ident]; ok {
 				return context{
-				state: stateError,
-				err:   errorf(ErrPredefinedEscaper, n, n.Line, "predefined escaper %q disallowed in template", ident),
+					state: stateError,
+					err:   errorf(ErrPredefinedEscaper, n, n.Line, "predefined escaper %q disallowed in template", ident),
 				}
 			}
 		}
@@ -582,7 +582,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 				// the entire comment is considered to be a
 				// LineTerminator for purposes of parsing by
 				// the syntactic grammar."
-				if bytes.IndexAny(s[written:i1], "\n\r\u2028\u2029") != -1 {
+				if bytes.ContainsAny(s[written:i1], "\n\r\u2028\u2029") {
 					b.WriteByte('\n')
 				} else {
 					b.WriteByte(' ')

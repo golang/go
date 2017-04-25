@@ -246,7 +246,7 @@ func tAttr(c context, s []byte) (context, int) {
 
 // tURL is the context transition function for the URL state.
 func tURL(c context, s []byte) (context, int) {
-	if bytes.IndexAny(s, "#?") >= 0 {
+	if bytes.ContainsAny(s, "#?") {
 		c.urlPart = urlPartQueryOrFrag
 	} else if len(s) != eatWhiteSpace(s, 0) && c.urlPart == urlPartNone {
 		// HTML5 uses "Valid URL potentially surrounded by spaces" for
