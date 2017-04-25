@@ -29,6 +29,28 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	ADD	R1<<22, R2, R3
 	ADD	R1->33, R2, R3
 	AND	R1@>33, R2, R3
+	ADD	R1.UXTB, R2, R3                 // 4360218b
+	ADD	R1.UXTB<<4, R2, R3              // 4370218b
+	VADDP	V1.B16, V2.B16, V3.B16          // 43bc214e
+	VADDP	V1.S4, V2.S4, V3.S4             // 43bca14e
+	VADDP	V1.D2, V2.D2, V3.D2             // 43bce14e
+	VAND	V21.B8, V12.B8, V3.B8           // 831d350e
+	VCMEQ	V1.H4, V2.H4, V3.H4             // 438c612e
+	VORR	V5.B16, V4.B16, V3.B16          // 831ca54e
+	VADD	V16.S4, V5.S4, V9.S4            // a984b04e
+	VEOR	V0.B16, V1.B16, V0.B16          // 201c206e
+	SHA256H	V9.S4, V3, V2                   // 6240095e
+	SHA256H2	V9.S4, V4, V3           // 8350095e
+	SHA256SU0	V8.S4, V7.S4            // 0729285e
+	SHA256SU1	V6.S4, V5.S4, V7.S4     // a760065e
+	SHA1SU0	V11.S4, V8.S4, V6.S4            // 06310b5e
+	SHA1SU1	V5.S4, V1.S4                    // a118285e
+	SHA1C	V1.S4, V2, V3                   // 4300015e
+	SHA1H	V5, V4                          // a408285e
+	SHA1M	V8.S4, V7, V6                   // e620085e
+	SHA1P	V11.S4, V10, V9                 // 49110b5e
+	VADDV	V0.S4, V0                       // 00b8b14e
+	VMOVI	$82, V0.B16                     // 40e6024f
 
 //	LTYPE1 imsr ',' spreg ','
 //	{
@@ -84,6 +106,18 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$1, ZR
 	MOVD	$1, R1
 	MOVD	ZR, (R1)
+	VLD1	(R8), [V1.B16, V2.B16]                          // 01a1404c
+	VLD1.P	(R3), [V31.H8, V0.H8]                           // 7fa4df4c
+	VLD1.P	(R8)(R20), [V21.B16, V22.B16]                   // VLD1.P	(R8)(R20*1), [V21.B16,V22.B16] // 15a1d44c
+	VLD1.P	64(R1), [V5.B16, V6.B16, V7.B16, V8.B16]        // 2520df4c
+	VST1.P	[V4.S4, V5.S4], 32(R1)                          // 24a89f4c
+	VST1	[V0.S4, V1.S4], (R0)                            // 00a8004c
+	VMOVS	V20, (R0)                                       // 140000bd
+	VMOVS.P	V20, 4(R0)                                      // 144400bc
+	VMOVS.W	V20, 4(R0)                                      // 144c00bc
+	VMOVS	(R0), V20                                       // 140040bd
+	VMOVS.P	8(R0), V20                                      // 148440bc
+	VMOVS.W	8(R0), V20                                      // 148c40bc
 
 	// small offset fits into instructions
 	MOVB	1(R1), R2 // 22048039
@@ -147,7 +181,16 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 //		outcode($1, &$2, NREG, &$4);
 //	}
 	MOVK	$1, R1
-
+	VMOV	V8.S[1], R1       // 013d0c0e
+	VMOV	V0.D[0], R11      // 0b3c084e
+	VMOV	V0.D[1], R11      // 0b3c184e
+	VMOV	R20, V1.S[0]      // 811e044e
+	VMOV	R1, V9.H4         // 290c020e
+	VMOV	R22, V11.D2       // cb0e084e
+	VMOV 	V2.B16, V4.B16    // 441ca24e
+	VMOV	V20.S[0], V20     // 9406045e
+	VREV32	V5.B16, V5.B16    // a508206e
+	VDUP	V19.S[0], V17.S4  // 7106044e
 //
 // B/BL
 //
@@ -193,6 +236,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	CMP	R1->11, R2
 	CMP	R1>>22, R2
 	CMP	R1<<33, R2
+	CMP	R22.SXTX, RSP // ffe336eb
 //
 // CBZ
 //

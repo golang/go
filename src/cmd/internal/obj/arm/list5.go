@@ -38,6 +38,7 @@ import (
 func init() {
 	obj.RegisterRegister(obj.RBaseARM, MAXREG, rconv)
 	obj.RegisterOpcode(obj.ABaseARM, Anames)
+	obj.RegisterRegisterList(obj.RegListARMLo, obj.RegListARMHi, rlconv)
 }
 
 func rconv(r int) string {
@@ -80,4 +81,26 @@ func DRconv(a int) string {
 	var fp string
 	fp += s
 	return fp
+}
+
+func rlconv(list int64) string {
+	str := ""
+	for i := 0; i < 16; i++ {
+		if list&(1<<uint(i)) != 0 {
+			if str == "" {
+				str += "["
+			} else {
+				str += ","
+			}
+			// This is ARM-specific; R10 is g.
+			if i == REGG-REG_R0 {
+				str += "g"
+			} else {
+				str += fmt.Sprintf("R%d", i)
+			}
+		}
+	}
+
+	str += "]"
+	return str
 }
