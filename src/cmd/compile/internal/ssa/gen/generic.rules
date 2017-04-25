@@ -586,6 +586,10 @@
 (Com16 (Com16 x)) -> x
 (Com32 (Com32 x)) -> x
 (Com64 (Com64 x)) -> x
+(Com8  (Const8  [c])) -> (Const8  [^c])
+(Com16 (Const16 [c])) -> (Const16 [^c])
+(Com32 (Const32 [c])) -> (Const32 [^c])
+(Com64 (Const64 [c])) -> (Const64 [^c])
 (Neg8  (Sub8  x y)) -> (Sub8  y x)
 (Neg16 (Sub16 x y)) -> (Sub16 y x)
 (Neg32 (Sub32 x y)) -> (Sub32 y x)
@@ -607,6 +611,18 @@
 (Xor32 x (Xor32 x y)) -> y
 (Xor16 x (Xor16 x y)) -> y
 (Xor8  x (Xor8  x y)) -> y
+
+// Ands clear bits. Ors set bits.
+// If a subsequent Or will set all the bits
+// that an And cleared, we can skip the And.
+// This happens in bitmasking code like:
+//   x &^= 3 << shift // clear two old bits
+//   x  |= v << shift // set two new bits
+// when shift is a small constant and v ends up a constant 3.
+(Or8  (And8  x (Const8  [c2])) (Const8  <t> [c1])) && ^(c1 | c2) == 0 -> (Or8  (Const8  <t> [c1]) x)
+(Or16 (And16 x (Const16 [c2])) (Const16 <t> [c1])) && ^(c1 | c2) == 0 -> (Or16 (Const16 <t> [c1]) x)
+(Or32 (And32 x (Const32 [c2])) (Const32 <t> [c1])) && ^(c1 | c2) == 0 -> (Or32 (Const32 <t> [c1]) x)
+(Or64 (And64 x (Const64 [c2])) (Const64 <t> [c1])) && ^(c1 | c2) == 0 -> (Or64 (Const64 <t> [c1]) x)
 
 (Trunc64to8  (And64 (Const64 [y]) x)) && y&0xFF == 0xFF -> (Trunc64to8 x)
 (Trunc64to16 (And64 (Const64 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc64to16 x)
