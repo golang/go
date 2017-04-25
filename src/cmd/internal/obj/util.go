@@ -186,7 +186,7 @@ func Dconv(p *Prog, a *Addr) string {
 		//	PINSRQ	CX,$1,X6
 		// where the $1 is included in the p->to Addr.
 		// Move into a new field.
-		if a.Offset != 0 {
+		if a.Offset != 0 && (a.Reg < RBaseARM64 || a.Reg >= RBaseMIPS) {
 			str = fmt.Sprintf("$%d,%v", a.Offset, Rconv(int(a.Reg)))
 			break
 		}
@@ -194,6 +194,10 @@ func Dconv(p *Prog, a *Addr) string {
 		str = Rconv(int(a.Reg))
 		if a.Name != NAME_NONE || a.Sym != nil {
 			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
+		}
+		if (RBaseARM64+1<<10+1<<9) /* arm64.REG_ELEM */ <= a.Reg &&
+			a.Reg < (RBaseARM64+1<<11) /* arm64.REG_ELEM_END */ {
+			str += fmt.Sprintf("[%d]", a.Index)
 		}
 
 	case TYPE_BRANCH:
@@ -272,7 +276,7 @@ func Dconv(p *Prog, a *Addr) string {
 		str = fmt.Sprintf("%v, %v", Rconv(int(a.Offset)), Rconv(int(a.Reg)))
 
 	case TYPE_REGLIST:
-		str = regListConv(int(a.Offset))
+		str = RLconv(a.Offset)
 	}
 
 	return str
@@ -409,27 +413,40 @@ func Rconv(reg int) string {
 	return fmt.Sprintf("R???%d", reg)
 }
 
-func regListConv(list int) string {
-	str := ""
+type regListSet struct {
+	lo     int64
+	hi     int64
+	RLconv func(int64) string
+}
 
-	for i := 0; i < 16; i++ { // TODO: 16 is ARM-specific.
-		if list&(1<<uint(i)) != 0 {
-			if str == "" {
-				str += "["
-			} else {
-				str += ","
-			}
-			// This is ARM-specific; R10 is g.
-			if i == 10 {
-				str += "g"
-			} else {
-				str += fmt.Sprintf("R%d", i)
-			}
+var regListSpace []regListSet
+
+// Each architecture is allotted a distinct subspace: [Lo, Hi) for declaring its
+// arch-specific register list numbers.
+const (
+	RegListARMLo = 0
+	RegListARMHi = 1 << 16
+
+	// arm64 uses the 60th bit to differentiate from other archs
+	RegListARM64Lo = 1 << 60
+	RegListARM64Hi = 1<<61 - 1
+)
+
+// RegisterRegisterList binds a pretty-printer (RLconv) for register list
+// numbers to a given register list number range. Lo is inclusive,
+// hi exclusive (valid register list are lo through hi-1).
+func RegisterRegisterList(lo, hi int64, rlconv func(int64) string) {
+	regListSpace = append(regListSpace, regListSet{lo, hi, rlconv})
+}
+
+func RLconv(list int64) string {
+	for i := range regListSpace {
+		rls := &regListSpace[i]
+		if rls.lo <= list && list < rls.hi {
+			return rls.RLconv(list)
 		}
 	}
-
-	str += "]"
-	return str
+	return fmt.Sprintf("RL???%d", list)
 }
 
 type opSet struct {

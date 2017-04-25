@@ -138,10 +138,13 @@ import (
 //			offset = second register
 //
 //	[reg, reg, reg-reg]
-//		Register list for ARM.
+//		Register list for ARM and ARM64.
 //		Encoding:
 //			type = TYPE_REGLIST
+//		On ARM:
 //			offset = bit mask of registers in list; R0 is low bit.
+//		On ARM64:
+//			offset = register count (Q:size) | arrangement (opcode) | first register
 //
 //	reg, reg
 //		Register pair for ARM.
@@ -155,6 +158,27 @@ import (
 //			index = second register
 //			scale = 1
 //
+//	reg.[US]XT[BHWX]
+//		Register extension for ARM64
+//		Encoding:
+//			type = TYPE_REG
+//			reg = REG_[US]XT[BHWX] + register + shift amount
+//			offset = ((reg&31) << 16) | (exttype << 13) | (amount<<10)
+//
+//	reg.<T>
+//		Register arrangement for ARM64 SIMD register
+//		e.g.: V1.S4, V2.S2, V7.D2, V2.H4, V6.B16
+//		Encoding:
+//			type = TYPE_REG
+//			reg = REG_ARNG + register + arrangement
+//
+//	reg.<T>[index]
+//		Register element for ARM64
+//		Encoding:
+//			type = TYPE_REG
+//			reg = REG_ELEM + register + arrangement
+//			index = element index
+
 type Addr struct {
 	Reg    int16
 	Index  int16
