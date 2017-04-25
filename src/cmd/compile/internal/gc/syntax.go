@@ -62,7 +62,6 @@ type Node struct {
 	Walkdef   uint8       // tracks state during typecheckdef; 2 == loop detected
 	Typecheck uint8       // tracks state during typechecking; 2 == loop detected
 	Initorder uint8
-	Likely    int8 // likeliness of if statement
 	hasVal    int8 // +1 for Val, -1 for Opt, 0 for not yet set
 }
 
@@ -93,6 +92,7 @@ const (
 	nodeAddable  // addressable
 	nodeUsed     // for variable/label declared and not used error
 	nodeHasCall  // expression contains a function call
+	nodeLikely   // if statement condition likely
 )
 
 func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
@@ -112,6 +112,7 @@ func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
 func (n *Node) Addable() bool               { return n.flags&nodeAddable != 0 }
 func (n *Node) Used() bool                  { return n.flags&nodeUsed != 0 }
 func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
+func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
 
 func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
 func (n *Node) SetIsClosureVar(b bool)          { n.flags.set(nodeIsClosureVar, b) }
@@ -130,6 +131,7 @@ func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
 func (n *Node) SetAddable(b bool)               { n.flags.set(nodeAddable, b) }
 func (n *Node) SetUsed(b bool)                  { n.flags.set(nodeUsed, b) }
 func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
+func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
 
 // Val returns the Val for the node.
 func (n *Node) Val() Val {

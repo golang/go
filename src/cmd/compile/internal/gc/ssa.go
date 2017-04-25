@@ -733,11 +733,15 @@ func (s *state) stmt(n *Node) {
 		bThen := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
 		var bElse *ssa.Block
+		var likely int8
+		if n.Likely() {
+			likely = 1
+		}
 		if n.Rlist.Len() != 0 {
 			bElse = s.f.NewBlock(ssa.BlockPlain)
-			s.condBranch(n.Left, bThen, bElse, n.Likely)
+			s.condBranch(n.Left, bThen, bElse, likely)
 		} else {
-			s.condBranch(n.Left, bThen, bEnd, n.Likely)
+			s.condBranch(n.Left, bThen, bEnd, likely)
 		}
 
 		s.startBlock(bThen)
