@@ -1322,3 +1322,13 @@ func (t *Type) Tie() byte {
 	}
 	return 'T'
 }
+
+var recvType *Type
+
+// FakeRecvType returns the singleton type used for interface method receivers.
+func FakeRecvType() *Type {
+	if recvType == nil {
+		recvType = NewPtr(New(TSTRUCT))
+	}
+	return recvType
+}

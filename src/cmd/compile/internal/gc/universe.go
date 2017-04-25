@@ -369,7 +369,7 @@ func typeinit() {
 func makeErrorInterface() *types.Type {
 	field := types.NewField()
 	field.Type = types.Types[TSTRING]
-	f := functypefield(fakethisfield(), nil, []*types.Field{field})
+	f := functypefield(fakeRecvField(), nil, []*types.Field{field})
 
 	field = types.NewField()
 	field.Sym = lookup("Error")
