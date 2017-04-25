@@ -282,7 +282,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
 
 	got, err := testEnv(exec.Command(exe, runArg)).CombinedOutput()
 	if err != nil {
-		if testenv.Builder() == "linux-arm64-alpine" {
+		if testenv.Builder() == "linux-amd64-alpine" {
 			// See Issue 18243 and Issue 19938.
 			t.Skipf("Skipping failing test on Alpine (golang.org/issue/18243). Ignoring error: %v", err)
 		}
