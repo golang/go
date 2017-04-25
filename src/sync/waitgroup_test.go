@@ -18,11 +18,11 @@ func testWaitGroup(t *testing.T, wg1 *WaitGroup, wg2 *WaitGroup) {
 	wg2.Add(n)
 	exited := make(chan bool, n)
 	for i := 0; i != n; i++ {
-		go func(i int) {
+		go func() {
 			wg1.Done()
 			wg2.Wait()
 			exited <- true
-		}(i)
+		}()
 	}
 	wg1.Wait()
 	for i := 0; i != n; i++ {

@@ -498,7 +498,7 @@ func TestShutdown(t *testing.T) {
 	// We need to duplicate template.Parse here to hold on to the lexer.
 	const text = "erroneous{{define}}{{else}}1234"
 	lexer := lex("foo", text, "{{", "}}")
-	_, err := New("root").parseLexer(lexer, text)
+	_, err := New("root").parseLexer(lexer)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -511,7 +511,7 @@ func TestShutdown(t *testing.T) {
 
 // parseLexer is a local version of parse that lets us pass in the lexer instead of building it.
 // We expect an error, so the tree set and funcs list are explicitly nil.
-func (t *Tree) parseLexer(lex *lexer, text string) (tree *Tree, err error) {
+func (t *Tree) parseLexer(lex *lexer) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.ParseName = t.Name
 	t.startParse(nil, lex, map[string]*Tree{})

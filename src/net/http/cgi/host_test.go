@@ -409,7 +409,7 @@ func TestCopyError(t *testing.T) {
 	}
 
 	childRunning := func() bool {
-		return isProcessRunning(t, pid)
+		return isProcessRunning(pid)
 	}
 
 	if !childRunning() {

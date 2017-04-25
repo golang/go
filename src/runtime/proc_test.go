@@ -53,14 +53,14 @@ func TestStopTheWorldDeadlock(t *testing.T) {
 }
 
 func TestYieldProgress(t *testing.T) {
-	testYieldProgress(t, false)
+	testYieldProgress(false)
 }
 
 func TestYieldLockedProgress(t *testing.T) {
-	testYieldProgress(t, true)
+	testYieldProgress(true)
 }
 
-func testYieldProgress(t *testing.T, locked bool) {
+func testYieldProgress(locked bool) {
 	c := make(chan bool)
 	cack := make(chan bool)
 	go func() {

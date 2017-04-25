@@ -17,7 +17,7 @@ import (
 
 const filename = "<src>"
 
-func makePkg(t *testing.T, src string) (*Package, error) {
+func makePkg(src string) (*Package, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
 	if err != nil {
@@ -126,7 +126,7 @@ func TestTypeString(t *testing.T) {
 
 	for _, test := range tests {
 		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
-		pkg, err := makePkg(t, src)
+		pkg, err := makePkg(src)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue

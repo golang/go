@@ -227,7 +227,7 @@ func TestAfterQueuing(t *testing.T) {
 	err := errors.New("!=nil")
 	for i := 0; i < attempts && err != nil; i++ {
 		delta := Duration(20+i*50) * Millisecond
-		if err = testAfterQueuing(t, delta); err != nil {
+		if err = testAfterQueuing(delta); err != nil {
 			t.Logf("attempt %v failed: %v", i, err)
 		}
 	}
@@ -247,7 +247,7 @@ func await(slot int, result chan<- afterResult, ac <-chan Time) {
 	result <- afterResult{slot, <-ac}
 }
 
-func testAfterQueuing(t *testing.T, delta Duration) error {
+func testAfterQueuing(delta Duration) error {
 	// make the result channel buffered because we don't want
 	// to depend on channel queueing semantics that might
 	// possibly change in the future.
