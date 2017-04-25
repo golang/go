@@ -7,7 +7,6 @@ package main_test
 import (
 	"bytes"
 	"fmt"
-	"go/build"
 	"go/format"
 	"internal/race"
 	"internal/testenv"
@@ -100,7 +99,9 @@ func TestMain(m *testing.M) {
 
 		switch runtime.GOOS {
 		case "linux", "darwin", "freebsd", "windows":
-			canRace = canCgo && runtime.GOARCH == "amd64"
+			// The race detector doesn't work on Alpine Linux:
+			// golang.org/issue/14481
+			canRace = canCgo && runtime.GOARCH == "amd64" && !isAlpineLinux()
 		}
 	}
 
@@ -123,6 +124,14 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(r)
+}
+
+func isAlpineLinux() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	fi, err := os.Lstat("/etc/alpine-release")
+	return err == nil && fi.Mode().IsRegular()
 }
 
 // The length of an mtime tick on this system. This is an estimate of
@@ -3037,15 +3046,8 @@ func TestGoInstallPkgdir(t *testing.T) {
 }
 
 func TestGoTestRaceInstallCgo(t *testing.T) {
-	switch sys := runtime.GOOS + "/" + runtime.GOARCH; sys {
-	case "darwin/amd64", "freebsd/amd64", "linux/amd64", "windows/amd64":
-		// ok
-	default:
-		t.Skip("no race detector on %s", sys)
-	}
-
-	if !build.Default.CgoEnabled {
-		t.Skip("no race detector without cgo")
+	if !canRace {
+		t.Skip("skipping because race detector not supported")
 	}
 
 	// golang.org/issue/10500.
