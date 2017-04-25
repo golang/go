@@ -498,9 +498,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			if autosize != 0 {
-				// Make sure to save link register for non-empty frame, even if
-				// it is a leaf function, so that traceback works.
-				if c.cursym.Func.Text.Mark&LEAF == 0 && autosize >= -BIG && autosize <= BIG {
+				// Save the link register and update the SP.  MOVDU is used unless
+				// the frame size is too large.  The link register must be saved
+				// even for non-empty leaf functions so that traceback works.
+				if autosize >= -BIG && autosize <= BIG {
 					// Use MOVDU to adjust R1 when saving R31, if autosize is small.
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVD
