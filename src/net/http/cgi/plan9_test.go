@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func isProcessRunning(t *testing.T, pid int) bool {
+func isProcessRunning(pid int) bool {
 	_, err := os.Stat("/proc/" + strconv.Itoa(pid))
 	return err == nil
 }

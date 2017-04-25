@@ -320,7 +320,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	}
 }
 
-func execDec(typ string, instr *decInstr, state *decoderState, t *testing.T, value reflect.Value) {
+func execDec(instr *decInstr, state *decoderState, t *testing.T, value reflect.Value) {
 	defer testError(t)
 	v := int(state.decodeUint())
 	if v+state.fieldnum != 6 {
@@ -347,7 +347,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data bool
 		instr := &decInstr{decBool, 6, nil, ovfl}
 		state := newDecodeStateFromData(boolResult)
-		execDec("bool", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != true {
 			t.Errorf("bool a = %v not true", data)
 		}
@@ -357,7 +357,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data int
 		instr := &decInstr{decOpTable[reflect.Int], 6, nil, ovfl}
 		state := newDecodeStateFromData(signedResult)
-		execDec("int", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("int a = %v not 17", data)
 		}
@@ -368,7 +368,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data uint
 		instr := &decInstr{decOpTable[reflect.Uint], 6, nil, ovfl}
 		state := newDecodeStateFromData(unsignedResult)
-		execDec("uint", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("uint a = %v not 17", data)
 		}
@@ -379,7 +379,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data int8
 		instr := &decInstr{decInt8, 6, nil, ovfl}
 		state := newDecodeStateFromData(signedResult)
-		execDec("int8", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("int8 a = %v not 17", data)
 		}
@@ -390,7 +390,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data uint8
 		instr := &decInstr{decUint8, 6, nil, ovfl}
 		state := newDecodeStateFromData(unsignedResult)
-		execDec("uint8", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("uint8 a = %v not 17", data)
 		}
@@ -401,7 +401,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data int16
 		instr := &decInstr{decInt16, 6, nil, ovfl}
 		state := newDecodeStateFromData(signedResult)
-		execDec("int16", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("int16 a = %v not 17", data)
 		}
@@ -412,7 +412,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data uint16
 		instr := &decInstr{decUint16, 6, nil, ovfl}
 		state := newDecodeStateFromData(unsignedResult)
-		execDec("uint16", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("uint16 a = %v not 17", data)
 		}
@@ -423,7 +423,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data int32
 		instr := &decInstr{decInt32, 6, nil, ovfl}
 		state := newDecodeStateFromData(signedResult)
-		execDec("int32", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("int32 a = %v not 17", data)
 		}
@@ -434,7 +434,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data uint32
 		instr := &decInstr{decUint32, 6, nil, ovfl}
 		state := newDecodeStateFromData(unsignedResult)
-		execDec("uint32", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("uint32 a = %v not 17", data)
 		}
@@ -445,7 +445,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data uintptr
 		instr := &decInstr{decOpTable[reflect.Uintptr], 6, nil, ovfl}
 		state := newDecodeStateFromData(unsignedResult)
-		execDec("uintptr", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("uintptr a = %v not 17", data)
 		}
@@ -456,7 +456,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data int64
 		instr := &decInstr{decInt64, 6, nil, ovfl}
 		state := newDecodeStateFromData(signedResult)
-		execDec("int64", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("int64 a = %v not 17", data)
 		}
@@ -467,7 +467,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data uint64
 		instr := &decInstr{decUint64, 6, nil, ovfl}
 		state := newDecodeStateFromData(unsignedResult)
-		execDec("uint64", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("uint64 a = %v not 17", data)
 		}
@@ -478,7 +478,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data float32
 		instr := &decInstr{decFloat32, 6, nil, ovfl}
 		state := newDecodeStateFromData(floatResult)
-		execDec("float32", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("float32 a = %v not 17", data)
 		}
@@ -489,7 +489,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data float64
 		instr := &decInstr{decFloat64, 6, nil, ovfl}
 		state := newDecodeStateFromData(floatResult)
-		execDec("float64", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17 {
 			t.Errorf("float64 a = %v not 17", data)
 		}
@@ -500,7 +500,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data complex64
 		instr := &decInstr{decOpTable[reflect.Complex64], 6, nil, ovfl}
 		state := newDecodeStateFromData(complexResult)
-		execDec("complex", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17+19i {
 			t.Errorf("complex a = %v not 17+19i", data)
 		}
@@ -511,7 +511,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data complex128
 		instr := &decInstr{decOpTable[reflect.Complex128], 6, nil, ovfl}
 		state := newDecodeStateFromData(complexResult)
-		execDec("complex", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != 17+19i {
 			t.Errorf("complex a = %v not 17+19i", data)
 		}
@@ -522,7 +522,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data []byte
 		instr := &decInstr{decUint8Slice, 6, nil, ovfl}
 		state := newDecodeStateFromData(bytesResult)
-		execDec("bytes", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if string(data) != "hello" {
 			t.Errorf(`bytes a = %q not "hello"`, string(data))
 		}
@@ -533,7 +533,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data string
 		instr := &decInstr{decString, 6, nil, ovfl}
 		state := newDecodeStateFromData(bytesResult)
-		execDec("bytes", instr, state, t, reflect.ValueOf(&data))
+		execDec(instr, state, t, reflect.ValueOf(&data))
 		if data != "hello" {
 			t.Errorf(`bytes a = %q not "hello"`, data)
 		}
