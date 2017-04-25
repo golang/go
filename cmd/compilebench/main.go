@@ -37,6 +37,9 @@
 //	-obj
 //		Report object file statistics.
 //
+//  -pkg
+//		Benchmark compiling a single package.
+//
 //	-run regexp
 //		Only run benchmarks with names matching regexp.
 //
@@ -96,6 +99,7 @@ var (
 	flagCpuprofile     = flag.String("cpuprofile", "", "write CPU profile to `file`")
 	flagMemprofile     = flag.String("memprofile", "", "write memory profile to `file`")
 	flagMemprofilerate = flag.Int64("memprofilerate", -1, "set memory profile `rate`")
+	flagPackage        = flag.String("pkg", "", "if set, benchmark the package at path `pkg`")
 	flagShort          = flag.Bool("short", false, "skip long-running benchmarks")
 )
 
@@ -158,6 +162,10 @@ func main() {
 	}
 
 	for i := 0; i < *flagCount; i++ {
+		if *flagPackage != "" {
+			runBuild("BenchmarkPkg", *flagPackage, i)
+			continue
+		}
 		for _, tt := range tests {
 			if tt.long && *flagShort {
 				continue
