@@ -9,7 +9,6 @@ package cgi
 import (
 	"os"
 	"strconv"
-	"testing"
 )
 
 func isProcessRunning(pid int) bool {
