@@ -110,6 +110,10 @@ type Reader struct {
 	// If TrimLeadingSpace is true, leading white space in a field is ignored.
 	// This is done even if the field delimiter, Comma, is white space.
 	TrimLeadingSpace bool
+	// ReuseRecord controls whether calls to Read may return a slice sharing
+	// the backing array of the previous call's returned slice for performance.
+	// By default, each call to Read returns newly allocated memory owned by the caller.
+	ReuseRecord bool
 
 	line   int
 	column int
@@ -122,6 +126,9 @@ type Reader struct {
 	// Indexes of fields inside lineBuffer
 	// The i'th field starts at offset fieldIndexes[i] in lineBuffer.
 	fieldIndexes []int
+
+	// only used when ReuseRecord == true
+	lastRecord []string
 }
 
 // NewReader returns a new Reader that reads from r.
@@ -147,9 +154,43 @@ func (r *Reader) error(err error) error {
 // Except for that case, Read always returns either a non-nil
 // record or a non-nil error, but not both.
 // If there is no data left to be read, Read returns nil, io.EOF.
+// If ReuseRecord is true, the returned slice may be shared
+// between multiple calls to Read.
 func (r *Reader) Read() (record []string, err error) {
+	if r.ReuseRecord {
+		record, err = r.readRecord(r.lastRecord)
+		r.lastRecord = record
+	} else {
+		record, err = r.readRecord(nil)
+	}
+
+	return record, err
+}
+
+// ReadAll reads all the remaining records from r.
+// Each record is a slice of fields.
+// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
+// defined to read until EOF, it does not treat end of file as an error to be
+// reported.
+func (r *Reader) ReadAll() (records [][]string, err error) {
 	for {
-		record, err = r.parseRecord()
+		record, err := r.readRecord(nil)
+		if err == io.EOF {
+			return records, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, record)
+	}
+}
+
+// readRecord reads and parses a single csv record from r.
+// Unlike parseRecord, readRecord handles FieldsPerRecord.
+// If dst has enough capacity it will be used for the returned record.
+func (r *Reader) readRecord(dst []string) (record []string, err error) {
+	for {
+		record, err = r.parseRecord(dst)
 		if record != nil {
 			break
 		}
@@ -167,24 +208,6 @@ func (r *Reader) Read() (record []string, err error) {
 		r.FieldsPerRecord = len(record)
 	}
 	return record, nil
-}
-
-// ReadAll reads all the remaining records from r.
-// Each record is a slice of fields.
-// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
-// defined to read until EOF, it does not treat end of file as an error to be
-// reported.
-func (r *Reader) ReadAll() (records [][]string, err error) {
-	for {
-		record, err := r.Read()
-		if err == io.EOF {
-			return records, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		records = append(records, record)
-	}
 }
 
 // readRune reads one rune from r, folding \r\n to \n and keeping track
@@ -223,7 +246,8 @@ func (r *Reader) skip(delim rune) error {
 }
 
 // parseRecord reads and parses a single csv record from r.
-func (r *Reader) parseRecord() (fields []string, err error) {
+// If dst has enough capacity it will be used for the returned fields.
+func (r *Reader) parseRecord(dst []string) (fields []string, err error) {
 	// Each record starts on a new line. We increment our line
 	// number (lines start at 1, not 0) and set column to -1
 	// so as we increment in readRune it points to the character we read.
@@ -275,7 +299,12 @@ func (r *Reader) parseRecord() (fields []string, err error) {
 	// minimal and a tradeoff for better performance through the combined
 	// allocations.
 	line := r.lineBuffer.String()
-	fields = make([]string, fieldCount)
+
+	if cap(dst) >= fieldCount {
+		fields = dst[:fieldCount]
+	} else {
+		fields = make([]string, fieldCount)
+	}
 
 	for i, idx := range r.fieldIndexes {
 		if i == fieldCount-1 {
