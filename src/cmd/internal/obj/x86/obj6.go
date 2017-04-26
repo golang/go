@@ -296,15 +296,13 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 // Rewrite p, if necessary, to access global data via the global offset table.
 func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
-	var add, lea, mov obj.As
+	var lea, mov obj.As
 	var reg int16
 	if ctxt.Arch.Family == sys.AMD64 {
-		add = AADDQ
 		lea = ALEAQ
 		mov = AMOVQ
 		reg = REG_R15
 	} else {
-		add = AADDL
 		lea = ALEAL
 		mov = AMOVL
 		reg = REG_CX
@@ -321,8 +319,10 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		//     ADUFFxxx $offset
 		// becomes
 		//     $MOV runtime.duffxxx@GOT, $reg
-		//     $ADD $offset, $reg
+		//     $LEA $offset($reg), $reg
 		//     CALL $reg
+		// (we use LEAx rather than ADDx because ADDx clobbers
+		// flags and duffzero on 386 does not otherwise do so)
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
 			sym = ctxt.Lookup("runtime.duffzero")
@@ -339,9 +339,10 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.To.Offset = 0
 		p.To.Sym = nil
 		p1 := obj.Appendp(p, newprog)
-		p1.As = add
-		p1.From.Type = obj.TYPE_CONST
+		p1.As = lea
+		p1.From.Type = obj.TYPE_MEM
 		p1.From.Offset = offset
+		p1.From.Reg = reg
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = reg
 		p2 := obj.Appendp(p1, newprog)
