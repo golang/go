@@ -144,7 +144,7 @@ See also: go install, go get, go clean.
 	`,
 }
 
-const concurrentGCBackendCompilationEnabledByDefault = false
+const concurrentGCBackendCompilationEnabledByDefault = true
 
 func init() {
 	// break init cycle
