@@ -1404,14 +1404,16 @@ func addsignat(t *types.Type) {
 	signatlist[formalType(t)] = true
 }
 
-func dumptypestructs(dcls []*Node) {
+func addsignats(dcls []*Node) {
 	// copy types from dcl list to signatlist
 	for _, n := range dcls {
 		if n.Op == OTYPE {
 			addsignat(n.Type)
 		}
 	}
+}
 
+func dumpsignats() {
 	// Process signatlist. Use a loop, as dtypesym adds
 	// entries to signatlist while it is being processed.
 	signats := make([]typeAndStr, len(signatlist))
