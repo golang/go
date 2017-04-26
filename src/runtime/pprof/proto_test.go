@@ -7,10 +7,12 @@ package pprof
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"reflect"
 	"runtime"
 	"runtime/pprof/internal/profile"
+	"strings"
 	"testing"
 )
 
@@ -163,101 +165,47 @@ func checkProfile(t *testing.T, p *profile.Profile, period int64, periodType *pr
 	}
 }
 
-type fakeFunc struct {
-	name   string
-	file   string
-	lineno int
-}
+var profSelfMapsTests = `
+00400000-0040b000 r-xp 00000000 fc:01 787766                             /bin/cat
+0060a000-0060b000 r--p 0000a000 fc:01 787766                             /bin/cat
+0060b000-0060c000 rw-p 0000b000 fc:01 787766                             /bin/cat
+014ab000-014cc000 rw-p 00000000 00:00 0                                  [heap]
+7f7d76af8000-7f7d7797c000 r--p 00000000 fc:01 1318064                    /usr/lib/locale/locale-archive
+7f7d7797c000-7f7d77b36000 r-xp 00000000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77b36000-7f7d77d36000 ---p 001ba000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d36000-7f7d77d3a000 r--p 001ba000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d3a000-7f7d77d3c000 rw-p 001be000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d3c000-7f7d77d41000 rw-p 00000000 00:00 0
+7f7d77d41000-7f7d77d64000 r-xp 00000000 fc:01 1180217                    /lib/x86_64-linux-gnu/ld-2.19.so
+7f7d77f3f000-7f7d77f42000 rw-p 00000000 00:00 0
+7f7d77f61000-7f7d77f63000 rw-p 00000000 00:00 0
+7f7d77f63000-7f7d77f64000 r--p 00022000 fc:01 1180217                    /lib/x86_64-linux-gnu/ld-2.19.so
+7f7d77f64000-7f7d77f65000 rw-p 00023000 fc:01 1180217                    /lib/x86_64-linux-gnu/ld-2.19.so
+7f7d77f65000-7f7d77f66000 rw-p 00000000 00:00 0
+7ffc342a2000-7ffc342c3000 rw-p 00000000 00:00 0                          [stack]
+7ffc34343000-7ffc34345000 r-xp 00000000 00:00 0                          [vdso]
+ffffffffff600000-ffffffffff601000 r-xp 00000090 00:00 0                  [vsyscall]
+->
+00400000 0040b000 00000000 /bin/cat
+7f7d7797c000 7f7d77b36000 00000000 /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d41000 7f7d77d64000 00000000 /lib/x86_64-linux-gnu/ld-2.19.so
+7ffc34343000 7ffc34345000 00000000 [vdso]
+ffffffffff600000 ffffffffff601000 00000090 [vsyscall]
+`
 
-func (f *fakeFunc) Name() string {
-	return f.name
-}
-func (f *fakeFunc) FileLine(uintptr) (string, int) {
-	return f.file, f.lineno
-}
-
-/*
-// TestRuntimeFunctionTrimming tests if symbolize trims runtime functions as intended.
-func TestRuntimeRunctionTrimming(t *testing.T) {
-	fakeFuncMap := map[uintptr]*fakeFunc{
-		0x10: &fakeFunc{"runtime.goexit", "runtime.go", 10},
-		0x20: &fakeFunc{"runtime.other", "runtime.go", 20},
-		0x30: &fakeFunc{"foo", "foo.go", 30},
-		0x40: &fakeFunc{"bar", "bar.go", 40},
-	}
-	backupFuncForPC := funcForPC
-	funcForPC = func(pc uintptr) function {
-		return fakeFuncMap[pc]
-	}
-	defer func() {
-		funcForPC = backupFuncForPC
-	}()
-	testLoc := []*profile.Location{
-		{ID: 1, Address: 0x10},
-		{ID: 2, Address: 0x20},
-		{ID: 3, Address: 0x30},
-		{ID: 4, Address: 0x40},
-	}
-	testProfile := &profile.Profile{
-		Sample: []*profile.Sample{
-			{Location: []*profile.Location{testLoc[0], testLoc[1], testLoc[3], testLoc[2]}},
-			{Location: []*profile.Location{testLoc[1], testLoc[3], testLoc[2]}},
-			{Location: []*profile.Location{testLoc[3], testLoc[2], testLoc[1]}},
-			{Location: []*profile.Location{testLoc[3], testLoc[2], testLoc[0]}},
-			{Location: []*profile.Location{testLoc[0], testLoc[1], testLoc[3], testLoc[0]}},
-		},
-		Location: testLoc,
-	}
-	testProfiles := make([]*profile.Profile, 2)
-	testProfiles[0] = testProfile.Copy()
-	testProfiles[1] = testProfile.Copy()
-	// Test case for profilez.
-	testProfiles[0].PeriodType = &profile.ValueType{Type: "cpu", Unit: "nanoseconds"}
-	// Test case for heapz.
-	testProfiles[1].PeriodType = &profile.ValueType{Type: "space", Unit: "bytes"}
-	wantFunc := []*profile.Function{
-		{ID: 1, Name: "runtime.goexit", SystemName: "runtime.goexit", Filename: "runtime.go"},
-		{ID: 2, Name: "runtime.other", SystemName: "runtime.other", Filename: "runtime.go"},
-		{ID: 3, Name: "foo", SystemName: "foo", Filename: "foo.go"},
-		{ID: 4, Name: "bar", SystemName: "bar", Filename: "bar.go"},
-	}
-	wantLoc := []*profile.Location{
-		{ID: 1, Address: 0x10, Line: []profile.Line{{Function: wantFunc[0], Line: 10}}},
-		{ID: 2, Address: 0x20, Line: []profile.Line{{Function: wantFunc[1], Line: 20}}},
-		{ID: 3, Address: 0x30, Line: []profile.Line{{Function: wantFunc[2], Line: 30}}},
-		{ID: 4, Address: 0x40, Line: []profile.Line{{Function: wantFunc[3], Line: 40}}},
-	}
-	wantProfiles := []*profile.Profile{
-		{
-			PeriodType: &profile.ValueType{Type: "cpu", Unit: "nanoseconds"},
-			Sample: []*profile.Sample{
-				{Location: []*profile.Location{wantLoc[1], wantLoc[3], wantLoc[2]}},
-				{Location: []*profile.Location{wantLoc[1], wantLoc[3], wantLoc[2]}},
-				{Location: []*profile.Location{wantLoc[3], wantLoc[2], wantLoc[1]}},
-				{Location: []*profile.Location{wantLoc[3], wantLoc[2]}},
-				{Location: []*profile.Location{wantLoc[1], wantLoc[3]}},
-			},
-			Location: wantLoc,
-			Function: wantFunc,
-		},
-		{
-			PeriodType: &profile.ValueType{Type: "space", Unit: "bytes"},
-			Sample: []*profile.Sample{
-				{Location: []*profile.Location{wantLoc[3], wantLoc[2]}},
-				{Location: []*profile.Location{wantLoc[3], wantLoc[2]}},
-				{Location: []*profile.Location{wantLoc[3], wantLoc[2], wantLoc[1]}},
-				{Location: []*profile.Location{wantLoc[3], wantLoc[2]}},
-				{Location: []*profile.Location{wantLoc[3]}},
-			},
-			Location: wantLoc,
-			Function: wantFunc,
-		},
-	}
-	for i := 0; i < 2; i++ {
-		symbolize(testProfiles[i])
-		if !reflect.DeepEqual(testProfiles[i], wantProfiles[i]) {
-			t.Errorf("incorrect trimming (testcase = %d): got {%v}, want {%v}", i, testProfiles[i], wantProfiles[i])
+func TestProcSelfMaps(t *testing.T) {
+	for tx, tt := range strings.Split(profSelfMapsTests, "\n\n") {
+		i := strings.Index(tt, "->\n")
+		if i < 0 {
+			t.Fatal("malformed test case")
+		}
+		in, out := tt[:i], tt[i+len("->\n"):]
+		var buf bytes.Buffer
+		parseProcSelfMaps([]byte(in), func(lo, hi, offset uint64, file, buildID string) {
+			fmt.Fprintf(&buf, "%08x %08x %08x %s\n", lo, hi, offset, file)
+		})
+		if buf.String() != out {
+			t.Errorf("#%d: have:\n%s\nwant:\n%s", tx, buf.String(), out)
 		}
 	}
 }
-*/
