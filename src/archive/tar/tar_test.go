@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -72,9 +71,6 @@ func TestFileInfoHeaderDir(t *testing.T) {
 func TestFileInfoHeaderSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping broken test: see issue 17541")
-	}
 	tmpdir, err := ioutil.TempDir("", "TestFileInfoHeaderSymlink")
 	if err != nil {
 		t.Fatal(err)

@@ -153,6 +153,20 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 			t.Errorf("%q should point to %q", link, dir)
 			continue
 		}
+
+		fi2, err := os.Lstat(link)
+		if err != nil {
+			t.Errorf("failed to lstat link %v: %v", link, err)
+			continue
+		}
+		if m := fi2.Mode(); m&os.ModeSymlink == 0 {
+			t.Errorf("%q should be a link, but is not (mode=0x%x)", link, uint32(m))
+			continue
+		}
+		if m := fi2.Mode(); m&os.ModeDir != 0 {
+			t.Errorf("%q should be a link, not a directory (mode=0x%x)", link, uint32(m))
+			continue
+		}
 	}
 }
 

@@ -1377,8 +1377,5 @@ func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
 
 func TestWalkSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping broken test: see issue 17540")
-	}
 	testWalkSymlink(t, os.Symlink)
 }

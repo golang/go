@@ -32,16 +32,16 @@ func (fs *fileStat) Mode() (m FileMode) {
 	if fs == &devNullStat {
 		return ModeDevice | ModeCharDevice | 0666
 	}
-	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
-		m |= ModeDir | 0111
-	}
 	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
 		m |= 0444
 	} else {
 		m |= 0666
 	}
 	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-		m |= ModeSymlink
+		return m | ModeSymlink
+	}
+	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+		m |= ModeDir | 0111
 	}
 	switch fs.filetype {
 	case syscall.FILE_TYPE_PIPE:
