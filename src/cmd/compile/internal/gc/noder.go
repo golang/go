@@ -749,10 +749,10 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 		n.List.Set(results)
 		if n.List.Len() == 0 && Curfn != nil {
 			for _, ln := range Curfn.Func.Dcl {
-				if ln.Class == PPARAM {
+				if ln.Class() == PPARAM {
 					continue
 				}
-				if ln.Class != PPARAMOUT {
+				if ln.Class() != PPARAMOUT {
 					break
 				}
 				if asNode(ln.Sym.Def) != ln {

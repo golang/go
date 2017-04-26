@@ -29,7 +29,7 @@ func walk(fn *Node) {
 
 	// Final typecheck for any unused variables.
 	for i, ln := range fn.Func.Dcl {
-		if ln.Op == ONAME && (ln.Class == PAUTO || ln.Class == PAUTOHEAP) {
+		if ln.Op == ONAME && (ln.Class() == PAUTO || ln.Class() == PAUTOHEAP) {
 			ln = typecheck(ln, Erv|Easgn)
 			fn.Func.Dcl[i] = ln
 		}
@@ -37,13 +37,13 @@ func walk(fn *Node) {
 
 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
 	for _, ln := range fn.Func.Dcl {
-		if ln.Op == ONAME && (ln.Class == PAUTO || ln.Class == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used() {
+		if ln.Op == ONAME && (ln.Class() == PAUTO || ln.Class() == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used() {
 			ln.Name.Defn.Left.SetUsed(true)
 		}
 	}
 
 	for _, ln := range fn.Func.Dcl {
-		if ln.Op != ONAME || (ln.Class != PAUTO && ln.Class != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Used() {
+		if ln.Op != ONAME || (ln.Class() != PAUTO && ln.Class() != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Used() {
 			continue
 		}
 		if defn := ln.Name.Defn; defn != nil && defn.Op == OTYPESW {
@@ -95,7 +95,7 @@ func samelist(a, b []*Node) bool {
 
 func paramoutheap(fn *Node) bool {
 	for _, ln := range fn.Func.Dcl {
-		switch ln.Class {
+		switch ln.Class() {
 		case PPARAMOUT:
 			if ln.isParamStackCopy() || ln.Addrtaken() {
 				return true
@@ -221,7 +221,7 @@ func walkstmt(n *Node) *Node {
 
 	case ODCL:
 		v := n.Left
-		if v.Class == PAUTOHEAP {
+		if v.Class() == PAUTOHEAP {
 			if compiling_runtime {
 				yyerror("%v escapes to heap, not allowed in runtime.", v)
 			}
@@ -305,7 +305,7 @@ func walkstmt(n *Node) *Node {
 
 			var cl Class
 			for _, ln := range Curfn.Func.Dcl {
-				cl = ln.Class
+				cl = ln.Class()
 				if cl == PAUTO || cl == PAUTOHEAP {
 					break
 				}
@@ -483,7 +483,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 		Fatalf("missed typecheck: %+v", n)
 	}
 
-	if n.Op == ONAME && n.Class == PAUTOHEAP {
+	if n.Op == ONAME && n.Class() == PAUTOHEAP {
 		nn := nod(OIND, n.Name.Param.Heapaddr, nil)
 		nn = typecheck(nn, Erv)
 		nn = walkexpr(nn, init)
@@ -876,10 +876,10 @@ opswitch:
 
 		if staticbytes == nil {
 			staticbytes = newname(Runtimepkg.Lookup("staticbytes"))
-			staticbytes.Class = PEXTERN
+			staticbytes.SetClass(PEXTERN)
 			staticbytes.Type = types.NewArray(types.Types[TUINT8], 256)
 			zerobase = newname(Runtimepkg.Lookup("zerobase"))
-			zerobase.Class = PEXTERN
+			zerobase.SetClass(PEXTERN)
 			zerobase.Type = types.Types[TUINTPTR]
 		}
 
@@ -897,7 +897,7 @@ opswitch:
 			n.Left = cheapexpr(n.Left, init)
 			value = nod(OINDEX, staticbytes, byteindex(n.Left))
 			value.SetBounded(true)
-		case n.Left.Class == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly():
+		case n.Left.Class() == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly():
 			// n.Left is a readonly global; use it directly.
 			value = n.Left
 		case !n.Left.Type.IsInterface() && n.Esc == EscNone && n.Left.Type.Width <= 1024:
@@ -2028,7 +2028,7 @@ func isstack(n *Node) bool {
 		return true
 
 	case ONAME:
-		switch n.Class {
+		switch n.Class() {
 		case PAUTO, PPARAM, PPARAMOUT:
 			return true
 		}
@@ -2335,7 +2335,7 @@ func aliased(n *Node, all []*Node, i int) bool {
 			continue
 		}
 
-		switch n.Class {
+		switch n.Class() {
 		default:
 			varwrite = 1
 			continue
@@ -2387,7 +2387,7 @@ func varexpr(n *Node) bool {
 		return true
 
 	case ONAME:
-		switch n.Class {
+		switch n.Class() {
 		case PAUTO, PPARAM, PPARAMOUT:
 			if !n.Addrtaken() {
 				return true
@@ -2465,7 +2465,7 @@ func vmatch1(l *Node, r *Node) bool {
 	}
 	switch l.Op {
 	case ONAME:
-		switch l.Class {
+		switch l.Class() {
 		case PPARAM, PAUTO:
 			break
 
@@ -2512,7 +2512,7 @@ func paramstoheap(params *types.Type) []*Node {
 
 		if stackcopy := v.Name.Param.Stackcopy; stackcopy != nil {
 			nn = append(nn, walkstmt(nod(ODCL, v, nil)))
-			if stackcopy.Class == PPARAM {
+			if stackcopy.Class() == PPARAM {
 				nn = append(nn, walkstmt(typecheck(nod(OAS, v, stackcopy), Etop)))
 			}
 		}
@@ -2553,7 +2553,7 @@ func returnsfromheap(params *types.Type) []*Node {
 		if v == nil {
 			continue
 		}
-		if stackcopy := v.Name.Param.Stackcopy; stackcopy != nil && stackcopy.Class == PPARAMOUT {
+		if stackcopy := v.Name.Param.Stackcopy; stackcopy != nil && stackcopy.Class() == PPARAMOUT {
 			nn = append(nn, walkstmt(typecheck(nod(OAS, stackcopy, v), Etop)))
 		}
 	}
@@ -3051,7 +3051,7 @@ func eqfor(t *types.Type, needsize *int) *Node {
 	case ASPECIAL:
 		sym := typesymprefix(".eq", t)
 		n := newname(sym)
-		n.Class = PFUNC
+		n.SetClass(PFUNC)
 		ntype := nod(OTFUNC, nil, nil)
 		ntype.List.Append(anonfield(types.NewPtr(t)))
 		ntype.List.Append(anonfield(types.NewPtr(t)))

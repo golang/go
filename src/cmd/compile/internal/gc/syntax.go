@@ -57,7 +57,6 @@ type Node struct {
 
 	Op    Op
 	Etype types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
-	Class Class       // PPARAM, PAUTO, PEXTERN, etc
 }
 
 // IsAutoTmp indicates if n was created by the compiler as a temporary,
@@ -70,7 +69,10 @@ func (n *Node) IsAutoTmp() bool {
 }
 
 const (
-	nodeWalkdef, _   = iota, 1 << iota // tracks state during typecheckdef; 2 == loop detected; two bits
+	nodeClass, _     = iota, 1 << iota // PPARAM, PAUTO, PEXTERN, etc; three bits; first in the list because frequently accessed
+	_, _                               // second nodeClass bit
+	_, _                               // third nodeClass bit
+	nodeWalkdef, _                     // tracks state during typecheckdef; 2 == loop detected; two bits
 	_, _                               // second nodeWalkdef bit
 	nodeTypecheck, _                   // tracks state during typechecking; 2 == loop detected; two bits
 	_, _                               // second nodeTypecheck bit
@@ -99,6 +101,7 @@ const (
 	_, nodeEmbedded // ODCLFIELD embedded type
 )
 
+func (n *Node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
 func (n *Node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
 func (n *Node) Typecheck() uint8 { return n.flags.get2(nodeTypecheck) }
 func (n *Node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
@@ -125,6 +128,7 @@ func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
 func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
 func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
 
+func (n *Node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
 func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
 func (n *Node) SetTypecheck(b uint8) { n.flags.set2(nodeTypecheck, b) }
 func (n *Node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }

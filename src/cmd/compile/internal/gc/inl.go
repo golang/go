@@ -216,7 +216,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		}
 		// Functions that call runtime.getcaller{pc,sp} can not be inlined
 		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
-		if n.Left.Op == ONAME && n.Left.Class == PFUNC && isRuntimePkg(n.Left.Sym.Pkg) {
+		if n.Left.Op == ONAME && n.Left.Class() == PFUNC && isRuntimePkg(n.Left.Sym.Pkg) {
 			fn := n.Left.Sym.Name
 			if fn == "getcallerpc" || fn == "getcallersp" {
 				v.reason = "call to " + fn
@@ -621,14 +621,14 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		if ln.Op != ONAME {
 			continue
 		}
-		if ln.Class == PPARAMOUT { // return values handled below.
+		if ln.Class() == PPARAMOUT { // return values handled below.
 			continue
 		}
 		if ln.isParamStackCopy() { // ignore the on-stack copy of a parameter that moved to the heap
 			continue
 		}
 		inlvars[ln] = typecheck(inlvar(ln), Erv)
-		if ln.Class == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class == PPARAM {
+		if ln.Class() == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class() == PPARAM {
 			ninit.Append(nod(ODCL, inlvars[ln], nil))
 		}
 	}
@@ -816,7 +816,7 @@ func inlvar(var_ *Node) *Node {
 
 	n := newname(var_.Sym)
 	n.Type = var_.Type
-	n.Class = PAUTO
+	n.SetClass(PAUTO)
 	n.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	n.SetAddrtaken(var_.Addrtaken())
@@ -829,7 +829,7 @@ func inlvar(var_ *Node) *Node {
 func retvar(t *types.Field, i int) *Node {
 	n := newname(lookupN("~r", i))
 	n.Type = t.Type
-	n.Class = PAUTO
+	n.SetClass(PAUTO)
 	n.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
@@ -841,7 +841,7 @@ func retvar(t *types.Field, i int) *Node {
 func argvar(t *types.Type, i int) *Node {
 	n := newname(lookupN("~arg", i))
 	n.Type = t.Elem()
-	n.Class = PAUTO
+	n.SetClass(PAUTO)
 	n.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)

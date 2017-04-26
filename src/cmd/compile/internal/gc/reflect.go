@@ -944,7 +944,7 @@ func typename(t *types.Type) *Node {
 	if s.Def == nil {
 		n := newnamel(src.NoXPos, s)
 		n.Type = types.Types[TUINT8]
-		n.Class = PEXTERN
+		n.SetClass(PEXTERN)
 		n.SetTypecheck(1)
 		s.Def = asTypesNode(n)
 	}
@@ -964,7 +964,7 @@ func itabname(t, itype *types.Type) *Node {
 	if s.Def == nil {
 		n := newname(s)
 		n.Type = types.Types[TUINT8]
-		n.Class = PEXTERN
+		n.SetClass(PEXTERN)
 		n.SetTypecheck(1)
 		s.Def = asTypesNode(n)
 		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
@@ -1821,7 +1821,7 @@ func zeroaddr(size int64) *Node {
 	if s.Def == nil {
 		x := newname(s)
 		x.Type = types.Types[TUINT8]
-		x.Class = PEXTERN
+		x.SetClass(PEXTERN)
 		x.SetTypecheck(1)
 		s.Def = asTypesNode(x)
 	}

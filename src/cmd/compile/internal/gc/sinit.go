@@ -43,7 +43,7 @@ func init1(n *Node, out *[]*Node) {
 		init1(n1, out)
 	}
 
-	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class == PFUNC {
+	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class() == PFUNC {
 		// Methods called as Type.Method(receiver, ...).
 		// Definitions for method expressions are stored in type->nname.
 		init1(asNode(n.Type.FuncType().Nname), out)
@@ -52,7 +52,7 @@ func init1(n *Node, out *[]*Node) {
 	if n.Op != ONAME {
 		return
 	}
-	switch n.Class {
+	switch n.Class() {
 	case PEXTERN, PFUNC:
 	default:
 		if isblank(n) && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder() == InitNotStarted {
@@ -76,7 +76,7 @@ func init1(n *Node, out *[]*Node) {
 		// Conversely, if there exists an initialization cycle involving
 		// a variable in the program, the tree walk will reach a cycle
 		// involving that variable.
-		if n.Class != PFUNC {
+		if n.Class() != PFUNC {
 			foundinitloop(n, n)
 		}
 
@@ -85,7 +85,7 @@ func init1(n *Node, out *[]*Node) {
 			if x == n {
 				break
 			}
-			if x.Class != PFUNC {
+			if x.Class() != PFUNC {
 				foundinitloop(n, x)
 			}
 		}
@@ -257,7 +257,7 @@ func initfix(l []*Node) []*Node {
 // compilation of top-level (static) assignments
 // into DATA statements if at all possible.
 func staticinit(n *Node, out *[]*Node) bool {
-	if n.Op != ONAME || n.Class != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
+	if n.Op != ONAME || n.Class() != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
 		Fatalf("staticinit")
 	}
 
@@ -273,11 +273,11 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 	if r.Op != ONAME {
 		return false
 	}
-	if r.Class == PFUNC {
+	if r.Class() == PFUNC {
 		gdata(l, r, Widthptr)
 		return true
 	}
-	if r.Class != PEXTERN || r.Sym.Pkg != localpkg {
+	if r.Class() != PEXTERN || r.Sym.Pkg != localpkg {
 		return false
 	}
 	if r.Name.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
@@ -417,7 +417,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		//dump("not static ptrlit", r);
 
 	case OSTRARRAYBYTE:
-		if l.Class == PEXTERN && r.Left.Op == OLITERAL {
+		if l.Class() == PEXTERN && r.Left.Op == OLITERAL {
 			sval := r.Left.Val().U.(string)
 			slicebytes(l, sval, len(sval))
 			return true
@@ -591,7 +591,7 @@ func isliteral(n *Node) bool {
 }
 
 func (n *Node) isSimpleName() bool {
-	return n.Op == ONAME && n.Addable() && n.Class != PAUTOHEAP && n.Class != PEXTERN
+	return n.Op == ONAME && n.Addable() && n.Class() != PAUTOHEAP && n.Class() != PEXTERN
 }
 
 func litas(l *Node, r *Node, init *Nodes) {
@@ -787,7 +787,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		// copy static to slice
 		var_ = typecheck(var_, Erv|Easgn)
 		var nam Node
-		if !stataddr(&nam, var_) || nam.Class != PEXTERN {
+		if !stataddr(&nam, var_) || nam.Class() != PEXTERN {
 			Fatalf("slicelit: %v", var_)
 		}
 
@@ -1354,7 +1354,7 @@ func genAsStatic(as *Node) {
 	}
 
 	var nam Node
-	if !stataddr(&nam, as.Left) || (nam.Class != PEXTERN && as.Left != nblank) {
+	if !stataddr(&nam, as.Left) || (nam.Class() != PEXTERN && as.Left != nblank) {
 		Fatalf("genAsStatic: lhs %v", as.Left)
 	}
 

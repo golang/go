@@ -34,3 +34,14 @@ func (f *bitset32) set2(shift uint8, b uint8) {
 	// Set new bits.
 	*(*uint32)(f) |= uint32(b) << shift
 }
+
+func (f bitset32) get3(shift uint8) uint8 {
+	return uint8(f>>shift) & 7
+}
+
+func (f *bitset32) set3(shift uint8, b uint8) {
+	// Clear old bits.
+	*(*uint32)(f) &^= 7 << shift
+	// Set new bits.
+	*(*uint32)(f) |= uint32(b) << shift
+}

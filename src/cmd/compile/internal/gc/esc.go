@@ -134,7 +134,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 		if n.Op == OCALLMETH {
 			fn = asNode(n.Left.Sym.Def)
 		}
-		if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Name.Defn != nil {
+		if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
 			m := v.visit(fn.Name.Defn)
 			if m < min {
 				min = m
@@ -413,7 +413,7 @@ func newEscState(recursive bool) *EscState {
 	e := new(EscState)
 	e.theSink.Op = ONAME
 	e.theSink.Orig = &e.theSink
-	e.theSink.Class = PEXTERN
+	e.theSink.SetClass(PEXTERN)
 	e.theSink.Sym = lookup(".sink")
 	e.nodeEscState(&e.theSink).Loopdepth = -1
 	e.recursive = recursive
@@ -557,7 +557,7 @@ func (e *EscState) escfunc(fn *Node) {
 			continue
 		}
 		lnE := e.nodeEscState(ln)
-		switch ln.Class {
+		switch ln.Class() {
 		// out params are in a loopdepth between the sink and all local variables
 		case PPARAMOUT:
 			lnE.Loopdepth = 0
@@ -579,7 +579,7 @@ func (e *EscState) escfunc(fn *Node) {
 	// in a mutually recursive group we lose track of the return values
 	if e.recursive {
 		for _, ln := range Curfn.Func.Dcl {
-			if ln.Op == ONAME && ln.Class == PPARAMOUT {
+			if ln.Op == ONAME && ln.Class() == PPARAMOUT {
 				e.escflows(&e.theSink, ln, e.stepAssign(nil, ln, ln, "returned from recursive function"))
 			}
 		}
@@ -860,7 +860,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 			if i >= retList.Len() {
 				break
 			}
-			if lrn.Op != ONAME || lrn.Class != PPARAMOUT {
+			if lrn.Op != ONAME || lrn.Class() != PPARAMOUT {
 				continue
 			}
 			e.escassignWhyWhere(lrn, retList.Index(i), "return", n)
@@ -988,7 +988,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 		// it should always be known, but if not, be conservative
 		// and keep the current loop depth.
 		if n.Left.Op == ONAME {
-			switch n.Left.Class {
+			switch n.Left.Class() {
 			case PAUTO:
 				nE := e.nodeEscState(n)
 				leftE := e.nodeEscState(n.Left)
@@ -1083,7 +1083,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 		OCALLPART:
 
 	case ONAME:
-		if dst.Class == PEXTERN {
+		if dst.Class() == PEXTERN {
 			dstwhy = "assigned to top level variable"
 			dst = &e.theSink
 		}
@@ -1440,7 +1440,7 @@ func (e *EscState) initEscRetval(call *Node, fntype *types.Type) {
 		ret := newname(lookup(buf))
 		ret.SetAddable(false) // TODO(mdempsky): Seems suspicious.
 		ret.Type = f.Type
-		ret.Class = PAUTO
+		ret.SetClass(PAUTO)
 		ret.Name.Curfn = Curfn
 		e.nodeEscState(ret).Loopdepth = e.loopdepth
 		ret.SetUsed(true)
@@ -1466,7 +1466,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 	case OCALLFUNC:
 		fn = call.Left
 		fntype = fn.Type
-		indirect = fn.Op != ONAME || fn.Class != PFUNC
+		indirect = fn.Op != ONAME || fn.Class() != PFUNC
 
 	case OCALLMETH:
 		fn = asNode(call.Left.Sym.Def)
@@ -1519,7 +1519,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 	}
 
 	cE := e.nodeEscState(call)
-	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
+	if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC &&
 		fn.Name.Defn != nil && fn.Name.Defn.Nbody.Len() != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v::esccall:: %S in recursive group\n", linestr(lineno), call)
@@ -1533,7 +1533,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 
 		sawRcvr := false
 		for _, n := range fn.Name.Defn.Func.Dcl {
-			switch n.Class {
+			switch n.Class() {
 			case PPARAM:
 				if call.Op != OCALLFUNC && !sawRcvr {
 					e.escassignWhyWhere(n, call.Left.Left, "call receiver", call)
@@ -1725,8 +1725,8 @@ func (e *EscState) escflood(dst *Node) {
 // funcOutputAndInput reports whether dst and src correspond to output and input parameters of the same function.
 func funcOutputAndInput(dst, src *Node) bool {
 	// Note if dst is marked as escaping, then "returned" is too weak.
-	return dst.Op == ONAME && dst.Class == PPARAMOUT &&
-		src.Op == ONAME && src.Class == PPARAM && src.Name.Curfn == dst.Name.Curfn
+	return dst.Op == ONAME && dst.Class() == PPARAMOUT &&
+		src.Op == ONAME && src.Class() == PPARAM && src.Name.Curfn == dst.Name.Curfn
 }
 
 func (es *EscStep) describe(src *Node) {
@@ -1830,7 +1830,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 	// If parameter content escapes to heap, set EscContentEscapes
 	// Note minor confusion around escape from pointer-to-struct vs escape from struct
 	if dst.Esc == EscHeap &&
-		src.Op == ONAME && src.Class == PPARAM && src.Esc&EscMask < EscHeap &&
+		src.Op == ONAME && src.Class() == PPARAM && src.Esc&EscMask < EscHeap &&
 		level.int() > 0 {
 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 		if Debug['m'] != 0 {
@@ -1845,7 +1845,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 	osrcesc = src.Esc
 	switch src.Op {
 	case ONAME:
-		if src.Class == PPARAM && (leaks || dstE.Loopdepth < 0) && src.Esc&EscMask < EscHeap {
+		if src.Class() == PPARAM && (leaks || dstE.Loopdepth < 0) && src.Esc&EscMask < EscHeap {
 			if level.guaranteedDereference() > 0 {
 				src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 				if Debug['m'] != 0 {

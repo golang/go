@@ -886,7 +886,7 @@ OpSwitch:
 			n.Right = newname(n.Sym)
 			n.Type = methodfunc(n.Type, n.Left.Type)
 			n.Xoffset = 0
-			n.Class = PFUNC
+			n.SetClass(PFUNC)
 			ok = Erv
 			break OpSwitch
 		}
@@ -3177,7 +3177,7 @@ func islvalue(n *Node) bool {
 		return islvalue(n.Left)
 
 	case ONAME:
-		if n.Class == PFUNC {
+		if n.Class() == PFUNC {
 			return false
 		}
 		return true
@@ -3443,7 +3443,7 @@ out:
 // type check function definition
 func typecheckfunc(n *Node) {
 	for _, ln := range n.Func.Dcl {
-		if ln.Op == ONAME && (ln.Class == PPARAM || ln.Class == PPARAMOUT) {
+		if ln.Op == ONAME && (ln.Class() == PPARAM || ln.Class() == PPARAMOUT) {
 			ln.Name.Decldepth = 1
 		}
 	}

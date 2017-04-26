@@ -312,7 +312,7 @@ func nodarg(t interface{}, fp int) *Node {
 			}
 
 			for _, n := range Curfn.Func.Dcl {
-				if (n.Class == PPARAM || n.Class == PPARAMOUT) && !t.Sym.IsBlank() && n.Sym == t.Sym {
+				if (n.Class() == PPARAM || n.Class() == PPARAMOUT) && !t.Sym.IsBlank() && n.Sym == t.Sym {
 					if n != expect {
 						Fatalf("nodarg: unexpected node: %v (%p %v) vs %v (%p %v)", n, n, n.Op, asNode(t.Nname), asNode(t.Nname), asNode(t.Nname).Op)
 					}
@@ -353,9 +353,9 @@ func nodarg(t interface{}, fp int) *Node {
 		n.Xoffset += Ctxt.FixedFrameSize()
 
 	case 1: // reading arguments inside call
-		n.Class = PPARAM
+		n.SetClass(PPARAM)
 		if funarg == types.FunargResults {
-			n.Class = PPARAMOUT
+			n.SetClass(PPARAMOUT)
 		}
 	}
 

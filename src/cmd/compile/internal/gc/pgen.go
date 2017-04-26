@@ -65,11 +65,11 @@ func emitptrargsmap() {
 // the top of the stack and increasing in size.
 // Non-autos sort on offset.
 func cmpstackvarlt(a, b *Node) bool {
-	if (a.Class == PAUTO) != (b.Class == PAUTO) {
-		return b.Class == PAUTO
+	if (a.Class() == PAUTO) != (b.Class() == PAUTO) {
+		return b.Class() == PAUTO
 	}
 
-	if a.Class != PAUTO {
+	if a.Class() != PAUTO {
 		return a.Xoffset < b.Xoffset
 	}
 
@@ -110,7 +110,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 	// Mark the PAUTO's unused.
 	for _, ln := range fn.Dcl {
-		if ln.Class == PAUTO {
+		if ln.Class() == PAUTO {
 			ln.SetUsed(false)
 		}
 	}
@@ -149,7 +149,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 	// Reassign stack offsets of the locals that are used.
 	for i, n := range fn.Dcl {
-		if n.Op != ONAME || n.Class != PAUTO {
+		if n.Op != ONAME || n.Class() != PAUTO {
 			continue
 		}
 		if !n.Used() {
@@ -237,7 +237,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
 		var abbrev int
 		offs := n.Xoffset
 
-		switch n.Class {
+		switch n.Class() {
 		case PAUTO:
 			if !n.Used() {
 				Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")

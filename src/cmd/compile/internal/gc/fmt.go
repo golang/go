@@ -447,11 +447,11 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " x(%d)", n.Xoffset)
 	}
 
-	if n.Class != 0 {
-		if int(n.Class) < len(classnames) {
-			fmt.Fprintf(s, " class(%s)", classnames[n.Class])
+	if n.Class() != 0 {
+		if int(n.Class()) < len(classnames) {
+			fmt.Fprintf(s, " class(%s)", classnames[n.Class()])
 		} else {
-			fmt.Fprintf(s, " class(%d?)", n.Class)
+			fmt.Fprintf(s, " class(%d?)", n.Class())
 		}
 	}
 
