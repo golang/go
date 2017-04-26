@@ -370,7 +370,10 @@ func (b *profileBuilder) build() error {
 // when emitting locations.
 func (b *profileBuilder) readMapping() {
 	data, _ := ioutil.ReadFile("/proc/self/maps")
+	parseProcSelfMaps(data, b.addMapping)
+}
 
+func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file, buildID string)) {
 	// $ cat /proc/self/maps
 	// 00400000-0040b000 r-xp 00000000 fc:01 787766                             /bin/cat
 	// 0060a000-0060b000 r--p 0000a000 fc:01 787766                             /bin/cat
@@ -456,7 +459,11 @@ func (b *profileBuilder) readMapping() {
 		// enter the mappings into b.mem in the first place.
 
 		buildID, _ := elfBuildID(file)
-		b.mem = append(b.mem, memMap{uintptr(lo), uintptr(hi)})
-		b.pbMapping(tagProfile_Mapping, uint64(len(b.mem)), lo, hi, offset, file, buildID)
+		addMapping(lo, hi, offset, file, buildID)
 	}
+}
+
+func (b *profileBuilder) addMapping(lo, hi, offset uint64, file, buildID string) {
+	b.mem = append(b.mem, memMap{uintptr(lo), uintptr(hi)})
+	b.pbMapping(tagProfile_Mapping, uint64(len(b.mem)), lo, hi, offset, file, buildID)
 }
