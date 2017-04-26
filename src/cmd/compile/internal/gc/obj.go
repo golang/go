@@ -137,7 +137,8 @@ func dumpobj1(outfile string, mode int) {
 
 	dumpglobls()
 	addptabs()
-	dumptypestructs(externdcl)
+	addsignats(externdcl)
+	dumpsignats()
 	dumptabs()
 	dumpimportstrings()
 	dumpbasictypes()
