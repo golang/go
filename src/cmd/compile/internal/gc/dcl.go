@@ -570,7 +570,7 @@ func structfield(n *Node) *types.Field {
 		if n.Left != nil {
 			n.Left.Type = n.Type
 		}
-		if n.Embedded != 0 {
+		if n.Embedded() {
 			checkembeddedtype(n.Type)
 		}
 	}
@@ -593,7 +593,11 @@ func structfield(n *Node) *types.Field {
 
 	if n.Left != nil && n.Left.Op == ONAME {
 		f.Nname = asTypesNode(n.Left)
-		f.Embedded = n.Embedded
+		if n.Embedded() {
+			f.Embedded = 1
+		} else {
+			f.Embedded = 0
+		}
 		f.Sym = asNode(f.Nname).Sym
 	}
 
@@ -779,7 +783,7 @@ func embedded(s *types.Sym, pkg *types.Pkg) *Node {
 		n = newname(s.Pkg.Lookup(name))
 	}
 	n = nod(ODCLFIELD, n, oldname(s))
-	n.Embedded = 1
+	n.SetEmbedded(true)
 	return n
 }
 

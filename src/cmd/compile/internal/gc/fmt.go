@@ -501,8 +501,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " implicit(%v)", n.Implicit())
 	}
 
-	if n.Embedded != 0 {
-		fmt.Fprintf(s, " embedded(%d)", n.Embedded)
+	if n.Embedded() {
+		fmt.Fprintf(s, " embedded")
 	}
 
 	if n.Addrtaken() {
