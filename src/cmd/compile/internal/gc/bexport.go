@@ -487,7 +487,7 @@ func (p *exporter) obj(sym *types.Sym) {
 			Fatalf("exporter: variable/function exported but not defined: %v", sym)
 		}
 
-		if n.Type.Etype == TFUNC && n.Class == PFUNC {
+		if n.Type.Etype == TFUNC && n.Class() == PFUNC {
 			// function
 			p.tag(funcTag)
 			p.pos(n)

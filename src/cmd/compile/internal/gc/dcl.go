@@ -125,7 +125,7 @@ func declare(n *Node, ctxt Class) {
 	s.Def = asTypesNode(n)
 	n.Name.Vargen = int32(gen)
 	n.Name.Funcdepth = funcdepth
-	n.Class = ctxt
+	n.SetClass(ctxt)
 
 	autoexport(n, ctxt)
 }
@@ -269,7 +269,7 @@ func oldname(s *types.Sym) *Node {
 		if c == nil || c.Name.Funcdepth != funcdepth {
 			// Do not have a closure var for the active closure yet; make one.
 			c = newname(s)
-			c.Class = PAUTOHEAP
+			c.SetClass(PAUTOHEAP)
 			c.SetIsClosureVar(true)
 			c.SetIsddd(n.Isddd())
 			c.Name.Defn = n
@@ -663,7 +663,7 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
 		f.Funarg = funarg
 
 		// esc.go needs to find f given a PPARAM to add the tag.
-		if n.Left != nil && n.Left.Class == PPARAM {
+		if n.Left != nil && n.Left.Class() == PPARAM {
 			n.Left.Name.Param.Field = f
 		}
 		if f.Broke() {
@@ -683,7 +683,7 @@ func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
 		f.Funarg = funarg
 
 		// esc.go needs to find f given a PPARAM to add the tag.
-		if asNode(f.Nname) != nil && asNode(f.Nname).Class == PPARAM {
+		if asNode(f.Nname) != nil && asNode(f.Nname).Class() == PPARAM {
 			asNode(f.Nname).Name.Param.Field = f
 		}
 	}
@@ -1215,7 +1215,7 @@ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
 	if n.Op == OCALLMETH {
 		fn = asNode(n.Left.Sym.Def)
 	}
-	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
+	if fn == nil || fn.Op != ONAME || fn.Class() != PFUNC || fn.Name.Defn == nil {
 		return
 	}
 	defn := fn.Name.Defn

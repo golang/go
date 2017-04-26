@@ -145,7 +145,7 @@ type progeffectscache struct {
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
 func livenessShouldTrack(n *Node) bool {
-	return n.Op == ONAME && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && types.Haspointers(n.Type)
+	return n.Op == ONAME && (n.Class() == PAUTO || n.Class() == PPARAM || n.Class() == PPARAMOUT) && types.Haspointers(n.Type)
 }
 
 // getvariables returns the list of on-stack variables that we need to track.
@@ -183,7 +183,7 @@ func (lv *Liveness) initcache() {
 	lv.cache.initialized = true
 
 	for i, node := range lv.vars {
-		switch node.Class {
+		switch node.Class() {
 		case PPARAM:
 			// A return instruction with a p.to is a tail return, which brings
 			// the stack pointer back up (if it ever went down) and then jumps
@@ -487,7 +487,7 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
 			break
 		}
 		node := vars[i]
-		switch node.Class {
+		switch node.Class() {
 		case PAUTO:
 			xoffset = node.Xoffset + lv.stkptrsize
 			onebitwalktype1(node.Type, &xoffset, locals)
@@ -658,7 +658,7 @@ func livenessepilogue(lv *Liveness) {
 	// don't need to keep the stack copy live?
 	if lv.fn.Func.HasDefer() {
 		for i, n := range lv.vars {
-			if n.Class == PPARAMOUT {
+			if n.Class() == PPARAMOUT {
 				if n.IsOutputParamHeapAddr() {
 					// Just to be paranoid.  Heap addresses are PAUTOs.
 					Fatalf("variable %v both output param and heap output param", n)
@@ -792,7 +792,7 @@ func livenessepilogue(lv *Liveness) {
 	// the only things that can possibly be live are the
 	// input parameters.
 	for j, n := range lv.vars {
-		if n.Class != PPARAM && lv.livevars[0].Get(int32(j)) {
+		if n.Class() != PPARAM && lv.livevars[0].Get(int32(j)) {
 			Fatalf("internal error: %v %L recorded as live on entry", lv.fn.Func.Nname, n)
 		}
 	}
@@ -949,7 +949,7 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
 // The clobber instruction is added at the end of b.
 func clobberPtr(b *ssa.Block, v *Node, offset int64) {
 	var aux interface{}
-	if v.Class == PAUTO {
+	if v.Class() == PAUTO {
 		aux = &ssa.AutoSymbol{Node: v}
 	} else {
 		aux = &ssa.ArgSymbol{Node: v}

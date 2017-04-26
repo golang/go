@@ -36,7 +36,7 @@ func addrescapes(n *Node) {
 
 		// if this is a tmpname (PAUTO), it was tagged by tmpname as not escaping.
 		// on PPARAM it means something different.
-		if n.Class == PAUTO && n.Esc == EscNever {
+		if n.Class() == PAUTO && n.Esc == EscNever {
 			break
 		}
 
@@ -46,7 +46,7 @@ func addrescapes(n *Node) {
 			break
 		}
 
-		if n.Class != PPARAM && n.Class != PPARAMOUT && n.Class != PAUTO {
+		if n.Class() != PPARAM && n.Class() != PPARAMOUT && n.Class() != PAUTO {
 			break
 		}
 
@@ -91,13 +91,13 @@ func addrescapes(n *Node) {
 // isParamStackCopy reports whether this is the on-stack copy of a
 // function parameter that moved to the heap.
 func (n *Node) isParamStackCopy() bool {
-	return n.Op == ONAME && (n.Class == PPARAM || n.Class == PPARAMOUT) && n.Name.Param.Heapaddr != nil
+	return n.Op == ONAME && (n.Class() == PPARAM || n.Class() == PPARAMOUT) && n.Name.Param.Heapaddr != nil
 }
 
 // isParamHeapCopy reports whether this is the on-heap copy of
 // a function parameter that moved to the heap.
 func (n *Node) isParamHeapCopy() bool {
-	return n.Op == ONAME && n.Class == PAUTOHEAP && n.Name.Param.Stackcopy != nil
+	return n.Op == ONAME && n.Class() == PAUTOHEAP && n.Name.Param.Stackcopy != nil
 }
 
 // moveToHeap records the parameter or local variable n as moved to the heap.
@@ -108,7 +108,7 @@ func moveToHeap(n *Node) {
 	if compiling_runtime {
 		yyerror("%v escapes to heap, not allowed in runtime.", n)
 	}
-	if n.Class == PAUTOHEAP {
+	if n.Class() == PAUTOHEAP {
 		Dump("n", n)
 		Fatalf("double move to heap")
 	}
@@ -127,7 +127,7 @@ func moveToHeap(n *Node) {
 	// Parameters have a local stack copy used at function start/end
 	// in addition to the copy in the heap that may live longer than
 	// the function.
-	if n.Class == PPARAM || n.Class == PPARAMOUT {
+	if n.Class() == PPARAM || n.Class() == PPARAMOUT {
 		if n.Xoffset == BADWIDTH {
 			Fatalf("addrescapes before param assignment")
 		}
@@ -140,9 +140,9 @@ func moveToHeap(n *Node) {
 		stackcopy.SetAddable(false)
 		stackcopy.Type = n.Type
 		stackcopy.Xoffset = n.Xoffset
-		stackcopy.Class = n.Class
+		stackcopy.SetClass(n.Class())
 		stackcopy.Name.Param.Heapaddr = heapaddr
-		if n.Class == PPARAMOUT {
+		if n.Class() == PPARAMOUT {
 			// Make sure the pointer to the heap copy is kept live throughout the function.
 			// The function could panic at any point, and then a defer could recover.
 			// Thus, we need the pointer to the heap copy always available so the
@@ -164,7 +164,7 @@ func moveToHeap(n *Node) {
 			}
 			// Parameters are before locals, so can stop early.
 			// This limits the search even in functions with many local variables.
-			if d.Class == PAUTO {
+			if d.Class() == PAUTO {
 				break
 			}
 		}
@@ -175,7 +175,7 @@ func moveToHeap(n *Node) {
 	}
 
 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
-	n.Class = PAUTOHEAP
+	n.SetClass(PAUTOHEAP)
 	n.Xoffset = 0
 	n.Name.Param.Heapaddr = heapaddr
 	n.Esc = EscHeap
@@ -215,7 +215,7 @@ func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *types.Type) {
 	n := newnamel(pos, s)
 	s.Def = asTypesNode(n)
 	n.Type = t
-	n.Class = PAUTO
+	n.SetClass(PAUTO)
 	n.Esc = EscNever
 	n.Name.Curfn = curfn
 	n.Name.SetAutoTemp(true)

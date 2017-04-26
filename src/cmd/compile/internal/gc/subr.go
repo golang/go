@@ -1799,7 +1799,7 @@ func hashmem(t *types.Type) *Node {
 	sym := Runtimepkg.Lookup("memhash")
 
 	n := newname(sym)
-	n.Class = PFUNC
+	n.SetClass(PFUNC)
 	tfn := nod(OTFUNC, nil, nil)
 	tfn.List.Append(anonfield(types.NewPtr(t)))
 	tfn.List.Append(anonfield(types.Types[TUINTPTR]))

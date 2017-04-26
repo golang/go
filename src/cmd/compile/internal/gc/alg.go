@@ -343,7 +343,7 @@ func hashfor(t *types.Type) *Node {
 	}
 
 	n := newname(sym)
-	n.Class = PFUNC
+	n.SetClass(PFUNC)
 	tfn := nod(OTFUNC, nil, nil)
 	tfn.List.Append(anonfield(types.NewPtr(t)))
 	tfn.List.Append(anonfield(types.Types[TUINTPTR]))

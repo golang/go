@@ -178,7 +178,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 // because we emit explicit VARKILL instructions marking the end of those
 // temporaries' lifetimes.
 func isaddrokay(n *Node) bool {
-	return islvalue(n) && (n.Op != ONAME || n.Class == PEXTERN || n.IsAutoTmp())
+	return islvalue(n) && (n.Op != ONAME || n.Class() == PEXTERN || n.IsAutoTmp())
 }
 
 // Orderaddrtemp ensures that n is okay to pass by address to runtime routines.

@@ -109,7 +109,7 @@ func reexportdep(n *Node) {
 
 	switch n.Op {
 	case ONAME:
-		switch n.Class {
+		switch n.Class() {
 		// methods will be printed along with their type
 		// nodes for T.Method expressions
 		case PFUNC:
