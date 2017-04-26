@@ -34,8 +34,8 @@ type ptabEntry struct {
 
 // runtime interface and reflection data structures
 var (
-	signatlistmu sync.Mutex // protects signatlist
-	signatlist   = make(map[*types.Type]bool)
+	signatsetmu sync.Mutex // protects signatset
+	signatset   = make(map[*types.Type]struct{})
 
 	itabs []itabEntry
 	ptabs []ptabEntry
@@ -944,9 +944,9 @@ func typenamesym(t *types.Type) *types.Sym {
 		Fatalf("typenamesym %v", t)
 	}
 	s := typesym(t)
-	signatlistmu.Lock()
+	signatsetmu.Lock()
 	addsignat(t)
-	signatlistmu.Unlock()
+	signatsetmu.Unlock()
 	return s
 }
 
@@ -1412,11 +1412,11 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
 }
 
 func addsignat(t *types.Type) {
-	signatlist[t] = true
+	signatset[t] = struct{}{}
 }
 
 func addsignats(dcls []*Node) {
-	// copy types from dcl list to signatlist
+	// copy types from dcl list to signatset
 	for _, n := range dcls {
 		if n.Op == OTYPE {
 			addsignat(n.Type)
@@ -1425,15 +1425,15 @@ func addsignats(dcls []*Node) {
 }
 
 func dumpsignats() {
-	// Process signatlist. Use a loop, as dtypesym adds
-	// entries to signatlist while it is being processed.
-	signats := make([]typeAndStr, len(signatlist))
-	for len(signatlist) > 0 {
+	// Process signatset. Use a loop, as dtypesym adds
+	// entries to signatset while it is being processed.
+	signats := make([]typeAndStr, len(signatset))
+	for len(signatset) > 0 {
 		signats = signats[:0]
 		// Transfer entries to a slice and sort, for reproducible builds.
-		for t := range signatlist {
+		for t := range signatset {
 			signats = append(signats, typeAndStr{t: t, short: typesymname(t), regular: t.String()})
-			delete(signatlist, t)
+			delete(signatset, t)
 		}
 		sort.Sort(typesByString(signats))
 		for _, ts := range signats {
