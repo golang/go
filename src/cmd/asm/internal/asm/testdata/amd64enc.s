@@ -80,10 +80,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADCQ (R11), DX                          // 491313
 	ADCQ (BX), R11                          // 4c131b
 	ADCQ (R11), R11                         // 4d131b
-	//TODO: ADCB (BX), DL                   // 1213
-	//TODO: ADCB (R11), DL                  // 411213
-	//TODO: ADCB (BX), R11                  // 44121b
-	//TODO: ADCB (R11), R11                 // 45121b
+	ADCB (BX), DL                           // 1213
+	ADCB (R11), DL                          // 411213
+	ADCB (BX), R11                          // 44121b
+	ADCB (R11), R11                         // 45121b
 	//TODO: ADCXL (BX), DX                  // 660f38f613
 	//TODO: ADCXL (R11), DX                 // 66410f38f613
 	//TODO: ADCXL DX, DX                    // 660f38f6d2
