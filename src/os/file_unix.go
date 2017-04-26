@@ -186,6 +186,9 @@ func (file *file) close() error {
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
+		if e == poll.ErrFileClosing {
+			e = ErrClosed
+		}
 		err = &PathError{"close", file.name, e}
 	}
 
