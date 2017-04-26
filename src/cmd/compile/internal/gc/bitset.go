@@ -23,3 +23,14 @@ func (f *bitset32) set(mask uint32, b bool) {
 		*(*uint32)(f) &^= mask
 	}
 }
+
+func (f bitset32) get2(shift uint8) uint8 {
+	return uint8(f>>shift) & 3
+}
+
+func (f *bitset32) set2(shift uint8, b uint8) {
+	// Clear old bits.
+	*(*uint32)(f) &^= 3 << shift
+	// Set new bits.
+	*(*uint32)(f) |= uint32(b) << shift
+}

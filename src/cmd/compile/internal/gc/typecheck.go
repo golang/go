@@ -3628,12 +3628,12 @@ func typecheckdef(n *Node) *Node {
 		return n
 	}
 
-	if n.Walkdef == 1 {
+	if n.Walkdef() == 1 {
 		return n
 	}
 
 	typecheckdefstack = append(typecheckdefstack, n)
-	if n.Walkdef == 2 {
+	if n.Walkdef() == 2 {
 		flusherrors()
 		fmt.Printf("typecheckdef loop:")
 		for i := len(typecheckdefstack) - 1; i >= 0; i-- {
@@ -3644,7 +3644,7 @@ func typecheckdef(n *Node) *Node {
 		Fatalf("typecheckdef loop")
 	}
 
-	n.Walkdef = 2
+	n.SetWalkdef(2)
 
 	if n.Type != nil || n.Sym == nil { // builtin or no name
 		goto ret
@@ -3766,7 +3766,7 @@ func typecheckdef(n *Node) *Node {
 		if Curfn != nil {
 			defercheckwidth()
 		}
-		n.Walkdef = 1
+		n.SetWalkdef(1)
 		n.Type = types.New(TFORW)
 		n.Type.Nod = asTypesNode(n)
 		n.Type.Sym = n.Sym // TODO(gri) this also happens in typecheckdeftype(n) - where should it happen?
@@ -3794,7 +3794,7 @@ ret:
 	typecheckdefstack = typecheckdefstack[:last]
 
 	lineno = lno
-	n.Walkdef = 1
+	n.SetWalkdef(1)
 	return n
 }
 

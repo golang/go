@@ -59,7 +59,6 @@ type Node struct {
 	Etype     types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
 	Class     Class       // PPARAM, PAUTO, PEXTERN, etc
 	Embedded  uint8       // ODCLFIELD embedded type
-	Walkdef   uint8       // tracks state during typecheckdef; 2 == loop detected
 	Typecheck uint8       // tracks state during typechecking; 2 == loop detected
 	Initorder uint8
 }
@@ -74,27 +73,31 @@ func (n *Node) IsAutoTmp() bool {
 }
 
 const (
-	nodeHasBreak = 1 << iota
-	nodeIsClosureVar
-	nodeIsOutputParamHeapAddr
-	nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
-	nodeAssigned  // is the variable ever assigned to
-	nodeAddrtaken // address taken, even if not moved to heap
-	nodeImplicit
-	nodeIsddd    // is the argument variadic
-	nodeLocal    // type created in this file (see also Type.Local)
-	nodeDiag     // already printed error about this
-	nodeColas    // OAS resulting from :=
-	nodeNonNil   // guaranteed to be non-nil
-	nodeNoescape // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
-	nodeBounded  // bounds check unnecessary
-	nodeAddable  // addressable
-	nodeUsed     // for variable/label declared and not used error
-	nodeHasCall  // expression contains a function call
-	nodeLikely   // if statement condition likely
-	nodeHasVal   // node.E contains a Val
-	nodeHasOpt   // node.E contains an Opt
+	nodeWalkdef, _ = iota, 1 << iota // tracks state during typecheckdef; 2 == loop detected; two bits
+	_, _                             // second nodeWalkdef bit
+	_, nodeHasBreak
+	_, nodeIsClosureVar
+	_, nodeIsOutputParamHeapAddr
+	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+	_, nodeAssigned  // is the variable ever assigned to
+	_, nodeAddrtaken // address taken, even if not moved to heap
+	_, nodeImplicit
+	_, nodeIsddd    // is the argument variadic
+	_, nodeLocal    // type created in this file (see also Type.Local)
+	_, nodeDiag     // already printed error about this
+	_, nodeColas    // OAS resulting from :=
+	_, nodeNonNil   // guaranteed to be non-nil
+	_, nodeNoescape // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+	_, nodeBounded  // bounds check unnecessary
+	_, nodeAddable  // addressable
+	_, nodeUsed     // for variable/label declared and not used error
+	_, nodeHasCall  // expression contains a function call
+	_, nodeLikely   // if statement condition likely
+	_, nodeHasVal   // node.E contains a Val
+	_, nodeHasOpt   // node.E contains an Opt
 )
+
+func (n *Node) Walkdef() uint8 { return n.flags.get2(nodeWalkdef) }
 
 func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
 func (n *Node) IsClosureVar() bool          { return n.flags&nodeIsClosureVar != 0 }
@@ -116,6 +119,8 @@ func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
 func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
 func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
 func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
+
+func (n *Node) SetWalkdef(b uint8) { n.flags.set2(nodeWalkdef, b) }
 
 func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
 func (n *Node) SetIsClosureVar(b bool)          { n.flags.set(nodeIsClosureVar, b) }
