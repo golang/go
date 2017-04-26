@@ -55,7 +55,7 @@ func init1(n *Node, out *[]*Node) {
 	switch n.Class {
 	case PEXTERN, PFUNC:
 	default:
-		if isblank(n) && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder == InitNotStarted {
+		if isblank(n) && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder() == InitNotStarted {
 			// blank names initialization is part of init() but not
 			// when they are inside a function.
 			break
@@ -63,10 +63,10 @@ func init1(n *Node, out *[]*Node) {
 		return
 	}
 
-	if n.Initorder == InitDone {
+	if n.Initorder() == InitDone {
 		return
 	}
-	if n.Initorder == InitPending {
+	if n.Initorder() == InitPending {
 		// Since mutually recursive sets of functions are allowed,
 		// we don't necessarily raise an error if n depends on a node
 		// which is already waiting for its dependencies to be visited.
@@ -95,7 +95,7 @@ func init1(n *Node, out *[]*Node) {
 	}
 
 	// reached a new unvisited node.
-	n.Initorder = InitPending
+	n.SetInitorder(InitPending)
 	initlist = append(initlist, n)
 
 	// make sure that everything n depends on is initialized.
@@ -133,10 +133,10 @@ func init1(n *Node, out *[]*Node) {
 			}
 
 		case OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
-			if defn.Initorder == InitDone {
+			if defn.Initorder() == InitDone {
 				break
 			}
-			defn.Initorder = InitPending
+			defn.SetInitorder(InitPending)
 			for _, n2 := range defn.Rlist.Slice() {
 				init1(n2, out)
 			}
@@ -144,7 +144,7 @@ func init1(n *Node, out *[]*Node) {
 				Dump("nonstatic", defn)
 			}
 			*out = append(*out, defn)
-			defn.Initorder = InitDone
+			defn.SetInitorder(InitDone)
 		}
 	}
 
@@ -155,7 +155,7 @@ func init1(n *Node, out *[]*Node) {
 	initlist[last] = nil // allow GC
 	initlist = initlist[:last]
 
-	n.Initorder = InitDone
+	n.SetInitorder(InitDone)
 	return
 }
 
@@ -197,7 +197,7 @@ func foundinitloop(node, visited *Node) {
 
 // recurse over n, doing init1 everywhere.
 func init2(n *Node, out *[]*Node) {
-	if n == nil || n.Initorder == InitDone {
+	if n == nil || n.Initorder() == InitDone {
 		return
 	}
 
