@@ -58,7 +58,6 @@ type Node struct {
 	Op        Op
 	Etype     types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
 	Class     Class       // PPARAM, PAUTO, PEXTERN, etc
-	Embedded  uint8       // ODCLFIELD embedded type
 	Typecheck uint8       // tracks state during typechecking; 2 == loop detected
 	Initorder uint8
 }
@@ -95,6 +94,7 @@ const (
 	_, nodeLikely   // if statement condition likely
 	_, nodeHasVal   // node.E contains a Val
 	_, nodeHasOpt   // node.E contains an Opt
+	_, nodeEmbedded // ODCLFIELD embedded type
 )
 
 func (n *Node) Walkdef() uint8 { return n.flags.get2(nodeWalkdef) }
@@ -119,6 +119,7 @@ func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
 func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
 func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
 func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
+func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
 
 func (n *Node) SetWalkdef(b uint8) { n.flags.set2(nodeWalkdef, b) }
 
@@ -142,6 +143,7 @@ func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
 func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
 func (n *Node) SetHasVal(b bool)                { n.flags.set(nodeHasVal, b) }
 func (n *Node) SetHasOpt(b bool)                { n.flags.set(nodeHasOpt, b) }
+func (n *Node) SetEmbedded(b bool)              { n.flags.set(nodeEmbedded, b) }
 
 // Val returns the Val for the node.
 func (n *Node) Val() Val {
