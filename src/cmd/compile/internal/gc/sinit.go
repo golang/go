@@ -9,11 +9,12 @@ import (
 	"fmt"
 )
 
-// static initialization
+// Static initialization ordering state.
+// These values are stored in two bits in Node.flags.
 const (
-	InitNotStarted = 0
-	InitDone       = 1
-	InitPending    = 2
+	InitNotStarted = iota
+	InitDone
+	InitPending
 )
 
 type InitEntry struct {
