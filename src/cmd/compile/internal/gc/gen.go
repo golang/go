@@ -24,10 +24,11 @@ func Sysfunc(name string) *obj.LSym {
 // to be taken.
 func addrescapes(n *Node) {
 	switch n.Op {
-	// probably a type error already.
-	// dump("addrescapes", n);
 	default:
-		break
+		// Unexpected Op, probably due to a previous type error. Ignore.
+
+	case OIND, ODOTPTR:
+		// Nothing to do.
 
 	case ONAME:
 		if n == nodfp {
@@ -72,9 +73,6 @@ func addrescapes(n *Node) {
 		moveToHeap(n)
 		Curfn = oldfn
 		lineno = ln
-
-	case OIND, ODOTPTR:
-		break
 
 	// ODOTPTR has already been introduced,
 	// so these are the non-pointer ODOT and OINDEX.
