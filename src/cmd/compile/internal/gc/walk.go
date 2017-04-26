@@ -180,7 +180,7 @@ func walkstmt(n *Node) *Node {
 		OEMPTY,
 		ORECOVER,
 		OGETG:
-		if n.Typecheck == 0 {
+		if n.Typecheck() == 0 {
 			Fatalf("missing typecheck: %+v", n)
 		}
 		wascopy := n.Op == OCOPY
@@ -195,7 +195,7 @@ func walkstmt(n *Node) *Node {
 	// special case for a receive where we throw away
 	// the value received.
 	case ORECV:
-		if n.Typecheck == 0 {
+		if n.Typecheck() == 0 {
 			Fatalf("missing typecheck: %+v", n)
 		}
 		init := n.Ninit
@@ -479,7 +479,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 		Dump("walk-before", n)
 	}
 
-	if n.Typecheck != 1 {
+	if n.Typecheck() != 1 {
 		Fatalf("missed typecheck: %+v", n)
 	}
 
@@ -552,7 +552,7 @@ opswitch:
 		if t.IsArray() {
 			safeexpr(n.Left, init)
 			nodconst(n, n.Type, t.NumElem())
-			n.Typecheck = 1
+			n.SetTypecheck(1)
 		}
 
 	case OLSH, ORSH:
@@ -826,7 +826,7 @@ opswitch:
 		// don't generate a = *var if a is _
 		if !isblank(a) {
 			var_ := temp(types.NewPtr(t.Val()))
-			var_.Typecheck = 1
+			var_.SetTypecheck(1)
 			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
 			n.List.SetFirst(var_)
 			n = walkexpr(n, init)
@@ -869,7 +869,7 @@ opswitch:
 			}
 			l := nod(OEFACE, t, n.Left)
 			l.Type = n.Type
-			l.Typecheck = n.Typecheck
+			l.SetTypecheck(n.Typecheck())
 			n = l
 			break
 		}
@@ -917,7 +917,7 @@ opswitch:
 			}
 			l := nod(OEFACE, t, typecheck(nod(OADDR, value, nil), Erv))
 			l.Type = n.Type
-			l.Typecheck = n.Typecheck
+			l.SetTypecheck(n.Typecheck())
 			n = l
 			break
 		}
@@ -945,7 +945,7 @@ opswitch:
 			// Build the result.
 			e := nod(OEFACE, tmp, ifaceData(c, types.NewPtr(types.Types[TUINT8])))
 			e.Type = n.Type // assign type manually, typecheck doesn't understand OEFACE.
-			e.Typecheck = 1
+			e.SetTypecheck(1)
 			n = e
 			break
 		}
@@ -1191,7 +1191,7 @@ opswitch:
 		n.SetNonNil(true) // mapaccess1* and mapassign always return non-nil pointers.
 		n = nod(OIND, n, nil)
 		n.Type = t.Val()
-		n.Typecheck = 1
+		n.SetTypecheck(1)
 
 	case ORECV:
 		Fatalf("walkexpr ORECV") // should see inside OAS only
@@ -1596,8 +1596,8 @@ opswitch:
 		rd := nod(OIDATA, n.Right, nil)
 		ld.Type = types.Types[TUNSAFEPTR]
 		rd.Type = types.Types[TUNSAFEPTR]
-		ld.Typecheck = 1
-		rd.Typecheck = 1
+		ld.SetTypecheck(1)
+		rd.SetTypecheck(1)
 		call := mkcall1(fn, n.Type, init, lt, ld, rd)
 
 		// Check itable/type before full compare.
@@ -1876,7 +1876,7 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
 
 ret:
 	for _, n := range nn {
-		n.Typecheck = 1
+		n.SetTypecheck(1)
 	}
 	return nn
 }
@@ -2111,7 +2111,7 @@ func convas(n *Node, init *Nodes) *Node {
 		Fatalf("convas: not OAS %v", n.Op)
 	}
 
-	n.Typecheck = 1
+	n.SetTypecheck(1)
 
 	var lt *types.Type
 	var rt *types.Type
@@ -2622,7 +2622,7 @@ func byteindex(n *Node) *Node {
 	}
 	n = nod(OCONV, n, nil)
 	n.Type = types.Types[TUINT8]
-	n.Typecheck = 1
+	n.SetTypecheck(1)
 	return n
 }
 
@@ -3100,7 +3100,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		rtyp := typename(r.Type)
 		if l.Type.IsEmptyInterface() {
 			tab.Type = types.NewPtr(types.Types[TUINT8])
-			tab.Typecheck = 1
+			tab.SetTypecheck(1)
 			eqtype = nod(eq, tab, rtyp)
 		} else {
 			nonnil := nod(brcom(eq), nodnil(), tab)
@@ -3236,7 +3236,7 @@ func finishcompare(n, r *Node, init *Nodes) *Node {
 	if r.Type != n.Type {
 		r = nod(OCONVNOP, r, nil)
 		r.Type = n.Type
-		r.Typecheck = 1
+		r.SetTypecheck(1)
 		nn = r
 	}
 	return nn

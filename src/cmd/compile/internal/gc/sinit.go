@@ -1083,7 +1083,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 			r = typecheck(r, Erv)
 		} else {
 			r = nod(ONEW, nil, nil)
-			r.Typecheck = 1
+			r.SetTypecheck(1)
 			r.Type = t
 			r.Esc = n.Esc
 		}

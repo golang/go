@@ -123,10 +123,10 @@ func typecheckrange(n *Node) {
 
 	// second half of dance
 out:
-	n.Typecheck = 1
+	n.SetTypecheck(1)
 	ls = n.List.Slice()
 	for i1, n1 := range ls {
-		if n1.Typecheck == 0 {
+		if n1.Typecheck() == 0 {
 			ls[i1] = typecheck(ls[i1], Erv|Easgn)
 		}
 	}
@@ -231,9 +231,9 @@ func walkrange(n *Node) *Node {
 			tmp := nod(OADD, hp, nodintconst(t.Elem().Width))
 
 			tmp.Type = hp.Type
-			tmp.Typecheck = 1
+			tmp.SetTypecheck(1)
 			tmp.Right.Type = types.Types[types.Tptr]
-			tmp.Right.Typecheck = 1
+			tmp.Right.SetTypecheck(1)
 			a = nod(OAS, hp, tmp)
 			a = typecheck(a, Etop)
 			n.Right.Ninit.Set1(a)
@@ -283,7 +283,7 @@ func walkrange(n *Node) *Node {
 		n.Left = nil
 
 		hv1 := temp(t.Elem())
-		hv1.Typecheck = 1
+		hv1.SetTypecheck(1)
 		if types.Haspointers(t.Elem()) {
 			init = append(init, nod(OAS, hv1, nil))
 		}
@@ -291,7 +291,7 @@ func walkrange(n *Node) *Node {
 
 		n.Left = nod(ONE, hb, nodbool(false))
 		a := nod(OAS2RECV, nil, nil)
-		a.Typecheck = 1
+		a.SetTypecheck(1)
 		a.List.Set2(hv1, hb)
 		a.Rlist.Set1(nod(ORECV, ha, nil))
 		n.Left.Ninit.Set1(a)

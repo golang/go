@@ -752,7 +752,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	// Load hash from type or itab.
 	h := nodSym(ODOTPTR, itab, nil)
 	h.Type = types.Types[TUINT32]
-	h.Typecheck = 1
+	h.SetTypecheck(1)
 	if cond.Right.Type.IsEmptyInterface() {
 		h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type
 	} else {
