@@ -32,6 +32,14 @@ func TestRepoRootForImportPath(t *testing.T) {
 				repo: "https://github.com/golang/groupcache",
 			},
 		},
+		// Unicode letters in directories (issue 18660).
+		{
+			"github.com/user/unicode/испытание",
+			&repoRoot{
+				vcs:  vcsGit,
+				repo: "https://github.com/user/unicode",
+			},
+		},
 		// IBM DevOps Services tests
 		{
 			"hub.jazz.net/git/user1/pkgname",
@@ -154,16 +162,16 @@ func TestRepoRootForImportPath(t *testing.T) {
 
 		if want == nil {
 			if err == nil {
-				t.Errorf("RepoRootForImport(%q): Error expected but not received", test.path)
+				t.Errorf("repoRootForImportPath(%q): Error expected but not received", test.path)
 			}
 			continue
 		}
 		if err != nil {
-			t.Errorf("RepoRootForImport(%q): %v", test.path, err)
+			t.Errorf("repoRootForImportPath(%q): %v", test.path, err)
 			continue
 		}
 		if got.vcs.name != want.vcs.name || got.repo != want.repo {
-			t.Errorf("RepoRootForImport(%q) = VCS(%s) Repo(%s), want VCS(%s) Repo(%s)", test.path, got.vcs, got.repo, want.vcs, want.repo)
+			t.Errorf("repoRootForImportPath(%q) = VCS(%s) Repo(%s), want VCS(%s) Repo(%s)", test.path, got.vcs, got.repo, want.vcs, want.repo)
 		}
 	}
 }
