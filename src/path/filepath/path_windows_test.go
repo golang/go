@@ -451,12 +451,10 @@ func testWalkMklink(t *testing.T, linktype string) {
 
 func TestWalkDirectoryJunction(t *testing.T) {
 	testenv.MustHaveSymlink(t)
-	t.Skip("skipping broken test: see issue 10424")
 	testWalkMklink(t, "J")
 }
 
 func TestWalkDirectorySymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
-	t.Skip("skipping broken test: see issue 17540")
 	testWalkMklink(t, "D")
 }
