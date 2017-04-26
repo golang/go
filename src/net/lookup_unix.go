@@ -16,28 +16,31 @@ var onceReadProtocols sync.Once
 // readProtocols loads contents of /etc/protocols into protocols map
 // for quick access.
 func readProtocols() {
-	if file, err := open("/etc/protocols"); err == nil {
-		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
-			// tcp    6   TCP    # transmission control protocol
-			if i := byteIndex(line, '#'); i >= 0 {
-				line = line[0:i]
+	file, err := open("/etc/protocols")
+	if err != nil {
+		return
+	}
+	defer file.close()
+
+	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+		// tcp    6   TCP    # transmission control protocol
+		if i := byteIndex(line, '#'); i >= 0 {
+			line = line[0:i]
+		}
+		f := getFields(line)
+		if len(f) < 2 {
+			continue
+		}
+		if proto, _, ok := dtoi(f[1]); ok {
+			if _, ok := protocols[f[0]]; !ok {
+				protocols[f[0]] = proto
 			}
-			f := getFields(line)
-			if len(f) < 2 {
-				continue
-			}
-			if proto, _, ok := dtoi(f[1]); ok {
-				if _, ok := protocols[f[0]]; !ok {
-					protocols[f[0]] = proto
-				}
-				for _, alias := range f[2:] {
-					if _, ok := protocols[alias]; !ok {
-						protocols[alias] = proto
-					}
+			for _, alias := range f[2:] {
+				if _, ok := protocols[alias]; !ok {
+					protocols[alias] = proto
 				}
 			}
 		}
-		file.close()
 	}
 }
 

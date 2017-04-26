@@ -28,6 +28,7 @@ func probe(filename, query string) bool {
 	if file, err = open(filename); err != nil {
 		return false
 	}
+	defer file.close()
 
 	r := false
 	for line, ok := file.readLine(); ok && !r; line, ok = file.readLine() {
@@ -42,7 +43,6 @@ func probe(filename, query string) bool {
 			}
 		}
 	}
-	file.close()
 	return r
 }
 
