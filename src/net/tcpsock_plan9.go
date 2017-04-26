@@ -48,6 +48,9 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
 }
 
 func (ln *TCPListener) close() error {
+	if err := ln.fd.pfd.Close(); err != nil {
+		return err
+	}
 	if _, err := ln.fd.ctl.WriteString("hangup"); err != nil {
 		ln.fd.ctl.Close()
 		return err
