@@ -508,18 +508,19 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
 		dotypedef(ctxt, &dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		nfields := decodetypeStructFieldCount(ctxt.Arch, gotype)
-		var f string
-		var fld *dwarf.DWDie
-		var s *Symbol
 		for i := 0; i < nfields; i++ {
-			f = decodetypeStructFieldName(gotype, i)
-			s = decodetypeStructFieldType(gotype, i)
+			f := decodetypeStructFieldName(gotype, i)
+			s := decodetypeStructFieldType(gotype, i)
 			if f == "" {
 				f = s.Name[5:] // skip "type."
 			}
-			fld = newdie(ctxt, die, dwarf.DW_ABRV_STRUCTFIELD, f, 0)
+			fld := newdie(ctxt, die, dwarf.DW_ABRV_STRUCTFIELD, f, 0)
 			newrefattr(fld, dwarf.DW_AT_type, defgotype(ctxt, s))
-			newmemberoffsetattr(fld, int32(decodetypeStructFieldOffs(ctxt.Arch, gotype, i)))
+			offsetAnon := decodetypeStructFieldOffsAnon(ctxt.Arch, gotype, i)
+			newmemberoffsetattr(fld, int32(offsetAnon>>1))
+			if offsetAnon&1 != 0 { // is embedded field
+				newattr(fld, dwarf.DW_AT_go_embedded_field, dwarf.DW_CLS_FLAG, 1, 0)
+			}
 		}
 
 	case objabi.KindUnsafePointer:
