@@ -74,7 +74,7 @@ func typecheckselect(sel *Node) {
 			case ORECV:
 				n = nod(OSELRECV, nil, n)
 
-				n.Typecheck = 1
+				n.SetTypecheck(1)
 				ncase.Left = n
 
 			case OSEND:
@@ -150,7 +150,7 @@ func walkselect(sel *Node) {
 				n.Rlist.Set1(n.Right)
 				n.Right = nil
 				n.Left = nil
-				n.Typecheck = 0
+				n.SetTypecheck(0)
 				n = typecheck(n, Etop)
 			}
 

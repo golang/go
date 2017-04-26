@@ -359,7 +359,7 @@ func nodarg(t interface{}, fp int) *Node {
 		}
 	}
 
-	n.Typecheck = 1
+	n.SetTypecheck(1)
 	n.SetAddrtaken(true) // keep optimizers at bay
 	return n
 }

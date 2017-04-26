@@ -489,8 +489,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " ld(%d)", e.Loopdepth)
 	}
 
-	if c == 0 && n.Typecheck != 0 {
-		fmt.Fprintf(s, " tc(%d)", n.Typecheck)
+	if c == 0 && n.Typecheck() != 0 {
+		fmt.Fprintf(s, " tc(%d)", n.Typecheck())
 	}
 
 	if n.Isddd() {

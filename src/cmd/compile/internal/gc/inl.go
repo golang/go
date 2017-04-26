@@ -124,7 +124,7 @@ func caninl(fn *Node) {
 		return
 	}
 
-	if fn.Typecheck == 0 {
+	if fn.Typecheck() == 0 {
 		Fatalf("caninl on non-typechecked function %v", fn)
 	}
 
@@ -478,7 +478,7 @@ func inlnode(n *Node) *Node {
 	if n.Op == OAS2FUNC && n.Rlist.First().Op == OINLCALL {
 		n.Rlist.Set(inlconv2list(n.Rlist.First()))
 		n.Op = OAS2
-		n.Typecheck = 0
+		n.SetTypecheck(0)
 		n = typecheck(n, Etop)
 	} else {
 		s := n.Rlist.Slice()
@@ -757,7 +757,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	call.Nbody.Set(body)
 	call.Rlist.Set(retvars)
 	call.Type = n.Type
-	call.Typecheck = 1
+	call.SetTypecheck(1)
 
 	// Hide the args from setPos -- the parameters to the inlined
 	// call already have good line numbers that should be preserved.

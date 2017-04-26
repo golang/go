@@ -623,7 +623,7 @@ func appendinit(np **Node, init Nodes) {
 		n = nod(OCONVNOP, n, nil)
 
 		n.Type = n.Left.Type
-		n.Typecheck = 1
+		n.SetTypecheck(1)
 		*np = n
 	}
 
