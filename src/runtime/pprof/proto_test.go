@@ -191,6 +191,14 @@ ffffffffff600000-ffffffffff601000 r-xp 00000090 00:00 0                  [vsysca
 7f7d77d41000 7f7d77d64000 00000000 /lib/x86_64-linux-gnu/ld-2.19.so
 7ffc34343000 7ffc34345000 00000000 [vdso]
 ffffffffff600000 ffffffffff601000 00000090 [vsyscall]
+
+00400000-07000000 r-xp 00000000 00:00 0 
+07000000-07093000 r-xp 06c00000 00:2e 536754                             /path/to/gobench_server_main
+07093000-0722d000 rw-p 06c92000 00:2e 536754                             /path/to/gobench_server_main
+0722d000-07b21000 rw-p 00000000 00:00 0 
+c000000000-c000036000 rw-p 00000000 00:00 0 
+->
+07000000 07093000 06c00000 /path/to/gobench_server_main
 `
 
 func TestProcSelfMaps(t *testing.T) {
@@ -200,12 +208,15 @@ func TestProcSelfMaps(t *testing.T) {
 			t.Fatal("malformed test case")
 		}
 		in, out := tt[:i], tt[i+len("->\n"):]
+		if len(out) > 0 && out[len(out)-1] != '\n' {
+			out += "\n"
+		}
 		var buf bytes.Buffer
 		parseProcSelfMaps([]byte(in), func(lo, hi, offset uint64, file, buildID string) {
 			fmt.Fprintf(&buf, "%08x %08x %08x %s\n", lo, hi, offset, file)
 		})
 		if buf.String() != out {
-			t.Errorf("#%d: have:\n%s\nwant:\n%s", tx, buf.String(), out)
+			t.Errorf("#%d: have:\n%s\nwant:\n%s\n%q\n%q", tx, buf.String(), out, buf.String(), out)
 		}
 	}
 }

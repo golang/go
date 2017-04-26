@@ -442,12 +442,19 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 		if err != nil {
 			continue
 		}
-		next() // dev
-		next() // inode
+		next()          // dev
+		inode := next() // inode
 		if line == nil {
 			continue
 		}
 		file := string(line)
+		if len(inode) == 1 && inode[0] == '0' && file == "" {
+			// Huge-page text mappings list the initial fragment of
+			// mapped but unpopulated memory as being inode 0.
+			// Don't report that part.
+			// But [vdso] and [vsyscall] are inode 0, so let non-empty file names through.
+			continue
+		}
 
 		// TODO: pprof's remapMappingIDs makes two adjustments:
 		// 1. If there is an /anon_hugepage mapping first and it is
