@@ -59,7 +59,6 @@ type Node struct {
 	Etype     types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
 	Class     Class       // PPARAM, PAUTO, PEXTERN, etc
 	Typecheck uint8       // tracks state during typechecking; 2 == loop detected
-	Initorder uint8
 }
 
 // IsAutoTmp indicates if n was created by the compiler as a temporary,
@@ -72,8 +71,10 @@ func (n *Node) IsAutoTmp() bool {
 }
 
 const (
-	nodeWalkdef, _ = iota, 1 << iota // tracks state during typecheckdef; 2 == loop detected; two bits
-	_, _                             // second nodeWalkdef bit
+	nodeWalkdef, _   = iota, 1 << iota // tracks state during typecheckdef; 2 == loop detected; two bits
+	_, _                               // second nodeWalkdef bit
+	nodeInitorder, _                   // tracks state during init1; two bits
+	_, _                               // second nodeInitorder bit
 	_, nodeHasBreak
 	_, nodeIsClosureVar
 	_, nodeIsOutputParamHeapAddr
@@ -97,7 +98,8 @@ const (
 	_, nodeEmbedded // ODCLFIELD embedded type
 )
 
-func (n *Node) Walkdef() uint8 { return n.flags.get2(nodeWalkdef) }
+func (n *Node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
+func (n *Node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
 
 func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
 func (n *Node) IsClosureVar() bool          { return n.flags&nodeIsClosureVar != 0 }
@@ -121,7 +123,8 @@ func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
 func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
 func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
 
-func (n *Node) SetWalkdef(b uint8) { n.flags.set2(nodeWalkdef, b) }
+func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
+func (n *Node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }
 
 func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
 func (n *Node) SetIsClosureVar(b bool)          { n.flags.set(nodeIsClosureVar, b) }
