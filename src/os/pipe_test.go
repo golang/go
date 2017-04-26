@@ -114,7 +114,7 @@ func TestStdPipeHelper(t *testing.T) {
 	os.Exit(0)
 }
 
-func TestClosedPipeRace(t *testing.T) {
+func testClosedPipeRace(t *testing.T, read bool) {
 	switch runtime.GOOS {
 	case "freebsd":
 		t.Skip("FreeBSD does not use the poller; issue 19093")
@@ -128,25 +128,46 @@ func TestClosedPipeRace(t *testing.T) {
 	defer w.Close()
 
 	// Close the read end of the pipe in a goroutine while we are
-	// writing to the write end.
+	// writing to the write end, or vice-versa.
 	go func() {
-		// Give the main goroutine a chance to enter the Read call.
-		// This is sloppy but the test will pass even if we close
-		// before the read.
+		// Give the main goroutine a chance to enter the Read or
+		// Write call. This is sloppy but the test will pass even
+		// if we close before the read/write.
 		time.Sleep(20 * time.Millisecond)
 
-		if err := r.Close(); err != nil {
+		var err error
+		if read {
+			err = r.Close()
+		} else {
+			err = w.Close()
+		}
+		if err != nil {
 			t.Error(err)
 		}
 	}()
 
-	if _, err := r.Read(make([]byte, 1)); err == nil {
-		t.Error("Read of closed pipe unexpectedly succeeded")
+	// A slice larger than PIPE_BUF.
+	var b [65537]byte
+	if read {
+		_, err = r.Read(b[:])
+	} else {
+		_, err = w.Write(b[:])
+	}
+	if err == nil {
+		t.Error("I/O on closed pipe unexpectedly succeeded")
 	} else if pe, ok := err.(*os.PathError); !ok {
-		t.Errorf("Read of closed pipe returned unexpected error type %T; expected os.PathError", pe)
+		t.Errorf("I/O on closed pipe returned unexpected error type %T; expected os.PathError", pe)
 	} else if pe.Err != os.ErrClosed {
 		t.Errorf("got error %q but expected %q", pe.Err, os.ErrClosed)
 	} else {
-		t.Logf("Read returned expected error %q", err)
+		t.Logf("I/O returned expected error %q", err)
 	}
+}
+
+func TestClosedPipeRaceRead(t *testing.T) {
+	testClosedPipeRace(t, true)
+}
+
+func TestClosedPipeRaceWrite(t *testing.T) {
+	testClosedPipeRace(t, false)
 }

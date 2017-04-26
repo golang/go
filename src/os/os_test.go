@@ -2178,3 +2178,23 @@ func TestPipeThreads(t *testing.T) {
 		}
 	}
 }
+
+func TestDoubleCloseError(t *testing.T) {
+	path := sfdir + "/" + sfname
+	file, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	if err := file.Close(); err == nil {
+		t.Error("second Close did not fail")
+	} else if pe, ok := err.(*PathError); !ok {
+		t.Errorf("second Close returned unexpected error type %T; expected os.PathError", pe)
+	} else if pe.Err != ErrClosed {
+		t.Errorf("second Close returned %q, wanted %q", err, ErrClosed)
+	} else {
+		t.Logf("second close returned expected error %q", err)
+	}
+}

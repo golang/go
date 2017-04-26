@@ -7,7 +7,6 @@
 package os
 
 import (
-	"runtime"
 	"syscall"
 	"time"
 )
@@ -62,9 +61,8 @@ func (f *File) Chmod(mode FileMode) error {
 		return err
 	}
 	if e := f.pfd.Fchmod(syscallMode(mode)); e != nil {
-		return &PathError{"chmod", f.name, e}
+		return f.wrapErr("chmod", e)
 	}
-	runtime.KeepAlive(f)
 	return nil
 }
 
@@ -95,9 +93,8 @@ func (f *File) Chown(uid, gid int) error {
 		return err
 	}
 	if e := f.pfd.Fchown(uid, gid); e != nil {
-		return &PathError{"chown", f.name, e}
+		return f.wrapErr("chown", e)
 	}
-	runtime.KeepAlive(f)
 	return nil
 }
 
@@ -109,9 +106,8 @@ func (f *File) Truncate(size int64) error {
 		return err
 	}
 	if e := f.pfd.Ftruncate(size); e != nil {
-		return &PathError{"truncate", f.name, e}
+		return f.wrapErr("truncate", e)
 	}
-	runtime.KeepAlive(f)
 	return nil
 }
 
@@ -123,9 +119,8 @@ func (f *File) Sync() error {
 		return err
 	}
 	if e := f.pfd.Fsync(); e != nil {
-		return &PathError{"sync", f.name, e}
+		return f.wrapErr("sync", e)
 	}
-	runtime.KeepAlive(f)
 	return nil
 }
 
@@ -153,9 +148,8 @@ func (f *File) Chdir() error {
 		return err
 	}
 	if e := f.pfd.Fchdir(); e != nil {
-		return &PathError{"chdir", f.name, e}
+		return f.wrapErr("chdir", e)
 	}
-	runtime.KeepAlive(f)
 	return nil
 }
 
