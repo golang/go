@@ -139,6 +139,9 @@ const (
 	DW_AT_go_kind = 0x2900
 	DW_AT_go_key  = 0x2901
 	DW_AT_go_elem = 0x2902
+	// Attribute for DW_TAG_member of a struct type.
+	// Nonzero value indicates the struct field is an embedded field.
+	DW_AT_go_embedded_field = 0x2903
 
 	DW_AT_internal_location = 253 // params and locals; not emitted
 )
@@ -251,6 +254,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_data_member_location, DW_FORM_block1},
 			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_embedded_field, DW_FORM_flag},
 		},
 	},
 
