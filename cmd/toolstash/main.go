@@ -147,7 +147,7 @@ Examples:
 	toolstash compile x.go
 	toolstash -cmp compile x.go
 
-For details, godoc rsc.io/toolstash
+For details, godoc golang.org/x/tools/cmd/toolstash
 `
 
 func usage() {
