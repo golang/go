@@ -22,48 +22,6 @@ import (
 	"time"
 )
 
-var godocTests = []struct {
-	args      []string
-	matches   []string // regular expressions
-	dontmatch []string // regular expressions
-}{
-	{
-		args: []string{"fmt"},
-		matches: []string{
-			`import "fmt"`,
-			`Package fmt implements formatted I/O`,
-		},
-	},
-	{
-		args: []string{"io", "WriteString"},
-		matches: []string{
-			`func WriteString\(`,
-			`WriteString writes the contents of the string s to w`,
-		},
-	},
-	{
-		args: []string{"nonexistingpkg"},
-		matches: []string{
-			`cannot find package`,
-		},
-	},
-	{
-		args: []string{"fmt", "NonexistentSymbol"},
-		matches: []string{
-			`No match found\.`,
-		},
-	},
-	{
-		args: []string{"-src", "syscall", "Open"},
-		matches: []string{
-			`func Open\(`,
-		},
-		dontmatch: []string{
-			`No match found\.`,
-		},
-	},
-}
-
 // buildGodoc builds the godoc executable.
 // It returns its path, and a cleanup function.
 //
@@ -95,11 +53,69 @@ func buildGodoc(t *testing.T) (bin string, cleanup func()) {
 	return bin, func() { os.RemoveAll(tmp) }
 }
 
+var isGo19 bool // godoc19_test.go sets it to true.
+
 // Basic regression test for godoc command-line tool.
 func TestCLI(t *testing.T) {
 	bin, cleanup := buildGodoc(t)
 	defer cleanup()
-	for _, test := range godocTests {
+
+	// condStr returns s if cond is true, otherwise empty string.
+	condStr := func(cond bool, s string) string {
+		if !cond {
+			return ""
+		}
+		return s
+	}
+
+	tests := []struct {
+		args      []string
+		matches   []string // regular expressions
+		dontmatch []string // regular expressions
+	}{
+		{
+			args: []string{"fmt"},
+			matches: []string{
+				`import "fmt"`,
+				`Package fmt implements formatted I/O`,
+			},
+		},
+		{
+			args: []string{"io", "WriteString"},
+			matches: []string{
+				`func WriteString\(`,
+				`WriteString writes the contents of the string s to w`,
+			},
+		},
+		{
+			args: []string{"nonexistingpkg"},
+			matches: []string{
+				`cannot find package` +
+					// TODO: Remove this when support for Go 1.8 is dropped.
+					condStr(!isGo19,
+						// For Go 1.8 and older, because it doesn't have CL 33158 change applied to go/build.
+						// The last pattern (does not e) is for plan9:
+						// http://build.golang.org/log/2d8e5e14ed365bfa434b37ec0338cd9e6f8dd9bf
+						`|no such file or directory|does not exist|cannot find the file|(?:' does not e)`),
+			},
+		},
+		{
+			args: []string{"fmt", "NonexistentSymbol"},
+			matches: []string{
+				`No match found\.`,
+			},
+		},
+		{
+			args: []string{"-src", "syscall", "Open"},
+			matches: []string{
+				`func Open\(`,
+			},
+			dontmatch: []string{
+				`No match found\.`,
+			},
+		},
+	}
+	for _, test := range tests {
 		cmd := exec.Command(bin, test.args...)
 		cmd.Args[0] = "godoc"
 		out, err := cmd.CombinedOutput()
