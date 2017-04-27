@@ -49,8 +49,8 @@ tail:
 	JBE	move_5through8
 	CMPL	BX, $16
 	JBE	move_9through16
-	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
-	JEQ	nosse2
+	CMPB	runtime·support_sse2(SB), $1
+	JNE	nosse2
 	CMPL	BX, $32
 	JBE	move_17through32
 	CMPL	BX, $64
@@ -71,8 +71,8 @@ nosse2:
  */
 forward:
 	// If REP MOVSB isn't fast, don't use it
-	TESTL	$(1<<9), runtime·cpuid_ebx7(SB) // erms, aka enhanced REP MOVSB/STOSB
-	JEQ	fwdBy4
+	CMPB	runtime·support_erms(SB), $1 // enhanced REP MOVSB/STOSB
+	JNE	fwdBy4
 
 	// Check alignment
 	MOVL	SI, AX

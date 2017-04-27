@@ -26,10 +26,10 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVQ	SP, (g_stack+stack_hi)(DI)
 
 	// find out information about the processor we're on
-	MOVQ	$0, AX
+	MOVL	$0, AX
 	CPUID
-	MOVQ	AX, SI
-	CMPQ	AX, $0
+	MOVL	AX, SI
+	CMPL	AX, $0
 	JE	nocpuinfo
 
 	// Figure out how to serialize RDTSC.
@@ -46,62 +46,75 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 notintel:
 
 	// Load EAX=1 cpuid flags
-	MOVQ	$1, AX
+	MOVL	$1, AX
 	CPUID
-	MOVL	AX, runtime·cpuid_eax(SB)
+	MOVL	AX, runtime·processorVersionInfo(SB)
 	MOVL	CX, runtime·cpuid_ecx(SB)
 	MOVL	DX, runtime·cpuid_edx(SB)
 
+	TESTL	$(1<<26), DX // SSE2
+	SETNE	runtime·support_sse2(SB)
+
+	TESTL	$(1<<9), CX // SSSE3
+	SETNE	runtime·support_ssse3(SB)
+
+	TESTL	$(1<<19), CX // SSE4.1
+	SETNE	runtime·support_sse41(SB)
+
+	TESTL	$(1<<20), CX // SSE4.2
+	SETNE	runtime·support_sse42(SB)
+
+	TESTL	$(1<<23), CX // POPCNT
+	SETNE	runtime·support_popcnt(SB)
+
+	TESTL	$(1<<25), CX // AES
+	SETNE	runtime·support_aes(SB)
+
+	TESTL	$(1<<27), CX // OSXSAVE
+	SETNE	runtime·support_osxsave(SB)
+
+	// If OS support for XMM and YMM is not present
+	// support_avx will be set back to false later.
+	TESTL	$(1<<28), CX // AVX
+	SETNE	runtime·support_avx(SB)
+
+eax7:
 	// Load EAX=7/ECX=0 cpuid flags
-	CMPQ	SI, $7
-	JLT	no7
+	CMPL	SI, $7
+	JLT	osavx
 	MOVL	$7, AX
 	MOVL	$0, CX
 	CPUID
 	MOVL	BX, runtime·cpuid_ebx7(SB)
-no7:
-	// Detect AVX and AVX2 as per 14.7.1  Detection of AVX2 chapter of [1]
-	// [1] 64-ia-32-architectures-software-developer-manual-325462.pdf
-	// http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-manual-325462.pdf
-	MOVL	runtime·cpuid_ecx(SB), CX
-	ANDL    $0x18000000, CX // check for OSXSAVE and AVX bits
-	CMPL    CX, $0x18000000
-	JNE     noavx
-	MOVL    $0, CX
+
+	TESTL	$(1<<3), BX // BMI1
+	SETNE	runtime·support_bmi1(SB)
+
+	// If OS support for XMM and YMM is not present
+	// support_avx2 will be set back to false later.
+	TESTL	$(1<<5), BX
+	SETNE	runtime·support_avx2(SB)
+
+	TESTL	$(1<<8), BX // BMI2
+	SETNE	runtime·support_bmi2(SB)
+
+	TESTL	$(1<<9), BX // ERMS
+	SETNE	runtime·support_erms(SB)
+
+osavx:
+	CMPB	runtime·support_osxsave(SB), $1
+	JNE	noavx
+	MOVL	$0, CX
 	// For XGETBV, OSXSAVE bit is required and sufficient
 	XGETBV
-	ANDL    $6, AX
-	CMPL    AX, $6 // Check for OS support of YMM registers
-	JNE     noavx
-	MOVB    $1, runtime·support_avx(SB)
-	TESTL   $(1<<5), runtime·cpuid_ebx7(SB) // check for AVX2 bit
-	JEQ     noavx2
-	MOVB    $1, runtime·support_avx2(SB)
-	JMP     testbmi1
+	ANDL	$6, AX
+	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
+	JE nocpuinfo
 noavx:
-	MOVB    $0, runtime·support_avx(SB)
-noavx2:
-	MOVB    $0, runtime·support_avx2(SB)
-testbmi1:
-	// Detect BMI1 and BMI2 extensions as per
-	// 5.1.16.1 Detection of VEX-encoded GPR Instructions,
-	//   LZCNT and TZCNT, PREFETCHW chapter of [1]
-	MOVB    $0, runtime·support_bmi1(SB)
-	TESTL   $(1<<3), runtime·cpuid_ebx7(SB) // check for BMI1 bit
-	JEQ     testbmi2
-	MOVB    $1, runtime·support_bmi1(SB)
-testbmi2:
-	MOVB    $0, runtime·support_bmi2(SB)
-	TESTL   $(1<<8), runtime·cpuid_ebx7(SB) // check for BMI2 bit
-	JEQ     testpopcnt
-	MOVB    $1, runtime·support_bmi2(SB)
-testpopcnt:
-	MOVB	$0, runtime·support_popcnt(SB)
-	TESTL	$(1<<23), runtime·cpuid_ecx(SB) // check for POPCNT bit
-	JEQ     nocpuinfo
-	MOVB    $1, runtime·support_popcnt(SB)
-nocpuinfo:	
-	
+	MOVB $0, runtime·support_avx(SB)
+	MOVB $0, runtime·support_avx2(SB)
+
+nocpuinfo:
 	// if there is an _cgo_init, call it.
 	MOVQ	_cgo_init(SB), AX
 	TESTQ	AX, AX
@@ -1942,9 +1955,8 @@ success_avx2:
 	VZEROUPPER
 	JMP success
 sse42:
-	MOVL runtime·cpuid_ecx(SB), CX
-	ANDL $0x100000, CX
-	JZ no_sse42
+	CMPB runtime·support_sse42(SB), $1
+	JNE no_sse42
 	CMPQ AX, $12
 	// PCMPESTRI is slower than normal compare,
 	// so using it makes sense only if we advance 4+ bytes per compare

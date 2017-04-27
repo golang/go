@@ -728,17 +728,29 @@ var (
 
 	// Information about what cpu features are available.
 	// Set on startup in asm_{386,amd64,amd64p32}.s.
-	cpuid_eax         uint32
-	cpuid_ecx         uint32
-	cpuid_edx         uint32
-	cpuid_ebx7        uint32 // not set on amd64p32
-	isIntel           bool
-	lfenceBeforeRdtsc bool
-	support_avx       bool
-	support_avx2      bool
-	support_bmi1      bool
-	support_bmi2      bool
-	support_popcnt    bool
+	// Packages outside the runtime should not use these
+	// as they are not an external api.
+	processorVersionInfo uint32
+	isIntel              bool
+	lfenceBeforeRdtsc    bool
+	support_aes          bool
+	support_avx          bool
+	support_avx2         bool
+	support_bmi1         bool
+	support_bmi2         bool
+	support_erms         bool
+	support_osxsave      bool
+	support_popcnt       bool
+	support_sse2         bool
+	support_sse41        bool
+	support_sse42        bool
+	support_ssse3        bool
+
+	// TODO(moehrmann) delete below variables once external
+	// packages have their dependencies on these removed.
+	cpuid_ecx  uint32
+	cpuid_edx  uint32
+	cpuid_ebx7 uint32 // not set on amd64p32
 
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link
