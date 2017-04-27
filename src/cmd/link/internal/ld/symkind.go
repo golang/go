@@ -124,10 +124,10 @@ var abiSymKindToSymKind = [...]SymKind{
 	SDWARFINFO,
 }
 
-// ReadOnly are the symbol kinds that form read-only sections. In some
+// readOnly are the symbol kinds that form read-only sections. In some
 // cases, if they will require relocations, they are transformed into
-// rel-ro sections using RelROMap.
-var ReadOnly = []SymKind{
+// rel-ro sections using relROMap.
+var readOnly = []SymKind{
 	STYPE,
 	SSTRING,
 	SGOSTRING,
@@ -137,9 +137,9 @@ var ReadOnly = []SymKind{
 	SFUNCTAB,
 }
 
-// RelROMap describes the transformation of read-only symbols to rel-ro
+// relROMap describes the transformation of read-only symbols to rel-ro
 // symbols.
-var RelROMap = map[SymKind]SymKind{
+var relROMap = map[SymKind]SymKind{
 	STYPE:     STYPERELRO,
 	SSTRING:   SSTRINGRELRO,
 	SGOSTRING: SGOSTRINGRELRO,
