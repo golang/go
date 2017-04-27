@@ -346,7 +346,7 @@ func newSession(appdir string, args []string, opts options) (*lldbSession, error
 		i2 := s.out.LastIndex([]byte(" connect"))
 		return i0 > 0 && i1 > 0 && i2 > 0
 	}
-	if err := s.wait("lldb start", cond, 10*time.Second); err != nil {
+	if err := s.wait("lldb start", cond, 15*time.Second); err != nil {
 		panic(waitPanic{err})
 	}
 	return s, nil
