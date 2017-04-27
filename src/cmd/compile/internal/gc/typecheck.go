@@ -323,7 +323,7 @@ OpSwitch:
 				return n
 			}
 
-			n.SetUsed(true)
+			n.Name.SetUsed(true)
 		}
 
 		ok |= Erv

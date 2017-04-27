@@ -398,7 +398,7 @@ func transformclosure(xfunc *Node) {
 				addr := newname(lookup("&" + v.Sym.Name))
 				addr.Type = types.NewPtr(v.Type)
 				addr.SetClass(PAUTO)
-				addr.SetUsed(true)
+				addr.Name.SetUsed(true)
 				addr.Name.Curfn = xfunc
 				xfunc.Func.Dcl = append(xfunc.Func.Dcl, addr)
 				v.Name.Param.Heapaddr = addr
@@ -622,7 +622,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	}
 	ptr := newname(lookup("rcvr"))
 	ptr.SetClass(PAUTO)
-	ptr.SetUsed(true)
+	ptr.Name.SetUsed(true)
 	ptr.Name.Curfn = xfunc
 	xfunc.Func.Dcl = append(xfunc.Func.Dcl, ptr)
 	var body []*Node

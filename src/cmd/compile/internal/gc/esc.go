@@ -1443,7 +1443,7 @@ func (e *EscState) initEscRetval(call *Node, fntype *types.Type) {
 		ret.SetClass(PAUTO)
 		ret.Name.Curfn = Curfn
 		e.nodeEscState(ret).Loopdepth = e.loopdepth
-		ret.SetUsed(true)
+		ret.Name.SetUsed(true)
 		ret.Pos = call.Pos
 		cE.Retval.Append(ret)
 	}

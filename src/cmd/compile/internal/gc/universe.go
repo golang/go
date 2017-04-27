@@ -461,5 +461,5 @@ func finishUniverse() {
 	nodfp = newname(lookup(".fp"))
 	nodfp.Type = types.Types[TINT32]
 	nodfp.SetClass(PPARAM)
-	nodfp.SetUsed(true)
+	nodfp.Name.SetUsed(true)
 }

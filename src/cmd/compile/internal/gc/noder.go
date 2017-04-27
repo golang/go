@@ -449,7 +449,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		// parser.new_dotname
 		obj := p.expr(expr.X)
 		if obj.Op == OPACK {
-			obj.SetUsed(true)
+			obj.Name.SetUsed(true)
 			return oldname(restrictlookup(expr.Sel.Value, obj.Name.Pkg))
 		}
 		return p.setlineno(expr, nodSym(OXDOT, obj, p.name(expr.Sel)))
@@ -611,7 +611,7 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 	case *syntax.Name:
 		name := p.name(expr)
 		if n := oldname(name); n.Name != nil && n.Name.Pack != nil {
-			n.Name.Pack.SetUsed(true)
+			n.Name.Pack.Name.SetUsed(true)
 		}
 		return name
 	case *syntax.SelectorExpr:
@@ -621,7 +621,7 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 			yyerror("%v is not a package", name)
 			pkg = localpkg
 		} else {
-			asNode(name.Def).SetUsed(true)
+			asNode(name.Def).Name.SetUsed(true)
 			pkg = asNode(name.Def).Name.Pkg
 		}
 		return restrictlookup(expr.Sel.Value, pkg)
@@ -1125,7 +1125,7 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
 func mkname(sym *types.Sym) *Node {
 	n := oldname(sym)
 	if n.Name != nil && n.Name.Pack != nil {
-		n.Name.Pack.SetUsed(true)
+		n.Name.Pack.Name.SetUsed(true)
 	}
 	return n
 }

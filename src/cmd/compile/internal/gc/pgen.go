@@ -80,8 +80,8 @@ func cmpstackvarlt(a, b *Node) bool {
 		return a.Xoffset < b.Xoffset
 	}
 
-	if a.Used() != b.Used() {
-		return a.Used()
+	if a.Name.Used() != b.Name.Used() {
+		return a.Name.Used()
 	}
 
 	ap := types.Haspointers(a.Type)
@@ -118,13 +118,13 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	// Mark the PAUTO's unused.
 	for _, ln := range fn.Dcl {
 		if ln.Class() == PAUTO {
-			ln.SetUsed(false)
+			ln.Name.SetUsed(false)
 		}
 	}
 
 	for _, l := range f.RegAlloc {
 		if ls, ok := l.(ssa.LocalSlot); ok {
-			ls.N.(*Node).SetUsed(true)
+			ls.N.(*Node).Name.SetUsed(true)
 		}
 	}
 
@@ -136,10 +136,10 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 				n := a.Node.(*Node)
 				// Don't modify nodfp; it is a global.
 				if n != nodfp {
-					n.SetUsed(true)
+					n.Name.SetUsed(true)
 				}
 			case *ssa.AutoSymbol:
-				a.Node.(*Node).SetUsed(true)
+				a.Node.(*Node).Name.SetUsed(true)
 			}
 
 			if !scratchUsed {
@@ -159,7 +159,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		if n.Op != ONAME || n.Class() != PAUTO {
 			continue
 		}
-		if !n.Used() {
+		if !n.Name.Used() {
 			fn.Dcl = fn.Dcl[:i]
 			break
 		}
@@ -308,7 +308,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
 
 		switch n.Class() {
 		case PAUTO:
-			if !n.Used() {
+			if !n.Name.Used() {
 				Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
 			}
 			name = obj.NAME_AUTO

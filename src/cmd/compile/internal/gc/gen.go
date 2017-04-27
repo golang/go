@@ -71,13 +71,13 @@ func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *types.Type) {
 func temp(t *types.Type) *Node {
 	var n Node
 	tempnamel(lineno, Curfn, &n, t)
-	asNode(n.Sym.Def).SetUsed(true)
+	asNode(n.Sym.Def).Name.SetUsed(true)
 	return n.Orig
 }
 
 func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
 	var n Node
 	tempnamel(pos, curfn, &n, t)
-	asNode(n.Sym.Def).SetUsed(true)
+	asNode(n.Sym.Def).Name.SetUsed(true)
 	return n.Orig
 }

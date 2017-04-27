@@ -93,7 +93,6 @@ const (
 	_, nodeNoescape // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
 	_, nodeBounded  // bounds check unnecessary
 	_, nodeAddable  // addressable
-	_, nodeUsed     // for variable/label declared and not used error
 	_, nodeHasCall  // expression contains a function call
 	_, nodeLikely   // if statement condition likely
 	_, nodeHasVal   // node.E contains a Val
@@ -121,7 +120,6 @@ func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
 func (n *Node) Noescape() bool              { return n.flags&nodeNoescape != 0 }
 func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
 func (n *Node) Addable() bool               { return n.flags&nodeAddable != 0 }
-func (n *Node) Used() bool                  { return n.flags&nodeUsed != 0 }
 func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
 func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
 func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
@@ -148,7 +146,6 @@ func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
 func (n *Node) SetNoescape(b bool)              { n.flags.set(nodeNoescape, b) }
 func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
 func (n *Node) SetAddable(b bool)               { n.flags.set(nodeAddable, b) }
-func (n *Node) SetUsed(b bool)                  { n.flags.set(nodeUsed, b) }
 func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
 func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
 func (n *Node) SetHasVal(b bool)                { n.flags.set(nodeHasVal, b) }
@@ -231,6 +228,7 @@ type Name struct {
 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
 	Funcdepth int32
 
+	used  bool // for variable declared and not used error
 	flags bitset8
 }
 
@@ -249,6 +247,7 @@ func (n *Name) Byval() bool     { return n.flags&nameByval != 0 }
 func (n *Name) Needzero() bool  { return n.flags&nameNeedzero != 0 }
 func (n *Name) Keepalive() bool { return n.flags&nameKeepalive != 0 }
 func (n *Name) AutoTemp() bool  { return n.flags&nameAutoTemp != 0 }
+func (n *Name) Used() bool      { return n.used }
 
 func (n *Name) SetCaptured(b bool)  { n.flags.set(nameCaptured, b) }
 func (n *Name) SetReadonly(b bool)  { n.flags.set(nameReadonly, b) }
@@ -256,6 +255,7 @@ func (n *Name) SetByval(b bool)     { n.flags.set(nameByval, b) }
 func (n *Name) SetNeedzero(b bool)  { n.flags.set(nameNeedzero, b) }
 func (n *Name) SetKeepalive(b bool) { n.flags.set(nameKeepalive, b) }
 func (n *Name) SetAutoTemp(b bool)  { n.flags.set(nameAutoTemp, b) }
+func (n *Name) SetUsed(b bool)      { n.used = b }
 
 type Param struct {
 	Ntype    *Node

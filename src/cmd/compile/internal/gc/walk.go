@@ -37,21 +37,21 @@ func walk(fn *Node) {
 
 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
 	for _, ln := range fn.Func.Dcl {
-		if ln.Op == ONAME && (ln.Class() == PAUTO || ln.Class() == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used() {
-			ln.Name.Defn.Left.SetUsed(true)
+		if ln.Op == ONAME && (ln.Class() == PAUTO || ln.Class() == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Name.Used() {
+			ln.Name.Defn.Left.Name.SetUsed(true)
 		}
 	}
 
 	for _, ln := range fn.Func.Dcl {
-		if ln.Op != ONAME || (ln.Class() != PAUTO && ln.Class() != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Used() {
+		if ln.Op != ONAME || (ln.Class() != PAUTO && ln.Class() != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Name.Used() {
 			continue
 		}
 		if defn := ln.Name.Defn; defn != nil && defn.Op == OTYPESW {
-			if defn.Left.Used() {
+			if defn.Left.Name.Used() {
 				continue
 			}
 			yyerrorl(defn.Left.Pos, "%v declared and not used", ln.Sym)
-			defn.Left.SetUsed(true) // suppress repeats
+			defn.Left.Name.SetUsed(true) // suppress repeats
 		} else {
 			yyerrorl(ln.Pos, "%v declared and not used", ln.Sym)
 		}
