@@ -24,10 +24,7 @@ func probeWindowsIPStack() (supportsVistaIP bool) {
 	if err != nil {
 		return true // Windows 10 and above will deprecate this API
 	}
-	if byte(v) < 6 { // major version of Windows Vista is 6
-		return false
-	}
-	return true
+	return byte(v) >= 6 // major version of Windows Vista is 6
 }
 
 // adapterAddresses returns a list of IP adapter and address
