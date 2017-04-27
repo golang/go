@@ -214,6 +214,9 @@ func (n *Node) mayBeShared() bool {
 
 // funcname returns the name of the function n.
 func (n *Node) funcname() string {
+	if n == nil || n.Func == nil || n.Func.Nname == nil {
+		return "<nil>"
+	}
 	return n.Func.Nname.Sym.Name
 }
 
