@@ -17,14 +17,14 @@ import (
 // loadByType returns the load instruction of the given type.
 func loadByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 4:
 			return arm.AMOVF
 		case 8:
 			return arm.AMOVD
 		}
 	} else {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 1:
 			if t.IsSigned() {
 				return arm.AMOVB
@@ -47,14 +47,14 @@ func loadByType(t ssa.Type) obj.As {
 // storeByType returns the store instruction of the given type.
 func storeByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 4:
 			return arm.AMOVF
 		case 8:
 			return arm.AMOVD
 		}
 	} else {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 1:
 			return arm.AMOVB
 		case 2:
@@ -130,7 +130,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		as := arm.AMOVW
 		if v.Type.IsFloat() {
-			switch v.Type.Size() {
+			switch v.Type.MustSize() {
 			case 4:
 				as = arm.AMOVF
 			case 8:
@@ -562,10 +562,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if a.Op == ssa.OpLoadReg {
 			t := a.Type
 			switch {
-			case v.Op == ssa.OpARMMOVBreg && t.Size() == 1 && t.IsSigned(),
-				v.Op == ssa.OpARMMOVBUreg && t.Size() == 1 && !t.IsSigned(),
-				v.Op == ssa.OpARMMOVHreg && t.Size() == 2 && t.IsSigned(),
-				v.Op == ssa.OpARMMOVHUreg && t.Size() == 2 && !t.IsSigned():
+			case v.Op == ssa.OpARMMOVBreg && t.MustSize() == 1 && t.IsSigned(),
+				v.Op == ssa.OpARMMOVBUreg && t.MustSize() == 1 && !t.IsSigned(),
+				v.Op == ssa.OpARMMOVHreg && t.MustSize() == 2 && t.IsSigned(),
+				v.Op == ssa.OpARMMOVHUreg && t.MustSize() == 2 && !t.IsSigned():
 				// arg is a proper-typed load, already zero/sign-extended, don't extend again
 				if v.Reg() == v.Args[0].Reg() {
 					return

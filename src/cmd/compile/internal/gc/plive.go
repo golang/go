@@ -807,7 +807,7 @@ func (lv *Liveness) clobber() {
 	}
 	var varSize int64
 	for _, n := range lv.vars {
-		varSize += n.Type.Size()
+		varSize += n.Type.MustSize()
 	}
 	if len(lv.livevars) > 1000 || varSize > 10000 {
 		// Be careful to avoid doing too much work.
@@ -932,7 +932,7 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
 
 	case TARRAY:
 		for i := int64(0); i < t.NumElem(); i++ {
-			clobberWalk(b, v, offset+i*t.Elem().Size(), t.Elem())
+			clobberWalk(b, v, offset+i*t.Elem().MustSize(), t.Elem())
 		}
 
 	case TSTRUCT:

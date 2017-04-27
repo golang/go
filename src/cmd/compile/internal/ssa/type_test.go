@@ -26,8 +26,8 @@ type TypeImpl struct {
 	Name string
 }
 
-func (t *TypeImpl) Size() int64            { return t.Size_ }
-func (t *TypeImpl) Alignment() int64       { return t.Align }
+func (t *TypeImpl) MustSize() int64        { return t.Size_ }
+func (t *TypeImpl) MustAlignment() int64   { return t.Align }
 func (t *TypeImpl) IsBoolean() bool        { return t.Boolean }
 func (t *TypeImpl) IsInteger() bool        { return t.Integer }
 func (t *TypeImpl) IsSigned() bool         { return t.Signed }

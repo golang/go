@@ -50,7 +50,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 func zeroAuto(pp *gc.Progs, n *gc.Node) {
 	// Note: this code must not clobber any registers.
 	sym := n.Sym.Linksym()
-	size := n.Type.Size()
+	size := n.Type.MustSize()
 	for i := int64(0); i < size; i += 8 {
 		p := pp.Prog(mips.AMOVV)
 		p.From.Type = obj.TYPE_REG

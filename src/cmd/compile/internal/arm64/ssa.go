@@ -16,14 +16,14 @@ import (
 // loadByType returns the load instruction of the given type.
 func loadByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 4:
 			return arm64.AFMOVS
 		case 8:
 			return arm64.AFMOVD
 		}
 	} else {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 1:
 			if t.IsSigned() {
 				return arm64.AMOVB
@@ -52,14 +52,14 @@ func loadByType(t ssa.Type) obj.As {
 // storeByType returns the store instruction of the given type.
 func storeByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 4:
 			return arm64.AFMOVS
 		case 8:
 			return arm64.AFMOVD
 		}
 	} else {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 1:
 			return arm64.AMOVB
 		case 2:
@@ -104,7 +104,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		as := arm64.AMOVD
 		if v.Type.IsFloat() {
-			switch v.Type.Size() {
+			switch v.Type.MustSize() {
 			case 4:
 				as = arm64.AFMOVS
 			case 8:
@@ -489,12 +489,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if a.Op == ssa.OpLoadReg {
 			t := a.Type
 			switch {
-			case v.Op == ssa.OpARM64MOVBreg && t.Size() == 1 && t.IsSigned(),
-				v.Op == ssa.OpARM64MOVBUreg && t.Size() == 1 && !t.IsSigned(),
-				v.Op == ssa.OpARM64MOVHreg && t.Size() == 2 && t.IsSigned(),
-				v.Op == ssa.OpARM64MOVHUreg && t.Size() == 2 && !t.IsSigned(),
-				v.Op == ssa.OpARM64MOVWreg && t.Size() == 4 && t.IsSigned(),
-				v.Op == ssa.OpARM64MOVWUreg && t.Size() == 4 && !t.IsSigned():
+			case v.Op == ssa.OpARM64MOVBreg && t.MustSize() == 1 && t.IsSigned(),
+				v.Op == ssa.OpARM64MOVBUreg && t.MustSize() == 1 && !t.IsSigned(),
+				v.Op == ssa.OpARM64MOVHreg && t.MustSize() == 2 && t.IsSigned(),
+				v.Op == ssa.OpARM64MOVHUreg && t.MustSize() == 2 && !t.IsSigned(),
+				v.Op == ssa.OpARM64MOVWreg && t.MustSize() == 4 && t.IsSigned(),
+				v.Op == ssa.OpARM64MOVWUreg && t.MustSize() == 4 && !t.IsSigned():
 				// arg is a proper-typed load, already zero/sign-extended, don't extend again
 				if v.Reg() == v.Args[0].Reg() {
 					return

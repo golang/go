@@ -1023,7 +1023,7 @@ func rewriteValueARM64_OpARM64ADDshiftLL_0(v *Value) bool {
 		return true
 	}
 	// match: (ADDshiftLL <t> [c] (SRLconst (MOVWUreg x) [32-c]) x)
-	// cond: c < 32 && t.Size() == 4
+	// cond: c < 32 && t.MustSize() == 4
 	// result: (RORWconst [32-c] x)
 	for {
 		t := v.Type
@@ -1043,7 +1043,7 @@ func rewriteValueARM64_OpARM64ADDshiftLL_0(v *Value) bool {
 		if x != v.Args[1] {
 			break
 		}
-		if !(c < 32 && t.Size() == 4) {
+		if !(c < 32 && t.MustSize() == 4) {
 			break
 		}
 		v.reset(OpARM64RORWconst)
@@ -1153,7 +1153,7 @@ func rewriteValueARM64_OpARM64ADDshiftRL_0(v *Value) bool {
 		return true
 	}
 	// match: (ADDshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x))
-	// cond: c < 32 && t.Size() == 4
+	// cond: c < 32 && t.MustSize() == 4
 	// result: (RORWconst [   c] x)
 	for {
 		t := v.Type
@@ -1173,7 +1173,7 @@ func rewriteValueARM64_OpARM64ADDshiftRL_0(v *Value) bool {
 		if x != v_1.Args[0] {
 			break
 		}
-		if !(c < 32 && t.Size() == 4) {
+		if !(c < 32 && t.MustSize() == 4) {
 			break
 		}
 		v.reset(OpARM64RORWconst)
@@ -7858,7 +7858,7 @@ func rewriteValueARM64_OpARM64ORshiftLL_0(v *Value) bool {
 		return true
 	}
 	// match: (ORshiftLL <t> [c] (SRLconst (MOVWUreg x) [32-c]) x)
-	// cond: c < 32 && t.Size() == 4
+	// cond: c < 32 && t.MustSize() == 4
 	// result: (RORWconst [32-c] x)
 	for {
 		t := v.Type
@@ -7878,7 +7878,7 @@ func rewriteValueARM64_OpARM64ORshiftLL_0(v *Value) bool {
 		if x != v.Args[1] {
 			break
 		}
-		if !(c < 32 && t.Size() == 4) {
+		if !(c < 32 && t.MustSize() == 4) {
 			break
 		}
 		v.reset(OpARM64RORWconst)
@@ -8551,7 +8551,7 @@ func rewriteValueARM64_OpARM64ORshiftRL_0(v *Value) bool {
 		return true
 	}
 	// match: (ORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x))
-	// cond: c < 32 && t.Size() == 4
+	// cond: c < 32 && t.MustSize() == 4
 	// result: (RORWconst [   c] x)
 	for {
 		t := v.Type
@@ -8571,7 +8571,7 @@ func rewriteValueARM64_OpARM64ORshiftRL_0(v *Value) bool {
 		if x != v_1.Args[0] {
 			break
 		}
-		if !(c < 32 && t.Size() == 4) {
+		if !(c < 32 && t.MustSize() == 4) {
 			break
 		}
 		v.reset(OpARM64RORWconst)
@@ -9539,7 +9539,7 @@ func rewriteValueARM64_OpARM64XORshiftLL_0(v *Value) bool {
 		return true
 	}
 	// match: (XORshiftLL <t> [c] (SRLconst (MOVWUreg x) [32-c]) x)
-	// cond: c < 32 && t.Size() == 4
+	// cond: c < 32 && t.MustSize() == 4
 	// result: (RORWconst [32-c] x)
 	for {
 		t := v.Type
@@ -9559,7 +9559,7 @@ func rewriteValueARM64_OpARM64XORshiftLL_0(v *Value) bool {
 		if x != v.Args[1] {
 			break
 		}
-		if !(c < 32 && t.Size() == 4) {
+		if !(c < 32 && t.MustSize() == 4) {
 			break
 		}
 		v.reset(OpARM64RORWconst)
@@ -9711,7 +9711,7 @@ func rewriteValueARM64_OpARM64XORshiftRL_0(v *Value) bool {
 		return true
 	}
 	// match: (XORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x))
-	// cond: c < 32 && t.Size() == 4
+	// cond: c < 32 && t.MustSize() == 4
 	// result: (RORWconst [   c] x)
 	for {
 		t := v.Type
@@ -9731,7 +9731,7 @@ func rewriteValueARM64_OpARM64XORshiftRL_0(v *Value) bool {
 		if x != v_1.Args[0] {
 			break
 		}
-		if !(c < 32 && t.Size() == 4) {
+		if !(c < 32 && t.MustSize() == 4) {
 			break
 		}
 		v.reset(OpARM64RORWconst)
@@ -14978,14 +14978,14 @@ func rewriteValueARM64_OpStaticCall_0(v *Value) bool {
 }
 func rewriteValueARM64_OpStore_0(v *Value) bool {
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).Size() == 1
+	// cond: t.(Type).MustSize() == 1
 	// result: (MOVBstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).Size() == 1) {
+		if !(t.(Type).MustSize() == 1) {
 			break
 		}
 		v.reset(OpARM64MOVBstore)
@@ -14995,14 +14995,14 @@ func rewriteValueARM64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).Size() == 2
+	// cond: t.(Type).MustSize() == 2
 	// result: (MOVHstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).Size() == 2) {
+		if !(t.(Type).MustSize() == 2) {
 			break
 		}
 		v.reset(OpARM64MOVHstore)
@@ -15012,14 +15012,14 @@ func rewriteValueARM64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).Size() == 4 && !is32BitFloat(val.Type)
+	// cond: t.(Type).MustSize() == 4 && !is32BitFloat(val.Type)
 	// result: (MOVWstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).Size() == 4 && !is32BitFloat(val.Type)) {
+		if !(t.(Type).MustSize() == 4 && !is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpARM64MOVWstore)
@@ -15029,14 +15029,14 @@ func rewriteValueARM64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).Size() == 8 && !is64BitFloat(val.Type)
+	// cond: t.(Type).MustSize() == 8 && !is64BitFloat(val.Type)
 	// result: (MOVDstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).Size() == 8 && !is64BitFloat(val.Type)) {
+		if !(t.(Type).MustSize() == 8 && !is64BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpARM64MOVDstore)
@@ -15046,14 +15046,14 @@ func rewriteValueARM64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).Size() == 4 && is32BitFloat(val.Type)
+	// cond: t.(Type).MustSize() == 4 && is32BitFloat(val.Type)
 	// result: (FMOVSstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).Size() == 4 && is32BitFloat(val.Type)) {
+		if !(t.(Type).MustSize() == 4 && is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpARM64FMOVSstore)
@@ -15063,14 +15063,14 @@ func rewriteValueARM64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).Size() == 8 && is64BitFloat(val.Type)
+	// cond: t.(Type).MustSize() == 8 && is64BitFloat(val.Type)
 	// result: (FMOVDstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).Size() == 8 && is64BitFloat(val.Type)) {
+		if !(t.(Type).MustSize() == 8 && is64BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpARM64FMOVDstore)

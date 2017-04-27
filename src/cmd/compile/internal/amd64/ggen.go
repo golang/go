@@ -128,7 +128,7 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 		op = x86.AMOVL
 	}
 	sym := n.Sym.Linksym()
-	size := n.Type.Size()
+	size := n.Type.MustSize()
 	for i := int64(0); i < size; i += int64(gc.Widthptr) {
 		p := pp.Prog(op)
 		p.From.Type = obj.TYPE_CONST

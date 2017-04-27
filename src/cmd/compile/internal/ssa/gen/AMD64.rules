@@ -305,13 +305,13 @@
 
 // Lowering stores
 // These more-specific FP versions of Store pattern should come first.
-(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (MOVSDstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (MOVSSstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 8 && is64BitFloat(val.Type) -> (MOVSDstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 4 && is32BitFloat(val.Type) -> (MOVSSstore ptr val mem)
 
-(Store {t} ptr val mem) && t.(Type).Size() == 8 -> (MOVQstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 -> (MOVLstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 8 -> (MOVQstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 4 -> (MOVLstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 2 -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 1 -> (MOVBstore ptr val mem)
 
 // Lowering moves
 (Move [0] _ _ mem) -> mem
@@ -683,13 +683,13 @@
 ( ORL (SHLLconst x [c]) (SHRLconst x [d])) && d==32-c -> (ROLLconst x [c])
 (XORL (SHLLconst x [c]) (SHRLconst x [d])) && d==32-c -> (ROLLconst x [c])
 
-(ADDL <t> (SHLLconst x [c]) (SHRWconst x [d])) && d==16-c && c < 16 && t.Size() == 2 -> (ROLWconst x [c])
-( ORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && d==16-c && c < 16 && t.Size() == 2 -> (ROLWconst x [c])
-(XORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && d==16-c && c < 16 && t.Size() == 2 -> (ROLWconst x [c])
+(ADDL <t> (SHLLconst x [c]) (SHRWconst x [d])) && d==16-c && c < 16 && t.MustSize() == 2 -> (ROLWconst x [c])
+( ORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && d==16-c && c < 16 && t.MustSize() == 2 -> (ROLWconst x [c])
+(XORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && d==16-c && c < 16 && t.MustSize() == 2 -> (ROLWconst x [c])
 
-(ADDL <t> (SHLLconst x [c]) (SHRBconst x [d])) && d==8-c  && c < 8 && t.Size() == 1 -> (ROLBconst x [c])
-( ORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && d==8-c  && c < 8 && t.Size() == 1 -> (ROLBconst x [c])
-(XORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && d==8-c  && c < 8 && t.Size() == 1 -> (ROLBconst x [c])
+(ADDL <t> (SHLLconst x [c]) (SHRBconst x [d])) && d==8-c  && c < 8 && t.MustSize() == 1 -> (ROLBconst x [c])
+( ORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && d==8-c  && c < 8 && t.MustSize() == 1 -> (ROLBconst x [c])
+(XORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && d==8-c  && c < 8 && t.MustSize() == 1 -> (ROLBconst x [c])
 
 (ROLQconst [c] (ROLQconst [d] x)) -> (ROLQconst [(c+d)&63] x)
 (ROLLconst [c] (ROLLconst [d] x)) -> (ROLLconst [(c+d)&31] x)
@@ -724,39 +724,39 @@
 (ORL (SHLL x (ANDQconst y [15]))
      (ANDL (SHRW x (NEGQ (ADDQconst (ANDQconst y [15]) [-16])))
            (SBBLcarrymask (CMPQconst (NEGQ (ADDQconst (ANDQconst y [15]) [-16])) [16]))))
-  && v.Type.Size() == 2
+  && v.Type.MustSize() == 2
   -> (ROLW x y)
 (ORL (SHLL x (ANDLconst y [15]))
      (ANDL (SHRW x (NEGL (ADDLconst (ANDLconst y [15]) [-16])))
            (SBBLcarrymask (CMPLconst (NEGL (ADDLconst (ANDLconst y [15]) [-16])) [16]))))
-  && v.Type.Size() == 2
+  && v.Type.MustSize() == 2
   -> (ROLW x y)
 (ORL (SHRW x (ANDQconst y [15]))
      (SHLL x (NEGQ (ADDQconst (ANDQconst y [15]) [-16]))))
-  && v.Type.Size() == 2
+  && v.Type.MustSize() == 2
   -> (RORW x y)
 (ORL (SHRW x (ANDLconst y [15]))
      (SHLL x (NEGL (ADDLconst (ANDLconst y [15]) [-16]))))
-  && v.Type.Size() == 2
+  && v.Type.MustSize() == 2
   -> (RORW x y)
 
 (ORL (SHLL x (ANDQconst y [ 7]))
      (ANDL (SHRB x (NEGQ (ADDQconst (ANDQconst y [ 7]) [ -8])))
            (SBBLcarrymask (CMPQconst (NEGQ (ADDQconst (ANDQconst y [ 7]) [ -8])) [ 8]))))
-  && v.Type.Size() == 1
+  && v.Type.MustSize() == 1
   -> (ROLB x y)
 (ORL (SHLL x (ANDLconst y [ 7]))
      (ANDL (SHRB x (NEGL (ADDLconst (ANDLconst y [ 7]) [ -8])))
            (SBBLcarrymask (CMPLconst (NEGL (ADDLconst (ANDLconst y [ 7]) [ -8])) [ 8]))))
-  && v.Type.Size() == 1
+  && v.Type.MustSize() == 1
   -> (ROLB x y)
 (ORL (SHRB x (ANDQconst y [ 7]))
      (SHLL x (NEGQ (ADDQconst (ANDQconst y [ 7]) [ -8]))))
-  && v.Type.Size() == 1
+  && v.Type.MustSize() == 1
   -> (RORB x y)
 (ORL (SHRB x (ANDLconst y [ 7]))
      (SHLL x (NEGL (ADDLconst (ANDLconst y [ 7]) [ -8]))))
-  && v.Type.Size() == 1
+  && v.Type.MustSize() == 1
   -> (RORB x y)
 
 // rotate left negative = rotate right
@@ -1467,7 +1467,7 @@
 // things like (ANDLconst [0x100] x) which were formerly
 // (ANDBconst [0] x).  Probably doesn't happen very often.
 // If we cared, we might do:
-//  (ANDLconst <t> [c] x) && t.Size()==1 && int8(x)==0 -> (MOVLconst [0])
+//  (ANDLconst <t> [c] x) && t.MustSize()==1 && int8(x)==0 -> (MOVLconst [0])
 
 // Convert constant subtracts to constant adds
 (SUBQconst [c] x) && c != -(1<<31) -> (ADDQconst [-c] x)
