@@ -1361,8 +1361,8 @@ func (ctxt *Link) dodata() {
 		// "read only" data with relocations needs to go in its own section
 		// when building a shared library. We do this by boosting objects of
 		// type SXXX with relocations to type SXXXRELRO.
-		for _, symnro := range ReadOnly {
-			symnrelro := RelROMap[symnro]
+		for _, symnro := range readOnly {
+			symnrelro := relROMap[symnro]
 
 			ro := []*Symbol{}
 			relro := data[symnrelro]
@@ -1640,14 +1640,14 @@ func (ctxt *Link) dodata() {
 		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
 		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
 	}
-	for _, symn := range ReadOnly {
+	for _, symn := range readOnly {
 		align := dataMaxAlign[symn]
 		if sect.Align < align {
 			sect.Align = align
 		}
 	}
 	datsize = Rnd(datsize, int64(sect.Align))
-	for _, symn := range ReadOnly {
+	for _, symn := range readOnly {
 		for _, s := range data[symn] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
@@ -1720,16 +1720,16 @@ func (ctxt *Link) dodata() {
 		sect.Vaddr = 0
 		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
 		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
-		for _, symnro := range ReadOnly {
-			symn := RelROMap[symnro]
+		for _, symnro := range readOnly {
+			symn := relROMap[symnro]
 			align := dataMaxAlign[symn]
 			if sect.Align < align {
 				sect.Align = align
 			}
 		}
 		datsize = Rnd(datsize, int64(sect.Align))
-		for _, symnro := range ReadOnly {
-			symn := RelROMap[symnro]
+		for _, symnro := range readOnly {
+			symn := relROMap[symnro]
 			for _, s := range data[symn] {
 				datsize = aligndatsize(datsize, s)
 				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
