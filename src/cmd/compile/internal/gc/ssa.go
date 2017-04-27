@@ -1519,8 +1519,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return v
 		}
 
-		from.AssertWidthCalculated()
-		to.AssertWidthCalculated()
+		dowidth(from)
+		dowidth(to)
 		if from.Width != to.Width {
 			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Width, to, to.Width)
 			return nil
@@ -2321,7 +2321,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 		return
 	}
 	t := left.Type
-	t.AssertWidthCalculated()
+	dowidth(t)
 	if s.canSSA(left) {
 		if deref {
 			s.Fatalf("can SSA LHS %v but not RHS %s", left, right)
@@ -3095,7 +3095,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		}
 		rcvr = s.newValue1(ssa.OpIData, types.Types[TUINTPTR], i)
 	}
-	fn.Type.AssertWidthCalculated()
+	dowidth(fn.Type)
 	stksize := fn.Type.ArgWidth() // includes receiver
 
 	// Run all argument assignments. The arg slots have already
@@ -3351,7 +3351,7 @@ func (s *state) canSSA(n *Node) bool {
 
 // canSSA reports whether variables of type t are SSA-able.
 func canSSAType(t *types.Type) bool {
-	t.AssertWidthCalculated()
+	dowidth(t)
 	if t.Width > int64(4*Widthptr) {
 		// 4*Widthptr is an arbitrary constant. We want it
 		// to be at least 3*Widthptr so slices can be registerized.
@@ -4972,7 +4972,7 @@ func (e *ssafn) namedAuto(name string, typ ssa.Type, pos src.XPos) ssa.GCNode {
 	n.Esc = EscNever
 	n.Name.Curfn = e.curfn
 	e.curfn.Func.Dcl = append(e.curfn.Func.Dcl, n)
-	t.AssertWidthCalculated()
+	dowidth(t)
 	return n
 }
 

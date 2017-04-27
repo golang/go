@@ -254,6 +254,7 @@ func compileSSA(fn *Node, worker int) {
 // and waits for them to complete.
 func compileFunctions() {
 	if len(compilequeue) != 0 {
+		sizeCalculationDisabled = true // not safe to calculate sizes concurrently
 		if raceEnabled {
 			// Randomize compilation order to try to shake out races.
 			tmp := make([]*Node, len(compilequeue))
@@ -287,6 +288,7 @@ func compileFunctions() {
 		close(c)
 		compilequeue = nil
 		wg.Wait()
+		sizeCalculationDisabled = false
 	}
 }
 
