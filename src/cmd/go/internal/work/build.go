@@ -1102,6 +1102,12 @@ func (b *Builder) Do(root *Action) {
 		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", cfg.Goos, cfg.Goarch)
 		os.Exit(2)
 	}
+	for _, tag := range cfg.BuildContext.BuildTags {
+		if strings.Contains(tag, ",") {
+			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
+			os.Exit(2)
+		}
+	}
 
 	// Build list of all actions, assigning depth-first post-order priority.
 	// The original implementation here was a true queue

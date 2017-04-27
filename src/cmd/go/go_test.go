@@ -3885,3 +3885,15 @@ func main() {
 	tg.creatingTemp(exe)
 	tg.run("build", "-o", exe, "p")
 }
+
+func TestBuildTagsNoComma(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("go"))
+	tg.run("install", "-tags", "tag1 tag2", "math")
+	tg.runFail("install", "-tags", "tag1,tag2", "math")
+	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
+	tg.runFail("build", "-tags", "tag1,tag2", "math")
+	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
+}
