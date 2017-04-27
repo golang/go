@@ -33,17 +33,25 @@ func TestRepoRootForImportPath(t *testing.T) {
 				Repo: "https://github.com/golang/groupcache",
 			},
 		},
+		// Unicode letters in directories (issue 18660).
+		{
+			"github.com/user/unicode/испытание",
+			&RepoRoot{
+				VCS:  vcsGit,
+				Repo: "https://github.com/user/unicode",
+			},
+		},
 	}
 
 	for _, test := range tests {
 		got, err := RepoRootForImportPath(test.path, false)
 		if err != nil {
-			t.Errorf("RepoRootForImport(%q): %v", test.path, err)
+			t.Errorf("RepoRootForImportPath(%q): %v", test.path, err)
 			continue
 		}
 		want := test.want
 		if got.VCS.Name != want.VCS.Name || got.Repo != want.Repo {
-			t.Errorf("RepoRootForImport(%q) = VCS(%s) Repo(%s), want VCS(%s) Repo(%s)", test.path, got.VCS, got.Repo, want.VCS, want.Repo)
+			t.Errorf("RepoRootForImportPath(%q) = VCS(%s) Repo(%s), want VCS(%s) Repo(%s)", test.path, got.VCS, got.Repo, want.VCS, want.Repo)
 		}
 	}
 }
