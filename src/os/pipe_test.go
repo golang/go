@@ -10,10 +10,13 @@ package os_test
 import (
 	"fmt"
 	"internal/testenv"
+	"io/ioutil"
 	"os"
 	osexec "os/exec"
 	"os/signal"
 	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -120,6 +123,19 @@ func testClosedPipeRace(t *testing.T, read bool) {
 		t.Skip("FreeBSD does not use the poller; issue 19093")
 	}
 
+	limit := 1
+	if !read {
+		// Get the amount we have to write to overload a pipe
+		// with no reader.
+		limit = 65537
+		if b, err := ioutil.ReadFile("/proc/sys/fs/pipe-max-size"); err == nil {
+			if i, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+				limit = i + 1
+			}
+		}
+		t.Logf("using pipe write limit of %d", limit)
+	}
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -146,8 +162,7 @@ func testClosedPipeRace(t *testing.T, read bool) {
 		}
 	}()
 
-	// A slice larger than PIPE_BUF.
-	var b [65537]byte
+	b := make([]byte, limit)
 	if read {
 		_, err = r.Read(b[:])
 	} else {
