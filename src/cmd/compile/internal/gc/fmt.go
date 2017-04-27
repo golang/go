@@ -520,11 +520,11 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	}
 
 	if c == 0 && n.HasCall() {
-		fmt.Fprintf(s, " hascall")
+		fmt.Fprint(s, " hascall")
 	}
 
-	if c == 0 && n.Used() {
-		fmt.Fprintf(s, " used(%v)", n.Used())
+	if c == 0 && n.Name != nil && n.Name.Used() {
+		fmt.Fprint(s, " used")
 	}
 }
 

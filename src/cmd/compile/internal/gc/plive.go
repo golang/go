@@ -250,7 +250,7 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (pos int32, effect liveEffect) {
 	// variable" ICEs (issue 19632).
 	switch v.Op {
 	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
-		if !n.Used() {
+		if !n.Name.Used() {
 			return -1, 0
 		}
 	}

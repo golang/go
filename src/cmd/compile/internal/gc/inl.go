@@ -745,7 +745,6 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	body := subst.list(fn.Func.Inl)
 
 	lab := nod(OLABEL, retlabel, nil)
-	lab.SetUsed(true) // avoid 'not used' when function doesn't have return
 	body = append(body, lab)
 
 	typecheckslice(body, Etop)
@@ -817,7 +816,7 @@ func inlvar(var_ *Node) *Node {
 	n := newname(var_.Sym)
 	n.Type = var_.Type
 	n.SetClass(PAUTO)
-	n.SetUsed(true)
+	n.Name.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	n.SetAddrtaken(var_.Addrtaken())
 
@@ -830,7 +829,7 @@ func retvar(t *types.Field, i int) *Node {
 	n := newname(lookupN("~r", i))
 	n.Type = t.Type
 	n.SetClass(PAUTO)
-	n.SetUsed(true)
+	n.Name.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n
@@ -842,7 +841,7 @@ func argvar(t *types.Type, i int) *Node {
 	n := newname(lookupN("~arg", i))
 	n.Type = t.Elem()
 	n.SetClass(PAUTO)
-	n.SetUsed(true)
+	n.Name.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n

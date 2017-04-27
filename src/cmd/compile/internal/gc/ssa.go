@@ -4964,7 +4964,7 @@ func (e *ssafn) namedAuto(name string, typ ssa.Type, pos src.XPos) ssa.GCNode {
 	n.Orig = n
 
 	s.Def = asTypesNode(n)
-	asNode(s.Def).SetUsed(true)
+	asNode(s.Def).Name.SetUsed(true)
 	n.Sym = s
 	n.Type = t
 	n.SetClass(PAUTO)
