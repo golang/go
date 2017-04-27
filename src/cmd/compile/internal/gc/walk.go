@@ -2611,7 +2611,7 @@ func vmatch1(l *Node, r *Node) bool {
 }
 
 // paramstoheap returns code to allocate memory for heap-escaped parameters
-// and to copy non-result prameters' values from the stack.
+// and to copy non-result parameters' values from the stack.
 func paramstoheap(params *types.Type) []*Node {
 	var nn []*Node
 	for _, t := range params.Fields().Slice() {

@@ -849,6 +849,13 @@ func (t *Type) WidthCalculated() bool {
 	return t.Align > 0
 }
 
+// AssertWidthCalculated calls Fatalf if t's width has not yet been calculated.
+func (t *Type) AssertWidthCalculated() {
+	if !t.WidthCalculated() {
+		Fatalf("width not calculated: %v", t)
+	}
+}
+
 // ArgWidth returns the total aligned argument size for a function.
 // It includes the receiver, parameters, and results.
 func (t *Type) ArgWidth() int64 {
@@ -857,12 +864,12 @@ func (t *Type) ArgWidth() int64 {
 }
 
 func (t *Type) Size() int64 {
-	Dowidth(t)
+	t.AssertWidthCalculated()
 	return t.Width
 }
 
 func (t *Type) Alignment() int64 {
-	Dowidth(t)
+	t.AssertWidthCalculated()
 	return int64(t.Align)
 }
 
