@@ -667,8 +667,8 @@ func TestStatSymlinkLoop(t *testing.T) {
 	defer os.Remove("x")
 
 	_, err = os.Stat("x")
-	if perr, ok := err.(*os.PathError); !ok || perr.Err != syscall.ELOOP {
-		t.Errorf("expected *PathError with ELOOP, got %T: %v\n", err, err)
+	if _, ok := err.(*os.PathError); !ok {
+		t.Errorf("expected *PathError, got %T: %v\n", err, err)
 	}
 }
 
