@@ -1,8 +1,8 @@
-// Copyright 2009,2010 The Go Authors. All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// DragonflyBSD system calls.
+// DragonFly BSD system calls.
 // This file is compiled as ordinary Go code,
 // but it is also input to mksyscall,
 // which parses the //sys lines and generates system call stubs.
@@ -65,7 +65,7 @@ func direntReclen(buf []byte) (uint64, bool) {
 	if !ok {
 		return 0, false
 	}
-	return (16 + namlen + 1 + 7) & ^uint64(7), true
+	return (16 + namlen + 1 + 7) &^ 7, true
 }
 
 func direntNamlen(buf []byte) (uint64, bool) {
