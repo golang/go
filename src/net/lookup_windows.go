@@ -107,7 +107,7 @@ func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error) 
 				addrs = append(addrs, IPAddr{IP: IPv4(a[0], a[1], a[2], a[3])})
 			case syscall.AF_INET6:
 				a := (*syscall.RawSockaddrInet6)(addr).Addr
-				zone := zoneToString(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
+				zone := zoneCache.name(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
 				addrs = append(addrs, IPAddr{IP: IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]}, Zone: zone})
 			default:
 				ch <- ret{err: &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}}

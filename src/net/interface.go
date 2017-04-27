@@ -211,30 +211,30 @@ func (zc *ipv6ZoneCache) update(ift []Interface) {
 	}
 }
 
-func zoneToString(zone int) string {
-	if zone == 0 {
+func (zc *ipv6ZoneCache) name(index int) string {
+	if index == 0 {
 		return ""
 	}
 	zoneCache.update(nil)
 	zoneCache.RLock()
 	defer zoneCache.RUnlock()
-	name, ok := zoneCache.toName[zone]
+	name, ok := zoneCache.toName[index]
 	if !ok {
-		name = uitoa(uint(zone))
+		name = uitoa(uint(index))
 	}
 	return name
 }
 
-func zoneToInt(zone string) int {
-	if zone == "" {
+func (zc *ipv6ZoneCache) index(name string) int {
+	if name == "" {
 		return 0
 	}
 	zoneCache.update(nil)
 	zoneCache.RLock()
 	defer zoneCache.RUnlock()
-	index, ok := zoneCache.toIndex[zone]
+	index, ok := zoneCache.toIndex[name]
 	if !ok {
-		index, _, _ = dtoi(zone)
+		index, _, _ = dtoi(name)
 	}
 	return index
 }

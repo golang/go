@@ -174,7 +174,7 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
 		if ip6 == nil {
 			return nil, &AddrError{Err: "non-IPv6 address", Addr: ip.String()}
 		}
-		sa := &syscall.SockaddrInet6{Port: port, ZoneId: uint32(zoneToInt(zone))}
+		sa := &syscall.SockaddrInet6{Port: port, ZoneId: uint32(zoneCache.index(zone))}
 		copy(sa.Addr[:], ip6)
 		return sa, nil
 	}
