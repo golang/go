@@ -642,13 +642,6 @@ func (s *state) stmt(n *Node) {
 			return
 		}
 
-		var t *types.Type
-		if n.Right != nil {
-			t = n.Right.Type
-		} else {
-			t = n.Left.Type
-		}
-
 		// Evaluate RHS.
 		rhs := n.Right
 		if rhs != nil {
@@ -682,6 +675,23 @@ func (s *state) stmt(n *Node) {
 				}
 			}
 		}
+
+		if isblank(n.Left) {
+			// _ = rhs
+			// Just evaluate rhs for side-effects.
+			if rhs != nil {
+				s.expr(rhs)
+			}
+			return
+		}
+
+		var t *types.Type
+		if n.Right != nil {
+			t = n.Right.Type
+		} else {
+			t = n.Left.Type
+		}
+
 		var r *ssa.Value
 		deref := !canSSAType(t)
 		if deref {
@@ -1509,8 +1519,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return v
 		}
 
-		dowidth(from)
-		dowidth(to)
+		from.AssertWidthCalculated()
+		to.AssertWidthCalculated()
 		if from.Width != to.Width {
 			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Width, to, to.Width)
 			return nil
@@ -2311,7 +2321,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 		return
 	}
 	t := left.Type
-	dowidth(t)
+	t.AssertWidthCalculated()
 	if s.canSSA(left) {
 		if deref {
 			s.Fatalf("can SSA LHS %v but not RHS %s", left, right)
@@ -3085,7 +3095,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		}
 		rcvr = s.newValue1(ssa.OpIData, types.Types[TUINTPTR], i)
 	}
-	dowidth(fn.Type)
+	fn.Type.AssertWidthCalculated()
 	stksize := fn.Type.ArgWidth() // includes receiver
 
 	// Run all argument assignments. The arg slots have already
@@ -3341,7 +3351,7 @@ func (s *state) canSSA(n *Node) bool {
 
 // canSSA reports whether variables of type t are SSA-able.
 func canSSAType(t *types.Type) bool {
-	dowidth(t)
+	t.AssertWidthCalculated()
 	if t.Width > int64(4*Widthptr) {
 		// 4*Widthptr is an arbitrary constant. We want it
 		// to be at least 3*Widthptr so slices can be registerized.
@@ -4962,8 +4972,7 @@ func (e *ssafn) namedAuto(name string, typ ssa.Type, pos src.XPos) ssa.GCNode {
 	n.Esc = EscNever
 	n.Name.Curfn = e.curfn
 	e.curfn.Func.Dcl = append(e.curfn.Func.Dcl, n)
-
-	dowidth(t)
+	t.AssertWidthCalculated()
 	return n
 }
 

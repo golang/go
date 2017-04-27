@@ -1621,6 +1621,7 @@ OpSwitch:
 					continue
 				}
 				as[i] = assignconv(n, t.Elem(), "append")
+				checkwidth(as[i].Type) // ensure width is calculated for backend
 			}
 		}
 
@@ -1691,6 +1692,7 @@ OpSwitch:
 	case OCONV:
 		ok |= Erv
 		saveorignode(n)
+		checkwidth(n.Type) // ensure width is calculated for backend
 		n.Left = typecheck(n.Left, Erv)
 		n.Left = convlit1(n.Left, n.Type, true, noReuse)
 		t := n.Left.Type
@@ -3306,6 +3308,9 @@ func typecheckas(n *Node) {
 
 	if n.Left.Typecheck() == 0 {
 		n.Left = typecheck(n.Left, Erv|Easgn)
+	}
+	if !isblank(n.Left) {
+		checkwidth(n.Left.Type) // ensure width is calculated for backend
 	}
 }
 
