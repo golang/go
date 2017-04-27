@@ -172,15 +172,12 @@ func writebarrier(f *Func) {
 		memThen := mem
 		memElse := mem
 		for _, w := range stores {
-			var val *Value
 			ptr := w.Args[0]
-			var typ interface{}
-			if w.Op != OpStoreWB {
-				typ = &ExternSymbol{Sym: w.Aux.(Type).Symbol()}
-			}
-			pos = w.Pos
+			pos := w.Pos
 
 			var fn *obj.LSym
+			var typ *ExternSymbol
+			var val *Value
 			switch w.Op {
 			case OpStoreWB:
 				fn = writebarrierptr
@@ -188,8 +185,10 @@ func writebarrier(f *Func) {
 			case OpMoveWB:
 				fn = typedmemmove
 				val = w.Args[1]
+				typ = &ExternSymbol{Sym: w.Aux.(Type).Symbol()}
 			case OpZeroWB:
 				fn = typedmemclr
+				typ = &ExternSymbol{Sym: w.Aux.(Type).Symbol()}
 			}
 
 			// then block: emit write barrier call
@@ -255,7 +254,7 @@ func writebarrier(f *Func) {
 
 // wbcall emits write barrier runtime call in b, returns memory.
 // if valIsVolatile, it moves val into temp space before making the call.
-func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
+func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ *ExternSymbol, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
 	config := b.Func.Config
 
 	var tmp GCNode
