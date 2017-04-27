@@ -346,12 +346,12 @@ func (b *Buffer) ReadRune() (r rune, size int, err error) {
 
 // UnreadRune unreads the last rune returned by ReadRune.
 // If the most recent read or write operation on the buffer was
-// not a ReadRune, UnreadRune returns an error.  (In this regard
+// not a successful ReadRune, UnreadRune returns an error.  (In this regard
 // it is stricter than UnreadByte, which will unread the last byte
 // from any read operation.)
 func (b *Buffer) UnreadRune() error {
 	if b.lastRead <= opInvalid {
-		return errors.New("bytes.Buffer: UnreadRune: previous operation was not ReadRune")
+		return errors.New("bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune")
 	}
 	if b.off >= int(b.lastRead) {
 		b.off -= int(b.lastRead)
@@ -360,12 +360,13 @@ func (b *Buffer) UnreadRune() error {
 	return nil
 }
 
-// UnreadByte unreads the last byte returned by the most recent
-// read operation. If write has happened since the last read, UnreadByte
-// returns an error.
+// UnreadByte unreads the last byte returned by the most recent successful
+// read operation that read at least one byte. If a write has happened since
+// the last read, if the last read returned an error, or if the read read zero
+// bytes, UnreadByte returns an error.
 func (b *Buffer) UnreadByte() error {
 	if b.lastRead == opInvalid {
-		return errors.New("bytes.Buffer: UnreadByte: previous operation was not a read")
+		return errors.New("bytes.Buffer: UnreadByte: previous operation was not a successful read")
 	}
 	b.lastRead = opInvalid
 	if b.off > 0 {

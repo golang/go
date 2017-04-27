@@ -311,6 +311,19 @@ func TestRuneIO(t *testing.T) {
 
 	// Check that UnreadRune works
 	buf.Reset()
+
+	// check at EOF
+	if err := buf.UnreadRune(); err == nil {
+		t.Fatal("UnreadRune at EOF: got no error")
+	}
+	if _, _, err := buf.ReadRune(); err == nil {
+		t.Fatal("ReadRune at EOF: got no error")
+	}
+	if err := buf.UnreadRune(); err == nil {
+		t.Fatal("UnreadRune after ReadRune at EOF: got no error")
+	}
+
+	// check not at EOF
 	buf.Write(b)
 	for r := rune(0); r < NRune; r++ {
 		r1, size, _ := buf.ReadRune()
@@ -473,15 +486,34 @@ func TestReadEmptyAtEOF(t *testing.T) {
 
 func TestUnreadByte(t *testing.T) {
 	b := new(Buffer)
-	b.WriteString("abcdefghijklmnopqrstuvwxyz")
 
-	_, err := b.ReadBytes('m')
-	if err != nil {
-		t.Fatalf("ReadBytes: %v", err)
+	// check at EOF
+	if err := b.UnreadByte(); err == nil {
+		t.Fatal("UnreadByte at EOF: got no error")
+	}
+	if _, err := b.ReadByte(); err == nil {
+		t.Fatal("ReadByte at EOF: got no error")
+	}
+	if err := b.UnreadByte(); err == nil {
+		t.Fatal("UnreadByte after ReadByte at EOF: got no error")
 	}
 
-	err = b.UnreadByte()
-	if err != nil {
+	// check not at EOF
+	b.WriteString("abcdefghijklmnopqrstuvwxyz")
+
+	// after unsuccessful read
+	if n, err := b.Read(nil); n != 0 || err != nil {
+		t.Fatalf("Read(nil) = %d,%v; want 0,nil", n, err)
+	}
+	if err := b.UnreadByte(); err == nil {
+		t.Fatal("UnreadByte after Read(nil): got no error")
+	}
+
+	// after successful read
+	if _, err := b.ReadBytes('m'); err != nil {
+		t.Fatalf("ReadBytes: %v", err)
+	}
+	if err := b.UnreadByte(); err != nil {
 		t.Fatalf("UnreadByte: %v", err)
 	}
 	c, err := b.ReadByte()
