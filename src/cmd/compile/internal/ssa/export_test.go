@@ -91,7 +91,7 @@ func (d DummyFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
 		LocalSlot{s.N, dummyTypes.Int, s.Off + 16}
 }
 func (d DummyFrontend) SplitComplex(s LocalSlot) (LocalSlot, LocalSlot) {
-	if s.Type.Size() == 16 {
+	if s.Type.MustSize() == 16 {
 		return LocalSlot{s.N, dummyTypes.Float64, s.Off}, LocalSlot{s.N, dummyTypes.Float64, s.Off + 8}
 	}
 	return LocalSlot{s.N, dummyTypes.Float32, s.Off}, LocalSlot{s.N, dummyTypes.Float32, s.Off + 4}

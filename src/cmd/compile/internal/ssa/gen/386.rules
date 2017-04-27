@@ -256,12 +256,12 @@
 
 // Lowering stores
 // These more-specific FP versions of Store pattern should come first.
-(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (MOVSDstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (MOVSSstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 8 && is64BitFloat(val.Type) -> (MOVSDstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 4 && is32BitFloat(val.Type) -> (MOVSSstore ptr val mem)
 
-(Store {t} ptr val mem) && t.(Type).Size() == 4 -> (MOVLstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 4 -> (MOVLstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 2 -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 1 -> (MOVBstore ptr val mem)
 
 // Lowering moves
 (Move [0] _ _ mem) -> mem
@@ -477,13 +477,13 @@
 ( ORL (SHLLconst [c] x) (SHRLconst [d] x)) && d == 32-c -> (ROLLconst [c] x)
 (XORL (SHLLconst [c] x) (SHRLconst [d] x)) && d == 32-c -> (ROLLconst [c] x)
 
-(ADDL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == 16-c && t.Size() == 2 -> (ROLWconst x [c])
-( ORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == 16-c && t.Size() == 2 -> (ROLWconst x [c])
-(XORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == 16-c && t.Size() == 2 -> (ROLWconst x [c])
+(ADDL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == 16-c && t.MustSize() == 2 -> (ROLWconst x [c])
+( ORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == 16-c && t.MustSize() == 2 -> (ROLWconst x [c])
+(XORL <t> (SHLLconst x [c]) (SHRWconst x [d])) && c < 16 && d == 16-c && t.MustSize() == 2 -> (ROLWconst x [c])
 
-(ADDL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == 8-c && t.Size() == 1 -> (ROLBconst x [c])
-( ORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == 8-c && t.Size() == 1 -> (ROLBconst x [c])
-(XORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == 8-c && t.Size() == 1 -> (ROLBconst x [c])
+(ADDL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == 8-c && t.MustSize() == 1 -> (ROLBconst x [c])
+( ORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == 8-c && t.MustSize() == 1 -> (ROLBconst x [c])
+(XORL <t> (SHLLconst x [c]) (SHRBconst x [d])) && c < 8 && d == 8-c && t.MustSize() == 1 -> (ROLBconst x [c])
 
 (ROLLconst [c] (ROLLconst [d] x)) -> (ROLLconst [(c+d)&31] x)
 (ROLWconst [c] (ROLWconst [d] x)) -> (ROLWconst [(c+d)&15] x)
@@ -1063,7 +1063,7 @@
 // things like (ANDLconst [0x100] x) which were formerly
 // (ANDBconst [0] x).  Probably doesn't happen very often.
 // If we cared, we might do:
-//  (ANDLconst <t> [c] x) && t.Size()==1 && int8(x)==0 -> (MOVLconst [0])
+//  (ANDLconst <t> [c] x) && t.MustSize()==1 && int8(x)==0 -> (MOVLconst [0])
 
 // Convert constant subtracts to constant adds
 (SUBLconst [c] x) -> (ADDLconst [int64(int32(-c))] x)

@@ -1206,7 +1206,7 @@ func (s *state) ssaOp(op Op, t *types.Type) ssa.Op {
 }
 
 func floatForComplex(t *types.Type) *types.Type {
-	if t.Size() == 8 {
+	if t.MustSize() == 8 {
 		return types.Types[TFLOAT32]
 	} else {
 		return types.Types[TFLOAT64]
@@ -1423,7 +1423,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		switch u := n.Val().U.(type) {
 		case *Mpint:
 			i := u.Int64()
-			switch n.Type.Size() {
+			switch n.Type.MustSize() {
 			case 1:
 				return s.constInt8(n.Type, int8(i))
 			case 2:
@@ -1433,7 +1433,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			case 8:
 				return s.constInt64(n.Type, i)
 			default:
-				s.Fatalf("bad integer size %d", n.Type.Size())
+				s.Fatalf("bad integer size %d", n.Type.MustSize())
 				return nil
 			}
 		case string:
@@ -1454,19 +1454,19 @@ func (s *state) expr(n *Node) *ssa.Value {
 				return s.constNil(t)
 			}
 		case *Mpflt:
-			switch n.Type.Size() {
+			switch n.Type.MustSize() {
 			case 4:
 				return s.constFloat32(n.Type, u.Float32())
 			case 8:
 				return s.constFloat64(n.Type, u.Float64())
 			default:
-				s.Fatalf("bad float size %d", n.Type.Size())
+				s.Fatalf("bad float size %d", n.Type.MustSize())
 				return nil
 			}
 		case *Mpcplx:
 			r := &u.Real
 			i := &u.Imag
-			switch n.Type.Size() {
+			switch n.Type.MustSize() {
 			case 8:
 				pt := types.Types[TFLOAT32]
 				return s.newValue2(ssa.OpComplexMake, n.Type,
@@ -1478,7 +1478,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 					s.constFloat64(pt, r.Float64()),
 					s.constFloat64(pt, i.Float64()))
 			default:
-				s.Fatalf("bad float size %d", n.Type.Size())
+				s.Fatalf("bad float size %d", n.Type.MustSize())
 				return nil
 			}
 
@@ -1555,11 +1555,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		}
 		if ft.IsInteger() && tt.IsInteger() {
 			var op ssa.Op
-			if tt.Size() == ft.Size() {
+			if tt.MustSize() == ft.MustSize() {
 				op = ssa.OpCopy
-			} else if tt.Size() < ft.Size() {
+			} else if tt.MustSize() < ft.MustSize() {
 				// truncation
-				switch 10*ft.Size() + tt.Size() {
+				switch 10*ft.MustSize() + tt.MustSize() {
 				case 21:
 					op = ssa.OpTrunc16to8
 				case 41:
@@ -1577,7 +1577,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				}
 			} else if ft.IsSigned() {
 				// sign extension
-				switch 10*ft.Size() + tt.Size() {
+				switch 10*ft.MustSize() + tt.MustSize() {
 				case 12:
 					op = ssa.OpSignExt8to16
 				case 14:
@@ -1595,7 +1595,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				}
 			} else {
 				// zero extension
-				switch 10*ft.Size() + tt.Size() {
+				switch 10*ft.MustSize() + tt.MustSize() {
 				case 12:
 					op = ssa.OpZeroExt8to16
 				case 14:
@@ -1629,20 +1629,20 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 
 			if thearch.LinkArch.Family == sys.MIPS {
-				if ft.Size() == 4 && ft.IsInteger() && !ft.IsSigned() {
+				if ft.MustSize() == 4 && ft.IsInteger() && !ft.IsSigned() {
 					// tt is float32 or float64, and ft is also unsigned
-					if tt.Size() == 4 {
+					if tt.MustSize() == 4 {
 						return s.uint32Tofloat32(n, x, ft, tt)
 					}
-					if tt.Size() == 8 {
+					if tt.MustSize() == 8 {
 						return s.uint32Tofloat64(n, x, ft, tt)
 					}
-				} else if tt.Size() == 4 && tt.IsInteger() && !tt.IsSigned() {
+				} else if tt.MustSize() == 4 && tt.IsInteger() && !tt.IsSigned() {
 					// ft is float32 or float64, and tt is unsigned integer
-					if ft.Size() == 4 {
+					if ft.MustSize() == 4 {
 						return s.float32ToUint32(n, x, ft, tt)
 					}
-					if ft.Size() == 8 {
+					if ft.MustSize() == 8 {
 						return s.float64ToUint32(n, x, ft, tt)
 					}
 				}
@@ -1669,19 +1669,19 @@ func (s *state) expr(n *Node) *ssa.Value {
 			// Tricky 64-bit unsigned cases.
 			if ft.IsInteger() {
 				// tt is float32 or float64, and ft is also unsigned
-				if tt.Size() == 4 {
+				if tt.MustSize() == 4 {
 					return s.uint64Tofloat32(n, x, ft, tt)
 				}
-				if tt.Size() == 8 {
+				if tt.MustSize() == 8 {
 					return s.uint64Tofloat64(n, x, ft, tt)
 				}
 				s.Fatalf("weird unsigned integer to float conversion %v -> %v", ft, tt)
 			}
 			// ft is float32 or float64, and tt is unsigned integer
-			if ft.Size() == 4 {
+			if ft.MustSize() == 4 {
 				return s.float32ToUint64(n, x, ft, tt)
 			}
-			if ft.Size() == 8 {
+			if ft.MustSize() == 8 {
 				return s.float64ToUint64(n, x, ft, tt)
 			}
 			s.Fatalf("weird float to unsigned integer conversion %v -> %v", ft, tt)
@@ -1690,8 +1690,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		if ft.IsComplex() && tt.IsComplex() {
 			var op ssa.Op
-			if ft.Size() == tt.Size() {
-				switch ft.Size() {
+			if ft.MustSize() == tt.MustSize() {
+				switch ft.MustSize() {
 				case 8:
 					op = ssa.OpRound32F
 				case 16:
@@ -1699,9 +1699,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 				default:
 					s.Fatalf("weird complex conversion %v -> %v", ft, tt)
 				}
-			} else if ft.Size() == 8 && tt.Size() == 16 {
+			} else if ft.MustSize() == 8 && tt.MustSize() == 16 {
 				op = ssa.OpCvt32Fto64F
-			} else if ft.Size() == 16 && tt.Size() == 8 {
+			} else if ft.MustSize() == 16 && tt.MustSize() == 8 {
 				op = ssa.OpCvt64Fto32F
 			} else {
 				s.Fatalf("weird complex conversion %v -> %v", ft, tt)
@@ -2242,7 +2242,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		if arg.store {
 			s.storeType(et, addr, arg.v, 0)
 		} else {
-			store := s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg.v, s.mem())
+			store := s.newValue3I(ssa.OpMove, ssa.TypeMem, et.MustSize(), addr, arg.v, s.mem())
 			store.Aux = et
 			s.vars[&memVar] = store
 		}
@@ -2407,9 +2407,9 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 		// Treat as a mem->mem move.
 		var store *ssa.Value
 		if right == nil {
-			store = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
+			store = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.MustSize(), addr, s.mem())
 		} else {
-			store = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), addr, right, s.mem())
+			store = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.MustSize(), addr, right, s.mem())
 		}
 		store.Aux = t
 		s.vars[&memVar] = store
@@ -2423,7 +2423,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 func (s *state) zeroVal(t *types.Type) *ssa.Value {
 	switch {
 	case t.IsInteger():
-		switch t.Size() {
+		switch t.MustSize() {
 		case 1:
 			return s.constInt8(t, 0)
 		case 2:
@@ -2436,7 +2436,7 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 			s.Fatalf("bad sized integer type %v", t)
 		}
 	case t.IsFloat():
-		switch t.Size() {
+		switch t.MustSize() {
 		case 4:
 			return s.constFloat32(t, 0)
 		case 8:
@@ -2445,7 +2445,7 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 			s.Fatalf("bad sized float type %v", t)
 		}
 	case t.IsComplex():
-		switch t.Size() {
+		switch t.MustSize() {
 		case 8:
 			z := s.constFloat32(types.Types[TFLOAT32], 0)
 			return s.entryNewValue2(ssa.OpComplexMake, t, z, z)
@@ -3478,9 +3478,9 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	off := Ctxt.FixedFrameSize()
 	for _, arg := range args {
 		t := arg.Type
-		off = Rnd(off, t.Alignment())
+		off = Rnd(off, t.MustAlignment())
 		ptr := s.constOffPtrSP(t.PtrTo(), off)
-		size := t.Size()
+		size := t.MustSize()
 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, ptr, arg, s.mem())
 		off += size
 	}
@@ -3505,10 +3505,10 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	// Load results
 	res := make([]*ssa.Value, len(results))
 	for i, t := range results {
-		off = Rnd(off, t.Alignment())
+		off = Rnd(off, t.MustAlignment())
 		ptr := s.constOffPtrSP(types.NewPtr(t), off)
 		res[i] = s.newValue2(ssa.OpLoad, t, ptr, s.mem())
-		off += t.Size()
+		off += t.MustSize()
 	}
 	off = Rnd(off, int64(Widthptr))
 
@@ -4199,7 +4199,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		}
 	} else {
 		p := s.newValue1(ssa.OpIData, types.NewPtr(n.Type), iface)
-		store := s.newValue3I(ssa.OpMove, ssa.TypeMem, n.Type.Size(), addr, p, s.mem())
+		store := s.newValue3I(ssa.OpMove, ssa.TypeMem, n.Type.MustSize(), addr, p, s.mem())
 		store.Aux = n.Type
 		s.vars[&memVar] = store
 	}
@@ -4212,7 +4212,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	if tmp == nil {
 		s.vars[valVar] = s.zeroVal(n.Type)
 	} else {
-		store := s.newValue2I(ssa.OpZero, ssa.TypeMem, n.Type.Size(), addr, s.mem())
+		store := s.newValue2I(ssa.OpZero, ssa.TypeMem, n.Type.MustSize(), addr, s.mem())
 		store.Aux = n.Type
 		s.vars[&memVar] = store
 	}
@@ -4392,7 +4392,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 					if n.Class() != PAUTO {
 						v.Fatalf("zero of variable which isn't PAUTO %v", n)
 					}
-					if n.Type.Size()%int64(Widthptr) != 0 {
+					if n.Type.MustSize()%int64(Widthptr) != 0 {
 						v.Fatalf("zero of variable not a multiple of ptr size %v", n)
 					}
 					thearch.ZeroAuto(s.pp, n)
@@ -4516,11 +4516,11 @@ func defframe(s *SSAGenState, e *ssafn) {
 		if n.Class() != PAUTO {
 			Fatalf("needzero class %d", n.Class())
 		}
-		if n.Type.Size()%int64(Widthptr) != 0 || n.Xoffset%int64(Widthptr) != 0 || n.Type.Size() == 0 {
-			Fatalf("var %L has size %d offset %d", n, n.Type.Size(), n.Xoffset)
+		if n.Type.MustSize()%int64(Widthptr) != 0 || n.Xoffset%int64(Widthptr) != 0 || n.Type.MustSize() == 0 {
+			Fatalf("var %L has size %d offset %d", n, n.Type.MustSize(), n.Xoffset)
 		}
 
-		if lo != hi && n.Xoffset+n.Type.Size() >= lo-int64(2*Widthreg) {
+		if lo != hi && n.Xoffset+n.Type.MustSize() >= lo-int64(2*Widthreg) {
 			// Merge with range we already have.
 			lo = n.Xoffset
 			continue
@@ -4531,7 +4531,7 @@ func defframe(s *SSAGenState, e *ssafn) {
 
 		// Set new range.
 		lo = n.Xoffset
-		hi = lo + n.Type.Size()
+		hi = lo + n.Type.MustSize()
 	}
 
 	// Zero final range.
@@ -4618,7 +4618,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 // extendIndex extends v to a full int width.
 // panic using the given function if v does not fit in an int (only on 32-bit archs).
 func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
-	size := v.Type.Size()
+	size := v.Type.MustSize()
 	if size == s.config.PtrSize {
 		return v
 	}
@@ -4701,7 +4701,7 @@ func CheckLoweredGetClosurePtr(v *ssa.Value) {
 // where v should be spilled.
 func AutoVar(v *ssa.Value) (*Node, int64) {
 	loc := v.Block.Func.RegAlloc[v.ID].(ssa.LocalSlot)
-	if v.Type.Size() > loc.Type.Size() {
+	if v.Type.MustSize() > loc.Type.MustSize() {
 		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
 	}
 	return loc.N.(*Node), loc.Off
@@ -4881,7 +4881,7 @@ func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ss
 
 func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
-	s := name.Type.Size() / 2
+	s := name.Type.MustSize() / 2
 	var t *types.Type
 	if s == 8 {
 		t = types.Types[TFLOAT64]

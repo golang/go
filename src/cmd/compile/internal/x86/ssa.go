@@ -40,8 +40,8 @@ func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 // loadByType returns the load instruction of the given type.
 func loadByType(t ssa.Type) obj.As {
 	// Avoid partial register write
-	if !t.IsFloat() && t.Size() <= 2 {
-		if t.Size() == 1 {
+	if !t.IsFloat() && t.MustSize() <= 2 {
+		if t.MustSize() == 1 {
 			return x86.AMOVBLZX
 		} else {
 			return x86.AMOVWLZX
@@ -53,7 +53,7 @@ func loadByType(t ssa.Type) obj.As {
 
 // storeByType returns the store instruction of the given type.
 func storeByType(t ssa.Type) obj.As {
-	width := t.Size()
+	width := t.MustSize()
 	if t.IsFloat() {
 		switch width {
 		case 4:
@@ -77,16 +77,16 @@ func storeByType(t ssa.Type) obj.As {
 // moveByType returns the reg->reg move instruction of the given type.
 func moveByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 4:
 			return x86.AMOVSS
 		case 8:
 			return x86.AMOVSD
 		default:
-			panic(fmt.Sprintf("bad float register width %d:%s", t.Size(), t))
+			panic(fmt.Sprintf("bad float register width %d:%s", t.MustSize(), t))
 		}
 	} else {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 1:
 			// Avoids partial register write
 			return x86.AMOVL
@@ -95,7 +95,7 @@ func moveByType(t ssa.Type) obj.As {
 		case 4:
 			return x86.AMOVL
 		default:
-			panic(fmt.Sprintf("bad int register width %d:%s", t.Size(), t))
+			panic(fmt.Sprintf("bad int register width %d:%s", t.MustSize(), t))
 		}
 	}
 }
@@ -269,7 +269,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		// IMULB puts the high portion in AH instead of DL,
 		// so move it to DL for consistency
-		if v.Type.Size() == 1 {
+		if v.Type.MustSize() == 1 {
 			m := s.Prog(x86.AMOVB)
 			m.From.Type = obj.TYPE_REG
 			m.From.Reg = x86.REG_AH

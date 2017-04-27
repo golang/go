@@ -672,7 +672,7 @@
 (NeqSlice x y) -> (NeqPtr (SlicePtr x) (SlicePtr y))
 
 // Load of store of same address, with compatibly typed value and same size
-(Load <t1> p1 (Store {t2} p2 x _)) && isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && t1.Size() == t2.(Type).Size() -> x
+(Load <t1> p1 (Store {t2} p2 x _)) && isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && t1.MustSize() == t2.(Type).MustSize() -> x
 
 // Collapse OffPtr
 (OffPtr (OffPtr p [b]) [a]) -> (OffPtr p [a+b])
@@ -680,8 +680,8 @@
 
 // indexing operations
 // Note: bounds check has already been done
-(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <types.Int> idx (Const32 <types.Int> [t.ElemType().Size()])))
-(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <types.Int> idx (Const64 <types.Int> [t.ElemType().Size()])))
+(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <types.Int> idx (Const32 <types.Int> [t.ElemType().MustSize()])))
+(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <types.Int> idx (Const64 <types.Int> [t.ElemType().MustSize()])))
 
 // struct operations
 (StructSelect (StructMake1 x)) -> x
@@ -759,9 +759,9 @@
 
 // un-SSAable values use mem->mem copies
 (Store {t} dst (Load src mem) mem) && !fe.CanSSA(t.(Type)) ->
-	(Move {t} [t.(Type).Size()] dst src mem)
+	(Move {t} [t.(Type).MustSize()] dst src mem)
 (Store {t} dst (Load src mem) (VarDef {x} mem)) && !fe.CanSSA(t.(Type)) ->
-	(Move {t} [t.(Type).Size()] dst src (VarDef {x} mem))
+	(Move {t} [t.(Type).MustSize()] dst src (VarDef {x} mem))
 
 // array ops
 (ArraySelect (ArrayMake1 x)) -> x
@@ -857,12 +857,12 @@
     (Arg <types.BytePtr> {n} [off])
     (Arg <types.BytePtr> {n} [off+config.PtrSize]))
 
-(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 16 ->
+(Arg {n} [off]) && v.Type.IsComplex() && v.Type.MustSize() == 16 ->
   (ComplexMake
     (Arg <types.Float64> {n} [off])
     (Arg <types.Float64> {n} [off+8]))
 
-(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 8 ->
+(Arg {n} [off]) && v.Type.IsComplex() && v.Type.MustSize() == 8 ->
   (ComplexMake
     (Arg <types.Float32> {n} [off])
     (Arg <types.Float32> {n} [off+4]))

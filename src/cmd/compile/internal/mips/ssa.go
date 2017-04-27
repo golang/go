@@ -26,13 +26,13 @@ func isHILO(r int16) bool {
 // loadByType returns the load instruction of the given type.
 func loadByType(t ssa.Type, r int16) obj.As {
 	if isFPreg(r) {
-		if t.Size() == 4 { // float32 or int32
+		if t.MustSize() == 4 { // float32 or int32
 			return mips.AMOVF
 		} else { // float64 or int64
 			return mips.AMOVD
 		}
 	} else {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 1:
 			if t.IsSigned() {
 				return mips.AMOVB
@@ -55,13 +55,13 @@ func loadByType(t ssa.Type, r int16) obj.As {
 // storeByType returns the store instruction of the given type.
 func storeByType(t ssa.Type, r int16) obj.As {
 	if isFPreg(r) {
-		if t.Size() == 4 { // float32 or int32
+		if t.MustSize() == 4 { // float32 or int32
 			return mips.AMOVF
 		} else { // float64 or int64
 			return mips.AMOVD
 		}
 	} else {
-		switch t.Size() {
+		switch t.MustSize() {
 		case 1:
 			return mips.AMOVB
 		case 2:
@@ -88,7 +88,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		as := mips.AMOVW
 		if isFPreg(x) && isFPreg(y) {
 			as = mips.AMOVF
-			if t.Size() == 8 {
+			if t.MustSize() == 8 {
 				as = mips.AMOVD
 			}
 		}
@@ -342,10 +342,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if a.Op == ssa.OpLoadReg {
 			t := a.Type
 			switch {
-			case v.Op == ssa.OpMIPSMOVBreg && t.Size() == 1 && t.IsSigned(),
-				v.Op == ssa.OpMIPSMOVBUreg && t.Size() == 1 && !t.IsSigned(),
-				v.Op == ssa.OpMIPSMOVHreg && t.Size() == 2 && t.IsSigned(),
-				v.Op == ssa.OpMIPSMOVHUreg && t.Size() == 2 && !t.IsSigned():
+			case v.Op == ssa.OpMIPSMOVBreg && t.MustSize() == 1 && t.IsSigned(),
+				v.Op == ssa.OpMIPSMOVBUreg && t.MustSize() == 1 && !t.IsSigned(),
+				v.Op == ssa.OpMIPSMOVHreg && t.MustSize() == 2 && t.IsSigned(),
+				v.Op == ssa.OpMIPSMOVHUreg && t.MustSize() == 2 && !t.IsSigned():
 				// arg is a proper-typed load, already zero/sign-extended, don't extend again
 				if v.Reg() == v.Args[0].Reg() {
 					return

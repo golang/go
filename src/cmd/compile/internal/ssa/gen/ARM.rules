@@ -299,23 +299,23 @@
 (Load <t> ptr mem) && is64BitFloat(t) -> (MOVDload ptr mem)
 
 // stores
-(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 1 -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 2 -> (MOVHstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 4 && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 4 && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).MustSize() == 8 && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
 
 // zero instructions
 (Zero [0] _ mem) -> mem
 (Zero [1] ptr mem) -> (MOVBstore ptr (MOVWconst [0]) mem)
-(Zero [2] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
+(Zero [2] {t} ptr mem) && t.(Type).MustAlignment()%2 == 0 ->
 	(MOVHstore ptr (MOVWconst [0]) mem)
 (Zero [2] ptr mem) ->
 	(MOVBstore [1] ptr (MOVWconst [0])
 		(MOVBstore [0] ptr (MOVWconst [0]) mem))
-(Zero [4] {t} ptr mem) && t.(Type).Alignment()%4 == 0 ->
+(Zero [4] {t} ptr mem) && t.(Type).MustAlignment()%4 == 0 ->
 	(MOVWstore ptr (MOVWconst [0]) mem)
-(Zero [4] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
+(Zero [4] {t} ptr mem) && t.(Type).MustAlignment()%2 == 0 ->
 	(MOVHstore [2] ptr (MOVWconst [0])
 		(MOVHstore [0] ptr (MOVWconst [0]) mem))
 (Zero [4] ptr mem) ->
@@ -333,29 +333,29 @@
 // 4 and 128 are magic constants, see runtime/mkduff.go
 (Zero [s] {t} ptr mem)
 	&& s%4 == 0 && s > 4 && s <= 512
-	&& t.(Type).Alignment()%4 == 0 && !config.noDuffDevice ->
+	&& t.(Type).MustAlignment()%4 == 0 && !config.noDuffDevice ->
 	(DUFFZERO [4 * (128 - int64(s/4))] ptr (MOVWconst [0]) mem)
 
 // Large zeroing uses a loop
 (Zero [s] {t} ptr mem)
-	&& (s > 512 || config.noDuffDevice) || t.(Type).Alignment()%4 != 0 ->
-	(LoweredZero [t.(Type).Alignment()]
+	&& (s > 512 || config.noDuffDevice) || t.(Type).MustAlignment()%4 != 0 ->
+	(LoweredZero [t.(Type).MustAlignment()]
 		ptr
-		(ADDconst <ptr.Type> ptr [s-moveSize(t.(Type).Alignment(), config)])
+		(ADDconst <ptr.Type> ptr [s-moveSize(t.(Type).MustAlignment(), config)])
 		(MOVWconst [0])
 		mem)
 
 // moves
 (Move [0] _ _ mem) -> mem
 (Move [1] dst src mem) -> (MOVBstore dst (MOVBUload src mem) mem)
-(Move [2] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
+(Move [2] {t} dst src mem) && t.(Type).MustAlignment()%2 == 0 ->
 	(MOVHstore dst (MOVHUload src mem) mem)
 (Move [2] dst src mem) ->
 	(MOVBstore [1] dst (MOVBUload [1] src mem)
 		(MOVBstore dst (MOVBUload src mem) mem))
-(Move [4] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
+(Move [4] {t} dst src mem) && t.(Type).MustAlignment()%4 == 0 ->
 	(MOVWstore dst (MOVWload src mem) mem)
-(Move [4] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
+(Move [4] {t} dst src mem) && t.(Type).MustAlignment()%2 == 0 ->
 	(MOVHstore [2] dst (MOVHUload [2] src mem)
 		(MOVHstore dst (MOVHUload src mem) mem))
 (Move [4] dst src mem) ->
@@ -373,16 +373,16 @@
 // 8 and 128 are magic constants, see runtime/mkduff.go
 (Move [s] {t} dst src mem)
 	&& s%4 == 0 && s > 4 && s <= 512
-	&& t.(Type).Alignment()%4 == 0 && !config.noDuffDevice ->
+	&& t.(Type).MustAlignment()%4 == 0 && !config.noDuffDevice ->
 	(DUFFCOPY [8 * (128 - int64(s/4))] dst src mem)
 
 // Large move uses a loop
 (Move [s] {t} dst src mem)
-	&& (s > 512 || config.noDuffDevice) || t.(Type).Alignment()%4 != 0 ->
-	(LoweredMove [t.(Type).Alignment()]
+	&& (s > 512 || config.noDuffDevice) || t.(Type).MustAlignment()%4 != 0 ->
+	(LoweredMove [t.(Type).MustAlignment()]
 		dst
 		src
-		(ADDconst <src.Type> src [s-moveSize(t.(Type).Alignment(), config)])
+		(ADDconst <src.Type> src [s-moveSize(t.(Type).MustAlignment(), config)])
 		mem)
 
 // calls
