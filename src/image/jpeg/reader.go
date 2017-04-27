@@ -48,7 +48,7 @@ const (
 )
 
 const (
-	sof0Marker = 0xc0 // Start Of Frame (Baseline).
+	sof0Marker = 0xc0 // Start Of Frame (Baseline Sequential).
 	sof1Marker = 0xc1 // Start Of Frame (Extended Sequential).
 	sof2Marker = 0xc2 // Start Of Frame (Progressive).
 	dhtMarker  = 0xc4 // Define Huffman Table.
@@ -126,9 +126,17 @@ type decoder struct {
 	blackPix    []byte
 	blackStride int
 
-	ri                  int // Restart Interval.
-	nComp               int
-	progressive         bool
+	ri    int // Restart Interval.
+	nComp int
+
+	// As per section 4.5, there are four modes of operation (selected by the
+	// SOF? markers): sequential DCT, progressive DCT, lossless and
+	// hierarchical, although this implementation does not support the latter
+	// two non-DCT modes. Sequential DCT is further split into baseline and
+	// extended, as per section 4.11.
+	baseline    bool
+	progressive bool
+
 	jfif                bool
 	adobeTransformValid bool
 	adobeTransform      uint8
@@ -596,6 +604,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 
 		switch marker {
 		case sof0Marker, sof1Marker, sof2Marker:
+			d.baseline = marker == sof0Marker
 			d.progressive = marker == sof2Marker
 			err = d.processSOF(n)
 			if configOnly && d.jfif {

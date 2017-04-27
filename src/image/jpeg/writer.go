@@ -311,7 +311,7 @@ func (e *encoder) writeDQT() {
 	}
 }
 
-// writeSOF0 writes the Start Of Frame (Baseline) marker.
+// writeSOF0 writes the Start Of Frame (Baseline Sequential) marker.
 func (e *encoder) writeSOF0(size image.Point, nComponent int) {
 	markerlen := 8 + 3*nComponent
 	e.writeMarkerHeader(sof0Marker, markerlen)
