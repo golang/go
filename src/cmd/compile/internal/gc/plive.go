@@ -117,6 +117,7 @@ type Liveness struct {
 	fn         *Node
 	f          *ssa.Func
 	vars       []*Node
+	idx        map[*Node]int32
 	stkptrsize int64
 
 	be []BlockEffects
@@ -148,31 +149,20 @@ func livenessShouldTrack(n *Node) bool {
 	return n.Op == ONAME && (n.Class() == PAUTO || n.Class() == PPARAM || n.Class() == PPARAMOUT) && types.Haspointers(n.Type)
 }
 
-// getvariables returns the list of on-stack variables that we need to track.
-func getvariables(fn *Node) []*Node {
+// getvariables returns the list of on-stack variables that we need to track
+// and a map for looking up indices by *Node.
+func getvariables(fn *Node) ([]*Node, map[*Node]int32) {
 	var vars []*Node
 	for _, n := range fn.Func.Dcl {
-		if n.Op == ONAME {
-			// The Node.opt field is available for use by optimization passes.
-			// We use it to hold the index of the node in the variables array
-			// (nil means the Node is not in the variables array).
-			// The Node.curfn field is supposed to be set to the current function
-			// already, but for some compiler-introduced names it seems not to be,
-			// so fix that here.
-			// Later, when we want to find the index of a node in the variables list,
-			// we will check that n.Curfn == lv.fn and n.Opt() != nil. Then n.Opt().(int32)
-			// is the index in the variables list.
-			n.SetOpt(nil)
-			n.Name.Curfn = fn
-		}
-
 		if livenessShouldTrack(n) {
-			n.SetOpt(int32(len(vars)))
 			vars = append(vars, n)
 		}
 	}
-
-	return vars
+	idx := make(map[*Node]int32, len(vars))
+	for i, n := range vars {
+		idx[n] = int32(i)
+	}
+	return vars, idx
 }
 
 func (lv *Liveness) initcache() {
@@ -238,9 +228,9 @@ const (
 // valueEffects returns the index of a variable in lv.vars and the
 // liveness effects v has on that variable.
 // If v does not affect any tracked variables, it returns -1, 0.
-func (lv *Liveness) valueEffects(v *ssa.Value) (pos int32, effect liveEffect) {
+func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	n, e := affectedNode(v)
-	if e == 0 {
+	if e == 0 || n == nil || n.Op != ONAME { // cheapest checks first
 		return -1, 0
 	}
 
@@ -255,11 +245,7 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (pos int32, effect liveEffect) {
 		}
 	}
 
-	pos = lv.liveIndex(n)
-	if pos < 0 {
-		return -1, 0
-	}
-
+	var effect liveEffect
 	if n.Addrtaken() {
 		if v.Op != ssa.OpVarKill {
 			effect |= avarinit
@@ -283,7 +269,14 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (pos int32, effect liveEffect) {
 		}
 	}
 
-	return
+	if effect == 0 {
+		return -1, 0
+	}
+
+	if pos, ok := lv.idx[n]; ok {
+		return pos, effect
+	}
+	return -1, 0
 }
 
 // affectedNode returns the *Node affected by v
@@ -326,32 +319,15 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 	return n, e
 }
 
-// liveIndex returns the index of n in the set of tracked vars.
-// If n is not a tracked var, liveIndex returns -1.
-// If n is not a tracked var but should be tracked, liveIndex crashes.
-func (lv *Liveness) liveIndex(n *Node) int32 {
-	if n == nil || n.Name.Curfn != lv.fn || !livenessShouldTrack(n) {
-		return -1
-	}
-
-	pos, ok := n.Opt().(int32) // index in vars
-	if !ok {
-		Fatalf("lost track of variable in liveness: %v (%p, %p)", n, n, n.Orig)
-	}
-	if pos >= int32(len(lv.vars)) || lv.vars[pos] != n {
-		Fatalf("bad bookkeeping in liveness: %v (%p, %p)", n, n, n.Orig)
-	}
-	return pos
-}
-
 // Constructs a new liveness structure used to hold the global state of the
 // liveness computation. The cfg argument is a slice of *BasicBlocks and the
 // vars argument is a slice of *Nodes.
-func newliveness(fn *Node, f *ssa.Func, vars []*Node, stkptrsize int64) *Liveness {
+func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkptrsize int64) *Liveness {
 	lv := &Liveness{
 		fn:         fn,
 		f:          f,
 		vars:       vars,
+		idx:        idx,
 		stkptrsize: stkptrsize,
 		be:         make([]BlockEffects, f.NumBlocks()),
 	}
@@ -1308,8 +1284,8 @@ func livenessemit(lv *Liveness, argssym, livesym *obj.LSym) {
 // Returns a map from GC safe points to their corresponding stack map index.
 func liveness(e *ssafn, f *ssa.Func) map[*ssa.Value]int {
 	// Construct the global liveness state.
-	vars := getvariables(e.curfn)
-	lv := newliveness(e.curfn, f, vars, e.stkptrsize)
+	vars, idx := getvariables(e.curfn)
+	lv := newliveness(e.curfn, f, vars, idx, e.stkptrsize)
 
 	// Run the dataflow framework.
 	livenessprologue(lv)
