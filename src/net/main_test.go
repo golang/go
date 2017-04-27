@@ -95,15 +95,15 @@ func setupTestData() {
 	if ifi != nil {
 		index := fmt.Sprintf("%v", ifi.Index)
 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
-			{"tcp6", "[fe80::1%" + ifi.Name + "]:1", &TCPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
+			{"tcp6", "[fe80::1%" + ifi.Name + "]:1", &TCPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneCache.name(ifi.Index)}, nil},
 			{"tcp6", "[fe80::1%" + index + "]:2", &TCPAddr{IP: ParseIP("fe80::1"), Port: 2, Zone: index}, nil},
 		}...)
 		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
-			{"udp6", "[fe80::1%" + ifi.Name + "]:1", &UDPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
+			{"udp6", "[fe80::1%" + ifi.Name + "]:1", &UDPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneCache.name(ifi.Index)}, nil},
 			{"udp6", "[fe80::1%" + index + "]:2", &UDPAddr{IP: ParseIP("fe80::1"), Port: 2, Zone: index}, nil},
 		}...)
 		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
-			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneToString(ifi.Index)}, nil},
+			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneCache.name(ifi.Index)}, nil},
 			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
 		}...)
 	}

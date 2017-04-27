@@ -16,7 +16,7 @@ func sockaddrToIP(sa syscall.Sockaddr) Addr {
 	case *syscall.SockaddrInet4:
 		return &IPAddr{IP: sa.Addr[0:]}
 	case *syscall.SockaddrInet6:
-		return &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
+		return &IPAddr{IP: sa.Addr[0:], Zone: zoneCache.name(int(sa.ZoneId))}
 	}
 	return nil
 }
@@ -52,7 +52,7 @@ func (c *IPConn) readFrom(b []byte) (int, *IPAddr, error) {
 		addr = &IPAddr{IP: sa.Addr[0:]}
 		n = stripIPv4Header(n, b)
 	case *syscall.SockaddrInet6:
-		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
+		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneCache.name(int(sa.ZoneId))}
 	}
 	return n, addr, err
 }
@@ -79,7 +79,7 @@ func (c *IPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err e
 	case *syscall.SockaddrInet4:
 		addr = &IPAddr{IP: sa.Addr[0:]}
 	case *syscall.SockaddrInet6:
-		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
+		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneCache.name(int(sa.ZoneId))}
 	}
 	return
 }
