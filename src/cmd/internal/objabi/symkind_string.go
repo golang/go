@@ -9,7 +9,7 @@ const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARF
 var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 61}
 
 func (i SymKind) String() string {
-	if i < 0 || i >= SymKind(len(_SymKind_index)-1) {
+	if i >= SymKind(len(_SymKind_index)-1) {
 		return fmt.Sprintf("SymKind(%d)", i)
 	}
 	return _SymKind_name[_SymKind_index[i]:_SymKind_index[i+1]]

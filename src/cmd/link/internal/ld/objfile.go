@@ -155,10 +155,15 @@ func (r *objReader) readSlices() {
 const symPrefix = 0xfe
 
 func (r *objReader) readSym() {
-	if c, err := r.rd.ReadByte(); c != symPrefix || err != nil {
+	var c byte
+	var err error
+	if c, err = r.rd.ReadByte(); c != symPrefix || err != nil {
 		log.Fatalln("readSym out of sync")
 	}
-	t := abiSymKindToSymKind[r.readInt()]
+	if c, err = r.rd.ReadByte(); err != nil {
+		log.Fatalln("error reading input: ", err)
+	}
+	t := abiSymKindToSymKind[c]
 	s := r.readSymIndex()
 	flags := r.readInt()
 	dupok := flags&1 != 0
