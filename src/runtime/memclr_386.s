@@ -27,8 +27,8 @@ tail:
 	JBE	_5through8
 	CMPL	BX, $16
 	JBE	_9through16
-	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
-	JEQ	nosse2
+	CMPB	runtime·support_sse2(SB), $1
+	JNE	nosse2
 	PXOR	X0, X0
 	CMPL	BX, $32
 	JBE	_17through32

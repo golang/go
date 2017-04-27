@@ -75,24 +75,81 @@ notintel:
 	MOVL	$1, AX
 	CPUID
 	MOVL	CX, DI // Move to global variable clobbers CX when generating PIC
-	MOVL	AX, runtime·cpuid_eax(SB)
+	MOVL	AX, runtime·processorVersionInfo(SB)
 	MOVL	DI, runtime·cpuid_ecx(SB)
 	MOVL	DX, runtime·cpuid_edx(SB)
 
 	// Check for MMX support
-	TESTL	$(1<<23), DX	// MMX
-	JZ 	bad_proc
+	TESTL	$(1<<23), DX // MMX
+	JZ	bad_proc
 
+	TESTL	$(1<<26), DX // SSE2
+	SETNE	runtime·support_sse2(SB)
+
+	TESTL	$(1<<9), DI // SSSE3
+	SETNE	runtime·support_ssse3(SB)
+
+	TESTL	$(1<<19), DI // SSE4.1
+	SETNE	runtime·support_sse41(SB)
+
+	TESTL	$(1<<20), DI // SSE4.2
+	SETNE	runtime·support_sse42(SB)
+
+	TESTL	$(1<<23), DI // POPCNT
+	SETNE	runtime·support_popcnt(SB)
+
+	TESTL	$(1<<25), DI // AES
+	SETNE	runtime·support_aes(SB)
+
+	TESTL	$(1<<27), DI // OSXSAVE
+	SETNE	runtime·support_osxsave(SB)
+
+	// If OS support for XMM and YMM is not present
+	// support_avx will be set back to false later.
+	TESTL	$(1<<28), DI // AVX
+	SETNE	runtime·support_avx(SB)
+
+eax7:
 	// Load EAX=7/ECX=0 cpuid flags
 	CMPL	SI, $7
-	JLT	nocpuinfo
+	JLT	osavx
 	MOVL	$7, AX
 	MOVL	$0, CX
 	CPUID
 	MOVL	BX, runtime·cpuid_ebx7(SB)
 
-nocpuinfo:	
+	TESTL	$(1<<3), BX // BMI1
+	SETNE	runtime·support_bmi1(SB)
 
+	// If OS support for XMM and YMM is not present
+	// support_avx2 will be set back to false later.
+	TESTL	$(1<<5), BX
+	SETNE	runtime·support_avx2(SB)
+
+	TESTL	$(1<<8), BX // BMI2
+	SETNE	runtime·support_bmi2(SB)
+
+	TESTL	$(1<<9), BX // ERMS
+	SETNE	runtime·support_erms(SB)
+
+osavx:
+	// nacl does not support XGETBV to test
+	// for XMM and YMM OS support.
+#ifndef GOOS_nacl
+	CMPB	runtime·support_osxsave(SB), $1
+	JNE	noavx
+	MOVL	$0, CX
+	// For XGETBV, OSXSAVE bit is required and sufficient
+	XGETBV
+	ANDL	$6, AX
+	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
+	JE nocpuinfo
+#endif
+noavx:
+	MOVB $0, runtime·support_avx(SB)
+	MOVB $0, runtime·support_avx2(SB)
+
+nocpuinfo:
 	// if there is an _cgo_init, call it to let it
 	// initialize and to set up GS.  if not,
 	// we set up GS ourselves.
@@ -803,8 +860,8 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
-	TESTL	$0x4000000, runtime·cpuid_edx(SB) // no sse2, no mfence
-	JEQ	done
+	CMPB	runtime·support_sse2(SB), $1
+	JNE	done
 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
 	JNE	mfence
 	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
@@ -1311,8 +1368,8 @@ TEXT runtime·memeqbody(SB),NOSPLIT,$0-0
 hugeloop:
 	CMPL	BX, $64
 	JB	bigloop
-	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
-	JE	bigloop
+	CMPB	runtime·support_sse2(SB), $1
+	JNE	bigloop
 	MOVOU	(SI), X0
 	MOVOU	(DI), X1
 	MOVOU	16(SI), X2
@@ -1455,8 +1512,8 @@ TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
 	JEQ	allsame
 	CMPL	BP, $4
 	JB	small
-	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
-	JE	mediumloop
+	CMPB	runtime·support_sse2(SB), $1
+	JNE	mediumloop
 largeloop:
 	CMPL	BP, $16
 	JB	mediumloop

@@ -283,9 +283,9 @@ func alginit() {
 	// Install aes hash algorithm if we have the instructions we need
 	if (GOARCH == "386" || GOARCH == "amd64") &&
 		GOOS != "nacl" &&
-		cpuid_ecx&(1<<25) != 0 && // aes (aesenc)
-		cpuid_ecx&(1<<9) != 0 && // sse3 (pshufb)
-		cpuid_ecx&(1<<19) != 0 { // sse4.1 (pinsr{d,q})
+		support_aes && // AESENC
+		support_ssse3 && // PSHUFB
+		support_sse41 { // PINSR{D,Q}
 		useAeshash = true
 		algarray[alg_MEM32].hash = aeshash32
 		algarray[alg_MEM64].hash = aeshash64
