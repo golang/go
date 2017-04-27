@@ -92,12 +92,13 @@ func (d *decoder) processSOS(n int) error {
 		}
 		totalHV += d.comp[compIndex].h * d.comp[compIndex].v
 
+		// The baseline t <= 1 restriction is specified in table B.3.
 		scan[i].td = d.tmp[2+2*i] >> 4
-		if scan[i].td > maxTh {
+		if t := scan[i].td; t > maxTh || (d.baseline && t > 1) {
 			return FormatError("bad Td value")
 		}
 		scan[i].ta = d.tmp[2+2*i] & 0x0f
-		if scan[i].ta > maxTh {
+		if t := scan[i].ta; t > maxTh || (d.baseline && t > 1) {
 			return FormatError("bad Ta value")
 		}
 	}
@@ -122,7 +123,8 @@ func (d *decoder) processSOS(n int) error {
 	// by the second-least significant bit, followed by the least
 	// significant bit.
 	//
-	// For baseline JPEGs, these parameters are hard-coded to 0/63/0/0.
+	// For sequential JPEGs, these parameters are hard-coded to 0/63/0/0, as
+	// per table B.3.
 	zigStart, zigEnd, ah, al := int32(0), int32(blockSize-1), uint32(0), uint32(0)
 	if d.progressive {
 		zigStart = int32(d.tmp[1+2*nComp])
@@ -177,7 +179,7 @@ func (d *decoder) processSOS(n int) error {
 					// The blocks are traversed one MCU at a time. For 4:2:0 chroma
 					// subsampling, there are four Y 8x8 blocks in every 16x16 MCU.
 					//
-					// For a baseline 32x16 pixel image, the Y blocks visiting order is:
+					// For a sequential 32x16 pixel image, the Y blocks visiting order is:
 					//	0 1 4 5
 					//	2 3 6 7
 					//
