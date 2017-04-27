@@ -283,7 +283,7 @@ func (w *objWriter) writeSym(s *LSym) {
 	}
 
 	w.wr.WriteByte(symPrefix)
-	w.writeInt(int64(s.Type))
+	w.wr.WriteByte(byte(s.Type))
 	w.writeRefIndex(s)
 	flags := int64(0)
 	if s.DuplicateOK() {
