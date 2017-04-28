@@ -419,6 +419,18 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			return nil, err
 		}
 		testHookRoundTripRetried()
+
+		// Rewind the body if we're able to.  (HTTP/2 does this itself so we only
+		// need to do it for HTTP/1.1 connections.)
+		if req.GetBody != nil && pconn.alt == nil {
+			newReq := *req
+			var err error
+			newReq.Body, err = req.GetBody()
+			if err != nil {
+				return nil, err
+			}
+			req = &newReq
+		}
 	}
 }
 
@@ -450,8 +462,9 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 		return false
 	}
 	if _, ok := err.(nothingWrittenError); ok {
-		// We never wrote anything, so it's safe to retry.
-		return true
+		// We never wrote anything, so it's safe to retry, if there's no body or we
+		// can "rewind" the body with GetBody.
+		return req.outgoingLength() == 0 || req.GetBody != nil
 	}
 	if !req.isReplayable() {
 		// Don't retry non-idempotent requests.
@@ -1475,7 +1488,7 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
 	}
 	if pc.isBroken() {
 		<-pc.writeLoopDone
-		if pc.nwrite == startBytesWritten && req.outgoingLength() == 0 {
+		if pc.nwrite == startBytesWritten {
 			return nothingWrittenError{err}
 		}
 		return fmt.Errorf("net/http: HTTP/1.x transport connection broken: %v", err)
@@ -1544,16 +1557,6 @@ func (pc *persistConn) readLoop() {
 				err = fmt.Errorf("net/http: server response headers exceeded %d bytes; aborted", pc.maxHeaderResponseSize())
 			}
 
-			// If we won't be able to retry this request later (from the
-			// roundTrip goroutine), mark it as done now.
-			// BEFORE the send on rc.ch, as the client might re-use the
-			// same *Request pointer, and we don't want to set call
-			// t.setReqCanceler from this persistConn while the Transport
-			// potentially spins up a different persistConn for the
-			// caller's subsequent request.
-			if !pc.shouldRetryRequest(rc.req, err) {
-				pc.t.setReqCanceler(rc.req, nil)
-			}
 			select {
 			case rc.ch <- responseAndError{err: err}:
 			case <-rc.callerGone:
@@ -1768,7 +1771,7 @@ func (pc *persistConn) writeLoop() {
 			}
 			if err != nil {
 				wr.req.Request.closeBody()
-				if pc.nwrite == startBytesWritten && wr.req.outgoingLength() == 0 {
+				if pc.nwrite == startBytesWritten {
 					err = nothingWrittenError{err}
 				}
 			}

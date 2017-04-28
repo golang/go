@@ -25,6 +25,7 @@ var (
 	ExportCloseWriteAndWait           = (*conn).closeWriteAndWait
 	ExportErrRequestCanceled          = errRequestCanceled
 	ExportErrRequestCanceledConn      = errRequestCanceledConn
+	ExportErrServerClosedIdle         = errServerClosedIdle
 	ExportServeFile                   = serveFile
 	ExportScanETag                    = scanETag
 	ExportHttp2ConfigureServer        = http2ConfigureServer
