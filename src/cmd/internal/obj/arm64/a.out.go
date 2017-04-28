@@ -289,16 +289,21 @@ const (
 	C_SBRA // for TYPE_BRANCH
 	C_LBRA
 
-	C_NPAUTO   // -512 <= x < 0, 0 mod 8
-	C_NSAUTO   // -256 <= x < 0
-	C_PSAUTO   // 0 to 255
-	C_PPAUTO   // 0 to 504, 0 mod 8
-	C_UAUTO4K  // 0 to 4095
-	C_UAUTO8K  // 0 to 8190, 0 mod 2
-	C_UAUTO16K // 0 to 16380, 0 mod 4
-	C_UAUTO32K // 0 to 32760, 0 mod 8
-	C_UAUTO64K // 0 to 65520, 0 mod 16
-	C_LAUTO    // any other 32-bit constant
+	C_NPAUTO     // -512 <= x < 0, 0 mod 8
+	C_NSAUTO     // -256 <= x < 0
+	C_PSAUTO     // 0 to 255
+	C_PPAUTO     // 0 to 504, 0 mod 8
+	C_UAUTO4K_8  // 0 to 4095, 0 mod 8
+	C_UAUTO4K_4  // 0 to 4095, 0 mod 4
+	C_UAUTO4K_2  // 0 to 4095, 0 mod 2
+	C_UAUTO4K    // 0 to 4095
+	C_UAUTO8K_8  // 0 to 8190, 0 mod 8
+	C_UAUTO8K_4  // 0 to 8190, 0 mod 4
+	C_UAUTO8K    // 0 to 8190, 0 mod 2
+	C_UAUTO16K_8 // 0 to 16380, 0 mod 8
+	C_UAUTO16K   // 0 to 16380, 0 mod 4
+	C_UAUTO32K   // 0 to 32760, 0 mod 8
+	C_LAUTO      // any other 32-bit constant
 
 	C_SEXT1  // 0 to 4095, direct
 	C_SEXT2  // 0 to 8190
@@ -307,17 +312,21 @@ const (
 	C_SEXT16 // 0 to 65520
 	C_LEXT
 
-	// TODO(aram): s/AUTO/INDIR/
 	C_ZOREG  // 0(R)
-	C_NPOREG // mirror NPAUTO, etc
+	C_NPOREG // must mirror NPAUTO, etc
 	C_NSOREG
 	C_PSOREG
 	C_PPOREG
+	C_UOREG4K_8
+	C_UOREG4K_4
+	C_UOREG4K_2
 	C_UOREG4K
+	C_UOREG8K_8
+	C_UOREG8K_4
 	C_UOREG8K
+	C_UOREG16K_8
 	C_UOREG16K
 	C_UOREG32K
-	C_UOREG64K
 	C_LOREG
 
 	C_ADDR // TODO(aram): explain difference from C_VCONADDR
