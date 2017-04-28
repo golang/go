@@ -679,7 +679,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 			}
 		}
 		class := IMAGE_SYM_CLASS_EXTERNAL
-		if s.Version != 0 || (s.Type&sym.SHIDDEN != 0) || s.Attr.Local() {
+		if s.Version != 0 || s.Attr.VisibilityHidden() || s.Attr.Local() {
 			class = IMAGE_SYM_CLASS_STATIC
 		}
 		f.writeSymbol(ctxt.Out, s, value, sect, typ, uint8(class))

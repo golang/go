@@ -1043,8 +1043,7 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 				// set dupok generally. See http://codereview.appspot.com/5823055/
 				// comment #5 for details.
 				if s != nil && elfsym.other == 2 {
-					s.Type |= sym.SHIDDEN
-					s.Attr |= sym.AttrDuplicateOK
+					s.Attr |= sym.AttrDuplicateOK | sym.AttrVisibilityHidden
 				}
 			}
 
@@ -1060,7 +1059,7 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 				// so put it in the hash table.
 				if needSym != 0 {
 					s = syms.Lookup(elfsym.name, localSymVersion)
-					s.Type |= sym.SHIDDEN
+					s.Attr |= sym.AttrVisibilityHidden
 				}
 
 				break
@@ -1072,14 +1071,14 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 				// don't bother to add them into the hash table
 				s = syms.Newsym(elfsym.name, localSymVersion)
 
-				s.Type |= sym.SHIDDEN
+				s.Attr |= sym.AttrVisibilityHidden
 			}
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
 				s = syms.Lookup(elfsym.name, 0)
 				if elfsym.other == 2 {
-					s.Type |= sym.SHIDDEN
+					s.Attr |= sym.AttrVisibilityHidden
 				}
 			}
 
@@ -1089,7 +1088,9 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 		}
 	}
 
-	if s != nil && s.Type == 0 && elfsym.type_ != ElfSymTypeSection {
+	// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+	// sense and should be removed when someone has thought about it properly.
+	if s != nil && s.Type == 0 && !s.Attr.VisibilityHidden() && elfsym.type_ != ElfSymTypeSection {
 		s.Type = sym.SXREF
 	}
 	elfsym.sym = s

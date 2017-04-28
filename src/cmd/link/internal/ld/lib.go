@@ -2159,7 +2159,9 @@ func undefsym(ctxt *Link, s *sym.Symbol) {
 		if r.Sym == nil { // happens for some external ARM relocs
 			continue
 		}
-		if r.Sym.Type == sym.Sxxx || r.Sym.Type == sym.SXREF {
+		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+		// sense and should be removed when someone has thought about it properly.
+		if (r.Sym.Type == sym.Sxxx || r.Sym.Type == sym.SXREF) && !r.Sym.Attr.VisibilityHidden() {
 			Errorf(s, "undefined: %q", r.Sym.Name)
 		}
 		if !r.Sym.Attr.Reachable() && r.Type != objabi.R_WEAKADDROFF {
