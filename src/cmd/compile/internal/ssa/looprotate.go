@@ -23,6 +23,9 @@ package ssa
 //    JLT loop
 func loopRotate(f *Func) {
 	loopnest := f.loopnest()
+	if loopnest.hasIrreducible {
+		return
+	}
 	if len(loopnest.loops) == 0 {
 		return
 	}
