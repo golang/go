@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of April 17, 2017",
+	"Subtitle": "Version of April 28, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -5965,6 +5965,11 @@ print      prints all arguments; formatting of arguments is implementation-speci
 println    like print but prints spaces between arguments and a newline at the end
 </pre>
 
+<p>
+Implementation restriction: <code>print</code> and <code>println</code> need not
+accept arbitrary argument types, but printing of boolean, numeric, and string
+<a href="#Types">types</a> must be supported. 
+</p>
 
 <h2 id="Packages">Packages</h2>
 
