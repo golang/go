@@ -9,6 +9,7 @@ package http
 import (
 	"errors"
 	"net"
+	"strings"
 	"testing"
 )
 
@@ -81,6 +82,19 @@ func dummyRequest(method string) *Request {
 	}
 	return req
 }
+func dummyRequestWithBody(method string) *Request {
+	req, err := NewRequest(method, "http://fake.tld/", strings.NewReader("foo"))
+	if err != nil {
+		panic(err)
+	}
+	return req
+}
+
+func dummyRequestWithBodyNoGetBody(method string) *Request {
+	req := dummyRequestWithBody(method)
+	req.GetBody = nil
+	return req
+}
 
 func TestTransportShouldRetryRequest(t *testing.T) {
 	tests := []struct {
@@ -131,6 +145,18 @@ func TestTransportShouldRetryRequest(t *testing.T) {
 			req:  dummyRequest("GET"),
 			err:  errServerClosedIdle,
 			want: true,
+		},
+		7: {
+			pc:   &persistConn{reused: true},
+			req:  dummyRequestWithBody("POST"),
+			err:  nothingWrittenError{},
+			want: true,
+		},
+		8: {
+			pc:   &persistConn{reused: true},
+			req:  dummyRequestWithBodyNoGetBody("POST"),
+			err:  nothingWrittenError{},
+			want: false,
 		},
 	}
 	for i, tt := range tests {

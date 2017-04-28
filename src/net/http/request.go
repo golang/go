@@ -1317,7 +1317,7 @@ func (r *Request) closeBody() {
 }
 
 func (r *Request) isReplayable() bool {
-	if r.Body == nil {
+	if r.Body == nil || r.Body == NoBody || r.GetBody != nil {
 		switch valueOrDefault(r.Method, "GET") {
 		case "GET", "HEAD", "OPTIONS", "TRACE":
 			return true

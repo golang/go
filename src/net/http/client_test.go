@@ -1727,8 +1727,8 @@ func (b issue18239Body) Close() error {
 	return nil
 }
 
-// Issue 18239: make sure the Transport doesn't retry requests with bodies.
-// (Especially if Request.GetBody is not defined.)
+// Issue 18239: make sure the Transport doesn't retry requests with bodies
+// if Request.GetBody is not defined.
 func TestTransportBodyReadError(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)

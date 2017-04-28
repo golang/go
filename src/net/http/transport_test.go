@@ -2601,86 +2601,160 @@ type writerFuncConn struct {
 
 func (c writerFuncConn) Write(p []byte) (n int, err error) { return c.write(p) }
 
-// Issue 4677. If we try to reuse a connection that the server is in the
-// process of closing, we may end up successfully writing out our request (or a
-// portion of our request) only to find a connection error when we try to read
-// from (or finish writing to) the socket.
+// Issues 4677, 18241, and 17844. If we try to reuse a connection that the
+// server is in the process of closing, we may end up successfully writing out
+// our request (or a portion of our request) only to find a connection error
+// when we try to read from (or finish writing to) the socket.
 //
-// NOTE: we resend a request only if the request is idempotent, we reused a
-// keep-alive connection, and we haven't yet received any header data. This
-// automatically prevents an infinite resend loop because we'll run out of the
-// cached keep-alive connections eventually.
-func TestRetryIdempotentRequestsOnError(t *testing.T) {
-	defer afterTest(t)
-
-	var (
-		mu     sync.Mutex
-		logbuf bytes.Buffer
-	)
-	logf := func(format string, args ...interface{}) {
-		mu.Lock()
-		defer mu.Unlock()
-		fmt.Fprintf(&logbuf, format, args...)
-		logbuf.WriteByte('\n')
+// NOTE: we resend a request only if:
+//   - we reused a keep-alive connection
+//   - we haven't yet received any header data
+//   - either we wrote no bytes to the server, or the request is idempotent
+// This automatically prevents an infinite resend loop because we'll run out of
+// the cached keep-alive connections eventually.
+func TestRetryRequestsOnError(t *testing.T) {
+	newRequest := func(method, urlStr string, body io.Reader) *Request {
+		req, err := NewRequest(method, urlStr, body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return req
 	}
 
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		logf("Handler")
-		w.Header().Set("X-Status", "ok")
-	}))
-	defer ts.Close()
-
-	var writeNumAtomic int32
-	c := ts.Client()
-	c.Transport.(*Transport).Dial = func(network, addr string) (net.Conn, error) {
-		logf("Dial")
-		c, err := net.Dial(network, ts.Listener.Addr().String())
-		if err != nil {
-			logf("Dial error: %v", err)
-			return nil, err
-		}
-		return &writerFuncConn{
-			Conn: c,
-			write: func(p []byte) (n int, err error) {
-				if atomic.AddInt32(&writeNumAtomic, 1) == 2 {
-					logf("intentional write failure")
-					return 0, errors.New("second write fails")
-				}
-				logf("Write(%q)", p)
-				return c.Write(p)
+	testCases := []struct {
+		name       string
+		failureN   int
+		failureErr error
+		// Note that we can't just re-use the Request object across calls to c.Do
+		// because we need to rewind Body between calls.  (GetBody is only used to
+		// rewind Body on failure and redirects, not just because it's done.)
+		req       func() *Request
+		reqString string
+	}{
+		{
+			name: "IdempotentNoBodySomeWritten",
+			// Believe that we've written some bytes to the server, so we know we're
+			// not just in the "retry when no bytes sent" case".
+			failureN: 1,
+			// Use the specific error that shouldRetryRequest looks for with idempotent requests.
+			failureErr: ExportErrServerClosedIdle,
+			req: func() *Request {
+				return newRequest("GET", "http://fake.golang", nil)
 			},
-		}, nil
+			reqString: `GET / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n`,
+		},
+		{
+			name: "IdempotentGetBodySomeWritten",
+			// Believe that we've written some bytes to the server, so we know we're
+			// not just in the "retry when no bytes sent" case".
+			failureN: 1,
+			// Use the specific error that shouldRetryRequest looks for with idempotent requests.
+			failureErr: ExportErrServerClosedIdle,
+			req: func() *Request {
+				return newRequest("GET", "http://fake.golang", strings.NewReader("foo\n"))
+			},
+			reqString: `GET / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 4\r\nAccept-Encoding: gzip\r\n\r\nfoo\n`,
+		},
+		{
+			name: "NothingWrittenNoBody",
+			// It's key that we return 0 here -- that's what enables Transport to know
+			// that nothing was written, even though this is a non-idempotent request.
+			failureN:   0,
+			failureErr: errors.New("second write fails"),
+			req: func() *Request {
+				return newRequest("DELETE", "http://fake.golang", nil)
+			},
+			reqString: `DELETE / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n`,
+		},
+		{
+			name: "NothingWrittenGetBody",
+			// It's key that we return 0 here -- that's what enables Transport to know
+			// that nothing was written, even though this is a non-idempotent request.
+			failureN:   0,
+			failureErr: errors.New("second write fails"),
+			// Note that NewRequest will set up GetBody for strings.Reader, which is
+			// required for the retry to occur
+			req: func() *Request {
+				return newRequest("POST", "http://fake.golang", strings.NewReader("foo\n"))
+			},
+			reqString: `POST / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 4\r\nAccept-Encoding: gzip\r\n\r\nfoo\n`,
+		},
 	}
 
-	SetRoundTripRetried(func() {
-		logf("Retried.")
-	})
-	defer SetRoundTripRetried(nil)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer afterTest(t)
 
-	for i := 0; i < 3; i++ {
-		res, err := c.Get("http://fake.golang/")
-		if err != nil {
-			t.Fatalf("i=%d: Get = %v", i, err)
-		}
-		res.Body.Close()
-	}
+			var (
+				mu     sync.Mutex
+				logbuf bytes.Buffer
+			)
+			logf := func(format string, args ...interface{}) {
+				mu.Lock()
+				defer mu.Unlock()
+				fmt.Fprintf(&logbuf, format, args...)
+				logbuf.WriteByte('\n')
+			}
 
-	mu.Lock()
-	got := logbuf.String()
-	mu.Unlock()
-	const want = `Dial
-Write("GET / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n")
+			ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+				logf("Handler")
+				w.Header().Set("X-Status", "ok")
+			}))
+			defer ts.Close()
+
+			var writeNumAtomic int32
+			c := ts.Client()
+			c.Transport.(*Transport).Dial = func(network, addr string) (net.Conn, error) {
+				logf("Dial")
+				c, err := net.Dial(network, ts.Listener.Addr().String())
+				if err != nil {
+					logf("Dial error: %v", err)
+					return nil, err
+				}
+				return &writerFuncConn{
+					Conn: c,
+					write: func(p []byte) (n int, err error) {
+						if atomic.AddInt32(&writeNumAtomic, 1) == 2 {
+							logf("intentional write failure")
+							return tc.failureN, tc.failureErr
+						}
+						logf("Write(%q)", p)
+						return c.Write(p)
+					},
+				}, nil
+			}
+
+			SetRoundTripRetried(func() {
+				logf("Retried.")
+			})
+			defer SetRoundTripRetried(nil)
+
+			for i := 0; i < 3; i++ {
+				res, err := c.Do(tc.req())
+				if err != nil {
+					t.Fatalf("i=%d: Do = %v", i, err)
+				}
+				res.Body.Close()
+			}
+
+			mu.Lock()
+			got := logbuf.String()
+			mu.Unlock()
+			want := fmt.Sprintf(`Dial
+Write("%s")
 Handler
 intentional write failure
 Retried.
 Dial
-Write("GET / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n")
+Write("%s")
 Handler
-Write("GET / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n")
+Write("%s")
 Handler
-`
-	if got != want {
-		t.Errorf("Log of events differs. Got:\n%s\nWant:\n%s", got, want)
+`, tc.reqString, tc.reqString, tc.reqString)
+			if got != want {
+				t.Errorf("Log of events differs. Got:\n%s\nWant:\n%s", got, want)
+			}
+		})
 	}
 }
 
