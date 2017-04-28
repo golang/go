@@ -386,7 +386,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			continue
 		}
 
-		if r.Sym != nil && (r.Sym.Type&(SMASK|SHIDDEN) == 0 || r.Sym.Type&SMASK == SXREF) {
+		if r.Sym != nil && ((r.Sym.Type == 0 && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type&SMASK == SXREF) {
 			// When putting the runtime but not main into a shared library
 			// these symbols are undefined and that's OK.
 			if Buildmode == BuildmodeShared {
