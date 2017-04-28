@@ -61,7 +61,7 @@
 //
 //	compilebench -count 10 -compile $(toolstash -n compile) >old.txt
 //	compilebench -count 10 >new.txt
-//	benchcmp old.txt new.txt
+//	benchstat old.txt new.txt
 //
 package main
 
