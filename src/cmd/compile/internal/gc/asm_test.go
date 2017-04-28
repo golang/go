@@ -1424,6 +1424,16 @@ var linuxARM64Tests = []*asmTest{
 		`,
 		[]string{"\tAND\t"},
 	},
+	{
+		// make sure offsets are folded into load and store.
+		`
+		func f36(_, a [20]byte) (b [20]byte) {
+			b = a
+			return
+		}
+		`,
+		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(RSP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(RSP\\)"},
+	},
 }
 
 var linuxMIPSTests = []*asmTest{

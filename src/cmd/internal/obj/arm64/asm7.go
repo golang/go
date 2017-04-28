@@ -369,33 +369,28 @@ var optab = []Optab{
 	{AMOVD, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
 
 	/* long displacement store */
-	{AMOVB, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, 0, 0},
-	{AMOVB, C_REG, C_NONE, C_LOREG, 30, 8, 0, 0, 0},
-	{AMOVBU, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, 0, 0},
-	{AMOVBU, C_REG, C_NONE, C_LOREG, 30, 8, 0, 0, 0},
-	{AMOVH, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, 0, 0},
-	{AMOVH, C_REG, C_NONE, C_LOREG, 30, 8, 0, 0, 0},
-	{AMOVW, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, 0, 0},
-	{AMOVW, C_REG, C_NONE, C_LOREG, 30, 8, 0, 0, 0},
-	{AMOVD, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, 0, 0},
-	{AMOVD, C_REG, C_NONE, C_LOREG, 30, 8, 0, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
+	{AMOVB, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
+	{AMOVBU, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
+	{AMOVBU, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
+	{AMOVH, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
+	{AMOVH, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
+	{AMOVW, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
+	{AMOVW, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
+	{AMOVD, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
+	{AMOVD, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
 
 	/* long displacement load */
-	{AMOVB, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, 0, 0},
-	{AMOVB, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
-	{AMOVB, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
-	{AMOVBU, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, 0, 0},
-	{AMOVBU, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
-	{AMOVBU, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
-	{AMOVH, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, 0, 0},
-	{AMOVH, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
-	{AMOVH, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
-	{AMOVW, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, 0, 0},
-	{AMOVW, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
-	{AMOVW, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
-	{AMOVD, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, 0, 0},
-	{AMOVD, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
-	{AMOVD, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
+	{AMOVB, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
+	{AMOVB, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
+	{AMOVBU, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
+	{AMOVBU, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
+	{AMOVH, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
+	{AMOVH, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
+	{AMOVW, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
+	{AMOVW, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
+	{AMOVD, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
+	{AMOVD, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
 
 	/* load long effective stack address (load int32 offset and add) */
 	{AMOVD, C_LACON, C_NONE, C_REG, 34, 8, REGSP, LFROM, 0},
@@ -741,7 +736,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 	//	MOVD addr, REGTMP
 	//	MOVD REGTMP, R
 	// where addr is the address of the DWORD containing the address of foo.
-	if p.As == AMOVD || cls == C_ADDR || cls == C_VCON || int64(lit) != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
+	if p.As == AMOVD && a.Type != obj.TYPE_MEM || cls == C_ADDR || cls == C_VCON || int64(lit) != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
 		// conservative: don't know if we want signed or unsigned extension.
 		// in case of ambiguity, store 64-bit
 		t.As = ADWORD
@@ -767,21 +762,31 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 
 	case C_PSAUTO,
 		C_PPAUTO,
+		C_UAUTO4K_8,
+		C_UAUTO4K_4,
+		C_UAUTO4K_2,
 		C_UAUTO4K,
+		C_UAUTO8K_8,
+		C_UAUTO8K_4,
 		C_UAUTO8K,
+		C_UAUTO16K_8,
 		C_UAUTO16K,
 		C_UAUTO32K,
-		C_UAUTO64K,
 		C_NSAUTO,
 		C_NPAUTO,
 		C_LAUTO,
 		C_PPOREG,
 		C_PSOREG,
+		C_UOREG4K_8,
+		C_UOREG4K_4,
+		C_UOREG4K_2,
 		C_UOREG4K,
+		C_UOREG8K_8,
+		C_UOREG8K_4,
 		C_UOREG8K,
+		C_UOREG16K_8,
 		C_UOREG16K,
 		C_UOREG32K,
-		C_UOREG64K,
 		C_NSOREG,
 		C_NPOREG,
 		C_LOREG,
@@ -998,19 +1003,38 @@ func autoclass(l int64) int {
 		return C_PPAUTO
 	}
 	if l <= 4095 {
+		if l&7 == 0 {
+			return C_UAUTO4K_8
+		}
+		if l&3 == 0 {
+			return C_UAUTO4K_4
+		}
+		if l&1 == 0 {
+			return C_UAUTO4K_2
+		}
 		return C_UAUTO4K
 	}
-	if l <= 8190 && (l&1) == 0 {
-		return C_UAUTO8K
+	if l <= 8190 {
+		if l&7 == 0 {
+			return C_UAUTO8K_8
+		}
+		if l&3 == 0 {
+			return C_UAUTO8K_4
+		}
+		if l&1 == 0 {
+			return C_UAUTO8K
+		}
 	}
-	if l <= 16380 && (l&3) == 0 {
-		return C_UAUTO16K
+	if l <= 16380 {
+		if l&7 == 0 {
+			return C_UAUTO16K_8
+		}
+		if l&3 == 0 {
+			return C_UAUTO16K
+		}
 	}
 	if l <= 32760 && (l&7) == 0 {
 		return C_UAUTO32K
-	}
-	if l <= 65520 && (l&0xF) == 0 {
-		return C_UAUTO64K
 	}
 	return C_LAUTO
 }
@@ -1031,10 +1055,19 @@ func (c *ctxt7) offsetshift(p *obj.Prog, v int64, cls int) int64 {
 	s := 0
 	if cls >= C_SEXT1 && cls <= C_SEXT16 {
 		s = cls - C_SEXT1
-	} else if cls >= C_UAUTO4K && cls <= C_UAUTO64K {
-		s = cls - C_UAUTO4K
-	} else if cls >= C_UOREG4K && cls <= C_UOREG64K {
-		s = cls - C_UOREG4K
+	} else {
+		switch cls {
+		case C_UAUTO4K, C_UOREG4K, C_ZOREG:
+			s = 0
+		case C_UAUTO8K, C_UOREG8K:
+			s = 1
+		case C_UAUTO16K, C_UOREG16K:
+			s = 2
+		case C_UAUTO32K, C_UOREG32K:
+			s = 3
+		default:
+			c.ctxt.Diag("bad class: %v\n%v", DRconv(cls), p)
+		}
 	}
 	vs := v >> uint(s)
 	if vs<<uint(s) != v {
@@ -1349,27 +1382,42 @@ func cmp(a int, b int) bool {
 		}
 
 	case C_UAUTO4K:
-		if b == C_PSAUTO || b == C_PPAUTO {
+		switch b {
+		case C_PSAUTO, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8:
 			return true
 		}
 
 	case C_UAUTO8K:
-		return cmp(C_UAUTO4K, b)
+		switch b {
+		case C_PSAUTO, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8:
+			return true
+		}
 
 	case C_UAUTO16K:
-		return cmp(C_UAUTO8K, b)
+		switch b {
+		case C_PSAUTO, C_PPAUTO, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8, C_UAUTO16K_8:
+			return true
+		}
 
 	case C_UAUTO32K:
-		return cmp(C_UAUTO16K, b)
-
-	case C_UAUTO64K:
-		return cmp(C_UAUTO32K, b)
+		switch b {
+		case C_PSAUTO, C_PPAUTO, C_UAUTO4K_8, C_UAUTO8K_8, C_UAUTO16K_8:
+			return true
+		}
 
 	case C_NPAUTO:
 		return cmp(C_NSAUTO, b)
 
 	case C_LAUTO:
-		return cmp(C_NPAUTO, b) || cmp(C_UAUTO64K, b)
+		switch b {
+		case C_PSAUTO, C_PPAUTO,
+			C_UAUTO4K, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8,
+			C_UAUTO8K, C_UAUTO8K_4, C_UAUTO8K_8,
+			C_UAUTO16K, C_UAUTO16K_8,
+			C_UAUTO32K:
+			return true
+		}
+		return cmp(C_NPAUTO, b)
 
 	case C_PSOREG:
 		if b == C_ZOREG {
@@ -1382,27 +1430,42 @@ func cmp(a int, b int) bool {
 		}
 
 	case C_UOREG4K:
-		if b == C_ZOREG || b == C_PSAUTO || b == C_PSOREG || b == C_PPAUTO || b == C_PPOREG {
+		switch b {
+		case C_ZOREG, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8:
 			return true
 		}
 
 	case C_UOREG8K:
-		return cmp(C_UOREG4K, b)
+		switch b {
+		case C_ZOREG, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8:
+			return true
+		}
 
 	case C_UOREG16K:
-		return cmp(C_UOREG8K, b)
+		switch b {
+		case C_ZOREG, C_PSOREG, C_PPOREG, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8, C_UOREG16K_8:
+			return true
+		}
 
 	case C_UOREG32K:
-		return cmp(C_UOREG16K, b)
-
-	case C_UOREG64K:
-		return cmp(C_UOREG32K, b)
+		switch b {
+		case C_ZOREG, C_PSOREG, C_PPOREG, C_UOREG4K_8, C_UOREG8K_8, C_UOREG16K_8:
+			return true
+		}
 
 	case C_NPOREG:
 		return cmp(C_NSOREG, b)
 
 	case C_LOREG:
-		return cmp(C_NPOREG, b) || cmp(C_UOREG64K, b)
+		switch b {
+		case C_ZOREG, C_PSOREG, C_PPOREG,
+			C_UOREG4K, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8,
+			C_UOREG8K, C_UOREG8K_4, C_UOREG8K_8,
+			C_UOREG16K, C_UOREG16K_8,
+			C_UOREG32K:
+			return true
+		}
+		return cmp(C_NPOREG, b)
 
 	case C_LBRA:
 		if b == C_SBRA {
@@ -2420,58 +2483,92 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(p.From.Reg&31)<<5 | uint32(p.To.Reg&31)
 
 	case 30: /* movT R,L(R) -> strT */
+		// if offset L can be split into hi+lo, and both fit into instructions, do
+		//	add $hi, R, Rtmp
+		//	str R, lo(Rtmp)
+		// otherwise, use constant pool
+		//	mov $L, Rtmp (from constant pool)
+		//	str R, (R+Rtmp)
 		s := movesize(o.as)
-
 		if s < 0 {
 			c.ctxt.Diag("unexpected long move, op %v tab %v\n%v", p.As, o.as, p)
 		}
-		v := int32(c.regoff(&p.To))
-		if v < 0 {
-			c.ctxt.Diag("negative large offset\n%v", p)
-		}
-		if (v & ((1 << uint(s)) - 1)) != 0 {
-			c.ctxt.Diag("misaligned offset\n%v", p)
-		}
-		hi := v - (v & (0xFFF << uint(s)))
-		if (hi & 0xFFF) != 0 {
-			c.ctxt.Diag("internal: miscalculated offset %d [%d]\n%v", v, s, p)
-		}
 
-		//fprint(2, "v=%ld (%#lux) s=%d hi=%ld (%#lux) v'=%ld (%#lux)\n", v, v, s, hi, hi, ((v-hi)>>s)&0xFFF, ((v-hi)>>s)&0xFFF);
 		r := int(p.To.Reg)
-
 		if r == 0 {
 			r = int(o.param)
 		}
+
+		v := int32(c.regoff(&p.To))
+		var hi int32
+		if v < 0 || (v&((1<<uint(s))-1)) != 0 {
+			// negative or unaligned offset, use constant pool
+			goto storeusepool
+		}
+
+		hi = v - (v & (0xFFF << uint(s)))
+		if hi&0xFFF != 0 {
+			c.ctxt.Diag("internal: miscalculated offset %d [%d]\n%v", v, s, p)
+		}
+		if hi&^0xFFF000 != 0 {
+			// hi doesn't fit into an ADD instruction
+			goto storeusepool
+		}
+
 		o1 = c.oaddi(p, int32(c.opirr(p, AADD)), hi, r, REGTMP)
 		o2 = c.olsr12u(p, int32(c.opstr12(p, p.As)), ((v-hi)>>uint(s))&0xFFF, REGTMP, int(p.From.Reg))
+		break
+
+	storeusepool:
+		if r == REGTMP || p.From.Reg == REGTMP {
+			c.ctxt.Diag("REGTMP used in large offset store: %v", p)
+		}
+		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
+		o2 = c.olsxrr(p, int32(c.opstrr(p, p.As)), int(p.From.Reg), r, REGTMP)
 
 	case 31: /* movT L(R), R -> ldrT */
+		// if offset L can be split into hi+lo, and both fit into instructions, do
+		//	add $hi, R, Rtmp
+		//	ldr lo(Rtmp), R
+		// otherwise, use constant pool
+		//	mov $L, Rtmp (from constant pool)
+		//	ldr (R+Rtmp), R
 		s := movesize(o.as)
-
 		if s < 0 {
 			c.ctxt.Diag("unexpected long move, op %v tab %v\n%v", p.As, o.as, p)
 		}
-		v := int32(c.regoff(&p.From))
-		if v < 0 {
-			c.ctxt.Diag("negative large offset\n%v", p)
-		}
-		if (v & ((1 << uint(s)) - 1)) != 0 {
-			c.ctxt.Diag("misaligned offset\n%v", p)
-		}
-		hi := v - (v & (0xFFF << uint(s)))
-		if (hi & 0xFFF) != 0 {
-			c.ctxt.Diag("internal: miscalculated offset %d [%d]\n%v", v, s, p)
-		}
 
-		//fprint(2, "v=%ld (%#lux) s=%d hi=%ld (%#lux) v'=%ld (%#lux)\n", v, v, s, hi, hi, ((v-hi)>>s)&0xFFF, ((v-hi)>>s)&0xFFF);
 		r := int(p.From.Reg)
-
 		if r == 0 {
 			r = int(o.param)
 		}
+
+		v := int32(c.regoff(&p.From))
+		var hi int32
+		if v < 0 || (v&((1<<uint(s))-1)) != 0 {
+			// negative or unaligned offset, use constant pool
+			goto loadusepool
+		}
+
+		hi = v - (v & (0xFFF << uint(s)))
+		if (hi & 0xFFF) != 0 {
+			c.ctxt.Diag("internal: miscalculated offset %d [%d]\n%v", v, s, p)
+		}
+		if hi&^0xFFF000 != 0 {
+			// hi doesn't fit into an ADD instruction
+			goto loadusepool
+		}
+
 		o1 = c.oaddi(p, int32(c.opirr(p, AADD)), hi, r, REGTMP)
 		o2 = c.olsr12u(p, int32(c.opldr12(p, p.As)), ((v-hi)>>uint(s))&0xFFF, REGTMP, int(p.To.Reg))
+		break
+
+	loadusepool:
+		if r == REGTMP || p.From.Reg == REGTMP {
+			c.ctxt.Diag("REGTMP used in large offset load: %v", p)
+		}
+		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
+		o2 = c.olsxrr(p, int32(c.opldrr(p, p.As)), int(p.To.Reg), r, REGTMP)
 
 	case 32: /* mov $con, R -> movz/movn */
 		o1 = c.omovconst(p.As, p, &p.From, int(p.To.Reg))
@@ -2690,30 +2787,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		o1 |= uint32(p.From.Reg&31) << 5
 		o1 |= uint32(p.To.Reg & 31)
-
-	case 47: /* movT R,V(R) -> strT (huge offset) */
-		o1 = c.omovlit(AMOVW, p, &p.To, REGTMP)
-
-		if !(o1 != 0) {
-			break
-		}
-		r := int(p.To.Reg)
-		if r == 0 {
-			r = int(o.param)
-		}
-		o2 = c.olsxrr(p, p.As, REGTMP, r, int(p.From.Reg))
-
-	case 48: /* movT V(R), R -> ldrT (huge offset) */
-		o1 = c.omovlit(AMOVW, p, &p.From, REGTMP)
-
-		if !(o1 != 0) {
-			break
-		}
-		r := int(p.From.Reg)
-		if r == 0 {
-			r = int(o.param)
-		}
-		o2 = c.olsxrr(p, p.As, REGTMP, r, int(p.To.Reg))
 
 	case 50: /* sys/sysl */
 		o1 = c.opirr(p, p.As)
@@ -4211,12 +4284,61 @@ func (c *ctxt7) opldrpp(p *obj.Prog, a obj.As) uint32 {
 	return 0
 }
 
-/*
- * load/store register (extended register)
- */
-func (c *ctxt7) olsxrr(p *obj.Prog, as obj.As, rt int, r1 int, r2 int) uint32 {
-	c.ctxt.Diag("need load/store extended register\n%v", p)
-	return 0xffffffff
+// olsxrr attaches register operands to a load/store opcode supplied in o.
+// The result either encodes a load of r from (r1+r2) or a store of r to (r1+r2).
+func (c *ctxt7) olsxrr(p *obj.Prog, o int32, r int, r1 int, r2 int) uint32 {
+	o |= int32(r1&31) << 5
+	o |= int32(r2&31) << 16
+	o |= int32(r & 31)
+	return uint32(o)
+}
+
+// opldrr returns the ARM64 opcode encoding corresponding to the obj.As opcode
+// for load instruction with register offset.
+func (c *ctxt7) opldrr(p *obj.Prog, a obj.As) uint32 {
+	switch a {
+	case AMOVD:
+		return 0x1a<<10 | 0x3<<21 | 0x1f<<27
+	case AMOVW:
+		return 0x1a<<10 | 0x5<<21 | 0x17<<27
+	case AMOVWU:
+		return 0x1a<<10 | 0x3<<21 | 0x17<<27
+	case AMOVH:
+		return 0x1a<<10 | 0x5<<21 | 0x0f<<27
+	case AMOVHU:
+		return 0x1a<<10 | 0x3<<21 | 0x0f<<27
+	case AMOVB:
+		return 0x1a<<10 | 0x5<<21 | 0x07<<27
+	case AMOVBU:
+		return 0x1a<<10 | 0x3<<21 | 0x07<<27
+	case AFMOVS:
+		return 0x1a<<10 | 0x3<<21 | 0x17<<27 | 1<<26
+	case AFMOVD:
+		return 0x1a<<10 | 0x3<<21 | 0x1f<<27 | 1<<26
+	}
+	c.ctxt.Diag("bad opldrr %v\n%v", a, p)
+	return 0
+}
+
+// opstrr returns the ARM64 opcode encoding corresponding to the obj.As opcode
+// for store instruction with register offset.
+func (c *ctxt7) opstrr(p *obj.Prog, a obj.As) uint32 {
+	switch a {
+	case AMOVD:
+		return 0x1a<<10 | 0x1<<21 | 0x1f<<27
+	case AMOVW, AMOVWU:
+		return 0x1a<<10 | 0x1<<21 | 0x17<<27
+	case AMOVH, AMOVHU:
+		return 0x1a<<10 | 0x1<<21 | 0x0f<<27
+	case AMOVB, AMOVBU:
+		return 0x1a<<10 | 0x1<<21 | 0x07<<27
+	case AFMOVS:
+		return 0x1a<<10 | 0x1<<21 | 0x17<<27 | 1<<26
+	case AFMOVD:
+		return 0x1a<<10 | 0x1<<21 | 0x1f<<27 | 1<<26
+	}
+	c.ctxt.Diag("bad opstrr %v\n%v", a, p)
+	return 0
 }
 
 func (c *ctxt7) oaddi(p *obj.Prog, o1 int32, v int32, r int, rt int) uint32 {
