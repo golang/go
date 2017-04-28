@@ -1060,8 +1060,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
 				// set dupok generally. See http://codereview.appspot.com/5823055/
 				// comment #5 for details.
 				if s != nil && sym.other == 2 {
-					s.Type |= SHIDDEN
-					s.Attr |= AttrDuplicateOK
+					s.Attr |= AttrDuplicateOK | AttrVisibilityHidden
 				}
 			}
 
@@ -1077,7 +1076,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
 				// so put it in the hash table.
 				if needSym != 0 {
 					s = ctxt.Syms.Lookup(sym.name, localSymVersion)
-					s.Type |= SHIDDEN
+					s.Attr |= AttrVisibilityHidden
 				}
 
 				break
@@ -1089,14 +1088,14 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
 				// don't bother to add them into the hash table
 				s = ctxt.Syms.newsym(sym.name, localSymVersion)
 
-				s.Type |= SHIDDEN
+				s.Attr |= AttrVisibilityHidden
 			}
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
 				s = ctxt.Syms.Lookup(sym.name, 0)
 				if sym.other == 2 {
-					s.Type |= SHIDDEN
+					s.Attr |= AttrVisibilityHidden
 				}
 			}
 
