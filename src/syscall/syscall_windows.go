@@ -57,7 +57,7 @@ func UTF16ToString(s []uint16) string {
 
 // StringToUTF16Ptr returns pointer to the UTF-16 encoding of
 // the UTF-8 string s, with a terminating NUL added. If s
-// If s contains a NUL byte this function panics instead of
+// contains a NUL byte this function panics instead of
 // returning an error.
 //
 // Deprecated: Use UTF16PtrFromString instead.
