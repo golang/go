@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 3, 2017",
+	"Subtitle": "Version of May 9, 2017",
 	"Path": "/ref/spec"
 }-->
 
@@ -5968,7 +5968,7 @@ println    like print but prints spaces between arguments and a newline at the e
 <p>
 Implementation restriction: <code>print</code> and <code>println</code> need not
 accept arbitrary argument types, but printing of boolean, numeric, and string
-<a href="#Types">types</a> must be supported. 
+<a href="#Types">types</a> must be supported.
 </p>
 
 <h2 id="Packages">Packages</h2>
@@ -6431,7 +6431,7 @@ func Sizeof(variable ArbitraryType) uintptr
 A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
 value may not be <a href="#Address_operators">dereferenced</a>.
 Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be converted to
-a <code>Pointer</code> type and vice versa.
+a type of underlying type <code>Pointer</code> and vice versa.
 The effect of converting between <code>Pointer</code> and <code>uintptr</code> is implementation-defined.
 </p>
 
