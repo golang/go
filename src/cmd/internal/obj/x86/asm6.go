@@ -963,7 +963,7 @@ var optab =
 	{AANDNPD, yxm, Pq, [23]uint8{0x55}},
 	{AANDNPS, yxm, Pm, [23]uint8{0x55}},
 	{AANDPD, yxm, Pq, [23]uint8{0x54}},
-	{AANDPS, yxm, Pq, [23]uint8{0x54}},
+	{AANDPS, yxm, Pm, [23]uint8{0x54}},
 	{AANDQ, yaddl, Pw, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
 	{AANDW, yaddl, Pe, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
 	{AARPL, yrl_ml, P32, [23]uint8{0x63}},
