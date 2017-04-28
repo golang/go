@@ -9,12 +9,13 @@ import (
 
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
 )
 
 // loadByType returns the load instruction of the given type.
-func loadByType(t ssa.Type) obj.As {
+func loadByType(t *types.Type) obj.As {
 	if t.IsFloat() {
 		switch t.Size() {
 		case 4:
@@ -50,7 +51,7 @@ func loadByType(t ssa.Type) obj.As {
 }
 
 // storeByType returns the store instruction of the given type.
-func storeByType(t ssa.Type) obj.As {
+func storeByType(t *types.Type) obj.As {
 	if t.IsFloat() {
 		switch t.Size() {
 		case 4:

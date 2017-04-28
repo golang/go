@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
@@ -24,7 +25,7 @@ type Value struct {
 
 	// The type of this value. Normally this will be a Go type, but there
 	// are a few other pseudo-types, see type.go.
-	Type Type
+	Type *types.Type
 
 	// Auxiliary info for this value. The type of this information depends on the opcode and type.
 	// AuxInt is used for integer values, Aux is used for other values.

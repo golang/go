@@ -4,7 +4,10 @@
 
 package ssa
 
-import "testing"
+import (
+	"cmd/compile/internal/types"
+	"testing"
+)
 
 type tstAux struct {
 	s string
@@ -21,24 +24,24 @@ func TestCSEAuxPartitionBug(t *testing.T) {
 	// them in an order that triggers the bug
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, TypeMem, 0, nil),
-			Valu("sp", OpSP, TypeBytePtr, 0, nil),
-			Valu("r7", OpAdd64, TypeInt64, 0, nil, "arg3", "arg1"),
-			Valu("r1", OpAdd64, TypeInt64, 0, nil, "arg1", "arg2"),
-			Valu("arg1", OpArg, TypeInt64, 0, arg1Aux),
-			Valu("arg2", OpArg, TypeInt64, 0, arg2Aux),
-			Valu("arg3", OpArg, TypeInt64, 0, arg3Aux),
-			Valu("r9", OpAdd64, TypeInt64, 0, nil, "r7", "r8"),
-			Valu("r4", OpAdd64, TypeInt64, 0, nil, "r1", "r2"),
-			Valu("r8", OpAdd64, TypeInt64, 0, nil, "arg3", "arg2"),
-			Valu("r2", OpAdd64, TypeInt64, 0, nil, "arg1", "arg2"),
-			Valu("raddr", OpAddr, TypeInt64Ptr, 0, nil, "sp"),
-			Valu("raddrdef", OpVarDef, TypeMem, 0, nil, "start"),
-			Valu("r6", OpAdd64, TypeInt64, 0, nil, "r4", "r5"),
-			Valu("r3", OpAdd64, TypeInt64, 0, nil, "arg1", "arg2"),
-			Valu("r5", OpAdd64, TypeInt64, 0, nil, "r2", "r3"),
-			Valu("r10", OpAdd64, TypeInt64, 0, nil, "r6", "r9"),
-			Valu("rstore", OpStore, TypeMem, 0, TypeInt64, "raddr", "r10", "raddrdef"),
+			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sp", OpSP, c.config.Types.BytePtr, 0, nil),
+			Valu("r7", OpAdd64, c.config.Types.Int64, 0, nil, "arg3", "arg1"),
+			Valu("r1", OpAdd64, c.config.Types.Int64, 0, nil, "arg1", "arg2"),
+			Valu("arg1", OpArg, c.config.Types.Int64, 0, arg1Aux),
+			Valu("arg2", OpArg, c.config.Types.Int64, 0, arg2Aux),
+			Valu("arg3", OpArg, c.config.Types.Int64, 0, arg3Aux),
+			Valu("r9", OpAdd64, c.config.Types.Int64, 0, nil, "r7", "r8"),
+			Valu("r4", OpAdd64, c.config.Types.Int64, 0, nil, "r1", "r2"),
+			Valu("r8", OpAdd64, c.config.Types.Int64, 0, nil, "arg3", "arg2"),
+			Valu("r2", OpAdd64, c.config.Types.Int64, 0, nil, "arg1", "arg2"),
+			Valu("raddr", OpAddr, c.config.Types.Int64.PtrTo(), 0, nil, "sp"),
+			Valu("raddrdef", OpVarDef, types.TypeMem, 0, nil, "start"),
+			Valu("r6", OpAdd64, c.config.Types.Int64, 0, nil, "r4", "r5"),
+			Valu("r3", OpAdd64, c.config.Types.Int64, 0, nil, "arg1", "arg2"),
+			Valu("r5", OpAdd64, c.config.Types.Int64, 0, nil, "r2", "r3"),
+			Valu("r10", OpAdd64, c.config.Types.Int64, 0, nil, "r6", "r9"),
+			Valu("rstore", OpStore, types.TypeMem, 0, c.config.Types.Int64, "raddr", "r10", "raddrdef"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("rstore")))
@@ -89,22 +92,22 @@ func TestZCSE(t *testing.T) {
 
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, TypeMem, 0, nil),
-			Valu("sp", OpSP, TypeBytePtr, 0, nil),
-			Valu("sb1", OpSB, TypeBytePtr, 0, nil),
-			Valu("sb2", OpSB, TypeBytePtr, 0, nil),
-			Valu("addr1", OpAddr, TypeInt64Ptr, 0, nil, "sb1"),
-			Valu("addr2", OpAddr, TypeInt64Ptr, 0, nil, "sb2"),
-			Valu("a1ld", OpLoad, TypeInt64, 0, nil, "addr1", "start"),
-			Valu("a2ld", OpLoad, TypeInt64, 0, nil, "addr2", "start"),
-			Valu("c1", OpConst64, TypeInt64, 1, nil),
-			Valu("r1", OpAdd64, TypeInt64, 0, nil, "a1ld", "c1"),
-			Valu("c2", OpConst64, TypeInt64, 1, nil),
-			Valu("r2", OpAdd64, TypeInt64, 0, nil, "a2ld", "c2"),
-			Valu("r3", OpAdd64, TypeInt64, 0, nil, "r1", "r2"),
-			Valu("raddr", OpAddr, TypeInt64Ptr, 0, nil, "sp"),
-			Valu("raddrdef", OpVarDef, TypeMem, 0, nil, "start"),
-			Valu("rstore", OpStore, TypeMem, 0, TypeInt64, "raddr", "r3", "raddrdef"),
+			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sp", OpSP, c.config.Types.BytePtr, 0, nil),
+			Valu("sb1", OpSB, c.config.Types.BytePtr, 0, nil),
+			Valu("sb2", OpSB, c.config.Types.BytePtr, 0, nil),
+			Valu("addr1", OpAddr, c.config.Types.Int64.PtrTo(), 0, nil, "sb1"),
+			Valu("addr2", OpAddr, c.config.Types.Int64.PtrTo(), 0, nil, "sb2"),
+			Valu("a1ld", OpLoad, c.config.Types.Int64, 0, nil, "addr1", "start"),
+			Valu("a2ld", OpLoad, c.config.Types.Int64, 0, nil, "addr2", "start"),
+			Valu("c1", OpConst64, c.config.Types.Int64, 1, nil),
+			Valu("r1", OpAdd64, c.config.Types.Int64, 0, nil, "a1ld", "c1"),
+			Valu("c2", OpConst64, c.config.Types.Int64, 1, nil),
+			Valu("r2", OpAdd64, c.config.Types.Int64, 0, nil, "a2ld", "c2"),
+			Valu("r3", OpAdd64, c.config.Types.Int64, 0, nil, "r1", "r2"),
+			Valu("raddr", OpAddr, c.config.Types.Int64.PtrTo(), 0, nil, "sp"),
+			Valu("raddrdef", OpVarDef, types.TypeMem, 0, nil, "start"),
+			Valu("rstore", OpStore, types.TypeMem, 0, c.config.Types.Int64, "raddr", "r3", "raddrdef"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("rstore")))

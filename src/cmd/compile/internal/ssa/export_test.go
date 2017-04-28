@@ -5,10 +5,12 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
+	"fmt"
 	"testing"
 )
 
@@ -61,11 +63,11 @@ type DummyFrontend struct {
 }
 
 type DummyAuto struct {
-	t Type
+	t *types.Type
 	s string
 }
 
-func (d *DummyAuto) Typ() Type {
+func (d *DummyAuto) Typ() *types.Type {
 	return d.t
 }
 
@@ -76,7 +78,7 @@ func (d *DummyAuto) String() string {
 func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }
-func (DummyFrontend) Auto(pos src.XPos, t Type) GCNode {
+func (DummyFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
 	return &DummyAuto{t: t, s: "aDummyAuto"}
 }
 func (d DummyFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
@@ -128,34 +130,81 @@ func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t
 func (d DummyFrontend) Debug_checknil() bool                               { return false }
 func (d DummyFrontend) Debug_wb() bool                                     { return false }
 
-var dummyTypes = Types{
-	Bool:       TypeBool,
-	Int8:       TypeInt8,
-	Int16:      TypeInt16,
-	Int32:      TypeInt32,
-	Int64:      TypeInt64,
-	UInt8:      TypeUInt8,
-	UInt16:     TypeUInt16,
-	UInt32:     TypeUInt32,
-	UInt64:     TypeUInt64,
-	Float32:    TypeFloat32,
-	Float64:    TypeFloat64,
-	Int:        TypeInt64,
-	Uintptr:    TypeUInt64,
-	String:     nil,
-	BytePtr:    TypeBytePtr,
-	Int32Ptr:   TypeInt32.PtrTo(),
-	UInt32Ptr:  TypeUInt32.PtrTo(),
-	IntPtr:     TypeInt64.PtrTo(),
-	UintptrPtr: TypeUInt64.PtrTo(),
-	Float32Ptr: TypeFloat32.PtrTo(),
-	Float64Ptr: TypeFloat64.PtrTo(),
-	BytePtrPtr: TypeBytePtr.PtrTo(),
+var dummyTypes Types
+
+func init() {
+	// Initialize just enough of the universe and the types package to make our tests function.
+	// TODO(josharian): move universe initialization to the types package,
+	// so this test setup can share it.
+
+	types.Tconv = func(t *types.Type, flag, mode, depth int) string {
+		return t.Etype.String()
+	}
+	types.Sconv = func(s *types.Sym, flag, mode int) string {
+		return "sym"
+	}
+	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune, mode int) {
+		fmt.Fprintf(s, "sym")
+	}
+	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
+		fmt.Fprintf(s, "%v", t.Etype)
+	}
+	types.Dowidth = func(t *types.Type) {}
+
+	types.Tptr = types.TPTR64
+	for _, typ := range [...]struct {
+		width int64
+		et    types.EType
+	}{
+		{1, types.TINT8},
+		{1, types.TUINT8},
+		{1, types.TBOOL},
+		{2, types.TINT16},
+		{2, types.TUINT16},
+		{4, types.TINT32},
+		{4, types.TUINT32},
+		{4, types.TFLOAT32},
+		{4, types.TFLOAT64},
+		{8, types.TUINT64},
+		{8, types.TINT64},
+		{8, types.TINT},
+		{8, types.TUINTPTR},
+	} {
+		t := types.New(typ.et)
+		t.Width = typ.width
+		t.Align = uint8(typ.width)
+		types.Types[typ.et] = t
+	}
+
+	dummyTypes = Types{
+		Bool:       types.Types[types.TBOOL],
+		Int8:       types.Types[types.TINT8],
+		Int16:      types.Types[types.TINT16],
+		Int32:      types.Types[types.TINT32],
+		Int64:      types.Types[types.TINT64],
+		UInt8:      types.Types[types.TUINT8],
+		UInt16:     types.Types[types.TUINT16],
+		UInt32:     types.Types[types.TUINT32],
+		UInt64:     types.Types[types.TUINT64],
+		Float32:    types.Types[types.TFLOAT32],
+		Float64:    types.Types[types.TFLOAT64],
+		Int:        types.Types[types.TINT],
+		Uintptr:    types.Types[types.TUINTPTR],
+		String:     types.Types[types.TSTRING],
+		BytePtr:    types.NewPtr(types.Types[types.TUINT8]),
+		Int32Ptr:   types.NewPtr(types.Types[types.TINT32]),
+		UInt32Ptr:  types.NewPtr(types.Types[types.TUINT32]),
+		IntPtr:     types.NewPtr(types.Types[types.TINT]),
+		UintptrPtr: types.NewPtr(types.Types[types.TUINTPTR]),
+		Float32Ptr: types.NewPtr(types.Types[types.TFLOAT32]),
+		Float64Ptr: types.NewPtr(types.Types[types.TFLOAT64]),
+		BytePtrPtr: types.NewPtr(types.NewPtr(types.Types[types.TUINT8])),
+	}
 }
 
 func (d DummyFrontend) DerefItab(sym *obj.LSym, off int64) *obj.LSym { return nil }
 
-func (d DummyFrontend) CanSSA(t Type) bool {
+func (d DummyFrontend) CanSSA(t *types.Type) bool {
 	// There are no un-SSAable types in dummy land.
 	return true
 }

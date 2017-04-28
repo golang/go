@@ -151,7 +151,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.labels = map[string]*ssaLabel{}
 	s.labeledNodes = map[*Node]*ssaLabel{}
 	s.fwdVars = map[*Node]*ssa.Value{}
-	s.startmem = s.entryNewValue0(ssa.OpInitMem, ssa.TypeMem)
+	s.startmem = s.entryNewValue0(ssa.OpInitMem, types.TypeMem)
 	s.sp = s.entryNewValue0(ssa.OpSP, types.Types[TUINTPTR]) // TODO: use generic pointer type (unsafe.Pointer?) instead
 	s.sb = s.entryNewValue0(ssa.OpSB, types.Types[TUINTPTR])
 
@@ -372,127 +372,133 @@ func (s *state) peekPos() src.XPos {
 }
 
 // newValue0 adds a new value with no arguments to the current block.
-func (s *state) newValue0(op ssa.Op, t ssa.Type) *ssa.Value {
+func (s *state) newValue0(op ssa.Op, t *types.Type) *ssa.Value {
 	return s.curBlock.NewValue0(s.peekPos(), op, t)
 }
 
 // newValue0A adds a new value with no arguments and an aux value to the current block.
-func (s *state) newValue0A(op ssa.Op, t ssa.Type, aux interface{}) *ssa.Value {
+func (s *state) newValue0A(op ssa.Op, t *types.Type, aux interface{}) *ssa.Value {
 	return s.curBlock.NewValue0A(s.peekPos(), op, t, aux)
 }
 
 // newValue0I adds a new value with no arguments and an auxint value to the current block.
-func (s *state) newValue0I(op ssa.Op, t ssa.Type, auxint int64) *ssa.Value {
+func (s *state) newValue0I(op ssa.Op, t *types.Type, auxint int64) *ssa.Value {
 	return s.curBlock.NewValue0I(s.peekPos(), op, t, auxint)
 }
 
 // newValue1 adds a new value with one argument to the current block.
-func (s *state) newValue1(op ssa.Op, t ssa.Type, arg *ssa.Value) *ssa.Value {
+func (s *state) newValue1(op ssa.Op, t *types.Type, arg *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue1(s.peekPos(), op, t, arg)
 }
 
 // newValue1A adds a new value with one argument and an aux value to the current block.
-func (s *state) newValue1A(op ssa.Op, t ssa.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
+func (s *state) newValue1A(op ssa.Op, t *types.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue1A(s.peekPos(), op, t, aux, arg)
 }
 
 // newValue1I adds a new value with one argument and an auxint value to the current block.
-func (s *state) newValue1I(op ssa.Op, t ssa.Type, aux int64, arg *ssa.Value) *ssa.Value {
+func (s *state) newValue1I(op ssa.Op, t *types.Type, aux int64, arg *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue1I(s.peekPos(), op, t, aux, arg)
 }
 
 // newValue2 adds a new value with two arguments to the current block.
-func (s *state) newValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ssa.Value {
+func (s *state) newValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue2(s.peekPos(), op, t, arg0, arg1)
 }
 
 // newValue2I adds a new value with two arguments and an auxint value to the current block.
-func (s *state) newValue2I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1 *ssa.Value) *ssa.Value {
+func (s *state) newValue2I(op ssa.Op, t *types.Type, aux int64, arg0, arg1 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue2I(s.peekPos(), op, t, aux, arg0, arg1)
 }
 
 // newValue3 adds a new value with three arguments to the current block.
-func (s *state) newValue3(op ssa.Op, t ssa.Type, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
+func (s *state) newValue3(op ssa.Op, t *types.Type, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue3(s.peekPos(), op, t, arg0, arg1, arg2)
 }
 
 // newValue3I adds a new value with three arguments and an auxint value to the current block.
-func (s *state) newValue3I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
+func (s *state) newValue3I(op ssa.Op, t *types.Type, aux int64, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue3I(s.peekPos(), op, t, aux, arg0, arg1, arg2)
 }
 
 // newValue3A adds a new value with three arguments and an aux value to the current block.
-func (s *state) newValue3A(op ssa.Op, t ssa.Type, aux interface{}, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
+func (s *state) newValue3A(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue3A(s.peekPos(), op, t, aux, arg0, arg1, arg2)
 }
 
 // newValue4 adds a new value with four arguments to the current block.
-func (s *state) newValue4(op ssa.Op, t ssa.Type, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
+func (s *state) newValue4(op ssa.Op, t *types.Type, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue4(s.peekPos(), op, t, arg0, arg1, arg2, arg3)
 }
 
 // entryNewValue0 adds a new value with no arguments to the entry block.
-func (s *state) entryNewValue0(op ssa.Op, t ssa.Type) *ssa.Value {
+func (s *state) entryNewValue0(op ssa.Op, t *types.Type) *ssa.Value {
 	return s.f.Entry.NewValue0(s.peekPos(), op, t)
 }
 
 // entryNewValue0A adds a new value with no arguments and an aux value to the entry block.
-func (s *state) entryNewValue0A(op ssa.Op, t ssa.Type, aux interface{}) *ssa.Value {
+func (s *state) entryNewValue0A(op ssa.Op, t *types.Type, aux interface{}) *ssa.Value {
 	return s.f.Entry.NewValue0A(s.peekPos(), op, t, aux)
 }
 
 // entryNewValue0I adds a new value with no arguments and an auxint value to the entry block.
-func (s *state) entryNewValue0I(op ssa.Op, t ssa.Type, auxint int64) *ssa.Value {
+func (s *state) entryNewValue0I(op ssa.Op, t *types.Type, auxint int64) *ssa.Value {
 	return s.f.Entry.NewValue0I(s.peekPos(), op, t, auxint)
 }
 
 // entryNewValue1 adds a new value with one argument to the entry block.
-func (s *state) entryNewValue1(op ssa.Op, t ssa.Type, arg *ssa.Value) *ssa.Value {
+func (s *state) entryNewValue1(op ssa.Op, t *types.Type, arg *ssa.Value) *ssa.Value {
 	return s.f.Entry.NewValue1(s.peekPos(), op, t, arg)
 }
 
 // entryNewValue1 adds a new value with one argument and an auxint value to the entry block.
-func (s *state) entryNewValue1I(op ssa.Op, t ssa.Type, auxint int64, arg *ssa.Value) *ssa.Value {
+func (s *state) entryNewValue1I(op ssa.Op, t *types.Type, auxint int64, arg *ssa.Value) *ssa.Value {
 	return s.f.Entry.NewValue1I(s.peekPos(), op, t, auxint, arg)
 }
 
 // entryNewValue1A adds a new value with one argument and an aux value to the entry block.
-func (s *state) entryNewValue1A(op ssa.Op, t ssa.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
+func (s *state) entryNewValue1A(op ssa.Op, t *types.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
 	return s.f.Entry.NewValue1A(s.peekPos(), op, t, aux, arg)
 }
 
 // entryNewValue2 adds a new value with two arguments to the entry block.
-func (s *state) entryNewValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ssa.Value {
+func (s *state) entryNewValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value) *ssa.Value {
 	return s.f.Entry.NewValue2(s.peekPos(), op, t, arg0, arg1)
 }
 
 // const* routines add a new const value to the entry block.
-func (s *state) constSlice(t ssa.Type) *ssa.Value       { return s.f.ConstSlice(s.peekPos(), t) }
-func (s *state) constInterface(t ssa.Type) *ssa.Value   { return s.f.ConstInterface(s.peekPos(), t) }
-func (s *state) constNil(t ssa.Type) *ssa.Value         { return s.f.ConstNil(s.peekPos(), t) }
-func (s *state) constEmptyString(t ssa.Type) *ssa.Value { return s.f.ConstEmptyString(s.peekPos(), t) }
+func (s *state) constSlice(t *types.Type) *ssa.Value {
+	return s.f.ConstSlice(s.peekPos(), t)
+}
+func (s *state) constInterface(t *types.Type) *ssa.Value {
+	return s.f.ConstInterface(s.peekPos(), t)
+}
+func (s *state) constNil(t *types.Type) *ssa.Value { return s.f.ConstNil(s.peekPos(), t) }
+func (s *state) constEmptyString(t *types.Type) *ssa.Value {
+	return s.f.ConstEmptyString(s.peekPos(), t)
+}
 func (s *state) constBool(c bool) *ssa.Value {
 	return s.f.ConstBool(s.peekPos(), types.Types[TBOOL], c)
 }
-func (s *state) constInt8(t ssa.Type, c int8) *ssa.Value {
+func (s *state) constInt8(t *types.Type, c int8) *ssa.Value {
 	return s.f.ConstInt8(s.peekPos(), t, c)
 }
-func (s *state) constInt16(t ssa.Type, c int16) *ssa.Value {
+func (s *state) constInt16(t *types.Type, c int16) *ssa.Value {
 	return s.f.ConstInt16(s.peekPos(), t, c)
 }
-func (s *state) constInt32(t ssa.Type, c int32) *ssa.Value {
+func (s *state) constInt32(t *types.Type, c int32) *ssa.Value {
 	return s.f.ConstInt32(s.peekPos(), t, c)
 }
-func (s *state) constInt64(t ssa.Type, c int64) *ssa.Value {
+func (s *state) constInt64(t *types.Type, c int64) *ssa.Value {
 	return s.f.ConstInt64(s.peekPos(), t, c)
 }
-func (s *state) constFloat32(t ssa.Type, c float64) *ssa.Value {
+func (s *state) constFloat32(t *types.Type, c float64) *ssa.Value {
 	return s.f.ConstFloat32(s.peekPos(), t, c)
 }
-func (s *state) constFloat64(t ssa.Type, c float64) *ssa.Value {
+func (s *state) constFloat64(t *types.Type, c float64) *ssa.Value {
 	return s.f.ConstFloat64(s.peekPos(), t, c)
 }
-func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
+func (s *state) constInt(t *types.Type, c int64) *ssa.Value {
 	if s.config.PtrSize == 8 {
 		return s.constInt64(t, c)
 	}
@@ -501,7 +507,7 @@ func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
 	}
 	return s.constInt32(t, int32(c))
 }
-func (s *state) constOffPtrSP(t ssa.Type, c int64) *ssa.Value {
+func (s *state) constOffPtrSP(t *types.Type, c int64) *ssa.Value {
 	return s.f.ConstOffPtrSP(s.peekPos(), t, c, s.sp)
 }
 
@@ -920,7 +926,7 @@ func (s *state) stmt(n *Node) {
 		// varkill in the store chain is enough to keep it correctly ordered
 		// with respect to call ops.
 		if !s.canSSA(n.Left) {
-			s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
+			s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, types.TypeMem, n.Left, s.mem())
 		}
 
 	case OVARLIVE:
@@ -928,7 +934,7 @@ func (s *state) stmt(n *Node) {
 		if !n.Left.Addrtaken() {
 			s.Fatalf("VARLIVE variable %v must have Addrtaken set", n.Left)
 		}
-		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, ssa.TypeMem, n.Left, s.mem())
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, n.Left, s.mem())
 
 	case OCHECKNIL:
 		p := s.expr(n.Left)
@@ -955,8 +961,8 @@ func (s *state) exit() *ssa.Block {
 	for _, n := range s.returns {
 		addr := s.decladdrs[n]
 		val := s.variable(n, n.Type)
-		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, n, s.mem())
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, n.Type, addr, val, s.mem())
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, n.Type, addr, val, s.mem())
 		// TODO: if val is ever spilled, we'd like to use the
 		// PPARAMOUT slot for spilling it. That won't happen
 		// currently.
@@ -2187,11 +2193,11 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	if inplace {
 		if sn.Op == ONAME {
 			// Tell liveness we're about to build a new slice
-			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, sn, s.mem())
+			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
 		}
 		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(array_cap), addr)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], capaddr, r[2], s.mem())
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, pt, addr, r[0], s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, types.Types[TINT], capaddr, r[2], s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, pt, addr, r[0], s.mem())
 		// load the value we just stored to avoid having to spill it
 		s.vars[&ptrVar] = s.newValue2(ssa.OpLoad, pt, addr, s.mem())
 		s.vars[&lenVar] = r[1] // avoid a spill in the fast path
@@ -2211,7 +2217,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		l = s.variable(&lenVar, types.Types[TINT]) // generates phi for len
 		nl = s.newValue2(s.ssaOp(OADD, types.Types[TINT]), types.Types[TINT], l, s.constInt(types.Types[TINT], nargs))
 		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(array_nel), addr)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], lenaddr, nl, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, types.Types[TINT], lenaddr, nl, s.mem())
 	}
 
 	// Evaluate args
@@ -2242,7 +2248,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		if arg.store {
 			s.storeType(et, addr, arg.v, 0)
 		} else {
-			store := s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg.v, s.mem())
+			store := s.newValue3I(ssa.OpMove, types.TypeMem, et.Size(), addr, arg.v, s.mem())
 			store.Aux = et
 			s.vars[&memVar] = store
 		}
@@ -2393,7 +2399,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 	// Left is not ssa-able. Compute its address.
 	addr := s.addr(left, false)
 	if left.Op == ONAME && skip == 0 {
-		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, left, s.mem())
 	}
 	if isReflectHeaderDataField(left) {
 		// Package unsafe's documentation says storing pointers into
@@ -2407,9 +2413,9 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 		// Treat as a mem->mem move.
 		var store *ssa.Value
 		if right == nil {
-			store = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
+			store = s.newValue2I(ssa.OpZero, types.TypeMem, t.Size(), addr, s.mem())
 		} else {
-			store = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), addr, right, s.mem())
+			store = s.newValue3I(ssa.OpMove, types.TypeMem, t.Size(), addr, right, s.mem())
 		}
 		store.Aux = t
 		s.vars[&memVar] = store
@@ -2470,7 +2476,7 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 		n := t.NumFields()
 		v := s.entryNewValue0(ssa.StructMakeOp(t.NumFields()), t)
 		for i := 0; i < n; i++ {
-			v.AddArg(s.zeroVal(t.FieldType(i).(*types.Type)))
+			v.AddArg(s.zeroVal(t.FieldType(i)))
 		}
 		return v
 	case t.IsArray():
@@ -2567,7 +2573,7 @@ func init() {
 	add("runtime", "KeepAlive",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			data := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, args[0])
-			s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, data, s.mem())
+			s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, types.TypeMem, data, s.mem())
 			return nil
 		},
 		all...)
@@ -2597,100 +2603,100 @@ func init() {
 	/******** runtime/internal/atomic ********/
 	addF("runtime/internal/atomic", "Load",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			v := s.newValue2(ssa.OpAtomicLoad32, ssa.MakeTuple(types.Types[TUINT32], ssa.TypeMem), args[0], s.mem())
-			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+			v := s.newValue2(ssa.OpAtomicLoad32, types.NewTuple(types.Types[TUINT32], types.TypeMem), args[0], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
 
 	addF("runtime/internal/atomic", "Load64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			v := s.newValue2(ssa.OpAtomicLoad64, ssa.MakeTuple(types.Types[TUINT64], ssa.TypeMem), args[0], s.mem())
-			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT64], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
 	addF("runtime/internal/atomic", "Loadp",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			v := s.newValue2(ssa.OpAtomicLoadPtr, ssa.MakeTuple(s.f.Config.Types.BytePtr, ssa.TypeMem), args[0], s.mem())
-			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+			v := s.newValue2(ssa.OpAtomicLoadPtr, types.NewTuple(s.f.Config.Types.BytePtr, types.TypeMem), args[0], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, s.f.Config.Types.BytePtr, v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
 
 	addF("runtime/internal/atomic", "Store",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore32, ssa.TypeMem, args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
 	addF("runtime/internal/atomic", "Store64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore64, ssa.TypeMem, args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore64, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
 	addF("runtime/internal/atomic", "StorepNoWB",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStorePtrNoWB, ssa.TypeMem, args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStorePtrNoWB, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS)
 
 	addF("runtime/internal/atomic", "Xchg",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			v := s.newValue3(ssa.OpAtomicExchange32, ssa.MakeTuple(types.Types[TUINT32], ssa.TypeMem), args[0], args[1], s.mem())
-			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+			v := s.newValue3(ssa.OpAtomicExchange32, types.NewTuple(types.Types[TUINT32], types.TypeMem), args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
 	addF("runtime/internal/atomic", "Xchg64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			v := s.newValue3(ssa.OpAtomicExchange64, ssa.MakeTuple(types.Types[TUINT64], ssa.TypeMem), args[0], args[1], s.mem())
-			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+			v := s.newValue3(ssa.OpAtomicExchange64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT64], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
 
 	addF("runtime/internal/atomic", "Xadd",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			v := s.newValue3(ssa.OpAtomicAdd32, ssa.MakeTuple(types.Types[TUINT32], ssa.TypeMem), args[0], args[1], s.mem())
-			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+			v := s.newValue3(ssa.OpAtomicAdd32, types.NewTuple(types.Types[TUINT32], types.TypeMem), args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
 	addF("runtime/internal/atomic", "Xadd64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			v := s.newValue3(ssa.OpAtomicAdd64, ssa.MakeTuple(types.Types[TUINT64], ssa.TypeMem), args[0], args[1], s.mem())
-			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+			v := s.newValue3(ssa.OpAtomicAdd64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT64], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
 
 	addF("runtime/internal/atomic", "Cas",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, ssa.MakeTuple(types.Types[TBOOL], ssa.TypeMem), args[0], args[1], args[2], s.mem())
-			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TBOOL], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
 	addF("runtime/internal/atomic", "Cas64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, ssa.MakeTuple(types.Types[TBOOL], ssa.TypeMem), args[0], args[1], args[2], s.mem())
-			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, types.NewTuple(types.Types[TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[TBOOL], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
 
 	addF("runtime/internal/atomic", "And8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd8, ssa.TypeMem, args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64)
 	addF("runtime/internal/atomic", "Or8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, ssa.TypeMem, args[0], args[1], s.mem())
+			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64)
@@ -2931,12 +2937,12 @@ func init() {
 	/******** math/big ********/
 	add("math/big", "mulWW",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			return s.newValue2(ssa.OpMul64uhilo, ssa.MakeTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
+			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
 		},
 		sys.ArchAMD64)
 	add("math/big", "divWW",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			return s.newValue3(ssa.OpDiv128u, ssa.MakeTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+			return s.newValue3(ssa.OpDiv128u, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
 		},
 		sys.ArchAMD64)
 }
@@ -3111,7 +3117,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			argStart += int64(2 * Widthptr)
 		}
 		addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TUINTPTR], addr, rcvr, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, types.Types[TUINTPTR], addr, rcvr, s.mem())
 	}
 
 	// Defer/go args
@@ -3120,9 +3126,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		argStart := Ctxt.FixedFrameSize()
 		argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
 		addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TUINT32], addr, argsize, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, types.Types[TUINT32], addr, argsize, s.mem())
 		addr = s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TUINTPTR], addr, closure, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, types.Types[TUINTPTR], addr, closure, s.mem())
 		stksize += 2 * int64(Widthptr)
 	}
 
@@ -3130,16 +3136,16 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	var call *ssa.Value
 	switch {
 	case k == callDefer:
-		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Deferproc, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, Deferproc, s.mem())
 	case k == callGo:
-		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Newproc, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, Newproc, s.mem())
 	case closure != nil:
 		codeptr = s.newValue2(ssa.OpLoad, types.Types[TUINTPTR], closure, s.mem())
-		call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, codeptr, closure, s.mem())
+		call = s.newValue3(ssa.OpClosureCall, types.TypeMem, codeptr, closure, s.mem())
 	case codeptr != nil:
-		call = s.newValue2(ssa.OpInterCall, ssa.TypeMem, codeptr, s.mem())
+		call = s.newValue2(ssa.OpInterCall, types.TypeMem, codeptr, s.mem())
 	case sym != nil:
-		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, sym.Linksym(), s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, sym.Linksym(), s.mem())
 	default:
 		Fatalf("bad call type %v %v", n.Op, n)
 	}
@@ -3402,7 +3408,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 	if disable_checknil != 0 || s.curfn.Func.NilCheckDisabled() {
 		return
 	}
-	s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
+	s.newValue2(ssa.OpNilCheck, types.TypeVoid, ptr, s.mem())
 }
 
 // boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.
@@ -3481,13 +3487,13 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 		off = Rnd(off, t.Alignment())
 		ptr := s.constOffPtrSP(t.PtrTo(), off)
 		size := t.Size()
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, ptr, arg, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, t, ptr, arg, s.mem())
 		off += size
 	}
 	off = Rnd(off, int64(Widthreg))
 
 	// Issue call
-	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, fn, s.mem())
+	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, fn, s.mem())
 	s.vars[&memVar] = call
 
 	if !returns {
@@ -3522,7 +3528,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 func (s *state) storeType(t *types.Type, left, right *ssa.Value, skip skipMask) {
 	if skip == 0 && (!types.Haspointers(t) || ssa.IsStackAddr(left)) {
 		// Known to not have write barrier. Store the whole type.
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, left, right, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, t, left, right, s.mem())
 		return
 	}
 
@@ -3541,7 +3547,7 @@ func (s *state) storeType(t *types.Type, left, right *ssa.Value, skip skipMask) 
 func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip skipMask) {
 	switch {
 	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, left, right, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, t, left, right, s.mem())
 	case t.IsPtrShaped():
 		// no scalar fields.
 	case t.IsString():
@@ -3550,29 +3556,29 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 		}
 		len := s.newValue1(ssa.OpStringLen, types.Types[TINT], right)
 		lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.PtrSize, left)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], lenAddr, len, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, types.Types[TINT], lenAddr, len, s.mem())
 	case t.IsSlice():
 		if skip&skipLen == 0 {
 			len := s.newValue1(ssa.OpSliceLen, types.Types[TINT], right)
 			lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.PtrSize, left)
-			s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], lenAddr, len, s.mem())
+			s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, types.Types[TINT], lenAddr, len, s.mem())
 		}
 		if skip&skipCap == 0 {
 			cap := s.newValue1(ssa.OpSliceCap, types.Types[TINT], right)
 			capAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, 2*s.config.PtrSize, left)
-			s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], capAddr, cap, s.mem())
+			s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, types.Types[TINT], capAddr, cap, s.mem())
 		}
 	case t.IsInterface():
 		// itab field doesn't need a write barrier (even though it is a pointer).
 		itab := s.newValue1(ssa.OpITab, s.f.Config.Types.BytePtr, right)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TUINTPTR], left, itab, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, types.Types[TUINTPTR], left, itab, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
 		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
 			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
-			s.storeTypeScalars(ft.(*types.Type), addr, val, 0)
+			s.storeTypeScalars(ft, addr, val, 0)
 		}
 	case t.IsArray() && t.NumElem() == 0:
 		// nothing
@@ -3587,28 +3593,28 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 	switch {
 	case t.IsPtrShaped():
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, left, right, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, t, left, right, s.mem())
 	case t.IsString():
 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, right)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, s.f.Config.Types.BytePtr, left, ptr, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, s.f.Config.Types.BytePtr, left, ptr, s.mem())
 	case t.IsSlice():
 		ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, right)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, s.f.Config.Types.BytePtr, left, ptr, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, s.f.Config.Types.BytePtr, left, ptr, s.mem())
 	case t.IsInterface():
 		// itab field is treated as a scalar.
 		idata := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, right)
 		idataAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.BytePtrPtr, s.config.PtrSize, left)
-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, s.f.Config.Types.BytePtr, idataAddr, idata, s.mem())
+		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, s.f.Config.Types.BytePtr, idataAddr, idata, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
 		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
-			if !types.Haspointers(ft.(*types.Type)) {
+			if !types.Haspointers(ft) {
 				continue
 			}
 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
 			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
-			s.storeTypePtrs(ft.(*types.Type), addr, val)
+			s.storeTypePtrs(ft, addr, val)
 		}
 	case t.IsArray() && t.NumElem() == 0:
 		// nothing
@@ -3722,7 +3728,7 @@ func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value)
 
 type u642fcvtTab struct {
 	geq, cvt2F, and, rsh, or, add ssa.Op
-	one                           func(*state, ssa.Type, int64) *ssa.Value
+	one                           func(*state, *types.Type, int64) *ssa.Value
 }
 
 var u64_f64 u642fcvtTab = u642fcvtTab{
@@ -3925,8 +3931,8 @@ func (s *state) referenceTypeBuiltin(n *Node, x *ssa.Value) *ssa.Value {
 
 type f2uCvtTab struct {
 	ltf, cvt2U, subf, or ssa.Op
-	floatValue           func(*state, ssa.Type, float64) *ssa.Value
-	intValue             func(*state, ssa.Type, int64) *ssa.Value
+	floatValue           func(*state, *types.Type, float64) *ssa.Value
+	intValue             func(*state, *types.Type, int64) *ssa.Value
 	cutoff               uint64
 }
 
@@ -3956,7 +3962,7 @@ var f32_u32 f2uCvtTab = f2uCvtTab{
 	subf:       ssa.OpSub32F,
 	or:         ssa.OpOr32,
 	floatValue: (*state).constFloat32,
-	intValue:   func(s *state, t ssa.Type, v int64) *ssa.Value { return s.constInt32(t, int32(v)) },
+	intValue:   func(s *state, t *types.Type, v int64) *ssa.Value { return s.constInt32(t, int32(v)) },
 	cutoff:     2147483648,
 }
 
@@ -3966,7 +3972,7 @@ var f64_u32 f2uCvtTab = f2uCvtTab{
 	subf:       ssa.OpSub64F,
 	or:         ssa.OpOr32,
 	floatValue: (*state).constFloat64,
-	intValue:   func(s *state, t ssa.Type, v int64) *ssa.Value { return s.constInt32(t, int32(v)) },
+	intValue:   func(s *state, t *types.Type, v int64) *ssa.Value { return s.constInt32(t, int32(v)) },
 	cutoff:     2147483648,
 }
 
@@ -4148,7 +4154,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		// TODO: get rid of some of these temporaries.
 		tmp = tempAt(n.Pos, s.curfn, n.Type)
 		addr = s.addr(tmp, false)
-		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, tmp, s.mem())
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp, s.mem())
 	}
 
 	cond := s.newValue2(ssa.OpEqPtr, types.Types[TBOOL], itab, targetITab)
@@ -4199,7 +4205,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		}
 	} else {
 		p := s.newValue1(ssa.OpIData, types.NewPtr(n.Type), iface)
-		store := s.newValue3I(ssa.OpMove, ssa.TypeMem, n.Type.Size(), addr, p, s.mem())
+		store := s.newValue3I(ssa.OpMove, types.TypeMem, n.Type.Size(), addr, p, s.mem())
 		store.Aux = n.Type
 		s.vars[&memVar] = store
 	}
@@ -4212,7 +4218,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	if tmp == nil {
 		s.vars[valVar] = s.zeroVal(n.Type)
 	} else {
-		store := s.newValue2I(ssa.OpZero, ssa.TypeMem, n.Type.Size(), addr, s.mem())
+		store := s.newValue2I(ssa.OpZero, types.TypeMem, n.Type.Size(), addr, s.mem())
 		store.Aux = n.Type
 		s.vars[&memVar] = store
 	}
@@ -4227,7 +4233,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		delete(s.vars, valVar)
 	} else {
 		res = s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
-		s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, tmp, s.mem())
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, types.TypeMem, tmp, s.mem())
 	}
 	resok = s.variable(&okVar, types.Types[TBOOL])
 	delete(s.vars, &okVar)
@@ -4235,7 +4241,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 }
 
 // variable returns the value of a variable at the current location.
-func (s *state) variable(name *Node, t ssa.Type) *ssa.Value {
+func (s *state) variable(name *Node, t *types.Type) *ssa.Value {
 	v := s.vars[name]
 	if v != nil {
 		return v
@@ -4258,7 +4264,7 @@ func (s *state) variable(name *Node, t ssa.Type) *ssa.Value {
 }
 
 func (s *state) mem() *ssa.Value {
-	return s.variable(&memVar, ssa.TypeMem)
+	return s.variable(&memVar, types.TypeMem)
 }
 
 func (s *state) addNamedValue(n *Node, v *ssa.Value) {
@@ -4826,8 +4832,8 @@ func (e *ssafn) StringData(s string) interface{} {
 	return aux
 }
 
-func (e *ssafn) Auto(pos src.XPos, t ssa.Type) ssa.GCNode {
-	n := tempAt(pos, e.curfn, t.(*types.Type)) // Note: adds new auto to e.curfn.Func.Dcl list
+func (e *ssafn) Auto(pos src.XPos, t *types.Type) ssa.GCNode {
+	n := tempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
 	return n
 }
 
@@ -4864,7 +4870,7 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 
 func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
-	ptrType := types.NewPtr(name.Type.ElemType().(*types.Type))
+	ptrType := types.NewPtr(name.Type.ElemType())
 	lenType := types.Types[TINT]
 	if n.Class() == PAUTO && !n.Addrtaken() {
 		// Split this slice up into three separate variables.
@@ -4953,8 +4959,8 @@ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
 
 // namedAuto returns a new AUTO variable with the given name and type.
 // These are exposed to the debugger.
-func (e *ssafn) namedAuto(name string, typ ssa.Type, pos src.XPos) ssa.GCNode {
-	t := typ.(*types.Type)
+func (e *ssafn) namedAuto(name string, typ *types.Type, pos src.XPos) ssa.GCNode {
+	t := typ
 	s := &types.Sym{Name: name, Pkg: localpkg}
 
 	n := new(Node)
@@ -4976,8 +4982,8 @@ func (e *ssafn) namedAuto(name string, typ ssa.Type, pos src.XPos) ssa.GCNode {
 	return n
 }
 
-func (e *ssafn) CanSSA(t ssa.Type) bool {
-	return canSSAType(t.(*types.Type))
+func (e *ssafn) CanSSA(t *types.Type) bool {
+	return canSSAType(t)
 }
 
 func (e *ssafn) Line(pos src.XPos) string {
@@ -5036,6 +5042,6 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 	return nil
 }
 
-func (n *Node) Typ() ssa.Type {
+func (n *Node) Typ() *types.Type {
 	return n.Type
 }

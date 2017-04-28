@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/types"
+
 // decompose converts phi ops on compound builtin types into phi
 // ops on simple types.
 // (The remaining compound ops are decomposed with rewrite rules.)
@@ -26,7 +28,7 @@ func decomposeBuiltIn(f *Func) {
 		t := name.Type
 		switch {
 		case t.IsInteger() && t.Size() > f.Config.RegSize:
-			var elemType Type
+			var elemType *types.Type
 			if t.IsSigned() {
 				elemType = f.Config.Types.Int32
 			} else {
@@ -42,7 +44,7 @@ func decomposeBuiltIn(f *Func) {
 			}
 			delete(f.NamedValues, name)
 		case t.IsComplex():
-			var elemType Type
+			var elemType *types.Type
 			if t.Size() == 16 {
 				elemType = f.Config.Types.Float64
 			} else {
@@ -160,19 +162,19 @@ func decomposeSlicePhi(v *Value) {
 }
 
 func decomposeInt64Phi(v *Value) {
-	types := &v.Block.Func.Config.Types
-	var partType Type
+	cfgtypes := &v.Block.Func.Config.Types
+	var partType *types.Type
 	if v.Type.IsSigned() {
-		partType = types.Int32
+		partType = cfgtypes.Int32
 	} else {
-		partType = types.UInt32
+		partType = cfgtypes.UInt32
 	}
 
 	hi := v.Block.NewValue0(v.Pos, OpPhi, partType)
-	lo := v.Block.NewValue0(v.Pos, OpPhi, types.UInt32)
+	lo := v.Block.NewValue0(v.Pos, OpPhi, cfgtypes.UInt32)
 	for _, a := range v.Args {
 		hi.AddArg(a.Block.NewValue1(v.Pos, OpInt64Hi, partType, a))
-		lo.AddArg(a.Block.NewValue1(v.Pos, OpInt64Lo, types.UInt32, a))
+		lo.AddArg(a.Block.NewValue1(v.Pos, OpInt64Lo, cfgtypes.UInt32, a))
 	}
 	v.reset(OpInt64Make)
 	v.AddArg(hi)
@@ -180,13 +182,13 @@ func decomposeInt64Phi(v *Value) {
 }
 
 func decomposeComplexPhi(v *Value) {
-	types := &v.Block.Func.Config.Types
-	var partType Type
+	cfgtypes := &v.Block.Func.Config.Types
+	var partType *types.Type
 	switch z := v.Type.Size(); z {
 	case 8:
-		partType = types.Float32
+		partType = cfgtypes.Float32
 	case 16:
-		partType = types.Float64
+		partType = cfgtypes.Float64
 	default:
 		v.Fatalf("decomposeComplexPhi: bad complex size %d", z)
 	}

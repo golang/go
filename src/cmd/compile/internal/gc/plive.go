@@ -930,7 +930,7 @@ func clobberPtr(b *ssa.Block, v *Node, offset int64) {
 	} else {
 		aux = &ssa.ArgSymbol{Node: v}
 	}
-	b.NewValue0IA(src.NoXPos, ssa.OpClobber, ssa.TypeVoid, offset, aux)
+	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, aux)
 }
 
 func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {

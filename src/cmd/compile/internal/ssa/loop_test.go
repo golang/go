@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"testing"
 )
@@ -47,27 +48,27 @@ func TestLoopConditionS390X(t *testing.T) {
 	c := testConfigS390X(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("SP", OpSP, TypeUInt64, 0, nil),
-			Valu("ret", OpAddr, TypeInt64Ptr, 0, nil, "SP"),
-			Valu("N", OpArg, TypeInt64, 0, c.Frontend().Auto(src.NoXPos, TypeInt64)),
-			Valu("starti", OpConst64, TypeInt64, 0, nil),
-			Valu("startsum", OpConst64, TypeInt64, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("SP", OpSP, c.config.Types.UInt64, 0, nil),
+			Valu("ret", OpAddr, c.config.Types.Int64.PtrTo(), 0, nil, "SP"),
+			Valu("N", OpArg, c.config.Types.Int64, 0, c.Frontend().Auto(src.NoXPos, c.config.Types.Int64)),
+			Valu("starti", OpConst64, c.config.Types.Int64, 0, nil),
+			Valu("startsum", OpConst64, c.config.Types.Int64, 0, nil),
 			Goto("b1")),
 		Bloc("b1",
-			Valu("phii", OpPhi, TypeInt64, 0, nil, "starti", "i"),
-			Valu("phisum", OpPhi, TypeInt64, 0, nil, "startsum", "sum"),
-			Valu("cmp1", OpLess64, TypeBool, 0, nil, "phii", "N"),
+			Valu("phii", OpPhi, c.config.Types.Int64, 0, nil, "starti", "i"),
+			Valu("phisum", OpPhi, c.config.Types.Int64, 0, nil, "startsum", "sum"),
+			Valu("cmp1", OpLess64, c.config.Types.Bool, 0, nil, "phii", "N"),
 			If("cmp1", "b2", "b3")),
 		Bloc("b2",
-			Valu("c1", OpConst64, TypeInt64, 1, nil),
-			Valu("i", OpAdd64, TypeInt64, 0, nil, "phii", "c1"),
-			Valu("c3", OpConst64, TypeInt64, 3, nil),
-			Valu("sum", OpAdd64, TypeInt64, 0, nil, "phisum", "c3"),
+			Valu("c1", OpConst64, c.config.Types.Int64, 1, nil),
+			Valu("i", OpAdd64, c.config.Types.Int64, 0, nil, "phii", "c1"),
+			Valu("c3", OpConst64, c.config.Types.Int64, 3, nil),
+			Valu("sum", OpAdd64, c.config.Types.Int64, 0, nil, "phisum", "c3"),
 			Goto("b1")),
 		Bloc("b3",
-			Valu("retdef", OpVarDef, TypeMem, 0, nil, "mem"),
-			Valu("store", OpStore, TypeMem, 0, TypeInt64, "ret", "phisum", "retdef"),
+			Valu("retdef", OpVarDef, types.TypeMem, 0, nil, "mem"),
+			Valu("store", OpStore, types.TypeMem, 0, c.config.Types.Int64, "ret", "phisum", "retdef"),
 			Exit("store")))
 	CheckFunc(fun.f)
 	Compile(fun.f)

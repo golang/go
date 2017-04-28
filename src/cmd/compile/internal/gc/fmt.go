@@ -1794,6 +1794,12 @@ func tconv(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	if t == nil {
 		return "<T>"
 	}
+	if t.Etype == types.TSSA {
+		return t.Extra.(string)
+	}
+	if t.Etype == types.TTUPLE {
+		return t.FieldType(0).String() + "," + t.FieldType(1).String()
+	}
 
 	if depth > 100 {
 		return "<...>"

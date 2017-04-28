@@ -114,6 +114,8 @@ var etnames = []string{
 	TFUNCARGS:   "TFUNCARGS",
 	TCHANARGS:   "TCHANARGS",
 	TDDDFIELD:   "TDDDFIELD",
+	TSSA:        "TSSA",
+	TTUPLE:      "TTUPLE",
 }
 
 func (et EType) String() string {
