@@ -113,7 +113,9 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type == sym.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ.Name)
 		}
-		if targ.Type == 0 || targ.Type == sym.SXREF {
+		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+		// sense and should be removed when someone has thought about it properly.
+		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
 			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
 		}
 		r.Type = objabi.R_PCREL

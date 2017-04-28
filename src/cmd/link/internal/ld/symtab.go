@@ -128,7 +128,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	// maybe one day STB_WEAK.
 	bind := STB_GLOBAL
 
-	if x.Version != 0 || (x.Type&sym.SHIDDEN != 0) || x.Attr.Local() {
+	if x.Version != 0 || x.Attr.VisibilityHidden() || x.Attr.Local() {
 		bind = STB_LOCAL
 	}
 
@@ -145,7 +145,12 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 		addr -= int64(xo.Sect.Vaddr)
 	}
 	other := STV_DEFAULT
-	if x.Type&sym.SHIDDEN != 0 {
+	if x.Attr.VisibilityHidden() {
+		// TODO(mwhudson): We only set AttrVisibilityHidden in ldelf, i.e. when
+		// internally linking. But STV_HIDDEN visibility only matters in object
+		// files and shared libraries, and as we are a long way from implementing
+		// internal linking for shared libraries and only create object files when
+		// externally linking, I don't think this makes a lot of sense.
 		other = STV_HIDDEN
 	}
 	if ctxt.Arch.Family == sys.PPC64 && typ == STT_FUNC && x.Attr.Shared() && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
