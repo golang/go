@@ -83,8 +83,8 @@ type Cmd struct {
 	// If either is nil, Run connects the corresponding file descriptor
 	// to the null device (os.DevNull).
 	//
-	// If Stdout and Stderr are the same writer, at most one
-	// goroutine at a time will call Write.
+	// If Stdout and Stderr are the same writer, and have a type that can be compared with ==,
+	// at most one goroutine at a time will call Write.
 	Stdout io.Writer
 	Stderr io.Writer
 
