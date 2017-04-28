@@ -544,5 +544,18 @@ Read:
 	// Remember how much we returned, to commit read on next call.
 	b.rNext = br.addCountsAndClearFlags(skip+di, ti)
 
+	if raceenabled {
+		// Match racewritepc in runtime_setProfLabel,
+		// so that the setting of the labels in runtime_setProfLabel
+		// is treated as happening before any use of the labels
+		// by our caller. The synchronization on labelSync itself is a fiction
+		// for the race detector. The actual synchronization is handled
+		// by the fact that the signal handler only reads from the current
+		// goroutine and uses atomics to write the updated queue indices,
+		// and then the read-out from the signal handler buffer uses
+		// atomics to read those queue indices.
+		raceacquire(unsafe.Pointer(&labelSync))
+	}
+
 	return data[:di], tags[:ti], false
 }
