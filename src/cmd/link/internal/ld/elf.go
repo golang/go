@@ -2262,7 +2262,7 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
 		/* type */
 		t := STB_GLOBAL << 4
 
-		if s.Attr.CgoExport() && s.Type&sym.SMASK == sym.STEXT {
+		if s.Attr.CgoExport() && s.Type == sym.STEXT {
 			t |= STT_FUNC
 		} else {
 			t |= STT_OBJECT
@@ -2317,9 +2317,9 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
 		t := STB_GLOBAL << 4
 
 		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
-		if ctxt.Arch.Family == sys.I386 && s.Attr.CgoExport() && s.Type&sym.SMASK == sym.STEXT {
+		if ctxt.Arch.Family == sys.I386 && s.Attr.CgoExport() && s.Type == sym.STEXT {
 			t |= STT_FUNC
-		} else if ctxt.Arch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type&sym.SMASK == sym.STEXT {
+		} else if ctxt.Arch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type == sym.STEXT {
 			t |= STT_FUNC
 		} else {
 			t |= STT_OBJECT

@@ -795,7 +795,8 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 
 		s.Sub = sect.sym.Sub
 		sect.sym.Sub = s
-		s.Type = sect.sym.Type | s.Type&^sym.SMASK | sym.SSUB
+		s.Type = sect.sym.Type
+		s.Attr |= sym.AttrSubSymbol
 		if !s.Attr.CgoExportDynamic() {
 			s.Dynimplib = "" // satisfy dynimport
 		}

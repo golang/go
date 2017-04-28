@@ -105,8 +105,6 @@ const (
 	SDWARFINFO
 	SDWARFRANGE
 	SDWARFLOC
-	SSUB       = SymKind(1 << 8)
-	SMASK      = SymKind(SSUB - 1)
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are

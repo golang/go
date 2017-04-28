@@ -350,7 +350,8 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 		sectsym := sectsyms[sect]
 		s.Sub = sectsym.Sub
 		sectsym.Sub = s
-		s.Type = sectsym.Type | sym.SSUB
+		s.Type = sectsym.Type
+		s.Attr |= sym.AttrSubSymbol
 		s.Value = int64(pesym.Value)
 		s.Size = 4
 		s.Outer = sectsym
