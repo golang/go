@@ -637,7 +637,8 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 			return errorf("duplicate symbol reference: %s in both %s and %s", s.Name, s.Outer.Name, sect.sym.Name)
 		}
 
-		s.Type = outer.Type | sym.SSUB
+		s.Type = outer.Type
+		s.Attr |= sym.AttrSubSymbol
 		s.Sub = outer.Sub
 		outer.Sub = s
 		s.Outer = outer

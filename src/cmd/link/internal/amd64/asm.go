@@ -348,7 +348,8 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			ld.Adddynsym(ctxt, targ)
 
 			got := ctxt.Syms.Lookup(".got", 0)
-			s.Type = got.Type | sym.SSUB
+			s.Type = got.Type
+			s.Attr |= sym.AttrSubSymbol
 			s.Outer = got
 			s.Sub = got.Sub
 			got.Sub = s

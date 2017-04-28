@@ -122,7 +122,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			continue
 		}
 
-		if r.Sym != nil && ((r.Sym.Type == 0 && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type&sym.SMASK == sym.SXREF) {
+		if r.Sym != nil && ((r.Sym.Type == 0 && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type == sym.SXREF) {
 			// When putting the runtime but not main into a shared library
 			// these symbols are undefined and that's OK.
 			if ctxt.BuildMode == BuildModeShared {
@@ -148,7 +148,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 
 		// We need to be able to reference dynimport symbols when linking against
 		// shared libraries, and Solaris needs it always
-		if ctxt.HeadType != objabi.Hsolaris && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() {
+		if ctxt.HeadType != objabi.Hsolaris && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() && !r.Sym.Attr.SubSymbol() {
 			if !(ctxt.Arch.Family == sys.PPC64 && ctxt.LinkMode == LinkExternal && r.Sym.Name == ".TOC.") {
 				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			}
@@ -650,7 +650,7 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 
 func blk(ctxt *Link, syms []*sym.Symbol, addr, size int64, pad []byte) {
 	for i, s := range syms {
-		if s.Type&sym.SSUB == 0 && s.Value >= addr {
+		if !s.Attr.SubSymbol() && s.Value >= addr {
 			syms = syms[i:]
 			break
 		}
@@ -658,7 +658,7 @@ func blk(ctxt *Link, syms []*sym.Symbol, addr, size int64, pad []byte) {
 
 	eaddr := addr + size
 	for _, s := range syms {
-		if s.Type&sym.SSUB != 0 {
+		if s.Attr.SubSymbol() {
 			continue
 		}
 		if s.Value >= eaddr {
@@ -1052,7 +1052,7 @@ func (ctxt *Link) dodata() {
 	// Collect data symbols by type into data.
 	var data [sym.SXREF][]*sym.Symbol
 	for _, s := range ctxt.Syms.Allsym {
-		if !s.Attr.Reachable() || s.Attr.Special() {
+		if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
 			continue
 		}
 		if s.Type <= sym.STEXT || s.Type >= sym.SXREF {
@@ -1813,7 +1813,7 @@ func (ctxt *Link) textaddress() {
 // will not need to create new text sections, and so no need to return sect and n.
 func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64) {
 	s.Sect = sect
-	if s.Type&sym.SSUB != 0 {
+	if s.Attr.SubSymbol() {
 		return sect, n, va
 	}
 	if s.Align != 0 {

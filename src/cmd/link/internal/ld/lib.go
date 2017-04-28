@@ -508,7 +508,7 @@ func (ctxt *Link) loadlib() {
 		any := false
 		for _, s := range ctxt.Syms.Allsym {
 			for _, r := range s.R {
-				if r.Sym != nil && r.Sym.Type&sym.SMASK == sym.SXREF && r.Sym.Name != ".got" {
+				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
 					any = true
 					break
 				}
@@ -2006,7 +2006,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 		if (s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC." {
 			continue
 		}
-		switch s.Type & sym.SMASK {
+		switch s.Type {
 		case sym.SCONST,
 			sym.SRODATA,
 			sym.SSYMTAB,

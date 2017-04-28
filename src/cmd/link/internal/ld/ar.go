@@ -106,7 +106,7 @@ func hostArchive(ctxt *Link, name string) {
 		var load []uint64
 		for _, s := range ctxt.Syms.Allsym {
 			for _, r := range s.R {
-				if r.Sym != nil && r.Sym.Type&sym.SMASK == sym.SXREF {
+				if r.Sym != nil && r.Sym.Type == sym.SXREF {
 					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
 						load = append(load, off)
 						loaded[off] = true
