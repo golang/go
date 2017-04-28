@@ -412,14 +412,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ANDPD (R11), X11                        // 66450f541b
 	ANDPD X2, X11                           // 66440f54da
 	ANDPD X11, X11                          // 66450f54db
-	//TODO: ANDPS (BX), X2                  // 0f5413
-	//TODO: ANDPS (R11), X2                 // 410f5413
-	//TODO: ANDPS X2, X2                    // 0f54d2
-	//TODO: ANDPS X11, X2                   // 410f54d3
-	//TODO: ANDPS (BX), X11                 // 440f541b
-	//TODO: ANDPS (R11), X11                // 450f541b
-	//TODO: ANDPS X2, X11                   // 440f54da
-	//TODO: ANDPS X11, X11                  // 450f54db
+	ANDPS (BX), X2                          // 0f5413
+	ANDPS (R11), X2                         // 410f5413
+	ANDPS X2, X2                            // 0f54d2
+	ANDPS X11, X2                           // 410f54d3
+	ANDPS (BX), X11                         // 440f541b
+	ANDPS (R11), X11                        // 450f541b
+	ANDPS X2, X11                           // 440f54da
+	ANDPS X11, X11                          // 450f54db
 	BEXTRL R9, (BX), DX                     // c4e230f713
 	BEXTRL R9, (R11), DX                    // c4c230f713
 	BEXTRL R9, DX, DX                       // c4e230f7d2
