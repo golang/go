@@ -60,14 +60,14 @@ func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 // loadByType returns the load instruction of the given type.
 func loadByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
-		switch t.MustSize() {
+		switch t.Size() {
 		case 4:
 			return ppc64.AFMOVS
 		case 8:
 			return ppc64.AFMOVD
 		}
 	} else {
-		switch t.MustSize() {
+		switch t.Size() {
 		case 1:
 			if t.IsSigned() {
 				return ppc64.AMOVB
@@ -96,14 +96,14 @@ func loadByType(t ssa.Type) obj.As {
 // storeByType returns the store instruction of the given type.
 func storeByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
-		switch t.MustSize() {
+		switch t.Size() {
 		case 4:
 			return ppc64.AFMOVS
 		case 8:
 			return ppc64.AFMOVD
 		}
 	} else {
-		switch t.MustSize() {
+		switch t.Size() {
 		case 1:
 			return ppc64.AMOVB
 		case 2:

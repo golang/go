@@ -202,10 +202,10 @@ func insertLoopReschedChecks(f *Func) {
 		g := test.NewValue1(bb.Pos, OpGetG, pt, mem0)
 		sp := test.NewValue0(bb.Pos, OpSP, pt)
 		cmpOp := OpLess64U
-		if pt.MustSize() == 4 {
+		if pt.Size() == 4 {
 			cmpOp = OpLess32U
 		}
-		limaddr := test.NewValue1I(bb.Pos, OpOffPtr, pt, 2*pt.MustSize(), g)
+		limaddr := test.NewValue1I(bb.Pos, OpOffPtr, pt, 2*pt.Size(), g)
 		lim := test.NewValue2(bb.Pos, OpLoad, pt, limaddr, mem0)
 		cmp := test.NewValue2(bb.Pos, cmpOp, types.Bool, sp, lim)
 		test.SetControl(cmp)

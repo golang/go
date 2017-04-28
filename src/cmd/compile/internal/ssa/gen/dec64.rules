@@ -30,13 +30,13 @@
 		(Load <types.UInt32> ptr mem)
 		(Load <types.UInt32> (OffPtr <types.UInt32Ptr> [4] ptr) mem))
 
-(Store {t} dst (Int64Make hi lo) mem) && t.(Type).MustSize() == 8 && !config.BigEndian ->
+(Store {t} dst (Int64Make hi lo) mem) && t.(Type).Size() == 8 && !config.BigEndian ->
 	(Store {hi.Type}
 		(OffPtr <hi.Type.PtrTo()> [4] dst)
 		hi
 		(Store {lo.Type} dst lo mem))
 
-(Store {t} dst (Int64Make hi lo) mem) && t.(Type).MustSize() == 8 && config.BigEndian ->
+(Store {t} dst (Int64Make hi lo) mem) && t.(Type).Size() == 8 && config.BigEndian ->
 	(Store {lo.Type}
 		(OffPtr <lo.Type.PtrTo()> [4] dst)
 		lo

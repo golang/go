@@ -264,7 +264,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		push(s, v.Args[0])
 		var op obj.As
-		switch v.Type.MustSize() {
+		switch v.Type.Size() {
 		case 4:
 			op = x86.AFMOVFP
 		case 8:
@@ -324,7 +324,7 @@ func popAndSave(s *gc.SSAGenState, v *ssa.Value) {
 
 // loadPush returns the opcode for load+push of the given type.
 func loadPush(t ssa.Type) obj.As {
-	if t.MustSize() == 4 {
+	if t.Size() == 4 {
 		return x86.AFMOVF
 	}
 	return x86.AFMOVD

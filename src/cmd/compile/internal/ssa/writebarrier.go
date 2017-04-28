@@ -267,7 +267,7 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ *ExternSymbol, ptr, val, m
 		aux := &AutoSymbol{Node: tmp}
 		mem = b.NewValue1A(pos, OpVarDef, TypeMem, tmp, mem)
 		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), aux, sp)
-		siz := t.MustSize()
+		siz := t.Size()
 		mem = b.NewValue3I(pos, OpMove, TypeMem, siz, tmpaddr, val, mem)
 		mem.Aux = t
 		val = tmpaddr
@@ -278,22 +278,22 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ *ExternSymbol, ptr, val, m
 
 	if typ != nil { // for typedmemmove
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
-		off = round(off, taddr.Type.MustAlignment())
+		off = round(off, taddr.Type.Alignment())
 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, TypeMem, ptr.Type, arg, taddr, mem)
-		off += taddr.Type.MustSize()
+		off += taddr.Type.Size()
 	}
 
-	off = round(off, ptr.Type.MustAlignment())
+	off = round(off, ptr.Type.Alignment())
 	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
 	mem = b.NewValue3A(pos, OpStore, TypeMem, ptr.Type, arg, ptr, mem)
-	off += ptr.Type.MustSize()
+	off += ptr.Type.Size()
 
 	if val != nil {
-		off = round(off, val.Type.MustAlignment())
+		off = round(off, val.Type.Alignment())
 		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, TypeMem, val.Type, arg, val, mem)
-		off += val.Type.MustSize()
+		off += val.Type.Size()
 	}
 	off = round(off, config.PtrSize)
 

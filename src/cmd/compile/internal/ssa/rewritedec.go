@@ -116,13 +116,13 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 	types := &b.Func.Config.Types
 	_ = types
 	// match: (Load <t> ptr mem)
-	// cond: t.IsComplex() && t.MustSize() == 8
+	// cond: t.IsComplex() && t.Size() == 8
 	// result: (ComplexMake     (Load <types.Float32> ptr mem)     (Load <types.Float32>       (OffPtr <types.Float32Ptr> [4] ptr)       mem)     )
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(t.IsComplex() && t.MustSize() == 8) {
+		if !(t.IsComplex() && t.Size() == 8) {
 			break
 		}
 		v.reset(OpComplexMake)
@@ -140,13 +140,13 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: t.IsComplex() && t.MustSize() == 16
+	// cond: t.IsComplex() && t.Size() == 16
 	// result: (ComplexMake     (Load <types.Float64> ptr mem)     (Load <types.Float64>       (OffPtr <types.Float64Ptr> [8] ptr)       mem)     )
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(t.IsComplex() && t.MustSize() == 16) {
+		if !(t.IsComplex() && t.Size() == 16) {
 			break
 		}
 		v.reset(OpComplexMake)
@@ -303,7 +303,7 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 	types := &b.Func.Config.Types
 	_ = types
 	// match: (Store {t} dst (ComplexMake real imag) mem)
-	// cond: t.(Type).MustSize() == 8
+	// cond: t.(Type).Size() == 8
 	// result: (Store {types.Float32}     (OffPtr <types.Float32Ptr> [4] dst)     imag     (Store {types.Float32} dst real mem))
 	for {
 		t := v.Aux
@@ -315,7 +315,7 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 		real := v_1.Args[0]
 		imag := v_1.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 8) {
+		if !(t.(Type).Size() == 8) {
 			break
 		}
 		v.reset(OpStore)
@@ -334,7 +334,7 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} dst (ComplexMake real imag) mem)
-	// cond: t.(Type).MustSize() == 16
+	// cond: t.(Type).Size() == 16
 	// result: (Store {types.Float64}     (OffPtr <types.Float64Ptr> [8] dst)     imag     (Store {types.Float64} dst real mem))
 	for {
 		t := v.Aux
@@ -346,7 +346,7 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 		real := v_1.Args[0]
 		imag := v_1.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 16) {
+		if !(t.(Type).Size() == 16) {
 			break
 		}
 		v.reset(OpStore)

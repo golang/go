@@ -85,27 +85,27 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 // Common functions called from rewriting rules
 
 func is64BitFloat(t Type) bool {
-	return t.MustSize() == 8 && t.IsFloat()
+	return t.Size() == 8 && t.IsFloat()
 }
 
 func is32BitFloat(t Type) bool {
-	return t.MustSize() == 4 && t.IsFloat()
+	return t.Size() == 4 && t.IsFloat()
 }
 
 func is64BitInt(t Type) bool {
-	return t.MustSize() == 8 && t.IsInteger()
+	return t.Size() == 8 && t.IsInteger()
 }
 
 func is32BitInt(t Type) bool {
-	return t.MustSize() == 4 && t.IsInteger()
+	return t.Size() == 4 && t.IsInteger()
 }
 
 func is16BitInt(t Type) bool {
-	return t.MustSize() == 2 && t.IsInteger()
+	return t.Size() == 2 && t.IsInteger()
 }
 
 func is8BitInt(t Type) bool {
-	return t.MustSize() == 1 && t.IsInteger()
+	return t.Size() == 1 && t.IsInteger()
 }
 
 func isPtr(t Type) bool {
@@ -117,7 +117,7 @@ func isSigned(t Type) bool {
 }
 
 func typeSize(t Type) int64 {
-	return t.MustSize()
+	return t.Size()
 }
 
 // mergeSym merges two symbolic offsets. There is no real merging of

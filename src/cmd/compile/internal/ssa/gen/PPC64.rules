@@ -486,13 +486,13 @@
 (Load <t> ptr mem) && is32BitFloat(t) -> (FMOVSload ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
 
-(Store {t} ptr val mem) && t.(Type).MustSize() == 8 && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).MustSize() == 8 && is32BitFloat(val.Type) -> (FMOVDstore ptr val mem) // glitch from (Cvt32Fto64F x) -> x -- type is wrong
-(Store {t} ptr val mem) && t.(Type).MustSize() == 4 && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).MustSize() == 8 && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).MustSize() == 4 && is32BitInt(val.Type) -> (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).MustSize() == 2 -> (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).MustSize() == 1 -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 8 && is32BitFloat(val.Type) -> (FMOVDstore ptr val mem) // glitch from (Cvt32Fto64F x) -> x -- type is wrong
+(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 8 && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitInt(val.Type) -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVHstore ptr val mem)
+(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
 
 // Using Zero instead of LoweredZero allows the
 // target address to be folded where possible.
@@ -573,7 +573,7 @@
 (Move [4] dst src mem) ->
 	(MOVWstore dst (MOVWZload src mem) mem)
 // MOVD for load and store must have offsets that are multiple of 4
-(Move [8] {t} dst src mem) && t.(Type).MustAlignment()%4 == 0 ->
+(Move [8] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
 	(MOVDstore dst (MOVDload src mem) mem)
 (Move [8] dst src mem) ->
 	(MOVWstore [4] dst (MOVWZload [4] src mem)

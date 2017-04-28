@@ -71,7 +71,7 @@ const (
 	auxSymOff               // aux is a symbol, auxInt is an offset
 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
 	auxTyp                  // aux is a type
-	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).MustSize() == AuxInt
+	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
 
 	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
 )

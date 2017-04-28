@@ -5166,12 +5166,12 @@ func rewriteValuegeneric_OpArg_0(v *Value) bool {
 		return true
 	}
 	// match: (Arg {n} [off])
-	// cond: v.Type.IsComplex() && v.Type.MustSize() == 16
+	// cond: v.Type.IsComplex() && v.Type.Size() == 16
 	// result: (ComplexMake     (Arg <types.Float64> {n} [off])     (Arg <types.Float64> {n} [off+8]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
-		if !(v.Type.IsComplex() && v.Type.MustSize() == 16) {
+		if !(v.Type.IsComplex() && v.Type.Size() == 16) {
 			break
 		}
 		v.reset(OpComplexMake)
@@ -5186,12 +5186,12 @@ func rewriteValuegeneric_OpArg_0(v *Value) bool {
 		return true
 	}
 	// match: (Arg {n} [off])
-	// cond: v.Type.IsComplex() && v.Type.MustSize() == 8
+	// cond: v.Type.IsComplex() && v.Type.Size() == 8
 	// result: (ComplexMake     (Arg <types.Float32> {n} [off])     (Arg <types.Float32> {n} [off+4]))
 	for {
 		off := v.AuxInt
 		n := v.Aux
-		if !(v.Type.IsComplex() && v.Type.MustSize() == 8) {
+		if !(v.Type.IsComplex() && v.Type.Size() == 8) {
 			break
 		}
 		v.reset(OpComplexMake)
@@ -9700,7 +9700,7 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 	fe := b.Func.fe
 	_ = fe
 	// match: (Load <t1> p1 (Store {t2} p2 x _))
-	// cond: isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && t1.MustSize() == t2.(Type).MustSize()
+	// cond: isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && t1.Size() == t2.(Type).Size()
 	// result: x
 	for {
 		t1 := v.Type
@@ -9712,7 +9712,7 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
 		t2 := v_1.Aux
 		p2 := v_1.Args[0]
 		x := v_1.Args[1]
-		if !(isSamePtr(p1, p2) && t1.Compare(x.Type) == CMPeq && t1.MustSize() == t2.(Type).MustSize()) {
+		if !(isSamePtr(p1, p2) && t1.Compare(x.Type) == CMPeq && t1.Size() == t2.(Type).Size()) {
 			break
 		}
 		v.reset(OpCopy)
@@ -17028,7 +17028,7 @@ func rewriteValuegeneric_OpPtrIndex_0(v *Value) bool {
 	_ = types
 	// match: (PtrIndex <t> ptr idx)
 	// cond: config.PtrSize == 4
-	// result: (AddPtr ptr (Mul32 <types.Int> idx (Const32 <types.Int> [t.ElemType().MustSize()])))
+	// result: (AddPtr ptr (Mul32 <types.Int> idx (Const32 <types.Int> [t.ElemType().Size()])))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -17041,14 +17041,14 @@ func rewriteValuegeneric_OpPtrIndex_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpMul32, types.Int)
 		v0.AddArg(idx)
 		v1 := b.NewValue0(v.Pos, OpConst32, types.Int)
-		v1.AuxInt = t.ElemType().MustSize()
+		v1.AuxInt = t.ElemType().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (PtrIndex <t> ptr idx)
 	// cond: config.PtrSize == 8
-	// result: (AddPtr ptr (Mul64 <types.Int> idx (Const64 <types.Int> [t.ElemType().MustSize()])))
+	// result: (AddPtr ptr (Mul64 <types.Int> idx (Const64 <types.Int> [t.ElemType().Size()])))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -17061,7 +17061,7 @@ func rewriteValuegeneric_OpPtrIndex_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpMul64, types.Int)
 		v0.AddArg(idx)
 		v1 := b.NewValue0(v.Pos, OpConst64, types.Int)
-		v1.AuxInt = t.ElemType().MustSize()
+		v1.AuxInt = t.ElemType().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
@@ -19915,7 +19915,7 @@ func rewriteValuegeneric_OpStore_0(v *Value) bool {
 	}
 	// match: (Store {t} dst (Load src mem) mem)
 	// cond: !fe.CanSSA(t.(Type))
-	// result: (Move {t} [t.(Type).MustSize()] dst src mem)
+	// result: (Move {t} [t.(Type).Size()] dst src mem)
 	for {
 		t := v.Aux
 		dst := v.Args[0]
@@ -19932,7 +19932,7 @@ func rewriteValuegeneric_OpStore_0(v *Value) bool {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = t.(Type).MustSize()
+		v.AuxInt = t.(Type).Size()
 		v.Aux = t
 		v.AddArg(dst)
 		v.AddArg(src)
@@ -19941,7 +19941,7 @@ func rewriteValuegeneric_OpStore_0(v *Value) bool {
 	}
 	// match: (Store {t} dst (Load src mem) (VarDef {x} mem))
 	// cond: !fe.CanSSA(t.(Type))
-	// result: (Move {t} [t.(Type).MustSize()] dst src (VarDef {x} mem))
+	// result: (Move {t} [t.(Type).Size()] dst src (VarDef {x} mem))
 	for {
 		t := v.Aux
 		dst := v.Args[0]
@@ -19963,7 +19963,7 @@ func rewriteValuegeneric_OpStore_0(v *Value) bool {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = t.(Type).MustSize()
+		v.AuxInt = t.(Type).Size()
 		v.Aux = t
 		v.AddArg(dst)
 		v.AddArg(src)

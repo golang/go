@@ -863,28 +863,12 @@ func (t *Type) ArgWidth() int64 {
 	return t.Extra.(*Func).Argwid
 }
 
-// Size calculates and returns t's Size.
 func (t *Type) Size() int64 {
-	Dowidth(t)
-	return t.Width
-}
-
-// MustSize returns t's Size, which must have been calculated previously.
-// It is intended for use in the backend, where t must be treated as readonly.
-func (t *Type) MustSize() int64 {
 	t.AssertWidthCalculated()
 	return t.Width
 }
 
-// Alignment calculates and returns t's Alignment.
 func (t *Type) Alignment() int64 {
-	Dowidth(t)
-	return int64(t.Align)
-}
-
-// MustAlignment returns t's Alignment, which must have been calculated previously.
-// It is intended for use in the backend, where t must be treated as readonly.
-func (t *Type) MustAlignment() int64 {
 	t.AssertWidthCalculated()
 	return int64(t.Align)
 }
