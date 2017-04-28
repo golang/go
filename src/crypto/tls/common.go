@@ -509,17 +509,13 @@ type Config struct {
 
 	serverInitOnce sync.Once // guards calling (*Config).serverInit
 
-	// mutex protects sessionTicketKeys and originalConfig.
+	// mutex protects sessionTicketKeys.
 	mutex sync.RWMutex
 	// sessionTicketKeys contains zero or more ticket keys. If the length
 	// is zero, SessionTicketsDisabled must be true. The first key is used
 	// for new tickets and any subsequent keys can be used to decrypt old
 	// tickets.
 	sessionTicketKeys []ticketKey
-	// originalConfig is set to the Config that was passed to Server if
-	// this Config is returned by a GetConfigForClient callback. It's used
-	// by serverInit in order to copy session ticket keys if needed.
-	originalConfig *Config
 }
 
 // ticketKeyNameLen is the number of bytes of identifier that is prepended to
@@ -551,7 +547,7 @@ func ticketKeyFromBytes(b [32]byte) (key ticketKey) {
 func (c *Config) Clone() *Config {
 	// Running serverInit ensures that it's safe to read
 	// SessionTicketsDisabled.
-	c.serverInitOnce.Do(c.serverInit)
+	c.serverInitOnce.Do(func() { c.serverInit(nil) })
 
 	var sessionTicketKeys []ticketKey
 	c.mutex.RLock()
@@ -585,19 +581,16 @@ func (c *Config) Clone() *Config {
 		Renegotiation:               c.Renegotiation,
 		KeyLogWriter:                c.KeyLogWriter,
 		sessionTicketKeys:           sessionTicketKeys,
-		// originalConfig is deliberately not duplicated.
 	}
 }
 
-func (c *Config) serverInit() {
+// serverInit is run under c.serverInitOnce to do initialization of c. If c was
+// returned by a GetConfigForClient callback then the argument should be the
+// Config that was passed to Server, otherwise it should be nil.
+func (c *Config) serverInit(originalConfig *Config) {
 	if c.SessionTicketsDisabled || len(c.ticketKeys()) != 0 {
 		return
 	}
-
-	var originalConfig *Config
-	c.mutex.Lock()
-	originalConfig, c.originalConfig = c.originalConfig, nil
-	c.mutex.Unlock()
 
 	alreadySet := false
 	for _, b := range c.SessionTicketKey {

@@ -40,7 +40,7 @@ type serverHandshakeState struct {
 func (c *Conn) serverHandshake() error {
 	// If this is the first server handshake, we generate a random key to
 	// encrypt the tickets with.
-	c.config.serverInitOnce.Do(c.config.serverInit)
+	c.config.serverInitOnce.Do(func() { c.config.serverInit(nil) })
 
 	hs := serverHandshakeState{
 		c: c,
@@ -129,11 +129,7 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 			c.sendAlert(alertInternalError)
 			return false, err
 		} else if newConfig != nil {
-			newConfig.mutex.Lock()
-			newConfig.originalConfig = c.config
-			newConfig.mutex.Unlock()
-
-			newConfig.serverInitOnce.Do(newConfig.serverInit)
+			newConfig.serverInitOnce.Do(func() { newConfig.serverInit(c.config) })
 			c.config = newConfig
 		}
 	}
