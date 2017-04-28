@@ -120,6 +120,32 @@ func TestReader(t *testing.T) {
 	}
 }
 
+type devZero struct{}
+
+func (devZero) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
+}
+
+func TestHiCodeDoesNotOverflow(t *testing.T) {
+	r := NewReader(devZero{}, LSB, 8)
+	d := r.(*decoder)
+	buf := make([]byte, 1024)
+	oldHi := uint16(0)
+	for i := 0; i < 100; i++ {
+		if _, err := io.ReadFull(r, buf); err != nil {
+			t.Fatalf("i=%d: %v", i, err)
+		}
+		// The hi code should never decrease.
+		if d.hi < oldHi {
+			t.Fatalf("i=%d: hi=%d decreased from previous value %d", i, d.hi, oldHi)
+		}
+		oldHi = d.hi
+	}
+}
+
 func BenchmarkDecoder(b *testing.B) {
 	buf, err := ioutil.ReadFile("../testdata/e.txt")
 	if err != nil {
