@@ -165,7 +165,6 @@ var optab = []Optab{
 	{ADIVHW, C_REG, C_REG, C_REG, 105, 4, 0, 0, 0},
 	{ADIVHW, C_REG, C_NONE, C_REG, 105, 4, 0, 0, 0},
 	{AMULL, C_REG, C_REG, C_REGREG, 17, 4, 0, 0, 0},
-	{AMULA, C_REG, C_REG, C_REGREG2, 17, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_SAUTO, 20, 4, REGSP, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_SOREG, 20, 4, 0, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_SAUTO, 20, 4, REGSP, 0, 0},
@@ -1526,6 +1525,7 @@ func buildop(ctxt *obj.Link) {
 		case AMULAWT:
 			opset(AMULAWB, r0)
 			opset(AMULABB, r0)
+			opset(AMULA, r0)
 			opset(AMULS, r0)
 			opset(AMMULA, r0)
 			opset(AMMULS, r0)
@@ -1536,12 +1536,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AREVSH, r0)
 			opset(ARBIT, r0)
 
-		case AMULA,
-			ALDREX,
+		case ALDREX,
 			ASTREX,
 			ALDREXD,
 			ASTREXD,
-			ATST,
 			APLD,
 			obj.AUNDEF,
 			obj.AFUNCDATA,
@@ -2489,10 +2487,10 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 99: /* MULAW{T,B} Rs, Rm, Rn, Rd */
 		o1 = c.oprrr(p, p.As, int(p.Scond))
 
-		o1 |= (uint32(p.To.Reg) & 15) << 12
+		o1 |= (uint32(p.To.Reg) & 15) << 16
 		o1 |= (uint32(p.From.Reg) & 15) << 8
 		o1 |= (uint32(p.Reg) & 15) << 0
-		o1 |= uint32((p.To.Offset & 15) << 16)
+		o1 |= uint32((p.To.Offset & 15) << 12)
 
 	// DATABUNDLE: BKPT $0x5be0, signify the start of NaCl data bundle;
 	// DATABUNDLEEND: zero width alignment marker

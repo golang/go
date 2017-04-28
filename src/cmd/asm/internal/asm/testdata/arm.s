@@ -951,6 +951,8 @@ jmp_label_3:
 	MULAWT	R1, R2, R3, R4       // c23124e1
 	MULAWB	R1, R2, R3, R4       // 823124e1
 	MULS	R1, R2, R3, R4       // 923164e0
+	MULA	R1, R2, R3, R4       // 923124e0
+	MULA.S	R1, R2, R3, R4       // 923134e0
 	MMULA	R1, R2, R3, R4       // 123154e7
 	MMULS	R1, R2, R3, R4       // d23154e7
 	MULABB	R1, R2, R3, R4       // 823104e1
