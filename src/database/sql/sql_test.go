@@ -3044,6 +3044,46 @@ func TestIssue18429(t *testing.T) {
 	wg.Wait()
 }
 
+// TestIssue20160 attempts to test a short context life on a stmt Query.
+func TestIssue20160(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx := context.Background()
+	sem := make(chan bool, 20)
+	var wg sync.WaitGroup
+
+	const milliWait = 30
+
+	stmt, err := db.PrepareContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stmt.Close()
+
+	for i := 0; i < 100; i++ {
+		sem <- true
+		wg.Add(1)
+		go func() {
+			defer func() {
+				<-sem
+				wg.Done()
+			}()
+			ctx, cancel := context.WithTimeout(ctx, time.Duration(rand.Intn(milliWait))*time.Millisecond)
+			defer cancel()
+
+			// This is expected to give a cancel error most, but not all the time.
+			// Test failure will happen with a panic or other race condition being
+			// reported.
+			rows, _ := stmt.QueryContext(ctx)
+			if rows != nil {
+				rows.Close()
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 // TestIssue18719 closes the context right before use. The sql.driverConn
 // will nil out the ci on close in a lock, but if another process uses it right after
 // it will panic with on the nil ref.

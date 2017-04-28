@@ -2183,12 +2183,17 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 				rowsi: rowsi,
 				// releaseConn set below
 			}
-			rows.initContextClose(ctx)
+			// addDep must be added before initContextClose or it could attempt
+			// to removeDep before it has been added.
 			s.db.addDep(s, rows)
+
+			// releaseConn must be set before initContextClose or it could
+			// release the connection before it is set.
 			rows.releaseConn = func(err error) {
 				releaseConn(err)
 				s.db.removeDep(s, rows)
 			}
+			rows.initContextClose(ctx)
 			return rows, nil
 		}
 
