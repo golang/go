@@ -183,6 +183,11 @@ func dowidth(t *types.Type) {
 	}
 
 	if sizeCalculationDisabled {
+		if t.Broke() {
+			// break infinite recursion from Fatal call below
+			return
+		}
+		t.SetBroke(true)
 		Fatalf("width not calculated: %v", t)
 	}
 
