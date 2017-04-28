@@ -2526,7 +2526,7 @@ func rewriteValuedec64_OpStore_0(v *Value) bool {
 	config := b.Func.Config
 	_ = config
 	// match: (Store {t} dst (Int64Make hi lo) mem)
-	// cond: t.(Type).MustSize() == 8 && !config.BigEndian
+	// cond: t.(Type).Size() == 8 && !config.BigEndian
 	// result: (Store {hi.Type} 		(OffPtr <hi.Type.PtrTo()> [4] dst) 		hi 		(Store {lo.Type} dst lo mem))
 	for {
 		t := v.Aux
@@ -2538,7 +2538,7 @@ func rewriteValuedec64_OpStore_0(v *Value) bool {
 		hi := v_1.Args[0]
 		lo := v_1.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 8 && !config.BigEndian) {
+		if !(t.(Type).Size() == 8 && !config.BigEndian) {
 			break
 		}
 		v.reset(OpStore)
@@ -2557,7 +2557,7 @@ func rewriteValuedec64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} dst (Int64Make hi lo) mem)
-	// cond: t.(Type).MustSize() == 8 && config.BigEndian
+	// cond: t.(Type).Size() == 8 && config.BigEndian
 	// result: (Store {lo.Type} 		(OffPtr <lo.Type.PtrTo()> [4] dst) 		lo 		(Store {hi.Type} dst hi mem))
 	for {
 		t := v.Aux
@@ -2569,7 +2569,7 @@ func rewriteValuedec64_OpStore_0(v *Value) bool {
 		hi := v_1.Args[0]
 		lo := v_1.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 8 && config.BigEndian) {
+		if !(t.(Type).Size() == 8 && config.BigEndian) {
 			break
 		}
 		v.reset(OpStore)

@@ -11,8 +11,8 @@ import "cmd/internal/obj"
 // A type interface used to import cmd/internal/gc:Type
 // Type instances are not guaranteed to be canonical.
 type Type interface {
-	MustSize() int64 // return the size in bytes
-	MustAlignment() int64
+	Size() int64 // return the size in bytes
+	Alignment() int64
 
 	IsBoolean() bool // is a named or unnamed boolean type
 	IsInteger() bool //  ... ditto for the others
@@ -59,8 +59,8 @@ type CompilerType struct {
 	Int128 bool
 }
 
-func (t *CompilerType) MustSize() int64        { return t.size } // Size in bytes
-func (t *CompilerType) MustAlignment() int64   { return 0 }
+func (t *CompilerType) Size() int64            { return t.size } // Size in bytes
+func (t *CompilerType) Alignment() int64       { return 0 }
 func (t *CompilerType) IsBoolean() bool        { return false }
 func (t *CompilerType) IsInteger() bool        { return false }
 func (t *CompilerType) IsSigned() bool         { return false }
@@ -94,8 +94,8 @@ type TupleType struct {
 	// Any tuple with a memory type must put that memory type second.
 }
 
-func (t *TupleType) MustSize() int64      { panic("not implemented") }
-func (t *TupleType) MustAlignment() int64 { panic("not implemented") }
+func (t *TupleType) Size() int64          { panic("not implemented") }
+func (t *TupleType) Alignment() int64     { panic("not implemented") }
 func (t *TupleType) IsBoolean() bool      { return false }
 func (t *TupleType) IsInteger() bool      { return false }
 func (t *TupleType) IsSigned() bool       { return false }

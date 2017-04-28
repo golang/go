@@ -148,7 +148,7 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 		negate = !negate
 	}
 
-	switch v.Type.MustSize() {
+	switch v.Type.Size() {
 	case 1:
 		v.reset(OpCopy)
 	case 2:
@@ -158,7 +158,7 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 	case 8:
 		v.reset(OpZeroExt8to64)
 	default:
-		v.Fatalf("bad int size %d", v.Type.MustSize())
+		v.Fatalf("bad int size %d", v.Type.Size())
 	}
 
 	a := b0.Control
@@ -169,6 +169,6 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 
 	f := b0.Func
 	if f.pass.debug > 0 {
-		f.Warnl(v.Block.Pos, "converted OpPhi bool -> int%d", v.Type.MustSize()*8)
+		f.Warnl(v.Block.Pos, "converted OpPhi bool -> int%d", v.Type.Size()*8)
 	}
 }

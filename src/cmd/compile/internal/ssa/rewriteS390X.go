@@ -34328,14 +34328,14 @@ func rewriteValueS390X_OpStaticCall_0(v *Value) bool {
 }
 func rewriteValueS390X_OpStore_0(v *Value) bool {
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 8 && is64BitFloat(val.Type)
+	// cond: t.(Type).Size() == 8 && is64BitFloat(val.Type)
 	// result: (FMOVDstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 8 && is64BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 8 && is64BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpS390XFMOVDstore)
@@ -34345,14 +34345,14 @@ func rewriteValueS390X_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 4 && is32BitFloat(val.Type)
+	// cond: t.(Type).Size() == 4 && is32BitFloat(val.Type)
 	// result: (FMOVSstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 4 && is32BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 4 && is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpS390XFMOVSstore)
@@ -34362,14 +34362,14 @@ func rewriteValueS390X_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 8
+	// cond: t.(Type).Size() == 8
 	// result: (MOVDstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 8) {
+		if !(t.(Type).Size() == 8) {
 			break
 		}
 		v.reset(OpS390XMOVDstore)
@@ -34379,14 +34379,14 @@ func rewriteValueS390X_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 4
+	// cond: t.(Type).Size() == 4
 	// result: (MOVWstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 4) {
+		if !(t.(Type).Size() == 4) {
 			break
 		}
 		v.reset(OpS390XMOVWstore)
@@ -34396,14 +34396,14 @@ func rewriteValueS390X_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 2
+	// cond: t.(Type).Size() == 2
 	// result: (MOVHstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 2) {
+		if !(t.(Type).Size() == 2) {
 			break
 		}
 		v.reset(OpS390XMOVHstore)
@@ -34413,14 +34413,14 @@ func rewriteValueS390X_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 1
+	// cond: t.(Type).Size() == 1
 	// result: (MOVBstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 1) {
+		if !(t.(Type).Size() == 1) {
 			break
 		}
 		v.reset(OpS390XMOVBstore)

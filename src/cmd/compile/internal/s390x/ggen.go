@@ -91,7 +91,7 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 	// Note: this code must not clobber any registers.
 	p := pp.Prog(s390x.ACLEAR)
 	p.From.Type = obj.TYPE_CONST
-	p.From.Offset = n.Type.MustSize()
+	p.From.Offset = n.Type.Size()
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_AUTO
 	p.To.Reg = s390x.REGSP

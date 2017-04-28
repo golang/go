@@ -25,7 +25,7 @@ func decomposeBuiltIn(f *Func) {
 	for _, name := range f.Names {
 		t := name.Type
 		switch {
-		case t.IsInteger() && t.MustSize() > f.Config.RegSize:
+		case t.IsInteger() && t.Size() > f.Config.RegSize:
 			var elemType Type
 			if t.IsSigned() {
 				elemType = f.Config.Types.Int32
@@ -43,7 +43,7 @@ func decomposeBuiltIn(f *Func) {
 			delete(f.NamedValues, name)
 		case t.IsComplex():
 			var elemType Type
-			if t.MustSize() == 16 {
+			if t.Size() == 16 {
 				elemType = f.Config.Types.Float64
 			} else {
 				elemType = f.Config.Types.Float32
@@ -96,7 +96,7 @@ func decomposeBuiltIn(f *Func) {
 			delete(f.NamedValues, name)
 		case t.IsFloat():
 			// floats are never decomposed, even ones bigger than RegSize
-		case t.MustSize() > f.Config.RegSize:
+		case t.Size() > f.Config.RegSize:
 			f.Fatalf("undecomposed named type %v %v", name, t)
 		default:
 			newNames = append(newNames, name)
@@ -107,7 +107,7 @@ func decomposeBuiltIn(f *Func) {
 
 func decomposeBuiltInPhi(v *Value) {
 	switch {
-	case v.Type.IsInteger() && v.Type.MustSize() > v.Block.Func.Config.RegSize:
+	case v.Type.IsInteger() && v.Type.Size() > v.Block.Func.Config.RegSize:
 		decomposeInt64Phi(v)
 	case v.Type.IsComplex():
 		decomposeComplexPhi(v)
@@ -119,7 +119,7 @@ func decomposeBuiltInPhi(v *Value) {
 		decomposeInterfacePhi(v)
 	case v.Type.IsFloat():
 		// floats are never decomposed, even ones bigger than RegSize
-	case v.Type.MustSize() > v.Block.Func.Config.RegSize:
+	case v.Type.Size() > v.Block.Func.Config.RegSize:
 		v.Fatalf("undecomposed type %s", v.Type)
 	}
 }
@@ -182,7 +182,7 @@ func decomposeInt64Phi(v *Value) {
 func decomposeComplexPhi(v *Value) {
 	types := &v.Block.Func.Config.Types
 	var partType Type
-	switch z := v.Type.MustSize(); z {
+	switch z := v.Type.Size(); z {
 	case 8:
 		partType = types.Float32
 	case 16:

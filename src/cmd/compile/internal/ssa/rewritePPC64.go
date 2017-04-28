@@ -3762,7 +3762,7 @@ func rewriteValuePPC64_OpMove_0(v *Value) bool {
 		return true
 	}
 	// match: (Move [8] {t} dst src mem)
-	// cond: t.(Type).MustAlignment()%4 == 0
+	// cond: t.(Type).Alignment()%4 == 0
 	// result: (MOVDstore dst (MOVDload src mem) mem)
 	for {
 		if v.AuxInt != 8 {
@@ -3772,7 +3772,7 @@ func rewriteValuePPC64_OpMove_0(v *Value) bool {
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustAlignment()%4 == 0) {
+		if !(t.(Type).Alignment()%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDstore)
@@ -9703,14 +9703,14 @@ func rewriteValuePPC64_OpStaticCall_0(v *Value) bool {
 }
 func rewriteValuePPC64_OpStore_0(v *Value) bool {
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 8 && is64BitFloat(val.Type)
+	// cond: t.(Type).Size() == 8 && is64BitFloat(val.Type)
 	// result: (FMOVDstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 8 && is64BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 8 && is64BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpPPC64FMOVDstore)
@@ -9720,14 +9720,14 @@ func rewriteValuePPC64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 8 && is32BitFloat(val.Type)
+	// cond: t.(Type).Size() == 8 && is32BitFloat(val.Type)
 	// result: (FMOVDstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 8 && is32BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 8 && is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpPPC64FMOVDstore)
@@ -9737,14 +9737,14 @@ func rewriteValuePPC64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 4 && is32BitFloat(val.Type)
+	// cond: t.(Type).Size() == 4 && is32BitFloat(val.Type)
 	// result: (FMOVSstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 4 && is32BitFloat(val.Type)) {
+		if !(t.(Type).Size() == 4 && is32BitFloat(val.Type)) {
 			break
 		}
 		v.reset(OpPPC64FMOVSstore)
@@ -9754,14 +9754,14 @@ func rewriteValuePPC64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 8 && (is64BitInt(val.Type) || isPtr(val.Type))
+	// cond: t.(Type).Size() == 8 && (is64BitInt(val.Type) || isPtr(val.Type))
 	// result: (MOVDstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 8 && (is64BitInt(val.Type) || isPtr(val.Type))) {
+		if !(t.(Type).Size() == 8 && (is64BitInt(val.Type) || isPtr(val.Type))) {
 			break
 		}
 		v.reset(OpPPC64MOVDstore)
@@ -9771,14 +9771,14 @@ func rewriteValuePPC64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 4 && is32BitInt(val.Type)
+	// cond: t.(Type).Size() == 4 && is32BitInt(val.Type)
 	// result: (MOVWstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 4 && is32BitInt(val.Type)) {
+		if !(t.(Type).Size() == 4 && is32BitInt(val.Type)) {
 			break
 		}
 		v.reset(OpPPC64MOVWstore)
@@ -9788,14 +9788,14 @@ func rewriteValuePPC64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 2
+	// cond: t.(Type).Size() == 2
 	// result: (MOVHstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 2) {
+		if !(t.(Type).Size() == 2) {
 			break
 		}
 		v.reset(OpPPC64MOVHstore)
@@ -9805,14 +9805,14 @@ func rewriteValuePPC64_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(Type).MustSize() == 1
+	// cond: t.(Type).Size() == 1
 	// result: (MOVBstore ptr val mem)
 	for {
 		t := v.Aux
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
-		if !(t.(Type).MustSize() == 1) {
+		if !(t.(Type).Size() == 1) {
 			break
 		}
 		v.reset(OpPPC64MOVBstore)

@@ -11,26 +11,26 @@
 (ComplexReal (ComplexMake real _  )) -> real
 (ComplexImag (ComplexMake _ imag )) -> imag
 
-(Load <t> ptr mem) && t.IsComplex() && t.MustSize() == 8 ->
+(Load <t> ptr mem) && t.IsComplex() && t.Size() == 8 ->
   (ComplexMake
     (Load <types.Float32> ptr mem)
     (Load <types.Float32>
       (OffPtr <types.Float32Ptr> [4] ptr)
       mem)
     )
-(Store {t} dst (ComplexMake real imag) mem) && t.(Type).MustSize() == 8 ->
+(Store {t} dst (ComplexMake real imag) mem) && t.(Type).Size() == 8 ->
   (Store {types.Float32}
     (OffPtr <types.Float32Ptr> [4] dst)
     imag
     (Store {types.Float32} dst real mem))
-(Load <t> ptr mem) && t.IsComplex() && t.MustSize() == 16 ->
+(Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
   (ComplexMake
     (Load <types.Float64> ptr mem)
     (Load <types.Float64>
       (OffPtr <types.Float64Ptr> [8] ptr)
       mem)
     )
-(Store {t} dst (ComplexMake real imag) mem) && t.(Type).MustSize() == 16 ->
+(Store {t} dst (ComplexMake real imag) mem) && t.(Type).Size() == 16 ->
   (Store {types.Float64}
     (OffPtr <types.Float64Ptr> [8] dst)
     imag
