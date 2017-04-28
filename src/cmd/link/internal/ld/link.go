@@ -93,18 +93,47 @@ func (s *Symbol) ElfsymForReloc() int32 {
 type Attribute int16
 
 const (
+	// AttrDuplicateOK marks a symbol that can be present in multiple object
+	// files.
 	AttrDuplicateOK Attribute = 1 << iota
+	// AttrExternal marks function symbols loaded from host object files.
 	AttrExternal
+	// AttrNoSplit marks functions that cannot split the stack; the linker
+	// cares because it checks that there are no call chains of nosplit
+	// functions that require more than StackLimit bytes (see
+	// lib.go:dostkcheck)
 	AttrNoSplit
+	// AttrReachable marks symbols that are transitively referenced from the
+	// entry points. Unreachable symbols are not written to the output.
 	AttrReachable
+	// AttrCgoExportDynamic and AttrCgoExportStatic mark symbols referenced
+	// by directives written by cgo (in response to //export directives in
+	// the source).
 	AttrCgoExportDynamic
 	AttrCgoExportStatic
+	// AttrSpecial marks symbols that do not have their address (i.e. Value)
+	// computed by the usual mechanism of data.go:dodata() &
+	// data.go:address().
 	AttrSpecial
+	// AttrStackCheck is used by dostkcheck to only check each NoSplit
+	// function's stack usage once.
 	AttrStackCheck
+	// AttrHidden marks symbols that are not written to the symbol table.
 	AttrHidden
+	// AttrOnList marks symbols that are on some list (such as the list of
+	// all text symbols, or one of the lists of data symbols) and is
+	// consulted to avoid bugs where a symbol is put on a list twice.
 	AttrOnList
+	// AttrLocal marks symbols that are only visible within the module
+	// (exectuable or shared library) being linked. Only relevant when
+	// dynamically linking Go code.
 	AttrLocal
+	// AttrReflectMethod marks certain methods from the reflect package that
+	// can be used to call arbitrary methods. If no symbol with this bit set
+	// is marked as reachable, more dead code elimination can be done.
 	AttrReflectMethod
+	// AttrMakeTypelink Amarks types that should be added to the typelink
+	// table. See typelinks.go:typelinks().
 	AttrMakeTypelink
 )
 
