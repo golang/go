@@ -31,6 +31,7 @@ func expandiface(t *types.Type) {
 	for _, m := range t.Methods().Slice() {
 		if m.Sym != nil {
 			fields = append(fields, m)
+			checkwidth(m.Type)
 			continue
 		}
 
