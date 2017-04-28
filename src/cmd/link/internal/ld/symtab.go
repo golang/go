@@ -470,7 +470,7 @@ func (ctxt *Link) symtab() {
 		switch {
 		case strings.HasPrefix(s.Name, "type."):
 			if !ctxt.DynlinkingGo() {
-				s.Attr |= AttrHidden
+				s.Attr |= AttrNotInSymbolTable
 			}
 			if UseRelro() {
 				s.Type = STYPERELRO
@@ -488,22 +488,22 @@ func (ctxt *Link) symtab() {
 		case strings.HasPrefix(s.Name, "go.itablink."):
 			nitablinks++
 			s.Type = SITABLINK
-			s.Attr |= AttrHidden
+			s.Attr |= AttrNotInSymbolTable
 			s.Outer = symitablink
 
 		case strings.HasPrefix(s.Name, "go.string."):
 			s.Type = SGOSTRING
-			s.Attr |= AttrHidden
+			s.Attr |= AttrNotInSymbolTable
 			s.Outer = symgostring
 
 		case strings.HasPrefix(s.Name, "runtime.gcbits."):
 			s.Type = SGCBITS
-			s.Attr |= AttrHidden
+			s.Attr |= AttrNotInSymbolTable
 			s.Outer = symgcbits
 
 		case strings.HasSuffix(s.Name, "·f"):
 			if !ctxt.DynlinkingGo() {
-				s.Attr |= AttrHidden
+				s.Attr |= AttrNotInSymbolTable
 			}
 			if UseRelro() {
 				s.Type = SGOFUNCRELRO
@@ -518,7 +518,7 @@ func (ctxt *Link) symtab() {
 			strings.HasPrefix(s.Name, "gclocals·"),
 			strings.HasPrefix(s.Name, "inltree."):
 			s.Type = SGOFUNC
-			s.Attr |= AttrHidden
+			s.Attr |= AttrNotInSymbolTable
 			s.Outer = symgofunc
 			s.Align = 4
 			liveness += (s.Size + int64(s.Align) - 1) &^ (int64(s.Align) - 1)

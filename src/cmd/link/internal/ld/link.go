@@ -118,8 +118,8 @@ const (
 	// AttrStackCheck is used by dostkcheck to only check each NoSplit
 	// function's stack usage once.
 	AttrStackCheck
-	// AttrHidden marks symbols that are not written to the symbol table.
-	AttrHidden
+	// AttrNotInSymbolTable marks symbols that are not written to the symbol table.
+	AttrNotInSymbolTable
 	// AttrOnList marks symbols that are on some list (such as the list of
 	// all text symbols, or one of the lists of data symbols) and is
 	// consulted to avoid bugs where a symbol is put on a list twice.
@@ -145,7 +145,7 @@ func (a Attribute) CgoExportDynamic() bool { return a&AttrCgoExportDynamic != 0 
 func (a Attribute) CgoExportStatic() bool  { return a&AttrCgoExportStatic != 0 }
 func (a Attribute) Special() bool          { return a&AttrSpecial != 0 }
 func (a Attribute) StackCheck() bool       { return a&AttrStackCheck != 0 }
-func (a Attribute) Hidden() bool           { return a&AttrHidden != 0 }
+func (a Attribute) NotInSymbolTable() bool { return a&AttrNotInSymbolTable != 0 }
 func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
 func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
 func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }

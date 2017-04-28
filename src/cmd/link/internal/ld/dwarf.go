@@ -147,7 +147,7 @@ func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version in
 	if name != "" && (abbrev <= dwarf.DW_ABRV_VARIABLE || abbrev >= dwarf.DW_ABRV_NULLTYPE) {
 		if abbrev != dwarf.DW_ABRV_VARIABLE || version == 0 {
 			sym := ctxt.Syms.Lookup(dwarf.InfoPrefix+name, version)
-			sym.Attr |= AttrHidden
+			sym.Attr |= AttrNotInSymbolTable
 			sym.Type = SDWARFINFO
 			die.Sym = sym
 		}
@@ -339,7 +339,7 @@ func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) {
 	}
 
 	sym := ctxt.Syms.Lookup(dtolsym(def.Sym).Name+"..def", 0)
-	sym.Attr |= AttrHidden
+	sym.Attr |= AttrNotInSymbolTable
 	sym.Type = SDWARFINFO
 	def.Sym = sym
 
@@ -1081,7 +1081,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 		epcs = s
 
 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
-		dsym.Attr |= AttrHidden | AttrReachable
+		dsym.Attr |= AttrNotInSymbolTable | AttrReachable
 		dsym.Type = SDWARFINFO
 		for _, r := range dsym.R {
 			if r.Type == objabi.R_DWARFREF && r.Sym.Size == 0 {
