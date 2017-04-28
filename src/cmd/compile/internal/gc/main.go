@@ -1076,6 +1076,7 @@ func IsAlias(sym *types.Sym) bool {
 var concurrentFlagOK = [256]bool{
 	'B': true, // disabled bounds checking
 	'C': true, // disable printing of columns in error messages
+	'e': true, // no limit on errors; errors all come from non-concurrent code
 	'I': true, // add `directory` to import search path
 	'N': true, // disable optimizations
 	'l': true, // disable inlining
