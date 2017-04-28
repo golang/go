@@ -439,9 +439,10 @@ type response struct {
 
 	handlerDone atomicBool // set true when the handler exits
 
-	// Buffers for Date and Content-Length
-	dateBuf [len(TimeFormat)]byte
-	clenBuf [10]byte
+	// Buffers for Date, Content-Length, and status code
+	dateBuf   [len(TimeFormat)]byte
+	clenBuf   [10]byte
+	statusBuf [3]byte
 
 	// closeNotifyCh is the channel returned by CloseNotify.
 	// TODO(bradfitz): this is currently (for Go 1.8) always
@@ -1379,7 +1380,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		}
 	}
 
-	w.conn.bufw.WriteString(statusLine(w.req, code))
+	writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
 	cw.header.WriteSubset(w.conn.bufw, excludeHeader)
 	setHeader.Write(w.conn.bufw)
 	w.conn.bufw.Write(crlf)
@@ -1403,49 +1404,25 @@ func foreachHeaderElement(v string, fn func(string)) {
 	}
 }
 
-// statusLines is a cache of Status-Line strings, keyed by code (for
-// HTTP/1.1) or negative code (for HTTP/1.0). This is faster than a
-// map keyed by struct of two fields. This map's max size is bounded
-// by 2*len(statusText), two protocol types for each known official
-// status code in the statusText map.
-var (
-	statusMu    sync.RWMutex
-	statusLines = make(map[int]string)
-)
-
-// statusLine returns a response Status-Line (RFC 2616 Section 6.1)
-// for the given request and response status code.
-func statusLine(req *Request, code int) string {
-	// Fast path:
-	key := code
-	proto11 := req.ProtoAtLeast(1, 1)
-	if !proto11 {
-		key = -key
+// writeStatusLine writes an HTTP/1.x Status-Line (RFC 2616 Section 6.1)
+// to bw. is11 is whether the HTTP request is HTTP/1.1. false means HTTP/1.0.
+// code is the response status code.
+// scratch is an optional scratch buffer. If it has at least capacity 3, it's used.
+func writeStatusLine(bw *bufio.Writer, is11 bool, code int, scratch []byte) {
+	if is11 {
+		bw.WriteString("HTTP/1.1 ")
+	} else {
+		bw.WriteString("HTTP/1.0 ")
 	}
-	statusMu.RLock()
-	line, ok := statusLines[key]
-	statusMu.RUnlock()
-	if ok {
-		return line
+	if text, ok := statusText[code]; ok {
+		bw.Write(strconv.AppendInt(scratch[:0], int64(code), 10))
+		bw.WriteByte(' ')
+		bw.WriteString(text)
+		bw.WriteString("\r\n")
+	} else {
+		// don't worry about performance
+		fmt.Fprintf(bw, "%03d status code %d\r\n", code, code)
 	}
-
-	// Slow path:
-	proto := "HTTP/1.0"
-	if proto11 {
-		proto = "HTTP/1.1"
-	}
-	codestring := fmt.Sprintf("%03d", code)
-	text, ok := statusText[code]
-	if !ok {
-		text = "status code " + codestring
-	}
-	line = proto + " " + codestring + " " + text + "\r\n"
-	if ok {
-		statusMu.Lock()
-		defer statusMu.Unlock()
-		statusLines[key] = line
-	}
-	return line
 }
 
 // bodyAllowed reports whether a Write is allowed for this response type.

@@ -5539,3 +5539,14 @@ func TestServerValidatesMethod(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkResponseStatusLine(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		bw := bufio.NewWriter(ioutil.Discard)
+		var buf3 [3]byte
+		for pb.Next() {
+			Export_writeStatusLine(bw, true, 200, buf3[:])
+		}
+	})
+}
