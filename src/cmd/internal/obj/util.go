@@ -240,7 +240,7 @@ func Dconv(p *Prog, a *Addr) string {
 		str = fmt.Sprintf("(%v, %v)", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
 
 	case TYPE_REGREG2:
-		str = fmt.Sprintf("%v, %v", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
+		str = fmt.Sprintf("%v, %v", Rconv(int(a.Offset)), Rconv(int(a.Reg)))
 
 	case TYPE_REGLIST:
 		str = regListConv(int(a.Offset))

@@ -639,12 +639,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			// All must be registers.
 			p.getRegister(prog, op, &a[0])
 			r1 := p.getRegister(prog, op, &a[1])
-			p.getRegister(prog, op, &a[2])
-			r3 := p.getRegister(prog, op, &a[3])
+			r2 := p.getRegister(prog, op, &a[2])
+			p.getRegister(prog, op, &a[3])
 			prog.From = a[0]
-			prog.To = a[2]
+			prog.To = a[3]
 			prog.To.Type = obj.TYPE_REGREG2
-			prog.To.Offset = int64(r3)
+			prog.To.Offset = int64(r2)
 			prog.Reg = r1
 			break
 		}
