@@ -2240,6 +2240,9 @@ func TestTestRaceInstall(t *testing.T) {
 	if !canRace {
 		t.Skip("no race detector")
 	}
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("don't rebuild the standard library in short mode")
+	}
 
 	tg := testgo(t)
 	defer tg.cleanup()
