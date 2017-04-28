@@ -10,7 +10,7 @@
 (Add64F x y) -> (ADDD x y)
 
 (Select0 (Add32carry <t> x y)) -> (ADD <t.FieldType(0)> x y)
-(Select1 (Add32carry <t> x y)) -> (SGTU <types.Bool> x (ADD <t.FieldType(0)> x y))
+(Select1 (Add32carry <t> x y)) -> (SGTU <typ.Bool> x (ADD <t.FieldType(0)> x y))
 (Add32withcarry <t> x y c) -> (ADD c (ADD <t> x y))
 
 (SubPtr x y) -> (SUB x y)
@@ -21,7 +21,7 @@
 (Sub64F x y) -> (SUBD x y)
 
 (Select0 (Sub32carry <t> x y)) -> (SUB <t.FieldType(0)> x y)
-(Select1 (Sub32carry <t> x y)) -> (SGTU <types.Bool> (SUB <t.FieldType(0)> x y) x)
+(Select1 (Sub32carry <t> x y)) -> (SGTU <typ.Bool> (SUB <t.FieldType(0)> x y) x)
 (Sub32withcarry <t> x y c) -> (SUB (SUB <t> x y) c)
 
 (Mul32 x y) -> (MUL x y)
@@ -72,11 +72,11 @@
 (Rsh32x64 x (Const64 [c])) && uint32(c) < 32 -> (SRAconst x [c])
 (Rsh32Ux64 x (Const64 [c])) && uint32(c) < 32 -> (SRLconst x [c])
 (Lsh16x64 x (Const64 [c])) && uint32(c) < 16 -> (SLLconst x [c])
-(Rsh16x64 x (Const64 [c])) && uint32(c) < 16 -> (SRAconst (SLLconst <types.UInt32> x [16]) [c+16])
-(Rsh16Ux64 x (Const64 [c])) && uint32(c) < 16 -> (SRLconst (SLLconst <types.UInt32> x [16]) [c+16])
+(Rsh16x64 x (Const64 [c])) && uint32(c) < 16 -> (SRAconst (SLLconst <typ.UInt32> x [16]) [c+16])
+(Rsh16Ux64 x (Const64 [c])) && uint32(c) < 16 -> (SRLconst (SLLconst <typ.UInt32> x [16]) [c+16])
 (Lsh8x64 x (Const64 [c])) && uint32(c) < 8 -> (SLLconst x [c])
-(Rsh8x64 x (Const64 [c])) && uint32(c) < 8 -> (SRAconst (SLLconst <types.UInt32> x [24]) [c+24])
-(Rsh8Ux64 x (Const64 [c])) && uint32(c) < 8 -> (SRLconst (SLLconst <types.UInt32> x [24]) [c+24])
+(Rsh8x64 x (Const64 [c])) && uint32(c) < 8 -> (SRAconst (SLLconst <typ.UInt32> x [24]) [c+24])
+(Rsh8Ux64 x (Const64 [c])) && uint32(c) < 8 -> (SRLconst (SLLconst <typ.UInt32> x [24]) [c+24])
 
 // large constant shifts
 (Lsh32x64 _ (Const64 [c])) && uint32(c) >= 32 -> (MOVWconst [0])
@@ -88,8 +88,8 @@
 
 // large constant signed right shift, we leave the sign bit
 (Rsh32x64 x (Const64 [c])) && uint32(c) >= 32 -> (SRAconst x [31])
-(Rsh16x64 x (Const64 [c])) && uint32(c) >= 16 -> (SRAconst (SLLconst <types.UInt32> x [16]) [31])
-(Rsh8x64 x (Const64 [c])) && uint32(c) >= 8 -> (SRAconst (SLLconst <types.UInt32> x [24]) [31])
+(Rsh16x64 x (Const64 [c])) && uint32(c) >= 16 -> (SRAconst (SLLconst <typ.UInt32> x [16]) [31])
+(Rsh8x64 x (Const64 [c])) && uint32(c) >= 8 -> (SRAconst (SLLconst <typ.UInt32> x [24]) [31])
 
 // shifts
 // hardware instruction uses only the low 5 bits of the shift
@@ -118,17 +118,17 @@
 (Rsh8Ux16 <t> x y) -> (CMOVZ (SRL <t> (ZeroExt8to32 x) (ZeroExt16to32 y) ) (MOVWconst [0]) (SGTUconst [32] (ZeroExt16to32 y)))
 (Rsh8Ux8 <t> x y) -> (CMOVZ (SRL <t> (ZeroExt8to32 x) (ZeroExt8to32 y) ) (MOVWconst [0]) (SGTUconst [32] (ZeroExt8to32 y)))
 
-(Rsh32x32 x y) -> (SRA x ( CMOVZ <types.UInt32> y (MOVWconst [-1]) (SGTUconst [32] y)))
-(Rsh32x16 x y) -> (SRA x ( CMOVZ <types.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
-(Rsh32x8 x y) -> (SRA x ( CMOVZ <types.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
+(Rsh32x32 x y) -> (SRA x ( CMOVZ <typ.UInt32> y (MOVWconst [-1]) (SGTUconst [32] y)))
+(Rsh32x16 x y) -> (SRA x ( CMOVZ <typ.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
+(Rsh32x8 x y) -> (SRA x ( CMOVZ <typ.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
 
-(Rsh16x32 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> y (MOVWconst [-1]) (SGTUconst [32] y)))
-(Rsh16x16 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
-(Rsh16x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
+(Rsh16x32 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> y (MOVWconst [-1]) (SGTUconst [32] y)))
+(Rsh16x16 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
+(Rsh16x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
 
-(Rsh8x32 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> y (MOVWconst [-1]) (SGTUconst [32] y)))
-(Rsh8x16 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
-(Rsh8x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <types.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
+(Rsh8x32 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> y (MOVWconst [-1]) (SGTUconst [32] y)))
+(Rsh8x16 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
+(Rsh8x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
 
 // unary ops
 (Neg32 x) -> (NEG x)
@@ -153,7 +153,7 @@
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)
-(EqB x y) -> (XORconst [1] (XOR <types.Bool> x y))
+(EqB x y) -> (XORconst [1] (XOR <typ.Bool> x y))
 (NeqB x y) -> (XOR x y)
 (Not x) -> (XORconst [1] x)
 
@@ -267,23 +267,23 @@
 (Load <t> ptr mem) && is64BitFloat(t) -> (MOVDload ptr mem)
 
 // stores
-(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 1 -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 2 -> (MOVHstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
 
 // zero instructions
 (Zero [0] _ mem) -> mem
 (Zero [1] ptr mem) -> (MOVBstore ptr (MOVWconst [0]) mem)
-(Zero [2] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
+(Zero [2] {t} ptr mem) && t.(*types.Type).Alignment()%2 == 0 ->
 	(MOVHstore ptr (MOVWconst [0]) mem)
 (Zero [2] ptr mem) ->
 	(MOVBstore [1] ptr (MOVWconst [0])
 		(MOVBstore [0] ptr (MOVWconst [0]) mem))
-(Zero [4] {t} ptr mem) && t.(Type).Alignment()%4 == 0 ->
+(Zero [4] {t} ptr mem) && t.(*types.Type).Alignment()%4 == 0 ->
 	(MOVWstore ptr (MOVWconst [0]) mem)
-(Zero [4] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
+(Zero [4] {t} ptr mem) && t.(*types.Type).Alignment()%2 == 0 ->
 	(MOVHstore [2] ptr (MOVWconst [0])
 		(MOVHstore [0] ptr (MOVWconst [0]) mem))
 (Zero [4] ptr mem) ->
@@ -295,18 +295,18 @@
 	(MOVBstore [2] ptr (MOVWconst [0])
 		(MOVBstore [1] ptr (MOVWconst [0])
 			(MOVBstore [0] ptr (MOVWconst [0]) mem)))
-(Zero [6] {t} ptr mem) && t.(Type).Alignment()%2 == 0 ->
+(Zero [6] {t} ptr mem) && t.(*types.Type).Alignment()%2 == 0 ->
 	(MOVHstore [4] ptr (MOVWconst [0])
 		(MOVHstore [2] ptr (MOVWconst [0])
 			(MOVHstore [0] ptr (MOVWconst [0]) mem)))
-(Zero [8] {t} ptr mem) && t.(Type).Alignment()%4 == 0 ->
+(Zero [8] {t} ptr mem) && t.(*types.Type).Alignment()%4 == 0 ->
 		(MOVWstore [4] ptr (MOVWconst [0])
 			(MOVWstore [0] ptr (MOVWconst [0]) mem))
-(Zero [12] {t} ptr mem) && t.(Type).Alignment()%4 == 0 ->
+(Zero [12] {t} ptr mem) && t.(*types.Type).Alignment()%4 == 0 ->
 	(MOVWstore [8] ptr (MOVWconst [0])
 		(MOVWstore [4] ptr (MOVWconst [0])
 			(MOVWstore [0] ptr (MOVWconst [0]) mem)))
-(Zero [16] {t} ptr mem) && t.(Type).Alignment()%4 == 0 ->
+(Zero [16] {t} ptr mem) && t.(*types.Type).Alignment()%4 == 0 ->
 	(MOVWstore [12] ptr (MOVWconst [0])
 		(MOVWstore [8] ptr (MOVWconst [0])
 			(MOVWstore [4] ptr (MOVWconst [0])
@@ -314,23 +314,23 @@
 
 // large or unaligned zeroing uses a loop
 (Zero [s] {t} ptr mem)
-	&& (s > 16  || t.(Type).Alignment()%4 != 0) ->
-	(LoweredZero [t.(Type).Alignment()]
+	&& (s > 16  || t.(*types.Type).Alignment()%4 != 0) ->
+	(LoweredZero [t.(*types.Type).Alignment()]
 		ptr
-		(ADDconst <ptr.Type> ptr [s-moveSize(t.(Type).Alignment(), config)])
+		(ADDconst <ptr.Type> ptr [s-moveSize(t.(*types.Type).Alignment(), config)])
 		mem)
 
 // moves
 (Move [0] _ _ mem) -> mem
 (Move [1] dst src mem) -> (MOVBstore dst (MOVBUload src mem) mem)
-(Move [2] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
+(Move [2] {t} dst src mem) && t.(*types.Type).Alignment()%2 == 0 ->
 	(MOVHstore dst (MOVHUload src mem) mem)
 (Move [2] dst src mem) ->
 	(MOVBstore [1] dst (MOVBUload [1] src mem)
 		(MOVBstore dst (MOVBUload src mem) mem))
-(Move [4] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
+(Move [4] {t} dst src mem) && t.(*types.Type).Alignment()%4 == 0 ->
 	(MOVWstore dst (MOVWload src mem) mem)
-(Move [4] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
+(Move [4] {t} dst src mem) && t.(*types.Type).Alignment()%2 == 0 ->
 	(MOVHstore [2] dst (MOVHUload [2] src mem)
 		(MOVHstore dst (MOVHUload src mem) mem))
 (Move [4] dst src mem) ->
@@ -342,23 +342,23 @@
 	(MOVBstore [2] dst (MOVBUload [2] src mem)
 		(MOVBstore [1] dst (MOVBUload [1] src mem)
 			(MOVBstore dst (MOVBUload src mem) mem)))
-(Move [8] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
+(Move [8] {t} dst src mem) && t.(*types.Type).Alignment()%4 == 0 ->
 	(MOVWstore [4] dst (MOVWload [4] src mem)
 		(MOVWstore dst (MOVWload src mem) mem))
-(Move [8] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
+(Move [8] {t} dst src mem) && t.(*types.Type).Alignment()%2 == 0 ->
 	(MOVHstore [6] dst (MOVHload [6] src mem)
 		(MOVHstore [4] dst (MOVHload [4] src mem)
 			(MOVHstore [2] dst (MOVHload [2] src mem)
 				(MOVHstore dst (MOVHload src mem) mem))))
-(Move [6] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
+(Move [6] {t} dst src mem) && t.(*types.Type).Alignment()%2 == 0 ->
 	(MOVHstore [4] dst (MOVHload [4] src mem)
 		(MOVHstore [2] dst (MOVHload [2] src mem)
 			(MOVHstore dst (MOVHload src mem) mem)))
-(Move [12] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
+(Move [12] {t} dst src mem) && t.(*types.Type).Alignment()%4 == 0 ->
 	(MOVWstore [8] dst (MOVWload [8] src mem)
 		(MOVWstore [4] dst (MOVWload [4] src mem)
 			(MOVWstore dst (MOVWload src mem) mem)))
-(Move [16] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
+(Move [16] {t} dst src mem) && t.(*types.Type).Alignment()%4 == 0 ->
 	(MOVWstore [12] dst (MOVWload [12] src mem)
 		(MOVWstore [8] dst (MOVWload [8] src mem)
 			(MOVWstore [4] dst (MOVWload [4] src mem)
@@ -367,11 +367,11 @@
 
 // large or unaligned move uses a loop
 (Move [s] {t} dst src mem)
-	&& (s > 16 || t.(Type).Alignment()%4 != 0) ->
-	(LoweredMove [t.(Type).Alignment()]
+	&& (s > 16 || t.(*types.Type).Alignment()%4 != 0) ->
+	(LoweredMove [t.(*types.Type).Alignment()]
 		dst
 		src
-		(ADDconst <src.Type> src [s-moveSize(t.(Type).Alignment(), config)])
+		(ADDconst <src.Type> src [s-moveSize(t.(*types.Type).Alignment(), config)])
 		mem)
 
 // calls
@@ -393,40 +393,40 @@
 
 // AtomicOr8(ptr,val) -> LoweredAtomicOr(ptr&^3,uint32(val) << ((ptr & 3) * 8))
 (AtomicOr8 ptr val mem) && !config.BigEndian ->
-	(LoweredAtomicOr (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr)
-		(SLL <types.UInt32> (ZeroExt8to32 val)
-			(SLLconst <types.UInt32> [3]
-				(ANDconst <types.UInt32> [3] ptr))) mem)
+	(LoweredAtomicOr (AND <typ.UInt32Ptr> (MOVWconst [^3]) ptr)
+		(SLL <typ.UInt32> (ZeroExt8to32 val)
+			(SLLconst <typ.UInt32> [3]
+				(ANDconst <typ.UInt32> [3] ptr))) mem)
 
 // AtomicAnd8(ptr,val) -> LoweredAtomicAnd(ptr&^3,(uint32(val) << ((ptr & 3) * 8)) | ^(uint32(0xFF) << ((ptr & 3) * 8))))
 (AtomicAnd8  ptr val mem) && !config.BigEndian ->
-	(LoweredAtomicAnd (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr)
-		(OR <types.UInt32> (SLL <types.UInt32> (ZeroExt8to32 val)
-			(SLLconst <types.UInt32> [3]
-				(ANDconst  <types.UInt32> [3] ptr)))
-		(NORconst [0] <types.UInt32> (SLL <types.UInt32>
-			(MOVWconst [0xff]) (SLLconst <types.UInt32> [3]
-				(ANDconst <types.UInt32> [3] ptr))))) mem)
+	(LoweredAtomicAnd (AND <typ.UInt32Ptr> (MOVWconst [^3]) ptr)
+		(OR <typ.UInt32> (SLL <typ.UInt32> (ZeroExt8to32 val)
+			(SLLconst <typ.UInt32> [3]
+				(ANDconst  <typ.UInt32> [3] ptr)))
+		(NORconst [0] <typ.UInt32> (SLL <typ.UInt32>
+			(MOVWconst [0xff]) (SLLconst <typ.UInt32> [3]
+				(ANDconst <typ.UInt32> [3] ptr))))) mem)
 
 // AtomicOr8(ptr,val) -> LoweredAtomicOr(ptr&^3,uint32(val) << (((ptr^3) & 3) * 8))
 (AtomicOr8 ptr val mem) && config.BigEndian ->
-	(LoweredAtomicOr (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr)
-		(SLL <types.UInt32> (ZeroExt8to32 val)
-			(SLLconst <types.UInt32> [3]
-				(ANDconst <types.UInt32> [3]
-					(XORconst <types.UInt32> [3] ptr)))) mem)
+	(LoweredAtomicOr (AND <typ.UInt32Ptr> (MOVWconst [^3]) ptr)
+		(SLL <typ.UInt32> (ZeroExt8to32 val)
+			(SLLconst <typ.UInt32> [3]
+				(ANDconst <typ.UInt32> [3]
+					(XORconst <typ.UInt32> [3] ptr)))) mem)
 
 // AtomicAnd8(ptr,val) -> LoweredAtomicAnd(ptr&^3,(uint32(val) << (((ptr^3) & 3) * 8)) | ^(uint32(0xFF) << (((ptr^3) & 3) * 8))))
 (AtomicAnd8  ptr val mem) && config.BigEndian ->
-	(LoweredAtomicAnd (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr)
-		(OR <types.UInt32> (SLL <types.UInt32> (ZeroExt8to32 val)
-			(SLLconst <types.UInt32> [3]
-				(ANDconst  <types.UInt32> [3]
-					(XORconst <types.UInt32> [3] ptr))))
-		(NORconst [0] <types.UInt32> (SLL <types.UInt32>
-			(MOVWconst [0xff]) (SLLconst <types.UInt32> [3]
-				(ANDconst <types.UInt32> [3]
-					(XORconst <types.UInt32> [3] ptr)))))) mem)
+	(LoweredAtomicAnd (AND <typ.UInt32Ptr> (MOVWconst [^3]) ptr)
+		(OR <typ.UInt32> (SLL <typ.UInt32> (ZeroExt8to32 val)
+			(SLLconst <typ.UInt32> [3]
+				(ANDconst  <typ.UInt32> [3]
+					(XORconst <typ.UInt32> [3] ptr))))
+		(NORconst [0] <typ.UInt32> (SLL <typ.UInt32>
+			(MOVWconst [0xff]) (SLLconst <typ.UInt32> [3]
+				(ANDconst <typ.UInt32> [3]
+					(XORconst <typ.UInt32> [3] ptr)))))) mem)
 
 
 // checks

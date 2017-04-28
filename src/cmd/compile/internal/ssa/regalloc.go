@@ -114,6 +114,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
@@ -698,12 +699,12 @@ func (s *regAllocState) setState(regs []endReg) {
 }
 
 // compatRegs returns the set of registers which can store a type t.
-func (s *regAllocState) compatRegs(t Type) regMask {
+func (s *regAllocState) compatRegs(t *types.Type) regMask {
 	var m regMask
 	if t.IsTuple() || t.IsFlags() {
 		return 0
 	}
-	if t.IsFloat() || t == TypeInt128 {
+	if t.IsFloat() || t == types.TypeInt128 {
 		m = s.f.Config.fpRegMask
 	} else {
 		m = s.f.Config.gpRegMask
@@ -2078,7 +2079,7 @@ func (e *edgeState) erase(loc Location) {
 }
 
 // findRegFor finds a register we can use to make a temp copy of type typ.
-func (e *edgeState) findRegFor(typ Type) Location {
+func (e *edgeState) findRegFor(typ *types.Type) Location {
 	// Which registers are possibilities.
 	var m regMask
 	types := &e.s.f.Config.Types

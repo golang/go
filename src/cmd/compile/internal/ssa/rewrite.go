@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"fmt"
 	"io"
@@ -84,39 +85,39 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 
 // Common functions called from rewriting rules
 
-func is64BitFloat(t Type) bool {
+func is64BitFloat(t *types.Type) bool {
 	return t.Size() == 8 && t.IsFloat()
 }
 
-func is32BitFloat(t Type) bool {
+func is32BitFloat(t *types.Type) bool {
 	return t.Size() == 4 && t.IsFloat()
 }
 
-func is64BitInt(t Type) bool {
+func is64BitInt(t *types.Type) bool {
 	return t.Size() == 8 && t.IsInteger()
 }
 
-func is32BitInt(t Type) bool {
+func is32BitInt(t *types.Type) bool {
 	return t.Size() == 4 && t.IsInteger()
 }
 
-func is16BitInt(t Type) bool {
+func is16BitInt(t *types.Type) bool {
 	return t.Size() == 2 && t.IsInteger()
 }
 
-func is8BitInt(t Type) bool {
+func is8BitInt(t *types.Type) bool {
 	return t.Size() == 1 && t.IsInteger()
 }
 
-func isPtr(t Type) bool {
+func isPtr(t *types.Type) bool {
 	return t.IsPtrShaped()
 }
 
-func isSigned(t Type) bool {
+func isSigned(t *types.Type) bool {
 	return t.IsSigned()
 }
 
-func typeSize(t Type) int64 {
+func typeSize(t *types.Type) int64 {
 	return t.Size()
 }
 

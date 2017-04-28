@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"cmd/compile/internal/types"
+	"fmt"
+)
 
 // an edgeMem records a backedge, together with the memory
 // phi functions at the target of the backedge that must
@@ -84,7 +87,7 @@ func insertLoopReschedChecks(f *Func) {
 
 	// It's possible that there is no memory state (no global/pointer loads/stores or calls)
 	if lastMems[f.Entry.ID] == nil {
-		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Pos, OpInitMem, TypeMem)
+		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Pos, OpInitMem, types.TypeMem)
 	}
 
 	memDefsAtBlockEnds := make([]*Value, f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
@@ -197,8 +200,8 @@ func insertLoopReschedChecks(f *Func) {
 		// if sp < g.limit { goto sched }
 		// goto header
 
-		types := &f.Config.Types
-		pt := types.Uintptr
+		cfgtypes := &f.Config.Types
+		pt := cfgtypes.Uintptr
 		g := test.NewValue1(bb.Pos, OpGetG, pt, mem0)
 		sp := test.NewValue0(bb.Pos, OpSP, pt)
 		cmpOp := OpLess64U
@@ -207,7 +210,7 @@ func insertLoopReschedChecks(f *Func) {
 		}
 		limaddr := test.NewValue1I(bb.Pos, OpOffPtr, pt, 2*pt.Size(), g)
 		lim := test.NewValue2(bb.Pos, OpLoad, pt, limaddr, mem0)
-		cmp := test.NewValue2(bb.Pos, cmpOp, types.Bool, sp, lim)
+		cmp := test.NewValue2(bb.Pos, cmpOp, cfgtypes.Bool, sp, lim)
 		test.SetControl(cmp)
 
 		// if true, goto sched
@@ -226,7 +229,7 @@ func insertLoopReschedChecks(f *Func) {
 		//    mem1 := call resched (mem0)
 		//    goto header
 		resched := f.fe.Syslook("goschedguarded")
-		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, TypeMem, resched, mem0)
+		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, resched, mem0)
 		sched.AddEdgeTo(h)
 		headerMemPhi.AddArg(mem1)
 

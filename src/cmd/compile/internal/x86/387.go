@@ -7,6 +7,7 @@ package x86
 import (
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"math"
@@ -323,7 +324,7 @@ func popAndSave(s *gc.SSAGenState, v *ssa.Value) {
 }
 
 // loadPush returns the opcode for load+push of the given type.
-func loadPush(t ssa.Type) obj.As {
+func loadPush(t *types.Type) obj.As {
 	if t.Size() == 4 {
 		return x86.AFMOVF
 	}

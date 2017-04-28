@@ -322,13 +322,13 @@
 
 // Lowering stores
 // These more-specific FP versions of Store pattern should come first.
-(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
 
-(Store {t} ptr val mem) && t.(Type).Size() == 8 -> (MOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 -> (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 -> (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 2 -> (MOVHstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 1 -> (MOVBstore ptr val mem)
 
 // Lowering moves
 
@@ -437,7 +437,7 @@
 (If (MOVDGTnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no) -> (GTF cmp yes no)
 (If (MOVDGEnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no) -> (GEF cmp yes no)
 
-(If cond yes no) -> (NE (CMPWconst [0] (MOVBZreg <types.Bool> cond)) yes no)
+(If cond yes no) -> (NE (CMPWconst [0] (MOVBZreg <typ.Bool> cond)) yes no)
 
 // ***************************
 // Above: lowering rules
@@ -446,8 +446,8 @@
 // TODO: Should the optimizations be a separate pass?
 
 // Fold unnecessary type conversions.
-(MOVDreg <t> x) && t.Compare(x.Type) == CMPeq -> x
-(MOVDnop <t> x) && t.Compare(x.Type) == CMPeq -> x
+(MOVDreg <t> x) && t.Compare(x.Type) == types.CMPeq -> x
+(MOVDnop <t> x) && t.Compare(x.Type) == types.CMPeq -> x
 
 // Propagate constants through type conversions.
 (MOVDreg (MOVDconst [c])) -> (MOVDconst [c])

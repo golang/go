@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/internal/src"
+import (
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
+)
 
 // dse does dead-store elimination on the Function.
 // Dead stores are those which are unconditionally followed by
@@ -88,7 +91,7 @@ func dse(f *Func) {
 		if v.Op == OpStore || v.Op == OpZero {
 			var sz int64
 			if v.Op == OpStore {
-				sz = v.Aux.(Type).Size()
+				sz = v.Aux.(*types.Type).Size()
 			} else { // OpZero
 				sz = v.AuxInt
 			}

@@ -4,7 +4,10 @@
 
 package ssa
 
-import "testing"
+import (
+	"cmd/compile/internal/types"
+	"testing"
+)
 
 func BenchmarkDominatorsLinear(b *testing.B)     { benchmarkDominators(b, 10000, genLinear) }
 func BenchmarkDominatorsFwdBack(b *testing.B)    { benchmarkDominators(b, 10000, genFwdBack) }
@@ -20,7 +23,7 @@ func genLinear(size int) []bloc {
 	var blocs []bloc
 	blocs = append(blocs,
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
 			Goto(blockn(0)),
 		),
 	)
@@ -43,8 +46,8 @@ func genFwdBack(size int) []bloc {
 	var blocs []bloc
 	blocs = append(blocs,
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("p", OpConstBool, TypeBool, 1, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpConstBool, types.Types[types.TBOOL], 1, nil),
 			Goto(blockn(0)),
 		),
 	)
@@ -73,8 +76,8 @@ func genManyPred(size int) []bloc {
 	var blocs []bloc
 	blocs = append(blocs,
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("p", OpConstBool, TypeBool, 1, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpConstBool, types.Types[types.TBOOL], 1, nil),
 			Goto(blockn(0)),
 		),
 	)
@@ -85,15 +88,15 @@ func genManyPred(size int) []bloc {
 		switch i % 3 {
 		case 0:
 			blocs = append(blocs, Bloc(blockn(i),
-				Valu("a", OpConstBool, TypeBool, 1, nil),
+				Valu("a", OpConstBool, types.Types[types.TBOOL], 1, nil),
 				Goto(blockn(i+1))))
 		case 1:
 			blocs = append(blocs, Bloc(blockn(i),
-				Valu("a", OpConstBool, TypeBool, 1, nil),
+				Valu("a", OpConstBool, types.Types[types.TBOOL], 1, nil),
 				If("p", blockn(i+1), blockn(0))))
 		case 2:
 			blocs = append(blocs, Bloc(blockn(i),
-				Valu("a", OpConstBool, TypeBool, 1, nil),
+				Valu("a", OpConstBool, types.Types[types.TBOOL], 1, nil),
 				If("p", blockn(i+1), blockn(size))))
 		}
 	}
@@ -111,8 +114,8 @@ func genMaxPred(size int) []bloc {
 	var blocs []bloc
 	blocs = append(blocs,
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("p", OpConstBool, TypeBool, 1, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpConstBool, types.Types[types.TBOOL], 1, nil),
 			Goto(blockn(0)),
 		),
 	)
@@ -136,15 +139,15 @@ func genMaxPredValue(size int) []bloc {
 	var blocs []bloc
 	blocs = append(blocs,
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("p", OpConstBool, TypeBool, 1, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpConstBool, types.Types[types.TBOOL], 1, nil),
 			Goto(blockn(0)),
 		),
 	)
 
 	for i := 0; i < size; i++ {
 		blocs = append(blocs, Bloc(blockn(i),
-			Valu("a", OpConstBool, TypeBool, 1, nil),
+			Valu("a", OpConstBool, types.Types[types.TBOOL], 1, nil),
 			If("p", blockn(i+1), "exit")))
 	}
 
@@ -223,7 +226,7 @@ func TestDominatorsSingleBlock(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
 			Exit("mem")))
 
 	doms := map[string]string{}
@@ -238,7 +241,7 @@ func TestDominatorsSimple(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
 			Goto("a")),
 		Bloc("a",
 			Goto("b")),
@@ -266,8 +269,8 @@ func TestDominatorsMultPredFwd(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("p", OpConstBool, TypeBool, 1, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpConstBool, types.Types[types.TBOOL], 1, nil),
 			If("p", "a", "c")),
 		Bloc("a",
 			If("p", "b", "c")),
@@ -294,8 +297,8 @@ func TestDominatorsDeadCode(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("p", OpConstBool, TypeBool, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpConstBool, types.Types[types.TBOOL], 0, nil),
 			If("p", "b3", "b5")),
 		Bloc("b2", Exit("mem")),
 		Bloc("b3", Goto("b2")),
@@ -319,8 +322,8 @@ func TestDominatorsMultPredRev(t *testing.T) {
 		Bloc("entry",
 			Goto("first")),
 		Bloc("first",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("p", OpConstBool, TypeBool, 1, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpConstBool, types.Types[types.TBOOL], 1, nil),
 			Goto("a")),
 		Bloc("a",
 			If("p", "b", "first")),
@@ -348,8 +351,8 @@ func TestDominatorsMultPred(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("p", OpConstBool, TypeBool, 1, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpConstBool, types.Types[types.TBOOL], 1, nil),
 			If("p", "a", "c")),
 		Bloc("a",
 			If("p", "b", "c")),
@@ -377,8 +380,8 @@ func TestInfiniteLoop(t *testing.T) {
 	// note lack of an exit block
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("p", OpConstBool, TypeBool, 1, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpConstBool, types.Types[types.TBOOL], 1, nil),
 			Goto("a")),
 		Bloc("a",
 			Goto("b")),
@@ -414,8 +417,8 @@ func TestDomTricky(t *testing.T) {
 		cfg := testConfig(t)
 		fun := cfg.Fun("1",
 			Bloc("1",
-				Valu("mem", OpInitMem, TypeMem, 0, nil),
-				Valu("p", OpConstBool, TypeBool, 1, nil),
+				Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+				Valu("p", OpConstBool, types.Types[types.TBOOL], 1, nil),
 				Goto("4")),
 			Bloc("2",
 				Goto("11")),
@@ -490,8 +493,8 @@ func testDominatorsPostTricky(t *testing.T, b7then, b7else, b12then, b12else, b1
 	c := testConfig(t)
 	fun := c.Fun("b1",
 		Bloc("b1",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("p", OpConstBool, TypeBool, 1, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpConstBool, types.Types[types.TBOOL], 1, nil),
 			If("p", "b3", "b2")),
 		Bloc("b3",
 			If("p", "b5", "b6")),

@@ -157,9 +157,11 @@ func genRules(arch arch) {
 	fmt.Fprintln(w, "import \"math\"")
 	fmt.Fprintln(w, "import \"cmd/internal/obj\"")
 	fmt.Fprintln(w, "import \"cmd/internal/objabi\"")
+	fmt.Fprintln(w, "import \"cmd/compile/internal/types\"")
 	fmt.Fprintln(w, "var _ = math.MinInt8  // in case not otherwise used")
 	fmt.Fprintln(w, "var _ = obj.ANOP      // in case not otherwise used")
 	fmt.Fprintln(w, "var _ = objabi.GOROOT // in case not otherwise used")
+	fmt.Fprintln(w, "var _ = types.TypeMem // in case not otherwise used")
 	fmt.Fprintln(w)
 
 	const chunkSize = 10
@@ -230,9 +232,9 @@ func genRules(arch arch) {
 			hasb := strings.Contains(body, "b.")
 			hasconfig := strings.Contains(body, "config.") || strings.Contains(body, "config)")
 			hasfe := strings.Contains(body, "fe.")
-			hasts := strings.Contains(body, "types.")
+			hastyps := strings.Contains(body, "typ.")
 			fmt.Fprintf(w, "func rewriteValue%s_%s_%d(v *Value) bool {\n", arch.name, op, chunk)
-			if hasb || hasconfig || hasfe {
+			if hasb || hasconfig || hasfe || hastyps {
 				fmt.Fprintln(w, "b := v.Block")
 				fmt.Fprintln(w, "_ = b")
 			}
@@ -244,9 +246,9 @@ func genRules(arch arch) {
 				fmt.Fprintln(w, "fe := b.Func.fe")
 				fmt.Fprintln(w, "_ = fe")
 			}
-			if hasts {
-				fmt.Fprintln(w, "types := &b.Func.Config.Types")
-				fmt.Fprintln(w, "_ = types")
+			if hastyps {
+				fmt.Fprintln(w, "typ := &b.Func.Config.Types")
+				fmt.Fprintln(w, "_ = typ")
 			}
 			fmt.Fprint(w, body)
 			fmt.Fprintf(w, "}\n")
@@ -260,8 +262,8 @@ func genRules(arch arch) {
 	fmt.Fprintln(w, "_ = config")
 	fmt.Fprintln(w, "fe := b.Func.fe")
 	fmt.Fprintln(w, "_ = fe")
-	fmt.Fprintln(w, "types := &config.Types")
-	fmt.Fprintln(w, "_ = types")
+	fmt.Fprintln(w, "typ := &config.Types")
+	fmt.Fprintln(w, "_ = typ")
 	fmt.Fprintf(w, "switch b.Kind {\n")
 	ops = nil
 	for op := range blockrules {
@@ -731,13 +733,13 @@ func typeName(typ string) string {
 		if len(ts) != 2 {
 			panic("Tuple expect 2 arguments")
 		}
-		return "MakeTuple(" + typeName(ts[0]) + ", " + typeName(ts[1]) + ")"
+		return "types.NewTuple(" + typeName(ts[0]) + ", " + typeName(ts[1]) + ")"
 	}
 	switch typ {
 	case "Flags", "Mem", "Void", "Int128":
-		return "Type" + typ
+		return "types.Type" + typ
 	default:
-		return "types." + typ
+		return "typ." + typ
 	}
 }
 

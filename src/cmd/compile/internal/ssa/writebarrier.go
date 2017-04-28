@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 )
@@ -12,7 +13,7 @@ import (
 // needwb returns whether we need write barrier for store op v.
 // v must be Store/Move/Zero.
 func needwb(v *Value) bool {
-	t, ok := v.Aux.(Type)
+	t, ok := v.Aux.(*types.Type)
 	if !ok {
 		v.Fatalf("store aux is not a type: %s", v.LongString())
 	}
@@ -155,9 +156,9 @@ func writebarrier(f *Func) {
 
 		// set up control flow for write barrier test
 		// load word, test word, avoiding partial register write from load byte.
-		types := &f.Config.Types
-		flag := b.NewValue2(pos, OpLoad, types.UInt32, wbaddr, mem)
-		flag = b.NewValue2(pos, OpNeq32, types.Bool, flag, const0)
+		cfgtypes := &f.Config.Types
+		flag := b.NewValue2(pos, OpLoad, cfgtypes.UInt32, wbaddr, mem)
+		flag = b.NewValue2(pos, OpNeq32, cfgtypes.Bool, flag, const0)
 		b.Kind = BlockIf
 		b.SetControl(flag)
 		b.Likely = BranchUnlikely
@@ -185,10 +186,10 @@ func writebarrier(f *Func) {
 			case OpMoveWB:
 				fn = typedmemmove
 				val = w.Args[1]
-				typ = &ExternSymbol{Sym: w.Aux.(Type).Symbol()}
+				typ = &ExternSymbol{Sym: w.Aux.(*types.Type).Symbol()}
 			case OpZeroWB:
 				fn = typedmemclr
-				typ = &ExternSymbol{Sym: w.Aux.(Type).Symbol()}
+				typ = &ExternSymbol{Sym: w.Aux.(*types.Type).Symbol()}
 			}
 
 			// then block: emit write barrier call
@@ -198,12 +199,12 @@ func writebarrier(f *Func) {
 			// else block: normal store
 			switch w.Op {
 			case OpStoreWB:
-				memElse = bElse.NewValue3A(pos, OpStore, TypeMem, w.Aux, ptr, val, memElse)
+				memElse = bElse.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, ptr, val, memElse)
 			case OpMoveWB:
-				memElse = bElse.NewValue3I(pos, OpMove, TypeMem, w.AuxInt, ptr, val, memElse)
+				memElse = bElse.NewValue3I(pos, OpMove, types.TypeMem, w.AuxInt, ptr, val, memElse)
 				memElse.Aux = w.Aux
 			case OpZeroWB:
-				memElse = bElse.NewValue2I(pos, OpZero, TypeMem, w.AuxInt, ptr, memElse)
+				memElse = bElse.NewValue2I(pos, OpZero, types.TypeMem, w.AuxInt, ptr, memElse)
 				memElse.Aux = w.Aux
 			}
 
@@ -223,7 +224,7 @@ func writebarrier(f *Func) {
 		bEnd.Values = append(bEnd.Values, last)
 		last.Block = bEnd
 		last.reset(OpPhi)
-		last.Type = TypeMem
+		last.Type = types.TypeMem
 		last.AddArg(memThen)
 		last.AddArg(memElse)
 		for _, w := range stores {
@@ -265,10 +266,10 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ *ExternSymbol, ptr, val, m
 		t := val.Type.ElemType()
 		tmp = b.Func.fe.Auto(val.Pos, t)
 		aux := &AutoSymbol{Node: tmp}
-		mem = b.NewValue1A(pos, OpVarDef, TypeMem, tmp, mem)
+		mem = b.NewValue1A(pos, OpVarDef, types.TypeMem, tmp, mem)
 		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), aux, sp)
 		siz := t.Size()
-		mem = b.NewValue3I(pos, OpMove, TypeMem, siz, tmpaddr, val, mem)
+		mem = b.NewValue3I(pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
 		mem.Aux = t
 		val = tmpaddr
 	}
@@ -280,29 +281,29 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ *ExternSymbol, ptr, val, m
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
 		off = round(off, taddr.Type.Alignment())
 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
-		mem = b.NewValue3A(pos, OpStore, TypeMem, ptr.Type, arg, taddr, mem)
+		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
 		off += taddr.Type.Size()
 	}
 
 	off = round(off, ptr.Type.Alignment())
 	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
-	mem = b.NewValue3A(pos, OpStore, TypeMem, ptr.Type, arg, ptr, mem)
+	mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
 	off += ptr.Type.Size()
 
 	if val != nil {
 		off = round(off, val.Type.Alignment())
 		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
-		mem = b.NewValue3A(pos, OpStore, TypeMem, val.Type, arg, val, mem)
+		mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
 		off += val.Type.Size()
 	}
 	off = round(off, config.PtrSize)
 
 	// issue call
-	mem = b.NewValue1A(pos, OpStaticCall, TypeMem, fn, mem)
+	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, fn, mem)
 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
 
 	if valIsVolatile {
-		mem = b.NewValue1A(pos, OpVarKill, TypeMem, tmp, mem) // mark temp dead
+		mem = b.NewValue1A(pos, OpVarKill, types.TypeMem, tmp, mem) // mark temp dead
 	}
 
 	return mem

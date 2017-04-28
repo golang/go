@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"container/heap"
 	"fmt"
@@ -71,7 +72,7 @@ func (s *phiState) insertPhis() {
 	// Generate a numbering for these variables.
 	s.varnum = map[*Node]int32{}
 	var vars []*Node
-	var vartypes []ssa.Type
+	var vartypes []*types.Type
 	for _, b := range s.f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != ssa.OpFwdRef {
@@ -162,7 +163,7 @@ levels:
 	s.queued = newSparseSet(s.f.NumBlocks())
 	s.hasPhi = newSparseSet(s.f.NumBlocks())
 	s.hasDef = newSparseSet(s.f.NumBlocks())
-	s.placeholder = s.s.entryNewValue0(ssa.OpUnknown, ssa.TypeInvalid)
+	s.placeholder = s.s.entryNewValue0(ssa.OpUnknown, types.TypeInvalid)
 
 	// Generate phi ops for each variable.
 	for n := range vartypes {
@@ -182,7 +183,7 @@ levels:
 	}
 }
 
-func (s *phiState) insertVarPhis(n int, var_ *Node, defs []*ssa.Block, typ ssa.Type) {
+func (s *phiState) insertVarPhis(n int, var_ *Node, defs []*ssa.Block, typ *types.Type) {
 	priq := &s.priq
 	q := s.q
 	queued := s.queued
@@ -509,7 +510,7 @@ loop:
 }
 
 // lookupVarOutgoing finds the variable's value at the end of block b.
-func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t ssa.Type, var_ *Node, line src.XPos) *ssa.Value {
+func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t *types.Type, var_ *Node, line src.XPos) *ssa.Value {
 	for {
 		if v := s.defvars[b.ID][var_]; v != nil {
 			return v

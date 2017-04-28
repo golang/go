@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/types"
+
 // zcse does an initial pass of common-subexpression elimination on the
 // function for values with zero arguments to allow the more expensive cse
 // to begin with a reduced number of values. Values are just relinked,
@@ -61,7 +63,7 @@ type vkey struct {
 	op Op
 	ai int64       // aux int
 	ax interface{} // aux
-	t  Type        // type
+	t  *types.Type // type
 }
 
 // keyFor returns the AuxInt portion of a  key structure uniquely identifying a

@@ -27,8 +27,8 @@
 
 (Hmul64 x y) -> (MULH x y)
 (Hmul64u x y) -> (UMULH x y)
-(Hmul32 x y) -> (SRAconst (MULL <types.Int64> x y) [32])
-(Hmul32u x y) -> (SRAconst (UMULL <types.UInt64> x y) [32])
+(Hmul32 x y) -> (SRAconst (MULL <typ.Int64> x y) [32])
+(Hmul32u x y) -> (SRAconst (UMULL <typ.UInt64> x y) [32])
 
 (Div64 x y) -> (DIV x y)
 (Div64u x y) -> (UDIV x y)
@@ -86,20 +86,20 @@
 (Ctz64 <t> x) -> (CLZ (RBIT <t> x))
 (Ctz32 <t> x) -> (CLZW (RBITW <t> x))
 
-(BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <types.Int> x))
+(BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <typ.Int> x))
 
 (Bswap64 x) -> (REV x)
 (Bswap32 x) -> (REVW x)
 
 (BitRev64 x) -> (RBIT x)
 (BitRev32 x) -> (RBITW x)
-(BitRev16 x) -> (SRLconst [48] (RBIT <types.UInt64> x))
-(BitRev8 x) -> (SRLconst [56] (RBIT <types.UInt64> x))
+(BitRev16 x) -> (SRLconst [48] (RBIT <typ.UInt64> x))
+(BitRev8 x) -> (SRLconst [56] (RBIT <typ.UInt64> x))
 
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)
-(EqB x y) -> (XOR (MOVDconst [1]) (XOR <types.Bool> x y))
+(EqB x y) -> (XOR (MOVDconst [1]) (XOR <typ.Bool> x y))
 (NeqB x y) -> (XOR x y)
 (Not x) -> (XOR (MOVDconst [1]) x)
 
@@ -338,12 +338,12 @@
 (Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
 
 // stores
-(Store {t} ptr val mem) && t.(Type).Size() == 1 -> (MOVBstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 2 -> (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 8 && !is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 4 && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
-(Store {t} ptr val mem) && t.(Type).Size() == 8 && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 1 -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 2 -> (MOVHstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 && !is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
+(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
 
 // zeroing
 (Zero [0] _ mem) -> mem

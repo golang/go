@@ -4,25 +4,28 @@
 
 package ssa
 
-import "testing"
+import (
+	"cmd/compile/internal/types"
+	"testing"
+)
 
 func TestDeadStore(t *testing.T) {
 	c := testConfig(t)
-	elemType := &TypeImpl{Size_: 1, Name: "testtype"}
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr", Elem_: elemType} // dummy for testing
+	ptrType := c.config.Types.BytePtr
+	t.Logf("PTRTYPE %v", ptrType)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
-			Valu("v", OpConstBool, TypeBool, 1, nil),
+			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
 			Valu("addr2", OpAddr, ptrType, 0, nil, "sb"),
 			Valu("addr3", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("zero1", OpZero, TypeMem, 1, TypeBool, "addr3", "start"),
-			Valu("store1", OpStore, TypeMem, 0, TypeBool, "addr1", "v", "zero1"),
-			Valu("store2", OpStore, TypeMem, 0, TypeBool, "addr2", "v", "store1"),
-			Valu("store3", OpStore, TypeMem, 0, TypeBool, "addr1", "v", "store2"),
-			Valu("store4", OpStore, TypeMem, 0, TypeBool, "addr3", "v", "store3"),
+			Valu("zero1", OpZero, types.TypeMem, 1, c.config.Types.Bool, "addr3", "start"),
+			Valu("store1", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "zero1"),
+			Valu("store2", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr2", "v", "store1"),
+			Valu("store3", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "store2"),
+			Valu("store4", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr3", "v", "store3"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("store3")))
@@ -44,17 +47,17 @@ func TestDeadStore(t *testing.T) {
 func TestDeadStorePhi(t *testing.T) {
 	// make sure we don't get into an infinite loop with phi values.
 	c := testConfig(t)
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
-			Valu("v", OpConstBool, TypeBool, 1, nil),
+			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
 			Valu("addr", OpAddr, ptrType, 0, nil, "sb"),
 			Goto("loop")),
 		Bloc("loop",
-			Valu("phi", OpPhi, TypeMem, 0, nil, "start", "store"),
-			Valu("store", OpStore, TypeMem, 0, TypeBool, "addr", "v", "phi"),
+			Valu("phi", OpPhi, types.TypeMem, 0, nil, "start", "store"),
+			Valu("store", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr", "v", "phi"),
 			If("v", "loop", "exit")),
 		Bloc("exit",
 			Exit("store")))
@@ -70,17 +73,17 @@ func TestDeadStoreTypes(t *testing.T) {
 	// types of the address fields are identical (where identicalness is
 	// decided by the CSE pass).
 	c := testConfig(t)
-	t1 := &TypeImpl{Size_: 8, Ptr: true, Name: "t1"}
-	t2 := &TypeImpl{Size_: 4, Ptr: true, Name: "t2"}
+	t1 := c.config.Types.UInt64.PtrTo()
+	t2 := c.config.Types.UInt32.PtrTo()
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
-			Valu("v", OpConstBool, TypeBool, 1, nil),
+			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
 			Valu("addr1", OpAddr, t1, 0, nil, "sb"),
 			Valu("addr2", OpAddr, t2, 0, nil, "sb"),
-			Valu("store1", OpStore, TypeMem, 0, TypeBool, "addr1", "v", "start"),
-			Valu("store2", OpStore, TypeMem, 0, TypeBool, "addr2", "v", "store1"),
+			Valu("store1", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "start"),
+			Valu("store2", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr2", "v", "store1"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("store2")))
@@ -101,15 +104,15 @@ func TestDeadStoreUnsafe(t *testing.T) {
 	// covers the case of two different types, but unsafe pointer casting
 	// can get to a point where the size is changed but type unchanged.
 	c := testConfig(t)
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	ptrType := c.config.Types.UInt64.PtrTo()
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
-			Valu("v", OpConstBool, TypeBool, 1, nil),
+			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("store1", OpStore, TypeMem, 0, TypeInt64, "addr1", "v", "start"), // store 8 bytes
-			Valu("store2", OpStore, TypeMem, 0, TypeBool, "addr1", "v", "store1"), // store 1 byte
+			Valu("store1", OpStore, types.TypeMem, 0, c.config.Types.Int64, "addr1", "v", "start"), // store 8 bytes
+			Valu("store2", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "store1"), // store 1 byte
 			Goto("exit")),
 		Bloc("exit",
 			Exit("store2")))

@@ -1,6 +1,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"strconv"
 	"testing"
 )
@@ -16,13 +17,14 @@ func BenchmarkNilCheckDeep10000(b *testing.B) { benchmarkNilCheckDeep(b, 10000) 
 // nil checks, none of which can be eliminated.
 // Run with multiple depths to observe big-O behavior.
 func benchmarkNilCheckDeep(b *testing.B, depth int) {
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	c := testConfig(b)
+	ptrType := c.config.Types.BytePtr
 
 	var blocs []bloc
 	blocs = append(blocs,
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
 			Goto(blockn(0)),
 		),
 	)
@@ -30,7 +32,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 		blocs = append(blocs,
 			Bloc(blockn(i),
 				Valu(ptrn(i), OpAddr, ptrType, 0, nil, "sb"),
-				Valu(booln(i), OpIsNonNil, TypeBool, 0, nil, ptrn(i)),
+				Valu(booln(i), OpIsNonNil, c.config.Types.Bool, 0, nil, ptrn(i)),
 				If(booln(i), blockn(i+1), "exit"),
 			),
 		)
@@ -40,7 +42,6 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 		Bloc("exit", Exit("mem")),
 	)
 
-	c := testConfig(b)
 	fun := c.Fun("entry", blocs...)
 
 	CheckFunc(fun.f)
@@ -63,19 +64,19 @@ func isNilCheck(b *Block) bool {
 
 // TestNilcheckSimple verifies that a second repeated nilcheck is removed.
 func TestNilcheckSimple(t *testing.T) {
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
+	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
-			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool1", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool1", "secondCheck", "exit")),
 		Bloc("secondCheck",
-			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool2", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool2", "extra", "exit")),
 		Bloc("extra",
 			Goto("exit")),
@@ -100,21 +101,21 @@ func TestNilcheckSimple(t *testing.T) {
 // TestNilcheckDomOrder ensures that the nil check elimination isn't dependent
 // on the order of the dominees.
 func TestNilcheckDomOrder(t *testing.T) {
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
+	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
-			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool1", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool1", "secondCheck", "exit")),
 		Bloc("exit",
 			Exit("mem")),
 		Bloc("secondCheck",
-			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool2", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool2", "extra", "exit")),
 		Bloc("extra",
 			Goto("exit")))
@@ -136,16 +137,16 @@ func TestNilcheckDomOrder(t *testing.T) {
 
 // TestNilcheckAddr verifies that nilchecks of OpAddr constructed values are removed.
 func TestNilcheckAddr(t *testing.T) {
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
+	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool1", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool1", "extra", "exit")),
 		Bloc("extra",
 			Goto("exit")),
@@ -169,17 +170,17 @@ func TestNilcheckAddr(t *testing.T) {
 
 // TestNilcheckAddPtr verifies that nilchecks of OpAddPtr constructed values are removed.
 func TestNilcheckAddPtr(t *testing.T) {
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
+	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
-			Valu("off", OpConst64, TypeInt64, 20, nil),
+			Valu("off", OpConst64, c.config.Types.Int64, 20, nil),
 			Valu("ptr1", OpAddPtr, ptrType, 0, nil, "sb", "off"),
-			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool1", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool1", "extra", "exit")),
 		Bloc("extra",
 			Goto("exit")),
@@ -204,15 +205,15 @@ func TestNilcheckAddPtr(t *testing.T) {
 // TestNilcheckPhi tests that nil checks of phis, for which all values are known to be
 // non-nil are removed.
 func TestNilcheckPhi(t *testing.T) {
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
+	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
-			Valu("sp", OpSP, TypeInvalid, 0, nil),
-			Valu("baddr", OpAddr, TypeBool, 0, "b", "sp"),
-			Valu("bool1", OpLoad, TypeBool, 0, nil, "baddr", "mem"),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sp", OpSP, types.TypeInvalid, 0, nil),
+			Valu("baddr", OpAddr, c.config.Types.Bool, 0, "b", "sp"),
+			Valu("bool1", OpLoad, c.config.Types.Bool, 0, nil, "baddr", "mem"),
 			If("bool1", "b1", "b2")),
 		Bloc("b1",
 			Valu("ptr1", OpAddr, ptrType, 0, nil, "sb"),
@@ -223,7 +224,7 @@ func TestNilcheckPhi(t *testing.T) {
 		// both ptr1 and ptr2 are guaranteed non-nil here
 		Bloc("checkPtr",
 			Valu("phi", OpPhi, ptrType, 0, nil, "ptr1", "ptr2"),
-			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "phi"),
+			Valu("bool2", OpIsNonNil, c.config.Types.Bool, 0, nil, "phi"),
 			If("bool2", "extra", "exit")),
 		Bloc("extra",
 			Goto("exit")),
@@ -248,23 +249,23 @@ func TestNilcheckPhi(t *testing.T) {
 // TestNilcheckKeepRemove verifies that duplicate checks of the same pointer
 // are removed, but checks of different pointers are not.
 func TestNilcheckKeepRemove(t *testing.T) {
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
+	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
-			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool1", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool1", "differentCheck", "exit")),
 		Bloc("differentCheck",
 			Valu("ptr2", OpLoad, ptrType, 0, nil, "sb", "mem"),
-			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr2"),
+			Valu("bool2", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr2"),
 			If("bool2", "secondCheck", "exit")),
 		Bloc("secondCheck",
-			Valu("bool3", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool3", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool3", "extra", "exit")),
 		Bloc("extra",
 			Goto("exit")),
@@ -296,22 +297,22 @@ func TestNilcheckKeepRemove(t *testing.T) {
 // TestNilcheckInFalseBranch tests that nil checks in the false branch of an nilcheck
 // block are *not* removed.
 func TestNilcheckInFalseBranch(t *testing.T) {
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
+	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
-			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool1", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool1", "extra", "secondCheck")),
 		Bloc("secondCheck",
-			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool2", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool2", "extra", "thirdCheck")),
 		Bloc("thirdCheck",
-			Valu("bool3", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool3", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool3", "extra", "exit")),
 		Bloc("extra",
 			Goto("exit")),
@@ -347,20 +348,20 @@ func TestNilcheckInFalseBranch(t *testing.T) {
 // TestNilcheckUser verifies that a user nil check that dominates a generated nil check
 // wil remove the generated nil check.
 func TestNilcheckUser(t *testing.T) {
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
+	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
 			Valu("nilptr", OpConstNil, ptrType, 0, nil),
-			Valu("bool1", OpNeqPtr, TypeBool, 0, nil, "ptr1", "nilptr"),
+			Valu("bool1", OpNeqPtr, c.config.Types.Bool, 0, nil, "ptr1", "nilptr"),
 			If("bool1", "secondCheck", "exit")),
 		Bloc("secondCheck",
-			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool2", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool2", "extra", "exit")),
 		Bloc("extra",
 			Goto("exit")),
@@ -386,29 +387,29 @@ func TestNilcheckUser(t *testing.T) {
 
 // TestNilcheckBug reproduces a bug in nilcheckelim found by compiling math/big
 func TestNilcheckBug(t *testing.T) {
-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
 	c := testConfig(t)
+	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, nil),
-			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
 			Valu("nilptr", OpConstNil, ptrType, 0, nil),
-			Valu("bool1", OpNeqPtr, TypeBool, 0, nil, "ptr1", "nilptr"),
+			Valu("bool1", OpNeqPtr, c.config.Types.Bool, 0, nil, "ptr1", "nilptr"),
 			If("bool1", "secondCheck", "couldBeNil")),
 		Bloc("couldBeNil",
 			Goto("secondCheck")),
 		Bloc("secondCheck",
-			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			Valu("bool2", OpIsNonNil, c.config.Types.Bool, 0, nil, "ptr1"),
 			If("bool2", "extra", "exit")),
 		Bloc("extra",
 			// prevent fuse from eliminating this block
-			Valu("store", OpStore, TypeMem, 0, ptrType, "ptr1", "nilptr", "mem"),
+			Valu("store", OpStore, types.TypeMem, 0, ptrType, "ptr1", "nilptr", "mem"),
 			Goto("exit")),
 		Bloc("exit",
-			Valu("phi", OpPhi, TypeMem, 0, nil, "mem", "store"),
+			Valu("phi", OpPhi, types.TypeMem, 0, nil, "mem", "store"),
 			Exit("phi")))
 
 	CheckFunc(fun.f)

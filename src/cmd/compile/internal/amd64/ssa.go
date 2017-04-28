@@ -10,6 +10,7 @@ import (
 
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 )
@@ -38,7 +39,7 @@ func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 }
 
 // loadByType returns the load instruction of the given type.
-func loadByType(t ssa.Type) obj.As {
+func loadByType(t *types.Type) obj.As {
 	// Avoid partial register write
 	if !t.IsFloat() && t.Size() <= 2 {
 		if t.Size() == 1 {
@@ -52,7 +53,7 @@ func loadByType(t ssa.Type) obj.As {
 }
 
 // storeByType returns the store instruction of the given type.
-func storeByType(t ssa.Type) obj.As {
+func storeByType(t *types.Type) obj.As {
 	width := t.Size()
 	if t.IsFloat() {
 		switch width {
@@ -77,7 +78,7 @@ func storeByType(t ssa.Type) obj.As {
 }
 
 // moveByType returns the reg->reg move instruction of the given type.
-func moveByType(t ssa.Type) obj.As {
+func moveByType(t *types.Type) obj.As {
 	if t.IsFloat() {
 		// Moving the whole sse2 register is faster
 		// than moving just the correct low portion of it.
