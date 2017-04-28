@@ -337,7 +337,7 @@ func fieldtrack(ctxt *Link) {
 	for _, s := range ctxt.Syms.Allsym {
 		if strings.HasPrefix(s.Name, "go.track.") {
 			s.Attr |= AttrSpecial // do not lay out in data segment
-			s.Attr |= AttrHidden
+			s.Attr |= AttrNotInSymbolTable
 			if s.Attr.Reachable() {
 				buf.WriteString(s.Name[9:])
 				for p := s.Reachparent; p != nil; p = p.Reachparent {

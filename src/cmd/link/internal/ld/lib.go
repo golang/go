@@ -1903,7 +1903,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 	}
 
 	for _, s := range ctxt.Syms.Allsym {
-		if s.Attr.Hidden() {
+		if s.Attr.NotInSymbolTable() {
 			continue
 		}
 		if (s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC." {
