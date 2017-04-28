@@ -17,17 +17,19 @@ import (
 )
 
 var (
-	DefaultUserAgent             = defaultUserAgent
-	NewLoggingConn               = newLoggingConn
-	ExportAppendTime             = appendTime
-	ExportRefererForURL          = refererForURL
-	ExportServerNewConn          = (*Server).newConn
-	ExportCloseWriteAndWait      = (*conn).closeWriteAndWait
-	ExportErrRequestCanceled     = errRequestCanceled
-	ExportErrRequestCanceledConn = errRequestCanceledConn
-	ExportServeFile              = serveFile
-	ExportScanETag               = scanETag
-	ExportHttp2ConfigureServer   = http2ConfigureServer
+	DefaultUserAgent                  = defaultUserAgent
+	NewLoggingConn                    = newLoggingConn
+	ExportAppendTime                  = appendTime
+	ExportRefererForURL               = refererForURL
+	ExportServerNewConn               = (*Server).newConn
+	ExportCloseWriteAndWait           = (*conn).closeWriteAndWait
+	ExportErrRequestCanceled          = errRequestCanceled
+	ExportErrRequestCanceledConn      = errRequestCanceledConn
+	ExportServeFile                   = serveFile
+	ExportScanETag                    = scanETag
+	ExportHttp2ConfigureServer        = http2ConfigureServer
+	Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
+	Export_writeStatusLine            = writeStatusLine
 )
 
 func init() {
@@ -187,8 +189,6 @@ func ExportHttp2ConfigureTransport(t *Transport) error {
 	t.h2transport = t2
 	return nil
 }
-
-var Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
 
 func (s *Server) ExportAllConnsIdle() bool {
 	s.mu.Lock()
