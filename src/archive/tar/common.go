@@ -158,11 +158,15 @@ func (fi headerFileInfo) Mode() (mode os.FileMode) {
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
 var sysStat func(fi os.FileInfo, h *Header) error
 
-// Mode constants from the tar spec.
 const (
-	c_ISUID  = 04000   // Set uid
-	c_ISGID  = 02000   // Set gid
-	c_ISVTX  = 01000   // Save text (sticky bit)
+	// Mode constants from the USTAR spec:
+	// See http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06
+	c_ISUID = 04000 // Set uid
+	c_ISGID = 02000 // Set gid
+	c_ISVTX = 01000 // Save text (sticky bit)
+
+	// Common Unix mode constants; these are not defined in any common tar standard.
+	// Header.FileInfo understands these, but FileInfoHeader will never produce these.
 	c_ISDIR  = 040000  // Directory
 	c_ISFIFO = 010000  // FIFO
 	c_ISREG  = 0100000 // Regular file
@@ -208,30 +212,24 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	}
 	switch {
 	case fm.IsRegular():
-		h.Mode |= c_ISREG
 		h.Typeflag = TypeReg
 		h.Size = fi.Size()
 	case fi.IsDir():
 		h.Typeflag = TypeDir
-		h.Mode |= c_ISDIR
 		h.Name += "/"
 	case fm&os.ModeSymlink != 0:
 		h.Typeflag = TypeSymlink
-		h.Mode |= c_ISLNK
 		h.Linkname = link
 	case fm&os.ModeDevice != 0:
 		if fm&os.ModeCharDevice != 0 {
-			h.Mode |= c_ISCHR
 			h.Typeflag = TypeChar
 		} else {
-			h.Mode |= c_ISBLK
 			h.Typeflag = TypeBlock
 		}
 	case fm&os.ModeNamedPipe != 0:
 		h.Typeflag = TypeFifo
-		h.Mode |= c_ISFIFO
 	case fm&os.ModeSocket != 0:
-		h.Mode |= c_ISSOCK
+		return nil, fmt.Errorf("archive/tar: sockets not supported")
 	default:
 		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fm)
 	}
