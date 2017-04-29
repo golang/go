@@ -498,6 +498,7 @@ OpSwitch:
 			ok |= Etype
 			n.Op = OTYPE
 			n.Type = types.NewPtr(l.Type)
+			checkwidth(l.Type) // ensure this gets dowidth'd for the backend
 			n.Left = nil
 			break OpSwitch
 		}
