@@ -3702,8 +3702,8 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 
 // Test that a hanging Request.Body.Read from another goroutine can't
 // cause the Handler goroutine's Request.Body.Close to block.
+// See issue 7121.
 func TestRequestBodyCloseDoesntBlock(t *testing.T) {
-	t.Skipf("Skipping known issue; see golang.org/issue/7121")
 	if testing.Short() {
 		t.Skip("skipping in -short mode")
 	}
