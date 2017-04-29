@@ -343,16 +343,31 @@ type decoder struct {
 	outbuf [1024 / 8 * 5]byte
 }
 
-func (d *decoder) Read(p []byte) (n int, err error) {
-	if d.err != nil {
-		return 0, d.err
+func readEncodedData(r io.Reader, buf []byte, min int) (n int, err error) {
+	for n < min && err == nil {
+		var nn int
+		nn, err = r.Read(buf[n:])
+		n += nn
 	}
+	if n < min && n > 0 && err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
+	return
+}
 
+func (d *decoder) Read(p []byte) (n int, err error) {
 	// Use leftover decoded output from last read.
 	if len(d.out) > 0 {
 		n = copy(p, d.out)
 		d.out = d.out[n:]
+		if len(d.out) == 0 {
+			return n, d.err
+		}
 		return n, nil
+	}
+
+	if d.err != nil {
+		return 0, d.err
 	}
 
 	// Read a chunk.
@@ -363,7 +378,8 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	if nn > len(d.buf) {
 		nn = len(d.buf)
 	}
-	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf:nn], 8-d.nbuf)
+
+	nn, d.err = readEncodedData(d.r, d.buf[d.nbuf:nn], 8-d.nbuf)
 	d.nbuf += nn
 	if d.nbuf < 8 {
 		return 0, d.err
@@ -373,21 +389,30 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	nr := d.nbuf / 8 * 8
 	nw := d.nbuf / 8 * 5
 	if nw > len(p) {
-		nw, d.end, d.err = d.enc.decode(d.outbuf[0:], d.buf[0:nr])
+		nw, d.end, err = d.enc.decode(d.outbuf[0:], d.buf[0:nr])
 		d.out = d.outbuf[0:nw]
 		n = copy(p, d.out)
 		d.out = d.out[n:]
 	} else {
-		n, d.end, d.err = d.enc.decode(p, d.buf[0:nr])
+		n, d.end, err = d.enc.decode(p, d.buf[0:nr])
 	}
 	d.nbuf -= nr
 	for i := 0; i < d.nbuf; i++ {
 		d.buf[i] = d.buf[i+nr]
 	}
 
-	if d.err == nil {
+	if err != nil && (d.err == nil || d.err == io.EOF) {
 		d.err = err
 	}
+
+	if len(d.out) > 0 {
+		// We cannot return all the decoded bytes to the caller in this
+		// invocation of Read, so we return a nil error to ensure that Read
+		// will be called again.  The error stored in d.err, if any, will be
+		// returned with the last set of decoded bytes.
+		return n, nil
+	}
+
 	return n, d.err
 }
 
@@ -407,7 +432,7 @@ func (r *newlineFilteringReader) Read(p []byte) (int, error) {
 				offset++
 			}
 		}
-		if offset > 0 {
+		if err != nil || offset > 0 {
 			return offset, err
 		}
 		// Previous buffer entirely whitespace, read again
