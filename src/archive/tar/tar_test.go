@@ -29,7 +29,7 @@ func TestFileInfoHeader(t *testing.T) {
 	if g, e := h.Name, "small.txt"; g != e {
 		t.Errorf("Name = %q; want %q", g, e)
 	}
-	if g, e := h.Mode, int64(fi.Mode().Perm())|c_ISREG; g != e {
+	if g, e := h.Mode, int64(fi.Mode().Perm()); g != e {
 		t.Errorf("Mode = %#o; want %#o", g, e)
 	}
 	if g, e := h.Size, int64(5); g != e {
@@ -57,7 +57,7 @@ func TestFileInfoHeaderDir(t *testing.T) {
 		t.Errorf("Name = %q; want %q", g, e)
 	}
 	// Ignoring c_ISGID for golang.org/issue/4867
-	if g, e := h.Mode&^c_ISGID, int64(fi.Mode().Perm())|c_ISDIR; g != e {
+	if g, e := h.Mode&^c_ISGID, int64(fi.Mode().Perm()); g != e {
 		t.Errorf("Mode = %#o; want %#o", g, e)
 	}
 	if g, e := h.Size, int64(0); g != e {
@@ -157,7 +157,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// regular file.
 		h: &Header{
 			Name:     "test.txt",
-			Mode:     0644 | c_ISREG,
+			Mode:     0644,
 			Size:     12,
 			ModTime:  time.Unix(1360600916, 0),
 			Typeflag: TypeReg,
@@ -167,7 +167,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// symbolic link.
 		h: &Header{
 			Name:     "link.txt",
-			Mode:     0777 | c_ISLNK,
+			Mode:     0777,
 			Size:     0,
 			ModTime:  time.Unix(1360600852, 0),
 			Typeflag: TypeSymlink,
@@ -177,7 +177,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// character device node.
 		h: &Header{
 			Name:     "dev/null",
-			Mode:     0666 | c_ISCHR,
+			Mode:     0666,
 			Size:     0,
 			ModTime:  time.Unix(1360578951, 0),
 			Typeflag: TypeChar,
@@ -187,7 +187,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// block device node.
 		h: &Header{
 			Name:     "dev/sda",
-			Mode:     0660 | c_ISBLK,
+			Mode:     0660,
 			Size:     0,
 			ModTime:  time.Unix(1360578954, 0),
 			Typeflag: TypeBlock,
@@ -197,7 +197,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// directory.
 		h: &Header{
 			Name:     "dir/",
-			Mode:     0755 | c_ISDIR,
+			Mode:     0755,
 			Size:     0,
 			ModTime:  time.Unix(1360601116, 0),
 			Typeflag: TypeDir,
@@ -207,7 +207,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// fifo node.
 		h: &Header{
 			Name:     "dev/initctl",
-			Mode:     0600 | c_ISFIFO,
+			Mode:     0600,
 			Size:     0,
 			ModTime:  time.Unix(1360578949, 0),
 			Typeflag: TypeFifo,
@@ -217,7 +217,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// setuid.
 		h: &Header{
 			Name:     "bin/su",
-			Mode:     0755 | c_ISREG | c_ISUID,
+			Mode:     0755 | c_ISUID,
 			Size:     23232,
 			ModTime:  time.Unix(1355405093, 0),
 			Typeflag: TypeReg,
@@ -227,7 +227,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// setguid.
 		h: &Header{
 			Name:     "group.txt",
-			Mode:     0750 | c_ISREG | c_ISGID,
+			Mode:     0750 | c_ISGID,
 			Size:     0,
 			ModTime:  time.Unix(1360602346, 0),
 			Typeflag: TypeReg,
@@ -237,7 +237,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// sticky.
 		h: &Header{
 			Name:     "sticky.txt",
-			Mode:     0600 | c_ISREG | c_ISVTX,
+			Mode:     0600 | c_ISVTX,
 			Size:     7,
 			ModTime:  time.Unix(1360602540, 0),
 			Typeflag: TypeReg,
@@ -247,7 +247,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// hard link.
 		h: &Header{
 			Name:     "hard.txt",
-			Mode:     0644 | c_ISREG,
+			Mode:     0644,
 			Size:     0,
 			Linkname: "file.txt",
 			ModTime:  time.Unix(1360600916, 0),
@@ -258,7 +258,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		// More information.
 		h: &Header{
 			Name:     "info.txt",
-			Mode:     0600 | c_ISREG,
+			Mode:     0600,
 			Size:     0,
 			Uid:      1000,
 			Gid:      1000,
