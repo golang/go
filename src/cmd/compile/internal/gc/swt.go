@@ -177,7 +177,14 @@ func typecheckswitch(n *Node) {
 			}
 		}
 
-		if top == Etype && n.Type != nil {
+		if n.Type == nil || n.Type.IsUntyped() {
+			// if the value we're switching on has no type or is untyped,
+			// we've already printed an error and don't need to continue
+			// typechecking the body
+			return
+		}
+
+		if top == Etype {
 			ll := ncase.List
 			if ncase.Rlist.Len() != 0 {
 				nvar := ncase.Rlist.First()
