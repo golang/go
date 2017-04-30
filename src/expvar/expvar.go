@@ -142,11 +142,17 @@ func (v *Map) Get(key string) Var {
 }
 
 func (v *Map) Set(key string, av Var) {
-	if _, dup := v.m.LoadOrStore(key, av); dup {
-		v.m.Store(key, av)
-	} else {
-		v.addKey(key)
+	// Before we store the value, check to see whether the key is new. Try a Load
+	// before LoadOrStore: LoadOrStore causes the key interface to escape even on
+	// the Load path.
+	if _, ok := v.m.Load(key); !ok {
+		if _, dup := v.m.LoadOrStore(key, av); !dup {
+			v.addKey(key)
+			return
+		}
 	}
+
+	v.m.Store(key, av)
 }
 
 // Add adds delta to the *Int value stored under the given map key.
