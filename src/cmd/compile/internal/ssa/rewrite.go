@@ -365,6 +365,11 @@ func is16Bit(n int64) bool {
 	return n == int64(int16(n))
 }
 
+// isU12Bit reports whether n can be represented as an unsigned 12 bit integer.
+func isU12Bit(n int64) bool {
+	return 0 <= n && n < (1<<12)
+}
+
 // isU16Bit reports whether n can be represented as an unsigned 16 bit integer.
 func isU16Bit(n int64) bool {
 	return n == int64(uint16(n))

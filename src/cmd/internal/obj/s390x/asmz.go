@@ -89,21 +89,26 @@ var optab = []Optab{
 	Optab{AMOVBZ, C_DCON, C_NONE, C_NONE, C_REG, 3, 0},
 
 	// store constant
-	Optab{AMOVD, C_LCON, C_NONE, C_NONE, C_ADDR, 73, 0},
-	Optab{AMOVW, C_LCON, C_NONE, C_NONE, C_ADDR, 73, 0},
-	Optab{AMOVWZ, C_LCON, C_NONE, C_NONE, C_ADDR, 73, 0},
-	Optab{AMOVBZ, C_LCON, C_NONE, C_NONE, C_ADDR, 73, 0},
-	Optab{AMOVB, C_LCON, C_NONE, C_NONE, C_ADDR, 73, 0},
-	Optab{AMOVD, C_LCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
-	Optab{AMOVW, C_LCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
-	Optab{AMOVWZ, C_LCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
-	Optab{AMOVB, C_LCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
-	Optab{AMOVBZ, C_LCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
-	Optab{AMOVD, C_LCON, C_NONE, C_NONE, C_LOREG, 72, 0},
-	Optab{AMOVW, C_LCON, C_NONE, C_NONE, C_LOREG, 72, 0},
-	Optab{AMOVWZ, C_LCON, C_NONE, C_NONE, C_LOREG, 72, 0},
-	Optab{AMOVB, C_LCON, C_NONE, C_NONE, C_LOREG, 72, 0},
-	Optab{AMOVBZ, C_LCON, C_NONE, C_NONE, C_LOREG, 72, 0},
+	Optab{AMOVD, C_SCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
+	Optab{AMOVD, C_ADDCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
+	Optab{AMOVW, C_SCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
+	Optab{AMOVW, C_ADDCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
+	Optab{AMOVWZ, C_SCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
+	Optab{AMOVWZ, C_ADDCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
+	Optab{AMOVB, C_SCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
+	Optab{AMOVB, C_ADDCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
+	Optab{AMOVBZ, C_SCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
+	Optab{AMOVBZ, C_ADDCON, C_NONE, C_NONE, C_LAUTO, 72, REGSP},
+	Optab{AMOVD, C_SCON, C_NONE, C_NONE, C_LOREG, 72, 0},
+	Optab{AMOVD, C_ADDCON, C_NONE, C_NONE, C_LOREG, 72, 0},
+	Optab{AMOVW, C_SCON, C_NONE, C_NONE, C_LOREG, 72, 0},
+	Optab{AMOVW, C_ADDCON, C_NONE, C_NONE, C_LOREG, 72, 0},
+	Optab{AMOVWZ, C_SCON, C_NONE, C_NONE, C_LOREG, 72, 0},
+	Optab{AMOVWZ, C_ADDCON, C_NONE, C_NONE, C_LOREG, 72, 0},
+	Optab{AMOVB, C_SCON, C_NONE, C_NONE, C_LOREG, 72, 0},
+	Optab{AMOVB, C_ADDCON, C_NONE, C_NONE, C_LOREG, 72, 0},
+	Optab{AMOVBZ, C_SCON, C_NONE, C_NONE, C_LOREG, 72, 0},
+	Optab{AMOVBZ, C_ADDCON, C_NONE, C_NONE, C_LOREG, 72, 0},
 
 	// store
 	Optab{AMOVD, C_REG, C_NONE, C_NONE, C_LAUTO, 35, REGSP},
@@ -3303,84 +3308,49 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		v := c.regoff(&p.From)
 		d := c.regoff(&p.To)
 		r := p.To.Reg
-		x := p.To.Index
+		if p.To.Index != 0 {
+			c.ctxt.Diag("cannot use index register")
+		}
 		if r == 0 {
 			r = o.param
 		}
-		if int32(int16(v)) == v && x == 0 {
-			if d < 0 || d >= DISP12 {
-				if r == REGTMP || r == REGTMP2 {
-					zRIL(_a, op_AGFI, uint32(r), uint32(d), asm)
+		var opcode uint32
+		switch p.As {
+		case AMOVD:
+			opcode = op_MVGHI
+		case AMOVW, AMOVWZ:
+			opcode = op_MVHI
+		case AMOVH, AMOVHZ:
+			opcode = op_MVHHI
+		case AMOVB, AMOVBZ:
+			opcode = op_MVI
+		}
+		if d < 0 || d >= DISP12 {
+			if r == REGTMP {
+				c.ctxt.Diag("displacement must be in range [0, 4096) to use %v", r)
+			}
+			if d >= -DISP20/2 && d < DISP20/2 {
+				if opcode == op_MVI {
+					opcode = op_MVIY
 				} else {
-					zRIL(_a, op_LGFI, REGTMP, uint32(d), asm)
-					zRRE(op_AGR, REGTMP, uint32(r), asm)
+					zRXY(op_LAY, uint32(REGTMP), 0, uint32(r), uint32(d), asm)
 					r = REGTMP
+					d = 0
 				}
+			} else {
+				zRIL(_a, op_LGFI, REGTMP, uint32(d), asm)
+				zRX(op_LA, REGTMP, REGTMP, uint32(r), 0, asm)
+				r = REGTMP
 				d = 0
 			}
-			var opcode uint32
-			switch p.As {
-			case AMOVD:
-				opcode = op_MVGHI
-			case AMOVW, AMOVWZ:
-				opcode = op_MVHI
-			case AMOVH, AMOVHZ:
-				opcode = op_MVHHI
-			case AMOVB, AMOVBZ:
-				opcode = op_MVI
-			}
-			if opcode == op_MVI {
-				zSI(opcode, uint32(v), uint32(r), uint32(d), asm)
-			} else {
-				zSIL(opcode, uint32(r), uint32(d), uint32(v), asm)
-			}
-		} else {
-			zRIL(_a, op_LGFI, REGTMP2, uint32(v), asm)
-			if d < -DISP20/2 || d >= DISP20/2 {
-				if r == REGTMP {
-					zRIL(_a, op_AGFI, REGTMP, uint32(d), asm)
-				} else {
-					zRIL(_a, op_LGFI, REGTMP, uint32(d), asm)
-					if x != 0 {
-						zRRE(op_AGR, REGTMP, uint32(x), asm)
-					}
-					x = REGTMP
-				}
-				d = 0
-			}
-			zRXY(c.zopstore(p.As), REGTMP2, uint32(x), uint32(r), uint32(d), asm)
 		}
-
-	case 73: // mov $constant addr (including relocation)
-		v := c.regoff(&p.From)
-		d := c.regoff(&p.To)
-		a := uint32(0)
-		if d&1 != 0 {
-			d -= 1
-			a = 1
-		}
-		zRIL(_b, op_LARL, REGTMP, uint32(d), asm)
-		c.addrilreloc(p.To.Sym, int64(d))
-		if int32(int16(v)) == v {
-			var opcode uint32
-			switch p.As {
-			case AMOVD:
-				opcode = op_MVGHI
-			case AMOVW, AMOVWZ:
-				opcode = op_MVHI
-			case AMOVH, AMOVHZ:
-				opcode = op_MVHHI
-			case AMOVB, AMOVBZ:
-				opcode = op_MVI
-			}
-			if opcode == op_MVI {
-				zSI(opcode, uint32(v), REGTMP, a, asm)
-			} else {
-				zSIL(opcode, REGTMP, a, uint32(v), asm)
-			}
-		} else {
-			zRIL(_a, op_LGFI, REGTMP2, uint32(v), asm)
-			zRXY(c.zopstore(p.As), REGTMP2, 0, REGTMP, a, asm)
+		switch opcode {
+		case op_MVI:
+			zSI(opcode, uint32(v), uint32(r), uint32(d), asm)
+		case op_MVIY:
+			zSIY(opcode, uint32(v), uint32(r), uint32(d), asm)
+		default:
+			zSIL(opcode, uint32(r), uint32(d), uint32(v), asm)
 		}
 
 	case 74: // mov reg addr (including relocation)
