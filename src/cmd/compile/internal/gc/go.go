@@ -31,6 +31,7 @@ func isRuntimePkg(p *types.Pkg) bool {
 // called declaration contexts.
 type Class uint8
 
+//go:generate stringer -type=Class
 const (
 	Pxxx      Class = iota // no class; used during ssa conversion to indicate pseudo-variables
 	PEXTERN                // global variable
