@@ -103,7 +103,7 @@ func TestMapMatchesRWMutex(t *testing.T) {
 }
 
 func TestMapMatchesDeepCopy(t *testing.T) {
-	if err := quick.CheckEqual(applyMap, applyRWMutexMap, nil); err != nil {
+	if err := quick.CheckEqual(applyMap, applyDeepCopyMap, nil); err != nil {
 		t.Error(err)
 	}
 }
