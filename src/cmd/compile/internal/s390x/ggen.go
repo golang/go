@@ -88,15 +88,20 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 }
 
 func zeroAuto(pp *gc.Progs, n *gc.Node) {
-	// Note: this code must not clobber any registers.
-	p := pp.Prog(s390x.ACLEAR)
-	p.From.Type = obj.TYPE_CONST
-	p.From.Offset = n.Type.Size()
-	p.To.Type = obj.TYPE_MEM
-	p.To.Name = obj.NAME_AUTO
-	p.To.Reg = s390x.REGSP
-	p.To.Offset = n.Xoffset
-	p.To.Sym = n.Sym.Linksym()
+	// Note: this code must not clobber any registers or the
+	// condition code.
+	sym := n.Sym.Linksym()
+	size := n.Type.Size()
+	for i := int64(0); i < size; i += int64(gc.Widthptr) {
+		p := pp.Prog(s390x.AMOVD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_AUTO
+		p.To.Reg = s390x.REGSP
+		p.To.Offset = n.Xoffset + i
+		p.To.Sym = sym
+	}
 }
 
 func ginsnop(pp *gc.Progs) {

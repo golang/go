@@ -47,10 +47,16 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	MOVH	$-512, R3             // a739fe00
 	MOVB	$-1, R4               // a749ffff
 
-	MOVD	$-2147483648, n-8(SP) // c0b180000000e3b0f0100024
-	MOVW	$-131072, n-8(SP)     // c0b1fffe0000e3b0f0100050
-	MOVH	$-512, n-8(SP)        // e544f010fe00
+	MOVD	$32767, n-8(SP)       // e548f0107fff
+	MOVD	$-1, -524288(R1)      // e3a010008071e548a000ffff
+	MOVW	$32767, n-8(SP)       // e54cf0107fff
+	MOVW	$-32768, 4096(R2)     // e3a020000171e54ca0008000
+	MOVH	$512, n-8(SP)         // e544f0100200
+	MOVH	$-512, 524288(R3)     // c0a10008000041aa3000e544a000fe00
 	MOVB	$-1, n-8(SP)          // 92fff010
+	MOVB	$255, 4096(R4)        // ebff40000152
+	MOVB	$-128, -524288(R5)    // eb8050008052
+	MOVB	$1, -524289(R6)       // c0a1fff7ffff41aa60009201a000
 
 	ADD	R1, R2                // b9e81022
 	ADD	R1, R2, R3            // b9e81032

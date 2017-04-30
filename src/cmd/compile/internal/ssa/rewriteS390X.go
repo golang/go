@@ -9108,7 +9108,7 @@ func rewriteValueS390X_OpS390XMOVBstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVBstore [off] {sym} ptr (MOVDconst [c]) mem)
-	// cond: validOff(off) && ptr.Op != OpSB
+	// cond: is20Bit(off) && ptr.Op != OpSB
 	// result: (MOVBstoreconst [makeValAndOff(int64(int8(c)),off)] {sym} ptr mem)
 	for {
 		off := v.AuxInt
@@ -9120,7 +9120,7 @@ func rewriteValueS390X_OpS390XMOVBstore_0(v *Value) bool {
 		}
 		c := v_1.AuxInt
 		mem := v.Args[2]
-		if !(validOff(off) && ptr.Op != OpSB) {
+		if !(is20Bit(off) && ptr.Op != OpSB) {
 			break
 		}
 		v.reset(OpS390XMOVBstoreconst)
@@ -9581,7 +9581,7 @@ func rewriteValueS390X_OpS390XMOVBstore_10(v *Value) bool {
 }
 func rewriteValueS390X_OpS390XMOVBstoreconst_0(v *Value) bool {
 	// match: (MOVBstoreconst [sc] {s} (ADDconst [off] ptr) mem)
-	// cond: ValAndOff(sc).canAdd(off)
+	// cond: is20Bit(ValAndOff(sc).Off()+off)
 	// result: (MOVBstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
 	for {
 		sc := v.AuxInt
@@ -9593,7 +9593,7 @@ func rewriteValueS390X_OpS390XMOVBstoreconst_0(v *Value) bool {
 		off := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(ValAndOff(sc).canAdd(off)) {
+		if !(is20Bit(ValAndOff(sc).Off() + off)) {
 			break
 		}
 		v.reset(OpS390XMOVBstoreconst)
@@ -9604,7 +9604,7 @@ func rewriteValueS390X_OpS390XMOVBstoreconst_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVBstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
+	// cond: ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
 	// result: (MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := v.AuxInt
@@ -9617,7 +9617,7 @@ func rewriteValueS390X_OpS390XMOVBstoreconst_0(v *Value) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
+		if !(ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
 			break
 		}
 		v.reset(OpS390XMOVBstoreconst)
@@ -12765,7 +12765,7 @@ func rewriteValueS390X_OpS390XMOVDstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVDstore [off] {sym} ptr (MOVDconst [c]) mem)
-	// cond: validValAndOff(c,off) && int64(int16(c)) == c && ptr.Op != OpSB
+	// cond: is16Bit(c) && isU12Bit(off) && ptr.Op != OpSB
 	// result: (MOVDstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
 	for {
 		off := v.AuxInt
@@ -12777,7 +12777,7 @@ func rewriteValueS390X_OpS390XMOVDstore_0(v *Value) bool {
 		}
 		c := v_1.AuxInt
 		mem := v.Args[2]
-		if !(validValAndOff(c, off) && int64(int16(c)) == c && ptr.Op != OpSB) {
+		if !(is16Bit(c) && isU12Bit(off) && ptr.Op != OpSB) {
 			break
 		}
 		v.reset(OpS390XMOVDstoreconst)
@@ -12982,7 +12982,7 @@ func rewriteValueS390X_OpS390XMOVDstore_0(v *Value) bool {
 }
 func rewriteValueS390X_OpS390XMOVDstoreconst_0(v *Value) bool {
 	// match: (MOVDstoreconst [sc] {s} (ADDconst [off] ptr) mem)
-	// cond: ValAndOff(sc).canAdd(off)
+	// cond: isU12Bit(ValAndOff(sc).Off()+off)
 	// result: (MOVDstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
 	for {
 		sc := v.AuxInt
@@ -12994,7 +12994,7 @@ func rewriteValueS390X_OpS390XMOVDstoreconst_0(v *Value) bool {
 		off := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(ValAndOff(sc).canAdd(off)) {
+		if !(isU12Bit(ValAndOff(sc).Off() + off)) {
 			break
 		}
 		v.reset(OpS390XMOVDstoreconst)
@@ -13005,7 +13005,7 @@ func rewriteValueS390X_OpS390XMOVDstoreconst_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVDstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
+	// cond: ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
 	// result: (MOVDstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := v.AuxInt
@@ -13018,7 +13018,7 @@ func rewriteValueS390X_OpS390XMOVDstoreconst_0(v *Value) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
+		if !(ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
 			break
 		}
 		v.reset(OpS390XMOVDstoreconst)
@@ -14725,7 +14725,7 @@ func rewriteValueS390X_OpS390XMOVHstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVHstore [off] {sym} ptr (MOVDconst [c]) mem)
-	// cond: validOff(off) && ptr.Op != OpSB
+	// cond: isU12Bit(off) && ptr.Op != OpSB
 	// result: (MOVHstoreconst [makeValAndOff(int64(int16(c)),off)] {sym} ptr mem)
 	for {
 		off := v.AuxInt
@@ -14737,7 +14737,7 @@ func rewriteValueS390X_OpS390XMOVHstore_0(v *Value) bool {
 		}
 		c := v_1.AuxInt
 		mem := v.Args[2]
-		if !(validOff(off) && ptr.Op != OpSB) {
+		if !(isU12Bit(off) && ptr.Op != OpSB) {
 			break
 		}
 		v.reset(OpS390XMOVHstoreconst)
@@ -15015,8 +15015,12 @@ func rewriteValueS390X_OpS390XMOVHstore_10(v *Value) bool {
 	return false
 }
 func rewriteValueS390X_OpS390XMOVHstoreconst_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	types := &b.Func.Config.Types
+	_ = types
 	// match: (MOVHstoreconst [sc] {s} (ADDconst [off] ptr) mem)
-	// cond: ValAndOff(sc).canAdd(off)
+	// cond: isU12Bit(ValAndOff(sc).Off()+off)
 	// result: (MOVHstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
 	for {
 		sc := v.AuxInt
@@ -15028,7 +15032,7 @@ func rewriteValueS390X_OpS390XMOVHstoreconst_0(v *Value) bool {
 		off := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(ValAndOff(sc).canAdd(off)) {
+		if !(isU12Bit(ValAndOff(sc).Off() + off)) {
 			break
 		}
 		v.reset(OpS390XMOVHstoreconst)
@@ -15039,7 +15043,7 @@ func rewriteValueS390X_OpS390XMOVHstoreconst_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVHstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
+	// cond: ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
 	// result: (MOVHstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := v.AuxInt
@@ -15052,7 +15056,7 @@ func rewriteValueS390X_OpS390XMOVHstoreconst_0(v *Value) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
+		if !(ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
 			break
 		}
 		v.reset(OpS390XMOVHstoreconst)
@@ -15064,7 +15068,7 @@ func rewriteValueS390X_OpS390XMOVHstoreconst_0(v *Value) bool {
 	}
 	// match: (MOVHstoreconst [c] {s} p x:(MOVHstoreconst [a] {s} p mem))
 	// cond: p.Op != OpSB   && x.Uses == 1   && ValAndOff(a).Off() + 2 == ValAndOff(c).Off()   && clobber(x)
-	// result: (MOVWstoreconst [makeValAndOff(ValAndOff(c).Val()&0xffff | ValAndOff(a).Val()<<16, ValAndOff(a).Off())] {s} p mem)
+	// result: (MOVWstore [ValAndOff(a).Off()] {s} p (MOVDconst [int64(int32(ValAndOff(c).Val()&0xffff | ValAndOff(a).Val()<<16))]) mem)
 	for {
 		c := v.AuxInt
 		s := v.Aux
@@ -15084,10 +15088,13 @@ func rewriteValueS390X_OpS390XMOVHstoreconst_0(v *Value) bool {
 		if !(p.Op != OpSB && x.Uses == 1 && ValAndOff(a).Off()+2 == ValAndOff(c).Off() && clobber(x)) {
 			break
 		}
-		v.reset(OpS390XMOVWstoreconst)
-		v.AuxInt = makeValAndOff(ValAndOff(c).Val()&0xffff|ValAndOff(a).Val()<<16, ValAndOff(a).Off())
+		v.reset(OpS390XMOVWstore)
+		v.AuxInt = ValAndOff(a).Off()
 		v.Aux = s
 		v.AddArg(p)
+		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, types.UInt64)
+		v0.AuxInt = int64(int32(ValAndOff(c).Val()&0xffff | ValAndOff(a).Val()<<16))
+		v.AddArg(v0)
 		v.AddArg(mem)
 		return true
 	}
@@ -17176,7 +17183,7 @@ func rewriteValueS390X_OpS390XMOVWstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWstore [off] {sym} ptr (MOVDconst [c]) mem)
-	// cond: validOff(off) && int64(int16(c)) == c && ptr.Op != OpSB
+	// cond: is16Bit(c) && isU12Bit(off) && ptr.Op != OpSB
 	// result: (MOVWstoreconst [makeValAndOff(int64(int32(c)),off)] {sym} ptr mem)
 	for {
 		off := v.AuxInt
@@ -17188,7 +17195,7 @@ func rewriteValueS390X_OpS390XMOVWstore_0(v *Value) bool {
 		}
 		c := v_1.AuxInt
 		mem := v.Args[2]
-		if !(validOff(off) && int64(int16(c)) == c && ptr.Op != OpSB) {
+		if !(is16Bit(c) && isU12Bit(off) && ptr.Op != OpSB) {
 			break
 		}
 		v.reset(OpS390XMOVWstoreconst)
@@ -17491,7 +17498,7 @@ func rewriteValueS390X_OpS390XMOVWstoreconst_0(v *Value) bool {
 	types := &b.Func.Config.Types
 	_ = types
 	// match: (MOVWstoreconst [sc] {s} (ADDconst [off] ptr) mem)
-	// cond: ValAndOff(sc).canAdd(off)
+	// cond: isU12Bit(ValAndOff(sc).Off()+off)
 	// result: (MOVWstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
 	for {
 		sc := v.AuxInt
@@ -17503,7 +17510,7 @@ func rewriteValueS390X_OpS390XMOVWstoreconst_0(v *Value) bool {
 		off := v_0.AuxInt
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(ValAndOff(sc).canAdd(off)) {
+		if !(isU12Bit(ValAndOff(sc).Off() + off)) {
 			break
 		}
 		v.reset(OpS390XMOVWstoreconst)
@@ -17514,7 +17521,7 @@ func rewriteValueS390X_OpS390XMOVWstoreconst_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
+	// cond: ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
 	// result: (MOVWstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := v.AuxInt
@@ -17527,7 +17534,7 @@ func rewriteValueS390X_OpS390XMOVWstoreconst_0(v *Value) bool {
 		sym2 := v_0.Aux
 		ptr := v_0.Args[0]
 		mem := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
+		if !(ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
 			break
 		}
 		v.reset(OpS390XMOVWstoreconst)

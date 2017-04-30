@@ -718,23 +718,23 @@
 (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is20Bit(off1+off2) -> (FMOVDstore [off1+off2] {sym} ptr val mem)
 
 // Fold constants into stores.
-(MOVDstore [off] {sym} ptr (MOVDconst [c]) mem) && validValAndOff(c,off) && int64(int16(c)) == c && ptr.Op != OpSB ->
+(MOVDstore [off] {sym} ptr (MOVDconst [c]) mem) && is16Bit(c) && isU12Bit(off) && ptr.Op != OpSB ->
 	(MOVDstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
-(MOVWstore [off] {sym} ptr (MOVDconst [c]) mem) && validOff(off) && int64(int16(c)) == c && ptr.Op != OpSB ->
+(MOVWstore [off] {sym} ptr (MOVDconst [c]) mem) && is16Bit(c) && isU12Bit(off) && ptr.Op != OpSB ->
 	(MOVWstoreconst [makeValAndOff(int64(int32(c)),off)] {sym} ptr mem)
-(MOVHstore [off] {sym} ptr (MOVDconst [c]) mem) && validOff(off) && ptr.Op != OpSB ->
+(MOVHstore [off] {sym} ptr (MOVDconst [c]) mem) && isU12Bit(off) && ptr.Op != OpSB ->
 	(MOVHstoreconst [makeValAndOff(int64(int16(c)),off)] {sym} ptr mem)
-(MOVBstore [off] {sym} ptr (MOVDconst [c]) mem) && validOff(off) && ptr.Op != OpSB ->
+(MOVBstore [off] {sym} ptr (MOVDconst [c]) mem) && is20Bit(off) && ptr.Op != OpSB ->
 	(MOVBstoreconst [makeValAndOff(int64(int8(c)),off)] {sym} ptr mem)
 
 // Fold address offsets into constant stores.
-(MOVDstoreconst [sc] {s} (ADDconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+(MOVDstoreconst [sc] {s} (ADDconst [off] ptr) mem) && isU12Bit(ValAndOff(sc).Off()+off) ->
 	(MOVDstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
-(MOVWstoreconst [sc] {s} (ADDconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+(MOVWstoreconst [sc] {s} (ADDconst [off] ptr) mem) && isU12Bit(ValAndOff(sc).Off()+off) ->
 	(MOVWstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
-(MOVHstoreconst [sc] {s} (ADDconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+(MOVHstoreconst [sc] {s} (ADDconst [off] ptr) mem) && isU12Bit(ValAndOff(sc).Off()+off) ->
 	(MOVHstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
-(MOVBstoreconst [sc] {s} (ADDconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+(MOVBstoreconst [sc] {s} (ADDconst [off] ptr) mem) && is20Bit(ValAndOff(sc).Off()+off) ->
 	(MOVBstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
 
 // We need to fold MOVDaddr into the MOVx ops so that the live variable analysis knows
@@ -772,13 +772,14 @@
 (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 
-(MOVDstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+// Cannot store constant to SB directly (no 'move relative long immediate' instructions).
+(MOVDstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
 	(MOVDstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVWstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+(MOVWstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
 	(MOVWstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVHstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+(MOVHstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
 	(MOVHstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVBstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+(MOVBstoreconst [sc] {sym1} (MOVDaddr [off] {sym2} ptr) mem) && ptr.Op != OpSB && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
 	(MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
 
 // generating indexed loads and stores
@@ -1084,8 +1085,8 @@
 	-> (XORWload <t> [off] {sym} x ptr mem)
 
 // Combine constant stores into larger (unaligned) stores.
-// It doesn't work to global data (based on SB),
-// because STGRL doesn't support unaligned address
+// Avoid SB because constant stores to relative offsets are
+// emulated by the assembler and also can't handle unaligned offsets.
 (MOVBstoreconst [c] {s} p x:(MOVBstoreconst [a] {s} p mem))
   && p.Op != OpSB
   && x.Uses == 1
@@ -1097,7 +1098,7 @@
   && x.Uses == 1
   && ValAndOff(a).Off() + 2 == ValAndOff(c).Off()
   && clobber(x)
-  -> (MOVWstoreconst [makeValAndOff(ValAndOff(c).Val()&0xffff | ValAndOff(a).Val()<<16, ValAndOff(a).Off())] {s} p mem)
+  -> (MOVWstore [ValAndOff(a).Off()] {s} p (MOVDconst [int64(int32(ValAndOff(c).Val()&0xffff | ValAndOff(a).Val()<<16))]) mem)
 (MOVWstoreconst [c] {s} p x:(MOVWstoreconst [a] {s} p mem))
   && p.Op != OpSB
   && x.Uses == 1
