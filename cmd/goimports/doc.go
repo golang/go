@@ -14,7 +14,7 @@ For emacs, make sure you have the latest go-mode.el:
 Then in your .emacs file:
    (setq gofmt-command "goimports")
    (add-to-list 'load-path "/home/you/somewhere/emacs/")
-   (require 'go-mode-load)
+   (require 'go-mode-autoloads)
    (add-hook 'before-save-hook 'gofmt-before-save)
 
 For vim, set "gofmt_command" to "goimports":
