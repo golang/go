@@ -686,7 +686,7 @@ func (fd *FD) Writev(buf *[][]byte) (int64, error) {
 	o := &fd.wop
 	o.InitBufs(buf)
 	n, err := wsrv.ExecIO(o, "WSASend", func(o *operation) error {
-		return syscall.WSASend(o.fd.Sysfd, &o.bufs[0], uint32(len(*buf)), &o.qty, 0, &o.o, nil)
+		return syscall.WSASend(o.fd.Sysfd, &o.bufs[0], uint32(len(o.bufs)), &o.qty, 0, &o.o, nil)
 	})
 	o.ClearBufs()
 	TestHookDidWritev(n)
