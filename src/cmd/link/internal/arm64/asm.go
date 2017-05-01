@@ -250,7 +250,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
 			// add + R_ADDRARM64.
-			if !(r.Sym.Version != 0 || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == ld.STEXT && ctxt.DynlinkingGo() {
+			if !(r.Sym.Version != 0 || (r.Sym.Type&ld.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == ld.STEXT && ctxt.DynlinkingGo() {
 				if o2&0xffc00000 != 0xf9400000 {
 					ld.Errorf(s, "R_ARM64_GOTPCREL against unexpected instruction %x", o2)
 				}

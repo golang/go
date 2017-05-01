@@ -127,7 +127,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
 	// maybe one day STB_WEAK.
 	bind := STB_GLOBAL
 
-	if x.Version != 0 || x.Attr.VisibilityHidden() || x.Attr.Local() {
+	if x.Version != 0 || (x.Type&SHIDDEN != 0) || x.Attr.Local() {
 		bind = STB_LOCAL
 	}
 
@@ -144,11 +144,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
 		addr -= int64(xo.Sect.Vaddr)
 	}
 	other := STV_DEFAULT
-	if x.Attr.VisibilityHidden() {
-		// TODO(mwhudson): We only set AttrVisibilityHidden in ldelf,
-		// i.e. when internally linking. But STV_HIDDEN visibility only
-		// matters in object files, i.e. when externally linking. So I
-		// don't think this makes a lot of sense.
+	if x.Type&SHIDDEN != 0 {
 		other = STV_HIDDEN
 	}
 	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || ctxt.DynlinkingGo()) && SysArch.Family == sys.PPC64 && typ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
