@@ -303,6 +303,7 @@ func TestShellSafety(t *testing.T) {
 }
 
 // Want to get a "cannot find package" error when directory for package does not exist.
+// There should be valid partial information in the returned non-nil *Package.
 func TestImportDirNotExist(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
@@ -319,9 +320,18 @@ func TestImportDirNotExist(t *testing.T) {
 		{"Import(local, FindOnly)", "./doesnotexist", filepath.Join(ctxt.GOROOT, "src/go/build"), FindOnly},
 	}
 	for _, test := range tests {
-		_, err := ctxt.Import(test.path, test.srcDir, test.mode)
+		p, err := ctxt.Import(test.path, test.srcDir, test.mode)
 		if err == nil || !strings.HasPrefix(err.Error(), "cannot find package") {
 			t.Errorf(`%s got error: %q, want "cannot find package" error`, test.label, err)
+		}
+		// If an error occurs, build.Import is documented to return
+		// a non-nil *Package containing partial information.
+		if p == nil {
+			t.Fatalf(`%s got nil p, want non-nil *Package`, test.label)
+		}
+		// Verify partial information in p.
+		if p.ImportPath != "go/build/doesnotexist" {
+			t.Errorf(`%s got p.ImportPath: %q, want "go/build/doesnotexist"`, test.label, p.ImportPath)
 		}
 	}
 }
