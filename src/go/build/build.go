@@ -529,10 +529,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		if !ctxt.isAbsPath(path) {
 			p.Dir = ctxt.joinPath(srcDir, path)
 		}
-		if !ctxt.isDir(p.Dir) {
-			// package was not found
-			return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
-		}
+		// p.Dir directory may or may not exist. Gather partial information first, check if it exists later.
 		// Determine canonical import path, if any.
 		// Exclude results where the import path would include /testdata/.
 		inTestdata := func(sub string) bool {
@@ -685,6 +682,16 @@ Found:
 			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
 			p.PkgObj = ctxt.joinPath(p.Root, pkga)
 		}
+	}
+
+	// If it's a local import path, by the time we get here, we still haven't checked
+	// that p.Dir directory exists. This is the right time to do that check.
+	// We can't do it earlier, because we want to gather partial information for the
+	// non-nil *Package returned when an error occurs.
+	// We need to do this before we return early on FindOnly flag.
+	if IsLocalImport(path) && !ctxt.isDir(p.Dir) {
+		// package was not found
+		return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
 	}
 
 	if mode&FindOnly != 0 {
