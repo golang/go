@@ -1242,41 +1242,41 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	CMPB DL, (R11)                          // 413a13
 	CMPB R11, (BX)                          // 443a1b
 	CMPB R11, (R11)                         // 453a1b
-	//TODO: CMPPD $7, X2, (BX)              // 660fc21307
-	//TODO: CMPPD $7, X2, (R11)             // 66410fc21307
-	//TODO: CMPPD $7, X2, X2                // 660fc2d207
-	//TODO: CMPPD $7, X2, X11               // 66410fc2d307
-	//TODO: CMPPD $7, X11, (BX)             // 66440fc21b07
-	//TODO: CMPPD $7, X11, (R11)            // 66450fc21b07
-	//TODO: CMPPD $7, X11, X2               // 66440fc2da07
-	//TODO: CMPPD $7, X11, X11              // 66450fc2db07
-	//TODO: CMPPS $7, X2, (BX)              // 0fc21307
-	//TODO: CMPPS $7, X2, (R11)             // 410fc21307
-	//TODO: CMPPS $7, X2, X2                // 0fc2d207
-	//TODO: CMPPS $7, X2, X11               // 410fc2d307
-	//TODO: CMPPS $7, X11, (BX)             // 440fc21b07
-	//TODO: CMPPS $7, X11, (R11)            // 450fc21b07
-	//TODO: CMPPS $7, X11, X2               // 440fc2da07
-	//TODO: CMPPS $7, X11, X11              // 450fc2db07
+	CMPPD (BX), X2, $7                      // 660fc21307
+	CMPPD (R11), X2, $7                     // 66410fc21307
+	CMPPD X2, X2, $7                        // 660fc2d207
+	CMPPD X11, X2, $7                       // 66410fc2d307
+	CMPPD (BX), X11, $7                     // 66440fc21b07
+	CMPPD (R11), X11, $7                    // 66450fc21b07
+	CMPPD X2, X11, $7                       // 66440fc2da07
+	CMPPD X11, X11, $7                      // 66450fc2db07
+	CMPPS (BX), X2, $7                      // 0fc21307
+	CMPPS (R11), X2, $7                     // 410fc21307
+	CMPPS X2, X2, $7                        // 0fc2d207
+	CMPPS X11, X2, $7                       // 410fc2d307
+	CMPPS (BX), X11, $7                     // 440fc21b07
+	CMPPS (R11), X11, $7                    // 450fc21b07
+	CMPPS X2, X11, $7                       // 440fc2da07
+	CMPPS X11, X11, $7                      // 450fc2db07
 	CMPSB                                   // a6
 	CMPSL                                   // a7
-	//TODO: CMPSD $7, X2, (BX)              // f20fc21307
-	//TODO: CMPSD $7, X2, (R11)             // f2410fc21307
-	//TODO: CMPSD $7, X2, X2                // f20fc2d207
-	//TODO: CMPSD $7, X2, X11               // f2410fc2d307
-	//TODO: CMPSD $7, X11, (BX)             // f2440fc21b07
-	//TODO: CMPSD $7, X11, (R11)            // f2450fc21b07
-	//TODO: CMPSD $7, X11, X2               // f2440fc2da07
-	//TODO: CMPSD $7, X11, X11              // f2450fc2db07
+	CMPSD (BX), X2, $7                      // f20fc21307
+	CMPSD (R11), X2, $7                     // f2410fc21307
+	CMPSD X2, X2, $7                        // f20fc2d207
+	CMPSD X11, X2, $7                       // f2410fc2d307
+	CMPSD (BX), X11, $7                     // f2440fc21b07
+	CMPSD (R11), X11, $7                    // f2450fc21b07
+	CMPSD X2, X11, $7                       // f2440fc2da07
+	CMPSD X11, X11, $7                      // f2450fc2db07
 	CMPSQ                                   // 48a7
-	//TODO: CMPSS $7, X2, (BX)              // f30fc21307
-	//TODO: CMPSS $7, X2, (R11)             // f3410fc21307
-	//TODO: CMPSS $7, X2, X2                // f30fc2d207
-	//TODO: CMPSS $7, X2, X11               // f3410fc2d307
-	//TODO: CMPSS $7, X11, (BX)             // f3440fc21b07
-	//TODO: CMPSS $7, X11, (R11)            // f3450fc21b07
-	//TODO: CMPSS $7, X11, X2               // f3440fc2da07
-	//TODO: CMPSS $7, X11, X11              // f3450fc2db07
+	CMPSS (BX), X2, $7                      // f30fc21307
+	CMPSS (R11), X2, $7                     // f3410fc21307
+	CMPSS X2, X2, $7                        // f30fc2d207
+	CMPSS X11, X2, $7                       // f3410fc2d307
+	CMPSS (BX), X11, $7                     // f3440fc21b07
+	CMPSS (R11), X11, $7                    // f3450fc21b07
+	CMPSS X2, X11, $7                       // f3440fc2da07
+	CMPSS X11, X11, $7                      // f3450fc2db07
 	CMPSW                                   // 66a7
 	CMPXCHGW DX, (BX)                       // 660fb113
 	CMPXCHGW R11, (BX)                      // 66440fb11b
