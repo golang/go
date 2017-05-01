@@ -24,7 +24,16 @@ func run(args ...string) string {
 	buf := new(bytes.Buffer)
 	cmd := exec.Command("adb", args...)
 	cmd.Stdout = io.MultiWriter(os.Stdout, buf)
-	cmd.Stderr = os.Stderr
+	// If the adb subprocess somehow hangs, go test will kill this wrapper
+	// and wait for our os.Stderr (and os.Stdout) to close as a result.
+	// However, if the os.Stderr (or os.Stdout) file descriptors are
+	// passed on, the hanging adb subprocess will hold them open and
+	// go test will hang forever.
+	//
+	// Avoid that by wrapping stderr, breaking the short circuit and
+	// forcing cmd.Run to use another pipe and goroutine to pass
+	// along stderr from adb.
+	cmd.Stderr = struct{ io.Writer }{os.Stderr}
 	log.Printf("adb %s", strings.Join(args, " "))
 	err := cmd.Run()
 	if err != nil {
