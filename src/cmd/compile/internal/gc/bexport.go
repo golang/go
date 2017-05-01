@@ -158,7 +158,10 @@ const exportInlined = true // default: true
 // less efficient encoding in rare cases. It also prevents the export of
 // some corner-case type declarations (but those were not handled correctly
 // with the former textual export format either).
-// TODO(gri) enable and remove once issues caused by it are fixed
+// Note that when a type is only seen once, as many unnamed types are,
+// it is less efficient to track it, since we then also record an index for it.
+// See CLs 41622 and 41623 for some data and discussion.
+// TODO(gri) enable selectively and remove once issues caused by it are fixed
 const trackAllTypes = false
 
 type exporter struct {
