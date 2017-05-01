@@ -985,7 +985,7 @@ func hashGrow(t *maptype, h *hmap) {
 // overLoadFactor reports whether count items placed in 1<<B buckets is over loadFactor.
 func overLoadFactor(count int64, B uint8) bool {
 	// TODO: rewrite to use integer math and comparison?
-	return count >= bucketCnt && float32(count) >= loadFactor*float32((uintptr(1)<<B))
+	return count >= bucketCnt && float32(count) >= loadFactor*float32((uint64(1)<<B))
 }
 
 // tooManyOverflowBuckets reports whether noverflow buckets is too many for a map with 1<<B buckets.
