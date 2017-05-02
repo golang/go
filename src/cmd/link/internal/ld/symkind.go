@@ -104,6 +104,7 @@ const (
 	SHOSTOBJ
 	SDWARFSECT
 	SDWARFINFO
+	SDWARFRANGE
 	SSUB       = SymKind(1 << 8)
 	SMASK      = SymKind(SSUB - 1)
 	SHIDDEN    = SymKind(1 << 9)
@@ -122,6 +123,7 @@ var abiSymKindToSymKind = [...]SymKind{
 	SNOPTRBSS,
 	STLSBSS,
 	SDWARFINFO,
+	SDWARFRANGE,
 }
 
 // readOnly are the symbol kinds that form read-only sections. In some

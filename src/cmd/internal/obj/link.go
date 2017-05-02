@@ -324,12 +324,15 @@ type LSym struct {
 
 // A FuncInfo contains extra fields for STEXT symbols.
 type FuncInfo struct {
-	Args     int32
-	Locals   int32
-	Text     *Prog
-	Autom    []*Auto
-	Pcln     Pcln
-	dwarfSym *LSym
+	Args   int32
+	Locals int32
+	Text   *Prog
+	Autom  []*Auto
+	Pcln   Pcln
+
+	dwarfSym       *LSym
+	dwarfRangesSym *LSym
+
 	GCArgs   LSym
 	GCLocals LSym
 }
@@ -490,7 +493,7 @@ type Link struct {
 	InlTree       InlTree // global inlining tree used by gc/inl.go
 	Imports       []string
 	DiagFunc      func(string, ...interface{})
-	DebugInfo     func(fn *LSym, curfn interface{}) []*dwarf.Var // if non-nil, curfn is a *gc.Node
+	DebugInfo     func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
 	Errors        int
 
 	Framepointer_enabled bool

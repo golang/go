@@ -120,7 +120,8 @@ func (s *LSym) WriteInt(ctxt *Link, off int64, siz int, i int64) {
 // WriteAddr writes an address of size siz into s at offset off.
 // rsym and roff specify the relocation for the address.
 func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
-	if siz != ctxt.Arch.PtrSize {
+	// Allow 4-byte addresses for DWARF.
+	if siz != ctxt.Arch.PtrSize && siz != 4 {
 		ctxt.Diag("WriteAddr: bad address size %d in %s", siz, s.Name)
 	}
 	s.prepwrite(ctxt, off, siz)

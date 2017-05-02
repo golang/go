@@ -75,6 +75,62 @@ type noder struct {
 	linknames  []linkname
 	pragcgobuf string
 	err        chan syntax.Error
+	scope      ScopeID
+}
+
+func (p *noder) funchdr(n *Node, pos src.Pos) ScopeID {
+	old := p.scope
+	p.scope = 0
+	funchdr(n)
+	return old
+}
+
+func (p *noder) funcbody(n *Node, pos src.Pos, old ScopeID) {
+	funcbody(n)
+	p.scope = old
+}
+
+func (p *noder) openScope(pos src.Pos) {
+	types.Markdcl()
+
+	if trackScopes {
+		Curfn.Func.Parents = append(Curfn.Func.Parents, p.scope)
+		p.scope = ScopeID(len(Curfn.Func.Parents))
+
+		p.markScope(pos)
+	}
+}
+
+func (p *noder) closeScope(pos src.Pos) {
+	types.Popdcl()
+
+	if trackScopes {
+		p.scope = Curfn.Func.Parents[p.scope-1]
+
+		p.markScope(pos)
+	}
+}
+
+func (p *noder) markScope(pos src.Pos) {
+	xpos := Ctxt.PosTable.XPos(pos)
+	if i := len(Curfn.Func.Marks); i > 0 && Curfn.Func.Marks[i-1].Pos == xpos {
+		Curfn.Func.Marks[i-1].Scope = p.scope
+	} else {
+		Curfn.Func.Marks = append(Curfn.Func.Marks, Mark{xpos, p.scope})
+	}
+}
+
+// closeAnotherScope is like closeScope, but it reuses the same mark
+// position as the last closeScope call. This is useful for "for" and
+// "if" statements, as their implicit blocks always end at the same
+// position as an explicit block.
+func (p *noder) closeAnotherScope() {
+	types.Popdcl()
+
+	if trackScopes {
+		p.scope = Curfn.Func.Parents[p.scope-1]
+		Curfn.Func.Marks[len(Curfn.Func.Marks)-1].Scope = p.scope
+	}
 }
 
 // linkname records a //go:linkname directive.
@@ -326,8 +382,9 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		declare(f.Func.Nname, PFUNC)
 	}
 
-	funchdr(f)
+	oldScope := p.funchdr(f, fun.Pos())
 
+	endPos := fun.Pos()
 	if fun.Body != nil {
 		if f.Noescape() {
 			yyerrorl(f.Pos, "can only use //go:noescape with external func implementations")
@@ -339,6 +396,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		}
 		f.Nbody.Set(body)
 
+		endPos = fun.Body.Rbrace
 		lineno = Ctxt.PosTable.XPos(fun.Body.Rbrace)
 		f.Func.Endlineno = lineno
 	} else {
@@ -347,8 +405,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		}
 	}
 
-	funcbody(f)
-
+	p.funcbody(f, endPos, oldScope)
 	return f
 }
 
@@ -439,10 +496,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 	case *syntax.KeyValueExpr:
 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
-		closurehdr(p.typeExpr(expr.Type))
-		body := p.stmts(expr.Body.List)
-		lineno = Ctxt.PosTable.XPos(expr.Body.Rbrace)
-		return p.setlineno(expr, closurebody(body))
+		return p.funcLit(expr)
 	case *syntax.ParenExpr:
 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
 	case *syntax.SelectorExpr:
@@ -774,14 +828,14 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 }
 
 func (p *noder) blockStmt(stmt *syntax.BlockStmt) []*Node {
-	types.Markdcl()
+	p.openScope(stmt.Pos())
 	nodes := p.stmts(stmt.List)
-	types.Popdcl()
+	p.closeScope(stmt.Rbrace)
 	return nodes
 }
 
 func (p *noder) ifStmt(stmt *syntax.IfStmt) *Node {
-	types.Markdcl()
+	p.openScope(stmt.Pos())
 	n := p.nod(stmt, OIF, nil, nil)
 	if stmt.Init != nil {
 		n.Ninit.Set1(p.stmt(stmt.Init))
@@ -798,12 +852,12 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) *Node {
 			n.Rlist.Set1(e)
 		}
 	}
-	types.Popdcl()
+	p.closeAnotherScope()
 	return n
 }
 
 func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
-	types.Markdcl()
+	p.openScope(stmt.Pos())
 	var n *Node
 	if r, ok := stmt.Init.(*syntax.RangeClause); ok {
 		if stmt.Cond != nil || stmt.Post != nil {
@@ -832,12 +886,12 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) *Node {
 		}
 	}
 	n.Nbody.Set(p.blockStmt(stmt.Body))
-	types.Popdcl()
+	p.closeAnotherScope()
 	return n
 }
 
 func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
-	types.Markdcl()
+	p.openScope(stmt.Pos())
 	n := p.nod(stmt, OSWITCH, nil, nil)
 	if stmt.Init != nil {
 		n.Ninit.Set1(p.stmt(stmt.Init))
@@ -850,18 +904,21 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
 	if tswitch != nil && (tswitch.Op != OTYPESW || tswitch.Left == nil) {
 		tswitch = nil
 	}
+	n.List.Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
 
-	n.List.Set(p.caseClauses(stmt.Body, tswitch))
-
-	types.Popdcl()
+	p.closeScope(stmt.Rbrace)
 	return n
 }
 
-func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node) []*Node {
+func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace src.Pos) []*Node {
 	var nodes []*Node
-	for _, clause := range clauses {
+	for i, clause := range clauses {
 		p.lineno(clause)
-		types.Markdcl()
+		if i > 0 {
+			p.closeScope(clause.Pos())
+		}
+		p.openScope(clause.Pos())
+
 		n := p.nod(clause, OXCASE, nil, nil)
 		if clause.Cases != nil {
 			n.List.Set(p.exprList(clause.Cases))
@@ -875,31 +932,39 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node) []*Node
 		}
 		n.Xoffset = int64(types.Block)
 		n.Nbody.Set(p.stmts(clause.Body))
-		types.Popdcl()
 		nodes = append(nodes, n)
+	}
+	if len(clauses) > 0 {
+		p.closeScope(rbrace)
 	}
 	return nodes
 }
 
 func (p *noder) selectStmt(stmt *syntax.SelectStmt) *Node {
 	n := p.nod(stmt, OSELECT, nil, nil)
-	n.List.Set(p.commClauses(stmt.Body))
+	n.List.Set(p.commClauses(stmt.Body, stmt.Rbrace))
 	return n
 }
 
-func (p *noder) commClauses(clauses []*syntax.CommClause) []*Node {
+func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace src.Pos) []*Node {
 	var nodes []*Node
-	for _, clause := range clauses {
+	for i, clause := range clauses {
 		p.lineno(clause)
-		types.Markdcl()
+		if i > 0 {
+			p.closeScope(clause.Pos())
+		}
+		p.openScope(clause.Pos())
+
 		n := p.nod(clause, OXCASE, nil, nil)
 		if clause.Comm != nil {
 			n.List.Set1(p.stmt(clause.Comm))
 		}
 		n.Xoffset = int64(types.Block)
 		n.Nbody.Set(p.stmts(clause.Body))
-		types.Popdcl()
 		nodes = append(nodes, n)
+	}
+	if len(clauses) > 0 {
+		p.closeScope(rbrace)
 	}
 	return nodes
 }

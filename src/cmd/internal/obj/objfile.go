@@ -447,10 +447,14 @@ func (c dwCtxt) SymValue(s dwarf.Sym) int64 {
 	return 0
 }
 func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
-	rsym := data.(*LSym)
 	ls := s.(*LSym)
 	size := c.PtrSize()
-	ls.WriteAddr(c.Link, ls.Size, size, rsym, value)
+	if data != nil {
+		rsym := data.(*LSym)
+		ls.WriteAddr(c.Link, ls.Size, size, rsym, value)
+	} else {
+		ls.WriteInt(c.Link, ls.Size, size, value)
+	}
 }
 func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	ls := s.(*LSym)
@@ -460,27 +464,35 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 	r.Type = objabi.R_DWARFREF
 }
 
-// dwarfSym returns the DWARF symbol for TEXT symbol.
-func (ctxt *Link) dwarfSym(s *LSym) *LSym {
+// dwarfSym returns the DWARF symbols for TEXT symbol.
+func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfRangesSym *LSym) {
 	if s.Type != objabi.STEXT {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
 	if s.Func.dwarfSym == nil {
 		s.Func.dwarfSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
+		s.Func.dwarfRangesSym = ctxt.LookupDerived(s, dwarf.RangePrefix+s.Name)
 	}
-	return s.Func.dwarfSym
+	return s.Func.dwarfSym, s.Func.dwarfRangesSym
 }
 
-// populateDWARF fills in the DWARF Debugging Information Entry for TEXT symbol s.
-// The DWARF symbol must already have been initialized in InitTextSym.
+func (s *LSym) Len() int64 {
+	return s.Size
+}
+
+// populateDWARF fills in the DWARF Debugging Information Entries for TEXT symbol s.
+// The DWARFs symbol must already have been initialized in InitTextSym.
 func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
-	dsym := ctxt.dwarfSym(s)
+	dsym, drsym := ctxt.dwarfSym(s)
 	if dsym.Size != 0 {
 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
 	}
-	var vars []*dwarf.Var
+	var scopes []dwarf.Scope
 	if ctxt.DebugInfo != nil {
-		vars = ctxt.DebugInfo(s, curfn)
+		scopes = ctxt.DebugInfo(s, curfn)
 	}
-	dwarf.PutFunc(dwCtxt{ctxt}, dsym, s.Name, !s.Static(), s, s.Size, vars)
+	err := dwarf.PutFunc(dwCtxt{ctxt}, dsym, drsym, s.Name, !s.Static(), s, s.Size, scopes)
+	if err != nil {
+		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
+	}
 }

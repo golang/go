@@ -216,6 +216,9 @@ var flagDWARF bool
 // when the race detector is enabled.
 var instrumenting bool
 
+// Whether we are tracking lexical scopes for DWARF.
+var trackScopes bool
+
 var debuglive int
 
 var Ctxt *obj.Link
