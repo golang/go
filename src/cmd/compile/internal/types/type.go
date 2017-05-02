@@ -1317,6 +1317,23 @@ func (t *Type) SetNumElem(n int64) {
 	at.Bound = n
 }
 
+func (t *Type) NumComponents() int64 {
+	switch t.Etype {
+	case TSTRUCT:
+		if t.IsFuncArgStruct() {
+			Fatalf("NumComponents func arg struct")
+		}
+		var n int64
+		for _, f := range t.FieldSlice() {
+			n += f.Type.NumComponents()
+		}
+		return n
+	case TARRAY:
+		return t.NumElem() * t.Elem().NumComponents()
+	}
+	return 1
+}
+
 // ChanDir returns the direction of a channel type t.
 // The direction will be one of Crecv, Csend, or Cboth.
 func (t *Type) ChanDir() ChanDir {

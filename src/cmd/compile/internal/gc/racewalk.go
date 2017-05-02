@@ -504,13 +504,18 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 				name = "msanwrite"
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
-		} else if flag_race && (t.IsStruct() || t.IsArray()) {
+		} else if flag_race && t.NumComponents() > 1 {
+			// for composite objects we have to write every address
+			// because a write might happen to any subobject.
+			// composites with only one element don't have subobjects, though.
 			name := "racereadrange"
 			if wr != 0 {
 				name = "racewriterange"
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
 		} else if flag_race {
+			// for non-composite objects we can write just the start
+			// address, as any write must write the first byte.
 			name := "raceread"
 			if wr != 0 {
 				name = "racewrite"
