@@ -462,6 +462,15 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 		return false
 	}
 	t := n.Type
+	// dowidth may not have been called for PEXTERN.
+	dowidth(t)
+	w := t.Width
+	if w == BADWIDTH {
+		Fatalf("instrument: %v badwidth", t)
+	}
+	if w == 0 {
+		return false // can't race on zero-sized things
+	}
 	if isartificial(n) {
 		return false
 	}
@@ -494,23 +503,11 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 			if wr != 0 {
 				name = "msanwrite"
 			}
-			// dowidth may not have been called for PEXTERN.
-			dowidth(t)
-			w := t.Width
-			if w == BADWIDTH {
-				Fatalf("instrument: %v badwidth", t)
-			}
 			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
 		} else if flag_race && (t.IsStruct() || t.IsArray()) {
 			name := "racereadrange"
 			if wr != 0 {
 				name = "racewriterange"
-			}
-			// dowidth may not have been called for PEXTERN.
-			dowidth(t)
-			w := t.Width
-			if w == BADWIDTH {
-				Fatalf("instrument: %v badwidth", t)
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
 		} else if flag_race {
