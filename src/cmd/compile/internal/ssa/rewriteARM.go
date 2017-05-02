@@ -3223,6 +3223,20 @@ func rewriteValueARM_OpARMANDconst_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ANDconst [c] x)
+	// cond: !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c))
+	// result: (BICconst [int64(^uint32(c))] x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(!isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c))) {
+			break
+		}
+		v.reset(OpARMBICconst)
+		v.AuxInt = int64(^uint32(c))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ANDconst [c] (MOVWconst [d]))
 	// cond:
 	// result: (MOVWconst [c&d])
@@ -3720,6 +3734,20 @@ func rewriteValueARM_OpARMBICconst_0(v *Value) bool {
 		}
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = 0
+		return true
+	}
+	// match: (BICconst [c] x)
+	// cond: !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c))
+	// result: (ANDconst [int64(^uint32(c))] x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(!isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c))) {
+			break
+		}
+		v.reset(OpARMANDconst)
+		v.AuxInt = int64(^uint32(c))
+		v.AddArg(x)
 		return true
 	}
 	// match: (BICconst [c] (MOVWconst [d]))

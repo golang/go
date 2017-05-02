@@ -121,10 +121,11 @@ const (
 	C_PSR
 	C_FCR
 
-	C_RCON  /* 0xff rotated */
-	C_NCON  /* ~RCON */
-	C_RCON2 /* OR of two disjoint C_RCON constants */
-	C_SCON  /* 0xffff */
+	C_RCON   /* 0xff rotated */
+	C_NCON   /* ~RCON */
+	C_RCON2A /* OR of two disjoint C_RCON constants */
+	C_RCON2S /* subtraction of two disjoint C_RCON constants */
+	C_SCON   /* 0xffff */
 	C_LCON
 	C_LCONADDR
 	C_ZFCON
