@@ -1187,8 +1187,8 @@ ok:
 		}
 
 		ot = dcommontype(lsym, ot, t)
-		inCount := t.Recvs().NumFields() + t.Params().NumFields()
-		outCount := t.Results().NumFields()
+		inCount := t.NumRecvs() + t.NumParams()
+		outCount := t.NumResults()
 		if isddd {
 			outCount |= 1 << 15
 		}
@@ -1198,7 +1198,7 @@ ok:
 			ot += 4 // align for *rtype
 		}
 
-		dataAdd := (inCount + t.Results().NumFields()) * Widthptr
+		dataAdd := (inCount + t.NumResults()) * Widthptr
 		ot = dextratype(lsym, ot, t, dataAdd)
 
 		// Array of rtype pointers follows funcType.
