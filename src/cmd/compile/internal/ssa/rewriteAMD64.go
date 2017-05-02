@@ -334,7 +334,7 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAMD64XORL:
 		return rewriteValueAMD64_OpAMD64XORL_0(v) || rewriteValueAMD64_OpAMD64XORL_10(v)
 	case OpAMD64XORLconst:
-		return rewriteValueAMD64_OpAMD64XORLconst_0(v)
+		return rewriteValueAMD64_OpAMD64XORLconst_0(v) || rewriteValueAMD64_OpAMD64XORLconst_10(v)
 	case OpAMD64XORQ:
 		return rewriteValueAMD64_OpAMD64XORQ_0(v)
 	case OpAMD64XORQconst:
@@ -35274,6 +35274,169 @@ func rewriteValueAMD64_OpAMD64XORL_10(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64XORLconst_0(v *Value) bool {
+	// match: (XORLconst [1] (SETNE x))
+	// cond:
+	// result: (SETEQ x)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SETNE {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64SETEQ)
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [1] (SETEQ x))
+	// cond:
+	// result: (SETNE x)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SETEQ {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64SETNE)
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [1] (SETL x))
+	// cond:
+	// result: (SETGE x)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SETL {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64SETGE)
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [1] (SETGE x))
+	// cond:
+	// result: (SETL  x)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SETGE {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64SETL)
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [1] (SETLE x))
+	// cond:
+	// result: (SETG  x)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SETLE {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64SETG)
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [1] (SETG x))
+	// cond:
+	// result: (SETLE x)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SETG {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64SETLE)
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [1] (SETB x))
+	// cond:
+	// result: (SETAE x)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SETB {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64SETAE)
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [1] (SETAE x))
+	// cond:
+	// result: (SETB  x)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SETAE {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64SETB)
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [1] (SETBE x))
+	// cond:
+	// result: (SETA  x)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SETBE {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64SETA)
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [1] (SETA x))
+	// cond:
+	// result: (SETBE x)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64SETA {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64SETBE)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64XORLconst_10(v *Value) bool {
 	// match: (XORLconst [c] (XORLconst [d] x))
 	// cond:
 	// result: (XORLconst [c ^ d] x)

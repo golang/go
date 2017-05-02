@@ -14573,6 +14573,44 @@ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (NeqB (Not x) (Not y))
+	// cond:
+	// result: (NeqB x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpNot {
+			break
+		}
+		x := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpNot {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpNeqB)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (NeqB (Not y) (Not x))
+	// cond:
+	// result: (NeqB x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpNot {
+			break
+		}
+		y := v_0.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpNot {
+			break
+		}
+		x := v_1.Args[0]
+		v.reset(OpNeqB)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpNeqInter_0(v *Value) bool {
