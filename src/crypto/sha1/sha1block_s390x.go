@@ -5,7 +5,7 @@
 package sha1
 
 // featureCheck reports whether the CPU supports the
-// SHA1 compute intermediate message digest (KIMD)
+// SHA-1 compute intermediate message digest (KIMD)
 // function code.
 func featureCheck() bool
 

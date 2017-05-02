@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package sha1 implements the SHA1 hash algorithm as defined in RFC 3174.
+// Package sha1 implements the SHA-1 hash algorithm as defined in RFC 3174.
+//
+// SHA-1 is broken and should not be used anymore.
 package sha1
 
 import (
@@ -14,10 +16,10 @@ func init() {
 	crypto.RegisterHash(crypto.SHA1, New)
 }
 
-// The size of a SHA1 checksum in bytes.
+// The size of a SHA-1 checksum in bytes.
 const Size = 20
 
-// The blocksize of SHA1 in bytes.
+// The blocksize of SHA-1 in bytes.
 const BlockSize = 64
 
 const (
@@ -189,7 +191,7 @@ func (d *digest) constSum() [Size]byte {
 	return digest
 }
 
-// Sum returns the SHA1 checksum of the data.
+// Sum returns the SHA-1 checksum of the data.
 func Sum(data []byte) [Size]byte {
 	var d digest
 	d.Reset()
