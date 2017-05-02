@@ -623,7 +623,6 @@ type connReader struct {
 	mu      sync.Mutex // guards following
 	hasByte bool
 	byteBuf [1]byte
-	bgErr   error // non-nil means error happened on background read
 	cond    *sync.Cond
 	inRead  bool
 	aborted bool  // set true before conn.rwc deadline is set to past
@@ -731,11 +730,6 @@ func (cr *connReader) Read(p []byte) (n int, err error) {
 	if cr.hitReadLimit() {
 		cr.unlock()
 		return 0, io.EOF
-	}
-	if cr.bgErr != nil {
-		err = cr.bgErr
-		cr.unlock()
-		return 0, err
 	}
 	if len(p) == 0 {
 		cr.unlock()
