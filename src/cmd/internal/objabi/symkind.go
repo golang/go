@@ -56,4 +56,5 @@ const (
 	STLSBSS
 	// Debugging data
 	SDWARFINFO
+	SDWARFRANGE
 )

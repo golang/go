@@ -299,13 +299,15 @@ func compileFunctions() {
 	}
 }
 
-func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
+func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
 	fn := curfn.(*Node)
 	if expect := fn.Func.Nname.Sym.Linksym(); fnsym != expect {
 		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
 	}
 
-	var vars []*dwarf.Var
+	var dwarfVars []*dwarf.Var
+	var varScopes []ScopeID
+
 	for _, n := range fn.Func.Dcl {
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
@@ -353,18 +355,26 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
 		}
 
 		typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
-		vars = append(vars, &dwarf.Var{
+		dwarfVars = append(dwarfVars, &dwarf.Var{
 			Name:   n.Sym.Name,
 			Abbrev: abbrev,
 			Offset: int32(offs),
 			Type:   Ctxt.Lookup(typename),
 		})
+
+		var scope ScopeID
+		if !n.Name.Captured() && !n.Name.Byval() {
+			// n.Pos of captured variables is their first
+			// use in the closure but they should always
+			// be assigned to scope 0 instead.
+			// TODO(mdempsky): Verify this.
+			scope = findScope(fn.Func.Marks, n.Pos)
+		}
+
+		varScopes = append(varScopes, scope)
 	}
 
-	// Stable sort so that ties are broken with declaration order.
-	sort.Stable(dwarf.VarsByOffset(vars))
-
-	return vars
+	return assembleScopes(fnsym, fn, dwarfVars, varScopes)
 }
 
 // fieldtrack adds R_USEFIELD relocations to fnsym to record any

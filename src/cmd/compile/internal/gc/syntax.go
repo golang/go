@@ -351,12 +351,21 @@ type Param struct {
 
 // Func holds Node fields used only with function-like nodes.
 type Func struct {
-	Shortname  *types.Sym
-	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
-	Exit       Nodes
-	Cvars      Nodes   // closure params
-	Dcl        []*Node // autodcl for this func/closure
-	Inldcl     Nodes   // copy of dcl for use in inlining
+	Shortname *types.Sym
+	Enter     Nodes // for example, allocate and initialize memory for escaping parameters
+	Exit      Nodes
+	Cvars     Nodes   // closure params
+	Dcl       []*Node // autodcl for this func/closure
+	Inldcl    Nodes   // copy of dcl for use in inlining
+
+	// Parents records the parent scope of each scope within a
+	// function. The root scope (0) has no parent, so the i'th
+	// scope's parent is stored at Parents[i-1].
+	Parents []ScopeID
+
+	// Marks records scope boundary changes.
+	Marks []Mark
+
 	Closgen    int
 	Outerfunc  *Node // outer function (for closure)
 	FieldTrack map[*types.Sym]struct{}
@@ -379,6 +388,19 @@ type Func struct {
 
 	flags bitset8
 }
+
+// A Mark represents a scope boundary.
+type Mark struct {
+	// Pos is the position of the token that marks the scope
+	// change.
+	Pos src.XPos
+
+	// Scope identifies the innermost scope to the right of Pos.
+	Scope ScopeID
+}
+
+// A ScopeID represents a lexical scope within a function.
+type ScopeID int32
 
 const (
 	funcDupok         = 1 << iota // duplicate definitions ok
