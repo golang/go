@@ -1016,17 +1016,17 @@ func writePESymTableRecords(ctxt *Link) int {
 		typ := uint16(IMAGE_SYM_TYPE_NULL)
 		var sect int
 		var value int64
-		// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
-		// it still belongs to the .data section, not the .bss section.
-		// Same for runtime.epclntab (type STEXT), it belongs to .text
-		// section, not the .data section.
-		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != SDATA && Linkmode == LinkExternal {
-			value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
-			sect = bsssect
-		} else if uint64(s.Value) >= Segdata.Vaddr && s.Type != STEXT {
-			value = int64(uint64(s.Value) - Segdata.Vaddr)
-			sect = datasect
-		} else if uint64(s.Value) >= Segtext.Vaddr {
+		if s.Sect != nil && s.Sect.Seg == &Segdata {
+			// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
+			// it still belongs to the .data section, not the .bss section.
+			if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != SDATA && Linkmode == LinkExternal {
+				value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
+				sect = bsssect
+			} else {
+				value = int64(uint64(s.Value) - Segdata.Vaddr)
+				sect = datasect
+			}
+		} else if s.Sect != nil && s.Sect.Seg == &Segtext {
 			value = int64(uint64(s.Value) - Segtext.Vaddr)
 			sect = textsect
 		} else if type_ == UndefinedSym {
