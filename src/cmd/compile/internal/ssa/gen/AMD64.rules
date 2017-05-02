@@ -544,6 +544,18 @@
 (SETNE (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETB  (BTQconst [log2(c)] x))
 (SETEQ (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAE (BTQconst [log2(c)] x))
 
+// Fold boolean negation into SETcc.
+(XORLconst [1] (SETNE x)) -> (SETEQ x)
+(XORLconst [1] (SETEQ x)) -> (SETNE x)
+(XORLconst [1] (SETL  x)) -> (SETGE x)
+(XORLconst [1] (SETGE x)) -> (SETL  x)
+(XORLconst [1] (SETLE x)) -> (SETG  x)
+(XORLconst [1] (SETG  x)) -> (SETLE x)
+(XORLconst [1] (SETB  x)) -> (SETAE x)
+(XORLconst [1] (SETAE x)) -> (SETB  x)
+(XORLconst [1] (SETBE x)) -> (SETA  x)
+(XORLconst [1] (SETA  x)) -> (SETBE x)
+
 // Convert BTQconst to BTLconst if possible. It has a shorter encoding.
 (BTQconst [c] x) && c < 32 -> (BTLconst [c] x)
 

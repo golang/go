@@ -233,6 +233,7 @@
 (NeqB (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c != d)])
 (NeqB (ConstBool [0]) x) -> x
 (NeqB (ConstBool [1]) x) -> (Not x)
+(NeqB (Not x) (Not y)) -> (NeqB x y)
 
 (Eq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) -> (Eq64 (Const64 <t> [c-d]) x)
 (Eq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) -> (Eq32 (Const32 <t> [int64(int32(c-d))]) x)
