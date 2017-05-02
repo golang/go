@@ -358,66 +358,7 @@ func Fields(s string) []string {
 	}
 
 	// Some runes in the input string are not ASCII.
-	// Same general approach as in the ASCII path but
-	// uses DecodeRuneInString and unicode.IsSpace if
-	// a non-ASCII rune needs to be decoded and checked
-	// if it corresponds to a space.
-	a := make([]string, 0, n)
-	i := 0
-	// Skip spaces in the front of the input.
-	for i < len(s) {
-		if c := s[i]; c < utf8.RuneSelf {
-			if asciiSpace[c] == 0 {
-				break
-			}
-			i++
-		} else {
-			r, w := utf8.DecodeRuneInString(s[i:])
-			if !unicode.IsSpace(r) {
-				break
-			}
-			i += w
-		}
-	}
-	fieldStart := i
-	for i < len(s) {
-		if c := s[i]; c < utf8.RuneSelf {
-			if asciiSpace[c] == 0 {
-				i++
-				continue
-			}
-			a = append(a, s[fieldStart:i])
-			i++
-		} else {
-			r, w := utf8.DecodeRuneInString(s[i:])
-			if !unicode.IsSpace(r) {
-				i += w
-				continue
-			}
-			a = append(a, s[fieldStart:i])
-			i += w
-		}
-		// Skip spaces in between fields.
-		for i < len(s) {
-			if c := s[i]; c < utf8.RuneSelf {
-				if asciiSpace[c] == 0 {
-					break
-				}
-				i++
-			} else {
-				r, w := utf8.DecodeRuneInString(s[i:])
-				if !unicode.IsSpace(r) {
-					break
-				}
-				i += w
-			}
-		}
-		fieldStart = i
-	}
-	if fieldStart < len(s) { // Last field might end at EOF.
-		a = append(a, s[fieldStart:])
-	}
-	return a
+	return FieldsFunc(s, unicode.IsSpace)
 }
 
 // FieldsFunc splits the string s at each run of Unicode code points c satisfying f(c)
@@ -426,35 +367,42 @@ func Fields(s string) []string {
 // FieldsFunc makes no guarantees about the order in which it calls f(c).
 // If f does not return consistent results for a given c, FieldsFunc may crash.
 func FieldsFunc(s string, f func(rune) bool) []string {
-	// First count the fields.
-	n := 0
-	inField := false
-	for _, rune := range s {
-		wasInField := inField
-		inField = !f(rune)
-		if inField && !wasInField {
-			n++
+	// A span is used to record a slice of s of the form s[start:end].
+	// The start index is inclusive and the end index is exclusive.
+	type span struct {
+		start int
+		end   int
+	}
+	spans := make([]span, 0, 32)
+
+	// Find the field start and end indices.
+	wasField := false
+	fromIndex := 0
+	for i, rune := range s {
+		if f(rune) {
+			if wasField {
+				spans = append(spans, span{start: fromIndex, end: i})
+				wasField = false
+			}
+		} else {
+			if !wasField {
+				fromIndex = i
+				wasField = true
+			}
 		}
 	}
 
-	// Now create them.
-	a := make([]string, n)
-	na := 0
-	fieldStart := -1 // Set to -1 when looking for start of field.
-	for i, rune := range s {
-		if f(rune) {
-			if fieldStart >= 0 {
-				a[na] = s[fieldStart:i]
-				na++
-				fieldStart = -1
-			}
-		} else if fieldStart == -1 {
-			fieldStart = i
-		}
+	// Last field might end at EOF.
+	if wasField {
+		spans = append(spans, span{fromIndex, len(s)})
 	}
-	if fieldStart >= 0 { // Last field might end at EOF.
-		a[na] = s[fieldStart:]
+
+	// Create strings from recorded field indices.
+	a := make([]string, len(spans))
+	for i, span := range spans {
+		a[i] = s[span.start:span.end]
 	}
+
 	return a
 }
 
