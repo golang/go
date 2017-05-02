@@ -647,7 +647,7 @@ opswitch:
 
 			// Update type of OCALLFUNC node.
 			// Output arguments had not changed, but their offsets could.
-			if n.Left.Type.Results().NumFields() == 1 {
+			if n.Left.Type.NumResults() == 1 {
 				n.Type = n.Left.Type.Results().Field(0).Type
 			} else {
 				n.Type = n.Left.Type.Results()
@@ -2778,14 +2778,14 @@ func vmkcall(fn *Node, t *types.Type, init *Nodes, va []*Node) *Node {
 		Fatalf("mkcall %v %v", fn, fn.Type)
 	}
 
-	n := fn.Type.Params().NumFields()
+	n := fn.Type.NumParams()
 	if n != len(va) {
 		Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
 	}
 
 	r := nod(OCALL, fn, nil)
 	r.List.Set(va)
-	if fn.Type.Results().NumFields() > 0 {
+	if fn.Type.NumResults() > 0 {
 		r = typecheck(r, Erv|Efnstruct)
 	} else {
 		r = typecheck(r, Etop)
@@ -3706,16 +3706,16 @@ func usemethod(n *Node) {
 	//
 	// TODO(crawshaw): improve precision of match by working out
 	//                 how to check the method name.
-	if n := t.Params().NumFields(); n != 1 {
+	if n := t.NumParams(); n != 1 {
 		return
 	}
-	if n := t.Results().NumFields(); n != 1 && n != 2 {
+	if n := t.NumResults(); n != 1 && n != 2 {
 		return
 	}
 	p0 := t.Params().Field(0)
 	res0 := t.Results().Field(0)
 	var res1 *types.Field
-	if t.Results().NumFields() == 2 {
+	if t.NumResults() == 2 {
 		res1 = t.Results().Field(1)
 	}
 

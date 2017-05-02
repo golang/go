@@ -1756,7 +1756,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 		call := nod(OCALL, dot, nil)
 		call.List.Set(args)
 		call.SetIsddd(isddd)
-		if method.Type.Results().NumFields() > 0 {
+		if method.Type.NumResults() > 0 {
 			n := nod(ORETURN, nil, nil)
 			n.List.Set1(call)
 			call = n

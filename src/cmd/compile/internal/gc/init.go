@@ -208,8 +208,7 @@ func fninit(n []*Node) {
 }
 
 func (n *Node) checkInitFuncSignature() {
-	ft := n.Type.FuncType()
-	if ft.Receiver.Fields().Len()+ft.Params.Fields().Len()+ft.Results.Fields().Len() > 0 {
+	if n.Type.NumRecvs()+n.Type.NumParams()+n.Type.NumResults() > 0 {
 		Fatalf("init function cannot have receiver, params, or results: %v (%v)", n, n.Type)
 	}
 }

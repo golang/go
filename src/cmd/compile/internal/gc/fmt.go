@@ -814,7 +814,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 		}
 		buf = append(buf, tmodeString(t.Params(), mode, depth)...)
 
-		switch t.Results().NumFields() {
+		switch t.NumResults() {
 		case 0:
 			// nothing to do
 

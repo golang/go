@@ -1294,11 +1294,11 @@ OpSwitch:
 
 		typecheckaste(OCALL, n.Left, n.Isddd(), t.Params(), n.List, func() string { return fmt.Sprintf("argument to %v", n.Left) })
 		ok |= Etop
-		if t.Results().NumFields() == 0 {
+		if t.NumResults() == 0 {
 			break OpSwitch
 		}
 		ok |= Erv
-		if t.Results().NumFields() == 1 {
+		if t.NumResults() == 1 {
 			n.Type = l.Type.Results().Field(0).Type
 
 			if n.Op == OCALLFUNC && n.Left.Op == ONAME && isRuntimePkg(n.Left.Sym.Pkg) && n.Left.Sym.Name == "getg" {
@@ -1476,8 +1476,8 @@ OpSwitch:
 				// Bail. This error will be reported elsewhere.
 				return n
 			}
-			if t.Results().NumFields() != 2 {
-				yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.Results().NumFields())
+			if t.NumResults() != 2 {
+				yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.NumResults())
 				n.Type = nil
 				return n
 			}
@@ -4001,7 +4001,7 @@ func (n *Node) isterminating() bool {
 
 // checkreturn makes sure that fn terminates appropriately.
 func checkreturn(fn *Node) {
-	if fn.Type.Results().NumFields() != 0 && fn.Nbody.Len() != 0 {
+	if fn.Type.NumResults() != 0 && fn.Nbody.Len() != 0 {
 		markbreaklist(fn.Nbody, nil)
 		if !fn.Nbody.isterminating() {
 			yyerrorl(fn.Func.Endlineno, "missing return at end of function")

@@ -707,6 +707,10 @@ func (t *Type) Recvs() *Type   { return t.FuncType().Receiver }
 func (t *Type) Params() *Type  { return t.FuncType().Params }
 func (t *Type) Results() *Type { return t.FuncType().Results }
 
+func (t *Type) NumRecvs() int   { return t.FuncType().Receiver.NumFields() }
+func (t *Type) NumParams() int  { return t.FuncType().Params.NumFields() }
+func (t *Type) NumResults() int { return t.FuncType().Results.NumFields() }
+
 // Recv returns the receiver of function type t, if any.
 func (t *Type) Recv() *Field {
 	s := t.Recvs()

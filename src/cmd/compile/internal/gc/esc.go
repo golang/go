@@ -848,7 +848,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 
 	case ORETURN:
 		retList := n.List
-		if retList.Len() == 1 && Curfn.Type.Results().NumFields() > 1 {
+		if retList.Len() == 1 && Curfn.Type.NumResults() > 1 {
 			// OAS2FUNC in disguise
 			// esccall already done on n.List.First()
 			// tie e.nodeEscState(n.List.First()).Retval to Curfn.Func.Dcl PPARAMOUT's

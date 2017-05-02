@@ -37,7 +37,7 @@ func emitptrargsmap() {
 	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
 	nbitmap := 1
-	if Curfn.Type.Results().NumFields() > 0 {
+	if Curfn.Type.NumResults() > 0 {
 		nbitmap = 2
 	}
 	off := duint32(lsym, 0, uint32(nbitmap))
@@ -48,13 +48,13 @@ func emitptrargsmap() {
 		onebitwalktype1(Curfn.Type.Recvs(), &xoffset, bv)
 	}
 
-	if Curfn.Type.Params().NumFields() > 0 {
+	if Curfn.Type.NumParams() > 0 {
 		xoffset = 0
 		onebitwalktype1(Curfn.Type.Params(), &xoffset, bv)
 	}
 
 	off = dbvec(lsym, off, bv)
-	if Curfn.Type.Results().NumFields() > 0 {
+	if Curfn.Type.NumResults() > 0 {
 		xoffset = 0
 		onebitwalktype1(Curfn.Type.Results(), &xoffset, bv)
 		off = dbvec(lsym, off, bv)

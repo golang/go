@@ -346,14 +346,14 @@ func ismulticall(l Nodes) bool {
 	}
 
 	// call must return multiple values
-	return n.Left.Type.Results().NumFields() > 1
+	return n.Left.Type.NumResults() > 1
 }
 
 // Copyret emits t1, t2, ... = n, where n is a function call,
 // and then returns the list t1, t2, ....
 func copyret(n *Node, order *Order) []*Node {
 	if !n.Type.IsFuncArgStruct() {
-		Fatalf("copyret %v %d", n.Type, n.Left.Type.Results().NumFields())
+		Fatalf("copyret %v %d", n.Type, n.Left.Type.NumResults())
 	}
 
 	var l1 []*Node

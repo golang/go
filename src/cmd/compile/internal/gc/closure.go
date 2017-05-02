@@ -645,7 +645,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	call := nod(OCALL, nodSym(OXDOT, ptr, meth), nil)
 	call.List.Set(callargs)
 	call.SetIsddd(ddd)
-	if t0.Results().NumFields() == 0 {
+	if t0.NumResults() == 0 {
 		body = append(body, call)
 	} else {
 		n := nod(OAS2, nil, nil)
