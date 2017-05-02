@@ -11,57 +11,99 @@ package main
 
 import "fmt"
 
-const c32 = 0xaa00dd
-const c64 = 0xaa00dd55000066
+const c32a = 0x00aa00dd
+const c32s = 0x00ffff00
+const c64a = 0x00aa00dd55000066
+const c64s = 0x00ffff00004fff00
 
 //go:noinline
-func add32(x uint32) uint32 {
-	return x + c32
+func add32a(x uint32) uint32 {
+	return x + c32a
 }
 
 //go:noinline
-func sub32(x uint32) uint32 {
-	return x - c32
+func add32s(x uint32) uint32 {
+	return x + c32s
+}
+
+//go:noinline
+func sub32a(x uint32) uint32 {
+	return x - c32a
+}
+
+//go:noinline
+func sub32s(x uint32) uint32 {
+	return x - c32s
 }
 
 //go:noinline
 func or32(x uint32) uint32 {
-	return x | c32
+	return x | c32a
 }
 
 //go:noinline
 func xor32(x uint32) uint32 {
-	return x ^ c32
+	return x ^ c32a
 }
 
 //go:noinline
-func subr32(x uint32) uint32 {
-	return c32 - x
+func subr32a(x uint32) uint32 {
+	return c32a - x
 }
 
 //go:noinline
-func add64(x uint64) uint64 {
-	return x + c64
+func subr32s(x uint32) uint32 {
+	return c32s - x
 }
 
 //go:noinline
-func sub64(x uint64) uint64 {
-	return x - c64
+func bic32(x uint32) uint32 {
+	return x &^ c32a
+}
+
+//go:noinline
+func add64a(x uint64) uint64 {
+	return x + c64a
+}
+
+//go:noinline
+func add64s(x uint64) uint64 {
+	return x + c64s
+}
+
+//go:noinline
+func sub64a(x uint64) uint64 {
+	return x - c64a
+}
+
+//go:noinline
+func sub64s(x uint64) uint64 {
+	return x - c64s
 }
 
 //go:noinline
 func or64(x uint64) uint64 {
-	return x | c64
+	return x | c64a
 }
 
 //go:noinline
 func xor64(x uint64) uint64 {
-	return x ^ c64
+	return x ^ c64a
 }
 
 //go:noinline
-func subr64(x uint64) uint64 {
-	return c64 - x
+func subr64a(x uint64) uint64 {
+	return c64a - x
+}
+
+//go:noinline
+func subr64s(x uint64) uint64 {
+	return c64s - x
+}
+
+//go:noinline
+func bic64(x uint64) uint64 {
+	return x &^ c64a
 }
 
 // Note: x-c gets rewritten to x+(-c), so SUB and SBC are not directly testable.
@@ -75,39 +117,63 @@ func main() {
 func test32() {
 	var a uint32 = 0x11111111
 	var want, got uint32
-	if want, got = a+c32, add32(a); got != want {
-		panic(fmt.Sprintf("add32(%x) = %x, want %x", a, got, want))
+	if want, got = a+c32a, add32a(a); got != want {
+		panic(fmt.Sprintf("add32a(%x) = %x, want %x", a, got, want))
 	}
-	if want, got = a-c32, sub32(a); got != want {
-		panic(fmt.Sprintf("sub32(%x) = %x, want %x", a, got, want))
+	if want, got = a+c32s, add32s(a); got != want {
+		panic(fmt.Sprintf("add32s(%x) = %x, want %x", a, got, want))
 	}
-	if want, got = a|c32, or32(a); got != want {
+	if want, got = a-c32a, sub32a(a); got != want {
+		panic(fmt.Sprintf("sub32a(%x) = %x, want %x", a, got, want))
+	}
+	if want, got = a-c32s, sub32s(a); got != want {
+		panic(fmt.Sprintf("sub32s(%x) = %x, want %x", a, got, want))
+	}
+	if want, got = a|c32a, or32(a); got != want {
 		panic(fmt.Sprintf("or32(%x) = %x, want %x", a, got, want))
 	}
-	if want, got = a^c32, xor32(a); got != want {
+	if want, got = a^c32a, xor32(a); got != want {
 		panic(fmt.Sprintf("xor32(%x) = %x, want %x", a, got, want))
 	}
-	if want, got = c32-a, subr32(a); got != want {
-		panic(fmt.Sprintf("subr32(%x) = %x, want %x", a, got, want))
+	if want, got = c32a-a, subr32a(a); got != want {
+		panic(fmt.Sprintf("subr32a(%x) = %x, want %x", a, got, want))
+	}
+	if want, got = c32s-a, subr32s(a); got != want {
+		panic(fmt.Sprintf("subr32s(%x) = %x, want %x", a, got, want))
+	}
+	if want, got = a&^c32a, bic32(a); got != want {
+		panic(fmt.Sprintf("bic32(%x) = %x, want %x", a, got, want))
 	}
 }
 
 func test64() {
 	var a uint64 = 0x1111111111111111
 	var want, got uint64
-	if want, got = a+c64, add64(a); got != want {
-		panic(fmt.Sprintf("add64(%x) = %x, want %x", a, got, want))
+	if want, got = a+c64a, add64a(a); got != want {
+		panic(fmt.Sprintf("add64a(%x) = %x, want %x", a, got, want))
 	}
-	if want, got = a-c64, sub64(a); got != want {
-		panic(fmt.Sprintf("sub64(%x) = %x, want %x", a, got, want))
+	if want, got = a+c64s, add64s(a); got != want {
+		panic(fmt.Sprintf("add64s(%x) = %x, want %x", a, got, want))
 	}
-	if want, got = a|c64, or64(a); got != want {
+	if want, got = a-c64a, sub64a(a); got != want {
+		panic(fmt.Sprintf("sub64a(%x) = %x, want %x", a, got, want))
+	}
+	if want, got = a-c64s, sub64s(a); got != want {
+		panic(fmt.Sprintf("sub64s(%x) = %x, want %x", a, got, want))
+	}
+	if want, got = a|c64a, or64(a); got != want {
 		panic(fmt.Sprintf("or64(%x) = %x, want %x", a, got, want))
 	}
-	if want, got = a^c64, xor64(a); got != want {
+	if want, got = a^c64a, xor64(a); got != want {
 		panic(fmt.Sprintf("xor64(%x) = %x, want %x", a, got, want))
 	}
-	if want, got = c64-a, subr64(a); got != want {
-		panic(fmt.Sprintf("subr64(%x) = %x, want %x", a, got, want))
+	if want, got = c64a-a, subr64a(a); got != want {
+		panic(fmt.Sprintf("subr64a(%x) = %x, want %x", a, got, want))
+	}
+	if want, got = c64s-a, subr64s(a); got != want {
+		panic(fmt.Sprintf("subr64s(%x) = %x, want %x", a, got, want))
+	}
+	if want, got = a&^c64a, bic64(a); got != want {
+		panic(fmt.Sprintf("bic64(%x) = %x, want %x", a, got, want))
 	}
 }
