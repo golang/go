@@ -6,7 +6,7 @@
 
 #include "textflag.h"
 
-// SHA1 block routine. See sha1block.go for Go equivalent.
+// SHA-1 block routine. See sha1block.go for Go equivalent.
 //
 // There are 80 rounds of 4 types:
 //   - rounds 0-15 are type 1 and load data (ROUND1 macro).
@@ -25,11 +25,11 @@
 // Register definitions
 #define Rdata	R0	// Pointer to incoming data
 #define Rconst	R1	// Current constant for SHA round
-#define Ra	R2		// SHA1 accumulator
-#define Rb	R3		// SHA1 accumulator
-#define Rc	R4		// SHA1 accumulator
-#define Rd	R5		// SHA1 accumulator
-#define Re	R6		// SHA1 accumulator
+#define Ra	R2		// SHA-1 accumulator
+#define Rb	R3		// SHA-1 accumulator
+#define Rc	R4		// SHA-1 accumulator
+#define Rd	R5		// SHA-1 accumulator
+#define Re	R6		// SHA-1 accumulator
 #define Rt0	R7		// Temporary
 #define Rt1	R8		// Temporary
 // r9, r10 are forbidden
@@ -143,7 +143,7 @@ TEXT	·block(SB), 0, $352-16
 	ADD	Rdata, Rt0
 	MOVW	Rt0, p_end	// pointer to end of data
 
-	// Load up initial SHA1 accumulator
+	// Load up initial SHA-1 accumulator
 	MOVW	dig+0(FP), Rt0
 	MOVM.IA (Rt0), [Ra,Rb,Rc,Rd,Re]
 
@@ -210,7 +210,7 @@ loop4:	ROUND4(Ra, Rb, Rc, Rd, Re)
 	CMP	Rt0, Rdata
 	BLO	loop
 
-	// Save final SHA1 accumulator
+	// Save final SHA-1 accumulator
 	MOVW	dig+0(FP), Rt0
 	MOVM.IA [Ra,Rb,Rc,Rd,Re], (Rt0)
 

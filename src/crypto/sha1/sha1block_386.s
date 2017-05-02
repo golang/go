@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-// SHA1 block routine. See sha1block.go for Go equivalent.
+// SHA-1 block routine. See sha1block.go for Go equivalent.
 //
 // There are 80 rounds of 4 types:
 //   - rounds 0-15 are type 1 and load data (ROUND1 macro).

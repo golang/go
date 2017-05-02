@@ -5,6 +5,8 @@
 // Package des implements the Data Encryption Standard (DES) and the
 // Triple Data Encryption Algorithm (TDEA) as defined
 // in U.S. Federal Information Processing Standards Publication 46-3.
+//
+// DES is broken and should not be used anymore.
 package des
 
 // Used to perform an initial permutation of a 64-bit input block.
