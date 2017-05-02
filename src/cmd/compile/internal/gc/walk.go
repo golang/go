@@ -3298,7 +3298,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		// We can compare several elements at once with 2/4/8 byte integer compares
 		inline = t.NumElem() <= 1 || (issimple[t.Elem().Etype] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
 	case TSTRUCT:
-		inline = t.NumFields() <= 4
+		inline = t.NumComponents() <= 4
 	}
 
 	cmpl := n.Left
