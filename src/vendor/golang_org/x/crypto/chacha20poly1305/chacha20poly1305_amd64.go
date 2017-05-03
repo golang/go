@@ -14,13 +14,60 @@ func chacha20Poly1305Open(dst []byte, key []uint32, src, ad []byte) bool
 //go:noescape
 func chacha20Poly1305Seal(dst []byte, key []uint32, src, ad []byte)
 
-//go:noescape
-func haveSSSE3() bool
+// cpuid is implemented in chacha20poly1305_amd64.s.
+func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
 
-var canUseASM bool
+// xgetbv with ecx = 0 is implemented in chacha20poly1305_amd64.s.
+func xgetbv() (eax, edx uint32)
+
+var (
+	useASM  bool
+	useAVX2 bool
+)
 
 func init() {
-	canUseASM = haveSSSE3()
+	detectCpuFeatures()
+}
+
+// detectCpuFeatures is used to detect if cpu instructions
+// used by the functions implemented in assembler in
+// chacha20poly1305_amd64.s are supported.
+func detectCpuFeatures() {
+	maxId, _, _, _ := cpuid(0, 0)
+	if maxId < 1 {
+		return
+	}
+
+	_, _, ecx1, _ := cpuid(1, 0)
+
+	haveSSSE3 := isSet(9, ecx1)
+	useASM = haveSSSE3
+
+	haveOSXSAVE := isSet(27, ecx1)
+
+	osSupportsAVX := false
+	// For XGETBV, OSXSAVE bit is required and sufficient.
+	if haveOSXSAVE {
+		eax, _ := xgetbv()
+		// Check if XMM and YMM registers have OS support.
+		osSupportsAVX = isSet(1, eax) && isSet(2, eax)
+	}
+	haveAVX := isSet(28, ecx1) && osSupportsAVX
+
+	if maxId < 7 {
+		return
+	}
+
+	_, ebx7, _, _ := cpuid(7, 0)
+	haveAVX2 := isSet(5, ebx7) && haveAVX
+	haveBMI2 := isSet(8, ebx7)
+
+	useAVX2 = haveAVX2 && haveBMI2
+}
+
+// isSet checks if bit at bitpos is set in value.
+func isSet(bitpos uint, value uint32) bool {
+	return value&(1<<bitpos) != 0
 }
 
 // setupState writes a ChaCha20 input matrix to state. See
@@ -47,7 +94,7 @@ func setupState(state *[16]uint32, key *[32]byte, nonce []byte) {
 }
 
 func (c *chacha20poly1305) seal(dst, nonce, plaintext, additionalData []byte) []byte {
-	if !canUseASM {
+	if !useASM {
 		return c.sealGeneric(dst, nonce, plaintext, additionalData)
 	}
 
@@ -60,7 +107,7 @@ func (c *chacha20poly1305) seal(dst, nonce, plaintext, additionalData []byte) []
 }
 
 func (c *chacha20poly1305) open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
-	if !canUseASM {
+	if !useASM {
 		return c.openGeneric(dst, nonce, ciphertext, additionalData)
 	}
 
