@@ -654,7 +654,7 @@ type ChangeInterface struct {
 // value of a concrete type.
 //
 // Use Program.MethodSets.MethodSet(X.Type()) to find the method-set
-// of X, and Program.Method(m) to find the implementation of a method.
+// of X, and Program.MethodValue(m) to find the implementation of a method.
 //
 // To construct the zero value of an interface type T, use:
 // 	NewConst(constant.MakeNil(), T, pos)

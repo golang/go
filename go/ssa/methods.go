@@ -23,14 +23,14 @@ import (
 //
 func (prog *Program) MethodValue(sel *types.Selection) *Function {
 	if sel.Kind() != types.MethodVal {
-		panic(fmt.Sprintf("Method(%s) kind != MethodVal", sel))
+		panic(fmt.Sprintf("MethodValue(%s) kind != MethodVal", sel))
 	}
 	T := sel.Recv()
 	if isInterface(T) {
 		return nil // abstract method
 	}
 	if prog.mode&LogSource != 0 {
-		defer logStack("Method %s %v", T, sel)()
+		defer logStack("MethodValue %s %v", T, sel)()
 	}
 
 	prog.methodsMu.Lock()
