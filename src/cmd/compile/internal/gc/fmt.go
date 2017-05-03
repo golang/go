@@ -1509,16 +1509,10 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		}
 		mode.Fprintf(s, "make(%v)", n.Type)
 
+	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
 		// Unary
-	case OPLUS,
-		OMINUS,
-		OADDR,
-		OCOM,
-		OIND,
-		ONOT,
-		ORECV:
 		mode.Fprintf(s, "%#v", n.Op)
-		if n.Left.Op == n.Op {
+		if n.Left != nil && n.Left.Op == n.Op {
 			fmt.Fprint(s, " ")
 		}
 		n.Left.exprfmt(s, nprec+1, mode)
