@@ -73,6 +73,11 @@ func init() {
 	}
 }
 
+// testGOROOT is the GOROOT to use when running testgo, a cmd/go binary
+// build from this process's current GOROOT, but run from a different
+// (temp) directory.
+var testGOROOT string
+
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
@@ -86,6 +91,13 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
 			os.Exit(2)
 		}
+
+		out, err = exec.Command("go", "env", "GOROOT").CombinedOutput()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "could not find testing GOROOT: %v\n%s", err, out)
+			os.Exit(2)
+		}
+		testGOROOT = strings.TrimSpace(string(out))
 
 		if out, err := exec.Command("./testgo"+exeSuffix, "env", "CGO_ENABLED").Output(); err != nil {
 			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n", err)
@@ -253,6 +265,13 @@ func (tg *testgoData) unsetenv(name string) {
 	}
 }
 
+func (tg *testgoData) goTool() string {
+	if tg.wd == "" {
+		return "./testgo" + exeSuffix
+	}
+	return filepath.Join(tg.wd, "testgo"+exeSuffix)
+}
+
 // doRun runs the test go command, recording stdout and stderr and
 // returning exit status.
 func (tg *testgoData) doRun(args []string) error {
@@ -266,13 +285,20 @@ func (tg *testgoData) doRun(args []string) error {
 			}
 		}
 	}
-	tg.t.Logf("running testgo %v", args)
-	var prog string
-	if tg.wd == "" {
-		prog = "./testgo" + exeSuffix
-	} else {
-		prog = filepath.Join(tg.wd, "testgo"+exeSuffix)
+
+	hasGoroot := false
+	for _, v := range tg.env {
+		if strings.HasPrefix(v, "GOROOT=") {
+			hasGoroot = true
+			break
+		}
 	}
+	prog := tg.goTool()
+	if !hasGoroot {
+		tg.setenv("GOROOT", testGOROOT)
+	}
+
+	tg.t.Logf("running testgo %v", args)
 	cmd := exec.Command(prog, args...)
 	tg.stdout.Reset()
 	tg.stderr.Reset()
@@ -3896,4 +3922,94 @@ func TestBuildTagsNoComma(t *testing.T) {
 	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
 	tg.runFail("build", "-tags", "tag1,tag2", "math")
 	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
+}
+
+func copyFile(src, dst string, perm os.FileMode) error {
+	sf, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sf.Close()
+
+	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(df, sf)
+	err2 := df.Close()
+	if err != nil {
+		return err
+	}
+	return err2
+}
+
+func TestExecutableGOROOT(t *testing.T) {
+	if runtime.GOOS == "openbsd" {
+		t.Skipf("test case does not work on %s, missing os.Executable", runtime.GOOS)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.makeTempdir()
+	tg.tempDir("newgoroot/bin")
+	newGoTool := tg.path("newgoroot/bin/go" + exeSuffix)
+	err := copyFile(tg.goTool(), newGoTool, 0775)
+	if err != nil {
+		t.Fatalf("error copying go tool %v", err)
+	}
+
+	goroot := func(goTool string) string {
+		cmd := exec.Command(goTool, "env", "GOROOT")
+		cmd.Env = os.Environ()
+		for i, val := range cmd.Env {
+			if strings.HasPrefix(val, "GOROOT=") {
+				cmd.Env = append(cmd.Env[:i], cmd.Env[i+1:]...)
+				break
+			}
+		}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("copied go tool failed %v: %s", err, out)
+			return ""
+		}
+		return strings.TrimSpace(string(out))
+	}
+
+	// macOS uses a symlink for /tmp.
+	resolvedTestGOROOT, err := filepath.EvalSymlinks(testGOROOT)
+	if err != nil {
+		t.Fatalf("could not eval testgoroot symlinks: %v", err)
+	}
+
+	// Missing GOROOT/pkg/tool, the go tool should fall back to
+	// its default path.
+	if got, want := goroot(newGoTool), resolvedTestGOROOT; got != want {
+		t.Fatalf("%s env GOROOT = %q, want %q", newGoTool, got, want)
+	}
+
+	// Now the executable's path looks like a GOROOT.
+	tg.tempDir("newgoroot/pkg/tool")
+	if got, want := goroot(newGoTool), tg.path("newgoroot"); got != want {
+		t.Fatalf("%s env GOROOT = %q with pkg/tool, want %q", newGoTool, got, want)
+	}
+
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping symlink test on %s", runtime.GOOS)
+	}
+
+	tg.tempDir("notgoroot/bin")
+	symGoTool := tg.path("notgoroot/bin/go" + exeSuffix)
+	tg.must(os.Symlink(newGoTool, symGoTool))
+
+	resolvedNewGOROOT, err := filepath.EvalSymlinks(tg.path("newgoroot"))
+	if err != nil {
+		t.Fatalf("could not eval newgoroot symlinks: %v", err)
+	}
+
+	if got, want := goroot(symGoTool), resolvedNewGOROOT; got != want {
+		t.Fatalf("%s env GOROOT = %q, want %q", symGoTool, got, want)
+	}
 }

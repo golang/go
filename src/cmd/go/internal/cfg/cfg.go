@@ -64,9 +64,44 @@ var (
 )
 
 var (
-	GOROOT    = filepath.Clean(runtime.GOROOT())
+	GOROOT    = findGOROOT()
 	GOBIN     = os.Getenv("GOBIN")
 	GOROOTbin = filepath.Join(GOROOT, "bin")
 	GOROOTpkg = filepath.Join(GOROOT, "pkg")
 	GOROOTsrc = filepath.Join(GOROOT, "src")
 )
+
+func findGOROOT() string {
+	if env := os.Getenv("GOROOT"); env != "" {
+		return filepath.Clean(env)
+	}
+	exe, err := os.Executable()
+	if err == nil {
+		exe, err = filepath.Abs(exe)
+		if err == nil {
+			if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
+				return dir
+			}
+			exe, err = filepath.EvalSymlinks(exe)
+			if err == nil {
+				if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
+					return dir
+				}
+			}
+		}
+	}
+	return filepath.Clean(runtime.GOROOT())
+}
+
+// isGOROOT reports whether path looks like a GOROOT.
+//
+// It does this by looking for the path/pkg/tool directory,
+// which is necessary for useful operation of the cmd/go tool,
+// and is not typically present in a GOPATH.
+func isGOROOT(path string) bool {
+	stat, err := os.Stat(filepath.Join(path, "pkg", "tool"))
+	if err != nil {
+		return false
+	}
+	return stat.IsDir()
+}
