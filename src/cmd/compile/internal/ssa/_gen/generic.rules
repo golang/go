@@ -277,12 +277,13 @@
 (EqB (ConstBool [c]) (ConstBool [d])) => (ConstBool [c == d])
 (EqB (ConstBool [false]) x) => (Not x)
 (EqB (ConstBool [true]) x) => x
+(EqB (Not x) y) => (NeqB x y)
 
 (Neq(64|32|16|8|B) x x) => (ConstBool [false])
 (NeqB (ConstBool [c]) (ConstBool [d])) => (ConstBool [c != d])
 (NeqB (ConstBool [false]) x) => x
 (NeqB (ConstBool [true]) x) => (Not x)
-(NeqB (Not x) (Not y)) => (NeqB x y)
+(NeqB (Not x) y) => (EqB x y)
 
 (Eq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) => (Eq64 (Const64 <t> [c-d]) x)
 (Eq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) => (Eq32 (Const32 <t> [c-d]) x)

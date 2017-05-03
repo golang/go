@@ -8544,6 +8544,21 @@ func rewriteValuegeneric_OpEqB(v *Value) bool {
 		}
 		break
 	}
+	// match: (EqB (Not x) y)
+	// result: (NeqB x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNot {
+				continue
+			}
+			x := v_0.Args[0]
+			y := v_1
+			v.reset(OpNeqB)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValuegeneric_OpEqInter(v *Value) bool {
@@ -19738,19 +19753,16 @@ func rewriteValuegeneric_OpNeqB(v *Value) bool {
 		}
 		break
 	}
-	// match: (NeqB (Not x) (Not y))
-	// result: (NeqB x y)
+	// match: (NeqB (Not x) y)
+	// result: (EqB x y)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpNot {
 				continue
 			}
 			x := v_0.Args[0]
-			if v_1.Op != OpNot {
-				continue
-			}
-			y := v_1.Args[0]
-			v.reset(OpNeqB)
+			y := v_1
+			v.reset(OpEqB)
 			v.AddArg2(x, y)
 			return true
 		}
