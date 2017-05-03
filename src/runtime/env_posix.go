@@ -13,7 +13,7 @@ func gogetenv(key string) string {
 	if env == nil {
 		throw("getenv before env init")
 	}
-	for _, s := range environ() {
+	for _, s := range env {
 		if len(s) > len(key) && s[len(key)] == '=' && s[:len(key)] == key {
 			return s[len(key)+1:]
 		}
