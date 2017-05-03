@@ -7894,6 +7894,24 @@ func rewriteValuegeneric_OpEqB_0(v *Value) bool {
 		v.AuxInt = b2i(c == d)
 		return true
 	}
+	// match: (EqB (ConstBool [d]) (ConstBool [c]))
+	// cond:
+	// result: (ConstBool [b2i(c == d)])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConstBool {
+			break
+		}
+		d := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConstBool {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(c == d)
+		return true
+	}
 	// match: (EqB (ConstBool [0]) x)
 	// cond:
 	// result: (Not x)
@@ -7910,6 +7928,22 @@ func rewriteValuegeneric_OpEqB_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (EqB x (ConstBool [0]))
+	// cond:
+	// result: (Not x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConstBool {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		v.reset(OpNot)
+		v.AddArg(x)
+		return true
+	}
 	// match: (EqB (ConstBool [1]) x)
 	// cond:
 	// result: x
@@ -7922,6 +7956,23 @@ func rewriteValuegeneric_OpEqB_0(v *Value) bool {
 			break
 		}
 		x := v.Args[1]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (EqB x (ConstBool [1]))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConstBool {
+			break
+		}
+		if v_1.AuxInt != 1 {
+			break
+		}
 		v.reset(OpCopy)
 		v.Type = x.Type
 		v.AddArg(x)
@@ -14438,6 +14489,24 @@ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
 		v.AuxInt = b2i(c != d)
 		return true
 	}
+	// match: (NeqB (ConstBool [d]) (ConstBool [c]))
+	// cond:
+	// result: (ConstBool [b2i(c != d)])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConstBool {
+			break
+		}
+		d := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConstBool {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(c != d)
+		return true
+	}
 	// match: (NeqB (ConstBool [0]) x)
 	// cond:
 	// result: x
@@ -14455,6 +14524,23 @@ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (NeqB x (ConstBool [0]))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConstBool {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	// match: (NeqB (ConstBool [1]) x)
 	// cond:
 	// result: (Not x)
@@ -14467,6 +14553,22 @@ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
 			break
 		}
 		x := v.Args[1]
+		v.reset(OpNot)
+		v.AddArg(x)
+		return true
+	}
+	// match: (NeqB x (ConstBool [1]))
+	// cond:
+	// result: (Not x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConstBool {
+			break
+		}
+		if v_1.AuxInt != 1 {
+			break
+		}
 		v.reset(OpNot)
 		v.AddArg(x)
 		return true
