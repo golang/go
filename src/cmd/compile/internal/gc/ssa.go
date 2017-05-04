@@ -3399,7 +3399,7 @@ func (s *state) exprPtr(n *Node, bounded bool, lineno src.XPos) *ssa.Value {
 // Used only for automatically inserted nil checks,
 // not for user code like 'x != nil'.
 func (s *state) nilCheck(ptr *ssa.Value) {
-	if disable_checknil != 0 {
+	if disable_checknil != 0 || s.curfn.Func.NilCheckDisabled() {
 		return
 	}
 	s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())

@@ -1087,6 +1087,8 @@ var concurrentFlagOK = [256]bool{
 	'I': true, // add `directory` to import search path
 	'N': true, // disable optimizations
 	'l': true, // disable inlining
+	'w': true, // all printing happens before compilation
+	'W': true, // all printing happens before compilation
 }
 
 func concurrentBackendAllowed() bool {
