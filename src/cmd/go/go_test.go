@@ -3090,7 +3090,7 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
 	tg.run("test", "-race", "-i", "runtime/race")
 	new, err := os.Stat(cgo)
 	tg.must(err)
-	if new.ModTime() != old.ModTime() {
+	if !new.ModTime().Equal(old.ModTime()) {
 		t.Fatalf("go test -i runtime/race reinstalled cmd/cgo")
 	}
 }
