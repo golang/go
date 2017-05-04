@@ -171,6 +171,7 @@ func TestStdFixed(t *testing.T) {
 		"issue18459.go", // go/types doesn't check validity of //go:xxx directives
 		"issue18882.go", // go/types doesn't check validity of //go:xxx directives
 		"issue20232.go", // go/types handles larger constants than gc
+		"issue20227.go", // go/types does not handle this yet
 	)
 }
 
