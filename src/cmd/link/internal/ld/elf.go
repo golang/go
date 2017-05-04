@@ -936,7 +936,7 @@ func Elfinit(ctxt *Link) {
 		fallthrough
 	case sys.AMD64, sys.ARM64, sys.MIPS64:
 		if SysArch.Family == sys.MIPS64 {
-			ehdr.flags = 0x20000000 /* MIPS 3 */
+			ehdr.flags = 0x20000004 /* MIPS 3 CPIC */
 		}
 		elf64 = true
 
