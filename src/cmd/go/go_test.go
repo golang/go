@@ -4013,3 +4013,14 @@ func TestExecutableGOROOT(t *testing.T) {
 		t.Fatalf("%s env GOROOT = %q, want %q", symGoTool, got, want)
 	}
 }
+
+func TestNeedVersion(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("goversion.go", `package main; func main() {}`)
+	path := tg.path("goversion.go")
+	tg.setenv("TESTGO_VERSION", "go1.testgo")
+	tg.runFail("run", path)
+	tg.grepStderr("compile", "does not match go tool version")
+}
