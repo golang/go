@@ -2156,7 +2156,9 @@ OpSwitch:
 
 	evconst(n)
 	if n.Op == OTYPE && top&Etype == 0 {
-		yyerror("type %v is not an expression", n.Type)
+		if !n.Type.Broke() {
+			yyerror("type %v is not an expression", n.Type)
+		}
 		n.Type = nil
 		return n
 	}

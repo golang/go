@@ -15,7 +15,7 @@ type I interface {
 }
 
 func n() {
-	(I) // ERROR "type I is not an expression"
+	(I)
 }
 
 func m() {
