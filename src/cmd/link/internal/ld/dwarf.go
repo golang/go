@@ -1448,6 +1448,11 @@ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
 }
 
 func writegdbscript(ctxt *Link, syms []*Symbol) []*Symbol {
+	if Linkmode == LinkExternal && Headtype == objabi.Hwindows {
+		// gcc on Windows places .debug_gdb_scripts to a wrong location
+		// which causes program not to run. See https://golang.org/issue/20183
+		return syms
+	}
 
 	if gdbscript != "" {
 		s := ctxt.Syms.Lookup(".debug_gdb_scripts", 0)
