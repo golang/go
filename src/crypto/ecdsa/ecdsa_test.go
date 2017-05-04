@@ -331,3 +331,25 @@ func TestNegativeInputs(t *testing.T) {
 	testNegativeInputs(t, elliptic.P384(), "p384")
 	testNegativeInputs(t, elliptic.P521(), "p521")
 }
+
+func TestZeroHashSignature(t *testing.T) {
+	zeroHash := make([]byte, 64)
+
+	for _, curve := range []elliptic.Curve{elliptic.P224(), elliptic.P256(), elliptic.P384(), elliptic.P521()} {
+		privKey, err := GenerateKey(curve, rand.Reader)
+		if err != nil {
+			panic(err)
+		}
+
+		// Sign a hash consisting of all zeros.
+		r, s, err := Sign(rand.Reader, privKey, zeroHash)
+		if err != nil {
+			panic(err)
+		}
+
+		// Confirm that it can be verified.
+		if !Verify(&privKey.PublicKey, zeroHash, r, s) {
+			t.Errorf("zero hash signature verify failed for %T", curve)
+		}
+	}
+}
