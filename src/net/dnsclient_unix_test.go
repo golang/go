@@ -784,7 +784,7 @@ func TestRetryTimeout(t *testing.T) {
 			return nil, poll.ErrTimeout
 		}
 
-		if deadline == deadline0 {
+		if deadline.Equal(deadline0) {
 			t.Error("deadline didn't change")
 		}
 

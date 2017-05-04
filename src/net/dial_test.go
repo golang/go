@@ -529,7 +529,7 @@ func TestDialerPartialDeadline(t *testing.T) {
 		if err != tt.expectErr {
 			t.Errorf("#%d: got %v; want %v", i, err, tt.expectErr)
 		}
-		if deadline != tt.expectDeadline {
+		if !deadline.Equal(tt.expectDeadline) {
 			t.Errorf("#%d: got %v; want %v", i, deadline, tt.expectDeadline)
 		}
 	}
