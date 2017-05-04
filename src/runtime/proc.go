@@ -3232,10 +3232,14 @@ var prof struct {
 	hz         int32
 }
 
-func _System()           { _System() }
-func _ExternalCode()     { _ExternalCode() }
-func _LostExternalCode() { _LostExternalCode() }
-func _GC()               { _GC() }
+func _System()                    { _System() }
+func _ExternalCode()              { _ExternalCode() }
+func _LostExternalCode()          { _LostExternalCode() }
+func _GC()                        { _GC() }
+func _LostSIGPROFDuringAtomic64() { _LostSIGPROFDuringAtomic64() }
+
+// Counts SIGPROFs received while in atomic64 critical section, on mips{,le}
+var lostAtomic64Count uint64
 
 // Called if we receive a SIGPROF signal.
 // Called by the signal handler, may run during STW.
@@ -3243,6 +3247,21 @@ func _GC()               { _GC() }
 func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	if prof.hz == 0 {
 		return
+	}
+
+	// On mips{,le}, 64bit atomics are emulated with spinlocks, in
+	// runtime/internal/atomic. If SIGPROF arrives while the program is inside
+	// the critical section, it creates a deadlock (when writing the sample).
+	// As a workaround, create a counter of SIGPROFs while in critical section
+	// to store the count, and pass it to sigprof.add() later when SIGPROF is
+	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
+	if GOARCH == "mips" || GOARCH == "mipsle" {
+		if f := findfunc(pc); f.valid() {
+			if hasprefix(funcname(f), "runtime/internal/atomic") {
+				lostAtomic64Count++
+				return
+			}
+		}
 	}
 
 	// Profiling runs concurrently with GC, so it must not allocate.
@@ -3371,6 +3390,10 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	}
 
 	if prof.hz != 0 {
+		if (GOARCH == "mips" || GOARCH == "mipsle") && lostAtomic64Count > 0 {
+			cpuprof.addLostAtomic64(lostAtomic64Count)
+			lostAtomic64Count = 0
+		}
 		cpuprof.add(gp, stk[:n])
 	}
 	getg().m.mallocing--
