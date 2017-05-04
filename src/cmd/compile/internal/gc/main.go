@@ -222,6 +222,8 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
 	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+	var goversion string
+	flag.StringVar(&goversion, "goversion", "", "required version of the runtime")
 	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
@@ -240,6 +242,11 @@ func Main(archInit func(*Arch)) {
 
 	if flag.NArg() < 1 && debugstr != "help" && debugstr != "ssa/help" {
 		usage()
+	}
+
+	if goversion != "" && goversion != runtime.Version() {
+		fmt.Printf("compile: version %q does not match go tool version %q\n", runtime.Version(), goversion)
+		Exit(2)
 	}
 
 	thearch.LinkArch.Init(Ctxt)

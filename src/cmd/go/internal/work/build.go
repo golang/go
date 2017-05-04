@@ -392,7 +392,12 @@ func BuildModeInit() {
 			cfg.BuildContext.InstallSuffix += codegenArg[1:]
 		}
 	}
+	if strings.HasPrefix(runtimeVersion, "go1") {
+		buildGcflags = append(buildGcflags, "-goversion", runtimeVersion)
+	}
 }
+
+var runtimeVersion = runtime.Version()
 
 func runBuild(cmd *base.Command, args []string) {
 	InstrumentInit()
