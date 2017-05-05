@@ -815,7 +815,11 @@ OpSwitch:
 		var l *Node
 		for l = n.Left; l != r; l = l.Left {
 			l.SetAddrtaken(true)
-			if l.IsClosureVar() {
+			if l.IsClosureVar() && !capturevarscomplete {
+				// Mark the original variable as Addrtaken so that capturevars
+				// knows not to pass it by value.
+				// But if the capturevars phase is complete, don't touch it,
+				// in case l.Name's containing function has not yet been compiled.
 				l.Name.Defn.SetAddrtaken(true)
 			}
 		}
@@ -824,7 +828,8 @@ OpSwitch:
 			Fatalf("found non-orig name node %v", l)
 		}
 		l.SetAddrtaken(true)
-		if l.IsClosureVar() {
+		if l.IsClosureVar() && !capturevarscomplete {
+			// See comments above about closure variables.
 			l.Name.Defn.SetAddrtaken(true)
 		}
 		n.Left = defaultlit(n.Left, nil)

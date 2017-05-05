@@ -243,6 +243,9 @@ func makeclosure(func_ *Node) *Node {
 	return xfunc
 }
 
+// capturevarscomplete is set to true when the capturevars phase is done.
+var capturevarscomplete bool
+
 // capturevars is called in a separate phase after all typechecking is done.
 // It decides whether each variable captured by a closure should be captured
 // by value or by reference.

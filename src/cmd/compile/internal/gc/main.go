@@ -33,15 +33,16 @@ var (
 )
 
 var (
-	Debug_append   int
-	Debug_asm      bool
-	Debug_closure  int
-	debug_dclstack int
-	Debug_panic    int
-	Debug_slice    int
-	Debug_vlog     bool
-	Debug_wb       int
-	Debug_pctab    string
+	Debug_append       int
+	Debug_asm          bool
+	Debug_closure      int
+	Debug_compilelater int
+	debug_dclstack     int
+	Debug_panic        int
+	Debug_slice        int
+	Debug_vlog         bool
+	Debug_wb           int
+	Debug_pctab        string
 )
 
 // Debug arguments.
@@ -56,6 +57,7 @@ var debugtab = []struct {
 }{
 	{"append", "print information about append compilation", &Debug_append},
 	{"closure", "print information about closure compilation", &Debug_closure},
+	{"compilelater", "compile functions as late as possible", &Debug_compilelater},
 	{"disablenil", "disable nil checks", &disable_checknil},
 	{"dclstack", "run internal dclstack check", &debug_dclstack},
 	{"gcprog", "print dump of GC programs", &Debug_gcprog},
@@ -493,6 +495,7 @@ func Main(archInit func(*Arch)) {
 			capturevars(n)
 		}
 	}
+	capturevarscomplete = true
 
 	Curfn = nil
 
