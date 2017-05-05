@@ -438,6 +438,39 @@ func TestEncodePalettes(t *testing.T) {
 	}
 }
 
+func TestEncodeBadPalettes(t *testing.T) {
+	const w, h = 5, 5
+	for _, n := range []int{256, 257} {
+		for _, nilColors := range []bool{false, true} {
+			pal := make(color.Palette, n)
+			if !nilColors {
+				for i := range pal {
+					pal[i] = color.Black
+				}
+			}
+
+			err := EncodeAll(ioutil.Discard, &GIF{
+				Image: []*image.Paletted{
+					image.NewPaletted(image.Rect(0, 0, w, h), pal),
+				},
+				Delay:    make([]int, 1),
+				Disposal: make([]byte, 1),
+				Config: image.Config{
+					ColorModel: pal,
+					Width:      w,
+					Height:     h,
+				},
+			})
+
+			got := err != nil
+			want := n > 256 || nilColors
+			if got != want {
+				t.Errorf("n=%d, nilColors=%t: err != nil: got %t, want %t", n, nilColors, got, want)
+			}
+		}
+	}
+}
+
 func BenchmarkEncode(b *testing.B) {
 	b.StopTimer()
 
