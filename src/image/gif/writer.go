@@ -132,7 +132,12 @@ func (e *encoder) writeHeader() {
 		e.buf[1] = e.g.BackgroundIndex
 		e.buf[2] = 0x00 // Pixel Aspect Ratio.
 		e.write(e.buf[:3])
-		e.globalCT = encodeColorTable(e.globalColorTable[:], p, paddedSize)
+		var err error
+		e.globalCT, err = encodeColorTable(e.globalColorTable[:], p, paddedSize)
+		if err != nil && e.err == nil {
+			e.err = err
+			return
+		}
 		e.write(e.globalColorTable[:e.globalCT])
 	} else {
 		// All frames have a local color table, so a global color table
@@ -149,8 +154,9 @@ func (e *encoder) writeHeader() {
 		e.buf[1] = 0xff // Application Label.
 		e.buf[2] = 0x0b // Block Size.
 		e.write(e.buf[:3])
-		_, e.err = io.WriteString(e.w, "NETSCAPE2.0") // Application Identifier.
-		if e.err != nil {
+		_, err := io.WriteString(e.w, "NETSCAPE2.0") // Application Identifier.
+		if err != nil && e.err == nil {
+			e.err = err
 			return
 		}
 		e.buf[0] = 0x03 // Block Size.
@@ -161,11 +167,18 @@ func (e *encoder) writeHeader() {
 	}
 }
 
-func encodeColorTable(dst []byte, p color.Palette, size int) int {
+func encodeColorTable(dst []byte, p color.Palette, size int) (int, error) {
+	if uint(size) >= uint(len(log2Lookup)) {
+		return 0, errors.New("gif: cannot encode color table with more than 256 entries")
+	}
 	n := log2Lookup[size]
 	for i := 0; i < n; i++ {
 		if i < len(p) {
-			r, g, b, _ := p[i].RGBA()
+			c := p[i]
+			if c == nil {
+				return 0, errors.New("gif: cannot encode color table with nil entries")
+			}
+			r, g, b, _ := c.RGBA()
 			dst[3*i+0] = uint8(r >> 8)
 			dst[3*i+1] = uint8(g >> 8)
 			dst[3*i+2] = uint8(b >> 8)
@@ -176,7 +189,7 @@ func encodeColorTable(dst []byte, p color.Palette, size int) int {
 			dst[3*i+2] = 0x00
 		}
 	}
-	return 3 * n
+	return 3 * n, nil
 }
 
 func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) {
@@ -201,6 +214,10 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 
 	transparentIndex := -1
 	for i, c := range pm.Palette {
+		if c == nil {
+			e.err = errors.New("gif: cannot encode color table with nil entries")
+			return
+		}
 		if _, _, _, a := c.RGBA(); a == 0 {
 			transparentIndex = i
 			break
@@ -235,8 +252,12 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 	e.write(e.buf[:9])
 
 	paddedSize := log2(len(pm.Palette)) // Size of Local Color Table: 2^(1+n).
-	ct := encodeColorTable(e.localColorTable[:], pm.Palette, paddedSize)
-	if ct != e.globalCT || !bytes.Equal(e.globalColorTable[:ct], e.localColorTable[:ct]) {
+	if ct, err := encodeColorTable(e.localColorTable[:], pm.Palette, paddedSize); err != nil {
+		if e.err == nil {
+			e.err = err
+		}
+		return
+	} else if ct != e.globalCT || !bytes.Equal(e.globalColorTable[:ct], e.localColorTable[:ct]) {
 		// Use a local color table.
 		e.writeByte(fColorTable | uint8(paddedSize))
 		e.write(e.localColorTable[:ct])
