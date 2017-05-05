@@ -226,7 +226,7 @@ func compile(fn *Node) {
 // they are enqueued in compilequeue,
 // which is drained by compileFunctions.
 func compilenow() bool {
-	return nBackendWorkers == 1
+	return nBackendWorkers == 1 && Debug_compilelater == 0
 }
 
 // compileSSA builds an SSA backend function,
