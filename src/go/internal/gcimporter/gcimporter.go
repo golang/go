@@ -43,6 +43,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		}
 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
 		if bp.PkgObj == "" {
+			id = path // make sure we have an id to print in error message
 			return
 		}
 		noext = strings.TrimSuffix(bp.PkgObj, ".a")
@@ -89,7 +90,7 @@ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types
 		if path == "unsafe" {
 			return types.Unsafe, nil
 		}
-		err = fmt.Errorf("can't find import: %s", id)
+		err = fmt.Errorf("can't find import: %q", id)
 		return
 	}
 
