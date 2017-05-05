@@ -157,6 +157,12 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 				err = fmt.Errorf("Config.Importer.Import(%s) returned nil but no error", path)
 			}
 		}
+		// make sure we have a valid package name
+		// (errors here can only happen through manipulation of packages after creation)
+		if err == nil && imp != nil && (imp.name == "_" || imp.name == "") {
+			err = fmt.Errorf("invalid package name: %q", imp.name)
+			imp = nil // create fake package below
+		}
 		if err != nil {
 			check.errorf(pos, "could not import %s (%s)", path, err)
 			if imp == nil {
