@@ -202,6 +202,28 @@ var <span id="S">S</span> <a href="#T">T</a> = <a href="#T">T</a>{<a href="#T.X"
 	}
 }
 
+func TestFuncDeclNotLink(t *testing.T) {
+	// Function.
+	got := linkifySource(t, []byte(`
+package http
+
+func Get(url string) (resp *Response, err error)`))
+	want := `func Get(url <a href="/pkg/builtin/#string">string</a>) (resp *<a href="#Response">Response</a>, err <a href="/pkg/builtin/#error">error</a>)`
+	if got != want {
+		t.Errorf("got: %s\n\nwant: %s\n", got, want)
+	}
+
+	// Method.
+	got = linkifySource(t, []byte(`
+package http
+
+func (h Header) Get(key string) string`))
+	want = `func (h <a href="#Header">Header</a>) Get(key <a href="/pkg/builtin/#string">string</a>) <a href="/pkg/builtin/#string">string</a>`
+	if got != want {
+		t.Errorf("got: %s\n\nwant: %s\n", got, want)
+	}
+}
+
 func linkifySource(t *testing.T, src []byte) string {
 	p := &Presentation{
 		DeclLinks: true,
