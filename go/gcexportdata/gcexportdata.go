@@ -44,7 +44,7 @@ import (
 //
 // Find also returns the package's resolved (canonical) import path,
 // reflecting the effects of srcDir and vendoring on importPath.
-func Find(importPath string, srcDir string) (filename, path string) {
+func Find(importPath, srcDir string) (filename, path string) {
 	return gcimporter.FindPkg(importPath, srcDir)
 }
 
