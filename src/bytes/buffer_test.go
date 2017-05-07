@@ -6,8 +6,10 @@ package bytes_test
 
 import (
 	. "bytes"
+	"internal/testenv"
 	"io"
 	"math/rand"
+	"os/exec"
 	"runtime"
 	"testing"
 	"unicode/utf8"
@@ -543,6 +545,33 @@ func TestBufferGrowth(t *testing.T) {
 	// so set our error threshold at 3x.
 	if cap1 > cap0*3 {
 		t.Errorf("buffer cap = %d; too big (grew from %d)", cap1, cap0)
+	}
+}
+
+// Test that tryGrowByReslice is inlined.
+func TestTryGrowByResliceInlined(t *testing.T) {
+	t.Parallel()
+	goBin := testenv.GoToolPath(t)
+	out, err := exec.Command(goBin, "tool", "nm", goBin).CombinedOutput()
+	if err != nil {
+		t.Fatalf("go tool nm: %v: %s", err, out)
+	}
+	// Verify this doesn't exist:
+	sym := "bytes.(*Buffer).tryGrowByReslice"
+	if Contains(out, []byte(sym)) {
+		t.Errorf("found symbol %q in cmd/go, but should be inlined", sym)
+	}
+}
+
+func BenchmarkWriteByte(b *testing.B) {
+	const n = 4 << 10
+	b.SetBytes(n)
+	buf := NewBuffer(make([]byte, n))
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		for i := 0; i < n; i++ {
+			buf.WriteByte('x')
+		}
 	}
 }
 
