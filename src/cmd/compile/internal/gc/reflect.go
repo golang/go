@@ -1412,7 +1412,7 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
 }
 
 func addsignat(t *types.Type) {
-	signatlist[formalType(t)] = true
+	signatlist[t] = true
 }
 
 func addsignats(dcls []*Node) {
@@ -1432,7 +1432,7 @@ func dumpsignats() {
 		signats = signats[:0]
 		// Transfer entries to a slice and sort, for reproducible builds.
 		for t := range signatlist {
-			signats = append(signats, typeAndStr{t: t, s: typesymname(t)})
+			signats = append(signats, typeAndStr{t: t, short: typesymname(t), regular: t.String()})
 			delete(signatlist, t)
 		}
 		sort.Sort(typesByString(signats))
@@ -1542,15 +1542,25 @@ func dumpbasictypes() {
 }
 
 type typeAndStr struct {
-	t *types.Type
-	s string
+	t       *types.Type
+	short   string
+	regular string
 }
 
 type typesByString []typeAndStr
 
-func (a typesByString) Len() int           { return len(a) }
-func (a typesByString) Less(i, j int) bool { return a[i].s < a[j].s }
-func (a typesByString) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a typesByString) Len() int { return len(a) }
+func (a typesByString) Less(i, j int) bool {
+	if a[i].short != a[j].short {
+		return a[i].short < a[j].short
+	}
+	// When the only difference between the types is whether
+	// they refer to byte or uint8, such as **byte vs **uint8,
+	// the types' ShortStrings can be identical.
+	// To preserve deterministic sort ordering, sort these by String().
+	return a[i].regular < a[j].regular
+}
+func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
 func dalgsym(t *types.Type) *obj.LSym {
 	var lsym *obj.LSym
