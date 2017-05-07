@@ -93,6 +93,17 @@ func (b *Buffer) Reset() {
 	b.lastRead = opInvalid
 }
 
+// tryGrowByReslice is a inlineable version of grow for the fast-case where the
+// internal buffer only needs to be resliced.
+// It returns the index where bytes should be written and whether it succeeded.
+func (b *Buffer) tryGrowByReslice(n int) (int, bool) {
+	if l := len(b.buf); l+n <= cap(b.buf) {
+		b.buf = b.buf[:l+n]
+		return l, true
+	}
+	return 0, false
+}
+
 // grow grows the buffer to guarantee space for n more bytes.
 // It returns the index where bytes should be written.
 // If the buffer can't grow it will panic with ErrTooLarge.
@@ -102,27 +113,31 @@ func (b *Buffer) grow(n int) int {
 	if m == 0 && b.off != 0 {
 		b.Reset()
 	}
-	if len(b.buf)+n > cap(b.buf) {
-		var buf []byte
-		if b.buf == nil && n <= len(b.bootstrap) {
-			buf = b.bootstrap[0:]
-		} else if m+n <= cap(b.buf)/2 {
-			// We can slide things down instead of allocating a new
-			// slice. We only need m+n <= cap(b.buf) to slide, but
-			// we instead let capacity get twice as large so we
-			// don't spend all our time copying.
-			copy(b.buf[:], b.buf[b.off:])
-			buf = b.buf[:m]
-		} else {
-			// not enough space anywhere
-			buf = makeSlice(2*cap(b.buf) + n)
-			copy(buf, b.buf[b.off:])
-		}
-		b.buf = buf
-		b.off = 0
+	// Try to grow by means of a reslice.
+	if i, ok := b.tryGrowByReslice(n); ok {
+		return i
 	}
-	b.buf = b.buf[0 : b.off+m+n]
-	return b.off + m
+	// Check if we can make use of bootstrap array.
+	if b.buf == nil && n <= len(b.bootstrap) {
+		b.buf = b.bootstrap[:n]
+		return 0
+	}
+	if m+n <= cap(b.buf)/2 {
+		// We can slide things down instead of allocating a new
+		// slice. We only need m+n <= cap(b.buf) to slide, but
+		// we instead let capacity get twice as large so we
+		// don't spend all our time copying.
+		copy(b.buf[:], b.buf[b.off:])
+	} else {
+		// Not enough space anywhere, we need to allocate.
+		buf := makeSlice(2*cap(b.buf) + n)
+		copy(buf, b.buf[b.off:])
+		b.buf = buf
+	}
+	// Restore b.off and len(b.buf).
+	b.off = 0
+	b.buf = b.buf[:m+n]
+	return m
 }
 
 // Grow grows the buffer's capacity, if necessary, to guarantee space for
@@ -143,7 +158,10 @@ func (b *Buffer) Grow(n int) {
 // buffer becomes too large, Write will panic with ErrTooLarge.
 func (b *Buffer) Write(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
-	m := b.grow(len(p))
+	m, ok := b.tryGrowByReslice(len(p))
+	if !ok {
+		m = b.grow(len(p))
+	}
 	return copy(b.buf[m:], p), nil
 }
 
@@ -152,7 +170,10 @@ func (b *Buffer) Write(p []byte) (n int, err error) {
 // buffer becomes too large, WriteString will panic with ErrTooLarge.
 func (b *Buffer) WriteString(s string) (n int, err error) {
 	b.lastRead = opInvalid
-	m := b.grow(len(s))
+	m, ok := b.tryGrowByReslice(len(s))
+	if !ok {
+		m = b.grow(len(s))
+	}
 	return copy(b.buf[m:], s), nil
 }
 
@@ -244,7 +265,10 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 // ErrTooLarge.
 func (b *Buffer) WriteByte(c byte) error {
 	b.lastRead = opInvalid
-	m := b.grow(1)
+	m, ok := b.tryGrowByReslice(1)
+	if !ok {
+		m = b.grow(1)
+	}
 	b.buf[m] = c
 	return nil
 }
@@ -259,7 +283,10 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
 		return 1, nil
 	}
 	b.lastRead = opInvalid
-	m := b.grow(utf8.UTFMax)
+	m, ok := b.tryGrowByReslice(utf8.UTFMax)
+	if !ok {
+		m = b.grow(utf8.UTFMax)
+	}
 	n = utf8.EncodeRune(b.buf[m:m+utf8.UTFMax], r)
 	b.buf = b.buf[:m+n]
 	return n, nil
