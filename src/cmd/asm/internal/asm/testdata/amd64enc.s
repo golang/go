@@ -2687,18 +2687,18 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVQOZX M3, X11                         // f3440fd6db
 	MOVSB                                   // a4
 	MOVSL                                   // a5
-	//TODO: MOVSD (BX), X2                  // f20f1013
-	//TODO: MOVSD (R11), X2                 // f2410f1013
-	//TODO: MOVSD X2, X2                    // f20f10d2 or f20f11d2
-	//TODO: MOVSD X11, X2                   // f2410f10d3 or f2440f11da
-	//TODO: MOVSD (BX), X11                 // f2440f101b
-	//TODO: MOVSD (R11), X11                // f2450f101b
-	//TODO: MOVSD X2, X11                   // f2440f10da or f2410f11d3
-	//TODO: MOVSD X11, X11                  // f2450f10db or f2450f11db
-	//TODO: MOVSD X2, (BX)                  // f20f1113
-	//TODO: MOVSD X11, (BX)                 // f2440f111b
-	//TODO: MOVSD X2, (R11)                 // f2410f1113
-	//TODO: MOVSD X11, (R11)                // f2450f111b
+	MOVSD (BX), X2                          // f20f1013
+	MOVSD (R11), X2                         // f2410f1013
+	MOVSD X2, X2                            // f20f10d2 or f20f11d2
+	MOVSD X11, X2                           // f2410f10d3 or f2440f11da
+	MOVSD (BX), X11                         // f2440f101b
+	MOVSD (R11), X11                        // f2450f101b
+	MOVSD X2, X11                           // f2440f10da or f2410f11d3
+	MOVSD X11, X11                          // f2450f10db or f2450f11db
+	MOVSD X2, (BX)                          // f20f1113
+	MOVSD X11, (BX)                         // f2440f111b
+	MOVSD X2, (R11)                         // f2410f1113
+	MOVSD X11, (R11)                        // f2450f111b
 	MOVSHDUP (BX), X2                       // f30f1613
 	MOVSHDUP (R11), X2                      // f3410f1613
 	MOVSHDUP X2, X2                         // f30f16d2
