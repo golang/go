@@ -72,7 +72,7 @@ func Stat(name string) (FileInfo, error) {
 		return nil, &PathError{"Stat", name, err}
 	}
 
-	// Use Windows I/O manager to dereferences the symbolic link, as per
+	// Use Windows I/O manager to dereference the symbolic link, as per
 	// https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
 	h, err := syscall.CreateFile(namep, 0, 0, nil,
 		syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
@@ -103,7 +103,7 @@ func Stat(name string) (FileInfo, error) {
 		vol:   d.VolumeSerialNumber,
 		idxhi: d.FileIndexHigh,
 		idxlo: d.FileIndexLow,
-		// fileStat.path is used by os.SameFile to decide, if it needs
+		// fileStat.path is used by os.SameFile to decide if it needs
 		// to fetch vol, idxhi and idxlo. But these are already set,
 		// so set fileStat.path to "" to prevent os.SameFile doing it again.
 		// Also do not set fileStat.filetype, because it is only used for
@@ -111,8 +111,8 @@ func Stat(name string) (FileInfo, error) {
 	}, nil
 }
 
-// statWithFindFirstFile is used by Stat to handle special case of stating
-// c:\pagefile.sys. We might discovered other files need similar treatment.
+// statWithFindFirstFile is used by Stat to handle special case of statting
+// c:\pagefile.sys. We might discover that other files need similar treatment.
 func statWithFindFirstFile(name string, namep *uint16) (FileInfo, error) {
 	var fd syscall.Win32finddata
 	h, err := syscall.FindFirstFile(namep, &fd)
