@@ -81,6 +81,31 @@ func ExampleParseQuery() {
 	// {"x":["1"], "y":["2", "3"], "z":[""]}
 }
 
+func ExampleURL_Hostname() {
+	u, err := url.Parse("https://example.org:8000/path")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(u.Hostname())
+	u, err = url.Parse("https://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:17000")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(u.Hostname())
+	// Output:
+	// example.org
+	// 2001:0db8:85a3:0000:0000:8a2e:0370:7334
+}
+
+func ExampleURL_RequestURI() {
+	u, err := url.Parse("https://example.org/path?foo=bar")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(u.RequestURI())
+	// Output: /path?foo=bar
+}
+
 func toJSON(m interface{}) string {
 	js, err := json.Marshal(m)
 	if err != nil {
