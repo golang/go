@@ -1908,10 +1908,7 @@ func TestGoTestDashIDashOWritesBinary(t *testing.T) {
 
 // Issue 4568.
 func TestSymlinksList(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		t.Skipf("skipping symlink test on %s", runtime.GOOS)
-	}
+	testenv.MustHaveSymlink(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1929,10 +1926,7 @@ func TestSymlinksList(t *testing.T) {
 
 // Issue 14054.
 func TestSymlinksVendor(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		t.Skipf("skipping symlink test on %s", runtime.GOOS)
-	}
+	testenv.MustHaveSymlink(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1956,10 +1950,7 @@ func TestSymlinksVendor(t *testing.T) {
 
 // Issue 15201.
 func TestSymlinksVendor15201(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		t.Skipf("skipping symlink test on %s", runtime.GOOS)
-	}
+	testenv.MustHaveSymlink(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1976,10 +1967,7 @@ func TestSymlinksVendor15201(t *testing.T) {
 }
 
 func TestSymlinksInternal(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		t.Skipf("skipping symlink test on %s", runtime.GOOS)
-	}
+	testenv.MustHaveSymlink(t)
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -3995,10 +3983,7 @@ func TestExecutableGOROOT(t *testing.T) {
 		t.Fatalf("%s env GOROOT = %q with pkg/tool, want %q", newGoTool, got, want)
 	}
 
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		t.Skipf("skipping symlink test on %s", runtime.GOOS)
-	}
+	testenv.MustHaveSymlink(t)
 
 	tg.tempDir("notgoroot/bin")
 	symGoTool := tg.path("notgoroot/bin/go" + exeSuffix)
