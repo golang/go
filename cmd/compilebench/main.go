@@ -76,20 +76,20 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
 )
 
 var (
-	goroot   = runtime.GOROOT()
+	goroot   string
 	compiler string
 	runRE    *regexp.Regexp
 	is6g     bool
 )
 
 var (
+	flagGoCmd          = flag.String("go", "go", "path to \"go\" command")
 	flagAlloc          = flag.Bool("alloc", false, "report allocations")
 	flagObj            = flag.Bool("obj", false, "report object file stats")
 	flagCompiler       = flag.String("compile", "", "use `exe` as the cmd/compile binary")
@@ -139,14 +139,20 @@ func main() {
 		usage()
 	}
 
+	s, err := exec.Command(*flagGoCmd, "env", "GOROOT").CombinedOutput()
+	if err != nil {
+		log.Fatalf("%s env GOROOT: %v", *flagGoCmd, err)
+	}
+	goroot = strings.TrimSpace(string(s))
+
 	compiler = *flagCompiler
 	if compiler == "" {
-		out, err := exec.Command("go", "tool", "-n", "compile").CombinedOutput()
+		out, err := exec.Command(*flagGoCmd, "tool", "-n", "compile").CombinedOutput()
 		if err != nil {
-			out, err = exec.Command("go", "tool", "-n", "6g").CombinedOutput()
+			out, err = exec.Command(*flagGoCmd, "tool", "-n", "6g").CombinedOutput()
 			is6g = true
 			if err != nil {
-				out, err = exec.Command("go", "tool", "-n", "compile").CombinedOutput()
+				out, err = exec.Command(*flagGoCmd, "tool", "-n", "compile").CombinedOutput()
 				log.Fatalf("go tool -n compiler: %v\n%s", err, out)
 			}
 		}
@@ -193,14 +199,14 @@ func runStdCmd() {
 		args = append(args, "-gcflags", *flagCompilerFlags)
 	}
 	args = append(args, "std", "cmd")
-	cmd := exec.Command("go", args...)
-	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
+	cmd := exec.Command(*flagGoCmd, args...)
+	cmd.Dir = filepath.Join(goroot, "src")
 	runCmd("BenchmarkStdCmd", cmd)
 }
 
 // path is either a path to a file ("$GOROOT/test/helloworld.go") or a package path ("cmd/go").
 func runSize(name, path string) {
-	cmd := exec.Command("go", "build", "-o", "_compilebenchout_", path)
+	cmd := exec.Command(*flagGoCmd, "build", "-o", "_compilebenchout_", path)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -240,7 +246,7 @@ func runBuild(name, dir string, count int) {
 		runSize("BenchmarkCmdGoSize", "cmd/go")
 		return
 	case "BenchmarkHelloSize":
-		runSize("BenchmarkHelloSize", filepath.Join(runtime.GOROOT(), "test/helloworld.go"))
+		runSize("BenchmarkHelloSize", filepath.Join(goroot, "test/helloworld.go"))
 		return
 	}
 
