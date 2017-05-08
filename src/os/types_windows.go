@@ -18,10 +18,11 @@ type fileStat struct {
 
 	// used to implement SameFile
 	sync.Mutex
-	path  string
-	vol   uint32
-	idxhi uint32
-	idxlo uint32
+	path             string
+	vol              uint32
+	idxhi            uint32
+	idxlo            uint32
+	appendNameToPath bool
 }
 
 func (fs *fileStat) Size() int64 {
@@ -66,7 +67,13 @@ func (fs *fileStat) loadFileId() error {
 		// already done
 		return nil
 	}
-	pathp, err := syscall.UTF16PtrFromString(fs.path)
+	var path string
+	if fs.appendNameToPath {
+		path = fs.path + `\` + fs.name
+	} else {
+		path = fs.path
+	}
+	pathp, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
 		return err
 	}

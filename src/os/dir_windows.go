@@ -56,7 +56,8 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 				FileSizeHigh:   d.FileSizeHigh,
 				FileSizeLow:    d.FileSizeLow,
 			},
-			path: file.dirinfo.path + `\` + name,
+			path:             file.dirinfo.path,
+			appendNameToPath: true,
 		}
 		n--
 		fi = append(fi, f)
