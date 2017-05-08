@@ -549,7 +549,12 @@ func TestBufferGrowth(t *testing.T) {
 }
 
 // Test that tryGrowByReslice is inlined.
+// Only execute on "linux-amd64" builder in order to avoid breakage.
 func TestTryGrowByResliceInlined(t *testing.T) {
+	targetBuilder := "linux-amd64"
+	if testenv.Builder() != targetBuilder {
+		t.Skipf("%q gets executed on %q builder only", t.Name(), targetBuilder)
+	}
 	t.Parallel()
 	goBin := testenv.GoToolPath(t)
 	out, err := exec.Command(goBin, "tool", "nm", goBin).CombinedOutput()
