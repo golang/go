@@ -575,22 +575,21 @@ func func3(c chan int) { <-c }
 func func4(c chan int) { <-c }
 
 func TestGoroutineCounts(t *testing.T) {
-	if runtime.GOOS == "openbsd" {
-		testenv.SkipFlaky(t, 15156)
-	}
 	c := make(chan int)
 	for i := 0; i < 100; i++ {
-		if i%10 == 0 {
+		switch {
+		case i%10 == 0:
 			go func1(c)
-			continue
-		}
-		if i%2 == 0 {
+		case i%2 == 0:
 			go func2(c)
-			continue
+		default:
+			go func3(c)
 		}
-		go func3(c)
+		// Let goroutines block on channel
+		for j := 0; j < 5; j++ {
+			runtime.Gosched()
+		}
 	}
-	time.Sleep(10 * time.Millisecond) // let goroutines block on channel
 
 	var w bytes.Buffer
 	goroutineProf := Lookup("goroutine")
