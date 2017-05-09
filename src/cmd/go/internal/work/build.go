@@ -379,10 +379,10 @@ func BuildModeInit() {
 	}
 	if codegenArg != "" {
 		if gccgo {
-			buildGccgoflags = append(buildGccgoflags, codegenArg)
+			buildGccgoflags = append([]string{codegenArg}, buildGccgoflags...)
 		} else {
-			buildAsmflags = append(buildAsmflags, codegenArg)
-			buildGcflags = append(buildGcflags, codegenArg)
+			buildAsmflags = append([]string{codegenArg}, buildAsmflags...)
+			buildGcflags = append([]string{codegenArg}, buildGcflags...)
 		}
 		// Don't alter InstallSuffix when modifying default codegen args.
 		if cfg.BuildBuildmode != "default" || cfg.BuildLinkshared {
