@@ -56,7 +56,7 @@
 // Each symbol is laid out as the following fields:
 //
 //	- byte 0xfe (sanity check for synchronization)
-//	- type [int]
+//	- type [byte]
 //	- name & version [symref index]
 //	- flags [int]
 //		1<<0 dupok
