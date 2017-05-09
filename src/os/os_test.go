@@ -398,6 +398,50 @@ func BenchmarkReaddir(b *testing.B) {
 	benchmarkReaddir(".", b)
 }
 
+func benchmarkStat(b *testing.B, path string) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := Stat(path)
+		if err != nil {
+			b.Fatalf("Stat(%q) failed: %v", path, err)
+		}
+	}
+}
+
+func benchmarkLstat(b *testing.B, path string) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := Lstat(path)
+		if err != nil {
+			b.Fatalf("Lstat(%q) failed: %v", path, err)
+		}
+	}
+}
+
+func BenchmarkStatDot(b *testing.B) {
+	benchmarkStat(b, ".")
+}
+
+func BenchmarkStatFile(b *testing.B) {
+	benchmarkStat(b, filepath.Join(runtime.GOROOT(), "src/os/os_test.go"))
+}
+
+func BenchmarkStatDir(b *testing.B) {
+	benchmarkStat(b, filepath.Join(runtime.GOROOT(), "src/os"))
+}
+
+func BenchmarkLstatDot(b *testing.B) {
+	benchmarkLstat(b, ".")
+}
+
+func BenchmarkLstatFile(b *testing.B) {
+	benchmarkLstat(b, filepath.Join(runtime.GOROOT(), "src/os/os_test.go"))
+}
+
+func BenchmarkLstatDir(b *testing.B) {
+	benchmarkLstat(b, filepath.Join(runtime.GOROOT(), "src/os"))
+}
+
 // Read the directory one entry at a time.
 func smallReaddirnames(file *File, length int, t *testing.T) []string {
 	names := make([]string, length)
