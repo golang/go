@@ -183,6 +183,7 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
 }
 
 // locForPC returns the location ID for addr.
+// addr must be a call address (not a return address).
 // It may emit to b.pb, so there must be no message encoding in progress.
 func (b *profileBuilder) locForPC(addr uintptr) uint64 {
 	id := uint64(b.locs[addr])

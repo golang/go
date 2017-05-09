@@ -27,10 +27,11 @@ func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64) error
 		locs = locs[:0]
 		hideRuntime := true
 		for tries := 0; tries < 2; tries++ {
-			for i, addr := range r.Stack() {
-				if false && i > 0 { // TODO: why disabled?
-					addr--
-				}
+			for _, addr := range r.Stack() {
+				// For heap profiles, all stack
+				// addresses are return PCs. Adjust
+				// them to be call PCs for locForPC.
+				addr--
 				if hideRuntime {
 					if f := runtime.FuncForPC(addr); f != nil && strings.HasPrefix(f.Name(), "runtime.") {
 						continue

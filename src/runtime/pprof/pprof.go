@@ -398,10 +398,11 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 	for _, k := range keys {
 		values[0] = int64(count[k])
 		locs = locs[:0]
-		for i, addr := range p.Stack(index[k]) {
-			if false && i > 0 { // TODO: why disabled?
-				addr--
-			}
+		for _, addr := range p.Stack(index[k]) {
+			// For count profiles, all stack addresses are
+			// return PCs. Adjust them to be call PCs for
+			// locForPC.
+			addr--
 			locs = append(locs, b.locForPC(addr))
 		}
 		b.pbSample(values, locs, nil)
