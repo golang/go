@@ -1043,34 +1043,45 @@ func mkpackage(pkgname string) {
 }
 
 func clearImports() {
+	type importedPkg struct {
+		pos  src.XPos
+		path string
+		name string
+	}
+	var unused []importedPkg
+
 	for _, s := range localpkg.Syms {
-		if asNode(s.Def) == nil {
+		n := asNode(s.Def)
+		if n == nil {
 			continue
 		}
-		if asNode(s.Def).Op == OPACK {
-			// throw away top-level package name leftover
+		if n.Op == OPACK {
+			// throw away top-level package name left over
 			// from previous file.
 			// leave s->block set to cause redeclaration
 			// errors if a conflicting top-level name is
 			// introduced by a different file.
-			if !asNode(s.Def).Name.Used() && nsyntaxerrors == 0 {
-				pkgnotused(asNode(s.Def).Pos, asNode(s.Def).Name.Pkg.Path, s.Name)
+			if !n.Name.Used() && nsyntaxerrors == 0 {
+				unused = append(unused, importedPkg{n.Pos, n.Name.Pkg.Path, s.Name})
 			}
 			s.Def = nil
 			continue
 		}
-
 		if IsAlias(s) {
 			// throw away top-level name left over
 			// from previous import . "x"
-			if asNode(s.Def).Name != nil && asNode(s.Def).Name.Pack != nil && !asNode(s.Def).Name.Pack.Name.Used() && nsyntaxerrors == 0 {
-				pkgnotused(asNode(s.Def).Name.Pack.Pos, asNode(s.Def).Name.Pack.Name.Pkg.Path, "")
-				asNode(s.Def).Name.Pack.Name.SetUsed(true)
+			if n.Name != nil && n.Name.Pack != nil && !n.Name.Pack.Name.Used() && nsyntaxerrors == 0 {
+				unused = append(unused, importedPkg{n.Name.Pack.Pos, n.Name.Pack.Name.Pkg.Path, ""})
+				n.Name.Pack.Name.SetUsed(true)
 			}
-
 			s.Def = nil
 			continue
 		}
+	}
+
+	obj.SortSlice(unused, func(i, j int) bool { return unused[i].pos.Before(unused[j].pos) })
+	for _, pkg := range unused {
+		pkgnotused(pkg.pos, pkg.path, pkg.name)
 	}
 }
 
