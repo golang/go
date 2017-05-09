@@ -156,6 +156,7 @@ func usage() {
 }
 
 var (
+	goCmd   = flag.String("go", "go", "path to \"go\" command")
 	norun   = flag.Bool("n", false, "print but do not run commands")
 	verbose = flag.Bool("v", false, "print commands being run")
 	cmp     = flag.Bool("cmp", false, "compare tool object files")
@@ -199,7 +200,11 @@ func main() {
 		usage()
 	}
 
-	goroot = runtime.GOROOT()
+	s, err := exec.Command(*goCmd, "env", "GOROOT").CombinedOutput()
+	if err != nil {
+		log.Fatalf("%s env GOROOT: %v", *goCmd, err)
+	}
+	goroot = strings.TrimSpace(string(s))
 	toolDir = filepath.Join(goroot, fmt.Sprintf("pkg/tool/%s_%s", runtime.GOOS, runtime.GOARCH))
 	stashDir = filepath.Join(goroot, "pkg/toolstash")
 
@@ -248,7 +253,7 @@ func main() {
 	xcmd.Stdin = os.Stdin
 	xcmd.Stdout = os.Stdout
 	xcmd.Stderr = os.Stderr
-	err := xcmd.Run()
+	err = xcmd.Run()
 	if err != nil {
 		log.Fatal(err)
 	}
