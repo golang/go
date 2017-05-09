@@ -135,6 +135,9 @@ const (
 	// AttrMakeTypelink Amarks types that should be added to the typelink
 	// table. See typelinks.go:typelinks().
 	AttrMakeTypelink
+	// AttrShared marks symbols compiled with the -shared option.
+	AttrShared
+	// 14 attributes defined so far.
 )
 
 func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
@@ -150,6 +153,7 @@ func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
 func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
 func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }
 func (a Attribute) MakeTypelink() bool     { return a&AttrMakeTypelink != 0 }
+func (a Attribute) Shared() bool           { return a&AttrShared != 0 }
 
 func (a Attribute) CgoExport() bool {
 	return a.CgoExportDynamic() || a.CgoExportStatic()

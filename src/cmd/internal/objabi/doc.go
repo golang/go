@@ -77,6 +77,7 @@
 //		1<<0 leaf
 //		1<<1 C function
 //		1<<2 function may call reflect.Type.Method
+//		1<<3 function compiled with -shared
 //	- nlocal [int]
 //	- local [nlocal automatics]
 //	- pcln [pcln table]

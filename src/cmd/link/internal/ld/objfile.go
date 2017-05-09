@@ -258,6 +258,9 @@ overwrite:
 		if flags&(1<<2) != 0 {
 			s.Attr |= AttrReflectMethod
 		}
+		if flags&(1<<3) != 0 {
+			s.Attr |= AttrShared
+		}
 		n := r.readInt()
 		pc.Autom = r.autom[:n:n]
 		if !isdup {
