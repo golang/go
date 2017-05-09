@@ -467,6 +467,8 @@ var Anames = []string{
 	"ADDPS",
 	"ADDSD",
 	"ADDSS",
+	"ADDSUBPD",
+	"ADDSUBPS",
 	"ANDNL",
 	"ANDNQ",
 	"ANDNPD",

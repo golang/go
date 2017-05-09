@@ -969,6 +969,8 @@ var optab =
 	{AADDQ, yaddl, Pw, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
 	{AADDSD, yxm, Pf2, [23]uint8{0x58}},
 	{AADDSS, yxm, Pf3, [23]uint8{0x58}},
+	{AADDSUBPD, yxm, Pq, [23]uint8{0xd0}},
+	{AADDSUBPS, yxm, Pf2, [23]uint8{0xd0}},
 	{AADDW, yaddl, Pe, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
 	{AADJSP, nil, 0, [23]uint8{}},
 	{AANDB, yxorb, Pb, [23]uint8{0x24, 0x80, 04, 0x20, 0x22}},

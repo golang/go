@@ -212,22 +212,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADDSS (R11), X11                        // f3450f581b
 	ADDSS X2, X11                           // f3440f58da
 	ADDSS X11, X11                          // f3450f58db
-	//TODO: ADDSUBPD (BX), X2               // 660fd013
-	//TODO: ADDSUBPD (R11), X2              // 66410fd013
-	//TODO: ADDSUBPD X2, X2                 // 660fd0d2
-	//TODO: ADDSUBPD X11, X2                // 66410fd0d3
-	//TODO: ADDSUBPD (BX), X11              // 66440fd01b
-	//TODO: ADDSUBPD (R11), X11             // 66450fd01b
-	//TODO: ADDSUBPD X2, X11                // 66440fd0da
-	//TODO: ADDSUBPD X11, X11               // 66450fd0db
-	//TODO: ADDSUBPS (BX), X2               // f20fd013
-	//TODO: ADDSUBPS (R11), X2              // f2410fd013
-	//TODO: ADDSUBPS X2, X2                 // f20fd0d2
-	//TODO: ADDSUBPS X11, X2                // f2410fd0d3
-	//TODO: ADDSUBPS (BX), X11              // f2440fd01b
-	//TODO: ADDSUBPS (R11), X11             // f2450fd01b
-	//TODO: ADDSUBPS X2, X11                // f2440fd0da
-	//TODO: ADDSUBPS X11, X11               // f2450fd0db
+	ADDSUBPD (BX), X2                       // 660fd013
+	ADDSUBPD (R11), X2                      // 66410fd013
+	ADDSUBPD X2, X2                         // 660fd0d2
+	ADDSUBPD X11, X2                        // 66410fd0d3
+	ADDSUBPD (BX), X11                      // 66440fd01b
+	ADDSUBPD (R11), X11                     // 66450fd01b
+	ADDSUBPD X2, X11                        // 66440fd0da
+	ADDSUBPD X11, X11                       // 66450fd0db
+	ADDSUBPS (BX), X2                       // f20fd013
+	ADDSUBPS (R11), X2                      // f2410fd013
+	ADDSUBPS X2, X2                         // f20fd0d2
+	ADDSUBPS X11, X2                        // f2410fd0d3
+	ADDSUBPS (BX), X11                      // f2440fd01b
+	ADDSUBPS (R11), X11                     // f2450fd01b
+	ADDSUBPS X2, X11                        // f2440fd0da
+	ADDSUBPS X11, X11                       // f2450fd0db
 	//TODO: ADOXL (BX), DX                  // f30f38f613
 	//TODO: ADOXL (R11), DX                 // f3410f38f613
 	//TODO: ADOXL DX, DX                    // f30f38f6d2
