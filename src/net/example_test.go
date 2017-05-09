@@ -44,7 +44,7 @@ func ExampleIPv4() {
 }
 
 func ExampleParseCIDR() {
-	ipv4Addr, ipv4Net, err := net.ParseCIDR("192.0.2.1/16")
+	ipv4Addr, ipv4Net, err := net.ParseCIDR("192.0.2.1/24")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func ExampleParseCIDR() {
 
 	// Output:
 	// 192.0.2.1
-	// 192.0.0.0/16
+	// 192.0.2.0/24
 	// 2001:db8:a0b:12f0::1
 	// 2001:db8::/32
 }
