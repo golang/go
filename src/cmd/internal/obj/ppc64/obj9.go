@@ -476,6 +476,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				// generate the addis instruction except as part of the
 				// load of a large constant, and in that case there is no
 				// way to use r12 as the source.
+				//
+				// Note that the same condition is tested in
+				// putelfsym in cmd/link/internal/ld/symtab.go
+				// where we set the st_other field to indicate
+				// the presence of these instructions.
 				q = obj.Appendp(q, c.newprog)
 				q.As = AWORD
 				q.Pos = p.Pos

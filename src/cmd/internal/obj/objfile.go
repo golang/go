@@ -338,6 +338,9 @@ func (w *objWriter) writeSym(s *LSym) {
 	if s.ReflectMethod() {
 		flags |= 1 << 2
 	}
+	if ctxt.Flag_shared {
+		flags |= 1 << 3
+	}
 	w.writeInt(flags)
 	w.writeInt(int64(len(s.Func.Autom)))
 	for _, a := range s.Func.Autom {

@@ -147,10 +147,13 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
 	if x.Type&SHIDDEN != 0 {
 		other = STV_HIDDEN
 	}
-	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || ctxt.DynlinkingGo()) && SysArch.Family == sys.PPC64 && typ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+	if SysArch.Family == sys.PPC64 && typ == STT_FUNC && x.Attr.Shared() && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
 		// On ppc64 the top three bits of the st_other field indicate how
 		// many instructions separate the global and local entry points. In
 		// our case it is two instructions, indicated by the value 3.
+		// The conditions here match those in preprocess in
+		// cmd/internal/obj/ppc64/obj9.go, which is where the
+		// instructions are inserted.
 		other |= 3 << 5
 	}
 
