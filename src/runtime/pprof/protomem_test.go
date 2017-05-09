@@ -15,7 +15,11 @@ func TestConvertMemProfile(t *testing.T) {
 	addr1, addr2, map1, map2 := testPCs(t)
 
 	var buf bytes.Buffer
-	a1, a2 := uintptr(addr1), uintptr(addr2)
+	// MemProfileRecord stacks are return PCs, so add one to the
+	// addresses recorded in the "profile". The proto profile
+	// locations are call PCs, so conversion will subtract one
+	// from these and get back to addr1 and addr2.
+	a1, a2 := uintptr(addr1)+1, uintptr(addr2)+1
 	rate := int64(512 * 1024)
 	rec := []runtime.MemProfileRecord{
 		{AllocBytes: 4096, FreeBytes: 1024, AllocObjects: 4, FreeObjects: 1, Stack0: [32]uintptr{a1, a2}},
