@@ -5861,7 +5861,7 @@ func TestTypeOfTypeOf(t *testing.T) {
 	check("SliceOf", SliceOf(TypeOf(T{})))
 }
 
-type XM struct{}
+type XM struct{ _ bool }
 
 func (*XM) String() string { return "" }
 
@@ -6015,6 +6015,7 @@ func TestTypeStrings(t *testing.T) {
 		{TypeOf(new(XM)).Method(0).Type, "func(*reflect_test.XM) string"},
 		{ChanOf(3, TypeOf(XM{})), "chan reflect_test.XM"},
 		{MapOf(TypeOf(int(0)), TypeOf(XM{})), "map[int]reflect_test.XM"},
+		{ArrayOf(3, TypeOf(XM{})), "[3]reflect_test.XM"},
 	}
 
 	for i, test := range stringTests {
