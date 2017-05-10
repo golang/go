@@ -2814,9 +2814,11 @@ func ArrayOf(count int, elem Type) Type {
 	array.hash = fnv1(array.hash, ']')
 	array.elem = typ
 	array.ptrToThis = 0
-	max := ^uintptr(0) / typ.size
-	if uintptr(count) > max {
-		panic("reflect.ArrayOf: array size would exceed virtual address space")
+	if typ.size > 0 {
+		max := ^uintptr(0) / typ.size
+		if uintptr(count) > max {
+			panic("reflect.ArrayOf: array size would exceed virtual address space")
+		}
 	}
 	array.size = typ.size * uintptr(count)
 	if count > 0 && typ.ptrdata != 0 {
