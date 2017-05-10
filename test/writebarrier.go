@@ -238,11 +238,14 @@ var i23 int
 // f23x: zeroing global needs write barrier for the hybrid barrier.
 func f23a() {
 	t23 = T23{} // ERROR "write barrier"
+}
+
+func f23b() {
 	// also test partial assignments
 	t23 = T23{a: 1} // ERROR "write barrier"
 }
 
-func f23b() {
+func f23c() {
 	t23 = T23{} // no barrier (dead store)
 	// also test partial assignments
 	t23 = T23{p: &i23} // ERROR "write barrier"

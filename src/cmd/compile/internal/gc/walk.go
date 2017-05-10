@@ -1624,7 +1624,7 @@ opswitch:
 		n = cmp
 
 	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
-		if isStaticCompositeLiteral(n) {
+		if isStaticCompositeLiteral(n) && !canSSAType(n.Type) {
 			// n can be directly represented in the read-only data section.
 			// Make direct reference to the static data. See issue 12841.
 			vstat := staticname(n.Type)
