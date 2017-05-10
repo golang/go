@@ -87,7 +87,7 @@ func TestStdPipe(t *testing.T) {
 					t.Errorf("unexpected SIGPIPE signal for descriptor %d sig %t", dest, sig)
 				}
 			} else {
-				t.Errorf("unexpected exit status %v for descriptor %ds sig %t", err, dest, sig)
+				t.Errorf("unexpected exit status %v for descriptor %d sig %t", err, dest, sig)
 			}
 		}
 	}
