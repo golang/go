@@ -46,8 +46,6 @@ notintel:
 	MOVL	$1, AX
 	CPUID
 	MOVL	AX, runtime·processorVersionInfo(SB)
-	MOVL	CX, runtime·cpuid_ecx(SB)
-	MOVL	DX, runtime·cpuid_edx(SB)
 
 	TESTL	$(1<<26), DX // SSE2
 	SETNE	runtime·support_sse2(SB)
@@ -82,7 +80,6 @@ eax7:
 	MOVL	$7, AX
 	MOVL	$0, CX
 	CPUID
-	MOVL	BX, runtime·cpuid_ebx7(SB)
 
 	TESTL	$(1<<3), BX // BMI1
 	SETNE	runtime·support_bmi1(SB)
