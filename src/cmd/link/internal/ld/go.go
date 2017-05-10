@@ -360,6 +360,7 @@ func fieldtrack(ctxt *Link) {
 		return
 	}
 	addstrdata(ctxt, *flagFieldTrack, buf.String())
+	s.Type = SDATA
 }
 
 func (ctxt *Link) addexport() {
