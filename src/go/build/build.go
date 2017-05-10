@@ -1302,16 +1302,15 @@ func expandSrcDir(str string, srcdir string) (string, bool) {
 	// to "/" before starting (eg: on windows).
 	srcdir = filepath.ToSlash(srcdir)
 
-	// Spaces are tolerated in ${SRCDIR}, but not anywhere else.
 	chunks := strings.Split(str, "${SRCDIR}")
 	if len(chunks) < 2 {
-		return str, safeCgoName(str, false)
+		return str, safeCgoName(str)
 	}
 	ok := true
 	for _, chunk := range chunks {
-		ok = ok && (chunk == "" || safeCgoName(chunk, false))
+		ok = ok && (chunk == "" || safeCgoName(chunk))
 	}
-	ok = ok && (srcdir == "" || safeCgoName(srcdir, true))
+	ok = ok && (srcdir == "" || safeCgoName(srcdir))
 	res := strings.Join(chunks, srcdir)
 	return res, ok && res != ""
 }
@@ -1321,21 +1320,14 @@ func expandSrcDir(str string, srcdir string) (string, bool) {
 // See golang.org/issue/6038.
 // The @ is for OS X. See golang.org/issue/13720.
 // The % is for Jenkins. See golang.org/issue/16959.
-const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@%"
-const safeSpaces = " "
+const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@% "
 
-var safeBytes = []byte(safeSpaces + safeString)
-
-func safeCgoName(s string, spaces bool) bool {
+func safeCgoName(s string) bool {
 	if s == "" {
 		return false
 	}
-	safe := safeBytes
-	if !spaces {
-		safe = safe[len(safeSpaces):]
-	}
 	for i := 0; i < len(s); i++ {
-		if c := s[i]; c < utf8.RuneSelf && bytes.IndexByte(safe, c) < 0 {
+		if c := s[i]; c < utf8.RuneSelf && strings.IndexByte(safeString, c) < 0 {
 			return false
 		}
 	}

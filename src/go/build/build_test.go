@@ -285,9 +285,11 @@ func TestShellSafety(t *testing.T) {
 		{"-I${SRCDIR}/../include", "/projects/src/issue 11868", "-I/projects/src/issue 11868/../include", true},
 		{"-I${SRCDIR}", "wtf$@%", "-Iwtf$@%", true},
 		{"-X${SRCDIR}/1,${SRCDIR}/2", "/projects/src/issue 11868", "-X/projects/src/issue 11868/1,/projects/src/issue 11868/2", true},
-		{"-I/tmp -I/tmp", "/tmp2", "-I/tmp -I/tmp", false},
+		{"-I/tmp -I/tmp", "/tmp2", "-I/tmp -I/tmp", true},
 		{"-I/tmp", "/tmp/[0]", "-I/tmp", true},
 		{"-I${SRCDIR}/dir", "/tmp/[0]", "-I/tmp/[0]/dir", false},
+		{"-I${SRCDIR}/dir", "/tmp/go go", "-I/tmp/go go/dir", true},
+		{"-I${SRCDIR}/dir dir", "/tmp/go", "-I/tmp/go/dir dir", true},
 	}
 	for _, test := range tests {
 		output, ok := expandSrcDir(test.input, test.srcdir)

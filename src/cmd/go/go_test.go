@@ -78,6 +78,8 @@ func init() {
 // (temp) directory.
 var testGOROOT string
 
+var testCC string
+
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
@@ -98,6 +100,13 @@ func TestMain(m *testing.M) {
 			os.Exit(2)
 		}
 		testGOROOT = strings.TrimSpace(string(out))
+
+		out, err = exec.Command("go", "env", "CC").CombinedOutput()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "could not find testing CC: %v\n%s", err, out)
+			os.Exit(2)
+		}
+		testCC = strings.TrimSpace(string(out))
 
 		if out, err := exec.Command("./testgo"+exeSuffix, "env", "CGO_ENABLED").Output(); err != nil {
 			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n", err)
@@ -4036,4 +4045,59 @@ func main() {}`)
 	tg.creatingTemp("override.h")
 	tg.run("build", "-x", "-buildmode=c-archive", "-gcflags=-shared=false", tg.path("override.go"))
 	tg.grepStderr("compile .*-shared .*-shared=false", "user can not override code generation flag")
+}
+
+func TestCgoFlagContainsSpace(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.tempFile("src/cc/main.go", fmt.Sprintf(`package main
+		import (
+			"os"
+			"os/exec"
+		)
+
+		func main() {
+			var success bool
+			for _, arg := range os.Args {
+				switch arg {
+				case "-Ic flags":
+					if success {
+						panic("duplicate CFLAGS")
+					}
+					success = true
+				case "-Lld flags":
+					if success {
+						panic("duplicate LDFLAGS")
+					}
+					success = true
+				}
+			}
+			if !success {
+				panic("args should contains '-Ic flags' or '-Lld flags'")
+			}
+			cmd := exec.Command(%q, os.Args[1:]...)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			err := cmd.Run()
+			if err != nil {
+				panic(err)
+			}
+		}
+	`, testCC))
+	tg.cd(tg.path("src/cc"))
+	tg.run("build")
+	tg.setenv("CC", tg.path("src/cc/cc"))
+	tg.tempFile("src/cgo/cgo.go", `package main
+		// #cgo CFLAGS: -I"c flags"
+		// #cgo LDFLAGS: -L"ld flags"
+		import "C"
+		func main() {}
+	`)
+	path := tg.path("src/cgo/cgo.go")
+	tg.run("run", path)
 }
