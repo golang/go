@@ -322,7 +322,7 @@ func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
 		// that generate memory.
 		return lt2Cmp(v.ID < w.ID)
 	}
-	// OpSelect is a pseudo-op. We need to be more agressive
+	// OpSelect is a pseudo-op. We need to be more aggressive
 	// regarding CSE to keep multiple OpSelect's of the same
 	// argument from existing.
 	if v.Op != OpSelect0 && v.Op != OpSelect1 {
