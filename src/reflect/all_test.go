@@ -6016,6 +6016,7 @@ func TestTypeStrings(t *testing.T) {
 		{ChanOf(3, TypeOf(XM{})), "chan reflect_test.XM"},
 		{MapOf(TypeOf(int(0)), TypeOf(XM{})), "map[int]reflect_test.XM"},
 		{ArrayOf(3, TypeOf(XM{})), "[3]reflect_test.XM"},
+		{ArrayOf(3, TypeOf(struct{}{})), "[3]struct {}"},
 	}
 
 	for i, test := range stringTests {
