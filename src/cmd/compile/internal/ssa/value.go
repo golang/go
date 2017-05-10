@@ -224,7 +224,9 @@ func (v *Value) copyInto(b *Block) *Value {
 	return c
 }
 
-// copyInto makes a new value identical to v and adds it to the end of b.
+// copyIntoNoXPos makes a new value identical to v and adds it to the end of b.
+// The copied value receives no source code position to avoid confusing changes
+// in debugger information (the intended user is the register allocator).
 func (v *Value) copyIntoNoXPos(b *Block) *Value {
 	c := b.NewValue0(src.NoXPos, v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
 	c.Aux = v.Aux
