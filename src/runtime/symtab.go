@@ -686,12 +686,13 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 	// cheaper than doing the hashing for a less associative
 	// cache.
 	if cache != nil {
-		for _, ent := range cache.entries {
+		for i := range cache.entries {
 			// We check off first because we're more
 			// likely to have multiple entries with
 			// different offsets for the same targetpc
 			// than the other way around, so we'll usually
 			// fail in the first clause.
+			ent := &cache.entries[i]
 			if ent.off == off && ent.targetpc == targetpc {
 				return ent.val
 			}
@@ -836,35 +837,47 @@ func funcdata(f funcInfo, i int32) unsafe.Pointer {
 
 // step advances to the next pc, value pair in the encoded table.
 func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) {
-	p, uvdelta := readvarint(p)
+	// For both uvdelta and pcdelta, the common case (~70%)
+	// is that they are a single byte. If so, avoid calling readvarint.
+	uvdelta := uint32(p[0])
 	if uvdelta == 0 && !first {
 		return nil, false
 	}
+	n := uint32(1)
+	if uvdelta&0x80 != 0 {
+		n, uvdelta = readvarint(p)
+	}
+	p = p[n:]
 	if uvdelta&1 != 0 {
 		uvdelta = ^(uvdelta >> 1)
 	} else {
 		uvdelta >>= 1
 	}
 	vdelta := int32(uvdelta)
-	p, pcdelta := readvarint(p)
+	pcdelta := uint32(p[0])
+	n = 1
+	if pcdelta&0x80 != 0 {
+		n, pcdelta = readvarint(p)
+	}
+	p = p[n:]
 	*pc += uintptr(pcdelta * sys.PCQuantum)
 	*val += vdelta
 	return p, true
 }
 
 // readvarint reads a varint from p.
-func readvarint(p []byte) (newp []byte, val uint32) {
-	var v, shift uint32
+func readvarint(p []byte) (read uint32, val uint32) {
+	var v, shift, n uint32
 	for {
-		b := p[0]
-		p = p[1:]
-		v |= (uint32(b) & 0x7F) << shift
+		b := p[n]
+		n++
+		v |= uint32(b&0x7F) << (shift & 31)
 		if b&0x80 == 0 {
 			break
 		}
 		shift += 7
 	}
-	return p, v
+	return n, v
 }
 
 type stackmap struct {
@@ -878,7 +891,7 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
 	if n < 0 || n >= stkmap.n {
 		throw("stackmapdata: index out of range")
 	}
-	return bitvector{stkmap.nbit, (*byte)(add(unsafe.Pointer(&stkmap.bytedata), uintptr(n*((stkmap.nbit+7)/8))))}
+	return bitvector{stkmap.nbit, (*byte)(add(unsafe.Pointer(&stkmap.bytedata), uintptr(n*((stkmap.nbit+7)>>3))))}
 }
 
 // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
