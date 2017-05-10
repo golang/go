@@ -76,8 +76,6 @@ notintel:
 	CPUID
 	MOVL	CX, DI // Move to global variable clobbers CX when generating PIC
 	MOVL	AX, runtime·processorVersionInfo(SB)
-	MOVL	DI, runtime·cpuid_ecx(SB)
-	MOVL	DX, runtime·cpuid_edx(SB)
 
 	// Check for MMX support
 	TESTL	$(1<<23), DX // MMX
@@ -116,7 +114,6 @@ eax7:
 	MOVL	$7, AX
 	MOVL	$0, CX
 	CPUID
-	MOVL	BX, runtime·cpuid_ebx7(SB)
 
 	TESTL	$(1<<3), BX // BMI1
 	SETNE	runtime·support_bmi1(SB)

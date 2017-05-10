@@ -746,12 +746,6 @@ var (
 	support_sse42        bool
 	support_ssse3        bool
 
-	// TODO(moehrmann) delete below variables once external
-	// packages have their dependencies on these removed.
-	cpuid_ecx  uint32
-	cpuid_edx  uint32
-	cpuid_ebx7 uint32 // not set on amd64p32
-
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link
 )
