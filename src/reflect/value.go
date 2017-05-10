@@ -2164,7 +2164,6 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 	case directlyAssignable(dst, v.typ):
 		// Overwrite type so that they match.
 		// Same memory layout, so no harm done.
-		v.typ = dst
 		fl := v.flag & (flagRO | flagAddr | flagIndir)
 		fl |= flag(dst.Kind())
 		return Value{dst, v.ptr, fl}
