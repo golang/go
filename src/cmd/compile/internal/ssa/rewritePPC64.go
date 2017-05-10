@@ -1007,18 +1007,18 @@ func rewriteValuePPC64_OpAvg64u_0(v *Value) bool {
 func rewriteValuePPC64_OpBitLen32_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	types := &b.Func.Config.Types
-	_ = types
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (BitLen32 x)
 	// cond:
-	// result: (SUB (MOVDconst [32]) (CNTLZW <types.Int> x))
+	// result: (SUB (MOVDconst [32]) (CNTLZW <typ.Int> x))
 	for {
 		x := v.Args[0]
 		v.reset(OpPPC64SUB)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, types.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
 		v0.AuxInt = 32
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64CNTLZW, types.Int)
+		v1 := b.NewValue0(v.Pos, OpPPC64CNTLZW, typ.Int)
 		v1.AddArg(x)
 		v.AddArg(v1)
 		return true
@@ -1027,18 +1027,18 @@ func rewriteValuePPC64_OpBitLen32_0(v *Value) bool {
 func rewriteValuePPC64_OpBitLen64_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	types := &b.Func.Config.Types
-	_ = types
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (BitLen64 x)
 	// cond:
-	// result: (SUB (MOVDconst [64]) (CNTLZD <types.Int> x))
+	// result: (SUB (MOVDconst [64]) (CNTLZD <typ.Int> x))
 	for {
 		x := v.Args[0]
 		v.reset(OpPPC64SUB)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, types.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
 		v0.AuxInt = 64
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64CNTLZD, types.Int)
+		v1 := b.NewValue0(v.Pos, OpPPC64CNTLZD, typ.Int)
 		v1.AddArg(x)
 		v.AddArg(v1)
 		return true
@@ -1214,17 +1214,17 @@ func rewriteValuePPC64_OpConvert_0(v *Value) bool {
 func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	types := &b.Func.Config.Types
-	_ = types
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (Ctz32 x)
 	// cond:
-	// result: (POPCNTW (MOVWZreg (ANDN <types.Int> (ADDconst <types.Int> [-1] x) x)))
+	// result: (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
 	for {
 		x := v.Args[0]
 		v.reset(OpPPC64POPCNTW)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, types.Int64)
-		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, types.Int)
-		v2 := b.NewValue0(v.Pos, OpPPC64ADDconst, types.Int)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
+		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.Int)
+		v2 := b.NewValue0(v.Pos, OpPPC64ADDconst, typ.Int)
 		v2.AuxInt = -1
 		v2.AddArg(x)
 		v1.AddArg(v2)
@@ -1237,16 +1237,16 @@ func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
 func rewriteValuePPC64_OpCtz64_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	types := &b.Func.Config.Types
-	_ = types
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (Ctz64 x)
 	// cond:
-	// result: (POPCNTD (ANDN <types.Int64> (ADDconst <types.Int64> [-1] x) x))
+	// result: (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
 	for {
 		x := v.Args[0]
 		v.reset(OpPPC64POPCNTD)
-		v0 := b.NewValue0(v.Pos, OpPPC64ANDN, types.Int64)
-		v1 := b.NewValue0(v.Pos, OpPPC64ADDconst, types.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.Int64)
+		v1 := b.NewValue0(v.Pos, OpPPC64ADDconst, typ.Int64)
 		v1.AuxInt = -1
 		v1.AddArg(x)
 		v0.AddArg(v1)
@@ -8047,15 +8047,15 @@ func rewriteValuePPC64_OpPPC64XORconst_0(v *Value) bool {
 func rewriteValuePPC64_OpPopCount16_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	types := &b.Func.Config.Types
-	_ = types
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (PopCount16 x)
 	// cond:
 	// result: (POPCNTW (MOVHZreg x))
 	for {
 		x := v.Args[0]
 		v.reset(OpPPC64POPCNTW)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, types.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, typ.Int64)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -8064,15 +8064,15 @@ func rewriteValuePPC64_OpPopCount16_0(v *Value) bool {
 func rewriteValuePPC64_OpPopCount32_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	types := &b.Func.Config.Types
-	_ = types
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (PopCount32 x)
 	// cond:
 	// result: (POPCNTW (MOVWZreg x))
 	for {
 		x := v.Args[0]
 		v.reset(OpPPC64POPCNTW)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, types.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -8092,15 +8092,15 @@ func rewriteValuePPC64_OpPopCount64_0(v *Value) bool {
 func rewriteValuePPC64_OpPopCount8_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	types := &b.Func.Config.Types
-	_ = types
+	typ := &b.Func.Config.Types
+	_ = typ
 	// match: (PopCount8 x)
 	// cond:
 	// result: (POPCNTB (MOVBreg x))
 	for {
 		x := v.Args[0]
 		v.reset(OpPPC64POPCNTB)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVBreg, types.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVBreg, typ.Int64)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
