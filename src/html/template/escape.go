@@ -139,20 +139,6 @@ func (e *escaper) escape(c context, n parse.Node) context {
 	panic("escaping " + n.String() + " is unimplemented")
 }
 
-// allIdents returns the names of the identifiers under the Ident field of the node,
-// which might be a singleton (Identifier) or a slice (Field or Chain).
-func allIdents(node parse.Node) []string {
-	switch node := node.(type) {
-	case *parse.IdentifierNode:
-		return []string{node.Ident}
-	case *parse.FieldNode:
-		return node.Ident
-	case *parse.ChainNode:
-		return node.Field
-	}
-	return nil
-}
-
 // escapeAction escapes an action template node.
 func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	if len(n.Pipe.Decl) != 0 {
@@ -162,14 +148,24 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	c = nudge(c)
 	// Check for disallowed use of predefined escapers in the pipeline.
 	for pos, idNode := range n.Pipe.Cmds {
-		for _, ident := range allIdents(idNode.Args[0]) {
-			if _, ok := predefinedEscapers[ident]; ok {
-				if pos < len(n.Pipe.Cmds)-1 ||
-					c.state == stateAttr && c.delim == delimSpaceOrTagEnd && ident == "html" {
-					return context{
-						state: stateError,
-						err:   errorf(ErrPredefinedEscaper, n, n.Line, "predefined escaper %q disallowed in template", ident),
-					}
+		node, ok := idNode.Args[0].(*parse.IdentifierNode)
+		if !ok {
+			// A predefined escaper "esc" will never be found as an identifier in a
+			// Chain or Field node, since:
+			// - "esc.x ..." is invalid, since predefined escapers return strings, and
+			//   strings do not have methods, keys or fields.
+			// - "... .esc" is invalid, since predefined escapers are global functions,
+			//   not methods or fields of any types.
+			// Therefore, it is safe to ignore these two node types.
+			continue
+		}
+		ident := node.Ident
+		if _, ok := predefinedEscapers[ident]; ok {
+			if pos < len(n.Pipe.Cmds)-1 ||
+				c.state == stateAttr && c.delim == delimSpaceOrTagEnd && ident == "html" {
+				return context{
+					state: stateError,
+					err:   errorf(ErrPredefinedEscaper, n, n.Line, "predefined escaper %q disallowed in template", ident),
 				}
 			}
 		}
