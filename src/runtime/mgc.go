@@ -1918,7 +1918,7 @@ func gchelper() {
 		traceGCScanDone()
 	}
 
-	nproc := work.nproc // work.nproc can change right after we increment work.ndone
+	nproc := atomic.Load(&work.nproc) // work.nproc can change right after we increment work.ndone
 	if atomic.Xadd(&work.ndone, +1) == nproc-1 {
 		notewakeup(&work.alldone)
 	}
