@@ -685,6 +685,40 @@ func TestEscape(t *testing.T) {
 	}
 }
 
+func TestEscapeMap(t *testing.T) {
+	data := map[string]string{
+		"html":     `<h1>Hi!</h1>`,
+		"urlquery": `http://www.foo.com/index.html?title=main`,
+	}
+	for _, test := range [...]struct {
+		desc, input, output string
+	}{
+		// covering issue 20323
+		{
+			"field with predefined escaper name 1",
+			`{{.html | print}}`,
+			`&lt;h1&gt;Hi!&lt;/h1&gt;`,
+		},
+		// covering issue 20323
+		{
+			"field with predefined escaper name 2",
+			`{{.urlquery | print}}`,
+			`http://www.foo.com/index.html?title=main`,
+		},
+	} {
+		tmpl := Must(New("").Parse(test.input))
+		b := new(bytes.Buffer)
+		if err := tmpl.Execute(b, data); err != nil {
+			t.Errorf("%s: template execution failed: %s", test.desc, err)
+			continue
+		}
+		if w, g := test.output, b.String(); w != g {
+			t.Errorf("%s: escaped output: want\n\t%q\ngot\n\t%q", test.desc, w, g)
+			continue
+		}
+	}
+}
+
 func TestEscapeSet(t *testing.T) {
 	type dataItem struct {
 		Children []*dataItem
@@ -1595,14 +1629,14 @@ func TestEnsurePipelineContains(t *testing.T) {
 		},
 		{
 			// covering issue 10801
-			"{{.X | js.x }}",
-			".X | js.x | urlquery | html",
+			"{{.X | println.x }}",
+			".X | println.x | urlquery | html",
 			[]string{"urlquery", "html"},
 		},
 		{
 			// covering issue 10801
-			"{{.X | (print 12 | js).x }}",
-			".X | (print 12 | js).x | urlquery | html",
+			"{{.X | (print 12 | println).x }}",
+			".X | (print 12 | println).x | urlquery | html",
 			[]string{"urlquery", "html"},
 		},
 		// The following test cases ensure that the merging of internal escapers
