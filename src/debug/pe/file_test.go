@@ -363,6 +363,16 @@ func testDWARF(t *testing.T, linktype int) {
 	}
 	defer f.Close()
 
+	var foundDebugGDBScriptsSection bool
+	for _, sect := range f.Sections {
+		if sect.Name == ".debug_gdb_scripts" {
+			foundDebugGDBScriptsSection = true
+		}
+	}
+	if !foundDebugGDBScriptsSection {
+		t.Error(".debug_gdb_scripts section is not found")
+	}
+
 	d, err := f.DWARF()
 	if err != nil {
 		t.Fatal(err)

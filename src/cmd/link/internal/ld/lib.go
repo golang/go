@@ -986,6 +986,29 @@ func hostobjCopy() (paths []string) {
 	return paths
 }
 
+// writeGDBLinkerScript creates gcc linker script file in temp
+// directory. writeGDBLinkerScript returns created file path.
+// The script is used to work around gcc bug
+// (see https://golang.org/issue/20183 for details).
+func writeGDBLinkerScript() string {
+	name := "fix_debug_gdb_scripts.ld"
+	path := filepath.Join(*flagTmpdir, name)
+	src := `SECTIONS
+{
+  .debug_gdb_scripts BLOCK(__section_alignment__) (NOLOAD) :
+  {
+    *(.debug_gdb_scripts)
+  }
+}
+INSERT AFTER .debug_types;
+`
+	err := ioutil.WriteFile(path, []byte(src), 0666)
+	if err != nil {
+		Errorf(nil, "WriteFile %s failed: %v", name, err)
+	}
+	return path
+}
+
 // archive builds a .a archive from the hostobj object files.
 func (ctxt *Link) archive() {
 	if Buildmode != BuildmodeCArchive {
@@ -1247,6 +1270,10 @@ func (l *Link) hostlink() {
 		}
 	}
 	if Headtype == objabi.Hwindows {
+		// use gcc linker script to work around gcc bug
+		// (see https://golang.org/issue/20183 for details).
+		p := writeGDBLinkerScript()
+		argv = append(argv, "-Wl,-T,"+p)
 		// libmingw32 and libmingwex have some inter-dependencies,
 		// so must use linker groups.
 		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
