@@ -278,7 +278,8 @@ type state struct {
 
 type funcLine struct {
 	f    *obj.LSym
-	line src.XPos
+	file string
+	line uint
 }
 
 type ssaLabel struct {
@@ -3455,10 +3456,12 @@ func (s *state) check(cmp *ssa.Value, fn *obj.LSym) {
 	b.Likely = ssa.BranchLikely
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	line := s.peekPos()
-	bPanic := s.panics[funcLine{fn, line}]
+	pos := Ctxt.PosTable.Pos(line)
+	fl := funcLine{f: fn, file: pos.Filename(), line: pos.Line()}
+	bPanic := s.panics[fl]
 	if bPanic == nil {
 		bPanic = s.f.NewBlock(ssa.BlockPlain)
-		s.panics[funcLine{fn, line}] = bPanic
+		s.panics[fl] = bPanic
 		s.startBlock(bPanic)
 		// The panic call takes/returns memory to ensure that the right
 		// memory state is observed if the panic happens.
