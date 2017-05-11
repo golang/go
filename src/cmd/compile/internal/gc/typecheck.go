@@ -498,7 +498,12 @@ OpSwitch:
 			ok |= Etype
 			n.Op = OTYPE
 			n.Type = types.NewPtr(l.Type)
-			checkwidth(l.Type) // ensure this gets dowidth'd for the backend
+			// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
+			// Don't checkwidth [...] arrays, though, since they
+			// will be replaced by concrete-sized arrays. Issue 20333.
+			if !l.Type.IsDDDArray() {
+				checkwidth(l.Type)
+			}
 			n.Left = nil
 			break OpSwitch
 		}
