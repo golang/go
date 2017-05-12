@@ -3974,6 +3974,13 @@ func TestExecutableGOROOT(t *testing.T) {
 		return strings.TrimSpace(string(out))
 	}
 
+	// Filenames are case insensitive on Windows.
+	// There should probably be a path/filepath function for this.
+	equal := func(a, b string) bool { return a == b }
+	if runtime.GOOS == "windows" {
+		equal = strings.EqualFold
+	}
+
 	// macOS uses a symlink for /tmp.
 	resolvedTestGOROOT, err := filepath.EvalSymlinks(testGOROOT)
 	if err != nil {
@@ -3982,13 +3989,13 @@ func TestExecutableGOROOT(t *testing.T) {
 
 	// Missing GOROOT/pkg/tool, the go tool should fall back to
 	// its default path.
-	if got, want := goroot(newGoTool), resolvedTestGOROOT; got != want {
+	if got, want := goroot(newGoTool), resolvedTestGOROOT; !equal(got, want) {
 		t.Fatalf("%s env GOROOT = %q, want %q", newGoTool, got, want)
 	}
 
 	// Now the executable's path looks like a GOROOT.
 	tg.tempDir("newgoroot/pkg/tool")
-	if got, want := goroot(newGoTool), tg.path("newgoroot"); got != want {
+	if got, want := goroot(newGoTool), tg.path("newgoroot"); !equal(got, want) {
 		t.Fatalf("%s env GOROOT = %q with pkg/tool, want %q", newGoTool, got, want)
 	}
 
@@ -4003,7 +4010,7 @@ func TestExecutableGOROOT(t *testing.T) {
 		t.Fatalf("could not eval newgoroot symlinks: %v", err)
 	}
 
-	if got, want := goroot(symGoTool), resolvedNewGOROOT; got != want {
+	if got, want := goroot(symGoTool), resolvedNewGOROOT; !equal(got, want) {
 		t.Fatalf("%s env GOROOT = %q, want %q", symGoTool, got, want)
 	}
 }
