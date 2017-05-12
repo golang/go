@@ -4055,13 +4055,26 @@ func TestCgoFlagContainsSpace(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 
-	tg.tempFile("src/cc/main.go", fmt.Sprintf(`package main
+	tg.tempFile(fmt.Sprintf("src/%s/main.go", testCC), fmt.Sprintf(`package main
 		import (
 			"os"
 			"os/exec"
 		)
 
 		func main() {
+			cmd := exec.Command(%q, os.Args[1:]...)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			err := cmd.Run()
+			if err != nil {
+				panic(err)
+			}
+
+			if os.Args[len(os.Args)-1] == "trivial.c" {
+				return
+			}
+
 			var success bool
 			for _, arg := range os.Args {
 				switch arg {
@@ -4080,24 +4093,18 @@ func TestCgoFlagContainsSpace(t *testing.T) {
 			if !success {
 				panic("args should contains '-Ic flags' or '-Lld flags'")
 			}
-			cmd := exec.Command(%q, os.Args[1:]...)
-			cmd.Stdin = os.Stdin
-			cmd.Stdout = os.Stdout
-			err := cmd.Run()
-			if err != nil {
-				panic(err)
-			}
 		}
 	`, testCC))
-	tg.cd(tg.path("src/cc"))
+	tg.cd(tg.path(fmt.Sprintf("src/%s", testCC)))
 	tg.run("build")
-	tg.setenv("CC", tg.path("src/cc/cc"))
-	tg.tempFile("src/cgo/cgo.go", `package main
+	tg.setenv("CC", tg.path(fmt.Sprintf("src/%s/%s", testCC, testCC)))
+
+	tg.tempFile("src/cgo/main.go", `package main
 		// #cgo CFLAGS: -I"c flags"
 		// #cgo LDFLAGS: -L"ld flags"
 		import "C"
 		func main() {}
 	`)
-	path := tg.path("src/cgo/cgo.go")
-	tg.run("run", path)
+	tg.cd(tg.path("src/cgo"))
+	tg.run("run", "main.go")
 }
