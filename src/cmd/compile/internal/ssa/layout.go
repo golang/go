@@ -16,10 +16,18 @@ func layout(f *Func) {
 	defer f.retSparseSet(posdegree)
 	zerodegree := f.newSparseSet(f.NumBlocks()) // blocks with zero remaining degree
 	defer f.retSparseSet(zerodegree)
+	exit := f.newSparseSet(f.NumBlocks()) // exit blocks
+	defer f.retSparseSet(exit)
 
 	// Initialize indegree of each block
 	for _, b := range f.Blocks {
 		idToBlock[b.ID] = b
+		if b.Kind == BlockExit {
+			// exit blocks are always scheduled last
+			// TODO: also add blocks post-dominated by exit blocks
+			exit.add(b.ID)
+			continue
+		}
 		indegree[b.ID] = len(b.Preds)
 		if len(b.Preds) == 0 {
 			zerodegree.add(b.ID)
@@ -69,7 +77,7 @@ blockloop:
 		mindegree := f.NumBlocks()
 		for _, e := range order[len(order)-1].Succs {
 			c := e.b
-			if scheduled[c.ID] {
+			if scheduled[c.ID] || c.Kind == BlockExit {
 				continue
 			}
 			if indegree[c.ID] < mindegree {
@@ -90,9 +98,18 @@ blockloop:
 				continue blockloop
 			}
 		}
-		// Still nothing, pick any block.
-		for {
+		// Still nothing, pick any non-exit block.
+		for posdegree.size() > 0 {
 			cid := posdegree.pop()
+			if !scheduled[cid] {
+				bid = cid
+				continue blockloop
+			}
+		}
+		// Pick any exit block.
+		// TODO: Order these to minimize jump distances?
+		for {
+			cid := exit.pop()
 			if !scheduled[cid] {
 				bid = cid
 				continue blockloop
