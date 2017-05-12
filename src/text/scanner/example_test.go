@@ -12,28 +12,25 @@ import (
 
 func Example() {
 	const src = `
-	// This is scanned code.
-	if a > 10 {
-		someParsable = text
-	}`
+// This is scanned code.
+if a > 10 {
+	someParsable = text
+}`
 	var s scanner.Scanner
-	s.Filename = "example"
 	s.Init(strings.NewReader(src))
-	var tok rune
-	for tok != scanner.EOF {
-		tok = s.Scan()
-		fmt.Println("At position", s.Pos(), ":", s.TokenText())
+	s.Filename = "example"
+	for tok := s.Scan(); tok != scanner.EOF; tok = s.Scan() {
+		fmt.Printf("%s: %s\n", s.Position, s.TokenText())
 	}
 
 	// Output:
-	// At position example:3:4 : if
-	// At position example:3:6 : a
-	// At position example:3:8 : >
-	// At position example:3:11 : 10
-	// At position example:3:13 : {
-	// At position example:4:15 : someParsable
-	// At position example:4:17 : =
-	// At position example:4:22 : text
-	// At position example:5:3 : }
-	// At position example:5:3 :
+	// example:3:1: if
+	// example:3:4: a
+	// example:3:6: >
+	// example:3:8: 10
+	// example:3:11: {
+	// example:4:2: someParsable
+	// example:4:15: =
+	// example:4:17: text
+	// example:5:1: }
 }
