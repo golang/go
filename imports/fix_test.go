@@ -1536,6 +1536,57 @@ func TestGlobalImports(t *testing.T) {
 	})
 }
 
+// Tests that sibling files - other files in the same package - can provide an
+// import that may not be the default one otherwise.
+func TestSiblingImports(t *testing.T) {
+
+	// provide is the sibling file that provides the desired import.
+	const provide = `package siblingimporttest
+
+import "local/log"
+
+func LogSomething() {
+	log.Print("Something")
+}
+`
+
+	// need is the file being tested that needs the import.
+	const need = `package siblingimporttest
+
+func LogSomethingElse() {
+	log.Print("Something else")
+}
+`
+
+	// want is the expected result file
+	const want = `package siblingimporttest
+
+import "local/log"
+
+func LogSomethingElse() {
+	log.Print("Something else")
+}
+`
+
+	const pkg = "siblingimporttest"
+	const siblingFile = pkg + "/needs_import.go"
+	testConfig{
+		gopathFiles: map[string]string{
+			siblingFile:                 need,
+			pkg + "/provides_import.go": provide,
+		},
+	}.test(t, func(t *goimportTest) {
+		buf, err := Process(
+			t.gopath+"/src/"+siblingFile, []byte(need), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(buf) != want {
+			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
+		}
+	})
+}
+
 func strSet(ss []string) map[string]bool {
 	m := make(map[string]bool)
 	for _, s := range ss {
