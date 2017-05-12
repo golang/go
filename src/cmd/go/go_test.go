@@ -4055,7 +4055,9 @@ func TestCgoFlagContainsSpace(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 
-	tg.tempFile(fmt.Sprintf("src/%s/main.go", testCC), fmt.Sprintf(`package main
+	ccName := filepath.Base(testCC)
+
+	tg.tempFile(fmt.Sprintf("src/%s/main.go", ccName), fmt.Sprintf(`package main
 		import (
 			"os"
 			"os/exec"
@@ -4095,9 +4097,9 @@ func TestCgoFlagContainsSpace(t *testing.T) {
 			}
 		}
 	`, testCC))
-	tg.cd(tg.path(fmt.Sprintf("src/%s", testCC)))
+	tg.cd(tg.path(fmt.Sprintf("src/%s", ccName)))
 	tg.run("build")
-	tg.setenv("CC", tg.path(fmt.Sprintf("src/%s/%s", testCC, testCC)))
+	tg.setenv("CC", tg.path(fmt.Sprintf("src/%s/%s", ccName, ccName)))
 
 	tg.tempFile("src/cgo/main.go", `package main
 		// #cgo CFLAGS: -I"c flags"
