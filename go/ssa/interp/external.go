@@ -69,10 +69,9 @@ func init() {
 		"(reflect.rtype).Out":              ext۰reflect۰rtype۰Out,
 		"(reflect.rtype).Size":             ext۰reflect۰rtype۰Size,
 		"(reflect.rtype).String":           ext۰reflect۰rtype۰String,
-		"bytes.init":                       ext۰nop, // avoid asm dependency
 		"bytes.Equal":                      ext۰bytes۰Equal,
 		"bytes.IndexByte":                  ext۰bytes۰IndexByte,
-		"hash/crc32.haveSSE42":             ext۰crc32۰haveSSE42,
+		"internal/cpu.cpuid":               ext۰cpu۰cpuid,
 		"math.Abs":                         ext۰math۰Abs,
 		"math.Exp":                         ext۰math۰Exp,
 		"math.Float32bits":                 ext۰math۰Float32bits,
@@ -82,7 +81,6 @@ func init() {
 		"math.Ldexp":                       ext۰math۰Ldexp,
 		"math.Log":                         ext۰math۰Log,
 		"math.Min":                         ext۰math۰Min,
-		"math.hasSSE4":                     ext۰math۰hasSSE4,
 		"os.runtime_args":                  ext۰os۰runtime_args,
 		"os.runtime_beforeExit":            ext۰nop,
 		"os/signal.init":                   ext۰nop,
@@ -112,7 +110,6 @@ func init() {
 		"(*runtime.Func).Name":             ext۰runtime۰Func۰Name,
 		"runtime.environ":                  ext۰runtime۰environ,
 		"runtime.getgoroot":                ext۰runtime۰getgoroot,
-		"strings.init":                     ext۰nop, // avoid asm dependency
 		"strings.Count":                    ext۰strings۰Count,
 		"strings.Index":                    ext۰strings۰Index,
 		"strings.IndexByte":                ext۰strings۰IndexByte,
@@ -193,10 +190,6 @@ func ext۰bytes۰IndexByte(fr *frame, args []value) value {
 	return -1
 }
 
-func ext۰crc32۰haveSSE42(fr *frame, args []value) value {
-	return false
-}
-
 func ext۰math۰Float64frombits(fr *frame, args []value) value {
 	return math.Float64frombits(args[0].(uint64))
 }
@@ -223,10 +216,6 @@ func ext۰math۰Float32bits(fr *frame, args []value) value {
 
 func ext۰math۰Min(fr *frame, args []value) value {
 	return math.Min(args[0].(float64), args[1].(float64))
-}
-
-func ext۰math۰hasSSE4(fr *frame, args []value) value {
-	return false
 }
 
 func ext۰math۰Ldexp(fr *frame, args []value) value {
@@ -474,6 +463,10 @@ func ext۰atomic۰AddUint64(fr *frame, args []value) value {
 	newv := (*p).(uint64) + args[1].(uint64)
 	*p = newv
 	return newv
+}
+
+func ext۰cpu۰cpuid(fr *frame, args []value) value {
+	return tuple{uint32(0), uint32(0), uint32(0), uint32(0)}
 }
 
 // Pretend: type runtime.Func struct { entry *ssa.Function }

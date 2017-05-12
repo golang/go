@@ -158,7 +158,7 @@ var gorootSrcTests = []string{
 	"encoding/hex",
 	// "encoding/pem", // TODO(adonovan): implement (reflect.Value).SetString
 	// "testing",      // TODO(adonovan): implement runtime.Goexit correctly
-	// "hash/crc32",   // TODO(adonovan): implement hash/crc32.haveCLMUL
+	"hash/crc32",
 	// "log",          // TODO(adonovan): implement runtime.Callers correctly
 
 	// Too slow:
