@@ -12,7 +12,6 @@ package net
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 */
@@ -95,15 +94,14 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 }
 
 func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (port int, err error) {
-	s := C.CString(service)
-	// Lowercase the service name in the C-allocated memory.
-	for i := 0; i < len(service); i++ {
-		bp := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(s)) + uintptr(i)))
-		*bp = lowerASCII(*bp)
+	cservice := make([]byte, len(service)+1)
+	copy(cservice, service)
+	// Lowercase the C service name.
+	for i, b := range cservice[:len(service)] {
+		cservice[i] = lowerASCII(b)
 	}
 	var res *C.struct_addrinfo
-	defer C.free(unsafe.Pointer(s))
-	gerrno, err := C.getaddrinfo(nil, s, hints, &res)
+	gerrno, err := C.getaddrinfo(nil, (*C.char)(unsafe.Pointer(&cservice[0])), hints, &res)
 	if gerrno != 0 {
 		switch gerrno {
 		case C.EAI_SYSTEM:
@@ -145,10 +143,10 @@ func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error) {
 	hints.ai_flags = cgoAddrInfoFlags
 	hints.ai_socktype = C.SOCK_STREAM
 
-	h := C.CString(name)
-	defer C.free(unsafe.Pointer(h))
+	h := make([]byte, len(name)+1)
+	copy(h, name)
 	var res *C.struct_addrinfo
-	gerrno, err := C.getaddrinfo(h, nil, &hints, &res)
+	gerrno, err := C.getaddrinfo((*C.char)(unsafe.Pointer(&h[0])), nil, &hints, &res)
 	if gerrno != 0 {
 		switch gerrno {
 		case C.EAI_SYSTEM:
