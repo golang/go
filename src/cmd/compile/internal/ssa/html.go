@@ -142,13 +142,13 @@ dd.ssa-prog {
 <script type="text/javascript">
 // ordered list of all available highlight colors
 var highlights = [
-    "highlight-yellow",
     "highlight-aquamarine",
     "highlight-coral",
     "highlight-lightpink",
     "highlight-lightsteelblue",
     "highlight-palegreen",
-    "highlight-lightgray"
+    "highlight-lightgray",
+    "highlight-yellow"
 ];
 
 // state: which value is highlighted this color?
@@ -264,8 +264,6 @@ function toggle_visibility(id) {
 </script>
 
 </head>`)
-	// TODO: Add javascript click handlers for blocks
-	// to outline that block across all phases
 	w.WriteString("<body>")
 	w.WriteString("<h1>")
 	w.WriteString(html.EscapeString(name))
