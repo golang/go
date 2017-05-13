@@ -72,8 +72,9 @@ func Remove(h Interface, i int) interface{} {
 	n := h.Len() - 1
 	if n != i {
 		h.Swap(i, n)
-		down(h, i, n)
-		up(h, i)
+		if !down(h, i, n) {
+			up(h, i)
+		}
 	}
 	return h.Pop()
 }
