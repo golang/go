@@ -179,7 +179,7 @@ func cap(v Type) int
 //	Channel: The channel's buffer is initialized with the specified
 //	buffer capacity. If zero, or the size is omitted, the channel is
 //	unbuffered.
-func make(Type, size IntegerType) Type
+func make(t Type, size ...IntegerType) Type
 
 // The new built-in function allocates memory. The first argument is a type,
 // not a value, and the value returned is a pointer to a newly
