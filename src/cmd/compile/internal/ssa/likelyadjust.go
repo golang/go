@@ -300,7 +300,7 @@ func loopnestfor(f *Func) *loopnest {
 		//
 		// Choose the first/innermost such h.
 		//
-		// IF s itself dominates b, the s is a loop header;
+		// IF s itself dominates b, then s is a loop header;
 		// and there may be more than one such s.
 		// Since there's at most 2 successors, the inner/outer ordering
 		// between them can be established with simple comparisons.

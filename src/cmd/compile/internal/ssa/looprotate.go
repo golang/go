@@ -27,12 +27,17 @@ func loopRotate(f *Func) {
 		return
 	}
 
+	idToIdx := make([]int, f.NumBlocks())
+	for i, b := range f.Blocks {
+		idToIdx[b.ID] = i
+	}
+
 	// Set of blocks we're moving, by ID.
 	move := map[ID]struct{}{}
 
-	// Map from block ID to the moving block that should
+	// Map from block ID to the moving blocks that should
 	// come right after it.
-	after := map[ID]*Block{}
+	after := map[ID][]*Block{}
 
 	// Check each loop header and decide if we want to move it.
 	for _, loop := range loopnest.loops {
@@ -50,10 +55,27 @@ func loopRotate(f *Func) {
 		if p == nil || p == b {
 			continue
 		}
+		after[p.ID] = []*Block{b}
+		for {
+			nextIdx := idToIdx[b.ID] + 1
+			if nextIdx >= len(f.Blocks) { // reached end of function (maybe impossible?)
+				break
+			}
+			nextb := f.Blocks[nextIdx]
+			if nextb == p { // original loop precedessor is next
+				break
+			}
+			if loopnest.b2l[nextb.ID] != loop { // about to leave loop
+				break
+			}
+			after[p.ID] = append(after[p.ID], nextb)
+			b = nextb
+		}
 
 		// Place b after p.
-		move[b.ID] = struct{}{}
-		after[p.ID] = b
+		for _, b := range after[p.ID] {
+			move[b.ID] = struct{}{}
+		}
 	}
 
 	// Move blocks to their destinations in a single pass.
@@ -67,7 +89,7 @@ func loopRotate(f *Func) {
 		}
 		f.Blocks[j] = b
 		j++
-		if a := after[b.ID]; a != nil {
+		for _, a := range after[b.ID] {
 			if j > i {
 				f.Fatalf("head before tail in loop %s", b)
 			}
