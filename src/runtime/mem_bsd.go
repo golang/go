@@ -59,6 +59,7 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	return p
 }
 
+const _sunosEAGAIN = 11
 const _ENOMEM = 12
 
 func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
@@ -76,7 +77,7 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
 			flags |= _MAP_FIXED
 		}
 		p := mmap(v, n, _PROT_READ|_PROT_WRITE, flags, -1, 0)
-		if uintptr(p) == _ENOMEM {
+		if uintptr(p) == _ENOMEM || (GOOS == "solaris" && uintptr(p) == _sunosEAGAIN) {
 			throw("runtime: out of memory")
 		}
 		if p != v {
@@ -87,7 +88,7 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
 	}
 
 	p := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
-	if uintptr(p) == _ENOMEM {
+	if uintptr(p) == _ENOMEM || (GOOS == "solaris" && uintptr(p) == _sunosEAGAIN) {
 		throw("runtime: out of memory")
 	}
 	if p != v {
