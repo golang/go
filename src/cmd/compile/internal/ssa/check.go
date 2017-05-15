@@ -310,6 +310,10 @@ func checkFunc(f *Func) {
 		}
 	}
 
+	memCheck(f)
+}
+
+func memCheck(f *Func) {
 	// Check that if a tuple has a memory type, it is second.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -319,24 +323,122 @@ func checkFunc(f *Func) {
 		}
 	}
 
-	// Check that only one memory is live at any point.
-	// TODO: make this check examine interblock.
-	if f.scheduled {
-		for _, b := range f.Blocks {
-			var mem *Value // the live memory
+	// Single live memory checks.
+	// These checks only work if there are no memory copies.
+	// (Memory copies introduce ambiguity about which mem value is really live.
+	// probably fixable, but it's easier to avoid the problem.)
+	// For the same reason, disable this check if some memory ops are unused.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if (v.Op == OpCopy || v.Uses == 0) && v.Type.IsMemory() {
+				return
+			}
+		}
+		if b != f.Entry && len(b.Preds) == 0 {
+			return
+		}
+	}
+
+	// Compute live memory at the end of each block.
+	lastmem := make([]*Value, f.NumBlocks())
+	ss := newSparseSet(f.NumValues())
+	for _, b := range f.Blocks {
+		// Mark overwritten memory values. Those are args of other
+		// ops that generate memory values.
+		ss.clear()
+		for _, v := range b.Values {
+			if v.Op == OpPhi || !v.Type.IsMemory() {
+				continue
+			}
+			if m := v.MemoryArg(); m != nil {
+				ss.add(m.ID)
+			}
+		}
+		// There should be at most one remaining unoverwritten memory value.
+		for _, v := range b.Values {
+			if !v.Type.IsMemory() {
+				continue
+			}
+			if ss.contains(v.ID) {
+				continue
+			}
+			if lastmem[b.ID] != nil {
+				f.Fatalf("two live memory values in %s: %s and %s", b, lastmem[b.ID], v)
+			}
+			lastmem[b.ID] = v
+		}
+		// If there is no remaining memory value, that means there was no memory update.
+		// Take any memory arg.
+		if lastmem[b.ID] == nil {
 			for _, v := range b.Values {
-				if v.Op != OpPhi {
-					for _, a := range v.Args {
-						if a.Type.IsMemory() || a.Type.IsTuple() && a.Type.FieldType(1).IsMemory() {
-							if mem == nil {
-								mem = a
-							} else if mem != a {
-								f.Fatalf("two live mems @ %s: %s and %s", v, mem, a)
-							}
-						}
+				if v.Op == OpPhi {
+					continue
+				}
+				m := v.MemoryArg()
+				if m == nil {
+					continue
+				}
+				if lastmem[b.ID] != nil && lastmem[b.ID] != m {
+					f.Fatalf("two live memory values in %s: %s and %s", b, lastmem[b.ID], m)
+				}
+				lastmem[b.ID] = m
+			}
+		}
+	}
+	// Propagate last live memory through storeless blocks.
+	for {
+		changed := false
+		for _, b := range f.Blocks {
+			if lastmem[b.ID] != nil {
+				continue
+			}
+			for _, e := range b.Preds {
+				p := e.b
+				if lastmem[p.ID] != nil {
+					lastmem[b.ID] = lastmem[p.ID]
+					changed = true
+					break
+				}
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+	// Check merge points.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Op == OpPhi && v.Type.IsMemory() {
+				for i, a := range v.Args {
+					if a != lastmem[b.Preds[i].b.ID] {
+						f.Fatalf("inconsistent memory phi %s %d %s %s", v.LongString(), i, a, lastmem[b.Preds[i].b.ID])
 					}
 				}
-				if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
+			}
+		}
+	}
+
+	// Check that only one memory is live at any point.
+	if f.scheduled {
+		for _, b := range f.Blocks {
+			var mem *Value // the current live memory in the block
+			for _, v := range b.Values {
+				if v.Op == OpPhi {
+					if v.Type.IsMemory() {
+						mem = v
+					}
+					continue
+				}
+				if mem == nil && len(b.Preds) > 0 {
+					// If no mem phi, take mem of any predecessor.
+					mem = lastmem[b.Preds[0].b.ID]
+				}
+				for _, a := range v.Args {
+					if a.Type.IsMemory() && a != mem {
+						f.Fatalf("two live mems @ %s: %s and %s", v, mem, a)
+					}
+				}
+				if v.Type.IsMemory() {
 					mem = v
 				}
 			}

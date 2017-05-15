@@ -46,10 +46,24 @@ func trim(f *Func) {
 						v.resetArgs()
 						continue
 					}
-					// Pad the arguments of the remaining phi-ops, so
+					// Pad the arguments of the remaining phi-ops so
 					// they match the new predecessor count of `s`.
-					for len(v.Args) < len(s.Preds) {
-						v.AddArg(v.Args[0])
+					// Since s did not have a Phi op corresponding to
+					// the phi op in b, the other edges coming into s
+					// must be loopback edges from s, so v is the right
+					// argument to v!
+					args := make([]*Value, len(v.Args))
+					copy(args, v.Args)
+					v.resetArgs()
+					for x := 0; x < j; x++ {
+						v.AddArg(v)
+					}
+					v.AddArg(args[0])
+					for x := j + 1; x < ns; x++ {
+						v.AddArg(v)
+					}
+					for _, a := range args[1:] {
+						v.AddArg(a)
 					}
 				}
 				b.Values[k] = v

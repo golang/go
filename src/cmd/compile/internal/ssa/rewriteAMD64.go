@@ -35902,18 +35902,18 @@ func rewriteValueAMD64_OpAtomicAdd32_0(v *Value) bool {
 	_ = typ
 	// match: (AtomicAdd32 ptr val mem)
 	// cond:
-	// result: (AddTupleFirst32 (XADDLlock val ptr mem) val)
+	// result: (AddTupleFirst32 val (XADDLlock val ptr mem))
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpAMD64AddTupleFirst32)
+		v.AddArg(val)
 		v0 := b.NewValue0(v.Pos, OpAMD64XADDLlock, types.NewTuple(typ.UInt32, types.TypeMem))
 		v0.AddArg(val)
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v.AddArg(val)
 		return true
 	}
 }
@@ -35924,18 +35924,18 @@ func rewriteValueAMD64_OpAtomicAdd64_0(v *Value) bool {
 	_ = typ
 	// match: (AtomicAdd64 ptr val mem)
 	// cond:
-	// result: (AddTupleFirst64 (XADDQlock val ptr mem) val)
+	// result: (AddTupleFirst64 val (XADDQlock val ptr mem))
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpAMD64AddTupleFirst64)
+		v.AddArg(val)
 		v0 := b.NewValue0(v.Pos, OpAMD64XADDQlock, types.NewTuple(typ.UInt64, types.TypeMem))
 		v0.AddArg(val)
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v.AddArg(val)
 		return true
 	}
 }
@@ -40216,7 +40216,7 @@ func rewriteValueAMD64_OpRsh8x8_0(v *Value) bool {
 func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	// match: (Select0 <t> (AddTupleFirst32 tuple val))
+	// match: (Select0 <t> (AddTupleFirst32 val tuple))
 	// cond:
 	// result: (ADDL val (Select0 <t> tuple))
 	for {
@@ -40225,8 +40225,8 @@ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
 		if v_0.Op != OpAMD64AddTupleFirst32 {
 			break
 		}
-		tuple := v_0.Args[0]
-		val := v_0.Args[1]
+		val := v_0.Args[0]
+		tuple := v_0.Args[1]
 		v.reset(OpAMD64ADDL)
 		v.AddArg(val)
 		v0 := b.NewValue0(v.Pos, OpSelect0, t)
@@ -40234,7 +40234,7 @@ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Select0 <t> (AddTupleFirst64 tuple val))
+	// match: (Select0 <t> (AddTupleFirst64 val tuple))
 	// cond:
 	// result: (ADDQ val (Select0 <t> tuple))
 	for {
@@ -40243,8 +40243,8 @@ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
 		if v_0.Op != OpAMD64AddTupleFirst64 {
 			break
 		}
-		tuple := v_0.Args[0]
-		val := v_0.Args[1]
+		val := v_0.Args[0]
+		tuple := v_0.Args[1]
 		v.reset(OpAMD64ADDQ)
 		v.AddArg(val)
 		v0 := b.NewValue0(v.Pos, OpSelect0, t)
@@ -40255,7 +40255,7 @@ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpSelect1_0(v *Value) bool {
-	// match: (Select1 (AddTupleFirst32 tuple _))
+	// match: (Select1 (AddTupleFirst32 _ tuple))
 	// cond:
 	// result: (Select1 tuple)
 	for {
@@ -40263,12 +40263,12 @@ func rewriteValueAMD64_OpSelect1_0(v *Value) bool {
 		if v_0.Op != OpAMD64AddTupleFirst32 {
 			break
 		}
-		tuple := v_0.Args[0]
+		tuple := v_0.Args[1]
 		v.reset(OpSelect1)
 		v.AddArg(tuple)
 		return true
 	}
-	// match: (Select1 (AddTupleFirst64 tuple _))
+	// match: (Select1 (AddTupleFirst64 _ tuple))
 	// cond:
 	// result: (Select1 tuple)
 	for {
@@ -40276,7 +40276,7 @@ func rewriteValueAMD64_OpSelect1_0(v *Value) bool {
 		if v_0.Op != OpAMD64AddTupleFirst64 {
 			break
 		}
-		tuple := v_0.Args[0]
+		tuple := v_0.Args[1]
 		v.reset(OpSelect1)
 		v.AddArg(tuple)
 		return true
