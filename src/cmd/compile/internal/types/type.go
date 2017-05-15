@@ -1324,10 +1324,12 @@ func (t *Type) ChanDir() ChanDir {
 	return t.Extra.(*Chan).Dir
 }
 
-func (t *Type) IsMemory() bool { return t == TypeMem }
-func (t *Type) IsFlags() bool  { return t == TypeFlags }
-func (t *Type) IsVoid() bool   { return t == TypeVoid }
-func (t *Type) IsTuple() bool  { return t.Etype == TTUPLE }
+func (t *Type) IsMemory() bool {
+	return t == TypeMem || t.Etype == TTUPLE && t.Extra.(*Tuple).second == TypeMem
+}
+func (t *Type) IsFlags() bool { return t == TypeFlags }
+func (t *Type) IsVoid() bool  { return t == TypeVoid }
+func (t *Type) IsTuple() bool { return t.Etype == TTUPLE }
 
 // IsUntyped reports whether t is an untyped type.
 func (t *Type) IsUntyped() bool {

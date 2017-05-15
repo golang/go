@@ -120,12 +120,12 @@
 (AtomicStorePtrNoWB ptr val mem) -> (MOVDatomicstore ptr val mem)
 
 // Atomic adds.
-(AtomicAdd32 ptr val mem) -> (AddTupleFirst32 (LAA ptr val mem) val)
-(AtomicAdd64 ptr val mem) -> (AddTupleFirst64 (LAAG ptr val mem) val)
-(Select0 <t> (AddTupleFirst32 tuple val)) -> (ADDW val (Select0 <t> tuple))
-(Select1     (AddTupleFirst32 tuple _  )) -> (Select1 tuple)
-(Select0 <t> (AddTupleFirst64 tuple val)) -> (ADD val (Select0 <t> tuple))
-(Select1     (AddTupleFirst64 tuple _  )) -> (Select1 tuple)
+(AtomicAdd32 ptr val mem) -> (AddTupleFirst32 val (LAA ptr val mem))
+(AtomicAdd64 ptr val mem) -> (AddTupleFirst64 val (LAAG ptr val mem))
+(Select0 <t> (AddTupleFirst32 val tuple)) -> (ADDW val (Select0 <t> tuple))
+(Select1     (AddTupleFirst32   _ tuple)) -> (Select1 tuple)
+(Select0 <t> (AddTupleFirst64 val tuple)) -> (ADD val (Select0 <t> tuple))
+(Select1     (AddTupleFirst64   _ tuple)) -> (Select1 tuple)
 
 // Atomic exchanges.
 (AtomicExchange32 ptr val mem) -> (LoweredAtomicExchange32 ptr val mem)

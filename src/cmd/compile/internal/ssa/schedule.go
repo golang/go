@@ -132,19 +132,14 @@ func schedule(f *Func) {
 		}
 	}
 
-	// TODO: make this logic permanent in types.IsMemory?
-	isMem := func(v *Value) bool {
-		return v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory()
-	}
-
 	for _, b := range f.Blocks {
 		// Find store chain for block.
 		// Store chains for different blocks overwrite each other, so
 		// the calculated store chain is good only for this block.
 		for _, v := range b.Values {
-			if v.Op != OpPhi && isMem(v) {
+			if v.Op != OpPhi && v.Type.IsMemory() {
 				for _, w := range v.Args {
-					if isMem(w) {
+					if w.Type.IsMemory() {
 						nextMem[w.ID] = v
 					}
 				}
@@ -164,7 +159,7 @@ func schedule(f *Func) {
 					uses[w.ID]++
 				}
 				// Any load must come before the following store.
-				if !isMem(v) && isMem(w) {
+				if !v.Type.IsMemory() && w.Type.IsMemory() {
 					// v is a load.
 					s := nextMem[w.ID]
 					if s == nil || s.Block != b {
@@ -315,11 +310,7 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 			if v.Op == OpInitMem || v.Op == OpPhi {
 				continue
 			}
-			a := v
-			if v.Op == OpSelect1 {
-				a = a.Args[0]
-			}
-			sset.add(a.MemoryArg().ID) // record that v's memory arg is used
+			sset.add(v.MemoryArg().ID) // record that v's memory arg is used
 		}
 		if v.Op == OpNilCheck {
 			hasNilCheck = true
@@ -335,7 +326,7 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	for _, v := range stores {
 		if !sset.contains(v.ID) {
 			if last != nil {
-				f.Fatalf("two stores live simutaneously: %v and %v", v, last)
+				f.Fatalf("two stores live simultaneously: %v and %v", v, last)
 			}
 			last = v
 		}
@@ -361,9 +352,6 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 				f.Fatalf("store order is wrong: there are stores before %v", w)
 			}
 			break
-		}
-		if w.Op == OpSelect1 {
-			w = w.Args[0]
 		}
 		w = w.MemoryArg()
 	}

@@ -898,18 +898,18 @@ func rewriteValueS390X_OpAtomicAdd32_0(v *Value) bool {
 	_ = typ
 	// match: (AtomicAdd32 ptr val mem)
 	// cond:
-	// result: (AddTupleFirst32 (LAA ptr val mem) val)
+	// result: (AddTupleFirst32 val (LAA ptr val mem))
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpS390XAddTupleFirst32)
+		v.AddArg(val)
 		v0 := b.NewValue0(v.Pos, OpS390XLAA, types.NewTuple(typ.UInt32, types.TypeMem))
 		v0.AddArg(ptr)
 		v0.AddArg(val)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v.AddArg(val)
 		return true
 	}
 }
@@ -920,18 +920,18 @@ func rewriteValueS390X_OpAtomicAdd64_0(v *Value) bool {
 	_ = typ
 	// match: (AtomicAdd64 ptr val mem)
 	// cond:
-	// result: (AddTupleFirst64 (LAAG ptr val mem) val)
+	// result: (AddTupleFirst64 val (LAAG ptr val mem))
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpS390XAddTupleFirst64)
+		v.AddArg(val)
 		v0 := b.NewValue0(v.Pos, OpS390XLAAG, types.NewTuple(typ.UInt64, types.TypeMem))
 		v0.AddArg(ptr)
 		v0.AddArg(val)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v.AddArg(val)
 		return true
 	}
 }
@@ -34159,7 +34159,7 @@ func rewriteValueS390X_OpS390XXORconst_0(v *Value) bool {
 func rewriteValueS390X_OpSelect0_0(v *Value) bool {
 	b := v.Block
 	_ = b
-	// match: (Select0 <t> (AddTupleFirst32 tuple val))
+	// match: (Select0 <t> (AddTupleFirst32 val tuple))
 	// cond:
 	// result: (ADDW val (Select0 <t> tuple))
 	for {
@@ -34168,8 +34168,8 @@ func rewriteValueS390X_OpSelect0_0(v *Value) bool {
 		if v_0.Op != OpS390XAddTupleFirst32 {
 			break
 		}
-		tuple := v_0.Args[0]
-		val := v_0.Args[1]
+		val := v_0.Args[0]
+		tuple := v_0.Args[1]
 		v.reset(OpS390XADDW)
 		v.AddArg(val)
 		v0 := b.NewValue0(v.Pos, OpSelect0, t)
@@ -34177,7 +34177,7 @@ func rewriteValueS390X_OpSelect0_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Select0 <t> (AddTupleFirst64 tuple val))
+	// match: (Select0 <t> (AddTupleFirst64 val tuple))
 	// cond:
 	// result: (ADD val (Select0 <t> tuple))
 	for {
@@ -34186,8 +34186,8 @@ func rewriteValueS390X_OpSelect0_0(v *Value) bool {
 		if v_0.Op != OpS390XAddTupleFirst64 {
 			break
 		}
-		tuple := v_0.Args[0]
-		val := v_0.Args[1]
+		val := v_0.Args[0]
+		tuple := v_0.Args[1]
 		v.reset(OpS390XADD)
 		v.AddArg(val)
 		v0 := b.NewValue0(v.Pos, OpSelect0, t)
@@ -34198,7 +34198,7 @@ func rewriteValueS390X_OpSelect0_0(v *Value) bool {
 	return false
 }
 func rewriteValueS390X_OpSelect1_0(v *Value) bool {
-	// match: (Select1 (AddTupleFirst32 tuple _))
+	// match: (Select1 (AddTupleFirst32 _ tuple))
 	// cond:
 	// result: (Select1 tuple)
 	for {
@@ -34206,12 +34206,12 @@ func rewriteValueS390X_OpSelect1_0(v *Value) bool {
 		if v_0.Op != OpS390XAddTupleFirst32 {
 			break
 		}
-		tuple := v_0.Args[0]
+		tuple := v_0.Args[1]
 		v.reset(OpSelect1)
 		v.AddArg(tuple)
 		return true
 	}
-	// match: (Select1 (AddTupleFirst64 tuple _))
+	// match: (Select1 (AddTupleFirst64 _ tuple))
 	// cond:
 	// result: (Select1 tuple)
 	for {
@@ -34219,7 +34219,7 @@ func rewriteValueS390X_OpSelect1_0(v *Value) bool {
 		if v_0.Op != OpS390XAddTupleFirst64 {
 			break
 		}
-		tuple := v_0.Args[0]
+		tuple := v_0.Args[1]
 		v.reset(OpSelect1)
 		v.AddArg(tuple)
 		return true

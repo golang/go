@@ -391,10 +391,6 @@ func findLastMems(f *Func) []*Value {
 			}
 			if v.Type.IsMemory() {
 				stores = append(stores, v)
-				if v.Op == OpSelect1 {
-					// Use the arg of the tuple-generating op.
-					v = v.Args[0]
-				}
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
 						storeUse.add(a.ID)
