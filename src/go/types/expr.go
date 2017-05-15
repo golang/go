@@ -1161,6 +1161,17 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			}
 
 		default:
+			// when "using" all elements unpack KeyValueExpr
+			// explicitly because check.use doesn't accept them
+			for _, e := range e.Elts {
+				if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+					// Ideally, we should also "use" kv.Key but we can't know
+					// if it's an externally defined struct key or not. Going
+					// forward anyway can lead to other errors. Give up instead.
+					e = kv.Value
+				}
+				check.use(e)
+			}
 			// if utyp is invalid, an error was reported before
 			if utyp != Typ[Invalid] {
 				check.errorf(e.Pos(), "invalid composite literal type %s", typ)
@@ -1182,6 +1193,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.IndexExpr:
 		check.expr(x, e.X)
 		if x.mode == invalid {
+			check.use(e.Index)
 			goto Error
 		}
 
@@ -1251,6 +1263,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.SliceExpr:
 		check.expr(x, e.X)
 		if x.mode == invalid {
+			check.use(e.Low, e.High, e.Max)
 			goto Error
 		}
 
