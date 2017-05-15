@@ -442,6 +442,9 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 		}
 	}
 
+	if n := len(args); n > 1 {
+		fmt.Fprintf(w, "_ = %s.Args[%d]\n", v, n-1) // combine some bounds checks
+	}
 	for i, arg := range args {
 		if arg == "_" {
 			continue
