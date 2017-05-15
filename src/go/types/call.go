@@ -93,7 +93,9 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 func (check *Checker) use(arg ...ast.Expr) {
 	var x operand
 	for _, e := range arg {
-		check.rawExpr(&x, e, nil)
+		if e != nil { // be safe
+			check.rawExpr(&x, e, nil)
+		}
 	}
 }
 

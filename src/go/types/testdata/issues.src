@@ -186,3 +186,24 @@ func issue15755() {
 	_ = u
 	_ = v
 }
+
+// Test that we don't get "declared but not used"
+// errors in the context of invalid/C objects.
+func issue20358() {
+	var F C /* ERROR "undeclared" */ .F
+	var A C /* ERROR "undeclared" */ .A
+	var S C /* ERROR "undeclared" */ .S
+	type T C /* ERROR "undeclared" */ .T
+	type P C /* ERROR "undeclared" */ .P
+
+	// these variables must be "used" even though
+	// the LHS expressions/types below in which
+	// context they are used are unknown/invalid
+	var f, a, s1, s2, s3, t, p int
+
+	_ = F(f)
+	_ = A[a]
+	_ = S[s1:s2:s3]
+	_ = T{t}
+	_ = P{f: p}
+}
