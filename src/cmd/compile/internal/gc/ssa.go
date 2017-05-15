@@ -434,17 +434,12 @@ func (s *state) newValue4(op ssa.Op, t *types.Type, arg0, arg1, arg2, arg3 *ssa.
 
 // entryNewValue0 adds a new value with no arguments to the entry block.
 func (s *state) entryNewValue0(op ssa.Op, t *types.Type) *ssa.Value {
-	return s.f.Entry.NewValue0(s.peekPos(), op, t)
+	return s.f.Entry.NewValue0(src.NoXPos, op, t)
 }
 
 // entryNewValue0A adds a new value with no arguments and an aux value to the entry block.
 func (s *state) entryNewValue0A(op ssa.Op, t *types.Type, aux interface{}) *ssa.Value {
 	return s.f.Entry.NewValue0A(s.peekPos(), op, t, aux)
-}
-
-// entryNewValue0I adds a new value with no arguments and an auxint value to the entry block.
-func (s *state) entryNewValue0I(op ssa.Op, t *types.Type, auxint int64) *ssa.Value {
-	return s.f.Entry.NewValue0I(s.peekPos(), op, t, auxint)
 }
 
 // entryNewValue1 adds a new value with one argument to the entry block.
