@@ -362,8 +362,14 @@ var optab = []Optab{
 	/* Other ISA 2.05+ instructions */
 	{APOPCNTD, C_REG, C_NONE, C_NONE, C_REG, 93, 4, 0},  /* population count, x-form */
 	{ACMPB, C_REG, C_REG, C_NONE, C_REG, 92, 4, 0},      /* compare byte, x-form */
+	{ACMPEQB, C_REG, C_REG, C_NONE, C_CREG, 92, 4, 0},   /* compare equal byte, x-form */
 	{AFTDIV, C_FREG, C_FREG, C_NONE, C_SCON, 92, 4, 0},  /* floating test for sw divide, x-form */
 	{AFTSQRT, C_FREG, C_NONE, C_NONE, C_SCON, 93, 4, 0}, /* floating test for sw square root, x-form */
+	{ACOPY, C_REG, C_NONE, C_NONE, C_REG, 92, 4, 0},     /* copy/paste facility, x-form */
+	{ADARN, C_SCON, C_NONE, C_NONE, C_REG, 92, 4, 0},    /* deliver random number, x-form */
+	{ALDMX, C_SOREG, C_NONE, C_NONE, C_REG, 45, 4, 0},   /* load doubleword monitored, x-form */
+	{AMADDHD, C_REG, C_REG, C_REG, C_REG, 83, 4, 0},     /* multiply-add high/low doubleword, va-form */
+	{AADDEX, C_REG, C_REG, C_SCON, C_REG, 94, 4, 0},     /* add extended using alternate carry, z23-form */
 
 	/* Vector instructions */
 
@@ -392,7 +398,8 @@ var optab = []Optab{
 	{AVSUBE, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0},  /* vector subtract extended, va-form */
 
 	/* Vector multiply */
-	{AVPMSUM, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector polynomial multiply & sum, vx-form */
+	{AVPMSUM, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0},   /* vector polynomial multiply & sum, vx-form */
+	{AVMSUMUDM, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0}, /* vector multiply-sum, va-form */
 
 	/* Vector rotate */
 	{AVR, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector rotate, vx-form */
@@ -407,8 +414,9 @@ var optab = []Optab{
 	{AVPOPCNT, C_VREG, C_NONE, C_NONE, C_VREG, 85, 4, 0}, /* vector population count, vx-form */
 
 	/* Vector compare */
-	{AVCMPEQ, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector compare equal, vc-form */
-	{AVCMPGT, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector compare greater than, vc-form */
+	{AVCMPEQ, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0},   /* vector compare equal, vc-form */
+	{AVCMPGT, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0},   /* vector compare greater than, vc-form */
+	{AVCMPNEZB, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector compare not equal, vx-form */
 
 	/* Vector permute */
 	{AVPERM, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0}, /* vector permute, va-form */
@@ -455,6 +463,7 @@ var optab = []Optab{
 
 	/* VSX move to VSR */
 	{AMTVSR, C_REG, C_NONE, C_NONE, C_VSREG, 88, 4, 0}, /* vsx move to vsr, xx1-form */
+	{AMTVSR, C_REG, C_REG, C_NONE, C_VSREG, 88, 4, 0},
 	{AMTVSR, C_REG, C_NONE, C_NONE, C_FREG, 88, 4, 0},
 	{AMTVSR, C_REG, C_NONE, C_NONE, C_VREG, 88, 4, 0},
 
@@ -758,11 +767,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			return C_GOTADDR
 
 		case obj.NAME_AUTO:
-			if a.Reg == REGSP {
-				// unset base register for better printing, since
-				// a.Offset is still relative to pseudo-SP.
-				a.Reg = obj.REG_NONE
-			}
 			c.instoffset = int64(c.autosize) + a.Offset
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SAUTO
@@ -770,11 +774,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			return C_LAUTO
 
 		case obj.NAME_PARAM:
-			if a.Reg == REGSP {
-				// unset base register for better printing, since
-				// a.Offset is still relative to pseudo-FP.
-				a.Reg = obj.REG_NONE
-			}
 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SAUTO
@@ -827,11 +826,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			return C_LCON
 
 		case obj.NAME_AUTO:
-			if a.Reg == REGSP {
-				// unset base register for better printing, since
-				// a.Offset is still relative to pseudo-SP.
-				a.Reg = obj.REG_NONE
-			}
 			c.instoffset = int64(c.autosize) + a.Offset
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SACON
@@ -839,11 +833,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			return C_LACON
 
 		case obj.NAME_PARAM:
-			if a.Reg == REGSP {
-				// unset base register for better printing, since
-				// a.Offset is still relative to pseudo-FP.
-				a.Reg = obj.REG_NONE
-			}
 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.FixedFrameSize()
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SACON
@@ -1208,9 +1197,15 @@ func buildop(ctxt *obj.Link) {
 			opset(APOPCNTW, r0)
 			opset(APOPCNTB, r0)
 
+		case ACOPY: /* copy, paste. */
+			opset(APASTECC, r0)
+
+		case AMADDHD: /* maddhd, maddhdu, maddld */
+			opset(AMADDHDU, r0)
+			opset(AMADDLD, r0)
+
 		case AMOVBZ: /* lbz, stz, rlwm(r/r), lhz, lha, stz, and x variants */
 			opset(AMOVH, r0)
-
 			opset(AMOVHZ, r0)
 
 		case AMOVBZU: /* lbz[x]u, stb[x]u, lhz[x]u, lha[x]u, sth[u]x, ld[x]u, std[u]x */
@@ -1375,6 +1370,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AVCMPGTSD, r0)
 			opset(AVCMPGTSDCC, r0)
 
+		case AVCMPNEZB: /* vcmpnezb[.] */
+			opset(AVCMPNEZBCC, r0)
+
 		case AVPERM: /* vperm */
 			opset(AVPERM, r0)
 
@@ -1428,18 +1426,21 @@ func buildop(ctxt *obj.Link) {
 		case ASTXSI: /* stxsiwx */
 			opset(ASTXSIWX, r0)
 
-		case AMFVSR: /* mfvsrd, mfvsrwz (and extended mnemonics) */
+		case AMFVSR: /* mfvsrd, mfvsrwz (and extended mnemonics), mfvsrld */
 			opset(AMFVSRD, r0)
 			opset(AMFFPRD, r0)
 			opset(AMFVRD, r0)
 			opset(AMFVSRWZ, r0)
+			opset(AMFVSRLD, r0)
 
-		case AMTVSR: /* mtvsrd, mtvsrwa, mtvsrwz (and extended mnemonics) */
+		case AMTVSR: /* mtvsrd, mtvsrwa, mtvsrwz (and extended mnemonics), mtvsrdd, mtvsrws */
 			opset(AMTVSRD, r0)
 			opset(AMTFPRD, r0)
 			opset(AMTVRD, r0)
 			opset(AMTVSRWA, r0)
 			opset(AMTVSRWZ, r0)
+			opset(AMTVSRDD, r0)
+			opset(AMTVSRWS, r0)
 
 		case AXXLAND: /* xxland, xxlandc, xxleqv, xxlnand */
 			opset(AXXLANDQ, r0)
@@ -1797,6 +1798,11 @@ func buildop(ctxt *obj.Link) {
 			ASLBMTE,
 			AWORD,
 			ADWORD,
+			ADARN,
+			ALDMX,
+			AVMSUMUDM,
+			AADDEX,
+			ACMPEQB,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
@@ -1922,6 +1928,11 @@ func AOP_XX4(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
 	xb := b - REG_VS0
 	xc := c - REG_VS0
 	return op | (xt&31)<<21 | (xa&31)<<16 | (xb&31)<<11 | (xc&31)<<6 | (xc&32)>>2 | (xa&32)>>3 | (xb&32)>>4 | (xt&32)>>5
+}
+
+/* Z23-form, 3-register operands + CY field */
+func AOP_Z23I(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
+	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11 | (c&3)<<7
 }
 
 func LOP_RRR(op uint32, a uint32, s uint32, b uint32) uint32 {
@@ -3358,13 +3369,43 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 92: /* X-form instructions, 3-operands */
 		if p.To.Type == obj.TYPE_CONST {
 			/* imm reg reg */
-			/* operand order: FRA, FRB, BF */
-			bf := int(c.regoff(&p.To)) << 2
-			o1 = AOP_RRR(c.opirr(p.As), uint32(bf), uint32(p.From.Reg), uint32(p.Reg))
+			xf := int32(p.From.Reg)
+			if REG_F0 <= xf && xf <= REG_F31 {
+				/* operand order: FRA, FRB, BF */
+				bf := int(c.regoff(&p.To)) << 2
+				o1 = AOP_RRR(c.opirr(p.As), uint32(bf), uint32(p.From.Reg), uint32(p.Reg))
+			} else {
+				/* operand order: RA, RB, L */
+				l := int(c.regoff(&p.To))
+				o1 = AOP_RRR(c.opirr(p.As), uint32(l), uint32(p.From.Reg), uint32(p.Reg))
+			}
+		} else if p.From3Type() == obj.TYPE_CONST {
+			/* reg reg imm */
+			/* operand order: RB, L, RA */
+			l := int(c.regoff(p.From3))
+			o1 = AOP_RRR(c.opirr(p.As), uint32(l), uint32(p.To.Reg), uint32(p.From.Reg))
 		} else if p.To.Type == obj.TYPE_REG {
-			/* reg reg reg */
-			/* operand order: RS, RB, RA */
-			o1 = AOP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
+			cr := int32(p.To.Reg)
+			if REG_CR0 <= cr && cr <= REG_CR7 {
+				/* cr reg reg */
+				/* operand order: RA, RB, BF */
+				bf := (int(p.To.Reg) & 7) << 2
+				o1 = AOP_RRR(c.opirr(p.As), uint32(bf), uint32(p.From.Reg), uint32(p.Reg))
+			} else if p.From.Type == obj.TYPE_CONST {
+				/* reg imm */
+				/* operand order: L, RT */
+				l := int(c.regoff(&p.From))
+				o1 = AOP_RRR(c.opirr(p.As), uint32(p.To.Reg), uint32(l), uint32(p.Reg))
+			} else {
+				switch p.As {
+				case ACOPY, APASTECC:
+					o1 = AOP_RRR(c.opirr(p.As), uint32(1), uint32(p.From.Reg), uint32(p.To.Reg))
+				default:
+					/* reg reg reg */
+					/* operand order: RS, RB, RA */
+					o1 = AOP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
+				}
+			}
 		}
 
 	case 93: /* X-form instructions, 2-operands */
@@ -3379,6 +3420,11 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = AOP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
 		}
 
+	case 94: /* Z23-form instructions, 4-operands */
+		/* reg reg reg imm */
+		/* operand order: RA, RB, CY, RT */
+		cy := int(c.regoff(p.From3))
+		o1 = AOP_Z23I(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), uint32(cy))
 	}
 
 	out[0] = o1
@@ -3443,6 +3489,8 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVCC(31, 202, 1, 0)
 	case AADDZEVCC:
 		return OPVCC(31, 202, 1, 1)
+	case AADDEX:
+		return OPVCC(31, 170, 0, 0) /* addex - v3.0b */
 
 	case AAND:
 		return OPVCC(31, 28, 0, 0)
@@ -4008,6 +4056,9 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case AVPMSUMD:
 		return OPVX(4, 1224, 0, 0) /* vpmsumd - v2.07 */
 
+	case AVMSUMUDM:
+		return OPVX(4, 35, 0, 0) /* vmsumudm - v3.00b */
+
 	case AVSUBUBM:
 		return OPVX(4, 1024, 0, 0) /* vsububm - v2.03 */
 	case AVSUBUHM:
@@ -4154,6 +4205,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case AVCMPGTSDCC:
 		return OPVC(4, 967, 0, 1) /* vcmpgtsd. - v2.07 */
 
+	case AVCMPNEZB:
+		return OPVC(4, 263, 0, 0) /* vcmpnezb - v3.00 */
+	case AVCMPNEZBCC:
+		return OPVC(4, 263, 0, 1) /* vcmpnezb. - v3.00 */
+
 	case AVPERM:
 		return OPVX(4, 43, 0, 0) /* vperm - v2.03 */
 
@@ -4178,6 +4234,8 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVXX1(31, 51, 0) /* mfvsrd - v2.07 */
 	case AMFVSRWZ:
 		return OPVXX1(31, 115, 0) /* mfvsrwz - v2.07 */
+	case AMFVSRLD:
+		return OPVXX1(31, 307, 0) /* mfvsrld - v3.00 */
 
 	case AMTVSRD, AMTFPRD, AMTVRD:
 		return OPVXX1(31, 179, 0) /* mtvsrd - v2.07 */
@@ -4185,6 +4243,10 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVXX1(31, 211, 0) /* mtvsrwa - v2.07 */
 	case AMTVSRWZ:
 		return OPVXX1(31, 243, 0) /* mtvsrwz - v2.07 */
+	case AMTVSRDD:
+		return OPVXX1(31, 435, 0) /* mtvsrdd - v3.00 */
+	case AMTVSRWS:
+		return OPVXX1(31, 403, 0) /* mtvsrws - v3.00 */
 
 	case AXXLANDQ:
 		return OPVXX3(60, 130, 0) /* xxland - v2.06 */
@@ -4288,6 +4350,13 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVXX2(60, 168, 0) /* xvcvuxwsp - v2.06 */
 	/* End of VSX instructions */
 
+	case AMADDHD:
+		return OPVX(4, 48, 0, 0) /* maddhd - v3.00 */
+	case AMADDHDU:
+		return OPVX(4, 49, 0, 0) /* maddhdu - v3.00 */
+	case AMADDLD:
+		return OPVX(4, 51, 0, 0) /* maddld - v3.00 */
+
 	case AXOR:
 		return OPVCC(31, 316, 0, 0)
 	case AXORCC:
@@ -4379,8 +4448,18 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 		return OPVCC(11, 0, 0, 0) /* L=0 */
 	case ACMPWU:
 		return OPVCC(10, 0, 0, 0)
+	case ACMPEQB:
+		return OPVCC(31, 224, 0, 0) /* cmpeqb - v3.00 */
+
 	case ALSW:
 		return OPVCC(31, 597, 0, 0)
+
+	case ACOPY:
+		return OPVCC(31, 774, 0, 0) /* copy - v3.00 */
+	case APASTECC:
+		return OPVCC(31, 902, 0, 1) /* paste. - v3.00 */
+	case ADARN:
+		return OPVCC(31, 755, 0, 0) /* darn - v3.00 */
 
 	case AMULLW:
 		return OPVCC(7, 0, 0, 0)
@@ -4579,6 +4658,8 @@ func (c *ctxt9) oploadx(a obj.As) uint32 {
 		return OPVCC(31, 21, 0, 0) /* ldx */
 	case AMOVDU:
 		return OPVCC(31, 53, 0, 0) /* ldux */
+	case ALDMX:
+		return OPVCC(31, 309, 0, 0) /* ldmx */
 
 	/* Vector (VMX/Altivec) instructions */
 	/* ISA 2.03 enables these for PPC970. For POWERx processors, these */
