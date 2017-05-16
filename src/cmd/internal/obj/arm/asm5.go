@@ -127,7 +127,6 @@ var optab = []Optab{
 	{ASLL, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
 	{ASLL, C_REG, C_REG, C_REG, 9, 4, 0, 0, 0},
 	{ASWI, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
-	{ASWI, C_NONE, C_NONE, C_LOREG, 10, 4, 0, 0, 0},
 	{ASWI, C_NONE, C_NONE, C_LCON, 10, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_LCON, 11, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_LCONADDR, 11, 4, 0, 0, 0},
