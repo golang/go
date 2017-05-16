@@ -88,7 +88,7 @@ type Name struct {
 	Mangle   string // name used in generated Go
 	C        string // name used in C
 	Define   string // #define expansion
-	Kind     string // "iconst", "fconst", "sconst", "type", "var", "fpvar", "func", "not-type"
+	Kind     string // "iconst", "uconst", "fconst", "sconst", "type", "var", "fpvar", "func", "not-type"
 	Type     *Type  // the type of xxx
 	FuncType *FuncType
 	AddError bool
@@ -100,9 +100,9 @@ func (n *Name) IsVar() bool {
 	return n.Kind == "var" || n.Kind == "fpvar"
 }
 
-// IsConst reports whether Kind is either "iconst", "fconst" or "sconst"
+// IsConst reports whether Kind is either "iconst", "uconst", "fconst" or "sconst"
 func (n *Name) IsConst() bool {
-	return n.Kind == "iconst" || n.Kind == "fconst" || n.Kind == "sconst"
+	return strings.HasSuffix(n.Kind, "const")
 }
 
 // A ExpFunc is an exported function, callable from C.
