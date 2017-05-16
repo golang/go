@@ -54,21 +54,21 @@
 //func open(name *byte, mode, perm int32) int32
 TEXT runtime·open(SB),NOSPLIT,$0-16
 	MOVW    $SYS_OPEN, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+12(FP)
 	RET
 
 //func pread(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
 TEXT runtime·pread(SB),NOSPLIT,$0-24
 	MOVW    $SYS_PREAD, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+20(FP)
 	RET
 
 //func pwrite(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
 TEXT runtime·pwrite(SB),NOSPLIT,$0-24
 	MOVW    $SYS_PWRITE, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+20(FP)
 	RET
 
@@ -79,7 +79,7 @@ TEXT runtime·seek(SB),NOSPLIT,$0-24
 	MOVW	R0, 0(R13)
 	MOVW.W	R1, -4(R13)
 	MOVW	$SYS_SEEK, R0
-	SWI	0
+	SWI	$0
 	MOVW.W	R1, 4(R13)
 	CMP	$-1, R0
 	MOVW.EQ	R0, ret_lo+16(FP)
@@ -89,48 +89,48 @@ TEXT runtime·seek(SB),NOSPLIT,$0-24
 //func closefd(fd int32) int32
 TEXT runtime·closefd(SB),NOSPLIT,$0-8
 	MOVW	$SYS_CLOSE, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+4(FP)
 	RET
 
 //func exits(msg *byte)
 TEXT runtime·exits(SB),NOSPLIT,$0-4
 	MOVW    $SYS_EXITS, R0
-	SWI	0
+	SWI	$0
 	RET
 
 //func brk_(addr unsafe.Pointer) int32
 TEXT runtime·brk_(SB),NOSPLIT,$0-8
 	MOVW    $SYS_BRK_, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+4(FP)
 	RET
 
 //func sleep(ms int32) int32
 TEXT runtime·sleep(SB),NOSPLIT,$0-8
 	MOVW    $SYS_SLEEP, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+4(FP)
 	RET
 
 //func plan9_semacquire(addr *uint32, block int32) int32
 TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0-12
 	MOVW	$SYS_SEMACQUIRE, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+8(FP)
 	RET
 
 //func plan9_tsemacquire(addr *uint32, ms int32) int32
 TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-12
 	MOVW	$SYS_TSEMACQUIRE, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+8(FP)
 	RET
 
 //func nsec(*int64) int64
 TEXT runtime·nsec(SB),NOSPLIT,$-4-12
 	MOVW	$SYS_NSEC, R0
-	SWI	0
+	SWI	$0
 	MOVW	arg+0(FP), R1
 	MOVW	0(R1), R0
 	MOVW	R0, ret_lo+4(FP)
@@ -144,7 +144,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$12-12
 	MOVW	$sysnsec_lo-8(SP), R0	// destination addr
 	MOVW	R0,res-12(SP)
 	MOVW	$SYS_NSEC, R0
-	SWI	0
+	SWI	$0
 	MOVW	sysnsec_lo-8(SP), R1	// R1:R2 = nsec
 	MOVW	sysnsec_hi-4(SP), R2
 
@@ -181,28 +181,28 @@ TEXT runtime·walltime(SB),NOSPLIT,$12-12
 //func notify(fn unsafe.Pointer) int32
 TEXT runtime·notify(SB),NOSPLIT,$0-8
 	MOVW	$SYS_NOTIFY, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+4(FP)
 	RET
 
 //func noted(mode int32) int32
 TEXT runtime·noted(SB),NOSPLIT,$0-8
 	MOVW	$SYS_NOTED, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+4(FP)
 	RET
 
 //func plan9_semrelease(addr *uint32, count int32) int32
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0-12
 	MOVW	$SYS_SEMRELEASE, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+8(FP)
 	RET
 
 //func rfork(flags int32) int32
 TEXT runtime·rfork(SB),NOSPLIT,$0-8
 	MOVW	$SYS_RFORK, R0
-	SWI	0
+	SWI	$0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -297,7 +297,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$0-8
 	MOVW	$ERRMAX, R2
 	MOVW	R2, ret_len+4(FP)
 	MOVW    $SYS_ERRSTR, R0
-	SWI	0
+	SWI	$0
 	MOVW	R1, R2
 	MOVBU	0(R2), R0
 	CMP	$0, R0
