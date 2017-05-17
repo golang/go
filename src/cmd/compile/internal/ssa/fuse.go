@@ -8,7 +8,9 @@ package ssa
 func fuse(f *Func) {
 	for changed := true; changed; {
 		changed = false
-		for _, b := range f.Blocks {
+		// Fuse from end to beginning, to avoid quadratic behavior in fuseBlockPlain. See issue 13554.
+		for i := len(f.Blocks) - 1; i >= 0; i-- {
+			b := f.Blocks[i]
 			changed = fuseBlockIf(b) || changed
 			changed = fuseBlockPlain(b) || changed
 		}
