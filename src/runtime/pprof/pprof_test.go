@@ -602,6 +602,10 @@ func func3(c chan int) { <-c }
 func func4(c chan int) { <-c }
 
 func TestGoroutineCounts(t *testing.T) {
+	// Setting GOMAXPROCS to 1 ensures we can force all goroutines to the
+	// desired blocking point.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+
 	c := make(chan int)
 	for i := 0; i < 100; i++ {
 		switch {
