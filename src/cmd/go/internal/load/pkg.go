@@ -1644,7 +1644,10 @@ func computeBuildID(p *Package) {
 	// different build ID in each Go release.
 	if p.Standard && p.ImportPath == "runtime/internal/sys" && cfg.BuildContext.Compiler != "gccgo" {
 		data, err := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
-		if err != nil {
+		if os.IsNotExist(err) {
+			p.Stale = true
+			p.StaleReason = fmt.Sprintf("missing zversion.go")
+		} else if err != nil {
 			base.Fatalf("go: %s", err)
 		}
 		fmt.Fprintf(h, "zversion %q\n", string(data))
