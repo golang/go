@@ -261,8 +261,11 @@ func writebarrier(f *Func) {
 		}
 
 		// if we have more stores in this block, do this block again
-		for _, w := range b.Values {
-			if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpZeroWB {
+		// check from end to beginning, to avoid quadratic behavior; issue 13554
+		// TODO: track the final value to avoid any looping here at all
+		for i := len(b.Values) - 1; i >= 0; i-- {
+			switch b.Values[i].Op {
+			case OpStoreWB, OpMoveWB, OpZeroWB:
 				goto again
 			}
 		}
