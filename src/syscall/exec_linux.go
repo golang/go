@@ -40,6 +40,7 @@ type SysProcAttr struct {
 	// This parameter is no-op if GidMappings == nil. Otherwise for unprivileged
 	// users this should be set to false for mappings work.
 	GidMappingsEnableSetgroups bool
+	AmbientCaps                []uintptr // Ambient capabilities (Linux only)
 }
 
 var (
@@ -101,6 +102,12 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 //go:noinline
 //go:norace
 func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (r1 uintptr, err1 Errno, p [2]int, locked bool) {
+	// Defined in linux/prctl.h starting with Linux 4.3.
+	const (
+		PR_CAP_AMBIENT       = 0x2f
+		PR_CAP_AMBIENT_RAISE = 0x2
+	)
+
 	// vfork requires that the child not touch any of the parent's
 	// active stack frames. Hence, the child does all post-fork
 	// processing in this stack frame and never returns, while the
@@ -164,6 +171,14 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// Fork succeeded, now in child.
 
 	runtime_AfterForkInChild()
+
+	// Enable the "keep capabilities" flag to set ambient capabilities later.
+	if len(sys.AmbientCaps) > 0 {
+		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_KEEPCAPS, 1, 0, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
 
 	// Wait for User ID/Group ID mappings to be written.
 	if sys.UidMappings != nil || sys.GidMappings != nil {
@@ -274,6 +289,13 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			goto childerror
 		}
 		_, _, err1 = RawSyscall(sys_SETUID, uintptr(cred.Uid), 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	for _, c := range sys.AmbientCaps {
+		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_CAP_AMBIENT, uintptr(PR_CAP_AMBIENT_RAISE), c, 0, 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
