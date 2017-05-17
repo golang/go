@@ -147,7 +147,11 @@ func (f *File) Write(b []byte) (n int, err error) {
 
 	epipecheck(f, e)
 
-	return n, f.wrapErr("write", e)
+	if e != nil {
+		err = f.wrapErr("write", e)
+	}
+
+	return n, err
 }
 
 // WriteAt writes len(b) bytes to the File starting at byte offset off.
