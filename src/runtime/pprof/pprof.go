@@ -401,7 +401,11 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		for _, addr := range p.Stack(index[k]) {
 			// For count profiles, all stack addresses are
 			// return PCs, which is what locForPC expects.
-			locs = append(locs, b.locForPC(addr))
+			l := b.locForPC(addr)
+			if l == 0 { // runtime.goexit
+				continue
+			}
+			locs = append(locs, l)
 		}
 		b.pbSample(values, locs, nil)
 	}
