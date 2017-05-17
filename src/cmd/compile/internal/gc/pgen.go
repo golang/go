@@ -16,6 +16,7 @@ import (
 	"math/rand"
 	"sort"
 	"sync"
+	"time"
 )
 
 // "Portable" code generation.
@@ -247,6 +248,12 @@ func compileSSA(fn *Node, worker int) {
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
 	pp.Free()
+}
+
+func init() {
+	if raceEnabled {
+		rand.Seed(time.Now().UnixNano())
+	}
 }
 
 // compileFunctions compiles all functions in compilequeue.
