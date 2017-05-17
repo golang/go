@@ -47,7 +47,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 //	{
 //		outcode($1, $2, &$3, 0, &$5);
 //	}
-	CLZ.S	R1, R2
+	CLZ	R1, R2
 
 //
 // MOVW
@@ -114,9 +114,9 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 //	{
 //		outcode($1, $2, &$3, $5, &nullgen);
 //	}
-	CMP.S	$1, R2
-	CMP.S	R1<<R2, R3
-	CMP.S	R1, R2
+	CMP	$1, R2
+	CMP	R1<<R2, R3
+	CMP	R1, R2
 
 //
 // MOVM
@@ -132,7 +132,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 //	}
 	MOVM	0(R1), [R2,R5,R8,g] // MOVM	(R1), [R2,R5,R8,g]
 	MOVM	(R1), [R2-R5] // MOVM (R1), [R2,R3,R4,R5]
-	MOVM.S	(R1), [R2]
+	MOVM	(R1), [R2]
 
 //	LTYPE8 cond '[' reglist ']' ',' ioreg
 //	{
@@ -145,7 +145,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 //	}
 	MOVM	[R2,R5,R8,g], 0(R1) // MOVM	[R2,R5,R8,g], (R1)
 	MOVM	[R2-R5], (R1) // MOVM [R2,R3,R4,R5], (R1)
-	MOVM.S	[R2], (R1)
+	MOVM	[R2], (R1)
 
 //
 // SWAP
@@ -154,19 +154,19 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 //	{
 //		outcode($1, $2, &$5, int32($3.Reg), &$7);
 //	}
-	STREX.S	R1, (R2), R3 // STREX.S (R2), R1, R3
+	STREX	R1, (R2), R3 // STREX (R2), R1, R3
 
 //	LTYPE9 cond reg ',' ireg
 //	{
 //		outcode($1, $2, &$5, int32($3.Reg), &$3);
 //	}
-	STREX.S	R1, (R2) // STREX.S (R2), R1, R1
+	STREX	R1, (R2) // STREX (R2), R1, R1
 
 //	LTYPE9 cond comma ireg ',' reg
 //	{
 //		outcode($1, $2, &$4, int32($6.Reg), &$6);
 //	}
-	STREX.S	(R2), R3 // STREX.S (R2), R3, R3
+	STREX	(R2), R3 // STREX (R2), R3, R3
 
 //
 // word
@@ -184,26 +184,26 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 //	{
 //		outcode($1, $2, &$3, 0, &$5);
 //	}
-	ABSF.S	F1, F2
+	ABSF	F1, F2
 
 //	LTYPEK cond frcon ',' freg
 //	{
 //		outcode($1, $2, &$3, 0, &$5);
 //	}
-	ADDD.S	F1, F2
+	ADDD	F1, F2
 	MOVF	$0.5, F2 // MOVF $(0.5), F2
 
 //	LTYPEK cond frcon ',' LFREG ',' freg
 //	{
 //		outcode($1, $2, &$3, $5, &$7);
 //	}
-	ADDD.S	F1, F2, F3
+	ADDD	F1, F2, F3
 
 //	LTYPEL cond freg ',' freg
 //	{
 //		outcode($1, $2, &$3, int32($5.Reg), &nullgen);
 //	}
-	CMPD.S	F1, F2
+	CMPD	F1, F2
 
 //
 // MCR MRC

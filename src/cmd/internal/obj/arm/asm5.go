@@ -597,6 +597,64 @@ func (c *ctxt5) asmoutnacl(origPC int32, p *obj.Prog, o *Optab, out []uint32) in
 	return size
 }
 
+const (
+	T_SBIT = 1 << 0
+	T_PBIT = 1 << 1
+	T_WBIT = 1 << 2
+)
+
+var mayHaveSuffix = map[obj.As]uint8{
+	// bit logic
+	AAND: T_SBIT,
+	AEOR: T_SBIT,
+	AORR: T_SBIT,
+	ABIC: T_SBIT,
+	// arithmatic
+	ASUB: T_SBIT,
+	AADD: T_SBIT,
+	ASBC: T_SBIT,
+	AADC: T_SBIT,
+	ARSB: T_SBIT,
+	ARSC: T_SBIT,
+	// mov
+	AMVN:   T_SBIT,
+	AMOVW:  T_SBIT | T_PBIT | T_WBIT,
+	AMOVB:  T_SBIT | T_PBIT | T_WBIT,
+	AMOVBS: T_SBIT | T_PBIT | T_WBIT,
+	AMOVBU: T_SBIT | T_PBIT | T_WBIT,
+	AMOVH:  T_SBIT | T_PBIT | T_WBIT,
+	AMOVHS: T_SBIT | T_PBIT | T_WBIT,
+	AMOVHU: T_SBIT | T_PBIT | T_WBIT,
+	AMOVM:  T_PBIT | T_WBIT,
+	// shift
+	ASRL: T_SBIT,
+	ASRA: T_SBIT,
+	ASLL: T_SBIT,
+	// mul
+	AMUL:   T_SBIT,
+	AMULU:  T_SBIT,
+	AMULL:  T_SBIT,
+	AMULLU: T_SBIT,
+	// mula
+	AMULA:   T_SBIT,
+	AMULAL:  T_SBIT,
+	AMULALU: T_SBIT,
+	// MRC/MCR
+	AMRC: T_SBIT,
+}
+
+func checkBits(ctxt *obj.Link, p *obj.Prog) {
+	if p.Scond&C_SBIT != 0 && mayHaveSuffix[p.As]&T_SBIT == 0 {
+		ctxt.Diag("invalid .S suffix: %v", p)
+	}
+	if p.Scond&C_PBIT != 0 && mayHaveSuffix[p.As]&T_PBIT == 0 {
+		ctxt.Diag("invalid .P suffix: %v", p)
+	}
+	if p.Scond&C_WBIT != 0 && mayHaveSuffix[p.As]&T_WBIT == 0 {
+		ctxt.Diag("invalid .W suffix: %v", p)
+	}
+}
+
 func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var p *obj.Prog
 	var op *obj.Prog
@@ -675,6 +733,9 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if p.As == AMOVW && p.To.Type == obj.TYPE_REG && p.To.Reg == REGPC && p.Scond&C_SCOND == C_SCOND_NONE {
 			c.flushpool(p, 0, 0)
 		}
+
+		checkBits(ctxt, p)
+
 		pc += int32(m)
 	}
 
@@ -2032,9 +2093,6 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.Scond&C_UBIT != 0 {
 			o1 |= 1 << 23
 		}
-		if p.Scond&C_SBIT != 0 {
-			o1 |= 1 << 22
-		}
 		if p.Scond&C_WBIT != 0 {
 			o1 |= 1 << 21
 		}
@@ -2610,9 +2668,6 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
 	if sc&C_SBIT != 0 {
 		o |= 1 << 20
 	}
-	if sc&(C_PBIT|C_WBIT) != 0 {
-		c.ctxt.Diag(".nil/.W on dp instruction")
-	}
 	switch a {
 	case ADIVHW:
 		return o | 0x71<<20 | 0xf<<12 | 0x1<<4
@@ -2666,6 +2721,9 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
 		return o | 0xc<<21
 
 	case AMOVB, AMOVH, AMOVW:
+		if sc&(C_PBIT|C_WBIT) != 0 {
+			c.ctxt.Diag("invalid .P/.W suffix: %v", p)
+		}
 		return o | 0xd<<21
 	case ABIC:
 		return o | 0xe<<21
@@ -2799,9 +2857,6 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
 }
 
 func (c *ctxt5) opbra(p *obj.Prog, a obj.As, sc int) uint32 {
-	if sc&(C_SBIT|C_PBIT|C_WBIT) != 0 {
-		c.ctxt.Diag("%v: .nil/.nil/.W on bra instruction", p)
-	}
 	sc &= C_SCOND
 	sc ^= C_SCOND_XOR
 	if a == ABL || a == obj.ADUFFZERO || a == obj.ADUFFCOPY {
@@ -2939,9 +2994,6 @@ func (c *ctxt5) olhrr(i int, b int, r int, sc int) uint32 {
 }
 
 func (c *ctxt5) ofsr(a obj.As, r int, v int32, b int, sc int, p *obj.Prog) uint32 {
-	if sc&C_SBIT != 0 {
-		c.ctxt.Diag(".nil on FLDR/FSTR instruction: %v", p)
-	}
 	o := ((uint32(sc) & C_SCOND) ^ C_SCOND_XOR) << 28
 	if sc&C_PBIT == 0 {
 		o |= 1 << 24
