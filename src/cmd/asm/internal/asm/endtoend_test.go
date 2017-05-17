@@ -371,6 +371,10 @@ func TestARMEndToEnd(t *testing.T) {
 	}
 }
 
+func TestARMErrors(t *testing.T) {
+	testErrors(t, "arm", "armerror")
+}
+
 func TestARM64EndToEnd(t *testing.T) {
 	testEndToEnd(t, "arm64", "arm64")
 }
