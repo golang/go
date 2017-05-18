@@ -1805,9 +1805,6 @@ func fncall(l *Node, rt *types.Type) bool {
 	if l.HasCall() || l.Op == OINDEXMAP {
 		return true
 	}
-	if needwritebarrier(l) {
-		return true
-	}
 	if eqtype(l.Type, rt) {
 		return false
 	}
@@ -2247,52 +2244,6 @@ func isReflectHeaderDataField(l *Node) bool {
 		return false
 	}
 	return tsym.Name == "SliceHeader" || tsym.Name == "StringHeader"
-}
-
-// Do we need a write barrier for assigning to l?
-func needwritebarrier(l *Node) bool {
-	if !use_writebarrier {
-		return false
-	}
-
-	if l == nil || isblank(l) {
-		return false
-	}
-
-	// No write barrier for write to stack.
-	if isstack(l) {
-		return false
-	}
-
-	// Package unsafe's documentation says storing pointers into
-	// reflect.SliceHeader and reflect.StringHeader's Data fields
-	// is valid, even though they have type uintptr (#19168).
-	if isReflectHeaderDataField(l) {
-		return true
-	}
-
-	// No write barrier for write of non-pointers.
-	dowidth(l.Type)
-	if !types.Haspointers(l.Type) {
-		return false
-	}
-
-	// No write barrier if this is a pointer to a go:notinheap
-	// type, since the write barrier's inheap(ptr) check will fail.
-	if l.Type.IsPtr() && l.Type.Elem().NotInHeap() {
-		return false
-	}
-
-	// TODO: We can eliminate write barriers if we know *both* the
-	// current and new content of the slot must already be shaded.
-	// We know a pointer is shaded if it's nil, or points to
-	// static data, a global (variable or function), or the stack.
-	// The nil optimization could be particularly useful for
-	// writes to just-allocated objects. Unfortunately, knowing
-	// the "current" value of the slot requires flow analysis.
-
-	// Otherwise, be conservative and use write barrier.
-	return true
 }
 
 func convas(n *Node, init *Nodes) *Node {
