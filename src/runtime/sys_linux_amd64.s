@@ -82,15 +82,18 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVL	$1000000, CX
 	DIVL	CX
 	MOVQ	AX, 0(SP)
-	MOVQ	DX, 8(SP)
+	MOVL	$1000, AX	// usec to nsec
+	MULL	DX
+	MOVQ	AX, 8(SP)
 
-	// select(0, 0, 0, 0, &tv)
+	// pselect6(0, 0, 0, 0, &ts, 0)
 	MOVL	$0, DI
 	MOVL	$0, SI
 	MOVL	$0, DX
 	MOVL	$0, R10
 	MOVQ	SP, R8
-	MOVL	$23, AX
+	MOVL	$0, R9
+	MOVL	$270, AX
 	SYSCALL
 	RET
 
