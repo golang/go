@@ -102,15 +102,6 @@ const (
 	_StackLimit = _StackGuard - _StackSystem - _StackSmall
 )
 
-// Goroutine preemption request.
-// Stored into g->stackguard0 to cause split stack check failure.
-// Must be greater than any real sp.
-// 0xfffffade in hex.
-const (
-	_StackPreempt = uintptrMask & -1314
-	_StackFork    = uintptrMask & -1234
-)
-
 const (
 	// stackDebug == 0: no logging
 	//            == 1: logging of per-stack operations
