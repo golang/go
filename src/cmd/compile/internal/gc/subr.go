@@ -1144,11 +1144,6 @@ func updateHasCall(n *Node) {
 			Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
 		}
 		return
-	case OAS:
-		if needwritebarrier(n.Left) {
-			b = true
-			goto out
-		}
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
 		b = true
 		goto out
