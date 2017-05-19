@@ -208,6 +208,17 @@
 // (Mod64u x y) is always between 0 (inclusive) and y (exclusive).
 (IsInBounds (Mod32u _ y) y) -> (ConstBool [1])
 (IsInBounds (Mod64u _ y) y) -> (ConstBool [1])
+// Right shifting a unsigned number limits its value.
+(IsInBounds (ZeroExt8to64  (Rsh8Ux64  _ (Const64 [c]))) (Const64 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt8to32  (Rsh8Ux64  _ (Const64 [c]))) (Const32 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt8to16  (Rsh8Ux64  _ (Const64 [c]))) (Const16 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh8Ux64  _ (Const64 [c]))  (Const64 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt16to64 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt16to32 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh16Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d -> (ConstBool [1])
+(IsInBounds (ZeroExt32to64 (Rsh32Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 32 && 1<<uint(32-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh32Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 32 && 1<<uint(32-c)-1 < d -> (ConstBool [1])
+(IsInBounds                (Rsh64Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 64 && 1<<uint(64-c)-1 < d -> (ConstBool [1])
 
 (IsSliceInBounds x x) -> (ConstBool [1])
 (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d])) && 0 <= c && c <= d -> (ConstBool [1])
