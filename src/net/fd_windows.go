@@ -170,7 +170,7 @@ func (c *conn) writeBuffers(v *Buffers) (int64, error) {
 	}
 	n, err := c.fd.writeBuffers(v)
 	if err != nil {
-		return n, &OpError{Op: "WSASend", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+		return n, &OpError{Op: "wsasend", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, nil
 }
