@@ -134,7 +134,7 @@ func rewriteValuegeneric(v *Value) bool {
 	case OpInterCall:
 		return rewriteValuegeneric_OpInterCall_0(v)
 	case OpIsInBounds:
-		return rewriteValuegeneric_OpIsInBounds_0(v) || rewriteValuegeneric_OpIsInBounds_10(v) || rewriteValuegeneric_OpIsInBounds_20(v)
+		return rewriteValuegeneric_OpIsInBounds_0(v) || rewriteValuegeneric_OpIsInBounds_10(v) || rewriteValuegeneric_OpIsInBounds_20(v) || rewriteValuegeneric_OpIsInBounds_30(v)
 	case OpIsNonNil:
 		return rewriteValuegeneric_OpIsNonNil_0(v)
 	case OpIsSliceInBounds:
@@ -9748,6 +9748,303 @@ func rewriteValuegeneric_OpIsInBounds_20(v *Value) bool {
 		_ = v_0.Args[1]
 		y := v_0.Args[1]
 		if y != v.Args[1] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (ZeroExt8to64 (Rsh8Ux64 _ (Const64 [c]))) (Const64 [d]))
+	// cond: 0 < c && c <  8 && 1<<uint( 8-c)-1 < d
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to64 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh8Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 < c && c < 8 && 1<<uint(8-c)-1 < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpIsInBounds_30(v *Value) bool {
+	// match: (IsInBounds (ZeroExt8to32 (Rsh8Ux64 _ (Const64 [c]))) (Const32 [d]))
+	// cond: 0 < c && c <  8 && 1<<uint( 8-c)-1 < d
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to32 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh8Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 < c && c < 8 && 1<<uint(8-c)-1 < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (ZeroExt8to16 (Rsh8Ux64 _ (Const64 [c]))) (Const16 [d]))
+	// cond: 0 < c && c <  8 && 1<<uint( 8-c)-1 < d
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to16 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh8Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 < c && c < 8 && 1<<uint(8-c)-1 < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (Rsh8Ux64 _ (Const64 [c])) (Const64 [d]))
+	// cond: 0 < c && c <  8 && 1<<uint( 8-c)-1 < d
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpRsh8Ux64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 < c && c < 8 && 1<<uint(8-c)-1 < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (ZeroExt16to64 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d]))
+	// cond: 0 < c && c < 16 && 1<<uint(16-c)-1 < d
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt16to64 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh16Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 < c && c < 16 && 1<<uint(16-c)-1 < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (ZeroExt16to32 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d]))
+	// cond: 0 < c && c < 16 && 1<<uint(16-c)-1 < d
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt16to32 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh16Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 < c && c < 16 && 1<<uint(16-c)-1 < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (Rsh16Ux64 _ (Const64 [c])) (Const64 [d]))
+	// cond: 0 < c && c < 16 && 1<<uint(16-c)-1 < d
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpRsh16Ux64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 < c && c < 16 && 1<<uint(16-c)-1 < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (ZeroExt32to64 (Rsh32Ux64 _ (Const64 [c]))) (Const64 [d]))
+	// cond: 0 < c && c < 32 && 1<<uint(32-c)-1 < d
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt32to64 {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 < c && c < 32 && 1<<uint(32-c)-1 < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (Rsh32Ux64 _ (Const64 [c])) (Const64 [d]))
+	// cond: 0 < c && c < 32 && 1<<uint(32-c)-1 < d
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 < c && c < 32 && 1<<uint(32-c)-1 < d) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (Rsh64Ux64 _ (Const64 [c])) (Const64 [d]))
+	// cond: 0 < c && c < 64 && 1<<uint(64-c)-1 < d
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		d := v_1.AuxInt
+		if !(0 < c && c < 64 && 1<<uint(64-c)-1 < d) {
 			break
 		}
 		v.reset(OpConstBool)
