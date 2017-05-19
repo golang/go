@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -182,6 +183,11 @@ const detailOutput = false
 // corresponds to what we expect it to be.
 func TestScopeRanges(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
 	dir, err := ioutil.TempDir("", "TestScopeRanges")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
