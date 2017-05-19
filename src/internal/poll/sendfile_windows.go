@@ -16,7 +16,7 @@ func SendFile(fd *FD, src syscall.Handle, n int64) (int64, error) {
 	o := &fd.wop
 	o.qty = uint32(n)
 	o.handle = src
-	done, err := wsrv.ExecIO(o, "TransmitFile", func(o *operation) error {
+	done, err := wsrv.ExecIO(o, func(o *operation) error {
 		return syscall.TransmitFile(o.fd.Sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
 	})
 	return int64(done), err
