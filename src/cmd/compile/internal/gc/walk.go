@@ -2019,29 +2019,18 @@ ret:
 
 // generate code for print
 func walkprint(nn *Node, init *Nodes) *Node {
-	var r *Node
-	var n *Node
-	var on *Node
-	var t *types.Type
-	var et types.EType
-
-	op := nn.Op
-	all := nn.List
-	var calls []*Node
-	notfirst := false
-
 	// Hoist all the argument evaluation up before the lock.
-	walkexprlistcheap(all.Slice(), init)
+	walkexprlistcheap(nn.List.Slice(), init)
 
-	calls = append(calls, mkcall("printlock", nil, init))
-	for i1, n1 := range all.Slice() {
+	notfirst := false
+	calls := []*Node{mkcall("printlock", nil, init)}
+	for i1, n := range nn.List.Slice() {
 		if notfirst {
 			calls = append(calls, mkcall("printsp", nil, init))
 		}
 
-		notfirst = op == OPRINTN
+		notfirst = nn.Op == OPRINTN
 
-		n = n1
 		if n.Op == OLITERAL {
 			switch n.Val().Ctype() {
 			case CTRUNE:
@@ -2059,27 +2048,29 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			n = defaultlit(n, types.Types[TINT64])
 		}
 		n = defaultlit(n, nil)
-		all.SetIndex(i1, n)
+		nn.List.SetIndex(i1, n)
 		if n.Type == nil || n.Type.Etype == TFORW {
 			continue
 		}
 
-		t = n.Type
-		et = n.Type.Etype
-		if n.Type.IsInterface() {
+		t := n.Type
+		et := n.Type.Etype
+		var on *Node
+		switch {
+		case n.Type.IsInterface():
 			if n.Type.IsEmptyInterface() {
 				on = syslook("printeface")
 			} else {
 				on = syslook("printiface")
 			}
 			on = substArgTypes(on, n.Type) // any-1
-		} else if n.Type.IsPtr() || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
+		case n.Type.IsPtr() || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR:
 			on = syslook("printpointer")
 			on = substArgTypes(on, n.Type) // any-1
-		} else if n.Type.IsSlice() {
+		case n.Type.IsSlice():
 			on = syslook("printslice")
 			on = substArgTypes(on, n.Type) // any-1
-		} else if isInt[et] {
+		case isInt[et]:
 			if et == TUINT64 {
 				if isRuntimePkg(t.Sym.Pkg) && t.Sym.Name == "hex" {
 					on = syslook("printhex")
@@ -2089,15 +2080,15 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			} else {
 				on = syslook("printint")
 			}
-		} else if isFloat[et] {
+		case isFloat[et]:
 			on = syslook("printfloat")
-		} else if isComplex[et] {
+		case isComplex[et]:
 			on = syslook("printcomplex")
-		} else if et == TBOOL {
+		case et == TBOOL:
 			on = syslook("printbool")
-		} else if et == TSTRING {
+		case et == TSTRING:
 			on = syslook("printstring")
-		} else {
+		default:
 			badtype(OPRINT, n.Type, nil)
 			continue
 		}
@@ -2109,12 +2100,12 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			n.Type = t
 		}
 
-		r = nod(OCALL, on, nil)
+		r := nod(OCALL, on, nil)
 		r.List.Append(n)
 		calls = append(calls, r)
 	}
 
-	if op == OPRINTN {
+	if nn.Op == OPRINTN {
 		calls = append(calls, mkcall("printnl", nil, nil))
 	}
 
@@ -2123,7 +2114,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 	typecheckslice(calls, Etop)
 	walkexprlist(calls, init)
 
-	r = nod(OEMPTY, nil, nil)
+	r := nod(OEMPTY, nil, nil)
 	r = typecheck(r, Etop)
 	r = walkexpr(r, init)
 	r.Ninit.Set(calls)
