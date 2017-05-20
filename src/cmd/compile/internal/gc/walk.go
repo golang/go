@@ -2024,7 +2024,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 
 	notfirst := false
 	calls := []*Node{mkcall("printlock", nil, init)}
-	for i1, n := range nn.List.Slice() {
+	for i, n := range nn.List.Slice() {
 		if notfirst {
 			calls = append(calls, mkcall("printsp", nil, init))
 		}
@@ -2048,52 +2048,48 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			n = defaultlit(n, types.Types[TINT64])
 		}
 		n = defaultlit(n, nil)
-		nn.List.SetIndex(i1, n)
+		nn.List.SetIndex(i, n)
 		if n.Type == nil || n.Type.Etype == TFORW {
 			continue
 		}
 
-		t := n.Type
-		et := n.Type.Etype
 		var on *Node
-		switch {
-		case n.Type.IsInterface():
+		switch n.Type.Etype {
+		case TINTER:
 			if n.Type.IsEmptyInterface() {
 				on = syslook("printeface")
 			} else {
 				on = syslook("printiface")
 			}
 			on = substArgTypes(on, n.Type) // any-1
-		case n.Type.IsPtr() || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR:
+		case TPTR32, TPTR64, TCHAN, TMAP, TFUNC, TUNSAFEPTR:
 			on = syslook("printpointer")
 			on = substArgTypes(on, n.Type) // any-1
-		case n.Type.IsSlice():
+		case TSLICE:
 			on = syslook("printslice")
 			on = substArgTypes(on, n.Type) // any-1
-		case isInt[et]:
-			if et == TUINT64 {
-				if isRuntimePkg(t.Sym.Pkg) && t.Sym.Name == "hex" {
-					on = syslook("printhex")
-				} else {
-					on = syslook("printuint")
-				}
+		case TUINT64:
+			if isRuntimePkg(n.Type.Sym.Pkg) && n.Type.Sym.Name == "hex" {
+				on = syslook("printhex")
 			} else {
-				on = syslook("printint")
+				on = syslook("printuint")
 			}
-		case isFloat[et]:
+		case TINT, TUINT, TUINTPTR, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64:
+			on = syslook("printint")
+		case TFLOAT32, TFLOAT64:
 			on = syslook("printfloat")
-		case isComplex[et]:
+		case TCOMPLEX64, TCOMPLEX128:
 			on = syslook("printcomplex")
-		case et == TBOOL:
+		case TBOOL:
 			on = syslook("printbool")
-		case et == TSTRING:
+		case TSTRING:
 			on = syslook("printstring")
 		default:
 			badtype(OPRINT, n.Type, nil)
 			continue
 		}
 
-		t = on.Type.Params().Field(0).Type
+		t := on.Type.Params().Field(0).Type
 
 		if !eqtype(t, n.Type) {
 			n = nod(OCONV, n, nil)
