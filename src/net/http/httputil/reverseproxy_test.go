@@ -69,6 +69,7 @@ func TestReverseProxy(t *testing.T) {
 		w.WriteHeader(backendStatus)
 		w.Write([]byte(backendResponse))
 		w.Header().Set("X-Trailer", "trailer_value")
+		w.Header().Set(http.TrailerPrefix+"X-Unannounced-Trailer", "unannounced_trailer_value")
 	}))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
@@ -121,6 +122,9 @@ func TestReverseProxy(t *testing.T) {
 	}
 	if g, e := res.Trailer.Get("X-Trailer"), "trailer_value"; g != e {
 		t.Errorf("Trailer(X-Trailer) = %q ; want %q", g, e)
+	}
+	if g, e := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != e {
+		t.Errorf("Trailer(X-Unannounced-Trailer) = %q ; want %q", g, e)
 	}
 
 	// Test that a backend failing to be reached or one which doesn't return

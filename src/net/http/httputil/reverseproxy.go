@@ -233,7 +233,8 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	// The "Trailer" header isn't included in the Transport's response,
 	// at least for *http.Transport. Build it up from Trailer.
-	if len(res.Trailer) > 0 {
+	announcedTrailers := len(res.Trailer)
+	if announcedTrailers > 0 {
 		trailerKeys := make([]string, 0, len(res.Trailer))
 		for k := range res.Trailer {
 			trailerKeys = append(trailerKeys, k)
@@ -252,7 +253,18 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	p.copyResponse(rw, res.Body)
 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
-	copyHeader(rw.Header(), res.Trailer)
+
+	if len(res.Trailer) == announcedTrailers {
+		copyHeader(rw.Header(), res.Trailer)
+		return
+	}
+
+	for k, vv := range res.Trailer {
+		k = http.TrailerPrefix + k
+		for _, v := range vv {
+			rw.Header().Add(k, v)
+		}
+	}
 }
 
 func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
