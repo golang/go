@@ -193,6 +193,10 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 	}
 
+	if cfg.BuildRace && testCoverMode != "atomic" {
+		base.Fatalf(`-covermode must be "atomic", not %q, when -race is enabled`, testCoverMode)
+	}
+
 	// Tell the test what directory we're running in, so it can write the profiles there.
 	if testProfile && outputDir == "" {
 		dir, err := os.Getwd()
