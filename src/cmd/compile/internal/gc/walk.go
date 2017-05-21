@@ -2022,15 +2022,22 @@ func walkprint(nn *Node, init *Nodes) *Node {
 	// Hoist all the argument evaluation up before the lock.
 	walkexprlistcheap(nn.List.Slice(), init)
 
-	notfirst := false
+	// For println, add " " between elements and "\n" at the end.
+	if nn.Op == OPRINTN {
+		s := nn.List.Slice()
+		t := make([]*Node, 0, len(s)*2)
+		for i, n := range s {
+			x := " "
+			if len(s)-1 == i {
+				x = "\n"
+			}
+			t = append(t, n, nodstr(x))
+		}
+		nn.List.Set(t)
+	}
+
 	calls := []*Node{mkcall("printlock", nil, init)}
 	for i, n := range nn.List.Slice() {
-		if notfirst {
-			calls = append(calls, mkcall("printsp", nil, init))
-		}
-
-		notfirst = nn.Op == OPRINTN
-
 		if n.Op == OLITERAL {
 			switch n.Val().Ctype() {
 			case CTRUNE:
@@ -2083,26 +2090,33 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		case TBOOL:
 			on = syslook("printbool")
 		case TSTRING:
-			on = syslook("printstring")
+			cs := ""
+			if Isconst(n, CTSTR) {
+				cs = n.Val().U.(string)
+			}
+			switch cs {
+			case " ":
+				on = syslook("printsp")
+			case "\n":
+				on = syslook("printnl")
+			default:
+				on = syslook("printstring")
+			}
 		default:
 			badtype(OPRINT, n.Type, nil)
 			continue
 		}
 
-		t := on.Type.Params().Field(0).Type
-
-		if !eqtype(t, n.Type) {
-			n = nod(OCONV, n, nil)
-			n.Type = t
-		}
-
 		r := nod(OCALL, on, nil)
-		r.List.Append(n)
+		if params := on.Type.Params().FieldSlice(); len(params) > 0 {
+			t := params[0].Type
+			if !eqtype(t, n.Type) {
+				n = nod(OCONV, n, nil)
+				n.Type = t
+			}
+			r.List.Append(n)
+		}
 		calls = append(calls, r)
-	}
-
-	if nn.Op == OPRINTN {
-		calls = append(calls, mkcall("printnl", nil, nil))
 	}
 
 	calls = append(calls, mkcall("printunlock", nil, init))
