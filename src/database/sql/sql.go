@@ -2029,8 +2029,12 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (Result, er
 	defer s.closemu.RUnlock()
 
 	var res Result
-	for i := 0; i < maxBadConnRetries; i++ {
-		dc, releaseConn, ds, err := s.connStmt(ctx)
+	strategy := cachedOrNewConn
+	for i := 0; i < maxBadConnRetries+1; i++ {
+		if i == maxBadConnRetries {
+			strategy = alwaysNewConn
+		}
+		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
 		if err != nil {
 			if err == driver.ErrBadConn {
 				continue
@@ -2098,7 +2102,7 @@ func (s *Stmt) removeClosedStmtLocked() {
 // connStmt returns a free driver connection on which to execute the
 // statement, a function to call to release the connection, and a
 // statement bound to that connection.
-func (s *Stmt) connStmt(ctx context.Context) (ci *driverConn, releaseConn func(error), ds *driverStmt, err error) {
+func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (ci *driverConn, releaseConn func(error), ds *driverStmt, err error) {
 	if err = s.stickyErr; err != nil {
 		return
 	}
@@ -2124,7 +2128,7 @@ func (s *Stmt) connStmt(ctx context.Context) (ci *driverConn, releaseConn func(e
 	s.removeClosedStmtLocked()
 	s.mu.Unlock()
 
-	dc, err := s.db.conn(ctx, cachedOrNewConn)
+	dc, err := s.db.conn(ctx, strategy)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -2171,8 +2175,12 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 	defer s.closemu.RUnlock()
 
 	var rowsi driver.Rows
-	for i := 0; i < maxBadConnRetries; i++ {
-		dc, releaseConn, ds, err := s.connStmt(ctx)
+	strategy := cachedOrNewConn
+	for i := 0; i < maxBadConnRetries+1; i++ {
+		if i == maxBadConnRetries {
+			strategy = alwaysNewConn
+		}
+		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
 		if err != nil {
 			if err == driver.ErrBadConn {
 				continue
