@@ -182,3 +182,13 @@ func BenchmarkPrintln(b *testing.B) {
 		l.Println(testString)
 	}
 }
+
+func BenchmarkPrintlnNoFlags(b *testing.B) {
+	const testString = "test"
+	var buf bytes.Buffer
+	l := New(&buf, "", 0)
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		l.Println(testString)
+	}
+}
