@@ -2334,8 +2334,12 @@ func TestStmtCloseOrder(t *testing.T) {
 // Test cases where there's more than maxBadConnRetries bad connections in the
 // pool (issue 8834)
 func TestManyErrBadConn(t *testing.T) {
-	manyErrBadConnSetup := func() *DB {
+	manyErrBadConnSetup := func(first ...func(db *DB)) *DB {
 		db := newTestDB(t, "people")
+
+		for _, f := range first {
+			f(db)
+		}
 
 		nconn := maxBadConnRetries + 1
 		db.SetMaxIdleConns(nconn)
@@ -2399,6 +2403,41 @@ func TestManyErrBadConn(t *testing.T) {
 	defer closeDB(t, db)
 	stmt, err := db.Prepare("SELECT|people|age,name|")
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err = stmt.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Stmt.Exec
+	db = manyErrBadConnSetup(func(db *DB) {
+		stmt, err = db.Prepare("INSERT|people|name=Julia,age=19")
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	defer closeDB(t, db)
+	_, err = stmt.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = stmt.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Stmt.Query
+	db = manyErrBadConnSetup(func(db *DB) {
+		stmt, err = db.Prepare("SELECT|people|age,name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	defer closeDB(t, db)
+	rows, err = stmt.Query()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = rows.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if err = stmt.Close(); err != nil {
