@@ -6,34 +6,20 @@ package rand
 
 import (
 	"internal/syscall/unix"
-	"sync"
 )
 
 func init() {
 	altGetRandom = getRandomLinux
 }
 
-var (
-	once       sync.Once
-	useSyscall bool
-)
-
-func pickStrategy() {
-	// Test whether we should use the system call or /dev/urandom.
-	// We'll fall back to urandom if:
-	// - the kernel is too old (before 3.17)
-	// - the machine has no entropy available (early boot + no hardware
-	//   entropy source?) and we want to avoid blocking later.
-	var buf [1]byte
-	n, err := unix.GetRandom(buf[:], unix.GRND_NONBLOCK)
-	useSyscall = n == 1 && err == nil
-}
-
+// If the kernel is too old (before 3.17) to support the getrandom syscall(),
+// unix.GetRandom will immediately return ENOSYS and we will then fall back to
+// reading from /dev/urandom in rand_unix.go. unix.GetRandom caches the ENOSYS
+// result so we only suffer the syscall overhead once in this case.
+// If the kernel supports the getrandom() syscall, unix.GetRandom will block
+// until the kernel has sufficient randomness (as we don't use GRND_NONBLOCK).
+// In this case, unix.GetRandom will not return an error.
 func getRandomLinux(p []byte) (ok bool) {
-	once.Do(pickStrategy)
-	if !useSyscall {
-		return false
-	}
 	n, err := unix.GetRandom(p, 0)
 	return n == len(p) && err == nil
 }
