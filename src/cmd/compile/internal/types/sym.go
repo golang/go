@@ -18,15 +18,15 @@ import (
 // allows using Sym pointer equality to test for Go identifier uniqueness when
 // handling selector expressions.
 type Sym struct {
-	Importdef  *Pkg     // where imported definition was found
-	Linkname   string   // link name
-	Lastlineno src.XPos // last declaration for diagnostic
+	Importdef *Pkg   // where imported definition was found
+	Linkname  string // link name
 
 	// saved and restored by dcopy
-	Pkg   *Pkg
-	Name  string // object name
-	Def   *Node  // definition: ONAME OTYPE OPACK or OLITERAL
-	Block int32  // blocknumber to catch redeclaration
+	Pkg        *Pkg
+	Name       string   // object name
+	Def        *Node    // definition: ONAME OTYPE OPACK or OLITERAL
+	Block      int32    // blocknumber to catch redeclaration
+	Lastlineno src.XPos // last declaration for diagnostic
 
 	flags   bitset8
 	Label   *Node // corresponding label (ephemeral)
