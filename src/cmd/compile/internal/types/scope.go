@@ -22,6 +22,7 @@ func dcopy(a, b *Sym) {
 	a.Name = b.Name
 	a.Def = b.Def
 	a.Block = b.Block
+	a.Lastlineno = b.Lastlineno
 }
 
 func push() *Sym {
