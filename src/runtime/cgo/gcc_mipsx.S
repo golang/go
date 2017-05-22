@@ -14,8 +14,11 @@
 .globl crosscall1
 .set noat
 crosscall1:
+#ifndef __mips_soft_float
 	addiu	$29, $29, -88
-
+#else
+	addiu	$29, $29, -40 // For soft-float, no need to make room for FP registers
+#endif
 	sw	$31, 0($29)
 	sw	$16, 4($29)
 	sw	$17, 8($29)
@@ -27,14 +30,14 @@ crosscall1:
 	sw	$23, 32($29)
 	sw	$30, 36($29)
 
+#ifndef __mips_soft_float
 	sdc1	$f20, 40($29)
 	sdc1	$f22, 48($29)
 	sdc1	$f24, 56($29)
 	sdc1	$f26, 64($29)
 	sdc1	$f28, 72($29)
 	sdc1	$f30, 80($29)
-
-
+#endif
 	move	$20, $4 // save R4
 	move	$4, $6
 	jalr	$5	// call setg_gcc
@@ -49,16 +52,20 @@ crosscall1:
 	lw	$22, 28($29)
 	lw	$23, 32($29)
 	lw	$30, 36($29)
+#ifndef __mips_soft_float
 	ldc1	$f20, 40($29)
 	ldc1	$f22, 48($29)
 	ldc1	$f24, 56($29)
 	ldc1	$f26, 64($29)
 	ldc1	$f28, 72($29)
 	ldc1	$f30, 80($29)
-
+#endif
 	lw	$31, 0($29)
-
+#ifndef __mips_soft_float
 	addiu	$29, $29, 88
+#else
+	addiu	$29, $29, 40
+#endif
 	jr	$31
 
 .set at
