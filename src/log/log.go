@@ -72,7 +72,7 @@ func (l *Logger) SetOutput(w io.Writer) {
 
 var std = New(os.Stderr, "", LstdFlags)
 
-// Cheap integer to fixed-width decimal ASCII.  Give a negative width to avoid zero-padding.
+// Cheap integer to fixed-width decimal ASCII. Give a negative width to avoid zero-padding.
 func itoa(buf *[]byte, i int, wid int) {
 	// Assemble decimal in reverse order.
 	var b [20]byte
@@ -89,12 +89,16 @@ func itoa(buf *[]byte, i int, wid int) {
 	*buf = append(*buf, b[bp:]...)
 }
 
+// formatHeader writes log header to buf in following order:
+//   * l.prefix (if it's not blank),
+//   * date and/or time (if corresponding flags are provided),
+//   * file and line number (if corresponding flags are provided).
 func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 	*buf = append(*buf, l.prefix...)
-	if l.flag&LUTC != 0 {
-		t = t.UTC()
-	}
 	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
+		if l.flag&LUTC != 0 {
+			t = t.UTC()
+		}
 		if l.flag&Ldate != 0 {
 			year, month, day := t.Date()
 			itoa(buf, year, 4)
@@ -143,7 +147,11 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 // provided for generality, although at the moment on all pre-defined
 // paths it will be 2.
 func (l *Logger) Output(calldepth int, s string) error {
-	now := time.Now() // get this early.
+	// Get time early if we need it.
+	var now time.Time
+	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
+		now = time.Now()
+	}
 	var file string
 	var line int
 	l.mu.Lock()
