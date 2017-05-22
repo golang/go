@@ -114,7 +114,7 @@ Flags:
 
            Caller and Callee are *ssa.Function values, which print as
            "(*sync/atomic.Mutex).Lock", but other attributes may be
-           derived from them, e.g. Caller.Pkg.Object.Path yields the
+           derived from them, e.g. Caller.Pkg.Pkg.Path yields the
            import path of the enclosing package.  Consult the go/ssa
            API documentation for details.
 
@@ -128,7 +128,7 @@ Examples:
 
   Same, but show only the packages of each function:
 
-    callgraph -format '{{.Caller.Pkg.Object.Path}} -> {{.Callee.Pkg.Object.Path}}' \
+    callgraph -format '{{.Caller.Pkg.Pkg.Path}} -> {{.Callee.Pkg.Pkg.Path}}' \
       $GOROOT/src/net/http/triv.go | sort | uniq
 
   Show functions that make dynamic calls into the 'fmt' test package,
