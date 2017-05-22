@@ -2339,26 +2339,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	BYTE	$0x90	// NOP
 
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHT0	(AX)
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHT1	(AX)
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHT2	(AX)
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
-	MOVQ	addr+0(FP), AX
-	PREFETCHNTA	(AX)
-	RET
-
 // This is called from .init_array and follows the platform, not Go, ABI.
 TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	PUSHQ	R15 // The access to global variables below implicitly uses R15, which is callee-save

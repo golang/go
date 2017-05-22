@@ -931,19 +931,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$-8-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
 
-// TODO(aram): use PRFM here.
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
-	RET
-
 TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET
 

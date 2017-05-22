@@ -449,11 +449,6 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
 	return
 }
 
-// prefetch the bits.
-func (h heapBits) prefetch() {
-	prefetchnta(uintptr(unsafe.Pointer((h.bitp))))
-}
-
 // next returns the heapBits describing the next pointer-sized word in memory.
 // That is, if h describes address p, h.next() describes p+ptrSize.
 // Note that next does not modify h. The caller must record the result.

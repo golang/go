@@ -949,18 +949,6 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	BYTE $0x07; BYTE $0x00; // 2-byte nop
 
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
-	RET
-
 TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET
 

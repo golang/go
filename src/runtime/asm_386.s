@@ -1637,19 +1637,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	BYTE	$0x90	// NOP
 
-// Prefetching doesn't seem to help.
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
-	RET
-
 // Add a module's moduledata to the linked list of moduledata objects. This
 // is called from .init_array by a function generated in the linker and so
 // follows the platform ABI wrt register preservation -- it only touches AX,
