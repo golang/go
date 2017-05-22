@@ -30,6 +30,7 @@ var (
 	goos             string
 	goarm            string
 	go386            string
+	gomips           string
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
@@ -138,6 +139,12 @@ func xinit() {
 	}
 	go386 = b
 
+	b = os.Getenv("GOMIPS")
+	if b == "" {
+		b = "hardfloat"
+	}
+	gomips = b
+
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
@@ -194,6 +201,7 @@ func xinit() {
 	os.Setenv("GOHOSTARCH", gohostarch)
 	os.Setenv("GOHOSTOS", gohostos)
 	os.Setenv("GOOS", goos)
+	os.Setenv("GOMIPS", gomips)
 	os.Setenv("GOROOT", goroot)
 	os.Setenv("GOROOT_FINAL", goroot_final)
 
@@ -804,6 +812,11 @@ func runInstall(dir string, ch chan struct{}) {
 			"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
 		}
 
+		if goarch == "mips" || goarch == "mipsle" {
+			// Define GOMIPS_value from gomips.
+			compile = append(compile, "-D", "GOMIPS_"+gomips)
+		}
+
 		doclean := true
 		b := pathf("%s/%s", workdir, filepath.Base(p))
 
@@ -1041,6 +1054,9 @@ func cmdenv() {
 	}
 	if goarch == "386" {
 		xprintf(format, "GO386", go386)
+	}
+	if goarch == "mips" || goarch == "mipsle" {
+		xprintf(format, "GOMIPS", gomips)
 	}
 
 	if *path {

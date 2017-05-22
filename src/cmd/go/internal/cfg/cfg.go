@@ -83,8 +83,9 @@ var (
 	GOROOTsrc = filepath.Join(GOROOT, "src")
 
 	// Used in envcmd.MkEnv and build ID computations.
-	GOARM = fmt.Sprint(objabi.GOARM)
-	GO386 = objabi.GO386
+	GOARM  = fmt.Sprint(objabi.GOARM)
+	GO386  = objabi.GO386
+	GOMIPS = objabi.GOMIPS
 )
 
 // Update build context to use our computed GOROOT.

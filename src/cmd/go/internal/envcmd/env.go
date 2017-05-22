@@ -76,6 +76,8 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: "GOARM", Value: cfg.GOARM})
 	case "386":
 		env = append(env, cfg.EnvVar{Name: "GO386", Value: cfg.GO386})
+	case "mips", "mipsle":
+		env = append(env, cfg.EnvVar{Name: "GOMIPS", Value: cfg.GOMIPS})
 	}
 
 	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
