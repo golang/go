@@ -221,6 +221,12 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 			}
 		}
 	}
+
+	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {
+		// Define GOMIPS_value from cfg.GOMIPS.
+		args = append(args, "-D", "GOMIPS_"+cfg.GOMIPS)
+	}
+
 	var ofiles []string
 	for _, sfile := range sfiles {
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"

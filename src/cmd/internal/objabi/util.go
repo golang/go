@@ -24,6 +24,7 @@ var (
 	GOOS    = envOr("GOOS", defaultGOOS)
 	GO386   = envOr("GO386", defaultGO386)
 	GOARM   = goarm()
+	GOMIPS  = gomips()
 	Version = version
 )
 
@@ -38,6 +39,15 @@ func goarm() int {
 	}
 	// Fail here, rather than validate at multiple call sites.
 	log.Fatalf("Invalid GOARM value. Must be 5, 6, or 7.")
+	panic("unreachable")
+}
+
+func gomips() string {
+	switch v := envOr("GOMIPS", defaultGOMIPS); v {
+	case "hardfloat", "softfloat":
+		return v
+	}
+	log.Fatalf("Invalid GOMIPS value. Must be hardfloat or softfloat.")
 	panic("unreachable")
 }
 
