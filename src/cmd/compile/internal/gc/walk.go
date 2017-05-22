@@ -2036,6 +2036,25 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		nn.List.Set(t)
 	}
 
+	// Collapse runs of constant strings.
+	s := nn.List.Slice()
+	t := make([]*Node, 0, len(s))
+	for i := 0; i < len(s); {
+		var strs []string
+		for i < len(s) && Isconst(s[i], CTSTR) {
+			strs = append(strs, s[i].Val().U.(string))
+			i++
+		}
+		if len(strs) > 0 {
+			t = append(t, nodstr(strings.Join(strs, "")))
+		}
+		if i < len(s) {
+			t = append(t, s[i])
+			i++
+		}
+	}
+	nn.List.Set(t)
+
 	calls := []*Node{mkcall("printlock", nil, init)}
 	for i, n := range nn.List.Slice() {
 		if n.Op == OLITERAL {
