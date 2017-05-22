@@ -1042,27 +1042,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	BYTE	$0x90	// NOP
 
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
-	MOVL	addr+0(FP), AX
-	PREFETCHT0	(AX)
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
-	MOVL	addr+0(FP), AX
-	PREFETCHT1	(AX)
-	RET
-
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
-	MOVL	addr+0(FP), AX
-	PREFETCHT2	(AX)
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
-	MOVL	addr+0(FP), AX
-	PREFETCHNTA	(AX)
-	RET
-
 TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVB	$1, ret+0(FP)
 	RET

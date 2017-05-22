@@ -973,18 +973,6 @@ TEXT runtime·goexit(SB),NOSPLIT,$-4-0
 	// traceback from goexit1 must hit code range of goexit
 	MOVW	R0, R0	// NOP
 
-TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
-	RET
-
-TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
-	RET
-
 // x -> x/1000000, x%1000000, called from Go with args, results on stack.
 TEXT runtime·usplit(SB),NOSPLIT,$0-12
 	MOVW	x+0(FP), R0
