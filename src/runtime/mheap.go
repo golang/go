@@ -108,12 +108,35 @@ type mheap struct {
 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 
 	// range of addresses we might see in the heap
-	bitmap         uintptr // Points to one byte past the end of the bitmap
-	bitmap_mapped  uintptr
-	arena_start    uintptr
-	arena_used     uintptr // One byte past usable heap arena. Set with setArenaUsed.
-	arena_end      uintptr
+	bitmap        uintptr // Points to one byte past the end of the bitmap
+	bitmap_mapped uintptr
+
+	// The arena_* fields indicate the addresses of the Go heap.
+	//
+	// The maximum range of the Go heap is
+	// [arena_start, arena_start+_MaxMem+1).
+	//
+	// The range of the current Go heap is
+	// [arena_start, arena_used). Parts of this range may not be
+	// mapped, but the metadata structures are always mapped for
+	// the full range.
+	arena_start uintptr
+	arena_used  uintptr // Set with setArenaUsed.
+
+	// The heap is grown using a linear allocator that allocates
+	// from the block [arena_alloc, arena_end). arena_alloc is
+	// often, but *not always* equal to arena_used.
+	arena_alloc uintptr
+	arena_end   uintptr
+
+	// arena_reserved indicates that the memory [arena_alloc,
+	// arena_end) is reserved (e.g., mapped PROT_NONE). If this is
+	// false, we have to be careful not to clobber existing
+	// mappings here. If this is true, then we own the mapping
+	// here and *must* clobber it to use it.
 	arena_reserved bool
+
+	_ uint32 // ensure 64-bit alignment
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are

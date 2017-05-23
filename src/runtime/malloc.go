@@ -380,6 +380,7 @@ func mallocinit() {
 	}
 	mheap_.arena_end = p + pSize
 	mheap_.arena_used = p1
+	mheap_.arena_alloc = p1
 	mheap_.arena_reserved = reserved
 
 	if mheap_.arena_start&(_PageSize-1) != 0 {
@@ -398,7 +399,13 @@ func mallocinit() {
 // h.arena_start and h.arena_end. sysAlloc returns nil on failure.
 // There is no corresponding free function.
 func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
-	if n > h.arena_end-h.arena_used {
+	// strandLimit is the maximum number of bytes to strand from
+	// the current arena block. If we would need to strand more
+	// than this, we fall back to sysAlloc'ing just enough for
+	// this allocation.
+	const strandLimit = 16 << 20
+
+	if n > h.arena_end-h.arena_alloc {
 		// If we haven't grown the arena to _MaxMem yet, try
 		// to reserve some more address space.
 		p_size := round(n+_PageSize, 256<<20)
@@ -414,48 +421,54 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 			// p can be just about anywhere in the address
 			// space, including before arena_end.
 			if p == h.arena_end {
-				// The new reservation is contiguous
-				// with the old reservation.
+				// The new block is contiguous with
+				// the current block. Extend the
+				// current arena block.
 				h.arena_end = new_end
 				h.arena_reserved = reserved
-			} else if h.arena_end < p && p+p_size-h.arena_start-1 <= _MaxMem {
+			} else if h.arena_start <= p && p+p_size-h.arena_start-1 <= _MaxMem && h.arena_end-h.arena_alloc < strandLimit {
 				// We were able to reserve more memory
 				// within the arena space, but it's
 				// not contiguous with our previous
-				// reservation. Skip over the unused
-				// address space.
+				// reservation. It could be before or
+				// after our current arena_used.
 				//
 				// Keep everything page-aligned.
 				// Our pages are bigger than hardware pages.
 				h.arena_end = p + p_size
-				used := p + (-p & (_PageSize - 1))
-				h.setArenaUsed(used, false)
+				p = round(p, _PageSize)
+				h.arena_alloc = p
 				h.arena_reserved = reserved
 			} else {
-				// We got a mapping, but it's not
-				// linear with our current arena, so
-				// we can't use it.
+				// We got a mapping, but either
 				//
-				// TODO: Make it possible to allocate
-				// from this. We can't decrease
-				// arena_used, but we could introduce
-				// a new variable for the current
-				// allocation position.
-
+				// 1) It's not in the arena, so we
+				// can't use it. (This should never
+				// happen on 32-bit.)
+				//
+				// 2) We would need to discard too
+				// much of our current arena block to
+				// use it.
+				//
 				// We haven't added this allocation to
 				// the stats, so subtract it from a
 				// fake stat (but avoid underflow).
+				//
+				// We'll fall back to a small sysAlloc.
 				stat := uint64(p_size)
 				sysFree(unsafe.Pointer(p), p_size, &stat)
 			}
 		}
 	}
 
-	if n <= h.arena_end-h.arena_used {
+	if n <= h.arena_end-h.arena_alloc {
 		// Keep taking from our reservation.
-		p := h.arena_used
+		p := h.arena_alloc
 		sysMap(unsafe.Pointer(p), n, h.arena_reserved, &memstats.heap_sys)
-		h.setArenaUsed(p+n, true)
+		h.arena_alloc += n
+		if h.arena_alloc > h.arena_used {
+			h.setArenaUsed(h.arena_alloc, true)
+		}
 
 		if p&(_PageSize-1) != 0 {
 			throw("misrounded allocation in MHeap_SysAlloc")
@@ -485,13 +498,9 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 		return nil
 	}
 
-	p_end := p + p_size
 	p += -p & (_PageSize - 1)
 	if p+n > h.arena_used {
 		h.setArenaUsed(p+n, true)
-		if p_end > h.arena_end {
-			h.arena_end = p_end
-		}
 	}
 
 	if p&(_PageSize-1) != 0 {
