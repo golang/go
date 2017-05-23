@@ -4358,6 +4358,9 @@ func TestServerValidatesHostHeader(t *testing.T) {
 		// Make an exception for HTTP upgrade requests:
 		{"PRI * HTTP/2.0", "", 200},
 
+		// Also an exception for CONNECT requests: (Issue 18215)
+		{"CONNECT golang.org:443 HTTP/1.1", "", 200},
+
 		// But not other HTTP/2 stuff:
 		{"PRI / HTTP/2.0", "", 400},
 		{"GET / HTTP/2.0", "", 400},
